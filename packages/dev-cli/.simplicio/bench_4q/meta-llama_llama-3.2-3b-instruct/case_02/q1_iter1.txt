@@ -1,0 +1,71 @@
+To disable the email field unless the profile role is editor, you can use JavaScript and HTML. Here's an example:
+
+```html
+<!-- HTML form with email field -->
+<form>
+  <label for="email">Email:</label>
+  <input type="email" id="email" name="email">
+  <button type="submit">Submit</button>
+</form>
+```
+
+```javascript
+// JavaScript function to toggle email field
+function toggleEmailField() {
+  const emailField = document.getElementById('email');
+  const roleInput = document.getElementById('role');
+
+  if (roleInput.value === 'editor') {
+    emailField.disabled = false;
+  } else {
+    emailField.disabled = true;
+  }
+}
+
+// Call the function when the role input changes
+document.getElementById('role').addEventListener('change', toggleEmailField);
+```
+
+```html
+<!-- HTML form with role input and email field -->
+<form>
+  <label for="role">Role:</label>
+  <select id="role">
+    <option value="user">User</option>
+    <option value="editor">Editor</option>
+  </select>
+  <input type="email" id="email" name="email">
+  <button type="submit">Submit</button>
+</form>
+```
+
+In this example, the email field is initially disabled. When the user selects "Editor" from the role dropdown, the email field becomes enabled. When the user selects a different role, the email field becomes disabled again.
+
+Alternatively, you can use CSS to hide the email field by default and show it when the role is "editor". Here's an example:
+
+```css
+/* CSS to hide email field by default */
+#email {
+  display: none;
+}
+
+/* CSS to show email field when role is "editor" */
+#email[disabled="disabled"] + select option[value="editor"] + input[type="email"] {
+  display: block;
+}
+```
+
+```html
+<!-- HTML form with role input and email field -->
+<form>
+  <label for="role">Role:</label>
+  <select id="role">
+    <option value="user">User</option>
+    <option value="editor">Editor</option>
+  </select>
+  <input type="email" id="email" name="email">
+  <button type="submit">Submit</button>
+</form>
+```
+
+In this example, the email field is hidden by default. When the user selects "Editor" from the role dropdown, the email field becomes visible.

@@ -1,0 +1,213 @@
+{
+  "benchmark": "llm-reduction-summary",
+  "date": "2026-05-31",
+  "environment": {
+    "platform": "macOS-26.3-arm64-arm-64bit-Mach-O",
+    "python": "3.14.5"
+  },
+  "inputs": {
+    "cache": {
+      "benchmark": "scratch-cache-gate",
+      "error": "",
+      "path": "bench/results_scratch_cache_gate.json",
+      "present": true
+    },
+    "codegen": {
+      "benchmark": "scratch-codegen",
+      "error": "",
+      "path": "bench/results_scratch_codegen.json",
+      "present": true
+    },
+    "live_gate": {
+      "benchmark": "scratch-live-gate",
+      "error": "",
+      "path": "bench/results_scratch_live_gate.json",
+      "present": true
+    },
+    "preflight": {
+      "benchmark": "scratch-release-gate",
+      "error": "",
+      "path": "bench/results_scratch_release_gate.json",
+      "present": true
+    },
+    "recipes": {
+      "benchmark": "scratch-recipes",
+      "error": "",
+      "path": "bench/results_scratch_recipes.json",
+      "present": true
+    },
+    "static_fixers": {
+      "benchmark": "static-fixers",
+      "error": "",
+      "path": "bench/results_static_fixers.json",
+      "present": true
+    }
+  },
+  "levers": {
+    "A_recipes": {
+      "gate_passed": true,
+      "llm_baseline_present": true,
+      "match_rate": 0.6,
+      "matched_cases": 30,
+      "planner_calls_saved": 30,
+      "present": true,
+      "real_corpus": true,
+      "recipe_plan_pass_rate_ge_llm": true,
+      "total_cases": 50
+    },
+    "B_codegen": {
+      "avg_codegen_ms": 51,
+      "codegen_share": 1.0,
+      "executor_pass_rate_ge_llm": true,
+      "gate_passed": true,
+      "latency_reduction_ge_50": true,
+      "llm_baseline_present": true,
+      "pass_rate": 1.0,
+      "present": true,
+      "real_corpus": true,
+      "real_e2e_green_ge_80": true,
+      "real_executor_pass_rate_ge_llm": false,
+      "real_latency_reduction_ge_50": false,
+      "real_mechanical_share_ge_30": true,
+      "tasks_codegen": 90,
+      "total_tasks": 90,
+      "zero_feature_regression_live": true
+    },
+    "C_static_fixers": {
+      "baseline_llm_calls": 100,
+      "fixer_resolved_rate": 0.8,
+      "gate_passed": true,
+      "present": true,
+      "real_corpus": true,
+      "real_package_manager_cases": 10,
+      "real_package_manager_execution": true,
+      "real_package_manager_passed": 10,
+      "real_scratch_import_failure_repaired": true,
+      "retry_call_reduction": 0.4,
+      "scratch_import_failure_cases": 1,
+      "scratch_import_failure_passed": 1,
+      "with_fixer_llm_calls": 60
+    },
+    "D_cache": {
+      "gate_passed": true,
+      "present": true,
+      "real_corpus": true,
+      "warm_hit_rate": 1.0,
+      "warm_hits": 50,
+      "warm_misses": 0
+    },
+    "scratch_live_gate": {
+      "e2e_green": 75,
+      "e2e_green_ge_80": true,
+      "e2e_green_rate": 1.0,
+      "full_matrix": true,
+      "median_wall_clock_s": 6.262,
+      "present": true,
+      "release_ready": true,
+      "skillopt_approved": 8,
+      "skillopt_human_approval_ge_80": true,
+      "skillopt_reviews": 10,
+      "total_runs": 75
+    },
+    "scratch_preflight": {
+      "blocker_count": 0,
+      "blockers": [],
+      "present": true,
+      "ready_for_live_gate": true
+    }
+  },
+  "modeled_call_path": {
+    "baseline_calls": 19,
+    "final_calls": 6,
+    "reduction": 0.6842,
+    "release_target_met": false,
+    "steps": [
+      {
+        "calls": 19,
+        "name": "baseline",
+        "note": "1 planner + 18 doer calls in the roadmap model"
+      },
+      {
+        "calls": 18,
+        "gate_passed": true,
+        "name": "D_cache",
+        "note": "warm cache removes the repeated planner call"
+      },
+      {
+        "calls": 16,
+        "gate_passed": true,
+        "name": "C_static_fixers",
+        "note": "static fixers reduce verify-loop retry calls"
+      },
+      {
+        "calls": 16,
+        "gate_passed": true,
+        "name": "A_recipes",
+        "note": "recipes save cold planner calls for matched common goals"
+      },
+      {
+        "calls": 6,
+        "gate_passed": true,
+        "name": "B_codegen",
+        "note": "mechanical executors replace common doer calls"
+      }
+    ],
+    "target_reduction": 0.68,
+    "target_reduction_met_locally": true
+  },
+  "release_call_proof": {
+    "actual_calls": 0,
+    "baseline_calls": 210,
+    "calls_saved": 210,
+    "planner_calls_after_recipes": 0,
+    "planner_calls_saved_by_recipes": 75,
+    "present": true,
+    "reduction": 1.0,
+    "target_reduction": 0.68,
+    "target_reduction_met": true,
+    "tasks_codegen": 135,
+    "tasks_llm": 0,
+    "tasks_total": 135,
+    "total_runs": 75
+  },
+  "scope": "aggregate issue #33 evidence view; separates local synthetic gates from the real release corpus and LLM-baseline gates",
+  "summary": {
+    "local_synthetic_gates_pass": true,
+    "missing_release_evidence": [
+      "real scratch LLM baseline for B/codegen pass-rate and latency"
+    ],
+    "modeled_baseline_calls": 19,
+    "modeled_final_calls": 6,
+    "modeled_reduction": 0.6842,
+    "release_evidence_complete": false,
+    "release_gates": {
+      "A_recipe_llm_baseline_present": true,
+      "A_recipe_pass_rate_ge_llm": true,
+      "A_recipes_synthetic": true,
+      "B_codegen_llm_baseline_present": true,
+      "B_codegen_synthetic": true,
+      "B_executor_pass_rate_ge_llm": true,
+      "B_latency_reduction_ge_50": true,
+      "B_real_50_scratch_corpus": true,
+      "B_real_e2e_green_ge_80": true,
+      "B_real_executor_pass_rate_ge_llm": false,
+      "B_real_latency_reduction_ge_50": false,
+      "B_real_mechanical_share_ge_30": true,
+      "B_zero_feature_regression_live": true,
+      "C_real_package_manager_execution": true,
+      "C_real_scratch_import_failure_repaired": true,
+      "C_static_fixers_synthetic": true,
+      "D_cache_synthetic": true,
+      "SkillOpt_human_approval_ge_80": true,
+      "aggregate_call_reduction_proof": true,
+      "local_synthetic_gates_pass": true,
+      "real_50_scratch_corpus": true,
+      "release_evidence_complete": false,
+      "scratch_live_e2e_green_ge_80": true,
+      "scratch_live_matrix_complete": true,
+      "scratch_preflight_ready": true,
+      "target_reduction_met": true
+    },
+    "target_reduction_met": true
+  }
+}

@@ -1,0 +1,12 @@
+usage: simplicio nest [-h] {build,verify,tamper} ...
+
+positional arguments:
+  {build,verify,tamper}
+    build               build a perfect B-ary N-Nest tree (optionally with
+                        --tamper)
+    verify              load a tree JSON and verify every node's gate
+    tamper              build + tamper at a given address and verify gate
+                        catches it
+
+options:
+  -h, --help            show this help message and exit

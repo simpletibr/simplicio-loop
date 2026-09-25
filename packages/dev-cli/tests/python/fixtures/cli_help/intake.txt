@@ -1,0 +1,32 @@
+usage: simplicio-py intake [-h] [--root ROOT] [--file FILE] [--stdin]
+                           [--url URL] [--source-url SOURCE_URL]
+                           [--validate-only] [--contract] [--execution-mode]
+                           [--plan-only] [--batch-path BATCH_PATH]
+                           [--print-contract-example] [--json]
+                           [text]
+
+positional arguments:
+  text                  raw task text; defaults to stdin
+
+options:
+  -h, --help            show this help message and exit
+  --root ROOT           repository root used for plan-only mapper discovery
+  --file FILE           read task Markdown/text from a file
+  --stdin               read task Markdown/text from stdin
+  --url URL             fetch task Markdown/text from an HTTP(S) URL
+  --source-url SOURCE_URL
+                        preserve an external source URL without fetching it
+  --validate-only       validate and wrap the TaskSpec in a validation result
+  --contract            compile each TaskSpec into an immutable
+                        ExecutionContract
+  --execution-mode      fail closed when the compiled contract is not
+                        executable
+  --plan-only           emit a contract-backed plan preview without dispatch
+                        or mutation
+  --batch-path BATCH_PATH
+                        persist the frozen multi-task batch at this path
+                        (explicitly mutating)
+  --print-contract-example
+                        print a minimal simplicio.task-spec/v2 stdin example
+                        and exit
+  --json                emit stable structured JSON

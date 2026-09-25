@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/plugin/dev-execution-receipt.schema.json",
+  "title": "Plugin DevExecutionReceipt",
+  "type": "object",
+  "required": [
+    "schema",
+    "status",
+    "reason_code",
+    "convergence_declared",
+    "correlation",
+    "digest",
+    "tool_receipt"
+  ],
+  "properties": {
+    "schema": { "const": "simplicio.plugin.dev-execution-receipt/v1" },
+    "status": {
+      "type": "string",
+      "enum": ["ok", "partial", "failed", "ambiguous", "cancelled", "blocked"]
+    },
+    "reason_code": { "type": "string" },
+    "convergence_declared": { "const": false },
+    "correlation": {
+      "type": "object",
+      "required": ["lease_id", "effect_id", "task_id"],
+      "properties": {
+        "session_id": { "type": "string" },
+        "task_id": { "type": "string" },
+        "attempt_id": { "type": "string" },
+        "lease_id": { "type": "string" },
+        "effect_id": { "type": "string" },
+        "fence": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "digest": { "type": "string", "minLength": 16 },
+    "tool_receipt": {
+      "type": "object",
+      "required": ["schema", "tool", "status", "digest"],
+      "properties": {
+        "schema": { "const": "simplicio.plugin.tool-receipt/v1" },
+        "tool": { "type": "string" },
+        "status": { "type": "string", "enum": ["ok", "blocked", "error"] },
+        "digest": { "type": "string", "minLength": 16 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

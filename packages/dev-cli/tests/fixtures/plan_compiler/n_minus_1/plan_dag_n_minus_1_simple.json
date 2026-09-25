@@ -1,0 +1,45 @@
+{
+  "schema": "simplicio.plan-dag/v1",
+  "plan_id": "plan-fixture-1",
+  "goal_id": "goal-fixture-1",
+  "context_snapshot_id": "snap-fixture-1",
+  "revision": "1",
+  "nodes": [
+    {
+      "node_id": "n1",
+      "capability": "edit.apply",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "read_set": [],
+      "write_set": [],
+      "risk": "low",
+      "uncertainty": "low",
+      "estimated_cost": 1.0,
+      "reason_codes": [],
+      "acceptance_criteria_refs": ["AC1"],
+      "requires_gate": true,
+      "checkpoint_required": false,
+      "rollback_strategy": null
+    },
+    {
+      "node_id": "n2",
+      "capability": "test.run",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": ["n1"],
+      "read_set": [],
+      "write_set": [],
+      "risk": "low",
+      "uncertainty": "low",
+      "estimated_cost": 0.5,
+      "reason_codes": [],
+      "acceptance_criteria_refs": [],
+      "requires_gate": false,
+      "checkpoint_required": false,
+      "rollback_strategy": null
+    }
+  ],
+  "producer_id": "simplicio-runtime",
+  "consumer_id": "simplicio-loop"
+}

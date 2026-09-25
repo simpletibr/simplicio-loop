@@ -1,0 +1,6 @@
+{
+  "install": "xcodebuild -resolvePackageDependencies",
+  "test": "xcodebuild test",
+  "test_runner": "xcodebuild test",
+  "lint": "swift-format lint Sources"
+}

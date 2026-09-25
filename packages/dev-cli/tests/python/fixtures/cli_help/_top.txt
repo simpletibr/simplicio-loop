@@ -1,0 +1,51 @@
+usage: simplicio-py [-h]
+                    {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,release-train,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory,capabilities}
+                    ...
+
+positional arguments:
+  {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,release-train,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory,capabilities}
+    index               index/cache the repo (once, or after changes)
+    task                run a task
+    proposal            compile a non-mutating Runtime ChangeProposal
+    run                 run a task, feature, sprint, or scratch goal
+    bench               compare with vs without (real numbers)
+    cache               inspect or clear completion cache
+    smoke               check the deterministic-only adapter; never contacts
+                        an LLM
+    init                install skill + UserPromptSubmit hook into ~/.claude/
+    detect              heuristic: is a prompt a code-edit task
+    status              show current simplicio-py run state
+    claims              claims-gate checks and report generation
+    inspect             inspect a target with mapper-backed context
+    intake              parse raw task cards into the provider-free TaskSpec
+                        v2 contract
+    doctor              check deterministic readiness and dependency freshness
+    fast                negotiate optional Simplicio Fast capabilities
+    versions            report simplicio-mapper installed/declared/tested
+                        versions, drift, and this repo's own component-release
+                        manifest (issue #232)
+    release-train       verify Mapper release events, immutable artifacts, and
+                        N/N-1 conformance
+    env-export          print shell-safe exports from a dotenv file without
+                        sourcing it
+    mechanical-edit     execute simplicio.mechanical-edit/v1 dry-run or apply
+    changeset           execute simplicio.fast.changeset/v2 through the
+                        mechanical-edit boundary
+    edit                apply a Dev CLI edit plan; legacy plans may delegate
+                        to Runtime
+    reconcile           reconcile a pending Runtime effect from strict
+                        evidence-file proof
+    file                read raw file contents
+    test                run a test command and report results
+    token               token-efficient execution primitives
+    score-skill         deterministic SkillOpt-style scorer for skill/law text
+    runtime             runtime-facing dev-cli contracts
+    prototype           Prototype-First plan, scaffold, validate and promotion
+                        gate
+    memory              cross-vendor memory handoff (markdown + git under
+                        ~/.simplicio/memory)
+    capabilities        print the static command/flag/edit-plan-format
+                        manifest (no heavy imports)
+
+options:
+  -h, --help            show this help message and exit

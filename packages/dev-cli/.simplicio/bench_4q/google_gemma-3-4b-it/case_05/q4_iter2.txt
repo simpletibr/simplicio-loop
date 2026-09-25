@@ -1,0 +1,47 @@
+```
+--- a/src/components/Menu.tsx
++++ b/src/components/Menu.tsx
+@@ -12,7 +12,10 @@
+   const user = useSelector((state) => state.user.group);
+
+   return (
+-    <ul>
++    <ul>
++      {user === 'analytics' && <li style={{color: 'red'}}><ExportIcon/> Export</li>}
++      {user !== 'analytics' && !<ExportIcon/>}
+       <li><HomeIcon/> Home</li>
+       <li><ProfileIcon/> Profile</li>
+     </ul>
+```
+
+```
+TEST:
+describe('Menu Component', () => {
+  it('renders export item for analytics users', async () => {
+    // Assuming state.user.group is set to 'analytics'
+    const analyticsUser = { group: 'analytics' };
+    localStorage.setItem('user', JSON.stringify(analyticsUser));
+    await act(async () => {
+      render(<Menu />, { wrapper: mount });
+    });
+    const exportListItem = await queryByText('Export');
+    expect(exportListItem).toBeInTheDocument();
+  });
+
+  it('does not render export item for non-analytics users', async () => {
+    // Assuming state.user.group is set to 'other'
+    const nonAnalyticsUser = { group: 'other' };
+    localStorage.setItem('user', JSON.stringify(nonAnalyticsUser));
+    await act(async () => {
+      render(<Menu />, { wrapper: mount });
+    });
+    const exportListItem = await queryByText('Export');
+    expect(exportListItem).not.toBeInTheDocument();
+  });
+});
+```
+
+```
+EVIDENCE:
+N/A
+```

@@ -1,0 +1,13 @@
+{
+  "slug": "php-vanilla",
+  "template_version": "0.1.0",
+  "language": "PHP 8.3",
+  "framework": "Composer + PHPUnit",
+  "framework_version": "PHPUnit 11",
+  "package_manager": "composer",
+  "test_runner": "phpunit",
+  "linter": "pint",
+  "deps_required": [],
+  "deps_dev": ["phpunit/phpunit:^11", "laravel/pint:^1.18"],
+  "tags": ["php", "cli", "library", "tests"]
+}

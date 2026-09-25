@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simplicio.dev-cli.edit-plan/v1",
+  "title": "Dev CLI deterministic edit plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "touched_files",
+    "operations",
+    "mapper_binding",
+    "mapper_binding_digest",
+    "runtime_authorization_required",
+    "plan_digest"
+  ],
+  "properties": {
+    "schema": { "const": "simplicio.dev-cli.edit-plan/v1" },
+    "touched_files": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["op", "path", "find", "replace"],
+        "properties": {
+          "op": { "const": "replace_anchor" },
+          "path": { "type": "string", "minLength": 1 },
+          "find": { "type": "string", "minLength": 1 },
+          "replace": { "type": "string" },
+          "expected_sha256": {
+            "type": "string",
+            "pattern": "^(sha256:)?[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "mapper_binding": { "$ref": "../mapper-binding.schema.json" },
+    "mapper_binding_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "runtime_authorization_required": { "const": true },
+    "plan_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

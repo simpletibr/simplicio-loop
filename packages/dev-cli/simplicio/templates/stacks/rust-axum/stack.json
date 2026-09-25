@@ -1,0 +1,13 @@
+{
+  "slug": "rust-axum",
+  "template_version": "0.1.0",
+  "language": "Rust 1.82",
+  "framework": "Axum",
+  "framework_version": "^0.8",
+  "package_manager": "cargo",
+  "test_runner": "cargo test",
+  "linter": "cargo clippy",
+  "deps_required": ["axum@^0.8", "tokio@^1", "serde@^1"],
+  "deps_dev": ["tower@^0.5"],
+  "tags": ["web", "api", "rust", "rest", "compiled"]
+}

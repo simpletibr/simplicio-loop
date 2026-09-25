@@ -1,0 +1,276 @@
+[project]
+name = "simplicio-cli"
+version = "0.18.16"
+description = "Deterministic task-to-code contract and verification CLI. It never executes or provisions an LLM."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Wesley Simplicio", email = "wesleybob4@gmail.com" }]
+keywords = [
+  "deterministic",
+  "verification",
+  "developer-tools",
+  "cli",
+  "rag",
+  "embeddings",
+  "verify-loop",
+  "task-automation",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development",
+  "Topic :: Software Development :: Code Generators",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# Base install is the executor/contract/mapper-context/edit-verify core:
+# mechanical edit (`edit --plan`) + `test`. simplicio-prompt is forbidden
+# on the hot path (no LLM, no prompt kernel). numpy/mapper/libcst stay in
+# base so existing imports do not explode (precedent + skill-router cosine
+# ranking import numpy unconditionally; libcst backs ast_patch). The heavy
+# ML extra (sentence-transformers / PyTorch) stays opt-in. See
+# docs/PYTHON_PACKAGE_INTERDEPENDENCE.md (generated, `--check`-able).
+dependencies = [
+  "numpy>=2.1.0",
+  "simplicio-mapper>=0.26.31,<0.27",
+  "httpx>=0.28.1",
+  "orjson>=3.11.9",
+  "diskcache>=5.6.3",
+  "libcst>=1.8.6",
+  "tiktoken>=0.12.0,<1",
+]
+
+[project.optional-dependencies]
+# Semantic precedent/skill ranking (sentence-transformers -> PyTorch). Only
+# needed once `task`/`run` actually reach the embedding path (no cached
+# vectors yet); the numpy-only cosine-similarity math stays in base.
+ml = ["sentence-transformers>=5.6.0"]
+bench = ["fpdf2>=2.8.7"]
+# Optional canonical Fast adapter. It remains outside the base install until
+# its release train is formally promoted.
+fast = ["simplicio-fast>=2.0.28,<3; python_version >= '3.11'"]
+# Opt-in faster asyncio event loop for the structured-concurrency runtime
+# (simplicio.runtime_async, issue #212). Never required: `install_uvloop()`
+# no-ops on Windows or when this extra is absent, falling back to stdlib
+# asyncio.
+performance = ["uvloop>=0.21.0; sys_platform != 'win32'"]
+all = [
+  "simplicio-cli[ml]",
+  "simplicio-cli[bench]",
+  "simplicio-cli[performance]",
+]
+# CI/dev-only, not a product extra: pytest to run tests/python, plus tomli
+# on 3.10 (tomllib is stdlib only from 3.11+; several tests parse this file).
+# pytest-cov (#202) backs the coverage gate: `scripts/coverage_gate.py`
+# consumes the `coverage.json` report this generates. hypothesis backs
+# property-based tests (e.g. tests/python/test_mechanical_edit.py's
+# operation-ordering invariant, DoD Camada 2 issue #246) that fuzz random
+# plan shapes instead of only asserting the one hand-written regression case.
+test = [
+  "pytest>=8",
+  "pytest-cov>=7",
+  "hypothesis>=6.100",
+  "tomli>=2.0.1; python_version < '3.11'",
+]
+# CI/dev-only lint+type gate (#102): never a base/product dependency.
+# `ruff format --check .` / `ruff check .` / `mypy simplicio` is the local
+# command (see CONTRIBUTING.md / AGENTS.md "Comandos importantes").
+dev = ["simplicio-cli[test]", "ruff>=0.15.8", "mypy>=1.19.1"]
+
+[project.urls]
+Homepage = "https://github.com/simpletibr/simplicio-dev-cli"
+Repository = "https://github.com/simpletibr/simplicio-dev-cli"
+Issues = "https://github.com/simpletibr/simplicio-dev-cli/issues"
+Changelog = "https://github.com/simpletibr/simplicio-dev-cli/releases"
+
+[project.scripts]
+simplicio-cli = "simplicio.cli:main"
+simplicio-codex-wrapper = "simplicio.codex_wrapper:main"
+simplicio-py = "simplicio.cli:main"
+simplicio-dev-cli = "simplicio.cli:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["simplicio*"]
+
+[tool.setuptools.package-data]
+simplicio = [
+  "py.typed",
+  "templates/*.md",
+  "templates/*.sh",
+  "templates/recipes/**/*.json",
+  "templates/recipes/**/*.yaml",
+  "templates/recipes/**/*.yml",
+  "templates/stacks/**/*",
+  "templates/stacks/*/tree/.gitignore",
+  "templates/stacks/*/tree/.eslintrc.json",
+  # `score-skill` loads these builtin scenario fixtures at runtime from
+  # Path(__file__).resolve().parent / "scenarios" (see
+  # simplicio/commands/score_skill.py:_resolve_scenarios). Without this
+  # entry the wheel ships score_skill.py but not its data, so an installed
+  # `simplicio-py score-skill` with no --scenario silently fails outside the
+  # checkout (#167 AC "Package instalado contem docs/schemas esperados").
+  "commands/scenarios/*.json",
+  "contracts/io/v1/*.json",
+  # Static capability manifest for `simplicio-dev-cli capabilities --json`
+  # (issue: cheap capability discovery, no per-attempt --help/--version
+  # subprocess probing). Generated by scripts/gen_capabilities_manifest.py.
+  "data/*.json",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests/python", "tests/contracts"]
+
+# --------------------------------------------------------------------------- #
+# Coverage gate (#202): 85% global, 90% on the "critical" modules listed in
+# `[tool.coverage.simplicio_critical]` below. `scripts/coverage_gate.py`
+# enforces both numbers from the `coverage.json` report; the plain
+# `fail_under` here is a second, redundant floor so a local
+# `pytest --cov=simplicio --cov-fail-under=85` also fails fast without
+# needing the extra script.
+[tool.coverage.run]
+source = ["simplicio"]
+branch = true
+omit = [
+  "simplicio/templates/*",
+  "*/tests/*",
+]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = false
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "def __repr__",
+]
+
+# Not a standard coverage.py table -- read only by scripts/coverage_gate.py
+# to apply the stricter 90% floor from issue #202 ("coverage crítico") to
+# the modules an agent/task pipeline run always exercises: CLI entrypoint,
+# the pipeline/mechanical-edit/mapper core, and the doctor/execution
+# contracts that gate every run.
+[tool.coverage.simplicio_critical]
+threshold = 90
+modules = [
+  "simplicio/cli.py",
+  "simplicio/commands/doctor.py",
+  "simplicio/pipeline.py",
+  "simplicio/mechanical_edit.py",
+  "simplicio/mapper.py",
+  "simplicio/execution_contract.py",
+  "simplicio/doctor.py",
+  "simplicio/store_adapter.py",
+]
+
+# --------------------------------------------------------------------------- #
+# Lint / type gate (#102). Dev-only tooling — see the `dev` extra above.
+# Baseline is intentionally permissive (not `mypy --strict`); documented here
+# rather than left implicit so future tightening is a deliberate diff.
+# --------------------------------------------------------------------------- #
+[tool.ruff]
+# 110 rather than the ruff default of 88: several product modules carry
+# long but meaningful lines (URLs, JSON schema literals, long f-strings in
+# provider/pipeline diagnostics) that read worse wrapped than left alone.
+line-length = 110
+target-version = "py310"
+extend-exclude = [
+  "bench",
+  "output",
+  ".simplicio",
+  ".simplicio/orchestrator",
+  "simplicio/templates",
+]
+
+[tool.ruff.lint]
+# E/F = pyflakes+pycodestyle core, I = isort, UP = pyupgrade, B = bugbear,
+# T20 = flake8-print (issue #106 — blocks new print() regressions in
+# library code; see per-file-ignores below for the documented
+# CLI-handler exception, where stdout IS the subcommand's intended output).
+select = ["E", "F", "I", "UP", "B", "T20"]
+# B008: PLAN_JSON-style default args show up in a few argparse builders;
+# revisit case-by-case with a scoped noqa instead of a blanket ignore.
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+# Test modules intentionally shadow fixtures/imports and use long fixtures.
+"tests/**/*.py" = ["E501", "T201"]
+# CLI-handler exception (#106): stdout IS the intended output of these
+# subcommand entry points (JSON payloads, tables, human summaries), so
+# print() is the correct tool here — never in providers.py, pipeline.py,
+# mapper.py, or any other library module, which
+# stay covered by the bare T201 rule above with zero suppressions.
+"simplicio/cli.py" = ["T201"]
+"simplicio/doctor.py" = ["T201"]
+"simplicio/init.py" = ["T201"]
+"simplicio/cache_cli.py" = ["T201"]
+"simplicio/bench.py" = ["T201"]
+"simplicio/detect.py" = ["T201"]
+"simplicio/commands/*.py" = ["T201"]
+"simplicio/scratch/cli.py" = ["T201"]
+"simplicio/scratch/skill_opt.py" = ["T201"]
+# Standalone dev/CI scripts outside the `simplicio` package — their stdout
+# is their entire purpose (doc-generator output, demo pipeline summary).
+"scripts/**/*.py" = ["T201"]
+# Same standalone dev/CI script category as `scripts/**/*.py` above, just
+# nested under a skill directory (issue #711): dense one-liner regex/dict
+# builders that read worse wrapped than left alone, same reasoning as the
+# tests exception above, plus the same stdout-is-the-output CLI exception.
+"skills/**/scripts/*.py" = ["E501", "T201"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.13"
+files = ["simplicio"]
+# Baseline rigor (#102 AC): permissive on missing third-party stubs, but
+# real within the package. Tighten per-module (`[[tool.mypy.overrides]]`)
+# once a module's own tests give confidence to raise the bar.
+ignore_missing_imports = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+exclude = ["simplicio/templates/"]
+
+# Legacy-debt allowlist (#102 baseline): these modules predate the mypy gate
+# and lean on dynamic dict/Any shapes (JSON-parsed configs, duck-typed
+# introspection over an optional `libcst`/`cst` dependency, dataclass-ish
+# `object` placeholders) that a real fix means non-trivial refactors, not a
+# quick annotation. Tracked as debt rather than silenced with a blanket
+# `ignore_missing_imports`-style rule repo-wide. New code should NOT be
+# added to this list — annotate it properly instead. Shrink this list as
+# each module gets tightened (see issue #102 follow-up).
+[[tool.mypy.overrides]]
+module = [
+  "simplicio.scratch.codegen.python_cst",
+  "simplicio.scratch.stack_registry",
+  "simplicio.mechanical_edit",
+  "simplicio.orchestrator.cost_governor",
+  "simplicio.scratch.codegen.typescript_next_route",
+  "simplicio.scratch.codegen.python_orm",
+  "simplicio.commands.test_run",
+  "simplicio.cache_cli",
+  "simplicio.precedent",
+  "simplicio.scratch.executor",
+  "simplicio.orchestrator.feature",
+  "simplicio.scratch.cli",
+]
+ignore_errors = true

@@ -1,0 +1,7 @@
+usage: simplicio-py bench [-h] [--root ROOT] [--stack STACK] [--cases CASES]
+
+options:
+  -h, --help     show this help message and exit
+  --root ROOT
+  --stack STACK  stack slug (auto-detected if omitted)
+  --cases CASES

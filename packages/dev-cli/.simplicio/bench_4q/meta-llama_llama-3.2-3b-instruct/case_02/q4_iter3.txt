@@ -1,0 +1,105 @@
+**DIFF**
+```diff
+--- src/app/profile/profile.component.html
++++ src/app/profile/profile.component.html
+@@ -1,7 +1,7 @@
+-<form [formGroup]="profileForm">
++<form [formGroup]="profileForm" *ngIf="isEditor">
+   <div formArrayName="email">
+     <input type="email" formControlName="email">
+   </div>
+-</form>
++</form>
+```
+
+**TEST**
+```typescript
+import { TestBed } from '@angular/core/testing';
+import { ProfileComponent } from './profile.component';
+import { ProfileFormBuilder } from './profile-form-builder';
+
+describe('ProfileComponent', () => {
+  let component: ProfileComponent;
+  let formBuilder: ProfileFormBuilder;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      declarations: [ ProfileComponent ],
+      providers: [ ProfileFormBuilder ]
+    }).compileComponents();
+  });
+
+  it('should create', () => {
+    component = TestBed.createComponent(ProfileComponent);
+    expect(component).toBeTruthy();
+  });
+
+  it('email field enabled for editor profile', () => {
+    const isEditor = true;
+    const profileFormBuilder = new ProfileFormBuilder();
+    const profileForm = profileFormBuilder.buildProfileForm();
+    profileForm.get('email').setValue('test@example.com');
+    component.profileForm = profileForm;
+    component.isEditor = isEditor;
+    fixture.detectChanges();
+    expect(component.profileForm.get('email').valid).toBe(true);
+  });
+
+  it('email field disabled for non-editor profile', () => {
+    const isEditor = false;
+    const profileFormBuilder = new ProfileFormBuilder();
+    const profileForm = profileFormBuilder.buildProfileForm();
+    component.profileForm = profileForm;
+    component.isEditor = isEditor;
+    fixture.detectChanges();
+    expect(component.profileForm.get('email').valid).toBe(false);
+  });
+
+  it('email field disabled when profile is not an editor', () => {
+    const isEditor = false;
+    const profileFormBuilder = new ProfileFormBuilder();
+    const profileForm = profileFormBuilder.buildProfileForm();
+    component.profileForm = profileForm;
+    component.isEditor = isEditor;
+    fixture.detectChanges();
+    expect(component.profileForm.get('email').disabled).toBe(true);
+  });
+
+  it('email field disabled when profile is an editor but form is not initialized', () => {
+    const isEditor = true;
+    const profileFormBuilder = new ProfileFormBuilder();
+    const profileForm = profileFormBuilder.buildProfileForm();
+    fixture.detectChanges();
+    expect(component.profileForm.get('email').disabled).toBe(true);
+  });
+});
+```
+
+**EVIDENCE**
+```javascript
+const playwright = require('playwright');
+
+(async () => {
+  const browser = await playwright.chromium.launch();
+  const page = await browser.newPage();
+  await page.goto('http://localhost:420/profile');
+
+  const isEditor = true;
+  const profileFormBuilder = new ProfileFormBuilder();
+  const profileForm = profileFormBuilder.buildProfileForm();
+  profileForm.get('email').setValue('test@example.com');
+  await page.type('#email', 'test@example.com');
+  await page.click('#save');
+  await page.waitForSelector('#email');
+  const emailField = await page.$('#email');
+  expect(await emailField.getAttribute('disabled')).toBe(null);
+
+  await page.click('#toggleEditor');
+  await page.waitForSelector('#email');
+  const emailFieldDisabled = await page.$('#email');
+  expect(await emailFieldDisabled.getAttribute('disabled')).toBe(null);
+
+  await browser.close();
+})();
+```
+Note: The `ProfileFormBuilder` class is assumed to be a custom class that builds the profile form. The `buildProfileForm` method is assumed to return a form group with an email input field.

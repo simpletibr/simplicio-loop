@@ -1,0 +1,101 @@
+{
+  "qwen2.5-coder:3b": {
+    "rows": [
+      {
+        "id": "can_delete",
+        "sem": {
+          "passed": true,
+          "tokens": 133,
+          "ms": 6722,
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 255,
+          "ms": 2692,
+          "error": null
+        }
+      },
+      {
+        "id": "email_editable",
+        "sem": {
+          "passed": true,
+          "tokens": 96,
+          "ms": 1204,
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 215,
+          "ms": 1553,
+          "error": null
+        }
+      },
+      {
+        "id": "slugify",
+        "sem": {
+          "passed": true,
+          "tokens": 252,
+          "ms": 7592,
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 424,
+          "ms": 10541,
+          "error": null
+        }
+      },
+      {
+        "id": "apply_discount",
+        "sem": {
+          "passed": true,
+          "tokens": 261,
+          "ms": 8296,
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 355,
+          "ms": 5113,
+          "error": null
+        }
+      },
+      {
+        "id": "merge_intervals",
+        "sem": {
+          "passed": false,
+          "tokens": 219,
+          "ms": 6971,
+          "error": null
+        },
+        "com": {
+          "passed": false,
+          "tokens": 376,
+          "ms": 8018,
+          "error": null
+        }
+      },
+      {
+        "id": "validate_password",
+        "sem": {
+          "passed": false,
+          "tokens": 160,
+          "ms": 4352,
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 331,
+          "ms": 5210,
+          "error": null
+        }
+      }
+    ],
+    "n": 6,
+    "sem_pass": 4,
+    "com_pass": 5,
+    "sem_pct": 66,
+    "com_pct": 83
+  }
+}

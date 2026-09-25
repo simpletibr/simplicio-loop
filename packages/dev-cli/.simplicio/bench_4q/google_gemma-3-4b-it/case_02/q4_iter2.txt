@@ -1,0 +1,44 @@
+```
+1. DIFF:
+--- a/src/app/profile/profile.component.html
++++ b/src/app/profile/profile.component.html
+@@ -12,7 +12,7 @@
+   <div class="form-group">
+     <label for="firstName">First Name</label>
+     <input type="text" id="firstName" name="firstName" [(ngModel)]="firstName" class="form-control">
+-  </div>
++    <div *ngIf="profileRole === 'editor'">
++      <div class="form-group">
++        <label for="email">Email</label>
++        <input type="email" id="email" name="email" [(ngModel)]="email" class="form-control">
++      </div>
+     </div>
+ ```
+
+2. TEST:
+```typescript
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ProfileComponent } from './profile.component';
+
+describe('ProfileComponent', () => {
+  it('should disable email field for non-editor profiles', async () => {
+    const fixture = TestBed.createComponent(ProfileComponent);
+    fixture.componentInstance.profileRole = 'user';
+    fixture.detectChanges();
+    const emailInput = fixture.nativeElement.querySelector('input[name="email"]');
+    expect(emailInput).toBeNull();
+  });
+
+  it('should enable email field for editor profiles', async () => {
+    const fixture = TestBed.createComponent(ProfileComponent);
+    fixture.componentInstance.profileRole = 'editor';
+    fixture.detectChanges();
+    const emailInput = fixture.nativeElement.querySelector('input[name="email"]');
+    expect(emailInput).toBeDefined();
+  });
+});
+```
+
+3. EVIDENCE:
+N/A
+```

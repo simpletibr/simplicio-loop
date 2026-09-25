@@ -1,0 +1,24 @@
+{
+  "schema": "simplicio.plugin.dev-execution-receipt/v1",
+  "status": "ok",
+  "reason_code": "OK",
+  "convergence_declared": false,
+  "correlation": {
+    "session_id": "session-1",
+    "task_id": "task-1",
+    "attempt_id": "attempt-1",
+    "lease_id": "lease:effect-1",
+    "effect_id": "effect-1",
+    "fence": "fence-1"
+  },
+  "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "tool_receipt": {
+    "schema": "simplicio.plugin.tool-receipt/v1",
+    "tool": "dev-cli.mechanical-edit",
+    "status": "ok",
+    "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "reason_code": "OK",
+    "lease_id": "lease:effect-1",
+    "effect_id": "effect-1"
+  }
+}

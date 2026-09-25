@@ -1,0 +1,13 @@
+{
+  "slug": "ruby-rails",
+  "template_version": "0.1.0",
+  "language": "Ruby 3.3",
+  "framework": "Rails",
+  "framework_version": "7",
+  "package_manager": "bundler",
+  "test_runner": "rails test",
+  "linter": "rubocop",
+  "deps_required": ["rails"],
+  "deps_dev": ["rubocop"],
+  "tags": ["web", "api", "ruby", "rails", "mvc"]
+}

@@ -1,0 +1,14 @@
+{
+  "slug": "ts-nextjs",
+  "template_version": "0.1.0",
+  "language": "TypeScript 5",
+  "framework": "Next.js 14 (app router)",
+  "framework_version": "^14.2",
+  "package_manager": "pnpm",
+  "test_runner": "tsc",
+  "e2e_runner": "playwright",
+  "linter": "eslint",
+  "deps_required": ["next@^14.2", "react@^18", "react-dom@^18"],
+  "deps_dev": ["typescript@^5", "@types/node", "@types/react", "vitest@^2", "@playwright/test@^1.47", "eslint", "eslint-config-next"],
+  "tags": ["web", "ssr", "react", "typescript"]
+}

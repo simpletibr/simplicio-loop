@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="Inter,Helvetica,sans-serif" font-size="12">
+<text x="320.0" y="24" text-anchor="middle" font-size="15" font-weight="600">Wide run - pass rate per quadrant (n=25 obs)</text>
+<rect x="70" y="300.0" width="80" height="0.0" fill="#9ca3af" />
+<text x="110.0" y="294.0" text-anchor="middle" font-weight="600">0%</text>
+<text x="110.0" y="318" text-anchor="middle">Q1 raw 1-shot</text>
+<text x="110.0" y="334" text-anchor="middle" fill="#6b7280">0/25</text>
+<rect x="200" y="140.0" width="80" height="160.0" fill="#60a5fa" />
+<text x="240.0" y="134.0" text-anchor="middle" font-weight="600">64%</text>
+<text x="240.0" y="318" text-anchor="middle">Q2 simplicio 1-shot</text>
+<text x="240.0" y="334" text-anchor="middle" fill="#6b7280">16/25</text>
+<rect x="330" y="190.0" width="80" height="110.0" fill="#fbbf24" />
+<text x="370.0" y="184.0" text-anchor="middle" font-weight="600">44%</text>
+<text x="370.0" y="318" text-anchor="middle">Q3 raw + loop</text>
+<text x="370.0" y="334" text-anchor="middle" fill="#6b7280">11/25</text>
+<rect x="460" y="110.0" width="80" height="190.0" fill="#10b981" />
+<text x="500.0" y="104.0" text-anchor="middle" font-weight="600">76%</text>
+<text x="500.0" y="318" text-anchor="middle">Q4 simplicio + loop</text>
+<text x="500.0" y="334" text-anchor="middle" fill="#6b7280">19/25</text>
+<line x1="60" y1="300" x2="620" y2="300" stroke="#374151" />
+</svg>

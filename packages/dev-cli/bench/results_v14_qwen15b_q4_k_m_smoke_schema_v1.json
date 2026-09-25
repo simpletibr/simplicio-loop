@@ -1,0 +1,82 @@
+{
+  "benchmark": "schema-v1-smoke",
+  "calls": 4,
+  "date": "2026-05-31",
+  "go_no_go": {
+    "criterion": "parse_ok >= 2/4",
+    "pass": false
+  },
+  "issue": 46,
+  "model": "C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\models\\qwen25-coder-15b-gguf\\Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf",
+  "model_spec": "gguf:C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\models\\qwen25-coder-15b-gguf\\Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf",
+  "quant": "Q4_K_M",
+  "rows": [
+    {
+      "artifact_matches_contract": false,
+      "artifact_preview": "",
+      "behaviors_added": [],
+      "call": 1,
+      "confidence": 0.0,
+      "elapsed_ms": 475,
+      "error": "[WinError -1073741795] Windows Error 0xc000001d",
+      "expected_oracle_pass": [],
+      "files_changed": [],
+      "parse_error": "empty response",
+      "parse_ok": false,
+      "total_tokens": 0
+    },
+    {
+      "artifact_matches_contract": false,
+      "artifact_preview": "",
+      "behaviors_added": [],
+      "call": 2,
+      "confidence": 0.0,
+      "elapsed_ms": 342,
+      "error": "[WinError -1073741795] Windows Error 0xc000001d",
+      "expected_oracle_pass": [],
+      "files_changed": [],
+      "parse_error": "empty response",
+      "parse_ok": false,
+      "total_tokens": 0
+    },
+    {
+      "artifact_matches_contract": false,
+      "artifact_preview": "",
+      "behaviors_added": [],
+      "call": 3,
+      "confidence": 0.0,
+      "elapsed_ms": 358,
+      "error": "[WinError -1073741795] Windows Error 0xc000001d",
+      "expected_oracle_pass": [],
+      "files_changed": [],
+      "parse_error": "empty response",
+      "parse_ok": false,
+      "total_tokens": 0
+    },
+    {
+      "artifact_matches_contract": false,
+      "artifact_preview": "",
+      "behaviors_added": [],
+      "call": 4,
+      "confidence": 0.0,
+      "elapsed_ms": 361,
+      "error": "[WinError -1073741795] Windows Error 0xc000001d",
+      "expected_oracle_pass": [],
+      "files_changed": [],
+      "parse_error": "empty response",
+      "parse_ok": false,
+      "total_tokens": 0
+    }
+  ],
+  "summary": {
+    "artifact_matches_contract": 0,
+    "artifact_matches_contract_rate": 0.0,
+    "avg_elapsed_ms": 384,
+    "elapsed_ms": 1536,
+    "parse_failed": 4,
+    "parse_ok": 0,
+    "parse_ok_rate": 0.0,
+    "total_tokens": 0
+  },
+  "task": "PasswordPolicy::isStrong schema v1 smoke"
+}

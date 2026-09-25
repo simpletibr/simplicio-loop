@@ -1,0 +1,19 @@
+{
+  "name": "{project_name}",
+  "version": "0.1.0",
+  "description": "{goal}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "express": "^4.18.3"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "supertest": "^7.0.0"
+  }
+}

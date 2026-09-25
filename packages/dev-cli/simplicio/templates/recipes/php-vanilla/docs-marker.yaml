@@ -1,0 +1,31 @@
+{
+  "name": "docs-marker",
+  "description": "Create or update a Markdown evidence document with a required marker.",
+  "applies_to": ["php-vanilla"],
+  "matches": [
+    "(?is)create\\s+or\\s+update\\s+`(?P<path>docs/[^`]+\\.md)`.*?marker\\s+text\\s+`(?P<marker>[^`]+)`"
+  ],
+  "slots": {
+    "path": {"required": true},
+    "marker": {"required": true}
+  },
+  "rationale": "Use the php-vanilla docs-marker recipe for {path}: the task is an explicit Markdown evidence update.",
+  "files_to_create": [
+    {"path": "{path}", "purpose": "Evidence document containing {marker}"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-doc-marker",
+      "depends_on": [],
+      "goal": "Create or update {path} with marker text `{marker}`.",
+      "target": "{path}",
+      "criteria": "- file contains marker text `{marker}`\\n- document remains Markdown and reviewable",
+      "constraints": "- keep the change limited to the requested evidence document",
+      "verify": "grep -q \"{marker}\" {path}"
+    }
+  ],
+  "deps_to_install": [],
+  "deps_dev": [],
+  "test_command": "grep -q \"{marker}\" {path}",
+  "lint_command": ""
+}

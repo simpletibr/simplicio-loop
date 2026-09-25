@@ -1,0 +1,111 @@
+**src/app/orders/order-detail.component.html**
+```html
+<div class="order-detail">
+  <div class="order-status">
+    <span>{{ order.status }}</span>
+  </div>
+  <div class="approver-permission">
+    <span>{{ user.approverPermission }}</span>
+  </div>
+  <button *ngIf="order.status === 'pending' && user.approverPermission" class="approve-button">Approve</button>
+</div>
+```
+
+**src/app/orders/order-detail.component.spec.ts**
+```typescript
+import { TestBed } from '@angular/core/testing';
+import { OrderDetailComponent } from './order-detail.component';
+import { Order } from '../models/order.model';
+import { User } from '../models/user.model';
+
+describe('OrderDetailComponent', () => {
+  let component: OrderDetailComponent;
+  let order: Order;
+  let user: User;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      declarations: [ OrderDetailComponent ]
+    }).compileComponents();
+  });
+
+  beforeEach(() => {
+    order = {
+      status: 'pending',
+      approverPermission: true
+    };
+    user = {
+      approverPermission: true
+    };
+    component = TestBed.createComponent(OrderDetailComponent);
+    component.order = order;
+    component.user = user;
+  });
+
+  it('should display approve button when order status is pending and user has approver permission', () => {
+    const approveButton = component.querySelector('.approve-button');
+    expect(approveButton).toBeTruthy();
+  });
+
+  it('should not display approve button when order status is not pending', () => {
+    order.status = 'approved';
+    const approveButton = component.querySelector('.approve-button');
+    expect(approveButton).toBeNull();
+  });
+
+  it('should not display approve button when user does not have approver permission', () => {
+    user.approverPermission = false;
+    const approveButton = component.querySelector('.approve-button');
+    expect(approveButton).toBeNull();
+  });
+
+  it('should not display approve button when order status is not pending and user has approver permission', () => {
+    order.status = 'approved';
+    user.approverPermission = true;
+    const approveButton = component.querySelector('.approve-button');
+    expect(approveButton).toBeNull();
+  });
+});
+```
+
+**evidence/playwright-snippet.ts**
+```typescript
+import { chromium } from 'playwright';
+
+(async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  await page.goto('http://localhost:4200/orders/1');
+
+  const approveButton = await page.$('.approve-button');
+  const orderStatus = await page.$('.order-status span');
+  const approverPermission = await page.$('.approver-permission span');
+
+  console.log(`Order Status: ${await orderStatus.textContent()}`);
+  console.log(`Approver Permission: ${await approverPermission.textContent()}`);
+  console.log(`Approve Button: ${await approveButton ? 'visible' : 'hidden'}`);
+
+  await browser.close();
+})();
+```
+
+**evidence/playwright-snippet.ts (pending order status)**
+```typescript
+import { chromium } from 'playwright';
+
+(async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  await page.goto('http://localhost:4200/orders/1');
+
+  await page.click('.approve-button');
+
+  const orderStatus = await page.$('.order-status span');
+  const approverPermission = await page.$('.approver-permission span');
+
+  console.log(`Order Status: ${await orderStatus.textContent()}`);
+  console.log(`Approver Permission: ${await approverPermission.textContent()}`);
+
+  await browser.close();
+})();
+```

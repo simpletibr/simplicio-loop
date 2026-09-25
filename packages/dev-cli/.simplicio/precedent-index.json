@@ -1,0 +1,4243 @@
+{
+  "schema": "simplicio.precedent-index/v1",
+  "version": 1,
+  "generated_at": "2026-06-02T20:50:09.345Z",
+  "source_project_map": ".simplicio/project-map.json",
+  "items": [
+    {
+      "id": "44ade7398d52bdd2",
+      "path": ".agents/reviewer.agent.md",
+      "line": 37,
+      "language": "markdown",
+      "change_type": "test",
+      "tags": [
+        "ui",
+        "markdown",
+        "agents",
+        "reviewer",
+        "agent"
+      ],
+      "summary": "test precedent in .agents/reviewer.agent.md",
+      "snippet": "- [ ] Cada acceptance criterion da task tem teste correspondente\n- [ ] Coverage do diff >= 80%\n- [ ] Testes têm nomes legíveis (`it('persists user when email is unique')`, não `it('test1')`)\n- [ ] Sem `skip`, `only`, `xit`, `xdescribe`\n- [ ] E2E Playwright presente em fluxo crítico (login, checkout, pagamento)"
+    },
+    {
+      "id": "596d396f0920467e",
+      "path": ".agents/tdd.agent.md",
+      "line": 28,
+      "language": "markdown",
+      "change_type": "test",
+      "tags": [
+        "markdown",
+        "agents",
+        "tdd",
+        "agent"
+      ],
+      "summary": "test precedent in .agents/tdd.agent.md",
+      "snippet": "- Cria arquivo de teste no path correto (segue `.specs/architecture/PATTERNS.md`).\n- Nome do teste descreve **comportamento esperado**, não implementação:\n  - Ruim: `it('calls userRepository.save')`\n  - Bom: `it('persists user when email is unique')`\n- Roda o teste. **Tem que falhar.** Se passa de primeira -> teste tá errado, refaz."
+    },
+    {
+      "id": "52e71492637eabba",
+      "path": ".claude/hooks/post-edit.ps1",
+      "line": 29,
+      "language": "powershell",
+      "change_type": "error-handling",
+      "tags": [
+        "powershell",
+        "claude",
+        "hooks",
+        "post",
+        "edit",
+        "ps1"
+      ],
+      "summary": "error-handling precedent in .claude/hooks/post-edit.ps1",
+      "snippet": "if ($jsTsExtensions -contains $ext) {\n    # Prettier formata, ESLint corrige o que da.\n    try {\n        & npx --no-install prettier --write $FilePath 2>$null\n    } catch { }"
+    },
+    {
+      "id": "ddd8571604b60cd3",
+      "path": ".codex/hooks/post-edit.ps1",
+      "line": 29,
+      "language": "powershell",
+      "change_type": "error-handling",
+      "tags": [
+        "powershell",
+        "codex",
+        "hooks",
+        "post",
+        "edit",
+        "ps1"
+      ],
+      "summary": "error-handling precedent in .codex/hooks/post-edit.ps1",
+      "snippet": "if ($jsTsExtensions -contains $ext) {\n    # Prettier formata, ESLint corrige o que da.\n    try {\n        & npx --no-install prettier --write $FilePath 2>$null\n    } catch { }"
+    },
+    {
+      "id": "3b2cb08ff16c4be5",
+      "path": ".github/copilot/agents/reviewer.agent.md",
+      "line": 37,
+      "language": "markdown",
+      "change_type": "test",
+      "tags": [
+        "ui",
+        "markdown",
+        "github",
+        "copilot",
+        "agents",
+        "reviewer",
+        "agent"
+      ],
+      "summary": "test precedent in .github/copilot/agents/reviewer.agent.md",
+      "snippet": "- [ ] Cada acceptance criterion da task tem teste correspondente\n- [ ] Coverage do diff >= 80%\n- [ ] Testes têm nomes legíveis (`it('persists user when email is unique')`, não `it('test1')`)\n- [ ] Sem `skip`, `only`, `xit`, `xdescribe`\n- [ ] E2E Playwright presente em fluxo crítico (login, checkout, pagamento)"
+    },
+    {
+      "id": "3a3cb1b15be22087",
+      "path": ".github/copilot/agents/tdd.agent.md",
+      "line": 28,
+      "language": "markdown",
+      "change_type": "test",
+      "tags": [
+        "markdown",
+        "github",
+        "copilot",
+        "agents",
+        "tdd",
+        "agent"
+      ],
+      "summary": "test precedent in .github/copilot/agents/tdd.agent.md",
+      "snippet": "- Cria arquivo de teste no path correto (segue `.specs/architecture/PATTERNS.md`).\n- Nome do teste descreve **comportamento esperado**, não implementação:\n  - Ruim: `it('calls userRepository.save')`\n  - Bom: `it('persists user when email is unique')`\n- Roda o teste. **Tem que falhar.** Se passa de primeira -> teste tá errado, refaz."
+    },
+    {
+      "id": "1ce1eab531d37909",
+      "path": ".github/dependabot.yml",
+      "line": 3,
+      "language": "yaml",
+      "change_type": "error-handling",
+      "tags": [
+        "yaml",
+        "github",
+        "dependabot",
+        "yml"
+      ],
+      "summary": "error-handling precedent in .github/dependabot.yml",
+      "snippet": "# Dependabot configuration -- issue #21 (dependency-update policy).\n#\n# Schedule: weekly for everything except security advisories (which run\n# immediately). Patch updates auto-merge when CI passes; minor and major\n# wait for human review per DEPENDENCY_POLICY.md."
+    },
+    {
+      "id": "eed883962994809f",
+      "path": ".github/workflows-templates/telemetry-worker.js",
+      "line": 31,
+      "language": "javascript",
+      "change_type": "feature",
+      "tags": [
+        "javascript",
+        "github",
+        "workflows",
+        "templates",
+        "telemetry",
+        "worker"
+      ],
+      "summary": "feature precedent in .github/workflows-templates/telemetry-worker.js",
+      "snippet": "]);\n\nfunction sanitize(obj) {\n  const out = {};\n  for (const key of ALLOWED_FIELDS) {"
+    },
+    {
+      "id": "9a474f3b72131ce1",
+      "path": ".github/workflows/check-deps.yml",
+      "line": 60,
+      "language": "yaml",
+      "change_type": "error-handling",
+      "tags": [
+        "yaml",
+        "github",
+        "workflows",
+        "check",
+        "deps",
+        "yml"
+      ],
+      "summary": "error-handling precedent in .github/workflows/check-deps.yml",
+      "snippet": "                  continue\n\n              try:\n                  meta = requests.get(\n                      f\"https://pypi.org/pypi/{name}/json\", timeout=15"
+    },
+    {
+      "id": "e8eee4d4a0d0408a",
+      "path": ".skills/conventional-commits/SKILL.md",
+      "line": 77,
+      "language": "markdown",
+      "change_type": "test",
+      "tags": [
+        "markdown",
+        "skills",
+        "conventional",
+        "commits",
+        "skill"
+      ],
+      "summary": "test precedent in .skills/conventional-commits/SKILL.md",
+      "snippet": "perf(search): debounce input to reduce API calls from 30 to 3 per typing burst\n\ntest(auth): cover expired-token edge case in login flow\n\nbuild(deps): bump playwright to 1.45.0"
+    },
+    {
+      "id": "08112eb669457859",
+      "path": ".skills/playwright-e2e/SKILL.md",
+      "line": 36,
+      "language": "markdown",
+      "change_type": "test",
+      "tags": [
+        "markdown",
+        "skills",
+        "playwright",
+        "e2e",
+        "skill"
+      ],
+      "summary": "test precedent in .skills/playwright-e2e/SKILL.md",
+      "snippet": "## Steps\n\n1. **Identifique o cenário**. Liste o caminho feliz e os principais erros (input inválido, sessão expirada, 404/500, viewport mobile/desktop). Cada cenário vira um `test(...)`.\n2. **Crie o arquivo** em `tests/e2e/<feature>.spec.ts`. Nome em `kebab-case` casando com a feature (ex.: `tests/e2e/login.spec.ts`).\n3. **Importe fixtures padrão** do Playwright (`test`, `expect`) e qualquer fixture customizada do projeto (`tests/e2e/fixtures/`)."
+    },
+    {
+      "id": "e3f3e8dbde3b7160",
+      "path": ".skills/simplicio-cli/SKILL.md",
+      "line": 30,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "skills",
+        "simplicio",
+        "cli",
+        "skill"
+      ],
+      "summary": "feature precedent in .skills/simplicio-cli/SKILL.md",
+      "snippet": "**Do NOT trigger** on:\n\n- Pure read-only ask (\"what does this function do?\") — answer directly.\n- Architectural decision / refactor amplo cross-file — that goes to `architect` agent + ADR.\n- One-off shell command, lookup, install task."
+    },
+    {
+      "id": "eb7be9b679ba709b",
+      "path": ".specs/architecture/PATTERNS.md",
+      "line": 110,
+      "language": "markdown",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "markdown",
+        "specs",
+        "architecture",
+        "patterns"
+      ],
+      "summary": "test precedent in .specs/architecture/PATTERNS.md",
+      "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
+    },
+    {
+      "id": "51de35e0bef089cd",
+      "path": "CHANGELOG.md",
+      "line": 307,
+      "language": "markdown",
+      "change_type": "error-handling",
+      "tags": [
+        "markdown",
+        "changelog"
+      ],
+      "summary": "error-handling precedent in CHANGELOG.md",
+      "snippet": "\n### Changed\n- `simplicio-mapper>=0.5.0` → `>=0.6.0` (catch up with upstream 0.6.0).\n- `simplicio-prompt>=1.7.0` → `>=1.9.0` (catch up with upstream 1.9.0).\n"
+    },
+    {
+      "id": "2b15bd2609a68e14",
+      "path": "README.backup-2026-05-27.md",
+      "line": 367,
+      "language": "markdown",
+      "change_type": "error-handling",
+      "tags": [
+        "markdown",
+        "readme",
+        "backup",
+        "2026"
+      ],
+      "summary": "error-handling precedent in README.backup-2026-05-27.md",
+      "snippet": "**\"I want to run it in CI / a script / outside Claude Code.\"** Path 2. Get an\nAPI key from any of the providers above (OpenRouter is the cheapest way to\ntry multiple models behind one key), set `SIMPLICIO_API_KEY` +\n`SIMPLICIO_MODEL` + optional `SIMPLICIO_BASE_URL`, run `simplicio task ...`.\n"
+    },
+    {
+      "id": "2becc4b8e9f56811",
+      "path": "README.md",
+      "line": 219,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "readme"
+      ],
+      "summary": "route precedent in README.md",
+      "snippet": "\n> Reproduce the new default set:\n> `BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=<hf-token>\n> BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\"\n> python3 bench/run_offline.py`."
+    },
+    {
+      "id": "d3c9cccb8b4a7333",
+      "path": "README.pt-BR.md",
+      "line": 219,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "readme"
+      ],
+      "summary": "route precedent in README.pt-BR.md",
+      "snippet": "\n> Reproduce the new default set:\n> `BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=<hf-token>\n> BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\"\n> python3 bench/run_offline.py`."
+    },
+    {
+      "id": "98533d8a1a7fd947",
+      "path": "bench/CONSOLIDATED_REPORT.md",
+      "line": 225,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "bench",
+        "consolidated",
+        "report"
+      ],
+      "summary": "route precedent in bench/CONSOLIDATED_REPORT.md",
+      "snippet": "### `bench/results_full_qwen3.md` — família Qwen3-Coder MoE (exec + regex + fan-out)\n\n**Mede:** relatório \"single-source-of-truth\" do branch Qwen3. 2 modelos, exec (12) + regex (10) + fan-out (N=200). Data 2026-05-29. Modelos: `Qwen/Qwen3-Coder-30B-A3B-Instruct` (MoE 30B/3B ativo) e `Qwen/Qwen3-Coder-Next` (MoE 80B/3B ativo, 256K ctx), via HF router.\n\nHeadline single-call:"
+    },
+    {
+      "id": "c486dbdece1537d8",
+      "path": "bench/ISSUE_CLOSURE_EVIDENCE.md",
+      "line": 322,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "bench",
+        "issue",
+        "closure",
+        "evidence"
+      ],
+      "summary": "feature precedent in bench/ISSUE_CLOSURE_EVIDENCE.md",
+      "snippet": "  run for these quants.\n- `docs/adr/0001-qwen15b-schema-v1-quant-decision.md` records the decision:\n  use 3B-class or larger local coder models as the practical lower bound for\n  schema-v1 until another 1.5B model or prompt protocol proves otherwise.\n- `bench/RESULTS_LOCAL_GGUF.md` contains older local Q5_K_M vs Q8_0 evidence"
+    },
+    {
+      "id": "df26668377b20e5b",
+      "path": "bench/LLM_REDUCTION_ROADMAP.md",
+      "line": 114,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "bench",
+        "llm",
+        "reduction",
+        "roadmap"
+      ],
+      "summary": "feature precedent in bench/LLM_REDUCTION_ROADMAP.md",
+      "snippet": "```python\n# simplicio/scratch/codegen/__init__.py\nclass TaskExecutor(ABC):\n    def can_handle(self, task: Task, stack: Stack) -> bool: ...\n    def execute(self, task: Task, project_dir: Path) -> CodegenResult: ..."
+    },
+    {
+      "id": "ef3c732c786640dc",
+      "path": "bench/SCRATCH_MODE_RFC.md",
+      "line": 214,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "bench",
+        "scratch",
+        "mode",
+        "rfc"
+      ],
+      "summary": "route precedent in bench/SCRATCH_MODE_RFC.md",
+      "snippet": "> **Atualização (commit subsequente ao RFC inicial):** o planner default\n> mudou de DeepSeek API direto pra DeepSeek servido pelo HuggingFace\n> Inference Router. Razão: a maioria dos usuários já tem `HF_TOKEN`,\n> reduzindo o atrito de \"comprar mais um plano só pra planner\". Quem\n> prefere DeepSeek direto passa `SIMPLICIO_PLANNER=deepseek/<model>`."
+    },
+    {
+      "id": "dd5ca95c24fa2468",
+      "path": "bench/SIMPLICIO_FLOW_GUIDE.md",
+      "line": 82,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "bench",
+        "simplicio",
+        "flow",
+        "guide"
+      ],
+      "summary": "route precedent in bench/SIMPLICIO_FLOW_GUIDE.md",
+      "snippet": "prefix                  base URL                                env var      tipo\n─────────────────────────────────────────────────────────────────────────────────────\ndeepseek-hf/<model>     https://router.huggingface.co/v1        HF_TOKEN     OpenAI-compat\ndeepseek/<model>        https://api.deepseek.com/v1             DEEPSEEK_API_KEY  OpenAI-compat\nopenai/<model>          https://api.openai.com/v1               OPENAI_API_KEY    OpenAI-compat"
+    },
+    {
+      "id": "b03f1ebfab941cfa",
+      "path": "bench/UNIFIED_RUN_ARCHITECTURE.md",
+      "line": 187,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "bench",
+        "unified",
+        "run",
+        "architecture"
+      ],
+      "summary": "feature precedent in bench/UNIFIED_RUN_ARCHITECTURE.md",
+      "snippet": "\n```python\nclass CostGovernor:\n    budget: Decimal  # USD\n    spent: Decimal"
+    },
+    {
+      "id": "78ba08130d113d4e",
+      "path": "bench/cases_offline.json",
+      "line": 11,
+      "language": "json",
+      "change_type": "test",
+      "tags": [
+        "json",
+        "bench",
+        "cases",
+        "offline"
+      ],
+      "summary": "test precedent in bench/cases_offline.json",
+      "snippet": "      \"screen\\\\.component\\\\.html\",\n      \"(^|\\\\W)diff(\\\\W|:)\",\n      \"(^|\\\\W)test(\\\\W|:)\",\n      \"admin\",\n      \"(absent|hidden|removed|ngIf|not.*admin)\""
+    },
+    {
+      "id": "7b0168df412ace24",
+      "path": "bench/compare_sp.py",
+      "line": 30,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "compare"
+      ],
+      "summary": "feature precedent in bench/compare_sp.py",
+      "snippet": "\n\ndef _has_sp_data(by_model: dict) -> bool:\n    return any(\"sp\" in r for b in by_model.values() for r in b.get(\"rows\", []))\n"
+    },
+    {
+      "id": "ded00d8185eec2e3",
+      "path": "bench/compare_versions.py",
+      "line": 58,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "compare",
+        "versions"
+      ],
+      "summary": "feature precedent in bench/compare_versions.py",
+      "snippet": "\n\ndef _load(path: str) -> dict:\n    p = Path(path)\n    return json.loads(p.read_text()) if p.exists() else {}"
+    },
+    {
+      "id": "2563f54b5127c4c7",
+      "path": "bench/consolidate_4side_report.py",
+      "line": 27,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "consolidate",
+        "4side",
+        "report"
+      ],
+      "summary": "feature precedent in bench/consolidate_4side_report.py",
+      "snippet": "\n\ndef _row_attempts(rows: list, key: str) -> float:\n    vals = [r[key].get(\"attempts\", 1) for r in rows if key in r]\n    return sum(vals) / max(len(vals), 1)"
+    },
+    {
+      "id": "588a46698b690edd",
+      "path": "bench/consolidate_full_report.py",
+      "line": 34,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "consolidate",
+        "full",
+        "report"
+      ],
+      "summary": "feature precedent in bench/consolidate_full_report.py",
+      "snippet": "# ---- per-bench extractors ---- #\n\ndef exec_summary(by_model: dict) -> dict:\n    \"\"\"Per-model: pct for each of the 4 sides + avg agents attempts +\n    avg tokens/ms per side.\"\"\""
+    },
+    {
+      "id": "d2451577c249a32f",
+      "path": "bench/consolidate_v13_report.py",
+      "line": 13,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "python",
+        "bench",
+        "consolidate",
+        "v13",
+        "report"
+      ],
+      "summary": "test precedent in bench/consolidate_v13_report.py",
+      "snippet": "  bench/results_v13_5side.pdf\n\nSides under test (in the bench JSON keys):\n  sem   = baseline (raw goal, no simplicio)\n  com   = cli alone (6-layer contract)"
+    },
+    {
+      "id": "35d14c791d4e52ef",
+      "path": "bench/exec_cases.py",
+      "line": 28,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "python",
+        "bench",
+        "exec",
+        "cases"
+      ],
+      "summary": "test precedent in bench/exec_cases.py",
+      "snippet": "        \"test\": (\n            \"from solution import can_delete\\n\"\n            \"def test_admin_true():\\n\"\n            \"    assert can_delete({'role': 'admin'}) is True\\n\"\n            \"def test_non_admin_false():\\n\""
+    },
+    {
+      "id": "427c78793493ed01",
+      "path": "bench/interim_v13_report.py",
+      "line": 54,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "interim",
+        "v13",
+        "report"
+      ],
+      "summary": "feature precedent in bench/interim_v13_report.py",
+      "snippet": "\n\ndef parse_exec(log: str) -> dict:\n    out = {}\n    current = None"
+    },
+    {
+      "id": "6bc2328646fc264d",
+      "path": "bench/interim_v14_report.py",
+      "line": 25,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "interim",
+        "v14",
+        "report"
+      ],
+      "summary": "feature precedent in bench/interim_v14_report.py",
+      "snippet": "\n\ndef parse():\n    if not LOG.exists():\n        return []"
+    },
+    {
+      "id": "2823ee45ad3073db",
+      "path": "bench/results_4quadrant.json",
+      "line": 144,
+      "language": "json",
+      "change_type": "route",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "4quadrant"
+      ],
+      "summary": "route precedent in bench/results_4quadrant.json",
+      "snippet": "            false\n          ],\n          \"final_output\": \"Okay, here's how you can achieve this, broken down by common scenarios and technologies.  I'll provide examples for:\\n\\n*   **Database Queries (SQL)** - This is the most fundamental approach.\\n*   **Backend Code (Python - Flask/Django)** -  Illustrating how to apply the logic in a web application.\\n*   **Frontend (JavaScript)** -  How to conditionally render the link based on user data.\\n\\n**1. Database Queries (SQL)**\\n\\nThis is the core of the solution.  You'll need to modify your SQL query to only include the audit log link for users with the 'auditor' role.\\n\\n```sql\\nSELECT\\n    *,\\n    CASE\\n        WHEN role = 'auditor' THEN (SELECT '/audit-log' ) -- Or the actual URL\\n        ELSE NULL\\n    END AS audit_log_link\\nFROM\\n    users;\\n```\\n\\n**Explanation:**\\n\\n*   `SELECT *`:  Selects all columns from the `users` table.\\n*   `CASE WHEN role = 'auditor' THEN ... ELSE NULL END`: This is the conditional logic.\\n    *   If the `role` column is equal to 'auditor', it returns the audit log link (e.g., `/audit-log`).  **Replace `/audit-log` with the actual URL of the audit log page.**\\n    *   If the `role` is *not* 'auditor',"
+    },
+    {
+      "id": "0557e210fa5f8225",
+      "path": "bench/results_4quadrant_wide.json",
+      "line": 2147,
+      "language": "json",
+      "change_type": "test",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "4quadrant",
+        "wide"
+      ],
+      "summary": "test precedent in bench/results_4quadrant_wide.json",
+      "snippet": "        \"screen\\\\.component\\\\.html\",\n        \"(^|\\\\W)diff(\\\\W|:)\",\n        \"(^|\\\\W)test(\\\\W|:)\",\n        \"admin\",\n        \"(absent|hidden|removed|ngIf|not.*admin)\""
+    },
+    {
+      "id": "ca882926771f2fb0",
+      "path": "bench/results_4side_qwen3.md",
+      "line": 28,
+      "language": "markdown",
+      "change_type": "error-handling",
+      "tags": [
+        "markdown",
+        "bench",
+        "results",
+        "4side",
+        "qwen3"
+      ],
+      "summary": "error-handling precedent in bench/results_4side_qwen3.md",
+      "snippet": "## Agents verify-loop convergence\n\nLower attempts = the model resolved the case earlier; 1 means it passed on the first try with no feedback. Max attempts capped per harness.\n\n| Model | metric | avg attempts (cli+ag) |"
+    },
+    {
+      "id": "b0c5388bdeeaecfb",
+      "path": "bench/results_exec_sindico.md",
+      "line": 57,
+      "language": "markdown",
+      "change_type": "error-handling",
+      "tags": [
+        "markdown",
+        "bench",
+        "results",
+        "exec",
+        "sindico"
+      ],
+      "summary": "error-handling precedent in bench/results_exec_sindico.md",
+      "snippet": "| router_extract_params | P/P/./P(1) |\n\nFormat suffix `(N)` on cli+ag is the number of verify-loop attempts consumed (1–3). Lower is better; 1 means it passed on the first try, no feedback needed.\n\nRaw counts above are real `vendor/bin/phpunit` exit codes against `sistema-sindico`. `results_exec_sindico.json` holds per-case pass/fail, tokens, latency and a phpunit tail for every side."
+    },
+    {
+      "id": "a4336f808ba515c3",
+      "path": "bench/results_full_qwen3.md",
+      "line": 9,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "bench",
+        "results",
+        "full",
+        "qwen3"
+      ],
+      "summary": "route precedent in bench/results_full_qwen3.md",
+      "snippet": "## Models\n\n- **`Qwen/Qwen3-Coder-30B-A3B-Instruct`** — MoE 30B total / 3B active per token, Apache 2.0, served via the HuggingFace Inference Router.\n- **`Qwen/Qwen3-Coder-Next`** — MoE 80B total / 3B active, 256K context, Apache 2.0, also via HF router.\n"
+    },
+    {
+      "id": "cdbb6e3fe8242d41",
+      "path": "bench/results_rust_qwen.md",
+      "line": 43,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "bench",
+        "results",
+        "rust",
+        "qwen"
+      ],
+      "summary": "feature precedent in bench/results_rust_qwen.md",
+      "snippet": "```\n>>> from simplicio.prompt import _rs_build\n_rs_build = <built-in function build_6layer_prompt>\n>>> simplicio_core.hello(\"rust\")\n'hello, rust!'"
+    },
+    {
+      "id": "075fad08a6d02623",
+      "path": "bench/results_scratch_codegen.json",
+      "line": 257,
+      "language": "json",
+      "change_type": "route",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "scratch",
+        "codegen"
+      ],
+      "summary": "route precedent in bench/results_scratch_codegen.json",
+      "snippet": "      \"expected_executor\": \"go-gin-crud\",\n      \"expected_executor_match\": true,\n      \"log_tail\": \"generated Gin CRUD routes for condo_units\\nfiles_modified=$WORK_DIR\\\\projects\\\\go-gin-crud-r01\\\\internal\\\\http\\\\router.go\",\n      \"metrics\": {\n        \"avg_codegen_ms\": 1,"
+    },
+    {
+      "id": "237925710d125400",
+      "path": "bench/results_scratch_codegen_llm_baseline.json",
+      "line": 34,
+      "language": "json",
+      "change_type": "feature",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "scratch",
+        "codegen",
+        "llm",
+        "baseline"
+      ],
+      "summary": "feature precedent in bench/results_scratch_codegen_llm_baseline.json",
+      "snippet": "      \"duration_ms\": 1,\n      \"execution_mode\": \"llm\",\n      \"log_tail\": \" name: str\\\\n    email: str | None = None\\\\n\\\\n\\\\nclass UserUpdate(BaseModel):\\\\n    name: str | None = None\\\\n    email: str | None = None\\\\n\\\\n\\\\nclass UserRead(BaseModel):\\\\n    id: int\\\\n    name: str\\\\n    email: str | None = None\\\\n    created_at: datetime\\\\n\\\\n    class Config:\\\\n        orm_mode = True\\\\n\\\"}\\n\",\n      \"metrics\": {\n        \"tasks_codegen\": 0,"
+    },
+    {
+      "id": "c637e270bb41a834",
+      "path": "bench/results_scratch_codegen_real_baseline_partial.json",
+      "line": 126,
+      "language": "json",
+      "change_type": "feature",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "scratch",
+        "codegen",
+        "real",
+        "baseline",
+        "partial"
+      ],
+      "summary": "feature precedent in bench/results_scratch_codegen_real_baseline_partial.json",
+      "snippet": "      \"expected_executor\": \"python-add-pytest-test\",\n      \"expected_executor_match\": false,\n      \"log_tail\": \"codegen fallback: libcst is not installed\\ngoal=Generate a happy-path pytest for function double in src/utils/math_ops.py\",\n      \"metrics\": {\n        \"avg_codegen_ms\": 0,"
+    },
+    {
+      "id": "2fc079737306f2de",
+      "path": "bench/results_scratch_live_gate_codegen_disabled_baseline.json",
+      "line": 249,
+      "language": "json",
+      "change_type": "route",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "scratch",
+        "live",
+        "gate",
+        "codegen",
+        "disabled",
+        "baseline"
+      ],
+      "summary": "route precedent in bench/results_scratch_live_gate_codegen_disabled_baseline.json",
+      "snippet": "      \"stack\": \"go-gin\",\n      \"stderr_tail\": \"[scratch] stack:   go-gin (Go 1.22 / Gin)\\n[scratch] project: gate-g01-go-gin\\n[scratch] planner: planner=codex-cli/default (shell-out)\\n[scratch] generating plan...\\n[scratch] plan ok: 1 tasks\\n\",\n      \"stdout_tail\": \"golang.org/x/arch v0.8.0\\\\ngo: downloading github.com/klauspost/cpuid/v2 v2.2.7\\\\ngo: downloading github.com/bytedance/sonic/loader v0.1.1\\\\ngo: downloading github.com/twitchyliquid64/golang-asm v0.15.1\\\\ngo: downloading github.com/cloudwego/iasm v0.2.0\\\\ngo: downloading github.com/go-playground/assert/v2 v2.2.0\\\\ngo: downloading github.com/google/go-cmp v0.5.5\\\\ngo: downloading gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405\\\\ngo: downloading golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543\\\\n\\\",\\n  \\\"tasks\\\": [\\n    {\\n      \\\"id\\\": \\\"T01-gin-crud\\\",\\n      \\\"target\\\": \\\"internal/http/router.go\\\",\\n      \\\"passed\\\": true,\\n      \\\"execution_mode\\\": \\\"llm\\\",\\n      \\\"codegen_executor\\\": null,\\n      \\\"files_modified\\\": [],\\n      \\\"skipped\\\": null,\\n      \\\"duration_ms\\\": 197963,\\n      \\\"log_tail\\\": \\\"codegen fallback: codegen disabled by SIMPLICIO_DISABLE_CODEGEN\\\\n\\\\n{\\\\n  \\\\\\\"applied\\\\\\\": true,\\\\n  \\\\\\\""
+    },
+    {
+      "id": "1d7944826aa3eaf6",
+      "path": "bench/results_scratch_live_llm_baseline.json",
+      "line": 87,
+      "language": "json",
+      "change_type": "route",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "scratch",
+        "live",
+        "llm",
+        "baseline"
+      ],
+      "summary": "route precedent in bench/results_scratch_live_llm_baseline.json",
+      "snippet": "      \"stack\": \"go-gin\",\n      \"stderr_tail\": \"[scratch] stack:   go-gin (Go 1.22 / Gin)\\n[scratch] project: gate-g01-go-gin\\n[scratch] planner: planner=codex-cli/default (shell-out)\\n[scratch] generating plan...\\n[scratch] plan ok: 1 tasks\\n\",\n      \"stdout_tail\": \"golang.org/x/arch v0.8.0\\\\ngo: downloading github.com/klauspost/cpuid/v2 v2.2.7\\\\ngo: downloading github.com/bytedance/sonic/loader v0.1.1\\\\ngo: downloading github.com/twitchyliquid64/golang-asm v0.15.1\\\\ngo: downloading github.com/cloudwego/iasm v0.2.0\\\\ngo: downloading github.com/go-playground/assert/v2 v2.2.0\\\\ngo: downloading github.com/google/go-cmp v0.5.5\\\\ngo: downloading gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405\\\\ngo: downloading golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543\\\\n\\\",\\n  \\\"tasks\\\": [\\n    {\\n      \\\"id\\\": \\\"T01-gin-crud\\\",\\n      \\\"target\\\": \\\"internal/http/router.go\\\",\\n      \\\"passed\\\": true,\\n      \\\"execution_mode\\\": \\\"llm\\\",\\n      \\\"codegen_executor\\\": null,\\n      \\\"files_modified\\\": [],\\n      \\\"skipped\\\": null,\\n      \\\"duration_ms\\\": 197963,\\n      \\\"log_tail\\\": \\\"codegen fallback: codegen disabled by SIMPLICIO_DISABLE_CODEGEN\\\\n\\\\n{\\\\n  \\\\\\\"applied\\\\\\\": true,\\\\n  \\\\\\\""
+    },
+    {
+      "id": "fedeeae481156b0d",
+      "path": "bench/results_sp_schema_smoke_deepseek.json",
+      "line": 42,
+      "language": "json",
+      "change_type": "feature",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "schema",
+        "smoke",
+        "deepseek"
+      ],
+      "summary": "feature precedent in bench/results_sp_schema_smoke_deepseek.json",
+      "snippet": "      ]\n    },\n    \"winner_first_500\": \"<?php\\n\\ndeclare(strict_types=1);\\n\\nnamespace App\\\\Core;\\n\\nfinal class PasswordPolicy\\n{\\n    public static function isStrong(string $password): bool\\n    {\\n        return strlen($password) >= 12;\\n    }\\n}\\n\"\n  }\n}"
+    },
+    {
+      "id": "957074162a3d7140",
+      "path": "bench/results_sp_schema_smoke_qwen3b.json",
+      "line": 20,
+      "language": "json",
+      "change_type": "feature",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "schema",
+        "smoke",
+        "qwen3b"
+      ],
+      "summary": "feature precedent in bench/results_sp_schema_smoke_qwen3b.json",
+      "snippet": "    \"assert(PasswordPolicy::isStrong('12345678901234567890') === true);\"\n  ],\n  \"winner_artifact_first_500\": \"<?php\\n\\ndeclare(strict_types=1);\\n\\nnamespace App\\\\Core;\\n\\nfinal class PasswordPolicy\\n{\\n    public static function isStrong(string $password): bool\\n    {\\n        return strlen($password) >= 12;\\n    }\\n}\",\n  \"raw_files_saved\": [\n    \"/tmp/qwen3b_raw_1.txt\","
+    },
+    {
+      "id": "f9f9e65dd96646b7",
+      "path": "bench/results_v13_5side.md",
+      "line": 43,
+      "language": "markdown",
+      "change_type": "error-handling",
+      "tags": [
+        "markdown",
+        "bench",
+        "results",
+        "v13",
+        "5side"
+      ],
+      "summary": "error-handling precedent in bench/results_v13_5side.md",
+      "snippet": "## Verify-loop convergence (exec)\n\nAverage attempts consumed by the ag-based sides (1=passed first try; 3=ran loop to exhaustion).\n\n| Model | cli+ag avg | cli+sp+ag avg |"
+    },
+    {
+      "id": "c5af8f8a0273cd6d",
+      "path": "bench/results_v14_qwen15b_q4_0_smoke_schema_v1.json",
+      "line": 16,
+      "language": "json",
+      "change_type": "feature",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "v14",
+        "qwen15b",
+        "smoke",
+        "schema"
+      ],
+      "summary": "feature precedent in bench/results_v14_qwen15b_q4_0_smoke_schema_v1.json",
+      "snippet": "    {\n      \"artifact_matches_contract\": false,\n      \"artifact_preview\": \"```json\\n{\\n  \\\"artifact\\\": \\\"<?php declare(strict_types=1); namespace App\\\\Core; final class PasswordPolicy { public static function violations(string $password): array { $violations = []; if (strlen($password) < 8) { $violations[] = 'min_length'; } return $violations; } public static function isStrong(string $password): bool { $violations = self::violations($password); return empty($violations); } }\\\",\\n  \\\"files_changed\\\": [\\\"src/Core/PasswordPolicy.php\\\"],\\n  \\\"behaviors_added\\\": [\\\"App\\\\Core\\\\PasswordPolicy:\",\n      \"behaviors_added\": [],\n      \"call\": 1,"
+    },
+    {
+      "id": "441b144e8bcd6358",
+      "path": "bench/results_v14_qwen15b_q4_k_s_smoke_schema_v1.json",
+      "line": 16,
+      "language": "json",
+      "change_type": "feature",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "v14",
+        "qwen15b",
+        "smoke",
+        "schema"
+      ],
+      "summary": "feature precedent in bench/results_v14_qwen15b_q4_k_s_smoke_schema_v1.json",
+      "snippet": "    {\n      \"artifact_matches_contract\": true,\n      \"artifact_preview\": \"```json\\n{\\n  \\\"artifact\\\": \\\"<?php\\ndeclare(strict_types=1);\\n\\nnamespace App\\\\Core;\\n\\nfinal class PasswordPolicy\\n{\\n    public static function violations(string $password): array\\n    {\\n        $violations = [];\\n        if (strlen($password) < 8) {\\n            $violations[] = 'min_length';\\n        }\\n        if (preg_match('/[a-z]/', $password) === 0) {\\n            $violations[] = 'lowercase';\\n        }\\n        if (preg_match('/[A-Z]/', $password) === 0) {\\n            $violations[] = 'uppercase';\\n        }\",\n      \"behaviors_added\": [],\n      \"call\": 1,"
+    },
+    {
+      "id": "1c43938bda84f114",
+      "path": "bench/results_v14_qwen15b_q5_k_l_smoke_schema_v1.json",
+      "line": 30,
+      "language": "json",
+      "change_type": "feature",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "v14",
+        "qwen15b",
+        "smoke",
+        "schema"
+      ],
+      "summary": "feature precedent in bench/results_v14_qwen15b_q5_k_l_smoke_schema_v1.json",
+      "snippet": "    {\n      \"artifact_matches_contract\": true,\n      \"artifact_preview\": \"```json\\n{\\n  \\\"artifact\\\": \\\"```php\\n<?php\\ndeclare(strict_types=1);\\n\\nnamespace App\\\\Core;\\n\\nfinal class PasswordPolicy\\n{\\n    public static function violations(string $password): array\\n    {\\n        $violations = [];\\n        if (strlen($password) < 8) {\\n            $violations[] = 'min_length';\\n        }\\n        return $violations;\\n    }\\n\\n    public static function isStrong(string $password): bool\\n    {\\n        $violations = self::violations($password);\\n        return count($violations) === 0;\\n    }\\n}\\n`\",\n      \"behaviors_added\": [],\n      \"call\": 2,"
+    },
+    {
+      "id": "d421bcc16fac3ada",
+      "path": "bench/results_v14_qwen15b_q5_k_m_smoke_schema_v1.json",
+      "line": 30,
+      "language": "json",
+      "change_type": "feature",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "v14",
+        "qwen15b",
+        "smoke",
+        "schema"
+      ],
+      "summary": "feature precedent in bench/results_v14_qwen15b_q5_k_m_smoke_schema_v1.json",
+      "snippet": "    {\n      \"artifact_matches_contract\": true,\n      \"artifact_preview\": \"```json\\n{\\n  \\\"artifact\\\": \\\"```php\\n<?php\\ndeclare(strict_types=1);\\n\\nnamespace App\\\\Core;\\n\\nfinal class PasswordPolicy\\n{\\n    public static function violations(string $password): array\\n    {\\n        $violations = [];\\n        if (strlen($password) < 8) {\\n            $violations[] = 'min_length';\\n        }\\n        return $violations;\\n    }\\n\\n    public static function isStrong(string $password): bool\\n    {\\n        return $this->violations($password) === [];\\n    }\\n}\\n```php\\\",\\n  \\\"files_changed\\\": [\\n    \\\"src/Co\",\n      \"behaviors_added\": [],\n      \"call\": 2,"
+    },
+    {
+      "id": "366e5a3a1784d506",
+      "path": "bench/results_v14_qwen15b_q6_k_l_smoke_schema_v1.json",
+      "line": 30,
+      "language": "json",
+      "change_type": "feature",
+      "tags": [
+        "json",
+        "bench",
+        "results",
+        "v14",
+        "qwen15b",
+        "smoke",
+        "schema"
+      ],
+      "summary": "feature precedent in bench/results_v14_qwen15b_q6_k_l_smoke_schema_v1.json",
+      "snippet": "    {\n      \"artifact_matches_contract\": true,\n      \"artifact_preview\": \"```json\\n{\\n  \\\"artifact\\\": \\\"{\\n    \\\\\\\"class\\\\\\\": \\\\\\\"App\\\\\\\\Core\\\\\\\\PasswordPolicy\\\\\\\",\\n    \\\\\\\"method\\\\\\\": \\\\\\\"isStrong\\\\\\\",\\n    \\\\\\\"code\\\\\\\": \\\\\\\"public static function isStrong(string $password): bool {\\n        $violations = [];\\n        if (strlen($password) < 8) {\\n            $violations[] = 'min_length';\\n        }\\n        if (preg_match('/[0-9]/', $password) < 2) {\\n            $violations[] = 'contains_two_digits';\\n        }\\n        if (preg_match('/[a-z]/', $password) < 2) {\\n            $violations[] = 'contains_two_l\",\n      \"behaviors_added\": [],\n      \"call\": 2,"
+    },
+    {
+      "id": "c96df183637be0a6",
+      "path": "bench/run_4quadrant.py",
+      "line": 92,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "4quadrant"
+      ],
+      "summary": "test precedent in bench/run_4quadrant.py",
+      "snippet": "    r\"\\.component\\.html\": \"name the exact target file (e.g. `*.component.html`) inside the DIFF header.\",\n    r\"\\\\W\\)diff\": \"include a DIFF block in unified diff format (e.g. ```diff or `--- a/...`).\",\n    r\"\\\\W\\)test\": \"include a TEST block (e.g. `describe(`, `it(`, `[Test]`, `[Fact]`, `pytest`).\",\n    r\"admin\": \"mention the admin role/permission check explicitly.\",\n    r\"editor\": \"reference the editor role explicitly.\","
+    },
+    {
+      "id": "96854ec480707ceb",
+      "path": "bench/run_exec.py",
+      "line": 16,
+      "language": "python",
+      "change_type": "route",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "exec"
+      ],
+      "summary": "route precedent in bench/run_exec.py",
+      "snippet": "\nUsage:\n  BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=... \\\n    BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\" python3 bench/run_exec.py\nModels prefixed `local:` run on CPU via transformers."
+    },
+    {
+      "id": "38355a557c027035",
+      "path": "bench/run_exec_sindico.py",
+      "line": 9,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "exec",
+        "sindico"
+      ],
+      "summary": "test precedent in bench/run_exec_sindico.py",
+      "snippet": "           target, testable criteria, constraints, identical output shape)\nBoth sides emit the COMPLETE updated PHP file. The harness writes that file\ninto a working copy of sistema-sindico, drops a HIDDEN PHPUnit test (never\nshown to the model) into tests/unit/Core/Hidden/, and runs `vendor/bin/phpunit`\non the WHOLE suite. Pass = every existing test plus the hidden one go green —"
+    },
+    {
+      "id": "4419c7bb0ae8b906",
+      "path": "bench/run_fanout.py",
+      "line": 56,
+      "language": "python",
+      "change_type": "route",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "fanout"
+      ],
+      "summary": "route precedent in bench/run_fanout.py",
+      "snippet": "# Each entry: provider preset, env var holding the API key, optional base_url\n# override (for the generic OpenAI-compatible HF route).\nHF_ROUTER_BASE_URL = \"https://router.huggingface.co/v1\"\nQWEN3_CODER_DEFAULTS = (\n    \"Qwen/Qwen3-Coder-30B-A3B-Instruct\","
+    },
+    {
+      "id": "8bc69c35cdfedc55",
+      "path": "bench/run_issue_closure_audit.py",
+      "line": 36,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "issue",
+        "closure",
+        "audit"
+      ],
+      "summary": "feature precedent in bench/run_issue_closure_audit.py",
+      "snippet": "\n\ndef run_audit(input_paths: dict[str, Path] | None = None) -> dict[str, Any]:\n    paths = input_paths or DEFAULT_INPUTS\n    inputs = {name: _load(path) for name, path in paths.items()}"
+    },
+    {
+      "id": "dd0ab0d787693c2d",
+      "path": "bench/run_llm_reduction_summary.py",
+      "line": 36,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "llm",
+        "reduction",
+        "summary"
+      ],
+      "summary": "feature precedent in bench/run_llm_reduction_summary.py",
+      "snippet": "\n\ndef run_summary(input_paths: dict[str, Path] | None = None) -> dict[str, Any]:\n    paths = input_paths or DEFAULT_INPUTS\n    inputs = {name: _load_input(path) for name, path in paths.items()}"
+    },
+    {
+      "id": "a783a4ab53805ad3",
+      "path": "bench/run_offline.py",
+      "line": 16,
+      "language": "python",
+      "change_type": "route",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "offline"
+      ],
+      "summary": "route precedent in bench/run_offline.py",
+      "snippet": "Usage:\n  HF_TOKEN=... \\\\\n    BENCH_BASE_URL=https://router.huggingface.co/v1 \\\\\n    BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\" \\\\\n    python3 bench/run_offline.py"
+    },
+    {
+      "id": "38d741f468071fa7",
+      "path": "bench/run_qwen15b_quant_curve_report.py",
+      "line": 28,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "qwen15b",
+        "quant",
+        "curve",
+        "report"
+      ],
+      "summary": "feature precedent in bench/run_qwen15b_quant_curve_report.py",
+      "snippet": "\n\ndef build_report(manifest_path: Path = MANIFEST) -> dict[str, Any]:\n    manifest = json.loads(manifest_path.read_text(encoding=\"utf-8\"))\n    rows = [_smoke_row(item) for item in manifest[\"required_quants\"]]"
+    },
+    {
+      "id": "b11fb0cd6a261df2",
+      "path": "bench/run_schema_smoke_summary.py",
+      "line": 30,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "schema",
+        "smoke",
+        "summary"
+      ],
+      "summary": "feature precedent in bench/run_schema_smoke_summary.py",
+      "snippet": "\n\ndef summarize_smokes(inputs: list[Path]) -> dict[str, Any]:\n    rows = []\n    for path in sorted({item.resolve() for item in inputs if item.is_file()}):"
+    },
+    {
+      "id": "b0e19c44f3823eb9",
+      "path": "bench/run_scratch_cache_gate.py",
+      "line": 88,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "scratch",
+        "cache",
+        "gate"
+      ],
+      "summary": "feature precedent in bench/run_scratch_cache_gate.py",
+      "snippet": "\n\ndef run_cache_gate(\n    *,\n    work_dir: Path,"
+    },
+    {
+      "id": "e390f3b67a4abb19",
+      "path": "bench/run_scratch_codegen.py",
+      "line": 42,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "scratch",
+        "codegen"
+      ],
+      "summary": "feature precedent in bench/run_scratch_codegen.py",
+      "snippet": "\n@dataclass(frozen=True)\nclass BenchCase:\n    name: str\n    stack_slug: str"
+    },
+    {
+      "id": "b2a24cd983745e67",
+      "path": "bench/run_scratch_live_gate.py",
+      "line": 51,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "scratch",
+        "live",
+        "gate"
+      ],
+      "summary": "feature precedent in bench/run_scratch_live_gate.py",
+      "snippet": "\n\ndef run_live_gate(\n    *,\n    work_dir: Path,"
+    },
+    {
+      "id": "1893697f8c9107a6",
+      "path": "bench/run_scratch_recipes.py",
+      "line": 39,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "scratch",
+        "recipes"
+      ],
+      "summary": "feature precedent in bench/run_scratch_recipes.py",
+      "snippet": "\n@dataclass(frozen=True)\nclass RecipeCase:\n    stack: str\n    goal: str"
+    },
+    {
+      "id": "7c744186c840ffc5",
+      "path": "bench/run_scratch_release_gate.py",
+      "line": 64,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "scratch",
+        "release",
+        "gate"
+      ],
+      "summary": "feature precedent in bench/run_scratch_release_gate.py",
+      "snippet": "\n\ndef run_preflight() -> dict[str, Any]:\n    registry = StackRegistry()\n    stacks = {stack.slug: stack for stack in registry.list()}"
+    },
+    {
+      "id": "391bda1782f800cb",
+      "path": "bench/run_skillopt_review_packet.py",
+      "line": 34,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "ui",
+        "python",
+        "bench",
+        "run",
+        "skillopt",
+        "review",
+        "packet"
+      ],
+      "summary": "feature precedent in bench/run_skillopt_review_packet.py",
+      "snippet": "\n\ndef build_review_packet(\n    *,\n    skills_root: Path,"
+    },
+    {
+      "id": "fb04afbf14724ec5",
+      "path": "bench/run_static_fixers.py",
+      "line": 39,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "static",
+        "fixers"
+      ],
+      "summary": "feature precedent in bench/run_static_fixers.py",
+      "snippet": "\n@dataclass(frozen=True)\nclass FixerCase:\n    name: str\n    failure_log: str"
+    },
+    {
+      "id": "cb9c0f0098b12ad4",
+      "path": "bench/run_unified_run_bench.py",
+      "line": 97,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "run",
+        "unified"
+      ],
+      "summary": "feature precedent in bench/run_unified_run_bench.py",
+      "snippet": "\n\ndef run_benchmark(\n    cases: list[dict[str, Any]] | None = None,\n    *,"
+    },
+    {
+      "id": "043b752ae8136d89",
+      "path": "bench/sindico_cases.py",
+      "line": 6,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "python",
+        "bench",
+        "sindico",
+        "cases"
+      ],
+      "summary": "test precedent in bench/sindico_cases.py",
+      "snippet": "Each case asks the model to ADD a new method to an existing src/Core class.\nExisting tests must keep passing (no breaking changes). Scoring is by REAL\nPHPUnit (vendor/bin/phpunit) on the full suite plus a HIDDEN test (never shown\nto the model) that asserts the new method's behaviour across true AND false\nstates. Pass == entire suite green."
+    },
+    {
+      "id": "46ac5b9ab399deb5",
+      "path": "bench/sindico_hidden/AdminOnlyAllowedRolesTest.php",
+      "line": 9,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "php",
+        "bench",
+        "sindico",
+        "hidden",
+        "admin",
+        "only",
+        "allowed",
+        "roles"
+      ],
+      "summary": "feature precedent in bench/sindico_hidden/AdminOnlyAllowedRolesTest.php",
+      "snippet": "use PHPUnit\\Framework\\TestCase;\n\nfinal class AdminOnlyAllowedRolesTest extends TestCase\n{\n    public function test_returns_exact_role_list(): void"
+    },
+    {
+      "id": "b2a91fd464364e5e",
+      "path": "bench/sindico_hidden/BaseRepositoryBuildUpdateSqlTest.php",
+      "line": 10,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "php",
+        "bench",
+        "sindico",
+        "hidden",
+        "base",
+        "repository",
+        "build",
+        "update",
+        "sql"
+      ],
+      "summary": "feature precedent in bench/sindico_hidden/BaseRepositoryBuildUpdateSqlTest.php",
+      "snippet": "use PHPUnit\\Framework\\TestCase;\n\nfinal class BaseRepositoryBuildUpdateSqlTest extends TestCase\n{\n    public function test_basic_update(): void"
+    },
+    {
+      "id": "720a0256d7f1bfc2",
+      "path": "bench/sindico_hidden/BaseRepositoryBuildWhereSqlTest.php",
+      "line": 10,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "php",
+        "bench",
+        "sindico",
+        "hidden",
+        "base",
+        "repository",
+        "build",
+        "where",
+        "sql"
+      ],
+      "summary": "feature precedent in bench/sindico_hidden/BaseRepositoryBuildWhereSqlTest.php",
+      "snippet": "use PHPUnit\\Framework\\TestCase;\n\nfinal class BaseRepositoryBuildWhereSqlTest extends TestCase\n{\n    public function test_empty_filters_returns_empty(): void"
+    },
+    {
+      "id": "c13c22d511b7ae55",
+      "path": "bench/sindico_hidden/EnvGetBoolTest.php",
+      "line": 9,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "php",
+        "bench",
+        "sindico",
+        "hidden",
+        "env",
+        "get",
+        "bool"
+      ],
+      "summary": "feature precedent in bench/sindico_hidden/EnvGetBoolTest.php",
+      "snippet": "use PHPUnit\\Framework\\TestCase;\n\nfinal class EnvGetBoolTest extends TestCase\n{\n    private const KEY = 'BENCH_HIDDEN_BOOL';"
+    },
+    {
+      "id": "e383c8a0cb1490c1",
+      "path": "bench/sindico_hidden/EnvGetIntTest.php",
+      "line": 9,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "php",
+        "bench",
+        "sindico",
+        "hidden",
+        "env",
+        "get",
+        "int"
+      ],
+      "summary": "feature precedent in bench/sindico_hidden/EnvGetIntTest.php",
+      "snippet": "use PHPUnit\\Framework\\TestCase;\n\nfinal class EnvGetIntTest extends TestCase\n{\n    private const KEY = 'BENCH_HIDDEN_INT';"
+    },
+    {
+      "id": "bc815c2635201ccc",
+      "path": "bench/sindico_hidden/PasswordAssessTest.php",
+      "line": 9,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "php",
+        "bench",
+        "sindico",
+        "hidden",
+        "password",
+        "assess"
+      ],
+      "summary": "feature precedent in bench/sindico_hidden/PasswordAssessTest.php",
+      "snippet": "use PHPUnit\\Framework\\TestCase;\n\nfinal class PasswordAssessTest extends TestCase\n{\n    public function test_valid_password(): void"
+    },
+    {
+      "id": "17407a7ca8da7185",
+      "path": "bench/sindico_hidden/PasswordRequireSymbolTest.php",
+      "line": 9,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "php",
+        "bench",
+        "sindico",
+        "hidden",
+        "password",
+        "require",
+        "symbol"
+      ],
+      "summary": "feature precedent in bench/sindico_hidden/PasswordRequireSymbolTest.php",
+      "snippet": "use PHPUnit\\Framework\\TestCase;\n\nfinal class PasswordRequireSymbolTest extends TestCase\n{\n    public function test_no_symbol_returns_symbol_violation(): void"
+    },
+    {
+      "id": "dba1a78f17ecbe4a",
+      "path": "bench/sindico_hidden/PasswordStrengthTest.php",
+      "line": 9,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "php",
+        "bench",
+        "sindico",
+        "hidden",
+        "password",
+        "strength"
+      ],
+      "summary": "feature precedent in bench/sindico_hidden/PasswordStrengthTest.php",
+      "snippet": "use PHPUnit\\Framework\\TestCase;\n\nfinal class PasswordStrengthTest extends TestCase\n{\n    public function test_weak_when_violates_existing_rules(): void"
+    },
+    {
+      "id": "c97918b390ac3c8e",
+      "path": "bench/sindico_hidden/RateLimitBucketKeyTest.php",
+      "line": 9,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "php",
+        "bench",
+        "sindico",
+        "hidden",
+        "rate",
+        "limit",
+        "bucket",
+        "key"
+      ],
+      "summary": "feature precedent in bench/sindico_hidden/RateLimitBucketKeyTest.php",
+      "snippet": "use PHPUnit\\Framework\\TestCase;\n\nfinal class RateLimitBucketKeyTest extends TestCase\n{\n    public function test_basic_format(): void"
+    },
+    {
+      "id": "99bb5dff28226e60",
+      "path": "bench/sindico_hidden/RouterExtractParamsTest.php",
+      "line": 9,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "php",
+        "bench",
+        "sindico",
+        "hidden",
+        "router",
+        "extract",
+        "params"
+      ],
+      "summary": "feature precedent in bench/sindico_hidden/RouterExtractParamsTest.php",
+      "snippet": "use PHPUnit\\Framework\\TestCase;\n\nfinal class RouterExtractParamsTest extends TestCase\n{\n    public function test_single_param(): void"
+    },
+    {
+      "id": "b94c218e208f9079",
+      "path": "bench/sindico_hidden/RouterHasTest.php",
+      "line": 9,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "php",
+        "bench",
+        "sindico",
+        "hidden",
+        "router",
+        "has"
+      ],
+      "summary": "feature precedent in bench/sindico_hidden/RouterHasTest.php",
+      "snippet": "use PHPUnit\\Framework\\TestCase;\n\nfinal class RouterHasTest extends TestCase\n{\n    public function test_fresh_router_has_nothing(): void"
+    },
+    {
+      "id": "d0b25a70fe0c1e4f",
+      "path": "bench/sindico_hidden/_seed_PasswordPolicy_bug.php",
+      "line": 11,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "php",
+        "bench",
+        "sindico",
+        "hidden",
+        "seed",
+        "password",
+        "policy",
+        "bug"
+      ],
+      "summary": "feature precedent in bench/sindico_hidden/_seed_PasswordPolicy_bug.php",
+      "snippet": " * Min 8 chars, mixed case, at least one digit.\n */\nfinal class PasswordPolicy\n{\n    public const MIN_LENGTH = 8;"
+    },
+    {
+      "id": "cd6c80989bc2f613",
+      "path": "bench/skillopt_pending_skills/nextjs-app-router-crud-scaffold-review/SKILL.md",
+      "line": 37,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "route",
+        "ui",
+        "markdown",
+        "bench",
+        "skillopt",
+        "pending",
+        "skills",
+        "nextjs",
+        "app",
+        "router"
+      ],
+      "summary": "route precedent in bench/skillopt_pending_skills/nextjs-app-router-crud-scaffold-review/SKILL.md",
+      "snippet": "7. Inspect security risks: injection, mass assignment, leaked internal fields, unsafe redirects, CSRF-sensitive mutations, over-broad error messages, and accidental secret exposure.\n8. Review UI behavior: empty states, loading states, error states, success feedback, destructive confirmation, disabled pending buttons, accessible labels, and keyboard flow.\n9. Confirm data freshness: appropriate `revalidatePath`, `revalidateTag`, `router.refresh`, cache options, optimistic updates, and redirect-after-mutation behavior.\n10. Check generated code quality: no duplicated boilerplate that should be factored locally, no placeholder names, no unused imports, no `console.log`, no TODOs without owner, and no broad refactors.\n11. Validate tests: unit/integration/E2E coverage for list, create, read, update, delete, validation failure, auth failure, not-found, and one edge case."
+    },
+    {
+      "id": "baa0d534585181f6",
+      "path": "bench/smoke_schema_v1.py",
+      "line": 69,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "smoke",
+        "schema"
+      ],
+      "summary": "feature precedent in bench/smoke_schema_v1.py",
+      "snippet": "namespace App\\\\Core;\n\nfinal class PasswordPolicy\n{\n    public static function violations(string $password): array"
+    },
+    {
+      "id": "a5d165cb32eeab44",
+      "path": "bench/sp_fanout_helper.py",
+      "line": 42,
+      "language": "python",
+      "change_type": "route",
+      "tags": [
+        "python",
+        "bench",
+        "fanout",
+        "helper"
+      ],
+      "summary": "route precedent in bench/sp_fanout_helper.py",
+      "snippet": "_ROUTING: dict[str, dict] = {\n    # HuggingFace router models\n    \"Qwen/Qwen2.5-Coder-3B-Instruct\":   {\"preset\": None, \"base_url\": \"https://router.huggingface.co/v1\", \"env_key\": \"HF_TOKEN\"},\n    \"Qwen/Qwen2.5-Coder-7B-Instruct\":   {\"preset\": None, \"base_url\": \"https://router.huggingface.co/v1\", \"env_key\": \"HF_TOKEN\"},\n    \"Qwen/Qwen3-Coder-30B-A3B-Instruct\": {\"preset\": None, \"base_url\": \"https://router.huggingface.co/v1\", \"env_key\": \"HF_TOKEN\"},"
+    },
+    {
+      "id": "d176ccdc5937168a",
+      "path": "bench/sp_output_schema.py",
+      "line": 69,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "bench",
+        "output",
+        "schema"
+      ],
+      "summary": "feature precedent in bench/sp_output_schema.py",
+      "snippet": "\n@dataclass\nclass StructuredResponse:\n    \"\"\"Parsed view of a structured sp output.\"\"\"\n    artifact: str"
+    },
+    {
+      "id": "6046e438fd67d560",
+      "path": "bootstrap.ps1",
+      "line": 47,
+      "language": "powershell",
+      "change_type": "feature",
+      "tags": [
+        "powershell",
+        "bootstrap",
+        "ps1"
+      ],
+      "summary": "feature precedent in bootstrap.ps1",
+      "snippet": "# auto-detect stack\n# ---------------------------------------------------------------------------\nfunction Detect-Stack {\n  if (Test-Path \"package.json\") {\n    $pkg = Get-Content \"package.json\" -Raw"
+    },
+    {
+      "id": "820b7f17676fc202",
+      "path": "docs/adr/0001-qwen15b-schema-v1-quant-decision.md",
+      "line": 64,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "docs",
+        "adr",
+        "0001",
+        "qwen15b",
+        "schema",
+        "quant",
+        "decision"
+      ],
+      "summary": "feature precedent in docs/adr/0001-qwen15b-schema-v1-quant-decision.md",
+      "snippet": "## Consequences\n\n- Use 3B-class or larger local coder models as the practical lower bound for\n  schema-v1 work until a different 1.5B model or prompt protocol proves\n  otherwise."
+    },
+    {
+      "id": "f4cb395d5ce595dc",
+      "path": "docs/api-examples/webhook.md",
+      "line": 39,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "docs",
+        "api",
+        "examples",
+        "webhook"
+      ],
+      "summary": "feature precedent in docs/api-examples/webhook.md",
+      "snippet": "const crypto = require('node:crypto');\n\nfunction verify(rawBody, headerValue, secret) {\n  const parts = Object.fromEntries(\n    headerValue.split(',').map((kv) => kv.split('='))"
+    },
+    {
+      "id": "a5f39abdf3a5b7cd",
+      "path": "docs/benchmark-4quadrant.md",
+      "line": 241,
+      "language": "markdown",
+      "change_type": "error-handling",
+      "tags": [
+        "markdown",
+        "docs",
+        "benchmark",
+        "4quadrant"
+      ],
+      "summary": "error-handling precedent in docs/benchmark-4quadrant.md",
+      "snippet": "  output. This *underestimates* the gap between Q3 and Q4 in cases\n  where simplicio's structural contract would have made the LLM emit\n  the right shape on the first try (the feedback loop also pushes the\n  raw side toward structure, narrowing the visible gap).\n- **`MAX_ITERS` is a hard cap.** Cases that would converge in 4 calls"
+    },
+    {
+      "id": "9ec3d504b61eac1f",
+      "path": "docs/features/frontend-verify.md",
+      "line": 41,
+      "language": "markdown",
+      "change_type": "test",
+      "tags": [
+        "markdown",
+        "docs",
+        "features",
+        "frontend",
+        "verify"
+      ],
+      "summary": "test precedent in docs/features/frontend-verify.md",
+      "snippet": "```\n\nFluxo: `build → generate → apply → test (Playwright) → fix → repeat`. Se o spec\nquebra, a saída do Playwright vira o feedback que guia a próxima tentativa. A\nevidência fica em `playwright-report/` e nos prints que o spec captura (ver"
+    },
+    {
+      "id": "17d78ecf2f169fc2",
+      "path": "docs/specs/STRUCTURED_OUTPUT_v1.md",
+      "line": 123,
+      "language": "markdown",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "markdown",
+        "docs",
+        "specs",
+        "structured",
+        "output"
+      ],
+      "summary": "test precedent in docs/specs/STRUCTURED_OUTPUT_v1.md",
+      "snippet": "\n```json\n{\"artifact\":\"<?php\\n\\ndeclare(strict_types=1);\\n\\nnamespace App\\\\Core;\\n\\nfinal class PasswordPolicy\\n{\\n    public static function isStrong(string $p): bool\\n    {\\n        return strlen($p) >= 12;\\n    }\\n}\\n\",\"files_changed\":[\"src/Core/PasswordPolicy.php\"],\"behaviors_added\":[\"App\\\\Core\\\\PasswordPolicy::isStrong\"],\"expected_oracle_pass\":[\"test_isStrong_passes_on_12_chars\",\"test_isStrong_fails_on_short\"],\"confidence\":0.85,\"concerns\":[\"constant 12 not policy-configurable yet\"]}\n```\n"
+    },
+    {
+      "id": "d78ded0b575cca80",
+      "path": "rust/simplicio-core/src/lib.rs",
+      "line": 15,
+      "language": "rust",
+      "change_type": "feature",
+      "tags": [
+        "rust",
+        "simplicio",
+        "core"
+      ],
+      "summary": "feature precedent in rust/simplicio-core/src/lib.rs",
+      "snippet": "use pyo3::prelude::*;\n\n/// Smoke function used by the test suite to confirm the Rust extension\n/// loads and PyO3 string conversion works in both directions.\n#[pyfunction]"
+    },
+    {
+      "id": "9d06765b79374a54",
+      "path": "scripts/demo/frontend_verify_demo.py",
+      "line": 43,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "python",
+        "scripts",
+        "demo",
+        "frontend",
+        "verify"
+      ],
+      "summary": "test precedent in scripts/demo/frontend_verify_demo.py",
+      "snippet": "import * as path from 'node:path';\n\ntest('dashboard reports 12 completed tasks', async ({ page }) => {\n  await page.goto(pathToFileURL(path.resolve(__dirname, 'app.html')).href);\n  await expect(page.getByTestId('metric-done')).toHaveText('12');"
+    },
+    {
+      "id": "47e5a810e03efdb1",
+      "path": "scripts/lint.js",
+      "line": 40,
+      "language": "javascript",
+      "change_type": "feature",
+      "tags": [
+        "javascript",
+        "scripts",
+        "lint"
+      ],
+      "summary": "feature precedent in scripts/lint.js",
+      "snippet": "const RESULTS = { errors: 0, warnings: 0, skipped: [] };\n\nfunction log(level, message) {\n  const tag = level === 'error' ? '\\x1b[31merror\\x1b[0m'\n    : level === 'warn' ? '\\x1b[33mwarn\\x1b[0m'"
+    },
+    {
+      "id": "cffafa7155db6f5a",
+      "path": "scripts/sync-docs-site.mjs",
+      "line": 170,
+      "language": "javascript",
+      "change_type": "feature",
+      "tags": [
+        "javascript",
+        "scripts",
+        "sync",
+        "docs",
+        "site",
+        "mjs"
+      ],
+      "summary": "feature precedent in scripts/sync-docs-site.mjs",
+      "snippet": "];\n\nasync function ensureDir(dir) {\n  await fs.mkdir(dir, {recursive: true});\n}"
+    },
+    {
+      "id": "b30156961033c99e",
+      "path": "simplicio/_cache.py",
+      "line": 16,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "cache"
+      ],
+      "summary": "feature precedent in simplicio/_cache.py",
+      "snippet": "\n\ndef _env_flag(name: str, default: bool) -> bool:\n    raw = os.environ.get(name)\n    if raw is None:"
+    },
+    {
+      "id": "a49fdd0eede7083f",
+      "path": "simplicio/adaptive.py",
+      "line": 22,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "adaptive"
+      ],
+      "summary": "feature precedent in simplicio/adaptive.py",
+      "snippet": "\n\ndef model_profile(model: str | None = None) -> dict[str, str]:\n    name = (model or os.environ.get(\"SIMPLICIO_MODEL\") or os.environ.get(\"MODEL\") or \"\").lower()\n    if any(hint in name for hint in WEAK_MODEL_HINTS):"
+    },
+    {
+      "id": "5328d0c412075bc5",
+      "path": "simplicio/bench.py",
+      "line": 7,
+      "language": "python",
+      "change_type": "error-handling",
+      "tags": [
+        "python",
+        "simplicio",
+        "bench"
+      ],
+      "summary": "error-handling precedent in simplicio/bench.py",
+      "snippet": "  WITHOUT: sends only the raw goal to the LLM (baseline).\n  WITH:    full pipeline (precedent + skill + layers + verify).\nMeasures: did it pass the test on the first try? how many attempts?\n\nUsage: simplicio-py bench --cases bench/cases.json --stack angular"
+    },
+    {
+      "id": "aa96ca37769228bf",
+      "path": "simplicio/cache.py",
+      "line": 14,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "cache"
+      ],
+      "summary": "feature precedent in simplicio/cache.py",
+      "snippet": "import numpy as np\n\nclass EmbeddingCache:\n    def __init__(self, root):\n        self.dir = os.path.join(root, \".simplicio\")"
+    },
+    {
+      "id": "46b7e37d0d7db06c",
+      "path": "simplicio/cache_cli.py",
+      "line": 19,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "cache",
+        "cli"
+      ],
+      "summary": "feature precedent in simplicio/cache_cli.py",
+      "snippet": "\n\ndef _cmd_stats(args: argparse.Namespace) -> int:\n    s = cache().stats()\n    if args.json:"
+    },
+    {
+      "id": "6a7b549ab3353a31",
+      "path": "simplicio/cli.py",
+      "line": 16,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "python",
+        "simplicio",
+        "cli"
+      ],
+      "summary": "feature precedent in simplicio/cli.py",
+      "snippet": "\n\ndef maybe_autoinstall(cmd: str | None) -> bool:\n    \"\"\"Install skill + hook on first run when Claude Code is detected.\"\"\"\n    if os.environ.get(\"SIMPLICIO_SKIP_AUTO_INIT\"):"
+    },
+    {
+      "id": "3fab7779433d65b7",
+      "path": "simplicio/detect.py",
+      "line": 62,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "detect"
+      ],
+      "summary": "feature precedent in simplicio/detect.py",
+      "snippet": "\n@dataclass\nclass DetectResult:\n    is_code_task: bool\n    score: int"
+    },
+    {
+      "id": "f607717260587f91",
+      "path": "simplicio/doctor.py",
+      "line": 21,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "doctor"
+      ],
+      "summary": "feature precedent in simplicio/doctor.py",
+      "snippet": "\n\ndef _render_human(result, profile) -> None:\n    print(\"simplicio-py doctor\", file=sys.stderr)\n    print(f\"  os            {profile.os_name}\")"
+    },
+    {
+      "id": "a97530fdf4628ff8",
+      "path": "simplicio/dod.py",
+      "line": 16,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "dod"
+      ],
+      "summary": "feature precedent in simplicio/dod.py",
+      "snippet": "\n@dataclass\nclass DodGate:\n    label: str\n    command: str | None = None"
+    },
+    {
+      "id": "a30b74408df3cfb6",
+      "path": "simplicio/ecosystem.py",
+      "line": 43,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "ecosystem"
+      ],
+      "summary": "feature precedent in simplicio/ecosystem.py",
+      "snippet": "\n@dataclass\nclass DepStatus:\n    name: str\n    installed: Optional[str]"
+    },
+    {
+      "id": "a92091678b8fd1a9",
+      "path": "simplicio/hardware.py",
+      "line": 22,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "hardware"
+      ],
+      "summary": "feature precedent in simplicio/hardware.py",
+      "snippet": "\n@dataclass\nclass HardwareProfile:\n    os_name: str\n    ram_gb: float  # total system RAM"
+    },
+    {
+      "id": "397cc7dd88fec746",
+      "path": "simplicio/init.py",
+      "line": 15,
+      "language": "python",
+      "change_type": "error-handling",
+      "tags": [
+        "python",
+        "simplicio",
+        "init"
+      ],
+      "summary": "error-handling precedent in simplicio/init.py",
+      "snippet": "from .utils.serialization import dumps_str, loads\n\ntry:\n    from importlib.resources import files as _res_files\nexcept ImportError:  # pragma: no cover"
+    },
+    {
+      "id": "b4c5f08945236b68",
+      "path": "simplicio/intent.py",
+      "line": 266,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "intent"
+      ],
+      "summary": "feature precedent in simplicio/intent.py",
+      "snippet": "\n@dataclass\nclass IntentResult:\n    scope: str\n    confidence: float"
+    },
+    {
+      "id": "3552d415c23299fd",
+      "path": "simplicio/local_models.py",
+      "line": 40,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "domain",
+        "python",
+        "simplicio",
+        "local",
+        "models"
+      ],
+      "summary": "feature precedent in simplicio/local_models.py",
+      "snippet": "\n@dataclass\nclass ModelSpec:\n    tier: str\n    model_id: str"
+    },
+    {
+      "id": "a8b82053a7fe99ad",
+      "path": "simplicio/mapper.py",
+      "line": 29,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mapper"
+      ],
+      "summary": "feature precedent in simplicio/mapper.py",
+      "snippet": "\n\ndef _safe_json(path: Path) -> dict[str, Any] | None:\n    try:\n        data = loads(path.read_bytes())"
+    },
+    {
+      "id": "16bc18fa8316e06d",
+      "path": "simplicio/mechanical_edit.py",
+      "line": 30,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mechanical",
+        "edit"
+      ],
+      "summary": "feature precedent in simplicio/mechanical_edit.py",
+      "snippet": "\n\ndef execute_plan_json(\n    plan_text: str,\n    *,"
+    },
+    {
+      "id": "74b68b6757d8e47f",
+      "path": "simplicio/observability.py",
+      "line": 12,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "observability"
+      ],
+      "summary": "feature precedent in simplicio/observability.py",
+      "snippet": "\n\ndef estimate_tokens(text: str | None) -> int:\n    if not text:\n        return 0"
+    },
+    {
+      "id": "1944c31182e736e9",
+      "path": "simplicio/orchestrator/cost_governor.py",
+      "line": 12,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "orchestrator",
+        "cost",
+        "governor"
+      ],
+      "summary": "feature precedent in simplicio/orchestrator/cost_governor.py",
+      "snippet": "\n\nclass BudgetExceeded(RuntimeError):\n    \"\"\"Raised when an orchestration run exceeds its configured cost budget.\"\"\"\n"
+    },
+    {
+      "id": "700fb6e9aa1695b0",
+      "path": "simplicio/orchestrator/feature.py",
+      "line": 24,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "orchestrator",
+        "feature"
+      ],
+      "summary": "feature precedent in simplicio/orchestrator/feature.py",
+      "snippet": "\n\ndef _codegen_disabled() -> bool:\n    return os.environ.get(\"SIMPLICIO_DISABLE_CODEGEN\", \"\").lower() in {\n        \"1\","
+    },
+    {
+      "id": "d95df2ed362cc739",
+      "path": "simplicio/pipeline.py",
+      "line": 14,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "pipeline"
+      ],
+      "summary": "feature precedent in simplicio/pipeline.py",
+      "snippet": "\n@dataclass\nclass ValidationResult:\n    ok: bool\n    reason: str"
+    },
+    {
+      "id": "fc46742ea6aeb624",
+      "path": "simplicio/pipeline_fixers.py",
+      "line": 17,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "pipeline",
+        "fixers"
+      ],
+      "summary": "feature precedent in simplicio/pipeline_fixers.py",
+      "snippet": "\n@dataclass\nclass FixerResult:\n    fixer: str\n    applied: bool"
+    },
+    {
+      "id": "037c2e82674668f8",
+      "path": "simplicio/precedent.py",
+      "line": 15,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "precedent"
+      ],
+      "summary": "feature precedent in simplicio/precedent.py",
+      "snippet": "\n\ndef _embedder():\n    global _emb\n    if _emb is None:"
+    },
+    {
+      "id": "350667afabadd818",
+      "path": "simplicio/prompt.py",
+      "line": 16,
+      "language": "python",
+      "change_type": "error-handling",
+      "tags": [
+        "python",
+        "simplicio",
+        "prompt"
+      ],
+      "summary": "error-handling precedent in simplicio/prompt.py",
+      "snippet": "# below stays the source of truth and is what pip-installed users get\n# until a wheel ships.\ntry:\n    from simplicio_core import build_6layer_prompt as _rs_build\nexcept ImportError:  # pragma: no cover - exercised at import time"
+    },
+    {
+      "id": "20890634d0753b48",
+      "path": "simplicio/providers.py",
+      "line": 46,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "providers"
+      ],
+      "summary": "feature precedent in simplicio/providers.py",
+      "snippet": "\n\ndef _cfg():\n    return {\n        \"model\": os.environ.get(\"SIMPLICIO_MODEL\"),"
+    },
+    {
+      "id": "c2e623d8a4b3ffe1",
+      "path": "simplicio/runtime_contracts.py",
+      "line": 14,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "runtime",
+        "contracts"
+      ],
+      "summary": "feature precedent in simplicio/runtime_contracts.py",
+      "snippet": "\n\ndef doctor_contract(root: str | Path = \".\") -> dict[str, Any]:\n    root_path = Path(root)\n    tools = {"
+    },
+    {
+      "id": "ddf0fb7929f439ad",
+      "path": "simplicio/runtime_env.py",
+      "line": 15,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "runtime",
+        "env"
+      ],
+      "summary": "feature precedent in simplicio/runtime_env.py",
+      "snippet": "\n\ndef wrap_project_command(root: str | os.PathLike[str], command: str) -> str:\n    \"\"\"Prefix Node commands with the project-pinned nvm runtime when available.\"\"\"\n    if not command or not _NODE_COMMAND_RE.search(command):"
+    },
+    {
+      "id": "08c3edd7ccaa9b1d",
+      "path": "simplicio/scratch/_pipeline_adapter.py",
+      "line": 21,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "pipeline",
+        "adapter"
+      ],
+      "summary": "feature precedent in simplicio/scratch/_pipeline_adapter.py",
+      "snippet": "\n\ndef run_task(\n    task: Task,\n    project_dir: Path,"
+    },
+    {
+      "id": "259ea4f0d0e20cfe",
+      "path": "simplicio/scratch/cli.py",
+      "line": 27,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "python",
+        "simplicio",
+        "scratch",
+        "cli"
+      ],
+      "summary": "feature precedent in simplicio/scratch/cli.py",
+      "snippet": "\n\ndef _add_scratch_args(p: argparse.ArgumentParser) -> None:\n    p.add_argument(\n        \"goal\","
+    },
+    {
+      "id": "d9097bfe006d671c",
+      "path": "simplicio/scratch/codegen/go_gin.py",
+      "line": 25,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "codegen",
+        "gin"
+      ],
+      "summary": "feature precedent in simplicio/scratch/codegen/go_gin.py",
+      "snippet": "\n\nclass GoGinCrudExecutor(TaskExecutor):\n    \"\"\"Render a compact Gin CRUD router into internal/http/router.go.\"\"\"\n"
+    },
+    {
+      "id": "1d6833b6e5530192",
+      "path": "simplicio/scratch/codegen/markdown_document.py",
+      "line": 13,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "codegen",
+        "markdown",
+        "document"
+      ],
+      "summary": "feature precedent in simplicio/scratch/codegen/markdown_document.py",
+      "snippet": "\n\nclass MarkdownDocumentExecutor(TaskExecutor):\n    \"\"\"Create or update a docs/*.md file when the task names a marker.\"\"\"\n"
+    },
+    {
+      "id": "72b997203198e7db",
+      "path": "simplicio/scratch/codegen/php_laravel.py",
+      "line": 20,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "codegen",
+        "php",
+        "laravel"
+      ],
+      "summary": "feature precedent in simplicio/scratch/codegen/php_laravel.py",
+      "snippet": "\n\nclass PhpLaravelCrudRoutesExecutor(TaskExecutor):\n    \"\"\"Render compact JSON CRUD routes into routes/api.php.\"\"\"\n"
+    },
+    {
+      "id": "4ec0e5c782f29622",
+      "path": "simplicio/scratch/codegen/python_cst.py",
+      "line": 6,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "codegen",
+        "cst"
+      ],
+      "summary": "feature precedent in simplicio/scratch/codegen/python_cst.py",
+      "snippet": "\n\nclass LibCSTUnavailable(RuntimeError):\n    \"\"\"Raised when libcst is not installed in the active environment.\"\"\"\n"
+    },
+    {
+      "id": "9d3a352378206e37",
+      "path": "simplicio/scratch/codegen/python_fastapi.py",
+      "line": 36,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "codegen",
+        "fastapi"
+      ],
+      "summary": "feature precedent in simplicio/scratch/codegen/python_fastapi.py",
+      "snippet": "\n\nclass PythonAddFastApiRouteExecutor(TaskExecutor):\n    \"\"\"Add one small FastAPI route handler to an existing API module.\"\"\"\n"
+    },
+    {
+      "id": "97fb2bc7e3fae9d4",
+      "path": "simplicio/scratch/codegen/python_orm.py",
+      "line": 30,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "codegen",
+        "orm"
+      ],
+      "summary": "feature precedent in simplicio/scratch/codegen/python_orm.py",
+      "snippet": "\n\nclass PythonAddOrmFieldExecutor(TaskExecutor):\n    \"\"\"Add one SQLAlchemy 2.0 ``Mapped[...]`` field to an existing model.\"\"\"\n"
+    },
+    {
+      "id": "e8339220d4daf819",
+      "path": "simplicio/scratch/codegen/python_pydantic.py",
+      "line": 41,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "codegen",
+        "pydantic"
+      ],
+      "summary": "feature precedent in simplicio/scratch/codegen/python_pydantic.py",
+      "snippet": "\n\nclass PythonAddPydanticSchemaExecutor(TaskExecutor):\n    \"\"\"Generate ``XCreate``, ``XUpdate``, and ``XRead`` Pydantic schemas.\"\"\"\n"
+    },
+    {
+      "id": "ffad53a0ae59051f",
+      "path": "simplicio/scratch/codegen/python_pytest.py",
+      "line": 31,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "codegen",
+        "pytest"
+      ],
+      "summary": "feature precedent in simplicio/scratch/codegen/python_pytest.py",
+      "snippet": "\n\nclass PythonAddPytestTestExecutor(TaskExecutor):\n    \"\"\"Generate one minimal pytest happy-path test for a Python function.\"\"\"\n"
+    },
+    {
+      "id": "e6637aabf3f85ef0",
+      "path": "simplicio/scratch/codegen/registry.py",
+      "line": 36,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "codegen",
+        "registry"
+      ],
+      "summary": "feature precedent in simplicio/scratch/codegen/registry.py",
+      "snippet": "\n\ndef registered_executors() -> list[TaskExecutor]:\n    return list(_DEFAULT_EXECUTORS)\n"
+    },
+    {
+      "id": "a808db88270bf6e5",
+      "path": "simplicio/scratch/codegen/rust_axum.py",
+      "line": 25,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "codegen",
+        "rust",
+        "axum"
+      ],
+      "summary": "feature precedent in simplicio/scratch/codegen/rust_axum.py",
+      "snippet": "\n\nclass RustAxumCrudExecutor(TaskExecutor):\n    \"\"\"Render a compact Axum CRUD API into the scaffold's main.rs.\"\"\"\n"
+    },
+    {
+      "id": "a65e292804e7c511",
+      "path": "simplicio/scratch/codegen/types.py",
+      "line": 14,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "codegen",
+        "types"
+      ],
+      "summary": "feature precedent in simplicio/scratch/codegen/types.py",
+      "snippet": "\n@dataclass\nclass CodegenResult:\n    passed: bool\n    files_modified: list[Path] = field(default_factory=list)"
+    },
+    {
+      "id": "0f1f038dc0379b5c",
+      "path": "simplicio/scratch/codegen/typescript_next_page.py",
+      "line": 24,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "python",
+        "simplicio",
+        "scratch",
+        "codegen",
+        "typescript",
+        "next",
+        "page"
+      ],
+      "summary": "feature precedent in simplicio/scratch/codegen/typescript_next_page.py",
+      "snippet": "\n\nclass TypeScriptAddNextPageExecutor(TaskExecutor):\n    \"\"\"Create a small typed CRUD page for Next.js app-router projects.\"\"\"\n"
+    },
+    {
+      "id": "14615089ab8e83bc",
+      "path": "simplicio/scratch/codegen/typescript_next_route.py",
+      "line": 29,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "python",
+        "simplicio",
+        "scratch",
+        "codegen",
+        "typescript",
+        "next"
+      ],
+      "summary": "feature precedent in simplicio/scratch/codegen/typescript_next_route.py",
+      "snippet": "\n\nclass TypeScriptAddNextRouteExecutor(TaskExecutor):\n    \"\"\"Create small JSON route handlers for Next.js app-router API routes.\"\"\"\n"
+    },
+    {
+      "id": "5ad359e28557a91f",
+      "path": "simplicio/scratch/executor.py",
+      "line": 33,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "executor"
+      ],
+      "summary": "feature precedent in simplicio/scratch/executor.py",
+      "snippet": "\n@dataclass\nclass TaskResult:\n    id: str\n    target: str"
+    },
+    {
+      "id": "f3e761decd1f8d87",
+      "path": "simplicio/scratch/plan_schema.py",
+      "line": 24,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "plan",
+        "schema"
+      ],
+      "summary": "feature precedent in simplicio/scratch/plan_schema.py",
+      "snippet": "\n@dataclass\nclass Task:\n    id: str\n    goal: str"
+    },
+    {
+      "id": "adaa740af39d5678",
+      "path": "simplicio/scratch/planner.py",
+      "line": 21,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "planner"
+      ],
+      "summary": "feature precedent in simplicio/scratch/planner.py",
+      "snippet": "\n\nclass PlannerError(RuntimeError):\n    \"\"\"The planner could not produce a schema-valid plan within retry budget.\"\"\"\n"
+    },
+    {
+      "id": "c72f98a7cee7ddda",
+      "path": "simplicio/scratch/recipes.py",
+      "line": 21,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "recipes"
+      ],
+      "summary": "feature precedent in simplicio/scratch/recipes.py",
+      "snippet": "\n\nclass RecipeError(ValueError):\n    \"\"\"Base class for recipe loading, matching, and rendering failures.\"\"\"\n"
+    },
+    {
+      "id": "fd1616551f41da96",
+      "path": "simplicio/scratch/skill_opt.py",
+      "line": 22,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "skill",
+        "opt"
+      ],
+      "summary": "feature precedent in simplicio/scratch/skill_opt.py",
+      "snippet": "\n\ndef _skills_root() -> Path:\n    override = os.environ.get(\"SIMPLICIO_SKILLS_DIR\")\n    if override:"
+    },
+    {
+      "id": "73ee5d802f800bf3",
+      "path": "simplicio/scratch/stack_registry.py",
+      "line": 24,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "scratch",
+        "stack",
+        "registry"
+      ],
+      "summary": "feature precedent in simplicio/scratch/stack_registry.py",
+      "snippet": "\n\ndef _stacks_root() -> Path:\n    \"\"\"Resolve the stacks directory. Honors SIMPLICIO_STACKS_DIR for testing.\"\"\"\n    override = os.environ.get(\"SIMPLICIO_STACKS_DIR\")"
+    },
+    {
+      "id": "98e709b0f18a26d2",
+      "path": "simplicio/skill_router.py",
+      "line": 13,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "python",
+        "simplicio",
+        "skill",
+        "router"
+      ],
+      "summary": "feature precedent in simplicio/skill_router.py",
+      "snippet": "from .cache import EmbeddingCache\n\ndef _skills_dir(root):\n    return os.environ.get(\"SIMPLICIO_SKILLS_DIR\",\n                          os.path.join(root, \".mapper\", \"skills\"))"
+    },
+    {
+      "id": "fd22f6f171c0b960",
+      "path": "simplicio/sprint_loader.py",
+      "line": 10,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "sprint",
+        "loader"
+      ],
+      "summary": "feature precedent in simplicio/sprint_loader.py",
+      "snippet": "\n@dataclass\nclass SprintTask:\n    path: Path\n    title: str"
+    },
+    {
+      "id": "0f99b7d1972a23b7",
+      "path": "simplicio/templates/SKILL.md",
+      "line": 30,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "simplicio",
+        "templates",
+        "skill"
+      ],
+      "summary": "feature precedent in simplicio/templates/SKILL.md",
+      "snippet": "**Do NOT trigger** on:\n\n- Pure read-only ask (\"what does this function do?\") — answer directly.\n- Architectural decision / refactor amplo cross-file — that goes to `architect` agent + ADR.\n- One-off shell command, lookup, install task."
+    },
+    {
+      "id": "55a60db1fd54cb29",
+      "path": "simplicio/templates/recipes/go-gin/admin-crud.yaml",
+      "line": 18,
+      "language": "yaml",
+      "change_type": "route",
+      "tags": [
+        "yaml",
+        "simplicio",
+        "templates",
+        "recipes",
+        "gin",
+        "admin",
+        "crud"
+      ],
+      "summary": "route precedent in simplicio/templates/recipes/go-gin/admin-crud.yaml",
+      "snippet": "  \"rationale\": \"Use the go-gin admin CRUD recipe for {entity}: admin middleware and route handlers are deterministic.\",\n  \"files_to_create\": [\n    {\"path\": \"internal/http/router.go\", \"purpose\": \"Gin admin router and CRUD handlers for {entity}\"}\n  ],\n  \"tasks\": ["
+    },
+    {
+      "id": "c4cff6584ab9afd6",
+      "path": "simplicio/templates/recipes/go-gin/crud-resource.yaml",
+      "line": 17,
+      "language": "yaml",
+      "change_type": "route",
+      "tags": [
+        "yaml",
+        "simplicio",
+        "templates",
+        "recipes",
+        "gin",
+        "crud",
+        "resource"
+      ],
+      "summary": "route precedent in simplicio/templates/recipes/go-gin/crud-resource.yaml",
+      "snippet": "  \"rationale\": \"Use the go-gin CRUD recipe for {entity}: route handlers are deterministic for this stack.\",\n  \"files_to_create\": [\n    {\"path\": \"internal/http/router.go\", \"purpose\": \"Gin router and CRUD handlers for {entity}\"}\n  ],\n  \"tasks\": ["
+    },
+    {
+      "id": "33dc9ae487a3f070",
+      "path": "simplicio/templates/recipes/py-fastapi/crud-resource.yaml",
+      "line": 30,
+      "language": "yaml",
+      "change_type": "feature",
+      "tags": [
+        "yaml",
+        "simplicio",
+        "templates",
+        "recipes",
+        "fastapi",
+        "crud",
+        "resource"
+      ],
+      "summary": "feature precedent in simplicio/templates/recipes/py-fastapi/crud-resource.yaml",
+      "snippet": "      \"goal\": \"Define the {entity} SQLAlchemy model.\",\n      \"target\": \"src/db/{entity_lower}.py\",\n      \"criteria\": \"- {entity} class exists with id, name, and created_at fields\\\\n- table name is {entity_plural}\",\n      \"constraints\": \"- use SQLAlchemy 2.0 declarative style\",\n      \"verify\": \"pytest tests/db/test_{entity_lower}.py -q\""
+    },
+    {
+      "id": "60e969c8baaffaf7",
+      "path": "simplicio/templates/recipes/py-fastapi/scheduled-job.yaml",
+      "line": 25,
+      "language": "yaml",
+      "change_type": "feature",
+      "tags": [
+        "yaml",
+        "simplicio",
+        "templates",
+        "recipes",
+        "fastapi",
+        "scheduled",
+        "job"
+      ],
+      "summary": "feature precedent in simplicio/templates/recipes/py-fastapi/scheduled-job.yaml",
+      "snippet": "      \"goal\": \"Define the {job} scheduled job handler.\",\n      \"target\": \"src/services/scheduled_jobs.py\",\n      \"criteria\": \"- job function is idempotent\\\\n- next-run metadata is explicit\\\\n- handler reports success/failure\",\n      \"constraints\": \"- keep scheduler adapter replaceable\",\n      \"verify\": \"pytest tests/services/test_scheduled_jobs.py -q\""
+    },
+    {
+      "id": "beca602b74415eec",
+      "path": "simplicio/templates/recipes/ts-nextjs/auth-jwt.yaml",
+      "line": 3,
+      "language": "yaml",
+      "change_type": "route",
+      "tags": [
+        "yaml",
+        "simplicio",
+        "templates",
+        "recipes",
+        "nextjs",
+        "auth",
+        "jwt"
+      ],
+      "summary": "route precedent in simplicio/templates/recipes/ts-nextjs/auth-jwt.yaml",
+      "snippet": "{\n  \"name\": \"auth-jwt\",\n  \"description\": \"JWT authentication plan for Next.js app router.\",\n  \"applies_to\": [\"ts-nextjs\"],\n  \"matches\": ["
+    },
+    {
+      "id": "6068081c8f09df80",
+      "path": "simplicio/templates/recipes/ts-nextjs/crud-resource.yaml",
+      "line": 3,
+      "language": "yaml",
+      "change_type": "route",
+      "tags": [
+        "yaml",
+        "simplicio",
+        "templates",
+        "recipes",
+        "nextjs",
+        "crud",
+        "resource"
+      ],
+      "summary": "route precedent in simplicio/templates/recipes/ts-nextjs/crud-resource.yaml",
+      "snippet": "{\n  \"name\": \"crud-resource\",\n  \"description\": \"REST CRUD plan for {Entity} on Next.js app router.\",\n  \"applies_to\": [\"ts-nextjs\"],\n  \"matches\": ["
+    },
+    {
+      "id": "95ede40fcb34ef09",
+      "path": "simplicio/templates/stacks/csharp-aspnet/tree/src/App.Api/Program.cs",
+      "line": 8,
+      "language": "csharp",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "csharp",
+        "simplicio",
+        "templates",
+        "stacks",
+        "aspnet",
+        "tree",
+        "app",
+        "api",
+        "program"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/csharp-aspnet/tree/src/App.Api/Program.cs",
+      "snippet": "app.Run();\n\npublic partial class Program;\n"
+    },
+    {
+      "id": "34abe9e1d626141b",
+      "path": "simplicio/templates/stacks/csharp-aspnet/tree/tests/App.Tests/HealthTests.cs",
+      "line": 3,
+      "language": "csharp",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "csharp",
+        "simplicio",
+        "templates",
+        "stacks",
+        "aspnet",
+        "tree",
+        "app",
+        "health"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/csharp-aspnet/tree/tests/App.Tests/HealthTests.cs",
+      "snippet": "namespace App.Tests;\n\npublic sealed class HealthTests\n{\n    [Xunit.Fact]"
+    },
+    {
+      "id": "f3975319bf89b2fc",
+      "path": "simplicio/templates/stacks/csharp-blazor/tree/src/App.Web/Program.cs",
+      "line": 11,
+      "language": "csharp",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "csharp",
+        "simplicio",
+        "templates",
+        "stacks",
+        "blazor",
+        "tree",
+        "app",
+        "web",
+        "program"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/csharp-blazor/tree/src/App.Web/Program.cs",
+      "snippet": "namespace App.Web\n{\n    public partial class Program;\n}\n"
+    },
+    {
+      "id": "ecc2e62cb7632744",
+      "path": "simplicio/templates/stacks/csharp-blazor/tree/tests/App.Tests/HealthTests.cs",
+      "line": 3,
+      "language": "csharp",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "csharp",
+        "simplicio",
+        "templates",
+        "stacks",
+        "blazor",
+        "tree",
+        "app",
+        "health"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/csharp-blazor/tree/tests/App.Tests/HealthTests.cs",
+      "snippet": "namespace App.Tests;\n\npublic sealed class HealthTests\n{\n    [Xunit.Fact]"
+    },
+    {
+      "id": "dd056831f8e212f9",
+      "path": "simplicio/templates/stacks/elixir-phoenix/README.md",
+      "line": 16,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "simplicio",
+        "templates",
+        "stacks",
+        "elixir",
+        "phoenix",
+        "readme"
+      ],
+      "summary": "route precedent in simplicio/templates/stacks/elixir-phoenix/README.md",
+      "snippet": "<project_name>/\n|-- mix.exs\n|-- lib/app_web/router.ex\n|-- lib/app_web/controllers/health_controller.ex\n`-- README.md"
+    },
+    {
+      "id": "7f40580e59bd2c3b",
+      "path": "simplicio/templates/stacks/elixir-phoenix/practices.md",
+      "line": 5,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "simplicio",
+        "templates",
+        "stacks",
+        "elixir",
+        "phoenix",
+        "practices"
+      ],
+      "summary": "route precedent in simplicio/templates/stacks/elixir-phoenix/practices.md",
+      "snippet": "## Project structure\n- Keep supervision under the application module.\n- Keep web routing in `lib/app_web/router.ex`.\n- Put contexts in `lib/app/` once domain boundaries appear.\n"
+    },
+    {
+      "id": "b79ce9733ff104f4",
+      "path": "simplicio/templates/stacks/go-cli/tree/cmd/root.go",
+      "line": 21,
+      "language": "go",
+      "change_type": "feature",
+      "tags": [
+        "go",
+        "simplicio",
+        "templates",
+        "stacks",
+        "cli",
+        "tree",
+        "cmd",
+        "root"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/go-cli/tree/cmd/root.go",
+      "snippet": "}\n\nfunc init() {\n\trootCmd.Flags().StringVar(&name, \"name\", \"world\", \"name to greet\")\n}"
+    },
+    {
+      "id": "2fdcac24123caa9a",
+      "path": "simplicio/templates/stacks/go-cli/tree/cmd/root_test.go",
+      "line": 8,
+      "language": "go",
+      "change_type": "feature",
+      "tags": [
+        "go",
+        "simplicio",
+        "templates",
+        "stacks",
+        "cli",
+        "tree",
+        "cmd",
+        "root"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/go-cli/tree/cmd/root_test.go",
+      "snippet": ")\n\nfunc TestRootCommand(t *testing.T) {\n\tvar out bytes.Buffer\n\trootCmd.SetOut(&out)"
+    },
+    {
+      "id": "46809520f85892bd",
+      "path": "simplicio/templates/stacks/go-cli/tree/main.go",
+      "line": 5,
+      "language": "go",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "go",
+        "simplicio",
+        "templates",
+        "stacks",
+        "cli",
+        "tree"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/go-cli/tree/main.go",
+      "snippet": "import \"{project_name}/cmd\"\n\nfunc main() {\n\tcmd.Execute()\n}"
+    },
+    {
+      "id": "1e95786941d91da2",
+      "path": "simplicio/templates/stacks/go-echo/README.md",
+      "line": 16,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "simplicio",
+        "templates",
+        "stacks",
+        "echo",
+        "readme"
+      ],
+      "summary": "route precedent in simplicio/templates/stacks/go-echo/README.md",
+      "snippet": "<project_name>/\n|-- cmd/server/main.go\n|-- internal/http/router.go\n|-- internal/http/router_test.go\n|-- go.mod"
+    },
+    {
+      "id": "06a37e154a92aacd",
+      "path": "simplicio/templates/stacks/go-echo/practices.md",
+      "line": 14,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "simplicio",
+        "templates",
+        "stacks",
+        "echo",
+        "practices"
+      ],
+      "summary": "route precedent in simplicio/templates/stacks/go-echo/practices.md",
+      "snippet": "\n## Testing\n- Use `httptest` against the Echo router.\n- Keep tests package-local to handlers while the API is small.\n- Run `go test ./...` and `go vet ./...`."
+    },
+    {
+      "id": "b17eeb485d3fa7fa",
+      "path": "simplicio/templates/stacks/go-echo/tree/cmd/server/main.go",
+      "line": 9,
+      "language": "go",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "go",
+        "simplicio",
+        "templates",
+        "stacks",
+        "echo",
+        "tree",
+        "cmd",
+        "server"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/go-echo/tree/cmd/server/main.go",
+      "snippet": ")\n\nfunc main() {\n\tif err := http.NewRouter().Start(\":8080\"); err != nil {\n\t\tlog.Fatal(err)"
+    },
+    {
+      "id": "2b1e6e3aa0c6e451",
+      "path": "simplicio/templates/stacks/go-echo/tree/internal/http/router.go",
+      "line": 9,
+      "language": "go",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "go",
+        "simplicio",
+        "templates",
+        "stacks",
+        "echo",
+        "tree",
+        "internal",
+        "http",
+        "router"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/go-echo/tree/internal/http/router.go",
+      "snippet": ")\n\nfunc NewRouter() *echo.Echo {\n\te := echo.New()\n\te.GET(\"/health\", func(c echo.Context) error {"
+    },
+    {
+      "id": "0ffb695638a8a57a",
+      "path": "simplicio/templates/stacks/go-echo/tree/internal/http/router_test.go",
+      "line": 9,
+      "language": "go",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "go",
+        "simplicio",
+        "templates",
+        "stacks",
+        "echo",
+        "tree",
+        "internal",
+        "http",
+        "router"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/go-echo/tree/internal/http/router_test.go",
+      "snippet": ")\n\nfunc TestHealth(t *testing.T) {\n\trouter := NewRouter()\n\treq := httptest.NewRequest(http.MethodGet, \"/health\", nil)"
+    },
+    {
+      "id": "81cb82c468e5ce62",
+      "path": "simplicio/templates/stacks/go-gin/practices.md",
+      "line": 6,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "simplicio",
+        "templates",
+        "stacks",
+        "gin",
+        "practices"
+      ],
+      "summary": "route precedent in simplicio/templates/stacks/go-gin/practices.md",
+      "snippet": "\n- `cmd/server/main.go` creates the router and starts the HTTP server.\n- `internal/http/router.go` owns route registration.\n- One file per resource handler under `internal/http/`.\n- Keep domain logic out of handlers when it grows beyond a tiny first draft."
+    },
+    {
+      "id": "50ab0485257b9621",
+      "path": "simplicio/templates/stacks/go-gin/tree/cmd/server/main.go",
+      "line": 9,
+      "language": "go",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "go",
+        "simplicio",
+        "templates",
+        "stacks",
+        "gin",
+        "tree",
+        "cmd",
+        "server"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/go-gin/tree/cmd/server/main.go",
+      "snippet": ")\n\nfunc main() {\n\trouter := apphttp.NewRouter()\n\tif err := router.Run(\":8080\"); err != nil {"
+    },
+    {
+      "id": "c05f3862003174cf",
+      "path": "simplicio/templates/stacks/go-gin/tree/internal/http/router.go",
+      "line": 9,
+      "language": "go",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "go",
+        "simplicio",
+        "templates",
+        "stacks",
+        "gin",
+        "tree",
+        "internal",
+        "http",
+        "router"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/go-gin/tree/internal/http/router.go",
+      "snippet": ")\n\nfunc NewRouter() *gin.Engine {\n\trouter := gin.New()\n\trouter.Use(gin.Logger(), gin.Recovery())"
+    },
+    {
+      "id": "625f027afd18d283",
+      "path": "simplicio/templates/stacks/go-gin/tree/internal/http/router_test.go",
+      "line": 9,
+      "language": "go",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "go",
+        "simplicio",
+        "templates",
+        "stacks",
+        "gin",
+        "tree",
+        "internal",
+        "http",
+        "router"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/go-gin/tree/internal/http/router_test.go",
+      "snippet": ")\n\nfunc TestHealth(t *testing.T) {\n\trouter := NewRouter()\n\tresponse := httptest.NewRecorder()"
+    },
+    {
+      "id": "fddbe66e7c0a5caf",
+      "path": "simplicio/templates/stacks/java-spring/tree/src/main/java/com/example/Application.java",
+      "line": 7,
+      "language": "java",
+      "change_type": "feature",
+      "tags": [
+        "java",
+        "simplicio",
+        "templates",
+        "stacks",
+        "spring",
+        "tree",
+        "com",
+        "example",
+        "application"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/java-spring/tree/src/main/java/com/example/Application.java",
+      "snippet": "\n@SpringBootApplication\npublic class Application {\n    public static void main(String[] args) {\n        SpringApplication.run(Application.class, args);"
+    },
+    {
+      "id": "6dd7d4ca8d55f708",
+      "path": "simplicio/templates/stacks/java-spring/tree/src/main/java/com/example/HealthController.java",
+      "line": 8,
+      "language": "java",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "java",
+        "simplicio",
+        "templates",
+        "stacks",
+        "spring",
+        "tree",
+        "com",
+        "example",
+        "health"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/java-spring/tree/src/main/java/com/example/HealthController.java",
+      "snippet": "\n@RestController\npublic class HealthController {\n    @GetMapping(\"/health\")\n    Map<String, Boolean> health() {"
+    },
+    {
+      "id": "a3b5d8501c6993e3",
+      "path": "simplicio/templates/stacks/java-spring/tree/src/test/java/com/example/HealthControllerTest.java",
+      "line": 7,
+      "language": "java",
+      "change_type": "test",
+      "tags": [
+        "route",
+        "test",
+        "java",
+        "simplicio",
+        "templates",
+        "stacks",
+        "spring",
+        "tree",
+        "com",
+        "example"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/java-spring/tree/src/test/java/com/example/HealthControllerTest.java",
+      "snippet": "import org.junit.jupiter.api.Test;\n\nclass HealthControllerTest {\n    @Test\n    void healthReturnsOk() {"
+    },
+    {
+      "id": "dd8cb6393ff5192d",
+      "path": "simplicio/templates/stacks/js-express/tree/src/app.js",
+      "line": 3,
+      "language": "javascript",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "javascript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "express",
+        "tree",
+        "app"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/js-express/tree/src/app.js",
+      "snippet": "import express from \"express\";\n\nexport function createApp() {\n  const app = express();\n  app.use(express.json());"
+    },
+    {
+      "id": "0cdde9e815a96860",
+      "path": "simplicio/templates/stacks/js-express/tree/tests/health.test.js",
+      "line": 6,
+      "language": "javascript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "javascript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "express",
+        "tree",
+        "health"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/js-express/tree/tests/health.test.js",
+      "snippet": "import { createApp } from \"../src/app.js\";\n\ntest(\"health route responds with json\", async () => {\n  const app = createApp();\n  const server = app.listen(0);"
+    },
+    {
+      "id": "ebd0b4b65a66995c",
+      "path": "simplicio/templates/stacks/kotlin-android/tree/app/src/main/java/com/example/app/MainActivity.kt",
+      "line": 8,
+      "language": "kotlin",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "kotlin",
+        "simplicio",
+        "templates",
+        "stacks",
+        "android",
+        "tree",
+        "app",
+        "java",
+        "com"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/kotlin-android/tree/app/src/main/java/com/example/app/MainActivity.kt",
+      "snippet": "import androidx.compose.material3.Text\n\nclass MainActivity : ComponentActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)"
+    },
+    {
+      "id": "eeb2eb7acd294362",
+      "path": "simplicio/templates/stacks/kotlin-android/tree/app/src/test/java/com/example/app/SmokeTest.kt",
+      "line": 6,
+      "language": "kotlin",
+      "change_type": "test",
+      "tags": [
+        "route",
+        "test",
+        "kotlin",
+        "simplicio",
+        "templates",
+        "stacks",
+        "android",
+        "tree",
+        "app",
+        "java"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/kotlin-android/tree/app/src/test/java/com/example/app/SmokeTest.kt",
+      "snippet": "import org.junit.Test\n\nclass SmokeTest {\n    @Test\n    fun templateSmoke() {"
+    },
+    {
+      "id": "bc1864c652de054a",
+      "path": "simplicio/templates/stacks/kotlin-ktor/tree/src/test/kotlin/com/example/ApplicationTest.kt",
+      "line": 9,
+      "language": "kotlin",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "kotlin",
+        "simplicio",
+        "templates",
+        "stacks",
+        "ktor",
+        "tree",
+        "com",
+        "example",
+        "application"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/kotlin-ktor/tree/src/test/kotlin/com/example/ApplicationTest.kt",
+      "snippet": "import kotlin.test.assertEquals\n\nclass ApplicationTest {\n    @Test\n    fun healthReturnsOk() = testApplication {"
+    },
+    {
+      "id": "40e6f3a546fb6c87",
+      "path": "simplicio/templates/stacks/kotlin-spring/tree/src/main/kotlin/com/example/Application.kt",
+      "line": 7,
+      "language": "kotlin",
+      "change_type": "feature",
+      "tags": [
+        "kotlin",
+        "simplicio",
+        "templates",
+        "stacks",
+        "spring",
+        "tree",
+        "com",
+        "example",
+        "application"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/kotlin-spring/tree/src/main/kotlin/com/example/Application.kt",
+      "snippet": "\n@SpringBootApplication\nclass Application\n\nfun main(args: Array<String>) {"
+    },
+    {
+      "id": "44299733a158eac0",
+      "path": "simplicio/templates/stacks/kotlin-spring/tree/src/main/kotlin/com/example/HealthController.kt",
+      "line": 7,
+      "language": "kotlin",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "kotlin",
+        "simplicio",
+        "templates",
+        "stacks",
+        "spring",
+        "tree",
+        "com",
+        "example",
+        "health"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/kotlin-spring/tree/src/main/kotlin/com/example/HealthController.kt",
+      "snippet": "\n@RestController\nclass HealthController {\n    @GetMapping(\"/health\")\n    fun health(): Map<String, Boolean> = mapOf(\"ok\" to true)"
+    },
+    {
+      "id": "c0d2ca03aea50597",
+      "path": "simplicio/templates/stacks/kotlin-spring/tree/src/test/kotlin/com/example/HealthControllerTest.kt",
+      "line": 6,
+      "language": "kotlin",
+      "change_type": "test",
+      "tags": [
+        "route",
+        "test",
+        "kotlin",
+        "simplicio",
+        "templates",
+        "stacks",
+        "spring",
+        "tree",
+        "com",
+        "example"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/kotlin-spring/tree/src/test/kotlin/com/example/HealthControllerTest.kt",
+      "snippet": "import kotlin.test.assertEquals\n\nclass HealthControllerTest {\n    @Test\n    fun healthReturnsOk() {"
+    },
+    {
+      "id": "ad0ba31b13a17aed",
+      "path": "simplicio/templates/stacks/php-laravel/practices.md",
+      "line": 7,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "simplicio",
+        "templates",
+        "stacks",
+        "php",
+        "laravel",
+        "practices"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/php-laravel/practices.md",
+      "snippet": "- Put HTTP controllers under `app/Http/Controllers`.\n- Register API routes in `routes/api.php`.\n- Keep request validation close to controllers until a form request class is\n  actually reused.\n- Use feature tests under `tests/Feature` for API behavior."
+    },
+    {
+      "id": "67c26750f6fad2bf",
+      "path": "simplicio/templates/stacks/php-laravel/tree/tests/Feature/HealthTest.php",
+      "line": 7,
+      "language": "php",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "php",
+        "simplicio",
+        "templates",
+        "stacks",
+        "laravel",
+        "tree",
+        "feature",
+        "health"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/php-laravel/tree/tests/Feature/HealthTest.php",
+      "snippet": "use Tests\\TestCase;\n\nclass HealthTest extends TestCase\n{\n    public function test_health_endpoint_returns_ok(): void"
+    },
+    {
+      "id": "84ee7b01d5acb5ce",
+      "path": "simplicio/templates/stacks/php-laravel/tree/tests/TestCase.php",
+      "line": 7,
+      "language": "php",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "php",
+        "simplicio",
+        "templates",
+        "stacks",
+        "laravel",
+        "tree",
+        "case"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/php-laravel/tree/tests/TestCase.php",
+      "snippet": "use Illuminate\\Foundation\\Testing\\TestCase as BaseTestCase;\n\nabstract class TestCase extends BaseTestCase\n{\n    //"
+    },
+    {
+      "id": "1ae6b7c76bff14c3",
+      "path": "simplicio/templates/stacks/php-symfony/tree/src/Controller/HealthController.php",
+      "line": 10,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "php",
+        "simplicio",
+        "templates",
+        "stacks",
+        "symfony",
+        "tree",
+        "controller",
+        "health"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/php-symfony/tree/src/Controller/HealthController.php",
+      "snippet": "use Symfony\\Component\\Routing\\Attribute\\Route;\n\nfinal class HealthController\n{\n    #[Route('/health', methods: ['GET'])]"
+    },
+    {
+      "id": "8de54904a5e9349f",
+      "path": "simplicio/templates/stacks/php-symfony/tree/tests/HealthControllerTest.php",
+      "line": 10,
+      "language": "php",
+      "change_type": "test",
+      "tags": [
+        "route",
+        "test",
+        "php",
+        "simplicio",
+        "templates",
+        "stacks",
+        "symfony",
+        "tree",
+        "health",
+        "controller"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/php-symfony/tree/tests/HealthControllerTest.php",
+      "snippet": "use PHPUnit\\Framework\\TestCase;\n\nfinal class HealthControllerTest extends TestCase\n{\n    public function testHealth(): void"
+    },
+    {
+      "id": "14ce1daec72dfb7f",
+      "path": "simplicio/templates/stacks/php-vanilla/practices.md",
+      "line": 5,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "simplicio",
+        "templates",
+        "stacks",
+        "php",
+        "vanilla",
+        "practices"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/php-vanilla/practices.md",
+      "snippet": "## Project structure\n- Use PSR-4 autoloading from `src/`.\n- Keep tests under `tests/` with matching class names.\n- Keep framework adapters outside domain classes.\n"
+    },
+    {
+      "id": "c2ff1a33bcfaa8a7",
+      "path": "simplicio/templates/stacks/php-vanilla/tree/src/Health.php",
+      "line": 7,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "php",
+        "simplicio",
+        "templates",
+        "stacks",
+        "vanilla",
+        "tree",
+        "health"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/php-vanilla/tree/src/Health.php",
+      "snippet": "namespace App;\n\nfinal class Health\n{\n    public function ok(): bool"
+    },
+    {
+      "id": "ca251b14abdfbce1",
+      "path": "simplicio/templates/stacks/php-vanilla/tree/tests/HealthTest.php",
+      "line": 10,
+      "language": "php",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "php",
+        "simplicio",
+        "templates",
+        "stacks",
+        "vanilla",
+        "tree",
+        "health"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/php-vanilla/tree/tests/HealthTest.php",
+      "snippet": "use PHPUnit\\Framework\\TestCase;\n\nfinal class HealthTest extends TestCase\n{\n    public function testOk(): void"
+    },
+    {
+      "id": "740436f872158c0b",
+      "path": "simplicio/templates/stacks/py-cli/tree/src/app/cli.py",
+      "line": 9,
+      "language": "python",
+      "change_type": "route",
+      "tags": [
+        "entrypoint",
+        "route",
+        "python",
+        "simplicio",
+        "templates",
+        "stacks",
+        "cli",
+        "tree",
+        "app"
+      ],
+      "summary": "route precedent in simplicio/templates/stacks/py-cli/tree/src/app/cli.py",
+      "snippet": "\n\n@app.command()\ndef hello(name: str = \"world\") -> None:\n    console.print(f\"hello {name}\")"
+    },
+    {
+      "id": "bb8e089008aff8db",
+      "path": "simplicio/templates/stacks/py-cli/tree/tests/test_cli.py",
+      "line": 6,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "simplicio",
+        "templates",
+        "stacks",
+        "cli",
+        "tree"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/py-cli/tree/tests/test_cli.py",
+      "snippet": "\n\ndef test_hello() -> None:\n    result = CliRunner().invoke(app, [\"hello\", \"--name\", \"Simplicio\"])\n"
+    },
+    {
+      "id": "5ebc1e5d3074ef01",
+      "path": "simplicio/templates/stacks/py-django/practices.md",
+      "line": 10,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "simplicio",
+        "templates",
+        "stacks",
+        "django",
+        "practices"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/py-django/practices.md",
+      "snippet": "## API design\n- Use Django REST Framework serializers for request and response validation.\n- Use class-based viewsets for CRUD resources and explicit function views for\n  narrow health or webhook endpoints.\n- Keep migrations small and committed with the model change."
+    },
+    {
+      "id": "e477da7b8a089df0",
+      "path": "simplicio/templates/stacks/py-django/tree/app/apps.py",
+      "line": 4,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "python",
+        "simplicio",
+        "templates",
+        "stacks",
+        "django",
+        "tree",
+        "app",
+        "apps"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/py-django/tree/app/apps.py",
+      "snippet": "\n\nclass AppConfig(DjangoAppConfig):\n    default_auto_field = \"django.db.models.BigAutoField\"\n    name = \"app\""
+    },
+    {
+      "id": "3701a68e21251cb0",
+      "path": "simplicio/templates/stacks/py-django/tree/app/tests.py",
+      "line": 4,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "route",
+        "test",
+        "python",
+        "simplicio",
+        "templates",
+        "stacks",
+        "django",
+        "tree",
+        "app"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/py-django/tree/app/tests.py",
+      "snippet": "\n\nclass HealthTests(TestCase):\n    def test_health(self) -> None:\n        response = Client().get(\"/health/\")"
+    },
+    {
+      "id": "dcf3ed8bd75d838e",
+      "path": "simplicio/templates/stacks/py-django/tree/app/views.py",
+      "line": 6,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "ui",
+        "python",
+        "simplicio",
+        "templates",
+        "stacks",
+        "django",
+        "tree",
+        "app",
+        "views"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/py-django/tree/app/views.py",
+      "snippet": "\n@api_view([\"GET\"])\ndef health(_request):\n    return Response({\"ok\": True})\n"
+    },
+    {
+      "id": "a93a729595be49d2",
+      "path": "simplicio/templates/stacks/py-django/tree/manage.py",
+      "line": 6,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "templates",
+        "stacks",
+        "django",
+        "tree",
+        "manage"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/py-django/tree/manage.py",
+      "snippet": "\n\ndef main() -> None:\n    os.environ.setdefault(\"DJANGO_SETTINGS_MODULE\", \"config.settings\")\n    from django.core.management import execute_from_command_line"
+    },
+    {
+      "id": "483510bb1b3688d5",
+      "path": "simplicio/templates/stacks/py-fastapi/practices.md",
+      "line": 11,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "simplicio",
+        "templates",
+        "stacks",
+        "fastapi",
+        "practices"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/py-fastapi/practices.md",
+      "snippet": "\n## Typing & validation\n- All public function signatures fully typed; mypy-friendly even though we don't ship mypy by default\n- Pydantic v2 models for every request/response body\n- Path/query params use `Annotated[..., Query(...)]` form, not raw default args"
+    },
+    {
+      "id": "30d2aca03b7e8b43",
+      "path": "simplicio/templates/stacks/py-fastapi/tree/src/main.py",
+      "line": 8,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "python",
+        "simplicio",
+        "templates",
+        "stacks",
+        "fastapi",
+        "tree"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/py-fastapi/tree/src/main.py",
+      "snippet": "\n\ndef create_app() -> FastAPI:\n    app = FastAPI(title=\"{project_name}\")\n"
+    },
+    {
+      "id": "24309e1af62f14ed",
+      "path": "simplicio/templates/stacks/py-fastapi/tree/tests/test_health.py",
+      "line": 7,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "simplicio",
+        "templates",
+        "stacks",
+        "fastapi",
+        "tree",
+        "health"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/py-fastapi/tree/tests/test_health.py",
+      "snippet": "\n\ndef test_health_endpoint_returns_ok() -> None:\n    client = TestClient(app)\n    response = client.get(\"/health\")"
+    },
+    {
+      "id": "95ff24e524d1e205",
+      "path": "simplicio/templates/stacks/py-flask/tree/src/app.py",
+      "line": 4,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "python",
+        "simplicio",
+        "templates",
+        "stacks",
+        "flask",
+        "tree",
+        "app"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/py-flask/tree/src/app.py",
+      "snippet": "\n\ndef create_app() -> Flask:\n    app = Flask(__name__)\n"
+    },
+    {
+      "id": "58ac503b8c044a05",
+      "path": "simplicio/templates/stacks/py-flask/tree/tests/test_health.py",
+      "line": 4,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "simplicio",
+        "templates",
+        "stacks",
+        "flask",
+        "tree",
+        "health"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/py-flask/tree/tests/test_health.py",
+      "snippet": "\n\ndef test_health() -> None:\n    client = create_app().test_client()\n"
+    },
+    {
+      "id": "3cb8082e13d35030",
+      "path": "simplicio/templates/stacks/react-vite/tree/src/App.test.tsx",
+      "line": 6,
+      "language": "typescript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "typescript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "react",
+        "vite",
+        "tree",
+        "app",
+        "tsx"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/react-vite/tree/src/App.test.tsx",
+      "snippet": "import { App } from \"./App\";\n\ndescribe(\"App\", () => {\n  it(\"renders the project name\", () => {\n    render(<App />);"
+    },
+    {
+      "id": "0878dc5b0bea7888",
+      "path": "simplicio/templates/stacks/react-vite/tree/src/App.tsx",
+      "line": 1,
+      "language": "typescript",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "typescript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "react",
+        "vite",
+        "tree",
+        "app",
+        "tsx"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/react-vite/tree/src/App.tsx",
+      "snippet": "export function App() {\n  return (\n    <main>"
+    },
+    {
+      "id": "fd91386300df95dc",
+      "path": "simplicio/templates/stacks/ruby-rails/tree/app/controllers/health_controller.rb",
+      "line": 1,
+      "language": "ruby",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "ruby",
+        "simplicio",
+        "templates",
+        "stacks",
+        "rails",
+        "tree",
+        "app",
+        "controllers",
+        "health"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/ruby-rails/tree/app/controllers/health_controller.rb",
+      "snippet": "class HealthController < ActionController::API\n  def show\n    render json: { ok: true }"
+    },
+    {
+      "id": "e3326df2d5fde98e",
+      "path": "simplicio/templates/stacks/ruby-rails/tree/config/application.rb",
+      "line": 5,
+      "language": "ruby",
+      "change_type": "feature",
+      "tags": [
+        "ruby",
+        "simplicio",
+        "templates",
+        "stacks",
+        "rails",
+        "tree",
+        "config",
+        "application"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/ruby-rails/tree/config/application.rb",
+      "snippet": "\nmodule App\n  class Application < Rails::Application\n    config.load_defaults 7.1\n  end"
+    },
+    {
+      "id": "19140d0f43e5d128",
+      "path": "simplicio/templates/stacks/ruby-rails/tree/test/controllers/health_controller_test.rb",
+      "line": 3,
+      "language": "ruby",
+      "change_type": "test",
+      "tags": [
+        "route",
+        "test",
+        "ruby",
+        "simplicio",
+        "templates",
+        "stacks",
+        "rails",
+        "tree",
+        "controllers",
+        "health"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/ruby-rails/tree/test/controllers/health_controller_test.rb",
+      "snippet": "require \"test_helper\"\n\nclass HealthControllerTest < ActionDispatch::IntegrationTest\n  test \"health responds ok\" do\n    get \"/health\""
+    },
+    {
+      "id": "492cdbf8337c4e56",
+      "path": "simplicio/templates/stacks/ts-nestjs/tree/src/app.controller.spec.ts",
+      "line": 3,
+      "language": "typescript",
+      "change_type": "test",
+      "tags": [
+        "route",
+        "test",
+        "typescript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "nestjs",
+        "tree",
+        "app",
+        "controller"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/ts-nestjs/tree/src/app.controller.spec.ts",
+      "snippet": "import { AppController } from \"./app.controller\";\n\ndescribe(\"AppController\", () => {\n  it(\"returns health\", () => {\n    expect(new AppController().health()).toEqual({ ok: true });"
+    },
+    {
+      "id": "4f6b1e1d2f627a7b",
+      "path": "simplicio/templates/stacks/ts-nestjs/tree/src/app.controller.ts",
+      "line": 4,
+      "language": "typescript",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "typescript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "nestjs",
+        "tree",
+        "app",
+        "controller"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/ts-nestjs/tree/src/app.controller.ts",
+      "snippet": "\n@Controller()\nexport class AppController {\n  @Get(\"health\")\n  health(): { ok: boolean } {"
+    },
+    {
+      "id": "9c9590d5cd133d13",
+      "path": "simplicio/templates/stacks/ts-nestjs/tree/src/app.module.ts",
+      "line": 8,
+      "language": "typescript",
+      "change_type": "feature",
+      "tags": [
+        "typescript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "nestjs",
+        "tree",
+        "app",
+        "module"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/ts-nestjs/tree/src/app.module.ts",
+      "snippet": "  controllers: [AppController],\n})\nexport class AppModule {}\n"
+    },
+    {
+      "id": "53ed405aab538ee2",
+      "path": "simplicio/templates/stacks/ts-nestjs/tree/src/main.ts",
+      "line": 8,
+      "language": "typescript",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "typescript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "nestjs",
+        "tree"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/ts-nestjs/tree/src/main.ts",
+      "snippet": "import { AppModule } from \"./app.module\";\n\nasync function bootstrap() {\n  const app = await NestFactory.create(AppModule, new FastifyAdapter());\n  await app.listen(3000, \"0.0.0.0\");"
+    },
+    {
+      "id": "5c2ff2238514334f",
+      "path": "simplicio/templates/stacks/ts-nextjs/README.md",
+      "line": 3,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "simplicio",
+        "templates",
+        "stacks",
+        "nextjs",
+        "readme"
+      ],
+      "summary": "route precedent in simplicio/templates/stacks/ts-nextjs/README.md",
+      "snippet": "# ts-nextjs\n\nTypeScript 5 + Next.js 14 app router. SSR-ready, React 18, TypeScript for\ncompile checks, Playwright for e2e, eslint for lint.\n"
+    },
+    {
+      "id": "7c6cde9427a868f1",
+      "path": "simplicio/templates/stacks/ts-nextjs/tree/src/app/layout.tsx",
+      "line": 8,
+      "language": "typescript",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "typescript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "nextjs",
+        "tree",
+        "app",
+        "layout",
+        "tsx"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/ts-nextjs/tree/src/app/layout.tsx",
+      "snippet": "};\n\nexport default function RootLayout({ children }: { children: ReactNode }) {\n  return (\n    <html lang=\"en\">"
+    },
+    {
+      "id": "bbbb385062277cfc",
+      "path": "simplicio/templates/stacks/ts-nextjs/tree/src/app/page.tsx",
+      "line": 1,
+      "language": "typescript",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "typescript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "nextjs",
+        "tree",
+        "app",
+        "page",
+        "tsx"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/ts-nextjs/tree/src/app/page.tsx",
+      "snippet": "export default function HomePage() {\n  return (\n    <main>"
+    },
+    {
+      "id": "03d0e3589da6b679",
+      "path": "simplicio/templates/stacks/ts-remix/tree/app/root.tsx",
+      "line": 3,
+      "language": "typescript",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "typescript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "remix",
+        "tree",
+        "app",
+        "root",
+        "tsx"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/ts-remix/tree/app/root.tsx",
+      "snippet": "import { Links, Meta, Outlet, Scripts } from \"@remix-run/react\";\n\nexport default function App() {\n  return (\n    <html lang=\"en\">"
+    },
+    {
+      "id": "ca733519f57fcbc7",
+      "path": "simplicio/templates/stacks/ts-remix/tree/app/routes/_index.tsx",
+      "line": 1,
+      "language": "typescript",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "typescript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "remix",
+        "tree",
+        "app",
+        "routes",
+        "tsx"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/ts-remix/tree/app/routes/_index.tsx",
+      "snippet": "export default function Index() {\n  return (\n    <main>"
+    },
+    {
+      "id": "53bab980b8077188",
+      "path": "simplicio/templates/stacks/ts-remix/tree/app/routes/health.test.ts",
+      "line": 5,
+      "language": "typescript",
+      "change_type": "test",
+      "tags": [
+        "route",
+        "test",
+        "typescript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "remix",
+        "tree",
+        "app",
+        "routes"
+      ],
+      "summary": "test precedent in simplicio/templates/stacks/ts-remix/tree/app/routes/health.test.ts",
+      "snippet": "import { loader } from \"./health\";\n\ndescribe(\"health loader\", () => {\n  it(\"returns ok\", async () => {\n    const response = await loader();"
+    },
+    {
+      "id": "becf177077db0259",
+      "path": "simplicio/templates/stacks/ts-remix/tree/app/routes/health.ts",
+      "line": 3,
+      "language": "typescript",
+      "change_type": "feature",
+      "tags": [
+        "route",
+        "typescript",
+        "simplicio",
+        "templates",
+        "stacks",
+        "remix",
+        "tree",
+        "app",
+        "routes",
+        "health"
+      ],
+      "summary": "feature precedent in simplicio/templates/stacks/ts-remix/tree/app/routes/health.ts",
+      "snippet": "import { json } from \"@remix-run/node\";\n\nexport function loader() {\n  return json({ ok: true });\n}"
+    },
+    {
+      "id": "635dc0a9976b718a",
+      "path": "simplicio/token_primitives.py",
+      "line": 21,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "token",
+        "primitives"
+      ],
+      "summary": "feature precedent in simplicio/token_primitives.py",
+      "snippet": "\n\ndef sha256_text(text: str | bytes) -> str:\n    if isinstance(text, str):\n        text = text.encode(\"utf-8\")"
+    },
+    {
+      "id": "f1f96537b208c741",
+      "path": "simplicio/utils/cache.py",
+      "line": 6,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "utils",
+        "cache"
+      ],
+      "summary": "feature precedent in simplicio/utils/cache.py",
+      "snippet": "Examples:\n    @memoize_disk(namespace=\"mapper_artifacts\", ttl=60)\n    def load_project_map(root: str) -> dict: ...\n\n    @lru_cache(maxsize=256)"
+    },
+    {
+      "id": "867049b2f8187020",
+      "path": "simplicio/utils/http_client.py",
+      "line": 20,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "utils",
+        "http",
+        "client"
+      ],
+      "summary": "feature precedent in simplicio/utils/http_client.py",
+      "snippet": "\n\ndef _config() -> dict:\n    return {\n        \"timeout\": httpx.Timeout("
+    },
+    {
+      "id": "26692b2cb4f6c213",
+      "path": "simplicio/utils/serialization.py",
+      "line": 16,
+      "language": "python",
+      "change_type": "error-handling",
+      "tags": [
+        "python",
+        "simplicio",
+        "utils",
+        "serialization"
+      ],
+      "summary": "error-handling precedent in simplicio/utils/serialization.py",
+      "snippet": "from typing import Any\n\ntry:  # optional fast path\n    import orjson as _oj\n    _HAS_ORJSON = True"
+    },
+    {
+      "id": "c7c06634143f64b7",
+      "path": "simplicio_cli.egg-info/PKG-INFO",
+      "line": 264,
+      "language": "text",
+      "change_type": "route",
+      "tags": [
+        "text",
+        "simplicio",
+        "cli",
+        "egg",
+        "info",
+        "pkg"
+      ],
+      "summary": "route precedent in simplicio_cli.egg-info/PKG-INFO",
+      "snippet": "\n> Reproduce the new default set:\n> `BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=<hf-token>\n> BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\"\n> python3 bench/run_offline.py`."
+    },
+    {
+      "id": "2192c806b968cfed",
+      "path": "simplicio_cli.egg-info/SOURCES.txt",
+      "line": 126,
+      "language": "txt",
+      "change_type": "route",
+      "tags": [
+        "txt",
+        "simplicio",
+        "cli",
+        "egg",
+        "info",
+        "sources"
+      ],
+      "summary": "route precedent in simplicio_cli.egg-info/SOURCES.txt",
+      "snippet": "simplicio/templates/stacks/elixir-phoenix/tree/lib/app/application.ex\nsimplicio/templates/stacks/elixir-phoenix/tree/lib/app_web/endpoint.ex\nsimplicio/templates/stacks/elixir-phoenix/tree/lib/app_web/router.ex\nsimplicio/templates/stacks/elixir-phoenix/tree/lib/app_web/controllers/health_controller.ex\nsimplicio/templates/stacks/elixir-phoenix/tree/test/health_controller_test.exs"
+    },
+    {
+      "id": "a4948087d07ffe52",
+      "path": "tests/e2e/README.md",
+      "line": 54,
+      "language": "markdown",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "markdown",
+        "e2e",
+        "readme"
+      ],
+      "summary": "test precedent in tests/e2e/README.md",
+      "snippet": "| Part | File |\n|---|---|\n| Demo app under test (offline SPA, `file://`) | `fixtures/demo-app/index.html` |\n| Page Object (selectors by role/label/testid) | `pages/DemoApp.ts` |\n| Spec (flow + asserts + evidence) | `frontend-flow.spec.ts` |"
+    },
+    {
+      "id": "eabe1b35d0f791f3",
+      "path": "tests/e2e/cli.spec.ts",
+      "line": 20,
+      "language": "typescript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "typescript",
+        "e2e",
+        "cli",
+        "spec"
+      ],
+      "summary": "test precedent in tests/e2e/cli.spec.ts",
+      "snippet": "const NODE = process.execPath;\n\nfunction mkTmp(): string {\n  return fs.mkdtempSync(path.join(os.tmpdir(), 'lpm-e2e-'));\n}"
+    },
+    {
+      "id": "db64516a23614d3e",
+      "path": "tests/e2e/frontend-flow.spec.ts",
+      "line": 23,
+      "language": "typescript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "typescript",
+        "e2e",
+        "frontend",
+        "flow",
+        "spec"
+      ],
+      "summary": "test precedent in tests/e2e/frontend-flow.spec.ts",
+      "snippet": "const EVIDENCE_DIR = path.resolve(__dirname, '..', '..', 'docs', 'evidence', 'frontend-flow');\n\nasync function capture(page: Page, testInfo: TestInfo, name: string): Promise<void> {\n  const file = path.join(EVIDENCE_DIR, `${name}.png`);\n  await page.screenshot({ path: file, fullPage: true });"
+    },
+    {
+      "id": "71d7520c9049c254",
+      "path": "tests/e2e/pages/DemoApp.ts",
+      "line": 12,
+      "language": "typescript",
+      "change_type": "test",
+      "tags": [
+        "route",
+        "test",
+        "typescript",
+        "e2e",
+        "pages",
+        "demo",
+        "app"
+      ],
+      "summary": "test precedent in tests/e2e/pages/DemoApp.ts",
+      "snippet": " * app's BASE_URL and keep the same role/label-based selectors.\n */\nexport class DemoApp {\n  readonly page: Page;\n  readonly emailInput: Locator;"
+    },
+    {
+      "id": "fcf8ff6a39e0558d",
+      "path": "tests/e2e/smoke.spec.ts",
+      "line": 13,
+      "language": "typescript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "typescript",
+        "e2e",
+        "smoke",
+        "spec"
+      ],
+      "summary": "test precedent in tests/e2e/smoke.spec.ts",
+      "snippet": "const baseUrl = process.env.BASE_URL;\n\ntest.describe('downstream smoke (skipped without BASE_URL)', () => {\n  test.skip(!baseUrl, 'BASE_URL not set — skipping browser smoke');\n"
+    },
+    {
+      "id": "1687e93e6724dc98",
+      "path": "tests/python/test_cache.py",
+      "line": 20,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "cache"
+      ],
+      "summary": "test precedent in tests/python/test_cache.py",
+      "snippet": "\n@pytest.fixture(autouse=True)\ndef isolated_cache(tmp_path, monkeypatch):\n    monkeypatch.setenv(\"SIMPLICIO_CACHE_DIR\", str(tmp_path / \"cache\"))\n    monkeypatch.delenv(\"SIMPLICIO_CACHE\", raising=False)"
+    },
+    {
+      "id": "3c09e976c5105859",
+      "path": "tests/python/test_cli_autoinstall.py",
+      "line": 5,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "cli",
+        "autoinstall"
+      ],
+      "summary": "test precedent in tests/python/test_cli_autoinstall.py",
+      "snippet": "\n\ndef test_autoinstall_runs_on_fresh_claude_home(tmp_path, monkeypatch):\n    monkeypatch.setenv(\"HOME\", str(tmp_path))\n    monkeypatch.delenv(\"SIMPLICIO_SKIP_AUTO_INIT\", raising=False)"
+    },
+    {
+      "id": "777636e0418b7a22",
+      "path": "tests/python/test_cost_governor.py",
+      "line": 14,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "cost",
+        "governor"
+      ],
+      "summary": "test precedent in tests/python/test_cost_governor.py",
+      "snippet": "\n\ndef test_cost_governor_allows_missing_budget():\n    gov = CostGovernor.from_value(None)\n    gov.charge_usd(\"999\")"
+    },
+    {
+      "id": "ecd5aac947147808",
+      "path": "tests/python/test_detect.py",
+      "line": 6,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "detect"
+      ],
+      "summary": "test precedent in tests/python/test_detect.py",
+      "snippet": "\n\ndef test_code_task_with_file_and_verb():\n    r = detect(\"esconda o botão admin no Header.tsx para não-admins\")\n    assert r.is_code_task is True"
+    },
+    {
+      "id": "b6f378b5f992c57e",
+      "path": "tests/python/test_init.py",
+      "line": 8,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "init"
+      ],
+      "summary": "test precedent in tests/python/test_init.py",
+      "snippet": "\n\ndef test_install_fresh_claude_home(tmp_path):\n    report = install(claude_home=tmp_path, dry_run=False)\n"
+    },
+    {
+      "id": "8ca6736c36316fc8",
+      "path": "tests/python/test_intent.py",
+      "line": 8,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "intent"
+      ],
+      "summary": "test precedent in tests/python/test_intent.py",
+      "snippet": "\n\ndef test_explicit_scope_wins_over_text():\n    result = classify_goal(\"scaffold a new FastAPI app from scratch\", explicit_scope=\"task\")\n    assert result.scope == \"task\""
+    },
+    {
+      "id": "a73afe4676855e47",
+      "path": "tests/python/test_issue_closure_audit.py",
+      "line": 10,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "issue",
+        "closure",
+        "audit"
+      ],
+      "summary": "test precedent in tests/python/test_issue_closure_audit.py",
+      "snippet": "\n\ndef _write_json(path, payload) -> None:\n    path.write_text(json.dumps(payload), encoding=\"utf-8\")\n"
+    },
+    {
+      "id": "b0391e4abb9f4741",
+      "path": "tests/python/test_llm_reduction_summary.py",
+      "line": 10,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "llm",
+        "reduction",
+        "summary"
+      ],
+      "summary": "test precedent in tests/python/test_llm_reduction_summary.py",
+      "snippet": "\n\ndef _write_json(path, payload) -> None:\n    path.write_text(json.dumps(payload), encoding=\"utf-8\")\n"
+    },
+    {
+      "id": "1023af8a6c27c43d",
+      "path": "tests/python/test_local_models.py",
+      "line": 36,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "domain",
+        "test",
+        "python",
+        "local",
+        "models"
+      ],
+      "summary": "test precedent in tests/python/test_local_models.py",
+      "snippet": "    (4, 0, True, \"cpu-tiny\"),\n])\ndef test_pick_tier_threshold_table(ram, vram, apple, expected) -> None:\n    assert pick_tier(ram, vram, apple) == expected\n"
+    },
+    {
+      "id": "c2a4aecedf9dd6cf",
+      "path": "tests/python/test_mapping_retry_flow.py",
+      "line": 11,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "mapping",
+        "retry",
+        "flow"
+      ],
+      "summary": "test precedent in tests/python/test_mapping_retry_flow.py",
+      "snippet": "\n\ndef write_json(path, payload):\n    path.parent.mkdir(parents=True, exist_ok=True)\n    path.write_text(json.dumps(payload), encoding=\"utf-8\")"
+    },
+    {
+      "id": "9dbef5bd8236cffe",
+      "path": "tests/python/test_mechanical_edit.py",
+      "line": 10,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "mechanical",
+        "edit"
+      ],
+      "summary": "test precedent in tests/python/test_mechanical_edit.py",
+      "snippet": "\n\ndef _write(path, text: str | bytes):\n    path.parent.mkdir(parents=True, exist_ok=True)\n    if isinstance(text, bytes):"
+    },
+    {
+      "id": "fd15fddd88f6eb15",
+      "path": "tests/python/test_orchestrator_feature.py",
+      "line": 8,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "orchestrator",
+        "feature"
+      ],
+      "summary": "test precedent in tests/python/test_orchestrator_feature.py",
+      "snippet": "\n\ndef _plan(*tasks):\n    return Plan(\n        version=\"1.0\","
+    },
+    {
+      "id": "233694e39a8cc9cf",
+      "path": "tests/python/test_package_metadata.py",
+      "line": 7,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "package",
+        "metadata"
+      ],
+      "summary": "test precedent in tests/python/test_package_metadata.py",
+      "snippet": "\n\ndef test_package_version_matches_release_metadata() -> None:\n    project = tomllib.loads(Path(\"pyproject.toml\").read_text(encoding=\"utf-8\"))[\"project\"]\n"
+    },
+    {
+      "id": "f231b21b9de1a24b",
+      "path": "tests/python/test_pipeline_fixers.py",
+      "line": 14,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "pipeline",
+        "fixers"
+      ],
+      "summary": "test precedent in tests/python/test_pipeline_fixers.py",
+      "snippet": "\n\ndef _ok(argv):\n    return subprocess.CompletedProcess(argv, 0, \"\", \"\")\n"
+    },
+    {
+      "id": "07cff5eaeb0d3c81",
+      "path": "tests/python/test_planner_provider.py",
+      "line": 12,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "planner",
+        "provider"
+      ],
+      "summary": "test precedent in tests/python/test_planner_provider.py",
+      "snippet": "\n@pytest.fixture(autouse=True)\ndef _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:\n    for v in (\n        \"SIMPLICIO_PLANNER\", \"HF_TOKEN\","
+    },
+    {
+      "id": "5f061cdb7977e293",
+      "path": "tests/python/test_providers_local.py",
+      "line": 20,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "providers",
+        "local"
+      ],
+      "summary": "test precedent in tests/python/test_providers_local.py",
+      "snippet": "\n@pytest.fixture(autouse=True)\ndef _clean(tmp_path, monkeypatch):\n    for v in (\n        \"SIMPLICIO_MODEL\","
+    },
+    {
+      "id": "22fc630cd58800b3",
+      "path": "tests/python/test_providers_shellout.py",
+      "line": 18,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "providers",
+        "shellout"
+      ],
+      "summary": "test precedent in tests/python/test_providers_shellout.py",
+      "snippet": "\n@pytest.fixture(autouse=True)\ndef isolated_completion_cache(tmp_path, monkeypatch):\n    monkeypatch.setenv(\"SIMPLICIO_CACHE_DIR\", str(tmp_path / \"cache\"))\n    monkeypatch.delenv(\"SIMPLICIO_BUST_CACHE\", raising=False)"
+    },
+    {
+      "id": "cb3a2da02f43916f",
+      "path": "tests/python/test_qwen15b_quant_curve_report.py",
+      "line": 9,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "qwen15b",
+        "quant",
+        "curve",
+        "report"
+      ],
+      "summary": "test precedent in tests/python/test_qwen15b_quant_curve_report.py",
+      "snippet": "\n\ndef _write_manifest(tmp_path: Path) -> Path:\n    manifest = tmp_path / \"manifest.json\"\n    manifest.write_text("
+    },
+    {
+      "id": "d910ec9e5fc5269c",
+      "path": "tests/python/test_recipe_expansion.py",
+      "line": 18,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "recipe",
+        "expansion"
+      ],
+      "summary": "test precedent in tests/python/test_recipe_expansion.py",
+      "snippet": "    ],\n)\ndef test_new_llm_reduction_recipe_types_match_for_fastapi(\n    stack_slug: str,\n    goal: str,"
+    },
+    {
+      "id": "80b52a50295345f5",
+      "path": "tests/python/test_recipes.py",
+      "line": 82,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "recipes"
+      ],
+      "summary": "test precedent in tests/python/test_recipes.py",
+      "snippet": "\n\ndef test_registry_loads_three_pilot_recipes_for_each_stack() -> None:\n    registry = RecipeRegistry()\n"
+    },
+    {
+      "id": "bf66c424f09a11b7",
+      "path": "tests/python/test_run_cli.py",
+      "line": 8,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "run",
+        "cli"
+      ],
+      "summary": "test precedent in tests/python/test_run_cli.py",
+      "snippet": "\n\ndef _write(path, text):\n    path.parent.mkdir(parents=True, exist_ok=True)\n    path.write_text(text, encoding=\"utf-8\")"
+    },
+    {
+      "id": "352d8926d2f47df6",
+      "path": "tests/python/test_runtime_contracts.py",
+      "line": 9,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "runtime",
+        "contracts"
+      ],
+      "summary": "test precedent in tests/python/test_runtime_contracts.py",
+      "snippet": "\n\ndef test_doctor_contract_reports_ecosystem_tool_status(tmp_path, monkeypatch):\n    def fake_which(name: str):\n        return f\"/bin/{name}\" if name in {\"simplicio-mapper\", \"simplicio\"} else None"
+    },
+    {
+      "id": "afbb9de1db0bdabe",
+      "path": "tests/python/test_runtime_env.py",
+      "line": 8,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "runtime",
+        "env"
+      ],
+      "summary": "test precedent in tests/python/test_runtime_env.py",
+      "snippet": "\n\ndef test_wrap_project_command_uses_project_nvmrc(tmp_path, monkeypatch):\n    nvm_dir = tmp_path / \"nvm\"\n    nvm_dir.mkdir()"
+    }
+  ]
+}

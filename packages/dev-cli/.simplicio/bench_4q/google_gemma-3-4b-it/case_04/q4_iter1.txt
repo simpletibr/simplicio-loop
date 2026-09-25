@@ -1,0 +1,59 @@
+```diff
+--- a/src/app/orders/order-detail.component.html
++++ b/src/app/orders/order-detail.component.html
+@@ -15,7 +15,12 @@
+   <div *ngIf="order.status === 'pending' && hasApproverPermission()">
+     <button (click)="approveOrder()" [disabled]="!hasApproverPermission()">Approve</button>
+   </div>
+-  <div *ngIf="order.status === 'completed'"></div>
++  <div *ngIf="order.status !== 'pending'"></div>
++
++  <div *ngIf="order.status === 'pending' && !hasApproverPermission()">
++    <p>You do not have permission to approve this order.</p>
++  </div>
++
++
+   <!-- Other order details -->
+ </div>
+```
+
+```
+TEST
+describe('Order Detail Component', () => {
+  it('Approve button is visible when order status is pending and user has approver permission', async () => {
+    // Arrange
+    cy.visit('/orders/123');
+    // Mock order data
+    cy.window().then((win) => {
+      win.order = { status: 'pending', approverPermission: true };
+    });
+    // Assert Approve button is visible
+    cy.get('button').should('be.visible');
+  });
+  it('Approve button is hidden when order status is not pending', async () => {
+    // Arrange
+    cy.visit('/orders/123');
+    // Mock order data
+    cy.window().then((win) => {
+      win.order = { status: 'completed', approverPermission: true };
+    });
+    // Assert Approve button is hidden
+    cy.get('button').should('not.exist');
+  });
+  it('Approve button is hidden when order status is pending and user does not have approver permission', async () => {
+    // Arrange
+    cy.visit('/orders/123');
+    // Mock order data
+    cy.window().then((win) => {
+      win.order = { status: 'pending', approverPermission: false };
+    });
+    // Assert Approve button is hidden
+    cy.get('button').should('not.exist');
+  });
+});
+```
+
+```
+EVIDENCE
+N/A
+```

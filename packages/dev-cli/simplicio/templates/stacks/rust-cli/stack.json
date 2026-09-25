@@ -1,0 +1,13 @@
+{
+  "slug": "rust-cli",
+  "template_version": "0.1.0",
+  "language": "Rust 1.82",
+  "framework": "Clap",
+  "framework_version": "4",
+  "package_manager": "cargo",
+  "test_runner": "cargo test",
+  "linter": "clippy",
+  "deps_required": ["clap@4", "anyhow@1"],
+  "deps_dev": [],
+  "tags": ["cli", "rust", "compiled", "terminal"]
+}

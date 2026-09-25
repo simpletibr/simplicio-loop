@@ -1,0 +1,82 @@
+{
+  "benchmark": "schema-v1-smoke",
+  "calls": 4,
+  "date": "2026-05-31",
+  "go_no_go": {
+    "criterion": "parse_ok >= 2/4",
+    "pass": false
+  },
+  "issue": 46,
+  "model": "/root/models/Qwen2.5-Coder-1.5B-Instruct-Q4_0.gguf",
+  "model_spec": "gguf:/root/models/Qwen2.5-Coder-1.5B-Instruct-Q4_0.gguf",
+  "quant": "Q4_0",
+  "rows": [
+    {
+      "artifact_matches_contract": false,
+      "artifact_preview": "```json\n{\n  \"artifact\": \"<?php declare(strict_types=1); namespace App\\Core; final class PasswordPolicy { public static function violations(string $password): array { $violations = []; if (strlen($password) < 8) { $violations[] = 'min_length'; } return $violations; } public static function isStrong(string $password): bool { $violations = self::violations($password); return empty($violations); } }\",\n  \"files_changed\": [\"src/Core/PasswordPolicy.php\"],\n  \"behaviors_added\": [\"App\\Core\\PasswordPolicy:",
+      "behaviors_added": [],
+      "call": 1,
+      "confidence": 0.0,
+      "elapsed_ms": 22733,
+      "error": null,
+      "expected_oracle_pass": [],
+      "files_changed": [],
+      "parse_error": "json error: Invalid \\escape: line 2 column 60 (char 61)",
+      "parse_ok": false,
+      "total_tokens": 624
+    },
+    {
+      "artifact_matches_contract": true,
+      "artifact_preview": "```json\n{\n  \"artifact\": \"<?php\\n\\ndeclare(strict_types=1);\\n\\nnamespace App\\Core;\\n\\nclass PasswordPolicy\\n{\\n    public static function violations(string $password): array\\n    {\\n        $violations = [];\\n        if (strlen($password) < 8) {\\n            $violations[] = 'min_length';\\n        }\\n        if (strlen($password) >= 8 && strlen($password) <= 32) {\\n            $violations[] = 'medium_length';\\n        }\\n        if (strlen($password) > 32) {\\n            $violations[] = 'long_leng",
+      "behaviors_added": [],
+      "call": 2,
+      "confidence": 0.0,
+      "elapsed_ms": 32200,
+      "error": null,
+      "expected_oracle_pass": [],
+      "files_changed": [],
+      "parse_error": "json error: Invalid \\escape: line 2 column 66 (char 67)",
+      "parse_ok": false,
+      "total_tokens": 762
+    },
+    {
+      "artifact_matches_contract": true,
+      "artifact_preview": "```json\n{\n  \"artifact\": \"<?php\ndeclare(strict_types=1);\n\nnamespace App\\Core;\n\nfinal class PasswordPolicy\n{\n    public static function violations(string $password): array\n    {\n        $violations = [];\n        if (strlen($password) < 8) {\n            $violations[] = 'min_length';\n        }\n        if (preg_match('/[a-z]/', $password) === 0) {\n            $violations[] = 'no_lowercase';\n        }\n        if (preg_match('/[A-Z]/', $password) === 0) {\n            $violations[] = 'no_uppercase';\n   ",
+      "behaviors_added": [],
+      "call": 3,
+      "confidence": 0.0,
+      "elapsed_ms": 47022,
+      "error": null,
+      "expected_oracle_pass": [],
+      "files_changed": [],
+      "parse_error": "json error: Invalid control character at: line 2 column 21 (char 22)",
+      "parse_ok": false,
+      "total_tokens": 887
+    },
+    {
+      "artifact_matches_contract": true,
+      "artifact_preview": "```json\n{\n  \"artifact\": \"<?php\\n\\ndeclare(strict_types=1);\\n\\nnamespace App\\Core;\\n\\nclass PasswordPolicy\\n{\\n    public static function violations(string $password): array\\n    {\\n        $violations = [];\\n        if (strlen($password) < 8) {\\n            $violations[] = 'min_length';\\n        }\\n        if (strpos($password, ' ') !== false) {\\n            $violations[] = 'contains_space';\\n        }\\n        return $violations;\\n    }\\n    public static function isStrong(string $password): bo",
+      "behaviors_added": [],
+      "call": 4,
+      "confidence": 0.0,
+      "elapsed_ms": 115686,
+      "error": null,
+      "expected_oracle_pass": [],
+      "files_changed": [],
+      "parse_error": "unbalanced braces",
+      "parse_ok": false,
+      "total_tokens": 1488
+    }
+  ],
+  "summary": {
+    "artifact_matches_contract": 3,
+    "artifact_matches_contract_rate": 0.75,
+    "avg_elapsed_ms": 54410,
+    "elapsed_ms": 217641,
+    "parse_failed": 4,
+    "parse_ok": 0,
+    "parse_ok_rate": 0.0,
+    "total_tokens": 3761
+  },
+  "task": "PasswordPolicy::isStrong schema v1 smoke"
+}

@@ -1,0 +1,13 @@
+{
+  "slug": "py-django",
+  "template_version": "0.1.0",
+  "language": "Python 3.12",
+  "framework": "Django",
+  "framework_version": ">=5.0",
+  "package_manager": "pip",
+  "test_runner": "django test",
+  "linter": "ruff",
+  "deps_required": ["django>=6.0.5", "djangorestframework>=3.17.1"],
+  "deps_dev": ["ruff>=0.15.15"],
+  "tags": ["web", "api", "python", "rest", "server-rendered"]
+}

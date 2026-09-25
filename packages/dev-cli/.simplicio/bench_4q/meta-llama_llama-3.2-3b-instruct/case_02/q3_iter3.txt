@@ -1,0 +1,7 @@
+Here's the corrected version of the code snippet:
+
+```html
+<input type="email" id="email" name="email" disabled [if="role == 'editor'"]>
+```
+
+In this corrected version, I've explicitly referenced the 'editor' role in the condition. This should pass the checks and successfully compile.

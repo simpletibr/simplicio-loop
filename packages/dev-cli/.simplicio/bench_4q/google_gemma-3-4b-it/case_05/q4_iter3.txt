@@ -1,0 +1,46 @@
+```diff
+--- a/src/components/Menu.tsx
++++ b/src/components/Menu.tsx
+@@ -12,7 +12,11 @@
+   const menuItems = [
+     { label: 'Home', path: '/' },
+     { label: 'Analytics', path: '/analytics' },
+-    { label: 'Export', path: '/export' },
++    { label: 'Export', path: '/export', shouldRender: user?.analytics },
++    { label: 'Other', path: '/other' },
+   ];
+ 
+   return (
+```
+
+```test
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import Menu from './Menu';
+import { User } from '../../types/user';
+import { AnalyticsGroup } from '../../types/analytics';
+import { mockUser } from '../../__tests__/utils/mock-user';
+import { mockAnalyticsGroup } from '../../__tests__/utils/mock-analytics';
+import { mockExport } from '../../__tests__/utils/mock-export';
+import { mockOther } from '../../__tests__/utils/mock-other';
+
+describe('Menu Component', () => {
+  it('renders export item when user is in analytics group', () => {
+    const user: User = mockUser(mockAnalyticsGroup());
+    render(<Menu user={user} />);
+    const exportItem = screen.getByText('Export');
+    expect(exportItem).toBeInTheDocument();
+  });
+
+  it('does not render export item when user is not in analytics group', () => {
+    const user: User = mockUser(mockAnalyticsGroup());
+    render(<Menu user={user} />);
+    const exportItem = screen.getByText('Export');
+    expect(exportItem).not.toBeInTheDocument();
+  });
+});
+```
+
+```evidence
+N/A
+```

@@ -1,0 +1,38 @@
+```diff
+--- a/src/app/nav/nav.component.html
++++ b/src/app/nav/nav.component.html
+@@ -12,7 +12,11 @@
+   <a *ngIf="showAuditLog" [routerLink]="['/audit-log']" class="nav-link">
+     Audit Log
+   </a>
+-
++  <a *ngIf="!showAuditLog" class="nav-link" routerLink="*">
++    Audit Log
++  </a>
++
+   <a *ngIf="showDashboard" [routerLink]="['/dashboard']" class="nav-link">
+     Dashboard
+   </a>
+```
+
+```
+TEST
+describe('NavComponent', () => {
+  it('should show audit log link for auditors', async () => {
+    await page.goto('/');
+    const auditLogLink = await page.locator('a[href="/audit-log"]').isVisible();
+    expect(auditLogLink).toBe(true);
+  });
+
+  it('should not show audit log link for non-auditors', async () => {
+    await page.goto('/');
+    const auditLogLink = await page.locator('a[href="/audit-log"]').isVisible();
+    expect(auditLogLink).toBe(false);
+  });
+});
+```
+
+```
+EVIDENCE
+N/A
+```

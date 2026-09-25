@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/plugin/dev-cli-effect-lease.schema.json",
+  "title": "Plugin EffectLease consumed by Dev CLI",
+  "type": "object",
+  "required": ["schema", "lease_id", "effect_id", "ttl_ms"],
+  "properties": {
+    "schema": { "const": "simplicio.plugin.effect-lease/v1" },
+    "lease_id": { "type": "string" },
+    "effect_id": { "type": "string" },
+    "ttl_ms": { "type": "integer", "minimum": 1 },
+    "fence": { "type": "string" },
+    "repo": { "type": "string" },
+    "worktree": { "type": "string" },
+    "branch": { "type": "string" },
+    "write_set": { "type": "array", "items": { "type": "string" } },
+    "issued_at": { "type": "number" },
+    "digest": { "type": "string" },
+    "session_id": { "type": "string" },
+    "task_id": { "type": "string" },
+    "attempt_id": { "type": "string" }
+  },
+  "additionalProperties": true
+}

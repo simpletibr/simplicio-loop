@@ -1,0 +1,135 @@
+{
+  "benchmark": "scratch-live-gate",
+  "date": "2026-05-30",
+  "environment": {
+    "platform": "Windows-11-10.0.22631-SP0",
+    "python": "3.14.3"
+  },
+  "matrix": {
+    "disable_codegen": true,
+    "goals": 1,
+    "plan_only": false,
+    "planned_runs": 1,
+    "post_verify": true,
+    "release_planned_runs": 75,
+    "selected_runs": 1,
+    "skip_install": false,
+    "stacks": 1
+  },
+  "runs": [
+    {
+      "codegen_disabled": true,
+      "command": [
+        "C:\\Users\\wesley.simplicio\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "-m",
+        "simplicio.cli",
+        "scratch",
+        "CRUD app for condo units with owner contact search",
+        "--stack",
+        "go-gin",
+        "--name",
+        "gate-g01-go-gin",
+        "--dest",
+        "C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\simplicio-no-codegen-baseline-go-gin-20260530-165952\\work\\projects",
+        "--json"
+      ],
+      "cost_usd": null,
+      "duration_s": 204.707,
+      "e2e_green": true,
+      "goal": "CRUD app for condo units with owner contact search",
+      "goal_index": 1,
+      "json_parse_error": "",
+      "planner_valid": true,
+      "post_verify": {
+        "commands": [
+          {
+            "command": "go test ./...",
+            "duration_s": 0.741,
+            "name": "test",
+            "passed": true,
+            "returncode": 0,
+            "stderr_tail": "",
+            "stdout_tail": "?   \tgate-g01-go-gin/cmd/server\t[no test files]\nok  \tgate-g01-go-gin/internal/http\t(cached)\n",
+            "timed_out": false
+          },
+          {
+            "command": "go vet ./...",
+            "duration_s": 8.841,
+            "name": "lint",
+            "passed": true,
+            "returncode": 0,
+            "stderr_tail": "",
+            "stdout_tail": "",
+            "timed_out": false
+          }
+        ],
+        "duration_s": 9.582,
+        "enabled": true,
+        "passed": true
+      },
+      "project_name": "gate-g01-go-gin",
+      "returncode": 0,
+      "run_number": 1,
+      "scaffold_clean": true,
+      "scratch_metrics": {
+        "avg_codegen_ms": 0,
+        "avg_llm_ms": 197963,
+        "avg_task_ms": 197963,
+        "codegen_share": 0.0,
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "stack": "go-gin",
+      "stderr_tail": "[scratch] stack:   go-gin (Go 1.22 / Gin)\n[scratch] project: gate-g01-go-gin\n[scratch] planner: planner=codex-cli/default (shell-out)\n[scratch] generating plan...\n[scratch] plan ok: 1 tasks\n",
+      "stdout_tail": "golang.org/x/arch v0.8.0\\ngo: downloading github.com/klauspost/cpuid/v2 v2.2.7\\ngo: downloading github.com/bytedance/sonic/loader v0.1.1\\ngo: downloading github.com/twitchyliquid64/golang-asm v0.15.1\\ngo: downloading github.com/cloudwego/iasm v0.2.0\\ngo: downloading github.com/go-playground/assert/v2 v2.2.0\\ngo: downloading github.com/google/go-cmp v0.5.5\\ngo: downloading gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405\\ngo: downloading golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543\\n\",\n  \"tasks\": [\n    {\n      \"id\": \"T01-gin-crud\",\n      \"target\": \"internal/http/router.go\",\n      \"passed\": true,\n      \"execution_mode\": \"llm\",\n      \"codegen_executor\": null,\n      \"files_modified\": [],\n      \"skipped\": null,\n      \"duration_ms\": 197963,\n      \"log_tail\": \"codegen fallback: codegen disabled by SIMPLICIO_DISABLE_CODEGEN\\n\\n{\\n  \\\"applied\\\": true,\\n  \\\"cost_usd\\\": 0.0,\\n  \\\"diff_summary\\\": \\\"changed internal/http/router.go\\\",\\n  \\\"files_changed\\\": [\\n    \\\"internal/http/router.go\\\"\\n  ],\\n  \\\"task_id\\\": \\\"internal/http/router.go\\\",\\n  \\\"tokens_used\\\": {\\n    \\\"completion\\\": 853,\\n    \\\"prompt\\\": 260\\n  },\\n  \\\"warnings\\\": []\\n}\",\n      \"generated_skill\": null\n    }\n  ],\n  \"tasks_passed\": 1,\n  \"tasks_total\": 1,\n  \"metrics\": {\n    \"tasks_total\": 1,\n    \"tasks_codegen\": 0,\n    \"tasks_llm\": 1,\n    \"tasks_skipped\": 0,\n    \"tasks_failed\": 0,\n    \"codegen_share\": 0.0,\n    \"avg_codegen_ms\": 0,\n    \"avg_llm_ms\": 197963,\n    \"avg_task_ms\": 197963\n  },\n  \"elapsed_s\": 204.54\n}\n",
+      "task_all_passed": true,
+      "tasks_passed": 1,
+      "tasks_total": 1,
+      "timed_out": false
+    }
+  ],
+  "scope": "live scratch v0.5 gate execution slice; partial runs are evidence only for the executed slice and do not replace the full 75-run gate",
+  "summary": {
+    "average_cost_usd": null,
+    "e2e_green": 1,
+    "e2e_green_rate": 1.0,
+    "elapsed_s": 214.309,
+    "median_wall_clock_s": 204.707,
+    "missing_release_evidence": [
+      "full 15 goals x 5 pilot stacks live matrix",
+      "average cost measurement",
+      "SkillOpt human approval evidence >=80%"
+    ],
+    "planner_valid": 1,
+    "planner_valid_rate": 1.0,
+    "release_gates": {
+      "average_cost_le_1": null,
+      "e2e_green_ge_80": true,
+      "full_75_run_matrix": false,
+      "median_wall_clock_le_8m": true,
+      "planner_valid_ge_90": true,
+      "release_ready": false,
+      "scaffold_clean_ge_95": true,
+      "skillopt_human_approval_ge_80": false
+    },
+    "scaffold_clean": 1,
+    "scaffold_clean_rate": 1.0,
+    "skillopt_review": {
+      "approval_rate": 0.0,
+      "approved": 0,
+      "gate_passed": false,
+      "invalid_reviews": 0,
+      "reviews": [],
+      "source": "inline",
+      "total_reviews": 0
+    },
+    "task_all_passed": 1,
+    "task_all_passed_rate": 1.0,
+    "timed_out": 0,
+    "total_runs": 1
+  },
+  "work_dir": "$WORK_DIR"
+}

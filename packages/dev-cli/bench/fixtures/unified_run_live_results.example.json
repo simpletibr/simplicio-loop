@@ -1,0 +1,31 @@
+{
+  "example": "Minimal partial live-results input for issue #41. Documentation/test fixture only; not release evidence.",
+  "issue": "#41",
+  "release_evidence": false,
+  "release_ready": false,
+  "rows": [
+    {
+      "artifacts": [
+        {
+          "kind": "dod-evidence",
+          "path": "bench/run_unified_run_bench.py",
+          "sha256": "4470c06d77c74e2f444f3d97e697e81b61b348f754e7f5bf8b23d2eff835009d"
+        }
+      ],
+      "case_id": "sprint-checkout-hardening",
+      "command": "simplicio-py run --scope sprint --max-cost 5 bench/fixtures/unified-run-example",
+      "cost_usd": 0.0,
+      "duration_s": 1.0,
+      "exit_code": 0,
+      "external_agent_invoked": false,
+      "llm_invoked": true,
+      "mode_id": "unified_sprint",
+      "notes": [
+        "Example live row only; the full 12-row live matrix is intentionally incomplete.",
+        "Demonstrates the verified artifact object input shape without serving as release evidence."
+      ],
+      "success": true,
+      "transcript_sha256": ""
+    }
+  ]
+}

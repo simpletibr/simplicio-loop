@@ -1,0 +1,27 @@
+{
+  "model": "Qwen/Qwen2.5-Coder-3B-Instruct",
+  "backend": "transformers-cpu-fp32",
+  "N": 4,
+  "parse_ok_count": 4,
+  "parse_failed_count": 0,
+  "modal_count": 1,
+  "uniq_behavior_groups": 4,
+  "winner_confidence": 0.9,
+  "winner_behaviors_added": [
+    "App\\Core\\PasswordPolicy::isStrong"
+  ],
+  "winner_self_expected": [
+    "assert(PasswordPolicy::isStrong('a') === false);",
+    "assert(PasswordPolicy::isStrong('abc') === false);",
+    "assert(PasswordPolicy::isStrong('abcdefg') === false);",
+    "assert(PasswordPolicy::isStrong('abcdefg123') === true);",
+    "assert(PasswordPolicy::isStrong('12345678901234567890') === true);"
+  ],
+  "winner_artifact_first_500": "<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Core;\n\nfinal class PasswordPolicy\n{\n    public static function isStrong(string $password): bool\n    {\n        return strlen($password) >= 12;\n    }\n}",
+  "raw_files_saved": [
+    "/tmp/qwen3b_raw_1.txt",
+    "/tmp/qwen3b_raw_2.txt",
+    "/tmp/qwen3b_raw_3.txt",
+    "/tmp/qwen3b_raw_4.txt"
+  ]
+}

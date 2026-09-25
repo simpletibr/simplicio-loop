@@ -1,0 +1,53 @@
+{
+  "name": "oauth-integration",
+  "description": "FastAPI OAuth login callback flow with provider adapter and tests.",
+  "applies_to": ["py-fastapi"],
+  "matches": [
+    "(?i)\\bOAuth\\s+integration\\s+with\\s+(?P<provider>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\b(?:add|build|implement|create)\\s+OAuth\\s+(?:login|flow|integration)(?:\\s+with\\s+(?P<provider>[A-Za-z][A-Za-z0-9_-]*))?\\b",
+    "(?i)\\blogin\\s+with\\s+(?P<provider>[A-Za-z][A-Za-z0-9_-]*)\\s+OAuth\\b"
+  ],
+  "slots": {
+    "provider": {"default": "github", "transform": "lower_snake_case"},
+    "Provider": {"derived_from": "provider", "transform": "pascal_case"}
+  },
+  "rationale": "Use the py-fastapi OAuth recipe for {Provider}: authorization URL, callback exchange, and mocked-provider tests are deterministic.",
+  "files_to_create": [
+    {"path": "src/auth/oauth.py", "purpose": "OAuth provider adapter"},
+    {"path": "src/api/routes/oauth.py", "purpose": "OAuth login and callback routes"},
+    {"path": "tests/api/test_oauth.py", "purpose": "OAuth route tests"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-oauth-adapter",
+      "depends_on": [],
+      "goal": "Create an OAuth adapter for {Provider}.",
+      "target": "src/auth/oauth.py",
+      "criteria": "- builds authorization URL with state\\n- exchanges callback code for token\\n- fetches normalized profile data",
+      "constraints": "- keep provider HTTP calls injectable for tests",
+      "verify": "pytest tests/api/test_oauth.py -q"
+    },
+    {
+      "id": "T02-oauth-routes",
+      "depends_on": ["T01-oauth-adapter"],
+      "goal": "Expose OAuth login and callback routes.",
+      "target": "src/api/routes/oauth.py",
+      "criteria": "- GET /oauth/{provider}/login redirects to provider\\n- callback validates state\\n- successful callback creates or links a local identity",
+      "constraints": "- do not log secrets or tokens",
+      "verify": "pytest tests/api/test_oauth.py -q"
+    },
+    {
+      "id": "T03-oauth-tests",
+      "depends_on": ["T02-oauth-routes"],
+      "goal": "Cover OAuth login, callback, and error handling.",
+      "target": "tests/api/test_oauth.py",
+      "criteria": "- authorization redirect is asserted\\n- callback success is mocked\\n- missing state and provider error paths fail safely",
+      "constraints": "- avoid live network calls",
+      "verify": "pytest tests/api/test_oauth.py -q"
+    }
+  ],
+  "deps_to_install": ["httpx>=0.28.1"],
+  "deps_dev": ["pytest>=9.0.3"],
+  "test_command": "pytest -q",
+  "lint_command": "ruff check src tests"
+}

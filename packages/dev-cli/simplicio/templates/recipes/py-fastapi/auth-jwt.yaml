@@ -1,0 +1,54 @@
+{
+  "name": "auth-jwt",
+  "description": "JWT login, token verification, and protected-route plumbing for FastAPI.",
+  "applies_to": ["py-fastapi"],
+  "matches": [
+    "(?i)\\b(?:add|build|implement)\\s+JWT\\s+auth(?:entication)?\\b",
+    "(?i)\\bauth(?:entication)?\\s+with\\s+JWT\\b",
+    "(?i)\\blogin\\s+with\\s+JWT\\b",
+    "(?i)\\bJWT\\s+login\\b"
+  ],
+  "slots": {
+    "subject": {"default": "user", "transform": "lower_snake_case"},
+    "subject_pascal": {"derived_from": "subject", "transform": "pascal_case"}
+  },
+  "rationale": "Use the py-fastapi JWT recipe because login, token creation, token verification, and protected-route tests are repeatable.",
+  "files_to_create": [
+    {"path": "src/auth/jwt.py", "purpose": "JWT encode/decode helpers"},
+    {"path": "src/api/routes/auth.py", "purpose": "Login and token refresh routes"},
+    {"path": "tests/api/test_auth_jwt.py", "purpose": "JWT auth route tests"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-token-service",
+      "depends_on": [],
+      "goal": "Create JWT helpers for {subject} identity tokens.",
+      "target": "src/auth/jwt.py",
+      "criteria": "- create_access_token signs subject claims\\n- decode_access_token validates signature and expiry",
+      "constraints": "- read secret and expiry from environment defaults",
+      "verify": "pytest tests/api/test_auth_jwt.py -q"
+    },
+    {
+      "id": "T02-auth-routes",
+      "depends_on": ["T01-token-service"],
+      "goal": "Implement login and current-{subject} routes.",
+      "target": "src/api/routes/auth.py",
+      "criteria": "- POST /auth/login returns an access token\\n- GET /auth/me requires a bearer token",
+      "constraints": "- keep persistence behind a small lookup function",
+      "verify": "pytest tests/api/test_auth_jwt.py -q"
+    },
+    {
+      "id": "T03-auth-tests",
+      "depends_on": ["T02-auth-routes"],
+      "goal": "Cover JWT login and protected route behavior.",
+      "target": "tests/api/test_auth_jwt.py",
+      "criteria": "- valid credentials receive a token\\n- missing or invalid tokens return 401",
+      "constraints": "- avoid live network calls",
+      "verify": "pytest tests/api/test_auth_jwt.py -q"
+    }
+  ],
+  "deps_to_install": ["python-jose[cryptography]>=3.5.0", "passlib[bcrypt]>=1.7.4"],
+  "deps_dev": ["pytest>=9.0.3", "httpx>=0.28.1"],
+  "test_command": "pytest -q",
+  "lint_command": "ruff check src tests"
+}

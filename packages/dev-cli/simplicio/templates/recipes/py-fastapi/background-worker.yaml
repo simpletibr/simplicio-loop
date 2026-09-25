@@ -1,0 +1,52 @@
+{
+  "name": "background-worker",
+  "description": "FastAPI background task service with enqueue route and tests.",
+  "applies_to": ["py-fastapi"],
+  "matches": [
+    "(?i)\\bbackground\\s+worker\\b",
+    "(?i)\\b(?:add|build|implement|create)\\s+(?:a\\s+)?background\\s+(?:task|job|worker)\\b",
+    "(?i)\\bworker\\s+for\\s+(?:email|emails|delivery|notifications?)\\b"
+  ],
+  "slots": {
+    "job": {"default": "email_delivery", "transform": "lower_snake_case"}
+  },
+  "rationale": "Use the py-fastapi background worker recipe: enqueue API, task runner, and tests are deterministic.",
+  "files_to_create": [
+    {"path": "src/services/background_worker.py", "purpose": "In-process background worker adapter"},
+    {"path": "src/api/routes/jobs.py", "purpose": "Job enqueue route"},
+    {"path": "tests/api/test_background_worker.py", "purpose": "Background worker tests"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-worker-service",
+      "depends_on": [],
+      "goal": "Create a small background worker service for {job}.",
+      "target": "src/services/background_worker.py",
+      "criteria": "- job payload is typed\\n- handler can be executed synchronously in tests\\n- failures are captured",
+      "constraints": "- avoid introducing a broker unless the project already has one",
+      "verify": "pytest tests/api/test_background_worker.py -q"
+    },
+    {
+      "id": "T02-job-route",
+      "depends_on": ["T01-worker-service"],
+      "goal": "Expose an enqueue route backed by FastAPI BackgroundTasks.",
+      "target": "src/api/routes/jobs.py",
+      "criteria": "- POST /jobs returns accepted status\\n- background handler is scheduled\\n- invalid payload returns 422",
+      "constraints": "- keep side effects injectable",
+      "verify": "pytest tests/api/test_background_worker.py -q"
+    },
+    {
+      "id": "T03-worker-tests",
+      "depends_on": ["T02-job-route"],
+      "goal": "Cover enqueue and worker execution behavior.",
+      "target": "tests/api/test_background_worker.py",
+      "criteria": "- enqueue route schedules work\\n- worker success and failure paths are covered",
+      "constraints": "- run without external services",
+      "verify": "pytest tests/api/test_background_worker.py -q"
+    }
+  ],
+  "deps_to_install": [],
+  "deps_dev": ["pytest>=9.0.3", "httpx>=0.28.1"],
+  "test_command": "pytest -q",
+  "lint_command": "ruff check src tests"
+}

@@ -1,0 +1,24 @@
+usage: simplicio-py changeset [-h] [--root ROOT]
+                              [--mode {auto,standalone,integrated}]
+                              [--plan PLAN] [--apply]
+                              [--current-generation CURRENT_GENERATION]
+                              [--fast-engine {auto,rust,python,none}]
+                              [--refresh-mapper] [--json]
+
+options:
+  -h, --help            show this help message and exit
+  --root ROOT           repository root
+  --mode {auto,standalone,integrated}
+                        execution route; auto resolves to standalone when no
+                        Runtime authorization is supplied
+  --plan PLAN           changeset JSON or Fast binary path, or - for stdin
+  --apply               atomically apply; default is dry-run
+  --current-generation CURRENT_GENERATION
+                        reject the changeset unless its generation matches
+                        this value
+  --fast-engine {auto,rust,python,none}
+                        select the in-memory Fast decoder; rust never silently
+                        falls back
+  --refresh-mapper      after a committed binary changeset, refresh Mapper
+                        once for all changed paths
+  --json                emit a stable v2 receipt

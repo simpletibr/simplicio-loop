@@ -1,0 +1,14 @@
+{
+  "slug": "ts-remix",
+  "template_version": "0.1.0",
+  "language": "TypeScript 5",
+  "framework": "Remix",
+  "framework_version": "2",
+  "node": ">=20",
+  "package_manager": "npm",
+  "test_runner": "vitest",
+  "linter": "eslint",
+  "deps_required": ["@remix-run/node", "@remix-run/react", "@remix-run/serve", "react", "react-dom"],
+  "deps_dev": ["@remix-run/dev", "typescript", "vite", "vitest", "eslint"],
+  "tags": ["web", "ssr", "react", "typescript", "remix"]
+}

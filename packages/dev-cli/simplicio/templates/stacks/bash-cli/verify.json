@@ -1,0 +1,6 @@
+{
+  "install": "",
+  "test": "bats test",
+  "test_runner": "bats",
+  "lint": "shellcheck bin/*.sh"
+}

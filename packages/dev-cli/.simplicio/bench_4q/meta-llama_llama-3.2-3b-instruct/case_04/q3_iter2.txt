@@ -1,0 +1,42 @@
+Here's the corrected version of the code snippet:
+
+```html
+<!-- order-detail.component.html -->
+
+<div *ngIf="isOrderPendingAndHasApproverPermission">
+  <button type="button" class="btn btn-primary" (click)="approveOrder()">Approve</button>
+</div>
+
+<div *ngIf="isOrderPendingAndHasApproverPermission" [hidden]="isOrderApproved">
+  <p>Order is already approved.</p>
+</div>
+
+<div *ngIf="isOrderPendingAndHasApproverPermission" [hidden]="isOrderRejected">
+  <p>Order is already rejected.</p>
+</div>
+
+<!-- DIFF -->
+<div class="diff">
+  <h2>Changes</h2>
+  <div class="diff-header">
+    <span class="diff-header-left">Before</span>
+    <span class="diff-header-right">After</span>
+  </div>
+  <div class="diff-body">
+    <div class="diff-line" data-line-number="1">
+      <span class="diff-line-left"><!-- order-detail.component.html --> before</span>
+      <span class="diff-line-right"><!-- order-detail.component.html --> after</span>
+    </div>
+  </div>
+</div>
+
+<!-- TEST -->
+<div class="test">
+  <h2>Test</h2>
+  <div class="test-header">
+    <span class="test-header-left">Test</span>
+    <span class="test-header-right">Pass/Fail</span>
+  </div>
+  <div class="test-body">
+    <div class="test-case">
+      <h

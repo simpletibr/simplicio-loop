@@ -1,0 +1,6 @@
+{
+  "install": "bundle install",
+  "test": "bin/rails test",
+  "test_runner": "rails test",
+  "lint": "bundle exec rubocop"
+}

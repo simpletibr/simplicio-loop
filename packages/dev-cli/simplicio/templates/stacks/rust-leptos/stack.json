@@ -1,0 +1,13 @@
+{
+  "slug": "rust-leptos",
+  "template_version": "0.1.0",
+  "language": "Rust 1.82",
+  "framework": "Leptos",
+  "framework_version": "0.7",
+  "package_manager": "cargo",
+  "test_runner": "cargo test",
+  "linter": "clippy",
+  "deps_required": ["leptos"],
+  "deps_dev": [],
+  "tags": ["web", "frontend", "rust", "leptos", "ssr"]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "simplicio-cli-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Playwright E2E harness for the starter kit shipped inside simplicio-cli.",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}

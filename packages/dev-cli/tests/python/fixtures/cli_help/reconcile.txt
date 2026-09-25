@@ -1,0 +1,10 @@
+usage: simplicio-py reconcile [-h] [--root ROOT]
+                              [--idempotency-key IDEMPOTENCY_KEY]
+                              --evidence-file EVIDENCE_FILE [--json]
+
+options:
+  -h, --help            show this help message and exit
+  --root ROOT, --repo ROOT
+  --idempotency-key IDEMPOTENCY_KEY
+  --evidence-file EVIDENCE_FILE
+  --json

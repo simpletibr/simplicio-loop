@@ -1,0 +1,6 @@
+{
+  "install": "go mod download",
+  "test": "go test ./...",
+  "test_runner": "go test",
+  "lint": "go vet ./..."
+}

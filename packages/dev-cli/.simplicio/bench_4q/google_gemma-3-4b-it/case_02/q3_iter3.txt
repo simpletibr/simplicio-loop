@@ -1,0 +1,6 @@
+```json
+{
+  "instruction": "Disable the email field unless the profile role is editor.",
+  "output": "The email field is disabled for non-editor users."
+}
+```

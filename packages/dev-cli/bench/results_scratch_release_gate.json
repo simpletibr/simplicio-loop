@@ -1,0 +1,121 @@
+{
+  "benchmark": "scratch-release-gate",
+  "date": "2026-05-30",
+  "doer": {
+    "blocker": "doer shell-out CLI not found: codex",
+    "cli_path": "C:\\Users\\wesley.simplicio\\AppData\\Roaming\\npm\\codex.CMD",
+    "credential": "not-needed",
+    "kind": "shell-out",
+    "model": "codex-cli/default",
+    "ready": true
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.22631-SP0",
+    "python": "3.14.3"
+  },
+  "gate": {
+    "average_cost_max_usd": 1.0,
+    "e2e_green_min": 0.8,
+    "goals": 15,
+    "median_wall_clock_max_minutes": 8,
+    "pilot_stacks": 5,
+    "planned_runs": 75,
+    "planner_valid_min": 0.9,
+    "scaffold_clean_min": 0.95,
+    "skillopt_human_approval_min": 0.8
+  },
+  "goals": [
+    "CRUD app for condo units with owner contact search",
+    "CRUD app for invoices with paid and overdue filters",
+    "CRUD app for maintenance tickets with assignee status",
+    "CRUD app for visitors with check-in and check-out timestamps",
+    "CRUD app for amenity bookings with date conflict checks",
+    "CRUD app for announcements with publish and archive state",
+    "CRUD app for documents with category filtering",
+    "CRUD app for vendors with active contract tracking",
+    "CRUD app for inventory items with low-stock flag",
+    "CRUD app for package deliveries with resident pickup",
+    "CRUD app for parking spaces with vehicle assignment",
+    "CRUD app for board meetings with minutes status",
+    "CRUD app for access devices with revocation state",
+    "CRUD app for payments with receipt reference",
+    "CRUD app for service requests with priority queue"
+  ],
+  "planner": {
+    "blocker": "planner shell-out CLI not found: codex",
+    "cli_path": "C:\\Users\\wesley.simplicio\\AppData\\Roaming\\npm\\codex.CMD",
+    "credential": "not-needed",
+    "kind": "shell-out",
+    "model": "codex-cli/default",
+    "ready": true
+  },
+  "scope": "preflight for the live scratch v0.5 release gate; does not replace credentialed planner/doer execution",
+  "stacks": [
+    {
+      "found_tools": {
+        "python": "C:\\Users\\wesley.simplicio\\AppData\\Local\\Microsoft\\WindowsApps\\python.EXE"
+      },
+      "missing_tools": [],
+      "present": true,
+      "required_tools": [
+        "python"
+      ],
+      "stack": "py-fastapi"
+    },
+    {
+      "found_tools": {
+        "node": "C:\\Program Files\\nodejs\\node.EXE",
+        "npm": "C:\\Users\\wesley.simplicio\\AppData\\Roaming\\npm\\npm.CMD",
+        "pnpm": "C:\\Users\\wesley.simplicio\\AppData\\Roaming\\npm\\pnpm.CMD"
+      },
+      "missing_tools": [],
+      "present": true,
+      "required_tools": [
+        "node",
+        "npm",
+        "pnpm"
+      ],
+      "stack": "ts-nextjs"
+    },
+    {
+      "found_tools": {
+        "go": "C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\go-portable\\extract\\go\\bin\\go.exe"
+      },
+      "missing_tools": [],
+      "present": true,
+      "required_tools": [
+        "go"
+      ],
+      "stack": "go-gin"
+    },
+    {
+      "found_tools": {
+        "cargo": "C:\\Users\\wesley.simplicio\\.cargo\\bin\\cargo.EXE"
+      },
+      "missing_tools": [],
+      "present": true,
+      "required_tools": [
+        "cargo"
+      ],
+      "stack": "rust-axum"
+    },
+    {
+      "found_tools": {
+        "composer": "php C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\composer.phar",
+        "php": "C:\\Users\\wesley.simplicio\\AppData\\Local\\Microsoft\\WinGet\\Packages\\PHP.PHP.8.3_Microsoft.Winget.Source_8wekyb3d8bbwe\\php.EXE"
+      },
+      "missing_tools": [],
+      "present": true,
+      "required_tools": [
+        "php",
+        "composer"
+      ],
+      "stack": "php-laravel"
+    }
+  ],
+  "summary": {
+    "blocker_count": 0,
+    "blockers": [],
+    "ready_for_live_gate": true
+  }
+}

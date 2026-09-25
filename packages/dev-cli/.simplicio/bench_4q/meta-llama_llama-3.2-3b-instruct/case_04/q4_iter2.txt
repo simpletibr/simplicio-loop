@@ -1,0 +1,5 @@
+### DIFF
+```diff
+--- a/src/app/orders/order-detail.component.html
++++ b/src/app/orders/order-detail.component.html
+@@ -

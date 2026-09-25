@@ -1,0 +1,14 @@
+{
+  "slug": "react-vite",
+  "template_version": "0.1.0",
+  "language": "TypeScript",
+  "framework": "React",
+  "framework_version": "18 + Vite",
+  "node": ">=20",
+  "package_manager": "npm",
+  "test_runner": "vitest",
+  "linter": "eslint",
+  "deps_required": ["@vitejs/plugin-react>=4", "vite>=5", "react>=18", "react-dom>=18"],
+  "deps_dev": ["typescript>=5", "vitest>=2", "@testing-library/react>=15", "jsdom>=24", "eslint>=9"],
+  "tags": ["web", "frontend", "react", "typescript", "spa"]
+}

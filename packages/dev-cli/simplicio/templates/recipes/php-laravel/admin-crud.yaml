@@ -1,0 +1,35 @@
+{
+  "name": "admin-crud",
+  "description": "Laravel admin-only JSON CRUD routes for one resource.",
+  "applies_to": ["php-laravel"],
+  "matches": [
+    "(?i)\\badmin\\s+(?:panel|dashboard)\\s+(?:for|to\\s+manage)\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\badmin\\s+CRUD\\s+(?:for\\s+)?(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\badmin\\s+for\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\bbackoffice\\s+(?:for|to\\s+manage)\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b"
+  ],
+  "slots": {
+    "entity": {"required": true, "transform": "pascal_case"},
+    "entity_lower": {"derived_from": "entity", "transform": "lower_snake_case"},
+    "entity_plural": {"derived_from": "entity", "transform": "plural_lower"}
+  },
+  "rationale": "Use the php-laravel admin CRUD recipe for {entity}: admin routes and authorization middleware are deterministic.",
+  "files_to_create": [
+    {"path": "routes/api.php", "purpose": "Admin JSON CRUD routes for {entity}"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-laravel-admin-crud",
+      "depends_on": [],
+      "goal": "Implement admin-only Laravel JSON CRUD routes for {entity}.",
+      "target": "routes/api.php",
+      "criteria": "- routes live under /admin/{entity_plural}\\n- auth/admin middleware protects every route\\n- list, create, update, and delete actions are present",
+      "constraints": "- keep route definitions compatible with existing API health routes",
+      "verify": "php vendor/bin/phpunit --configuration phpunit.xml"
+    }
+  ],
+  "deps_to_install": [],
+  "deps_dev": [],
+  "test_command": "php vendor/bin/phpunit --configuration phpunit.xml",
+  "lint_command": "php vendor/bin/pint --test"
+}

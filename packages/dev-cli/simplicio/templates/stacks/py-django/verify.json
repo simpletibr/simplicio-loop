@@ -1,0 +1,6 @@
+{
+  "install": "python3 -m pip install -e .[dev]",
+  "test": "python manage.py test",
+  "test_runner": "django test",
+  "lint": "ruff check app config"
+}

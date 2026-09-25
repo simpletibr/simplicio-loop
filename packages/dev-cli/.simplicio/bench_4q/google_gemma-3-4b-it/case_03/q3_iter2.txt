@@ -1,0 +1,9 @@
+```json
+{
+  "file": "nav.component.html",
+  "diff": "```diff\n--- a/nav.component.html\n+++ b/nav.component.html\n@@ -1,3 +1,3 @@\n <div>\n   <a href=\"/home\">Home</a>\n   <a href=\"/products\">Products</a>\n-  <a href=\"/audit\">Audit</a>\n+  <a href=\"/audit\">Audit</a>\n </div>\n ```",
+  "test": "describe('NavComponent', () => {\n  it('should display home, products, and audit links', () => {\n    cy.visit(\'/');\n    cy.get('a[href=\"/home\"]').should('be.visible');\n    cy.get('a[href=\"/products\"]').should('be.visible');\n    cy.get('a[href=\"/audit\"]').should('be.visible');\n  });\n});",
+  "audit_link": "/audit",
+  "user_role": "auditor"
+}
+```

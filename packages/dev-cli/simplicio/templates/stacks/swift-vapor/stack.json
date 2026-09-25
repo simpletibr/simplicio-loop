@@ -1,0 +1,13 @@
+{
+  "slug": "swift-vapor",
+  "template_version": "0.1.0",
+  "language": "Swift 5",
+  "framework": "Vapor",
+  "framework_version": "4",
+  "package_manager": "swift package",
+  "test_runner": "swift test",
+  "linter": "swift-format",
+  "deps_required": ["vapor"],
+  "deps_dev": [],
+  "tags": ["web", "api", "swift", "vapor", "server"]
+}

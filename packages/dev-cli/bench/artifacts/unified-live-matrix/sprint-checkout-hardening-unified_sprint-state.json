@@ -1,0 +1,289 @@
+{
+  "complete": true,
+  "completed_features": 7,
+  "cost": {
+    "budget_usd": "0",
+    "remaining_usd": "0",
+    "spent_usd": "0"
+  },
+  "dod": [
+    {
+      "command": null,
+      "label": "Workflow fixture approved",
+      "log": "",
+      "manual": true,
+      "passed": true
+    },
+    {
+      "command": null,
+      "label": "Sprint fixture DoD acknowledged",
+      "log": "",
+      "manual": true,
+      "passed": true
+    },
+    {
+      "command": "python tests/verify.py",
+      "label": "Verify fixture `python tests/verify.py`",
+      "log": "",
+      "manual": false,
+      "passed": true
+    },
+    {
+      "command": null,
+      "label": "Fixture task accepted",
+      "log": "",
+      "manual": true,
+      "passed": true
+    },
+    {
+      "command": null,
+      "label": "Fixture task accepted",
+      "log": "",
+      "manual": true,
+      "passed": true
+    },
+    {
+      "command": null,
+      "label": "Fixture task accepted",
+      "log": "",
+      "manual": true,
+      "passed": true
+    },
+    {
+      "command": null,
+      "label": "Fixture task accepted",
+      "log": "",
+      "manual": true,
+      "passed": true
+    },
+    {
+      "command": null,
+      "label": "Fixture task accepted",
+      "log": "",
+      "manual": true,
+      "passed": true
+    },
+    {
+      "command": null,
+      "label": "Fixture task accepted",
+      "log": "",
+      "manual": true,
+      "passed": true
+    },
+    {
+      "command": null,
+      "label": "Fixture task accepted",
+      "log": "",
+      "manual": true,
+      "passed": true
+    }
+  ],
+  "failed_dod_gates": [],
+  "failed_features": [],
+  "max_cost": "0",
+  "results": [
+    {
+      "result": {
+        "applied": true,
+        "cost": {
+          "budget_usd": "0",
+          "remaining_usd": "0",
+          "spent_usd": "0"
+        },
+        "goal": "Harden checkout cart validation.",
+        "plan_tasks": 1,
+        "replans": 0,
+        "scope": "feature",
+        "stack": "py-fastapi",
+        "tasks": [
+          {
+            "goal": "Harden checkout cart validation.",
+            "id": "T01-cart",
+            "log": "{\n  \"applied\": true,\n  \"cost_usd\": 0.0,\n  \"diff_summary\": \"changed src/checkout/cart.py\",\n  \"files_changed\": [\n    \"src/checkout/cart.py\"\n  ],\n  \"task_id\": \"src/checkout/cart.py\",\n  \"tokens_used\": {\n    \"completion\": 22,\n    \"prompt\": 232\n  },\n  \"warnings\": []\n}",
+            "passed": true,
+            "replan": 0,
+            "target": "src/checkout/cart.py"
+          }
+        ],
+        "warnings": []
+      },
+      "task": "Checkout cart",
+      "task_id": "01-checkout-cart.task.md"
+    },
+    {
+      "result": {
+        "applied": true,
+        "cost": {
+          "budget_usd": "0",
+          "remaining_usd": "0",
+          "spent_usd": "0"
+        },
+        "goal": "Harden checkout payment authorization.",
+        "plan_tasks": 1,
+        "replans": 0,
+        "scope": "feature",
+        "stack": "py-fastapi",
+        "tasks": [
+          {
+            "goal": "Harden checkout payment authorization.",
+            "id": "T01-payment",
+            "log": "{\n  \"applied\": true,\n  \"cost_usd\": 0.0,\n  \"diff_summary\": \"changed src/checkout/payment.py\",\n  \"files_changed\": [\n    \"src/checkout/payment.py\"\n  ],\n  \"task_id\": \"src/checkout/payment.py\",\n  \"tokens_used\": {\n    \"completion\": 22,\n    \"prompt\": 232\n  },\n  \"warnings\": []\n}",
+            "passed": true,
+            "replan": 0,
+            "target": "src/checkout/payment.py"
+          }
+        ],
+        "warnings": []
+      },
+      "task": "Payment",
+      "task_id": "02-payment.task.md"
+    },
+    {
+      "result": {
+        "applied": true,
+        "cost": {
+          "budget_usd": "0",
+          "remaining_usd": "0",
+          "spent_usd": "0"
+        },
+        "goal": "Add checkout retry idempotency checks.",
+        "plan_tasks": 1,
+        "replans": 0,
+        "scope": "feature",
+        "stack": "py-fastapi",
+        "tasks": [
+          {
+            "goal": "Add checkout retry idempotency checks.",
+            "id": "T01-idempotency",
+            "log": "{\n  \"applied\": true,\n  \"cost_usd\": 0.0,\n  \"diff_summary\": \"changed src/checkout/idempotency.py\",\n  \"files_changed\": [\n    \"src/checkout/idempotency.py\"\n  ],\n  \"task_id\": \"src/checkout/idempotency.py\",\n  \"tokens_used\": {\n    \"completion\": 22,\n    \"prompt\": 233\n  },\n  \"warnings\": []\n}",
+            "passed": true,
+            "replan": 0,
+            "target": "src/checkout/idempotency.py"
+          }
+        ],
+        "warnings": []
+      },
+      "task": "Idempotency",
+      "task_id": "03-idempotency.task.md"
+    },
+    {
+      "result": {
+        "applied": true,
+        "cost": {
+          "budget_usd": "0",
+          "remaining_usd": "0",
+          "spent_usd": "0"
+        },
+        "goal": "Add invoice status validation.",
+        "plan_tasks": 1,
+        "replans": 0,
+        "scope": "feature",
+        "stack": "py-fastapi",
+        "tasks": [
+          {
+            "goal": "Add invoice status validation.",
+            "id": "T01-invoice",
+            "log": "{\n  \"applied\": true,\n  \"cost_usd\": 0.0,\n  \"diff_summary\": \"changed src/billing/invoice.py\",\n  \"files_changed\": [\n    \"src/billing/invoice.py\"\n  ],\n  \"task_id\": \"src/billing/invoice.py\",\n  \"tokens_used\": {\n    \"completion\": 22,\n    \"prompt\": 232\n  },\n  \"warnings\": []\n}",
+            "passed": true,
+            "replan": 0,
+            "target": "src/billing/invoice.py"
+          }
+        ],
+        "warnings": []
+      },
+      "task": "Billing invoice",
+      "task_id": "04-invoice.task.md"
+    },
+    {
+      "result": {
+        "applied": true,
+        "cost": {
+          "budget_usd": "0",
+          "remaining_usd": "0",
+          "spent_usd": "0"
+        },
+        "goal": "Add refund reporting guard.",
+        "plan_tasks": 1,
+        "replans": 0,
+        "scope": "feature",
+        "stack": "py-fastapi",
+        "tasks": [
+          {
+            "goal": "Add refund reporting guard.",
+            "id": "T01-refunds",
+            "log": "{\n  \"applied\": true,\n  \"cost_usd\": 0.0,\n  \"diff_summary\": \"changed src/billing/refunds.py\",\n  \"files_changed\": [\n    \"src/billing/refunds.py\"\n  ],\n  \"task_id\": \"src/billing/refunds.py\",\n  \"tokens_used\": {\n    \"completion\": 22,\n    \"prompt\": 232\n  },\n  \"warnings\": []\n}",
+            "passed": true,
+            "replan": 0,
+            "target": "src/billing/refunds.py"
+          }
+        ],
+        "warnings": []
+      },
+      "task": "Billing refunds",
+      "task_id": "05-refunds.task.md"
+    },
+    {
+      "result": {
+        "applied": true,
+        "cost": {
+          "budget_usd": "0",
+          "remaining_usd": "0",
+          "spent_usd": "0"
+        },
+        "goal": "Add sales report filters.",
+        "plan_tasks": 1,
+        "replans": 0,
+        "scope": "feature",
+        "stack": "py-fastapi",
+        "tasks": [
+          {
+            "goal": "Add sales report filters.",
+            "id": "T01-sales-report",
+            "log": "{\n  \"applied\": true,\n  \"cost_usd\": 0.0,\n  \"diff_summary\": \"changed src/reports/sales.py\",\n  \"files_changed\": [\n    \"src/reports/sales.py\"\n  ],\n  \"task_id\": \"src/reports/sales.py\",\n  \"tokens_used\": {\n    \"completion\": 22,\n    \"prompt\": 232\n  },\n  \"warnings\": []\n}",
+            "passed": true,
+            "replan": 0,
+            "target": "src/reports/sales.py"
+          }
+        ],
+        "warnings": []
+      },
+      "task": "Sales report",
+      "task_id": "06-sales-report.task.md"
+    },
+    {
+      "result": {
+        "applied": true,
+        "cost": {
+          "budget_usd": "0",
+          "remaining_usd": "0",
+          "spent_usd": "0"
+        },
+        "goal": "Add report export smoke validation.",
+        "plan_tasks": 1,
+        "replans": 0,
+        "scope": "feature",
+        "stack": "py-fastapi",
+        "tasks": [
+          {
+            "goal": "Add report export smoke validation.",
+            "id": "T01-export",
+            "log": "{\n  \"applied\": true,\n  \"cost_usd\": 0.0,\n  \"diff_summary\": \"changed src/reports/export.py\",\n  \"files_changed\": [\n    \"src/reports/export.py\"\n  ],\n  \"task_id\": \"src/reports/export.py\",\n  \"tokens_used\": {\n    \"completion\": 22,\n    \"prompt\": 233\n  },\n  \"warnings\": []\n}",
+            "passed": true,
+            "replan": 0,
+            "target": "src/reports/export.py"
+          }
+        ],
+        "warnings": []
+      },
+      "task": "Report export",
+      "task_id": "07-export.task.md"
+    }
+  ],
+  "scope": "sprint",
+  "sprint": "sprint-checkout",
+  "sprint_name": "sprint-checkout",
+  "stack": "py-fastapi",
+  "state": "complete",
+  "total_features": 7,
+  "updated_at": 1780219859
+}

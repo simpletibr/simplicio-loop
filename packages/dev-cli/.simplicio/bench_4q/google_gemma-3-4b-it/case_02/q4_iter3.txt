@@ -1,0 +1,70 @@
+```
+1. DIFF:
+--- a/src/app/profile/profile.component.html
++++ b/src/app/profile/profile.component.html
+@@ -12,7 +12,7 @@
+   <div class="form-group">
+     <label for="firstName">First Name</label>
+     <input type="text" id="firstName" name="firstName" [(ngModel)]="firstName" class="form-control">
+-  </div>
++    <div *ngIf="profileRole === 'editor'">
++      <div class="form-group">
++        <label for="email">Email</label>
++        <input type="email" id="email" name="email" [(ngModel)]="email" class="form-control">
++      </div>
+     </div>
+   <div class="form-group">
+     <label for="lastName">Last Name</label>
+@@ -26,7 +26,7 @@
+   <div class="form-group">
+     <label for="bio">Bio</label>
+     <textarea id="bio" name="bio" [(ngModel)]="bio" class="form-control"></textarea>
+-  </div>
++    </div>
+   </div>
+   <button (click)="onSubmit()" class="btn btn-primary">Submit</button>
+ </div>
+```
+
+```
+2. TEST:
+```typescript
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+
+describe('ProfileComponent', () => {
+  let component: ProfileComponent;
+  let fixture: ComponentFixture<ProfileComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      declarations: [ ProfileComponent ]
+    })
+    .compileComponents();
+  });
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(ProfileComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('should disable email field when profileRole is editor', () => {
+    component.profileRole = 'editor';
+    fixture.detectChanges();
+    const emailInput = fixture.nativeElement.querySelector('input[name="email"]');
+    expect(emailInput).toBeNull();
+  });
+
+  it('should enable email field when profileRole is not editor', () => {
+    component.profileRole = 'user';
+    fixture.detectChanges();
+    const emailInput = fixture.nativeElement.querySelector('input[name="email"]');
+    expect(emailInput).not.toBeNull();
+  });
+});
+```
+
+```
+3. EVIDENCE:
+N/A
+```

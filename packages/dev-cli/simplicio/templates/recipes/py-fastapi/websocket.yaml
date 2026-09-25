@@ -1,0 +1,52 @@
+{
+  "name": "websocket",
+  "description": "FastAPI websocket endpoint with connection manager and tests.",
+  "applies_to": ["py-fastapi"],
+  "matches": [
+    "(?i)\\b(?:create|add|build|implement)\\s+(?:a\\s+)?websocket(?:\\s+(?:chat|rooms?|endpoint|service|gateway))?\\b",
+    "(?i)\\bwebsocket\\s+(?:chat|rooms?|endpoint|service|gateway)\\b",
+    "(?i)\\brealtime\\s+(?:chat|updates?)\\b"
+  ],
+  "slots": {
+    "channel": {"default": "chat", "transform": "lower_snake_case"}
+  },
+  "rationale": "Use the py-fastapi websocket recipe: connection lifecycle and broadcast behavior are repeatable.",
+  "files_to_create": [
+    {"path": "src/api/routes/ws.py", "purpose": "Websocket route"},
+    {"path": "src/services/websocket_manager.py", "purpose": "Connection manager"},
+    {"path": "tests/api/test_websocket.py", "purpose": "Websocket tests"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-websocket-manager",
+      "depends_on": [],
+      "goal": "Create a connection manager for websocket clients.",
+      "target": "src/services/websocket_manager.py",
+      "criteria": "- accepts and removes connections\\n- broadcasts messages to active clients",
+      "constraints": "- isolate room/channel state per test",
+      "verify": "pytest tests/api/test_websocket.py -q"
+    },
+    {
+      "id": "T02-websocket-route",
+      "depends_on": ["T01-websocket-manager"],
+      "goal": "Expose a websocket endpoint for {channel}.",
+      "target": "src/api/routes/ws.py",
+      "criteria": "- websocket route accepts clients\\n- received messages are broadcast\\n- disconnect cleanup is handled",
+      "constraints": "- keep the route thin and delegate state to the manager",
+      "verify": "pytest tests/api/test_websocket.py -q"
+    },
+    {
+      "id": "T03-websocket-tests",
+      "depends_on": ["T02-websocket-route"],
+      "goal": "Cover websocket connect, send, receive, and disconnect behavior.",
+      "target": "tests/api/test_websocket.py",
+      "criteria": "- client can connect\\n- message echo or broadcast is asserted\\n- disconnect does not leak state",
+      "constraints": "- avoid external brokers",
+      "verify": "pytest tests/api/test_websocket.py -q"
+    }
+  ],
+  "deps_to_install": [],
+  "deps_dev": ["pytest>=9.0.3", "httpx>=0.28.1"],
+  "test_command": "pytest -q",
+  "lint_command": "ruff check src tests"
+}

@@ -1,0 +1,71 @@
+To hide the Delete button when the current user is not an admin, you can use JavaScript and CSS. Here's an example of how you can achieve this:
+
+### HTML
+
+```html
+<!-- Button container -->
+<div class="button-container">
+  <!-- Delete button -->
+  <button class="delete-button" id="delete-button">Delete</button>
+  <!-- Other buttons -->
+  <button class="other-button">Other Button</button>
+</div>
+```
+
+### CSS
+
+```css
+/* Hide the delete button by default */
+.delete-button {
+  display: none;
+}
+
+/* Show the delete button when the user is an admin */
+.admin {
+  display: block;
+}
+
+/* Add a class to the button container when the user is an admin */
+.button-container.admin {
+  display: block;
+}
+```
+
+### JavaScript
+
+```javascript
+// Get the delete button and the button container
+const deleteButton = document.getElementById('delete-button');
+const buttonContainer = document.querySelector('.button-container');
+
+// Function to check if the user is an admin
+function isAdmin() {
+  // Replace this with your actual admin check logic
+  return localStorage.getItem('isAdmin') === 'true';
+}
+
+// Function to toggle the delete button visibility
+function toggleDeleteButton() {
+  if (isAdmin()) {
+    deleteButton.style.display = 'block';
+    buttonContainer.classList.add('admin');
+  } else {
+    deleteButton.style.display = 'none';
+    buttonContainer.classList.remove('admin');
+  }
+}
+
+// Call the toggleDeleteButton function when the page loads
+toggleDeleteButton();
+```
+
+### Explanation
+
+1. We first get references to the delete button and the button container using `document.getElementById` and `document.querySelector`.
+2. We define a function `isAdmin` that checks if the user is an admin. In this example, we use local storage to store the admin status, but you should replace this with your actual logic.
+3. We define a function `toggleDeleteButton` that checks if the user is an admin using the `isAdmin` function. If the user is an admin, it sets the `display` property of the delete button to `block` and adds the `admin` class to the button container. If the user is not an admin, it sets the `display` property to `none` and removes the `admin` class.
+4. We call the `toggleDeleteButton` function when the page loads to initialize the delete button visibility.
+
+### Example Use Case
+
+You can use this code in a web application where you want to hide the Delete button when the current user is not an admin. For example, in a content management system, you might want to hide the Delete button for non-admin users to prevent them from deleting content.
