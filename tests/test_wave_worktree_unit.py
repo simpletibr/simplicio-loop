@@ -134,23 +134,33 @@ def test_two_disjoint_lanes_run_concurrently_and_integrate_serially(git_repo):
     apply_fn = _apply_writes({1: ("a.py", "double = 1"), 2: ("b.py", "triple = 1")})
 
     sleep_s = 0.3
+    spans: dict[int, tuple[float, float]] = {}
 
+    # `run_worktree_wave` calls `apply_fn(wt_path, task_indices)` per lane
+    # without threading the lane id through, so record each lane's own
+    # [start, end) span by task index instead of by lane id, then map it
+    # back below -- lane 0 carries task 1, lane 1 carries task 2.
     async def _sleepy_apply(wt_path: Path, task_indices):
+        lane_id = task_indices[0]
+        t0 = time.perf_counter()
         await asyncio.sleep(sleep_s)
+        t1 = time.perf_counter()
+        spans[lane_id] = (t0, t1)
         return await apply_fn(wt_path, task_indices)
 
-    started = time.perf_counter()
     results = asyncio.run(ww.run_worktree_wave(
         git_repo, git_repo / ".simplicio" / "run", lanes, base, _sleepy_apply,
     ))
-    elapsed = time.perf_counter() - started
-    # Two 0.3s lanes running concurrently must take much less than the 0.6s a
-    # serial run would need. `git worktree add` itself is intentionally
-    # serialized (it races against itself under real concurrency), so the
-    # margin here is generous rather than tight -- the actual `apply_fn` work
-    # (sleep_s) is what must overlap, not the quick worktree registration.
-    assert elapsed < sleep_s * 2 - 0.1
+
     assert {r.status for r in results} == {"applied"}
+    assert set(spans) == {1, 2}
+    (start_1, end_1), (start_2, end_2) = spans[1], spans[2]
+    # Real concurrency: each lane's sleep window must overlap the other's,
+    # not just "the whole run finished quickly" (a wall-clock bound can pass
+    # by coincidence on a slow/loaded machine, or hide a regression to
+    # serial execution on a fast one). Overlap means lane 1 starts before
+    # lane 2 ends AND lane 2 starts before lane 1 ends.
+    assert start_1 < end_2 and start_2 < end_1
 
     def _reapply(lane_id, task_indices):
         raise AssertionError("no conflict expected in this test")
