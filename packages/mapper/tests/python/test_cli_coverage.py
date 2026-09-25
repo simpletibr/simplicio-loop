@@ -18,7 +18,6 @@ import contextlib
 import inspect
 import io
 import json
-import os
 import subprocess
 import sys
 import tempfile
@@ -38,6 +37,7 @@ from simplicio_mapper import cli as cli_module  # noqa: E402
 from simplicio_mapper.cli import _background as cli_background  # noqa: E402
 from simplicio_mapper.cli import _status_engine as status_engine  # noqa: E402
 from simplicio_mapper.cli import main  # noqa: E402
+from simplicio_mapper.mapper.process_liveness import process_is_alive  # noqa: E402
 
 
 def _write(base: Path, rel: str, content: str) -> None:
@@ -380,29 +380,26 @@ class BackgroundWorkerNeverInheritsStdinTest(unittest.TestCase):
         self.assertGreater(payload["pid"], 0)
 
         # The worker keeps running detached from the child interpreter above
-        # (which already exited). Wait for it to finish writing artifacts
-        # before the TemporaryDirectory cleanup runs, otherwise cleanup races
-        # a still-open log file handle on Windows.
-        project_map = target / ".simplicio" / "project-map.json"
-        for _ in range(100):
-            if project_map.exists():
-                break
+        # (which already exited). Checking only for project-map.json is not
+        # enough: `_run_index_and_generate` keeps writing after that file
+        # lands (retrieval-index, a history snapshot, index-state.json, then
+        # `sync_project_capabilities_after_mapping`) and only exits the OS
+        # process afterwards. Polling artifact *existence* races that tail of
+        # writes against this test's `TemporaryDirectory` cleanup -- the
+        # actual, unambiguous "worker is done" signal is the PID itself going
+        # away. Wait for the detached process to exit (bounded, cross
+        # platform via `process_is_alive`) before touching anything the
+        # worker might still be writing.
+        deadline = time.monotonic() + 30
+        while process_is_alive(payload["pid"]) and time.monotonic() < deadline:
             time.sleep(0.05)
-        self.assertTrue(project_map.exists(), "background worker never produced artifacts")
+        self.assertFalse(
+            process_is_alive(payload["pid"]),
+            "background worker did not exit before the timeout",
+        )
 
-        # Artifact presence means the worker is done computing, but the
-        # detached process can still hold its log file open for a moment
-        # while exiting. Poll for the handle to release so cleanup doesn't
-        # race a live file lock on Windows.
-        log_path = target / ".simplicio" / "background-index.log"
-        for _ in range(60):
-            try:
-                with open(log_path, "a", encoding="utf-8"):
-                    pass
-                os.rename(log_path, log_path)  # exclusive-open probe
-                break
-            except OSError:
-                time.sleep(0.05)
+        project_map = target / ".simplicio" / "project-map.json"
+        self.assertTrue(project_map.exists(), "background worker never produced artifacts")
 
 
 
