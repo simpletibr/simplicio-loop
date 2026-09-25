@@ -44,6 +44,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 BASELINE_PATH = os.path.join(HERE, "repository_budget_baseline.json")
+ALLOWLIST_PATH = os.path.join(HERE, "repository_budget_allowlist.json")
 GITATTRIBUTES_PATH = os.path.join(REPO, ".gitattributes")
 
 # A single tracked file over this size fails the gate immediately, independent of the baseline.
@@ -81,6 +82,25 @@ LFS_MEDIA_SUFFIXES = (
 # are LFS-exempt. Kept in sync with the LFS filters in .gitattributes.
 _LFS_SUFFIX_PAT = re.compile(r"^\*\.(mp4|mov|webm|avi|wav|mp3|m4a|flac|ogg|zip|tar\.gz|tgz|iso|bin)\s+filter=lfs", re.M)
 _LFS_PREFIX_PAT = re.compile(r"^([^\s#]+?)\s+filter=lfs", re.M)
+
+
+def _load_allowlist():
+    """Explicit, reviewed exceptions from ALLOWLIST_PATH (never a wildcard).
+
+    Each entry names an exact tracked path plus the reason it is real,
+    needed content rather than a generated/dogfood artifact -- see
+    scripts/repository_budget_allowlist.json. Missing/malformed file means
+    an empty allowlist (fail closed to "not exempt", never silently permit).
+    """
+    try:
+        with open(ALLOWLIST_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}, {}
+    return (
+        dict(data.get("oversized_files") or {}),
+        dict(data.get("forbidden_raw_media") or {}),
+    )
 
 
 def _lfs_exempt_patterns():
@@ -136,8 +156,11 @@ def _new_forbidden_raw_media(entries):
        does not inflate the pack (AC "asset LFS permitido passa"). A large-media
        suffix with no LFS filter is a raw blob and is blocked.
     """
+    _, media_allowlist = _load_allowlist()
     flagged = []
     for rel, size in entries:
+        if rel in media_allowlist:
+            continue
         low = rel.lower()
         if low.startswith(FORBIDDEN_RAW_MEDIA_PREFIXES):
             flagged.append((rel, size, "forbidden-path"))  # rule 1: always block
@@ -226,9 +249,12 @@ def _new_oversized_files(entries, baseline):
     """Files over the per-file cap that are NOT grandfathered by the baseline (new, or grew past
     their recorded baseline size by more than THRESHOLD_GROWTH)."""
     known = (baseline or {}).get("known_oversized_files", {}) or {}
+    oversized_allowlist, _ = _load_allowlist()
     flagged = []
     for rel, size in entries:
         if size <= MAX_SINGLE_FILE_BYTES:
+            continue
+        if rel in oversized_allowlist:
             continue
         base_size = known.get(rel)
         if base_size is None:
