@@ -14,7 +14,7 @@ from simplicio_mapper.store.unify import unify_memory
 
 
 def test_sanitize_and_slug_from_git_style_remote() -> None:
-    assert sanitize_project_slug("https://github.com/wesleysimplicio/simplicio-mapper.git") == "simplicio-mapper"
+    assert sanitize_project_slug("https://github.com/example-org/example-repo.git") == "example-repo"
     assert sanitize_project_slug("My Project!") == "my-project"
 
 

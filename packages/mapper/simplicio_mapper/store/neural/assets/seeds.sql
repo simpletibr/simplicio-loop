@@ -113534,8 +113534,8 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 | 3 | runtime | [#2987](https://github.com/wesleysimplicio/simplicio-runtime/issues/2987) (sub de #2953) | Crates `simplicio-memory` e `simplicio-delivery` não extraídas; `main_parts/` ~88k linhas |
 | 4 | runtime | [#2988](https://github.com/wesleysimplicio/simplicio-runtime/issues/2988) | Sem gate de CI de compatibilidade cross-repo; live-probe do loop nunca retestada com `xattr -c` |
 | 5 | runtime | [#2989](https://github.com/wesleysimplicio/simplicio-runtime/issues/2989) | Dogfooding do stack sobre o próprio runtime não existe como prática registrada |
-| 6 | mapper | [#174](https://github.com/wesleysimplicio/simplicio-mapper/issues/174) | Sem token budget guard; delegação nativa mínima (só precedent); sem savings por verbo. Nota: `contract/impact/tests-for` não existem na CLI |
-| 7 | dev-cli | [#111](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/111) | Delegação madura mas invisível: sem métrica de % native path por verbo; sem token budget guard |
+| 6 | mapper | [#174](packages/mapper/) (historical issue, pre-monorepo simplicio-mapper repo) | Sem token budget guard; delegação nativa mínima (só precedent); sem savings por verbo. Nota: `contract/impact/tests-for` não existem na CLI |
+| 7 | dev-cli | [#111](packages/dev-cli/) (historical issue, pre-monorepo simplicio-dev-cli repo) | Delegação madura mas invisível: sem métrica de % native path por verbo; sem token budget guard |
 | 8 | loop | [#127](https://github.com/wesleysimplicio/simplicio-loop/issues/127) | Zero file locking no journal/handoffs/ledger — corrupção possível multi-worker |
 | 9 | loop | [#128](https://github.com/wesleysimplicio/simplicio-loop/issues/128) | Journal não consome `simplicio.dev-cli-event/v1`; HBP só appenda em promise-honrada |
 
