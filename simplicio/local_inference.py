@@ -52,9 +52,7 @@ def pause_receipt(
         "effective_route": "blocked",
         "retryable": False,
         "reenable": "external orchestrator required",
-        "next_action": (
-            "provide an explicit mechanical-edit/changeset plan or use an external orchestrator"
-        ),
+        "next_action": ("provide an explicit mechanical-edit/changeset plan or use an external orchestrator"),
     }
 
 

@@ -55,7 +55,9 @@ def _parse_pack() -> tuple[str, dict[str, list[dict[str, str]]]]:
         record: dict[str, str] = {"_key": key, "_value": value, key: first_value}
         for field in fields:
             field_key, field_separator, field_value = field.partition("=")
-            assert field_separator and KEY_PATTERN.fullmatch(field_key), f"invalid field at line {line_number}"
+            assert field_separator and KEY_PATTERN.fullmatch(field_key), (
+                f"invalid field at line {line_number}"
+            )
             assert field_key not in record, f"duplicate field at line {line_number}"
             record[field_key] = field_value
         sections[current].append(record)
@@ -69,7 +71,9 @@ def _first(sections: dict[str, list[dict[str, str]]], section: str) -> dict[str,
 
 
 def _has(sections: dict[str, list[dict[str, str]]], section: str, **expected: str) -> bool:
-    return any(all(record.get(key) == value for key, value in expected.items()) for record in sections[section])
+    return any(
+        all(record.get(key) == value for key, value in expected.items()) for record in sections[section]
+    )
 
 
 def _field(records: list[dict[str, str]], key: str) -> str:
@@ -118,10 +122,20 @@ def test_orientation_pack_records_observed_commands_and_alias_rejections() -> No
     assert _has(sections, "commands", command="simplicio-dev-cli --help", exit="0")
     assert _has(sections, "commands", command="simplicio-dev-cli task --help", exit="0")
     assert _has(sections, "commands", command="simplicio-dev-cli intake --help", exit="0")
-    assert _has(sections, "commands", command="simplicio-dev-cli task <goal> --target <path> --dry-run-task --json")
+    assert _has(
+        sections, "commands", command="simplicio-dev-cli task <goal> --target <path> --dry-run-task --json"
+    )
     assert _has(sections, "commands", command="simplicio-dev-cli task <goal> --verify-only --json")
-    assert _has(sections, "commands", command="simplicio-dev-cli verify-only --help", exit="2", status="unknown_command")
-    assert _has(sections, "commands", command="simplicio-dev-cli dry-run --help", exit="2", status="unknown_command")
+    assert _has(
+        sections,
+        "commands",
+        command="simplicio-dev-cli verify-only --help",
+        exit="2",
+        status="unknown_command",
+    )
+    assert _has(
+        sections, "commands", command="simplicio-dev-cli dry-run --help", exit="2", status="unknown_command"
+    )
     assert _has(sections, "commands", command="simplicio-py", status="not_on_path")
     assert _has(sections, "commands", command="python3 -m simplicio.cli --help", exit="0")
 

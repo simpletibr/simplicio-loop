@@ -13,7 +13,9 @@ def test_infer_pytest_from_python_layout(tmp_path: Path) -> None:
 
 
 def test_infer_pytest_from_pyproject(tmp_path: Path) -> None:
-    (tmp_path / "pyproject.toml").write_text("[tool.pytest.ini_options]\ntestpaths=['tests']\n", encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\ntestpaths=['tests']\n", encoding="utf-8"
+    )
     assert _infer_test_command(tmp_path) == "pytest -q"
 
 
@@ -41,7 +43,11 @@ def test_configured_command_still_fails_closed_without_repo_signal(tmp_path: Pat
 
 
 def test_live_qlt001_operational_script() -> None:
-    repo = Path(os.environ.get("SIMPLICIO_QLT001_REPO", Path(__file__).resolve().parents[2].parent / "simplicio-loop-quality"))
+    repo = Path(
+        os.environ.get(
+            "SIMPLICIO_QLT001_REPO", Path(__file__).resolve().parents[2].parent / "simplicio-loop-quality"
+        )
+    )
     if not (repo / "src" / "simplicio_loop_quality" / "loop_invoker.py").is_file():
         import pytest
 

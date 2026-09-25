@@ -104,9 +104,7 @@ def main(argv: list[str] | None = None) -> int:
             memory_backup = smoke_root / "memory-backup"
             restored_memory = smoke_root / "memory-restored"
             memory_command = [str(python), "-m", "simplicio.cli", "memory"]
-            _run_capture(
-                [*memory_command, "init", "--dir", str(memory_root), "--json"], cwd=smoke_root
-            )
+            _run_capture([*memory_command, "init", "--dir", str(memory_root), "--json"], cwd=smoke_root)
             _run_capture(
                 [
                     *memory_command,

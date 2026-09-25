@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from ._cache import CacheEntry, cache, make_key
+from .llm_policy import _safe_endpoint, execution_disabled_receipt
 from .local_inference import (
     LOCAL_INFERENCE_PAUSED,
     LocalInferencePaused,
@@ -26,9 +27,6 @@ from .local_inference import (
 from .local_inference import (
     require_enabled as require_local_inference_enabled,
 )
-
-from .llm_policy import _safe_endpoint, execution_disabled_receipt
-
 
 _LAST_CACHE_RECEIPT: dict[str, Any] | None = None
 
@@ -561,9 +559,7 @@ def _local_terminal(reason_code: str, model: str, *, detail: str = "") -> Provid
 
 def _local_generate(prompt, feedback, model, max_tokens):
     """Generation is disabled; no local worker may be created."""
-    raise ProviderExecutionError(
-        execution_disabled_receipt(surface="local_generate", model=model)
-    )
+    raise ProviderExecutionError(execution_disabled_receipt(surface="local_generate", model=model))
     timeout = _local_timeout_s()
     if timeout == 0:
         return _local_generate_direct(prompt, feedback, model, max_tokens)
@@ -1323,6 +1319,7 @@ def planner_cfg(require_key=True):
         "shell_out": False,
         "disabled": True,
     }
+
 
 def _planner_provider_id(cfg):
     model = cfg["model"]
