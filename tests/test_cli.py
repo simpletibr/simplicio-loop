@@ -51,9 +51,11 @@ class ContextProvenanceTest(unittest.TestCase):
             )
             snapshot = root / "snapshot.sfast"
             for command in ("ingest", "build", "refresh"):
-                code, payload = self.invoke(
-                    command, str(root), "-o", str(snapshot)
-                )
+                # No handoff file and no Mapper installed: fail closed.
+                with patch("simplicio_fast.cli.shutil.which", return_value=None):
+                    code, payload = self.invoke(
+                        command, str(root), "-o", str(snapshot)
+                    )
                 self.assertEqual(2, code, command)
                 self.assertEqual("simplicio.fast.error/v1", payload["schema"])
                 self.assertEqual("mapper_missing", payload["reason_code"])
