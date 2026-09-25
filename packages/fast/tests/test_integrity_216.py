@@ -43,6 +43,5 @@ def test_legacy_evaluate_is_the_canonical_receipt():
     assert receipt["status"] == "pass"
     assert {check["name"] for check in receipt["checks"]} >= {
         "policy_schema",
-        "native_ownership",
         "default_branch_policy",
     }

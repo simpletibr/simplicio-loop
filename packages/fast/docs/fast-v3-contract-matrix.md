@@ -24,7 +24,7 @@ and issue #38.
 5. Runtime is the only effect/policy authority in Full mode.
 6. Agent/LLM/coordinators own decisions and provider calls.
 7. Consumers use handles and contracts, never binary offsets or private records.
-8. Python and Rust must produce semantically equivalent contracts.
+8. Python is the only engine; there is no second implementation to reconcile against.
 9. JSON is boundary output; internal persistence follows binary/HBP/HBI rules.
 10. Missing capability must be explicit; empty context is not success.
 
@@ -40,7 +40,7 @@ digest mismatch causes Fast to rebuild from the new handoff or fail closed.
 
 The selector must return:
 
-- requested_engine: auto|rust|python|off;
+- requested_engine: python|off;
 - selected_engine;
 - engine_version;
 - schema_version;
@@ -48,14 +48,12 @@ The selector must return:
 - conformance_digest;
 - reason_code;
 - profile: full|loop-standalone;
-- python_loaded: boolean;
-- rust_loaded: boolean.
+- python_loaded: boolean.
 
 Invalid combinations are failures:
 
-- requested_engine=rust and Rust unavailable;
-- requested_engine=python and Rust loaded;
-- selected_engine=rust with failed conformance;
+- requested_engine not in python|off;
+- selected_engine != python when requested_engine=python;
 - profile=full with an effect bypassing Runtime;
 - stale generation or missing source hash on a write.
 

@@ -4,8 +4,6 @@
 .mapper-handoff.json
 coverage/
 .coverage
-data/*.json
-benchmarks/results/*.json
 __pycache__/
 *.py[cod]
 .venv/
@@ -14,7 +12,3 @@ __pycache__/
 *.egg-info/
 build/
 dist/
-rust/target/
-native/*/target/
-!data/.gitkeep
-!benchmarks/results/.gitkeep

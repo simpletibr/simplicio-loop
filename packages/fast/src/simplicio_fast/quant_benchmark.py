@@ -1,8 +1,8 @@
 """Quality-first, reproducible Q0/Q1/Q2 benchmark contracts.
 
 The benchmark deliberately calls the production Python TurboQuant primitives
-for the 4-bit lanes.  It does not contain a second 4-bit implementation and it
-does not claim Rust parity when Runtime has no quantization capability.
+for the 4-bit lanes. Python is the only implementation; there is no second
+engine to reconcile against.
 """
 
 from __future__ import annotations
@@ -909,8 +909,6 @@ def _measure_lane(
         "python_deterministic": len({sample["result_digest"] for sample in samples})
         == 1,
         "python_result_digest": samples[0]["result_digest"],
-        "rust_parity": None,
-        "rust_parity_null_reason": "RUNTIME_FAST_QUANT_CAPABILITY_UNAVAILABLE",
         "fallback": {"used": False, "reason_code": None},
         "manifest": manifests[0],
         "raw_samples": samples,
@@ -1288,9 +1286,6 @@ def run_benchmark(
         },
         "parity": {
             "python": "MEASURED",
-            "rust": None,
-            "rust_reason": "RUNTIME_FAST_QUANT_CAPABILITY_UNAVAILABLE",
-            "rust_compilation_attempted": False,
         },
         "claims": {
             "speed": "MEASURED_ONLY",

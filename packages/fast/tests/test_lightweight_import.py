@@ -41,7 +41,7 @@ def test_package_import_does_not_load_heavy_implementations():
     "symbol,module",
     [
         ("PrismArena", "simplicio_fast.prism_arena"),
-        ("RuntimeFastBackend", "simplicio_fast.runtime_backend"),
+        ("ProjectionSDK", "simplicio_fast.sdk"),
         ("WorkspaceStore", "simplicio_fast.workspace"),
     ],
 )

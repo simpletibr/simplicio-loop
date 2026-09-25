@@ -24,7 +24,7 @@ class CustodianContractTest(unittest.TestCase):
             "IndexGenerationSteward",
             "CacheIntegritySentinel",
             "KnowledgeFederationSteward",
-            "PythonRustParityAuditor",
+            "ContractParityAuditor",
         }
         self.assertEqual(expected, set(CUSTODIAN_ROLES))
         self.assertEqual(expected, set(CUSTODIANS))

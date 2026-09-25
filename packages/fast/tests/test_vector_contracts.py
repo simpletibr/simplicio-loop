@@ -152,7 +152,6 @@ class VectorContractTest(unittest.TestCase):
         )
         self.assertIn(VECTOR_INDEX_SCHEMA, document)
         self.assertIn(VECTOR_QUERY_RECEIPT_SCHEMA, document)
-        self.assertIn("Rust", document)
         self.assertIn("re-ranking", document)
 
     def test_fail_closed_reason_codes_cover_schema_and_bounds(self) -> None:

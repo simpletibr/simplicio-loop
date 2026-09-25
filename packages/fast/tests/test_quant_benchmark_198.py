@@ -209,7 +209,7 @@ def test_stale_corrupt_cross_generation_and_backend_fail_with_stable_codes(
                 "corpus_hash": dataset.corpus_hash,
                 "embedding_hash": dataset.embedding_hash,
                 "config_hash": config_hash,
-                "backend": "rust",
+                "backend": "unknown-backend",
             },
             "BACKEND_INCOMPATIBLE",
         ),
@@ -454,8 +454,7 @@ def test_small_real_benchmark_has_ten_raw_repetitions_and_separate_classes(
     assert receipt["classification"] == "MEASURED"
     assert receipt["simulated"]["classification"] == "SIMULATED"
     assert receipt["simulated"]["values"] is None
-    assert receipt["parity"]["rust"] is None
-    assert receipt["parity"]["rust_compilation_attempted"] is False
+    assert receipt["parity"]["python"] == "MEASURED"
     assert len(receipt["unavailable_sizes"]) == 2
     assert {item["classification"] for item in receipt["unavailable_sizes"]} == {
         "BLOCKED"
@@ -473,8 +472,6 @@ def test_small_real_benchmark_has_ten_raw_repetitions_and_separate_classes(
         assert lane["classification"] == "MEASURED"
         assert len(lane["raw_samples"]) == 10
         assert lane["python_deterministic"] is True
-        assert lane["rust_parity"] is None
-        assert lane["rust_parity_null_reason"]
         assert lane["query_ms"]["p99"] >= lane["query_ms"]["p95"]
         assert lane["manifest"]["corpus_hash"] == case["dataset"]["corpus_hash"]
         json.dumps(lane)
