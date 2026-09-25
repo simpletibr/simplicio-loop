@@ -3,6 +3,32 @@ Total output lines: 1972
 
 # Changelog
 
+## [3.43.14] - 2026-09-25
+
+- Raise the operator train floors to `simplicio-cli` 0.18.15 (loop needs
+  dev-cli's new `edit --compile`), `simplicio-mapper` 0.26.33, and
+  `simplicio-fast` 2.0.35.
+- Make hosts write minimal find/replace plans, compiled at dispatch
+  (#1290-wave), and land per-lane quality verifiers so "done" is reachable on
+  any repository.
+- Harden the orient Mapper -> Fast path against real repositories: real
+  Mapper handoff passed to Fast with a surfaced fallback reason, worktree-aware
+  ingest cache keyed on content (not just names), and stale-map rescan with an
+  advisory inferred corridor.
+- Fix the runner: dispatch accepts minimal host plans without a schema,
+  synthetic dispatch only falls back when the run manifest is missing,
+  verifier caches and gitignored files no longer make a run look stale, and
+  disk-pressure measurement now matches `df` while ignoring cgroup v1
+  no-limit reporting.
+- Default storage to the `MapperStore` route; re-measure evidence on the
+  final tree before the watcher; collapse the watcher's run-diff fingerprint
+  to a single fingerprint, excluding the loop's own `.simplicio/`.
+- Fix `task_backlog`/`task_anchor`/`loop_progress` to answer `--help` and
+  reject unknown flags.
+- Fix the `economy` command: `apply` now honors `runtime_operational` and
+  persists via an rc-file source line on POSIX.
+- Update repository and release/PyPI URLs to the `@simpletibr` organization.
+
 ## [3.43.13] - 2026-09-15
 
 - Bound prompt-projection token accounting, reserve physical disk headroom before

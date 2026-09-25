@@ -30,12 +30,12 @@ _COMPONENT_ROLES = (
 )
 
 # Fallback floors when pyproject cannot be read (offline wheel / missing checkout).
-# simplicio-cli train target is 0.18.13; floor stays 0.18.12 for the local wheel.
+# simplicio-cli train target is 0.18.15 (loop needs dev-cli's new `edit --compile`).
 _FALLBACK_FLOORS = {
-    "simplicio-mapper": "0.26.31",
-    "simplicio-fast": "2.0.32",
-    "simplicio-cli": "0.18.12",
-    "simplicio-loop": "3.43.13",
+    "simplicio-mapper": "0.26.33",
+    "simplicio-fast": "2.0.35",
+    "simplicio-cli": "0.18.15",
+    "simplicio-loop": "3.43.14",
 }
 
 # These are operator identities, not distribution names.  ``simplicio-dev-cli``

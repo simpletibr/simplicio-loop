@@ -60,7 +60,7 @@ for all 12 runtimes.
 Use [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md) as the complete command
 index. Run the most specific `--help` before use. New commands require
 meaningful help text and a regression check. The coordinated train is Mapper
-0.26.10, Dev CLI 0.18.6, Fast 2.0.22, and Loop 3.38.30. Issue bodies should
+0.26.33, Dev CLI 0.18.15, Fast 2.0.35, and Loop 3.43.14. Issue bodies should
 contain objective, implementation/deployment, and tests, without an Acceptance
 Criteria section.
 
