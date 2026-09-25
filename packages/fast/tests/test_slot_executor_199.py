@@ -102,12 +102,10 @@ def test_python_fallback_metrics_and_offline_verification(tmp_path):
     executor = SlotExecutor(tmp_path)
     snapshot = executor.open_snapshot("run", "source", {})
     envelope = make_envelope(1)
-    receipt = executor.execute(
-        envelope, snapshot, runtime_available=False, rust_available=False
-    )
+    receipt = executor.execute(envelope, snapshot, runtime_available=False)
     assert receipt["runtime_mode"] == "python_fallback"
     assert receipt["runtime_null_reason"] == "RUNTIME_UNAVAILABLE"
-    assert receipt["engine_null_reason"] == "RUST_UNAVAILABLE"
+    assert receipt["engine"] == "python"
     assert receipt["tokens"] is None and receipt["tokens_null_reason"] == "NO_LLM_USED"
     assert executor.verify_receipt(receipt, envelope) == (True, "ok")
     assert receipt["completion_authority"] == "LOOP_ONLY"
@@ -124,8 +122,8 @@ def test_overlay_escape_and_budget_are_blocked(tmp_path):
         executor.execute(envelope, snapshot, writes={"a": b"a", "b": b"b"})
 
 
-def test_quantization_lanes_metrics_and_rust_absence_are_explicit():
-    from simplicio_fast.slot_executor import parity_receipt, quantize, ranking_metrics
+def test_quantization_lanes_and_ranking_metrics():
+    from simplicio_fast.slot_executor import quantize, ranking_metrics
 
     vector = (-1.0, -0.2, 0.1, 1.0)
     assert quantize(vector, "Q0") == vector
@@ -135,5 +133,3 @@ def test_quantization_lanes_metrics_and_rust_absence_are_explicit():
     assert metrics["recall_at_10"] == 1.0
     assert 0 < metrics["ndcg_at_10"] <= 1
     assert metrics["mrr"] == 1.0
-    assert parity_receipt({"fixture": 1})["parity"] is None
-    assert parity_receipt({"fixture": 1})["parity_null_reason"] == "RUST_UNAVAILABLE"

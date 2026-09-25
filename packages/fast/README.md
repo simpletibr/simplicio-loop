@@ -106,13 +106,9 @@ The included benchmark generates 500 Python modules containing 1,500 symbols. It
 
 **Measured query result:** approximately **23× faster** and **95.65% less query CPU** on the recorded local environment (Python 3.12.13, peak process RSS 21,268 KiB).
 
-Reproduce it instead of trusting the table:
-
-```bash
-python benchmarks/run.py
-```
-
-For the quality-first Q0/Q1/Q2 vector matrix, run `PYTHONPATH=src python benchmarks/quant_benchmark_198.py`; it publishes raw measured samples and keeps simulated or capacity-blocked sizes explicitly `null`. See [the quant benchmark contract](docs/quant-benchmark-198.md).
+Reproduce it with the same disposable-fixture approach the test suite uses (build
+a snapshot, then query it via `simplicio-fast build`/`query`) rather than trusting
+the table.
 
 The command records wall time, CPU time, peak RSS (or `null` plus an explicit reason when the host does not expose it), cold build, warm query, no-change rebuild, one-file rebuild and whether the changed symbol became visible. It also measures the shared-base overlay path at 1, 5 and 20 slots with ten repetitions per row. Use identical hardware/configuration when comparing integrations.
 
@@ -143,12 +139,8 @@ not need Fast to pull their transitive stacks into every isolated slot.
 ### Offline installation verification
 
 `simplicio-fast doctor --installation --json` is an offline check: it reports the
-installed Python package, locates `simplicio-fast-rs` (or the path in
-`SIMPLICIO_FAST_RUST`), computes its SHA-256, and validates the Rust engine
-manifest before reporting it as usable. An absent Rust artifact keeps the
-Python-only installation `ready`; an incompatible discovered artifact produces
-`degraded` and is never treated as a valid engine. The command does not download,
-build, or remove files.
+installed Python package and the offline resolution path. The command does not
+download, build, or remove files.
 
 For a local packaging smoke test on Windows, build both artifacts and install the
 wheel into a clean target directory:
@@ -253,12 +245,8 @@ CPU time, mapped bytes, parsed files, cache reuse, canonical snapshot SHA-256, d
 and source-tree parity. It rejects a stale base commit, config fingerprint, schema, artifact
 digest or source path.
 
-Run the issue-specific benchmark with at least ten repetitions:
-`PYTHONPATH=src python benchmarks/changed_path_delta_230.py --repetitions 10`.
-It measures cold, warm, unchanged and one-file lanes, retaining raw wall/CPU/RSS/page-fault
-samples plus parsed/reused files and bytes and mapped bytes. Its receipt is
-`simplicio.fast.changed-path-delta-benchmark/v2`; v1 readers must reject or explicitly migrate
-the previous `raw`/`totals` shape to `categories.<lane>.raw`/`summary`.
+Its receipt is `simplicio.fast.changed-path-delta-benchmark/v2`; v1 readers must reject
+or explicitly migrate the previous `raw`/`totals` shape to `categories.<lane>.raw`/`summary`.
 
 Rollback is safe and derived-state-only: discard the delta generation, release its lease, and
 keep the immutable canonical base; source files remain authoritative and are never reverted by
@@ -348,8 +336,8 @@ The `build`, `query`, direct-index `search`, bounded `context`, typed `impact`, 
 `doctor` surfaces remain available for the binary format. Mapper remains the canonical public
 context producer; consumers should use its versioned handles rather than reading this binary
 directly. Full cross-repository integration is tracked in the [integration epic](https://github.com/wesleysimplicio/simplicio-fast/issues/1).
-The compatibility matrix and the atomic shadow/canary/rollback receipt contract
-are documented in [`docs/issue-8-v2-validation.md`](docs/issue-8-v2-validation.md).
+The compatibility matrix and the atomic shadow/canary/rollback receipt contract are
+tracked under the same epic.
 
 ### Verified address catalog (Python reference)
 
@@ -357,17 +345,16 @@ are documented in [`docs/issue-8-v2-validation.md`](docs/issue-8-v2-validation.m
 authoritative identity and derives a short handle scoped to the normalized repository
 and generation. `resolve`, `resolve_many`, `verify`, `stat` and binary `save`/`load`
 validate payload digests and fail closed for cross-repository, stale-generation,
-tombstoned or corrupted handles. The catalog never exposes `.sfast` offsets. Rust/mmap
-integration, context-packet handle transport and golden Python/Rust fixtures remain
-explicit follow-up gates for issue #59.
+tombstoned or corrupted handles. The catalog never exposes `.sfast` offsets.
+Context-packet handle transport remains an explicit follow-up gate for issue #59.
 
 ### Bitemporal overlay reference
 
 `simplicio_fast.temporal.BitemporalOverlay` records append-only semantic versions with
 logical source/world sequences and observed/system sequences. `as_of` reconstructs a
 generation-scoped view; update, rename and delete create predecessor/successor links or
-tombstones instead of erasing prior evidence. The Python reference does not claim Rust
-storage, compaction, Runtime authorization or cross-repository E2E integration; those are
+tombstones instead of erasing prior evidence. The Python reference does not claim
+storage compaction, Runtime authorization or cross-repository E2E integration; those are
 the remaining gates for issue #60.
 
 ### Semantic pager reference
@@ -376,9 +363,8 @@ the remaining gates for issue #60.
 generation-scoped working set. It enforces byte/page budgets, validates page digests,
 deduplicates concurrent loads with single-flight, supports leases, deterministic LRU
 eviction, bounded prefetch and selective invalidation. It reports observable cache
-metrics. The Rust reader now opens SFAST files through a read-only mmap, but semantic
-page-in, RSS/page-fault telemetry, Runtime quotas and 20/100-slot E2E behavior remain
-gates for issue #61.
+metrics. Semantic page-in, RSS/page-fault telemetry, Runtime quotas and 20/100-slot
+E2E behavior remain gates for issue #61.
 
 ### Delivery ledger reference
 
@@ -440,10 +426,8 @@ simplicio-fast segments map --directory .simplicio/fast/segments --name symbols
 `segments map` validates the selected segment's size and SHA-256, then opens only that segment
 through read-only `mmap`; it never exposes offsets from the monolithic snapshot. Publication
 swaps the manifest atomically and retains content-addressed segments for unchanged generations.
-The Rust reader exposes the same bounded map contract through `simplicio-fast-rs --segment
-<directory> <name>`, with the same path and checksum guards. Python remains the writer authority;
-Rust segmented writing, demand-driven semantic indexes and large-RSS/page-fault benchmarks remain
-open gates for issues #40, #43 and #61.
+Python is the sole writer and reader authority; demand-driven semantic indexes and
+large-RSS/page-fault benchmarks remain open gates for issues #40, #43 and #61.
 
 ### Deterministic query planning
 
@@ -484,16 +468,14 @@ refresh leaves the previous complete snapshot untouched.
 
 ```bash
 PYTHONPATH=src python -m unittest discover -s tests -v
-python -m compileall -q src tests benchmarks
-python benchmarks/run.py
+python -m compileall -q src tests
 python scripts/check_release_integrity.py --check --json
 ```
 
 The wheel carries `simplicio_fast/release_policy.json`, so an installed
-consumer can inspect branch, dependency, native ownership, platform, and
-precompiled-only policy without access to the source checkout. The root
-`release-policy.json` is a checked mirror, and the integrity gate rejects drift
-between the two.
+consumer can inspect branch, dependency and version-source policy without
+access to the source checkout. The root `release-policy.json` is a checked
+mirror, and the integrity gate rejects drift between the two.
 
 Version 2.0.35 covers:
 
@@ -524,7 +506,7 @@ Ready in Fast 2.0.16:
 - Mapper/Dev CLI readiness checks with explicit fallback receipts;
 - canonical base generations, isolated worktree overlays, leases and refresh;
 - provenance, apply and rollout receipts for shadow, canary, integrated and rollback states;
-- optional Runtime-first semantic scoring with a complete deterministic offline fallback, documented in [semantic scoring](docs/semantic-scoring.md).
+- optional Runtime-first semantic scoring with a complete deterministic offline fallback.
 
 External boundaries and follow-ups:
 
@@ -556,12 +538,9 @@ retries. The source tree remains authoritative; snapshots are derived state.
 - **Full:** Mapper → Fast → Dev CLI, coordinated by Loop and governed by Runtime.
 - **Loop standalone:** Loop → Fast, with Mapper and Dev CLI adapters encapsulated; Runtime,
   Agent and Code are optional.
-- **Engines:** Python remains the complete reference/fallback. Runtime owns native execution;
-  `auto` selects its verified binary adapter only after hash, platform, ABI, version, capability,
-  and health gates pass. `rust` fails closed, while `python` and `off` never load a native path.
-- **Compatibility bridge:** CI may publish the legacy `simplicio.fast-native/v1` executable for
-  migration and rollback. Consumers only use the precompiled artifact; local Cargo/rustc discovery
-  is forbidden. The Runtime adapter supersedes this bridge as its capability becomes available.
+- **Engine:** Python is the only engine. There is no probing, selection between
+  implementations, or fallback wording; `select_engine("python")` always succeeds and
+  `off` disables the engine entirely.
 
 See [ADR-0001](docs/ADR-0001-fast-v3-ownership.md) and the
 [contract matrix](docs/fast-v3-contract-matrix.md). The executable delivery-engine work is

@@ -445,8 +445,6 @@ class DeliveryEngineTest(unittest.TestCase):
                 str(root),
                 "--snapshot",
                 str(snapshot),
-                "--fast-engine",
-                "python",
                 "--mapper-mode",
                 "bootstrap",
             ]
@@ -554,8 +552,6 @@ class DeliveryEngineTest(unittest.TestCase):
                 "--changeset",
                 str(changeset),
                 "--write",
-                "--fast-engine",
-                "python",
             ]
             with patch(
                 "simplicio_fast.processor.run_dev_cli_changeset", return_value=None

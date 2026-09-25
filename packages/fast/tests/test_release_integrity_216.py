@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 import shutil
 import tomllib
@@ -29,10 +28,6 @@ def _fixture(tmp_path: Path) -> Path:
         "README.md",
         "CHANGELOG.md",
         "src/simplicio_fast/__init__.py",
-        "rust/simplicio-fast-core/Cargo.toml",
-        "rust/Cargo.lock",
-        ".github/workflows/native-release.yml",
-        "docs/native-backend-support.md",
     ):
         target = tmp_path / relative
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -62,26 +57,6 @@ def test_version_drift_fails_closed(tmp_path):
     assert "package_version" in receipt["failures"]
 
 
-def test_rust_core_version_drift_fails_closed(tmp_path):
-    root = _fixture(tmp_path)
-    cargo = root / "rust/simplicio-fast-core/Cargo.toml"
-    _replace_once(
-        cargo, f'version = "{PROJECT_VERSION}"', f'version = "{DRIFT_VERSION}"'
-    )
-    receipt = evaluate(root)
-    assert "rust_core_version" in receipt["failures"]
-
-
-def test_rust_cargo_lock_version_drift_fails_closed(tmp_path):
-    root = _fixture(tmp_path)
-    lock = root / "rust/Cargo.lock"
-    _replace_once(
-        lock, f'version = "{PROJECT_VERSION}"', f'version = "{DRIFT_VERSION}"'
-    )
-    receipt = evaluate(root)
-    assert "rust_cargo_lock_version" in receipt["failures"]
-
-
 def test_dependency_badge_drift_fails_closed(tmp_path):
     root = _fixture(tmp_path)
     readme = root / "README.md"
@@ -106,17 +81,6 @@ def test_changelog_version_drift_fails_closed(tmp_path):
     )
     receipt = evaluate(root)
     assert "changelog_version" in receipt["failures"]
-
-
-def test_native_ownership_and_platform_drift_fail_closed(tmp_path):
-    root = _fixture(tmp_path)
-    policy_path = root / "src/simplicio_fast/release_policy.json"
-    policy = json.loads(policy_path.read_text())
-    policy["native_execution_owner"] = "simplicio-fast"
-    policy["supported_native_platforms"].append("plan9-mips")
-    policy_path.write_text(json.dumps(policy), encoding="utf-8")
-    receipt = evaluate(root)
-    assert {"native_ownership", "native_platform_matrix"} <= set(receipt["failures"])
 
 
 def test_check_mode_returns_nonzero_for_drift(tmp_path):

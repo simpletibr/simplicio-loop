@@ -23,9 +23,9 @@ def run() -> dict[str, Any]:
     checks = {
         "installed_launcher": installed,
         "all_cli_steps": all(step["status"] == "pass" for step in steps),
-        "engine_selection": smoke["engine_selection"] == {"auto": "python", "python": "python", "off": "off"},
-        "python_fallback": smoke["checks"]["python_fallback"],
-        "rust_not_loaded": smoke["checks"]["rust_not_loaded"],
+        "build_refresh_query_context_plan_delivery": smoke["checks"][
+            "build_refresh_query_context_plan_delivery"
+        ],
     }
     return {
         "schema": SCHEMA,
@@ -33,10 +33,8 @@ def run() -> dict[str, Any]:
         "package": {"name": "simplicio-fast", "version": __version__},
         "launcher": {"path": launcher, "kind": smoke["launcher"]["kind"], "reason_code": smoke["launcher"]["reason_code"]},
         "checks": checks,
-        "engine_selection": smoke["engine_selection"],
         "steps": steps,
-        "rust": {"status": "not_loaded", "reason_code": smoke["rust_probe"]["reason_code"]},
-        "residuals": ["rust_session_parity", "backpressure_cancellation", "cross_platform_artifacts", "upgrade_rollback_receipts"],
+        "residuals": ["backpressure_cancellation", "cross_platform_artifacts", "upgrade_rollback_receipts"],
     }
 
 

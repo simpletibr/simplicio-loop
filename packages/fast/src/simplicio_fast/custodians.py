@@ -17,14 +17,14 @@ CustodianRole = Literal[
     "IndexGenerationSteward",
     "CacheIntegritySentinel",
     "KnowledgeFederationSteward",
-    "PythonRustParityAuditor",
+    "ContractParityAuditor",
 ]
 
 _ROLE_NAMES: tuple[CustodianRole, ...] = (
     "IndexGenerationSteward",
     "CacheIntegritySentinel",
     "KnowledgeFederationSteward",
-    "PythonRustParityAuditor",
+    "ContractParityAuditor",
 )
 _Metadata = tuple[str, ...]
 
@@ -117,10 +117,10 @@ _ROLE_METADATA: tuple[
         ("source-scoped", "provenance-preserving", "no-dispatch"),
     ),
     (
-        "PythonRustParityAuditor",
+        "ContractParityAuditor",
         "simplicio-fast/parity",
         ("parity-audit", "contract-comparison"),
-        ("python-contract", "rust-contract"),
+        ("current-contract", "reference-contract"),
         ("parity-verdict", "comparison-receipt"),
         ("read-only", "deterministic", "no-execution"),
     ),

@@ -50,7 +50,7 @@ materialized only by the future query path for candidate re-ranking.
 
 This ADR does not claim that TurboQuant quantization, approximate candidate
 search, integral re-ranking, mmap publication, atomic generation promotion,
-Python/Rust golden parity, planner fallback, quality gates, or benchmarks exist.
-Those remain separate issue #85 slices. Rust, Loop, Runtime, and Mapper E2E
+golden parity, planner fallback, quality gates, or benchmarks exist.
+Those remain separate issue #85 slices. Loop, Runtime, and Mapper E2E
 integration remain residuals. No performance or recall gain is claimed from this
 contract-only change.
