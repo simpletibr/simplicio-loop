@@ -1,5 +1,5 @@
 """NO WASTED RETRIES: a deterministic operator failure is recorded once,
-never retried across the retry budget -- see CLAUDE.md item B."""
+never retried across the retry budget -- see AGENTS.md item B."""
 from __future__ import annotations
 
 from simplicio_loop import runner as runner_mod

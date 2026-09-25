@@ -78,7 +78,7 @@ if HERE not in sys.path:
 from mirror_manifest import LEAN_SCRIPTS, LEAN_TESTS  # noqa: E402 — single source of truth (#74)
 from claims_manifest import CLAIMS, extract_claims  # noqa: E402 — quantitative claims (#96)
 
-DOC_GLOBS = ["README.md", "AGENTS.md", "CLAUDE.md", "INSTALL.md", "PYPI.md"]
+DOC_GLOBS = ["README.md", "AGENTS.md", "INSTALL.md", "PYPI.md"]
 # CHANGELOG.md is deliberately NOT in DOC_GLOBS: it is a historical log whose entries correctly
 # describe counts as they were AT THE TIME of that change (e.g. "6 skills" in an old entry, now
 # 7) — checking it against skill-count/extension-point-count checks 2/6 would false-positive on

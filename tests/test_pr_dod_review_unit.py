@@ -1,7 +1,7 @@
 """Unit tests for scripts/pr_dod_review.py — PR review against DoD + issue acceptance criteria.
 
 Built so a session that finds all open issues already claimed by other agents can still
-contribute value: mechanically checking whether an open PR satisfies CLAUDE.md's 7-dimension
+contribute value: mechanically checking whether an open PR satisfies AGENTS.md's 7-dimension
 Definition of Done and the issue's own frozen acceptance-criteria checklist, instead of a
 vibe-based approval.
 """

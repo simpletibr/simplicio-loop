@@ -51,7 +51,7 @@ EXT_TABLE = """# Extension points — the 2 named binding points
 def test_extension_count_matches_actual_table():
     with tempfile.TemporaryDirectory() as tmp:
         _write(os.path.join(tmp, "README.md"), "badge: 2 extension points")
-        _write(os.path.join(tmp, "CLAUDE.md"), "2 named binding points")
+        _write(os.path.join(tmp, "AGENTS.md"), "2 named binding points")
         _write(os.path.join(tmp, ".claude", "skills", "simplicio-tasks", "references",
                              "extension-points.md"), EXT_TABLE)
         restore = _patched(tmp)
@@ -68,7 +68,7 @@ def test_extension_count_flags_claim_disagreeing_with_table():
     # that the check compares against the actual table row count.
     with tempfile.TemporaryDirectory() as tmp:
         _write(os.path.join(tmp, "README.md"), "badge: 5 extension points")
-        _write(os.path.join(tmp, "CLAUDE.md"), "5 named binding points")
+        _write(os.path.join(tmp, "AGENTS.md"), "5 named binding points")
         _write(os.path.join(tmp, ".claude", "skills", "simplicio-tasks", "references",
                              "extension-points.md"), EXT_TABLE)  # table actually has 2 rows
         restore = _patched(tmp)

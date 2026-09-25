@@ -7,7 +7,7 @@ description: Route broad or ambiguous work across Simplicio Mapper, Fast, Dev CL
 
 ## Worker preflight and centralized artifact policy
 
-Before routing or operating, each worker reads repository `AGENTS.md`, `CLAUDE.md`, and all relevant local skills. Prism only composes a route after that preflight. One binary/artifact set is built centrally from the canonical default branch and shared read-only; workers never rebuild binaries or regenerate canonical Mapper/Fast artifacts. Worktrees isolate source edits and receipts only. Route evidence and receipts carry repository/revision, binary digest/version, Mapper generation, and artifact digest. Missing, stale, incompatible, or mismatched central artifacts fail closed and select the central rebuild path only.
+Before routing or operating, each worker reads repository `AGENTS.md` and all relevant local skills. Prism only composes a route after that preflight. One binary/artifact set is built centrally from the canonical default branch and shared read-only; workers never rebuild binaries or regenerate canonical Mapper/Fast artifacts. Worktrees isolate source edits and receipts only. Route evidence and receipts carry repository/revision, binary digest/version, Mapper generation, and artifact digest. Missing, stale, incompatible, or mismatched central artifacts fail closed and select the central rebuild path only.
 
 The async boundary is explicit: Loop/Prism uses Python `asyncio` for scheduling, leases, and I/O; Runtime/Tokio owns gates, effects, receipts, and reconciliation. Neither async layer authorizes a worker-local rebuild or canonical artifact regeneration.
 

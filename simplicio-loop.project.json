@@ -1,5 +1,5 @@
 {
-  "$schema_note": "Mapa exaustivo do projeto simplicio-loop, extraído lendo os arquivos reais do repositório (README.md, CLAUDE.md, AGENTS.md, as 6 SKILL.md, references/*, pyproject.toml, plugin manifests, hooks/, engine/, rust/, scripts/, adapters/, CHANGELOG.md, PRICING.md, app/providers.json). Destinado a alimentar a geração de uma imagem detalhada e de um vídeo-tutorial. Idioma dos campos descritivos: PT-BR; identificadores/comandos/paths em inglês conforme o repo.",
+  "$schema_note": "Mapa exaustivo do projeto simplicio-loop, extraído lendo os arquivos reais do repositório (README.md, AGENTS.md, as 7 SKILL.md, references/*, pyproject.toml, plugin manifests, hooks/, engine/, rust/, scripts/, adapters/, CHANGELOG.md, PRICING.md, app/providers.json). Destinado a alimentar a geração de uma imagem detalhada e de um vídeo-tutorial. Idioma dos campos descritivos: PT-BR; identificadores/comandos/paths em inglês conforme o repo.",
   "generated_at": "2026-06-25",
   "generated_for": ["imagem-infografico-detalhada", "video-tutorial"],
 
@@ -692,7 +692,7 @@
   },
 
   "directory_structure": {
-    "root_docs": ["README.md", "README*.md (15 idiomas em READMEs/)", "CLAUDE.md", "AGENTS.md", "GEMINI.md", "INSTALL.md", "PYPI.md", "PRICING.md", "CHANGELOG.md (43 versões)", "LICENSE (MIT)", "MANIFEST.in", "pyproject.toml"],
+    "root_docs": ["README.md", "README*.md (15 idiomas em READMEs/)", "AGENTS.md", "INSTALL.md", "PYPI.md", "PRICING.md", "CHANGELOG.md (43 versões)", "LICENSE (MIT)", "MANIFEST.in", "pyproject.toml"],
     "skills": ".claude/skills/{simplicio-tasks,simplicio-loop,simplicio-orient,simplicio-review,simplicio-compress,simplicio-learn}/SKILL.md (+ simplicio-tasks/references/*.md)",
     "hooks": "hooks/ (8 hooks Python + hooks.json + hooks.claude.json + README.md)",
     "engine": "engine/ (25 módulos Python + README.md)",

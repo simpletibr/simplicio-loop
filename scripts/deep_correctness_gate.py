@@ -372,7 +372,7 @@ def cmd_selftest(_args):
 
     # 18: build_verdict is ok=True when nothing applicable (no fix:, no PR body) AND the target
     # repo's CI has a coverage gate — this repo (simplicio-loop) deliberately runs no paid CI
-    # coverage gate of its own (see CLAUDE.md "no paid CI"), so a fresh fixture repo proves this
+    # coverage gate of its own (see AGENTS.md "no paid CI"), so a fresh fixture repo proves this
     # instead of relying on REPO's own workflow tree.
     with tempfile.TemporaryDirectory(prefix="deep_correctness_gate_selftest_verdict_") as tmp2:
         wf_dir2 = os.path.join(tmp2, ".github", "workflows")

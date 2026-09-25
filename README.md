@@ -1066,8 +1066,7 @@ python3 scripts/check.py --core-gate # mandatory offline/bounded core; external 
 Monorepo (`packages/mapper`, `packages/fast`, `packages/dev-cli`): `bash scripts/dev_install.sh`
 sets up one venv with all four packages editable from their in-repo paths, and
 `python3 scripts/check.py --package mapper|fast|dev-cli|loop|all` (or `--changed`, scoped to what
-you touched vs `origin/main`) runs one package's own fast gate from its in-repo location — see
-[`CLAUDE.md` § Development](CLAUDE.md#development).
+you touched vs `origin/main`) runs one package's own fast gate from its in-repo location — see [`AGENTS.md` § Development](AGENTS.md#development).
 
 Both commands require an importable `pytest`; its absence is `pytest_unavailable`, never a
 direct-execution fallback. The core gate runs claims audit, mirror parity, core pytest tests,

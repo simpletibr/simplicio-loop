@@ -1,5 +1,5 @@
 """System tests — the whole `simplicio-loop` local gate as a black box, driven exactly the way a
-git pre-push hook drives it (see CLAUDE.md § Tests & local checks). These don't test one script;
+git pre-push hook drives it (see AGENTS.md § Tests & local checks). These don't test one script;
 they test the SYSTEM: `scripts/check.py` orchestrating the audit + the full test tree together.
 
 `--tests-only` is asserted to PASS (that's this very suite, self-consistently green). `--audit-only`

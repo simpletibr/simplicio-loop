@@ -1,6 +1,6 @@
 ---
 name: simplicio-compress
-description: Cut output and memory tokens without losing meaning — terse prose levels (caveman-style) that preserve code/paths/URLs byte-for-byte, plus a one-time memory/doc compaction pass that pays back every future turn. Use when replies or worker reports are verbose, when standing context (CLAUDE.md/AGENTS.md/notes) is bloated, or when simplicio-tasks needs its output-side + input-side token discipline. Compression NEVER touches code, identifiers, or a safety confirmation.
+description: Cut output and memory tokens without losing meaning — terse prose levels (caveman-style) that preserve code/paths/URLs byte-for-byte, plus a one-time memory/doc compaction pass that pays back every future turn. Use when replies or worker reports are verbose, when standing context (AGENTS.md/notes) is bloated, or when simplicio-tasks needs its output-side + input-side token discipline. Compression NEVER touches code, identifiers, or a safety confirmation.
 ---
 
 # simplicio-compress — output & memory token discipline
@@ -55,7 +55,7 @@ compacting them ONCE pays back across hundreds of iterations (caveman reports ~4
 reduction on memory files).
 
 Procedure:
-1. Target prose-heavy standing files (CLAUDE.md, AGENTS.md, shared digest, long notes). Skip
+1. Target prose-heavy standing files (AGENTS.md, shared digest, long notes). Skip
    pure code/config/lockfiles.
 2. Rewrite to terse form preserving code/paths/URLs/numbers/versions VERBATIM; run through
    `transform_guard`.
