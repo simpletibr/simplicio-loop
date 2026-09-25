@@ -684,6 +684,10 @@ def economy_command(args) -> int:
             print(f"  fan_out={payload['recommended'].get('SIMPLICIO_LOOP_AUTO_FAN_OUT')}")
             if payload["drift_keys"]:
                 print(f"  drift: {', '.join(payload['drift_keys'][:12])}")
+                if payload.get("drift_explanation"):
+                    print(f"  why: {payload['drift_explanation']}")
+                if payload.get("drift_fix"):
+                    print(f"  fix: {payload['drift_fix']}")
             print("  backends: Runtime Tokio · Python asyncio · Prism slots")
         return 0 if payload.get("enabled") else 1
     if sub == "print":
@@ -719,6 +723,8 @@ def economy_command(args) -> int:
                 print(f"  ps1: {paths['ps1']}")
             if paths.get("sh"):
                 print(f"  sh:  {paths['sh']}")
+            if payload.get("rc_files_changed"):
+                print(f"  rc_files_changed: {', '.join(payload['rc_files_changed'])}")
             print(f"  workers={payload.get('env', {}).get('SIMPLICIO_LOOP_OPERATOR_WORKERS')}")
             print(f"  prism_slots={payload.get('env', {}).get('SIMPLICIO_PRISM_SLOTS')}")
         return 0 if payload.get("ok", True) else 1

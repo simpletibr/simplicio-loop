@@ -276,6 +276,45 @@ def _resolve_runtime_operational(
         return False
 
 
+def _persisted_env_matches(recommended: Mapping[str, str]) -> bool:
+    """True when ~/.simplicio/economy-parallel-env.json already holds this profile."""
+    try:
+        raw = user_env_paths()["json"].read_text(encoding="utf-8")
+        stored = json.loads(raw).get("env", {})
+    except Exception:
+        return False
+    return all(str(stored.get(k, "")) == v for k, v in recommended.items())
+
+
+def _drift_explanation(
+    *, drift_keys: list[str], persisted_matches: bool
+) -> dict[str, Any]:
+    """Explain *why* drift exists: never applied vs. applied-but-not-loaded."""
+    if not drift_keys:
+        return {"reason_code": "aligned", "reason": "", "fix": ""}
+    if not persisted_matches:
+        return {
+            "reason_code": "not_applied",
+            "reason": "the economy profile has not been applied on this host "
+            "(or was applied with different values)",
+            "fix": "simplicio-loop economy apply",
+        }
+    if sys.platform == "win32":
+        return {
+            "reason_code": "applied_not_loaded",
+            "reason": "the profile is persisted to the Windows User environment "
+            "but this process started before that change took effect",
+            "fix": "open a new shell/terminal (User env applies to new processes only)",
+        }
+    return {
+        "reason_code": "applied_not_loaded",
+        "reason": "the profile is persisted under ~/.simplicio but this shell "
+        "was not started after apply() wired the rc-file source line, or the "
+        "active shell's rc file was not one of the ones apply() edited",
+        "fix": f". {user_env_paths()['sh']}",
+    }
+
+
 def profile_status(
     env: Optional[Mapping[str, str]] = None,
     *,
@@ -294,6 +333,10 @@ def profile_status(
     missing = [k for k, v in recommended.items() if str(source.get(k, "")).strip() != v]
     execution_profile = "runtime-backed" if resolved_runtime_operational else "standalone"
     note = None if resolved_runtime_operational else "UNVERIFIED|runtime_unavailable"
+    drift_explanation = _drift_explanation(
+        drift_keys=missing,
+        persisted_matches=_persisted_env_matches(recommended),
+    )
     return {
         "schema": SCHEMA,
         "profile": PROFILE_NAME,
@@ -302,6 +345,9 @@ def profile_status(
         "recommended": recommended,
         "applied": applied,
         "drift_keys": missing,
+        "drift_reason": drift_explanation["reason_code"],
+        "drift_explanation": drift_explanation["reason"],
+        "drift_fix": drift_explanation["fix"],
         "aligned": len(missing) == 0,
         "runtime_operational": resolved_runtime_operational,
         "execution_profile": execution_profile,
@@ -349,6 +395,63 @@ def user_env_paths() -> dict[str, Path]:
         "ps1": root / "economy-parallel-env.ps1",
         "sh": root / "economy-parallel-env.sh",
     }
+
+
+_RC_MARK_BEGIN = "# >>> simplicio economy-parallel >>>"
+_RC_MARK_END = "# <<< simplicio economy-parallel <<<"
+
+
+def _posix_rc_candidates() -> list[Path]:
+    """rc files a new POSIX login/interactive shell is likely to source.
+
+    Prefers files that already exist (``.bashrc``/``.zshrc``); falls back to
+    ``.profile`` (sourced by POSIX-compliant shells, incl. bash as a login
+    shell) so a host with neither still gets one persisted mechanism.
+    """
+    home = Path.home()
+    candidates = [home / ".bashrc", home / ".zshrc"]
+    existing = [p for p in candidates if p.is_file()]
+    return existing if existing else [home / ".profile"]
+
+def _rc_source_block(sh_path: Path) -> str:
+    return (
+        f"{_RC_MARK_BEGIN}\n"
+        f'[ -f "{sh_path}" ] && . "{sh_path}"\n'
+        f"{_RC_MARK_END}\n"
+    )
+
+
+def _write_idempotent_rc_block(rc_path: Path, block: str) -> bool:
+    """Insert/replace the guarded block in ``rc_path``. Returns True if changed."""
+    existing = rc_path.read_text(encoding="utf-8") if rc_path.is_file() else ""
+    if _RC_MARK_BEGIN in existing:
+        start = existing.index(_RC_MARK_BEGIN)
+        end_marker = existing.index(_RC_MARK_END, start) + len(_RC_MARK_END)
+        # Consume a trailing newline after the end marker, if present.
+        end = end_marker + 1 if existing[end_marker:end_marker + 1] == "\n" else end_marker
+        new_content = existing[:start] + block + existing[end:]
+        if new_content == existing:
+            return False
+        rc_path.write_text(new_content, encoding="utf-8")
+        return True
+    rc_path.parent.mkdir(parents=True, exist_ok=True)
+    separator = "" if not existing or existing.endswith("\n") else "\n"
+    rc_path.write_text(existing + separator + block, encoding="utf-8")
+    return True
+
+
+def persist_posix_rc(sh_path: Path) -> list[str]:
+    """Wire an idempotent, marker-guarded source line into POSIX shell rc files.
+
+    Returns the list of rc file paths actually modified (empty if all already
+    had the current block — apply() stays idempotent across re-runs).
+    """
+    block = _rc_source_block(sh_path)
+    changed: list[str] = []
+    for rc_path in _posix_rc_candidates():
+        if _write_idempotent_rc_block(rc_path, block):
+            changed.append(str(rc_path))
+    return changed
 
 
 def persist_user_profile(
@@ -414,12 +517,30 @@ def persist_user_profile(
                 "paths": {k: str(v) for k, v in paths.items()},
                 "env": recommended,
             }
-    else:
+    rc_files_changed: list[str] = []
+    if sys.platform != "win32":
+        rc_files_changed = persist_posix_rc(paths["sh"])
         # still apply to this process
         for name, value in recommended.items():
             os.environ[name] = value
+    else:
+        for name, value in recommended.items():
+            os.environ[name] = value
 
-    note = "New shells pick up User env after restart; this process is updated in-place."
+    if sys.platform == "win32":
+        note = "New shells pick up User env after restart; this process is updated in-place."
+    elif rc_files_changed:
+        note = (
+            "Persisted via guarded source line in "
+            + ", ".join(rc_files_changed)
+            + "; new interactive shells pick it up. This process is updated in-place."
+        )
+    else:
+        note = (
+            "rc files already wired (idempotent, no change needed); "
+            "new interactive shells pick it up. This process is updated in-place."
+        )
+
     if not resolved_runtime_operational:
         note = f"{note} UNVERIFIED|runtime_unavailable"
     return {
@@ -431,6 +552,7 @@ def persist_user_profile(
         "windows_user_env_keys": windows_set,
         "runtime_operational": resolved_runtime_operational,
         "execution_profile": "runtime-backed" if resolved_runtime_operational else "standalone",
+        "rc_files_changed": rc_files_changed,
         "note": note,
     }
 
@@ -453,6 +575,7 @@ __all__ = [
     "profile_status",
     "apply_to_environ",
     "persist_user_profile",
+    "persist_posix_rc",
     "render_shell_exports",
     "recommend_operator_workers",
     "recommend_prism_slots",
