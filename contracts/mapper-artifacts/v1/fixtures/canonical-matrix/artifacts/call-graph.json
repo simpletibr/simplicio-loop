@@ -1,57 +1,24 @@
 {
   "counts": {
     "calls": 1,
-    "edges": 3,
-    "imports": 2
+    "edges": 1,
+    "imports": 0
   },
   "coverage": {
     "ambiguous_relations": 0,
     "edge_limit": 1000,
-    "emitted_edges": 3,
+    "emitted_edges": 1,
     "evidence_classes": {
-      "heuristic": 2,
       "lexical_unique": 1
     },
     "invalid_edges": 0,
-    "observed_edges": 3,
+    "observed_edges": 1,
     "omitted_edges": 0,
-    "status": "degraded",
+    "status": "complete",
     "truncated": false,
-    "unknown_relations": 2
+    "unknown_relations": 0
   },
   "edges": [
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "import": "System",
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "import": "System",
-        "method": "import-resolution"
-      },
-      "relation_id": "febdc74e9aca378579a5e5b3ba06b31cb2a25cef77e576b2e05efbe4b0e13a1b",
-      "resolution_status": "unknown",
-      "source_file": "services/dotnet/Pages/Index.razor",
-      "target_file": null,
-      "type": "imports"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "import": "System",
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "import": "System",
-        "method": "import-resolution"
-      },
-      "relation_id": "2a140eb10901b68bd0fd0970d5d91ba08b64247a5dea5aa057a75954a120d654",
-      "resolution_status": "unknown",
-      "source_file": "services/dotnet/Program.cs",
-      "target_file": null,
-      "type": "imports"
-    },
     {
       "confidence": null,
       "evidence_class": "lexical_unique",
@@ -81,7 +48,7 @@
   "generated_at": "1970-01-01T00:00:00.000Z",
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:51bbac32177080254f8caf9aa76463c28a61a4c048564deac8d8b5c86ac9e853",
+    "canonical_digest": "sha256:0719a46597e5990c87bf1ae8085ed869885f9b4898a8f794d9373898b2686273",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
@@ -120,5 +87,17 @@
     "symbols": 0
   },
   "source_symbol_index": ".simplicio/symbol-index.json",
+  "unresolved": [
+    {
+      "kind": "import",
+      "queried_symbol": "System",
+      "source_file": "services/dotnet/Pages/Index.razor"
+    },
+    {
+      "kind": "import",
+      "queried_symbol": "System",
+      "source_file": "services/dotnet/Program.cs"
+    }
+  ],
   "version": 1
 }

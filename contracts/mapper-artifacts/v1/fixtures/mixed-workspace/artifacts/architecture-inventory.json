@@ -9,7 +9,7 @@
     "files": 4,
     "layers": 3,
     "modules": 3,
-    "relationships": 5,
+    "relationships": 4,
     "symbols": 4,
     "tests": 1
   },
@@ -237,12 +237,12 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:6d06c4bec55712e26dbb5934e1529a7e197fcaf8e25fa00bd124bf30749f9048",
+    "canonical_digest": "sha256:c66a7dab5f849db35b50616677a8adbeffec4341806f64978a4bbc41554259a3",
     "capability_coverage": {
       "architecture": "full",
       "files": "full",
       "precedent": "unsupported",
-      "relationships": "partial",
+      "relationships": "full",
       "symbols": "empty"
     },
     "component": "simplicio-mapper",
@@ -265,18 +265,17 @@
   "relationship_coverage": {
     "ambiguous_relations": 0,
     "edge_limit": 250,
-    "emitted_edges": 5,
+    "emitted_edges": 4,
     "evidence_classes": {
-      "heuristic": 1,
       "import_resolved": 1,
       "lexical_unique": 3
     },
     "invalid_edges": 0,
-    "observed_edges": 5,
+    "observed_edges": 4,
     "omitted_edges": 0,
-    "status": "degraded",
+    "status": "complete",
     "truncated": false,
-    "unknown_relations": 1
+    "unknown_relations": 0
   },
   "relationships": [
     {
@@ -373,22 +372,6 @@
         "backend/server.py"
       ],
       "target_file": "backend/server.py",
-      "type": "imports"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "import": "react",
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "import": "react",
-        "method": "import-resolution"
-      },
-      "relation_id": "875a629866012381c865c24d231b138d7c7909d25770a86fa5f0cbfefe09f517",
-      "resolution_status": "unknown",
-      "source_file": "frontend/src/App.jsx",
-      "target_file": null,
       "type": "imports"
     }
   ],

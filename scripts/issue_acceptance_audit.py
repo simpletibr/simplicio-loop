@@ -333,11 +333,20 @@ def _issue_199() -> dict[str, Any]:
         _criterion(
             issue=199,
             criterion_id="199-AC12",
-            text="Required context that cannot fit returns broader-context reasons instead of silent truncation.",
+            text=(
+                "Required context that cannot fit fails closed with an explicit "
+                "budget_exceeded/required_context_exceeds_budget reason instead of "
+                "silent truncation. (Superseded from an earlier `needs_broader_context` "
+                "framing: a *required* span/target that overflows the budget is a hard "
+                "budget failure, not a request for more context -- see "
+                "test_required_span_overflow_reports_budget_failure_not_broader_context "
+                "and test_declared_serialized_output_budget_fails_closed_without_"
+                "requesting_broader_context.)"
+            ),
             commands=["python -m unittest tests/python/test_retrieval_index.py tests/python/test_task_aware_handoff.py"],
             patterns=[
-                {"path": "tests/python/test_retrieval_index.py", "match": "def test_required_span_overflow_requests_broader_context"},
-                {"path": "tests/python/test_task_aware_handoff.py", "match": "def test_declared_serialized_output_budget_sets_broader_context"},
+                {"path": "tests/python/test_retrieval_index.py", "match": "def test_required_span_overflow_reports_budget_failure_not_broader_context"},
+                {"path": "tests/python/test_task_aware_handoff.py", "match": "def test_declared_serialized_output_budget_fails_closed_without_requesting_broader_context"},
             ],
         ),
         _criterion(

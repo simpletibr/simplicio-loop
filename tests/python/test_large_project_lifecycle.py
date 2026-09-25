@@ -120,7 +120,7 @@ class LargeProjectLifecycleTest(unittest.TestCase):
         self.assertGreaterEqual(len(result["snapshot"]["entities"]), 10)
 
         artifacts = build_artifacts(str(self.root))
-        errors = validate_instance(artifacts["project_map"], self.project_map_schema)
+        errors = validate_instance(artifacts["project_map"], self.project_map_schema, str(SCHEMA_ROOT))
         self.assertEqual(errors, [], errors)
         # A consumer (dev-cli/loop/agent) should be able to read files
         # straight off the artifact without any bespoke adaptation.

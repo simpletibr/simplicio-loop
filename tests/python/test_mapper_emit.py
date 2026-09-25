@@ -75,7 +75,17 @@ class BuildArtifactsTest(unittest.TestCase):
         artifacts = build_artifacts(str(self.dir), meta={"stack": "javascript"})
         self.assertEqual(
             set(artifacts.keys()),
-            {"project_map", "precedent_index", "architecture_inventory", "symbol_index", "call_graph"},
+            {
+                "project_map",
+                "precedent_index",
+                "architecture_inventory",
+                "symbol_index",
+                "call_graph",
+                # Execution receipt for the sync/async pipeline dispatch
+                # decision (calibration/benchmark observability); always
+                # present alongside the five artifact dicts.
+                "execution_plan",
+            },
         )
         self.assertEqual(artifacts["project_map"]["schema"], "simplicio.project-map/v1")
         self.assertIn("agent_tree", artifacts["project_map"])

@@ -234,10 +234,23 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
 
         nonexistent_paths = sum(1 for path in selected_paths if not (tempdir / path).exists())
 
-        abstained = bool(first_handoff.get("selection", {}).get("abstained"))
-        needs_broader_context = bool(first_handoff.get("context_pack", {}).get("needs_broader_context"))
-        token_budget_fit = dict(first_handoff.get("selection", {}).get("token_budget_fit", {}))
-        serialization_budget = dict(first_handoff.get("context_pack", {}).get("serialization_budget", {}))
+        # `handoff`'s slimmed envelope ("slim handoff envelope", Refs
+        # wesleysimplicio/simplicio-loop#1284) only wraps `selection`/
+        # `context_pack` into a `simplicio.context-reference/v1` envelope
+        # (full content moved one level deeper, under the wrapper's own
+        # `summary`) when the field had to be referenced-out to fit the
+        # handoff envelope's token budget; a field that stayed inline keeps
+        # its original shape with no `summary` nesting. Normalize both.
+        raw_selection = first_handoff.get("selection", {})
+        selection_view = raw_selection.get("summary", raw_selection) if isinstance(raw_selection, dict) else {}
+        raw_context_pack = first_handoff.get("context_pack", {})
+        context_pack_view = (
+            raw_context_pack.get("summary", raw_context_pack) if isinstance(raw_context_pack, dict) else {}
+        )
+        abstained = bool(selection_view.get("abstained") or selection_view.get("fidelity", {}).get("abstained"))
+        needs_broader_context = bool(context_pack_view.get("needs_broader_context"))
+        token_budget_fit = dict(selection_view.get("token_budget_fit", {}))
+        serialization_budget = dict(context_pack_view.get("serialization_budget", {}))
         declared_budget = int(case.get("token_budget", token_budget_fit.get("token_budget", 8000)))
         budget_within_limit = bool(serialization_budget.get("within_budget"))
         required_languages = {str(item).lower() for item in case.get("required_languages", [])}
@@ -274,10 +287,19 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
             )
             task_success = sufficiency
 
-        context_pack_bytes = len(_json_dump(first_handoff.get("context_pack", {})).encode("utf-8"))
+        context_pack_bytes = int(
+            raw_context_pack.get("serialized_bytes")
+            or len(_json_dump(raw_context_pack).encode("utf-8"))
+        )
         artifact_bytes = _artifact_bytes(tempdir)
-        first_fingerprint = first_handoff.get("context_pack", {}).get("pack_hash", "")
-        second_fingerprint = second_handoff.get("context_pack", {}).get("pack_hash", "")
+        first_fingerprint = context_pack_view.get("pack_hash", "")
+        second_raw_context_pack = second_handoff.get("context_pack", {})
+        second_context_pack_view = (
+            second_raw_context_pack.get("summary", second_raw_context_pack)
+            if isinstance(second_raw_context_pack, dict)
+            else {}
+        )
+        second_fingerprint = second_context_pack_view.get("pack_hash", "")
         deterministic = first_fingerprint == second_fingerprint and first_handoff.get(
             "targets"
         ) == second_handoff.get("targets")

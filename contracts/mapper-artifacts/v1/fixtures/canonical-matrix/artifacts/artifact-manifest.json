@@ -1,12 +1,12 @@
 {
-  "artifact_set_digest": "sha256:4e97c720c53f6ed43ae379b3ee11283c8f84b8a9622f63e9d29c8792d0c8d88d",
+  "artifact_set_digest": "sha256:be58b0e6f0eb6e0c98baeda6f9992f95e80e56f92a95f220e5e787cf3882f7d2",
   "artifacts": {
     "architecture_inventory": {
-      "canonical_digest": "sha256:ac11e6d24963f39d2959ca74b65517da19e2be48fb9e75167918045f7a658220",
+      "canonical_digest": "sha256:44221be71c13e826febf0df0f0351cc7d2be04588311e2b957e6b1b099ebb181",
       "schema": "simplicio.architecture-inventory/v1"
     },
     "call_graph": {
-      "canonical_digest": "sha256:51bbac32177080254f8caf9aa76463c28a61a4c048564deac8d8b5c86ac9e853",
+      "canonical_digest": "sha256:0719a46597e5990c87bf1ae8085ed869885f9b4898a8f794d9373898b2686273",
       "schema": "simplicio.call-graph/v1"
     },
     "precedent_index": {

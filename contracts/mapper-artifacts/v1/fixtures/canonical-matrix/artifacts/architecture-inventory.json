@@ -7,7 +7,7 @@
     "files": 16,
     "layers": 8,
     "modules": 7,
-    "relationships": 3,
+    "relationships": 1,
     "symbols": 13,
     "tests": 0
   },
@@ -757,7 +757,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:ac11e6d24963f39d2959ca74b65517da19e2be48fb9e75167918045f7a658220",
+    "canonical_digest": "sha256:44221be71c13e826febf0df0f0351cc7d2be04588311e2b957e6b1b099ebb181",
     "capability_coverage": {
       "architecture": "partial",
       "files": "partial",
@@ -789,51 +789,18 @@
   "relationship_coverage": {
     "ambiguous_relations": 0,
     "edge_limit": 250,
-    "emitted_edges": 3,
+    "emitted_edges": 1,
     "evidence_classes": {
-      "heuristic": 2,
       "lexical_unique": 1
     },
     "invalid_edges": 0,
-    "observed_edges": 3,
+    "observed_edges": 1,
     "omitted_edges": 0,
-    "status": "degraded",
+    "status": "complete",
     "truncated": false,
-    "unknown_relations": 2
+    "unknown_relations": 0
   },
   "relationships": [
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "import": "System",
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "import": "System",
-        "method": "import-resolution"
-      },
-      "relation_id": "febdc74e9aca378579a5e5b3ba06b31cb2a25cef77e576b2e05efbe4b0e13a1b",
-      "resolution_status": "unknown",
-      "source_file": "services/dotnet/Pages/Index.razor",
-      "target_file": null,
-      "type": "imports"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "import": "System",
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "import": "System",
-        "method": "import-resolution"
-      },
-      "relation_id": "2a140eb10901b68bd0fd0970d5d91ba08b64247a5dea5aa057a75954a120d654",
-      "resolution_status": "unknown",
-      "source_file": "services/dotnet/Program.cs",
-      "target_file": null,
-      "type": "imports"
-    },
     {
       "confidence": null,
       "evidence_class": "lexical_unique",

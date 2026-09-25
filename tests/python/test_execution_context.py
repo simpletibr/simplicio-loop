@@ -598,12 +598,13 @@ class ExecutionContextTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual(help_result.returncode, 0, help_result.stderr)
-        self.assertIn(
-            "--token-budget <n>    handoff: maximum for the final serialized envelope; oversized context\n"
-            "                        is replaced by bounded expansion handles (default 8000).\n"
-            "  --execution-context",
-            help_result.stdout,
-        )
+        # The "slim handoff envelope and fail-closed unknown imports" commit
+        # narrowed the default `--help` surface to the public agent verbs
+        # (scan/inspect/handoff/ask/sync) only; internal-only flags such as
+        # `--execution-context` are no longer advertised there (they remain
+        # available when invoked by name). The default token budget itself
+        # remains a documented, stable contract.
+        self.assertIn("--token-budget <n>    handoff envelope cap (default 8000).", help_result.stdout)
 
     def test_contract_schema_and_producer_fixture_are_packaged_assets(self) -> None:
         contract = ROOT / "contracts/execution-context/v1"

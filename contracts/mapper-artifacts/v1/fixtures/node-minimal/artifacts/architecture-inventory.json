@@ -7,7 +7,7 @@
     "files": 3,
     "layers": 3,
     "modules": 3,
-    "relationships": 6,
+    "relationships": 4,
     "symbols": 2,
     "tests": 1
   },
@@ -197,12 +197,12 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:13c0ffddddb9e27dbde657c6aa309052d898497471b1b0e55ac0e9689a2b356d",
+    "canonical_digest": "sha256:72b294446bbb19d2b5c4ac21cf7d62af9d0c8a2ba401b6813e0e2181fa23cde6",
     "capability_coverage": {
       "architecture": "full",
       "files": "full",
       "precedent": "unsupported",
-      "relationships": "partial",
+      "relationships": "full",
       "symbols": "empty"
     },
     "component": "simplicio-mapper",
@@ -225,52 +225,19 @@
   "relationship_coverage": {
     "ambiguous_relations": 0,
     "edge_limit": 250,
-    "emitted_edges": 6,
+    "emitted_edges": 4,
     "evidence_classes": {
-      "heuristic": 2,
       "import_resolved": 1,
       "lexical_unique": 3
     },
     "invalid_edges": 0,
-    "observed_edges": 6,
+    "observed_edges": 4,
     "omitted_edges": 0,
-    "status": "degraded",
+    "status": "complete",
     "truncated": false,
-    "unknown_relations": 2
+    "unknown_relations": 0
   },
   "relationships": [
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "import": "node:assert",
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "import": "node:assert",
-        "method": "import-resolution"
-      },
-      "relation_id": "8c5c2bca4b26535b9c9f00d1ad78357225c735365f82c440fb61c9cec75d727f",
-      "resolution_status": "unknown",
-      "source_file": "spec/greet.spec.js",
-      "target_file": null,
-      "type": "imports"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "import": "node:test",
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "import": "node:test",
-        "method": "import-resolution"
-      },
-      "relation_id": "26a89729f25c44c5199073b0992ed55e5e414c58bd0b765d5351dd744ae7f275",
-      "resolution_status": "unknown",
-      "source_file": "spec/greet.spec.js",
-      "target_file": null,
-      "type": "imports"
-    },
     {
       "confidence": null,
       "evidence_class": "lexical_unique",
