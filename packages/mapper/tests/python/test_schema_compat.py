@@ -185,13 +185,74 @@ class PreviousReleaseTagTest(unittest.TestCase):
     def test_resolves_a_real_semver_tag_ancestor_of_head(self) -> None:
         tag = previous_release_tag(str(ROOT))
         self.assertIsNotNone(tag)
-        self.assertRegex(tag, r"^v\d+\.\d+\.\d+$")
+        self.assertRegex(tag, r"^(?:[a-z0-9-]+-)?v\d+\.\d+\.\d+$")
 
     def test_returns_none_outside_a_git_repo(self) -> None:
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
             self.assertIsNone(previous_release_tag(tmp))
+
+    def test_returns_none_when_no_previous_tag_exists_yet(self) -> None:
+        """Contract: a package with no tagged release yet (monorepo import
+        day one, before its first per-package tag is cut) must resolve to
+        ``None`` -- "cannot classify" -- never fabricate or fall back to an
+        unrelated tag. Built as a throwaway local fixture repo so this does
+        not depend on which tags happen to exist in this clone."""
+        import subprocess
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(["git", "init", "-q", tmp], check=True)
+            subprocess.run(
+                ["git", "-C", tmp, "config", "user.email", "test@example.com"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", tmp, "config", "user.name", "test"], check=True
+            )
+            (Path(tmp) / "pyproject.toml").write_text(
+                '[project]\nname = "simplicio-widget"\n', encoding="utf-8"
+            )
+            subprocess.run(["git", "-C", tmp, "add", "."], check=True)
+            subprocess.run(
+                ["git", "-C", tmp, "commit", "-q", "-m", "init"], check=True
+            )
+            self.assertIsNone(previous_release_tag(tmp))
+
+    def test_resolves_prefixed_tag_from_package_name(self) -> None:
+        """A package tags its own releases as ``<short-name>-vX.Y.Z``; the
+        prefix is derived from this package's own ``pyproject.toml`` name,
+        never from the enclosing monorepo's tags or dirname."""
+        import subprocess
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(["git", "init", "-q", tmp], check=True)
+            subprocess.run(
+                ["git", "-C", tmp, "config", "user.email", "test@example.com"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", tmp, "config", "user.name", "test"], check=True
+            )
+            (Path(tmp) / "pyproject.toml").write_text(
+                '[project]\nname = "simplicio-widget"\n', encoding="utf-8"
+            )
+            subprocess.run(["git", "-C", tmp, "add", "."], check=True)
+            subprocess.run(
+                ["git", "-C", tmp, "commit", "-q", "-m", "init"], check=True
+            )
+            subprocess.run(
+                ["git", "-C", tmp, "tag", "widget-v1.0.0"], check=True
+            )
+            (Path(tmp) / "README.md").write_text("later\n", encoding="utf-8")
+            subprocess.run(["git", "-C", tmp, "add", "."], check=True)
+            subprocess.run(
+                ["git", "-C", tmp, "commit", "-q", "-m", "second"], check=True
+            )
+            tag = previous_release_tag(tmp)
+            self.assertEqual(tag, "widget-v1.0.0")
 
     def test_read_file_at_ref_returns_none_for_missing_ref(self) -> None:
         self.assertIsNone(
@@ -248,7 +309,7 @@ class ClassifyReleaseChangesTest(unittest.TestCase):
     def test_report_against_real_previous_tag(self) -> None:
         report = classify_release_changes(root=str(ROOT))
         self.assertEqual(report["schema"], SCHEMA_COMPAT_REPORT_SCHEMA)
-        self.assertRegex(report["against_ref"], r"^v\d+\.\d+\.\d+$")
+        self.assertRegex(report["against_ref"], r"^(?:[a-z0-9-]+-)?v\d+\.\d+\.\d+$")
         self.assertIn(report["overall"], {"unchanged", "compatible", "breaking"})
         surface_names = {s["surface"] for s in report["surfaces"]}
         expected = {name for name, _ in TRACKED_JSON_SCHEMAS} | {

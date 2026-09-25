@@ -26,21 +26,23 @@ def _read_text(relpath: str) -> str:
 
 
 def _repo_name() -> str:
+    """Package identity, not the enclosing git repository's name.
+
+    In a monorepo, ``git remote get-url origin`` and the checkout dirname
+    both resolve to the umbrella repository (e.g. ``simplicio-loop``), not
+    this package. The package's own ``pyproject.toml`` name is the correct,
+    location-independent identity.
+    """
+    pyproject = ROOT / "pyproject.toml"
     try:
-        proc = subprocess.run(
-            ["git", "remote", "get-url", "origin"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if proc.returncode == 0:
-            url = proc.stdout.strip().rstrip("/")
-            if url.endswith(".git"):
-                url = url[:-4]
-            name = url.rsplit("/", 1)[-1]
-            if name:
-                return name
+        text = pyproject.read_text(encoding="utf-8")
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("name") and "=" in stripped:
+                _, _, value = stripped.partition("=")
+                name = value.strip().strip('"').strip("'")
+                if name:
+                    return name
     except OSError:
         pass
     return ROOT.name
