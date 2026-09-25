@@ -1,5 +1,6 @@
 usage: simplicio-py runtime [-h]
-                            {doctor,verify,capabilities,acquire-coordinator-context} ...
+                            {doctor,verify,capabilities,acquire-coordinator-context}
+                            ...
 
 positional arguments:
   {doctor,verify,capabilities,acquire-coordinator-context}
