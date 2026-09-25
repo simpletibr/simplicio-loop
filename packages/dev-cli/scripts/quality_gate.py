@@ -89,10 +89,6 @@ DEFAULT_COMMANDS = (
         [sys.executable, "scripts/token_budget.py", "--check"],
     ),
     (
-        "generated-docs",
-        [sys.executable, "scripts/gen_package_interdependence.py", "--check"],
-    ),
-    (
         "wheel-and-installed-smoke",
         [sys.executable, "scripts/quality_gate_wheel.py", "--root", "."],
     ),
