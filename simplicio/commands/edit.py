@@ -482,6 +482,64 @@ def _run_native_edit_plans(
     }
 
 
+def _llm_full_file_budget_errors(plan: Any, root: str) -> list[dict[str, Any]]:
+    """Reject a Mode 3 (Llm) plan attempting full-file generation.
+
+    Only inspects plans explicitly marked ``effect_mode: "llm"`` by the
+    effect router (issue #709) -- an additive, opt-in marker that leaves
+    every other plan shape (Mode 1/Mode 2, and any plan predating the
+    router) untouched. For each operation, ``old`` is the anchor/selector
+    text if present (``find`` for ``replace_anchor``, otherwise absent for
+    line-range ops) and ``new`` is the replacement text; both are checked
+    against the current on-disk size of the touched file via
+    ``simplicio.effect_router.validate_llm_edit``.
+    """
+    if not isinstance(plan, dict) or plan.get("effect_mode") != "llm":
+        return []
+    operations = plan.get("operations")
+    if not isinstance(operations, list):
+        return []
+    from ..effect_router import validate_llm_edit
+
+    errors: list[dict[str, Any]] = []
+    for operation in operations:
+        if not isinstance(operation, dict):
+            continue
+        op_name = operation.get("op")
+        path = operation.get("path", plan.get("file"))
+        if not isinstance(path, str):
+            continue
+        if op_name == "replace_anchor":
+            # An anchor op already requires a non-empty, unique `find` --
+            # never full-file generation by construction. Nothing to guard.
+            continue
+        if op_name not in {"replace_range", "delete_range"}:
+            # insert_before/insert_after/create_file/json_patch/ast_patch/
+            # move_file/delete_file never overwrite a whole existing file's
+            # content in one op; the Mode 3 budget guard is only meaningful
+            # for a range op that could plausibly span the entire file.
+            continue
+        try:
+            source = (Path(root) / path).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        total_lines = max(len(source.splitlines()), 1)
+        start_line = operation.get("start_line")
+        end_line = operation.get("end_line")
+        if not isinstance(start_line, int) or not isinstance(end_line, int):
+            continue
+        if start_line > 1 or end_line < total_lines:
+            # A partial range is a bounded edit, not full-file generation --
+            # do not flag it just because the replacement text happens to be
+            # a large fraction of a small file's byte size.
+            continue
+        new = str(operation.get("text", ""))
+        file_size = len(source.encode("utf-8"))
+        for error in validate_llm_edit(None, new, file_size):
+            errors.append({**error, "path": path})
+    return errors
+
+
 def _invalid_delegated_plan(plan: Any) -> list[dict[str, Any]]:
     if not isinstance(plan, dict):
         return [{"code": "invalid_json", "message": "plan root must be a JSON object"}]
@@ -591,6 +649,27 @@ def run_edit(a: argparse.Namespace) -> int:
         }
         emit_mutation_route(
             root=a.root, entrypoint="edit", route="blocked", reason_code="PLAN_VALIDATION_FAILED"
+        )
+        return _print_edit_result(result, a)
+
+    # Effect router (issue #709), Mode 3 budget: a plan explicitly marked
+    # ``effect_mode: "llm"`` never gets to write a whole file. This is
+    # additive and opt-in via the marker field -- plans without it (the
+    # overwhelming majority, produced by Mode 1/Mode 2) are unaffected.
+    llm_budget_errors = _llm_full_file_budget_errors(plan, a.root)
+    if llm_budget_errors:
+        result = {
+            "schema": "simplicio.mechanical-edit-result/v1",
+            "status": "refused",
+            "applied": False,
+            "noop": False,
+            "operation_count": 0,
+            "files": [],
+            "errors": llm_budget_errors,
+            "mutation_receipt": mutation_receipt("blocked", entrypoint="edit"),
+        }
+        emit_mutation_route(
+            root=a.root, entrypoint="edit", route="blocked", reason_code="LLM_FULL_FILE_REJECTED"
         )
         return _print_edit_result(result, a)
 
