@@ -1,4 +1,0 @@
-CREATE TABLE users (id INTEGER PRIMARY KEY);
-CREATE VIEW active_users AS SELECT id FROM users;
-CREATE FUNCTION user_count() RETURNS INTEGER;
-CREATE PROCEDURE refresh_users();

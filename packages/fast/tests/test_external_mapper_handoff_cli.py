@@ -54,8 +54,6 @@ def _run_fast(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
             sys.executable,
             "-m",
             "simplicio_fast.cli",
-            "--fast-engine",
-            "python",
             *args,
         ],
         cwd=root,

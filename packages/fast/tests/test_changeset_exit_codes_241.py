@@ -15,12 +15,6 @@ def test_materialize_cli_fails_closed_on_locked_receipt(monkeypatch, tmp_path, c
         fencing_token="fence-241",
     )
 
-    class Selection:
-        def receipt(self):
-            return {"name": "python", "status": "ready"}
-
-    monkeypatch.setattr(cli, "select_engine", lambda _mode: Selection())
-    monkeypatch.setattr(cli, "_rust_bridge", lambda _selection, _args: None)
     monkeypatch.setattr(binary_changeset, "read_binary", lambda _path: changeset)
     monkeypatch.setattr(
         binary_changeset,

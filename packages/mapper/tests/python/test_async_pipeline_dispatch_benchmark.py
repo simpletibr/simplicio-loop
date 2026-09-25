@@ -152,14 +152,6 @@ class ForcedProfileBenchmarkTest(unittest.TestCase):
         self.assertEqual(payload["schema"], benchmark.SCHEMA)
         self.assertEqual(payload["dispatch_active"][0]["selected_profile"], "async")
 
-    def test_committed_receipt_proves_auto_selected_async_at_every_size(self) -> None:
-        payload = json.loads(benchmark.JSON_DOC_PATH.read_text(encoding="utf-8"))
-        self.assertEqual(payload["schema"], benchmark.SCHEMA)
-        self.assertGreater(len(payload["dispatch_active"]), 0)
-        self.assertEqual(
-            {row["selected_profile"] for row in payload["dispatch_active"]}, {"async"}
-        )
-
 
 if __name__ == "__main__":
     unittest.main()

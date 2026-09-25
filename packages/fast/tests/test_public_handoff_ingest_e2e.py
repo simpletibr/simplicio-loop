@@ -94,7 +94,7 @@ def _run_fast(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
         part for part in (source_path, environment.get("PYTHONPATH")) if part
     )
     return subprocess.run(
-        [sys.executable, "-m", "simplicio_fast.cli", "--fast-engine", "python", *args],
+        [sys.executable, "-m", "simplicio_fast.cli", *args],
         cwd=root,
         stdin=subprocess.DEVNULL,
         capture_output=True,

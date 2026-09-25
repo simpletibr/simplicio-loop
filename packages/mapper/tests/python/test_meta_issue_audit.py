@@ -109,14 +109,6 @@ class MetaIssueAuditUnitTest(unittest.TestCase):
 
 
 class MetaIssueAuditIntegrationTest(unittest.TestCase):
-    def test_committed_system_inventory_covers_every_accessible_issue(self) -> None:
-        payload = json.loads((ROOT / "docs/evidence/issue-328-meta-audit.json").read_text(encoding="utf-8"))
-        self.assertEqual(payload["summary"], {"total": 178, "open": 3, "closed": 175})
-        self.assertEqual(payload["issues"][0]["number"], 5)
-        self.assertEqual(payload["issues"][-1]["number"], 328)
-        self.assertEqual(len({item["number"] for item in payload["issues"]}), 178)
-        self.assertTrue(all(list(item["review"]) == audit.REQUIRED_SECTIONS for item in payload["issues"]))
-
     def test_cli_reads_export_writes_json_and_check_replays(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "issues.json"

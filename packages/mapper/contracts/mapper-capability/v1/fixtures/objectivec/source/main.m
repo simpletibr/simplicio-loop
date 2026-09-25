@@ -1,1 +1,0 @@
-@interface Renderer @end

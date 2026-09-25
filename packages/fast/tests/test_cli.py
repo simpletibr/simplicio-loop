@@ -274,8 +274,6 @@ class ContextProvenanceTest(unittest.TestCase):
                 "outgoing",
                 "--snapshot",
                 str(snapshot),
-                "--fast-engine",
-                "python",
                 "--max-nodes",
                 "1",
             )
