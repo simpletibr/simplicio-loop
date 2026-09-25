@@ -571,7 +571,18 @@ class SQLiteRemoteQueue:
             if body.get("schema") == self._EVENT_SCHEMA and body.get("task_id") == task_id:
                 if event.get("event_type") == "claimed":
                     lease = body.get("lease")
-                elif event.get("event_type") in {"released", "completed"}:
+                    break
+                elif event.get("event_type") == "completed":
+                    # The completing attempt's own lease/agent identity is exactly
+                    # what proves no other concurrently-running attempt's fencing
+                    # token or identity leaked onto this task -- keep it, not None.
+                    # `receipt_ref` itself lives on the event's own payload (see
+                    # `complete()`'s `_emit` call), not on the plain `Lease` shape,
+                    # so merge it in for a caller inspecting the completed row.
+                    lease = dict(body.get("lease") or {})
+                    lease["receipt_ref"] = (body.get("payload") or {}).get("receipt_ref")
+                    break
+                elif event.get("event_type") == "released":
                     lease = None
                     break
         return {"task_id": task_id, "status": status, "payload": value.get("payload") or {}, "lease": lease}

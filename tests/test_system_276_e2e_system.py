@@ -271,7 +271,7 @@ def test_repeated_completion_of_same_lease_is_rejected_not_duplicated(tmp_path):
 
 def test_claim_retry_after_release_gets_fresh_attempt_and_fencing_token(tmp_path):
     """A blocked/retried attempt releases its lease and re-claims — the retry must
-    get a brand-new attempt id and a strictly greater fencing token, never reusing
+    get a brand-new attempt id and a genuinely fresh fencing token, never reusing
     the failed attempt's identity (which would risk conflating receipts)."""
     queue = _queue(tmp_path)
     coordinator = AttemptCoordinator(queue, run_id="run-276-retry")
@@ -279,7 +279,11 @@ def test_claim_retry_after_release_gets_fresh_attempt_and_fencing_token(tmp_path
                                       goal="do flaky work", acs=["AC1"])
     retried_attempt = coordinator.retry(first_attempt, reason="tool_timeout")
     assert retried_attempt.attempt_id != first_attempt.attempt_id
-    assert retried_attempt.lease.fencing_token > first_attempt.lease.fencing_token
+    # Fencing tokens are opaque, distinct identifiers (simplicio-mapper's operations
+    # store mints them as uuid4 hex, not a monotonic counter) -- the invariant this
+    # proves is that a retry never reuses the failed attempt's token, not that tokens
+    # sort in claim order.
+    assert retried_attempt.lease.fencing_token != first_attempt.lease.fencing_token
     # the old lease is well and truly dead: any action against it is rejected
     with pytest.raises(QueueConflict):
         coordinator.assert_active(first_attempt)

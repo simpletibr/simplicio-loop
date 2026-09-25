@@ -94,6 +94,7 @@ def test_two_real_processes_crash_and_lease_expiry_handoff(tmp_path):
     try:
         status = _wait_for_state(status_a, {"running"}, timeout=10.0)
         assert status["claimed"] is True
+        crashed_fencing_token = status["fencing_token"]
 
         # 2) Process B tries to claim the same task while A's lease is alive: rejected.
         proc_b_early = _spawn(
@@ -144,9 +145,10 @@ def test_two_real_processes_crash_and_lease_expiry_handoff(tmp_path):
     final_task = queue.task("WI-286-E2E")
     assert final_task["status"] == "completed"
     assert final_task["lease"]["agent_id"] == "agent-b"
-    # The fencing token strictly advanced across the crash+reclaim, proving this is a
-    # genuinely new lease and not a stale one being reused.
-    assert final_task["lease"]["fencing_token"] >= 2
+    # Fencing tokens are opaque, distinct identifiers (simplicio-mapper's operations
+    # store mints them as uuid4 hex, not a monotonic counter) -- the genuinely-new-lease
+    # proof is that the post-crash reclaim's token is not the crashed attempt's token.
+    assert final_task["lease"]["fencing_token"] != crashed_fencing_token
 
 
 def test_two_real_processes_cooperative_cancellation(tmp_path):
