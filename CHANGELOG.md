@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.18.15] - 2026-09-25
+
+### Added
+
+- Add a router-owned Edit | Codegen | Llm effect dispatch, applied only at
+  runtime.
+- Freeze a minimal find/replace plan into a full edit plan via `edit
+  --compile`.
+
+### Fixed
+
+- Fail open on a Mapper `ContractError` and skip unresolvable-schema tests
+  instead of hard-failing mapper-context resolution.
+- Correct the import path in `test_release_train_adapters.py`.
+- Remove an accidentally committed Gradle build cache from templates.
+- Pin `COLUMNS` for deterministic CLI help snapshots.
+- Resolve remaining ruff and mypy errors and reformat the remaining drifted
+  files.
+- Drop an unused import in `test_end_to_end_flow.py`.
+
+### Changed
+
+- Update repository, dispatch, and release-train gate URLs to the
+  `@simpletibr` organization.
+- Drop stray orientation-delivered session markers and close the
+  json-boundaries gap.
+- Bump `actions/checkout`, `actions/setup-python`, and `astral-sh/setup-uv`
+  GitHub Actions to their latest majors.
+
 ## [0.18.11] - 2026-08-23
 
 - Publish the latest `main` changes and the current tracked contract artifacts.
