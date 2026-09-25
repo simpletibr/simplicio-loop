@@ -591,6 +591,101 @@ def _print_edit_result(result: dict[str, Any], a: argparse.Namespace) -> int:
     return 0 if result["status"] == "ok" else 1
 
 
+def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    """Freeze a host's minimal ``{"operations": [{path, find, replace}]}`` plan.
+
+    The host (an LLM) decides the change; Dev CLI pins the current file hashes
+    and source tree into the mapper binding and fills every digest, so a later
+    ``edit --apply`` refuses the plan if the files drifted in between.
+    """
+    import hashlib
+
+    from ..mapper_binding import build_mapper_binding
+    from ..mechanical_edit import TextEdit, build_edit_plan
+
+    operations = plan.get("operations") if isinstance(plan, dict) else None
+    if not isinstance(operations, list) or not operations:
+        return None, [{"code": "invalid_plan", "message": "plan needs a non-empty operations list"}]
+    errors: list[dict[str, Any]] = []
+    edits: list[TextEdit] = []
+    hashes: dict[str, str] = {}
+    for index, op in enumerate(operations):
+        if (
+            not isinstance(op, dict)
+            or not all(isinstance(op.get(key), str) for key in ("path", "find", "replace"))
+            or not op["find"]
+        ):
+            errors.append(
+                {
+                    "code": "invalid_operation",
+                    "index": index,
+                    "message": "each operation needs string path, non-empty find, replace",
+                }
+            )
+            continue
+        path = op["path"]
+        try:
+            data = (Path(root) / path).read_bytes()
+        except OSError as exc:
+            errors.append({"code": "file_unreadable", "path": path, "message": str(exc)})
+            continue
+        count = data.decode("utf-8", "surrogateescape").count(op["find"])
+        if count != 1:
+            code = "missing_anchor" if count == 0 else "ambiguous_anchor"
+            errors.append(
+                {"code": code, "path": path, "message": f"find must match exactly once, matched {count}"}
+            )
+            continue
+        hashes[path] = hashlib.sha256(data).hexdigest()
+        edits.append(TextEdit(path, op["find"], op["replace"]))
+    if errors:
+        return None, errors
+    tree = subprocess.run(
+        ["git", "-C", root, "rev-parse", "HEAD^{tree}"], capture_output=True, text=True, check=False
+    )
+    if tree.returncode != 0:
+        return None, [{"code": "git_tree_unavailable", "message": tree.stderr.strip()}]
+    source_tree = tree.stdout.strip()
+    generation = source_tree
+    snapshot = Path(root) / ".simplicio" / "context-snapshot.json"
+    if snapshot.is_file():
+        try:
+            snapshot_id = json.loads(snapshot.read_text(encoding="utf-8")).get("snapshot_id")
+            generation = str(snapshot_id or source_tree)
+        except (OSError, ValueError):
+            generation = source_tree
+    binding = build_mapper_binding(f"local/{Path(root).resolve().name}", generation, source_tree, hashes)
+    return build_edit_plan(edits, mapper_binding=binding), []
+
+
+def _run_compile(a: argparse.Namespace, plan: Any) -> int:
+    compiled, errors = compile_host_plan(a.root, plan)
+    if compiled is None:
+        result = {
+            "schema": "simplicio.mechanical-edit-result/v1",
+            "status": "refused",
+            "applied": False,
+            "noop": False,
+            "operation_count": 0,
+            "files": [],
+            "errors": errors,
+            "mutation_receipt": mutation_receipt("blocked", entrypoint="edit"),
+        }
+        return _print_edit_result(result, a)
+    Path(a.compile).write_text(json.dumps(compiled, indent=2) + "\n", encoding="utf-8")
+    print(
+        json.dumps(
+            {
+                "schema": "simplicio.dev-cli.edit-compile/v1",
+                "status": "ok",
+                "plan": a.compile,
+                "touched_files": compiled["touched_files"],
+            }
+        )
+    )
+    return 0
+
+
 def run_edit(a: argparse.Namespace) -> int:
     if a.apply and effect_unknown_pending(a.root):
         policy = standalone_policy_for_root(a.root)
@@ -635,6 +730,8 @@ def run_edit(a: argparse.Namespace) -> int:
             root=a.root, entrypoint="edit", route="blocked", reason_code="PLAN_VALIDATION_FAILED"
         )
         return _print_edit_result(result, a)
+    if getattr(a, "compile", None):
+        return _run_compile(a, plan)
     validation_errors = _invalid_delegated_plan(plan)
     if validation_errors:
         result = {
