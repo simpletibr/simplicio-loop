@@ -7,11 +7,30 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from simplicio.scratch.codegen import TypeScriptAddNextRouteExecutor
 from simplicio.scratch.codegen import registry as codegen_registry
 from simplicio.scratch.codegen.typescript_next_route import _ts_morph_env
 from simplicio.scratch.plan_schema import Task
 from simplicio.scratch.stack_registry import Stack
+
+# `TypeScriptAddNextRouteExecutor.execute()` shells out to Node.js + ts-morph
+# to do its deterministic (non-LLM) codegen (see `_ts_morph_env`/
+# `_ensure_ts_morph_cache` in typescript_next_route.py); the executor itself
+# degrades gracefully when Node is absent (`fallback_to_llm=True`, covered by
+# `test_typescript_add_next_route_executor_falls_back_for_non_route_target`
+# and the registry test below, neither of which needs Node). Node/npm are
+# not a declared dependency of this Python package (no `pyproject.toml`
+# entry, no `scripts/dev_install.sh` step can install them), so a test that
+# actually drives the deterministic path cannot assert anything if Node
+# isn't on PATH — same reasoning `test_scratch_codegen_rust_axum.py`
+# already applies to `cargo`. Skip with a typed reason rather than fail
+# hard when the optional toolchain genuinely isn't installed.
+requires_node = pytest.mark.skipif(
+    shutil.which("node") is None and shutil.which("node.exe") is None,
+    reason="node not available (undeclared toolchain: ts-morph codegen needs Node.js)",
+)
 
 
 def _stack(tmp_path: Path) -> Stack:
@@ -33,6 +52,7 @@ def _task(goal: str = "Create Next.js route handlers for Unit CRUD") -> Task:
     )
 
 
+@requires_node
 def test_typescript_add_next_route_executor_creates_json_handlers(tmp_path):
     executor = TypeScriptAddNextRouteExecutor()
     result = executor.execute(_task(), tmp_path, _stack(tmp_path))
@@ -48,6 +68,7 @@ def test_typescript_add_next_route_executor_creates_json_handlers(tmp_path):
     assert "return Response.json(body, { status: 201 });" in generated
 
 
+@requires_node
 def test_typescript_add_next_route_executor_outputs_runnable_json_handlers(tmp_path):
     result = TypeScriptAddNextRouteExecutor().execute(_task(), tmp_path, _stack(tmp_path))
     assert result.passed is True
@@ -79,6 +100,7 @@ def test_typescript_add_next_route_executor_outputs_runnable_json_handlers(tmp_p
     }
 
 
+@requires_node
 def test_typescript_add_next_route_executor_appends_missing_handler(tmp_path):
     route = tmp_path / "src/app/api/units/route.ts"
     route.parent.mkdir(parents=True)
