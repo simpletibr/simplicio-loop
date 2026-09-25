@@ -12,11 +12,10 @@ change delivery. It must keep a project hot across orientation, impact analysis,
 editing, validation and retries. The source tree remains authoritative; Fast snapshots are
 derived state.
 
-Fast has two maintained implementations:
+Fast has one maintained implementation:
 
-- **Python**: reference implementation, portable fallback and compatibility path.
-- **Rust**: production-preferred implementation for mmap, indexes, concurrency and large
-  repositories.
+- **Python**: the reference implementation. It is the only engine; there is no probing,
+  selection or fallback between implementations.
 
 The ecosystem also contains Mapper, Dev CLI, Loop, Runtime, Agent, Code, Sprint, Prompt,
 Canvas and distribution packages. Without an explicit ownership matrix, the same component
@@ -70,7 +69,7 @@ Mapper → Fast → Dev CLI, coordinated by Loop and governed by Runtime.
 
 - Runtime is the sole authority for effects.
 - Agent, Code and other coordinators consume Loop/Runtime contracts.
-- Fast may use Rust or Python according to the engine router.
+- Fast always uses its Python engine.
 - A shell bypass is not allowed when Runtime operators are available.
 
 #### Loop standalone
@@ -85,16 +84,10 @@ Loop → Fast → (Mapper adapter + Dev CLI adapter).
 
 ### 4. Engine selection
 
-The public selector is auto|rust|python|off.
+The public selector is python|off.
 
-- auto: choose Rust only after version, schema, capability, doctor and conformance gates pass.
-- rust: require Rust and fail closed; never silently fall back.
-- python: force the reference engine and never load Rust.
+- python: the only engine; always selected, no probing or fallback wording.
 - off: let the consumer use its previous path when supported.
-
-When Rust is selected, Python Fast modules and subprocesses must not be loaded on the
-production fast path. Shadow/dual-run is allowed only in read-only benchmark or canary
-experiments and must never apply an effect twice.
 
 ### 5. Data and serialization boundaries
 
@@ -112,9 +105,8 @@ experiments and must never apply an effect twice.
 A missing, incompatible, corrupt or stale component produces a typed, actionable result.
 
 - No empty ContextGraph is accepted as a successful fallback.
-- auto may select Python only with a stable reason code.
-- rust fails closed.
-- A mutation is never retried in another engine after uncertain effect without an idempotency
+- python selection always carries a stable reason code.
+- A mutation is never retried after an uncertain effect without an idempotency
   key and state verification.
 - A failed refresh leaves the previous complete generation untouched.
 
@@ -132,16 +124,15 @@ A missing, incompatible, corrupt or stale component produces a typed, actionable
 ## Required implementation gates
 
 1. Contract fixtures and ownership lint pass.
-2. Python and Rust conformance passes for the selected schema.
-3. Engine router emits a verifiable selection receipt.
+2. Python conformance passes for the selected schema.
+3. Engine selection emits a verifiable receipt.
 4. Full and Loop-standalone clean installs pass their respective E2Es.
-5. Rust promotion has no Python load and no functional regression.
-6. Benchmark reports observed results only; unavailable values are null with a reason.
-7. Rollback to Python and Fast off is tested before changing the default.
+5. Benchmark reports observed results only; unavailable values are null with a reason.
+6. Rollback to Fast off is tested before changing the default.
 
 ## Consequences
 
 This decision makes Fast central to performance and delivery without making it a monolith.
-It preserves Python for portability, gives Rust a clear promotion path, and prevents
-responsibility drift across the ecosystem. The price is a shared contract/conformance gate
-and explicit profile packaging; those are required for safe speed rather than optional polish.
+It keeps a single Python implementation and prevents responsibility drift across the
+ecosystem. The price is a shared contract/conformance gate and explicit profile packaging;
+those are required for safe speed rather than optional polish.

@@ -210,7 +210,6 @@ class SlotExecutor:
         *,
         writes: Mapping[str, bytes] | None = None,
         runtime_available: bool = True,
-        rust_available: bool = False,
     ) -> dict[str, Any]:
         env = validate_envelope(envelope)
         if env["source_hash"] != snapshot.source_hash:
@@ -288,8 +287,7 @@ class SlotExecutor:
             ),
             "runtime_mode": "runtime" if runtime_available else "python_fallback",
             "runtime_null_reason": None if runtime_available else "RUNTIME_UNAVAILABLE",
-            "engine": "rust" if rust_available else "python",
-            "engine_null_reason": None if rust_available else "RUST_UNAVAILABLE",
+            "engine": "python",
             "status": "VERIFIED",
             "completion_authority": "LOOP_ONLY",
             "tokens": None,
@@ -404,16 +402,6 @@ def ranking_metrics(
     }
 
 
-def parity_receipt(payload: Any, rust_digest: str | None = None) -> dict[str, Any]:
-    python_digest = digest(payload)
-    return {
-        "python_digest": python_digest,
-        "rust_digest": rust_digest,
-        "parity": rust_digest == python_digest if rust_digest is not None else None,
-        "parity_null_reason": None if rust_digest is not None else "RUST_UNAVAILABLE",
-    }
-
-
 __all__ = [
     "FastExecutorError",
     "SlotExecutor",
@@ -421,7 +409,6 @@ __all__ = [
     "make_envelope",
     "quantize",
     "ranking_metrics",
-    "parity_receipt",
     "validate_envelope",
     "digest",
     "ENVELOPE_SCHEMA",

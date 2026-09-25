@@ -112,42 +112,6 @@ def evaluate(root: Path) -> dict[str, Any]:
         expected=version,
         observed=package_version,
     )
-    try:
-        rust_core = tomllib.loads(
-            (root / "rust" / "simplicio-fast-core" / "Cargo.toml").read_text(
-                encoding="utf-8"
-            )
-        )["package"]["version"]
-    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError, KeyError, TypeError):
-        rust_core = None
-    _check(
-        checks,
-        "rust_core_version",
-        isinstance(version, str) and version == rust_core,
-        expected=version,
-        observed=rust_core,
-    )
-    try:
-        cargo_lock = tomllib.loads(
-            (root / "rust" / "Cargo.lock").read_text(encoding="utf-8")
-        )
-        cargo_lock_version = next(
-            (
-                pkg["version"]
-                for pkg in cargo_lock.get("package", [])
-                if pkg.get("name") == "simplicio-fast-core"
-            ),
-            None,
-        )
-    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError, KeyError, TypeError):
-        cargo_lock_version = None
-    _check(
-        checks,
-        "rust_cargo_lock_version",
-        isinstance(version, str) and version == cargo_lock_version,
-        expected=version,
-        observed=cargo_lock_version,
-    )
 
     try:
         readme = (root / "README.md").read_text(encoding="utf-8")
@@ -182,48 +146,6 @@ def evaluate(root: Path) -> dict[str, Any]:
         and f"integrated_extra_dependencies-{integrated_count}-" in readme
         and f"{integrated_count} integrated extra dependencies" in readme,
         expected={"core": dependency_count, "integrated": integrated_count},
-    )
-
-    native_owner = policy.get("native_execution_owner")
-    workflow_path = policy.get("native_compatibility_workflow")
-    workflow = ""
-    if isinstance(workflow_path, str):
-        try:
-            workflow = (root / workflow_path).read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            pass
-    support_doc = ""
-    try:
-        support_doc = (root / "docs/native-backend-support.md").read_text(
-            encoding="utf-8"
-        )
-    except (OSError, UnicodeDecodeError):
-        pass
-    _check(
-        checks,
-        "native_ownership",
-        native_owner == "simplicio-runtime"
-        and "Runtime owns native execution" in support_doc
-        and policy.get("consumer_toolchain") == "precompiled-binary-only",
-        expected="simplicio-runtime",
-        observed=native_owner,
-    )
-    supported = policy.get("supported_native_platforms")
-    supported = supported if isinstance(supported, list) else []
-    _check(
-        checks,
-        "native_platform_matrix",
-        bool(workflow)
-        and bool(supported)
-        and all(item in workflow for item in supported),
-        expected=supported,
-    )
-    _check(
-        checks,
-        "native_manifest_validation",
-        "verify_native_bundle.py" in workflow
-        and "--expected-version" in workflow
-        and "manifest.json" in workflow,
     )
 
     expected_branch = policy.get("default_branch")

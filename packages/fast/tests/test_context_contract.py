@@ -5,7 +5,7 @@ import unittest
 from scripts.conformance import normalize_spans
 
 
-class RustContextContractTest(unittest.TestCase):
+class ContextContractTest(unittest.TestCase):
     def test_span_normalization_is_public_field_exact(self) -> None:
         span = {
             "symbol": "Service.run",

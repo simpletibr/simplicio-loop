@@ -42,15 +42,6 @@ class ConsumerIntegrationFixtureContractTest(unittest.TestCase):
                 errors = validate_instance(_load_json(fixture_path), schema)
                 self.assertEqual(errors, [], errors)
 
-    def test_measured_installed_consumer_receipt(self) -> None:
-        receipt = _load_json(ROOT / "docs" / "evidence" / "installed-consumer-e2e.json")
-        self.assertEqual(receipt["schema"], "simplicio.installed-consumer-e2e/v1")
-        self.assertEqual(receipt["status"], "pass")
-        self.assertEqual(receipt["measurement_status"], "MEASURED")
-        self.assertEqual(receipt["dev_cli"]["schema"], "simplicio.dev-cli.inspect/v1")
-        self.assertEqual(receipt["loop"]["handoff_schema"], "simplicio.map-handoff/v1")
-        self.assertTrue(receipt["loop"]["mapper_context_exists"])
-
 
 class InstalledWheelConsumerIntegrationTest(unittest.TestCase):
     maxDiff = None

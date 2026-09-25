@@ -34,14 +34,13 @@ class FastV3ArchitectureContractTest(unittest.TestCase):
             self.assertIn(statement, self.matrix)
 
     def test_profiles_and_engine_selection_are_explicit(self):
-        for value in ("Full", "Loop standalone", "auto|rust|python|off"):
+        for value in ("Full", "Loop standalone", "python|off"):
             self.assertIn(value, self.adr)
         for value in (
             "requested_engine",
             "selected_engine",
             "conformance_digest",
             "python_loaded",
-            "rust_loaded",
         ):
             self.assertIn(value, self.matrix)
 

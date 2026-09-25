@@ -1,5 +1,4 @@
 import argparse
-import atexit
 import hashlib
 import json
 import os
@@ -10,6 +9,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from . import __version__
+from .engine import select_engine
 from .processor import ProjectProcessor, load_changeset
 from .parser_adapter import adapter_capability, build_payload_from_mapper
 from .mapper_ingest import MapperIngestError, validate_handoff
@@ -26,16 +26,9 @@ from .snapshot import (
 )
 from .adapters import capability_report
 from .workspace import MANIFEST_SCHEMA, OVERLAY_SCHEMA, WorkspaceStore
-from .engine import EngineSelection, EngineSelectionError
-from .runtime_backend import (
-    RuntimeBackendError,
-    RuntimeSelection,
-    select_runtime_backend as select_engine,
-)
 from .delivery import DeliveryEngine
 from .query_planner import plan_query
 from .navigation import DIRECTIONS, RELATIONS, NavigationBudget, NavigationIndex
-from .rust_session import RustCoreSession, RustSessionError
 from .semantic_scoring import (
     SemanticBudgets,
     SemanticScorer,
@@ -65,25 +58,11 @@ WRITE_DISABLED_MESSAGE = (
     "mutate source as the hot path. Dry-run is the default. Set "
     f"{WRITE_ALLOW_ENV}=1 only for the explicit bootstrap write path."
 )
-_RUST_SESSIONS: dict[str, RustCoreSession] = {}
-
-
 class WriteDisabledError(ValueError):
     reason_code = "write_disabled"
 
     def __init__(self, message: str = WRITE_DISABLED_MESSAGE) -> None:
         super().__init__(message)
-
-
-def _close_rust_sessions() -> None:
-    for session in tuple(_RUST_SESSIONS.values()):
-        close = getattr(session, "close", None)
-        if close is not None:
-            close()
-    _RUST_SESSIONS.clear()
-
-
-atexit.register(_close_rust_sessions)
 
 
 def emit(value: object) -> None:
@@ -93,19 +72,9 @@ def emit(value: object) -> None:
     print(json.dumps(value, indent=2, ensure_ascii=True, sort_keys=True))
 
 
-def _cli_engine_receipt(
-    selection: RuntimeSelection | EngineSelection,
-) -> dict[str, object]:
-    receipt = dict(selection.receipt())
-    if isinstance(selection, RuntimeSelection):
-        receipt.update(
-            {
-                "requested": selection.requested,
-                "selected": selection.selected,
-                "reason": selection.reason_code,
-            }
-        )
-    return receipt
+def _cli_engine_receipt() -> dict[str, object]:
+    """Python is the only engine: return its static, validated receipt."""
+    return select_engine("python").receipt()
 
 
 def source_commit(root: Path) -> tuple[str | None, str | None]:
@@ -145,86 +114,6 @@ def source_commit(root: Path) -> tuple[str | None, str | None]:
     if result.returncode or not commit:
         return None, "not_a_git_checkout"
     return commit, None
-
-
-def _runtime_bridge_request(args: argparse.Namespace) -> tuple[str, dict[str, object], str]:
-    if args.command == "stats":
-        return "stats", {"snapshot": str(Path(args.snapshot))}, "simplicio.fast.stats/v1"
-    if args.command == "query":
-        if args.limit < 1:
-            raise ValueError("--limit must be positive")
-        return (
-            "query",
-            {
-                "snapshot": str(Path(args.snapshot)),
-                "term": args.term,
-                "limit": args.limit,
-            },
-            "simplicio.fast.query/v1",
-        )
-    if min(args.max_results, args.max_lines, args.max_bytes, args.max_tokens) < 1:
-        raise ValueError("context limits must be positive")
-    return (
-        "context",
-        {
-            "snapshot": str(Path(args.snapshot)),
-            "root": str(Path(args.root).resolve()),
-            "term": args.term,
-            "limit": args.max_results,
-            "max_lines": args.max_lines,
-            "max_bytes": args.max_bytes,
-            "max_tokens": args.max_tokens,
-        },
-        "simplicio.fast.context/v1",
-    )
-
-
-def _rust_bridge(
-    selection: RuntimeSelection | EngineSelection, args: argparse.Namespace
-) -> dict[str, object] | None:
-    """Dispatch read-only snapshot commands through the admitted backend."""
-    if selection.selected != "rust" or args.command not in {
-        "stats",
-        "query",
-        "context",
-    }:
-        return None
-    operation, payload, expected_schema = _runtime_bridge_request(args)
-    if isinstance(selection, RuntimeSelection):
-        result = selection.execute(operation, payload)
-        return {
-            "schema": expected_schema,
-            "engine": "rust",
-            "transport": "hbp-stdio",
-            **result,
-        }
-    executable = selection.executable
-    if not executable:
-        raise EngineSelectionError(
-            {
-                "schema": "simplicio.fast.engine-selection/v1",
-                "requested": selection.requested,
-                "selected": "unavailable",
-                "reason": "rust_executable_missing_for_bridge",
-                "executable": None,
-                "manifest": selection.manifest,
-            }
-        )
-    try:
-        key = str(Path(executable).resolve())
-        session = _RUST_SESSIONS.get(key)
-        if session is None:
-            session = RustCoreSession(executable, selection.manifest)
-            _RUST_SESSIONS[key] = session
-        result = session.call(operation, payload)
-    except RustSessionError as error:
-        raise RuntimeError(f"rust_bridge_failed: {error}") from error
-    return {
-        "schema": expected_schema,
-        "engine": "rust",
-        "transport": "resident-session",
-        **result,
-    }
 
 
 def json_option(parser: argparse.ArgumentParser) -> None:
@@ -355,12 +244,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
     )
-    parser.add_argument(
-        "--fast-engine",
-        choices=("auto", "rust", "python", "off"),
-        default="auto",
-        help="select the Fast engine: Rust only after a healthy probe, or Python fallback (default: auto)",
-    )
     commands = parser.add_subparsers(dest="command", required=True)
 
     for name in ("build", "refresh", "ingest"):
@@ -462,7 +345,7 @@ def build_parser() -> argparse.ArgumentParser:
     navigate_command = commands.add_parser(
         "navigate",
         help="navigate one bounded structural hop from a canonical symbol handle",
-        description="Python reference-engine navigation; use --fast-engine python until Rust parity exists.",
+        description="Structural navigation over a bounded snapshot.",
     )
     navigate_command.add_argument("handle", help="canonical snapshot symbol ID")
     navigate_command.add_argument("relation", choices=sorted(RELATIONS))
@@ -731,7 +614,7 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument(
         "--installation",
         action="store_true",
-        help="report local Python/Rust artifacts without downloading",
+        help="report the local Python installation without downloading",
     )
     doctor.add_argument(
         "--smoke",
@@ -860,16 +743,6 @@ def build_parser() -> argparse.ArgumentParser:
     watch.add_argument("--base-generation", required=True)
     watch.add_argument("--worktree-id", required=True)
 
-    # Accept the selector both before and after the subcommand.  Suppressing
-    # the subparser default preserves an explicit top-level value.
-    for command in commands.choices.values():
-        command.add_argument(
-            "--fast-engine",
-            dest="fast_engine",
-            choices=("auto", "rust", "python", "off"),
-            default=argparse.SUPPRESS,
-            help=argparse.SUPPRESS,
-        )
     return parser
 
 
@@ -879,11 +752,6 @@ def main() -> int:
     try:
         if getattr(args, "write", False):
             _require_write_authorization()
-        selection = select_engine(args.fast_engine)
-        bridged = _rust_bridge(selection, args)
-        if bridged is not None:
-            emit(bridged)
-            return 0
         if args.command in {"build", "refresh", "ingest"}:
             processor = ProjectProcessor(Path(args.root), Path(args.output))
             if args.command == "ingest":
@@ -1022,7 +890,7 @@ def main() -> int:
                     delivery_engine.deliver(
                         load_changeset(Path(args.changeset)),
                         profile=args.profile,
-                        engine_receipt=_cli_engine_receipt(selection),
+                        engine_receipt=_cli_engine_receipt(),
                         write=args.write,
                         idempotency_key=args.idempotency_key,
                         runtime_transaction=runtime_transaction,
@@ -1036,7 +904,7 @@ def main() -> int:
                     delivery_engine.prepare(
                         args.task,
                         profile=args.profile,
-                        engine_receipt=_cli_engine_receipt(selection),
+                        engine_receipt=_cli_engine_receipt(),
                         mode=args.mapper_mode,
                         mapper_handoff=mapper_handoff,
                         selection_mode=args.selection_mode,
@@ -1192,8 +1060,6 @@ def main() -> int:
                     }
                 )
         elif args.command == "navigate":
-            if args.fast_engine != "python":
-                raise RuntimeError("navigate_requires_explicit_python_engine")
             budget = NavigationBudget(
                 max_nodes=args.max_nodes,
                 max_bytes=args.max_bytes,
@@ -1476,8 +1342,8 @@ def main() -> int:
             emit(
                 {
                     "schema": "simplicio.fast.capabilities/v1",
-                    "engine": _cli_engine_receipt(selection),
-                    "engine_manifest": _cli_engine_receipt(selection),
+                    "engine": _cli_engine_receipt(),
+                    "engine_manifest": _cli_engine_receipt(),
                     "capabilities": [asdict(item) for item in capability_report()],
                     "parser_adapter": adapter_capability(),
                     "semantic_scoring": semantic_capabilities(),
@@ -1537,9 +1403,6 @@ def main() -> int:
             )
         return 0
 
-    except EngineSelectionError as error:
-        emit(error.receipt)
-        raise SystemExit(2) from error
     except (
         FileNotFoundError,
         RuntimeError,
@@ -1552,13 +1415,6 @@ def main() -> int:
             "error": type(error).__name__,
             "message": str(error),
         }
-        if isinstance(error, RuntimeBackendError):
-            payload.update(
-                {
-                    "reason_code": error.reason_code,
-                    "detail": error.detail,
-                }
-            )
         reason_code = getattr(error, "reason_code", None)
         if isinstance(reason_code, str) and reason_code:
             payload["reason_code"] = reason_code

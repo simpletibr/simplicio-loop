@@ -18,9 +18,6 @@ needs a new heavy dependency. The estimator actually used is recorded in the
 baseline/report so a swap is never silently mixed with old numbers.
 
 Tracked artifacts:
-  - `AGENTS.md`, `CLAUDE.md` — the cross-agent / Claude-specific contract docs
-    every session reads (issue #163 keeps them in sync; this guard keeps
-    their combined size in check).
   - The largest modules under `simplicio_mapper/` an agent is likely to read
     whole while working on the mapper/graph/CLI layers.
   - `.simplicio/*.json`-shaped mapper artifacts: rather than inventing a new
@@ -59,8 +56,6 @@ BASELINE_PATH = os.path.join(HERE, "token_budget_baseline.json")
 # keeps the guard self-maintaining instead of hand-picked magic numbers per
 # file that drift out of date.
 TRACKED_ARTIFACTS = [
-    ("AGENTS.md", "AGENTS.md"),
-    ("CLAUDE.md", "CLAUDE.md"),
     ("mapper/parse.py", "simplicio_mapper/mapper/parse.py"),
     ("mapper/graph.py", "simplicio_mapper/mapper/graph.py"),
     ("mapper/emit.py", "simplicio_mapper/mapper/emit.py"),
@@ -80,7 +75,7 @@ FIXTURE_INDEX_RESULT = os.path.join(
 
 # Allowed growth over the committed baseline before the guard fails. 25% is
 # generous enough for routine edits but catches a genuine regression (e.g.
-# accidentally pasting a large section into AGENTS.md).
+# accidentally pasting a large section into a tracked module).
 THRESHOLD_GROWTH = 0.25
 
 

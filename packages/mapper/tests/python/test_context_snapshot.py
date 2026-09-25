@@ -19,7 +19,6 @@ import json
 import os
 import sys
 import unittest
-from unittest import mock
 
 import simplicio_mapper.context_snapshot as context_snapshot_module
 from simplicio_mapper import __version__
@@ -96,10 +95,13 @@ def _minimal_artifacts():
 
 
 class ContextSnapshotTest(unittest.TestCase):
-    def test_sha256_text_uses_the_negotiated_native_capability(self):
-        with mock.patch.object(context_snapshot_module._native, "native_default", return_value=True), \
-                mock.patch.object(context_snapshot_module, "_native_sha256_hex", return_value="native"):
-            self.assertEqual(context_snapshot_module._sha256_text("content"), "native")
+    def test_sha256_text_matches_stdlib_hashlib(self):
+        import hashlib
+
+        self.assertEqual(
+            context_snapshot_module._sha256_text("content"),
+            hashlib.sha256(b"content").hexdigest(),
+        )
 
     def test_schema_constants(self):
         self.assertEqual(CONTEXT_SNAPSHOT_SCHEMA, "simplicio.context-snapshot/v1")

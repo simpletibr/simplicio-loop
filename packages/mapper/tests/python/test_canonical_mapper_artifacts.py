@@ -228,40 +228,6 @@ class CanonicalMapperArtifactsTest(unittest.TestCase):
             wrong_shape["symbol_index"]["schema"] = "simplicio.project-map/v1"
             self.assertTrue(any("schema" in error for error in validate_artifact_manifest(manifest, wrong_shape)))
 
-    def test_uncertified_node_mirror_cannot_masquerade_as_public_v1(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="mapper-614-node-") as temp:
-            root = Path(temp)
-            (root / "package.json").write_text('{"name":"native-fixture"}\n', encoding="utf-8")
-            (root / "src.js").write_text("export function run() { return 1; }\n", encoding="utf-8")
-            script = (
-                "const { writeMappingArtifacts } = "
-                f"require({json.dumps(str(ROOT / 'bin' / 'mapper-artifacts.js'))});"
-                "writeMappingArtifacts({ cwd: process.cwd(), outputDir: '.simplicio' });"
-            )
-            subprocess.run(["node", "-e", script], cwd=root, check=True, capture_output=True, text=True)
-            native_ids = {
-                "project-map": "simplicio.mapper-native/project-map/v1",
-                "precedent-index": "simplicio.mapper-native/precedent-index/v1",
-                "architecture-inventory": "simplicio.mapper-native/architecture-inventory/v1",
-                "symbol-index": "simplicio.mapper-native/symbol-index/v1",
-                "call-graph": "simplicio.mapper-native/call-graph/v1",
-            }
-            for filename, schema_id in native_ids.items():
-                payload = json.loads((root / ".simplicio" / f"{filename}.json").read_text())
-                self.assertEqual(payload["schema"], schema_id)
-                self.assertNotIn(payload["schema"], PUBLIC_SCHEMAS.values())
-                validated_id, errors = validate_payload(payload, CONTRACT_ROOT)
-                self.assertEqual(validated_id, schema_id)
-                self.assertEqual(errors, [])
-
-                legacy_shape = dict(payload)
-                legacy_shape["schema"] = PUBLIC_SCHEMAS[filename.replace("-", "_")]
-                _, legacy_errors = validate_payload(legacy_shape, CONTRACT_ROOT)
-                self.assertTrue(
-                    any("producer" in error for error in legacy_errors),
-                    msg=f"legacy native shape masqueraded as {legacy_shape['schema']}",
-                )
-
 
 if __name__ == "__main__":
     unittest.main()

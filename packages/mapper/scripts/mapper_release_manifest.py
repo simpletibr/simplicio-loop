@@ -126,17 +126,13 @@ def build_manifest(root: str | Path, artifacts: list[str | Path] | None = None) 
     if overlap:
         raise ValueError("; ".join(overlap))
     pyproject = base / "pyproject.toml"
-    package = base / "package.json"
     init = base / "simplicio_mapper" / "__init__.py"
-    cargo = base / "rust" / "Cargo.toml"
     package_version = _version(pyproject, r'^version\s*=\s*"([^"]+)"')
     versions = {
         "pyproject": package_version,
-        "package_json": _version(package, r'"version"\s*:\s*"([^"]+)"'),
         "python": _version(init, r'__version__\s*=\s*"([^"]+)"'),
-        "rust_crate": _version(cargo, r'^version\s*=\s*"([^"]+)"'),
     }
-    if len({versions[name] for name in ("pyproject", "package_json", "python")}) != 1:
+    if len({versions[name] for name in ("pyproject", "python")}) != 1:
         raise ValueError(f"publish version drift: {versions}")
     artifact_rows = []
     for raw_path in artifacts or []:

@@ -6,7 +6,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from simplicio_mapper import _native
 from simplicio_mapper.language_capabilities import (
     CAPABILITIES,
     LANGUAGES,
@@ -32,27 +31,15 @@ def _write(root: Path, relative: str, content: str) -> None:
 
 class LanguageCapabilityCatalogTest(unittest.TestCase):
     def test_native_route_falls_back_without_dropping_known_language(self) -> None:
-        saved = (_native.HAS_NATIVE, _native.CAPABILITIES)
-        try:
-            _native.HAS_NATIVE = True
-            _native.CAPABILITIES = {"features": ["imports"], "languages": ["python"]}
-            route = native_route("csharp", "imports")
-            self.assertEqual(route["backend"], "python-reference")
-            self.assertEqual(route["reason"], "language_not_advertised_by_native_core")
-        finally:
-            _native.HAS_NATIVE, _native.CAPABILITIES = saved
+        route = native_route("csharp", "imports")
+        self.assertEqual(route["backend"], "python-reference")
+        self.assertEqual(route["reason"], "native_extension_unavailable")
 
-    def test_catalog_rejects_unknown_route_keys_and_accepts_native_imports(self) -> None:
+    def test_catalog_rejects_unknown_route_keys_and_always_uses_python_reference(self) -> None:
         self.assertEqual(native_route("not-a-language", "imports")["reason"], "language_not_in_capability_catalog")
         self.assertEqual(native_route("python", "not-a-capability")["reason"], "capability_not_in_catalog")
-        saved = (_native.HAS_NATIVE, _native.CAPABILITIES)
-        try:
-            _native.HAS_NATIVE = True
-            _native.CAPABILITIES = {"features": ["imports"], "languages": ["python"]}
-            route = native_route("python", "imports")
-            self.assertEqual((route["backend"], route["status"]), ("rust-core", "native"))
-        finally:
-            _native.HAS_NATIVE, _native.CAPABILITIES = saved
+        route = native_route("python", "imports")
+        self.assertEqual((route["backend"], route["status"]), ("python-reference", "fallback"))
 
     def test_matrix_and_promotion_validation_fail_closed(self) -> None:
         from simplicio_mapper.language_capabilities import build_matrix_rows
