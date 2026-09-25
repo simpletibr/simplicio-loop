@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import tempfile
 from pathlib import Path
 
@@ -17,16 +16,6 @@ from simplicio.scratch.plan_schema import (
     validate_plan,
 )
 from simplicio.scratch.stack_registry import Stack, StackRegistry, slugify_project
-
-# Both `ts-nextjs`-stack tests below drive `TypeScriptAddNextRouteExecutor`/
-# `TypeScriptAddNextPageExecutor`, which shell out to Node.js + ts-morph for
-# their deterministic (non-LLM) codegen — see
-# `test_scratch_codegen_next_route.py`'s `requires_node` for the full
-# rationale (Node/npm are not a declared dependency of this Python package).
-requires_node = pytest.mark.skipif(
-    shutil.which("node") is None and shutil.which("node.exe") is None,
-    reason="node not available (undeclared toolchain: ts-morph codegen needs Node.js)",
-)
 
 # ----- plan_schema ----- #
 
@@ -473,7 +462,6 @@ def test_executor_scaffolds_tree_in_stub_mode() -> None:
             os.environ["SIMPLICIO_MODEL"] = prev
 
 
-@requires_node
 def test_executor_report_records_codegen_metrics() -> None:
     reg = StackRegistry()
     stack = reg.get("ts-nextjs")
@@ -544,7 +532,6 @@ def test_executor_line_diff_counts_created_changed_and_deleted_files() -> None:
     assert [row for row in rows if row["path"] == "deleted.py"][0]["deleted"] is True
 
 
-@requires_node
 def test_executor_runs_ts_nextjs_crud_recipe_without_llm(monkeypatch) -> None:
     monkeypatch.delenv("SIMPLICIO_MODEL", raising=False)
     reg = StackRegistry()
