@@ -48,6 +48,7 @@ TOP_LEVEL_SUBCOMMANDS = [
     "score-skill",
     "runtime",
     "memory",
+    "capabilities",
 ]
 
 # Commands routed through `_dispatch_nested` before the main argparse parser

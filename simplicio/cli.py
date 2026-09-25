@@ -783,6 +783,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p_mem_restore.add_argument("--apply", action="store_true")
     p_mem_restore.add_argument("--json", action="store_true")
 
+    p_capabilities = sub.add_parser(
+        "capabilities",
+        help="print the static command/flag/edit-plan-format manifest (no heavy imports)",
+    )
+    p_capabilities.add_argument("--json", action="store_true")
+
     return ap
 
 
@@ -815,6 +821,7 @@ _COMMAND_MODULES = {
     "runtime": "runtime",
     "prototype": "prototype",
     "memory": "memory",
+    "capabilities": "capabilities",
 }
 
 
@@ -841,6 +848,26 @@ def _main_unwrapped(argv=None):
             print(json.dumps(payload, sort_keys=True))
         else:
             print(f"{CLI_PROG} {payload['package']['version']}")
+        return 0
+
+    if argv and argv[0] == "capabilities" and not ({"-h", "--help"} & set(argv[1:])):
+        # Static, packaged manifest -- no argparse build, no simplicio.cli-adjacent
+        # heavy imports. Callers that used to spawn `--help` + `edit --help` +
+        # `--version` per attempt to discover the command/flag surface read this
+        # once per run instead (`simplicio.capabilities.load_capabilities_manifest`
+        # is also importable in-process, no subprocess needed).
+        import json
+
+        from .capabilities import load_capabilities_manifest
+
+        payload = load_capabilities_manifest()
+        if "--json" in argv[1:]:
+            print(json.dumps(payload, sort_keys=True))
+        else:
+            print(
+                f"{CLI_PROG} capabilities: schema={payload['schema']} version={payload['package']['version']}"
+            )
+            print(f"  commands: {', '.join(sorted(payload['commands']))}")
         return 0
 
     try:
