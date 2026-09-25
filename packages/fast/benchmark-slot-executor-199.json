@@ -1,0 +1,175 @@
+{
+  "cases": [
+    {
+      "mean_wall_seconds": 0.0003332519991090521,
+      "repetitions": 3,
+      "samples": [
+        {
+          "cache_hits": 0,
+          "cpu_seconds": 0.00037699000000000066,
+          "envelopes": 1,
+          "io_bytes": 2,
+          "rss_kib_delta": 0,
+          "tokens": null,
+          "tokens_null_reason": "NO_LLM_USED",
+          "wall_seconds": 0.00037539799814112484,
+          "workers_avoided": 0,
+          "workers_materialized": 1
+        },
+        {
+          "cache_hits": 0,
+          "cpu_seconds": 0.0003226500000000007,
+          "envelopes": 1,
+          "io_bytes": 2,
+          "rss_kib_delta": 0,
+          "tokens": null,
+          "tokens_null_reason": "NO_LLM_USED",
+          "wall_seconds": 0.0003215480028302409,
+          "workers_avoided": 0,
+          "workers_materialized": 1
+        },
+        {
+          "cache_hits": 0,
+          "cpu_seconds": 0.00030354099999999745,
+          "envelopes": 1,
+          "io_bytes": 2,
+          "rss_kib_delta": 0,
+          "tokens": null,
+          "tokens_null_reason": "NO_LLM_USED",
+          "wall_seconds": 0.00030280999635579064,
+          "workers_avoided": 0,
+          "workers_materialized": 1
+        }
+      ],
+      "slots": 1
+    },
+    {
+      "mean_wall_seconds": 0.0043133966634438066,
+      "repetitions": 3,
+      "samples": [
+        {
+          "cache_hits": 0,
+          "cpu_seconds": 0.004516906000000001,
+          "envelopes": 20,
+          "io_bytes": 40,
+          "rss_kib_delta": 0,
+          "tokens": null,
+          "tokens_null_reason": "NO_LLM_USED",
+          "wall_seconds": 0.0045162349997553974,
+          "workers_avoided": 0,
+          "workers_materialized": 20
+        },
+        {
+          "cache_hits": 0,
+          "cpu_seconds": 0.003878936999999999,
+          "envelopes": 20,
+          "io_bytes": 40,
+          "rss_kib_delta": 0,
+          "tokens": null,
+          "tokens_null_reason": "NO_LLM_USED",
+          "wall_seconds": 0.0038780159957241267,
+          "workers_avoided": 0,
+          "workers_materialized": 20
+        },
+        {
+          "cache_hits": 0,
+          "cpu_seconds": 0.004546701,
+          "envelopes": 20,
+          "io_bytes": 40,
+          "rss_kib_delta": 0,
+          "tokens": null,
+          "tokens_null_reason": "NO_LLM_USED",
+          "wall_seconds": 0.004545938994851895,
+          "workers_avoided": 0,
+          "workers_materialized": 20
+        }
+      ],
+      "slots": 20
+    },
+    {
+      "mean_wall_seconds": 0.0047463770024478436,
+      "repetitions": 3,
+      "samples": [
+        {
+          "cache_hits": 0,
+          "cpu_seconds": 0.004563205000000001,
+          "envelopes": 22,
+          "io_bytes": 44,
+          "rss_kib_delta": 0,
+          "tokens": null,
+          "tokens_null_reason": "NO_LLM_USED",
+          "wall_seconds": 0.004562433001410682,
+          "workers_avoided": 0,
+          "workers_materialized": 22
+        },
+        {
+          "cache_hits": 0,
+          "cpu_seconds": 0.004697465000000012,
+          "envelopes": 22,
+          "io_bytes": 44,
+          "rss_kib_delta": 0,
+          "tokens": null,
+          "tokens_null_reason": "NO_LLM_USED",
+          "wall_seconds": 0.004696763004176319,
+          "workers_avoided": 0,
+          "workers_materialized": 22
+        },
+        {
+          "cache_hits": 0,
+          "cpu_seconds": 0.0049807359999999995,
+          "envelopes": 22,
+          "io_bytes": 44,
+          "rss_kib_delta": 0,
+          "tokens": null,
+          "tokens_null_reason": "NO_LLM_USED",
+          "wall_seconds": 0.00497993500175653,
+          "workers_avoided": 0,
+          "workers_materialized": 22
+        }
+      ],
+      "slots": 22
+    }
+  ],
+  "classification": "MEASURED_LOCAL",
+  "fallback": "python",
+  "local_llm": false,
+  "parity": {
+    "parity": null,
+    "parity_null_reason": "RUST_UNAVAILABLE",
+    "python_digest": "9b91b61f724e691fa89c537f160c4b0c4360adf66b9697d1de1cebc7b260019f",
+    "rust_digest": null
+  },
+  "retrieval_lanes": {
+    "Q0": {
+      "footprint_bytes": 256,
+      "latency_seconds": 5.9689991758205e-06,
+      "mrr": 1.0,
+      "ndcg_at_10": 1.0,
+      "recall_at_10": 1.0
+    },
+    "Q1": {
+      "footprint_bytes": 32,
+      "latency_seconds": 1.52120046550408e-05,
+      "mrr": 1.0,
+      "ndcg_at_10": 1.0,
+      "recall_at_10": 1.0
+    },
+    "Q2a": {
+      "footprint_bytes": 32,
+      "latency_seconds": 1.001499913400039e-05,
+      "mrr": 1.0,
+      "ndcg_at_10": 1.0,
+      "recall_at_10": 1.0
+    },
+    "Q2b": {
+      "footprint_bytes": 32,
+      "latency_seconds": 9.3039998319e-06,
+      "mrr": 1.0,
+      "ndcg_at_10": 1.0,
+      "recall_at_10": 1.0
+    }
+  },
+  "runtime": "unavailable",
+  "rust": "unavailable",
+  "schema": "simplicio.fast-slot-benchmark/v1"
+}

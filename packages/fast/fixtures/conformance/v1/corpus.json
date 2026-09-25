@@ -1,0 +1,67 @@
+{
+  "corpus_id": "issue-41-minimal-v1",
+  "events": [
+    {
+      "expected": "tombstone",
+      "kind": "remove",
+      "path": "python/legacy.py"
+    }
+  ],
+  "files": [
+    {
+      "language": "csharp",
+      "path": "csharp/Service.cs",
+      "sha256": "5a09266874227979422a1f07623b79b3b0314b2026f601e9bc9a28839c1bb1fe"
+    },
+    {
+      "language": "python",
+      "path": "python/service.py",
+      "sha256": "edee7f5f31f478c62b3ec0f9f52ecd739a0424d0a3059b62fd35abd19ee1c727"
+    },
+    {
+      "language": "rust",
+      "path": "rust/service.rs",
+      "sha256": "dd4f6b9d4c66e191fa16a502a1911753c021ae9c3623b062d2ede20d6f73b612"
+    },
+    {
+      "language": "typescript",
+      "path": "typescript/service.ts",
+      "sha256": "c7aebe2832cfa05c3d2468f76f6db024aa5f155fba30f577228a0c72e36cbdc0"
+    }
+  ],
+  "languages": [
+    "csharp",
+    "python",
+    "rust",
+    "typescript"
+  ],
+  "scenarios": [
+    {
+      "covers": [
+        "imports",
+        "namespaces",
+        "overloads",
+        "calls",
+        "tests"
+      ],
+      "id": "happy-path",
+      "kind": "happy_path"
+    },
+    {
+      "expected": "explicit capability result",
+      "id": "partial-capability",
+      "kind": "partial_capability"
+    },
+    {
+      "expected": "no empty-context success",
+      "id": "abstention",
+      "kind": "abstention"
+    },
+    {
+      "expected": "typed digest rejection",
+      "id": "corruption",
+      "kind": "corruption"
+    }
+  ],
+  "schema": "simplicio.fast.golden-corpus/v1"
+}

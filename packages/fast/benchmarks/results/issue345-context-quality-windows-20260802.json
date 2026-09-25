@@ -1,0 +1,182 @@
+{
+  "aggregate": {
+    "compiler_recall_not_below_manual": true,
+    "duplicate_handles": 0,
+    "instructions": false,
+    "manual_baseline_recall": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "truncated": true,
+    "untrusted_selected": false
+  },
+  "authority": "facts_only",
+  "dataset": {
+    "case_count": 2,
+    "digest": "sha256:b02cc4f946d88b37a9a17a28a40c1d7c7fd4281ee5be680ac8429d6b05e0d29e",
+    "id": "universal-context-multidomain-v1",
+    "schema": "simplicio.fast.context-quality-dataset/v1"
+  },
+  "decision_owner": "agent-loop-consumer",
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5"
+  },
+  "scenarios": [
+    {
+      "exact": {
+        "duplicate_handles": 0,
+        "expected": [
+          "code:parser",
+          "knowledge:parser-contract",
+          "operation:validation"
+        ],
+        "id": "code-knowledge-operations",
+        "instructions": false,
+        "manual_baseline": [
+          "code:parser",
+          "knowledge:parser-contract",
+          "operation:validation"
+        ],
+        "manual_baseline_recall": 1.0,
+        "mode": "exact",
+        "packet_digest": "sha256:e346b95056f56de084bd00231eedcb6ba610cff2ff379b8ef4697e7e2a2f419c",
+        "precision": 1.0,
+        "recall": 1.0,
+        "selected": [
+          "code:parser",
+          "knowledge:parser-contract",
+          "operation:validation"
+        ],
+        "source_bytes": 2570,
+        "source_tokens": 4,
+        "tokenizer": {
+          "id": "fixture:whitespace-v1",
+          "mode": "exact",
+          "reason": null
+        },
+        "truncated": false,
+        "untrusted_selected": false
+      },
+      "fallback": {
+        "duplicate_handles": 0,
+        "expected": [
+          "code:parser",
+          "knowledge:parser-contract",
+          "operation:validation"
+        ],
+        "id": "code-knowledge-operations",
+        "instructions": false,
+        "manual_baseline": [
+          "code:parser",
+          "knowledge:parser-contract",
+          "operation:validation"
+        ],
+        "manual_baseline_recall": 1.0,
+        "mode": "estimated",
+        "packet_digest": "sha256:bd73d1890d8ab714b77b7e097b2c755f2d3442b926543577244708641dfc5b9a",
+        "precision": 1.0,
+        "recall": 1.0,
+        "selected": [
+          "code:parser",
+          "knowledge:parser-contract",
+          "operation:validation"
+        ],
+        "source_bytes": 2570,
+        "source_tokens": 170,
+        "tokenizer": {
+          "id": "tiktoken:missing-for-corpus",
+          "mode": "estimated",
+          "reason": "provider_tokenizer_unavailable"
+        },
+        "truncated": false,
+        "untrusted_selected": false
+      },
+      "id": "code-knowledge-operations",
+      "latency": {
+        "p50_ms": 0.295,
+        "p95_ms": 0.41,
+        "samples": 5
+      }
+    },
+    {
+      "exact": {
+        "duplicate_handles": 0,
+        "expected": [
+          "code:deployment",
+          "knowledge:deployment-policy",
+          "operation:rollout"
+        ],
+        "id": "trust-boundary",
+        "instructions": false,
+        "manual_baseline": [
+          "code:deployment",
+          "knowledge:deployment-policy",
+          "knowledge:prompt-injection",
+          "operation:rollout"
+        ],
+        "manual_baseline_recall": 1.0,
+        "mode": "exact",
+        "packet_digest": "sha256:aaa32c2c97c5dc9e4a902a15d22df5925313cbf910071432f397acf9344f8bf4",
+        "precision": 1.0,
+        "recall": 1.0,
+        "selected": [
+          "code:deployment",
+          "knowledge:deployment-policy",
+          "operation:rollout"
+        ],
+        "source_bytes": 2581,
+        "source_tokens": 4,
+        "tokenizer": {
+          "id": "fixture:whitespace-v1",
+          "mode": "exact",
+          "reason": null
+        },
+        "truncated": true,
+        "untrusted_selected": false
+      },
+      "fallback": {
+        "duplicate_handles": 0,
+        "expected": [
+          "code:deployment",
+          "knowledge:deployment-policy",
+          "operation:rollout"
+        ],
+        "id": "trust-boundary",
+        "instructions": false,
+        "manual_baseline": [
+          "code:deployment",
+          "knowledge:deployment-policy",
+          "knowledge:prompt-injection",
+          "operation:rollout"
+        ],
+        "manual_baseline_recall": 1.0,
+        "mode": "estimated",
+        "packet_digest": "sha256:4161ef7a348a742853cc85198bc3228bcad2e31d17b2f934bdccc5522772094b",
+        "precision": 1.0,
+        "recall": 1.0,
+        "selected": [
+          "code:deployment",
+          "knowledge:deployment-policy",
+          "operation:rollout"
+        ],
+        "source_bytes": 2581,
+        "source_tokens": 169,
+        "tokenizer": {
+          "id": "tiktoken:missing-for-corpus",
+          "mode": "estimated",
+          "reason": "provider_tokenizer_unavailable"
+        },
+        "truncated": true,
+        "untrusted_selected": false
+      },
+      "id": "trust-boundary",
+      "latency": {
+        "p50_ms": 0.422,
+        "p95_ms": 0.52,
+        "samples": 5
+      }
+    }
+  ],
+  "schema": "simplicio.fast.context-quality-receipt/v1",
+  "status": "pass"
+}

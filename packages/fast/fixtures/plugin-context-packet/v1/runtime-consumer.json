@@ -1,0 +1,10 @@
+{
+  "schema": "simplicio.plugin.context-packet-consumer/v1",
+  "producer": "simplicio-fast",
+  "consumers": ["runtime-r05", "loop-l01"],
+  "packet_schema": "simplicio.plugin.context-packet/v1",
+  "handle_schema": "simplicio.plugin.context-handle/v1",
+  "writes": false,
+  "authority": "derived_read_only",
+  "notes": "Runtime and Loop consume the sealed packet and handle. They must not open Fast private mmap artifacts."
+}

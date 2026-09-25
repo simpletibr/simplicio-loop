@@ -1,0 +1,1589 @@
+{
+  "checks": {
+    "all_cli_steps": true,
+    "engine_selection": true,
+    "installed_launcher": true,
+    "python_fallback": true,
+    "rust_not_loaded": true
+  },
+  "engine_selection": {
+    "auto": "python",
+    "off": "off",
+    "python": "python"
+  },
+  "launcher": {
+    "kind": "installed-cli",
+    "path": "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\simplicio-fast.EXE",
+    "reason_code": null
+  },
+  "package": {
+    "name": "simplicio-fast",
+    "version": "2.0.20"
+  },
+  "residuals": [
+    "rust_session_parity",
+    "backpressure_cancellation",
+    "cross_platform_artifacts",
+    "upgrade_rollback_receipts"
+  ],
+  "rust": {
+    "reason_code": "rust_artifact_missing",
+    "status": "not_loaded"
+  },
+  "schema": "simplicio.fast.installed-sdk-receipt/v1",
+  "status": "pass",
+  "steps": [
+    {
+      "command": [
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\simplicio-fast.EXE",
+        "--fast-engine",
+        "auto",
+        "capabilities"
+      ],
+      "engine": "auto",
+      "payload": {
+        "capabilities": [
+          {
+            "fallback": null,
+            "language": "python",
+            "parser": "python-ast",
+            "reason": null,
+            "status": "available"
+          },
+          {
+            "fallback": "bounded lexical extraction; verify with native toolchain",
+            "language": "typescript",
+            "parser": "lexical",
+            "reason": "native parser binding unavailable",
+            "status": "fallback"
+          },
+          {
+            "fallback": "bounded lexical extraction; verify with native toolchain",
+            "language": "rust",
+            "parser": "lexical",
+            "reason": "native parser binding unavailable",
+            "status": "fallback"
+          },
+          {
+            "fallback": "bounded lexical extraction; verify with native toolchain",
+            "language": "csharp",
+            "parser": "lexical",
+            "reason": "native parser binding unavailable",
+            "status": "fallback"
+          }
+        ],
+        "engine": {
+          "capabilities": [
+            "build",
+            "refresh",
+            "query",
+            "search",
+            "context",
+            "impact",
+            "understand",
+            "plan",
+            "apply",
+            "overlay",
+            "lease",
+            "doctor",
+            "receipts"
+          ],
+          "conformance_digest": null,
+          "executable": null,
+          "manifest": {
+            "capabilities": [
+              "build",
+              "refresh",
+              "query",
+              "search",
+              "context",
+              "impact",
+              "understand",
+              "plan",
+              "apply",
+              "overlay",
+              "lease",
+              "doctor",
+              "receipts"
+            ],
+            "engine": "python",
+            "fallback": true,
+            "formats": [
+              "SFAST001/v1",
+              "SFAST001/v2"
+            ],
+            "limits": {
+              "max_files": 1000000,
+              "max_relations": 10000000,
+              "max_snapshot_bytes": 536870912,
+              "max_symbols": 5000000
+            },
+            "minimum_python": "3.11",
+            "reference": true,
+            "schema": "simplicio.fast.engine-manifest/v1",
+            "source_languages": [
+              "python"
+            ],
+            "status": "available",
+            "version": "2.0.20"
+          },
+          "reason": "rust_executable_missing",
+          "requested": "auto",
+          "requested_engine": "auto",
+          "schema": "simplicio.fast.engine-selection/v1",
+          "selected": "python",
+          "selected_engine": "python",
+          "timings": {
+            "probe_ms": 0.05640002200379968
+          },
+          "version": "2.0.20"
+        },
+        "engine_manifest": {
+          "capabilities": [
+            "build",
+            "refresh",
+            "query",
+            "search",
+            "context",
+            "impact",
+            "understand",
+            "plan",
+            "apply",
+            "overlay",
+            "lease",
+            "doctor",
+            "receipts"
+          ],
+          "engine": "python",
+          "fallback": true,
+          "formats": [
+            "SFAST001/v1",
+            "SFAST001/v2"
+          ],
+          "limits": {
+            "max_files": 1000000,
+            "max_relations": 10000000,
+            "max_snapshot_bytes": 536870912,
+            "max_symbols": 5000000
+          },
+          "minimum_python": "3.11",
+          "reference": true,
+          "schema": "simplicio.fast.engine-manifest/v1",
+          "source_languages": [
+            "python"
+          ],
+          "status": "available",
+          "version": "2.0.20"
+        },
+        "parser_adapter": {
+          "completeness": "contract",
+          "fingerprints": {
+            "contract_sha256": "a90dc1c713a71eddad3678fbbe452ce99ea794e68c4e61f1603bd1105118bdb4"
+          },
+          "health": "ready",
+          "limits": {
+            "max_files": 10000,
+            "max_payload_bytes": 67108864,
+            "max_relations": 2000000,
+            "max_symbols": 1000000
+          },
+          "modes": [
+            "bootstrap",
+            "integrated"
+          ],
+          "producer": "simplicio-fast-python-adapter",
+          "schema": "simplicio.fast.parser-adapter/v1",
+          "version": "1"
+        },
+        "schema": "simplicio.fast.capabilities/v1",
+        "sdk": {
+          "authority": "derived_read_only",
+          "compatibility": {
+            "contract": "simplicio.fast.sdk/v1",
+            "current_version": "1.0",
+            "reason_codes": [
+              "compatibility_exact",
+              "compatibility_upgrade_legacy_minor",
+              "compatibility_downgrade_requires_migration",
+              "compatibility_future_major",
+              "compatibility_older_major",
+              "compatibility_version_invalid"
+            ],
+            "rollback": "reuse_only_a_previously_validated_contract_version",
+            "rules": {
+              "exact": "accept",
+              "future_major": "reject",
+              "older_major": "reject",
+              "reader_downgrade_same_major": "reject_requires_migration",
+              "reader_upgrade_same_major": "accept_legacy_minor"
+            },
+            "schema": "simplicio.fast.sdk-compatibility/v1"
+          },
+          "context_security": {
+            "authority": "derived_read_only",
+            "checks": {
+              "authority": "facts_only",
+              "instructions": false,
+              "private_layout_fields": "reject",
+              "projection_item_cap": 100000,
+              "trusted_for_instruction": false
+            },
+            "external_gates": [
+              "installed_consumer_e2e",
+              "fault_injection_recovery",
+              "resource_benchmark",
+              "rollout_receipt"
+            ],
+            "packet_schema": "simplicio.fast.universal-context/v1",
+            "schema": "simplicio.fast.context-security/v1",
+            "threats": [
+              "projection_poisoning",
+              "digest_or_handle_tamper",
+              "prompt_injection",
+              "trust_escalation",
+              "cross_scope_leakage"
+            ]
+          },
+          "operations": [
+            "publish",
+            "compile_delta",
+            "query",
+            "query_async",
+            "snapshot",
+            "save",
+            "open",
+            "close",
+            "context",
+            "context_async"
+          ],
+          "schema": "simplicio.fast.sdk-capabilities/v1",
+          "sdk": "simplicio.fast.sdk/v1",
+          "source_adapters": {
+            "authority": "derived_read_only",
+            "forbidden": [
+              "source_mutation",
+              "mcp_authority",
+              "mmap_offsets"
+            ],
+            "schema": "simplicio.fast.context-source-adapters/v1",
+            "sources": {
+              "code": {
+                "input": "projection-envelope/v1",
+                "status": "supported"
+              },
+              "knowledge": {
+                "input": "simplicio.fast.precedent-result/v1",
+                "status": "supported"
+              },
+              "operations": {
+                "input": "simplicio.fast.operations-projection/v1",
+                "status": "supported"
+              }
+            }
+          },
+          "support_matrix": [
+            {
+              "operations": [
+                "publish",
+                "compile_delta",
+                "query",
+                "query_async",
+                "snapshot",
+                "save",
+                "open",
+                "close",
+                "context",
+                "context_async"
+              ],
+              "reason": null,
+              "status": "supported",
+              "surface": "python"
+            },
+            {
+              "operations": [
+                "read",
+                "query",
+                "context"
+              ],
+              "reason": "crate_conformance_and_installed_matrix_pending",
+              "status": "partial",
+              "surface": "rust"
+            },
+            {
+              "operations": [
+                "stats",
+                "query",
+                "context"
+              ],
+              "reason": "resident_transport_and_cross_platform_receipts_pending",
+              "status": "partial",
+              "surface": "session"
+            },
+            {
+              "operations": [
+                "diagnose",
+                "json_receipts"
+              ],
+              "reason": "equivalent_sdk_surface_and_installed_receipts_pending",
+              "status": "partial",
+              "surface": "cli"
+            }
+          ]
+        },
+        "semantic_scoring": {
+          "available": false,
+          "hard_dependency_litert": false,
+          "implicit_model_download": false,
+          "inference_backend": "simplicio.inference-backend/v1",
+          "mode": "offline",
+          "model": null,
+          "offline_fallback": "deterministic_lexical_structural",
+          "parity": {
+            "python": "reference_complete",
+            "reason": "RUST_SEMANTIC_SURFACE_UNAVAILABLE",
+            "rust": "not_exposed"
+          },
+          "reason": "INFERENCE_BACKEND_UNAVAILABLE",
+          "runtime_first": true,
+          "schema": "simplicio.fast.semantic-capabilities/v1",
+          "semantic_score_schema": "simplicio.fast.semantic-score/v1"
+        }
+      },
+      "reason_code": null,
+      "returncode": 0,
+      "schema": "simplicio.fast.capabilities/v1",
+      "status": "pass",
+      "stderr": "",
+      "wall_ms": 221.5564
+    },
+    {
+      "command": [
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\simplicio-fast.EXE",
+        "--fast-engine",
+        "python",
+        "capabilities"
+      ],
+      "engine": "python",
+      "payload": {
+        "capabilities": [
+          {
+            "fallback": null,
+            "language": "python",
+            "parser": "python-ast",
+            "reason": null,
+            "status": "available"
+          },
+          {
+            "fallback": "bounded lexical extraction; verify with native toolchain",
+            "language": "typescript",
+            "parser": "lexical",
+            "reason": "native parser binding unavailable",
+            "status": "fallback"
+          },
+          {
+            "fallback": "bounded lexical extraction; verify with native toolchain",
+            "language": "rust",
+            "parser": "lexical",
+            "reason": "native parser binding unavailable",
+            "status": "fallback"
+          },
+          {
+            "fallback": "bounded lexical extraction; verify with native toolchain",
+            "language": "csharp",
+            "parser": "lexical",
+            "reason": "native parser binding unavailable",
+            "status": "fallback"
+          }
+        ],
+        "engine": {
+          "capabilities": [
+            "build",
+            "refresh",
+            "query",
+            "search",
+            "context",
+            "impact",
+            "understand",
+            "plan",
+            "apply",
+            "overlay",
+            "lease",
+            "doctor",
+            "receipts"
+          ],
+          "conformance_digest": null,
+          "executable": null,
+          "manifest": {
+            "capabilities": [
+              "build",
+              "refresh",
+              "query",
+              "search",
+              "context",
+              "impact",
+              "understand",
+              "plan",
+              "apply",
+              "overlay",
+              "lease",
+              "doctor",
+              "receipts"
+            ],
+            "engine": "python",
+            "fallback": true,
+            "formats": [
+              "SFAST001/v1",
+              "SFAST001/v2"
+            ],
+            "limits": {
+              "max_files": 1000000,
+              "max_relations": 10000000,
+              "max_snapshot_bytes": 536870912,
+              "max_symbols": 5000000
+            },
+            "minimum_python": "3.11",
+            "reference": true,
+            "schema": "simplicio.fast.engine-manifest/v1",
+            "source_languages": [
+              "python"
+            ],
+            "status": "available",
+            "version": "2.0.20"
+          },
+          "reason": "explicitly_selected",
+          "requested": "python",
+          "requested_engine": "python",
+          "schema": "simplicio.fast.engine-selection/v1",
+          "selected": "python",
+          "selected_engine": "python",
+          "timings": {
+            "probe_ms": null
+          },
+          "version": "2.0.20"
+        },
+        "engine_manifest": {
+          "capabilities": [
+            "build",
+            "refresh",
+            "query",
+            "search",
+            "context",
+            "impact",
+            "understand",
+            "plan",
+            "apply",
+            "overlay",
+            "lease",
+            "doctor",
+            "receipts"
+          ],
+          "engine": "python",
+          "fallback": true,
+          "formats": [
+            "SFAST001/v1",
+            "SFAST001/v2"
+          ],
+          "limits": {
+            "max_files": 1000000,
+            "max_relations": 10000000,
+            "max_snapshot_bytes": 536870912,
+            "max_symbols": 5000000
+          },
+          "minimum_python": "3.11",
+          "reference": true,
+          "schema": "simplicio.fast.engine-manifest/v1",
+          "source_languages": [
+            "python"
+          ],
+          "status": "available",
+          "version": "2.0.20"
+        },
+        "parser_adapter": {
+          "completeness": "contract",
+          "fingerprints": {
+            "contract_sha256": "a90dc1c713a71eddad3678fbbe452ce99ea794e68c4e61f1603bd1105118bdb4"
+          },
+          "health": "ready",
+          "limits": {
+            "max_files": 10000,
+            "max_payload_bytes": 67108864,
+            "max_relations": 2000000,
+            "max_symbols": 1000000
+          },
+          "modes": [
+            "bootstrap",
+            "integrated"
+          ],
+          "producer": "simplicio-fast-python-adapter",
+          "schema": "simplicio.fast.parser-adapter/v1",
+          "version": "1"
+        },
+        "schema": "simplicio.fast.capabilities/v1",
+        "sdk": {
+          "authority": "derived_read_only",
+          "compatibility": {
+            "contract": "simplicio.fast.sdk/v1",
+            "current_version": "1.0",
+            "reason_codes": [
+              "compatibility_exact",
+              "compatibility_upgrade_legacy_minor",
+              "compatibility_downgrade_requires_migration",
+              "compatibility_future_major",
+              "compatibility_older_major",
+              "compatibility_version_invalid"
+            ],
+            "rollback": "reuse_only_a_previously_validated_contract_version",
+            "rules": {
+              "exact": "accept",
+              "future_major": "reject",
+              "older_major": "reject",
+              "reader_downgrade_same_major": "reject_requires_migration",
+              "reader_upgrade_same_major": "accept_legacy_minor"
+            },
+            "schema": "simplicio.fast.sdk-compatibility/v1"
+          },
+          "context_security": {
+            "authority": "derived_read_only",
+            "checks": {
+              "authority": "facts_only",
+              "instructions": false,
+              "private_layout_fields": "reject",
+              "projection_item_cap": 100000,
+              "trusted_for_instruction": false
+            },
+            "external_gates": [
+              "installed_consumer_e2e",
+              "fault_injection_recovery",
+              "resource_benchmark",
+              "rollout_receipt"
+            ],
+            "packet_schema": "simplicio.fast.universal-context/v1",
+            "schema": "simplicio.fast.context-security/v1",
+            "threats": [
+              "projection_poisoning",
+              "digest_or_handle_tamper",
+              "prompt_injection",
+              "trust_escalation",
+              "cross_scope_leakage"
+            ]
+          },
+          "operations": [
+            "publish",
+            "compile_delta",
+            "query",
+            "query_async",
+            "snapshot",
+            "save",
+            "open",
+            "close",
+            "context",
+            "context_async"
+          ],
+          "schema": "simplicio.fast.sdk-capabilities/v1",
+          "sdk": "simplicio.fast.sdk/v1",
+          "source_adapters": {
+            "authority": "derived_read_only",
+            "forbidden": [
+              "source_mutation",
+              "mcp_authority",
+              "mmap_offsets"
+            ],
+            "schema": "simplicio.fast.context-source-adapters/v1",
+            "sources": {
+              "code": {
+                "input": "projection-envelope/v1",
+                "status": "supported"
+              },
+              "knowledge": {
+                "input": "simplicio.fast.precedent-result/v1",
+                "status": "supported"
+              },
+              "operations": {
+                "input": "simplicio.fast.operations-projection/v1",
+                "status": "supported"
+              }
+            }
+          },
+          "support_matrix": [
+            {
+              "operations": [
+                "publish",
+                "compile_delta",
+                "query",
+                "query_async",
+                "snapshot",
+                "save",
+                "open",
+                "close",
+                "context",
+                "context_async"
+              ],
+              "reason": null,
+              "status": "supported",
+              "surface": "python"
+            },
+            {
+              "operations": [
+                "read",
+                "query",
+                "context"
+              ],
+              "reason": "crate_conformance_and_installed_matrix_pending",
+              "status": "partial",
+              "surface": "rust"
+            },
+            {
+              "operations": [
+                "stats",
+                "query",
+                "context"
+              ],
+              "reason": "resident_transport_and_cross_platform_receipts_pending",
+              "status": "partial",
+              "surface": "session"
+            },
+            {
+              "operations": [
+                "diagnose",
+                "json_receipts"
+              ],
+              "reason": "equivalent_sdk_surface_and_installed_receipts_pending",
+              "status": "partial",
+              "surface": "cli"
+            }
+          ]
+        },
+        "semantic_scoring": {
+          "available": false,
+          "hard_dependency_litert": false,
+          "implicit_model_download": false,
+          "inference_backend": "simplicio.inference-backend/v1",
+          "mode": "offline",
+          "model": null,
+          "offline_fallback": "deterministic_lexical_structural",
+          "parity": {
+            "python": "reference_complete",
+            "reason": "RUST_SEMANTIC_SURFACE_UNAVAILABLE",
+            "rust": "not_exposed"
+          },
+          "reason": "INFERENCE_BACKEND_UNAVAILABLE",
+          "runtime_first": true,
+          "schema": "simplicio.fast.semantic-capabilities/v1",
+          "semantic_score_schema": "simplicio.fast.semantic-score/v1"
+        }
+      },
+      "reason_code": null,
+      "returncode": 0,
+      "schema": "simplicio.fast.capabilities/v1",
+      "status": "pass",
+      "stderr": "",
+      "wall_ms": 310.9201
+    },
+    {
+      "command": [
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\simplicio-fast.EXE",
+        "--fast-engine",
+        "off",
+        "capabilities"
+      ],
+      "engine": "off",
+      "payload": {
+        "capabilities": [
+          {
+            "fallback": null,
+            "language": "python",
+            "parser": "python-ast",
+            "reason": null,
+            "status": "available"
+          },
+          {
+            "fallback": "bounded lexical extraction; verify with native toolchain",
+            "language": "typescript",
+            "parser": "lexical",
+            "reason": "native parser binding unavailable",
+            "status": "fallback"
+          },
+          {
+            "fallback": "bounded lexical extraction; verify with native toolchain",
+            "language": "rust",
+            "parser": "lexical",
+            "reason": "native parser binding unavailable",
+            "status": "fallback"
+          },
+          {
+            "fallback": "bounded lexical extraction; verify with native toolchain",
+            "language": "csharp",
+            "parser": "lexical",
+            "reason": "native parser binding unavailable",
+            "status": "fallback"
+          }
+        ],
+        "engine": {
+          "capabilities": null,
+          "conformance_digest": null,
+          "executable": null,
+          "manifest": {},
+          "reason": "explicitly_disabled",
+          "requested": "off",
+          "requested_engine": "off",
+          "schema": "simplicio.fast.engine-selection/v1",
+          "selected": "off",
+          "selected_engine": "off",
+          "timings": {
+            "probe_ms": null
+          },
+          "version": null
+        },
+        "engine_manifest": {},
+        "parser_adapter": {
+          "completeness": "contract",
+          "fingerprints": {
+            "contract_sha256": "a90dc1c713a71eddad3678fbbe452ce99ea794e68c4e61f1603bd1105118bdb4"
+          },
+          "health": "ready",
+          "limits": {
+            "max_files": 10000,
+            "max_payload_bytes": 67108864,
+            "max_relations": 2000000,
+            "max_symbols": 1000000
+          },
+          "modes": [
+            "bootstrap",
+            "integrated"
+          ],
+          "producer": "simplicio-fast-python-adapter",
+          "schema": "simplicio.fast.parser-adapter/v1",
+          "version": "1"
+        },
+        "schema": "simplicio.fast.capabilities/v1",
+        "sdk": {
+          "authority": "derived_read_only",
+          "compatibility": {
+            "contract": "simplicio.fast.sdk/v1",
+            "current_version": "1.0",
+            "reason_codes": [
+              "compatibility_exact",
+              "compatibility_upgrade_legacy_minor",
+              "compatibility_downgrade_requires_migration",
+              "compatibility_future_major",
+              "compatibility_older_major",
+              "compatibility_version_invalid"
+            ],
+            "rollback": "reuse_only_a_previously_validated_contract_version",
+            "rules": {
+              "exact": "accept",
+              "future_major": "reject",
+              "older_major": "reject",
+              "reader_downgrade_same_major": "reject_requires_migration",
+              "reader_upgrade_same_major": "accept_legacy_minor"
+            },
+            "schema": "simplicio.fast.sdk-compatibility/v1"
+          },
+          "context_security": {
+            "authority": "derived_read_only",
+            "checks": {
+              "authority": "facts_only",
+              "instructions": false,
+              "private_layout_fields": "reject",
+              "projection_item_cap": 100000,
+              "trusted_for_instruction": false
+            },
+            "external_gates": [
+              "installed_consumer_e2e",
+              "fault_injection_recovery",
+              "resource_benchmark",
+              "rollout_receipt"
+            ],
+            "packet_schema": "simplicio.fast.universal-context/v1",
+            "schema": "simplicio.fast.context-security/v1",
+            "threats": [
+              "projection_poisoning",
+              "digest_or_handle_tamper",
+              "prompt_injection",
+              "trust_escalation",
+              "cross_scope_leakage"
+            ]
+          },
+          "operations": [
+            "publish",
+            "compile_delta",
+            "query",
+            "query_async",
+            "snapshot",
+            "save",
+            "open",
+            "close",
+            "context",
+            "context_async"
+          ],
+          "schema": "simplicio.fast.sdk-capabilities/v1",
+          "sdk": "simplicio.fast.sdk/v1",
+          "source_adapters": {
+            "authority": "derived_read_only",
+            "forbidden": [
+              "source_mutation",
+              "mcp_authority",
+              "mmap_offsets"
+            ],
+            "schema": "simplicio.fast.context-source-adapters/v1",
+            "sources": {
+              "code": {
+                "input": "projection-envelope/v1",
+                "status": "supported"
+              },
+              "knowledge": {
+                "input": "simplicio.fast.precedent-result/v1",
+                "status": "supported"
+              },
+              "operations": {
+                "input": "simplicio.fast.operations-projection/v1",
+                "status": "supported"
+              }
+            }
+          },
+          "support_matrix": [
+            {
+              "operations": [
+                "publish",
+                "compile_delta",
+                "query",
+                "query_async",
+                "snapshot",
+                "save",
+                "open",
+                "close",
+                "context",
+                "context_async"
+              ],
+              "reason": null,
+              "status": "supported",
+              "surface": "python"
+            },
+            {
+              "operations": [
+                "read",
+                "query",
+                "context"
+              ],
+              "reason": "crate_conformance_and_installed_matrix_pending",
+              "status": "partial",
+              "surface": "rust"
+            },
+            {
+              "operations": [
+                "stats",
+                "query",
+                "context"
+              ],
+              "reason": "resident_transport_and_cross_platform_receipts_pending",
+              "status": "partial",
+              "surface": "session"
+            },
+            {
+              "operations": [
+                "diagnose",
+                "json_receipts"
+              ],
+              "reason": "equivalent_sdk_surface_and_installed_receipts_pending",
+              "status": "partial",
+              "surface": "cli"
+            }
+          ]
+        },
+        "semantic_scoring": {
+          "available": false,
+          "hard_dependency_litert": false,
+          "implicit_model_download": false,
+          "inference_backend": "simplicio.inference-backend/v1",
+          "mode": "offline",
+          "model": null,
+          "offline_fallback": "deterministic_lexical_structural",
+          "parity": {
+            "python": "reference_complete",
+            "reason": "RUST_SEMANTIC_SURFACE_UNAVAILABLE",
+            "rust": "not_exposed"
+          },
+          "reason": "INFERENCE_BACKEND_UNAVAILABLE",
+          "runtime_first": true,
+          "schema": "simplicio.fast.semantic-capabilities/v1",
+          "semantic_score_schema": "simplicio.fast.semantic-score/v1"
+        }
+      },
+      "reason_code": null,
+      "returncode": 0,
+      "schema": "simplicio.fast.capabilities/v1",
+      "status": "pass",
+      "stderr": "",
+      "wall_ms": 228.1045
+    },
+    {
+      "command": [
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\simplicio-fast.EXE",
+        "--fast-engine",
+        "auto",
+        "build",
+        ".",
+        "--output",
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f\\project.sfast"
+      ],
+      "engine": "auto",
+      "payload": {
+        "metrics": {
+          "changed_paths": [],
+          "cpu_ms": 0.0,
+          "files": 1,
+          "format_version": 2,
+          "generation": "137fb27165e298e6d8a534cc2b74df6764cdb41b1d9b553120f9c1fb786a9c47",
+          "metadata_reused_files": 0,
+          "parsed_files": 1,
+          "parsed_paths": [
+            "greetings.py"
+          ],
+          "phase_timings_ms": {
+            "discovery": 0.128,
+            "parsing": 1.624,
+            "previous_snapshot_load": 0.01,
+            "publication": 39.871,
+            "unchanged_validation": 15.18
+          },
+          "reason_codes": [
+            "cold_build"
+          ],
+          "relations": 4,
+          "reused_files": 0,
+          "reused_paths": [],
+          "snapshot_bytes": 1405,
+          "symbols": 1,
+          "wall_ms": 56.9961000001058
+        },
+        "schema": "simplicio.fast.build/v1",
+        "snapshot": "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f\\project.sfast",
+        "version": "2.0.20"
+      },
+      "reason_code": null,
+      "returncode": 0,
+      "schema": "simplicio.fast.build/v1",
+      "status": "pass",
+      "stderr": "",
+      "wall_ms": 294.3499
+    },
+    {
+      "command": [
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\simplicio-fast.EXE",
+        "--fast-engine",
+        "python",
+        "query",
+        "greeting",
+        "--snapshot",
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f\\project.sfast"
+      ],
+      "engine": "python",
+      "payload": {
+        "matches": [
+          {
+            "base_generation": null,
+            "end_line": 2,
+            "file": "greetings.py",
+            "kind": "function",
+            "line": 1,
+            "name": "greeting",
+            "overlay_generation": null,
+            "qualified_name": "greeting",
+            "signature": "name: str",
+            "symbol_id": "20c5b60aacae6d51c451daf67d91184d431c0d41c7c3a94ce5e5820511594929"
+          }
+        ],
+        "schema": "simplicio.fast.query/v1",
+        "snapshot_version": 2
+      },
+      "reason_code": null,
+      "returncode": 0,
+      "schema": "simplicio.fast.query/v1",
+      "status": "pass",
+      "stderr": "",
+      "wall_ms": 230.9446
+    },
+    {
+      "command": [
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\simplicio-fast.EXE",
+        "--fast-engine",
+        "python",
+        "context",
+        "greeting",
+        "--root",
+        ".",
+        "--snapshot",
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f\\project.sfast"
+      ],
+      "engine": "python",
+      "payload": {
+        "limits": {
+          "max_bytes": 32000,
+          "max_lines": 120,
+          "max_results": 10,
+          "max_tokens": 8000
+        },
+        "provenance": {
+          "limits": {
+            "max_bytes": 32000,
+            "max_lines": 120,
+            "max_results": 10,
+            "max_tokens": 8000
+          },
+          "repository_root": "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f",
+          "schema": "simplicio.fast.provenance/v1",
+          "snapshot_generation": "SFAST001:91004a72f8b0e6833a8323c906d53a541cfe0cef572a6f204d89b037b560e116",
+          "snapshot_path": "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f\\project.sfast",
+          "snapshot_sha256": "91004a72f8b0e6833a8323c906d53a541cfe0cef572a6f204d89b037b560e116",
+          "source_commit": null,
+          "source_commit_reason": "not_a_git_checkout",
+          "span_count": 1
+        },
+        "schema": "simplicio.fast.context/v1",
+        "snapshot_version": 2,
+        "spans": [
+          {
+            "base_generation": null,
+            "content": "def greeting(name: str) -> str:\n    return f'hello {name}'",
+            "end_line": 2,
+            "file": "greetings.py",
+            "kind": "function",
+            "overlay_generation": null,
+            "source_sha256": "624f3c4a44e84e16f4c1a1cd313807b0fe10f234c4e5f46ef9d8b42a41b12ce8",
+            "start_line": 1,
+            "symbol": "greeting",
+            "symbol_id": "20c5b60aacae6d51c451daf67d91184d431c0d41c7c3a94ce5e5820511594929",
+            "tokens": 15
+          }
+        ]
+      },
+      "reason_code": null,
+      "returncode": 0,
+      "schema": "simplicio.fast.context/v1",
+      "status": "pass",
+      "stderr": "",
+      "wall_ms": 234.797
+    },
+    {
+      "command": [
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\simplicio-fast.EXE",
+        "--fast-engine",
+        "python",
+        "plan",
+        "review greeting",
+        "--root",
+        ".",
+        "--snapshot",
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f\\project.sfast"
+      ],
+      "engine": "python",
+      "payload": {
+        "nodes": [
+          {
+            "acceptance": [
+              "context spans are current and bounded"
+            ],
+            "depends_on": [],
+            "id": "orient",
+            "inputs": {
+              "files": [
+                "greetings.py"
+              ],
+              "source_hashes": {
+                "greetings.py": "624f3c4a44e84e16f4c1a1cd313807b0fe10f234c4e5f46ef9d8b42a41b12ce8"
+              },
+              "symbols": [
+                "greeting"
+              ],
+              "task": "review greeting"
+            },
+            "kind": "context"
+          },
+          {
+            "acceptance": [
+              "normal source files contain the requested behavior",
+              "all hash guards pass"
+            ],
+            "depends_on": [
+              "orient"
+            ],
+            "id": "modify",
+            "inputs": {
+              "allowed_files": [
+                "greetings.py"
+              ],
+              "format": "simplicio.fast.changeset/v2",
+              "required_hashes": {
+                "greetings.py": "624f3c4a44e84e16f4c1a1cd313807b0fe10f234c4e5f46ef9d8b42a41b12ce8"
+              }
+            },
+            "kind": "structured_patch"
+          },
+          {
+            "acceptance": [
+              "all configured validation commands exit successfully"
+            ],
+            "depends_on": [
+              "modify"
+            ],
+            "id": "validate",
+            "inputs": {
+              "commands": [
+                [
+                  "python",
+                  "-m",
+                  "compileall",
+                  "-q",
+                  "."
+                ]
+              ]
+            },
+            "kind": "command_gate"
+          },
+          {
+            "acceptance": [
+              "changed files are visible in the next snapshot generation"
+            ],
+            "depends_on": [
+              "validate"
+            ],
+            "id": "refresh",
+            "inputs": {
+              "snapshot": "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f\\project.sfast"
+            },
+            "kind": "snapshot_refresh"
+          }
+        ],
+        "root": "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f",
+        "schema": "simplicio.fast.plandag/v2",
+        "task": "review greeting",
+        "understanding": {
+          "context": [
+            {
+              "base_generation": null,
+              "content": "def greeting(name: str) -> str:\n    return f'hello {name}'",
+              "end_line": 2,
+              "file": "greetings.py",
+              "kind": "function",
+              "overlay_generation": null,
+              "source_sha256": "624f3c4a44e84e16f4c1a1cd313807b0fe10f234c4e5f46ef9d8b42a41b12ce8",
+              "start_line": 1,
+              "symbol": "greeting",
+              "symbol_id": "20c5b60aacae6d51c451daf67d91184d431c0d41c7c3a94ce5e5820511594929",
+              "tokens": 15
+            }
+          ],
+          "files": [
+            "greetings.py"
+          ],
+          "schema": "simplicio.fast.understanding/v2",
+          "symbols": [
+            "greeting"
+          ],
+          "task": "review greeting",
+          "terms": [
+            "review",
+            "greeting"
+          ]
+        }
+      },
+      "reason_code": null,
+      "returncode": 0,
+      "schema": "simplicio.fast.plandag/v2",
+      "status": "pass",
+      "stderr": "",
+      "wall_ms": 237.4862
+    },
+    {
+      "command": [
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\simplicio-fast.EXE",
+        "--fast-engine",
+        "python",
+        "delivery",
+        "review greeting",
+        "--root",
+        ".",
+        "--snapshot",
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f\\project.sfast",
+        "--profile",
+        "loop-standalone",
+        "--mapper-mode",
+        "bootstrap"
+      ],
+      "engine": "python",
+      "payload": {
+        "base_generation": "SFAST001:91004a72f8b0e6833a8323c906d53a541cfe0cef572a6f204d89b037b560e116",
+        "budgets": {
+          "context_bytes": 32000,
+          "context_tokens": 8000,
+          "source_tokens": 7999,
+          "wrapper_tokens": 1
+        },
+        "cache": {
+          "L0_attempt": "miss",
+          "hits": 0,
+          "key": "a1e313217bb222c5b940a048209611db6dbae247dcec678cb9bcefb8d6946690",
+          "misses": 1
+        },
+        "context": {
+          "bytes": 58,
+          "deduplicated_handles": [],
+          "digest": "80de39650ac739a78fd50af52b06050f9b175748946b4e89a48579ec33bd9efb",
+          "estimated_tokens": 8,
+          "quality_floor": 0.44999999999999996,
+          "rejected_budget_handles": [],
+          "rejected_quality_handles": [],
+          "scoring_config": "semantic-ranking-v1",
+          "selected": [
+            {
+              "end_line": 2,
+              "fast_handle": "20c5b60aacae6d51c451daf67d91184d431c0d41c7c3a94ce5e5820511594929",
+              "file": "greetings.py",
+              "generation": "SFAST001:91004a72f8b0e6833a8323c906d53a541cfe0cef572a6f204d89b037b560e116",
+              "handle": "20c5b60aacae6d51c451daf67d91184d431c0d41c7c3a94ce5e5820511594929",
+              "reason": "semantic_rank_selected",
+              "source_sha256": "624f3c4a44e84e16f4c1a1cd313807b0fe10f234c4e5f46ef9d8b42a41b12ce8",
+              "start_line": 1
+            }
+          ],
+          "selection": {
+            "abstention": null,
+            "authority": {
+              "semantic_score": "derived_auxiliary_only",
+              "source": "snapshot_and_source_sha256"
+            },
+            "budgets": {
+              "max_batch_size": 16,
+              "max_candidates": 1,
+              "max_index_bytes": 67108864,
+              "max_latency_ms": 2000,
+              "max_memory_bytes": 134217728,
+              "max_queue_depth": 8,
+              "max_request_bytes": 32000,
+              "max_selected": 1,
+              "max_selected_tokens": 7999
+            },
+            "cache": {
+              "hit": false,
+              "refresh": null
+            },
+            "fallback": {
+              "reason_code": "INFERENCE_BACKEND_UNAVAILABLE",
+              "used": true
+            },
+            "formula": {
+              "lexical": 0.8,
+              "semantic": 0.0,
+              "structural": 0.2,
+              "version": "lexical-structural-semantic/v1"
+            },
+            "generation": "SFAST001:91004a72f8b0e6833a8323c906d53a541cfe0cef572a6f204d89b037b560e116",
+            "metrics": {
+              "cache_hit": false,
+              "candidates": 1,
+              "embed_rerank_ms": 0.0,
+              "fallback": true,
+              "latency_ms": 0.14790002023801208,
+              "selected_spans": 1
+            },
+            "model": null,
+            "query_sha256": "5d9792a53dea962a3ea0321c0b07398022bae74244ea08fb3b08d02706da3973",
+            "results": [
+              {
+                "canonical_id": "20c5b60aacae6d51c451daf67d91184d431c0d41c7c3a94ce5e5820511594929",
+                "components": {
+                  "lexical": 0.5,
+                  "reranker": null,
+                  "semantic": null,
+                  "structural": 1.0
+                },
+                "confidence": 0.6,
+                "method": "deterministic_lexical_structural",
+                "provenance": {
+                  "authority": "derived_auxiliary",
+                  "generation": "SFAST001:91004a72f8b0e6833a8323c906d53a541cfe0cef572a6f204d89b037b560e116",
+                  "model_sha256": null,
+                  "preprocessing_hash": null,
+                  "source_sha256": "80de39650ac739a78fd50af52b06050f9b175748946b4e89a48579ec33bd9efb"
+                },
+                "reason": "INFERENCE_BACKEND_UNAVAILABLE",
+                "schema": "simplicio.fast.semantic-score/v1",
+                "score": 0.6
+              }
+            ],
+            "schema": "simplicio.fast.semantic-ranking-receipt/v1",
+            "selected": [
+              {
+                "canonical_id": "20c5b60aacae6d51c451daf67d91184d431c0d41c7c3a94ce5e5820511594929",
+                "components": {
+                  "lexical": 0.5,
+                  "reranker": null,
+                  "semantic": null,
+                  "structural": 1.0
+                },
+                "confidence": 0.6,
+                "method": "deterministic_lexical_structural",
+                "provenance": {
+                  "authority": "derived_auxiliary",
+                  "generation": "SFAST001:91004a72f8b0e6833a8323c906d53a541cfe0cef572a6f204d89b037b560e116",
+                  "model_sha256": null,
+                  "preprocessing_hash": null,
+                  "source_sha256": "80de39650ac739a78fd50af52b06050f9b175748946b4e89a48579ec33bd9efb"
+                },
+                "reason": "INFERENCE_BACKEND_UNAVAILABLE",
+                "schema": "simplicio.fast.semantic-score/v1",
+                "score": 0.6
+              }
+            ],
+            "usage": {
+              "candidate_count": 1,
+              "request_bytes": 73,
+              "selected_count": 1,
+              "selected_tokens": 9
+            }
+          },
+          "selection_mode": "semantic",
+          "source_tokens": 8,
+          "spans": 1,
+          "terms": [
+            "review",
+            "greeting"
+          ],
+          "tokenizer": {
+            "id": "estimated:word-split-v1",
+            "mode": "estimated",
+            "reason": "tokenizer_unconfigured"
+          },
+          "tokens": 8,
+          "total_tokens": 9,
+          "wrapper_tokens": 1
+        },
+        "context_request": {
+          "budgets": {
+            "max_candidates": 64,
+            "max_context_tokens": 8000,
+            "max_request_bytes": 32000,
+            "max_selected": 8,
+            "max_selected_tokens": 7999,
+            "max_source_bytes": 32000
+          },
+          "generation": "SFAST001:91004a72f8b0e6833a8323c906d53a541cfe0cef572a6f204d89b037b560e116",
+          "languages": [
+            "python"
+          ],
+          "requested_relations": [
+            "calls",
+            "imports",
+            "references",
+            "tests"
+          ],
+          "schema": "simplicio.fast.context-request/v2",
+          "structural_anchors": [
+            {
+              "file": "greetings.py",
+              "handle": "20c5b60aacae6d51c451daf67d91184d431c0d41c7c3a94ce5e5820511594929",
+              "kind": "function",
+              "line": 1
+            }
+          ],
+          "task_sha256": "5d9792a53dea962a3ea0321c0b07398022bae74244ea08fb3b08d02706da3973",
+          "tokenizer_id": "estimated:word-split-v1"
+        },
+        "engine": {
+          "capabilities": [
+            "build",
+            "refresh",
+            "query",
+            "search",
+            "context",
+            "impact",
+            "understand",
+            "plan",
+            "apply",
+            "overlay",
+            "lease",
+            "doctor",
+            "receipts"
+          ],
+          "conformance_digest": null,
+          "executable": null,
+          "manifest": {
+            "capabilities": [
+              "build",
+              "refresh",
+              "query",
+              "search",
+              "context",
+              "impact",
+              "understand",
+              "plan",
+              "apply",
+              "overlay",
+              "lease",
+              "doctor",
+              "receipts"
+            ],
+            "engine": "python",
+            "fallback": true,
+            "formats": [
+              "SFAST001/v1",
+              "SFAST001/v2"
+            ],
+            "limits": {
+              "max_files": 1000000,
+              "max_relations": 10000000,
+              "max_snapshot_bytes": 536870912,
+              "max_symbols": 5000000
+            },
+            "minimum_python": "3.11",
+            "reference": true,
+            "schema": "simplicio.fast.engine-manifest/v1",
+            "source_languages": [
+              "python"
+            ],
+            "status": "available",
+            "version": "2.0.20"
+          },
+          "reason": "explicitly_selected",
+          "requested": "python",
+          "requested_engine": "python",
+          "schema": "simplicio.fast.engine-selection/v1",
+          "selected": "python",
+          "selected_engine": "python",
+          "timings": {
+            "probe_ms": null
+          },
+          "version": "2.0.20"
+        },
+        "engine_version": "2.0.20",
+        "mapper": {
+          "generation": null,
+          "handle": null,
+          "mode": "bootstrap",
+          "producer": "simplicio-fast-python-bootstrap",
+          "schema": "simplicio.mapper-context/v1",
+          "selected_handles": {},
+          "traceability": "bootstrap"
+        },
+        "overlay_generation": null,
+        "ownership": {
+          "full_effect_authority": "local-guard",
+          "mutation_applied": false,
+          "source_writer": "simplicio-dev-cli"
+        },
+        "profile": "Loop standalone",
+        "reason_codes": [
+          "prepared_context_only"
+        ],
+        "receipt_digest": "e722d82eb6dfbd2fdcc5fac67e239c2baa698e4553ae0d9a036857e9a2959a56",
+        "repository": "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f",
+        "schema": "simplicio.fast.delivery-engine/v1",
+        "source_commit": null,
+        "source_commit_reason": "not_a_git_checkout",
+        "status": "ready",
+        "task": {
+          "sha256": "5d9792a53dea962a3ea0321c0b07398022bae74244ea08fb3b08d02706da3973",
+          "text": "review greeting"
+        },
+        "timings": {
+          "prepare_wall_ms": 83.1594
+        }
+      },
+      "reason_code": null,
+      "returncode": 0,
+      "schema": "simplicio.fast.delivery-engine/v1",
+      "status": "pass",
+      "stderr": "",
+      "wall_ms": 320.4285
+    },
+    {
+      "command": [
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\simplicio-fast.EXE",
+        "--fast-engine",
+        "python",
+        "refresh",
+        ".",
+        "--output",
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f\\project.sfast"
+      ],
+      "engine": "python",
+      "payload": {
+        "metrics": {
+          "changed_paths": [
+            "greetings.py"
+          ],
+          "cpu_ms": 31.25,
+          "files": 1,
+          "format_version": 2,
+          "generation": "0c88ef12a6c2271ef5ac1b2c0943b71026aece85c74722330e612c3a14d1c0f0",
+          "metadata_reused_files": 0,
+          "parsed_files": 1,
+          "parsed_paths": [
+            "greetings.py"
+          ],
+          "phase_timings_ms": {
+            "discovery": 0.158,
+            "parsing": 1.754,
+            "previous_snapshot_load": 0.58,
+            "publication": 17.752,
+            "unchanged_validation": 0.967
+          },
+          "reason_codes": [
+            "source_changed"
+          ],
+          "relations": 8,
+          "reused_files": 0,
+          "reused_paths": [],
+          "snapshot_bytes": 2254,
+          "symbols": 2,
+          "wall_ms": 42.165499995462596
+        },
+        "schema": "simplicio.fast.build/v1",
+        "snapshot": "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f\\project.sfast",
+        "version": "2.0.20"
+      },
+      "reason_code": null,
+      "returncode": 0,
+      "schema": "simplicio.fast.build/v1",
+      "status": "pass",
+      "stderr": "",
+      "wall_ms": 269.084
+    },
+    {
+      "command": [
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\Scripts\\simplicio-fast.EXE",
+        "--fast-engine",
+        "off",
+        "query",
+        "farewell",
+        "--snapshot",
+        "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-fast-python-smoke-65y3ez0f\\project.sfast"
+      ],
+      "engine": "off",
+      "payload": {
+        "matches": [
+          {
+            "base_generation": null,
+            "end_line": 5,
+            "file": "greetings.py",
+            "kind": "function",
+            "line": 4,
+            "name": "farewell",
+            "overlay_generation": null,
+            "qualified_name": "farewell",
+            "signature": "name: str",
+            "symbol_id": "748ed3be24ac68671777572547cbbb6a22e6834295a72c80a24af2879953ff02"
+          }
+        ],
+        "schema": "simplicio.fast.query/v1",
+        "snapshot_version": 2
+      },
+      "reason_code": null,
+      "returncode": 0,
+      "schema": "simplicio.fast.query/v1",
+      "status": "pass",
+      "stderr": "",
+      "wall_ms": 217.4318
+    }
+  ]
+}

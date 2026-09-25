@@ -1,0 +1,52 @@
+{
+  "binary_sha256": "3d811759271acd17f3f2297ba054be04deab940b39624ed01f5f77a7325be43b",
+  "bytes": 2579,
+  "changeset_id": "b1b8e00c5c281c86d961f7d9d16cdea409ab474076f41861758fe74348ebcebc",
+  "fixture": {
+    "schema": "simplicio.fast.binary-changeset/v1",
+    "repository": "portable/repo",
+    "base_generation": "base-generation",
+    "overlay_generation": "overlay-generation",
+    "attempt": "portable-attempt",
+    "worktree_id": "portable-worktree",
+    "lease_id": "portable-lease",
+    "fencing_token": "portable-fence",
+    "allowed_paths": [
+      "created.py",
+      "new.py",
+      "old.py",
+      "remove.py",
+      "source.py"
+    ],
+    "verification_commands": ["python -m compileall"],
+    "operations": [
+      {
+        "op": "create",
+        "path": "created.py",
+        "content_b64": "Y3JlYXRlZAo=",
+        "after_sha256": "59134a4054b27a3fc30e1ac81d9b9168dc0561f65982151324a021fe8ce88d06"
+      },
+      {
+        "op": "replace-range",
+        "path": "source.py",
+        "before_sha256": "c3f9c8c283a2b1f2f1896f27a01cbe3cddc0c9d93f752e4639035a0f5b36f6e8",
+        "after_sha256": "710605b946281e2b995d6e4f6bb9d88b9f72ba5139593bf5867eef5984deb5a1",
+        "content_b64": "Y2hhbmdlZAo=",
+        "encoding": "utf-8",
+        "line_map": {"start_line": 2, "end_line": 2}
+      },
+      {
+        "op": "rename",
+        "path": "old.py",
+        "dest": "new.py",
+        "before_sha256": "01d09d19c2139a46aebfb577780d123d7396e97201bc7ead210a2ebff8239dee",
+        "after_sha256": "01d09d19c2139a46aebfb577780d123d7396e97201bc7ead210a2ebff8239dee"
+      },
+      {
+        "op": "delete",
+        "path": "remove.py",
+        "before_sha256": "2308cd77689ace11b7c2f247cbb997ca394f469febe6385bc89ac717584ee0ad"
+      }
+    ]
+  }
+}

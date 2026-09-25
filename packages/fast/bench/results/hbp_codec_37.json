@@ -1,0 +1,11 @@
+{
+  "mean_ms": 2.6074421,
+  "measured": true,
+  "operations_per_repetition": 1000,
+  "p95_ms": 5.62587,
+  "provider_metrics": null,
+  "provider_metrics_reason": "deterministic codec benchmark; no LLM invoked",
+  "raw_ms": [2.229004, 2.219329, 2.034434, 3.111016, 4.184652, 2.093703, 2.023518, 5.62587, 1.250038, 1.302857],
+  "repetitions": 10,
+  "schema": "simplicio.fast-benchmark/v1"
+}

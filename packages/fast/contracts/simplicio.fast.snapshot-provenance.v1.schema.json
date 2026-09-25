@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simplicio.dev/contracts/simplicio.fast.snapshot-provenance/v1",
+  "title": "Simplicio Fast canonical Mapper snapshot provenance",
+  "type": "object",
+  "required": [
+    "schema",
+    "mode",
+    "authority",
+    "mapper_schema",
+    "mapper_version",
+    "repository_id",
+    "mapper_generation",
+    "artifact_digest",
+    "fast_format_version",
+    "capability_coverage"
+  ],
+  "properties": {
+    "schema": {"const": "simplicio.fast.snapshot-provenance/v1"},
+    "mode": {"enum": ["integrated", "bootstrap"]},
+    "authority": {"type": "string", "minLength": 1},
+    "mapper_schema": {"type": ["string", "null"]},
+    "mapper_version": {"type": ["string", "null"]},
+    "repository_id": {"type": "string", "minLength": 1},
+    "mapper_generation": {"type": ["string", "null"]},
+    "artifact_digest": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fast_format_version": {"type": "integer", "const": 2},
+    "capability_coverage": {"type": "object", "minProperties": 1}
+  },
+  "additionalProperties": true
+}

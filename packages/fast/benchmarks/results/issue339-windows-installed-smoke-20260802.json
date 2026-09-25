@@ -1,0 +1,21 @@
+{
+  "schema": "simplicio.fast.projection-installed-smoke/v1",
+  "status": "pass",
+  "package": "simplicio-fast",
+  "version": "2.0.20",
+  "wheel": {
+    "filename": "simplicio_fast-2.0.20-py3-none-any.whl",
+    "sha256": "69f53e990ed7b638b1b2d115f1205442a0b52d7f1ec3e4e1c8158833e71d7bf7"
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5",
+    "dependencies": "none"
+  },
+  "checks": {
+    "installed_import": true,
+    "code_projection_envelope": true,
+    "projection_store_save_load": true,
+    "repository_scope_validation": true
+  }
+}

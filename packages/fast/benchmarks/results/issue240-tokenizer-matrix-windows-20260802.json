@@ -1,0 +1,130 @@
+{
+  "environment": {
+    "billing_telemetry": "not_observed",
+    "exact_provider_count": 3,
+    "platform": "Windows-11-10.0.26100-SP0",
+    "provider_count": 3,
+    "python": "3.14.5"
+  },
+  "providers": [
+    {
+      "provider": "tiktoken:cl100k_base",
+      "reason_code": null,
+      "status": "exact",
+      "tasks": [
+        {
+          "name": "create-user-validation",
+          "repetitions": 30,
+          "text_sha256": "57f8ba02bec0ae1cb376c86a7724c2f1caed916df09ffec22b8915ff238cb0a8",
+          "tokens": 9,
+          "wall_ms_median": 0.005199981387704611,
+          "wall_ms_p95": 0.007199996616691351
+        },
+        {
+          "name": "auth-regression",
+          "repetitions": 30,
+          "text_sha256": "373dfcb0d5e5849a460f77c64a71457d0c28d375f51ef58798c34939fb9d542b",
+          "tokens": 9,
+          "wall_ms_median": 0.005100038833916187,
+          "wall_ms_p95": 0.005399982910603285
+        },
+        {
+          "name": "cache-invalidation",
+          "repetitions": 30,
+          "text_sha256": "94c3c3af1fe8363b285360b0060ce9b56af0cc878a3d892a8dc397f73a68655f",
+          "tokens": 10,
+          "wall_ms_median": 0.005499983672052622,
+          "wall_ms_p95": 0.005799985956400633
+        },
+        {
+          "name": "delivery-budget",
+          "repetitions": 30,
+          "text_sha256": "a1a258111b6e92137e1222f6e03dd575d9ad84bdd220b989d191e6b7b731dcb3",
+          "tokens": 9,
+          "wall_ms_median": 0.005099980626255274,
+          "wall_ms_p95": 0.005299982149153948
+        }
+      ]
+    },
+    {
+      "provider": "tiktoken:o200k_base",
+      "reason_code": null,
+      "status": "exact",
+      "tasks": [
+        {
+          "name": "create-user-validation",
+          "repetitions": 30,
+          "text_sha256": "57f8ba02bec0ae1cb376c86a7724c2f1caed916df09ffec22b8915ff238cb0a8",
+          "tokens": 8,
+          "wall_ms_median": 0.002700020559132099,
+          "wall_ms_p95": 0.003300025127828121
+        },
+        {
+          "name": "auth-regression",
+          "repetitions": 30,
+          "text_sha256": "373dfcb0d5e5849a460f77c64a71457d0c28d375f51ef58798c34939fb9d542b",
+          "tokens": 8,
+          "wall_ms_median": 0.002400018274784088,
+          "wall_ms_p95": 0.0024999608285725117
+        },
+        {
+          "name": "cache-invalidation",
+          "repetitions": 30,
+          "text_sha256": "94c3c3af1fe8363b285360b0060ce9b56af0cc878a3d892a8dc397f73a68655f",
+          "tokens": 9,
+          "wall_ms_median": 0.0028999638743698597,
+          "wall_ms_p95": 0.0033999676816165447
+        },
+        {
+          "name": "delivery-budget",
+          "repetitions": 30,
+          "text_sha256": "a1a258111b6e92137e1222f6e03dd575d9ad84bdd220b989d191e6b7b731dcb3",
+          "tokens": 9,
+          "wall_ms_median": 0.002600019797682762,
+          "wall_ms_p95": 0.0027999631129205227
+        }
+      ]
+    },
+    {
+      "provider": "tiktoken:model:gpt-4o",
+      "reason_code": null,
+      "status": "exact",
+      "tasks": [
+        {
+          "name": "create-user-validation",
+          "repetitions": 30,
+          "text_sha256": "57f8ba02bec0ae1cb376c86a7724c2f1caed916df09ffec22b8915ff238cb0a8",
+          "tokens": 8,
+          "wall_ms_median": 0.002300017513334751,
+          "wall_ms_p95": 0.002700020559132099
+        },
+        {
+          "name": "auth-regression",
+          "repetitions": 30,
+          "text_sha256": "373dfcb0d5e5849a460f77c64a71457d0c28d375f51ef58798c34939fb9d542b",
+          "tokens": 8,
+          "wall_ms_median": 0.002349988790228963,
+          "wall_ms_p95": 0.0024999608285725117
+        },
+        {
+          "name": "cache-invalidation",
+          "repetitions": 30,
+          "text_sha256": "94c3c3af1fe8363b285360b0060ce9b56af0cc878a3d892a8dc397f73a68655f",
+          "tokens": 9,
+          "wall_ms_median": 0.002800021320581436,
+          "wall_ms_p95": 0.003100023604929447
+        },
+        {
+          "name": "delivery-budget",
+          "repetitions": 30,
+          "text_sha256": "a1a258111b6e92137e1222f6e03dd575d9ad84bdd220b989d191e6b7b731dcb3",
+          "tokens": 9,
+          "wall_ms_median": 0.002500019036233425,
+          "wall_ms_p95": 0.0026999623514711857
+        }
+      ]
+    }
+  ],
+  "schema": "simplicio.fast.tokenizer-matrix/v1",
+  "status": "pass"
+}

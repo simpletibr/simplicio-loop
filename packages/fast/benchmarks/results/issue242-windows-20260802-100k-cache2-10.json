@@ -1,0 +1,822 @@
+{
+  "categories": {
+    "cold": {
+      "raw": [
+        {
+          "cpu_ms": 2875.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 167413,
+          "parity": true,
+          "parsed_bytes": 3702036,
+          "parsed_files": 317,
+          "reused_bytes": 0,
+          "reused_files": 0,
+          "rss_kib": 416328,
+          "wall_ms": 3156.2881999998353
+        },
+        {
+          "cpu_ms": 3000.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 156998,
+          "parity": true,
+          "parsed_bytes": 3702036,
+          "parsed_files": 317,
+          "reused_bytes": 0,
+          "reused_files": 0,
+          "rss_kib": 416328,
+          "wall_ms": 3359.893099986948
+        },
+        {
+          "cpu_ms": 3250.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 153557,
+          "parity": true,
+          "parsed_bytes": 3702036,
+          "parsed_files": 317,
+          "reused_bytes": 0,
+          "reused_files": 0,
+          "rss_kib": 416444,
+          "wall_ms": 3474.4986000005156
+        },
+        {
+          "cpu_ms": 2937.5,
+          "mapped_bytes": 34799045,
+          "page_faults": 146564,
+          "parity": true,
+          "parsed_bytes": 3702036,
+          "parsed_files": 317,
+          "reused_bytes": 0,
+          "reused_files": 0,
+          "rss_kib": 417168,
+          "wall_ms": 3897.5242999731563
+        },
+        {
+          "cpu_ms": 3093.75,
+          "mapped_bytes": 34799045,
+          "page_faults": 147003,
+          "parity": true,
+          "parsed_bytes": 3702036,
+          "parsed_files": 317,
+          "reused_bytes": 0,
+          "reused_files": 0,
+          "rss_kib": 417276,
+          "wall_ms": 6779.9757000175305
+        },
+        {
+          "cpu_ms": 3109.375,
+          "mapped_bytes": 34799045,
+          "page_faults": 148700,
+          "parity": true,
+          "parsed_bytes": 3702036,
+          "parsed_files": 317,
+          "reused_bytes": 0,
+          "reused_files": 0,
+          "rss_kib": 417276,
+          "wall_ms": 3775.005599949509
+        },
+        {
+          "cpu_ms": 2937.5,
+          "mapped_bytes": 34799045,
+          "page_faults": 148542,
+          "parity": true,
+          "parsed_bytes": 3702036,
+          "parsed_files": 317,
+          "reused_bytes": 0,
+          "reused_files": 0,
+          "rss_kib": 417276,
+          "wall_ms": 3268.197199970018
+        },
+        {
+          "cpu_ms": 3625.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 147100,
+          "parity": true,
+          "parsed_bytes": 3702036,
+          "parsed_files": 317,
+          "reused_bytes": 0,
+          "reused_files": 0,
+          "rss_kib": 417276,
+          "wall_ms": 4150.678800011519
+        },
+        {
+          "cpu_ms": 3093.75,
+          "mapped_bytes": 34799045,
+          "page_faults": 146067,
+          "parity": true,
+          "parsed_bytes": 3702036,
+          "parsed_files": 317,
+          "reused_bytes": 0,
+          "reused_files": 0,
+          "rss_kib": 417276,
+          "wall_ms": 3753.917600028217
+        },
+        {
+          "cpu_ms": 3234.375,
+          "mapped_bytes": 34799045,
+          "page_faults": 148659,
+          "parity": true,
+          "parsed_bytes": 3702036,
+          "parsed_files": 317,
+          "reused_bytes": 0,
+          "reused_files": 0,
+          "rss_kib": 417276,
+          "wall_ms": 3655.50669998629
+        }
+      ],
+      "summary": {
+        "cpu_ms_median": 3093.75,
+        "cpu_ms_p95": 3456.2499999999995,
+        "cpu_ms_p99": 3591.25,
+        "mapped_bytes_median": 34799045.0,
+        "page_faults_median": 148600.5,
+        "parity": true,
+        "parsed_bytes_median": 3702036.0,
+        "parsed_files_median": 317.0,
+        "repetitions": 10,
+        "reused_bytes_median": 0.0,
+        "reused_files_median": 0.0,
+        "rss_kib_median": 417276.0,
+        "stage_coverage_min": null,
+        "wall_ms_median": 3704.7121500072535,
+        "wall_ms_p95": 5596.792095014823,
+        "wall_ms_p99": 6543.3389790169895
+      }
+    },
+    "one_file": {
+      "raw": [
+        {
+          "background_parity": true,
+          "background_parity_reason": "audited_revision",
+          "cpu_ms": 984.375,
+          "mapped_bytes": 34799045,
+          "page_faults": 116327,
+          "parity": true,
+          "parsed_bytes": 30,
+          "parsed_files": 1,
+          "reused_bytes": 3690880,
+          "reused_files": 316,
+          "rss_kib": 418760,
+          "stage_coverage": 1.0,
+          "stage_timings_ms": {
+            "base_validation_and_open": 32.986,
+            "compose_and_validate": 1080.314,
+            "delta_load_or_create": 20.836,
+            "orchestration_and_receipt_residual": 0.282,
+            "source_verification_and_parity": 1036.681
+          },
+          "wall_ms": 2171.0992000298575
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 468.75,
+          "mapped_bytes": 34799045,
+          "page_faults": 47774,
+          "parity": true,
+          "parsed_bytes": 30,
+          "parsed_files": 1,
+          "reused_bytes": 3690880,
+          "reused_files": 316,
+          "rss_kib": 418760,
+          "stage_coverage": 1.0,
+          "stage_timings_ms": {
+            "base_validation_and_open": 5.856,
+            "compose_and_validate": 876.604,
+            "delta_load_or_create": 54.016,
+            "orchestration_and_receipt_residual": 0.299,
+            "source_verification_and_parity": 1.928
+          },
+          "wall_ms": 938.7026999611408
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 500.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 50326,
+          "parity": true,
+          "parsed_bytes": 30,
+          "parsed_files": 1,
+          "reused_bytes": 3690880,
+          "reused_files": 316,
+          "rss_kib": 418760,
+          "stage_coverage": 1.0,
+          "stage_timings_ms": {
+            "base_validation_and_open": 12.898,
+            "compose_and_validate": 770.185,
+            "delta_load_or_create": 57.44,
+            "orchestration_and_receipt_residual": 0.35,
+            "source_verification_and_parity": 8.165
+          },
+          "wall_ms": 849.0383999887854
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 546.875,
+          "mapped_bytes": 34799045,
+          "page_faults": 49486,
+          "parity": true,
+          "parsed_bytes": 30,
+          "parsed_files": 1,
+          "reused_bytes": 3690880,
+          "reused_files": 316,
+          "rss_kib": 418760,
+          "stage_coverage": 0.999999,
+          "stage_timings_ms": {
+            "base_validation_and_open": 2.515,
+            "compose_and_validate": 748.74,
+            "delta_load_or_create": 33.836,
+            "orchestration_and_receipt_residual": 0.971,
+            "source_verification_and_parity": 2.186
+          },
+          "wall_ms": 788.2484000292607
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 453.125,
+          "mapped_bytes": 34799045,
+          "page_faults": 48613,
+          "parity": true,
+          "parsed_bytes": 30,
+          "parsed_files": 1,
+          "reused_bytes": 3690880,
+          "reused_files": 316,
+          "rss_kib": 418760,
+          "stage_coverage": 1.0,
+          "stage_timings_ms": {
+            "base_validation_and_open": 3.623,
+            "compose_and_validate": 641.522,
+            "delta_load_or_create": 68.626,
+            "orchestration_and_receipt_residual": 0.418,
+            "source_verification_and_parity": 10.25
+          },
+          "wall_ms": 724.4387999526225
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 453.125,
+          "mapped_bytes": 34799045,
+          "page_faults": 49683,
+          "parity": true,
+          "parsed_bytes": 30,
+          "parsed_files": 1,
+          "reused_bytes": 3690880,
+          "reused_files": 316,
+          "rss_kib": 418760,
+          "stage_coverage": 1.0,
+          "stage_timings_ms": {
+            "base_validation_and_open": 2.508,
+            "compose_and_validate": 666.182,
+            "delta_load_or_create": 49.922,
+            "orchestration_and_receipt_residual": 0.301,
+            "source_verification_and_parity": 0.751
+          },
+          "wall_ms": 719.6640999754891
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 468.75,
+          "mapped_bytes": 34799045,
+          "page_faults": 49839,
+          "parity": true,
+          "parsed_bytes": 30,
+          "parsed_files": 1,
+          "reused_bytes": 3690880,
+          "reused_files": 316,
+          "rss_kib": 418760,
+          "stage_coverage": 1.0,
+          "stage_timings_ms": {
+            "base_validation_and_open": 3.151,
+            "compose_and_validate": 504.265,
+            "delta_load_or_create": 18.093,
+            "orchestration_and_receipt_residual": 0.341,
+            "source_verification_and_parity": 1.274
+          },
+          "wall_ms": 527.1239000139758
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 390.625,
+          "mapped_bytes": 34799045,
+          "page_faults": 49712,
+          "parity": true,
+          "parsed_bytes": 30,
+          "parsed_files": 1,
+          "reused_bytes": 3690880,
+          "reused_files": 316,
+          "rss_kib": 418760,
+          "stage_coverage": 1.000001,
+          "stage_timings_ms": {
+            "base_validation_and_open": 2.818,
+            "compose_and_validate": 449.829,
+            "delta_load_or_create": 20.705,
+            "orchestration_and_receipt_residual": 0.752,
+            "source_verification_and_parity": 0.725
+          },
+          "wall_ms": 474.82869995292276
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 437.5,
+          "mapped_bytes": 34799045,
+          "page_faults": 49698,
+          "parity": true,
+          "parsed_bytes": 30,
+          "parsed_files": 1,
+          "reused_bytes": 3690880,
+          "reused_files": 316,
+          "rss_kib": 418760,
+          "stage_coverage": 1.0,
+          "stage_timings_ms": {
+            "base_validation_and_open": 1.641,
+            "compose_and_validate": 465.583,
+            "delta_load_or_create": 31.642,
+            "orchestration_and_receipt_residual": 0.326,
+            "source_verification_and_parity": 0.927
+          },
+          "wall_ms": 500.11919997632504
+        },
+        {
+          "background_parity": true,
+          "background_parity_reason": "audited_revision",
+          "cpu_ms": 875.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 104563,
+          "parity": true,
+          "parsed_bytes": 31,
+          "parsed_files": 1,
+          "reused_bytes": 3690880,
+          "reused_files": 316,
+          "rss_kib": 418760,
+          "stage_coverage": 1.0,
+          "stage_timings_ms": {
+            "base_validation_and_open": 2.38,
+            "compose_and_validate": 442.021,
+            "delta_load_or_create": 13.924,
+            "orchestration_and_receipt_residual": 1.074,
+            "source_verification_and_parity": 480.548
+          },
+          "wall_ms": 939.9470000062138
+        }
+      ],
+      "summary": {
+        "cpu_ms_median": 468.75,
+        "cpu_ms_p95": 935.1562499999999,
+        "cpu_ms_p99": 974.53125,
+        "mapped_bytes_median": 34799045.0,
+        "page_faults_median": 49705.0,
+        "parity": true,
+        "parsed_bytes_median": 30.0,
+        "parsed_files_median": 1.0,
+        "repetitions": 10,
+        "reused_bytes_median": 3690880.0,
+        "reused_files_median": 316.0,
+        "rss_kib_median": 418760.0,
+        "stage_coverage_min": 0.999999,
+        "wall_ms_median": 756.3435999909416,
+        "wall_ms_p95": 1617.0807100192164,
+        "wall_ms_p99": 2060.2955020277295
+      }
+    },
+    "unchanged": {
+      "raw": [
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 46.875,
+          "mapped_bytes": 34799045,
+          "page_faults": 8531,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 418760,
+          "stage_coverage": 1.000002,
+          "stage_timings_ms": {
+            "base_validation_and_open": 38.67,
+            "compose_and_validate": 0.0,
+            "delta_load_or_create": 50.414,
+            "orchestration_and_receipt_residual": 2.658,
+            "source_verification_and_parity": 0.023
+          },
+          "wall_ms": 91.7648000176996
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 0.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 0,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 418760,
+          "stage_coverage": 1.000012,
+          "stage_timings_ms": {
+            "base_validation_and_open": 1.652,
+            "compose_and_validate": 0.0,
+            "delta_load_or_create": 31.049,
+            "orchestration_and_receipt_residual": 0.252,
+            "source_verification_and_parity": 0.013
+          },
+          "wall_ms": 32.96560002490878
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 0.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 0,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 418760,
+          "stage_coverage": 1.000006,
+          "stage_timings_ms": {
+            "base_validation_and_open": 1.546,
+            "compose_and_validate": 0.0,
+            "delta_load_or_create": 15.209,
+            "orchestration_and_receipt_residual": 0.257,
+            "source_verification_and_parity": 0.012
+          },
+          "wall_ms": 17.023899999912828
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 15.625,
+          "mapped_bytes": 34799045,
+          "page_faults": 0,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 418760,
+          "stage_coverage": 1.0,
+          "stage_timings_ms": {
+            "base_validation_and_open": 2.103,
+            "compose_and_validate": 0.0,
+            "delta_load_or_create": 18.029,
+            "orchestration_and_receipt_residual": 0.252,
+            "source_verification_and_parity": 0.012
+          },
+          "wall_ms": 20.39600000716746
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 0.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 1,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 418760,
+          "stage_coverage": 1.0,
+          "stage_timings_ms": {
+            "base_validation_and_open": 2.742,
+            "compose_and_validate": 0.0,
+            "delta_load_or_create": 42.73,
+            "orchestration_and_receipt_residual": 0.206,
+            "source_verification_and_parity": 0.008
+          },
+          "wall_ms": 45.685999968554825
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 0.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 0,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 418760,
+          "stage_coverage": 0.999988,
+          "stage_timings_ms": {
+            "base_validation_and_open": 6.963,
+            "compose_and_validate": 0.0,
+            "delta_load_or_create": 34.152,
+            "orchestration_and_receipt_residual": 0.184,
+            "source_verification_and_parity": 0.008
+          },
+          "wall_ms": 41.30749998148531
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 0.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 0,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 418760,
+          "stage_coverage": 0.999995,
+          "stage_timings_ms": {
+            "base_validation_and_open": 1.631,
+            "compose_and_validate": 0.0,
+            "delta_load_or_create": 18.091,
+            "orchestration_and_receipt_residual": 0.182,
+            "source_verification_and_parity": 0.008
+          },
+          "wall_ms": 19.912100047804415
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 0.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 8,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 418760,
+          "stage_coverage": 1.000005,
+          "stage_timings_ms": {
+            "base_validation_and_open": 1.659,
+            "compose_and_validate": 0.0,
+            "delta_load_or_create": 39.903,
+            "orchestration_and_receipt_residual": 0.339,
+            "source_verification_and_parity": 0.009
+          },
+          "wall_ms": 41.90980002749711
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 0.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 0,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 418760,
+          "stage_coverage": 0.999977,
+          "stage_timings_ms": {
+            "base_validation_and_open": 2.119,
+            "compose_and_validate": 0.0,
+            "delta_load_or_create": 15.218,
+            "orchestration_and_receipt_residual": 0.205,
+            "source_verification_and_parity": 0.007
+          },
+          "wall_ms": 17.549400043208152
+        },
+        {
+          "background_parity": null,
+          "background_parity_reason": "hot_path_not_materialized",
+          "cpu_ms": 0.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 0,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 418760,
+          "stage_coverage": 0.999995,
+          "stage_timings_ms": {
+            "base_validation_and_open": 2.023,
+            "compose_and_validate": 0.0,
+            "delta_load_or_create": 74.834,
+            "orchestration_and_receipt_residual": 0.261,
+            "source_verification_and_parity": 0.009
+          },
+          "wall_ms": 77.12739997077733
+        }
+      ],
+      "summary": {
+        "cpu_ms_median": 0.0,
+        "cpu_ms_p95": 32.81249999999997,
+        "cpu_ms_p99": 44.0625,
+        "mapped_bytes_median": 34799045.0,
+        "page_faults_median": 0.0,
+        "parity": true,
+        "parsed_bytes_median": 0.0,
+        "parsed_files_median": 0.0,
+        "repetitions": 10,
+        "reused_bytes_median": 3702036.0,
+        "reused_files_median": 317.0,
+        "rss_kib_median": 418760.0,
+        "stage_coverage_min": 0.999977,
+        "wall_ms_median": 37.136550003197044,
+        "wall_ms_p95": 85.17796999658457,
+        "wall_ms_p99": 90.4474340134766
+      }
+    },
+    "warm": {
+      "raw": [
+        {
+          "cpu_ms": 484.375,
+          "mapped_bytes": 34799045,
+          "page_faults": 53259,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 417276,
+          "stage_timings_ms": null,
+          "wall_ms": 549.5319999754429
+        },
+        {
+          "cpu_ms": 453.125,
+          "mapped_bytes": 34799045,
+          "page_faults": 53696,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 417276,
+          "stage_timings_ms": null,
+          "wall_ms": 463.65690004313365
+        },
+        {
+          "cpu_ms": 390.625,
+          "mapped_bytes": 34799045,
+          "page_faults": 53282,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 417276,
+          "stage_timings_ms": null,
+          "wall_ms": 449.4012999930419
+        },
+        {
+          "cpu_ms": 437.5,
+          "mapped_bytes": 34799045,
+          "page_faults": 53149,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 417276,
+          "stage_timings_ms": null,
+          "wall_ms": 440.6988999689929
+        },
+        {
+          "cpu_ms": 437.5,
+          "mapped_bytes": 34799045,
+          "page_faults": 52798,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 417276,
+          "stage_timings_ms": null,
+          "wall_ms": 468.3989000041038
+        },
+        {
+          "cpu_ms": 421.875,
+          "mapped_bytes": 34799045,
+          "page_faults": 52397,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 417276,
+          "stage_timings_ms": null,
+          "wall_ms": 468.8744000159204
+        },
+        {
+          "cpu_ms": 421.875,
+          "mapped_bytes": 34799045,
+          "page_faults": 52155,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 417276,
+          "stage_timings_ms": null,
+          "wall_ms": 449.0997999673709
+        },
+        {
+          "cpu_ms": 328.125,
+          "mapped_bytes": 34799045,
+          "page_faults": 52268,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 417276,
+          "stage_timings_ms": null,
+          "wall_ms": 324.46850003907457
+        },
+        {
+          "cpu_ms": 375.0,
+          "mapped_bytes": 34799045,
+          "page_faults": 52355,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 417276,
+          "stage_timings_ms": null,
+          "wall_ms": 388.6565000284463
+        },
+        {
+          "cpu_ms": 406.25,
+          "mapped_bytes": 34799045,
+          "page_faults": 52362,
+          "parity": true,
+          "parsed_bytes": 0,
+          "parsed_files": 0,
+          "reused_bytes": 3702036,
+          "reused_files": 317,
+          "rss_kib": 417276,
+          "stage_timings_ms": null,
+          "wall_ms": 459.4898000359535
+        }
+      ],
+      "summary": {
+        "cpu_ms_median": 421.875,
+        "cpu_ms_p95": 470.31249999999994,
+        "cpu_ms_p99": 481.5625,
+        "mapped_bytes_median": 34799045.0,
+        "page_faults_median": 52597.5,
+        "parity": true,
+        "parsed_bytes_median": 0.0,
+        "parsed_files_median": 0.0,
+        "repetitions": 10,
+        "reused_bytes_median": 3702036.0,
+        "reused_files_median": 317.0,
+        "rss_kib_median": 417276.0,
+        "stage_coverage_min": null,
+        "wall_ms_median": 454.4455500144977,
+        "wall_ms_p95": 513.2360799936577,
+        "wall_ms_p99": 542.2728159790859
+      }
+    }
+  },
+  "environment": {
+    "metric_reasons": {
+      "page_faults": "available",
+      "rss_kib": "available"
+    },
+    "metrics_status": "complete",
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5"
+  },
+  "performance_gates": {
+    "checks": {
+      "one_file_faster_than_cold": true,
+      "unchanged_within_two_times_warm": true
+    },
+    "medians_ms": {
+      "cold": 3704.7121500072535,
+      "one_file": 756.3435999909416,
+      "unchanged": 37.136550003197044,
+      "warm": 454.4455500144977
+    },
+    "schema": "simplicio.fast.changed-path-performance-gates/v1",
+    "status": "pass",
+    "unavailable_reason": null
+  },
+  "schema": "simplicio.fast.changed-path-delta-benchmark/v2",
+  "status": "pass",
+  "workload": {
+    "categories": [
+      "cold",
+      "warm",
+      "unchanged",
+      "one_file"
+    ],
+    "changed_files": 1,
+    "files": 317,
+    "functions_per_file": 316,
+    "minimum_repetitions": 10,
+    "repetitions": 10,
+    "symbols": 100172
+  }
+}

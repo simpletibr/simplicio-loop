@@ -1,0 +1,51 @@
+{
+  "fallback_selection": {
+    "median_us": 2.053,
+    "p95_us": 4.767,
+    "raw_us": [
+      9.213,
+      4.767,
+      3.044,
+      2.123,
+      2.174,
+      1.983,
+      1.813,
+      1.823,
+      1.843,
+      1.783
+    ],
+    "repetitions": 10
+  },
+  "issue": 215,
+  "runtime_admission": {
+    "artifact_verification": {
+      "artifact_abi": "simplicio.runtime.fast/v1",
+      "artifact_platform": "linux-x86_64",
+      "artifact_sha256": "912576a62afa24acb7d43189d7bc568ed29c6a25ca5bc5de6df3a7b6a724c0db",
+      "artifact_version": "3.5.5",
+      "signature_verified": false,
+      "source_commit": null
+    },
+    "measured": true,
+    "median_us": 103574.144,
+    "p95_us": 107169.064,
+    "raw_us": [
+      110250.907,
+      107169.064,
+      102561.914,
+      103525.117,
+      102895.049,
+      103328.244,
+      106013.517,
+      105528.265,
+      103591.435,
+      103556.853
+    ],
+    "reason_code": "PROTOCOL_ERROR",
+    "repetitions": 10,
+    "selected": "python"
+  },
+  "schema": "simplicio.fast.runtime-backend-benchmark/v1",
+  "tokens": null,
+  "tokens_null_reason": "NO_LLM_USED"
+}

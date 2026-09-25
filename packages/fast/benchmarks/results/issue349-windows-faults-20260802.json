@@ -1,0 +1,78 @@
+{
+  "cases": [
+    {
+      "case": "baseline_packet",
+      "expected": "accepted",
+      "observed": "accepted",
+      "passed": true,
+      "value_present": true
+    },
+    {
+      "case": "forged_authority",
+      "expected": "context_authority_invalid",
+      "observed": "context_authority_invalid",
+      "passed": true,
+      "value_present": false
+    },
+    {
+      "case": "instruction_boundary",
+      "expected": "context_instruction_boundary_invalid",
+      "observed": "context_instruction_boundary_invalid",
+      "passed": true,
+      "value_present": false
+    },
+    {
+      "case": "private_layout_field",
+      "expected": "context_private_layout_field",
+      "observed": "context_private_layout_field",
+      "passed": true,
+      "value_present": false
+    },
+    {
+      "case": "cross_scope",
+      "expected": "context_scope_mismatch",
+      "observed": "context_scope_mismatch",
+      "passed": true,
+      "value_present": false
+    },
+    {
+      "case": "digest_tamper",
+      "expected": "payload_digest_mismatch",
+      "observed": "payload_digest_mismatch",
+      "passed": true,
+      "value_present": false
+    },
+    {
+      "case": "revoked_fact",
+      "expected": "empty_result",
+      "observed": "empty_result",
+      "passed": true,
+      "value_present": true
+    },
+    {
+      "case": "corrupt_rollout_state",
+      "expected": "rollout_state_invalid",
+      "observed": "rollout_state_invalid",
+      "passed": true,
+      "value_present": false
+    }
+  ],
+  "residuals": [
+    "installed_consumer_e2e",
+    "rust_parity",
+    "resource_benchmark",
+    "rollout_receipt"
+  ],
+  "schema": "simplicio.fast.security-fault-receipt/v1",
+  "scope": {
+    "generation": "g1",
+    "repository": "repo-a",
+    "tenant": "tenant-a"
+  },
+  "status": "pass",
+  "summary": {
+    "failed": 0,
+    "passed": 8,
+    "total": 8
+  }
+}

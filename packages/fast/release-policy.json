@@ -1,0 +1,16 @@
+{
+  "consumer_toolchain": "precompiled-binary-only",
+  "default_branch": "master",
+  "dependency_source": "pyproject.toml",
+  "integration_extra": "integrated",
+  "native_compatibility_workflow": ".github/workflows/native-release.yml",
+  "native_execution_owner": "simplicio-runtime",
+  "schema": "simplicio.fast.release-policy/v1",
+  "supported_native_platforms": [
+    "linux-x86_64",
+    "linux-aarch64",
+    "macos-aarch64",
+    "windows-x86_64"
+  ],
+  "version_source": "pyproject.toml"
+}

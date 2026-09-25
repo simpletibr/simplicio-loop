@@ -1,0 +1,116 @@
+{
+  "aggregate": {
+    "authoritative_source": "mapper",
+    "excluded_inactive_or_conflicted_returned": [],
+    "ndcg": 1.0,
+    "precision": 1.0,
+    "recall": 1.0
+  },
+  "dataset_id": "knowledge-advisory-quality-v1",
+  "dataset_sha256": "a853643837201da6283bcb4612b03cc560901c6442bca71a897b145eb17344e7",
+  "delta": {
+    "changed_handles": [
+      "knowledge:conflict",
+      "knowledge:parser-contract",
+      "knowledge:parser-expired",
+      "knowledge:parser-python",
+      "knowledge:parser-revoked",
+      "knowledge:trust-provenance"
+    ],
+    "conflicts": [
+      "knowledge:conflict"
+    ],
+    "generation": "g-quality-1",
+    "schema": "simplicio.fast.knowledge-delta/v1",
+    "tombstones": []
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5"
+  },
+  "results": [
+    {
+      "expected_handles": [
+        "knowledge:parser-contract",
+        "knowledge:parser-python"
+      ],
+      "explain": [
+        {
+          "applicability": [
+            "python",
+            "parser"
+          ],
+          "freshness": "current",
+          "matched_terms": [
+            "parity",
+            "parser"
+          ],
+          "ranking": "lexical-fallback",
+          "relevance": 2,
+          "trust": "verified"
+        },
+        {
+          "applicability": [
+            "python"
+          ],
+          "freshness": "current",
+          "matched_terms": [
+            "parser"
+          ],
+          "ranking": "lexical-fallback",
+          "relevance": 1,
+          "trust": "verified"
+        }
+      ],
+      "handles": [
+        "knowledge:parser-contract",
+        "knowledge:parser-python"
+      ],
+      "id": "parser-parity",
+      "ndcg": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "text": "parser parity",
+      "truncated": false
+    },
+    {
+      "expected_handles": [
+        "knowledge:trust-provenance"
+      ],
+      "explain": [
+        {
+          "applicability": [
+            "knowledge"
+          ],
+          "freshness": "current",
+          "matched_terms": [
+            "knowledge",
+            "provenance",
+            "trust"
+          ],
+          "ranking": "lexical-fallback",
+          "relevance": 3,
+          "trust": "verified"
+        }
+      ],
+      "handles": [
+        "knowledge:trust-provenance"
+      ],
+      "id": "knowledge-trust",
+      "ndcg": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "text": "knowledge trust provenance",
+      "truncated": false
+    }
+  ],
+  "schema": "simplicio.fast.knowledge-quality-receipt/v1",
+  "scope": "frozen-knowledge-fixture",
+  "status": "partial",
+  "unverified": [
+    "real_corpus_quality",
+    "vector_ranking_quality",
+    "rust_parity",
+    "installed_consumer_e2e"
+  ]
+}

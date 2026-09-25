@@ -1,0 +1,74 @@
+{
+  "abi": {
+    "major": 1,
+    "minor": 0
+  },
+  "base_generation": "g1",
+  "budget": {
+    "fidelity": "exact",
+    "max_bytes": 4096,
+    "max_items": 8,
+    "max_span_bytes": 2048
+  },
+  "cache_status": "cold",
+  "completeness": "complete",
+  "encoded_bytes": 1694,
+  "fidelity": "exact",
+  "generation": "g1",
+  "generation_digest": "dade372099e3e173b759b426ad3b80bee998a33210ee9d005a67f26e95594dee",
+  "handle": {
+    "digest": "96aa2c714ba867130d0d195d3282897d274cce28f32e5e722a6f3ab0d22efb84",
+    "generation": "g1",
+    "handle": "plugin:src/app.py:UserService",
+    "overlay_id": null,
+    "schema": "simplicio.plugin.context-handle/v1",
+    "source_ref": "cccccccccccccccccccccccccccccccccccccccc"
+  },
+  "overlay_id": null,
+  "packet_hash": "5778015f1fae5f94f1e080385e2edc8b494a087dd0ae7baeafa44569a4d733d7",
+  "payload": {
+    "spans": [
+      {
+        "byte_length": 55,
+        "end_line": 3,
+        "handle": "plugin:src/app.py:UserService",
+        "kind": "symbol",
+        "overlay_id": null,
+        "path": "src/app.py",
+        "source_sha256": "51fb1592b962eb716210ce588873dc7ceef4894440ba8a25db38b917627ac762",
+        "start_line": 1,
+        "text": "class UserService:\n    def get(self):\n        return 1\n"
+      }
+    ]
+  },
+  "provenance": {
+    "authority": "derived_read_only",
+    "instructions": false,
+    "mapper_handle": "plugin:src/app.py:UserService",
+    "producer": "simplicio-fast",
+    "writes": false
+  },
+  "repo": "wesleysimplicio/simplicio-fast",
+  "schema": "simplicio.plugin.context-packet/v1",
+  "session_id": "session-1",
+  "source_hashes": {
+    "src/app.py": "51fb1592b962eb716210ce588873dc7ceef4894440ba8a25db38b917627ac762"
+  },
+  "source_ref": "cccccccccccccccccccccccccccccccccccccccc",
+  "spans": [
+    {
+      "byte_length": 55,
+      "end_line": 3,
+      "handle": "plugin:src/app.py:UserService",
+      "kind": "symbol",
+      "overlay_id": null,
+      "path": "src/app.py",
+      "source_sha256": "51fb1592b962eb716210ce588873dc7ceef4894440ba8a25db38b917627ac762",
+      "start_line": 1,
+      "text": "class UserService:\n    def get(self):\n        return 1\n"
+    }
+  ],
+  "task_id": "task-1",
+  "truncated": false,
+  "truncation_reasons": []
+}

@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simplicio.dev/schemas/fast/quant-benchmark-v1.schema.json",
+  "title": "Simplicio Fast quant benchmark receipt",
+  "type": "object",
+  "required": [
+    "schema",
+    "issue",
+    "status",
+    "classification",
+    "config_hash",
+    "generation",
+    "source_commit",
+    "source_tree",
+    "source_state",
+    "environment",
+    "corpora",
+    "measured",
+    "unavailable_sizes",
+    "simulated",
+    "parity",
+    "claims"
+  ],
+  "properties": {
+    "schema": {
+      "const": "simplicio.fast.quant-benchmark/v1"
+    },
+    "issue": {
+      "const": 198
+    },
+    "status": {
+      "const": "measured"
+    },
+    "classification": {
+      "const": "MEASURED"
+    },
+    "config_hash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "generation": {
+      "$ref": "#/$defs/sha256"
+    },
+    "source_commit": {
+      "$ref": "#/$defs/git-object"
+    },
+    "source_tree": {
+      "$ref": "#/$defs/git-object"
+    },
+    "source_state": {
+      "type": "object",
+      "required": [
+        "schema",
+        "commit",
+        "tree",
+        "dirty",
+        "reproducible",
+        "dirty_paths"
+      ],
+      "properties": {
+        "schema": {
+          "const": "simplicio.fast.benchmark-source-state/v1"
+        },
+        "commit": {
+          "$ref": "#/$defs/git-object"
+        },
+        "tree": {
+          "$ref": "#/$defs/git-object"
+        },
+        "dirty": {
+          "const": false
+        },
+        "reproducible": {
+          "const": true
+        },
+        "dirty_paths": {
+          "type": "array",
+          "maxItems": 0
+        }
+      }
+    },
+    "measured": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "classification",
+          "vectors",
+          "dataset",
+          "lanes",
+          "promotion_gate"
+        ],
+        "properties": {
+          "classification": {
+            "const": "MEASURED"
+          },
+          "vectors": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "lanes": {
+            "type": "object",
+            "required": [
+              "Q0",
+              "Q1",
+              "Q2a",
+              "Q2b"
+            ]
+          }
+        }
+      }
+    },
+    "unavailable_sizes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "classification",
+          "status",
+          "vectors",
+          "value",
+          "reason"
+        ],
+        "properties": {
+          "classification": {
+            "const": "BLOCKED"
+          },
+          "status": {
+            "const": "unavailable"
+          },
+          "value": {
+            "type": "null"
+          },
+          "reason": {
+            "const": "CAPACITY_LIMIT_CONFIGURED"
+          }
+        }
+      }
+    },
+    "simulated": {
+      "type": "object",
+      "required": [
+        "classification",
+        "values",
+        "reason"
+      ],
+      "properties": {
+        "classification": {
+          "const": "SIMULATED"
+        },
+        "values": {
+          "type": "null"
+        },
+        "reason": {
+          "const": "SIMULATION_NOT_RUN"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "git-object": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    }
+  },
+  "additionalProperties": true
+}

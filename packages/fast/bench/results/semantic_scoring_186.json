@@ -1,0 +1,2471 @@
+{
+  "corpus_sha256": "1ffe39483a7cb5efc0746125d7b286333a0986440b231c1f585028b40eb2c3ef",
+  "environment": {
+    "pid": 2,
+    "platform": "Linux-6.12.13-x86_64-with-glibc2.39",
+    "python": "3.12.13"
+  },
+  "issue": 186,
+  "limitations": [
+    "Inference uses a deterministic frozen InferenceBackend/v1 fixture, not a LiteRT device.",
+    "No on-device acceleration or provider token/cost claim is made.",
+    "RSS is process high-water mark and may include interpreter baseline."
+  ],
+  "model": {
+    "dimension": 6,
+    "license": "repository-test-fixture",
+    "max_tokens": 128,
+    "model": "frozen-quality-fixture",
+    "preprocessing": "lowercase-concept-groups-v1",
+    "preprocessing_hash": "b0a9fbb111c94129d01a1e70584934ac1d27dfe153b03e9bda84cd2b0e971e93",
+    "sha256": "1861861861861861861861861861861861861861861861861861861861861861",
+    "version": "issue-186-v1"
+  },
+  "quality_gate": {
+    "mrr_non_regression": true,
+    "ndcg_non_regression": true,
+    "recall_non_regression": true,
+    "token_budget_non_regression": true
+  },
+  "queries_per_repetition": 6,
+  "raw_runs": [
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.081411,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "authenticate user",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 0,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.083544
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.054872,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 0,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.054651
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.040971,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "failure deadline",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "y_retry",
+      "repetition": 0,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.040801
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.037957,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 0,
+      "rss_kib": 21700,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.037906
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.039749,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "sign in account",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 0,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.039589
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.033449,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 0,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.0334
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.032438,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "authenticate user",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 1,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.032308
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030536,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 1,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.030435
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.031497,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "failure deadline",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "y_retry",
+      "repetition": 1,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.031416
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.034461,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 1,
+      "rss_kib": 21700,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.034361
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.0337,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "sign in account",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 1,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.03361
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.083013,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 1,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.082884
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.032869,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "authenticate user",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 2,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.032799
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.031687,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 2,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.031527
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.031156,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "failure deadline",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "y_retry",
+      "repetition": 2,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.031107
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.033279,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 2,
+      "rss_kib": 21700,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.033209
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.032468,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "sign in account",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 2,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.032418
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.033911,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 2,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.03379
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.031217,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "authenticate user",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 3,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.031186
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030926,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 3,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.030876
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.034802,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "failure deadline",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "y_retry",
+      "repetition": 3,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.034712
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.032388,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 3,
+      "rss_kib": 21700,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.032318
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.034451,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "sign in account",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 3,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.034351
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030265,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 3,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.030225
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030235,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "authenticate user",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 4,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.030155
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.031627,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 4,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.031497
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.032268,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "failure deadline",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "y_retry",
+      "repetition": 4,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.032117
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030766,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 4,
+      "rss_kib": 21700,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.030685
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030906,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "sign in account",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 4,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.030796
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030405,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 4,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.030355
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.032438,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "authenticate user",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 5,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.032328
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.031818,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 5,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.031717
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030595,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "failure deadline",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "y_retry",
+      "repetition": 5,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.030556
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.031047,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 5,
+      "rss_kib": 21700,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.030996
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030655,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "sign in account",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 5,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.030606
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.03331,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 5,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.033179
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030766,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "authenticate user",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 6,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.030715
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.029013,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 6,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.028963
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.029934,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "failure deadline",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "y_retry",
+      "repetition": 6,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.029885
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.032168,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 6,
+      "rss_kib": 21700,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.032067
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030345,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "sign in account",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 6,
+      "rss_kib": 21700,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.030195
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.032829,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 6,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.032728
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.029995,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "authenticate user",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 7,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.029954
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.029053,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 7,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.029003
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.031316,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "failure deadline",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "y_retry",
+      "repetition": 7,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.031197
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.032098,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 7,
+      "rss_kib": 21828,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.031977
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.031477,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "sign in account",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 7,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.031417
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030355,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 7,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.030305
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.032499,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "authenticate user",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 8,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.032408
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.028853,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 8,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.028833
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.036855,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "failure deadline",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "y_retry",
+      "repetition": 8,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.036785
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.031427,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 8,
+      "rss_kib": 21828,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.031356
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.032689,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "sign in account",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 8,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.032589
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.032468,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 8,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.032378
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030405,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "authenticate user",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 9,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.030365
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030556,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 9,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.030435
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030045,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "failure deadline",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "y_retry",
+      "repetition": 9,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.030014
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.033951,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 9,
+      "rss_kib": 21828,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.03381
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.030886,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 0.0,
+      "query": "sign in account",
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0.0,
+      "relevant": "z_auth",
+      "repetition": 9,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 0.0,
+      "wall_ms": 0.030826
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.032028,
+      "fallback_reason": "INFERENCE_BACKEND_UNAVAILABLE",
+      "mode": "baseline",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 9,
+      "rss_kib": 21828,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 0.031837
+    },
+    {
+      "cache_hit": false,
+      "cpu_ms": 0.990063,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "authenticate user",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 0,
+      "rss_kib": 22016,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 5.114054
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.991685,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 0,
+      "rss_kib": 22016,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 20.032866
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.931756,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "failure deadline",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "y_retry",
+      "repetition": 0,
+      "rss_kib": 22016,
+      "selected": [
+        "y_retry",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 15.44865
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.790837,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 0,
+      "rss_kib": 22016,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 5.176556
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.838046,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "sign in account",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 0,
+      "rss_kib": 22016,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 3.249572
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.81305,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 0,
+      "rss_kib": 22016,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.347901
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.731467,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "authenticate user",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 1,
+      "rss_kib": 22016,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 4.196169
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.724115,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 1,
+      "rss_kib": 22016,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 5.383855
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.87997,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "failure deadline",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "y_retry",
+      "repetition": 1,
+      "rss_kib": 22016,
+      "selected": [
+        "y_retry",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.673896
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 1.038594,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 1,
+      "rss_kib": 22016,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 3.108312
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 1.06258,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "sign in account",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 1,
+      "rss_kib": 22016,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 7.135249
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 1.091927,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 1,
+      "rss_kib": 22016,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.587277
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 1.157341,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "authenticate user",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 2,
+      "rss_kib": 22016,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 5.734466
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.999987,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 2,
+      "rss_kib": 22016,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.356003
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 1.155598,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "failure deadline",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "y_retry",
+      "repetition": 2,
+      "rss_kib": 22016,
+      "selected": [
+        "y_retry",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 3.10749
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 1.049461,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 2,
+      "rss_kib": 22016,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 3.654183
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.813981,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "sign in account",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 2,
+      "rss_kib": 22016,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 5.518956
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.748751,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 2,
+      "rss_kib": 22016,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 3.209091
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.730287,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "authenticate user",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 3,
+      "rss_kib": 22016,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 3.20142
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.742503,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 3,
+      "rss_kib": 22016,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.919761
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.744968,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "failure deadline",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "y_retry",
+      "repetition": 3,
+      "rss_kib": 22016,
+      "selected": [
+        "y_retry",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.455441
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.762843,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 3,
+      "rss_kib": 22144,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 3.519573
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.726811,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "sign in account",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 3,
+      "rss_kib": 22144,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.641177
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.703686,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 3,
+      "rss_kib": 22144,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.267231
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.92805,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "authenticate user",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 4,
+      "rss_kib": 22144,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.85203
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.756174,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 4,
+      "rss_kib": 22144,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.526717
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.791956,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "failure deadline",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "y_retry",
+      "repetition": 4,
+      "rss_kib": 22144,
+      "selected": [
+        "y_retry",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 16.929342
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.689694,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 4,
+      "rss_kib": 22144,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.260822
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.782124,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "sign in account",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 4,
+      "rss_kib": 22144,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 3.288229
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.732739,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 4,
+      "rss_kib": 22144,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.387069
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.736574,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "authenticate user",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 5,
+      "rss_kib": 22144,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.477253
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.710756,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 5,
+      "rss_kib": 22144,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.265448
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.736695,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "failure deadline",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "y_retry",
+      "repetition": 5,
+      "rss_kib": 22144,
+      "selected": [
+        "y_retry",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.936096
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.735964,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 5,
+      "rss_kib": 22144,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.330746
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.790576,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "sign in account",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 5,
+      "rss_kib": 22144,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 14.493309
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.723054,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 5,
+      "rss_kib": 22144,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.27305
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.827306,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "authenticate user",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 6,
+      "rss_kib": 22144,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.457875
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.753491,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 6,
+      "rss_kib": 22144,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.194714
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.942532,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "failure deadline",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "y_retry",
+      "repetition": 6,
+      "rss_kib": 22144,
+      "selected": [
+        "y_retry",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 3.267514
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.83422,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 6,
+      "rss_kib": 22144,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.955334
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.778739,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "sign in account",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 6,
+      "rss_kib": 22144,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.464715
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.726912,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 6,
+      "rss_kib": 22144,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.579846
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.727812,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "authenticate user",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 7,
+      "rss_kib": 22144,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.501269
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.845007,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 7,
+      "rss_kib": 22144,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 14.848608
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.760189,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "failure deadline",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "y_retry",
+      "repetition": 7,
+      "rss_kib": 22144,
+      "selected": [
+        "y_retry",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 3.454426
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.786679,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 7,
+      "rss_kib": 22144,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.517193
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.804727,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "sign in account",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 7,
+      "rss_kib": 22144,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.385407
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.69971,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 7,
+      "rss_kib": 22144,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.12525
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.7135,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "authenticate user",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 8,
+      "rss_kib": 22144,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.283815
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.775153,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 8,
+      "rss_kib": 22144,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.273621
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.952187,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "failure deadline",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "y_retry",
+      "repetition": 8,
+      "rss_kib": 22144,
+      "selected": [
+        "y_retry",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 18.68759
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.747873,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 8,
+      "rss_kib": 22144,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.32728
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.771217,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "sign in account",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 8,
+      "rss_kib": 22272,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.400969
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.69277,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 8,
+      "rss_kib": 22272,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.181494
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.821431,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "authenticate user",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 9,
+      "rss_kib": 22272,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.679054
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.851234,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "memoization",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 9,
+      "rss_kib": 22272,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.486457
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 1.020277,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "failure deadline",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "y_retry",
+      "repetition": 9,
+      "rss_kib": 22272,
+      "selected": [
+        "y_retry",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.398466
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.847382,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "source grammar",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "x_parser",
+      "repetition": 9,
+      "rss_kib": 22272,
+      "selected": [
+        "x_parser",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 3.454466
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.762552,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "sign in account",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "z_auth",
+      "repetition": 9,
+      "rss_kib": 22272,
+      "selected": [
+        "z_auth",
+        "a_cache",
+        "b_database"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.062787
+    },
+    {
+      "cache_hit": true,
+      "cpu_ms": 0.781703,
+      "fallback_reason": "NONE",
+      "mode": "runtime-contract-fixture",
+      "ndcg_at_3": 1.0,
+      "query": "reuse calculation",
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "relevant": "a_cache",
+      "repetition": 9,
+      "rss_kib": 22272,
+      "selected": [
+        "a_cache",
+        "b_database",
+        "c_logging"
+      ],
+      "token_budget_covered": 1.0,
+      "wall_ms": 2.476332
+    }
+  ],
+  "repetitions": 10,
+  "schema": "simplicio.fast.semantic-quality-benchmark/v1",
+  "summary": {
+    "baseline": {
+      "cpu_ms": {
+        "median": 0.0317525,
+        "p95": 0.040971
+      },
+      "latency_ms": {
+        "max": 0.083544,
+        "median": 0.031622,
+        "p95": 0.040801
+      },
+      "mrr": 0.5,
+      "ndcg_at_3": 0.5,
+      "peak_rss_kib": 21828,
+      "recall_at_3": 0.5,
+      "runs": 60,
+      "token_budget_coverage": 0.5
+    },
+    "runtime-contract-fixture": {
+      "cpu_ms": {
+        "median": 0.7819135,
+        "p95": 1.06258
+      },
+      "latency_ms": {
+        "max": 20.032866,
+        "median": 2.6575365,
+        "p95": 15.44865
+      },
+      "mrr": 1.0,
+      "ndcg_at_3": 1.0,
+      "peak_rss_kib": 22272,
+      "recall_at_3": 1.0,
+      "runs": 60,
+      "token_budget_coverage": 1.0
+    }
+  }
+}

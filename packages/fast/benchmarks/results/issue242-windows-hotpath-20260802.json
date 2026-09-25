@@ -1,0 +1,4799 @@
+{
+  "environment": {
+    "metric_reasons": {
+      "page_faults": "not_collected",
+      "rss_kib": "not_collected"
+    },
+    "metrics_status": "partial",
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5"
+  },
+  "repetitions": 30,
+  "residuals": [
+    "Linux_receipt",
+    "CI_regression_gate",
+    "coverage_final",
+    "physical_20_reader_10_worktree_matrix"
+  ],
+  "scales": {
+    "1000": {
+      "cold": {
+        "raw": [
+          {
+            "cpu_ms": 31.25,
+            "page_faults": 742,
+            "parity": true,
+            "parsed_files": 32,
+            "reused_files": 0,
+            "rss_kib": 31836,
+            "wall_ms": 43.594200047664344
+          }
+        ],
+        "summary": {
+          "cpu_ms": 31.25,
+          "page_faults": 742,
+          "parity": true,
+          "parsed_files": 32,
+          "repetitions": 1,
+          "reused_files": 0,
+          "rss_kib": 31836,
+          "wall_ms": 43.594200047664344
+        }
+      },
+      "files": 32,
+      "functions_per_file": 32,
+      "one_file": {
+        "raw": [
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.452,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 28.46,
+              "orchestration_and_receipt_residual": 0.0745,
+              "snapshot_structural_validation": 0.274,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 29.263500007800758
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.403,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 25.32,
+              "orchestration_and_receipt_residual": 0.0743,
+              "snapshot_structural_validation": 0.264,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 26.063300028908998
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.714,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 20.362,
+              "orchestration_and_receipt_residual": 0.0827,
+              "snapshot_structural_validation": 0.407,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 21.568700030911714
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.482,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 17.078,
+              "orchestration_and_receipt_residual": 0.0769,
+              "snapshot_structural_validation": 0.286,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 17.924899992067367
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.622,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.657,
+              "orchestration_and_receipt_residual": 0.0776,
+              "snapshot_structural_validation": 0.29,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 24.648600025102496
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.491,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 22.071,
+              "orchestration_and_receipt_residual": 0.0895,
+              "snapshot_structural_validation": 1.712,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 24.36650003073737
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.467,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 28.365,
+              "orchestration_and_receipt_residual": 0.0852,
+              "snapshot_structural_validation": 0.302,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 29.222199984360486
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.507,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 14.191,
+              "orchestration_and_receipt_residual": 0.0902,
+              "snapshot_structural_validation": 0.313,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 15.104199992492795
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.507,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.44,
+              "orchestration_and_receipt_residual": 0.0793,
+              "snapshot_structural_validation": 0.256,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 27.28530002059415
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.765,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.061,
+              "orchestration_and_receipt_residual": 0.0771,
+              "snapshot_structural_validation": 0.278,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 24.18410003883764
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.436,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.438,
+              "orchestration_and_receipt_residual": 0.0767,
+              "snapshot_structural_validation": 0.279,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 24.2316999938339
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.409,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.653,
+              "orchestration_and_receipt_residual": 0.076,
+              "snapshot_structural_validation": 0.277,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 24.41700000781566
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.426,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 28.774,
+              "orchestration_and_receipt_residual": 0.0773,
+              "snapshot_structural_validation": 0.274,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 29.553300002589822
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.477,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.361,
+              "orchestration_and_receipt_residual": 0.0801,
+              "snapshot_structural_validation": 0.274,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 24.194099998567253
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.602,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 25.603,
+              "orchestration_and_receipt_residual": 0.0742,
+              "snapshot_structural_validation": 0.259,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 26.54019999317825
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.425,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.752,
+              "orchestration_and_receipt_residual": 0.0758,
+              "snapshot_structural_validation": 0.274,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 24.528800044208765
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.436,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.063,
+              "orchestration_and_receipt_residual": 0.0767,
+              "snapshot_structural_validation": 0.266,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 23.84370000800118
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.453,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 25.88,
+              "orchestration_and_receipt_residual": 0.0773,
+              "snapshot_structural_validation": 0.295,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 26.70729998499155
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.421,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 28.308,
+              "orchestration_and_receipt_residual": 0.1009,
+              "snapshot_structural_validation": 0.453,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 29.285900003742427
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.388,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 25.823,
+              "orchestration_and_receipt_residual": 0.0843,
+              "snapshot_structural_validation": 0.471,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 26.769299991428852
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.501,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.431,
+              "orchestration_and_receipt_residual": 0.078,
+              "snapshot_structural_validation": 0.291,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 28.30300002824515
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.431,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.471,
+              "orchestration_and_receipt_residual": 0.0953,
+              "snapshot_structural_validation": 0.504,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 24.50430003227666
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.477,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 14.842,
+              "orchestration_and_receipt_residual": 0.0885,
+              "snapshot_structural_validation": 0.338,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 15.748500009067357
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.573,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 18.782,
+              "orchestration_and_receipt_residual": 0.0797,
+              "snapshot_structural_validation": 0.26,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 19.69670003745705
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.403,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 29.858,
+              "orchestration_and_receipt_residual": 0.0983,
+              "snapshot_structural_validation": 0.386,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 30.748299963306636
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.592,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.676,
+              "orchestration_and_receipt_residual": 0.1744,
+              "snapshot_structural_validation": 0.532,
+              "source_verification_and_parity": 0.006
+            },
+            "wall_ms": 24.980399990454316
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.528,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.959,
+              "orchestration_and_receipt_residual": 0.0894,
+              "snapshot_structural_validation": 0.436,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 25.01539996592328
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.556,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.077,
+              "orchestration_and_receipt_residual": 0.0891,
+              "snapshot_structural_validation": 0.394,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 24.118100001942366
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.552,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 15.791,
+              "orchestration_and_receipt_residual": 0.0792,
+              "snapshot_structural_validation": 0.258,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 16.682199959177524
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 31,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.522,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 17.606,
+              "orchestration_and_receipt_residual": 0.0884,
+              "snapshot_structural_validation": 0.318,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 18.537400057539344
+          }
+        ],
+        "summary": {
+          "cpu_ms_median": 0.0,
+          "parity": true,
+          "parsed_files_median": 1.0,
+          "repetitions": 30,
+          "reused_files_median": 31.0,
+          "stage_coverage_min": 0.9999999968960404,
+          "wall_ms_median": 24.516550038242713,
+          "wall_ms_p95": 29.432970003108494,
+          "wall_ms_p99": 30.40174997469876
+        }
+      },
+      "performance_gates": {
+        "checks": {
+          "one_file_within_half_cold": true,
+          "parity": true,
+          "stage_coverage_ge_95_percent": true,
+          "unchanged_under_reference_budget": true,
+          "unchanged_within_two_times_warm": true
+        },
+        "schema": "simplicio.fast.changed-path-performance-gates/v1",
+        "status": "pass"
+      },
+      "symbols": 1000,
+      "unchanged": {
+        "raw": [
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.452,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 17.508,
+              "orchestration_and_receipt_residual": 0.0602,
+              "snapshot_structural_validation": 0.019,
+              "source_verification_and_parity": 0.383
+            },
+            "wall_ms": 18.42219999525696
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.54,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.03,
+              "orchestration_and_receipt_residual": 0.0437,
+              "snapshot_structural_validation": 0.008,
+              "source_verification_and_parity": 0.198
+            },
+            "wall_ms": 0.8196999551728368
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.37,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0414,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.338
+            },
+            "wall_ms": 0.7793999975547194
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.468,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.026,
+              "orchestration_and_receipt_residual": 0.0387,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.184
+            },
+            "wall_ms": 0.7236999808810651
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.336,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.022,
+              "orchestration_and_receipt_residual": 0.0308,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.192
+            },
+            "wall_ms": 0.5877999938093126
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.327,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.02,
+              "orchestration_and_receipt_residual": 0.0285,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.151
+            },
+            "wall_ms": 0.5325000383891165
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.325,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0276,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.151
+            },
+            "wall_ms": 0.5306000239215791
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.291,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.0265,
+              "snapshot_structural_validation": 0.01,
+              "source_verification_and_parity": 0.16
+            },
+            "wall_ms": 0.5065000150352716
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.308,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.02,
+              "orchestration_and_receipt_residual": 0.0286,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.178
+            },
+            "wall_ms": 0.540599983651191
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.311,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.02,
+              "orchestration_and_receipt_residual": 0.0276,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.151
+            },
+            "wall_ms": 0.5155999679118395
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.296,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.0266,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.146
+            },
+            "wall_ms": 0.4935999750159681
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.279,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.018,
+              "orchestration_and_receipt_residual": 0.0279,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.169
+            },
+            "wall_ms": 0.4998999647796154
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.291,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.0266,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.145
+            },
+            "wall_ms": 0.4875999875366688
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.304,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.0261,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.146
+            },
+            "wall_ms": 0.5010999739170074
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.282,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.0254,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.143
+            },
+            "wall_ms": 0.4753999528475106
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.295,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.018,
+              "orchestration_and_receipt_residual": 0.0339,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.145
+            },
+            "wall_ms": 0.4979000077582896
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.288,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.0261,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.145
+            },
+            "wall_ms": 0.4841000190936029
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.293,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.0258,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.146
+            },
+            "wall_ms": 0.4898000042885542
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.292,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.018,
+              "orchestration_and_receipt_residual": 0.0263,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.157
+            },
+            "wall_ms": 0.4992999602109194
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.307,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.02,
+              "orchestration_and_receipt_residual": 0.0324,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.169
+            },
+            "wall_ms": 0.534399994648993
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.299,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.018,
+              "orchestration_and_receipt_residual": 0.0258,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.142
+            },
+            "wall_ms": 0.49080001190304756
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.274,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.018,
+              "orchestration_and_receipt_residual": 0.0244,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.143
+            },
+            "wall_ms": 0.4653999931178987
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.279,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.0272,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.165
+            },
+            "wall_ms": 0.49619999481365085
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.289,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.027,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.159
+            },
+            "wall_ms": 0.5000000237487257
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.331,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.022,
+              "orchestration_and_receipt_residual": 0.0288,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.169
+            },
+            "wall_ms": 0.5577999982051551
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.289,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0267,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.148
+            },
+            "wall_ms": 0.49269996816292405
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.29,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.018,
+              "orchestration_and_receipt_residual": 0.0234,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.146
+            },
+            "wall_ms": 0.48340001376345754
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.272,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.018,
+              "orchestration_and_receipt_residual": 0.0247,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.165
+            },
+            "wall_ms": 0.4857000312767923
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.303,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.018,
+              "orchestration_and_receipt_residual": 0.0258,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.144
+            },
+            "wall_ms": 0.49679999938234687
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.273,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.017,
+              "orchestration_and_receipt_residual": 0.0244,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.147
+            },
+            "wall_ms": 0.46739995013922453
+          }
+        ],
+        "summary": {
+          "cpu_ms_median": 0.0,
+          "parity": true,
+          "parsed_files_median": 0.0,
+          "repetitions": 30,
+          "reused_files_median": 32.0,
+          "stage_coverage_min": 0.9999999279077676,
+          "wall_ms_median": 0.4995999624952674,
+          "wall_ms_p95": 0.8015649742446839,
+          "wall_ms_p99": 13.317474983632579
+        }
+      },
+      "warm": {
+        "raw": [
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 3.051100007724017
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.6972999912686646
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.7615000144578516
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 3.1232000328600407
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.6854000170715153
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.834700047969818
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.802699978929013
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.702499972656369
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.711899986024946
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.6520999963395298
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.6914000045508146
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.641799976117909
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.760700008366257
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.8073000139556825
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.681399986613542
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.707800013013184
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.8016999713145196
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.6624000165611506
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.663700026459992
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.7219000039622188
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.7886000461876392
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.695699979085475
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.7617000159807503
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.8924000216647983
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.7138000004924834
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.869800024200231
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.8389000217430294
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.771299972664565
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.7193999849259853
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 32,
+            "wall_ms": 2.695599978324026
+          }
+        ],
+        "summary": {
+          "cpu_ms_median": 0.0,
+          "parity": true,
+          "parsed_files_median": 0.0,
+          "repetitions": 30,
+          "reused_files_median": 32.0,
+          "stage_coverage_min": null,
+          "wall_ms_median": 2.720649994444102,
+          "wall_ms_p95": 2.979685013997368,
+          "wall_ms_p99": 3.1022910255705938
+        }
+      }
+    },
+    "10000": {
+      "cold": {
+        "raw": [
+          {
+            "cpu_ms": 203.125,
+            "page_faults": 11162,
+            "parity": true,
+            "parsed_files": 100,
+            "reused_files": 0,
+            "rss_kib": 66740,
+            "wall_ms": 223.45879999920726
+          }
+        ],
+        "summary": {
+          "cpu_ms": 203.125,
+          "page_faults": 11162,
+          "parity": true,
+          "parsed_files": 100,
+          "repetitions": 1,
+          "reused_files": 0,
+          "rss_kib": 66740,
+          "wall_ms": 223.45879999920726
+        }
+      },
+      "files": 100,
+      "functions_per_file": 100,
+      "one_file": {
+        "raw": [
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.513,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 13.836,
+              "orchestration_and_receipt_residual": 0.1003,
+              "snapshot_structural_validation": 0.303,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 14.754300005733967
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.901,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 14.246,
+              "orchestration_and_receipt_residual": 0.1163,
+              "snapshot_structural_validation": 0.26,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 15.526300005149096
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.511,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 25.033,
+              "orchestration_and_receipt_residual": 0.0994,
+              "snapshot_structural_validation": 0.274,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 25.920400046743453
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.498,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 24.793,
+              "orchestration_and_receipt_residual": 0.1333,
+              "snapshot_structural_validation": 0.39,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 25.817300018388778
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.824,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.751,
+              "orchestration_and_receipt_residual": 0.1065,
+              "snapshot_structural_validation": 0.274,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 24.9574999907054
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.477,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 25.308,
+              "orchestration_and_receipt_residual": 0.1022,
+              "snapshot_structural_validation": 0.254,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 26.14420000463724
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.938,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 24.707,
+              "orchestration_and_receipt_residual": 0.1084,
+              "snapshot_structural_validation": 0.266,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 26.02140000090003
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.565,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 22.707,
+              "orchestration_and_receipt_residual": 0.11,
+              "snapshot_structural_validation": 0.307,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 23.69199995882809
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.471,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 20.786,
+              "orchestration_and_receipt_residual": 0.1043,
+              "snapshot_structural_validation": 0.248,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 21.611300006043166
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.478,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 21.917,
+              "orchestration_and_receipt_residual": 0.0978,
+              "snapshot_structural_validation": 0.263,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 22.75880001252517
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.528,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.58,
+              "orchestration_and_receipt_residual": 0.0985,
+              "snapshot_structural_validation": 0.268,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 27.477500028908253
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.503,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.868,
+              "orchestration_and_receipt_residual": 0.1167,
+              "snapshot_structural_validation": 0.333,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 27.823700045701116
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.429,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 21.498,
+              "orchestration_and_receipt_residual": 0.106,
+              "snapshot_structural_validation": 0.355,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 22.390999947674572
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.451,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 22.468,
+              "orchestration_and_receipt_residual": 0.1035,
+              "snapshot_structural_validation": 0.315,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 23.340500018093735
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.652,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 25.096,
+              "orchestration_and_receipt_residual": 0.1001,
+              "snapshot_structural_validation": 0.267,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 26.117100031115115
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.454,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 10.706,
+              "orchestration_and_receipt_residual": 0.1062,
+              "snapshot_structural_validation": 0.268,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 11.536200006958097
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.448,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.161,
+              "orchestration_and_receipt_residual": 0.1096,
+              "snapshot_structural_validation": 0.431,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 27.152599999681115
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.486,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.96,
+              "orchestration_and_receipt_residual": 0.1864,
+              "snapshot_structural_validation": 0.603,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 25.24039999116212
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.608,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 31.943,
+              "orchestration_and_receipt_residual": 0.096,
+              "snapshot_structural_validation": 0.281,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 32.930999994277954
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.481,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.598,
+              "orchestration_and_receipt_residual": 0.0958,
+              "snapshot_structural_validation": 0.291,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 28.46880001015961
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.479,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 21.435,
+              "orchestration_and_receipt_residual": 0.1016,
+              "snapshot_structural_validation": 0.273,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 22.29059999808669
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.476,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.036,
+              "orchestration_and_receipt_residual": 0.1001,
+              "snapshot_structural_validation": 0.272,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 23.887099989224225
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.547,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 14.437,
+              "orchestration_and_receipt_residual": 0.1206,
+              "snapshot_structural_validation": 0.302,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 15.409599989652634
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.483,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 24.572,
+              "orchestration_and_receipt_residual": 0.0952,
+              "snapshot_structural_validation": 0.281,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 25.43320000404492
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.601,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 25.351,
+              "orchestration_and_receipt_residual": 0.0977,
+              "snapshot_structural_validation": 0.251,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 26.303699996788055
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.677,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 21.849,
+              "orchestration_and_receipt_residual": 0.1032,
+              "snapshot_structural_validation": 0.287,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 22.918200003914535
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 1.341,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 25.036,
+              "orchestration_and_receipt_residual": 0.1496,
+              "snapshot_structural_validation": 0.239,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 26.768599986098707
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.494,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.519,
+              "orchestration_and_receipt_residual": 0.1012,
+              "snapshot_structural_validation": 0.267,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 27.38419995876029
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.758,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.467,
+              "orchestration_and_receipt_residual": 0.1022,
+              "snapshot_structural_validation": 0.285,
+              "source_verification_and_parity": 0.002
+            },
+            "wall_ms": 27.61419996386394
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 99,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.54,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.007,
+              "orchestration_and_receipt_residual": 0.1016,
+              "snapshot_structural_validation": 0.262,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 26.913599984254688
+          }
+        ],
+        "summary": {
+          "cpu_ms_median": 0.0,
+          "parity": true,
+          "parsed_files_median": 1.0,
+          "repetitions": 30,
+          "reused_files_median": 99.0,
+          "stage_coverage_min": 0.999999998196654,
+          "wall_ms_median": 25.62525001121685,
+          "wall_ms_p95": 28.178505026153285,
+          "wall_ms_p99": 31.63696199888364
+        }
+      },
+      "performance_gates": {
+        "checks": {
+          "one_file_within_half_cold": true,
+          "parity": true,
+          "stage_coverage_ge_95_percent": true,
+          "unchanged_under_reference_budget": true,
+          "unchanged_within_two_times_warm": true
+        },
+        "schema": "simplicio.fast.changed-path-performance-gates/v1",
+        "status": "pass"
+      },
+      "symbols": 10000,
+      "unchanged": {
+        "raw": [
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.53,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 15.238,
+              "orchestration_and_receipt_residual": 0.054,
+              "snapshot_structural_validation": 0.018,
+              "source_verification_and_parity": 0.267
+            },
+            "wall_ms": 16.107000003103167
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.42,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.024,
+              "orchestration_and_receipt_residual": 0.0358,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.181
+            },
+            "wall_ms": 0.6677999626845121
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.338,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0295,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.174
+            },
+            "wall_ms": 0.5694999708794057
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.359,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0435,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.227
+            },
+            "wall_ms": 0.6575000006705523
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.413,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.025,
+              "orchestration_and_receipt_residual": 0.0352,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.208
+            },
+            "wall_ms": 0.6882000016048551
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.377,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.022,
+              "orchestration_and_receipt_residual": 0.0367,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.23
+            },
+            "wall_ms": 0.6726999999955297
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.43,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0319,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.183
+            },
+            "wall_ms": 0.6749000167474151
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.331,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0282,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.155
+            },
+            "wall_ms": 0.5421999958343804
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.338,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0273,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.162
+            },
+            "wall_ms": 0.5542999715544283
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.359,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.029,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.158
+            },
+            "wall_ms": 0.573999946936965
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.327,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0293,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.302
+            },
+            "wall_ms": 0.6862999871373177
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.327,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0276,
+              "snapshot_structural_validation": 0.013,
+              "source_verification_and_parity": 0.163
+            },
+            "wall_ms": 0.5515999509952962
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.311,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.02,
+              "orchestration_and_receipt_residual": 0.0255,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.148
+            },
+            "wall_ms": 0.5104999872855842
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.319,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.0292,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.166
+            },
+            "wall_ms": 0.5401999806053936
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.381,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0285,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.185
+            },
+            "wall_ms": 0.6225000252015889
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.332,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.024,
+              "orchestration_and_receipt_residual": 0.0281,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.16
+            },
+            "wall_ms": 0.5500999977812171
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.317,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.0265,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.172
+            },
+            "wall_ms": 0.5404999828897417
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.305,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.0334,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.148
+            },
+            "wall_ms": 0.5113999941386282
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.323,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.0269,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.156
+            },
+            "wall_ms": 0.5309000262059271
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.324,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.019,
+              "orchestration_and_receipt_residual": 0.0263,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.16
+            },
+            "wall_ms": 0.5363000091165304
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.344,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.02,
+              "orchestration_and_receipt_residual": 0.0264,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.165
+            },
+            "wall_ms": 0.5623999750241637
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.353,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0298,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.169
+            },
+            "wall_ms": 0.5797999911010265
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.339,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0355,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.178
+            },
+            "wall_ms": 0.5804999964311719
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.45,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.025,
+              "orchestration_and_receipt_residual": 0.0439,
+              "snapshot_structural_validation": 0.008,
+              "source_verification_and_parity": 0.206
+            },
+            "wall_ms": 0.7328999927267432
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.348,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0374,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.213
+            },
+            "wall_ms": 0.6284000119194388
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.55,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0387,
+              "snapshot_structural_validation": 0.008,
+              "source_verification_and_parity": 0.176
+            },
+            "wall_ms": 0.7957000052556396
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.384,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.022,
+              "orchestration_and_receipt_residual": 0.0343,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.189
+            },
+            "wall_ms": 0.6362999556586146
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.43,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.029,
+              "orchestration_and_receipt_residual": 0.0406,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.188
+            },
+            "wall_ms": 0.6945999921299517
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.342,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0312,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.193
+            },
+            "wall_ms": 0.5942000425420702
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.344,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0278,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.198
+            },
+            "wall_ms": 0.5978000117465854
+          }
+        ],
+        "summary": {
+          "cpu_ms_median": 0.0,
+          "parity": true,
+          "parsed_files_median": 0.0,
+          "repetitions": 30,
+          "reused_files_median": 100.0,
+          "stage_coverage_min": 0.9999999284044647,
+          "wall_ms_median": 0.587350019486621,
+          "wall_ms_p95": 0.767439999617636,
+          "wall_ms_p99": 11.666723003727396
+        }
+      },
+      "warm": {
+        "raw": [
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 27.121599996462464
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 27.268600009847432
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 27.018100023269653
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.790999982040375
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.669899991247803
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.943199976813048
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.76199999405071
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 30.937100003939122
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 27.013299986720085
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.805900037288666
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.153800019528717
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.559599966276437
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.109200029168278
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 28.303900035098195
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 27.102400024887174
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 27.17409998876974
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.60510002169758
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 27.122800005599856
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 27.369400020688772
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 27.231100015342236
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.324300037231296
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 27.41139999125153
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.194199977908283
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 27.01839996734634
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.49860002566129
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 27.365999994799495
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.99790004407987
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 28.109600010793656
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 26.31919999839738
+          },
+          {
+            "cpu_ms": 31.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 100,
+            "wall_ms": 27.281399990897626
+          }
+        ],
+        "summary": {
+          "cpu_ms_median": 31.25,
+          "parity": true,
+          "parsed_files_median": 0.0,
+          "repetitions": 30,
+          "reused_files_median": 100.0,
+          "stage_coverage_min": null,
+          "wall_ms_median": 27.01570000499487,
+          "wall_ms_p95": 28.216465024161153,
+          "wall_ms_p99": 30.173472012975257
+        }
+      }
+    },
+    "100000": {
+      "cold": {
+        "raw": [
+          {
+            "cpu_ms": 1984.375,
+            "page_faults": 147902,
+            "parity": true,
+            "parsed_files": 317,
+            "reused_files": 0,
+            "rss_kib": 420332,
+            "wall_ms": 2105.198700039182
+          }
+        ],
+        "summary": {
+          "cpu_ms": 1984.375,
+          "page_faults": 147902,
+          "parity": true,
+          "parsed_files": 317,
+          "repetitions": 1,
+          "reused_files": 0,
+          "rss_kib": 420332,
+          "wall_ms": 2105.198700039182
+        }
+      },
+      "files": 317,
+      "functions_per_file": 316,
+      "one_file": {
+        "raw": [
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.597,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 29.308,
+              "orchestration_and_receipt_residual": 0.1701,
+              "snapshot_structural_validation": 0.273,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 30.351099965628237
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.53,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.819,
+              "orchestration_and_receipt_residual": 0.1956,
+              "snapshot_structural_validation": 0.432,
+              "source_verification_and_parity": 0.004
+            },
+            "wall_ms": 28.980600007344037
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.534,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.056,
+              "orchestration_and_receipt_residual": 0.2664,
+              "snapshot_structural_validation": 0.28,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 28.139400004874915
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.628,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.649,
+              "orchestration_and_receipt_residual": 0.1984,
+              "snapshot_structural_validation": 0.365,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 27.843399962875992
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.578,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 28.158,
+              "orchestration_and_receipt_residual": 0.1675,
+              "snapshot_structural_validation": 0.279,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 29.185499995946884
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.618,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.105,
+              "orchestration_and_receipt_residual": 0.1747,
+              "snapshot_structural_validation": 0.277,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 28.177700005471706
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.51,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.788,
+              "orchestration_and_receipt_residual": 0.1687,
+              "snapshot_structural_validation": 0.287,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 28.75669999048114
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.589,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 28.772,
+              "orchestration_and_receipt_residual": 0.2796,
+              "snapshot_structural_validation": 0.285,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 29.9286000081338
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.552,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.809,
+              "orchestration_and_receipt_residual": 0.1698,
+              "snapshot_structural_validation": 0.292,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 28.825799992773682
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.625,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.592,
+              "orchestration_and_receipt_residual": 0.2757,
+              "snapshot_structural_validation": 0.34,
+              "source_verification_and_parity": 0.015
+            },
+            "wall_ms": 27.847699995618314
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.54,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 28.115,
+              "orchestration_and_receipt_residual": 0.1697,
+              "snapshot_structural_validation": 0.324,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 29.151699971407652
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.559,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.744,
+              "orchestration_and_receipt_residual": 0.1736,
+              "snapshot_structural_validation": 0.321,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 27.80059998622164
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.544,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.575,
+              "orchestration_and_receipt_residual": 0.2191,
+              "snapshot_structural_validation": 0.463,
+              "source_verification_and_parity": 0.004
+            },
+            "wall_ms": 28.805100009776652
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.637,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.815,
+              "orchestration_and_receipt_residual": 0.1659,
+              "snapshot_structural_validation": 0.282,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 27.90290000848472
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.563,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 25.802,
+              "orchestration_and_receipt_residual": 0.2737,
+              "snapshot_structural_validation": 0.537,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 27.17869996558875
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.951,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 22.264,
+              "orchestration_and_receipt_residual": 0.2085,
+              "snapshot_structural_validation": 0.334,
+              "source_verification_and_parity": 0.004
+            },
+            "wall_ms": 23.761500022374094
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.741,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 24.807,
+              "orchestration_and_receipt_residual": 0.3192,
+              "snapshot_structural_validation": 0.297,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 26.167200005147606
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.761,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 30.507,
+              "orchestration_and_receipt_residual": 0.1825,
+              "snapshot_structural_validation": 0.305,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 31.758499972056597
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.566,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 24.621,
+              "orchestration_and_receipt_residual": 0.1614,
+              "snapshot_structural_validation": 0.306,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 25.657400023192167
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.54,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.647,
+              "orchestration_and_receipt_residual": 0.3115,
+              "snapshot_structural_validation": 0.31,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 27.811499952804297
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.546,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.49,
+              "orchestration_and_receipt_residual": 0.1713,
+              "snapshot_structural_validation": 0.282,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 28.492300014477223
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.548,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 29.429,
+              "orchestration_and_receipt_residual": 0.1629,
+              "snapshot_structural_validation": 0.295,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 30.437900044489652
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.567,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 25.769,
+              "orchestration_and_receipt_residual": 0.1614,
+              "snapshot_structural_validation": 0.279,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 26.779400010127574
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.514,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.321,
+              "orchestration_and_receipt_residual": 0.1577,
+              "snapshot_structural_validation": 0.278,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 28.273699979763478
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.561,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 31.865,
+              "orchestration_and_receipt_residual": 0.2436,
+              "snapshot_structural_validation": 0.309,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 32.98160003032535
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.587,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 24.017,
+              "orchestration_and_receipt_residual": 0.1979,
+              "snapshot_structural_validation": 0.33,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 25.134900002740324
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.576,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 29.904,
+              "orchestration_and_receipt_residual": 0.2928,
+              "snapshot_structural_validation": 0.498,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 31.27380000660196
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.547,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.321,
+              "orchestration_and_receipt_residual": 0.1603,
+              "snapshot_structural_validation": 0.287,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 28.318300028331578
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.837,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 29.603,
+              "orchestration_and_receipt_residual": 0.1668,
+              "snapshot_structural_validation": 0.3,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 30.909800028894097
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 316,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.604,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.518,
+              "orchestration_and_receipt_residual": 0.1701,
+              "snapshot_structural_validation": 0.279,
+              "source_verification_and_parity": 0.003
+            },
+            "wall_ms": 27.57410000776872
+          }
+        ],
+        "summary": {
+          "cpu_ms_median": 0.0,
+          "parity": true,
+          "parsed_files_median": 1.0,
+          "repetitions": 30,
+          "reused_files_median": 316.0,
+          "stage_coverage_min": 0.9999999985383469,
+          "wall_ms_median": 28.296000004047528,
+          "wall_ms_p95": 31.54038498760201,
+          "wall_ms_p99": 32.626901013427414
+        }
+      },
+      "performance_gates": {
+        "checks": {
+          "one_file_within_half_cold": true,
+          "parity": true,
+          "stage_coverage_ge_95_percent": true,
+          "unchanged_under_reference_budget": true,
+          "unchanged_within_two_times_warm": true
+        },
+        "schema": "simplicio.fast.changed-path-performance-gates/v1",
+        "status": "pass"
+      },
+      "symbols": 100000,
+      "unchanged": {
+        "raw": [
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 1.034,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 11.695,
+              "orchestration_and_receipt_residual": 0.0632,
+              "snapshot_structural_validation": 0.019,
+              "source_verification_and_parity": 0.279
+            },
+            "wall_ms": 13.090200023725629
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.559,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.027,
+              "orchestration_and_receipt_residual": 0.0444,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.194
+            },
+            "wall_ms": 0.8314000442624092
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.745,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.071,
+              "orchestration_and_receipt_residual": 0.0684,
+              "snapshot_structural_validation": 0.014,
+              "source_verification_and_parity": 0.53
+            },
+            "wall_ms": 1.428399991709739
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.81,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.045,
+              "orchestration_and_receipt_residual": 0.0577,
+              "snapshot_structural_validation": 0.018,
+              "source_verification_and_parity": 0.397
+            },
+            "wall_ms": 1.3276999816298485
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.781,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.037,
+              "orchestration_and_receipt_residual": 0.0609,
+              "snapshot_structural_validation": 0.016,
+              "source_verification_and_parity": 0.412
+            },
+            "wall_ms": 1.3068999978713691
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.777,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.034,
+              "orchestration_and_receipt_residual": 0.0493,
+              "snapshot_structural_validation": 0.014,
+              "source_verification_and_parity": 0.397
+            },
+            "wall_ms": 1.2713000178337097
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.737,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.048,
+              "orchestration_and_receipt_residual": 0.0456,
+              "snapshot_structural_validation": 0.017,
+              "source_verification_and_parity": 0.357
+            },
+            "wall_ms": 1.2045999756082892
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.778,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.047,
+              "orchestration_and_receipt_residual": 0.0422,
+              "snapshot_structural_validation": 0.029,
+              "source_verification_and_parity": 0.273
+            },
+            "wall_ms": 1.1691999970935285
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.42,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.025,
+              "orchestration_and_receipt_residual": 0.0316,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.169
+            },
+            "wall_ms": 0.6526000215671957
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.514,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.033,
+              "orchestration_and_receipt_residual": 0.039,
+              "snapshot_structural_validation": 0.009,
+              "source_verification_and_parity": 0.242
+            },
+            "wall_ms": 0.8370000286959112
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.429,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0329,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.203
+            },
+            "wall_ms": 0.6948999944142997
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.388,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.022,
+              "orchestration_and_receipt_residual": 0.0291,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.165
+            },
+            "wall_ms": 0.6110999966040254
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.802,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.046,
+              "orchestration_and_receipt_residual": 0.0696,
+              "snapshot_structural_validation": 0.015,
+              "source_verification_and_parity": 0.477
+            },
+            "wall_ms": 1.4095999649725854
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.826,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.039,
+              "orchestration_and_receipt_residual": 0.0566,
+              "snapshot_structural_validation": 0.017,
+              "source_verification_and_parity": 0.369
+            },
+            "wall_ms": 1.3076000032015145
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.62,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.075,
+              "orchestration_and_receipt_residual": 0.0434,
+              "snapshot_structural_validation": 0.018,
+              "source_verification_and_parity": 0.258
+            },
+            "wall_ms": 1.014399982523173
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.501,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.027,
+              "orchestration_and_receipt_residual": 0.0461,
+              "snapshot_structural_validation": 0.008,
+              "source_verification_and_parity": 0.424
+            },
+            "wall_ms": 1.006099977530539
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.476,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.025,
+              "orchestration_and_receipt_residual": 0.0338,
+              "snapshot_structural_validation": 0.008,
+              "source_verification_and_parity": 0.239
+            },
+            "wall_ms": 0.7818000158295035
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.463,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.024,
+              "orchestration_and_receipt_residual": 0.0412,
+              "snapshot_structural_validation": 0.008,
+              "source_verification_and_parity": 0.281
+            },
+            "wall_ms": 0.8171999943442643
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.659,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.045,
+              "orchestration_and_receipt_residual": 0.0485,
+              "snapshot_structural_validation": 0.015,
+              "source_verification_and_parity": 0.343
+            },
+            "wall_ms": 1.110500015784055
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.562,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.027,
+              "orchestration_and_receipt_residual": 0.0378,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.176
+            },
+            "wall_ms": 0.8097999962046742
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.4,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0425,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.395
+            },
+            "wall_ms": 0.8675000281073153
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.46,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.024,
+              "orchestration_and_receipt_residual": 0.0319,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.202
+            },
+            "wall_ms": 0.7248999900184572
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.401,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.022,
+              "orchestration_and_receipt_residual": 0.0296,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.164
+            },
+            "wall_ms": 0.6235999753698707
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.395,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0288,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.162
+            },
+            "wall_ms": 0.6137999589554965
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.365,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0281,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.171
+            },
+            "wall_ms": 0.5940999835729599
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.364,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.02,
+              "orchestration_and_receipt_residual": 0.0278,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.174
+            },
+            "wall_ms": 0.5928000318817794
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.636,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.027,
+              "orchestration_and_receipt_residual": 0.043,
+              "snapshot_structural_validation": 0.008,
+              "source_verification_and_parity": 0.249
+            },
+            "wall_ms": 0.9629999985918403
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.437,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.024,
+              "orchestration_and_receipt_residual": 0.0312,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.164
+            },
+            "wall_ms": 0.6631999858655035
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.362,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0283,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.151
+            },
+            "wall_ms": 0.569300027564168
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.636,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.051,
+              "orchestration_and_receipt_residual": 0.0527,
+              "snapshot_structural_validation": 0.015,
+              "source_verification_and_parity": 0.372
+            },
+            "wall_ms": 1.1267000227235258
+          }
+        ],
+        "summary": {
+          "cpu_ms_median": 0.0,
+          "parity": true,
+          "parsed_files_median": 0.0,
+          "repetitions": 30,
+          "reused_files_median": 317.0,
+          "stage_coverage_min": 0.9999999462183237,
+          "wall_ms_median": 0.8522500284016132,
+          "wall_ms_p95": 1.4199399796780199,
+          "wall_ms_p99": 9.708278014441031
+        }
+      },
+      "warm": {
+        "raw": [
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 316.48529996164143
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 309.42639999557287
+          },
+          {
+            "cpu_ms": 328.125,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 327.4321000208147
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 341.85809997143224
+          },
+          {
+            "cpu_ms": 421.875,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 466.4338000002317
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 320.07509999675676
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 312.3380999895744
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 307.40539997350425
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 319.1312000271864
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 314.3273000023328
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 313.8174999621697
+          },
+          {
+            "cpu_ms": 296.875,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 301.63349997019395
+          },
+          {
+            "cpu_ms": 328.125,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 315.67909999284893
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 313.75470000784844
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 309.64739999035373
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 320.84020000183955
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 315.2436999953352
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 313.80499998340383
+          },
+          {
+            "cpu_ms": 328.125,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 328.37970001855865
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 307.10649996763095
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 312.6782000181265
+          },
+          {
+            "cpu_ms": 328.125,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 321.2336999713443
+          },
+          {
+            "cpu_ms": 296.875,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 311.61299999803305
+          },
+          {
+            "cpu_ms": 296.875,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 306.7253999761306
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 305.16310001257807
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 310.1553000160493
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 313.35730000864714
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 313.7250999570824
+          },
+          {
+            "cpu_ms": 296.875,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 305.6354000000283
+          },
+          {
+            "cpu_ms": 312.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 317,
+            "wall_ms": 311.3147999974899
+          }
+        ],
+        "summary": {
+          "cpu_ms_median": 312.5,
+          "parity": true,
+          "parsed_files_median": 0.0,
+          "repetitions": 30,
+          "reused_files_median": 317.0,
+          "stage_coverage_min": null,
+          "wall_ms_median": 313.73989998246543,
+          "wall_ms_p95": 335.79281999263907,
+          "wall_ms_p99": 430.30684699188
+        }
+      }
+    },
+    "1000000": {
+      "cold": {
+        "raw": [
+          {
+            "cpu_ms": 23140.625,
+            "page_faults": 1676293,
+            "parity": true,
+            "parsed_files": 1000,
+            "reused_files": 0,
+            "rss_kib": 3889008,
+            "wall_ms": 23743.591699982062
+          }
+        ],
+        "summary": {
+          "cpu_ms": 23140.625,
+          "page_faults": 1676293,
+          "parity": true,
+          "parsed_files": 1000,
+          "repetitions": 1,
+          "reused_files": 0,
+          "rss_kib": 3889008,
+          "wall_ms": 23743.591699982062
+        }
+      },
+      "files": 1000,
+      "functions_per_file": 1000,
+      "one_file": {
+        "raw": [
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.77,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 28.99,
+              "orchestration_and_receipt_residual": 0.4155,
+              "snapshot_structural_validation": 0.311,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 30.49149998696521
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.77,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 29.749,
+              "orchestration_and_receipt_residual": 0.4046,
+              "snapshot_structural_validation": 0.31,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 31.238599971402436
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.781,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 22.946,
+              "orchestration_and_receipt_residual": 0.4833,
+              "snapshot_structural_validation": 0.523,
+              "source_verification_and_parity": 0.006
+            },
+            "wall_ms": 24.739299959037453
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.871,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 19.858,
+              "orchestration_and_receipt_residual": 0.3896,
+              "snapshot_structural_validation": 0.335,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 21.458600007463247
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 1.349,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 23.72,
+              "orchestration_and_receipt_residual": 0.4349,
+              "snapshot_structural_validation": 0.32,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 25.82889999030158
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.816,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 30.726,
+              "orchestration_and_receipt_residual": 0.3855,
+              "snapshot_structural_validation": 0.333,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 32.265499990899116
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.833,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 25.539,
+              "orchestration_and_receipt_residual": 0.3933,
+              "snapshot_structural_validation": 0.288,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 27.05829998012632
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.847,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.409,
+              "orchestration_and_receipt_residual": 0.4344,
+              "snapshot_structural_validation": 0.32,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 28.01539999200031
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.833,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.24,
+              "orchestration_and_receipt_residual": 0.4057,
+              "snapshot_structural_validation": 0.322,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 27.805699966847897
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.853,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 28.936,
+              "orchestration_and_receipt_residual": 0.4007,
+              "snapshot_structural_validation": 0.365,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 30.55969998240471
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.773,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.616,
+              "orchestration_and_receipt_residual": 0.4101,
+              "snapshot_structural_validation": 0.406,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 29.21010000864044
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.81,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 32.791,
+              "orchestration_and_receipt_residual": 0.4029,
+              "snapshot_structural_validation": 0.327,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 34.33590003987774
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.803,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 31.456,
+              "orchestration_and_receipt_residual": 0.3744,
+              "snapshot_structural_validation": 0.302,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 32.94040000764653
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 1.032,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.395,
+              "orchestration_and_receipt_residual": 0.4013,
+              "snapshot_structural_validation": 0.314,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 29.147299996111542
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.982,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 30.959,
+              "orchestration_and_receipt_residual": 0.3907,
+              "snapshot_structural_validation": 0.522,
+              "source_verification_and_parity": 0.006
+            },
+            "wall_ms": 32.859699975233525
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.82,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 30.375,
+              "orchestration_and_receipt_residual": 0.3866,
+              "snapshot_structural_validation": 0.31,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 31.896600034087896
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.795,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 31.116,
+              "orchestration_and_receipt_residual": 0.4385,
+              "snapshot_structural_validation": 0.346,
+              "source_verification_and_parity": 0.007
+            },
+            "wall_ms": 32.70250000059605
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.771,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 32.418,
+              "orchestration_and_receipt_residual": 0.3988,
+              "snapshot_structural_validation": 0.345,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 33.93779997713864
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.832,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 26.724,
+              "orchestration_and_receipt_residual": 0.4182,
+              "snapshot_structural_validation": 0.311,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 28.290199988987297
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.838,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 31.627,
+              "orchestration_and_receipt_residual": 0.381,
+              "snapshot_structural_validation": 0.301,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 33.15199998905882
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.832,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.562,
+              "orchestration_and_receipt_residual": 0.4011,
+              "snapshot_structural_validation": 0.369,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 29.169099987484515
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.946,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 27.644,
+              "orchestration_and_receipt_residual": 0.4154,
+              "snapshot_structural_validation": 0.356,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 29.366399976424873
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.963,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 31.373,
+              "orchestration_and_receipt_residual": 0.3966,
+              "snapshot_structural_validation": 0.486,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 33.2236000103876
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.77,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 31.303,
+              "orchestration_and_receipt_residual": 0.3808,
+              "snapshot_structural_validation": 0.323,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 32.7817999641411
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.819,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 29.807,
+              "orchestration_and_receipt_residual": 0.3903,
+              "snapshot_structural_validation": 0.329,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 31.350300007034093
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.936,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 24.058,
+              "orchestration_and_receipt_residual": 0.409,
+              "snapshot_structural_validation": 0.524,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 25.932000018656254
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.829,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 29.247,
+              "orchestration_and_receipt_residual": 0.367,
+              "snapshot_structural_validation": 0.415,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 30.863000021781772
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.853,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 29.346,
+              "orchestration_and_receipt_residual": 0.3828,
+              "snapshot_structural_validation": 0.31,
+              "source_verification_and_parity": 0.006
+            },
+            "wall_ms": 30.897799995727837
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.756,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 29.77,
+              "orchestration_and_receipt_residual": 0.3725,
+              "snapshot_structural_validation": 0.336,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 31.23949997825548
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 1,
+            "reused_files": 999,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.817,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 35.674,
+              "orchestration_and_receipt_residual": 0.3838,
+              "snapshot_structural_validation": 0.296,
+              "source_verification_and_parity": 0.005
+            },
+            "wall_ms": 37.175800011027604
+          }
+        ],
+        "summary": {
+          "cpu_ms_median": 0.0,
+          "parity": true,
+          "parsed_files_median": 1.0,
+          "repetitions": 30,
+          "reused_files_median": 999.0,
+          "stage_coverage_min": 0.999999998838599,
+          "wall_ms_median": 30.880400008754805,
+          "wall_ms_p95": 34.156755011645146,
+          "wall_ms_p99": 36.352229019394144
+        }
+      },
+      "performance_gates": {
+        "checks": {
+          "one_file_within_half_cold": true,
+          "parity": true,
+          "stage_coverage_ge_95_percent": true,
+          "unchanged_under_reference_budget": true,
+          "unchanged_within_two_times_warm": true
+        },
+        "schema": "simplicio.fast.changed-path-performance-gates/v1",
+        "status": "pass"
+      },
+      "symbols": 1000000,
+      "unchanged": {
+        "raw": [
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 1.074,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 18.638,
+              "orchestration_and_receipt_residual": 0.059,
+              "snapshot_structural_validation": 0.019,
+              "source_verification_and_parity": 0.294
+            },
+            "wall_ms": 20.083999959751964
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.633,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.025,
+              "orchestration_and_receipt_residual": 0.0369,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.198
+            },
+            "wall_ms": 0.8998999837785959
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.702,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.03,
+              "orchestration_and_receipt_residual": 0.0384,
+              "snapshot_structural_validation": 0.01,
+              "source_verification_and_parity": 0.196
+            },
+            "wall_ms": 0.9763999842107296
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.552,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0319,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.164
+            },
+            "wall_ms": 0.776899978518486
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.639,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.032,
+              "orchestration_and_receipt_residual": 0.0392,
+              "snapshot_structural_validation": 0.009,
+              "source_verification_and_parity": 0.217
+            },
+            "wall_ms": 0.9361999691464007
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.565,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.025,
+              "orchestration_and_receipt_residual": 0.0426,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.272
+            },
+            "wall_ms": 0.9116000146605074
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.609,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.026,
+              "orchestration_and_receipt_residual": 0.0326,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.177
+            },
+            "wall_ms": 0.8515999652445316
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.537,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0311,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.187
+            },
+            "wall_ms": 0.7850999827496707
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.541,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.022,
+              "orchestration_and_receipt_residual": 0.0309,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.183
+            },
+            "wall_ms": 0.7839000318199396
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.535,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.022,
+              "orchestration_and_receipt_residual": 0.028,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.164
+            },
+            "wall_ms": 0.7559999939985573
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.542,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.028,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.164
+            },
+            "wall_ms": 0.7619999814778566
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.553,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0297,
+              "snapshot_structural_validation": 0.006,
+              "source_verification_and_parity": 0.157
+            },
+            "wall_ms": 0.7666999590583146
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.52,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0258,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.162
+            },
+            "wall_ms": 0.7357999566011131
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.644,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.028,
+              "orchestration_and_receipt_residual": 0.0348,
+              "snapshot_structural_validation": 0.008,
+              "source_verification_and_parity": 0.172
+            },
+            "wall_ms": 0.8868000004440546
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.539,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.024,
+              "orchestration_and_receipt_residual": 0.0321,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.163
+            },
+            "wall_ms": 0.7651000050827861
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.643,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.026,
+              "orchestration_and_receipt_residual": 0.0355,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.216
+            },
+            "wall_ms": 0.9274999611079693
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.535,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0317,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.181
+            },
+            "wall_ms": 0.7776999846100807
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.559,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.022,
+              "orchestration_and_receipt_residual": 0.0312,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.165
+            },
+            "wall_ms": 0.7842000341042876
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 1.297,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.032,
+              "orchestration_and_receipt_residual": 0.0416,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.3
+            },
+            "wall_ms": 1.6776000265963376
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.576,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0385,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.359
+            },
+            "wall_ms": 1.0035000159405172
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.554,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0313,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.167
+            },
+            "wall_ms": 0.7823000196367502
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.521,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.021,
+              "orchestration_and_receipt_residual": 0.0379,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.157
+            },
+            "wall_ms": 0.7439000182785094
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.793,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.029,
+              "orchestration_and_receipt_residual": 0.0372,
+              "snapshot_structural_validation": 0.008,
+              "source_verification_and_parity": 0.217
+            },
+            "wall_ms": 1.084199990145862
+          },
+          {
+            "cpu_ms": 15.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.56,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.022,
+              "orchestration_and_receipt_residual": 0.0414,
+              "snapshot_structural_validation": 0.02,
+              "source_verification_and_parity": 0.244
+            },
+            "wall_ms": 0.8874000050127506
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.63,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.026,
+              "orchestration_and_receipt_residual": 0.0321,
+              "snapshot_structural_validation": 0.008,
+              "source_verification_and_parity": 0.197
+            },
+            "wall_ms": 0.8930999902077019
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.598,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.024,
+              "orchestration_and_receipt_residual": 0.0328,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.186
+            },
+            "wall_ms": 0.8477999945171177
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.581,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.024,
+              "orchestration_and_receipt_residual": 0.0487,
+              "snapshot_structural_validation": 0.008,
+              "source_verification_and_parity": 0.207
+            },
+            "wall_ms": 0.8686999790370464
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.61,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.026,
+              "orchestration_and_receipt_residual": 0.058,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.186
+            },
+            "wall_ms": 0.8870000019669533
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.596,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.024,
+              "orchestration_and_receipt_residual": 0.0348,
+              "snapshot_structural_validation": 0.008,
+              "source_verification_and_parity": 0.166
+            },
+            "wall_ms": 0.8287999662570655
+          },
+          {
+            "cpu_ms": 0.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "stage_timings_ms": {
+              "base_validation_and_open": 0.647,
+              "compose_and_validate": 0.0,
+              "delta_load_or_create": 0.023,
+              "orchestration_and_receipt_residual": 0.0446,
+              "snapshot_structural_validation": 0.007,
+              "source_verification_and_parity": 0.229
+            },
+            "wall_ms": 0.9505999623797834
+          }
+        ],
+        "summary": {
+          "cpu_ms_median": 0.0,
+          "parity": true,
+          "parsed_files_median": 0.0,
+          "repetitions": 30,
+          "reused_files_median": 1000.0,
+          "stage_coverage_min": 0.9999999565107293,
+          "wall_ms_median": 0.860149972140789,
+          "wall_ms_p95": 1.4105700101936218,
+          "wall_ms_p99": 14.746143979136848
+        }
+      },
+      "warm": {
+        "raw": [
+          {
+            "cpu_ms": 3859.375,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3925.8711999864317
+          },
+          {
+            "cpu_ms": 3953.125,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 4047.899700002745
+          },
+          {
+            "cpu_ms": 3937.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3964.6853000158444
+          },
+          {
+            "cpu_ms": 3875.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3941.692000022158
+          },
+          {
+            "cpu_ms": 3812.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3854.991099971812
+          },
+          {
+            "cpu_ms": 3828.125,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3894.465500023216
+          },
+          {
+            "cpu_ms": 3796.875,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3852.5515000219457
+          },
+          {
+            "cpu_ms": 3734.375,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3839.1369999735616
+          },
+          {
+            "cpu_ms": 3859.375,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3892.2178999637254
+          },
+          {
+            "cpu_ms": 3906.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3901.71669999836
+          },
+          {
+            "cpu_ms": 3890.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3913.6988000245765
+          },
+          {
+            "cpu_ms": 3921.875,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3935.760499967728
+          },
+          {
+            "cpu_ms": 3859.375,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3879.7598999808542
+          },
+          {
+            "cpu_ms": 4000.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 4055.423600017093
+          },
+          {
+            "cpu_ms": 4046.875,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 4113.626400008798
+          },
+          {
+            "cpu_ms": 3812.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3859.1019000159577
+          },
+          {
+            "cpu_ms": 3765.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3816.763999988325
+          },
+          {
+            "cpu_ms": 3765.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3831.683200027328
+          },
+          {
+            "cpu_ms": 3843.75,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3905.395499954466
+          },
+          {
+            "cpu_ms": 3875.0,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3922.3897999618202
+          },
+          {
+            "cpu_ms": 3906.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3923.320200003218
+          },
+          {
+            "cpu_ms": 3843.75,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3889.804099977482
+          },
+          {
+            "cpu_ms": 3890.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3913.0315000074916
+          },
+          {
+            "cpu_ms": 3937.5,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 4037.538700038567
+          },
+          {
+            "cpu_ms": 3796.875,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3869.111000036355
+          },
+          {
+            "cpu_ms": 3843.75,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3884.9354999838397
+          },
+          {
+            "cpu_ms": 3890.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3976.0057000094093
+          },
+          {
+            "cpu_ms": 3828.125,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3862.7242000075057
+          },
+          {
+            "cpu_ms": 3781.25,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3829.775599995628
+          },
+          {
+            "cpu_ms": 3890.625,
+            "parity": true,
+            "parsed_files": 0,
+            "reused_files": 1000,
+            "wall_ms": 3928.720100026112
+          }
+        ],
+        "summary": {
+          "cpu_ms_median": 3859.375,
+          "parity": true,
+          "parsed_files_median": 0.0,
+          "repetitions": 30,
+          "reused_files_median": 1000.0,
+          "stage_coverage_min": null,
+          "wall_ms_median": 3903.556099976413,
+          "wall_ms_p95": 4052.0378450106364,
+          "wall_ms_p99": 4096.747588011203
+        }
+      }
+    }
+  },
+  "schema": "simplicio.fast.issue242-hotpath-receipt/v1",
+  "source_commit": "403ab60bc33fb03b65487b3e2e55eb64648d4496",
+  "status": "pass"
+}

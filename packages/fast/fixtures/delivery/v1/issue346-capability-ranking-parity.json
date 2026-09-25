@@ -1,0 +1,221 @@
+{
+  "schema": "simplicio.fast.capability-ranking-parity/v1",
+  "cases": [
+    {
+      "name": "filters-and-metrics",
+      "required": ["query", "rust"],
+      "request": {
+        "max_results": 32,
+        "required_scope": "tenant-a",
+        "required_trust": "verified",
+        "max_freshness_seconds": 60
+      },
+      "candidates": [
+        {
+          "handle": "eligible",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query", "rust"],
+          "trust": "verified",
+          "estimated_cost": 10,
+          "estimated_latency_ms": 20,
+          "provenance": ["fixture"],
+          "policy_eligible": true,
+          "scope": "tenant-a",
+          "metric_class": "measured",
+          "freshness_seconds": 10,
+          "health": "healthy"
+        },
+        {
+          "handle": "global",
+          "kind": "tool",
+          "version": "1",
+          "capabilities": ["query", "rust"],
+          "trust": "verified",
+          "estimated_cost": 5,
+          "estimated_latency_ms": 5,
+          "provenance": ["fixture"],
+          "policy_eligible": true,
+          "scope": "*",
+          "metric_class": "estimated",
+          "freshness_seconds": 1,
+          "health": "healthy"
+        },
+        {
+          "handle": "unknown-metrics",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query", "rust"],
+          "trust": "verified",
+          "policy_eligible": true,
+          "scope": "tenant-a"
+        },
+        {
+          "handle": "missing",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query"],
+          "trust": "verified",
+          "policy_eligible": true,
+          "scope": "tenant-a",
+          "freshness_seconds": 10
+        },
+        {
+          "handle": "unavailable",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query", "rust"],
+          "trust": "verified",
+          "available": false,
+          "policy_eligible": true,
+          "scope": "tenant-a",
+          "freshness_seconds": 10
+        },
+        {
+          "handle": "policy-unknown",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query", "rust"],
+          "trust": "verified",
+          "scope": "tenant-a",
+          "freshness_seconds": 10
+        },
+        {
+          "handle": "policy-rejected",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query", "rust"],
+          "trust": "verified",
+          "policy_eligible": false,
+          "scope": "tenant-a",
+          "freshness_seconds": 10
+        },
+        {
+          "handle": "scope-other",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query", "rust"],
+          "trust": "verified",
+          "policy_eligible": true,
+          "scope": "tenant-b",
+          "freshness_seconds": 10
+        },
+        {
+          "handle": "trust-low",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query", "rust"],
+          "trust": "derived_fact",
+          "policy_eligible": true,
+          "scope": "tenant-a",
+          "freshness_seconds": 10
+        },
+        {
+          "handle": "fresh-stale",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query", "rust"],
+          "trust": "verified",
+          "policy_eligible": true,
+          "scope": "tenant-a",
+          "freshness_seconds": 90
+        },
+        {
+          "handle": "fresh-unknown",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query", "rust"],
+          "trust": "verified",
+          "policy_eligible": true,
+          "scope": "tenant-a"
+        },
+        {
+          "handle": "simulated",
+          "kind": "model",
+          "version": "1",
+          "capabilities": ["query", "rust"],
+          "trust": "verified",
+          "estimated_cost": 30,
+          "estimated_latency_ms": 30,
+          "policy_eligible": true,
+          "scope": "tenant-a",
+          "metric_class": "simulated",
+          "freshness_seconds": 20
+        }
+      ],
+      "expected_sha256": "6bb01000f121570d895a98b7f5fcdc18e0dcb37d4ce69675a0c854af293f25bb"
+    },
+    {
+      "name": "deterministic-pareto",
+      "required": ["query"],
+      "request": {"max_results": 4},
+      "candidates": [
+        {
+          "handle": "cheap",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query"],
+          "policy_eligible": true,
+          "estimated_cost": 1,
+          "estimated_latency_ms": 10,
+          "metric_class": "measured"
+        },
+        {
+          "handle": "fast",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query"],
+          "policy_eligible": true,
+          "estimated_cost": 5,
+          "estimated_latency_ms": 1,
+          "metric_class": "measured"
+        },
+        {
+          "handle": "dominated",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query"],
+          "policy_eligible": true,
+          "estimated_cost": 5,
+          "estimated_latency_ms": 10,
+          "metric_class": "measured"
+        },
+        {
+          "handle": "tie-z",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query"],
+          "policy_eligible": true,
+          "estimated_cost": 3,
+          "estimated_latency_ms": 3,
+          "metric_class": "estimated"
+        },
+        {
+          "handle": "tie-a",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query"],
+          "policy_eligible": true,
+          "estimated_cost": 3,
+          "estimated_latency_ms": 3,
+          "metric_class": "estimated"
+        },
+        {
+          "handle": "unknown",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query"],
+          "policy_eligible": true
+        },
+        {
+          "handle": "rejected",
+          "kind": "worker",
+          "version": "1",
+          "capabilities": ["query"],
+          "policy_eligible": false
+        }
+      ],
+      "expected_sha256": "0b3775a646fca5e72625ece5458ecf1cf7d50a2243a2c5f094d62162322d90f8"
+    }
+  ]
+}
