@@ -53,3 +53,11 @@ def test_a_bad_anchor_is_reported_not_applied(tmp_path):
     compiled, error = runner._compile_minimal_host_plan(repo, plan_path)
     assert compiled is None
     assert "missing_anchor" in error
+
+
+def test_dispatch_finds_a_minimal_host_plan_in_the_run_dir(tmp_path):
+    (tmp_path / "edit-plan-2.json").write_text(json.dumps({"operations": [
+        {"path": "ops.py", "find": "a", "replace": "b"}]}))
+    plan, path, source = runner._resolve_host_edit_plan(tmp_path, task_index=2, env={})
+    assert plan is not None and path.name == "edit-plan-2.json"
+    assert source == "run_dir:edit-plan-2.json"

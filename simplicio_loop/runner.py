@@ -1610,7 +1610,9 @@ button { cursor: pointer; }
 
 def _looks_like_host_edit_plan(payload: Mapping[str, Any]) -> bool:
     schema = str(payload.get("schema") or "")
-    if schema not in HOST_EDIT_PLAN_SCHEMAS:
+    # No schema = minimal host plan ({operations: [{path, find, replace}]}),
+    # compiled by Dev CLI right before apply.
+    if schema and schema not in HOST_EDIT_PLAN_SCHEMAS:
         return False
     operations = payload.get("operations") or payload.get("ops") or payload.get("edits")
     return isinstance(operations, list) and bool(operations)
