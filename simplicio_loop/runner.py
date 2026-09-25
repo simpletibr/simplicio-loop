@@ -3551,9 +3551,19 @@ def _operator_capability_gaps(help_stdout: str, task_help_stdout: str) -> Tuple[
     return missing_tokens, missing_capabilities
 
 
+class DevCliCapabilitiesUnavailableError(RuntimeError):
+    """Neither the in-process capabilities manifest nor `capabilities --json`
+    resolved. No backward-compat layer -- fail closed with a typed reason."""
+
+    def __init__(self, message: str, *, reason_code: str = "devcli_capabilities_unavailable") -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+
+
 def _devcli_capability_probe(repo_path: Path) -> Dict[str, Any]:
     """One in-process manifest read when available, else one `capabilities --json`
-    subprocess, else the legacy 3-subprocess --help/--help edit/--version probe.
+    subprocess. No legacy --help/--version fallback: an install that supports
+    neither path fails closed (`devcli_capabilities_unavailable`).
     Callers cache the result -- this must run at most once per run_root."""
     identity = _resolved_identity("simplicio-dev-cli", ("simplicio-dev-cli", "simplicio-py"))
     manifest: Dict[str, Any] | None = None
@@ -3574,52 +3584,36 @@ def _devcli_capability_probe(repo_path: Path) -> Dict[str, Any]:
                 manifest = json.loads(probe.stdout)
         except (OSError, subprocess.SubprocessError, ValueError):
             manifest = None
-    if manifest is not None:
-        commands = manifest.get("commands") or {}
-        edit_spec = commands.get("edit") or {}
-        surface_parts = [manifest.get("schema", ""), " ".join(manifest.get("top_level_flags") or [])]
-        for name, spec in commands.items():
-            if not isinstance(spec, Mapping):
-                continue
-            surface_parts.append(name)
-            surface_parts.append(" ".join(spec.get("flags") or []))
-            surface_parts.append(str(spec.get("help", "")))
-        help_stdout = " ".join(part for part in surface_parts if part)
-        task_help_stdout = " ".join(
-            part for part in (
-                "edit", " ".join(edit_spec.get("flags") or []), str(edit_spec.get("help", "")),
-            ) if part
+    if manifest is None:
+        raise DevCliCapabilitiesUnavailableError(
+            "simplicio-dev-cli capabilities are unavailable: neither the in-process "
+            "simplicio.capabilities manifest nor `simplicio-dev-cli capabilities --json` "
+            "resolved. Install simplicio-cli>=0.18.16."
         )
-        version = str((manifest.get("package") or {}).get("version") or "")
-        return {
-            "identity": identity,
-            "help_stdout": help_stdout,
-            "help_rc": 0,
-            "task_help_stdout": task_help_stdout,
-            "task_help_rc": 0,
-            "version_stdout": f"simplicio-dev-cli {version}".strip() if version else "",
-            "version_rc": 0 if version else 1,
-        }
-    # Legacy fallback for installs without `capabilities`/the in-process module.
-    help_result = subprocess.run(
-        _devcli_cmd(repo_path, "--help"), cwd=str(repo_path), capture_output=True, text=True, timeout=180, env=env,
+    commands = manifest.get("commands") or {}
+    edit_spec = commands.get("edit") or {}
+    surface_parts = [manifest.get("schema", ""), " ".join(manifest.get("top_level_flags") or [])]
+    for name, spec in commands.items():
+        if not isinstance(spec, Mapping):
+            continue
+        surface_parts.append(name)
+        surface_parts.append(" ".join(spec.get("flags") or []))
+        surface_parts.append(str(spec.get("help", "")))
+    help_stdout = " ".join(part for part in surface_parts if part)
+    task_help_stdout = " ".join(
+        part for part in (
+            "edit", " ".join(edit_spec.get("flags") or []), str(edit_spec.get("help", "")),
+        ) if part
     )
-    task_help_result = subprocess.run(
-        _devcli_cmd(repo_path, "edit", "--help"), cwd=str(repo_path), capture_output=True, text=True,
-        timeout=180, env=env,
-    )
-    version_result = subprocess.run(
-        _devcli_cmd(repo_path, "--version"), cwd=str(repo_path), capture_output=True, text=True,
-        timeout=180, env=env,
-    )
+    version = str((manifest.get("package") or {}).get("version") or "")
     return {
         "identity": identity,
-        "help_stdout": (help_result.stdout or "").strip(),
-        "help_rc": help_result.returncode,
-        "task_help_stdout": (task_help_result.stdout or "").strip(),
-        "task_help_rc": task_help_result.returncode,
-        "version_stdout": (version_result.stdout or "").strip(),
-        "version_rc": version_result.returncode,
+        "help_stdout": help_stdout,
+        "help_rc": 0,
+        "task_help_stdout": task_help_stdout,
+        "task_help_rc": 0,
+        "version_stdout": f"simplicio-dev-cli {version}".strip() if version else "",
+        "version_rc": 0 if version else 1,
     }
 
 

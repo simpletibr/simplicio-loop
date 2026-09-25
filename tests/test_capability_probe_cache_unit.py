@@ -139,3 +139,37 @@ def test_preflight_operator_uses_in_process_manifest_with_zero_subprocess_calls(
         assert receipt["missing_capabilities"] == []
 
     assert calls == []
+
+
+def test_preflight_operator_fails_closed_with_no_legacy_fallback(tmp_path, monkeypatch):
+    """No backward-compat layer (repo rule): when neither the in-process manifest
+    nor `capabilities --json` resolves, block with a typed reason instead of
+    falling back to the legacy --help/--version subprocess probe."""
+    runner_mod.reset_capability_probe_cache()
+    repo = tmp_path / "repo"
+    run_root = tmp_path / "run"
+    repo.mkdir()
+    run_root.mkdir()
+    monkeypatch.delenv("SIMPLICIO_LOOP_FAKE_DEVCLI_PREFLIGHT_JSON", raising=False)
+    monkeypatch.setitem(__import__("sys").modules, "simplicio.capabilities", None)
+    monkeypatch.setattr(runner_mod, "_devcli_command_path", lambda: "simplicio-dev-cli")
+
+    calls = []
+    real_subprocess_run = runner_mod.subprocess.run
+
+    def fake_subprocess_run(*a, **k):
+        argv = a[0] if a else k.get("args")
+        calls.append(list(argv) if argv else [])
+        if argv and "capabilities" in argv and "--json" in argv:
+            return subprocess.CompletedProcess(argv, 1, "", "no such command")
+        raise AssertionError(f"no legacy --help/--version probe expected, got {argv}")
+
+    monkeypatch.setattr(runner_mod.subprocess, "run", fake_subprocess_run)
+
+    with __import__("pytest").raises(runner_mod.DevCliCapabilitiesUnavailableError) as excinfo:
+        runner_mod._preflight_operator(repo, run_root)
+
+    assert excinfo.value.reason_code == "devcli_capabilities_unavailable"
+    assert "simplicio-cli>=0.18.16" in str(excinfo.value)
+    # Exactly one subprocess call (`capabilities --json`), never the legacy triple.
+    assert len(calls) == 1
