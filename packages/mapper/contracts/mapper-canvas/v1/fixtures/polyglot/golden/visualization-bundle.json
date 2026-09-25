@@ -1,0 +1,1456 @@
+{
+  "capabilities": [
+    "hierarchy",
+    "typed-edges",
+    "flows",
+    "provenance",
+    "source-preview",
+    "language-diagnostics",
+    "clustering-metrics",
+    "layout-hints"
+  ],
+  "clustering": {
+    "clusters": [
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 0.083333,
+        "edge_count": 1,
+        "external_edge_count": 0,
+        "id": "cluster:workspace:86fa3762d2eb6db6",
+        "importance": 0.435,
+        "internal_edge_count": 1,
+        "kind": "workspace",
+        "language_mix": {
+          "go": 1,
+          "json": 1,
+          "python": 1,
+          "rust": 1
+        },
+        "member_count": 4,
+        "member_ids": [
+          "cluster:file:0b49eef4d91308a3",
+          "cluster:file:d7f6204f00b61069",
+          "cluster:file:e9f0cab5fcffbd26",
+          "cluster:file:36c6cf49ce92fdd6"
+        ],
+        "member_paths": [
+          "go/main.go",
+          "package.json",
+          "python/app.py",
+          "rust/src/lib.rs"
+        ],
+        "name": ".",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:directory:c22d9e7664332f0b",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "directory",
+        "language_mix": {
+          "json": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:d7f6204f00b61069"
+        ],
+        "member_paths": [
+          "package.json"
+        ],
+        "name": ".",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 1.0,
+        "edge_count": 1,
+        "external_edge_count": 0,
+        "id": "cluster:directory:c7ba08b90b22f73c",
+        "importance": 0.65,
+        "internal_edge_count": 1,
+        "kind": "directory",
+        "language_mix": {
+          "go": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:0b49eef4d91308a3"
+        ],
+        "member_paths": [
+          "go/main.go"
+        ],
+        "name": "go",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:directory:3b68bbd958b01284",
+        "importance": 0.65,
+        "internal_edge_count": 0,
+        "kind": "directory",
+        "language_mix": {
+          "python": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:e9f0cab5fcffbd26"
+        ],
+        "member_paths": [
+          "python/app.py"
+        ],
+        "name": "python",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:directory:515507177f71cb7a",
+        "importance": 0.12,
+        "internal_edge_count": 0,
+        "kind": "directory",
+        "language_mix": {
+          "rust": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:36c6cf49ce92fdd6"
+        ],
+        "member_paths": [
+          "rust/src/lib.rs"
+        ],
+        "name": "rust/src",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:package:710115d946c582c2",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "package",
+        "language_mix": {
+          "json": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:d7f6204f00b61069"
+        ],
+        "member_paths": [
+          "package.json"
+        ],
+        "name": ".",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 1.0,
+        "edge_count": 1,
+        "external_edge_count": 0,
+        "id": "cluster:package:0ca7085526ec55b5",
+        "importance": 0.65,
+        "internal_edge_count": 1,
+        "kind": "package",
+        "language_mix": {
+          "go": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:0b49eef4d91308a3"
+        ],
+        "member_paths": [
+          "go/main.go"
+        ],
+        "name": "go",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:package:971411b1d2a18224",
+        "importance": 0.65,
+        "internal_edge_count": 0,
+        "kind": "package",
+        "language_mix": {
+          "python": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:e9f0cab5fcffbd26"
+        ],
+        "member_paths": [
+          "python/app.py"
+        ],
+        "name": "python",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:package:c35d3e3be773eadf",
+        "importance": 0.12,
+        "internal_edge_count": 0,
+        "kind": "package",
+        "language_mix": {
+          "rust": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:36c6cf49ce92fdd6"
+        ],
+        "member_paths": [
+          "rust/src/lib.rs"
+        ],
+        "name": "rust",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 1.0,
+        "edge_count": 1,
+        "external_edge_count": 0,
+        "id": "cluster:namespace:1a12af28cd61fa41",
+        "importance": 0.65,
+        "internal_edge_count": 1,
+        "kind": "namespace",
+        "language_mix": {
+          "go": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:0b49eef4d91308a3"
+        ],
+        "member_paths": [
+          "go/main.go"
+        ],
+        "name": "go",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:namespace:ad0eed0c5b9bdb9b",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "namespace",
+        "language_mix": {
+          "json": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:d7f6204f00b61069"
+        ],
+        "member_paths": [
+          "package.json"
+        ],
+        "name": "package",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:namespace:f403cba46fe8462b",
+        "importance": 0.65,
+        "internal_edge_count": 0,
+        "kind": "namespace",
+        "language_mix": {
+          "python": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:e9f0cab5fcffbd26"
+        ],
+        "member_paths": [
+          "python/app.py"
+        ],
+        "name": "python",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:namespace:5b4a703bc619a131",
+        "importance": 0.12,
+        "internal_edge_count": 0,
+        "kind": "namespace",
+        "language_mix": {
+          "rust": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:36c6cf49ce92fdd6"
+        ],
+        "member_paths": [
+          "rust/src/lib.rs"
+        ],
+        "name": "rust",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 0.083333,
+        "edge_count": 1,
+        "external_edge_count": 0,
+        "id": "cluster:domain:883d523e9eba130e",
+        "importance": 0.435,
+        "internal_edge_count": 1,
+        "kind": "domain",
+        "language_mix": {
+          "go": 1,
+          "json": 1,
+          "python": 1,
+          "rust": 1
+        },
+        "member_count": 4,
+        "member_ids": [
+          "cluster:file:0b49eef4d91308a3",
+          "cluster:file:d7f6204f00b61069",
+          "cluster:file:e9f0cab5fcffbd26",
+          "cluster:file:36c6cf49ce92fdd6"
+        ],
+        "member_paths": [
+          "go/main.go",
+          "package.json",
+          "python/app.py",
+          "rust/src/lib.rs"
+        ],
+        "name": "unclassified",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:layer:516f842e3bcb51a5",
+        "importance": 0.12,
+        "internal_edge_count": 0,
+        "kind": "layer",
+        "language_mix": {
+          "rust": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:36c6cf49ce92fdd6"
+        ],
+        "member_paths": [
+          "rust/src/lib.rs"
+        ],
+        "name": "code",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:layer:c79aec78748b7816",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "layer",
+        "language_mix": {
+          "json": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:d7f6204f00b61069"
+        ],
+        "member_paths": [
+          "package.json"
+        ],
+        "name": "config",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 0.5,
+        "edge_count": 1,
+        "external_edge_count": 0,
+        "id": "cluster:layer:f333279cd5d5eb65",
+        "importance": 0.65,
+        "internal_edge_count": 1,
+        "kind": "layer",
+        "language_mix": {
+          "go": 1,
+          "python": 1
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:0b49eef4d91308a3",
+          "cluster:file:e9f0cab5fcffbd26"
+        ],
+        "member_paths": [
+          "go/main.go",
+          "python/app.py"
+        ],
+        "name": "entrypoint",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 1.0,
+        "edge_count": 1,
+        "external_edge_count": 0,
+        "id": "cluster:flow:839a731efd9e0982",
+        "importance": 0.65,
+        "internal_edge_count": 1,
+        "kind": "flow",
+        "language_mix": {
+          "go": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:0b49eef4d91308a3"
+        ],
+        "member_paths": [
+          "go/main.go"
+        ],
+        "name": "go.main",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:flow:04eb052960252031",
+        "importance": 0.65,
+        "internal_edge_count": 0,
+        "kind": "flow",
+        "language_mix": {
+          "python": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:e9f0cab5fcffbd26"
+        ],
+        "member_paths": [
+          "python/app.py"
+        ],
+        "name": "python.app",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      }
+    ],
+    "config": {
+      "community_min_size": 2,
+      "layout_hints": {
+        "enabled": true,
+        "lane_order": [
+          "workspace",
+          "package",
+          "directory",
+          "namespace",
+          "domain",
+          "layer",
+          "flow",
+          "graph-community"
+        ]
+      },
+      "max_clusters_per_strategy": 100,
+      "min_cluster_size": 1
+    },
+    "generated_at": "1970-01-01T00:00:00.000Z",
+    "layout_hints": [
+      {
+        "cluster_id": "cluster:workspace:86fa3762d2eb6db6",
+        "collapse_level": "expanded",
+        "importance": 0.435,
+        "lane": "workspace",
+        "lane_index": 0,
+        "order": 0,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:directory:c22d9e7664332f0b",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "directory",
+        "lane_index": 2,
+        "order": 1,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:directory:c7ba08b90b22f73c",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "directory",
+        "lane_index": 2,
+        "order": 2,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:directory:3b68bbd958b01284",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "directory",
+        "lane_index": 2,
+        "order": 3,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:directory:515507177f71cb7a",
+        "collapse_level": "expanded",
+        "importance": 0.12,
+        "lane": "directory",
+        "lane_index": 2,
+        "order": 4,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:package:710115d946c582c2",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "package",
+        "lane_index": 1,
+        "order": 5,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:package:0ca7085526ec55b5",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "package",
+        "lane_index": 1,
+        "order": 6,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:package:971411b1d2a18224",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "package",
+        "lane_index": 1,
+        "order": 7,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:package:c35d3e3be773eadf",
+        "collapse_level": "expanded",
+        "importance": 0.12,
+        "lane": "package",
+        "lane_index": 1,
+        "order": 8,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:namespace:1a12af28cd61fa41",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "namespace",
+        "lane_index": 3,
+        "order": 9,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:namespace:ad0eed0c5b9bdb9b",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "namespace",
+        "lane_index": 3,
+        "order": 10,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:namespace:f403cba46fe8462b",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "namespace",
+        "lane_index": 3,
+        "order": 11,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:namespace:5b4a703bc619a131",
+        "collapse_level": "expanded",
+        "importance": 0.12,
+        "lane": "namespace",
+        "lane_index": 3,
+        "order": 12,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:domain:883d523e9eba130e",
+        "collapse_level": "expanded",
+        "importance": 0.435,
+        "lane": "domain",
+        "lane_index": 4,
+        "order": 13,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:layer:516f842e3bcb51a5",
+        "collapse_level": "expanded",
+        "importance": 0.12,
+        "lane": "layer",
+        "lane_index": 5,
+        "order": 14,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:layer:c79aec78748b7816",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "layer",
+        "lane_index": 5,
+        "order": 15,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:layer:f333279cd5d5eb65",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "layer",
+        "lane_index": 5,
+        "order": 16,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:flow:839a731efd9e0982",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "flow",
+        "lane_index": 6,
+        "order": 17,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:flow:04eb052960252031",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "flow",
+        "lane_index": 6,
+        "order": 18,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      }
+    ],
+    "mapper_version": "0.0.0",
+    "project": {
+      "file_count": 4,
+      "root": "."
+    },
+    "provenance": {
+      "config": {
+        "community_min_size": 2,
+        "layout_hints": {
+          "enabled": true,
+          "lane_order": [
+            "workspace",
+            "package",
+            "directory",
+            "namespace",
+            "domain",
+            "layer",
+            "flow",
+            "graph-community"
+          ]
+        },
+        "max_clusters_per_strategy": 100,
+        "min_cluster_size": 1
+      },
+      "metrics": "directed call/import edges; cohesion=internal/incident; coupling=external/incident",
+      "strategies": [
+        "workspace",
+        "directory",
+        "package",
+        "namespace",
+        "domain",
+        "layer",
+        "flow",
+        "graph-community"
+      ]
+    },
+    "schema": "simplicio.clustering-metrics/v1",
+    "schema_version": "v1",
+    "version": 1
+  },
+  "diagnostics": [
+    {
+      "code": "heuristic-edge",
+      "count": 6
+    },
+    {
+      "code": "unresolved-relation",
+      "count": 0
+    }
+  ],
+  "edges": [
+    {
+      "confidence": 0.58,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "symbol:74134ada39098f4f",
+      "source_location": {
+        "line": 3,
+        "path": "go/main.go"
+      },
+      "target": "symbol:74134ada39098f4f",
+      "type": "calls"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:0b49eef4d91308a3",
+      "source_location": {
+        "line": 2,
+        "path": "go/main.go"
+      },
+      "target": "symbol:74134ada39098f4f",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:36c6cf49ce92fdd6",
+      "source_location": {
+        "line": 1,
+        "path": "rust/src/lib.rs"
+      },
+      "target": "symbol:793257bffce2aab8",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:e9f0cab5fcffbd26",
+      "source_location": {
+        "line": 1,
+        "path": "python/app.py"
+      },
+      "target": "symbol:1fd595148b9d81d5",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:3800de2487085eba",
+      "source_location": {
+        "path": "go/main.go"
+      },
+      "target": "file:0b49eef4d91308a3",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:42b5302cd11f1a60",
+      "source_location": {
+        "path": "rust/src/lib.rs"
+      },
+      "target": "file:36c6cf49ce92fdd6",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:5a219264bc5d86e9",
+      "source_location": {
+        "path": "package.json"
+      },
+      "target": "file:d7f6204f00b61069",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:8dbe8155e679c240",
+      "source_location": {
+        "path": "python/app.py"
+      },
+      "target": "file:e9f0cab5fcffbd26",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:be16400425fa9e9e",
+      "source_location": null,
+      "target": "flow:04eb052960252031",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:be16400425fa9e9e",
+      "source_location": null,
+      "target": "flow:839a731efd9e0982",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:be16400425fa9e9e",
+      "source_location": null,
+      "target": "module:3800de2487085eba",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:be16400425fa9e9e",
+      "source_location": null,
+      "target": "module:42b5302cd11f1a60",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:be16400425fa9e9e",
+      "source_location": null,
+      "target": "module:5a219264bc5d86e9",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:be16400425fa9e9e",
+      "source_location": null,
+      "target": "module:8dbe8155e679c240",
+      "type": "contains"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:be16400425fa9e9e",
+      "source_location": null,
+      "target": "layer:516f842e3bcb51a5",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:be16400425fa9e9e",
+      "source_location": null,
+      "target": "layer:c79aec78748b7816",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:be16400425fa9e9e",
+      "source_location": null,
+      "target": "layer:f333279cd5d5eb65",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.5,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "flow:04eb052960252031",
+      "source_location": {
+        "line": 1,
+        "path": "python/app.py"
+      },
+      "target": "file:e9f0cab5fcffbd26",
+      "type": "transitions-to"
+    },
+    {
+      "confidence": 0.5,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "flow:839a731efd9e0982",
+      "source_location": {
+        "line": 2,
+        "path": "go/main.go"
+      },
+      "target": "file:0b49eef4d91308a3",
+      "type": "transitions-to"
+    }
+  ],
+  "flows": [
+    {
+      "confidence": "heuristic",
+      "effects": [],
+      "entry": {
+        "line": 2,
+        "path": "go/main.go",
+        "symbol": "go/main.go::Start"
+      },
+      "generated_at": "1970-01-01T00:00:00.000Z",
+      "id": "go.main",
+      "kind": "entrypoint",
+      "layers_touched": [
+        "entrypoint"
+      ],
+      "steps": [
+        {
+          "line": 2,
+          "module": "go",
+          "path": "go/main.go",
+          "symbol": "go/main.go::Start"
+        }
+      ]
+    },
+    {
+      "confidence": "heuristic",
+      "effects": [],
+      "entry": {
+        "line": 1,
+        "path": "python/app.py",
+        "symbol": "python/app.py::serve"
+      },
+      "generated_at": "1970-01-01T00:00:00.000Z",
+      "id": "python.app",
+      "kind": "entrypoint",
+      "layers_touched": [
+        "entrypoint"
+      ],
+      "steps": [
+        {
+          "line": 1,
+          "module": "python",
+          "path": "python/app.py",
+          "symbol": "python/app.py::serve"
+        }
+      ]
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "language_diagnostics": [
+    {
+      "confidence": 0.7,
+      "errors": [],
+      "language": "go",
+      "line_count": 3,
+      "parser_used": "builtin-regex",
+      "parser_version": "1",
+      "path": "go/main.go",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 1.0,
+      "errors": [],
+      "language": "json",
+      "line_count": 1,
+      "parser_used": "builtin-text",
+      "parser_version": "1",
+      "path": "package.json",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 0.7,
+      "errors": [],
+      "language": "python",
+      "line_count": 2,
+      "parser_used": "builtin-regex",
+      "parser_version": "1",
+      "path": "python/app.py",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 0.7,
+      "errors": [],
+      "language": "rust",
+      "line_count": 1,
+      "parser_used": "builtin-regex",
+      "parser_version": "1",
+      "path": "rust/src/lib.rs",
+      "skipped": false,
+      "unsupported_constructs": []
+    }
+  ],
+  "layout_hints": [
+    {
+      "cluster_id": "cluster:workspace:86fa3762d2eb6db6",
+      "collapse_level": "expanded",
+      "importance": 0.435,
+      "lane": "workspace",
+      "lane_index": 0,
+      "order": 0,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:c22d9e7664332f0b",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 1,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:c7ba08b90b22f73c",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 2,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:3b68bbd958b01284",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 3,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:515507177f71cb7a",
+      "collapse_level": "expanded",
+      "importance": 0.12,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 4,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:710115d946c582c2",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 5,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:0ca7085526ec55b5",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 6,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:971411b1d2a18224",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 7,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:c35d3e3be773eadf",
+      "collapse_level": "expanded",
+      "importance": 0.12,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 8,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:1a12af28cd61fa41",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 9,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:ad0eed0c5b9bdb9b",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 10,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:f403cba46fe8462b",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 11,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:5b4a703bc619a131",
+      "collapse_level": "expanded",
+      "importance": 0.12,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 12,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:domain:883d523e9eba130e",
+      "collapse_level": "expanded",
+      "importance": 0.435,
+      "lane": "domain",
+      "lane_index": 4,
+      "order": 13,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:layer:516f842e3bcb51a5",
+      "collapse_level": "expanded",
+      "importance": 0.12,
+      "lane": "layer",
+      "lane_index": 5,
+      "order": 14,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:layer:c79aec78748b7816",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "layer",
+      "lane_index": 5,
+      "order": 15,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:layer:f333279cd5d5eb65",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "layer",
+      "lane_index": 5,
+      "order": 16,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:flow:839a731efd9e0982",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "flow",
+      "lane_index": 6,
+      "order": 17,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:flow:04eb052960252031",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "flow",
+      "lane_index": 6,
+      "order": 18,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    }
+  ],
+  "mapper_version": "0.0.0",
+  "nodes": [
+    {
+      "canonical": "go/main.go",
+      "id": "file:0b49eef4d91308a3",
+      "kind": "file",
+      "language": "go",
+      "metrics": {
+        "size_bytes": 50
+      },
+      "name": "main.go",
+      "parent_id": "module:3800de2487085eba",
+      "path": "go/main.go"
+    },
+    {
+      "canonical": "package.json",
+      "id": "file:d7f6204f00b61069",
+      "kind": "file",
+      "language": "json",
+      "metrics": {
+        "size_bytes": 27
+      },
+      "name": "package.json",
+      "parent_id": "module:5a219264bc5d86e9",
+      "path": "package.json"
+    },
+    {
+      "canonical": "python/app.py",
+      "id": "file:e9f0cab5fcffbd26",
+      "kind": "file",
+      "language": "python",
+      "metrics": {
+        "size_bytes": 33
+      },
+      "name": "app.py",
+      "parent_id": "module:8dbe8155e679c240",
+      "path": "python/app.py"
+    },
+    {
+      "canonical": "rust/src/lib.rs",
+      "id": "file:36c6cf49ce92fdd6",
+      "kind": "file",
+      "language": "rust",
+      "metrics": {
+        "size_bytes": 40
+      },
+      "name": "lib.rs",
+      "parent_id": "module:42b5302cd11f1a60",
+      "path": "rust/src/lib.rs"
+    },
+    {
+      "canonical": "go.main",
+      "confidence": 0.5,
+      "id": "flow:839a731efd9e0982",
+      "kind": "flow",
+      "metrics": {},
+      "name": "go.main",
+      "parent_id": "repository:be16400425fa9e9e",
+      "path": null
+    },
+    {
+      "canonical": "python.app",
+      "confidence": 0.5,
+      "id": "flow:04eb052960252031",
+      "kind": "flow",
+      "metrics": {},
+      "name": "python.app",
+      "parent_id": "repository:be16400425fa9e9e",
+      "path": null
+    },
+    {
+      "canonical": "code",
+      "confidence": 0.7,
+      "id": "layer:516f842e3bcb51a5",
+      "kind": "layer",
+      "metrics": {},
+      "name": "code",
+      "parent_id": "repository:be16400425fa9e9e",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": "config",
+      "confidence": 0.7,
+      "id": "layer:c79aec78748b7816",
+      "kind": "layer",
+      "metrics": {},
+      "name": "config",
+      "parent_id": "repository:be16400425fa9e9e",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": "entrypoint",
+      "confidence": 0.7,
+      "id": "layer:f333279cd5d5eb65",
+      "kind": "layer",
+      "metrics": {},
+      "name": "entrypoint",
+      "parent_id": "repository:be16400425fa9e9e",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": ".",
+      "id": "module:5a219264bc5d86e9",
+      "kind": "module",
+      "metrics": {},
+      "name": ".",
+      "parent_id": "repository:be16400425fa9e9e",
+      "path": null
+    },
+    {
+      "canonical": "go",
+      "id": "module:3800de2487085eba",
+      "kind": "module",
+      "metrics": {},
+      "name": "go",
+      "parent_id": "repository:be16400425fa9e9e",
+      "path": null
+    },
+    {
+      "canonical": "python",
+      "id": "module:8dbe8155e679c240",
+      "kind": "module",
+      "metrics": {},
+      "name": "python",
+      "parent_id": "repository:be16400425fa9e9e",
+      "path": null
+    },
+    {
+      "canonical": "rust",
+      "id": "module:42b5302cd11f1a60",
+      "kind": "module",
+      "metrics": {},
+      "name": "rust",
+      "parent_id": "repository:be16400425fa9e9e",
+      "path": null
+    },
+    {
+      "canonical": "canvas-polyglot",
+      "id": "repository:be16400425fa9e9e",
+      "kind": "repository",
+      "metrics": {},
+      "name": "canvas-polyglot",
+      "parent_id": null,
+      "path": null
+    },
+    {
+      "canonical": "go/main.go\u0000go/main.go::Start",
+      "id": "symbol:74134ada39098f4f",
+      "kind": "symbol",
+      "metrics": {
+        "line": 2
+      },
+      "name": "Start",
+      "parent_id": "file:0b49eef4d91308a3",
+      "path": "go/main.go"
+    },
+    {
+      "canonical": "python/app.py\u0000python/app.py::serve",
+      "id": "symbol:1fd595148b9d81d5",
+      "kind": "symbol",
+      "metrics": {
+        "line": 1
+      },
+      "name": "serve",
+      "parent_id": "file:e9f0cab5fcffbd26",
+      "path": "python/app.py"
+    },
+    {
+      "canonical": "rust/src/lib.rs\u0000rust/src/lib.rs::run",
+      "id": "symbol:793257bffce2aab8",
+      "kind": "symbol",
+      "metrics": {
+        "line": 1
+      },
+      "name": "run",
+      "parent_id": "file:36c6cf49ce92fdd6",
+      "path": "rust/src/lib.rs"
+    }
+  ],
+  "project": {
+    "id": "repository:be16400425fa9e9e",
+    "name": "canvas-polyglot",
+    "root": "."
+  },
+  "provenance": {
+    "branch": null,
+    "clone_type": "plain-folder",
+    "clustering": {
+      "config": {
+        "community_min_size": 2,
+        "layout_hints": {
+          "enabled": true,
+          "lane_order": [
+            "workspace",
+            "package",
+            "directory",
+            "namespace",
+            "domain",
+            "layer",
+            "flow",
+            "graph-community"
+          ]
+        },
+        "max_clusters_per_strategy": 100,
+        "min_cluster_size": 1
+      },
+      "metrics": "directed call/import edges; cohesion=internal/incident; coupling=external/incident",
+      "strategies": [
+        "workspace",
+        "directory",
+        "package",
+        "namespace",
+        "domain",
+        "layer",
+        "flow",
+        "graph-community"
+      ]
+    },
+    "commit_sha": null,
+    "default_branch": null,
+    "dirty": false,
+    "host": null,
+    "monorepo_roots": [],
+    "owner": null,
+    "remote_url": null,
+    "remotes": [],
+    "repository": null,
+    "scan_root": ".",
+    "submodules": []
+  },
+  "schema": "simplicio.visualization-bundle/v1",
+  "schema_version": "v1",
+  "version": 1
+}

@@ -1,0 +1,836 @@
+{
+  "architecture": {
+    "signals": [],
+    "system_type": "monorepo"
+  },
+  "coverage": {
+    "files": 16,
+    "layers": 8,
+    "modules": 7,
+    "relationships": 1,
+    "symbols": 13,
+    "tests": 0
+  },
+  "files": [
+    {
+      "evidence": [
+        {
+          "file": ".starter-meta.json"
+        }
+      ],
+      "imports": [],
+      "language": "json",
+      "layers": [
+        "asset"
+      ],
+      "module": ".",
+      "path": ".starter-meta.json",
+      "roles": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "symbols": []
+    },
+    {
+      "evidence": [
+        {
+          "file": "apps/python/app.py"
+        }
+      ],
+      "imports": [],
+      "language": "python",
+      "layers": [
+        "entrypoint"
+      ],
+      "module": "apps",
+      "path": "apps/python/app.py",
+      "roles": [
+        "entrypoint"
+      ],
+      "summary": "Starts a CLI, runtime or package entrypoint.",
+      "symbols": [
+        "serve"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "apps/web/src/index.js"
+        }
+      ],
+      "imports": [],
+      "language": "javascript",
+      "layers": [
+        "entrypoint"
+      ],
+      "module": "apps",
+      "path": "apps/web/src/index.js",
+      "roles": [
+        "entrypoint"
+      ],
+      "summary": "Starts a CLI, runtime or package entrypoint.",
+      "symbols": [
+        "renderJavaScript"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "apps/web/src/index.ts"
+        }
+      ],
+      "imports": [],
+      "language": "typescript",
+      "layers": [
+        "entrypoint"
+      ],
+      "module": "apps",
+      "path": "apps/web/src/index.ts",
+      "roles": [
+        "entrypoint"
+      ],
+      "summary": "Starts a CLI, runtime or package entrypoint.",
+      "symbols": [
+        "render"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "crates/core/src/lib.rs"
+        }
+      ],
+      "imports": [],
+      "language": "rust",
+      "layers": [
+        "code"
+      ],
+      "module": "crates",
+      "path": "crates/core/src/lib.rs",
+      "roles": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "symbols": [
+        "run"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "db/schema.sql"
+        }
+      ],
+      "imports": [],
+      "language": "sql",
+      "layers": [
+        "model"
+      ],
+      "module": "db",
+      "path": "db/schema.sql",
+      "roles": [],
+      "summary": "Defines domain, data or schema structures.",
+      "symbols": [
+        "users"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "duplicates/one.py"
+        }
+      ],
+      "imports": [],
+      "language": "python",
+      "layers": [
+        "code"
+      ],
+      "module": "duplicates",
+      "path": "duplicates/one.py",
+      "roles": [],
+      "summary": "Defines exported symbols: run.",
+      "symbols": [
+        "run"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "duplicates/two.py"
+        }
+      ],
+      "imports": [],
+      "language": "python",
+      "layers": [
+        "code"
+      ],
+      "module": "duplicates",
+      "path": "duplicates/two.py",
+      "roles": [],
+      "summary": "Defines exported symbols: run.",
+      "symbols": [
+        "run"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "legacy/invalid.txt"
+        }
+      ],
+      "imports": [],
+      "language": "txt",
+      "layers": [
+        "asset"
+      ],
+      "module": "legacy",
+      "path": "legacy/invalid.txt",
+      "roles": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "symbols": []
+    },
+    {
+      "evidence": [
+        {
+          "file": "legacy/latin1.txt"
+        }
+      ],
+      "imports": [],
+      "language": "txt",
+      "layers": [
+        "asset"
+      ],
+      "module": "legacy",
+      "path": "legacy/latin1.txt",
+      "roles": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "symbols": []
+    },
+    {
+      "evidence": [
+        {
+          "file": "package.json"
+        }
+      ],
+      "imports": [],
+      "language": "json",
+      "layers": [
+        "config"
+      ],
+      "module": ".",
+      "path": "package.json",
+      "roles": [
+        "config"
+      ],
+      "summary": "Configures tooling, build, runtime or packaging behavior.",
+      "symbols": []
+    },
+    {
+      "evidence": [
+        {
+          "file": "services/dotnet/Pages/Index.razor"
+        }
+      ],
+      "imports": [
+        "System"
+      ],
+      "language": "razor",
+      "layers": [
+        "domain",
+        "entrypoint",
+        "route",
+        "service"
+      ],
+      "module": "services",
+      "path": "services/dotnet/Pages/Index.razor",
+      "roles": [
+        "domain",
+        "entrypoint",
+        "route"
+      ],
+      "summary": "Defines inbound request or routing behavior.",
+      "symbols": []
+    },
+    {
+      "evidence": [
+        {
+          "file": "services/dotnet/Program.cs"
+        }
+      ],
+      "imports": [
+        "System"
+      ],
+      "language": "csharp",
+      "layers": [
+        "domain",
+        "entrypoint",
+        "service"
+      ],
+      "module": "services",
+      "path": "services/dotnet/Program.cs",
+      "roles": [
+        "domain",
+        "entrypoint"
+      ],
+      "summary": "Holds application/service orchestration logic.",
+      "symbols": [
+        "Program",
+        "Language"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "services/go/main.go"
+        }
+      ],
+      "imports": [],
+      "language": "go",
+      "layers": [
+        "domain",
+        "entrypoint",
+        "service"
+      ],
+      "module": "services",
+      "path": "services/go/main.go",
+      "roles": [
+        "domain",
+        "entrypoint"
+      ],
+      "summary": "Holds application/service orchestration logic.",
+      "symbols": [
+        "main"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "services/java/Main.java"
+        }
+      ],
+      "imports": [],
+      "language": "java",
+      "layers": [
+        "domain",
+        "entrypoint",
+        "service"
+      ],
+      "module": "services",
+      "path": "services/java/Main.java",
+      "roles": [
+        "domain",
+        "entrypoint"
+      ],
+      "summary": "Holds application/service orchestration logic.",
+      "symbols": [
+        "Main"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "services/kotlin/Main.kt"
+        }
+      ],
+      "imports": [],
+      "language": "kotlin",
+      "layers": [
+        "domain",
+        "entrypoint",
+        "service"
+      ],
+      "module": "services",
+      "path": "services/kotlin/Main.kt",
+      "roles": [
+        "domain",
+        "entrypoint"
+      ],
+      "summary": "Holds application/service orchestration logic.",
+      "symbols": [
+        "Main",
+        "language"
+      ]
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "layers": [
+    {
+      "evidence": [
+        {
+          "file": ".starter-meta.json"
+        },
+        {
+          "file": "legacy/invalid.txt"
+        },
+        {
+          "file": "legacy/latin1.txt"
+        }
+      ],
+      "file_count": 3,
+      "files": [
+        ".starter-meta.json",
+        "legacy/invalid.txt",
+        "legacy/latin1.txt"
+      ],
+      "modules": [
+        ".",
+        "legacy"
+      ],
+      "name": "asset"
+    },
+    {
+      "evidence": [
+        {
+          "file": "crates/core/src/lib.rs"
+        },
+        {
+          "file": "duplicates/one.py"
+        },
+        {
+          "file": "duplicates/two.py"
+        }
+      ],
+      "file_count": 3,
+      "files": [
+        "crates/core/src/lib.rs",
+        "duplicates/one.py",
+        "duplicates/two.py"
+      ],
+      "modules": [
+        "crates",
+        "duplicates"
+      ],
+      "name": "code"
+    },
+    {
+      "evidence": [
+        {
+          "file": "package.json"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "package.json"
+      ],
+      "modules": [
+        "."
+      ],
+      "name": "config"
+    },
+    {
+      "evidence": [
+        {
+          "file": "services/dotnet/Pages/Index.razor"
+        },
+        {
+          "file": "services/dotnet/Program.cs"
+        },
+        {
+          "file": "services/go/main.go"
+        },
+        {
+          "file": "services/java/Main.java"
+        },
+        {
+          "file": "services/kotlin/Main.kt"
+        }
+      ],
+      "file_count": 5,
+      "files": [
+        "services/dotnet/Pages/Index.razor",
+        "services/dotnet/Program.cs",
+        "services/go/main.go",
+        "services/java/Main.java",
+        "services/kotlin/Main.kt"
+      ],
+      "modules": [
+        "services"
+      ],
+      "name": "domain"
+    },
+    {
+      "evidence": [
+        {
+          "file": "apps/python/app.py"
+        },
+        {
+          "file": "apps/web/src/index.js"
+        },
+        {
+          "file": "apps/web/src/index.ts"
+        },
+        {
+          "file": "services/dotnet/Pages/Index.razor"
+        },
+        {
+          "file": "services/dotnet/Program.cs"
+        },
+        {
+          "file": "services/go/main.go"
+        },
+        {
+          "file": "services/java/Main.java"
+        },
+        {
+          "file": "services/kotlin/Main.kt"
+        }
+      ],
+      "file_count": 8,
+      "files": [
+        "apps/python/app.py",
+        "apps/web/src/index.js",
+        "apps/web/src/index.ts",
+        "services/dotnet/Pages/Index.razor",
+        "services/dotnet/Program.cs",
+        "services/go/main.go",
+        "services/java/Main.java",
+        "services/kotlin/Main.kt"
+      ],
+      "modules": [
+        "apps",
+        "services"
+      ],
+      "name": "entrypoint"
+    },
+    {
+      "evidence": [
+        {
+          "file": "db/schema.sql"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "db/schema.sql"
+      ],
+      "modules": [
+        "db"
+      ],
+      "name": "model"
+    },
+    {
+      "evidence": [
+        {
+          "file": "services/dotnet/Pages/Index.razor"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "services/dotnet/Pages/Index.razor"
+      ],
+      "modules": [
+        "services"
+      ],
+      "name": "route"
+    },
+    {
+      "evidence": [
+        {
+          "file": "services/dotnet/Pages/Index.razor"
+        },
+        {
+          "file": "services/dotnet/Program.cs"
+        },
+        {
+          "file": "services/go/main.go"
+        },
+        {
+          "file": "services/java/Main.java"
+        },
+        {
+          "file": "services/kotlin/Main.kt"
+        }
+      ],
+      "file_count": 5,
+      "files": [
+        "services/dotnet/Pages/Index.razor",
+        "services/dotnet/Program.cs",
+        "services/go/main.go",
+        "services/java/Main.java",
+        "services/kotlin/Main.kt"
+      ],
+      "modules": [
+        "services"
+      ],
+      "name": "service"
+    }
+  ],
+  "modules": [
+    {
+      "entry_points": [],
+      "evidence": [
+        {
+          "file": ".starter-meta.json"
+        },
+        {
+          "file": "package.json"
+        }
+      ],
+      "file_count": 2,
+      "files": [
+        ".starter-meta.json",
+        "package.json"
+      ],
+      "layers": [
+        "asset",
+        "config"
+      ],
+      "name": ".",
+      "public_symbols": [],
+      "summary": "Groups 2 files across 2 detected layers.",
+      "tests": []
+    },
+    {
+      "entry_points": [
+        "apps/python/app.py",
+        "apps/web/src/index.js",
+        "apps/web/src/index.ts"
+      ],
+      "evidence": [
+        {
+          "file": "apps/python/app.py"
+        },
+        {
+          "file": "apps/web/src/index.js"
+        },
+        {
+          "file": "apps/web/src/index.ts"
+        }
+      ],
+      "file_count": 3,
+      "files": [
+        "apps/python/app.py",
+        "apps/web/src/index.js",
+        "apps/web/src/index.ts"
+      ],
+      "layers": [
+        "entrypoint"
+      ],
+      "name": "apps",
+      "public_symbols": [
+        "render",
+        "renderJavaScript",
+        "serve"
+      ],
+      "summary": "Groups 3 files across 1 detected layers.",
+      "tests": []
+    },
+    {
+      "entry_points": [],
+      "evidence": [
+        {
+          "file": "crates/core/src/lib.rs"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "crates/core/src/lib.rs"
+      ],
+      "layers": [
+        "code"
+      ],
+      "name": "crates",
+      "public_symbols": [
+        "run"
+      ],
+      "summary": "Groups 1 files across 1 detected layers.",
+      "tests": []
+    },
+    {
+      "entry_points": [],
+      "evidence": [
+        {
+          "file": "db/schema.sql"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "db/schema.sql"
+      ],
+      "layers": [
+        "model"
+      ],
+      "name": "db",
+      "public_symbols": [
+        "users"
+      ],
+      "summary": "Groups 1 files across 1 detected layers.",
+      "tests": []
+    },
+    {
+      "entry_points": [],
+      "evidence": [
+        {
+          "file": "duplicates/one.py"
+        },
+        {
+          "file": "duplicates/two.py"
+        }
+      ],
+      "file_count": 2,
+      "files": [
+        "duplicates/one.py",
+        "duplicates/two.py"
+      ],
+      "layers": [
+        "code"
+      ],
+      "name": "duplicates",
+      "public_symbols": [
+        "run"
+      ],
+      "summary": "Groups 2 files across 1 detected layers.",
+      "tests": []
+    },
+    {
+      "entry_points": [],
+      "evidence": [
+        {
+          "file": "legacy/invalid.txt"
+        },
+        {
+          "file": "legacy/latin1.txt"
+        }
+      ],
+      "file_count": 2,
+      "files": [
+        "legacy/invalid.txt",
+        "legacy/latin1.txt"
+      ],
+      "layers": [
+        "asset"
+      ],
+      "name": "legacy",
+      "public_symbols": [],
+      "summary": "Groups 2 files across 1 detected layers.",
+      "tests": []
+    },
+    {
+      "entry_points": [
+        "services/dotnet/Pages/Index.razor",
+        "services/dotnet/Program.cs",
+        "services/go/main.go",
+        "services/java/Main.java",
+        "services/kotlin/Main.kt"
+      ],
+      "evidence": [
+        {
+          "file": "services/dotnet/Pages/Index.razor"
+        },
+        {
+          "file": "services/dotnet/Program.cs"
+        },
+        {
+          "file": "services/go/main.go"
+        },
+        {
+          "file": "services/java/Main.java"
+        },
+        {
+          "file": "services/kotlin/Main.kt"
+        }
+      ],
+      "file_count": 5,
+      "files": [
+        "services/dotnet/Pages/Index.razor",
+        "services/dotnet/Program.cs",
+        "services/go/main.go",
+        "services/java/Main.java",
+        "services/kotlin/Main.kt"
+      ],
+      "layers": [
+        "domain",
+        "entrypoint",
+        "route",
+        "service"
+      ],
+      "name": "services",
+      "public_symbols": [
+        "Language",
+        "Main",
+        "Program",
+        "language",
+        "main"
+      ],
+      "summary": "Groups 5 files across 4 detected layers.",
+      "tests": []
+    }
+  ],
+  "notes": [
+    "Generated from deterministic repository inspection.",
+    "Relationship evidence_class and resolution_status describe how each edge was obtained; null confidence is not a calibrated probability."
+  ],
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:44221be71c13e826febf0df0f0351cc7d2be04588311e2b957e6b1b099ebb181",
+    "capability_coverage": {
+      "architecture": "partial",
+      "files": "partial",
+      "precedent": "unsupported",
+      "relationships": "partial",
+      "symbols": "empty"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [
+      "files:large/ignored.txt",
+      "generated:dist",
+      "symlink:links/app.py"
+    ],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
+  "product": {
+    "name": "Canonical Matrix",
+    "project_mode": "monorepo",
+    "stack": "mixed"
+  },
+  "relationship_coverage": {
+    "ambiguous_relations": 0,
+    "edge_limit": 250,
+    "emitted_edges": 1,
+    "evidence_classes": {
+      "lexical_unique": 1
+    },
+    "invalid_edges": 0,
+    "observed_edges": 1,
+    "omitted_edges": 0,
+    "status": "complete",
+    "truncated": false,
+    "unknown_relations": 0
+  },
+  "relationships": [
+    {
+      "confidence": null,
+      "evidence_class": "lexical_unique",
+      "line": 2,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "services/kotlin/Main.kt::language"
+        ],
+        "fallback_reason": null,
+        "method": "symbol-name-lookup",
+        "queried_symbol": "language"
+      },
+      "relation_id": "0d4073c6ce99c02e9c52971b918cfe8f2ec0dcf24a9ccb18b02ece3ea208274f",
+      "resolution_status": "resolved",
+      "source_file": "services/java/Main.java",
+      "source_symbol": "services/java/Main.java::Main",
+      "target_candidates": [
+        "services/kotlin/Main.kt::language"
+      ],
+      "target_file": "services/kotlin/Main.kt",
+      "target_symbol": "services/kotlin/Main.kt::language",
+      "type": "calls"
+    }
+  ],
+  "root": "<fixture-root>",
+  "schema": "simplicio.architecture-inventory/v1",
+  "source_call_graph": ".simplicio/call-graph.json",
+  "source_project_map": ".simplicio/project-map.json",
+  "source_symbol_index": ".simplicio/symbol-index.json",
+  "version": 1
+}

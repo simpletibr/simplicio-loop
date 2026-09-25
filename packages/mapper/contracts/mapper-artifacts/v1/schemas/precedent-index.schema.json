@@ -1,0 +1,31 @@
+{
+  "$id": "simplicio.precedent-index/v1",
+  "title": "simplicio-mapper precedent-index.json (v1)",
+  "description": "Task-relevant precedent snippets (feature/test/fix examples) derived from project-map.json.",
+  "type": "object",
+  "required": ["schema", "producer", "version", "generated_at", "source_project_map", "items"],
+  "properties": {
+    "schema": { "type": "string", "enum": ["simplicio.precedent-index/v1"] },
+    "producer": { "$ref": "producer-metadata.schema.json" },
+    "version": { "type": "integer" },
+    "generated_at": { "type": "string" },
+    "source_project_map": { "type": "string" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "path", "line", "language", "change_type", "tags", "summary", "snippet"],
+        "properties": {
+          "id": { "type": "string" },
+          "path": { "type": "string" },
+          "line": { "type": "integer" },
+          "language": { "type": "string" },
+          "change_type": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "summary": { "type": "string" },
+          "snippet": { "type": "string" }
+        }
+      }
+    }
+  }
+}

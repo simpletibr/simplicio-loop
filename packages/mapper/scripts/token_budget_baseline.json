@@ -1,0 +1,73 @@
+{
+  "$schema_note": "simplicio-mapper token/context budget baseline (issue #174). Regenerate with `python3 scripts/token_budget.py --update-baseline` after a deliberate, reviewed size change to a tracked artifact -- never to silence a regression you haven't looked at.",
+  "artifacts": {
+    "AGENTS.md": {
+      "label": "AGENTS.md",
+      "tokens": 9442,
+      "words": 5089
+    },
+    "CLAUDE.md": {
+      "label": "CLAUDE.md",
+      "tokens": 9566,
+      "words": 5148
+    },
+    "contracts/mapper-artifacts/v1/fixtures/python-minimal/artifacts/architecture-inventory.json": {
+      "label": "fixture artifact (architecture-inventory.json)",
+      "tokens": 2161,
+      "words": 665
+    },
+    "contracts/mapper-artifacts/v1/fixtures/python-minimal/artifacts/call-graph.json": {
+      "label": "fixture artifact (call-graph.json)",
+      "tokens": 1110,
+      "words": 278
+    },
+    "contracts/mapper-artifacts/v1/fixtures/python-minimal/artifacts/precedent-index.json": {
+      "label": "fixture artifact (precedent-index.json)",
+      "tokens": 601,
+      "words": 193
+    },
+    "contracts/mapper-artifacts/v1/fixtures/python-minimal/artifacts/project-map.json": {
+      "label": "fixture artifact (project-map.json)",
+      "tokens": 3012,
+      "words": 753
+    },
+    "contracts/mapper-artifacts/v1/fixtures/python-minimal/artifacts/symbol-index.json": {
+      "label": "fixture artifact (symbol-index.json)",
+      "tokens": 571,
+      "words": 168
+    },
+    "contracts/mapper-artifacts/v1/fixtures/python-minimal/mapper-index-result.json": {
+      "label": "fixture artifact (mapper-index-result.json)",
+      "tokens": 321,
+      "words": 91
+    },
+    "simplicio_mapper/cli/_flowchart.py": {
+      "label": "cli/_flowchart.py",
+      "tokens": 6650,
+      "words": 2328
+    },
+    "simplicio_mapper/mapper/emit.py": {
+      "label": "mapper/emit.py",
+      "tokens": 7517,
+      "words": 2518
+    },
+    "simplicio_mapper/mapper/graph.py": {
+      "label": "mapper/graph.py",
+      "tokens": 12085,
+      "words": 3695
+    },
+    "simplicio_mapper/mapper/parse.py": {
+      "label": "mapper/parse.py",
+      "tokens": 7534,
+      "words": 2681
+    },
+    "simplicio_mapper/toon.py": {
+      "label": "toon.py",
+      "tokens": 5072,
+      "words": 2302
+    }
+  },
+  "estimator": "heuristic:chars-div-4",
+  "generated_at": "2026-09-06T23:12:20Z",
+  "threshold_growth": 0.25
+}

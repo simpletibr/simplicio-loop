@@ -1,0 +1,14 @@
+{
+  "schema": "simplicio.mapper-store-conformance/v1",
+  "status": "unverified",
+  "read_only": true,
+  "generated_at": null,
+  "host": {"platform": "fixture", "python": "3.14"},
+  "repositories": {},
+  "checks": [],
+  "scenarios": [],
+  "inventory": {},
+  "residual_unverified": [{"id": "installed_package_matrix", "reason": "fixture"}],
+  "release_order": ["publish mapper contracts", "explicit sandbox cutover"],
+  "evidence_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+}

@@ -1,0 +1,168 @@
+{
+  "canonical_reuse": {
+    "note": "Only reuse_measurements[0] pays the real canonical-build cost (detached checkout + full pipeline once); every subsequent entry hits the same content-addressed manifest.",
+    "runs": [
+      {
+        "cpu_s": 0.3556,
+        "cpu_s_children": 0.1671,
+        "files_mapped": 301,
+        "io_in_blocks": 0,
+        "io_in_blocks_children": 0,
+        "io_out_blocks": 19136,
+        "io_out_blocks_children": 2640,
+        "label": "canonical-reuse",
+        "peak_rss_kb": 31856,
+        "peak_rss_kb_children": 43324,
+        "wall_s": 0.6081,
+        "worktree_index": 0
+      },
+      {
+        "cpu_s": 0.0234,
+        "cpu_s_children": 0.0521,
+        "files_mapped": 301,
+        "io_in_blocks": 0,
+        "io_in_blocks_children": 0,
+        "io_out_blocks": 2144,
+        "io_out_blocks_children": 56,
+        "label": "canonical-reuse",
+        "peak_rss_kb": 31984,
+        "peak_rss_kb_children": 43324,
+        "wall_s": 0.0832,
+        "worktree_index": 1
+      },
+      {
+        "cpu_s": 0.0474,
+        "cpu_s_children": 0.0584,
+        "files_mapped": 301,
+        "io_in_blocks": 0,
+        "io_in_blocks_children": 0,
+        "io_out_blocks": 2160,
+        "io_out_blocks_children": 56,
+        "label": "canonical-reuse",
+        "peak_rss_kb": 31984,
+        "peak_rss_kb_children": 43324,
+        "wall_s": 0.1156,
+        "worktree_index": 2
+      },
+      {
+        "cpu_s": 0.0521,
+        "cpu_s_children": 0.0963,
+        "files_mapped": 301,
+        "io_in_blocks": 0,
+        "io_in_blocks_children": 0,
+        "io_out_blocks": 2152,
+        "io_out_blocks_children": 56,
+        "label": "canonical-reuse",
+        "peak_rss_kb": 31984,
+        "peak_rss_kb_children": 43324,
+        "wall_s": 0.1564,
+        "worktree_index": 3
+      },
+      {
+        "cpu_s": 0.0241,
+        "cpu_s_children": 0.0551,
+        "files_mapped": 301,
+        "io_in_blocks": 0,
+        "io_in_blocks_children": 0,
+        "io_out_blocks": 2160,
+        "io_out_blocks_children": 56,
+        "label": "canonical-reuse",
+        "peak_rss_kb": 31984,
+        "peak_rss_kb_children": 43324,
+        "wall_s": 0.0843,
+        "worktree_index": 4
+      }
+    ],
+    "total_wall_s": 1.0476
+  },
+  "caveats": [
+    "Wall time is a real perf_counter() measurement on this machine, this fixture size, this one run -- not averaged over multiple runs and not a guarantee of the same ratio at a different repo size.",
+    "cpu_s is time.process_time() for the main process only; it does not include time spent in the `git worktree add` subprocess calls used to set up the fixture (those are outside the measured window) but does include the in-process `git` subprocess calls issued by the mapper pipeline itself (git status/diff, invoked via subprocess.run from this same process).",
+    "peak_rss_kb is the whole process's cumulative peak-so-far (ru_maxrss), not an isolated delta for one call -- later measurements in the same process run never show a lower number than an earlier one even if that call itself used less memory.",
+    "schema v2 (issue #236): cpu_s_children/peak_rss_kb_children are resource.getrusage(RUSAGE_CHILDREN) deltas covering the real `git` subprocesses the pipeline shells out to (canonical_builder._run_git) -- this is what v1 silently dropped by only measuring RUSAGE_SELF.",
+    "io_in_blocks/io_out_blocks(_children) are resource.getrusage ru_inblock/ru_oublock deltas (block I/O operation counts, not bytes) -- a real stdlib-reported kernel counter, not a byte-accurate I/O trace; reads fully served from page cache may not increment it on every kernel/filesystem. No syscall-level tracing or page-cache hit/miss counters are collected here.",
+    "All new v2 fields are POSIX-only (None on platforms without the stdlib `resource` module, e.g. Windows) -- this benchmark has only ever been run inside a Linux container; macOS/Windows numbers do not exist and this script cannot produce them from here."
+  ],
+  "fixture": {
+    "files_per_worktree": 300,
+    "worktrees": 5
+  },
+  "full_remap": {
+    "runs": [
+      {
+        "cpu_s": 0.2022,
+        "cpu_s_children": 0.0068,
+        "files_mapped": 301,
+        "io_in_blocks": 0,
+        "io_in_blocks_children": 0,
+        "io_out_blocks": 15040,
+        "io_out_blocks_children": 56,
+        "label": "full",
+        "peak_rss_kb": 28856,
+        "peak_rss_kb_children": 43324,
+        "wall_s": 0.2565,
+        "worktree_index": 0
+      },
+      {
+        "cpu_s": 0.1726,
+        "cpu_s_children": 0.0071,
+        "files_mapped": 301,
+        "io_in_blocks": 0,
+        "io_in_blocks_children": 0,
+        "io_out_blocks": 15104,
+        "io_out_blocks_children": 56,
+        "label": "full",
+        "peak_rss_kb": 28984,
+        "peak_rss_kb_children": 43324,
+        "wall_s": 0.2176,
+        "worktree_index": 1
+      },
+      {
+        "cpu_s": 0.2085,
+        "cpu_s_children": 0.0075,
+        "files_mapped": 301,
+        "io_in_blocks": 0,
+        "io_in_blocks_children": 0,
+        "io_out_blocks": 14920,
+        "io_out_blocks_children": 56,
+        "label": "full",
+        "peak_rss_kb": 29496,
+        "peak_rss_kb_children": 43324,
+        "wall_s": 0.3444,
+        "worktree_index": 2
+      },
+      {
+        "cpu_s": 0.3213,
+        "cpu_s_children": 0.0347,
+        "files_mapped": 301,
+        "io_in_blocks": 0,
+        "io_in_blocks_children": 0,
+        "io_out_blocks": 15160,
+        "io_out_blocks_children": 56,
+        "label": "full",
+        "peak_rss_kb": 29624,
+        "peak_rss_kb_children": 43324,
+        "wall_s": 0.4069,
+        "worktree_index": 3
+      },
+      {
+        "cpu_s": 0.201,
+        "cpu_s_children": 0.0083,
+        "files_mapped": 301,
+        "io_in_blocks": 0,
+        "io_in_blocks_children": 0,
+        "io_out_blocks": 14952,
+        "io_out_blocks_children": 56,
+        "label": "full",
+        "peak_rss_kb": 29624,
+        "peak_rss_kb_children": 43324,
+        "wall_s": 0.2447,
+        "worktree_index": 4
+      }
+    ],
+    "total_wall_s": 1.4701
+  },
+  "generated_at": "2026-07-18T07:23:58Z",
+  "schema": "simplicio.canonical-reuse-benchmark/v2",
+  "wall_time_speedup_ratio": 1.403
+}

@@ -1,0 +1,52 @@
+{
+  "schema": "simplicio.component-release/v1",
+  "component": "simplicio-mapper",
+  "version": "0.26.25",
+  "commit_sha": "cefbd739b9ab86b7a842637b61da7bac96e48552",
+  "commit_sha_source": "immutable release tag fixture",
+  "generated_at": "2026-08-23T00:00:00Z",
+  "distribution": {
+    "pypi_package": "simplicio-mapper",
+    "npm_package": "@wesleysimplicio/llm-project-mapper"
+  },
+  "schema_versions": {
+    "component-release": "v1",
+    "plugin-context-handle": "v1"
+  },
+  "protocols": [
+    "simplicio.component-release/v1",
+    "simplicio.mapper-artifacts/v1",
+    "simplicio.plugin.context-handle/v1"
+  ],
+  "capabilities": [
+    "simplicio.mapper-artifacts/v1",
+    "simplicio.plugin.context-handle/v1"
+  ],
+  "compatibility": {
+    "simplicio-dev-cli": {
+      "plugin-context-handle": "v1"
+    }
+  },
+  "artifact_digest": "sha256:77b99a0b04b0357144d4ae4bcebf5693034910a3b0d32c682e8779069f3ea22b",
+  "artifact_digests": {
+    "whl": {
+      "filename": "simplicio_mapper-0.26.25-py3-none-any.whl",
+      "digest": "sha256:77b99a0b04b0357144d4ae4bcebf5693034910a3b0d32c682e8779069f3ea22b"
+    },
+    "sdist": {
+      "filename": "simplicio_mapper-0.26.25.tar.gz",
+      "digest": "sha256:ab0507876fcc533db79fc79d18471bce56746897f684d06f615f36ffc6294a9e"
+    }
+  },
+  "signing": {
+    "status": "not-implemented",
+    "digest": null,
+    "signature": null,
+    "sbom": null,
+    "note": "Historical N-1 conformance fixture; v0.26.25 was published before signed release governance."
+  },
+  "downstream_events": {
+    "status": "historical",
+    "note": "Historical N-1 conformance fixture; no delivery claim."
+  }
+}

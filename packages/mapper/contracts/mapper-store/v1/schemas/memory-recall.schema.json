@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/memory-recall.schema.json",
+  "title": "simplicio.mapper-store.memory-recall/v1",
+  "type": "object",
+  "required": ["schema", "query", "mode", "results", "capabilities"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store.memory-api/v1"},
+    "query": {"type": "string"},
+    "mode": {"enum": ["fts5", "vector", "hybrid"]},
+    "results": {"type": "array", "items": {"$ref": "memory-entry.schema.json"}},
+    "capabilities": {"type": "object"}
+  }
+}

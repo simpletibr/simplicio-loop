@@ -1,0 +1,3 @@
+files[2]{path,exports,imports}:
+  a.py,[run,main],[]
+  b.py,[],[os,sys]

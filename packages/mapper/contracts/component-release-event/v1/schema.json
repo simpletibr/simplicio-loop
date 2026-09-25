@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simplicio.dev/schemas/component-release-event/v1",
+  "title": "SimplicioComponentReleaseEvent",
+  "type": "object",
+  "required": ["schema", "event_type", "event_id", "dedupe_key", "component", "version", "commit_sha", "release_manifest_schema", "release_manifest_digest", "artifact_digests", "schema_versions", "capabilities", "compatibility", "attestation", "delivery", "consumers", "rollback"],
+  "properties": {
+    "schema": { "const": "simplicio.component-release-event/v1" },
+    "event_type": { "const": "simplicio-component-release" },
+    "event_id": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "dedupe_key": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "component": { "const": "simplicio-mapper" },
+    "version": { "type": "string" },
+    "commit_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "release_manifest_schema": { "const": "simplicio.component-release/v1" },
+    "release_manifest_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "artifact_digests": { "type": "object" },
+    "schema_versions": { "type": "object" },
+    "capabilities": { "type": "array", "items": { "type": "string" } },
+    "compatibility": { "type": "object" },
+    "attestation": { "type": "string" },
+    "delivery": { "type": "object" },
+    "consumers": { "type": "array", "items": { "type": "object" } },
+    "rollback": { "type": "object" }
+  },
+  "additionalProperties": false
+}

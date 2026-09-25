@@ -1,0 +1,32 @@
+{
+  "config": {
+    "files": 1000,
+    "runs": 10,
+    "timeout_seconds": 0
+  },
+  "environment": {
+    "cpu_count": 9,
+    "platform": "Linux-6.12.13-x86_64-with-glibc2.39",
+    "python": "3.12.13"
+  },
+  "samples": [
+    {"run": 1, "elapsed_seconds": 0.110182, "exit_code": 1, "phase": "timeout", "resuming": false, "partial_schema": "simplicio.partial-scan/v1", "completeness": "partial", "files_discovered": 1001, "eta_seconds": null},
+    {"run": 2, "elapsed_seconds": 0.107006, "exit_code": 1, "phase": "timeout", "resuming": true, "partial_schema": "simplicio.partial-scan/v1", "completeness": "partial", "files_discovered": 1001, "eta_seconds": null},
+    {"run": 3, "elapsed_seconds": 0.109918, "exit_code": 1, "phase": "timeout", "resuming": true, "partial_schema": "simplicio.partial-scan/v1", "completeness": "partial", "files_discovered": 1001, "eta_seconds": null},
+    {"run": 4, "elapsed_seconds": 0.105642, "exit_code": 1, "phase": "timeout", "resuming": true, "partial_schema": "simplicio.partial-scan/v1", "completeness": "partial", "files_discovered": 1001, "eta_seconds": null},
+    {"run": 5, "elapsed_seconds": 0.106244, "exit_code": 1, "phase": "timeout", "resuming": true, "partial_schema": "simplicio.partial-scan/v1", "completeness": "partial", "files_discovered": 1001, "eta_seconds": null},
+    {"run": 6, "elapsed_seconds": 0.106904, "exit_code": 1, "phase": "timeout", "resuming": true, "partial_schema": "simplicio.partial-scan/v1", "completeness": "partial", "files_discovered": 1001, "eta_seconds": null},
+    {"run": 7, "elapsed_seconds": 0.105808, "exit_code": 1, "phase": "timeout", "resuming": true, "partial_schema": "simplicio.partial-scan/v1", "completeness": "partial", "files_discovered": 1001, "eta_seconds": null},
+    {"run": 8, "elapsed_seconds": 0.105543, "exit_code": 1, "phase": "timeout", "resuming": true, "partial_schema": "simplicio.partial-scan/v1", "completeness": "partial", "files_discovered": 1001, "eta_seconds": null},
+    {"run": 9, "elapsed_seconds": 0.106076, "exit_code": 1, "phase": "timeout", "resuming": true, "partial_schema": "simplicio.partial-scan/v1", "completeness": "partial", "files_discovered": 1001, "eta_seconds": null},
+    {"run": 10, "elapsed_seconds": 0.106331, "exit_code": 1, "phase": "timeout", "resuming": true, "partial_schema": "simplicio.partial-scan/v1", "completeness": "partial", "files_discovered": 1001, "eta_seconds": null}
+  ],
+  "schema": "simplicio.resumable-scan-benchmark/v1",
+  "summary": {
+    "max_seconds": 0.110182,
+    "median_seconds": 0.1062875,
+    "min_seconds": 0.105543,
+    "resumed_runs": 9,
+    "timeouts": 10
+  }
+}

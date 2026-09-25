@@ -1,0 +1,13 @@
+{
+  "schema": "simplicio.mapper-store.schema-registry/v1",
+  "registry_version": 1,
+  "manifest_id": "mapper-store-v1",
+  "namespaces": {
+    "semantic": { "current": 1, "minimum_reader": 1, "maximum_writer": 1 },
+    "operations": { "current": 1, "minimum_reader": 1, "maximum_writer": 1 },
+    "memory": { "current": 1, "minimum_reader": 1, "maximum_writer": 1 },
+    "catalog": { "current": 1, "minimum_reader": 1, "maximum_writer": 1 }
+  },
+  "capabilities": ["sqlite", "wal", "fts5", "append-only-ledger", "verified-backup"],
+  "legacy_policy": { "read": "allow-n-minus-2", "write": "current-only", "downgrade": "explicit-only" }
+}

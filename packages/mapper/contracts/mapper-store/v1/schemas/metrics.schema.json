@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/metrics.schema.json",
+  "title": "simplicio.mapper-store.metrics/v1",
+  "type": "object",
+  "required": ["schema", "operations", "retries", "lock_wait_ms", "errors", "cache"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store.metrics/v1"},
+    "operations": {"type": "object"},
+    "retries": {"type": "integer", "minimum": 0},
+    "lock_wait_ms": {"type": "object"},
+    "errors": {"type": "object"},
+    "cache": {"type": "object"}
+  }
+}

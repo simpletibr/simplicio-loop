@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/legacy-absorb.schema.json",
+  "title": "simplicio.mapper-store.legacy-absorb/v1",
+  "type": "object",
+  "required": ["schema", "status", "migration_id", "source_lineage", "rows_seen", "imported", "unchanged", "legacy_read_only", "canonical"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store.legacy-absorb/v1"},
+    "status": {"enum": ["absorbed", "unchanged"]},
+    "migration_id": {"type": "string", "minLength": 1},
+    "source_lineage": {"type": "object", "required": ["source_path", "source_sha256", "migration_id"]},
+    "rows_seen": {"type": "integer", "minimum": 0},
+    "imported": {"type": "integer", "minimum": 0},
+    "unchanged": {"type": "integer", "minimum": 0},
+    "legacy_read_only": {"type": "boolean"},
+    "legacy_read_only_marker": {"type": "string"},
+    "canonical": {"type": "object", "required": ["root", "memory", "operations"]}
+  }
+}

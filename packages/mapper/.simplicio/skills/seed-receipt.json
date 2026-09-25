@@ -1,0 +1,51 @@
+{
+  "count": 6,
+  "database": ".simplicio/memory.sqlite",
+  "entries": [
+    {
+      "content_hash": "eb8ce0d007a4616ad567eaf5792c6ef7afaa344fe683006fbe9698fde28051bb",
+      "name": "simplicio-dev-cli",
+      "stable_id": "skill:simplicio-dev-cli",
+      "status": "unchanged"
+    },
+    {
+      "content_hash": "83e2fa8f6b9f2b213410c3f7e59c8aa2545f74b69b238fbbc403fd4c88cd488f",
+      "name": "simplicio-fast",
+      "stable_id": "skill:simplicio-fast",
+      "status": "unchanged"
+    },
+    {
+      "content_hash": "5c2b54ded409c968ed317f0f16dc6e8bf081b6971f7bc72a087a2ac0b8e17b43",
+      "name": "simplicio-loop",
+      "stable_id": "skill:simplicio-loop",
+      "status": "unchanged"
+    },
+    {
+      "content_hash": "9ce416dcaabdf6f96649e36789f435a2b0f61ec0da73f7f69322a999c83c530b",
+      "name": "simplicio-mapper",
+      "stable_id": "skill:simplicio-mapper",
+      "status": "unchanged"
+    },
+    {
+      "content_hash": "d1a5d56cd6afca1c359095bca7c056a1eacf475fcdadd40a755a6c24531ca850",
+      "name": "simplicio-prism",
+      "stable_id": "skill:simplicio-prism",
+      "status": "unchanged"
+    },
+    {
+      "content_hash": "7b1b4b8c7cf663a50b7fb3a8d504a12613ccb9f0e28c333002401d43140e404e",
+      "name": "simplicio-runtime",
+      "stable_id": "skill:simplicio-runtime",
+      "status": "unchanged"
+    }
+  ],
+  "replay": "python3 scripts/seed_simplicio_skills.py --root . --database .simplicio/memory.sqlite",
+  "schema": "simplicio.skill-seed/v1",
+  "source": ".simplicio/skills",
+  "validation": {
+    "entries": 6,
+    "ok": true,
+    "schema": "simplicio.mapper-store.memory-validation/v1"
+  }
+}
+

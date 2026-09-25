@@ -1,0 +1,14 @@
+{
+  "request": {
+    "task_id": "fixture-task-477",
+    "payload": { "kind": "conformance", "source": "mapper" },
+    "idempotency_key": "fixture-idempotency-477",
+    "priority": 10
+  },
+  "response": {
+    "schema": "simplicio.mapper-store.operations-api/v1",
+    "status": "queued",
+    "task_id": "fixture-task-477",
+    "state": "queued"
+  }
+}

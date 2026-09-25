@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simplicio.dev/schemas/plugin-context-handle/v2",
+  "title": "PluginContextHandleV2",
+  "type": "object",
+  "required": ["schema", "status", "context_id", "producer", "generation", "local_map_cache", "coverage"],
+  "properties": {
+    "schema": { "type": "string", "pattern": "^simplicio\\.plugin\\.context-handle/v2(?:\\.[0-9]+)?$" },
+    "status": { "enum": ["ready", "rejected"] },
+    "context_id": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "handle": { "type": "string", "minLength": 32 },
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "producer": {
+      "type": "object",
+      "required": ["component", "version", "commit", "artifact_digest"],
+      "properties": {
+        "component": { "const": "simplicio-mapper" },
+        "version": { "type": "string", "minLength": 1 },
+        "commit": { "type": ["string", "null"] },
+        "artifact_digest": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "generation": {
+      "type": "object",
+      "required": ["schema", "id", "scope", "dirty_content_included"],
+      "properties": {
+        "schema": { "const": "simplicio.repository-generation/v2" },
+        "id": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "scope": { "const": "working_tree" },
+        "dirty_content_included": { "type": "boolean" },
+        "untracked_files": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "local_map_cache": {
+      "type": "object",
+      "required": ["scope", "layer", "status", "key"],
+      "properties": {
+        "scope": { "const": "local_mapper_artifact" },
+        "layer": { "const": "mapper_l1" },
+        "status": { "enum": ["hit", "miss", "rebuilt", "stale", "unavailable", "error"] },
+        "key": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["status", "truncated", "omitted_count"],
+      "properties": {
+        "status": { "enum": ["complete", "partial", "best_effort", "unproven"] },
+        "truncated": { "type": "boolean" },
+        "omitted_count": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "spans": { "type": "array", "items": { "type": "object" } },
+    "provenance": { "type": "array", "items": { "type": "object" } },
+    "provider_prompt_cache": { "const": null },
+    "summary": { "type": "object" },
+    "invalidation": { "type": "object" },
+    "fidelity": { "type": "object" },
+    "changed_files": { "type": "array", "items": { "type": "string" } },
+    "ref": { "type": "string" },
+    "token_budget": { "type": "integer", "minimum": 0 },
+    "serialized_tokens": { "type": "integer", "minimum": 0 }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,123 @@
+{
+  "$id": "simplicio.consumer-dev-cli-receipt/v1",
+  "title": "Installed-wheel retrieval receipt for a Dev CLI-shaped consumer",
+  "type": "object",
+  "required": [
+    "schema",
+    "consumer",
+    "install",
+    "retrieval",
+    "flags"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": [
+        "simplicio.consumer-dev-cli-receipt/v1"
+      ]
+    },
+    "consumer": {
+      "type": "object",
+      "required": [
+        "name",
+        "shape"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "dev-cli"
+          ]
+        }
+      }
+    },
+    "install": {
+      "type": "object",
+      "required": [
+        "module_file",
+        "site_packages"
+      ],
+      "properties": {
+        "module_file": {
+          "type": "string"
+        },
+        "site_packages": {
+          "type": "boolean"
+        }
+      }
+    },
+    "retrieval": {
+      "type": "object",
+      "required": [
+        "index_schema",
+        "selection_schema",
+        "index_id",
+        "selected_paths",
+        "matched_terms"
+      ],
+      "properties": {
+        "index_schema": {
+          "type": "string",
+          "enum": [
+            "simplicio.retrieval-index/v1"
+          ]
+        },
+        "selection_schema": {
+          "type": "string",
+          "enum": [
+            "simplicio.retrieval-selection/v1"
+          ]
+        },
+        "index_id": {
+          "type": "string"
+        },
+        "selected_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "matched_terms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "flags": {
+      "type": "object",
+      "required": [
+        "abstained",
+        "needs_broader_context",
+        "fidelity_sufficient",
+        "target_status"
+      ],
+      "properties": {
+        "abstained": {
+          "type": "boolean"
+        },
+        "needs_broader_context": {
+          "type": "boolean"
+        },
+        "fidelity_sufficient": {
+          "type": "boolean"
+        },
+        "target_status": {
+          "type": "string",
+          "enum": [
+            "included",
+            "excluded",
+            "missing",
+            "not_requested"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schema": "simplicio.loop-execution/v1",
+  "task_id": "node-task-001",
+  "goal": "make node --test tests/unit/greet.test.js pass",
+  "status": "done",
+  "attempts": [
+    {
+      "index": 1,
+      "action": "deterministic_edit src/index.js",
+      "result": "node --test green"
+    }
+  ],
+  "promise": {
+    "text": "greet.test.js passes",
+    "evidence_gated": true,
+    "acceptance_criteria": [
+      { "id": "ac-1", "verified": true, "evidence": "node --test exit 0" }
+    ]
+  }
+}

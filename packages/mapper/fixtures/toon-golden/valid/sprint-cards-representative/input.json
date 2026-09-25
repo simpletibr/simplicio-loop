@@ -1,0 +1,28 @@
+{
+  "note": "Representative of simplicio-sprint's card list shape (hand-built for this corpus, not pulled verbatim from that repo) -- exercises the row/field-count-mismatch bug class from the invalid corpus (see invalid/row-field-count-mismatch).",
+  "cards": [
+    {
+      "id": "SPR-101",
+      "title": "Wire TOON into sprint report",
+      "status": "in_progress",
+      "tags": [
+        "toon",
+        "p0"
+      ]
+    },
+    {
+      "id": "SPR-102",
+      "title": "Fix quoting bug",
+      "status": "todo",
+      "tags": [
+        "bug"
+      ]
+    },
+    {
+      "id": "SPR-103",
+      "title": "Add golden corpus runner",
+      "status": "done",
+      "tags": []
+    }
+  ]
+}

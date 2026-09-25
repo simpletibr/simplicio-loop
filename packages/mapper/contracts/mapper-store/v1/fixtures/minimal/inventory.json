@@ -1,0 +1,68 @@
+{
+  "schema": "simplicio.mapper-store-inventory/v1",
+  "generated_at": null,
+  "repos": [
+    {
+      "id": "mapper",
+      "path": ".",
+      "branch": "main",
+      "revision": "fixture-revision",
+      "default_branch": "main",
+      "default_revision": "fixture-revision",
+      "remote": "https://github.com/wesleysimplicio/simplicio-mapper.git",
+      "versions": {"python": "0.0.0-fixture"},
+      "files_scanned": 2
+    }
+  ],
+  "matches": [
+    {
+      "repo": "mapper",
+      "file": "simplicio_mapper/store/catalog.py",
+      "classification": "production-candidate",
+      "kinds": ["ddl", "library"],
+      "matches": [{"kind": "ddl", "line": 4, "evidence": "CREATE TABLE stores (id TEXT PRIMARY KEY)"}]
+    }
+  ],
+  "databases": [],
+  "ownership_matrix": [
+    {
+      "repo": "mapper",
+      "file": "simplicio_mapper/store/catalog.py",
+      "current_path": "simplicio_mapper/store/catalog.py",
+      "target_path": "~/.simplicio/data/catalog.sqlite",
+      "kinds": ["ddl", "library"],
+      "classification": "production-candidate",
+      "current_owner": "mapper",
+      "target_owner": "mapper-store",
+      "readers": ["mapper"],
+      "writers": ["mapper"],
+      "changed_since_default": false,
+      "authorized_writer_after_cutover": "mapper-store",
+      "source_of_truth": "source-of-truth",
+      "receipt_authority": "operations.sqlite",
+      "durability": "durable",
+      "criticality": "critical",
+      "migration_strategy": "discover-then-plan"
+    }
+  ],
+  "policy": {
+    "schema": "simplicio.mapper-store-ddl-policy/v1",
+    "allowlisted_paths": ["simplicio_mapper/store/", "contracts/mapper-store/", "scripts/mapper_store_inventory.py", "tests/", "fixtures/"],
+    "violations": [],
+    "legacy_ddl_matches": 0,
+    "status": "pass",
+    "note": "fixture"
+  },
+  "target_topology": {
+    "schema": "MapperStore/v1",
+    "root": "~/.simplicio/data/",
+    "stores": [],
+    "excluded": []
+  },
+  "compatibility": {
+    "python_api": "simplicio_mapper.store",
+    "rust_api": "MapperStore/v1 adapter",
+    "installed_package_mode": "no side effects",
+    "cross_domain_transactions": "forbidden"
+  }
+}

@@ -1,0 +1,187 @@
+{
+  "$id": "simplicio.task-intent/v1",
+  "title": "Normalized deterministic task intent",
+  "type": "object",
+  "required": [
+    "schema",
+    "fingerprint",
+    "system",
+    "functionality",
+    "change_type",
+    "story",
+    "acceptance_criteria",
+    "business_rules",
+    "non_functional_requirements",
+    "prototypes",
+    "access",
+    "dependencies",
+    "impact",
+    "additional_information"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "schema": {
+      "type": "string",
+      "enum": [
+        "simplicio.task-intent/v1"
+      ]
+    },
+    "fingerprint": {
+      "type": "string"
+    },
+    "system": {
+      "type": "string"
+    },
+    "functionality": {
+      "type": "string"
+    },
+    "change_type": {
+      "type": "string"
+    },
+    "story": {
+      "type": "object",
+      "required": [
+        "actor",
+        "desire",
+        "benefit"
+      ],
+      "properties": {
+        "actor": {
+          "type": "string"
+        },
+        "desire": {
+          "type": "string"
+        },
+        "benefit": {
+          "type": "string"
+        }
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "given",
+          "when",
+          "then",
+          "rule_ids"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "given": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "when": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "then": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rule_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "business_rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "non_functional_requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "prototypes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "description",
+          "references"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "access": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "impact": {
+      "type": "object"
+    },
+    "additional_information": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

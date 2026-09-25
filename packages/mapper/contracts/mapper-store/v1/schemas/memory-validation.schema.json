@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/memory-validation.schema.json",
+  "title": "simplicio.mapper-store.memory-validation/v1",
+  "type": "object",
+  "required": ["schema", "ok", "entries", "errors", "warnings"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store.memory-validation/v1"},
+    "ok": {"type": "boolean"},
+    "entries": {"type": "integer", "minimum": 0},
+    "errors": {"type": "array"},
+    "warnings": {"type": "array"}
+  }
+}

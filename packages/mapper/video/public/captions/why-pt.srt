@@ -1,0 +1,35 @@
+1
+00:00:00,000 --> 00:00:02,667
+A IA ja inventou como seu projeto funciona?
+
+2
+00:00:02,667 --> 00:00:09,333
+Sem contexto, ela pede arquivos, ignora padroes e erra a stack.
+
+3
+00:00:09,333 --> 00:00:13,667
+Voce repete contexto, a IA inventa regras e bugs passam sem teste.
+
+4
+00:00:13,667 --> 00:00:17,333
+O llm-project-mapper entrega esse contexto antes da primeira tarefa.
+
+5
+00:00:17,333 --> 00:00:25,333
+Agents, specs, skills e hooks criam um contrato claro para qualquer agente.
+
+6
+00:00:25,333 --> 00:00:38,000
+Antes, a conversa vira interrogatorio. Depois, Claude, Codex ou Copilot ja comecam com branch, testes e Definition of Done.
+
+7
+00:00:38,000 --> 00:00:43,333
+Voce corta contexto repetido, ganha evidencia obrigatoria e evita merge quebrado.
+
+8
+00:00:43,333 --> 00:00:48,667
+O mesmo contrato funciona com varios agentes trabalhando em paralelo.
+
+9
+00:00:48,667 --> 00:00:53,000
+Em trinta segundos, o projeto fica legivel para humanos e para IA.

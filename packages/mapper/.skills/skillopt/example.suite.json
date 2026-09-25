@@ -1,0 +1,25 @@
+{
+  "skill": "example.skill.md",
+  "rounds": 10,
+  "budget": 2,
+  "tasks": [
+    {
+      "id": "commit-flow",
+      "split": "train",
+      "requires": ["run lint before commit", "run unit tests before commit"],
+      "forbids": ["skip tests"]
+    },
+    {
+      "id": "safety",
+      "split": "train",
+      "requires": ["run unit tests before commit"],
+      "forbids": ["force push to main"]
+    },
+    {
+      "id": "held-out-review",
+      "split": "holdout",
+      "requires": ["run lint before commit", "run unit tests before commit"],
+      "forbids": ["skip tests", "force push to main"]
+    }
+  ]
+}

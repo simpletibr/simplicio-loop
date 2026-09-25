@@ -1,0 +1,5 @@
+{
+  "error_class": "ValueError",
+  "reason_contains": "Truncated",
+  "description": "Root array header declares 2 rows, only 1 data line present. Pre-#148 mapper decoder raised a bare IndexError here."
+}

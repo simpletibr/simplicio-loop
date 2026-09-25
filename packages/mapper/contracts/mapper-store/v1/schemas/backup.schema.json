@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/backup.schema.json",
+  "title": "simplicio.mapper-store.backup/v1",
+  "type": "object",
+  "required": ["schema", "status", "manifest"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store.backup/v1"},
+    "status": {"const": "backed_up"},
+    "manifest": {"type": "object", "required": ["schema", "backup_path", "sha256", "size", "created_at"]}
+  }
+}

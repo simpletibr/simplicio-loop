@@ -1,0 +1,7 @@
+node_modules/
+out/
+.remotion/
+*.log
+
+# assets/ é versionado (vídeo final + capa)
+!assets/

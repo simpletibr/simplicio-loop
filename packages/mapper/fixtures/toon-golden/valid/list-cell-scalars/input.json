@@ -1,0 +1,20 @@
+{
+  "files": [
+    {
+      "path": "a.py",
+      "exports": [
+        "run",
+        "main"
+      ],
+      "imports": []
+    },
+    {
+      "path": "b.py",
+      "exports": [],
+      "imports": [
+        "os",
+        "sys"
+      ]
+    }
+  ]
+}

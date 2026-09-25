@@ -1,0 +1,143 @@
+{
+  "$id": "simplicio.architecture-inventory/v1",
+  "title": "simplicio-mapper architecture-inventory.json (v1)",
+  "description": "Module/layer/file architecture rollup, joining project-map.json + symbol-index.json + call-graph.json.",
+  "type": "object",
+  "required": [
+    "schema",
+    "producer",
+    "version",
+    "generated_at",
+    "root",
+    "source_project_map",
+    "source_symbol_index",
+    "source_call_graph",
+    "product",
+    "architecture",
+    "modules",
+    "layers",
+    "files",
+    "relationships",
+    "coverage",
+    "notes"
+  ],
+  "properties": {
+    "schema": { "type": "string", "enum": ["simplicio.architecture-inventory/v1"] },
+    "producer": { "$ref": "producer-metadata.schema.json" },
+    "version": { "type": "integer" },
+    "generated_at": { "type": "string" },
+    "root": { "type": "string" },
+    "source_project_map": { "type": "string" },
+    "source_symbol_index": { "type": "string" },
+    "source_call_graph": { "type": "string" },
+    "product": {
+      "type": "object",
+      "required": ["name", "stack"],
+      "properties": {
+        "name": { "type": "string" },
+        "stack": { "type": "string" }
+      }
+    },
+    "architecture": {
+      "type": "object",
+      "required": ["signals", "system_type"],
+      "properties": {
+        "signals": { "type": "array" },
+        "system_type": { "type": "string" }
+      }
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "file_count", "files", "layers"],
+        "properties": {
+          "name": { "type": "string" },
+          "summary": { "type": "string" },
+          "file_count": { "type": "integer" },
+          "files": { "type": "array", "items": { "type": "string" } },
+          "layers": { "type": "array", "items": { "type": "string" } },
+          "entry_points": { "type": "array", "items": { "type": "string" } },
+          "tests": { "type": "array", "items": { "type": "string" } },
+          "public_symbols": { "type": "array", "items": { "type": "string" } },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["file"],
+              "properties": { "file": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "file_count", "files", "modules"],
+        "properties": {
+          "name": { "type": "string" },
+          "file_count": { "type": "integer" },
+          "files": { "type": "array", "items": { "type": "string" } },
+          "modules": { "type": "array", "items": { "type": "string" } },
+          "evidence": { "type": "array" }
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "language", "module", "layers", "roles"],
+        "properties": {
+          "path": { "type": "string" },
+          "language": { "type": "string" },
+          "module": { "type": "string" },
+          "layers": { "type": "array", "items": { "type": "string" } },
+          "roles": { "type": "array", "items": { "type": "string" } },
+          "imports": { "type": "array", "items": { "type": "string" } },
+          "symbols": { "type": "array", "items": { "type": "string" } },
+          "summary": { "type": "string" },
+          "evidence": { "type": "array" }
+        }
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "source_file", "target_file", "confidence", "evidence_class", "resolution_status", "relation_id", "provenance"],
+        "properties": {
+          "type": { "type": "string", "enum": ["calls", "imports"] },
+          "source_file": { "type": "string" },
+          "target_file": { "type": ["string", "null"] },
+          "source_symbol": { "type": ["string", "null"] },
+          "target_symbol": { "type": ["string", "null"] },
+          "import": { "type": "string" },
+          "line": { "type": "integer" },
+          "confidence": { "type": ["number", "null"] },
+          "relation_id": { "type": "string", "minLength": 1 },
+          "evidence_class": { "type": "string", "enum": ["semantic_resolved", "import_resolved", "lexical_unique", "lexical_ambiguous", "heuristic", "runtime_observed"] },
+          "resolution_status": { "type": "string", "enum": ["resolved", "inferred", "ambiguous", "unknown"] },
+          "target_candidates": { "type": "array", "items": { "type": "string" } },
+          "provenance": { "type": "object" }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["files", "modules", "layers", "symbols", "relationships", "tests"],
+      "properties": {
+        "files": { "type": "integer" },
+        "modules": { "type": "integer" },
+        "layers": { "type": "integer" },
+        "symbols": { "type": "integer" },
+        "relationships": { "type": "integer" },
+        "tests": { "type": "integer" }
+      }
+    },
+    "relationship_coverage": { "type": "object", "maxProperties": 32 },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  }
+}

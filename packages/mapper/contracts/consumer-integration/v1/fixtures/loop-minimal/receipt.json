@@ -1,0 +1,25 @@
+{
+  "schema": "simplicio.consumer-loop-receipt/v1",
+  "consumer": {
+    "name": "simplicio-loop",
+    "shape": "simplicio-loop"
+  },
+  "install": {
+    "module_file": "C:/venv/Lib/site-packages/simplicio_mapper/__init__.py",
+    "site_packages": true
+  },
+  "snapshot": {
+    "snapshot_schema": "simplicio.context-snapshot/v1",
+    "graph_schema": "simplicio.context-graph/v1",
+    "snapshot_id": "def456",
+    "repository_id": "consumer-fixture",
+    "omissions": [
+      "call-graph"
+    ]
+  },
+  "flags": {
+    "needs_broader_context": true,
+    "drilldown_reversible": true,
+    "fidelity_status": "partial"
+  }
+}

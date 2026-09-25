@@ -1,0 +1,2 @@
+schema: simplicio.flow-inventory/v1
+flows: [{"id":"bin.apply.edits","kind":"cli-command","entry":{"path":"bin/apply-edits.js","symbol":"bin/apply-edits.js::EditError","line":50},"steps":[{"module":"bin","path":"bin/apply-edits.js","symbol":"bin/apply-edits.js::EditError","line":50}],"effects":[{"type":"fs-read","evidence":{"path":"bin/apply-edits.js","line":74}},{"type":"fs-read","evidence":{"path":"bin/apply-edits.js","line":348}},{"type":"fs-write","evidence":{"path":"bin/apply-edits.js","line":292}}],"layers_touched":["entrypoint"],"confidence":"observed"}]

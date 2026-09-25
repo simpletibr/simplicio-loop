@@ -1,0 +1,4 @@
+schema: simplicio.project-map/v1
+files[2]{path,exports,imports}:
+  bin/apply-edits.js,[EditError,applyEdits,computePlan],["node:fs","node:path"]
+  bin/auto-map.js,[collectEntities,collectFeatures,collectIntegrations],[./mapper-artifacts,"node:child_process"]

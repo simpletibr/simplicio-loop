@@ -1,0 +1,55 @@
+{
+  "fixtures": [
+    {
+      "bundle_bytes": 28128,
+      "edges": 23,
+      "name": "layered-web",
+      "nodes": 17,
+      "peak_memory_bytes": 358535,
+      "scan_ms": 1196.48
+    },
+    {
+      "bundle_bytes": 30695,
+      "edges": 19,
+      "name": "monorepo",
+      "nodes": 15,
+      "peak_memory_bytes": 366122,
+      "scan_ms": 985.46
+    },
+    {
+      "bundle_bytes": 21731,
+      "edges": 15,
+      "name": "cli",
+      "nodes": 12,
+      "peak_memory_bytes": 339392,
+      "scan_ms": 1033.08
+    },
+    {
+      "bundle_bytes": 23337,
+      "edges": 17,
+      "name": "event-driven",
+      "nodes": 14,
+      "peak_memory_bytes": 352243,
+      "scan_ms": 1236.69
+    },
+    {
+      "bundle_bytes": 28208,
+      "edges": 19,
+      "name": "polyglot",
+      "nodes": 17,
+      "peak_memory_bytes": 366845,
+      "scan_ms": 975.25
+    },
+    {
+      "bundle_bytes": 21808,
+      "edges": 12,
+      "name": "incomplete",
+      "nodes": 12,
+      "peak_memory_bytes": 347760,
+      "scan_ms": 1060.32
+    }
+  ],
+  "mapper_version": "0.20.0",
+  "schema": "simplicio.mapper-canvas-performance/v1",
+  "version": 1
+}

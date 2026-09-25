@@ -1,0 +1,5 @@
+{
+  "error_class": "ValueError",
+  "reason_contains": "Malformed",
+  "description": "Root array header is missing the closing bracket on the count ([2 instead of [2])."
+}

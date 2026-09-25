@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/store.schema.json",
+  "title": "simplicio.mapper-store-api/v1",
+  "type": "object",
+  "required": ["schema", "store_schema", "status", "writer_authority", "paths", "capabilities"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store-api/v1"},
+    "store_schema": {"const": "simplicio.mapper-store/v1"},
+    "status": {"enum": ["ready", "not-ready"]},
+    "writer_authority": {"const": "mapper-store"},
+    "paths": {"type": "object", "required": ["root", "memory", "operations"]},
+    "capabilities": {"type": "object"}
+  }
+}

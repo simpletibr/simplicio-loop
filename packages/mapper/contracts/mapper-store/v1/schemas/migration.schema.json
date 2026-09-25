@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/migration.schema.json",
+  "title": "simplicio.mapper-store.migration/v1",
+  "type": "object",
+  "required": ["id", "from_version", "to_version", "forward", "verification_query", "checksum"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "from_version": { "type": "integer", "minimum": 0 },
+    "to_version": { "type": "integer", "minimum": 1 },
+    "checksum": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "prerequisites": { "type": "array", "items": { "type": "string" } },
+    "forward": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "rollback": { "type": "array", "items": { "type": "string" } },
+    "rollback_class": { "enum": ["none", "explicit", "restore-backup"] },
+    "destructive": { "type": "boolean" },
+    "verification_query": { "type": "string", "minLength": 1 }
+  }
+}

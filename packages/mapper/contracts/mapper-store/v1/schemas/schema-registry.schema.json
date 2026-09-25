@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/schema-registry.schema.json",
+  "title": "simplicio.mapper-store.schema-registry/v1",
+  "type": "object",
+  "required": ["schema", "registry_version", "manifest_id", "namespaces", "capabilities", "legacy_policy"],
+  "properties": {
+    "schema": { "enum": ["simplicio.mapper-store.schema-registry/v1"] },
+    "registry_version": { "type": "integer", "minimum": 1 },
+    "manifest_id": { "type": "string", "minLength": 1 },
+    "namespaces": {
+      "type": "object",
+      "minProperties": 4,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["current", "minimum_reader", "maximum_writer"],
+        "properties": {
+          "current": { "type": "integer", "minimum": 1 },
+          "minimum_reader": { "type": "integer", "minimum": 1 },
+          "maximum_writer": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "legacy_policy": {
+      "type": "object",
+      "required": ["read", "write", "downgrade"],
+      "properties": {
+        "read": { "type": "string" },
+        "write": { "type": "string" },
+        "downgrade": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$id": "simplicio.graph-delta/v1",
+  "title": "simplicio-mapper incremental graph delta (v1)",
+  "type": "object",
+  "required": ["schema", "version", "event_type", "mode", "scan_revision", "full_rescan", "ordering", "events", "affected_paths", "diagnostics", "snapshot"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["simplicio.graph-delta/v1"]},
+    "version": {"type": "integer", "enum": [1]},
+    "event_type": {"type": "string", "enum": ["initial_snapshot", "delta", "resync_required"]},
+    "mode": {"type": "string", "enum": ["initial", "incremental", "full-rescan"]},
+    "base_revision": {"type": ["string", "null"]},
+    "scan_revision": {"type": "string"},
+    "full_rescan": {"type": "boolean"},
+    "ordering": {"type": "object"},
+    "events": {"type": "array"},
+    "affected_paths": {"type": "array", "items": {"type": "string"}},
+    "diagnostics": {"type": "array", "items": {"type": ["string", "object"]}},
+    "snapshot": {"type": "object"}
+  }
+}

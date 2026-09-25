@@ -1,0 +1,16 @@
+{
+  "requested_profile": "auto",
+  "selected_profile": "sync",
+  "reason": "auto fell back to the conservative synchronous path because no compatible calibration evidence was available",
+  "file_count": 600,
+  "threshold": 600,
+  "async_disabled": false,
+  "platform": "Linux",
+  "source": "auto",
+  "candidates": {},
+  "evidence": null,
+  "predicted_p95_ms": null,
+  "fallback_profile": "sync",
+  "fallback_reason": null,
+  "schema": "simplicio.execution-plan/v1"
+}

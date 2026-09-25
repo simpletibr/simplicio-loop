@@ -1,0 +1,10 @@
+{
+  "schema": "simplicio.mapper-store.negotiation/v1",
+  "compatible": false,
+  "reader": { "minimum": 1, "maximum": 1 },
+  "writer": { "minimum": 2, "maximum": 2 },
+  "minimum_version": 2,
+  "maximum_version": 1,
+  "missing_capabilities": [],
+  "reason_code": "INCOMPATIBLE_WRITER"
+}

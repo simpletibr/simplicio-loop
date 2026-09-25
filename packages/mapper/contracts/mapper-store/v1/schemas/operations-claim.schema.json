@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/operations-claim.schema.json",
+  "title": "simplicio.mapper-store.operations-claim/v1",
+  "type": "object",
+  "required": ["schema", "status", "task_id", "attempt_id", "fence_token", "lease_id", "payload"],
+  "properties": {
+    "schema": { "enum": ["simplicio.mapper-store.operations-api/v1"] },
+    "status": { "enum": ["claimed"] },
+    "task_id": { "type": "string", "minLength": 1 },
+    "attempt_id": { "type": "string", "minLength": 1 },
+    "fence_token": { "type": "string", "minLength": 1 },
+    "lease_id": { "type": "string", "minLength": 1 },
+    "worker_id": { "type": "string" },
+    "payload": { "type": "object" }
+  }
+}

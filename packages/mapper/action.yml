@@ -1,0 +1,156 @@
+name: 'simplicio-mapper docs impact'
+description: >-
+  Comments PR-affected flows, docs-sync status and spec-drift findings using
+  simplicio-mapper. Degrades to a check + workflow artifact on fork PRs that
+  lack comment-write permission.
+author: 'Wesley Simplicio'
+branding:
+  icon: 'git-pull-request'
+  color: 'purple'
+
+inputs:
+  mode:
+    description: 'pr-comment | check | both'
+    required: false
+    default: 'pr-comment'
+  drift-threshold:
+    description: 'Max spec-drift findings allowed before the check fails'
+    required: false
+    default: '10'
+  working-directory:
+    description: 'Directory to run simplicio-mapper in'
+    required: false
+    default: '.'
+  artifact-name:
+    description: 'Name of the uploaded workflow artifact with full sync/drift payloads'
+    required: false
+    default: 'simplicio-docs-sync'
+  python-version:
+    description: 'Python version used to install simplicio-mapper'
+    required: false
+    default: '3.11'
+  install-source:
+    description: >-
+      "pypi" installs the published simplicio-mapper package (default, for
+      consumers). "none" skips installation and assumes the caller already
+      put a `simplicio-mapper` console script on PATH — used by this repo's
+      own CI to dogfood the action against the checked-out source instead of
+      the last PyPI release.
+    required: false
+    default: 'pypi'
+
+outputs:
+  drift-pass:
+    description: '"true"/"false" — whether spec-drift findings are within drift-threshold'
+    value: ${{ steps.drift.outputs.pass }}
+  affected-flows-count:
+    description: 'Number of flows the diff affects, per `sync`'
+    value: ${{ steps.sync.outputs.affected_flows_count }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install simplicio-mapper
+      if: inputs.install-source == 'pypi'
+      shell: bash
+      run: pip install --quiet --upgrade simplicio-mapper
+
+    - name: Determine diff range
+      id: range
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "range=${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+        else
+          echo "range=" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Run sync
+      id: sync
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        set -o pipefail
+        if [ -n "${{ steps.range.outputs.range }}" ]; then
+          simplicio-mapper sync . --range "${{ steps.range.outputs.range }}" --json > "$RUNNER_TEMP/simplicio-sync.json" || true
+        else
+          simplicio-mapper sync . --json > "$RUNNER_TEMP/simplicio-sync.json" || true
+        fi
+        count=$(node -e "try{const d=require('$RUNNER_TEMP/simplicio-sync.json');console.log((d.affected_flows||[]).length)}catch(e){console.log(0)}")
+        echo "affected_flows_count=$count" >> "$GITHUB_OUTPUT"
+
+    - name: Run drift
+      id: drift
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        set +e
+        simplicio-mapper drift . --check --threshold "${{ inputs.drift-threshold }}" --json > "$RUNNER_TEMP/simplicio-drift.json"
+        code=$?
+        set -e
+        if [ "$code" = "0" ]; then echo "pass=true" >> "$GITHUB_OUTPUT"; else echo "pass=false" >> "$GITHUB_OUTPUT"; fi
+        echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+
+    - name: Render comment body
+      id: render
+      shell: bash
+      run: |
+        node "${{ github.action_path }}/scripts/render-simplicio-comment.js" \
+          "$RUNNER_TEMP/simplicio-sync.json" "$RUNNER_TEMP/simplicio-drift.json" \
+          > "$RUNNER_TEMP/simplicio-comment.md"
+
+    - name: Upload sync/drift artifacts
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: |
+          ${{ runner.temp }}/simplicio-sync.json
+          ${{ runner.temp }}/simplicio-drift.json
+        if-no-files-found: ignore
+
+    - name: Comment on PR
+      if: |
+        (inputs.mode == 'pr-comment' || inputs.mode == 'both') &&
+        github.event_name == 'pull_request'
+      uses: actions/github-script@v9
+      with:
+        script: |
+          const fs = require('fs');
+          const marker = '<!-- simplicio-mapper-docs-sync -->';
+          let body;
+          try {
+            body = fs.readFileSync(process.env.RUNNER_TEMP + '/simplicio-comment.md', 'utf8');
+          } catch (error) {
+            core.warning(`could not read rendered comment body: ${error.message}`);
+            return;
+          }
+          const { owner, repo } = context.repo;
+          const issue_number = context.payload.pull_request.number;
+          try {
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+          } catch (error) {
+            // Fork PRs commonly lack comment-write permission — degrade to
+            // check + artifact instead of failing the job (see F8 AC).
+            core.warning(`could not comment on PR (likely missing write permission on a fork PR): ${error.message}`);
+          }
+
+    - name: Fail check on drift threshold
+      if: inputs.mode == 'check' || inputs.mode == 'both'
+      shell: bash
+      run: |
+        if [ "${{ steps.drift.outputs.exit_code }}" != "0" ]; then
+          echo "::error::spec-drift findings exceed threshold ${{ inputs.drift-threshold }}"
+          exit 1
+        fi

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/migration-verify.schema.json",
+  "title": "simplicio.mapper-store.migration-verify/v1",
+  "type": "object",
+  "required": ["schema", "database", "current_version", "valid", "ledger_error", "checks"],
+  "properties": {
+    "schema": { "enum": ["simplicio.mapper-store.migration-verify/v1"] },
+    "database": { "type": "string" },
+    "current_version": { "type": "integer", "minimum": 0 },
+    "valid": { "type": "boolean" },
+    "ledger_error": { "type": ["string", "null"] },
+    "checks": { "type": "array", "items": { "type": "object", "required": ["migration_id", "valid"], "properties": { "migration_id": { "type": "string" }, "valid": { "type": "boolean" } } } }
+  }
+}
