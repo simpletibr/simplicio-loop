@@ -1,0 +1,13 @@
+{
+  "slug": "kotlin-ktor",
+  "template_version": "0.1.0",
+  "language": "Kotlin",
+  "framework": "Ktor",
+  "framework_version": "3",
+  "package_manager": "gradle",
+  "test_runner": "kotlin.test",
+  "linter": "ktlint",
+  "deps_required": ["ktor-server-core", "ktor-server-netty"],
+  "deps_dev": ["ktor-server-test-host"],
+  "tags": ["web", "api", "kotlin", "ktor", "jvm"]
+}

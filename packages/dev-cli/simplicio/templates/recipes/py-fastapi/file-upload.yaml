@@ -1,0 +1,52 @@
+{
+  "name": "file-upload",
+  "description": "FastAPI multipart upload endpoint with validation and tests.",
+  "applies_to": ["py-fastapi"],
+  "matches": [
+    "(?i)\\b(?:add|build|implement|create)\\s+file\\s+upload\\b",
+    "(?i)\\bupload\\s+(?:file|avatar|image|document)s?\\b",
+    "(?i)\\bfile\\s+upload\\s+(?:for|to)\\b"
+  ],
+  "slots": {
+    "resource": {"default": "upload", "transform": "lower_snake_case"}
+  },
+  "rationale": "Use the py-fastapi file upload recipe: multipart parsing, file validation, and route tests are deterministic.",
+  "files_to_create": [
+    {"path": "src/api/routes/uploads.py", "purpose": "Multipart upload endpoint"},
+    {"path": "src/services/upload_storage.py", "purpose": "Validated local storage helper"},
+    {"path": "tests/api/test_uploads.py", "purpose": "Upload route tests"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-upload-storage",
+      "depends_on": [],
+      "goal": "Create a storage helper for validated uploaded files.",
+      "target": "src/services/upload_storage.py",
+      "criteria": "- validates allowed content types\\n- rejects oversized files\\n- returns a stable stored-file descriptor",
+      "constraints": "- keep filesystem writes behind an injectable root",
+      "verify": "pytest tests/api/test_uploads.py -q"
+    },
+    {
+      "id": "T02-upload-route",
+      "depends_on": ["T01-upload-storage"],
+      "goal": "Expose a FastAPI multipart upload route.",
+      "target": "src/api/routes/uploads.py",
+      "criteria": "- POST /uploads accepts UploadFile\\n- invalid content type returns 400\\n- response includes filename and URL/path",
+      "constraints": "- do not read the entire file twice",
+      "verify": "pytest tests/api/test_uploads.py -q"
+    },
+    {
+      "id": "T03-upload-tests",
+      "depends_on": ["T02-upload-route"],
+      "goal": "Cover upload success and validation failures.",
+      "target": "tests/api/test_uploads.py",
+      "criteria": "- valid upload succeeds\\n- invalid type and oversized body fail predictably",
+      "constraints": "- use isolated temporary storage",
+      "verify": "pytest tests/api/test_uploads.py -q"
+    }
+  ],
+  "deps_to_install": ["python-multipart>=0.0.20"],
+  "deps_dev": ["pytest>=9.0.3", "httpx>=0.28.1"],
+  "test_command": "pytest -q",
+  "lint_command": "ruff check src tests"
+}

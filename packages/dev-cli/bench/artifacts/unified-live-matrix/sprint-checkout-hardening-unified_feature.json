@@ -1,0 +1,30 @@
+{
+  "case_id": "sprint-checkout-hardening",
+  "invocations": [
+    {
+      "args": [
+        "C:\\Users\\wesley.simplicio\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "-m",
+        "simplicio.cli",
+        "run",
+        "Finish checkout sprint with billing, reports, and DoD green.",
+        "--scope",
+        "feature",
+        "--root",
+        "C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\simplicio-run-f5-live-fixture",
+        "--stack",
+        "py-fastapi",
+        "--max-cost",
+        "0",
+        "--max-iter",
+        "0",
+        "--json"
+      ],
+      "duration_s": 2.9,
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "{\"applied\": true, \"cost\": {\"budget_usd\": \"0\", \"remaining_usd\": \"0\", \"spent_usd\": \"0\"}, \"goal\": \"Finish checkout sprint with billing, reports, and DoD green.\", \"plan_tasks\": 7, \"replans\": 0, \"scope\": \"feature\", \"stack\": \"py-fastapi\", \"tasks\": [{\"goal\": \"Harden checkout cart validation.\", \"id\": \"T01-cart\", \"log\": \"{\\n  \\\"applied\\\": true,\\n  \\\"cost_usd\\\": 0.0,\\n  \\\"diff_summary\\\": \\\"changed src/checkout/cart.py\\\",\\n  \\\"files_changed\\\": [\\n    \\\"src/checkout/cart.py\\\"\\n  ],\\n  \\\"task_id\\\": \\\"src/checkout/cart.py\\\",\\n  \\\"tokens_used\\\": {\\n    \\\"completion\\\": 22,\\n    \\\"prompt\\\": 232\\n  },\\n  \\\"warnings\\\": []\\n}\", \"passed\": true, \"replan\": 0, \"target\": \"src/checkout/cart.py\"}, {\"goal\": \"Harden checkout payment authorization.\", \"id\": \"T02-payment\", \"log\": \"{\\n  \\\"applied\\\": true,\\n  \\\"cost_usd\\\": 0.0,\\n  \\\"diff_summary\\\": \\\"changed src/checkout/payment.py\\\",\\n  \\\"files_changed\\\": [\\n    \\\"src/checkout/payment.py\\\"\\n  ],\\n  \\\"task_id\\\": \\\"src/checkout/payment.py\\\",\\n  \\\"tokens_used\\\": {\\n    \\\"completion\\\": 22,\\n    \\\"prompt\\\": 232\\n  },\\n  \\\"warnings\\\": []\\n}\", \"passed\": true, \"replan\": 0, \"target\": \"src/checkout/payment.py\"}, {\"goal\": \"Add checkout retry idempotency checks.\", \"id\": \"T03-idempotency\", \"log\": \"{\\n  \\\"applied\\\": true,\\n  \\\"cost_usd\\\": 0.0,\\n  \\\"diff_summary\\\": \\\"changed src/checkout/idempotency.py\\\",\\n  \\\"files_changed\\\": [\\n    \\\"src/checkout/idempotency.py\\\"\\n  ],\\n  \\\"task_id\\\": \\\"src/checkout/idempotency.py\\\",\\n  \\\"tokens_used\\\": {\\n    \\\"completion\\\": 22,\\n    \\\"prompt\\\": 233\\n  },\\n  \\\"warnings\\\": []\\n}\", \"passed\": true, \"replan\": 0, \"target\": \"src/checkout/idempotency.py\"}, {\"goal\": \"Add invoice status validation.\", \"id\": \"T04-invoice\", \"log\": \"{\\n  \\\"applied\\\": true,\\n  \\\"cost_usd\\\": 0.0,\\n  \\\"diff_summary\\\": \\\"changed src/billing/invoice.py\\\",\\n  \\\"files_changed\\\": [\\n    \\\"src/billing/invoice.py\\\"\\n  ],\\n  \\\"task_id\\\": \\\"src/billing/invoice.py\\\",\\n  \\\"tokens_used\\\": {\\n    \\\"completion\\\": 22,\\n    \\\"prompt\\\": 232\\n  },\\n  \\\"warnings\\\": []\\n}\", \"passed\": true, \"replan\": 0, \"target\": \"src/billing/invoice.py\"}, {\"goal\": \"Add refund reporting guard.\", \"id\": \"T05-refunds\", \"log\": \"{\\n  \\\"applied\\\": true,\\n  \\\"cost_usd\\\": 0.0,\\n  \\\"diff_summary\\\": \\\"changed src/billing/refunds.py\\\",\\n  \\\"files_changed\\\": [\\n    \\\"src/billing/refunds.py\\\"\\n  ],\\n  \\\"task_id\\\": \\\"src/billing/refunds.py\\\",\\n  \\\"tokens_used\\\": {\\n    \\\"completion\\\": 22,\\n    \\\"prompt\\\": 232\\n  },\\n  \\\"warnings\\\": []\\n}\", \"passed\": true, \"replan\": 0, \"target\": \"src/billing/refunds.py\"}, {\"goal\": \"Add sales report filters.\", \"id\": \"T06-sales-report\", \"log\": \"{\\n  \\\"applied\\\": true,\\n  \\\"cost_usd\\\": 0.0,\\n  \\\"diff_summary\\\": \\\"changed src/reports/sales.py\\\",\\n  \\\"files_changed\\\": [\\n    \\\"src/reports/sales.py\\\"\\n  ],\\n  \\\"task_id\\\": \\\"src/reports/sales.py\\\",\\n  \\\"tokens_used\\\": {\\n    \\\"completion\\\": 22,\\n    \\\"prompt\\\": 232\\n  },\\n  \\\"warnings\\\": []\\n}\", \"passed\": true, \"replan\": 0, \"target\": \"src/reports/sales.py\"}, {\"goal\": \"Add report export smoke validation.\", \"id\": \"T07-export\", \"log\": \"{\\n  \\\"applied\\\": true,\\n  \\\"cost_usd\\\": 0.0,\\n  \\\"diff_summary\\\": \\\"changed src/reports/export.py\\\",\\n  \\\"files_changed\\\": [\\n    \\\"src/reports/export.py\\\"\\n  ],\\n  \\\"task_id\\\": \\\"src/reports/export.py\\\",\\n  \\\"tokens_used\\\": {\\n    \\\"completion\\\": 22,\\n    \\\"prompt\\\": 233\\n  },\\n  \\\"warnings\\\": []\\n}\", \"passed\": true, \"replan\": 0, \"target\": \"src/reports/export.py\"}], \"warnings\": []}\n"
+    }
+  ],
+  "mode_id": "unified_feature"
+}

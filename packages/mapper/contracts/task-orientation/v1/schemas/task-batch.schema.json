@@ -1,0 +1,15 @@
+{
+  "$id": "simplicio.task-batch/v1",
+  "title": "Deterministic zero-target task batch plan",
+  "type": "object",
+  "required": ["schema", "batch_id", "tasks", "order", "shared_surfaces", "conflicts", "execution"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["simplicio.task-batch/v1"]},
+    "batch_id": {"type": "string"},
+    "tasks": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["id", "intent", "depends_on", "candidates", "selection"]}},
+    "order": {"type": "array", "items": {"type": "string"}},
+    "shared_surfaces": {"type": "array", "items": {"type": "object", "required": ["path", "task_ids", "reason"]}},
+    "conflicts": {"type": "array", "items": {"type": "object", "required": ["task_ids", "paths", "reason"]}},
+    "execution": {"type": "object", "required": ["mode", "executed"], "properties": {"mode": {"type": "string", "enum": ["plan-only"]}, "executed": {"type": "boolean", "enum": [false]}}}
+  }
+}

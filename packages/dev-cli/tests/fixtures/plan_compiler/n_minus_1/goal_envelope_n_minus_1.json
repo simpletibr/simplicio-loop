@@ -1,0 +1,9 @@
+{
+  "schema": "simplicio.goal-envelope/v1",
+  "goal_id": "goal-fixture-1",
+  "revision": "1",
+  "context_snapshot_id": "snap-fixture-1",
+  "text": "Fix the empty-state on the dashboard widget.",
+  "acceptance_criteria": ["AC1", "AC2"],
+  "constraints": {"max_files": 3}
+}

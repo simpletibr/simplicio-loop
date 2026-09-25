@@ -1,0 +1,21 @@
+{
+  "$id": "simplicio.mapper-native-artifact/v1",
+  "title": "Uncertified native/Node Mapper artifact envelope (private v1)",
+  "description": "Shape gate only. This private schema deliberately does not certify compatibility with any public canonical artifact.",
+  "type": "object",
+  "required": ["schema", "version", "generated_at"],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": [
+        "simplicio.mapper-native/project-map/v1",
+        "simplicio.mapper-native/precedent-index/v1",
+        "simplicio.mapper-native/architecture-inventory/v1",
+        "simplicio.mapper-native/symbol-index/v1",
+        "simplicio.mapper-native/call-graph/v1"
+      ]
+    },
+    "version": { "type": "integer", "enum": [1] },
+    "generated_at": { "type": "string" }
+  }
+}

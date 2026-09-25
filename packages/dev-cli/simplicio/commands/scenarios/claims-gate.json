@@ -1,0 +1,68 @@
+[
+  {
+    "id": "all-claims-resolved",
+    "failure": "skill does not ensure every claim is resolved before concluding",
+    "must_include_any": [
+      ["all claims resolved", "claims resolved", "resolve all claims", "each claim"],
+      ["conclusion", "decision", "finalize", "close"]
+    ],
+    "must_not_include": [
+      "ignore pending claims",
+      "skip unresolved"
+    ]
+  },
+  {
+    "id": "evidence-grounded",
+    "failure": "skill does not anchor decisions in explicit evidence",
+    "must_include_any": [
+      ["evidence", "exhibit", "documented", "on record"],
+      ["evaluate", "assess", "weigh", "consider", "review"]
+    ],
+    "must_not_include": [
+      "without evidence",
+      "no evidence needed",
+      "gut feeling"
+    ]
+  },
+  {
+    "id": "tone-neutral",
+    "failure": "skill permits adversarial or emotionally charged language",
+    "must_include_any": [
+      ["neutral", "objective", "impartial", "unbiased", "professional"],
+      ["language", "tone", "wording", "terms"]
+    ],
+    "must_not_include": [
+      "hostile",
+      "aggressive",
+      "accusatory",
+      "dismissive",
+      "inflammatory"
+    ]
+  },
+  {
+    "id": "proportional-remedy",
+    "failure": "skill lacks proportional or graduated remedy guidance",
+    "must_include_any": [
+      ["proportional", "proportionate", "graduated", "scaled", "commensurate"],
+      ["remedy", "sanction", "penalty", "resolution", "action"]
+    ],
+    "must_not_include": [
+      "maximum penalty always",
+      "strictest action regardless",
+      "no remedy"
+    ]
+  },
+  {
+    "id": "consistent-precedent",
+    "failure": "skill does not reference precedent or consistency",
+    "must_include_any": [
+      ["precedent", "consistent", "past decision", "similar case", "prior ruling"],
+      ["reference", "apply", "consider", "follow"]
+    ],
+    "must_not_include": [
+      "decide each case in isolation",
+      "ignore past rulings",
+      "no consistency needed"
+    ]
+  }
+]

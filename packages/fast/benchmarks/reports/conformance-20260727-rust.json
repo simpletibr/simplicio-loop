@@ -1,0 +1,231 @@
+{
+  "context_mismatch": false,
+  "contexts": {
+    "match": true,
+    "python": [
+      {
+        "content": "def resolve(value: str) -> Account: ...",
+        "end_line": 8,
+        "file": "service.py",
+        "kind": "function",
+        "source_sha256": "edee7f5f31f478c62b3ec0f9f52ecd739a0424d0a3059b62fd35abd19ee1c727",
+        "start_line": 8,
+        "symbol": "resolve",
+        "symbol_id": "ec6aa0fd560009bf7b0877901de9d6d331974eeba6ba9e057ab1a54f257a1d0e",
+        "tokens": 10
+      },
+      {
+        "content": "def resolve(value: int) -> Account: ...",
+        "end_line": 11,
+        "file": "service.py",
+        "kind": "function",
+        "source_sha256": "edee7f5f31f478c62b3ec0f9f52ecd739a0424d0a3059b62fd35abd19ee1c727",
+        "start_line": 11,
+        "symbol": "resolve",
+        "symbol_id": "f9e54b3173eeb66c6e7d97843e9462614b29a2c51b9c23792e24ead73274b9e9",
+        "tokens": 10
+      },
+      {
+        "content": "def resolve(value: str | int) -> Account:\n    return Account(str(value))",
+        "end_line": 14,
+        "file": "service.py",
+        "kind": "function",
+        "source_sha256": "edee7f5f31f478c62b3ec0f9f52ecd739a0424d0a3059b62fd35abd19ee1c727",
+        "start_line": 13,
+        "symbol": "resolve",
+        "symbol_id": "b02627c5b8c4dda8317c1253a1442afbbe6dd455e7ff079f52754cb498d68bf9",
+        "tokens": 18
+      }
+    ],
+    "rust": [
+      {
+        "content": "def resolve(value: str) -> Account: ...",
+        "end_line": 8,
+        "file": "service.py",
+        "kind": "function",
+        "source_sha256": "edee7f5f31f478c62b3ec0f9f52ecd739a0424d0a3059b62fd35abd19ee1c727",
+        "start_line": 8,
+        "symbol": "resolve",
+        "symbol_id": "ec6aa0fd560009bf7b0877901de9d6d331974eeba6ba9e057ab1a54f257a1d0e",
+        "tokens": 10
+      },
+      {
+        "content": "def resolve(value: int) -> Account: ...",
+        "end_line": 11,
+        "file": "service.py",
+        "kind": "function",
+        "source_sha256": "edee7f5f31f478c62b3ec0f9f52ecd739a0424d0a3059b62fd35abd19ee1c727",
+        "start_line": 11,
+        "symbol": "resolve",
+        "symbol_id": "f9e54b3173eeb66c6e7d97843e9462614b29a2c51b9c23792e24ead73274b9e9",
+        "tokens": 10
+      },
+      {
+        "content": "def resolve(value: str | int) -> Account:\n    return Account(str(value))",
+        "end_line": 14,
+        "file": "service.py",
+        "kind": "function",
+        "source_sha256": "edee7f5f31f478c62b3ec0f9f52ecd739a0424d0a3059b62fd35abd19ee1c727",
+        "start_line": 13,
+        "symbol": "resolve",
+        "symbol_id": "b02627c5b8c4dda8317c1253a1442afbbe6dd455e7ff079f52754cb498d68bf9",
+        "tokens": 18
+      }
+    ],
+    "term": "resolve"
+  },
+  "corpus": "fixtures/conformance/v1",
+  "corpus_sha256": "15d0f17f2bd3f897f823e75fd08e1a1e4866e8c48f395c41a00688eb8b7d6cbc",
+  "engine_raw": {
+    "python": {
+      "bytes": 6131,
+      "files": 1,
+      "format": "SFAST001/v2",
+      "generation": "SFAST001:64e55f5b26893c6f85066550fde6f936604b1e7d2a1fabbce524ed4037be7e3e",
+      "relations": 27,
+      "sections": [
+        "files",
+        "indexes",
+        "relations",
+        "strings",
+        "symbols"
+      ],
+      "symbols": 6,
+      "version": 2
+    },
+    "rust": {
+      "bytes": 6131,
+      "files": 1,
+      "format_version": 2,
+      "generation": "SFAST001:64e55f5b26893c6f85066550fde6f936604b1e7d2a1fabbce524ed4037be7e3e",
+      "relations": 27,
+      "schema": "simplicio.fast.rust-stats/v1",
+      "sections": [
+        "files",
+        "indexes",
+        "relations",
+        "strings",
+        "symbols"
+      ],
+      "symbols": 6
+    }
+  },
+  "engine_sha256": {
+    "python": "e8d0e2cc786e718a98a3a09d1887b222ea9bec59d4efae8aeae050feb28e1965",
+    "rust": "9258cc600bc4bda434f3e2e61ed750e665b4b4bd0d3c41db664538df1733a695"
+  },
+  "engines": {
+    "python": {
+      "budgets": null,
+      "bytes": 6131,
+      "files": 1,
+      "format_version": 2,
+      "generation": "SFAST001:64e55f5b26893c6f85066550fde6f936604b1e7d2a1fabbce524ed4037be7e3e",
+      "reason_codes": null,
+      "relations": 27,
+      "sections": [
+        "files",
+        "indexes",
+        "relations",
+        "strings",
+        "symbols"
+      ],
+      "source_hashes": null,
+      "symbols": 6,
+      "truncations": null
+    },
+    "rust": {
+      "budgets": null,
+      "bytes": 6131,
+      "files": 1,
+      "format_version": 2,
+      "generation": "SFAST001:64e55f5b26893c6f85066550fde6f936604b1e7d2a1fabbce524ed4037be7e3e",
+      "reason_codes": null,
+      "relations": 27,
+      "sections": [
+        "files",
+        "indexes",
+        "relations",
+        "strings",
+        "symbols"
+      ],
+      "source_hashes": null,
+      "symbols": 6,
+      "truncations": null
+    }
+  },
+  "mismatches": {},
+  "queries": {
+    "match": true,
+    "python": [
+      {
+        "end_line": 8,
+        "file": "service.py",
+        "kind": "function",
+        "line": 8,
+        "name": "resolve",
+        "qualified_name": "resolve",
+        "signature": "value: str",
+        "symbol_id": "ec6aa0fd560009bf7b0877901de9d6d331974eeba6ba9e057ab1a54f257a1d0e"
+      },
+      {
+        "end_line": 11,
+        "file": "service.py",
+        "kind": "function",
+        "line": 11,
+        "name": "resolve",
+        "qualified_name": "resolve",
+        "signature": "value: int",
+        "symbol_id": "f9e54b3173eeb66c6e7d97843e9462614b29a2c51b9c23792e24ead73274b9e9"
+      },
+      {
+        "end_line": 14,
+        "file": "service.py",
+        "kind": "function",
+        "line": 13,
+        "name": "resolve",
+        "qualified_name": "resolve",
+        "signature": "value: str | int",
+        "symbol_id": "b02627c5b8c4dda8317c1253a1442afbbe6dd455e7ff079f52754cb498d68bf9"
+      }
+    ],
+    "rust": [
+      {
+        "end_line": 8,
+        "file": "service.py",
+        "kind": "function",
+        "line": 8,
+        "name": "resolve",
+        "qualified_name": "resolve",
+        "signature": "value: str",
+        "symbol_id": "ec6aa0fd560009bf7b0877901de9d6d331974eeba6ba9e057ab1a54f257a1d0e"
+      },
+      {
+        "end_line": 11,
+        "file": "service.py",
+        "kind": "function",
+        "line": 11,
+        "name": "resolve",
+        "qualified_name": "resolve",
+        "signature": "value: int",
+        "symbol_id": "f9e54b3173eeb66c6e7d97843e9462614b29a2c51b9c23792e24ead73274b9e9"
+      },
+      {
+        "end_line": 14,
+        "file": "service.py",
+        "kind": "function",
+        "line": 13,
+        "name": "resolve",
+        "qualified_name": "resolve",
+        "signature": "value: str | int",
+        "symbol_id": "b02627c5b8c4dda8317c1253a1442afbbe6dd455e7ff079f52754cb498d68bf9"
+      }
+    ],
+    "term": "resolve"
+  },
+  "query_mismatch": false,
+  "schema": "simplicio.fast.conformance/v1",
+  "snapshot": "project.sfast",
+  "snapshot_sha256": "64e55f5b26893c6f85066550fde6f936604b1e7d2a1fabbce524ed4037be7e3e",
+  "status": "pass"
+}

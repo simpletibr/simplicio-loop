@@ -1,0 +1,4 @@
+note: Representative of simplicio-runtime's resource-map MCP shape (hand-built for this corpus).
+resources[2]{id,kind,tags}:
+  res-1,agent,[local,fast]
+  res-2,tool,[]

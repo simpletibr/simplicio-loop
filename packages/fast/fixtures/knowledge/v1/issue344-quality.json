@@ -1,0 +1,114 @@
+{
+  "schema": "simplicio.fast.knowledge-quality-corpus/v1",
+  "dataset_id": "knowledge-advisory-quality-v1",
+  "repository": "repo",
+  "scope": "tenant-a",
+  "generation": "g-quality-1",
+  "facts": [
+    {
+      "source_type": "adr",
+      "producer": "mapper",
+      "stable_handle": "knowledge:parser-contract",
+      "version": "v1",
+      "provenance": ["mapper:knowledge:1"],
+      "trust": "verified",
+      "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "text": "incremental parser adapter contract and Python parity",
+      "repository": "repo",
+      "scope": "tenant-a",
+      "applicability": ["python", "parser"]
+    },
+    {
+      "source_type": "precedent",
+      "producer": "mapper",
+      "stable_handle": "knowledge:parser-python",
+      "version": "v1",
+      "provenance": ["mapper:knowledge:2"],
+      "trust": "verified",
+      "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "text": "Python parser fallback with stable symbol IDs",
+      "repository": "repo",
+      "scope": "tenant-a",
+      "applicability": ["python"]
+    },
+    {
+      "source_type": "adr",
+      "producer": "mapper",
+      "stable_handle": "knowledge:parser-revoked",
+      "version": "v1",
+      "provenance": ["mapper:knowledge:3"],
+      "trust": "revoked",
+      "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "text": "parser parity revoked historical guidance",
+      "repository": "repo",
+      "scope": "tenant-a",
+      "state": "revoked",
+      "applicability": ["python"]
+    },
+    {
+      "source_type": "adr",
+      "producer": "mapper",
+      "stable_handle": "knowledge:parser-expired",
+      "version": "v1",
+      "provenance": ["mapper:knowledge:4"],
+      "trust": "verified",
+      "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "text": "parser parity expired guidance",
+      "repository": "repo",
+      "scope": "tenant-a",
+      "state": "expired",
+      "applicability": ["python"]
+    },
+    {
+      "source_type": "runbook",
+      "producer": "mapper",
+      "stable_handle": "knowledge:trust-provenance",
+      "version": "v1",
+      "provenance": ["mapper:knowledge:5"],
+      "trust": "verified",
+      "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "text": "knowledge projection trust provenance tombstone",
+      "repository": "repo",
+      "scope": "tenant-a",
+      "applicability": ["knowledge"]
+    },
+    {
+      "source_type": "adr",
+      "producer": "mapper",
+      "stable_handle": "knowledge:conflict",
+      "version": "v1",
+      "provenance": ["mapper:knowledge:6"],
+      "trust": "verified",
+      "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      "text": "parser parity conflicting old fact",
+      "repository": "repo",
+      "scope": "tenant-a",
+      "applicability": ["python"]
+    },
+    {
+      "source_type": "adr",
+      "producer": "mapper",
+      "stable_handle": "knowledge:conflict",
+      "version": "v2",
+      "provenance": ["mapper:knowledge:7"],
+      "trust": "verified",
+      "digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+      "text": "parser parity conflicting new fact",
+      "repository": "repo",
+      "scope": "tenant-a",
+      "applicability": ["python"]
+    }
+  ],
+  "queries": [
+    {
+      "id": "parser-parity",
+      "text": "parser parity",
+      "expected_handles": ["knowledge:parser-contract", "knowledge:parser-python"]
+    },
+    {
+      "id": "knowledge-trust",
+      "text": "knowledge trust provenance",
+      "expected_handles": ["knowledge:trust-provenance"]
+    }
+  ]
+}

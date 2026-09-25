@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/record.schema.json",
+  "title": "simplicio.mapper-store-record/v1",
+  "type": "object",
+  "required": ["schema", "stable_id", "record_type", "payload", "provenance", "consent"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store-record/v1"},
+    "stable_id": {"type": "string", "minLength": 1},
+    "record_type": {"type": "string", "minLength": 1},
+    "payload": {},
+    "provenance": {"type": "object", "required": ["source", "producer", "version"]},
+    "consent": {"type": "object"},
+    "content_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "tombstone": {"type": "boolean"}
+  }
+}

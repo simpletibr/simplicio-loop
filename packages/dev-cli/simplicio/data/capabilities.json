@@ -1,0 +1,940 @@
+{
+  "commands": {
+    "bench": {
+      "flags": [
+        "--cases",
+        "--help",
+        "--root",
+        "--stack",
+        "-h"
+      ],
+      "help": "compare with vs without (real numbers)",
+      "subcommands": {}
+    },
+    "cache": {
+      "flags": [
+        "--help",
+        "-h"
+      ],
+      "help": "inspect or clear completion cache",
+      "subcommands": {
+        "clear": {
+          "flags": [
+            "--force",
+            "--help",
+            "-h"
+          ],
+          "help": "clear completion cache",
+          "subcommands": {}
+        },
+        "stats": {
+          "flags": [
+            "--help",
+            "--json",
+            "-h"
+          ],
+          "help": "print completion cache statistics",
+          "subcommands": {}
+        }
+      }
+    },
+    "capabilities": {
+      "flags": [
+        "--help",
+        "--json",
+        "-h"
+      ],
+      "help": "print the static command/flag/edit-plan-format manifest (no heavy imports)",
+      "subcommands": {}
+    },
+    "changeset": {
+      "flags": [
+        "--apply",
+        "--current-generation",
+        "--fast-engine",
+        "--help",
+        "--json",
+        "--mode",
+        "--plan",
+        "--refresh-mapper",
+        "--root",
+        "-h"
+      ],
+      "help": "execute simplicio.fast.changeset/v2 through the mechanical-edit boundary",
+      "subcommands": {}
+    },
+    "claims": {
+      "flags": [
+        "--help",
+        "-h"
+      ],
+      "help": "claims-gate checks and report generation",
+      "subcommands": {
+        "check": {
+          "flags": [
+            "--help",
+            "-h"
+          ],
+          "help": "verify a claim against the 8 rules",
+          "subcommands": {}
+        },
+        "report": {
+          "flags": [
+            "--help",
+            "--json",
+            "--path",
+            "-h"
+          ],
+          "help": "generate/load a claims report",
+          "subcommands": {}
+        },
+        "tag": {
+          "flags": [
+            "--help",
+            "-h"
+          ],
+          "help": "suggest MEASURED|CANON|UNVERIFIED",
+          "subcommands": {}
+        }
+      }
+    },
+    "detect": {
+      "flags": [
+        "--help",
+        "--json",
+        "--prompt",
+        "--quiet",
+        "-h"
+      ],
+      "help": "heuristic: is a prompt a code-edit task",
+      "subcommands": {}
+    },
+    "doctor": {
+      "flags": [
+        "--help",
+        "--json",
+        "--list-tiers",
+        "--no-check-updates",
+        "--refresh",
+        "--root",
+        "--storage",
+        "--upgrade",
+        "-h"
+      ],
+      "help": "check deterministic readiness and dependency freshness",
+      "subcommands": {}
+    },
+    "edit": {
+      "flags": [
+        "--apply",
+        "--compile",
+        "--dry-run",
+        "--help",
+        "--json",
+        "--no-runtime",
+        "--plan",
+        "--repo",
+        "--root",
+        "-h"
+      ],
+      "help": "apply a Dev CLI edit plan; legacy plans may delegate to Runtime",
+      "subcommands": {}
+    },
+    "env-export": {
+      "flags": [
+        "--help",
+        "--json",
+        "-h"
+      ],
+      "help": "print shell-safe exports from a dotenv file without sourcing it",
+      "subcommands": {}
+    },
+    "fast": {
+      "flags": [
+        "--help",
+        "-h"
+      ],
+      "help": "negotiate optional Simplicio Fast capabilities",
+      "subcommands": {
+        "capabilities": {
+          "flags": [
+            "--help",
+            "--json",
+            "--offline",
+            "--receipt",
+            "-h"
+          ],
+          "help": "report versioned schemas, languages, commands and availability",
+          "subcommands": {}
+        },
+        "doctor": {
+          "flags": [
+            "--help",
+            "--json",
+            "--offline",
+            "--receipt",
+            "--snapshot",
+            "-h"
+          ],
+          "help": "diagnose Fast installation, compatibility, parser and snapshot",
+          "subcommands": {}
+        }
+      }
+    },
+    "file": {
+      "flags": [
+        "--help",
+        "-h"
+      ],
+      "help": "read raw file contents",
+      "subcommands": {
+        "read": {
+          "flags": [
+            "--end",
+            "--help",
+            "--json",
+            "--max-bytes",
+            "--repo",
+            "--start",
+            "-h"
+          ],
+          "help": "print a file's contents, optionally sliced by line range",
+          "subcommands": {}
+        }
+      }
+    },
+    "index": {
+      "flags": [
+        "--help",
+        "--root",
+        "--stack",
+        "-h"
+      ],
+      "help": "index/cache the repo (once, or after changes)",
+      "subcommands": {}
+    },
+    "init": {
+      "flags": [
+        "--claude-home",
+        "--dry-run",
+        "--help",
+        "-h"
+      ],
+      "help": "install skill + UserPromptSubmit hook into ~/.claude/",
+      "subcommands": {}
+    },
+    "inspect": {
+      "flags": [
+        "--context",
+        "--goal",
+        "--help",
+        "--json",
+        "--root",
+        "-h"
+      ],
+      "help": "inspect a target with mapper-backed context",
+      "subcommands": {}
+    },
+    "intake": {
+      "flags": [
+        "--batch-path",
+        "--contract",
+        "--execution-mode",
+        "--file",
+        "--help",
+        "--json",
+        "--plan-only",
+        "--print-contract-example",
+        "--root",
+        "--source-url",
+        "--stdin",
+        "--url",
+        "--validate-only",
+        "-h"
+      ],
+      "help": "parse raw task cards into the provider-free TaskSpec v2 contract",
+      "subcommands": {}
+    },
+    "mechanical-edit": {
+      "flags": [
+        "--apply",
+        "--dry-run",
+        "--help",
+        "--json",
+        "--plan",
+        "--root",
+        "-h"
+      ],
+      "help": "execute simplicio.mechanical-edit/v1 dry-run or apply",
+      "subcommands": {}
+    },
+    "memory": {
+      "flags": [
+        "--help",
+        "-h"
+      ],
+      "help": "cross-vendor memory handoff (markdown + git under ~/.simplicio/memory)",
+      "subcommands": {
+        "backup": {
+          "flags": [
+            "--dir",
+            "--help",
+            "--json",
+            "--output",
+            "-h"
+          ],
+          "help": "create a hash-bound memory backup",
+          "subcommands": {}
+        },
+        "handoff": {
+          "flags": [
+            "--dir",
+            "--from-agent",
+            "--help",
+            "--json",
+            "--limit",
+            "--to-agent",
+            "-h"
+          ],
+          "help": "build a deterministic cross-vendor handoff packet from recall hits",
+          "subcommands": {}
+        },
+        "import": {
+          "flags": [
+            "--dir",
+            "--help",
+            "--json",
+            "-h"
+          ],
+          "help": "import Markdown notes idempotently",
+          "subcommands": {}
+        },
+        "init": {
+          "flags": [
+            "--dir",
+            "--help",
+            "--json",
+            "-h"
+          ],
+          "help": "create the memory store",
+          "subcommands": {}
+        },
+        "recall": {
+          "flags": [
+            "--dir",
+            "--help",
+            "--json",
+            "--limit",
+            "--mode",
+            "-h"
+          ],
+          "help": "keyword search over stored notes",
+          "subcommands": {}
+        },
+        "restore": {
+          "flags": [
+            "--apply",
+            "--backup",
+            "--dir",
+            "--help",
+            "--json",
+            "-h"
+          ],
+          "help": "preview or apply a hash-bound memory restore",
+          "subcommands": {}
+        },
+        "store": {
+          "flags": [
+            "--dir",
+            "--help",
+            "--json",
+            "--tags",
+            "-h"
+          ],
+          "help": "append a note",
+          "subcommands": {}
+        },
+        "validate": {
+          "flags": [
+            "--dir",
+            "--help",
+            "--json",
+            "--strict",
+            "-h"
+          ],
+          "help": "audit markdown memory store integrity",
+          "subcommands": {}
+        }
+      }
+    },
+    "proposal": {
+      "flags": [
+        "--attempt-id",
+        "--bound-paths",
+        "--constraints",
+        "--context-handle",
+        "--context-pack",
+        "--context-pack-hash",
+        "--context-snapshot",
+        "--context-snapshot-id",
+        "--coordinator-id",
+        "--coordinator-kind",
+        "--criteria",
+        "--dry-run-task",
+        "--effect-authorization",
+        "--execution-context",
+        "--fencing-token",
+        "--help",
+        "--json",
+        "--lease-id",
+        "--mode",
+        "--plan",
+        "--repo-root",
+        "--root",
+        "--scope-root",
+        "--stack",
+        "--target",
+        "--task-spec",
+        "--task-spec-stdin",
+        "--verify-only",
+        "-h"
+      ],
+      "help": "compile a non-mutating Runtime ChangeProposal",
+      "subcommands": {}
+    },
+    "prototype": {
+      "flags": [
+        "--help",
+        "-h"
+      ],
+      "help": "Prototype-First plan, scaffold, validate and promotion gate",
+      "subcommands": {
+        "batch": {
+          "flags": [
+            "--concurrency",
+            "--force",
+            "--help",
+            "--json",
+            "--plans",
+            "--root",
+            "--timeout",
+            "-h"
+          ],
+          "help": "scaffold+validate many plans concurrently, bounded by --concurrency",
+          "subcommands": {}
+        },
+        "diff": {
+          "flags": [
+            "--candidate",
+            "--decision",
+            "--force",
+            "--help",
+            "--json",
+            "--plan",
+            "--receipt",
+            "--root",
+            "--target",
+            "--timeout",
+            "-h"
+          ],
+          "help": "show the proposed prototype diff",
+          "subcommands": {}
+        },
+        "doctor": {
+          "flags": [
+            "--help",
+            "--json",
+            "-h"
+          ],
+          "help": "health-check the prototype gate and tracked flows",
+          "subcommands": {}
+        },
+        "dry-run": {
+          "flags": [
+            "--candidate",
+            "--decision",
+            "--force",
+            "--help",
+            "--json",
+            "--plan",
+            "--receipt",
+            "--root",
+            "--target",
+            "--timeout",
+            "-h"
+          ],
+          "help": "simulate prototype execution without changing the target",
+          "subcommands": {}
+        },
+        "plan": {
+          "flags": [
+            "--goal",
+            "--help",
+            "--input",
+            "--json",
+            "--output",
+            "--root",
+            "--type",
+            "-h"
+          ],
+          "help": "compile and freeze a prototype plan",
+          "subcommands": {}
+        },
+        "promote": {
+          "flags": [
+            "--candidate",
+            "--decision",
+            "--force",
+            "--help",
+            "--json",
+            "--plan",
+            "--receipt",
+            "--root",
+            "--target",
+            "--timeout",
+            "-h"
+          ],
+          "help": "promote a validated prototype into the target",
+          "subcommands": {}
+        },
+        "reject": {
+          "flags": [
+            "--candidate",
+            "--decision",
+            "--force",
+            "--help",
+            "--json",
+            "--plan",
+            "--receipt",
+            "--root",
+            "--target",
+            "--timeout",
+            "-h"
+          ],
+          "help": "record rejection of a prototype candidate",
+          "subcommands": {}
+        },
+        "scaffold": {
+          "flags": [
+            "--candidate",
+            "--decision",
+            "--force",
+            "--help",
+            "--json",
+            "--plan",
+            "--receipt",
+            "--root",
+            "--target",
+            "--timeout",
+            "-h"
+          ],
+          "help": "create a prototype candidate from a frozen plan",
+          "subcommands": {}
+        },
+        "validate": {
+          "flags": [
+            "--candidate",
+            "--decision",
+            "--force",
+            "--help",
+            "--json",
+            "--plan",
+            "--receipt",
+            "--root",
+            "--target",
+            "--timeout",
+            "-h"
+          ],
+          "help": "validate a prototype candidate and its receipt",
+          "subcommands": {}
+        }
+      }
+    },
+    "reconcile": {
+      "flags": [
+        "--evidence-file",
+        "--help",
+        "--idempotency-key",
+        "--json",
+        "--repo",
+        "--root",
+        "-h"
+      ],
+      "help": "reconcile a pending Runtime effect from strict evidence-file proof",
+      "subcommands": {}
+    },
+    "release-train": {
+      "flags": [
+        "--help",
+        "-h"
+      ],
+      "help": "verify Mapper release events, immutable artifacts, and N/N-1 conformance",
+      "subcommands": {
+        "doctor": {
+          "flags": [
+            "--help",
+            "--json",
+            "--root",
+            "-h"
+          ],
+          "help": "report release-train evidence readiness",
+          "subcommands": {}
+        },
+        "verify": {
+          "flags": [
+            "--active-task",
+            "--conformance",
+            "--declared-range",
+            "--event",
+            "--help",
+            "--json",
+            "--record",
+            "--root",
+            "--state",
+            "--tested-against",
+            "-h"
+          ],
+          "help": "fail-closed verification of one component-release-event/v1",
+          "subcommands": {}
+        }
+      }
+    },
+    "run": {
+      "flags": [
+        "--attempt-id",
+        "--bound-paths",
+        "--constraints",
+        "--context-handle",
+        "--context-pack",
+        "--context-pack-hash",
+        "--context-snapshot",
+        "--context-snapshot-id",
+        "--coordinator-id",
+        "--coordinator-kind",
+        "--criteria",
+        "--dest",
+        "--dry-run-task",
+        "--effect-authorization",
+        "--execution-context",
+        "--fencing-token",
+        "--help",
+        "--json",
+        "--lease-id",
+        "--max-cost",
+        "--max-iter",
+        "--mode",
+        "--name",
+        "--plan-only",
+        "--planner",
+        "--repo-root",
+        "--root",
+        "--scope",
+        "--scope-root",
+        "--skip-install",
+        "--slot",
+        "--sprint",
+        "--stack",
+        "--target",
+        "-h"
+      ],
+      "help": "run a task, feature, sprint, or scratch goal",
+      "subcommands": {}
+    },
+    "runtime": {
+      "flags": [
+        "--help",
+        "-h"
+      ],
+      "help": "runtime-facing dev-cli contracts",
+      "subcommands": {
+        "acquire-coordinator-context": {
+          "flags": [
+            "--context-snapshot",
+            "--execution-context",
+            "--help",
+            "--json",
+            "--root",
+            "-h"
+          ],
+          "help": "acquire or diagnose the integrated coordinator tuple without fabricating a lease",
+          "subcommands": {}
+        },
+        "capabilities": {
+          "flags": [
+            "--attempt-id",
+            "--context-handle",
+            "--context-pack",
+            "--context-snapshot",
+            "--coordinator-id",
+            "--coordinator-kind",
+            "--effect-authorization",
+            "--execution-context",
+            "--fencing-token",
+            "--help",
+            "--json",
+            "--lease-id",
+            "--mode",
+            "--root",
+            "-h"
+          ],
+          "help": "render the Runtime capability handshake",
+          "subcommands": {}
+        },
+        "doctor": {
+          "flags": [
+            "--help",
+            "--json",
+            "--root",
+            "-h"
+          ],
+          "help": "inspect Runtime availability and local contract readiness",
+          "subcommands": {}
+        },
+        "verify": {
+          "flags": [
+            "--help",
+            "--timeout",
+            "-h"
+          ],
+          "help": "verify the real reserved Simplicio Runtime identity and capabilities",
+          "subcommands": {}
+        }
+      }
+    },
+    "score-skill": {
+      "flags": [
+        "--extra-scenario",
+        "--help",
+        "--json",
+        "--native",
+        "--python",
+        "--scenario",
+        "--verbose",
+        "-h",
+        "-s",
+        "-v"
+      ],
+      "help": "deterministic SkillOpt-style scorer for skill/law text",
+      "subcommands": {}
+    },
+    "smoke": {
+      "flags": [
+        "--help",
+        "--json",
+        "--root",
+        "-h"
+      ],
+      "help": "check the deterministic-only adapter; never contacts an LLM",
+      "subcommands": {}
+    },
+    "status": {
+      "flags": [
+        "--help",
+        "--json",
+        "--root",
+        "-h"
+      ],
+      "help": "show current simplicio-py run state",
+      "subcommands": {}
+    },
+    "task": {
+      "flags": [
+        "--attempt-id",
+        "--bound-paths",
+        "--constraints",
+        "--context-handle",
+        "--context-pack",
+        "--context-pack-hash",
+        "--context-snapshot",
+        "--context-snapshot-id",
+        "--coordinator-id",
+        "--coordinator-kind",
+        "--criteria",
+        "--dry-run-task",
+        "--effect-authorization",
+        "--execution-context",
+        "--fencing-token",
+        "--help",
+        "--json",
+        "--lease-id",
+        "--mode",
+        "--plan",
+        "--repo-root",
+        "--root",
+        "--scope-root",
+        "--stack",
+        "--target",
+        "--task-spec",
+        "--task-spec-stdin",
+        "--verify-only",
+        "-h"
+      ],
+      "help": "run a task",
+      "subcommands": {}
+    },
+    "test": {
+      "flags": [
+        "--cmd",
+        "--help",
+        "--json",
+        "--repo",
+        "--timeout",
+        "-h"
+      ],
+      "help": "run a test command and report results",
+      "subcommands": {
+        "run": {
+          "flags": [
+            "--cmd",
+            "--help",
+            "--json",
+            "--repo",
+            "--timeout",
+            "-h"
+          ],
+          "help": "run a test command (default: pytest)",
+          "subcommands": {}
+        }
+      }
+    },
+    "token": {
+      "flags": [
+        "--help",
+        "-h"
+      ],
+      "help": "token-efficient execution primitives",
+      "subcommands": {
+        "context-cache": {
+          "flags": [
+            "--help",
+            "-h"
+          ],
+          "help": "read, write or invalidate the repository context cache",
+          "subcommands": {
+            "get": {
+              "flags": [
+                "--content-file",
+                "--help",
+                "--key",
+                "--root",
+                "-h"
+              ],
+              "help": "read one cached context entry",
+              "subcommands": {}
+            },
+            "invalidate": {
+              "flags": [
+                "--content-file",
+                "--help",
+                "--key",
+                "--root",
+                "-h"
+              ],
+              "help": "remove one cached context entry",
+              "subcommands": {}
+            },
+            "put": {
+              "flags": [
+                "--content-file",
+                "--help",
+                "--key",
+                "--root",
+                "--summary-file",
+                "-h"
+              ],
+              "help": "store one context entry in the cache",
+              "subcommands": {}
+            }
+          }
+        },
+        "diff-review": {
+          "flags": [
+            "--help",
+            "--max-patch-chars",
+            "--root",
+            "-h"
+          ],
+          "help": "review a diff for risk, scope and verification gaps",
+          "subcommands": {}
+        },
+        "log-summary": {
+          "flags": [
+            "--file",
+            "--help",
+            "--max-chars",
+            "-h"
+          ],
+          "help": "summarize token usage and savings events from a log",
+          "subcommands": {}
+        },
+        "model-routing": {
+          "flags": [
+            "--file",
+            "--help",
+            "-h"
+          ],
+          "help": "inspect model/provider routing decisions without executing them",
+          "subcommands": {}
+        },
+        "postconditions": {
+          "flags": [
+            "--file",
+            "--help",
+            "--root",
+            "-h"
+          ],
+          "help": "check postconditions recorded by a task run",
+          "subcommands": {}
+        },
+        "retry": {
+          "flags": [
+            "--failure-json",
+            "--help",
+            "--log-file",
+            "--max-log-chars",
+            "--reason",
+            "-h"
+          ],
+          "help": "classify a failure and produce a bounded retry decision",
+          "subcommands": {}
+        }
+      }
+    },
+    "versions": {
+      "flags": [
+        "--help",
+        "--json",
+        "--refresh",
+        "--root",
+        "-h"
+      ],
+      "help": "report simplicio-mapper installed/declared/tested versions, drift, and this repo's own component-release manifest (issue #232)",
+      "subcommands": {}
+    }
+  },
+  "edit_plan_formats": {
+    "compiled_plan_schema": "simplicio.dev-cli.edit-plan/v1",
+    "minimal_host_plan": {
+      "operations": [
+        {
+          "find": "<exact unique text>",
+          "path": "<repo-relative path>",
+          "replace": "<new text>"
+        }
+      ]
+    }
+  },
+  "entrypoints": {
+    "adapter": "simplicio-dev-cli",
+    "python_adapter": "simplicio-py"
+  },
+  "package": {
+    "name": "simplicio-cli",
+    "version": "0.18.14"
+  },
+  "schema": "simplicio.dev-cli.capabilities/v1",
+  "top_level_flags": [
+    "--help",
+    "-h"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/memory-entry.schema.json",
+  "title": "simplicio.mapper-store.memory-entry/v1",
+  "type": "object",
+  "required": ["stable_id", "topic", "content", "content_hash", "source", "actor", "tags", "provenance"],
+  "properties": {
+    "stable_id": {"type": "string", "minLength": 1},
+    "topic": {"type": "string", "minLength": 1},
+    "content": {"type": "string"},
+    "content_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "source": {"type": "string", "minLength": 1},
+    "actor": {"type": "string", "minLength": 1},
+    "tags": {"type": "array", "items": {"type": "string"}},
+    "provenance": {"type": "object"},
+    "metadata": {"type": "object"},
+    "consent": {"type": "object"},
+    "retention_until": {"type": ["string", "null"]},
+    "supersedes_id": {"type": ["string", "null"]},
+    "tombstone": {"type": "boolean"}
+  }
+}

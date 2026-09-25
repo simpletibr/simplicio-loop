@@ -1,0 +1,14 @@
+{
+  "schema": "simplicio.executor-contract/v1",
+  "operation": "deterministic_edit",
+  "target": "src/app.py",
+  "layers": [
+    { "name": "parse", "status": "pass", "detail": null },
+    { "name": "precedent", "status": "pass", "detail": null },
+    { "name": "skill_router", "status": "pass", "detail": null },
+    { "name": "apply", "status": "pass", "detail": "git apply clean" },
+    { "name": "test", "status": "pass", "detail": "pytest exit 0" },
+    { "name": "verify", "status": "pass", "detail": null }
+  ],
+  "verified": true
+}

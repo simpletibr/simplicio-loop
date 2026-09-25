@@ -1,0 +1,174 @@
+{
+  "config": {
+    "gates": {
+      "min_ndcg_at_k": 1.0,
+      "min_precision_at_k": 1.0,
+      "min_recall_at_k": 1.0
+    },
+    "k": 1
+  },
+  "corpus": {
+    "facts": 8,
+    "id": "simplicio-fast-issue-344",
+    "provenance": {
+      "kind": "repository_fixture",
+      "sources": [
+        "docs/knowledge-projection-v1.md",
+        "docs/universal-context-v1.md",
+        "docs/issue-239-rust-index-query.md",
+        "docs/fast-v3-contract-matrix.md",
+        "#344 acceptance criteria"
+      ]
+    },
+    "queries": 8,
+    "sha256": "4f601500733cd4fdd70b0e97cf0c1f4503dc532938e95ace0f8c03030cc37adb"
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5"
+  },
+  "metrics": {
+    "checks": {
+      "ndcg_at_k": true,
+      "precision_at_k": true,
+      "recall_at_k": true
+    },
+    "latency_ms_p50": 0.048250018153339624,
+    "ndcg_at_k": 1.0,
+    "precision_at_k": 1.0,
+    "recall_at_k": 1.0
+  },
+  "queries": [
+    {
+      "actual": [
+        "doc:knowledge-projection"
+      ],
+      "expected": [
+        "doc:knowledge-projection"
+      ],
+      "id": "knowledge-trust",
+      "latency_ms": 0.09400001727044582,
+      "ndcg_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "ranking": [
+        "lexical-fallback"
+      ],
+      "recall_at_k": 1.0
+    },
+    {
+      "actual": [
+        "doc:universal-context"
+      ],
+      "expected": [
+        "doc:universal-context"
+      ],
+      "id": "context-budgets",
+      "latency_ms": 0.059999991208314896,
+      "ndcg_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "ranking": [
+        "lexical-fallback"
+      ],
+      "recall_at_k": 1.0
+    },
+    {
+      "actual": [
+        "doc:rust-index"
+      ],
+      "expected": [
+        "doc:rust-index"
+      ],
+      "id": "rust-index",
+      "latency_ms": 0.053200055845081806,
+      "ndcg_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "ranking": [
+        "lexical-fallback"
+      ],
+      "recall_at_k": 1.0
+    },
+    {
+      "actual": [
+        "contract:delivery-receipt"
+      ],
+      "expected": [
+        "contract:delivery-receipt"
+      ],
+      "id": "delivery-receipt",
+      "latency_ms": 0.04850002005696297,
+      "ndcg_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "ranking": [
+        "lexical-fallback"
+      ],
+      "recall_at_k": 1.0
+    },
+    {
+      "actual": [
+        "issue:344-quality"
+      ],
+      "expected": [
+        "issue:344-quality"
+      ],
+      "id": "quality-ground-truth",
+      "latency_ms": 0.04780001472681761,
+      "ndcg_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "ranking": [
+        "lexical-fallback"
+      ],
+      "recall_at_k": 1.0
+    },
+    {
+      "actual": [
+        "doc:projection-abi"
+      ],
+      "expected": [
+        "doc:projection-abi"
+      ],
+      "id": "projection-handles",
+      "latency_ms": 0.04800001624971628,
+      "ndcg_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "ranking": [
+        "lexical-fallback"
+      ],
+      "recall_at_k": 1.0
+    },
+    {
+      "actual": [
+        "receipt:runtime-smoke"
+      ],
+      "expected": [
+        "receipt:runtime-smoke"
+      ],
+      "id": "runtime-platform",
+      "latency_ms": 0.043599982745945454,
+      "ndcg_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "ranking": [
+        "lexical-fallback"
+      ],
+      "recall_at_k": 1.0
+    },
+    {
+      "actual": [
+        "skill:bounded-fallback"
+      ],
+      "expected": [
+        "skill:bounded-fallback"
+      ],
+      "id": "ranking-fallback",
+      "latency_ms": 0.043599982745945454,
+      "ndcg_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "ranking": [
+        "lexical-fallback"
+      ],
+      "recall_at_k": 1.0
+    }
+  ],
+  "receipt_sha256": "6a5b2b5b5e55494eb7a2e7f29e1e8c0ae121e1a1cd9ad8b3eee26cdfdfcfa0f8",
+  "schema": "simplicio.fast.knowledge-quality-receipt/v1",
+  "status": "pass"
+}

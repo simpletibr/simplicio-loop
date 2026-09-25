@@ -381,9 +381,233 @@ def run_package_content():
     )
 
 
+PACKAGE_ROOTS = {
+    "mapper": os.path.join(REPO, "packages", "mapper"),
+    "fast": os.path.join(REPO, "packages", "fast"),
+    "dev-cli": os.path.join(REPO, "packages", "dev-cli"),
+    "loop": REPO,
+}
+PACKAGE_NAMES = ("mapper", "fast", "dev-cli", "loop")
+PACKAGE_PREFIXES = {
+    "packages/mapper/": "mapper",
+    "packages/fast/": "fast",
+    "packages/dev-cli/": "dev-cli",
+}
+
+
+def _tool_argv(tool):
+    """Prefer a real PATH executable; fall back to `python -m <tool>`."""
+    found = shutil.which(tool)
+    return [found] if found else [sys.executable, "-m", tool]
+
+
+def _tool_available(argv_head, *, cwd):
+    """Cheap `--version` preflight, decoupled from the real step's output --
+    grepping a test run's own captured stdout/stderr for "No module named"
+    risks a false positive from a test's OWN assertion text. Returns True,
+    False, or None (inconclusive: timeout/containment -- caller must not
+    treat that as a silent skip)."""
+    probe = _run_bounded(
+        list(argv_head) + ["--version"], phase="package_gate_lint", cwd=cwd, capture_output=True,
+    )
+    if probe.timed_out or probe.reason == CommandReason.CONTAINMENT_UNAVAILABLE:
+        return None
+    return probe.returncode == 0
+
+
+def _run_step(tool_argv, task_args, *, phase, cwd, missing_reason, fail_reason, env=None):
+    """Run one package-gate step, after a dedicated tool-availability
+    preflight. ``tool_argv`` is the tool invocation prefix (e.g. ["ruff"] or
+    [python, "-m", "ruff"]); ``task_args`` are the subcommand's own args.
+    Return None on success, a GateResult on failure -- a missing tool gets
+    its own typed reason, never a silent skip."""
+    argv = list(tool_argv) + list(task_args)
+    available = _tool_available(tool_argv, cwd=cwd)
+    if available is None:
+        return GateResult(False, fail_reason + "_tool_probe_inconclusive")
+    if available is False:
+        return GateResult(False, missing_reason)
+    command = _run_bounded(argv, phase=phase, cwd=cwd, capture_output=True, env=env)
+    if command.stdout:
+        print(command.stdout, end="" if command.stdout.endswith("\n") else "\n")
+    if command.stderr:
+        print(command.stderr, end="" if command.stderr.endswith("\n") else "\n", file=sys.stderr)
+    if command.timed_out:
+        return GateResult(False, fail_reason + "_timeout")
+    if command.reason == CommandReason.CONTAINMENT_UNAVAILABLE:
+        return GateResult(False, fail_reason + "_containment_unavailable")
+    if command.returncode != 0:
+        return GateResult(False, fail_reason)
+    return None
+
+
+def run_package_gate(pkg):
+    """Run one package's own fast local gate from its in-repo location.
+
+    ``loop`` (the root package) is a no-op alias here: its gate is already
+    every other function in this file, run unconditionally by the default
+    (no ``--package``) invocation -- ``--package loop``/``--package all``
+    only needs a uniform, addressable name for it, never a second full run.
+    """
+    _hr("package-gate: %s" % pkg)
+    root = PACKAGE_ROOTS.get(pkg)
+    if root is None:
+        return GateResult(False, "package_unknown")
+    if not os.path.isdir(root):
+        return GateResult(False, "package_%s_root_missing" % pkg.replace("-", "_"))
+
+    if pkg == "loop":
+        print("(the root package's gate is the rest of this script's default run)")
+        return GateResult(True, "delegated_to_default_gate")
+
+    if pkg == "mapper":
+        fail = _run_step(
+            _tool_argv("ruff"), ["check", "."], phase="package_gate_lint", cwd=root,
+            missing_reason="package_mapper_ruff_missing", fail_reason="package_mapper_ruff_failed",
+        )
+        if fail:
+            return fail
+        fail = _run_step(
+            _pytest_command(), ["tests/python", "-q"], phase="package_gate_tests", cwd=root,
+            missing_reason="package_mapper_pytest_missing", fail_reason="package_mapper_pytest_failed",
+        )
+        if fail:
+            return fail
+        node = shutil.which("node")
+        if node is None:
+            print("node not found on PATH -- mapper's node unit tests skipped "
+                  "(typed reason: package_mapper_node_unavailable, not a hard fail)")
+            return GateResult(True, "package_mapper_node_unavailable")
+        node_tests = sorted(glob.glob(os.path.join(root, "tests", "unit", "*.test.js")))
+        if not node_tests:
+            return GateResult(True, "package_mapper_no_node_tests")
+        rel_tests = [os.path.relpath(p, root) for p in node_tests]
+        fail = _run_step(
+            [node], ["--test"] + rel_tests, phase="package_gate_tests", cwd=root,
+            missing_reason="package_mapper_node_missing", fail_reason="package_mapper_node_tests_failed",
+        )
+        if fail:
+            return fail
+        return GateResult(True, "ok")
+
+    if pkg == "fast":
+        env = dict(os.environ)
+        env["PYTHONPATH"] = os.path.join(root, "src") + os.pathsep + env.get("PYTHONPATH", "")
+        fail = _run_step(
+            _pytest_command(), ["-q"], phase="package_gate_tests", cwd=root, env=env,
+            missing_reason="package_fast_pytest_missing", fail_reason="package_fast_pytest_failed",
+        )
+        if fail:
+            return fail
+        return GateResult(True, "ok")
+
+    if pkg == "dev-cli":
+        fail = _run_step(
+            _tool_argv("ruff"), ["check", "."], phase="package_gate_lint", cwd=root,
+            missing_reason="package_devcli_ruff_missing", fail_reason="package_devcli_ruff_check_failed",
+        )
+        if fail:
+            return fail
+        fail = _run_step(
+            _tool_argv("ruff"), ["format", "--check", "."], phase="package_gate_lint", cwd=root,
+            missing_reason="package_devcli_ruff_missing", fail_reason="package_devcli_ruff_format_failed",
+        )
+        if fail:
+            return fail
+        fail = _run_step(
+            _tool_argv("mypy"), ["simplicio"], phase="package_gate_typecheck", cwd=root,
+            missing_reason="package_devcli_mypy_missing", fail_reason="package_devcli_mypy_failed",
+        )
+        if fail:
+            return fail
+        fail = _run_step(
+            _pytest_command(), ["tests/python", "tests/contracts", "-q"], phase="package_gate_tests", cwd=root,
+            missing_reason="package_devcli_pytest_missing", fail_reason="package_devcli_pytest_failed",
+        )
+        if fail:
+            return fail
+        return GateResult(True, "ok")
+
+    return GateResult(False, "package_unknown")
+
+
+def run_cross_package_e2e():
+    """Cross-package e2e (Mapper handoff -> Fast integrated ingest), always
+    in the default set (not gated behind --package fast) -- see
+    packages/fast/tests/test_public_handoff_ingest_e2e.py for the flow and
+    its own documented skip (no simplicio-mapper binary on PATH)."""
+    _hr("cross-package e2e: mapper handoff -> fast ingest")
+    fast_root = PACKAGE_ROOTS["fast"]
+    test_path = os.path.join(fast_root, "tests", "test_public_handoff_ingest_e2e.py")
+    if not os.path.isfile(test_path):
+        return GateResult(False, "cross_package_e2e_missing")
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.path.join(fast_root, "src") + os.pathsep + env.get("PYTHONPATH", "")
+    fail = _run_step(
+        _pytest_command(), [test_path, "-q"], phase="package_gate_tests", cwd=fast_root, env=env,
+        missing_reason="cross_package_e2e_pytest_missing", fail_reason="cross_package_e2e_failed",
+    )
+    if fail:
+        return fail
+    return GateResult(True, "ok")
+
+
+def _changed_packages():
+    """Packages touched vs origin/main (``git diff --name-only``), for
+    ``--changed``. Falls back to "all" (never silently narrows) when the
+    merge-base/diff cannot be determined -- e.g. shallow clone, no
+    origin/main, or detached history."""
+    command = _run_bounded(
+        ["git", "diff", "--name-only", "origin/main...HEAD"],
+        phase="package_gate_lint", cwd=REPO, capture_output=True,
+    )
+    if command.returncode != 0 or command.timed_out:
+        command = _run_bounded(
+            ["git", "diff", "--name-only", "HEAD"],
+            phase="package_gate_lint", cwd=REPO, capture_output=True,
+        )
+    if command.returncode != 0 or command.timed_out:
+        return set(PACKAGE_NAMES)
+    touched = set()
+    root_touched = False
+    for line in (command.stdout or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        matched = False
+        for prefix, name in PACKAGE_PREFIXES.items():
+            if line.startswith(prefix):
+                touched.add(name)
+                matched = True
+                break
+        if not matched:
+            root_touched = True
+    if root_touched:
+        touched.add("loop")
+    return touched or set(PACKAGE_NAMES)
+
+
 def main():
     global _core_deadline
     args = sys.argv[1:]
+
+    package_arg = None
+    if "--package" in args:
+        idx = args.index("--package")
+        if idx + 1 >= len(args):
+            print("check: FAIL (--package requires a value: mapper|fast|dev-cli|loop|all)",
+                  file=sys.stderr)
+            sys.exit(2)
+        package_arg = args[idx + 1]
+        if package_arg not in PACKAGE_NAMES and package_arg != "all":
+            print("check: FAIL (--package must be one of mapper|fast|dev-cli|loop|all, got %r)"
+                  % package_arg, file=sys.stderr)
+            sys.exit(2)
+        args = args[:idx] + args[idx + 2:]
+    changed_mode = "--changed" in args
+    args = [a for a in args if a != "--changed"]
+    package_mode = package_arg is not None or changed_mode
+
     supported_flags = {
         "--core-gate", "--audit-only", "--tests-only", "--mirror-parity-only",
         "--loop-contract-only", "--clean-env-only", "--token-budget", "--repo-budget",
@@ -398,10 +622,11 @@ def main():
     only_flags = {"--audit-only", "--tests-only", "--mirror-parity-only", "--loop-contract-only",
                   "--clean-env-only", "--token-budget", "--repo-budget", "--conformance",
                   "--package-content"}
-    any_only = any(a in args for a in only_flags) or core_gate
+    any_only = any(a in args for a in only_flags) or core_gate or package_mode
     results = {name: GateResult(True, "not_run") for name in (
         "audit", "mirror_parity", "tests", "loop_contract", "clean_env",
         "token_budget", "repo_budget", "conformance", "package_content",
+        "cross_package_e2e",
     )}
     if not any_only or "--audit-only" in args or core_gate:
         results["audit"] = run_audit()
@@ -419,10 +644,32 @@ def main():
         results["repo_budget"] = run_repository_budget()
     if not any_only or "--conformance" in args or core_gate:
         results["conformance"] = run_conformance()
+    if not any_only or core_gate:
+        # Cross-package e2e is part of the default set (#1297 follow-up),
+        # not gated behind --package fast/all.
+        results["cross_package_e2e"] = run_cross_package_e2e()
     if "--package-content" in args:
         # Deliberately NOT included in "not any_only" (the default full run) or core_gate — see
         # run_package_content()'s docstring: opt-in only, ~20-30s, a release-time check.
         results["package_content"] = run_package_content()
+
+    if package_mode:
+        if changed_mode:
+            selected = _changed_packages()
+            if package_arg is not None and package_arg != "all":
+                selected &= {package_arg}
+        elif package_arg == "all":
+            selected = set(PACKAGE_NAMES)
+        else:
+            selected = {package_arg}
+        for name in PACKAGE_NAMES:
+            if name in selected:
+                results["package_%s" % name.replace("-", "_")] = run_package_gate(name)
+            else:
+                results["package_%s" % name.replace("-", "_")] = GateResult(True, "not_run")
+        if "fast" in selected:
+            results["cross_package_e2e"] = run_cross_package_e2e()
+
     ok = all(result.ok for result in results.values())
     status = {
         name: ("not_run" if result.reason_code == "not_run" else ("ok" if result.ok else "FAIL"))
@@ -433,10 +680,16 @@ def main():
             "PASS" if ok else "FAIL", status["audit"], status["mirror_parity"],
             status["tests"], status["loop_contract"], status["clean_env"],
             status["token_budget"], status["repo_budget"], status["conformance"]))
-    print("\ncheck: %s  (audit=%s · mirror-parity=%s · tests=%s · loop-contract=%s · clean-env=%s · token-budget=%s · repo-budget=%s · conformance=%s · package-content=%s)" % (
+    print("\ncheck: %s  (audit=%s · mirror-parity=%s · tests=%s · loop-contract=%s · clean-env=%s · token-budget=%s · repo-budget=%s · conformance=%s · package-content=%s · cross-package-e2e=%s)" % (
         "PASS" if ok else "FAIL", status["audit"], status["mirror_parity"], status["tests"],
         status["loop_contract"], status["clean_env"], status["token_budget"],
-        status["repo_budget"], status["conformance"], status["package_content"]))
+        status["repo_budget"], status["conformance"], status["package_content"],
+        status["cross_package_e2e"]))
+    if package_mode:
+        print("package-gate: %s" % " · ".join(
+            "%s=%s" % (name, status["package_%s" % name.replace("-", "_")])
+            for name in PACKAGE_NAMES
+        ))
     print_reason_summary(results)
     _core_deadline = None
     sys.exit(0 if ok else 1)

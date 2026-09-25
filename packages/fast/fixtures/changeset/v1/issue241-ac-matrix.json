@@ -1,0 +1,81 @@
+{
+  "schema": "simplicio.fast.issue241-ac-matrix/v1",
+  "status": "partial",
+  "base_commit": "099d266ecc11724bb8025c5a8e53aa34f7e3f270",
+  "scope": "Windows-11-local-and-installed-dev-cli",
+  "closure_ready": false,
+  "rows": [
+    {
+      "id": "public_lifecycle_commands",
+      "status": "measured",
+      "evidence": ["tests/test_changeset_cli_241.py::test_all_lifecycle_commands_are_public"],
+      "residual": null
+    },
+    {
+      "id": "deterministic_binary_linux_windows",
+      "status": "partial",
+      "evidence": ["tests/test_changeset_golden_241.py", "benchmarks/results/issue241-windows-20260802-30.json"],
+      "residual": "Linux byte fixture is unverified"
+    },
+    {
+      "id": "installed_dev_cli_create_replace_rename_delete",
+      "status": "partial",
+      "evidence": ["tests/test_changeset_cli_241.py::test_installed_console_materializes_a_real_changeset", "tests/test_changeset_cli_241.py::test_create_replace_rename_delete_and_replay"],
+      "residual": "Independent Linux installed matrix is unverified"
+    },
+    {
+      "id": "source_writer_boundary",
+      "status": "measured",
+      "evidence": ["src/simplicio_fast/binary_changeset.py::DevCliAdapter", "tests/test_changeset_cli_241.py"],
+      "residual": null
+    },
+    {
+      "id": "stale_corrupt_cross_worktree_fail_closed",
+      "status": "measured",
+      "evidence": ["tests/test_changeset_boundaries_241.py", "tests/test_binary_changeset_232.py"],
+      "residual": null
+    },
+    {
+      "id": "unknown_effect_lock_and_reconcile",
+      "status": "partial",
+      "evidence": ["tests/test_changeset_boundaries_241.py::test_unknown_dev_cli_effect_is_durable_and_locks_replay", "benchmarks/results/issue241-windows-20260802-unknown-lock.json"],
+      "residual": "Real post-timeout before/after reconciliation across installed platforms is unverified"
+    },
+    {
+      "id": "idempotent_and_conflicting_replay",
+      "status": "measured",
+      "evidence": ["tests/test_changeset_cli_241.py::test_create_replace_rename_delete_and_replay", "tests/test_changeset_boundaries_241.py"],
+      "residual": null
+    },
+    {
+      "id": "journal_tail_recovery",
+      "status": "measured",
+      "evidence": ["tests/test_changeset_cli_241.py::test_create_replace_rename_delete_and_replay", "tests/test_changeset_boundaries_241.py"],
+      "residual": null
+    },
+    {
+      "id": "refresh_after_proven_effect",
+      "status": "measured",
+      "evidence": ["tests/test_binary_changeset_232.py", "tests/test_changeset_cli_241.py"],
+      "residual": null
+    },
+    {
+      "id": "test_matrix_linux_windows",
+      "status": "partial",
+      "evidence": ["tests/test_changeset_cli_241.py", "tests/test_changeset_boundaries_241.py"],
+      "residual": "Linux and independent installed E2E are unverified"
+    },
+    {
+      "id": "changed_code_coverage",
+      "status": "partial",
+      "evidence": ["issue comments: binary_changeset.py 95% line/branch"],
+      "residual": "Aggregate changed-code >=90/85 gate is unverified"
+    },
+    {
+      "id": "resource_benchmark",
+      "status": "partial",
+      "evidence": ["benchmarks/results/issue241-windows-20260802-30.json", "benchmarks/results/issue241-windows-20260802-unknown-lock.json"],
+      "residual": "Linux and full-operation installed benchmark matrix are unverified"
+    }
+  ]
+}

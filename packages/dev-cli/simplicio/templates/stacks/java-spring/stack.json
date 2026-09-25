@@ -1,0 +1,13 @@
+{
+  "slug": "java-spring",
+  "template_version": "0.1.0",
+  "language": "Java 21",
+  "framework": "Spring Boot",
+  "framework_version": "3",
+  "package_manager": "gradle",
+  "test_runner": "JUnit",
+  "linter": "checkstyle",
+  "deps_required": ["spring-boot-starter-web"],
+  "deps_dev": ["spring-boot-starter-test"],
+  "tags": ["web", "api", "java", "spring", "jvm"]
+}

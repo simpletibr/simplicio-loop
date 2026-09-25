@@ -1,0 +1,6 @@
+{
+  "install": "go mod tidy",
+  "test": "go test ./...",
+  "test_runner": "go test",
+  "lint": "go vet ./..."
+}

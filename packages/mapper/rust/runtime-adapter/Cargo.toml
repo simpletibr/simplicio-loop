@@ -1,0 +1,18 @@
+[package]
+name = "simplicio-mapper-runtime-adapter"
+version = "0.1.0"
+edition = "2021"
+description = "Effect-free Runtime adapter for the shared Simplicio Mapper core"
+license = "MIT"
+
+[lib]
+name = "simplicio_mapper_runtime_adapter"
+
+[[bin]]
+name = "simplicio-mapper-runtime-adapter"
+path = "src/main.rs"
+
+[dependencies]
+simplicio-mapper-core = { path = "../mapper-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

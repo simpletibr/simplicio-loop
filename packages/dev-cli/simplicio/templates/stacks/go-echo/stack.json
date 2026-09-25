@@ -1,0 +1,13 @@
+{
+  "slug": "go-echo",
+  "template_version": "0.1.0",
+  "language": "Go 1.23",
+  "framework": "Echo",
+  "framework_version": "4",
+  "package_manager": "go",
+  "test_runner": "go test",
+  "linter": "go vet",
+  "deps_required": ["github.com/labstack/echo/v4"],
+  "deps_dev": [],
+  "tags": ["web", "api", "go", "rest", "compiled"]
+}

@@ -1,0 +1,6 @@
+{
+  "install": "composer install",
+  "test": "vendor/bin/phpunit",
+  "test_runner": "vendor/bin/phpunit",
+  "lint": "php -l src/Controller/HealthController.php"
+}

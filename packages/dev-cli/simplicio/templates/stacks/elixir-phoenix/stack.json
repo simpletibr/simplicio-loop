@@ -1,0 +1,13 @@
+{
+  "slug": "elixir-phoenix",
+  "template_version": "0.1.0",
+  "language": "Elixir 1.17",
+  "framework": "Phoenix",
+  "framework_version": "1.7 + LiveView",
+  "package_manager": "mix",
+  "test_runner": "ExUnit",
+  "linter": "mix format",
+  "deps_required": ["phoenix", "plug_cowboy"],
+  "deps_dev": [],
+  "tags": ["web", "api", "elixir", "phoenix", "liveview"]
+}

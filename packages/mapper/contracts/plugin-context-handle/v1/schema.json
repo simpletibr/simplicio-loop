@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simplicio.dev/schemas/plugin-context-handle/v1",
+  "title": "PluginContextHandle",
+  "type": "object",
+  "required": ["schema", "status", "handle", "digest"],
+  "properties": {
+    "schema": { "const": "simplicio.plugin.context-handle/v1" },
+    "status": { "enum": ["ready", "rejected"] },
+    "handle": { "type": "string", "minLength": 32 },
+    "digest": { "type": "string" },
+    "spans": { "type": "array" }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "system": "Grid Dispatch",
+  "functionality": "Dispatch prioritization",
+  "goal": "Prioritize dispatch recommendations by outage risk before service class and keep ties deterministic by queued timestamp.",
+  "acceptance_criteria": [
+    "outage risk ranks before service class",
+    "ties break by queued timestamp",
+    "dispatch policy module remains the primary implementation surface"
+  ]
+}

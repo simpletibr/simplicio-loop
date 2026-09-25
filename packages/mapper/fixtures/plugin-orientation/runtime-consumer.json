@@ -1,0 +1,14 @@
+{
+  "schema": "simplicio.plugin.project-capability-projection/v1",
+  "status": "ready",
+  "capabilities": [
+    {
+      "kind": "skill",
+      "name": "edit",
+      "permission": "allow",
+      "provenance": { "path": ".skills/edit/SKILL.md", "line": 1 }
+    }
+  ],
+  "route": null,
+  "effect": null
+}

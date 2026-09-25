@@ -1,0 +1,21 @@
+[package]
+name = "simplicio-fast-core"
+version = "2.0.35"
+edition = "2021"
+rust-version = "1.70"
+description = "Rust reader and validation core for Simplicio Fast snapshots"
+license = "MIT"
+
+[lib]
+name = "simplicio_fast_core"
+path = "src/lib.rs"
+
+[[bin]]
+name = "simplicio-fast-rs"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+memmap2 = "0.9"

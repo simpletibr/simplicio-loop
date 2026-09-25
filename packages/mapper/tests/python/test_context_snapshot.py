@@ -1,0 +1,417 @@
+"""Compatibility + unit tests for ContextSnapshot/ContextGraph (issue #208, Step 1).
+
+Covers the AC items this slice owns:
+
+* ContextSnapshot/ContextGraph v1 possesses a schema, fixtures, canonical hash
+  and compatibility tests (AC 1).
+* A clean install can validate a snapshot against the shipped schema (AC 2) —
+  exercised both via the package dir and the checkout fallback.
+* snapshot_id is content-addressed and deterministic (same inputs -> same id;
+  one changed byte -> different id).
+* Every graph node/edge carries a reversible source handle + content hash.
+
+Run with: python3 -m unittest discover -s tests/python
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+import unittest
+from unittest import mock
+
+import simplicio_mapper.context_snapshot as context_snapshot_module
+from simplicio_mapper import __version__
+from simplicio_mapper.context_snapshot import (
+    CONTEXT_GRAPH_SCHEMA,
+    CONTEXT_SNAPSHOT_SCHEMA,
+    build_context_graph,
+    build_context_snapshot,
+    from_package,
+    snapshot_id_of,
+    source_handle,
+)
+from simplicio_mapper.contract import validate_payload
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+FIXTURE_LATEST = os.path.join(
+    REPO_ROOT, "contracts", "context-snapshot", "v1", "fixtures", "latest", "context-snapshot.json"
+)
+FIXTURE_MINIMUM = os.path.join(
+    REPO_ROOT, "contracts", "context-snapshot", "v1", "fixtures", "minimum", "context-snapshot.json"
+)
+
+
+def _load(path: str) -> dict:
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _minimal_artifacts():
+    project_map = {
+        "schema": "simplicio.project-map/v1",
+        "version": 1,
+        "product": {"name": "minimum-example", "stack": "python"},
+        "files": [
+            {
+                "path": "app.py",
+                "language": "python",
+                "roles": ["source"],
+                "imports": ["os"],
+                "exports": ["main"],
+            }
+        ],
+    }
+    symbol_index = {
+        "schema": "simplicio.symbol-index/v1",
+        "version": 1,
+        "symbols": [
+            {"name": "main", "kind": "function", "qualified_name": "main", "defined_in": "app.py", "line": 3},
+            {"name": "helper", "kind": "function", "qualified_name": "helper", "defined_in": "app.py", "line": 4},
+        ],
+    }
+    call_graph = {
+        "schema": "simplicio.call-graph/v1",
+        "version": 1,
+        "edges": [
+            {
+                "type": "calls",
+                "source_file": "app.py",
+                "source_symbol": "main",
+                "target_file": "app.py",
+                "target_symbol": "helper",
+                "line": 4,
+                "confidence": 0.5,
+            }
+        ],
+    }
+    architecture_inventory = {
+        "schema": "simplicio.architecture-inventory/v1",
+        "version": 1,
+        "modules": [{"name": "root", "file_count": 1, "layers": ["app"]}],
+        "layers": [{"name": "app", "file_count": 1, "modules": ["root"]}],
+    }
+    return project_map, symbol_index, call_graph, architecture_inventory
+
+
+class ContextSnapshotTest(unittest.TestCase):
+    def test_sha256_text_uses_the_negotiated_native_capability(self):
+        with mock.patch.object(context_snapshot_module._native, "native_default", return_value=True), \
+                mock.patch.object(context_snapshot_module, "_native_sha256_hex", return_value="native"):
+            self.assertEqual(context_snapshot_module._sha256_text("content"), "native")
+
+    def test_schema_constants(self):
+        self.assertEqual(CONTEXT_SNAPSHOT_SCHEMA, "simplicio.context-snapshot/v1")
+        self.assertEqual(CONTEXT_GRAPH_SCHEMA, "simplicio.context-graph/v1")
+
+    def test_snapshot_id_is_content_addressed_and_deterministic(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        a = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai, revision="r1"
+        )
+        b = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai, revision="r1"
+        )
+        self.assertEqual(a["snapshot_id"], b["snapshot_id"])
+        # one changed byte in a source artifact must change the id
+        pm2 = json.loads(json.dumps(pm))
+        pm2["files"][0]["path"] = "other.py"
+        c = build_context_snapshot(
+            "/repo", project_map=pm2, symbol_index=si, call_graph=cg, architecture_inventory=ai, revision="r1"
+        )
+        self.assertNotEqual(c["snapshot_id"], a["snapshot_id"])
+
+    def test_snapshot_id_recomputed_matches_stored(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        snap = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai
+        )
+        self.assertEqual(snapshot_id_of(snap), snap["snapshot_id"])
+
+    def test_snapshot_required_fields_present(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        snap = build_context_snapshot(
+            "/repo",
+            project_map=pm,
+            symbol_index=si,
+            call_graph=cg,
+            architecture_inventory=ai,
+            revision="r1",
+        )
+        for key in (
+            "schema",
+            "schema_version",
+            "snapshot_id",
+            "repository_id",
+            "revision",
+            "root_hash",
+            "producer",
+            "source_set",
+            "exclusions",
+            "reason_codes",
+            "graph",
+            "task",
+            "generated_at",
+        ):
+            self.assertIn(key, snap, f"missing {key}")
+        self.assertEqual(snap["schema"], "simplicio.context-snapshot/v1")
+        self.assertEqual(snap["schema_version"], "v1")
+        self.assertEqual(snap["producer"]["name"], "simplicio-mapper")
+        self.assertEqual(snap["producer"]["version"], __version__)
+
+    def test_graph_has_micro_meso_macro_nodes_with_source_handles(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        graph = build_context_graph(project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai)
+        d = graph.to_dict()
+        scales = {n["scale"] for n in d["nodes"]}
+        self.assertTrue({"micro", "meso", "macro"} <= scales)
+        self.assertTrue(d["drilldown"]["reversible"])
+        self.assertIn("micro", d["scale_semantics"])
+        # every node carries a content hash + reversible source handle
+        for node in d["nodes"]:
+            self.assertTrue(node["content_hash"])
+            self.assertIn("file", node["source"])
+        for edge in d["edges"]:
+            self.assertTrue(edge["content_hash"])
+            self.assertIn("file", edge["source_handle"])
+
+    def test_source_handle_records_line_or_span(self):
+        self.assertEqual(source_handle("a.py", line=7), {"file": "a.py", "line": 7})
+        self.assertEqual(source_handle("b.py", span=(1, 9)), {"file": "b.py", "span": [1, 9]})
+        self.assertEqual(source_handle("c.py"), {"file": "c.py"})
+
+    def test_graph_edges_link_micro_and_meso(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        graph = build_context_graph(project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai)
+        d = graph.to_dict()
+        kinds = {e["kind"] for e in d["edges"]}
+        self.assertIn("calls", kinds)
+        self.assertIn("member_of", kinds)
+        self.assertIn("defined_in", kinds)
+
+    def test_snapshot_carries_freshness_fidelity_and_drilldown_metadata(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        snap = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai
+        )
+        self.assertIn("freshness", snap)
+        self.assertIn("artifact_hashes", snap["freshness"])
+        self.assertEqual(snap["fidelity"]["status"], "complete")
+        self.assertTrue(snap["drilldown"]["reversible"])
+        self.assertEqual(snap["scale_semantics"]["macro"]["kinds"], ["adr", "subsystem"])
+
+    def test_from_package_resolves_shipped_schema(self):
+        schema = from_package("simplicio.context-snapshot/v1")
+        self.assertEqual(schema["$id"], "simplicio.context-snapshot/v1")
+        graph_schema = from_package("simplicio.context-graph/v1")
+        self.assertEqual(graph_schema["$id"], "simplicio.context-graph/v1")
+
+    def test_fixtures_validate_against_shipped_schema(self):
+        for fixture in (FIXTURE_LATEST, FIXTURE_MINIMUM):
+            self.assertTrue(os.path.isfile(fixture), fixture)
+            payload = _load(fixture)
+            contract_root = os.path.join(REPO_ROOT, "contracts", "context-snapshot", "v1")
+            schema_id, errors = validate_payload(payload, contract_root)
+            self.assertEqual(errors, [], errors)
+            self.assertEqual(schema_id, "simplicio.context-snapshot/v1")
+            graph_id, graph_errors = validate_payload(payload["graph"], contract_root)
+            self.assertEqual(graph_errors, [], graph_errors)
+            self.assertEqual(graph_id, "simplicio.context-graph/v1")
+
+    def test_validate_rejects_missing_required_field(self):
+        payload = _load(FIXTURE_MINIMUM)
+        del payload["snapshot_id"]
+        contract_root = os.path.join(REPO_ROOT, "contracts", "context-snapshot", "v1")
+        _schema_id, errors = validate_payload(payload, contract_root)
+        self.assertTrue(errors, "expected a missing-required-field error")
+
+    def test_omissions_flagged_when_artifacts_missing(self):
+        snap = build_context_snapshot("/repo")
+        self.assertTrue(snap["needs_broader_context"])
+        self.assertIn("project-map", snap["task"]["omissions"])
+        self.assertIn("symbol-index", snap["task"]["omissions"])
+
+    def test_fidelity_abstention_sets_needs_broader_context_without_fabricating_omissions(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        snap = build_context_snapshot(
+            "/repo",
+            project_map=pm,
+            symbol_index=si,
+            call_graph=cg,
+            architecture_inventory=ai,
+            fidelity={
+                "status": "insufficient",
+                "gate": "abstain",
+                "abstained": True,
+                "reasons": ["missing-required-span"],
+            },
+        )
+        self.assertTrue(snap["drilldown"]["reversible"])
+        self.assertTrue(snap["needs_broader_context"])
+        self.assertEqual(snap["task"]["omissions"], [])
+        self.assertEqual(snap["fidelity"]["status"], "insufficient")
+        self.assertTrue(snap["fidelity"]["abstained"])
+        self.assertEqual(snap["fidelity"]["reasons"], ["missing-required-span"])
+
+    def test_cli_snapshot_validate_end_to_end(self):
+        # `snapshot validate` must accept both fixtures and exit 0.
+        import subprocess
+
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "simplicio_mapper.cli",
+                "snapshot",
+                "validate",
+                FIXTURE_LATEST,
+                FIXTURE_MINIMUM,
+            ],
+            capture_output=True,
+            text=True,
+            stdin=subprocess.DEVNULL,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("[ok]", proc.stdout)
+
+
+    def test_budget_prunes_graph_and_records_omission(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        pm["files"] = [{"path": f"src/{index}.py", "language": "python"} for index in range(500)]
+        snap = build_context_snapshot("/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai, budget_tokens=256)
+        self.assertTrue(snap["needs_broader_context"])
+        self.assertTrue(any(item.startswith("budget-pruned:") for item in snap["task"]["omissions"]))
+        self.assertLess(len(json.dumps(snap).encode("utf-8")), 16 * 1024 * 1024)
+    def test_oversized_confidence_fails_closed(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        with self.assertRaisesRegex(ValueError, "context snapshot exceeds"):
+            build_context_snapshot("/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai, confidence={"blob": "x" * (17 * 1024 * 1024)})
+
+    def test_snapshot_bounds_mixed_multibyte_and_large_source_sets_deterministically(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        multibyte_path = "src/!" + ("é" * 2_000) + ".py"
+        oversized_path = "x" * 4_097
+        source_set = [multibyte_path, oversized_path, 7] + [f"src/{index}.py" for index in range(8_000)]
+        pm["files"] = [
+            {"path": multibyte_path, "language": "python"},
+            {"path": oversized_path, "language": "python"},
+            *[{"path": f"src/{index}.py", "language": "python"} for index in range(8_000)],
+        ]
+        first = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg,
+            architecture_inventory=ai, source_set=source_set,
+        )
+        second = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg,
+            architecture_inventory=ai, source_set=source_set,
+        )
+        contract_root = os.path.join(REPO_ROOT, "contracts", "context-snapshot", "v1")
+        _schema_id, errors = validate_payload(first, contract_root)
+        self.assertEqual(errors, [], errors)
+        self.assertEqual(first["snapshot_id"], second["snapshot_id"])
+        self.assertEqual(first["root_hash"], second["root_hash"])
+        self.assertEqual(first["graph"], second["graph"])
+        self.assertLessEqual(len(json.dumps(first).encode("utf-8")), 16 * 1024 * 1024)
+        self.assertIn(multibyte_path, first["source_set"])
+        self.assertNotIn(oversized_path, first["source_set"])
+        self.assertTrue(any(item.startswith("invalid-source-paths=2") for item in first["task"]["omissions"]))
+        self.assertTrue(any(item.startswith("source-pruned:sources=") for item in first["task"]["omissions"]))
+        node_ids = {node["id"] for node in first["graph"]["nodes"]}
+        self.assertEqual(first["graph"]["counts"]["nodes"], len(node_ids))
+        self.assertEqual(first["graph"]["counts"]["edges"], len(first["graph"]["edges"]))
+        self.assertTrue(all(edge["source"] in node_ids and edge["target"] in node_ids for edge in first["graph"]["edges"]))
+        self.assertTrue(all(len(node["source"]["file"].encode("utf-8")) <= 4_096 for node in first["graph"]["nodes"]))
+
+    def test_snapshot_prunes_dangling_edges_and_marks_partial(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        si["symbols"] = [si["symbols"][0]]
+        snap = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai,
+        )
+        node_ids = {node["id"] for node in snap["graph"]["nodes"]}
+        self.assertTrue(all(edge["source"] in node_ids and edge["target"] in node_ids for edge in snap["graph"]["edges"]))
+        self.assertTrue(any(item.endswith("nodes=0,edges=1") for item in snap["task"]["omissions"]))
+        self.assertEqual(snap["fidelity"]["status"], "partial")
+        self.assertTrue(snap["needs_broader_context"])
+
+    def test_bound_graph_removes_invalid_handles_without_budget_pressure(self):
+        from simplicio_mapper.context_snapshot import _bound_graph
+
+        graph = {
+            "nodes": [
+                {"id": "file:ok.py", "scale": "micro", "source": {"file": "ok.py"}},
+                {"id": "file:bad.py", "scale": "micro", "source": {"file": "x" * 4_097}},
+            ],
+            "edges": [
+                {"id": "valid", "source": "file:ok.py", "target": "file:ok.py", "source_handle": {"file": "ok.py"}},
+                {"id": "bad-handle", "source": "file:ok.py", "target": "file:ok.py", "source_handle": {"file": "x" * 4_097}},
+                {"id": "bad-endpoint", "source": "file:bad.py", "target": "file:ok.py", "source_handle": {"file": "ok.py"}},
+            ],
+        }
+        bounded, omitted_nodes, omitted_edges = _bound_graph(graph, 1_000_000)
+        self.assertEqual(omitted_nodes, 1)
+        self.assertEqual(omitted_edges, 2)
+        self.assertEqual([node["id"] for node in bounded["nodes"]], ["file:ok.py"])
+        self.assertEqual([edge["id"] for edge in bounded["edges"]], ["valid"])
+        self.assertEqual(bounded["counts"]["nodes"], 1)
+        self.assertEqual(bounded["counts"]["edges"], 1)
+
+    def test_bound_graph_prefers_symbol_nodes_over_alphabetically_earlier_file_nodes(self):
+        from simplicio_mapper.context_snapshot import _bound_graph
+
+        # "file:" sorts before "symbol:" alphabetically. Without relevance
+        # ordering, a tight budget keeps every file node and zero symbols.
+        graph = {
+            "nodes": [
+                {"id": f"file:{index:03d}.py", "scale": "micro", "source": {"file": f"{index:03d}.py"}}
+                for index in range(20)
+            ]
+            + [
+                {"id": "symbol:app.py:main", "scale": "micro", "source": {"file": "app.py"}},
+            ],
+            "edges": [],
+        }
+        node_size = len(json.dumps(graph["nodes"][0]).encode("utf-8"))
+        budget = node_size * 3  # room for only ~2-3 nodes
+        bounded, _omitted_nodes, _omitted_edges = _bound_graph(graph, budget)
+        kept_ids = [node["id"] for node in bounded["nodes"]]
+        self.assertIn("symbol:app.py:main", kept_ids)
+
+    def test_bound_graph_prioritizes_selected_target_paths_first(self):
+        from simplicio_mapper.context_snapshot import _bound_graph
+
+        graph = {
+            "nodes": [
+                {"id": "file:a.py", "scale": "micro", "source": {"file": "a.py"}},
+                {"id": "file:z.py", "scale": "micro", "source": {"file": "z.py"}},
+                {"id": "symbol:z.py:target_fn", "scale": "micro", "source": {"file": "z.py"}},
+            ],
+            "edges": [],
+        }
+        node_size = len(json.dumps(graph["nodes"][0]).encode("utf-8"))
+        budget = node_size * 2
+        bounded, _omitted_nodes, _omitted_edges = _bound_graph(
+            graph, budget, priority_paths=frozenset({"z.py"})
+        )
+        kept_ids = {node["id"] for node in bounded["nodes"]}
+        self.assertIn("symbol:z.py:target_fn", kept_ids)
+        self.assertNotIn("file:a.py", kept_ids)
+
+    def test_priority_paths_survive_a_tight_budget_via_build_context_snapshot(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        pm["files"] = [{"path": f"src/{index}.py", "language": "python"} for index in range(500)]
+        snap = build_context_snapshot(
+            "/repo",
+            project_map=pm,
+            symbol_index=si,
+            call_graph=cg,
+            architecture_inventory=ai,
+            budget_tokens=64,
+            priority_paths=["app.py"],
+        )
+        kinds = {node["id"].split(":", 1)[0] for node in snap["graph"]["nodes"]}
+        self.assertIn("symbol", kinds)
+
+if __name__ == "__main__":
+    unittest.main()

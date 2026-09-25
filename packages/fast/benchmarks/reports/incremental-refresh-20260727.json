@@ -1,0 +1,76 @@
+{
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "processor": "Intel64 Family 6 Model 197 Stepping 2, GenuineIntel",
+    "python": "3.14.5"
+  },
+  "limitations": [
+    "Local synthetic Rust corpus; no LLM or provider token telemetry.",
+    "Metadata identity mismatch falls back to byte hashing."
+  ],
+  "raw": {
+    "full_hash_validation_wall_ms": [
+      418.04039999260567,
+      426.8955000152346,
+      419.8796999990009,
+      401.2202000012621,
+      410.30240000691265
+    ],
+    "metadata_phase_timings_ms": [
+      {
+        "discovery": 42.546,
+        "parsing": 0.196,
+        "previous_snapshot_load": 15.131,
+        "publication": 37.896,
+        "unchanged_validation": 18.443
+      },
+      {
+        "discovery": 40.322,
+        "parsing": 0.321,
+        "previous_snapshot_load": 15.236,
+        "publication": 37.903,
+        "unchanged_validation": 20.085
+      },
+      {
+        "discovery": 42.956,
+        "parsing": 0.304,
+        "previous_snapshot_load": 15.26,
+        "publication": 35.771,
+        "unchanged_validation": 20.258
+      },
+      {
+        "discovery": 38.782,
+        "parsing": 0.215,
+        "previous_snapshot_load": 15.265,
+        "publication": 36.975,
+        "unchanged_validation": 18.799
+      },
+      {
+        "discovery": 38.795,
+        "parsing": 0.172,
+        "previous_snapshot_load": 15.684,
+        "publication": 38.023,
+        "unchanged_validation": 18.062
+      }
+    ],
+    "metadata_validation_wall_ms": [
+      144.43800001754425,
+      141.32590001099743,
+      144.8021000251174,
+      139.09420001436956,
+      140.37950002239086
+    ]
+  },
+  "schema": "simplicio.fast.incremental-refresh-benchmark/v1",
+  "status": "pass",
+  "totals": {
+    "full_hash_validation_median_ms": 418.04039999260567,
+    "metadata_validation_median_ms": 141.32590001099743,
+    "speedup": 2.957988592042049
+  },
+  "workload": {
+    "changed_files": 1,
+    "files": 2400,
+    "repetitions": 5
+  }
+}

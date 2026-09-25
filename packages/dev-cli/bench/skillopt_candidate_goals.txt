@@ -1,0 +1,12 @@
+# Candidate SkillOpt skills for human review evidence.
+# These descriptions generate pending SKILL.md artifacts only; they are not approvals.
+Generate a focused review checklist for validating generated FastAPI CRUD scaffolds before accepting them into release evidence.
+Generate a reviewer workflow for auditing Next.js App Router CRUD route and page scaffolds created by mechanical executors.
+Create skill rust-axum-release-review for human review of Rust Axum CRUD release evidence.
+Create skill go-gin-release-review for human review of Go Gin CRUD release evidence.
+Generate a release-evidence reviewer checklist for Laravel API CRUD scaffolds, including route tests, JSON status codes, and Pint expectations.
+Generate a human review workflow for scratch live-gate result rows, covering planner validity, post-verify logs, cost, and line metrics.
+Generate a human review workflow for codegen-disabled baseline rows, covering LLM fallback usage, latency, post-verify evidence, and no-codegen flags.
+Generate a human review workflow for schema-v1 smoke outputs, covering parse_ok, go/no-go threshold, model identity, and quant labeling.
+Generate a human review workflow for unified-run F5 live rows, covering command evidence, exit code, duration, cost, artifacts, and transcript hashes.
+Generate a human review workflow for issue-closure audit artifacts, covering blocker traceability across #32, #33, #41, and #46.

@@ -1,0 +1,14 @@
+{
+  "schema": "simplicio.graph-delta/v1",
+  "version": 1,
+  "event_type": "delta",
+  "mode": "incremental",
+  "base_revision": "r000001",
+  "scan_revision": "r000002",
+  "full_rescan": false,
+  "ordering": {"strategy": "op,entity_type,id", "deterministic": true},
+  "events": [{"order": 1, "op": "update", "entity_type": "entity", "id": "file:src/app.py", "affected_paths": ["src/app.py"], "reason": "content-or-metadata-changed"}],
+  "affected_paths": ["src/app.py"],
+  "diagnostics": [],
+  "snapshot": {"schema": "simplicio.graph-snapshot/v1", "version": 1, "root": "<fixture-root>", "revision": "r000002", "entities": [], "edges": []}
+}

@@ -1,0 +1,25 @@
+{
+  "note": "Representative of simplicio-loop-marketing's caption-multi-platform output shape (hand-built for this corpus).",
+  "captions": [
+    {
+      "platform": "instagram",
+      "text": "New drop is live",
+      "hashtags": [
+        "launch",
+        "new"
+      ]
+    },
+    {
+      "platform": "tiktok",
+      "text": "New drop is live",
+      "hashtags": [
+        "launch"
+      ]
+    },
+    {
+      "platform": "x",
+      "text": "New drop is live.",
+      "hashtags": []
+    }
+  ]
+}

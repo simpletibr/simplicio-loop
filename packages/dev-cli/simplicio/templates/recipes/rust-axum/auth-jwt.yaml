@@ -1,0 +1,44 @@
+{
+  "name": "auth-jwt",
+  "description": "JWT login, token verification, and protected-route plumbing for Axum.",
+  "applies_to": ["rust-axum"],
+  "matches": [
+    "(?i)\\b(?:add|build|implement)\\s+JWT\\s+auth(?:entication)?\\b",
+    "(?i)\\bauth(?:entication)?\\s+with\\s+JWT\\b",
+    "(?i)\\blogin\\s+with\\s+JWT\\b",
+    "(?i)\\bJWT\\s+login\\b"
+  ],
+  "slots": {
+    "subject": {"default": "user", "transform": "lower_snake_case"},
+    "subject_pascal": {"derived_from": "subject", "transform": "pascal_case"}
+  },
+  "rationale": "Use the rust-axum JWT recipe because token signing, verification, and compile-time route tests are repeatable for this stack.",
+  "files_to_create": [
+    {"path": "src/auth.rs", "purpose": "JWT encode and decode helpers"},
+    {"path": "src/main.rs", "purpose": "Login and protected {subject} routes plus route tests"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-token-service",
+      "depends_on": [],
+      "goal": "Create JWT helpers for {subject} identity tokens.",
+      "target": "src/auth.rs",
+      "criteria": "- encode_token signs subject claims\\n- decode_token validates signature and expiry",
+      "constraints": "- read secret and expiry from environment defaults",
+      "verify": "cargo test"
+    },
+    {
+      "id": "T02-auth-routes",
+      "depends_on": ["T01-token-service"],
+      "goal": "Implement login and current-{subject} routes with tests.",
+      "target": "src/main.rs",
+      "criteria": "- POST /auth/login returns an access token\\n- GET /auth/me requires a bearer token\\n- route tests cover login and 401 status",
+      "constraints": "- keep the service self-contained and typed",
+      "verify": "cargo test"
+    }
+  ],
+  "deps_to_install": [],
+  "deps_dev": [],
+  "test_command": "cargo test",
+  "lint_command": "cargo clippy --all-targets -- -D warnings"
+}

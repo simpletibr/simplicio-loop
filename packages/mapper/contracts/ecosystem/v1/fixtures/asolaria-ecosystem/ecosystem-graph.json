@@ -1,0 +1,368 @@
+{
+  "schema": "simplicio.ecosystem-graph/v1",
+  "version": 1,
+  "generated_at": "2026-07-11T00:00:00Z",
+  "name": "Asolaria + Simplicio public evidence graph",
+  "source_policy": "public-source",
+  "repositories": [
+    {
+      "id": "canvas",
+      "name": "wesleysimplicio/simplicio-canvas",
+      "url": "https://github.com/wesleysimplicio/simplicio-canvas",
+      "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "local-first evidence-backed ecosystem renderer",
+      "language": "TypeScript",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "source", "url": "https://github.com/wesleysimplicio/simplicio-canvas/blob/b40dd57aa727507b61e543cbe1f10292fed50aec/src/domain/multi-repo.ts", "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec", "scope": "renderer-neutral multi-repository contract", "status": "measured-repo" }
+      ]
+    },
+    {
+      "id": "mapper",
+      "name": "wesleysimplicio/simplicio-mapper",
+      "url": "https://github.com/wesleysimplicio/simplicio-mapper",
+      "revision": "d374c59a4939023f6119a1e7b8c3f7d2fa7f07e4",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "versioned repository and ecosystem artifact producer",
+      "language": "Python",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "source", "url": "https://github.com/wesleysimplicio/simplicio-mapper/blob/d374c59a4939023f6119a1e7b8c3f7d2fa7f07e4/contracts/mapper-artifacts/v1/README.md", "revision": "d374c59a4939023f6119a1e7b8c3f7d2fa7f07e4", "scope": "versioned artifact contracts and fixtures", "status": "measured-repo" }
+      ]
+    },
+    {
+      "id": "loop",
+      "name": "wesleysimplicio/simplicio-loop",
+      "url": "https://github.com/wesleysimplicio/simplicio-loop",
+      "revision": "86619d1286d293eb9cd50ed64803bbafdf244b0f",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "orchestration and evidence loop",
+      "language": "Python",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "source", "url": "https://github.com/wesleysimplicio/simplicio-loop/tree/86619d1286d293eb9cd50ed64803bbafdf244b0f", "revision": "86619d1286d293eb9cd50ed64803bbafdf244b0f", "scope": "versioned loop and evidence producer", "status": "measured-repo" }
+      ]
+    },
+    {
+      "id": "runtime",
+      "name": "wesleysimplicio/simplicio-runtime",
+      "url": "https://github.com/wesleysimplicio/simplicio-runtime",
+      "revision": "625ee3df48c3f75b5a9e45fe3427e56fad9bf3fa",
+      "branch": "main",
+      "dirty": false,
+      "access": "private",
+      "role": "private runtime and hierarchical reasoning implementation",
+      "language": "Rust",
+      "status": "cannot-see",
+      "evidence": [
+        { "kind": "documentation", "url": "https://github.com/wesleysimplicio/simplicio-runtime/commit/625ee3df48c3f75b5a9e45fe3427e56fad9bf3fa", "revision": "625ee3df48c3f75b5a9e45fe3427e56fad9bf3fa", "scope": "private repository revision visible only to authorized seats", "status": "cannot-see" }
+      ]
+    },
+    {
+      "id": "ai-healthcare",
+      "name": "JesseBrown1980/AI-healthCare-project",
+      "url": "https://github.com/JesseBrown1980/AI-healthCare-project",
+      "revision": "28615a3a7149f24604556897ad823e70196dd190",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "pre-Asolaria edge-level GNN origin",
+      "language": "Python",
+      "status": "repository-reported-training",
+      "evidence": [
+        { "kind": "receipt", "url": "https://github.com/JesseBrown1980/AI-healthCare-project/blob/28615a3a7149f24604556897ad823e70196dd190/backend/anomaly_detector/GNN-LINEAGE-2026-07-11.hbp", "revision": "28615a3a7149f24604556897ad823e70196dd190", "scope": "four model blobs and repository-reported training lineage", "status": "repository-reported-training" }
+      ]
+    },
+    {
+      "id": "behcs-sidecar",
+      "name": "JesseBrown1980/asolaria-behcs-256",
+      "url": "https://github.com/JesseBrown1980/asolaria-behcs-256",
+      "revision": "802023a9588cf3c72be9f9b353c847f22c616092",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "BEHCS language, GNN sidecar and runtime evidence substrate",
+      "language": "JavaScript/Python",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "source", "url": "https://github.com/JesseBrown1980/asolaria-behcs-256/tree/802023a9588cf3c72be9f9b353c847f22c616092/services/gnn-sidecar", "revision": "802023a9588cf3c72be9f9b353c847f22c616092", "scope": "byte-identical healthcare model imports and runtime sidecar", "status": "measured-repo" }
+      ]
+    },
+    {
+      "id": "trained-gnn",
+      "name": "JesseBrown1980/Asolaria-fnns-trained-and-reverse-gnns-many",
+      "url": "https://github.com/JesseBrown1980/Asolaria-fnns-trained-and-reverse-gnns-many",
+      "revision": "bde7a60f577d664f53c1a5041f7a4420f8f4eb8a",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "trained checkpoints, edge mining, forward-genius, reverse-gain and GLSM",
+      "language": "Python/JavaScript",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "source", "url": "https://github.com/JesseBrown1980/Asolaria-fnns-trained-and-reverse-gnns-many/blob/bde7a60f577d664f53c1a5041f7a4420f8f4eb8a/README.md", "revision": "bde7a60f577d664f53c1a5041f7a4420f8f4eb8a", "scope": "trained artifacts and imbalance boundary", "status": "measured-repo" }
+      ]
+    },
+    {
+      "id": "bigpickle",
+      "name": "JesseBrown1980/bigpickle-rebuild",
+      "url": "https://github.com/JesseBrown1980/bigpickle-rebuild",
+      "revision": "00ae990362d3906a19e9708d67cfa0c16eefed77",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "mixed neural and deterministic score orchestration",
+      "language": "JavaScript",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "source", "url": "https://github.com/JesseBrown1980/bigpickle-rebuild/blob/00ae990362d3906a19e9708d67cfa0c16eefed77/src/asolaria-score.mjs", "revision": "00ae990362d3906a19e9708d67cfa0c16eefed77", "scope": "L0/L4/G1-G4, Shannon feature and deterministic fallback", "status": "measured-repo" }
+      ]
+    },
+    {
+      "id": "emitter",
+      "name": "JesseBrown1980/Asolaria-the-full-works-200-nanoseconds-agent-emitter-plus-",
+      "url": "https://github.com/JesseBrown1980/Asolaria-the-full-works-200-nanoseconds-agent-emitter-plus-",
+      "revision": "816f78132180d2ec48fbfad8554276fc2f26d480",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "PID signal emitter and old/new throughput boundary",
+      "language": "JavaScript",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "documentation", "url": "https://github.com/JesseBrown1980/Asolaria-the-full-works-200-nanoseconds-agent-emitter-plus-/blob/816f78132180d2ec48fbfad8554276fc2f26d480/TRILATERAL-EMITTER-CLAIM-SCOPE-2026-07-11.md", "revision": "816f78132180d2ec48fbfad8554276fc2f26d480", "scope": "PID cadence versus completed-work boundary", "status": "audited" }
+      ]
+    },
+    {
+      "id": "dispatcher",
+      "name": "JesseBrown1980/omni-dispatcher",
+      "url": "https://github.com/JesseBrown1980/omni-dispatcher",
+      "revision": "501968573d37d684f8d6ac6b9c3e91f667cd2bc2",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "sparse PID routing and lazy materialization",
+      "language": "JavaScript",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "source", "url": "https://github.com/JesseBrown1980/omni-dispatcher/blob/501968573d37d684f8d6ac6b9c3e91f667cd2bc2/README.md", "revision": "501968573d37d684f8d6ac6b9c3e91f667cd2bc2", "scope": "1000-slot dispatcher and storage-backed routing", "status": "measured-repo" }
+      ]
+    },
+    {
+      "id": "hermes",
+      "name": "JesseBrown1980/Asolaria-hermes-work",
+      "url": "https://github.com/JesseBrown1980/Asolaria-hermes-work",
+      "revision": "080c037e24a52e190f9228ad32ff56f98f32a3b3",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "spindle materialization, handoff and fleet runtime",
+      "language": "Rust/JavaScript",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "documentation", "url": "https://github.com/JesseBrown1980/Asolaria-hermes-work/blob/080c037e24a52e190f9228ad32ff56f98f32a3b3/THE-CHAIN.md", "revision": "080c037e24a52e190f9228ad32ff56f98f32a3b3", "scope": "emitter-to-fleet chain", "status": "measured-repo" }
+      ]
+    },
+    {
+      "id": "post-trigger",
+      "name": "JesseBrown1980/Shannon-and-the-gnns-stage",
+      "url": "https://github.com/JesseBrown1980/Shannon-and-the-gnns-stage",
+      "revision": "b5731f2a0cceba09d263f115bfb1532215305f7d",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "Hookwall, GNN, Fischer, Shannon, white-room and GULP stage",
+      "language": "JavaScript",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "source", "url": "https://github.com/JesseBrown1980/Shannon-and-the-gnns-stage/blob/b5731f2a0cceba09d263f115bfb1532215305f7d/README.md", "revision": "b5731f2a0cceba09d263f115bfb1532215305f7d", "scope": "post-trigger pipeline and exact-recovery separation", "status": "measured-repo" }
+      ]
+    },
+    {
+      "id": "whiteroom",
+      "name": "JesseBrown1980/asolaria-whiteroom-engine",
+      "url": "https://github.com/JesseBrown1980/asolaria-whiteroom-engine",
+      "revision": "06fc28f383cb0373343e431923441383312cb4d2",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "never-delete keep-or-compact curation",
+      "language": "JavaScript",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "source", "url": "https://github.com/JesseBrown1980/asolaria-whiteroom-engine/blob/06fc28f383cb0373343e431923441383312cb4d2/README.md", "revision": "06fc28f383cb0373343e431923441383312cb4d2", "scope": "pluggable store and scorer with append-only receipts", "status": "measured-repo" }
+      ]
+    },
+    {
+      "id": "cube-mint",
+      "name": "JesseBrown1980/Asolaria-the-after-100-billion-run-absorption-and-decomposition-and-cubes",
+      "url": "https://github.com/JesseBrown1980/Asolaria-the-after-100-billion-run-absorption-and-decomposition-and-cubes",
+      "revision": "8f7eec67c5d501128778f81708caa15eaac1e459",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "bounded GULP, semantic distillation, cube mint and durable storage",
+      "language": "JavaScript",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "source", "url": "https://github.com/JesseBrown1980/Asolaria-the-after-100-billion-run-absorption-and-decomposition-and-cubes/blob/8f7eec67c5d501128778f81708caa15eaac1e459/README.md", "revision": "8f7eec67c5d501128778f81708caa15eaac1e459", "scope": "2000/50000 flow and semantic-loss versus exact-relation boundary", "status": "measured-repo" }
+      ]
+    },
+    {
+      "id": "path1",
+      "name": "JesseBrown1980/dbbh-coms-quant-prism",
+      "url": "https://github.com/JesseBrown1980/dbbh-coms-quant-prism",
+      "revision": "48d66ace742fc87c5f1a783b47d8b9e2e86c4aa4",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "retained-store exact recall through consented addressed transport",
+      "language": "Rust",
+      "status": "measured-ci",
+      "evidence": [
+        { "kind": "ci", "url": "https://github.com/JesseBrown1980/dbbh-coms-quant-prism/actions/runs/29134650286", "revision": "48d66ace742fc87c5f1a783b47d8b9e2e86c4aa4", "scope": "Rust 1.97 exact 19-test assertion", "status": "measured-ci" },
+        { "kind": "third-seat", "url": "https://github.com/JesseBrown1980/dbbh-coms-quant-prism/blob/48d66ace742fc87c5f1a783b47d8b9e2e86c4aa4/verification/INDEPENDENT-VERIFICATION-2026-07-11.hbp", "revision": "48d66ace742fc87c5f1a783b47d8b9e2e86c4aa4", "scope": "operator-supplied Claude Fable 5 rustc 1.97 19/19", "status": "measured-third-seat" }
+      ]
+    },
+    {
+      "id": "path2",
+      "name": "JesseBrown1980/path2-two-shadow-recovery",
+      "url": "https://github.com/JesseBrown1980/path2-two-shadow-recovery",
+      "revision": "c7fa4a417eb0fc281d30be81104d98bb80dd2edb",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "jointly injective no-store CRT recovery and DBBH-to-DBWH re-projection",
+      "language": "Rust",
+      "status": "measured-ci",
+      "evidence": [
+        { "kind": "ci", "url": "https://github.com/JesseBrown1980/path2-two-shadow-recovery/actions/runs/29134657224", "revision": "c7fa4a417eb0fc281d30be81104d98bb80dd2edb", "scope": "Rust 1.97 exact 30-test assertion", "status": "measured-ci" },
+        { "kind": "third-seat", "url": "https://github.com/JesseBrown1980/path2-two-shadow-recovery/blob/c7fa4a417eb0fc281d30be81104d98bb80dd2edb/verification/INDEPENDENT-VERIFICATION-2026-07-11.hbp", "revision": "c7fa4a417eb0fc281d30be81104d98bb80dd2edb", "scope": "operator-supplied Claude Fable 5 rustc 1.97 30/30", "status": "measured-third-seat" }
+      ]
+    },
+    {
+      "id": "qprism-3d",
+      "name": "JesseBrown1980/qprism-3d-slice-harness",
+      "url": "https://github.com/JesseBrown1980/qprism-3d-slice-harness",
+      "revision": "8a592c474008507f01c0e5a399b2089e1e8ebae2",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "watched exact representation and multi-cylinder recovery harness",
+      "language": "Rust",
+      "status": "measured-ci",
+      "evidence": [
+        { "kind": "ci", "url": "https://github.com/JesseBrown1980/qprism-3d-slice-harness/actions/runs/29134662404", "revision": "8a592c474008507f01c0e5a399b2089e1e8ebae2", "scope": "Rust 1.97 all-target execution", "status": "measured-ci" }
+      ]
+    },
+    {
+      "id": "qprism-control",
+      "name": "JesseBrown1980/Q-PRISM-human-organoid-neural-stream-as-a-high-dimensional-control",
+      "url": "https://github.com/JesseBrown1980/Q-PRISM-human-organoid-neural-stream-as-a-high-dimensional-control",
+      "revision": "9f77f706c63b552b6a578407492330e1751d86c4",
+      "branch": "acer/qprism-muscle-sim-2026-07-01",
+      "dirty": false,
+      "access": "available",
+      "role": "simulation-first Q-PRISM control and claims gate",
+      "language": "Python/Rust",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "source", "url": "https://github.com/JesseBrown1980/Q-PRISM-human-organoid-neural-stream-as-a-high-dimensional-control/blob/9f77f706c63b552b6a578407492330e1751d86c4/README.md", "revision": "9f77f706c63b552b6a578407492330e1751d86c4", "scope": "Talbot-Lau simulator, Path 1/2 synthesis and claims boundaries", "status": "measured-repo" }
+      ]
+    },
+    {
+      "id": "algorithms",
+      "name": "JesseBrown1980/Algorithms-of-Asolaria",
+      "url": "https://github.com/JesseBrown1980/Algorithms-of-Asolaria",
+      "revision": "396c45f14f1d1f9807db8ba6c2f5cbf9c1e43985",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "formula, quant and algorithm ownership catalog",
+      "language": "Documentation",
+      "status": "canon",
+      "evidence": [
+        { "kind": "documentation", "url": "https://github.com/JesseBrown1980/Algorithms-of-Asolaria/blob/396c45f14f1d1f9807db8ba6c2f5cbf9c1e43985/PATH2-DBBH-DBWH-ALGORITHMS-2026-07-11.md", "revision": "396c45f14f1d1f9807db8ba6c2f5cbf9c1e43985", "scope": "CRT, residual selector, inverse gate and storage formulas", "status": "canon" }
+      ]
+    },
+    {
+      "id": "hyperbehcs",
+      "name": "JesseBrown1980/HYPER-BECHS--the-third-set",
+      "url": "https://github.com/JesseBrown1980/HYPER-BECHS--the-third-set",
+      "revision": "2455481850fa84f77d6ceeaa487785f9e656db18",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "shared substrate, trilateral evidence doctrine and repository coverage index",
+      "language": "Documentation/HBP",
+      "status": "canon",
+      "evidence": [
+        { "kind": "receipt", "url": "https://github.com/JesseBrown1980/HYPER-BECHS--the-third-set/blob/2455481850fa84f77d6ceeaa487785f9e656db18/ASOLARIA-TRILATERAL-REPOSITORY-COVERAGE-2026-07-11.hbp", "revision": "2455481850fa84f77d6ceeaa487785f9e656db18", "scope": "45-merge public coverage and evidence ledger", "status": "canon" }
+      ]
+    },
+    {
+      "id": "nnest",
+      "name": "JesseBrown1980/N-Nest-Prime-INFINITE-SELF-REFLECT-AGENTS-NESTED",
+      "url": "https://github.com/JesseBrown1980/N-Nest-Prime-INFINITE-SELF-REFLECT-AGENTS-NESTED",
+      "revision": "d37ee2f4cd21a2b55d5b2c6d8d0429acf3d9d753",
+      "branch": "main",
+      "dirty": false,
+      "access": "available",
+      "role": "recursive independent recomputation and authority gate",
+      "language": "JavaScript",
+      "status": "measured-repo",
+      "evidence": [
+        { "kind": "source", "url": "https://github.com/JesseBrown1980/N-Nest-Prime-INFINITE-SELF-REFLECT-AGENTS-NESTED/blob/d37ee2f4cd21a2b55d5b2c6d8d0429acf3d9d753/README.md", "revision": "d37ee2f4cd21a2b55d5b2c6d8d0429acf3d9d753", "scope": "reported-equals-recomputed recursive gate", "status": "measured-repo" }
+      ]
+    }
+  ],
+  "edges": [
+    { "id": "healthcare-sidecar", "from": "ai-healthcare", "to": "behcs-sidecar", "type": "imports-byte-identical", "label": "EdgeLevel, Prototype, Contrastive and GSL model blobs", "status": "measured-repo", "evidence": [{ "kind": "receipt", "url": "https://github.com/JesseBrown1980/AI-healthCare-project/blob/28615a3a7149f24604556897ad823e70196dd190/backend/anomaly_detector/GNN-LINEAGE-2026-07-11.hbp", "revision": "28615a3a7149f24604556897ad823e70196dd190", "scope": "matching Git blob SHAs", "status": "measured-repo" }] },
+    { "id": "healthcare-trained", "from": "ai-healthcare", "to": "trained-gnn", "type": "originates", "label": "pre-Asolaria model family continued into later trained artifacts", "status": "repository-reported-training", "evidence": [{ "kind": "documentation", "url": "https://github.com/JesseBrown1980/Asolaria-fnns-trained-and-reverse-gnns-many/blob/bde7a60f577d664f53c1a5041f7a4420f8f4eb8a/docs/PRE-ASOLARIA-HEALTHCARE-GNN-PROVENANCE-AND-PATH2-2026-07-11.md", "revision": "bde7a60f577d664f53c1a5041f7a4420f8f4eb8a", "scope": "training-era separation and artifact lineage", "status": "audited" }] },
+    { "id": "trained-bigpickle", "from": "trained-gnn", "to": "bigpickle", "type": "serves-model-to", "label": "L0 :4792, L4 :4793 and graph planes", "status": "measured-repo", "evidence": [{ "kind": "source", "url": "https://github.com/JesseBrown1980/bigpickle-rebuild/blob/00ae990362d3906a19e9708d67cfa0c16eefed77/src/asolaria-score.mjs", "revision": "00ae990362d3906a19e9708d67cfa0c16eefed77", "scope": "mixed score orchestration", "status": "measured-repo" }] },
+    { "id": "emitter-dispatcher", "from": "emitter", "to": "dispatcher", "type": "feeds", "label": "PID/FEDENV signals", "status": "measured-repo", "evidence": [{ "kind": "documentation", "url": "https://github.com/JesseBrown1980/Asolaria-the-full-works-200-nanoseconds-agent-emitter-plus-/blob/816f78132180d2ec48fbfad8554276fc2f26d480/CHAIN.md", "revision": "816f78132180d2ec48fbfad8554276fc2f26d480", "scope": "emitter-to-router chain", "status": "measured-repo" }] },
+    { "id": "dispatcher-hermes", "from": "dispatcher", "to": "hermes", "type": "routes-to", "label": "lazy slot and spindle materialization", "status": "measured-repo", "evidence": [{ "kind": "documentation", "url": "https://github.com/JesseBrown1980/Asolaria-hermes-work/blob/080c037e24a52e190f9228ad32ff56f98f32a3b3/THE-CHAIN.md", "revision": "080c037e24a52e190f9228ad32ff56f98f32a3b3", "scope": "router-to-fleet chain", "status": "measured-repo" }] },
+    { "id": "hermes-stage", "from": "hermes", "to": "post-trigger", "type": "feeds", "label": "agent result enters no-bypass post-trigger stage", "status": "measured-repo", "evidence": [{ "kind": "source", "url": "https://github.com/JesseBrown1980/Shannon-and-the-gnns-stage/blob/b5731f2a0cceba09d263f115bfb1532215305f7d/README.md", "revision": "b5731f2a0cceba09d263f115bfb1532215305f7d", "scope": "post-trigger sequence", "status": "measured-repo" }] },
+    { "id": "trained-stage", "from": "trained-gnn", "to": "post-trigger", "type": "serves-model-to", "label": "neural and graph evidence enters Hookwall/Fischer/Shannon", "status": "measured-repo", "evidence": [{ "kind": "source", "url": "https://github.com/JesseBrown1980/Shannon-and-the-gnns-stage/blob/b5731f2a0cceba09d263f115bfb1532215305f7d/README.md", "revision": "b5731f2a0cceba09d263f115bfb1532215305f7d", "scope": "score stage composition", "status": "measured-repo" }] },
+    { "id": "bigpickle-stage", "from": "bigpickle", "to": "post-trigger", "type": "scores-before", "label": "mixed score and Fischer anti-blunder evidence", "status": "measured-repo", "evidence": [{ "kind": "source", "url": "https://github.com/JesseBrown1980/bigpickle-rebuild/blob/00ae990362d3906a19e9708d67cfa0c16eefed77/src/asolaria-score.mjs", "revision": "00ae990362d3906a19e9708d67cfa0c16eefed77", "scope": "score provenance and fallback boundary", "status": "measured-repo" }] },
+    { "id": "stage-whiteroom", "from": "post-trigger", "to": "whiteroom", "type": "curates-in", "label": "GENIUS keep, MISTAKE compact and preserve", "status": "measured-repo", "evidence": [{ "kind": "source", "url": "https://github.com/JesseBrown1980/asolaria-whiteroom-engine/blob/06fc28f383cb0373343e431923441383312cb4d2/README.md", "revision": "06fc28f383cb0373343e431923441383312cb4d2", "scope": "never-delete curation", "status": "measured-repo" }] },
+    { "id": "stage-cube", "from": "post-trigger", "to": "cube-mint", "type": "feeds", "label": "GULP and SUPER-GULP bounded absorption", "status": "measured-repo", "evidence": [{ "kind": "source", "url": "https://github.com/JesseBrown1980/Asolaria-the-after-100-billion-run-absorption-and-decomposition-and-cubes/blob/8f7eec67c5d501128778f81708caa15eaac1e459/README.md", "revision": "8f7eec67c5d501128778f81708caa15eaac1e459", "scope": "2000/50000 flow", "status": "measured-repo" }] },
+    { "id": "whiteroom-cube", "from": "whiteroom", "to": "cube-mint", "type": "stores-in", "label": "durable cube, glyph, hash and compacted evidence", "status": "measured-repo", "evidence": [{ "kind": "source", "url": "https://github.com/JesseBrown1980/Asolaria-the-after-100-billion-run-absorption-and-decomposition-and-cubes/blob/8f7eec67c5d501128778f81708caa15eaac1e459/README.md", "revision": "8f7eec67c5d501128778f81708caa15eaac1e459", "scope": "mint and storage sinks", "status": "measured-repo" }] },
+    { "id": "cube-path1", "from": "cube-mint", "to": "path1", "type": "recovers-via", "label": "retained-body exact recall", "status": "measured-ci", "evidence": [{ "kind": "ci", "url": "https://github.com/JesseBrown1980/dbbh-coms-quant-prism/actions/runs/29134650286", "revision": "48d66ace742fc87c5f1a783b47d8b9e2e86c4aa4", "scope": "19-test Rust 1.97 execution", "status": "measured-ci" }] },
+    { "id": "cube-path2", "from": "cube-mint", "to": "path2", "type": "recovers-via", "label": "jointly sufficient CRT shadows with no retained original", "status": "measured-ci", "evidence": [{ "kind": "ci", "url": "https://github.com/JesseBrown1980/path2-two-shadow-recovery/actions/runs/29134657224", "revision": "c7fa4a417eb0fc281d30be81104d98bb80dd2edb", "scope": "30-test Rust 1.97 execution", "status": "measured-ci" }] },
+    { "id": "path1-qprism3d", "from": "path1", "to": "qprism-3d", "type": "verifies", "label": "retained recall represented alongside watched exact lanes", "status": "measured-ci", "evidence": [{ "kind": "ci", "url": "https://github.com/JesseBrown1980/qprism-3d-slice-harness/actions/runs/29134662404", "revision": "8a592c474008507f01c0e5a399b2089e1e8ebae2", "scope": "Q-PRISM 3D all-target execution", "status": "measured-ci" }] },
+    { "id": "path2-qprism3d", "from": "path2", "to": "qprism-3d", "type": "verifies", "label": "DBBH-to-DBWH reconstruction and re-projection", "status": "measured-ci", "evidence": [{ "kind": "ci", "url": "https://github.com/JesseBrown1980/qprism-3d-slice-harness/actions/runs/29134662404", "revision": "8a592c474008507f01c0e5a399b2089e1e8ebae2", "scope": "watched exact representation and recovery", "status": "measured-ci" }] },
+    { "id": "qprism-control-harness", "from": "qprism-control", "to": "qprism-3d", "type": "originates", "label": "simulation-first control and classical watcher architecture", "status": "measured-repo", "evidence": [{ "kind": "source", "url": "https://github.com/JesseBrown1980/Q-PRISM-human-organoid-neural-stream-as-a-high-dimensional-control/blob/9f77f706c63b552b6a578407492330e1751d86c4/README.md", "revision": "9f77f706c63b552b6a578407492330e1751d86c4", "scope": "Q-PRISM control and claims gate", "status": "measured-repo" }] },
+    { "id": "algorithms-path2", "from": "algorithms", "to": "path2", "type": "governs", "label": "CRT, residual selector and inverse-gate formulas", "status": "canon", "evidence": [{ "kind": "documentation", "url": "https://github.com/JesseBrown1980/Algorithms-of-Asolaria/blob/396c45f14f1d1f9807db8ba6c2f5cbf9c1e43985/PATH2-DBBH-DBWH-ALGORITHMS-2026-07-11.md", "revision": "396c45f14f1d1f9807db8ba6c2f5cbf9c1e43985", "scope": "formula ownership", "status": "canon" }] },
+    { "id": "nnest-path2", "from": "nnest", "to": "path2", "type": "verifies", "label": "reported-equals-recomputed inverse-gate dual", "status": "measured-repo", "evidence": [{ "kind": "documentation", "url": "https://github.com/JesseBrown1980/N-Nest-Prime-INFINITE-SELF-REFLECT-AGENTS-NESTED/blob/d37ee2f4cd21a2b55d5b2c6d8d0429acf3d9d753/PATH2-DBWH-NNEST-INVERSE-GATE-2026-07-11.md", "revision": "d37ee2f4cd21a2b55d5b2c6d8d0429acf3d9d753", "scope": "shared inverse-check theorem", "status": "measured-repo" }] },
+    { "id": "hyperbehcs-algorithms", "from": "hyperbehcs", "to": "algorithms", "type": "governs", "label": "trilateral evidence doctrine and repository coverage", "status": "canon", "evidence": [{ "kind": "receipt", "url": "https://github.com/JesseBrown1980/HYPER-BECHS--the-third-set/blob/2455481850fa84f77d6ceeaa487785f9e656db18/ASOLARIA-TRILATERAL-REPOSITORY-COVERAGE-2026-07-11.hbp", "revision": "2455481850fa84f77d6ceeaa487785f9e656db18", "scope": "public coverage ledger", "status": "canon" }] },
+    { "id": "mapper-canvas", "from": "mapper", "to": "canvas", "type": "api", "label": "versioned mapper and ecosystem artifacts", "status": "measured-repo", "evidence": [{ "kind": "source", "url": "https://github.com/wesleysimplicio/simplicio-canvas/blob/b40dd57aa727507b61e543cbe1f10292fed50aec/src/domain/mapper-artifacts.ts", "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec", "scope": "safe artifact parser", "status": "measured-repo" }] },
+    { "id": "loop-canvas", "from": "loop", "to": "canvas", "type": "package", "label": "safe bundled example and project skill", "status": "measured-repo", "evidence": [{ "kind": "documentation", "url": "https://github.com/wesleysimplicio/simplicio-canvas/blob/b40dd57aa727507b61e543cbe1f10292fed50aec/README.md", "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec", "scope": "default Canvas workspace", "status": "measured-repo" }] },
+    { "id": "runtime-canvas", "from": "runtime", "to": "canvas", "type": "event", "label": "redacted runtime trace contract", "status": "unverified-live", "evidence": [{ "kind": "source", "url": "https://github.com/wesleysimplicio/simplicio-canvas/blob/b40dd57aa727507b61e543cbe1f10292fed50aec/src/domain/runtime-trace.ts", "revision": "b40dd57aa727507b61e543cbe1f10292fed50aec", "scope": "opt-in runtime/static correlation contract", "status": "measured-repo" }] },
+    { "id": "hyperbehcs-mapper", "from": "hyperbehcs", "to": "mapper", "type": "schema", "label": "public metadata-only Asolaria ecosystem fixture", "status": "audited", "evidence": [{ "kind": "documentation", "url": "https://github.com/JesseBrown1980/HYPER-BECHS--the-third-set/blob/2455481850fa84f77d6ceeaa487785f9e656db18/ASOLARIA-TRILATERAL-REPOSITORY-COVERAGE-2026-07-11.md", "revision": "2455481850fa84f77d6ceeaa487785f9e656db18", "scope": "source ledger for this fixture", "status": "audited" }] },
+    { "id": "workspace-stage-canvas", "from": "post-trigger", "to": "canvas", "type": "motivates", "label": "capacity-limited evidence focus and broadcast view", "status": "unverified-live", "evidence": [{ "kind": "paper", "url": "https://transformer-circuits.pub/2026/workspace/index.html", "revision": null, "scope": "functional global-workspace analogy for selective visual focus", "status": "canon" }] },
+    { "id": "matterwave-qprism", "from": "qprism-control", "to": "qprism-3d", "type": "calibrates", "label": "matter-wave experiment grounds the simulator parameters", "status": "audited", "evidence": [{ "kind": "paper", "url": "https://www.nature.com/articles/s41586-025-09917-9", "revision": null, "scope": "external physical experiment; not proof of Q-PRISM hardware", "status": "audited" }] },
+    { "id": "encrypted-cloning-path2", "from": "path2", "to": "qprism-control", "type": "motivates", "label": "locally insufficient branches plus selected recovery", "status": "audited", "evidence": [{ "kind": "paper", "url": "https://arxiv.org/pdf/2602.10695", "revision": null, "scope": "quantum sibling; current CRT implementation remains classical", "status": "audited" }] }
+  ],
+  "references": [
+    { "id": "encrypted-cloning", "title": "Experimental quantum cloning of unknown states with encrypted branches", "url": "https://arxiv.org/pdf/2602.10695", "relation": "quantum sibling of locally insufficient branches and selected recovery", "boundary": "does not make the classical CRT crates physical quantum cloning" },
+    { "id": "matter-wave", "title": "Quantum interference of nanoparticles exceeding 170,000 Da", "url": "https://www.nature.com/articles/s41586-025-09917-9", "relation": "external calibration source for the Q-PRISM Talbot-Lau simulator", "boundary": "does not demonstrate neural control or the Q-PRISM recovery fabric" },
+    { "id": "global-workspace", "title": "The global workspace of a large language model", "url": "https://transformer-circuits.pub/2026/workspace/index.html", "relation": "motivates a selective, capacity-limited evidence focus layer in Canvas", "boundary": "functional representation result, not a consciousness or full-brain identity claim" }
+  ],
+  "boundaries": [
+    "Metadata and public evidence links only; no private corpus, keys, model bodies, PII or device secrets.",
+    "Repository presence is not live-process proof; access, revision and status remain explicit.",
+    "Static, runtime, operator, third-seat, CI and paper evidence must remain distinguishable.",
+    "Classical Path 1/Path 2 recovery is not physical quantum cloning.",
+    "Matter-wave calibration is an external physics reference, not a completed Q-PRISM hardware deployment.",
+    "A selective workspace overlay is a visualization and interpretability model, not a consciousness claim.",
+    "Short handles and graph IDs are navigation coordinates; authoritative evidence remains pinned to full commit and URL."
+  ]
+}

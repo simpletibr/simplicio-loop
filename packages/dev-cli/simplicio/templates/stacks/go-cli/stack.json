@@ -1,0 +1,13 @@
+{
+  "slug": "go-cli",
+  "template_version": "0.1.0",
+  "language": "Go 1.23",
+  "framework": "Cobra + Viper",
+  "framework_version": "cobra 1.x",
+  "package_manager": "go",
+  "test_runner": "go test",
+  "linter": "go vet",
+  "deps_required": ["github.com/spf13/cobra", "github.com/spf13/viper"],
+  "deps_dev": [],
+  "tags": ["cli", "go", "compiled", "terminal"]
+}

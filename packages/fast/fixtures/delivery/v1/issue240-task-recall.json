@@ -1,0 +1,27 @@
+{
+  "schema": "simplicio.fast.delivery-task-corpus/v1",
+  "dataset_id": "issue240-fast-source-task-recall-v1",
+  "scope": "frozen-source-task-fixture",
+  "tasks": [
+    {
+      "id": "rust-frame-finite",
+      "text": "RustCoreSession allow_nan false JSON frame",
+      "expected_files": ["src/simplicio_fast/rust_session.py"]
+    },
+    {
+      "id": "delivery-exact-tokenizer",
+      "text": "DeliveryEngine tokenizer_id exact tokenizer",
+      "expected_files": ["src/simplicio_fast/delivery.py"]
+    },
+    {
+      "id": "changeset-reconciliation",
+      "text": "BinaryChangeSet reconcile_unknown_effect journal unknown",
+      "expected_files": ["src/simplicio_fast/binary_changeset.py"]
+    },
+    {
+      "id": "advisory-capability-ranking",
+      "text": "CapabilityCandidate rank_capabilities advisory_only",
+      "expected_files": ["src/simplicio_fast/capability_ranking.py"]
+    }
+  ]
+}

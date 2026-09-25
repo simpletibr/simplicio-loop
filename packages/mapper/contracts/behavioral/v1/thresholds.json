@@ -1,0 +1,10 @@
+{
+  "schema": "simplicio.behavioral-thresholds/v1",
+  "version": 1,
+  "target_recall_at_k": 0.96,
+  "test_recall_at_k": 0.96,
+  "ac_preservation": 1.0,
+  "determinism": 1.0,
+  "max_nonexistent_paths": 0,
+  "justification": "Initial issue #182 target; thresholds are not lowered by the runner."
+}

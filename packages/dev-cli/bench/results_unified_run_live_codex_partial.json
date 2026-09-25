@@ -1,0 +1,75 @@
+{
+  "evidence_level": "partial-live",
+  "issue": "#41",
+  "release_evidence": false,
+  "release_ready": false,
+  "rows": [
+    {
+      "artifacts": [
+        {
+          "kind": "codex-transcript",
+          "path": "bench/artifacts/codex-goal-single-file-task.jsonl",
+          "sha256": "3fbeba89df92d004887928b57011007138b4b7b492b582e30a5c18b90a478c7e"
+        }
+      ],
+      "case_id": "single-file-task",
+      "command": "codex exec --json -C . \"/goal Fix email validation in src/forms/UserForm.tsx. Do not make source edits; report the plan and validation you would run.\"",
+      "duration_s": 46.9,
+      "exit_code": 0,
+      "external_agent_invoked": true,
+      "llm_invoked": true,
+      "mode_id": "codex_goal",
+      "notes": [
+        "Transcript captured from real Codex CLI 0.135.0 run.",
+        "The transcript records Windows sandbox command-exec failures, so this is partial-live diagnostic evidence only."
+      ],
+      "success": true,
+      "transcript_sha256": "a277ece0678ac65ad56325a6c40f96a322b65ebca43691a0b23850bd6ea88dc8"
+    },
+    {
+      "artifacts": [
+        {
+          "kind": "codex-transcript",
+          "path": "bench/artifacts/codex-goal-feature-auth-flow.jsonl",
+          "sha256": "36b4fd995c01b3bc894ec68d639a38a708d2033b087675542f5fc2118acf445c"
+        }
+      ],
+      "case_id": "feature-auth-flow",
+      "command": "codex exec --json -C . \"/goal Implement JWT login with refresh tokens across API and UI. Do not make source edits; report the plan, risks, and validation you would run.\"",
+      "duration_s": 86.484,
+      "exit_code": 0,
+      "external_agent_invoked": true,
+      "llm_invoked": true,
+      "mode_id": "codex_goal",
+      "notes": [
+        "Transcript captured from real Codex CLI 0.135.0 run.",
+        "The transcript records Windows sandbox command-exec failures, so this remains partial-live diagnostic evidence only."
+      ],
+      "success": true,
+      "transcript_sha256": "845cce30999a65d1f8516b8c3a76e64133ab78cf0c24aa48592addd83105020d"
+    },
+    {
+      "artifacts": [
+        {
+          "kind": "codex-transcript",
+          "path": "bench/artifacts/codex-goal-sprint-checkout-hardening.jsonl",
+          "sha256": "c846ff7d76fdfd8a5899e000376a4b13f8cbf9e36b5b3f06885c4853adf105ab"
+        }
+      ],
+      "case_id": "sprint-checkout-hardening",
+      "command": "codex exec --json -C . \"/goal Finish checkout sprint with billing, reports, and DoD green. Do not make source edits; report the sprint plan, sequencing, risks, and validation you would run.\"",
+      "duration_s": 42.0,
+      "exit_code": 0,
+      "external_agent_invoked": true,
+      "llm_invoked": true,
+      "mode_id": "codex_goal",
+      "notes": [
+        "Transcript captured from real Codex CLI 0.135.0 run.",
+        "Duration uses the Codex transcript-reported runtime because the outer PowerShell redirection hit a transient file lock after process completion.",
+        "The transcript records Windows sandbox command-exec failures, so this remains partial-live diagnostic evidence only."
+      ],
+      "success": true,
+      "transcript_sha256": "f70e4a25ed1170e1b9b1e7a17a621f17447ca2c65fa84f86872e1012f4c25f2b"
+    }
+  ]
+}

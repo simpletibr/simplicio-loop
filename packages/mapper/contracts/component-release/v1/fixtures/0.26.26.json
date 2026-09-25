@@ -1,0 +1,62 @@
+{
+  "schema": "simplicio.component-release/v1",
+  "component": "simplicio-mapper",
+  "version": "0.26.26",
+  "commit_sha": "4d754da6b9914005b876bd680598e14e7ac365c1",
+  "commit_sha_source": "immutable release tag fixture",
+  "generated_at": "2026-09-02T00:00:00Z",
+  "distribution": {
+    "pypi_package": "simplicio-mapper",
+    "npm_package": "@wesleysimplicio/llm-project-mapper"
+  },
+  "schema_versions": {
+    "component-release": "v1",
+    "plugin-context-handle": "v2"
+  },
+  "protocols": [
+    "simplicio.component-release/v1",
+    "simplicio.mapper-artifacts/v1",
+    "simplicio.plugin.context-handle/v1",
+    "simplicio.plugin.context-handle/v2"
+  ],
+  "capabilities": [
+    "simplicio.mapper-artifacts/v1",
+    "simplicio.plugin.context-handle/v1",
+    "simplicio.plugin.context-handle/v2"
+  ],
+  "compatibility": {
+    "simplicio-dev-cli": {
+      "plugin-context-handle": "v1|v2"
+    }
+  },
+  "artifact_digest": "sha256:6727a0ae28cf0fe5912efacb6f31204c397749084e7bdd7d17a80f8f3c007efc",
+  "artifact_digests": {
+    "whl": {
+      "filename": "simplicio_mapper-0.26.26-py3-none-any.whl",
+      "digest": "sha256:6727a0ae28cf0fe5912efacb6f31204c397749084e7bdd7d17a80f8f3c007efc"
+    },
+    "sdist": {
+      "filename": "simplicio_mapper-0.26.26.tar.gz",
+      "digest": "sha256:97e399f687ea5276fb69b1452d2cdec8c0f27d34e2d8da02614af6dc006ffa07"
+    }
+  },
+  "signing": {
+    "status": "not-implemented",
+    "digest": null,
+    "signature": null,
+    "sbom": null,
+    "note": "Historical N conformance fixture; v0.26.26 predates the signed stable promotion gate."
+  },
+  "downstream_events": {
+    "status": "dispatch-ready",
+    "transport": "github.repository_dispatch",
+    "event_type": "simplicio-component-release",
+    "consumers": [
+      "wesleysimplicio/simplicio-dev-cli",
+      "wesleysimplicio/simplicio-loop"
+    ],
+    "deduplication": "event_id",
+    "authentication_secret": "RELEASE_TRAIN_DISPATCH_TOKEN",
+    "note": "Historical N conformance fixture; delivery requires an authenticated caller."
+  }
+}

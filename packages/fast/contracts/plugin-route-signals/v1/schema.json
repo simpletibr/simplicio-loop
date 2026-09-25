@@ -1,0 +1,53 @@
+{
+  "schema": "simplicio.plugin.route-signals/v1",
+  "major": 1,
+  "minor": 0,
+  "authority": "derived_read_only",
+  "decides_policy": false,
+  "writes": false,
+  "fabricates_savings": false,
+  "signals": [
+    "file_count",
+    "fan_in",
+    "fan_out",
+    "hub",
+    "sensitive",
+    "diff_size",
+    "cache_locality",
+    "packet_bytes"
+  ],
+  "signal_kinds": ["measured", "bounded_estimate", "unknown"],
+  "unknown_policy": "value must be null and unknown_reason required",
+  "phases": ["pre_route", "post_diff"],
+  "promotion_ranks": [
+    "fast_path_candidate",
+    "review_recommended",
+    "full_path_recommended",
+    "blocked_signal"
+  ],
+  "null_fields": {
+    "decision": "FAST_NOT_POLICY_AUTHORITY",
+    "savings": "SAVINGS_NOT_MEASURED",
+    "route": "FAST_DOES_NOT_SELECT_ROUTE",
+    "skills": "FAST_DOES_NOT_SELECT_SKILLS"
+  },
+  "consumers": ["runtime-r05", "loop-l01"],
+  "reason_codes": [
+    "cache_state_invalid",
+    "diff_invalid",
+    "generation_missing",
+    "graph_invalid",
+    "graph_limit",
+    "packet_metadata_invalid",
+    "path_escape",
+    "phase_invalid",
+    "policy_decision_forbidden",
+    "promotion_invalid",
+    "savings_fabricated",
+    "signals_corrupt",
+    "signals_schema_invalid",
+    "source_hashes_invalid",
+    "targets_invalid",
+    "unknown_became_value"
+  ]
+}

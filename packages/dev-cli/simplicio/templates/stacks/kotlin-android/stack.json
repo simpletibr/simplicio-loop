@@ -1,0 +1,13 @@
+{
+  "slug": "kotlin-android",
+  "template_version": "0.1.0",
+  "language": "Kotlin",
+  "framework": "Jetpack Compose",
+  "framework_version": "Android",
+  "package_manager": "gradle",
+  "test_runner": "JUnit",
+  "linter": "ktlint",
+  "deps_required": ["com.android.application", "androidx.compose"],
+  "deps_dev": ["junit"],
+  "tags": ["mobile", "android", "kotlin", "compose"]
+}

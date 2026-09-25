@@ -1,0 +1,9 @@
+usage: simplicio-py index [-h] [--root ROOT] [--stack STACK] [root_arg]
+
+positional arguments:
+  root_arg       project root; same as --root
+
+options:
+  -h, --help     show this help message and exit
+  --root ROOT
+  --stack STACK

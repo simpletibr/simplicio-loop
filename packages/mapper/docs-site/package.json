@@ -1,0 +1,27 @@
+{
+  "name": "llm-project-mapper-docs-site",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Docusaurus site for LLM Project Mapper documentation.",
+  "engines": {
+    "node": ">=18.0"
+  },
+  "scripts": {
+    "docusaurus": "docusaurus",
+    "start": "node ../scripts/sync-docs-site.mjs && docusaurus start --host 0.0.0.0 --port 4400",
+    "build": "node ../scripts/sync-docs-site.mjs && docusaurus build",
+    "serve": "docusaurus serve build --host 0.0.0.0 --port 4400",
+    "clear": "docusaurus clear",
+    "docs:version": "node ../scripts/sync-docs-site.mjs && docusaurus docs:version"
+  },
+  "dependencies": {
+    "@docusaurus/core": "^3.10.1",
+    "@docusaurus/preset-classic": "^3.10.1",
+    "@docusaurus/theme-mermaid": "^3.10.1",
+    "@mermaid-js/layout-elk": "^0.1.9",
+    "@easyops-cn/docusaurus-search-local": "^0.55.2",
+    "open-ask-ai": "^0.7.3",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  }
+}

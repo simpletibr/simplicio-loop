@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simplicio.dev/schemas/plugin-orientation/v1",
+  "title": "ProjectCapabilityProjection",
+  "type": "object",
+  "required": ["schema", "status", "capabilities", "digest"],
+  "properties": {
+    "schema": { "const": "simplicio.plugin.project-capability-projection/v1" },
+    "status": { "enum": ["ready", "abstained"] },
+    "capabilities": { "type": "array" },
+    "digest": { "type": "string", "minLength": 64, "maxLength": 64 },
+    "route": { "type": ["string", "null"] },
+    "effect": { "type": ["string", "null"] }
+  }
+}

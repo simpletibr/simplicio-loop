@@ -1,0 +1,32 @@
+{
+  "case_id": "single-file-task",
+  "invocations": [
+    {
+      "args": [
+        "C:\\Users\\wesley.simplicio\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "-m",
+        "simplicio.cli",
+        "run",
+        "Fix email validation in src/forms/UserForm.tsx.",
+        "--scope",
+        "task",
+        "--root",
+        "C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\simplicio-run-f5-live-fixture",
+        "--stack",
+        "py-fastapi",
+        "--target",
+        "src/forms/UserForm.tsx",
+        "--criteria",
+        "- fixture verification passes",
+        "--constraints",
+        "- no external services",
+        "--json"
+      ],
+      "duration_s": 0.305,
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "{\"applied\": true, \"cost_usd\": 0.0, \"diff_summary\": \"changed src/forms/UserForm.tsx\", \"files_changed\": [\"src/forms/UserForm.tsx\"], \"task_id\": \"src/forms/UserForm.tsx\", \"tokens_used\": {\"completion\": 22, \"prompt\": 225}, \"warnings\": []}\n"
+    }
+  ],
+  "mode_id": "cli_ag"
+}

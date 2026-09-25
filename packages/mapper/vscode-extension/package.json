@@ -1,0 +1,119 @@
+{
+  "name": "llm-project-mapper-vscode",
+  "displayName": "LLM Project Mapper",
+  "description": "Sidebar TreeView for `.specs/sprints/`, `.skills/`, `.agents/` plus quick commands to open the current task, create ADRs, and run INIT.md handoff.",
+  "version": "0.1.0",
+  "publisher": "wesleysimplicio",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "llm-project-mapper",
+    "ai-agent",
+    "specs",
+    "skills",
+    "claude-code",
+    "codex",
+    "ralph-loop"
+  ],
+  "activationEvents": [
+    "workspaceContains:.starter-meta.json",
+    "workspaceContains:.specs/sprints/**"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "llm-project-mapper",
+          "title": "LLM Project Mapper",
+          "icon": "$(rocket)"
+        }
+      ]
+    },
+    "views": {
+      "llm-project-mapper": [
+        {
+          "id": "lpmSprints",
+          "name": "Sprints",
+          "contextualTitle": "LLM Project Mapper · Sprints"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "lpm.openCurrentTask",
+        "title": "LLM Project Mapper: Open current task",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "lpm.createAdr",
+        "title": "LLM Project Mapper: Create ADR"
+      },
+      {
+        "command": "lpm.runInit",
+        "title": "LLM Project Mapper: Run INIT.md handoff"
+      },
+      {
+        "command": "lpm.refresh",
+        "title": "LLM Project Mapper: Refresh",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "lpm.refresh",
+          "when": "view == lpmSprints",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "LLM Project Mapper",
+      "properties": {
+        "lpm.defaultCli": {
+          "type": "string",
+          "default": "claude",
+          "enum": [
+            "claude",
+            "codex",
+            "copilot",
+            "cursor",
+            "aider",
+            "skip"
+          ],
+          "description": "CLI used by the 'Run INIT.md handoff' command."
+        },
+        "lpm.specsRoot": {
+          "type": "string",
+          "default": ".specs",
+          "description": "Path (relative to workspace root) of the specs folder."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/vscode": "^1.120.0",
+    "typescript": "^6.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wesleysimplicio/llm-project-mapper.git",
+    "directory": "vscode-extension"
+  },
+  "bugs": {
+    "url": "https://github.com/wesleysimplicio/llm-project-mapper/issues"
+  },
+  "homepage": "https://github.com/wesleysimplicio/llm-project-mapper/tree/main/vscode-extension#readme",
+  "license": "MIT"
+}

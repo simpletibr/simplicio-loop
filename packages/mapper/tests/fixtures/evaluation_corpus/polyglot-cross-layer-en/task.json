@@ -1,0 +1,10 @@
+{
+  "system": "checkout",
+  "functionality": "polyglot total normalization",
+  "goal": "Keep buildCheckoutPayload and normalize_checkout aligned across the frontend/backend boundary and preserve both verification routes.",
+  "acceptance_criteria": [
+    "buildCheckoutPayload emits the same rounded total consumed by normalize_checkout",
+    "tests/order_form.test.ts and tests/test_order_controller.py stay in the verification route",
+    "frontend and backend context fit within the declared token budget"
+  ]
+}

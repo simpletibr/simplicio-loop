@@ -1,0 +1,6 @@
+{
+  "install": "./gradlew dependencies",
+  "test": "./gradlew test",
+  "test_runner": "kotlin.test",
+  "lint": "./gradlew check"
+}

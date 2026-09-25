@@ -1,0 +1,94 @@
+{
+  "title": "simplicio.ecosystem-graph/v1",
+  "type": "object",
+  "required": ["schema", "version", "generated_at", "name", "source_policy", "repositories", "edges", "references", "boundaries"],
+  "properties": {
+    "schema": { "type": "string", "enum": ["simplicio.ecosystem-graph/v1"] },
+    "version": { "type": "integer", "enum": [1] },
+    "generated_at": { "type": "string" },
+    "name": { "type": "string" },
+    "source_policy": { "type": "string", "enum": ["metadata-only", "public-source", "mixed-redacted"] },
+    "repositories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "url", "revision", "branch", "dirty", "access", "role", "status", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "url": { "type": "string" },
+          "revision": { "type": "string" },
+          "branch": { "type": "string" },
+          "dirty": { "type": "boolean" },
+          "access": { "type": "string", "enum": ["available", "denied", "missing", "private"] },
+          "role": { "type": "string" },
+          "language": { "type": ["string", "null"] },
+          "status": { "type": "string", "enum": ["measured-repo", "measured-ci", "measured-third-seat", "repository-reported-training", "audited", "canon", "unverified-live", "cannot-see", "superseded"] },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["kind", "url", "scope", "status"],
+              "properties": {
+                "kind": { "type": "string", "enum": ["source", "test", "runtime", "receipt", "paper", "ci", "operator", "third-seat", "documentation"] },
+                "url": { "type": "string" },
+                "revision": { "type": ["string", "null"] },
+                "scope": { "type": "string" },
+                "status": { "type": "string", "enum": ["measured-repo", "measured-ci", "measured-third-seat", "repository-reported-training", "audited", "canon", "unverified-live", "cannot-see", "superseded"] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "from", "to", "type", "label", "status", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "type": { "type": "string", "enum": ["originates", "imports-byte-identical", "trains", "serves-model-to", "feeds", "routes-to", "scores-before", "curates-in", "stores-in", "recovers-via", "verifies", "governs", "supersedes", "mirrors", "calibrates", "motivates", "package", "api", "event", "schema", "deploys"] },
+          "label": { "type": "string" },
+          "status": { "type": "string", "enum": ["measured-repo", "measured-ci", "measured-third-seat", "repository-reported-training", "audited", "canon", "unverified-live", "cannot-see", "superseded"] },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["kind", "url", "scope", "status"],
+              "properties": {
+                "kind": { "type": "string", "enum": ["source", "test", "runtime", "receipt", "paper", "ci", "operator", "third-seat", "documentation"] },
+                "url": { "type": "string" },
+                "revision": { "type": ["string", "null"] },
+                "scope": { "type": "string" },
+                "status": { "type": "string", "enum": ["measured-repo", "measured-ci", "measured-third-seat", "repository-reported-training", "audited", "canon", "unverified-live", "cannot-see", "superseded"] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "url", "relation", "boundary"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "url": { "type": "string" },
+          "relation": { "type": "string" },
+          "boundary": { "type": "string" }
+        }
+      }
+    },
+    "boundaries": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

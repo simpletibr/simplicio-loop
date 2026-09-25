@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/conformance-api.schema.json",
+  "title": "simplicio.mapper-store-conformance/v2",
+  "type": "object",
+  "required": ["schema", "store_schema", "status", "ok", "checks", "capabilities"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store-conformance/v2"},
+    "store_schema": {"const": "simplicio.mapper-store/v1"},
+    "status": {"enum": ["conformant", "nonconformant"]},
+    "ok": {"type": "boolean"},
+    "checks": {"type": "array", "items": {"type": "object", "required": ["name", "ok"]}},
+    "capabilities": {"type": "object"}
+  }
+}

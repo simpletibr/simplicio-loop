@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/benchmark.schema.json",
+  "title": "simplicio.mapper-store.benchmark/v1",
+  "type": "object",
+  "required": ["schema", "status", "environment", "repetitions", "cases", "raw_data", "claim"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store.benchmark/v1"},
+    "status": {"const": "measured"},
+    "environment": {"type": "object"},
+    "repetitions": {"type": "integer", "minimum": 1},
+    "cases": {"type": "array"},
+    "raw_data": {"type": "object"},
+    "claim": {"const": "UNVERIFIED_END_TO_END_PERFORMANCE"}
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "changed_files": [],
+  "counts": {
+    "changed_files": 0,
+    "files": 4,
+    "layers": 4,
+    "modules": 3,
+    "precedents": 4,
+    "relationships": 4,
+    "symbols": 4
+  },
+  "error": null,
+  "execution_plan": {
+    "async_disabled": false,
+    "candidates": {},
+    "evidence": null,
+    "fallback_profile": "sync",
+    "fallback_reason": null,
+    "file_count": 4,
+    "platform": "Linux",
+    "predicted_p95_ms": null,
+    "reason": "auto fell back to the conservative synchronous path because no compatible calibration evidence was available",
+    "requested_profile": "auto",
+    "schema": "simplicio.execution-plan/v1",
+    "selected_profile": "sync",
+    "source": "auto",
+    "threshold": 600
+  },
+  "lock_reason_code": "lock_acquired",
+  "paths": {
+    "architecture_inventory": "<fixture-root>/.simplicio/architecture-inventory.json",
+    "call_graph": "<fixture-root>/.simplicio/call-graph.json",
+    "execution_plan": "<fixture-root>/.simplicio/execution-plan.json",
+    "precedent_index": "<fixture-root>/.simplicio/precedent-index.json",
+    "project_map": "<fixture-root>/.simplicio/project-map.json",
+    "symbol_index": "<fixture-root>/.simplicio/symbol-index.json"
+  },
+  "schema": "simplicio.mapper-index/v1",
+  "skipped_reason": null,
+  "status": "updated"
+}

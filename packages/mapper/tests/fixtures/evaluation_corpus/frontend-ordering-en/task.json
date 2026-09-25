@@ -1,0 +1,9 @@
+{
+  "system": "Frontend",
+  "functionality": "Lane ordering",
+  "goal": "Render structural lanes before temporal lanes while preserving start-date ordering.",
+  "acceptance_criteria": [
+    "structural lanes render first",
+    "temporal lanes preserve start-date ordering"
+  ]
+}

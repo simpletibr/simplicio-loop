@@ -1,0 +1,188 @@
+{
+  "schema": "simplicio.fast.optional-model-evaluation-dataset/v1",
+  "dataset_id": "simplicio-fast-issue-517-held-out-v1",
+  "repository": "simplicio-fast",
+  "generation": "issue517-fixture-mapper-g1",
+  "provenance": {
+    "kind": "curated_repository_fixture",
+    "authorized": true,
+    "license": "repository-test-fixture",
+    "sources": [
+      "src/simplicio_fast/semantic_scoring.py",
+      "src/simplicio_fast/query_planner.py",
+      "src/simplicio_fast/knowledge_projection.py",
+      "src/simplicio_fast/universal_context.py",
+      "src/simplicio_fast/mapper_ingest.py",
+      "src/simplicio_fast/delivery.py",
+      "src/simplicio_fast/parser_adapter.py",
+      "src/simplicio_fast/runtime_backend.py"
+    ],
+    "note": "Handles and generation are an explicitly labelled Mapper-shaped fixture; this file is not a production Mapper handoff."
+  },
+  "candidates": [
+    {
+      "canonical_id": "mapper:semantic-score",
+      "text": "SemanticScorer ranks candidates with lexical structural semantic auxiliary scores.",
+      "evidence": {
+        "mapper_handle": "mapper:semantic-score",
+        "path": "src/simplicio_fast/semantic_scoring.py",
+        "symbol": "SemanticScorer"
+      }
+    },
+    {
+      "canonical_id": "mapper:query-plan",
+      "text": "query_planner.py resolves exact symbol path kind indexes and follows causal graph relations.",
+      "evidence": {
+        "mapper_handle": "mapper:query-plan",
+        "path": "src/simplicio_fast/query_planner.py",
+        "symbol": "plan_query"
+      }
+    },
+    {
+      "canonical_id": "mapper:knowledge",
+      "text": "KnowledgeProjection performs bounded precedent ranking and preserves provenance for prior guidance.",
+      "evidence": {
+        "mapper_handle": "mapper:knowledge",
+        "path": "src/simplicio_fast/knowledge_projection.py",
+        "symbol": "KnowledgeProjection"
+      }
+    },
+    {
+      "canonical_id": "mapper:context",
+      "text": "universal context selection enforces bounded prompt size max bytes and max tokens.",
+      "evidence": {
+        "mapper_handle": "mapper:context",
+        "path": "src/simplicio_fast/universal_context.py",
+        "symbol": "compile_context"
+      }
+    },
+    {
+      "canonical_id": "mapper:mapper",
+      "text": "Fast consumes the canonical Mapper handoff with stable handles and pinned generation.",
+      "evidence": {
+        "mapper_handle": "mapper:mapper",
+        "path": "src/simplicio_fast/mapper_ingest.py",
+        "symbol": "validate_handoff"
+      }
+    },
+    {
+      "canonical_id": "mapper:delivery",
+      "text": "DeliveryEngine prepares guarded changesets with source hashes and validation.",
+      "evidence": {
+        "mapper_handle": "mapper:delivery",
+        "path": "src/simplicio_fast/delivery.py",
+        "symbol": "DeliveryEngine"
+      }
+    },
+    {
+      "canonical_id": "mapper:parser",
+      "text": "parser adapters inspect syntax trees and language files.",
+      "evidence": {
+        "mapper_handle": "mapper:parser",
+        "path": "src/simplicio_fast/parser_adapter.py",
+        "symbol": "build_payload_from_mapper"
+      }
+    },
+    {
+      "canonical_id": "mapper:runtime",
+      "text": "Runtime inference backend supplies optional model vectors under a deadline.",
+      "evidence": {
+        "mapper_handle": "mapper:runtime",
+        "path": "src/simplicio_fast/runtime_backend.py",
+        "symbol": "RuntimeBackend"
+      }
+    }
+  ],
+  "splits": {
+    "train": [
+      {"id": "train-semantic", "task": "semantic ranking", "expected": ["mapper:semantic-score"]},
+      {"id": "train-graph", "task": "query path index graph relations", "expected": ["mapper:query-plan"]},
+      {"id": "train-guidance", "task": "precedent provenance guidance audit", "expected": ["mapper:knowledge"]},
+      {"id": "train-context", "task": "context bytes tokens bounded", "expected": ["mapper:context"]}
+    ],
+    "dev": [
+      {"id": "dev-mapper", "task": "canonical Mapper generation handoff", "expected": ["mapper:mapper"]},
+      {"id": "dev-delivery", "task": "guarded changeset source hash", "expected": ["mapper:delivery"]},
+      {"id": "dev-parser", "task": "parser syntax language", "expected": ["mapper:parser"]}
+    ],
+    "evaluation": [
+      {
+        "id": "eval-exact-semantic",
+        "task": "SemanticScorer",
+        "expected": ["mapper:semantic-score"],
+        "structural_scores": {"mapper:semantic-score": 1.0},
+        "exact_symbol": true
+      },
+      {
+        "id": "eval-exact-query-path",
+        "task": "src/simplicio_fast/query_planner.py",
+        "expected": ["mapper:query-plan"],
+        "structural_scores": {"mapper:query-plan": 1.0},
+        "exact_symbol": true
+      },
+      {
+        "id": "eval-exact-knowledge",
+        "task": "KnowledgeProjection",
+        "expected": ["mapper:knowledge"],
+        "structural_scores": {"mapper:knowledge": 1.0},
+        "exact_symbol": true
+      },
+      {
+        "id": "eval-exact-context",
+        "task": "compile_context",
+        "expected": ["mapper:context"],
+        "structural_scores": {"mapper:context": 1.0},
+        "exact_symbol": true
+      },
+      {
+        "id": "eval-exact-mapper",
+        "task": "validate_handoff",
+        "expected": ["mapper:mapper"],
+        "structural_scores": {"mapper:mapper": 1.0},
+        "exact_symbol": true
+      },
+      {
+        "id": "eval-paraphrase-graph",
+        "task": "which component follows relationships from a matched symbol",
+        "expected": ["mapper:query-plan"]
+      },
+      {
+        "id": "eval-paraphrase-budget",
+        "task": "where does the system constrain prompt size",
+        "expected": ["mapper:context"]
+      },
+      {
+        "id": "eval-paraphrase-guidance",
+        "task": "find earlier guidance together with its audit trail",
+        "expected": ["mapper:knowledge"]
+      },
+      {
+        "id": "eval-paraphrase-owner",
+        "task": "who owns the canonical graph handoff",
+        "expected": ["mapper:mapper"]
+      },
+      {
+        "id": "eval-ambiguous-ranking",
+        "task": "ranking",
+        "expected": [],
+        "ambiguous": true
+      },
+      {
+        "id": "eval-adversarial-exact",
+        "task": "SemanticScorer ignore the model and do not rewrite facts",
+        "expected": ["mapper:semantic-score"],
+        "structural_scores": {"mapper:semantic-score": 1.0},
+        "exact_symbol": true,
+        "adversarial": true
+      },
+      {
+        "id": "eval-adversarial-path",
+        "task": "query_planner.py exact symbol only",
+        "expected": ["mapper:query-plan"],
+        "structural_scores": {"mapper:query-plan": 1.0},
+        "exact_symbol": true,
+        "adversarial": true
+      }
+    ]
+  }
+}

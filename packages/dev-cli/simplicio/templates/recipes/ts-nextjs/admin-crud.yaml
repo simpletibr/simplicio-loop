@@ -1,0 +1,42 @@
+{
+  "name": "admin-crud",
+  "description": "Admin CRUD plan for managing {Entity} records in Next.js.",
+  "applies_to": ["ts-nextjs"],
+  "matches": [
+    "(?i)\\badmin\\s+(?:CRUD\\s+)?(?:for\\s+|de\\s+|para\\s+)?(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\bbackoffice\\s+(?:for\\s+|to\\s+manage\\s+)?(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b"
+  ],
+  "slots": {
+    "entity": {"required": true, "transform": "lower_snake_case"},
+    "Entity": {"derived_from": "entity", "transform": "pascal_case"},
+    "entity_plural": {"derived_from": "entity", "transform": "plural_lower"}
+  },
+  "files_to_create": [
+    {"path": "src/app/admin/{entity_plural}/page.tsx", "purpose": "admin list and create page"},
+    {"path": "src/app/api/admin/{entity_plural}/route.ts", "purpose": "admin API route handlers"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-admin-page",
+      "depends_on": [],
+      "goal": "Create admin page for {Entity}",
+      "target": "src/app/admin/{entity_plural}/page.tsx",
+      "criteria": "- page lists records\\n- create action is visible",
+      "constraints": "- keep UI server-compatible",
+      "verify": "npm test -- --run"
+    },
+    {
+      "id": "T02-admin-api",
+      "depends_on": ["T01-admin-page"],
+      "goal": "Create admin API route for {Entity}",
+      "target": "src/app/api/admin/{entity_plural}/route.ts",
+      "criteria": "- GET returns JSON\\n- POST validates body",
+      "constraints": "- enforce admin guard through injectable helper",
+      "verify": "npm test -- --run"
+    }
+  ],
+  "deps_to_install": [],
+  "deps_dev": ["vitest", "@testing-library/react"],
+  "test_command": "npm test -- --run",
+  "lint_command": "npm run lint"
+}

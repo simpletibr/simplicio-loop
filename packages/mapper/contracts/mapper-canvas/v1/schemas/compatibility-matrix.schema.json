@@ -1,0 +1,13 @@
+{
+  "$id": "simplicio.mapper-canvas-compatibility/v1",
+  "title": "Mapper to Canvas compatibility matrix",
+  "type": "object",
+  "required": ["schema", "version", "mapper_versions", "visualization_schema", "fixtures"],
+  "properties": {
+    "schema": { "type": "string", "enum": ["simplicio.mapper-canvas-compatibility/v1"] },
+    "version": { "type": "integer", "enum": [1] },
+    "mapper_versions": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["version", "status", "schema"] } },
+    "visualization_schema": { "type": "string", "enum": ["simplicio.visualization-bundle/v1"] },
+    "fixtures": { "type": "array", "minItems": 6, "items": { "type": "object", "required": ["name", "category", "golden", "consumer_import"] } }
+  }
+}

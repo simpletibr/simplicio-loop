@@ -1,0 +1,14 @@
+{
+  "schema": "simplicio.executor-contract/v1",
+  "operation": "deterministic_edit",
+  "target": "frontend/src/App.jsx",
+  "layers": [
+    { "name": "parse", "status": "pass", "detail": null },
+    { "name": "precedent", "status": "pass", "detail": null },
+    { "name": "skill_router", "status": "pass", "detail": null },
+    { "name": "apply", "status": "pass", "detail": "git apply clean" },
+    { "name": "test", "status": "fail", "detail": "e2e fetch 404" },
+    { "name": "verify", "status": "skipped", "detail": "gated on test layer" }
+  ],
+  "verified": false
+}

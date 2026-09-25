@@ -1,0 +1,13 @@
+{
+  "slug": "go-gin",
+  "template_version": "0.1.0",
+  "language": "Go 1.22",
+  "framework": "Gin",
+  "framework_version": "^1.10",
+  "package_manager": "go",
+  "test_runner": "go test",
+  "linter": "go vet",
+  "deps_required": ["github.com/gin-gonic/gin@v1.10.0"],
+  "deps_dev": [],
+  "tags": ["web", "api", "go", "rest", "compiled"]
+}

@@ -1,0 +1,55 @@
+{
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5"
+  },
+  "legacy_selected_files": [
+    "target.py",
+    "module_0.py",
+    "module_1.py",
+    "module_2.py",
+    "module_3.py",
+    "module_4.py",
+    "module_5.py",
+    "module_6.py"
+  ],
+  "reason": "real_historical_corpus_and_downstream_success_not_collected",
+  "results": {
+    "legacy-regex": {
+      "cold_median_ms": 94.02745001716539,
+      "cold_p95_ms": 167.41699000122026,
+      "repetitions": 30,
+      "selected_files": [
+        "target.py",
+        "module_0.py",
+        "module_1.py",
+        "module_2.py",
+        "module_3.py",
+        "module_4.py",
+        "module_5.py",
+        "module_6.py"
+      ],
+      "tokens_median": 32.0,
+      "warm_median_ms": 104.13984998012893,
+      "warm_p95_ms": 160.07331001455893
+    },
+    "semantic": {
+      "cold_median_ms": 91.05190000263974,
+      "cold_p95_ms": 179.6104000008199,
+      "repetitions": 30,
+      "selected_files": [
+        "target.py"
+      ],
+      "tokens_median": 4.0,
+      "warm_median_ms": 106.60940001253039,
+      "warm_p95_ms": 147.75257497676643
+    }
+  },
+  "schema": "simplicio.fast.delivery-context-benchmark/v1",
+  "scope": "synthetic_local_corpus",
+  "semantic_selected_files": [
+    "target.py"
+  ],
+  "semantic_token_reduction_vs_legacy": 0.875,
+  "status": "partial"
+}

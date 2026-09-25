@@ -1,0 +1,36 @@
+{
+  "classification": "MEASURED_LOCAL",
+  "lanes": [
+    {
+      "generation_opens": 1,
+      "p50_ns": 42117.5,
+      "p95_ns": 83624,
+      "raw_ns": [1397388, 83624, 57446, 43815, 43745, 40490, 38137, 36404, 38207, 33690],
+      "repetitions": 10,
+      "rss_kib_delta": 256,
+      "slots": 1
+    },
+    {
+      "generation_opens": 1,
+      "p50_ns": 147444.0,
+      "p95_ns": 204935,
+      "raw_ns": [1377889, 151896, 122271, 122311, 161830, 120950, 202311, 204935, 131676, 142992],
+      "repetitions": 10,
+      "rss_kib_delta": 0,
+      "slots": 5
+    },
+    {
+      "generation_opens": 1,
+      "p50_ns": 422122.5,
+      "p95_ns": 530639,
+      "raw_ns": [1572047, 426243, 465633, 412804, 530639, 418002, 430320, 405884, 414907, 406845],
+      "repetitions": 10,
+      "rss_kib_delta": 128,
+      "slots": 20
+    }
+  ],
+  "local_llm": false,
+  "schema": "simplicio.fast-daemon-benchmark/v1",
+  "tokens": null,
+  "tokens_null_reason": "NO_LLM_OR_PROVIDER_USED"
+}

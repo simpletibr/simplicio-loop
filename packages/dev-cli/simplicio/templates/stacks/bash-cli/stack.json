@@ -1,0 +1,13 @@
+{
+  "slug": "bash-cli",
+  "template_version": "0.1.0",
+  "language": "Bash",
+  "framework": "shellcheck + bats",
+  "framework_version": "shellcheck stable",
+  "package_manager": "system",
+  "test_runner": "bats",
+  "linter": "shellcheck",
+  "deps_required": ["bash"],
+  "deps_dev": ["shellcheck", "bats"],
+  "tags": ["cli", "shell", "automation", "posix"]
+}

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simplicio.contract-registry/v1",
+  "title": "Simplicio cross-repository contract registry (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "registry_version", "policy", "contracts"],
+  "properties": {
+    "schema": {"const": "simplicio.contract-registry/v1"},
+    "registry_version": {"type": "integer", "const": 1},
+    "policy": {"type": "object"},
+    "contracts": {"type": "array", "items": {"$ref": "#/$defs/entry"}}
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "owner", "maintainers", "producers", "consumers", "writer_authority", "versions", "canonical", "compatibility", "change_policy"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^simplicio[.][A-Za-z0-9_.-]+/v[0-9]+(?:[.][0-9]+)*$"},
+        "kind": {"type": "string", "minLength": 1},
+        "owner": {"const": "mapper"},
+        "maintainers": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "producers": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "consumers": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "writer_authority": {"type": "string", "minLength": 1},
+        "versions": {"type": "object", "required": ["current", "minimum", "maximum", "deprecated"], "properties": {"current": {"type": "string"}, "minimum": {"type": "string"}, "maximum": {"type": "string"}, "deprecated": {"type": "boolean"}}, "additionalProperties": false},
+        "canonical": {"type": "object", "required": ["schema_path", "sha256", "fixture_paths"], "properties": {"schema_path": {"type": ["string", "null"]}, "sha256": {"type": ["string", "null"]}, "fixture_paths": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false},
+        "compatibility": {"type": "object"},
+        "change_policy": {"type": "object"}
+      }
+    }
+  }
+}

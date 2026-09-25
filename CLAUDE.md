@@ -4,6 +4,23 @@ This repo ships **simplicio-loop**, a runtime-agnostic **super-plugin**: an auto
 looping orchestrator (the `/simplicio-loop` skill) plus six satellite skills, packaged for 12
 runtimes.
 
+## Monorepo layout
+
+This repository holds four packages with one responsibility each:
+
+| Package | Path | Responsibility |
+|---|---|---|
+| `simplicio-loop` | repo root (`simplicio_loop/`) | **orchestration** — the loop, hooks, skills, evidence/PR/progress workers |
+| `simplicio-mapper` | `packages/mapper/` | **survey** — `scan` / `inspect` / `handoff` |
+| `simplicio-fast` | `packages/fast/` | **retrieval** — `ingest` / `understand` / `plan` |
+| `simplicio-dev-cli` | `packages/dev-cli/` | **mutation** — `edit` / `test` / capabilities |
+
+Each package keeps its own tests, gate and version. Dev setup:
+`bash scripts/dev_install.sh` (editable-installs all four into one venv); local gate:
+`python3 scripts/check.py --package all` (or `--package mapper|fast|dev-cli|loop`, or
+`--changed` to run only what a diff touches). There is no GitHub Actions gate — the local
+gate is authoritative.
+
 ## The 7 skills
 
 | Skill | Role |
@@ -25,10 +42,10 @@ supported install surface is the single package `simplicio-cli`, which exposes
 `simplicio-dev-cli` and also brings `simplicio-mapper` transitively; the loop BLOCKS if either
 runtime binary is absent:
 
-| Operator | Binary | pip pkg | Binds | Role |
+| Operator | Binary | Package | Binds | Role |
 |---|---|---|---|---|
-| [simplicio-mapper](https://github.com/wesleysimplicio/simplicio-mapper) | `simplicio-mapper` | transitively via `simplicio-cli` | `orient` | **survey** the repo → `.simplicio/*.json` (the survey that feeds the goal) |
-| [simplicio-dev-cli](https://github.com/wesleysimplicio/simplicio-dev-cli) | `simplicio-dev-cli` | `simplicio-cli` | `execute`/`deterministic_edit` | **operate** — apply+verify each decided change via its 6-layer contract, instead of the AI hand-editing |
+| [simplicio-mapper](packages/mapper/) | `simplicio-mapper` | transitively via `simplicio-cli` | `orient` | **survey** the repo → `.simplicio/*.json` (the survey that feeds the goal) |
+| [simplicio-dev-cli](packages/dev-cli/) | `simplicio-dev-cli` | `simplicio-cli` | `execute`/`deterministic_edit` | **operate** — apply+verify each decided change via its 6-layer contract, instead of the AI hand-editing |
 
 The AI decides; the operators act. See `.claude/skills/simplicio-loop/SKILL.md` § Bound operators
 and `.claude/skills/simplicio-loop/references/extension-points.md` § bound operators.
@@ -89,6 +106,38 @@ budgets, and portable contract validation. `pytest` is mandatory for this comman
 development extra with `pip install "simplicio-loop[dev]"`; a missing or timed-out probe fails
 with a typed reason rather than falling back to direct test-module execution. GitHub Actions is
 not required or accepted as gate evidence; wire the local gate as a git pre-push hook when desired.
+
+## Development
+
+This repo is a monorepo: root `simplicio-loop` plus `packages/mapper`, `packages/fast`, and
+`packages/dev-cli` (each a full package, imported via `git subtree`). `scripts/dev_install.sh`
+creates ONE venv and installs the four in-repo packages editable, from their in-repo paths, in
+dependency order (mapper, fast, dev-cli, then loop) — so the loop you run locally always talks to
+its in-repo siblings, never a stale PyPI release of `simplicio-mapper`/`simplicio-fast`/
+`simplicio-cli`:
+
+```bash
+bash scripts/dev_install.sh            # venv at .venv/ (default)
+bash scripts/dev_install.sh /path/venv # custom venv location
+source .venv/bin/activate
+```
+
+Run one package's own fast local gate (lint/type/unit, from its in-repo location) with
+`scripts/check.py --package`:
+
+```bash
+python3 scripts/check.py --package mapper    # ruff + pytest tests/python -q (+ node unit if node present)
+python3 scripts/check.py --package fast       # pytest -q, PYTHONPATH=src
+python3 scripts/check.py --package dev-cli    # ruff check, ruff format --check, mypy simplicio, pytest tests/python tests/contracts -q
+python3 scripts/check.py --package loop       # no-op alias: the loop's own gate is the rest of this script
+python3 scripts/check.py --package all        # all four
+python3 scripts/check.py --changed            # only the package(s) touched vs origin/main
+```
+
+A missing tool (no `ruff`/`mypy`/`pytest` on PATH or importable) fails with its own typed reason
+(e.g. `package_mapper_ruff_missing`) rather than being silently skipped. The cross-package e2e
+(`packages/fast/tests/test_public_handoff_ingest_e2e.py`, Mapper `handoff` → Fast integrated
+ingest) is part of the default (unflagged) `scripts/check.py` run.
 
 ## Install (this or another project)
 
@@ -199,6 +248,16 @@ release e documentação neste ecossistema. O agente deve lê-las antes de agir:
 <!-- simplicio-global-llm-architecture-rules:end -->
 
 
+
+## Releases in a monorepo
+
+Each package tags and releases independently: `loop vX.Y.Z`, `mapper-vX.Y.Z`, `fast-vX.Y.Z`,
+`dev-cli-vX.Y.Z`. Since all four now live in this repo, cross-repo release-train
+machinery (`scripts/release_train*.py`, `scripts/component_release.py`,
+`scripts/reconcile_delivery_receipts.py`) is legacy from the pre-monorepo split; it still
+runs today (untouched by this pass — removing it safely needs coordinated edits across
+`simplicio_loop/cli_impl.py` and its test suite) but is a known removal candidate now that
+there is no cross-repo boundary left to reconcile.
 
 ## Language precedence
 

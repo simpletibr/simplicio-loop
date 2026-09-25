@@ -1,0 +1,73 @@
+{
+  "checks": [
+    {"id": "default_refs_frozen", "reason": "all default remote refs have exact SHAs", "status": "pass"},
+    {"id": "mapper_ddl_allowlist", "reason": "Mapper DDL is within the MapperStore allowlist", "status": "pass"},
+    {"id": "external_legacy_writers_removed", "reason": "consumer repositories still contain legacy SQLite/DDL evidence", "status": "fail"},
+    {"id": "clean_default_checkout", "reason": "clean default checkout is required for release evidence", "status": "unverified"},
+    {"id": "fast_isolation", "reason": "Fast was not supplied to this gate; isolation remains unverified", "status": "unverified"},
+    {"id": "loop_standalone", "reason": "standalone installed-package smoke must run outside this source checkout", "status": "unverified"},
+    {"id": "runtime_single_authority", "reason": "Runtime-backed cutover and Rust adapter smoke require the installed Runtime package", "status": "unverified"},
+    {"id": "database_inventory_readable", "reason": "all supplied databases were inspected read-only", "status": "pass"},
+    {"id": "installed_package_matrix", "reason": "fresh/upgrade and Windows/Linux/macOS installed-package matrix was not executed here", "status": "unverified"}
+  ],
+  "evidence_hash": "c4715c2413ec133420075c781fd34f88db162961c559f87d49610fddf146c20e",
+  "generated_at": null,
+  "host": {"platform": "macOS-26.3-arm64-arm-64bit-Mach-O", "python": "3.14.6"},
+  "inventory": {
+    "databases": [{"path": "headroom_memory.db", "repo": "loop", "sha256": "dccaa6ed8acdb181e7fded356eb958976d370e9de26525560624e7fe6f0f984f", "status": "readable"}],
+    "inventory_sha256": "80e354d67c074fc173fc2857a2063173239eef68e606606c091cc974020d90be",
+    "policy": {"legacy_ddl_matches": 99, "schema": "simplicio.mapper-store-ddl-policy/v1", "status": "pass", "violations": []},
+    "schema": "simplicio.mapper-store-inventory/v1"
+  },
+  "read_only": true,
+  "release_order": [
+    "publish mapper contracts",
+    "validate installed packages and Rust bindings",
+    "shadow rollout consumers",
+    "collect zero unexplained mismatch",
+    "explicit sandbox cutover",
+    "fault injection and rollback",
+    "promote MapperStore defaults",
+    "keep legacy read-only during window",
+    "remove legacy writers after verified backup"
+  ],
+  "repositories": {
+    "dev-cli": {"branch": "master", "checked_out_branch": "agent/canonical-context-preflight", "checked_out_sha": "d2b28b711067ea3fba050ee406ddd585d18d9ac8", "sha": "5953912645946ce1b5cfaf2353d688d76b40ff58"},
+    "loop": {"branch": "main", "checked_out_branch": "agent/task-spec-verification", "checked_out_sha": "2f250e4161a0212f0f1b0cc0caa9dc3610e3c216", "sha": "ad3250cda5b8f43d08152491f22c959d58c85445"},
+    "mapper": {"branch": "main", "checked_out_branch": "issue/481-final-conformance", "checked_out_sha": "a3339d27324eb7239066c813664700997f2a6d45", "sha": "a3339d27324eb7239066c813664700997f2a6d45"},
+    "runtime": {"branch": "main", "checked_out_branch": "agent/runtime-adapter-auto-update", "checked_out_sha": "6289112936ee7e0500133f1b1d9c954a5bd80aea", "sha": "7dd57a1fb5fbef28ea407391d0a7c03f14a2f58c"}
+  },
+  "residual_unverified": [
+    {"id": "clean_default_checkout", "reason": "clean default checkout is required for release evidence"},
+    {"id": "fast_isolation", "reason": "Fast was not supplied to this gate; isolation remains unverified"},
+    {"id": "loop_standalone", "reason": "standalone installed-package smoke must run outside this source checkout"},
+    {"id": "runtime_single_authority", "reason": "Runtime-backed cutover and Rust adapter smoke require the installed Runtime package"},
+    {"id": "installed_package_matrix", "reason": "fresh/upgrade and Windows/Linux/macOS installed-package matrix was not executed here"},
+    {"id": "scenario:fresh standalone", "reason": "scenario requires a clean sandbox and external consumer packages"},
+    {"id": "scenario:upgrade standalone", "reason": "scenario requires a clean sandbox and external consumer packages"},
+    {"id": "scenario:fresh runtime-backed", "reason": "scenario requires a clean sandbox and external consumer packages"},
+    {"id": "scenario:upgrade runtime-backed", "reason": "scenario requires a clean sandbox and external consumer packages"},
+    {"id": "scenario:sqlite-vec present", "reason": "scenario requires a clean sandbox and external consumer packages"},
+    {"id": "scenario:sqlite-vec absent", "reason": "scenario requires a clean sandbox and external consumer packages"},
+    {"id": "scenario:crash during migration", "reason": "scenario requires a clean sandbox and external consumer packages"},
+    {"id": "scenario:legacy database corrupted", "reason": "scenario requires a clean sandbox and external consumer packages"},
+    {"id": "scenario:Windows", "reason": "scenario requires a clean sandbox and external consumer packages"},
+    {"id": "scenario:Linux", "reason": "scenario requires a clean sandbox and external consumer packages"},
+    {"id": "scenario:macOS", "reason": "scenario requires a clean sandbox and external consumer packages"}
+  ],
+  "scenarios": [
+    {"id": "scenario:fresh standalone", "reason": "scenario requires a clean sandbox and external consumer packages", "status": "unverified"},
+    {"id": "scenario:upgrade standalone", "reason": "scenario requires a clean sandbox and external consumer packages", "status": "unverified"},
+    {"id": "scenario:fresh runtime-backed", "reason": "scenario requires a clean sandbox and external consumer packages", "status": "unverified"},
+    {"id": "scenario:upgrade runtime-backed", "reason": "scenario requires a clean sandbox and external consumer packages", "status": "unverified"},
+    {"id": "scenario:sqlite-vec present", "reason": "scenario requires a clean sandbox and external consumer packages", "status": "unverified"},
+    {"id": "scenario:sqlite-vec absent", "reason": "scenario requires a clean sandbox and external consumer packages", "status": "unverified"},
+    {"id": "scenario:crash during migration", "reason": "scenario requires a clean sandbox and external consumer packages", "status": "unverified"},
+    {"id": "scenario:legacy database corrupted", "reason": "scenario requires a clean sandbox and external consumer packages", "status": "unverified"},
+    {"id": "scenario:Windows", "reason": "scenario requires a clean sandbox and external consumer packages", "status": "unverified"},
+    {"id": "scenario:Linux", "reason": "scenario requires a clean sandbox and external consumer packages", "status": "unverified"},
+    {"id": "scenario:macOS", "reason": "scenario requires a clean sandbox and external consumer packages", "status": "unverified"}
+  ],
+  "schema": "simplicio.mapper-store-conformance/v1",
+  "status": "fail"
+}

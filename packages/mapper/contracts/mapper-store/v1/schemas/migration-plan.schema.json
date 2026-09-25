@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/migration-plan.schema.json",
+  "title": "simplicio.mapper-store.migration-plan/v1",
+  "type": "object",
+  "required": ["schema", "database", "manifest_hash", "current_version", "target_version", "steps", "blocked"],
+  "properties": {
+    "schema": { "enum": ["simplicio.mapper-store.migration-plan/v1"] },
+    "database": { "type": "string" },
+    "manifest_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "current_version": { "type": "integer", "minimum": 0 },
+    "target_version": { "type": "integer", "minimum": 0 },
+    "steps": { "type": "array", "items": { "type": "object", "required": ["id", "from_version", "to_version", "forward", "verification_query", "checksum"], "properties": { "id": { "type": "string" }, "from_version": { "type": "integer" }, "to_version": { "type": "integer" }, "forward": { "type": "array" }, "verification_query": { "type": "string" }, "checksum": { "type": "string" } } } },
+    "blocked": { "type": "boolean" }
+  }
+}

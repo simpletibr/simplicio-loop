@@ -1,0 +1,14 @@
+{
+  "slug": "ts-nestjs",
+  "template_version": "0.1.0",
+  "language": "TypeScript 5",
+  "framework": "NestJS",
+  "framework_version": "10 + Fastify",
+  "node": ">=20",
+  "package_manager": "npm",
+  "test_runner": "jest",
+  "linter": "eslint",
+  "deps_required": ["@nestjs/common", "@nestjs/core", "@nestjs/platform-fastify", "reflect-metadata", "rxjs"],
+  "deps_dev": ["typescript", "jest", "ts-jest", "@types/jest", "eslint"],
+  "tags": ["web", "api", "typescript", "node", "dependency-injection"]
+}

@@ -281,6 +281,25 @@ fica quase concluída e mostra o blocker. Consulte o contrato completo em
 
 ---
 
+## 📦 Monorepo packages
+
+This repository holds four packages, each with one responsibility:
+
+| Package | Path | Responsibility |
+|---|---|---|
+| **`simplicio-loop`** | repo root (`simplicio_loop/`) | **orchestration** — the loop, skills, hooks, and the evidence/PR/progress workers described below |
+| **`simplicio-mapper`** | [`packages/mapper/`](packages/mapper/) | **survey** — `scan` / `inspect` / `handoff` |
+| **`simplicio-fast`** | [`packages/fast/`](packages/fast/) | **retrieval** — `ingest` / `understand` / `plan` |
+| **`simplicio-dev-cli`** | [`packages/dev-cli/`](packages/dev-cli/) | **mutation** — `edit` / `test` / capabilities |
+
+Dev setup (editable-installs all four into one venv): `bash scripts/dev_install.sh`. Local
+gate: `python3 scripts/check.py --package all` (or `--package mapper|fast|dev-cli|loop`, or
+`--changed` to run only what a diff touches). There is no GitHub Actions gate here — the
+local gate is authoritative. The 5-command flow through the loop is: **orient → prepare →
+wave → tick → verify** (see [The loop](#-the-loop) below).
+
+---
+
 ## 🤖 LLM front door
 
 If you are an agent/runtime entering this repo cold, read `llms.txt` first for the short operational contract, then `AGENTS.md`, then `.claude/skills/simplicio-loop/SKILL.md`.
@@ -1043,6 +1062,12 @@ Claims are verified, not just asserted — and the gate runs **locally**, with z
 python3 scripts/check.py             # complete local gate (core + satellite tests)
 python3 scripts/check.py --core-gate # mandatory offline/bounded core; external lanes excluded
 ```
+
+Monorepo (`packages/mapper`, `packages/fast`, `packages/dev-cli`): `bash scripts/dev_install.sh`
+sets up one venv with all four packages editable from their in-repo paths, and
+`python3 scripts/check.py --package mapper|fast|dev-cli|loop|all` (or `--changed`, scoped to what
+you touched vs `origin/main`) runs one package's own fast gate from its in-repo location — see
+[`CLAUDE.md` § Development](CLAUDE.md#development).
 
 Both commands require an importable `pytest`; its absence is `pytest_unavailable`, never a
 direct-execution fallback. The core gate runs claims audit, mirror parity, core pytest tests,

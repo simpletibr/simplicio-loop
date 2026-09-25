@@ -1,0 +1,8 @@
+{
+  "system": "Physics",
+  "functionality": "Quantum orbital photon scheduler",
+  "goal": "Produce a quantum orbital photon scheduler unrelated to the repository files.",
+  "acceptance_criteria": [
+    "the mapper should abstain instead of inventing targets"
+  ]
+}

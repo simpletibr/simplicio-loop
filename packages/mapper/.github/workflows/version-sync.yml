@@ -1,0 +1,38 @@
+# Version-sync guard — package.json, pyproject.toml, and __init__.py
+# must report the same SemVer string (issue #102).
+
+name: Version Sync
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: version-sync-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version-sync:
+    name: Align package / pyproject / __init__ versions
+    # Pin the guard to the same known hosted image as the release lane so a
+    # moving-label outage cannot fail the job before its first step.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Check version alignment
+        run: python scripts/check-version-sync.py

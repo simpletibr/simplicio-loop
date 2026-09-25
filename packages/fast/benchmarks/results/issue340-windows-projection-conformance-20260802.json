@@ -1,0 +1,26 @@
+{
+  "schema": "simplicio.fast.projection-conformance/v1",
+  "status": "partial",
+  "repository": "wesleysimplicio/simplicio-fast",
+  "fixture": "fixtures/projection/v1/code-symbol.json",
+  "fixture_sha256": "sha256:4b796fd80cc5e8eb513162ff92f2988857c5da24c07a30e0f017d655364763f6",
+  "environment": {
+    "platform": "Windows",
+    "python": "3.14",
+    "rust_toolchain": "rust-version-1.70-compatible"
+  },
+  "checks": {
+    "python_projection_tests": {"passed": 10},
+    "rust_projection_tests": {"passed": 18},
+    "cargo_fmt_check": "passed",
+    "cargo_clippy_deny_warnings": "passed",
+    "python_ruff": "passed",
+    "python_rust_golden_bytes": "passed",
+    "python_rust_unicode_digest": "passed"
+  },
+  "remaining": [
+    "Linux/macOS/ARM installed matrix",
+    "fuzz/property/coverage receipts",
+    "real Mapper Contract Registry and Runtime conformance"
+  ]
+}

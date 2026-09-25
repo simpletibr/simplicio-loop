@@ -1,0 +1,110 @@
+{
+  "case_id": "feature-auth-flow",
+  "invocations": [
+    {
+      "args": [
+        "C:\\Users\\wesley.simplicio\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "-m",
+        "simplicio.cli",
+        "run",
+        "Implement JWT login endpoint.",
+        "--scope",
+        "task",
+        "--root",
+        "C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\simplicio-run-f5-live-fixture",
+        "--stack",
+        "py-fastapi",
+        "--target",
+        "src/api/auth.py",
+        "--criteria",
+        "- fixture verification passes",
+        "--constraints",
+        "- no external services",
+        "--json"
+      ],
+      "duration_s": 0.599,
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "{\"applied\": true, \"cost_usd\": 0.0, \"diff_summary\": \"changed src/api/auth.py\", \"files_changed\": [\"src/api/auth.py\"], \"task_id\": \"src/api/auth.py\", \"tokens_used\": {\"completion\": 22, \"prompt\": 224}, \"warnings\": []}\n"
+    },
+    {
+      "args": [
+        "C:\\Users\\wesley.simplicio\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "-m",
+        "simplicio.cli",
+        "run",
+        "Implement refresh-token rotation.",
+        "--scope",
+        "task",
+        "--root",
+        "C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\simplicio-run-f5-live-fixture",
+        "--stack",
+        "py-fastapi",
+        "--target",
+        "src/api/refresh.py",
+        "--criteria",
+        "- fixture verification passes",
+        "--constraints",
+        "- no external services",
+        "--json"
+      ],
+      "duration_s": 0.473,
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "{\"applied\": true, \"cost_usd\": 0.0, \"diff_summary\": \"changed src/api/refresh.py\", \"files_changed\": [\"src/api/refresh.py\"], \"task_id\": \"src/api/refresh.py\", \"tokens_used\": {\"completion\": 22, \"prompt\": 222}, \"warnings\": []}\n"
+    },
+    {
+      "args": [
+        "C:\\Users\\wesley.simplicio\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "-m",
+        "simplicio.cli",
+        "run",
+        "Implement login UI state.",
+        "--scope",
+        "task",
+        "--root",
+        "C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\simplicio-run-f5-live-fixture",
+        "--stack",
+        "py-fastapi",
+        "--target",
+        "src/ui/Login.tsx",
+        "--criteria",
+        "- fixture verification passes",
+        "--constraints",
+        "- no external services",
+        "--json"
+      ],
+      "duration_s": 0.554,
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "{\"applied\": true, \"cost_usd\": 0.0, \"diff_summary\": \"changed src/ui/Login.tsx\", \"files_changed\": [\"src/ui/Login.tsx\"], \"task_id\": \"src/ui/Login.tsx\", \"tokens_used\": {\"completion\": 22, \"prompt\": 224}, \"warnings\": []}\n"
+    },
+    {
+      "args": [
+        "C:\\Users\\wesley.simplicio\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "-m",
+        "simplicio.cli",
+        "run",
+        "Implement session refresh UI helper.",
+        "--scope",
+        "task",
+        "--root",
+        "C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\simplicio-run-f5-live-fixture",
+        "--stack",
+        "py-fastapi",
+        "--target",
+        "src/ui/session.ts",
+        "--criteria",
+        "- fixture verification passes",
+        "--constraints",
+        "- no external services",
+        "--json"
+      ],
+      "duration_s": 0.386,
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "{\"applied\": true, \"cost_usd\": 0.0, \"diff_summary\": \"changed src/ui/session.ts\", \"files_changed\": [\"src/ui/session.ts\"], \"task_id\": \"src/ui/session.ts\", \"tokens_used\": {\"completion\": 22, \"prompt\": 225}, \"warnings\": []}\n"
+    }
+  ],
+  "mode_id": "cli_ag"
+}

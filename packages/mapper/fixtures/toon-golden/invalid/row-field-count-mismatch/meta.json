@@ -1,0 +1,5 @@
+{
+  "error_class": "ValueError",
+  "reason_contains": "mismatch",
+  "description": "Row has 3 values for a 2-field header. simplicio-sprint's known bug: silently drops the excess value instead of erroring. The canonical decoder must reject."
+}

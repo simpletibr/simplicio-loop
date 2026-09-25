@@ -1,0 +1,7 @@
+{
+  "name": "ctx-pack-host",
+  "users": [
+    { "id": 1, "name": "alpha" },
+    { "id": 2, "name": "beta" }
+  ]
+}

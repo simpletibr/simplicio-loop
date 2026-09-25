@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/negotiation.schema.json",
+  "title": "simplicio.mapper-store.negotiation/v1",
+  "type": "object",
+  "required": ["schema", "compatible", "reader", "writer", "minimum_version", "maximum_version", "reason_code"],
+  "properties": {
+    "schema": { "enum": ["simplicio.mapper-store.negotiation/v1"] },
+    "compatible": { "type": "boolean" },
+    "reader": { "$ref": "#/$defs/range" },
+    "writer": { "$ref": "#/$defs/range" },
+    "minimum_version": { "type": "integer" },
+    "maximum_version": { "type": "integer" },
+    "missing_capabilities": { "type": "array", "items": { "type": "string" } },
+    "reason_code": { "type": ["string", "null"] }
+  },
+  "$defs": { "range": { "type": "object", "required": ["minimum", "maximum"], "properties": { "minimum": { "type": "integer" }, "maximum": { "type": "integer" } } } }
+}

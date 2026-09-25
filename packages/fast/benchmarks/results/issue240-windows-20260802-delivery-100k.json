@@ -1,0 +1,44 @@
+{
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5"
+  },
+  "first_status": "ready",
+  "performance_gate": {
+    "limit_ms": 25.0,
+    "name": "warm_p95_ms<=25",
+    "observed_ms": 514.6726250095526,
+    "passed": false
+  },
+  "schema": "simplicio.fast.delivery-100k-benchmark/v1",
+  "scope": "synthetic-100k-symbol-delivery-fixture",
+  "selected_files": [
+    "module_050.py"
+  ],
+  "snapshot_ms": 4274.901300028432,
+  "status": "partial",
+  "unverified": [
+    "historical_task_corpus",
+    "installed_cross_platform",
+    "downstream_task_success"
+  ],
+  "warm_median_ms": 419.77350000524893,
+  "warm_ms": [
+    523.6706000287086,
+    412.2693000244908,
+    425.9747000178322,
+    413.57229999266565,
+    412.6348000136204,
+    503.6750999861397,
+    413.3206999977119,
+    494.05450001358986,
+    405.07869998691604,
+    493.8016999512911
+  ],
+  "warm_p95_ms": 514.6726250095526,
+  "workload": {
+    "files": 100,
+    "repetitions": 10,
+    "symbols": 100000
+  }
+}

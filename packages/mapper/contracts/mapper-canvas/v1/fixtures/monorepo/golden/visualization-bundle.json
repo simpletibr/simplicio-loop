@@ -1,0 +1,1519 @@
+{
+  "capabilities": [
+    "hierarchy",
+    "typed-edges",
+    "flows",
+    "provenance",
+    "source-preview",
+    "language-diagnostics",
+    "clustering-metrics",
+    "layout-hints"
+  ],
+  "clustering": {
+    "clusters": [
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 0.1,
+        "edge_count": 2,
+        "external_edge_count": 0,
+        "id": "cluster:workspace:86fa3762d2eb6db6",
+        "importance": 0.468,
+        "internal_edge_count": 2,
+        "kind": "workspace",
+        "language_mix": {
+          "json": 3,
+          "typescript": 2
+        },
+        "member_count": 5,
+        "member_ids": [
+          "cluster:file:bdb91e373755f978",
+          "cluster:file:57afe8590d74b167",
+          "cluster:file:d7f6204f00b61069",
+          "cluster:file:ace0916c85dd0a1f",
+          "cluster:file:285c2520fb367552"
+        ],
+        "member_paths": [
+          "apps/web/package.json",
+          "apps/web/src/index.ts",
+          "package.json",
+          "packages/shared/package.json",
+          "packages/shared/src/index.ts"
+        ],
+        "name": ".",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:directory:c22d9e7664332f0b",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "directory",
+        "language_mix": {
+          "json": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:d7f6204f00b61069"
+        ],
+        "member_paths": [
+          "package.json"
+        ],
+        "name": ".",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:directory:ae239d5b4252a715",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "directory",
+        "language_mix": {
+          "json": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:bdb91e373755f978"
+        ],
+        "member_paths": [
+          "apps/web/package.json"
+        ],
+        "name": "apps/web",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 1.0,
+        "dependency_density": 0.0,
+        "edge_count": 2,
+        "external_edge_count": 2,
+        "id": "cluster:directory:eb9f5a44169e7164",
+        "importance": 0.73,
+        "internal_edge_count": 0,
+        "kind": "directory",
+        "language_mix": {
+          "typescript": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:57afe8590d74b167"
+        ],
+        "member_paths": [
+          "apps/web/src/index.ts"
+        ],
+        "name": "apps/web/src",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:directory:502e97b0d7c3d4af",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "directory",
+        "language_mix": {
+          "json": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:ace0916c85dd0a1f"
+        ],
+        "member_paths": [
+          "packages/shared/package.json"
+        ],
+        "name": "packages/shared",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:directory:e58674f1febad6d5",
+        "importance": 0.65,
+        "internal_edge_count": 0,
+        "kind": "directory",
+        "language_mix": {
+          "typescript": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:285c2520fb367552"
+        ],
+        "member_paths": [
+          "packages/shared/src/index.ts"
+        ],
+        "name": "packages/shared/src",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:package:710115d946c582c2",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "package",
+        "language_mix": {
+          "json": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:d7f6204f00b61069"
+        ],
+        "member_paths": [
+          "package.json"
+        ],
+        "name": ".",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 1.0,
+        "dependency_density": 0.0,
+        "edge_count": 2,
+        "external_edge_count": 2,
+        "id": "cluster:package:25db14021bce7ce0",
+        "importance": 0.525,
+        "internal_edge_count": 0,
+        "kind": "package",
+        "language_mix": {
+          "json": 1,
+          "typescript": 1
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:bdb91e373755f978",
+          "cluster:file:57afe8590d74b167"
+        ],
+        "member_paths": [
+          "apps/web/package.json",
+          "apps/web/src/index.ts"
+        ],
+        "name": "apps/web",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:package:9f840be873c58b56",
+        "importance": 0.485,
+        "internal_edge_count": 0,
+        "kind": "package",
+        "language_mix": {
+          "json": 1,
+          "typescript": 1
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:ace0916c85dd0a1f",
+          "cluster:file:285c2520fb367552"
+        ],
+        "member_paths": [
+          "packages/shared/package.json",
+          "packages/shared/src/index.ts"
+        ],
+        "name": "packages/shared",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 1.0,
+        "dependency_density": 0.0,
+        "edge_count": 2,
+        "external_edge_count": 2,
+        "id": "cluster:namespace:c857f8688ad49062",
+        "importance": 0.525,
+        "internal_edge_count": 0,
+        "kind": "namespace",
+        "language_mix": {
+          "json": 1,
+          "typescript": 1
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:bdb91e373755f978",
+          "cluster:file:57afe8590d74b167"
+        ],
+        "member_paths": [
+          "apps/web/package.json",
+          "apps/web/src/index.ts"
+        ],
+        "name": "apps",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:namespace:ad0eed0c5b9bdb9b",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "namespace",
+        "language_mix": {
+          "json": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:d7f6204f00b61069"
+        ],
+        "member_paths": [
+          "package.json"
+        ],
+        "name": "package",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:namespace:0c8f34277e179f9f",
+        "importance": 0.485,
+        "internal_edge_count": 0,
+        "kind": "namespace",
+        "language_mix": {
+          "json": 1,
+          "typescript": 1
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:ace0916c85dd0a1f",
+          "cluster:file:285c2520fb367552"
+        ],
+        "member_paths": [
+          "packages/shared/package.json",
+          "packages/shared/src/index.ts"
+        ],
+        "name": "packages",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:domain:1342946d9b16f05a",
+        "importance": 0.485,
+        "internal_edge_count": 0,
+        "kind": "domain",
+        "language_mix": {
+          "json": 1,
+          "typescript": 1
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:ace0916c85dd0a1f",
+          "cluster:file:285c2520fb367552"
+        ],
+        "member_paths": [
+          "packages/shared/package.json",
+          "packages/shared/src/index.ts"
+        ],
+        "name": "shared",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:domain:883d523e9eba130e",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "domain",
+        "language_mix": {
+          "json": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:d7f6204f00b61069"
+        ],
+        "member_paths": [
+          "package.json"
+        ],
+        "name": "unclassified",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 1.0,
+        "dependency_density": 0.0,
+        "edge_count": 2,
+        "external_edge_count": 2,
+        "id": "cluster:domain:e94ef5aab68863e4",
+        "importance": 0.525,
+        "internal_edge_count": 0,
+        "kind": "domain",
+        "language_mix": {
+          "json": 1,
+          "typescript": 1
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:bdb91e373755f978",
+          "cluster:file:57afe8590d74b167"
+        ],
+        "member_paths": [
+          "apps/web/package.json",
+          "apps/web/src/index.ts"
+        ],
+        "name": "web",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:layer:c79aec78748b7816",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "layer",
+        "language_mix": {
+          "json": 3
+        },
+        "member_count": 3,
+        "member_ids": [
+          "cluster:file:bdb91e373755f978",
+          "cluster:file:d7f6204f00b61069",
+          "cluster:file:ace0916c85dd0a1f"
+        ],
+        "member_paths": [
+          "apps/web/package.json",
+          "package.json",
+          "packages/shared/package.json"
+        ],
+        "name": "config",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 1.0,
+        "edge_count": 2,
+        "external_edge_count": 0,
+        "id": "cluster:layer:f333279cd5d5eb65",
+        "importance": 0.69,
+        "internal_edge_count": 2,
+        "kind": "layer",
+        "language_mix": {
+          "typescript": 2
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:57afe8590d74b167",
+          "cluster:file:285c2520fb367552"
+        ],
+        "member_paths": [
+          "apps/web/src/index.ts",
+          "packages/shared/src/index.ts"
+        ],
+        "name": "entrypoint",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 1.0,
+        "edge_count": 2,
+        "external_edge_count": 0,
+        "id": "cluster:flow:f250f0bba0e7422b",
+        "importance": 0.69,
+        "internal_edge_count": 2,
+        "kind": "flow",
+        "language_mix": {
+          "typescript": 2
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:57afe8590d74b167",
+          "cluster:file:285c2520fb367552"
+        ],
+        "member_paths": [
+          "apps/web/src/index.ts",
+          "packages/shared/src/index.ts"
+        ],
+        "name": "apps.web.src.index",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:flow:3519d0add07f6d51",
+        "importance": 0.65,
+        "internal_edge_count": 0,
+        "kind": "flow",
+        "language_mix": {
+          "typescript": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:285c2520fb367552"
+        ],
+        "member_paths": [
+          "packages/shared/src/index.ts"
+        ],
+        "name": "packages.shared.src.index",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 1.0,
+        "edge_count": 2,
+        "external_edge_count": 0,
+        "id": "cluster:graph-community:64a761f1229ba325",
+        "importance": 0.69,
+        "internal_edge_count": 2,
+        "kind": "graph-community",
+        "language_mix": {
+          "typescript": 2
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:57afe8590d74b167",
+          "cluster:file:285c2520fb367552"
+        ],
+        "member_paths": [
+          "apps/web/src/index.ts",
+          "packages/shared/src/index.ts"
+        ],
+        "name": "apps/web/src/index.ts|packages/shared/src/index.ts",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      }
+    ],
+    "config": {
+      "community_min_size": 2,
+      "layout_hints": {
+        "enabled": true,
+        "lane_order": [
+          "workspace",
+          "package",
+          "directory",
+          "namespace",
+          "domain",
+          "layer",
+          "flow",
+          "graph-community"
+        ]
+      },
+      "max_clusters_per_strategy": 100,
+      "min_cluster_size": 1
+    },
+    "generated_at": "1970-01-01T00:00:00.000Z",
+    "layout_hints": [
+      {
+        "cluster_id": "cluster:workspace:86fa3762d2eb6db6",
+        "collapse_level": "expanded",
+        "importance": 0.468,
+        "lane": "workspace",
+        "lane_index": 0,
+        "order": 0,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:directory:c22d9e7664332f0b",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "directory",
+        "lane_index": 2,
+        "order": 1,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:directory:ae239d5b4252a715",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "directory",
+        "lane_index": 2,
+        "order": 2,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:directory:eb9f5a44169e7164",
+        "collapse_level": "members",
+        "importance": 0.73,
+        "lane": "directory",
+        "lane_index": 2,
+        "order": 3,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:directory:502e97b0d7c3d4af",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "directory",
+        "lane_index": 2,
+        "order": 4,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:directory:e58674f1febad6d5",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "directory",
+        "lane_index": 2,
+        "order": 5,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:package:710115d946c582c2",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "package",
+        "lane_index": 1,
+        "order": 6,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:package:25db14021bce7ce0",
+        "collapse_level": "members",
+        "importance": 0.525,
+        "lane": "package",
+        "lane_index": 1,
+        "order": 7,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:package:9f840be873c58b56",
+        "collapse_level": "expanded",
+        "importance": 0.485,
+        "lane": "package",
+        "lane_index": 1,
+        "order": 8,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:namespace:c857f8688ad49062",
+        "collapse_level": "members",
+        "importance": 0.525,
+        "lane": "namespace",
+        "lane_index": 3,
+        "order": 9,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:namespace:ad0eed0c5b9bdb9b",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "namespace",
+        "lane_index": 3,
+        "order": 10,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:namespace:0c8f34277e179f9f",
+        "collapse_level": "expanded",
+        "importance": 0.485,
+        "lane": "namespace",
+        "lane_index": 3,
+        "order": 11,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:domain:1342946d9b16f05a",
+        "collapse_level": "expanded",
+        "importance": 0.485,
+        "lane": "domain",
+        "lane_index": 4,
+        "order": 12,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:domain:883d523e9eba130e",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "domain",
+        "lane_index": 4,
+        "order": 13,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:domain:e94ef5aab68863e4",
+        "collapse_level": "members",
+        "importance": 0.525,
+        "lane": "domain",
+        "lane_index": 4,
+        "order": 14,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:layer:c79aec78748b7816",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "layer",
+        "lane_index": 5,
+        "order": 15,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:layer:f333279cd5d5eb65",
+        "collapse_level": "members",
+        "importance": 0.69,
+        "lane": "layer",
+        "lane_index": 5,
+        "order": 16,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:flow:f250f0bba0e7422b",
+        "collapse_level": "members",
+        "importance": 0.69,
+        "lane": "flow",
+        "lane_index": 6,
+        "order": 17,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:flow:3519d0add07f6d51",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "flow",
+        "lane_index": 6,
+        "order": 18,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:graph-community:64a761f1229ba325",
+        "collapse_level": "members",
+        "importance": 0.69,
+        "lane": "graph-community",
+        "lane_index": 7,
+        "order": 19,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      }
+    ],
+    "mapper_version": "0.0.0",
+    "project": {
+      "file_count": 5,
+      "root": "."
+    },
+    "provenance": {
+      "config": {
+        "community_min_size": 2,
+        "layout_hints": {
+          "enabled": true,
+          "lane_order": [
+            "workspace",
+            "package",
+            "directory",
+            "namespace",
+            "domain",
+            "layer",
+            "flow",
+            "graph-community"
+          ]
+        },
+        "max_clusters_per_strategy": 100,
+        "min_cluster_size": 1
+      },
+      "metrics": "directed call/import edges; cohesion=internal/incident; coupling=external/incident",
+      "strategies": [
+        "workspace",
+        "directory",
+        "package",
+        "namespace",
+        "domain",
+        "layer",
+        "flow",
+        "graph-community"
+      ]
+    },
+    "schema": "simplicio.clustering-metrics/v1",
+    "schema_version": "v1",
+    "version": 1
+  },
+  "diagnostics": [
+    {
+      "code": "heuristic-edge",
+      "count": 7
+    },
+    {
+      "code": "unresolved-relation",
+      "count": 0
+    }
+  ],
+  "edges": [
+    {
+      "confidence": 0.58,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "symbol:0614603f95ead51b",
+      "source_location": {
+        "line": 2,
+        "path": "apps/web/src/index.ts"
+      },
+      "target": "symbol:262c6a0509426bae",
+      "type": "calls"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:285c2520fb367552",
+      "source_location": {
+        "line": 1,
+        "path": "packages/shared/src/index.ts"
+      },
+      "target": "symbol:262c6a0509426bae",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:57afe8590d74b167",
+      "source_location": {
+        "line": 2,
+        "path": "apps/web/src/index.ts"
+      },
+      "target": "symbol:0614603f95ead51b",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:5a219264bc5d86e9",
+      "source_location": {
+        "path": "package.json"
+      },
+      "target": "file:d7f6204f00b61069",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:a6a4aa90076b3d1f",
+      "source_location": {
+        "path": "packages/shared/src/index.ts"
+      },
+      "target": "file:285c2520fb367552",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:a6a4aa90076b3d1f",
+      "source_location": {
+        "path": "packages/shared/package.json"
+      },
+      "target": "file:ace0916c85dd0a1f",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:dffca0b038d04d1c",
+      "source_location": {
+        "path": "apps/web/src/index.ts"
+      },
+      "target": "file:57afe8590d74b167",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:dffca0b038d04d1c",
+      "source_location": {
+        "path": "apps/web/package.json"
+      },
+      "target": "file:bdb91e373755f978",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:42177d2beb94e396",
+      "source_location": null,
+      "target": "flow:3519d0add07f6d51",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:42177d2beb94e396",
+      "source_location": null,
+      "target": "flow:f250f0bba0e7422b",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:42177d2beb94e396",
+      "source_location": null,
+      "target": "module:5a219264bc5d86e9",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:42177d2beb94e396",
+      "source_location": null,
+      "target": "module:a6a4aa90076b3d1f",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:42177d2beb94e396",
+      "source_location": null,
+      "target": "module:dffca0b038d04d1c",
+      "type": "contains"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:42177d2beb94e396",
+      "source_location": null,
+      "target": "layer:c79aec78748b7816",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:42177d2beb94e396",
+      "source_location": null,
+      "target": "layer:f333279cd5d5eb65",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.82,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:57afe8590d74b167",
+      "source_location": {
+        "path": "apps/web/src/index.ts"
+      },
+      "target": "file:285c2520fb367552",
+      "type": "imports"
+    },
+    {
+      "confidence": 0.5,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:57afe8590d74b167",
+      "source_location": {
+        "line": 1,
+        "path": "packages/shared/src/index.ts"
+      },
+      "target": "file:285c2520fb367552",
+      "type": "transitions-to"
+    },
+    {
+      "confidence": 0.5,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "flow:3519d0add07f6d51",
+      "source_location": {
+        "line": 1,
+        "path": "packages/shared/src/index.ts"
+      },
+      "target": "file:285c2520fb367552",
+      "type": "transitions-to"
+    },
+    {
+      "confidence": 0.5,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "flow:f250f0bba0e7422b",
+      "source_location": {
+        "line": 2,
+        "path": "apps/web/src/index.ts"
+      },
+      "target": "file:57afe8590d74b167",
+      "type": "transitions-to"
+    }
+  ],
+  "flows": [
+    {
+      "confidence": "heuristic",
+      "effects": [],
+      "entry": {
+        "line": 2,
+        "path": "apps/web/src/index.ts",
+        "symbol": "apps/web/src/index.ts::render"
+      },
+      "generated_at": "1970-01-01T00:00:00.000Z",
+      "id": "apps.web.src.index",
+      "kind": "entrypoint",
+      "layers_touched": [
+        "entrypoint"
+      ],
+      "steps": [
+        {
+          "line": 2,
+          "module": "apps",
+          "path": "apps/web/src/index.ts",
+          "symbol": "apps/web/src/index.ts::render"
+        },
+        {
+          "line": 1,
+          "module": "packages",
+          "path": "packages/shared/src/index.ts",
+          "symbol": "packages/shared/src/index.ts::formatName"
+        }
+      ]
+    },
+    {
+      "confidence": "heuristic",
+      "effects": [],
+      "entry": {
+        "line": 1,
+        "path": "packages/shared/src/index.ts",
+        "symbol": "packages/shared/src/index.ts::formatName"
+      },
+      "generated_at": "1970-01-01T00:00:00.000Z",
+      "id": "packages.shared.src.index",
+      "kind": "entrypoint",
+      "layers_touched": [
+        "entrypoint"
+      ],
+      "steps": [
+        {
+          "line": 1,
+          "module": "packages",
+          "path": "packages/shared/src/index.ts",
+          "symbol": "packages/shared/src/index.ts::formatName"
+        }
+      ]
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "language_diagnostics": [
+    {
+      "confidence": 1.0,
+      "errors": [],
+      "language": "json",
+      "line_count": 1,
+      "parser_used": "builtin-text",
+      "parser_version": "1",
+      "path": "apps/web/package.json",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 0.7,
+      "errors": [],
+      "language": "typescript",
+      "line_count": 2,
+      "parser_used": "builtin-regex",
+      "parser_version": "1",
+      "path": "apps/web/src/index.ts",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 1.0,
+      "errors": [],
+      "language": "json",
+      "line_count": 1,
+      "parser_used": "builtin-text",
+      "parser_version": "1",
+      "path": "package.json",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 1.0,
+      "errors": [],
+      "language": "json",
+      "line_count": 1,
+      "parser_used": "builtin-text",
+      "parser_version": "1",
+      "path": "packages/shared/package.json",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 0.7,
+      "errors": [],
+      "language": "typescript",
+      "line_count": 1,
+      "parser_used": "builtin-regex",
+      "parser_version": "1",
+      "path": "packages/shared/src/index.ts",
+      "skipped": false,
+      "unsupported_constructs": []
+    }
+  ],
+  "layout_hints": [
+    {
+      "cluster_id": "cluster:workspace:86fa3762d2eb6db6",
+      "collapse_level": "expanded",
+      "importance": 0.468,
+      "lane": "workspace",
+      "lane_index": 0,
+      "order": 0,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:c22d9e7664332f0b",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 1,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:ae239d5b4252a715",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 2,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:eb9f5a44169e7164",
+      "collapse_level": "members",
+      "importance": 0.73,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 3,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:502e97b0d7c3d4af",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 4,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:e58674f1febad6d5",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 5,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:710115d946c582c2",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 6,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:25db14021bce7ce0",
+      "collapse_level": "members",
+      "importance": 0.525,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 7,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:9f840be873c58b56",
+      "collapse_level": "expanded",
+      "importance": 0.485,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 8,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:c857f8688ad49062",
+      "collapse_level": "members",
+      "importance": 0.525,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 9,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:ad0eed0c5b9bdb9b",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 10,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:0c8f34277e179f9f",
+      "collapse_level": "expanded",
+      "importance": 0.485,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 11,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:domain:1342946d9b16f05a",
+      "collapse_level": "expanded",
+      "importance": 0.485,
+      "lane": "domain",
+      "lane_index": 4,
+      "order": 12,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:domain:883d523e9eba130e",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "domain",
+      "lane_index": 4,
+      "order": 13,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:domain:e94ef5aab68863e4",
+      "collapse_level": "members",
+      "importance": 0.525,
+      "lane": "domain",
+      "lane_index": 4,
+      "order": 14,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:layer:c79aec78748b7816",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "layer",
+      "lane_index": 5,
+      "order": 15,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:layer:f333279cd5d5eb65",
+      "collapse_level": "members",
+      "importance": 0.69,
+      "lane": "layer",
+      "lane_index": 5,
+      "order": 16,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:flow:f250f0bba0e7422b",
+      "collapse_level": "members",
+      "importance": 0.69,
+      "lane": "flow",
+      "lane_index": 6,
+      "order": 17,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:flow:3519d0add07f6d51",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "flow",
+      "lane_index": 6,
+      "order": 18,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:graph-community:64a761f1229ba325",
+      "collapse_level": "members",
+      "importance": 0.69,
+      "lane": "graph-community",
+      "lane_index": 7,
+      "order": 19,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    }
+  ],
+  "mapper_version": "0.0.0",
+  "nodes": [
+    {
+      "canonical": "apps/web/package.json",
+      "id": "file:bdb91e373755f978",
+      "kind": "file",
+      "language": "json",
+      "metrics": {
+        "size_bytes": 19
+      },
+      "name": "package.json",
+      "parent_id": "module:dffca0b038d04d1c",
+      "path": "apps/web/package.json"
+    },
+    {
+      "canonical": "apps/web/src/index.ts",
+      "id": "file:57afe8590d74b167",
+      "kind": "file",
+      "language": "typescript",
+      "metrics": {
+        "size_bytes": 120
+      },
+      "name": "index.ts",
+      "parent_id": "module:dffca0b038d04d1c",
+      "path": "apps/web/src/index.ts"
+    },
+    {
+      "canonical": "package.json",
+      "id": "file:d7f6204f00b61069",
+      "kind": "file",
+      "language": "json",
+      "metrics": {
+        "size_bytes": 64
+      },
+      "name": "package.json",
+      "parent_id": "module:5a219264bc5d86e9",
+      "path": "package.json"
+    },
+    {
+      "canonical": "packages/shared/package.json",
+      "id": "file:ace0916c85dd0a1f",
+      "kind": "file",
+      "language": "json",
+      "metrics": {
+        "size_bytes": 18
+      },
+      "name": "package.json",
+      "parent_id": "module:a6a4aa90076b3d1f",
+      "path": "packages/shared/package.json"
+    },
+    {
+      "canonical": "packages/shared/src/index.ts",
+      "id": "file:285c2520fb367552",
+      "kind": "file",
+      "language": "typescript",
+      "metrics": {
+        "size_bytes": 74
+      },
+      "name": "index.ts",
+      "parent_id": "module:a6a4aa90076b3d1f",
+      "path": "packages/shared/src/index.ts"
+    },
+    {
+      "canonical": "apps.web.src.index",
+      "confidence": 0.5,
+      "id": "flow:f250f0bba0e7422b",
+      "kind": "flow",
+      "metrics": {},
+      "name": "apps.web.src.index",
+      "parent_id": "repository:42177d2beb94e396",
+      "path": null
+    },
+    {
+      "canonical": "packages.shared.src.index",
+      "confidence": 0.5,
+      "id": "flow:3519d0add07f6d51",
+      "kind": "flow",
+      "metrics": {},
+      "name": "packages.shared.src.index",
+      "parent_id": "repository:42177d2beb94e396",
+      "path": null
+    },
+    {
+      "canonical": "config",
+      "confidence": 0.7,
+      "id": "layer:c79aec78748b7816",
+      "kind": "layer",
+      "metrics": {},
+      "name": "config",
+      "parent_id": "repository:42177d2beb94e396",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": "entrypoint",
+      "confidence": 0.7,
+      "id": "layer:f333279cd5d5eb65",
+      "kind": "layer",
+      "metrics": {},
+      "name": "entrypoint",
+      "parent_id": "repository:42177d2beb94e396",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": ".",
+      "id": "module:5a219264bc5d86e9",
+      "kind": "module",
+      "metrics": {},
+      "name": ".",
+      "parent_id": "repository:42177d2beb94e396",
+      "path": null
+    },
+    {
+      "canonical": "apps",
+      "id": "module:dffca0b038d04d1c",
+      "kind": "module",
+      "metrics": {},
+      "name": "apps",
+      "parent_id": "repository:42177d2beb94e396",
+      "path": null
+    },
+    {
+      "canonical": "packages",
+      "id": "module:a6a4aa90076b3d1f",
+      "kind": "module",
+      "metrics": {},
+      "name": "packages",
+      "parent_id": "repository:42177d2beb94e396",
+      "path": null
+    },
+    {
+      "canonical": "canvas-monorepo",
+      "id": "repository:42177d2beb94e396",
+      "kind": "repository",
+      "metrics": {},
+      "name": "canvas-monorepo",
+      "parent_id": null,
+      "path": null
+    },
+    {
+      "canonical": "apps/web/src/index.ts\u0000apps/web/src/index.ts::render",
+      "id": "symbol:0614603f95ead51b",
+      "kind": "symbol",
+      "metrics": {
+        "line": 2
+      },
+      "name": "render",
+      "parent_id": "file:57afe8590d74b167",
+      "path": "apps/web/src/index.ts"
+    },
+    {
+      "canonical": "packages/shared/src/index.ts\u0000packages/shared/src/index.ts::formatName",
+      "id": "symbol:262c6a0509426bae",
+      "kind": "symbol",
+      "metrics": {
+        "line": 1
+      },
+      "name": "formatName",
+      "parent_id": "file:285c2520fb367552",
+      "path": "packages/shared/src/index.ts"
+    }
+  ],
+  "project": {
+    "id": "repository:42177d2beb94e396",
+    "name": "canvas-monorepo",
+    "root": "."
+  },
+  "provenance": {
+    "branch": null,
+    "clone_type": "plain-folder",
+    "clustering": {
+      "config": {
+        "community_min_size": 2,
+        "layout_hints": {
+          "enabled": true,
+          "lane_order": [
+            "workspace",
+            "package",
+            "directory",
+            "namespace",
+            "domain",
+            "layer",
+            "flow",
+            "graph-community"
+          ]
+        },
+        "max_clusters_per_strategy": 100,
+        "min_cluster_size": 1
+      },
+      "metrics": "directed call/import edges; cohesion=internal/incident; coupling=external/incident",
+      "strategies": [
+        "workspace",
+        "directory",
+        "package",
+        "namespace",
+        "domain",
+        "layer",
+        "flow",
+        "graph-community"
+      ]
+    },
+    "commit_sha": null,
+    "default_branch": null,
+    "dirty": false,
+    "host": null,
+    "monorepo_roots": [
+      "apps/web",
+      "packages/shared"
+    ],
+    "owner": null,
+    "remote_url": null,
+    "remotes": [],
+    "repository": null,
+    "scan_root": ".",
+    "submodules": []
+  },
+  "schema": "simplicio.visualization-bundle/v1",
+  "schema_version": "v1",
+  "version": 1
+}

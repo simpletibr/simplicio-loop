@@ -1,0 +1,95 @@
+{
+  "counts": {
+    "files": 3,
+    "symbols": 4
+  },
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:0c21e72f7161d6e0481ea84d1934cf1af55ecc96501fc5d96e741253e783d0d0",
+    "capability_coverage": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "unsupported",
+      "relationships": "unsupported",
+      "symbols": "full"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
+  "root": "<fixture-root>",
+  "schema": "simplicio.symbol-index/v1",
+  "semantic_resolution": {
+    "languages": [],
+    "protocol": "v1",
+    "provider_versions": [],
+    "providers": [],
+    "reasons": [
+      "no_csharp_or_razor_call_sites"
+    ],
+    "resolved_calls": 0,
+    "schema": "simplicio.mapper-semantic-resolution/v1",
+    "status": "not_required",
+    "symbols": 0
+  },
+  "symbols": [
+    {
+      "defined_in": "src/app.py",
+      "evidence": {
+        "file": "src/app.py",
+        "line": 4
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 4,
+      "name": "greet",
+      "qualified_name": "src/app.py::greet"
+    },
+    {
+      "defined_in": "src/app.py",
+      "evidence": {
+        "file": "src/app.py",
+        "line": 9
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 9,
+      "name": "main",
+      "qualified_name": "src/app.py::main"
+    },
+    {
+      "defined_in": "src/util.py",
+      "evidence": {
+        "file": "src/util.py",
+        "line": 1
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 1,
+      "name": "add",
+      "qualified_name": "src/util.py::add"
+    },
+    {
+      "defined_in": "tests/test_app.py",
+      "evidence": {
+        "file": "tests/test_app.py",
+        "line": 4
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 4,
+      "name": "test_greet",
+      "qualified_name": "tests/test_app.py::test_greet"
+    }
+  ],
+  "version": 1
+}

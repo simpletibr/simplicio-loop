@@ -1,0 +1,11 @@
+{
+  "schema": "simplicio.plugin.route-signals-manifest/v1",
+  "signals_schema": "simplicio.plugin.route-signals/v1",
+  "abi": {"major": 1, "minor": 0},
+  "producer": "simplicio-fast",
+  "consumers": ["runtime-r05", "loop-l01"],
+  "authority": "derived_read_only",
+  "decides_policy": false,
+  "writes": false,
+  "fabricates_savings": false
+}

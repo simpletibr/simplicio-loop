@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/migration-status.schema.json",
+  "title": "simplicio.mapper-store.migration-status/v1",
+  "type": "object",
+  "required": ["schema", "database", "manifest_hash", "current_version", "latest", "ledger_events", "lock"],
+  "properties": {
+    "schema": { "enum": ["simplicio.mapper-store.migration-status/v1"] },
+    "database": { "type": "string" },
+    "manifest_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "current_version": { "type": "integer", "minimum": 0 },
+    "latest": { "type": "object" },
+    "ledger_events": { "type": "integer", "minimum": 0 },
+    "lock": { "type": "object", "required": ["path", "stale"], "properties": { "path": { "type": "string" }, "stale": { "type": "boolean" } } }
+  }
+}

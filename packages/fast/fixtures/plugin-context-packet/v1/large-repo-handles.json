@@ -1,0 +1,91 @@
+{
+  "schema": "simplicio.plugin.context-handle-set/v1",
+  "generation": "g-large",
+  "note": "Runtime/Loop fetch exact slices by handle; they must not request the whole pack.",
+  "handles": [
+    {
+      "handle": "plugin:src/app.py:UserService",
+      "path": "src/app.py"
+    },
+    {
+      "handle": "plugin:src/mod_0000.py",
+      "path": "src/mod_0000.py"
+    },
+    {
+      "handle": "plugin:src/mod_0001.py",
+      "path": "src/mod_0001.py"
+    },
+    {
+      "handle": "plugin:src/mod_0002.py",
+      "path": "src/mod_0002.py"
+    },
+    {
+      "handle": "plugin:src/mod_0003.py",
+      "path": "src/mod_0003.py"
+    },
+    {
+      "handle": "plugin:src/mod_0004.py",
+      "path": "src/mod_0004.py"
+    },
+    {
+      "handle": "plugin:src/mod_0005.py",
+      "path": "src/mod_0005.py"
+    },
+    {
+      "handle": "plugin:src/mod_0006.py",
+      "path": "src/mod_0006.py"
+    },
+    {
+      "handle": "plugin:src/mod_0007.py",
+      "path": "src/mod_0007.py"
+    },
+    {
+      "handle": "plugin:src/mod_0008.py",
+      "path": "src/mod_0008.py"
+    },
+    {
+      "handle": "plugin:src/mod_0009.py",
+      "path": "src/mod_0009.py"
+    },
+    {
+      "handle": "plugin:src/mod_0010.py",
+      "path": "src/mod_0010.py"
+    },
+    {
+      "handle": "plugin:src/mod_0011.py",
+      "path": "src/mod_0011.py"
+    },
+    {
+      "handle": "plugin:src/mod_0012.py",
+      "path": "src/mod_0012.py"
+    },
+    {
+      "handle": "plugin:src/mod_0013.py",
+      "path": "src/mod_0013.py"
+    },
+    {
+      "handle": "plugin:src/mod_0014.py",
+      "path": "src/mod_0014.py"
+    },
+    {
+      "handle": "plugin:src/mod_0015.py",
+      "path": "src/mod_0015.py"
+    },
+    {
+      "handle": "plugin:src/mod_0016.py",
+      "path": "src/mod_0016.py"
+    },
+    {
+      "handle": "plugin:src/mod_0017.py",
+      "path": "src/mod_0017.py"
+    },
+    {
+      "handle": "plugin:src/mod_0018.py",
+      "path": "src/mod_0018.py"
+    },
+    {
+      "handle": "plugin:src/mod_0019.py",
+      "path": "src/mod_0019.py"
+    }
+  ]
+}

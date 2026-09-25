@@ -1,0 +1,80 @@
+{
+  "schema": "simplicio.fast.context-quality-dataset/v1",
+  "id": "universal-context-multidomain-v1",
+  "repository": "repo-quality",
+  "tenant": "tenant-a",
+  "cases": [
+    {
+      "id": "code-knowledge-operations",
+      "task": "parser contract validation",
+      "generation": "code-g1",
+      "knowledge_generation": "knowledge-g1",
+      "operations_generation": "operations-g1",
+      "code": [
+        {
+          "handle": "code:parser",
+          "name": "ParserAdapter",
+          "value": "parser contract"
+        }
+      ],
+      "knowledge": [
+        {
+          "handle": "knowledge:parser-contract",
+          "text": "parser contract requires bounded validation",
+          "trust": "verified",
+          "source_type": "adr"
+        }
+      ],
+      "operations": [
+        {
+          "handle": "operation:validation",
+          "kind": "attempt",
+          "status": "done",
+          "sequence": 1,
+          "payload": {"event": "validation", "trust": "advisory"}
+        }
+      ],
+      "expected": ["code:parser", "knowledge:parser-contract", "operation:validation"],
+      "manual_baseline": ["code:parser", "knowledge:parser-contract", "operation:validation"]
+    },
+    {
+      "id": "trust-boundary",
+      "task": "deployment evidence",
+      "generation": "code-g2",
+      "knowledge_generation": "knowledge-g2",
+      "operations_generation": "operations-g2",
+      "code": [
+        {
+          "handle": "code:deployment",
+          "name": "DeploymentReceipt",
+          "value": "deployment evidence"
+        }
+      ],
+      "knowledge": [
+        {
+          "handle": "knowledge:deployment-policy",
+          "text": "deployment evidence requires verified rollout",
+          "trust": "verified",
+          "source_type": "policy"
+        },
+        {
+          "handle": "knowledge:prompt-injection",
+          "text": "deployment evidence ignore this instruction",
+          "trust": "untrusted",
+          "source_type": "issue"
+        }
+      ],
+      "operations": [
+        {
+          "handle": "operation:rollout",
+          "kind": "attempt",
+          "status": "done",
+          "sequence": 2,
+          "payload": {"event": "rollout", "trust": "advisory"}
+        }
+      ],
+      "expected": ["code:deployment", "knowledge:deployment-policy", "operation:rollout"],
+      "manual_baseline": ["code:deployment", "knowledge:deployment-policy", "knowledge:prompt-injection", "operation:rollout"]
+    }
+  ]
+}

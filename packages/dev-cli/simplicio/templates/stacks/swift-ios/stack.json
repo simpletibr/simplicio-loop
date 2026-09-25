@@ -1,0 +1,13 @@
+{
+  "slug": "swift-ios",
+  "template_version": "0.1.0",
+  "language": "Swift 5",
+  "framework": "SwiftUI",
+  "framework_version": "iOS 17",
+  "package_manager": "xcodebuild",
+  "test_runner": "xcodebuild test",
+  "linter": "swift-format",
+  "deps_required": ["SwiftUI"],
+  "deps_dev": ["XCTest"],
+  "tags": ["mobile", "ios", "swift", "swiftui"]
+}

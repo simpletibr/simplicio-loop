@@ -39,6 +39,11 @@ PHASE_TIMEOUT_SECONDS = {
     "conformance": 60.0,
     "package_content": 300.0,
     "quality_gate": 120.0,
+    # Per-package fast-gate steps (monorepo, #1297 follow-up): lint/type/unit
+    # for one package's own tree, run from scripts/check.py --package.
+    "package_gate_lint": 120.0,
+    "package_gate_typecheck": 180.0,
+    "package_gate_tests": 900.0,
 }
 # Keep the provider's core-gate deadline tied to the same phase budget used by
 # the source checkout quality gate without making the provider import scripts/.

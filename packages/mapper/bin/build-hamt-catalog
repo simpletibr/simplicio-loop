@@ -1,0 +1,73 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+
+const PACKAGE_ROOT = path.resolve(__dirname, '..');
+const PYTHON_SCRIPT = path.join(PACKAGE_ROOT, 'scripts', 'build_hamt.py');
+const argv = process.argv.slice(2);
+
+function printHelp() {
+  console.log(`build-hamt-catalog
+
+Build a YOOL/HAMT catalog from AGENTS.md.
+
+USAGE
+  build-hamt-catalog [project-root] [--source <AGENTS.md>] [--output <.catalog/agents.json>]
+
+EXAMPLES
+  build-hamt-catalog
+  build-hamt-catalog .
+  build-hamt-catalog --source AGENTS.md --output .catalog/agents.json
+`);
+}
+
+function commandExists(command) {
+  const which = process.platform === 'win32' ? 'where' : 'which';
+  const result = spawnSync(which, [command], { encoding: 'utf8' });
+  return result.status === 0;
+}
+
+function resolvePython() {
+  if (commandExists('python3')) return { command: 'python3', args: [] };
+  if (process.platform === 'win32' && commandExists('py')) return { command: 'py', args: ['-3'] };
+  if (commandExists('python')) return { command: 'python', args: [] };
+  return null;
+}
+
+function main() {
+  if (argv.includes('-h') || argv.includes('--help')) {
+    printHelp();
+    process.exit(0);
+  }
+
+  if (!fs.existsSync(PYTHON_SCRIPT)) {
+    console.error(`build_hamt.py not found at ${PYTHON_SCRIPT}`);
+    process.exit(2);
+  }
+
+  const python = resolvePython();
+  if (!python) {
+    console.error('Python runtime not found. Install python3, or use the Windows py launcher, then retry.');
+    process.exit(2);
+  }
+
+  const result = spawnSync(
+    python.command,
+    [...python.args, PYTHON_SCRIPT, ...argv],
+    {
+      cwd: process.cwd(),
+      stdio: 'inherit',
+    },
+  );
+
+  if (result.error) {
+    console.error(`Failed to run ${python.command}: ${result.error.message}`);
+    process.exit(1);
+  }
+  process.exit(result.status ?? 1);
+}
+
+main();

@@ -1,0 +1,44 @@
+{
+  "$id": "simplicio.mapper-index/v1",
+  "title": "simplicio-mapper `index --json` result payload (v1)",
+  "description": "Returned by `simplicio-mapper index <path> --json` (simplicio_mapper.cli._index_result). `--tagged`/`--confidence`/`--geometry` attach optional extra fields (confidence_tags, confidence_tag_legend, confidence_filtered_out, geometry) not required here.",
+  "type": "object",
+  "required": ["schema", "status", "paths", "counts", "changed_files"],
+  "properties": {
+    "schema": { "type": "string", "enum": ["simplicio.mapper-index/v1"] },
+    "status": { "type": "string", "enum": ["updated", "skipped", "failed"] },
+    "skipped_reason": { "type": ["string", "null"] },
+    "error": { "type": ["string", "null"] },
+    "paths": {
+      "type": "object",
+      "required": [
+        "project_map",
+        "precedent_index",
+        "architecture_inventory",
+        "symbol_index",
+        "call_graph"
+      ],
+      "properties": {
+        "project_map": { "type": "string" },
+        "precedent_index": { "type": "string" },
+        "architecture_inventory": { "type": "string" },
+        "symbol_index": { "type": "string" },
+        "call_graph": { "type": "string" }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "required": ["files", "precedents", "changed_files", "modules", "layers", "symbols", "relationships"],
+      "properties": {
+        "files": { "type": "integer" },
+        "precedents": { "type": "integer" },
+        "changed_files": { "type": "integer" },
+        "modules": { "type": "integer" },
+        "layers": { "type": "integer" },
+        "symbols": { "type": "integer" },
+        "relationships": { "type": "integer" }
+      }
+    },
+    "changed_files": { "type": "array", "items": { "type": "string" } }
+  }
+}

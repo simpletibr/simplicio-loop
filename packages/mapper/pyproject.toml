@@ -1,0 +1,130 @@
+[build-system]
+requires = ["hatchling>=1.27,<1.33"]
+build-backend = "hatchling.build"
+
+[project]
+name = "simplicio-mapper"
+version = "0.26.34"
+description = "Python-first project mapper that emits .simplicio/project-map.json and precedent-index.json for the Simplicio ecosystem."
+readme = "PYPI.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Wesley Simplicio", email = "wesleybob4@gmail.com" }]
+keywords = ["simplicio", "mapper", "llm", "project-map", "precedent", "agent"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+  "orjson>=3.11.9,<4",
+  "diskcache>=5.6.3,<6",
+  "tiktoken>=0.12.0,<1",
+]
+
+[project.optional-dependencies]
+release = [
+  "cryptography>=43,<51",
+]
+dev = [
+  "cryptography>=43,<51",
+  "ruff>=0.15,<0.17",
+  "pytest>=8,<10",
+  "pytest-cov>=6,<8",
+  "hypothesis>=6.100,<7",
+  "build>=1,<2",
+]
+
+[project.scripts]
+simplicio-mapper = "simplicio_mapper.cli:main"
+llm-project-mapper = "simplicio_mapper.cli:main"
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+
+[project.urls]
+Homepage = "https://github.com/simpletibr/simplicio-mapper"
+Repository = "https://github.com/simpletibr/simplicio-mapper"
+Issues = "https://github.com/simpletibr/simplicio-mapper/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["simplicio_mapper"]
+
+# Distribution frontier (#199/#200/#208): ship the versioned contracts tree
+# (outside the Python package root) into the wheel so clean installs can
+# validate schemas/fixtures without a source checkout.
+#
+# force-include is ONLY for paths outside packages. Never re-list in-tree
+# package data here (e.g. store/neural/assets or _bundle/ecc): Hatch already
+# ships those with the package, and a second force-include raises
+# ValueError: second file at the same path (issue #553).
+[tool.hatch.build.targets.wheel.force-include]
+"contracts" = "simplicio_mapper/contracts"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+extend-exclude = [
+  ".simplicio",
+  ".specs",
+  "dist",
+  "build",
+  "rust/target",
+  "docs-site",
+  "vscode-extension",
+]
+
+[tool.ruff.lint]
+# Rule set is chosen to match the `# noqa` codes already used in the
+# codebase (S = bandit-style security checks, BLE = blind exception)
+# plus standard hygiene families that do not require sweeping rewrites.
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "W",   # pycodestyle warnings
+  "I",   # import sorting
+  "B",   # flake8-bugbear
+  "BLE", # flake8-blind-except
+  "S",   # flake8-bandit
+  "UP",  # pyupgrade
+]
+ignore = [
+  "E501",   # line length handled by formatter / project style
+  "S101",   # pytest uses assert
+  "S311",   # non-crypto randomness is fine in mapper heuristics
+  "S603",   # subprocess calls only run fixed argv with project-controlled inputs
+  "S607",   # `git` is intentionally resolved from PATH on host
+  "UP007",  # keep `Optional[...]` style optional for stdlib 3.10 compat
+  "UP045",  # keep `Optional[...]` style optional for stdlib 3.10 compat
+  "B008",   # default mutable factories are intentional in CLI signatures
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "BLE", "B"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "simplicio_mapper",
+  "PYPI.md",
+  "README.md",
+  "README.pt-BR.md",
+  "READMEs",
+  "docs/readme-globalization-standard.md",
+  "SIMPLICIO_INTEGRATION.md",
+  "CHANGELOG.md",
+  "LICENSE",
+  "pyproject.toml",
+  "contracts",
+]

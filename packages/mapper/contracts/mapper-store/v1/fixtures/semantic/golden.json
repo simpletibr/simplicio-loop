@@ -1,0 +1,9 @@
+{
+  "stable_id": "precedent:mapper-store:476",
+  "kind": "precedent",
+  "source": "mapper-fixture",
+  "content": "Canonical semantic store keeps source provenance and stable identity.",
+  "content_hash": "348d1f47b35226493f3fcbc9886a33be3ae565e36bafd53013a487f9e95e1d0b",
+  "provenance": { "path": "fixtures/mapper-store/476.json", "source_sha256": "fixture" },
+  "metadata": { "language": "en" }
+}

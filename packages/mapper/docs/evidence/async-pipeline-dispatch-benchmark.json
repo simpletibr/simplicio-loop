@@ -1,0 +1,83 @@
+{
+  "schema": "simplicio.async-pipeline-dispatch-benchmark/v2",
+  "generated_at": "2026-07-22T18:28:04.294814+00:00",
+  "python_version": "3.12.13",
+  "seed": 20260717,
+  "threshold": 600,
+  "crossover": [
+    {
+      "requested_file_count": 50,
+      "actual_file_count": 54,
+      "sync_wall_median_s": 0.1598,
+      "async_wall_median_s": 0.2042,
+      "sync_faster": true,
+      "ratio_sync_over_async": 0.783
+    },
+    {
+      "requested_file_count": 100,
+      "actual_file_count": 110,
+      "sync_wall_median_s": 0.1781,
+      "async_wall_median_s": 1.066,
+      "sync_faster": true,
+      "ratio_sync_over_async": 0.167
+    },
+    {
+      "requested_file_count": 400,
+      "actual_file_count": 440,
+      "sync_wall_median_s": 0.8729,
+      "async_wall_median_s": 1.6614,
+      "sync_faster": true,
+      "ratio_sync_over_async": 0.525
+    },
+    {
+      "requested_file_count": 800,
+      "actual_file_count": 880,
+      "sync_wall_median_s": 2.5612,
+      "async_wall_median_s": 4.2823,
+      "sync_faster": true,
+      "ratio_sync_over_async": 0.598
+    },
+    {
+      "requested_file_count": 1200,
+      "actual_file_count": 1320,
+      "sync_wall_median_s": 4.2995,
+      "async_wall_median_s": 6.2788,
+      "sync_faster": true,
+      "ratio_sync_over_async": 0.685
+    },
+    {
+      "requested_file_count": 1650,
+      "actual_file_count": 1814,
+      "sync_wall_median_s": 7.4978,
+      "async_wall_median_s": 10.6245,
+      "sync_faster": true,
+      "ratio_sync_over_async": 0.706
+    }
+  ],
+  "dispatch_active": [
+    {
+      "size": "small",
+      "file_count": 4,
+      "selected_profile": "async",
+      "cold_wall_median_s": 0.0687,
+      "warm_wall_median_s": 0.0422,
+      "cold_files_per_sec": 58.24
+    },
+    {
+      "size": "medium",
+      "file_count": 220,
+      "selected_profile": "async",
+      "cold_wall_median_s": 0.7646,
+      "warm_wall_median_s": 0.719,
+      "cold_files_per_sec": 287.73
+    },
+    {
+      "size": "large",
+      "file_count": 1650,
+      "selected_profile": "async",
+      "cold_wall_median_s": 9.0983,
+      "warm_wall_median_s": 8.6816,
+      "cold_files_per_sec": 181.35
+    }
+  ]
+}

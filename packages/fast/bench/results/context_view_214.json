@@ -1,0 +1,74 @@
+{
+  "cold": {
+    "bounded_candidate_coverage_mean": 0.04,
+    "cache_policy": "empty cache per task",
+    "median_ms": 49.05203299495042,
+    "p95_ms": 68.03107199812075,
+    "quality_coverage_mean": 1.0,
+    "samples_ms": [
+      70.51654700626386,
+      53.16030199901434,
+      43.38535300485091,
+      41.100870999798644,
+      51.02262299624272,
+      66.97572299890453,
+      47.08144299365813,
+      68.03107199812075,
+      44.15504200005671,
+      43.30930399737554
+    ]
+  },
+  "python": "3.12.13",
+  "quality_gate": {
+    "abstentions": 0,
+    "cold_coverage_equal_warm": true,
+    "expected_handles": [
+      "background-0",
+      "fact-0",
+      "fact-1",
+      "fact-2",
+      "fact-3",
+      "fact-4",
+      "receipt-1",
+      "test-1"
+    ],
+    "minimum_expected_coverage": 1.0
+  },
+  "schema": "simplicio.fast.context-view-benchmark/v1",
+  "status": "measured",
+  "token_savings": null,
+  "token_savings_reason": "MODEL_TOKEN_ACCOUNTING_NOT_OBSERVED",
+  "warm": {
+    "bounded_candidate_coverage_mean": 0.04,
+    "cache_hits_observed": 100,
+    "cache_lookups": 100,
+    "cache_policy": "shared equivalent base selection",
+    "median_ms": 36.79025949895731,
+    "p95_ms": 43.95877600472886,
+    "quality_coverage_mean": 1.0,
+    "samples_ms": [
+      43.95877600472886,
+      48.05018399929395,
+      33.06183800305007,
+      31.66421999776503,
+      42.6724569988437,
+      38.96858599910047,
+      40.14548499981174,
+      34.611932998814154,
+      31.80392799549736,
+      31.806607003090903
+    ]
+  },
+  "workload": {
+    "base_generation": "benchmark-g1",
+    "budget": {
+      "max_bytes": 4096,
+      "max_nodes": 8,
+      "max_tokens": 64
+    },
+    "items_per_task": 200,
+    "overlay": null,
+    "repetitions": 10,
+    "tasks": 10
+  }
+}

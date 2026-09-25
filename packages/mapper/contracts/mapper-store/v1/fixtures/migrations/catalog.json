@@ -1,0 +1,32 @@
+[
+  {
+    "id": "catalog-0001-base-ledger",
+    "from_version": 0,
+    "to_version": 1,
+    "checksum": "a83eca1dc40490dc4c22cbd673181070aeeffb3970f69672efc3384d7b1d3682",
+    "prerequisites": [],
+    "forward": [
+      "CREATE TABLE IF NOT EXISTS mapper_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+      "CREATE INDEX IF NOT EXISTS idx_mapper_metadata_key ON mapper_metadata(key)"
+    ],
+    "rollback_class": "explicit",
+    "rollback": ["DROP TABLE IF EXISTS mapper_metadata"],
+    "destructive": false,
+    "verification_query": "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='mapper_metadata'"
+  },
+  {
+    "id": "catalog-0002-memory-records",
+    "from_version": 1,
+    "to_version": 2,
+    "checksum": "d25aa43bff4d4c33b23a0fd1866afef3efc8c98704de4f5758d89e9dfc92f23b",
+    "prerequisites": ["catalog-0001-base-ledger"],
+    "forward": [
+      "CREATE TABLE IF NOT EXISTS memory_records (id TEXT PRIMARY KEY, payload TEXT NOT NULL, created_at TEXT NOT NULL)",
+      "CREATE INDEX IF NOT EXISTS idx_memory_records_created_at ON memory_records(created_at)"
+    ],
+    "rollback_class": "explicit",
+    "rollback": ["DROP TABLE IF EXISTS memory_records"],
+    "destructive": true,
+    "verification_query": "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='memory_records'"
+  }
+]

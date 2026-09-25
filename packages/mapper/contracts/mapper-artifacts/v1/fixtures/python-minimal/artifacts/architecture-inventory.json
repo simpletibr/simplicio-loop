@@ -1,0 +1,386 @@
+{
+  "architecture": {
+    "signals": [],
+    "system_type": "library-or-service"
+  },
+  "coverage": {
+    "files": 4,
+    "layers": 4,
+    "modules": 3,
+    "relationships": 4,
+    "symbols": 4,
+    "tests": 1
+  },
+  "files": [
+    {
+      "evidence": [
+        {
+          "file": "pyproject.toml"
+        }
+      ],
+      "imports": [],
+      "language": "toml",
+      "layers": [
+        "config"
+      ],
+      "module": ".",
+      "path": "pyproject.toml",
+      "roles": [
+        "config"
+      ],
+      "summary": "Configures tooling, build, runtime or packaging behavior.",
+      "symbols": []
+    },
+    {
+      "evidence": [
+        {
+          "file": "src/app.py"
+        }
+      ],
+      "imports": [],
+      "language": "python",
+      "layers": [
+        "entrypoint"
+      ],
+      "module": "src",
+      "path": "src/app.py",
+      "roles": [
+        "entrypoint"
+      ],
+      "summary": "Starts a CLI, runtime or package entrypoint.",
+      "symbols": [
+        "greet",
+        "main"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "src/util.py"
+        }
+      ],
+      "imports": [],
+      "language": "python",
+      "layers": [
+        "code"
+      ],
+      "module": "src",
+      "path": "src/util.py",
+      "roles": [],
+      "summary": "Defines exported symbols: add.",
+      "symbols": [
+        "add"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "tests/test_app.py"
+        }
+      ],
+      "imports": [
+        "src.app"
+      ],
+      "language": "python",
+      "layers": [
+        "test"
+      ],
+      "module": "tests",
+      "path": "tests/test_app.py",
+      "roles": [
+        "test"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "symbols": [
+        "test_greet"
+      ]
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "layers": [
+    {
+      "evidence": [
+        {
+          "file": "src/util.py"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "src/util.py"
+      ],
+      "modules": [
+        "src"
+      ],
+      "name": "code"
+    },
+    {
+      "evidence": [
+        {
+          "file": "pyproject.toml"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "pyproject.toml"
+      ],
+      "modules": [
+        "."
+      ],
+      "name": "config"
+    },
+    {
+      "evidence": [
+        {
+          "file": "src/app.py"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "src/app.py"
+      ],
+      "modules": [
+        "src"
+      ],
+      "name": "entrypoint"
+    },
+    {
+      "evidence": [
+        {
+          "file": "tests/test_app.py"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "tests/test_app.py"
+      ],
+      "modules": [
+        "tests"
+      ],
+      "name": "test"
+    }
+  ],
+  "modules": [
+    {
+      "entry_points": [],
+      "evidence": [
+        {
+          "file": "pyproject.toml"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "pyproject.toml"
+      ],
+      "layers": [
+        "config"
+      ],
+      "name": ".",
+      "public_symbols": [],
+      "summary": "Groups 1 files across 1 detected layers.",
+      "tests": []
+    },
+    {
+      "entry_points": [
+        "src/app.py"
+      ],
+      "evidence": [
+        {
+          "file": "src/app.py"
+        },
+        {
+          "file": "src/util.py"
+        }
+      ],
+      "file_count": 2,
+      "files": [
+        "src/app.py",
+        "src/util.py"
+      ],
+      "layers": [
+        "code",
+        "entrypoint"
+      ],
+      "name": "src",
+      "public_symbols": [
+        "add",
+        "greet",
+        "main"
+      ],
+      "summary": "Groups 2 files across 2 detected layers.",
+      "tests": []
+    },
+    {
+      "entry_points": [],
+      "evidence": [
+        {
+          "file": "tests/test_app.py"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "tests/test_app.py"
+      ],
+      "layers": [
+        "test"
+      ],
+      "name": "tests",
+      "public_symbols": [
+        "test_greet"
+      ],
+      "summary": "Groups 1 files across 1 detected layers.",
+      "tests": [
+        "tests/test_app.py"
+      ]
+    }
+  ],
+  "notes": [
+    "Generated from deterministic repository inspection.",
+    "Relationship evidence_class and resolution_status describe how each edge was obtained; null confidence is not a calibrated probability."
+  ],
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:4294fe1cacaea21cbab4200f6bf5ab065f496c07c1276f9c73304fe93f991fe8",
+    "capability_coverage": {
+      "architecture": "full",
+      "files": "full",
+      "precedent": "unsupported",
+      "relationships": "full",
+      "symbols": "empty"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
+  "product": {
+    "name": "source",
+    "project_mode": "root",
+    "stack": "unknown"
+  },
+  "relationship_coverage": {
+    "ambiguous_relations": 0,
+    "edge_limit": 250,
+    "emitted_edges": 4,
+    "evidence_classes": {
+      "import_resolved": 1,
+      "lexical_unique": 3
+    },
+    "invalid_edges": 0,
+    "observed_edges": 4,
+    "omitted_edges": 0,
+    "status": "complete",
+    "truncated": false,
+    "unknown_relations": 0
+  },
+  "relationships": [
+    {
+      "confidence": null,
+      "evidence_class": "lexical_unique",
+      "line": 10,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "src/app.py::greet"
+        ],
+        "fallback_reason": null,
+        "method": "symbol-name-lookup",
+        "queried_symbol": "greet"
+      },
+      "relation_id": "d9c094efd31d8035337a09bf69245f575f280bd8e1574f70cf39beae9135b6d7",
+      "resolution_status": "resolved",
+      "source_file": "src/app.py",
+      "source_symbol": "src/app.py::main",
+      "target_candidates": [
+        "src/app.py::greet"
+      ],
+      "target_file": "src/app.py",
+      "target_symbol": "src/app.py::greet",
+      "type": "calls"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "lexical_unique",
+      "line": 14,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "src/app.py::main"
+        ],
+        "fallback_reason": null,
+        "method": "symbol-name-lookup",
+        "queried_symbol": "main"
+      },
+      "relation_id": "5412580ca881e3555ca28d91bafbec32cf3c015f715f4a02c04cd9e220990953",
+      "resolution_status": "resolved",
+      "source_file": "src/app.py",
+      "source_symbol": "src/app.py::main",
+      "target_candidates": [
+        "src/app.py::main"
+      ],
+      "target_file": "src/app.py",
+      "target_symbol": "src/app.py::main",
+      "type": "calls"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "lexical_unique",
+      "line": 5,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "src/app.py::greet"
+        ],
+        "fallback_reason": null,
+        "method": "symbol-name-lookup",
+        "queried_symbol": "greet"
+      },
+      "relation_id": "f228e56120a13d33e3d80f816b2be79fe7632972a696d6a2b83085c40343d497",
+      "resolution_status": "resolved",
+      "source_file": "tests/test_app.py",
+      "source_symbol": "tests/test_app.py::test_greet",
+      "target_candidates": [
+        "src/app.py::greet"
+      ],
+      "target_file": "src/app.py",
+      "target_symbol": "src/app.py::greet",
+      "type": "calls"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "import_resolved",
+      "import": "src.app",
+      "provenance": {
+        "candidate_count": 1,
+        "candidates": [
+          "src/app.py"
+        ],
+        "import": "src.app",
+        "method": "import-resolution"
+      },
+      "relation_id": "552101f0e111e0ce555ec920880cdeced1519fbfdaebfbcafd92fd69e9560bcc",
+      "resolution_status": "resolved",
+      "source_file": "tests/test_app.py",
+      "target_candidates": [
+        "src/app.py"
+      ],
+      "target_file": "src/app.py",
+      "type": "imports"
+    }
+  ],
+  "root": "<fixture-root>",
+  "schema": "simplicio.architecture-inventory/v1",
+  "source_call_graph": ".simplicio/call-graph.json",
+  "source_project_map": ".simplicio/project-map.json",
+  "source_symbol_index": ".simplicio/symbol-index.json",
+  "version": 1
+}

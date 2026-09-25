@@ -1,0 +1,37 @@
+{
+  "artifact": "qwen15b-quant-curve-manifest",
+  "issue": 46,
+  "model_family": "Qwen2.5-Coder-1.5B-Instruct",
+  "source_repo": "bartowski/Qwen2.5-Coder-1.5B-Instruct-GGUF",
+  "status": "missing_required_local_gguf_models",
+  "required_quants": [
+    {
+      "quant": "Q8_0",
+      "filename": "Qwen2.5-Coder-1.5B-Instruct-Q8_0.gguf",
+      "smoke_json": "bench/results_v14_qwen15b_q8_0_smoke_schema_v1.json",
+      "smoke_command": "BENCH_GGUF_PATH=<models>/Qwen2.5-Coder-1.5B-Instruct-Q8_0.gguf python bench/smoke_schema_v1.py --calls 4"
+    },
+    {
+      "quant": "Q6_K",
+      "filename": "Qwen2.5-Coder-1.5B-Instruct-Q6_K.gguf",
+      "smoke_json": "bench/results_v14_qwen15b_q6_k_smoke_schema_v1.json",
+      "smoke_command": "BENCH_GGUF_PATH=<models>/Qwen2.5-Coder-1.5B-Instruct-Q6_K.gguf python bench/smoke_schema_v1.py --calls 4"
+    },
+    {
+      "quant": "Q4_K_M",
+      "filename": "Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf",
+      "smoke_json": "bench/results_v14_qwen15b_q4_k_m_smoke_schema_v1.json",
+      "smoke_command": "BENCH_GGUF_PATH=<models>/Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf python bench/smoke_schema_v1.py --calls 4"
+    }
+  ],
+  "final_artifacts": [
+    "bench/results_v14_qwen15b_quant_curve.json",
+    "bench/results_v14_qwen15b_quant_curve.md",
+    "bench/results_v14_qwen15b_quant_curve.pdf"
+  ],
+  "notes": [
+    "This manifest is an execution plan, not quant-curve evidence.",
+    "Each required quant must produce a schema-v1 smoke JSON before the final curve can be release-ready.",
+    "Curva completa Q4_0..Q8_0 conforme tabela bartowski (issue #46): 7 quants no mesmo backend Linux/llama-cpp."
+  ]
+}

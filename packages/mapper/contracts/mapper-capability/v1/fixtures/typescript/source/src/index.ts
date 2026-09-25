@@ -1,0 +1,1 @@
+export function render(value: string): string { return value; }

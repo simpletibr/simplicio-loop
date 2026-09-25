@@ -1,0 +1,29 @@
+{
+  "schema": "simplicio.project-map/v1",
+  "files": [
+    {
+      "path": "bin/apply-edits.js",
+      "exports": [
+        "EditError",
+        "applyEdits",
+        "computePlan"
+      ],
+      "imports": [
+        "node:fs",
+        "node:path"
+      ]
+    },
+    {
+      "path": "bin/auto-map.js",
+      "exports": [
+        "collectEntities",
+        "collectFeatures",
+        "collectIntegrations"
+      ],
+      "imports": [
+        "./mapper-artifacts",
+        "node:child_process"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "schema": "simplicio.fast.knowledge-quality-corpus/v1",
+  "corpus_id": "simplicio-fast-issue-344",
+  "repository": "simplicio-fast",
+  "scope": "semantic-compute",
+  "generation": "issue344-fixture-1",
+  "provenance": {
+    "kind": "repository_fixture",
+    "sources": [
+      "docs/knowledge-projection-v1.md",
+      "docs/universal-context-v1.md",
+      "docs/issue-239-rust-index-query.md",
+      "docs/fast-v3-contract-matrix.md",
+      "#344 acceptance criteria"
+    ]
+  },
+  "facts": [
+    {
+      "source_type": "document",
+      "producer": "simplicio-fast-fixture",
+      "stable_handle": "doc:knowledge-projection",
+      "version": "v1",
+      "provenance": ["docs/knowledge-projection-v1.md"],
+      "trust": "verified",
+      "text": "Knowledge projection preserves producer stable handle version provenance trust digest repository scope and temporal bounds. Revoked expired conflicted and tombstoned facts are excluded from bounded precedent queries.",
+      "repository": "simplicio-fast",
+      "scope": "semantic-compute",
+      "applicability": ["knowledge", "precedent", "trust"]
+    },
+    {
+      "source_type": "document",
+      "producer": "simplicio-fast-fixture",
+      "stable_handle": "doc:universal-context",
+      "version": "v1",
+      "provenance": ["docs/universal-context-v1.md"],
+      "trust": "verified",
+      "text": "Universal context compiles typed Code Knowledge and Operations projection envelopes into a bounded context packet with repository tenant generation and token byte budgets.",
+      "repository": "simplicio-fast",
+      "scope": "semantic-compute",
+      "applicability": ["context", "budgets", "cross-domain"]
+    },
+    {
+      "source_type": "document",
+      "producer": "simplicio-fast-fixture",
+      "stable_handle": "doc:rust-index",
+      "version": "v1",
+      "provenance": ["docs/issue-239-rust-index-query.md"],
+      "trust": "verified",
+      "text": "Persisted Rust mmap indexes answer bounded symbol queries without materializing all symbols and reject corrupt stale or out of bounds index records.",
+      "repository": "simplicio-fast",
+      "scope": "semantic-compute",
+      "applicability": ["rust", "mmap", "index"]
+    },
+    {
+      "source_type": "contract",
+      "producer": "simplicio-fast-fixture",
+      "stable_handle": "contract:delivery-receipt",
+      "version": "v1",
+      "provenance": ["docs/fast-v3-contract-matrix.md"],
+      "trust": "verified",
+      "text": "Delivery receipts carry request hash generation status reason and evidence while ownership remains explicit and unverifiable claims are rejected.",
+      "repository": "simplicio-fast",
+      "scope": "semantic-compute",
+      "applicability": ["delivery", "receipt", "ownership"]
+    },
+    {
+      "source_type": "issue",
+      "producer": "simplicio-fast-fixture",
+      "stable_handle": "issue:344-quality",
+      "version": "v1",
+      "provenance": ["#344 acceptance criteria"],
+      "trust": "verified",
+      "text": "Knowledge quality evidence requires a frozen corpus ground truth raw ranking results recall precision nDCG latency RSS tokens and source deletion or revocation behavior.",
+      "repository": "simplicio-fast",
+      "scope": "semantic-compute",
+      "applicability": ["quality", "ground-truth", "benchmark"]
+    },
+    {
+      "source_type": "document",
+      "producer": "simplicio-fast-fixture",
+      "stable_handle": "doc:projection-abi",
+      "version": "v1",
+      "provenance": ["docs/projection-abi-v1.md"],
+      "trust": "verified",
+      "text": "Projection envelopes are derived read models with opaque stable handles and provenance so consumers can reject stale or cross repository data without mmap implementation details.",
+      "repository": "simplicio-fast",
+      "scope": "semantic-compute",
+      "applicability": ["projection", "handles", "consumer"]
+    },
+    {
+      "source_type": "receipt",
+      "producer": "simplicio-fast-fixture",
+      "stable_handle": "receipt:runtime-smoke",
+      "version": "v1",
+      "provenance": ["Runtime 3.5.7 contracts/runtime smoke"],
+      "trust": "observed",
+      "text": "Runtime smoke receipt is an environment observation for contract and runtime checks and does not establish Linux macOS Windows release asset parity.",
+      "repository": "simplicio-fast",
+      "scope": "semantic-compute",
+      "applicability": ["runtime", "verification", "platform"]
+    },
+    {
+      "source_type": "skill",
+      "producer": "simplicio-fast-fixture",
+      "stable_handle": "skill:bounded-fallback",
+      "version": "v1",
+      "provenance": ["docs/knowledge-projection-v1.md"],
+      "trust": "verified",
+      "text": "When vector infrastructure is unavailable lexical fallback remains explicit and bounded; unavailable ranking must not silently change the projection contract.",
+      "repository": "simplicio-fast",
+      "scope": "semantic-compute",
+      "applicability": ["fallback", "vector", "ranking"]
+    }
+  ],
+  "queries": [
+    {"id": "knowledge-trust", "task": "knowledge projection revoked trust provenance", "expected": ["doc:knowledge-projection"]},
+    {"id": "context-budgets", "task": "typed context packet token byte budgets", "expected": ["doc:universal-context"]},
+    {"id": "rust-index", "task": "Rust mmap index corrupt stale symbols", "expected": ["doc:rust-index"]},
+    {"id": "delivery-receipt", "task": "delivery receipt ownership evidence", "expected": ["contract:delivery-receipt"]},
+    {"id": "quality-ground-truth", "task": "quality corpus ground truth recall precision nDCG", "expected": ["issue:344-quality"]},
+    {"id": "projection-handles", "task": "projection opaque stable handles consumer provenance", "expected": ["doc:projection-abi"]},
+    {"id": "runtime-platform", "task": "runtime smoke platform release assets", "expected": ["receipt:runtime-smoke"]},
+    {"id": "ranking-fallback", "task": "vector unavailable lexical fallback ranking", "expected": ["skill:bounded-fallback"]}
+  ],
+  "quality_gates": {"min_recall_at_k": 1.0, "min_precision_at_k": 1.0, "min_ndcg_at_k": 1.0, "k": 1}
+}

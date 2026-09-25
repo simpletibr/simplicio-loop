@@ -1,0 +1,6 @@
+{
+  "install": "composer install",
+  "test": "php vendor/bin/phpunit --configuration phpunit.xml",
+  "test_runner": "php vendor/bin/phpunit --configuration phpunit.xml",
+  "lint": "php vendor/bin/pint --test"
+}

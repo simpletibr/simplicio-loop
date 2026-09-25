@@ -1,13 +1,15 @@
 {
   "$schema_note": "simplicio-loop repository size budget baseline (#294). Regenerate with `python3 scripts/repository_budget.py --update-baseline` after a deliberate, reviewed size change -- never to silence a regression you haven't looked at.",
-  "generated_at": "2026-08-04T17:02:41Z",
+  "generated_at": "2026-09-25T19:26:41Z",
   "known_oversized_files": {
     "assets/simplicio-loop-evidence-memory.png": 2441366,
     "assets/simplicio-loop-hero-2026.png": 2337034,
-    "assets/simplicio-loop-parallel-worktrees.png": 2300503
+    "assets/simplicio-loop-parallel-worktrees.png": 2300503,
+    "packages/fast/assets/simplicio-fast-shared-memory-v3.png": 2194402,
+    "packages/mapper/simplicio_mapper/store/neural/assets/seeds.sql": 5351871
   },
   "max_single_file_bytes": 2097152,
   "threshold_growth": 0.25,
-  "total_bytes": 30189881,
-  "tracked_file_count": 1737
+  "total_bytes": 96826348,
+  "tracked_file_count": 5225
 }

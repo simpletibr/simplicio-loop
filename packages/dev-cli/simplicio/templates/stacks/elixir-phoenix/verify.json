@@ -1,0 +1,6 @@
+{
+  "install": "mix deps.get",
+  "test": "mix test",
+  "test_runner": "ExUnit",
+  "lint": "mix format --check-formatted"
+}

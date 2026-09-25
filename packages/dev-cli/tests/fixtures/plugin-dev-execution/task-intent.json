@@ -1,0 +1,8 @@
+{
+  "schema": "simplicio.plugin.task-intent/v1",
+  "task_id": "task-1",
+  "intent_class": "local_effect",
+  "repo": ".",
+  "session_id": "session-1",
+  "goal": "replace the first line"
+}

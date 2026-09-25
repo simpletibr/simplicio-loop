@@ -1,0 +1,9 @@
+usage: simplicio-py cache [-h] {stats,clear} ...
+
+positional arguments:
+  {stats,clear}
+    stats        print completion cache statistics
+    clear        clear completion cache
+
+options:
+  -h, --help     show this help message and exit

@@ -1,0 +1,42 @@
+{
+  "schema": "simplicio.project-map/v1",
+  "version": 1,
+  "generated_at": "2026-07-01T00:00:00.000Z",
+  "update_mode": "full",
+  "product": {
+    "name": "contract-fixture",
+    "stack": "python",
+    "project_mode": "root"
+  },
+  "files": [
+    {
+      "path": "src/app.py",
+      "language": "python",
+      "size_bytes": 120,
+      "last_modified": "2026-07-01T00:00:00.000Z",
+      "file_hash": "0000000000000000000000000000000000000000000000000000000000000",
+      "git_status": "clean",
+      "roles": ["entry_point"],
+      "imports": [],
+      "exports": ["greet"],
+      "importance": 0.9
+    }
+  ],
+  "entry_points": ["src/app.py"],
+  "test_files": [],
+  "config_files": [],
+  "modules": [
+    {
+      "name": "src",
+      "files": ["src/app.py"],
+      "roles": ["source"],
+      "file_count": 1
+    }
+  ],
+  "entities": [],
+  "architecture": {},
+  "dependencies": [],
+  "recent_changes": [],
+  "changed_files": [],
+  "integration": {}
+}

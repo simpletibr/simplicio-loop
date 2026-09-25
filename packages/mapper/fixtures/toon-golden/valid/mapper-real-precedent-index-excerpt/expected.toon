@@ -1,0 +1,5 @@
+schema: simplicio.precedent-index/v1
+items[3]{id,tags}:
+  44ade7398d52bdd2,[ui,markdown,agents]
+  596d396f0920467e,[markdown,agents,tdd]
+  52e71492637eabba,[powershell,claude,hooks]

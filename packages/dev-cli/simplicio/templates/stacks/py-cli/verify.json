@@ -1,0 +1,6 @@
+{
+  "install": "python3 -m pip install -e .[dev]",
+  "test": "pytest -q",
+  "test_runner": "pytest",
+  "lint": "ruff check src tests"
+}

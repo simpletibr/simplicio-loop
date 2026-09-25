@@ -1,0 +1,29 @@
+{
+  "schema": "simplicio.precedent-index/v1",
+  "items": [
+    {
+      "id": "44ade7398d52bdd2",
+      "tags": [
+        "ui",
+        "markdown",
+        "agents"
+      ]
+    },
+    {
+      "id": "596d396f0920467e",
+      "tags": [
+        "markdown",
+        "agents",
+        "tdd"
+      ]
+    },
+    {
+      "id": "52e71492637eabba",
+      "tags": [
+        "powershell",
+        "claude",
+        "hooks"
+      ]
+    }
+  ]
+}

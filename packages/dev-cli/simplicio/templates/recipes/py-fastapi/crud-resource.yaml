@@ -1,0 +1,66 @@
+{
+  "name": "crud-resource",
+  "description": "REST CRUD endpoints, persistence model, schemas, and tests for one FastAPI entity.",
+  "applies_to": ["py-fastapi"],
+  "matches": [
+    "(?i)\\bCRUD\\s+app\\s+for\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*(?:\\s+[A-Za-z][A-Za-z0-9_-]*){0,2})(?=\\s+with\\b|\\s*$)",
+    "(?i)\\bCRUD\\s+(?:API\\s+)?(?:for\\s+)?(?:managing\\s+)?(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\bREST\\s+(?:API\\s+)?for\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\bresource\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\s+with\\s+CRUD\\b",
+    "(?i)^CRUD(?:\\s+API)?$"
+  ],
+  "slots": {
+    "entity": {"required": true, "transform": "pascal_case"},
+    "entity_lower": {"derived_from": "entity", "transform": "lower_snake_case"},
+    "entity_plural": {"derived_from": "entity", "transform": "plural_lower"}
+  },
+  "rationale": "Use the py-fastapi CRUD recipe for {entity}: model, schema, router, and tests are deterministic for this stack.",
+  "files_to_create": [
+    {"path": "src/db/{entity_lower}.py", "purpose": "SQLAlchemy model for {entity}"},
+    {"path": "src/api/schemas/{entity_lower}.py", "purpose": "Pydantic schemas for {entity}"},
+    {"path": "src/api/routes/{entity_plural}.py", "purpose": "CRUD API router for {entity}"},
+    {"path": "tests/api/test_{entity_plural}.py", "purpose": "CRUD route tests for {entity}"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-db-model",
+      "depends_on": [],
+      "goal": "Define the {entity} SQLAlchemy model.",
+      "target": "src/db/{entity_lower}.py",
+      "criteria": "- {entity} class exists with id, name, and created_at fields\\n- table name is {entity_plural}",
+      "constraints": "- use SQLAlchemy 2.0 declarative style",
+      "verify": "pytest tests/db/test_{entity_lower}.py -q"
+    },
+    {
+      "id": "T02-api-schemas",
+      "depends_on": ["T01-db-model"],
+      "goal": "Create Pydantic schemas for {entity} create, update, and read flows.",
+      "target": "src/api/schemas/{entity_lower}.py",
+      "criteria": "- {entity}Create, {entity}Update, and {entity}Read schemas exist\\n- optional update fields are supported",
+      "constraints": "- keep schemas framework-agnostic",
+      "verify": "pytest tests/api/test_{entity_plural}.py -q"
+    },
+    {
+      "id": "T03-api-routes",
+      "depends_on": ["T01-db-model", "T02-api-schemas"],
+      "goal": "Implement CRUD routes for {entity}.",
+      "target": "src/api/routes/{entity_plural}.py",
+      "criteria": "- list, create, read, update, and delete routes are present\\n- route prefix is /{entity_plural}",
+      "constraints": "- raise FastAPI HTTPException for missing records",
+      "verify": "pytest tests/api/test_{entity_plural}.py -q"
+    },
+    {
+      "id": "T04-api-tests",
+      "depends_on": ["T03-api-routes"],
+      "goal": "Cover the {entity} CRUD router with route tests.",
+      "target": "tests/api/test_{entity_plural}.py",
+      "criteria": "- create/list/read/update/delete paths are tested\\n- missing {entity_lower} returns 404",
+      "constraints": "- use FastAPI TestClient",
+      "verify": "pytest tests/api/test_{entity_plural}.py -q"
+    }
+  ],
+  "deps_to_install": ["sqlalchemy>=2.0.50", "pydantic>=2.13.4"],
+  "deps_dev": ["pytest>=9.0.3", "httpx>=0.28.1"],
+  "test_command": "pytest -q",
+  "lint_command": "ruff check src tests"
+}

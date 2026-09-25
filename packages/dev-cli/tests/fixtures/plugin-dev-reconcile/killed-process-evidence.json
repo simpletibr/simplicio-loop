@@ -1,0 +1,13 @@
+{
+  "schema": "simplicio.plugin.dev-reconciliation-evidence/v1",
+  "attempt_id": "killed-1",
+  "lease_id": "lease-1",
+  "recommended_action": "resume",
+  "reason_code": "PARTIAL_APPLY",
+  "residual_write_set": ["b.txt"],
+  "validation_delta": {"unrun": ["pytest -q"], "stale": [], "failed": []},
+  "git_mutations": [],
+  "user_changes_detected": false,
+  "resume_safe": true,
+  "rollback_safe": false
+}

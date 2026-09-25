@@ -1,0 +1,457 @@
+{
+  "agent_tree": {
+    "agent_id": "8c2574892063f995",
+    "bh_address": "R",
+    "children": [
+      {
+        "agent_id": "b6756361cf9057a4",
+        "bh_address": "R.0",
+        "children": [
+          {
+            "agent_id": "eeb42a9b5bbe7343",
+            "bh_address": "R.0.0",
+            "language": "json",
+            "path": "package.json",
+            "roles": [
+              "config"
+            ]
+          }
+        ],
+        "module": "."
+      },
+      {
+        "agent_id": "638066da3589a01b",
+        "bh_address": "R.1",
+        "children": [
+          {
+            "agent_id": "dedc0f1f7e6e0aae",
+            "bh_address": "R.1.0",
+            "language": "javascript",
+            "path": "spec/greet.spec.js",
+            "roles": [
+              "test"
+            ]
+          }
+        ],
+        "module": "spec"
+      },
+      {
+        "agent_id": "2f42337dd49075f2",
+        "bh_address": "R.2",
+        "children": [
+          {
+            "agent_id": "c62e6628f35e9209",
+            "bh_address": "R.2.0",
+            "language": "javascript",
+            "path": "src/index.js",
+            "roles": [
+              "entrypoint"
+            ]
+          }
+        ],
+        "module": "src"
+      }
+    ],
+    "module": "."
+  },
+  "architecture": {
+    "signals": [],
+    "system_type": "library-or-service"
+  },
+  "capability_coverage": {
+    "contract_version": "v1",
+    "languages": {
+      "javascript": {
+        "capabilities": {
+          "backend": {
+            "python-reference": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "evidence": {
+            "reference": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "route_status": {
+            "fallback": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "status": {
+            "MISSING": [
+              "local-references",
+              "sql-objects"
+            ],
+            "NATIVE_PARITY": [
+              "imports"
+            ],
+            "SHADOW": [
+              "language-detection",
+              "file-inventory",
+              "symbols",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          }
+        },
+        "degraded": [],
+        "file_count": 2
+      },
+      "json": {
+        "capabilities": {
+          "backend": {
+            "python-reference": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "evidence": {
+            "reference": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "route_status": {
+            "fallback": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "status": {
+            "MISSING": [
+              "imports",
+              "local-references",
+              "sql-objects"
+            ],
+            "SHADOW": [
+              "language-detection",
+              "file-inventory",
+              "symbols",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          }
+        },
+        "degraded": [],
+        "file_count": 1
+      }
+    },
+    "native_promotion": {
+      "javascript": {
+        "blocking_capabilities": [
+          "local-references",
+          "sql-objects"
+        ],
+        "eligible": false,
+        "native_default": false,
+        "rule": "native promotion requires every advertised capability to be NATIVE_PARITY"
+      },
+      "json": {
+        "blocking_capabilities": [
+          "imports",
+          "local-references",
+          "sql-objects"
+        ],
+        "eligible": false,
+        "native_default": false,
+        "rule": "native promotion requires every advertised capability to be NATIVE_PARITY"
+      }
+    },
+    "required_capabilities": [
+      "language-detection",
+      "file-inventory",
+      "imports",
+      "symbols",
+      "local-references",
+      "calls",
+      "endpoints-routes",
+      "screens-templates",
+      "sql-objects",
+      "business-rules",
+      "flows",
+      "tests",
+      "architecture",
+      "precedents",
+      "retrieval-hints"
+    ],
+    "schema": "simplicio.mapper-capability-coverage/v1",
+    "semantic_resolution": {
+      "languages": [],
+      "protocol": "v1",
+      "provider_versions": [],
+      "providers": [],
+      "reasons": [
+        "no_csharp_or_razor_call_sites"
+      ],
+      "resolved_calls": 0,
+      "schema": "simplicio.mapper-semantic-resolution/v1",
+      "status": "not_required",
+      "symbols": 0
+    },
+    "version": 1
+  },
+  "changed_files": [],
+  "config_files": [
+    "package.json"
+  ],
+  "degraded": {
+    "git_status_unavailable": false,
+    "git_timeout": false,
+    "large_file_limit_bytes": 250000,
+    "skipped_large_files": []
+  },
+  "dependencies": {
+    "dev": [],
+    "manifest": "package.json",
+    "package_manager": "npm",
+    "runtime": []
+  },
+  "entities": [
+    {
+      "name": "greet",
+      "score": 3
+    },
+    {
+      "name": "package",
+      "score": 1
+    },
+    {
+      "name": "spec",
+      "score": 1
+    }
+  ],
+  "entry_points": [
+    "src/index.js"
+  ],
+  "files": [
+    {
+      "agent_id": "eeb42a9b5bbe7343",
+      "bh_address": "R.0.0",
+      "exports": [],
+      "file_hash": "cc21305907ed363da1c23cfbc3ba28c139a9b43213113f59ec6c24ae58032a02",
+      "git_status": "clean",
+      "importance": 0.32,
+      "imports": [],
+      "language": "json",
+      "last_modified": "1970-01-01T00:00:00.000Z",
+      "path": "package.json",
+      "roles": [
+        "config"
+      ],
+      "size_bytes": 126
+    },
+    {
+      "agent_id": "dedc0f1f7e6e0aae",
+      "bh_address": "R.1.0",
+      "exports": [],
+      "file_hash": "ac60cadc15b6a77e66dde2b10396387e36172c2e8b2fa31ec825e66e2a351f57",
+      "git_status": "clean",
+      "importance": 0.45,
+      "imports": [
+        "../src/index.js",
+        "node:assert",
+        "node:test"
+      ],
+      "language": "javascript",
+      "last_modified": "1970-01-01T00:00:00.000Z",
+      "path": "spec/greet.spec.js",
+      "roles": [
+        "test"
+      ],
+      "size_bytes": 213
+    },
+    {
+      "agent_id": "c62e6628f35e9209",
+      "bh_address": "R.2.0",
+      "exports": [
+        "greet",
+        "main"
+      ],
+      "file_hash": "f5957cbfcc1c9da10b47506a43d9ba6e7e893cefec0ccbae7e4ea0312380091d",
+      "git_status": "clean",
+      "importance": 0.65,
+      "imports": [],
+      "language": "javascript",
+      "last_modified": "1970-01-01T00:00:00.000Z",
+      "path": "src/index.js",
+      "roles": [
+        "entrypoint"
+      ],
+      "size_bytes": 199
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "integration": {
+    "contract": "SIMPLICIO_INTEGRATION.md",
+    "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",
+    "llm_directives": {
+      "instruction": "No-thinking: act directly, do not deliberate or chain-of-think. No-internet: do not access the network. Load only strictly necessary tools. Load only strictly necessary skills.",
+      "no_internet": true,
+      "no_thinking": true,
+      "skills": "only_necessary",
+      "tools": "only_necessary"
+    }
+  },
+  "modules": [
+    {
+      "file_count": 1,
+      "files": [
+        "package.json"
+      ],
+      "name": ".",
+      "roles": [
+        "config"
+      ]
+    },
+    {
+      "file_count": 1,
+      "files": [
+        "spec/greet.spec.js"
+      ],
+      "name": "spec",
+      "roles": [
+        "test"
+      ]
+    },
+    {
+      "file_count": 1,
+      "files": [
+        "src/index.js"
+      ],
+      "name": "src",
+      "roles": [
+        "entrypoint"
+      ]
+    }
+  ],
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:9ef12a2acedae1f5aa0671da2b37b3eb3798ef8874e7289674dd67fde4f23135",
+    "capability_coverage": {
+      "architecture": "full",
+      "files": "full",
+      "precedent": "unsupported",
+      "relationships": "unsupported",
+      "symbols": "unsupported"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
+  "product": {
+    "name": "sample-node-app",
+    "project_mode": "root",
+    "stack": "unknown"
+  },
+  "recent_changes": [],
+  "schema": "simplicio.project-map/v1",
+  "test_files": [
+    "spec/greet.spec.js"
+  ],
+  "update_mode": "full",
+  "version": 1
+}

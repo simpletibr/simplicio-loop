@@ -1,0 +1,12 @@
+usage: simplicio-py doctor [-h] [--json] [--list-tiers] [--no-check-updates]
+                           [--refresh] [--upgrade] [--storage] [--root ROOT]
+
+options:
+  -h, --help          show this help message and exit
+  --json
+  --list-tiers
+  --no-check-updates
+  --refresh
+  --upgrade
+  --storage           report MapperStore cutover state without writes
+  --root ROOT         repo root for read-only storage diagnostics

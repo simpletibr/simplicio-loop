@@ -1,0 +1,116 @@
+{
+  "decision_receipt": {
+    "contract_version": "1.0",
+    "generation": {
+      "backend_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "concurrency_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "context_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "generation_id": "local-generation-001",
+      "hardware_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "model_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "message_type": "decision_receipt",
+    "payload": {
+      "confidence": 0.87,
+      "context_batch_policy": {
+        "batch_size": 8,
+        "ranking": "cache_locality"
+      },
+      "decision_digest": "sha256:8f2740ac4da3c6e9a7732ce00182543a404550758f1bc76df44f6800e47d3bac",
+      "decision_id": "decision-001",
+      "invalidation_triggers": [
+        "model_drift",
+        "backend_drift",
+        "hardware_drift",
+        "context_drift",
+        "concurrency_drift"
+      ],
+      "placement_recommendation": {
+        "reason_code": "capability_supported",
+        "target": "gpu:0"
+      },
+      "reason_codes": [
+        "telemetry_standard",
+        "cache_warm"
+      ],
+      "source_telemetry_digest": "sha256:1eba03857c2e4e07b28781f67c50b57177e42327b6b41e44098371cbdf7fd1dc",
+      "speculation_policy": {
+        "enabled": true,
+        "strategy": "draft_verify"
+      },
+      "unavailable": {}
+    },
+    "schema": "simplicio.fast-local/v1"
+  },
+  "schema": "simplicio.fast-local.examples/v1",
+  "telemetry_snapshot": {
+    "contract_version": "1.0",
+    "generation": {
+      "backend_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "concurrency_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "context_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "generation_id": "local-generation-001",
+      "hardware_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "model_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "message_type": "telemetry_snapshot",
+    "payload": {
+      "capabilities": {
+        "kernels": {
+          "details": [
+            "attention",
+            "matmul"
+          ],
+          "status": "supported"
+        },
+        "placement": {
+          "details": [
+            "gpu:0",
+            "cpu"
+          ],
+          "status": "supported"
+        },
+        "speculation": {
+          "details": [
+            "draft_verify"
+          ],
+          "status": "supported"
+        }
+      },
+      "execution_plan": {
+        "digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "plan_id": "plan-001",
+        "reason_codes": [
+          "cache_warm"
+        ]
+      },
+      "hardware": {
+        "device_count": 1,
+        "devices": [
+          "gpu:0"
+        ],
+        "fingerprint": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "memory_total_bytes": 17179869184
+      },
+      "level": "standard",
+      "observed_at": "2026-08-23T15:00:00Z",
+      "sample_id": "sample-001",
+      "telemetry": {
+        "acceptance_rate": 0.91,
+        "bandwidth_bytes_per_second": 1200000000,
+        "memory_used_bytes": 4294967296,
+        "tokens_per_second": 42.5,
+        "transfer_bytes": 8192,
+        "ttft_ms": 18.2
+      },
+      "telemetry_digest": "sha256:08c8f1a13577d79a6fbdb0623ddca94e1d555851d9a4bb2f95db65c698ab8269",
+      "unavailable": {
+        "cache_pressure_ratio": "not_exposed",
+        "stage_timings_ms": "not_collected"
+      }
+    },
+    "schema": "simplicio.fast-local/v1"
+  }
+}
