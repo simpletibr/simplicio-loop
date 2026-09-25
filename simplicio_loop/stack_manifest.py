@@ -33,7 +33,7 @@ _COMPONENT_ROLES = (
 # simplicio-cli train target is 0.18.16 (loop's in-process dev-cli capability
 # probe reads simplicio.capabilities.load_capabilities_manifest()).
 _FALLBACK_FLOORS = {
-    "simplicio-mapper": "0.26.33",
+    "simplicio-mapper": "0.26.34",
     "simplicio-fast": "2.0.35",
     "simplicio-cli": "0.18.16",
     "simplicio-loop": "3.43.15",
