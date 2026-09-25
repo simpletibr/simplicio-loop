@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import itertools
 import json
-from pathlib import Path
 import subprocess
-from typing import Any, Sequence
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
 
 HISTORY_SCHEMA = "simplicio.context-history/v1"
 _MAX_COMMITS = 1000

@@ -25,7 +25,6 @@ from simplicio_mapper.release_governance import (
     verify_release_manifest_signature,
 )
 
-
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "contracts" / "component-release" / "v1" / "fixtures"
 

@@ -6,7 +6,12 @@ from pathlib import Path
 
 from simplicio_mapper.contract import find_contract_root, validate_payload
 from simplicio_mapper.mapper import build_artifacts
-from simplicio_mapper.visualization import _provenance, _safe_remote, build_visualization_bundle, preview_source
+from simplicio_mapper.visualization import (
+    _provenance,
+    _safe_remote,
+    build_visualization_bundle,
+    preview_source,
+)
 
 
 def _run_git(root: Path, *args: str) -> None:

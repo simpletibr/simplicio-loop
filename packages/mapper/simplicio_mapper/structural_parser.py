@@ -10,12 +10,11 @@ from __future__ import annotations
 import ast
 import hashlib
 import re
-from dataclasses import dataclass, field
+from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import Iterable
 
 from .structural_graph import EdgeKind, GraphEdge, GraphNode, NodeKind, StructuralGraph
-
 
 LANGUAGE_BY_SUFFIX = {
     ".py": "python",

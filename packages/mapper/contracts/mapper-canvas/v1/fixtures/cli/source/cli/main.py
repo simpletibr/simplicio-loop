@@ -1,5 +1,6 @@
 from .commands import run
 
+
 def main():
     return run(['--help'])
 

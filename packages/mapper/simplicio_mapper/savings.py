@@ -54,7 +54,7 @@ def estimate_tokens(text: str | None) -> int:
         import tiktoken
 
         return len(tiktoken.get_encoding("o200k_base").encode(text, disallowed_special=()))
-    except Exception:
+    except Exception:  # noqa: BLE001 - optional tokenizer must never block the caller
         # Ledger creation and context selection must remain available if a
         # constrained install cannot load the optional native tokenizer.
         return max(1, len(text) // 4)

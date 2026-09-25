@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import json
-import sys
-from pathlib import Path
-
 import sqlite3
+import sys
 from contextlib import closing
+from pathlib import Path
 
 from ..store.neural import (
     NeuralBankError,

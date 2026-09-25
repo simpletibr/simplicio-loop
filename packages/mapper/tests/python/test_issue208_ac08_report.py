@@ -9,7 +9,6 @@ from simplicio_mapper.issue208_ac08_report import (
     render_issue208_ac08_markdown,
 )
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
