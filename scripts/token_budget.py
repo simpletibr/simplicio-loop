@@ -18,7 +18,7 @@ survey artifacts exist here since this repo IS the orchestrator skill, not a pro
 mapped; the check includes any `.simplicio/*.json` it finds anyway, for parity with repos that do
 have them):
   - `.claude/skills/simplicio-loop/SKILL.md` — the skill a fresh runtime loads every session
-  - `AGENTS.md`, `CLAUDE.md` (if present) — the cross-agent / Claude-specific contract docs
+  - `AGENTS.md` — the single cross-agent contract doc
   - `.simplicio/*.json` — mapper survey artifacts, if this repo has been mapped locally
   - the largest scripts a task is likely to read whole: `simplicio_loop/cli.py`,
     `scripts/loop_journal.py`, `scripts/task_anchor.py`, `scripts/claims_audit.py`,
@@ -48,7 +48,6 @@ BASELINE_PATH = os.path.join(HERE, "token_budget_baseline.json")
 TRACKED_ARTIFACTS = [
     ("SKILL.md (simplicio-loop)", ".claude/skills/simplicio-loop/SKILL.md"),
     ("AGENTS.md", "AGENTS.md"),
-    ("CLAUDE.md", "CLAUDE.md"),
     ("cli.py", "simplicio_loop/cli.py"),
     ("loop_journal.py", "scripts/loop_journal.py"),
     ("task_anchor.py", "scripts/task_anchor.py"),
@@ -110,7 +109,7 @@ def discover_mapper_artifacts():
 
 def measure(estimate_fn):
     """Return {rel_path: {"label":..., "tokens": int, "words": int, "chars": int}} for artifacts
-    that exist on disk. Missing artifacts (e.g. no CLAUDE.md in some repos) are skipped, not
+    that exist on disk. Missing artifacts (e.g. an artifact list entry not present in some repos) are skipped, not
     treated as a failure — this guard adapts to whatever the repo actually ships."""
     out = {}
     artifacts = list(TRACKED_ARTIFACTS) + discover_mapper_artifacts()

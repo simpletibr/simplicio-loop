@@ -90,7 +90,6 @@ def test_pack_has_project_identity_and_authoritative_sources_with_sha256():
 
     required_paths = {
         "AGENTS.md",
-        "CLAUDE.md",
         "docs/LLM_OPERATING_INSTRUCTIONS.md",
         "docs/LLM_MAX_SPEED_ORIENTATION.md",
         ".claude/skills/simplicio-loop/SKILL.md",

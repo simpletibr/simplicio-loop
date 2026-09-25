@@ -393,3 +393,68 @@ time.sleep(30)
     assert result.timed_out is True
     assert child_pid.exists()
     _assert_pid_gone(int(child_pid.read_text()))
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX setsid process-tree contract")
+def test_descendant_exiting_within_grace_period_is_not_a_leak(tmp_path) -> None:
+    """A descendant still alive right after the leader exits, but that goes
+    away on its own shortly after (the ``multiprocessing.resource_tracker``
+    shutdown shape: it only exits once it observes its parent's pipe close),
+    must not be reported as a leak -- ``run_bounded`` gives it a bounded
+    grace period before declaring one."""
+    child_pid = tmp_path / "self-exiting-child.pid"
+    child = (
+        "import pathlib,sys,time,os; "
+        "pathlib.Path(sys.argv[1]).write_text(str(os.getpid())); time.sleep(0.5)"
+    )
+    leader = (
+        "import os,subprocess,sys,time; "
+        "subprocess.Popen([sys.executable, '-c', sys.argv[2], sys.argv[1]], "
+        "start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); "
+        "time.sleep(.15)"
+    )
+    result = check._run_bounded(
+        [sys.executable, "-c", leader, str(child_pid), child], phase="stdlib_test",
+        capture_output=True, timeout_seconds=5.0,
+    )
+
+    assert result.returncode == 0
+    assert result.timed_out is False
+    assert result.reason == CommandReason.OK
+    assert check._gate_result("stdlib_test", result).ok is True
+    _assert_pid_gone(int(child_pid.read_text()))
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX setsid process-tree contract")
+def test_descendant_still_alive_past_grace_period_is_reported_as_leak(tmp_path) -> None:
+    """A descendant that is genuinely still running once the whole bounded
+    grace window has elapsed is a real leak, not just a slow shutdown --
+    ``run_bounded`` must wait out the full grace period (proving it is not
+    short-circuited back to the old near-instant check) before reporting it,
+    and must still terminate and reap it afterwards."""
+    child_pid = tmp_path / "truly-leaked-child.pid"
+    child = (
+        "import pathlib,sys,time,os; "
+        "pathlib.Path(sys.argv[1]).write_text(str(os.getpid())); time.sleep(30)"
+    )
+    leader = (
+        "import os,subprocess,sys,time; "
+        "subprocess.Popen([sys.executable, '-c', sys.argv[2], sys.argv[1]], "
+        "start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); "
+        "time.sleep(.15)"
+    )
+    started = time.monotonic()
+    result = check._run_bounded(
+        [sys.executable, "-c", leader, str(child_pid), child], phase="stdlib_test",
+        capture_output=True, timeout_seconds=10.0,
+    )
+    elapsed = time.monotonic() - started
+
+    assert result.returncode != 0
+    assert result.timed_out is False
+    assert result.reason == CommandReason.DESCENDANT_LEAK
+    assert check._gate_result("stdlib_test", result).reason_code == "stdlib_test_descendant_leak"
+    # The grace period (>= 1.5s, comfortably below the 2.0s budget) must
+    # actually have been honored, not skipped.
+    assert elapsed >= 1.5
+    _assert_pid_gone(int(child_pid.read_text()))

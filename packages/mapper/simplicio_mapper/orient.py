@@ -11,8 +11,8 @@ from pathlib import Path
 from typing import Any
 
 from .context_pack import select_context_targets
-from .task_intent import TASK_CONTEXT_SCHEMA, canonical_json, parse_task_intent
 from .savings import estimate_tokens
+from .task_intent import TASK_CONTEXT_SCHEMA, canonical_json, parse_task_intent
 from .toon import encode_toon_with_report
 
 

@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from .prism_task_facts import TASK_FACTS_SCHEMA, PrismFactsError, validate_prism_task_facts
 

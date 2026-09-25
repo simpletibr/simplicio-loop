@@ -24,6 +24,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper.cli import main as mapper_cli_main  # noqa: E402
+from simplicio_mapper.savings import warm_estimator  # noqa: E402
 
 
 def _json_dump(payload: Any) -> str:
@@ -532,6 +533,23 @@ def main() -> int:
     parser.add_argument("--write", action="store_true", help="Write docs/behavioral-scorecard.md.")
     parser.add_argument("--write-json", action="store_true", help="Write docs/evidence/behavioral-scorecard.json.")
     args = parser.parse_args()
+
+    # Every case's `handoff`/`orient` pass (in this process) and its `map`/
+    # `scan` deep-index subprocess (see `_evaluate_case`) call
+    # `estimate_tokens` for budget/cost accounting. On a cold machine that
+    # function's tiktoken backend lazily fetches its ranks file over the
+    # network the first time any process needs it; leaving that fetch to
+    # happen wherever it is first needed means every case, and every
+    # subprocess this script spawns, independently races to populate the
+    # same on-disk cache -- and a transient failure in any one of those
+    # races silently swaps in a materially different (coarser) token count
+    # for just that case, breaking the "deterministic and measured"
+    # contract this scorecard exists to prove (see issue backing
+    # `warm_estimator`'s docstring). Warm it once, eagerly, right here,
+    # before any case starts: every later caller in this process and every
+    # subsequent subprocess sharing the default cache directory then hits
+    # disk, not network.
+    warm_estimator()
 
     corpus = _load_json(CORPUS_PATH.read_text(encoding="utf-8"), "corpus manifest")
     cases = [_evaluate_case(case) for case in corpus["cases"]]

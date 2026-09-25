@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Iterable, Mapping
 
-from .structural_graph import EdgeKind, GraphEdge, GraphNode, NodeKind, StructuralGraph
+from .structural_graph import EdgeKind, GraphNode, NodeKind, StructuralGraph
 from .structural_parser import build_structural_graph
-
 
 _ROUTE = re.compile(r"(?:@(?:app|router)\.(?:get|post|put|patch|delete)|@(Get|Post|Put|Patch|Delete))\s*\(\s*['\"]([^'\"]+)", re.IGNORECASE)
 _HTTP_CALL = re.compile(r"(?:requests|httpx|axios|fetch|client)\s*\.\s*(?:get|post|put|patch|delete|request)\s*\(\s*['\"]([^'\"]+)", re.IGNORECASE)

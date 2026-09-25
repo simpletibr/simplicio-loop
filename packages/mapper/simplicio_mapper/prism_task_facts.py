@@ -7,11 +7,11 @@ a conflict graph safely.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
 import re
-from typing import Any, Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from .context_graph_v1 import ContextGraphError, digest, impact_query, validate_graph
 

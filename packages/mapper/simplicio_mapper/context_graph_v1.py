@@ -1,10 +1,11 @@
 """Canonical repository facts and provenance contract."""
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
-from typing import Any, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
+from typing import Any
 
 GRAPH_SCHEMA = "simplicio.context-graph/v1"
 
@@ -97,7 +98,8 @@ def validate_graph(graph: Mapping[str, Any], *, expected_repo: str | None = None
                    expected_generation: str | None = None) -> dict[str, Any]:
     if graph.get("schema") != GRAPH_SCHEMA:
         raise ContextGraphError("graph_schema_invalid", "")
-    unsigned = dict(graph); supplied = unsigned.pop("graph_digest", "")
+    unsigned = dict(graph)
+    supplied = unsigned.pop("graph_digest", "")
     if supplied != digest(unsigned):
         raise ContextGraphError("graph_corrupt", "")
     if expected_repo and graph.get("repo_id") != expected_repo:
@@ -279,13 +281,15 @@ def context_delta(base_graph: Mapping[str, Any], target_graph: Mapping[str, Any]
         candidates = sorted(k for k in before if k[1] == old_key)
         if len(candidates) != 1:
             raise ContextGraphError("delta_rename_source_invalid", old_key)
-        old = candidates[0]; new = (old[0], new_key)
+        old = candidates[0]
+        new = (old[0], new_key)
         if new not in after:
             raise ContextGraphError("delta_rename_target_invalid", new_key)
         renamed.append({"from_fact_id": before[old]["fact_id"],
                         "to_fact_id": after[new]["fact_id"],
                         "from_key": old_key, "to_key": new_key})
-        consumed_before.add(old); consumed_after.add(new)
+        consumed_before.add(old)
+        consumed_after.add(new)
     common = (set(before) & set(after)) - consumed_before - consumed_after
     updated = [
         {"from_fact_id": before[k]["fact_id"], "fact": after[k]}
@@ -323,7 +327,8 @@ def context_delta(base_graph: Mapping[str, Any], target_graph: Mapping[str, Any]
 
 def apply_delta(base_graph: Mapping[str, Any], delta: Mapping[str, Any]) -> dict[str, Any]:
     base = validate_graph(base_graph)
-    unsigned = dict(delta); supplied = unsigned.pop("delta_digest", "")
+    unsigned = dict(delta)
+    supplied = unsigned.pop("delta_digest", "")
     if supplied != digest(unsigned):
         raise ContextGraphError("delta_corrupt", supplied)
     if delta.get("schema") != "simplicio.context-delta/v1":

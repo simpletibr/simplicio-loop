@@ -1,6 +1,6 @@
 """Token/Context Budget Guard (#121) — proves the guard reports sizes and FAILS on a regression.
 
-The guard estimates tokens for SKILL.md/AGENTS.md/CLAUDE.md/the largest scripts, compares against
+The guard estimates tokens for SKILL.md/AGENTS.md/the largest scripts, compares against
 the committed baseline (`scripts/token_budget_baseline.json`), and must FAIL when a tracked
 artifact grows past its threshold — the acceptance test explicitly asked for: "editing SKILL.md to
 add 2000 words makes the guard fail with a clear message."

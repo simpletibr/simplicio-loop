@@ -9,7 +9,8 @@ from __future__ import annotations
 import hashlib
 import json
 import struct
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from .prism_task_facts import TASK_FACTS_SCHEMA, PrismFactsError, validate_prism_task_facts
 from .prism_work_delta import WORK_DELTA_SCHEMA, validate_prism_work_delta

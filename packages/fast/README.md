@@ -11,7 +11,7 @@
 <p align="center">
   <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-2.0.35-22c55e?style=for-the-badge" alt="Version 2.0.35"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+"></a>
-  <a href="https://github.com/wesleysimplicio/simplicio-fast/issues"><img src="https://img.shields.io/github/issues/wesleysimplicio/simplicio-fast?style=for-the-badge" alt="Open issues"></a>
+  <a href="https://github.com/simpletibr/simplicio-loop/issues"><img src="https://img.shields.io/github/issues/simpletibr/simplicio-loop?style=for-the-badge" alt="Open issues"></a>
   <img src="https://img.shields.io/badge/core_runtime_dependencies-0-111827?style=for-the-badge" alt="0 core runtime dependencies">
   <img src="https://img.shields.io/badge/integrated_extra_dependencies-2-334155?style=for-the-badge" alt="2 integrated extra dependencies">
 </p>
@@ -121,8 +121,8 @@ cannot expose the metric, the command still completes with a partial receipt: `p
 ## Install
 
 ```bash
-git clone https://github.com/wesleysimplicio/simplicio-fast
-cd simplicio-fast
+git clone https://github.com/simpletibr/simplicio-loop
+cd simplicio-loop/packages/fast
 python -m pip install -e .
 ```
 
@@ -335,7 +335,7 @@ are absent; `doctor` identifies whether the complete integrated path is ready.
 The `build`, `query`, direct-index `search`, bounded `context`, typed `impact`, `stats` and
 `doctor` surfaces remain available for the binary format. Mapper remains the canonical public
 context producer; consumers should use its versioned handles rather than reading this binary
-directly. Full cross-repository integration is tracked in the [integration epic](https://github.com/wesleysimplicio/simplicio-fast/issues/1).
+directly. Full cross-repository integration is tracked in [issue #1](https://github.com/simpletibr/simplicio-loop/issues/1).
 The compatibility matrix and the atomic shadow/canary/rollback receipt contract are
 tracked under the same epic.
 
@@ -544,7 +544,7 @@ retries. The source tree remains authoritative; snapshots are derived state.
 
 See [ADR-0001](docs/ADR-0001-fast-v3-ownership.md) and the
 [contract matrix](docs/fast-v3-contract-matrix.md). The executable delivery-engine work is
-tracked in [issue #46](https://github.com/wesleysimplicio/simplicio-fast/issues/46).
+tracked in [issue #46](https://github.com/simpletibr/simplicio-loop/issues/46).
 
 ## Star history
 
@@ -556,9 +556,9 @@ tracked in [issue #46](https://github.com/wesleysimplicio/simplicio-fast/issues/
 
 See the granular cross-repository plan:
 
-- [Simplicio Fast epic and core issues](https://github.com/wesleysimplicio/simplicio-fast/issues)
-- [Mapper integration](https://github.com/wesleysimplicio/simplicio-mapper/issues/358)
-- [Dev CLI integration](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/341)
+- [Simplicio Loop epic and core issues](https://github.com/simpletibr/simplicio-loop/issues)
+- [Mapper integration](https://github.com/simpletibr/simplicio-loop/issues/358) (now `packages/mapper/`)
+- [Dev CLI integration](https://github.com/simpletibr/simplicio-loop/issues/341) (now `packages/dev-cli/`)
 - [Loop integration](https://github.com/wesleysimplicio/simplicio-loop/issues/746)
 - [Runtime integration](https://github.com/wesleysimplicio/simplicio-runtime/issues/3597)
 

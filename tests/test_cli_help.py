@@ -18,7 +18,6 @@ ROOT_COMMANDS = {
     "batch": "continuously dispatch",
     "queue": "operate the durable",
     "findings": "inspect and reconcile",
-    "release-train": "release train continuous",
 }
 
 

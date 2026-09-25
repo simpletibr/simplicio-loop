@@ -598,7 +598,7 @@ def required_bound_operators():
 def missing_bound_operators():
     """Return the bound-operator binaries missing/non-operational, or [] if not applicable.
 
-    CLAUDE.md / `simplicio-loop` SKILL.md: when a body-of-work loop is driven by the
+    AGENTS.md / `simplicio-loop` SKILL.md: when a body-of-work loop is driven by the
     `simplicio-loop` companion skill, `simplicio-mapper` (survey) and `simplicio-dev-cli`
     (operate) are REQUIRED — "the loop BLOCKS if either is absent". That contract was previously
     enforced only at install/doctor time (#83); the running driver never checked it, so a

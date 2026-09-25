@@ -5,7 +5,7 @@ routing rules 1-10 from the issue, retry-budget enforcement, stall/repeated-
 fingerprint escalation (via `scripts/loop_journal.py`), quarantine, external
 reconciliation, and the forbidden-receipt-schema invariant -- all exercised
 through the real composed entrypoint `build_feedback_recovery_receipt`, not
-merely in isolation (the bug class CLAUDE.md flags).
+merely in isolation (the bug class AGENTS.md flags).
 """
 from __future__ import annotations
 

@@ -10,7 +10,6 @@ Contract (always):
 from __future__ import annotations
 
 import importlib.util
-import json
 import shutil
 import subprocess
 from datetime import datetime, timezone
@@ -118,12 +117,8 @@ def mapper_fast_status(
         and bool(fast_bin or fast_pkg)
         and memory.get("status") in {"ready", "drift"}
     )
-    repo_ok = True
-    if repo_report is not None:
-        # Repo alone: map optional until scan; Fast snapshot optional until build.
-        # Integration is "ready" if tools work; "warm" if artifacts exist.
-        repo_ok = True
-
+    # Repo alone: map optional until scan; Fast snapshot optional until build.
+    # Integration is "ready" if tools work; "warm" if artifacts exist.
     status = "ready" if core_ok else "degraded"
     if core_ok and repo_report:
         if repo_report["project_map"]["exists"] and repo_report["fast_snapshot"]["exists"]:

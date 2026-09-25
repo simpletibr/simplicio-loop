@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
 ATLAS_SCHEMA = "simplicio.coverage-atlas/v1"
 DELTA_SCHEMA = "simplicio.coverage-delta/v1"

@@ -22,7 +22,7 @@ without parsing the human-readable markdown docs:
   heuristic caller/callee relationships with confidence scores.
 
 The full contract is documented in
-[SIMPLICIO_INTEGRATION.md](https://github.com/wesleysimplicio/simplicio-mapper/blob/main/SIMPLICIO_INTEGRATION.md).
+[SIMPLICIO_INTEGRATION.md](https://github.com/simpletibr/simplicio-loop/blob/main/packages/mapper/SIMPLICIO_INTEGRATION.md).
 
 ## Install
 

@@ -41,6 +41,13 @@ dev = [
   "pytest-cov>=6,<8",
   "hypothesis>=6.100,<7",
   "build>=1,<2",
+  # Build backend (see [build-system] above). The dist-frontier tests build
+  # a real wheel with `python -m build --no-isolation` to prove the
+  # committed contracts/wheel-force-include shape without touching the
+  # network for an isolated build env -- that requires hatchling to already
+  # be importable in the dev environment, not just declared as a PEP 517
+  # build requirement.
+  "hatchling>=1.27,<1.33",
 ]
 
 [project.scripts]
@@ -51,9 +58,9 @@ llm-project-mapper = "simplicio_mapper.cli:main"
 addopts = "--import-mode=importlib"
 
 [project.urls]
-Homepage = "https://github.com/simpletibr/simplicio-mapper"
-Repository = "https://github.com/simpletibr/simplicio-mapper"
-Issues = "https://github.com/simpletibr/simplicio-mapper/issues"
+Homepage = "https://github.com/simpletibr/simplicio-loop/tree/main/packages/mapper"
+Repository = "https://github.com/simpletibr/simplicio-loop/tree/main/packages/mapper"
+Issues = "https://github.com/simpletibr/simplicio-loop/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["simplicio_mapper"]

@@ -7,10 +7,9 @@ import json
 import re
 import sqlite3
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 
 from .structural_graph import EdgeKind, StructuralGraph
-
 
 EVIDENCE_SCHEMA = "simplicio.graph-evidence/v1"
 _SENSITIVE_KEY = re.compile(r"(?:password|passwd|secret|token|api[_-]?key|authorization|cookie|credential|request[_-]?body|response[_-]?body)", re.IGNORECASE)

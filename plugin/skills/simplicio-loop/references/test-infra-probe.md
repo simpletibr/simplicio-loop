@@ -1,6 +1,6 @@
 # Test infra probe & adaptive DoD (#526 Etapa 3 full detail)
 
-The 7-dimension DoD (`scripts/pr_dod_review.py` `DOD_DIMENSIONS` / CLAUDE.md — implementation, unit,
+The 7-dimension DoD (`scripts/pr_dod_review.py` `DOD_DIMENSIONS` / AGENTS.md — implementation, unit,
 integration, system, regression, benchmark, coverage) stays the target. What Etapa 3 changes is
 **how it's sized**: a repository that has no test project, no coverage tooling, and no CI running
 tests cannot produce `unit`/coverage/benchmark evidence no matter how many turns the loop spends

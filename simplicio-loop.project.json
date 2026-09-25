@@ -1,5 +1,5 @@
 {
-  "$schema_note": "Mapa exaustivo do projeto simplicio-loop, extraído lendo os arquivos reais do repositório (README.md, CLAUDE.md, AGENTS.md, as 6 SKILL.md, references/*, pyproject.toml, plugin manifests, hooks/, engine/, rust/, scripts/, adapters/, CHANGELOG.md, PRICING.md, app/providers.json). Destinado a alimentar a geração de uma imagem detalhada e de um vídeo-tutorial. Idioma dos campos descritivos: PT-BR; identificadores/comandos/paths em inglês conforme o repo.",
+  "$schema_note": "Mapa exaustivo do projeto simplicio-loop, extraído lendo os arquivos reais do repositório (README.md, AGENTS.md, as 7 SKILL.md, references/*, pyproject.toml, plugin manifests, hooks/, engine/, rust/, scripts/, adapters/, CHANGELOG.md, PRICING.md, app/providers.json). Destinado a alimentar a geração de uma imagem detalhada e de um vídeo-tutorial. Idioma dos campos descritivos: PT-BR; identificadores/comandos/paths em inglês conforme o repo.",
   "generated_at": "2026-06-25",
   "generated_for": ["imagem-infografico-detalhada", "video-tutorial"],
 
@@ -213,7 +213,7 @@
         "name": "simplicio-mapper",
         "binary": "simplicio-mapper",
         "pip_pkg": "simplicio-mapper",
-        "repo": "https://github.com/wesleysimplicio/simplicio-mapper",
+        "repo": "packages/mapper/",
         "binds": ["orient", "recall"],
         "role": "SURVEY — mapeia o(s) repo(s) em .simplicio/*.json (project-map, precedent-index, symbol-index, call-graph, docs). Esse levantamento, não uma leitura ad-hoc do LLM, alimenta o goal a cada turno.",
         "preflight": "simplicio-mapper --version",
@@ -223,7 +223,7 @@
         "name": "simplicio-dev-cli",
         "binary": "simplicio-dev-cli",
         "pip_pkg": "simplicio-cli",
-        "repo": "https://github.com/wesleysimplicio/simplicio-dev-cli",
+        "repo": "packages/dev-cli/",
         "binds": ["execute", "deterministic_edit", "validate", "diagnostics"],
         "role": "OPERATE — aplica uma mudança DECIDIDA via seu contrato de 6 camadas (mapper context → precedent → prompt → diff → test → verify, ≤3 retries). O CLI edita e verifica; a IA não escreve o diff à mão.",
         "preflight": "simplicio-dev-cli --help (não tem --version; --help exit 0 = readiness)",
@@ -692,7 +692,7 @@
   },
 
   "directory_structure": {
-    "root_docs": ["README.md", "README*.md (15 idiomas em READMEs/)", "CLAUDE.md", "AGENTS.md", "GEMINI.md", "INSTALL.md", "PYPI.md", "PRICING.md", "CHANGELOG.md (43 versões)", "LICENSE (MIT)", "MANIFEST.in", "pyproject.toml"],
+    "root_docs": ["README.md", "README*.md (15 idiomas em READMEs/)", "AGENTS.md", "INSTALL.md", "PYPI.md", "PRICING.md", "CHANGELOG.md (43 versões)", "LICENSE (MIT)", "MANIFEST.in", "pyproject.toml"],
     "skills": ".claude/skills/{simplicio-tasks,simplicio-loop,simplicio-orient,simplicio-review,simplicio-compress,simplicio-learn}/SKILL.md (+ simplicio-tasks/references/*.md)",
     "hooks": "hooks/ (8 hooks Python + hooks.json + hooks.claude.json + README.md)",
     "engine": "engine/ (25 módulos Python + README.md)",

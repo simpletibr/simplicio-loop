@@ -36,6 +36,23 @@ fi
 
 "$VENV_PY" -m pip install --upgrade pip >/dev/null
 
+# Cross-package build/test tooling that more than one package's own local
+# gate needs at some point, installed once here so `scripts/check.py
+# --package <name>` (or `--package all`) is runnable from a plain fresh venv
+# with nothing else pre-installed on the machine:
+#   - build/wheel/setuptools: `python -m build` (root package's install-smoke
+#     test, `scripts/install_smoke.py`) and the mapper package's own
+#     `python -m build --no-isolation` dist-frontier tests both need a real
+#     PEP 517 front end + build backend already importable in THIS venv
+#     (--no-isolation explicitly skips pip's normal isolated-build-env
+#     fetch, so whatever backend a package declares under
+#     [build-system].requires must already be installed here, not just
+#     declared).
+#   - hatchling: the mapper package's build backend (packages/mapper's own
+#     [dev] extra below already lists it, but installing it explicitly here
+#     too keeps this step self-describing and idempotent either way).
+"$VENV_PY" -m pip install --upgrade build wheel setuptools "hatchling>=1.27,<1.33" >/dev/null
+
 # Dependency order matters: fast/dev-cli/loop each expect the mapper contract
 # and CLI to already be importable when THEIR own extras resolve.
 "$VENV_PY" -m pip install -e "$REPO/packages/mapper[dev]"

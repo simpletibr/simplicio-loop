@@ -9,7 +9,7 @@
   <a href="https://github.com/simpletibr/simplicio-loop/stargazers"><img src="https://img.shields.io/github/stars/simpletibr/simplicio-loop?style=social" alt="Stars"></a>
   <a href="#-the-7-skills--5-accelerators"><img src="https://img.shields.io/badge/skills-7-7C3AED" alt="7 skills"></a>
   <a href="#-source-adapters"><img src="https://img.shields.io/badge/source%20adapters-5-00E08A" alt="5 source adapters"></a>
-  <a href="#-16-runtimes-one-protocol"><img src="https://img.shields.io/badge/runtimes-16%20(3%20guaranteed%2B13%20best--effort)-2563EB" alt="16 runtimes (3 guaranteed + 13 best-effort)"></a>
+  <a href="#-15-runtimes-one-protocol"><img src="https://img.shields.io/badge/runtimes-15%20(3%20guaranteed%2B12%20best--effort)-2563EB" alt="15 runtimes (3 guaranteed + 12 best-effort)"></a>
   <a href="#-the-49-extension-points"><img src="https://img.shields.io/badge/extension%20points-50-00E08A" alt="50 extension points"></a>
   <a href="#measured-benchmark-issue-17"><img src="https://img.shields.io/badge/bench%20%2317-90%25%20fewer%20est.%20tokens-00E08A" alt="Issue #17 bench: ~90% fewer estimated tokens with loop"></a>
   <a href="#-token-economy"><img src="https://img.shields.io/badge/savings-mixed%20(see%20bench)-2563EB" alt="Savings — see measured bench + evidence-gated monitor"></a>
@@ -21,7 +21,7 @@
   <a href="#-tldr">TL;DR</a> ·
   <a href="#-the-7-skills--5-accelerators">7 Skills</a> ·
   <a href="#-source-adapters">Source Adapters</a> ·
-  <a href="#-16-runtimes-one-protocol">16 Runtimes</a> ·
+  <a href="#-15-runtimes-one-protocol">15 Runtimes</a> ·
   <a href="#-the-loop">The Loop</a> ·
   <a href="#-token-economy">Token Economy</a> ·
   <a href="#measured-benchmark-issue-17">Bench #17</a> ·
@@ -247,14 +247,14 @@ and keeps watching **24/7** for new work — all behind safety gates and evidenc
 ```
 
 Three things make it different: it is a **super-plugin of focused skills**, it runs the **same
-protocol on 16 runtimes**, and it does all of this with **aggressive, honest token economy**.
+protocol on 15 runtimes**, and it does all of this with **aggressive, honest token economy**.
 
 The skill installs **standalone** too: you do **not** need `simplicio-runtime` or any mandatory
 runtime-native component just to use `simplicio-loop`. Native binds, operators, capture services,
 and the wider Simplicio runtime stack are optional accelerators on top of the core skill bundle.
 
 <p align="center">
-  <img src="assets/simplicio-loop-infographic.png" alt="simplicio-loop detailed infographic: standalone install, optional native binds, 7 skills, 5 accelerators, 16 runtimes, 5 source adapters, and proof gates" width="920" />
+  <img src="assets/simplicio-loop-infographic.png" alt="simplicio-loop detailed infographic: standalone install, optional native binds, 7 skills, 5 accelerators, 15 runtimes, 5 source adapters, and proof gates" width="920" />
 </p>
 
 Within the Simplicio product line, this repo is also the **current reference task flow** for
@@ -388,7 +388,7 @@ See each adapter's reference doc under `.claude/skills/simplicio-loop/references
 
 ---
 
-## 🌐 16 runtimes, one protocol — 3 guaranteed + 13 best-effort
+## 🌐 15 runtimes, one protocol — 3 guaranteed + 12 best-effort
 
 One universal skill core + one set of hooks drives every runtime. An adapter is thin: it tells a
 runtime *where to load the skills*, *how to arm the loop*, and *how to bind native speed*. **The
@@ -884,7 +884,7 @@ simplicio-loop single-task-fast --task-file task.json
 | Repository and operators | `preflight`, `map`, `inspect`, `doctor`, `stack`, `extensions`, `retrieve` | Check Mapper/Dev CLI/Runtime/Fast readiness; inspect map-service receipts; inspect MapperStore capabilities; diagnose stack/source/resource/storage; lock or verify installed components; verify extension handshakes; retrieve tee-cache results. |
 | Queues and coordination | `queue`, `drain`, `agent-slots`, `generation-broker`, `ledger`, `hub-drain-plan`, `hub-drain-admit` | Operate the durable queue; evaluate or persist queue-drain receipts; inspect/reclaim Loop capacity; reconcile generation bindings; replay/validate the operational ledger; plan or admit GitHub drain work. |
 | Delivery and source control | `deliver`, `decide`, `sync-source`, `findings`, `maintenance-deferred`, `defer-maintenance` | Reconcile delivery with source evidence; apply a human decision and invalidate dependent artifacts; requery external source state; list/report/reconcile/diagnose/import findings; record deferred maintenance. `defer-maintenance` is the alias form. |
-| Economy, safety, and deployment | `economy`, `ecc`, `deploy`, `release-train` | Inspect/print/apply the economy-parallel environment; verify ECC provenance and safety policy; plan a gated deployment (`--apply` is explicit); validate release manifests and ecosystem drift. |
+| Economy, safety, and deployment | `economy`, `ecc`, `deploy` | Inspect/print/apply the economy-parallel environment; verify ECC provenance and safety policy; plan a gated deployment (`--apply` is explicit). |
 
 ### Guia de Decisão para a LLM / Agentes: Qual fluxo escolher?
 
@@ -972,7 +972,6 @@ Important nested command surfaces:
 - `findings`: `list`, `report`, `reconcile`, `doctor`, `import`.
 - `economy`: `status`, `print`, `apply`.
 - `stack`: `lock`, `verify`; `extensions` and `ecc` each expose `doctor`.
-- `release-train`: `check` validates component/ecosystem release schemas and local drift.
 
 Typical single-task commands:
 
@@ -1066,8 +1065,7 @@ python3 scripts/check.py --core-gate # mandatory offline/bounded core; external 
 Monorepo (`packages/mapper`, `packages/fast`, `packages/dev-cli`): `bash scripts/dev_install.sh`
 sets up one venv with all four packages editable from their in-repo paths, and
 `python3 scripts/check.py --package mapper|fast|dev-cli|loop|all` (or `--changed`, scoped to what
-you touched vs `origin/main`) runs one package's own fast gate from its in-repo location — see
-[`CLAUDE.md` § Development](CLAUDE.md#development).
+you touched vs `origin/main`) runs one package's own fast gate from its in-repo location — see [`AGENTS.md` § Development](AGENTS.md#development).
 
 Both commands require an importable `pytest`; its absence is `pytest_unavailable`, never a
 direct-execution fallback. The core gate runs claims audit, mirror parity, core pytest tests,

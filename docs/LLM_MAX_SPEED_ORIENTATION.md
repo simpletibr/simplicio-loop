@@ -12,7 +12,7 @@
 
 > **Act > narrate. Mapper + Fast + dev-cli on the hot path. Runtime owns loop activation. Prism waves with lease isolation. Smallest gate that proves the AC. MEASURED only.**
 
-**Worker preflight:** read `AGENTS.md`, `CLAUDE.md`, then every relevant local skill before operating. Use the single read-only binary/artifact set built from the canonical default branch. Never rebuild binaries or regenerate canonical Mapper/Fast artifacts in a worker; worktrees isolate source edits and receipts only. Receipts must carry repo/revision, binary digest/version, Mapper generation, and artifact digest. Missing, stale, or mismatched central artifacts are fail-closed and trigger central rebuild only.
+**Worker preflight:** read `AGENTS.md`, then every relevant local skill before operating. Use the single read-only binary/artifact set built from the canonical default branch. Never rebuild binaries or regenerate canonical Mapper/Fast artifacts in a worker; worktrees isolate source edits and receipts only. Receipts must carry repo/revision, binary digest/version, Mapper generation, and artifact digest. Missing, stale, or mismatched central artifacts are fail-closed and trigger central rebuild only.
 
 
 ---

@@ -2823,7 +2823,7 @@ def _dispatch_merge_pr(item: Mapping[str, Any], *, receipt: str, run_id: str) ->
 
     Formalizes the ad-hoc ``gh pr create`` / ``gh pr merge --squash --delete-branch`` pattern
     this project's own delivery workflow already performs by hand at the end of every task
-    (CLAUDE.md / AGENTS.md "Process" sections) as a real, reusable call instead of prose an
+    (AGENTS.md "Process" section) as a real, reusable call instead of prose an
     operator must remember. Never raises for an ordinary "cannot merge yet/here" outcome --
     those come back as ``attempted: True, merged: False`` with a specific reason so a caller
     can retry or escalate; only a hard `gh` transport failure surfaces as an error field.

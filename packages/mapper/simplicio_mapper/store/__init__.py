@@ -4,12 +4,28 @@ This package owns connection policy and lifecycle only. Domain schemas belong to
 later MapperStore issues; importing it performs no filesystem or SQLite work.
 """
 
+from .catalog import (
+    CATALOG_API_SCHEMA,
+    CATALOG_MANIFEST_NAME,
+    ECOSYSTEM_BANKS,
+    absorb_all,
+    absorb_bank,
+    bank_by_id,
+    data_status,
+    ensure_mapper_memory,
+    layout_tree,
+)
 from .connection import (
     StoreConnection,
     StoreError,
     StoreIntegrityError,
     StoreMissingError,
     WriterIdentity,
+)
+from .fast_link import (
+    FAST_LINK_SCHEMA,
+    ensure_repo_fast_artifacts,
+    mapper_fast_status,
 )
 from .health import (
     CAPACITY_SCHEMA,
@@ -52,10 +68,29 @@ from .migration import (
     MigrationCoordinator,
     MigrationCoordinatorError,
 )
+from .neural import (
+    NEURAL_API_SCHEMA,
+    NEURAL_DB_NAME,
+    NeuralBankError,
+    absorb_runtime_neural,
+    apply_migrations,
+    bootstrap_neural,
+    neural_database_path,
+    neural_status,
+    seed_neural,
+)
 from .observability import BENCHMARK_SCHEMA, METRICS_SCHEMA, Metrics, metrics_for_store, run_benchmark
 from .operations import OPERATIONS_API_SCHEMA, OPERATIONS_SCHEMA, OperationsStore, OperationsStoreError
 from .paths import StoreLocation, StorePathError, assert_within_root, resolve_store_location
 from .profiles import StoreMode, StoreProfile
+from .project_scope import (
+    ScopedDataLayout,
+    core_data_root,
+    project_data_root,
+    resolve_project_slug,
+    resolve_scoped_layout,
+    sanitize_project_slug,
+)
 from .registry import (
     DEFAULT_MANIFEST,
     MIGRATION_EVENT_SCHEMA,
@@ -90,48 +125,15 @@ from .transactions import (
     run_with_retry,
     transaction,
 )
-from .neural import (
-    NEURAL_API_SCHEMA,
-    NEURAL_DB_NAME,
-    NeuralBankError,
-    absorb_runtime_neural,
-    apply_migrations,
-    bootstrap_neural,
-    neural_database_path,
-    neural_status,
-    seed_neural,
-)
-from .catalog import (
-    CATALOG_API_SCHEMA,
-    CATALOG_MANIFEST_NAME,
-    ECOSYSTEM_BANKS,
-    absorb_all,
-    absorb_bank,
-    bank_by_id,
-    data_status,
-    ensure_mapper_memory,
-    layout_tree,
-)
 from .unify import (
     CANONICAL_DB_NAME,
     UNIFY_API_SCHEMA,
     canonical_memory_path,
-    env_hints as memory_env_hints,
     unify_memory,
     unify_status,
 )
-from .fast_link import (
-    FAST_LINK_SCHEMA,
-    ensure_repo_fast_artifacts,
-    mapper_fast_status,
-)
-from .project_scope import (
-    ScopedDataLayout,
-    core_data_root,
-    project_data_root,
-    resolve_project_slug,
-    resolve_scoped_layout,
-    sanitize_project_slug,
+from .unify import (
+    env_hints as memory_env_hints,
 )
 
 

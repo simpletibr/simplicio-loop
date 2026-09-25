@@ -49,5 +49,6 @@ Inputs are bounded at 16 MiB, depth 64, 100,000 nodes, 200,000 edges, and
 4,096 source paths. No external endpoint is contacted by validation; the wheel
 uses only the packaged contract and Python stdlib for this path.
 
-Migration tracking: [Dev CLI #255](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/255)
-and [Agent #498](https://github.com/wesleysimplicio/simplicio-agent/issues/498).
+Migration tracking: Dev CLI #255 (pre-monorepo `simplicio-dev-cli` repo, now
+`packages/dev-cli/` of `simpletibr/simplicio-loop`) and
+[Agent #498](https://github.com/wesleysimplicio/simplicio-agent/issues/498).

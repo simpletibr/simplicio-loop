@@ -25,7 +25,7 @@
       "repository": "simplicio-dev-cli",
       "entrypoint": "MechanicalPlan apply/rollback commands",
       "mutable": true,
-      "dependency": "https://github.com/wesleysimplicio/simplicio-dev-cli/issues/353",
+      "dependency": "https://github.com/simpletibr/simplicio-loop/issues/353",
       "verified": false,
       "reason_code": "CROSS_REPO_DEV_CLI_OPEN"
     }

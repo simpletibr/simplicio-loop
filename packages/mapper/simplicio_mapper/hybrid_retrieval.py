@@ -7,15 +7,13 @@ fallback when vectors are unavailable.
 
 from __future__ import annotations
 
-import hashlib
 import math
 import re
-from collections import Counter, defaultdict, deque
+from collections import Counter, deque
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Iterable, Mapping
 
 from .structural_graph import StructuralGraph
-
 
 RANKING_POLICY_VERSION = "simplicio.hybrid-retrieval/v1"
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")

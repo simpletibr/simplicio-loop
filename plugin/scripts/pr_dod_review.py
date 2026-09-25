@@ -2,7 +2,7 @@
 """pr_dod_review.py — mechanical DoD + ACs verdict for open PRs.
 
 When all issues are claimed (DEFER_ACTIVE_CLAIM), a session with no work to
-claim reviews OPEN PRs against the 7-dimension Definition of Done (CLAUDE.md)
+claim reviews OPEN PRs against the 7-dimension Definition of Done (AGENTS.md)
 and the frozen acceptance criteria of the underlying issue, commenting what
 remains for the claiming agent.
 
@@ -22,7 +22,7 @@ import subprocess
 import sys
 from typing import Dict, List, Tuple
 
-# The 7 Definition-of-Done dimensions (CLAUDE.md / SKILL.md).
+# The 7 Definition-of-Done dimensions (AGENTS.md / SKILL.md).
 DOD_DIMENSIONS: List[str] = [
     "implementation",
     "unit_tests",

@@ -54,10 +54,51 @@ def estimate_tokens(text: str | None) -> int:
         import tiktoken
 
         return len(tiktoken.get_encoding("o200k_base").encode(text, disallowed_special=()))
-    except Exception:
+    except Exception:  # noqa: BLE001 - optional tokenizer must never block the caller
         # Ledger creation and context selection must remain available if a
         # constrained install cannot load the optional native tokenizer.
         return max(1, len(text) // 4)
+
+
+def warm_estimator(*, attempts: int = 3, retry_delay_seconds: float = 1.0) -> bool:
+    """Force-load the ``o200k_base`` BPE ranks once, with retries, and report success.
+
+    ``tiktoken.get_encoding`` lazily fetches its ranks file over the network on
+    first use in a process and caches it on disk (``TIKTOKEN_CACHE_DIR``, or
+    ``<tempdir>/data-gym-cache`` by default) -- but that disk cache is shared,
+    unguarded, machine-wide state: every process that has never loaded this
+    encoding before (every fresh ``simplicio-mapper index`` subprocess this
+    module's callers spawn, across an entire test suite run) independently
+    races to fetch the SAME remote file the first time the cache is cold. Any
+    one of those concurrent fetches that hits a transient network failure
+    silently falls back to the coarser ``len(text) // 4`` heuristic inside
+    ``estimate_tokens`` -- a materially different number (see
+    ``docs/behavioral-scorecard.md`` / issue #199-#208's token-budget gate) --
+    with no indication anything degraded. Calling this once, eagerly, before
+    any budget-sensitive work starts (see
+    ``scripts/evaluation_scorecard.py::main`` and
+    ``tests/python/conftest.py``) populates the on-disk cache a single time so
+    every later caller in this process AND every subprocess sharing the same
+    default cache directory hits disk, not network, and the whole run's token
+    estimates stay on the one real-tokenizer code path instead of racing.
+    Returns True once the encoding loads successfully, False if every retry
+    exhausted a real error (network down, no cache, tokenizer uninstallable) --
+    callers decide whether that is fatal for their context.
+    """
+    import time
+
+    try:
+        import tiktoken
+    except ImportError:
+        return False
+    for attempt in range(max(1, attempts)):
+        try:
+            tiktoken.get_encoding("o200k_base")
+            return True
+        except Exception:  # noqa: BLE001 - retried below; caller decides fatality
+            if attempt + 1 < attempts:
+                time.sleep(retry_delay_seconds)
+    return False
 
 
 def _append_jsonl(path: Path, record: dict[str, Any]) -> None:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """simplicio-loop — test infra probe (#526 Etapa 3: "DoD adaptativo a infra real do repositorio").
 
-The 7-dimension DoD (`scripts/pr_dod_review.py` DOD_DIMENSIONS / CLAUDE.md) stays the target, but a
+The 7-dimension DoD (`scripts/pr_dod_review.py` DOD_DIMENSIONS / AGENTS.md) stays the target, but a
 repository without a test project, coverage tooling, or a CI that runs tests cannot produce
 `unit`/`min_coverage`/`perf_benchmark` evidence no matter how hard the loop tries — that is not a
 quality failure, it is a fact about the repository. This worker answers that fact deterministically
