@@ -155,7 +155,7 @@ def test_canonical_manifest_json_has_expected_keys():
                 "changelog_latest_version", "quantitative_claims", "lean_mirror", "ready"):
         assert key in manifest
     assert manifest["skill_count"] == 7
-    assert manifest["runtime_count"] == len(manifest["runtime_names"]) == 16
+    assert manifest["runtime_count"] == len(manifest["runtime_names"]) == 15
     assert manifest["adapter_non_canonical"] == ["grok"]
 
 

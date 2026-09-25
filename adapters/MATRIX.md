@@ -21,7 +21,7 @@ Three capabilities decide how rich an adapter is:
 
 ## Runtime tiers
 
-Maintaining real parity across 16 distinct runtimes is infeasible — each host changes its hook/skill
+Maintaining real parity across 15 distinct runtimes is infeasible — each host changes its hook/skill
 format every release. This repo therefore adopts a **two-tier system**:
 
 ### Tier 1 — Guaranteed (gated)
@@ -93,7 +93,7 @@ get the last one:
   Simplicio Agent/OpenClaw), the host injects fase/etapa/item/ACs/% directly into the re-feed
   header (`hooks/loop_stop.py`) — zero extra action from the user.
 - **N2 (transcript).** The turn-header contract (SKILL.md § Output: first line of every turn =
-  `render --turn-header`) is normative for ALL 16 runtimes, hook or not — it must be reflected in
+  `render --turn-header`) is normative for ALL 15 runtimes, hook or not — it must be reflected in
   whichever surface that host loads the skill FROM (`AGENTS.md`, `GEMINI.md`, `CONVENTIONS.md`,
   `.github/copilot-instructions.md`, `.kiro/steering/`, OpenCode config, …), never forked by hand.
 - **N3 (file, universal denominator).** `.simplicio/orchestrator/loop/PROGRESS.md` + `progress.json` are
