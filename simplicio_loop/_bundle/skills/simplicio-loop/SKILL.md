@@ -88,6 +88,47 @@ Coverage verifier: `python3 -m pytest -q --cov=calc --cov-report=term`
   builds `quality-matrix.json` from what it measured (implementation comes from
   the applied Dev CLI receipts; coverage is the last `NN%` the coverage command
   prints, minimum 85%). A lane without a command blocks and names the line to add.
+  Lanes run **concurrently** (`asyncio.gather`), once at wave end on the
+  integrated tree — not per task and not one lane after another.
+- `Type: Docs|Chore|Config`, or an explicit `Tests: none` line, waives the
+  lane matrix for that task: implementation (the applied receipt) plus its
+  `Independent verifier:`, if declared, are the whole story — no
+  unit/integration/system/regression/benchmark/coverage line is required or
+  blocks. `Type: Feature|Bug|Fix|Refactor` (or no `Type:` header at all) keeps
+  every lane mandatory, exactly as before. In a mixed wave, one task that
+  needs the matrix means the whole batch still measures it
+  (`simplicio_loop/lane_verifiers.py::lanes_required`).
+
+## Wave: parallel worktrees, serial integration
+
+`wave` runs each disjoint-path lane of tasks concurrently in its own git
+worktree (`asyncio.Semaphore(min(cpu_count, lanes))`), then integrates every
+lane's result back into the main repo **serially, in task order** — the only
+step allowed to touch the shared tree. Two tasks whose edit-plan paths
+overlap stay in the same lane, in order, so one file is never raced.
+A lane whose patch no longer applies (the tree moved under it during
+integration) falls back to a serial re-run of that lane's edit-plan directly
+on the now-integrated tree — the same "compile binds to the tree the
+previous task left" contract as `edit-plan-<N>.json`, just recovered instead
+of blocked. Worktrees and lane branches are removed once integration
+finishes. Implementation: `simplicio_loop/wave_worktree.py`
+(`group_disjoint_tasks`, `run_worktree_wave`, `integrate_lane_results`).
+
+Mapper + Fast survey the **default branch** (`origin/HEAD`, falling back to
+the current `HEAD`) once per commit SHA; every worker in the wave reuses that
+one cached survey read-only instead of re-running it
+(`wave_worktree.ArtifactCache`, keyed by the default-branch SHA). A worker
+never re-surveys; a missing/stale cache rebuilds once, centrally — the same
+"workers never rebuild canonical artifacts" rule as `CLAUDE.md`'s central
+artifact rule.
+
+**Effort guidance for the host LLM**: planning/decomposition (turning the
+goal into `tasks.md`'s per-task ACs and dependencies) deserves *high* effort —
+mistakes there fan out into every worker. Executing one worker's edit-plan is
+mechanical and deserves *low* effort. Reviewing/verifying a wave's result
+(reading the quality matrix, the reconciled diff, the oracle verdict) is
+*medium* effort — enough to catch a false pass, not enough to re-derive the
+whole plan.
 
 ## Done
 

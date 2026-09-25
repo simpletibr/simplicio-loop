@@ -15,6 +15,7 @@ line to add; implementation is proven by the applied Dev CLI receipts.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import subprocess
@@ -29,12 +30,37 @@ _LINE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 _PERCENT = re.compile(r"(\d+(?:\.\d+)?)%")
+_TYPE_LINE = re.compile(r"^\s*Type:\s*(\S+)", re.IGNORECASE | re.MULTILINE)
+_TESTS_NONE_LINE = re.compile(r"^\s*Tests:\s*none\s*$", re.IGNORECASE | re.MULTILINE)
 LANE_TIMEOUT_SECONDS = 900
+
+# A story of one of these types has no runtime behavior to prove with the
+# usual unit/integration/system/regression/benchmark lanes -- implementation
+# (its applied Dev CLI receipt) plus its declared Independent verifier, if
+# any, are the whole story. Anything else (Feature/Bug/Fix/Refactor, or no
+# `Type:` header at all) keeps the strict default: every lane mandatory.
+_LANES_OPTIONAL_TYPES = frozenset({"docs", "chore", "config"})
 
 
 def parse_lane_verifiers(task_text: str) -> Dict[str, str]:
     """Return ``{lane: command}`` for every ``<Lane> verifier: `cmd``` line."""
     return {m.group(1).lower(): m.group(2).strip() for m in _LINE.finditer(task_text or "")}
+
+
+def lanes_required(task_text: str) -> bool:
+    """Whether ``task_text`` needs the quality-lane matrix at all.
+
+    ``False`` for a ``Type: Docs|Chore|Config`` story or an explicit
+    ``Tests: none`` line -- those only need implementation evidence (and
+    their own Independent verifier, if declared). Everything else,
+    including a story with no ``Type:`` header, keeps the strict default.
+    """
+    if _TESTS_NONE_LINE.search(task_text or ""):
+        return False
+    match = _TYPE_LINE.search(task_text or "")
+    if match and match.group(1).strip().lower() in _LANES_OPTIONAL_TYPES:
+        return False
+    return True
 
 
 def _missing(lane: str) -> Dict[str, str]:
@@ -80,6 +106,20 @@ def missing_or_unapplied_tasks(run_dir: Path, task_count: int) -> list[int]:
     return missing
 
 
+async def _run_many(commands: Mapping[str, tuple[str, Path, Path]]) -> Dict[str, tuple[bool, str]]:
+    """Run every ``{lane: (command, repo, log_path)}`` entry concurrently.
+
+    ``subprocess.run`` stays the one execution primitive (no separate async
+    subprocess code path to keep in sync); ``asyncio.to_thread`` just lets
+    independent lane commands overlap instead of running one after another.
+    """
+    keys = list(commands)
+    results = await asyncio.gather(
+        *(asyncio.to_thread(_run, commands[key][0], commands[key][1], commands[key][2]) for key in keys)
+    )
+    return dict(zip(keys, results))
+
+
 def build_quality_matrix(repo: Path, run_dir: Path, task_texts: Iterable[str]) -> Dict[str, object]:
     """Measure every declared lane in ``repo`` and write ``run_dir/quality-matrix.json``."""
     repo, run_dir = Path(repo), Path(run_dir)
@@ -94,6 +134,11 @@ def build_quality_matrix(repo: Path, run_dir: Path, task_texts: Iterable[str]) -
     task_count = len(task_texts)
     missing = missing_or_unapplied_tasks(run_dir, task_count)
     applied = task_count > 0 and not missing
+
+    # A batch needs the full lane matrix if ANY of its tasks needs it --
+    # one Feature task in an otherwise-Docs batch still proves its behavior.
+    required = any(lanes_required(text) for text in task_texts) if task_texts else True
+
     receipts = sorted(run_dir.glob("operator-receipt-*.json"))
     requirements: Dict[str, Mapping[str, object]] = {
         "implementation": {
@@ -105,15 +150,27 @@ def build_quality_matrix(repo: Path, run_dir: Path, task_texts: Iterable[str]) -
                  f"(expected one per task, {task_count} task(s) total)",
         }
     }
+    policy: Dict[str, bool] = {} if required else {"coverage_required": False}
+    to_run: Dict[str, tuple[str, Path, Path]] = {}
     for lane in MEASURED_LANES:
+        if not required:
+            policy[f"{lane}_required"] = False
+            requirements[lane] = {
+                "status": "not_applicable", "proof_ref": "",
+                "detail": f"'{lane}' waived: no task in this batch requires the quality-lane matrix",
+            }
+            continue
         if lane not in lanes:
             requirements[lane] = _missing(lane)
             continue
-        log = logs / f"{lane}.log"
-        ok, _ = _run(lanes[lane], repo, log)
-        requirements[lane] = {"status": "pass" if ok else "fail", "proof_ref": str(log),
-                              "command": lanes[lane],
-                              "detail": f"`{lanes[lane]}` exited {'0' if ok else 'non-zero'}"}
+        to_run[lane] = (lanes[lane], repo, logs / f"{lane}.log")
+    if to_run:
+        run_results = asyncio.run(_run_many(to_run))
+        for lane, (ok, _output) in run_results.items():
+            command, _repo, log = to_run[lane]
+            requirements[lane] = {"status": "pass" if ok else "fail", "proof_ref": str(log),
+                                  "command": command,
+                                  "detail": f"`{command}` exited {'0' if ok else 'non-zero'}"}
 
     coverage: Dict[str, object] = {"measured": None}
     if "coverage" in lanes:
@@ -129,6 +186,7 @@ def build_quality_matrix(repo: Path, run_dir: Path, task_texts: Iterable[str]) -
         "requirements": requirements,
         "coverage": coverage,
         "source": "lane_verifiers",
+        "policy": policy,
     }
     (run_dir / RECEIPT_FILENAME).write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     return receipt
@@ -139,14 +197,22 @@ def reverify(receipt: Mapping[str, object], repo: Path, logs: Path) -> list[Dict
     checks: list[Dict[str, str]] = []
     logs.mkdir(parents=True, exist_ok=True)
     requirements = receipt.get("requirements") if isinstance(receipt.get("requirements"), dict) else {}
+    to_run: Dict[str, tuple[str, Path, Path]] = {}
     for lane in MEASURED_LANES:
         entry = requirements.get(lane) if isinstance(requirements, dict) else None
         if not isinstance(entry, dict) or entry.get("status") != "pass" or not entry.get("command"):
             continue
-        ok, _ = _run(str(entry["command"]), repo, logs / f"reverify-{lane}.log")
-        checks.append({"name": lane, "status": "pass" if ok else "fail",
-                       "reason_code": f"quality_{lane}_reverify_{'verified' if ok else 'mismatch'}",
-                       "detail": f"independent re-run of `{entry['command']}` {'passed' if ok else 'now fails'}"})
+        to_run[lane] = (str(entry["command"]), repo, logs / f"reverify-{lane}.log")
+    if to_run:
+        run_results = asyncio.run(_run_many(to_run))
+        for lane in MEASURED_LANES:
+            if lane not in run_results:
+                continue
+            ok, _output = run_results[lane]
+            command = to_run[lane][0]
+            checks.append({"name": lane, "status": "pass" if ok else "fail",
+                           "reason_code": f"quality_{lane}_reverify_{'verified' if ok else 'mismatch'}",
+                           "detail": f"independent re-run of `{command}` {'passed' if ok else 'now fails'}"})
     coverage = receipt.get("coverage")
     if isinstance(coverage, dict) and coverage.get("command") and isinstance(coverage.get("measured"), (int, float)):
         ok, output = _run(str(coverage["command"]), repo, logs / "reverify-coverage.log")
