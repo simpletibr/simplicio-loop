@@ -3,6 +3,7 @@ import atexit
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import asdict
@@ -235,10 +236,48 @@ def add_mapper_mode_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _load_mapper_handoff(path: str | None) -> dict[str, object]:
-    if not path:
+# Fast indexes the whole repository, so the handoff it asks for is unscoped;
+# it is read from a pipe, never shown to an LLM, so the budget is only a cap.
+MAPPER_HANDOFF_TOKEN_BUDGET = 2_000_000
+
+
+def _mapper_json(mapper: str, verb: str, root: Path, *extra: str) -> dict[str, object]:
+    result = subprocess.run(
+        [mapper, verb, str(root), "--json", *extra],
+        capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL,
+    )
+    try:
+        payload = json.loads(result.stdout or "")
+    except json.JSONDecodeError:
+        payload = None
+    if result.returncode != 0 or not isinstance(payload, dict):
+        detail = (result.stderr or result.stdout or f"exit {result.returncode}").strip()[:400]
+        raise MapperIngestError("mapper_handoff_unavailable", f"simplicio-mapper {verb}: {detail}")
+    return payload
+
+
+def _request_mapper_handoff(root: Path) -> dict[str, object]:
+    """Ask the installed Mapper for the canonical handoff (scan once if stale)."""
+    mapper = shutil.which("simplicio-mapper")
+    if mapper is None:
         raise MapperIngestError("mapper_missing", INTEGRATED_HANDOFF_REQUIRED)
-    handoff = json.loads(Path(path).read_text(encoding="utf-8"))
+    budget = ("--token-budget", str(MAPPER_HANDOFF_TOKEN_BUDGET))
+    handoff = _mapper_json(mapper, "handoff", root, *budget)
+    if handoff.get("ready") is not True:
+        _mapper_json(mapper, "scan", root, "--sync")
+        handoff = _mapper_json(mapper, "handoff", root, *budget)
+    if handoff.get("ready") is not True:
+        raise MapperIngestError("mapper_not_ready", str(handoff.get("reason") or "unknown"))
+    return handoff
+
+
+def _load_mapper_handoff(path: str | None, root: Path) -> dict[str, object]:
+    if not path:
+        return _request_mapper_handoff(root)
+    try:
+        handoff = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise MapperIngestError("mapper_handoff_unreadable", f"{path}: {error}") from error
     if not isinstance(handoff, dict):
         raise ValueError("--mapper-handoff must contain a JSON object")
     return handoff
@@ -831,7 +870,7 @@ def main() -> int:
             processor = ProjectProcessor(Path(args.root), Path(args.output))
             if args.command == "ingest":
                 if args.mapper_mode == "integrated":
-                    handoff = _load_mapper_handoff(args.mapper_handoff)
+                    handoff = _load_mapper_handoff(args.mapper_handoff, Path(args.root).resolve())
                     compiled, provenance = _compile_mapper_snapshot(
                         Path(args.root).resolve(), Path(args.output), handoff
                     )
@@ -852,7 +891,7 @@ def main() -> int:
                 )
                 return 0
             if args.mapper_mode == "integrated":
-                handoff = _load_mapper_handoff(args.mapper_handoff)
+                handoff = _load_mapper_handoff(args.mapper_handoff, Path(args.root).resolve())
                 compiled, provenance = _compile_mapper_snapshot(
                     Path(args.root).resolve(), Path(args.output), handoff
                 )
@@ -921,7 +960,7 @@ def main() -> int:
         elif args.command in {"understand", "plan"}:
             processor = ProjectProcessor(Path(args.root), Path(args.snapshot))
             if args.mapper_mode == "integrated":
-                handoff = _load_mapper_handoff(args.mapper_handoff)
+                handoff = _load_mapper_handoff(args.mapper_handoff, Path(args.root).resolve())
                 _compile_mapper_snapshot(
                     Path(args.root).resolve(), Path(args.snapshot), handoff
                 )
@@ -974,7 +1013,7 @@ def main() -> int:
             else:
                 mapper_handoff = None
                 if args.mapper_mode == "integrated" or args.mapper_handoff:
-                    mapper_handoff = _load_mapper_handoff(args.mapper_handoff)
+                    mapper_handoff = _load_mapper_handoff(args.mapper_handoff, Path(args.root).resolve())
                 emit(
                     delivery_engine.prepare(
                         args.task,

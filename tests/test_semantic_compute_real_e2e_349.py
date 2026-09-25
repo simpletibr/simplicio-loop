@@ -6,6 +6,8 @@ from pathlib import Path
 import shutil
 import subprocess
 
+import pytest
+
 from simplicio_fast.delivery import DeliveryEngine
 from simplicio_fast.engine import select_engine
 from simplicio_fast.knowledge_projection import KnowledgeFact, KnowledgeProjection
@@ -68,6 +70,12 @@ def _git_fixture(root: Path) -> None:
 
 
 def test_real_mapper_runtime_devcli_loop_to_context_e2e(tmp_path: Path) -> None:
+    if shutil.which("simplicio-runtime") is None:
+        pytest.skip(
+            "simplicio-runtime is required for the real mapper/runtime/dev-cli"
+            "/loop-to-context E2E and is optional in the current release"
+            " (standalone default, REQUIRE_RUNTIME=off)"
+        )
     root = tmp_path / "real-semantic-e2e"
     root.mkdir()
     _git_fixture(root)
