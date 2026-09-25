@@ -154,6 +154,85 @@ HOST_EDIT_PLAN_SCHEMAS = frozenset({
     "simplicio.mechanical-edit/v1",
 })
 PLAN_REQUIRED = "plan_required"
+# #NOWASTE: reason_codes that identify a deterministic operator failure -- retrying
+# the exact same task/plan/repo-state cannot change the outcome, so the per-task
+# retry loop records it once (dead-letter) instead of burning the whole retry
+# budget on a guaranteed repeat. Everything else (subprocess timeout, OSError/lock
+# contention, lease lost) is transient and keeps retrying as before.
+DETERMINISTIC_OPERATOR_REASON_CODES = frozenset({
+    PLAN_REQUIRED,
+    "plan_compile_failed",
+    "plan_repo_state_stale",
+    "plan_validation_failed",
+    "devcli_capabilities_unavailable",
+    "operator_capabilities_missing",
+    "find_target_not_unique",
+    "find_target_not_found",
+})
+# Text markers scanned in a failed dev-cli receipt's stdout/stderr when no discrete
+# reason_code was persisted (the apply subprocess itself rejected the edit plan's
+# find/replace, not the loop's own preflight gates above it).
+_DEVCLI_DETERMINISTIC_STDOUT_MARKERS: Tuple[Tuple[str, str], ...] = (
+    ("not unique", "find_target_not_unique"),
+    ("ambiguous", "find_target_not_unique"),
+    ("multiple matches", "find_target_not_unique"),
+    ("no match", "find_target_not_found"),
+    ("no such find", "find_target_not_found"),
+    ("not found", "find_target_not_found"),
+)
+
+
+def _classify_devcli_receipt_failure(payload: Mapping[str, Any]) -> str:
+    """Derive a deterministic reason_code from a failed operator receipt.
+
+    Prefers an explicit ``reason_code`` already on the receipt; falls back to
+    scanning stdout/stderr text for the dev-cli apply subprocess's own
+    find/replace rejection wording.
+    """
+    reason_code = str(payload.get("reason_code") or "")
+    if reason_code:
+        return reason_code
+    parts = [str(payload.get("stderr") or "")]
+    stdout = payload.get("stdout")
+    if isinstance(stdout, Mapping):
+        parts.append(json.dumps(stdout, ensure_ascii=False))
+    elif stdout:
+        parts.append(str(stdout))
+    blob = " ".join(parts).lower()
+    for marker, code in _DEVCLI_DETERMINISTIC_STDOUT_MARKERS:
+        if marker in blob:
+            return code
+    return ""
+
+
+def _classify_operator_exception_reason_code(exc: BaseException) -> str:
+    """Map a raised operator/preflight exception to a typed reason_code.
+
+    Keeps the deterministic-vs-transient split correct even when the failure
+    surfaces as a Python exception (plan validation, stale repo state, missing
+    capabilities) rather than a receipt the dev-cli subprocess wrote itself.
+    """
+    reason_code = getattr(exc, "reason_code", "")
+    if reason_code:
+        return str(reason_code)
+    message = str(exc).lower()
+    if "repository changed after planning" in message:
+        return "plan_repo_state_stale"
+    if "plan validation failed" in message:
+        return "plan_validation_failed"
+    if (
+        "missing required capabilities" in message
+        or "below minimum version" in message
+        or "identity mismatch" in message
+    ):
+        return "operator_capabilities_missing"
+    return "operator_exception"
+
+
+def _is_deterministic_operator_failure(record: Mapping[str, Any]) -> bool:
+    """True when retrying ``record`` cannot change the outcome (repo rule: no
+    wasted retries -- classify once, record once, move on)."""
+    return str(record.get("reason_code") or "") in DETERMINISTIC_OPERATOR_REASON_CODES
 # Real content/schema/hash/freshness/provenance validation, gating `receipt_status` in
 # `_operator_dispatch_attempt()` below (issue #288: presence of a file must not imply
 # VERIFIED).
@@ -7556,9 +7635,18 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
         run_dir = str(payload.get("run_dir") or "")
         watcher_receipt = str(Path(run_dir) / "loop" / "watcher_state.json") if run_dir else ""
         failure_fingerprint = ""
+        # #NOWASTE: derive the deterministic-vs-transient reason_code from whatever the
+        # receipt actually carries (a discrete `_finish_operator_blocked` reason_code, or
+        # -- for a dev-cli apply subprocess's own find/replace rejection -- its stdout/
+        # stderr text) so the retry loop above can stop after one attempt instead of
+        # burning the whole retry budget on a guaranteed repeat.
+        reason_code = str(operator.get("reason_code") or "")
         if receipt:
             try:
-                failure_fingerprint = str(_load_json(Path(receipt)).get("failure_fingerprint") or "")
+                receipt_payload = _load_json(Path(receipt))
+                failure_fingerprint = str(receipt_payload.get("failure_fingerprint") or "")
+                if not success and not reason_code:
+                    reason_code = _classify_devcli_receipt_failure(receipt_payload)
             except (OSError, ValueError, TypeError):
                 # The worker result remains useful even when a crashed operator did not leave
                 # a readable receipt; the scheduler will use the bounded exception path.
@@ -7641,6 +7729,7 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
             "receipt_status": receipt_verdict["status"],
             "receipt_verdict_reason": receipt_verdict["reason"],
             "attempt": int(state.get("attempts") or 0),
+            "reason_code": reason_code,
             "failure_fingerprint": failure_fingerprint,
             "merge": merge,
             "verified_delivery": verified_delivery,
@@ -7692,7 +7781,7 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
             "receipt_status": "UNVERIFIED",
             "attempt": 0,
             "error": f"{type(exc).__name__}: {exc}",
-            "reason_code": "operator_exception",
+            "reason_code": _classify_operator_exception_reason_code(exc),
             "failure_fingerprint": hashlib.sha256(
                 f"{type(exc).__name__}: {exc}".encode("utf-8", "replace")
             ).hexdigest()[:16],
@@ -7737,6 +7826,12 @@ def _run_operator_item_process(item: Mapping[str, Any], retry_budget: int, owned
             record["retry_strategy"] = "initial"
         attempts.append(record)
         if record.get("status") == "succeeded":
+            break
+        if _is_deterministic_operator_failure(record):
+            # #NOWASTE: this exact task/plan/repo-state will fail the same way every
+            # time -- record it once and dead-letter instead of burning the retry
+            # budget on a guaranteed repeat.
+            record["retry_skipped_reason"] = "deterministic_failure_no_retry"
             break
         repair_feedback = _independent_verification_feedback(record)
         previous_fingerprint = str(record.get("failure_fingerprint") or "")
@@ -8204,6 +8299,11 @@ def dispatch_operator_batch(
                     record["retry_strategy"] = "initial"
                 attempts.append(record)
                 if record["status"] == "succeeded":
+                    break
+                if _is_deterministic_operator_failure(record):
+                    # #NOWASTE: same reasoning as `_run_operator_item_process` -- a
+                    # deterministic failure is recorded once, never retried.
+                    record["retry_skipped_reason"] = "deterministic_failure_no_retry"
                     break
                 repair_feedback = _independent_verification_feedback(record)
                 previous_fingerprint = str(record.get("failure_fingerprint") or "")
