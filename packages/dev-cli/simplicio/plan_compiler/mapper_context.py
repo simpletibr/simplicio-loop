@@ -1474,9 +1474,20 @@ def _admit_mapper_delta(
 
     try:
         contract = importlib.import_module("simplicio_mapper.contract")
-        package_root = str(
-            importlib.resources.files("simplicio_mapper").joinpath("contracts", "mapper-artifacts", "v1")
+        # Two distribution shapes for the versioned contracts tree, tried in
+        # order: (1) a real (non-editable) wheel install, where Mapper's
+        # `force-include` ships `contracts/` inside the installed
+        # `simplicio_mapper/contracts/` package data; (2) an editable/dev
+        # install (this repo's own `scripts/dev_install.sh`, and any other
+        # source checkout), where `force-include` never runs and the
+        # resource path above does not exist on disk — Mapper's own
+        # `find_contract_root()` is the tool it already ships for exactly
+        # this case (it walks up from cwd, then from the installed
+        # package's own directory, to the sibling `contracts/` tree).
+        resource_root = importlib.resources.files("simplicio_mapper").joinpath(
+            "contracts", "mapper-artifacts", "v1"
         )
+        package_root = str(resource_root) if resource_root.is_dir() else contract.find_contract_root()
         schema = contract.load_schema(_MAPPER_GRAPH_DELTA_SCHEMA, package_root)
         errors = contract.validate_instance(dict(delta), schema)
     except (
