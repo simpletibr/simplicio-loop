@@ -54,7 +54,7 @@ class ReleaseSurfaceTest(unittest.TestCase):
 
     def test_component_release_schema_and_manifest_vocabulary_exist(self) -> None:
         schema = json.loads(
-            (ROOT / "contracts/component-release/v1/schema.json").read_text(encoding="utf-8")
+            (ROOT / "simplicio_mapper/contracts/component-release/v1/schema.json").read_text(encoding="utf-8")
         )
         self.assertIn("capabilities", schema["required"])
         self.assertIn("compatibility", schema["required"])

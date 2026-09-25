@@ -19,8 +19,8 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXTURES = ROOT / "contracts" / "mapper-canvas" / "v1" / "fixtures"
-MATRIX = ROOT / "contracts" / "mapper-canvas" / "v1" / "compatibility-matrix.json"
+FIXTURES = ROOT / "simplicio_mapper" / "contracts" / "mapper-canvas" / "v1" / "fixtures"
+MATRIX = ROOT / "simplicio_mapper" / "contracts" / "mapper-canvas" / "v1" / "compatibility-matrix.json"
 FIXTURE_NAMES = tuple(item["name"] for item in json.loads(MATRIX.read_text(encoding="utf-8"))["fixtures"])
 
 

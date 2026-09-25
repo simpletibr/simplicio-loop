@@ -728,12 +728,12 @@ def build_context_snapshot(
 def from_package(schema_id: str) -> dict:
     """Return the shipped JSON Schema for ``schema_id``.
 
-    Resolves from the installed-package vendored dir (``simplicio_mapper/
-    contracts/context-snapshot``) when present, falling back to the repo's
-    source ``contracts/context-snapshot`` when running from a checkout that
-    has not been installed yet. This is the clean-install validation path
-    required by issue #208 AC ("Wheel e sdist incluem schemas; clean install
-    consegue validá-los").
+    Resolves from the installed package's own vendored dir
+    (``simplicio_mapper/contracts/context-snapshot``) — in-package data, so
+    this works identically for a real wheel install and for an editable/dev
+    checkout. This is the clean-install validation path required by issue
+    #208 AC ("Wheel e sdist incluem schemas; clean install consegue
+    validá-los").
     """
     filename = {
         CONTEXT_SNAPSHOT_SCHEMA: "context-snapshot.schema.json",
@@ -741,19 +741,7 @@ def from_package(schema_id: str) -> dict:
     }.get(schema_id)
     if not filename:
         raise FileNotFoundError(f"unknown context-snapshot schema id: {schema_id!r}")
-    packaged = os.path.join(_PACKAGED_SCHEMAS_DIR, filename)
-    if os.path.isfile(packaged):
-        path = packaged
-    else:
-        repo_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "contracts",
-            "context-snapshot",
-            "v1",
-            "schemas",
-            filename,
-        )
-        path = repo_dir
+    path = os.path.join(_PACKAGED_SCHEMAS_DIR, filename)
     with open(path, encoding="utf-8") as handle:
         return json.load(handle)
 

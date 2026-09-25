@@ -34,7 +34,7 @@ def main() -> int:
     args = parser.parse_args()
     if args.runs < 10:
         parser.error("--runs must be >= 10")
-    fixture = ROOT / "contracts" / "fast-context" / "v1" / "fixtures" / "cross-language.json"
+    fixture = ROOT / "simplicio_mapper" / "contracts" / "fast-context" / "v1" / "fixtures" / "cross-language.json"
     local = {
         "project_map": {"product": {"name": "benchmark"}, "files": []},
         "symbol_index": {"symbols": []},

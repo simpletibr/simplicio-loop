@@ -58,16 +58,15 @@ Issues = "https://github.com/simpletibr/simplicio-mapper/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["simplicio_mapper"]
 
-# Distribution frontier (#199/#200/#208): ship the versioned contracts tree
-# (outside the Python package root) into the wheel so clean installs can
-# validate schemas/fixtures without a source checkout.
-#
-# force-include is ONLY for paths outside packages. Never re-list in-tree
-# package data here (e.g. store/neural/assets or _bundle/ecc): Hatch already
-# ships those with the package, and a second force-include raises
-# ValueError: second file at the same path (issue #553).
-[tool.hatch.build.targets.wheel.force-include]
-"contracts" = "simplicio_mapper/contracts"
+# Distribution frontier (#199/#200/#208): the versioned contracts tree lives
+# at simplicio_mapper/contracts/ -- ordinary in-package data now, so Hatch
+# ships it with the package automatically for both a real wheel install and
+# an editable/dev install (`pip install -e`). No force-include: that only
+# ever worked for a real wheel build, never for editable installs (whose
+# finder just points back at the source tree as-is), which is exactly the
+# gap that made `simplicio_mapper.contract.find_contract_root()` and
+# consumers like simplicio-dev-cli's Mapper graph-delta admission
+# unreliable outside a source checkout.
 
 [tool.ruff]
 line-length = 110
@@ -118,5 +117,4 @@ include = [
   "CHANGELOG.md",
   "LICENSE",
   "pyproject.toml",
-  "contracts",
 ]

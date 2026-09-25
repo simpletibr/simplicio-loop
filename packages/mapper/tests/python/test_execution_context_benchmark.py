@@ -26,7 +26,7 @@ class ExecutionContextBenchmarkTests(unittest.TestCase):
                     self.assertTrue(metrics[name]["unavailable_reason"])
 
     def test_fixture_benchmark_runs_cold_measurement_in_fresh_subprocess(self) -> None:
-        fixture = ROOT / "contracts/mapper-artifacts/v1/fixtures/python-minimal"
+        fixture = ROOT / "simplicio_mapper/contracts/mapper-artifacts/v1/fixtures/python-minimal"
         receipt = benchmark_fixture_subprocess(Path(fixture), runs=2)
         self.assertEqual(receipt["cold_semantics"], "first builder call in a fresh subprocess")
         self.assertEqual(receipt["environment"]["process_model"], "fresh-subprocess")

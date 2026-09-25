@@ -95,15 +95,16 @@ def _delta(*paths: str, base: str = "rev-2", scan: str = "rev-3", **overrides: A
 
 def _real_mapper_graph_delta_schema_reason() -> str | None:
     """Non-``None`` when the installed `simplicio-mapper` package cannot
-    resolve its own shipped `graph-delta.schema.json` (`ContractError`) by
-    either of the two paths `_admit_mapper_delta` itself now tries (see
-    `mapper_context.py`): the packaged resource path (real wheel installs,
-    via Mapper's `force-include`) or `find_contract_root()` (editable/dev
-    installs, where `force-include` never runs). Mirroring both here keeps
-    this probe honest about what `_admit_mapper_delta` can actually
-    resolve — if it changes again, this drifts back out of sync and the
-    tests below correctly go back to skipping instead of asserting a wrong
-    fallback reason string.
+    resolve its own shipped `graph-delta.schema.json` (`ContractError`)
+    through the one path `_admit_mapper_delta` itself uses (see
+    `mapper_context.py`): Mapper's own `find_contract_root()`, which
+    resolves the versioned contracts tree via `importlib.resources` against
+    the installed `simplicio_mapper` package (in-package data, correct for
+    both a real wheel install and an editable/dev install). Mirroring that
+    call here keeps this probe honest about what `_admit_mapper_delta` can
+    actually resolve — if it changes again, this drifts back out of sync
+    and the tests below correctly go back to skipping instead of asserting
+    a wrong fallback reason string.
 
     The tests this guards exercise `_admit_mapper_delta`'s *semantic* delta
     checks (invalid/stale/ambiguous/resync-required), which only run once
@@ -114,10 +115,7 @@ def _real_mapper_graph_delta_schema_reason() -> str | None:
     not a dev-cli bug)."""
     try:
         contract = importlib.import_module("simplicio_mapper.contract")
-        resource_root = importlib.resources.files("simplicio_mapper").joinpath(
-            "contracts", "mapper-artifacts", "v1"
-        )
-        package_root = str(resource_root) if resource_root.is_dir() else contract.find_contract_root()
+        package_root = contract.find_contract_root()
         contract.load_schema("simplicio.graph-delta/v1", package_root)
     except Exception as error:  # noqa: BLE001 - probe only, never the assertion under test
         return f"simplicio-mapper cannot resolve its graph-delta schema on this host ({type(error).__name__}: {error})"
@@ -934,17 +932,9 @@ def test_delta_defensive_path_type_guard_falls_back(
         mapper_context.importlib,
         "import_module",
         lambda _name: SimpleNamespace(
+            find_contract_root=lambda: "mapper-contract-root",
             load_schema=lambda _schema, _root: {},
             validate_instance=lambda _payload, _schema: [],
-        ),
-    )
-    monkeypatch.setattr(
-        mapper_context.importlib.resources,
-        "files",
-        lambda _name: SimpleNamespace(
-            joinpath=lambda *_parts: SimpleNamespace(
-                is_dir=lambda: True, __str__=lambda self: "mapper-contract-root"
-            )
         ),
     )
 

@@ -66,11 +66,8 @@ def _utc_now() -> str:
 
 
 def _fixture_path(relative: str) -> Path | None:
-    candidates = (
-        Path(__file__).parents[2] / "contracts" / relative,
-        Path(__file__).parents[1] / "contracts" / relative,
-    )
-    return next((path for path in candidates if path.is_file()), None)
+    path = Path(__file__).parents[1] / "contracts" / relative
+    return path if path.is_file() else None
 
 
 def _default_manifest() -> dict[str, Any]:

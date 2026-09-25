@@ -9,8 +9,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FIXTURE = ROOT / "contracts" / "task-orientation" / "v1" / "fixtures" / "planes"
-SCHEMAS = ROOT / "contracts" / "task-orientation" / "v1" / "schemas"
+FIXTURE = ROOT / "simplicio_mapper" / "contracts" / "task-orientation" / "v1" / "fixtures" / "planes"
+SCHEMAS = ROOT / "simplicio_mapper" / "contracts" / "task-orientation" / "v1" / "schemas"
 sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper.contract import validate_instance  # noqa: E402

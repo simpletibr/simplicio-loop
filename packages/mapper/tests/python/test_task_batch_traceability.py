@@ -70,7 +70,7 @@ class TaskBatchAndTraceabilityTest(unittest.TestCase):
         self.assertFalse(trace["complete"])
 
     def test_versioned_schemas_validate_golden_shapes(self) -> None:
-        root = Path(__file__).resolve().parents[2] / "contracts/task-orientation/v1"
+        root = Path(__file__).resolve().parents[2] / "simplicio_mapper/contracts/task-orientation/v1"
         for name in ("task-batch", "task-traceability"):
             schema = json.loads((root / "schemas" / f"{name}.schema.json").read_text(encoding="utf-8"))
             if name == "task-batch":

@@ -38,7 +38,7 @@ def _snapshot_id_of(payload: Mapping[str, Any]) -> str:
 
 def _context_schema_path(schema_id: str) -> str:
     filename = {CONTEXT_SNAPSHOT_SCHEMA: "context-snapshot.schema.json", CONTEXT_GRAPH_SCHEMA: "context-graph.schema.json"}[schema_id]
-    package = os.path.join(
+    return os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "contracts",
         "context-snapshot",
@@ -46,15 +46,6 @@ def _context_schema_path(schema_id: str) -> str:
         "schemas",
         filename,
     )
-    path = package if os.path.isfile(package) else os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "contracts",
-        "context-snapshot",
-        "v1",
-        "schemas",
-        filename,
-    )
-    return path
 
 
 def _load_context_schema(schema_id: str) -> dict[str, Any]:

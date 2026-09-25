@@ -27,7 +27,7 @@ from simplicio_mapper.release_governance import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
-FIXTURES = ROOT / "contracts" / "component-release" / "v1" / "fixtures"
+FIXTURES = ROOT / "simplicio_mapper" / "contracts" / "component-release" / "v1" / "fixtures"
 
 
 def _manifest(version: str = "0.26.26") -> dict:

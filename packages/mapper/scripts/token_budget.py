@@ -67,10 +67,10 @@ TRACKED_ARTIFACTS = [
 # the mapper-artifacts contract fixture (issue #157), not a hand-written
 # stand-in. Regenerate with `python3 scripts/regen_contract_fixtures.py update`.
 FIXTURE_ARTIFACTS_DIR = os.path.join(
-    "contracts", "mapper-artifacts", "v1", "fixtures", "python-minimal", "artifacts",
+    "simplicio_mapper", "contracts", "mapper-artifacts", "v1", "fixtures", "python-minimal", "artifacts",
 )
 FIXTURE_INDEX_RESULT = os.path.join(
-    "contracts", "mapper-artifacts", "v1", "fixtures", "python-minimal", "mapper-index-result.json",
+    "simplicio_mapper", "contracts", "mapper-artifacts", "v1", "fixtures", "python-minimal", "mapper-index-result.json",
 )
 
 # Allowed growth over the committed baseline before the guard fails. 25% is

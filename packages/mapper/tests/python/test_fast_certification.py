@@ -13,7 +13,7 @@ from simplicio_mapper.cli import main
 from simplicio_mapper.fast_certification import certify_fast, compare_shadow
 
 ROOT = Path(__file__).resolve().parents[2]
-FIXTURES = ROOT / "contracts" / "fast-certification" / "v1" / "fixtures"
+FIXTURES = ROOT / "simplicio_mapper" / "contracts" / "fast-certification" / "v1" / "fixtures"
 
 
 class FastCertificationTest(unittest.TestCase):

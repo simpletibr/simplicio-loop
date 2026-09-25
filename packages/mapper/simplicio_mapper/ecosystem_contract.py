@@ -17,6 +17,7 @@ specifically so other repos can vendor a single file without depending on
 
 from __future__ import annotations
 
+import importlib.resources
 import json
 import os
 import re
@@ -51,27 +52,22 @@ Options:
 
 
 def find_ecosystem_contract_root(start: str | None = None) -> str:
-    """Locate ``contracts/ecosystem/v1`` by walking upward from ``start``."""
-    candidates = []
-    here = os.path.abspath(start or os.getcwd())
-    while True:
-        candidates.append(here)
-        parent = os.path.dirname(here)
-        if parent == here:
-            break
-        here = parent
-    package_dir = os.path.dirname(os.path.abspath(__file__))
-    candidates.append(os.path.dirname(package_dir))
+    """Locate ``contracts/ecosystem/v1`` inside the installed package.
 
-    for candidate in candidates:
-        root = os.path.join(candidate, "contracts", "ecosystem", CONTRACT_VERSION)
-        if os.path.isdir(os.path.join(root, "schemas")):
-            return root
+    The versioned ``contracts/`` tree lives at ``simplicio_mapper/contracts/``
+    -- in-package data resolved via :mod:`importlib.resources`, correct for
+    both a real wheel install and an editable/dev install. ``start`` is
+    accepted only for backward compatibility with existing callers; it is
+    no longer read.
+    """
+    del start  # no longer used: resolution is package-relative, not cwd-relative
+    root = importlib.resources.files("simplicio_mapper").joinpath("contracts", "ecosystem", CONTRACT_VERSION)
+    if root.joinpath("schemas").is_dir():
+        return str(root)
     raise ContractError(
-        "could not locate contracts/ecosystem/v1/schemas/ from "
-        f"{start or os.getcwd()} or its parents. Run this from within a "
-        "simplicio-mapper checkout (not currently shipped in the published "
-        "package -- see contracts/ecosystem/v1/README.md)."
+        "could not locate contracts/ecosystem/v1/schemas/ inside the installed "
+        "simplicio_mapper package. This means the package data is missing or "
+        "corrupted -- reinstall simplicio-mapper."
     )
 
 

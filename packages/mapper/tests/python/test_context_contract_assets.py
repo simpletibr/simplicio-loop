@@ -11,7 +11,7 @@ from pathlib import Path
 from simplicio_mapper.context_contract import validate_context_graph, validate_context_payload
 
 ROOT = Path(__file__).resolve().parents[2]
-CONTRACT = ROOT / "contracts" / "context-snapshot" / "v1"
+CONTRACT = ROOT / "simplicio_mapper" / "contracts" / "context-snapshot" / "v1"
 
 
 class ContextContractAssetsTest(unittest.TestCase):

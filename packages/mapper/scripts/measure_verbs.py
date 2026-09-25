@@ -44,7 +44,7 @@ REPO = os.path.dirname(HERE)
 sys.path.insert(0, REPO)
 
 FIXTURE_SOURCE = os.path.join(
-    REPO, "contracts", "mapper-artifacts", "v1", "fixtures", "python-minimal", "source",
+    REPO, "simplicio_mapper", "contracts", "mapper-artifacts", "v1", "fixtures", "python-minimal", "source",
 )
 DEFAULT_OUT = os.path.join(HERE, "measure_verbs_report.json")
 REPORT_SCHEMA = "simplicio.measure-verbs-report/v1"
