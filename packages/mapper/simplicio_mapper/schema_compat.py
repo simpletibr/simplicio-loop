@@ -205,7 +205,12 @@ def read_file_at_ref(root: str, ref: str, rel_path: str) -> str | None:
     checkout" -- both are legitimate "nothing to compare against" states for
     a schema-file diff (a brand-new file is handled as an additive change).
     """
-    result = _run_git(["show", f"{ref}:{rel_path}"], root)
+    # ``git show <ref>:<path>`` resolves ``<path>`` relative to the
+    # repository's top level, not ``-C root``'s cwd. In a monorepo, ``root``
+    # is a package subdirectory, not the repo top level, so the pathspec
+    # must be written relative-to-cwd (``./``) to stay scoped to the package
+    # regardless of where the enclosing repository root actually is.
+    result = _run_git(["show", f"{ref}:./{rel_path}"], root)
     if result is None or result.returncode != 0:
         return None
     return result.stdout
