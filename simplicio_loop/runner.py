@@ -3451,6 +3451,42 @@ def _run_with_operator_recovery(
         return result
 
 
+# Zero-probe cache: static capability info (identity/help/version banner) never
+# changes within a run, so it is probed at most ONCE per run_root and reused by
+# every subsequent task attempt. `repo_state` is NOT cached here -- it is
+# recomputed fresh on every call (cheap, no subprocess) so the receipt's
+# staleness check in `_validate_run_receipts` keeps working unchanged.
+_CAPABILITY_PROBE_CACHE: Dict[Tuple[str, str], Dict[str, Any]] = {}
+
+
+def _mapper_capability_probe(repo_path: Path) -> Dict[str, Any]:
+    """One subprocess pair for mapper identity/version/help -- callers cache the result."""
+    identity = _resolved_identity("simplicio-mapper", ("simplicio-mapper",))
+    version = _run_cmd(["simplicio-mapper", "--version"], repo_path)
+    help_result = _run_cmd(["simplicio-mapper", "--help"], repo_path)
+    return {
+        "identity": identity,
+        "version_stdout": (version.stdout or "").strip(),
+        "version_rc": version.returncode,
+        "help_stdout": (help_result.stdout or "").strip(),
+        "help_rc": help_result.returncode,
+    }
+
+
+def _cached_mapper_capability_probe(repo_path: Path, run_root: Path) -> Dict[str, Any]:
+    key = ("mapper", str(run_root))
+    cached = _CAPABILITY_PROBE_CACHE.get(key)
+    if cached is None:
+        cached = _mapper_capability_probe(repo_path)
+        _CAPABILITY_PROBE_CACHE[key] = cached
+    return cached
+
+
+def reset_capability_probe_cache() -> None:
+    """Test/utility hook: drop every cached capability probe (all run_roots)."""
+    _CAPABILITY_PROBE_CACHE.clear()
+
+
 def _preflight_mapper(repo_path: Path, run_root: Path) -> Dict[str, Any]:
     override = _preflight_override("SIMPLICIO_LOOP_FAKE_MAPPER_PREFLIGHT_JSON")
     if override is not None:
@@ -3460,13 +3496,12 @@ def _preflight_mapper(repo_path: Path, run_root: Path) -> Dict[str, Any]:
         version_rc = int(override.get("version_returncode", 0))
         help_rc = int(override.get("help_returncode", 0))
     else:
-        identity = _resolved_identity("simplicio-mapper", ("simplicio-mapper",))
-        version = _run_cmd(["simplicio-mapper", "--version"], repo_path)
-        help_result = _run_cmd(["simplicio-mapper", "--help"], repo_path)
-        version_stdout = (version.stdout or "").strip()
-        help_stdout = (help_result.stdout or "").strip()
-        version_rc = version.returncode
-        help_rc = help_result.returncode
+        cached = _cached_mapper_capability_probe(repo_path, run_root)
+        identity = cached["identity"]
+        version_stdout = cached["version_stdout"]
+        help_stdout = cached["help_stdout"]
+        version_rc = cached["version_rc"]
+        help_rc = cached["help_rc"]
     parsed_version = _parse_version_tuple(version_stdout)
     missing_verbs = [verb for verb in MAPPER_REQUIRED_VERBS if verb not in help_stdout]
     task_aware_flags = ("--goal", "--task-file", "--task-fingerprint")
@@ -3516,6 +3551,87 @@ def _operator_capability_gaps(help_stdout: str, task_help_stdout: str) -> Tuple[
     return missing_tokens, missing_capabilities
 
 
+def _devcli_capability_probe(repo_path: Path) -> Dict[str, Any]:
+    """One in-process manifest read when available, else one `capabilities --json`
+    subprocess, else the legacy 3-subprocess --help/--help edit/--version probe.
+    Callers cache the result -- this must run at most once per run_root."""
+    identity = _resolved_identity("simplicio-dev-cli", ("simplicio-dev-cli", "simplicio-py"))
+    manifest: Dict[str, Any] | None = None
+    try:
+        from simplicio.capabilities import load_capabilities_manifest  # type: ignore
+
+        manifest = load_capabilities_manifest()
+    except Exception:
+        manifest = None
+    env = _devcli_env(repo_path)
+    if manifest is None:
+        try:
+            probe = subprocess.run(
+                _devcli_cmd(repo_path, "capabilities", "--json"),
+                cwd=str(repo_path), capture_output=True, text=True, timeout=180, env=env,
+            )
+            if probe.returncode == 0 and probe.stdout:
+                manifest = json.loads(probe.stdout)
+        except (OSError, subprocess.SubprocessError, ValueError):
+            manifest = None
+    if manifest is not None:
+        commands = manifest.get("commands") or {}
+        edit_spec = commands.get("edit") or {}
+        surface_parts = [manifest.get("schema", ""), " ".join(manifest.get("top_level_flags") or [])]
+        for name, spec in commands.items():
+            if not isinstance(spec, Mapping):
+                continue
+            surface_parts.append(name)
+            surface_parts.append(" ".join(spec.get("flags") or []))
+            surface_parts.append(str(spec.get("help", "")))
+        help_stdout = " ".join(part for part in surface_parts if part)
+        task_help_stdout = " ".join(
+            part for part in (
+                "edit", " ".join(edit_spec.get("flags") or []), str(edit_spec.get("help", "")),
+            ) if part
+        )
+        version = str((manifest.get("package") or {}).get("version") or "")
+        return {
+            "identity": identity,
+            "help_stdout": help_stdout,
+            "help_rc": 0,
+            "task_help_stdout": task_help_stdout,
+            "task_help_rc": 0,
+            "version_stdout": f"simplicio-dev-cli {version}".strip() if version else "",
+            "version_rc": 0 if version else 1,
+        }
+    # Legacy fallback for installs without `capabilities`/the in-process module.
+    help_result = subprocess.run(
+        _devcli_cmd(repo_path, "--help"), cwd=str(repo_path), capture_output=True, text=True, timeout=180, env=env,
+    )
+    task_help_result = subprocess.run(
+        _devcli_cmd(repo_path, "edit", "--help"), cwd=str(repo_path), capture_output=True, text=True,
+        timeout=180, env=env,
+    )
+    version_result = subprocess.run(
+        _devcli_cmd(repo_path, "--version"), cwd=str(repo_path), capture_output=True, text=True,
+        timeout=180, env=env,
+    )
+    return {
+        "identity": identity,
+        "help_stdout": (help_result.stdout or "").strip(),
+        "help_rc": help_result.returncode,
+        "task_help_stdout": (task_help_result.stdout or "").strip(),
+        "task_help_rc": task_help_result.returncode,
+        "version_stdout": (version_result.stdout or "").strip(),
+        "version_rc": version_result.returncode,
+    }
+
+
+def _cached_devcli_capability_probe(repo_path: Path, run_root: Path) -> Dict[str, Any]:
+    key = ("devcli", str(run_root))
+    cached = _CAPABILITY_PROBE_CACHE.get(key)
+    if cached is None:
+        cached = _devcli_capability_probe(repo_path)
+        _CAPABILITY_PROBE_CACHE[key] = cached
+    return cached
+
+
 def _preflight_operator(repo_path: Path, run_root: Path) -> Dict[str, Any]:
     # Issue #135: the operator bridge validates identity + capability + MIN_VERSION,
     # not merely `which`. A wrong homonym (PATH resolves but the stem mismatches) or a
@@ -3530,38 +3646,14 @@ def _preflight_operator(repo_path: Path, run_root: Path) -> Dict[str, Any]:
         version_stdout = str(override.get("version_stdout", "simplicio-py 0.14.0"))
         version_rc = int(override.get("version_returncode", 0))
     else:
-        identity = _resolved_identity("simplicio-dev-cli", ("simplicio-dev-cli", "simplicio-py"))
-        env = _devcli_env(repo_path)
-        help_result = subprocess.run(
-            _devcli_cmd(repo_path, "--help"),
-            cwd=str(repo_path),
-            capture_output=True,
-            text=True,
-            timeout=180,
-            env=env,
-        )
-        task_help_result = subprocess.run(
-            _devcli_cmd(repo_path, "edit", "--help"),
-            cwd=str(repo_path),
-            capture_output=True,
-            text=True,
-            timeout=180,
-            env=env,
-        )
-        version_result = subprocess.run(
-            _devcli_cmd(repo_path, "--version"),
-            cwd=str(repo_path),
-            capture_output=True,
-            text=True,
-            timeout=180,
-            env=env,
-        )
-        help_stdout = (help_result.stdout or "").strip()
-        help_rc = help_result.returncode
-        task_help_stdout = (task_help_result.stdout or "").strip()
-        task_help_rc = task_help_result.returncode
-        version_stdout = (version_result.stdout or "").strip()
-        version_rc = version_result.returncode
+        cached = _cached_devcli_capability_probe(repo_path, run_root)
+        identity = cached["identity"]
+        help_stdout = cached["help_stdout"]
+        help_rc = cached["help_rc"]
+        task_help_stdout = cached["task_help_stdout"]
+        task_help_rc = cached["task_help_rc"]
+        version_stdout = cached["version_stdout"]
+        version_rc = cached["version_rc"]
     missing_tokens, missing_capabilities = _operator_capability_gaps(help_stdout, task_help_stdout)
     parsed_version = _parse_version_tuple(version_stdout)
     receipt = {
