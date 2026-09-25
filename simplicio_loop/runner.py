@@ -5480,6 +5480,21 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         if provider_plan is not None:
             mechanical_plan = provider_plan
             plan_source = "provider-worker"
+    if mechanical_plan is None and os.environ.get(
+        "SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON", ""
+    ).strip():
+        # Hermetic test seam (#1290): SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON substitutes the
+        # whole operator effect in `_execute_operator_effect_unchecked()` -- the write_files
+        # it applies are fully scripted by the fixture, not derived from a host edit plan --
+        # so the separate host-written-plan requirement below is not meaningful on that path.
+        # Never applies to a real run: the env var is a test-only fixture, unset in production.
+        mechanical_plan = {
+            "schema": "simplicio.mechanical-edit/v1",
+            "touched_files": list(targets),
+            "operations": [{"op": "fake_exec_seam", "path": target}],
+            "validation": [],
+        }
+        plan_source = "env:SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON"
     if mechanical_plan is None:
         blocked_receipt = {
             "schema": OPERATOR_RECEIPT_SCHEMA,

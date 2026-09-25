@@ -110,7 +110,11 @@ def run_audit():
     argv = [sys.executable, path]
     if _core_deadline is not None:
         argv.append("--core")
-    command = _run_bounded(argv, phase="claims_audit")
+    command = _run_bounded(argv, phase="claims_audit", capture_output=True)
+    if command.stdout:
+        print(command.stdout, end="" if command.stdout.endswith("\n") else "\n")
+    if command.stderr:
+        print(command.stderr, end="" if command.stderr.endswith("\n") else "\n", file=sys.stderr)
     return _gate_result("claims_audit", command)
 
 
@@ -294,10 +298,13 @@ def run_mirror_parity():
     if not os.path.isfile(path):
         print("scripts/mirror_parity.py not found")
         return GateResult(False, "mirror_parity_missing")
-    return _gate_result(
-        "mirror_parity",
-        _run_bounded([sys.executable, path, "check"], phase="mirror_parity"),
-    )
+    command = _run_bounded([sys.executable, path, "check"], phase="mirror_parity",
+                           capture_output=True)
+    if command.stdout:
+        print(command.stdout, end="" if command.stdout.endswith("\n") else "\n")
+    if command.stderr:
+        print(command.stderr, end="" if command.stderr.endswith("\n") else "\n", file=sys.stderr)
+    return _gate_result("mirror_parity", command)
 
 
 def run_loop_contract():
