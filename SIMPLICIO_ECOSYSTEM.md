@@ -10,8 +10,8 @@ importa `simplicio-runtime` de volta, e o runtime ainda não consome o contrato)
 publicada para essa reutilização acontecer. Ver `contracts/loop-execution/v1/SCHEMA.md`.
 
 ## De quem este repo depende
-- [simplicio-mapper](https://github.com/wesleysimplicio/simplicio-mapper) >=0.14.0 — hard dep (binds `orient`)
-- [simplicio-dev-cli](https://github.com/wesleysimplicio/simplicio-dev-cli) >=0.9.1 (pip pkg `simplicio-cli`) — hard dep (binds `execute`/`deterministic_edit`)
+- [simplicio-mapper](packages/mapper/) — hard dep (binds `orient`), agora um pacote deste monorepo
+- [simplicio-dev-cli](packages/dev-cli/) (pip pkg `simplicio-cli`) — hard dep (binds `execute`/`deterministic_edit`), agora um pacote deste monorepo
 
 ## Versão atual
 3.22.2 (pyproject.toml)
