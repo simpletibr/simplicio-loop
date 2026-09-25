@@ -569,6 +569,13 @@ def _orient_trim_verbose_fields(payload: dict[str, Any]) -> dict[str, Any]:
                 stage_payload = dict(stage_payload)
                 stage_payload.pop("probe", None)
                 fast[stage] = stage_payload
+        # Raw Fast context/selection/plan nodes can reach hundreds of KB; the
+        # default view keeps what the caller decides on (files, terms, hashes).
+        for stage, bulky in (("understanding", ("selection", "context")),
+                             ("plan", ("nodes", "understanding", "context_handles"))):
+            stage_payload = fast.get(stage)
+            if isinstance(stage_payload, Mapping):
+                fast[stage] = {k: v for k, v in stage_payload.items() if k not in bulky}
         trimmed["fast"] = fast
     mapper = trimmed.get("mapper")
     if isinstance(mapper, Mapping):

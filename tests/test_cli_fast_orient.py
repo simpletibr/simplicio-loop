@@ -242,3 +242,38 @@ def test_orient_cli_fails_closed_without_mutable_authority(
         "modify", "refresh", "validate"
     ]
     assert "structured_patch" not in json.dumps(payload)
+
+
+def test_orient_default_output_stays_bounded_when_fast_blocks(tmp_path, monkeypatch, capsys):
+    """A BLOCKED Fast plan used to dump the raw understanding + plan (~670KB) on
+    stdout. Default output keeps only the decision-relevant fields; --verbose
+    keeps everything."""
+    bulk = [{"file": f"f{i}.py", "content": "x" * 2000} for i in range(200)]
+
+    class _BlockedBulkFast(_ReadyFast):
+        def prepare(self, task):
+            return {
+                "schema": "simplicio.loop-fast-integration/v1",
+                "status": "BLOCKED",
+                "reason": "TARGET_CORRIDOR_MISMATCH",
+                "blocked_preconditions": [{"code": "TARGET_CORRIDOR_MISMATCH"}],
+                "intent_policy": {"explicit_targets": ["app.py"]},
+                "understanding": {"schema": "u", "files": ["f0.py"], "terms": ["app"],
+                                  "context": bulk, "selection": {"x": bulk}},
+                "plan": {"schema": "p", "nodes": bulk},
+            }
+
+    monkeypatch.setattr(cli, "FastLoopIntegration", _BlockedBulkFast)
+    monkeypatch.setattr(cli, "_mapper_orient_fallback",
+                        lambda root, task: {"status": "READY", "result": {"files": 1}})
+    cli.orient(str(tmp_path), "change app", "auto", 2000)
+    out = capsys.readouterr().out
+    payload = json.loads(out)
+    assert len(out) < 20_000, len(out)
+    fast = payload["fast"]
+    assert fast["understanding"]["files"] == ["f0.py"]
+    assert fast["understanding"]["terms"] == ["app"]
+    assert fast["blocked_preconditions"] == [{"code": "TARGET_CORRIDOR_MISMATCH"}]
+
+    cli.orient(str(tmp_path), "change app", "auto", 2000, verbose=True)
+    assert len(capsys.readouterr().out) > 200_000
