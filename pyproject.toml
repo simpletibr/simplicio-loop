@@ -25,10 +25,11 @@ classifiers = [
 ]
 # Loop is the aggregate of mapper + fast + simplicio-dev-cli. `simplicio-cli`
 # exports the `simplicio-dev-cli` entrypoint. There is no Runtime and no
-# simplicio-prompt on this train. Loop needs dev-cli's new `edit --compile`,
-# hence the simplicio-cli floor raise to 0.18.15.
+# simplicio-prompt on this train. Loop's in-process dev-cli capability probe
+# (strict_mode.action_operator_status) reads simplicio.capabilities, hence
+# the simplicio-cli floor raise to 0.18.16.
 dependencies = [
-  "simplicio-cli>=0.18.15,<0.19",
+  "simplicio-cli>=0.18.16,<0.19",
   "simplicio-mapper>=0.26.33,<0.27",
   "simplicio-fast>=2.0.35,<3",
   "tiktoken>=0.12.0,<1",
