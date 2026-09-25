@@ -9,13 +9,19 @@ FAILS when a tracked artifact regresses past its threshold -- so a doc/module
 that quietly balloons in size (burning context on every fresh session) gets
 caught the same way a broken test would.
 
-Estimator: `tiktoken` (cl100k_base) is used when importable, but it is NOT a
-dependency of this repo or package -- the default, always-available path is
-a stdlib-only heuristic (`heuristic:chars-div-4`, ~4 characters per token, a
-standard rough approximation for English/markdown/code) so
-`python3 scripts/token_budget.py` never needs a new dependency. The
-estimator actually used is recorded in the baseline/report so a swap is
-never silently mixed with old numbers.
+Estimator: a single, fixed stdlib-only heuristic (`heuristic:chars-div-4`,
+~4 characters per token, a standard rough approximation for
+English/markdown/code) -- deliberately the ONLY estimator, not "the default
+when an optional tokenizer is missing". `scripts/check.py --package dev-cli`
+runs this guard inside a hermetic, network-stripped gate subprocess
+(`simplicio_loop/quality_process.py`'s `_repo_env`); an optional
+network-fetched tokenizer (e.g. `tiktoken`, which downloads its BPE file on
+first use) would measure differently there than under plain `pytest`
+(which still has network), making the guard's pass/fail depend on which
+harness ran it. `python3 scripts/token_budget.py` never needs a new
+dependency. The estimator actually used is recorded in the baseline/report
+so a deliberate future estimator swap is never silently mixed with old
+numbers.
 
 Tracked artifacts:
   - `AGENTS.md`, `CLAUDE.md` -- the cross-agent / Claude-specific contract
@@ -76,31 +82,24 @@ TRACKED_ARTIFACTS = [
 THRESHOLD_GROWTH = 0.25
 
 
-def _try_tiktoken_estimator():
-    try:
-        import tiktoken  # noqa: F401 -- optional; not a dependency of this repo
-    except Exception:
-        return None
-    try:
-        enc = tiktoken.get_encoding("cl100k_base")
-        return (lambda text: len(enc.encode(text))), "tiktoken:cl100k_base"
-    except Exception:
-        return None
-
-
 def _heuristic_estimator(text):
-    # stdlib-only fallback: ~4 chars/token, a standard rough estimate for
-    # English/markdown/code. This is the DEFAULT so the guard never requires
-    # installing a new dependency.
+    # stdlib-only estimator: ~4 chars/token, a standard rough estimate for
+    # English/markdown/code. This is the ONLY estimator the guard uses --
+    # deliberately, not just "the default when tiktoken is unavailable".
+    # `scripts/check.py --package dev-cli` runs this gate inside a hermetic
+    # subprocess (simplicio_loop/quality_process.py's `_repo_env`) that
+    # strips proxy/network env vars on purpose; an optional tiktoken path
+    # would silently fall back to this same heuristic there while using
+    # tiktoken's real BPE count under plain `pytest` (which still has
+    # network), making the guard's pass/fail depend on which harness ran it.
+    # Recorded `estimator` in the baseline is checked below so a future
+    # deliberate estimator swap can't silently mix with old numbers.
     if not text:
         return 0
     return max(1, len(text) // 4)
 
 
 def get_estimator():
-    tk = _try_tiktoken_estimator()
-    if tk is not None:
-        return tk
     return _heuristic_estimator, "heuristic:chars-div-4"
 
 
