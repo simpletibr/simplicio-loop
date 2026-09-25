@@ -45,6 +45,31 @@ def test_orient_prefers_fast_and_emits_bounded_receipt(tmp_path, monkeypatch, ca
     assert _ReadyFast.last_config.engine == "auto"
 
 
+def test_orient_json_carries_a_compact_command_card(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli, "FastLoopIntegration", _ReadyFast)
+    assert cli.orient(str(tmp_path), "change app", "on", 1234, verbose=True) == 0
+    payload = json.loads(capsys.readouterr().out)
+    card = payload["commands"]
+    assert card["schema"] == "simplicio.loop-command-card/v1"
+    repo = str(tmp_path)
+    assert card["prepare"] == f"simplicio-loop prepare --task tasks.md --repo {repo}"
+    assert card["wave"] == f"simplicio-loop wave <run_id> --repo {repo}"
+    assert card["verify"] == f"simplicio-loop verify <run_id> --repo {repo}"
+    assert card["tick"] == f"simplicio-loop tick <run_id> --repo {repo} --task-index <N>"
+    assert card["edit_plan_path"] == ".simplicio/loop-runs/<run_id>/edit-plan-<N>.json"
+    assert card["edit_plan_format"] == {
+        "operations": [{"path": "<repo-relative>", "find": "<exact text>", "replace": "<new text>"}]
+    }
+    assert "exactly once" in card["edit_plan_rule"]
+    assert card["task_file_lanes"] == [
+        "Independent verifier:", "Unit verifier:", "Integration verifier:",
+        "System verifier:", "Regression verifier:", "Benchmark verifier:",
+        "Coverage verifier:",
+    ]
+    assert card["waiver"] == {"type_line": "Type: Docs|Chore|Config", "tests_line": "Tests: none"}
+    assert len(json.dumps(card, ensure_ascii=False).encode("utf-8")) < 1_500
+
+
 def test_orient_exposes_explicit_engine_selection(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(cli, "FastLoopIntegration", _ReadyFast)
     assert cli.orient(str(tmp_path), "change app", "on", 1234, "rust") == 0

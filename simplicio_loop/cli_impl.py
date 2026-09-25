@@ -438,6 +438,43 @@ def _orient_provider_provenance(payload: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+COMMAND_CARD_SCHEMA = "simplicio.loop-command-card/v1"
+COMMAND_CARD_MAX_BYTES = 1_500
+
+
+def _orient_command_card(root: Path) -> dict[str, Any]:
+    """Exact next commands for this repo (< 1.5 KB serialized).
+
+    An LLM host that just ran ``orient`` needs the literal next commands,
+    the edit-plan path pattern/minimal format, and the task-file lane +
+    waiver lines without re-reading ``SKILL.md`` -- so orient answers it
+    directly.
+    """
+    repo = str(root)
+    return {
+        "schema": COMMAND_CARD_SCHEMA,
+        "prepare": f"simplicio-loop prepare --task tasks.md --repo {repo}",
+        "wave": f"simplicio-loop wave <run_id> --repo {repo}",
+        "verify": f"simplicio-loop verify <run_id> --repo {repo}",
+        "tick": f"simplicio-loop tick <run_id> --repo {repo} --task-index <N>",
+        "edit_plan_path": ".simplicio/loop-runs/<run_id>/edit-plan-<N>.json",
+        "edit_plan_format": {
+            "operations": [{"path": "<repo-relative>", "find": "<exact text>", "replace": "<new text>"}]
+        },
+        "edit_plan_rule": "find must match exactly once in path",
+        "task_file_lanes": [
+            "Independent verifier:",
+            "Unit verifier:",
+            "Integration verifier:",
+            "System verifier:",
+            "Regression verifier:",
+            "Benchmark verifier:",
+            "Coverage verifier:",
+        ],
+        "waiver": {"type_line": "Type: Docs|Chore|Config", "tests_line": "Tests: none"},
+    }
+
+
 def _seal_orient_payload(
     payload: dict[str, Any], *, root: Path, task: str, fast_mode: str,
     fast_engine: str, fast_context_budget: int,
@@ -450,6 +487,7 @@ def _seal_orient_payload(
         "fallback_allowed": fast_mode != "on" and fast_engine != "rust",
     }
     payload["llm_orientation"] = contract
+    payload["commands"] = _orient_command_card(root)
     provenance = _orient_provider_provenance(payload)
     receipt = {
         "schema": ORIENT_RECEIPT_SCHEMA,
