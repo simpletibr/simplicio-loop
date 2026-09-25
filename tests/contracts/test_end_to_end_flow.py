@@ -24,7 +24,7 @@ import json
 
 from simplicio import cli, detect, mapper
 
-from ._schema import assert_has_keys, assert_schema_id
+from ._schema import assert_schema_id
 
 
 def test_minimal_flow_standalone(sample_project, stub_local_provider, monkeypatch, capsys):
@@ -90,9 +90,7 @@ def test_minimal_flow_standalone(sample_project, stub_local_provider, monkeypatc
     assert verify_payload["exit_code"] == 0
 
 
-def test_auto_standalone_keeps_strict_mapper_identity_gate(
-    sample_project, monkeypatch, capsys
-):
+def test_auto_standalone_keeps_strict_mapper_identity_gate(sample_project, monkeypatch, capsys):
     """Automatic fallback remains fail-closed when production authority is required."""
     monkeypatch.setenv("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", "1")
     monkeypatch.setenv(
