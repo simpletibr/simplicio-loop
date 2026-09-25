@@ -572,7 +572,13 @@ def independent_reverify_quality_matrix(run_dir: str, *, repo: "str | None" = No
     if policy.get("tdd_required"):
         lane_checks.append(independent_reverify_tdd_lane(run_dir, requirements.get("tdd") or {}))
 
-    if rerun:
+    if rerun and receipt.get("source") == "lane_verifiers":
+        # Built from the task file's own lane commands: re-run those, in the target
+        # repo -- never simplicio-loop's own gate scripts.
+        from .lane_verifiers import reverify
+
+        lane_checks.extend(reverify(receipt, Path(repo_root), Path(run_dir) / "lanes"))
+    elif rerun:
         import os
 
         here = Path(__file__).resolve().parents[1] / "scripts"

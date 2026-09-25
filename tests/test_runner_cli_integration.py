@@ -282,7 +282,7 @@ def test_prepare_operator_receipt_uses_typed_task_spec_file(tmp_path, monkeypatc
     monkeypatch.setattr(runner_mod, "_preflight_operator", lambda *args: {})
 
     def fake_run(argv, **kwargs):
-        if "--task-spec" in argv:
+        if "edit" in argv or "task" in argv:
             captured["task_argv"] = list(argv)
         return SimpleNamespace(returncode=0, stdout=json.dumps({"ok": True}), stderr="")
 
@@ -293,9 +293,9 @@ def test_prepare_operator_receipt_uses_typed_task_spec_file(tmp_path, monkeypatc
 
     assert receipt["returncode"] == 0
     task_argv = captured["task_argv"]
-    assert task_argv[task_argv.index("--task-spec") + 1] == str(task_spec_path)
-    assert "--criteria" not in task_argv
-    assert "--constraints" not in task_argv
+    # The dry run proves the plan surface; it never calls the prose `task` path.
+    assert task_argv[-2:] == ["edit", "--help"]
+    assert "task" not in task_argv
     assert task_spec["original_text"] == task["original_text"]
     assert receipt["task_spec_path"] == str(task_spec_path)
     assert receipt["task_spec_hash"] == hashlib.sha256(
@@ -326,7 +326,7 @@ def test_prepare_operator_receipt_propagates_canonical_context_when_mapper_suppl
     monkeypatch.setattr(runner_mod, "_preflight_operator", lambda *args: {})
 
     def fake_run(argv, **kwargs):
-        if "--task-spec" in argv:
+        if "edit" in argv or "task" in argv:
             captured["task_argv"] = list(argv)
         return SimpleNamespace(returncode=0, stdout=json.dumps({"ok": True}), stderr="")
 
@@ -336,7 +336,7 @@ def test_prepare_operator_receipt_propagates_canonical_context_when_mapper_suppl
 
     assert receipt["context_handoff"]["status"] == "propagated"
     assert receipt["context_handoff"]["context_handle"] == handle
-    assert task_argv[task_argv.index("--context-handle") + 1] == handle
+    assert task_argv[-2:] == ["edit", "--help"]
     assert json.loads((run_root / "context-snapshot.json").read_text(encoding="utf-8"))["snapshot_id"] == "snap-1"
     assert json.loads((run_root / "context-pack.json").read_text(encoding="utf-8"))["pack_hash"] == "pack-1"
     assert json.loads((run_root / "execution-context.json").read_text(encoding="utf-8"))["snapshot_id"] == "snap-1"
@@ -366,7 +366,7 @@ def test_prepare_operator_receipt_uses_standalone_degraded_context_pack(tmp_path
     monkeypatch.setattr(runner_mod, "_preflight_operator", lambda *args: {})
 
     def fake_run(argv, **kwargs):
-        if "--mode" in argv and argv[argv.index("--mode") + 1] == "standalone":
+        if "edit" in argv or "task" in argv:
             captured["task_argv"] = list(argv)
         return SimpleNamespace(returncode=0, stdout=json.dumps({"ok": True}), stderr="")
 
@@ -375,12 +375,8 @@ def test_prepare_operator_receipt_uses_standalone_degraded_context_pack(tmp_path
 
     task_argv = captured["task_argv"]
     assert receipt["context_handoff"]["status"] == "degraded_local"
-    assert "--mode" in task_argv, task_argv
-    assert task_argv[task_argv.index("--mode") + 1] == "standalone"
-    assert "--task-spec" not in task_argv
-    assert "--criteria" in task_argv
-    assert "--constraints" in task_argv
-    assert task_argv[task_argv.index("--context-pack") + 1] == str(run_root / "context-pack.json")
+    assert task_argv[-2:] == ["edit", "--help"]
+    assert "task" not in task_argv
 
 
 def test_context_handoff_uses_snapshot_fallback_without_requiring_handle(tmp_path):
@@ -1009,7 +1005,7 @@ def _start_run_for_maintenance_cli(tmp_path, monkeypatch):
         "help_returncode": 0,
     }))
     monkeypatch.setenv("SIMPLICIO_LOOP_FAKE_DEVCLI_PREFLIGHT_JSON", json.dumps({
-        "help_stdout": "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode",
+        "help_stdout": "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json",
         "help_returncode": 0,
     }))
     monkeypatch.setenv("SIMPLICIO_LOOP_FAKE_OPERATOR_JSON", json.dumps({
@@ -1271,7 +1267,7 @@ def test_deliver_reconciles_external_delivery_state(tmp_path):
         "help_returncode": 0
     })
     fake_devcli_preflight = json.dumps({
-        "help_stdout": "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode",
+        "help_stdout": "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json",
         "help_returncode": 0
     })
     started = _arm_result(
@@ -1363,7 +1359,7 @@ def test_sync_source_requeries_github_fixture_for_merge_ready(tmp_path):
         "help_returncode": 0
     })
     fake_devcli_preflight = json.dumps({
-        "help_stdout": "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode",
+        "help_stdout": "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json",
         "help_returncode": 0
     })
     started = _arm_result(
@@ -1418,7 +1414,7 @@ def test_sync_source_requeries_github_fixture_for_release(tmp_path):
         "help_returncode": 0
     })
     fake_devcli_preflight = json.dumps({
-        "help_stdout": "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode",
+        "help_stdout": "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json",
         "help_returncode": 0
     })
     started = _arm_result(
@@ -1471,7 +1467,7 @@ def test_sync_source_reopens_delivery_when_merge_ready_regresses(tmp_path):
         "help_returncode": 0
     })
     fake_devcli_preflight = json.dumps({
-        "help_stdout": "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode",
+        "help_stdout": "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json",
         "help_returncode": 0
     })
     started = _arm_result(
@@ -1533,7 +1529,7 @@ def test_run_blocks_when_mapper_preflight_version_too_old(tmp_path):
                 "help_returncode": 0
             }),
             "SIMPLICIO_LOOP_FAKE_DEVCLI_PREFLIGHT_JSON": json.dumps({
-                "help_stdout": "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode",
+                "help_stdout": "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json",
                 "help_returncode": 0
             })
         },
@@ -1546,12 +1542,12 @@ def test_run_blocks_when_mapper_preflight_version_too_old(tmp_path):
     assert payload["verified"] is False
 
 
-@pytest.mark.parametrize("missing_capability", ["--bound-paths", "--target"])
+@pytest.mark.parametrize("missing_capability", ["--dry-run"])
 def test_run_blocks_when_devcli_preflight_lacks_required_capability(
     tmp_path, monkeypatch, missing_capability,
 ):
     surface = (
-        "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode"
+        "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json"
     ).replace(missing_capability, "")
     _, task = _setup_deterministic_preflight_fixture(
         monkeypatch,
@@ -1777,7 +1773,7 @@ def _setup_deterministic_preflight_fixture(
         return payload
 
     def fake_operator_preflight(repo_path, run_root):
-        help_surface = "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode"
+        help_surface = "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json"
         receipt = {
             "tool": "simplicio-dev-cli", "identity_ok": True, "version_ok": True,
             "help_stdout": help_surface, "task_help_stdout": help_surface,
@@ -2011,7 +2007,7 @@ def test_batch_rejects_mapper_context_byte_tamper(tmp_path, monkeypatch):
     assert not (run_dir / "operator-batch.jsonl").exists()
 
 
-@pytest.mark.parametrize("missing_capability", ["--bound-paths", "--target"])
+@pytest.mark.parametrize("missing_capability", ["--dry-run"])
 def test_batch_rejects_operator_preflight_missing_capability(
     tmp_path, monkeypatch, missing_capability,
 ):
@@ -2094,7 +2090,7 @@ def test_batch_rejects_operator_preflight_invalid_contract_field_type(
     ("missing_surface", "message"),
     [
         ("--json", "missing_tokens do not match persisted help"),
-        ("--target", "missing_capabilities do not match persisted help"),
+        ("--dry-run", "missing_capabilities do not match persisted help"),
     ],
 )
 def test_batch_rejects_forged_empty_capability_gaps_against_deficient_help(
@@ -2280,6 +2276,6 @@ def test_operator_dry_run_receipt_marks_ephemeral_identity(tmp_path, monkeypatch
     receipt = runner_mod._prepare_operator_receipt(repo, run_root, task, "src/worker.py")
 
     assert receipt["context_handoff"]["purpose"] == "read_only_preflight"
-    assert receipt["argv"][receipt["argv"].index("--attempt-id") + 1].endswith(":preflight")
-    assert receipt["argv"][receipt["argv"].index("--lease-id") + 1].endswith(":preflight")
-    assert receipt["argv"][receipt["argv"].index("--fencing-token") + 1] == "1"
+    # The read-only dry run only probes the plan surface; no lease identity is sent.
+    assert receipt["argv"][-2:] == ["edit", "--help"]
+    assert "--attempt-id" not in receipt["argv"]

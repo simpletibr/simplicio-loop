@@ -178,11 +178,11 @@ PHASES = [
 # `fresh=true` inspect result and are therefore not safe as a planning source.
 MAPPER_MIN_VERSION = (0, 19, 0)
 MAPPER_REQUIRED_VERBS = ("scan", "inspect", "handoff", "ask", "sync")
-DEVCLI_REQUIRED_TOKENS = (" task", "--dry-run-task", "--json")
+DEVCLI_REQUIRED_TOKENS = (" edit", "--plan", "--apply", "--json")
 # Issue #135: the operator bridge validates identity + capability + MIN_VERSION, not
 # merely `which`. A dev-cli below this tuple is blocked before any mutation.
 DEVCLI_MIN_VERSION = (0, 14, 0)
-DEVCLI_REQUIRED_CAPABILITIES = ("task", "--dry-run-task", "--json", "--bound-paths", "--target", "--task-spec", "--mode")
+DEVCLI_REQUIRED_CAPABILITIES = ("edit", "--plan", "--apply", "--dry-run", "--json")
 BATCH_SCHEMA = "simplicio.operator-batch/v1"
 BATCH_PREFLIGHT_SCHEMA = "simplicio.operator-batch-preflight/v1"
 NATIVE_PRISM_SCHEMA = "simplicio.loop.native-prism-dispatch/v1"
@@ -510,8 +510,8 @@ STORAGE_ROUTE_RECEIPT = "storage-route-receipt.json"
 
 
 def _storage_route_requested() -> str:
-    """Return the explicit store rollout flag; legacy is the safe pre-cutover default."""
-    return os.environ.get("SIMPLICIO_STORAGE_ROUTE", StorageRoute.LEGACY.value).strip().lower()
+    """Return the store route; MapperStore is the only writable default."""
+    return os.environ.get("SIMPLICIO_STORAGE_ROUTE", StorageRoute.MAPPER.value).strip().lower()
 
 
 def _freeze_storage_route(run_root: Path, run_id: str) -> dict[str, Any]:
@@ -1610,10 +1610,35 @@ button { cursor: pointer; }
 
 def _looks_like_host_edit_plan(payload: Mapping[str, Any]) -> bool:
     schema = str(payload.get("schema") or "")
-    if schema not in HOST_EDIT_PLAN_SCHEMAS:
+    # No schema = minimal host plan ({operations: [{path, find, replace}]}),
+    # compiled by Dev CLI right before apply.
+    if schema and schema not in HOST_EDIT_PLAN_SCHEMAS:
         return False
     operations = payload.get("operations") or payload.get("ops") or payload.get("edits")
     return isinstance(operations, list) and bool(operations)
+
+
+def _compile_minimal_host_plan(repo_path: Path, plan_path: Path) -> tuple[Dict[str, Any] | None, str]:
+    """Freeze a minimal ``{operations: [{path, find, replace}]}`` plan in place.
+
+    Runs right before apply, so each task binds to the tree the previous task
+    left (a serial wave of host plans never drifts). Full plans pass through.
+    """
+    plan = _load_json(plan_path)
+    if plan.get("schema"):
+        return plan, ""
+    compiled_path = plan_path.with_name(plan_path.stem + ".compiled.json")
+    result = _run_cmd(
+        _devcli_cmd(repo_path, "edit", "--root", str(repo_path), "--plan", str(plan_path),
+                    "--compile", str(compiled_path), "--json"),
+        repo_path,
+    )
+    if result.returncode != 0 or not compiled_path.is_file():
+        return None, f"plan_compile_failed: {(result.stdout or result.stderr or '').strip()[:600]}"
+    compiled = _load_json(compiled_path)
+    _write_json(plan_path, compiled)
+    compiled_path.unlink()
+    return compiled, ""
 
 
 def _resolve_host_edit_plan(
@@ -2079,7 +2104,20 @@ def _repo_fingerprint(repo_path: Path) -> Dict[str, str]:
     """
     digest = hashlib.sha256()
     files = []
-    for root, dirs, names in os.walk(repo_path):
+    try:
+        listed = _run_cmd(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], repo_path)
+    except Exception:
+        listed = subprocess.CompletedProcess([], 1, "", "")
+    if listed.returncode == 0:
+        # Respect .gitignore: build outputs and verifier byproducts are not source.
+        for rel in sorted({item for item in (listed.stdout or "").split("\0") if item}):
+            if _is_loop_generated_path(rel) or _is_tool_cache_path(rel) or rel.startswith(".simplicio/"):
+                continue
+            try:
+                files.append((rel, (repo_path / rel).read_bytes()))
+            except OSError:
+                continue
+    for root, dirs, names in ([] if listed.returncode == 0 else os.walk(repo_path)):
         relative_root = Path(root).relative_to(repo_path).as_posix()
         if relative_root == ".":
             relative_root = ""
@@ -2119,7 +2157,9 @@ def _repo_fingerprint(repo_path: Path) -> Dict[str, str]:
                 path_text = line[3:].strip()
                 parts = [part.strip() for part in path_text.split("->")] if "->" in path_text else [path_text]
                 normalized = [_normalized_repo_path(part) for part in parts if part.strip()]
-                if normalized and all(_is_loop_owned_status_path(item) for item in normalized):
+                if normalized and all(
+                    _is_loop_owned_status_path(item) or _is_tool_cache_path(item) for item in normalized
+                ):
                     continue
                 filtered.append(line)
             status = "\n".join(filtered).strip()
@@ -2950,7 +2990,9 @@ def _persist_external_completion_response(run_dir: Path) -> str:
     """
     operator = _load_json(run_dir / "operator-receipt.json")
     provider_config = operator.get("provider_config") if isinstance(operator, Mapping) else {}
-    if not isinstance(provider_config, Mapping) or provider_config.get("route") != "openrouter-to-mechanical-edit":
+    if not isinstance(provider_config, Mapping) or provider_config.get("route") not in {
+        "openrouter-to-mechanical-edit", "host-edit-plan",
+    }:
         return ""
     scratchpad = run_dir / "loop" / "scratchpad.md"
     try:
@@ -3499,7 +3541,7 @@ def _preflight_operator(repo_path: Path, run_root: Path) -> Dict[str, Any]:
             env=env,
         )
         task_help_result = subprocess.run(
-            _devcli_cmd(repo_path, "task", "--help"),
+            _devcli_cmd(repo_path, "edit", "--help"),
             cwd=str(repo_path),
             capture_output=True,
             text=True,
@@ -4504,7 +4546,7 @@ def _prepare_operator_receipt(repo_path: Path, run_root: Path, task: Dict[str, A
     task_spec_hash = _task_spec_hash(task_spec)
     _write_json(task_spec_path, task_spec)
     preflight_identity = f"{run_root.name}:preflight"
-    context_args, context_handoff = _context_handoff_args(
+    _context_args, context_handoff = _context_handoff_args(
         repo_path,
         run_root,
         attempt_id=preflight_identity,
@@ -4540,20 +4582,11 @@ def _prepare_operator_receipt(repo_path: Path, run_root: Path, task: Dict[str, A
         _write_json(run_root / "operator-receipt.json", receipt)
         return receipt
 
-    operator_mode = "standalone" if _execution_profile() == "standalone" else "integrated"
-    task_input = (
-        [_task_goal(task) or str(task.get("id") or "execute task"),
-         "--criteria", _criteria_text(task) or "- true state",
-         "--constraints", _constraints_text(task) or "- build passes"]
-        if operator_mode == "standalone"
-        else ["--task-spec", str(task_spec_path)]
-    )
-    argv = _devcli_cmd(
-        repo_path, "task", "--root", str(repo_path), *task_input,
-        "--mode", operator_mode, "--target", target, "--dry-run-task", "--json",
-        "--bound-paths", target,
-    )
-    argv.extend(context_args)
+    # The host writes the edit plan; there is none yet at prepare time. The
+    # dry run proves the operator accepts a plan (the surface tick/wave use)
+    # without the forbidden prose `task` path, which Dev CLI answers with
+    # plan_required.
+    argv = _devcli_cmd(repo_path, "edit", "--help")
     try:
         op_env = _devcli_env(repo_path, _operator_env())
         # Dev CLI is deterministic-only.  Any configured OpenRouter credential
@@ -5013,8 +5046,18 @@ def _plan_relevant_changed_paths(repo_path: Path) -> List[str]:
         if str(path).replace("\\", "/") not in {".simplicio"}
         and not str(path).replace("\\", "/").startswith(".simplicio/")
         and not _is_loop_generated_path(str(path))
+        and not _is_tool_cache_path(str(path).replace("\\", "/"))
         and str(path).strip()
     })
+
+
+_TOOL_CACHE_DIRS = frozenset({"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"})
+
+
+def _is_tool_cache_path(rel: str) -> bool:
+    """Caches a verifier writes while it runs (pytest, mypy, ruff, bytecode)."""
+    parts = rel.rstrip("/").split("/")
+    return any(part in _TOOL_CACHE_DIRS for part in parts) or rel.endswith(".pyc")
 
 
 def _capture_operator_checkpoint(run_dir: Path, repo_path: Path, targets: List[str]) -> Dict[str, Any]:
@@ -5190,8 +5233,7 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     local (the per-task retry counter) so the two can never collide.
     """
     status = read_status(repo, run_id)
-    if (status["state"].get("maintenance") or {}).get("disposition") == "backlog_only":
-        raise RuntimeError("maintenance deferred: operator execution is blocked until explicit resume")
+    _raise_if_maintenance_deferred(repo, run_id, status)
     run_dir = Path(status["run_dir"])
     repo_path = Path(status["manifest"]["repo"]).resolve()
     contract = _load_json(run_dir / "task-contract.json")
@@ -5480,6 +5522,21 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         if provider_plan is not None:
             mechanical_plan = provider_plan
             plan_source = "provider-worker"
+    if mechanical_plan is None and os.environ.get(
+        "SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON", ""
+    ).strip():
+        # Hermetic test seam (#1290): SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON substitutes the
+        # whole operator effect in `_execute_operator_effect_unchecked()` -- the write_files
+        # it applies are fully scripted by the fixture, not derived from a host edit plan --
+        # so the separate host-written-plan requirement below is not meaningful on that path.
+        # Never applies to a real run: the env var is a test-only fixture, unset in production.
+        mechanical_plan = {
+            "schema": "simplicio.mechanical-edit/v1",
+            "touched_files": list(targets),
+            "operations": [{"op": "fake_exec_seam", "path": target}],
+            "validation": [],
+        }
+        plan_source = "env:SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON"
     if mechanical_plan is None:
         blocked_receipt = {
             "schema": OPERATOR_RECEIPT_SCHEMA,
@@ -5547,6 +5604,25 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     if not same_file:
         _write_json(dest, mechanical_plan)
         mechanical_path = dest
+    compiled_plan, compile_error = _compile_minimal_host_plan(repo_path, mechanical_path)
+    if compiled_plan is None:
+        blocked_receipt = {
+            "schema": OPERATOR_RECEIPT_SCHEMA,
+            "mode": "apply",
+            "tool": "simplicio-dev-cli",
+            "execution_state": "blocked",
+            "reason_code": "plan_compile_failed",
+            "target": target,
+            "stdout": {},
+            "stderr": compile_error,
+            "measured_at": _now(),
+        }
+        return _finish_operator_blocked(
+            repo=repo, run_id=run_id, run_dir=run_dir, status=status,
+            receipt=blocked_receipt, operator_path=operator_path,
+            task_index=task_index, reason=compile_error,
+        )
+    mechanical_plan = compiled_plan
     verb = "edit" if mechanical_plan.get("schema") == "simplicio.dev-cli.edit-plan/v1" else "mechanical-edit"
     argv = _devcli_cmd(
         repo_path, verb, "--root", str(repo_path),
@@ -5766,6 +5842,13 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     return read_status(repo, run_id)
 
 
+def _raise_if_maintenance_deferred(repo: str, run_id: str,
+                                   status: Optional[Mapping[str, Any]] = None) -> None:
+    status = status if status is not None else read_status(repo, run_id)
+    if (status["state"].get("maintenance") or {}).get("disposition") == "backlog_only":
+        raise RuntimeError("maintenance deferred: operator execution is blocked until explicit resume")
+
+
 def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
                      attempt_coordinator: Optional[AttemptCoordinator] = None,
                      guarded_attempt: Any = None,
@@ -5799,6 +5882,7 @@ def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
         )
 
     status = read_status(repo, run_id)
+    _raise_if_maintenance_deferred(repo, run_id, status)
     run_dir = Path(status["run_dir"])
     storage_route = _verify_storage_route(run_dir)
     if storage_route.get("selected") != StorageRoute.MAPPER.value:
@@ -5834,7 +5918,9 @@ def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
     # run-level authority attempt minted during arm (normally 1).  Batch dispatch
     # supplies this value explicitly; direct ticks need to recover it here.
     if authority_attempt is None:
-        planning_receipt = _load_json(run_dir / "planning-receipt.json")
+        # A missing receipt is judged (fail-closed) by the mutation-authority gate.
+        receipt_file = run_dir / "planning-receipt.json"
+        planning_receipt = _load_json(receipt_file) if receipt_file.exists() else {}
         authority_attempt = max(1, int(planning_receipt.get("attempt") or 1))
     mapper_operations, mapper_attempt = _claim_mapper_operation_attempt(
         Path(status["manifest"]["repo"]).resolve(),
@@ -5908,6 +5994,11 @@ def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
     return result
 
 
+def _watcher_script() -> Path:
+    """The watcher shipped with this package; SIMPLICIO_LOOP_REPO points it at the target."""
+    return Path(__file__).resolve().parent / "_bundle" / "scripts" / "watcher_verify.py"
+
+
 def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
     """Run the independent watcher and advance a run without a manual tick."""
     status = read_status(repo, run_id)
@@ -5916,7 +6007,7 @@ def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
     state = status["state"]
     if state.get("phase") in {"done", "cancelled"}:
         return status
-    watcher = repo_path / "scripts" / "watcher_verify.py"
+    watcher = _watcher_script()
     if not watcher.exists():
         state["blockers"] = ["watcher_verify.py is unavailable"]
         state["current_action"] = "watcher_unavailable"
@@ -5972,12 +6063,18 @@ def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
     _write_json(run_dir / "state.json", state)
     # wi612 (#612): Quality Matrix + Completion Oracle obrigatorios antes do done (elimina bypass).
     from . import oracle as _oracle
+    if not (run_dir / "quality-matrix.json").exists():
+        from .lane_verifiers import build_quality_matrix
+        contract = _load_json(run_dir / "task-contract.json")
+        build_quality_matrix(repo_path, run_dir,
+                             [str(t.get("original_text") or "") for t in contract.get("tasks") or []])
     _qm_ok, _qm_gate, _qm_verdict = _oracle._quality_matrix_gate(run_dir)
     if not _qm_ok:
         state = read_status(repo, run_id)["state"]
         state["blockers"] = [_qm_verdict.get("reason", "quality matrix incomplete")]
         state["current_action"] = "quality_matrix_failed"
         state["next_action"] = "inspect_and_recover"
+        state["completion"] = {"ready": False, "verdict": "BLOCKED", "reason_code": "quality_matrix_failed", "tag": "MEASURED"}
         state["evidence"] = {"ready": False, "receipt": str(run_dir / "quality-matrix.json"), "status": "UNVERIFIED"}
         _write_json(run_dir / "state.json", state)
         _transition(run_dir, state, "blocked", "quality matrix gate rejected the run", receipt=str(run_dir / "quality-matrix.json"))
@@ -5990,6 +6087,7 @@ def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
         state["blockers"] = ["completion oracle incomplete: " + str(_oracle_matrix.get("signature"))]
         state["current_action"] = "oracle_failed"
         state["next_action"] = "inspect_and_recover"
+        state["completion"] = {"ready": False, "verdict": "BLOCKED", "reason_code": "oracle_failed", "tag": "MEASURED"}
         state["evidence"] = {"ready": False, "receipt": str(run_dir / "oracle-matrix.json"), "status": "UNVERIFIED"}
         _write_json(run_dir / "state.json", state)
         _transition(run_dir, state, "blocked", "completion oracle rejected the run", receipt=str(run_dir / "oracle-matrix.json"))
@@ -7128,11 +7226,15 @@ def _fanout_execution_route(item: Mapping[str, Any], run_dir: Path) -> Dict[str,
 
 def _operator_dispatch_run_dir(item: Mapping[str, Any]) -> Path:
     """Resolve canonical run storage, with isolated storage for synthetic dispatches."""
-    status = read_status(item["repo"], item["run_id"])
+    try:
+        status = read_status(item["repo"], item["run_id"])
+    except FileNotFoundError:  # synthetic dispatch: no armed run on disk
+        status = {}
     if status.get("run_dir"):
         return Path(status["run_dir"])
 
     repo_path = Path(item["repo"]).resolve()
+
     run_scope = hashlib.sha256(str(item["run_id"]).encode("utf-8")).hexdigest()[:16]
     run_dir = repo_path / ".simplicio" / "orchestrator" / "dispatch-routes" / run_scope
     run_dir.mkdir(parents=True, exist_ok=True)

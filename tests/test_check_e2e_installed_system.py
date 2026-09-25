@@ -23,11 +23,11 @@ def _fake_bin_dir(tmp_path):
     bindir.mkdir()
     ext = ".cmd" if os.name == "nt" else ""
     mapper = "@echo off\necho Usage: simplicio-mapper inspect handoff ask sync drift\n"
-    devcli = "@echo off\necho Usage: simplicio-dev-cli task --dry-run-task --json\n"
+    devcli = "@echo off\necho Usage: simplicio-dev-cli edit --plan --apply --dry-run --json\n"
     loop = "@echo off\necho Usage: simplicio-loop install doctor dashboard\n"
     if os.name != "nt":
         mapper = "#!/bin/sh\necho 'Usage: simplicio-mapper inspect handoff ask sync drift'\n"
-        devcli = "#!/bin/sh\necho 'Usage: simplicio-dev-cli task --dry-run-task --json'\n"
+        devcli = "#!/bin/sh\necho 'Usage: simplicio-dev-cli edit --plan --apply --dry-run --json'\n"
         loop = "#!/bin/sh\necho 'Usage: simplicio-loop install doctor dashboard'\n"
     _shim(bindir / ("simplicio-mapper" + ext), mapper)
     _shim(bindir / ("simplicio-dev-cli" + ext), devcli)
@@ -78,12 +78,12 @@ def test_probe_fails_when_loop_bin_missing(tmp_path):
         _shim(bindir / ("simplicio-mapper" + ext),
               "@echo off\necho Usage: simplicio-mapper inspect handoff ask sync drift\n")
         _shim(bindir / ("simplicio-dev-cli" + ext),
-              "@echo off\necho Usage: simplicio-dev-cli task --dry-run-task --json\n")
+              "@echo off\necho Usage: simplicio-dev-cli edit --plan --apply --dry-run --json\n")
     else:
         _shim(bindir / ("simplicio-mapper" + ext),
               "#!/bin/sh\necho 'Usage: simplicio-mapper inspect handoff ask sync drift'\n")
         _shim(bindir / ("simplicio-dev-cli" + ext),
-              "#!/bin/sh\necho 'Usage: simplicio-dev-cli task --dry-run-task --json'\n")
+              "#!/bin/sh\necho 'Usage: simplicio-dev-cli edit --plan --apply --dry-run --json'\n")
     env = dict(os.environ)
     env["PATH"] = str(bindir) + os.pathsep + env.get("PATH", "")
     r = subprocess.run([sys.executable, SCRIPT, "probe", "--events", FIXTURE_MEASURED, "--json",

@@ -75,7 +75,8 @@ def _cgroup_memory_stats() -> tuple[int, int] | None:
             limit = int(limit_raw)
         except (OSError, TypeError, ValueError):
             continue
-        if limit > 0 and current >= 0:
+        # cgroup v1 reports "no limit" as a page-aligned value near 2**63.
+        if 0 < limit < 2 ** 60 and current >= 0:
             return current, limit
     return None
 
@@ -108,6 +109,20 @@ def _cgroup_cpu_capacity() -> int | None:
                 return max(0, quota // period)
         except (OSError, TypeError, ValueError, IndexError):
             continue
+    return None
+
+
+_PROC_MEMINFO = Path("/proc/meminfo")
+
+
+def _linux_memory_available() -> int | None:
+    """Read MemAvailable (kernel's own estimate) without requiring psutil."""
+    try:
+        for line in _PROC_MEMINFO.read_text(encoding="utf-8").splitlines():
+            if line.startswith("MemAvailable:"):
+                return int(line.split()[1]) * 1024
+    except (OSError, ValueError, IndexError):
+        pass
     return None
 
 
@@ -171,7 +186,7 @@ def _memory_available() -> int | None:
     except (ImportError, OSError, AttributeError, TypeError, ValueError):
         pass
     if host_available is None:
-        host_available = _macos_memory_available()
+        host_available = _linux_memory_available() or _macos_memory_available()
     cgroup_available = _cgroup_memory_available()
     if host_available is None:
         return cgroup_available
@@ -271,9 +286,10 @@ def _physical_pressure(root: str | os.PathLike[str]) -> dict[str, Any]:
     try:
         usage = shutil.disk_usage(Path(root).resolve())
         disk_free = int(usage.free)
-        total = int(getattr(usage, "total", 0) or 0)
-        if total > 0:
-            disk_used = max(0.0, min(100.0, (1.0 - (disk_free / total)) * 100.0))
+        used = int(getattr(usage, "used", 0) or 0)
+        # df semantics: blocks reserved for root are neither used nor free to us.
+        if used + disk_free > 0:
+            disk_used = max(0.0, min(100.0, used / (used + disk_free) * 100.0))
     except (OSError, ValueError, TypeError, AttributeError):
         pass
 

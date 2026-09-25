@@ -50,7 +50,7 @@ MINIMUMS = {
     "simplicio-runtime": (3, 5, 0),
 }
 MAPPER_CAPABILITIES = ("inspect", "handoff", "ask", "sync", "drift")
-DEVCLI_CAPABILITIES = (" task", "--dry-run-task", "--json")
+DEVCLI_CAPABILITIES = (" edit", "--plan", "--apply", "--json")
 # Keep preflight aligned with the Fast release validated by the Loop flow.
 FAST_MINIMUM = (2, 0, 14)
 FAST_CAPABILITIES = ("build", "understand", "plan", "apply", "doctor")
@@ -259,7 +259,7 @@ def build_report(cwd: Path) -> Dict[str, Any]:
     mapper = _probe_component("simplicio-mapper", "simplicio-mapper", cwd,
                               ("--version", "--json"), ("--help",), MAPPER_CAPABILITIES)
     devcli = _probe_component("simplicio-dev-cli", "simplicio-dev-cli", cwd,
-                              ("--version", "--json"), ("task", "--help"), DEVCLI_CAPABILITIES)
+                              ("--version", "--json"), ("edit", "--help"), DEVCLI_CAPABILITIES)
     runtime = _probe_runtime(cwd)
     fast = _probe_fast(cwd)
     runtime_available = (

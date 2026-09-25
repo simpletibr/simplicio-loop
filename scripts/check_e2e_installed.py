@@ -37,7 +37,7 @@ FIXTURE_EVENTS = os.path.join(
     REPO, "contracts", "e2e-demo", "v1", "fixtures", "fully-measured", "events.jsonl")
 REQUIRED_BINS = (
     ("simplicio-mapper", "--help", ("handoff",)),
-    ("simplicio-dev-cli", "--help", ("task",)),
+    ("simplicio-dev-cli", "--help", ("edit",)),
     ("simplicio-loop", "--help", ()),
 )
 
@@ -165,11 +165,11 @@ def cmd_selftest(_opts):
         is_win = os.name == "nt"
         ext = ".cmd" if is_win else ""
         mapper = "@echo off\necho Usage: simplicio-mapper inspect handoff ask sync drift\n"
-        devcli = "@echo off\necho Usage: simplicio-dev-cli task --dry-run-task --json\n"
+        devcli = "@echo off\necho Usage: simplicio-dev-cli edit --plan --apply --dry-run --json\n"
         loop = "@echo off\necho Usage: simplicio-loop install doctor dashboard\n"
         if not is_win:
             mapper = "#!/bin/sh\necho 'Usage: simplicio-mapper inspect handoff ask sync drift'\n"
-            devcli = "#!/bin/sh\necho 'Usage: simplicio-dev-cli task --dry-run-task --json'\n"
+            devcli = "#!/bin/sh\necho 'Usage: simplicio-dev-cli edit --plan --apply --dry-run --json'\n"
             loop = "#!/bin/sh\necho 'Usage: simplicio-loop install doctor dashboard'\n"
         for name, body in (("simplicio-mapper", mapper), ("simplicio-dev-cli", devcli),
                            ("simplicio-loop", loop)):

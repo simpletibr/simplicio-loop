@@ -31,6 +31,14 @@ class FakeFast:
             return subprocess.CompletedProcess(command, 0, json.dumps({"integrated_ready": True}), "")
         if command[0] == "git":
             return subprocess.CompletedProcess(command, 0, "abc123\n", "")
+        if command[0] == "simplicio-mapper" and args and args[0] == "handoff":
+            envelope = {
+                "schema": "simplicio.map-handoff/v1",
+                "ready": True,
+                "context_pack": {},
+                "targets": [],
+            }
+            return subprocess.CompletedProcess(command, 0, json.dumps(envelope), "")
         if args and args[0] == "ingest":
             output = Path(args[args.index("--output") + 1])
             output.parent.mkdir(parents=True, exist_ok=True)
@@ -74,6 +82,107 @@ def test_prepare_ingests_once_and_pins_receipts(tmp_path: Path) -> None:
     assert sum(call[1] == "ingest" for call in fake.calls) == 1
     assert [call[1] for call in fake.calls].count("understand") == 4
     assert [call[1] for call in fake.calls].count("plan") == 2
+    ingest_call = next(call for call in fake.calls if call[1] == "ingest")
+    assert "--mapper-mode" in ingest_call and "integrated" in ingest_call
+    assert "--mapper-handoff" in ingest_call
+    # issue #1288: ingest must obtain and pass a real Mapper handoff, not skip it.
+    assert any(call[0] == "simplicio-mapper" and call[1] == "handoff" for call in fake.calls)
+
+
+def test_ingest_falls_back_with_distinct_reason_when_mapper_handoff_is_missing(tmp_path: Path) -> None:
+    """issue #1288: a missing/failed Mapper handoff must not be reported as
+    ``fast_disabled_or_unavailable`` — Fast itself is ready, only the handoff
+    step failed, and the fallback reason must say so distinctly."""
+
+    def runner(command, **kwargs):
+        command = list(command)
+        args = command[1:]
+        if args == ["--version"]:
+            return subprocess.CompletedProcess(command, 0, "simplicio-fast 2.0.14\n", "")
+        if args == ["doctor", "--json"]:
+            return subprocess.CompletedProcess(command, 0, json.dumps({"integrated_ready": True}), "")
+        if command[0] == "git":
+            return subprocess.CompletedProcess(command, 0, "abc123\n", "")
+        if command[0] == "simplicio-mapper" and args and args[0] == "handoff":
+            return subprocess.CompletedProcess(command, 1, "", "mapper crashed")
+        raise AssertionError(command)
+
+    config = FastConfig(command=("fast",), snapshot=".fast/project.sfast", state=".fast/state.json")
+    integration = FastLoopIntegration(tmp_path, config=config, runner=runner)
+    result = integration.ingest()
+    assert result["fallback"] is True
+    assert result["reason"] != "fast_disabled_or_unavailable"
+    assert "mapper_handoff_unavailable" in result["reason"]
+    assert result["probe"]["integrated_ready"] is True
+
+
+def _handoff_runner(ready_after_scan: bool):
+    calls: list[list[str]] = []
+    scanned = {"done": False}
+
+    def runner(command, **kwargs):
+        command = list(command)
+        calls.append(command)
+        args = command[1:]
+        if args == ["--version"]:
+            return subprocess.CompletedProcess(command, 0, "simplicio-fast 2.0.14\n", "")
+        if args == ["doctor", "--json"]:
+            return subprocess.CompletedProcess(command, 0, json.dumps({"integrated_ready": True}), "")
+        if command[0] == "git":
+            return subprocess.CompletedProcess(command, 0, "abc123\n", "")
+        if command[0] == "simplicio-mapper" and args[0] == "scan":
+            scanned["done"] = True
+            return subprocess.CompletedProcess(command, 0, json.dumps({"phase": "complete"}), "")
+        if command[0] == "simplicio-mapper" and args[0] == "handoff":
+            ready = scanned["done"] and ready_after_scan
+            envelope = {
+                "schema": "simplicio.map-handoff/v1",
+                "ready": ready,
+                "reason": "" if ready else "artifacts_not_fresh",
+            }
+            return subprocess.CompletedProcess(command, 0, json.dumps(envelope), "")
+        if args and args[0] == "ingest":
+            output = Path(args[args.index("--output") + 1])
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_bytes(b"snapshot")
+            return subprocess.CompletedProcess(command, 0, json.dumps({"schema": "simplicio.fast.ingest/v2", "generation": "g1", "metrics": {}}), "")
+        raise AssertionError(command)
+
+    return runner, calls
+
+
+def test_ingest_refreshes_stale_mapper_artifacts_before_handoff(tmp_path: Path) -> None:
+    """A stale Mapper map must be refreshed (scan --sync) and the handoff retried,
+    so `orient` works on a repo that was never scanned instead of falling back."""
+    runner, calls = _handoff_runner(ready_after_scan=True)
+    config = FastConfig(command=("fast",), snapshot=".fast/project.sfast", state=".fast/state.json")
+    result = FastLoopIntegration(tmp_path, config=config, runner=runner).ingest()
+    assert result.get("fallback") is not True, result
+    scan = [c for c in calls if c[0] == "simplicio-mapper" and c[1] == "scan"]
+    assert scan and "--sync" in scan[0]
+    handoffs = [c for c in calls if c[0] == "simplicio-mapper" and c[1] == "handoff"]
+    assert len(handoffs) == 2
+
+
+def test_ingest_requests_full_unscoped_mapper_handoff(tmp_path: Path) -> None:
+    """Fast indexes the whole repo, so the ingest handoff must not be task-scoped:
+    a --goal handoff prunes the context snapshot to a small file-only prefix (no
+    symbol nodes) and Fast then fails with mapper_id_missing."""
+    fake = FakeFast(tmp_path)
+    config = FastConfig(command=("fast",), snapshot=".fast/project.sfast", state=".fast/state.json")
+    FastLoopIntegration(tmp_path, config=config, runner=fake).prepare("change app")
+    handoff = next(c for c in fake.calls if c[0] == "simplicio-mapper" and c[1] == "handoff")
+    assert "--goal" not in handoff
+    assert int(handoff[handoff.index("--token-budget") + 1]) >= 1_000_000
+
+
+def test_ingest_reports_not_ready_when_scan_does_not_help(tmp_path: Path) -> None:
+    runner, calls = _handoff_runner(ready_after_scan=False)
+    config = FastConfig(command=("fast",), snapshot=".fast/project.sfast", state=".fast/state.json")
+    result = FastLoopIntegration(tmp_path, config=config, runner=runner).ingest()
+    assert result["fallback"] is True
+    assert "mapper_handoff_not_ready: artifacts_not_fresh" in result["reason"]
+    assert len([c for c in calls if c[0] == "simplicio-mapper" and c[1] == "scan"]) == 1
 
 
 def test_stale_candidate_and_loser_are_fail_closed(tmp_path: Path) -> None:
@@ -380,3 +489,17 @@ def test_plan_policy_rejects_paths_outside_repository(tmp_path):
     assert policy["validated"] is False
     assert "TARGET_PATH_INVALID" in reasons
     assert "MUTATION_TARGET_INVALID" in reasons
+
+
+def test_every_fast_mapper_command_receives_the_handoff(tmp_path: Path) -> None:
+    """Fast's understand/plan/refresh fail closed (mapper_missing) in integrated
+    mode without --mapper-handoff, exactly like ingest."""
+    fake = FakeFast(tmp_path)
+    config = FastConfig(command=("fast",), snapshot=".fast/project.sfast", state=".fast/state.json")
+    integration = FastLoopIntegration(tmp_path, config=config, runner=fake)
+    integration.prepare("change app")
+    integration.refresh()
+    for call in fake.calls:
+        if call[0] == "fast" and call[1] in {"ingest", "understand", "plan", "refresh"}:
+            assert call[call.index("--mapper-mode") + 1] == "integrated", call
+            assert Path(call[call.index("--mapper-handoff") + 1]).is_file(), call

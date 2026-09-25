@@ -262,6 +262,30 @@ CLAIMS = [
         "receipt": None,
         "note": "Loop-stack economy table value; no commit-bound receipt yet.",
     },
+    {
+        "id": "wave-cache-hit-96pct",
+        "doc": "README.md",
+        "text_glob": "96%+ de cache hit",
+        "status": "unverified",
+        "receipt": None,
+        "note": (
+            "'aproveita 96%+ de cache hit' in the flow-decision table. Derived from the "
+            "29/30 KV-cache-hit arithmetic below it, not a measured provider receipt. "
+            "No savings-event/prompt-cache receipt backs this number; kept unverified."
+        ),
+    },
+    {
+        "id": "wave-cache-hit-30task-96-7pct",
+        "doc": "README.md",
+        "text_glob": "96.7% de reaproveitamento de cache",
+        "status": "unverified",
+        "receipt": None,
+        "note": (
+            "'30 tarefas: 1 cold-start + 29 cache hits = 96.7%' — a worked arithmetic "
+            "example of provider KV-cache prefix matching (29/30), not a measured run. "
+            "No receipt; kept unverified."
+        ),
+    },
 ]
 
 # Docs to scan for quantitative claims

@@ -38,7 +38,7 @@ class MemoryJournal:
 @pytest.fixture(autouse=True)
 def memory_dispatch_journal(monkeypatch):
     journal = MemoryJournal()
-    monkeypatch.setattr(runner, "_dispatch_journal_backend", lambda _path: journal)
+    monkeypatch.setattr(runner, "_dispatch_journal_backend", lambda _path, **_kwargs: journal)
     return journal
 
 

@@ -34,7 +34,7 @@ def test_tool_report_rejects_wrong_resolved_executable_identity():
     report = preflight._tool_report(
         "simplicio-dev-cli", "simplicio-dev-cli", (0, 11, 0),
         {"identity": "simplicio-dev-cli", "path": "/tmp/simplicio.exe",
-         "version_text": "0.11.0", "surface": "task --dry-run-task --json",
+         "version_text": "0.11.0", "surface": "edit --plan --apply --dry-run --json",
          "returncode": 0},
         preflight.DEVCLI_CAPABILITIES,
     )

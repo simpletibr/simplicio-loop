@@ -45,6 +45,14 @@ class FastStaleChangeset(FastIntegrationError):
     """A candidate does not match the pinned generation/context."""
 
 
+class MapperHandoffUnavailable(FastIntegrationError):
+    """Mapper could not produce the canonical handoff Fast requires to ingest."""
+
+
+MAPPER_HANDOFF_SCHEMA = "simplicio.map-handoff/v1"
+FAST_INGEST_HANDOFF_TOKEN_BUDGET = 2_000_000
+
+
 def _canonical(value: Any) -> bytes:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
@@ -719,6 +727,7 @@ class FastConfig:
 
     mode: str = "auto"
     command: tuple[str, ...] = ("simplicio-fast",)
+    mapper_command: tuple[str, ...] = ("simplicio-mapper",)
     snapshot: str = ".simplicio/fast/project.sfast"
     state: str = ".simplicio/fast/loop-ingest.json"
     max_bytes: int = 48_000
@@ -753,7 +762,8 @@ class FastConfig:
         )
 
     def digest(self) -> str:
-        return _hash({"mode": self.mode, "engine": self.engine, "command": self.command, "snapshot": self.snapshot,
+        return _hash({"mode": self.mode, "engine": self.engine, "command": self.command,
+                      "mapper_command": self.mapper_command, "snapshot": self.snapshot,
                       "max_bytes": self.max_bytes, "require_binding": self.require_binding})
 
 
@@ -969,6 +979,69 @@ class FastLoopIntegration:
         commit = self._source_commit() if source_commit is None else source_commit
         return _hash({"root": str(self.root), "commit": commit, "config": self.config.digest()})
 
+    def _mapper_call(self, verb: str, *extra: str) -> Mapping[str, Any]:
+        """Run one public Mapper verb with ``--json`` and return its JSON object."""
+        try:
+            result = self._runner(
+                [*self.config.mapper_command, verb, str(self.root), "--json", *extra],
+                cwd=str(self.root), capture_output=True, text=True,
+                timeout=self.config.timeout_seconds, check=False, env=self._runner_env(),
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise MapperHandoffUnavailable(f"mapper_handoff_unavailable: {exc}") from exc
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or f"Mapper {verb} failed").strip()[:400]
+            raise MapperHandoffUnavailable(f"mapper_handoff_unavailable: {detail}")
+        try:
+            payload = json.loads((result.stdout or "").strip())
+        except json.JSONDecodeError as exc:
+            raise MapperHandoffUnavailable(f"mapper_handoff_invalid_json: {exc}") from exc
+        if not isinstance(payload, Mapping):
+            raise MapperHandoffUnavailable("mapper_handoff_schema_unsupported")
+        return payload
+
+    def _mapper_handoff(self) -> Path:
+        """Obtain the canonical Mapper -> Fast handoff Fast requires to ingest.
+
+        Fast's default ``--mapper-mode integrated`` fails closed
+        (``mapper_missing``) without an explicit Mapper handoff file (issue
+        #1288). Loop is the caller, so it asks the ``simplicio-mapper handoff``
+        public verb for the bounded ``simplicio.map-handoff/v1`` envelope and
+        pins it to a file Fast can read, instead of silently never passing one.
+        """
+        # Fast indexes the whole repository, so this handoff is never task-scoped
+        # (a --goal pack prunes symbol nodes and Fast fails mapper_id_missing).
+        # It goes to a file for Fast, not to the LLM, so the budget is only a cap.
+        handoff_args = ("--token-budget", str(FAST_INGEST_HANDOFF_TOKEN_BUDGET))
+        envelope = self._mapper_call("handoff", *handoff_args)
+        if envelope.get("ready") is not True:
+            # Stale or never-built map: refresh it once (scan --sync blocks on the
+            # deep pass), then ask again. Same order the skill documents.
+            self._mapper_call("scan", "--sync")
+            envelope = self._mapper_call("handoff", *handoff_args)
+        if envelope.get("schema") != MAPPER_HANDOFF_SCHEMA:
+            raise MapperHandoffUnavailable("mapper_handoff_schema_unsupported")
+        if envelope.get("ready") is not True:
+            raise MapperHandoffUnavailable(
+                f"mapper_handoff_not_ready: {envelope.get('reason') or 'unknown'}"
+            )
+        handoff_dir = self._state_path().parent
+        handoff_dir.mkdir(parents=True, exist_ok=True)
+        handoff_path = handoff_dir / "mapper-handoff.json"
+        handoff_path.write_text(json.dumps(envelope, ensure_ascii=False), encoding="utf-8")
+        return handoff_path
+
+    def _mapper_args(self, *, refresh: bool = False) -> list[str]:
+        """Integrated-mode flags every Mapper-backed Fast command requires.
+
+        ingest/refresh rebuild the handoff (the tree may have changed);
+        understand/plan reuse the one pinned by the last ingest.
+        """
+        path = self._state_path().parent / "mapper-handoff.json"
+        if refresh or not path.is_file():
+            path = self._mapper_handoff()
+        return ["--mapper-mode", "integrated", "--mapper-handoff", str(path)]
+
     def ingest(self) -> dict[str, Any]:
         probe = self.probe()
         if not probe["integrated_ready"]:
@@ -988,7 +1061,10 @@ class FastLoopIntegration:
             self._ingest_receipt = dict(state)
             return dict(state)
         try:
-            payload = self._run(["ingest", str(self.root), "--output", str(self.snapshot_path), "--json"])
+            payload = self._run([
+                "ingest", str(self.root), "--output", str(self.snapshot_path),
+                *self._mapper_args(refresh=True), "--json",
+            ])
         except FastIntegrationError as exc:
             if self.config.mode == "required":
                 raise
@@ -1023,7 +1099,7 @@ class FastLoopIntegration:
         if ingest.get("fallback"):
             return self._fallback("understand", str(ingest.get("reason") or "Fast unavailable"))
         payload = self._run(["understand", task, "--root", str(self.root), "--snapshot", str(self.snapshot_path),
-                             "--max-bytes", str(self.config.max_bytes)])
+                             "--max-bytes", str(self.config.max_bytes), *self._mapper_args()])
         context = payload.get("context") if isinstance(payload.get("context"), list) else []
         self._context_hash = _hash({"generation": self._generation, "context": context})
         result = dict(payload)
@@ -1040,7 +1116,7 @@ class FastLoopIntegration:
         if understanding.get("fallback"):
             return understanding
         payload = self._run(["plan", task, "--root", str(self.root), "--snapshot", str(self.snapshot_path),
-                             "--max-bytes", str(self.config.max_bytes)])
+                             "--max-bytes", str(self.config.max_bytes), *self._mapper_args()])
         if payload.get("schema") != FAST_PLAN_SCHEMA:
             raise FastIntegrationError("Fast plan schema is not v2")
         policy, blockers = _validate_plan_policy(
@@ -1183,7 +1259,13 @@ class FastLoopIntegration:
         probe = self.probe()
         if not probe["integrated_ready"]:
             return self._fallback("refresh", str(probe.get("reason") or "Fast unavailable"))
-        payload = self._run(["refresh", str(self.root), "--output", str(self.snapshot_path), "--json"])
+        try:
+            payload = self._run(["refresh", str(self.root), "--output", str(self.snapshot_path),
+                                 *self._mapper_args(refresh=True), "--json"])
+        except MapperHandoffUnavailable as exc:
+            if self.config.mode == "required":
+                raise
+            return self._fallback("refresh", str(exc))
         metrics = payload.get("metrics") if isinstance(payload.get("metrics"), Mapping) else {}
         self._generation = str(payload.get("generation") or metrics.get("generation") or _hash(payload))
         self._ingest_receipt = None

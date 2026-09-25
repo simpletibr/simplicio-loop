@@ -29,10 +29,9 @@ def _use_thread_dispatch_for_in_process_fakes(monkeypatch):
     """Keep this state-machine harness independent of the host's physical pressure."""
     monkeypatch.setenv("SIMPLICIO_LOOP_DISPATCH_MODE", "thread")
     # These tests use synthetic RunJournal fixtures and do not initialize a
-    # repository-scoped MapperStore.  Keep the harness independent of a
-    # caller's benchmark-only mapper rollout setting; mapper-backed behavior
-    # is covered by the dedicated integration tests.
-    monkeypatch.delenv("SIMPLICIO_STORAGE_ROUTE", raising=False)
+    # repository-scoped MapperStore, so they pin the legacy route explicitly;
+    # mapper-backed behavior (the default) is covered by integration tests.
+    monkeypatch.setenv("SIMPLICIO_STORAGE_ROUTE", "legacy")
 
     def healthy_probe(_root, *, requested_workers, now_ns=None, **_kwargs):
         requested = max(1, int(requested_workers))
@@ -135,7 +134,7 @@ def _arm_fixture(tmp_path, monkeypatch):
         return payload
 
     def fake_operator_preflight(repo_path, run_root):
-        help_surface = "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode"
+        help_surface = "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json"
         receipt = {
             "tool": "simplicio-dev-cli", "identity_ok": True, "version_ok": True,
             "help_stdout": help_surface, "task_help_stdout": help_surface,
@@ -175,7 +174,8 @@ def test_verify_run_is_a_noop_on_terminal_phases(tmp_path, monkeypatch):
 
 def test_verify_run_blocks_when_watcher_script_is_unavailable(tmp_path, monkeypatch):
     repo, run_id, run_dir = _arm_fixture(tmp_path, monkeypatch)
-    # The tmp-path fixture repo intentionally has no scripts/watcher_verify.py.
+    # The watcher ships with the package; simulate a broken install.
+    monkeypatch.setattr(runner_mod, "_watcher_script", lambda: tmp_path / "missing" / "watcher_verify.py")
 
     result = runner_mod.verify_run(str(repo), run_id)
 

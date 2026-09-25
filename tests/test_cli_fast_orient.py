@@ -23,7 +23,7 @@ class _ReadyFast:
 
 def test_orient_prefers_fast_and_emits_bounded_receipt(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(cli, "FastLoopIntegration", _ReadyFast)
-    assert cli.orient(str(tmp_path), "change app", "on", 1234) == 0
+    assert cli.orient(str(tmp_path), "change app", "on", 1234, verbose=True) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["schema"] == "simplicio.loop-orient/v1"
     assert payload["status"] == "READY"
@@ -75,7 +75,7 @@ def test_orient_auto_uses_mapper_fallback_with_reason(tmp_path, monkeypatch, cap
     monkeypatch.setattr(cli, "FastLoopIntegration", _FallbackFast)
     monkeypatch.setattr(cli, "_mapper_orient_fallback",
                         lambda root, task: {"status": "READY", "result": {"files": 1}})
-    assert cli.orient(str(tmp_path), "change app", "auto", 2000) == 0
+    assert cli.orient(str(tmp_path), "change app", "auto", 2000, verbose=True) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "FALLBACK"
     assert payload["provider"] == "simplicio-mapper"
@@ -94,7 +94,7 @@ def test_orient_on_fails_closed_when_fast_is_unavailable(tmp_path, monkeypatch, 
             raise cli.FastIntegrationError("missing_operator")
 
     monkeypatch.setattr(cli, "FastLoopIntegration", _UnavailableFast)
-    assert cli.orient(str(tmp_path), "change app", "on", 2000) == 2
+    assert cli.orient(str(tmp_path), "change app", "on", 2000, verbose=True) == 2
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "BLOCKED"
     assert payload["fallback"] is False
@@ -135,6 +135,69 @@ def test_orient_invalid_budget_still_emits_contract_and_receipt(tmp_path, capsys
 @pytest.mark.parametrize("mode", ["auto", "on", "off"])
 def test_orient_help_exposes_fast_modes(mode):
     assert mode in {"auto", "on", "off"}
+
+
+def test_orient_default_leads_with_context_not_policy_text(tmp_path, monkeypatch, capsys):
+    """issue #1288 AC2: default output drops receipts/policy noise (llm_orientation)
+    and leads with a bounded ``context`` summary instead."""
+    monkeypatch.setattr(cli, "FastLoopIntegration", _ReadyFast)
+    assert cli.orient(str(tmp_path), "change app", "on", 1234) == 0
+    out = capsys.readouterr().out
+    payload = json.loads(out)
+    assert "\n{" not in out.strip()[1:]  # exactly one JSON document (issue #1288 AC4)
+    assert "llm_orientation" not in payload
+    assert "context" in payload
+    assert payload["receipt"]["schema"] == "simplicio.loop-orient-receipt/v1"
+
+
+def test_orient_verbose_restores_full_payload(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli, "FastLoopIntegration", _ReadyFast)
+    assert cli.orient(str(tmp_path), "change app", "on", 1234, verbose=True) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert "llm_orientation" in payload
+    assert "context" in payload
+
+
+def test_orient_fallback_reason_reflects_real_nested_cause(tmp_path, monkeypatch, capsys):
+    """issue #1288: a real ``FastLoopIntegration.prepare()`` FALLBACK result nests
+    its reason under ``ingest``/``understanding`` (never a top-level ``reason``).
+    orient() must surface that real cause instead of the generic
+    ``fast_disabled_or_unavailable`` default."""
+
+    class _NestedFallbackFast(_ReadyFast):
+        def prepare(self, task):
+            return {
+                "schema": "simplicio.loop-fast-integration/v1",
+                "status": "FALLBACK",
+                "ingest": {
+                    "status": "FALLBACK",
+                    "fallback": True,
+                    "reason": "mapper_handoff_unavailable: mapper crashed",
+                },
+                "understanding": {"status": "FALLBACK", "fallback": True,
+                                   "reason": "mapper_handoff_unavailable: mapper crashed"},
+            }
+
+    monkeypatch.setattr(cli, "FastLoopIntegration", _NestedFallbackFast)
+    monkeypatch.setattr(cli, "_mapper_orient_fallback",
+                        lambda root, task: {"status": "READY", "result": {"files": 1}})
+    assert cli.orient(str(tmp_path), "change app", "auto", 2000) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "FALLBACK"
+    assert payload["fallback_reason"] != "fast_disabled_or_unavailable"
+    assert payload["fallback_reason"] == "mapper_handoff_unavailable: mapper crashed"
+
+def test_orient_cli_accepts_json_and_verbose_flags(tmp_path, monkeypatch, capsys):
+    """issue #1288 AC4: ``--json`` must be accepted (it used to raise
+    ``unrecognized arguments: --json``)."""
+    monkeypatch.setattr(cli, "FastLoopIntegration", _ReadyFast)
+    rc = cli.main(["orient", "--repo", str(tmp_path), "--task", "change app",
+                   "--json", "--verbose"])
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["schema"] == "simplicio.loop-orient/v1"
+    assert "llm_orientation" in payload
+
 
 def test_orient_cli_fails_closed_without_mutable_authority(
     tmp_path, monkeypatch, capsys
@@ -179,3 +242,38 @@ def test_orient_cli_fails_closed_without_mutable_authority(
         "modify", "refresh", "validate"
     ]
     assert "structured_patch" not in json.dumps(payload)
+
+
+def test_orient_default_output_stays_bounded_when_fast_blocks(tmp_path, monkeypatch, capsys):
+    """A BLOCKED Fast plan used to dump the raw understanding + plan (~670KB) on
+    stdout. Default output keeps only the decision-relevant fields; --verbose
+    keeps everything."""
+    bulk = [{"file": f"f{i}.py", "content": "x" * 2000} for i in range(200)]
+
+    class _BlockedBulkFast(_ReadyFast):
+        def prepare(self, task):
+            return {
+                "schema": "simplicio.loop-fast-integration/v1",
+                "status": "BLOCKED",
+                "reason": "TARGET_CORRIDOR_MISMATCH",
+                "blocked_preconditions": [{"code": "TARGET_CORRIDOR_MISMATCH"}],
+                "intent_policy": {"explicit_targets": ["app.py"]},
+                "understanding": {"schema": "u", "files": ["f0.py"], "terms": ["app"],
+                                  "context": bulk, "selection": {"x": bulk}},
+                "plan": {"schema": "p", "nodes": bulk},
+            }
+
+    monkeypatch.setattr(cli, "FastLoopIntegration", _BlockedBulkFast)
+    monkeypatch.setattr(cli, "_mapper_orient_fallback",
+                        lambda root, task: {"status": "READY", "result": {"files": 1}})
+    cli.orient(str(tmp_path), "change app", "auto", 2000)
+    out = capsys.readouterr().out
+    payload = json.loads(out)
+    assert len(out) < 20_000, len(out)
+    fast = payload["fast"]
+    assert fast["understanding"]["files"] == ["f0.py"]
+    assert fast["understanding"]["terms"] == ["app"]
+    assert fast["blocked_preconditions"] == [{"code": "TARGET_CORRIDOR_MISMATCH"}]
+
+    cli.orient(str(tmp_path), "change app", "auto", 2000, verbose=True)
+    assert len(capsys.readouterr().out) > 200_000

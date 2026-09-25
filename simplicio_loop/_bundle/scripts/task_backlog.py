@@ -1409,13 +1409,31 @@ def cmd_selftest(_opts):
     sys.exit(0 if ok else 1)
 
 
-def _parse(args):
+CLI_VERBS = ["init", "next", "done", "skip", "block", "fail", "heartbeat", "transition",
+             "status", "poll", "checklist", "selftest"]
+CLI_FLAGS = ["--anchor", "--agent-id", "--code", "--device-id", "--goal", "--help", "--item",
+             "--item-file", "--lint", "--reason", "--task-file", "--worker", "--fence",
+             "--fencing-token", "--from", "--to", "--status", "--expected-revision",
+             "--lease-ttl", "--fingerprint", "--max-failures", "--empty-polls",
+             "--runtime", "--session-id", "--lock-timeout", "--lock-retry"]
+_KNOWN_FLAG_KEYS = {f[2:] for f in CLI_FLAGS}
+
+
+class _UnknownFlag(ValueError):
+    def __init__(self, flag):
+        super().__init__(flag)
+        self.flag = flag
+
+
+def _parse(args, known=None):
     opts = {}
     i = 0
     while i < len(args):
         a = args[i]
         if a.startswith("--"):
             key = a[2:]
+            if known is not None and key not in known:
+                raise _UnknownFlag(a)
             if i + 1 < len(args) and not args[i + 1].startswith("--"):
                 val = args[i + 1]
                 if key in opts:
@@ -1438,17 +1456,23 @@ def main():
     if not argv:
         print(__doc__)
         sys.exit(2)
-    if argv[0] == "--describe-cli":
-        print(json.dumps({
-            "verbs": ["init", "next", "done", "skip", "block", "fail", "heartbeat", "transition", "status", "poll", "checklist", "selftest"],
-            "flags": ["--anchor", "--agent-id", "--code", "--device-id", "--goal", "--help", "--item", "--item-file", "--lint",
-                      "--reason", "--task-file", "--worker", "--fence", "--fencing-token", "--from", "--to", "--status", "--expected-revision",
-                      "--lease-ttl", "--fingerprint", "--max-failures", "--empty-polls",
-                      "--runtime", "--session-id",
-                      "--lock-timeout", "--lock-retry"],
-        }))
+    if argv[0] in ("--help", "-h"):
+        print(__doc__)
         sys.exit(0)
-    sub, opts = argv[0], _parse(argv[1:])
+    if argv[0] == "--describe-cli":
+        print(json.dumps({"verbs": CLI_VERBS, "flags": CLI_FLAGS}))
+        sys.exit(0)
+    sub, rest = argv[0], argv[1:]
+    if "--help" in rest or "-h" in rest:
+        print(__doc__)
+        sys.exit(0)
+    try:
+        opts = _parse(rest, known=_KNOWN_FLAG_KEYS)
+    except _UnknownFlag as exc:
+        sys.stderr.write(
+            "task_backlog.py: unknown flag '%s'. accepted flags: %s\n"
+            % (exc.flag, " ".join(CLI_FLAGS)))
+        sys.exit(2)
     {"init": cmd_init, "next": cmd_next, "done": cmd_done, "skip": cmd_skip, "block": cmd_block,
      "fail": cmd_fail, "heartbeat": cmd_heartbeat, "transition": cmd_transition, "status": cmd_status, "poll": cmd_poll,
      "checklist": cmd_checklist, "selftest": cmd_selftest}.get(

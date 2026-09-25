@@ -1,7 +1,8 @@
 {
   "schema": "simplicio.coverage-baseline/v1",
   "note": "Issue #283, Fase B: 'raise coverage module-by-module: widen tests_scope ... to cover more of the ~165 currently-uncategorized test files.' The numbers below are REAL, measured by scripts/coverage_gate.py after scripts/test_categories.py's convention was expanded from 21 to all 189 tests/ files (0 uncategorized) -- still a DEFINED SUBSET baseline (the 65 fastest, subprocess-free unit/integration/regression files from that now-complete convention), not a full-repo one. See 'scope_rationale'.",
-  "commit": "7bb73e7",
+  "commit": "2b002db9eef91cb831fdf096ee42593f5b30051a",
+  "commit_note": "Originally recorded as short SHA '7bb73e7', which does not resolve in this repo's history -- that commit was squashed away by a later squash-merge before this file first landed on main. Re-anchored to 2b002db9eef91cb831fdf096ee42593f5b30051a (release: prepare simplicio-loop 3.43.6, #1223), the real, reachable commit that carries this file. The measured numbers below are unchanged; only the provenance pointer was corrected (never fabricate a fresh number to paper over a broken pointer).",
   "generated_at": "2026-07-15T20:43:11Z",
   "measured_with": "scripts/coverage_gate.py --tests-path <65 files listed below> --diagnostics-dir .simplicio/quality-gate/coverage-baseline --emit-json",
   "coverage_py_version": "7.15.1",

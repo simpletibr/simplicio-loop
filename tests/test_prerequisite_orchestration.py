@@ -282,6 +282,8 @@ def test_retry_after_independent_verification_forwards_detail_to_next_provider_d
         {"verified": True, "status": "VERIFIED"},
     ])
     (tmp_path / "provider-run").mkdir()
+    # Synthetic dispatch without an initialized MapperStore: pin the legacy route.
+    monkeypatch.setenv("SIMPLICIO_STORAGE_ROUTE", "legacy")
     monkeypatch.setenv("OPENROUTER_API_KEY", "runtime-only-openrouter-secret")
     monkeypatch.setenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
     monkeypatch.setattr(runner, "OpenRouterWorker", _FakeWorker)

@@ -727,7 +727,20 @@ def cmd_status_capture(opts):
     return buf.getvalue()
 
 
-def _parse(args):
+CLI_VERBS = ["emit", "status", "render", "selftest"]
+CLI_FLAGS = ["--step", "--status", "--outcome", "--item", "--detail", "--source",
+             "--iteration", "--cap", "--rebaseline", "--json", "--turn-header", "--full",
+             "--help"]
+_KNOWN_FLAG_KEYS = {f[2:] for f in CLI_FLAGS}
+
+
+class _UnknownFlag(ValueError):
+    def __init__(self, flag):
+        super().__init__(flag)
+        self.flag = flag
+
+
+def _parse(args, known=None):
     """Parse --k v / --flag pairs (same convention as task_anchor.py / task_backlog.py)."""
     opts = {}
     i = 0
@@ -735,6 +748,8 @@ def _parse(args):
         a = args[i]
         if a.startswith("--"):
             key = a[2:]
+            if known is not None and key not in known:
+                raise _UnknownFlag(a)
             if i + 1 < len(args) and not args[i + 1].startswith("--"):
                 opts[key] = args[i + 1]
                 i += 2
@@ -751,15 +766,25 @@ def main():
     if not argv:
         print(__doc__)
         sys.exit(2)
+    if argv[0] in ("--help", "-h"):
+        print(__doc__)
+        sys.exit(0)
     if argv[0] == "--describe-cli":
         print(json.dumps({
-            "verbs": ["emit", "status", "render", "selftest"],
-            "flags": ["--step", "--status", "--outcome", "--item", "--detail", "--source",
-                      "--iteration", "--cap", "--rebaseline", "--json", "--turn-header", "--full"],
-            "steps": STEPS, "phases": PHASES,
+            "verbs": CLI_VERBS, "flags": CLI_FLAGS, "steps": STEPS, "phases": PHASES,
         }))
         sys.exit(0)
-    sub, opts = argv[0], _parse(argv[1:])
+    sub, rest = argv[0], argv[1:]
+    if "--help" in rest or "-h" in rest:
+        print(__doc__)
+        sys.exit(0)
+    try:
+        opts = _parse(rest, known=_KNOWN_FLAG_KEYS)
+    except _UnknownFlag as exc:
+        sys.stderr.write(
+            "loop_progress.py: unknown flag '%s'. accepted flags: %s\n"
+            % (exc.flag, " ".join(CLI_FLAGS)))
+        sys.exit(2)
     {"emit": cmd_emit, "status": cmd_status, "render": cmd_render,
      "selftest": cmd_selftest}.get(
         sub, lambda _o: (print("unknown command '%s'. choices: emit status render selftest" % sub),

@@ -99,7 +99,7 @@ else:
     })
     fake_devcli_preflight = json.dumps({
         "version_stdout": "simplicio-dev-cli 0.18.0",
-        "help_stdout": " task --dry-run-task --json --bound-paths --target --task-spec --mode ",
+        "help_stdout": " edit --plan --apply --dry-run --json ",
         "version_returncode": 0,
         "help_returncode": 0,
     })

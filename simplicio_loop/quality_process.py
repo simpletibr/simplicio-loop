@@ -1,11 +1,13 @@
 """Bounded process boundary used by the built-in quality provider and check gate."""
 
 import os
+import importlib.util
 import json
 import re
 import selectors
 import shutil
 import signal
+import site
 import subprocess
 import sys
 import tempfile
@@ -295,6 +297,36 @@ def _repo_env(base: Optional[Dict[str, str]] = None, home: Optional[str] = None)
         "PYTHONUTF8": "1",
         "PYTHONDONTWRITEBYTECODE": "1",
     })
+    # #1290: two independent reasons a gate subprocess can lose the loop's REQUIRED bound
+    # operators (simplicio-mapper, transitively simplicio-cli/-fast) even though THIS process
+    # imports them fine, surfacing as a spurious `QueueUnavailable: MapperStore operations API
+    # is not installed` -- not an environment problem to chase per-test:
+    #   1. `_pytest_command()` may resolve a standalone `pytest` off PATH that is itself a
+    #      fully isolated interpreter (e.g. `uv tool install pytest`'s own venv) with no view
+    #      of this process's site-packages/editable installs at all -- PYTHONUSERBASE cannot
+    #      fix this, because that venv is a different Python installation, not just a
+    #      different HOME.
+    #   2. Even the SAME interpreter loses a user-site editable install (a plain `.pth` path
+    #      entry under `~/.local/...`) once HOME is overridden above for hermetic isolation.
+    # Both are fixed the same way, without hardcoding any path: ask THIS process -- which
+    # already has these packages importable -- where each one actually lives, and hand the
+    # real directory to the child via PYTHONPATH, which every CPython interpreter honors
+    # regardless of venv/site configuration. Silently a no-op wherever the package is not
+    # installed (e.g. a checkout that only runs the scaffold/starter tests).
+    extra_pythonpath = [REPO]
+    for _pkg in ("simplicio_mapper",):
+        try:
+            _spec = importlib.util.find_spec(_pkg)
+        except (ImportError, ValueError):
+            _spec = None
+        for _loc in (_spec.submodule_search_locations if _spec else ()) or ():
+            _parent = os.path.dirname(os.path.abspath(_loc))
+            if _parent and _parent not in extra_pythonpath:
+                extra_pythonpath.append(_parent)
+    env["PYTHONPATH"] = os.pathsep.join(extra_pythonpath)
+    real_user_base = site.getuserbase()
+    if real_user_base and os.path.isdir(real_user_base):
+        env["PYTHONUSERBASE"] = real_user_base
     return env
 
 

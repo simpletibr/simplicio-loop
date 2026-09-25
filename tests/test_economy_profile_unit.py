@@ -1,10 +1,25 @@
 """Economy-parallel profile: token path + bounded parallel defaults."""
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from simplicio_loop import economy_profile as ep
 from simplicio_loop import strict_mode
+
+
+@pytest.fixture(autouse=True)
+def _restore_process_env():
+    # persist_user_profile() updates os.environ in-place by design; keep that
+    # from leaking into later tests (e.g. strict_mode preflight shape checks).
+    saved = dict(os.environ)
+    yield
+    os.environ.clear()
+    os.environ.update(saved)
 
 
 def test_worker_bounds_scale_with_cpu():
@@ -31,12 +46,21 @@ def test_prism_slots_machine_max_scales_with_cpu(monkeypatch):
     assert ep.recommend_prism_slots(16) == 2
 
 
-def test_economy_env_does_not_bind_runtime_even_when_operational():
+def test_economy_env_is_adaptive_auto_regardless_of_runtime():
+    # REQUIRE_RUNTIME / EXECUTION_PROFILE stay "auto" (never a hard "off"/"standalone")
+    # whether or not Runtime happens to be operational right now (issue #1287).
+    for operational in (True, False):
+        env = ep.economy_parallel_env(
+            runtime_operational=operational, prism_slots=4, operator_workers=6
+        )
+        assert env["SIMPLICIO_LOOP_REQUIRE_RUNTIME"] == "auto"
+        assert env["SIMPLICIO_EXECUTION_PROFILE"] == "auto"
+
+
+def test_economy_env_binds_mcp_when_runtime_operational():
     env = ep.economy_parallel_env(runtime_operational=True, prism_slots=4, operator_workers=6)
-    assert env["SIMPLICIO_LOOP_REQUIRE_RUNTIME"] == "off"
-    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "standalone"
-    assert env["SIMPLICIO_REQUIRE_MCP"] == "0"
-    assert env["SIMPLICIO_MCP_FORCE"] == "0"
+    assert env["SIMPLICIO_REQUIRE_MCP"] == "1"
+    assert env["SIMPLICIO_MCP_FORCE"] == "1"
 
 
 def test_economy_env_enables_fan_out_and_latest():
@@ -47,9 +71,9 @@ def test_economy_env_enables_fan_out_and_latest():
     assert env["SIMPLICIO_PRISM_BATCH_SIZE"] == "10"
     assert env["SIMPLICIO_LOOP_OPERATOR_WORKERS"] == "6"
     assert env["SIMPLICIO_FAST_MODE"] == "required"
-    assert env["SIMPLICIO_REQUIRE_MCP"] == "0"
-    assert env["SIMPLICIO_MCP_FORCE"] == "0"
-    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "standalone"
+    assert env["SIMPLICIO_REQUIRE_MCP"] == "1"
+    assert env["SIMPLICIO_MCP_FORCE"] == "1"
+    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "auto"
 
 
 def test_profile_status_exposes_llm_max_speed_orientation():
@@ -86,7 +110,27 @@ def test_economy_env_without_runtime_disables_mcp_force():
     env = ep.economy_parallel_env(runtime_operational=False)
     assert env["SIMPLICIO_REQUIRE_MCP"] == "0"
     assert env["SIMPLICIO_MCP_FORCE"] == "0"
-    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "standalone"
+    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "auto"
+
+
+def test_profile_status_reports_runtime_backed_and_no_note_when_operational():
+    status = ep.profile_status(runtime_operational=True)
+    assert status["runtime_operational"] is True
+    assert status["execution_profile"] == "runtime-backed"
+    assert status["note"] is None
+    assert status["recommended"]["SIMPLICIO_LOOP_REQUIRE_RUNTIME"] == "auto"
+    assert status["recommended"]["SIMPLICIO_EXECUTION_PROFILE"] == "auto"
+    assert status["recommended"]["SIMPLICIO_REQUIRE_MCP"] == "1"
+    assert status["recommended"]["SIMPLICIO_MCP_FORCE"] == "1"
+
+
+def test_profile_status_reports_standalone_and_unverified_note_when_not_operational():
+    status = ep.profile_status(runtime_operational=False)
+    assert status["runtime_operational"] is False
+    assert status["execution_profile"] == "standalone"
+    assert status["note"] == "UNVERIFIED|runtime_unavailable"
+    assert status["recommended"]["SIMPLICIO_REQUIRE_MCP"] == "0"
+    assert status["recommended"]["SIMPLICIO_MCP_FORCE"] == "0"
 
 
 def test_recommended_env_uses_economy_when_enabled(monkeypatch):
@@ -128,3 +172,64 @@ def test_recommended_env_opt_out_minimal(monkeypatch):
     assert rec["SIMPLICIO_LOOP"] == "1"
     # minimal path still prefers auto fan-out + always-latest
     assert rec["SIMPLICIO_LOOP_AUTO_FAN_OUT"] == "1"
+
+
+def test_persist_posix_rc_writes_idempotent_guarded_block(tmp_path, monkeypatch):
+    monkeypatch.setattr(ep.Path, "home", staticmethod(lambda: tmp_path))
+    bashrc = tmp_path / ".bashrc"
+    bashrc.write_text("existing content\n", encoding="utf-8")
+    sh_path = tmp_path / ".simplicio" / "economy-parallel-env.sh"
+
+    changed = ep.persist_posix_rc(sh_path)
+    assert changed == [str(bashrc)]
+    contents = bashrc.read_text(encoding="utf-8")
+    assert ep._RC_MARK_BEGIN in contents
+    assert str(sh_path) in contents
+    assert contents.startswith("existing content\n")
+
+    # Re-running is a no-op (idempotent): no duplicate blocks, nothing reported changed.
+    changed_again = ep.persist_posix_rc(sh_path)
+    assert changed_again == []
+    assert bashrc.read_text(encoding="utf-8").count(ep._RC_MARK_BEGIN) == 1
+
+
+def test_persist_posix_rc_falls_back_to_profile_when_no_rc_exists(tmp_path, monkeypatch):
+    monkeypatch.setattr(ep.Path, "home", staticmethod(lambda: tmp_path))
+    sh_path = tmp_path / ".simplicio" / "economy-parallel-env.sh"
+
+    changed = ep.persist_posix_rc(sh_path)
+    assert changed == [str(tmp_path / ".profile")]
+
+
+def test_profile_status_explains_not_applied_drift(tmp_path, monkeypatch):
+    monkeypatch.setattr(ep.Path, "home", staticmethod(lambda: tmp_path))
+    payload = ep.profile_status(env={})
+    assert payload["aligned"] is False
+    assert payload["drift_reason"] == "not_applied"
+    assert "apply" in payload["drift_fix"]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX rc persistence only")
+def test_apply_then_new_shell_status_is_aligned(tmp_path, monkeypatch):
+    """Regression for #1289: apply must persist so a NEW shell sees aligned=true."""
+    monkeypatch.setattr(ep.Path, "home", staticmethod(lambda: tmp_path))
+    (tmp_path / ".bashrc").write_text("", encoding="utf-8")
+
+    result = ep.persist_user_profile(runtime_operational=False, set_windows_user_env=False)
+    assert result["ok"] is True
+    assert result["rc_files_changed"] == [str(tmp_path / ".bashrc")]
+
+    repo_root = Path(__file__).resolve().parents[1]
+    env = {"HOME": str(tmp_path), "PATH": "/usr/bin:/bin", "PYTHONPATH": str(repo_root)}
+    out = subprocess.run(
+        ["bash", "-ic", f"{sys.executable} -m simplicio_loop.cli_impl economy status --json"],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert out.returncode in (0, 1), out.stderr
+    import json as _json
+
+    payload = _json.loads(out.stdout)
+    assert payload["aligned"] is True, payload.get("drift_keys")
