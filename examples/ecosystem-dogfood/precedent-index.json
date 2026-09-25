@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-09-25T12:53:02.268Z",
+  "generated_at": "2026-09-25T16:48:58.045Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -264,70 +264,6 @@
       ],
       "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/csharp/source/Program.cs",
       "snippet": "using System;\n\npublic class Service\n{\n    public int Compute(int value) => value;"
-    },
-    {
-      "id": "d2d2cf428590e5b3",
-      "path": "tests/python/test_async_pipeline.py",
-      "line": 50,
-      "rank": 1,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "async",
-        "pipeline"
-      ],
-      "summary": "test precedent in tests/python/test_async_pipeline.py",
-      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
-    },
-    {
-      "id": "978565b822fcc88e",
-      "path": "tests/python/test_cli.py",
-      "line": 62,
-      "rank": 1,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "cli"
-      ],
-      "summary": "test precedent in tests/python/test_cli.py",
-      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
-    },
-    {
-      "id": "9825175d1fbab7fe",
-      "path": "tests/python/test_cli_coverage.py",
-      "line": 43,
-      "rank": 1,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "cli",
-        "coverage"
-      ],
-      "summary": "test precedent in tests/python/test_cli_coverage.py",
-      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
-    },
-    {
-      "id": "888dca0524d3cf2e",
-      "path": "tests/python/test_large_project_lifecycle.py",
-      "line": 39,
-      "rank": 1,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "large",
-        "project",
-        "lifecycle"
-      ],
-      "summary": "test precedent in tests/python/test_large_project_lifecycle.py",
-      "snippet": "\n\ndef _load_schema(name: str) -> dict:\n    import json\n"
     },
     {
       "id": "e777677cf72a6db3",
@@ -1328,6 +1264,22 @@
       "snippet": "\n\nclass AsyncInventoryNativeBatchTest(unittest.TestCase):\n    def test_native_batch_handles_negotiated_language_and_keeps_python_exports(self) -> None:\n        records = [(\"src/main.py\", \"import os\\n\\ndef run():\\n    return 1\\n\")]"
     },
     {
+      "id": "d2d2cf428590e5b3",
+      "path": "tests/python/test_async_pipeline.py",
+      "line": 50,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "async",
+        "pipeline"
+      ],
+      "summary": "test precedent in tests/python/test_async_pipeline.py",
+      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
+    },
+    {
       "id": "91dad75c230ebc2f",
       "path": "tests/python/test_async_pipeline_batch_workers.py",
       "line": 16,
@@ -1692,6 +1644,21 @@
       "snippet": "\n\ndef _load_module():\n    spec = importlib.util.spec_from_file_location(\"check_version_sync\", SCRIPT_PATH)\n    assert spec is not None and spec.loader is not None"
     },
     {
+      "id": "978565b822fcc88e",
+      "path": "tests/python/test_cli.py",
+      "line": 62,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "cli"
+      ],
+      "summary": "test precedent in tests/python/test_cli.py",
+      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
+    },
+    {
       "id": "128589e727e92ab7",
       "path": "tests/python/test_cli_args_validation.py",
       "line": 19,
@@ -1755,6 +1722,22 @@
       ],
       "summary": "test precedent in tests/python/test_cli_canonical_gc.py",
       "snippet": "\n\ndef _run(args: list[str], cwd: Path) -> subprocess.CompletedProcess:\n    return subprocess.run([\"git\", *args], cwd=str(cwd), check=True, capture_output=True, text=True)\n"
+    },
+    {
+      "id": "9825175d1fbab7fe",
+      "path": "tests/python/test_cli_coverage.py",
+      "line": 43,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "cli",
+        "coverage"
+      ],
+      "summary": "test precedent in tests/python/test_cli_coverage.py",
+      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
     },
     {
       "id": "22c49782083aa4b8",
@@ -2623,6 +2606,23 @@
       ],
       "summary": "test precedent in tests/python/test_issue_acceptance_audit.py",
       "snippet": "\n\nclass IssueAcceptanceAuditTest(unittest.TestCase):\n    def _run(self) -> dict:\n        proc = subprocess.run("
+    },
+    {
+      "id": "888dca0524d3cf2e",
+      "path": "tests/python/test_large_project_lifecycle.py",
+      "line": 39,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "large",
+        "project",
+        "lifecycle"
+      ],
+      "summary": "test precedent in tests/python/test_large_project_lifecycle.py",
+      "snippet": "\n\ndef _load_schema(name: str) -> dict:\n    import json\n"
     },
     {
       "id": "d1688ac2abe08f98",
@@ -4340,13 +4340,13 @@
   ],
   "producer": {
     "component": "simplicio-mapper",
-    "version": "0.26.32",
+    "version": "0.26.33",
     "backend": "python",
     "schema_version": "v1",
     "repository_id": "sha256:a2be0a09b525987d10166db5c5eb1b521a05e102cce9d9bcb2a8cf2c4def51b1",
     "source_generation": {
       "kind": "git-working-tree",
-      "revision": "35a8255937eb46a28b5ac11bb76e63d1f6cca6ca",
+      "revision": "817f80953f173eddea7c2de306c2f0d39abd9421",
       "dirty": true
     },
     "capability_coverage": {
@@ -4368,6 +4368,6 @@
       "generated:contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/dist",
       "symlink:contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/links/app.py"
     ],
-    "canonical_digest": "sha256:3ee042018761516b037650c04f6eaab5faa9e2398cb98a5ea4f18fb09d84704d"
+    "canonical_digest": "sha256:d793ad66f0319989c5360b232a0f269c652226c7436e68e663f81d5a5fc67456"
   }
 }

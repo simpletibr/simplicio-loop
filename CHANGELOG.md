@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.26.33] - 2026-09-25
+
+### Fixed
+
+- Handoff: stop the task-aware bounded snapshot from overwriting the canonical `.simplicio/context-snapshot.json`; persist it to a scoped `context-snapshot.task.json` instead, and order kept nodes by relevance instead of raw id sort so symbols survive the budget (issue #645).
+- Unblock the mapper test suite: schemas, receipts, digests, and remaining fixture-driven failures (issue #645).
+- Drop a stray `.simplicio` cache database committed under the fixture tree.
+
+### Changed
+
+- Update repository, PyPI, and ecosystem pointer URLs to the `@simpletibr` organization; bump the `python-deps` group and `@playwright/test` (Dependabot).
+
 ## [0.26.32] - 2026-09-15
 
 ### Fixed

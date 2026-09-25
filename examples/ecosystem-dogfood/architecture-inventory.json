@@ -1,8 +1,8 @@
 {
   "schema": "simplicio.architecture-inventory/v1",
   "version": 1,
-  "generated_at": "2026-09-25T12:53:02.268Z",
-  "root": "/home/user/wt/mapper-645",
+  "generated_at": "2026-09-25T16:48:58.045Z",
+  "root": "/home/user/simplicio-mapper",
   "source_project_map": ".simplicio/project-map.json",
   "source_symbol_index": ".simplicio/symbol-index.json",
   "source_call_graph": ".simplicio/call-graph.json",
@@ -293,8 +293,8 @@
     },
     {
       "name": ".hypothesis",
-      "summary": "Groups 144 files across 1 detected layers.",
-      "file_count": 144,
+      "summary": "Groups 149 files across 1 detected layers.",
+      "file_count": 149,
       "files": [
         ".hypothesis/.gitignore",
         ".hypothesis/constants/019fa841857bf3a6",
@@ -324,6 +324,7 @@
         ".hypothesis/constants/2899ca5fbface095",
         ".hypothesis/constants/29ee4ff9a73e33ab",
         ".hypothesis/constants/2a0dbe541cc24738",
+        ".hypothesis/constants/2a815685c1210068",
         ".hypothesis/constants/2ba5adde99531ff3",
         ".hypothesis/constants/2d08175e116427b1",
         ".hypothesis/constants/2f960da70439d646",
@@ -374,8 +375,7 @@
         ".hypothesis/constants/7a6f900411c97dff",
         ".hypothesis/constants/7b2e1a2d769c8c83",
         ".hypothesis/constants/7b87217fd119e73a",
-        ".hypothesis/constants/803c70bac59df6c8",
-        ".hypothesis/constants/81f87686af7cca58"
+        ".hypothesis/constants/803c70bac59df6c8"
       ],
       "layers": [
         "asset"
@@ -2737,7 +2737,7 @@
   "layers": [
     {
       "name": "asset",
-      "file_count": 352,
+      "file_count": 357,
       "files": [
         ".claude/hooks/post-edit.ps1",
         ".claude/hooks/post-edit.sh",
@@ -2785,6 +2785,7 @@
         ".hypothesis/constants/2899ca5fbface095",
         ".hypothesis/constants/29ee4ff9a73e33ab",
         ".hypothesis/constants/2a0dbe541cc24738",
+        ".hypothesis/constants/2a815685c1210068",
         ".hypothesis/constants/2ba5adde99531ff3",
         ".hypothesis/constants/2d08175e116427b1",
         ".hypothesis/constants/2f960da70439d646",
@@ -2837,8 +2838,7 @@
         ".hypothesis/constants/7b87217fd119e73a",
         ".hypothesis/constants/803c70bac59df6c8",
         ".hypothesis/constants/81f87686af7cca58",
-        ".hypothesis/constants/84260cd18592f567",
-        ".hypothesis/constants/86c02ab0e5b02f5c"
+        ".hypothesis/constants/84260cd18592f567"
       ],
       "modules": [
         ".",
@@ -5130,6 +5130,23 @@
       ]
     },
     {
+      "path": ".hypothesis/constants/2a815685c1210068",
+      "language": "text",
+      "module": ".hypothesis",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": ".hypothesis/constants/2a815685c1210068"
+        }
+      ]
+    },
+    {
       "path": ".hypothesis/constants/2ba5adde99531ff3",
       "language": "text",
       "module": ".hypothesis",
@@ -6626,6 +6643,23 @@
       ]
     },
     {
+      "path": ".hypothesis/constants/c6f5dea6ebe43252",
+      "language": "text",
+      "module": ".hypothesis",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": ".hypothesis/constants/c6f5dea6ebe43252"
+        }
+      ]
+    },
+    {
       "path": ".hypothesis/constants/cc3e8f24bbab0c3e",
       "language": "text",
       "module": ".hypothesis",
@@ -6949,6 +6983,23 @@
       ]
     },
     {
+      "path": ".hypothesis/constants/f457c57709c894a0",
+      "language": "text",
+      "module": ".hypothesis",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": ".hypothesis/constants/f457c57709c894a0"
+        }
+      ]
+    },
+    {
       "path": ".hypothesis/constants/f4f31699274b189d",
       "language": "text",
       "module": ".hypothesis",
@@ -7034,6 +7085,23 @@
       ]
     },
     {
+      "path": ".hypothesis/constants/f933c94d614871b9",
+      "language": "text",
+      "module": ".hypothesis",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": ".hypothesis/constants/f933c94d614871b9"
+        }
+      ]
+    },
+    {
       "path": ".hypothesis/constants/fab6e983fe000879",
       "language": "text",
       "module": ".hypothesis",
@@ -7081,6 +7149,23 @@
       "evidence": [
         {
           "file": ".hypothesis/constants/fedbcbcdc1c61e92"
+        }
+      ]
+    },
+    {
+      "path": ".hypothesis/constants/ff5c2e3abfa29017",
+      "language": "text",
+      "module": ".hypothesis",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": ".hypothesis/constants/ff5c2e3abfa29017"
         }
       ]
     },
@@ -17607,7 +17692,7 @@
       "roles": [],
       "imports": [],
       "symbols": [],
-      "summary": "Defines exported symbols: App, __init__, add, call, gitInit.",
+      "summary": "Defines exported symbols: App, Main, Program, Service, __init__.",
       "evidence": [
         {
           "file": "examples/ecosystem-dogfood/precedent-index.json"
@@ -22531,6 +22616,7 @@
         "build_context_graph",
         "_bound_graph",
         "valid_handle",
+        "relevance_tier",
         "_bound_paths",
         "build_context_snapshot",
         "from_package",
@@ -31426,7 +31512,10 @@
         "test_oversized_confidence_fails_closed",
         "test_snapshot_bounds_mixed_multibyte_and_large_source_sets_deterministically",
         "test_snapshot_prunes_dangling_edges_and_marks_partial",
-        "test_bound_graph_removes_invalid_handles_without_budget_pressure"
+        "test_bound_graph_removes_invalid_handles_without_budget_pressure",
+        "test_bound_graph_prefers_symbol_nodes_over_alphabetically_earlier_file_nodes",
+        "test_bound_graph_prioritizes_selected_target_paths_first",
+        "test_priority_paths_survive_a_tight_budget_via_build_context_snapshot"
       ],
       "summary": "Verifies project behavior through automated tests.",
       "evidence": [
@@ -32440,7 +32529,8 @@
       "symbols": [
         "_invoke",
         "FastHandoffCliContractTest",
-        "test_public_preparation_and_missing_snapshot_are_fail_closed"
+        "test_public_preparation_and_missing_snapshot_are_fail_closed",
+        "test_task_aware_handoff_never_overwrites_the_canonical_snapshot_fast_reads"
       ],
       "summary": "Verifies project behavior through automated tests.",
       "evidence": [
@@ -35792,6 +35882,7 @@
         "os",
         "pathlib",
         "shutil",
+        "simplicio_mapper",
         "simplicio_mapper.scoped_context",
         "tempfile",
         "unittest"
@@ -58291,10 +58382,10 @@
     }
   ],
   "coverage": {
-    "files": 1377,
+    "files": 1382,
     "modules": 29,
     "layers": 14,
-    "symbols": 5866,
+    "symbols": 5871,
     "relationships": 250,
     "tests": 326
   },
@@ -58319,13 +58410,13 @@
   ],
   "producer": {
     "component": "simplicio-mapper",
-    "version": "0.26.32",
+    "version": "0.26.33",
     "backend": "python",
     "schema_version": "v1",
     "repository_id": "sha256:a2be0a09b525987d10166db5c5eb1b521a05e102cce9d9bcb2a8cf2c4def51b1",
     "source_generation": {
       "kind": "git-working-tree",
-      "revision": "35a8255937eb46a28b5ac11bb76e63d1f6cca6ca",
+      "revision": "817f80953f173eddea7c2de306c2f0d39abd9421",
       "dirty": true
     },
     "capability_coverage": {
@@ -58347,6 +58438,6 @@
       "generated:contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/dist",
       "symlink:contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/links/app.py"
     ],
-    "canonical_digest": "sha256:554fe9362ee28d96b1b8fcf5c388dc109323e2a8886aef0af4275bd7c01f2f4e"
+    "canonical_digest": "sha256:4a2e67f59cd8f7f45b2b0e3c1681d608e2237a6a385726e6173d6c4d51fc3c1d"
   }
 }
