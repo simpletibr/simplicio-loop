@@ -884,7 +884,7 @@ simplicio-loop single-task-fast --task-file task.json
 | Repository and operators | `preflight`, `map`, `inspect`, `doctor`, `stack`, `extensions`, `retrieve` | Check Mapper/Dev CLI/Runtime/Fast readiness; inspect map-service receipts; inspect MapperStore capabilities; diagnose stack/source/resource/storage; lock or verify installed components; verify extension handshakes; retrieve tee-cache results. |
 | Queues and coordination | `queue`, `drain`, `agent-slots`, `generation-broker`, `ledger`, `hub-drain-plan`, `hub-drain-admit` | Operate the durable queue; evaluate or persist queue-drain receipts; inspect/reclaim Loop capacity; reconcile generation bindings; replay/validate the operational ledger; plan or admit GitHub drain work. |
 | Delivery and source control | `deliver`, `decide`, `sync-source`, `findings`, `maintenance-deferred`, `defer-maintenance` | Reconcile delivery with source evidence; apply a human decision and invalidate dependent artifacts; requery external source state; list/report/reconcile/diagnose/import findings; record deferred maintenance. `defer-maintenance` is the alias form. |
-| Economy, safety, and deployment | `economy`, `ecc`, `deploy`, `release-train` | Inspect/print/apply the economy-parallel environment; verify ECC provenance and safety policy; plan a gated deployment (`--apply` is explicit); validate release manifests and ecosystem drift. |
+| Economy, safety, and deployment | `economy`, `ecc`, `deploy` | Inspect/print/apply the economy-parallel environment; verify ECC provenance and safety policy; plan a gated deployment (`--apply` is explicit). |
 
 ### Guia de Decisão para a LLM / Agentes: Qual fluxo escolher?
 
@@ -972,7 +972,6 @@ Important nested command surfaces:
 - `findings`: `list`, `report`, `reconcile`, `doctor`, `import`.
 - `economy`: `status`, `print`, `apply`.
 - `stack`: `lock`, `verify`; `extensions` and `ecc` each expose `doctor`.
-- `release-train`: `check` validates component/ecosystem release schemas and local drift.
 
 Typical single-task commands:
 

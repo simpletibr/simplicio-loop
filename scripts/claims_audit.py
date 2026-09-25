@@ -117,7 +117,6 @@ CORE_SKILL_NAMES = frozenset({
 })
 # worker/hook scripts whose `selftest` proves them; others just need to be invokable
 SELFTEST_SCRIPTS = [
-    "scripts/component_release.py",
     "scripts/loop_journal.py",
     "scripts/billing_aggregator.py",
     "scripts/savings_harness.py",
@@ -165,7 +164,6 @@ SELFTEST_SCRIPTS = [
     "scripts/stage_coordinator.py",
     "scripts/finding_collector.py",
     "scripts/coordinator.py",
-    "scripts/component_release.py",
     "scripts/evolution.py",
     "scripts/agent_replication.py",
     "scripts/workflow_topology.py",

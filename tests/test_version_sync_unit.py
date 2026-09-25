@@ -53,12 +53,6 @@ def _make_repo(tmp_path, version="1.2.3", plugin_version="1.2.3",
         '_FALLBACK_FLOORS = {\n    "simplicio-loop": "' + fallback_version + '",\n}\n',
         encoding="utf-8",
     )
-    release_train = repo / "docs" / "release-train"
-    release_train.mkdir(parents=True)
-    (release_train / "compatibility-contract.json").write_text(
-        json.dumps({"release_train_version": f"v{version}"}, indent=2) + "\n",
-        encoding="utf-8",
-    )
     return repo
 
 
@@ -96,7 +90,6 @@ def test_apply_rewrites_every_surface_and_leaves_manifest_ready(tmp_path):
         os.path.join(".cursor-plugin", "plugin.json"),
         os.path.join("simplicio_loop", "__init__.py"),
         os.path.join("simplicio_loop", "stack_manifest.py"),
-        os.path.join("docs", "release-train", "compatibility-contract.json"),
     }
     assert 'version = "9.9.9"' in (repo / "pyproject.toml").read_text(encoding="utf-8")
     assert json.loads((repo / ".cursor-plugin" / "plugin.json").read_text())["version"] == "9.9.9"
@@ -104,10 +97,6 @@ def test_apply_rewrites_every_surface_and_leaves_manifest_ready(tmp_path):
     assert '"simplicio-loop": "9.9.9"' in (
         repo / "simplicio_loop" / "stack_manifest.py"
     ).read_text(encoding="utf-8")
-    release_train = json.loads(
-        (repo / "docs" / "release-train" / "compatibility-contract.json").read_text()
-    )
-    assert release_train["release_train_version"] == "v9.9.9"
 
 
 def test_apply_preserves_unrelated_json_formatting_and_unicode_escapes(tmp_path):
