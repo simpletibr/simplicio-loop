@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from simplicio_loop.oracle import _anchor_gate, _watcher_gate, evaluate_completion
+from simplicio_loop.oracle import _anchor_gate, _task_dispatch_gate, _watcher_gate, evaluate_completion
 
 
 def _write_scratchpad(loop, promise='"DONE"', extra=""):
@@ -189,6 +189,48 @@ def test_watcher_gate_stale_receipt_predates_challenge(tmp_path):
     ok, gate = _watcher_gate(tmp_path)
     assert ok is False
     assert gate["reason_code"] == "watcher_stale"
+
+
+# ---------------------------------------------------------------------------
+# _task_dispatch_gate -- a run cannot be COMPLETE while any task it scheduled
+# never produced a verified operator+evidence receipt (the false-VERIFIED
+# regression: 9/10 tasks dead-lettered, only task 1 applied).
+# ---------------------------------------------------------------------------
+
+def test_task_dispatch_gate_passes_when_no_batch_dispatched_yet(tmp_path):
+    ok, gate = _task_dispatch_gate(tmp_path)
+    assert ok is True
+    assert gate["reason_code"] == "task_dispatch_not_dispatched"
+
+
+def test_task_dispatch_gate_blocks_on_dead_lettered_tasks_and_names_indices(tmp_path):
+    (tmp_path / "task-contract.json").write_text(json.dumps({"tasks": [{}] * 10}), encoding="utf-8")
+    (tmp_path / "operator-batch.json").write_text(json.dumps({
+        "completed_task_indices": [1],
+        "failed_task_indices": [],
+        "blocked_task_indices": [],
+        "dead_letter_task_indices": [2, 3, 4, 5, 6, 7, 8, 9, 10],
+        "receipt_contract": {"ready": False, "missing_task_indices": [2, 3, 4, 5, 6, 7, 8, 9, 10]},
+    }), encoding="utf-8")
+    ok, gate = _task_dispatch_gate(tmp_path)
+    assert ok is False
+    assert gate["reason_code"] == "task_dispatch_incomplete"
+    for index in range(2, 11):
+        assert str(index) in gate["detail"]
+
+
+def test_task_dispatch_gate_passes_when_every_task_completed(tmp_path):
+    (tmp_path / "task-contract.json").write_text(json.dumps({"tasks": [{}, {}, {}]}), encoding="utf-8")
+    (tmp_path / "operator-batch.json").write_text(json.dumps({
+        "completed_task_indices": [1, 2, 3],
+        "failed_task_indices": [],
+        "blocked_task_indices": [],
+        "dead_letter_task_indices": [],
+        "receipt_contract": {"ready": True, "missing_task_indices": []},
+    }), encoding="utf-8")
+    ok, gate = _task_dispatch_gate(tmp_path)
+    assert ok is True
+    assert gate["reason_code"] == "task_dispatch_complete"
 
 
 def test_watcher_gate_passes_when_everything_aligns(tmp_path):

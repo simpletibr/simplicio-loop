@@ -70,6 +70,31 @@ def test_implementation_requires_applied_operator_receipts(tmp_path):
     assert verdict["reason_code"] == "quality_implementation_failed"
 
 
+def test_missing_or_unapplied_tasks_counts_every_task_index(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "operator-receipt-1.json").write_text(json.dumps({"execution_state": "applied"}))
+    # tasks 2 and 3 dead-lettered before dev-cli ever ran: no receipt file at all.
+    assert lv.missing_or_unapplied_tasks(run_dir, 3) == [2, 3]
+
+
+def test_implementation_gate_fails_when_most_tasks_never_got_a_receipt(tmp_path):
+    """Regression for the wave benchmark's false-VERIFIED: only task 1 of 10 applied
+    (tasks 2..10 dead-lettered with plan_repo_state_stale and wrote no receipt), yet
+    the old `bool(receipts) and all(...)` check only looked at the receipts that
+    happened to exist and reported implementation: pass."""
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "operator-receipt-1.json").write_text(json.dumps({"execution_state": "applied"}))
+    task_texts = [_task(**ALL)] + [_task() for _ in range(9)]
+    receipt = lv.build_quality_matrix(tmp_path, run_dir, task_texts)
+    assert receipt["requirements"]["implementation"]["status"] == "fail"
+    assert receipt["requirements"]["implementation"]["missing_task_indices"] == list(range(2, 11))
+    verdict = evaluate_quality_matrix(str(run_dir))
+    assert verdict["ready"] is False
+    assert verdict["reason_code"] == "quality_implementation_failed"
+
+
 def test_independent_reverify_reruns_declared_lane_commands_in_the_target_repo(tmp_path, monkeypatch):
     from simplicio_loop import quality_matrix as qm
 

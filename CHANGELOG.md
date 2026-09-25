@@ -3,6 +3,27 @@ Total output lines: 1972
 
 # Changelog
 
+## [3.43.15] - 2026-09-25
+
+- Fix `wave` applying only task 1 of a run: a dependent task's
+  `plan_repo_state_stale` check compared against the frozen `prepare`-time
+  fingerprint instead of the tree the run's own prior tasks actually left,
+  dead-lettering every later task in a 10-task benchmark. The run now
+  advances its own chained repo-state baseline after each applied task
+  (`state["repo_state_chain"]`), so a dependent task's plan validates
+  against the tree it should chain from — while an edit made outside the
+  run still fails closed as before.
+- Fix `simplicio-loop verify` reporting `VERIFIED`/`MEASURED` while most of
+  a run's tasks were dead-lettered and never produced an operator receipt:
+  the quality-matrix `implementation` gate only checked whichever
+  `operator-receipt-*.json` files happened to exist, not one per task the
+  run actually scheduled. It now requires a verified receipt for every
+  task index and names the missing ones. The completion oracle gained a
+  matching `task_dispatch` gate that reads the run's own dispatch batch
+  result and blocks, naming the exact failed/blocked/dead-lettered/missing
+  task indices, before the quality-matrix and watcher gates are even
+  reached.
+
 ## [3.43.14] - 2026-09-25
 
 - Raise the operator train floors to `simplicio-cli` 0.18.15 (loop needs

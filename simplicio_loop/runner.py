@@ -5274,44 +5274,28 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     planned_step = (plan.get("steps") or [])[task_index - 1] if task_index <= len(plan.get("steps") or []) else {}
     _assert_task_dependencies_ready(run_dir, tasks, task_index, run_id, step=planned_step)
     before = _repo_fingerprint(repo_path)
-    current = _repo_fingerprint(repo_path)
+    current = before
     planned_state = plan.get("repo_state") or {}
-    plan_validation = validate_plan(plan, tasks, repo_path,
+    # A shared-run batch intentionally advances the checkout from one dependent
+    # task to the next: task 2's dispatch attempt must see the tree task 1 left,
+    # not the tree the plan was frozen against at `prepare` time. Comparing
+    # `current` against the run's own last *applied* fingerprint (persisted on
+    # `state["repo_state_chain"]` right after each successful tick, below) lets
+    # this task chain onto its predecessors while still failing closed on any
+    # drift this run did not itself produce -- an external edit never matches
+    # that chained baseline either. Falls back to the original frozen
+    # `plan["repo_state"]` for task 1 (nothing has been applied yet).
+    expected_state = dict(status["state"].get("repo_state_chain") or {}) or planned_state
+    effective_plan = plan
+    if expected_state and expected_state.get("tree_hash") != planned_state.get("tree_hash"):
+        effective_plan = {**plan, "repo_state": expected_state}
+    plan_validation = validate_plan(effective_plan, tasks, repo_path,
                                    contract_hash=contract.get("collection_hash", ""),
                                    current_state=current)
-    if "plan_repo_state_stale" in plan_validation["errors"]:
-        # A shared-run batch intentionally advances the checkout between tasks.
-        # Accept only changes already authorized by this frozen plan; unrelated
-        # drift remains a hard precondition failure.
-        authorized_run_paths = {
-            str(path).replace("\\", "/")
-            for step in plan.get("steps") or []
-            for path in (step.get("candidate_targets") or [])
-            if str(path).strip()
-        }
-        try:
-            changed_since_plan = set(_plan_relevant_changed_paths(repo_path))
-        except Exception:
-            changed_since_plan = set()
-        if changed_since_plan and changed_since_plan <= authorized_run_paths:
-            plan_validation["errors"] = [
-                error for error in plan_validation["errors"]
-                if error != "plan_repo_state_stale"
-            ]
-            plan_validation["valid"] = not plan_validation["errors"]
-            plan_validation["warnings"].append("plan_state_advanced_by_authorized_prior_task")
     if not plan_validation["valid"]:
         raise RuntimeError("plan validation failed before operator execution: " + ", ".join(plan_validation["errors"]))
-    if planned_state and not _repo_state_equivalent(planned_state, current):
-        authorized_run_paths = {
-            str(path).replace("\\", "/")
-            for step in plan.get("steps") or []
-            for path in (step.get("candidate_targets") or [])
-            if str(path).strip()
-        }
-        changed_since_plan = set(_plan_relevant_changed_paths(repo_path))
-        if not changed_since_plan or not changed_since_plan <= authorized_run_paths:
-            raise RuntimeError("repository changed after planning; re-run mapper before execution")
+    if expected_state and not _repo_state_equivalent(expected_state, current):
+        raise RuntimeError("repository changed after planning; re-run mapper before execution")
     task = tasks[task_index - 1]
     authority_path = None
     if authority_receipt is not None:
@@ -5815,6 +5799,14 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     state["current_action"] = "operator_executed" if returncode == 0 else "operator_failed"
     state["next_action"] = "watcher_behavioral_verification" if returncode == 0 else "repair_operator_or_plan"
     state["attempts"] = int(state.get("attempts", 0)) + 1
+    if returncode == 0:
+        # Advance this run's own chained baseline so the next dependent task's
+        # plan_repo_state_stale check compares against the tree this task
+        # actually left, not the frozen `prepare`-time snapshot. A failed/rolled
+        # back attempt must never advance it -- `before`/`after` are identical
+        # once `_restore_operator_checkpoint` runs, but skip the write outright
+        # to keep the intent explicit.
+        state["repo_state_chain"] = after
     _write_json(run_dir / "state.json", state)
     _transition(run_dir, state, "validating" if returncode == 0 else "blocked",
                 "dev-cli execution receipt persisted", receipt=str(operator_path),

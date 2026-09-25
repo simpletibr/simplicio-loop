@@ -54,9 +54,36 @@ def _run(command: str, repo: Path, log: Path) -> tuple[bool, str]:
     return ok, output
 
 
+def missing_or_unapplied_tasks(run_dir: Path, task_count: int) -> list[int]:
+    """Return the 1-based task indices with no ``operator-receipt-<N>.json`` on disk,
+    or one that exists but is not ``applied`` -- one per task, not one per file found.
+
+    A dead-lettered task (e.g. rejected before the operator ever ran) never writes
+    its own ``operator-receipt-<N>.json`` at all: counting *found* files (instead of
+    every index the run itself scheduled) is exactly how a run with 9 dead-lettered
+    tasks out of 10 could still read "implementation: pass" from the one receipt task
+    1 left behind.
+    """
+    missing: list[int] = []
+    for index in range(1, task_count + 1):
+        path = run_dir / f"operator-receipt-{index}.json"
+        if not path.is_file():
+            missing.append(index)
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            missing.append(index)
+            continue
+        if payload.get("execution_state") != "applied":
+            missing.append(index)
+    return missing
+
+
 def build_quality_matrix(repo: Path, run_dir: Path, task_texts: Iterable[str]) -> Dict[str, object]:
     """Measure every declared lane in ``repo`` and write ``run_dir/quality-matrix.json``."""
     repo, run_dir = Path(repo), Path(run_dir)
+    task_texts = list(task_texts)
     lanes: Dict[str, str] = {}
     for text in task_texts:
         for lane, command in parse_lane_verifiers(text).items():
@@ -64,16 +91,18 @@ def build_quality_matrix(repo: Path, run_dir: Path, task_texts: Iterable[str]) -
     logs = run_dir / "lanes"
     logs.mkdir(parents=True, exist_ok=True)
 
+    task_count = len(task_texts)
+    missing = missing_or_unapplied_tasks(run_dir, task_count)
+    applied = task_count > 0 and not missing
     receipts = sorted(run_dir.glob("operator-receipt-*.json"))
-    applied = bool(receipts) and all(
-        json.loads(p.read_text(encoding="utf-8")).get("execution_state") == "applied" for p in receipts
-    )
-    requirements: Dict[str, Mapping[str, str]] = {
+    requirements: Dict[str, Mapping[str, object]] = {
         "implementation": {
             "status": "pass" if applied else "fail",
             "proof_ref": ",".join(str(p) for p in receipts),
+            "missing_task_indices": missing,
             "detail": "every Dev CLI operator receipt is applied" if applied
-            else "an operator receipt is missing or not applied",
+            else f"task index(es) {missing} have no applied operator receipt "
+                 f"(expected one per task, {task_count} task(s) total)",
         }
     }
     for lane in MEASURED_LANES:
