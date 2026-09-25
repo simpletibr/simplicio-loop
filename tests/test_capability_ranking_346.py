@@ -236,6 +236,12 @@ def _installed_json(command: list[str]) -> dict[str, object]:
 
 
 def test_capability_ranking_adapts_real_loop_fast_and_runtime_manifests() -> None:
+    if shutil.which("simplicio-runtime") is None:
+        pytest.skip(
+            "simplicio-runtime is required for real loop/fast/runtime manifest"
+            " adaptation and is optional in the current release"
+            " (standalone default, REQUIRE_RUNTIME=off)"
+        )
     preflight = _installed_json(
         ["simplicio-loop", "preflight", "--repo", str(Path.cwd()), "--json"]
     )

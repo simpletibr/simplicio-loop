@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -56,9 +57,15 @@ class SourceFileLimit477Test(unittest.TestCase):
             source.write_text("VALUE = 1\n", encoding="utf-8")
             output = root / "project.sfast"
             real_stat = source.stat()
+            # Resolve via os.path.realpath, not Path.resolve()/Path.stat(), so
+            # this comparison never re-enters the patched Path.stat below
+            # (Path.resolve() calls self.stat() internally on some Python
+            # versions, which would recurse into fake_stat indefinitely).
+            resolved_source = os.path.realpath(str(source))
+            original_stat = Path.stat
 
             def fake_stat(self: Path, *args: object, **kwargs: object):
-                if self.resolve() == source.resolve():
+                if os.path.realpath(str(self)) == resolved_source:
                     return SimpleNamespace(
                         st_size=DEFAULT_MAX_SOURCE_FILE_BYTES + 1,
                         st_mtime_ns=real_stat.st_mtime_ns,
@@ -69,7 +76,7 @@ class SourceFileLimit477Test(unittest.TestCase):
                         st_dev=getattr(real_stat, "st_dev", 0),
                         st_mode=real_stat.st_mode,
                     )
-                return Path.stat(self, *args, **kwargs)
+                return original_stat(self, *args, **kwargs)
 
             with patch.object(Path, "stat", fake_stat):
                 with self.assertRaises(SourceFileTooLarge) as raised:
