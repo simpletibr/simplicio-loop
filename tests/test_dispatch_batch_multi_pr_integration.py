@@ -55,6 +55,20 @@ def _built_context_pack(task_id, goal, acs, identity):
     return build_context_pack(task_id=task_id, goal=goal, identity=identity, acs=acs)
 
 
+def _write_host_edit_plan(repo, run_id, task_index=1):
+    """Loop does not generate an edit plan -- the host must write one (see SKILL.md's
+    per-task ``edit-plan-<N>.json`` protocol). A tagged schema skips the real dev-cli
+    compile step, so this fixture needs no real dev-cli binary; the actual mutation in
+    this test comes from the faked ``run_guarded``, not from this plan's content."""
+    run_dir = repo / ".simplicio" / "loop-runs" / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / f"edit-plan-{task_index}.json").write_text(json.dumps({
+        "schema": "simplicio.mechanical-edit/v1",
+        "touched_files": ["src/app.py"],
+        "operations": [{"path": "src/app.py", "find": "return 'ok'", "replace": "return 'ok-merged'"}],
+    }), encoding="utf-8")
+
+
 def _arm_fixture(tmp_path, monkeypatch, name):
     from tests._contract_only_hookwall import ContractOnlyHookwallLedger
 
@@ -209,6 +223,7 @@ def test_multi_pr_fan_in_batch_dispatch_independent_receipts_and_merges(tmp_path
     expected = {}
     for lane in range(lane_count):
         repo, run_id = _arm_fixture(tmp_path, monkeypatch, lane)
+        _write_host_edit_plan(repo, run_id)
         identity = _identity(lane)
         branch = f"feat/e2e-merge-{lane}"
         pr_number = 900 + lane
