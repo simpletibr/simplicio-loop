@@ -17,6 +17,16 @@ class ContextContractDistributionTests(unittest.TestCase):
     timeout_seconds = 90
 
     def run_command(self, args: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
+        # This test proves a consumer can install the built wheel into a
+        # clean interpreter/venv and use it "from a wheel alone" -- a
+        # PYTHONPATH pointed at this repo's own source checkout (as local
+        # dev/CI harnesses often set, to run these very tests against an
+        # editable-style checkout) would leak the raw source tree into
+        # every subprocess spawned here and silently satisfy imports that
+        # should only resolve from the installed wheel, defeating the
+        # test's premise (issue #645).
+        env = dict(os.environ)
+        env.pop("PYTHONPATH", None)
         try:
             return subprocess.run(
                 args,
@@ -25,6 +35,7 @@ class ContextContractDistributionTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 timeout=self.timeout_seconds,
+                env=env,
             )
         except subprocess.TimeoutExpired as exc:
             self.fail(f"command timed out after {self.timeout_seconds}s: {exc.cmd}")
