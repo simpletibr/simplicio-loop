@@ -34,7 +34,7 @@ def test_mapper_route_is_the_default(monkeypatch):
     report = storage_doctor()
     assert report["status"] == "READY"
     assert report["selected"] == "mapper"
-    assert report["writer_authority"] == "loop"
+    assert report["writer_authority"] == "mapper-store"
     assert report["effects_attempted"] is False
 
 

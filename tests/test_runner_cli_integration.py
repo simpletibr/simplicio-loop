@@ -1009,7 +1009,7 @@ def _start_run_for_maintenance_cli(tmp_path, monkeypatch):
         "help_returncode": 0,
     }))
     monkeypatch.setenv("SIMPLICIO_LOOP_FAKE_DEVCLI_PREFLIGHT_JSON", json.dumps({
-        "help_stdout": "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode",
+        "help_stdout": "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json",
         "help_returncode": 0,
     }))
     monkeypatch.setenv("SIMPLICIO_LOOP_FAKE_OPERATOR_JSON", json.dumps({
@@ -1271,7 +1271,7 @@ def test_deliver_reconciles_external_delivery_state(tmp_path):
         "help_returncode": 0
     })
     fake_devcli_preflight = json.dumps({
-        "help_stdout": "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode",
+        "help_stdout": "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json",
         "help_returncode": 0
     })
     started = _arm_result(
@@ -1363,7 +1363,7 @@ def test_sync_source_requeries_github_fixture_for_merge_ready(tmp_path):
         "help_returncode": 0
     })
     fake_devcli_preflight = json.dumps({
-        "help_stdout": "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode",
+        "help_stdout": "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json",
         "help_returncode": 0
     })
     started = _arm_result(
@@ -1418,7 +1418,7 @@ def test_sync_source_requeries_github_fixture_for_release(tmp_path):
         "help_returncode": 0
     })
     fake_devcli_preflight = json.dumps({
-        "help_stdout": "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode",
+        "help_stdout": "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json",
         "help_returncode": 0
     })
     started = _arm_result(
@@ -1471,7 +1471,7 @@ def test_sync_source_reopens_delivery_when_merge_ready_regresses(tmp_path):
         "help_returncode": 0
     })
     fake_devcli_preflight = json.dumps({
-        "help_stdout": "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode",
+        "help_stdout": "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json",
         "help_returncode": 0
     })
     started = _arm_result(
@@ -1533,7 +1533,7 @@ def test_run_blocks_when_mapper_preflight_version_too_old(tmp_path):
                 "help_returncode": 0
             }),
             "SIMPLICIO_LOOP_FAKE_DEVCLI_PREFLIGHT_JSON": json.dumps({
-                "help_stdout": "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode",
+                "help_stdout": "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json",
                 "help_returncode": 0
             })
         },
@@ -1551,7 +1551,7 @@ def test_run_blocks_when_devcli_preflight_lacks_required_capability(
     tmp_path, monkeypatch, missing_capability,
 ):
     surface = (
-        "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode"
+        "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json"
     ).replace(missing_capability, "")
     _, task = _setup_deterministic_preflight_fixture(
         monkeypatch,
@@ -1777,7 +1777,7 @@ def _setup_deterministic_preflight_fixture(
         return payload
 
     def fake_operator_preflight(repo_path, run_root):
-        help_surface = "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode"
+        help_surface = "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json"
         receipt = {
             "tool": "simplicio-dev-cli", "identity_ok": True, "version_ok": True,
             "help_stdout": help_surface, "task_help_stdout": help_surface,

@@ -134,7 +134,7 @@ def _arm_fixture(tmp_path, monkeypatch):
         return payload
 
     def fake_operator_preflight(repo_path, run_root):
-        help_surface = "Usage: simplicio-dev-cli task --dry-run-task --json --bound-paths --target --task-spec --mode"
+        help_surface = "Usage: simplicio-dev-cli edit --plan PLAN --apply --dry-run --json"
         receipt = {
             "tool": "simplicio-dev-cli", "identity_ok": True, "version_ok": True,
             "help_stdout": help_surface, "task_help_stdout": help_surface,
@@ -174,7 +174,8 @@ def test_verify_run_is_a_noop_on_terminal_phases(tmp_path, monkeypatch):
 
 def test_verify_run_blocks_when_watcher_script_is_unavailable(tmp_path, monkeypatch):
     repo, run_id, run_dir = _arm_fixture(tmp_path, monkeypatch)
-    # The tmp-path fixture repo intentionally has no scripts/watcher_verify.py.
+    # The watcher ships with the package; simulate a broken install.
+    monkeypatch.setattr(runner_mod, "_watcher_script", lambda: tmp_path / "missing" / "watcher_verify.py")
 
     result = runner_mod.verify_run(str(repo), run_id)
 

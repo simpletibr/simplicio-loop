@@ -30,3 +30,10 @@ def test_cgroup_v1_unlimited_sentinel_is_not_a_limit(monkeypatch, tmp_path):
 
     monkeypatch.setattr(lc, "Path", fake_path)
     assert lc._cgroup_memory_stats() is None
+
+
+def test_linux_memory_comes_from_proc_meminfo_without_psutil(monkeypatch, tmp_path):
+    meminfo = tmp_path / "meminfo"
+    meminfo.write_text("MemTotal:       16000000 kB\nMemAvailable:    8000000 kB\n")
+    monkeypatch.setattr(lc, "_PROC_MEMINFO", meminfo)
+    assert lc._linux_memory_available() == 8000000 * 1024

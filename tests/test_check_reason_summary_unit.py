@@ -185,7 +185,13 @@ def test_runtime_environment_is_sanitized_and_uses_only_checkout_pythonpath() ->
         "SIMPLICIO_CORE_NO_NETWORK": "1",
         "SIMPLICIO_SYSTEM_TEST_NESTED": "1",
     })
-    assert clean["PYTHONPATH"] == REPO
+    # The checkout comes first; the only other entries are the bound operator
+    # packages (#1290). A caller-supplied PYTHONPATH never survives.
+    entries = clean["PYTHONPATH"].split(os.pathsep)
+    assert entries[0] == REPO
+    assert "/untrusted" not in entries
+    for extra in entries[1:]:
+        assert os.path.isdir(os.path.join(extra, "simplicio_mapper")), extra
     assert clean["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
     assert clean["SIMPLICIO_CORE_NO_NETWORK"] == "1"
     assert clean["SIMPLICIO_SYSTEM_TEST_NESTED"] == "1"

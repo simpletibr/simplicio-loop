@@ -56,6 +56,8 @@ def _emit_progress(status, outcome=None, detail=""):
         "SIMPLICIO_ANCHOR_FILE": ANCHOR,
         "SIMPLICIO_BACKLOG_FILE": os.path.join(REPO, ".simplicio/orchestrator", "backlog", "backlog.jsonl"),
     }
+    # An explicit caller setting wins; only fill what the caller left unset.
+    overrides = {k: v for k, v in overrides.items() if not os.environ.get(k)}
     saved = {k: os.environ.get(k) for k in overrides}
     try:
         os.environ.update(overrides)
@@ -102,13 +104,23 @@ def _resolve_wi_worktree(wi):
     return None
 
 _run_dir = os.environ.get("SIMPLICIO_RUN_DIR", "").strip()
-_repo_override = os.environ.get("SIMPLICIO_LOOP_REPO", "").strip()
+def _cwd_git_toplevel():
+    """The repository the caller is working in (the skill runs this from the user repo)."""
+    try:
+        done = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True,
+                              text=True, timeout=10, stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return done.stdout.strip() if done.returncode == 0 else ""
+
+
+_repo_override = os.environ.get("SIMPLICIO_LOOP_REPO", "").strip() or _cwd_git_toplevel()
 if _repo_override:
     _set_repo(_repo_override)
 # NOTE: SIMPLICIO_RUN_DIR selects the run-local artifact directory and must NOT
 # redefine REPO/LOOP_DIR — the run dir is resolved by _find_run_dir(wi=...) below.
 # The legacy parents[2] heuristic broke backlog/items/<wi>/run layouts (double
-# .simplicio/orchestrator path). REPO stays the script-resolved default unless SIMPLICIO_LOOP_REPO is set.
+# .simplicio/orchestrator path). REPO is SIMPLICIO_LOOP_REPO, else the cwd's git toplevel.
 _loop_override = os.environ.get("SIMPLICIO_LOOP_DIR", "").strip()
 if _loop_override:
     _set_loop_dir(_loop_override)
