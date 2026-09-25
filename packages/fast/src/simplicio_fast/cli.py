@@ -109,8 +109,26 @@ def _cli_engine_receipt(
 
 
 def source_commit(root: Path) -> tuple[str | None, str | None]:
-    """Return the checked-out commit, or a reason when root is outside Git."""
-    if not (root / ".git").exists():
+    """Return the checked-out commit, or a reason when root is outside Git.
+
+    ``root`` may be a package subdirectory rather than the repository's own
+    top level (a monorepo layout: this package has no ``.git`` of its own),
+    so resolution walks up to the enclosing git worktree via
+    ``git rev-parse --show-toplevel`` instead of requiring ``.git`` to exist
+    directly at ``root``.
+    """
+    try:
+        toplevel = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            check=False,
+            close_fds=True,
+        )
+    except OSError:
+        return None, "git_unavailable"
+    if toplevel.returncode or not toplevel.stdout.strip():
         return None, "not_a_git_checkout"
     try:
         result = subprocess.run(
