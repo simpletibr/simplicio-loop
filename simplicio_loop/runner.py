@@ -2079,7 +2079,17 @@ def _repo_fingerprint(repo_path: Path) -> Dict[str, str]:
     """
     digest = hashlib.sha256()
     files = []
-    for root, dirs, names in os.walk(repo_path):
+    listed = _run_cmd(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], repo_path)
+    if listed.returncode == 0:
+        # Respect .gitignore: build outputs and verifier byproducts are not source.
+        for rel in sorted({item for item in (listed.stdout or "").split("\0") if item}):
+            if _is_loop_generated_path(rel) or _is_tool_cache_path(rel) or rel.startswith(".simplicio/"):
+                continue
+            try:
+                files.append((rel, (repo_path / rel).read_bytes()))
+            except OSError:
+                continue
+    for root, dirs, names in ([] if listed.returncode == 0 else os.walk(repo_path)):
         relative_root = Path(root).relative_to(repo_path).as_posix()
         if relative_root == ".":
             relative_root = ""
@@ -2119,7 +2129,9 @@ def _repo_fingerprint(repo_path: Path) -> Dict[str, str]:
                 path_text = line[3:].strip()
                 parts = [part.strip() for part in path_text.split("->")] if "->" in path_text else [path_text]
                 normalized = [_normalized_repo_path(part) for part in parts if part.strip()]
-                if normalized and all(_is_loop_owned_status_path(item) for item in normalized):
+                if normalized and all(
+                    _is_loop_owned_status_path(item) or _is_tool_cache_path(item) for item in normalized
+                ):
                     continue
                 filtered.append(line)
             status = "\n".join(filtered).strip()
@@ -5013,8 +5025,18 @@ def _plan_relevant_changed_paths(repo_path: Path) -> List[str]:
         if str(path).replace("\\", "/") not in {".simplicio"}
         and not str(path).replace("\\", "/").startswith(".simplicio/")
         and not _is_loop_generated_path(str(path))
+        and not _is_tool_cache_path(str(path).replace("\\", "/"))
         and str(path).strip()
     })
+
+
+_TOOL_CACHE_DIRS = frozenset({"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"})
+
+
+def _is_tool_cache_path(rel: str) -> bool:
+    """Caches a verifier writes while it runs (pytest, mypy, ruff, bytecode)."""
+    parts = rel.rstrip("/").split("/")
+    return any(part in _TOOL_CACHE_DIRS for part in parts) or rel.endswith(".pyc")
 
 
 def _capture_operator_checkpoint(run_dir: Path, repo_path: Path, targets: List[str]) -> Dict[str, Any]:

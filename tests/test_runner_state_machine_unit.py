@@ -29,10 +29,9 @@ def _use_thread_dispatch_for_in_process_fakes(monkeypatch):
     """Keep this state-machine harness independent of the host's physical pressure."""
     monkeypatch.setenv("SIMPLICIO_LOOP_DISPATCH_MODE", "thread")
     # These tests use synthetic RunJournal fixtures and do not initialize a
-    # repository-scoped MapperStore.  Keep the harness independent of a
-    # caller's benchmark-only mapper rollout setting; mapper-backed behavior
-    # is covered by the dedicated integration tests.
-    monkeypatch.delenv("SIMPLICIO_STORAGE_ROUTE", raising=False)
+    # repository-scoped MapperStore, so they pin the legacy route explicitly;
+    # mapper-backed behavior (the default) is covered by integration tests.
+    monkeypatch.setenv("SIMPLICIO_STORAGE_ROUTE", "legacy")
 
     def healthy_probe(_root, *, requested_workers, now_ns=None, **_kwargs):
         requested = max(1, int(requested_workers))
