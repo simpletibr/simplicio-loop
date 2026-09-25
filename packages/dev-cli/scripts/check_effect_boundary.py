@@ -35,7 +35,15 @@ from pathlib import Path
 # `subprocess.run` at all — Runtime was hard-closed out of this stack, so
 # the function now always raises instead of spawning a binary, dropping its
 # `run` primitive from the inventory entirely.
-BASELINE_SHA256 = "415a23f260403b51b941e6b1667f4df0ad8c28d5f629206bc5e3215352340228"
+#
+# Reviewed 2026-09-25 (gate-devcli, dev-cli gate #dev-cli): the 2a362a0
+# review above enumerated every drift item correctly (verified line-by-line
+# against `check_effect_boundary.py --root . --inventory` on this checkout
+# — every named scope/primitive is present and no other new scope exists),
+# but never actually landed the recomputed digest, leaving the guard
+# permanently red. Recording the real digest for that already-reviewed
+# inventory now.
+BASELINE_SHA256 = "e45ac0f2a00c546f2a48593734036be0b559af37982df382561cc49575082ba4"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",
