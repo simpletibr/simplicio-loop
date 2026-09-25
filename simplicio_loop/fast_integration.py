@@ -473,6 +473,11 @@ def _validate_plan_policy(
     extracted, invalid_targets = _explicit_targets(task, root)
     selected = mapper_selected_targets(root)
     merged = _merge_targets({path: is_dir for path, is_dir in extracted}, extra_targets)
+    # Paths written in the task or passed with --target are an authority corridor;
+    # bare-word matches and Mapper's selection are guesses and never block alone.
+    written_paths, _ = _explicit_targets(task, None)
+    explicit = (bool(written_paths) or bool(_bare_existing_targets(task, root))
+                or any(str(item).strip() for item in extra_targets))
     if not merged:
         merged = _merge_targets(merged, selected)
     targets = sorted(merged.items())
@@ -483,6 +488,7 @@ def _validate_plan_policy(
         "mutable_authority": not read_only,
         "explicit_targets": target_names,
         "target_corridor": target_names,
+        "corridor_source": "explicit" if explicit else "mapper_selected",
         "validated": False,
     }
     blockers: list[dict[str, Any]] = []
@@ -561,7 +567,7 @@ def _validate_plan_policy(
         )
     )
     policy["context_path_count"] = len(observed)
-    if targets:
+    if targets and explicit:
         escaped = [path for path, _ in targets if not _path_within_root(root, path)]
         if escaped:
             blockers.append(
@@ -975,9 +981,23 @@ class FastLoopIntegration:
         except (OSError, subprocess.SubprocessError):
             return ""
 
+    def _worktree_digest(self) -> str:
+        """Uncommitted content: a snapshot of HEAD is stale once a file is edited."""
+        parts = []
+        for argv in (["git", "diff", "HEAD", "--no-ext-diff"],
+                     ["git", "ls-files", "--others", "--exclude-standard"]):
+            try:
+                completed = self._runner(argv, cwd=str(self.root), capture_output=True,
+                                         text=True, timeout=30, check=False)
+                parts.append(completed.stdout or "")
+            except (OSError, subprocess.SubprocessError):
+                parts.append("")
+        return _hash(parts)
+
     def _key(self, source_commit: str | None = None) -> str:
         commit = self._source_commit() if source_commit is None else source_commit
-        return _hash({"root": str(self.root), "commit": commit, "config": self.config.digest()})
+        return _hash({"root": str(self.root), "commit": commit, "worktree": self._worktree_digest(),
+                      "config": self.config.digest()})
 
     def _mapper_call(self, verb: str, *extra: str) -> Mapping[str, Any]:
         """Run one public Mapper verb with ``--json`` and return its JSON object."""
@@ -1014,7 +1034,8 @@ class FastLoopIntegration:
         # It goes to a file for Fast, not to the LLM, so the budget is only a cap.
         handoff_args = ("--token-budget", str(FAST_INGEST_HANDOFF_TOKEN_BUDGET))
         envelope = self._mapper_call("handoff", *handoff_args)
-        if envelope.get("ready") is not True:
+        status = envelope.get("status") if isinstance(envelope.get("status"), Mapping) else {}
+        if envelope.get("ready") is not True or status.get("fresh") is False:
             # Stale or never-built map: refresh it once (scan --sync blocks on the
             # deep pass), then ask again. Same order the skill documents.
             self._mapper_call("scan", "--sync")
