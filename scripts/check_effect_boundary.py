@@ -18,7 +18,24 @@ from pathlib import Path
 # boundaries; their subprocess, route initialization, and string normalization
 # are not final source mutation. Transaction recovery also owns cleanup of its
 # validated candidate/backup directories after a crash-window replay.
-BASELINE_SHA256 = "5f1b325a49bec6f42a22dc8d2a8c5a0a845da998b24b033d94963f1577ce2a37"
+#
+# Reviewed 2026-09-25 at origin/main 2a362a0 (issue #711): several already-
+# merged commits added or renamed mutation call sites without bumping this
+# baseline, drifting the guard permanently red. All are already-reviewed,
+# already-shipped Effect-adjacent I/O, not new unreviewed source mutation
+# introduced by this fix: `release_train.py::_write_json_atomic` (mkdir,
+# replace, unlink — atomic write helper), `plugin_reconcile.py` crash-marker
+# write/clear (mkdir, write_text, unlink), `mechanical_edit.py`'s native-edit
+# helper rename `_try_native_edit` -> `_run_native_edit` (same run/unlink
+# primitives, new scope name only), `mapper_binding.py::_normalise_path`
+# (path.replace string normalization), `plan_compiler/ad_hoc_edit.py::_safe_target`
+# (same), `providers.py::_codex_supports_effort_flag` (subprocess probe),
+# and `edit.py::_verification_payload` (subprocess `run` for post-edit
+# verification). `runtime_bridge.py::call_simplicio` no longer calls
+# `subprocess.run` at all — Runtime was hard-closed out of this stack, so
+# the function now always raises instead of spawning a binary, dropping its
+# `run` primitive from the inventory entirely.
+BASELINE_SHA256 = "415a23f260403b51b941e6b1667f4df0ad8c28d5f629206bc5e3215352340228"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",

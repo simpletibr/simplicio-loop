@@ -280,7 +280,7 @@ class PlanDAG:
     mapper_binding: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        payload = {
+        payload: dict[str, Any] = {
             "schema": PLAN_DAG_SCHEMA,
             "plan_id": self.plan_id,
             "goal_id": self.goal_id,
@@ -315,7 +315,9 @@ class PlanDAG:
             trace_id=str(raw_trace_id) if raw_trace_id is not None else None,
             context_handle=str(payload.get("context_handle", "")),
             _context_handle_present="context_handle" in payload,
-            mapper_binding=dict(payload["mapper_binding"]) if isinstance(payload.get("mapper_binding"), dict) else None,
+            mapper_binding=(
+                dict(payload["mapper_binding"]) if isinstance(payload.get("mapper_binding"), dict) else None
+            ),
         )
 
     def canonical_hash(self) -> str:
@@ -379,8 +381,7 @@ class PlanDAG:
 
         if self.mapper_binding is not None:
             diagnostics.extend(
-                f"mapper_binding: {error}"
-                for error in validate_mapper_binding(self.mapper_binding)
+                f"mapper_binding: {error}" for error in validate_mapper_binding(self.mapper_binding)
             )
 
         if effective_budget is not None:

@@ -225,6 +225,11 @@ ignore = []
 # Standalone dev/CI scripts outside the `simplicio` package — their stdout
 # is their entire purpose (doc-generator output, demo pipeline summary).
 "scripts/**/*.py" = ["T201"]
+# Same standalone dev/CI script category as `scripts/**/*.py` above, just
+# nested under a skill directory (issue #711): dense one-liner regex/dict
+# builders that read worse wrapped than left alone, same reasoning as the
+# tests exception above, plus the same stdout-is-the-output CLI exception.
+"skills/**/scripts/*.py" = ["E501", "T201"]
 
 [tool.ruff.format]
 quote-style = "double"

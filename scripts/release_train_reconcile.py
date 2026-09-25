@@ -218,9 +218,10 @@ def reconcile(root: Path, event_value: Any, *, lock_path: Path = DEFAULT_LOCK) -
             existing_lock = root / lock_path
             if existing_lock.is_file():
                 prior = _read_json(existing_lock)
-                if isinstance(prior, Mapping) and prior.get("version") == version and prior.get("event_id") not in {None, event["event_id"]}:
+                prior_matches_version = isinstance(prior, Mapping) and prior.get("version") == version
+                if prior_matches_version and prior.get("event_id") not in {None, event["event_id"]}:
                     raise ReleaseTrainError("same Mapper version has a different release event identity")
-                if isinstance(prior, Mapping) and prior.get("version") == version and prior.get("event_id") == event["event_id"]:
+                if prior_matches_version and prior.get("event_id") == event["event_id"]:
                     return dict(prior)
 
     changed = _update_dependency(root, version)

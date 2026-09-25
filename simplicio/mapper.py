@@ -412,7 +412,8 @@ def ecc_guidance_reference(guidance: dict[str, Any] | None) -> dict[str, Any] | 
                         "truncated": bool(component.get("truncated", False)),
                     }
                 )
-    provenance = guidance.get("provenance") if isinstance(guidance.get("provenance"), dict) else {}
+    raw_provenance = guidance.get("provenance")
+    provenance: dict[str, Any] = raw_provenance if isinstance(raw_provenance, dict) else {}
     return {
         "schema": ECC_GUIDANCE_REF_SCHEMA,
         "status": guidance.get("status"),

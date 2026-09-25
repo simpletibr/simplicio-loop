@@ -76,7 +76,9 @@ def _safe_target(raw: Any) -> tuple[str | None, str | None]:
     return target, None
 
 
-def _string_field(operation: Mapping[str, Any], name: str, *, required: bool) -> tuple[str | None, str | None]:
+def _string_field(
+    operation: Mapping[str, Any], name: str, *, required: bool
+) -> tuple[str | None, str | None]:
     value = operation.get(name)
     if value is None and not required:
         return None, None
@@ -255,7 +257,7 @@ def derive_ad_hoc_edit(payload: Mapping[str, Any]) -> dict[str, Any]:
     if payload.get("require_mapper_binding") and mapper_binding is None:
         return _blocked(["MAPPER_BINDING_REQUIRED"], ["a canonical Mapper binding is required"])
 
-    input_payload = {
+    input_payload: dict[str, Any] = {
         "schema": AD_HOC_EDIT_SCHEMA,
         "intent": intent.strip(),
         "operations": operations,
@@ -382,7 +384,7 @@ def derive_ad_hoc_edit(payload: Mapping[str, Any]) -> dict[str, Any]:
             "plan_dag": plan_dict,
         }
     )
-    receipt = {
+    receipt: dict[str, Any] = {
         "schema": DERIVED_EDIT_RECEIPT_SCHEMA,
         "status": "derived",
         "contract_origin": "derived",

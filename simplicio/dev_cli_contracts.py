@@ -202,7 +202,7 @@ def compile_plan(
     preview = _preview(normalized, root_path)
     digest = _digest(normalized)
     diagnostics = _diagnostics(preview)
-    base = {
+    base: dict[str, Any] = {
         "schema": PLAN_SCHEMA,
         "idempotency_key": idempotency_key,
         "plan_digest": digest,
