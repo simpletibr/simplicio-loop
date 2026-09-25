@@ -45,6 +45,13 @@ class FastStaleChangeset(FastIntegrationError):
     """A candidate does not match the pinned generation/context."""
 
 
+class MapperHandoffUnavailable(FastIntegrationError):
+    """Mapper could not produce the canonical handoff Fast requires to ingest."""
+
+
+MAPPER_HANDOFF_SCHEMA = "simplicio.map-handoff/v1"
+
+
 def _canonical(value: Any) -> bytes:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
@@ -719,6 +726,7 @@ class FastConfig:
 
     mode: str = "auto"
     command: tuple[str, ...] = ("simplicio-fast",)
+    mapper_command: tuple[str, ...] = ("simplicio-mapper",)
     snapshot: str = ".simplicio/fast/project.sfast"
     state: str = ".simplicio/fast/loop-ingest.json"
     max_bytes: int = 48_000
@@ -753,7 +761,8 @@ class FastConfig:
         )
 
     def digest(self) -> str:
-        return _hash({"mode": self.mode, "engine": self.engine, "command": self.command, "snapshot": self.snapshot,
+        return _hash({"mode": self.mode, "engine": self.engine, "command": self.command,
+                      "mapper_command": self.mapper_command, "snapshot": self.snapshot,
                       "max_bytes": self.max_bytes, "require_binding": self.require_binding})
 
 
@@ -969,6 +978,42 @@ class FastLoopIntegration:
         commit = self._source_commit() if source_commit is None else source_commit
         return _hash({"root": str(self.root), "commit": commit, "config": self.config.digest()})
 
+    def _mapper_handoff(self) -> Path:
+        """Obtain the canonical Mapper -> Fast handoff Fast requires to ingest.
+
+        Fast's default ``--mapper-mode integrated`` fails closed
+        (``mapper_missing``) without an explicit Mapper handoff file (issue
+        #1288). Loop is the caller, so it asks the ``simplicio-mapper handoff``
+        public verb for the bounded ``simplicio.map-handoff/v1`` envelope and
+        pins it to a file Fast can read, instead of silently never passing one.
+        """
+        try:
+            result = self._runner(
+                [*self.config.mapper_command, "handoff", str(self.root), "--json"],
+                cwd=str(self.root), capture_output=True, text=True,
+                timeout=self.config.timeout_seconds, check=False, env=self._runner_env(),
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise MapperHandoffUnavailable(f"mapper_handoff_unavailable: {exc}") from exc
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "Mapper handoff failed").strip()[:400]
+            raise MapperHandoffUnavailable(f"mapper_handoff_unavailable: {detail}")
+        try:
+            envelope = json.loads((result.stdout or "").strip())
+        except json.JSONDecodeError as exc:
+            raise MapperHandoffUnavailable(f"mapper_handoff_invalid_json: {exc}") from exc
+        if not isinstance(envelope, Mapping) or envelope.get("schema") != MAPPER_HANDOFF_SCHEMA:
+            raise MapperHandoffUnavailable("mapper_handoff_schema_unsupported")
+        if envelope.get("ready") is not True:
+            raise MapperHandoffUnavailable(
+                f"mapper_handoff_not_ready: {envelope.get('reason') or 'unknown'}"
+            )
+        handoff_dir = self._state_path().parent
+        handoff_dir.mkdir(parents=True, exist_ok=True)
+        handoff_path = handoff_dir / "mapper-handoff.json"
+        handoff_path.write_text(json.dumps(envelope, ensure_ascii=False), encoding="utf-8")
+        return handoff_path
+
     def ingest(self) -> dict[str, Any]:
         probe = self.probe()
         if not probe["integrated_ready"]:
@@ -988,7 +1033,11 @@ class FastLoopIntegration:
             self._ingest_receipt = dict(state)
             return dict(state)
         try:
-            payload = self._run(["ingest", str(self.root), "--output", str(self.snapshot_path), "--json"])
+            handoff_path = self._mapper_handoff()
+            payload = self._run([
+                "ingest", str(self.root), "--output", str(self.snapshot_path),
+                "--mapper-mode", "integrated", "--mapper-handoff", str(handoff_path), "--json",
+            ])
         except FastIntegrationError as exc:
             if self.config.mode == "required":
                 raise
