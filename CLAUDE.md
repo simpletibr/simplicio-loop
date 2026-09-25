@@ -90,6 +90,38 @@ development extra with `pip install "simplicio-loop[dev]"`; a missing or timed-o
 with a typed reason rather than falling back to direct test-module execution. GitHub Actions is
 not required or accepted as gate evidence; wire the local gate as a git pre-push hook when desired.
 
+## Development
+
+This repo is a monorepo: root `simplicio-loop` plus `packages/mapper`, `packages/fast`, and
+`packages/dev-cli` (each a full package, imported via `git subtree`). `scripts/dev_install.sh`
+creates ONE venv and installs the four in-repo packages editable, from their in-repo paths, in
+dependency order (mapper, fast, dev-cli, then loop) — so the loop you run locally always talks to
+its in-repo siblings, never a stale PyPI release of `simplicio-mapper`/`simplicio-fast`/
+`simplicio-cli`:
+
+```bash
+bash scripts/dev_install.sh            # venv at .venv/ (default)
+bash scripts/dev_install.sh /path/venv # custom venv location
+source .venv/bin/activate
+```
+
+Run one package's own fast local gate (lint/type/unit, from its in-repo location) with
+`scripts/check.py --package`:
+
+```bash
+python3 scripts/check.py --package mapper    # ruff + pytest tests/python -q (+ node unit if node present)
+python3 scripts/check.py --package fast       # pytest -q, PYTHONPATH=src
+python3 scripts/check.py --package dev-cli    # ruff check, ruff format --check, mypy simplicio, pytest tests/python tests/contracts -q
+python3 scripts/check.py --package loop       # no-op alias: the loop's own gate is the rest of this script
+python3 scripts/check.py --package all        # all four
+python3 scripts/check.py --changed            # only the package(s) touched vs origin/main
+```
+
+A missing tool (no `ruff`/`mypy`/`pytest` on PATH or importable) fails with its own typed reason
+(e.g. `package_mapper_ruff_missing`) rather than being silently skipped. The cross-package e2e
+(`packages/fast/tests/test_public_handoff_ingest_e2e.py`, Mapper `handoff` → Fast integrated
+ingest) is part of the default (unflagged) `scripts/check.py` run.
+
 ## Install (this or another project)
 
 ```bash

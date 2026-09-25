@@ -1044,6 +1044,12 @@ python3 scripts/check.py             # complete local gate (core + satellite tes
 python3 scripts/check.py --core-gate # mandatory offline/bounded core; external lanes excluded
 ```
 
+Monorepo (`packages/mapper`, `packages/fast`, `packages/dev-cli`): `bash scripts/dev_install.sh`
+sets up one venv with all four packages editable from their in-repo paths, and
+`python3 scripts/check.py --package mapper|fast|dev-cli|loop|all` (or `--changed`, scoped to what
+you touched vs `origin/main`) runs one package's own fast gate from its in-repo location — see
+[`CLAUDE.md` § Development](CLAUDE.md#development).
+
 Both commands require an importable `pytest`; its absence is `pytest_unavailable`, never a
 direct-execution fallback. The core gate runs claims audit, mirror parity, core pytest tests,
 loop contract, clean-environment contract, token/repository budgets, and portable stage-contract
