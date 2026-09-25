@@ -71,6 +71,7 @@ class StackAndProductHintInjectionTest(unittest.TestCase):
             "--stack", "python-fastapi",
             "--product-name", "Hint Host",
             "--silent",
+            "--sync",
         ])
         self.assertEqual(code, 0)
         project_map = json.loads(
@@ -100,10 +101,10 @@ class JsonOnlyAndChangedOnlyAliasesTest(unittest.TestCase):
 
     def test_changed_only_triggers_incremental_refresh(self) -> None:
         # First run primes the cache.
-        _run(["map", "--root", str(self.dir), "--silent"])
+        _run(["map", "--root", str(self.dir), "--silent", "--sync"])
         _write(self.dir, "src/index.js", "export function run(){return 1;}\n")
         code, _, _ = _run([
-            "map", "--root", str(self.dir), "--changed-only", "--silent",
+            "map", "--root", str(self.dir), "--changed-only", "--silent", "--sync",
         ])
         self.assertEqual(code, 0)
         project_map = json.loads(
@@ -119,7 +120,7 @@ class DocsOnlyShortCircuitTest(unittest.TestCase):
         _write(self.dir, "package.json", json.dumps({"name": "docs-only-host"}))
         _write(self.dir, "src/index.js", "export function run(){}\n")
         # Seed JSON artifacts so docs-only has something to render from.
-        _run(["map", "--root", str(self.dir), "--silent"])
+        _run(["map", "--root", str(self.dir), "--silent", "--sync"])
 
     def tearDown(self) -> None:
         self._tmp.cleanup()

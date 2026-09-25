@@ -61,7 +61,10 @@ class ContextCacheBenchmarkTest(unittest.TestCase):
 
         corrupted = report["scenarios"][3]
         self.assertTrue(corrupted["preflight_quarantine"]["value"]["quarantined"])
-        self.assertEqual(corrupted["runs"][1]["cache"]["block"]["receipt"]["outcome"], "miss")
+        # The lookup right after tampering detects the checksum mismatch and
+        # is honestly labeled "corrupt" (never silently served) rather than
+        # a generic "miss" -- see context_cache.OUTCOME_CORRUPT / invariant 3.
+        self.assertEqual(corrupted["runs"][1]["cache"]["block"]["receipt"]["outcome"], "corrupt")
         self.assertEqual(corrupted["runs"][2]["cache"]["block"]["receipt"]["outcome"], "hit")
 
         concurrent = report["scenarios"][4]

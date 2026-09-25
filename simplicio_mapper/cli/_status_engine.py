@@ -678,7 +678,7 @@ def _status_warnings(
         warnings.append("deep_pass_in_progress")
     elif phase == "failed":
         warnings.append("deep_pass_failed")
-    elif phase == "unknown" and not fresh:
+    elif not fresh and artifacts_present:
         warnings.append("artifacts_not_fresh")
     return warnings
 
@@ -924,11 +924,6 @@ def _build_handoff_payload(opts: dict) -> dict:
         task_query=goal,
         budget_tokens=token_budget if task_aware else 0,
     )
-    snapshot_dest = os.path.join(os.path.abspath(os.path.join(root, out)), "context-snapshot.json")
-    os.makedirs(os.path.dirname(snapshot_dest), exist_ok=True)
-    with open(snapshot_dest, "w", encoding="utf-8") as handle:
-        json.dump(context_snapshot, handle, sort_keys=True, indent=2)
-        handle.write("\n")
     context_pack = build_context_pack(
         root=root,
         targets=target_rows,
@@ -1034,6 +1029,10 @@ def _build_handoff_payload(opts: dict) -> dict:
             "artifacts_present": status_payload.get("artifacts_present"),
             "completeness": status_payload.get("completeness"),
             "counts": status_payload.get("counts") or {},
+            "warnings": status_payload.get("warnings") or [],
+            "cache": status_payload.get("cache") or {},
+            "failure_reason": status_payload.get("failure_reason"),
+            "job": status_payload.get("job") or {},
         },
         "context_pack": context_pack,
         "evidence": {
@@ -1043,6 +1042,11 @@ def _build_handoff_payload(opts: dict) -> dict:
         "cache": {
             "pack_cached": pack_cache_hit,
             "pack_cache_key_hash": pack_cache_key_hash,
+            "pack_cache_receipt": pack_cache_receipt,
+            "pack_diagnostics": {
+                "present": bool(pack_cache_key_hash),
+                "layer": LAYER_RENDERED_PACK,
+            },
         },
     }
     if selection is not None:
@@ -1244,6 +1248,9 @@ def _run_scan(opts: dict) -> int:
             "deep": {
                 "skipped_reason": "already_fresh",
                 "poll": "simplicio-mapper status " + root,
+                "exit_code": 0,
+                "failure_reason": None,
+                "finished_at": created_at,
             },
         }
         _write_map_job(root, out, envelope)

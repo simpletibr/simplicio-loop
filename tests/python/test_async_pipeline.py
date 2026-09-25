@@ -472,7 +472,7 @@ class LargeRepositorySystemTest(unittest.TestCase):
         project_map = json.loads(
             (self.root / ".simplicio" / "project-map.json").read_text(encoding="utf-8")
         )
-        errors = validate_instance(project_map, self.project_map_schema)
+        errors = validate_instance(project_map, self.project_map_schema, str(SCHEMA_ROOT))
         self.assertEqual(errors, [], errors)
         self.assertGreaterEqual(len(project_map["files"]), self.file_count - 5)
 

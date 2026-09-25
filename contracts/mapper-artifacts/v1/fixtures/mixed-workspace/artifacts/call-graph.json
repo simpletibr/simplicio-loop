@@ -1,24 +1,23 @@
 {
   "counts": {
     "calls": 3,
-    "edges": 5,
-    "imports": 2
+    "edges": 4,
+    "imports": 1
   },
   "coverage": {
     "ambiguous_relations": 0,
     "edge_limit": 1000,
-    "emitted_edges": 5,
+    "emitted_edges": 4,
     "evidence_classes": {
-      "heuristic": 1,
       "import_resolved": 1,
       "lexical_unique": 3
     },
     "invalid_edges": 0,
-    "observed_edges": 5,
+    "observed_edges": 4,
     "omitted_edges": 0,
-    "status": "degraded",
+    "status": "complete",
     "truncated": false,
-    "unknown_relations": 1
+    "unknown_relations": 0
   },
   "edges": [
     {
@@ -116,33 +115,17 @@
       ],
       "target_file": "backend/server.py",
       "type": "imports"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "import": "react",
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "import": "react",
-        "method": "import-resolution"
-      },
-      "relation_id": "875a629866012381c865c24d231b138d7c7909d25770a86fa5f0cbfefe09f517",
-      "resolution_status": "unknown",
-      "source_file": "frontend/src/App.jsx",
-      "target_file": null,
-      "type": "imports"
     }
   ],
   "generated_at": "1970-01-01T00:00:00.000Z",
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:2663d9796e5d80ceb67709c2e107951cde944931223e357ad0e97bbd177d388e",
+    "canonical_digest": "sha256:e2272def42d2e06b0720b311d5eef87df467022b15da8f92a0e1273eb4e474d2",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
       "precedent": "unsupported",
-      "relationships": "partial",
+      "relationships": "full",
       "symbols": "unsupported"
     },
     "component": "simplicio-mapper",
@@ -172,5 +155,12 @@
     "symbols": 0
   },
   "source_symbol_index": ".simplicio/symbol-index.json",
+  "unresolved": [
+    {
+      "kind": "import",
+      "queried_symbol": "react",
+      "source_file": "frontend/src/App.jsx"
+    }
+  ],
   "version": 1
 }

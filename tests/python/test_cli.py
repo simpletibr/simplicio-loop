@@ -450,7 +450,7 @@ class CliTest(unittest.TestCase):
         _write(self.dir, "src/index.js", "export function run() {}\n")
 
         code = main(["map", "--root", str(self.dir), "--stack", "node",
-                     "--product-name", "CLI Host", "--silent"])
+                     "--product-name", "CLI Host", "--silent", "--sync"])
         self.assertEqual(code, 0)
 
         project_map = json.loads((self.dir / ".simplicio" / "project-map.json").read_text())
@@ -1407,7 +1407,7 @@ def load(api):
         _write(self.dir, "package.json", json.dumps({"name": "handoff-stale-host"}))
         _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
         with redirect_stdout(StringIO()):
-            self.assertEqual(main(["map", "--root", str(self.dir), "--silent"]), 0)
+            self.assertEqual(main(["map", "--root", str(self.dir), "--silent", "--sync"]), 0)
         _write(self.dir, "src/index.js", "export function run() { return 2; }\n")
 
         out = StringIO()

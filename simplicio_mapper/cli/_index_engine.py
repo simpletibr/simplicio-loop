@@ -407,6 +407,17 @@ def _index_result(
         execution_plan_path = run_result.get("execution_plan_path")
         if isinstance(execution_plan_path, str):
             payload["paths"]["execution_plan"] = execution_plan_path.replace(os.sep, "/")
+    elif "execution_plan" not in payload["paths"]:
+        # A skip/"already_fresh" pass carries no live ``run_result``, but the
+        # execution-plan.json written by a prior real run still persists on
+        # disk. Surface its path deterministically regardless of whether
+        # *this* particular call recomputed it -- otherwise callers that use
+        # ``paths`` to derive stable output (e.g. ``--geometry``'s
+        # ``addressing_geometry``) get a different key set every other call
+        # for the exact same on-disk artifact set (issue #645).
+        candidate_path = os.path.join(os.path.abspath(os.path.join(root, out)), "execution-plan.json")
+        if os.path.exists(candidate_path):
+            payload["paths"]["execution_plan"] = candidate_path.replace(os.sep, "/")
     return payload
 
 

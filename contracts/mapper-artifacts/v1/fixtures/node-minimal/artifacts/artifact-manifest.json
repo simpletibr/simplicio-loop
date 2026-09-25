@@ -1,12 +1,12 @@
 {
-  "artifact_set_digest": "sha256:1caa729ee2ed0974529e543d836cf2f19e54b68744f9a28edb9c912d14e37eef",
+  "artifact_set_digest": "sha256:4c712b51d0efbf56b3dae56434b1085c456376f3f4e914a895b4235585d1c80c",
   "artifacts": {
     "architecture_inventory": {
-      "canonical_digest": "sha256:13c0ffddddb9e27dbde657c6aa309052d898497471b1b0e55ac0e9689a2b356d",
+      "canonical_digest": "sha256:72b294446bbb19d2b5c4ac21cf7d62af9d0c8a2ba401b6813e0e2181fa23cde6",
       "schema": "simplicio.architecture-inventory/v1"
     },
     "call_graph": {
-      "canonical_digest": "sha256:1b491e6b385fbe43035b005ea1c7f92bbec619691de182b164c7d910f5d0f98f",
+      "canonical_digest": "sha256:94d3f209d63e6744c7151ab59425df1fd89ac4845f97ce0a7e027574d6b8f0b3",
       "schema": "simplicio.call-graph/v1"
     },
     "precedent_index": {
@@ -27,14 +27,14 @@
       "architecture": "full",
       "files": "full",
       "precedent": "unsupported",
-      "relationships": "partial",
+      "relationships": "full",
       "symbols": "empty"
     },
     "call_graph": {
       "architecture": "unsupported",
       "files": "unsupported",
       "precedent": "unsupported",
-      "relationships": "partial",
+      "relationships": "full",
       "symbols": "unsupported"
     },
     "precedent_index": {

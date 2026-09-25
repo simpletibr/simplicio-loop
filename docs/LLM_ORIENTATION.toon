@@ -23,8 +23,8 @@ source_of_truth[26]{path,authority,sha256,scope}:
   AGENTS.md,normative,73959b16ea1cacc88bf197fa54af99bda62f44d31493d68130f054dc6a206694,agent policy and ecosystem ownership
   CLAUDE.md,generated-mirror,4252306eb9b486569fe8a8e4b68c7f6c09860fbc4756c0a697896cb61e3988a2,generated mirror of AGENTS.md; do not edit
   docs/LLM_OPERATING_INSTRUCTIONS.md,normative,808437b558efd53534a2e73de3586a07b651a1a20ef43884fe9d7d847a6e479f,active English instruction surface
-  package.json,canonical,efc0ce9733f964c34b0273d5595d3b8ec98dcbae2d94030f64ad9905de1aebf4,"npm identity, version, scripts, Node entrypoints"
-  pyproject.toml,canonical,f6afbb9905efb172c5cee5a37f8516805f03a160dfae6e941197e99e56b760c9,"Python identity, version, dependencies, entrypoints"
+  package.json,canonical,b114af2f2552ccb0d54c45f37693d66bdecdec751dd8674fda5e9f61a36f4d15,"npm identity, version, scripts, Node entrypoints"
+  pyproject.toml,canonical,70e962bd13df1f8277d0a10c6e402a6438b6921730289d6c9e6dee6aa76d8779,"Python identity, version, dependencies, entrypoints"
   docs/CLI_COMMANDS.md,discovery,f74d804ee3ed288fbe9872cae0737b662c1e4f9037d29bac43262a73ec349cdd,public command inventory and safe sequence
   docs/local-setup.md,operational,6b13828c4f27a27e5061310507f95f077010219a708467a7c70e6f097d311ecb,runtime and mapper environment knobs; contains template placeholders
   docs/domain-map.md,operational,be4a0d8654613c895b1759df4d4506ff4cf6e9000e8dda2dba58858dbe6c2398,"Mapper vocabulary, boundaries, partial-context rules"

@@ -219,7 +219,18 @@ class BenchmarkPipelineThresholdCliTest(unittest.TestCase):
         # Materialize a tiny real tree, calibrate against it, force a known
         # recommended threshold into the file directly (bypassing the noisy
         # real timing so this assertion is deterministic), then confirm
-        # build_artifacts()'s dispatch reads it back.
+        # build_artifacts()'s dispatch reads the calibrated threshold back
+        # into its execution receipt.
+        #
+        # Issue #279 Phase-0 moved profile *selection* itself off this bare
+        # ``recommended_threshold`` value: `auto` now only promotes to the
+        # async pipeline from a compatible p95-calibrated profile set (see
+        # ``execution_planner.plan_execution``/``_compatible_calibration_
+        # profiles``); a threshold-only calibration file (no ``profiles``
+        # key) is not "compatible calibration" and `auto` deliberately keeps
+        # the conservative synchronous path -- missing evidence must not
+        # promote a more complex executor. The threshold itself still flows
+        # through to the receipt as calibration metadata.
         for i in range(6):
             target = self.root / f"mod_{i}.py"
             target.write_text(f"def f_{i}():\n    return {i}\n", encoding="utf-8")
@@ -235,14 +246,19 @@ class BenchmarkPipelineThresholdCliTest(unittest.TestCase):
         from simplicio_mapper.mapper.emit import build_artifacts
 
         with mock.patch.dict(os.environ, {}, clear=False), \
-                mock.patch.object(emit_module, "_build_artifacts_sync") as spy_sync:
+                mock.patch.object(emit_module, "_build_artifacts_sync", wraps=emit_module._build_artifacts_sync) as spy_sync:
             os.environ.pop("SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES", None)
             # Same output_dir the calibration file was written under
             # (default ".simplicio") -- the override is scoped per
             # output_dir, not global to the machine.
-            build_artifacts(str(self.root))
-        # 6 files >= calibrated threshold 5 -> async path taken.
-        spy_sync.assert_not_called()
+            artifacts = build_artifacts(str(self.root))
+        # Threshold calibration is honored in the receipt...
+        self.assertEqual(artifacts["execution_plan"]["threshold"], 5)
+        # ...but a threshold-only calibration file is not a "compatible
+        # calibration" for profile selection, so `auto` still takes the
+        # conservative sync path (no p95-calibrated profiles available).
+        spy_sync.assert_called_once()
+        self.assertEqual(artifacts["execution_plan"]["selected_profile"], "sync")
 
 
 class BenchmarkShadowRolloutCliTest(unittest.TestCase):

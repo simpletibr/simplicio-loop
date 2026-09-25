@@ -105,5 +105,7 @@ OPTIONS
   -h, --help            Show this help
 
 Internal modules remain available when invoked by name; they are not
-required agent verbs.
+required agent verbs. Notably: `simplicio-mapper snapshot build <path>`
+materializes the ContextSnapshot that `simplicio-mapper fast-handoff` requires
+(fail-closed, degraded receipt, when missing).
 """

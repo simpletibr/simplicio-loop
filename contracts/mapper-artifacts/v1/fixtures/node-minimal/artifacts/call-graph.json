@@ -1,58 +1,25 @@
 {
   "counts": {
     "calls": 3,
-    "edges": 6,
-    "imports": 3
+    "edges": 4,
+    "imports": 1
   },
   "coverage": {
     "ambiguous_relations": 0,
     "edge_limit": 1000,
-    "emitted_edges": 6,
+    "emitted_edges": 4,
     "evidence_classes": {
-      "heuristic": 2,
       "import_resolved": 1,
       "lexical_unique": 3
     },
     "invalid_edges": 0,
-    "observed_edges": 6,
+    "observed_edges": 4,
     "omitted_edges": 0,
-    "status": "degraded",
+    "status": "complete",
     "truncated": false,
-    "unknown_relations": 2
+    "unknown_relations": 0
   },
   "edges": [
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "import": "node:assert",
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "import": "node:assert",
-        "method": "import-resolution"
-      },
-      "relation_id": "8c5c2bca4b26535b9c9f00d1ad78357225c735365f82c440fb61c9cec75d727f",
-      "resolution_status": "unknown",
-      "source_file": "spec/greet.spec.js",
-      "target_file": null,
-      "type": "imports"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "import": "node:test",
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "import": "node:test",
-        "method": "import-resolution"
-      },
-      "relation_id": "26a89729f25c44c5199073b0992ed55e5e414c58bd0b765d5351dd744ae7f275",
-      "resolution_status": "unknown",
-      "source_file": "spec/greet.spec.js",
-      "target_file": null,
-      "type": "imports"
-    },
     {
       "confidence": null,
       "evidence_class": "lexical_unique",
@@ -153,12 +120,12 @@
   "generated_at": "1970-01-01T00:00:00.000Z",
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:1b491e6b385fbe43035b005ea1c7f92bbec619691de182b164c7d910f5d0f98f",
+    "canonical_digest": "sha256:94d3f209d63e6744c7151ab59425df1fd89ac4845f97ce0a7e027574d6b8f0b3",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
       "precedent": "unsupported",
-      "relationships": "partial",
+      "relationships": "full",
       "symbols": "unsupported"
     },
     "component": "simplicio-mapper",
@@ -189,6 +156,16 @@
   },
   "source_symbol_index": ".simplicio/symbol-index.json",
   "unresolved": [
+    {
+      "kind": "import",
+      "queried_symbol": "node:assert",
+      "source_file": "spec/greet.spec.js"
+    },
+    {
+      "kind": "import",
+      "queried_symbol": "node:test",
+      "source_file": "spec/greet.spec.js"
+    },
     {
       "line": 1,
       "queried_symbol": "require",

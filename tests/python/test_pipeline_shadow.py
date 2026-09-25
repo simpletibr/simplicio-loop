@@ -95,8 +95,14 @@ class DetermineConfiguredProfileTest(unittest.TestCase):
 
     def test_matches_emit_dispatch_at_small_size(self) -> None:
         _materialize_tiny_tree(self.root, 3)
+        # Issue #279 Phase-0 (execution_planner.plan_execution) made `auto`
+        # promote to async only from a compatible, p95-calibrated profile
+        # set; with none configured here, both this helper and the real
+        # `build_artifacts()` dispatch it mirrors conservatively fall back
+        # to sync, regardless of the (here irrelevant, since uncalibrated)
+        # file-count threshold.
         with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES": "600"}):
-            self.assertEqual(determine_configured_profile(str(self.root)), "async")
+            self.assertEqual(determine_configured_profile(str(self.root)), "sync")
 
     def test_explicit_sync_matches_emit_dispatch(self) -> None:
         _materialize_tiny_tree(self.root, 3)

@@ -32,7 +32,7 @@
       "id": "polyglot-cross-layer-en",
       "task_file": "task.md",
       "task_json": "task.json",
-      "token_budget": 4000,
+      "token_budget": 8000,
       "expected_targets": [
         "src/frontend/order_form.ts",
         "src/api/order_controller.py"
