@@ -497,9 +497,91 @@ def _mapper_orient_fallback(root: Path, task: str) -> dict:
             except OSError:
                 pass
 
+def _orient_extract_fallback_reason(fast_payload: Mapping[str, Any] | None) -> str:
+    """Pull the real cause out of a Fast prepare() FALLBACK payload.
+
+    ``FastLoopIntegration.prepare()`` nests the actual reason under
+    ``ingest``/``understanding`` (each stage's own fallback receipt); it is
+    never a top-level ``reason`` key except in tests that stub the whole
+    integration. Reading only the top level (issue #1288) silently collapsed
+    every real cause -- including a missing Mapper handoff with Fast fully
+    available -- into the generic ``fast_disabled_or_unavailable``.
+    """
+    payload = fast_payload or {}
+    top_level = payload.get("reason")
+    if top_level:
+        return str(top_level)
+    for stage in ("ingest", "understanding"):
+        stage_payload = payload.get(stage)
+        if isinstance(stage_payload, Mapping):
+            value = stage_payload.get("reason")
+            if value:
+                return str(value)
+    return ""
+
+
+def _orient_context_summary(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Bounded, task-relevant leading context (issue #1288 AC2/AC3).
+
+    Extracted from whichever provider answered (Fast understanding or the
+    Mapper fallback selection) so the top of the payload always carries
+    paths/symbols instead of only receipts/policy text.
+    """
+    provider = payload.get("provider")
+    if provider == "simplicio-fast":
+        understanding = ((payload.get("fast") or {}).get("understanding")
+                          if isinstance(payload.get("fast"), Mapping) else None)
+        understanding = understanding if isinstance(understanding, Mapping) else {}
+        return {
+            "paths": list(understanding.get("files") or []),
+            "symbols": list(understanding.get("symbols") or []),
+            "snippet_count": len(understanding.get("context") or []),
+        }
+    mapper = payload.get("mapper") if isinstance(payload.get("mapper"), Mapping) else {}
+    result = mapper.get("result") if isinstance(mapper.get("result"), Mapping) else {}
+    selection = result.get("selection") if isinstance(result.get("selection"), Mapping) else {}
+    candidates = result.get("candidates") if isinstance(result.get("candidates"), list) else []
+    targets = selection.get("targets") if isinstance(selection.get("targets"), list) else []
+    return {
+        "paths": [str(item) for item in targets if isinstance(item, str)],
+        "symbols": [],
+        "candidate_count": len(candidates),
+        "gaps": list(result.get("gaps") or []),
+    }
+
+
+def _orient_trim_verbose_fields(payload: dict[str, Any]) -> dict[str, Any]:
+    """Move receipts/probes/policy text out of the default (non-verbose) view.
+
+    Kept fields stay byte-identical; this only removes the bulk of the
+    non-task-relevant payload (issue #1288 AC2) so the default response leads
+    with ``context`` instead of ~9.5KB of receipts. The full payload remains
+    available via ``--verbose`` or the ``--tee`` cache.
+    """
+    trimmed = dict(payload)
+    trimmed.pop("llm_orientation", None)
+    fast = trimmed.get("fast")
+    if isinstance(fast, Mapping):
+        fast = dict(fast)
+        for stage in ("ingest", "understanding"):
+            stage_payload = fast.get(stage)
+            if isinstance(stage_payload, Mapping):
+                stage_payload = dict(stage_payload)
+                stage_payload.pop("probe", None)
+                fast[stage] = stage_payload
+        trimmed["fast"] = fast
+    mapper = trimmed.get("mapper")
+    if isinstance(mapper, Mapping):
+        mapper = dict(mapper)
+        mapper.pop("stderr", None)
+        trimmed["mapper"] = mapper
+    return trimmed
+
+
 def orient(repo: str, task: str, fast_mode: str = "auto",
            fast_context_budget: int = 48000, fast_engine: str = "auto",
-           tee: bool = False, targets: list[str] | None = None) -> int:
+           tee: bool = False, targets: list[str] | None = None,
+           verbose: bool = False) -> int:
     """Run bounded Fast orient with an explicit Mapper fallback receipt."""
     root = Path(repo).resolve()
     if not root.is_dir() or not str(task).strip():
@@ -553,6 +635,9 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
         _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
                              fast_engine=fast_engine,
                              fast_context_budget=fast_context_budget)
+        payload["context"] = _orient_context_summary(payload)
+        if not verbose:
+            payload = _orient_trim_verbose_fields(payload)
         if tee:
             from .tee_cache import write
             path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
@@ -560,23 +645,30 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0
     if fast_mode == "on" or fast_engine == "rust":
+        fallback_reason = fallback_reason or _orient_extract_fallback_reason(fast_payload) or "fast_not_ready"
         payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
                           "provider": "simplicio-fast", "fallback": False,
                           "fast_engine": fast_engine,
-                          "fallback_reason": fallback_reason or "fast_not_ready",
+                          "fallback_reason": fallback_reason,
                            "fast": fast_payload,
                            "orient_receipt": (fast_payload or {}).get("loop_receipt"),
                            "local_llm": False}
         _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
                              fast_engine=fast_engine,
                              fast_context_budget=fast_context_budget)
+        if not verbose:
+            payload = _orient_trim_verbose_fields(payload)
         if tee:
             from .tee_cache import write
             path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
             payload["tee_path"] = str(path)
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 2
-    fallback_reason = fallback_reason or str((fast_payload or {}).get("reason") or "fast_disabled_or_unavailable")
+    fallback_reason = (
+        fallback_reason
+        or _orient_extract_fallback_reason(fast_payload)
+        or "fast_disabled_or_unavailable"
+    )
     mapper = _mapper_orient_fallback(root, str(task))
     status = "FALLBACK" if mapper.get("status") == "READY" else "BLOCKED"
     payload = {"schema": ORIENT_SCHEMA, "status": status,
@@ -587,6 +679,9 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
     _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
                          fast_engine=fast_engine,
                          fast_context_budget=fast_context_budget)
+    payload["context"] = _orient_context_summary(payload)
+    if not verbose:
+        payload = _orient_trim_verbose_fields(payload)
     if tee:
         from .tee_cache import write
         path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
@@ -1676,6 +1771,14 @@ def main(argv=None) -> int:
         "--target", dest="targets", action="append", default=[],
         help="repo-relative source file selected by Mapper or the task (repeatable)",
     )
+    p_orient.add_argument(
+        "--verbose", action="store_true",
+        help="include full receipts/probes/policy text (default: leads with bounded context only)",
+    )
+    p_orient.add_argument(
+        "--json", action="store_true",
+        help="no-op: orient always emits exactly one JSON document on stdout",
+    )
 
     p_retrieve = sub.add_parser("retrieve", help="retrieve and verify a tee-cache output")
     p_retrieve.add_argument("path")
@@ -2128,7 +2231,7 @@ def main(argv=None) -> int:
         return prepare(args.repo, args.task, args.delivery, args.max_iterations)
     if command == "orient":
         return orient(args.repo, args.task, args.fast, args.fast_context_budget, args.fast_engine, args.tee,
-                      args.targets)
+                      args.targets, args.verbose)
     if command == "retrieve":
         from .tee_cache import retrieve
         try:
