@@ -1,17 +1,15 @@
 """Epic #498 end-to-end: ProcessSpec through the real Hub IPC boundary.
 
 Proves the "unica fronteira" (single boundary) claim across the pieces that #514 (ProcessSpec/
-Lease contract), #515 (Rust/Tokio backend), and #516 (enforcement/observability registry) each
-landed in isolation, by driving them together through ``HubDaemon.handle(method="execute")`` --
-the real IPC path a client actually calls, not ``process_supervisor``/``process_supervisor_rust``
-called directly.
+Lease contract) and #516 (enforcement/observability registry) each landed in isolation, by
+driving them together through ``HubDaemon.handle(method="execute")`` -- the real IPC path a
+client actually calls, not ``process_supervisor`` called directly. (The previously optional
+Rust/Tokio backend, #515, was removed in #1298 -- 100% Python -- so the pure-Python adapter is
+now the only backend.)
 
 Two things are proven, both against a real spawned OS process (not a mock):
 
-1. A ProcessSpec submitted via ``execute`` runs to completion through whichever backend is
-   present -- the Rust binary when built (skipped, not faked, if the crate was never compiled in
-   this checkout) and explicitly also through the Python fallback (forced via monkeypatch so the
-   same assertions run even when Rust is unavailable).
+1. A ProcessSpec submitted via ``execute`` runs to completion through the pure-Python adapter.
 2. While that process is alive, it is visible in the enforcement layer's ``ProcessRegistry`` --
    i.e. the Hub's execute path now registers the real pid with the same bookkeeping
    ``process_enforcement.detect_unsupervised`` diffs against -- and is unregistered the moment
@@ -21,7 +19,6 @@ Two things are proven, both against a real spawned OS process (not a mock):
 """
 
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -35,7 +32,6 @@ pytestmark = [
     ),
 ]
 
-from simplicio_loop import process_supervisor_rust as psr
 from simplicio_loop.hub_daemon import HubDaemon, HubEnvelope
 from simplicio_loop.process_enforcement import ProcessRegistry
 
@@ -52,47 +48,21 @@ def _daemon(tmp_path: Path) -> HubDaemon:
     return daemon
 
 
-def test_execute_through_hub_ipc_python_fallback(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(psr, "rust_binary_path", lambda: None)
+def test_execute_through_hub_ipc_python_backend(tmp_path) -> None:
     daemon = _daemon(tmp_path)
     try:
         response = daemon.handle(
             HubEnvelope("req-py", "execute", {"process_spec": {
-                "argv": [sys.executable, "-c", "print('py-fallback-ok')"],
+                "argv": [sys.executable, "-c", "print('py-backend-ok')"],
                 "timeout_seconds": 10.0,
             }})
         )
         assert response["ok"] is True
-        assert response["backend"] == "python-fallback"
+        assert response["backend"] == "python"
         assert response["result"]["returncode"] == 0
-        assert "py-fallback-ok" in response["result"]["stdout"]
+        assert "py-backend-ok" in response["result"]["stdout"]
     finally:
         daemon.stop()
-
-
-@pytest.mark.external_integration
-def test_execute_through_hub_ipc_rust_backend() -> None:
-    """Exercise the compiled Rust backend in the explicit installed-artifact lane."""
-    if not psr.rust_backend_available():
-        pytest.skip(
-            "EXTERNAL_INTEGRATION_UNAVAILABLE[rust_supervisor_binary]: "
-            "build rust/simplicio-supervisor with cargo --release"
-        )
-    with tempfile.TemporaryDirectory() as directory:
-        daemon = _daemon(Path(directory))
-        try:
-            response = daemon.handle(
-                HubEnvelope("req-rust", "execute", {"process_spec": {
-                    "argv": [sys.executable, "-c", "print('rust-backend-ok')"],
-                    "timeout_seconds": 10.0,
-                }})
-            )
-            assert response["ok"] is True
-            assert response["backend"] == "rust"
-            assert response["result"]["returncode"] == 0
-            assert "rust-backend-ok" in response["result"]["stdout"]
-        finally:
-            daemon.stop()
 
 
 def _run_execute_in_background(daemon: HubDaemon, request_id: str):
@@ -113,7 +83,6 @@ def _run_execute_in_background(daemon: HubDaemon, request_id: str):
 def test_hub_executed_process_is_visible_to_enforcement_registry_while_running(
     tmp_path, monkeypatch
 ) -> None:
-    monkeypatch.setattr(psr, "rust_binary_path", lambda: None)
     registry_path = tmp_path / "registry.json"
     registry = ProcessRegistry(registry_path)
     daemon = HubDaemon(str(tmp_path / "hub.lock"), process_registry=registry)
@@ -150,7 +119,6 @@ def test_hub_cancel_kills_an_in_flight_execute_for_real(tmp_path, monkeypatch) -
     of running to completion."""
     import threading
 
-    monkeypatch.setattr(psr, "rust_binary_path", lambda: None)
     registry_path = tmp_path / "registry.json"
     registry = ProcessRegistry(registry_path)
     daemon = HubDaemon(str(tmp_path / "hub.lock"), process_registry=registry)
@@ -201,7 +169,6 @@ def test_hub_cancel_kills_an_in_flight_execute_for_real(tmp_path, monkeypatch) -
 
 
 def test_hub_cancel_with_unknown_lease_id_is_a_no_op_not_an_error(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(psr, "rust_binary_path", lambda: None)
     daemon = HubDaemon(str(tmp_path / "hub.lock"))
     daemon.start()
     try:

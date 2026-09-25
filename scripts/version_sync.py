@@ -4,7 +4,7 @@
 `scripts/release_manifest.py` already proves whether the published surfaces agree (`ready`/
 `mismatches`); it does not, on its own, give a contributor a single mechanical command to bump
 every surface together, which is what let the drift described in #292 happen in the first place
-(`pyproject.toml` bumped, npm/plugin/fallback left behind). This module is deliberately a thin
+(`pyproject.toml` bumped, plugin/fallback left behind). This module is deliberately a thin
 layer on top of `release_manifest.build_manifest()` — it does not re-implement version discovery,
 it adds the missing `apply` mutation and re-exposes `check`/`manifest` under the exact CLI surface
 the issue's Fase 1 specifies:
@@ -224,9 +224,6 @@ def apply_version(repo: Path, version: str) -> dict:
     pyproject = repo / "pyproject.toml"
     if _apply_pyproject(pyproject, version):
         changed.append(str(pyproject.relative_to(repo)))
-    npm_pkg = repo / "packaging" / "npm" / "package.json"
-    if npm_pkg.exists() and _apply_json_version(npm_pkg, version):
-        changed.append(str(npm_pkg.relative_to(repo)))
     cursor_plugin = repo / ".cursor-plugin" / "plugin.json"
     if cursor_plugin.exists() and _apply_json_version(cursor_plugin, version):
         changed.append(str(cursor_plugin.relative_to(repo)))

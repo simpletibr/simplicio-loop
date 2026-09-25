@@ -20,18 +20,12 @@ from scripts.version_sync import (
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-def _make_repo(tmp_path, version="1.2.3", npm_version="1.2.3", plugin_version="1.2.3",
+def _make_repo(tmp_path, version="1.2.3", plugin_version="1.2.3",
                 fallback_version="1.2.3"):
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "pyproject.toml").write_text(
         f'[project]\nname = "demo"\nversion = "{version}"\nrequires-python = ">=3.8"\n',
-        encoding="utf-8",
-    )
-    npm_dir = repo / "packaging" / "npm"
-    npm_dir.mkdir(parents=True)
-    (npm_dir / "package.json").write_text(
-        json.dumps({"name": "demo", "version": npm_version, "description": "x"}, indent=2) + "\n",
         encoding="utf-8",
     )
     plugin_dir = repo / ".cursor-plugin"
@@ -81,10 +75,10 @@ def test_check_reports_ready_when_every_surface_agrees(tmp_path):
 
 
 def test_check_reports_blocked_on_drift(tmp_path):
-    repo = _make_repo(tmp_path, npm_version="1.2.4")
+    repo = _make_repo(tmp_path, plugin_version="1.2.4")
     result = check_version(repo)
     assert result["ok"] is False
-    assert "npm" in result["manifest"]["mismatches"]
+    assert "cursor_plugin" in result["manifest"]["mismatches"]
 
 
 # ---------------------------------------------------------------------------
@@ -92,21 +86,19 @@ def test_check_reports_blocked_on_drift(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_apply_rewrites_every_surface_and_leaves_manifest_ready(tmp_path):
-    repo = _make_repo(tmp_path, version="1.2.3", npm_version="1.2.3",
+    repo = _make_repo(tmp_path, version="1.2.3",
                        plugin_version="1.2.3", fallback_version="1.2.3")
     result = apply_version(repo, "9.9.9")
     assert result["ok"] is True
     assert result["manifest"]["canonical_version"] == "9.9.9"
     assert set(result["changed_files"]) == {
         "pyproject.toml",
-        os.path.join("packaging", "npm", "package.json"),
         os.path.join(".cursor-plugin", "plugin.json"),
         os.path.join("simplicio_loop", "__init__.py"),
         os.path.join("simplicio_loop", "stack_manifest.py"),
         os.path.join("docs", "release-train", "compatibility-contract.json"),
     }
     assert 'version = "9.9.9"' in (repo / "pyproject.toml").read_text(encoding="utf-8")
-    assert json.loads((repo / "packaging" / "npm" / "package.json").read_text())["version"] == "9.9.9"
     assert json.loads((repo / ".cursor-plugin" / "plugin.json").read_text())["version"] == "9.9.9"
     assert '__version__ = "9.9.9"' in (repo / "simplicio_loop" / "__init__.py").read_text(encoding="utf-8")
     assert '"simplicio-loop": "9.9.9"' in (

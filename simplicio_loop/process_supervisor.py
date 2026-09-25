@@ -314,3 +314,22 @@ class PythonProcessAdapter:
                 error_code=code,
                 lease_id=lease_id,
             )
+
+
+def run_sync(
+    spec: ProcessSpec,
+    *,
+    on_spawned: Optional[Callable[["asyncio.subprocess.Process"], None]] = None,
+) -> ProcessResult:
+    """Run ``spec`` to completion through the pure-Python adapter, synchronously.
+
+    Single entrypoint for callers (e.g. ``HubDaemon.handle``) that are not themselves async.
+    There is no other backend: the previous optional Rust/Tokio supervisor
+    (``rust/simplicio-supervisor``) was removed (#1298, 100% Python) along with its adapter
+    module; this pure-Python path is unconditional.
+    """
+    return asyncio.run(PythonProcessAdapter().run(spec, on_spawned=on_spawned))
+
+
+def backend_name() -> str:
+    return "python"

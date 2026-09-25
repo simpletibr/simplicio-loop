@@ -1,35 +1,32 @@
 #!/usr/bin/env python3
-"""simplicio-loop — wheel/sdist/npm package content check (#294 AC11, step 6.5 of the plan).
+"""simplicio-loop — wheel/sdist package content check (#294 AC11, step 6.5 of the plan).
 
-"Prove that wheel/npm/plugin don't carry media or unneeded mirrors" (issue step 6, item 5). This
-actually BUILDS the real artifacts (`python -m build --sdist --wheel`, `npm pack --dry-run`) into
-a throwaway temp directory and inspects their REAL contents — it does not guess from
-`pyproject.toml`/`package.json` declarations alone, because a stray `include_package_data` glob or
-a `MANIFEST.in` wildcard is exactly the kind of drift that only shows up in the actual built
-artifact.
+"Prove that wheel/plugin don't carry media or unneeded mirrors" (issue step 6, item 5). This
+actually BUILDS the real artifacts (`python -m build --sdist --wheel`) into a throwaway temp
+directory and inspects their REAL contents — it does not guess from `pyproject.toml`
+declarations alone, because a stray `include_package_data` glob or a `MANIFEST.in` wildcard is
+exactly the kind of drift that only shows up in the actual built artifact.
 
 Per repo convention (`scripts/video_evidence.py`, `scripts/repository_budget.py`, etc.): a missing
 toolchain BLOCKS (exit 1, clearly reported), it never silently skips and reports a fake pass.
 
 Checks:
   - sdist (`python -m build --sdist`): every member's path is checked against a small deny-list of
-    directories that must never ship (`rust/`, `video/out/`, `node_modules/`, `.git/`), and no
+    directories that must never ship (`video/out/`, `node_modules/`, `.git/`), and no
     single member exceeds `MAX_MEMBER_BYTES`.
   - wheel (`python -m build --wheel`): same deny-list + per-member size cap check against the
     real `.whl` (a zip) contents.
-  - npm (`npm pack --dry-run --json` in `packaging/npm/`): the real tarball member list (not just
-    the declared `"files"` array) is checked against the same deny-list + size cap, and cross-
-    checked against `packaging/npm/package.json`'s `"files"` entries so an npm launcher inventory
-    drift (#294 AC9 — "mirror/claims audit... cobre launcher npm") is caught if npm's real pack
-    output ever disagrees with what the manifest declares.
+
+This repo ships a Python-only package at the root (100% Python, #1298); there is no npm launcher
+to build or check here anymore.
 
 Usage:
-    python3 scripts/package_content_check.py            # run all three checks, print report
+    python3 scripts/package_content_check.py            # run both checks, print report
     python3 scripts/package_content_check.py --json      # machine-readable report
-    python3 scripts/package_content_check.py --only sdist,wheel,npm
+    python3 scripts/package_content_check.py --only sdist,wheel
 
 Exit codes: 0 = every buildable artifact is clean, 1 = a member violated the deny-list/size cap
-OR a required toolchain (build module / npm binary) is missing (fail-closed, not a skip).
+OR a required toolchain (the `build` module) is missing (fail-closed, not a skip).
 """
 import json
 import os
@@ -42,7 +39,6 @@ import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-NPM_DIR = os.path.join(REPO, "packaging", "npm")
 
 # Same cap `scripts/repository_budget.py` uses for the tracked-tree gate — a built artifact should
 # never carry a member bigger than a single tracked file is already allowed to be.
@@ -50,8 +46,8 @@ MAX_MEMBER_BYTES = 2 * 1024 * 1024
 
 # Directory/name fragments that must NEVER appear inside a shipped artifact — generated build
 # output, generated media, VCS internals, or a node toolchain cache accidentally swept in by a
-# wildcard MANIFEST.in / package.json "files" glob.
-DENY_FRAGMENTS = ("rust/target/", "video/out/", "node_modules/", "/.git/", ".git/")
+# wildcard MANIFEST.in glob.
+DENY_FRAGMENTS = ("video/out/", "node_modules/", "/.git/", ".git/")
 
 
 def _fmt_bytes(n):
@@ -133,56 +129,7 @@ def check_wheel():
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-def check_npm():
-    npm_bin = shutil.which("npm")
-    if not npm_bin:
-        return False, "npm binary not found on PATH -- BLOCKED, not skipped"
-    pkg_json = os.path.join(NPM_DIR, "package.json")
-    if not os.path.exists(pkg_json):
-        return False, "packaging/npm/package.json missing"
-    r = subprocess.run([npm_bin, "pack", "--dry-run", "--json"], cwd=NPM_DIR,
-                       capture_output=True, text=True)
-    if r.returncode != 0:
-        return False, "npm pack --dry-run failed: %s" % (r.stderr or r.stdout)[-800:]
-    try:
-        payload = json.loads(r.stdout)
-    except (ValueError, json.JSONDecodeError):
-        return False, "npm pack --dry-run --json produced unparseable output: %s" % r.stdout[-400:]
-    if not payload:
-        return False, "npm pack --dry-run --json produced an empty result"
-    entry = payload[0]
-    members = [(f["path"], f["size"]) for f in entry.get("files", [])]
-    bad = _violations(members)
-
-    # Cross-check against package.json's declared "files" allowlist (#294 AC9): every REAL packed
-    # member must resolve under one of the declared prefixes (or be a top-level allowed file like
-    # package.json/README.md that npm always includes regardless of "files").
-    with open(pkg_json, encoding="utf-8") as f:
-        declared = json.load(f).get("files", [])
-    always_included = {"package.json", "README.md", "readme.md", "LICENSE", "license"}
-    prefixes = tuple(d if d.endswith("/") else d + "/" for d in declared if d.endswith("/"))
-    exact_files = {d for d in declared if not d.endswith("/")}
-    undeclared = []
-    for path, _size in members:
-        norm = path.replace("\\", "/")
-        if norm in always_included or norm in exact_files:
-            continue
-        if any(norm.startswith(p) for p in prefixes):
-            continue
-        undeclared.append(norm)
-    if undeclared:
-        bad.append("npm pack shipped file(s) not covered by package.json 'files': %s" %
-                    ", ".join(undeclared))
-
-    total = sum(s for _, s in members)
-    detail = "npm pack %s: %d files, %s unpacked" % (
-        entry.get("filename", "?"), len(members), _fmt_bytes(total))
-    if bad:
-        return False, detail + " -- " + "; ".join(bad[:10])
-    return True, detail
-
-
-CHECKS = {"sdist": check_sdist, "wheel": check_wheel, "npm": check_npm}
+CHECKS = {"sdist": check_sdist, "wheel": check_wheel}
 
 
 def main(argv=None):
@@ -219,13 +166,13 @@ def selftest():
     no subprocess) -- the real build is exercised by `main()`/CI, not by this cheap unit check."""
     checks = []
     clean = [("simplicio_loop/cli.py", 1000), ("README.md", 200)]
-    dirty_path = [("rust/target/debug/foo.rlib", 1000)]
+    dirty_path = [("node_modules/pkg/index.js", 1000)]
     dirty_size = [("simplicio_loop/big.bin", MAX_MEMBER_BYTES + 1)]
     checks.append(("clean member list has no violations", _violations(clean) == []))
     checks.append(("denied path is flagged", len(_violations(dirty_path)) == 1))
     checks.append(("oversized member is flagged", len(_violations(dirty_size)) == 1))
     checks.append(("MAX_MEMBER_BYTES positive", MAX_MEMBER_BYTES > 0))
-    checks.append(("CHECKS has sdist/wheel/npm", set(CHECKS) == {"sdist", "wheel", "npm"}))
+    checks.append(("CHECKS has sdist/wheel", set(CHECKS) == {"sdist", "wheel"}))
     ok = all(v for _, v in checks)
     for name, v in checks:
         print("  [%s] %s" % ("ok" if v else "XX", name))

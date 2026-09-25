@@ -36,7 +36,6 @@ def _fallback_versions(path: Path) -> List[str]:
 def build_manifest(repo: Path, *, tag: Optional[str] = None) -> Dict[str, Any]:
     sources = {
         "pyproject": (repo / "pyproject.toml", _pyproject_version),
-        "npm": (repo / "packaging" / "npm" / "package.json", _json_version),
         "cursor_plugin": (repo / ".cursor-plugin" / "plugin.json", _json_version),
     }
     rows: List[Dict[str, Any]] = []
