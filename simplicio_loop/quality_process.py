@@ -50,7 +50,15 @@ PHASE_TIMEOUT_SECONDS = {
 CORE_GATE_TIMEOUT_SECONDS = PHASE_TIMEOUT_SECONDS["core_tests"]
 MAX_CAPTURE_BYTES = 1024 * 1024
 POST_KILL_DRAIN_SECONDS = 1.0
-POST_EXIT_DISCOVERY_SECONDS = 0.2
+# Bounded grace period given to a descendant that is already known to be
+# alive right after the phase leader exits.  Some perfectly ordinary
+# multiprocessing shutdown paths (e.g. ``multiprocessing.resource_tracker``,
+# which only exits once it observes its parent's pipe close, or a pool's
+# manager process finishing its own teardown) are legitimately still running
+# for a short window after their parent process object reports exit -- that
+# is not a leak.  Poll up to this many seconds before declaring one; a
+# process that is still alive once the deadline passes is a real leak.
+POST_EXIT_DISCOVERY_SECONDS = 2.0
 DESCENDANT_LEAK_EXIT_CODE = 125
 
 REASON_CATEGORIES = (
@@ -672,13 +680,19 @@ def _observe_descendants(root_pid: int, descendants: Set[int], baseline: Set[int
 def _post_exit_survivors(
     root_pid: int, descendants: Set[int], baseline: Set[int],
 ) -> Optional[Set[int]]:
-    """Stabilize late subreaper adoption after the phase leader exits.
+    """Give descendants a bounded grace period to exit after the leader does.
 
     Leader status and pipe EOF are not an atomic process-tree boundary.  An
     escaped child can be reparented to this process immediately after both are
-    observed, especially during an immediate double fork.  Keep discovery
-    active for one short, bounded grace period; return early as soon as a live
-    descendant is visible so cleanup is not delayed for actual leaks.
+    observed, especially during an immediate double fork, so discovery (late
+    subreaper adoption) stays active for the whole window.  A descendant that
+    is merely finishing its own ordinary shutdown -- e.g.
+    ``multiprocessing.resource_tracker``, which only exits once it observes
+    its parent's pipe close -- is not a leak either: give every already-known
+    descendant the same bounded ``POST_EXIT_DISCOVERY_SECONDS`` window to exit
+    on its own. Return as soon as the tree is provably empty so cleanup is
+    never delayed past the earliest safe moment; a descendant still alive
+    once the deadline passes is reported as a real leak.
     """
     deadline = time.monotonic() + POST_EXIT_DISCOVERY_SECONDS
     while True:
@@ -692,12 +706,14 @@ def _post_exit_survivors(
             _reap_adopted(newly_adopted, exclude=root_pid)
         )
         survivors = _surviving_descendants(descendants)
-        if survivors is None or survivors:
-            return survivors
+        if survivors is None:
+            return None
+        if not survivors:
+            return set()
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            return set()
-        time.sleep(min(0.01, remaining))
+            return survivors
+        time.sleep(min(0.05, remaining))
 
 
 def _enable_linux_subreaper() -> bool:
