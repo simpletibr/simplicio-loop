@@ -922,16 +922,55 @@ def _build_handoff_payload(opts: dict) -> dict:
         call_graph=call_graph,
         architecture_inventory=artifacts["architecture_inventory"],
         task_query=goal,
+        selection_policy="deterministic",
         budget_tokens=token_budget if task_aware else 0,
         priority_paths=targets if task_aware else None,
     )
-    # `handoff` is an observer: it must never overwrite the canonical,
-    # unscoped `.simplicio/context-snapshot.json` that `snapshot build`
-    # owns — Fast reads symbol ids from that canonical file, and a
-    # task-aware/budget-pruned graph here would starve it. A task-aware
-    # call gets its own bounded snapshot written to a task-scoped path for
-    # evidence; the in-memory `context_snapshot` above (identical either
-    # way) is what feeds `context_pack`/the JSON response.
+    # `handoff` is the only public verb an integrated Fast ingest can rely on
+    # (it never calls the internal `snapshot build`), so it must guarantee the
+    # canonical, unscoped `.simplicio/context-snapshot.json` Fast reads symbol
+    # ids from actually exists and is current — otherwise `handoff --json`
+    # reports `ready: true` while Fast fails closed with
+    # `mapper_artifact_missing: context_snapshot` (issue: cross-package
+    # ingest regression). At the same time it must never overwrite that
+    # canonical file with a task-aware/budget-pruned graph — on large repos
+    # that starved Fast's symbol lookup (mapper_id_missing). So a task-aware
+    # call always rebuilds a second, unbounded/task-agnostic snapshot for the
+    # canonical path (byte-identical to what `snapshot build` would emit from
+    # the same artifacts) and keeps its own bounded snapshot scoped to
+    # `context-snapshot.task.json`; a non-task-aware call already built the
+    # canonical shape above and reuses it directly.
+    canonical_snapshot = (
+        context_snapshot
+        if not task_aware
+        else build_context_snapshot(
+            root,
+            project_map=project_map,
+            symbol_index=symbol_index,
+            call_graph=call_graph,
+            architecture_inventory=artifacts["architecture_inventory"],
+            task_query="",
+            selection_policy="deterministic",
+            budget_tokens=0,
+            priority_paths=None,
+        )
+    )
+    canonical_dest = os.path.join(
+        os.path.abspath(os.path.join(root, out)), "context-snapshot.json"
+    )
+    existing_canonical_id = None
+    try:
+        with open(canonical_dest, encoding="utf-8") as handle:
+            existing_canonical_id = json.load(handle).get("snapshot_id")
+    except (OSError, ValueError):
+        existing_canonical_id = None
+    # `snapshot_id` is content-addressed (excludes the `generated_at`
+    # timestamp), so a matching id means the artifacts on disk have not
+    # changed since the canonical file was last written — skip the rewrite
+    # to keep it byte-stable rather than touching its timestamp on every
+    # `handoff` call for no content change.
+    if existing_canonical_id != canonical_snapshot.get("snapshot_id"):
+        _write_json_atomic(canonical_dest, canonical_snapshot)
     if task_aware:
         snapshot_dest = os.path.join(
             os.path.abspath(os.path.join(root, out)), "context-snapshot.task.json"
