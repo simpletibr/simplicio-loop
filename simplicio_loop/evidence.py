@@ -101,15 +101,18 @@ def _git_meta(root: Path) -> Dict[str, str]:
     diff = ""
     staged = False
     try:
-        status = _run("status", "--porcelain", "--untracked-files=all")
+        # .simplicio/ is the loop's own bookkeeping; it changes between the
+        # evidence receipt and the watcher, so it is never part of the run diff.
+        scope = ("--", ".", ":(exclude).simplicio")
+        status = _run("status", "--porcelain", "--untracked-files=all", *scope)
         if status:
             add = subprocess.run(
-                ["git", "add", "-A"], cwd=str(root), capture_output=True,
+                ["git", "add", "-A", *scope], cwd=str(root), capture_output=True,
                 stdin=subprocess.DEVNULL, text=True, timeout=15,
             )
             staged = add.returncode == 0
-        diff = _run("diff", "--no-ext-diff", "--cached", "HEAD") if staged else _run(
-            "diff", "--no-ext-diff", "HEAD"
+        diff = _run("diff", "--no-ext-diff", "--cached", "HEAD", *scope) if staged else _run(
+            "diff", "--no-ext-diff", "HEAD", *scope
         )
     finally:
         if staged:

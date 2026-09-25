@@ -322,7 +322,10 @@ def test_verify_run_blocks_when_quality_matrix_missing(tmp_path, monkeypatch):
     result = runner_mod.verify_run(str(repo), run_id)
 
     assert result["state"]["phase"] == "blocked"
-    assert "quality-matrix.json is missing or unreadable" in (result["state"].get("blockers") or [""])[0]
+    # No lane verifiers declared and no applied receipts: the matrix the loop
+    # builds from what it measured fails closed, naming the lane.
+    assert "evidence is not passing" in (result["state"].get("blockers") or [""])[0]
+    assert result["state"]["current_action"] == "quality_matrix_failed"
 
 
 def test_verify_run_stops_short_of_done_when_delivery_is_not_ready(tmp_path, monkeypatch):

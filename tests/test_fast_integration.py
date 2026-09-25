@@ -503,3 +503,117 @@ def test_every_fast_mapper_command_receives_the_handoff(tmp_path: Path) -> None:
         if call[0] == "fast" and call[1] in {"ingest", "understand", "plan", "refresh"}:
             assert call[call.index("--mapper-mode") + 1] == "integrated", call
             assert Path(call[call.index("--mapper-handoff") + 1]).is_file(), call
+
+
+def _mutation_plan(allowed):
+    from simplicio_loop.fast_integration import FAST_CHANGESET_SCHEMA, FAST_PLAN_SCHEMA
+
+    return {"schema": FAST_PLAN_SCHEMA, "nodes": [{
+        "id": "modify", "kind": "structured_patch",
+        "inputs": {"format": FAST_CHANGESET_SCHEMA, "allowed_files": allowed}}]}
+
+
+def test_mapper_inferred_targets_are_advisory_not_a_corridor(tmp_path, monkeypatch):
+    """Without a path in the task or --target, the corridor is only Mapper's guess;
+    Fast choosing a related file (its test) must not block orientation."""
+    from simplicio_loop import fast_integration as fi
+
+    for name in ("app.py", "test_app.py"):
+        (tmp_path / name).write_text("x = 1\n")
+    monkeypatch.setattr(fi, "mapper_selected_targets", lambda root: ["app.py"])
+    understanding = {"context": [{"file": "app.py"}, {"file": "test_app.py"}], "files": ["app.py", "test_app.py"]}
+    policy, blockers = fi._validate_plan_policy(tmp_path, "tidy the app", understanding,
+                                                _mutation_plan(["app.py", "test_app.py"]))
+    assert "TARGET_CORRIDOR_MISMATCH" not in {b["reason"] for b in blockers}
+    assert policy["corridor_source"] == "mapper_selected"
+
+
+def test_explicit_target_corridor_still_blocks(tmp_path, monkeypatch):
+    from simplicio_loop import fast_integration as fi
+
+    for name in ("app.py", "test_app.py"):
+        (tmp_path / name).write_text("x = 1\n")
+    understanding = {"context": [{"file": "app.py"}], "files": ["app.py", "test_app.py"]}
+    policy, blockers = fi._validate_plan_policy(tmp_path, "tidy app.py", understanding,
+                                                _mutation_plan(["app.py", "test_app.py"]))
+    assert "TARGET_CORRIDOR_MISMATCH" in {b["reason"] for b in blockers}
+    assert policy["corridor_source"] == "explicit"
+
+
+def test_stale_but_ready_handoff_is_rescanned(tmp_path):
+    """Mapper can answer ready=True over a dirty tree (status.fresh=False); Fast then
+    rejects the stale digests. A stale map is refreshed before ingest."""
+    calls = []
+    scanned = {"done": False}
+
+    def runner(command, **kwargs):
+        command = list(command)
+        calls.append(command)
+        args = command[1:]
+        if args == ["--version"]:
+            return subprocess.CompletedProcess(command, 0, "simplicio-fast 2.0.14\n", "")
+        if args == ["doctor", "--json"]:
+            return subprocess.CompletedProcess(command, 0, json.dumps({"integrated_ready": True}), "")
+        if command[0] == "git":
+            return subprocess.CompletedProcess(command, 0, "abc123\n", "")
+        if command[0] == "simplicio-mapper" and args[0] == "scan":
+            scanned["done"] = True
+            return subprocess.CompletedProcess(command, 0, "{}", "")
+        if command[0] == "simplicio-mapper" and args[0] == "handoff":
+            envelope = {"schema": "simplicio.map-handoff/v1", "ready": True,
+                        "status": {"fresh": scanned["done"]}}
+            return subprocess.CompletedProcess(command, 0, json.dumps(envelope), "")
+        if args and args[0] == "ingest":
+            output = Path(args[args.index("--output") + 1])
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_bytes(b"snapshot")
+            return subprocess.CompletedProcess(command, 0, json.dumps({"schema": "simplicio.fast.ingest/v2", "generation": "g1", "metrics": {}}), "")
+        raise AssertionError(command)
+
+    config = FastConfig(command=("fast",), snapshot=".fast/project.sfast", state=".fast/state.json")
+    result = FastLoopIntegration(tmp_path, config=config, runner=runner).ingest()
+    assert result.get("fallback") is not True, result
+    assert scanned["done"] is True
+
+
+def test_bare_word_matches_are_not_an_authority_corridor(tmp_path):
+    from simplicio_loop import fast_integration as fi
+
+    (tmp_path / "economy.py").write_text("x = 1\n")
+    (tmp_path / "test_economy.py").write_text("x = 1\n")
+    understanding = {"context": [{"file": "economy.py"}], "files": ["economy.py", "test_economy.py"]}
+    policy, blockers = fi._validate_plan_policy(tmp_path, "fix economy persistence", understanding,
+                                                _mutation_plan(["economy.py", "test_economy.py"]))
+    assert policy["corridor_source"] == "mapper_selected"
+    assert "TARGET_CORRIDOR_MISMATCH" not in {b["reason"] for b in blockers}
+
+
+def test_ingest_cache_is_invalidated_by_uncommitted_edits(tmp_path):
+    """Same HEAD but edited files: the cached snapshot no longer matches the Mapper
+    artifacts (Fast: source_digest_mismatch), so ingest must run again."""
+    fake = FakeFast(tmp_path)
+    diff = {"text": ""}
+    base = fake.__call__
+
+    def runner(command, **kwargs):
+        command = list(command)
+        if command[:2] == ["git", "diff"]:
+            return subprocess.CompletedProcess(command, 0, diff["text"], "")
+        return base(command, **kwargs)
+
+    config = FastConfig(command=("fast",), snapshot=".fast/project.sfast", state=".fast/state.json")
+    FastLoopIntegration(tmp_path, config=config, runner=runner).ingest()
+    FastLoopIntegration(tmp_path, config=config, runner=runner).ingest()
+    assert sum(call[1] == "ingest" for call in fake.calls if call[0] == "fast") == 1
+    diff["text"] = "diff --git a/app.py b/app.py\n+edit\n"
+    FastLoopIntegration(tmp_path, config=config, runner=runner).ingest()
+    assert sum(call[1] == "ingest" for call in fake.calls if call[0] == "fast") == 2
+
+
+def test_ingest_cache_sees_edits_to_untracked_files(tmp_path):
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / "new.py").write_text("x = 1\n")
+    integration = FastLoopIntegration(tmp_path, config=FastConfig(command=("fast",)))
+    before = integration._worktree_digest()
+    (tmp_path / "new.py").write_text("x = 2\n")
+    assert integration._worktree_digest() != before
