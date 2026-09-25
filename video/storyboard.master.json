@@ -118,7 +118,7 @@
     {
       "id": 12, "key": "cta", "start_s": 115, "duration_s": 8,
       "headline_data": "pip install simplicio-loop · bash scripts/install.sh claude · MIT · Discord · GitHub ⭐",
-      "on_screen": ["comandos de install em mono", "badges: MIT, 11 runtimes, 48 extension points, até 96% menos tokens, Discord", "QR/links GitHub + Discord", "logo final com loop ♾️"],
+      "on_screen": ["comandos de install em mono", "badges: MIT, 11 runtimes, 50 extension points, até 96% menos tokens, Discord", "QR/links GitHub + Discord", "logo final com loop ♾️"],
       "effects": { "in": "radial-wipe", "anim": ["comandos type-on", "badges pop em sequência", "logo final bloom + ♾️ trava"], "camera": "push-in final", "out": "fade to logo" },
       "sound": { "music": "drop + outro", "sfx": ["typing", "success-chime", "impact-boom"] }
     }

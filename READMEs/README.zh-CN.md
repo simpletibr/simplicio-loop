@@ -11,7 +11,7 @@
   <a href="#-7-个-skill--5-个加速器"><img src="https://img.shields.io/badge/skills-7-7C3AED" alt="7 skills"></a>
   <a href="#-来源适配器"><img src="https://img.shields.io/badge/source%20adapters-5-00E08A" alt="5 source adapters"></a>
   <a href="#-15-个运行时一套协议"><img src="https://img.shields.io/badge/runtimes-15-2563EB" alt="15 runtimes"></a>
-  <a href="#-15-个运行时一套协议"><img src="https://img.shields.io/badge/extension%20points-49-00E08A" alt="49 extension points"></a>
+  <a href="#-15-个运行时一套协议"><img src="https://img.shields.io/badge/extension%20points-50-00E08A" alt="50 extension points"></a>
   <a href="#-token-经济"><img src="https://img.shields.io/badge/savings-unverified-888888" alt="Savings — unverified"></a>
   <a href="../LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
 </p>

@@ -11,7 +11,7 @@
   <a href="#-7개의-스킬--5개의-가속기"><img src="https://img.shields.io/badge/skills-7-7C3AED" alt="7 skills"></a>
   <a href="#-소스-어댑터"><img src="https://img.shields.io/badge/source%20adapters-5-00E08A" alt="5 source adapters"></a>
   <a href="#-15개의-런타임-하나의-프로토콜"><img src="https://img.shields.io/badge/runtimes-15%20(3%20guaranteed%2B12%20best--effort)-2563EB" alt="15 runtimes (3 guaranteed + 12 best-effort)"></a>
-  <a href="#-전체-흐름--수요에서-제공까지"><img src="https://img.shields.io/badge/extension%20points-49-00E08A" alt="49 extension points"></a>
+  <a href="#-전체-흐름--수요에서-제공까지"><img src="https://img.shields.io/badge/extension%20points-50-00E08A" alt="50 extension points"></a>
   <a href="#-토큰-경제"><img src="https://img.shields.io/badge/savings-unverified-888888" alt="Savings — unverified"></a>
   <a href="../LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
 </p>
