@@ -198,9 +198,9 @@ def economy_parallel_env(
         "SIMPLICIO_REQUIRE_MUTATION_AUTHORITY": "1",
         "SIMPLICIO_LOOP_AUTO_PLANNING_RECEIPT": "1",
         "SIMPLICIO_LOOP_FORBID_HAND_EDIT": "1",
-        # Runtime stays off unless the operator explicitly sets required.
-        "SIMPLICIO_LOOP_REQUIRE_RUNTIME": "off",
-        "SIMPLICIO_EXECUTION_PROFILE": "standalone",
+        # Adaptive: runtime-backed when Runtime is up, standalone when it isn't.
+        "SIMPLICIO_LOOP_REQUIRE_RUNTIME": "auto",
+        "SIMPLICIO_EXECUTION_PROFILE": "auto",
         # Fast hot path (mmap / understand-plan-apply)
         "SIMPLICIO_FAST_MODE": "required",
         # Always latest packages on preflight
@@ -215,9 +215,11 @@ def economy_parallel_env(
         "SIMPLICIO_ECONOMY_PARALLEL": "1",
         "SIMPLICIO_ECONOMY_PROFILE": PROFILE_NAME,
     }
-    # Token economy MCP layer is opt-in; Loop does not bind Runtime/MCP by default.
-    out["SIMPLICIO_REQUIRE_MCP"] = "0"
-    out["SIMPLICIO_MCP_FORCE"] = "0"
+    # Token economy MCP layer follows the measured Runtime state: bind it when
+    # Runtime is operational, degrade (never fake) when it is not.
+    mcp_flag = "1" if runtime_operational else "0"
+    out["SIMPLICIO_REQUIRE_MCP"] = mcp_flag
+    out["SIMPLICIO_MCP_FORCE"] = mcp_flag
     return out
 
 
@@ -261,13 +263,27 @@ def llm_max_speed_orientation_contract() -> dict[str, Any]:
     }
 
 
+def _resolve_runtime_operational(
+    env: Optional[Mapping[str, str]], runtime_operational: Optional[bool]
+) -> bool:
+    if runtime_operational is not None:
+        return bool(runtime_operational)
+    try:
+        from .strict_mode import runtime_status
+
+        return bool(runtime_status(env).get("operational"))
+    except Exception:
+        return False
+
+
 def profile_status(
     env: Optional[Mapping[str, str]] = None,
     *,
     runtime_operational: Optional[bool] = None,
 ) -> dict[str, Any]:
+    resolved_runtime_operational = _resolve_runtime_operational(env, runtime_operational)
     recommended = economy_parallel_env(
-        env=env, runtime_operational=runtime_operational
+        env=env, runtime_operational=resolved_runtime_operational
     )
     source = os.environ if env is None else env
     applied = {
@@ -276,6 +292,8 @@ def profile_status(
         if str(source.get(key, "")).strip() != ""
     }
     missing = [k for k, v in recommended.items() if str(source.get(k, "")).strip() != v]
+    execution_profile = "runtime-backed" if resolved_runtime_operational else "standalone"
+    note = None if resolved_runtime_operational else "UNVERIFIED|runtime_unavailable"
     return {
         "schema": SCHEMA,
         "profile": PROFILE_NAME,
@@ -285,6 +303,9 @@ def profile_status(
         "applied": applied,
         "drift_keys": missing,
         "aligned": len(missing) == 0,
+        "runtime_operational": resolved_runtime_operational,
+        "execution_profile": execution_profile,
+        "note": note,
         "backends": {
             "runtime_tokio": "native when simplicio-runtime bound",
             "python_asyncio": "async_io_supervisor + async_bounded_queue + batch fan-out",
@@ -336,7 +357,8 @@ def persist_user_profile(
     set_windows_user_env: bool = True,
 ) -> dict[str, Any]:
     """Write ~/.simplicio/economy-parallel-env.* and optionally Windows User env."""
-    recommended = economy_parallel_env(runtime_operational=runtime_operational)
+    resolved_runtime_operational = _resolve_runtime_operational(None, runtime_operational)
+    recommended = economy_parallel_env(runtime_operational=resolved_runtime_operational)
     paths = user_env_paths()
     paths["dir"].mkdir(parents=True, exist_ok=True)
     paths["json"].write_text(
@@ -397,6 +419,9 @@ def persist_user_profile(
         for name, value in recommended.items():
             os.environ[name] = value
 
+    note = "New shells pick up User env after restart; this process is updated in-place."
+    if not resolved_runtime_operational:
+        note = f"{note} UNVERIFIED|runtime_unavailable"
     return {
         "schema": SCHEMA,
         "ok": True,
@@ -404,7 +429,9 @@ def persist_user_profile(
         "paths": {k: str(v) for k, v in paths.items()},
         "env": recommended,
         "windows_user_env_keys": windows_set,
-        "note": "New shells pick up User env after restart; this process is updated in-place.",
+        "runtime_operational": resolved_runtime_operational,
+        "execution_profile": "runtime-backed" if resolved_runtime_operational else "standalone",
+        "note": note,
     }
 
 

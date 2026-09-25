@@ -671,6 +671,12 @@ def economy_command(args) -> int:
             print(_json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
         else:
             print(f"economy profile: {payload['profile']} enabled={payload['enabled']}")
+            print(
+                f"  execution_profile={payload.get('execution_profile')} "
+                f"runtime_operational={payload.get('runtime_operational')}"
+            )
+            if payload.get("note"):
+                print(f"  note: {payload['note']}")
             print(f"  cpu={payload['cpu_count']} aligned={payload['aligned']}")
             print(f"  workers={payload['recommended'].get('SIMPLICIO_LOOP_OPERATOR_WORKERS')}")
             print(f"  prism_slots={payload['recommended'].get('SIMPLICIO_PRISM_SLOTS')}")

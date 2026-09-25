@@ -31,12 +31,21 @@ def test_prism_slots_machine_max_scales_with_cpu(monkeypatch):
     assert ep.recommend_prism_slots(16) == 2
 
 
-def test_economy_env_does_not_bind_runtime_even_when_operational():
+def test_economy_env_is_adaptive_auto_regardless_of_runtime():
+    # REQUIRE_RUNTIME / EXECUTION_PROFILE stay "auto" (never a hard "off"/"standalone")
+    # whether or not Runtime happens to be operational right now (issue #1287).
+    for operational in (True, False):
+        env = ep.economy_parallel_env(
+            runtime_operational=operational, prism_slots=4, operator_workers=6
+        )
+        assert env["SIMPLICIO_LOOP_REQUIRE_RUNTIME"] == "auto"
+        assert env["SIMPLICIO_EXECUTION_PROFILE"] == "auto"
+
+
+def test_economy_env_binds_mcp_when_runtime_operational():
     env = ep.economy_parallel_env(runtime_operational=True, prism_slots=4, operator_workers=6)
-    assert env["SIMPLICIO_LOOP_REQUIRE_RUNTIME"] == "off"
-    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "standalone"
-    assert env["SIMPLICIO_REQUIRE_MCP"] == "0"
-    assert env["SIMPLICIO_MCP_FORCE"] == "0"
+    assert env["SIMPLICIO_REQUIRE_MCP"] == "1"
+    assert env["SIMPLICIO_MCP_FORCE"] == "1"
 
 
 def test_economy_env_enables_fan_out_and_latest():
@@ -47,9 +56,9 @@ def test_economy_env_enables_fan_out_and_latest():
     assert env["SIMPLICIO_PRISM_BATCH_SIZE"] == "10"
     assert env["SIMPLICIO_LOOP_OPERATOR_WORKERS"] == "6"
     assert env["SIMPLICIO_FAST_MODE"] == "required"
-    assert env["SIMPLICIO_REQUIRE_MCP"] == "0"
-    assert env["SIMPLICIO_MCP_FORCE"] == "0"
-    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "standalone"
+    assert env["SIMPLICIO_REQUIRE_MCP"] == "1"
+    assert env["SIMPLICIO_MCP_FORCE"] == "1"
+    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "auto"
 
 
 def test_profile_status_exposes_llm_max_speed_orientation():
@@ -86,7 +95,27 @@ def test_economy_env_without_runtime_disables_mcp_force():
     env = ep.economy_parallel_env(runtime_operational=False)
     assert env["SIMPLICIO_REQUIRE_MCP"] == "0"
     assert env["SIMPLICIO_MCP_FORCE"] == "0"
-    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "standalone"
+    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "auto"
+
+
+def test_profile_status_reports_runtime_backed_and_no_note_when_operational():
+    status = ep.profile_status(runtime_operational=True)
+    assert status["runtime_operational"] is True
+    assert status["execution_profile"] == "runtime-backed"
+    assert status["note"] is None
+    assert status["recommended"]["SIMPLICIO_LOOP_REQUIRE_RUNTIME"] == "auto"
+    assert status["recommended"]["SIMPLICIO_EXECUTION_PROFILE"] == "auto"
+    assert status["recommended"]["SIMPLICIO_REQUIRE_MCP"] == "1"
+    assert status["recommended"]["SIMPLICIO_MCP_FORCE"] == "1"
+
+
+def test_profile_status_reports_standalone_and_unverified_note_when_not_operational():
+    status = ep.profile_status(runtime_operational=False)
+    assert status["runtime_operational"] is False
+    assert status["execution_profile"] == "standalone"
+    assert status["note"] == "UNVERIFIED|runtime_unavailable"
+    assert status["recommended"]["SIMPLICIO_REQUIRE_MCP"] == "0"
+    assert status["recommended"]["SIMPLICIO_MCP_FORCE"] == "0"
 
 
 def test_recommended_env_uses_economy_when_enabled(monkeypatch):
