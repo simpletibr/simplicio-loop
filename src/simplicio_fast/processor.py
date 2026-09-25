@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import tempfile
@@ -180,10 +181,35 @@ class ProjectProcessor:
         return span.symbol_id or f"{span.symbol}|{span.file}|{span.start_line}"
 
     @staticmethod
+    def _term_idf_weights(
+        terms: list[str], term_symbol_counts: dict[str, int], total_symbols: int
+    ) -> dict[str, float]:
+        """Return a normalized inverse-document-frequency weight per term.
+
+        ``term_symbol_counts[term]`` is the number of symbols in the
+        snapshot whose name/path loosely matches ``term`` (its document
+        frequency). A term matched by few symbols (e.g. a domain-specific
+        word like "economy") gets a higher weight than one matched by many
+        (e.g. a generic word like "apply"), so common terms no longer drown
+        out rare, more discriminating ones. Weights are normalized so the
+        rarest term in the query is always 1.0: with a single query term
+        this makes weighting a no-op, preserving prior single-term ranking.
+        """
+        total = max(1, total_symbols)
+        raw = {
+            term: math.log(1.0 + total / max(1, term_symbol_counts.get(term, total)))
+            for term in terms
+        }
+        peak = max(raw.values(), default=1.0) or 1.0
+        return {term: value / peak for term, value in raw.items()}
+
+    @staticmethod
     def _structural_score(
-        symbol: Any, terms: set[str]
+        symbol: Any, terms: set[str], idf: dict[str, float] | None = None
     ) -> tuple[float, tuple[str, ...]]:
+        idf = idf or {}
         name_terms = set(_identifier_terms(symbol.name))
+        path_terms = set(_identifier_terms(Path(symbol.file).stem))
         searchable = {
             token
             for value in (
@@ -197,14 +223,27 @@ class ProjectProcessor:
         matched = tuple(sorted(terms.intersection(searchable)))
         if not matched:
             return 0.0, ()
-        name_ratio = len(terms.intersection(name_terms)) / max(1, len(matched))
-        coverage = min(1.0, len(matched) / max(1, min(4, len(terms))))
+
+        def weight(term: str) -> float:
+            return idf.get(term, 1.0)
+
+        total_weight = sum(weight(term) for term in terms) or 1.0
+        matched_weight = sum(weight(term) for term in matched)
+        weighted_coverage = min(1.0, matched_weight / total_weight)
+        # Name/path signals are weighted like coverage: a generic term in a
+        # symbol's name must not outweigh a rare term naming its file.
+        name_ratio = sum(weight(t) for t in terms.intersection(name_terms)) / total_weight
+        path_ratio = sum(weight(t) for t in terms.intersection(path_terms)) / total_weight
         kind_bonus = (
             1.0 if symbol.kind in {"class", "function", "async_function"} else 0.0
         )
         score = min(
             1.0,
-            0.35 + 0.30 * coverage + 0.20 * min(1.0, name_ratio) + 0.15 * kind_bonus,
+            0.30
+            + 0.30 * weighted_coverage
+            + 0.15 * min(1.0, name_ratio)
+            + 0.10 * kind_bonus
+            + 0.15 * min(1.0, path_ratio),
         )
         return score, matched
 
@@ -285,9 +324,32 @@ class ProjectProcessor:
             }
         records: dict[str, dict[str, Any]] = {}
         term_set = set(terms)
+        # A term can name the file rather than any symbol in it (economy_profile.py);
+        # those files' symbols are candidates too, scored by the path signal.
+        stems = {
+            path_value: set(_identifier_terms(Path(path_value).stem))
+            for path_value, _ in snapshot.files()
+        }
+        term_matches: dict[str, list[Any]] = {}
         for term in terms:
-            for symbol in snapshot.search(term):
-                score, matched = self._structural_score(symbol, term_set)
+            found = {self._symbol_key(symbol): symbol for symbol in snapshot.search(term)}
+            for path_value, stem_terms in stems.items():
+                if term in stem_terms:
+                    for symbol in snapshot.search("", path=path_value):
+                        found.setdefault(self._symbol_key(symbol), symbol)
+            term_matches[term] = list(found.values())
+        term_symbol_counts = {
+            term: len(matches) for term, matches in term_matches.items()
+        }
+        idf_weights = self._term_idf_weights(
+            terms, term_symbol_counts, snapshot.symbol_count
+        )
+        receipt["term_document_frequency"] = term_symbol_counts
+        for term in terms:
+            for symbol in term_matches[term]:
+                score, matched = self._structural_score(
+                    symbol, term_set, idf_weights
+                )
                 if not matched:
                     continue
                 key = self._symbol_key(symbol)
@@ -337,7 +399,8 @@ class ProjectProcessor:
             documents.append(
                 SourceDocument.create(
                     canonical_id,
-                    span.content,
+                    # The path is part of what the span is about (economy_profile.py).
+                    f"{span.file}\n{span.content}",
                     structural_score=float(record["structural_score"]),
                 )
             )
