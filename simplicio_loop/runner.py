@@ -6015,6 +6015,9 @@ def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
         _write_json(run_dir / "state.json", state)
         _transition(run_dir, state, "blocked", "independent watcher is unavailable", receipt=str(run_dir / "state.json"))
         return read_status(repo, run_id)
+    # Parallel lanes each write evidence after their own task; re-measure on the
+    # final tree so the watcher compares against the diff it will actually see.
+    _write_json(run_dir / "evidence-receipt.json", build_evidence_receipt(str(run_dir)))
     _transition(run_dir, state, "watching", "automatic conduct reached independent verification", receipt=str(run_dir / "operator-receipt.json"))
     env = _subprocess_env()
     env["SIMPLICIO_RUN_DIR"] = str(run_dir)
