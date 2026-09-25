@@ -1,0 +1,103 @@
+{
+  "counts": {
+    "calls": 1,
+    "edges": 1,
+    "imports": 0
+  },
+  "coverage": {
+    "ambiguous_relations": 0,
+    "edge_limit": 1000,
+    "emitted_edges": 1,
+    "evidence_classes": {
+      "lexical_unique": 1
+    },
+    "invalid_edges": 0,
+    "observed_edges": 1,
+    "omitted_edges": 0,
+    "status": "complete",
+    "truncated": false,
+    "unknown_relations": 0
+  },
+  "edges": [
+    {
+      "confidence": null,
+      "evidence_class": "lexical_unique",
+      "line": 2,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "services/kotlin/Main.kt::language"
+        ],
+        "fallback_reason": null,
+        "method": "symbol-name-lookup",
+        "queried_symbol": "language"
+      },
+      "relation_id": "0d4073c6ce99c02e9c52971b918cfe8f2ec0dcf24a9ccb18b02ece3ea208274f",
+      "resolution_status": "resolved",
+      "source_file": "services/java/Main.java",
+      "source_symbol": "services/java/Main.java::Main",
+      "target_candidates": [
+        "services/kotlin/Main.kt::language"
+      ],
+      "target_file": "services/kotlin/Main.kt",
+      "target_symbol": "services/kotlin/Main.kt::language",
+      "type": "calls"
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:0719a46597e5990c87bf1ae8085ed869885f9b4898a8f794d9373898b2686273",
+    "capability_coverage": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "unsupported",
+      "relationships": "partial",
+      "symbols": "unsupported"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [
+      "files:large/ignored.txt",
+      "generated:dist",
+      "symlink:links/app.py"
+    ],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
+  "schema": "simplicio.call-graph/v1",
+  "semantic_resolution": {
+    "languages": [],
+    "protocol": "v1",
+    "provider_versions": [],
+    "providers": [],
+    "reasons": [
+      "no_csharp_or_razor_call_sites"
+    ],
+    "resolved_calls": 0,
+    "schema": "simplicio.mapper-semantic-resolution/v1",
+    "status": "not_required",
+    "symbols": 0
+  },
+  "source_symbol_index": ".simplicio/symbol-index.json",
+  "unresolved": [
+    {
+      "kind": "import",
+      "queried_symbol": "System",
+      "source_file": "services/dotnet/Pages/Index.razor"
+    },
+    {
+      "kind": "import",
+      "queried_symbol": "System",
+      "source_file": "services/dotnet/Program.cs"
+    }
+  ],
+  "version": 1
+}

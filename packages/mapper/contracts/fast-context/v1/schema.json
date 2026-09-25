@@ -1,0 +1,31 @@
+{
+  "$id": "simplicio.fast-context/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "generation", "capabilities", "projections"],
+  "properties": {
+    "schema": {"const": "simplicio.fast-context/v1"},
+    "generation": {"type": "string", "minLength": 1},
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshot_schemas", "languages", "edge_kinds"],
+      "properties": {
+        "snapshot_schemas": {"type": "array", "items": {"type": "string"}},
+        "languages": {"type": "array", "items": {"type": "string"}},
+        "edge_kinds": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "projections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "symbols", "edges"],
+      "properties": {
+        "files": {"type": "array", "items": {"type": "object"}},
+        "symbols": {"type": "array", "items": {"type": "object"}},
+        "edges": {"type": "array", "items": {"type": "object"}},
+        "architecture_inventory": {"type": "object"}
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$id": "simplicio.mapper-artifact-set/v1",
+  "title": "Canonical public Mapper artifact set (v1)",
+  "type": "object",
+  "required": ["schema", "schema_version", "repository_id", "generation", "artifacts", "coverage", "artifact_set_digest"],
+  "properties": {
+    "schema": { "type": "string", "enum": ["simplicio.mapper-artifact-set/v1"] },
+    "schema_version": { "type": "string", "enum": ["v1"] },
+    "repository_id": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "generation": {
+      "type": "object",
+      "required": ["kind", "revision", "dirty"],
+      "properties": {
+        "kind": { "type": "string" },
+        "revision": { "type": ["string", "null"] },
+        "dirty": { "type": "boolean" }
+      }
+    },
+    "artifacts": { "type": "object", "minProperties": 5 },
+    "coverage": { "type": "object", "minProperties": 5 },
+    "artifact_set_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

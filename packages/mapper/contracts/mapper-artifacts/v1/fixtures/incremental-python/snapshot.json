@@ -1,0 +1,11 @@
+{
+  "schema": "simplicio.graph-snapshot/v1",
+  "version": 1,
+  "root": "<fixture-root>",
+  "revision": "r000001",
+  "entities": [
+    {"id": "file:src/app.py", "kind": "file", "path": "src/app.py", "name": "app.py", "language": "python", "content_hash": "h1", "attributes": {}},
+    {"id": "symbol:src/app.py:src/app.py::main", "kind": "symbol", "path": "src/app.py", "name": "main", "qualified_name": "src/app.py::main", "language": "python", "line": 1, "attributes": {"kind": "function"}}
+  ],
+  "edges": []
+}

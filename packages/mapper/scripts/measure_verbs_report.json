@@ -1,0 +1,138 @@
+{
+  "conclusion": {
+    "ranked_isolated_ask_verbs_by_cost": [
+      {
+        "median_ms": 0.1236,
+        "times_vs_cheapest": 72.7,
+        "verb": "impact"
+      },
+      {
+        "median_ms": 0.0132,
+        "times_vs_cheapest": 7.8,
+        "verb": "tests-for"
+      },
+      {
+        "median_ms": 0.0022,
+        "times_vs_cheapest": 1.3,
+        "verb": "reaches"
+      },
+      {
+        "median_ms": 0.0018,
+        "times_vs_cheapest": 1.1,
+        "verb": "callers"
+      },
+      {
+        "median_ms": 0.0017,
+        "times_vs_cheapest": 1.0,
+        "verb": "callees"
+      }
+    ],
+    "rationale": "Every `ask <verb>` call pays a fixed `build_artifacts()` scan up front regardless of verb (see index.build_artifacts above) -- that shared cost is out of scope for a per-verb delegation decision and is excluded from the ranking above. Isolating each verb's OWN logic (build_artifacts already computed once, excluded from the timing) shows `impact` and `tests-for` are the two most expensive verb-specific suboperations by a wide margin: `impact` recomputes a fresh flow-inventory and scans every spec/doc file on each call (`_scan_manual_docs_for_references`), and `tests-for` reads the full text of every test file on each call. `callers`/`callees`/`reaches` are simple in-memory graph lookups over already-parsed `call_graph`/`symbol_index` data and are cheap by comparison, so they are not prioritized for a native fast path here.",
+    "selected_verbs_for_native_delegation": [
+      "impact",
+      "tests-for"
+    ]
+  },
+  "fixture": "contracts/mapper-artifacts/v1/fixtures/python-minimal/source",
+  "generated_at": "2026-07-09T16:21:55Z",
+  "measurements": {
+    "ask.callees (isolated)": {
+      "max": 0.0045,
+      "mean": 0.0019,
+      "median": 0.0017,
+      "min": 0.0015,
+      "repeats": 21,
+      "unit": "ms"
+    },
+    "ask.callers (isolated)": {
+      "max": 0.0131,
+      "mean": 0.0027,
+      "median": 0.0018,
+      "min": 0.0017,
+      "repeats": 21,
+      "unit": "ms"
+    },
+    "ask.impact (full run_query)": {
+      "max": 36.1006,
+      "mean": 22.8024,
+      "median": 21.941,
+      "min": 15.4321,
+      "repeats": 21,
+      "unit": "ms"
+    },
+    "ask.impact (isolated)": {
+      "max": 0.2682,
+      "mean": 0.1305,
+      "median": 0.1236,
+      "min": 0.1011,
+      "repeats": 21,
+      "unit": "ms"
+    },
+    "ask.reaches (isolated)": {
+      "max": 0.0158,
+      "mean": 0.0032,
+      "median": 0.0022,
+      "min": 0.0021,
+      "repeats": 21,
+      "unit": "ms"
+    },
+    "ask.tests-for (full run_query)": {
+      "max": 100.3014,
+      "mean": 29.9237,
+      "median": 23.7453,
+      "min": 14.6521,
+      "repeats": 21,
+      "unit": "ms"
+    },
+    "ask.tests-for (isolated)": {
+      "max": 0.0325,
+      "mean": 0.0143,
+      "median": 0.0132,
+      "min": 0.0128,
+      "repeats": 21,
+      "unit": "ms"
+    },
+    "drift.build_spec_drift": {
+      "max": 174.3685,
+      "mean": 91.3091,
+      "median": 83.8178,
+      "min": 65.8962,
+      "repeats": 21,
+      "unit": "ms"
+    },
+    "index.build_artifacts": {
+      "max": 67.9823,
+      "mean": 22.6442,
+      "median": 21.1015,
+      "min": 13.805,
+      "repeats": 21,
+      "unit": "ms"
+    },
+    "survey.build_business_rules": {
+      "max": 1.4058,
+      "mean": 0.5886,
+      "median": 0.508,
+      "min": 0.468,
+      "repeats": 21,
+      "unit": "ms"
+    },
+    "survey.build_flow_inventory": {
+      "max": 5.0625,
+      "mean": 0.3356,
+      "median": 0.09,
+      "min": 0.0763,
+      "repeats": 21,
+      "unit": "ms"
+    },
+    "survey.build_survey": {
+      "max": 4.8238,
+      "mean": 0.3436,
+      "median": 0.0825,
+      "min": 0.055,
+      "repeats": 21,
+      "unit": "ms"
+    }
+  },
+  "schema": "simplicio.measure-verbs-report/v1",
+  "version": 1
+}

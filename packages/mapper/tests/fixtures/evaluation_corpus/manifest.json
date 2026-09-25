@@ -1,0 +1,73 @@
+{
+  "schema": "simplicio.evaluation-corpus/v1",
+  "description": "Reviewer-labeled behavioral corpus for issues #199 and #208.",
+  "cases": [
+    {
+      "id": "planes-ordering-ptbr",
+      "task_file": "task.md",
+      "task_json": "task.json",
+      "expected_targets": ["src/modeling/sort_lines.py"],
+      "expected_tests": ["tests/test_sort_lines.py"],
+      "relevant_paths": ["src/modeling/sort_lines.py", "tests/test_sort_lines.py", "task.md", "task.json"],
+      "required_spans": [
+        {"path": "src/modeling/sort_lines.py", "start_line": 1, "end_line": 4}
+      ],
+      "expect_ready": true,
+      "expect_abstain": false
+    },
+    {
+      "id": "frontend-ordering-en",
+      "task_file": "task.md",
+      "task_json": "task.json",
+      "expected_targets": ["src/components/line_order.ts"],
+      "expected_tests": ["tests/line_order.test.ts"],
+      "relevant_paths": ["src/components/line_order.ts", "tests/line_order.test.ts", "task.md", "task.json"],
+      "required_spans": [
+        {"path": "src/components/line_order.ts", "start_line": 1, "end_line": 5}
+      ],
+      "expect_ready": true,
+      "expect_abstain": false
+    },
+    {
+      "id": "polyglot-cross-layer-en",
+      "task_file": "task.md",
+      "task_json": "task.json",
+      "token_budget": 8000,
+      "expected_targets": [
+        "src/frontend/order_form.ts",
+        "src/api/order_controller.py"
+      ],
+      "expected_tests": [
+        "tests/order_form.test.ts",
+        "tests/test_order_controller.py"
+      ],
+      "relevant_paths": [
+        "src/frontend/order_form.ts",
+        "src/api/order_controller.py",
+        "tests/order_form.test.ts",
+        "tests/test_order_controller.py",
+        "task.md",
+        "task.json"
+      ],
+      "required_spans": [
+        {"path": "src/frontend/order_form.ts", "start_line": 1, "end_line": 8},
+        {"path": "src/api/order_controller.py", "start_line": 1, "end_line": 10}
+      ],
+      "required_languages": ["typescript", "python"],
+      "required_layers": ["frontend", "backend", "test"],
+      "expect_ready": true,
+      "expect_abstain": false
+    },
+    {
+      "id": "no-match-abstention",
+      "task_file": "task.md",
+      "task_json": "task.json",
+      "expected_targets": [],
+      "expected_tests": [],
+      "relevant_paths": [],
+      "required_spans": [],
+      "expect_ready": false,
+      "expect_abstain": true
+    }
+  ]
+}

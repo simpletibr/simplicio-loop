@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/semantic-item.schema.json",
+  "title": "simplicio.mapper-store.semantic-item/v1",
+  "type": "object",
+  "required": ["stable_id", "kind", "source", "content", "content_hash", "provenance"],
+  "properties": {
+    "stable_id": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "minLength": 1 },
+    "source": { "type": "string", "minLength": 1 },
+    "content": { "type": "string" },
+    "content_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "provenance": { "type": "object" },
+    "metadata": { "type": "object" },
+    "model": { "type": ["string", "null"] },
+    "dimensions": { "type": ["integer", "null"], "minimum": 1 },
+    "observed_at": { "type": "string" },
+    "valid_from": { "type": "string" },
+    "valid_to": { "type": ["string", "null"] },
+    "tombstone": { "type": "boolean" }
+  }
+}

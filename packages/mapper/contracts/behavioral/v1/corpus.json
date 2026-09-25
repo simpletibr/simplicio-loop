@@ -1,0 +1,32 @@
+{
+  "schema": "simplicio.behavioral-corpus/v1",
+  "cases": [
+    {
+      "id": "planes-ordering-ptbr",
+      "fixture": "planes-ordering-ptbr",
+      "task": "task.md",
+      "language": "pt-BR",
+      "expected_targets": ["src/modeling/sort_lines.py"],
+      "expected_tests": ["tests/test_sort_lines.py"],
+      "expected_ac_ids": ["AC01", "AC02", "AC03"]
+    },
+    {
+      "id": "frontend-ordering-en",
+      "fixture": "frontend-ordering-en",
+      "task": "task.md",
+      "language": "en",
+      "expected_targets": ["src/components/line-order.ts"],
+      "expected_tests": ["tests/line-order.test.ts"],
+      "expected_ac_ids": ["AC01", "AC02"]
+    },
+    {
+      "id": "no-match-abstention",
+      "fixture": "no-match-abstention",
+      "task": "task.md",
+      "language": "en",
+      "expected_targets": [],
+      "expected_tests": [],
+      "expected_ac_ids": ["AC01"]
+    }
+  ]
+}

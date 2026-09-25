@@ -1,0 +1,23 @@
+{
+  "contract": "mapper-artifacts/v1",
+  "golden_backend": "python",
+  "cases": [
+    { "id": "python", "kind": "language", "fixture": "python-minimal" },
+    { "id": "ts-js", "kind": "language", "fixture": "canonical-matrix", "paths": ["apps/web/src/index.ts", "apps/web/src/index.js"] },
+    { "id": "rust", "kind": "language", "fixture": "canonical-matrix", "paths": ["crates/core/src/lib.rs"] },
+    { "id": "go", "kind": "language", "fixture": "canonical-matrix", "paths": ["services/go/main.go"] },
+    { "id": "java-kotlin", "kind": "language", "fixture": "canonical-matrix", "paths": ["services/java/Main.java", "services/kotlin/Main.kt"] },
+    { "id": "csharp-razor", "kind": "language", "fixture": "canonical-matrix", "paths": ["services/dotnet/Program.cs", "services/dotnet/Pages/Index.razor"] },
+    { "id": "sql", "kind": "language", "fixture": "canonical-matrix", "paths": ["db/schema.sql"] },
+    { "id": "mixed-language-monorepo", "kind": "repository-shape", "fixture": "canonical-matrix", "expected_project_mode": "monorepo" },
+    { "id": "empty-repository", "kind": "runtime", "fixture": null, "expected_files": 0 },
+    { "id": "unknown-language", "kind": "edge-case", "fixture": "canonical-matrix", "paths": ["legacy/data.unknown"] },
+    { "id": "generated-directory", "kind": "edge-case", "fixture": "canonical-matrix", "paths": ["dist/generated.js"], "expected": "omitted" },
+    { "id": "large-file", "kind": "edge-case", "fixture": "canonical-matrix", "paths": ["large/ignored.txt"], "expected": "omitted_paths" },
+    { "id": "symlink", "kind": "edge-case", "fixture": "canonical-matrix", "paths": ["links/app.py"], "expected": "omitted" },
+    { "id": "invalid-utf8-legacy-text", "kind": "edge-case", "fixture": "canonical-matrix", "paths": ["legacy/invalid.txt", "legacy/latin1.txt"] },
+    { "id": "duplicate-symbol-names", "kind": "edge-case", "fixture": "canonical-matrix", "paths": ["duplicates/one.py", "duplicates/two.py"] },
+    { "id": "dirty-worktree", "kind": "runtime", "fixture": null, "expected_source_generation": { "dirty": true } },
+    { "id": "untracked-file", "kind": "runtime", "fixture": null, "expected_git_status": "??" }
+  ]
+}

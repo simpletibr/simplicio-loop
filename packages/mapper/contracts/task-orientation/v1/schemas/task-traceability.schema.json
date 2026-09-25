@@ -1,0 +1,16 @@
+{
+  "$id": "simplicio.task-traceability/v1",
+  "title": "Acceptance criteria and business rule traceability",
+  "type": "object",
+  "required": ["schema", "task", "criteria", "rules", "coverage", "complete", "gaps", "static_inference"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["simplicio.task-traceability/v1"]},
+    "task": {"type": "object", "required": ["schema", "fingerprint"]},
+    "criteria": {"type": "array", "items": {"type": "object", "required": ["id", "text", "rule_ids", "files", "symbols", "flows", "tests", "mapping_status", "execution_status", "receipts", "gaps"]}},
+    "rules": {"type": "array", "items": {"type": "object", "required": ["id", "description"]}},
+    "coverage": {"type": "object", "required": ["mapped", "total", "ratio"]},
+    "complete": {"type": "boolean"},
+    "gaps": {"type": "array", "items": {"type": "string"}},
+    "static_inference": {"type": "boolean", "enum": [true]}
+  }
+}

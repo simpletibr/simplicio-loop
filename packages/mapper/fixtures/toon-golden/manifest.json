@@ -1,0 +1,83 @@
+{
+  "schema": "simplicio.toon-golden-manifest/v1",
+  "contract": "TOON-CONTRACT.md",
+  "valid": [
+    {
+      "id": "quoted-string-round-trip",
+      "tags": ["quoting", "marketing-bug"],
+      "description": "String that both starts and ends with a literal quote character must round-trip losslessly (marketing lib/format/toon.ts:58-65 known bug)."
+    },
+    {
+      "id": "list-cell-scalars",
+      "tags": ["tabular", "list-cell", "mapper-bug"],
+      "description": "Uniform object array whose cells include a list of scalars must still take the tabular path (fix landed in #148)."
+    },
+    {
+      "id": "scalar-one-element-list-ambiguity",
+      "tags": ["list-cell", "loop-bug"],
+      "description": "A one-element list cell ([1]) must decode as a list, never as the bare scalar 1 (loop scripts/toon_codec.py:33-42 known ambiguity)."
+    },
+    {
+      "id": "mapper-real-project-map-excerpt",
+      "tags": ["real-excerpt", "mapper"],
+      "description": "Small excerpt of simplicio-mapper's own .simplicio/project-map.json files[] shape (exports/imports list cells)."
+    },
+    {
+      "id": "mapper-real-precedent-index-excerpt",
+      "tags": ["real-excerpt", "mapper"],
+      "description": "Small excerpt of simplicio-mapper's own .simplicio/precedent-index.json items[] shape (tags list cells)."
+    },
+    {
+      "id": "sprint-cards-representative",
+      "tags": ["representative", "sprint"],
+      "description": "Representative (hand-built, not pulled verbatim) simplicio-sprint card-list shape."
+    },
+    {
+      "id": "marketing-captions-representative",
+      "tags": ["representative", "marketing"],
+      "description": "Representative (hand-built, not pulled verbatim) simplicio-loop-marketing caption-multi-platform shape."
+    },
+    {
+      "id": "runtime-resource-map-representative",
+      "tags": ["representative", "runtime"],
+      "description": "Representative (hand-built, not pulled verbatim) simplicio-runtime MCP resource-map shape."
+    },
+    {
+      "id": "prompt-fanout-aggregation-representative",
+      "tags": ["representative", "prompt"],
+      "description": "Representative (hand-built, not pulled verbatim) simplicio-prompt fanout-aggregation shape."
+    },
+    {
+      "id": "nested-fallback-real",
+      "tags": ["real-excerpt", "mapper", "fallback"],
+      "description": "Real .simplicio/flow-inventory.json excerpt whose flows[] elements contain dict-valued cells (entry/steps/effects) -- expected to fall back to embedded JSON, not a bug; exercises the toon_fallbacks report honestly."
+    }
+  ],
+  "invalid": [
+    {
+      "id": "truncated-tabular-root",
+      "tags": ["decode-error", "mapper-bug"],
+      "description": "Root tabular array header declares more rows than are present. Pre-#148 mapper decoder raised a bare IndexError."
+    },
+    {
+      "id": "truncated-tabular-nested",
+      "tags": ["decode-error", "mapper-bug"],
+      "description": "Nested tabular array header declares more rows than are present."
+    },
+    {
+      "id": "row-field-count-mismatch",
+      "tags": ["decode-error", "sprint-bug"],
+      "description": "Row value count does not match the declared field count. sprint's known bug: silently drops the excess value."
+    },
+    {
+      "id": "malformed-array-header",
+      "tags": ["decode-error"],
+      "description": "Array header is missing the closing bracket on the row count."
+    },
+    {
+      "id": "unterminated-quote",
+      "tags": ["decode-error"],
+      "description": "A quoted scalar value is never closed."
+    }
+  ]
+}

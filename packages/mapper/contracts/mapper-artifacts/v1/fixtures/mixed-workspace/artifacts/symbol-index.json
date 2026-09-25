@@ -1,0 +1,95 @@
+{
+  "counts": {
+    "files": 3,
+    "symbols": 4
+  },
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:2f0b4eb7e4fb4fc9d60656a692975192e75b93dcb20ccecd94cee2e2306989fc",
+    "capability_coverage": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "unsupported",
+      "relationships": "unsupported",
+      "symbols": "full"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
+  "root": "<fixture-root>",
+  "schema": "simplicio.symbol-index/v1",
+  "semantic_resolution": {
+    "languages": [],
+    "protocol": "v1",
+    "provider_versions": [],
+    "providers": [],
+    "reasons": [
+      "no_csharp_or_razor_call_sites"
+    ],
+    "resolved_calls": 0,
+    "schema": "simplicio.mapper-semantic-resolution/v1",
+    "status": "not_required",
+    "symbols": 0
+  },
+  "symbols": [
+    {
+      "defined_in": "backend/server.py",
+      "evidence": {
+        "file": "backend/server.py",
+        "line": 4
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 4,
+      "name": "handle_request",
+      "qualified_name": "backend/server.py::handle_request"
+    },
+    {
+      "defined_in": "backend/server.py",
+      "evidence": {
+        "file": "backend/server.py",
+        "line": 10
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 10,
+      "name": "main",
+      "qualified_name": "backend/server.py::main"
+    },
+    {
+      "defined_in": "backend/tests/test_server.py",
+      "evidence": {
+        "file": "backend/tests/test_server.py",
+        "line": 4
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 4,
+      "name": "test_health",
+      "qualified_name": "backend/tests/test_server.py::test_health"
+    },
+    {
+      "defined_in": "frontend/src/App.jsx",
+      "evidence": {
+        "file": "frontend/src/App.jsx",
+        "line": 3
+      },
+      "kind": "function",
+      "language": "javascript",
+      "line": 3,
+      "name": "App",
+      "qualified_name": "frontend/src/App.jsx::App"
+    }
+  ],
+  "version": 1
+}

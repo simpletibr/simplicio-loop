@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/conformance.schema.json",
+  "title": "simplicio.mapper-store-conformance/v1",
+  "type": "object",
+  "required": ["schema", "status", "read_only", "repositories", "checks", "scenarios", "inventory", "residual_unverified", "release_order", "evidence_hash"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store-conformance/v1"},
+    "status": {"enum": ["pass", "fail", "unverified"]},
+    "read_only": {"const": true},
+    "generated_at": {"type": ["string", "null"]},
+    "host": {"type": "object"},
+    "repositories": {"type": "object"},
+    "checks": {"type": "array"},
+    "scenarios": {"type": "array"},
+    "inventory": {"type": "object"},
+    "residual_unverified": {"type": "array"},
+    "release_order": {"type": "array", "items": {"type": "string"}},
+    "evidence_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

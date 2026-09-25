@@ -1,0 +1,35 @@
+1
+00:00:00,000 --> 00:00:02,667
+Has AI ever invented how your project works?
+
+2
+00:00:02,667 --> 00:00:09,333
+Without context, it asks for files, ignores patterns, and picks the wrong stack.
+
+3
+00:00:09,333 --> 00:00:13,667
+You repeat context, the AI invents rules, and bugs slip through untested.
+
+4
+00:00:13,667 --> 00:00:17,333
+llm-project-mapper gives that context upfront, before the first task.
+
+5
+00:00:17,333 --> 00:00:25,333
+Agents, specs, skills, and hooks create one clear contract for any agent.
+
+6
+00:00:25,333 --> 00:00:38,000
+Before, the chat turns into an interview. After, Claude, Codex, or Copilot start with the branch, tests, and Definition of Done.
+
+7
+00:00:38,000 --> 00:00:43,333
+You cut repeated context, enforce evidence, and stop broken merges.
+
+8
+00:00:43,333 --> 00:00:48,667
+The same contract works for multiple agents running in parallel.
+
+9
+00:00:48,667 --> 00:00:53,000
+In thirty seconds, the project becomes readable for humans and for AI.

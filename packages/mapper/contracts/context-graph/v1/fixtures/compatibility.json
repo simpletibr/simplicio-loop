@@ -1,0 +1,383 @@
+{
+  "schema": "simplicio.context-graph-compatibility-fixture/v1",
+  "version": 1,
+  "supported_schema_majors": [
+    1
+  ],
+  "cases": [
+    {
+      "name": "supported-major-v1",
+      "contract": {
+        "schema": "simplicio.context-graph-contract/v1",
+        "version": 1,
+        "repository_id": "fixture-repo",
+        "generation": "g-1",
+        "stable_ids": {
+          "nodes": [
+            "file:main.py"
+          ],
+          "edges": [
+            "edge:defines"
+          ]
+        },
+        "nodes": [
+          {
+            "id": "file:main.py",
+            "scale": "meso"
+          }
+        ],
+        "relations": [
+          {
+            "id": "edge:defines",
+            "kind": "defined_in",
+            "source": "symbol:main",
+            "target": "file:main.py"
+          }
+        ],
+        "digest": "aef223c4b8f5f4e38b24de824fbaf2ca99f3153f392e1a8db7d8da73aeb72cf1"
+      },
+      "expected": {
+        "valid": true,
+        "reason": null,
+        "path": null
+      }
+    },
+    {
+      "name": "compatible-minor-v1.1",
+      "contract": {
+        "schema": "simplicio.context-graph-contract/v1.1",
+        "version": 1,
+        "repository_id": "fixture-repo",
+        "generation": "g-1",
+        "stable_ids": {
+          "nodes": [
+            "file:main.py"
+          ],
+          "edges": [
+            "edge:defines"
+          ]
+        },
+        "nodes": [
+          {
+            "id": "file:main.py",
+            "scale": "meso"
+          }
+        ],
+        "relations": [
+          {
+            "id": "edge:defines",
+            "kind": "defined_in",
+            "source": "symbol:main",
+            "target": "file:main.py"
+          }
+        ],
+        "producer_metadata": {
+          "build": "fixture"
+        },
+        "digest": "b6000bee79bc01d2f004e979509e72a83cc6bf5dd9d373f16d5f7f2560e2b1de"
+      },
+      "expected": {
+        "valid": true,
+        "reason": null,
+        "path": null
+      }
+    },
+    {
+      "name": "unknown-major-v2",
+      "contract": {
+        "schema": "simplicio.context-graph-contract/v2",
+        "version": 1,
+        "repository_id": "fixture-repo",
+        "generation": "g-1",
+        "stable_ids": {
+          "nodes": [
+            "file:main.py"
+          ],
+          "edges": [
+            "edge:defines"
+          ]
+        },
+        "nodes": [
+          {
+            "id": "file:main.py",
+            "scale": "meso"
+          }
+        ],
+        "relations": [
+          {
+            "id": "edge:defines",
+            "kind": "defined_in",
+            "source": "symbol:main",
+            "target": "file:main.py"
+          }
+        ],
+        "digest": "008cc70d8dcd805eab99dff0674d27c80b889aa2e108288b0d65e9e293a5447b"
+      },
+      "expected": {
+        "valid": false,
+        "reason": "schema_major_unsupported",
+        "path": "$.schema"
+      }
+    },
+    {
+      "name": "unsupported-version",
+      "contract": {
+        "schema": "simplicio.context-graph-contract/v1",
+        "version": 2,
+        "repository_id": "fixture-repo",
+        "generation": "g-1",
+        "stable_ids": {
+          "nodes": [
+            "file:main.py"
+          ],
+          "edges": [
+            "edge:defines"
+          ]
+        },
+        "nodes": [
+          {
+            "id": "file:main.py",
+            "scale": "meso"
+          }
+        ],
+        "relations": [
+          {
+            "id": "edge:defines",
+            "kind": "defined_in",
+            "source": "symbol:main",
+            "target": "file:main.py"
+          }
+        ],
+        "digest": "d3206ba7fe22448d1919bdc9870b008e6a6e0c28427dd4ea396274843b417074"
+      },
+      "expected": {
+        "valid": false,
+        "reason": "version_unsupported",
+        "path": "$.version"
+      }
+    },
+    {
+      "name": "missing-repository-identity",
+      "contract": {
+        "schema": "simplicio.context-graph-contract/v1",
+        "version": 1,
+        "generation": "g-1",
+        "stable_ids": {
+          "nodes": [
+            "file:main.py"
+          ],
+          "edges": [
+            "edge:defines"
+          ]
+        },
+        "nodes": [
+          {
+            "id": "file:main.py",
+            "scale": "meso"
+          }
+        ],
+        "relations": [
+          {
+            "id": "edge:defines",
+            "kind": "defined_in",
+            "source": "symbol:main",
+            "target": "file:main.py"
+          }
+        ],
+        "digest": "21a5bff70011cf685e5cc723896ab6df4a741e00d523380b58a45925f84a6b45"
+      },
+      "expected": {
+        "valid": false,
+        "reason": "repository_identity_missing",
+        "path": "$.repository_id"
+      }
+    },
+    {
+      "name": "missing-generation",
+      "contract": {
+        "schema": "simplicio.context-graph-contract/v1",
+        "version": 1,
+        "repository_id": "fixture-repo",
+        "stable_ids": {
+          "nodes": [
+            "file:main.py"
+          ],
+          "edges": [
+            "edge:defines"
+          ]
+        },
+        "nodes": [
+          {
+            "id": "file:main.py",
+            "scale": "meso"
+          }
+        ],
+        "relations": [
+          {
+            "id": "edge:defines",
+            "kind": "defined_in",
+            "source": "symbol:main",
+            "target": "file:main.py"
+          }
+        ],
+        "digest": "cf99a16e30f89b64aa95dc120494ddbe55aa1aa1b95d95d3acf4a6715f2538ef"
+      },
+      "expected": {
+        "valid": false,
+        "reason": "generation_missing",
+        "path": "$.generation"
+      }
+    },
+    {
+      "name": "invalid-node-id",
+      "contract": {
+        "schema": "simplicio.context-graph-contract/v1",
+        "version": 1,
+        "repository_id": "fixture-repo",
+        "generation": "g-1",
+        "stable_ids": {
+          "nodes": [
+            ""
+          ],
+          "edges": [
+            "edge:defines"
+          ]
+        },
+        "nodes": [
+          {
+            "id": "",
+            "scale": "meso"
+          }
+        ],
+        "relations": [
+          {
+            "id": "edge:defines",
+            "kind": "defined_in",
+            "source": "symbol:main",
+            "target": "file:main.py"
+          }
+        ],
+        "digest": "5ffdc93cb307d9392740e1868430182f86196d84b7d9870ea11e17ae010acba8"
+      },
+      "expected": {
+        "valid": false,
+        "reason": "node_id_invalid",
+        "path": "$.nodes[0].id"
+      }
+    },
+    {
+      "name": "duplicate-node-id",
+      "contract": {
+        "schema": "simplicio.context-graph-contract/v1",
+        "version": 1,
+        "repository_id": "fixture-repo",
+        "generation": "g-1",
+        "stable_ids": {
+          "nodes": [
+            "file:main.py",
+            "file:main.py"
+          ],
+          "edges": [
+            "edge:defines"
+          ]
+        },
+        "nodes": [
+          {
+            "id": "file:main.py",
+            "scale": "meso"
+          },
+          {
+            "id": "file:main.py",
+            "scale": "meso"
+          }
+        ],
+        "relations": [
+          {
+            "id": "edge:defines",
+            "kind": "defined_in",
+            "source": "symbol:main",
+            "target": "file:main.py"
+          }
+        ],
+        "digest": "9155a00e03d2cf6e2108690ea48752bd9d7367ea2c5893ae0446f9a57bd9005e"
+      },
+      "expected": {
+        "valid": false,
+        "reason": "node_id_duplicate",
+        "path": "$.nodes[1].id"
+      }
+    },
+    {
+      "name": "stable-ids-mismatch",
+      "contract": {
+        "schema": "simplicio.context-graph-contract/v1",
+        "version": 1,
+        "repository_id": "fixture-repo",
+        "generation": "g-1",
+        "stable_ids": {
+          "nodes": [],
+          "edges": [
+            "edge:defines"
+          ]
+        },
+        "nodes": [
+          {
+            "id": "file:main.py",
+            "scale": "meso"
+          }
+        ],
+        "relations": [
+          {
+            "id": "edge:defines",
+            "kind": "defined_in",
+            "source": "symbol:main",
+            "target": "file:main.py"
+          }
+        ],
+        "digest": "3cecea0f848810e2154273ba2e2318f7411e2996d6d0fa20663e73fdb1c15a24"
+      },
+      "expected": {
+        "valid": false,
+        "reason": "stable_ids_mismatch",
+        "path": "$.stable_ids.nodes"
+      }
+    },
+    {
+      "name": "digest-mismatch",
+      "contract": {
+        "schema": "simplicio.context-graph-contract/v1",
+        "version": 1,
+        "repository_id": "fixture-repo",
+        "generation": "g-1",
+        "stable_ids": {
+          "nodes": [
+            "file:main.py"
+          ],
+          "edges": [
+            "edge:defines"
+          ]
+        },
+        "nodes": [
+          {
+            "id": "file:main.py",
+            "scale": "meso"
+          }
+        ],
+        "relations": [
+          {
+            "id": "edge:defines",
+            "kind": "defined_in",
+            "source": "symbol:main",
+            "target": "file:main.py"
+          }
+        ],
+        "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "valid": false,
+        "reason": "digest_mismatch",
+        "path": "$.digest"
+      }
+    }
+  ]
+}

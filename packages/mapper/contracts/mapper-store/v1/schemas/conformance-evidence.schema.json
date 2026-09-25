@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/conformance-evidence.schema.json",
+  "title": "simplicio.mapper-store-conformance-evidence/v1",
+  "description": "Hash-bound receipt produced by an external disposable cross-repository smoke harness.",
+  "type": "object",
+  "required": [
+    "schema",
+    "check",
+    "status",
+    "ok",
+    "sandbox",
+    "repositories",
+    "writer_authority",
+    "legacy_ddl_matches",
+    "evidence_hash"
+  ],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store-conformance-evidence/v1"},
+    "check": {"enum": ["runtime_single_authority", "installed_package_matrix", "scenario"]},
+    "scenario_id": {"type": "string"},
+    "status": {"enum": ["pass", "fail", "unverified"]},
+    "ok": {"type": "boolean"},
+    "sandbox": {
+      "type": "object",
+      "required": ["disposable", "working_tree_clean"],
+      "properties": {
+        "disposable": {"const": true},
+        "working_tree_clean": {"const": true},
+        "platform": {"type": "string"}
+      }
+    },
+    "repositories": {
+      "type": "object",
+      "minProperties": 4,
+      "properties": {
+        "mapper": {"$ref": "#/$defs/repository"},
+        "loop": {"$ref": "#/$defs/repository"},
+        "dev-cli": {"$ref": "#/$defs/repository"},
+        "runtime": {"$ref": "#/$defs/repository"},
+        "fast": {"$ref": "#/$defs/repository"}
+      },
+      "additionalProperties": {"$ref": "#/$defs/repository"}
+    },
+    "writer_authority": {"const": "mapper-store"},
+    "legacy_ddl_matches": {"type": "integer", "minimum": 0},
+    "runtime_store_subprocesses": {"type": "integer", "minimum": 0},
+    "effects_attempted": {"type": "boolean"},
+    "rollback_verified": {"type": "boolean"},
+    "fault_injection_verified": {"type": "boolean"},
+    "evidence_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"check": {"const": "scenario"}}},
+      "then": {"required": ["scenario_id"]}
+    },
+    {
+      "if": {"properties": {"check": {"const": "runtime_single_authority"}}},
+      "then": {"required": ["runtime_store_subprocesses"]}
+    }
+  ],
+  "$defs": {
+    "repository": {
+      "type": "object",
+      "required": ["revision"],
+      "properties": {
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"},
+        "branch": {"type": "string"},
+        "version": {"type": "string"}
+      }
+    }
+  }
+}

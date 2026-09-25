@@ -1,0 +1,157 @@
+name: Publish Mapper to PyPI
+
+# Immutable-tag release path (issue #423):
+# - automatic publish only on push of a new vX.Y.Z tag
+# - optional workflow_dispatch for a single explicit tag (never bulk history)
+# - tag shape + pyproject version + tag commit must agree before build
+# - sdist+wheel + twine check before upload via repository PYPI_API_TOKEN
+# - post-upload PyPI metadata and SHA256 verification before the job succeeds
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Immutable vX.Y.Z tag to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-pypi-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Keep the release lane on a known hosted image.  A transient failure of
+    # the moving ubuntu-latest label can fail a job before its first step.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out immutable release ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Check package / pyproject / __init__ version alignment
+        run: python scripts/check-version-sync.py
+
+      - name: Verify immutable tag and package version
+        id: release
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          tag="$RELEASE_TAG"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected immutable vX.Y.Z tag" >&2
+            exit 1
+          fi
+          git fetch --force --tags origin "$tag"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$tag^{commit}")"
+          version="${tag#v}"
+          VERSION="$version" python - <<'PY'
+          import os
+          import pathlib
+          import tomllib
+
+          project = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
+          assert project["project"]["version"] == os.environ["VERSION"]
+          PY
+          echo "release_tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release_version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install build tools
+        run: python -m pip install --upgrade build twine
+
+      - name: Install Mapper for release-manifest verification
+        run: python -m pip install .
+
+      - name: Build distributions
+        run: python -m build --wheel --sdist
+
+      - name: Check distribution metadata
+        run: python -m twine check dist/*
+
+      - name: Reconcile immutable tag, versions, manifest and artifacts
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+        run: |
+          python scripts/check_release_reconciliation.py \
+            --root . \
+            --tag "$RELEASE_TAG" \
+            --dist-dir dist
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${TWINE_PASSWORD:-}" ]]; then
+            echo "PYPI_API_TOKEN secret is not configured" >&2
+            exit 1
+          fi
+          python -m twine upload --non-interactive dist/*
+
+      - name: Verify published PyPI distributions and SHA256 digests
+        env:
+          PYPI_PACKAGE: simplicio-mapper
+          PYPI_VERSION: ${{ steps.release.outputs.release_version }}
+        run: |
+          set -euo pipefail
+          python scripts/verify_pypi_release.py \
+            --package "$PYPI_PACKAGE" \
+            --version "$PYPI_VERSION" \
+            --dist-dir dist \
+            --attempts 12 \
+            --retry-delay 10
+
+      - name: Build verified release manifest and downstream event
+        run: |
+          set -euo pipefail
+          python -m simplicio_mapper.release_manifest \
+            --json --root . --dist-dir dist > release-manifest.json
+          python scripts/build_release_event.py \
+            --manifest release-manifest.json \
+            --output release-event.json
+          python scripts/build_release_event.py \
+            --manifest release-manifest.json \
+            --output release-dispatch.json \
+            --github-dispatch-payload
+
+      - name: Dispatch verified release to downstream consumers
+        if: ${{ env.RELEASE_DISPATCH_ENABLED == 'true' }}
+        env:
+          RELEASE_DISPATCH_ENABLED: ${{ secrets.RELEASE_TRAIN_DISPATCH_TOKEN != '' }}
+          RELEASE_TRAIN_DISPATCH_TOKEN: ${{ secrets.RELEASE_TRAIN_DISPATCH_TOKEN }}
+        run: |
+          set -euo pipefail
+          for repository in \
+            simpletibr/simplicio-dev-cli \
+            simpletibr/simplicio-loop; do
+            curl --fail-with-body --silent --show-error \
+              --request POST \
+              --url "https://api.github.com/repos/$repository/dispatches" \
+              --header "Accept: application/vnd.github+json" \
+              --header "Authorization: Bearer $RELEASE_TRAIN_DISPATCH_TOKEN" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              --data-binary @release-dispatch.json
+          done
+
+      - name: Report deferred downstream dispatch
+        if: ${{ env.RELEASE_DISPATCH_ENABLED != 'true' }}
+        env:
+          RELEASE_DISPATCH_ENABLED: ${{ secrets.RELEASE_TRAIN_DISPATCH_TOKEN != '' }}
+        run: echo "::warning::RELEASE_TRAIN_DISPATCH_TOKEN is not configured; release event was generated but not dispatched."

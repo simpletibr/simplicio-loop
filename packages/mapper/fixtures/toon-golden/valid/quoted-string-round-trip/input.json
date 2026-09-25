@@ -1,0 +1,4 @@
+{
+  "label": "\"quoted\"",
+  "note": "the marketing lib/format/toon.ts:58-65 bug: a string that both starts and ends with a literal quote character must still be quoted at encode time, or it round-trips lossy (decodes to `quoted` without the surrounding quote characters)."
+}

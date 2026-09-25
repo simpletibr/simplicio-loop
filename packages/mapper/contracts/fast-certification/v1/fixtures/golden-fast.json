@@ -1,0 +1,24 @@
+{
+  "schema": "simplicio.fast-context/v1",
+  "generation": "golden-1",
+  "capabilities": {
+    "snapshot_schemas": ["simplicio.context-snapshot/v1"],
+    "languages": ["python", "typescript", "rust", "csharp"],
+    "edge_kinds": ["imports", "calls", "references"]
+  },
+  "projections": {
+    "files": [],
+    "symbols": [
+      {"id": "py:Service.run", "language": "python"},
+      {"id": "ts:Client.call", "language": "typescript"},
+      {"id": "rs:main", "language": "rust"},
+      {"id": "cs:Service.Run(int)", "language": "csharp"}
+    ],
+    "edges": [
+      {"kind": "imports", "source": "py:Service.run", "target": "py:dependency", "language": "python"},
+      {"kind": "calls", "source": "ts:Client.call", "target": "py:Service.run", "language": "typescript"},
+      {"kind": "references", "source": "rs:main", "target": "rs:Config", "language": "rust"},
+      {"kind": "calls", "source": "cs:Service.Run(int)", "target": "cs:Repository.Get", "language": "csharp"}
+    ]
+  }
+}

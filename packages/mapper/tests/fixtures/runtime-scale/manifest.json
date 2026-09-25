@@ -1,0 +1,95 @@
+{
+  "schema": "simplicio.runtime-scale-fixture/v1",
+  "seed": 199,
+  "total_files": 5008,
+  "measured_runs": 21,
+  "warmup_runs": 5,
+  "limit": 8,
+  "token_budget": 8000,
+  "targets": {
+    "indexed_p95_ms": 35.0,
+    "indexed_vs_legacy_speedup_ratio": 1.15
+  },
+  "hot_files": [
+    {
+      "path": "src/runtime_scale/indexed_dispatch.py",
+      "language": "python",
+      "roles": [
+        "domain"
+      ],
+      "importance": 0.98,
+      "symbol": "IndexedDispatchPlanner",
+      "exports": [
+        "IndexedDispatchPlanner",
+        "plan_runtime_scale_budget"
+      ],
+      "imports": [
+        "dataclasses",
+        "statistics"
+      ],
+      "body": "from dataclasses import dataclass\n\n@dataclass\nclass IndexedDispatchPlanner:\n    token_budget: int = 8000\n\n    def plan(self, opened_files: int, bytes_read: int) -> dict[str, int]:\n        normalized = max(1, opened_files)\n        return {\n            \"opened_files\": opened_files,\n            \"bytes_read\": bytes_read,\n            \"budget_tokens\": max(1, self.token_budget - normalized),\n        }\n\n\ndef plan_runtime_scale_budget(opened_files: int, bytes_read: int) -> dict[str, int]:\n    return IndexedDispatchPlanner().plan(opened_files, bytes_read)\n"
+    },
+    {
+      "path": "src/runtime_scale/legacy_metadata.py",
+      "language": "python",
+      "roles": [
+        "domain"
+      ],
+      "importance": 0.83,
+      "symbol": "LegacyMetadataPlanner",
+      "exports": [
+        "LegacyMetadataPlanner",
+        "select_metadata_budget"
+      ],
+      "imports": [
+        "json"
+      ],
+      "body": "class LegacyMetadataPlanner:\n    def select(self, paths: list[str]) -> list[str]:\n        return sorted(paths)[:8]\n\n\ndef select_metadata_budget(paths: list[str]) -> list[str]:\n    return LegacyMetadataPlanner().select(paths)\n"
+    },
+    {
+      "path": "tests/test_runtime_scale_budget.py",
+      "language": "python",
+      "roles": [
+        "test"
+      ],
+      "importance": 0.75,
+      "symbol": "test_plan_runtime_scale_budget",
+      "exports": [
+        "test_plan_runtime_scale_budget"
+      ],
+      "imports": [
+        "runtime_scale"
+      ],
+      "body": "from src.runtime_scale.indexed_dispatch import plan_runtime_scale_budget\n\n\ndef test_plan_runtime_scale_budget() -> None:\n    payload = plan_runtime_scale_budget(3, 120)\n    assert payload[\"opened_files\"] == 3\n    assert payload[\"bytes_read\"] == 120\n"
+    },
+    {
+      "path": "docs/runtime-scale.md",
+      "language": "markdown",
+      "roles": [
+        "docs"
+      ],
+      "importance": 0.31,
+      "symbol": "runtime_scale_notes",
+      "exports": [],
+      "imports": [],
+      "body": "# Runtime scale\n\nIndexed dispatch should beat legacy metadata selection on warm task-aware retrieval.\n"
+    }
+  ],
+  "queries": [
+    {
+      "name": "explicit_target_symbol",
+      "goal": "Fix IndexedDispatchPlanner token budget regression in src/runtime_scale/indexed_dispatch.py and keep the warm benchmark deterministic.",
+      "target": "src/runtime_scale/indexed_dispatch.py"
+    },
+    {
+      "name": "natural_language_budget",
+      "goal": "Investigate why the runtime scale budget opens too many files during indexed dispatch planning and verify the deterministic path still wins.",
+      "target": ""
+    },
+    {
+      "name": "test_route",
+      "goal": "Update test_plan_runtime_scale_budget so the verification route follows IndexedDispatchPlanner instead of the legacy metadata path.",
+      "target": "tests/test_runtime_scale_budget.py"
+    }
+  ]
+}

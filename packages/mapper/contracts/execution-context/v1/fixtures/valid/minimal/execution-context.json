@@ -1,0 +1,48 @@
+{
+  "abstention": {
+    "abstained": false,
+    "reasons": []
+  },
+  "envelope_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "fidelity": {
+    "coverage_ratio": 1.0,
+    "reasons": [],
+    "sufficient": true,
+    "vector": {}
+  },
+  "graph_edges": [],
+  "needs_broader_context": false,
+  "next_queries": [],
+  "omissions": [],
+  "precedents": [],
+  "redactions": [],
+  "related_tests": [],
+  "repository": {
+    "artifact_hashes": {},
+    "id": "fixture",
+    "map_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "root_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "snapshot_id": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "schema": "simplicio.execution-context/v1",
+  "sources": [],
+  "task": {
+    "acceptance_criteria": ["AC-1"],
+    "fingerprint": "task-fixture",
+    "goal": "Fixture goal",
+    "intent_fingerprint": ""
+  },
+  "token_budget": {
+    "measurement": "MEASURED",
+    "requested_tokens": 8000,
+    "serialized_bytes": 0,
+    "serialized_tokens": 0,
+    "tokenizer_policy": "tiktoken:o200k_base",
+    "within_budget": true
+  },
+  "trust": {
+    "classification": "repository-local",
+    "sensitivity": "normal",
+    "source_content": "extractive"
+  }
+}

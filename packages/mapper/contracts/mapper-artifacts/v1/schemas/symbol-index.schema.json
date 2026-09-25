@@ -1,0 +1,45 @@
+{
+  "$id": "simplicio.symbol-index/v1",
+  "title": "simplicio-mapper symbol-index.json (v1)",
+  "description": "Flat list of defined symbols (functions/classes/etc.) across the repo, with per-symbol evidence.",
+  "type": "object",
+  "required": ["schema", "producer", "version", "generated_at", "root", "symbols", "counts"],
+  "properties": {
+    "schema": { "type": "string", "enum": ["simplicio.symbol-index/v1"] },
+    "producer": { "$ref": "producer-metadata.schema.json" },
+    "version": { "type": "integer" },
+    "generated_at": { "type": "string" },
+    "root": { "type": "string" },
+    "symbols": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "qualified_name", "kind", "language", "defined_in", "line"],
+        "properties": {
+          "name": { "type": "string" },
+          "qualified_name": { "type": "string" },
+          "kind": { "type": "string" },
+          "language": { "type": "string" },
+          "defined_in": { "type": "string" },
+          "line": { "type": "integer" },
+          "evidence": {
+            "type": "object",
+            "required": ["file", "line"],
+            "properties": {
+              "file": { "type": "string" },
+              "line": { "type": "integer" }
+            }
+          }
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "required": ["symbols", "files"],
+      "properties": {
+        "symbols": { "type": "integer" },
+        "files": { "type": "integer" }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/memory-handoff.schema.json",
+  "title": "simplicio.mapper-store.handoff/v1",
+  "type": "object",
+  "required": ["schema", "version", "query", "from_agent", "to_agent", "validation", "results", "packet_hash"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store.handoff/v1"},
+    "version": {"const": 1},
+    "query": {"type": "string"},
+    "from_agent": {"type": "string"},
+    "to_agent": {"type": "string"},
+    "validation": {"type": "object"},
+    "results": {"type": "array"},
+    "packet_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

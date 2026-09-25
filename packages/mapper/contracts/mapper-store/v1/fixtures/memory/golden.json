@@ -1,0 +1,10 @@
+{
+  "schema": "simplicio.mapper-store.handoff/v1",
+  "version": 1,
+  "query": "release process",
+  "from_agent": "codex",
+  "to_agent": "claude",
+  "validation": {"ok": true, "errors": []},
+  "results": [],
+  "packet_hash": "5e232456ff290da95095a36af6e6720117e73e6977bd9d9e79234a61f3610533"
+}

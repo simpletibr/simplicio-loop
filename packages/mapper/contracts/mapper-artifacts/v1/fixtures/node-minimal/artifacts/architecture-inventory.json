@@ -1,0 +1,344 @@
+{
+  "architecture": {
+    "signals": [],
+    "system_type": "library-or-service"
+  },
+  "coverage": {
+    "files": 3,
+    "layers": 3,
+    "modules": 3,
+    "relationships": 4,
+    "symbols": 2,
+    "tests": 1
+  },
+  "files": [
+    {
+      "evidence": [
+        {
+          "file": "package.json"
+        }
+      ],
+      "imports": [],
+      "language": "json",
+      "layers": [
+        "config"
+      ],
+      "module": ".",
+      "path": "package.json",
+      "roles": [
+        "config"
+      ],
+      "summary": "Configures tooling, build, runtime or packaging behavior.",
+      "symbols": []
+    },
+    {
+      "evidence": [
+        {
+          "file": "spec/greet.spec.js"
+        }
+      ],
+      "imports": [
+        "../src/index.js",
+        "node:assert",
+        "node:test"
+      ],
+      "language": "javascript",
+      "layers": [
+        "test"
+      ],
+      "module": "spec",
+      "path": "spec/greet.spec.js",
+      "roles": [
+        "test"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "symbols": []
+    },
+    {
+      "evidence": [
+        {
+          "file": "src/index.js"
+        }
+      ],
+      "imports": [],
+      "language": "javascript",
+      "layers": [
+        "entrypoint"
+      ],
+      "module": "src",
+      "path": "src/index.js",
+      "roles": [
+        "entrypoint"
+      ],
+      "summary": "Starts a CLI, runtime or package entrypoint.",
+      "symbols": [
+        "greet",
+        "main"
+      ]
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "layers": [
+    {
+      "evidence": [
+        {
+          "file": "package.json"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "package.json"
+      ],
+      "modules": [
+        "."
+      ],
+      "name": "config"
+    },
+    {
+      "evidence": [
+        {
+          "file": "src/index.js"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "src/index.js"
+      ],
+      "modules": [
+        "src"
+      ],
+      "name": "entrypoint"
+    },
+    {
+      "evidence": [
+        {
+          "file": "spec/greet.spec.js"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "spec/greet.spec.js"
+      ],
+      "modules": [
+        "spec"
+      ],
+      "name": "test"
+    }
+  ],
+  "modules": [
+    {
+      "entry_points": [],
+      "evidence": [
+        {
+          "file": "package.json"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "package.json"
+      ],
+      "layers": [
+        "config"
+      ],
+      "name": ".",
+      "public_symbols": [],
+      "summary": "Groups 1 files across 1 detected layers.",
+      "tests": []
+    },
+    {
+      "entry_points": [],
+      "evidence": [
+        {
+          "file": "spec/greet.spec.js"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "spec/greet.spec.js"
+      ],
+      "layers": [
+        "test"
+      ],
+      "name": "spec",
+      "public_symbols": [],
+      "summary": "Groups 1 files across 1 detected layers.",
+      "tests": [
+        "spec/greet.spec.js"
+      ]
+    },
+    {
+      "entry_points": [
+        "src/index.js"
+      ],
+      "evidence": [
+        {
+          "file": "src/index.js"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "src/index.js"
+      ],
+      "layers": [
+        "entrypoint"
+      ],
+      "name": "src",
+      "public_symbols": [
+        "greet",
+        "main"
+      ],
+      "summary": "Groups 1 files across 1 detected layers.",
+      "tests": []
+    }
+  ],
+  "notes": [
+    "Generated from deterministic repository inspection.",
+    "Relationship evidence_class and resolution_status describe how each edge was obtained; null confidence is not a calibrated probability."
+  ],
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:72b294446bbb19d2b5c4ac21cf7d62af9d0c8a2ba401b6813e0e2181fa23cde6",
+    "capability_coverage": {
+      "architecture": "full",
+      "files": "full",
+      "precedent": "unsupported",
+      "relationships": "full",
+      "symbols": "empty"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
+  "product": {
+    "name": "sample-node-app",
+    "project_mode": "root",
+    "stack": "unknown"
+  },
+  "relationship_coverage": {
+    "ambiguous_relations": 0,
+    "edge_limit": 250,
+    "emitted_edges": 4,
+    "evidence_classes": {
+      "import_resolved": 1,
+      "lexical_unique": 3
+    },
+    "invalid_edges": 0,
+    "observed_edges": 4,
+    "omitted_edges": 0,
+    "status": "complete",
+    "truncated": false,
+    "unknown_relations": 0
+  },
+  "relationships": [
+    {
+      "confidence": null,
+      "evidence_class": "lexical_unique",
+      "line": 6,
+      "provenance": {
+        "caller_resolution": "unknown",
+        "candidate_count": 1,
+        "candidates": [
+          "src/index.js::greet"
+        ],
+        "fallback_reason": null,
+        "method": "symbol-name-lookup",
+        "queried_symbol": "greet"
+      },
+      "relation_id": "3afd67ec315a57698d958b9fd9ce4599c4f8996e235ed2cb5f0cad84962285ac",
+      "resolution_status": "resolved",
+      "source_file": "spec/greet.spec.js",
+      "source_symbol": null,
+      "target_candidates": [
+        "src/index.js::greet"
+      ],
+      "target_file": "src/index.js",
+      "target_symbol": "src/index.js::greet",
+      "type": "calls"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "import_resolved",
+      "import": "../src/index.js",
+      "provenance": {
+        "candidate_count": 1,
+        "candidates": [
+          "src/index.js"
+        ],
+        "import": "../src/index.js",
+        "method": "import-resolution"
+      },
+      "relation_id": "2baf5c793559c8f253b90f64d52b9cfd9d9262c22bbbb2e91dabb8998998e7d2",
+      "resolution_status": "resolved",
+      "source_file": "spec/greet.spec.js",
+      "target_candidates": [
+        "src/index.js"
+      ],
+      "target_file": "src/index.js",
+      "type": "imports"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "lexical_unique",
+      "line": 8,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "src/index.js::greet"
+        ],
+        "fallback_reason": null,
+        "method": "symbol-name-lookup",
+        "queried_symbol": "greet"
+      },
+      "relation_id": "51489a98889389174cfe0baa337d5a90ed61b6e44c30e6b646cc885621fae3ef",
+      "resolution_status": "resolved",
+      "source_file": "src/index.js",
+      "source_symbol": "src/index.js::main",
+      "target_candidates": [
+        "src/index.js::greet"
+      ],
+      "target_file": "src/index.js",
+      "target_symbol": "src/index.js::greet",
+      "type": "calls"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "lexical_unique",
+      "line": 12,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "src/index.js::main"
+        ],
+        "fallback_reason": null,
+        "method": "symbol-name-lookup",
+        "queried_symbol": "main"
+      },
+      "relation_id": "5adc3c2df4919bd4b8cec0f1d7b06e8b051de85287bde2f054b05e2dda564f9d",
+      "resolution_status": "resolved",
+      "source_file": "src/index.js",
+      "source_symbol": "src/index.js::main",
+      "target_candidates": [
+        "src/index.js::main"
+      ],
+      "target_file": "src/index.js",
+      "target_symbol": "src/index.js::main",
+      "type": "calls"
+    }
+  ],
+  "root": "<fixture-root>",
+  "schema": "simplicio.architecture-inventory/v1",
+  "source_call_graph": ".simplicio/call-graph.json",
+  "source_project_map": ".simplicio/project-map.json",
+  "source_symbol_index": ".simplicio/symbol-index.json",
+  "version": 1
+}

@@ -1,0 +1,83 @@
+{
+  "timeline": [
+    {
+      "id": "hook",
+      "fromFrame": 0,
+      "durationInFrames": 80
+    },
+    {
+      "id": "painTyping",
+      "fromFrame": 80,
+      "durationInFrames": 200
+    },
+    {
+      "id": "painList",
+      "fromFrame": 280,
+      "durationInFrames": 130
+    },
+    {
+      "id": "reveal",
+      "fromFrame": 410,
+      "durationInFrames": 110
+    },
+    {
+      "id": "anatomy",
+      "fromFrame": 520,
+      "durationInFrames": 240
+    },
+    {
+      "id": "sideBySide",
+      "fromFrame": 760,
+      "durationInFrames": 380
+    },
+    {
+      "id": "productivity",
+      "fromFrame": 1140,
+      "durationInFrames": 160
+    },
+    {
+      "id": "multiAgent",
+      "fromFrame": 1300,
+      "durationInFrames": 160
+    },
+    {
+      "id": "cta",
+      "fromFrame": 1460,
+      "durationInFrames": 130
+    }
+  ],
+  "tracks": {
+    "pt": {
+      "voice": "Luciana",
+      "rate": 182,
+      "output": "voice/why-pt.m4a",
+      "cues": [
+        "A IA ja inventou como seu projeto funciona?",
+        "Sem contexto, ela pede arquivos, ignora padroes e erra a stack.",
+        "Voce repete contexto, a IA inventa regras e bugs passam sem teste.",
+        "O llm-project-mapper entrega esse contexto antes da primeira tarefa.",
+        "Agents, specs, skills e hooks criam um contrato claro para qualquer agente.",
+        "Antes, a conversa vira interrogatorio. Depois, Claude, Codex ou Copilot ja comecam com branch, testes e Definition of Done.",
+        "Voce corta contexto repetido, ganha evidencia obrigatoria e evita merge quebrado.",
+        "O mesmo contrato funciona com varios agentes trabalhando em paralelo.",
+        "Em trinta segundos, o projeto fica legivel para humanos e para IA."
+      ]
+    },
+    "en": {
+      "voice": "Daniel",
+      "rate": 182,
+      "output": "voice/why-en.m4a",
+      "cues": [
+        "Has AI ever invented how your project works?",
+        "Without context, it asks for files, ignores patterns, and picks the wrong stack.",
+        "You repeat context, the AI invents rules, and bugs slip through untested.",
+        "llm-project-mapper gives that context upfront, before the first task.",
+        "Agents, specs, skills, and hooks create one clear contract for any agent.",
+        "Before, the chat turns into an interview. After, Claude, Codex, or Copilot start with the branch, tests, and Definition of Done.",
+        "You cut repeated context, enforce evidence, and stop broken merges.",
+        "The same contract works for multiple agents running in parallel.",
+        "In thirty seconds, the project becomes readable for humans and for AI."
+      ]
+    }
+  }
+}

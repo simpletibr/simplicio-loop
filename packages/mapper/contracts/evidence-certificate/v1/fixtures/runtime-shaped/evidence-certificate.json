@@ -1,0 +1,38 @@
+{
+  "schema": "simplicio.evidence-certificate/v1",
+  "schema_version": "v1",
+  "certificate_id": "8a944d30d460c70d36e810b561cd48348f42a70332731bf960710e8bb9bf73b8",
+  "producer": {
+    "name": "simplicio-mapper",
+    "version": "0.0.0-fixture"
+  },
+  "observed_context": {
+    "revision": "r0",
+    "snapshot_id": "e8abffe9ed8c1d08765f367ca29fb1d0437ac8af292312a23795ba09451502d2",
+    "fidelity": {
+      "status": "not_evaluated",
+      "gate": "pending"
+    },
+    "handles": [
+      {
+        "file": "app.py",
+        "line": 3
+      },
+      {
+        "file": "app.py",
+        "line": 4
+      },
+      {
+        "file": "layer:app"
+      }
+    ]
+  },
+  "runtime_execution": {
+    "shape": "simplicio-runtime-certificate",
+    "external_runtime": {
+      "status": "UNVERIFIED",
+      "reason": "fixture captures Runtime-shaped evidence only; external Runtime execution receipt is not available in this repo test",
+      "command": "simplicio runtime certify --from-context-snapshot <snapshot>"
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "cold_semantics": "first builder call in a fresh subprocess",
+  "environment": {
+    "implementation": "CPython",
+    "platform": "Linux-6.12.13-x86_64-with-glibc2.39",
+    "process_model": "fresh-subprocess",
+    "python_version": "3.12.13",
+    "tokenizer_policy": "tiktoken:o200k_base"
+  },
+  "fixture": "contracts/mapper-artifacts/v1/fixtures/python-minimal",
+  "measurements": {
+    "cold": {
+      "bytes_read": {
+        "unavailable_reason": null,
+        "value": 318
+      },
+      "files_opened": {
+        "unavailable_reason": null,
+        "value": 2
+      },
+      "latency_ms": {
+        "unavailable_reason": null,
+        "value": 6.536841
+      },
+      "peak_rss_bytes": {
+        "unavailable_reason": null,
+        "value": 108572672
+      },
+      "serialized_tokens": {
+        "unavailable_reason": null,
+        "value": 1565
+      }
+    },
+    "warm": {
+      "bytes_read": {
+        "unavailable_reason": null,
+        "value": 318.0
+      },
+      "files_opened": {
+        "unavailable_reason": null,
+        "value": 2.0
+      },
+      "latency_ms": {
+        "unavailable_reason": null,
+        "value": 4.7986155
+      },
+      "peak_rss_bytes": {
+        "unavailable_reason": null,
+        "value": 108572672.0
+      },
+      "serialized_tokens": {
+        "unavailable_reason": null,
+        "value": 1565.0
+      }
+    }
+  },
+  "rss_semantics": "resource.ru_maxrss process high-water mark observed after each call; not an allocation delta for the builder",
+  "runs": 3,
+  "schema": "simplicio.execution-context-benchmark/v1",
+  "warm_semantics": "median of subsequent same-process builder calls"
+}

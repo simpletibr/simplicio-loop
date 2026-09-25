@@ -1,0 +1,16 @@
+schema = "simplicio.ecc-manifest/v1"
+source = "https://github.com/affaan-m/ECC"
+ref = "0c1d7be9a750627fb2a6534c78a998cc46d03f9c"
+enabled = true
+max_components_per_stage = 3
+max_context_chars = 8000
+allow_hooks = false
+forbidden_components = ["autonomous-loops", "continuous-agent-loop", "loop-operator"]
+
+[stages.mapping]
+skills = ["search-first", "iterative-retrieval"]
+agents = ["planner"]
+
+[stages.planning]
+skills = ["plan-orchestrate", "iterative-retrieval"]
+agents = ["planner", "architect"]

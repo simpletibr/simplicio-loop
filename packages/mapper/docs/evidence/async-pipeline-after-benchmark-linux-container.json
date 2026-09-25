@@ -1,0 +1,70 @@
+{
+  "schema": "simplicio.async-pipeline-after-benchmark/v1",
+  "generated_at": "2026-07-18T00:33:16.569700+00:00",
+  "python_version": "3.11.15",
+  "platform": "linux-container (issue #264 cross-platform data point)",
+  "seed": 20260717,
+  "results": [
+    {
+      "size": "small",
+      "file_count": 4,
+      "runs": 2,
+      "cold": {
+        "wall_median_s": 0.0716,
+        "wall_p95_s": 0.0811,
+        "cpu_median_s": 0.0236,
+        "peak_rss_mb": 0.0,
+        "files_per_sec": 55.89
+      },
+      "warm": {
+        "wall_median_s": 0.022,
+        "wall_p95_s": 0.0241,
+        "cpu_median_s": 0.0154,
+        "peak_rss_mb": 0.0,
+        "files_per_sec": 181.41
+      },
+      "warm_vs_cold_speedup_ratio": 3.25
+    },
+    {
+      "size": "medium",
+      "file_count": 220,
+      "runs": 2,
+      "cold": {
+        "wall_median_s": 0.4895,
+        "wall_p95_s": 0.5039,
+        "cpu_median_s": 0.4766,
+        "peak_rss_mb": 0.0,
+        "files_per_sec": 449.47
+      },
+      "warm": {
+        "wall_median_s": 0.3844,
+        "wall_p95_s": 0.3853,
+        "cpu_median_s": 0.4384,
+        "peak_rss_mb": 0.0,
+        "files_per_sec": 572.27
+      },
+      "warm_vs_cold_speedup_ratio": 1.27
+    },
+    {
+      "size": "large",
+      "file_count": 1650,
+      "runs": 2,
+      "cold": {
+        "wall_median_s": 6.8766,
+        "wall_p95_s": 7.0665,
+        "cpu_median_s": 7.7402,
+        "peak_rss_mb": 0.0,
+        "files_per_sec": 239.94
+      },
+      "warm": {
+        "wall_median_s": 8.1236,
+        "wall_p95_s": 8.9285,
+        "cpu_median_s": 10.1088,
+        "peak_rss_mb": 0.0,
+        "files_per_sec": 203.11
+      },
+      "warm_vs_cold_speedup_ratio": 0.85
+    }
+  ],
+  "baseline_reference": null
+}

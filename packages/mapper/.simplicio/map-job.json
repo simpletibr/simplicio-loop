@@ -1,0 +1,296 @@
+{
+  "created_at": "2026-08-03T15:30:25Z",
+  "deep": {
+    "lock_path": "C:/Users/Z0059V7A/m/repos/simplicio-mapper/.simplicio/index.lock",
+    "log": "C:/Users/Z0059V7A/m/repos/simplicio-mapper/.simplicio/background-index.log",
+    "pid": 21084,
+    "poll": "simplicio-mapper status C:\\Users\\Z0059V7A\\m\\repos\\simplicio-mapper",
+    "process_start": "win-filetime:134302446166228794",
+    "resuming": false,
+    "state_path": "C:/Users/Z0059V7A/m/repos/simplicio-mapper/.simplicio/index-state.json"
+  },
+  "macro": {
+    "confidence": "shallow",
+    "config_files": [
+      ".codex/config.toml",
+      "contracts/behavioral/v1/fixtures/frontend-ordering-en/package.json",
+      "contracts/behavioral/v1/fixtures/no-match-abstention/package.json",
+      "contracts/behavioral/v1/fixtures/planes-ordering-ptbr/package.json",
+      "contracts/mapper-artifacts/v1/fixtures/mixed-workspace/source/package.json",
+      "contracts/mapper-artifacts/v1/fixtures/node-minimal/source/package.json",
+      "contracts/mapper-artifacts/v1/fixtures/python-minimal/source/pyproject.toml",
+      "contracts/mapper-canvas/v1/fixtures/cli/source/pyproject.toml",
+      "contracts/mapper-canvas/v1/fixtures/event-driven/source/package.json",
+      "contracts/mapper-canvas/v1/fixtures/incomplete/source/package.json",
+      "contracts/mapper-canvas/v1/fixtures/layered-web/source/package.json",
+      "contracts/mapper-canvas/v1/fixtures/monorepo/source/apps/web/package.json",
+      "contracts/mapper-canvas/v1/fixtures/monorepo/source/package.json",
+      "contracts/mapper-canvas/v1/fixtures/monorepo/source/packages/shared/package.json",
+      "contracts/mapper-canvas/v1/fixtures/polyglot/source/package.json",
+      "docs-site/docusaurus.config.cjs",
+      "docs-site/package.json",
+      "package.json",
+      "packaging/npm/package.json",
+      "playwright.config.ts",
+      "pyproject.toml",
+      "rust/Cargo.toml",
+      "rust/pyproject.toml",
+      "tests/fixtures/evaluation_corpus/advanced/dispatch-priority-en/source/package.json",
+      "tests/fixtures/evaluation_corpus/advanced/session-replay-ptbr/source/package.json",
+      "tests/fixtures/evaluation_corpus/frontend-ordering-en/source/package.json",
+      "tests/fixtures/evaluation_corpus/no-match-abstention/source/package.json",
+      "tests/fixtures/evaluation_corpus/planes-ordering-ptbr/source/package.json",
+      "tests/fixtures/evaluation_corpus/polyglot-cross-layer-en/source/package.json",
+      "tests/fixtures/impact-ground-truth/python-rename-greet/pyproject.toml",
+      "tests/fixtures/incremental-medium/package.json",
+      "tests/fixtures/parity-host/package.json",
+      "video/package.json",
+      "video/remotion.config.ts",
+      "video/tsconfig.json",
+      "vscode-extension/package.json",
+      "vscode-extension/tsconfig.json"
+    ],
+    "counts": {
+      "by_language": {
+        "bin": 1,
+        "css": 1,
+        "feature": 1,
+        "go": 1,
+        "html": 1,
+        "javascript": 51,
+        "json": 263,
+        "m4a": 2,
+        "markdown": 256,
+        "mdx": 2,
+        "mp3": 1,
+        "mp4": 19,
+        "pdf": 1,
+        "png": 30,
+        "powershell": 10,
+        "pptx": 1,
+        "psd1": 1,
+        "python": 339,
+        "rust": 2,
+        "shell": 10,
+        "srt": 2,
+        "svg": 2,
+        "text": 12,
+        "toml": 10,
+        "toon": 15,
+        "txt": 1,
+        "typescript": 56,
+        "yaml": 5
+      },
+      "endpoint_files": 440,
+      "files": 1096,
+      "modules": 28,
+      "screens": 0,
+      "tests": 281
+    },
+    "entry_points": [
+      "bin/apply-edits.js",
+      "bin/build-hamt-catalog",
+      "bin/cli.js",
+      "bin/skillopt.js",
+      "contracts/mapper-artifacts/v1/fixtures/mixed-workspace/source/backend/server.py",
+      "contracts/mapper-artifacts/v1/fixtures/mixed-workspace/source/frontend/src/App.jsx",
+      "contracts/mapper-artifacts/v1/fixtures/node-minimal/source/src/index.js",
+      "contracts/mapper-artifacts/v1/fixtures/python-minimal/source/src/app.py",
+      "contracts/mapper-canvas/v1/fixtures/cli/source/cli/main.py",
+      "contracts/mapper-canvas/v1/fixtures/incomplete/source/src/app.js",
+      "contracts/mapper-canvas/v1/fixtures/layered-web/source/public/index.html",
+      "contracts/mapper-canvas/v1/fixtures/layered-web/source/src/server.js",
+      "contracts/mapper-canvas/v1/fixtures/monorepo/source/apps/web/src/index.ts",
+      "contracts/mapper-canvas/v1/fixtures/monorepo/source/packages/shared/src/index.ts",
+      "contracts/mapper-canvas/v1/fixtures/polyglot/source/go/main.go",
+      "contracts/mapper-canvas/v1/fixtures/polyglot/source/python/app.py",
+      "docs-site/src/pages/index.mdx",
+      "docs/api-examples/cli.md",
+      "tests/fixtures/parity-host/src/index.js",
+      "video/src/index.ts"
+    ],
+    "generated_at": "2026-08-03T15:30:16.164Z",
+    "git": {
+      "degraded": false,
+      "dirty": true,
+      "head": "7c48911d78809f26ccf1a7bed075d1613fd1fc2e"
+    },
+    "layers": [
+      {
+        "file_count": 281,
+        "name": "test"
+      },
+      {
+        "file_count": 277,
+        "name": "documentation"
+      },
+      {
+        "file_count": 237,
+        "name": "asset"
+      },
+      {
+        "file_count": 149,
+        "name": "code"
+      },
+      {
+        "file_count": 77,
+        "name": "model"
+      },
+      {
+        "file_count": 71,
+        "name": "script"
+      },
+      {
+        "file_count": 37,
+        "name": "config"
+      },
+      {
+        "file_count": 20,
+        "name": "entrypoint"
+      },
+      {
+        "file_count": 20,
+        "name": "ui"
+      },
+      {
+        "file_count": 12,
+        "name": "repository"
+      },
+      {
+        "file_count": 5,
+        "name": "route"
+      },
+      {
+        "file_count": 3,
+        "name": "domain"
+      },
+      {
+        "file_count": 2,
+        "name": "controller"
+      }
+    ],
+    "modules": [
+      {
+        "file_count": 239,
+        "name": "tests"
+      },
+      {
+        "file_count": 213,
+        "name": "contracts"
+      },
+      {
+        "file_count": 107,
+        "name": "simplicio_mapper"
+      },
+      {
+        "file_count": 91,
+        "name": "video"
+      },
+      {
+        "file_count": 71,
+        "name": "scripts"
+      },
+      {
+        "file_count": 70,
+        "name": "docs"
+      },
+      {
+        "file_count": 66,
+        "name": "docs-site"
+      },
+      {
+        "file_count": 46,
+        "name": ".skills"
+      },
+      {
+        "file_count": 34,
+        "name": "."
+      },
+      {
+        "file_count": 33,
+        "name": "fixtures"
+      },
+      {
+        "file_count": 30,
+        "name": ".specs"
+      },
+      {
+        "file_count": 15,
+        "name": "READMEs"
+      },
+      {
+        "file_count": 14,
+        "name": ".github"
+      },
+      {
+        "file_count": 9,
+        "name": "bin"
+      },
+      {
+        "file_count": 9,
+        "name": "vscode-extension"
+      },
+      {
+        "file_count": 7,
+        "name": ".claude"
+      },
+      {
+        "file_count": 7,
+        "name": "examples"
+      },
+      {
+        "file_count": 6,
+        "name": ".agents"
+      },
+      {
+        "file_count": 5,
+        "name": ".codex"
+      },
+      {
+        "file_count": 5,
+        "name": "assets"
+      },
+      {
+        "file_count": 4,
+        "name": "packaging"
+      },
+      {
+        "file_count": 4,
+        "name": "presentation"
+      },
+      {
+        "file_count": 4,
+        "name": "rust"
+      },
+      {
+        "file_count": 2,
+        "name": ".serena"
+      },
+      {
+        "file_count": 2,
+        "name": "tools"
+      },
+      {
+        "file_count": 1,
+        "name": "artifacts"
+      },
+      {
+        "file_count": 1,
+        "name": "config"
+      },
+      {
+        "file_count": 1,
+        "name": "policy"
+      }
+    ],
+    "product": {
+      "name": "@wesleysimplicio/llm-project-mapper",
+      "project_mode": "root",
+      "stack": "commonjs"
+    },
+    "schema": "simplicio.macro-map/v1"
+  },
+  "phase": "complete",
+  "schema": "simplicio.map-job/v1",
+  "sync": false
+}

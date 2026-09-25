@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/capacity.schema.json",
+  "title": "simplicio.mapper-store.capacity/v1",
+  "type": "object",
+  "required": ["schema", "state", "alerts", "budgets", "reason_codes"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store.capacity/v1"},
+    "state": {"type": "string"},
+    "alerts": {"type": "array"},
+    "budgets": {"type": "object"},
+    "reason_codes": {"type": "array"}
+  }
+}

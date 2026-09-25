@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/capability.schema.json",
+  "title": "simplicio.mapper-store-capability/v1",
+  "type": "object",
+  "required": ["schema", "store_schema", "status", "available", "writer_authority", "readers", "clients", "semantic", "migration", "precedents"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store-capability/v1"},
+    "store_schema": {"const": "simplicio.mapper-store/v1"},
+    "status": {"enum": ["ready", "not-ready"]},
+    "available": {"type": "boolean"},
+    "writer_authority": {"const": "mapper-store"},
+    "readers": {"type": "array", "items": {"type": "string"}},
+    "clients": {"type": "object"},
+    "memory": {"type": "object"},
+    "operations": {"type": "object"},
+    "semantic": {"type": "object"},
+    "migration": {"type": "object"},
+    "precedents": {"type": "object"}
+  }
+}

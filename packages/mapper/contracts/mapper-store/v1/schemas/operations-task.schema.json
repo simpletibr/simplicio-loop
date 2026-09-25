@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/operations-task.schema.json",
+  "title": "simplicio.mapper-store.operations-task/v1",
+  "type": "object",
+  "required": ["schema", "task_id", "state", "terminal_verified", "attempts"],
+  "properties": {
+    "schema": { "enum": ["simplicio.mapper-store.operations-api/v1"] },
+    "task_id": { "type": "string", "minLength": 1 },
+    "state": { "enum": ["queued", "running", "completed", "cancelled", "failed"] },
+    "cancellation_requested": { "type": "boolean" },
+    "terminal_verified": { "type": "boolean" },
+    "payload": { "type": "object" },
+    "attempts": { "type": "array" }
+  }
+}

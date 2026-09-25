@@ -1,0 +1,40 @@
+{
+  "schema": "simplicio.context-graph-parity-fixture/v1",
+  "version": 1,
+  "cases": [
+    {
+      "name": "empty-map-scan",
+      "behavior": "scan",
+      "repository_id": "fixture-repo",
+      "generation": "g-empty",
+      "graph": {"schema": "simplicio.context-graph/v1", "version": 1, "nodes": [], "edges": [], "counts": {"nodes": 0, "edges": 0, "micro": 0, "meso": 0, "macro": 0}, "scale_semantics": {}, "drilldown": {}}
+    },
+    {
+      "name": "stable-relations-inspect",
+      "behavior": "inspect",
+      "repository_id": "fixture-repo",
+      "generation": "g-1",
+      "graph": {
+        "schema": "simplicio.context-graph/v1",
+        "version": 1,
+        "nodes": [
+          {"id": "symbol:main", "scale": "micro", "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "source": {"file": "src/main.py", "line": 1}},
+          {"id": "file:main.py", "scale": "meso", "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "source": {"file": "src/main.py"}}
+        ],
+        "edges": [
+          {"id": "edge:defines", "kind": "defined_in", "source": "symbol:main", "target": "file:main.py", "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "source_handle": {"file": "src/main.py", "line": 1}}
+        ],
+        "counts": {"nodes": 2, "edges": 1, "micro": 1, "meso": 1, "macro": 0},
+        "scale_semantics": {},
+        "drilldown": {}
+      }
+    },
+    {
+      "name": "incremental-ask",
+      "behavior": "ask",
+      "repository_id": "fixture-repo",
+      "generation": "g-2",
+      "graph": {"schema": "simplicio.context-graph/v1", "version": 1, "nodes": [{"id": "file:changed.py", "scale": "meso", "content_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "source": {"file": "src/changed.py"}}], "edges": [], "counts": {"nodes": 1, "edges": 0, "micro": 0, "meso": 1, "macro": 0}, "scale_semantics": {}, "drilldown": {}}
+    }
+  ]
+}

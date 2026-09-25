@@ -1,0 +1,17 @@
+{
+  "schema": "simplicio.mapper-golden-corpus/v1",
+  "symbols": [
+    {"id": "py:Service.run", "language": "python", "kind": "method"},
+    {"id": "ts:Client.call", "language": "typescript", "kind": "method"},
+    {"id": "rs:main", "language": "rust", "kind": "function"},
+    {"id": "cs:Service.Run(int)", "language": "csharp", "kind": "overload"},
+    {"id": "cs:Service.Run(string)", "language": "csharp", "kind": "overload"},
+    {"id": "generated:Client", "language": "typescript", "kind": "generated"}
+  ],
+  "edges": [
+    {"kind": "imports", "source": "py:Service.run", "target": "py:dependency", "language": "python"},
+    {"kind": "calls", "source": "ts:Client.call", "target": "py:Service.run", "language": "typescript"},
+    {"kind": "references", "source": "rs:main", "target": "rs:Config", "language": "rust"},
+    {"kind": "calls", "source": "cs:Service.Run(int)", "target": "cs:Repository.Get", "language": "csharp"}
+  ]
+}

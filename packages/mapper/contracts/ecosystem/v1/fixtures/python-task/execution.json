@@ -1,0 +1,25 @@
+{
+  "schema": "simplicio.loop-execution/v1",
+  "task_id": "python-task-001",
+  "goal": "make the failing pytest test_app.py::test_add pass",
+  "status": "done",
+  "attempts": [
+    {
+      "index": 1,
+      "action": "deterministic_edit src/app.py",
+      "result": "test still failing: AssertionError"
+    },
+    {
+      "index": 2,
+      "action": "deterministic_edit src/app.py (fix operator)",
+      "result": "pytest green"
+    }
+  ],
+  "promise": {
+    "text": "test_app.py::test_add passes",
+    "evidence_gated": true,
+    "acceptance_criteria": [
+      { "id": "ac-1", "verified": true, "evidence": "pytest exit 0" }
+    ]
+  }
+}

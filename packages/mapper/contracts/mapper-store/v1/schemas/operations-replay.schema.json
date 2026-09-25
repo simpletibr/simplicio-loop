@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/operations-replay.schema.json",
+  "title": "simplicio.mapper-store.operations-replay/v1",
+  "type": "object",
+  "required": ["schema", "valid", "run_id", "events", "last_hash"],
+  "properties": {
+    "schema": { "enum": ["simplicio.mapper-store.operations-api/v1"] },
+    "valid": { "type": "boolean" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "events": { "type": "array" },
+    "last_hash": { "type": "string" },
+    "compaction": { "type": ["object", "null"] }
+  }
+}

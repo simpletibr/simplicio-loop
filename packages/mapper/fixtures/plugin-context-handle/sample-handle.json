@@ -1,0 +1,7 @@
+{
+  "schema": "simplicio.plugin.context-handle/v1",
+  "status": "ready",
+  "handle": "offline-fixture",
+  "summary": { "files": 1, "tokens": 8, "fidelity": "spans" },
+  "spans": [{ "path": "src/app.py", "span": { "start_line": 1, "end_line": 4 } }]
+}

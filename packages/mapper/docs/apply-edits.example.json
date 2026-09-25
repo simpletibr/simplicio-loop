@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "edits": [
+    {
+      "file": "config/app.json",
+      "op": "replace",
+      "find": "\"timeout\": 30",
+      "replace": "\"timeout\": 60",
+      "count": 1
+    },
+    {
+      "file": "src/version.ts",
+      "op": "regex_replace",
+      "pattern": "VERSION = \"\\d+\\.\\d+\\.\\d+\"",
+      "replacement": "VERSION = \"2.0.0\"",
+      "flags": "g"
+    },
+    {
+      "file": "docs/CHANGELOG.md",
+      "op": "prepend",
+      "content": "## 2.0.0\n\n- bumped via apply-edits\n\n"
+    },
+    {
+      "file": "src/feature.ts",
+      "op": "insert_after",
+      "anchor": "// imports",
+      "content": "\nimport { feature } from './feature';"
+    },
+    {
+      "file": "generated/notice.txt",
+      "op": "create",
+      "content": "AUTO-GENERATED. Do not edit by hand.\n",
+      "overwrite": true
+    }
+  ]
+}

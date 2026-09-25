@@ -1,0 +1,30 @@
+{
+  "$id": "simplicio.context-snapshot/v1",
+  "title": "simplicio-mapper ContextSnapshot (v1)",
+  "description": "Canonical, content-addressed Mapper observation envelope. See CONTRACT.md for canonical bytes and compatibility rules.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "snapshot_id", "repository_id", "revision", "root_hash", "build_config_hash", "producer", "source_set", "exclusions", "reason_codes", "graph", "scale_semantics", "drilldown", "task", "confidence", "fidelity", "freshness", "generated_at", "needs_broader_context"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["simplicio.context-snapshot/v1"]},
+    "schema_version": {"type": "string", "enum": ["v1"]},
+    "snapshot_id": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "repository_id": {"type": "string", "minLength": 1, "maxLength": 512},
+    "revision": {"type": "string", "maxLength": 512},
+    "root_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "build_config_hash": {"type": "string", "pattern": "^(?:|[a-f0-9]{64})$"},
+    "producer": {"type": "object", "additionalProperties": false, "required": ["name", "version"], "properties": {"name": {"type": "string", "enum": ["simplicio-mapper"]}, "version": {"type": "string", "minLength": 1, "maxLength": 128}, "artifact_version": {"type": ["integer", "string", "null"]}}},
+    "source_set": {"type": "array", "maxItems": 4096, "items": {"type": "string", "minLength": 1, "maxLength": 4096}},
+    "exclusions": {"type": "array", "maxItems": 4096, "items": {"type": "string", "maxLength": 4096}},
+    "reason_codes": {"type": "object", "maxProperties": 256},
+    "graph": {"$ref": "context-graph.schema.json"},
+    "task": {"type": "object", "additionalProperties": false, "required": ["omissions"], "properties": {"query": {"type": "string", "maxLength": 65536}, "selection_policy": {"type": "string", "maxLength": 256}, "budget_tokens": {"type": "integer", "minimum": 0, "maximum": 10000000}, "omissions": {"type": "array", "maxItems": 4096, "items": {"type": "string", "maxLength": 4096}}}},
+    "confidence": {"type": "object", "maxProperties": 256},
+    "fidelity": {"type": "object", "maxProperties": 256},
+    "freshness": {"type": "object", "maxProperties": 256},
+    "drilldown": {"type": "object", "maxProperties": 64},
+    "scale_semantics": {"type": "object", "maxProperties": 16},
+    "generated_at": {"type": "string", "minLength": 1, "maxLength": 128},
+    "needs_broader_context": {"type": "boolean"}
+  }
+}

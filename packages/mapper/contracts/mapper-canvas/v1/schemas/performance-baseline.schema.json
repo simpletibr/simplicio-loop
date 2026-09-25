@@ -1,0 +1,12 @@
+{
+  "$id": "simplicio.mapper-canvas-performance/v1",
+  "title": "Mapper to Canvas performance baseline",
+  "type": "object",
+  "required": ["schema", "version", "mapper_version", "fixtures"],
+  "properties": {
+    "schema": { "type": "string", "enum": ["simplicio.mapper-canvas-performance/v1"] },
+    "version": { "type": "integer", "enum": [1] },
+    "mapper_version": { "type": "string" },
+    "fixtures": { "type": "array", "minItems": 6, "items": { "type": "object", "required": ["name", "scan_ms", "bundle_bytes", "nodes", "edges", "peak_memory_bytes"] } }
+  }
+}

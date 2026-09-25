@@ -1,0 +1,112 @@
+{
+  "$id": "simplicio.consumer-loop-receipt/v1",
+  "title": "Installed-wheel context snapshot receipt for a Simplicio Loop-shaped consumer",
+  "type": "object",
+  "required": [
+    "schema",
+    "consumer",
+    "install",
+    "snapshot",
+    "flags"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": [
+        "simplicio.consumer-loop-receipt/v1"
+      ]
+    },
+    "consumer": {
+      "type": "object",
+      "required": [
+        "name",
+        "shape"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "simplicio-loop"
+          ]
+        }
+      }
+    },
+    "install": {
+      "type": "object",
+      "required": [
+        "module_file",
+        "site_packages"
+      ],
+      "properties": {
+        "module_file": {
+          "type": "string"
+        },
+        "site_packages": {
+          "type": "boolean"
+        }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "required": [
+        "snapshot_schema",
+        "graph_schema",
+        "snapshot_id",
+        "repository_id",
+        "omissions"
+      ],
+      "properties": {
+        "snapshot_schema": {
+          "type": "string",
+          "enum": [
+            "simplicio.context-snapshot/v1"
+          ]
+        },
+        "graph_schema": {
+          "type": "string",
+          "enum": [
+            "simplicio.context-graph/v1"
+          ]
+        },
+        "snapshot_id": {
+          "type": "string"
+        },
+        "repository_id": {
+          "type": "string"
+        },
+        "omissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "flags": {
+      "type": "object",
+      "required": [
+        "needs_broader_context",
+        "drilldown_reversible",
+        "fidelity_status"
+      ],
+      "properties": {
+        "needs_broader_context": {
+          "type": "boolean"
+        },
+        "drilldown_reversible": {
+          "type": "boolean"
+        },
+        "fidelity_status": {
+          "type": "string",
+          "enum": [
+            "partial",
+            "complete"
+          ]
+        }
+      }
+    }
+  }
+}

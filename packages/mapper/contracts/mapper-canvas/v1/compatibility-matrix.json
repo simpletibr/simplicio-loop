@@ -1,0 +1,50 @@
+{
+  "fixtures": [
+    {
+      "category": "layered-web",
+      "consumer_import": "direct nodes/edges",
+      "golden": "fixtures/layered-web/golden/visualization-bundle.json",
+      "name": "layered-web"
+    },
+    {
+      "category": "monorepo",
+      "consumer_import": "direct nodes/edges",
+      "golden": "fixtures/monorepo/golden/visualization-bundle.json",
+      "name": "monorepo"
+    },
+    {
+      "category": "cli",
+      "consumer_import": "direct nodes/edges",
+      "golden": "fixtures/cli/golden/visualization-bundle.json",
+      "name": "cli"
+    },
+    {
+      "category": "event-driven",
+      "consumer_import": "direct nodes/edges",
+      "golden": "fixtures/event-driven/golden/visualization-bundle.json",
+      "name": "event-driven"
+    },
+    {
+      "category": "polyglot",
+      "consumer_import": "direct nodes/edges",
+      "golden": "fixtures/polyglot/golden/visualization-bundle.json",
+      "name": "polyglot"
+    },
+    {
+      "category": "incomplete/unresolved",
+      "consumer_import": "direct nodes/edges",
+      "golden": "fixtures/incomplete/golden/visualization-bundle.json",
+      "name": "incomplete"
+    }
+  ],
+  "mapper_versions": [
+    {
+      "schema": "simplicio.visualization-bundle/v1",
+      "status": "supported",
+      "version": "0.20.0"
+    }
+  ],
+  "schema": "simplicio.mapper-canvas-compatibility/v1",
+  "version": 1,
+  "visualization_schema": "simplicio.visualization-bundle/v1"
+}

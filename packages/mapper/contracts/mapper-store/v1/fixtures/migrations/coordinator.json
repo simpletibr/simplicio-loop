@@ -1,0 +1,9 @@
+{
+  "schema": "simplicio.mapper-store.migration-api/v1",
+  "status": "validated",
+  "ok": true,
+  "reason_code": null,
+  "parity": [],
+  "receipts": [],
+  "side_effects": []
+}

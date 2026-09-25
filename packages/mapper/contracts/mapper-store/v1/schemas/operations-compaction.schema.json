@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/operations-compaction.schema.json",
+  "title": "simplicio.mapper-store.operations-compaction/v1",
+  "type": "object",
+  "required": ["schema", "status", "run_id", "through_seq", "boundary_hash", "events_retained"],
+  "properties": {
+    "schema": { "enum": ["simplicio.mapper-store.operations-api/v1"] },
+    "status": { "enum": ["compacted"] },
+    "run_id": { "type": "string", "minLength": 1 },
+    "through_seq": { "type": "integer", "minimum": 1 },
+    "boundary_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "events_retained": { "type": "integer", "minimum": 0 }
+  }
+}

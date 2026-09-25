@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/operations-status.schema.json",
+  "title": "simplicio.mapper-store.operations-status/v1",
+  "type": "object",
+  "required": ["schema", "counts"],
+  "properties": {
+    "schema": { "enum": ["simplicio.mapper-store.operations-api/v1"] },
+    "counts": { "type": "object" }
+  }
+}

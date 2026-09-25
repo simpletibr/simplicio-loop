@@ -1,0 +1,48 @@
+{
+  "$id": "simplicio.mapper-artifact-producer/v1",
+  "title": "Common producer metadata for public Mapper artifacts (v1)",
+  "description": "Required provenance, capability, degradation and semantic digest envelope shared by all five public Mapper artifact schemas.",
+  "type": "object",
+  "required": [
+    "component",
+    "version",
+    "backend",
+    "schema_version",
+    "repository_id",
+    "source_generation",
+    "capability_coverage",
+    "degraded_paths",
+    "omitted_paths",
+    "canonical_digest"
+  ],
+  "properties": {
+    "component": { "type": "string", "enum": ["simplicio-mapper"] },
+    "version": { "type": "string" },
+    "backend": { "type": "string", "enum": ["python"] },
+    "schema_version": { "type": "string", "enum": ["v1"] },
+    "repository_id": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "source_generation": {
+      "type": "object",
+      "required": ["kind", "revision", "dirty"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["git-working-tree", "filesystem"] },
+        "revision": { "type": ["string", "null"] },
+        "dirty": { "type": "boolean" }
+      }
+    },
+    "capability_coverage": {
+      "type": "object",
+      "required": ["files", "symbols", "relationships", "precedent", "architecture"],
+      "properties": {
+        "files": { "type": "string", "enum": ["full", "partial", "empty", "unsupported"] },
+        "symbols": { "type": "string", "enum": ["full", "partial", "empty", "unsupported"] },
+        "relationships": { "type": "string", "enum": ["full", "partial", "empty", "unsupported"] },
+        "precedent": { "type": "string", "enum": ["full", "partial", "empty", "unsupported"] },
+        "architecture": { "type": "string", "enum": ["full", "partial", "empty", "unsupported"] }
+      }
+    },
+    "degraded_paths": { "type": "array", "items": { "type": "string" } },
+    "omitted_paths": { "type": "array", "items": { "type": "string" } },
+    "canonical_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "schema": "simplicio.template-manifest/v1",
+  "version": 1,
+  "notes": [
+    "This repo is both a product (simplicio-mapper itself) and the starter template it ships (see bin/cli.js TEMPLATE_PATHS).",
+    "template_root_paths mirrors bin/cli.js TEMPLATE_PATHS: the payload copied byte-for-byte into host projects by the bootstrap.",
+    "product_paths is the subset that also carries this product's OWN filled-in, real content (used as a worked example for INIT.md to refine on the host).",
+    "generic_placeholder_paths is the subset whose stated purpose is to remain a fill-in-the-blanks scaffold for any host — never a drift finding.",
+    "template_paths is the explicit starter-owned scope; product_paths is the only scope used by the product drift gate.",
+    "See .specs/architecture/ADR-004-template-vs-product-content-manifest.md for the decision record (issue #140)."
+  ],
+  "template_root_paths": [
+    "AGENTS.md", "CLAUDE.md", "INIT.md", "_BOOTSTRAP.md", "YOOL_TUPLE_HAMT.md",
+    "README.md", "README.pt-BR.md", "INSTALL.md",
+    ".agents", ".claude", ".codex", ".github", ".skills", ".specs", "docs",
+    "scripts", "bootstrap.sh", "bootstrap.ps1", "playwright.config.ts", "tests"
+  ],
+  "product_paths": [
+    ".specs/product/VISION.md",
+    ".specs/product/DOMAIN.md",
+    ".specs/product/PERSONAS.md",
+    ".specs/product/flow-documentation-spec.md",
+    ".specs/architecture/ADR-002-python-rust-hybrid.md",
+    ".specs/architecture/ADR-003-two-tier-async-mapper.md",
+    ".specs/architecture/ADR-004-template-vs-product-content-manifest.md",
+    ".specs/architecture/ADR-013-reproducible-issue-meta-audit.md",
+    ".specs/architecture/ADR-014-mapper-store-ownership-and-inventory.md",
+    ".specs/sprints/BACKLOG.md",
+    "docs/apply-edits.md",
+    "docs/issue-meta-audit.md",
+    "docs/evidence/issue-328-meta-audit.json",
+    "docs/evidence/mapper-store-inventory.json",
+    "docs/readme-globalization-standard.md",
+    "docs/sessionstart-hook.md",
+    "scripts/mapper_store_inventory.py",
+    "tests/python/test_mapper_store_inventory.py"
+  ],
+  "template_paths": [
+    ".specs/README.md",
+    ".specs/architecture/DESIGN.md",
+    ".specs/architecture/PATTERNS.md",
+    ".specs/workflow/WORKFLOW.md",
+    ".specs/workflow/CONTRIBUTING.md",
+    ".specs/workflow/RELEASE.md",
+    "docs/architecture-map.md",
+    "docs/local-setup.md",
+    "docs/troubleshooting.md",
+    "docs/features/README.md",
+    "docs/evidence/README.md"
+  ],
+  "generic_placeholder_paths": [
+    ".specs/architecture/ADR-template.md",
+    ".specs/architecture/ADR-001-example.md",
+    ".specs/sprints/task-template.md",
+    ".specs/sprints/sprint-01/SPRINT.md",
+    ".specs/sprints/sprint-01/01-example.task.md",
+    "docs/placeholders.md",
+    "tests/python/test_drift.py",
+    "docs/domain-map.md",
+    "docs/features/login.md",
+    "docs/YOOL_TUPLE_HAMT.md"
+  ],
+  "known_gaps": []
+}
