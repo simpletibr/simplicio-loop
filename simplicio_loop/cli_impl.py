@@ -1853,7 +1853,7 @@ def main(argv=None) -> int:
     p_doctor.set_defaults(doctor_command=None, stack_json=False, doctor_json=False)
     p_doctor.add_argument("--storage", action="store_true",
                           help="inspect the Loop storage adapter boundary")
-    p_doctor.add_argument("--route", choices=("legacy", "shadow", "mapper"), default="legacy")
+    p_doctor.add_argument("--route", choices=("legacy", "shadow", "mapper"), default="mapper")
     p_doctor.add_argument("--data-dir", default=None)
     p_doctor.add_argument("--repo", default=".", help="repository root for cutover diagnostics")
     p_doctor.add_argument("--require-capability", action="append", default=[])
@@ -1888,7 +1888,7 @@ def main(argv=None) -> int:
     p_inspect = sub.add_parser("inspect", help="inspect storage routing and MapperStore capabilities")
     p_inspect.add_argument("--storage", action="store_true", required=True,
                            help="inspect the Loop storage adapter boundary")
-    p_inspect.add_argument("--route", choices=("legacy", "shadow", "mapper"), default="legacy")
+    p_inspect.add_argument("--route", choices=("legacy", "shadow", "mapper"), default="mapper")
     p_inspect.add_argument("--data-dir", default=None)
     p_inspect.add_argument("--repo", default=".", help="repository root for cutover diagnostics")
     p_inspect.add_argument("--require-capability", action="append", default=[])

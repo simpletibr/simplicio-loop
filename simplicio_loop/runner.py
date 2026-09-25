@@ -510,8 +510,8 @@ STORAGE_ROUTE_RECEIPT = "storage-route-receipt.json"
 
 
 def _storage_route_requested() -> str:
-    """Return the explicit store rollout flag; legacy is the safe pre-cutover default."""
-    return os.environ.get("SIMPLICIO_STORAGE_ROUTE", StorageRoute.LEGACY.value).strip().lower()
+    """Return the store route; MapperStore is the only writable default."""
+    return os.environ.get("SIMPLICIO_STORAGE_ROUTE", StorageRoute.MAPPER.value).strip().lower()
 
 
 def _freeze_storage_route(run_root: Path, run_id: str) -> dict[str, Any]:
@@ -5190,8 +5190,7 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     local (the per-task retry counter) so the two can never collide.
     """
     status = read_status(repo, run_id)
-    if (status["state"].get("maintenance") or {}).get("disposition") == "backlog_only":
-        raise RuntimeError("maintenance deferred: operator execution is blocked until explicit resume")
+    _raise_if_maintenance_deferred(repo, run_id, status)
     run_dir = Path(status["run_dir"])
     repo_path = Path(status["manifest"]["repo"]).resolve()
     contract = _load_json(run_dir / "task-contract.json")
@@ -5781,6 +5780,13 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     return read_status(repo, run_id)
 
 
+def _raise_if_maintenance_deferred(repo: str, run_id: str,
+                                   status: Optional[Mapping[str, Any]] = None) -> None:
+    status = status if status is not None else read_status(repo, run_id)
+    if (status["state"].get("maintenance") or {}).get("disposition") == "backlog_only":
+        raise RuntimeError("maintenance deferred: operator execution is blocked until explicit resume")
+
+
 def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
                      attempt_coordinator: Optional[AttemptCoordinator] = None,
                      guarded_attempt: Any = None,
@@ -5799,6 +5805,7 @@ def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
     the Mapper-backed Hookwall correctly rejects the synthetic ``loop-run:<id>`` identity
     with ``STALE_FENCE``.
     """
+    _raise_if_maintenance_deferred(repo, run_id)
     if guarded_attempt is not None:
         return _execute_operator_unleased(
             repo, run_id, task_index=task_index,

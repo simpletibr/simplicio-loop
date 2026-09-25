@@ -266,7 +266,7 @@ class StorageRouter:
     def __init__(
         self,
         *,
-        requested: StorageRoute | str = StorageRoute.LEGACY,
+        requested: StorageRoute | str = StorageRoute.MAPPER,
         mapper: MapperStoreAdapter | None = None,
         run_id: str | None = None,
         generation: str | None = None,
@@ -367,7 +367,7 @@ class StorageRouter:
 
 def storage_doctor(
     *,
-    requested: StorageRoute | str = StorageRoute.LEGACY,
+    requested: StorageRoute | str = StorageRoute.MAPPER,
     data_dir: str | os.PathLike[str] | None = None,
     required_capabilities: tuple[str, ...] = (),
     repo_root: str | os.PathLike[str] | None = None,

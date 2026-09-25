@@ -27,25 +27,27 @@ def fake_mapper(monkeypatch, version="0.26.9"):
     return module
 
 
-def test_legacy_route_is_default_until_mapper_cutover(monkeypatch):
+def test_mapper_route_is_the_default(monkeypatch):
+    # The legacy SQLite hookwall refuses to write (LEGACY_HOOKWALL_READ_ONLY),
+    # so a legacy default made every fresh run fail at the first effect.
     fake_mapper(monkeypatch)
     report = storage_doctor()
     assert report["status"] == "READY"
-    assert report["selected"] == "legacy"
+    assert report["selected"] == "mapper"
     assert report["writer_authority"] == "loop"
     assert report["effects_attempted"] is False
 
 
-def test_runner_effect_journal_defaults_to_legacy_and_requires_explicit_mapper(monkeypatch):
+def test_runner_effect_journal_defaults_to_mapper(monkeypatch):
     from simplicio_loop import runner
 
     monkeypatch.delenv("SIMPLICIO_STORAGE_ROUTE", raising=False)
-    assert runner._mapper_journal_enabled() is False
-    monkeypatch.setenv("SIMPLICIO_STORAGE_ROUTE", "mapper")
     assert runner._mapper_journal_enabled() is True
+    monkeypatch.setenv("SIMPLICIO_STORAGE_ROUTE", "legacy")
+    assert runner._mapper_journal_enabled() is False
 
 
-def test_runner_hookwall_route_is_frozen_to_legacy_by_default(monkeypatch, tmp_path):
+def test_runner_hookwall_route_uses_legacy_only_when_requested(monkeypatch, tmp_path):
     from simplicio_loop import runner
 
     selected = []
@@ -54,7 +56,7 @@ def test_runner_hookwall_route_is_frozen_to_legacy_by_default(monkeypatch, tmp_p
         def __init__(self, database, **kwargs):
             selected.append((database, kwargs))
 
-    monkeypatch.delenv("SIMPLICIO_STORAGE_ROUTE", raising=False)
+    monkeypatch.setenv("SIMPLICIO_STORAGE_ROUTE", "legacy")
     monkeypatch.setattr(runner, "HookwallEffectLedger", FakeLedger)
     runner._hookwall_ledger(tmp_path)
     assert selected == [(tmp_path / ".simplicio" / "orchestrator" / "hookwall.sqlite3", {})]
@@ -118,7 +120,7 @@ def test_shadow_route_freezes_and_rejects_fallback(monkeypatch):
 def test_frozen_route_receipt_rejects_environment_drift(monkeypatch, tmp_path):
     from simplicio_loop import runner
 
-    monkeypatch.delenv("SIMPLICIO_STORAGE_ROUTE", raising=False)
+    monkeypatch.setenv("SIMPLICIO_STORAGE_ROUTE", "legacy")
     receipt = runner._freeze_storage_route(tmp_path, "run-1")
     assert receipt["selected"] == "legacy"
     assert runner._verify_storage_route(tmp_path)["receipt_hash"] == receipt["receipt_hash"]
