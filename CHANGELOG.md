@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.18.16] - 2026-09-25
+
+### Added
+
+- Add a static, packaged capabilities manifest (`simplicio-dev-cli
+  capabilities --json`, `simplicio.capabilities.load_capabilities_manifest()`)
+  served on a fast path before the main argparse tree or heavy imports run,
+  so a host loop no longer has to spawn `--help`/`edit --help`/`--version`
+  probes per attempt to discover the command surface.
+
 ## [0.18.15] - 2026-09-25
 
 ### Added
