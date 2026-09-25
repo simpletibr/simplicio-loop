@@ -817,7 +817,22 @@ def cmd_selftest(_opts):
     sys.exit(0 if ok else 1)
 
 
-def _parse(args):
+CLI_VERBS = ["set", "mark", "status", "checklist", "check", "gate", "verify_harness", "selftest"]
+CLI_FLAGS = ["--item", "--goal", "--ac", "--ac-file", "--force", "--id", "--status",
+             "--evidence", "--reason", "--format", "--exit-code", "--lint",
+             "--require-evidence", "--out", "--json", "--harness-dir",
+             "--harness-source", "--harness-log", "--harness-hash", "--snippet",
+             "--delivery", "--help"]
+_KNOWN_FLAG_KEYS = {f[2:] for f in CLI_FLAGS}
+
+
+class _UnknownFlag(ValueError):
+    def __init__(self, flag):
+        super().__init__(flag)
+        self.flag = flag
+
+
+def _parse(args, known=None):
     """Parse --k v / --flag, collecting repeated --ac into a list."""
     opts = {}
     i = 0
@@ -825,6 +840,8 @@ def _parse(args):
         a = args[i]
         if a.startswith("--"):
             key = a[2:]
+            if known is not None and key not in known:
+                raise _UnknownFlag(a)
             if i + 1 < len(args) and not args[i + 1].startswith("--"):
                 val = args[i + 1]
                 if key in opts:
@@ -847,20 +864,25 @@ def main():
     if not argv:
         print(__doc__)
         sys.exit(2)
+    if argv[0] in ("--help", "-h"):
+        print(__doc__)
+        sys.exit(0)
     # --describe-cli: emit JSON spec of accepted verbs + flags
     if argv[0] == "--describe-cli":
         import json
-        print(json.dumps({
-            "verbs": ["set", "mark", "status", "checklist", "check", "gate", "verify_harness",
-                      "selftest"],
-            "flags": ["--item", "--goal", "--ac", "--ac-file", "--force", "--id", "--status",
-                      "--evidence", "--reason", "--format", "--exit-code", "--lint",
-                      "--require-evidence", "--out", "--json", "--harness-dir",
-                      "--harness-source", "--harness-log", "--harness-hash", "--snippet",
-                      "--delivery", "--help"],
-        }))
+        print(json.dumps({"verbs": CLI_VERBS, "flags": CLI_FLAGS}))
         sys.exit(0)
-    sub, opts = argv[0], _parse(argv[1:])
+    sub, rest = argv[0], argv[1:]
+    if "--help" in rest or "-h" in rest:
+        print(__doc__)
+        sys.exit(0)
+    try:
+        opts = _parse(rest, known=_KNOWN_FLAG_KEYS)
+    except _UnknownFlag as exc:
+        sys.stderr.write(
+            "task_anchor.py: unknown flag '%s'. accepted flags: %s\n"
+            % (exc.flag, " ".join(CLI_FLAGS)))
+        sys.exit(2)
     {"set": cmd_set, "mark": cmd_mark, "status": cmd_status, "checklist": cmd_checklist,
      "check": cmd_check, "gate": cmd_gate, "verify_harness": cmd_verify_harness,
      "selftest": cmd_selftest}.get(
