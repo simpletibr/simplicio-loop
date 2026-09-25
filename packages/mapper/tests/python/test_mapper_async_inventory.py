@@ -205,7 +205,7 @@ class SystemEquivalenceTests(unittest.TestCase):
     `ProjectFile` lists are equal -- the "provably identical output" proof."""
 
     def test_equal_over_real_fixture(self):
-        fixture = ROOT / "contracts" / "mapper-artifacts" / "v1" / "fixtures" / "python-minimal" / "source"
+        fixture = ROOT / "simplicio_mapper" / "contracts" / "mapper-artifacts" / "v1" / "fixtures" / "python-minimal" / "source"
         self.assertTrue(fixture.exists(), f"fixture missing: {fixture}")
 
         sync_result = _build_file_inventory(str(fixture), {}, {})

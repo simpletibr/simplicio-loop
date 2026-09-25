@@ -33,7 +33,7 @@ from simplicio_mapper.contract import validate_instance  # noqa: E402
 from simplicio_mapper.incremental import run_incremental_scan  # noqa: E402
 from simplicio_mapper.mapper import build_artifacts  # noqa: E402
 
-SCHEMA_ROOT = ROOT / "contracts" / "mapper-artifacts" / "v1" / "schemas"
+SCHEMA_ROOT = ROOT / "simplicio_mapper" / "contracts" / "mapper-artifacts" / "v1" / "schemas"
 
 
 def _load_schema(name: str) -> dict:

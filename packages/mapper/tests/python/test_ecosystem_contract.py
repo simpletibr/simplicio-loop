@@ -30,7 +30,7 @@ from simplicio_mapper.ecosystem_contract import (  # noqa: E402
     validate_payload,
 )
 
-ECOSYSTEM_ROOT = str(ROOT / "contracts" / "ecosystem" / "v1")
+ECOSYSTEM_ROOT = str(ROOT / "simplicio_mapper" / "contracts" / "ecosystem" / "v1")
 FIXTURES_ROOT = os.path.join(ECOSYSTEM_ROOT, "fixtures")
 STANDALONE_SCRIPT = ROOT / "scripts" / "validate_ecosystem_contracts.py"
 

@@ -35,7 +35,23 @@ from pathlib import Path
 # `subprocess.run` at all — Runtime was hard-closed out of this stack, so
 # the function now always raises instead of spawning a binary, dropping its
 # `run` primitive from the inventory entirely.
-BASELINE_SHA256 = "415a23f260403b51b941e6b1667f4df0ad8c28d5f629206bc5e3215352340228"
+#
+# Reviewed 2026-09-25 (gate-devcli, dev-cli gate #dev-cli): the 2a362a0
+# review above enumerated every drift item correctly (verified line-by-line
+# against `check_effect_boundary.py --root . --inventory` on this checkout
+# — every named scope/primitive is present and no other new scope exists),
+# but never actually landed the recomputed digest, leaving the guard
+# permanently red. Recording the real digest for that already-reviewed
+# inventory now.
+#
+# Reviewed 2026-09-25 (gate-devcli, coordinator round 2): rewriting
+# `typescript_next_route.py`'s codegen as pure Python (no more Node.js/
+# ts-morph subprocess) dropped `_ensure_ts_morph_cache`'s `mkdir`/`run` and
+# `_write_with_ts_morph`'s `run`/`unlink` entries entirely and added one new
+# `TypeScriptAddNextRouteExecutor.execute` `write_text` (the template is now
+# written directly instead of shelling out to a temp `.cjs` script) —
+# strictly less Effect-adjacent I/O than before, not new mutation surface.
+BASELINE_SHA256 = "0723aca620eca95fd1bf4539c3167b6830fdedd8feafb72d7a41c9ef11a939ed"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",

@@ -14,7 +14,7 @@ from simplicio_mapper.store import OperationsStore, OperationsStoreError
 
 
 def _schema(name: str) -> dict:
-    root = Path(__file__).parents[2] / "contracts/mapper-store/v1/schemas"
+    root = Path(__file__).parents[2] / "simplicio_mapper/contracts/mapper-store/v1/schemas"
     return json.loads((root / name).read_text(encoding="utf-8"))
 
 
@@ -487,7 +487,7 @@ def test_replacement_attempt_adopts_prepared_effect_by_task_identity(tmp_path: P
 
 def test_operations_fixture_is_accepted(tmp_path: Path) -> None:
     fixture = json.loads(
-        (Path(__file__).parents[2] / "contracts/mapper-store/v1/fixtures/operations/golden.json").read_text()
+        (Path(__file__).parents[2] / "simplicio_mapper/contracts/mapper-store/v1/fixtures/operations/golden.json").read_text()
     )
     store = _store(tmp_path)
     result = store.enqueue(**fixture["request"])

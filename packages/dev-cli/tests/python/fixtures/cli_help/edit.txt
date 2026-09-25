@@ -1,10 +1,15 @@
-usage: simplicio-py edit [-h] [--root ROOT] [--plan PLAN] [--apply]
-                         [--dry-run] [--json] [--no-runtime]
+usage: simplicio-py edit [-h] [--root ROOT] [--plan PLAN] [--compile OUT]
+                         [--apply] [--dry-run] [--json] [--no-runtime]
 
 options:
   -h, --help            show this help message and exit
   --root ROOT, --repo ROOT
-  --plan PLAN           plan JSON path, or - for stdin
+  --plan PLAN           plan JSON path, or - for stdin. With --compile, the
+                        minimal host plan: {"operations": [{"path": "...",
+                        "find": "<exact unique text>", "replace": "..."}]}
+  --compile OUT         freeze the minimal --plan into a full edit plan at OUT
+                        (pins file hashes; never mutates); then run: edit
+                        --plan OUT --apply --json
   --apply
   --dry-run
   --json

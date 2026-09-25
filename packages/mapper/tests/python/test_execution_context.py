@@ -607,7 +607,7 @@ class ExecutionContextTests(unittest.TestCase):
         self.assertIn("--token-budget <n>    handoff envelope cap (default 8000).", help_result.stdout)
 
     def test_contract_schema_and_producer_fixture_are_packaged_assets(self) -> None:
-        contract = ROOT / "contracts/execution-context/v1"
+        contract = ROOT / "simplicio_mapper/contracts/execution-context/v1"
         schema = json.loads((contract / "schemas/execution-context.schema.json").read_text(encoding="utf-8"))
         fixture = json.loads(
             (contract / "fixtures/valid/minimal/execution-context.json").read_text(encoding="utf-8")

@@ -12,7 +12,7 @@ from pathlib import Path
 from simplicio_mapper.contract import validate_instance
 
 ROOT = Path(__file__).resolve().parents[2]
-CONTRACT_ROOT = ROOT / "contracts" / "consumer-integration" / "v1"
+CONTRACT_ROOT = ROOT / "simplicio_mapper" / "contracts" / "consumer-integration" / "v1"
 SCHEMAS = CONTRACT_ROOT / "schemas"
 FIXTURES = CONTRACT_ROOT / "fixtures"
 

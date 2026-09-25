@@ -220,7 +220,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--fixture-root",
         type=Path,
-        default=ROOT / "contracts/mapper-artifacts/v1/fixtures/python-minimal",
+        default=ROOT / "simplicio_mapper/contracts/mapper-artifacts/v1/fixtures/python-minimal",
     )
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--output", type=Path)

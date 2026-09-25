@@ -85,8 +85,7 @@ class CheckCommandTest(unittest.TestCase):
     def test_check_rejects_golden_fixture_drift(self) -> None:
         mod = _load_module()
         expected_path = (
-            ROOT
-            / "contracts"
+            ROOT / "simplicio_mapper" / "contracts"
             / "mapper-artifacts"
             / "v1"
             / "fixtures"

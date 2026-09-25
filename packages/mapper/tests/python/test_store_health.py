@@ -28,7 +28,7 @@ ROOT = Path(__file__).parents[2]
 
 
 def _schema(name: str) -> dict:
-    return json.loads((ROOT / "contracts/mapper-store/v1/schemas" / name).read_text(encoding="utf-8"))
+    return json.loads((ROOT / "simplicio_mapper/contracts/mapper-store/v1/schemas" / name).read_text(encoding="utf-8"))
 
 
 def test_doctor_missing_is_side_effect_free_and_contract_valid(tmp_path: Path) -> None:

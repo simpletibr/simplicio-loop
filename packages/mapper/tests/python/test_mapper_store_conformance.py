@@ -92,7 +92,7 @@ def test_conformance_is_deterministic_and_reports_legacy_writers(tmp_path: Path)
         connection.execute("CREATE TABLE facts(id INTEGER PRIMARY KEY)")
     first = build_conformance(repos, [("loop", database, "legacy.sqlite")], deterministic=True)
     second = build_conformance(repos, [("loop", database, "legacy.sqlite")], deterministic=True)
-    schema = json.loads((ROOT / "contracts/mapper-store/v1/schemas/conformance.schema.json").read_text())
+    schema = json.loads((ROOT / "simplicio_mapper/contracts/mapper-store/v1/schemas/conformance.schema.json").read_text())
     assert validate_instance(first, schema) == []
     assert first["evidence_hash"] == second["evidence_hash"]
     assert first["status"] == "fail"
@@ -160,7 +160,7 @@ def test_external_receipts_resolve_runtime_and_scenario_gates(tmp_path: Path) ->
     checks = {item["id"]: item for item in report["checks"]}
     scenarios = {item["id"]: item for item in report["scenarios"]}
     schema = json.loads(
-        (ROOT / "contracts/mapper-store/v1/schemas/conformance-evidence.schema.json").read_text()
+        (ROOT / "simplicio_mapper/contracts/mapper-store/v1/schemas/conformance-evidence.schema.json").read_text()
     )
     assert validate_instance(runtime, schema) == []
     assert validate_instance(scenario, schema) == []

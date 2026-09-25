@@ -72,12 +72,14 @@ def test_doctor_json_contract_no_network(capsys):
 def test_task_json_contract_over_real_mapper_fixture(
     sample_project, stub_local_provider, capsys, monkeypatch
 ):
-    """The full local (standalone-Python) executor path: real mapper
-    artifacts feed the prompt, a stubbed provider stands in for the LLM (no
-    network), and SIMPLICIO_TEST_CMD stands in for the project's real test
-    suite (also no network) — this is the "minimal flow" from #100's AC:
-    load mapper artifacts -> classify -> build contract -> structured
-    output."""
+    """``task`` now fails closed with ``plan_required`` unless a mechanical
+    ``--plan`` is supplied (see ``commands/task.py``'s module docstring:
+    mutation is ``edit --plan``-only, prose alone always blocks). This test
+    used to cover the removed LLM-generate-and-apply path (a stubbed
+    provider standing in for a real model, then asserting ``applied``); that
+    path no longer exists, so this instead pins the current blocked
+    contract plus its ``runtime_contracts.task_contract`` envelope, still
+    exercised over real mapper artifacts for #100's AC."""
     import os
 
     monkeypatch.setattr(
@@ -122,5 +124,5 @@ def test_task_json_contract_over_real_mapper_fixture(
     # see runtime_contracts.py's module docstring).
     envelope = task_contract(payload, root=sample_project)
     assert_schema_id(envelope, "simplicio.dev-cli.task/v1", where="task_contract")
-    assert envelope["applied"] is True
-    assert envelope["files_changed"] == ["src/app.py"]
+    assert envelope["applied"] is False
+    assert envelope["files_changed"] == []

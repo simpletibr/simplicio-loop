@@ -40,7 +40,7 @@ import tempfile
 import orjson
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONTRACT_ROOT = os.path.join(ROOT, "contracts", "mapper-artifacts", "v1")
+CONTRACT_ROOT = os.path.join(ROOT, "simplicio_mapper", "contracts", "mapper-artifacts", "v1")
 FIXTURES_ROOT = os.path.join(CONTRACT_ROOT, "fixtures")
 
 sys.path.insert(0, ROOT)

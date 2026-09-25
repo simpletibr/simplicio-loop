@@ -58,15 +58,17 @@ class ForceIncludeOverlapGateTest(unittest.TestCase):
             msg="neural assets must not be force-included (issue #553)",
         )
 
-        # Synthetic regression: re-adding the bad force-include entry must fail the gate.
-        force_line = '"contracts" = "simplicio_mapper/contracts"'
-        self.assertIn(force_line, text)
-        poisoned = text.replace(
-            force_line,
-            force_line
-            + "\n"
-            + '"simplicio_mapper/store/neural/assets" = "simplicio_mapper/store/neural/assets"',
-            1,
+        # Synthetic regression: the versioned contracts tree moved inside
+        # simplicio_mapper/ (in-package data now, no force-include needed at
+        # all -- see pyproject.toml's [tool.hatch.build.targets.wheel]
+        # comment), so this pyproject.toml no longer carries any
+        # force-include table to mutate. Append a fresh one instead, with
+        # the exact bad entry the gate must reject, and confirm the gate
+        # still catches it.
+        poisoned = (
+            text
+            + "\n[tool.hatch.build.targets.wheel.force-include]\n"
+            + '"simplicio_mapper/store/neural/assets" = "simplicio_mapper/store/neural/assets"\n'
         )
         with tempfile.TemporaryDirectory() as tmp:
             fake = Path(tmp)

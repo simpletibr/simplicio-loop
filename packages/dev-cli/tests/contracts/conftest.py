@@ -10,7 +10,6 @@ loaded from the small, schema-faithful fixture project checked in under
 from __future__ import annotations
 
 import shutil
-import stat
 import sys
 from pathlib import Path
 
@@ -33,53 +32,6 @@ def sample_project(tmp_path, monkeypatch):
     shutil.copytree(SAMPLE_PROJECT, dest)
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     return dest
-
-
-@pytest.fixture
-def stub_runtime_binary(tmp_path, monkeypatch):
-    """Point SIMPLICIO_BIN at a fake `simplicio` Rust binary.
-
-    The real Rust runtime (github.com/wesleysimplicio/simplicio-runtime) is
-    not built/available in this environment, so the runtime-integrated leg
-    of the executor-compatibility contract (simplicio.commands.test_run's
-    `_run_via_runtime` delegation) is exercised against a **stub**, not the
-    real binary. The stub only has to emit the same
-    `simplicio.test-run/v1` JSON contract on `simplicio test run --cmd ...
-    --json [--repo ...]` that the real binary would; everything downstream
-    (schema field validation, exit-code propagation) exercises the actual
-    consumer code path in `simplicio/commands/test_run.py`, which is what
-    this contract cares about. This is explicitly a stub, not a real
-    integration test against the Rust runtime — see #100 AC.
-    """
-    script = tmp_path / "bin" / "simplicio"
-    script.parent.mkdir(parents=True, exist_ok=True)
-    script.write_text(
-        "#!/usr/bin/env python3\n"
-        "import json, sys\n"
-        "# Minimal stub of `simplicio test run --cmd <c> --json [--repo <r>]`\n"
-        "# emitting the simplicio.test-run/v1 contract. See conftest.py\n"
-        "# docstring: this is NOT the real Rust runtime.\n"
-        "args = sys.argv[1:]\n"
-        "cmd = args[args.index('--cmd') + 1] if '--cmd' in args else 'pytest'\n"
-        "print(json.dumps({\n"
-        "    'schema': 'simplicio.test-run/v1',\n"
-        "    'cmd': cmd,\n"
-        "    'args': [],\n"
-        "    'exit_code': 0,\n"
-        "    'passed': 1,\n"
-        "    'failed': 0,\n"
-        "    'errors': 0,\n"
-        "    'duration_s': 0.01,\n"
-        "    'summary': '1 passed in 0.01s (stub runtime binary)',\n"
-        "    'output_tail': '',\n"
-        "    'output_truncated': False,\n"
-        "}))\n"
-        "sys.exit(0)\n",
-        encoding="utf-8",
-    )
-    script.chmod(script.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-    monkeypatch.setenv("SIMPLICIO_BIN", str(script))
-    return script
 
 
 @pytest.fixture

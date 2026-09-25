@@ -8,7 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1] / "contracts" / "context-snapshot" / "v1"
+ROOT = Path(__file__).resolve().parents[1] / "simplicio_mapper" / "contracts" / "context-snapshot" / "v1"
 MANIFEST = ROOT / "contract-manifest.json"
 
 
