@@ -7217,11 +7217,14 @@ def _fanout_execution_route(item: Mapping[str, Any], run_dir: Path) -> Dict[str,
 
 def _operator_dispatch_run_dir(item: Mapping[str, Any]) -> Path:
     """Resolve canonical run storage, with isolated storage for synthetic dispatches."""
-    repo_path = Path(item["repo"]).resolve()
-    if (repo_path / ".simplicio" / "loop-runs" / str(item["run_id"]) / "manifest.json").is_file():
+    try:
         status = read_status(item["repo"], item["run_id"])
-        if status.get("run_dir"):
-            return Path(status["run_dir"])
+    except FileNotFoundError:  # synthetic dispatch: no armed run on disk
+        status = {}
+    if status.get("run_dir"):
+        return Path(status["run_dir"])
+
+    repo_path = Path(item["repo"]).resolve()
 
     run_scope = hashlib.sha256(str(item["run_id"]).encode("utf-8")).hexdigest()[:16]
     run_dir = repo_path / ".simplicio" / "orchestrator" / "dispatch-routes" / run_scope
