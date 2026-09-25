@@ -36,10 +36,16 @@ simplicio-loop tick <run_id> --repo . --task-index <N>
 simplicio-loop verify <run_id> --repo .
 ```
 
+- `orient --json` answers with a `commands` card (the exact `prepare`/`wave`/
+  `verify`/`tick` invocations for this repo, the edit-plan path/format, and
+  the task-file lanes) and `targets` (bounded, grounded file contents —
+  small files in full, larger ones as a line-numbered symbol span — to copy
+  `find` text from, so the host never hallucinates a path or an anchor).
 - Write every `edit-plan-<N>.json` up front: the loop freezes each one
   (`simplicio-dev-cli edit --compile`) right before applying it, so task 2 binds
-  to the tree task 1 left. A `find` that does not match exactly once blocks the
-  task with `plan_compile_failed` — fix the text and re-run.
+  to the tree task 1 left. A bad plan blocks with a precise reason instead of
+  retrying: `plan_path_not_found`, `plan_path_not_authorized`,
+  `plan_find_not_found`, `plan_find_not_unique` — fix the text and re-run.
 - One small change, no run needed:
   `simplicio-dev-cli edit --plan ops.json --compile plan.json` →
   `simplicio-dev-cli edit --plan plan.json --apply --json` →
