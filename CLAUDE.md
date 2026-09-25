@@ -4,6 +4,23 @@ This repo ships **simplicio-loop**, a runtime-agnostic **super-plugin**: an auto
 looping orchestrator (the `/simplicio-loop` skill) plus six satellite skills, packaged for 12
 runtimes.
 
+## Monorepo layout
+
+This repository holds four packages with one responsibility each:
+
+| Package | Path | Responsibility |
+|---|---|---|
+| `simplicio-loop` | repo root (`simplicio_loop/`) | **orchestration** — the loop, hooks, skills, evidence/PR/progress workers |
+| `simplicio-mapper` | `packages/mapper/` | **survey** — `scan` / `inspect` / `handoff` |
+| `simplicio-fast` | `packages/fast/` | **retrieval** — `ingest` / `understand` / `plan` |
+| `simplicio-dev-cli` | `packages/dev-cli/` | **mutation** — `edit` / `test` / capabilities |
+
+Each package keeps its own tests, gate and version. Dev setup:
+`bash scripts/dev_install.sh` (editable-installs all four into one venv); local gate:
+`python3 scripts/check.py --package all` (or `--package mapper|fast|dev-cli|loop`, or
+`--changed` to run only what a diff touches). There is no GitHub Actions gate — the local
+gate is authoritative.
+
 ## The 7 skills
 
 | Skill | Role |
@@ -25,10 +42,10 @@ supported install surface is the single package `simplicio-cli`, which exposes
 `simplicio-dev-cli` and also brings `simplicio-mapper` transitively; the loop BLOCKS if either
 runtime binary is absent:
 
-| Operator | Binary | pip pkg | Binds | Role |
+| Operator | Binary | Package | Binds | Role |
 |---|---|---|---|---|
-| [simplicio-mapper](https://github.com/wesleysimplicio/simplicio-mapper) | `simplicio-mapper` | transitively via `simplicio-cli` | `orient` | **survey** the repo → `.simplicio/*.json` (the survey that feeds the goal) |
-| [simplicio-dev-cli](https://github.com/wesleysimplicio/simplicio-dev-cli) | `simplicio-dev-cli` | `simplicio-cli` | `execute`/`deterministic_edit` | **operate** — apply+verify each decided change via its 6-layer contract, instead of the AI hand-editing |
+| [simplicio-mapper](packages/mapper/) | `simplicio-mapper` | transitively via `simplicio-cli` | `orient` | **survey** the repo → `.simplicio/*.json` (the survey that feeds the goal) |
+| [simplicio-dev-cli](packages/dev-cli/) | `simplicio-dev-cli` | `simplicio-cli` | `execute`/`deterministic_edit` | **operate** — apply+verify each decided change via its 6-layer contract, instead of the AI hand-editing |
 
 The AI decides; the operators act. See `.claude/skills/simplicio-loop/SKILL.md` § Bound operators
 and `.claude/skills/simplicio-loop/references/extension-points.md` § bound operators.
@@ -231,6 +248,16 @@ release e documentação neste ecossistema. O agente deve lê-las antes de agir:
 <!-- simplicio-global-llm-architecture-rules:end -->
 
 
+
+## Releases in a monorepo
+
+Each package tags and releases independently: `loop vX.Y.Z`, `mapper-vX.Y.Z`, `fast-vX.Y.Z`,
+`dev-cli-vX.Y.Z`. Since all four now live in this repo, cross-repo release-train
+machinery (`scripts/release_train*.py`, `scripts/component_release.py`,
+`scripts/reconcile_delivery_receipts.py`) is legacy from the pre-monorepo split; it still
+runs today (untouched by this pass — removing it safely needs coordinated edits across
+`simplicio_loop/cli_impl.py` and its test suite) but is a known removal candidate now that
+there is no cross-repo boundary left to reconcile.
 
 ## Language precedence
 

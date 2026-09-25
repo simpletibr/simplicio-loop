@@ -3,6 +3,20 @@ Total output lines: 1972
 
 # Changelog
 
+## [Unreleased] - monorepo
+
+- Root hygiene pass: dropped ~40 committed `.simplicio/session/orientation-delivered.json`
+  cache markers, a stale `benchmarks/projection-v4/` simulated report, an orphaned
+  `video/.simplicio/orchestrator/learn/pending.jsonl` leftover from the removed learn_stop
+  pipeline (#69), a stray `docs/quality-matrix-v2-benchmark.json`, and assorted one-off
+  root-level artifacts (`plan.json`, `error.log`, `claimed-428.md`, `.task_wi558.txt`,
+  `benchmark-agent-fabric-765.json`, `benchmark-coverage-custodian-784.json`,
+  `conformance-benchmark-816.json`/`.sha256`). README.md/AGENTS.md/CLAUDE.md now document the
+  monorepo layout (root = orchestration, `packages/mapper` = survey, `packages/fast` =
+  retrieval, `packages/dev-cli` = mutation) and `scripts/dev_install.sh` dev setup;
+  `CLAUDE.md`'s bound-operator links now point at `packages/mapper/` and `packages/dev-cli/`
+  instead of the pre-monorepo external repos.
+
 ## [3.43.16] - 2026-09-25
 
 - Wave lane dispatch: worktree-parallel lane execution (disjoint edit-plan

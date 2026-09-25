@@ -1,9 +1,0 @@
-{
-  "median_us": {
-    "oracle": 45.8235,
-    "parse": 24.229,
-    "projection": 14.507
-  },
-  "repeats": 5000,
-  "schema": "simplicio.quality-matrix-v2-benchmark/v1"
-}
