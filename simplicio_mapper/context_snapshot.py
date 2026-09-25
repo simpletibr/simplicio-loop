@@ -461,8 +461,18 @@ def build_context_graph(
 # ---------------------------------------------------------------------------
 
 
-def _bound_graph(graph_dict: dict, max_bytes: int) -> tuple[dict, int, int]:
-    """Keep a deterministic, endpoint-closed graph prefix within a byte cap."""
+def _bound_graph(
+    graph_dict: dict, max_bytes: int, *, priority_paths: frozenset[str] = frozenset()
+) -> tuple[dict, int, int]:
+    """Keep a deterministic, relevance-ordered graph prefix within a byte cap.
+
+    Ordering favors relevance over alphabetical id order: nodes whose source
+    file is in ``priority_paths`` (the task's selected targets) come first,
+    then ``symbol:`` nodes, then everything else — each tier sorted by id for
+    determinism. Without this, an alphabetical-only prefix keeps ``file:``
+    nodes (which sort before ``symbol:``) and starves the symbol nodes a
+    downstream consumer (e.g. simplicio-fast) needs.
+    """
     def valid_handle(handle: object) -> bool:
         if not isinstance(handle, dict) or not isinstance(handle.get("file"), str):
             return False
@@ -478,6 +488,19 @@ def _bound_graph(graph_dict: dict, max_bytes: int) -> tuple[dict, int, int]:
             and ".." not in path.split("/")
         )
 
+    def relevance_tier(node: dict) -> int:
+        source = node.get("source")
+        path = source.get("file") if isinstance(source, dict) else ""
+        is_priority = bool(priority_paths) and path in priority_paths
+        is_symbol = str(node.get("id", "")).startswith("symbol:")
+        if is_priority and is_symbol:
+            return 0
+        if is_priority:
+            return 1
+        if is_symbol:
+            return 2
+        return 3
+
     raw_nodes = graph_dict.get("nodes", [])
     raw_nodes = raw_nodes if isinstance(raw_nodes, list) else []
     nodes = sorted(
@@ -488,7 +511,7 @@ def _bound_graph(graph_dict: dict, max_bytes: int) -> tuple[dict, int, int]:
             and isinstance(node.get("id"), str)
             and valid_handle(node.get("source"))
         ),
-        key=lambda node: node["id"],
+        key=lambda node: (relevance_tier(node), node["id"]),
     )
     kept: list[dict] = []
     used = 0
@@ -561,6 +584,7 @@ def build_context_snapshot(
     budget_tokens: int = 0,
     confidence: Mapping[str, Any] | None = None,
     fidelity: Mapping[str, Any] | None = None,
+    priority_paths: Iterable[str] | None = None,
 ) -> dict:
     """Assemble a ``simplicio.context-snapshot/v1`` envelope.
 
@@ -628,7 +652,12 @@ def build_context_snapshot(
         if needs_bound
         else MAX_SNAPSHOT_BYTES
     )
-    graph_dict, omitted_nodes, omitted_edges = _bound_graph(graph_dict, byte_budget)
+    priority_path_set = frozenset(
+        path.replace("\\", "/").lstrip("./") for path in (priority_paths or ()) if isinstance(path, str)
+    )
+    graph_dict, omitted_nodes, omitted_edges = _bound_graph(
+        graph_dict, byte_budget, priority_paths=priority_path_set
+    )
     if needs_bound:
         source_paths, omitted_sources = _bound_paths(source_paths, min(7 * 1024 * 1024, byte_budget))
     if omitted_sources:

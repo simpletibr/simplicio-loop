@@ -923,7 +923,23 @@ def _build_handoff_payload(opts: dict) -> dict:
         architecture_inventory=artifacts["architecture_inventory"],
         task_query=goal,
         budget_tokens=token_budget if task_aware else 0,
+        priority_paths=targets if task_aware else None,
     )
+    # `handoff` is an observer: it must never overwrite the canonical,
+    # unscoped `.simplicio/context-snapshot.json` that `snapshot build`
+    # owns — Fast reads symbol ids from that canonical file, and a
+    # task-aware/budget-pruned graph here would starve it. A task-aware
+    # call gets its own bounded snapshot written to a task-scoped path for
+    # evidence; the in-memory `context_snapshot` above (identical either
+    # way) is what feeds `context_pack`/the JSON response.
+    if task_aware:
+        snapshot_dest = os.path.join(
+            os.path.abspath(os.path.join(root, out)), "context-snapshot.task.json"
+        )
+        os.makedirs(os.path.dirname(snapshot_dest), exist_ok=True)
+        with open(snapshot_dest, "w", encoding="utf-8") as handle:
+            json.dump(context_snapshot, handle, sort_keys=True, indent=2)
+            handle.write("\n")
     context_pack = build_context_pack(
         root=root,
         targets=target_rows,

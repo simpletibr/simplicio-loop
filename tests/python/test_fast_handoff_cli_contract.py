@@ -66,6 +66,53 @@ class FastHandoffCliContractTest(unittest.TestCase):
             self.assertTrue((root / ".simplicio" / "fast-handoff-receipt.json").is_file())
             self.assertFalse((root / ".simplicio" / "fast-handoff.json").exists())
 
+    def test_task_aware_handoff_never_overwrites_the_canonical_snapshot_fast_reads(self) -> None:
+        """Regression: a budget-pruned, task-aware `handoff --goal` used to
+        overwrite the canonical `.simplicio/context-snapshot.json` with an
+        alphabetical-prefix, symbol-starved graph — breaking `fast-handoff`
+        (mapper_id_missing) for any consumer relying on the canonical file.
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text("# canonical snapshot fixture\n", encoding="utf-8")
+            (root / "src").mkdir()
+            (root / "src" / "main.py").write_text(
+                "def target_fn():\n    return 1\n", encoding="utf-8"
+            )
+
+            code, _stdout, stderr = _invoke(["index", str(root), "--json"])
+            self.assertEqual(code, 0, stderr)
+
+            build_code, build_stdout, build_stderr = _invoke(
+                ["snapshot", "build", str(root), "--json"]
+            )
+            self.assertEqual(build_code, 0, build_stderr)
+            canonical = json.loads(build_stdout)
+            snapshot_path = root / ".simplicio" / "context-snapshot.json"
+            self.assertTrue(snapshot_path.is_file())
+            before = snapshot_path.read_text(encoding="utf-8")
+
+            handoff_code, _handoff_stdout, handoff_stderr = _invoke(
+                [
+                    "handoff",
+                    str(root),
+                    "--goal",
+                    "target_fn",
+                    "--token-budget",
+                    "64",
+                    "--await",
+                    "--json",
+                ]
+            )
+            self.assertEqual(handoff_code, 0, handoff_stderr)
+
+            after = snapshot_path.read_text(encoding="utf-8")
+            self.assertEqual(before, after, "task-aware handoff must not mutate the canonical snapshot")
+            self.assertEqual(json.loads(after)["snapshot_id"], canonical["snapshot_id"])
+
+            scoped_path = root / ".simplicio" / "context-snapshot.task.json"
+            self.assertTrue(scoped_path.is_file(), "bounded snapshot must be written to a task-scoped path")
+
 
 if __name__ == "__main__":
     unittest.main()

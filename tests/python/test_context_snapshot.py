@@ -357,5 +357,61 @@ class ContextSnapshotTest(unittest.TestCase):
         self.assertEqual(bounded["counts"]["nodes"], 1)
         self.assertEqual(bounded["counts"]["edges"], 1)
 
+    def test_bound_graph_prefers_symbol_nodes_over_alphabetically_earlier_file_nodes(self):
+        from simplicio_mapper.context_snapshot import _bound_graph
+
+        # "file:" sorts before "symbol:" alphabetically. Without relevance
+        # ordering, a tight budget keeps every file node and zero symbols.
+        graph = {
+            "nodes": [
+                {"id": f"file:{index:03d}.py", "scale": "micro", "source": {"file": f"{index:03d}.py"}}
+                for index in range(20)
+            ]
+            + [
+                {"id": "symbol:app.py:main", "scale": "micro", "source": {"file": "app.py"}},
+            ],
+            "edges": [],
+        }
+        node_size = len(json.dumps(graph["nodes"][0]).encode("utf-8"))
+        budget = node_size * 3  # room for only ~2-3 nodes
+        bounded, _omitted_nodes, _omitted_edges = _bound_graph(graph, budget)
+        kept_ids = [node["id"] for node in bounded["nodes"]]
+        self.assertIn("symbol:app.py:main", kept_ids)
+
+    def test_bound_graph_prioritizes_selected_target_paths_first(self):
+        from simplicio_mapper.context_snapshot import _bound_graph
+
+        graph = {
+            "nodes": [
+                {"id": "file:a.py", "scale": "micro", "source": {"file": "a.py"}},
+                {"id": "file:z.py", "scale": "micro", "source": {"file": "z.py"}},
+                {"id": "symbol:z.py:target_fn", "scale": "micro", "source": {"file": "z.py"}},
+            ],
+            "edges": [],
+        }
+        node_size = len(json.dumps(graph["nodes"][0]).encode("utf-8"))
+        budget = node_size * 2
+        bounded, _omitted_nodes, _omitted_edges = _bound_graph(
+            graph, budget, priority_paths=frozenset({"z.py"})
+        )
+        kept_ids = {node["id"] for node in bounded["nodes"]}
+        self.assertIn("symbol:z.py:target_fn", kept_ids)
+        self.assertNotIn("file:a.py", kept_ids)
+
+    def test_priority_paths_survive_a_tight_budget_via_build_context_snapshot(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        pm["files"] = [{"path": f"src/{index}.py", "language": "python"} for index in range(500)]
+        snap = build_context_snapshot(
+            "/repo",
+            project_map=pm,
+            symbol_index=si,
+            call_graph=cg,
+            architecture_inventory=ai,
+            budget_tokens=64,
+            priority_paths=["app.py"],
+        )
+        kinds = {node["id"].split(":", 1)[0] for node in snap["graph"]["nodes"]}
+        self.assertIn("symbol", kinds)
+
 if __name__ == "__main__":
     unittest.main()
