@@ -2990,7 +2990,9 @@ def _persist_external_completion_response(run_dir: Path) -> str:
     """
     operator = _load_json(run_dir / "operator-receipt.json")
     provider_config = operator.get("provider_config") if isinstance(operator, Mapping) else {}
-    if not isinstance(provider_config, Mapping) or provider_config.get("route") != "openrouter-to-mechanical-edit":
+    if not isinstance(provider_config, Mapping) or provider_config.get("route") not in {
+        "openrouter-to-mechanical-edit", "host-edit-plan",
+    }:
         return ""
     scratchpad = run_dir / "loop" / "scratchpad.md"
     try:
@@ -6061,6 +6063,11 @@ def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
     _write_json(run_dir / "state.json", state)
     # wi612 (#612): Quality Matrix + Completion Oracle obrigatorios antes do done (elimina bypass).
     from . import oracle as _oracle
+    if not (run_dir / "quality-matrix.json").exists():
+        from .lane_verifiers import build_quality_matrix
+        contract = _load_json(run_dir / "task-contract.json")
+        build_quality_matrix(repo_path, run_dir,
+                             [str(t.get("original_text") or "") for t in contract.get("tasks") or []])
     _qm_ok, _qm_gate, _qm_verdict = _oracle._quality_matrix_gate(run_dir)
     if not _qm_ok:
         state = read_status(repo, run_id)["state"]

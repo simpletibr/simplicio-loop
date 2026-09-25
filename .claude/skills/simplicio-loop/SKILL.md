@@ -73,19 +73,28 @@ RN01 – mul lives in calc/ops.py next to add and sub.
 
 8. Additional Information
 
-Independent verifier: `python3 -m pytest -q -p no:cacheprovider`
+Independent verifier: `python3 -m pytest -q`
+Unit verifier: `python3 -m pytest -q tests/unit`
+Integration verifier: `python3 -m pytest -q tests/integration`
+System verifier: `python3 -m app --smoke`
+Regression verifier: `python3 -m pytest -q tests/regression`
+Benchmark verifier: `python3 bench.py`
+Coverage verifier: `python3 -m pytest -q --cov=calc --cov-report=term`
 ```
 
-The `Independent verifier:` line is required: it is the command the watcher runs
-to prove the acceptance criteria. Without it nothing can be verified.
+- `Independent verifier:` is the command the watcher runs to prove the
+  acceptance criteria.
+- One `<Lane> verifier:` per quality lane: the loop runs each in the repo and
+  builds `quality-matrix.json` from what it measured (implementation comes from
+  the applied Dev CLI receipts; coverage is the last `NN%` the coverage command
+  prints, minimum 85%). A lane without a command blocks and names the line to add.
 
 ## Done
 
-"Done" = `simplicio-loop verify` reaches `phase: done`. It requires the watcher
-to MEASURE every criterion **and** a `quality-matrix.json` in the run dir
-(implementation, unit, integration, system, regression, benchmark + coverage;
-see `references/quality-safety-delivery.md`). Promise only after that, in the
-same turn.
+`wave`/`tick` verify automatically; `simplicio-loop verify <run_id>` re-runs it.
+Done = run `phase: done`, completion `VERIFIED`/`MEASURED`: the watcher measured
+every criterion and every lane passed. The loop then records the exact
+`<promise>` in `loop/last_response.txt`; emit it only after that, in the same turn.
 
 ## GitHub source of truth
 
