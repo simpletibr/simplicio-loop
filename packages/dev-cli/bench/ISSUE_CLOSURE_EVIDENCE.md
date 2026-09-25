@@ -8,11 +8,10 @@ This file is a local evidence index for tracked GitHub issues `#33` and `#41`.
 
 Recently closed issues tracked here for historical closure evidence: `#32`,
 `#37`, and `#46`.
-Related merged implementation PR: `#47`
-(`https://github.com/wesleysimplicio/simplicio-dev-cli/pull/47`).
-Current evidence PR: `#49`
-(`https://github.com/wesleysimplicio/simplicio-dev-cli/pull/49`), currently
-open as a draft.
+Related merged implementation PR: `#47` (pre-monorepo `simplicio-dev-cli` repo,
+now `packages/dev-cli/` of `simpletibr/simplicio-loop`).
+Current evidence PR: `#49` (same pre-monorepo repo), currently open as a
+draft at the time this note was written.
 
 Scope of this artifact:
 

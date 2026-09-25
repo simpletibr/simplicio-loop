@@ -2,8 +2,8 @@
 
 - Status: Proposed for implementation
 - Date: 2026-07-26
-- issue: https://github.com/wesleysimplicio/simplicio-fast/issues/38
-- Parent: https://github.com/wesleysimplicio/simplicio-fast/issues/37
+- issue: #38 (pre-monorepo `simplicio-fast` repo, now `packages/fast/` of `simpletibr/simplicio-loop`)
+- Parent: #37 (same pre-monorepo repo)
 
 ## Context
 

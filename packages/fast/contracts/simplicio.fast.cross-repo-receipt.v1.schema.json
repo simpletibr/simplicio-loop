@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/wesleysimplicio/simplicio-fast/contracts/simplicio.fast.cross-repo-receipt.v1.schema.json",
+  "$id": "https://github.com/simpletibr/simplicio-loop/blob/main/packages/fast/contracts/simplicio.fast.cross-repo-receipt.v1.schema.json",
   "title": "Fast cross-repository validation receipt v1",
   "type": "object",
   "required": ["schema", "status", "profile", "stack_lock_digest", "members", "contracts", "routes", "evidence"],

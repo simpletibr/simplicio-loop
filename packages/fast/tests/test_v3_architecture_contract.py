@@ -17,7 +17,8 @@ class FastV3ArchitectureContractTest(unittest.TestCase):
 
     def test_documents_exist_and_name_the_issue(self):
         self.assertIn(
-            "issue: https://github.com/wesleysimplicio/simplicio-fast/issues/38",
+            "issue: #38 (pre-monorepo `simplicio-fast` repo, now `packages/fast/` "
+            "of `simpletibr/simplicio-loop`)",
             self.adr,
         )
         self.assertIn("issue #38", self.matrix)
