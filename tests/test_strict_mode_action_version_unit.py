@@ -1,7 +1,5 @@
-"""Preflight operate-binary probes must report real versions, not usage banners."""
+"""Preflight operate-binary probes are in-process (no --version/--help subprocess)."""
 from __future__ import annotations
-
-from types import SimpleNamespace
 
 from simplicio_loop import strict_mode
 
@@ -11,56 +9,90 @@ def test_sanitize_version_banner_drops_usage():
     assert strict_mode._sanitize_version_banner("simplicio-dev-cli 0.18.6") == "simplicio-dev-cli 0.18.6"
 
 
-def test_action_operator_status_prefers_version_flag(monkeypatch):
-    calls: list[tuple[str, ...]] = []
+def test_action_operator_status_reads_the_capabilities_manifest_in_process(monkeypatch):
+    """No subprocess: presence/version come from the packaged manifest."""
+    manifest = {
+        "schema": "simplicio.dev-cli.capabilities/v1",
+        "package": {"name": "simplicio-cli", "version": "0.18.16"},
+        "entrypoints": {"adapter": "simplicio-dev-cli", "python_adapter": "simplicio-py"},
+    }
+    monkeypatch.setattr(strict_mode, "_load_dev_cli_capabilities", lambda: manifest)
 
-    def fake_run(command, **_kwargs):
-        calls.append(tuple(command))
-        binary = command[0]
-        flag = command[1] if len(command) > 1 else ""
-        if flag == "--version":
-            return SimpleNamespace(returncode=0, stdout=f"{binary} 0.18.6\n", stderr="")
-        if flag == "--help":
-            return SimpleNamespace(returncode=0, stdout="usage: simplicio-py [-h]\n", stderr="")
-        return SimpleNamespace(returncode=1, stdout="", stderr="no")
+    def boom(*_a, **_k):
+        raise AssertionError("action_operator_status must not spawn a subprocess")
 
-    monkeypatch.setattr(strict_mode.shutil, "which", lambda name: name)
-    monkeypatch.setattr(strict_mode.subprocess, "run", fake_run)
+    monkeypatch.setattr(strict_mode.subprocess, "run", boom)
 
     status = strict_mode.action_operator_status({})
     assert status["operational"] is True
     assert status["resolved_as"] == "simplicio-dev-cli"
-    assert status["version"] == "simplicio-dev-cli 0.18.6"
-    assert any(call[1:] == ("--version",) for call in calls)
-    assert not any("usage:" in status["version"].lower() for _ in [0])
+    assert status["version"] == "0.18.16"
+    assert status["capabilities_schema"] == "simplicio.dev-cli.capabilities/v1"
 
 
-def test_preflight_payload_reports_version_not_usage(monkeypatch, tmp_path):
-    def which(name: str):
-        return f"/bin/{name}"
+def test_action_operator_status_fails_closed_when_the_manifest_is_unavailable(monkeypatch):
+    def missing():
+        raise ModuleNotFoundError("no module named simplicio.capabilities")
 
-    def fake_run(command, **_kwargs):
-        binary = command[0]
-        flag = command[1] if len(command) > 1 else ""
-        if "simplicio-dev-cli" in binary and flag == "--version":
-            return SimpleNamespace(returncode=0, stdout="simplicio-dev-cli 0.18.6\n", stderr="")
-        if "simplicio-py" in binary and flag == "--version":
-            return SimpleNamespace(returncode=0, stdout="simplicio-py 0.18.6\n", stderr="")
-        if "simplicio-mapper" in binary:
-            return SimpleNamespace(returncode=0, stdout="0.26.11\n", stderr="")
-        if "simplicio-fast" in binary:
-            return SimpleNamespace(returncode=0, stdout="simplicio-fast 2.0.23\n", stderr="")
-        if binary.endswith("simplicio") or binary == "simplicio" or binary.endswith("/simplicio"):
-            return SimpleNamespace(returncode=0, stdout="Simplicio Runtime 3.5.7\n", stderr="")
-        return SimpleNamespace(returncode=0, stdout="ok\n", stderr="")
+    monkeypatch.setattr(strict_mode, "_load_dev_cli_capabilities", missing)
+    status = strict_mode.action_operator_status({})
+    assert status["operational"] is False
+    assert status["present"] is False
+    assert status["reason"] == "dev_cli_capabilities_unavailable"
+    assert "dev_cli_capabilities_unavailable" in status["error"]
 
-    monkeypatch.setattr(strict_mode.shutil, "which", which)
-    monkeypatch.setattr(strict_mode.subprocess, "run", fake_run)
+
+def test_mapper_and_fast_status_read_package_metadata_in_process(monkeypatch):
+    def fake_version(package: str) -> str:
+        return {"simplicio-mapper": "0.26.11", "simplicio-fast": "2.0.23"}[package]
+
+    def boom(*_a, **_k):
+        raise AssertionError("mapper/fast status must not spawn a subprocess")
+
+    monkeypatch.setattr(strict_mode._metadata, "version", fake_version)
+    monkeypatch.setattr(strict_mode.subprocess, "run", boom)
+
+    mapper = strict_mode.mapper_status()
+    fast = strict_mode.fast_status()
+    assert mapper["operational"] is True and mapper["version"] == "0.26.11"
+    assert fast["operational"] is True and fast["version"] == "2.0.23"
+
+
+def test_mapper_status_fails_closed_when_the_distribution_is_missing(monkeypatch):
+    def missing_version(package: str) -> str:
+        raise strict_mode._metadata.PackageNotFoundError(package)
+
+    monkeypatch.setattr(strict_mode._metadata, "version", missing_version)
+    status = strict_mode.mapper_status()
+    assert status["operational"] is False
+    assert status["present"] is False
+    assert status["reason"] == "package_not_installed"
+
+
+def test_preflight_payload_reports_real_versions_from_in_process_probes(monkeypatch, tmp_path):
+    manifest = {
+        "schema": "simplicio.dev-cli.capabilities/v1",
+        "package": {"name": "simplicio-cli", "version": "0.18.16"},
+        "entrypoints": {"adapter": "simplicio-dev-cli", "python_adapter": "simplicio-py"},
+    }
+    monkeypatch.setattr(strict_mode, "_load_dev_cli_capabilities", lambda: manifest)
+
+    def fake_version(package: str) -> str:
+        return {"simplicio-mapper": "0.26.11", "simplicio-fast": "2.0.23"}[package]
+
+    monkeypatch.setattr(strict_mode._metadata, "version", fake_version)
+    monkeypatch.setattr(strict_mode, "runtime_status", lambda env=None: {
+        "binary": "simplicio", "present": True, "operational": True, "version": "3.5.7", "error": "",
+    })
 
     receipt = strict_mode.preflight_payload(str(tmp_path), strict=True)
     ops = {item["name"]: item for item in receipt["operators"]}
+    assert ops["simplicio-mapper"]["present"] is True
+    assert ops["simplicio-mapper"]["version"] == "0.26.11"
     assert ops["simplicio-dev-cli"]["present"] is True
-    assert "0.18.6" in ops["simplicio-dev-cli"]["version"]
+    assert ops["simplicio-dev-cli"]["version"] == "0.18.16"
     assert not ops["simplicio-dev-cli"]["version"].lower().startswith("usage:")
     assert ops["simplicio-py"]["present"] is True
-    assert "0.18.6" in ops["simplicio-py"]["version"]
+    assert ops["simplicio-py"]["version"] == "0.18.16"
+    assert ops["simplicio-fast"]["present"] is True
+    assert ops["simplicio-fast"]["version"] == "2.0.23"

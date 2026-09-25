@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 
+import importlib.metadata as _metadata
 import os
 import shutil
 import subprocess
@@ -29,8 +30,6 @@ FALSE_VALUES = frozenset({"0", "false", "no", "off", "disabled", "standalone", "
 CORE_OPERATORS: tuple[str, ...] = ("simplicio-mapper", "simplicio-dev-cli", "simplicio-fast")
 RUNTIME_BINARY = "simplicio"
 FAST_BINARY = "simplicio-fast"
-# Accept either action binary name for the operate role.
-ACTION_ALIASES: tuple[str, ...] = ("simplicio-dev-cli", "simplicio-py")
 # Env overrides that pin the native Runtime binary (never the pip `simplicio-py` alias).
 RUNTIME_BIN_ENV_KEYS: tuple[str, ...] = (
     "SIMPLICIO_RUNTIME_BIN",
@@ -119,6 +118,33 @@ def _probe_version(
             "error": str(exc)[:200],
             "path": resolved,
         }
+
+
+def _metadata_status(binary: str, package: str) -> dict[str, Any]:
+    """In-process package-version probe -- no subprocess, no --version/--help.
+
+    Mapper and Fast ship as ordinary installed Python distributions, so
+    their presence/version is a plain ``importlib.metadata`` read; a
+    missing distribution fails closed with a typed reason instead of
+    falling back to spawning the binary.
+    """
+    try:
+        version = _metadata.version(package)
+    except _metadata.PackageNotFoundError:
+        return {
+            "binary": binary, "present": False, "operational": False, "version": "",
+            "error": "package_not_installed", "reason": "package_not_installed", "package": package,
+        }
+    return {
+        "binary": binary, "present": True, "operational": True, "version": version,
+        "error": "", "package": package,
+    }
+
+
+def mapper_status(env: Optional[Mapping[str, str]] = None) -> dict[str, Any]:
+    """Probe the survey operator via installed package metadata, in-process."""
+    del env
+    return _metadata_status("simplicio-mapper", "simplicio-mapper")
 
 
 def _looks_like_native_runtime(version: str, path: str = "") -> bool:
@@ -295,8 +321,9 @@ def runtime_status(env: Optional[Mapping[str, str]] = None) -> dict[str, Any]:
 
 
 def fast_status(env: Optional[Mapping[str, str]] = None) -> dict[str, Any]:
+    """Probe the retrieval operator via installed package metadata, in-process."""
     del env
-    return _probe_version(FAST_BINARY, ("--version",))
+    return _metadata_status(FAST_BINARY, "simplicio-fast")
 
 
 def _sanitize_version_banner(version: str) -> str:
@@ -311,42 +338,61 @@ def _sanitize_version_banner(version: str) -> str:
     return first
 
 
-def action_operator_status(env: Optional[Mapping[str, str]] = None) -> dict[str, Any]:
-    """Probe the operate binary (``simplicio-dev-cli`` or ``simplicio-py``).
+def _load_dev_cli_capabilities() -> dict[str, Any]:
+    from simplicio.capabilities import load_capabilities_manifest
 
-    Prefer ``--version`` so preflight reports a real package version (e.g.
-    ``simplicio-dev-cli 0.18.6``). Fall back to ``--help`` only for older
-    builds that lack ``--version``; never surface a ``usage:`` banner as the
-    version field.
+    return load_capabilities_manifest()
+
+
+def action_operator_status(env: Optional[Mapping[str, str]] = None) -> dict[str, Any]:
+    """Probe the operate binary in-process, no --version/--help subprocess.
+
+    ``simplicio-dev-cli capabilities --json`` and
+    ``simplicio.capabilities.load_capabilities_manifest()`` read the exact
+    same packaged manifest; a caller that shares the interpreter (this loop)
+    reads it directly instead of spawning the binary. A missing/unimportable
+    manifest fails closed with a typed reason -- there is no legacy
+    subprocess fallback.
     """
     del env
-    for name in ACTION_ALIASES:
-        status = _probe_version(name, ("--version",))
-        if not status["operational"]:
-            help_status = _probe_version(name, ("--help",))
-            if help_status["operational"]:
-                status = help_status
-                status["version"] = _sanitize_version_banner(status.get("version", ""))
-        else:
-            status["version"] = _sanitize_version_banner(status.get("version", "")) or status.get(
-                "version", ""
-            )
-        if status["operational"]:
-            status["role"] = "operate"
-            status["resolved_as"] = name
-            return status
-    # Prefer reporting the primary name.
-    status = _probe_version("simplicio-dev-cli", ("--version",))
+    try:
+        manifest = _load_dev_cli_capabilities()
+    except Exception as exc:  # pragma: no cover - defensive: uninstalled/broken package
+        return {
+            "binary": "simplicio-dev-cli",
+            "present": False,
+            "operational": False,
+            "version": "",
+            "error": f"dev_cli_capabilities_unavailable: {exc}"[:200],
+            "reason": "dev_cli_capabilities_unavailable",
+            "role": "operate",
+            "resolved_as": "simplicio-dev-cli",
+        }
+    package = manifest.get("package") if isinstance(manifest.get("package"), Mapping) else {}
+    entrypoints = manifest.get("entrypoints") if isinstance(manifest.get("entrypoints"), Mapping) else {}
+    version = str(package.get("version") or "")
+    resolved_as = str(entrypoints.get("adapter") or "simplicio-dev-cli")
+    return {
+        "binary": resolved_as,
+        "present": True,
+        "operational": True,
+        "version": version,
+        "error": "",
+        "role": "operate",
+        "resolved_as": resolved_as,
+        "package": str(package.get("name") or "simplicio-cli"),
+        "capabilities_schema": manifest.get("schema"),
+    }
+
+
+def python_alias_status(env: Optional[Mapping[str, str]] = None) -> dict[str, Any]:
+    """``simplicio-py``'s status: the same package/version as ``simplicio-dev-cli``."""
+    status = action_operator_status(env)
     if not status["operational"]:
-        status = _probe_version("simplicio-dev-cli", ("--help",))
-        status["version"] = _sanitize_version_banner(status.get("version", ""))
-    else:
-        status["version"] = _sanitize_version_banner(status.get("version", "")) or status.get(
-            "version", ""
-        )
-    status["role"] = "operate"
-    status["resolved_as"] = "simplicio-dev-cli"
-    return status
+        return {"binary": "simplicio-py", "present": False, "operational": False,
+                "version": "", "error": status.get("error", "")}
+    return {"binary": "simplicio-py", "present": True, "operational": True,
+            "version": status.get("version", ""), "error": ""}
 
 
 def require_runtime_mode(env: Optional[Mapping[str, str]] = None) -> str:
@@ -416,7 +462,11 @@ def missing_required_operators(env: Optional[Mapping[str, str]] = None) -> list[
             if not fast_status(env)["operational"]:
                 missing.append(FAST_BINARY)
             continue
-        # mapper and others
+        if name == "simplicio-mapper":
+            if not mapper_status(env)["operational"]:
+                missing.append(name)
+            continue
+        # any other required binary still gets a real subprocess probe
         status = _probe_version(name, ("--version",))
         if not status["operational"]:
             missing.append(name)
@@ -505,20 +555,13 @@ def preflight_payload(repo: str, *, strict: bool = False, env: Optional[Mapping[
     source = dict(_env(env))
     if strict:
         source["SIMPLICIO_LOOP_STRICT"] = "1"
-    mapper = _probe_version("simplicio-mapper", ("--version",))
+    mapper = mapper_status(source)
     action = action_operator_status(source)
     runtime = runtime_status(source)
     fast = fast_status(source)
-    # Report simplicio-py independently when on PATH so operators can see both
-    # aliases even when the probe resolved simplicio-dev-cli first.
-    py_alias = _probe_version("simplicio-py", ("--version",))
-    if not py_alias["operational"]:
-        py_alias = _probe_version("simplicio-py", ("--help",))
-        py_alias["version"] = _sanitize_version_banner(py_alias.get("version", ""))
-    else:
-        py_alias["version"] = _sanitize_version_banner(py_alias.get("version", "")) or py_alias.get(
-            "version", ""
-        )
+    # simplicio-py is the same installed package/version as simplicio-dev-cli
+    # (in-process, via the capabilities manifest -- no subprocess probe).
+    py_alias = python_alias_status(source)
     operators = [
         {
             "name": "simplicio-mapper",
@@ -594,8 +637,10 @@ __all__ = [
     "evidence_required_locked",
     "fast_status",
     "hand_edit_forbidden",
+    "mapper_status",
     "missing_required_operators",
     "preflight_payload",
+    "python_alias_status",
     "recommended_env",
     "require_runtime_mode",
     "required_bound_operators",
