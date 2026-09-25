@@ -992,6 +992,12 @@ class FastLoopIntegration:
                 parts.append(completed.stdout or "")
             except (OSError, subprocess.SubprocessError):
                 parts.append("")
+        # Untracked files are listed by name only; hash their bytes too.
+        for name in parts[-1].splitlines():
+            try:
+                parts.append(hashlib.sha256((self.root / name).read_bytes()).hexdigest())
+            except OSError:
+                parts.append("")
         return _hash(parts)
 
     def _key(self, source_commit: str | None = None) -> str:

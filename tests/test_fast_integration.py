@@ -608,3 +608,12 @@ def test_ingest_cache_is_invalidated_by_uncommitted_edits(tmp_path):
     diff["text"] = "diff --git a/app.py b/app.py\n+edit\n"
     FastLoopIntegration(tmp_path, config=config, runner=runner).ingest()
     assert sum(call[1] == "ingest" for call in fake.calls if call[0] == "fast") == 2
+
+
+def test_ingest_cache_sees_edits_to_untracked_files(tmp_path):
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / "new.py").write_text("x = 1\n")
+    integration = FastLoopIntegration(tmp_path, config=FastConfig(command=("fast",)))
+    before = integration._worktree_digest()
+    (tmp_path / "new.py").write_text("x = 2\n")
+    assert integration._worktree_digest() != before
