@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/plugin/dev-reconciliation-evidence.schema.json",
+  "title": "Plugin DevReconciliationEvidence",
+  "type": "object",
+  "required": [
+    "schema",
+    "attempt_id",
+    "lease_id",
+    "recommended_action",
+    "reason_code",
+    "residual_write_set",
+    "validation_delta",
+    "git_mutations"
+  ],
+  "properties": {
+    "schema": { "const": "simplicio.plugin.dev-reconciliation-evidence/v1" },
+    "attempt_id": { "type": "string" },
+    "lease_id": { "type": "string" },
+    "recommended_action": {
+      "type": "string",
+      "enum": ["inspect", "resume", "rollback", "no_retry"]
+    },
+    "reason_code": { "type": "string" },
+    "residual_write_set": { "type": "array", "items": { "type": "string" } },
+    "validation_delta": { "type": "object" },
+    "git_mutations": { "type": "array", "maxItems": 0 },
+    "user_changes_detected": { "type": "boolean" },
+    "resume_safe": { "type": "boolean" },
+    "rollback_safe": { "type": "boolean" }
+  },
+  "additionalProperties": true
+}

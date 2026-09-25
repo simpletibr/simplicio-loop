@@ -1,0 +1,95 @@
+{
+  "complete": true,
+  "completed_features": 1,
+  "cost": {
+    "budget_usd": "0",
+    "remaining_usd": "0",
+    "spent_usd": "0"
+  },
+  "dod": [
+    {
+      "command": null,
+      "label": "Workflow fixture approved",
+      "log": "",
+      "manual": true,
+      "passed": true
+    },
+    {
+      "command": null,
+      "label": "Sprint fixture DoD acknowledged",
+      "log": "",
+      "manual": true,
+      "passed": true
+    },
+    {
+      "command": "python tests/verify.py",
+      "label": "Verify fixture `python tests/verify.py`",
+      "log": "",
+      "manual": false,
+      "passed": true
+    },
+    {
+      "command": null,
+      "label": "Fixture task accepted",
+      "log": "",
+      "manual": true,
+      "passed": true
+    }
+  ],
+  "failed_dod_gates": [],
+  "failed_features": [],
+  "max_cost": "0",
+  "results": [
+    {
+      "result": {
+        "applied": true,
+        "cost": {
+          "budget_usd": "0",
+          "remaining_usd": "0",
+          "spent_usd": "0"
+        },
+        "goal": "Implement JWT login with refresh tokens across API and UI.",
+        "plan_tasks": 3,
+        "replans": 0,
+        "scope": "feature",
+        "stack": "py-fastapi",
+        "tasks": [
+          {
+            "goal": "Create JWT helpers for user identity tokens.",
+            "id": "T01-token-service",
+            "log": "{\n  \"applied\": true,\n  \"cost_usd\": 0.0,\n  \"diff_summary\": \"changed src/auth/jwt.py\",\n  \"files_changed\": [\n    \"src/auth/jwt.py\"\n  ],\n  \"task_id\": \"src/auth/jwt.py\",\n  \"tokens_used\": {\n    \"completion\": 24,\n    \"prompt\": 249\n  },\n  \"warnings\": []\n}",
+            "passed": true,
+            "replan": 0,
+            "target": "src/auth/jwt.py"
+          },
+          {
+            "goal": "Implement login and current-user routes.",
+            "id": "T02-auth-routes",
+            "log": "{\n  \"applied\": true,\n  \"cost_usd\": 0.0,\n  \"diff_summary\": \"changed src/api/routes/auth.py\",\n  \"files_changed\": [\n    \"src/api/routes/auth.py\"\n  ],\n  \"task_id\": \"src/api/routes/auth.py\",\n  \"tokens_used\": {\n    \"completion\": 24,\n    \"prompt\": 277\n  },\n  \"warnings\": []\n}",
+            "passed": true,
+            "replan": 0,
+            "target": "src/api/routes/auth.py"
+          },
+          {
+            "goal": "Cover JWT login and protected route behavior.",
+            "id": "T03-auth-tests",
+            "log": "{\n  \"applied\": true,\n  \"cost_usd\": 0.0,\n  \"diff_summary\": \"changed tests/api/test_auth_jwt.py\",\n  \"files_changed\": [\n    \"tests/api/test_auth_jwt.py\"\n  ],\n  \"task_id\": \"tests/api/test_auth_jwt.py\",\n  \"tokens_used\": {\n    \"completion\": 24,\n    \"prompt\": 277\n  },\n  \"warnings\": []\n}",
+            "passed": true,
+            "replan": 0,
+            "target": "tests/api/test_auth_jwt.py"
+          }
+        ],
+        "warnings": []
+      },
+      "task": "Auth flow",
+      "task_id": "01-auth.task.md"
+    }
+  ],
+  "scope": "sprint",
+  "sprint": "sprint-feature",
+  "sprint_name": "sprint-feature",
+  "stack": "py-fastapi",
+  "state": "complete",
+  "total_features": 1,
+  "updated_at": 1780220102
+}

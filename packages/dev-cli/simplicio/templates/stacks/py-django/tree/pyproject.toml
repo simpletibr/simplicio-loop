@@ -1,0 +1,9 @@
+[project]
+name = "{project_name}"
+version = "0.1.0"
+description = "{goal}"
+requires-python = ">=3.12"
+dependencies = ["django>=6.0.5", "djangorestframework>=3.17.1"]
+
+[project.optional-dependencies]
+dev = ["ruff>=0.15.15"]

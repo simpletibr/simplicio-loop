@@ -1,0 +1,466 @@
+{
+  "schema": "simplicio.session-hook/v1",
+  "hook": "Stop",
+  "ts": 1783429851,
+  "session_id": "4d3810b5-cafc-4138-a447-f37e65629af8",
+  "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+  "payload_excerpt": "{\"session_id\":\"4d3810b5-cafc-4138-a447-f37e65629af8\",\"transcript_path\":\"/Users/wesleysimplicio/.claude/projects/-Users-wesleysimplicio-Projetos-ai-simplicio-dev-cli/4d3810b5-cafc-4138-a447-f37e65629af8.jsonl\",\"cwd\":\"/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli\",\"prompt_id\":\"4733b7b7-cc90-47ad-b687-1f17ccdbc89e\",\"permission_mode\":\"bypassPermissions\",\"effort\":{\"level\":\"medium\"},\"hook_event_name\":\"Stop\",\"stop_hook_active\":false,\"last_assistant_message\":\"`simplicio-mapper` 0.16.0 aplicado, version 0.9.2→0.9.3, doc/changelog/teste ajustados, build+twine ok, pytest só as 8 falhas pré-existentes, push feito.\",\"background_tasks\":[],\"session_crons\":[]}",
+  "savings_report": {
+    "assumptions": [
+      "report aggregates only local append-only savings events",
+      "unknown identity/model/repo fields remain unknown and are never invented",
+      "cost stays unknown when no versioned pricing catalog exists for the route"
+    ],
+    "attachable_to_evidence": true,
+    "baseline_kind": "estimated",
+    "baseline_source": ".simplicio/ledger/savings-events.jsonl",
+    "confidence": "low",
+    "cost_totals": {
+      "actual": 0.0,
+      "baseline": 0.0,
+      "currency": "USD",
+      "saved": 0.0
+    },
+    "delta": {
+      "cache_hits_gained": 0,
+      "commands_saved": 0,
+      "elapsed_ms_saved": 0,
+      "evidence_artifacts_delta": 0,
+      "local_tokens_shifted": 0,
+      "paid_tokens_saved": 424000,
+      "prompts_reused_gained": 0,
+      "remote_prompt_tokens_saved": 424000
+    },
+    "dimensions": {
+      "by_model": [
+        {
+          "actual_total": 0,
+          "baseline_total": 424000,
+          "key": "simplicio/simplicio-cli",
+          "saved_percent": 100,
+          "saved_total": 424000
+        }
+      ],
+      "by_proof": [
+        {
+          "actual_total": 0,
+          "baseline_total": 424000,
+          "key": "estimated",
+          "saved_percent": 100,
+          "saved_total": 424000
+        }
+      ],
+      "by_repo": [
+        {
+          "actual_total": 0,
+          "baseline_total": 424000,
+          "key": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+          "saved_percent": 100,
+          "saved_total": 424000
+        }
+      ],
+      "by_task": [
+        {
+          "actual_total": 0,
+          "baseline_total": 2000,
+          "key": "gate",
+          "saved_percent": 100,
+          "saved_total": 2000
+        },
+        {
+          "actual_total": 0,
+          "baseline_total": 2000,
+          "key": "memory",
+          "saved_percent": 100,
+          "saved_total": 2000
+        },
+        {
+          "actual_total": 0,
+          "baseline_total": 420000,
+          "key": "sprint",
+          "saved_percent": 100,
+          "saved_total": 420000
+        }
+      ],
+      "by_team": [
+        {
+          "actual_total": 0,
+          "baseline_total": 424000,
+          "key": "unknown",
+          "saved_percent": 100,
+          "saved_total": 424000
+        }
+      ],
+      "by_user": [
+        {
+          "actual_total": 0,
+          "baseline_total": 424000,
+          "key": "wesleysimplicio",
+          "saved_percent": 100,
+          "saved_total": 424000
+        }
+      ],
+      "time_series": [
+        {
+          "actual_total": 0,
+          "baseline_total": 74500,
+          "day": "2026-06-29",
+          "saved_percent": 100,
+          "saved_total": 74500
+        },
+        {
+          "actual_total": 0,
+          "baseline_total": 1500,
+          "day": "2026-06-30",
+          "saved_percent": 100,
+          "saved_total": 1500
+        },
+        {
+          "actual_total": 0,
+          "baseline_total": 276000,
+          "day": "2026-07-01",
+          "saved_percent": 100,
+          "saved_total": 276000
+        },
+        {
+          "actual_total": 0,
+          "baseline_total": 72000,
+          "day": "2026-07-02",
+          "saved_percent": 100,
+          "saved_total": 72000
+        }
+      ]
+    },
+    "events": 110,
+    "ledger": {
+      "corrupt_lines": 0,
+      "hash_chain_valid": true,
+      "path": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli/.simplicio/ledger/savings-events.jsonl",
+      "total_events": 110
+    },
+    "limitations": [
+      "legacy runs without savings-event/v1 are not backfilled automatically",
+      "cost totals exclude events with unknown pricing",
+      "measured versus estimated is controlled per event proof.kind"
+    ],
+    "proof_breakdown": {
+      "estimated": 110
+    },
+    "records": [
+      {
+        "event_id": "224e131b24da597ec49d1dd6",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:49Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "522d0eff72a23b0045c2a061",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:47Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "ba53d39464582b7987950d61",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:43Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "4d3eb85dacf46728db4dbeed",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:41Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "b512eb13c0d3b5e4a7d894b6",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:37Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "075fad00c5c190c9a8d515b6",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:34Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "b2300ef2a37e858482abaeb9",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:31Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "531af95ec240ca53abd7238f",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:30Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "c1a93cd486f317f6d7e37197",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:28Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "fbd8a694180059b7a1057d7f",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:26Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "d292b692f5ef6e3e18f2632e",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:25Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "3e700d3c749f13c7387a03b2",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:23Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "5dc31fb21b0df23322ac21fc",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:22Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "670c5f6278db135c431e0e4b",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:21Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "8ab607aeedc057b3badca425",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:17Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "0e1126493bbf5393cbed1e42",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:16Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "21a884d875db11be527b83bf",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:15Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "e00c1b2d5d6970175196c578",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-02T14:36:14Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "a801fef73b9dbd8b7001e915",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-01T21:36:04Z",
+        "user": "wesleysimplicio"
+      },
+      {
+        "event_id": "1a1319963a92006fcfb43264",
+        "model": "simplicio/simplicio-cli",
+        "proof_kind": "estimated",
+        "provider": "simplicio",
+        "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+        "saved_cost": null,
+        "saved_total": 4000,
+        "task": "sprint",
+        "team": "unknown",
+        "timestamp": "2026-07-01T21:36:01Z",
+        "user": "wesleysimplicio"
+      }
+    ],
+    "redaction": {
+      "enabled": true,
+      "policy": "hashes for email; sync path redaction available"
+    },
+    "repo": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
+    "reproducible_commands": [
+      "simplicio savings record --spent <N> --baseline <N> --json",
+      "simplicio savings report --repo . --json",
+      "simplicio savings dashboard --repo . --json",
+      "simplicio savings sync --dry-run --json"
+    ],
+    "schema": "simplicio.savings-report/v1",
+    "source_artifacts": [
+      "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli/.simplicio/ledger/savings-events.jsonl"
+    ],
+    "tokenizer_policy": {
+      "by_tokenizer_id": {},
+      "enforced_in": [
+        "simplicio savings watch",
+        "simplicio savings-dashboard"
+      ],
+      "labeled_events": 0,
+      "note": "report/dashboard here still include unlabeled-estimated events in cards/delta above for backward compatibility; the two live aggregators listed in enforced_in reject them from their headline totals",
+      "policy_doc": "docs/SAVINGS_EVENT_SPEC.md#tokenizer-policy",
+      "unlabeled_estimated_events_flagged": 110
+    },
+    "with_simplicio": {
+      "agent_reuse": 0,
+      "cache_hits": 0,
+      "command_count": 110,
+      "commands_avoided": 0,
+      "elapsed_ms": 0,
+      "evidence_artifacts": 220,
+      "local_tokens": 0,
+      "paid_tokens": 0,
+      "prompts_reused": 0,
+      "remote_completion_tokens": 0,
+      "remote_prompt_tokens": 0,
+      "validation_count": 0
+    },
+    "without_simplicio": {
+      "agent_reuse": 0,
+      "cache_hits": 0,
+      "command_count": 110,
+      "commands_avoided": 0,
+      "elapsed_ms": 0,
+      "evidence_artifacts": 220,
+      "local_tokens": 0,
+      "paid_tokens": 424000,
+      "prompts_reused": 0,
+      "remote_completion_tokens": 0,
+      "remote_prompt_tokens": 424000,
+      "validation_count": 0
+    }
+  }
+}

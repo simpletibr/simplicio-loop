@@ -1,0 +1,41 @@
+{
+  "name": "auth-jwt",
+  "description": "JWT authentication plan for Next.js app router.",
+  "applies_to": ["ts-nextjs"],
+  "matches": [
+    "(?i)\\b(?:auth|authentication|login)\\b.*\\bJWT\\b",
+    "(?i)\\bJWT\\b.*\\b(?:auth|login)\\b"
+  ],
+  "slots": {
+    "entity": {"default": "user", "transform": "lower_snake_case"},
+    "Entity": {"derived_from": "entity", "transform": "pascal_case"}
+  },
+  "files_to_create": [
+    {"path": "src/lib/auth.ts", "purpose": "JWT helpers"},
+    {"path": "src/app/api/auth/login/route.ts", "purpose": "login route"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-auth-lib",
+      "depends_on": [],
+      "goal": "Implement JWT encode and verify helpers",
+      "target": "src/lib/auth.ts",
+      "criteria": "- signToken returns string\\n- verifyToken validates payload",
+      "constraints": "- keep secret environment-driven",
+      "verify": "npm test -- --run"
+    },
+    {
+      "id": "T02-login-route",
+      "depends_on": ["T01-auth-lib"],
+      "goal": "Add login route returning JWT",
+      "target": "src/app/api/auth/login/route.ts",
+      "criteria": "- POST returns access_token\\n- invalid body returns 400",
+      "constraints": "- use NextResponse.json",
+      "verify": "npm test -- --run"
+    }
+  ],
+  "deps_to_install": ["jose"],
+  "deps_dev": ["vitest"],
+  "test_command": "npm test -- --run",
+  "lint_command": "npm run lint"
+}

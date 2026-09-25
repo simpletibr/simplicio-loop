@@ -1,0 +1,67 @@
+**src/app/screen/screen.component.html**
+```html
+<div *ngIf="user.isAdmin">
+  <button (click)="deleteItem()">Delete</button>
+</div>
+```
+
+**src/app/screen/screen.component.spec.ts**
+```typescript
+import { TestBed } from '@angular/core/testing';
+import { ScreenComponent } from './screen.component';
+import { User } from '../user/user.model';
+
+describe('ScreenComponent', () => {
+  let component: ScreenComponent;
+  let fixture: ComponentFixture<ScreenComponent>;
+  let user: User;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      declarations: [ ScreenComponent ]
+    })
+    .compileComponents();
+  });
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(ScreenComponent);
+    component = fixture.componentInstance;
+    user = { isAdmin: true };
+  });
+
+  it('should display delete button when user is admin', () => {
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('button');
+    expect(button).toBeTruthy();
+  });
+
+  it('should not display delete button when user is not admin', () => {
+    user.isAdmin = false;
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('button');
+    expect(button).toBeNull();
+  });
+
+  it('should not throw any errors', () => {
+    expect(true).toBe(true);
+  });
+});
+```
+
+**evidence.playwright**
+```javascript
+const playwright = require('playwright');
+
+(async () => {
+  const browser = await playwright.chromium.launch();
+  const page = await browser.newPage();
+  await page.goto('http://localhost:4200');
+
+  // User is admin
+  await page.click('button[ng-click="deleteItem()"]');
+  const button = await page.$('button');
+  expect(await button.isVisible()).toBe(true);
+
+  // User is not admin
+  await page.click('button[ng-click="deleteItem()"]');
+  const button

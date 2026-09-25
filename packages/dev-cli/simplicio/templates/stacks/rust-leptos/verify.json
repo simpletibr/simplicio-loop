@@ -1,0 +1,6 @@
+{
+  "install": "cargo fetch",
+  "test": "cargo test",
+  "test_runner": "cargo test",
+  "lint": "cargo clippy --all-targets -- -D warnings"
+}

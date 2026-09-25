@@ -1,0 +1,52 @@
+```diff
+--- a/src/app/screen/screen.component.html
++++ b/src/app/screen/screen.component.html
+@@ -15,7 +15,7 @@
+   <button
+     mat-button
+     color="warn"
+-    (click)="onDelete()"
++    *ngIf="isAdmin"
++    (click)="onDelete()"
+   >
+   Delete
+   </button>
+```
+
+```
+TEST
+describe('ScreenComponent', () => {
+  it('should not show delete button when not an admin', async () => {
+    // Arrange
+    let component: ScreenComponent;
+    let fixture: ComponentFixture<ScreenComponent>;
+    const userIsNotAdmin = false;
+    component = TestBed.createComponent(ScreenComponent).componentInstance;
+    component.isAdmin = userIsNotAdmin;
+    fixture = TestBed.createComponent(ScreenComponent);
+
+    // Act & Assert
+    await fixture.detectChanges();
+    expect(fixture.debugElement.query('button')).toBeNull();
+  });
+
+  it('should show delete button when an admin', async () => {
+    // Arrange
+    let component: ScreenComponent;
+    let fixture: ComponentFixture<ScreenComponent>;
+    const userIsAdmin = true;
+    component = TestBed.createComponent(ScreenComponent).componentInstance;
+    component.isAdmin = userIsAdmin;
+    fixture = TestBed.createComponent(ScreenComponent);
+
+    // Act & Assert
+    await fixture.detectChanges();
+    expect(fixture.debugElement.query('button')).toBeDefined();
+  });
+});
+```
+
+```
+EVIDENCE
+N/A
+```

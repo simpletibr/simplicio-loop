@@ -1,0 +1,51 @@
+```diff
+--- a/src/components/Menu.tsx
++++ b/src/components/Menu.tsx
+@@ -12,7 +12,11 @@
+   const menuItems = [
+     { label: 'Home', path: '/' },
+     { label: 'Analytics', path: '/analytics' },
+-    { label: 'Export', path: '/export' },
++    { label: 'Export', path: '/export', shouldRender: user?.analytics },
+     { label: 'Settings', path: '/settings' },
+   ];
++
++  if (!user || !user.analytics) {
++    return null;
++  }
+ 
+   return (
+     <ul>
+```
+
+```
+TEST
+describe('Menu Component - Export Item Rendering', () => {
+  it('renders export item when user is in analytics group', async () => {
+    // Mock user object with analytics property set to true
+    const user = { analytics: true };
+    
+    // Render the component with the mocked user
+    const { getByText } = render(<Menu user={user} />);
+    
+    // Assert that the export item is rendered
+    expect(getByText('Export')).toBeInTheDocument();
+  });
+  
+  it('does not render export item when user is not in analytics group', async () => {
+    // Mock user object with analytics property set to false
+    const user = { analytics: false };
+    
+    // Render the component with the mocked user
+    const { getByText } = render(<Menu user={user} />);
+    
+    // Assert that the export item is not rendered
+    expect(getByText('Export')).not.toBeInTheDocument();
+  });
+});
+```
+
+```
+EVIDENCE
+N/A
+```

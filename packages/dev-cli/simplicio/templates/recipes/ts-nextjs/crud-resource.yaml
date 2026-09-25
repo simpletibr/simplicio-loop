@@ -1,0 +1,47 @@
+{
+  "name": "crud-resource",
+  "description": "REST CRUD plan for {Entity} on Next.js app router.",
+  "applies_to": ["ts-nextjs"],
+  "matches": [
+    "(?i)\\bCRUD\\s+app\\s+for\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*(?:\\s+[A-Za-z][A-Za-z0-9_-]*){0,2})(?=\\s+with\\b|\\s*$)",
+    "(?i)\\bCRUD\\s+(?:(?:API|page|screen|UI|app)\\s+)?(?:for\\s+|de\\s+|para\\s+|managing\\s+)?(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\bREST\\s+(?:API\\s+)?(?:for\\s+)?(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\bmanage\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\s+with\\s+CRUD\\b",
+    "(?i)^CRUD(?:\\s+API)?$",
+    "(?i)\\bCRUD\\s+(?:page|app)\\s+for\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b"
+  ],
+  "slots": {
+    "entity": {"required": true, "transform": "lower_snake_case"},
+    "Entity": {"derived_from": "entity", "transform": "pascal_case"},
+    "entity_kebab": {"derived_from": "entity", "transform": "kebab_case"},
+    "entity_plural": {"derived_from": "entity", "transform": "plural_lower"}
+  },
+  "files_to_create": [
+    {"path": "src/app/api/{entity_plural}/route.ts", "purpose": "Next.js CRUD route handlers for {Entity}"},
+    {"path": "src/app/{entity_plural}/page.tsx", "purpose": "CRUD page for {Entity}"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-api-route",
+      "depends_on": [],
+      "goal": "Create Next.js route handlers for {Entity} CRUD",
+      "target": "src/app/api/{entity_plural}/route.ts",
+      "criteria": "- GET returns JSON list\\n- POST accepts JSON body",
+      "constraints": "- use app router route handlers",
+      "verify": "pnpm tsc --noEmit"
+    },
+    {
+      "id": "T02-page",
+      "depends_on": ["T01-api-route"],
+      "goal": "Create a {Entity} CRUD page",
+      "target": "src/app/{entity_plural}/page.tsx",
+      "criteria": "- page fetches {entity_plural}\\n- create form is rendered",
+      "constraints": "- keep component typed and accessible",
+      "verify": "pnpm tsc --noEmit"
+    }
+  ],
+  "deps_to_install": [],
+  "deps_dev": ["vitest", "@testing-library/react"],
+  "test_command": "pnpm tsc --noEmit",
+  "lint_command": "pnpm eslint ."
+}

@@ -1,0 +1,13 @@
+{
+  "slug": "dart-flutter",
+  "template_version": "0.1.0",
+  "language": "Dart",
+  "framework": "Flutter",
+  "framework_version": "3",
+  "package_manager": "flutter",
+  "test_runner": "flutter test",
+  "linter": "flutter analyze",
+  "deps_required": ["flutter"],
+  "deps_dev": ["flutter_test"],
+  "tags": ["mobile", "frontend", "dart", "flutter", "cross-platform"]
+}

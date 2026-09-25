@@ -1,0 +1,22 @@
+{
+  "name": "simplicio/{project_name}",
+  "description": "{goal}",
+  "type": "library",
+  "autoload": {
+    "psr-4": {
+      "App\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "require": {
+    "php": "^8.3"
+  },
+  "require-dev": {
+    "laravel/pint": "^1.18",
+    "phpunit/phpunit": "^11"
+  }
+}

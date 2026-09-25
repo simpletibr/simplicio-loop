@@ -1,0 +1,55 @@
+{
+  "name": "admin-crud",
+  "description": "Admin-only CRUD API workflow for a FastAPI entity.",
+  "applies_to": ["py-fastapi"],
+  "matches": [
+    "(?i)\\badmin\\s+(?:panel|dashboard)\\s+(?:for|to\\s+manage)\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\badmin\\s+CRUD\\s+(?:for\\s+)?(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\badmin\\s+for\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\bbackoffice\\s+(?:for|to\\s+manage)\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b"
+  ],
+  "slots": {
+    "entity": {"required": true, "transform": "pascal_case"},
+    "entity_lower": {"derived_from": "entity", "transform": "lower_snake_case"},
+    "entity_plural": {"derived_from": "entity", "transform": "plural_lower"}
+  },
+  "rationale": "Use the py-fastapi admin CRUD recipe for {entity}: admin guards and CRUD route structure are deterministic.",
+  "files_to_create": [
+    {"path": "src/admin/{entity_plural}.py", "purpose": "Admin-only router for {entity} management"},
+    {"path": "src/auth/admin.py", "purpose": "Admin role guard"},
+    {"path": "tests/admin/test_{entity_plural}.py", "purpose": "Admin CRUD authorization tests"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-admin-guard",
+      "depends_on": [],
+      "goal": "Create an admin role guard dependency.",
+      "target": "src/auth/admin.py",
+      "criteria": "- admin dependency allows admin users\\n- non-admin users receive 403",
+      "constraints": "- keep role names configurable",
+      "verify": "pytest tests/admin/test_{entity_plural}.py -q"
+    },
+    {
+      "id": "T02-admin-routes",
+      "depends_on": ["T01-admin-guard"],
+      "goal": "Create admin CRUD routes for {entity}.",
+      "target": "src/admin/{entity_plural}.py",
+      "criteria": "- admin list/create/update/delete routes exist\\n- every route depends on the admin guard",
+      "constraints": "- keep route prefix under /admin/{entity_plural}",
+      "verify": "pytest tests/admin/test_{entity_plural}.py -q"
+    },
+    {
+      "id": "T03-admin-tests",
+      "depends_on": ["T02-admin-routes"],
+      "goal": "Test admin-only {entity} management behavior.",
+      "target": "tests/admin/test_{entity_plural}.py",
+      "criteria": "- admin user can manage {entity_plural}\\n- regular user is denied",
+      "constraints": "- use isolated test fixtures",
+      "verify": "pytest tests/admin/test_{entity_plural}.py -q"
+    }
+  ],
+  "deps_to_install": ["fastapi>=0.136.3"],
+  "deps_dev": ["pytest>=9.0.3", "httpx>=0.28.1"],
+  "test_command": "pytest -q",
+  "lint_command": "ruff check src tests"
+}

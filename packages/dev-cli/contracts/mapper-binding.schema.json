@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simplicio.mapper-binding/v1",
+  "title": "Canonical Mapper observation binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "repository_id",
+    "generation",
+    "source_tree_id",
+    "source_hashes",
+    "binding_digest"
+  ],
+  "properties": {
+    "schema": { "const": "simplicio.mapper-binding/v1" },
+    "repository_id": { "type": "string", "minLength": 1 },
+    "generation": { "type": ["string", "integer"] },
+    "source_tree_id": { "type": "string", "minLength": 1 },
+    "source_hashes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "binding_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

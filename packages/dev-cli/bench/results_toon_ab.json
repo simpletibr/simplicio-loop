@@ -1,0 +1,30 @@
+{
+  "schema": "simplicio.toon-ab-bench/v1",
+  "cases_source": "bench/cases.json",
+  "estimator": "observability.estimate_tokens (words*4/3)",
+  "method": "build_mapper_context() driven end-to-end with SIMPLICIO_PROMPT_TOON=0/1, map_handoff() monkeypatched to a representative (non-live-captured) simplicio.map-handoff/v1 pack per case target \u2014 isolates the handoff-path TOON gate fixed in #88 from mapper-binary availability.",
+  "rows": [
+    {
+      "goal": "hide the Delete button when the user is not admin",
+      "target": "src/app/screen/screen.component.html",
+      "legacy_tokens": 52,
+      "toon_tokens": 38,
+      "saved_tokens": 14,
+      "pct_saved": 26.92
+    },
+    {
+      "goal": "enable the email field only for the editor profile",
+      "target": "src/app/profile/profile.component.html",
+      "legacy_tokens": 52,
+      "toon_tokens": 38,
+      "saved_tokens": 14,
+      "pct_saved": 26.92
+    }
+  ],
+  "totals": {
+    "legacy_tokens": 104,
+    "toon_tokens": 76,
+    "saved_tokens": 28,
+    "pct_saved": 26.92
+  }
+}

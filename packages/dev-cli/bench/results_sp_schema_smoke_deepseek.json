@@ -1,0 +1,44 @@
+{
+  "model": "deepseek/deepseek-v4-flash",
+  "tiers": [
+    4,
+    8
+  ],
+  "result": {
+    "passed": true,
+    "cycles_run": 1,
+    "subagents_final": 4,
+    "uniq": 4,
+    "modal_count": 1,
+    "parse_ok": 3,
+    "parse_fail": 1,
+    "tokens": 8188,
+    "ms": 16485,
+    "tier_history": [
+      {
+        "cycle": 1,
+        "n": 4,
+        "uniq": 4,
+        "modal_count": 1,
+        "passed": true,
+        "parse_ok": 3,
+        "parse_fail": 1,
+        "tokens": 8188,
+        "elapsed_ms": 16390,
+        "oracle_error": null
+      }
+    ],
+    "modal_diagnostics": {
+      "parse_ok_count": 3,
+      "parse_failed_count": 1,
+      "behavior_groups": 4,
+      "winning_signature": "14bfdacacffa",
+      "winner_confidence": 1.0,
+      "winner_self_expected": [
+        "PasswordPolicy::isStrong returns true for password length >= 12",
+        "PasswordPolicy::isStrong returns false for password length < 12"
+      ]
+    },
+    "winner_first_500": "<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Core;\n\nfinal class PasswordPolicy\n{\n    public static function isStrong(string $password): bool\n    {\n        return strlen($password) >= 12;\n    }\n}\n"
+  }
+}

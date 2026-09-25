@@ -1,0 +1,144 @@
+[
+  {
+    "goal": "Hide the Delete button when the current user is not an admin.",
+    "stack": "angular",
+    "target": "src/app/screen/screen.component.html",
+    "criteria": "- without admin permission: button absent from DOM\n- with admin permission: button present in DOM",
+    "constraints": "- do not change the save flow\n- build passes",
+    "checks": [
+      "screen\\.component\\.html",
+      "(^|\\W)diff(\\W|:)",
+      "(^|\\W)test(\\W|:)",
+      "admin",
+      "(absent|hidden|removed|ngIf|not.*admin)"
+    ]
+  },
+  {
+    "goal": "Disable the email field unless the profile role is editor.",
+    "stack": "angular",
+    "target": "src/app/profile/profile.component.html",
+    "criteria": "- editor profile: email field enabled\n- any other profile: email field disabled",
+    "constraints": "- build passes\n- do not change form submit",
+    "checks": [
+      "profile\\.component\\.html",
+      "(^|\\W)diff(\\W|:)",
+      "(^|\\W)test(\\W|:)",
+      "editor",
+      "(disabled|\\[disabled\\]|isEditor)"
+    ]
+  },
+  {
+    "goal": "Only show the audit log link for users with role 'auditor'.",
+    "stack": "angular",
+    "target": "src/app/nav/nav.component.html",
+    "criteria": "- auditor role: link visible\n- non-auditor role: link absent from DOM",
+    "constraints": "- build passes\n- do not touch routing config",
+    "checks": [
+      "nav\\.component\\.html",
+      "(^|\\W)diff(\\W|:)",
+      "(^|\\W)test(\\W|:)",
+      "auditor",
+      "(ngIf|hidden|absent|visible)"
+    ]
+  },
+  {
+    "goal": "Show 'Approve' button only when the order status is 'pending' and the user has approver permission.",
+    "stack": "angular",
+    "target": "src/app/orders/order-detail.component.html",
+    "criteria": "- status pending AND approver permission: button visible\n- status not pending: button hidden\n- approver permission false: button hidden",
+    "constraints": "- build passes\n- do not call backend on render",
+    "checks": [
+      "order-detail\\.component\\.html",
+      "(^|\\W)diff(\\W|:)",
+      "(^|\\W)test(\\W|:)",
+      "approver",
+      "pending",
+      "(ngIf|\\*ngIf|hidden)"
+    ]
+  },
+  {
+    "goal": "Render the export menu item only for users in the 'analytics' group.",
+    "stack": "react",
+    "target": "src/components/Menu.tsx",
+    "criteria": "- user in analytics group: export item rendered\n- user not in analytics group: export item NOT rendered",
+    "constraints": "- build passes\n- no new package",
+    "checks": [
+      "Menu\\.tsx",
+      "(^|\\W)diff(\\W|:)",
+      "(^|\\W)test(\\W|:)",
+      "analytics",
+      "(&&|\\?\\s*<|usePermission|hasGroup)"
+    ]
+  },
+  {
+    "goal": "Disable the 'Save Draft' button while the form is invalid OR a save request is in-flight.",
+    "stack": "react",
+    "target": "src/pages/PostEditor.tsx",
+    "criteria": "- form invalid: button disabled\n- save in-flight: button disabled\n- form valid AND not in-flight: button enabled",
+    "constraints": "- build passes\n- no extra render",
+    "checks": [
+      "PostEditor\\.tsx",
+      "(^|\\W)diff(\\W|:)",
+      "(^|\\W)test(\\W|:)",
+      "(invalid|isValid)",
+      "(in-?flight|loading|isSaving|pending)",
+      "disabled"
+    ]
+  },
+  {
+    "goal": "Show a 'No results' empty state when the search returns zero items AND the query is not empty.",
+    "stack": "react",
+    "target": "src/components/SearchList.tsx",
+    "criteria": "- query non-empty and results empty: empty state visible\n- query empty: empty state NOT visible\n- results non-empty: list renders, empty state hidden",
+    "constraints": "- build passes\n- no new dep",
+    "checks": [
+      "SearchList\\.tsx",
+      "(^|\\W)diff(\\W|:)",
+      "(^|\\W)test(\\W|:)",
+      "(empty|no results|No results)",
+      "(length === 0|length == 0|isEmpty|!results\\.length)"
+    ]
+  },
+  {
+    "goal": "Require the 'CanApprove' policy on the Approve endpoint of the OrdersController.",
+    "stack": "dotnet",
+    "target": "src/Web/Controllers/OrdersController.cs",
+    "criteria": "- request without policy: returns 403\n- request with policy: returns 200\n- attribute applied at action level",
+    "constraints": "- build passes\n- do not change DTO",
+    "checks": [
+      "OrdersController\\.cs",
+      "(^|\\W)diff(\\W|:)",
+      "(^|\\W)test(\\W|:)",
+      "(CanApprove|Authorize)",
+      "(\\[Authorize|HasPolicy|RequireClaim)"
+    ]
+  },
+  {
+    "goal": "Restrict the GET /reports endpoint so only users in the Manager role can list reports.",
+    "stack": "dotnet",
+    "target": "src/Web/Controllers/ReportsController.cs",
+    "criteria": "- non-Manager: returns 403\n- Manager: returns 200 with payload\n- attribute on the action, not whole controller",
+    "constraints": "- build passes\n- do not change response shape",
+    "checks": [
+      "ReportsController\\.cs",
+      "(^|\\W)diff(\\W|:)",
+      "(^|\\W)test(\\W|:)",
+      "Manager",
+      "(\\[Authorize|Roles\\s*=|IsInRole)"
+    ]
+  },
+  {
+    "goal": "Show a warning banner if the user has unsaved changes and tries to navigate away.",
+    "stack": "angular",
+    "target": "src/app/editor/editor.component.ts",
+    "criteria": "- unsaved changes AND navigation triggered: banner shown\n- no unsaved changes: navigation proceeds, no banner\n- user confirms leave: navigation proceeds",
+    "constraints": "- build passes\n- use existing CanDeactivate pattern if present",
+    "checks": [
+      "editor\\.component\\.ts",
+      "(^|\\W)diff(\\W|:)",
+      "(^|\\W)test(\\W|:)",
+      "(unsaved|dirty|isDirty)",
+      "(canDeactivate|CanDeactivate|beforeunload|guard)"
+    ]
+  }
+]

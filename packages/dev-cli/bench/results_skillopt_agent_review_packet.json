@@ -1,0 +1,146 @@
+{
+  "benchmark": "skillopt-agent-review-packet",
+  "date": "2026-05-31",
+  "review_policy": {
+    "min_approval_rate": 0.8,
+    "min_reviews": 10,
+    "required_fields": [
+      "skill",
+      "path",
+      "sha256",
+      "reviewer",
+      "approved",
+      "reviewed_at"
+    ]
+  },
+  "reviews": [
+    {
+      "agent_id": "019e7d16-5ce9-7592-8a46-593b9fc99b97",
+      "approved": false,
+      "notes": "It is review-gated and safe, but it wrongly treats any scaffold/file output as prohibited instead of distinguishing mechanical codegen-disabled LLM fallback evidence.",
+      "path": "bench/skillopt_pending_skills/codegen-disabled-baseline-review/SKILL.md",
+      "reviewed_at": "2026-05-31T05:40:44-03:00",
+      "reviewer": "Darwin:codex-review-3",
+      "sha256": "516bd61903ff3964b961df548af214c6eb6c9d6e6b7b1a1d6abc580cf28b4cd1",
+      "skill": "codegen-disabled-baseline-review",
+      "skill_md": "bench/skillopt_pending_skills/codegen-disabled-baseline-review/SKILL.md"
+    },
+    {
+      "agent_id": "019e7d16-5ce9-7592-8a46-593b9fc99b97",
+      "approved": true,
+      "notes": "The workflow is SkillOpt-generated, review-gated, concrete, non-destructive, and its checklist materially validates FastAPI CRUD release evidence.",
+      "path": "bench/skillopt_pending_skills/fastapi-crud-scaffold-review/SKILL.md",
+      "reviewed_at": "2026-05-31T05:40:44-03:00",
+      "reviewer": "Darwin:codex-review-3",
+      "sha256": "07310ae25eb4c350d801169085f91492b66ac8b9a92c71bc8bb8e3cd803ba91f",
+      "skill": "fastapi-crud-scaffold-review",
+      "skill_md": "bench/skillopt_pending_skills/fastapi-crud-scaffold-review/SKILL.md"
+    },
+    {
+      "agent_id": "019e7d16-78f8-7f41-b184-048e0690aad4",
+      "approved": true,
+      "notes": "The workflow is SkillOpt-generated, review-gated, non-destructive, and gives concrete checks for Go Gin CRUD evidence without claiming the evidence is already valid.",
+      "path": "bench/skillopt_pending_skills/go-gin-release-review/SKILL.md",
+      "reviewed_at": "2026-05-31T05:40:44-03:00",
+      "reviewer": "Hume:codex-review-agent-4",
+      "sha256": "ca73c39191a2816060aa398bc9bd7e573aa098d18addfdf62ff94e18bd2f108a",
+      "skill": "go-gin-release-review",
+      "skill_md": "bench/skillopt_pending_skills/go-gin-release-review/SKILL.md"
+    },
+    {
+      "agent_id": "019e7d16-78f8-7f41-b184-048e0690aad4",
+      "approved": true,
+      "notes": "The workflow is SkillOpt-generated, review-gated, safe, and materially improves blocker traceability review by requiring linked artifacts and explicit unresolved gaps.",
+      "path": "bench/skillopt_pending_skills/issue-closure-audit-traceability-review/SKILL.md",
+      "reviewed_at": "2026-05-31T05:40:44-03:00",
+      "reviewer": "Hume:codex-review-agent-4",
+      "sha256": "458c3054adb7f3ad13d75ff6939db516feeae6ad7797e3d8608db897484f786b",
+      "skill": "issue-closure-audit-traceability-review",
+      "skill_md": "bench/skillopt_pending_skills/issue-closure-audit-traceability-review/SKILL.md"
+    },
+    {
+      "agent_id": "019e7d16-a660-7383-a579-fee942bb133a",
+      "approved": true,
+      "notes": "The skill is review-gated SkillOpt output with concrete Laravel route, JSON status, test, and Pint evidence checks and no unsafe behavior.",
+      "path": "bench/skillopt_pending_skills/laravel-api-crud-scaffold-review/SKILL.md",
+      "reviewed_at": "2026-05-31T05:40:44-03:00",
+      "reviewer": "Volta:agent-delta",
+      "sha256": "2e03345e5f363d5b38466db8733da23810c2c50c5a4244ef933b150202d62b7f",
+      "skill": "laravel-api-crud-scaffold-review",
+      "skill_md": "bench/skillopt_pending_skills/laravel-api-crud-scaffold-review/SKILL.md"
+    },
+    {
+      "agent_id": "019e7d16-a660-7383-a579-fee942bb133a",
+      "approved": true,
+      "notes": "The skill is review-gated SkillOpt output with a useful App Router CRUD review checklist covering correctness, security, UX, cache behavior, and tests.",
+      "path": "bench/skillopt_pending_skills/nextjs-app-router-crud-scaffold-review/SKILL.md",
+      "reviewed_at": "2026-05-31T05:40:44-03:00",
+      "reviewer": "Volta:agent-delta",
+      "sha256": "00b07010ca6e90cf586df8c1702947f6a1429f0b49cbf7c453e605729145a438",
+      "skill": "nextjs-app-router-crud-scaffold-review",
+      "skill_md": "bench/skillopt_pending_skills/nextjs-app-router-crud-scaffold-review/SKILL.md"
+    },
+    {
+      "agent_id": "019e7d16-c48a-7ac0-b5d6-bb792ec1886d",
+      "approved": true,
+      "notes": "SkillOpt review-gated metadata is present and the checklist gives concrete, non-destructive validation steps for Rust Axum CRUD release evidence without claiming unverified results.",
+      "path": "bench/skillopt_pending_skills/rust-axum-release-review/SKILL.md",
+      "reviewed_at": "2026-05-31T05:40:44-03:00",
+      "reviewer": "Dirac:codex-review-3",
+      "sha256": "da5161e868898a3d87759f4f380bbd79d9088dc3cd4dda377a2517ed2eafd0b8",
+      "skill": "rust-axum-release-review",
+      "skill_md": "bench/skillopt_pending_skills/rust-axum-release-review/SKILL.md"
+    },
+    {
+      "agent_id": "019e7d16-c48a-7ac0-b5d6-bb792ec1886d",
+      "approved": false,
+      "notes": "Although safe and review-gated, the workflow treats parse_ok as a boolean and frames quant labels as generic quantitative metric labels, which is too misaligned for validating schema-v1 smoke artifacts.",
+      "path": "bench/skillopt_pending_skills/schema-v1-smoke-human-review/SKILL.md",
+      "reviewed_at": "2026-05-31T05:40:44-03:00",
+      "reviewer": "Dirac:codex-review-3",
+      "sha256": "ba0a223f3f0c8d5b4e703358f362e795710c8d4ac8ae7454f10a8dfd8e319bde",
+      "skill": "schema-v1-smoke-human-review",
+      "skill_md": "bench/skillopt_pending_skills/schema-v1-smoke-human-review/SKILL.md"
+    },
+    {
+      "agent_id": "019e7d16-dfc4-7bf0-9b5c-359fb215e7c7",
+      "approved": true,
+      "notes": "The skill is SkillOpt-generated, review-gated, non-destructive, and gives concrete checks for planner validity, logs, cost, and line metrics without claiming unverified evidence.",
+      "path": "bench/skillopt_pending_skills/scratch-live-gate-results-review/SKILL.md",
+      "reviewed_at": "2026-05-31T05:40:44-03:00",
+      "reviewer": "Epicurus:codex-review-agent-3",
+      "sha256": "eb68a6655a6f1327a9e80ff1a8d306954840073df04cb813f7a2096db533fc9c",
+      "skill": "scratch-live-gate-results-review",
+      "skill_md": "bench/skillopt_pending_skills/scratch-live-gate-results-review/SKILL.md"
+    },
+    {
+      "agent_id": "019e7d16-f600-7db3-ab5e-364fa4d7de0c",
+      "approved": true,
+      "notes": "The skill is review-gated SkillOpt output and gives a concrete, non-destructive checklist for validating F5 live-row commands, costs, artifacts, and transcript hashes without claiming external evidence.",
+      "path": "bench/skillopt_pending_skills/unified-run-f5-live-rows-review/SKILL.md",
+      "reviewed_at": "2026-05-31T05:40:44-03:00",
+      "reviewer": "Faraday:codex-review-agent-1",
+      "sha256": "79505ca80ce3793f8e8126a7589443cd6215d1f463fe791d82d098e217c67f98",
+      "skill": "unified-run-f5-live-rows-review",
+      "skill_md": "bench/skillopt_pending_skills/unified-run-f5-live-rows-review/SKILL.md"
+    }
+  ],
+  "scope": "independent six-agent review evidence for SkillOpt-generated review-gated skills",
+  "source_agents": [
+    "019e7d16-5ce9-7592-8a46-593b9fc99b97",
+    "019e7d16-78f8-7f41-b184-048e0690aad4",
+    "019e7d16-a660-7383-a579-fee942bb133a",
+    "019e7d16-c48a-7ac0-b5d6-bb792ec1886d",
+    "019e7d16-dfc4-7bf0-9b5c-359fb215e7c7",
+    "019e7d16-f600-7db3-ab5e-364fa4d7de0c"
+  ],
+  "summary": {
+    "agent_review_complete": true,
+    "approval_rate": 0.8,
+    "approved": 8,
+    "gate_command": "python bench/run_scratch_live_gate.py --skillopt-review-json bench/results_skillopt_agent_review_packet.json",
+    "rejected": 2,
+    "reviewed_skills": 10,
+    "source_agent_count": 6
+  }
+}

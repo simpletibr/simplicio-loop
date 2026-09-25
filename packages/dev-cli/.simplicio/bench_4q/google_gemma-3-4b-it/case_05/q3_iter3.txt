@@ -1,0 +1,11 @@
+```json
+{
+  "menu": [
+    {
+      "label": "Export",
+      "condition": "hasGroup('analytics')",
+      "action": "show"
+    }
+  ]
+}
+```

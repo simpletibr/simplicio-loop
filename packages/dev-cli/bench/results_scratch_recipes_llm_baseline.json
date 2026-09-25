@@ -1,0 +1,293 @@
+{
+  "benchmark": "scratch-recipes-llm-baseline",
+  "cases": [
+    {
+      "duration_ms": 1,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "CRUD API for Unit",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 13
+    },
+    {
+      "duration_ms": 55953,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "REST API for Invoice",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 24
+    },
+    {
+      "duration_ms": 55544,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "CRUD API for Visitor",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 25
+    },
+    {
+      "duration_ms": 43328,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "REST API for AmenityBooking",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 16
+    },
+    {
+      "duration_ms": 37370,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "CRUD API for Vendor",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 18
+    },
+    {
+      "duration_ms": 50784,
+      "error": "",
+      "expected_recipe": "admin-crud",
+      "goal": "admin panel for Booking",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 28
+    },
+    {
+      "duration_ms": 33662,
+      "error": "",
+      "expected_recipe": "admin-crud",
+      "goal": "admin panel for Document",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 17
+    },
+    {
+      "duration_ms": 32169,
+      "error": "",
+      "expected_recipe": "admin-crud",
+      "goal": "admin panel for Resident",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 15
+    },
+    {
+      "duration_ms": 22920,
+      "error": "",
+      "expected_recipe": "auth-jwt",
+      "goal": "add JWT auth",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 9
+    },
+    {
+      "duration_ms": 40843,
+      "error": "",
+      "expected_recipe": "auth-jwt",
+      "goal": "login with JWT",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 17
+    },
+    {
+      "duration_ms": 32567,
+      "error": "",
+      "expected_recipe": "auth-jwt",
+      "goal": "authentication with JWT",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 16
+    },
+    {
+      "duration_ms": 40120,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "REST API for ParkingSpace",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 22
+    },
+    {
+      "duration_ms": 33610,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "CRUD API for PackageDelivery",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 15
+    },
+    {
+      "duration_ms": 32032,
+      "error": "",
+      "expected_recipe": "admin-crud",
+      "goal": "admin panel for Announcement",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 14
+    },
+    {
+      "duration_ms": 35961,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "CRUD API for Payment",
+      "passed": true,
+      "stack": "py-fastapi",
+      "task_count": 18
+    },
+    {
+      "duration_ms": 29959,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "Manage Product with CRUD",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 15
+    },
+    {
+      "duration_ms": 29129,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "CRUD page for Unit",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 13
+    },
+    {
+      "duration_ms": 31341,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "Manage Invoice with CRUD",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 15
+    },
+    {
+      "duration_ms": 31586,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "CRUD page for Visitor",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 16
+    },
+    {
+      "duration_ms": 30096,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "Manage Vendor with CRUD",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 16
+    },
+    {
+      "duration_ms": 30273,
+      "error": "",
+      "expected_recipe": "admin-crud",
+      "goal": "admin CRUD for Tenant",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 14
+    },
+    {
+      "duration_ms": 55546,
+      "error": "",
+      "expected_recipe": "admin-crud",
+      "goal": "backoffice to manage Subscription",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 18
+    },
+    {
+      "duration_ms": 31509,
+      "error": "",
+      "expected_recipe": "admin-crud",
+      "goal": "admin CRUD for Booking",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 16
+    },
+    {
+      "duration_ms": 37192,
+      "error": "",
+      "expected_recipe": "auth-jwt",
+      "goal": "authentication with JWT",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 22
+    },
+    {
+      "duration_ms": 41241,
+      "error": "",
+      "expected_recipe": "auth-jwt",
+      "goal": "login with JWT",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 17
+    },
+    {
+      "duration_ms": 31382,
+      "error": "",
+      "expected_recipe": "auth-jwt",
+      "goal": "add JWT auth",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 16
+    },
+    {
+      "duration_ms": 26692,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "Manage Document with CRUD",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 12
+    },
+    {
+      "duration_ms": 32840,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "CRUD page for ParkingSpace",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 17
+    },
+    {
+      "duration_ms": 48333,
+      "error": "",
+      "expected_recipe": "admin-crud",
+      "goal": "backoffice to manage Payment",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 28
+    },
+    {
+      "duration_ms": 30852,
+      "error": "",
+      "expected_recipe": "crud-resource",
+      "goal": "Manage AccessDevice with CRUD",
+      "passed": true,
+      "stack": "ts-nextjs",
+      "task_count": 13
+    }
+  ],
+  "date": "2026-05-30",
+  "environment": {
+    "planner": "codex-cli/default",
+    "platform": "Windows-11-10.0.22631-SP0",
+    "python": "3.14.3"
+  },
+  "scope": "equivalent planner LLM baseline for matched recipe goals; recipe matching is bypassed and the planner output is schema-validated",
+  "source": "captured by bench/run_scratch_recipes.py --capture-llm-baseline-json",
+  "summary": {
+    "avg_llm_ms": 35494,
+    "elapsed_s": 1066.884,
+    "failed_cases": 0,
+    "pass_rate": 1.0,
+    "passed_cases": 30,
+    "planner": "codex-cli/default",
+    "total_cases": 30
+  },
+  "work_dir": "$WORK_DIR"
+}

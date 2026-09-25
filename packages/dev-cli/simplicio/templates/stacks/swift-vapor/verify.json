@@ -1,0 +1,6 @@
+{
+  "install": "swift package resolve",
+  "test": "swift test",
+  "test_runner": "swift test",
+  "lint": "swift package diagnose-api-breaking-changes"
+}

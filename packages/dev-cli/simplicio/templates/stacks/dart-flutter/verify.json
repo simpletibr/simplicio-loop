@@ -1,0 +1,6 @@
+{
+  "install": "flutter pub get",
+  "test": "flutter test",
+  "test_runner": "flutter test",
+  "lint": "flutter analyze"
+}

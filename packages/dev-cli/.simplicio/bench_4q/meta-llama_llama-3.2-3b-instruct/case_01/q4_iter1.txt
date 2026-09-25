@@ -1,0 +1,75 @@
+**src/app/screen/screen.component.html**
+```html
+<div *ngIf="user.isAdmin">
+  <button (click)="deleteItem()">Delete</button>
+</div>
+```
+
+**tests/screen.component.spec.ts**
+```typescript
+import { TestBed } from '@angular/core/testing';
+import { ScreenComponent } from './screen.component';
+import { of } from 'rxjs';
+
+describe('ScreenComponent', () => {
+  let component: ScreenComponent;
+  let fixture: ComponentFixture<ScreenComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      declarations: [ ScreenComponent ]
+    }).compileComponents();
+  });
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(ScreenComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('should display delete button when user is admin', () => {
+    const user = { isAdmin: true };
+    component.user = user;
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('button');
+    expect(button).toBeTruthy();
+  });
+
+  it('should not display delete button when user is not admin', () => {
+    const user = { isAdmin: false };
+    component.user = user;
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('button');
+    expect(button).toBeNull();
+  });
+
+  it('should not throw error when user is not admin', () => {
+    const user = { isAdmin: false };
+    component.user = user;
+    fixture.detectChanges();
+    expect(() => fixture.nativeElement.querySelector('button')).not.toThrow();
+  });
+
+  it('should not throw error when user is admin', () => {
+    const user = { isAdmin: true };
+    component.user = user;
+    fixture.detectChanges();
+    expect(() => fixture.nativeElement.querySelector('button')).not.toThrow();
+  });
+});
+```
+
+**evidence/playwrightcreenshot.png**
+```plain
+# N/A
+```
+
+**diff**
+```diff
+- <div>
+-   <button (click)="deleteItem()">Delete</button>
+- </div>
++ <div *ngIf="user.isAdmin">
++   <button (click)="deleteItem()">Delete</button>
++ </div>
+```

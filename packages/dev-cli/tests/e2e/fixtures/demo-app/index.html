@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Demo App — Playwright frontend flow</title>
+    <style>
+      :root { font-family: system-ui, sans-serif; }
+      body { margin: 0; background: #0f172a; color: #e2e8f0; }
+      main { max-width: 720px; margin: 0 auto; padding: 32px 20px; }
+      h1 { font-size: 1.5rem; }
+      [hidden] { display: none !important; }
+      label { display: block; margin: 12px 0 4px; font-size: 0.9rem; }
+      input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: inherit; box-sizing: border-box; }
+      button { margin-top: 16px; padding: 10px 18px; border: 0; border-radius: 8px; background: #38bdf8; color: #0f172a; font-weight: 600; cursor: pointer; }
+      nav button { background: transparent; color: #38bdf8; margin-right: 12px; padding: 6px 0; }
+      .error { color: #f87171; margin-top: 12px; min-height: 1.2em; }
+      table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+      th, td { text-align: left; padding: 8px; border-bottom: 1px solid #334155; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <!-- Login screen -->
+      <section id="login-view" aria-labelledby="login-title">
+        <h1 id="login-title">Entrar</h1>
+        <form id="login-form" novalidate>
+          <label for="email">E-mail</label>
+          <input id="email" name="email" type="email" autocomplete="username" />
+
+          <label for="password">Senha</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" />
+
+          <button type="submit">Entrar</button>
+          <p class="error" role="alert" data-testid="login-error"></p>
+        </form>
+      </section>
+
+      <!-- Dashboard screen -->
+      <section id="dashboard-view" aria-labelledby="dashboard-title" hidden>
+        <nav aria-label="Principal">
+          <button type="button" data-testid="nav-dashboard">Dashboard</button>
+          <button type="button" data-testid="nav-reports">Relatórios</button>
+          <button type="button" data-testid="logout">Sair</button>
+        </nav>
+        <h1 id="dashboard-title">Dashboard</h1>
+        <p>Bem-vindo, <span data-testid="user-name"></span>.</p>
+        <p>Tarefas concluídas hoje: <strong data-testid="metric-done">12</strong></p>
+      </section>
+
+      <!-- Reports screen -->
+      <section id="reports-view" aria-labelledby="reports-title" hidden>
+        <nav aria-label="Principal">
+          <button type="button" data-testid="nav-dashboard">Dashboard</button>
+          <button type="button" data-testid="nav-reports">Relatórios</button>
+          <button type="button" data-testid="logout">Sair</button>
+        </nav>
+        <h1 id="reports-title">Relatórios</h1>
+        <table>
+          <thead>
+            <tr><th>Sprint</th><th>Entregue</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>sprint-01</td><td>8</td></tr>
+            <tr><td>sprint-02</td><td>11</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <script>
+      // Minimal SPA: hardcoded credentials so the demo is deterministic and offline.
+      const VALID = { email: 'demo@simplicio.dev', password: 'senha123' };
+      const views = {
+        login: document.getElementById('login-view'),
+        dashboard: document.getElementById('dashboard-view'),
+        reports: document.getElementById('reports-view'),
+      };
+      function show(name) {
+        for (const [key, el] of Object.entries(views)) el.hidden = key !== name;
+      }
+      document.getElementById('login-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const error = document.querySelector('[data-testid="login-error"]');
+        if (email === VALID.email && password === VALID.password) {
+          error.textContent = '';
+          document.querySelector('[data-testid="user-name"]').textContent = email;
+          show('dashboard');
+        } else {
+          error.textContent = 'Credenciais inválidas.';
+        }
+      });
+      document.querySelectorAll('[data-testid="nav-reports"]').forEach((b) =>
+        b.addEventListener('click', () => show('reports')));
+      document.querySelectorAll('[data-testid="nav-dashboard"]').forEach((b) =>
+        b.addEventListener('click', () => show('dashboard')));
+      document.querySelectorAll('[data-testid="logout"]').forEach((b) =>
+        b.addEventListener('click', () => show('login')));
+    </script>
+  </body>
+</html>

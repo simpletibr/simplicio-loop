@@ -1,0 +1,27 @@
+{
+  "environment": {
+    "implementation": "CPython",
+    "platform": "Linux-6.12.13-x86_64-with-glibc2.39",
+    "python": "3.12.13"
+  },
+  "max_ns": 328059,
+  "median_ns": 178796.0,
+  "min_ns": 147049,
+  "raw": [
+    {"elapsed_ns": 328059, "run": 1, "status": "ok"},
+    {"elapsed_ns": 220859, "run": 2, "status": "ok"},
+    {"elapsed_ns": 187248, "run": 3, "status": "ok"},
+    {"elapsed_ns": 226377, "run": 4, "status": "ok"},
+    {"elapsed_ns": 170344, "run": 5, "status": "ok"},
+    {"elapsed_ns": 155101, "run": 6, "status": "ok"},
+    {"elapsed_ns": 149683, "run": 7, "status": "ok"},
+    {"elapsed_ns": 147049, "run": 8, "status": "ok"},
+    {"elapsed_ns": 147460, "run": 9, "status": "ok"},
+    {"elapsed_ns": 282130, "run": 10, "status": "ok"}
+  ],
+  "repetitions": 10,
+  "schema": "simplicio.fast.changeset-benchmark/v1",
+  "unavailable": {
+    "savings": "no comparative baseline was measured"
+  }
+}

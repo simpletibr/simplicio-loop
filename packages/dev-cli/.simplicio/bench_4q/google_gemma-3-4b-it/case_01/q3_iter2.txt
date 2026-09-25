@@ -1,0 +1,63 @@
+```python
+import re
+
+def hide_delete_button_if_not_admin(component_html):
+  """
+  Hides the Delete button in a screen component if the current user is not an admin.
+
+  Args:
+    component_html: The HTML content of the screen component.
+
+  Returns:
+    The modified HTML content with the Delete button hidden if the user is not an admin.
+  """
+
+  if re.search(r"screen\.component\.html", component_html):
+    if "Delete" in component_html:  # Simple check for the presence of the button text
+      modified_html = component_html.replace("<button>Delete</button>", "<span style='display:none;'>Delete</span>")
+      return modified_html
+    else:
+      return component_html
+  else:
+    return component_html
+
+
+# Example Usage and Tests
+def test_hide_delete_button_if_not_admin():
+  """
+  Test case: Hide Delete button if not admin.
+  """
+  html_with_delete = "<div style='display: flex'><button>Delete</button></div>"
+  html_without_delete = "<div style='display: flex'></div>"
+  
+  # Simulate admin user (for testing purposes - in a real application, this would come from authentication)
+  admin_html = hide_delete_button_if_not_admin(html_with_delete)
+  assert admin_html == "<div style='display: flex'><span style='display:none;'>Delete</span></div>"
+
+  non_admin_html = hide_delete_button_if_not_admin(html_without_delete)
+  assert non_admin_html == "<div style='display: flex'></div>"
+
+  # Test when Delete button is not present
+  no_delete_html = "<div style='display: flex'><button>Save</button></div>"
+  assert hide_delete_button_if_not_admin(no_delete_html) == no_delete_html
+
+  # Test when the component HTML doesn't match the regex
+  invalid_html = "<p>Some text</p>"
+  assert hide_delete_button_if_not_admin(invalid_html) == invalid_html
+
+
+# DIFF block
+diff = """
+--- a/screen.component.html
++++ b/screen.component.html
+@@ -1,3 +1,3 @@
+ <div style='display: flex'>
+ <button>Delete</button>
+-</div>
++<span style='display:none;'>Delete</span>
+ </div>
+"""
+
+print(f"Test Result: {test_hide_delete_button_if_not_admin()}")
+print(f"DIFF:\n{diff}")
+```

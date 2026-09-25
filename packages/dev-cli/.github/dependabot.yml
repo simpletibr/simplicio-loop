@@ -1,0 +1,53 @@
+# Dependabot configuration -- issue #21 (dependency-update policy).
+#
+# Schedule: weekly for everything except security advisories (which run
+# immediately). Patch updates auto-merge when CI passes; minor and major
+# wait for human review per DEPENDENCY_POLICY.md.
+
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      ecosystem:
+        patterns:
+          - "simplicio-*"
+
+  - package-ecosystem: cargo
+    directory: "/rust/simplicio-core"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - rust
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: "chore(ci)"
+      include: scope

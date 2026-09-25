@@ -1,0 +1,7 @@
+{
+  "install": "pnpm install",
+  "test": "pnpm tsc --noEmit",
+  "test_runner": "tsc",
+  "lint": "pnpm eslint .",
+  "e2e": "pnpm playwright test"
+}

@@ -1,0 +1,57 @@
+# [UNIFIED DIFF]
+
+**Before Changes:**
+```python
+# no changes yet
+```
+
+**After Changes:**
+
+```diff
+diff --git a/bench/sandbox.py b/bench/sandbox.py
+index 1234567..89abcdef 100644
+--- a/bench/sandbox.py
++++ b/bench/sandbox.py
+@@ -1,3 +1,3 @@
+ import os
+
+-def fizzbuzz(n):
++def fizzbuzz(n) -> list[int]:
+     # Write the function implementation here
+     # ...
+```
+
+# [TEST]
+
+**Test Case 1: `fizzbuzz(5)`**
+```python
+import unittest
+
+class FizzBuzzTestCase(unittest.TestCase):
+
+    def test_fizzbuzz_5(self):
+        result = fizzbuzz(5)
+        self.assertEqual(result, [1, 2, 'Fizz', 4, 'Buzz'])
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+**Test Case 2: `fizzbuzz(15)[14] == 'FizzBuzz'`**
+```python
+import unittest
+
+class FizzBuzzTestCase(unittest.TestCase):
+
+    def test_fizzbuzz_15(self):
+        result = fizzbuzz(15)[14]
+        self.assertEqual(result, 'FizzBuzz')
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+# [EVIDENCE]
+
+**No Playwright script needed for this task.**
+This is a simple Python script without any visual components.

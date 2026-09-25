@@ -1,0 +1,32 @@
+{
+  "case_id": "single-file-task",
+  "invocations": [
+    {
+      "args": [
+        "C:\\Users\\wesley.simplicio\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "-m",
+        "simplicio.cli",
+        "run",
+        "finish sprint-task",
+        "--scope",
+        "sprint",
+        "--root",
+        "C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\simplicio-run-f5-live-fixture",
+        "--stack",
+        "py-fastapi",
+        "--sprint",
+        "sprint-task",
+        "--max-cost",
+        "0",
+        "--max-iter",
+        "0",
+        "--json"
+      ],
+      "duration_s": 0.952,
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "{\"applied\": true, \"cost\": {\"budget_usd\": \"0\", \"remaining_usd\": \"0\", \"spent_usd\": \"0\"}, \"dod\": [{\"command\": null, \"label\": \"Workflow fixture approved\", \"log\": \"\", \"manual\": true, \"passed\": true}, {\"command\": null, \"label\": \"Sprint fixture DoD acknowledged\", \"log\": \"\", \"manual\": true, \"passed\": true}, {\"command\": \"python tests/verify.py\", \"label\": \"Verify fixture `python tests/verify.py`\", \"log\": \"\", \"manual\": false, \"passed\": true}, {\"command\": null, \"label\": \"Fixture task accepted\", \"log\": \"\", \"manual\": true, \"passed\": true}], \"features\": [{\"result\": {\"applied\": true, \"cost\": {\"budget_usd\": \"0\", \"remaining_usd\": \"0\", \"spent_usd\": \"0\"}, \"goal\": \"Fix email validation in src/forms/UserForm.tsx.\", \"plan_tasks\": 1, \"replans\": 0, \"scope\": \"feature\", \"stack\": \"py-fastapi\", \"tasks\": [{\"goal\": \"Fix email validation in src/forms/UserForm.tsx.\", \"id\": \"T01-email\", \"log\": \"{\\n  \\\"applied\\\": true,\\n  \\\"cost_usd\\\": 0.0,\\n  \\\"diff_summary\\\": \\\"changed src/forms/UserForm.tsx\\\",\\n  \\\"files_changed\\\": [\\n    \\\"src/forms/UserForm.tsx\\\"\\n  ],\\n  \\\"task_id\\\": \\\"src/forms/UserForm.tsx\\\",\\n  \\\"tokens_used\\\": {\\n    \\\"completion\\\": 22,\\n    \\\"prompt\\\": 233\\n  },\\n  \\\"warnings\\\": []\\n}\", \"passed\": true, \"replan\": 0, \"target\": \"src/forms/UserForm.tsx\"}], \"warnings\": []}, \"task\": \"Email validation\", \"task_id\": \"01-email.task.md\"}], \"resumed\": false, \"scope\": \"sprint\", \"sprint\": \"sprint-task\"}\n"
+    }
+  ],
+  "mode_id": "unified_sprint"
+}

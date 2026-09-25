@@ -1,0 +1,30 @@
+{
+  "case_id": "feature-auth-flow",
+  "invocations": [
+    {
+      "args": [
+        "C:\\Users\\wesley.simplicio\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "-m",
+        "simplicio.cli",
+        "run",
+        "Implement JWT login with refresh tokens across API and UI.",
+        "--scope",
+        "feature",
+        "--root",
+        "C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\simplicio-run-f5-live-fixture",
+        "--stack",
+        "py-fastapi",
+        "--max-cost",
+        "0",
+        "--max-iter",
+        "0",
+        "--json"
+      ],
+      "duration_s": 2.358,
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "{\"applied\": true, \"cost\": {\"budget_usd\": \"0\", \"remaining_usd\": \"0\", \"spent_usd\": \"0\"}, \"goal\": \"Implement JWT login with refresh tokens across API and UI.\", \"plan_tasks\": 3, \"replans\": 0, \"scope\": \"feature\", \"stack\": \"py-fastapi\", \"tasks\": [{\"goal\": \"Create JWT helpers for user identity tokens.\", \"id\": \"T01-token-service\", \"log\": \"{\\n  \\\"applied\\\": true,\\n  \\\"cost_usd\\\": 0.0,\\n  \\\"diff_summary\\\": \\\"changed src/auth/jwt.py\\\",\\n  \\\"files_changed\\\": [\\n    \\\"src/auth/jwt.py\\\"\\n  ],\\n  \\\"task_id\\\": \\\"src/auth/jwt.py\\\",\\n  \\\"tokens_used\\\": {\\n    \\\"completion\\\": 24,\\n    \\\"prompt\\\": 249\\n  },\\n  \\\"warnings\\\": []\\n}\", \"passed\": true, \"replan\": 0, \"target\": \"src/auth/jwt.py\"}, {\"goal\": \"Implement login and current-user routes.\", \"id\": \"T02-auth-routes\", \"log\": \"{\\n  \\\"applied\\\": true,\\n  \\\"cost_usd\\\": 0.0,\\n  \\\"diff_summary\\\": \\\"changed src/api/routes/auth.py\\\",\\n  \\\"files_changed\\\": [\\n    \\\"src/api/routes/auth.py\\\"\\n  ],\\n  \\\"task_id\\\": \\\"src/api/routes/auth.py\\\",\\n  \\\"tokens_used\\\": {\\n    \\\"completion\\\": 24,\\n    \\\"prompt\\\": 277\\n  },\\n  \\\"warnings\\\": []\\n}\", \"passed\": true, \"replan\": 0, \"target\": \"src/api/routes/auth.py\"}, {\"goal\": \"Cover JWT login and protected route behavior.\", \"id\": \"T03-auth-tests\", \"log\": \"{\\n  \\\"applied\\\": true,\\n  \\\"cost_usd\\\": 0.0,\\n  \\\"diff_summary\\\": \\\"changed tests/api/test_auth_jwt.py\\\",\\n  \\\"files_changed\\\": [\\n    \\\"tests/api/test_auth_jwt.py\\\"\\n  ],\\n  \\\"task_id\\\": \\\"tests/api/test_auth_jwt.py\\\",\\n  \\\"tokens_used\\\": {\\n    \\\"completion\\\": 24,\\n    \\\"prompt\\\": 277\\n  },\\n  \\\"warnings\\\": []\\n}\", \"passed\": true, \"replan\": 0, \"target\": \"tests/api/test_auth_jwt.py\"}], \"warnings\": []}\n"
+    }
+  ],
+  "mode_id": "unified_feature"
+}

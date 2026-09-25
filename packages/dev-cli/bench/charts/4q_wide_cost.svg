@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 380" font-family="Inter,Helvetica,sans-serif" font-size="12">
+<text x="360.0" y="24" text-anchor="middle" font-size="15" font-weight="600">Wide run - cost per passing case (tokens vs ms)</text>
+<rect x="70" y="50.0" width="30" height="270.0" fill="#9ca3af" />
+<text x="85.0" y="46.0" text-anchor="middle" font-size="10">22,387t</text>
+<rect x="110" y="50.0" width="30" height="270.0" fill="#9ca3af" opacity="0.55" />
+<text x="125.0" y="46.0" text-anchor="middle" font-size="10">817.4s</text>
+<text x="105.0" y="338" text-anchor="middle">Q1 raw 1-shot</text>
+<rect x="170" y="306.817796042346" width="30" height="13.182203957653996" fill="#60a5fa" />
+<text x="185.0" y="302.817796042346" text-anchor="middle" font-size="10">1,093t</text>
+<rect x="210" y="315.1125407829594" width="30" height="4.887459217040579" fill="#60a5fa" opacity="0.55" />
+<text x="225.0" y="311.1125407829594" text-anchor="middle" font-size="10">14.8s</text>
+<text x="205.0" y="338" text-anchor="middle">Q2 simplicio 1-shot</text>
+<rect x="270" y="233.71867601733146" width="30" height="86.28132398266852" fill="#fbbf24" />
+<text x="285.0" y="229.71867601733146" text-anchor="middle" font-size="10">7,154t</text>
+<rect x="310" y="284.86195266424204" width="30" height="35.13804733575799" fill="#fbbf24" opacity="0.55" />
+<text x="325.0" y="280.86195266424204" text-anchor="middle" font-size="10">106.4s</text>
+<text x="305.0" y="338" text-anchor="middle">Q3 raw + loop</text>
+<rect x="370" y="296.9160673605217" width="30" height="23.08393263947827" fill="#10b981" />
+<text x="385.0" y="292.9160673605217" text-anchor="middle" font-size="10">1,914t</text>
+<rect x="410" y="312.01663247442923" width="30" height="7.983367525570778" fill="#10b981" opacity="0.55" />
+<text x="425.0" y="308.01663247442923" text-anchor="middle" font-size="10">24.2s</text>
+<text x="405.0" y="338" text-anchor="middle">Q4 simplicio + loop</text>
+<line x1="60" y1="320" x2="700" y2="320" stroke="#374151" />
+<text x="700" y="40" text-anchor="end" fill="#6b7280">solid = tokens/pass, faded = ms/pass</text>
+</svg>

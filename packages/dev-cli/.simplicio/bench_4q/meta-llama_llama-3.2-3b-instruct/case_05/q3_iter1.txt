@@ -1,0 +1,68 @@
+To achieve this, you can use a conditional statement to check if the user is a member of the 'analytics' group before rendering the export menu item. Here's an example of how you can do this in a few different programming languages:
+
+**JavaScript (with React)**
+```jsx
+import React from 'react';
+
+const ExportMenu = () => {
+  const user = { groups: ['admin', 'analytics'] }; // Replace with your actual user data
+  const isAnalyticsGroup = user.groups.includes('analytics');
+
+  return (
+    <div>
+      {isAnalyticsGroup && (
+        <button>Export</button>
+      )}
+    </div>
+  );
+};
+```
+
+**Python (with Flask)**
+```python
+from flask import Flask, session, redirect, url_for
+from flask_login import current_user
+
+app = Flask(__name__)
+from yourapp.models import User
+
+@app.route('/export')
+def export_menu():
+    if 'user_id' in session:
+        user = User.query.get(session['user_id'])
+        if user.groups and 'analytics' in user.groups:
+            return render_template('export_menu.html')
+    return redirect(url_for('index'))
+
+@app.route('/export_menu')
+def export_menu():
+    return render_template('export_menu.html')
+```
+
+**C# (with ASP.NET Core)**
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Principal;
+using System.Threading.Tasks;
+
+public class ExportMenuController : Controller
+{
+    [HttpGet]
+    public async Task<IActionResult> ExportMenu()
+    {
+        var user = User.Identity.GetUserId();
+        var isAnalyticsGroup = await User.IsInGroupAsync(user, "analytics");
+
+        if (isAnalyticsGroup)
+        {
+            return View("ExportMenu");
+        }
+        else
+        {
+            return RedirectToAction("Index");
+        }
+    }
+}
+```
+
+In all of these examples, we're checking if the user is a member of the 'analytics' group before rendering the export menu item. If the user is not a member of the 'analytics' group, the export menu item will not be rendered.

@@ -1,0 +1,13 @@
+{
+  "slug": "csharp-aspnet",
+  "template_version": "0.1.0",
+  "language": "C# 12",
+  "framework": "ASP.NET Core",
+  "framework_version": "8 minimal API",
+  "package_manager": "dotnet",
+  "test_runner": "dotnet test",
+  "linter": "dotnet format",
+  "deps_required": ["Microsoft.AspNetCore.App"],
+  "deps_dev": ["Microsoft.NET.Test.Sdk", "xunit"],
+  "tags": ["web", "api", "csharp", "dotnet", "minimal-api"]
+}

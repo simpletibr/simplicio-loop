@@ -1,0 +1,14 @@
+{
+  "slug": "js-express",
+  "template_version": "0.1.0",
+  "language": "JavaScript",
+  "framework": "Express",
+  "framework_version": ">=4.18",
+  "node": ">=20",
+  "package_manager": "npm",
+  "test_runner": "node --test",
+  "linter": "eslint",
+  "deps_required": ["express>=4.18"],
+  "deps_dev": ["eslint>=9", "supertest>=7"],
+  "tags": ["web", "api", "javascript", "node", "rest"]
+}

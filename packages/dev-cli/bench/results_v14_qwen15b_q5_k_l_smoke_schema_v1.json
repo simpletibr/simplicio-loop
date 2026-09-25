@@ -1,0 +1,82 @@
+{
+  "benchmark": "schema-v1-smoke",
+  "calls": 4,
+  "date": "2026-05-31",
+  "go_no_go": {
+    "criterion": "parse_ok >= 2/4",
+    "pass": false
+  },
+  "issue": 46,
+  "model": "/root/models/Qwen2.5-Coder-1.5B-Instruct-Q5_K_L.gguf",
+  "model_spec": "gguf:/root/models/Qwen2.5-Coder-1.5B-Instruct-Q5_K_L.gguf",
+  "quant": "Q5_K_L",
+  "rows": [
+    {
+      "artifact_matches_contract": false,
+      "artifact_preview": "```json\n{\n  \"artifact\": \"src/Core/PasswordPolicy.php\",\n  \"files_changed\": [\"src/Core/PasswordPolicy.php\"],\n  \"behaviors_added\": [\"App\\Core\\PasswordPolicy::isStrong\"],\n  \"expected_oracle_pass\": [\"isStrong('short')\", \"isStrong('12345678901')\", \"isStrong('123456789012')\"],\n  \"confidence\": 0.9,\n  \"concerns\": []\n}\n```",
+      "behaviors_added": [],
+      "call": 1,
+      "confidence": 0.0,
+      "elapsed_ms": 23547,
+      "error": null,
+      "expected_oracle_pass": [],
+      "files_changed": [],
+      "parse_error": "json error: Invalid \\escape: line 4 column 27 (char 125)",
+      "parse_ok": false,
+      "total_tokens": 576
+    },
+    {
+      "artifact_matches_contract": true,
+      "artifact_preview": "```json\n{\n  \"artifact\": \"```php\n<?php\ndeclare(strict_types=1);\n\nnamespace App\\Core;\n\nfinal class PasswordPolicy\n{\n    public static function violations(string $password): array\n    {\n        $violations = [];\n        if (strlen($password) < 8) {\n            $violations[] = 'min_length';\n        }\n        return $violations;\n    }\n\n    public static function isStrong(string $password): bool\n    {\n        $violations = self::violations($password);\n        return count($violations) === 0;\n    }\n}\n`",
+      "behaviors_added": [],
+      "call": 2,
+      "confidence": 0.0,
+      "elapsed_ms": 30832,
+      "error": null,
+      "expected_oracle_pass": [],
+      "files_changed": [],
+      "parse_error": "unbalanced braces",
+      "parse_ok": false,
+      "total_tokens": 707
+    },
+    {
+      "artifact_matches_contract": false,
+      "artifact_preview": "```json\n{\n  \"artifact\": \"obj['artifact']\",\n  \"files_changed\": [\"src/Core/PasswordPolicy.php\"],\n  \"behaviors_added\": [\"App\\Core\\PasswordPolicy::isStrong\"],\n  \"expected_oracle_pass\": [\"App\\Core\\PasswordPolicy::isStrong('short') returns false\", \"App\\Core\\PasswordPolicy::isStrong('12345678901') returns false\", \"App\\Core\\PasswordPolicy::isStrong('123456789012') returns true\"],\n  \"confidence\": 1.0,\n  \"concerns\": []\n}\n```",
+      "behaviors_added": [],
+      "call": 3,
+      "confidence": 0.0,
+      "elapsed_ms": 17031,
+      "error": null,
+      "expected_oracle_pass": [],
+      "files_changed": [],
+      "parse_error": "json error: Invalid \\escape: line 4 column 27 (char 113)",
+      "parse_ok": false,
+      "total_tokens": 598
+    },
+    {
+      "artifact_matches_contract": true,
+      "artifact_preview": "```json\n{\n  \"artifact\": \"```php\n<?php\ndeclare(strict_types=1);\n\nnamespace App\\Core;\n\nfinal class PasswordPolicy\n{\n    public static function violations(string $password): array\n    {\n        $violations = [];\n        if (strlen($password) < 8) {\n            $violations[] = 'min_length';\n        }\n        if (preg_match('/[^a-z\\d]/', $password)) {\n            $violations[] = 'no_letters_or_numbers';\n        }\n        return $violations;\n    }\n\n    public static function isStrong(string $password)",
+      "behaviors_added": [],
+      "call": 4,
+      "confidence": 0.0,
+      "elapsed_ms": 33281,
+      "error": null,
+      "expected_oracle_pass": [],
+      "files_changed": [],
+      "parse_error": "unbalanced braces",
+      "parse_ok": false,
+      "total_tokens": 728
+    }
+  ],
+  "summary": {
+    "artifact_matches_contract": 2,
+    "artifact_matches_contract_rate": 0.5,
+    "avg_elapsed_ms": 26172,
+    "elapsed_ms": 104691,
+    "parse_failed": 4,
+    "parse_ok": 0,
+    "parse_ok_rate": 0.0,
+    "total_tokens": 2609
+  },
+  "task": "PasswordPolicy::isStrong schema v1 smoke"
+}

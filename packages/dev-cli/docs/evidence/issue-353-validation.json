@@ -1,0 +1,30 @@
+{
+  "schema": "simplicio.validation-receipt/v1",
+  "issue": 353,
+  "source_commit": "bc16c7a94b6a62730fbba64a8394b6a2ff971cd6",
+  "wheel": {
+    "file": "simplicio_cli-0.17.0-py3-none-any.whl",
+    "build": "PASS",
+    "install_no_deps": "PASS",
+    "installed_entrypoint_version": "0.17.0"
+  },
+  "focused": {"passed": 12, "failed": 0},
+  "full_suite": {"passed": 2067, "failed": 17, "skipped": 26},
+  "issue_353_regressions_found": [
+    "test modules depended on tests/python being injected into PYTHONPATH",
+    "effect-boundary inventory baseline did not include the new mandatory boundary"
+  ],
+  "issue_353_regressions_after_fix": 0,
+  "remaining_failures_classification": {
+    "baseline_or_environment": 17,
+    "reasons": [
+      "stale CLI help fixtures",
+      "optional TypeScript ts-morph installation unavailable",
+      "tiktoken estimator environment mismatch",
+      "pre-existing pipeline token budget",
+      "deterministic-only error expectation drift"
+    ]
+  },
+  "installed_wheel_e2e": {"passed": 17, "failed": 1, "failure_relation": "baseline deterministic-only message expectation"},
+  "claim": "Issue 353 boundary, inventory, receipt, recovery and rollback paths are verified; unrelated baseline failures are not represented as green."
+}

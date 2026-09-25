@@ -1,0 +1,56 @@
+```diff
+--- a/src/app/profile/profile.component.html
++++ b/src/app/profile/profile.component.html
+@@ -18,7 +18,11 @@
+   <div *ngIf="profile.role === 'editor'">
+     <mat-form-field appearance="filled">
+       <input matInput type="email" [(ngModel)]="profile.email" name="email">
+-      <mat-label>Email</mat-label>
++      <mat-label>Email</mat-label>
+     </mat-form-field>
+   </div>
+   <div *ngIf="profile.role !== 'editor'">
+     <mat-form-field appearance="filled">
+       <mat-label>Email</mat-label>
+@@ -26,7 +30,11 @@
+     </mat-form-field>
+   </div>
+ ```
+
+```
+TEST
+describe('ProfileComponent', () => {
+  it('Email field is enabled for editor profile', async () => {
+    // Arrange
+    const profile = { role: 'editor', email: 'test@example.com' };
+    
+    // Act
+    await new Promise(resolve => {
+      fixture.detectChanges();
+      resolve();
+    });
+    
+    // Assert
+    expect(document.querySelector('input[type="email"]').disabled).toBe(false);
+  });
+
+  it('Email field is disabled for other profiles', async () => {
+    // Arrange
+    const profile = { role: 'user', email: 'test@example.com' };
+    
+    // Act
+    await new Promise(resolve => {
+      fixture.detectChanges();
+      resolve();
+    });
+    
+    // Assert
+    expect(document.querySelector('input[type="email"]').disabled).toBe(true);
+  });
+});
+```
+
+```
+EVIDENCE
+N/A
+```

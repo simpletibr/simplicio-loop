@@ -1,0 +1,10 @@
+usage: simplicio-py mechanical-edit [-h] [--root ROOT] [--plan PLAN] [--apply]
+                                    [--dry-run] [--json]
+
+options:
+  -h, --help   show this help message and exit
+  --root ROOT
+  --plan PLAN  plan JSON path, or - for stdin
+  --apply
+  --dry-run
+  --json

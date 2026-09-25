@@ -1,0 +1,13 @@
+{
+  "slug": "php-symfony",
+  "template_version": "0.1.0",
+  "language": "PHP 8.3",
+  "framework": "Symfony",
+  "framework_version": "7",
+  "package_manager": "composer",
+  "test_runner": "phpunit",
+  "linter": "php-cs-fixer",
+  "deps_required": ["symfony/framework-bundle:^7", "symfony/runtime:^7"],
+  "deps_dev": ["phpunit/phpunit:^11"],
+  "tags": ["web", "api", "php", "symfony", "mvc"]
+}

@@ -1,0 +1,29 @@
+[project]
+name = "{project_name}"
+version = "0.1.0"
+description = "{goal}"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.136.3",
+  "uvicorn[standard]>=0.48.0",
+  "pydantic-settings>=2.14.1",
+  "sqlalchemy>=2.0.50",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=9.0.3",
+  "httpx>=0.28.1",
+  "ruff>=0.15.15",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

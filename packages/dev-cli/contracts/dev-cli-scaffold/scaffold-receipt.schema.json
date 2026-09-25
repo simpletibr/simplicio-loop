@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simplicio.dev-cli.scaffold-receipt/v1",
+  "title": "Dev CLI deterministic scaffold receipt",
+  "type": "object",
+  "required": ["schema", "status", "applied", "plan_digest", "errors", "receipt_digest"],
+  "properties": {
+    "schema": { "const": "simplicio.dev-cli.scaffold-receipt/v1" },
+    "status": { "enum": ["planned", "applied", "blocked"] },
+    "applied": { "type": "boolean" },
+    "kind": {
+      "enum": ["rust-crate", "rust-binary", "python-package", "node-package"]
+    },
+    "name": { "type": "string" },
+    "plan_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "enum": [
+              "missing_target",
+              "missing_anchor",
+              "ambiguous_anchor",
+              "hash_drift",
+              "invalid_path",
+              "unsupported_scaffold",
+              "invalid_mapper_binding"
+            ]
+          },
+          "message": { "type": "string" }
+        }
+      }
+    },
+    "receipt_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

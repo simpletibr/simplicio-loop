@@ -1,0 +1,965 @@
+{
+  "deepseek/deepseek-v4-flash": {
+    "rows": [
+      {
+        "id": "password_strength",
+        "sem": {
+          "passed": false,
+          "tokens": 960,
+          "ms": 7653,
+          "tail": " | FAILURES! | Tests: 15, Assertions: 26, Failures: 2.",
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 1041,
+          "ms": 6063,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (15 tests, 26 assertions)",
+          "error": null
+        },
+        "sp": {
+          "passed": true,
+          "tokens": 200504,
+          "ms": 74538,
+          "tail": "Time: 00:00.009, Memory: 8.00 MB |  | OK (15 tests, 26 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 62,
+          "modal_count": 2,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 62,
+              "modal_count": 2,
+              "passed": true,
+              "parse_ok": 59,
+              "parse_fail": 5,
+              "tokens": 200504,
+              "elapsed_ms": 74512,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 59,
+          "structured_parse_fail": 5
+        },
+        "ag": {
+          "passed": true,
+          "tokens": 1234,
+          "ms": 4028,
+          "tail": "Time: 00:00.009, Memory: 8.00 MB |  | OK (15 tests, 26 assertions)",
+          "attempts": 1,
+          "error": null
+        },
+        "spag": {
+          "passed": true,
+          "tokens": 209613,
+          "ms": 112153,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (15 tests, 26 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 56,
+          "modal_count": 3,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 56,
+              "modal_count": 3,
+              "passed": true,
+              "parse_ok": 56,
+              "parse_fail": 8,
+              "tokens": 209613,
+              "elapsed_ms": 112153,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 56,
+          "structured_parse_fail": 8,
+          "attempts": 1
+        }
+      },
+      {
+        "id": "password_require_symbol",
+        "sem": {
+          "passed": true,
+          "tokens": 1311,
+          "ms": 23719,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (12 tests, 28 assertions)",
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 1666,
+          "ms": 28611,
+          "tail": "Time: 00:00.009, Memory: 8.00 MB |  | OK (12 tests, 28 assertions)",
+          "error": null
+        },
+        "sp": {
+          "passed": true,
+          "tokens": 212632,
+          "ms": 134894,
+          "tail": "Time: 00:00.007, Memory: 8.00 MB |  | OK (12 tests, 28 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 60,
+          "modal_count": 3,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 60,
+              "modal_count": 3,
+              "passed": true,
+              "parse_ok": 57,
+              "parse_fail": 7,
+              "tokens": 212632,
+              "elapsed_ms": 134894,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 57,
+          "structured_parse_fail": 7
+        },
+        "ag": {
+          "passed": true,
+          "tokens": 1120,
+          "ms": 14928,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (12 tests, 28 assertions)",
+          "attempts": 1,
+          "error": null
+        },
+        "spag": {
+          "passed": true,
+          "tokens": 218419,
+          "ms": 157621,
+          "tail": "Time: 00:00.007, Memory: 8.00 MB |  | OK (12 tests, 28 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 57,
+          "modal_count": 7,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 57,
+              "modal_count": 7,
+              "passed": true,
+              "parse_ok": 59,
+              "parse_fail": 5,
+              "tokens": 218419,
+              "elapsed_ms": 157621,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 59,
+          "structured_parse_fail": 5,
+          "attempts": 1
+        }
+      },
+      {
+        "id": "env_get_int",
+        "sem": {
+          "passed": false,
+          "tokens": 1144,
+          "ms": 4587,
+          "tail": " | FAILURES! | Tests: 13, Assertions: 24, Failures: 1.",
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 1157,
+          "ms": 4043,
+          "tail": "Time: 00:00.007, Memory: 8.00 MB |  | OK (13 tests, 24 assertions)",
+          "error": null
+        },
+        "sp": {
+          "passed": true,
+          "tokens": 210778,
+          "ms": 121308,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (13 tests, 24 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 57,
+          "modal_count": 3,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 57,
+              "modal_count": 3,
+              "passed": true,
+              "parse_ok": 59,
+              "parse_fail": 5,
+              "tokens": 210778,
+              "elapsed_ms": 121307,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 59,
+          "structured_parse_fail": 5
+        },
+        "ag": {
+          "passed": true,
+          "tokens": 997,
+          "ms": 6948,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (13 tests, 24 assertions)",
+          "attempts": 1,
+          "error": null
+        },
+        "spag": {
+          "passed": true,
+          "tokens": 2359,
+          "ms": 12197,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (13 tests, 24 assertions)",
+          "attempts": 1,
+          "error": null,
+          "modal_seed_uniq": 85
+        }
+      },
+      {
+        "id": "env_get_bool",
+        "sem": {
+          "passed": false,
+          "tokens": 1054,
+          "ms": 4409,
+          "tail": " | FAILURES! | Tests: 13, Assertions: 36, Failures: 1.",
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 1245,
+          "ms": 5715,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (13 tests, 37 assertions)",
+          "error": null
+        },
+        "sp": {
+          "passed": true,
+          "tokens": 201406,
+          "ms": 93915,
+          "tail": "Time: 00:00.007, Memory: 8.00 MB |  | OK (13 tests, 37 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 55,
+          "modal_count": 4,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 55,
+              "modal_count": 4,
+              "passed": true,
+              "parse_ok": 55,
+              "parse_fail": 9,
+              "tokens": 201406,
+              "elapsed_ms": 93915,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 55,
+          "structured_parse_fail": 9
+        },
+        "ag": {
+          "passed": true,
+          "tokens": 1506,
+          "ms": 24592,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (13 tests, 37 assertions)",
+          "attempts": 1,
+          "error": null
+        },
+        "spag": {
+          "passed": true,
+          "tokens": 200117,
+          "ms": 86555,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (13 tests, 37 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 61,
+          "modal_count": 2,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 61,
+              "modal_count": 2,
+              "passed": true,
+              "parse_ok": 61,
+              "parse_fail": 3,
+              "tokens": 200117,
+              "elapsed_ms": 86555,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 61,
+          "structured_parse_fail": 3,
+          "attempts": 1
+        }
+      },
+      {
+        "id": "admin_only_allowed_roles",
+        "sem": {
+          "passed": true,
+          "tokens": 363,
+          "ms": 1787,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (11 tests, 22 assertions)",
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 605,
+          "ms": 2385,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (11 tests, 22 assertions)",
+          "error": null
+        },
+        "sp": {
+          "passed": true,
+          "tokens": 162180,
+          "ms": 75762,
+          "tail": "Time: 00:00.007, Memory: 8.00 MB |  | OK (11 tests, 22 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 39,
+          "modal_count": 8,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 39,
+              "modal_count": 8,
+              "passed": true,
+              "parse_ok": 61,
+              "parse_fail": 3,
+              "tokens": 162180,
+              "elapsed_ms": 75762,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 61,
+          "structured_parse_fail": 3
+        },
+        "ag": {
+          "passed": true,
+          "tokens": 499,
+          "ms": 4092,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (11 tests, 22 assertions)",
+          "attempts": 1,
+          "error": null
+        },
+        "spag": {
+          "passed": true,
+          "tokens": 167827,
+          "ms": 91501,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (11 tests, 22 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 31,
+          "modal_count": 16,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 31,
+              "modal_count": 16,
+              "passed": true,
+              "parse_ok": 61,
+              "parse_fail": 3,
+              "tokens": 167827,
+              "elapsed_ms": 91500,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 61,
+          "structured_parse_fail": 3,
+          "attempts": 1
+        }
+      },
+      {
+        "id": "rate_limit_bucket_key",
+        "sem": {
+          "passed": false,
+          "tokens": 1494,
+          "ms": 6437,
+          "tail": " | FAILURES! | Tests: 13, Assertions: 24, Failures: 3.",
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 1760,
+          "ms": 5696,
+          "tail": "Time: 00:00.011, Memory: 8.00 MB |  | OK (13 tests, 26 assertions)",
+          "error": null
+        },
+        "sp": {
+          "passed": true,
+          "tokens": 243642,
+          "ms": 120554,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (13 tests, 26 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 30,
+          "modal_count": 18,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 30,
+              "modal_count": 18,
+              "passed": true,
+              "parse_ok": 58,
+              "parse_fail": 6,
+              "tokens": 243642,
+              "elapsed_ms": 120554,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 58,
+          "structured_parse_fail": 6
+        },
+        "ag": {
+          "passed": true,
+          "tokens": 1450,
+          "ms": 8235,
+          "tail": "Time: 00:00.009, Memory: 8.00 MB |  | OK (13 tests, 26 assertions)",
+          "attempts": 1,
+          "error": null
+        },
+        "spag": {
+          "passed": true,
+          "tokens": 248812,
+          "ms": 135846,
+          "tail": "Time: 00:00.007, Memory: 8.00 MB |  | OK (13 tests, 26 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 30,
+          "modal_count": 18,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 30,
+              "modal_count": 18,
+              "passed": true,
+              "parse_ok": 53,
+              "parse_fail": 11,
+              "tokens": 248812,
+              "elapsed_ms": 135846,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 53,
+          "structured_parse_fail": 11,
+          "attempts": 1
+        }
+      },
+      {
+        "id": "base_repository_build_where_sql",
+        "sem": {
+          "passed": true,
+          "tokens": 2879,
+          "ms": 13310,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (15 tests, 26 assertions)",
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 2931,
+          "ms": 35933,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (15 tests, 26 assertions)",
+          "error": null
+        },
+        "sp": {
+          "passed": true,
+          "tokens": 819847,
+          "ms": 336811,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (15 tests, 26 assertions)",
+          "error": null,
+          "subagents": 100,
+          "uniq": 73,
+          "modal_count": 9,
+          "cycles_run": 2,
+          "escalated": true,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 56,
+              "modal_count": 3,
+              "passed": false,
+              "parse_ok": 52,
+              "parse_fail": 12,
+              "tokens": 316548,
+              "elapsed_ms": 160131,
+              "oracle_error": null
+            },
+            {
+              "cycle": 2,
+              "n": 100,
+              "uniq": 73,
+              "modal_count": 9,
+              "passed": true,
+              "parse_ok": 82,
+              "parse_fail": 18,
+              "tokens": 503299,
+              "elapsed_ms": 176680,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 82,
+          "structured_parse_fail": 18
+        },
+        "ag": {
+          "passed": true,
+          "tokens": 2602,
+          "ms": 13834,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (15 tests, 26 assertions)",
+          "attempts": 1,
+          "error": null
+        },
+        "spag": {
+          "passed": true,
+          "tokens": 3891,
+          "ms": 23740,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (15 tests, 26 assertions)",
+          "attempts": 1,
+          "error": null,
+          "modal_seed_uniq": 82
+        }
+      },
+      {
+        "id": "router_has",
+        "sem": {
+          "passed": true,
+          "tokens": 2403,
+          "ms": 6863,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (15 tests, 27 assertions)",
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 2625,
+          "ms": 34686,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (15 tests, 27 assertions)",
+          "error": null
+        },
+        "sp": {
+          "passed": false,
+          "tokens": 0,
+          "ms": 189783,
+          "tail": " | ERRORS! | Tests: 15, Assertions: 19, Errors: 6.",
+          "error": null,
+          "subagents": 0,
+          "uniq": 0,
+          "modal_count": 0,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "error": "Expecting value: line 281 column 1 (char 1540)",
+              "elapsed_ms": 189783
+            }
+          ],
+          "structured_parse_ok": 0,
+          "structured_parse_fail": 0
+        },
+        "ag": {
+          "passed": true,
+          "tokens": 2539,
+          "ms": 34255,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (15 tests, 27 assertions)",
+          "attempts": 1,
+          "error": null
+        },
+        "spag": {
+          "passed": true,
+          "tokens": 307870,
+          "ms": 415328,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (15 tests, 27 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 39,
+          "modal_count": 7,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 39,
+              "modal_count": 7,
+              "passed": true,
+              "parse_ok": 50,
+              "parse_fail": 14,
+              "tokens": 307870,
+              "elapsed_ms": 415328,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 50,
+          "structured_parse_fail": 14,
+          "attempts": 1
+        }
+      },
+      {
+        "id": "bugfix_password_policy_lowercase",
+        "sem": {
+          "passed": false,
+          "tokens": 8649,
+          "ms": 216072,
+          "tail": " | ERRORS! | Tests: 9, Assertions: 15, Errors: 2, Warnings: 3, Deprecations: 3.",
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 7883,
+          "ms": 188555,
+          "tail": "Time: 00:00.007, Memory: 8.00 MB |  | OK (9 tests, 19 assertions)",
+          "error": null
+        },
+        "sp": {
+          "passed": false,
+          "tokens": 900364,
+          "ms": 525354,
+          "tail": " | FAILURES! | Tests: 9, Assertions: 19, Failures: 1.",
+          "error": null,
+          "subagents": 100,
+          "uniq": 23,
+          "modal_count": 77,
+          "cycles_run": 2,
+          "escalated": true,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 30,
+              "modal_count": 15,
+              "passed": false,
+              "parse_ok": 45,
+              "parse_fail": 19,
+              "tokens": 309043,
+              "elapsed_ms": 149353,
+              "oracle_error": null
+            },
+            {
+              "cycle": 2,
+              "n": 100,
+              "uniq": 23,
+              "modal_count": 77,
+              "passed": false,
+              "parse_ok": 13,
+              "parse_fail": 87,
+              "tokens": 591321,
+              "elapsed_ms": 376001,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 13,
+          "structured_parse_fail": 87
+        },
+        "ag": {
+          "passed": true,
+          "tokens": 9833,
+          "ms": 60978,
+          "tail": "Time: 00:00.007, Memory: 8.00 MB |  | OK (9 tests, 19 assertions)",
+          "attempts": 1,
+          "error": null
+        },
+        "spag": {
+          "passed": true,
+          "tokens": 2040,
+          "ms": 9230,
+          "tail": "Time: 00:00.785, Memory: 8.00 MB |  | OK (9 tests, 19 assertions)",
+          "attempts": 1,
+          "error": null,
+          "modal_seed_uniq": 15
+        }
+      },
+      {
+        "id": "password_assess",
+        "sem": {
+          "passed": true,
+          "tokens": 1273,
+          "ms": 5460,
+          "tail": "Time: 00:00.857, Memory: 8.00 MB |  | OK (13 tests, 31 assertions)",
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 1020,
+          "ms": 8765,
+          "tail": "Time: 00:01.213, Memory: 8.00 MB |  | OK (13 tests, 31 assertions)",
+          "error": null
+        },
+        "sp": {
+          "passed": true,
+          "tokens": 211495,
+          "ms": 106677,
+          "tail": "Time: 00:02.405, Memory: 8.00 MB |  | OK (13 tests, 31 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 62,
+          "modal_count": 3,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 62,
+              "modal_count": 3,
+              "passed": true,
+              "parse_ok": 56,
+              "parse_fail": 8,
+              "tokens": 211495,
+              "elapsed_ms": 106677,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 56,
+          "structured_parse_fail": 8
+        },
+        "ag": {
+          "passed": true,
+          "tokens": 1127,
+          "ms": 4923,
+          "tail": "Time: 00:00.015, Memory: 8.00 MB |  | OK (13 tests, 31 assertions)",
+          "attempts": 1,
+          "error": null
+        },
+        "spag": {
+          "passed": true,
+          "tokens": 222702,
+          "ms": 131571,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (13 tests, 31 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 62,
+          "modal_count": 2,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 62,
+              "modal_count": 2,
+              "passed": true,
+              "parse_ok": 53,
+              "parse_fail": 11,
+              "tokens": 222702,
+              "elapsed_ms": 131570,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 53,
+          "structured_parse_fail": 11,
+          "attempts": 1
+        }
+      },
+      {
+        "id": "base_repository_build_update_sql",
+        "sem": {
+          "passed": false,
+          "tokens": 3201,
+          "ms": 15165,
+          "tail": " | FAILURES! | Tests: 14, Assertions: 24, Failures: 2, Warnings: 4.",
+          "error": null
+        },
+        "com": {
+          "passed": false,
+          "tokens": 2996,
+          "ms": 9595,
+          "tail": " | FAILURES! | Tests: 14, Assertions: 25, Failures: 1.",
+          "error": null
+        },
+        "sp": {
+          "passed": true,
+          "tokens": 328154,
+          "ms": 161619,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (14 tests, 26 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 59,
+          "modal_count": 4,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 59,
+              "modal_count": 4,
+              "passed": true,
+              "parse_ok": 52,
+              "parse_fail": 12,
+              "tokens": 328154,
+              "elapsed_ms": 161618,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 52,
+          "structured_parse_fail": 12
+        },
+        "ag": {
+          "passed": true,
+          "tokens": 3238,
+          "ms": 38902,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (14 tests, 26 assertions)",
+          "attempts": 1,
+          "error": null
+        },
+        "spag": {
+          "passed": true,
+          "tokens": 842799,
+          "ms": 378992,
+          "tail": "Time: 00:00.009, Memory: 8.00 MB |  | OK (14 tests, 26 assertions)",
+          "error": null,
+          "subagents": 100,
+          "uniq": 85,
+          "modal_count": 4,
+          "cycles_run": 2,
+          "escalated": true,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 61,
+              "modal_count": 4,
+              "passed": false,
+              "parse_ok": 55,
+              "parse_fail": 9,
+              "tokens": 330658,
+              "elapsed_ms": 170706,
+              "oracle_error": null
+            },
+            {
+              "cycle": 2,
+              "n": 100,
+              "uniq": 85,
+              "modal_count": 4,
+              "passed": true,
+              "parse_ok": 76,
+              "parse_fail": 24,
+              "tokens": 512141,
+              "elapsed_ms": 208286,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 76,
+          "structured_parse_fail": 24,
+          "attempts": 1
+        }
+      },
+      {
+        "id": "router_extract_params",
+        "sem": {
+          "passed": true,
+          "tokens": 2266,
+          "ms": 27080,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (14 tests, 26 assertions)",
+          "error": null
+        },
+        "com": {
+          "passed": true,
+          "tokens": 2515,
+          "ms": 7192,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (14 tests, 26 assertions)",
+          "error": null
+        },
+        "sp": {
+          "passed": false,
+          "tokens": 0,
+          "ms": 153950,
+          "tail": " | ERRORS! | Tests: 14, Assertions: 19, Errors: 5.",
+          "error": null,
+          "subagents": 0,
+          "uniq": 0,
+          "modal_count": 0,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "error": "Expecting value: line 263 column 1 (char 1441)",
+              "elapsed_ms": 153950
+            }
+          ],
+          "structured_parse_ok": 0,
+          "structured_parse_fail": 0
+        },
+        "ag": {
+          "passed": true,
+          "tokens": 2498,
+          "ms": 7260,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (14 tests, 26 assertions)",
+          "attempts": 1,
+          "error": null
+        },
+        "spag": {
+          "passed": true,
+          "tokens": 328397,
+          "ms": 161385,
+          "tail": "Time: 00:00.008, Memory: 8.00 MB |  | OK (14 tests, 26 assertions)",
+          "error": null,
+          "subagents": 64,
+          "uniq": 52,
+          "modal_count": 4,
+          "cycles_run": 1,
+          "escalated": false,
+          "tier_history": [
+            {
+              "cycle": 1,
+              "n": 64,
+              "uniq": 52,
+              "modal_count": 4,
+              "passed": true,
+              "parse_ok": 44,
+              "parse_fail": 20,
+              "tokens": 328397,
+              "elapsed_ms": 161385,
+              "oracle_error": null
+            }
+          ],
+          "structured_parse_ok": 44,
+          "structured_parse_fail": 20,
+          "attempts": 1
+        }
+      }
+    ],
+    "n": 12,
+    "sem_pass": 6,
+    "com_pass": 11,
+    "sem_pct": 50,
+    "com_pct": 91,
+    "sp_pass": 9,
+    "sp_pct": 75,
+    "ag_pass": 12,
+    "ag_pct": 100,
+    "spag_pass": 12,
+    "spag_pct": 100
+  }
+}

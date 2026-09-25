@@ -1,0 +1,13 @@
+{
+  "slug": "csharp-blazor",
+  "template_version": "0.1.0",
+  "language": "C# 12",
+  "framework": "Blazor",
+  "framework_version": "Server",
+  "package_manager": "dotnet",
+  "test_runner": "dotnet test",
+  "linter": "dotnet format",
+  "deps_required": ["Microsoft.AspNetCore.App"],
+  "deps_dev": ["Microsoft.NET.Test.Sdk", "xunit"],
+  "tags": ["web", "ui", "csharp", "dotnet", "blazor"]
+}

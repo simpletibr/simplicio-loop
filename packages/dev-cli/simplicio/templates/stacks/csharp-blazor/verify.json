@@ -1,0 +1,6 @@
+{
+  "install": "dotnet restore",
+  "test": "dotnet test",
+  "test_runner": "dotnet test",
+  "lint": "dotnet format --verify-no-changes"
+}

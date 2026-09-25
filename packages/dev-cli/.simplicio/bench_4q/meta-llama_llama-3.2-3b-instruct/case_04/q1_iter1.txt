@@ -1,0 +1,50 @@
+Here's an example of how you can achieve this using HTML, CSS, and JavaScript. We'll use a simple approval system where the "Approve" button is only visible when the order status is "pending" and the user has the approver permission.
+
+```html
+<!-- index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.">
+    <title>Order Approval System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Order Approval System</h1>
+    <form id="order-form">
+        <label for="order-status">Order Status:</label>
+        <select id="order-status" name="order-status">
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+        </select>
+        <label for="approver-permission">Approver Permission:</label>
+        <select id="approver-permission" name="approver-permission">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+        </select>
+        <button id="approve-button" type="button" disabled>Approve</button>
+        <button id="reject-button" type="button" disabled>Reject</button>
+    </form>
+
+    <script src="script.js"></script>
+</body>
+</html>
+```
+
+```css
+/* styles.css */
+
+body {
+    font-family: Arial, sans-serif;
+}
+
+#order-form {
+    width: 5%;
+    margin: 40px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow:   

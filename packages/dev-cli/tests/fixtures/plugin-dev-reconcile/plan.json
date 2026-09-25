@@ -1,0 +1,7 @@
+{
+  "schema": "simplicio.mechanical-edit/v1",
+  "operations": [
+    {"op": "replace_range", "path": "a.txt", "start_line": 1, "end_line": 1, "text": "one\n"},
+    {"op": "replace_range", "path": "b.txt", "start_line": 1, "end_line": 1, "text": "two\n"}
+  ]
+}

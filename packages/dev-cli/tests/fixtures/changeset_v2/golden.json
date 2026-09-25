@@ -1,0 +1,16 @@
+{
+  "schema": "simplicio.fast.changeset/v2",
+  "changeset_id": "cs-golden",
+  "correlation_id": "run-golden",
+  "generation": "gen-1",
+  "allowlist": ["app.py"],
+  "operations": [
+    {
+      "kind": "replace_range",
+      "path": "app.py",
+      "start_line": 1,
+      "end_line": 1,
+      "text": "new\n"
+    }
+  ]
+}

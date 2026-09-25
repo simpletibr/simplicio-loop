@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simplicio.dev-cli.scaffold-plan/v1",
+  "title": "Dev CLI deterministic scaffold plan",
+  "type": "object",
+  "required": [
+    "schema",
+    "status",
+    "operations",
+    "plan_digest"
+  ],
+  "properties": {
+    "schema": { "const": "simplicio.dev-cli.scaffold-plan/v1" },
+    "status": { "enum": ["planned", "blocked"] },
+    "kind": {
+      "enum": ["rust-crate", "rust-binary", "python-package", "node-package"]
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+    },
+    "mapper_binding": { "$ref": "../mapper-binding.schema.json" },
+    "mapper_binding_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["op", "path", "text"],
+        "properties": {
+          "op": { "const": "create_file" },
+          "path": { "type": "string", "minLength": 1 },
+          "text": { "type": "string" }
+        }
+      }
+    },
+    "runtime_authorization_required": { "const": true },
+    "plan_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "status": { "const": "planned" },
+        "operations": { "minItems": 1 }
+      },
+      "required": [
+        "kind",
+        "name",
+        "mapper_binding",
+        "mapper_binding_digest",
+        "runtime_authorization_required"
+      ]
+    },
+    {
+      "properties": { "status": { "const": "blocked" } },
+      "required": ["errors"]
+    }
+  ]
+}

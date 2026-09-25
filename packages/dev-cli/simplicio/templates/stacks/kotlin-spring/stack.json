@@ -1,0 +1,13 @@
+{
+  "slug": "kotlin-spring",
+  "template_version": "0.1.0",
+  "language": "Kotlin",
+  "framework": "Spring Boot",
+  "framework_version": "3",
+  "package_manager": "gradle",
+  "test_runner": "JUnit",
+  "linter": "ktlint",
+  "deps_required": ["spring-boot-starter-web", "kotlin-reflect"],
+  "deps_dev": ["spring-boot-starter-test"],
+  "tags": ["web", "api", "kotlin", "spring", "jvm"]
+}

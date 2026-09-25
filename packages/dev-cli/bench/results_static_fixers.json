@@ -1,0 +1,803 @@
+{
+  "benchmark": "static-fixers",
+  "cases": [
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-01",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-02",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-03",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-04",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-05",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-06",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-07",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-08",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-09",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-10",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-11",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-12",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-13",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-14",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-15",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-16",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-17",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-18",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-19",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-20",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-21",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-22",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-23",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-24",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-25",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-26",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-27",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-28",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-29",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-30",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-31",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-32",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-33",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-34",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-35",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-36",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-37",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-38",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-39",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": true,
+      "fixers": [
+        "missing-pip-package"
+      ],
+      "name": "missing-pip-40",
+      "passed": true,
+      "resolvable": true,
+      "retry_calls_saved": 1,
+      "with_fixer_llm_calls": 1
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": false,
+      "fixers": [
+        "none"
+      ],
+      "name": "assertion-01",
+      "passed": true,
+      "resolvable": false,
+      "retry_calls_saved": 0,
+      "with_fixer_llm_calls": 2
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": false,
+      "fixers": [
+        "none"
+      ],
+      "name": "assertion-02",
+      "passed": true,
+      "resolvable": false,
+      "retry_calls_saved": 0,
+      "with_fixer_llm_calls": 2
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": false,
+      "fixers": [
+        "none"
+      ],
+      "name": "assertion-03",
+      "passed": true,
+      "resolvable": false,
+      "retry_calls_saved": 0,
+      "with_fixer_llm_calls": 2
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": false,
+      "fixers": [
+        "none"
+      ],
+      "name": "assertion-04",
+      "passed": true,
+      "resolvable": false,
+      "retry_calls_saved": 0,
+      "with_fixer_llm_calls": 2
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": false,
+      "fixers": [
+        "none"
+      ],
+      "name": "assertion-05",
+      "passed": true,
+      "resolvable": false,
+      "retry_calls_saved": 0,
+      "with_fixer_llm_calls": 2
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": false,
+      "fixers": [
+        "none"
+      ],
+      "name": "assertion-06",
+      "passed": true,
+      "resolvable": false,
+      "retry_calls_saved": 0,
+      "with_fixer_llm_calls": 2
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": false,
+      "fixers": [
+        "none"
+      ],
+      "name": "assertion-07",
+      "passed": true,
+      "resolvable": false,
+      "retry_calls_saved": 0,
+      "with_fixer_llm_calls": 2
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": false,
+      "fixers": [
+        "none"
+      ],
+      "name": "assertion-08",
+      "passed": true,
+      "resolvable": false,
+      "retry_calls_saved": 0,
+      "with_fixer_llm_calls": 2
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": false,
+      "fixers": [
+        "none"
+      ],
+      "name": "assertion-09",
+      "passed": true,
+      "resolvable": false,
+      "retry_calls_saved": 0,
+      "with_fixer_llm_calls": 2
+    },
+    {
+      "baseline_llm_calls": 2,
+      "fixed_before_llm_retry": false,
+      "fixers": [
+        "none"
+      ],
+      "name": "assertion-10",
+      "passed": true,
+      "resolvable": false,
+      "retry_calls_saved": 0,
+      "with_fixer_llm_calls": 2
+    }
+  ],
+  "environment": {
+    "platform": "Windows-11-10.0.22631-SP0",
+    "python": "3.14.3"
+  },
+  "live_corpus": {
+    "e2e_green": 75,
+    "eligible_failure_runs": 0,
+    "post_verify_failure_runs": 0,
+    "scratch_returncode_failure_runs": 0,
+    "source": "bench/results_scratch_live_gate.json",
+    "stacks": [
+      "go-gin",
+      "php-laravel",
+      "py-fastapi",
+      "rust-axum",
+      "ts-nextjs"
+    ],
+    "total_runs": 75
+  },
+  "real_package_manager_cases": [
+    {
+      "applied": true,
+      "dependency_declared": true,
+      "details": "added to pyproject.toml and installed packaging",
+      "duration_ms": 966,
+      "fixer": "missing-pip-package",
+      "import_ok": true,
+      "module": "packaging",
+      "name": "packaging-01",
+      "package": "packaging",
+      "passed": true
+    },
+    {
+      "applied": true,
+      "dependency_declared": true,
+      "details": "added to pyproject.toml and installed colorama",
+      "duration_ms": 976,
+      "fixer": "missing-pip-package",
+      "import_ok": true,
+      "module": "colorama",
+      "name": "colorama-01",
+      "package": "colorama",
+      "passed": true
+    },
+    {
+      "applied": true,
+      "dependency_declared": true,
+      "details": "added to pyproject.toml and installed idna",
+      "duration_ms": 905,
+      "fixer": "missing-pip-package",
+      "import_ok": true,
+      "module": "idna",
+      "name": "idna-01",
+      "package": "idna",
+      "passed": true
+    },
+    {
+      "applied": true,
+      "dependency_declared": true,
+      "details": "added to pyproject.toml and installed certifi",
+      "duration_ms": 914,
+      "fixer": "missing-pip-package",
+      "import_ok": true,
+      "module": "certifi",
+      "name": "certifi-01",
+      "package": "certifi",
+      "passed": true
+    },
+    {
+      "applied": true,
+      "dependency_declared": true,
+      "details": "added to pyproject.toml and installed charset-normalizer",
+      "duration_ms": 953,
+      "fixer": "missing-pip-package",
+      "import_ok": true,
+      "module": "charset_normalizer",
+      "name": "charset-normalizer-01",
+      "package": "charset-normalizer",
+      "passed": true
+    },
+    {
+      "applied": true,
+      "dependency_declared": true,
+      "details": "added to pyproject.toml and installed packaging",
+      "duration_ms": 937,
+      "fixer": "missing-pip-package",
+      "import_ok": true,
+      "module": "packaging",
+      "name": "packaging-02",
+      "package": "packaging",
+      "passed": true
+    },
+    {
+      "applied": true,
+      "dependency_declared": true,
+      "details": "added to pyproject.toml and installed colorama",
+      "duration_ms": 885,
+      "fixer": "missing-pip-package",
+      "import_ok": true,
+      "module": "colorama",
+      "name": "colorama-02",
+      "package": "colorama",
+      "passed": true
+    },
+    {
+      "applied": true,
+      "dependency_declared": true,
+      "details": "added to pyproject.toml and installed idna",
+      "duration_ms": 956,
+      "fixer": "missing-pip-package",
+      "import_ok": true,
+      "module": "idna",
+      "name": "idna-02",
+      "package": "idna",
+      "passed": true
+    },
+    {
+      "applied": true,
+      "dependency_declared": true,
+      "details": "added to pyproject.toml and installed certifi",
+      "duration_ms": 951,
+      "fixer": "missing-pip-package",
+      "import_ok": true,
+      "module": "certifi",
+      "name": "certifi-02",
+      "package": "certifi",
+      "passed": true
+    },
+    {
+      "applied": true,
+      "dependency_declared": true,
+      "details": "added to pyproject.toml and installed charset-normalizer",
+      "duration_ms": 934,
+      "fixer": "missing-pip-package",
+      "import_ok": true,
+      "module": "charset_normalizer",
+      "name": "charset-normalizer-02",
+      "package": "charset-normalizer",
+      "passed": true
+    }
+  ],
+  "scope": "synthetic verify-loop fixer benchmark with optional real package-manager probe and live scratch-corpus inspection",
+  "scratch_import_failure_cases": [
+    {
+      "dependency_declared": true,
+      "duration_ms": 10251,
+      "final_pytest_passed": true,
+      "fixer": "missing-pip-package",
+      "fixer_applied": true,
+      "fixer_details": "added to pyproject.toml and installed boltons",
+      "initial_failure_observed": true,
+      "name": "static-fixer-import-probe-01",
+      "passed": true,
+      "project_dir": "$WORK_DIR/run-01/projects/static-fixer-import-probe-01",
+      "scratch_returncode": 0
+    }
+  ],
+  "summary": {
+    "baseline_llm_calls": 100,
+    "elapsed_s": 19.82,
+    "fixer_resolved_before_retry": 40,
+    "fixer_resolved_rate": 0.8,
+    "live_corpus": {
+      "e2e_green": 75,
+      "eligible_failure_runs": 0,
+      "post_verify_failure_runs": 0,
+      "scratch_returncode_failure_runs": 0,
+      "source": "bench/results_scratch_live_gate.json",
+      "stacks": [
+        "go-gin",
+        "php-laravel",
+        "py-fastapi",
+        "rust-axum",
+        "ts-nextjs"
+      ],
+      "total_runs": 75
+    },
+    "missing_release_evidence": [],
+    "passed_cases": 50,
+    "real_package_manager_cases": 10,
+    "real_package_manager_passed": 10,
+    "release_gates": {
+      "fifty_cases": true,
+      "fixer_resolved_ge_80": true,
+      "real_eligible_failures_observed": true,
+      "real_package_manager_execution": true,
+      "real_scratch_corpus": true,
+      "real_scratch_import_failure_repaired": true,
+      "retry_calls_down_ge_30": true
+    },
+    "retry_call_reduction": 0.4,
+    "scratch_import_failure_cases": 1,
+    "scratch_import_failure_passed": 1,
+    "total_cases": 50,
+    "with_fixer_llm_calls": 60
+  },
+  "work_dir": "$WORK_DIR",
+  "work_dir_owned_by_runner": false
+}

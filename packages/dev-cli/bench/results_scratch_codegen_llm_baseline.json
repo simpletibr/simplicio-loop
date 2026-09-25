@@ -1,0 +1,2450 @@
+{
+  "benchmark": "scratch-codegen-llm-baseline",
+  "cases": [
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "rc/db/models.py\",\"content\":\"from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column\\n\\n\\nclass Base(DeclarativeBase):\\n    pass\\n\\n\\nclass User(Base):\\n    __tablename__ = \\\"users\\\"\\n\\n    id: Mapped[int] = mapped_column(primary_key=True)\\n    name: Mapped[str]\\n    email: Mapped[str]\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-orm-field",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-orm-field-r01",
+      "run_index": 1,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_class",
+          "email_field",
+          "mapped_type"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": " name: str\\n    email: str | None = None\\n\\n\\nclass UserUpdate(BaseModel):\\n    name: str | None = None\\n    email: str | None = None\\n\\n\\nclass UserRead(BaseModel):\\n    id: int\\n    name: str\\n    email: str | None = None\\n    created_at: datetime\\n\\n    class Config:\\n        orm_mode = True\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pydantic-schema",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pydantic-schema-r01",
+      "run_index": 1,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_create",
+          "user_update",
+          "user_read"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 0,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"src/api/users.py\",\"content\":\"from fastapi import APIRouter\\n\\nrouter = APIRouter()\\n\\n\\n@router.get(\\\"/users/{id}\\\")\\nasync def get_user(id: int) -> dict[str, int]:\\n    return {\\\"id\\\": id}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-fastapi-route",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-fastapi-route-r01",
+      "run_index": 1,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "router_get",
+          "path_param",
+          "async_handler"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 0,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"tests/unit/test_math_ops.py\",\"content\":\"from utils.math_ops import double\\n\\n\\ndef test_double_returns_twice_value():\\n    assert double(21) == 42\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pytest-test",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pytest-test-r01",
+      "run_index": 1,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "imports_double",
+          "assertion",
+          "test_function"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 702,
+      "execution_mode": "llm",
+      "log_tail": "ateId(),\\n    name,\\n    description:\\n      typeof body.description === \\\"string\\\" && body.description.trim()\\n        ? body.description.trim()\\n        : undefined,\\n    createdAt: now,\\n    updatedAt: now,\\n  };\\n\\n  units.push(unit);\\n\\n  return Response.json({ unit }, { status: 201 });\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-route",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-route-r01",
+      "run_index": 1,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "typescript_compile",
+          "route_runtime"
+        ],
+        "log": "GET did not return a JSON array",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "y-3 text-sm\\\">{unit.bathrooms ?? \\\"\u2014\\\"}</td>\\n                    <td className=\\\"px-4 py-3 text-sm\\\">{unit.owner_name ?? \\\"\u2014\\\"}</td>\\n                  </tr>\\n                ))}\\n              </tbody>\\n            </table>\\n          </div>\\n        )}\\n      </section>\\n    </main>\\n  );\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-page",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-page-r01",
+      "run_index": 1,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "async_page_component"
+        ],
+        "log": "missing generated page checks: create_form, crud_page_marker, list_render",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 23285,
+      "execution_mode": "llm",
+      "log_tail": "tp.StatusBadRequest, gin.H{\\\"error\\\": \\\"invalid condo unit id\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tunit, ok := service.Get(id)\\n\\t\\tif !ok {\\n\\t\\t\\tc.JSON(http.StatusNotFound, gin.H{\\\"error\\\": \\\"condo unit not found\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tc.JSON(http.StatusOK, gin.H{\\\"data\\\": unit})\\n\\t}\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "go-gin-crud",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-go-gin-crud-r01",
+      "run_index": 1,
+      "stack": "go-gin",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "package_http",
+          "gin_import",
+          "router_ctor",
+          "route_prefix",
+          "json_response"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 58775,
+      "execution_mode": "llm",
+      "log_tail": "), Method::DELETE, \\\"/condo_units/1\\\").await;\\n        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);\\n\\n        let missing_response = send_empty(app.clone(), Method::GET, \\\"/condo_units/1\\\").await;\\n        assert_eq!(missing_response.status(), StatusCode::NOT_FOUND);\\n    }\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "rust-axum-crud",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-rust-axum-crud-r01",
+      "run_index": 1,
+      "stack": "rust-axum",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "axum_import",
+          "item_type",
+          "router",
+          "route_prefix"
+        ],
+        "log": "missing markers: route_test",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 11159,
+      "execution_mode": "llm",
+      "log_tail": " return response()->json([]);\\n    });\\n\\n    Route::post('/', function (Request $request) {\\n        return response()->json($request->all(), 201);\\n    });\\n\\n    Route::get('/{condo_unit}', function (string $condo_unit) {\\n        return response()->json(['id' => $condo_unit]);\\n    });\\n});\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "php-laravel-routes",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-php-laravel-routes-r01",
+      "run_index": 1,
+      "stack": "php-laravel",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "php_open",
+          "created_status"
+        ],
+        "log": "missing markers: json_response, route_get, route_post",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "rc/db/models.py\",\"content\":\"from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column\\n\\n\\nclass Base(DeclarativeBase):\\n    pass\\n\\n\\nclass User(Base):\\n    __tablename__ = \\\"users\\\"\\n\\n    id: Mapped[int] = mapped_column(primary_key=True)\\n    name: Mapped[str]\\n    email: Mapped[str]\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-orm-field",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-orm-field-r02",
+      "run_index": 2,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_class",
+          "email_field",
+          "mapped_type"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": " name: str\\n    email: str | None = None\\n\\n\\nclass UserUpdate(BaseModel):\\n    name: str | None = None\\n    email: str | None = None\\n\\n\\nclass UserRead(BaseModel):\\n    id: int\\n    name: str\\n    email: str | None = None\\n    created_at: datetime\\n\\n    class Config:\\n        orm_mode = True\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pydantic-schema",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pydantic-schema-r02",
+      "run_index": 2,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_create",
+          "user_update",
+          "user_read"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"src/api/users.py\",\"content\":\"from fastapi import APIRouter\\n\\nrouter = APIRouter()\\n\\n\\n@router.get(\\\"/users/{id}\\\")\\nasync def get_user(id: int) -> dict[str, int]:\\n    return {\\\"id\\\": id}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-fastapi-route",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-fastapi-route-r02",
+      "run_index": 2,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "router_get",
+          "path_param",
+          "async_handler"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"tests/unit/test_math_ops.py\",\"content\":\"from utils.math_ops import double\\n\\n\\ndef test_double_returns_twice_value():\\n    assert double(21) == 42\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pytest-test",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pytest-test-r02",
+      "run_index": 2,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "imports_double",
+          "assertion",
+          "test_function"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 918,
+      "execution_mode": "llm",
+      "log_tail": "ateId(),\\n    name,\\n    description:\\n      typeof body.description === \\\"string\\\" && body.description.trim()\\n        ? body.description.trim()\\n        : undefined,\\n    createdAt: now,\\n    updatedAt: now,\\n  };\\n\\n  units.push(unit);\\n\\n  return Response.json({ unit }, { status: 201 });\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-route",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-route-r02",
+      "run_index": 2,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "typescript_compile",
+          "route_runtime"
+        ],
+        "log": "GET did not return a JSON array",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 4,
+      "execution_mode": "llm",
+      "log_tail": "y-3 text-sm\\\">{unit.bathrooms ?? \\\"\u2014\\\"}</td>\\n                    <td className=\\\"px-4 py-3 text-sm\\\">{unit.owner_name ?? \\\"\u2014\\\"}</td>\\n                  </tr>\\n                ))}\\n              </tbody>\\n            </table>\\n          </div>\\n        )}\\n      </section>\\n    </main>\\n  );\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-page",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-page-r02",
+      "run_index": 2,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "async_page_component"
+        ],
+        "log": "missing generated page checks: create_form, crud_page_marker, list_render",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "tp.StatusBadRequest, gin.H{\\\"error\\\": \\\"invalid condo unit id\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tunit, ok := service.Get(id)\\n\\t\\tif !ok {\\n\\t\\t\\tc.JSON(http.StatusNotFound, gin.H{\\\"error\\\": \\\"condo unit not found\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tc.JSON(http.StatusOK, gin.H{\\\"data\\\": unit})\\n\\t}\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "go-gin-crud",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-go-gin-crud-r02",
+      "run_index": 2,
+      "stack": "go-gin",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "package_http",
+          "gin_import",
+          "router_ctor",
+          "route_prefix",
+          "json_response"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "), Method::DELETE, \\\"/condo_units/1\\\").await;\\n        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);\\n\\n        let missing_response = send_empty(app.clone(), Method::GET, \\\"/condo_units/1\\\").await;\\n        assert_eq!(missing_response.status(), StatusCode::NOT_FOUND);\\n    }\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "rust-axum-crud",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-rust-axum-crud-r02",
+      "run_index": 2,
+      "stack": "rust-axum",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "axum_import",
+          "item_type",
+          "router",
+          "route_prefix"
+        ],
+        "log": "missing markers: route_test",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 4,
+      "execution_mode": "llm",
+      "log_tail": " return response()->json([]);\\n    });\\n\\n    Route::post('/', function (Request $request) {\\n        return response()->json($request->all(), 201);\\n    });\\n\\n    Route::get('/{condo_unit}', function (string $condo_unit) {\\n        return response()->json(['id' => $condo_unit]);\\n    });\\n});\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "php-laravel-routes",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-php-laravel-routes-r02",
+      "run_index": 2,
+      "stack": "php-laravel",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "php_open",
+          "created_status"
+        ],
+        "log": "missing markers: json_response, route_get, route_post",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "rc/db/models.py\",\"content\":\"from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column\\n\\n\\nclass Base(DeclarativeBase):\\n    pass\\n\\n\\nclass User(Base):\\n    __tablename__ = \\\"users\\\"\\n\\n    id: Mapped[int] = mapped_column(primary_key=True)\\n    name: Mapped[str]\\n    email: Mapped[str]\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-orm-field",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-orm-field-r03",
+      "run_index": 3,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_class",
+          "email_field",
+          "mapped_type"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": " name: str\\n    email: str | None = None\\n\\n\\nclass UserUpdate(BaseModel):\\n    name: str | None = None\\n    email: str | None = None\\n\\n\\nclass UserRead(BaseModel):\\n    id: int\\n    name: str\\n    email: str | None = None\\n    created_at: datetime\\n\\n    class Config:\\n        orm_mode = True\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pydantic-schema",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pydantic-schema-r03",
+      "run_index": 3,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_create",
+          "user_update",
+          "user_read"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 0,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"src/api/users.py\",\"content\":\"from fastapi import APIRouter\\n\\nrouter = APIRouter()\\n\\n\\n@router.get(\\\"/users/{id}\\\")\\nasync def get_user(id: int) -> dict[str, int]:\\n    return {\\\"id\\\": id}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-fastapi-route",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-fastapi-route-r03",
+      "run_index": 3,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "router_get",
+          "path_param",
+          "async_handler"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"tests/unit/test_math_ops.py\",\"content\":\"from utils.math_ops import double\\n\\n\\ndef test_double_returns_twice_value():\\n    assert double(21) == 42\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pytest-test",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pytest-test-r03",
+      "run_index": 3,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "imports_double",
+          "assertion",
+          "test_function"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 926,
+      "execution_mode": "llm",
+      "log_tail": "ateId(),\\n    name,\\n    description:\\n      typeof body.description === \\\"string\\\" && body.description.trim()\\n        ? body.description.trim()\\n        : undefined,\\n    createdAt: now,\\n    updatedAt: now,\\n  };\\n\\n  units.push(unit);\\n\\n  return Response.json({ unit }, { status: 201 });\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-route",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-route-r03",
+      "run_index": 3,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "typescript_compile",
+          "route_runtime"
+        ],
+        "log": "GET did not return a JSON array",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 4,
+      "execution_mode": "llm",
+      "log_tail": "y-3 text-sm\\\">{unit.bathrooms ?? \\\"\u2014\\\"}</td>\\n                    <td className=\\\"px-4 py-3 text-sm\\\">{unit.owner_name ?? \\\"\u2014\\\"}</td>\\n                  </tr>\\n                ))}\\n              </tbody>\\n            </table>\\n          </div>\\n        )}\\n      </section>\\n    </main>\\n  );\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-page",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-page-r03",
+      "run_index": 3,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "async_page_component"
+        ],
+        "log": "missing generated page checks: create_form, crud_page_marker, list_render",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "tp.StatusBadRequest, gin.H{\\\"error\\\": \\\"invalid condo unit id\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tunit, ok := service.Get(id)\\n\\t\\tif !ok {\\n\\t\\t\\tc.JSON(http.StatusNotFound, gin.H{\\\"error\\\": \\\"condo unit not found\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tc.JSON(http.StatusOK, gin.H{\\\"data\\\": unit})\\n\\t}\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "go-gin-crud",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-go-gin-crud-r03",
+      "run_index": 3,
+      "stack": "go-gin",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "package_http",
+          "gin_import",
+          "router_ctor",
+          "route_prefix",
+          "json_response"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "), Method::DELETE, \\\"/condo_units/1\\\").await;\\n        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);\\n\\n        let missing_response = send_empty(app.clone(), Method::GET, \\\"/condo_units/1\\\").await;\\n        assert_eq!(missing_response.status(), StatusCode::NOT_FOUND);\\n    }\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "rust-axum-crud",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-rust-axum-crud-r03",
+      "run_index": 3,
+      "stack": "rust-axum",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "axum_import",
+          "item_type",
+          "router",
+          "route_prefix"
+        ],
+        "log": "missing markers: route_test",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": " return response()->json([]);\\n    });\\n\\n    Route::post('/', function (Request $request) {\\n        return response()->json($request->all(), 201);\\n    });\\n\\n    Route::get('/{condo_unit}', function (string $condo_unit) {\\n        return response()->json(['id' => $condo_unit]);\\n    });\\n});\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "php-laravel-routes",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-php-laravel-routes-r03",
+      "run_index": 3,
+      "stack": "php-laravel",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "php_open",
+          "created_status"
+        ],
+        "log": "missing markers: json_response, route_get, route_post",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "rc/db/models.py\",\"content\":\"from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column\\n\\n\\nclass Base(DeclarativeBase):\\n    pass\\n\\n\\nclass User(Base):\\n    __tablename__ = \\\"users\\\"\\n\\n    id: Mapped[int] = mapped_column(primary_key=True)\\n    name: Mapped[str]\\n    email: Mapped[str]\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-orm-field",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-orm-field-r04",
+      "run_index": 4,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_class",
+          "email_field",
+          "mapped_type"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": " name: str\\n    email: str | None = None\\n\\n\\nclass UserUpdate(BaseModel):\\n    name: str | None = None\\n    email: str | None = None\\n\\n\\nclass UserRead(BaseModel):\\n    id: int\\n    name: str\\n    email: str | None = None\\n    created_at: datetime\\n\\n    class Config:\\n        orm_mode = True\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pydantic-schema",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pydantic-schema-r04",
+      "run_index": 4,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_create",
+          "user_update",
+          "user_read"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"src/api/users.py\",\"content\":\"from fastapi import APIRouter\\n\\nrouter = APIRouter()\\n\\n\\n@router.get(\\\"/users/{id}\\\")\\nasync def get_user(id: int) -> dict[str, int]:\\n    return {\\\"id\\\": id}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-fastapi-route",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-fastapi-route-r04",
+      "run_index": 4,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "router_get",
+          "path_param",
+          "async_handler"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 3,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"tests/unit/test_math_ops.py\",\"content\":\"from utils.math_ops import double\\n\\n\\ndef test_double_returns_twice_value():\\n    assert double(21) == 42\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pytest-test",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pytest-test-r04",
+      "run_index": 4,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "imports_double",
+          "assertion",
+          "test_function"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1051,
+      "execution_mode": "llm",
+      "log_tail": "ateId(),\\n    name,\\n    description:\\n      typeof body.description === \\\"string\\\" && body.description.trim()\\n        ? body.description.trim()\\n        : undefined,\\n    createdAt: now,\\n    updatedAt: now,\\n  };\\n\\n  units.push(unit);\\n\\n  return Response.json({ unit }, { status: 201 });\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-route",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-route-r04",
+      "run_index": 4,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "typescript_compile",
+          "route_runtime"
+        ],
+        "log": "GET did not return a JSON array",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 3,
+      "execution_mode": "llm",
+      "log_tail": "y-3 text-sm\\\">{unit.bathrooms ?? \\\"\u2014\\\"}</td>\\n                    <td className=\\\"px-4 py-3 text-sm\\\">{unit.owner_name ?? \\\"\u2014\\\"}</td>\\n                  </tr>\\n                ))}\\n              </tbody>\\n            </table>\\n          </div>\\n        )}\\n      </section>\\n    </main>\\n  );\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-page",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-page-r04",
+      "run_index": 4,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "async_page_component"
+        ],
+        "log": "missing generated page checks: create_form, crud_page_marker, list_render",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "tp.StatusBadRequest, gin.H{\\\"error\\\": \\\"invalid condo unit id\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tunit, ok := service.Get(id)\\n\\t\\tif !ok {\\n\\t\\t\\tc.JSON(http.StatusNotFound, gin.H{\\\"error\\\": \\\"condo unit not found\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tc.JSON(http.StatusOK, gin.H{\\\"data\\\": unit})\\n\\t}\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "go-gin-crud",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-go-gin-crud-r04",
+      "run_index": 4,
+      "stack": "go-gin",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "package_http",
+          "gin_import",
+          "router_ctor",
+          "route_prefix",
+          "json_response"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "), Method::DELETE, \\\"/condo_units/1\\\").await;\\n        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);\\n\\n        let missing_response = send_empty(app.clone(), Method::GET, \\\"/condo_units/1\\\").await;\\n        assert_eq!(missing_response.status(), StatusCode::NOT_FOUND);\\n    }\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "rust-axum-crud",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-rust-axum-crud-r04",
+      "run_index": 4,
+      "stack": "rust-axum",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "axum_import",
+          "item_type",
+          "router",
+          "route_prefix"
+        ],
+        "log": "missing markers: route_test",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": " return response()->json([]);\\n    });\\n\\n    Route::post('/', function (Request $request) {\\n        return response()->json($request->all(), 201);\\n    });\\n\\n    Route::get('/{condo_unit}', function (string $condo_unit) {\\n        return response()->json(['id' => $condo_unit]);\\n    });\\n});\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "php-laravel-routes",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-php-laravel-routes-r04",
+      "run_index": 4,
+      "stack": "php-laravel",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "php_open",
+          "created_status"
+        ],
+        "log": "missing markers: json_response, route_get, route_post",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "rc/db/models.py\",\"content\":\"from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column\\n\\n\\nclass Base(DeclarativeBase):\\n    pass\\n\\n\\nclass User(Base):\\n    __tablename__ = \\\"users\\\"\\n\\n    id: Mapped[int] = mapped_column(primary_key=True)\\n    name: Mapped[str]\\n    email: Mapped[str]\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-orm-field",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-orm-field-r05",
+      "run_index": 5,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_class",
+          "email_field",
+          "mapped_type"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": " name: str\\n    email: str | None = None\\n\\n\\nclass UserUpdate(BaseModel):\\n    name: str | None = None\\n    email: str | None = None\\n\\n\\nclass UserRead(BaseModel):\\n    id: int\\n    name: str\\n    email: str | None = None\\n    created_at: datetime\\n\\n    class Config:\\n        orm_mode = True\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pydantic-schema",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pydantic-schema-r05",
+      "run_index": 5,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_create",
+          "user_update",
+          "user_read"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"src/api/users.py\",\"content\":\"from fastapi import APIRouter\\n\\nrouter = APIRouter()\\n\\n\\n@router.get(\\\"/users/{id}\\\")\\nasync def get_user(id: int) -> dict[str, int]:\\n    return {\\\"id\\\": id}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-fastapi-route",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-fastapi-route-r05",
+      "run_index": 5,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "router_get",
+          "path_param",
+          "async_handler"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"tests/unit/test_math_ops.py\",\"content\":\"from utils.math_ops import double\\n\\n\\ndef test_double_returns_twice_value():\\n    assert double(21) == 42\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pytest-test",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pytest-test-r05",
+      "run_index": 5,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "imports_double",
+          "assertion",
+          "test_function"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 900,
+      "execution_mode": "llm",
+      "log_tail": "ateId(),\\n    name,\\n    description:\\n      typeof body.description === \\\"string\\\" && body.description.trim()\\n        ? body.description.trim()\\n        : undefined,\\n    createdAt: now,\\n    updatedAt: now,\\n  };\\n\\n  units.push(unit);\\n\\n  return Response.json({ unit }, { status: 201 });\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-route",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-route-r05",
+      "run_index": 5,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "typescript_compile",
+          "route_runtime"
+        ],
+        "log": "GET did not return a JSON array",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "y-3 text-sm\\\">{unit.bathrooms ?? \\\"\u2014\\\"}</td>\\n                    <td className=\\\"px-4 py-3 text-sm\\\">{unit.owner_name ?? \\\"\u2014\\\"}</td>\\n                  </tr>\\n                ))}\\n              </tbody>\\n            </table>\\n          </div>\\n        )}\\n      </section>\\n    </main>\\n  );\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-page",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-page-r05",
+      "run_index": 5,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "async_page_component"
+        ],
+        "log": "missing generated page checks: create_form, crud_page_marker, list_render",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "tp.StatusBadRequest, gin.H{\\\"error\\\": \\\"invalid condo unit id\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tunit, ok := service.Get(id)\\n\\t\\tif !ok {\\n\\t\\t\\tc.JSON(http.StatusNotFound, gin.H{\\\"error\\\": \\\"condo unit not found\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tc.JSON(http.StatusOK, gin.H{\\\"data\\\": unit})\\n\\t}\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "go-gin-crud",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-go-gin-crud-r05",
+      "run_index": 5,
+      "stack": "go-gin",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "package_http",
+          "gin_import",
+          "router_ctor",
+          "route_prefix",
+          "json_response"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "), Method::DELETE, \\\"/condo_units/1\\\").await;\\n        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);\\n\\n        let missing_response = send_empty(app.clone(), Method::GET, \\\"/condo_units/1\\\").await;\\n        assert_eq!(missing_response.status(), StatusCode::NOT_FOUND);\\n    }\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "rust-axum-crud",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-rust-axum-crud-r05",
+      "run_index": 5,
+      "stack": "rust-axum",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "axum_import",
+          "item_type",
+          "router",
+          "route_prefix"
+        ],
+        "log": "missing markers: route_test",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": " return response()->json([]);\\n    });\\n\\n    Route::post('/', function (Request $request) {\\n        return response()->json($request->all(), 201);\\n    });\\n\\n    Route::get('/{condo_unit}', function (string $condo_unit) {\\n        return response()->json(['id' => $condo_unit]);\\n    });\\n});\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "php-laravel-routes",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-php-laravel-routes-r05",
+      "run_index": 5,
+      "stack": "php-laravel",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "php_open",
+          "created_status"
+        ],
+        "log": "missing markers: json_response, route_get, route_post",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 3,
+      "execution_mode": "llm",
+      "log_tail": "rc/db/models.py\",\"content\":\"from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column\\n\\n\\nclass Base(DeclarativeBase):\\n    pass\\n\\n\\nclass User(Base):\\n    __tablename__ = \\\"users\\\"\\n\\n    id: Mapped[int] = mapped_column(primary_key=True)\\n    name: Mapped[str]\\n    email: Mapped[str]\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-orm-field",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-orm-field-r06",
+      "run_index": 6,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_class",
+          "email_field",
+          "mapped_type"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": " name: str\\n    email: str | None = None\\n\\n\\nclass UserUpdate(BaseModel):\\n    name: str | None = None\\n    email: str | None = None\\n\\n\\nclass UserRead(BaseModel):\\n    id: int\\n    name: str\\n    email: str | None = None\\n    created_at: datetime\\n\\n    class Config:\\n        orm_mode = True\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pydantic-schema",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pydantic-schema-r06",
+      "run_index": 6,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_create",
+          "user_update",
+          "user_read"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"src/api/users.py\",\"content\":\"from fastapi import APIRouter\\n\\nrouter = APIRouter()\\n\\n\\n@router.get(\\\"/users/{id}\\\")\\nasync def get_user(id: int) -> dict[str, int]:\\n    return {\\\"id\\\": id}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-fastapi-route",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-fastapi-route-r06",
+      "run_index": 6,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "router_get",
+          "path_param",
+          "async_handler"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"tests/unit/test_math_ops.py\",\"content\":\"from utils.math_ops import double\\n\\n\\ndef test_double_returns_twice_value():\\n    assert double(21) == 42\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pytest-test",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pytest-test-r06",
+      "run_index": 6,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "imports_double",
+          "assertion",
+          "test_function"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 899,
+      "execution_mode": "llm",
+      "log_tail": "ateId(),\\n    name,\\n    description:\\n      typeof body.description === \\\"string\\\" && body.description.trim()\\n        ? body.description.trim()\\n        : undefined,\\n    createdAt: now,\\n    updatedAt: now,\\n  };\\n\\n  units.push(unit);\\n\\n  return Response.json({ unit }, { status: 201 });\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-route",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-route-r06",
+      "run_index": 6,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "typescript_compile",
+          "route_runtime"
+        ],
+        "log": "GET did not return a JSON array",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 3,
+      "execution_mode": "llm",
+      "log_tail": "y-3 text-sm\\\">{unit.bathrooms ?? \\\"\u2014\\\"}</td>\\n                    <td className=\\\"px-4 py-3 text-sm\\\">{unit.owner_name ?? \\\"\u2014\\\"}</td>\\n                  </tr>\\n                ))}\\n              </tbody>\\n            </table>\\n          </div>\\n        )}\\n      </section>\\n    </main>\\n  );\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-page",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-page-r06",
+      "run_index": 6,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "async_page_component"
+        ],
+        "log": "missing generated page checks: create_form, crud_page_marker, list_render",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "tp.StatusBadRequest, gin.H{\\\"error\\\": \\\"invalid condo unit id\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tunit, ok := service.Get(id)\\n\\t\\tif !ok {\\n\\t\\t\\tc.JSON(http.StatusNotFound, gin.H{\\\"error\\\": \\\"condo unit not found\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tc.JSON(http.StatusOK, gin.H{\\\"data\\\": unit})\\n\\t}\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "go-gin-crud",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-go-gin-crud-r06",
+      "run_index": 6,
+      "stack": "go-gin",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "package_http",
+          "gin_import",
+          "router_ctor",
+          "route_prefix",
+          "json_response"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "), Method::DELETE, \\\"/condo_units/1\\\").await;\\n        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);\\n\\n        let missing_response = send_empty(app.clone(), Method::GET, \\\"/condo_units/1\\\").await;\\n        assert_eq!(missing_response.status(), StatusCode::NOT_FOUND);\\n    }\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "rust-axum-crud",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-rust-axum-crud-r06",
+      "run_index": 6,
+      "stack": "rust-axum",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "axum_import",
+          "item_type",
+          "router",
+          "route_prefix"
+        ],
+        "log": "missing markers: route_test",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": " return response()->json([]);\\n    });\\n\\n    Route::post('/', function (Request $request) {\\n        return response()->json($request->all(), 201);\\n    });\\n\\n    Route::get('/{condo_unit}', function (string $condo_unit) {\\n        return response()->json(['id' => $condo_unit]);\\n    });\\n});\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "php-laravel-routes",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-php-laravel-routes-r06",
+      "run_index": 6,
+      "stack": "php-laravel",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "php_open",
+          "created_status"
+        ],
+        "log": "missing markers: json_response, route_get, route_post",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "rc/db/models.py\",\"content\":\"from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column\\n\\n\\nclass Base(DeclarativeBase):\\n    pass\\n\\n\\nclass User(Base):\\n    __tablename__ = \\\"users\\\"\\n\\n    id: Mapped[int] = mapped_column(primary_key=True)\\n    name: Mapped[str]\\n    email: Mapped[str]\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-orm-field",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-orm-field-r07",
+      "run_index": 7,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_class",
+          "email_field",
+          "mapped_type"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": " name: str\\n    email: str | None = None\\n\\n\\nclass UserUpdate(BaseModel):\\n    name: str | None = None\\n    email: str | None = None\\n\\n\\nclass UserRead(BaseModel):\\n    id: int\\n    name: str\\n    email: str | None = None\\n    created_at: datetime\\n\\n    class Config:\\n        orm_mode = True\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pydantic-schema",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pydantic-schema-r07",
+      "run_index": 7,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_create",
+          "user_update",
+          "user_read"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"src/api/users.py\",\"content\":\"from fastapi import APIRouter\\n\\nrouter = APIRouter()\\n\\n\\n@router.get(\\\"/users/{id}\\\")\\nasync def get_user(id: int) -> dict[str, int]:\\n    return {\\\"id\\\": id}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-fastapi-route",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-fastapi-route-r07",
+      "run_index": 7,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "router_get",
+          "path_param",
+          "async_handler"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"tests/unit/test_math_ops.py\",\"content\":\"from utils.math_ops import double\\n\\n\\ndef test_double_returns_twice_value():\\n    assert double(21) == 42\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pytest-test",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pytest-test-r07",
+      "run_index": 7,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "imports_double",
+          "assertion",
+          "test_function"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 830,
+      "execution_mode": "llm",
+      "log_tail": "ateId(),\\n    name,\\n    description:\\n      typeof body.description === \\\"string\\\" && body.description.trim()\\n        ? body.description.trim()\\n        : undefined,\\n    createdAt: now,\\n    updatedAt: now,\\n  };\\n\\n  units.push(unit);\\n\\n  return Response.json({ unit }, { status: 201 });\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-route",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-route-r07",
+      "run_index": 7,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "typescript_compile",
+          "route_runtime"
+        ],
+        "log": "GET did not return a JSON array",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "y-3 text-sm\\\">{unit.bathrooms ?? \\\"\u2014\\\"}</td>\\n                    <td className=\\\"px-4 py-3 text-sm\\\">{unit.owner_name ?? \\\"\u2014\\\"}</td>\\n                  </tr>\\n                ))}\\n              </tbody>\\n            </table>\\n          </div>\\n        )}\\n      </section>\\n    </main>\\n  );\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-page",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-page-r07",
+      "run_index": 7,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "async_page_component"
+        ],
+        "log": "missing generated page checks: create_form, crud_page_marker, list_render",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 3,
+      "execution_mode": "llm",
+      "log_tail": "tp.StatusBadRequest, gin.H{\\\"error\\\": \\\"invalid condo unit id\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tunit, ok := service.Get(id)\\n\\t\\tif !ok {\\n\\t\\t\\tc.JSON(http.StatusNotFound, gin.H{\\\"error\\\": \\\"condo unit not found\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tc.JSON(http.StatusOK, gin.H{\\\"data\\\": unit})\\n\\t}\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "go-gin-crud",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-go-gin-crud-r07",
+      "run_index": 7,
+      "stack": "go-gin",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "package_http",
+          "gin_import",
+          "router_ctor",
+          "route_prefix",
+          "json_response"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "), Method::DELETE, \\\"/condo_units/1\\\").await;\\n        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);\\n\\n        let missing_response = send_empty(app.clone(), Method::GET, \\\"/condo_units/1\\\").await;\\n        assert_eq!(missing_response.status(), StatusCode::NOT_FOUND);\\n    }\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "rust-axum-crud",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-rust-axum-crud-r07",
+      "run_index": 7,
+      "stack": "rust-axum",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "axum_import",
+          "item_type",
+          "router",
+          "route_prefix"
+        ],
+        "log": "missing markers: route_test",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": " return response()->json([]);\\n    });\\n\\n    Route::post('/', function (Request $request) {\\n        return response()->json($request->all(), 201);\\n    });\\n\\n    Route::get('/{condo_unit}', function (string $condo_unit) {\\n        return response()->json(['id' => $condo_unit]);\\n    });\\n});\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "php-laravel-routes",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-php-laravel-routes-r07",
+      "run_index": 7,
+      "stack": "php-laravel",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "php_open",
+          "created_status"
+        ],
+        "log": "missing markers: json_response, route_get, route_post",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "rc/db/models.py\",\"content\":\"from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column\\n\\n\\nclass Base(DeclarativeBase):\\n    pass\\n\\n\\nclass User(Base):\\n    __tablename__ = \\\"users\\\"\\n\\n    id: Mapped[int] = mapped_column(primary_key=True)\\n    name: Mapped[str]\\n    email: Mapped[str]\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-orm-field",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-orm-field-r08",
+      "run_index": 8,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_class",
+          "email_field",
+          "mapped_type"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": " name: str\\n    email: str | None = None\\n\\n\\nclass UserUpdate(BaseModel):\\n    name: str | None = None\\n    email: str | None = None\\n\\n\\nclass UserRead(BaseModel):\\n    id: int\\n    name: str\\n    email: str | None = None\\n    created_at: datetime\\n\\n    class Config:\\n        orm_mode = True\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pydantic-schema",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pydantic-schema-r08",
+      "run_index": 8,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_create",
+          "user_update",
+          "user_read"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"src/api/users.py\",\"content\":\"from fastapi import APIRouter\\n\\nrouter = APIRouter()\\n\\n\\n@router.get(\\\"/users/{id}\\\")\\nasync def get_user(id: int) -> dict[str, int]:\\n    return {\\\"id\\\": id}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-fastapi-route",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-fastapi-route-r08",
+      "run_index": 8,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "router_get",
+          "path_param",
+          "async_handler"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"tests/unit/test_math_ops.py\",\"content\":\"from utils.math_ops import double\\n\\n\\ndef test_double_returns_twice_value():\\n    assert double(21) == 42\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pytest-test",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pytest-test-r08",
+      "run_index": 8,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "imports_double",
+          "assertion",
+          "test_function"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 874,
+      "execution_mode": "llm",
+      "log_tail": "ateId(),\\n    name,\\n    description:\\n      typeof body.description === \\\"string\\\" && body.description.trim()\\n        ? body.description.trim()\\n        : undefined,\\n    createdAt: now,\\n    updatedAt: now,\\n  };\\n\\n  units.push(unit);\\n\\n  return Response.json({ unit }, { status: 201 });\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-route",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-route-r08",
+      "run_index": 8,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "typescript_compile",
+          "route_runtime"
+        ],
+        "log": "GET did not return a JSON array",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "y-3 text-sm\\\">{unit.bathrooms ?? \\\"\u2014\\\"}</td>\\n                    <td className=\\\"px-4 py-3 text-sm\\\">{unit.owner_name ?? \\\"\u2014\\\"}</td>\\n                  </tr>\\n                ))}\\n              </tbody>\\n            </table>\\n          </div>\\n        )}\\n      </section>\\n    </main>\\n  );\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-page",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-page-r08",
+      "run_index": 8,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "async_page_component"
+        ],
+        "log": "missing generated page checks: create_form, crud_page_marker, list_render",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "tp.StatusBadRequest, gin.H{\\\"error\\\": \\\"invalid condo unit id\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tunit, ok := service.Get(id)\\n\\t\\tif !ok {\\n\\t\\t\\tc.JSON(http.StatusNotFound, gin.H{\\\"error\\\": \\\"condo unit not found\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tc.JSON(http.StatusOK, gin.H{\\\"data\\\": unit})\\n\\t}\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "go-gin-crud",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-go-gin-crud-r08",
+      "run_index": 8,
+      "stack": "go-gin",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "package_http",
+          "gin_import",
+          "router_ctor",
+          "route_prefix",
+          "json_response"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "), Method::DELETE, \\\"/condo_units/1\\\").await;\\n        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);\\n\\n        let missing_response = send_empty(app.clone(), Method::GET, \\\"/condo_units/1\\\").await;\\n        assert_eq!(missing_response.status(), StatusCode::NOT_FOUND);\\n    }\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "rust-axum-crud",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-rust-axum-crud-r08",
+      "run_index": 8,
+      "stack": "rust-axum",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "axum_import",
+          "item_type",
+          "router",
+          "route_prefix"
+        ],
+        "log": "missing markers: route_test",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": " return response()->json([]);\\n    });\\n\\n    Route::post('/', function (Request $request) {\\n        return response()->json($request->all(), 201);\\n    });\\n\\n    Route::get('/{condo_unit}', function (string $condo_unit) {\\n        return response()->json(['id' => $condo_unit]);\\n    });\\n});\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "php-laravel-routes",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-php-laravel-routes-r08",
+      "run_index": 8,
+      "stack": "php-laravel",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "php_open",
+          "created_status"
+        ],
+        "log": "missing markers: json_response, route_get, route_post",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "rc/db/models.py\",\"content\":\"from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column\\n\\n\\nclass Base(DeclarativeBase):\\n    pass\\n\\n\\nclass User(Base):\\n    __tablename__ = \\\"users\\\"\\n\\n    id: Mapped[int] = mapped_column(primary_key=True)\\n    name: Mapped[str]\\n    email: Mapped[str]\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-orm-field",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-orm-field-r09",
+      "run_index": 9,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_class",
+          "email_field",
+          "mapped_type"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": " name: str\\n    email: str | None = None\\n\\n\\nclass UserUpdate(BaseModel):\\n    name: str | None = None\\n    email: str | None = None\\n\\n\\nclass UserRead(BaseModel):\\n    id: int\\n    name: str\\n    email: str | None = None\\n    created_at: datetime\\n\\n    class Config:\\n        orm_mode = True\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pydantic-schema",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pydantic-schema-r09",
+      "run_index": 9,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_create",
+          "user_update",
+          "user_read"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"src/api/users.py\",\"content\":\"from fastapi import APIRouter\\n\\nrouter = APIRouter()\\n\\n\\n@router.get(\\\"/users/{id}\\\")\\nasync def get_user(id: int) -> dict[str, int]:\\n    return {\\\"id\\\": id}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-fastapi-route",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-fastapi-route-r09",
+      "run_index": 9,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "router_get",
+          "path_param",
+          "async_handler"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"tests/unit/test_math_ops.py\",\"content\":\"from utils.math_ops import double\\n\\n\\ndef test_double_returns_twice_value():\\n    assert double(21) == 42\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pytest-test",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pytest-test-r09",
+      "run_index": 9,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "imports_double",
+          "assertion",
+          "test_function"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 804,
+      "execution_mode": "llm",
+      "log_tail": "ateId(),\\n    name,\\n    description:\\n      typeof body.description === \\\"string\\\" && body.description.trim()\\n        ? body.description.trim()\\n        : undefined,\\n    createdAt: now,\\n    updatedAt: now,\\n  };\\n\\n  units.push(unit);\\n\\n  return Response.json({ unit }, { status: 201 });\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-route",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-route-r09",
+      "run_index": 9,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "typescript_compile",
+          "route_runtime"
+        ],
+        "log": "GET did not return a JSON array",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 3,
+      "execution_mode": "llm",
+      "log_tail": "y-3 text-sm\\\">{unit.bathrooms ?? \\\"\u2014\\\"}</td>\\n                    <td className=\\\"px-4 py-3 text-sm\\\">{unit.owner_name ?? \\\"\u2014\\\"}</td>\\n                  </tr>\\n                ))}\\n              </tbody>\\n            </table>\\n          </div>\\n        )}\\n      </section>\\n    </main>\\n  );\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-page",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-page-r09",
+      "run_index": 9,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "async_page_component"
+        ],
+        "log": "missing generated page checks: create_form, crud_page_marker, list_render",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 3,
+      "execution_mode": "llm",
+      "log_tail": "tp.StatusBadRequest, gin.H{\\\"error\\\": \\\"invalid condo unit id\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tunit, ok := service.Get(id)\\n\\t\\tif !ok {\\n\\t\\t\\tc.JSON(http.StatusNotFound, gin.H{\\\"error\\\": \\\"condo unit not found\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tc.JSON(http.StatusOK, gin.H{\\\"data\\\": unit})\\n\\t}\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "go-gin-crud",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-go-gin-crud-r09",
+      "run_index": 9,
+      "stack": "go-gin",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "package_http",
+          "gin_import",
+          "router_ctor",
+          "route_prefix",
+          "json_response"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "), Method::DELETE, \\\"/condo_units/1\\\").await;\\n        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);\\n\\n        let missing_response = send_empty(app.clone(), Method::GET, \\\"/condo_units/1\\\").await;\\n        assert_eq!(missing_response.status(), StatusCode::NOT_FOUND);\\n    }\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "rust-axum-crud",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-rust-axum-crud-r09",
+      "run_index": 9,
+      "stack": "rust-axum",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "axum_import",
+          "item_type",
+          "router",
+          "route_prefix"
+        ],
+        "log": "missing markers: route_test",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": " return response()->json([]);\\n    });\\n\\n    Route::post('/', function (Request $request) {\\n        return response()->json($request->all(), 201);\\n    });\\n\\n    Route::get('/{condo_unit}', function (string $condo_unit) {\\n        return response()->json(['id' => $condo_unit]);\\n    });\\n});\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "php-laravel-routes",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-php-laravel-routes-r09",
+      "run_index": 9,
+      "stack": "php-laravel",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "php_open",
+          "created_status"
+        ],
+        "log": "missing markers: json_response, route_get, route_post",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "rc/db/models.py\",\"content\":\"from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column\\n\\n\\nclass Base(DeclarativeBase):\\n    pass\\n\\n\\nclass User(Base):\\n    __tablename__ = \\\"users\\\"\\n\\n    id: Mapped[int] = mapped_column(primary_key=True)\\n    name: Mapped[str]\\n    email: Mapped[str]\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-orm-field",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-orm-field-r10",
+      "run_index": 10,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_class",
+          "email_field",
+          "mapped_type"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": " name: str\\n    email: str | None = None\\n\\n\\nclass UserUpdate(BaseModel):\\n    name: str | None = None\\n    email: str | None = None\\n\\n\\nclass UserRead(BaseModel):\\n    id: int\\n    name: str\\n    email: str | None = None\\n    created_at: datetime\\n\\n    class Config:\\n        orm_mode = True\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pydantic-schema",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pydantic-schema-r10",
+      "run_index": 10,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "user_create",
+          "user_update",
+          "user_read"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"src/api/users.py\",\"content\":\"from fastapi import APIRouter\\n\\nrouter = APIRouter()\\n\\n\\n@router.get(\\\"/users/{id}\\\")\\nasync def get_user(id: int) -> dict[str, int]:\\n    return {\\\"id\\\": id}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-fastapi-route",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-fastapi-route-r10",
+      "run_index": 10,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "router_get",
+          "path_param",
+          "async_handler"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "{\"path\":\"tests/unit/test_math_ops.py\",\"content\":\"from utils.math_ops import double\\n\\n\\ndef test_double_returns_twice_value():\\n    assert double(21) == 42\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "python-pytest-test",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-python-pytest-test-r10",
+      "run_index": 10,
+      "stack": "py-fastapi",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "imports_double",
+          "assertion",
+          "test_function"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 850,
+      "execution_mode": "llm",
+      "log_tail": "ateId(),\\n    name,\\n    description:\\n      typeof body.description === \\\"string\\\" && body.description.trim()\\n        ? body.description.trim()\\n        : undefined,\\n    createdAt: now,\\n    updatedAt: now,\\n  };\\n\\n  units.push(unit);\\n\\n  return Response.json({ unit }, { status: 201 });\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-route",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-route-r10",
+      "run_index": 10,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "typescript_compile",
+          "route_runtime"
+        ],
+        "log": "GET did not return a JSON array",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "y-3 text-sm\\\">{unit.bathrooms ?? \\\"\u2014\\\"}</td>\\n                    <td className=\\\"px-4 py-3 text-sm\\\">{unit.owner_name ?? \\\"\u2014\\\"}</td>\\n                  </tr>\\n                ))}\\n              </tbody>\\n            </table>\\n          </div>\\n        )}\\n      </section>\\n    </main>\\n  );\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "typescript-next-page",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-typescript-next-page-r10",
+      "run_index": 10,
+      "stack": "ts-nextjs",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "async_page_component"
+        ],
+        "log": "missing generated page checks: create_form, crud_page_marker, list_render",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 2,
+      "execution_mode": "llm",
+      "log_tail": "tp.StatusBadRequest, gin.H{\\\"error\\\": \\\"invalid condo unit id\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tunit, ok := service.Get(id)\\n\\t\\tif !ok {\\n\\t\\t\\tc.JSON(http.StatusNotFound, gin.H{\\\"error\\\": \\\"condo unit not found\\\"})\\n\\t\\t\\treturn\\n\\t\\t}\\n\\n\\t\\tc.JSON(http.StatusOK, gin.H{\\\"data\\\": unit})\\n\\t}\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 0,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "go-gin-crud",
+      "passed": true,
+      "project_dir": "$WORK_DIR/projects/llm-go-gin-crud-r10",
+      "run_index": 10,
+      "stack": "go-gin",
+      "task_passed": true,
+      "validation": {
+        "checks": [
+          "package_http",
+          "gin_import",
+          "router_ctor",
+          "route_prefix",
+          "json_response"
+        ],
+        "log": "generated file contains required structural markers",
+        "passed": true
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": "), Method::DELETE, \\\"/condo_units/1\\\").await;\\n        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);\\n\\n        let missing_response = send_empty(app.clone(), Method::GET, \\\"/condo_units/1\\\").await;\\n        assert_eq!(missing_response.status(), StatusCode::NOT_FOUND);\\n    }\\n}\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "rust-axum-crud",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-rust-axum-crud-r10",
+      "run_index": 10,
+      "stack": "rust-axum",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "axum_import",
+          "item_type",
+          "router",
+          "route_prefix"
+        ],
+        "log": "missing markers: route_test",
+        "passed": false
+      }
+    },
+    {
+      "duration_ms": 1,
+      "execution_mode": "llm",
+      "log_tail": " return response()->json([]);\\n    });\\n\\n    Route::post('/', function (Request $request) {\\n        return response()->json($request->all(), 201);\\n    });\\n\\n    Route::get('/{condo_unit}', function (string $condo_unit) {\\n        return response()->json(['id' => $condo_unit]);\\n    });\\n});\\n\"}\n",
+      "metrics": {
+        "tasks_codegen": 0,
+        "tasks_failed": 1,
+        "tasks_llm": 1,
+        "tasks_skipped": 0,
+        "tasks_total": 1
+      },
+      "name": "php-laravel-routes",
+      "passed": false,
+      "project_dir": "$WORK_DIR/projects/llm-php-laravel-routes-r10",
+      "run_index": 10,
+      "stack": "php-laravel",
+      "task_passed": false,
+      "validation": {
+        "checks": [
+          "php_open",
+          "created_status"
+        ],
+        "log": "missing markers: json_response, route_get, route_post",
+        "passed": false
+      }
+    }
+  ],
+  "environment": {
+    "model": "codex-cli/default",
+    "platform": "Windows-11-10.0.22631-SP0",
+    "python": "3.14.3"
+  },
+  "include_typescript": true,
+  "repeat": 10,
+  "scope": "equivalent LLM scratch-task baseline with mechanical executors disabled; intended as input to --llm-baseline-json",
+  "source": "captured by bench/run_scratch_codegen.py --capture-llm-baseline-json",
+  "summary": {
+    "avg_llm_ms": 1173,
+    "elapsed_s": 109.521,
+    "failed_cases": 40,
+    "model": "codex-cli/default",
+    "pass_rate": 0.5556,
+    "passed_cases": 50,
+    "release_gates": {
+      "baseline_has_successful_cases": true,
+      "baseline_latency_measured": true,
+      "baseline_present": true
+    },
+    "total_cases": 90
+  },
+  "work_dir": "$WORK_DIR",
+  "work_dir_owned_by_runner": false
+}

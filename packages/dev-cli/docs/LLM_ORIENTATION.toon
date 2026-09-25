@@ -1,0 +1,237 @@
+# Simplicio Dev CLI orientation cache. Re-read canonical sources and specific --help before acting.
+[meta]
+kind=simplicio-dev-cli-llm-orientation|purpose=cache_only|execution_contract=not_a_contract|format=sectioned-key-value-lines
+language=English|determinism=ordered_sections_and_records|authority=canonical_sources_plus_observed_help
+scope=project_orientation|not_a_replacement_for=AGENTS_CLAUDE_help_and_contracts
+freshness=commit_and_source_sha256_bound|revalidate=git_revision_help_and_dependency_state
+
+[project]
+name=simplicio-dev-cli|package=simplicio-cli|role=deterministic_edit_validate_diagnostics_adapter
+checkout_version=0.18.12|version_source=pyproject.toml_and_simplicio_init
+installed_adapter_version=0.18.13|version_source=simplicio-dev-cli --version --json|environment=/opt/simplicio-loop
+python_requirement=3.10_plus|observed_python=3.14.4
+checkout_commit=6fe1e00b3fc4b30557cde21b3f8b3c601115b594|worker_branch=docs/llm-orientation-dev-cli-20260913
+default_branch=main|default_branch_observation=origin_HEAD_points_to_origin_main
+repository=https://github.com/wesleysimplicio/simplicio-dev-cli.git
+canonical_entrypoint=simplicio-dev-cli|python_adapter_alias=simplicio-py|reserved_runtime=simplicio
+runtime_observed=3.8.47|fast_observed=2.0.33|mapper_observed=0.26.31
+
+[source_of_truth]
+source=AGENTS.md|path=AGENTS.md|sha256=f8e05cc9d9ff00850f1940327230d6d4cf42aafe218079abebc792ab7ce0162d|authority=canonical|role=project_instructions
+source=CLAUDE.md|path=CLAUDE.md|sha256=20bb8f45b7afc899fb17adde725aad62ada538e4212551a591acc806c26144bf|authority=canonical|role=project_instructions
+source=LLM_OPERATING_INSTRUCTIONS|path=docs/LLM_OPERATING_INSTRUCTIONS.md|sha256=27456e246670149896697c97c33b3f185f9351588011982914079598efc0ba5d|authority=canonical|role=active_english_instructions
+source=WORKER_ARTIFACT_CONTRACT|path=docs/WORKER_ARTIFACT_CONTRACT.md|sha256=1aa0d645b7b27873eabcc7c601cda06c1bfed4d2c88345c375633dae788b3eaf|authority=canonical|role=artifact_provenance
+source=CLI_COMMANDS|path=docs/CLI_COMMANDS.md|sha256=4252b51ff3449f6296ab363ef26dc8af5ebfb3af33365193d0ab35496fe49b31|authority=canonical|role=command_map
+source=DETERMINISTIC_EXECUTION|path=docs/DETERMINISTIC_EXECUTION.md|sha256=9fc348075c9771495f8ebb66440db0a1e2f1367ce35f4454c15cc9a7eadc0acd|authority=canonical|role=execution_boundary
+source=EXECUTION_MODES|path=docs/features/execution-modes.md|sha256=589aad488313191f2e5199ee7dac75a825c62d8b9ec17ea245014965843889cb|authority=canonical|role=mode_negotiation
+source=BLOCKED_PRECONDITIONS|path=docs/blocked-preconditions.md|sha256=5443972fc22d41ca86f57e2bb5f65706bcd616c001abea38d481d827e8aed60c|authority=canonical|role=fail_closed_receipts
+source=PATCH_RECEIPTS|path=docs/patch-receipts.md|sha256=d9633b481ba760248efda8c1a0908e62063ba0c46531ed00c6c1006aa7208c06|authority=canonical|role=patch_evidence
+source=EVIDENCE_LEDGER|path=docs/evidence-ledger.md|sha256=8b985b9c88ee718bfa5368cf594f95e04fdfc77a609f6b2c95ce08caf7670e97|authority=canonical|role=artifact_revalidation
+source=CHANGESET_V2|path=docs/changeset-v2.md|sha256=fad1e30913feb2adb5f71068ad611af4cb41c112940189cbb0f104072edc5ab8|authority=canonical|role=fast_adapter
+source=EDIT_SCAFFOLD|path=docs/deterministic-edit-scaffold.md|sha256=1440c879263fe4c669f334bb261bc8d8839889d299cf0e0fd0fab3601148d378|authority=canonical|role=edit_kernel
+source=FAST|path=docs/simplicio-fast.md|sha256=418136782f43dd93b3f468926c101ed1070d656be3732231429c7cc953f1cf93|authority=canonical|role=optional_acceleration
+source=DEV_CLI_SKILL|path=skills/simplicio-dev-cli/SKILL.md|sha256=0b7a74700cfdd1fa80da918b9cdf1d59e2bbc9fb0cf213f723e6010eeed31755|authority=canonical|role=component_workflow
+source=PRISM_SKILL|path=skills/simplicio-prism/SKILL.md|sha256=504207c562b725f96069bd8a62db3272b3076f1b7b07e2133e69e2591840c1fb|authority=canonical|role=capability_routing
+source=CLI_SOURCE|path=simplicio/cli.py|sha256=5d8ea93c0a49ba1f24b7578be124e6315ad928689a94acbfd559e91921780616|authority=canonical|role=parser_dispatch
+source=TASK_SOURCE|path=simplicio/commands/task.py|sha256=5daabe81410f8b4cc6ba6cb7fd9e8d03ad180d0f16b72cda00ccc532701b839d|authority=canonical|role=task_exit_and_receipt_behavior
+source=INTAKE_SOURCE|path=simplicio/commands/intake.py|sha256=6d2c05781e5cb2af0851eded388fcdce5329ac08d91935cdde4550a43cd5292c|authority=canonical|role=intake_behavior
+source=RUNTIME_CONTRACT_SOURCE|path=simplicio/runtime_contracts.py|sha256=23b3a833b6492e7d7bea8595ab8b0e5f7a11617458b7286a879dae806d245936|authority=canonical|role=version_and_boundary_contract
+source=PACKAGE_METADATA|path=pyproject.toml|sha256=5a8c932958a92cb8011ed4b321826877a5c8b34eac4045383b20b3252f1f4369|authority=canonical|role=package_and_test_configuration
+source=RUNTIME_EFFECT_SINK|path=docs/runtime-effect-sink.md|sha256=ea146d50f1274517180690d5bdb10b14405a009c99b194e659f95ef0e9788337|authority=canonical|role=runtime_effect_boundary
+source=PLAN_COMPILER|path=docs/plan-compiler.md|sha256=595de42bac57a53c6977b8e831629f8cc2c0793f9084e81b206c0a53cc01fe82|authority=canonical|role=plan_and_retry_ownership
+source=MULTI_TASK_BATCHES|path=docs/multi-task-batches.md|sha256=80bbda30a4336d146eebe956f84a5ea3b1b91baba10d4900b863c8a3a8b6359c|authority=canonical|role=task_dag_state
+source=MEMORY_HANDOFF|path=docs/features/memory-handoff.md|sha256=0476879e7a272bc287ac9083d988b982d7c4264f1d1811fa00aab48407a44885|authority=canonical|role=deterministic_memory
+source=ARCHITECTURE_MAP|path=docs/architecture-map.md|sha256=582c0f7318e4d6dd046b80e9c633bec1b78bf5ab183faeada6e45257bebeac36|authority=canonical|role=request_path_and_integrations
+
+[skills]
+skill=simplicio-prism|path=skills/simplicio-prism/SKILL.md|sha256=504207c562b725f96069bd8a62db3272b3076f1b7b07e2133e69e2591840c1fb|authority=canonical|use=classify_and_route_without_mutation
+skill=simplicio-dev-cli|path=skills/simplicio-dev-cli/SKILL.md|sha256=0b7a74700cfdd1fa80da918b9cdf1d59e2bbc9fb0cf213f723e6010eeed31755|authority=canonical|use=execute_edit_validate_diagnostics
+skill=simplicio-mapper|path=.simplicio/skills/simplicio-mapper/SKILL.md|sha256=b667a6659af563760f7f72a4c1a87a25cf3964f13cbd48477d1acf046da97b4e|authority=cached|use=survey_snapshot_context_selection
+skill=simplicio-fast|path=.simplicio/skills/simplicio-fast/SKILL.md|sha256=881bda0275fc96c3ea2e469948fff3048953404e24fc6d2c7d019d65f44876b1|authority=cached|use=bounded_accelerated_retrieval_only
+skill=simplicio-loop|path=.simplicio/skills/simplicio-loop/SKILL.md|sha256=129b45414b1a1a3a96a8024c10054197064cb27a68fc55eb0357550308d59e4d|authority=cached|use=orchestration_retry_convergence
+skill=simplicio-runtime|path=.simplicio/skills/simplicio-runtime/SKILL.md|sha256=16cc6610c09f9b7b071d82c019808047e451989c7a1707f79432f2eec1066ef6|authority=cached|use=gates_checkpoints_effects_receipts
+skill=llm-verification|path=.skills/llm-verification/SKILL.md|sha256=bda8dc5ebc6c1b096d90add8e620cb35a7ddd59d9fd373a01e4d2b7aa03000c7|authority=local|use=orthogonal_adversarial_post_green_check
+skill=conventional-commits|path=.skills/conventional-commits/SKILL.md|sha256=c2e13301791dfadd06b03fe9d0333b3ca0af5ee9a7e9a5b2f49f0769e315291d|authority=local|use=commit_message_format
+
+[commands]
+command=simplicio-dev-cli --help|status=observed|exit=0|source=help_probe
+command=simplicio-dev-cli --version|status=observed|exit=0|result=simplicio-py 0.18.13
+command=simplicio-dev-cli --version --json|status=observed|exit=0|result=simplicio.dev-cli.version/v1
+command=python3 -m simplicio.cli --help|status=observed|exit=0|source=checkout_fallback
+command=simplicio-py|status=not_on_path|exit=127|note=canonical_python_adapter_alias_unavailable
+command=simplicio-cli|status=not_on_path|exit=127|note=package_alias_unavailable
+command=simplicio-dev-cli task --help|status=observed|exit=0|surface=task
+command=simplicio-dev-cli intake --help|status=observed|exit=0|surface=intake
+command=simplicio-dev-cli run --help|status=observed|exit=0|surface=run
+command=simplicio-dev-cli proposal --help|status=observed|exit=0|surface=proposal
+command=simplicio-dev-cli edit --help|status=observed|exit=0|surface=edit
+command=simplicio-dev-cli mechanical-edit --help|status=observed|exit=0|surface=mechanical_edit
+command=simplicio-dev-cli changeset --help|status=observed|exit=0|surface=changeset
+command=simplicio-dev-cli test run --help|status=observed|exit=0|surface=test
+command=simplicio-dev-cli fast capabilities --help|status=observed|exit=0|surface=fast
+command=simplicio-dev-cli fast doctor --help|status=observed|exit=0|surface=fast
+command=simplicio-dev-cli runtime capabilities --help|status=observed|exit=0|surface=runtime
+command=simplicio-dev-cli runtime acquire-coordinator-context --help|status=observed|exit=0|surface=runtime
+command=simplicio-dev-cli memory recall --help|status=observed|exit=0|surface=memory
+command=simplicio-dev-cli memory validate --help|status=observed|exit=0|surface=memory
+command=simplicio-dev-cli memory handoff --help|status=observed|exit=0|surface=memory
+command=simplicio-dev-cli claims check --help|status=observed|exit=0|surface=claims
+command=simplicio-dev-cli release-train verify --help|status=observed|exit=0|surface=release_train
+command=simplicio-dev-cli verify-only --help|status=unknown_command|exit=2|note=flag_only_not_subcommand
+command=simplicio-dev-cli dry-run --help|status=unknown_command|exit=2|note=flag_only_not_subcommand
+command=python3 -m simplicio.cli verify-only --help|status=unknown_command|exit=2|note=flag_only_not_subcommand
+command=python3 -m simplicio.cli dry-run --help|status=unknown_command|exit=2|note=flag_only_not_subcommand
+command=simplicio-dev-cli task <goal> --target <path> --dry-run-task --json|status=real_flag|effect=generate_only_without_apply_or_test
+command=simplicio-dev-cli task <goal> --verify-only --json|status=real_flag|effect=run_SIMPLICIO_TEST_CMD_without_model_or_mutation
+command=simplicio-dev-cli task --verify-only --json with test=true|status=verified|exit=0|observed=wrapper_probe
+command=simplicio-dev-cli task --verify-only --json with test=false|status=failed|exit=1|observed=wrapper_probe
+command=simplicio-dev-cli proposal <goal> --dry-run-task --json|status=real_flag|effect=non_mutating_change_proposal
+command=simplicio-dev-cli intake <text> --validate-only --json|status=real_flag|effect=validate_and_wrap_TaskSpec
+command=simplicio-dev-cli intake <text> --contract --execution-mode --json|status=real_flag|effect=compile_and_gate_ExecutionContract
+command=simplicio-dev-cli intake <text> --plan-only --json|status=real_flag|effect=preview_without_dispatch_or_mutation
+command=simplicio-dev-cli intake --print-contract-example --json|status=real_flag|effect=print_example_and_exit
+command=simplicio-dev-cli changeset --plan <path> --json|status=real_flag|effect=dry_run_default
+command=simplicio-dev-cli changeset --plan <path> --apply --json|status=real_flag|effect=apply_then_validate_atomically
+command=simplicio-dev-cli fast capabilities --json --offline|status=real_flag|effect=offline_capability_report
+command=simplicio-dev-cli fast doctor --json --offline|status=real_flag|effect=offline_readiness_probe
+command=simplicio-dev-cli test run --cmd pytest --json|status=real_flag|effect=run_real_test_process
+surface=top_level|items=index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,release-train,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory|source=CLI_help_and_docs_CLI_COMMANDS
+surface=nested|command=fast|items=capabilities,doctor|source=help
+surface=nested|command=runtime|items=doctor,verify,capabilities,acquire-coordinator-context|source=help
+surface=nested|command=memory|items=init,store,import,recall,validate,handoff,backup,restore|source=help
+surface=nested|command=claims|items=check,tag,report|source=help
+surface=nested|command=release-train|items=verify,doctor|source=help
+surface=nested|command=test|items=run|source=help
+behavior=help|success_exit=0|argparse_error_exit=2
+behavior=task|success_exit=0|failed_or_blocked_exit=1|invalid_arguments_exit=2
+behavior=intake|success_exit=0|invalid_input_or_gate_exit=2
+behavior=verify_only|success_exit=0|failed_or_blocked_exit=1
+
+[contracts]
+boundary=orientation_pack|status=cache_only|execution_contract=not_defined_here|source=meta
+contract=task_spec|name=simplicio.task-spec/v2|owner=intake|source=simplicio/task_spec.py
+input=intake|sources=text_argument;file;stdin;http_or_https_url|syntax=System_Feature_Type_narrative_or_acceptance_criteria
+input=task|requires=goal_and_target_or_one_task_spec|task_spec_input=path_or_stdin|target_scope=bound_paths
+contract=execution|name=simplicio.execution-contract/v1|owner=intake|source=simplicio/execution_contract.py
+contract=task_result|name=simplicio.dev-cli.task-result/v1|owner=task_pipeline|source=simplicio/pipeline_task_result.py
+contract=verification_only|name=simplicio.dev-cli.verification-only/v1|owner=task_command|source=simplicio/commands/task.py
+contract=blocked_precondition|name=simplicio.dev-cli.blocked-precondition/v1|owner=task_pipeline|source=docs/blocked-preconditions.md
+contract=edit_plan|name=simplicio.dev-cli.edit-plan/v1|owner=dev_cli|source=docs/deterministic-edit-scaffold.md
+contract=edit_receipt|name=simplicio.dev-cli.edit-receipt/v1|owner=dev_cli|source=docs/deterministic-edit-scaffold.md
+contract=scaffold_plan|name=simplicio.dev-cli.scaffold-plan/v1|owner=dev_cli|source=docs/deterministic-edit-scaffold.md
+contract=scaffold_receipt|name=simplicio.dev-cli.scaffold-receipt/v1|owner=dev_cli|source=docs/deterministic-edit-scaffold.md
+contract=changeset|name=simplicio.fast.changeset/v2|owner=fast_adapter|source=docs/changeset-v2.md
+contract=changeset_receipt|name=simplicio.fast.changeset-receipt/v2|owner=fast_adapter|source=docs/changeset-v2.md
+contract=context_snapshot|name=simplicio.context-snapshot/v1|owner=mapper|source=docs/features/execution-modes.md
+contract=context_pack|name=simplicio.context-pack/v1|owner=mapper|source=docs/features/execution-modes.md
+contract=execution_context|name=simplicio.execution-context/v1|owner=mapper|source=docs/features/execution-modes.md
+contract=effect_transaction|name=simplicio.effect-transaction/v1|owner=runtime|source=docs/runtime-effect-sink.md
+contract=effect_receipt|name=simplicio.effect-receipt/v1|owner=runtime|source=docs/runtime-effect-sink.md
+contract=evidence_ledger|name=simplicio.dev-cli.evidence-ledger/v1|owner=evidence_ledger|source=docs/evidence-ledger.md
+contract=events|name=simplicio.dev-cli-event/v1|owner=observability|source=AGENTS.md
+contract=plan_dag|name=simplicio.plan-dag/v1|owner=plan_compiler|source=docs/plan-compiler.md
+
+[receipts]
+surface=task_json|name=simplicio.dev-cli.task-result/v1|durability=stdout_json_plus_evidence|status=blocked_or_verified_or_failed
+surface=verification_only|name=simplicio.dev-cli.verification-only/v1|durability=stdout_json|mutation=false|model=false
+surface=blocked_precondition|name=simplicio.dev-cli.blocked-precondition/v1|durability=retained_in_task_result|status=blocked
+surface=patch|name=simplicio.dev-cli.patch-receipt/v1|durability=parser_strategy_and_fingerprint|required_for=patch_success
+surface=edit|name=simplicio.dev-cli.edit-receipt/v1|durability=per_file_hashes_and_mapper_refresh|required_for=edit_proof
+surface=evidence|path=.simplicio/evidence.jsonl|durability=append_only_and_watcher_revalidated|claim_states=MEASURED_or_UNVERIFIED
+surface=events|path=.simplicio/events.jsonl|durability=structured_observability|owner=dev_cli
+surface=runtime_effect|path=.simplicio/runtime-effects|durability=intent_receipt_outcome|unknown_effect=preserve_and_reconcile
+surface=fast|name=simplicio.fast.changeset-receipt/v2|durability=before_after_hashes_and_generation
+surface=task_contract|name=simplicio.execution-contract/v1|durability=frozen_task_contract
+surface=worker_provenance|status=external_only|not_a_product_contract=true
+
+[governors]
+governor=deterministic_boundary|rule=no_model_no_network_no_credentials_required_for_supported_work|failure=llm_execution_disabled
+governor=mapper_first|rule=fresh_bounded_snapshot_before_non_trivial_mutation|failure=survey_degraded_or_blocked
+governor=scope|rule=repository_key_path_scope_snapshot_and_preconditions_required|failure=blocked
+governor=preflight|rule=lock_or_causal_marker_before_every_mutation|failure=preserve_lock_on_ambiguity
+governor=atomicity|rule=stage_before_write_and_rollback_on_failure|failure=ambiguous_or_diverged
+governor=anchors|rule=one_non_empty_anchor_and_exactly_one_occurrence|failure=ambiguous_anchor_or_missing_anchor
+governor=paths|rule=relative_portable_non_escaping_paths_only|failure=invalid_path
+governor=integrated|rule=Runtime_authorizes_EffectTransaction_and_Dev_CLI_does_not_apply_effect|failure=fail_closed
+governor=standalone|rule=explicit_local_lifecycle_and_no_Runtime_claims_in_receipt|failure=route_reason_recorded
+governor=auto|rule=versioned_handshake_and_policy_choose_effective_mode|failure=CONTEXT_REQUIRED_or_AUTO_DEGRADED
+governor=retry|rule=retry_only_declared_transient_classes_and_never_retry_unknown_effect|failure=preserve_lock_and_reconcile
+governor=fast|rule=compatible_fresh_Mapper_snapshot_required_and_stale_index_falls_back|failure=degraded
+governor=loop|rule=orchestration_only_with_one_task_per_slot_by_default|failure=blocked_slot_stays_blocked
+governor=runtime|rule=gates_checkpoints_receipts_and_reconciliation_are_Runtime_owned|failure=unknown_effect
+governor=output|rule=stdout_machine_payload_stderr_diagnostics|failure=transport_corruption
+limit=task_attempts|default=5|override=SIMPLICIO_MAX_ATTEMPTS|invalid_value=default
+limit=intake_url|bytes=2097152|timeout_seconds=10|source=simplicio/commands/intake.py
+limit=test_run|timeout_seconds=120|source=task_test_help
+limit=runtime_payload|bytes=1048576|failure=reject_before_network
+limit=runtime_circuit_breaker|consecutive_failures=3|open_seconds=30
+limit=fast_doctor|ready_exit=0|absent_exit=2|incompatible_exit=3|degraded_exit=4
+
+[tests]
+runner=pytest|testpaths=tests/python;tests/contracts|source=pyproject.toml
+focal=tests/python/test_llm_orientation.py|command=pytest tests/python/test_llm_orientation.py -q|purpose=pack_parse_structure_paths_commands_secrets
+contracts=tests/python/test_task_spec.py;tests/python/test_execution_contract.py;tests/python/test_task_json_contract.py|purpose=TaskSpec_and_task_result_regression
+boundaries=tests/python/test_issue_691_edit_scaffold.py;tests/python/test_evidence_ledger.py;tests/python/test_fast_contracts.py;tests/python/test_mapper_handoff_integration.py|purpose=edit_evidence_fast_mapper_regression
+native_help=python3 -m simplicio.cli --help;python3 -m simplicio.cli task --help;python3 -m simplicio.cli intake --help|purpose=source_checkout_help_probe
+quality=ruff check .;ruff format --check .;mypy simplicio|purpose=repository_quality_gate
+coverage=pytest --cov=simplicio --cov-report=json:coverage.json;python3 scripts/coverage_gate.py --report coverage.json|threshold=85_global_and_90_critical
+
+[workflow]
+step=bootstrap|read=AGENTS.md;CLAUDE.md;active_operating_docs;relevant_skills|stop_if=missing_or_unreadable_contract
+step=survey|mcp=simplicio_map|order=before_memory_and_skills|bounded=true|evidence=ids
+step=recall|mcp=simplicio_memory|order=after_map|match=or|purpose=prior_decisions
+step=skills|mcp=simplicio_skills|order=after_memory|purpose=selected_skill_capsules
+step=route|skill=simplicio-prism|purpose=choose_smallest_capability_set
+step=gate|mcp=simplicio_gate|purpose=classify_mutation_before_source_change
+step=checkpoint|mcp=simplicio_checkpoint|purpose=rollback_point_before_risky_change
+step=prepare|owner=agent|inputs=revision_scope_completion_oracle|output=bounded_plan
+step=execute|owner=dev_cli|inputs=Mapper_snapshot_intent_scope_constraints|output=diff_and_operation_id
+step=validate|owner=dev_cli_or_pytest|inputs=diff_tests_exit_status_evidence|output=proven_or_failed
+step=verify|owner=independent_checker|inputs=real_feature_edge_case_error_path|output=adversarial_record
+step=handoff|owner=Loop_or_Runtime|inputs=durable_receipt_evidence_verdict|rule=partial_blocked_ambiguous_never_success
+
+[handoff]
+mapper=observation_and_context|owns=repository_id_generation_source_tree_id_source_hashes|next=provide_fresh_snapshot_and_selected_context
+fast=optional_acceleration|owns=bounded_indexed_retrieval_only|next=use_only_with_compatible_snapshot_else_fallback_to_mapper
+dev_cli=execution_edit_validate_diagnostics|owns=plan_edit_receipt_scaffold_receipt|next=return_operation_id_diff_tests_evidence_verdict
+loop=runtime_agnostic_orchestration|owns=stages_slots_retry_review_convergence|next=one_task_per_slot_and_preserve_blocked_or_ambiguous
+runtime=governance_and_effects|owns=gate_checkpoint_authorization_effect_application_effect_receipt_reconcile|next=integrated_mode_only_with_validated_inputs
+prism=routing_only|owns=classification_order_cost_evidence_plan|next=never_mutate_or_fabricate_capability
+handoff_order=Mapper_to_Fast_optional_to_Dev_CLI_to_Loop_or_Runtime|reanchor=revision_scope_snapshot_and_hashes
+task_result_fields=operation_id_snapshot_id_pre_effect_effect_post_effect_diff_tests_evidence_file_verdict_retry_history
+blocked_routes=mapper_artifacts;mapper_inspection;context_pack;task_target;provider_or_execution_mode|action=follow_next_surface_and_preserve_receipt
+
+[forbidden]
+rule=do_not_add_provider_credentials|action=fail_closed_and_redact
+rule=do_not_invent_commands|action=rerun_specific_help_and_mark_unknown_alias
+rule=do_not_bypass_mapper_for_non_trivial_mutation|action=survey_first
+rule=do_not_bypass_dev_cli_or_runtime_boundary|action=use_declared_owner
+rule=do_not_treat_fast_cache_as_truth|action=check_snapshot_and_freshness
+rule=do_not_promote_partial_blocked_or_unverified|action=preserve_status
+rule=do_not_retry_unknown_effect|action=reconcile_before_retry
+rule=do_not_use_unsupported_parallel_or_retry_controls|action=keep_command_surface_observed
+rule=do_not_create_second_receipt_or_contract|action=reference_existing_schema_and_path
+rule=do_not_claim_live_cross_repo_evidence|action=label_unverified
+rule=do_not_commit_external_artifacts_or_secrets|action=redact_and_scope
+rule=do_not_read_other_worktrees|action=stay_in_declared_checkout
+
+[known_limits]
+code=artifact_missing|status=blocked|reason=central_bundle_manifest_and_mapper_artifact_digest_not_present
+code=adapter_version_drift|status=partial|reason=checkout_0.18.12_differs_from_installed_0.18.13
+code=mapper_stale_vs_tested|status=UNVERIFIED|reason=installed_0.26.31_tested_0.26.28_declared_range_allows_both
+code=fast_parser_missing|status=partial|reason=fast_capabilities_reports_degraded_and_parser_unavailable
+code=runtime_probe|status=partial|reason=runtime_verify_timeout_exit_1_no_live_receipt_claim
+code=local_python_dependency|status=blocked|reason=python3_module_verify_probe_reported_missing_httpx
+code=setup_placeholders|status=partial|reason=docs_local_setup_contains_unresolved_placeholders
+code=mapper_projection|status=partial|reason=skills_projection_deferred_until_mapper_fast_snapshot
+code=known_status_rule|status=blocked|reason=unknown_or_missing_precondition_is_not_success
+
+[freshness]
+anchor=source_revision|value=6fe1e00b3fc4b30557cde21b3f8b3c601115b594|branch=main
+observed_at=2026-09-13|environment=checkout_plus_installed_dev_cli_wrapper
+version_window=mapper_declared_0.26.28_to_0.27|tested=0.26.28|installed=0.26.31
+bundle=central_authoritative_bundle|status=missing|policy=fail_closed
+fast=version_2.0.33|status=degraded|recheck=simplicio-dev-cli fast doctor --json --offline
+runtime=version_3.8.47|status=probe_not_proven|recheck=simplicio-dev-cli runtime verify --help_then_bounded_probe
+recheck=git_rev_parse_origin_main;sha256_source_records;simplicio-dev-cli --help;simplicio-dev-cli task --help;simplicio-dev-cli intake --help
+expiry=any_revision_scope_version_or_help_change_invalidates_this_cache

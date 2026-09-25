@@ -1,0 +1,79 @@
+{
+  "complete": true,
+  "completed_features": 1,
+  "cost": {
+    "budget_usd": "0",
+    "remaining_usd": "0",
+    "spent_usd": "0"
+  },
+  "dod": [
+    {
+      "command": null,
+      "label": "Workflow fixture approved",
+      "log": "",
+      "manual": true,
+      "passed": true
+    },
+    {
+      "command": null,
+      "label": "Sprint fixture DoD acknowledged",
+      "log": "",
+      "manual": true,
+      "passed": true
+    },
+    {
+      "command": "python tests/verify.py",
+      "label": "Verify fixture `python tests/verify.py`",
+      "log": "",
+      "manual": false,
+      "passed": true
+    },
+    {
+      "command": null,
+      "label": "Fixture task accepted",
+      "log": "",
+      "manual": true,
+      "passed": true
+    }
+  ],
+  "failed_dod_gates": [],
+  "failed_features": [],
+  "max_cost": "0",
+  "results": [
+    {
+      "result": {
+        "applied": true,
+        "cost": {
+          "budget_usd": "0",
+          "remaining_usd": "0",
+          "spent_usd": "0"
+        },
+        "goal": "Fix email validation in src/forms/UserForm.tsx.",
+        "plan_tasks": 1,
+        "replans": 0,
+        "scope": "feature",
+        "stack": "py-fastapi",
+        "tasks": [
+          {
+            "goal": "Fix email validation in src/forms/UserForm.tsx.",
+            "id": "T01-email",
+            "log": "{\n  \"applied\": true,\n  \"cost_usd\": 0.0,\n  \"diff_summary\": \"changed src/forms/UserForm.tsx\",\n  \"files_changed\": [\n    \"src/forms/UserForm.tsx\"\n  ],\n  \"task_id\": \"src/forms/UserForm.tsx\",\n  \"tokens_used\": {\n    \"completion\": 22,\n    \"prompt\": 233\n  },\n  \"warnings\": []\n}",
+            "passed": true,
+            "replan": 0,
+            "target": "src/forms/UserForm.tsx"
+          }
+        ],
+        "warnings": []
+      },
+      "task": "Email validation",
+      "task_id": "01-email.task.md"
+    }
+  ],
+  "scope": "sprint",
+  "sprint": "sprint-task",
+  "sprint_name": "sprint-task",
+  "stack": "py-fastapi",
+  "state": "complete",
+  "total_features": 1,
+  "updated_at": 1780219856
+}

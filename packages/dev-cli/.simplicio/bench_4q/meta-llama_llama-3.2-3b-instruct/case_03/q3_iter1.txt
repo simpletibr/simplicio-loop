@@ -1,0 +1,48 @@
+To achieve this, you can use a conditional statement in your template engine to only display the audit log link for users with the 'auditor' role. Here's an example using Blade, a popular template engine for Laravel:
+
+```php
+<a href="{{ route('audit.log') }}" class="btn btn-primary">
+    @if (auth()->user()->role == 'auditor')
+        View Audit Log
+    @else
+        You do not have access to this feature.
+    @endif
+</a>
+```
+
+In this example, the `@if` statement checks if the current user's role is 'auditor'. If it is, the link is displayed. Otherwise, a message is displayed indicating that the user does not have access to this feature.
+
+Make sure to replace `route('audit.log')` with the actual route name for your audit log page.
+
+Alternatively, you can use a middleware to check the user's role and only allow access to the audit log page if they have the 'auditor' role. Here's an example of how you can do this:
+
+```php
+// app/Http/Middleware/AuditLogMiddleware.php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Support\Facades\Auth;
+
+class AuditLogMiddleware
+{
+    public function handle(Request $request, Closure $next)
+    {
+        if (Auth::user()->role !== 'auditor') {
+            return redirect()->route('home');
+        }
+
+        return $next($request);
+    }
+}
+```
+
+Then, in your route, you can add the middleware:
+
+```php
+// routes/web.php
+
+Route::get('/audit.log', 'AuditLogController@index')->middleware('audit.log');
+```
+
+This will ensure that only users with the 'auditor' role can access the audit log page.
