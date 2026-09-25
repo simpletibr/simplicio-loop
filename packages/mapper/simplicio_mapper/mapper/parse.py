@@ -16,7 +16,6 @@ from typing import Any
 
 import orjson
 
-from .. import _native
 from ..cache import FileProcessingCache
 from ..models import CodeEntity, PrecedentItem, ProjectFile
 
@@ -161,8 +160,6 @@ def _content_for(cwd: str, rel: str, contents: dict[str, str] | None = None) -> 
     return text
 
 def _sha256(text: str) -> str:
-    if _native.native_default("files") and _native.sha256_hex is not None:
-        return _native.sha256_hex(text)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 def _json_text(data: Any) -> str:
@@ -305,17 +302,7 @@ def _collect_text_files(cwd: str, skipped: list[str] | None = None) -> list[str]
         files.append(file)
     return sorted(files)
 
-_NATIVE_IMPORT_LANGUAGES = {"javascript", "typescript", "python", "csharp", "razor", "go"}
-
 def _parse_imports(text: str, language: str) -> list[str]:
-    # The optional Rust crate only implements the original language set; newer
-    # languages always take the pure-Python path below.
-    if (
-        _native.native_default("imports", language)
-        and _native.parse_imports is not None
-        and language in _NATIVE_IMPORT_LANGUAGES
-    ):
-        return _native.parse_imports(text, language)
     patterns: list[re.Pattern[str]] = []
     if language in ("javascript", "typescript"):
         patterns.append(re.compile(r"import\s+[^'\"]*['\"]([^'\"]+)['\"]"))

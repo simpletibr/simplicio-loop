@@ -1,17 +1,16 @@
 """Language/capability negotiation for the Mapper execution boundary.
 
-The Mapper observes every language supported by the Python implementation, but
-the optional native core is promoted one capability at a time.  A native
-kernel therefore cannot make an unsupported capability disappear: callers get
-an explicit Python-reference route and the receipt records the degradation.
+The Mapper is a pure-Python implementation for every supported language.
+``native_route`` still returns a structured backend/status/reason record per
+language+capability (kept for the receipt shape downstream consumers parse),
+but the backend is always ``"python-reference"`` -- there is no optional
+native core to promote a capability onto.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from typing import Any
-
-from . import _native
 
 CAPABILITY_SCHEMA = "simplicio.mapper-capability-coverage/v1"
 CONTRACT_VERSION = "v1"
@@ -135,29 +134,16 @@ def _native_route(language: str, capability: str) -> dict[str, Any]:
     native_capability = {
         "imports": "imports",
     }.get(capability)
-    if native_capability is None:
-        return {
-            "backend": "python-reference",
-            "status": "fallback",
-            "reason": "native_capability_not_advertised",
-        }
-    if _native.native_default(native_capability, language):
-        return {
-            "backend": "rust-core",
-            "status": "native",
-            "reason": "capability_parity_and_language_supported",
-        }
-    if not _native.HAS_NATIVE:
-        reason = "native_extension_unavailable"
-    elif language not in set(_native.CAPABILITIES.get("languages") or ()):
-        reason = "language_not_advertised_by_native_core"
-    else:
-        reason = "native_capability_not_available"
+    reason = "native_capability_not_advertised" if native_capability is None else "native_extension_unavailable"
     return {"backend": "python-reference", "status": "fallback", "reason": reason}
 
 
 def native_route(language: str, capability: str) -> dict[str, Any]:
-    """Return the safe backend route for one language/capability pair."""
+    """Return the safe backend route for one language/capability pair.
+
+    The backend is always ``"python-reference"``: this package has no
+    optional native core to promote a capability onto.
+    """
     if language not in LANGUAGES:
         return {
             "backend": "python-reference",

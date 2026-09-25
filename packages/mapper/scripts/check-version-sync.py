@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-"""check-version-sync.py — align package.json, pyproject.toml, and __init__.py.
+"""check-version-sync.py — align pyproject.toml and __init__.py.
 
-Three release sources of truth must stay in lockstep:
+Two release sources of truth must stay in lockstep (this package is
+Python-only; there is no npm/package.json metadata to track):
 
-* package.json (npm metadata)
 * pyproject.toml (PyPI / hatch metadata)
 * simplicio_mapper/__init__.py (`__version__` fallback string)
 
-Exits 0 when all three match, 1 otherwise. Preferred over the legacy
-`scripts/check-version-sync.js` sibling (same contract). Wire into CI via
-`.github/workflows/version-sync.yml` so a partial version bump fails on PR.
+Exits 0 when both match, 1 otherwise.
 
 Usage:
     python scripts/check-version-sync.py
@@ -24,7 +22,6 @@ import re
 import sys
 from pathlib import Path
 
-PACKAGE_JSON = "package.json"
 PYPROJECT = "pyproject.toml"
 INIT_PY = Path("simplicio_mapper") / "__init__.py"
 
@@ -32,14 +29,6 @@ _PYPROJECT_VERSION_RE = re.compile(r'^version\s*=\s*"([^"]+)"', re.MULTILINE)
 # Prefer the first top-level assignment so importlib.metadata overrides later
 # in the file do not confuse the static guard.
 _INIT_VERSION_RE = re.compile(r'^__version__\s*=\s*"([^"]+)"', re.MULTILINE)
-
-
-def read_package_json_version(root: Path) -> str:
-    data = json.loads((root / PACKAGE_JSON).read_text(encoding="utf-8"))
-    version = data.get("version")
-    if not isinstance(version, str) or not version.strip():
-        raise ValueError(f"could not find non-empty string version in {PACKAGE_JSON}")
-    return version.strip()
 
 
 def read_pyproject_version(root: Path) -> str:
@@ -60,7 +49,6 @@ def read_init_version(root: Path) -> str:
 
 def collect_versions(root: Path) -> dict[str, str]:
     return {
-        PACKAGE_JSON: read_package_json_version(root),
         PYPROJECT: read_pyproject_version(root),
         INIT_PY.as_posix(): read_init_version(root),
     }
@@ -78,8 +66,7 @@ def check_versions(root: Path) -> tuple[bool, dict[str, str], list[str]]:
     for name, value in sources.items():
         messages.append(f"  {name.ljust(width)}  {value}")
     messages.append("")
-    messages.append("Release bumps must update all three files in the same commit.")
-    messages.append("See .specs/workflow/RELEASE.md (version bump checklist) and run:")
+    messages.append("Release bumps must update both files in the same commit:")
     messages.append("  python scripts/check-version-sync.py")
     return False, sources, messages
 
@@ -87,8 +74,7 @@ def check_versions(root: Path) -> tuple[bool, dict[str, str], list[str]]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Fail if package.json, pyproject.toml, and "
-            "simplicio_mapper/__init__.py versions disagree."
+            "Fail if pyproject.toml and simplicio_mapper/__init__.py versions disagree."
         )
     )
     parser.add_argument(

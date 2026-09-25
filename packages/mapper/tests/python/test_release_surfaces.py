@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import unittest
 from pathlib import Path
 
 from simplicio_mapper.release_manifest import RELEASE_CAPABILITIES, RELEASE_COMPATIBILITY
-
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -22,15 +22,10 @@ class ReleaseSurfaceTest(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
-        self.assertIn(package["version"], result.stdout)
-
-    def test_npm_lockfile_tracks_the_release_version(self) -> None:
-        package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
-        lockfile = json.loads((ROOT / "package-lock.json").read_text(encoding="utf-8"))
-
-        self.assertEqual(lockfile["version"], package["version"])
-        self.assertEqual(lockfile["packages"][""]["version"], package["version"])
+        pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        match = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.MULTILINE)
+        self.assertIsNotNone(match)
+        self.assertIn(match.group(1), result.stdout)
 
     def test_readme_uses_live_release_routes(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

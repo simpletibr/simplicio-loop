@@ -24,8 +24,7 @@ Design invariants (from the issue contract):
 * Serialization is canonical: sorted keys, stable separators, UTF-8. Two
   snapshots that describe the same content always produce byte-identical JSON.
 * No new dependency is introduced: hashing/serialization use only the stdlib
-  (the optional Rust ``sha256_hex`` fast path from ``._native`` is used when
-  present, falling back to ``hashlib``).
+  (``hashlib``).
 
 The wheel *includes* these schemas (see ``pyproject.toml`` ``[tool.hatch.build
 .targets.wheel.force-include]``), so ``from_package()`` resolves them from an
@@ -40,8 +39,7 @@ import os
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from . import __version__, _native
-from ._native import sha256_hex as _native_sha256_hex
+from . import __version__
 from .context_contract import MAX_SNAPSHOT_BYTES
 from .mapper import ARTIFACT_VERSION, _now_iso
 from .relations import canonicalize_relation, relation_coverage
@@ -57,8 +55,6 @@ _PACKAGED_SCHEMAS_DIR = os.path.join(
 
 
 def _sha256_text(text: str) -> str:
-    if _native.native_default("files") and _native_sha256_hex is not None:
-        return _native_sha256_hex(text)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 

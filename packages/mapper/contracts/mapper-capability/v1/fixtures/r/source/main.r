@@ -1,1 +1,0 @@
-render <- function(value) value
