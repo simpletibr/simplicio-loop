@@ -93,7 +93,7 @@ else:
     })
     fake_mapper_preflight = json.dumps({
         "version_stdout": "simplicio-mapper 0.26.0",
-        "help_stdout": " inspect handoff ask sync drift ",
+        "help_stdout": " scan inspect handoff ask sync drift ",
         "version_returncode": 0,
         "help_returncode": 0,
     })
@@ -113,6 +113,10 @@ else:
                        # Do not inherit a host-installed operator: this test proves the
                        # explicit dry-run boundary and must remain PARTIAL everywhere.
                        "PATH": str(operator_bin) + os.pathsep + os.defpath,
+                       # Mandatory mutation-authority is a separate, later gate (host-supplied
+                       # plan.json) than the dry-run proposal this test exercises -- opt out
+                       # of it here the same way other fixtures in this suite do.
+                       "SIMPLICIO_REQUIRE_MUTATION_AUTHORITY": "0",
                    })
     assert started.returncode == 22, started.stdout + started.stderr
     payload = json.loads(started.stdout)

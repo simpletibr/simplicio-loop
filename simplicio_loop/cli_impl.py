@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import shutil
@@ -1682,6 +1684,7 @@ def _redirect_run_to_wave(argv: Sequence[str]) -> int:
     run_id = args.run_id
     provider_worker = args.provider_worker or os.environ.get("SIMPLICIO_PROVIDER_WORKER")
 
+    armed = None
     if not run_id and args.task:
         delivery_target = delivery.normalize_delivery_target(args.delivery)
         armed = arm_run(repo, args.task, delivery_target, args.max_iterations)
@@ -1695,10 +1698,42 @@ def _redirect_run_to_wave(argv: Sequence[str]) -> int:
         sys.stderr.write("[simplicio-loop] Erro: 'run' requer --task <arquivo> ou <run_id> para redirecionar para wave.\n")
         return 2
 
-    batch_args = [repo, run_id, args.task_indices, args.max_workers, args.retry_budget, args.serial, args.batch_size]
-    if provider_worker:
-        batch_args.append(provider_worker)
-    return batch(*batch_args, flow="wave")
+    # A run blocked already at arm time (e.g. mapper/dev-cli preflight below the
+    # required version) has no plan/dispatch receipt for `batch` to consume -- skip
+    # straight to the same public run-outcome contract the pre-redirect `run` command
+    # gave for this case instead of falling through into a dispatch failure.
+    armed_blocked = armed is not None and str((armed.get("state") or {}).get("phase") or "") == "blocked"
+    if not armed_blocked:
+        batch_args = [repo, run_id, args.task_indices, args.max_workers, args.retry_budget, args.serial, args.batch_size]
+        if provider_worker:
+            batch_args.append(provider_worker)
+        # `batch()` prints its own dispatch-shaped diagnostic and returns a coarse
+        # 0/2 exit code; the pre-redirect `run` command's contract is the finer
+        # Completion-Oracle-derived `simplicio.run-outcome/v1` exit code (0/20-24)
+        # over the *current run state after dispatch*, printed as one single JSON
+        # document -- reconstruct that from the persisted run, not from batch()'s
+        # own stdout, which is suppressed here.
+        with contextlib.redirect_stdout(io.StringIO()):
+            batch(*batch_args, flow="wave")
+
+    if armed_blocked:
+        status = armed
+    else:
+        try:
+            status = read_status(repo, run_id)
+        except Exception:
+            status = armed or {"manifest": {"run_id": run_id}, "state": {}, "run_dir": ""}
+    from .run_outcome import persist_run_outcome
+    outcome = persist_run_outcome(status)
+    public_payload = _public_flow_from_status(status, "run", status)
+    if args.result_file:
+        target = Path(args.result_file)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(outcome, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(public_payload, ensure_ascii=False, indent=2))
+    if public_payload.get("status") == "VERIFIED" and public_payload.get("verified") is True:
+        return 0
+    return int(outcome["exit_code"]) if int(outcome.get("exit_code") or 0) != 0 else 2
 
 
 def main(argv=None) -> int:
