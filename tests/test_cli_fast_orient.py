@@ -302,3 +302,94 @@ def test_orient_default_output_stays_bounded_when_fast_blocks(tmp_path, monkeypa
 
     cli.orient(str(tmp_path), "change app", "auto", 2000, verbose=True)
     assert len(capsys.readouterr().out) > 200_000
+
+
+def _write_todo_fixture(root):
+    """Small repo mirroring the real orbench failure: 0 Mapper candidates
+    used to leave the host with no file content and it hallucinated a
+    nonexistent ``task_store.py``."""
+    todo = root / "todo"
+    todo.mkdir()
+    (todo / "__init__.py").write_text("", encoding="utf-8")
+    (todo / "store.py").write_text(
+        "class TaskStore:\n"
+        "    def __init__(self):\n"
+        "        self._tasks = {}\n"
+        "\n"
+        "    def add(self, title):\n"
+        "        pass\n",
+        encoding="utf-8",
+    )
+    (todo / "export.py").write_text("# placeholder\n", encoding="utf-8")
+    tests = root / "tests"
+    tests.mkdir()
+    (tests / "test_store.py").write_text(
+        "from todo.store import TaskStore\n\n\ndef test_add():\n    TaskStore().add('x')\n",
+        encoding="utf-8",
+    )
+
+
+def test_orient_targets_grounds_tiny_repo_when_mapper_has_no_candidates(
+    tmp_path, monkeypatch, capsys
+):
+    """issue: FALLBACK with 0 Mapper candidates must never leave the host
+    without real file content/paths to ground on."""
+    _write_todo_fixture(tmp_path)
+
+    class _UnavailableFast(_ReadyFast):
+        def prepare(self, task):
+            return {"status": "FALLBACK", "reason": "fast_not_ready"}
+
+    monkeypatch.setattr(cli, "FastLoopIntegration", _UnavailableFast)
+    monkeypatch.setattr(
+        cli, "_mapper_orient_fallback",
+        lambda root, task: {"status": "READY", "result": {"candidates": []}},
+    )
+    task = "Add remove(id) to TaskStore raising KeyError for unknown id, with tests"
+    assert cli.orient(str(tmp_path), task, "auto", 2000) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "FALLBACK"
+    targets = payload["targets"]
+    assert targets["schema"] == "simplicio.loop-orient-targets/v1"
+    paths = [entry["path"] for entry in targets["files"]]
+    assert "todo/store.py" in paths
+    store_entry = next(e for e in targets["files"] if e["path"] == "todo/store.py")
+    assert "class TaskStore" in store_entry["content"]
+    assert "tests/test_store.py" in store_entry["tests"]
+    test_paths = [entry["path"] for entry in targets["files"]]
+    assert "tests/test_store.py" in test_paths
+    assert len(targets["files"]) <= 5
+    total_bytes = len(json.dumps(targets, ensure_ascii=False).encode("utf-8"))
+    assert total_bytes < 6 * 1024 + 2_000  # bounded, allow small schema overhead
+
+
+def test_orient_targets_truncate_to_span_for_big_repo(tmp_path, monkeypatch, capsys):
+    """A big repo (> tiny-repo threshold) with a large matching file must get
+    a bounded, line-numbered span instead of the whole file."""
+    todo = tmp_path / "todo"
+    todo.mkdir()
+    big_lines = [f"def noise_{i}():\n    return {i}\n" for i in range(400)]
+    big_lines.insert(200, "class TaskStore:\n    def remove(self, id):\n        raise KeyError(id)\n")
+    (todo / "store.py").write_text("".join(big_lines), encoding="utf-8")
+    for i in range(40):
+        (todo / f"module_{i}.py").write_text(f"def fn_{i}():\n    return {i}\n", encoding="utf-8")
+
+    class _UnavailableFast(_ReadyFast):
+        def prepare(self, task):
+            return {"status": "FALLBACK", "reason": "fast_not_ready"}
+
+    monkeypatch.setattr(cli, "FastLoopIntegration", _UnavailableFast)
+    monkeypatch.setattr(
+        cli, "_mapper_orient_fallback",
+        lambda root, task: {"status": "READY", "result": {"candidates": []}},
+    )
+    task = "Add remove(id) to TaskStore raising KeyError for unknown id"
+    assert cli.orient(str(tmp_path), task, "auto", 2000) == 0
+    payload = json.loads(capsys.readouterr().out)
+    targets = payload["targets"]
+    store_entry = next(e for e in targets["files"] if e["path"] == "todo/store.py")
+    assert store_entry["content"] is None
+    assert store_entry["span"] is not None
+    assert "TaskStore" in store_entry["span"]["text"]
+    total_bytes = len(json.dumps(targets, ensure_ascii=False).encode("utf-8"))
+    assert total_bytes < 6 * 1024 + 2_000
