@@ -7,7 +7,7 @@ description: Govern and execute Simplicio workflows through native execution, MC
 
 ## Worker preflight and centralized artifact policy
 
-Every worker first reads repository `AGENTS.md`, `CLAUDE.md`, and all relevant local skills before Runtime operations. Runtime admits only the one binary/artifact set built centrally from the canonical default branch and shared read-only by workers. Workers must not rebuild binaries or regenerate canonical Mapper/Fast artifacts; worktrees isolate source edits and receipts only. Runtime receipts must include repository/revision, binary digest/version, Mapper generation, and artifact digest. Missing, stale, incompatible, or mismatched central artifacts fail closed and route to a central rebuild, never a worker-local repair or fabricated fallback.
+Every worker first reads repository `AGENTS.md` and all relevant local skills before Runtime operations. Runtime admits only the one binary/artifact set built centrally from the canonical default branch and shared read-only by workers. Workers must not rebuild binaries or regenerate canonical Mapper/Fast artifacts; worktrees isolate source edits and receipts only. Runtime receipts must include repository/revision, binary digest/version, Mapper generation, and artifact digest. Missing, stale, incompatible, or mismatched central artifacts fail closed and route to a central rebuild, never a worker-local repair or fabricated fallback.
 
 Runtime/Tokio owns gates, effects, receipts, and reconciliation; Loop/Prism remains the Python `asyncio` scheduler and I/O layer.
 

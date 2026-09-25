@@ -43,3 +43,9 @@ htmlcov/
 # Transient git worktrees created by Workflow/Agent isolation:'worktree' runs.
 .claude/worktrees/
 d/
+
+# Per-package runtime artifacts written by running a package's own CLI/tests in place
+# (e.g. packages/dev-cli/.simplicio/, packages/dev-cli/hbp-inbox.bin) — not source, and
+# distinct from the root .simplicio/ rules above which carry their own tracked exceptions.
+packages/*/.simplicio/
+hbp-inbox.bin

@@ -18,7 +18,7 @@ This module is data-only and model-free, the same discipline as
 `intake_planner.py`: it assembles and gates artifacts that already exist (an
 operator's reported diff/tests/exit-codes); it never invents a passing test,
 never edits the plan/ACs, and never writes a reviewer/safety/delivery receipt.
-Invoking the real bound operator (`simplicio-dev-cli task`, per CLAUDE.md) is
+Invoking the real bound operator (`simplicio-dev-cli task`, per AGENTS.md) is
 the caller's job -- this module defines the assignment, the boundary, and the
 receipt/gate the caller's invocation must satisfy.
 """

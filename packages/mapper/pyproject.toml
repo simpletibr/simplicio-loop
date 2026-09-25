@@ -51,9 +51,9 @@ llm-project-mapper = "simplicio_mapper.cli:main"
 addopts = "--import-mode=importlib"
 
 [project.urls]
-Homepage = "https://github.com/simpletibr/simplicio-mapper"
-Repository = "https://github.com/simpletibr/simplicio-mapper"
-Issues = "https://github.com/simpletibr/simplicio-mapper/issues"
+Homepage = "https://github.com/simpletibr/simplicio-loop/tree/main/packages/mapper"
+Repository = "https://github.com/simpletibr/simplicio-loop/tree/main/packages/mapper"
+Issues = "https://github.com/simpletibr/simplicio-loop/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["simplicio_mapper"]

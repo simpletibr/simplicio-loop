@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/wesleysimplicio/simplicio-fast/contracts/fast-local/v1/schema.json",
+  "$id": "https://github.com/simpletibr/simplicio-loop/blob/main/packages/fast/contracts/fast-local/v1/schema.json",
   "title": "Simplicio Fast-Local contract surface v1",
   "schema": "simplicio.fast-local/v1",
   "contract_version": "1.0",

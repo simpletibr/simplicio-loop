@@ -56,8 +56,8 @@ respect to GitHub, redacts credential-shaped values, and supports a non-writing
 freshness check:
 
 ```bash
-python scripts/meta_issue_audit.py --fetch --repository wesleysimplicio/simplicio-mapper --output docs/evidence/issue-328-meta-audit.json
-python scripts/meta_issue_audit.py --fetch --repository wesleysimplicio/simplicio-mapper --output docs/evidence/issue-328-meta-audit.json --check
+python scripts/meta_issue_audit.py --fetch --repository simpletibr/simplicio-loop --output docs/evidence/issue-328-meta-audit.json
+python scripts/meta_issue_audit.py --fetch --repository simpletibr/simplicio-loop --output docs/evidence/issue-328-meta-audit.json --check
 ```
 
 See [`docs/issue-meta-audit.md`](../docs/issue-meta-audit.md) for the schema,
@@ -88,7 +88,7 @@ Sources of truth:
     "consumers": [
       {
         "name": "simplicio-dev-cli",
-        "repo": "https://github.com/wesleysimplicio/simplicio-dev-cli",
+        "repo": "https://github.com/simpletibr/simplicio-loop/tree/main/packages/dev-cli",
         "min_version": "0.15.0",
         "constraint_source": "pyproject.toml dependency `simplicio-mapper>=0.15.0`"
       }

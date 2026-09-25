@@ -2,7 +2,7 @@
 
 **Audience:** Claude, Codex, Cursor, VS Code, Gemini, Grok, Kiro, OpenCode, Orca (opt-in), Hermes, OpenClaw, Aider, Antigravity, and any coding agent.
 
-**Read this first** every session when working on Simplicio product delivery. Host-specific files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, adapter READMEs) point here for the full map.
+**Read this first** every session when working on Simplicio product delivery. The single agent-instruction file (`AGENTS.md`, plus adapter READMEs) points here for the full map.
 
 ---
 

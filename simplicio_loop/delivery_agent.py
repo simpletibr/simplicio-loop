@@ -9,7 +9,7 @@ role and its `delivering` stage (#423); this module is the role's *own* invarian
 machinery, in the same "pure reducer over injected receipts/adapter results" style as
 `safety_agents/safety_gate_agent.py` and `implementation_agent.py`.
 
-Two named anti-patterns this module exists specifically to prevent (see CLAUDE.md task
+Two named anti-patterns this module exists specifically to prevent (see AGENTS.md task
 brief for #429 and the issue's own "Não pode" boundary):
 
   1. "PR aberta/push não satisfaz merge/delivery" — a PR merely existing (or being open)

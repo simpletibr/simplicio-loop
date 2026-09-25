@@ -20,7 +20,7 @@ from .hub_scheduler import (
 )
 from .process_enforcement import ProcessRegistry
 from .process_supervisor import ProcessSpec, ProcessSpecError
-from .process_supervisor_rust import backend_name, run_with_fallback
+from .process_supervisor import backend_name, run_sync
 from .hub_governor import RESOURCE_NAMES, ResourceGovernor, ResourceLimits, ResourceRequest
 from .hub_agent_executor import HubAgentExecutor, HubAgentError, parse_request
 from .hub_service import ClaimedJob, HubService
@@ -901,7 +901,7 @@ class HubDaemon:
 
             lease_id = spec.idempotency_key or f"hub-execute-{envelope.request_id}"
             try:
-                result = run_with_fallback(spec, on_spawned=on_spawned)
+                result = run_sync(spec, on_spawned=on_spawned)
             except (OSError, RuntimeError, asyncio.CancelledError) as exc:
                 raise HubError(f"supervisor execution failed: {exc}") from exc
             finally:
@@ -1036,7 +1036,7 @@ class HubDaemon:
             except (TypeError, ValueError, ProcessSpecError) as exc:
                 raise HubProtocolError(f"invalid ProcessSpec: {exc}") from exc
             try:
-                result = run_with_fallback(spec)
+                result = run_sync(spec)
             except (OSError, RuntimeError, asyncio.CancelledError) as exc:
                 raise HubError(f"supervisor execution failed: {exc}") from exc
             return {"ok": True, "backend": backend_name(), "result": result.to_dict()}

@@ -8,7 +8,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 
 | Entry point | Purpose |
 |---|---|
-| `simplicio-loop` | Main orchestrator: plan, execute, verify, deliver, learn, and release-train work. |
+| `simplicio-loop` | Main orchestrator: plan, execute, verify, deliver, and learn. |
 | `issue-factory` | Discover ready work items from a configured source adapter. |
 | `simplicio-ecosystem-doctor` | Inspect installed operator versions, capabilities, and route readiness. |
 | `simplicio-loop-tools` | Run the consumer/tooling surface for Loop artifacts. |
@@ -66,10 +66,6 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `ledger` | Replay or validate the operational event ledger. |
 | `findings` | List, report, reconcile, diagnose, or import routed findings. |
 | `learn retrospective` | Derive durable lessons from completed runs. |
-| `release-train check` | Validate ecosystem release schemas and local drift. |
-| `release-train compose` | Compose a signed, compatible canary/stable ecosystem release from component manifests. |
-| `release-train promote` | Atomically promote a composition through canary or stable state. |
-| `release-train rollback` | Atomically restore a previous stable composition. |
 | `hub-drain-plan` | Read-only GitHub drain intake. |
 | `hub-drain-admit` | Admit a held final checkpoint without dispatching it. |
 

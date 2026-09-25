@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/wesleysimplicio/simplicio-fast/blob/master/benchmarks/schema/e2e-benchmark-v1.schema.json",
+  "$id": "https://github.com/simpletibr/simplicio-loop/blob/main/packages/fast/benchmarks/schema/e2e-benchmark-v1.schema.json",
   "title": "Simplicio Fast auditable E2E benchmark",
   "type": "object",
   "required": ["schema", "kind", "runs"],

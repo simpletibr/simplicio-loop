@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import contextlib
 import hashlib
-import importlib.util
 import io
 import json
 import os
@@ -18,37 +17,6 @@ import time
 import webbrowser
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
-try:
-    from scripts import release_manifest as _release_manifest
-except Exception:  # pragma: no cover - import shim for bundled scripts
-    _release_manifest = None
-try:
-    from scripts import release_train as _release_train
-except Exception:  # pragma: no cover - import shim for bundled scripts
-    _release_train = None
-
-
-def _load_release_manifest(repo: str):
-    """Load the release manifest helper from an explicit checkout when installed."""
-    if _release_manifest is not None:
-        return _release_manifest
-    script = Path(repo).resolve() / "scripts" / "release_manifest.py"
-    if not script.is_file():
-        return None
-    root = str(script.parent.parent)
-    if root not in sys.path:
-        sys.path.insert(0, root)
-    try:
-        spec = importlib.util.spec_from_file_location(
-            "simplicio_loop_external_release_manifest", script
-        )
-        if spec is None or spec.loader is None:
-            return None
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
-    except Exception:  # pragma: no cover - target checkout may be incomplete
-        return None
 try:
     from . import prototype_cli as _prototype_cli
 except Exception:  # pragma: no cover - keeps `simplicio-loop` importable if this is missing
@@ -2484,21 +2452,6 @@ def main(argv=None) -> int:
             help="file containing executor handshake JSON (strict mode requires it)",
         )
 
-    p_release_train = sub.add_parser(
-        "release-train", help="release train continuous verification (#558)"
-    )
-    rt_sub = p_release_train.add_subparsers(
-        dest="release_train_command", required=True
-    )
-    p_rt_check = rt_sub.add_parser(
-        "check", help="validate component/ecosystem release schemas + local drift"
-    )
-    p_rt_check.add_argument("--repo", default=".", help="repository root")
-    if _release_train is not None:
-        # The check command remains owned by release_manifest for backwards compatibility;
-        # composition/promotion/rollback are the effect-gated #558 release-train operations.
-        _release_train.configure_subparsers(rt_sub)
-
     if argv_list:
         from .github_drain_intake_cli import looks_like_natural_request, main as drain_intake_main
         if looks_like_natural_request(argv_list) and (
@@ -2756,15 +2709,6 @@ def main(argv=None) -> int:
             args.handshake_file,
             args.ledger_command,
         )
-    if command == "release-train":
-        if args.release_train_command == "check":
-            manifest_module = _load_release_manifest(args.repo)
-            if manifest_module is None:
-                parser.error("release_manifest script not importable")
-            return manifest_module.release_train_check(args.repo)
-        if _release_train is None:
-            parser.error("release_train script not importable")
-        return _release_train.run_namespace(args)
     return install(
         Path(args.target).resolve(),
         args.globally,

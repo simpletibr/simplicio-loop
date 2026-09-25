@@ -3,7 +3,7 @@
 `map_service_git.py` derives tree_hash/files straight from `git` — a real, but
 git-only, signal. This module closes the specific remaining AC ("integração
 Git/mapper real") by shelling out to the actual `simplicio-mapper` binary (this
-repo's bound `orient` operator, per AGENTS.md/CLAUDE.md), reading its real
+repo's bound `orient` operator, per AGENTS.md), reading its real
 `.simplicio/project-map.json` output, and deriving tree_hash/files from the
 mapper's own per-file content hashes — not git blob shas, the mapper's own
 signal, so a real multi-worktree scenario is driven by the actual tool this
@@ -38,7 +38,7 @@ def mapper_binary_path() -> str:
     if not path:
         raise MapperUnavailableError(
             "the simplicio-mapper binary is not installed/on PATH - this repo's bound "
-            "orient operator (AGENTS.md/CLAUDE.md) is required for real mapper integration"
+            "orient operator (AGENTS.md) is required for real mapper integration"
         )
     return path
 

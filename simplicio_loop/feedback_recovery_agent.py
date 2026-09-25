@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 # Reuse the repository's stall detector (fingerprint + K-repeat) instead of
-# reinventing it -- same discipline as CLAUDE.md "READ IT, don't reinvent".
+# reinventing it -- same discipline as AGENTS.md "READ IT, don't reinvent".
 _SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
@@ -470,7 +470,7 @@ def assert_route_target_valid(target: str) -> None:
 # --------------------------------------------------------------------------- #
 # 9. The composed #430 receipt -- the real decision-building entrypoint every
 #    invariant above must actually be wired into (not merely unit-tested in
-#    isolation -- CLAUDE.md's named bug class).
+#    isolation -- AGENTS.md's named bug class).
 # --------------------------------------------------------------------------- #
 def build_feedback_recovery_receipt(
     *,

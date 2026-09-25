@@ -173,7 +173,7 @@ CLAIMS = [
         "status": "unverified",
         "receipt": None,
         "note": (
-            "Claim: v3.38.0 what's-new bullet restates CLAUDE.md's Definition-of-Done policy "
+            "Claim: v3.38.0 what's-new bullet restates AGENTS.md's Definition-of-Done policy "
             "'ge85% coverage' for touched files on any anchored task — a project POLICY threshold, "
             "not a measured global coverage outcome for this release. No receipt; marked unverified."
         ),

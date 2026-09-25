@@ -4,7 +4,7 @@
 `scripts/release_manifest.py` already proves whether the published surfaces agree (`ready`/
 `mismatches`); it does not, on its own, give a contributor a single mechanical command to bump
 every surface together, which is what let the drift described in #292 happen in the first place
-(`pyproject.toml` bumped, npm/plugin/fallback left behind). This module is deliberately a thin
+(`pyproject.toml` bumped, plugin/fallback left behind). This module is deliberately a thin
 layer on top of `release_manifest.build_manifest()` — it does not re-implement version discovery,
 it adds the missing `apply` mutation and re-exposes `check`/`manifest` under the exact CLI surface
 the issue's Fase 1 specifies:
@@ -120,24 +120,6 @@ def _apply_source_fallback(path: Path, version: str) -> bool:
     return False
 
 
-def _apply_release_train_version(path: Path, version: str) -> bool:
-    text = path.read_text(encoding="utf-8")
-    data = json.loads(text)
-    desired = f"v{version}"
-    if data.get("release_train_version") == desired:
-        return False
-    new_text, count = re.subn(
-        r'("release_train_version"\s*:\s*)"[^"]*"',
-        lambda match: f'{match.group(1)}"{desired}"',
-        text,
-        count=1,
-    )
-    if count == 0:
-        raise VersionSyncError(f'{path}: no "release_train_version" field found')
-    path.write_text(new_text, encoding="utf-8")
-    return True
-
-
 def _apply_stack_manifest_fallback(path: Path, version: str) -> bool:
     text = path.read_text(encoding="utf-8")
     new_text, count = re.subn(
@@ -224,9 +206,6 @@ def apply_version(repo: Path, version: str) -> dict:
     pyproject = repo / "pyproject.toml"
     if _apply_pyproject(pyproject, version):
         changed.append(str(pyproject.relative_to(repo)))
-    npm_pkg = repo / "packaging" / "npm" / "package.json"
-    if npm_pkg.exists() and _apply_json_version(npm_pkg, version):
-        changed.append(str(npm_pkg.relative_to(repo)))
     cursor_plugin = repo / ".cursor-plugin" / "plugin.json"
     if cursor_plugin.exists() and _apply_json_version(cursor_plugin, version):
         changed.append(str(cursor_plugin.relative_to(repo)))
@@ -236,9 +215,6 @@ def apply_version(repo: Path, version: str) -> dict:
     stack_manifest = repo / "simplicio_loop" / "stack_manifest.py"
     if stack_manifest.exists() and _apply_stack_manifest_fallback(stack_manifest, version):
         changed.append(str(stack_manifest.relative_to(repo)))
-    release_train = repo / "docs" / "release-train" / "compatibility-contract.json"
-    if release_train.exists() and _apply_release_train_version(release_train, version):
-        changed.append(str(release_train.relative_to(repo)))
     for relative in ADAPTER_VERSION_FILES:
         path = repo / relative
         if path.exists() and _apply_adapter_version(path, version):

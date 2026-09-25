@@ -5,7 +5,7 @@ Before this module, "the source of truth" for the published surface was actually
 independent sources of truth, each covering one slice:
   - `scripts/release_manifest.py` / `scripts/version_sync.py` — version numbers only.
   - `scripts/claims_audit.py` (checks 2/6) — extension-point count and skill count, each checked
-    against README/AGENTS.md/CLAUDE.md/INSTALL.md/PYPI.md, but NOT against CHANGELOG.md.
+    against README/AGENTS.md/INSTALL.md/PYPI.md, but NOT against CHANGELOG.md.
   - `scripts/claims_manifest.py` — quantitative claims (percentages) with receipt/unverified
     status.
   - `scripts/mirror_manifest.py` — the lean hook/script/test mirror sets shipped in `_bundle/`

@@ -5,7 +5,7 @@ against the remote afterward instead of trusting the merge command's exit code a
 
 Formalizes, as a reusable, testable primitive, the ad-hoc ``gh pr create`` / ``gh pr merge
 --squash --delete-branch`` pattern this project's own delivery workflow already performs by
-hand at the end of every task (see CLAUDE.md / AGENTS.md "Process" sections) -- the epic-288
+hand at the end of every task (see AGENTS.md "Process" section) -- the epic-288
 gap this closes is that pattern living only as prose an operator must remember, with no
 programmatic remote-state check that the merge actually landed.
 

@@ -1,4 +1,4 @@
-"""Wiring test for CLAUDE.md item C: `_wave_worktree_dispatch` (the actual
+"""Wiring test for AGENTS.md item C: `_wave_worktree_dispatch` (the actual
 wave dispatch path in runner.py) groups disjoint-path items into lanes via
 `wave_worktree.group_disjoint_tasks` and, with more than one lane, runs them
 concurrently in real git worktrees, integrates serially, and rebinds

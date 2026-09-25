@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/wesleysimplicio/simplicio-fast/contracts/simplicio.stack-lock.v1.schema.json",
+  "$id": "https://github.com/simpletibr/simplicio-loop/blob/main/packages/fast/contracts/simplicio.stack-lock.v1.schema.json",
   "title": "Simplicio stack lock v1",
   "type": "object",
   "additionalProperties": true,
