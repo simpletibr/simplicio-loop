@@ -36,7 +36,7 @@ _FALLBACK_FLOORS = {
     "simplicio-mapper": "0.26.34",
     "simplicio-fast": "2.0.35",
     "simplicio-cli": "0.18.16",
-    "simplicio-loop": "3.43.15",
+    "simplicio-loop": "3.43.16",
 }
 
 # These are operator identities, not distribution names.  ``simplicio-dev-cli``

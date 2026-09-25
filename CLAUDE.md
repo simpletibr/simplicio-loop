@@ -165,8 +165,8 @@ lives in the host, never in the skill).
 Read [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md) for the complete installed
 entry-point and command map. Use the most specific `--help` before invoking a
 command; every new command must add meaningful `help=` text and a regression
-check. The current train is Mapper 0.26.33, Dev CLI 0.18.15, Fast 2.0.35, and
-Loop 3.43.14.
+check. The current train is Mapper 0.26.34, Dev CLI 0.18.16, Fast 2.0.35, and
+Loop 3.43.16.
 
 For GitHub work items, use objective, implementation/deployment, and test
 evidence. Do not add Acceptance Criteria sections to new or updated issues.
