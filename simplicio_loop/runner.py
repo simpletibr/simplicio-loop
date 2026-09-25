@@ -3950,7 +3950,30 @@ def _validate_mapper_receipt(payload: Mapping[str, Any], repo_path: Path) -> Non
 
 
 def _mapper_generation(repo_path: Path) -> Dict[str, str]:
-    """Read the immutable Mapper index identity for the active attempt."""
+    """Read the immutable Mapper index identity for the active attempt.
+
+    Identity is exactly Mapper's ``head`` + ``tree_hash`` -- never
+    ``index-state.json``'s ``updated_at``, and never its ``status_hash``.
+
+    ``updated_at`` is rewritten to "now" on *every* Mapper invocation,
+    including a purely read-only re-survey (e.g. the host running
+    ``simplicio-loop orient`` again between ``prepare`` and ``wave`` to
+    refresh context before a retry) that touches no source file.
+
+    ``status_hash`` is a hash of Mapper's own ``git status`` snapshot at
+    survey time. Empirically (see the multiprocess/orient regression this
+    guards), it also changes across back-to-back re-surveys of an unchanged
+    tree -- Mapper's own scan writes timestamped bookkeeping under its own
+    excluded output directory, and that housekeeping alone was observed to
+    shift ``status_hash`` with no tracked or working-tree file touched.
+    ``head`` (the resolved commit) and ``tree_hash`` (a content/mtime digest
+    over the actual working tree, excluding Mapper's own output dir) are the
+    two fields that stayed stable across every read-only re-survey tested and
+    still change on any real source edit -- that pair is the right identity
+    for "did the tree Mapper surveyed actually change", not a field that
+    churns on Mapper's own bookkeeping and would turn every such read-only
+    re-survey into a false "active attempt mapper generation changed" block.
+    """
     path = repo_path / ".simplicio" / "index-state.json"
     try:
         document = _load_json(path)
@@ -3959,14 +3982,11 @@ def _mapper_generation(repo_path: Path) -> Dict[str, str]:
     signature = document.get("signature") if isinstance(document, Mapping) else None
     if not isinstance(signature, Mapping):
         return {}
-    generation = {
+    return {
         key: str(signature.get(key) or "")
-        for key in ("head", "tree_hash", "status_hash")
+        for key in ("head", "tree_hash")
         if str(signature.get(key) or "")
     }
-    if generation:
-        generation["updated_at"] = str(document.get("updated_at") or "")
-    return generation
 
 
 def _receipt_run_id(payload: Mapping[str, Any], expected_run_id: str) -> str:
@@ -5368,13 +5388,30 @@ def _plan_relevant_changed_paths(repo_path: Path) -> List[str]:
     })
 
 
-_TOOL_CACHE_DIRS = frozenset({"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"})
+_TOOL_CACHE_DIRS = frozenset({"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "htmlcov"})
+# pytest-cov/coverage.py rewrites `.coverage` (and, in parallel mode,
+# `.coverage.<host>.<pid>.<rand>` siblings) with fresh, non-deterministic
+# content on *every* run of the task's own "Coverage verifier" lane -- the
+# same non-source, tool-generated-byproduct category as __pycache__/.pyc
+# above, and gitignored here for the same reason (see .gitignore). Left
+# uncounted, a run's own Coverage verifier lane makes `state["repo_state_chain"]`
+# (persisted right after the dev-cli mutation, before that lane runs)
+# permanently mismatch a later task's own fresh `_repo_fingerprint` read in a
+# separate `tick`/`wave --task-indices` process, misreporting the run's own
+# evidence-gathering as external drift ("stale mapper context: repository
+# changed after planning" / "plan_repo_state_stale").
+_TOOL_CACHE_FILENAMES = frozenset({".coverage"})
 
 
 def _is_tool_cache_path(rel: str) -> bool:
-    """Caches a verifier writes while it runs (pytest, mypy, ruff, bytecode)."""
+    """Caches/data files a verifier writes while it runs (pytest, mypy, ruff, bytecode, coverage)."""
     parts = rel.rstrip("/").split("/")
-    return any(part in _TOOL_CACHE_DIRS for part in parts) or rel.endswith(".pyc")
+    if any(part in _TOOL_CACHE_DIRS for part in parts):
+        return True
+    if rel.endswith(".pyc"):
+        return True
+    name = parts[-1] if parts else rel
+    return name in _TOOL_CACHE_FILENAMES or name.startswith(".coverage.")
 
 
 def _capture_operator_checkpoint(run_dir: Path, repo_path: Path, targets: List[str]) -> Dict[str, Any]:
@@ -6330,6 +6367,43 @@ def _watcher_script() -> Path:
     return Path(__file__).resolve().parent / "_bundle" / "scripts" / "watcher_verify.py"
 
 
+def _ensure_current_quality_matrix(repo_path: Path, run_dir: Path) -> None:
+    """Keep ``quality-matrix.json`` from going stale across a run's own separate ticks.
+
+    `verify_run` (via `_finalize_public_flow`) runs after *every* `tick`/`wave
+    --task-indices`, not only once at the very end -- so the first call to
+    reach this run can build `quality-matrix.json` while other tasks are
+    still pending (correctly reporting them missing at that moment). The
+    independent watcher (`scripts/watcher_verify.py`, invoked right after
+    this) re-derives its verdict from that SAME on-disk receipt via
+    `quality_matrix.independent_reverify_quality_matrix`'s self-reported half
+    -- so a cache that is never refreshed keeps reporting those tasks
+    missing forever, even after a later task's own separate process applied
+    them. Rebuild it whenever the applied/missing task set it once measured
+    no longer matches what's actually on disk now; a matrix that already
+    reports every task applied is left alone (no need to re-run the lane
+    commands on every verify call).
+    """
+    from .lane_verifiers import build_quality_matrix, missing_or_unapplied_tasks
+
+    quality_matrix_path = run_dir / "quality-matrix.json"
+    contract = _load_json(run_dir / "task-contract.json")
+    task_texts = [str(t.get("original_text") or "") for t in contract.get("tasks") or []]
+    rebuild = not quality_matrix_path.exists()
+    if not rebuild:
+        try:
+            cached_matrix = _load_json(quality_matrix_path)
+        except (OSError, TypeError, ValueError):
+            cached_matrix = {}
+        cached_missing = (
+            (cached_matrix.get("requirements") or {}).get("implementation") or {}
+        ).get("missing_task_indices")
+        if cached_missing:
+            rebuild = missing_or_unapplied_tasks(run_dir, len(task_texts)) != cached_missing
+    if rebuild:
+        build_quality_matrix(repo_path, run_dir, task_texts)
+
+
 def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
     """Run the independent watcher and advance a run without a manual tick."""
     status = read_status(repo, run_id)
@@ -6348,7 +6422,22 @@ def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
         return read_status(repo, run_id)
     # Parallel lanes each write evidence after their own task; re-measure on the
     # final tree so the watcher compares against the diff it will actually see.
+    # This must run BEFORE `_ensure_current_quality_matrix` below: rebuilding
+    # the quality matrix runs the task's own lane commands (pytest, coverage,
+    # ...), which write byproducts (e.g. `.coverage`) to the tree -- doing
+    # that first would make the evidence receipt's diff-coverage check see
+    # those byproducts as an "uncovered diff outside operator receipt".
     _write_json(run_dir / "evidence-receipt.json", build_evidence_receipt(str(run_dir)))
+    # A run-scoped contract (task-contract.json) always exists by the time a
+    # run can be verified; only a synthetic/legacy caller without one skips
+    # this (there is then no task list to measure "missing" against anyway).
+    # Must run BEFORE the watcher below: the watcher independently re-derives
+    # its verdict from this SAME on-disk quality-matrix.json, so a stale one
+    # (a dependent task applied through its own separate `tick` process since
+    # this receipt was last built) would fail the watcher before this
+    # function's own later, redundant freshness check ever runs.
+    if (run_dir / "task-contract.json").is_file():
+        _ensure_current_quality_matrix(repo_path, run_dir)
     _transition(run_dir, state, "watching", "automatic conduct reached independent verification", receipt=str(run_dir / "operator-receipt.json"))
     env = _subprocess_env()
     env["SIMPLICIO_RUN_DIR"] = str(run_dir)

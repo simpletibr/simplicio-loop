@@ -476,12 +476,26 @@ def _seal_orient_payload(
     return payload
 
 def _mapper_orient_fallback(root: Path, task: str) -> dict:
-    """Use Mapper's read-only orient surface when Fast is unavailable."""
+    """Use Mapper's read-only orient surface when Fast is unavailable.
+
+    The scratch task-file MUST live under ``.simplicio/`` (not the repo
+    root): Mapper's own signature computation hashes ``git status`` output,
+    excluding only its own output directory (default ``.simplicio``) by
+    pathspec. A dotfile prefix alone does not put this file inside that
+    directory, so a repo-root temp file is untracked and visible to `git
+    status` for the brief window this subprocess runs -- exactly when Mapper
+    snapshots its own status_hash. That transient extra untracked file
+    changed status_hash on every orient call, even against an unchanged
+    source tree, making a purely read-only re-survey between `prepare` and
+    `wave` look like "active attempt mapper generation changed" drift.
+    """
     task_path = None
     try:
+        scratch_dir = root / ".simplicio"
+        scratch_dir.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".md",
-                                         prefix=".simplicio-loop-orient-",
-                                         dir=str(root), delete=False) as handle:
+                                         prefix="loop-orient-",
+                                         dir=str(scratch_dir), delete=False) as handle:
             handle.write(task)
             task_path = Path(handle.name)
         proc = subprocess.run(

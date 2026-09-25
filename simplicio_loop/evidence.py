@@ -144,6 +144,22 @@ def _changed_paths(root: Path) -> List[str]:
     # porcelain snapshot under captured subprocess output; ls-files is the narrower,
     # deterministic source for exactly the untracked paths this coverage gate needs.
     out.extend(_run("ls-files", "--others", "--exclude-standard"))
+
+    def _is_verifier_byproduct(path: str) -> bool:
+        # Same non-source, tool-generated-byproduct category as __pycache__/
+        # .pyc/.pyo below: pytest-cov/coverage.py rewrites `.coverage` (and,
+        # in parallel mode, `.coverage.<host>.<pid>.<rand>` siblings) with
+        # fresh content on every run of a task's own Coverage verifier lane.
+        # Left uncounted here, running that lane before this diff-coverage
+        # check (e.g. a run-scoped `verify` regenerating a stale quality
+        # matrix) makes its own byproduct look like drift no operator
+        # receipt accounts for.
+        name = path.rsplit("/", 1)[-1]
+        return (
+            name == ".coverage" or name.startswith(".coverage.")
+            or path == "htmlcov" or path.startswith("htmlcov/") or "/htmlcov/" in path
+        )
+
     return sorted({
         path for path in out
         if path
@@ -151,6 +167,7 @@ def _changed_paths(root: Path) -> List[str]:
         and not path.startswith(".simplicio/")
         and "__pycache__" not in path
         and not path.endswith((".pyc", ".pyo"))
+        and not _is_verifier_byproduct(path)
     })
 
 

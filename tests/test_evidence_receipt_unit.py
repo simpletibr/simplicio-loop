@@ -371,6 +371,42 @@ def test_watcher_without_anchor_or_criteria_never_returns_ready(tmp_path):
     assert "anchor missing" in state["reported"]
 
 
+def _git_repo(tmp_path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / "app.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"],
+        cwd=tmp_path, check=True,
+    )
+    return tmp_path
+
+
+def test_changed_paths_ignores_coverage_tool_byproducts(tmp_path):
+    """BUG 2 regression (multiprocess/verify chain): the diff-coverage check
+    (`_operator_diff_coverage`) uses this SAME ``_changed_paths`` to find
+    what changed since the operator ran. A task's own Coverage verifier lane
+    rewrites `.coverage` at the repo root as a byproduct of running -- not
+    an operator receipt is ever expected to list it -- so it must not count,
+    the same way __pycache__/.pyc already do not.
+    """
+    repo = _git_repo(tmp_path)
+    before = evidence_mod._changed_paths(repo)
+    (repo / ".coverage").write_bytes(b"coverage-data")
+    (repo / ".coverage.host.123.abc").write_bytes(b"parallel-mode-data")
+    (repo / "htmlcov").mkdir()
+    (repo / "htmlcov" / "index.html").write_text("<html></html>", encoding="utf-8")
+    assert evidence_mod._changed_paths(repo) == before
+
+
+def test_changed_paths_still_detects_a_real_new_file_alongside_coverage_byproducts(tmp_path):
+    repo = _git_repo(tmp_path)
+    (repo / ".coverage").write_bytes(b"coverage-data")
+    (repo / "new_source.py").write_text("y = 2\n", encoding="utf-8")
+    assert "new_source.py" in evidence_mod._changed_paths(repo)
+    assert ".coverage" not in evidence_mod._changed_paths(repo)
+
+
 if __name__ == "__main__":
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from _selfrun import run_module
