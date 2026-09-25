@@ -40,3 +40,12 @@ models/.cache/
 *.backup-*
 *.bak
 *~
+
+# Local Gradle build cache (issue #711): a local `.gradle/` build-cache
+# directory was accidentally committed under four scratch stack templates
+# (java-spring, kotlin-android, kotlin-ktor, kotlin-spring), shipping
+# binary Java serialization/lock/checksum files that broke
+# `render_tree`'s UTF-8 template read. Not part of any stack template —
+# generated fresh by Gradle on first build. Catch this pattern before it
+# recurs.
+.gradle/
