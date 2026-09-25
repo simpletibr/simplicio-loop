@@ -165,6 +165,49 @@ def _source_lifecycle_gate(run_dir: Path) -> Tuple[bool, Dict[str, Any]]:
                        "persisted lifecycle receipt reports no pending reconciliation")
 
 
+def _task_dispatch_gate(run_dir: Path) -> Tuple[bool, Dict[str, Any]]:
+    """No task in the run's own dispatch batch may be failed, blocked, dead-lettered,
+    or simply missing its receipt pair.
+
+    A benchmark run can dead-letter tasks 2..N (e.g. a stale-plan false positive)
+    while task 1 alone applies and passes every quality lane it happens to cover --
+    `_quality_matrix_gate`'s "implementation" lane only re-proves that whichever
+    receipts *exist* are applied, not that every task the run itself scheduled has
+    one. This gate reads `dispatch_operator_batch`'s own persisted
+    ``operator-batch.json`` (``receipt_contract``/``*_task_indices``) plus the task
+    count from ``task-contract.json`` and blocks, naming the exact missing task
+    indices, whenever any of them never produced a verified receipt pair. A run
+    that never dispatched a batch (no ``operator-batch.json`` yet) has nothing to
+    check here and defers to the other gates.
+    """
+    batch_path = run_dir / "operator-batch.json"
+    if not batch_path.is_file():
+        return True, _gate("task_dispatch", True, "task_dispatch_not_dispatched",
+                           "no operator-batch.json to check yet (run has not dispatched a batch)")
+    batch = _load_json(batch_path)
+    if batch is None:
+        return False, _gate("task_dispatch", False, "task_dispatch_receipt_unreadable",
+                            "operator-batch.json is present but unreadable")
+    contract = _load_json(run_dir / "task-contract.json") or {}
+    task_count = len(contract.get("tasks") or [])
+    completed = {int(i) for i in (batch.get("completed_task_indices") or [])}
+    failed = {int(i) for i in (batch.get("failed_task_indices") or [])}
+    blocked = {int(i) for i in (batch.get("blocked_task_indices") or [])}
+    dead_letter = {int(i) for i in (batch.get("dead_letter_task_indices") or [])}
+    receipt_contract = batch.get("receipt_contract") or {}
+    missing_receipts = {int(i) for i in (receipt_contract.get("missing_task_indices") or [])}
+    never_completed = {i for i in range(1, task_count + 1) if i not in completed} if task_count else set()
+    problems = sorted(failed | blocked | dead_letter | missing_receipts | never_completed)
+    if problems or receipt_contract.get("ready") is False:
+        return False, _gate(
+            "task_dispatch", False, "task_dispatch_incomplete",
+            f"task index(es) {problems} never produced a verified operator+evidence "
+            "receipt in this run's dispatch batch",
+        )
+    return True, _gate("task_dispatch", True, "task_dispatch_complete",
+                       "every task in the run's dispatch batch produced a verified receipt pair")
+
+
 def _quality_matrix_gate(run_dir: Path) -> Tuple[bool, Dict[str, Any], Dict[str, Any]]:
     """Fail-closed quality gate (#278): implementation/unit/integration/system/
     regression/benchmark evidence plus minimum coverage, all-or-nothing."""
@@ -359,6 +402,13 @@ def evaluate_completion(loop_dir: str, run_dir: str = "", response_text: str = "
         last_fail = next((gate for gate in reversed(artifact_gates) if gate["status"] == "fail"), artifact_gates[-1])
         result["reason_code"] = last_fail["reason_code"]
         result["reason"] = last_fail["detail"]
+        return result
+
+    dispatch_ok, dispatch_gate = _task_dispatch_gate(Path(run_dir))
+    gates.append(dispatch_gate)
+    if not dispatch_ok:
+        result["reason_code"] = dispatch_gate["reason_code"]
+        result["reason"] = dispatch_gate["detail"]
         return result
 
     quality_ok, quality_gate, quality_verdict = _quality_matrix_gate(Path(run_dir))
