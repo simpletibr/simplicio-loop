@@ -1,0 +1,47 @@
+{
+  "adapter": {
+    "byte_identical_rebuild": true,
+    "completeness": "partial",
+    "files": 4,
+    "mode": "bootstrap",
+    "payload_sha256": "4ec9a6c5cd117b0c34e2769cf12de6d174e87981d7e23dea2552d8ad0ee50ee0",
+    "relations": 51,
+    "symbols": 25
+  },
+  "authority": "derived_read_only",
+  "corpus": {
+    "id": "issue-41-minimal-v1",
+    "manifest_digest": "4007fc6aa749f40e93d23cd08877c3cc958dc280bb77d74065e92236675fbbc9",
+    "root": "C:\\Temp\\simplicio-fast-issue-244-legacy-parity-20260802\\fixtures\\conformance\\v1",
+    "schema": "simplicio.fast.golden-corpus/v1"
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5"
+  },
+  "native_languages": {
+    "reason": "native_csharp_typescript_rust_adapters_are_separate_gates",
+    "status": "partial"
+  },
+  "parity": {
+    "relations": true,
+    "source_hashes": true,
+    "symbols": true
+  },
+  "python_cases": [
+    {
+      "adapter_relation_digest": "bbac6e8bdb775fef0dc99847cdbec87889db8472810ba239d13bd65317c63876",
+      "adapter_symbol_digest": "31d5d7c41daade7804d91b4369581468c0fc3b6a54950ef4b3fafd515419f3bb",
+      "legacy_relation_digest": "bbac6e8bdb775fef0dc99847cdbec87889db8472810ba239d13bd65317c63876",
+      "legacy_symbol_digest": "31d5d7c41daade7804d91b4369581468c0fc3b6a54950ef4b3fafd515419f3bb",
+      "path": "python/service.py",
+      "relation_parity": true,
+      "relations": 27,
+      "source_hash_match": true,
+      "symbol_parity": true,
+      "symbols": 6
+    }
+  ],
+  "schema": "simplicio.fast.parser-legacy-parity-receipt/v1",
+  "status": "pass"
+}

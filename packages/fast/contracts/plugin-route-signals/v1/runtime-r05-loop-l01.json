@@ -1,0 +1,122 @@
+{
+  "abi": {
+    "major": 1,
+    "minor": 0
+  },
+  "authority": "derived_read_only",
+  "consumers": [
+    "runtime-r05",
+    "loop-l01"
+  ],
+  "decision": null,
+  "decision_null_reason": "FAST_NOT_POLICY_AUTHORITY",
+  "encoded_bytes": 2064,
+  "generation": "g1",
+  "graph_digest": "2d0a0a6d478ecd6465b1921a2ccadf691373dd39c85080ba2abbcad3fd236222",
+  "graph_truncated": false,
+  "phase": "pre_route",
+  "promotion_evidence": {
+    "decides_policy": false,
+    "monotonic": true,
+    "previous_rank": null,
+    "rank": "fast_path_candidate",
+    "reasons": []
+  },
+  "route": null,
+  "route_null_reason": "FAST_DOES_NOT_SELECT_ROUTE",
+  "savings": null,
+  "savings_null_reason": "SAVINGS_NOT_MEASURED",
+  "schema": "simplicio.plugin.route-signals/v1",
+  "signals": {
+    "cache_locality": {
+      "kind": "measured",
+      "lower_bound": 0.75,
+      "name": "cache_locality",
+      "provenance": "cache",
+      "unit": "ratio",
+      "unknown_reason": null,
+      "upper_bound": 0.75,
+      "value": 0.75
+    },
+    "diff_size": {
+      "kind": "unknown",
+      "lower_bound": null,
+      "name": "diff_size",
+      "provenance": "diff",
+      "unit": "bytes",
+      "unknown_reason": "diff_not_provided",
+      "upper_bound": null,
+      "value": null
+    },
+    "fan_in": {
+      "kind": "measured",
+      "lower_bound": 1,
+      "name": "fan_in",
+      "provenance": "graph",
+      "unit": "count",
+      "unknown_reason": null,
+      "upper_bound": 1,
+      "value": 1
+    },
+    "fan_out": {
+      "kind": "measured",
+      "lower_bound": 0,
+      "name": "fan_out",
+      "provenance": "graph",
+      "unit": "count",
+      "unknown_reason": null,
+      "upper_bound": 0,
+      "value": 0
+    },
+    "file_count": {
+      "kind": "measured",
+      "lower_bound": 1,
+      "name": "file_count",
+      "provenance": "input",
+      "unit": "count",
+      "unknown_reason": null,
+      "upper_bound": 1,
+      "value": 1
+    },
+    "hub": {
+      "kind": "measured",
+      "lower_bound": 1,
+      "name": "hub",
+      "provenance": "graph",
+      "unit": "count",
+      "unknown_reason": null,
+      "upper_bound": 1,
+      "value": 1
+    },
+    "packet_bytes": {
+      "kind": "measured",
+      "lower_bound": 1694,
+      "name": "packet_bytes",
+      "provenance": "packet",
+      "unit": "bytes",
+      "unknown_reason": null,
+      "upper_bound": 1694,
+      "value": 1694
+    },
+    "sensitive": {
+      "kind": "measured",
+      "lower_bound": 0,
+      "name": "sensitive",
+      "provenance": "input",
+      "unit": "count",
+      "unknown_reason": null,
+      "upper_bound": 0,
+      "value": 0
+    }
+  },
+  "signals_hash": "d55a5f5e6c3db2629da99bcaab99c54f6850998b0686a6a8385ef2f2b191e70e",
+  "skills": null,
+  "skills_null_reason": "FAST_DOES_NOT_SELECT_SKILLS",
+  "source_hashes": {
+    "src/app.py": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "targets": [
+    "src/app.py"
+  ],
+  "writes": false
+}

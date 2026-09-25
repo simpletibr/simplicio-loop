@@ -1,0 +1,563 @@
+{
+  "build": {
+    "metrics": {
+      "changed_paths": [],
+      "cpu_ms": 31.25,
+      "files": 50,
+      "format_version": 2,
+      "generation": "0c202bf0e4328525481ce86c5489be95ad365595e37d19ffdd19b39dba405d02",
+      "parsed_files": 50,
+      "parsed_paths": [
+        "service_0.py",
+        "service_1.py",
+        "service_10.py",
+        "service_11.py",
+        "service_12.py",
+        "service_13.py",
+        "service_14.py",
+        "service_15.py",
+        "service_16.py",
+        "service_17.py",
+        "service_18.py",
+        "service_19.py",
+        "service_2.py",
+        "service_20.py",
+        "service_21.py",
+        "service_22.py",
+        "service_23.py",
+        "service_24.py",
+        "service_25.py",
+        "service_26.py",
+        "service_27.py",
+        "service_28.py",
+        "service_29.py",
+        "service_3.py",
+        "service_30.py",
+        "service_31.py",
+        "service_32.py",
+        "service_33.py",
+        "service_34.py",
+        "service_35.py",
+        "service_36.py",
+        "service_37.py",
+        "service_38.py",
+        "service_39.py",
+        "service_4.py",
+        "service_40.py",
+        "service_41.py",
+        "service_42.py",
+        "service_43.py",
+        "service_44.py",
+        "service_45.py",
+        "service_46.py",
+        "service_47.py",
+        "service_48.py",
+        "service_49.py",
+        "service_5.py",
+        "service_6.py",
+        "service_7.py",
+        "service_8.py",
+        "service_9.py"
+      ],
+      "reason_codes": [
+        "cold_build"
+      ],
+      "relations": 2050,
+      "reused_files": 0,
+      "reused_paths": [],
+      "snapshot_bytes": 547776,
+      "symbols": 1050,
+      "wall_ms": 88.29380001407117
+    },
+    "wall_ms": 88.4715
+  },
+  "environment": {
+    "cpu_count": 16,
+    "executable": "<python-executable>",
+    "machine": "AMD64",
+    "platform": "Windows-11-10.0.26100-SP0",
+    "processor": "Intel64 Family 6 Model 197 Stepping 2, GenuineIntel",
+    "python": "3.14.5",
+    "python_implementation": "CPython",
+    "schema": "simplicio.fast.environment/v1"
+  },
+  "limitations": [
+    "Rust standalone measures the real subprocess/IPC context path over a Python-built snapshot; it does not measure Rust snapshot construction.",
+    "Full delivery is measured fail-closed until Runtime authorization; Loop standalone uses the real Dev CLI adapter.",
+    "Token counts use whitespace-v1 estimates, not provider billing telemetry."
+  ],
+  "provenance": {
+    "corpus_sha256": "39c1e4f39240ccd1235f26dcebb4f5bc0099a41e7f244180a77faee62a2a3d2c",
+    "repetition_order": [
+      7,
+      5,
+      1,
+      6,
+      2,
+      10,
+      4,
+      3,
+      8,
+      9
+    ],
+    "source_commit": "5ff07bceeca17333b8f4fd2c9b2971be534d30b5",
+    "source_commit_reason": null,
+    "warmup_repetitions": 0
+  },
+  "scenarios": {
+    "fast_python": {
+      "context_bytes": 24990,
+      "estimated_input_tokens": 2500,
+      "repetitions": 10,
+      "token_measurement": "whitespace-v1-estimate",
+      "wall_ms": {
+        "median": 19.53565,
+        "p95": 23.1499,
+        "p99": 23.1499,
+        "samples": [
+          23.1499,
+          20.6732,
+          21.2205,
+          18.7291,
+          19.5674,
+          16.7507,
+          18.8081,
+          19.5039,
+          19.9587,
+          19.1208
+        ]
+      }
+    },
+    "fast_python_alteration": {
+      "context_bytes": 490,
+      "estimated_input_tokens": 50,
+      "operation": "locate+edit+py_compile",
+      "repetitions": 10,
+      "token_measurement": "whitespace-v1-estimate",
+      "wall_ms": {
+        "median": 12.2352,
+        "p95": 13.4555,
+        "p99": 13.4555,
+        "samples": [
+          11.0297,
+          12.4745,
+          10.9845,
+          11.0117,
+          11.9959,
+          12.9393,
+          11.6884,
+          13.4555,
+          12.6517,
+          13.2554
+        ]
+      }
+    },
+    "fast_python_alteration_refresh": {
+      "context_bytes": 490,
+      "estimated_input_tokens": 50,
+      "operation": "locate+edit+py_compile+refresh",
+      "repetitions": 10,
+      "token_measurement": "whitespace-v1-estimate",
+      "wall_ms": {
+        "median": 67.4993,
+        "p95": 77.1235,
+        "p99": 77.1235,
+        "samples": [
+          67.9447,
+          66.3356,
+          77.1235,
+          67.2052,
+          63.2351,
+          67.7934,
+          62.444,
+          67.8583,
+          66.5188,
+          76.957
+        ]
+      }
+    },
+    "fast_rust_standalone": {
+      "context_bytes": 4990,
+      "estimated_input_tokens": 500,
+      "operation": "rust-standalone-subprocess-context",
+      "repetitions": 10,
+      "status": "complete",
+      "token_measurement": "whitespace-v1-estimate",
+      "wall_ms": {
+        "median": 67.5591,
+        "p95": 74.5173,
+        "p99": 74.5173,
+        "samples": [
+          74.0292,
+          72.1334,
+          67.3399,
+          64.4249,
+          63.3297,
+          63.9478,
+          67.7783,
+          66.4605,
+          67.7852,
+          74.5173
+        ]
+      }
+    },
+    "full_standalone": {
+      "base_generation": "SFAST001:749432488157efdf824df2bd9914e9d85c21e55c3e04dea59adb184e05ed071e",
+      "cache": {
+        "L0_delivery": "miss",
+        "key": "benchmark-full"
+      },
+      "changeset": {
+        "schema": "simplicio.fast.changeset/v2",
+        "sha256": "062dcd3af24f9406655033bdb34b48c3c054158b47dc0f6651ba860478d8664f"
+      },
+      "engine": {
+        "capabilities": [
+          "build",
+          "refresh",
+          "query",
+          "search",
+          "context",
+          "impact",
+          "understand",
+          "plan",
+          "apply",
+          "overlay",
+          "lease",
+          "doctor",
+          "receipts"
+        ],
+        "conformance_digest": null,
+        "executable": null,
+        "manifest": {
+          "capabilities": [
+            "build",
+            "refresh",
+            "query",
+            "search",
+            "context",
+            "impact",
+            "understand",
+            "plan",
+            "apply",
+            "overlay",
+            "lease",
+            "doctor",
+            "receipts"
+          ],
+          "engine": "python",
+          "fallback": true,
+          "formats": [
+            "SFAST001/v1",
+            "SFAST001/v2"
+          ],
+          "limits": {
+            "max_files": 1000000,
+            "max_relations": 10000000,
+            "max_snapshot_bytes": 536870912,
+            "max_symbols": 5000000
+          },
+          "minimum_python": "3.11",
+          "reference": true,
+          "schema": "simplicio.fast.engine-manifest/v1",
+          "source_languages": [
+            "python"
+          ],
+          "status": "available",
+          "version": "2.0.10"
+        },
+        "reason": "explicitly_selected",
+        "requested": "python",
+        "requested_engine": "python",
+        "schema": "simplicio.fast.engine-selection/v1",
+        "selected": "python",
+        "selected_engine": "python",
+        "timings": {
+          "probe_ms": null
+        },
+        "version": "2.0.10"
+      },
+      "engine_version": "2.0.10",
+      "idempotency": {
+        "hit": false,
+        "key": "benchmark-full",
+        "replayed": false
+      },
+      "operation": "full-runtime-delivery",
+      "ownership": {
+        "full_effect_authority": "simplicio-runtime",
+        "mutation_applied": false,
+        "source_writer": "simplicio-dev-cli"
+      },
+      "profile": "Full",
+      "reason_codes": [
+        "runtime_authorization_required"
+      ],
+      "schema": "simplicio.fast.delivery-engine/v1",
+      "status": "blocked",
+      "timings": {
+        "delivery_wall_ms": 6.2541
+      }
+    },
+    "loop_standalone": {
+      "apply": {
+        "applied": true,
+        "executor": {
+          "adapter": "simplicio-dev-cli",
+          "result": {
+            "applied": true,
+            "errors": [],
+            "files": [
+              {
+                "after_sha256": "2b9f8c296df8ae9a9cbb342d3694e667da32d7c8564f01d94fe4689d740a699d",
+                "before_sha256": "cff8c0369ed7921806251e798425c7a9c606b4699ca221782bd7ea936d36c9df",
+                "path": "service_0.py"
+              }
+            ],
+            "noop": false,
+            "operation_count": 1,
+            "planned_diff": "--- a/service_0.py\n+++ b/service_0.py\n@@ -1,6 +1,6 @@\n class Service0:\r\n     def task_0(self, value):\r\n-        return value\r\n+        return value + 1\r\n     def task_1(self, value):\r\n         return value\r\n     def task_2(self, value):\r\n",
+            "root": "<temporary-workload>",
+            "schema": "simplicio.mechanical-edit-result/v1",
+            "status": "ok",
+            "validation": []
+          },
+          "status": "executed"
+        },
+        "files": [
+          {
+            "after_sha256": "7c87c6380ed69d5e6e89f8997f848b400f2064df5c4a10064507910b9997cfc4",
+            "before_sha256": "95c38fd1c9dce901667a55f2d528b4a1c48145947269621dc5df127fc413e2bb",
+            "byte_representation": "raw-file-bytes",
+            "expected_sha256": "95c38fd1c9dce901667a55f2d528b4a1c48145947269621dc5df127fc413e2bb",
+            "newline": "crlf",
+            "path": "service_0.py",
+            "replacements": 1,
+            "result_sha256": "7c87c6380ed69d5e6e89f8997f848b400f2064df5c4a10064507910b9997cfc4"
+          }
+        ],
+        "mode": "write",
+        "native": {
+          "after_sha256": {
+            "service_0.py": "7c87c6380ed69d5e6e89f8997f848b400f2064df5c4a10064507910b9997cfc4"
+          },
+          "before_sha256": {
+            "service_0.py": "95c38fd1c9dce901667a55f2d528b4a1c48145947269621dc5df127fc413e2bb"
+          },
+          "no_write_proof": false,
+          "status": "ok"
+        },
+        "no_write_proof": false,
+        "outcome": "applied",
+        "reason_code": null,
+        "rollback": {
+          "attempted": false,
+          "restored_paths": [],
+          "status": "not-needed"
+        },
+        "schema": "simplicio.fast.apply-receipt/v2",
+        "write_attempted": true
+      },
+      "base_generation": "SFAST001:749432488157efdf824df2bd9914e9d85c21e55c3e04dea59adb184e05ed071e",
+      "cache": {
+        "L0_delivery": "miss",
+        "key": "benchmark-loop"
+      },
+      "changeset": {
+        "files": [
+          "service_0.py"
+        ],
+        "schema": "simplicio.fast.changeset/v2",
+        "sha256": "062dcd3af24f9406655033bdb34b48c3c054158b47dc0f6651ba860478d8664f"
+      },
+      "engine": {
+        "capabilities": [
+          "build",
+          "refresh",
+          "query",
+          "search",
+          "context",
+          "impact",
+          "understand",
+          "plan",
+          "apply",
+          "overlay",
+          "lease",
+          "doctor",
+          "receipts"
+        ],
+        "conformance_digest": null,
+        "executable": null,
+        "manifest": {
+          "capabilities": [
+            "build",
+            "refresh",
+            "query",
+            "search",
+            "context",
+            "impact",
+            "understand",
+            "plan",
+            "apply",
+            "overlay",
+            "lease",
+            "doctor",
+            "receipts"
+          ],
+          "engine": "python",
+          "fallback": true,
+          "formats": [
+            "SFAST001/v1",
+            "SFAST001/v2"
+          ],
+          "limits": {
+            "max_files": 1000000,
+            "max_relations": 10000000,
+            "max_snapshot_bytes": 536870912,
+            "max_symbols": 5000000
+          },
+          "minimum_python": "3.11",
+          "reference": true,
+          "schema": "simplicio.fast.engine-manifest/v1",
+          "source_languages": [
+            "python"
+          ],
+          "status": "available",
+          "version": "2.0.10"
+        },
+        "reason": "explicitly_selected",
+        "requested": "python",
+        "requested_engine": "python",
+        "schema": "simplicio.fast.engine-selection/v1",
+        "selected": "python",
+        "selected_engine": "python",
+        "timings": {
+          "probe_ms": null
+        },
+        "version": "2.0.10"
+      },
+      "engine_version": "2.0.10",
+      "idempotency": {
+        "hit": false,
+        "key": "benchmark-loop",
+        "replayed": false
+      },
+      "operation": "simplicio-loop-delivery",
+      "ownership": {
+        "full_effect_authority": "local-guard",
+        "mutation_applied": true,
+        "source_writer": "simplicio-dev-cli"
+      },
+      "profile": "Loop standalone",
+      "reason_codes": [],
+      "refresh": {
+        "attempted": true,
+        "status": "refreshed"
+      },
+      "result_generation": "SFAST001:3f0726edb47ae04301afd27c4a6d34caf48768b5a5dd8e006147f1e290092f56",
+      "schema": "simplicio.fast.delivery-engine/v1",
+      "status": "applied",
+      "timings": {
+        "delivery_wall_ms": 590.024
+      }
+    },
+    "without_fast_alteration": {
+      "context_bytes": 107890,
+      "estimated_input_tokens": 11000,
+      "operation": "locate+edit+py_compile",
+      "repetitions": 10,
+      "token_measurement": "whitespace-v1-estimate",
+      "wall_ms": {
+        "median": 17.040399999999998,
+        "p95": 33.1243,
+        "p99": 33.1243,
+        "samples": [
+          33.1243,
+          18.4749,
+          17.5725,
+          19.895,
+          16.5083,
+          13.6545,
+          18.0384,
+          14.6441,
+          13.6491,
+          16.4756
+        ]
+      }
+    },
+    "without_fast_ast_reparse": {
+      "context_bytes": 107890,
+      "estimated_input_tokens": 11000,
+      "repetitions": 10,
+      "token_measurement": "whitespace-v1-estimate",
+      "wall_ms": {
+        "median": 27.3838,
+        "p95": 31.7611,
+        "p99": 31.7611,
+        "samples": [
+          26.9311,
+          31.7611,
+          28.5047,
+          26.3254,
+          29.889,
+          27.1379,
+          26.739,
+          27.9085,
+          24.8128,
+          27.6297
+        ]
+      }
+    },
+    "without_fast_scan": {
+      "context_bytes": 107890,
+      "estimated_input_tokens": 11000,
+      "repetitions": 10,
+      "token_measurement": "whitespace-v1-estimate",
+      "wall_ms": {
+        "median": 10.59655,
+        "p95": 12.455,
+        "p99": 12.455,
+        "samples": [
+          9.0171,
+          10.4101,
+          10.54,
+          10.9287,
+          9.0094,
+          8.781,
+          10.6531,
+          10.7105,
+          11.7401,
+          12.455
+        ]
+      }
+    }
+  },
+  "schema": "simplicio.fast.e2e-benchmark/v1",
+  "source_bytes": 53390,
+  "status": "partial",
+  "totals": {
+    "alteration_estimated_tokens_fast": 50,
+    "alteration_estimated_tokens_without_fast": 11000,
+    "alteration_speedup_hot": 1.498409701152226,
+    "alteration_speedup_with_refresh": 0.2663631032127449,
+    "estimated_token_savings_percent": 77.27272727272727,
+    "estimated_tokens_fast": 2500,
+    "estimated_tokens_saved": 8500,
+    "estimated_tokens_without_fast": 11000,
+    "fast_python_alteration_refresh_wall_ms": 683.4156,
+    "fast_python_alteration_wall_ms": 121.4866,
+    "fast_python_wall_ms": 285.9538,
+    "rust_standalone_speedup_vs_python": 0.4194431886822398,
+    "rust_standalone_wall_ms": 681.7462,
+    "speedup_vs_ast_reparse": 0.970923275018552,
+    "speedup_vs_scan": 0.3645518961454613,
+    "without_fast_alteration_wall_ms": 182.0367,
+    "without_fast_ast_reparse_wall_ms": 277.6392,
+    "without_fast_scan_wall_ms": 104.245
+  },
+  "workload": {
+    "files": 50,
+    "functions_per_file": 20,
+    "term": "task_7"
+  }
+}

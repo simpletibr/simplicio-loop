@@ -1,0 +1,16 @@
+{
+  "schema": "simplicio.plugin.context-packet-manifest/v1",
+  "packet_schema": "simplicio.plugin.context-packet/v1",
+  "handle_schema": "simplicio.plugin.context-handle/v1",
+  "request_schema": "simplicio.plugin.context-request/v1",
+  "hbp_schema": "simplicio.plugin.context-packet-hbp/v1",
+  "abi": {"major": 1, "minor": 0},
+  "producer": "simplicio-fast",
+  "consumers": ["simplicio-runtime", "simplicio-loop"],
+  "authority": "derived_read_only",
+  "writes": false,
+  "instructions": false,
+  "generation_pin": "per_task_session",
+  "overlay": "explicit_dirty_isolated_from_base",
+  "cache": ["cold", "warm", "invalidation"]
+}

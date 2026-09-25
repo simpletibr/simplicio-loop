@@ -1,0 +1,70 @@
+{
+  "aggregate": {
+    "authority": "advisory_only",
+    "hard_incompatible_eligible": false,
+    "ndcg_at_k": 1.0,
+    "precision_at_k": 1.0,
+    "recall_at_k": 1.0
+  },
+  "dataset": {
+    "case_count": 2,
+    "digest": "1eeaf4134a02c6f453b482b3c43de56a6bf7158cc17bedc98f541bc5fb2a767f",
+    "id": "capability-advisory-v1",
+    "schema": "simplicio.fast.capability-quality-dataset/v1"
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5"
+  },
+  "scenarios": [
+    {
+      "authority": "advisory_only",
+      "eligible_handles": [
+        "worker:python-fast",
+        "worker:python-safe"
+      ],
+      "hard_incompatible_eligible": false,
+      "id": "python-query",
+      "metric_classes": [
+        "measured",
+        "unknown"
+      ],
+      "ndcg_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "ranked_handles": [
+        "worker:python-fast",
+        "worker:python-safe",
+        "worker:rust-only",
+        "worker:python-unknown-policy"
+      ],
+      "recall_at_k": 1.0,
+      "top_k": 2
+    },
+    {
+      "authority": "advisory_only",
+      "eligible_handles": [
+        "tool:bounded-fast",
+        "tool:bounded-safe"
+      ],
+      "hard_incompatible_eligible": false,
+      "id": "bounded-tool",
+      "metric_classes": [
+        "estimated",
+        "measured",
+        "simulated"
+      ],
+      "ndcg_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "ranked_handles": [
+        "tool:bounded-fast",
+        "tool:bounded-safe",
+        "tool:hard-incompatible",
+        "tool:foreign-tenant"
+      ],
+      "recall_at_k": 1.0,
+      "top_k": 2
+    }
+  ],
+  "schema": "simplicio.fast.capability-quality-receipt/v1",
+  "status": "pass"
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wesleysimplicio/simplicio-fast/contracts/fast-local/v1/schema.json",
+  "title": "Simplicio Fast-Local contract surface v1",
+  "schema": "simplicio.fast-local/v1",
+  "contract_version": "1.0",
+  "message_types": ["telemetry_snapshot", "decision_receipt"],
+  "field_policy": {
+    "required": {
+      "telemetry_snapshot": ["sample_id", "observed_at", "level", "generation", "hardware", "capabilities", "execution_plan", "telemetry", "telemetry_digest"],
+      "decision_receipt": ["decision_id", "source_telemetry_digest", "speculation_policy", "placement_recommendation", "context_batch_policy", "confidence", "reason_codes", "invalidation_triggers", "decision_digest"]
+    },
+    "optional": {
+      "telemetry_snapshot": ["hardware.devices", "hardware.memory_total_bytes", "capabilities.*.details", "execution_plan.plan_id", "telemetry.ttft_ms", "telemetry.acceptance_rate", "telemetry.bandwidth_bytes_per_second", "telemetry.transfer_bytes", "telemetry.cache_pressure_ratio", "telemetry.stage_timings_ms"],
+      "decision_receipt": ["expires_at"]
+    },
+    "unavailable": {
+      "encoding": "payload.unavailable[field_path]=stable_reason",
+      "reasons": ["not_collected", "not_supported", "not_exposed", "not_applicable", "redacted"],
+      "required_field": "reject",
+      "null": "reject_as_unavailable_marker"
+    }
+  },
+  "telemetry_levels": {
+    "minimal": ["tokens_per_second", "memory_used_bytes"],
+    "standard": ["tokens_per_second", "memory_used_bytes", "ttft_ms", "acceptance_rate", "bandwidth_bytes_per_second", "transfer_bytes"],
+    "deep": ["tokens_per_second", "memory_used_bytes", "ttft_ms", "acceptance_rate", "bandwidth_bytes_per_second", "transfer_bytes", "cache_pressure_ratio", "stage_timings_ms"]
+  },
+  "invalidation": {
+    "model_digest": "model_drift",
+    "backend_digest": "backend_drift",
+    "hardware_digest": "hardware_drift",
+    "context_digest": "context_drift",
+    "concurrency_digest": "concurrency_drift",
+    "rule": "Any changed bound digest invalidates the prior decision before execution."
+  },
+  "version_rules": {
+    "supported": "1.0",
+    "major_mismatch": "reject",
+    "minor_mismatch": "reject_requires_migration",
+    "breaking_change": "bump_major_and_publish_migration_note",
+    "additive_change": "bump_minor_and_publish_migration_note",
+    "unknown_fields": "reject"
+  },
+  "ownership": {
+    "simplicio-local": ["hardware", "capabilities", "telemetry", "execution_plan", "execution"],
+    "simplicio-fast": ["policy_decisions", "decision_receipts", "invalidation_triggers"],
+    "shared": ["versioned_envelope", "generation_binding"],
+    "forbidden": ["reimplementing_the_other_side_authority"]
+  }
+}

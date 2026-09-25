@@ -1,0 +1,391 @@
+{
+  "authority": "advisory_only",
+  "catalog": {
+    "candidate_count": 7,
+    "generation": "3f40a1ffb8e7d5296ce95e51754b7c058a68e607dc594a30616d6db344ef45cf",
+    "schema": "simplicio.fast.capability-catalog-projection/v1"
+  },
+  "dispatch": {
+    "owner": "agent-loop-runtime",
+    "performed": false
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5",
+    "runtime_command": [
+      "C:\\Users\\Z0059V7A\\.local\\simplicio-runtime\\bin\\simplicio.exe"
+    ]
+  },
+  "governed_inputs": {
+    "feedback": "only_verified_receipts",
+    "health": {
+      "accepted_entries": 1,
+      "schema": "simplicio.fast.capability-health-receipt/v1",
+      "status": "verified"
+    },
+    "policy": {
+      "accepted_entries": 1,
+      "schema": "simplicio.fast.capability-policy-receipt/v1",
+      "status": "verified"
+    }
+  },
+  "ranking": {
+    "authority": "advisory_only",
+    "authorization_owner": "agent-loop-runtime",
+    "candidates": [
+      {
+        "available": true,
+        "eligible": true,
+        "estimated_cost": null,
+        "estimated_latency_ms": null,
+        "freshness_seconds": 0,
+        "handle": "runtime:simplicio-runtime",
+        "hard_filter": {
+          "available": true,
+          "freshness": true,
+          "missing_capabilities": true,
+          "policy_eligibility": true,
+          "scope": true,
+          "trust": true
+        },
+        "health": "healthy",
+        "kind": "runtime",
+        "matched_capabilities": [
+          "runtime:runtime:simplicio-runtime"
+        ],
+        "metric_class": "measured",
+        "missing_capabilities": [],
+        "policy_eligibility": "eligible",
+        "provenance": [
+          "simplicio.standard-io-smoke/v1",
+          "runtime:simplicio-runtime"
+        ],
+        "schema": "simplicio.fast.capability-fact/v1",
+        "scope": "*",
+        "score": 100,
+        "score_components": {
+          "availability": 0,
+          "cost": null,
+          "freshness": 0,
+          "latency": null,
+          "matched_capabilities": 100,
+          "missing_capabilities": 0,
+          "policy": 0,
+          "scope": 0,
+          "trust": 0
+        },
+        "selection_reason": "eligible",
+        "trust": "advisory",
+        "version": "3.5.7"
+      },
+      {
+        "available": true,
+        "eligible": false,
+        "estimated_cost": null,
+        "estimated_latency_ms": null,
+        "freshness_seconds": 0,
+        "handle": "operator:simplicio-dev-cli",
+        "hard_filter": {
+          "available": true,
+          "freshness": true,
+          "missing_capabilities": false,
+          "policy_eligibility": false,
+          "scope": true,
+          "trust": true
+        },
+        "health": "healthy",
+        "kind": "operator",
+        "matched_capabilities": [],
+        "metric_class": "measured",
+        "missing_capabilities": [
+          "runtime:runtime:simplicio-runtime"
+        ],
+        "policy_eligibility": "unknown",
+        "provenance": [
+          "simplicio.preflight/v1",
+          "operator:simplicio-dev-cli"
+        ],
+        "schema": "simplicio.fast.capability-fact/v1",
+        "scope": "*",
+        "score": -6000,
+        "score_components": {
+          "availability": 0,
+          "cost": null,
+          "freshness": 0,
+          "latency": null,
+          "matched_capabilities": 0,
+          "missing_capabilities": -1000,
+          "policy": -5000,
+          "scope": 0,
+          "trust": 0
+        },
+        "selection_reason": "missing_required_capabilities",
+        "trust": "advisory",
+        "version": "usage: simplicio-py [-h]"
+      },
+      {
+        "available": true,
+        "eligible": false,
+        "estimated_cost": null,
+        "estimated_latency_ms": null,
+        "freshness_seconds": 0,
+        "handle": "operator:simplicio-fast",
+        "hard_filter": {
+          "available": true,
+          "freshness": true,
+          "missing_capabilities": false,
+          "policy_eligibility": false,
+          "scope": true,
+          "trust": true
+        },
+        "health": "degraded",
+        "kind": "fast",
+        "matched_capabilities": [],
+        "metric_class": "measured",
+        "missing_capabilities": [
+          "runtime:runtime:simplicio-runtime"
+        ],
+        "policy_eligibility": "unknown",
+        "provenance": [
+          "simplicio.fast-capabilities/v1",
+          "operator:simplicio-fast"
+        ],
+        "schema": "simplicio.fast.capability-fact/v1",
+        "scope": "*",
+        "score": -6000,
+        "score_components": {
+          "availability": 0,
+          "cost": null,
+          "freshness": 0,
+          "latency": null,
+          "matched_capabilities": 0,
+          "missing_capabilities": -1000,
+          "policy": -5000,
+          "scope": 0,
+          "trust": 0
+        },
+        "selection_reason": "missing_required_capabilities",
+        "trust": "advisory",
+        "version": "2.0.20"
+      },
+      {
+        "available": true,
+        "eligible": false,
+        "estimated_cost": null,
+        "estimated_latency_ms": null,
+        "freshness_seconds": 0,
+        "handle": "operator:simplicio-fast",
+        "hard_filter": {
+          "available": true,
+          "freshness": true,
+          "missing_capabilities": false,
+          "policy_eligibility": false,
+          "scope": true,
+          "trust": true
+        },
+        "health": "healthy",
+        "kind": "operator",
+        "matched_capabilities": [],
+        "metric_class": "measured",
+        "missing_capabilities": [
+          "runtime:runtime:simplicio-runtime"
+        ],
+        "policy_eligibility": "unknown",
+        "provenance": [
+          "simplicio.preflight/v1",
+          "operator:simplicio-fast"
+        ],
+        "schema": "simplicio.fast.capability-fact/v1",
+        "scope": "*",
+        "score": -6000,
+        "score_components": {
+          "availability": 0,
+          "cost": null,
+          "freshness": 0,
+          "latency": null,
+          "matched_capabilities": 0,
+          "missing_capabilities": -1000,
+          "policy": -5000,
+          "scope": 0,
+          "trust": 0
+        },
+        "selection_reason": "missing_required_capabilities",
+        "trust": "advisory",
+        "version": "simplicio-fast 2.0.20"
+      },
+      {
+        "available": true,
+        "eligible": false,
+        "estimated_cost": null,
+        "estimated_latency_ms": null,
+        "freshness_seconds": 0,
+        "handle": "operator:simplicio-mapper",
+        "hard_filter": {
+          "available": true,
+          "freshness": true,
+          "missing_capabilities": false,
+          "policy_eligibility": false,
+          "scope": true,
+          "trust": true
+        },
+        "health": "healthy",
+        "kind": "operator",
+        "matched_capabilities": [],
+        "metric_class": "measured",
+        "missing_capabilities": [
+          "runtime:runtime:simplicio-runtime"
+        ],
+        "policy_eligibility": "unknown",
+        "provenance": [
+          "simplicio.preflight/v1",
+          "operator:simplicio-mapper"
+        ],
+        "schema": "simplicio.fast.capability-fact/v1",
+        "scope": "*",
+        "score": -6000,
+        "score_components": {
+          "availability": 0,
+          "cost": null,
+          "freshness": 0,
+          "latency": null,
+          "matched_capabilities": 0,
+          "missing_capabilities": -1000,
+          "policy": -5000,
+          "scope": 0,
+          "trust": 0
+        },
+        "selection_reason": "missing_required_capabilities",
+        "trust": "advisory",
+        "version": "0.26.9"
+      },
+      {
+        "available": true,
+        "eligible": false,
+        "estimated_cost": null,
+        "estimated_latency_ms": null,
+        "freshness_seconds": 0,
+        "handle": "operator:simplicio-runtime",
+        "hard_filter": {
+          "available": true,
+          "freshness": true,
+          "missing_capabilities": false,
+          "policy_eligibility": false,
+          "scope": true,
+          "trust": true
+        },
+        "health": "healthy",
+        "kind": "operator",
+        "matched_capabilities": [],
+        "metric_class": "measured",
+        "missing_capabilities": [
+          "runtime:runtime:simplicio-runtime"
+        ],
+        "policy_eligibility": "unknown",
+        "provenance": [
+          "simplicio.preflight/v1",
+          "operator:simplicio-runtime"
+        ],
+        "schema": "simplicio.fast.capability-fact/v1",
+        "scope": "*",
+        "score": -6000,
+        "score_components": {
+          "availability": 0,
+          "cost": null,
+          "freshness": 0,
+          "latency": null,
+          "matched_capabilities": 0,
+          "missing_capabilities": -1000,
+          "policy": -5000,
+          "scope": 0,
+          "trust": 0
+        },
+        "selection_reason": "missing_required_capabilities",
+        "trust": "advisory",
+        "version": "Simplicio Runtime 3.5.6"
+      },
+      {
+        "available": false,
+        "eligible": false,
+        "estimated_cost": null,
+        "estimated_latency_ms": null,
+        "freshness_seconds": null,
+        "handle": "operator:simplicio-py",
+        "hard_filter": {
+          "available": false,
+          "freshness": false,
+          "missing_capabilities": false,
+          "policy_eligibility": false,
+          "scope": true,
+          "trust": true
+        },
+        "health": "unhealthy",
+        "kind": "operator",
+        "matched_capabilities": [],
+        "metric_class": "measured",
+        "missing_capabilities": [
+          "runtime:runtime:simplicio-runtime"
+        ],
+        "policy_eligibility": "unknown",
+        "provenance": [
+          "simplicio.preflight/v1",
+          "operator:simplicio-py"
+        ],
+        "schema": "simplicio.fast.capability-fact/v1",
+        "scope": "*",
+        "score": -26000,
+        "score_components": {
+          "availability": -10000,
+          "cost": null,
+          "freshness": -10000,
+          "latency": null,
+          "matched_capabilities": 0,
+          "missing_capabilities": -1000,
+          "policy": -5000,
+          "scope": 0,
+          "trust": 0
+        },
+        "selection_reason": "missing_required_capabilities",
+        "trust": "advisory",
+        "version": "unavailable"
+      }
+    ],
+    "max_freshness_seconds": 60,
+    "pareto_frontier": [],
+    "required_capabilities": [
+      "runtime:runtime:simplicio-runtime"
+    ],
+    "required_scope": "*",
+    "required_trust": null,
+    "schema": "simplicio.fast.capability-catalog-projection/v1",
+    "truncated": false
+  },
+  "redaction": {
+    "field_classes": [
+      "sensitive_credentials"
+    ],
+    "status": "excluded"
+  },
+  "request": {
+    "max_freshness_seconds": 60,
+    "required_capabilities": [
+      "runtime:runtime:simplicio-runtime"
+    ],
+    "required_scope": "*"
+  },
+  "schema": "simplicio.fast.capability-rank-receipt/v1",
+  "sources": [
+    {
+      "schema": "simplicio.preflight/v1",
+      "sha256": "e48e3f8a728ca5a3ef130eeb5eb38e641858eda5dfecc1ad3ce66c4c427657de"
+    },
+    {
+      "schema": "simplicio.fast-capabilities/v1",
+      "sha256": "43a411e6ca994be1adb15112ac45333a8fec0e990026e2e9fc505979723a7d7a"
+    },
+    {
+      "schema": "simplicio.standard-io-smoke/v1",
+      "sha256": "b97dcb6d2d9445af016daa478f144e4c3c76b8e4a0b06e565499af419acf49bf"
+    }
+  ],
+  "status": "pass"
+}

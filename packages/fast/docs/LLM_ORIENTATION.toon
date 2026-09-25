@@ -1,0 +1,164 @@
+[meta]
+format=toon-like-line-oriented
+kind=llm_orientation_cache
+purpose=understand simplicio-fast before a scoped task
+language=en
+not_a_contract=true
+source_policy=observed_facts_only;authoritative_sources_and_help_win
+cache_role=orientation_only;never replaces source_docs_or_contracts
+[project]
+name=simplicio-fast
+package_version=2.0.35
+repository=github.com/wesleysimplicio/simplicio-fast
+checkout=orientation-fast-20260913
+commit=d4d330b829fdb4cec3605185b7e357e4b48eb30a
+origin_master=d4d330b829fdb4cec3605185b7e357e4b48eb30a
+branch=docs/llm-orientation-fast-20260913
+default_branch=master
+runtime=Python>=3.11;dependency_free_base
+module_entrypoint=PYTHONPATH=src python3 -m simplicio_fast.cli
+fast_entrypoint=simplicio-fast;capture=command_not_found
+cross_repo_entrypoint=simplicio-fast-cross-repo
+working_tree=clean_before_task_mutation
+[source_of_truth]
+authoritative=source_files;source_tree_is_mutable_truth
+derived_state=.sfast;.simplicio/fast;.simplicio-fast;disposable_and_rebuildable
+source=AGENTS.md|sha256:4aec34ade2bdfdda284910b5348393c5556298f013197d4fae73633bf79096c5
+source=CLAUDE.md|sha256:c90af96c8c88379443e79e9a486c5a269ae96ed8a09d0f94bf83946644cd1339
+source=docs/LLM_OPERATING_INSTRUCTIONS.md|sha256:acd8af11812ebbbb0e88ab463c9214a309a2aae2b095459e8bca2906656e64f8
+source=docs/CLI_COMMANDS.md|sha256:b91e28c33b4eeedd30ede9d007e9bdce7337afaa632426c0c5ea13227d32b437
+source=docs/fast-v3-contract-matrix.md|sha256:cc02703c5c4004a44854269f8e68a39b715c7100dc6af3de16263eb88a1470b3
+source=docs/SIMPLICIO_OPERATIONAL_MANUAL.md|sha256:07437f451b1edc6e1a34bbf7fc960dfdd199cfd34f54fbef17fa9ff3ed701692
+source=docs/cross-repo-conformance.md|sha256:98b3bb8b7e67be25458714a3463a35878474f43b8f4edf6dcce2b0ecea5d27f6
+source=docs/ADR-0001-fast-v3-ownership.md|sha256:106d85fb5e7cd8efad2d2738d4dfd8ecbf2aadb2be7d1c64a6bf0e4a2225caf6
+source=docs/issue-8-v2-validation.md|sha256:e18eb743bfc39a6e8993c615e095fb7747e09041b8571957c72538b0de8cee97
+source=README.md|sha256:fc46563ee57c19eeb1534c698bd3dfac2462af56e78f6166f2c9a0bb7d2020f6
+source=pyproject.toml|sha256:c870d0c85f60911891061fd64a80834d91a5b7012f3a0bb6eb5f84fd7ffe7eef
+source=src/simplicio_fast/cli.py|sha256:7598d3d36a954555505a2f2b22d8b9e78afc58b173e50998e5a656976a045dd0
+source=src/simplicio_fast/processor.py|sha256:acdf8213bda37a2d3d73fcfd7d7a9675032865800d998fc15daef14679011ab5
+source=src/simplicio_fast/delivery.py|sha256:c9023b93c1a96ac43e0abd9006455586bd72393e3f9d8948f941c1aceb3d2ec6
+source=src/simplicio_fast/generation_receipts.py|sha256:7900cde86dea92ee7f8b0c8630cc9e58d996dccc67c031545780e408773b90f5
+source=src/simplicio_fast/mapper_ingest.py|sha256:ec679468fb222ee29faaea20e958a39cbe6d4fec1cca47b31cbc7cacfdca4f6c
+source=src/simplicio_fast/workspace.py|sha256:fe9a35d643ead78e905e6b39f097674858ed5990e0d9d769c22526137aab6dc9
+source=src/simplicio_fast/query_planner.py|sha256:06240b0a4cb6b648933a2463d88429df031b9662f0df3a99ecfc4db5d51fa893
+[skills]
+selected=simplicio-prism;simplicio-fast;simplicio-mapper;simplicio-dev-cli;simplicio-runtime;simplicio-loop
+skill=simplicio-prism|skills/simplicio-prism/SKILL.md|sha256:488a13b4085e5ef78b89832dbb9edb6918973cd48936d15eba1048c965e26128
+skill=simplicio-fast|skills/simplicio-fast/SKILL.md|sha256:bfcfdbd7a0e2535cbd7ca797281bc63bc2dd7ae5ae145789e8a226776e29b32c
+skill=simplicio-mapper|.simplicio/skills/simplicio-mapper/SKILL.md|sha256:b667a6659af563760f7f72a4c1a87a25cf3964f13cbd48477d1acf046da97b4e
+skill=simplicio-dev-cli|.simplicio/skills/simplicio-dev-cli/SKILL.md|sha256:f316090c8d85499dcecb43daabef8410eba764ec0acfaa8fae39339dcad59dbf
+skill=simplicio-runtime|.simplicio/skills/simplicio-runtime/SKILL.md|sha256:16cc6610c09f9b7b071d82c019808047e451989c7a1707f79432f2eec1066ef6
+skill=simplicio-loop|.simplicio/skills/simplicio-loop/SKILL.md|sha256:129b45414b1a1a3a96a8024c10054197064cb27a68fc55eb0357550308d59e4d
+[commands]
+entrypoint=simplicio-fast;help=simplicio-fast --help;capture=command_not_found
+module_help=PYTHONPATH=src python3 -m simplicio_fast.cli --help;status=exit_0
+version_help=PYTHONPATH=src python3 -m simplicio_fast.cli --version;observed=simplicio-fast 2.0.32
+cross_repo_help=PYTHONPATH=src python3 -m simplicio_fast.cross_repo_cli --help;status=exit_0
+top_level=build,refresh,ingest,query,search,context,navigate,impact,stats,query-plan,segments,understand,plan,delivery,apply,changeset,doctor,rollout,serve,base,overlay,delta,handoff,merge,semantic-score,capabilities,parser-payload,pin,release,gc,watch
+command=build|help=simplicio-fast build --help|role=publish_snapshot
+command=refresh|help=simplicio-fast refresh --help|role=incremental_refresh
+command=ingest|help=simplicio-fast ingest --help|role=publish_snapshot
+command=query|help=simplicio-fast query --help|role=bounded_symbol_lookup
+command=search|help=simplicio-fast search --help|role=direct_index_lookup
+command=context|help=simplicio-fast context --help|role=hash_verified_spans
+command=navigate|help=simplicio-fast navigate --help|role=one_bounded_relation_hop
+command=impact|help=simplicio-fast impact --help|role=typed_impact_relations
+command=stats|help=simplicio-fast stats --help|role=snapshot_generation_stats
+command=query-plan|help=simplicio-fast query-plan --help|role=bounded_index_budget_plan
+command=segments|help=simplicio-fast segments --help|role=immutable_section_storage
+command=understand|help=simplicio-fast understand --help|role=bounded_task_context
+command=plan|help=simplicio-fast plan --help|role=compile_plandag
+command=delivery|help=simplicio-fast delivery --help|role=guarded_delivery_receipt
+command=apply|help=simplicio-fast apply --help|role=dry_run_or_guarded_apply
+command=changeset|help=simplicio-fast changeset --help|role=binary_changeset_lifecycle
+command=doctor|help=simplicio-fast doctor --help|role=readiness_fail_closed
+command=rollout|help=simplicio-fast rollout --help|role=shadow_canary_rollback_receipt
+command=serve|help=simplicio-fast serve --help|role=crud_proof_api
+command=base|help=simplicio-fast base --help|role=canonical_generation
+command=overlay|help=simplicio-fast overlay --help|role=isolated_worktree_view
+command=delta|help=simplicio-fast delta --help|role=changed_path_delta
+command=handoff|help=simplicio-fast handoff --help|role=base_delta_handoff
+command=merge|help=simplicio-fast merge --help|role=composed_view_query
+command=semantic-score|help=simplicio-fast semantic-score --help|role=bounded_candidate_ranking
+command=capabilities|help=simplicio-fast capabilities --help|role=capability_negotiation
+command=parser-payload|help=simplicio-fast parser-payload --help|role=mapper_handoff_adapter
+command=pin|help=simplicio-fast pin --help|role=generation_lease
+command=release|help=simplicio-fast release --help|role=release_generation_lease
+command=gc|help=simplicio-fast gc --help|role=list_or_remove_unleased_generations
+command=watch|help=simplicio-fast watch --help|role=one_overlay_refresh
+nested=changeset:prepare,validate,seal,inspect,export-json,materialize,reconcile,recover|help=simplicio-fast changeset <action> --help
+nested=cross-repo:validate|help=simplicio-fast-cross-repo validate --help
+status=absent;use=doctor,stats
+plandag=absent;use=plan
+[contracts]
+component=mapper|owns=canonical ContextGraph;stable IDs;source facts;fast-handoff
+component=fast|owns=bounded context;binary_mmap_snapshot;PlanDAG;generations;overlays;hash guards
+component=dev-cli|owns=mechanical source mutation;edit validation
+component=runtime|owns=Full effect policy;gates;native execution;durable receipts
+component=loop|owns=slots;attempt progression;retries;watchers;convergence
+component=agent-llm|owns=decision;provider choice;patch strategy;not Fast authority
+format=simplicio.mapper-fast-handoff/v1|Mapper input;validated handoff plus handoff receipt
+format=simplicio.fast.plandag/v2|plan output;orient_modify_validate_refresh nodes
+format=simplicio.fast.understanding/v2|bounded semantic understanding output
+format=simplicio.fast.changeset/v2|generation;paths;expected hashes;idempotency;Dev CLI boundary
+format=simplicio.fast.context-request/v2|delivery context request
+format=simplicio.fast.handoff/v1|base/delta/worktree/config/parity handoff
+format=simplicio.fast.delivery-engine/v1|delivery preparation;cache;provenance;stages
+format=simplicio.fast-generation-receipt/v1|repo;commit;snapshot digest;generation;source hashes;backend;idempotency
+format=simplicio.fast.receipt/v1|workspace generation and overlay evidence
+format=simplicio.fast.query-plan/v1|index selection;candidate count;byte and token budgets;reason
+format=simplicio.fast.rollout-receipt/v1|shadow;canary;integrated;fallback;rollback state
+format=simplicio.fast.cross-repo-receipt/v1|pinned stack-lock compatibility evidence
+format=simplicio.fast.error/v1|typed command failure;error and recovery reason
+[receipts]
+owner=fast|provenance;generation;delivery;rollout;workspace receipts
+owner=runtime|Full effect;policy;gate;validation receipts;Fast does not synthesize them
+formats=simplicio.fast-generation-receipt/v1;simplicio.fast.delivery-engine/v1;simplicio.fast.receipt/v1;simplicio.fast.rollout-receipt/v1;simplicio.fast.cross-repo-receipt/v1
+rule=record repository;revision;binary version or digest;Mapper generation;artifact digest;source hashes;status;reason;tests;durable evidence
+classification=MEASURED only with command and metrics;otherwise UNVERIFIED or BLOCKED;never promote estimates
+idempotency=delivery and generation receipts bind replay keys or hashes where their producer requires them
+[governors]
+limits=context max-results;max-lines;max-bytes;max-tokens;enforce before context delivery
+source_file_limit=--max-file-bytes default 83886080 bytes;SourceFileTooLarge before parse
+freshness=pin generation;verify source_sha256 per span;reject stale;refresh before retry
+snapshots=read_only_mmap;immutable publication;atomic replace;source files stay authoritative
+engine=auto|rust|python|off;rust requires healthy conformance;rust failure is fail_closed
+effects=apply and delivery dry_run by default;Full writes require Runtime transaction;Loop standalone guarded write is explicit
+[tests]
+focused=tests/test_llm_orientation.py;line parser;required fields;source and skill digests;help surface;secret rejection
+native=PYTHONPATH=src python3 -m unittest discover -s tests -p test_llm_orientation.py -v
+project_suite=PYTHONPATH=src python -m unittest discover -s tests -v
+compile=python -m compileall -q src tests benchmarks
+benchmark=python benchmarks/run.py
+contract_smoke=simplicio contracts smoke --json
+validation=simplicio validate "<task>" --repo . --json
+[workflow]
+sequence=pin repo;revision;scope;completion oracle -> read docs and selected skills -> Mapper handoff or bounded survey -> build_or_ingest -> context_or_understand -> plan -> changeset validate -> apply_or_delivery dry_run -> Dev CLI -> tests -> refresh -> handoff_or_rollout_receipt
+preparation=run exact --help at the command level;check doctor;keep source hashes and generation pinned
+ingest=integrated consumes validated simplicio-mapper fast-handoff;bootstrap is explicit development_only fallback
+context=context_or_understand returns bounded hash_verified spans;never dump whole repository
+plan=plan emits simplicio.fast.plandag/v2;LLM decides from selected context
+change=changeset carries expected source hashes and idempotency;Dev CLI owns source edit;Runtime authorizes Full effects
+refresh=after validated source change refresh derived semantic inputs and recheck freshness
+[handoff]
+loop_standalone=validate simplicio.stack-lock/v1 with cross_repo profile;Loop owns slots,retries,convergence;Fast supplies derived read_only context;Runtime absent
+runtime_backed=Mapper -> Fast -> Dev CLI;Loop coordinates attempts;Runtime owns Full effect and policy;require coordinator transaction for Full write
+mapper=run simplicio-mapper snapshot build and fast-handoff;pass the validated handoff to Fast;reject stale or incomplete handoff
+dev_cli=pass bounded PlanDAG or changeset plus evidence to Dev CLI;collect diff,tests,post_effect and durable receipt
+evidence=attach generation;source hashes;artifact digests;tests;status;reason;consumer receipts;missing consumer proof is UNVERIFIED
+[forbidden]
+authority=source_truth=authoritative;Fast_not_policy_or_mutation_owner
+access=raw_snapshot_offsets=forbidden;consumers_use_handles_and_versioned_outputs
+secret_material=no_provider_credentials_or_tokens
+state=missing_stale_corrupt_incompatible=blocked;empty_context_is_not_success
+effects=Full_write_without_Runtime_authorization=blocked;partial_or_blocked_is_not_success
+task_banned_options=serial,max-workers,retry-budget,fan-out
+[known_limits]
+binary=simplicio-fast entrypoint was unavailable here;Python module help passed;Rust artifact readiness not claimed
+integration=Mapper;Dev CLI;Loop;Runtime cross_repo E2E receipts were not produced by this Fast-only task
+availability=Fast index was deferred until Mapper;memory query had no project-specific result;external providers were not used
+metrics=No benchmark or performance claim is made;measurements require matching workload;hardware;cache and repetitions
+[freshness]
+captured_at=2026-09-13;timezone=America/Sao_Paulo
+index=deferred_until_mapper;reason=fast_snapshot_missing_or_invalid
+recheck=rerun exact help;recompute source digests;run doctor;refresh stale snapshots;obtain consumer receipts before claiming integration

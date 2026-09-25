@@ -1,0 +1,10 @@
+{
+  "schema": "simplicio.hbp-golden/v1",
+  "upstream": "wesleysimplicio/simplicio-runtime#3626",
+  "vectors": {
+    "sha256_abc": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "alias_abc": "AGT-ba7816bf8f01cfea",
+    "genesis": "0000000000000000000000000000000000000000000000000000000000000000",
+    "first_receipt": "EVENT|name=α|json=0|prev_event_hash=0000000000000000000000000000000000000000000000000000000000000000|event_hash=4b16c5c58b94a9d570a3479acf245b998877b535753f0ebf110c3b29fe984688"
+  }
+}

@@ -1,0 +1,655 @@
+{
+  "binary": {
+    "bytes_median": 1051.0,
+    "cpu_ms_median": 0.0,
+    "raw": [
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2098
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2515
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2241
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2032
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.1977
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2624
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2599
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2887
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2414
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2515
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.1861
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2425
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2358
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2237
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.1969
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2652
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.1988
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.1918
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2607
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2318
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2018
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.1807
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.189
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.1793
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.1921
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.1904
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2007
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.1872
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2027
+      },
+      {
+        "bytes": 1051,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2534
+      }
+    ],
+    "repetitions": 30,
+    "wall_ms_median": 0.2065,
+    "wall_ms_p95": 0.26394,
+    "wall_ms_p99": 0.28188500000000005
+  },
+  "dev_cli_adapter": {
+    "bytes_median": 766.0,
+    "cpu_ms_median": 0.0,
+    "raw": [
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 731.2013
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 718.2861
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 706.1197
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 664.7807
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 668.8196
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 775.2079
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 714.7066
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 730.7586
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 647.705
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 675.7605
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 613.8558
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 658.7667
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 689.0089
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 695.1793
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 751.1813
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 712.9837
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 675.336
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 800.4464
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 761.8985
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 693.5045
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 638.1801
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 702.8266
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 644.4515
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 616.8065
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 650.9941
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 704.6458
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 645.1713
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 646.6325
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 0.0,
+        "wall_ms": 657.2981
+      },
+      {
+        "bytes": 766,
+        "cpu_ms": 15.625,
+        "wall_ms": 646.9412
+      }
+    ],
+    "repetitions": 30,
+    "wall_ms_median": 682.3847000000001,
+    "wall_ms_p95": 769.21867,
+    "wall_ms_p99": 793.127235
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5",
+    "repetitions": 30,
+    "rss_kib": 30764,
+    "rss_reason": null
+  },
+  "journal": {
+    "bytes_median": 560.0,
+    "cpu_ms_median": 0.0,
+    "raw": [
+      {
+        "bytes": 559,
+        "cpu_ms": 0.0,
+        "wall_ms": 18.883
+      },
+      {
+        "bytes": 559,
+        "cpu_ms": 0.0,
+        "wall_ms": 24.1988
+      },
+      {
+        "bytes": 559,
+        "cpu_ms": 15.625,
+        "wall_ms": 23.9936
+      },
+      {
+        "bytes": 559,
+        "cpu_ms": 0.0,
+        "wall_ms": 21.892
+      },
+      {
+        "bytes": 559,
+        "cpu_ms": 0.0,
+        "wall_ms": 17.4786
+      },
+      {
+        "bytes": 559,
+        "cpu_ms": 0.0,
+        "wall_ms": 18.8732
+      },
+      {
+        "bytes": 559,
+        "cpu_ms": 0.0,
+        "wall_ms": 17.2204
+      },
+      {
+        "bytes": 559,
+        "cpu_ms": 0.0,
+        "wall_ms": 16.5772
+      },
+      {
+        "bytes": 559,
+        "cpu_ms": 0.0,
+        "wall_ms": 17.3646
+      },
+      {
+        "bytes": 559,
+        "cpu_ms": 0.0,
+        "wall_ms": 30.121
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 18.9383
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 15.625,
+        "wall_ms": 18.4299
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 18.9368
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 20.933
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 20.4896
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 19.9087
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 15.625,
+        "wall_ms": 16.461
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 13.4787
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 17.612
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 18.0204
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 19.6889
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 17.5978
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 18.9243
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 20.4542
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 25.4645
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 20.9256
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 18.4852
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 18.6231
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 20.5618
+      },
+      {
+        "bytes": 560,
+        "cpu_ms": 0.0,
+        "wall_ms": 22.5717
+      }
+    ],
+    "repetitions": 30,
+    "wall_ms_median": 18.93055,
+    "wall_ms_p95": 24.894934999999997,
+    "wall_ms_p99": 28.770615000000003
+  },
+  "json": {
+    "bytes_median": 739.0,
+    "cpu_ms_median": 0.0,
+    "raw": [
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.197
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.332
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2352
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.3096
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.4353
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.3546
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.3502
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.269
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.3482
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.3215
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2994
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2464
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.229
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.4501
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.4078
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.3866
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2715
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.3271
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.3756
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2612
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.4149
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2016
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.3759
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2344
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2318
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2221
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.3928
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2722
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.2328
+      },
+      {
+        "bytes": 739,
+        "cpu_ms": 0.0,
+        "wall_ms": 0.3435
+      }
+    ],
+    "repetitions": 30,
+    "wall_ms_median": 0.31555,
+    "wall_ms_p95": 0.42611999999999994,
+    "wall_ms_p99": 0.44580800000000004
+  },
+  "schema": "simplicio.fast.changeset-benchmark/v1",
+  "status": "pass",
+  "workload": {
+    "journal_events": 1,
+    "operations": 1
+  }
+}

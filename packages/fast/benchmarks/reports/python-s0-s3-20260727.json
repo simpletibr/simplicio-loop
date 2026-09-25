@@ -1,0 +1,191 @@
+{
+  "corpus": {
+    "files": 50,
+    "functions_per_file": 20,
+    "sha256": "7375b3d6eccdfbb47e9029752b7d23b91e6fe9f66a42283a6e3dc440e7d292e2",
+    "term": "task_7"
+  },
+  "environment": {
+    "cpu_count": 16,
+    "executable": "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+    "machine": "AMD64",
+    "platform": "Windows-11-10.0.26100-SP0",
+    "processor": "Intel64 Family 6 Model 197 Stepping 2, GenuineIntel",
+    "python": "3.14.5",
+    "python_implementation": "CPython",
+    "schema": "simplicio.fast.environment/v1"
+  },
+  "limitations": [
+    "S0 is a deterministic local Python fixture, not an LLM/provider delivery run.",
+    "Unavailable metrics are null with reason codes.",
+    "S1-S3 remain blocked until their cross-repository capability handshakes are supplied.",
+    "Token values are whitespace-v1 estimates, not provider billing telemetry."
+  ],
+  "protocol": {
+    "order": [
+      "S0_BASELINE",
+      "S1_RUNTIME",
+      "S2_RUNTIME_LOOP",
+      "S3_FULL_STACK"
+    ],
+    "version": "python-s0-s3-v1",
+    "warmup_repetitions": 0
+  },
+  "scenarios": {
+    "S0_BASELINE": {
+      "metric_reason_codes": {
+        "cache_tokens": "provider_not_present",
+        "cost": "provider_not_present",
+        "cpu_ms": "counter_not_collected",
+        "output_tokens": "provider_not_present",
+        "page_faults": "counter_not_collected",
+        "peak_rss_kib": "counter_not_collected",
+        "tool_tokens": "provider_not_present"
+      },
+      "metrics": {
+        "cache_tokens": null,
+        "cost": null,
+        "cpu_ms": null,
+        "input_tokens": 11000,
+        "output_tokens": null,
+        "page_faults": null,
+        "peak_rss_kib": null,
+        "tool_tokens": null,
+        "wall_ms": {
+          "p50": 25.27355,
+          "p95": 192.6093,
+          "p99": 192.6093,
+          "samples": [
+            24.4088,
+            23.4734,
+            23.404,
+            23.7394,
+            25.9737,
+            24.5734,
+            25.9792,
+            41.4739,
+            192.6093,
+            167.2421
+          ]
+        }
+      },
+      "observed": true,
+      "operation": "local_ast_reparse_without_fast",
+      "raw": {
+        "source_schema": "simplicio.fast.e2e-benchmark/v1",
+        "wall_ms": {
+          "median": 25.27355,
+          "p95": 192.6093,
+          "p99": 192.6093,
+          "samples": [
+            24.4088,
+            23.4734,
+            23.404,
+            23.7394,
+            25.9737,
+            24.5734,
+            25.9792,
+            41.4739,
+            192.6093,
+            167.2421
+          ]
+        }
+      },
+      "status": "complete",
+      "token_measurement": "whitespace-v1-estimate",
+      "tokens_observed": false,
+      "valid_repetitions": 10
+    },
+    "S1_RUNTIME": {
+      "metric_reason_codes": {
+        "cache_tokens": "runtime_capability_unavailable",
+        "cost": "runtime_capability_unavailable",
+        "cpu_ms": "runtime_capability_unavailable",
+        "input_tokens": "runtime_capability_unavailable",
+        "output_tokens": "runtime_capability_unavailable",
+        "page_faults": "runtime_capability_unavailable",
+        "peak_rss_kib": "runtime_capability_unavailable",
+        "tool_tokens": "runtime_capability_unavailable",
+        "wall_ms": "runtime_capability_unavailable"
+      },
+      "metrics": {
+        "cache_tokens": null,
+        "cost": null,
+        "cpu_ms": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "page_faults": null,
+        "peak_rss_kib": null,
+        "tool_tokens": null,
+        "wall_ms": null
+      },
+      "observed": false,
+      "reason": "simplicio-runtime capability handshake was not provided to this local run",
+      "reason_code": "runtime_capability_unavailable",
+      "status": "blocked",
+      "valid_repetitions": 0
+    },
+    "S2_RUNTIME_LOOP": {
+      "metric_reason_codes": {
+        "cache_tokens": "runtime_loop_integration_unavailable",
+        "cost": "runtime_loop_integration_unavailable",
+        "cpu_ms": "runtime_loop_integration_unavailable",
+        "input_tokens": "runtime_loop_integration_unavailable",
+        "output_tokens": "runtime_loop_integration_unavailable",
+        "page_faults": "runtime_loop_integration_unavailable",
+        "peak_rss_kib": "runtime_loop_integration_unavailable",
+        "tool_tokens": "runtime_loop_integration_unavailable",
+        "wall_ms": "runtime_loop_integration_unavailable"
+      },
+      "metrics": {
+        "cache_tokens": null,
+        "cost": null,
+        "cpu_ms": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "page_faults": null,
+        "peak_rss_kib": null,
+        "tool_tokens": null,
+        "wall_ms": null
+      },
+      "observed": false,
+      "reason": "Runtime + Loop delivery integration was not provided to this local run",
+      "reason_code": "runtime_loop_integration_unavailable",
+      "status": "blocked",
+      "valid_repetitions": 0
+    },
+    "S3_FULL_STACK": {
+      "metric_reason_codes": {
+        "cache_tokens": "full_stack_integration_unavailable",
+        "cost": "full_stack_integration_unavailable",
+        "cpu_ms": "full_stack_integration_unavailable",
+        "input_tokens": "full_stack_integration_unavailable",
+        "output_tokens": "full_stack_integration_unavailable",
+        "page_faults": "full_stack_integration_unavailable",
+        "peak_rss_kib": "full_stack_integration_unavailable",
+        "tool_tokens": "full_stack_integration_unavailable",
+        "wall_ms": "full_stack_integration_unavailable"
+      },
+      "metrics": {
+        "cache_tokens": null,
+        "cost": null,
+        "cpu_ms": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "page_faults": null,
+        "peak_rss_kib": null,
+        "tool_tokens": null,
+        "wall_ms": null
+      },
+      "observed": false,
+      "reason": "Runtime + Loop + Mapper + Dev CLI integration was not provided to this local run",
+      "reason_code": "full_stack_integration_unavailable",
+      "status": "blocked",
+      "valid_repetitions": 0
+    }
+  },
+  "schema": "simplicio.fast.s0-s3-benchmark/v1",
+  "source_commit": "dcc2394f996854990f38253f2f1d23a68a393d36",
+  "source_commit_reason": null,
+  "status": "partial"
+}

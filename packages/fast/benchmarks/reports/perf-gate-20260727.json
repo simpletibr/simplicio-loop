@@ -1,0 +1,103 @@
+{
+  "baseline": {
+    "cpu_count": 16,
+    "executable": "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+    "machine": "AMD64",
+    "platform": "Windows-11-10.0.26100-SP0",
+    "processor": "Intel64 Family 6 Model 197 Stepping 2, GenuineIntel",
+    "python": "3.14.5",
+    "python_implementation": "CPython",
+    "schema": "simplicio.fast.environment/v1"
+  },
+  "blocked_scenarios": [
+    {
+      "reason": "cross_repo_runtime_integration_missing",
+      "scenario": "full_standalone"
+    },
+    {
+      "reason": "cross_repo_runtime_integration_missing",
+      "scenario": "loop_standalone"
+    }
+  ],
+  "candidate": {
+    "cpu_count": 16,
+    "executable": "C:\\Users\\Z0059V7A\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+    "machine": "AMD64",
+    "platform": "Windows-11-10.0.26100-SP0",
+    "processor": "Intel64 Family 6 Model 197 Stepping 2, GenuineIntel",
+    "python": "3.14.5",
+    "python_implementation": "CPython",
+    "schema": "simplicio.fast.environment/v1"
+  },
+  "checks": [
+    {
+      "baseline": 208.013,
+      "candidate": 208.013,
+      "improved": false,
+      "metric": "fast_python_alteration_wall_ms",
+      "status": "pass",
+      "threshold": 228.81430000000003
+    },
+    {
+      "baseline": 1.419852124626826,
+      "candidate": 1.419852124626826,
+      "improved": false,
+      "metric": "alteration_speedup_hot",
+      "status": "pass",
+      "threshold": 1.2778669121641435
+    },
+    {
+      "baseline": 77.27272727272727,
+      "candidate": 77.27272727272727,
+      "improved": false,
+      "metric": "estimated_token_savings_percent",
+      "status": "pass",
+      "threshold": 69.54545454545455
+    }
+  ],
+  "max_regression_ratio": 0.1,
+  "minimum_repetitions": 10,
+  "repetitions": {
+    "baseline": {
+      "checks": {
+        "fast_python_alteration": {
+          "repetitions": 10,
+          "status": "pass"
+        },
+        "fast_python_alteration_refresh": {
+          "repetitions": 10,
+          "status": "pass"
+        },
+        "without_fast_alteration": {
+          "repetitions": 10,
+          "status": "pass"
+        }
+      },
+      "status": "pass"
+    },
+    "candidate": {
+      "checks": {
+        "fast_python_alteration": {
+          "repetitions": 10,
+          "status": "pass"
+        },
+        "fast_python_alteration_refresh": {
+          "repetitions": 10,
+          "status": "pass"
+        },
+        "without_fast_alteration": {
+          "repetitions": 10,
+          "status": "pass"
+        }
+      },
+      "status": "pass"
+    }
+  },
+  "schema": "simplicio.fast.perf-gate/v1",
+  "status": "inconclusive",
+  "workload": {
+    "files": 50,
+    "functions_per_file": 20,
+    "term": "task_7"
+  }
+}

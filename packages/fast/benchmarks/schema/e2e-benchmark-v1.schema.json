@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wesleysimplicio/simplicio-fast/blob/master/benchmarks/schema/e2e-benchmark-v1.schema.json",
+  "title": "Simplicio Fast auditable E2E benchmark",
+  "type": "object",
+  "required": ["schema", "kind", "runs"],
+  "properties": {
+    "schema": {"const": "simplicio.fast.e2e-benchmark/v1"},
+    "kind": {"const": "dataset"},
+    "runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["schema", "kind", "status", "scenario", "engine", "workload", "slots", "repetition", "corpus_sha256", "source_commit", "environment_sha256", "component_versions", "metrics"],
+        "properties": {
+          "schema": {"const": "simplicio.fast.e2e-benchmark/v1"},
+          "kind": {"const": "run"},
+          "status": {"enum": ["complete", "partial", "blocked", "failed"]},
+          "scenario": {"enum": ["S0_BASELINE", "S1_RUNTIME", "S2_RUNTIME_LOOP", "S3_FULL_STACK"]},
+          "engine": {"enum": ["rust", "python", "off"]},
+          "workload": {"enum": ["crud", "bugfix_failing_test", "cross_cutting_refactor", "warm_single_file_change", "retry_after_test_failure"]},
+          "slots": {"enum": [1, 20, 100]},
+          "repetition": {"type": "integer", "minimum": 1},
+          "corpus_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "source_commit": {"type": "string", "minLength": 1},
+          "environment_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "component_versions": {"type": "object", "minProperties": 1},
+          "blocked": {"$ref": "#/$defs/nullableMetric"},
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {"$ref": "#/$defs/nullableMetric"}
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "$defs": {
+    "nullableMetric": {
+      "type": "object",
+      "required": ["value", "reason"],
+      "properties": {
+        "value": {"type": ["number", "null"]},
+        "reason": {
+          "type": ["string", "null"],
+          "enum": [null, "component_unavailable", "capability_handshake_failed", "environment_unavailable", "metric_not_exposed", "provider_telemetry_unavailable", "run_failed", "source_restore_failed", "toolchain_unavailable", "unsupported_platform"]
+        },
+        "detail": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

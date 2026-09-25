@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wesleysimplicio/simplicio-fast/contracts/simplicio.fast.cross-repo-receipt.v1.schema.json",
+  "title": "Fast cross-repository validation receipt v1",
+  "type": "object",
+  "required": ["schema", "status", "profile", "stack_lock_digest", "members", "contracts", "routes", "evidence"],
+  "properties": {
+    "schema": {"const": "simplicio.fast.cross-repo-receipt/v1"},
+    "status": {"const": "ready"},
+    "profile": {"enum": ["loop-standalone", "runtime-backed"]},
+    "stack_lock_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "members": {"type": "array"},
+    "contracts": {"type": "array"},
+    "routes": {"type": "array"},
+    "required_contracts": {"type": "array"},
+    "evidence": {
+      "type": "object",
+      "required": ["pinned_commits", "contract_digests", "deterministic_canonical_input", "fast_authority", "source_mutation_owner", "attempt_and_completion_owner", "effect_and_policy_owner"],
+      "properties": {
+        "pinned_commits": {"const": true},
+        "contract_digests": {"const": true},
+        "deterministic_canonical_input": {"const": true},
+        "fast_authority": {"const": "derived-projection-and-read-only-compute"},
+        "source_mutation_owner": {"type": "string"},
+        "attempt_and_completion_owner": {"type": "string"},
+        "effect_and_policy_owner": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

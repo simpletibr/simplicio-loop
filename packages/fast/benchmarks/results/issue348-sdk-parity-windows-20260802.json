@@ -1,0 +1,130 @@
+{
+  "authority": "derived_read_only",
+  "dispatch": false,
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5",
+    "rust_executable": "C:\\Temp\\simplicio-fast-issue-348-parity-transport-20260802\\rust\\target\\debug\\simplicio-fast-rs.exe"
+  },
+  "parity": {
+    "cli_only": [
+      "close",
+      "compile_delta",
+      "context_async",
+      "open",
+      "publish",
+      "query_async",
+      "save",
+      "snapshot"
+    ],
+    "common_operations": [
+      "context",
+      "query"
+    ],
+    "passed": true,
+    "python_only": [
+      "close",
+      "compile_delta",
+      "context_async",
+      "open",
+      "publish",
+      "query_async",
+      "save",
+      "snapshot"
+    ],
+    "required": [
+      "context",
+      "query"
+    ],
+    "rust_only": [
+      "relations",
+      "session_cache_stats",
+      "stats"
+    ],
+    "scope": "common_read_only"
+  },
+  "receipt_sha256": "sha256:14bdbd4a5c6d71f6843ff43ac6f886cb61d116f7ee30c18c67bd00ebc1e7179b",
+  "residuals": [
+    "cross_platform_installed_artifacts",
+    "upgrade_rollback_receipts",
+    "full_rust_python_surface_equivalence"
+  ],
+  "rust": {
+    "binary_digest": "sha256:76fb9ea1ecdcdae430f618367c6de7d4ab7d3aa7313266023c62564e88f7fd8c",
+    "conformance_digest": "sha256:1318d1ccc7f7cfe6622fd49855fe4f5dfd48771bd1d2d3403545f8d9ec1863cf",
+    "engine_version": "2.0.20",
+    "schema": "simplicio.fast.engine-session/v1",
+    "source_commit": "54bc8cdea36c1f228e5612d98e5f2773175ab85a",
+    "status": "ready"
+  },
+  "schema": "simplicio.fast.sdk-parity-receipt/v1",
+  "status": "pass",
+  "surfaces": {
+    "cli_sdk": [
+      "close",
+      "compile_delta",
+      "context",
+      "context_async",
+      "open",
+      "publish",
+      "query",
+      "query_async",
+      "save",
+      "snapshot"
+    ],
+    "python_sdk": [
+      "close",
+      "compile_delta",
+      "context",
+      "context_async",
+      "open",
+      "publish",
+      "query",
+      "query_async",
+      "save",
+      "snapshot"
+    ],
+    "rust_session": [
+      "context",
+      "query",
+      "relations",
+      "session_cache_stats",
+      "stats"
+    ]
+  },
+  "transport": {
+    "authority": "derived_read_only",
+    "bounds": {
+      "backpressure": true,
+      "cancellation": true,
+      "deadline": true,
+      "max_inflight": 1,
+      "queue_capacity": 1
+    },
+    "scenarios": {
+      "backpressure": {
+        "passed": true,
+        "reason": "backpressure"
+      },
+      "cancellation": {
+        "passed": true,
+        "reason": "request_cancelled"
+      },
+      "deadline": {
+        "passed": true,
+        "reason": "deadline_expired"
+      },
+      "lifecycle": {
+        "passed": true,
+        "states": [
+          "READY",
+          "CRASHED",
+          "READY",
+          "STOPPED"
+        ]
+      }
+    },
+    "schema": "simplicio.fast.resident-transport-receipt/v1",
+    "status": "pass"
+  }
+}

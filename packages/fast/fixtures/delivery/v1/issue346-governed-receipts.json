@@ -1,0 +1,29 @@
+{
+  "policy": {
+    "schema": "simplicio.fast.capability-policy-receipt/v1",
+    "status": "verified",
+    "owner": "agent-loop-runtime",
+    "authority": "agent_loop_runtime",
+    "decisions": [
+      {
+        "handle": "runtime:simplicio-runtime",
+        "scope": "*",
+        "eligible": true
+      }
+    ]
+  },
+  "health": {
+    "schema": "simplicio.fast.capability-health-receipt/v1",
+    "status": "verified",
+    "owner": "agent-loop-runtime",
+    "authority": "agent_loop_runtime",
+    "observations": [
+      {
+        "handle": "runtime:simplicio-runtime",
+        "scope": "*",
+        "health": "healthy",
+        "freshness_seconds": 0
+      }
+    ]
+  }
+}

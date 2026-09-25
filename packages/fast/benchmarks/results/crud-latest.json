@@ -1,0 +1,36 @@
+{
+  "schema": "simplicio.fast.crud-benchmark/v1",
+  "python": "3.12.13",
+  "repetitions": 100,
+  "direct_crud_cycle": {
+    "median_ms": 0.5355519997465308,
+    "p95_ms": 0.8640060004836414
+  },
+  "http_crud_cycle": {
+    "median_ms": 3.9904195009512478,
+    "p95_ms": 8.842812001603306
+  },
+  "fast_context_user_service": {
+    "median_ms": 0.33011600044119405,
+    "p95_ms": 0.3961389993492048
+  },
+  "snapshot": {
+    "cold_build_ms": 4.823649998797919,
+    "warm_build_ms": 3.234734000216122,
+    "incremental_build_ms": 3.8521530004800297,
+    "incremental_parsed_files": 1,
+    "incremental_reused_files": 3,
+    "snapshot_bytes_after_change": 87498
+  },
+  "peak_rss_kib": 28120,
+  "assertions": {
+    "create": true,
+    "read": true,
+    "update": true,
+    "delete": true,
+    "duplicate_email_rejected": true,
+    "http": true,
+    "fast_context": true,
+    "incremental_refresh": true
+  }
+}

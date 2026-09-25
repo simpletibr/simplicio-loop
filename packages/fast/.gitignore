@@ -1,0 +1,20 @@
+# Legacy Fast state; new generated state is rooted at .simplicio/fast/.
+.simplicio-fast/
+.simplicio/
+.mapper-handoff.json
+coverage/
+.coverage
+data/*.json
+benchmarks/results/*.json
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.pytest-basetemp-*/
+*.egg-info/
+build/
+dist/
+rust/target/
+native/*/target/
+!data/.gitkeep
+!benchmarks/results/.gitkeep
