@@ -88,7 +88,7 @@ class FastContextHandle:
         commit: str,
         overlay_generation: str = "",
         engine: str = "",
-    ) -> "FastContextHandle":
+    ) -> FastContextHandle:
         projections = manifest.get("projections") if isinstance(manifest.get("projections"), Mapping) else {}
         source_hashes: dict[str, str] = {}
         for item in projections.get("files") or []:

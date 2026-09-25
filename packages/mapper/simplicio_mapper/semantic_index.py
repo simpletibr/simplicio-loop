@@ -11,7 +11,8 @@ import hashlib
 import json
 import math
 import re
-from typing import Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 SEMANTIC_SCHEMA = "simplicio.mapper.semantic-index/v1"
 _TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{2,}")
@@ -136,7 +137,7 @@ def _related(entries: Sequence[Mapping[str, Any]], *, top_k: int = 3) -> list[di
 
 
 def _cosine(a: Sequence[float], b: Sequence[float]) -> float:
-    return sum(x * y for x, y in zip(a, b))
+    return sum(x * y for x, y in zip(a, b, strict=True))
 
 
 def validate_semantic_index(payload: Mapping[str, Any]) -> dict[str, Any]:

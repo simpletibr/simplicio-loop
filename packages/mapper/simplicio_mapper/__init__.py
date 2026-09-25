@@ -7,7 +7,8 @@ from __future__ import annotations
 __version__ = "0.26.34"
 
 try:
-    from importlib.metadata import PackageNotFoundError, version as _distribution_version
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as _distribution_version
 except ImportError:  # pragma: no cover - stdlib on supported Pythons
     PackageNotFoundError = Exception  # type: ignore[misc,assignment]
     _distribution_version = None  # type: ignore[assignment]

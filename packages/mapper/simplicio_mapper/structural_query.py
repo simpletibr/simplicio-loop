@@ -6,12 +6,12 @@ import hashlib
 import json
 import re
 from collections import Counter, deque
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 from .structural_graph import EdgeKind, GraphNode, NodeKind, StructuralGraph
 from .structural_parser import Coverage
-
 
 QUERY_SCHEMA = "simplicio.graph-query/v1"
 _MATCH = re.compile(

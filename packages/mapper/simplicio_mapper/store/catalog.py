@@ -11,11 +11,12 @@ import hashlib
 import json
 import shutil
 import sqlite3
+from collections.abc import Iterable
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 from uuid import uuid4
 
 from .paths import StoreLocation, resolve_store_location
@@ -94,7 +95,16 @@ def _sqlite_summary(path: Path) -> dict[str, Any]:
             counts: dict[str, int] = {}
             for table in tables[:40]:
                 try:
-                    counts[table] = int(conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0])
+                    # `table` is a name read back from this same connection's
+                    # own sqlite_master (not external/user input); sqlite3
+                    # placeholders cannot bind identifiers, only values, so
+                    # the standard SQL escape (double the embedded quote) is
+                    # applied before interpolating it into the identifier
+                    # position.
+                    quoted = table.replace('"', '""')
+                    counts[table] = int(
+                        conn.execute(f'SELECT COUNT(*) FROM "{quoted}"').fetchone()[0]  # noqa: S608
+                    )
                 except sqlite3.Error:
                     counts[table] = -1
         meta["integrity"] = integrity

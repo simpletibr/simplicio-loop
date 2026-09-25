@@ -15,8 +15,7 @@ import tempfile
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Iterable, Iterator
-
+from typing import Any
 
 SCHEMA_VERSION = "simplicio.graph/v1"
 
@@ -115,7 +114,7 @@ class GraphNode:
         provenance: str = "static-inferred",
         confidence: float = 1.0,
         metadata: dict[str, Any] | None = None,
-    ) -> "GraphNode":
+    ) -> GraphNode:
         return cls(
             node_id=stable_id(repo_identity, kind.value, qualified_name, path, content_hash),
             kind=kind,

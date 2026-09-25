@@ -64,12 +64,24 @@ class InstalledWheelConsumerIntegrationTest(unittest.TestCase):
         wheels = sorted(dist_dir.glob("*.whl"))
         self.assertEqual(len(wheels), 1, [str(path) for path in wheels])
 
+        # `--system-site-packages` lets the throwaway venv resolve the wheel's
+        # runtime dependencies (diskcache, orjson, tiktoken) from the calling
+        # interpreter's already-installed packages, and installing the wheel
+        # itself with `--no-deps --no-index` never touches PyPI. This keeps
+        # the test hermetic (no network dependency-resolution round-trip)
+        # while still proving the *built wheel* -- not the source checkout --
+        # is what a consumer imports: the wheel install writes into the
+        # venv's own site-packages, which shadows the inherited system one.
         venv_dir = tmp / "venv"
-        create_venv = self._run([sys.executable, "-m", "venv", str(venv_dir)], cwd=tmp)
+        create_venv = self._run(
+            [sys.executable, "-m", "venv", "--system-site-packages", str(venv_dir)], cwd=tmp
+        )
         self.assertEqual(create_venv.returncode, 0, create_venv.stdout + create_venv.stderr)
 
         py = self._venv_python(venv_dir)
-        install = self._run([str(py), "-m", "pip", "install", str(wheels[0])], cwd=tmp)
+        install = self._run(
+            [str(py), "-m", "pip", "install", "--no-deps", "--no-index", str(wheels[0])], cwd=tmp
+        )
         self.assertEqual(install.returncode, 0, install.stdout + install.stderr)
         return py
 

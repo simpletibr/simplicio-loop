@@ -7,13 +7,12 @@ import json
 import os
 import tempfile
 import zlib
+from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Iterable, Mapping
 
-from .structural_graph import GraphEdge, GraphNode, StructuralGraph, graph_from_dict
-from .structural_parser import Coverage, ParsedFile, parse_source
-
+from .structural_graph import StructuralGraph, graph_from_dict
+from .structural_parser import ParsedFile, parse_source
 
 COVERAGE_SCHEMA = "simplicio.mapper-coverage/v1"
 SNAPSHOT_SCHEMA = "simplicio.graph-snapshot/v1"
@@ -119,7 +118,7 @@ class IncrementalGraphIndex:
         return destination
 
     @classmethod
-    def restore(cls, source: str | os.PathLike[str]) -> "IncrementalGraphIndex":
+    def restore(cls, source: str | os.PathLike[str]) -> IncrementalGraphIndex:
         envelope = json.loads(Path(source).read_text(encoding="ascii"))
         if envelope.get("schema") != SNAPSHOT_SCHEMA or envelope.get("codec") != "zlib":
             raise ValueError("unsupported or incompatible graph snapshot")

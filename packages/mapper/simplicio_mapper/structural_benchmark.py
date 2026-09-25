@@ -9,10 +9,10 @@ from __future__ import annotations
 import json
 import math
 import statistics
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
-
+from typing import Any
 
 BENCHMARK_SCHEMA = "simplicio.structural-benchmark/v1"
 

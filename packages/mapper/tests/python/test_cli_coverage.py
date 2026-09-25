@@ -455,9 +455,9 @@ class PackageSubprocessPinsStdinDevnullTest(unittest.TestCase):
     """Residual package sites must pin stdin=DEVNULL (issue #231 follow-up)."""
 
     def test_git_helpers_declare_stdin_devnull(self) -> None:
+        from simplicio_mapper import project_capabilities
         from simplicio_mapper.mapper import canonical_identity
         from simplicio_mapper.store import memory as memory_store
-        from simplicio_mapper import project_capabilities
 
         sources = [
             inspect.getsource(canonical_identity._run_git),

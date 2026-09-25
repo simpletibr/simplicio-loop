@@ -41,6 +41,13 @@ dev = [
   "pytest-cov>=6,<8",
   "hypothesis>=6.100,<7",
   "build>=1,<2",
+  # Build backend (see [build-system] above). The dist-frontier tests build
+  # a real wheel with `python -m build --no-isolation` to prove the
+  # committed contracts/wheel-force-include shape without touching the
+  # network for an isolated build env -- that requires hatchling to already
+  # be importable in the dev environment, not just declared as a PEP 517
+  # build requirement.
+  "hatchling>=1.27,<1.33",
 ]
 
 [project.scripts]
