@@ -322,8 +322,10 @@ def test_verify_run_blocks_when_quality_matrix_missing(tmp_path, monkeypatch):
     result = runner_mod.verify_run(str(repo), run_id)
 
     assert result["state"]["phase"] == "blocked"
-    # No lane verifiers declared and no applied receipts: the matrix the loop
-    # builds from what it measured fails closed, naming the lane.
+    # The per-requirement gate (simplicio_loop/quality_matrix.py::_requirement_gate)
+    # now reports a missing matrix through each unproven requirement's own
+    # "not passing" verdict rather than a single generic "file missing" string --
+    # still the same underlying block (no quality-matrix evidence at all).
     assert "evidence is not passing" in (result["state"].get("blockers") or [""])[0]
     assert result["state"]["current_action"] == "quality_matrix_failed"
 

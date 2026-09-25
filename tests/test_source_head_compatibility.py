@@ -382,6 +382,13 @@ def _run_operator_contract_probes(root: Path) -> dict[str, dict[str, object]]:
             str(fast_cli_root),
             "--output",
             str(snapshot),
+            # This probe exercises basic build/stats/search plumbing on a synthetic
+            # fixture, not a real Mapper integration -- the newer source head's
+            # default `--mapper-mode integrated` fails closed without a canonical
+            # `simplicio-mapper fast-handoff` file, so use the explicit
+            # development-only bootstrap fallback instead.
+            "--mapper-mode",
+            "bootstrap",
             "--json",
         ],
         cwd=ROOT,

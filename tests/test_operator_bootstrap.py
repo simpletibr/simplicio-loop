@@ -21,7 +21,7 @@ class _Result:
 def test_normal_package_contract_requests_both_operator_distributions():
     pyproject = (Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf-8")
     assert '"simplicio-cli>=0.18.12,<0.19"' in pyproject
-    assert '"simplicio-mapper>=0.26.29,<0.27"' in pyproject
+    assert '"simplicio-mapper>=0.26.31,<0.27"' in pyproject
 
 
 def test_available_operators_do_not_run_pip(tmp_path, monkeypatch):
