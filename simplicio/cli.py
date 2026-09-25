@@ -463,7 +463,18 @@ def _build_parser() -> argparse.ArgumentParser:
         help="apply a Dev CLI edit plan; legacy plans may delegate to Runtime",
     )
     p_edit.add_argument("--root", "--repo", dest="root", default=".")
-    p_edit.add_argument("--plan", default="-", help="plan JSON path, or - for stdin")
+    p_edit.add_argument(
+        "--plan",
+        default="-",
+        help="plan JSON path, or - for stdin. With --compile, the minimal host plan: "
+        '{"operations": [{"path": "...", "find": "<exact unique text>", "replace": "..."}]}',
+    )
+    p_edit.add_argument(
+        "--compile",
+        metavar="OUT",
+        help="freeze the minimal --plan into a full edit plan at OUT (pins file hashes; never mutates); "
+        "then run: edit --plan OUT --apply --json",
+    )
     p_edit.add_argument("--apply", action="store_true")
     p_edit.add_argument("--dry-run", action="store_true")
     p_edit.add_argument("--json", action="store_true")

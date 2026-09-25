@@ -482,6 +482,64 @@ def _run_native_edit_plans(
     }
 
 
+def _llm_full_file_budget_errors(plan: Any, root: str) -> list[dict[str, Any]]:
+    """Reject a Mode 3 (Llm) plan attempting full-file generation.
+
+    Only inspects plans explicitly marked ``effect_mode: "llm"`` by the
+    effect router (issue #709) -- an additive, opt-in marker that leaves
+    every other plan shape (Mode 1/Mode 2, and any plan predating the
+    router) untouched. For each operation, ``old`` is the anchor/selector
+    text if present (``find`` for ``replace_anchor``, otherwise absent for
+    line-range ops) and ``new`` is the replacement text; both are checked
+    against the current on-disk size of the touched file via
+    ``simplicio.effect_router.validate_llm_edit``.
+    """
+    if not isinstance(plan, dict) or plan.get("effect_mode") != "llm":
+        return []
+    operations = plan.get("operations")
+    if not isinstance(operations, list):
+        return []
+    from ..effect_router import validate_llm_edit
+
+    errors: list[dict[str, Any]] = []
+    for operation in operations:
+        if not isinstance(operation, dict):
+            continue
+        op_name = operation.get("op")
+        path = operation.get("path", plan.get("file"))
+        if not isinstance(path, str):
+            continue
+        if op_name == "replace_anchor":
+            # An anchor op already requires a non-empty, unique `find` --
+            # never full-file generation by construction. Nothing to guard.
+            continue
+        if op_name not in {"replace_range", "delete_range"}:
+            # insert_before/insert_after/create_file/json_patch/ast_patch/
+            # move_file/delete_file never overwrite a whole existing file's
+            # content in one op; the Mode 3 budget guard is only meaningful
+            # for a range op that could plausibly span the entire file.
+            continue
+        try:
+            source = (Path(root) / path).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        total_lines = max(len(source.splitlines()), 1)
+        start_line = operation.get("start_line")
+        end_line = operation.get("end_line")
+        if not isinstance(start_line, int) or not isinstance(end_line, int):
+            continue
+        if start_line > 1 or end_line < total_lines:
+            # A partial range is a bounded edit, not full-file generation --
+            # do not flag it just because the replacement text happens to be
+            # a large fraction of a small file's byte size.
+            continue
+        new = str(operation.get("text", ""))
+        file_size = len(source.encode("utf-8"))
+        for error in validate_llm_edit(None, new, file_size):
+            errors.append({**error, "path": path})
+    return errors
+
+
 def _invalid_delegated_plan(plan: Any) -> list[dict[str, Any]]:
     if not isinstance(plan, dict):
         return [{"code": "invalid_json", "message": "plan root must be a JSON object"}]
@@ -533,6 +591,101 @@ def _print_edit_result(result: dict[str, Any], a: argparse.Namespace) -> int:
     return 0 if result["status"] == "ok" else 1
 
 
+def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    """Freeze a host's minimal ``{"operations": [{path, find, replace}]}`` plan.
+
+    The host (an LLM) decides the change; Dev CLI pins the current file hashes
+    and source tree into the mapper binding and fills every digest, so a later
+    ``edit --apply`` refuses the plan if the files drifted in between.
+    """
+    import hashlib
+
+    from ..mapper_binding import build_mapper_binding
+    from ..mechanical_edit import TextEdit, build_edit_plan
+
+    operations = plan.get("operations") if isinstance(plan, dict) else None
+    if not isinstance(operations, list) or not operations:
+        return None, [{"code": "invalid_plan", "message": "plan needs a non-empty operations list"}]
+    errors: list[dict[str, Any]] = []
+    edits: list[TextEdit] = []
+    hashes: dict[str, str] = {}
+    for index, op in enumerate(operations):
+        if (
+            not isinstance(op, dict)
+            or not all(isinstance(op.get(key), str) for key in ("path", "find", "replace"))
+            or not op["find"]
+        ):
+            errors.append(
+                {
+                    "code": "invalid_operation",
+                    "index": index,
+                    "message": "each operation needs string path, non-empty find, replace",
+                }
+            )
+            continue
+        path = op["path"]
+        try:
+            data = (Path(root) / path).read_bytes()
+        except OSError as exc:
+            errors.append({"code": "file_unreadable", "path": path, "message": str(exc)})
+            continue
+        count = data.decode("utf-8", "surrogateescape").count(op["find"])
+        if count != 1:
+            code = "missing_anchor" if count == 0 else "ambiguous_anchor"
+            errors.append(
+                {"code": code, "path": path, "message": f"find must match exactly once, matched {count}"}
+            )
+            continue
+        hashes[path] = hashlib.sha256(data).hexdigest()
+        edits.append(TextEdit(path, op["find"], op["replace"]))
+    if errors:
+        return None, errors
+    tree = subprocess.run(
+        ["git", "-C", root, "rev-parse", "HEAD^{tree}"], capture_output=True, text=True, check=False
+    )
+    if tree.returncode != 0:
+        return None, [{"code": "git_tree_unavailable", "message": tree.stderr.strip()}]
+    source_tree = tree.stdout.strip()
+    generation = source_tree
+    snapshot = Path(root) / ".simplicio" / "context-snapshot.json"
+    if snapshot.is_file():
+        try:
+            snapshot_id = json.loads(snapshot.read_text(encoding="utf-8")).get("snapshot_id")
+            generation = str(snapshot_id or source_tree)
+        except (OSError, ValueError):
+            generation = source_tree
+    binding = build_mapper_binding(f"local/{Path(root).resolve().name}", generation, source_tree, hashes)
+    return build_edit_plan(edits, mapper_binding=binding), []
+
+
+def _run_compile(a: argparse.Namespace, plan: Any) -> int:
+    compiled, errors = compile_host_plan(a.root, plan)
+    if compiled is None:
+        result = {
+            "schema": "simplicio.mechanical-edit-result/v1",
+            "status": "refused",
+            "applied": False,
+            "noop": False,
+            "operation_count": 0,
+            "files": [],
+            "errors": errors,
+            "mutation_receipt": mutation_receipt("blocked", entrypoint="edit"),
+        }
+        return _print_edit_result(result, a)
+    Path(a.compile).write_text(json.dumps(compiled, indent=2) + "\n", encoding="utf-8")
+    print(
+        json.dumps(
+            {
+                "schema": "simplicio.dev-cli.edit-compile/v1",
+                "status": "ok",
+                "plan": a.compile,
+                "touched_files": compiled["touched_files"],
+            }
+        )
+    )
+    return 0
+
+
 def run_edit(a: argparse.Namespace) -> int:
     if a.apply and effect_unknown_pending(a.root):
         policy = standalone_policy_for_root(a.root)
@@ -577,6 +730,8 @@ def run_edit(a: argparse.Namespace) -> int:
             root=a.root, entrypoint="edit", route="blocked", reason_code="PLAN_VALIDATION_FAILED"
         )
         return _print_edit_result(result, a)
+    if getattr(a, "compile", None):
+        return _run_compile(a, plan)
     validation_errors = _invalid_delegated_plan(plan)
     if validation_errors:
         result = {
@@ -591,6 +746,27 @@ def run_edit(a: argparse.Namespace) -> int:
         }
         emit_mutation_route(
             root=a.root, entrypoint="edit", route="blocked", reason_code="PLAN_VALIDATION_FAILED"
+        )
+        return _print_edit_result(result, a)
+
+    # Effect router (issue #709), Mode 3 budget: a plan explicitly marked
+    # ``effect_mode: "llm"`` never gets to write a whole file. This is
+    # additive and opt-in via the marker field -- plans without it (the
+    # overwhelming majority, produced by Mode 1/Mode 2) are unaffected.
+    llm_budget_errors = _llm_full_file_budget_errors(plan, a.root)
+    if llm_budget_errors:
+        result = {
+            "schema": "simplicio.mechanical-edit-result/v1",
+            "status": "refused",
+            "applied": False,
+            "noop": False,
+            "operation_count": 0,
+            "files": [],
+            "errors": llm_budget_errors,
+            "mutation_receipt": mutation_receipt("blocked", entrypoint="edit"),
+        }
+        emit_mutation_route(
+            root=a.root, entrypoint="edit", route="blocked", reason_code="LLM_FULL_FILE_REJECTED"
         )
         return _print_edit_result(result, a)
 

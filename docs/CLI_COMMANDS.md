@@ -28,7 +28,7 @@ form available, for example `simplicio-py memory recall --help`.
 | `env-export` | Print safe exports from a dotenv file without sourcing it. |
 | `mechanical-edit` | Dry-run or apply a mechanical edit plan. |
 | `changeset` | Decode and apply a Fast changeset through the edit boundary. |
-| `edit` | Apply a Dev CLI-owned deterministic edit plan; legacy plans may delegate through Runtime. |
+| `edit` | Apply a Dev CLI-owned deterministic edit plan; legacy plans may delegate through Runtime. `edit --plan ops.json --compile plan.json` freezes a minimal host plan (`{"operations": [{path, find, replace}]}`) into the full plan, then `edit --plan plan.json --apply --json` applies it. |
 | `reconcile` | Reconcile a pending Runtime effect from an evidence file. |
 | `file` | Read bounded file contents (`read`). |
 | `test` | Run a test command and report its result (`run`). |
@@ -40,6 +40,18 @@ form available, for example `simplicio-py memory recall --help`.
 
 The compatibility commands `gate`, `nest`, `scratch`, and `skill new` are
 dispatched by their own modules and also expose `--help`.
+
+## Effect router (issue #709)
+
+`simplicio/effect_router.py` classifies a task as `mechanical_edit`,
+`codegen`, or `llm` *before* any tokens are spent, and never writes a file
+itself — `classify(task, mapper_hits)` returns a `RouteDecision`; the actual
+write always goes through `mechanical_edit.execute_plan` (Mode 1) or the
+whitelisted `scratch.codegen` executors (Mode 2). `edit --plan` refuses a
+plan marked `"effect_mode": "llm"` outright when it looks like full-file
+generation (empty/blank anchor, replacement approximately the size of the
+whole file) with error code `full_file_generation_rejected`, before any
+write. See `.specs/architecture/ADR-008-effect-router.md`.
 
 ## Agent-facing operating sequence
 
