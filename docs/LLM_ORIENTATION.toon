@@ -18,10 +18,10 @@ fact package_source=pyproject.toml; runtime-agnostic super-plugin with Loop plus
 section source_of_truth
 fact source.1.path=AGENTS.md
 fact source.1.role=canonical ecosystem contract and coordination rules
-fact source.1.sha256=185a64a23b726851bf00fa479cd1edd57b57ad20d95e39cc112dcf548ad13da9
+fact source.1.sha256=cda4c12413c1600c3fbdf0bad85f463a1f3a67791eabf19bfc4fc26970413cfb
 fact source.2.path=CLAUDE.md
 fact source.2.role=host overlay, operators, local gate, and runtime boundary
-fact source.2.sha256=b23978434767d65c9e2e81d41eb740ff4b0e702716933e0999c968cad7666824
+fact source.2.sha256=3456d51cf5f4b3ff8f1743fdf51e2067ade0bc45d3cdc9c4f9ffde99d9bc7380
 fact source.3.path=docs/LLM_OPERATING_INSTRUCTIONS.md
 fact source.3.role=authoritative active English instructions
 fact source.3.sha256=361023d5cee237480b70bf26dcf5d31dfafa22530afb8474abffa3e576724ec5

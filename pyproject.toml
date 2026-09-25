@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "simplicio-loop"
-version = "3.43.13"
+version = "3.43.14"
 description = "Standalone orchestrator for mapper, fast, and simplicio-dev-cli. No Runtime."
 readme = "PYPI.md"
 requires-python = ">=3.11"
@@ -25,12 +25,12 @@ classifiers = [
 ]
 # Loop is the aggregate of mapper + fast + simplicio-dev-cli. `simplicio-cli`
 # exports the `simplicio-dev-cli` entrypoint. There is no Runtime and no
-# simplicio-prompt on this train. Train target for simplicio-cli is 0.18.13;
-# the floor stays 0.18.12 while that is the locally installed wheel.
+# simplicio-prompt on this train. Loop needs dev-cli's new `edit --compile`,
+# hence the simplicio-cli floor raise to 0.18.15.
 dependencies = [
-  "simplicio-cli>=0.18.12,<0.19",
-  "simplicio-mapper>=0.26.31,<0.27",
-  "simplicio-fast>=2.0.32,<3",
+  "simplicio-cli>=0.18.15,<0.19",
+  "simplicio-mapper>=0.26.33,<0.27",
+  "simplicio-fast>=2.0.35,<3",
   "tiktoken>=0.12.0,<1",
 ]
 

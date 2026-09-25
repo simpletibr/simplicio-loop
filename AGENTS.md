@@ -151,8 +151,8 @@ The complete installed-entry-point and `simplicio-loop` command map is
 [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md). Run the most specific
 `--help` before invoking a command. Every new public command must have
 meaningful `help=` text, documentation in that file, and a help regression
-check. The current train is Mapper 0.26.10, Dev CLI 0.18.6, Fast 2.0.22, and
-Loop 3.38.30.
+check. The current train is Mapper 0.26.33, Dev CLI 0.18.15, Fast 2.0.35, and
+Loop 3.43.14.
 
 For GitHub work items, keep the body focused on objective, implementation,
 deployment, and tests. Do not add an Acceptance Criteria section to new or
