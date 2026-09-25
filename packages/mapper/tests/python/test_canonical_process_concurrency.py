@@ -32,6 +32,7 @@ Run with: python3 -m unittest discover -s tests/python
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -286,11 +287,31 @@ class CrashDuringBuildRecoveryTests(unittest.TestCase):
                 # appends an intra-process random suffix to the PID token, so
                 # the test discovers the actual staging dir by digest-prefixed
                 # glob instead of reconstructing a now-intentionally-incomplete
-                # private token. `Popen.kill()` is the portable equivalent of
-                # `killpg(SIGKILL)` here (`os.killpg`/`os.getpgid` don't exist
-                # on Windows) -- the builder has no children of its own to
-                # worry about leaking.
-                proc.kill()
+                # private token.
+                #
+                # The builder DOES have a child of its own to worry about
+                # leaking: `canonical_builder._checkout_worktree` shells out
+                # to a real `git worktree add` subprocess (that is the whole
+                # point of the "orphaned git worktree registration" assertion
+                # further down), and mid-write is exactly when that `git`
+                # child is most likely to still be running. `proc.kill()`
+                # only SIGKILLs the builder itself, not that child -- on a
+                # slow/loaded box the orphaned `git` process can still be
+                # exiting when this test method returns, which a strict
+                # process-leak-detecting harness (e.g. `scripts/check.py`'s
+                # subreaper-based containment) can catch as a leaked
+                # descendant. `_spawn_builder` gives the builder its own
+                # session via `start_new_session=True` specifically so its
+                # whole process group -- builder plus any child it spawned --
+                # can be killed and reaped together here instead of racing a
+                # child's own exit. `os.killpg`/`os.getpgid` are POSIX-only;
+                # this module's docstring already scopes it to real
+                # `subprocess.Popen` processes, so a plain `proc.kill()`
+                # fallback covers the (untested) Windows case only.
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                except (ProcessLookupError, AttributeError, OSError):
+                    proc.kill()
                 caught_mid_write = True
                 break
             if final_dir.is_dir():
