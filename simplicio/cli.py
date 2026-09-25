@@ -400,7 +400,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     release_verify.add_argument("--event", required=True, help="Mapper release event JSON")
     release_verify.add_argument("--conformance", help="installed N/N-1 conformance JSON")
-    release_verify.add_argument("--root", default=".", help="Dev CLI checkout containing pyproject.toml/uv.lock")
+    release_verify.add_argument(
+        "--root", default=".", help="Dev CLI checkout containing pyproject.toml/uv.lock"
+    )
     release_verify.add_argument("--declared-range")
     release_verify.add_argument("--tested-against")
     release_verify.add_argument("--state", default="", help="deduplication state JSON")
@@ -505,7 +507,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_test = sub.add_parser("test", help="run a test command and report results")
     test_sub = p_test.add_subparsers(dest="test_cmd", required=False)
-    p_test.set_defaults(test_cmd="run", test_program="pytest", extra_args=[], json=False, repo=".", timeout=120.0)
+    p_test.set_defaults(
+        test_cmd="run", test_program="pytest", extra_args=[], json=False, repo=".", timeout=120.0
+    )
     p_test.add_argument("--json", action="store_true")
     p_test.add_argument("--cmd", dest="test_program", default="pytest")
     p_test.add_argument("--repo", default=".")

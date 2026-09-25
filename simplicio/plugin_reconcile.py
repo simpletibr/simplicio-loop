@@ -56,7 +56,8 @@ def inspect_partial_attempt(
 ) -> dict[str, Any]:
     """Classify each planned operation and recommend a non-destructive next action."""
     root_path = Path(root)
-    operations = plan.get("operations") if isinstance(plan.get("operations"), list) else []
+    raw_operations = plan.get("operations")
+    operations: list[Any] = raw_operations if isinstance(raw_operations, list) else []
     journal_rows = list(journal or [])
     evidence = [
         _classify_operation(root_path, index, operation, journal_rows, previous_receipt)

@@ -1463,6 +1463,13 @@ def _admit_mapper_delta(
     CLI owns neither the producer schema nor its event model, so it does not
     copy either into this repository. Any unavailable, malformed, stale, or
     ambiguous envelope falls back to the complete ContextPack verification.
+
+    That includes the Mapper package itself refusing to resolve its own
+    schema (``simplicio_mapper.contract.ContractError``, e.g. an install
+    layout where the schema file the package expects is missing) —
+    ``ContractError`` is a ``RuntimeError`` subclass, so it is caught here
+    alongside the other "validator unavailable" cases rather than left to
+    propagate past this fail-open boundary.
     """
 
     try:
@@ -1472,7 +1479,15 @@ def _admit_mapper_delta(
         )
         schema = contract.load_schema(_MAPPER_GRAPH_DELTA_SCHEMA, package_root)
         errors = contract.validate_instance(dict(delta), schema)
-    except (ImportError, ModuleNotFoundError, OSError, TypeError, ValueError, AttributeError) as exc:
+    except (
+        ImportError,
+        ModuleNotFoundError,
+        OSError,
+        TypeError,
+        ValueError,
+        AttributeError,
+        RuntimeError,
+    ) as exc:
         return "unavailable", f"delta_validator_unavailable_full_verification:{type(exc).__name__}", set()
     if errors:
         return "invalid", "delta_invalid_full_verification", set()

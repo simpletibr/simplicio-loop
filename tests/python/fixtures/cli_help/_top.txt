@@ -1,5 +1,6 @@
 usage: simplicio-py [-h]
-                    {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,release-train,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory} ...
+                    {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,release-train,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory}
+                    ...
 
 positional arguments:
   {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,release-train,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory}

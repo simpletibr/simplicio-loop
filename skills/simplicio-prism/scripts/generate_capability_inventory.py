@@ -27,14 +27,38 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
 
 GENERATOR_VERSION = "1.0.0"
 SKIP_PARTS = {
-    ".git", ".hg", ".svn", ".venv", "venv", "node_modules", "target",
-    "dist", "build", "__pycache__", ".mypy_cache", ".pytest_cache",
+    ".git",
+    ".hg",
+    ".svn",
+    ".venv",
+    "venv",
+    "node_modules",
+    "target",
+    "dist",
+    "build",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
 }
 KNOWN_CONFIG_NAMES = {
-    "pyproject.toml", "setup.cfg", "setup.py", "Cargo.toml", "Cargo.lock",
-    "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
-    "uv.lock", "poetry.lock", "Pipfile", "Pipfile.lock", ".env.example",
-    "docker-compose.yml", "docker-compose.yaml", "Makefile", "justfile",
+    "pyproject.toml",
+    "setup.cfg",
+    "setup.py",
+    "Cargo.toml",
+    "Cargo.lock",
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "uv.lock",
+    "poetry.lock",
+    "Pipfile",
+    "Pipfile.lock",
+    ".env.example",
+    "docker-compose.yml",
+    "docker-compose.yaml",
+    "Makefile",
+    "justfile",
 }
 MCP_DECORATOR_RE = re.compile(r"@(?:[\w.]+\.)?(?:tool|resource|prompt)\b")
 MCP_REGISTER_RE = re.compile(r"(?:\.tool|\.resource|\.prompt)\(\s*[\"']([^\"']+)")
@@ -50,13 +74,17 @@ RUST_FN_RE = re.compile(
     r"(?:\s*->\s*(?P<return>[^\{]+))?"
 )
 SIGNAL_PATTERNS = {
-    "filesystem-write": re.compile(r"\b(?:write_text|write_bytes|mkdir|makedirs|unlink|rename|replace)\b|open\([^\n]{0,160}[\"']w"),
+    "filesystem-write": re.compile(
+        r"\b(?:write_text|write_bytes|mkdir|makedirs|unlink|rename|replace)\b|open\([^\n]{0,160}[\"']w"
+    ),
     "subprocess": re.compile(r"\b(?:subprocess|Popen|Command::new|os\.system)\b"),
     "network": re.compile(r"\b(?:httpx|requests|urllib|socket|aiohttp|grpc)\b"),
     "database": re.compile(r"\b(?:sqlite|sqlalchemy|psycopg|redis|diskcache)\b"),
     "process-exit": re.compile(r"\b(?:sys\.exit|exit\(|panic!|abort)\b"),
 }
-FALLBACK_RE = re.compile(r"\b(?:fallback|degraded|retry|backoff|without\s+runtime|compatib(?:le|ility))\b", re.I)
+FALLBACK_RE = re.compile(
+    r"\b(?:fallback|degraded|retry|backoff|without\s+runtime|compatib(?:le|ility))\b", re.I
+)
 
 
 def read_text(path: Path, limit: int = 1_500_000) -> str:
@@ -74,7 +102,10 @@ def run_git(root: Path, *args: str) -> str | None:
     try:
         result = subprocess.run(
             ["git", "-C", str(root), *args],
-            capture_output=True, text=True, timeout=3, check=False,
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
@@ -107,7 +138,9 @@ def files_under(root: Path, suffixes: tuple[str, ...] | None = None, limit: int 
     return result
 
 
-def base_capability(cap_id: str, kind: str, name: str, source: str, *, status: str = "observed") -> dict[str, Any]:
+def base_capability(
+    cap_id: str, kind: str, name: str, source: str, *, status: str = "observed"
+) -> dict[str, Any]:
     return {
         "id": cap_id,
         "kind": kind,
@@ -134,7 +167,9 @@ def python_signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple[list
     return args, returns
 
 
-def python_caps(path: Path, root: Path, signals: set[str], errors: set[str], fallbacks: set[str]) -> list[dict[str, Any]]:
+def python_caps(
+    path: Path, root: Path, signals: set[str], errors: set[str], fallbacks: set[str]
+) -> list[dict[str, Any]]:
     text = read_text(path)
     for name, pattern in SIGNAL_PATTERNS.items():
         if pattern.search(text):
@@ -148,15 +183,23 @@ def python_caps(path: Path, root: Path, signals: set[str], errors: set[str], fal
     result: list[dict[str, Any]] = []
     source = rel(path, root)
     for node in tree.body:
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) or node.name.startswith("_"):
+        if not isinstance(
+            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        ) or node.name.startswith("_"):
             continue
         kind = "class" if isinstance(node, ast.ClassDef) else "function"
-        cap = base_capability(f"repo.python_api.{node.name}", "python_api", node.name, source, status="inferred")
-        cap["interfaces"]["python_api"] = [{"module": source.removesuffix(".py").replace("/", "."), "symbol": node.name, "kind": kind}]
+        cap = base_capability(
+            f"repo.python_api.{node.name}", "python_api", node.name, source, status="inferred"
+        )
+        cap["interfaces"]["python_api"] = [
+            {"module": source.removesuffix(".py").replace("/", "."), "symbol": node.name, "kind": kind}
+        ]
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             args, returns = python_signature(node)
             cap["inputs"] = [{"name": name, "type": "unknown"} for name in args]
-            cap["outputs"] = [{"type": returns or "unknown", "source": "return-annotation" if returns else "inferred"}]
+            cap["outputs"] = [
+                {"type": returns or "unknown", "source": "return-annotation" if returns else "inferred"}
+            ]
         for child in ast.walk(node):
             if isinstance(child, ast.Raise) and child.exc:
                 exc = child.exc.func if isinstance(child.exc, ast.Call) else child.exc
@@ -166,16 +209,24 @@ def python_caps(path: Path, root: Path, signals: set[str], errors: set[str], fal
                 decorators = [ast.unparse(dec) for dec in child.decorator_list]
                 for decorator in decorators:
                     if MCP_DECORATOR_RE.search("@" + decorator):
-                        mcp = base_capability(f"repo.mcp.{child.name}", "mcp", child.name, source, status="observed")
-                        mcp["interfaces"]["mcp"] = [{"name": child.name, "decorator": decorator, "schema": "requires_probe"}]
-                        mcp["inputs"] = [{"name": name, "type": "unknown"} for name in python_signature(child)[0]]
+                        mcp = base_capability(
+                            f"repo.mcp.{child.name}", "mcp", child.name, source, status="observed"
+                        )
+                        mcp["interfaces"]["mcp"] = [
+                            {"name": child.name, "decorator": decorator, "schema": "requires_probe"}
+                        ]
+                        mcp["inputs"] = [
+                            {"name": name, "type": "unknown"} for name in python_signature(child)[0]
+                        ]
                         mcp["outputs"] = [{"type": python_signature(child)[1] or "unknown"}]
                         result.append(mcp)
         result.append(cap)
     return result
 
 
-def rust_caps(path: Path, root: Path, signals: set[str], errors: set[str], fallbacks: set[str]) -> list[dict[str, Any]]:
+def rust_caps(
+    path: Path, root: Path, signals: set[str], errors: set[str], fallbacks: set[str]
+) -> list[dict[str, Any]]:
     text = read_text(path)
     for name, pattern in SIGNAL_PATTERNS.items():
         if pattern.search(text):
@@ -213,10 +264,16 @@ def cli_source_caps(path: Path, root: Path) -> list[dict[str, Any]]:
             if "usage:" not in line and "positional arguments" not in line:
                 continue
             for group in HELP_SUBCOMMAND_RE.findall(line):
-                names.update(item.strip() for item in group.split(",") if re.fullmatch(r"[a-z][a-z0-9-]*", item.strip()))
+                names.update(
+                    item.strip()
+                    for item in group.split(",")
+                    if re.fullmatch(r"[a-z][a-z0-9-]*", item.strip())
+                )
     for name in sorted(names):
         cap = base_capability(f"repo.cli.subcommand.{name}", "cli", name, source, status="observed")
-        cap["interfaces"]["cli"] = [{"command": name, "source_type": "argparse-or-help", "help_probe": "not-run"}]
+        cap["interfaces"]["cli"] = [
+            {"command": name, "source_type": "argparse-or-help", "help_probe": "not-run"}
+        ]
         cap["inputs"] = [{"name": "argv", "type": "command-line"}]
         cap["outputs"] = [{"name": "stdout"}, {"name": "stderr"}, {"name": "exit_status"}]
         cap["evidence"].append(source)
@@ -247,7 +304,14 @@ def cost_class(kind: str, signals: set[str]) -> str:
     return "read-only-low" if kind in {"python_api", "rust_api", "mcp"} else "metadata-low"
 
 
-def enrich(cap: dict[str, Any], signals: set[str], errors: set[str], fallbacks: set[str], package: dict[str, Any], compatibility: dict[str, Any]) -> None:
+def enrich(
+    cap: dict[str, Any],
+    signals: set[str],
+    errors: set[str],
+    fallbacks: set[str],
+    package: dict[str, Any],
+    compatibility: dict[str, Any],
+) -> None:
     cap["effects"]["observed_signals"] = sorted(signals)
     cap["effects"]["confidence"] = "inferred" if signals else "requires_review"
     cap["errors"] = [{"name": value, "status": "observed-signal"} for value in sorted(errors)]
@@ -274,7 +338,13 @@ def discover(root: Path, probe_help: bool, max_files: int) -> dict[str, Any]:
         data = load_toml(pyproject)
         project = data.get("project", {})
         primary_packaging = bool(project)
-        package.update({"name": project.get("name", package["name"]), "version": project.get("version"), "dependencies": project.get("dependencies", [])})
+        package.update(
+            {
+                "name": project.get("name", package["name"]),
+                "version": project.get("version"),
+                "dependencies": project.get("dependencies", []),
+            }
+        )
         compatibility["python"] = project.get("requires-python")
         scripts = project.get("scripts", {})
         for name, target in scripts.items():
@@ -293,7 +363,9 @@ def discover(root: Path, probe_help: bool, max_files: int) -> dict[str, Any]:
             package.setdefault("rust", {})
             package["rust"].update({"name": cargo_pkg.get("name"), "version": cargo_pkg.get("version")})
             compatibility["rust"] = cargo_pkg.get("rust-version") or cargo_pkg.get("edition")
-            package["dependencies"] = sorted(set(package.get("dependencies", []) + list(data.get("dependencies", {}).keys())))
+            package["dependencies"] = sorted(
+                set(package.get("dependencies", []) + list(data.get("dependencies", {}).keys()))
+            )
         for item in data.get("bin", []):
             name = item.get("name")
             if not name:
@@ -313,7 +385,9 @@ def discover(root: Path, probe_help: bool, max_files: int) -> dict[str, Any]:
             package["name"] = data.get("name", package["name"])
         if not primary_packaging and not package.get("version"):
             package["version"] = data.get("version")
-        package["dependencies"] = sorted(set(package.get("dependencies", []) + list(data.get("dependencies", {}).keys())))
+        package["dependencies"] = sorted(
+            set(package.get("dependencies", []) + list(data.get("dependencies", {}).keys()))
+        )
         compatibility["node"] = data.get("engines", {}).get("node")
         bins = data.get("bin", {})
         bins = {data.get("name", root.name): bins} if isinstance(bins, str) else bins
@@ -327,7 +401,11 @@ def discover(root: Path, probe_help: bool, max_files: int) -> dict[str, Any]:
 
     config_paths = []
     for path in files_under(root, limit=max_files):
-        if path.name in KNOWN_CONFIG_NAMES or path.name.startswith(".env") or path.suffix in {".toml", ".ini", ".cfg"}:
+        if (
+            path.name in KNOWN_CONFIG_NAMES
+            or path.name.startswith(".env")
+            or path.suffix in {".toml", ".ini", ".cfg"}
+        ):
             config_paths.append(rel(path, root))
     for config in sorted(set(config_paths)):
         cap = base_capability(f"repo.config.{config}", "config", config, config, status="observed")
@@ -358,7 +436,9 @@ def discover(root: Path, probe_help: bool, max_files: int) -> dict[str, Any]:
         if current is None:
             unique[cap["id"]] = cap
             continue
-        current["status"] = "observed" if "observed" in {current["status"], cap["status"]} else current["status"]
+        current["status"] = (
+            "observed" if "observed" in {current["status"], cap["status"]} else current["status"]
+        )
         current["source"] = sorted(set(current["source"] + cap["source"]))
         current["evidence"] = sorted(set(current["evidence"] + cap["evidence"]))
         for surface in current["interfaces"]:
@@ -372,7 +452,9 @@ def discover(root: Path, probe_help: bool, max_files: int) -> dict[str, Any]:
             executable = shutil.which(command)
             if executable:
                 try:
-                    result = subprocess.run([executable, "--help"], capture_output=True, text=True, timeout=3, check=False)
+                    result = subprocess.run(
+                        [executable, "--help"], capture_output=True, text=True, timeout=3, check=False
+                    )
                     cap["interfaces"]["cli"][0]["help_probe"] = {
                         "executable": executable,
                         "exit_status": result.returncode,
@@ -403,16 +485,41 @@ def discover(root: Path, probe_help: bool, max_files: int) -> dict[str, Any]:
         },
         "package": package,
         "compatibility": compatibility,
-        "observed_signals": {"effects": sorted(signals), "errors": sorted(errors), "fallbacks": sorted(fallbacks)},
+        "observed_signals": {
+            "effects": sorted(signals),
+            "errors": sorted(errors),
+            "fallbacks": sorted(fallbacks),
+        },
         "capabilities": capabilities,
         "evidence": sorted(set(evidence)),
-        "review": {"required_for": ["semantic inputs/outputs", "measured cost", "side-effect certainty", "complete MCP schemas"]},
+        "review": {
+            "required_for": [
+                "semantic inputs/outputs",
+                "measured cost",
+                "side-effect certainty",
+                "complete MCP schemas",
+            ]
+        },
     }
 
 
 REQUIRED_FIELDS = {
-    "id", "kind", "name", "status", "source", "interfaces", "inputs", "outputs",
-    "effects", "errors", "fallbacks", "cost", "dependencies", "version", "compatibility", "evidence",
+    "id",
+    "kind",
+    "name",
+    "status",
+    "source",
+    "interfaces",
+    "inputs",
+    "outputs",
+    "effects",
+    "errors",
+    "fallbacks",
+    "cost",
+    "dependencies",
+    "version",
+    "compatibility",
+    "evidence",
 }
 
 
@@ -438,9 +545,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("repository", type=Path, nargs="?")
     parser.add_argument("--output", type=Path, default=Path("capability-inventory.json"))
-    parser.add_argument("--probe-help", action="store_true", help="run --help only for discovered installed CLI commands")
+    parser.add_argument(
+        "--probe-help", action="store_true", help="run --help only for discovered installed CLI commands"
+    )
     parser.add_argument("--max-files", type=int, default=20_000)
-    parser.add_argument("--validate", type=Path, help="validate an existing inventory instead of generating one")
+    parser.add_argument(
+        "--validate", type=Path, help="validate an existing inventory instead of generating one"
+    )
     args = parser.parse_args()
     if args.validate:
         try:

@@ -46,18 +46,14 @@ def test_contractless_traversal_is_blocked_with_stable_reason() -> None:
 
 
 def test_contractless_missing_target_is_blocked_without_guessing() -> None:
-    result = derive_ad_hoc_edit(
-        {"intent": "edit", "operations": [{"old": "x", "new": "y"}]}
-    )
+    result = derive_ad_hoc_edit({"intent": "edit", "operations": [{"old": "x", "new": "y"}]})
 
     assert result["status"] == "blocked"
     assert result["reason_codes"] == ["AMBIGUOUS_TARGET"]
 
 
 def test_contractless_missing_precondition_is_blocked() -> None:
-    result = derive_ad_hoc_edit(
-        {"intent": "edit", "operations": [{"target": "src/app.py", "new": "y"}]}
-    )
+    result = derive_ad_hoc_edit({"intent": "edit", "operations": [{"target": "src/app.py", "new": "y"}]})
 
     assert result["status"] == "blocked"
     assert result["reason_codes"] == ["PRECONDITION_REQUIRED"]

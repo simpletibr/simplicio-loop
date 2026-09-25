@@ -391,14 +391,16 @@ def test_native_multi_file_apply_uses_atomic_runtime_transaction(tmp_path, monke
         calls.append((cmd, transaction, kwargs))
         return SimpleNamespace(
             returncode=0,
-            stdout=json.dumps({
-                "status": "committed",
-                "file_count": len(transaction["files"]),
-                "files": [
-                    {"file": item["file"], "ops_applied": 1, "created": True}
-                    for item in transaction["files"]
-                ],
-            }),
+            stdout=json.dumps(
+                {
+                    "status": "committed",
+                    "file_count": len(transaction["files"]),
+                    "files": [
+                        {"file": item["file"], "ops_applied": 1, "created": True}
+                        for item in transaction["files"]
+                    ],
+                }
+            ),
             stderr="",
         )
 

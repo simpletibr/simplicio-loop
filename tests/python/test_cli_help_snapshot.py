@@ -11,6 +11,7 @@ invocation is captured via `capsys` + `SystemExit`.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -59,13 +60,24 @@ def _run_help(args: list[str]) -> str:
     """Invoke the real `simplicio-py` console-script entrypoint as a
     subprocess so argparse's SystemExit(0) and the exact stdout stream are
     captured without any in-process state (module-level caches, the
-    ecosystem freshness sentinel, etc.) leaking between fixtures."""
+    ecosystem freshness sentinel, etc.) leaking between fixtures.
+
+    `COLUMNS` is pinned to argparse's own non-tty fallback width (80):
+    without pinning it, this byte-identical snapshot test's outcome depends
+    on the ambient terminal width of whatever shell/CI runner happens to
+    invoke pytest (argparse's `HelpFormatter` reads
+    `COLUMNS`/`shutil.get_terminal_size`), which a snapshot test may not
+    depend on. Fixtures under `fixtures/cli_help/*.txt` are captured at this
+    same pinned width."""
+    env = dict(os.environ)
+    env["COLUMNS"] = "80"
     result = subprocess.run(
         [sys.executable, "-m", "simplicio.cli", *args, "--help"],
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         timeout=30,
+        env=env,
     )
     return result.stdout + result.stderr
 

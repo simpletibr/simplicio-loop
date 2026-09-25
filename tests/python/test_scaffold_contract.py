@@ -19,6 +19,11 @@ def test_scaffold_plan_is_pure_and_bound_to_mapper_generation() -> None:
 
 def test_scaffold_rejects_unsupported_kind_and_unsafe_name() -> None:
     binding = _binding()
-    assert plan_scaffold("unknown", "demo", mapper_binding=binding)["errors"][0]["code"] == "unsupported_scaffold"
-    assert plan_scaffold("python-package", "../demo", mapper_binding=binding)["errors"][0]["code"] == "invalid_path"
-
+    assert (
+        plan_scaffold("unknown", "demo", mapper_binding=binding)["errors"][0]["code"]
+        == "unsupported_scaffold"
+    )
+    assert (
+        plan_scaffold("python-package", "../demo", mapper_binding=binding)["errors"][0]["code"]
+        == "invalid_path"
+    )

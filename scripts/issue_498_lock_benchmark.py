@@ -37,9 +37,7 @@ print(json.dumps({"status": result.get("status"), "state": (result.get("transact
 
 def _batch_once(writer_count: int) -> None:
     env = os.environ.copy()
-    env["PYTHONPATH"] = os.pathsep.join(
-        item for item in (str(_REPO_ROOT), env.get("PYTHONPATH", "")) if item
-    )
+    env["PYTHONPATH"] = os.pathsep.join(item for item in (str(_REPO_ROOT), env.get("PYTHONPATH", "")) if item)
     with tempfile.TemporaryDirectory(prefix=f"issue-498-lock-{writer_count}-") as raw_root:
         root = Path(raw_root)
         processes = [

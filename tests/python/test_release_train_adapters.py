@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from test_release_train import _manifest, _proof
-
 from simplicio import release_train as rt
 from simplicio.release_train_adapters import (
     build_github_bump_request,
     build_loop_dispatch_request,
     reconcile_adapter_receipt,
 )
+from tests.python.test_release_train import _manifest, _proof
 
 
 def test_adapter_requests_are_receipt_bound_and_deduplicated() -> None:

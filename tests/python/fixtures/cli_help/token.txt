@@ -1,5 +1,6 @@
 usage: simplicio-py token [-h]
-                          {log-summary,diff-review,postconditions,retry,model-routing,context-cache} ...
+                          {log-summary,diff-review,postconditions,retry,model-routing,context-cache}
+                          ...
 
 positional arguments:
   {log-summary,diff-review,postconditions,retry,model-routing,context-cache}

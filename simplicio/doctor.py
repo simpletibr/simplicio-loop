@@ -127,10 +127,7 @@ def _render_mapper_versions(payload: dict) -> None:
         reason = mapper.get("unavailable_reason") or "unknown"
         print(f"  latest_known     null ({reason})")
     if mapper.get("compatibility"):
-        print(
-            f"  compatibility    {mapper['compatibility']['status']}"
-            f" — {mapper['compatibility']['reason']}"
-        )
+        print(f"  compatibility    {mapper['compatibility']['status']} — {mapper['compatibility']['reason']}")
     drift = payload["drift"]
     if drift["has_drift"]:
         print(f"  drift            {drift['kind']}: {drift['reason']}")

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
+import importlib.resources
 import json
 import os
 import subprocess
@@ -89,6 +91,39 @@ def _delta(*paths: str, base: str = "rev-2", scan: str = "rev-3", **overrides: A
     }
     delta.update(overrides)
     return delta
+
+
+def _real_mapper_graph_delta_schema_reason() -> str | None:
+    """Non-``None`` when the installed `simplicio-mapper` package cannot
+    resolve its own shipped `graph-delta.schema.json` (`ContractError`).
+
+    The tests this guards exercise `_admit_mapper_delta`'s *semantic* delta
+    checks (invalid/stale/ambiguous/resync-required), which only run once
+    the schema itself loads and structurally validates — they are not
+    reachable if schema resolution fails first, and `_admit_mapper_delta`
+    correctly and intentionally swallows that failure into a generic
+    ``delta_validator_unavailable_full_verification`` fallback (fail-open,
+    not a dev-cli bug). On a host where the installed `simplicio-mapper`
+    checkout's `contracts/` directory isn't resolvable from its package
+    (an environment/packaging issue in that sibling project, not this
+    one), skip with a typed reason instead of asserting the wrong
+    fallback reason string."""
+    try:
+        contract = importlib.import_module("simplicio_mapper.contract")
+        package_root = str(
+            importlib.resources.files("simplicio_mapper").joinpath("contracts", "mapper-artifacts", "v1")
+        )
+        contract.load_schema("simplicio.graph-delta/v1", package_root)
+    except Exception as error:  # noqa: BLE001 - probe only, never the assertion under test
+        return f"simplicio-mapper cannot resolve its graph-delta schema on this host ({type(error).__name__}: {error})"
+    return None
+
+
+_REAL_MAPPER_GRAPH_DELTA_SCHEMA_REASON = _real_mapper_graph_delta_schema_reason()
+requires_real_mapper_graph_delta_schema = pytest.mark.skipif(
+    _REAL_MAPPER_GRAPH_DELTA_SCHEMA_REASON is not None,
+    reason=_REAL_MAPPER_GRAPH_DELTA_SCHEMA_REASON or "",
+)
 
 
 @pytest.fixture
@@ -627,6 +662,7 @@ def test_source_drift_and_unsafe_paths_fail_before_dispatch(mapper_boundary: Non
     assert mismatch.value.code == "CONTEXT_ROOT_PATH_MISMATCH"
 
 
+@requires_real_mapper_graph_delta_schema
 def test_incremental_source_verification_hashes_only_the_causal_set(
     mapper_boundary: None, tmp_path: Any
 ) -> None:
@@ -665,6 +701,7 @@ def test_incremental_source_verification_hashes_only_the_causal_set(
         verify_context_sources(binding, source_root=str(tmp_path), paths=("src/missing.py",))
 
 
+@requires_real_mapper_graph_delta_schema
 def test_real_mapper_incremental_delta_is_consumed_without_schema_copy(
     mapper_boundary: None, tmp_path: Any
 ) -> None:
@@ -729,6 +766,7 @@ def test_real_mapper_delta_dirty_causal_drift_blocks_before_effect(
         )
 
 
+@requires_real_mapper_graph_delta_schema
 def test_graph_delta_outside_causal_set_skips_all_source_hashes(mapper_boundary: None, tmp_path: Any) -> None:
     source = tmp_path / "src" / "main.py"
     outside = tmp_path / "src" / "other.py"
@@ -768,6 +806,7 @@ def test_graph_delta_outside_causal_set_skips_all_source_hashes(mapper_boundary:
         (_delta("src/main.py", scan="rev-2"), "delta_same_generation_ambiguous_full_verification"),
     ],
 )
+@requires_real_mapper_graph_delta_schema
 def test_graph_delta_invalid_or_ambiguous_falls_back_to_full_pack(
     mapper_boundary: None, tmp_path: Any, delta: dict[str, Any], reason: str
 ) -> None:
@@ -826,6 +865,7 @@ def test_legacy_mapper_without_delta_receipt_requires_full_verification(
     assert metrics["fallback_reason"] == "delta_unavailable_full_verification"
 
 
+@requires_real_mapper_graph_delta_schema
 def test_valid_delta_without_causal_set_falls_back_to_full_pack(mapper_boundary: None, tmp_path: Any) -> None:
     source = tmp_path / "src" / "main.py"
     source.parent.mkdir()
@@ -846,6 +886,7 @@ def test_valid_delta_without_causal_set_falls_back_to_full_pack(mapper_boundary:
     assert metrics["fallback_reason"] == "causal_set_absent_full_verification"
 
 
+@requires_real_mapper_graph_delta_schema
 def test_delta_resync_request_falls_back_to_full_pack(mapper_boundary: None, tmp_path: Any) -> None:
     source = tmp_path / "src" / "main.py"
     source.parent.mkdir()

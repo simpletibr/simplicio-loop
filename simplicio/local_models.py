@@ -15,9 +15,13 @@ from .hardware import HardwareProfile
 from .llm_policy import execution_disabled_receipt
 from .providers import (
     LOCAL_DEFAULT_FILE as DEFAULT_LOCAL_FILE,
+)
+from .providers import (
     LOCAL_DEFAULT_MODEL,
-    LOCAL_DEFAULT_REPO as DEFAULT_LOCAL_REPO,
     LOCAL_EXECUTOR_DIR,
+)
+from .providers import (
+    LOCAL_DEFAULT_REPO as DEFAULT_LOCAL_REPO,
 )
 
 DEFAULT_LOCAL_MODEL_ID = LOCAL_DEFAULT_MODEL
@@ -96,6 +100,7 @@ def download(spec: ModelSpec) -> tuple[bool, str]:
         model=spec.model_id,
     )
     return False, f"{receipt['reason_code']}: model provisioning is disabled"
+
 
 @dataclass
 class RecommendationResult:

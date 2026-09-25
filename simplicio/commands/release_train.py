@@ -9,14 +9,14 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from ..component_manifest import (
+    declared_dependency_range,
+    tested_dependency_version,
+)
 from ..release_train import (
     ReleaseTrainError,
     evaluate_release_event,
     release_train_doctor,
-)
-from ..component_manifest import (
-    declared_dependency_range,
-    tested_dependency_version,
 )
 
 
@@ -89,10 +89,17 @@ def run(a: argparse.Namespace) -> int:
         print(json.dumps(decision.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
         return 0 if decision.status in {"accepted", "duplicate"} else 2
     except (OSError, ReleaseTrainError, TypeError, ValueError) as error:
-        print(json.dumps({
-            "schema": "simplicio.dev-cli.release-train/v1",
-            "status": "blocked",
-            "reason_code": "invalid_input",
-            "reason": str(error),
-        }, ensure_ascii=False, indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                {
+                    "schema": "simplicio.dev-cli.release-train/v1",
+                    "status": "blocked",
+                    "reason_code": "invalid_input",
+                    "reason": str(error),
+                },
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+        )
         return 2

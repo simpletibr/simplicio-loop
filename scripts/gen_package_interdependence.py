@@ -36,6 +36,7 @@ PYPROJECT = REPO_ROOT / "pyproject.toml"
 PROVIDERS_PY = REPO_ROOT / "simplicio" / "providers.py"
 DOC_PATH = REPO_ROOT / "docs" / "PYTHON_PACKAGE_INTERDEPENDENCE.md"
 
+
 def _req_name(req: str) -> str:
     return re.match(r"\s*([A-Za-z0-9._-]+)", req).group(1)  # type: ignore[union-attr]
 
