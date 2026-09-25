@@ -4,7 +4,7 @@ from __future__ import annotations
 
 # Static fallback — keep in lockstep with package.json and pyproject.toml.
 # Guard: `python scripts/check-version-sync.py` (CI: version-sync.yml).
-__version__ = "0.26.33"
+__version__ = "0.26.34"
 
 try:
     from importlib.metadata import PackageNotFoundError, version as _distribution_version

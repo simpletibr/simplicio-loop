@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.26.34] - 2026-09-25
+
+### Fixed
+
+- Handoff: materialize (and keep current) the canonical, unscoped `.simplicio/context-snapshot.json` on every `handoff` call, not only via the internal `snapshot build`. The documented agent workflow (`scan` -> `handoff --json` -> Fast `ingest --mapper-mode integrated`) never calls `snapshot build`, so `handoff` previously left the canonical snapshot unwritten entirely -- Fast's integrated ingest failed closed with `mapper_artifact_missing: context_snapshot` even though `handoff --json` reported `ready: true`. A task-aware (`--goal`) call still never overwrites the canonical file with its budget-pruned graph (issue #645/O2): it rebuilds a second, unbounded/task-agnostic snapshot for the canonical path (skipped when its content-addressed `snapshot_id` already matches what's on disk, so the file stays byte-stable across repeat calls) and keeps its own bounded snapshot scoped to `context-snapshot.task.json`.
+
 ## [0.26.33] - 2026-09-25
 
 ### Fixed

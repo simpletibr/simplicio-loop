@@ -1,9 +1,15 @@
 """Regression contract for the public Mapper -> Fast preparation path.
 
-The fixture deliberately has no ContextSnapshot.  The preparation commands
-must remain observable, and ``fast-handoff`` must fail closed with a durable
-receipt and actionable guidance.  The guidance must point to a command that
-the top-level public help advertises.
+``handoff`` is the only public verb an integrated Fast ingest can rely on --
+it never calls the internal ``snapshot build`` -- so it must guarantee the
+canonical ``.simplicio/context-snapshot.json`` Fast reads symbol ids from
+actually exists and is current by the time it returns (cross-package
+regression: ``handoff --json`` reported ``ready: true`` while Fast failed
+closed with ``mapper_artifact_missing: context_snapshot``). ``fast-handoff``
+must still fail closed with a durable receipt and actionable guidance when
+the canonical snapshot is genuinely missing (no ``handoff`` or
+``snapshot build`` call has ever run). The guidance must point to a command
+that the top-level public help advertises.
 """
 
 from __future__ import annotations
@@ -30,7 +36,7 @@ def _invoke(argv: list[str]) -> tuple[int, str, str]:
 
 
 class FastHandoffCliContractTest(unittest.TestCase):
-    def test_public_preparation_and_missing_snapshot_are_fail_closed(self) -> None:
+    def test_missing_snapshot_is_fail_closed_before_any_handoff_runs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             (root / "README.md").write_text("# mapper fast handoff fixture\n", encoding="utf-8")
@@ -41,14 +47,15 @@ class FastHandoffCliContractTest(unittest.TestCase):
                 ["index", str(root), "--json"],
                 ["scan", str(root), "--sync", "--await", "--json"],
                 ["inspect", str(root), "--await", "--json"],
-                ["handoff", str(root), "--execution-context", "--await", "--json"],
                 ["delta", str(root), "--full-rescan", "--json"],
             ):
                 code, _stdout, stderr = _invoke(argv)
                 self.assertEqual(code, 0, msg=f"{argv!r}: {stderr}")
 
             snapshot_path = root / ".simplicio" / "context-snapshot.json"
-            self.assertFalse(snapshot_path.exists(), "preparation must not fabricate a snapshot")
+            self.assertFalse(
+                snapshot_path.exists(), "index/scan/inspect/delta must not fabricate a snapshot"
+            )
 
             help_code, help_stdout, help_stderr = _invoke(["--help"])
             self.assertEqual(help_code, 0, help_stderr)
@@ -65,6 +72,45 @@ class FastHandoffCliContractTest(unittest.TestCase):
             self.assertIn("simplicio-mapper snapshot build", receipt["reason"])
             self.assertTrue((root / ".simplicio" / "fast-handoff-receipt.json").is_file())
             self.assertFalse((root / ".simplicio" / "fast-handoff.json").exists())
+
+    def test_handoff_materializes_the_canonical_snapshot_fast_ingest_needs(self) -> None:
+        """Regression: ``handoff`` used to leave the canonical snapshot
+        unwritten entirely (it only fed the in-memory context pack), so a
+        `scan` -> `handoff` -> Fast `ingest --mapper-mode integrated` flow --
+        the documented agent workflow that never calls the internal
+        `snapshot build` -- failed closed with
+        `mapper_artifact_missing: context_snapshot` even though `handoff
+        --json` reported `ready: true`. `handoff` must materialize (or
+        refresh) the canonical file itself so `fast-handoff`/Fast ingest can
+        rely on it without an extra manual step.
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text("# mapper fast handoff fixture\n", encoding="utf-8")
+            (root / "src").mkdir()
+            (root / "src" / "main.py").write_text("def main():\n    return 1\n", encoding="utf-8")
+
+            for argv in (
+                ["index", str(root), "--json"],
+                ["scan", str(root), "--sync", "--await", "--json"],
+                ["handoff", str(root), "--await", "--json"],
+            ):
+                code, _stdout, stderr = _invoke(argv)
+                self.assertEqual(code, 0, msg=f"{argv!r}: {stderr}")
+
+            snapshot_path = root / ".simplicio" / "context-snapshot.json"
+            self.assertTrue(
+                snapshot_path.is_file(),
+                "handoff must materialize the canonical snapshot Fast ingest reads",
+            )
+            snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+            self.assertEqual(snapshot.get("schema"), "simplicio.context-snapshot/v1")
+
+            code, stdout, stderr = _invoke(["fast-handoff", str(root)])
+            self.assertEqual(code, 0, stderr)
+            payload = json.loads(stdout)
+            self.assertIsNotNone(payload["handoff"])
+            self.assertEqual(payload["receipt"]["status"], "parsed")
 
     def test_task_aware_handoff_never_overwrites_the_canonical_snapshot_fast_reads(self) -> None:
         """Regression: a budget-pruned, task-aware `handoff --goal` used to
