@@ -25,6 +25,10 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional, Sequence
 
 SCHEMA = "simplicio.wave-worktree/v1"
+# A caller's own state seeded into a lane worktree (e.g. a host's run receipts
+# copied in so its per-task operator dispatch can write real receipts there)
+# must never be captured in the lane's integration patch.
+EXCLUDED_DIFF_PATH = ".simplicio"
 
 
 # --------------------------------------------------------------------------
@@ -215,16 +219,30 @@ async def run_worktree_lane(
     apply_fn: ApplyFn,
     verifier_cmd: Optional[str] = None,
     verifier_timeout: int = 300,
+    worktree_add_lock: Optional[asyncio.Lock] = None,
 ) -> LaneResult:
-    """Create one lane's worktree, apply its edit-plan, verify, capture a patch."""
+    """Create one lane's worktree, apply its edit-plan, verify, capture a patch.
+
+    ``worktree_add_lock`` (supplied by `run_worktree_wave`, bound to its own
+    event loop) serializes only the `git worktree add` step -- `git worktree
+    add` races against itself under real concurrency (git's own
+    .git/worktrees/<name> bookkeeping is not fully concurrency-safe) -- never
+    the actual task work in ``apply_fn``, so lanes still run concurrently.
+    """
     repo = Path(repo)
     wt_path = wt_root / f"lane-{lane_id}"
     branch = f"{branch_prefix}-lane-{lane_id}"
     log_parts: List[str] = []
 
-    rc, out, err = await _run_git(
-        ["git", "worktree", "add", "-B", branch, str(wt_path), base_commit], repo,
-    )
+    if worktree_add_lock is not None:
+        async with worktree_add_lock:
+            rc, out, err = await _run_git(
+                ["git", "worktree", "add", "-B", branch, str(wt_path), base_commit], repo,
+            )
+    else:
+        rc, out, err = await _run_git(
+            ["git", "worktree", "add", "-B", branch, str(wt_path), base_commit], repo,
+        )
     log_parts.append(f"$ git worktree add\n{out}{err}")
     if rc != 0:
         return LaneResult(lane_id, list(task_indices), "failed", log="\n".join(log_parts), branch=branch)
@@ -250,9 +268,15 @@ async def run_worktree_lane(
                     worktree=str(wt_path), branch=branch,
                 )
 
-        rc, out, err = await _run_git(["git", "add", "-A"], wt_path)
+        # A caller may seed the worktree with its own out-of-band state (e.g. the
+        # host's run receipts) before/while applying a task -- that state must
+        # never leak into the lane's patch or get git-applied onto the main repo.
         rc, out, err = await _run_git(
-            ["git", "diff", "--binary", base_commit, "--"], wt_path,
+            ["git", "add", "-A", "--", ".", ":(exclude)" + EXCLUDED_DIFF_PATH], wt_path,
+        )
+        rc, out, err = await _run_git(
+            ["git", "diff", "--binary", base_commit, "--", ".", ":(exclude)" + EXCLUDED_DIFF_PATH],
+            wt_path,
         )
         patch = out
         log_parts.append("$ git diff --binary\n" + (err or ""))
@@ -293,6 +317,10 @@ async def run_worktree_wave(
     wt_root.mkdir(parents=True, exist_ok=True)
     limit = max_workers or min(os.cpu_count() or 1, max(1, len(lanes)))
     semaphore = asyncio.Semaphore(max(1, limit))
+    # Created fresh per call (like `semaphore` above), bound only to this
+    # call's own running loop -- an asyncio.Lock kept at module scope would
+    # otherwise still reference a now-closed event loop on a later call.
+    worktree_add_lock = asyncio.Lock()
 
     async def _bounded(lane_id: int, task_indices: Sequence[int]) -> LaneResult:
         async with semaphore:
@@ -300,6 +328,7 @@ async def run_worktree_wave(
             return await run_worktree_lane(
                 repo, wt_root, lane_id, branch_prefix, base_commit,
                 task_indices, apply_fn, verifier_cmd=verifier_cmd,
+                worktree_add_lock=worktree_add_lock,
             )
 
     results = await asyncio.gather(

@@ -133,8 +133,10 @@ def test_two_disjoint_lanes_run_concurrently_and_integrate_serially(git_repo):
     lanes = [[1], [2]]
     apply_fn = _apply_writes({1: ("a.py", "double = 1"), 2: ("b.py", "triple = 1")})
 
+    sleep_s = 0.3
+
     async def _sleepy_apply(wt_path: Path, task_indices):
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(sleep_s)
         return await apply_fn(wt_path, task_indices)
 
     started = time.perf_counter()
@@ -142,8 +144,12 @@ def test_two_disjoint_lanes_run_concurrently_and_integrate_serially(git_repo):
         git_repo, git_repo / ".simplicio" / "run", lanes, base, _sleepy_apply,
     ))
     elapsed = time.perf_counter() - started
-    # Two 0.05s lanes running concurrently should take much less than 0.1s serial.
-    assert elapsed < 0.09
+    # Two 0.3s lanes running concurrently must take much less than the 0.6s a
+    # serial run would need. `git worktree add` itself is intentionally
+    # serialized (it races against itself under real concurrency), so the
+    # margin here is generous rather than tight -- the actual `apply_fn` work
+    # (sleep_s) is what must overlap, not the quick worktree registration.
+    assert elapsed < sleep_s * 2 - 0.1
     assert {r.status for r in results} == {"applied"}
 
     def _reapply(lane_id, task_indices):

@@ -76,6 +76,27 @@ def test_explicit_opt_out_restores_zero_behavior_change(tmp_path, monkeypatch):
     assert payload["state"]["phase"] == "validating"
 
 
+def test_execute_operator_blocks_on_plan_path_outside_authorized_targets(tmp_path, monkeypatch):
+    """A host edit-plan naming a path outside the plan's authorized targets
+    used to surface as the opaque PLAN_REQUIRED/plan_compile_failed dev-cli
+    subprocess failure; it must now block with a precise, actionable
+    reason_code naming the offending path and the authorized targets."""
+    monkeypatch.setenv("SIMPLICIO_LOOP_AUTO_PLANNING_RECEIPT", "0")
+    repo, _, armed_payload, run_dir = _arm_deterministic_preflight_fixture(monkeypatch, tmp_path)
+    run_id = armed_payload["manifest"]["run_id"]
+    (run_dir / "edit-plan-1.json").write_text(json.dumps({
+        "operations": [{"path": "other.py", "find": "x", "replace": "y"}],
+    }), encoding="utf-8")
+    with patch.dict(os.environ, {ENV_FLAG: "0"}, clear=False):
+        os.environ.pop("SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON", None)
+        runner_mod.execute_operator(str(repo), run_id)
+    receipt = json.loads((run_dir / "operator-receipt.json").read_text(encoding="utf-8"))
+    assert receipt["reason_code"] == "plan_path_not_authorized"
+    assert "other.py" in receipt["stderr"]
+    assert "src/app.py" in receipt["stderr"]
+    assert receipt["execution_state"] == "blocked"
+
+
 def test_flag_set_without_receipt_blocks_fail_closed(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_LOOP_AUTO_PLANNING_RECEIPT", "0")
     repo, _, armed_payload, run_dir = _arm_deterministic_preflight_fixture(monkeypatch, tmp_path)
