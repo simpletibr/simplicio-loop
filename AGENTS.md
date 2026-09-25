@@ -3,6 +3,15 @@
 > **Full map + step-by-step:** [docs/ECOSYSTEM_LLM_GUIDE.md](docs/ECOSYSTEM_LLM_GUIDE.md) · ADR [0009](docs/adr/0009-loop-inside-runtime-operators-standalone.md) · [0010](docs/adr/0010-execution-metrics-report-standard.md)  
 > **Max-speed LLM orientation (always):** [docs/LLM_MAX_SPEED_ORIENTATION.md](docs/LLM_MAX_SPEED_ORIENTATION.md) — also re-fed every loop turn via `SIMPLICIO-LLM-ORIENTATION` in the loop skill.
 
+## Monorepo layout
+
+Four packages, one responsibility each: root `simplicio_loop/` = **orchestration** (this
+package); `packages/mapper/` = **survey** (`scan`/`inspect`/`handoff`); `packages/fast/` =
+**retrieval** (`ingest`/`understand`/`plan`); `packages/dev-cli/` = **mutation**
+(`edit`/`test`/capabilities). Dev setup: `bash scripts/dev_install.sh`. Local gate:
+`python3 scripts/check.py --package all` (or `--package <name>` / `--changed`). No GitHub
+Actions gate — the local gate is authoritative.
+
 ## Simplicio Ecosystem Contract (canonical)
 
 This loop is the convergence layer of one Simplicio ecosystem. For every non-trivial task: run `simplicio runtime map --repo . --for-llm markdown`, then `simplicio memory "<task>"`, rank/load relevant skills, execute through the native `simplicio` CLI, validate, and record evidence. MCP is fallback transport only.
