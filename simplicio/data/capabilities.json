@@ -930,7 +930,7 @@
   },
   "package": {
     "name": "simplicio-cli",
-    "version": "0.18.15"
+    "version": "0.18.14"
   },
   "schema": "simplicio.dev-cli.capabilities/v1",
   "top_level_flags": [
