@@ -669,3 +669,22 @@ def test_second_orient_reuses_the_shared_survey_and_spawns_no_mapper_or_fast_cal
     assert spawn_count("fast", "ingest") == 1
     assert spawn_count("simplicio-mapper", "scan") == 0
     assert spawn_count("simplicio-mapper", "handoff") == 1
+
+
+def test_worktree_digest_ignores_the_shared_survey_cache_it_just_wrote(tmp_path: Path) -> None:
+    """When .simplicio/ is not gitignored, writing the shared survey cache
+    must not make the worktree digest -- and so the next cache key --
+    different from the one that just built it, or the cache would
+    permanently invalidate itself on every call."""
+    repo = tmp_path / "repo"
+    _init_repo_with_commit(repo)
+    integration = FastLoopIntegration(repo, config=FastConfig(command=("fast",)))
+    before = integration._worktree_digest()
+
+    cache_dir = repo / ".simplicio" / "fast" / "survey-cache" / "somekey"
+    cache_dir.mkdir(parents=True)
+    (cache_dir / "project.sfast").write_bytes(b"snapshot")
+    (cache_dir / "mapper-handoff.json").write_text("{}", encoding="utf-8")
+    (cache_dir / ".complete").write_text("1", encoding="utf-8")
+
+    assert integration._worktree_digest() == before

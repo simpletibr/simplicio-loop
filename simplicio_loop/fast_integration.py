@@ -1044,10 +1044,18 @@ class FastLoopIntegration:
             return ""
 
     def _worktree_digest(self) -> str:
-        """Uncommitted content: a snapshot of HEAD is stale once a file is edited."""
+        """Uncommitted content: a snapshot of HEAD is stale once a file is edited.
+
+        Excludes ``.simplicio/`` itself: when that directory is not
+        gitignored (common on a fixture/fresh repo), the survey cache this
+        digest gates (issue: shared survey cache) would otherwise show up
+        as its own new untracked files, changing the digest -- and so the
+        cache key -- on every call that just wrote to it, permanently
+        invalidating itself.
+        """
         parts = []
-        for argv in (["git", "diff", "HEAD", "--no-ext-diff"],
-                     ["git", "ls-files", "--others", "--exclude-standard"]):
+        for argv in (["git", "diff", "HEAD", "--no-ext-diff", "--", ".", ":(exclude).simplicio"],
+                     ["git", "ls-files", "--others", "--exclude-standard", "--", ".", ":(exclude).simplicio"]):
             try:
                 completed = self._runner(argv, cwd=str(self.root), capture_output=True,
                                          text=True, timeout=30, check=False)
