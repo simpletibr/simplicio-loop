@@ -41,13 +41,35 @@ from simplicio_loop.quality_matrix import (  # noqa: E402
 def _emit_progress(status, outcome=None, detail=""):
     """Fail-open progress-feedback hook (#300) — never raises. Called ONLY after the watcher
     receipt is already written to disk (invariant 2: progress is a projection of the gate, never
-    a substitute for it — it must never fire before watcher_state.json exists)."""
+    a substitute for it — it must never fire before watcher_state.json exists).
+
+    #1290: `loop_progress` resolves its own event/anchor/backlog paths once, from
+    `$SIMPLICIO_REPO`/its own script location -- NOT from this module's `REPO`/`LOOP_DIR`, which
+    `_set_repo()` may have redirected (every caller that isolates the watcher into a tmp repo,
+    e.g. `cmd_selftest()` and several unit tests, does exactly that). Without this, a redirected
+    watcher still wrote progress events into the REAL repo's `.simplicio/orchestrator/loop/`
+    behind the isolation's back. Point `loop_progress` at the CURRENTLY active REPO/LOOP_DIR for
+    the duration of this one call via its own documented env overrides, then restore them.
+    """
+    overrides = {
+        "SIMPLICIO_PROGRESS_DIR": LOOP_DIR,
+        "SIMPLICIO_ANCHOR_FILE": ANCHOR,
+        "SIMPLICIO_BACKLOG_FILE": os.path.join(REPO, ".simplicio/orchestrator", "backlog", "backlog.jsonl"),
+    }
+    saved = {k: os.environ.get(k) for k in overrides}
     try:
+        os.environ.update(overrides)
         import loop_progress
         loop_progress.emit_event("watcher", status=status, outcome=outcome, detail=detail,
                                  source="watcher_verify.py")
     except Exception:
         pass
+    finally:
+        for key, value in saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
 def _set_repo(repo):

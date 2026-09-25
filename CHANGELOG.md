@@ -3,6 +3,12 @@ Total output lines: 1972
 
 # Changelog
 
+## [3.43.13] - 2026-09-15
+
+- Bound prompt-projection token accounting, reserve physical disk headroom before
+  local-capacity admission, add a wheel-install rehearsal smoke check, and fill in
+  provider receipt fields (#1277, #1269, #1268, #1267).
+
 ## [3.43.12] - 2026-09-14
 
 - Exclude the `run` command from the public CLI surface and deprecate it. Any call to `simplicio-loop run` is transparently intercepted and redirected to the standard governed `wave` flow.

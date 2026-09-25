@@ -72,6 +72,9 @@ Hook hosts (Claude/Cursor): capture + stop hooks re-feed the goal.
 Self-paced hosts: re-read the scratchpad every turn; triage → decide → operate
 → verify → journal.
 
+Every turn's first line is `python3 scripts/loop_progress.py render --turn-header`
+(the N2 progress contract; see `references/progress-feedback.md`).
+
 End every message: `DONE | NEXT | BLOCKED`.
 
 <!-- SIMPLICIO-LLM-ORIENTATION:BEGIN -->
