@@ -136,7 +136,7 @@ def limited_export(graph: Mapping[str, Any], *, max_facts: int) -> dict[str, Any
         "truncated": len(selected) < len(clean["facts"]),
         "omitted_facts": len(clean["facts"]) - len(selected),
         "public_offsets": None,
-        "public_offsets_null_reason": "FAST_INTERNAL_OFFSETS_NOT_PUBLIC",
+        "public_offsets_null_reason": "INTERNAL_OFFSETS_NOT_PUBLIC",
     }
 
 
@@ -377,7 +377,7 @@ def build_context_packet(graph: Mapping[str, Any], *, max_bytes: int = 8192,
             "fact_id": item["fact_id"], "kind": item["kind"],
             "value": item["value"], "content_sha256": content_hash,
             "provenance": item["provenance"],
-            "handle": f"fast://context/{clean['graph_digest']}/{item['fact_id']}",
+            "handle": f"mapper://context/{clean['graph_digest']}/{item['fact_id']}",
         }
         candidate = selected + [packet_item]
         probe = {

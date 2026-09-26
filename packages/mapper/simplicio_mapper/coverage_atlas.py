@@ -143,7 +143,7 @@ def coverage_delta(atlas: Mapping[str, Any], previous_gap_ids: Sequence[str] = (
 
 def operational_delta(*, source: str, base_atlas_digest: str,
                       observations: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """Adapt bounded Fast health observations without granting execution authority."""
+    """Adapt bounded operational health observations without granting execution authority."""
     allowed = {"cache_integrity", "index_generation", "knowledge_federation", "python_rust_parity"}
     gaps = []
     for raw in observations:

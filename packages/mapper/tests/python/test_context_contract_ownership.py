@@ -17,8 +17,6 @@ CANONICAL_OWNERS = {
     "context_graph_v1.py",
     "context_snapshot.py",
     "contract.py",
-    "fast_backend.py",
-    "fast_handoff.py",
     "release_manifest.py",
 }
 

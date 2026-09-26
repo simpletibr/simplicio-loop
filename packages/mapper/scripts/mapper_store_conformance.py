@@ -346,24 +346,6 @@ def build_conformance(
         )
     )
 
-    fast_matches = [
-        item for item in inventory["matches"]
-        if item["repo"] == "fast"
-        and {"library", "dsn_or_path", "ddl", "command"}.intersection(item["kinds"])
-    ]
-    fast_supplied = any(repo_id == "fast" for repo_id, _ in repos)
-    checks.append(
-        _result(
-            "fast_isolation",
-            "fail" if fast_matches else "pass" if fast_supplied else "unverified",
-            "Fast contains SQLite/FTS/vector store evidence"
-            if fast_matches
-            else "Fast was supplied and contains no SQLite/FTS/vector store evidence"
-            if fast_supplied
-            else "Fast was not supplied to this gate; isolation remains unverified",
-            {"matches": fast_matches[:20]},
-        )
-    )
     supplied_evidence = dict(external_evidence or {})
     loop_evidence = supplied_evidence.get("loop_standalone")
     loop_evidence_valid = _valid_loop_standalone_evidence(loop_evidence)
@@ -493,7 +475,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--repo", action="append", default=[],
-        help="name=path; required: mapper, loop, dev-cli, runtime; optional: fast"
+        help="name=path; required: mapper, loop, dev-cli, runtime"
     )
     parser.add_argument(
         "--database", action="append", default=[], help="repo-id=existing database path; repeatable"

@@ -14,7 +14,7 @@ carry `relation_id`, `evidence_class`, `resolution_status`, provenance and
 candidate targets when present. `relation_coverage` is carried when the graph
 has bounded, ambiguous or unknown call-graph evidence.
 
-`canonical_api` and `fast-handoff` are the preferred seams. File parsing,
+`canonical_api` is the preferred seam. File parsing,
 artifact layout, cache paths, mmap offsets, and Rust/Python implementation
 choices are not public behavior.
 

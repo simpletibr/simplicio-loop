@@ -15,7 +15,7 @@ MAPPER_STORE_RECORD_SCHEMA = "simplicio.mapper-store-record/v1"
 MAPPER_STORE_ABSORB_SCHEMA = "simplicio.mapper-store.legacy-absorb/v1"
 
 MAPPER_STORE_WRITER = "mapper-store"
-MAPPER_STORE_READERS = ("runtime", "fast", "loop", "mcp")
+MAPPER_STORE_READERS = ("runtime", "loop", "mcp")
 
 MEMORY_STORE_VERSION = 1
 SEMANTIC_STORE_VERSION = 1
