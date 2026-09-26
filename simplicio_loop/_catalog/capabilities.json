@@ -10,8 +10,6 @@
     {"id":"mapper.snapshot-create","intent":["snapshot","handoff"],"component":"mapper","skill":"simplicio-mapper","effects":"read-only","requires":["mapper.project-survey"],"summary":"Create an immutable context snapshot."},
     {"id":"mapper.context-select","intent":["context","prompt"],"component":"mapper","skill":"simplicio-mapper","effects":"read-only","requires":["mapper.snapshot-create"],"summary":"Select the smallest context for a task."},
     {"id":"mapper.symbol-lookup","intent":["locate","symbol"],"component":"mapper","skill":"simplicio-mapper","effects":"read-only","requires":["mapper.snapshot-create"],"summary":"Locate definitions and references."},
-    {"id":"fast.search","intent":["retrieve","search"],"component":"fast","skill":"simplicio-fast","effects":"read-only","requires":["mapper.snapshot-create"],"summary":"Search indexed project context."},
-    {"id":"fast.rank","intent":["retrieve","rank"],"component":"fast","skill":"simplicio-fast","effects":"read-only","requires":["fast.search"],"summary":"Rank retrieved context for the task."},
     {"id":"dev-cli.preflight","intent":["mutate","validate"],"component":"dev-cli","skill":"simplicio-dev-cli","effects":"read-only","requires":["mapper.context-select"],"summary":"Validate mutation scope and preconditions."},
     {"id":"dev-cli.edit","intent":["mutate"],"component":"dev-cli","skill":"simplicio-dev-cli","effects":"write","requires":["dev-cli.preflight"],"summary":"Apply a deterministic edit."},
     {"id":"dev-cli.tests","intent":["validate"],"component":"dev-cli","skill":"simplicio-dev-cli","effects":"read-only","requires":["dev-cli.preflight"],"summary":"Run bounded tests and checks."},

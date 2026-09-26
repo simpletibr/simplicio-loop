@@ -56,9 +56,6 @@ dependencies = [
 # vectors yet); the numpy-only cosine-similarity math stays in base.
 ml = ["sentence-transformers>=5.6.0"]
 bench = ["fpdf2>=2.8.7"]
-# Optional canonical Fast adapter. It remains outside the base install until
-# its release train is formally promoted.
-fast = ["simplicio-fast>=2.0.28,<3; python_version >= '3.11'"]
 # Opt-in faster asyncio event loop for the structured-concurrency runtime
 # (simplicio.runtime_async, issue #212). Never required: `install_uvloop()`
 # no-ops on Windows or when this extra is absent, falling back to stdlib

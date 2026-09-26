@@ -37,16 +37,13 @@ SCHEMA_FILENAMES = {
 _PINNED_REVISION = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 
 _DOCTOR_HELP = """usage: simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]
-       simplicio-mapper doctor --fast [manifest.json] [--json]
 
-Validate the versioned Mapper and ecosystem contract fixtures, or diagnose
-Fast manifest availability and compatibility. The command is read-only.
+Validate the versioned Mapper and ecosystem contract fixtures. The command is
+read-only.
 
 Options:
   --contracts       validate bundled Mapper/ecosystem fixtures
   --cross-repo      include cross-repository fixture checks
-  --fast            diagnose the Simplicio Fast integration
-  --json            emit the Fast diagnostic envelope as JSON
   -h, --help        show this help and exit
 """
 
@@ -264,17 +261,9 @@ def run_doctor_cli(argv: list[str]) -> int:
         print(_DOCTOR_HELP, end="", flush=True)
         return 0
 
-    if "--fast" in argv:
-        from .fast_backend import diagnose_fast
-
-        positional = [arg for arg in argv if arg not in {"--fast", "--json"}]
-        payload = diagnose_fast(positional[0] if positional else "")
-        print(json.dumps(payload, sort_keys=True))
-        return 0 if payload["compatible"] else 1
-
     if not argv or "--contracts" not in argv:
         print(
-            "usage: simplicio-mapper doctor (--contracts [<path> ...] | --fast [manifest.json])\n"
+            "usage: simplicio-mapper doctor --contracts [<path> ...]\n"
             "  validates contracts/mapper-artifacts/v1/ and contracts/ecosystem/v1/\n"
             "  fixtures against their schemas (exit 0 when all valid).",
             flush=True,

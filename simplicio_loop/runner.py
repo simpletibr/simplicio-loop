@@ -2287,8 +2287,6 @@ def _is_loop_owned_status_path(path: str) -> bool:
     return (
         normalized.startswith(".simplicio-loop/orchestrator/")
         or normalized.startswith(".simplicio-loop/")
-        or normalized == ".simplicio-fast"
-        or normalized.startswith(".simplicio-fast/")
         or normalized.startswith(".claude/")
         or _is_loop_generated_path(normalized)
     )
@@ -2335,7 +2333,7 @@ def _repo_fingerprint(repo_path: Path, *, ignore_paths: Set[str] | None = None) 
             relative_root = ""
         dirs[:] = [
             d for d in dirs
-            if d not in {".git", ".simplicio-loop/orchestrator", ".simplicio-loop", ".simplicio-fast", "__pycache__"}
+            if d not in {".git", ".simplicio-loop/orchestrator", ".simplicio-loop", "__pycache__"}
             and not _is_loop_generated_path(
                 f"{relative_root}/{d}" if relative_root else d
             )
@@ -9745,18 +9743,16 @@ def execute_operator_batch(
                 text=True, timeout=15, check=False, env=_subprocess_env(),
             )
             source_commit = (head.stdout or "").strip() or "unavailable"
-        fast_state = status["state"].get("fast") or {}
-        fast_generation = str(
-            fast_state.get("generation")
-            or (status["state"].get("mapper") or {}).get("generation")
-            or "mapper-fallback"
+        mapper_generation = str(
+            (status["state"].get("mapper") or {}).get("generation")
+            or "mapper-unpinned"
         )
         lifecycle = CheckpointLifecycle(
             repo_root / ".simplicio-loop" / "loop-runs",
             task_id=run_id,
             attempt_id=f"batch-{int((status['state'] or {}).get('attempts', 0)) + 1}",
             source_commit=source_commit,
-            fast_generation=fast_generation,
+            mapper_generation=mapper_generation,
             base_path=repo_root,
         )
         workers = list(result.get("workers") or [])

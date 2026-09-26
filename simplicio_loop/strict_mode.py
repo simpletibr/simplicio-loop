@@ -5,9 +5,6 @@ LLM hand-survey / hand-edit: the two bound operators (``simplicio-mapper``,
 ``simplicio-dev-cli``) are mandatory, evidence is mandatory, and mutation
 authority stays fail-closed. Execution is always standalone -- there is no
 Runtime/MCP backend in this stack.
-
-Fast follows the same adaptive pattern under strict mode: when ``simplicio-fast``
-is on PATH, strict treats it as required so the session cannot silently drop it.
 """
 
 from __future__ import annotations
@@ -21,8 +18,7 @@ from typing import Any, Mapping, Optional, Sequence
 TRUE_VALUES = frozenset({"1", "true", "yes", "on", "strict", "full-stack", "required"})
 FALSE_VALUES = frozenset({"0", "false", "no", "off", "disabled", "standalone", "legacy"})
 
-CORE_OPERATORS: tuple[str, ...] = ("simplicio-mapper", "simplicio-dev-cli", "simplicio-fast")
-FAST_BINARY = "simplicio-fast"
+CORE_OPERATORS: tuple[str, ...] = ("simplicio-mapper", "simplicio-dev-cli")
 
 
 def _env(env: Optional[Mapping[str, str]] = None) -> Mapping[str, str]:
@@ -102,8 +98,8 @@ def _probe_version(
 def _metadata_status(binary: str, package: str) -> dict[str, Any]:
     """In-process package-version probe -- no subprocess, no --version/--help.
 
-    Mapper and Fast ship as ordinary installed Python distributions, so
-    their presence/version is a plain ``importlib.metadata`` read; a
+    Mapper ships as an ordinary installed Python distribution, so
+    its presence/version is a plain ``importlib.metadata`` read; a
     missing distribution fails closed with a typed reason instead of
     falling back to spawning the binary.
     """
@@ -124,12 +120,6 @@ def mapper_status(env: Optional[Mapping[str, str]] = None) -> dict[str, Any]:
     """Probe the survey operator via installed package metadata, in-process."""
     del env
     return _metadata_status("simplicio-mapper", "simplicio-mapper")
-
-
-def fast_status(env: Optional[Mapping[str, str]] = None) -> dict[str, Any]:
-    """Probe the retrieval operator via installed package metadata, in-process."""
-    del env
-    return _metadata_status(FAST_BINARY, "simplicio-fast")
 
 
 def _sanitize_version_banner(version: str) -> str:
@@ -205,25 +195,9 @@ def required_bound_operators(env: Optional[Mapping[str, str]] = None) -> list[st
     """Binaries the running loop must keep available.
 
     Always: mapper + operate (dev-cli or py alias checked separately by callers).
-    Fast: under strict mode, if operational now it is required.
     """
-    source = _env(env)
-    required: list[str] = list(CORE_OPERATORS)
-
-    if strict_enabled(source):
-        fast = fast_status(source)
-        if fast["operational"]:
-            required.append(FAST_BINARY)
-        # Under strict, prefer Fast required only when present; never invent Fast if missing.
-
-    # De-dupe preserving order
-    seen: set[str] = set()
-    ordered: list[str] = []
-    for name in required:
-        if name not in seen:
-            seen.add(name)
-            ordered.append(name)
-    return ordered
+    del env
+    return list(CORE_OPERATORS)
 
 
 def missing_required_operators(env: Optional[Mapping[str, str]] = None) -> list[str]:
@@ -236,10 +210,6 @@ def missing_required_operators(env: Optional[Mapping[str, str]] = None) -> list[
         if name == "simplicio-dev-cli":
             if not action_ok:
                 missing.append("simplicio-dev-cli")
-            continue
-        if name == FAST_BINARY:
-            if not fast_status(env)["operational"]:
-                missing.append(FAST_BINARY)
             continue
         if name == "simplicio-mapper":
             if not mapper_status(env)["operational"]:
@@ -275,7 +245,7 @@ def evidence_required_locked(env: Optional[Mapping[str, str]] = None) -> bool:
 def recommended_env(env: Optional[Mapping[str, str]] = None) -> dict[str, str]:
     """Env vars for a strict, **economy-parallel** armada (default).
 
-    Prefers the fastest token path (mapper handoff / Fast) and bounded
+    Prefers the fastest token path (mapper handoff) and bounded
     parallel workers (Prism slots + AUTO_FAN_OUT + asyncio). Opt out with
     ``SIMPLICIO_ECONOMY_PARALLEL=0`` for a minimal strict envelope only.
     """
@@ -283,11 +253,7 @@ def recommended_env(env: Optional[Mapping[str, str]] = None) -> dict[str, str]:
         from .economy_profile import economy_parallel_enabled, economy_parallel_env
 
         if economy_parallel_enabled(env):
-            out = economy_parallel_env(env=env)
-            # Fast only marked required when the binary is actually up
-            if not fast_status(env)["operational"]:
-                out.pop("SIMPLICIO_FAST_MODE", None)
-            return out
+            return economy_parallel_env(env=env)
     except Exception:
         pass
     # Minimal strict fallback
@@ -301,8 +267,6 @@ def recommended_env(env: Optional[Mapping[str, str]] = None) -> dict[str, str]:
         "SIMPLICIO_OPERATOR_ALWAYS_LATEST": "1",
         "SIMPLICIO_LOOP_AUTO_FAN_OUT": "1",
     }
-    if fast_status(env)["operational"]:
-        out["SIMPLICIO_FAST_MODE"] = "required"
     return out
 
 
@@ -313,7 +277,6 @@ def preflight_payload(repo: str, *, strict: bool = False, env: Optional[Mapping[
         source["SIMPLICIO_LOOP_STRICT"] = "1"
     mapper = mapper_status(source)
     action = action_operator_status(source)
-    fast = fast_status(source)
     # simplicio-py is the same installed package/version as simplicio-dev-cli
     # (in-process, via the capabilities manifest -- no subprocess probe).
     py_alias = python_alias_status(source)
@@ -337,21 +300,12 @@ def preflight_payload(repo: str, *, strict: bool = False, env: Optional[Mapping[
             "version": py_alias.get("version", "") if py_alias["operational"] else "",
             "error": py_alias.get("error", "") if not py_alias["operational"] else "",
         },
-        {
-            "name": "simplicio-fast",
-            "present": fast["operational"],
-            "version": fast.get("version", ""),
-            "error": fast.get("error", ""),
-        },
     ]
     required = required_bound_operators(source)
     missing = missing_required_operators(source)
     profile = resolve_execution_profile(source)
     strict_on = strict_enabled(source)
     all_present = not missing
-    degraded: list[str] = []
-    if not fast["operational"]:
-        degraded.append("fast-integration")
     return {
         "schema": "simplicio.preflight/v1",
         "repo": repo,
@@ -367,11 +321,9 @@ def preflight_payload(repo: str, *, strict: bool = False, env: Optional[Mapping[
             "provider_cache": "unverified_until_provider_usage_receipt",
         },
         "missing_operators": missing,
-        "fast_available": fast["operational"],
         "execution_profile": profile,
         "hand_edit_forbidden": hand_edit_forbidden(source),
         "recommended_env": recommended_env(source) if strict_on else {},
-        "degraded_features": degraded,
     }
 
 
@@ -379,7 +331,6 @@ __all__ = [
     "CORE_OPERATORS",
     "action_operator_status",
     "evidence_required_locked",
-    "fast_status",
     "hand_edit_forbidden",
     "mapper_status",
     "missing_required_operators",

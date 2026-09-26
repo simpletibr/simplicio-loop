@@ -15,10 +15,9 @@ def test_issue_422_runner_exercises_real_transactions_without_claiming_missing_c
         assert row["status"] == "PASS"
         assert row["repetitions"] == 10
         assert row["replay_status"] == "ok"
-        binary = scenarios[f"fast_python_binary_{count}"]
-        assert binary["status"] == "PASS"
-        assert binary["input_format"] == "simplicio.fast.binary-changeset/v1"
-        assert binary["repetitions"] == 10
+        assert f"fast_python_binary_{count}" not in scenarios
+    assert "fast_rust" not in scenarios
+    assert "fast" not in payload["components"]
     assert payload["claims"]["performance_improvement"] is None
     if sys.platform.startswith("win"):
         assert scenarios["windows_locked_file"]["status"] == "PASS"

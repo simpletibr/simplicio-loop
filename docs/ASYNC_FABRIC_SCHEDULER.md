@@ -62,6 +62,5 @@ cancel storms, real subprocess reaping, and journal replay/tamper rejection.
 Rollback is additive: stop constructing `AsyncFabricScheduler` and continue
 using the pre-existing queue/supervisor entry points. Existing journals remain
 readable and immutable. The installed Loop baseline is Python 3.11 because the
-fabric uses native `asyncio.TaskGroup` and the direct `simplicio-fast`
-dependency has the same floor. Package metadata now blocks incompatible
+fabric uses native `asyncio.TaskGroup`. Package metadata now blocks incompatible
 Python 3.8-3.10 resolution before execution.

@@ -89,9 +89,9 @@ def route(task: str) -> dict[str, Any]:
         fallback = ["use Loop without Runtime when governance is not required"]
     elif orchestration:
         intent = "orchestrate"
-        requested = ["mapper.snapshot-create", "mapper.context-select", "fast.search", "fast.rank", "loop.plan", "loop.slot-dispatch", "loop.retry", "loop.complete"]
+        requested = ["mapper.snapshot-create", "mapper.context-select", "loop.plan", "loop.slot-dispatch", "loop.retry", "loop.complete"]
         if validation:
-            requested[4:4] = ["dev-cli.preflight", "dev-cli.tests", "dev-cli.evidence"]
+            requested[2:2] = ["dev-cli.preflight", "dev-cli.tests", "dev-cli.evidence"]
         pre = ["repository and revision are known", "one task per slot"]
         fallback = ["run a single-task recipe when fan-out is unnecessary"]
     elif validation:
@@ -106,9 +106,9 @@ def route(task: str) -> dict[str, Any]:
         fallback = ["stop when revision or scope is unknown"]
     elif retrieval:
         intent = "retrieve"
-        requested = ["mapper.snapshot-create", "mapper.context-select", "fast.search", "fast.rank"]
-        pre = ["compatible Fast index for broad retrieval"]
-        fallback = ["bounded Mapper survey when Fast is unavailable"]
+        requested = ["mapper.snapshot-create", "mapper.context-select"]
+        pre = ["fresh compatible Mapper snapshot"]
+        fallback = ["bounded read-only Mapper survey"]
     else:
         intent = "survey"
         requested = ["mapper.project-survey", "mapper.snapshot-create", "mapper.context-select"]
@@ -122,8 +122,6 @@ def route(task: str) -> dict[str, Any]:
     adapters = []
     if any(capability.startswith("mapper.") for capability in selected):
         adapters.append({"component": "mapper", "surface": "scripts/preflight.py"})
-    if any(capability.startswith("fast.") for capability in selected):
-        adapters.append({"component": "fast", "surface": "simplicio-fast understand/search"})
     if any(capability.startswith("dev-cli.") for capability in selected):
         adapters.append({"component": "dev-cli", "surface": "simplicio-cli test/edit"})
     if any(capability.startswith("loop.") for capability in selected):

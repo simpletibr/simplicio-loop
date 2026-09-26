@@ -151,12 +151,12 @@ def test_non_complete_terminal_states_are_explicit_and_valid(status):
 
 def test_provider_called_requires_a_receipt_and_unexpected_receipt_is_rejected():
     missing_receipt = _complete()
-    missing_receipt["phases"]["fast"]["receipt"] = None
+    missing_receipt["phases"]["dev_cli"]["receipt"] = None
     with pytest.raises(EnvelopeValidationError, match="receipt"):
         validate_execution_envelope(missing_receipt)
 
     unexpected_receipt = _complete()
-    unexpected_receipt["phases"]["fast"]["provider_called"] = False
+    unexpected_receipt["phases"]["dev_cli"]["provider_called"] = False
     with pytest.raises(EnvelopeValidationError, match="provider_called"):
         validate_execution_envelope(unexpected_receipt)
 
@@ -211,3 +211,11 @@ def test_schema_is_versioned_under_existing_loop_execution_family_and_documented
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     assert schema["$id"] == SCHEMA
     assert "v1" in docs_path.read_text(encoding="utf-8")
+
+
+def test_phases_have_no_fast_phase():
+    assert PHASES == ("mapper", "dev_cli", "loop")
+    stale = _complete()
+    stale["phases"]["fast"] = _phase("complete")
+    with pytest.raises(EnvelopeValidationError, match="phases"):
+        validate_execution_envelope(stale)

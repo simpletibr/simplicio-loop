@@ -15,7 +15,7 @@ def lifecycle(tmp_path: Path) -> CheckpointLifecycle:
         task_id="task-761",
         attempt_id="attempt-1",
         source_commit="abc",
-        fast_generation="generation-1",
+        mapper_generation="generation-1",
         base_path=base,
     )
 
@@ -49,7 +49,7 @@ def test_applied_requires_receipts_langgraph_side_effect_practice(tmp_path):
         task_id=run.task_id,
         attempt_id=run.attempt_id,
         source_commit=run.source_commit,
-        fast_generation="generation-2",
+        mapper_generation="generation-2",
         base_path=run.base_path,
     )
     with pytest.raises(LifecycleError, match="stale"):

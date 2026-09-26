@@ -37,7 +37,7 @@ def compile(nodes):
     return compile_plan(
         plan_id="plan-809", goal_id="goal-809", intent=INTENT, nodes=nodes,
         context_snapshot_id="snapshot-1", context_hash="context-1",
-        fast_generation="fast-1", evidence_refs=["issue:809"],
+        mapper_generation="mapper-1", evidence_refs=["issue:809"],
     )
 
 
@@ -80,16 +80,16 @@ def test_semantic_and_directory_write_collisions_never_share_wave():
 def test_generation_and_context_drift_invalidate_only_affected_descendants():
     plan = compile([
         node("map", context_refs=["mapper:symbol:a"]),
-        node("fast", generation_sensitive=True),
+        node("index", generation_sensitive=True),
         node("edit", depends_on=["map"]),
         node("docs", context_refs=["docs:readme"]),
     ])
     drift = detect_drift(
-        plan, current_context_hash="context-2", current_generation="fast-2",
+        plan, current_context_hash="context-2", current_generation="mapper-2",
         changed_context_refs=["mapper:symbol:a"], evidence=["mapper:diff:1"],
     )
-    assert drift.directly_affected == ("fast", "map")
-    assert set(drift.invalidated_nodes) == {"fast", "map", "edit"}
+    assert drift.directly_affected == ("index", "map")
+    assert set(drift.invalidated_nodes) == {"index", "map", "edit"}
     assert "docs" not in drift.invalidated_nodes
 
 
@@ -100,7 +100,7 @@ def test_replan_preserves_history_and_unaffected_node_hash():
     ]
     original = compile(original_nodes)
     drift = detect_drift(
-        original, current_context_hash="context-2", current_generation="fast-1",
+        original, current_context_hash="context-2", current_generation="mapper-1",
         changed_context_refs=["src:a"], evidence=["git:sha:new"],
     )
     revised_nodes = [
@@ -109,7 +109,7 @@ def test_replan_preserves_history_and_unaffected_node_hash():
     ]
     revised = replan(
         original, drift=drift, replacement_nodes=revised_nodes,
-        current_context_hash="context-2", current_generation="fast-1",
+        current_context_hash="context-2", current_generation="mapper-1",
     )
     old_hashes = {n["node_id"]: n["node_hash"] for n in original["nodes"]}
     new_hashes = {n["node_id"]: n["node_hash"] for n in revised["nodes"]}
@@ -122,13 +122,13 @@ def test_replan_preserves_history_and_unaffected_node_hash():
 def test_replan_without_observable_evidence_is_rejected():
     plan = compile([node("a")])
     drift = detect_drift(
-        plan, current_context_hash="context-1", current_generation="fast-1",
+        plan, current_context_hash="context-1", current_generation="mapper-1",
         changed_context_refs=[], evidence=[],
     )
     with pytest.raises(PlanError) as error:
         replan(
             plan, drift=drift, replacement_nodes=[node("a")],
-            current_context_hash="context-1", current_generation="fast-1",
+            current_context_hash="context-1", current_generation="mapper-1",
         )
     assert error.value.reason_code == "replan_without_observable_cause"
 
@@ -169,7 +169,7 @@ def test_slot_receipt_fixture_is_reproducible():
             "capability": "edit.apply",
         }],
         context_snapshot_id="snapshot-fixture",
-        context_hash="context-fixture", fast_generation="fast-fixture",
+        context_hash="context-fixture", mapper_generation="mapper-fixture",
         evidence_refs=["fixture:evidence"],
     )
     receipt = bind_slots(plan, {"a": "slot-1"})

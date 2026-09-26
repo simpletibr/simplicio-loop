@@ -15,7 +15,7 @@
       "version": "1.0.0",
       "owner": "simplicio-mapper",
       "producers": ["simplicio-mapper"],
-      "consumers": ["simplicio-fast", "simplicio-dev-cli", "simplicio-loop"],
+      "consumers": ["simplicio-dev-cli", "simplicio-loop"],
       "schema_path": "schemas/context-snapshot.schema.json"
     },
     "context_delta": {
@@ -23,23 +23,15 @@
       "version": "1.0.0",
       "owner": "simplicio-mapper",
       "producers": ["simplicio-mapper"],
-      "consumers": ["simplicio-fast", "simplicio-dev-cli", "simplicio-loop"],
+      "consumers": ["simplicio-dev-cli", "simplicio-loop"],
       "schema_path": "schemas/context-delta.schema.json"
-    },
-    "fast_generation": {
-      "schema_id": "simplicio.fast-generation/v1",
-      "version": "1.0.0",
-      "owner": "simplicio-fast",
-      "producers": ["simplicio-fast"],
-      "consumers": ["simplicio-loop", "simplicio-dev-cli"],
-      "schema_path": "schemas/fast-generation.schema.json"
     },
     "capability_request": {
       "schema_id": "simplicio.capability-request/v1",
       "version": "1.0.0",
       "owner": "simplicio-loop",
       "producers": ["simplicio-loop", "simplicio-dev-cli"],
-      "consumers": ["simplicio-runtime", "simplicio-fast", "simplicio-loop"],
+      "consumers": ["simplicio-runtime", "simplicio-loop"],
       "schema_path": "schemas/capability-request.schema.json"
     },
     "plan_dag": {
@@ -47,7 +39,7 @@
       "version": "1.0.0",
       "owner": "simplicio-dev-cli",
       "producers": ["simplicio-dev-cli", "simplicio-loop"],
-      "consumers": ["simplicio-loop", "simplicio-fast"],
+      "consumers": ["simplicio-loop"],
       "schema_path": "schemas/plan-dag.schema.json"
     },
     "change_set": {

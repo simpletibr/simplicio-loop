@@ -31,7 +31,6 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path]:
         (
             StackComponent("simplicio-mapper", "0.26.11", "mapper", "b" * 64, "a" * 64),
             StackComponent("simplicio-cli", "0.18.6", "dev-cli", "b" * 64, "a" * 64),
-            StackComponent("simplicio-fast", "2.0.23", "fast", "b" * 64, "a" * 64),
             StackComponent("simplicio-runtime", "3.5.7", "runtime", "b" * 64, "a" * 64),
         ),
         "runtime-backed",
@@ -119,7 +118,7 @@ def test_publish_creates_runtime_bound_snapshot(tmp_path, monkeypatch):
     envelope = json.loads((repo / ".simplicio-loop" / "loop-execution.json").read_text(encoding="utf-8"))
     assert envelope["chain"] == receipt_mod.CHAIN
     assert envelope["result"] == {"run_id": "run-1", "status": "VERIFIED", "verified": True}
-    assert envelope["fast"]["version"] == "2.0.23"
+    assert "fast" not in envelope
     bundle = run / "runtime-loop-execution"
     for entry in envelope["artifacts"].values():
         copied = bundle / entry["path"]
@@ -219,7 +218,6 @@ def test_publish_allows_missing_optional_runtime_in_standalone_profile(tmp_path,
         (
             StackComponent("simplicio-mapper", "0.26.11", "mapper", "b" * 64, "a" * 64),
             StackComponent("simplicio-cli", "0.18.6", "dev-cli", "b" * 64, "a" * 64),
-            StackComponent("simplicio-fast", "2.0.23", "fast", "b" * 64, "a" * 64),
             StackComponent("simplicio-runtime", "", "", "", "", available=False),
         ),
         "standalone",

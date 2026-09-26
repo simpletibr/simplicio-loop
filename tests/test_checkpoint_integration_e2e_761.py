@@ -12,7 +12,7 @@ def test_checkpoint_cli_inspect_cancel_and_gc(tmp_path, capsys):
         task_id="task",
         attempt_id="attempt",
         source_commit="commit",
-        fast_generation="generation",
+        mapper_generation="generation",
         base_path=tmp_path,
     )
     lifecycle.checkpoint("candidate", "candidate", "READY_TO_PROMOTE")
@@ -21,7 +21,7 @@ def test_checkpoint_cli_inspect_cancel_and_gc(tmp_path, capsys):
         "--task-id", "task",
         "--attempt-id", "attempt",
         "--source-commit", "commit",
-        "--fast-generation", "generation",
+        "--mapper-generation", "generation",
         "--base-path", str(tmp_path),
     ]
     assert cli.main(["checkpoint", "inspect", *common, "--candidate-id", "candidate"]) == 0

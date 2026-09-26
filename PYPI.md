@@ -48,7 +48,7 @@ Now invoke it from your agent runtime (Claude Code, Cursor, Codex, Gemini, …):
   outcomes.
 
 Requires Python 3.11+. The Loop dependency closure includes `simplicio-mapper`
-and `simplicio-cli` (issue #1343 removed `simplicio-fast`); Python 3.11 is
+and `simplicio-cli`; Python 3.11 is
 therefore the honest minimum for an installed bundle. The package remains
 pure cross-platform Python.
 

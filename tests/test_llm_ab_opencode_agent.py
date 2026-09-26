@@ -220,7 +220,7 @@ def test_run_opencode_writes_the_arm_provider_config(monkeypatch, tmp_path):
 def test_build_shim_dir_symlinks_only_the_requested_bins(tmp_path):
     venv_bin = tmp_path / "venv-bin"
     venv_bin.mkdir()
-    for name in ("simplicio-mapper", "simplicio-fast", "simplicio-dev-cli", "simplicio-loop"):
+    for name in ("simplicio-mapper", "simplicio-dev-cli", "simplicio-loop"):
         (venv_bin / name).write_text("#!/bin/sh\necho fake\n")
         os.chmod(venv_bin / name, 0o755)
     shim = oc.build_shim_dir(["simplicio-mapper"], venv_bin=str(venv_bin))
@@ -272,7 +272,7 @@ def test_arm_path_resolves_exactly_the_allowed_bins_via_shutil_which(tmp_path):
 
     venv_bin = tmp_path / "venv-bin"
     venv_bin.mkdir()
-    all_bins = ["simplicio-mapper", "simplicio-fast", "simplicio-dev-cli", "simplicio-loop"]
+    all_bins = ["simplicio-mapper", "simplicio-dev-cli", "simplicio-loop"]
     for name in all_bins:
         p = venv_bin / name
         p.write_text("#!/bin/sh\n")

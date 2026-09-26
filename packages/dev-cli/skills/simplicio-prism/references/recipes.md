@@ -6,8 +6,6 @@ Use the smallest recipe that satisfies the request. Resolve concrete adapters fr
 
 `mapper.project-survey → mapper.snapshot-create → mapper.context-select`
 
-Add `fast.index-open → fast.search → fast.rank` for repeated or broad retrieval.
-
 ## Implement and verify a change
 
 `mapper.snapshot-create → mapper.context-select → dev-cli.preflight → dev-cli.edit → dev-cli.tests → dev-cli.evidence`

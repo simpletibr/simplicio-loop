@@ -31,7 +31,7 @@ Compatibility is one-way and structural:
 - `tasks` are ordered, have unique `task_id` values, and dependencies must refer
   to earlier tasks in an acyclic graph. `task_order` repeats the canonical order
   explicitly for consumers that do not preserve array order.
-- `phases` always contain `mapper`, `fast`, `dev_cli`, and `loop`. A phase with
+- `phases` always contain `mapper`, `dev_cli`, and `loop`. A phase with
   `provider_called: true` must carry a structured `receipt`; a phase that did not
   call a provider carries `receipt: null`.
 - `execution_report` reuses `simplicio.execution-report/v1`. Unknown metrics are

@@ -31,7 +31,7 @@ EXECUTION_FLOWS = frozenset(
 EXECUTION_STATUSES = frozenset(
     {"complete", "partial", "blocked", "error", "expected_governor_blocked"}
 )
-PHASES = ("mapper", "fast", "dev_cli", "loop")
+PHASES = ("mapper", "dev_cli", "loop")
 PHASE_STATUSES = frozenset(
     {"not_run", "running", "complete", "partial", "blocked", "error"}
 )

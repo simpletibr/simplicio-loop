@@ -22,7 +22,7 @@ def measure(repetitions: int, work_units: int) -> dict:
             task_id="benchmark",
             attempt_id="attempt-1",
             source_commit="frozen",
-            fast_generation="generation-1",
+            mapper_generation="generation-1",
             base_path=base,
         )
         run.checkpoint("candidate", "orientation", "ORIENTED", work_units=work_units)

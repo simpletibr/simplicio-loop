@@ -342,31 +342,6 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_doctor.add_argument("--root", default=".", help="repo root for read-only storage diagnostics")
 
-    p_fast = sub.add_parser("fast", help="negotiate optional Simplicio Fast capabilities")
-    fast_sub = p_fast.add_subparsers(dest="fast_cmd", required=True)
-    for fast_name, fast_help in (
-        ("capabilities", "report versioned schemas, languages, commands and availability"),
-        ("doctor", "diagnose Fast installation, compatibility, parser and snapshot"),
-    ):
-        p_fast_command = fast_sub.add_parser(fast_name, help=fast_help)
-        p_fast_command.add_argument("--json", action="store_true", help="emit stable machine-readable JSON")
-        p_fast_command.add_argument(
-            "--offline",
-            action="store_true",
-            help="report an offline-safe installation correction without network access",
-        )
-        p_fast_command.add_argument(
-            "--receipt",
-            metavar="PATH",
-            help="append a local metadata-only receipt; never includes source code",
-        )
-        if fast_name == "doctor":
-            p_fast_command.add_argument(
-                "--snapshot",
-                metavar="PATH",
-                help="validate a canonical Mapper snapshot without reading mmap internals",
-            )
-
     p_versions = sub.add_parser(
         "versions",
         help=(
@@ -441,22 +416,11 @@ def _build_parser() -> argparse.ArgumentParser:
         default="standalone",
         help="execution route; auto resolves to standalone when no Runtime authorization is supplied",
     )
-    p_changeset.add_argument("--plan", default="-", help="changeset JSON or Fast binary path, or - for stdin")
+    p_changeset.add_argument("--plan", default="-", help="changeset JSON path, or - for stdin")
     p_changeset.add_argument("--apply", action="store_true", help="atomically apply; default is dry-run")
     p_changeset.add_argument(
         "--current-generation",
         help="reject the changeset unless its generation matches this value",
-    )
-    p_changeset.add_argument(
-        "--fast-engine",
-        choices=["auto", "rust", "python", "none"],
-        default="auto",
-        help="select the in-memory Fast decoder; rust never silently falls back",
-    )
-    p_changeset.add_argument(
-        "--refresh-mapper",
-        action="store_true",
-        help="after a committed binary changeset, refresh Mapper once for all changed paths",
     )
     p_changeset.add_argument("--json", action="store_true", help="emit a stable v2 receipt")
 
@@ -823,7 +787,6 @@ _COMMAND_MODULES = {
     "inspect": "inspect",
     "intake": "intake",
     "doctor": "doctor",
-    "fast": "fast",
     "versions": "versions",
     "release-train": "release_train",
     "env-export": "env_export",

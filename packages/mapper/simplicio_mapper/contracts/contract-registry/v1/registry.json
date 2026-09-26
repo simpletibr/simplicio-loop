@@ -14,7 +14,7 @@
       "owner": "mapper",
       "maintainers": ["mapper"],
       "producers": ["mapper"],
-      "consumers": ["fast", "loop", "dev-cli", "runtime"],
+      "consumers": ["loop", "dev-cli", "runtime"],
       "writer_authority": "mapper",
       "versions": {"current": "v1", "minimum": "v1", "maximum": "v1", "deprecated": false},
       "canonical": {"schema_path": "contracts/context-graph/v1/schema.json", "sha256": "e722f21484512055453af1109294de91dfb16ea6a2cebd17ed43ac7119ea3f12", "fixture_paths": ["contracts/context-graph/v1/fixtures/parity.json", "contracts/context-graph/v1/fixtures/compatibility.json"]},
@@ -124,19 +124,6 @@
       "canonical": {"schema_path": "contracts/mapper-store/v1/schemas/operations-status.schema.json", "sha256": "b431723f1e59b1dc650528be6ed9b80976075a252814e110b5be8fb68ef2fdd2", "fixture_paths": []},
       "compatibility": {"unknown_fields": "reject", "unknown_enum": "reject", "defaults": "explicit", "policy": "versioned"},
       "change_policy": {"breaking": "new-version-adr-migration-fixture", "additive": "compatible-with-fixture"}
-    },
-    {
-      "id": "simplicio.fast-context-handle/v1",
-      "kind": "integration",
-      "owner": "mapper",
-      "maintainers": ["mapper", "loop"],
-      "producers": ["fast"],
-      "consumers": ["mapper", "loop", "runtime"],
-      "writer_authority": "fast",
-      "versions": {"current": "v1", "minimum": "v1", "maximum": "v1", "deprecated": false},
-      "canonical": {"schema_path": null, "sha256": null, "fixture_paths": []},
-      "compatibility": {"unknown_fields": "reject", "unknown_enum": "reject", "defaults": "explicit", "policy": "versioned"},
-      "change_policy": {"breaking": "cross-repo-adr-and-conformance", "additive": "consumer-compatible-fixture"}
     },
     {
       "id": "simplicio.ecc-guidance-ref/v1",

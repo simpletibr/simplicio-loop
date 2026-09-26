@@ -15,8 +15,7 @@ def test_clean_install_conformance_raw_evidence(tmp_path):
         [sys.executable, str(script), "--root", str(tmp_path / "run"),
          "--output", str(output), "--repetitions", "10",
          "--loop-wheel-sha256", "a" * 64,
-         "--mapper-wheel-sha256", "b" * 64,
-         "--fast-wheel-sha256", "c" * 64],
+         "--mapper-wheel-sha256", "b" * 64],
         cwd=tmp_path, env=dict(os.environ, PYTHONPATH=installed), check=True,
     )
     receipt = json.loads(output.read_text())

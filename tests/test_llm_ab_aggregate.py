@@ -142,7 +142,7 @@ def test_diff_history_tolerates_older_shape_results_file():
     # the arm level, but under a different arm-name set -- diff_history must
     # not crash on it, only skip arms it cannot match.
     current = {"arms": {"simplicio": {"total_wall_s": 5.0}}}
-    previous = {"arms": {"simplicio-files": {"total_wall_s": 1.0}, "simplicio-fast": {"total_wall_s": 2.0}}}
+    previous = {"arms": {"simplicio-files": {"total_wall_s": 1.0}, "simplicio-legacy": {"total_wall_s": 2.0}}}
     deltas = agg.diff_history(current, previous)
     assert deltas["simplicio"]["total_wall_s_delta"] is None
 

@@ -1,12 +1,12 @@
 # Public Simplicio I/O contract — `simplicio.io/v1`
 
-This is the only public envelope shared by Mapper, Fast, Dev CLI and Loop.
+This is the only public envelope shared by Mapper, Dev CLI and Loop.
 Internal schemas remain implementation details of their owning component.
 
 | Operation | Owner | Responsibility |
 |---|---|---|
 | `understand` | Mapper | survey the repository and produce canonical context |
-| `search` | Fast | retrieve/rank context without editing files |
+| `search` | Mapper | retrieve/rank context without editing files |
 | `change` | Dev CLI | apply deterministic changes and report evidence |
 | `verify` | Dev CLI | run bounded validation and report evidence |
 | `run` | Loop | coordinate the operations, retries and convergence |

@@ -10,7 +10,7 @@ from pathlib import Path
 from .mutation_lifecycle import MUTABLE_ENTRYPOINTS
 from .mutation_worker import MutationBlocked, validate
 
-READ_ONLY = {"status", "claims", "inspect", "doctor", "versions", "file", "detect", "runtime", "fast"}
+READ_ONLY = {"status", "claims", "inspect", "doctor", "versions", "file", "detect", "runtime"}
 
 
 def route_name(argv: Sequence[str]) -> str:

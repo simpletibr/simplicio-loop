@@ -130,7 +130,7 @@ def test_runtime_version_override_must_match_probed_binary(monkeypatch, tmp_path
         StackLock.create([runtime], "runtime-backed")
 
     mapper = _component(tmp_path)
-    fast = _component(tmp_path, "simplicio-fast", b"fast")
+    fast = _component(tmp_path, "simplicio-cli", b"cli")
     runtime = _component(tmp_path, "simplicio-runtime", b"runtime")
     first = StackLock.create([fast, mapper, runtime], "standalone", run_id="run-1")
     second = StackLock.create([runtime, mapper, fast], "standalone", run_id="run-1")
@@ -440,3 +440,10 @@ def test_stack_cli_registry_blocks_duplicate_before_writing_lock(tmp_path, capsy
     assert payload["reason_code"] == "stack_compatibility_blocked"
     assert payload["diagnostics"]["status"] == "BLOCKED"
     assert not lock_path.exists()
+
+
+def test_discovered_stack_has_no_fast_component(monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_STACK_COMPONENTS_FILE", raising=False)
+    names = [item.name for item in stack_lock_mod.discover_installed_components()]
+    assert "simplicio-fast" not in names
+    assert {"simplicio-loop", "simplicio-mapper", "simplicio-cli"} <= set(names)

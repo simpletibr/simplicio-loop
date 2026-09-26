@@ -1,4 +1,4 @@
-"""Bound operators: core mapper + dev-cli always required; Fast adaptive under strict."""
+"""Bound operators: mapper + dev-cli are the only required operators (strict or not)."""
 from __future__ import annotations
 
 import importlib.util
@@ -46,14 +46,11 @@ def test_missing_bound_operators_empty_when_core_present(monkeypatch, tmp_path):
     assert loop_stop.missing_bound_operators() == []
 
 
-def test_strict_requires_operational_fast(monkeypatch, tmp_path):
+def test_strict_requires_only_mapper_and_dev_cli(monkeypatch, tmp_path):
     _marker(tmp_path, monkeypatch)
-
-    def operational(binary, args=("--version",)):
-        return binary in {"simplicio-mapper", "simplicio-fast"}
-
-    monkeypatch.setattr(loop_stop, "_binary_operational", operational)
+    monkeypatch.setattr(loop_stop, "_binary_operational", lambda binary, args=("--version",): True)
     monkeypatch.setattr(loop_stop, "_action_operator_operational", lambda: True)
     monkeypatch.setattr(loop_stop.shutil, "which", lambda b: "/usr/bin/" + b)
     monkeypatch.setenv("SIMPLICIO_LOOP_STRICT", "1")
-    assert "simplicio-fast" in loop_stop.required_bound_operators()
+    assert loop_stop.required_bound_operators() == ["simplicio-mapper", "simplicio-dev-cli"]
+    assert not hasattr(loop_stop, "FAST_BINARY")

@@ -64,7 +64,6 @@ def test_live_qlt001_operational_script() -> None:
         "devcli_mechanical_edit_no_contract",
         "devcli_changeset_standalone",
         "mapper_default_route",
-        "fast_query_after_mapper",
         "loop_preflight_devcli_bound",
     }
     assert required.issubset({step["name"] for step in report["steps"]})

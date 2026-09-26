@@ -4,9 +4,9 @@
   },
   "event": "slots_bound",
   "logical_tasks_unchanged": true,
-  "plan_hash": "sha256:654bfe291d64b1bdde6d75d1f935b6909fd64c4b3416bd3e6b5a5f26f2769a1c",
+  "plan_hash": "sha256:4c31c112b7362ae651b013b7ad1b273fb483ad7de6927730791588430cebca97",
   "plan_id": "plan-fixture",
   "plan_revision": 1,
-  "receipt_hash": "sha256:140fb76ee5b87b267d5e6c9159c2a23671ee1dacd338f7dff63fcfdaa6c891b5",
+  "receipt_hash": "sha256:a88eb9b0113cea1a9741522fb97921c2c42b2ceaab325d49d87dbedf91049f30",
   "schema": "simplicio.plan-dag-receipt/v1"
 }

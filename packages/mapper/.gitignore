@@ -91,7 +91,6 @@ docs/evidence/mapper-store-inventory.json
 
 # Legacy Simplicio roots are quarantined; new state belongs under .simplicio-loop/.
 .orchestrator/
-.simplicio-fast/
 
 # Claude / Codex (estado local, não vai pro repo)
 .codex/local

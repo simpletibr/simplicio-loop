@@ -139,14 +139,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ..background_work import run_background_cli
 
         return run_background_cli(argv[1:])
-    if argv and argv[0] == "fast-handoff":
-        from ..fast_handoff import run_fast_handoff_cli
-
-        return run_fast_handoff_cli(argv[1:])
-    if argv and argv[0] == "fast-certify":
-        from ..fast_certification import run_fast_certify_cli
-
-        return run_fast_certify_cli(argv[1:])
     if argv and argv[0] == "ecc":
         from ..ecc_cli import main as run_ecc_cli
 

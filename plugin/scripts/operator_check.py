@@ -50,7 +50,6 @@ DEFAULT_PACKAGES = (
     "simplicio-loop",
     "simplicio-cli",
     "simplicio-mapper",
-    "simplicio-fast",
 )
 ALWAYS_LATEST_ENV = "SIMPLICIO_OPERATOR_ALWAYS_LATEST"
 _FALSE = frozenset({"0", "false", "no", "off", "disabled", "legacy"})

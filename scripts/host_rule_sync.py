@@ -22,7 +22,7 @@ HERE = Path(__file__).resolve().parent
 SOURCE = HERE.parent
 RULE_SRC = SOURCE / "packaging" / "host-rules" / "simplicio-loop-operator-flow.md"
 RULE_NAME = "simplicio-loop-operator-flow.md"
-OWNED_MARKERS = ("Simplicio loop + Fast", "simplicio-loop-operator-flow", "SIMPLICIO_LOOP_STRICT")
+OWNED_MARKERS = ("simplicio-loop-operator-flow", "SIMPLICIO_LOOP_STRICT")
 
 
 def _home() -> Path:
@@ -62,25 +62,23 @@ def project_destinations(root: Path) -> list[tuple[str, Path]]:
 
 
 ENV_PS1 = """# Simplicio loop strict operator floor (synced by host_rule_sync.py)
-# Core = mapper + dev-cli; Fast when present. There is no Runtime/MCP backend.
+# Core = mapper + dev-cli. There is no Runtime/MCP backend.
 $env:SIMPLICIO_LOOP = "1"
 $env:SIMPLICIO_LOOP_STRICT = "1"
 $env:SIMPLICIO_REQUIRE_MUTATION_AUTHORITY = "1"
 $env:SIMPLICIO_LOOP_AUTO_PLANNING_RECEIPT = "1"
 $env:SIMPLICIO_LOOP_FORBID_HAND_EDIT = "1"
 $env:SIMPLICIO_EXECUTION_PROFILE = "standalone"
-$env:SIMPLICIO_FAST_MODE = "required"
 """
 
 ENV_SH = """# Simplicio loop strict operator floor (synced by host_rule_sync.py)
-# Core = mapper + dev-cli; Fast when present. There is no Runtime/MCP backend.
+# Core = mapper + dev-cli. There is no Runtime/MCP backend.
 export SIMPLICIO_LOOP=1
 export SIMPLICIO_LOOP_STRICT=1
 export SIMPLICIO_REQUIRE_MUTATION_AUTHORITY=1
 export SIMPLICIO_LOOP_AUTO_PLANNING_RECEIPT=1
 export SIMPLICIO_LOOP_FORBID_HAND_EDIT=1
 export SIMPLICIO_EXECUTION_PROFILE=standalone
-export SIMPLICIO_FAST_MODE=required
 """
 
 

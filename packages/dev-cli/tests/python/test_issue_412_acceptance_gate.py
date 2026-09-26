@@ -40,17 +40,23 @@ def test_acceptance_gate_cli_returns_nonzero_without_all_criteria(tmp_path):
 
 def test_acceptance_gate_treats_malformed_report_as_unverified(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.issue_412_acceptance_gate._git_sha", lambda _root: "current")
-    report = tmp_path / "issue-414.json"
+    report = tmp_path / "issue-416.json"
     report.write_text(
         json.dumps(
             _report(
-                "simplicio.dev-cli.issue-414-binary-benchmark/v1",
+                "simplicio.dev-cli.issue-416-transaction-benchmark/v1",
                 "current",
-                rows=[{"lane": "binary_fast_adapter", "size": 1, "status": "PASS", "repeats": None}],
+                rows=[{"lane": "python_transaction", "size": 1, "status": "PASS", "repeats": None}],
             )
         )
     )
 
-    payload = build_matrix(tmp_path, {"issue-414": report})
-    row = next(item for item in payload["criteria"] if item["criterion"] == "fast-binary-envelope")
+    payload = build_matrix(tmp_path, {"issue-416": report})
+    row = next(item for item in payload["criteria"] if item["criterion"] == "atomic-recoverable-transaction")
     assert row["status"] == "UNVERIFIED"
+
+
+def test_acceptance_gate_has_no_fast_criteria(tmp_path):
+    payload = build_matrix(tmp_path, {})
+
+    assert not [row["criterion"] for row in payload["criteria"] if "fast" in row["criterion"]]

@@ -18,7 +18,6 @@ ROOT = Path(__file__).parents[1]
 # Measured from the source heads used by the 2026-09-13 integration audit.
 SOURCE_HEAD_VERSIONS = {
     "simplicio-mapper": "0.26.31",
-    "simplicio-fast": "2.0.32",
     "simplicio-cli": "0.18.12",
 }
 
@@ -93,77 +92,6 @@ print(json.dumps({
     "store_schema": initialized["schema"],
     "resolved_source": location.source,
     "task_status": status["state"],
-}))
-'''
-
-FAST_API_PROBE = r'''
-import importlib.metadata as metadata
-import json
-import sys
-from pathlib import Path
-
-from simplicio_fast import OperationReceipt, OperationsProjection, WorkspaceStore
-from simplicio_fast.generation_receipts import seal_receipt, verify_receipt
-
-root = Path(sys.argv[1])
-root.mkdir(parents=True, exist_ok=True)
-source = root / "module.py"
-source.write_text(
-    "class CompatibilityTarget:\n"
-    "    pass\n",
-    encoding="utf-8",
-)
-storage = root / "fast-data"
-store = WorkspaceStore(root, storage)
-manifest = store.build_base(config={"source_head_compatibility": True})
-snapshot = storage / "base" / manifest.generation_id / manifest.snapshot
-store.validate_snapshot(snapshot, manifest.snapshot_sha256)
-
-operation = OperationReceipt(
-    handle="source-head-compatibility",
-    kind="build",
-    status="completed",
-    generation=manifest.generation_id,
-    sequence=1,
-    source_schema="simplicio.fast.operations-receipt/v1",
-    payload={"snapshot": manifest.snapshot},
-)
-projection = OperationsProjection(str(root), manifest.generation_id)
-ingested = projection.ingest([operation])
-projected = projection.snapshot()
-assert operation.to_dict()["schema"] == "simplicio.fast.operations-receipt/v1"
-assert ingested["schema"] == "simplicio.fast.operations-delta/v1"
-assert projected["schema"] == "simplicio.fast.operations-projection/v1"
-
-receipt = seal_receipt(
-    kind="build",
-    repo=str(root),
-    commit=manifest.commit,
-    snapshot_digest=manifest.snapshot_sha256,
-    generation=manifest.generation_id,
-    source_hashes=manifest.source_hashes,
-    backend="python",
-)
-verified = verify_receipt(
-    receipt,
-    expected_repo=str(root),
-    expected_commit=manifest.commit,
-    expected_generation=manifest.generation_id,
-    expected_source_hashes=manifest.source_hashes,
-)
-assert receipt["schema"] == "simplicio.fast-generation-receipt/v1"
-assert verified["receipt_hash"] == receipt["receipt_hash"], verified
-receipt_files = list((storage / "receipts").glob("*.json"))
-assert receipt_files, receipt_files
-
-print(json.dumps({
-    "installed_version": metadata.version("simplicio-fast"),
-    "operation_receipt_schema": operation.to_dict()["schema"],
-    "receipt_schema": receipt["schema"],
-    "projection_schema": projected["schema"],
-    "snapshot_exists": snapshot.is_file(),
-    "receipt_verified": True,
-    "receipt_count": len(receipt_files),
 }))
 '''
 
@@ -359,65 +287,6 @@ def _run_operator_contract_probes(root: Path) -> dict[str, dict[str, object]]:
     assert mapper_cli_evidence["version"] == mapper_evidence["installed_version"]
     assert mapper_evidence["resolved_source"] == "flag", mapper_evidence
 
-    fast_root = root / "fast-api"
-    fast_evidence = _run_api_probe("simplicio-fast", "simplicio_fast", FAST_API_PROBE, fast_root)
-    _assert_installed_version("simplicio-fast", fast_evidence["installed_version"])
-    fast_version = _run_cli("simplicio-fast", ["--version"], cwd=ROOT).stdout.strip()
-    assert fast_evidence["installed_version"] in fast_version, fast_version
-
-    fast_cli_root = root / "fast-cli"
-    fast_cli_root.mkdir(parents=True, exist_ok=True)
-    (fast_cli_root / "module.py").write_text(
-        "class CompatibilityTarget:\n"
-        "    pass\n",
-        encoding="utf-8",
-    )
-    snapshot = fast_cli_root / "project.sfast"
-    build = json.loads(_run_cli(
-        "simplicio-fast",
-        [
-            "--fast-engine",
-            "python",
-            "build",
-            str(fast_cli_root),
-            "--output",
-            str(snapshot),
-            # This probe exercises basic build/stats/search plumbing on a synthetic
-            # fixture, not a real Mapper integration -- the newer source head's
-            # default `--mapper-mode integrated` fails closed without a canonical
-            # `simplicio-mapper fast-handoff` file, so use the explicit
-            # development-only bootstrap fallback instead.
-            "--mapper-mode",
-            "bootstrap",
-            "--json",
-        ],
-        cwd=ROOT,
-    ).stdout)
-    assert build["schema"] == "simplicio.fast.build/v1", build
-    assert snapshot.is_file(), snapshot
-    stats = json.loads(_run_cli(
-        "simplicio-fast",
-        ["--fast-engine", "python", "stats", "--snapshot", str(snapshot), "--json"],
-        cwd=ROOT,
-    ).stdout)
-    assert stats["schema"] == "simplicio.fast.stats/v1", stats
-    search = json.loads(_run_cli(
-        "simplicio-fast",
-        [
-            "--fast-engine",
-            "python",
-            "search",
-            "CompatibilityTarget",
-            "--snapshot",
-            str(snapshot),
-            "--json",
-        ],
-        cwd=ROOT,
-    ).stdout)
-    assert search["schema"] == "simplicio.fast.search/v1", search
-    assert search["matches"], search
-    fast_evidence["cli_search_schema"] = search["schema"]
-
     dev_cli_version = _run_cli("simplicio-dev-cli", ["--version"], cwd=ROOT).stdout
     dev_cli_evidence = _run_api_probe(
         "simplicio-dev-cli", "simplicio", DEV_CLI_API_PROBE, root / "dev-cli-api"
@@ -430,7 +299,6 @@ def _run_operator_contract_probes(root: Path) -> dict[str, dict[str, object]]:
 
     return {
         "mapper": mapper_evidence,
-        "fast": fast_evidence,
         "dev_cli": dev_cli_evidence,
     }
 
@@ -455,7 +323,5 @@ def test_source_heads_are_exercised_by_public_operator_surfaces(tmp_path) -> Non
     evidence = _run_operator_contract_probes(tmp_path)
 
     assert evidence["mapper"]["store_schema"] == "simplicio.mapper-store.operations-api/v1"
-    assert evidence["fast"]["operation_receipt_schema"] == "simplicio.fast.operations-receipt/v1"
-    assert evidence["fast"]["receipt_schema"] == "simplicio.fast-generation-receipt/v1"
-    assert evidence["fast"]["cli_search_schema"] == "simplicio.fast.search/v1"
+    assert "fast" not in evidence
     assert evidence["dev_cli"]["plan_schema"] == "simplicio.plan-dag/v1"

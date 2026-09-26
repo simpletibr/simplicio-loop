@@ -29,7 +29,7 @@ def broker(tmp_path: Path) -> tuple[GenerationBroker, str, CanonicalGeneration]:
         task_id="task-888",
         attempt_id="attempt-1",
         source_commit="abc",
-        fast_generation=generation.generation,
+        mapper_generation=generation.generation,
         base_path=base,
     )
     return GenerationBroker(registry, lifecycle), identity_key, generation
@@ -82,7 +82,7 @@ def test_stale_generation_fails_before_overlay_creation(tmp_path: Path):
         )
 
     assert not service.lifecycle.overlays.exists()
-    assert generation.generation == service.lifecycle.fast_generation
+    assert generation.generation == service.lifecycle.mapper_generation
 
 
 @pytest.mark.parametrize("candidate_id", ["../escape", "a/b", "a\\b", "..", "", " a"])
@@ -240,7 +240,7 @@ def test_promotion_preserves_active_pin_and_records_event(tmp_path: Path):
     next_binding = service.bind(
         identity_key, tree_hash="tree-2", files=[], candidate_id="b", generation=promoted
     )
-    assert next_binding.fast_generation == "generation-2"
+    assert next_binding.mapper_generation == "generation-2"
 
 
 def test_trusted_anchor_rejects_rehashed_repository_tamper(tmp_path: Path):
@@ -270,7 +270,7 @@ def test_lifecycle_rejects_unsafe_path_identity(tmp_path: Path, field: str):
         CheckpointLifecycle(
             tmp_path / "runs",
             source_commit="abc",
-            fast_generation="generation",
+            mapper_generation="generation",
             base_path=tmp_path,
             **kwargs,
         )
@@ -397,4 +397,4 @@ def test_reloaded_zero_binding_broker_can_promote_twice_then_first_bind(tmp_path
         identity_key, tree_hash="tree-3", files=[], candidate_id="first", generation=third
     )
     assert binding.source_commit == "ghi"
-    assert binding.fast_generation == "generation-3"
+    assert binding.mapper_generation == "generation-3"

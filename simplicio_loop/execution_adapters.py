@@ -37,13 +37,11 @@ _TASK_STATUSES = {"queued", "running", "complete", "partial", "blocked", "error"
 
 _PHASE_RECEIPT_KEYS = {
     "mapper": {"mapper", "mapper_receipt", "mapper_context", "context", "context_receipt"},
-    "fast": {"fast", "fast_receipt", "ingest", "ingest_receipt", "plan", "plan_receipt"},
     "dev_cli": {"dev_cli", "dev_cli_receipt", "operator", "operator_receipt", "mutation", "mutation_receipt"},
     "loop": {"loop", "loop_receipt", "watcher", "watcher_receipt", "evidence", "evidence_receipt", "completion", "completion_receipt"},
 }
 _PHASE_FILE_NAMES = {
     "mapper": ("mapper-context.json", "mapper-receipt.json", "context-receipt.json"),
-    "fast": ("plan.json", "fast-receipt.json", "fast-ingest-receipt.json", "fast-plan-receipt.json", "ingest-receipt.json", "plan-receipt.json"),
     "dev_cli": ("operator-receipt.json", "dev-cli-receipt.json", "mutation-receipt.json"),
     "loop": (
         "evidence-receipt.json", "watcher-receipt.json", "independent-watcher-receipt.json",
@@ -52,12 +50,6 @@ _PHASE_FILE_NAMES = {
 }
 _PHASE_SCHEMAS = {
     "mapper": frozenset({"simplicio.mapper-receipt/v1", "simplicio.mapper-index/v1"}),
-    "fast": frozenset({
-        "simplicio.loop-fast-receipt/v1", "simplicio.fast-ingest-receipt/v1",
-        "simplicio.fast-plan-receipt/v1", "simplicio.fast.ingest/v2",
-        "simplicio.fast.understanding/v2", "simplicio.fast.plandag/v2",
-        "simplicio.plan/v1",
-    }),
     "dev_cli": frozenset({
         "simplicio.operator-receipt/v0", "simplicio.mutation-receipt/v1",
         "simplicio.dev-cli-changeset-receipt/v1", "simplicio.stage-receipt/v1",
@@ -164,10 +156,6 @@ def _valid_content_hash(value: Mapping[str, Any], *, prefix: bool = False) -> bo
     return supplied == (f"sha256:{digest}" if prefix else digest) or supplied == digest
 
 
-def _valid_fast_hash(value: Mapping[str, Any]) -> bool:
-    return _valid_content_hash(value, prefix=True)
-
-
 def _valid_mapper_context(value: Mapping[str, Any]) -> bool:
     handoff = _mapping(value.get("handoff"))
     stdout = _mapping(handoff.get("stdout"))
@@ -217,50 +205,6 @@ def _valid_phase_receipt(value: Mapping[str, Any], phase: str) -> bool:
             value.get("status") in {"updated", "unchanged", "skipped"}
             and isinstance(value.get("paths"), Mapping)
             and any(_text_value(value.get(key)) for key in ("repo", "root", "generation"))
-        )
-
-    if phase == "fast":
-        if schema == "simplicio.loop-fast-receipt/v1":
-            return (
-                _text_value(value.get("status"))
-                and _text_value(value.get("generation"))
-                and (_nonempty(value.get("fast_receipt")) or _text_value(value.get("stage")))
-                and _valid_fast_hash(value)
-            )
-        if schema in {"simplicio.fast-ingest-receipt/v1", "simplicio.fast-plan-receipt/v1"}:
-            return (
-                _text_value(value.get("repo"))
-                and _text_value(value.get("generation"))
-                and isinstance(value.get("provenance"), Mapping)
-                and _valid_fast_hash(value)
-                and (schema != "simplicio.fast-plan-receipt/v1" or isinstance(value.get("nodes"), list))
-            )
-        if schema == "simplicio.fast.ingest/v2":
-            metrics = _mapping(value.get("metrics"))
-            return (
-                _text_value(value.get("generation") or metrics.get("generation"))
-                and _text_value(value.get("snapshot") or metrics.get("snapshot"))
-                and (isinstance(value.get("receipt"), Mapping) or isinstance(value.get("result"), Mapping) or isinstance(value.get("metrics"), Mapping))
-            )
-        if schema == "simplicio.fast.understanding/v2":
-            metrics = _mapping(value.get("metrics"))
-            return (
-                _text_value(value.get("generation") or metrics.get("generation"))
-                and isinstance(value.get("context"), list)
-                and bool(value.get("context"))
-            )
-        if schema == "simplicio.fast.plandag/v2":
-            metrics = _mapping(value.get("metrics"))
-            return (
-                _text_value(value.get("generation") or metrics.get("generation"))
-                and isinstance(value.get("nodes"), list)
-                and bool(value.get("nodes"))
-            )
-        return (
-            _text_value(value.get("task_contract_hash"))
-            and isinstance(value.get("steps"), list)
-            and isinstance(value.get("repo_state"), Mapping)
-            and isinstance(value.get("freshness"), Mapping)
         )
 
     if phase == "dev_cli":

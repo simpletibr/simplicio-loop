@@ -16,14 +16,13 @@
 | **simplicio-loop** | Orchestrator core + hardened Ralph loop — the entrypoint | `pip install simplicio-loop` + skills/hooks | **Yes** |
 | **simplicio-mapper** | Read-only repo observer / map / handoff | `simplicio-mapper` CLI | **Yes** |
 | **simplicio-dev-cli** | Focused plan compiler + deterministic edits | `simplicio-dev-cli` / `simplicio-py` | **Yes** |
-| **simplicio-fast** | Snapshots / mmap / PlanDAG / understand·plan·apply hot path | `simplicio-fast` CLI | **Yes** (when installed) |
 
 **Law (bound operators, ADR 0009/0010):**
 
 1. `simplicio-loop` activates directly via `/simplicio-loop <body of work>` — no external
    activation decision, no Runtime.
-2. `mapper` + `dev-cli` are **required** bound operators (survey / mutate); `fast` joins
-   when installed and operational.
+2. `mapper` + `dev-cli` are the **required** bound operators (survey / mutate) and the
+   whole operator stack.
 3. Every loop run emits **`simplicio.execution-report/v1`**: per task/issue + consolidated
    metrics (speed, latency, CPU/RAM when MEASURED, tokens in/out). **Never invent numbers.**
 
@@ -38,8 +37,7 @@
   simplicio-loop protocol (journal / anchor / backlog / hooks)
        │ orient → route → mutate
        ├── simplicio-mapper   (required, standalone)
-       ├── simplicio-dev-cli  (required, standalone)
-       └── simplicio-fast     (optional, standalone)
+       └── simplicio-dev-cli  (required, standalone)
 ```
 
 ---
@@ -48,8 +46,6 @@
 
 ```bash
 pip install -U simplicio-loop simplicio-mapper simplicio-dev-cli
-# Fast when available:
-pip install -U simplicio-fast
 ```
 
 Or as a marketplace plugin:
@@ -74,7 +70,7 @@ Expected: preflight green, or explicit degraded labels — never a silent fake O
 
 ## 4. Step-by-step — every non-trivial task
 
-1. **Orient:** `simplicio-loop orient --task "<task>" --json` (Mapper + Fast context).
+1. **Orient:** `simplicio-loop orient --task "<task>" --json` (Mapper survey context).
 2. **Route:** follow `route.mode` / `route.next` from the orient output.
    - **fast-path** (1 task, 1 file): `simplicio-dev-cli edit --plan ops.json --compile plan.json`
      → `edit --plan plan.json --apply` → run the task's own check. No run, no wave.

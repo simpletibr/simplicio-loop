@@ -2,7 +2,7 @@
 
 `MapperStore` is the single Mapper authority for `memory.sqlite` and
 `operations.sqlite`. Mapper owns DDL, migrations, writes, compaction/tombstones
-and semantic-index maintenance. Runtime, Fast, Loop and MCP consume the
+and semantic-index maintenance. Runtime, Loop and MCP consume the
 read-only `MapperStoreReader` contract and must not create schemas or write to
 these files directly.
 
