@@ -27,7 +27,6 @@ Spindle handoff dir: `.simplicio/orchestrator/loop/handoffs/` (append-only, one 
 import argparse
 import json
 import os
-import subprocess
 import sys
 import time
 
@@ -50,38 +49,6 @@ HANDOFFS_DIR = os.path.join(LOOP_DIR, "handoffs")
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────
-
-
-def _discover_simplicio_cli():
-    """Probe for simplicio CLI in priority order. Returns (binary, subcommand_prefix) or (None, None).
-
-    Tries: ``simplicio gate``, ``simplicio-py gate``, ``python3 -m simplicio.cli gate``.
-    Silent-fail: any probe error returns (None, None) — never blocks.
-    """
-    candidates = [
-        ("simplicio", "gate"),
-        ("simplicio-py", "gate"),
-        ("python3", ["-m", "simplicio.cli", "gate"]),
-    ]
-    for binary, sub in candidates:
-        try:
-            args = [binary] + (sub if isinstance(sub, list) else [sub, "--help"])
-            subprocess.run(args, capture_output=True, timeout=5)
-            return binary, sub
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            continue
-    return None, None
-
-
-def _call_simplicio_gate_check(binary, reported="?", watcher="?"):
-    """Run ``simplicio gate check <reported> <watcher>`` silently. Fail-open."""
-    try:
-        subprocess.run(
-            [binary, "gate", "check", str(reported), str(watcher)],
-            capture_output=True, timeout=10,
-        )
-    except Exception:
-        pass
 
 
 def _ensure_dirs():
@@ -185,13 +152,6 @@ def cmd_handoff(next_agent: str, state: dict, note: str = ""):
     The latch is a boolean ``latch: true`` in spindle.json. The next agent
     *must* run ``handoff confirm`` to release it.
     """
-    # Attempt simplicio gate check before handoff — a silent, best-effort
-    # verification of the gate state (reported vs watcher truth). Fail-open:
-    # unavailable CLI, timeout, or error never blocks the handoff itself.
-    simplicio_binary, _ = _discover_simplicio_cli()
-    if simplicio_binary:
-        _call_simplicio_gate_check(simplicio_binary)
-
     if not next_agent or not next_agent.strip():
         print("error: --next agent name is required", file=sys.stderr)
         sys.exit(1)

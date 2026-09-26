@@ -1,21 +1,23 @@
-"""Explicit standalone/runtime-backed effect boundary (#695)."""
+"""Standalone effect boundary (#695).
+
+There is no Runtime/MCP backend in this stack: every effect is dispatched
+locally and every receipt records ``executor: "standalone"``. This module
+keeps the transaction/receipt shape (idempotency, leases, fencing) that the
+loop's own hookwall dispatch relies on -- that bookkeeping is not a Runtime
+concept, only the (removed) remote-dispatch branch was.
+"""
 from __future__ import annotations
 
 import hashlib
 import json
-import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
-from .runtime_bridge import (
-    RuntimeBridge,
-    RuntimeBridgeRecoveryUnknown,
-)
 from .canonical_plan import CanonicalPlan, canonical_plan_metadata
 
 SCHEMA = "simplicio.runtime-effect-adapter/v1"
-PROFILES = frozenset(("standalone", "runtime-backed"))
+PROFILES = frozenset(("standalone",))
 TRANSACTION_SCHEMA = "simplicio.effect-transaction/v1"
 UNAVAILABLE = "UNAVAILABLE"
 STANDALONE = "STANDALONE"
@@ -94,15 +96,12 @@ class EffectRequest:
 
 
 class RuntimeEffectAdapter:
-    """One authoritative effect adapter for a selected Runtime-backed profile."""
+    """One authoritative effect adapter. Always standalone."""
 
-    def __init__(self, *, profile: str, bridge: Optional[RuntimeBridge] = None) -> None:
+    def __init__(self, *, profile: str = "standalone") -> None:
         if profile not in PROFILES:
             raise RuntimeEffectError("unsupported execution profile")
-        if profile == "runtime-backed" and bridge is None:
-            raise RuntimeEffectError("runtime-backed profile requires RuntimeBridge")
         self.profile = profile
-        self.bridge = bridge
         self._latency_ms: list[float] = []
 
     def _metrics(self, result: Mapping[str, Any]) -> Dict[str, Any]:
@@ -151,7 +150,7 @@ class RuntimeEffectAdapter:
         transaction = {
             "schema": TRANSACTION_SCHEMA,
             "version": "1",
-            "executor": "simplicio-runtime" if self.profile == "runtime-backed" else STANDALONE,
+            "executor": STANDALONE,
             "work_item": {"workspace": request.workspace},
             "work_item_identity": identity,
             "attempt": request.attempt,
@@ -182,7 +181,7 @@ class RuntimeEffectAdapter:
         receipt = {
             "schema": SCHEMA, "profile": self.profile,
             "executor_profile": self.profile,
-            "executor": "simplicio-runtime" if self.profile == "runtime-backed" else "standalone",
+            "executor": "standalone",
             "status": status, "kind": kind, "workspace": request.workspace,
             "idempotency_key": request.idempotency_key, "lease_id": request.lease_id,
             "fencing_token": request.fencing_token, "write_set": list(request.write_set),
@@ -193,7 +192,7 @@ class RuntimeEffectAdapter:
             "authorization_digest": request.authorization_digest or UNAVAILABLE,
             "transaction_correlation": transaction["idempotency"]["transaction_id"],
             "correlation_id": transaction["idempotency"]["transaction_id"],
-            "delivery": delivery or ("RUNTIME" if self.profile == "runtime-backed" else STANDALONE),
+            "delivery": delivery or STANDALONE,
             "transaction": transaction, "result": dict(result),
             "metrics": self._metrics(result),
         }
@@ -224,80 +223,13 @@ class RuntimeEffectAdapter:
         if not isinstance(arguments, Mapping):
             raise RuntimeEffectError("effect arguments must be an object")
         action = {"tool": tool, "arguments": dict(arguments)}
-        if self.profile == "standalone":
-            return self._standalone(request, kind=kind, action=action)
-        started = time.perf_counter()
-        try:
-            result = self.bridge.runtime_call(  # type: ignore[union-attr]
-                request.workspace, tool, arguments, cwd=request.cwd,
-                timeout_ms=request.timeout_ms, idempotency_key=request.idempotency_key,
-                canonical_plan=request.canonical_plan,
-            )
-        except RuntimeBridgeRecoveryUnknown as exc:
-            self._latency_ms.append((time.perf_counter() - started) * 1000)
-            return self._receipt(
-                request, kind=kind, action=action,
-                result={
-                    "status": "UNCERTAIN", "reason": str(exc),
-                    "reconcile_required": True, "safe_to_replay": False,
-                },
-                status="UNCERTAIN", delivery="RUNTIME_RECONCILE_REQUIRED",
-            )
-        except Exception as exc:
-            self._latency_ms.append((time.perf_counter() - started) * 1000)
-            return self._receipt(
-                request, kind=kind, action=action,
-                result={"status": UNAVAILABLE, "reason": str(exc), "delivery": "RUNTIME_UNAVAILABLE"},
-                status=UNAVAILABLE, delivery="RUNTIME_UNAVAILABLE",
-            )
-        self._latency_ms.append((time.perf_counter() - started) * 1000)
-        result_mapping = dict(result)
-        result_status = result_mapping.get("status")
-        status = result_status if result_status in {UNAVAILABLE, "UNCERTAIN"} else "MEASURED"
-        return self._receipt(request, kind=kind, action=action, result=result_mapping, status=status)
+        return self._standalone(request, kind=kind, action=action)
 
     def execute(self, request: EffectRequest, argv: list[str], *, env: Optional[Mapping[str, str]] = None) -> Dict[str, Any]:
         if not argv:
             raise RuntimeEffectError("effect argv is required")
         action = {"argv": list(argv), "env": dict(env or {})}
-        if self.profile == "standalone":
-            return self._standalone(request, kind="execute", action=action)
-        started = time.perf_counter()
-        try:
-            result = self.bridge.execute(request.workspace, argv, cwd=request.cwd, env=env, timeout_ms=request.timeout_ms, idempotency_key=request.idempotency_key, canonical_plan=request.canonical_plan)  # type: ignore[union-attr]
-        except RuntimeBridgeRecoveryUnknown as exc:
-            self._latency_ms.append((time.perf_counter() - started) * 1000)
-            return self._receipt(
-                request, kind="execute", action=action,
-                result={
-                    "status": "UNCERTAIN", "reason": str(exc),
-                    "reconcile_required": True, "safe_to_replay": False,
-                },
-                status="UNCERTAIN", delivery="RUNTIME_RECONCILE_REQUIRED",
-            )
-        except Exception as exc:
-            self._latency_ms.append((time.perf_counter() - started) * 1000)
-            return self._receipt(request, kind="execute", action=action,
-                                 result={"status": UNAVAILABLE, "reason": str(exc), "delivery": "RUNTIME_UNAVAILABLE"},
-                                 status=UNAVAILABLE, delivery="RUNTIME_UNAVAILABLE")
-        self._latency_ms.append((time.perf_counter() - started) * 1000)
-        result_mapping = dict(result)
-        result_status = result_mapping.get("status")
-        status = result_status if result_status in {UNAVAILABLE, "UNCERTAIN"} else "MEASURED"
-        return self._receipt(request, kind="execute", action=action, result=result_mapping, status=status)
-
-    def reconcile(self, request: EffectRequest) -> Dict[str, Any]:
-        """Query Runtime for an uncertain transaction; never replay the effect."""
-        return self._runtime_call(
-            request,
-            kind="call",
-            tool="simplicio_reconcile",
-            arguments={
-                "idempotency_key": request.idempotency_key,
-                "transaction_id": request.transaction_id or request.idempotency_key,
-                "replay": False,
-            },
-        )
+        return self._standalone(request, kind="execute", action=action)
 
     def call(self, request: EffectRequest, tool: str, arguments: Mapping[str, Any]) -> Dict[str, Any]:
         return self._runtime_call(request, kind="call", tool=tool, arguments=arguments)

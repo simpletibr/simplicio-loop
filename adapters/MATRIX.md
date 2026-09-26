@@ -1,4 +1,4 @@
-> **2026-08:** Loop is Runtime-owned; operators (mapper/dev-cli/fast) work alone; every run needs `simplicio.execution-report/v1`. Full map: [docs/ECOSYSTEM_LLM_GUIDE.md](../docs/ECOSYSTEM_LLM_GUIDE.md).
+> There is no Runtime/MCP backend in this stack; operators (mapper/dev-cli/fast) work standalone; every run needs `simplicio.execution-report/v1`. Full map: [docs/ECOSYSTEM_LLM_GUIDE.md](../docs/ECOSYSTEM_LLM_GUIDE.md).
 # Runtime adapter matrix — simplicio-loop super-plugin
 
 One universal skill core (`.claude/skills/`, 7 skills) + one set of hooks (`hooks/`) drives
@@ -14,8 +14,7 @@ Three capabilities decide how rich an adapter is:
 - **Native bind** — whether `simplicio-runtime` (or a native command set) binds extension points
   for near-zero-token determinism. It is optional on every runtime: a missing/unreachable bind is
   reported as explicit degraded mode while the standalone loop remains usable. See
-  `docs/MCP_SETUP.md` for the per-host config table and each adapter's "MCP config" section for
-  the exact file path and snippet.
+  each adapter's "MCP config" section for the exact file path and snippet.
 
 `orient_clamp.py` (token economy) works on **all** runtimes with no wiring — it's just a wrapper.
 
@@ -72,8 +71,7 @@ path names how to enable the optional bind; it is not a precondition for the loo
 | 15 | **Orca** *(client opt-in only — not default)* | via inner agent (`.claude/skills/` + `AGENTS.md`) | **no core Orca hook**; inner agent hook / self-paced if client installed Orca | — | only if client requests (`CLIENT_INTEGRATIONS=orca`) | N1/N2 (inner) + N3 | [orca](orca/README.md#mcp-config) |
 
 Rows 9–11 (Kimi, Qwen, DeepSeek) and Antigravity's IDE-side config are explicitly
-**best-effort / community-reported, not gated** — see `docs/MCP_SETUP.md` for the verified-vs-
-best-effort breakdown per host.
+**best-effort / community-reported, not gated**.
 
 `hermes` is kept as a **legacy shim** for row 13 (Simplicio Agent), not a 16th runtime — see
 [hermes/README.md](hermes/README.md). It installs/binds identically to `simplicio_agent` during
@@ -120,9 +118,8 @@ pwsh scripts/install.ps1 <runtime> [-Global]      # Windows / pwsh
 ```
 
 The installer copies the 7 skills into the runtime's skills location and wires the loop hooks
-where supported. The native MCP/CLI bind (`simplicio-runtime`) is an optional enhancement — run
-`pip install -U simplicio-installer && simplicio install --global` and confirm with
-`simplicio doctor --json` when native capabilities are needed; see `docs/MCP_SETUP.md`.
+where supported. There is no Runtime/MCP backend in this stack; each host's own MCP config
+(where noted above) is an optional enhancement independent of the loop.
 
 ## Loop→Runtime contract adapter
 

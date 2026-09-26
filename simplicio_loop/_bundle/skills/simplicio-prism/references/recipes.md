@@ -12,7 +12,7 @@ Add `fast.index-open → fast.search → fast.rank` for repeated or broad retrie
 
 `mapper.snapshot-create → mapper.context-select → dev-cli.preflight → dev-cli.edit → dev-cli.tests → dev-cli.evidence`
 
-Use `dev-cli.reconcile` or Runtime reconciliation when effect status is ambiguous.
+Use `dev-cli.reconcile` when effect status is ambiguous.
 
 ## Multiple issues or agents
 
@@ -21,12 +21,6 @@ Use `dev-cli.reconcile` or Runtime reconciliation when effect status is ambiguou
 Add `loop.fanout`, `loop.retry`, `loop.review`, and `loop.complete` according to the plan. Route 1–3
 tasks through direct parallelism; for more than 3 tasks, activate Prism. If quantity is omitted,
 use a minimum of 10 tasks per logical slot with no logical upper bound on slots or wave width.
-
-## Governed or native execution
-
-`prism.classify → runtime.gate → runtime.checkpoint → runtime.native-execute|runtime.mcp-invoke → runtime.receipt → runtime.reconcile`
-
-Use Runtime only when the policy, evidence, MCP, native, pool, or subagent requirement justifies it.
 
 ## Unavailable component
 

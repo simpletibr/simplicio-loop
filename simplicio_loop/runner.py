@@ -13,7 +13,7 @@ import subprocess
 import time
 import string
 import sys
-from threading import RLock, Thread
+from threading import Thread
 from collections import deque
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, ThreadPoolExecutor, wait
 from pathlib import Path
@@ -66,7 +66,6 @@ from .loop_execution_receipt import (
     publish_loop_execution_receipt,
 )
 from .runtime_adapter import LoopRuntimeAdapter, RuntimeAdapterError
-from .runtime_bridge import RuntimeBridge
 from .runtime_effect_adapter import EffectRequest, RuntimeEffectAdapter, RuntimeEffectError
 from .provider_worker import (
     OPENROUTER_MODEL,
@@ -1019,49 +1018,15 @@ def _devcli_cmd(repo_path: Path, *args: str) -> List[str]:
     # allowed fallback. The command remains usable in standalone mode.
     return base
 
-_RUNTIME_EFFECT_ADAPTERS: Dict[str, RuntimeEffectAdapter] = {}
-_RUNTIME_EFFECT_BRIDGES: Dict[str, RuntimeBridge] = {}
-_RUNTIME_EFFECT_CACHE_LOCK = RLock()
-
-
 def _execution_profile() -> str:
-    """Resolve standalone vs runtime-backed.
-
-    Explicit ``SIMPLICIO_EXECUTION_PROFILE=standalone|runtime-backed`` wins.
-    Otherwise adaptive: when Runtime is operational (or required), use
-    ``runtime-backed``; else ``standalone``. Invalid values fail closed.
+    """Return the execution profile. Always ``standalone`` -- there is no
+    Runtime/MCP backend in this stack. ``SIMPLICIO_EXECUTION_PROFILE`` may
+    only be explicitly set to ``standalone``; any other value fails closed.
     """
     raw = os.environ.get("SIMPLICIO_EXECUTION_PROFILE", "").strip().lower()
-    if raw in {"standalone", "runtime-backed"}:
-        return raw
-    if raw in {"", "auto"}:
-        try:
-            from .strict_mode import resolve_execution_profile
-
-            return resolve_execution_profile()
-        except Exception:
-            return "standalone"
-    raise RuntimeEffectError(
-        "SIMPLICIO_EXECUTION_PROFILE must be standalone, runtime-backed, or auto"
-    )
-
-
-def _runtime_effect_adapter(repo_path: Path, profile: str) -> RuntimeEffectAdapter:
-    if profile not in {"standalone", "runtime-backed"}:
-        raise RuntimeEffectError("unsupported execution profile")
-    if profile == "standalone":
-        return RuntimeEffectAdapter(profile=profile)
-    key = str(repo_path.resolve())
-    with _RUNTIME_EFFECT_CACHE_LOCK:
-        adapter = _RUNTIME_EFFECT_ADAPTERS.get(key)
-        if adapter is None:
-            bridge = _RUNTIME_EFFECT_BRIDGES.get(key)
-            if bridge is None:
-                bridge = RuntimeBridge()
-                _RUNTIME_EFFECT_BRIDGES[key] = bridge
-            adapter = RuntimeEffectAdapter(profile="runtime-backed", bridge=bridge)
-            _RUNTIME_EFFECT_ADAPTERS[key] = adapter
-    return adapter
+    if raw in {"", "standalone", "auto"}:
+        return "standalone"
+    raise RuntimeEffectError("SIMPLICIO_EXECUTION_PROFILE must be standalone")
 
 
 def _build_effect_request(repo_path: Path, run_id: str, task_index: int,
@@ -1310,23 +1275,7 @@ def _execute_operator_effect_unchecked(*, profile: str, adapter: RuntimeEffectAd
                              guarded_attempt: Any,
                              owned_process_registry: Any = None,
                              owned_task_id: str = "") -> Dict[str, Any]:
-    if profile == "runtime-backed":
-        effect_receipt = adapter.execute(request, argv, env=env)
-        result = dict(effect_receipt.get("result") or {})
-        status = str(effect_receipt.get("status") or result.get("status") or "")
-        returncode = result.get("returncode")
-        if isinstance(returncode, bool) or not isinstance(returncode, int):
-            returncode = None
-        if status in {"UNAVAILABLE", "UNCERTAIN"}:
-            returncode = None
-        return {
-            "returncode": returncode,
-            "stdout": _parse_effect_stdout(result.get("stdout")),
-            "stderr": redact_sensitive_text(str(result.get("stderr") or "")),
-            "source": "runtime_effect_adapter",
-            "effect_receipt": effect_receipt,
-            "uncertain": status == "UNCERTAIN" or result.get("status") == "UNCERTAIN",
-        }
+    del adapter, request  # standalone-only: no Runtime backend to dispatch through
 
     fake = os.environ.get("SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON", "").strip()
     if fake:
@@ -5812,9 +5761,9 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         attempt_id=f"{run_id}:attempt:{attempt}",
         lease_id=lease,
         fencing_token=fence,
-        require_authorization=profile == "runtime-backed",
+        require_authorization=False,
     )
-    operator_mode = "standalone" if profile == "standalone" else "integrated"
+    operator_mode = "standalone"
     task_input = (
         [_task_goal(task) or str(task.get("id") or "execute task"),
          "--criteria", _criteria_text(task) or "- true state",
@@ -6013,8 +5962,6 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     op_env["SIMPLICIO_ADMISSION_FENCE"] = str(max(1, int(admission_fence)))
     if authority_path is not None:
         op_env["SIMPLICIO_MUTATION_AUTHORITY_RECEIPT"] = str(authority_path)
-    if profile == "runtime-backed" and not op_env.get("SIMPLICIO_RUNTIME_URL", "").strip():
-        op_env.setdefault("SIMPLICIO_RUNTIME_OFFLINE", "1")
     provider_config = {
         "model": op_env.get("SIMPLICIO_MODEL", ""),
         "planner": "host",
@@ -6027,7 +5974,7 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         "mechanical_plan": str(mechanical_path) if mechanical_path else "",
         "provider_usage": dict((provider_receipt or {}).get("usage") or {}),
     }
-    effect_adapter = _runtime_effect_adapter(repo_path, profile)
+    effect_adapter = RuntimeEffectAdapter(profile=profile)
     effect_request = _build_effect_request(
         repo_path, run_id, task_index, task, attempt, targets, route_record, guarded_attempt,
         storage_route=storage_route.get("selected"),

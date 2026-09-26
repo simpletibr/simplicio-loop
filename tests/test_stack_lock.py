@@ -261,8 +261,7 @@ def test_observation_payload_and_stack_doctor_report_routes(tmp_path, monkeypatc
     assert result["schema"] == "simplicio.stack-doctor/v1"
     assert result["status"] == "READY"
     assert result["routes"]["standalone"]["available"] is True
-    assert result["routes"]["runtime-backed"]["available"] is False
-    assert result["routes"]["runtime-backed"]["missing"] == ["simplicio-runtime"]
+    assert "runtime-backed" not in result["routes"]
 
 
 def test_runner_freezes_and_verifies_stack_lock_at_boundaries(tmp_path, monkeypatch):

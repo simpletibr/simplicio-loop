@@ -14,7 +14,9 @@ Actions gate — the local gate is authoritative.
 
 ## Simplicio Ecosystem Contract (canonical)
 
-This loop is the convergence layer of one Simplicio ecosystem. For every non-trivial task: run `simplicio runtime map --repo . --for-llm markdown`, then `simplicio memory "<task>"`, rank/load relevant skills, execute through the native `simplicio` CLI, validate, and record evidence. MCP is fallback transport only.
+This loop is the convergence layer of one Simplicio ecosystem. For every non-trivial task: survey
+with `simplicio-mapper` (`scan`/`inspect`/`handoff`), rank/load relevant skills, mutate through
+`simplicio-dev-cli`, validate, and record evidence. There is no Runtime/MCP backend in this stack.
 
 ## The 7 skills
 
@@ -45,15 +47,22 @@ and `.claude/skills/simplicio-loop/references/extension-points.md` § bound oper
 
 ## Worker startup and centralized artifacts (mandatory)
 
-Every subagent, worker, and provider session MUST read `AGENTS.md` and every relevant local skill before operating. For Loop work, the baseline skills are `.claude/skills/simplicio-loop/SKILL.md`, `.claude/skills/simplicio-prism/SKILL.md`, and `.claude/skills/simplicio-runtime/SKILL.md`; load additional satellite skills selected by the task before mutation.
+Every subagent, worker, and provider session MUST read `AGENTS.md` and every relevant local skill before operating. For Loop work, the baseline skills are `.claude/skills/simplicio-loop/SKILL.md` and `.claude/skills/simplicio-prism/SKILL.md`; load additional satellite skills selected by the task before mutation.
 
 The canonical default branch owns one centrally built binary/artifact set. Workers consume that binary read-only; they MUST NOT rebuild binaries or regenerate canonical Mapper/Fast artifacts. Worktrees isolate source edits and receipts only. Every receipt/handoff MUST record repository and revision, binary digest/version, Mapper generation and artifact digest. Missing, stale, incompatible, or mismatched central artifacts fail closed and route to the central rebuild path only; a worker may not repair them locally or fall back to fabricated/uncertified context.
 
 
 ### Full-stack boundaries
-`simplicio-mapper` / `simplicio-dev-cli` / `simplicio-fast` observe, plan, and edit — **they work alone** without Runtime. `simplicio-runtime` owns contracts, gates, validation, receipts, **the full loop subsystem** (activation + convergence authority), and **mandatory execution-report metrics** (per task + consolidated). **Runtime alone decides when to activate the loop** (`simplicio loop decide`). This package is the protocol + host-hook implementation under Runtime authority. Coordinators own cognition, not loop activation. See `docs/adr/0009` and `docs/adr/0010`. Providers are workers, never authorities.
+`simplicio-mapper` / `simplicio-dev-cli` / `simplicio-fast` observe, plan, and edit **standalone
+— there is no Runtime/MCP backend in this stack.** `simplicio-loop` owns the full loop subsystem
+(activation + convergence authority) and **mandatory execution-report metrics** (per task +
+consolidated). Coordinators own cognition, not loop activation. See `docs/adr/0009` and
+`docs/adr/0010`. Providers are workers, never authorities.
 
-Use `simplicio`/`simplicio shell compact` for inspection, `simplicio edit --plan` or governed dev-cli for mutation, preserve `simplicio.io/v1`, run `simplicio contracts smoke --json` and `simplicio validate "<task>" --repo . --json`, and close only with real tests plus `simplicio evidence`. Facts are `MEASURED|` only with receipts; otherwise `UNVERIFIED|`. Savings come only from `simplicio savings report --repo . --json`. Missing dependencies fail closed; never fabricate context, tests, savings or provider output.
+Use `simplicio-mapper` for inspection, `simplicio-dev-cli edit --plan` for mutation, preserve
+`simplicio.io/v1`, and close only with real tests plus recorded evidence. Facts are `MEASURED|`
+only with receipts; otherwise `UNVERIFIED|`. Missing dependencies fail closed; never fabricate
+context, tests, savings or provider output.
 This repository ships a runtime-agnostic **super-plugin**: the Universal Looping AI
 Orchestrator plus five satellite skills, packaged for 15 runtimes. Any agent runtime that
 reads `AGENTS.md` / skill folders can run it.
@@ -91,9 +100,7 @@ auto-clamp). See [`hooks/README.md`](hooks/README.md).
 VS Code (Copilot) · Cursor · Antigravity · Kiro · OpenCode · Gemini (CLI/Code Assist) · Kimi ·
 Qwen (Code/CLI) · DeepSeek · Aider · Simplicio Agent (formerly Hermes) · OpenClaw · Orca. Install
 12 of them with `scripts/install.sh <runtime>` (or `install.ps1`); Kimi/Qwen/DeepSeek are not yet
-wired into the installer — see their adapter READMEs for manual/best-effort steps. The native
-`simplicio-runtime` MCP bind is optional on all 15; its integrations are used only when available
-— see [`docs/MCP_SETUP.md`](docs/MCP_SETUP.md).
+wired into the installer — see their adapter READMEs for manual/best-effort steps.
 
 ## Activation
 
@@ -112,7 +119,7 @@ confirm scope in one line only if ambiguous.
 
 The compact current sequence is canonical in [`llms.txt`](llms.txt): Mapper `--help` →
 `scan`/`inspect`/`handoff`, Fast bounded context, Dev CLI governed edit/verify, focused gates,
-then live PR re-query. Default is standalone/off; Runtime/MCP is opt-in only.
+then live PR re-query. Execution is always standalone; there is no Runtime/MCP backend.
 
 ## Extension points (bind native when available)
 
@@ -121,9 +128,9 @@ For each point, if this runtime exposes a faster native capability, **bind it** 
 the step becomes deterministic and near-zero-token. The skill never requires a specific
 runtime; the binding lives here in the host, not in the skill.
 
-`simplicio-runtime` (MCP or CLI) is optional on every host. When available it enables native
-integrations; when absent, the loop records that those integrations were skipped and continues
-with the required `simplicio-mapper` and `simplicio-dev-cli` operators.
+There is no Runtime/MCP backend in this stack. When a host cannot bind a given extension
+point natively, the loop records that it was skipped and continues with the required
+`simplicio-mapper` and `simplicio-dev-cli` operators.
 
 ## Canonical source per topic (#119 — avoid re-stating the same pitch in N docs)
 
@@ -276,9 +283,6 @@ rebase, and release rules in [ADR 0008](docs/adr/0008-bounded-delivery-policy.md
   failing gate result, never a bare-Python fallback. Keep it green.
 - **Big refactors/doc rewrites:** run `python3 scripts/check.py --token-budget` and treat a FAIL
   as a real regression to justify or trim, not to silence with `--update-baseline` unreviewed.
-- `simplicio-runtime` native binding (MCP or CLI) is optional. `simplicio doctor --json` can
-  diagnose an installed runtime; its absence is reported as degraded runtime integration and
-  never blocks the mapper/dev-cli loop.
 
 ## LLM command and feature index
 

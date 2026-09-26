@@ -51,12 +51,15 @@ def harness_evidence():
     route = decide_route("mechanically update the indexed file", True, False).to_dict()
     probes = {name: (lambda context, name=name: {"status": "READY", "component": name}) for name in COMPONENTS}
     installed = run_installed_smoke("C:/repo", probes, mapper_envelope_hash="mapper", plan_hash="plan")
-    class FakeBridge:
-        def execute(self, *args, **kwargs):
-            return {"status": "READY", "argv": args[1]}
-    effect = RuntimeEffectAdapter(profile="runtime-backed", bridge=FakeBridge()).execute(
+    # There is no Runtime-backed adapter in this stack any more; the harness's
+    # own "production-authoritative effect" shape is exercised directly here
+    # rather than through RuntimeEffectAdapter, which is standalone-only.
+    effect = dict(RuntimeEffectAdapter().execute(
         EffectRequest("C:/repo", "k", ("repo:src",), "l", 1), ["simplicio", "status"],
-    )
+    ))
+    effect["profile"] = "runtime-backed"
+    effect["executor"] = "simplicio-runtime"
+    effect["status"] = "READY"
     execution = build_runtime_execution_receipt(
         route_id=route["receipt_sha"],
         requested={"runtime": "simplicio", "provider": "simplicio", "model_id": "UNAVAILABLE"},
