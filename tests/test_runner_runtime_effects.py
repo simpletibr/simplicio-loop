@@ -1,4 +1,4 @@
-"""Focused production-runner coverage for RuntimeEffectAdapter dispatch."""
+"""Focused production-runner coverage for the standalone RuntimeEffectAdapter dispatch."""
 
 from __future__ import annotations
 
@@ -22,21 +22,6 @@ from simplicio_loop.hookwall_gate import HookwallBlocked, gate_completion
 from simplicio_loop.runtime_effect_adapter import EffectRequest, RuntimeEffectAdapter, RuntimeEffectError
 
 
-class FakeBridge:
-    def __init__(self) -> None:
-        self.calls = []
-
-    def execute(self, workspace, argv, **kwargs):
-        self.calls.append((workspace, list(argv), kwargs))
-        return {
-            "status": "MEASURED",
-            "returncode": 0,
-            "stdout": json.dumps({"applied": True}),
-            "stderr": "",
-            "runtime_generation": "runtime-gen-7",
-        }
-
-
 def _request(tmp_path):
     return EffectRequest(
         workspace=str(tmp_path),
@@ -51,55 +36,24 @@ def _request(tmp_path):
     )
 
 
-def test_execution_profile_is_validated_and_rejects_unknown(monkeypatch):
-    monkeypatch.setenv("SIMPLICIO_EXECUTION_PROFILE", "runtime-backed")
-    assert runner._execution_profile() == "runtime-backed"
+def test_execution_profile_is_always_standalone_and_rejects_unknown(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_EXECUTION_PROFILE", "auto")
+    assert runner._execution_profile() == "standalone"
     monkeypatch.setenv("SIMPLICIO_EXECUTION_PROFILE", "unexpected")
     with pytest.raises(
         RuntimeEffectError,
-        match="standalone, runtime-backed, or auto",
+        match="SIMPLICIO_EXECUTION_PROFILE must be standalone",
     ):
         runner._execution_profile()
 
 
-def test_runtime_backed_effect_never_uses_direct_or_fake_mutation(tmp_path, monkeypatch):
-    bridge = FakeBridge()
-    adapter = RuntimeEffectAdapter(profile="runtime-backed", bridge=bridge)
-    monkeypatch.setenv(
-        "SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON",
-        json.dumps({"write_files": {"bypassed.txt": "must-not-write"}}),
-    )
-    monkeypatch.setattr(
-        runner.subprocess,
-        "run",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("direct subprocess bypass")),
-    )
-    outcome = runner._execute_operator_effect(
-        profile="runtime-backed",
-        adapter=adapter,
-        request=_request(tmp_path),
-        argv=["simplicio-dev-cli", "task", "compile"],
-        env={},
-        repo_path=tmp_path,
-        attempt_coordinator=None,
-        guarded_attempt=None,
-    )
-    assert outcome["returncode"] == 0
-    assert outcome["source"] == "runtime_effect_adapter"
-    assert not (tmp_path / "bypassed.txt").exists()
-    assert len(bridge.calls) == 1
-    assert gate_completion(outcome["hookwall_evidence"]) == (True, "ok")
-    assert outcome["hookwall_mutation_receipt"]["status"] == "committed"
-
-
-def test_runtime_receipt_correlates_transaction_identity(tmp_path):
-    bridge = FakeBridge()
-    receipt = RuntimeEffectAdapter(profile="runtime-backed", bridge=bridge).execute(
+def test_standalone_receipt_correlates_transaction_identity(tmp_path):
+    receipt = RuntimeEffectAdapter().execute(
         _request(tmp_path), ["simplicio-dev-cli", "task", "compile"], env={},
     )
-    assert receipt["profile"] == "runtime-backed"
-    assert receipt["executor_profile"] == "runtime-backed"
-    assert receipt["executor"] == "simplicio-runtime"
+    assert receipt["profile"] == "standalone"
+    assert receipt["executor_profile"] == "standalone"
+    assert receipt["executor"] == "standalone"
     assert receipt["transaction_id"] == "tx-695"
     assert receipt["correlation_id"] == "tx-695"
     assert receipt["transaction"]["lease"] == {"id": "lease-695", "fence": 7}
