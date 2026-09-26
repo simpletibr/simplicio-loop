@@ -43,20 +43,22 @@ def _true_cmd():
     return f'"{sys.executable}" -c "raise SystemExit(0)"'
 
 
-def test_run_scope_task_preserves_task_json_contract(tmp_path, monkeypatch, capsys):
+def test_run_scope_task_fails_closed_without_a_mechanical_plan(tmp_path, monkeypatch, capsys):
+    """``run --scope task`` forwards straight to ``task.run`` (see
+    ``simplicio/commands/run.py``'s ``result.scope == "task"`` branch), and
+    that entrypoint fails closed with ``plan_required`` whenever no
+    ``--plan`` is supplied — the LLM-driven generate-and-apply path this
+    test used to cover (``pipeline.generate`` mocked to a canned diff, then
+    asserted ``applied is True``) no longer exists: mutation is
+    ``edit --plan``-only now (see ``commands/task.py``'s module docstring),
+    and ``run``'s own argument parser (``_add_run_args``) never even defines
+    a ``--plan`` flag to forward. This replaces the two now-obsolete
+    generate-and-apply tests with one that pins the actual, current
+    fail-closed contract.
+    """
     _write(tmp_path / "frontend" / "app.ts", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", _true_cmd())
-    monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: _diff("frontend/app.ts"))
-    monkeypatch.setattr(
-        "simplicio.pipeline._run_impact_tests",
-        lambda *_args, **_kwargs: {
-            "result": "no_impact_tests",
-            "status": "no_callers_found",
-            "callers": [],
-            "tests_run": [],
-        },
-    )
     code = cli.main(
         [
             "run",
@@ -71,11 +73,11 @@ def test_run_scope_task_preserves_task_json_contract(tmp_path, monkeypatch, caps
         ]
     )
 
-    assert code == 0
+    assert code == 2
     payload = json.loads(capsys.readouterr().out)
-    assert payload["applied"] is True
-    assert payload["files_changed"] == ["frontend/app.ts"]
-    assert "scope" not in payload
+    assert payload["status"] == "blocked"
+    assert payload["reason_code"] == "plan_required"
+    assert payload["next_action"] == "use simplicio-dev-cli edit --plan <edit-plan.json> --apply"
 
 
 def test_index_accepts_positional_root(tmp_path, monkeypatch):
@@ -126,18 +128,17 @@ def test_doctor_command_delegates_to_local_model_preflight(monkeypatch):
     assert seen["argv"] == ["--json"]
 
 
-def test_run_auto_task_infers_target_from_goal(tmp_path, monkeypatch, capsys):
+def test_run_auto_task_fails_closed_regardless_of_dry_run(tmp_path, monkeypatch, capsys):
+    """Auto-inferred ``task`` scope (target sniffed from the goal string via
+    ``_first_file_signal``) still routes into ``task.run``, whose
+    ``plan_required`` short-circuit runs before ``--dry-run-task`` is ever
+    consulted (see ``commands/task.py::run``). The previous version of this
+    test asserted the removed dry-run-preview-of-an-LLM-generated-task
+    behavior (``payload["task_id"]``); that preview no longer exists, so
+    this pins the current, actual fail-closed contract instead.
+    """
     _write(tmp_path / "src" / "auth.py", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
-    monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: _diff("src/auth.py"))
-    monkeypatch.setattr(
-        "simplicio.pipeline_task_result.artifact_status",
-        lambda _root: {"project_map": {"present": True}, "precedent_index": {"present": True}},
-    )
-    monkeypatch.setattr(
-        "simplicio.pipeline_task_result.map_handoff",
-        lambda _root: {"context_pack": {"files": [{"path": "src/auth.py"}]}},
-    )
     code = cli.main(
         [
             "run",
@@ -149,9 +150,10 @@ def test_run_auto_task_infers_target_from_goal(tmp_path, monkeypatch, capsys):
         ]
     )
 
-    assert code == 0
+    assert code == 2
     payload = json.loads(capsys.readouterr().out)
-    assert payload["task_id"] == "src/auth.py"
+    assert payload["status"] == "blocked"
+    assert payload["reason_code"] == "plan_required"
 
 
 def test_run_ambiguous_goal_requires_scope(monkeypatch, capsys):

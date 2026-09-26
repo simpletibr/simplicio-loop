@@ -35,10 +35,24 @@ from simplicio_mapper.contract import validate_payload
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FIXTURE_LATEST = os.path.join(
-    REPO_ROOT, "contracts", "context-snapshot", "v1", "fixtures", "latest", "context-snapshot.json"
+    REPO_ROOT,
+    "simplicio_mapper",
+    "contracts",
+    "context-snapshot",
+    "v1",
+    "fixtures",
+    "latest",
+    "context-snapshot.json",
 )
 FIXTURE_MINIMUM = os.path.join(
-    REPO_ROOT, "contracts", "context-snapshot", "v1", "fixtures", "minimum", "context-snapshot.json"
+    REPO_ROOT,
+    "simplicio_mapper",
+    "contracts",
+    "context-snapshot",
+    "v1",
+    "fixtures",
+    "minimum",
+    "context-snapshot.json",
 )
 
 
@@ -213,7 +227,7 @@ class ContextSnapshotTest(unittest.TestCase):
         for fixture in (FIXTURE_LATEST, FIXTURE_MINIMUM):
             self.assertTrue(os.path.isfile(fixture), fixture)
             payload = _load(fixture)
-            contract_root = os.path.join(REPO_ROOT, "contracts", "context-snapshot", "v1")
+            contract_root = os.path.join(REPO_ROOT, "simplicio_mapper", "contracts", "context-snapshot", "v1")
             schema_id, errors = validate_payload(payload, contract_root)
             self.assertEqual(errors, [], errors)
             self.assertEqual(schema_id, "simplicio.context-snapshot/v1")
@@ -224,7 +238,7 @@ class ContextSnapshotTest(unittest.TestCase):
     def test_validate_rejects_missing_required_field(self):
         payload = _load(FIXTURE_MINIMUM)
         del payload["snapshot_id"]
-        contract_root = os.path.join(REPO_ROOT, "contracts", "context-snapshot", "v1")
+        contract_root = os.path.join(REPO_ROOT, "simplicio_mapper", "contracts", "context-snapshot", "v1")
         _schema_id, errors = validate_payload(payload, contract_root)
         self.assertTrue(errors, "expected a missing-required-field error")
 
@@ -308,7 +322,7 @@ class ContextSnapshotTest(unittest.TestCase):
             "/repo", project_map=pm, symbol_index=si, call_graph=cg,
             architecture_inventory=ai, source_set=source_set,
         )
-        contract_root = os.path.join(REPO_ROOT, "contracts", "context-snapshot", "v1")
+        contract_root = os.path.join(REPO_ROOT, "simplicio_mapper", "contracts", "context-snapshot", "v1")
         _schema_id, errors = validate_payload(first, contract_root)
         self.assertEqual(errors, [], errors)
         self.assertEqual(first["snapshot_id"], second["snapshot_id"])

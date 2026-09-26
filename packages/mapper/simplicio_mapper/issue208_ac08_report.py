@@ -39,7 +39,7 @@ HYPOTHESES = {
 
 SUPPORTING_ARTIFACTS = {
     "behavioral_corpus": {
-        "path": "contracts/behavioral/v1/corpus.json",
+        "path": "simplicio_mapper/contracts/behavioral/v1/corpus.json",
         "supports": ["frozen_corpus_presence"],
         "note": "Committed frozen corpus with labeled expected targets/tests/AC ids.",
     },

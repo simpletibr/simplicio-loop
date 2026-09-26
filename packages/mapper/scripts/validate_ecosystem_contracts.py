@@ -72,7 +72,7 @@ def find_default_schema_root(start: str | None = None) -> str:
     """Locate ``contracts/ecosystem/v1/schemas`` by walking upward from ``start``."""
     here = os.path.abspath(start or os.getcwd())
     while True:
-        candidate = os.path.join(here, "contracts", "ecosystem", CONTRACT_VERSION, "schemas")
+        candidate = os.path.join(here, "simplicio_mapper", "contracts", "ecosystem", CONTRACT_VERSION, "schemas")
         if os.path.isdir(candidate):
             return candidate
         parent = os.path.dirname(here)

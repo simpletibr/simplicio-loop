@@ -249,8 +249,8 @@ def test_policy_distinguishes_mapper_violations_from_legacy_consumer_ddl(tmp_pat
 
 
 def test_golden_fixture_matches_the_versioned_schema() -> None:
-    schema = json.loads((ROOT / "contracts/mapper-store/v1/schemas/inventory.schema.json").read_text())
-    fixture = json.loads((ROOT / "contracts/mapper-store/v1/fixtures/minimal/inventory.json").read_text())
+    schema = json.loads((ROOT / "simplicio_mapper/contracts/mapper-store/v1/schemas/inventory.schema.json").read_text())
+    fixture = json.loads((ROOT / "simplicio_mapper/contracts/mapper-store/v1/fixtures/minimal/inventory.json").read_text())
 
     from simplicio_mapper.contract import validate_instance
 

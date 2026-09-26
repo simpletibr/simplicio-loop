@@ -167,7 +167,7 @@ def test_doctor_main_covers_json_and_human_storage_routes(monkeypatch, tmp_path,
     monkeypatch.setattr(
         doctor,
         "versions_report",
-        lambda: {
+        lambda *, refresh=False: {
             "mapper": {
                 "installed": "0.26.9",
                 "declared_range": ">=0.26",
@@ -292,7 +292,14 @@ def test_mechanical_text_json_ast_and_filesystem_helpers(tmp_path, monkeypatch) 
             me._apply_ast_patch({"a.py": b"x=1"}, {"path": "a.py", "patch": patch})
     with pytest.raises(me.MechanicalEditError) as ast_error:
         me._apply_ast_patch(
-            {"a.py": b"'unterminated"},
+            # An unclosed bracket, not an unterminated string literal: since
+            # Python 3.12's tokenizer changes (also present on this 3.11
+            # install), an unterminated string emits an ERRORTOKEN and
+            # returns normally instead of raising `tokenize.TokenError` —
+            # only a genuinely incomplete multi-line statement (unbalanced
+            # brackets/parens) still does, which is what `_apply_ast_patch`'s
+            # `except tokenize.TokenError` clause actually guards against.
+            {"a.py": b"("},
             {
                 "path": "a.py",
                 "patch": {"action": "rename_identifier", "from": "x", "to": "y"},

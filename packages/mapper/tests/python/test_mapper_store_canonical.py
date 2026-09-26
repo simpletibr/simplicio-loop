@@ -13,7 +13,7 @@ from simplicio_mapper.store import MapperStore, MapperStoreError, MemoryStoreErr
 
 
 def _schema(name: str) -> dict:
-    root = Path(__file__).parents[2] / "contracts/mapper-store/v1/schemas"
+    root = Path(__file__).parents[2] / "simplicio_mapper/contracts/mapper-store/v1/schemas"
     return json.loads((root / name).read_text(encoding="utf-8"))
 
 

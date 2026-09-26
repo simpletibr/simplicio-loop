@@ -44,7 +44,7 @@ from simplicio_mapper.mapper.async_pipeline import (  # noqa: E402
 from simplicio_mapper.mapper.emit import build_artifacts  # noqa: E402
 from simplicio_mapper.mapper.parse import _build_file_inventory  # noqa: E402
 
-SCHEMA_ROOT = ROOT / "contracts" / "mapper-artifacts" / "v1" / "schemas"
+SCHEMA_ROOT = ROOT / "simplicio_mapper" / "contracts" / "mapper-artifacts" / "v1" / "schemas"
 
 
 def _write(base: Path, rel: str, content: str) -> None:

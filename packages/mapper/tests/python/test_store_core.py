@@ -144,7 +144,7 @@ def test_status_contract_shape_for_missing_and_ready(tmp_path: Path) -> None:
     from simplicio_mapper.contract import validate_instance
 
     schema = json.loads(
-        (Path(__file__).parents[2] / "contracts/mapper-store/v1/schemas/status.schema.json").read_text()
+        (Path(__file__).parents[2] / "simplicio_mapper/contracts/mapper-store/v1/schemas/status.schema.json").read_text()
     )
     missing = inspect_store(tmp_path / "missing.sqlite")
     assert validate_instance(missing, schema) == []
@@ -158,7 +158,7 @@ def test_status_contract_shape_for_missing_and_ready(tmp_path: Path) -> None:
     assert validate_instance(ready, schema) == []
     assert ready["status"] == "ready"
     fixture = json.loads(
-        (Path(__file__).parents[2] / "contracts/mapper-store/v1/fixtures/status/ready.json").read_text()
+        (Path(__file__).parents[2] / "simplicio_mapper/contracts/mapper-store/v1/fixtures/status/ready.json").read_text()
     )
     assert validate_instance(fixture, schema) == []
 

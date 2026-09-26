@@ -15,7 +15,7 @@ from simplicio_mapper.store import SemanticStore, SemanticStoreError
 
 
 def _schema(name: str) -> dict:
-    root = Path(__file__).parents[2] / "contracts/mapper-store/v1/schemas"
+    root = Path(__file__).parents[2] / "simplicio_mapper/contracts/mapper-store/v1/schemas"
     return json.loads((root / name).read_text(encoding="utf-8"))
 
 
@@ -223,7 +223,7 @@ def test_malformed_fts_query_and_content_redaction_are_explicit(tmp_path: Path) 
 
 def test_schema_contract_fixture_and_missing_store_are_supported(tmp_path: Path) -> None:
     fixture = json.loads(
-        (Path(__file__).parents[2] / "contracts/mapper-store/v1/fixtures/semantic/golden.json").read_text()
+        (Path(__file__).parents[2] / "simplicio_mapper/contracts/mapper-store/v1/fixtures/semantic/golden.json").read_text()
     )
     store = SemanticStore(tmp_path / "semantic.sqlite")
     upsert_fixture = {key: value for key, value in fixture.items() if key != "content_hash"}

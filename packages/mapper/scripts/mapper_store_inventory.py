@@ -463,14 +463,14 @@ def _policy(matrix: list[dict]) -> dict:
             continue
         if "ddl" in item["kinds"] and item.get("ddl_writers", item["writers"]) and not (
             item["file"].startswith("simplicio_mapper/store/")
-            or item["file"].startswith("contracts/mapper-store/")
+            or item["file"].startswith("simplicio_mapper/contracts/mapper-store/")
             or item["file"] == "scripts/mapper_store_inventory.py"
             or _is_fixture_or_test(item["file"])
         ):
             violations.append({"repo": item["repo"], "file": item["file"], "reason": "DDL outside allowlisted MapperStore paths"})
     return {
         "schema": "simplicio.mapper-store-ddl-policy/v1",
-        "allowlisted_paths": ["simplicio_mapper/store/", "contracts/mapper-store/", "scripts/mapper_store_inventory.py", "tests/", "fixtures/"],
+        "allowlisted_paths": ["simplicio_mapper/store/", "simplicio_mapper/contracts/mapper-store/", "scripts/mapper_store_inventory.py", "tests/", "fixtures/"],
         "violations": violations,
         "legacy_ddl_matches": len(legacy_ddl_files),
         "legacy_ddl_files": legacy_ddl_files,

@@ -31,10 +31,10 @@ from simplicio_mapper.release_manifest import (  # noqa: E402
 
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _REQUIRED_SCHEMAS = (
-    "contracts/component-release/v1/schema.json",
-    "contracts/component-release-event/v1/schema.json",
-    "contracts/plugin-context-handle/v1/schema.json",
-    "contracts/plugin-context-handle/v2/schema.json",
+    "simplicio_mapper/contracts/component-release/v1/schema.json",
+    "simplicio_mapper/contracts/component-release-event/v1/schema.json",
+    "simplicio_mapper/contracts/plugin-context-handle/v1/schema.json",
+    "simplicio_mapper/contracts/plugin-context-handle/v2/schema.json",
 )
 _REQUIRED_CAPABILITIES = {
     "simplicio.mapper-artifacts/v1",

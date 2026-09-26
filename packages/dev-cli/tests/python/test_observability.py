@@ -55,11 +55,41 @@ def test_estimate_tokens_positive_for_text():
 
 
 def test_estimate_token_details_uses_tiktoken_for_unknown_model(monkeypatch):
+    """The BPE encoding lookup (tiktoken.get_encoding) is an external network
+    dependency the first time a given encoding's data file is not already
+    cached -- it must not be exercised for real here (this test has to pass
+    hermetically, e.g. under scripts/check.py's network-stripped gate
+    subprocess). We monkeypatch tiktoken's encoding getters with a small
+    deterministic fake so the test proves the documented behavior of
+    estimate_token_details (unknown model -> o200k_base fallback, source
+    "tiktoken") without ever touching the network."""
     monkeypatch.setenv("SIMPLICIO_MODEL", "provider/unknown-model")
     text = "Olá 👋\\nconst value = { key: 1 };"
+
+    import tiktoken
+
+    class _FakeEncoding:
+        name = "o200k_base"
+
+        def encode(self, text, disallowed_special=()):
+            return list(text.encode("utf-8"))
+
+    def _fake_encoding_for_model(model):
+        # Unknown model: mirrors tiktoken's real behavior of raising KeyError
+        # so estimate_token_details falls through to get_encoding().
+        raise KeyError(model)
+
+    def _fake_get_encoding(name):
+        assert name == "o200k_base"
+        return _FakeEncoding()
+
+    monkeypatch.setattr(tiktoken, "encoding_for_model", _fake_encoding_for_model)
+    monkeypatch.setattr(tiktoken, "get_encoding", _fake_get_encoding)
+
     details = estimate_token_details(text)
     assert details["source"] == "tiktoken"
     assert details["encoding"] == "o200k_base"
+    assert details["tokens"] == len(text.encode("utf-8"))
     assert details["tokens"] == estimate_tokens(text)
 
 

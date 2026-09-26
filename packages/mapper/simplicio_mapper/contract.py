@@ -21,6 +21,7 @@ changes without punishing purely additive ones.
 
 from __future__ import annotations
 
+import importlib.resources
 import json
 import os
 import re
@@ -81,36 +82,32 @@ class ContractError(RuntimeError):
 
 
 def find_contract_root(start: str | None = None) -> str:
-    """Locate ``contracts/mapper-artifacts/v1`` by walking upward from ``start``.
+    """Locate ``<schemas-family>/v1`` for one of this package's shipped
+    contract families (``mapper-artifacts``, ``visualization``,
+    ``mapper-canvas``, ``clustering``).
 
-    Checked in order: ``start`` (default cwd) and its ancestors, then the
-    directory this package itself lives in (covers running from an
-    installed/editable checkout whose cwd is not the repo root). Raises
-    ``ContractError`` if none of those contain the contract directory —
-    see ``contracts/mapper-artifacts/v1/README.md`` for why this is not
-    currently packaged into the PyPI/npm distributions.
+    The versioned ``contracts/`` tree lives at ``simplicio_mapper/contracts/``
+    — inside the package itself, not beside it — so it is ordinary package
+    data resolved through :mod:`importlib.resources`. That resolves
+    correctly for both a real (non-editable) wheel install and an
+    editable/dev install (``pip install -e``): in the editable case,
+    ``importlib.resources`` still maps the package name to its real source
+    directory on disk, which already contains ``contracts/`` now that it is
+    part of the package tree. ``start`` is accepted only for backward
+    compatibility with existing callers; it is no longer read — resolution
+    no longer depends on the caller's cwd, since the contracts always ship
+    with the package regardless of where it is invoked from.
     """
-    candidates = []
-    here = os.path.abspath(start or os.getcwd())
-    while True:
-        candidates.append(here)
-        parent = os.path.dirname(here)
-        if parent == here:
-            break
-        here = parent
-    package_dir = os.path.dirname(os.path.abspath(__file__))
-    candidates.append(os.path.dirname(package_dir))
-
-    for candidate in candidates:
-        for contract_name in ("mapper-artifacts", "visualization", "mapper-canvas", "clustering"):
-            root = os.path.join(candidate, "contracts", contract_name, CONTRACT_VERSION)
-            if os.path.isdir(os.path.join(root, "schemas")):
-                return root
+    del start  # no longer used: resolution is package-relative, not cwd-relative
+    package_root = importlib.resources.files("simplicio_mapper")
+    for contract_name in ("mapper-artifacts", "visualization", "mapper-canvas", "clustering"):
+        root = package_root.joinpath("contracts", contract_name, CONTRACT_VERSION)
+        if root.joinpath("schemas").is_dir():
+            return str(root)
     raise ContractError(
-        "could not locate contracts/mapper-artifacts/v1/schemas/ from "
-        f"{start or os.getcwd()} or its parents. Run this from within a "
-        "simplicio-mapper checkout (the contract is not currently shipped "
-        "in the published package — see contracts/mapper-artifacts/v1/README.md)."
+        "could not locate a contracts/<family>/v1/schemas/ directory inside the "
+        "installed simplicio_mapper package. This means the package data is "
+        "missing or corrupted -- reinstall simplicio-mapper."
     )
 
 

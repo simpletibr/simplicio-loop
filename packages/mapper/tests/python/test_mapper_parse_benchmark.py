@@ -21,6 +21,7 @@ from simplicio_mapper.mapper import build_artifacts
 
 FIXTURE_ROOT = (
     Path(__file__).resolve().parents[2]
+    / "simplicio_mapper"
     / "contracts"
     / "mapper-artifacts"
     / "v1"

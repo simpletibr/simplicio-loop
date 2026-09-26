@@ -49,7 +49,7 @@ from simplicio_mapper.prototype_context import (  # noqa: E402
     build_prototype_context,
 )
 
-FIXTURE_SOURCE = ROOT / "contracts" / "mapper-artifacts" / "v1" / "fixtures" / "python-minimal" / "source"
+FIXTURE_SOURCE = ROOT / "simplicio_mapper" / "contracts" / "mapper-artifacts" / "v1" / "fixtures" / "python-minimal" / "source"
 CONCURRENT_CALL_COUNT = 1000
 MAX_WORKERS = 64
 

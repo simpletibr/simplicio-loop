@@ -29,7 +29,7 @@ class IncrementalDeltaTests(unittest.TestCase):
         self.assertTrue(any(event["op"] == "invalidate" for event in delta["events"]))
 
     def test_real_scan_persists_initial_then_delta_and_full_rescan(self):
-        source = Path("contracts/mapper-artifacts/v1/fixtures/python-minimal/source").resolve()
+        source = Path("simplicio_mapper/contracts/mapper-artifacts/v1/fixtures/python-minimal/source").resolve()
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "repo"
             copytree(source, root)
@@ -45,7 +45,7 @@ class IncrementalDeltaTests(unittest.TestCase):
             self.assertEqual(reset["mode"], "full-rescan")
 
     def test_snapshot_ids_are_stable_for_unchanged_source(self):
-        source = Path("contracts/mapper-artifacts/v1/fixtures/python-minimal/source").resolve()
+        source = Path("simplicio_mapper/contracts/mapper-artifacts/v1/fixtures/python-minimal/source").resolve()
         first = initial_snapshot(str(source))
         second = initial_snapshot(str(source))
         self.assertEqual(first["snapshot_id"], second["snapshot_id"])
@@ -66,7 +66,7 @@ class IncrementalDeltaTests(unittest.TestCase):
             self.assertTrue(result["fallback"]["required"])
 
     def test_incompatible_base_requests_resynchronization(self):
-        source = Path("contracts/mapper-artifacts/v1/fixtures/python-minimal/source").resolve()
+        source = Path("simplicio_mapper/contracts/mapper-artifacts/v1/fixtures/python-minimal/source").resolve()
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "repo"
             copytree(source, root)

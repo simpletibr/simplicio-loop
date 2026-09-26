@@ -20,6 +20,7 @@ from simplicio_mapper.project_capabilities import (
 
 FIXTURE_ROOT = (
     Path(__file__).parents[2]
+    / "simplicio_mapper"
     / "contracts"
     / "mapper-artifacts"
     / "v1"

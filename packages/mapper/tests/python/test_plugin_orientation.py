@@ -93,7 +93,7 @@ class PluginOrientationTest(unittest.TestCase):
         self.assertIsNone(payload["effect"])
 
     def test_schema_contract_exists(self) -> None:
-        schema = json.loads((REPO / "contracts/plugin-orientation/v1/schema.json").read_text(encoding="utf-8"))
+        schema = json.loads((REPO / "simplicio_mapper/contracts/plugin-orientation/v1/schema.json").read_text(encoding="utf-8"))
         self.assertEqual(schema["title"], "ProjectCapabilityProjection")
 
 

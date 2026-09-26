@@ -1474,9 +1474,14 @@ def _admit_mapper_delta(
 
     try:
         contract = importlib.import_module("simplicio_mapper.contract")
-        package_root = str(
-            importlib.resources.files("simplicio_mapper").joinpath("contracts", "mapper-artifacts", "v1")
-        )
+        # One path: Mapper's own `find_contract_root()` resolves the
+        # versioned contracts tree via `importlib.resources` against the
+        # installed `simplicio_mapper` package -- correct for both a real
+        # wheel install and an editable/dev install, since the contracts
+        # now live at `simplicio_mapper/contracts/` (in-package data)
+        # rather than beside the package. This module does not resolve the
+        # schema location itself; it only calls Mapper's own public API.
+        package_root = contract.find_contract_root()
         schema = contract.load_schema(_MAPPER_GRAPH_DELTA_SCHEMA, package_root)
         errors = contract.validate_instance(dict(delta), schema)
     except (

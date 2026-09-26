@@ -35,7 +35,7 @@ def test_manifest_is_canonical_and_json_contract_is_valid() -> None:
 
     schema = json.loads(
         (
-            Path(__file__).parents[2] / "contracts/mapper-store/v1/schemas/schema-registry.schema.json"
+            Path(__file__).parents[2] / "simplicio_mapper/contracts/mapper-store/v1/schemas/schema-registry.schema.json"
         ).read_text()
     )
     assert validate_instance(DEFAULT_MANIFEST, schema) == []
@@ -46,7 +46,7 @@ def test_manifest_is_canonical_and_json_contract_is_valid() -> None:
 def test_golden_migration_and_negotiation_fixtures_validate() -> None:
     from simplicio_mapper.contract import validate_instance
 
-    root = Path(__file__).parents[2] / "contracts/mapper-store/v1"
+    root = Path(__file__).parents[2] / "simplicio_mapper/contracts/mapper-store/v1"
     migration_schema = json.loads((root / "schemas/migration.schema.json").read_text())
     migrations = json.loads((root / "fixtures/migrations/catalog.json").read_text())
     assert [item.as_dict() for item in MigrationEngine(":memory:").migrations] == migrations
@@ -63,7 +63,7 @@ def test_golden_migration_and_negotiation_fixtures_validate() -> None:
 def test_json_api_response_schemas_validate(tmp_path: Path) -> None:
     from simplicio_mapper.contract import validate_instance
 
-    root = Path(__file__).parents[2] / "contracts/mapper-store/v1"
+    root = Path(__file__).parents[2] / "simplicio_mapper/contracts/mapper-store/v1"
     engine = MigrationEngine(tmp_path / "catalog.sqlite")
     payloads = {
         "migration-plan.schema.json": engine.plan(),

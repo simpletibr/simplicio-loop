@@ -64,7 +64,7 @@ from simplicio_mapper.prototype_context import build_prototype_context
 from simplicio_mapper.savings import estimate_tokens
 
 REPORT_SCHEMA = "simplicio.prototype-context-benchmark/v1"
-FIXTURE_SOURCE = REPO / "contracts" / "mapper-artifacts" / "v1" / "fixtures" / "python-minimal" / "source"
+FIXTURE_SOURCE = REPO / "simplicio_mapper" / "contracts" / "mapper-artifacts" / "v1" / "fixtures" / "python-minimal" / "source"
 
 # Same sample query the module's own tests use as their canonical fixture
 # target, so the number this script prints is reproducible against the

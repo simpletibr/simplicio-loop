@@ -34,7 +34,7 @@ from simplicio_mapper.query import run_query
 import simplicio_mapper.query as query_module
 
 REPORT_SCHEMA = "simplicio.context-cache-benchmark/v1"
-FIXTURE_SOURCE = REPO / "contracts" / "mapper-artifacts" / "v1" / "fixtures" / "python-minimal" / "source"
+FIXTURE_SOURCE = REPO / "simplicio_mapper" / "contracts" / "mapper-artifacts" / "v1" / "fixtures" / "python-minimal" / "source"
 DEFAULT_WORKERS = 4
 DEFAULT_SCENARIOS = (
     "cold-warm",

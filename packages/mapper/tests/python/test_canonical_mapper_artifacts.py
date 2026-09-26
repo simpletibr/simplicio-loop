@@ -24,8 +24,8 @@ from simplicio_mapper.mapper.canonical_artifacts import (  # noqa: E402
     validate_artifact_manifest,
 )
 
-CONTRACT_ROOT = str(ROOT / "contracts" / "mapper-artifacts" / "v1")
-FIXTURES = ROOT / "contracts" / "mapper-artifacts" / "v1" / "fixtures"
+CONTRACT_ROOT = str(ROOT / "simplicio_mapper" / "contracts" / "mapper-artifacts" / "v1")
+FIXTURES = ROOT / "simplicio_mapper" / "contracts" / "mapper-artifacts" / "v1" / "fixtures"
 PUBLIC_ARTIFACTS = (
     "project_map",
     "precedent_index",
