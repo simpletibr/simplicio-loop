@@ -577,6 +577,36 @@ def _mapper_index_running_info(lock_file: Path) -> dict[str, Any] | None:
     return info
 
 
+def _mapper_index_reconcile_finished(log_path: Path, project_map: Path, state_file: Path,
+                                      current_state: str | None) -> bool:
+    """``True`` when a PRIOR backgrounded index -- one whose own
+    ``_ensure_project_map_bounded`` call already raised ``MapperIndexTimedOut``
+    and returned -- has since finished successfully on its own, so THIS call
+    can reuse it instead of starting a redundant new one.
+
+    Nothing keeps polling a backgrounded index once its caller has raised and
+    returned; without this reconciliation, the NEXT call would only see (via
+    ``_mapper_index_running_info``) that the process is gone and start a
+    brand new index instead of noticing the old one already succeeded --
+    reindexing forever instead of ever reusing (breaking the issue #1331
+    tree-state reuse this budget path must preserve).
+    """
+    if not log_path.is_file() or not project_map.is_file():
+        return False
+    try:
+        envelope = json.loads(log_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if not isinstance(envelope, dict) or envelope.get("error"):
+        return False
+    if current_state is not None:
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        state_file.write_text(
+            json.dumps({"tree_state": current_state}, ensure_ascii=False), encoding="utf-8"
+        )
+    return True
+
+
 def _ensure_project_map_bounded(root: Path, project_map: Path, state_file: Path,
                                  current_state: str | None, budget: float) -> None:
     """The ``budget``-bounded branch of ``_ensure_project_map`` (issue #1339).
@@ -595,6 +625,8 @@ def _ensure_project_map_bounded(root: Path, project_map: Path, state_file: Path,
             f"simplicio-mapper index is already running in the background "
             f"(pid={running.get('pid')}); log at {log_path}"
         )
+    if _mapper_index_reconcile_finished(log_path, project_map, state_file, current_state):
+        return
     try:
         from .map_service_mapper import mapper_binary_path
         binary = mapper_binary_path()

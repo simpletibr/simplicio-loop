@@ -39,8 +39,12 @@ def _git_repo(tmp_path: Path) -> Path:
 
 def _install_fake_mapper(tmp_path: Path, *, sleep_s: float) -> Path:
     """A real, slow `simplicio-mapper` on PATH -- no mocking of the process
-    boundary. `index <path> --json` sleeps past the orient budget, then
-    writes a minimal valid envelope and project-map.json."""
+    boundary. Only `index <path> --json` (the command this issue is about)
+    sleeps past the orient budget, then writes a minimal valid envelope and
+    project-map.json; every other subcommand (e.g. `orient`, used by the
+    Mapper-fallback path when Fast is off/unavailable) answers immediately
+    with a trivial READY-shaped envelope, so it never itself becomes an
+    unrelated source of slowness in these tests."""
     bin_dir = tmp_path / "fakebin"
     bin_dir.mkdir(exist_ok=True)
     script = bin_dir / "simplicio-mapper"
@@ -48,16 +52,15 @@ def _install_fake_mapper(tmp_path: Path, *, sleep_s: float) -> Path:
         "#!/usr/bin/env python3\n"
         "import json, sys, time, pathlib\n"
         "args = sys.argv[1:]\n"
-        f"time.sleep({sleep_s})\n"
         "if args and args[0] == 'index':\n"
+        f"    time.sleep({sleep_s})\n"
         "    root = pathlib.Path(args[1])\n"
         "    map_dir = root / '.simplicio-loop'\n"
         "    map_dir.mkdir(parents=True, exist_ok=True)\n"
         "    (map_dir / 'project-map.json').write_text(json.dumps({'files': []}))\n"
         "    print(json.dumps({'status': 'ok'}))\n"
         "else:\n"
-        "    print(json.dumps({'status': 'BLOCKED', 'reason': 'unsupported in fake'}))\n"
-        "    sys.exit(1)\n",
+        "    print(json.dumps({'status': 'ok', 'selection': {'targets': []}}))\n",
         encoding="utf-8",
     )
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
