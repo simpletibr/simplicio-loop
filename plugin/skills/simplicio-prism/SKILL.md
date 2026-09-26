@@ -1,13 +1,13 @@
 ---
 name: simplicio-prism
-description: Route broad or ambiguous work across Simplicio Mapper, Fast, Dev CLI, and Loop. Use when a request spans components, requires choosing the correct capability, needs an end-to-end workflow, or the agent is unsure which Simplicio skill to invoke. Prism classifies and composes; it does not execute mutations itself.
+description: Route broad or ambiguous work across Simplicio Mapper, Dev CLI, and Loop. Use when a request spans components, requires choosing the correct capability, needs an end-to-end workflow, or the agent is unsure which Simplicio skill to invoke. Prism classifies and composes; it does not execute mutations itself.
 ---
 
 # Simplicio Prism
 
 ## Worker preflight and centralized artifact policy
 
-Before routing or operating, each worker reads repository `AGENTS.md` and all relevant local skills. Prism only composes a route after that preflight. One binary/artifact set is built centrally from the canonical default branch and shared read-only; workers never rebuild binaries or regenerate canonical Mapper/Fast artifacts. Worktrees isolate source edits and receipts only. Route evidence and receipts carry repository/revision, binary digest/version, Mapper generation, and artifact digest. Missing, stale, incompatible, or mismatched central artifacts fail closed and select the central rebuild path only.
+Before routing or operating, each worker reads repository `AGENTS.md` and all relevant local skills. Prism only composes a route after that preflight. One binary/artifact set is built centrally from the canonical default branch and shared read-only; workers never rebuild binaries or regenerate canonical Mapper artifacts. Worktrees isolate source edits and receipts only. Route evidence and receipts carry repository/revision, binary digest/version, Mapper generation, and artifact digest. Missing, stale, incompatible, or mismatched central artifacts fail closed and select the central rebuild path only.
 
 Loop/Prism uses Python `asyncio` for scheduling, leases, and I/O; there is no Runtime/MCP backend in this stack. Asyncio scheduling never authorizes a worker-local rebuild or canonical artifact regeneration.
 
@@ -33,15 +33,13 @@ The inventory covers CLI entry points and subcommands, MCP registrations, public
 2. Check repository, revision, scope, availability, preconditions, and side-effect policy.
 3. Select the smallest capability set and order dependencies before dependents.
 4. Require Mapper before non-trivial mutation; require Dev CLI for mutation.
-5. Add Fast for compatible repeated/large retrieval.
-6. Add Loop for multi-step, parallel, retryable, or convergent work.
-7. Emit a routing decision with reasons, fallbacks, and expected evidence.
+5. Add Loop for multi-step, parallel, retryable, or convergent work.
+6. Emit a routing decision with reasons, fallbacks, and expected evidence.
 
 For task-count routing, one to three tasks use direct parallelism; more than three tasks activate
 Prism. An omitted quantity defaults to a minimum logical batch of ten tasks per slot. Slot count,
 slot capacity, and Prism wave width have no logical upper bound; physical resource/lease governors
-may still defer execution. Always query Fast from the fresh Mapper snapshot before selecting the
-route when the repository already provides that integration.
+may still defer execution. Always route from the fresh Mapper snapshot.
 
 ## Non-negotiable boundaries
 
@@ -63,5 +61,5 @@ Return `route_id`, `intent`, `selected_capabilities`, `order`, `preconditions`, 
 ## Standalone precedence
 
 There is no Runtime/MCP backend in this stack. Each component package (Mapper,
-Fast, Dev CLI, Loop) is callable standalone; direct file edits go through
+Dev CLI, Loop) is callable standalone; direct file edits go through
 `simplicio-dev-cli edit --plan`.

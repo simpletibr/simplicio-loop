@@ -54,7 +54,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `wave` | Dispatch a governed wave and reconcile every worker before admitting another wave. |
 | `prism` | Dispatch through the governed Prism route; uses the same physical governor and receipts as `batch`. |
 | `cancel` | Cancel a non-terminal run. |
-| `checkpoint` | Inspect, cancel, or garbage-collect Fast V3 checkpoints. |
+| `checkpoint` | Inspect, cancel, or garbage-collect candidate checkpoints. |
 | `maintenance-deferred` | Record a maintenance-deferred backlog transition. |
 | `deliver` | Reconcile delivery state with source evidence. |
 | `decide` | Apply a human decision and invalidate dependent artifacts. |

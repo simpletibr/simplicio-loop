@@ -9,11 +9,11 @@
 
 ## One-line law
 
-> **Act > narrate. There is no Runtime/MCP backend in this stack — Mapper + Fast +
+> **Act > narrate. There is no Runtime/MCP backend in this stack — Mapper +
 > simplicio-dev-cli on the hot path, direct under `/simplicio-loop`. Smallest gate that
 > proves the AC. MEASURED only.**
 
-**Worker preflight:** read `AGENTS.md`, then every relevant local skill before operating. Use the single read-only binary/artifact set built from the canonical default branch. Never rebuild binaries or regenerate canonical Mapper/Fast artifacts in a worker; worktrees isolate source edits and receipts only. Receipts must carry repo/revision, binary digest/version, Mapper generation, and artifact digest. Missing, stale, or mismatched central artifacts are fail-closed and trigger central rebuild only.
+**Worker preflight:** read `AGENTS.md`, then every relevant local skill before operating. Use the single read-only binary/artifact set built from the canonical default branch. Never rebuild binaries or regenerate canonical Mapper artifacts in a worker; worktrees isolate source edits and receipts only. Receipts must carry repo/revision, binary digest/version, Mapper generation, and artifact digest. Missing, stale, or mismatched central artifacts are fail-closed and trigger central rebuild only.
 
 ---
 
@@ -22,7 +22,7 @@
 | Rule | Do | Don't |
 |------|----|--------|
 | Control plane | `/simplicio-loop` starts the loop directly | Wait on a Runtime/MCP activation decision — none exists |
-| Tokens | mapper handoff / Fast snapshot | Full-tree LLM Read/Grep walks |
+| Tokens | mapper handoff | Full-tree LLM Read/Grep walks |
 | Mutate | `simplicio-dev-cli edit --plan` under STRICT | Host Write/Edit as primary path |
 | Parallel | 1–3 tasks direct; >3 Prism + worktrees + leases + reducer | 64 processes on one dirty tree |
 | Gates | focused test / doctor / `git diff --check` | Full-repo fmt/test for residual noise |
@@ -48,7 +48,6 @@ Core flags (CPU-bounded; never invent higher than `economy status` recommended):
 |-----|--------|
 | `SIMPLICIO_LOOP=1` + `STRICT=1` | enforceable operator floor |
 | `SIMPLICIO_EXECUTION_PROFILE=standalone` | the only execution profile — no Runtime/MCP backend |
-| `SIMPLICIO_FAST_MODE=required` | Fast native when operational |
 | `SIMPLICIO_LOOP_AUTO_FAN_OUT=1` | parallel worktrees on batch |
 | `SIMPLICIO_PRISM_SLOTS` | machine-sized (`recommend_prism_slots`) |
 | `SIMPLICIO_PRISM_BATCH_SIZE` | issues per wave (default/min 10; explicit larger OK; logical unbounded) |
@@ -65,7 +64,7 @@ Opt out: `SIMPLICIO_ECONOMY_PARALLEL=0`.
 |-------|--------|------|
 | Prism slots | loop + `arm_drain_prism` | admission, lease, wave barrier |
 | Batch size | `SIMPLICIO_PRISM_BATCH_SIZE` | items per wave (e.g. 30) |
-| Operator workers | loop | mapper/fast/dev-cli fan-out |
+| Operator workers | loop | mapper/dev-cli fan-out |
 | Asyncio | loop supervisor | I/O concurrency |
 | Writes | governor | **serialized** by path (correct, not slow-by-bug) |
 
@@ -77,7 +76,7 @@ Prism routing (Loop): **1–3 tasks → direct parallelism**; **>3 → Prism**. 
 
 ## Hot path (order fixed)
 
-1. `simplicio-loop orient --task "<task>" --json` (Mapper + Fast context)
+1. `simplicio-loop orient --task "<task>" --json` (Mapper context)
 2. `simplicio-loop economy apply --json` (if not aligned)
 3. `simplicio-loop preflight --strict --json`
 4. Follow `route.mode` / `route.next` from `orient`:
@@ -110,7 +109,7 @@ Per wave:
 Per-issue worker micro-prompt:
 
 ```text
-Issue #N only. STRICT. Mapper→Fast→dev-cli.
+Issue #N only. STRICT. Mapper→dev-cli.
 Lease + worktree only. No hand-edit. Smallest gate for AC.
 Done = evidence (+ PR Closes #N when required). BLOCKED = one reason code.
 ```
@@ -140,7 +139,7 @@ Pasteable **FAST CLOSE** header for a session:
 [STANDALONE · PRISM · FAST CLOSE]
 economy apply + preflight --strict
 orient --task "…" --json; follow route.mode/route.next
-Mapper→Fast→dev-cli; no hand-edit
+Mapper→dev-cli; no hand-edit
 Prism --slots 0 --batch-size <N>; reconcile each wave
 REVIEW=0 metadata; FULL_CI=0 unless AC requires
 End: DONE | NEXT | BLOCKED
@@ -152,6 +151,6 @@ End: DONE | NEXT | BLOCKED
 
 - ADR 0009 — loop plus operators standalone
 - ADR 0010 — execution-report metrics
-- `docs/PRISM_EXECUTION.md`, `docs/fast-fanout.md`
+- `docs/PRISM_EXECUTION.md`
 - `simplicio_loop/economy_profile.py`
 - Host rule sync: `python3 scripts/host_rule_sync.py --global`
