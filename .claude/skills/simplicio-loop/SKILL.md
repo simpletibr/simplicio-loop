@@ -15,7 +15,28 @@ Stack: `simplicio-mapper` (survey) → `simplicio-fast` (context) →
 find/replace text; the tools freeze, apply and verify it. The loop never calls
 a provider to write code.
 
-## The flow (run these, in order)
+## Pick the fastest route first
+
+```bash
+python3 scripts/route_mode.py --root . --goal "<one task, plain prose>"
+```
+
+- **`fast-path`** (ONE task, one file, fan-in ≤1, no sensitive surface) — no
+  run, no wave, no quality lanes. Read the file, write the find/replace, apply,
+  run the task's own check in the same turn:
+
+  ```bash
+  simplicio-dev-cli edit --plan ops.json --compile plan.json   # ops.json = {"operations":[{"path","find","replace"}]}
+  simplicio-dev-cli edit --plan plan.json --apply --json
+  <the task's verification command>                            # e.g. python3 -m pytest -q / the repo's check
+  python3 scripts/diff_escalation.py --root . --mode fast-path  # over the limit → promote to the wave below
+  ```
+
+- **`converge`/`drain`** (2+ tasks, or any task route_mode sends there) — the
+  wave flow below. Tasks that depend on each other go in the SAME `tasks.md`
+  and the SAME `wave`; write every `edit-plan-<N>.json` up front.
+
+## The wave flow (run these, in order)
 
 ```bash
 # 1. Survey: what to change (plain-prose goal, one task, no "T1"/"T2" labels)
@@ -46,10 +67,6 @@ simplicio-loop verify <run_id> --repo .
   to the tree task 1 left. A bad plan blocks with a precise reason instead of
   retrying: `plan_path_not_found`, `plan_path_not_authorized`,
   `plan_find_not_found`, `plan_find_not_unique` — fix the text and re-run.
-- One small change, no run needed:
-  `simplicio-dev-cli edit --plan ops.json --compile plan.json` →
-  `simplicio-dev-cli edit --plan plan.json --apply --json` →
-  `simplicio-dev-cli test --json`.
 - **Never** `simplicio-dev-cli task "prose"` (answers `plan_required`).
 - Every command answers `--help`; read it before guessing a flag.
 
@@ -338,7 +355,8 @@ Loop orientation:
 - Stack: mapper + fast + simplicio-dev-cli + loop. No Runtime. No MCP.
 - GitHub is SoT for issues/PRs when the remote is GitHub.
 - Context: simplicio-loop orient --task "<goal>" --json (Mapper + Fast).
-- Run: simplicio-loop prepare --task tasks.md → write edit-plan-<N>.json → wave <run_id> → verify <run_id>.
+- Route first: scripts/route_mode.py --goal "<task>". fast-path (1 task, 1 file) → simplicio-dev-cli edit --plan ops.json --compile plan.json → edit --plan plan.json --apply → run the task's check. No run, no wave.
+- 2+ tasks or converge: simplicio-loop prepare --task tasks.md → write every edit-plan-<N>.json → wave <run_id> → verify <run_id>.
 - edit-plan-<N>.json = {"operations": [{"path","find","replace"}]}; find must match exactly once.
 - Never simplicio-dev-cli task "prose". No plan → plan_required (do not call OpenRouter).
 - Review: 1 implement + 1 verify. Promise only after verify MEASURED.
