@@ -44,6 +44,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+import arms as bench_arms  # noqa: E402
 import cost as bench_cost  # noqa: E402
 import run as bench_run  # noqa: E402
 
@@ -87,6 +88,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--reports-only", metavar="SHA", default=None,
         help="re-render every REPORT-*.html and REPORT.html from the existing results/*-<SHA>-*.json "
              "files, without calling any LLM (no keys needed)",
+    )
+    ap.add_argument(
+        "--ablation", action="store_true",
+        help=(
+            "run the 7-arm ablation matrix instead (issue #1337): normal, mapper, "
+            "mapper-fast, devcli, mapper-devcli, fast-devcli, simplicio (arms.ARM_SPECS), "
+            "each isolated to only its own skills/binaries, on --tasks 1 and --tasks 4 "
+            "(sequential only, no --batch) -- writes results/<date>-<sha>-t<N>-ablation.json "
+            "and REPORT-ablation.md/.html/.pdf ranked by computed cost ascending"
+        ),
     )
     return ap
 
@@ -142,6 +153,176 @@ def _arm_sums(tasks: list[dict], pricing: dict) -> dict:
 
 def _usd(value: float | None) -> str:
     return "n/a" if value is None else f"${value:.5f}"
+
+
+# -- 7-arm ablation matrix (issue #1337) -------------------------------------
+# normal / mapper / mapper-fast / devcli / mapper-devcli / fast-devcli /
+# simplicio, on --tasks 1 and --tasks 4, sequential only (no --batch), all 7
+# arms isolated uniformly (run.py --isolate-arms) so cost/speed differences
+# are attributable to the operators actually granted, never a PATH leak.
+
+ABLATION_HEADERS = [
+    "arm", "ok/n", "turns", "wall (s)", "custo calculado", "custo cobrado",
+    "cache hit", "tokens prompt", "tokens cache", "tokens completion",
+]
+
+
+def ablation_result_filename(date: str, short_sha: str, task_count: int) -> str:
+    """``<date>-<sha>-t<N>-ablation.json`` (issue #1337) -- distinct from
+    ``run.result_filename``'s own ``-t<N>[-batch].json`` naming, so an
+    ablation run's history never mixes with the classic 2-arm matrix's."""
+    return f"{date}-{short_sha}-t{task_count}-ablation.json"
+
+
+def _ablation_arm_row(arm: str, tasks: list[dict], pricing: dict) -> dict:
+    """One arm's totals for a ranking row: computed cost is the primary
+    ranking figure (token-exact per task, issue #1337); billed is the
+    settled-ledger cross-check (or the same computed figure when the
+    ledger never settled -- ``cost_usd`` after ``finalize_task_cost``)."""
+    tasks = _finalized_tasks(tasks, pricing)
+
+    def tot(key: str) -> float:
+        return sum((t.get("totals") or {}).get(key) or 0 for t in tasks)
+
+    prompt, cached, compl = int(tot("prompt_tokens")), int(tot("cached_tokens")), int(tot("completion_tokens"))
+    return {
+        "arm": arm,
+        "ok": sum(1 for t in tasks if t.get("success")),
+        "n": len(tasks),
+        "turns": sum(t.get("turns") or 0 for t in tasks),
+        "wall": sum(t.get("wall_s") or 0.0 for t in tasks),
+        "computed_cost": tot("computed_cost_usd"),
+        "billed_cost": tot("cost_usd"),
+        "cache_hit": (cached / prompt * 100.0) if prompt else 0.0,
+        "prompt_tokens": prompt,
+        "cached_tokens": cached,
+        "completion_tokens": compl,
+    }
+
+
+def ablation_rows(results: dict, kind: str | None = None) -> list[dict]:
+    """One row per arm present in ``results["arms"]``, sorted by computed
+    cost ascending (the ranking cost, per issue #1337) -- ``kind`` scopes
+    every figure to that task kind (``"create"``/``"edit"``), matching
+    ``summary_records``'s create/edit slicing for the classic matrix."""
+    arms_data = results.get("arms") or {}
+    pricing = (results.get("meta") or {}).get("pricing") or {}
+    rows = []
+    for arm, arm_data in arms_data.items():
+        tasks = arm_data.get("tasks", [])
+        if kind is not None:
+            tasks = [t for t in tasks if t.get("kind") == kind]
+        rows.append(_ablation_arm_row(arm, tasks, pricing))
+    rows.sort(key=lambda r: r["computed_cost"])
+    return rows
+
+
+def _ablation_row_cells(r: dict) -> list[str]:
+    return [
+        r["arm"], f"{r['ok']}/{r['n']}", str(r["turns"]), f"{r['wall']:.1f}",
+        f"${r['computed_cost']:.5f}", f"${r['billed_cost']:.5f}", f"{r['cache_hit']:.1f}%",
+        str(r["prompt_tokens"]), str(r["cached_tokens"]), str(r["completion_tokens"]),
+    ]
+
+
+def ablation_winners(rows: list[dict]) -> dict:
+    """``{"cheapest": row, "fastest": row}`` -- lowest computed cost and
+    lowest total wall time among ``rows`` (ties broken by whichever
+    ``sorted`` keeps first, i.e. arm-table order). Never filters by
+    success: an arm that "won" without passing every task is still
+    reported, flagged by its own ``ok/n`` cell, so a caller can see the
+    anomaly rather than have it silently excluded."""
+    if not rows:
+        return {"cheapest": None, "fastest": None}
+    cheapest = min(rows, key=lambda r: r["computed_cost"])
+    fastest = min(rows, key=lambda r: r["wall"])
+    return {"cheapest": cheapest, "fastest": fastest}
+
+
+def _winner_lines(rows: list[dict]) -> list[str]:
+    winners = ablation_winners(rows)
+    cheapest, fastest = winners["cheapest"], winners["fastest"]
+    lines = [
+        f"- **Menor custo:** `{cheapest['arm']}` (${cheapest['computed_cost']:.5f} calculado, "
+        f"${cheapest['billed_cost']:.5f} cobrado, {cheapest['ok']}/{cheapest['n']} ok)",
+        f"- **Mais rápido:** `{fastest['arm']}` ({fastest['wall']:.1f}s, {fastest['ok']}/{fastest['n']} ok)",
+    ]
+    for r in rows:
+        if r["ok"] < r["n"]:
+            lines.append(f"- ⚠ `{r['arm']}` falhou {r['n'] - r['ok']}/{r['n']} tarefa(s)")
+    return lines
+
+
+def _ablation_table_md(title: str, rows: list[dict]) -> str:
+    lines = [
+        f"### {title}", "", "| " + " | ".join(ABLATION_HEADERS) + " |",
+        "|" + "---|" * len(ABLATION_HEADERS),
+    ]
+    for r in rows:
+        lines.append("| " + " | ".join(_ablation_row_cells(r)) + " |")
+    return "\n".join(lines)
+
+
+def _ablation_table_html(title: str, rows: list[dict]) -> str:
+    header = "".join(f"<th>{h}</th>" for h in ABLATION_HEADERS)
+    body = "".join(
+        "<tr>" + "".join(f"<td>{c}</td>" for c in _ablation_row_cells(r)) + "</tr>\n" for r in rows
+    )
+    return f"<h3>{title}</h3>\n<table border='1' cellpadding='4'><tr>{header}</tr>\n{body}</table>\n"
+
+
+ABLATION_SLICES = (("Total", None), ("Criação (create)", "create"), ("Edição (edit)", "edit"))
+
+
+def ablation_sections(results: dict, task_count: int) -> list[tuple[str, list[dict]]]:
+    """``[("Total", rows), ...]`` for ``results`` -- create/edit slices are
+    only meaningful for a sequential multi-task run (``t4``), matching
+    ``summary_records``'s same restriction for the classic matrix."""
+    slices = [("Total", None)]
+    if task_count == 4:
+        slices += [(label, kind) for label, kind in ABLATION_SLICES[1:]]
+    return [(label, ablation_rows(results, kind=kind)) for label, kind in slices]
+
+
+def build_ablation_markdown(results_by_n: dict[int, dict]) -> str:
+    lines = [
+        "# Ablation benchmark — 7 arms (issue #1337)", "",
+        f"Modelo: `{bench_run.lc.MODEL}` · braços: {', '.join(bench_arms.ARM_NAMES)}", "",
+    ]
+    for n in sorted(results_by_n):
+        results = results_by_n[n]
+        lines.append(f"## t{n}")
+        lines.append("")
+        for label, rows in ablation_sections(results, n):
+            if label == "Total":
+                lines.extend(_winner_lines(rows))
+                lines.append("")
+            lines.append(_ablation_table_md(label, rows))
+            lines.append("")
+    return "\n".join(lines) + "\n"
+
+
+def build_ablation_html_index(results_by_n: dict[int, dict]) -> str:
+    sections = []
+    for n in sorted(results_by_n):
+        results = results_by_n[n]
+        sections.append(f"<h2>t{n}</h2>")
+        for label, rows in ablation_sections(results, n):
+            if label == "Total":
+                items = "".join(f"<li>{w.lstrip('- ').replace('**', '')}</li>" for w in _winner_lines(rows))
+                sections.append(f"<ul>{items}</ul>")
+            sections.append(_ablation_table_html(label, rows))
+    body = "\n".join(sections)
+    return f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Ablation benchmark — 7 arms</title></head>
+<body>
+<h1>Ablation benchmark: 7 arms (issue #1337)</h1>
+<p>Modelo: <code>{bench_run.lc.MODEL}</code> &middot; braços: {", ".join(bench_arms.ARM_NAMES)}</p>
+{body}
+</body>
+</html>
+"""
 
 
 def summary_records(suffix: str, results: dict) -> list[dict]:
@@ -299,12 +480,23 @@ def _between(html: str, open_re: str, close: str) -> str:
     return html[m.end():end if end != -1 else len(html)]
 
 
+_TIMELINE_RE = re.compile(
+    r"<h2>Linha do tempo de comandos.*?(?=<h2>|</body>|$)", re.S | re.I)
+
+
+def _drop_timeline(body: str) -> str:
+    """The PDF is the shareable summary: the per-command timeline (every
+    command line the agent ran) stays in the HTML reports only."""
+    return _TIMELINE_RE.sub("", body)
+
+
 def build_full_html(index_html: str, reports: dict[str, str]) -> str:
     """One printable document: the summary index, then every combination's
-    full report (all sections and base64 charts) on its own page."""
+    report (tables and base64 charts, without the per-command timeline) on
+    its own page."""
     styles = {_between(h, r"<style[^>]*>", "</style>") for h in [index_html, *reports.values()]}
     parts = [f"<section>{_between(index_html, r'<body[^>]*>', '</body>')}</section>"]
-    parts += [f"<section style='page-break-before: always'>{_between(h, r'<body[^>]*>', '</body>')}</section>"
+    parts += [f"<section style='page-break-before: always'>{_drop_timeline(_between(h, r'<body[^>]*>', '</body>'))}</section>"
               for h in reports.values()]
     style = "\n".join(s for s in styles if s)
     return (f"<!DOCTYPE html><html lang='pt-BR'><head><meta charset='utf-8'>"
@@ -383,9 +575,105 @@ def write_reports(entries: list[tuple[str, str]], out_dir: str) -> None:
     print(f"wrote {pdf_path}", file=sys.stderr)
 
 
+ABLATION_TASK_COUNTS = (1, 4)
+
+
+def _ablation_result_path(out_dir: str, tasks: int) -> str:
+    date = bench_run.datetime.date.today().isoformat()
+    short_sha = bench_run._short_sha(bench_run.REPO_ROOT)
+    return os.path.join(out_dir, ablation_result_filename(date, short_sha, tasks))
+
+
+def write_ablation_reports(entries: list[tuple[int, str]], out_dir: str) -> None:
+    """``entries`` is ``[(task_count, result_path), ...]``. Renders each
+    task-set's own full ``REPORT-ablation-t<N>.html`` (charts + per-arm
+    table, via the existing generic ``report.build``, which already
+    iterates ``arms`` for however many arm names are present) plus the
+    combined ranking (``build_ablation_markdown``/``build_ablation_html_index``)
+    as ``REPORT-ablation.md``/``.html``, then one printable
+    ``REPORT-ablation.pdf`` with the ranking first and every task-set's full
+    report after it (same pattern as ``write_reports``/``build_full_html``)."""
+    import report as bench_report  # noqa: E402 -- needs matplotlib, imported lazily
+
+    results_by_n: dict[int, dict] = {}
+    per_n_html: dict[str, str] = {}
+    for n, result_path in entries:
+        with open(result_path) as f:
+            results_by_n[n] = json.load(f)
+        suffix = f"ablation-t{n}"
+        report_path = os.path.join(HERE, f"REPORT-{suffix}.html")
+        html = bench_report.build(results_by_n[n], out_dir, current_path=result_path)
+        with open(report_path, "w") as f:
+            f.write(html)
+        per_n_html[f"t{n}"] = html
+        print(f"wrote {report_path}", file=sys.stderr)
+
+    md_path = os.path.join(HERE, "REPORT-ablation.md")
+    with open(md_path, "w") as f:
+        f.write(build_ablation_markdown(results_by_n))
+    print(f"wrote {md_path}", file=sys.stderr)
+
+    index_html = build_ablation_html_index(results_by_n)
+    html_path = os.path.join(HERE, "REPORT-ablation.html")
+    with open(html_path, "w") as f:
+        f.write(index_html)
+    print(f"wrote {html_path}", file=sys.stderr)
+
+    full = build_full_html(index_html, per_n_html)
+    full_path = os.path.join(HERE, "REPORT-ablation-full.html")
+    with open(full_path, "w") as f:
+        f.write(full)
+    pdf_path = os.path.join(HERE, "REPORT-ablation.pdf")
+    html_to_pdf(full_path, pdf_path)
+    print(f"wrote {pdf_path}", file=sys.stderr)
+
+
+def run_ablation(args: argparse.Namespace) -> int:
+    """The 7-arm ablation matrix (issue #1337): ``arms.ARM_NAMES``, on
+    ``--tasks 1`` and ``--tasks 4``, sequential only (``run.py
+    --isolate-arms``, never ``--batch`` -- per-arm isolation is the point of
+    this matrix, so every arm -- including normal/simplicio -- gets the same
+    skill/PATH contract). Each task count's raw ``run.py`` result is moved
+    to its ``-ablation.json`` name (issue #1337's own naming, distinct from
+    the classic matrix's) before the ranking reports are built."""
+    os.makedirs(args.out, exist_ok=True)
+    arm_arg = ",".join(bench_arms.ARM_NAMES)
+    entries: list[tuple[int, str]] = []
+
+    for n in ABLATION_TASK_COUNTS:
+        print(f"=== ablation matrix: t{n} ({arm_arg}) ===", file=sys.stderr)
+        run_argv = [
+            "--arms", arm_arg,
+            "--tasks", str(n),
+            "--out", args.out,
+            "--task-timeout", str(args.task_timeout),
+            "--skip-report",
+            "--isolate-arms",
+        ]
+        rc = bench_run.main(run_argv)
+        if rc != 0:
+            print(f"ablation matrix: run.py failed for t{n} (exit {rc})", file=sys.stderr)
+            return rc
+
+        raw_path = _result_path_for(args.out, n, batch=False)
+        final_path = _ablation_result_path(args.out, n)
+        os.replace(raw_path, final_path)
+        print(f"wrote {final_path}", file=sys.stderr)
+        entries.append((n, final_path))
+
+    write_ablation_reports(entries, args.out)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = build_arg_parser()
     args = ap.parse_args(argv)
+
+    if args.ablation:
+        if args.keys_file:
+            os.environ["SIMPLICIO_BENCH_KEYS"] = args.keys_file
+        bench_run.lc.keys_path()  # fail fast, before any work, if unset/missing
+        return run_ablation(args)
 
     if args.reports_only:
         entries = []

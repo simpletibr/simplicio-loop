@@ -39,13 +39,34 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
+import arms as bench_arms  # noqa: E402
 import checker  # noqa: E402
 import cost as bench_cost  # noqa: E402
 import llm_client as lc  # noqa: E402
 import opencode_agent as oc  # noqa: E402
 import tasks as bench_tasks  # noqa: E402
 
-ARM_CHOICES = ("normal", "simplicio")
+# The classic 2-arm run (issue #1325/#1335, still the default here and what
+# `standard.py`'s non-ablation matrix passes explicitly) keeps its exact
+# historical behavior: `opencode_agent.run_opencode(skill=(arm == "simplicio"))`
+# with the venv `bin/`-prefixed (not fully isolated) PATH. `arms.ARM_SPECS`
+# (issue #1337) adds 5 more single/pair-operator arms and generalizes the
+# isolation for any of them; `--arms` accepts all 7 (`ARM_CHOICES`), but
+# `_spec_for` only applies spec-driven isolation to a NON-legacy arm name,
+# so this default flow is unaffected -- see `standard.py --ablation` for the
+# uniform-isolation run across all 7, including normal/simplicio.
+LEGACY_ARMS = ("normal", "simplicio")
+ARM_CHOICES = bench_arms.ARM_NAMES
+
+
+def _spec_for(arm: str, force_isolate: bool = False) -> dict | None:
+    """The ``arms.ARM_SPECS`` entry to apply for ``arm``, or ``None`` to keep
+    the legacy (non-isolated) ``run_opencode`` code path. ``force_isolate``
+    (``standard.py --ablation``) applies the spec even to ``normal``/
+    ``simplicio`` so all 7 arms in that run share one isolation contract."""
+    if force_isolate or arm not in LEGACY_ARMS:
+        return bench_arms.spec(arm)
+    return None
 
 
 def _short_sha(repo: str) -> str:
@@ -96,7 +117,14 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
             task_timeout: int, task_list: list[dict] | None = None,
             config_dir: str | None = None, settle_reads: int = oc.DEFAULT_SETTLE_READS,
             settle_interval_s: float = oc.DEFAULT_SETTLE_INTERVAL_S,
-            settle_max_wait_s: float = oc.DEFAULT_SETTLE_MAX_WAIT_S) -> dict:
+            settle_max_wait_s: float = oc.DEFAULT_SETTLE_MAX_WAIT_S,
+            arm_spec: dict | None = None) -> dict:
+    """``arm_spec`` (``arms.ARM_SPECS[...]``, issue #1337): when given, this
+    arm's skills are installed via ``oc.install_skills``, its task prompt is
+    prefixed with ``arm_spec["prompt_prefix"]``, and it runs under a fully
+    isolated PATH (``oc.build_arm_path(arm_spec["bins"])``) instead of the
+    legacy ``skill=(arm == "simplicio")``/unisolated-PATH code path. ``None``
+    (the default) preserves that legacy path exactly, unchanged."""
     import time
 
     task_list = task_list if task_list is not None else bench_tasks.TASKS
@@ -124,12 +152,24 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
         task_checker = task.get("checker", "check_cadastro.py")
 
         task_wall_t0 = time.time()
-        agent_result = oc.run_opencode(
-            arm, task["text"], repo_dir, key=key,
-            config_dir=config_dir, timeout=task_timeout, skill=(arm == "simplicio"),
-            usage_baseline=usage_baseline, settle_reads=settle_reads,
-            settle_interval_s=settle_interval_s, settle_max_wait_s=settle_max_wait_s,
-        )
+        if arm_spec is not None:
+            oc.install_skills(repo_dir, arm_spec["skills"])
+            isolated_path = oc.build_arm_path(arm_spec["bins"])
+            full_text = arm_spec["prompt_prefix"] + task["text"]
+            agent_result = oc.run_opencode(
+                arm, full_text, repo_dir, key=key,
+                config_dir=config_dir, timeout=task_timeout, skill=False,
+                isolated_path=isolated_path,
+                usage_baseline=usage_baseline, settle_reads=settle_reads,
+                settle_interval_s=settle_interval_s, settle_max_wait_s=settle_max_wait_s,
+            )
+        else:
+            agent_result = oc.run_opencode(
+                arm, task["text"], repo_dir, key=key,
+                config_dir=config_dir, timeout=task_timeout, skill=(arm == "simplicio"),
+                usage_baseline=usage_baseline, settle_reads=settle_reads,
+                settle_interval_s=settle_interval_s, settle_max_wait_s=settle_max_wait_s,
+            )
         # Next task's baseline is THIS task's settled (or best-effort last
         # observed) usage -- never the pre-task baseline, so no cost leaks
         # across tasks either way.
@@ -172,7 +212,8 @@ def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
                    task_timeout: int, task_list: list[dict],
                    config_dir: str | None = None, settle_reads: int = oc.DEFAULT_SETTLE_READS,
                    settle_interval_s: float = oc.DEFAULT_SETTLE_INTERVAL_S,
-                   settle_max_wait_s: float = oc.DEFAULT_SETTLE_MAX_WAIT_S) -> dict:
+                   settle_max_wait_s: float = oc.DEFAULT_SETTLE_MAX_WAIT_S,
+                   arm_spec: dict | None = None) -> dict:
     """``--batch``: ALL of ``task_list`` in ONE agent session for this arm
     (issue #1310 follow-up, carried over to the real-OpenCode driver by
     issue #1325) -- the same seeded repo, but a single
@@ -206,12 +247,23 @@ def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
 
     batch_prompt = build_batch_prompt(task_list)
     total_wall_t0 = time.time()
-    agent_result = oc.run_opencode(
-        arm, batch_prompt, repo_dir, key=key,
-        config_dir=config_dir, timeout=task_timeout * len(task_list), skill=(arm == "simplicio"),
-        usage_baseline=usage_baseline, settle_reads=settle_reads,
-        settle_interval_s=settle_interval_s, settle_max_wait_s=settle_max_wait_s,
-    )
+    if arm_spec is not None:
+        oc.install_skills(repo_dir, arm_spec["skills"])
+        isolated_path = oc.build_arm_path(arm_spec["bins"])
+        agent_result = oc.run_opencode(
+            arm, arm_spec["prompt_prefix"] + batch_prompt, repo_dir, key=key,
+            config_dir=config_dir, timeout=task_timeout * len(task_list), skill=False,
+            isolated_path=isolated_path,
+            usage_baseline=usage_baseline, settle_reads=settle_reads,
+            settle_interval_s=settle_interval_s, settle_max_wait_s=settle_max_wait_s,
+        )
+    else:
+        agent_result = oc.run_opencode(
+            arm, batch_prompt, repo_dir, key=key,
+            config_dir=config_dir, timeout=task_timeout * len(task_list), skill=(arm == "simplicio"),
+            usage_baseline=usage_baseline, settle_reads=settle_reads,
+            settle_interval_s=settle_interval_s, settle_max_wait_s=settle_max_wait_s,
+        )
     total_wall_s = round(time.time() - total_wall_t0, 3)
     _commit_if_changed(repo_dir, f"{arm}: batch of {len(task_list)} tasks")
 
@@ -285,8 +337,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ap.add_argument(
-        "--arms", default=",".join(ARM_CHOICES),
-        help=f"comma-separated arms to run, from {ARM_CHOICES} (default: both)",
+        "--arms", default=",".join(LEGACY_ARMS),
+        help=(
+            f"comma-separated arms to run, from {ARM_CHOICES} (default: the classic "
+            "normal,simplicio pair; the 5 single/pair-operator arms from arms.ARM_SPECS "
+            "-- issue #1337 -- run isolated per --isolate-arms below)"
+        ),
     )
     ap.add_argument(
         "--tasks", type=int, default=2, choices=bench_tasks.TASK_SET_CHOICES,
@@ -351,6 +407,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "session per task; acceptance is still checked per task after the session finishes"
         ),
     )
+    ap.add_argument(
+        "--isolate-arms", action="store_true",
+        help=(
+            "apply arms.ARM_SPECS-driven skill/PATH isolation (issue #1337) even to "
+            "normal/simplicio, so every requested arm shares one isolation contract "
+            "-- used by standard.py --ablation for a fair 7-arm comparison"
+        ),
+    )
     return ap
 
 
@@ -384,6 +448,7 @@ def main(argv=None) -> int:
             task_list=task_list, config_dir=config_dir,
             settle_reads=args.settle_reads, settle_interval_s=args.settle_interval,
             settle_max_wait_s=args.settle_max_wait,
+            arm_spec=_spec_for(arm, force_isolate=args.isolate_arms),
         )
 
     # Token-computed cross-check (issue #1335): every task's totals gets

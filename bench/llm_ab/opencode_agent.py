@@ -29,6 +29,7 @@ import os
 import re
 import shutil
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request  # noqa: F401 -- re-exposed as oc.urllib.request for tests to monkeypatch urlopen
@@ -39,7 +40,15 @@ import llm_client as lc  # noqa: E402
 import measure  # noqa: E402
 
 REPO_ROOT = os.path.dirname(os.path.dirname(HERE))
-SKILL_SRC = os.path.join(REPO_ROOT, ".claude", "skills", "simplicio-loop")
+SKILLS_ROOT = os.path.join(REPO_ROOT, ".claude", "skills")
+SKILL_SRC = os.path.join(SKILLS_ROOT, "simplicio-loop")
+
+# Fixed system dirs appended after an arm's shim (issue #1337 ablation
+# benchmark): Node (OpenCode itself needs it) plus the base POSIX toolchain
+# (python3, git, sh, ...). Deliberately excludes the venv `bin/` AND
+# `/usr/local/bin` -- both also hold `simplicio-*` binaries system-wide, so
+# either would silently defeat the per-arm isolation this module builds.
+SYSTEM_PATH_DIRS = ("/opt/node22/bin", "/usr/bin", "/bin")
 
 TAIL_CHARS = 8000
 SIMPLICIO_PREFIX = "simplicio-"
@@ -132,8 +141,54 @@ def install_skill(repo_dir: str, skill_src: str = SKILL_SRC) -> str:
     return dst
 
 
+def install_skills(repo_dir: str, skill_names: list[str], skills_root: str = SKILLS_ROOT) -> list[str]:
+    """Generalization of ``install_skill`` for the ablation benchmark's
+    single/pair arms (issue #1337): copy each of ``skill_names`` from
+    ``skills_root/<name>`` into ``repo_dir/.claude/skills/<name>``.
+    Idempotent per skill, same as ``install_skill``. An empty list is a
+    no-op (never even creates ``.claude/``), returning ``[]``."""
+    installed: list[str] = []
+    for name in skill_names:
+        src = os.path.join(skills_root, name)
+        dst = os.path.join(repo_dir, ".claude", "skills", name)
+        if not os.path.isdir(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copytree(src, dst)
+        installed.append(dst)
+    return installed
+
+
+def build_shim_dir(bins: list[str], venv_bin: str | None = None) -> str:
+    """A fresh temp dir holding a symlink for each of ``bins`` that actually
+    exists in ``venv_bin`` (default: ``dirname(sys.executable)``, i.e. the
+    venv/interpreter's own ``bin/`` where the editable-installed
+    ``simplicio-*`` console scripts live) -- never anywhere else, so a
+    binary this arm was not granted can never be resolved through this
+    shim. A name not found in ``venv_bin`` is silently skipped (never
+    fabricates a broken symlink)."""
+    venv_bin = venv_bin or os.path.dirname(os.path.abspath(sys.executable))
+    shim_dir = tempfile.mkdtemp(prefix="llm-ab-shim-")
+    for name in bins:
+        src = os.path.join(venv_bin, name)
+        if os.path.isfile(src) or os.path.islink(src):
+            os.symlink(src, os.path.join(shim_dir, name))
+    return shim_dir
+
+
+def build_arm_path(bins: list[str], venv_bin: str | None = None) -> str:
+    """The full, REPLACEMENT ``PATH`` for one ablation arm (issue #1337):
+    a fresh shim (see ``build_shim_dir``) holding only ``bins``, followed
+    by ``SYSTEM_PATH_DIRS`` -- deliberately NOT the inherited process
+    ``PATH`` (which would still carry the venv ``bin/`` and
+    ``/usr/local/bin``, both of which also expose every ``simplicio-*``
+    binary system-wide and would defeat the isolation). Pass this as
+    ``run_opencode(..., isolated_path=...)``."""
+    shim = build_shim_dir(bins, venv_bin=venv_bin)
+    return os.pathsep.join([shim, *SYSTEM_PATH_DIRS])
+
+
 def build_env(arm: str, key: str, config_dir: str, base_env: dict | None = None,
-              extra_path: str | None = None) -> dict:
+              extra_path: str | None = None, isolated_path: str | None = None) -> dict:
     """The child process environment for one ``opencode run`` invocation.
 
     The OpenRouter key reaches OpenCode ONLY via ``OPENROUTER_API_KEY`` in
@@ -151,14 +206,26 @@ def build_env(arm: str, key: str, config_dir: str, base_env: dict | None = None,
     ``simplicio-fast``, i.e. ``dirname(sys.executable)``) is prepended to
     ``PATH`` so the simplicio arm's bash tool calls can actually invoke
     those binaries -- same convention as the retired ``agent.py``.
+
+    ``isolated_path`` (issue #1337 ablation arms), when given, REPLACES
+    ``PATH`` outright instead of prepending to the inherited one -- build it
+    with ``build_arm_path`` so an arm's PATH holds only its allowed
+    ``simplicio-*`` binaries plus the fixed system dirs, never the venv
+    ``bin/`` or ``/usr/local/bin`` (both of which expose every
+    ``simplicio-*`` binary system-wide and would defeat the isolation if
+    they were still reachable further down an inherited PATH). Takes
+    precedence over ``extra_path`` when both are given.
     """
     env = dict(base_env if base_env is not None else os.environ)
     env["OPENROUTER_API_KEY"] = key
     env["HOME"] = config_dir
     env["XDG_CONFIG_HOME"] = os.path.join(config_dir, ".config")
     env["XDG_DATA_HOME"] = os.path.join(config_dir, ".local", "share")
-    path_prefix = extra_path if extra_path is not None else os.path.dirname(os.path.abspath(sys.executable))
-    env["PATH"] = path_prefix + os.pathsep + env.get("PATH", "")
+    if isolated_path is not None:
+        env["PATH"] = isolated_path
+    else:
+        path_prefix = extra_path if extra_path is not None else os.path.dirname(os.path.abspath(sys.executable))
+        env["PATH"] = path_prefix + os.pathsep + env.get("PATH", "")
     return env
 
 
@@ -393,6 +460,7 @@ def poll_settled_usage(fetch_fn, *, reads: int = DEFAULT_SETTLE_READS,
 def run_opencode(arm: str, prompt: str, repo_dir: str, *, key: str | None = None,
                   config_dir: str, timeout: int = DEFAULT_RUN_TIMEOUT, skill: bool = False,
                   bin_path: str | None = None, extra_path: str | None = None,
+                  isolated_path: str | None = None,
                   usage_baseline: float | None = None, settle_reads: int = DEFAULT_SETTLE_READS,
                   settle_interval_s: float = DEFAULT_SETTLE_INTERVAL_S,
                   settle_max_wait_s: float = DEFAULT_SETTLE_MAX_WAIT_S, sleep=time.sleep,
@@ -437,7 +505,7 @@ def run_opencode(arm: str, prompt: str, repo_dir: str, *, key: str | None = None
         install_skill(repo_dir)
         full_prompt = build_prompt(arm, prompt)
 
-    env = build_env(arm, key, config_dir, extra_path=extra_path)
+    env = build_env(arm, key, config_dir, extra_path=extra_path, isolated_path=isolated_path)
     cmd = build_command(bin_path, repo_dir, full_prompt)
 
     out, metrics = measure.run_subprocess(cmd, cwd=repo_dir, timeout=timeout, env=env)
