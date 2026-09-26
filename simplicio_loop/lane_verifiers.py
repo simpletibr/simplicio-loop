@@ -41,6 +41,15 @@ LANE_TIMEOUT_SECONDS = 900
 # `Type:` header at all) keeps the strict default: every lane mandatory.
 _LANES_OPTIONAL_TYPES = frozenset({"docs", "chore", "config"})
 
+# Extensions with no instrumentable production source: a delivery whose applied
+# operator receipts touch ONLY files with one of these extensions has nothing a
+# coverage tool could measure. Extended only when a new extension is as
+# unambiguously non-code as these (markup/markdown/plain-data), never for a
+# language source file.
+NON_CODE_EXTENSIONS = frozenset({
+    ".html", ".htm", ".css", ".md", ".txt", ".json", ".yaml", ".yml", ".svg",
+})
+
 
 def parse_lane_verifiers(task_text: str) -> Dict[str, str]:
     """Return ``{lane: command}`` for every ``<Lane> verifier: `cmd``` line."""
@@ -104,6 +113,61 @@ def missing_or_unapplied_tasks(run_dir: Path, task_count: int) -> list[int]:
         if payload.get("execution_state") != "applied":
             missing.append(index)
     return missing
+
+
+def _changed_paths_from_applied_receipts(run_dir: Path, task_count: int) -> list[str]:
+    """Collect every DELIVERY path this run's APPLIED operator receipts touched.
+
+    Reads ``operator-receipt-<N>.json``'s ``changed_paths`` for each 1-based task
+    index whose receipt is on disk with ``execution_state == "applied"``. A task
+    with no receipt, an unreadable one, or one not applied contributes nothing --
+    callers must treat an empty result as "unknown", never as "all non-code".
+
+    ``changed_paths`` is a whole-repo git diff, not scoped to the plan's own
+    ``touched_files`` -- it always includes ``.simplicio/`` bookkeeping (Mapper
+    caches, run receipts, the ledger, ...). That is the loop's own machinery,
+    never part of the delivery being classified, so it is excluded here the
+    same way ``simplicio_loop.evidence._git_meta`` already excludes it from
+    the run-diff fingerprint.
+    """
+    paths: list[str] = []
+    for index in range(1, task_count + 1):
+        path = run_dir / f"operator-receipt-{index}.json"
+        if not path.is_file():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(payload, dict) or payload.get("execution_state") != "applied":
+            continue
+        changed = payload.get("changed_paths")
+        if isinstance(changed, list):
+            for raw in changed:
+                candidate = str(raw).strip()
+                if not candidate:
+                    continue
+                normalized = candidate.replace("\\", "/")
+                if normalized.startswith("./"):
+                    normalized = normalized[2:]
+                if normalized == ".simplicio" or normalized.startswith(".simplicio/"):
+                    continue
+                paths.append(candidate)
+    return paths
+
+
+def _delivery_is_non_code_only(run_dir: Path, task_count: int) -> bool:
+    """Whether every file this run's applied operator receipts touched is non-code.
+
+    Fail-closed: an empty result (no receipts on disk, or none recorded any
+    ``changed_paths``) is never treated as "non-code" -- the numeric coverage
+    requirement stays in force unless every touched file is positively known
+    and every one has a ``NON_CODE_EXTENSIONS`` suffix.
+    """
+    paths = _changed_paths_from_applied_receipts(run_dir, task_count)
+    if not paths:
+        return False
+    return all(Path(p).suffix.lower() in NON_CODE_EXTENSIONS for p in paths)
 
 
 async def _run_many(commands: Mapping[str, tuple[str, Path, Path]]) -> Dict[str, tuple[bool, str]]:
@@ -179,6 +243,18 @@ def build_quality_matrix(repo: Path, run_dir: Path, task_texts: Iterable[str]) -
         found = _PERCENT.findall(output)
         if ok and found:
             coverage = {"measured": float(found[-1]), "proof_ref": str(log), "command": lanes["coverage"]}
+    elif required and _delivery_is_non_code_only(run_dir, task_count):
+        # No `Coverage verifier:` declared, and every file this run's applied
+        # operator receipts touched is non-code (e.g. login.html only) -- there is
+        # no instrumentable source in the delivery, so coverage is honestly
+        # not_applicable instead of a permanent "coverage.measured is missing or
+        # not numeric" block. Any code file touched, or a declared verifier, keeps
+        # the strict numeric-threshold behaviour above/below.
+        coverage = {
+            "status": "not_applicable",
+            "measured": None,
+            "reason": "no instrumentable source in the delivery",
+        }
 
     receipt = {
         "schema": SCHEMA,
