@@ -139,35 +139,6 @@ def test_mapper_producer_requires_fresh_terminal_unlocked_handoff(monkeypatch):
     assert result["lock"] is False
 
 
-def test_fast_rust_smoke_requires_native_abi_and_never_falls_back(monkeypatch, tmp_path):
-    runner = _runner_module()
-    monkeypatch.setenv("SIMPLICIO_FAST_NATIVE", "native.exe")
-    native = tmp_path / "native.exe"
-    native.write_text("placeholder", encoding="utf-8")
-    monkeypatch.setenv("SIMPLICIO_FAST_NATIVE", str(native))
-    responses = [
-        {
-            "abi": "simplicio.fast-native/v1",
-            "ok": True,
-            "result": "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4",
-        },
-        {"abi": "simplicio.fast-native/v1", "ok": True, "result": {"add": 3, "keep": 1}},
-    ]
-    response_iter = iter(responses)
-    monkeypatch.setattr(
-        runner.subprocess,
-        "run",
-        lambda *args, **kwargs: runner.subprocess.CompletedProcess(
-            args[0], 0, runner.json.dumps(next(response_iter)), ""
-        ),
-    )
-
-    result = runner._fast_rust_scenario(tmp_path)
-
-    assert result["status"] == "PASS"
-    assert result["abi"] == "simplicio.fast-native/v1"
-
-
 def test_write_reports_keeps_json_output_machine_readable(tmp_path):
     runner = _runner_module()
     payload = {

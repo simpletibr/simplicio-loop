@@ -51,12 +51,10 @@
       "flags": [
         "--apply",
         "--current-generation",
-        "--fast-engine",
         "--help",
         "--json",
         "--mode",
         "--plan",
-        "--refresh-mapper",
         "--root",
         "-h"
       ],
@@ -150,38 +148,6 @@
       ],
       "help": "print shell-safe exports from a dotenv file without sourcing it",
       "subcommands": {}
-    },
-    "fast": {
-      "flags": [
-        "--help",
-        "-h"
-      ],
-      "help": "negotiate optional Simplicio Fast capabilities",
-      "subcommands": {
-        "capabilities": {
-          "flags": [
-            "--help",
-            "--json",
-            "--offline",
-            "--receipt",
-            "-h"
-          ],
-          "help": "report versioned schemas, languages, commands and availability",
-          "subcommands": {}
-        },
-        "doctor": {
-          "flags": [
-            "--help",
-            "--json",
-            "--offline",
-            "--receipt",
-            "--snapshot",
-            "-h"
-          ],
-          "help": "diagnose Fast installation, compatibility, parser and snapshot",
-          "subcommands": {}
-        }
-      }
     },
     "file": {
       "flags": [

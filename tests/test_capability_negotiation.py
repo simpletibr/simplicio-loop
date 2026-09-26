@@ -19,7 +19,7 @@ def doctor(status="available", evidence=True):
     return {
         "schema": "simplicio.ecosystem-doctor/v1",
         "components": [{
-            "name": "simplicio-fast", "status": status,
+            "name": "simplicio-dev-cli", "status": status,
             "reason_code": "verified" if status == "available" else status,
             "capabilities": ["edit", "validate", "safe_edit"],
             "capability_evidence": capability_evidence,
@@ -35,13 +35,13 @@ def manifests():
     parity = "sha256:" + "b" * 64
     return [
         {
-            "executor_id": "fast-python", "component": "simplicio-fast",
+            "executor_id": "dev-cli-python", "component": "simplicio-dev-cli",
             "language": "python", "capabilities": ["edit", "validate"],
             "compatibility": 100, "cost_rank": 20, "offline": True,
             "parity_status": "verified", "parity_contract_hash": parity,
         },
         {
-            "executor_id": "fast-rust", "component": "simplicio-fast",
+            "executor_id": "dev-cli-rust", "component": "simplicio-dev-cli",
             "language": "rust", "capabilities": ["edit", "validate"],
             "compatibility": 100, "cost_rank": 10, "offline": True,
             "parity_status": "verified", "parity_contract_hash": parity,
@@ -58,7 +58,7 @@ REQ = {
 def test_ranking_selects_verified_rust_deterministically():
     receipt = negotiate_stage(doctor(), manifests(), REQ)
     assert receipt["status"] == "SELECTED"
-    assert receipt["selected"]["executor_id"] == "fast-rust"
+    assert receipt["selected"]["executor_id"] == "dev-cli-rust"
     assert receipt["doctor_handshake_sha"].startswith("sha256:")
     assert receipt["execution_started"] is False
     assert receipt["model_provider_started"] is False
@@ -96,9 +96,9 @@ def test_policy_can_deny_installed_rust_and_select_python():
     receipt = negotiate_stage(
         doctor(), manifests(), REQ, policy={"denied_languages": ["rust"]}
     )
-    assert receipt["selected"]["executor_id"] == "fast-python"
+    assert receipt["selected"]["executor_id"] == "dev-cli-python"
     assert any(
-        row["executor_id"] == "fast-rust"
+        row["executor_id"] == "dev-cli-rust"
         and row["reason_code"] == "policy_denied"
         for row in receipt["unavailable"]
     )
@@ -108,9 +108,9 @@ def test_rust_without_python_parity_falls_back_to_python():
     values = manifests()
     values[1]["parity_contract_hash"] = "sha256:" + "c" * 64
     receipt = negotiate_stage(doctor(), values, REQ)
-    assert receipt["selected"]["executor_id"] == "fast-python"
+    assert receipt["selected"]["executor_id"] == "dev-cli-python"
     assert any(
-        row["executor_id"] == "fast-rust"
+        row["executor_id"] == "dev-cli-rust"
         and row["reason_code"] == "rust_python_parity_unverified"
         for row in receipt["skipped"]
     )
@@ -129,7 +129,7 @@ def test_offline_requirement_blocks_online_executor():
 
 def test_explicit_capability_fallback_is_recorded():
     values = [{
-        "executor_id": "safe-python", "component": "simplicio-fast",
+        "executor_id": "safe-python", "component": "simplicio-dev-cli",
         "language": "python", "capabilities": ["safe_edit"],
         "compatibility": 90, "cost_rank": 5, "offline": True,
         "parity_status": "verified", "parity_contract_hash": "sha256:" + "d" * 64,

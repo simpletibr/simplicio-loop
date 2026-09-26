@@ -1,7 +1,7 @@
 """Fastest + cheapest operational profile for the Simplicio stack.
 
 Goals (operator contract):
-- **Tokens:** mapper handoff first; no host bulk-read; Fast hot path.
+- **Tokens:** mapper handoff first; no host bulk-read.
 - **CPU/RAM:** bounded workers from host CPU count; leave headroom for the OS.
 - **Parallel:** Prism slots + ``SIMPLICIO_LOOP_AUTO_FAN_OUT`` (worktree lanes) + asyncio
   supervisor concurrency.
@@ -141,7 +141,7 @@ def recommend_prism_slots(cpu: Optional[int] = None) -> int:
 
     total_gb, avail_gb = _ram_gb()
     if total_gb is not None:
-        # Machine capacity from total RAM: reserve 4 GiB for OS+Runtime+Fast;
+        # Machine capacity from total RAM: reserve 4 GiB for the OS and operators;
         # ~1.0 GiB per Prism worktree/agent (isolated).
         capacity = max(0.0, float(total_gb) - 4.0)
         ram_slots = max(2, int(capacity / 1.0))
@@ -187,8 +187,6 @@ def economy_parallel_env(
         "SIMPLICIO_LOOP_AUTO_PLANNING_RECEIPT": "1",
         "SIMPLICIO_LOOP_FORBID_HAND_EDIT": "1",
         "SIMPLICIO_EXECUTION_PROFILE": "standalone",
-        # Fast hot path (mmap / understand-plan-apply)
-        "SIMPLICIO_FAST_MODE": "required",
         # Always latest packages on preflight
         "SIMPLICIO_OPERATOR_ALWAYS_LATEST": "1",
         # Parallel: worktree fan-out + worker pool + Prism width
@@ -210,17 +208,11 @@ def llm_max_speed_orientation_contract() -> dict[str, Any]:
         "schema": "simplicio.llm-max-speed-orientation/v1",
         "canonical_doc": "docs/LLM_MAX_SPEED_ORIENTATION.md",
         "skill_block": "plugin/skills/simplicio-loop/SKILL.md <!-- SIMPLICIO-LLM-ORIENTATION -->",
-        "law": "act>narrate; Mapper→Fast→dev-cli; 1-3 direct / Prism>3; lease isolation; smallest AC gate; MEASURED only",
+        "law": "act>narrate; Mapper→dev-cli; 1-3 direct / Prism>3; lease isolation; smallest AC gate; MEASURED only",
         "context_route": {
-            "primary": "simplicio-fast",
-            "fallback": "simplicio-mapper",
+            "primary": "simplicio-mapper",
             "bounded": True,
             "local_llm": False,
-        },
-        "fallback_policy": {
-            "auto": "mapper_read_only",
-            "required_fast": "blocked",
-            "explicit_rust": "blocked",
         },
         "mutation_boundary": {
             "authorized": False,
@@ -315,7 +307,6 @@ def profile_status(
             "simplicio-loop preflight --strict --json",
             "simplicio-mapper scan . --await --json",
             "simplicio-mapper handoff . --for-llm toon --await",
-            "simplicio-fast understand|plan|apply (when operational)",
             "simplicio-loop batch (AUTO_FAN_OUT worktrees) or arm_drain_prism --slots 0 --batch-size N",
             "mutate: simplicio-dev-cli edit --plan --apply (STRICT)",
         ],

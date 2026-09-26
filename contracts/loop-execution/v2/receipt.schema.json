@@ -44,10 +44,9 @@
     "phases": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["mapper", "fast", "dev_cli", "loop"],
+      "required": ["mapper", "dev_cli", "loop"],
       "properties": {
         "mapper": { "$ref": "#/$defs/phase" },
-        "fast": { "$ref": "#/$defs/phase" },
         "dev_cli": { "$ref": "#/$defs/phase" },
         "loop": { "$ref": "#/$defs/phase" }
       }

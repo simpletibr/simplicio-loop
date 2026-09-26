@@ -431,6 +431,26 @@ class MapperIndexRunning(Exception):
     reason_code = "mapper_index_running"
 
 
+class OrientBudgetExceeded(MapperIndexTimedOut):
+    """Raised when the whole ``orient``/``orient --brief`` call runs out of its
+    single shared deadline (issue #1346) -- e.g. the Mapper ``orient`` survey
+    subprocess outlived the budget left after the index step."""
+
+    reason_code = "orient_budget_exceeded"
+
+
+def _orient_deadline() -> float:
+    """One monotonic deadline for the WHOLE orient call (issue #1346)."""
+    return time.monotonic() + _orient_budget_seconds()
+
+
+def _orient_remaining(deadline: float) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise OrientBudgetExceeded("orient budget exhausted before the Mapper survey finished")
+    return remaining
+
+
 def _current_tree_state(root: Path) -> str | None:
     """A cheap, real fingerprint of "has anything changed since the last
     index" -- the committed tree id plus a hash of the working tree's own
@@ -466,12 +486,12 @@ def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
     """Guarantee the single artifact ``survey.provenance()`` (and therefore
     ``prepare``) requires as proof of a Mapper survey: `.simplicio-loop/project-map.json`.
 
-    issue #1328 bug 2: the Mapper fallback path (`_mapper_orient_fallback`)
+    issue #1328 bug 2: the Mapper orient path (`_mapper_orient_fallback`)
     happens to produce this file as a side effect of shelling out to
-    ``simplicio-mapper orient``, but a genuine Fast ``READY`` (no fallback)
-    never runs Mapper's ``orient``/``handoff`` itself and can leave a fresh
-    repo without it -- `orient` reports success and writes `survey.json`, yet
-    `prepare` then blocks on `mapper_provenance_missing`. There must be a
+    ``simplicio-mapper orient``, but an orient that reuses a survey never runs
+    Mapper's ``orient``/``handoff`` itself and can leave a fresh repo without
+    it -- `orient` reports success and writes `survey.json`, yet `prepare`
+    then blocks on `mapper_provenance_missing`. There must be a
     single definition of "surveyed"; this makes `orient` -- whichever internal
     path it took -- respect it explicitly rather than leaving it to chance.
     A failure here (binary missing, timeout, non-git dir) is intentionally
@@ -816,8 +836,8 @@ def _seal_orient_payload(
     payload["receipt"] = receipt
     return payload
 
-def _mapper_orient_fallback(root: Path, task: str) -> dict:
-    """Use Mapper's read-only orient surface when Fast is unavailable.
+def _mapper_orient_fallback(root: Path, task: str, *, timeout: float = 180) -> dict:
+    """Run Mapper's read-only orient surface for the task.
 
     The scratch task-file MUST live under ``.simplicio-loop/`` (not the repo
     root): Mapper's own signature computation hashes ``git status`` output,
@@ -842,7 +862,7 @@ def _mapper_orient_fallback(root: Path, task: str) -> dict:
         proc = subprocess.run(
             ["simplicio-mapper", "orient", str(root), "--task-file", str(task_path), "--json"],
             cwd=str(root), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, text=True, close_fds=True, timeout=180, check=False,
+            stderr=subprocess.PIPE, text=True, close_fds=True, timeout=timeout, check=False,
         )
         raw = (proc.stdout or "").strip()
         try:
@@ -852,6 +872,10 @@ def _mapper_orient_fallback(root: Path, task: str) -> dict:
         return {"status": "READY" if proc.returncode == 0 else "BLOCKED",
                 "returncode": proc.returncode, "result": result,
                 "stderr": (proc.stderr or "")[-2000:]}
+    except subprocess.TimeoutExpired as exc:
+        raise OrientBudgetExceeded(
+            f"simplicio-mapper orient exceeded the remaining orient budget ({timeout:.0f}s)"
+        ) from exc
     except (OSError, subprocess.SubprocessError) as exc:
         return {"status": "BLOCKED", "returncode": None, "reason": str(exc)}
     finally:
@@ -1156,7 +1180,7 @@ def _orient_not_a_git_repo_payload(root: Path, task: str, *,
 
 
 def _orient_core(root: Path, task: str, targets: list[str] | None,
-                  verbose: bool) -> tuple[dict[str, Any], int]:
+                  verbose: bool, *, deadline: float | None = None) -> tuple[dict[str, Any], int]:
     """Compute one task's orient payload via the Mapper survey (issue #1343:
     Fast removed, Mapper is the sole survey operator) without printing/tee --
     shared by ``orient()`` (CLI, single task) and ``orient_brief()`` (Turn 1
@@ -1180,8 +1204,9 @@ def _orient_core(root: Path, task: str, targets: list[str] | None,
     # now-changed tree sees a different candidate set -- breaking the
     # same-tree determinism `orient --brief` promises. May raise
     # ``MapperIndexTimedOut``/``MapperIndexRunning``; callers handle those.
-    _ensure_project_map(root, budget=_orient_budget_seconds())
-    mapper = _mapper_orient_fallback(root, str(task))
+    deadline = _orient_deadline() if deadline is None else deadline
+    _ensure_project_map(root, budget=_orient_remaining(deadline))
+    mapper = _mapper_orient_fallback(root, str(task), timeout=_orient_remaining(deadline))
     status = "READY" if mapper.get("status") == "READY" else "BLOCKED"
     payload = {"schema": ORIENT_SCHEMA, "status": status,
                       "provider": "simplicio-mapper", "fallback": False,
@@ -1522,9 +1547,10 @@ def _orient_brief_impl(root: Path, tasks: list[str], *,
         }
 
     per_task: list[dict[str, Any]] = []
+    deadline = _orient_deadline()
     for task in task_list:
         try:
-            payload, code = _orient_core(root, task, targets, verbose=True)
+            payload, code = _orient_core(root, task, targets, verbose=True, deadline=deadline)
         except (MapperIndexTimedOut, MapperIndexRunning) as exc:
             blocked = _mapper_index_budget_payload(ORIENT_BRIEF_SCHEMA, exc, root)
             blocked["tasks"] = task_list
@@ -1759,11 +1785,10 @@ def economy_command(args) -> int:
 
 
 def preflight(repo: str, as_json: bool = False, *, strict: bool = False) -> int:
-    """Verify the bound operators (mapper, dev-cli) and report Fast availability.
+    """Verify the bound operators (mapper, dev-cli).
 
-    Under ``--strict`` / ``SIMPLICIO_LOOP_STRICT=1``:
-    - Fast is required when operational
-    - hand-edit is reported as forbidden
+    Under ``--strict`` / ``SIMPLICIO_LOOP_STRICT=1`` hand-edit is reported as
+    forbidden.
 
     Returns exit 0 when all *required* operators are present, 1 otherwise.
     """
@@ -2224,7 +2249,7 @@ def checkpoint_lifecycle(args) -> int:
         task_id=args.task_id,
         attempt_id=args.attempt_id,
         source_commit=args.source_commit,
-        fast_generation=args.fast_generation,
+        mapper_generation=args.mapper_generation,
         base_path=args.base_path or root,
     )
     try:
@@ -2879,15 +2904,14 @@ def main(argv=None) -> int:
     configure_map_commands(map_sub)
 
     p_preflight = sub.add_parser(
-        "preflight", help="verify bound operators (mapper/dev-cli/fast) are installed")
+        "preflight", help="verify bound operators (mapper/dev-cli) are installed")
     p_preflight.add_argument("--repo", default=".", help="repository root")
     p_preflight.add_argument("--json", action="store_true",
                              help="emit machine-readable JSON (default: human-readable text)")
     p_preflight.add_argument(
         "--strict",
         action="store_true",
-        help="arm SIMPLICIO_LOOP_STRICT: require operational Fast when present, "
-             "forbid hand-edit, lock evidence/mutation authority",
+        help="arm SIMPLICIO_LOOP_STRICT: forbid hand-edit, lock evidence/mutation authority",
     )
 
     p_economy = sub.add_parser(
@@ -3011,13 +3035,13 @@ def main(argv=None) -> int:
     p_cancel.add_argument("run_id", help="run id to cancel")
 
     p_checkpoint = sub.add_parser(
-        "checkpoint", help="inspect, cancel, or garbage-collect Fast V3 checkpoints")
+        "checkpoint", help="inspect, cancel, or garbage-collect candidate checkpoints")
     p_checkpoint.add_argument("lifecycle_action", choices=("inspect", "cancel", "gc"))
     p_checkpoint.add_argument("--repo", default=".")
     p_checkpoint.add_argument("--task-id", required=True)
     p_checkpoint.add_argument("--attempt-id", required=True)
     p_checkpoint.add_argument("--source-commit", required=True)
-    p_checkpoint.add_argument("--fast-generation", required=True)
+    p_checkpoint.add_argument("--mapper-generation", required=True)
     p_checkpoint.add_argument("--base-path", default="")
     p_checkpoint.add_argument("--candidate-id", action="append", default=[])
     p_checkpoint.add_argument("--shard-id", default="candidate")

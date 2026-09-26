@@ -65,7 +65,7 @@ def test_records_have_stable_provenance_and_precedents_remain_candidates(tmp_pat
     assert record["consent"] == {"scope": "repo"}
     reader = store.read_only()
     assert reader.read_record(first["stable_id"])["provenance"]["generation"] == "gen-1"
-    assert set(reader.capabilities()["readers"]) == {"runtime", "fast", "loop", "mcp"}
+    assert set(reader.capabilities()["readers"]) == {"runtime", "loop", "mcp"}
     precedent = store.record_precedent(
         {"rule": "prefer small changes"}, applicability_evidence={"tests": ["test_one"]}
     )

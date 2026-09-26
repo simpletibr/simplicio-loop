@@ -103,13 +103,6 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "schemas": ("simplicio.task-contract/v1", "simplicio.dev-cli-event/v1"),
         "entrypoint_names": ("simplicio-dev-cli",),
     },
-    "simplicio-fast": {
-        "distribution": "simplicio-fast", "command": "simplicio-fast",
-        "version_args": ("--version",), "help_args": ("--help",),
-        "capabilities": ("build", "understand", "plan", "apply", "doctor"),
-        "schemas": ("simplicio.fast.integration-status/v1",),
-        "entrypoint_names": ("simplicio-fast",),
-    },
     "simplicio-runtime": {
         "distribution": "simplicio-runtime", "command": "simplicio",
         "version_args": ("--version",), "help_args": ("--help",),
@@ -129,8 +122,6 @@ PROFILES: dict[str, dict[str, dict[str, Any]]] = {
                               "capabilities": ("orient", "recall")},
         "simplicio-dev-cli": {"min_version": "0.18.6", "required": True,
                                "capabilities": ("execute", "validate")},
-        "simplicio-fast": {"min_version": "2.0.22", "required": True,
-                            "capabilities": ("understand", "plan")},
         "simplicio-runtime": {"min_version": "3.5.0", "required": False,
                                "capabilities": ("contracts",)},
     },
@@ -141,8 +132,6 @@ PROFILES: dict[str, dict[str, dict[str, Any]]] = {
                               "capabilities": ("orient", "recall")},
         "simplicio-dev-cli": {"min_version": "0.18.6", "required": True,
                                "capabilities": ("execute", "validate")},
-        "simplicio-fast": {"min_version": "2.0.22", "required": True,
-                            "capabilities": ("understand", "plan", "apply")},
         "simplicio-runtime": {"min_version": "3.5.0", "required": True,
                                "capabilities": ("execute", "contracts")},
     },
@@ -215,7 +204,7 @@ def _component_sha(component: str, root: Path, submodules: Mapping[str, str],
     """Return an evidence-backed component SHA and its source.
 
     The Loop checkout SHA must never be copied onto an independently installed
-    mapper/CLI/Fast/runtime package.  Only a matching submodule or a git checkout
+    mapper/CLI/runtime package.  Only a matching submodule or a git checkout
     rooted at the component's path is accepted; wheels report ``unavailable``.
     """
     if component == "simplicio-loop":
@@ -452,9 +441,6 @@ def build_report(repo: str | Path = ".", *, profile: str = "standalone",
     status = "BLOCKED" if blockers else ("DEGRADED" if degraded else "READY")
     optional = [item["name"] for item in components if not item["required"]]
     fallbacks = []
-    if "simplicio-fast" in optional and next(item for item in components if item["name"] == "simplicio-fast")["status"] != STATUS_AVAILABLE:
-        fallbacks.append({"feature": "context_acceleration", "provider": "simplicio-mapper",
-                          "when": "simplicio-fast unavailable or incompatible"})
     if "simplicio-runtime" in optional and next(item for item in components if item["name"] == "simplicio-runtime")["status"] != STATUS_AVAILABLE:
         fallbacks.append({"feature": "runtime_integration", "provider": "local_loop",
                           "when": "simplicio-runtime unavailable or incompatible"})

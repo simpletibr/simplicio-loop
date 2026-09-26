@@ -2287,8 +2287,6 @@ def _is_loop_owned_status_path(path: str) -> bool:
     return (
         normalized.startswith(".simplicio-loop/orchestrator/")
         or normalized.startswith(".simplicio-loop/")
-        or normalized == ".simplicio-fast"
-        or normalized.startswith(".simplicio-fast/")
         or normalized.startswith(".claude/")
         or _is_loop_generated_path(normalized)
     )
@@ -2335,7 +2333,7 @@ def _repo_fingerprint(repo_path: Path, *, ignore_paths: Set[str] | None = None) 
             relative_root = ""
         dirs[:] = [
             d for d in dirs
-            if d not in {".git", ".simplicio-loop/orchestrator", ".simplicio-loop", ".simplicio-fast", "__pycache__"}
+            if d not in {".git", ".simplicio-loop/orchestrator", ".simplicio-loop", "__pycache__"}
             and not _is_loop_generated_path(
                 f"{relative_root}/{d}" if relative_root else d
             )
@@ -5454,7 +5452,14 @@ def _capture_operator_checkpoint(run_dir: Path, repo_path: Path, targets: List[s
 
 def _restore_operator_checkpoint(checkpoint: Dict[str, Any], repo_path: Path, changed_paths: List[str]) -> Dict[str, Any]:
     targets = sorted(set(str(path) for path in (checkpoint.get("safe_targets") or []) if str(path)))
-    changed = sorted(set(str(path) for path in (changed_paths or []) if str(path)))
+    dirty_before = set(str(path) for path in (checkpoint.get("dirty_before") or []))
+    # Only this attempt's own source edits matter: verifier caches (__pycache__,
+    # .pytest_cache) and non-target paths already dirty before it are not in scope.
+    changed = sorted(set(
+        str(path) for path in (changed_paths or [])
+        if str(path) and not _is_tool_cache_path(str(path))
+        and (str(path) in targets or str(path) not in dirty_before)
+    ))
     snapshots = {item["path"]: item for item in (checkpoint.get("files") or []) if isinstance(item, dict) and item.get("path")}
     if not changed:
         for rel in targets:
@@ -6006,6 +6011,7 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         "--plan", str(mechanical_path), "--apply", "--json",
     )
     checkpoint = _capture_operator_checkpoint(run_dir, repo_path, targets or [target])
+    checkpoint["dirty_before"] = _changed_paths(repo_path)
     # #285 remaining gap: this dispatch has a real guarded lease (when the caller wired
     # one) and a real repo checkout/branch on hand -- surface them on the event so
     # `_sync_github_lifecycle()` projects the actual lease/fencing token and branch onto
@@ -6079,6 +6085,13 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     hookwall_reason = str(
         effect_outcome.get("hookwall_reason") or hookwall_gate_reason
     )
+    devcli_returncode = returncode
+    verification_failed = returncode == 0 and not uncertain and _devcli_verification_failed(stdout)
+    if verification_failed:
+        # #1346: dev-cli exits 0 with ``applied`` even when its own nested
+        # verification failed. Treat it as a failed, retryable attempt so the
+        # changes roll back and a corrected edit-plan can be re-applied.
+        returncode = 1
     after = _repo_fingerprint(repo_path)
     changed = _changed_paths(repo_path)
     rollback = {"attempted": False, "restored": False, "reason": "not_needed"}
@@ -6115,6 +6128,8 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         "goal": _task_goal(task),
         "argv": argv,
         "returncode": returncode,
+        "devcli_returncode": devcli_returncode,
+        "reason_code": "verification_failed" if verification_failed else "",
         "stdout": stdout,
         "stderr": stderr,
         "timed_out": returncode is None,
@@ -6237,6 +6252,23 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
             "evidence_receipt": str(run_dir / "evidence-receipt.json"),
         })
     return read_status(repo, run_id)
+
+
+def _devcli_verification_failed(stdout: Any) -> bool:
+    """True when dev-cli's JSON reports a failed nested verification (#1346)."""
+    payload: Any = stdout
+    if isinstance(stdout, str):
+        try:
+            payload = json.loads(stdout)
+        except ValueError:
+            return False
+    if not isinstance(payload, Mapping):
+        return False
+    receipt = payload.get("mutation_receipt")
+    verification = receipt.get("verification") if isinstance(receipt, Mapping) else None
+    if not isinstance(verification, Mapping):
+        verification = payload.get("verify")
+    return isinstance(verification, Mapping) and str(verification.get("status") or "") in {"failed", "timeout"}
 
 
 def _raise_if_maintenance_deferred(repo: str, run_id: str,
@@ -9711,18 +9743,16 @@ def execute_operator_batch(
                 text=True, timeout=15, check=False, env=_subprocess_env(),
             )
             source_commit = (head.stdout or "").strip() or "unavailable"
-        fast_state = status["state"].get("fast") or {}
-        fast_generation = str(
-            fast_state.get("generation")
-            or (status["state"].get("mapper") or {}).get("generation")
-            or "mapper-fallback"
+        mapper_generation = str(
+            (status["state"].get("mapper") or {}).get("generation")
+            or "mapper-unpinned"
         )
         lifecycle = CheckpointLifecycle(
             repo_root / ".simplicio-loop" / "loop-runs",
             task_id=run_id,
             attempt_id=f"batch-{int((status['state'] or {}).get('attempts', 0)) + 1}",
             source_commit=source_commit,
-            fast_generation=fast_generation,
+            mapper_generation=mapper_generation,
             base_path=repo_root,
         )
         workers = list(result.get("workers") or [])

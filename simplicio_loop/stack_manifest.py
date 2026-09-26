@@ -1,4 +1,4 @@
-"""Single installed-stack manifest for Mapper, Fast, Dev CLI and Loop.
+"""Single installed-stack manifest for Mapper, Dev CLI and Loop.
 
 Release-train floors (#558) are derived from this package's ``pyproject.toml``
 lower bounds when available so stack health does not drift from dependency pins.
@@ -20,11 +20,10 @@ from typing import Any
 STACK_SCHEMA = "simplicio.loop-stack/v1"
 
 # Role labels are fixed; expected floors come from pyproject (see _train_components).
-# Issue #1284: public stack is mapper + fast + cli + loop. simplicio-prompt is
-# not a required component and must not appear here.
+# Issue #1343: public stack is mapper + cli + loop (Fast removed). simplicio-prompt
+# is not a required component and must not appear here.
 _COMPONENT_ROLES = (
     ("simplicio-mapper", "understand"),
-    ("simplicio-fast", "search"),
     ("simplicio-cli", "change,verify"),
     ("simplicio-loop", "run"),
 )
@@ -34,7 +33,6 @@ _COMPONENT_ROLES = (
 # probe reads simplicio.capabilities.load_capabilities_manifest()).
 _FALLBACK_FLOORS = {
     "simplicio-mapper": "0.26.34",
-    "simplicio-fast": "2.0.35",
     "simplicio-cli": "0.18.16",
     "simplicio-loop": "3.43.16",
 }

@@ -15,7 +15,7 @@ def _probe(monkeypatch, *, component="simplicio-mapper", version="0.26.11",
     monkeypatch.setattr(doctor, "_distribution", lambda _: _fake_dist(version, installed))
     monkeypatch.setattr(doctor.shutil, "which", lambda _: executable)
     monkeypatch.setattr(doctor, "_git_sha", lambda _: "a" * 40)
-    monkeypatch.setattr(doctor, "_submodule_shas", lambda _: {"vendor/fast": "b" * 40})
+    monkeypatch.setattr(doctor, "_submodule_shas", lambda _: {"vendor/mapper": "b" * 40})
     monkeypatch.setattr(doctor, "_run", lambda *args, **kwargs: type(
         "Result", (), {"returncode": 0, "stdout": help_text, "stderr": ""})())
     return doctor._probe_component(component, doctor.COMPONENTS[component], Path("."),
@@ -27,7 +27,7 @@ def test_probe_reports_available_with_identity_version_capabilities_and_shas(mon
     assert row["status"] == doctor.STATUS_AVAILABLE
     assert row["git_sha"] is None
     assert row["sha_source"] == "unavailable"
-    assert row["submodule_shas"]["vendor/fast"] == "b" * 40
+    assert row["submodule_shas"]["vendor/mapper"] == "b" * 40
     assert row["entrypoints"] == ["fake-entry"]
     assert "simplicio.context-snapshot/v1" in row["supported_schemas"]
 
@@ -101,28 +101,28 @@ def test_loop_sha_is_only_reported_for_the_loop_checkout(monkeypatch, tmp_path):
 def test_probe_distinguishes_missing_incompatible_disabled_and_degraded(monkeypatch, tmp_path):
     monkeypatch.setattr(doctor, "_distribution", lambda _: _fake_dist(installed=False))
     monkeypatch.setattr(doctor.shutil, "which", lambda _: None)
-    missing = doctor._probe_component("simplicio-fast", doctor.COMPONENTS["simplicio-fast"],
-                                      tmp_path, doctor.PROFILES["standalone"]["simplicio-fast"])
+    missing = doctor._probe_component("simplicio-mapper", doctor.COMPONENTS["simplicio-mapper"],
+                                      tmp_path, doctor.PROFILES["standalone"]["simplicio-mapper"])
     assert missing["status"] == doctor.STATUS_MISSING
-    assert "install simplicio-fast" in missing["remediation"]
+    assert "install simplicio-mapper" in missing["remediation"]
 
-    incompatible = _probe(monkeypatch, component="simplicio-fast", version="1.0.0",
-                          help_text="build understand plan apply doctor")
+    incompatible = _probe(monkeypatch, component="simplicio-mapper", version="0.1.0",
+                          help_text="orient recall")
     assert incompatible["status"] == doctor.STATUS_INCOMPATIBLE
     assert "no automatic upgrade" in incompatible["remediation"]
 
-    disabled = doctor._probe_component("simplicio-fast", doctor.COMPONENTS["simplicio-fast"],
-                                       tmp_path, doctor.PROFILES["standalone"]["simplicio-fast"],
-                                       disabled=["simplicio-fast"])
+    disabled = doctor._probe_component("simplicio-mapper", doctor.COMPONENTS["simplicio-mapper"],
+                                       tmp_path, doctor.PROFILES["standalone"]["simplicio-mapper"],
+                                       disabled=["simplicio-mapper"])
     assert disabled["status"] == doctor.STATUS_DISABLED
     assert disabled["reason_code"] == "disabled"
 
     # Metadata meets the floor, but the console entrypoint is missing → degraded.
-    min_fast = doctor.PROFILES["standalone"]["simplicio-fast"]["min_version"]
-    monkeypatch.setattr(doctor, "_distribution", lambda _: _fake_dist(min_fast, installed=True))
+    min_mapper = doctor.PROFILES["standalone"]["simplicio-mapper"]["min_version"]
+    monkeypatch.setattr(doctor, "_distribution", lambda _: _fake_dist(min_mapper, installed=True))
     monkeypatch.setattr(doctor.shutil, "which", lambda _: None)
-    degraded = doctor._probe_component("simplicio-fast", doctor.COMPONENTS["simplicio-fast"],
-                                       tmp_path, doctor.PROFILES["standalone"]["simplicio-fast"])
+    degraded = doctor._probe_component("simplicio-mapper", doctor.COMPONENTS["simplicio-mapper"],
+                                       tmp_path, doctor.PROFILES["standalone"]["simplicio-mapper"])
     assert degraded["status"] == doctor.STATUS_DEGRADED
     assert degraded["reason_code"] == "distribution_installed_but_entrypoint_missing"
 
@@ -151,16 +151,16 @@ def test_build_report_persists_preplanning_handshake_and_no_secrets(monkeypatch,
 
 def test_full_stack_profile_fails_closed_on_required_component(monkeypatch, tmp_path):
     def probe(name, spec, root, policy, **kwargs):
-        return {"name": name, "status": doctor.STATUS_INCOMPATIBLE if name == "simplicio-fast" else doctor.STATUS_AVAILABLE,
+        return {"name": name, "status": doctor.STATUS_INCOMPATIBLE if name == "simplicio-dev-cli" else doctor.STATUS_AVAILABLE,
                 "required": policy["required"], "version": "0.0.0", "minimum_version": policy["min_version"],
-                "capabilities": [], "missing_capabilities": ["apply"] if name == "simplicio-fast" else [],
+                "capabilities": [], "missing_capabilities": ["execute"] if name == "simplicio-dev-cli" else [],
                 "git_sha": None, "submodule_shas": {}, "supported_schemas": [], "entrypoints": [],
-                "remediation": "upgrade simplicio-fast"}
+                "remediation": "upgrade simplicio-cli"}
     monkeypatch.setattr(doctor, "_probe_component", probe)
     report = doctor.build_report(tmp_path, profile="full-stack", persist=False)
     assert report["ready"] is False
     assert report["status"] == "BLOCKED"
-    assert report["blockers"] == ["simplicio-fast"]
+    assert report["blockers"] == ["simplicio-dev-cli"]
     assert report["handshake"]["written"] is False
 
 
@@ -230,3 +230,9 @@ def test_wheel_fallback_persists_without_checkout_scripts(monkeypatch, tmp_path)
     target = tmp_path / "journal" / "journal.jsonl"
     assert doctor._append_journal_line(target, '{"schema":"test/v1"}') is True
     assert json.loads(target.read_text()) == {"schema": "test/v1"}
+
+
+def test_no_fast_component_or_profile_entry():
+    assert "simplicio-fast" not in doctor.COMPONENTS
+    for profile in doctor.PROFILES.values():
+        assert "simplicio-fast" not in profile

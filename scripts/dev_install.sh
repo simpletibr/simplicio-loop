@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Development workspace bootstrap for the monorepo (mapper + dev-cli + loop;
-# issue #1343 removed simplicio-fast from the stack entirely).
+# issue #1343 removed the Fast operator from the stack entirely).
 #
 # Creates ONE venv and installs the three in-repo packages editable, from
 # their in-repo paths, in dependency order (mapper, dev-cli, then loop) --

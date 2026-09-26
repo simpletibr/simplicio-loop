@@ -724,8 +724,6 @@ def capabilities_report(
     coordinator_kind: str | None = None,
     coordinator_id: str | None = None,
 ) -> dict[str, Any]:
-    from .fast_contracts import fast_preflight
-
     try:
         prepared = prepare_execution_inputs(
             mode,
@@ -768,7 +766,6 @@ def capabilities_report(
         and profile.runtime.get("capability_available")
         and profile.sink.get("production")
     )
-    fast = fast_preflight(offline=True).to_dict()
     return {
         "schema": "simplicio.dev-cli.execution-capabilities/v1",
         "execution_profile": profile.to_dict(),
@@ -788,11 +785,6 @@ def capabilities_report(
             "runtime_ready": {
                 "ready": runtime_ready,
                 "reason": "ready" if runtime_ready else profile.runtime.get("reason") or "runtime-not-ready",
-            },
-            "fast_ready": {
-                "ready": fast.get("status") == "ready",
-                "reason": fast.get("reason") or fast.get("status"),
-                "version": fast.get("fast_version"),
             },
         },
     }

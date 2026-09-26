@@ -52,7 +52,6 @@ class _CliShimTestCase(TestCase):
             "simplicio-mapper": "simplicio-mapper 0.23.1",
             "simplicio-dev-cli": "simplicio-dev-cli 0.16.1",
             "simplicio-py": "simplicio-py 0.16.1",
-            "simplicio-fast": "simplicio-fast 2.0.22",
         }
         for name, version in versions.items():
             if os.name == "nt":
@@ -131,7 +130,6 @@ class DirectCallCoverageTest(TestCase):
             "simplicio-mapper": "simplicio-mapper 0.23.1",
             "simplicio-dev-cli": "simplicio-dev-cli 0.16.1",
             "simplicio-py": "simplicio-py 0.16.1",
-            "simplicio-fast": "simplicio-fast 2.0.16",
         }
         return subprocess.CompletedProcess(command, 0, stdout=names[command[0]] + "\n", stderr="")
 
@@ -157,9 +155,9 @@ class DirectCallCoverageTest(TestCase):
         self.assertEqual(doc["schema"], "simplicio.preflight/v1")
 
     def test_preflight_direct_call_missing_core_operator_blocks(self):
-        """mapper/dev-cli/fast presence is now an in-process metadata/manifest
-        read (``strict_mode.mapper_status`` / ``action_operator_status`` /
-        ``fast_status``), not a ``--version`` subprocess probe -- see
+        """mapper/dev-cli presence is now an in-process metadata/manifest
+        read (``strict_mode.mapper_status`` / ``action_operator_status``),
+        not a ``--version`` subprocess probe -- see
         ``strict_mode._metadata_status`` and ``action_operator_status``
         docstrings. Simulate a missing mapper at that layer instead of
         mocking ``subprocess.run``, which no longer sits on this path.

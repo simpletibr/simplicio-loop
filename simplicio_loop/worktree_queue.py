@@ -506,7 +506,7 @@ class WorktreeQueue:
     def record_generation_binding(
         self, task_id: str, binding: Mapping[str, Any]
     ) -> Dict[str, Any]:
-        """Persist the canonical Mapper/Fast pin handed to one worker.
+        """Persist the canonical Mapper pin handed to one worker.
 
         The queue does not build or promote generations.  It records the
         already-verified binding so a later merge candidate proves which
@@ -522,10 +522,8 @@ class WorktreeQueue:
             raise ValueError("generation binding candidate mismatch")
         if not str(payload.get("canonical_cache_key") or ""):
             raise ValueError("generation binding canonical cache key is required")
-        if not str(payload.get("mapper_generation") or "") or not str(
-            payload.get("fast_generation") or ""
-        ):
-            raise ValueError("generation binding generations are required")
+        if not str(payload.get("mapper_generation") or ""):
+            raise ValueError("generation binding mapper generation is required")
         if not str(payload.get("receipt_hash") or ""):
             raise ValueError("generation binding receipt hash is required")
         with self._lock():
@@ -563,7 +561,6 @@ class WorktreeQueue:
                 candidate["generation_binding"] = {
                     "schema": binding.get("schema"),
                     "mapper_generation": binding.get("mapper_generation"),
-                    "fast_generation": binding.get("fast_generation"),
                     "canonical_cache_key": binding.get("canonical_cache_key"),
                     "overlay_path": binding.get("overlay_path"),
                     "receipt_hash": binding.get("receipt_hash"),

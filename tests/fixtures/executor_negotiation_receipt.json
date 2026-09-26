@@ -10,7 +10,7 @@
   },
   "model_provider_started": false,
   "reason_code": null,
-  "receipt_hash": "sha256:7595382409f9cfc040a0c0f65c10019ed720bcc45cd64a2c7585ec70c1dbf33d",
+  "receipt_hash": "sha256:b6bc9c414ba1f78a66646e5fefddbf163e240b7823024203d0e4f2aa762e2e50",
   "required_capabilities": ["edit", "validate"],
   "schema": "simplicio.executor-negotiation-receipt/v1",
   "selected": {
@@ -26,11 +26,11 @@
       }
     },
     "compatibility": 100,
-    "component": "simplicio-fast",
+    "component": "simplicio-dev-cli",
     "cost_rank": 10,
     "doctor_reason_code": "verified",
     "doctor_status": "available",
-    "executor_id": "fast-rust",
+    "executor_id": "dev-cli-rust",
     "language": "rust",
     "offline": true,
     "parity_contract_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -39,7 +39,7 @@
   },
   "skipped": [
     {
-      "executor_id": "fast-python",
+      "executor_id": "dev-cli-python",
       "option": 0,
       "reason_code": "ranked_lower",
       "status": "skipped"

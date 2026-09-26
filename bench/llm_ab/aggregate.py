@@ -94,7 +94,7 @@ def diff_history(current: dict, previous: dict) -> dict:
 
     Missing data on either side (an arm absent from ``previous``, or an
     older results file that used different arm names entirely -- e.g. the
-    pre-agent-loop ``simplicio-files``/``simplicio-fast`` split) yields
+    pre-agent-loop ``simplicio-files`` arm names) yields
     ``None`` for that arm rather than a fabricated number or a raised
     exception.
     """

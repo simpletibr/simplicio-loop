@@ -165,13 +165,3 @@ def test_handoff_persists_mapper_receipts_and_reports_context_cache_hit_separate
     assert second["cache"]["pack_cache_receipt"]["consumed"] is True
     assert second["cache"]["pack_diagnostics"]["present"] is True
     assert second["cache"]["pack_diagnostics"]["layer"] == "rendered-pack"
-
-    fast_code, fast = _json_cli(["fast-handoff", str(tmp_path), "--changed-path", "src/checkers.js"])
-    assert fast_code == 0
-    assert fast["handoff"]["schema"] == "simplicio.mapper-fast-handoff/v1"
-    assert fast["receipt"]["schema"] == "simplicio.mapper-fast-handoff-receipt/v1"
-    assert fast["receipt"]["status"] in {"parsed", "reused"}
-    fast_receipt_path = tmp_path / ".simplicio-loop" / "fast-handoff-receipt.json"
-    assert fast_receipt_path.is_file()
-    persisted_fast_receipt = json.loads(fast_receipt_path.read_text(encoding="utf-8"))
-    assert persisted_fast_receipt["handoff_sha256"] == fast["receipt"]["handoff_sha256"]

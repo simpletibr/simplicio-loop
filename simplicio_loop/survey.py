@@ -1,5 +1,5 @@
 """Mapper survey provenance shared by every mutating flow (issue #1318;
-issue #1343 removed simplicio-fast from the stack entirely -- Mapper is now
+issue #1343 removed the Fast operator from the stack entirely -- Mapper is now
 the sole survey operator).
 
 `orient` (plain and `--brief`) records which Mapper generation it produced

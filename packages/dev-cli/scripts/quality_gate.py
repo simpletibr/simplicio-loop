@@ -161,11 +161,6 @@ def _external_lane_matrix(root: Path, commit_sha: str | None) -> tuple[dict[str,
             "value": None,
             "reason": "runtime_backed_E2E_requires_a_compatible_installed_capability",
         },
-        "fast": {
-            "status": "UNVERIFIED",
-            "value": None,
-            "reason": "Fast_Rust_Python_external_lanes_require_installed_producer_artifacts",
-        },
     }
     report_value = os.environ.get(EXTERNAL_E2E_REPORT_ENV, "").strip()
     if not report_value:
@@ -201,7 +196,6 @@ def _external_lane_matrix(root: Path, commit_sha: str | None) -> tuple[dict[str,
     mapping = {
         "windows": "windows_locked_file",
         "runtime": "runtime_backed",
-        "fast": "fast_rust",
     }
     for lane_name, scenario_name in mapping.items():
         row = scenarios.get(scenario_name)
@@ -334,7 +328,7 @@ def run_gate(
     if platform.system() != "Windows":
         limitations.append("windows_lane_not_run_on_non_windows_host")
     else:
-        limitations.append("runtime_and_fast_external_lanes_require_installed_capabilities")
+        limitations.append("runtime_external_lane_requires_installed_capabilities")
     wheel_sha256 = None
     for step in steps:
         if step["name"] == "wheel-and-installed-smoke" and step["exit_code"] == 0:

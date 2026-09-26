@@ -311,7 +311,7 @@ def _repo_env(base: Optional[Dict[str, str]] = None, home: Optional[str] = None)
         "PYTHONDONTWRITEBYTECODE": "1",
     })
     # #1290: two independent reasons a gate subprocess can lose the loop's REQUIRED bound
-    # operators (simplicio-mapper, transitively simplicio-cli/-fast) even though THIS process
+    # operators (simplicio-mapper, transitively simplicio-cli) even though THIS process
     # imports them fine, surfacing as a spurious `QueueUnavailable: MapperStore operations API
     # is not installed` -- not an environment problem to chase per-test:
     #   1. `_pytest_command()` may resolve a standalone `pytest` off PATH that is itself a

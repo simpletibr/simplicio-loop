@@ -208,13 +208,13 @@ def compile_plan(
     nodes: Sequence[Mapping[str, Any]],
     context_snapshot_id: str,
     context_hash: str,
-    fast_generation: str,
+    mapper_generation: str,
     evidence_refs: Sequence[str],
     revision: int = 1,
     history: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     normalized_intent = _normalize_intent(intent)
-    if not context_snapshot_id or not context_hash or not fast_generation:
+    if not context_snapshot_id or not context_hash or not mapper_generation:
         raise PlanError("pinned_context_missing")
     if not evidence_refs:
         raise PlanError("planning_evidence_missing")
@@ -251,7 +251,7 @@ def compile_plan(
         "intent": normalized_intent,
         "context_snapshot_id": str(context_snapshot_id),
         "context_hash": str(context_hash),
-        "fast_generation": str(fast_generation),
+        "mapper_generation": str(mapper_generation),
         "evidence_refs": _strings(evidence_refs),
         "nodes": [by_id[node_id] for node_id in sorted(by_id)],
         "topological_order": ordered,
@@ -280,7 +280,7 @@ def detect_drift(
         for node_id, node in nodes.items()
         if changed.intersection(node["context_refs"])
     }
-    if current_generation != plan["fast_generation"]:
+    if current_generation != plan["mapper_generation"]:
         direct.update(
             node_id
             for node_id, node in nodes.items()
@@ -289,7 +289,7 @@ def detect_drift(
     reason = None
     if current_context_hash != plan["context_hash"] or direct:
         reason = "observable_context_drift"
-    if current_generation != plan["fast_generation"]:
+    if current_generation != plan["mapper_generation"]:
         reason = "observable_generation_drift"
     invalidated = set(direct)
     progressed = True
@@ -334,7 +334,7 @@ def replan(
         nodes=replacement_nodes,
         context_snapshot_id=previous["context_snapshot_id"],
         context_hash=current_context_hash,
-        fast_generation=current_generation,
+        mapper_generation=current_generation,
         evidence_refs=previous["evidence_refs"],
         revision=int(previous["revision"]) + 1,
         history=history,

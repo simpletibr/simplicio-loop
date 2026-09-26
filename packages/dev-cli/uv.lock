@@ -2431,9 +2431,6 @@ dev = [
     { name = "ruff" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
-fast = [
-    { name = "simplicio-fast", marker = "python_full_version >= '3.11'" },
-]
 ml = [
     { name = "sentence-transformers" },
 ]
@@ -2465,22 +2462,12 @@ requires-dist = [
     { name = "simplicio-cli", extras = ["ml"], marker = "extra == 'all'" },
     { name = "simplicio-cli", extras = ["performance"], marker = "extra == 'all'" },
     { name = "simplicio-cli", extras = ["test"], marker = "extra == 'dev'" },
-    { name = "simplicio-fast", marker = "python_full_version >= '3.11' and extra == 'fast'", specifier = ">=2.0.28,<3" },
     { name = "simplicio-mapper", specifier = ">=0.26.31,<0.27" },
     { name = "tiktoken", specifier = ">=0.12.0,<1" },
     { name = "tomli", marker = "python_full_version < '3.11' and extra == 'test'", specifier = ">=2.0.1" },
     { name = "uvloop", marker = "sys_platform != 'win32' and extra == 'performance'", specifier = ">=0.21.0" },
 ]
-provides-extras = ["ml", "bench", "fast", "performance", "all", "test", "dev"]
-
-[[package]]
-name = "simplicio-fast"
-version = "2.0.33"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/00/7a/323a5f0352bd8b7da1c063c52c90f24ad982213baabe836e0c18d83e411e/simplicio_fast-2.0.33.tar.gz", hash = "sha256:da96fee14dfd86d415607b06a49be5d702c0ebe1217c235405986592ec0e1fb2", size = 486177, upload-time = "2026-09-12T14:14:11.463Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c4/e3/73f54066fb1e1e8f5ffa8f6aeabb9f780bf9e83b99edf6949eeefc762dc6/simplicio_fast-2.0.33-py3-none-any.whl", hash = "sha256:61f2d3bf7318806b1f98d7274e7de3410b029087ac1f2a397bae895b44b65382", size = 349006, upload-time = "2026-09-12T14:14:10.047Z" },
-]
+provides-extras = ["ml", "bench", "performance", "all", "test", "dev"]
 
 [[package]]
 name = "simplicio-mapper"

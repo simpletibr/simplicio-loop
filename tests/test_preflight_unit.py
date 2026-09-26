@@ -10,8 +10,9 @@ def test_version_parser_fails_closed_for_unknown_and_accepts_patch():
     assert preflight._version("runtime 3.5") == (3, 5, 0)
 
 
-def test_fast_floor_matches_current_validated_release():
-    assert preflight.FAST_MINIMUM == (2, 0, 14)
+def test_preflight_has_no_fast_floor():
+    assert not hasattr(preflight, "FAST_MINIMUM")
+    assert not hasattr(preflight, "FAST_CAPABILITIES")
 
 
 def test_last_json_ignores_progress_lines():
@@ -54,21 +55,18 @@ def test_build_report_is_stable_shape(monkeypatch, tmp_path: Path):
         "returncode": 0, "identity_ok": True, "version_ok": True, "capabilities_ok": True,
         "runtime_contract_ok": True,
     })
-    monkeypatch.setattr(preflight, "_probe_fast", lambda cwd: {
-        "name": "simplicio-fast", "status": "ready", "integrated_ready": True,
-        "version": "2.0.14", "returncode": 0,
-    })
     report = preflight.build_report(tmp_path)
     assert report["schema"] == "simplicio.preflight/v1"
     assert report["ready"] is True
     assert [item["name"] for item in report["components"]] == [
         "simplicio-mapper", "simplicio-dev-cli", "simplicio-runtime"
     ]
-    assert report["fast"]["integrated_ready"] is True
+    assert "fast" not in report
+    assert not hasattr(preflight, "_probe_fast")
     json.dumps(report)
 
 
-def test_build_report_requires_fast_when_optional_runtime_is_missing(monkeypatch, tmp_path: Path):
+def test_build_report_is_ready_without_optional_runtime(monkeypatch, tmp_path: Path):
     def component(*args, **kwargs):
         name = args[0]
         return {"name": name, "version": "1.0.0", "minimum_version": "0.0.0",
@@ -80,14 +78,9 @@ def test_build_report_requires_fast_when_optional_runtime_is_missing(monkeypatch
         "returncode": 1, "identity_ok": False, "version_ok": False, "capabilities_ok": True,
         "runtime_contract_ok": False, "error": "command not found",
     })
-
-    monkeypatch.setattr(preflight, "_probe_fast", lambda cwd: {
-        "name": "simplicio-fast", "status": "fallback", "integrated_ready": False,
-        "version": "0.0.0", "returncode": 1,
-    })
     report = preflight.build_report(tmp_path)
 
-    assert report["ready"] is False
+    assert report["ready"] is True
     assert report["runtime_available"] is False
-    assert report["fast"]["integrated_ready"] is False
-    assert report["degraded_features"] == ["runtime-integration", "fast-context"]
+    assert "fast" not in report
+    assert report["degraded_features"] == ["runtime-integration"]

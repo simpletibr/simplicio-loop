@@ -145,14 +145,12 @@ portable and cannot direct the consumer outside the run. The bundle is complete 
 envelope is atomically replaced, so `simplicio-runtime` can validate one coherent snapshot without
 following parent-directory paths or reading files that are still changing.
 
-`fast` is recorded as an additional component observation from the frozen stack lock. The stable
-Runtime chain remains `simplicio-loop → simplicio-mapper → simplicio-dev-cli → simplicio-runtime`
-for v1 compatibility; Fast evidence is additive and does not alter that chain's field order.
+The stable Runtime chain is `simplicio-loop → simplicio-mapper → simplicio-dev-cli → simplicio-runtime`.
 
 All public execution flows (`run`, `tick`, `batch`, `wave`, and `prism`) use
 this same publisher boundary. A flow may report `BLOCKED`, `PARTIAL`, or `ERROR` as an additive
 diagnostic projection, but it cannot report a verified v1 receipt unless the durable Mapper,
-frozen stack/Fast, Dev CLI, watcher/evidence, delivery, quality, and completion-oracle artifacts
+frozen stack, Dev CLI, watcher/evidence, delivery, quality, and completion-oracle artifacts
 are present and valid. A completed dispatch result without that v1 publication is blocked.
 
 ## Out of scope (see issue #115)

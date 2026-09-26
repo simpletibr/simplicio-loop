@@ -19,6 +19,13 @@ from simplicio_loop.work_gap_ledger import (
     WorkGap, WorkGapLedger, sha256_evidence, validate_work_gap_snapshot,
 )
 
+# Distribution -> importable module for the three installed seats.
+PROJECTS = {
+    "simplicio-loop": "simplicio_loop",
+    "simplicio-mapper": "simplicio_mapper",
+    "simplicio-cli": "simplicio",
+}
+
 
 def evidence(kind: str, actor: str):
     return sha256_evidence(kind, f"installed://{kind}", kind.encode(), actor)
@@ -63,7 +70,7 @@ def addresses() -> tuple[AddressRegistry, FabricAddress, dict[str, FabricAddress
     )
     registry.register(sender)
     recipients = {}
-    for project in ("simplicio-loop", "simplicio-mapper", "simplicio-fast"):
+    for project in PROJECTS:
         item = FabricAddress(
             project, project + "-executor",
             FabricCapability("execute", "1", "MEASURED", "execute-contract"),
@@ -78,7 +85,7 @@ def envelope(sender, recipient, index, commit):
     return build_envelope(
         run_id="installed-765", task_id=f"task-{index}", work_item_id=f"work-{index}",
         stage="execution", attempt=1, fence="f1", plan_revision="1",
-        sender=sender, recipient=recipient, payload_handle=f"fast://page/{index}",
+        sender=sender, recipient=recipient, payload_handle=f"mapper://page/{index}",
         payload_hash=f"payload-{index}", causal_parent="coverage", sequence=index + 1,
         scope="cross-repo", repo=recipient.project, commit=commit, worktree="/tmp/installed-worktree",
         policy_hash="policy-v1", ttl_seconds=120, expected_receipt="fabric-dispatch-receipt/v1",
@@ -105,7 +112,7 @@ def e2e(root: Path, projects: tuple[str, ...]) -> dict:
     commits = {
         "simplicio-loop": "677846da1ec75f4b8e7fbb70c68c81707c145b9c",
         "simplicio-mapper": "0387c3c5cf391c4cbfc1aaa4f2005db283ceb534",
-        "simplicio-fast": "5c6f7e8dcd3b3237a95975e303df82cbf6fafcc0",
+        "simplicio-cli": "c" * 40,
     }
     for index, project in enumerate(projects):
         gap = WorkGap(
@@ -144,7 +151,7 @@ def stress(root: Path, count: int, repetitions: int) -> dict:
         rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         started = time.perf_counter()
         for index in range(count):
-            item = envelope(sender, recipients["simplicio-fast"], index, "a" * 40)
+            item = envelope(sender, recipients["simplicio-cli"], index, "a" * 40)
             controller.fire(
                 item, current_fence="f1", hookwall=hookwall(root),
                 execute=lambda value: {"status": "FIXED", "completion": None},
@@ -181,15 +188,13 @@ def main() -> None:
     receipt = {
         "schema": "simplicio.agent-fabric-installed-e2e/v1",
         "classification": "MEASURED_INSTALLED_ARTIFACTS",
-        "versions": {name: importlib.metadata.version(name) for name in (
-            "simplicio-loop", "simplicio-mapper", "simplicio-fast",
-        )},
+        "versions": {name: importlib.metadata.version(name) for name in PROJECTS},
         "module_roots": {
-            name: str(Path(__import__(name.replace("-", "_")).__file__).resolve())
-            for name in ("simplicio-loop", "simplicio-mapper", "simplicio-fast")
+            name: str(Path(__import__(module).__file__).resolve())
+            for name, module in PROJECTS.items()
         },
         "single_repo": e2e(root / "single", ("simplicio-loop",)),
-        "cross_repo": e2e(root / "cross", ("simplicio-mapper", "simplicio-fast", "simplicio-loop")),
+        "cross_repo": e2e(root / "cross", ("simplicio-mapper", "simplicio-cli", "simplicio-loop")),
         "stress": {str(count): stress(root / f"stress-{count}", count, args.repetitions)
                    for count in (1, 20, 100, 600)},
         "metrics": {"tokens": None, "tokens_null_reason": "NO_LLM_USED"},

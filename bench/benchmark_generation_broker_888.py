@@ -48,7 +48,7 @@ def main(candidate_count: int = 100) -> int:
             task_id="benchmark-888",
             attempt_id="attempt-1",
             source_commit="abc",
-            fast_generation=generation.generation,
+            mapper_generation=generation.generation,
             base_path=base,
         )
         broker = GenerationBroker(registry, lifecycle)
@@ -92,7 +92,7 @@ def main(candidate_count: int = 100) -> int:
                 task_id="benchmark-888",
                 attempt_id=f"attempt-{index}",
                 source_commit="abc",
-                fast_generation=generation.generation,
+                mapper_generation=generation.generation,
                 base_path=base,
             )
             GenerationBroker(uncached_registry, uncached_lifecycle).bind(

@@ -61,7 +61,8 @@ def test_missing_operators_install_together_and_become_visible(tmp_path, monkeyp
     assert receipt["missing_after"] == []
     assert calls and "simplicio-cli" in calls[0]
     assert "simplicio-mapper" in calls[0]
-    assert "simplicio-fast" in calls[0]
+    assert "simplicio-fast" not in calls[0]
+    assert operator_bootstrap.REQUIRED_BINARIES == ("simplicio-mapper", "simplicio-dev-cli")
     assert "simplicio-loop" in calls[0]
 
 

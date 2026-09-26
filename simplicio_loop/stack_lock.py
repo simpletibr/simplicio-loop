@@ -476,8 +476,6 @@ def discover_installed_components() -> tuple[StackComponent, ...]:
          ("orchestrator", "stack-lock", "standalone")),
         ("simplicio-mapper", "simplicio-mapper", "simplicio_mapper", ("simplicio-mapper",),
          ("map", "context", "store")),
-        ("simplicio-fast", "simplicio-fast", "simplicio_fast", ("simplicio-fast",),
-         ("fast", "query", "mmap")),
         ("simplicio-cli", "simplicio-cli", "simplicio", ("simplicio-dev-cli", "simplicio-cli"),
          ("mutation", "verify", "changeset")),
     )

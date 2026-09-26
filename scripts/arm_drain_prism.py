@@ -56,7 +56,7 @@ def _open_issue_count(repo: Path) -> int | None:
 
 def _versions() -> dict[str, str]:
     versions: dict[str, str] = {}
-    for dist in ("simplicio-loop", "simplicio-mapper", "simplicio-cli", "simplicio-fast"):
+    for dist in ("simplicio-loop", "simplicio-mapper", "simplicio-cli"):
         try:
             import importlib.metadata as md
 
@@ -119,7 +119,7 @@ Prism drain armed for `{repo.name}`.
 
 Hard rules (all LLMs / all hosts):
 1. `simplicio-loop preflight --strict --json` before work.
-2. Survey via `simplicio-mapper`; hot path via `simplicio-fast` when operational.
+2. Survey via `simplicio-mapper`.
 3. Mutate via `simplicio-dev-cli` / `simplicio-py task` (STRICT forbids host hand-edit primary path).
 4. Prism eligibility: {eligibility["eligible"]} ({eligibility["reason_code"]});
    wave width **{batch_size}**; the next wave starts only after lease/result reconciliation.
@@ -146,7 +146,6 @@ Open issues at arm: {open_n if open_n is not None else "unknown (gh unavailable)
             "SIMPLICIO_LOOP_AUTO_PLANNING_RECEIPT": "1",
             "SIMPLICIO_LOOP_FORBID_HAND_EDIT": "1",
             "SIMPLICIO_EXECUTION_PROFILE": "auto",
-            "SIMPLICIO_FAST_MODE": "required",
             "SIMPLICIO_LOOP_AUTO_FAN_OUT": "1",
             "SIMPLICIO_PRISM_SLOTS": str(slots),
             "SIMPLICIO_OPERATOR_ALWAYS_LATEST": "1",

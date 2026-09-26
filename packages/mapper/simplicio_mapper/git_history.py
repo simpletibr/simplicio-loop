@@ -274,7 +274,6 @@ def build_git_history(
                 "fixed_with",
                 "reverts",
             ],
-            "consumer": "simplicio-fast",
             "owner": "simplicio-mapper",
         },
     }

@@ -112,14 +112,14 @@ class CheckpointLifecycle:
         task_id: str,
         attempt_id: str,
         source_commit: str,
-        fast_generation: str,
+        mapper_generation: str,
         base_path: str | Path,
     ) -> None:
         self.root = Path(root)
         self.task_id = validate_path_component(task_id, "task_id")
         self.attempt_id = validate_path_component(attempt_id, "attempt_id")
         self.source_commit = _require(source_commit, "source_commit")
-        self.fast_generation = _require(fast_generation, "fast_generation")
+        self.mapper_generation = _require(mapper_generation, "mapper_generation")
         self.base_path = Path(base_path).resolve()
         self.attempt = self.root / self.task_id / self.attempt_id
         self.overlays = self.attempt / "overlays"
@@ -198,7 +198,7 @@ class CheckpointLifecycle:
             "shard_id": shard,
             "state": normalized_state,
             "source_commit": self.source_commit,
-            "fast_generation": self.fast_generation,
+            "mapper_generation": self.mapper_generation,
             "base_path": str(self.base_path),
             "overlay_path": str(overlay.resolve()),
             "receipts": receipt_list,
@@ -241,7 +241,7 @@ class CheckpointLifecycle:
             "task_id": self.task_id,
             "attempt_id": self.attempt_id,
             "source_commit": self.source_commit,
-            "fast_generation": self.fast_generation,
+            "mapper_generation": self.mapper_generation,
             "base_path": str(self.base_path),
         }
         if any(item.get(key) != value for key, value in expected.items()):

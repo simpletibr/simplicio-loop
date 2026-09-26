@@ -34,14 +34,14 @@ def _load(attempt: Path) -> GenerationBroker:
         task_id=state["task_id"],
         attempt_id=state["attempt_id"],
         source_commit=state["source_commit"],
-        fast_generation=state["fast_generation"],
+        mapper_generation=state["mapper_generation"],
         base_path=state["base_path"],
     )
     if lifecycle.attempt.resolve() != attempt:
         raise LifecycleError("generation broker attempt containment mismatch")
     broker = GenerationBroker(registry, lifecycle)
     broker._identity_aliases.update(state.get("identity_aliases", {}))
-    broker._promoted_generation = state.get("promoted_generation", lifecycle.fast_generation)
+    broker._promoted_generation = state.get("promoted_generation", lifecycle.mapper_generation)
     return broker
 
 

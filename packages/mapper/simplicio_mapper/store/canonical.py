@@ -1,7 +1,7 @@
 """The canonical MapperStore facade.
 
 Mapper is the only writer and schema owner for the memory and operations
-databases.  Runtime, Fast, Loop and MCP integrations use
+databases.  Runtime, Loop and MCP integrations use
 :class:`MapperStoreReader`; that class intentionally exposes no mutating API.
 """
 
@@ -586,7 +586,7 @@ class MapperStore:
 
 
 class MapperStoreReader:
-    """Read-only client contract for Runtime, Fast, Loop and MCP."""
+    """Read-only client contract for Runtime, Loop and MCP."""
 
     def __init__(self, root: str | os.PathLike[str] | None = None, **kwargs: Any) -> None:
         self._store = MapperStore(root, auto_create=False, **kwargs)

@@ -1,4 +1,4 @@
-# Simplicio loop + Fast — mandatory operator flow (all hosts)
+# Simplicio loop — mandatory operator flow (all hosts)
 
 **Applies to:** Claude Code, Codex, Grok, Cursor, VS Code / Copilot, Antigravity,
 Kiro, Hermes / Simplicio Agent, OpenCode, Gemini, Aider, and any host that loads
@@ -13,7 +13,7 @@ Installers copy this file into each host's always-on surface via
 0. **`/simplicio-loop` is the entrypoint. There is no Runtime/MCP backend in this stack.**
    - Start the loop directly: `/simplicio-loop <body of work>`.
    - **Bound operators (required):** `simplicio-mapper` (survey) + `simplicio-dev-cli`
-     (mutate). Fast (`simplicio-fast`) joins when installed and operational.
+     (mutate). They are the whole operator stack.
    - **Metrics mandatory:** every run writes `simplicio.execution-report/v1`
      (per task/issue + consolidated: speed, latency, CPU/RAM when MEASURED, tokens in/out).
      CLI: `python -m simplicio_loop.execution_report …`. Never invent numbers.
@@ -25,7 +25,6 @@ Installers copy this file into each host's always-on surface via
    ```
    - `SIMPLICIO_LOOP=1` · `SIMPLICIO_LOOP_STRICT=1`
    - `SIMPLICIO_EXECUTION_PROFILE=standalone` (the only execution profile)
-   - `SIMPLICIO_FAST_MODE=required` (when Fast operational)
    - `SIMPLICIO_LOOP_AUTO_FAN_OUT=1` (parallel worktrees on `batch`)
    - `SIMPLICIO_LOOP_OPERATOR_WORKERS` / `SIMPLICIO_PRISM_SLOTS` / `SIMPLICIO_ASYNC_IO_MAX_CONCURRENCY` (CPU-bounded)
    - `SIMPLICIO_OPERATOR_ALWAYS_LATEST=1`
@@ -33,14 +32,14 @@ Installers copy this file into each host's always-on surface via
    - Opt out of economy defaults: `SIMPLICIO_ECONOMY_PARALLEL=0`
 
 2. **Preflight (blocking):** `simplicio-loop preflight --strict --json`  
-   Core operators = **mapper + dev-cli** (+ Fast when up). Terminal-first: prefer real
+   Core operators = **mapper + dev-cli**. Terminal-first: prefer real
    shell/CLI commands (`simplicio-orient`) over host bulk Read/Grep/cat.
 
 3. **Survey:** `simplicio-mapper` (scan / inspect / handoff) — not ad-hoc full-tree LLM walks.
 
-4. **Hot path:** `simplicio-fast` when operational (understand / plan / apply / mmap).
+4. **Hot path:** `simplicio-loop orient --brief` → `simplicio-loop apply` (Mapper survey, Dev CLI apply).
 
-5. **Mutate:** `simplicio-dev-cli edit --plan --compile/--apply` (or Fast apply) under STRICT.  
+5. **Mutate:** `simplicio-dev-cli edit --plan --compile/--apply` under STRICT.  
    Host Write / Edit / StrReplace / ApplyPatch are **forbidden** as the primary mutation path
    when STRICT is on (`hooks/action_gate.py` PreToolUse on Claude/Cursor; instruction law on
    self-paced hosts).
@@ -60,7 +59,7 @@ Installers copy this file into each host's always-on surface via
 10. **Integrations** (Orca, Linear, …) only if the **client requested** them
     (`SIMPLICIO_LOOP_CLIENT_INTEGRATIONS` or `.simplicio-loop/client-integrations.json`).
 
-11. **Max-speed orientation (always):** act > narrate; Mapper→Fast→dev-cli hot path;
+11. **Max-speed orientation (always):** act > narrate; Mapper→dev-cli hot path;
     smallest gate that proves the AC; no full-repo residual thrash; no 3-reviewer panels on
     metadata-only diffs; end each message with `DONE | NEXT | BLOCKED`.
     Canonical: `docs/LLM_MAX_SPEED_ORIENTATION.md` (re-feed block in SKILL.md).

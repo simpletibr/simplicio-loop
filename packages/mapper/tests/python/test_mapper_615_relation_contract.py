@@ -12,7 +12,6 @@ from simplicio_mapper.context_graph_contract import build_public_contract
 from simplicio_mapper.context_pack import build_context_pack
 from simplicio_mapper.context_snapshot import build_context_snapshot
 from simplicio_mapper.execution_context import build_execution_context, validate_execution_context
-from simplicio_mapper.fast_handoff import build_fast_handoff
 from simplicio_mapper.mapper.emit import write_mapping_artifacts
 from simplicio_mapper.mapper.graph import _build_call_graph, _build_symbol_index
 from simplicio_mapper.mapper.parse import _build_file_inventory, _now_iso
@@ -300,12 +299,6 @@ class Mapper615DifferentialIntegrationTest(unittest.TestCase):
         self.assertTrue(target["relation_evidence"])
         self.assertEqual(target["test_evidence"][0]["evidence_class"], "inferred_by_name")
 
-        artifact_dir = self.root / ".simplicio-loop"
-        (artifact_dir / "context-snapshot.json").write_text(json.dumps(snapshot) + "\n", encoding="utf-8")
-        handoff, _receipt = build_fast_handoff(str(self.root))
-        self.assertIn("relation_id", handoff["capabilities"]["fields"])
-        self.assertIn("evidence_class", handoff["capabilities"]["fields"])
-        self.assertEqual(handoff["capabilities"]["relation_coverage"], graph["relation_coverage"])
         public = build_public_contract(
             graph,
             repository_id=str(snapshot["repository_id"]),

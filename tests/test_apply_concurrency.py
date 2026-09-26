@@ -11,7 +11,7 @@ import pytest
 from simplicio_loop import apply as apply_mod
 
 
-def seed_mapper_fast_survey(root):
+def seed_mapper_survey(root):
     """Write the minimal Mapper survey `simplicio-loop apply` requires
     (issue #1318; issue #1343 removed Fast from the stack entirely): the
     Mapper project map and the brief's per-task Mapper provenance, as a
@@ -25,9 +25,9 @@ def seed_mapper_fast_survey(root):
 
 
 @pytest.fixture(autouse=True)
-def _mapper_fast_survey(request, tmp_path):
+def _mapper_survey(request, tmp_path):
     if request.node.get_closest_marker("no_survey") is None:
-        seed_mapper_fast_survey(tmp_path)
+        seed_mapper_survey(tmp_path)
 
 
 def _write(root, rel, content):
