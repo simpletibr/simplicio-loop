@@ -411,3 +411,35 @@ if __name__ == "__main__":
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from _selfrun import run_module
     run_module(globals(), "test_evidence_receipt")
+
+
+def test_git_meta_diff_hash_ignores_verifier_byproducts(tmp_path):
+    """The evidence receipt is sealed before the quality lanes run and the
+    watcher re-hashes after them; bytecode, pytest/mypy/ruff caches and
+    coverage data those lanes write must not change the run-diff fingerprint,
+    or every `wave` blocks with "run diff differs from watcher worktree"."""
+    run = lambda *a: subprocess.run(["git", *a], cwd=tmp_path, check=True, capture_output=True)
+    run("init", "-q")
+    run("config", "user.email", "t@t")
+    run("config", "user.name", "t")
+    (tmp_path / "app.py").write_text("x = 1\n")
+    run("add", "-A")
+    run("commit", "-qm", "init")
+    (tmp_path / "app.py").write_text("x = 2\n")
+    (tmp_path / "new.py").write_text("y = 1\n")
+    before = evidence_mod._git_meta(tmp_path)["diff_hash"]
+
+    (tmp_path / "__pycache__").mkdir()
+    (tmp_path / "__pycache__" / "app.cpython-311.pyc").write_bytes(b"\0bytecode")
+    (tmp_path / "pkg" / "__pycache__").mkdir(parents=True)
+    (tmp_path / "pkg" / "__pycache__" / "m.pyc").write_bytes(b"\0")
+    (tmp_path / ".pytest_cache").mkdir()
+    (tmp_path / ".pytest_cache" / "README.md").write_text("cache\n")
+    (tmp_path / ".coverage").write_bytes(b"sqlite")
+    (tmp_path / ".coverage.host.1.abc").write_bytes(b"sqlite")
+    (tmp_path / "htmlcov").mkdir()
+    (tmp_path / "htmlcov" / "index.html").write_text("<html/>")
+
+    assert evidence_mod._git_meta(tmp_path)["diff_hash"] == before
+    (tmp_path / "new.py").write_text("y = 2\n")
+    assert evidence_mod._git_meta(tmp_path)["diff_hash"] != before

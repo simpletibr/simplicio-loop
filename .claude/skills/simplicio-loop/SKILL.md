@@ -403,6 +403,9 @@ The final report lists the contract + per-clause compliance, tagged
 
 ## Guardrails
 
+- **TDD is mandatory**: every new function or behavior change starts with a
+  failing test (red), then the minimal code to pass (green), then refactor.
+  No production code without a test written first.
 - Always set `max_iterations` for manual runs — never run truly unbounded.
 - The promise sentinel is matched VERBATIM, not fuzzy "are you done?".
   `evidence_required: true` is the default; only a trusted CI flag relaxes it.

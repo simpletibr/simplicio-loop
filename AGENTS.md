@@ -265,6 +265,9 @@ rebase, and release rules in [ADR 0008](docs/adr/0008-bounded-delivery-policy.md
 [`simplicio-loop` policy](.claude/skills/simplicio-loop/SKILL.md#bounded-delivery-policy).
 
 - Run commands for real — never simulate output.
+- **TDD is mandatory:** every new function or behavior change starts with a
+  failing test (red), then the minimal code to pass (green), then refactor.
+  No production code without a test written first.
 - **GitHub issue signature first:** before taking an issue, publish the canonical `CLAIMED`
   lifecycle comment with the worker/run/attempt identity and goal. Do this before mutation or a
   worktree; never take a live claimed issue. A PR reviewer signs its assessment on the PR instead
