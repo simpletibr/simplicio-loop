@@ -122,3 +122,17 @@ def test_brief_single_task_shorthand_matches_list_form(tmp_path):
 def test_brief_no_tasks_is_blocked(tmp_path):
     payload = orient_brief(tmp_path, [])
     assert payload["status"] == "BLOCKED"
+
+
+def test_brief_carries_per_phase_effort_hint(tmp_path):
+    """Per-phase reasoning-effort hints (plan high / execute low / review
+    medium) so the host that calls the LLM knows what the NEXT turn --
+    writing ops.json, i.e. the plan phase -- should run at."""
+    from simplicio_loop.effort import PHASE_EFFORT
+
+    _repo(tmp_path, {"a.html": "<html></html>"})
+    payload = orient_brief(tmp_path, ["Edit a.html"])
+    assert payload["effort"] == PHASE_EFFORT
+    assert payload["route"]["next"]
+    assert payload["route"]["next"][0]["phase"] == "plan"
+    assert payload["route"]["next"][0]["effort"] == PHASE_EFFORT["plan"]

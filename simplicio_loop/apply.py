@@ -31,6 +31,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from .effort import next_effort_for_status
 from .runner import _repo_fingerprint, _repo_state_equivalent
 
 APPLY_SCHEMA = "simplicio.loop-apply/v1"
@@ -376,13 +377,15 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".") -> dict[str, Any]:
                 "schema": APPLY_SCHEMA, "status": "BLOCKED", "reason_code": "stale_mapper_generation",
                 "run_id": run_id, "ops_sha": ops_sha,
                 "expected_repo_state_chain": dict(expected_state), "current_repo_state_chain": current_state,
+                "next_effort": next_effort_for_status("BLOCKED"),
             }
 
     try:
         tasks = _normalize_tasks(ops)
     except ApplyValidationError as exc:
         return {"schema": APPLY_SCHEMA, "status": "BLOCKED", "reason_code": "ops_invalid",
-                "run_id": run_id, "ops_sha": ops_sha, "hint": str(exc)}
+                "run_id": run_id, "ops_sha": ops_sha, "hint": str(exc),
+                "next_effort": next_effort_for_status("BLOCKED")}
 
     chains = build_chains(tasks)
     problems = validate_ops(root, tasks, chains)
@@ -391,6 +394,7 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".") -> dict[str, Any]:
             "schema": APPLY_SCHEMA, "status": "BLOCKED", "reason_code": "validation_failed",
             "run_id": run_id, "ops_sha": ops_sha, "blocked": problems,
             "hint": "fix the listed find/path before retrying; nothing was written",
+            "next_effort": next_effort_for_status("BLOCKED"),
         }
 
     run_dir = root / ".simplicio" / "apply" / run_id
@@ -431,6 +435,7 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".") -> dict[str, Any]:
         "tasks": task_results,
         "receipt_path": str(receipt_path),
         "diff": diff,
+        "next_effort": next_effort_for_status(overall),
     }
 
 

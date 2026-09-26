@@ -357,10 +357,12 @@ Loop orientation:
 - GitHub is SoT for issues/PRs when the remote is GitHub.
 - Context: simplicio-loop orient --task "<goal>" --json (Mapper + Fast).
 - Route first: simplicio-loop orient --task "<task>" --json → follow route.mode / route.next. fast-path (1 task, 1 file) → simplicio-dev-cli edit --plan ops.json --compile plan.json → edit --plan plan.json --apply → run the task's check. No run, no wave.
+- Hot path (1+ tasks): simplicio-loop orient --brief --task "<t>" [--task "<t2>" ...] --json → write ops.json from its targets/plan/apply block → simplicio-loop apply ops.json --repo <root> --json → follow its status/next_effort.
 - 2+ tasks or converge: simplicio-loop prepare --task tasks.md → write every edit-plan-<N>.json → wave <run_id> → verify <run_id>.
 - edit-plan-<N>.json = {"operations": [{"path","find","replace"}]}; find must match exactly once.
 - Never simplicio-dev-cli task "prose". No plan → plan_required (do not call OpenRouter).
 - Review: 1 implement + 1 verify. Promise only after verify MEASURED.
+- Effort: plan high → execute low → review medium (simplicio_loop/effort.py). Honor `effort`/`next_effort` from orient --brief / apply's JSON — never re-derive the mapping.
 - End: DONE | NEXT | BLOCKED.
 <!-- SIMPLICIO-LLM-ORIENTATION:END -->
 

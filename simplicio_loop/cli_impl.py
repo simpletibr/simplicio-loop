@@ -1080,6 +1080,30 @@ def _brief_plan_groups(tasks: Sequence[str], per_task_targets: Sequence[Sequence
     return {"parallel": parallel, "ordered": ordered}
 
 
+def _brief_annotate_route_next(route: Mapping[str, Any]) -> dict[str, Any]:
+    """Tag ``route["next"]``'s first step -- writing ops.json, the plan
+    phase -- with its reasoning-effort hint (issue #1310 follow-up), so the
+    host that reads the brief knows the NEXT turn should run at
+    ``PHASE_EFFORT["plan"]`` without re-deriving the mapping. Steps stay
+    readable text; only the annotation is added, and a route with no
+    ``next`` (BLOCKED) passes through unchanged."""
+    from .effort import PHASE_EFFORT
+
+    steps = route.get("next")
+    if not steps:
+        return dict(route)
+    annotated = []
+    for idx, step in enumerate(steps):
+        entry: dict[str, Any] = {"step": step}
+        if idx == 0:
+            entry["phase"] = "plan"
+            entry["effort"] = PHASE_EFFORT["plan"]
+        annotated.append(entry)
+    out = dict(route)
+    out["next"] = annotated
+    return out
+
+
 def _brief_apply_command(root: Path) -> dict[str, Any]:
     return {
         "command": f"simplicio-loop apply ops.json --repo {root} --json",
@@ -1163,6 +1187,9 @@ def orient_brief(root: Path, tasks: list[str], *, fast_mode: str = "auto",
     from .runner import _repo_fingerprint
     repo_state_chain = _repo_fingerprint(root)
 
+    from .effort import PHASE_EFFORT
+    overall_route = _brief_annotate_route_next(overall_route)
+
     payload: dict[str, Any] = {}
     payload["route"] = overall_route
     payload["schema"] = ORIENT_BRIEF_SCHEMA
@@ -1174,6 +1201,7 @@ def orient_brief(root: Path, tasks: list[str], *, fast_mode: str = "auto",
     payload["generations"] = generations
     payload["repo_state_chain"] = repo_state_chain
     payload["apply"] = _brief_apply_command(root)
+    payload["effort"] = dict(PHASE_EFFORT)
     return payload
 
 

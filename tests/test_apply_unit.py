@@ -174,3 +174,41 @@ def test_check_isolation_env_contains_expected_keys():
     assert "no:cacheprovider" in env["PYTEST_ADDOPTS"]
     assert "r1" in env["COVERAGE_FILE"] and "t1" in env["COVERAGE_FILE"]
     assert env["PATH"] == "/bin"
+
+
+def test_run_result_carries_next_effort_medium_on_pass(tmp_path, monkeypatch):
+    """issue #1310 follow-up: PASS -> the next turn reviews the result, so
+    ``next_effort`` is the review-phase effort."""
+    from simplicio_loop.effort import PHASE_EFFORT
+
+    _write(tmp_path, "a.txt", "hello")
+    monkeypatch.setattr(apply_mod, "_apply_task_devcli", lambda root, task, run_dir: {"ok": True, "steps": [], "reason_code": None})
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}]}
+    result = apply_mod.run(ops, repo=tmp_path)
+    assert result["status"] == "PASS"
+    assert result["next_effort"] == PHASE_EFFORT["review"]
+
+
+def test_run_result_carries_next_effort_low_on_fail(tmp_path, monkeypatch):
+    """FAIL -> a mechanical fix turn with the failing tail already in hand,
+    so ``next_effort`` is the execute-phase effort."""
+    from simplicio_loop.effort import PHASE_EFFORT
+
+    _write(tmp_path, "a.txt", "hello")
+    monkeypatch.setattr(
+        apply_mod, "_apply_task_devcli",
+        lambda root, task, run_dir: {"ok": False, "steps": [], "reason_code": "dev_cli_apply_failed"},
+    )
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}]}
+    result = apply_mod.run(ops, repo=tmp_path)
+    assert result["status"] == "FAIL"
+    assert result["next_effort"] == PHASE_EFFORT["execute"]
+
+
+def test_run_result_carries_next_effort_low_on_blocked_validation(tmp_path):
+    from simplicio_loop.effort import PHASE_EFFORT
+
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "missing.txt", "find": "x", "replace": "y"}]}]}
+    result = apply_mod.run(ops, repo=tmp_path)
+    assert result["status"] == "BLOCKED"
+    assert result["next_effort"] == PHASE_EFFORT["execute"]
