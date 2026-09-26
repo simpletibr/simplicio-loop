@@ -467,7 +467,7 @@ def _bound_graph(
     then ``symbol:`` nodes, then everything else — each tier sorted by id for
     determinism. Without this, an alphabetical-only prefix keeps ``file:``
     nodes (which sort before ``symbol:``) and starves the symbol nodes a
-    downstream consumer (e.g. simplicio-fast) needs.
+    downstream consumer (e.g. the loop brief) needs.
     """
     def valid_handle(handle: object) -> bool:
         if not isinstance(handle, dict) or not isinstance(handle.get("file"), str):

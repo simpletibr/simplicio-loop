@@ -13,7 +13,6 @@ from ..store.catalog import (
     ensure_mapper_memory,
     layout_tree,
 )
-from ..store.fast_link import mapper_fast_status
 from ..store.neural import bootstrap_neural
 from ..store.project_scope import resolve_scoped_layout
 from ..store.unify import unify_memory, unify_status
@@ -141,17 +140,12 @@ def run_data_cli(argv: list[str]) -> int:
             project_mem = None
             if layout.project is not None:
                 project_mem = unify_status(data_dir=str(layout.project.root))
-            fast = mapper_fast_status(repo=repo, data_dir=str(layout.core.root))
             payload = {
                 **catalog,
                 "scopes": layout.as_dict(),
                 "memory_unify": mem,
                 "project_memory_unify": project_mem,
-                "mapper_fast": fast,
-                "env_hints": {
-                    **(mem.get("env_hints") or {}),
-                    **(fast.get("env_hints") or {}),
-                },
+                "env_hints": mem.get("env_hints") or {},
             }
         elif verb == "unify":
             # Unify core always; also project when --repo given.
@@ -174,7 +168,6 @@ def run_data_cli(argv: list[str]) -> int:
                 "scopes": layout.as_dict(),
                 "core": core,
                 "project": project_u,
-                "mapper_fast": mapper_fast_status(repo=repo, data_dir=str(layout.core.root)),
                 "env_hints": core.get("env_hints"),
             }
         elif verb == "absorb":
@@ -213,7 +206,6 @@ def run_data_cli(argv: list[str]) -> int:
                     absorb_legacy_home=False,
                     rebuild_fts=True,
                 )
-            fast = mapper_fast_status(repo=repo, data_dir=str(layout.core.root))
             payload = {
                 "schema": absorbed["schema"],
                 "status": "initialized" if unified.get("status") == "ready" else "degraded",
@@ -234,12 +226,8 @@ def run_data_cli(argv: list[str]) -> int:
                     "fts": unified.get("fts"),
                 },
                 "project_unify": project_u,
-                "mapper_fast": fast,
                 "absorb": absorbed,
-                "env_hints": {
-                    **(unified.get("env_hints") or absorbed.get("env_hints") or {}),
-                    **(fast.get("env_hints") or {}),
-                },
+                "env_hints": unified.get("env_hints") or absorbed.get("env_hints") or {},
             }
     except Exception as error:  # noqa: BLE001
         err = {

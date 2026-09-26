@@ -20,10 +20,10 @@ binary is found on `PATH` (best-effort; the loop never requires it — see "Nati
 opencode run "/simplicio-loop finish all the open issues"
 ```
 
-## The actual flow: Mapper + Fast survey, Dev CLI apply — no Runtime, no MCP required
+## The actual flow: Mapper survey, Dev CLI apply — no Runtime, no MCP required
 
 `simplicio-loop` does not survey or edit with the LLM directly, and does not require Runtime/MCP
-to run at all. Every flow starts with a Mapper + Fast survey, then the host LLM decides the exact
+to run at all. Every flow starts with a Mapper survey, then the host LLM decides the exact
 find/replace edits and hands them to Dev CLI to apply and verify:
 
 ```bash
@@ -35,8 +35,8 @@ simplicio-loop apply .simplicio-loop/ops.json --repo . --json
 # PASS: done. BLOCKED/FAIL: fix the named find/check, re-run apply.
 ```
 
-`apply`/`prepare` refuse to run without that Mapper + Fast survey
-(`mapper_fast_provenance_missing`, nothing written) — the two REQUIRED operators are
+`apply`/`prepare` refuse to run without that Mapper survey
+(`mapper_provenance_missing`, nothing written) — the two REQUIRED operators are
 `simplicio-mapper` (survey) and `simplicio-dev-cli` (apply + verify), both installed transitively
 via the `simplicio-cli` package. `simplicio-loop` BLOCKS if either binary is absent. See
 `.claude/skills/simplicio-loop/SKILL.md` for the full protocol.

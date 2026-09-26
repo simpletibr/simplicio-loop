@@ -12,7 +12,6 @@ from typing import Any
 
 SCHEMA = "simplicio.dev-cli.issue-412-acceptance/v1"
 REPORT_SCHEMAS = {
-    "issue-414": "simplicio.dev-cli.issue-414-binary-benchmark/v1",
     "issue-415": "simplicio.dev-cli.issue-415-verification-benchmark/v1",
     "issue-416": "simplicio.dev-cli.issue-416-transaction-benchmark/v1",
     "issue-417": "simplicio.dev-cli.issue-417-context-cache-benchmark/v1",
@@ -85,18 +84,6 @@ def _bound_to_sha(name: str, payload: dict[str, Any], current_sha: str | None) -
     return True, "commit SHA matches current checkout"
 
 
-def _benchmark_row(payload: dict[str, Any], lane: str, sizes: tuple[int, ...]) -> tuple[bool, str]:
-    rows = payload.get("rows")
-    if not isinstance(rows, list):
-        return False, "benchmark rows are missing"
-    selected = [row for row in rows if isinstance(row, dict) and row.get("lane") == lane]
-    if {row.get("size") for row in selected} != set(sizes):
-        return False, f"benchmark lane {lane} does not cover sizes {list(sizes)}"
-    if any(row.get("status") != "PASS" or _repeat_count(row.get("repeats")) < 10 for row in selected):
-        return False, f"benchmark lane {lane} contains non-PASS or fewer than 10 repetitions"
-    return True, f"{lane} PASS for sizes {list(sizes)} with >=10 repetitions"
-
-
 def _repeat_count(value: Any) -> int:
     try:
         return int(value)
@@ -147,23 +134,6 @@ def build_matrix(root: Path, report_paths: dict[str, Path]) -> dict[str, Any]:
                 "local-quality-gate",
                 "PASS" if bound and passed else "FAIL",
                 reason if bound else reason,
-                evidence,
-            )
-        )
-
-    binary = reports.get("issue-414")
-    if binary is None:
-        rows.append(_missing("fast-binary-envelope", "issue-414"))
-    else:
-        bound, reason = _bound_to_sha("issue-414", binary, current_sha)
-        python_ok, python_reason = _benchmark_row(binary, "binary_fast_adapter", (1, 20, 200))
-        rust_ok, rust_reason = _benchmark_row(binary, "binary_fast_rust_adapter", (1, 20, 200))
-        ok = bound and python_ok and rust_ok
-        rows.append(
-            _row(
-                "fast-binary-envelope",
-                "PASS" if ok else "UNVERIFIED",
-                "; ".join((reason, python_reason, rust_reason)),
                 evidence,
             )
         )
@@ -252,11 +222,7 @@ def build_matrix(root: Path, report_paths: dict[str, Path]) -> dict[str, Any]:
             "standalone_changeset_1",
             "standalone_changeset_20",
             "standalone_changeset_200",
-            "fast_python_binary_1",
-            "fast_python_binary_20",
-            "fast_python_binary_200",
             "windows_locked_file",
-            "fast_rust",
             "mapper_producer",
             "runtime_backed",
             "worktree_isolation_10",
@@ -279,14 +245,13 @@ def build_matrix(root: Path, report_paths: dict[str, Path]) -> dict[str, Any]:
                 "PASS" if bound and e2e_ok else "UNVERIFIED",
                 reason
                 if e2e_ok
-                else "E2E is not PASS for every required standalone, Fast, Runtime, Mapper and Windows lane",
+                else "E2E is not PASS for every required standalone, Runtime, Mapper and Windows lane",
                 evidence,
             )
         )
 
     rows.extend(
         [
-            _missing("fast-hot-path-selective-refresh", "issue-419"),
             _missing("typed-state-trace-and-ownership", "issue-420"),
             _missing("runtime-backed-reconciliation", "issue-413/418"),
         ]

@@ -19,7 +19,6 @@ rust/*/target/
 # Simplicio ecosystem state has one root; legacy roots are quarantined.
 .simplicio-loop/orchestrator/
 .orchestrator/
-.simplicio-fast/
 
 # Per-bench-run scratchpad: every model × case raw output. Regenerated on
 # every bench run; we keep results JSON/MD/PDF artifacts under bench/ but

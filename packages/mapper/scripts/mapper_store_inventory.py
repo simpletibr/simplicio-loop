@@ -25,7 +25,7 @@ SCHEMA = "simplicio.mapper-store-inventory/v1"
 MAX_FILE_BYTES = 1_000_000
 SKIP_DIRS = {
     ".git", ".simplicio-loop", ".venv", "__pycache__", ".mypy_cache", ".pytest_cache",
-    ".ruff_cache", ".hypothesis", ".tox", ".nox", ".cache", ".sfast", "node_modules",
+    ".ruff_cache", ".hypothesis", ".tox", ".nox", ".cache", "node_modules",
     "target", "dist", "build", "coverage", "playwright-report", "test-results",
 }
 TEXT_SUFFIXES = {".c", ".cc", ".cpp", ".go", ".h", ".hpp", ".js", ".jsx", ".json", ".md",
@@ -544,7 +544,6 @@ def build_inventory(repos: list[tuple[str, Path]], databases: list[tuple], deter
                 {"name": "operations.sqlite", "owner": "mapper-store", "domains": ["tasks", "queues", "leases", "fences", "journals", "effect-receipts"]},
                 {"name": "catalog.sqlite", "owner": "mapper-store", "domains": ["store-catalog", "schema-registry", "migration-ledger"]},
             ],
-            "excluded": [{"owner": "simplicio-fast", "paths": [".sfast", "mmap", "TurboQuant"], "reason": "rebuildable binary cache; never SQLite authority"}],
         },
         "compatibility": {
             "python_api": "simplicio_mapper.store",

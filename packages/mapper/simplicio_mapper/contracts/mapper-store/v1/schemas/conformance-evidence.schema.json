@@ -37,8 +37,7 @@
         "mapper": {"$ref": "#/$defs/repository"},
         "loop": {"$ref": "#/$defs/repository"},
         "dev-cli": {"$ref": "#/$defs/repository"},
-        "runtime": {"$ref": "#/$defs/repository"},
-        "fast": {"$ref": "#/$defs/repository"}
+        "runtime": {"$ref": "#/$defs/repository"}
       },
       "additionalProperties": {"$ref": "#/$defs/repository"}
     },

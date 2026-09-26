@@ -22,11 +22,6 @@ from .connection import (
     StoreMissingError,
     WriterIdentity,
 )
-from .fast_link import (
-    FAST_LINK_SCHEMA,
-    ensure_repo_fast_artifacts,
-    mapper_fast_status,
-)
 from .health import (
     CAPACITY_SCHEMA,
     DOCTOR_SCHEMA,
@@ -269,9 +264,6 @@ __all__ = [
     "memory_env_hints",
     "unify_memory",
     "unify_status",
-    "FAST_LINK_SCHEMA",
-    "ensure_repo_fast_artifacts",
-    "mapper_fast_status",
     "ScopedDataLayout",
     "core_data_root",
     "project_data_root",

@@ -1,6 +1,6 @@
 """Ecosystem data catalog — Mapper owns every durable bank under SIMPLICIO_DATA_DIR.
 
-Policy: Mapper is the sole data centralizer. Runtime, loop, fast, and host tools
+Policy: Mapper is the sole data centralizer. Runtime, loop, and host tools
 may write only through paths resolved from this catalog (or SIMPLICIO_DATA_DIR).
 Legacy locations under ~/.simplicio-loop/** are absorb sources, not canonical roots.
 """
@@ -220,7 +220,7 @@ ECOSYSTEM_BANKS: tuple[BankSpec, ...] = (
         bank_id="cache",
         relative="cache",
         kind="directory",
-        owners=("mapper", "runtime", "fast"),
+        owners=("mapper", "runtime"),
         description="Shared cache (orientation index, pypi versions, diskcache)",
         legacy=("cache",),
         required=False,
@@ -354,30 +354,14 @@ def layout_tree() -> dict[str, Any]:
             }
             for b in ECOSYSTEM_BANKS
         ],
-        "mapper_fast_integration": {
-            "note": (
-                "Mapper extracts (project-map/context-snapshot); Fast builds disposable "
-                ".sfast under <repo>/.simplicio-loop/fast/. Core Runtime memory stays in "
-                "~/.simplicio-loop/data; project memory under <repo>/.simplicio-loop/data/<slug>."
-            ),
-            "commands": [
-                "simplicio-mapper status .",
-                "simplicio-mapper data status --repo .",
-                "simplicio-mapper data unify --repo .",
-                "simplicio-mapper fast-handoff .",
-                "simplicio-fast build . -o .simplicio-loop/fast/project.sfast",
-            ],
-            "dependency": "simplicio-fast depends on simplicio-mapper>=0.26.11,<0.27",
-        },
         "repo_scoped_artifacts": {
             "note": (
-                "Working copies stay under <repo>/.simplicio-loop/ (project-map, fast, "
+                "Working copies stay under <repo>/.simplicio-loop/ (project-map, "
                 "orchestrator). Durable project DBs live under .simplicio-loop/data/<slug>."
             ),
             "examples": [
                 ".simplicio-loop/project-map.json",
                 ".simplicio-loop/precedent-index.json",
-                ".simplicio-loop/fast/project.sfast",
                 ".simplicio-loop/data/<slug>/memory.sqlite",
                 ".simplicio-loop/orchestrator/",
             ],

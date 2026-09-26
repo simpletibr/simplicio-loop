@@ -111,19 +111,6 @@ def test_conformance_never_claims_external_smoke_from_mapper_checkout(tmp_path: 
     assert report["checks"]
 
 
-def test_fast_isolation_passes_only_when_fast_was_scanned(tmp_path: Path) -> None:
-    repos = [(name, _repo(tmp_path, name)) for name in ("mapper", "loop", "dev-cli", "runtime")]
-    repos.append(("fast", _repo(tmp_path, "fast", "migration documentation\n")))
-    report = build_conformance(repos, [], deterministic=True)
-    check = next(item for item in report["checks"] if item["id"] == "fast_isolation")
-    assert check["status"] == "pass"
-
-    repos[-1] = ("fast", _repo(tmp_path, "fast-sqlite", "import sqlite3\n"))
-    report = build_conformance(repos, [], deterministic=True)
-    check = next(item for item in report["checks"] if item["id"] == "fast_isolation")
-    assert check["status"] == "fail"
-
-
 def test_installed_loop_evidence_is_validated_before_passing(tmp_path: Path) -> None:
     repos = [(name, _repo(tmp_path, name)) for name in ("mapper", "loop", "dev-cli", "runtime")]
     evidence = {

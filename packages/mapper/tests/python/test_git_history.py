@@ -88,6 +88,6 @@ def test_test_cochange_edges_and_consumer_provenance(tmp_path):
     assert "tested_by" in kinds
     assert "fixed_with" in kinds
     assert history["schema"] == HISTORY_SCHEMA
-    assert history["provenance"]["consumer"] == "simplicio-fast"
+    assert "consumer" not in history["provenance"]
     assert history["provenance"]["owner"] == "simplicio-mapper"
     assert "reverts" in history["provenance"]["edge_kinds"]

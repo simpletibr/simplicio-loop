@@ -6,7 +6,7 @@ description: "Ralph loop for mapper + simplicio-dev-cli. Same goal every turn; e
 # /simplicio-loop
 
 Self-referential loop: re-feed the SAME goal every turn; exit only on a typed `<promise>` backed by in-turn evidence, or `max_iterations`. Credit: Ralph Wiggum / cursor `ralph-loop`.
-Stack: `simplicio-mapper` (survey) → `simplicio-dev-cli` (apply + verify) → `simplicio-loop` (run/wave/verify). **No Runtime. No MCP.** (issue #1343 removed `simplicio-fast` from the stack entirely.)
+Stack: `simplicio-mapper` (survey) → `simplicio-dev-cli` (apply + verify) → `simplicio-loop` (run/wave/verify). **No Runtime. No MCP.**
 You (the host LLM) decide each change as exact find/replace text; the operators freeze, apply and verify it — the loop never hand-edits or calls a provider to write code.
 
 **Every flow starts with Mapper** (`orient --brief` or `orient`): `apply` and `prepare` refuse to run without that survey (`mapper_provenance_missing`, nothing written).

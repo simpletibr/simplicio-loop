@@ -221,7 +221,7 @@ class ContextHandle:
     def validate_engine_binding(self) -> None:
         """Reject engine-specific or stale provenance before plan compilation."""
         if self.engine and self.engine not in {"python", "rust"}:
-            raise MapperContextError("ENGINE_UNSUPPORTED", f"unsupported Fast engine: {self.engine}")
+            raise MapperContextError("ENGINE_UNSUPPORTED", f"unsupported context engine: {self.engine}")
         if self.engine == "rust" and not self.capability_digest:
             raise MapperContextError(
                 "ENGINE_CAPABILITIES_MISSING", "Rust context is missing capability digest"

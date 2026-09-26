@@ -926,15 +926,13 @@ def _build_handoff_payload(opts: dict) -> dict:
         budget_tokens=token_budget if task_aware else 0,
         priority_paths=targets if task_aware else None,
     )
-    # `handoff` is the only public verb an integrated Fast ingest can rely on
+    # `handoff` is the only public verb a downstream consumer can rely on
     # (it never calls the internal `snapshot build`), so it must guarantee the
-    # canonical, unscoped `.simplicio-loop/context-snapshot.json` Fast reads symbol
-    # ids from actually exists and is current — otherwise `handoff --json`
-    # reports `ready: true` while Fast fails closed with
-    # `mapper_artifact_missing: context_snapshot` (issue: cross-package
-    # ingest regression). At the same time it must never overwrite that
-    # canonical file with a task-aware/budget-pruned graph — on large repos
-    # that starved Fast's symbol lookup (mapper_id_missing). So a task-aware
+    # canonical, unscoped `.simplicio-loop/context-snapshot.json` actually
+    # exists and is current — otherwise `handoff --json` reports `ready: true`
+    # while the snapshot is missing. At the same time it must never overwrite
+    # that canonical file with a task-aware/budget-pruned graph — on large
+    # repos that starves symbol lookup (mapper_id_missing). So a task-aware
     # call always rebuilds a second, unbounded/task-agnostic snapshot for the
     # canonical path (byte-identical to what `snapshot build` would emit from
     # the same artifacts) and keeps its own bounded snapshot scoped to

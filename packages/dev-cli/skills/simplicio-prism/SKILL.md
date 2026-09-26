@@ -1,6 +1,6 @@
 ---
 name: simplicio-prism
-description: Route broad or ambiguous work across Simplicio Mapper, Fast, Dev CLI, Loop, and Runtime. Use when a request spans components, requires choosing the correct capability, needs an end-to-end workflow, or the agent is unsure which Simplicio skill to invoke. Prism classifies and composes; it does not execute mutations itself.
+description: Route broad or ambiguous work across Simplicio Mapper, Dev CLI, Loop, and Runtime. Use when a request spans components, requires choosing the correct capability, needs an end-to-end workflow, or the agent is unsure which Simplicio skill to invoke. Prism classifies and composes; it does not execute mutations itself.
 ---
 
 # Simplicio Prism
@@ -26,10 +26,9 @@ The inventory covers CLI entry points and subcommands, MCP registrations, public
 2. Check repository, revision, scope, availability, preconditions, and side-effect policy.
 3. Select the smallest capability set and order dependencies before dependents.
 4. Require Mapper before non-trivial mutation; require Dev CLI for mutation.
-5. Add Fast for compatible repeated/large retrieval.
-6. Add Loop for multi-step, parallel, retryable, or convergent work.
-7. Add Runtime only for MCP, native execution, gates, receipts, checkpoints, backpressure, or governed subagents.
-8. Emit a routing decision with reasons, fallbacks, and expected evidence.
+5. Add Loop for multi-step, parallel, retryable, or convergent work.
+6. Add Runtime only for MCP, native execution, gates, receipts, checkpoints, backpressure, or governed subagents.
+7. Emit a routing decision with reasons, fallbacks, and expected evidence.
 
 ## Non-negotiable boundaries
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproducible local evidence runner for the Mapper/Fast/Dev CLI proof (#422).
+"""Reproducible local evidence runner for the Mapper/Dev CLI proof (#422).
 
 Unavailable cross-repository capabilities are recorded as ``UNVERIFIED``;
 they are never converted to pass or silently replaced with synthetic data.
@@ -8,10 +8,8 @@ they are never converted to pass or silently replaced with synthetic data.
 from __future__ import annotations
 
 import argparse
-import base64
 import csv
 import hashlib
-import importlib
 import importlib.metadata
 import json
 import os
@@ -32,9 +30,8 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from simplicio.changeset_v2 import execute_changeset, execute_changeset_bytes  # noqa: E402
+from simplicio.changeset_v2 import execute_changeset  # noqa: E402
 from simplicio.execution_mode import negotiate_execution_mode  # noqa: E402
-from simplicio.fast_contracts import fast_preflight  # noqa: E402
 from simplicio.plan_compiler.canonical_hash import canonical_hash  # noqa: E402
 from simplicio.plan_compiler.runtime_effect_sink import HttpRuntimeTransport, RuntimeEffectError  # noqa: E402
 from simplicio.runtime_contracts import runtime_verify_contract  # noqa: E402
@@ -154,90 +151,6 @@ def _worktree_isolation_scenario() -> dict[str, Any]:
         "scheduler_count": 1,
         "reason": None if passed else "one or more roots received an incorrect result",
     }
-
-
-def _fast_binary_module(root: Path) -> Any | None:
-    """Load the Fast producer from an installed package or sibling checkout."""
-    try:
-        return importlib.import_module("simplicio_fast.binary_changeset")
-    except ModuleNotFoundError:
-        candidates = [
-            Path(os.environ["SIMPLICIO_FAST_SOURCE"])
-            if os.environ.get("SIMPLICIO_FAST_SOURCE")
-            else root.parent / "simplicio-fast" / "src",
-        ]
-        for candidate in candidates:
-            if candidate.is_dir() and str(candidate) not in sys.path:
-                sys.path.insert(0, str(candidate))
-            sys.modules.pop("simplicio_fast", None)
-            try:
-                return importlib.import_module("simplicio_fast.binary_changeset")
-            except ModuleNotFoundError:
-                continue
-        return None
-
-
-def _fast_binary_scenario(root: Path, count: int, repeats: int) -> dict[str, Any]:
-    module = _fast_binary_module(root)
-    if module is None:
-        return {
-            "scenario": f"fast_python_binary_{count}",
-            "status": "UNVERIFIED",
-            "reason": "simplicio-fast binary producer is unavailable",
-        }
-    samples: list[float] = []
-    with tempfile.TemporaryDirectory(prefix=f"simplicio-422-fast-{count}-") as raw_root:
-        worktree = Path(raw_root)
-        operations = []
-        allowed = []
-        for index in range(count):
-            relative = f"files/file-{index:03d}.txt"
-            content = f"fast-value-{index}\n".encode()
-            allowed.append(relative)
-            operations.append(
-                module.ChangeOperation.from_dict(
-                    {
-                        "op": "create",
-                        "path": relative,
-                        "content_b64": base64.b64encode(content).decode("ascii"),
-                        "after_sha256": hashlib.sha256(content).hexdigest(),
-                    }
-                )
-            )
-        binary = module.BinaryChangeSet(
-            repository=str(worktree.resolve()),
-            base_generation="generation-1",
-            overlay_generation="generation-2",
-            attempt=f"issue-422-fast-{count}",
-            worktree_id=f"slot-422-{count}",
-            lease_id=f"lease-422-{count}",
-            fencing_token=f"fence-422-{count}",
-            allowed_paths=tuple(allowed),
-            operations=tuple(operations),
-        ).encode()
-        for _ in range(repeats):
-            started = time.perf_counter()
-            result = execute_changeset_bytes(binary, root=worktree, apply=True)
-            samples.append((time.perf_counter() - started) * 1000)
-            if result.get("status") != "ok":
-                return {
-                    "scenario": f"fast_python_binary_{count}",
-                    "status": "FAIL",
-                    "repetitions": len(samples),
-                    "error": result.get("errors"),
-                }
-        return {
-            "scenario": f"fast_python_binary_{count}",
-            "status": "PASS",
-            "repetitions": repeats,
-            "warmup": 1,
-            "p50_ms": statistics.median(samples),
-            "p95_ms": sorted(samples)[max(0, int(len(samples) * 0.95) - 1)],
-            "binary_bytes": len(binary),
-            "input_format": "simplicio.fast.binary-changeset/v1",
-            "replay_status": result.get("status"),
-            "replayed": result.get("replayed", False),
-        }
 
 
 def _auto_without_runtime(root: Path) -> dict[str, Any]:
@@ -741,91 +654,12 @@ def _mapper_producer_scenario() -> dict[str, Any]:
         }
 
 
-def _fast_rust_scenario(root: Path) -> dict[str, Any]:
-    """Smoke the real Rust Fast stdio ABI; never label Python fallback as Rust."""
-    candidates = []
-    if os.environ.get("SIMPLICIO_FAST_NATIVE"):
-        candidates.append(Path(os.environ["SIMPLICIO_FAST_NATIVE"]))
-    candidates.extend(
-        [
-            root.parent
-            / "simplicio-fast"
-            / "native"
-            / "fast-native"
-            / "target"
-            / "release"
-            / "simplicio-fast-native.exe",
-            root.parent
-            / "simplicio-fast"
-            / "native"
-            / "fast-native"
-            / "target"
-            / "release"
-            / "simplicio-fast-native",
-        ]
-    )
-    binary = next((path for path in candidates if path.is_file()), None)
-    if binary is None:
-        return {
-            "scenario": "fast_rust",
-            "status": "UNVERIFIED",
-            "reason": "Rust Fast native executable not found; no Python fallback substituted",
-        }
-    requests = [
-        {
-            "abi": "simplicio.fast-native/v1",
-            "operation": "sha256",
-            "payload": {"hex": "6869"},
-        },
-        {
-            "abi": "simplicio.fast-native/v1",
-            "operation": "overlay_merge",
-            "payload": {"base": {"keep": 1, "drop": 2}, "overlay": {"drop": None, "add": 3}},
-        },
-    ]
-    try:
-        completed_rows = [
-            subprocess.run(
-                [str(binary)],
-                input=json.dumps(request),
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=30,
-            )
-            for request in requests
-        ]
-        rows = [json.loads(item.stdout) for item in completed_rows]
-    except (OSError, subprocess.SubprocessError, json.JSONDecodeError) as exc:
-        return {"scenario": "fast_rust", "status": "FAIL", "binary": str(binary), "reason": str(exc)}
-    passed = (
-        all(item.returncode == 0 for item in completed_rows)
-        and len(rows) == 2
-        and rows[0].get("ok") is True
-        and rows[0].get("result") == "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4"
-        and rows[1].get("result") == {"add": 3, "keep": 1}
-    )
-    return {
-        "scenario": "fast_rust",
-        "status": "PASS" if passed else "FAIL",
-        "binary": str(binary),
-        "abi": "simplicio.fast-native/v1",
-        "operations": ["sha256", "overlay_merge"],
-        "reason": None if passed else "Rust Fast ABI smoke returned an unexpected response",
-    }
-
-
 def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
-    preflight = fast_preflight(offline=True)
     rows = [_auto_without_runtime(root)]
     rows.extend(_transaction_scenario(count, repeats) for count in (1, 20, 200))
     rows.append(_worktree_isolation_scenario())
-    rows.extend(_fast_binary_scenario(root, count, repeats) for count in (1, 20, 200))
     rows.append(_adversarial_generation_replay_scenario())
     rows.append(_windows_locked_file_scenario())
-    rust_row = _fast_rust_scenario(root)
-    rust_row["python_preflight"] = preflight.to_dict()
-    rows.append(rust_row)
     mapper_version = _version("simplicio-mapper")
     mapper_row = _mapper_producer_scenario()
     mapper_row["version"] = mapper_version
@@ -844,7 +678,6 @@ def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
         "components": {
             "dev_cli": _version("simplicio-dev-cli"),
             "mapper": _version("simplicio-mapper"),
-            "fast": preflight.to_dict(),
             "runtime": runtime_row,
         },
         "scenarios": rows,

@@ -2,7 +2,7 @@
 
 **Finding (MEASURED):** the Simplicio product stack does **not** depend on the
 `langgraph` Python package. Orchestration is **Python-first** in
-`simplicio-loop` / `simplicio-dev-cli` / `simplicio-mapper` / `simplicio-fast`,
+`simplicio-loop` / `simplicio-dev-cli` / `simplicio-mapper`,
 with **mutation authority and gates** owned by **Runtime (Rust)**.
 
 This document maps [LangGraph durable-agent practices](https://langchain-ai.github.io/langgraph/)
@@ -27,7 +27,7 @@ core path (which would conflict with Runtime ownership of MCP/gates/effects).
 
 ## What we deliberately do **not** do
 
-1. **Do not add `langgraph` as a core dependency** of loop/mapper/dev-cli/fast.
+1. **Do not add `langgraph` as a core dependency** of loop/mapper/dev-cli.
    Graph scheduling for code mutation is owned by Loop + Runtime receipts.
 2. **Do not store loop attempt checkpoints in `memory.sqlite`.**  
    Global neural/MapperStore memory is a different SoT (facts/skills/recall).
@@ -39,7 +39,7 @@ core path (which would conflict with Runtime ownership of MCP/gates/effects).
 ```text
 LangGraph node          →  Simplicio
 ──────────────────────     ────────────────────────────
-orient / plan           →  mapper status/handoff + Fast context
+orient / plan           →  mapper status/handoff context
 tool / edit node        →  dev-cli / Runtime edit (gated)
 interrupt(HITL)         →  Action Gate (ask/safe/auto)
 checkpointer            →  CheckpointLifecycle + journal

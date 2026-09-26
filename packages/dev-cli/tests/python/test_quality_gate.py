@@ -77,7 +77,7 @@ def test_quality_gate_receipt_is_sha_bound_and_records_failures(tmp_path):
         "value": None,
         "reason": "runtime_backed_E2E_requires_a_compatible_installed_capability",
     }
-    assert passing["external_lanes"]["fast"]["value"] is None
+    assert set(passing["external_lanes"]) == {"windows", "runtime"}
 
 
 def test_quality_gate_does_not_promote_windows_host_without_locked_file_evidence(monkeypatch, tmp_path):
@@ -210,7 +210,6 @@ def test_quality_gate_accepts_sha_bound_external_e2e_report(monkeypatch, tmp_pat
                 "scenarios": [
                     {"scenario": "windows_locked_file", "status": "PASS"},
                     {"scenario": "runtime_backed", "status": "PASS"},
-                    {"scenario": "fast_rust", "status": "PASS"},
                 ],
             }
         ),
@@ -261,7 +260,6 @@ def test_quality_gate_keeps_optional_unverified_lanes_separate(monkeypatch, tmp_
                         "status": "AVAILABLE_NOT_E2E",
                         "reason": "effect URL unset",
                     },
-                    {"scenario": "fast_rust", "status": "UNVERIFIED", "reason": "native unavailable"},
                 ],
             }
         ),
@@ -274,4 +272,4 @@ def test_quality_gate_keeps_optional_unverified_lanes_separate(monkeypatch, tmp_
     assert payload["passed"] is True
     assert payload["external_lanes"]["runtime"]["status"] == "UNVERIFIED"
     assert payload["external_lanes"]["runtime"]["reason"] == "effect URL unset"
-    assert payload["external_lanes"]["fast"]["status"] == "UNVERIFIED"
+    assert "fast" not in payload["external_lanes"]

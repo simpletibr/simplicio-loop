@@ -17,7 +17,7 @@ Current operator flow:
 - Run focused tests and `git diff --check`; re-query live PR/check/merge state before publishing.
 - Default profile is standalone: `SIMPLICIO_LOOP_REQUIRE_RUNTIME=off` and `SIMPLICIO_EXECUTION_PROFILE=standalone`.
 - Runtime/MCP is opt-in only; it is not part of the default flow and never replaces the two operators above.
-- issue #1343 removed `simplicio-fast` from the stack entirely; the survey every flow requires is Mapper-only.
+- The survey every flow requires is Mapper-only.
 
 Non-negotiables:
 - Run commands for real; never simulate output.
