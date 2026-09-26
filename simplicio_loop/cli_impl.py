@@ -1084,27 +1084,28 @@ def _brief_plan_groups(tasks: Sequence[str], per_task_targets: Sequence[Sequence
     return {"parallel": parallel, "ordered": ordered}
 
 
-def _brief_annotate_route_next(route: Mapping[str, Any]) -> dict[str, Any]:
-    """Tag ``route["next"]``'s first step -- writing ops.json, the plan
-    phase -- with its reasoning-effort hint (issue #1310 follow-up), so the
-    host that reads the brief knows the NEXT turn should run at
-    ``PHASE_EFFORT["plan"]`` without re-deriving the mapping. Steps stay
-    readable text; only the annotation is added, and a route with no
-    ``next`` (BLOCKED) passes through unchanged."""
+def _brief_annotate_route_next(route: Mapping[str, Any], root: Path,
+                               status: str) -> dict[str, Any]:
+    """Point ``route["next"]`` at the plan-once/apply-once hot path (issues
+    #1310/#1315) whatever ``route.mode`` says: write ops.json (plan phase),
+    then ``simplicio-loop apply`` (execute phase), then follow its
+    ``status``/``next_effort``. Each step carries its reasoning-effort hint
+    so the host never re-derives the mapping. A BLOCKED brief passes
+    through unchanged."""
     from .effort import PHASE_EFFORT
 
-    steps = route.get("next")
-    if not steps:
+    if status == "BLOCKED":
         return dict(route)
-    annotated = []
-    for idx, step in enumerate(steps):
-        entry: dict[str, Any] = {"step": step}
-        if idx == 0:
-            entry["phase"] = "plan"
-            entry["effort"] = PHASE_EFFORT["plan"]
-        annotated.append(entry)
     out = dict(route)
-    out["next"] = annotated
+    out["next"] = [
+        {"step": "read `targets`; write ops.json in the `apply.ops_format` shape "
+                 "(exact find/replace per task, copy `repo_state_chain`)",
+         "phase": "plan", "effort": PHASE_EFFORT["plan"]},
+        {"step": f"simplicio-loop apply ops.json --repo {root} --json",
+         "phase": "execute", "effort": PHASE_EFFORT["execute"]},
+        {"step": "PASS -> done; BLOCKED/FAIL -> fix the named find/check and re-run apply "
+                 "(effort = the result's `next_effort`)"},
+    ]
     return out
 
 
@@ -1192,7 +1193,7 @@ def orient_brief(root: Path, tasks: list[str], *, fast_mode: str = "auto",
     repo_state_chain = _repo_fingerprint(root)
 
     from .effort import PHASE_EFFORT
-    overall_route = _brief_annotate_route_next(overall_route)
+    overall_route = _brief_annotate_route_next(overall_route, root, overall_status)
 
     payload: dict[str, Any] = {}
     payload["route"] = overall_route

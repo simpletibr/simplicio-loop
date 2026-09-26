@@ -9,25 +9,23 @@ Self-referential loop: re-feed the SAME goal every turn; exit only on a typed `<
 Stack: `simplicio-mapper` (survey) → `simplicio-fast` (context) → `simplicio-dev-cli` (apply + verify) → `simplicio-loop` (run/wave/verify). **No Runtime. No MCP.**
 You (the host LLM) decide each change as exact find/replace text; the operators freeze, apply and verify it — the loop never hand-edits or calls a provider to write code.
 
-## Pick the fastest route first
+## Hot path (default): 3 turns, any number of tasks
 
 ```bash
-simplicio-loop orient --task "<one task, plain prose>" --json   # ONE call: Mapper + Fast + route
+# Turn 1 -- ONE call: Mapper + Fast context, target file contents, plan groups
+simplicio-loop orient --brief --task "<task 1>" [--task "<task 2>" ...] --json
+# Turn 2 -- write ops.json (shape in the brief's `apply.ops_format`), then:
+simplicio-loop apply ops.json --repo . --json
+# Turn 3 -- PASS: done. BLOCKED/FAIL: fix the named find/check, re-run apply.
 ```
 
-Read `route.mode` in that JSON and run `route.next` literally — do not re-run `orient`, do not look for repo-local scripts.
+- Follow the brief's `route.next` literally. Do not re-run `orient`, do not `cat` files the brief already returned, do not look for repo-local scripts.
+- `ops.json` = `{"tasks":[{"id","operations":[{"path","find","replace"}],"check","depends_on"}],"repo_state_chain":"<copy from the brief>"}`. A `find` must match exactly once (use `""` to create a new file); `check` is the task's own test command.
+- `apply` validates every `find` before writing anything, applies through `simplicio-dev-cli`, runs independent tasks' checks concurrently, and writes a receipt.
+- **Effort:** plan **high** → execute **low** → review **medium**. Use the `effort` of each `route.next` step and the `next_effort` of `apply`'s result.
+- No `tasks.md`, no run, no scratchpad, no progress header on this path.
 
-- **`fast-path`** (one task, one leaf file, no sensitive surface) — no run, no wave, no quality lanes:
-
-  ```bash
-  simplicio-dev-cli edit --plan ops.json --compile plan.json   # ops.json = {"operations":[{"path","find","replace"}]}
-  simplicio-dev-cli edit --plan plan.json --apply --json
-  <the task's own check>                                       # same turn; that is the evidence
-  ```
-
-- **`converge`** (2+ tasks, several files, a hub or sensitive file) — the wave flow below. Tasks that depend on each other go in the SAME `tasks.md` and the SAME `wave`; write every `edit-plan-<N>.json` up front.
-
-## The wave flow (run these, in order)
+## Governed delivery: the wave flow (issues/PRs, receipts, watcher)
 
 ```bash
 # 1. Survey: what to change (plain-prose goal, one task, no "T1"/"T2" labels)
@@ -88,17 +86,15 @@ Coverage verifier: `python3 -m pytest -q --cov=calc --cov-report=term`
 
 A sibling `.simplicio-loop/orchestrator/loop/done` flag is touched only when the promise is verified. `.simplicio-loop/orchestrator/loop/journal.jsonl` is the loop's durable attempt memory (one record per turn: `iteration`, `action`, `hypothesis`, `gate`, failure `fingerprint`) — the scratchpad holds the GOAL, the journal holds WHAT WAS TRIED.
 
-Every turn's first line: `python3 scripts/loop_progress.py render --turn-header`.
+Wave/governed runs only: every turn's first line is `python3 scripts/loop_progress.py render --turn-header`, and items 1–4 above apply. The hot path skips them.
 End every message: `DONE | NEXT | BLOCKED` (full drive/cadence detail: `references/full-flow.md`).
 
 <!-- SIMPLICIO-LLM-ORIENTATION:BEGIN -->
 Loop orientation:
 - Stack: mapper + fast + simplicio-dev-cli + loop. No Runtime. No MCP.
 - GitHub is SoT for issues/PRs when the remote is GitHub.
-- Context: simplicio-loop orient --task "<goal>" --json (Mapper + Fast).
-- Route first: simplicio-loop orient --task "<task>" --json → follow route.mode / route.next. fast-path (1 task, 1 file) → simplicio-dev-cli edit --plan ops.json --compile plan.json → edit --plan plan.json --apply → run the task's check. No run, no wave.
-- Hot path (1+ tasks): simplicio-loop orient --brief --task "<t>" [--task "<t2>" ...] --json → write ops.json from its targets/plan/apply block → simplicio-loop apply ops.json --repo <root> --json → follow its status/next_effort.
-- 2+ tasks or converge: simplicio-loop prepare --task tasks.md → write every edit-plan-<N>.json → wave <run_id> → verify <run_id>.
+- Hot path (default, 1+ tasks): simplicio-loop orient --brief --task "<t>" [--task "<t2>" ...] --json → write ops.json from its targets/plan/apply block → simplicio-loop apply ops.json --repo <root> --json → follow its status/next_effort.
+- Governed delivery (issues/PRs, receipts, watcher): simplicio-loop prepare --task tasks.md → write every edit-plan-<N>.json → wave <run_id> → verify <run_id>.
 - edit-plan-<N>.json = {"operations": [{"path","find","replace"}]}; find must match exactly once.
 - Never simplicio-dev-cli task "prose". No plan → plan_required (do not call OpenRouter).
 - Review: 1 implement + 1 verify. Promise only after verify MEASURED.

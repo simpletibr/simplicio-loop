@@ -27,7 +27,7 @@ fact source.3.role=normative speed and hot-path orientation
 fact source.3.sha256=29d3043c4e1d0f72f64549cf08c9f9f7be58bda1385842f03818624460524ce3
 fact source.4.path=.claude/skills/simplicio-loop/SKILL.md
 fact source.4.role=Loop protocol, gates, state, convergence, drain, and handoff
-fact source.4.sha256=24055d2f44d434f7ff757120a18583f8ade809cfd51f5ff7f767f39b60a1e0eb
+fact source.4.sha256=8e3d5bbf738180680ec36e08c6c8b03ffc01f9126ca401f407b5042587bc585d
 fact source.5.path=.claude/skills/simplicio-prism/SKILL.md
 fact source.5.role=capability routing and ownership boundaries
 fact source.5.sha256=579b760e6f28e0209019073c06e9eb8c54c9f68510a69ee46732fa4af47ae2ee
@@ -75,7 +75,7 @@ fact source.20.role=real fixture validation for loop-execution/v1
 fact source.20.sha256=8976275ee03d2761e95ddac65f2ead2ec8581ad19bf139606dc47e57f2bdb866
 section skills
 fact skill.1.path=.claude/skills/simplicio-loop/SKILL.md
-fact skill.1.sha256=24055d2f44d434f7ff757120a18583f8ade809cfd51f5ff7f767f39b60a1e0eb
+fact skill.1.sha256=8e3d5bbf738180680ec36e08c6c8b03ffc01f9126ca401f407b5042587bc585d
 fact skill.1.role=orchestrate, converge, drain, evidence-gated completion
 fact skill.2.path=.claude/skills/simplicio-prism/SKILL.md
 fact skill.2.sha256=579b760e6f28e0209019073c06e9eb8c54c9f68510a69ee46732fa4af47ae2ee
