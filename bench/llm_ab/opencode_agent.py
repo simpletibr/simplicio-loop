@@ -457,6 +457,70 @@ def poll_settled_usage(fetch_fn, *, reads: int = DEFAULT_SETTLE_READS,
     return {"value": last_value, "settled": False}
 
 
+def session_id_for_arm(arm: str) -> str:
+    """Stable OpenRouter session id for ``arm`` (issue #1336). Passed through
+    OpenCode's ``provider.openrouter.options.headers`` config as
+    ``x-session-id``, this pins the SAME upstream provider from the very
+    FIRST request of the arm's run, instead of relying on OpenRouter's
+    sticky routing, which only engages after an initial cache hit and
+    expires after 10 minutes idle (see the research in the issue's own
+    comment thread). Pure function of ``arm`` -- always the same id for the
+    same arm, across processes and across the whole stable ``work_dir``
+    history (issue #1336's earlier stable-path fix), never random."""
+    return f"simplicio-bench-{arm}"
+
+
+OPENCODE_CONFIG_RELPATH = (".config", "opencode", "opencode.json")
+
+
+def write_opencode_provider_config(config_dir: str, arm: str) -> str:
+    """Merge a stable ``x-session-id`` header for the ``openrouter`` provider
+    into this arm's OpenCode GLOBAL config (issue #1336): OpenCode reads
+    ``<XDG_CONFIG_HOME>/opencode/opencode.json``, and ``build_env`` already
+    points ``XDG_CONFIG_HOME`` at ``<config_dir>/.config`` for every arm, so
+    this file lives at ``<config_dir>/.config/opencode/opencode.json`` --
+    stable across every task/run that shares this arm's ``config_dir``
+    (issue #1336's own stable-``work_dir`` fix keeps that path fixed run
+    over run, so the same session id keeps being sent).
+
+    Idempotent and non-destructive: any OTHER top-level key, provider, or
+    option already in the file is preserved verbatim -- only
+    ``provider.openrouter.options.headers["x-session-id"]`` is set/updated.
+    A missing or unreadable/malformed existing file is treated as empty
+    (never raises). Returns the path written."""
+    config_path = os.path.join(config_dir, *OPENCODE_CONFIG_RELPATH)
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            data = {}
+    except (OSError, ValueError):
+        data = {}
+
+    provider = data.get("provider")
+    if not isinstance(provider, dict):
+        provider = {}
+        data["provider"] = provider
+    openrouter = provider.get("openrouter")
+    if not isinstance(openrouter, dict):
+        openrouter = {}
+        provider["openrouter"] = openrouter
+    options = openrouter.get("options")
+    if not isinstance(options, dict):
+        options = {}
+        openrouter["options"] = options
+    headers = options.get("headers")
+    if not isinstance(headers, dict):
+        headers = {}
+        options["headers"] = headers
+    headers["x-session-id"] = session_id_for_arm(arm)
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return config_path
+
+
 def run_opencode(arm: str, prompt: str, repo_dir: str, *, key: str | None = None,
                   config_dir: str, timeout: int = DEFAULT_RUN_TIMEOUT, skill: bool = False,
                   bin_path: str | None = None, extra_path: str | None = None,
@@ -499,6 +563,7 @@ def run_opencode(arm: str, prompt: str, repo_dir: str, *, key: str | None = None
     key = key if key is not None else lc.get_key(arm)
     bin_path = bin_path or opencode_bin()
     os.makedirs(config_dir, exist_ok=True)
+    write_opencode_provider_config(config_dir, arm)
 
     full_prompt = prompt
     if skill:

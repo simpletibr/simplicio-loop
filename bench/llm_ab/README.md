@@ -91,6 +91,21 @@ pipeline (`aggregate.py`/`report.py`/`cost.py`) already consumes. See
 "Real cost from OpenRouter" below for how the REPORTED cost is reconciled
 against the real BILLED cost.
 
+### OpenRouter provider stickiness (`write_opencode_provider_config`, issue #1336)
+
+`run_opencode` also merges a stable `x-session-id` header
+(`session_id_for_arm(arm)`, a pure function of the arm name -- always the
+same value for the same arm) into that arm's OpenCode GLOBAL config
+(`<config_dir>/.config/opencode/opencode.json`, under
+`provider.openrouter.options.headers`) before every invocation. OpenRouter's
+own sticky routing to the same upstream provider only engages AFTER a first
+cache hit and expires after 10 minutes idle; sending this header pins the
+same provider from request 1 of the arm's very first task, so the large
+first call (system + skill prompt) has the best chance of hitting a
+cross-session cache instead of starting the sticky window from zero.
+Idempotent and non-destructive: any other key already in that config file is
+preserved.
+
 ## Two fresh repos, sequential tasks, harness-owned commits
 
 Each arm gets its own fresh seeded copy of `fixture/` (`checker.seed_repo`),

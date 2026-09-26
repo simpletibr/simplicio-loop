@@ -490,13 +490,25 @@ def _drop_timeline(body: str) -> str:
     return _TIMELINE_RE.sub("", body)
 
 
+_PER_CALL_CACHE_TABLE_RE = re.compile(
+    r"<h2>Cache por chamada de LLM.*?(?=<h2>|</body>|$)", re.S | re.I)
+
+
+def _drop_per_call_cache_table(body: str) -> str:
+    """The PDF is the shareable summary: the per-LLM-call cache breakdown
+    (issue #1336, one row per turn per task -- a debugging/bisection aid,
+    not a summary figure) stays in the HTML reports only."""
+    return _PER_CALL_CACHE_TABLE_RE.sub("", body)
+
+
 def build_full_html(index_html: str, reports: dict[str, str]) -> str:
     """One printable document: the summary index, then every combination's
     report (tables and base64 charts, without the per-command timeline) on
     its own page."""
     styles = {_between(h, r"<style[^>]*>", "</style>") for h in [index_html, *reports.values()]}
     parts = [f"<section>{_between(index_html, r'<body[^>]*>', '</body>')}</section>"]
-    parts += [f"<section style='page-break-before: always'>{_drop_timeline(_between(h, r'<body[^>]*>', '</body>'))}</section>"
+    parts += [f"<section style='page-break-before: always'>"
+              f"{_drop_per_call_cache_table(_drop_timeline(_between(h, r'<body[^>]*>', '</body>')))}</section>"
               for h in reports.values()]
     style = "\n".join(s for s in styles if s)
     return (f"<!DOCTYPE html><html lang='pt-BR'><head><meta charset='utf-8'>"

@@ -397,8 +397,8 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".", ops_path: str | Path 
     if provenance is None:
         return {
             "schema": APPLY_SCHEMA, "status": "BLOCKED", "reason_code": SURVEY_MISSING_REASON,
-            "run_id": run_id, "ops_sha": ops_sha, "hint": SURVEY_MISSING_HINT,
-            "next_effort": next_effort_for_status("BLOCKED"),
+            "ops_sha": ops_sha, "hint": SURVEY_MISSING_HINT,
+            "run_id": run_id, "next_effort": next_effort_for_status("BLOCKED"),
         }
 
     expected_state = ops.get("repo_state_chain") if isinstance(ops.get("repo_state_chain"), Mapping) else None
@@ -408,26 +408,26 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".", ops_path: str | Path 
         if not _repo_state_equivalent(dict(expected_state), current_state):
             return {
                 "schema": APPLY_SCHEMA, "status": "BLOCKED", "reason_code": "stale_mapper_generation",
-                "run_id": run_id, "ops_sha": ops_sha,
+                "ops_sha": ops_sha,
                 "expected_repo_state_chain": dict(expected_state), "current_repo_state_chain": current_state,
-                "next_effort": next_effort_for_status("BLOCKED"),
+                "run_id": run_id, "next_effort": next_effort_for_status("BLOCKED"),
             }
 
     try:
         tasks = _normalize_tasks(ops)
     except ApplyValidationError as exc:
         return {"schema": APPLY_SCHEMA, "status": "BLOCKED", "reason_code": "ops_invalid",
-                "run_id": run_id, "ops_sha": ops_sha, "hint": str(exc),
-                "next_effort": next_effort_for_status("BLOCKED")}
+                "ops_sha": ops_sha, "hint": str(exc),
+                "run_id": run_id, "next_effort": next_effort_for_status("BLOCKED")}
 
     chains = build_chains(tasks)
     problems = validate_ops(root, tasks, chains)
     if problems:
         return {
             "schema": APPLY_SCHEMA, "status": "BLOCKED", "reason_code": "validation_failed",
-            "run_id": run_id, "ops_sha": ops_sha, "blocked": problems,
+            "ops_sha": ops_sha, "blocked": problems,
             "hint": "fix the listed find/path before retrying; nothing was written",
-            "next_effort": next_effort_for_status("BLOCKED"),
+            "run_id": run_id, "next_effort": next_effort_for_status("BLOCKED"),
         }
 
     run_dir = root / ".simplicio-loop" / "apply" / run_id
@@ -445,9 +445,15 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".", ops_path: str | Path 
     after_state = _repo_fingerprint(root, ignore_paths=ignore_paths)
     diff = _measure_diff(root, before_state)
 
+    # Key order (issue #1336): content that is the SAME across two runs of
+    # the same ops.json on an unchanged tree (schema/ops_sha/chains/tasks/
+    # status/repo state/diff/mapper_fast) comes first, so the serialized
+    # JSON's byte-prefix up to that point stays stable across runs; the
+    # inherently-per-run bytes (`run_id`, `created_at`) are last, so they
+    # invalidate only the tail of the prompt-cache-relevant prefix, never
+    # the whole thing.
     receipt = {
         "schema": APPLY_RECEIPT_SCHEMA,
-        "run_id": run_id,
         "ops_sha": ops_sha,
         "chains": chains,
         "tasks": task_results,
@@ -456,6 +462,7 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".", ops_path: str | Path 
         "repo_state_after": after_state,
         "diff": diff,
         "mapper_fast": provenance,
+        "run_id": run_id,
         "created_at": time.time(),
     }
     receipt_path = run_dir / "receipt.json"
@@ -464,11 +471,11 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".", ops_path: str | Path 
     return {
         "schema": APPLY_SCHEMA,
         "status": overall,
-        "run_id": run_id,
         "ops_sha": ops_sha,
         "tasks": task_results,
-        "receipt_path": str(receipt_path),
         "diff": diff,
+        "run_id": run_id,
+        "receipt_path": str(receipt_path),
         "next_effort": next_effort_for_status(overall),
     }
 
@@ -511,9 +518,9 @@ def _slim_result(result: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "schema": result.get("schema"),
         "status": result.get("status"),
-        "run_id": result.get("run_id"),
         "ops_sha": result.get("ops_sha"),
         "tasks": [_slim_task_view(t) for t in result.get("tasks") or []],
+        "run_id": result.get("run_id"),
         "receipt_path": result.get("receipt_path"),
         "next_effort": result.get("next_effort"),
     }

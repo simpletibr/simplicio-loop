@@ -394,3 +394,17 @@ def test_build_full_html_drops_the_command_timeline_from_the_pdf():
     assert "Linha do tempo de comandos" not in full
     assert "cat big.html" not in full
     assert "Gráficos" in full and "Histórico" in full
+
+
+def test_build_full_html_drops_the_per_call_cache_table_from_the_pdf():
+    """Issue #1336: the per-LLM-call cache breakdown is an HTML-only
+    debugging aid (it can have one row per turn per task), not part of the
+    shareable PDF summary."""
+    report = ("<html><head></head><body><h2>Custo real</h2><table></table>"
+              "<h2>Cache por chamada de LLM (bisecção de quebras de prefixo, issue #1336)</h2>"
+              "<table class=\"compare\"><tr><td>simplicio</td><td>99.9%</td></tr></table>"
+              "<h2>Gráficos</h2><img src='x'></body></html>")
+    full = standard.build_full_html("<html><body><h1>Resumo</h1></body></html>", {"t1": report})
+    assert "Cache por chamada de LLM" not in full
+    assert "99.9%" not in full
+    assert "Custo real" in full and "Gráficos" in full

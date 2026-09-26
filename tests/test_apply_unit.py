@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -348,6 +349,50 @@ def test_slim_result_pass_drops_diff_and_full_task_detail():
     assert slim["tasks"] == [{"id": "t1", "status": "PASS"}]
     assert slim["receipt_path"] == "/tmp/receipt.json"
     assert "diff" not in slim
+
+
+# -- issue #1336: volatile fields (run_id/timestamps) never precede content
+#    fields in the serialized JSON, so the byte-prefix stays stable across
+#    runs on an unchanged tree for as long as possible (prompt-cache hit).
+
+
+def test_slim_result_pass_places_run_id_after_tasks_content():
+    result = {
+        "schema": "s", "status": "PASS", "run_id": "r1", "ops_sha": "sha", "next_effort": "low",
+        "receipt_path": "/tmp/receipt.json",
+        "tasks": [{"id": "t1", "status": "PASS"}],
+    }
+    slim = apply_mod._slim_result(result)
+    keys = list(slim.keys())
+    assert keys.index("tasks") < keys.index("run_id")
+    assert keys.index("tasks") < keys.index("receipt_path")
+
+
+def test_run_blocked_validation_failed_places_run_id_after_hint(tmp_path):
+    _write(tmp_path, "a.txt", "hello")
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "nope", "replace": "x"}]}]}
+    result = apply_mod.run(ops, repo=str(tmp_path))
+    assert result["status"] == "BLOCKED"
+    keys = list(result.keys())
+    assert keys.index("hint") < keys.index("run_id")
+    assert keys.index("blocked") < keys.index("run_id")
+
+
+def test_run_receipt_places_run_id_after_tasks_content(tmp_path, monkeypatch):
+    _write(tmp_path, "a.txt", "hello")
+    monkeypatch.setattr(apply_mod, "_apply_task_devcli",
+                        lambda root, task, run_dir: {"ok": True, "steps": [], "reason_code": None})
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}]}
+    result = apply_mod.run(ops, repo=str(tmp_path))
+    assert result["status"] == "PASS"
+    result_keys = list(result.keys())
+    assert result_keys.index("tasks") < result_keys.index("run_id")
+
+    receipt_path = Path(result["receipt_path"])
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt_keys = list(receipt.keys())
+    assert receipt_keys.index("tasks") < receipt_keys.index("run_id")
+    assert receipt_keys.index("tasks") < receipt_keys.index("created_at")
 
 
 def test_apply_main_default_stdout_is_compact_single_line(tmp_path, monkeypatch, capsys):
