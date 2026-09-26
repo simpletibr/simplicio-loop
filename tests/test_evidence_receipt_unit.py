@@ -129,6 +129,15 @@ else:
 
     # Phase 1: arm the run. No mutation is attempted at prepare time -- the
     # dry-run operator preflight above only proves dev-cli accepts a plan.
+    # Every flow goes through Mapper + Fast first (issue #1318). This test
+    # runs with fake operators on a restricted PATH, so it records the survey
+    # a real `orient` leaves instead of running one.
+    state = repo / ".simplicio-loop"
+    state.mkdir(parents=True, exist_ok=True)
+    (state / "project-map.json").write_text("{}", encoding="utf-8")
+    (state / "survey.json").write_text(json.dumps({"generations": [{
+        "task": "demo", "operator": "simplicio-mapper", "generation": None,
+        "context_hash": None}]}), encoding="utf-8")
     prepared = _run(CLI + ["prepare", "--task", str(task), "--repo", str(repo),
                            "--delivery", "verified", "--max-iterations", "9"],
                      REPO, env=common_env)

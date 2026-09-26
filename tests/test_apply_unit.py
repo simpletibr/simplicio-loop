@@ -16,6 +16,24 @@ import pytest
 from simplicio_loop import apply as apply_mod
 
 
+def seed_mapper_fast_survey(root):
+    """Write the minimal Mapper + Fast survey `simplicio-loop apply` requires
+    (issue #1318): the Mapper project map and the brief's per-task Fast
+    provenance, as a real `orient --brief` leaves them."""
+    state = root / ".simplicio-loop"
+    state.mkdir(parents=True, exist_ok=True)
+    (state / "project-map.json").write_text("{}", encoding="utf-8")
+    (state / "survey.json").write_text(json.dumps({"generations": [{
+        "task": "t", "operator": "simplicio-fast",
+        "generation": "sha256:test", "context_hash": "sha256:test"}]}), encoding="utf-8")
+
+
+@pytest.fixture(autouse=True)
+def _mapper_fast_survey(request, tmp_path):
+    if request.node.get_closest_marker("no_survey") is None:
+        seed_mapper_fast_survey(tmp_path)
+
+
 def _write(root, rel, content):
     path = root / rel
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -157,7 +175,8 @@ def test_run_blocked_validation_writes_nothing(tmp_path, monkeypatch):
 
 def test_run_stale_generation_is_blocked_with_no_write(tmp_path, monkeypatch):
     _write(tmp_path, "a.txt", "hello")
-    monkeypatch.setattr(apply_mod, "_repo_fingerprint", lambda root: {"tree_hash": "CURRENT", "head": "", "dirty_status_hash": ""})
+    monkeypatch.setattr(apply_mod, "_repo_fingerprint",
+                         lambda root, **_kw: {"tree_hash": "CURRENT", "head": "", "dirty_status_hash": ""})
     ops = {
         "tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}],
         "repo_state_chain": {"tree_hash": "STALE"},
@@ -166,6 +185,42 @@ def test_run_stale_generation_is_blocked_with_no_write(tmp_path, monkeypatch):
     assert result["status"] == "BLOCKED"
     assert result["reason_code"] == "stale_mapper_generation"
     assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "hello"
+
+
+def test_run_ignores_ops_file_at_repo_root_when_checking_staleness(tmp_path, monkeypatch):
+    """issue #1318: an untracked ops.json written at the repo root -- not
+    just under `.simplicio-loop/` -- must never itself make the repo look
+    stale relative to a `repo_state_chain` computed before that file
+    existed."""
+    _write(tmp_path, "a.txt", "hello")
+    expected_state = apply_mod._repo_fingerprint(tmp_path)
+
+    ops_path = tmp_path / "ops.json"
+    ops = {
+        "tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}],
+        "repo_state_chain": expected_state,
+    }
+    ops_path.write_text(json.dumps(ops), encoding="utf-8")
+
+    monkeypatch.setattr(apply_mod, "_apply_task_devcli",
+                         lambda root, task, run_dir: {"ok": True, "steps": [], "reason_code": None})
+    result = apply_mod.run(ops, repo=tmp_path, ops_path=ops_path)
+    assert result["status"] == "PASS", result
+
+
+def test_run_without_ops_path_still_blocks_on_real_drift(tmp_path):
+    """The exclusion must be scoped to the ops file itself -- a real content
+    change elsewhere still trips the staleness gate."""
+    _write(tmp_path, "a.txt", "hello")
+    expected_state = apply_mod._repo_fingerprint(tmp_path)
+    _write(tmp_path, "b.txt", "unexpected new file")
+    ops = {
+        "tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}],
+        "repo_state_chain": expected_state,
+    }
+    result = apply_mod.run(ops, repo=tmp_path, ops_path=tmp_path / "ops.json")
+    assert result["status"] == "BLOCKED"
+    assert result["reason_code"] == "stale_mapper_generation"
 
 
 def test_check_isolation_env_contains_expected_keys():
@@ -212,3 +267,32 @@ def test_run_result_carries_next_effort_low_on_blocked_validation(tmp_path):
     result = apply_mod.run(ops, repo=tmp_path)
     assert result["status"] == "BLOCKED"
     assert result["next_effort"] == PHASE_EFFORT["execute"]
+
+
+@pytest.mark.no_survey
+def test_run_without_mapper_fast_survey_is_blocked_and_writes_nothing(tmp_path):
+    """Every flow goes through Mapper + Fast: no survey, no apply."""
+    _write(tmp_path, "a.txt", "hello\n")
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}]}
+    result = apply_mod.run(ops, repo=tmp_path)
+    assert result["status"] == "BLOCKED"
+    assert result["reason_code"] == "mapper_fast_provenance_missing"
+    assert (tmp_path / "a.txt").read_text() == "hello\n"
+
+
+@pytest.mark.no_survey
+def test_run_with_fast_provenance_but_no_mapper_map_is_blocked(tmp_path):
+    _write(tmp_path, "a.txt", "hello\n")
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}],
+           "brief_generations": [{"operator": "simplicio-fast", "generation": "g", "context_hash": "c"}]}
+    assert apply_mod.run(ops, repo=tmp_path)["reason_code"] == "mapper_fast_provenance_missing"
+
+
+def test_run_receipt_records_mapper_fast_provenance(tmp_path, monkeypatch):
+    _write(tmp_path, "a.txt", "hello\n")
+    monkeypatch.setattr(apply_mod, "_apply_task_devcli",
+                        lambda root, task, run_dir: {"ok": True, "steps": [], "reason_code": None})
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}]}
+    result = apply_mod.run(ops, repo=tmp_path)
+    receipt = json.loads(open(result["receipt_path"]).read())
+    assert receipt["mapper_fast"]["generations"][0]["context_hash"] == "sha256:test"

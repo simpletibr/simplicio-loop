@@ -17,7 +17,7 @@ from threading import Thread
 from collections import deque
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, ThreadPoolExecutor, wait
 from pathlib import Path
-from typing import Any, Callable, Collection, Dict, Iterable, List, Literal, Mapping, Optional, Sequence, Tuple, TypedDict
+from typing import Any, Callable, Collection, Dict, Iterable, List, Literal, Mapping, Optional, Sequence, Set, Tuple, TypedDict
 
 from .delivery import (build_delivery_receipt, normalize_delivery_target,
                        reconcile_delivery_observation, write_delivery_receipt)
@@ -2275,14 +2275,21 @@ def _is_loop_owned_status_path(path: str) -> bool:
     )
 
 
-def _repo_fingerprint(repo_path: Path) -> Dict[str, str]:
+def _repo_fingerprint(repo_path: Path, *, ignore_paths: Set[str] | None = None) -> Dict[str, str]:
     """Return a deterministic content fingerprint for mapper freshness gates.
 
     Git status alone cannot detect two edits to the same path, so the fingerprint includes
     file bytes for the relevant working tree while excluding generated mapper/run artifacts.
     This is intentionally local and model-free; a later mutation can therefore invalidate the
     plan without trusting an LLM's freshness claim.
+
+    ``ignore_paths`` (repo-relative, POSIX-separated) additionally excludes specific files from
+    both the content hash and the status filter -- used by ``simplicio_loop.apply`` so the
+    ops.json a caller wrote to plan a change never makes that same change's own staleness
+    check fail (issue #1318): `.simplicio-loop/` is already excluded unconditionally below, but
+    an ops file living at the repo root needs an explicit, caller-supplied exclusion.
     """
+    extra_ignored = set(ignore_paths or ())
     digest = hashlib.sha256()
     files = []
     try:
@@ -2292,7 +2299,12 @@ def _repo_fingerprint(repo_path: Path) -> Dict[str, str]:
     if listed.returncode == 0:
         # Respect .gitignore: build outputs and verifier byproducts are not source.
         for rel in sorted({item for item in (listed.stdout or "").split("\0") if item}):
-            if _is_loop_generated_path(rel) or _is_tool_cache_path(rel) or rel.startswith(".simplicio-loop/"):
+            if (
+                _is_loop_generated_path(rel)
+                or _is_tool_cache_path(rel)
+                or rel.startswith(".simplicio-loop/")
+                or rel in extra_ignored
+            ):
                 continue
             try:
                 files.append((rel, (repo_path / rel).read_bytes()))
@@ -2313,7 +2325,7 @@ def _repo_fingerprint(repo_path: Path) -> Dict[str, str]:
             path = Path(root) / name
             try:
                 rel = path.relative_to(repo_path).as_posix()
-                if _is_loop_generated_path(rel):
+                if _is_loop_generated_path(rel) or rel in extra_ignored:
                     continue
                 data = path.read_bytes()
             except (OSError, ValueError):
@@ -2339,7 +2351,8 @@ def _repo_fingerprint(repo_path: Path) -> Dict[str, str]:
                 parts = [part.strip() for part in path_text.split("->")] if "->" in path_text else [path_text]
                 normalized = [_normalized_repo_path(part) for part in parts if part.strip()]
                 if normalized and all(
-                    _is_loop_owned_status_path(item) or _is_tool_cache_path(item) for item in normalized
+                    _is_loop_owned_status_path(item) or _is_tool_cache_path(item) or item in extra_ignored
+                    for item in normalized
                 ):
                     continue
                 filtered.append(line)

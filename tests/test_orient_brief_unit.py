@@ -11,11 +11,13 @@ test_orient_route_unit.py, unchanged here).
 from __future__ import annotations
 
 import json
+import subprocess
 
 from simplicio_loop.cli_impl import ORIENT_BRIEF_SCHEMA, orient_brief
 
 
 def _repo(tmp_path, files):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     for rel, content in files.items():
         path = tmp_path / rel
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -147,7 +149,7 @@ def test_brief_route_next_is_apply_hot_path_for_one_task(tmp_path):
     _repo(tmp_path, {"a.html": "<html></html>"})
     steps = orient_brief(tmp_path, ["Edit a.html"])["route"]["next"]
     text = " ".join(s["step"] for s in steps)
-    assert "simplicio-loop apply ops.json" in text
+    assert "simplicio-loop apply .simplicio-loop/ops.json" in text
     assert "simplicio-dev-cli" not in text
     assert steps[0]["phase"] == "plan"
     assert steps[0]["effort"] == PHASE_EFFORT["plan"]
@@ -158,5 +160,59 @@ def test_brief_route_next_is_apply_hot_path_for_one_task(tmp_path):
 def test_brief_route_next_is_apply_hot_path_for_many_tasks(tmp_path):
     _repo(tmp_path, {"a.html": "<html></html>", "b.html": "<html></html>"})
     steps = orient_brief(tmp_path, ["Edit a.html", "Edit b.html"])["route"]["next"]
-    assert any("simplicio-loop apply ops.json" in s["step"] for s in steps)
+    assert any("simplicio-loop apply .simplicio-loop/ops.json" in s["step"] for s in steps)
     assert not any("prepare" in s["step"] or "wave" in s["step"] for s in steps)
+
+
+def test_brief_targets_named_file_comes_first(tmp_path):
+    """issue #1318: the file a task names first must sort first in
+    ``targets``, ahead of any other candidate the same task's ranking
+    surfaced (a tiny repo returns every file as a candidate for every
+    task)."""
+    _repo(tmp_path, {"cadastro.html": "<html>cadastro</html>", "login.html": "<html>login</html>"})
+    payload = orient_brief(tmp_path, ["Replace login.html placeholder with a real login form"])
+    paths = [t["path"] for t in payload["targets"]]
+    assert paths[0] == "login.html"
+
+
+def test_brief_verifier_file_included_by_path_with_head_only(tmp_path):
+    """A verifier/test/check file (path under tests/, or a name starting
+    with test_/check_) is worth pointing at, but its full body is not --
+    only the path plus a short head."""
+    lines = [f"line {i}\n" for i in range(1, 61)]
+    _repo(tmp_path, {
+        "a.html": "<html></html>",
+        "tests/test_a.py": "".join(lines),
+    })
+    payload = orient_brief(tmp_path, ["Edit a.html, verified by tests/test_a.py"])
+    entry = next(t for t in payload["targets"] if t["path"] == "tests/test_a.py")
+    assert entry["truncated"] is True
+    kept_lines = entry["content"].splitlines()
+    assert len(kept_lines) <= 20
+    assert kept_lines[0] == "line 1"
+    assert "line 60" not in entry["content"]
+
+
+def test_brief_total_content_budget_is_enforced(tmp_path):
+    """issue #1318: the brief stays under a total target-content budget (24KB)
+    even across many tasks/files, with truncation markers where it clips."""
+    files = {f"f{i}.py": ("X" * 6000) for i in range(6)}
+    _repo(tmp_path, files)
+    tasks = [f"Edit f{i}.py: change something" for i in range(6)]
+    payload = orient_brief(tmp_path, tasks)
+    total = sum(len(t["content"].encode("utf-8")) for t in payload["targets"])
+    assert total <= 24 * 1024
+    assert any(t["truncated"] for t in payload["targets"])
+
+
+def test_brief_writes_itself_to_state_dir_with_generations(tmp_path):
+    """Issue #1318: the brief persists `.simplicio-loop/brief.json` (the
+    Mapper + Fast provenance `apply` requires) and its ops format asks for
+    `brief_generations`."""
+    import json as _json
+
+    _repo(tmp_path, {"a.html": "<html></html>"})
+    payload = orient_brief(tmp_path, ["Edit a.html"])
+    saved = _json.loads((tmp_path / ".simplicio-loop" / "brief.json").read_text())
+    assert saved["generations"] == payload["generations"]
+    assert "brief_generations" in payload["apply"]["ops_format"]

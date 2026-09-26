@@ -89,6 +89,10 @@ def test_intake_from_jira_json_to_prepare(tmp_path):
     subprocess.run(["git", "add", "tasks.md"], cwd=str(tmp_path), check=True)
     subprocess.run(["git", "commit", "-q", "-m", "intake"], cwd=str(tmp_path), check=True)
 
+    # Every flow goes through Mapper + Fast first (issue #1318).
+    oriented = _run(CLI + ["orient", "--repo", str(tmp_path), "--task", "survey the repo", "--json"],
+                    cwd=str(tmp_path))
+    assert oriented.returncode == 0, oriented.stderr[-2000:]
     prepare_result = _run(
         CLI + ["prepare", "--task", "tasks.md", "--repo", str(tmp_path)],
         cwd=str(tmp_path),

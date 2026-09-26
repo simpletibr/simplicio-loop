@@ -2,10 +2,31 @@
 independent chains' checks run concurrently, not serially."""
 from __future__ import annotations
 
+import json
 import subprocess
 import time
 
+import pytest
+
 from simplicio_loop import apply as apply_mod
+
+
+def seed_mapper_fast_survey(root):
+    """Write the minimal Mapper + Fast survey `simplicio-loop apply` requires
+    (issue #1318): the Mapper project map and the brief's per-task Fast
+    provenance, as a real `orient --brief` leaves them."""
+    state = root / ".simplicio-loop"
+    state.mkdir(parents=True, exist_ok=True)
+    (state / "project-map.json").write_text("{}", encoding="utf-8")
+    (state / "survey.json").write_text(json.dumps({"generations": [{
+        "task": "t", "operator": "simplicio-fast",
+        "generation": "sha256:test", "context_hash": "sha256:test"}]}), encoding="utf-8")
+
+
+@pytest.fixture(autouse=True)
+def _mapper_fast_survey(request, tmp_path):
+    if request.node.get_closest_marker("no_survey") is None:
+        seed_mapper_fast_survey(tmp_path)
 
 
 def _write(root, rel, content):

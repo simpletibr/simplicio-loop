@@ -9,19 +9,24 @@ Self-referential loop: re-feed the SAME goal every turn; exit only on a typed `<
 Stack: `simplicio-mapper` (survey) → `simplicio-fast` (context) → `simplicio-dev-cli` (apply + verify) → `simplicio-loop` (run/wave/verify). **No Runtime. No MCP.**
 You (the host LLM) decide each change as exact find/replace text; the operators freeze, apply and verify it — the loop never hand-edits or calls a provider to write code.
 
+**Every flow starts with Mapper + Fast** (`orient --brief` or `orient`): `apply` and `prepare` refuse to run without that survey (`mapper_fast_provenance_missing`, nothing written).
+
 ## Hot path (default): 3 turns, any number of tasks
 
 ```bash
-# Turn 1 -- ONE call: Mapper + Fast context, target file contents, plan groups
-simplicio-loop orient --brief --task "<task 1>" [--task "<task 2>" ...] --json
-# Turn 2 -- write ops.json (shape in the brief's `apply.ops_format`), then:
-simplicio-loop apply ops.json --repo . --json
+# Turn 1 -- ONE call, no exploration/--help/cat before it: Mapper + Fast
+# context, target file contents, plan groups, straight to a file
+mkdir -p .simplicio-loop && simplicio-loop orient --brief --repo . --task "<task 1>" [--task "<task 2>" ...] --json > .simplicio-loop/brief.json
+# Turn 2 -- read .simplicio-loop/brief.json, write .simplicio-loop/ops.json
+# (shape in the brief's `apply.ops_format`), then:
+simplicio-loop apply .simplicio-loop/ops.json --repo . --json
 # Turn 3 -- PASS: done. BLOCKED/FAIL: fix the named find/check, re-run apply.
 ```
 
+- No exploration first: never `pwd`/`ls`/`which`/`--help`/`cat` before Turn 1 -- the brief already returns the route, ranked target file contents and the plan groups.
 - Follow the brief's `route.next` literally. Do not re-run `orient`, do not `cat` files the brief already returned, do not look for repo-local scripts.
-- `ops.json` = `{"tasks":[{"id","operations":[{"path","find","replace"}],"check","depends_on"}],"repo_state_chain":"<copy from the brief>"}`. A `find` must match exactly once (use `""` to create a new file); `check` is the task's own test command.
-- `apply` validates every `find` before writing anything, applies through `simplicio-dev-cli`, runs independent tasks' checks concurrently, and writes a receipt.
+- `.simplicio-loop/ops.json` = `{"tasks":[{"id","operations":[{"path","find","replace"}],"check","depends_on"}],"repo_state_chain":"<copy from the brief>"}`. A `find` must match exactly once (use `""` to create a new file); `check` is the task's own test command.
+- `apply` validates every `find` before writing anything, applies through `simplicio-dev-cli`, runs independent tasks' checks concurrently, and writes a receipt. It ignores `.simplicio-loop/ops.json` itself (and anything else under `.simplicio-loop/`) when checking `repo_state_chain` for staleness.
 - **Effort:** plan **high** → execute **low** → review **medium**. Use the `effort` of each `route.next` step and the `next_effort` of `apply`'s result.
 - No `tasks.md`, no run, no scratchpad, no progress header on this path.
 
@@ -93,7 +98,7 @@ End every message: `DONE | NEXT | BLOCKED` (full drive/cadence detail: `referenc
 Loop orientation:
 - Stack: mapper + fast + simplicio-dev-cli + loop. No Runtime. No MCP.
 - GitHub is SoT for issues/PRs when the remote is GitHub.
-- Hot path (default, 1+ tasks): simplicio-loop orient --brief --task "<t>" [--task "<t2>" ...] --json → write ops.json from its targets/plan/apply block → simplicio-loop apply ops.json --repo <root> --json → follow its status/next_effort.
+- Hot path (default, 1+ tasks): simplicio-loop orient --brief --repo . --task "<t>" [--task "<t2>" ...] --json > .simplicio-loop/brief.json → write .simplicio-loop/ops.json from its targets/plan/apply block → simplicio-loop apply .simplicio-loop/ops.json --repo <root> --json → follow its status/next_effort. No exploration/--help/cat before Turn 1.
 - Governed delivery (issues/PRs, receipts, watcher): simplicio-loop prepare --task tasks.md → write every edit-plan-<N>.json → wave <run_id> → verify <run_id>.
 - edit-plan-<N>.json = {"operations": [{"path","find","replace"}]}; find must match exactly once.
 - Never simplicio-dev-cli task "prose". No plan → plan_required (do not call OpenRouter).

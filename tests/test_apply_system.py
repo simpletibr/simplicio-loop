@@ -29,6 +29,13 @@ def _run_cli(*args: str, cwd: Path) -> subprocess.CompletedProcess:
     )
 
 
+def _survey(repo: Path, task: str) -> None:
+    """Every flow goes through Mapper + Fast (issue #1318): run the real
+    `orient --brief` so `apply` finds its survey."""
+    proc = _run_cli("orient", "--repo", ".", "--task", task, "--brief", "--json", cwd=repo)
+    assert proc.returncode == 0, proc.stderr[-2000:]
+
+
 def _seed_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -119,6 +126,7 @@ def test_apply_bad_find_is_blocked_and_tree_unchanged(tmp_path):
     ]}]}
     ops_path = tmp_path / "ops.json"
     ops_path.write_text(json.dumps(ops), encoding="utf-8")
+    _survey(repo, "Edit cadastro.html")
 
     proc = _run_cli("apply", str(ops_path), "--repo", ".", "--json", cwd=repo)
     result = json.loads(proc.stdout)
@@ -132,6 +140,37 @@ def test_apply_bad_find_is_blocked_and_tree_unchanged(tmp_path):
     assert tracked_dirty == []
 
 
+def test_apply_ops_json_at_repo_root_is_not_treated_as_stale(tmp_path):
+    """issue #1318: brief -> write ops.json AT THE REPO ROOT (not /tmp) ->
+    apply -> PASS. Regression for the real hot-path bug: an untracked
+    ops.json inside the repo used to change `repo_state_chain`'s tree hash
+    between `orient --brief` and `apply`, blocking a run that touched
+    nothing else."""
+    repo = _seed_repo(tmp_path)
+    before = (repo / "cadastro.html").read_text(encoding="utf-8")
+
+    brief_proc = _run_cli(
+        "orient", "--repo", ".", "--task", "Add a lang attribute to cadastro.html's html tag",
+        "--brief", "--json", cwd=repo,
+    )
+    brief = json.loads(brief_proc.stdout)
+
+    ops = {
+        "tasks": [{"id": "t1", "operations": [
+            {"path": "cadastro.html", "find": before,
+             "replace": "<html lang=\"en\"><body><form>signup</form></body></html>"},
+        ]}],
+        "repo_state_chain": brief["repo_state_chain"],
+    }
+    ops_path = repo / "ops.json"
+    ops_path.write_text(json.dumps(ops), encoding="utf-8")
+
+    apply_proc = _run_cli("apply", "ops.json", "--repo", ".", "--json", cwd=repo)
+    result = json.loads(apply_proc.stdout)
+    assert result["status"] == "PASS", result
+    assert apply_proc.returncode == 0
+
+
 def test_apply_stale_repo_state_chain_is_blocked_and_tree_unchanged(tmp_path):
     repo = _seed_repo(tmp_path)
     before = (repo / "cadastro.html").read_text(encoding="utf-8")
@@ -143,10 +182,26 @@ def test_apply_stale_repo_state_chain_is_blocked_and_tree_unchanged(tmp_path):
     }
     ops_path = tmp_path / "ops.json"
     ops_path.write_text(json.dumps(ops), encoding="utf-8")
+    _survey(repo, "Edit cadastro.html")
 
     proc = _run_cli("apply", str(ops_path), "--repo", ".", "--json", cwd=repo)
     result = json.loads(proc.stdout)
     assert result["status"] == "BLOCKED"
     assert result["reason_code"] == "stale_mapper_generation"
+    assert proc.returncode == 2
+    assert (repo / "cadastro.html").read_text(encoding="utf-8") == before
+
+
+def test_apply_without_orient_brief_is_blocked_and_tree_unchanged(tmp_path):
+    """No Mapper + Fast survey -> apply refuses (issue #1318)."""
+    repo = _seed_repo(tmp_path)
+    before = (repo / "cadastro.html").read_text(encoding="utf-8")
+    ops = {"tasks": [{"id": "t1", "operations": [
+        {"path": "cadastro.html", "find": before, "replace": "<html>x</html>"}]}]}
+    ops_path = tmp_path / "ops.json"
+    ops_path.write_text(json.dumps(ops), encoding="utf-8")
+    proc = _run_cli("apply", str(ops_path), "--repo", ".", "--json", cwd=repo)
+    result = json.loads(proc.stdout)
+    assert result["reason_code"] == "mapper_fast_provenance_missing"
     assert proc.returncode == 2
     assert (repo / "cadastro.html").read_text(encoding="utf-8") == before
