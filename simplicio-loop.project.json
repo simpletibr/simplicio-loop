@@ -34,7 +34,7 @@
     "skills_plus_accelerators": 11,
     "satellite_skills": 5,
     "accelerators_integrations": 5,
-    "extension_points": 48,
+    "extension_points": 50,
     "extension_points_note": "Reconciliado de 44→48 no Unreleased; alguns trechos antigos de docs ainda citam 44.",
     "runtimes": 11,
     "source_adapters": 5,
@@ -85,7 +85,7 @@
       "absorbs": "—",
       "path": ".claude/skills/simplicio-tasks/SKILL.md",
       "token_impact": "Core",
-      "key_mechanics": ["48 extension points", "dual-path router (fast/heavy)", "self-audit convergence", "auto-arma o loop na invocação (sem /loop separado)"],
+      "key_mechanics": ["50 extension points", "dual-path router (fast/heavy)", "self-audit convergence", "auto-arma o loop na invocação (sem /loop separado)"],
       "steps": [
         "Step 0 — Auto-arm the loop (escreve .simplicio/orchestrator/loop/scratchpad.md)",
         "Step 1 — Identity + environment",
