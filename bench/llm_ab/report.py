@@ -97,64 +97,55 @@ def build_charts(arms: dict) -> dict:
 
 
 def build_arm_table_rows(arms: dict, task_kind: str | None = None) -> str:
-    """One comparison table row per metric, one column per arm. When
-    ``task_kind`` is given, figures are scoped to just that kind's tasks
-    (create vs edit split)."""
+    """One comparison row per metric, one column per arm, plus an
+    "Economia com simplicio" column (normal - simplicio, value and % of
+    normal; negative = simplicio spent more). ``task_kind`` scopes every
+    figure to that kind's tasks (create vs edit, same session)."""
     arm_names = list(arms)
-    rows = []
+    with_savings = "normal" in arms and "simplicio" in arms
 
-    def row(label, values):
-        cells = "".join(f"<td>{v}</td>" for v in values)
-        return f"<tr><td>{label}</td>{cells}</tr>\n"
-
-    def scoped_tasks(arm_data):
+    def scoped(arm_data):
         tasks = arm_data.get("tasks", [])
-        if task_kind is None:
-            return tasks
-        return [t for t in tasks if t.get("kind") == task_kind]
+        if task_kind is not None:
+            tasks = [t for t in tasks if t.get("kind") == task_kind]
+        return {"tasks": tasks}
 
-    def scoped_arm(arm_data):
-        return {"tasks": scoped_tasks(arm_data)}
+    metrics = []  # (label, {arm: raw number or text}, formatter or None for text)
+    raw = {name: scoped(arms[name]) for name in arm_names}
+    toks = {name: agg.token_totals(raw[name]) for name in arm_names}
+    success = {name: "%d/%d" % agg.success_summary(raw[name]) for name in arm_names}
+    metrics.append(("Tarefas concluídas", success, None))
+    metrics.append(("Tempo (s)", {n: agg.task_wall(raw[n]) for n in arm_names}, lambda v: fmt(v, 1)))
+    metrics.append(("Turnos de LLM", {n: agg.turns_stats(raw[n])[0] for n in arm_names}, lambda v: fmt(v, 0)))
+    metrics.append(("Comandos executados", {
+        n: sum((t.get("totals") or {}).get("n_commands") or 0 for t in raw[n]["tasks"]) for n in arm_names
+    }, lambda v: fmt(v, 0)))
+    metrics.append(("... dos quais simplicio-*", {n: agg.simplicio_command_count(raw[n]) for n in arm_names}, None))
+    metrics.append(("CPU total (comandos, s)", {n: agg.cpu_ram(raw[n])[0] for n in arm_names}, lambda v: fmt(v, 2)))
+    metrics.append(("Pico RAM (MB)", {n: agg.cpu_ram(raw[n])[1] for n in arm_names}, None))
+    metrics.append(("Tokens prompt (não cacheado)", {n: toks[n]["prompt_uncached"] for n in arm_names}, lambda v: fmt(v, 0)))
+    metrics.append(("Tokens prompt (cacheado)", {n: toks[n]["cached"] for n in arm_names}, None))
+    metrics.append(("Tokens completion", {n: toks[n]["completion_non_reasoning"] for n in arm_names}, lambda v: fmt(v, 0)))
+    metrics.append(("Tokens de raciocínio", {n: toks[n]["reasoning"] for n in arm_names}, lambda v: fmt(v, 0)))
+    metrics.append(("Custo (USD)", {n: toks[n]["cost_usd"] for n in arm_names}, lambda v: "$" + fmt(v, 5)))
+    metrics.append(("Invocações do checker pelo próprio agente", {n: agg.check_run_count(raw[n]) for n in arm_names}, None))
 
-    success_vals, turns_vals, wall_vals, cpu_vals, rss_vals = [], [], [], [], []
-    prompt_vals, cached_vals, compl_vals, reason_vals, cost_vals = [], [], [], [], []
-    cmd_vals, simplicio_cmd_vals, check_vals = [], [], []
-    for name in arm_names:
-        scoped = scoped_arm(arms[name])
-        n_success, n_tasks = agg.success_summary(scoped)
-        success_vals.append(f"{n_success}/{n_tasks}")
-        total_turns, _first_try, _n = agg.turns_stats(scoped)
-        turns_vals.append(total_turns)
-        cpu_total, peak_rss = agg.cpu_ram(scoped)
-        cpu_vals.append(fmt(cpu_total, 2))
-        rss_vals.append(fmt(peak_rss, 1))
-        tok = agg.token_totals(scoped)
-        prompt_vals.append(tok["prompt_uncached"])
-        cached_vals.append(tok["cached"])
-        compl_vals.append(tok["completion_non_reasoning"])
-        reason_vals.append(tok["reasoning"])
-        cost_vals.append(f"${fmt(tok['cost_usd'], 5)}")
-        cmd_vals.append(sum((t.get("totals") or {}).get("n_commands") or 0 for t in scoped["tasks"]))
-        simplicio_cmd_vals.append(agg.simplicio_command_count(scoped))
-        check_vals.append(agg.check_run_count(scoped))
-        if task_kind is None:
-            wall_vals.append(fmt(arms[name].get("total_wall_s"), 1))
-
-    rows.append(row("Tarefas concluídas", success_vals))
-    if task_kind is None:
-        rows.append(row("Tempo total (parede, s)", wall_vals))
-    rows.append(row("Turnos de LLM", turns_vals))
-    rows.append(row("Comandos executados", cmd_vals))
-    rows.append(row("... dos quais simplicio-*", simplicio_cmd_vals))
-    rows.append(row("CPU total (comandos, s)", cpu_vals))
-    rows.append(row("Pico RAM (MB)", rss_vals))
-    rows.append(row("Tokens prompt (não cacheado)", prompt_vals))
-    rows.append(row("Tokens prompt (cacheado)", cached_vals))
-    rows.append(row("Tokens completion", compl_vals))
-    rows.append(row("Tokens de raciocínio", reason_vals))
-    rows.append(row("Custo (USD)", cost_vals))
-    rows.append(row("Invocações do checker pelo próprio agente", check_vals))
-    header = "<tr><th>Métrica</th>" + "".join(f"<th>{html_escape(a)}</th>" for a in arm_names) + "</tr>\n"
+    header = "<tr><th>Métrica</th>" + "".join(f"<th>{html_escape(a)}</th>" for a in arm_names)
+    header += "<th>Economia com simplicio</th></tr>\n" if with_savings else "</tr>\n"
+    rows = []
+    for label, values, formatter in metrics:
+        cells = "".join(
+            f"<td>{formatter(values[n]) if formatter and isinstance(values[n], (int, float)) else html_escape(values[n])}</td>"
+            for n in arm_names
+        )
+        if with_savings:
+            if formatter and isinstance(values["normal"], (int, float)) and isinstance(values["simplicio"], (int, float)):
+                saved = agg.savings(values["normal"], values["simplicio"])
+                pct = "n/a" if saved["pct"] is None else f"{saved['pct']:.1f}%"
+                cells += f"<td>{formatter(saved['value'])} ({pct})</td>"
+            else:
+                cells += "<td></td>"
+        rows.append(f"<tr><td>{label}</td>{cells}</tr>\n")
     return header + "".join(rows)
 
 
@@ -247,7 +238,7 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
     )
 
     kinds = sorted({t.get("kind") for a in arms.values() for t in a.get("tasks", []) if t.get("kind")})
-    kind_labels = {"create": "Tarefas de criação", "edit": "Tarefas de edição"}
+    kind_labels = {"create": "Somente criação (mesma sessão)", "edit": "Somente edição (mesma sessão)"}
     kind_sections = "".join(
         f"<h3>{html_escape(kind_labels.get(k, k))}</h3>"
         f"<table class='compare'>{build_arm_table_rows(arms, task_kind=k)}</table>"
@@ -304,7 +295,7 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
   <h2>Comparação geral (agente normal vs agente com a skill simplicio-loop)</h2>
   <table class="compare">{build_arm_table_rows(arms)}</table>
 
-  <h2>Por tipo de tarefa (criação vs edição)</h2>
+  <h2>Somente criação e somente edição (tarefas da mesma sessão)</h2>
   {kind_sections}
 
   <h2>Preço por token (OpenRouter, ao vivo)</h2>

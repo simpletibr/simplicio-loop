@@ -12,11 +12,3 @@ target = "hbp"
 owner = "loop"
 reason = "migrate append-only savings snapshots to Runtime HBP v1"
 expires = "2026-09-30"
-
-[[exceptions]]
-path = ".simplicio/skills/simplicio-prism/references/capability-record.schema.json"
-category = "plugin-contract"
-target = "skill-schema"
-owner = "loop"
-reason = "classify the checked-in Prism capability-record schema outside orchestrator state"
-expires = "2027-01-31"

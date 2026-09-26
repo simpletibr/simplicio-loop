@@ -4,29 +4,28 @@
 
 **Read this first** every session when working on Simplicio product delivery. The single agent-instruction file (`AGENTS.md`, plus adapter READMEs) points here for the full map.
 
+**There is no Runtime/MCP backend in this stack.** Every project below is standalone;
+`simplicio-loop` is the entrypoint and activates directly.
+
 ---
 
 ## 1. What each project is
 
 | Project | Role (one line) | Install surface | Works alone? |
 |---------|-----------------|-----------------|--------------|
-| **simplicio-runtime** | Execution kernel: gates, leases, effects, MCP, **owns the loop subsystem**, **owns execution metrics report**, decides when to activate loop | binary `simplicio` | N/A (is the kernel) |
-| **simplicio-loop** | Protocol + host hooks + Prism/journal/anchor for convergence under Runtime authority | `pip install simplicio-loop` + skills/hooks | Operators yes; full loop prefers Runtime |
+| **simplicio-loop** | Orchestrator core + hardened Ralph loop — the entrypoint | `pip install simplicio-loop` + skills/hooks | **Yes** |
 | **simplicio-mapper** | Read-only repo observer / map / handoff | `simplicio-mapper` CLI | **Yes** |
 | **simplicio-dev-cli** | Focused plan compiler + deterministic edits | `simplicio-dev-cli` / `simplicio-py` | **Yes** |
 | **simplicio-fast** | Snapshots / mmap / PlanDAG / understand·plan·apply hot path | `simplicio-fast` CLI | **Yes** (when installed) |
-| **simplicio-agent** | Optional coordinator / desktop / gateways / product apps | package + Desktop Electron | Coordinator only; not mandatory gateway |
 
-**Law (ADR-2026-08-04 + 04b):**
+**Law (bound operators, ADR 0009/0010):**
 
-1. **Loop complete lives inside Runtime.** Runtime decides `use_loop` (`simplicio loop decide`).
-2. **mapper + dev-cli + fast work alone** without Runtime (survey / plan / edit / Fast).
-3. Hosts do **not** start loop as a peer path that bypasses Runtime when Runtime is available.
-4. **No mass rebrand scripts** (`rebrand_to_simplicio.py` removed — inventory/guard only).
-
-**Law (ADR-2026-08-05):**
-
-- Every loop/runtime run emits **`simplicio.execution-report/v1`**: per task/issue + consolidated metrics (speed, latency, CPU/RAM when MEASURED, tokens in/out). **Never invent numbers.**
+1. `simplicio-loop` activates directly via `/simplicio-loop <body of work>` — no external
+   activation decision, no Runtime.
+2. `mapper` + `dev-cli` are **required** bound operators (survey / mutate); `fast` joins
+   when installed and operational.
+3. Every loop run emits **`simplicio.execution-report/v1`**: per task/issue + consolidated
+   metrics (speed, latency, CPU/RAM when MEASURED, tokens in/out). **Never invent numbers.**
 
 ---
 
@@ -36,96 +35,58 @@
   Host LLM (Claude / Cursor / Codex / …)
        │ thinks, plans, selects tools
        ▼
-  simplicio-runtime  ◄── owns gates, loop decide, execution-report, MCP
-       │ activates loop when use_loop=true
-       ▼
-  simplicio-loop protocol (journal / anchor / prism / hooks)
-       │ uses operators
-       ├── simplicio-mapper   (standalone OK)
-       ├── simplicio-dev-cli  (standalone OK)
-       └── simplicio-fast     (standalone OK)
+  simplicio-loop protocol (journal / anchor / backlog / hooks)
+       │ orient → route → mutate
+       ├── simplicio-mapper   (required, standalone)
+       ├── simplicio-dev-cli  (required, standalone)
+       └── simplicio-fast     (optional, standalone)
 ```
 
 ---
 
-## 3. Step-by-step — first-time install (Windows)
+## 3. Step-by-step — first-time install
 
-### 3.1 Runtime binary (required for product path)
-
-```powershell
-# From source (this repo)
-cargo build --release
-# Install to a PATH location (user-local example)
-$bin = "$env:LOCALAPPDATA\Simplicio\bin"
-New-Item -ItemType Directory -Force -Path $bin | Out-Null
-Copy-Item target\release\simplicio.exe $bin\simplicio.exe -Force
-# Add to user PATH if missing
-$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-if ($userPath -notlike "*$bin*") {
-  [Environment]::SetEnvironmentVariable("Path", "$userPath;$bin", "User")
-  $env:Path = "$env:Path;$bin"
-}
-simplicio --version
-```
-
-Or use a published release asset `simplicio-windows-x86_64.exe` renamed to `simplicio.exe`.
-
-### 3.2 Operators + loop package
-
-```powershell
+```bash
 pip install -U simplicio-loop simplicio-mapper simplicio-dev-cli
 # Fast when available:
 pip install -U simplicio-fast
 ```
 
-### 3.3 MCP + host rules (when Runtime is present)
+Or as a marketplace plugin:
 
-```powershell
-simplicio mcp register
-python -m simplicio_loop.scripts.host_rule_sync --global --json  # if scripts exposed
-# or from loop checkout:
-python scripts/host_rule_sync.py --global --json
-python scripts/mcp_force_sync.py --global --json
+```
+/plugin marketplace add wesleysimplicio/simplicio-loop
+/plugin install simplicio-loop@simplicio
 ```
 
-Restart the IDE/agent so MCP tools appear (`simplicio_map`, `gate`, `edit`, `run`, …).
+### Prove 100% operational (smoke)
 
-### 3.4 Prove 100% operational (smoke)
-
-```powershell
-simplicio --version
-simplicio loop policy --json
-simplicio loop decide --task "status smoke" --json --repo .
-simplicio execution-report show --json --repo .
-simplicio contracts smoke --json
+```bash
+simplicio-loop --version
 simplicio-loop preflight --strict --json
 simplicio-mapper --help
 simplicio-dev-cli --help
 ```
 
-Expected:
-
-- `loop policy` → `owner: simplicio-runtime`, `host_may_start_loop_directly: false`
-- `execution-report` present after decide (or after `execution-report start`)
-- preflight green or explicit degraded labels (never silent fake OK)
+Expected: preflight green, or explicit degraded labels — never a silent fake OK.
 
 ---
 
 ## 4. Step-by-step — every non-trivial task
 
-1. **Orient:** `simplicio runtime map --repo . --for-llm markdown` then `simplicio memory "<task>"` (or MCP equivalents).
-2. **Decide loop:** `simplicio loop decide --task "<task>" --json --repo .`
-3. **Report shell:** opened automatically by decide; or `simplicio execution-report start --json`.
-4. **Survey:** `simplicio-mapper` (scan/inspect/handoff) — not ad-hoc full-tree LLM walks.
-5. **Hot path:** `simplicio-fast` when operational.
-6. **Mutate under STRICT:** `simplicio-dev-cli` / Fast apply / Runtime `edit` — not host Write as primary.
-7. **Record metrics per task/issue:**
+1. **Orient:** `simplicio-loop orient --task "<task>" --json` (Mapper + Fast context).
+2. **Route:** follow `route.mode` / `route.next` from the orient output.
+   - **fast-path** (1 task, 1 file): `simplicio-dev-cli edit --plan ops.json --compile plan.json`
+     → `edit --plan plan.json --apply` → run the task's own check. No run, no wave.
+   - **2+ tasks or converge:** `simplicio-loop prepare --task tasks.md`, write every
+     `edit-plan-<N>.json`, `wave <run_id>`, `verify <run_id>`.
+3. **Record metrics per task/issue:**
    ```text
-   simplicio execution-report record-task --task-id t1 --issue 42 --title "…" --outcome COMPLETE --wall-ms N --tokens-in N --tokens-out N --operator mapper --operator dev-cli --json
+   python -m simplicio_loop.execution_report record-task --task-id t1 --issue 42 --title "…" \
+     --outcome COMPLETE --wall-ms N --tokens-in N --tokens-out N --operator mapper --operator dev-cli --json
    ```
-8. **Validate:** `simplicio validate "<task>" --repo . --json` + project tests.
-9. **Finish report:** `simplicio execution-report finish --status COMPLETE --json`
-10. **Evidence-gated exit:** MEASURED only with receipts; no theater closes.
+4. **Validate:** the task's own focused gate; `python3 scripts/check.py` before publishing.
+5. **Evidence-gated exit:** MEASURED only with receipts; no theater closes.
 
 ---
 
@@ -133,23 +94,14 @@ Expected:
 
 | Intent | Command |
 |--------|---------|
-| Loop ownership law | `simplicio loop policy --json` |
-| Activate? | `simplicio loop decide --task "…" --json` |
-| Last loop decision | `simplicio loop status --json` |
-| Start metrics report | `simplicio execution-report start --json` |
-| Per-task metrics | `simplicio execution-report record-task …` |
-| Consolidated | `simplicio execution-report consolidate --json` |
-| Loop e2e receipt | `simplicio loop-execution --json` |
-| Anchor live read | `simplicio loop-contract --live --json` |
-| Spine | `simplicio run "…" --repo . --json` |
-| MCP | `simplicio serve --mcp --stdio` / `simplicio mcp register` |
-
-Operator-standalone report (no Runtime binary):
-
-```text
-python -m simplicio_loop.execution_report start --json
-python -m simplicio_loop.execution_report record-task --task-id t1 --title "…" --json
-```
+| Preflight (blocking) | `simplicio-loop preflight --strict --json` |
+| Orient + route | `simplicio-loop orient --task "…" --json` |
+| Fast-path edit | `simplicio-dev-cli edit --plan ops.json --compile plan.json` |
+| Multi-task converge | `simplicio-loop prepare --task tasks.md` → `wave` → `verify` |
+| Drain a queue | `python3 scripts/arm_drain_prism.py --repo . --slots 0 --batch-size N --json` |
+| Start metrics report | `python -m simplicio_loop.execution_report start --json` |
+| Per-task metrics | `python -m simplicio_loop.execution_report record-task …` |
+| Consolidated | `python -m simplicio_loop.execution_report consolidate --json` |
 
 ---
 
@@ -163,22 +115,19 @@ python -m simplicio_loop.execution_report record-task --task-id t1 --title "…"
 | Orca | **opt-in only** (`CLIENT_INTEGRATIONS`) | same |
 | Gemini / Aider / Antigravity | self-paced / conventions file | STRICT |
 
-Self-paced: re-read `.simplicio/orchestrator/loop/scratchpad.md` each turn; honor Runtime decision receipt.
+Self-paced: re-read `.simplicio/orchestrator/loop/scratchpad.md` each turn.
 
 ---
 
 ## 7. Related ADRs
 
-- Runtime: `docs/ADR-2026-08-04-RUNTIME-OWNED-LOOP.md`
-- Runtime: `docs/ADR-2026-08-04b-LOOP-INSIDE-RUNTIME-OPERATORS-STANDALONE.md`
-- Runtime: `docs/ADR-2026-08-05-EXECUTION-METRICS-REPORT-STANDARD.md`
 - Loop: `docs/adr/0009-loop-inside-runtime-operators-standalone.md`
 - Loop: `docs/adr/0010-execution-metrics-report-standard.md`
+- Rejected Runtime routing design (kept for history): `docs/adr/0011-runtime-operator-routing.md`
 
 ---
 
 ## 8. Honesty
 
 - Facts are `MEASURED|` only with receipts; else `UNVERIFIED|`.
-- Missing Runtime → report degraded; do not invent `open=0` or full product completion.
 - Tokens/CPU/RAM: never fabricate; use `null` + `unavailable_reasons`.

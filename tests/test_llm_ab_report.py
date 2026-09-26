@@ -70,7 +70,7 @@ def test_build_kinds_are_derived_from_results_not_the_fixed_2_task_table(tmp_pat
     # silently render an "edit" section with no data) by reading the fixed
     # 2-task bench_tasks.TASKS list for section headers.
     html = report.build(_results(1), str(tmp_path))
-    assert "Tarefas de criação" in html
+    assert "Somente criação" in html
 
 
 def test_build_includes_pricing_table_section(tmp_path):
@@ -86,3 +86,26 @@ def test_build_handles_missing_pricing_gracefully(tmp_path):
     results["cost_report"] = {"pricing_table": [], "cost_table": []}
     html = report.build(results, str(tmp_path))
     assert "<html" in html
+
+
+def _arm(cost, wall, turns, kind="create"):
+    task = _task(1, kind)
+    task["totals"]["cost_usd"] = cost
+    task["wall_s"] = wall
+    task["turns"] = turns
+    return {"tasks": [task], "total_wall_s": wall}
+
+
+def test_arm_table_has_simplicio_savings_column_in_value_and_percent():
+    arms = {"normal": _arm(0.010, 10.0, 6), "simplicio": _arm(0.004, 20.0, 8)}
+    html = report.build_arm_table_rows(arms)
+    assert "Economia com simplicio" in html
+    assert "$0.00600 (60.0%)" in html          # cost saved
+    assert "-10.0 (-100.0%)" in html           # wall spent more
+
+
+def test_kind_scoped_table_shows_time_and_savings():
+    arms = {"normal": _arm(0.010, 10.0, 6, "edit"), "simplicio": _arm(0.004, 5.0, 8, "edit")}
+    html = report.build_arm_table_rows(arms, task_kind="edit")
+    assert "Tempo (s)" in html
+    assert "5.0 (50.0%)" in html

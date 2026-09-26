@@ -547,7 +547,7 @@ def main(argv=None):
         if cmd == "memory" and rest and rest[0] != "stats":
             return _exec_sibling("simplicio_memory.py", rest)
         if cmd == "mcp":
-            return _exec_sibling("simplicio_mcp.py", [])  # MCP server reads stdin; ignore extra args
+            return _exec_sibling("simplicio_tools_server.py", [])  # MCP server reads stdin; ignore extra args
         if cmd in _PASS:
             return _exec_sibling(_PASS[cmd], rest)
         if cmd == "semantic":
@@ -615,7 +615,7 @@ def main(argv=None):
             return cmd_memory(args)  # engine history count — keeps the dashboard's "Total Memories:" parse
         return _exec_sibling("simplicio_memory.py", rest)
     if args.cmd == "mcp":
-        return _exec_sibling("simplicio_mcp.py", [])  # the MCP server reads stdin; ignore 'serve'
+        return _exec_sibling("simplicio_tools_server.py", [])  # the MCP server reads stdin; ignore 'serve'
     if args.cmd == "init":
         return _exec_sibling("simplicio_init.py", _rest)
     if args.cmd == "wrap":

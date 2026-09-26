@@ -351,6 +351,18 @@ def evaluate_quality_matrix(run_dir: str) -> Dict[str, Any]:
             "reason": "implementation and every required lane verified; coverage waived by policy",
         })
         return result
+    if isinstance(coverage, dict) and str(coverage.get("status") or "").strip().lower() == "not_applicable":
+        # A delivery with no instrumentable source (e.g. only .html/.md touched,
+        # no `Coverage verifier:` declared -- see lane_verifiers.build_quality_matrix)
+        # is honestly not_applicable rather than a permanent, fabricated block.
+        reason = str(coverage.get("reason") or "coverage not applicable: no instrumentable source in the delivery")
+        gates.append(_gate("coverage", True, "coverage_not_applicable", reason))
+        result.update({
+            "ready": True,
+            "reason_code": "quality_matrix_verified",
+            "reason": "implementation and every required lane verified; coverage not applicable: " + reason,
+        })
+        return result
     measured = (coverage or {}).get("measured") if isinstance(coverage, dict) else None
     if isinstance(measured, bool) or not isinstance(measured, (int, float)):
         gate = _gate("coverage", False, "coverage_unmeasured", "coverage.measured is missing or not numeric")

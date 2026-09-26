@@ -144,3 +144,16 @@ def load_history(
         except (OSError, ValueError):
             continue
     return history
+
+
+def savings(normal_value: float, simplicio_value: float) -> dict:
+    """What simplicio saved versus normal: positive = cheaper/faster with
+    simplicio, negative = it cost more. ``pct`` is relative to normal."""
+    value = round(normal_value - simplicio_value, 10)
+    pct = round(value / normal_value * 100, 2) if normal_value else None
+    return {"value": value, "pct": pct}
+
+
+def task_wall(arm_data: dict) -> float:
+    """Wall-clock seconds summed over the arm's (possibly kind-scoped) tasks."""
+    return round(sum(t.get("wall_s") or 0 for t in arm_data.get("tasks", [])), 3)

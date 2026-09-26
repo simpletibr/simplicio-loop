@@ -4,7 +4,7 @@
   "instruction_language": "en",
   "version": 1,
   "load_policy": "index-first, skill-on-demand",
-  "sources": ["simplicio_loop/stack_manifest.py", "scripts/preflight.py", "scripts/route_mode.py", ".simplicio/skills"],
+  "sources": ["simplicio_loop/stack_manifest.py", "scripts/preflight.py", "scripts/route_mode.py"],
   "capabilities": [
     {"id":"mapper.project-survey","intent":["survey","understand"],"component":"mapper","skill":"simplicio-mapper","effects":"read-only","requires":[],"summary":"Map repository structure and architecture."},
     {"id":"mapper.snapshot-create","intent":["snapshot","handoff"],"component":"mapper","skill":"simplicio-mapper","effects":"read-only","requires":["mapper.project-survey"],"summary":"Create an immutable context snapshot."},

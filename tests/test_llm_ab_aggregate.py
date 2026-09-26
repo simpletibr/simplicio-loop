@@ -187,3 +187,17 @@ def test_load_history_task_count_filter_excludes_legacy_unsuffixed_files(tmp_pat
     history = agg.load_history(str(tmp_path), exclude_path=None, task_count=2)
     assert len(history) == 1
     assert history[0]["meta"]["date"] == "2026-02-01"
+
+
+def test_savings_is_normal_minus_simplicio_in_value_and_percent():
+    assert agg.savings(0.010, 0.004) == {"value": 0.006, "pct": 60.0}
+    assert agg.savings(0.004, 0.010) == {"value": -0.006, "pct": -150.0}
+
+
+def test_savings_with_zero_baseline_has_no_percent():
+    assert agg.savings(0, 5) == {"value": -5, "pct": None}
+
+
+def test_task_wall_sums_scoped_tasks():
+    arm = {"tasks": [{"kind": "create", "wall_s": 1.5}, {"kind": "edit", "wall_s": 2.0}]}
+    assert agg.task_wall(arm) == 3.5

@@ -28,12 +28,17 @@ def test_parse_reads_one_command_per_lane():
     assert parsed == {"unit": "pytest -q tests/unit", "benchmark": "python bench.py"}
 
 
-def _run_dir(tmp_path, applied=True):
+def _run_dir(tmp_path, applied=True, changed_paths=None):
     run_dir = tmp_path / "run"
     run_dir.mkdir()
-    (run_dir / "operator-receipt-1.json").write_text(json.dumps(
-        {"execution_state": "applied" if applied else "blocked"}))
+    payload = {"execution_state": "applied" if applied else "blocked"}
+    if changed_paths is not None:
+        payload["changed_paths"] = changed_paths
+    (run_dir / "operator-receipt-1.json").write_text(json.dumps(payload))
     return run_dir
+
+
+NO_COVERAGE = {name: cmd for name, cmd in ALL.items() if name != "coverage"}
 
 
 def test_all_declared_lanes_measured_make_the_gate_pass(tmp_path):
@@ -69,6 +74,76 @@ def test_implementation_requires_applied_operator_receipts(tmp_path):
     lv.build_quality_matrix(tmp_path, run_dir, [_task(**ALL)])
     verdict = evaluate_quality_matrix(str(run_dir))
     assert verdict["reason_code"] == "quality_implementation_failed"
+
+
+def test_non_code_only_delivery_with_no_coverage_verifier_is_not_applicable(tmp_path):
+    # Benchmark evidence: a wave whose applied changes touch ONLY non-code files
+    # (login.html) and declares no `Coverage verifier:` line must not block forever
+    # on "coverage.measured is missing or not numeric" -- there is no instrumentable
+    # source in the delivery, so coverage is honestly not_applicable.
+    run_dir = _run_dir(tmp_path, changed_paths=["login.html"])
+    lv.build_quality_matrix(tmp_path, run_dir, [_task(**NO_COVERAGE)])
+    verdict = evaluate_quality_matrix(str(run_dir))
+    assert verdict["ready"] is True, verdict
+    receipt = json.loads((run_dir / "quality-matrix.json").read_text())
+    assert receipt["coverage"] == {
+        "status": "not_applicable",
+        "measured": None,
+        "reason": "no instrumentable source in the delivery",
+    }
+
+
+def test_code_file_touched_with_no_coverage_verifier_still_blocks(tmp_path):
+    # Any code file touched keeps the current (strict) behaviour: numeric coverage
+    # at/above threshold is still required.
+    run_dir = _run_dir(tmp_path, changed_paths=["app.py"])
+    lv.build_quality_matrix(tmp_path, run_dir, [_task(**NO_COVERAGE)])
+    verdict = evaluate_quality_matrix(str(run_dir))
+    assert verdict["ready"] is False
+    assert verdict["reason_code"] == "coverage_unmeasured"
+
+
+def test_mixed_code_and_non_code_files_still_blocks(tmp_path):
+    run_dir = _run_dir(tmp_path, changed_paths=["login.html", "app.py"])
+    lv.build_quality_matrix(tmp_path, run_dir, [_task(**NO_COVERAGE)])
+    verdict = evaluate_quality_matrix(str(run_dir))
+    assert verdict["ready"] is False
+    assert verdict["reason_code"] == "coverage_unmeasured"
+
+
+def test_declared_coverage_verifier_overrides_non_code_shortcut(tmp_path):
+    # A declared `Coverage verifier:` line always wins -- current numeric-threshold
+    # behaviour applies even when every touched file is non-code.
+    run_dir = _run_dir(tmp_path, changed_paths=["login.html"])
+    lv.build_quality_matrix(tmp_path, run_dir, [_task(**ALL)])
+    verdict = evaluate_quality_matrix(str(run_dir))
+    assert verdict["ready"] is True
+    assert verdict["coverage_measured"] == 97.0
+
+
+def test_simplicio_bookkeeping_paths_are_ignored_when_classifying_delivery(tmp_path):
+    # `changed_paths` is a whole-repo diff and always includes `.simplicio/`
+    # bookkeeping (Mapper caches, run receipts, the ledger, ...) alongside the
+    # actual delivery -- that machinery must never make an otherwise non-code
+    # delivery look mixed/code.
+    run_dir = _run_dir(tmp_path, changed_paths=[
+        ".simplicio/loop-runs/x/state.json", ".simplicio/cache/cache.db", "login.html",
+    ])
+    lv.build_quality_matrix(tmp_path, run_dir, [_task(**NO_COVERAGE)])
+    verdict = evaluate_quality_matrix(str(run_dir))
+    assert verdict["ready"] is True, verdict
+    receipt = json.loads((run_dir / "quality-matrix.json").read_text())
+    assert receipt["coverage"]["status"] == "not_applicable"
+
+
+def test_no_changed_paths_recorded_still_blocks(tmp_path):
+    # Fail-closed: no changed_paths at all on the applied receipt is never treated
+    # as "non-code" -- the numeric coverage requirement stays in force.
+    run_dir = _run_dir(tmp_path)
+    lv.build_quality_matrix(tmp_path, run_dir, [_task(**NO_COVERAGE)])
+    verdict = evaluate_quality_matrix(str(run_dir))
+    assert verdict["ready"] is False
+    assert verdict["reason_code"] == "coverage_unmeasured"
 
 
 def test_missing_or_unapplied_tasks_counts_every_task_index(tmp_path):

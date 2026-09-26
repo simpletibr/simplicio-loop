@@ -18,6 +18,7 @@ def cmd_check(_args):
         ("bundle_parity", claims_audit.check_bundle_parity),
         ("plugin_parity", claims_audit.check_plugin_sync),
         ("skill_pair_parity", claims_audit.check_skill_pair_parity),
+        ("host_rule_sync_parity", claims_audit.check_host_rule_sync),
     ]
     rows = []
     ok = True

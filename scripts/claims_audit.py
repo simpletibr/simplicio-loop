@@ -409,6 +409,19 @@ def check_plugin_sync():
     return ok, ("plugin ≡ source (lean marketplace tree)" if ok else "; ".join(detail[-6:]))
 
 
+def check_host_rule_sync():
+    # #1305: packaging/host-rules/simplicio-loop-operator-flow.md is the single source; every
+    # already-synced project mirror (.github, .cursor/rules, .kiro/steering, …) must stay
+    # byte-identical to it. scripts/host_rule_sync.py --check is the source of truth.
+    r = subprocess.run(
+        [sys.executable, os.path.join(REPO, "scripts", "host_rule_sync.py"), "--check", "--target", REPO],
+        capture_output=True, text=True, cwd=REPO,
+    )
+    ok = r.returncode == 0
+    detail = [ln for ln in (r.stdout or r.stderr or "").splitlines() if ln.strip()]
+    return ok, ("host rules ≡ packaging/host-rules source" if ok else "; ".join(detail[-6:]))
+
+
 def check_adapter_contract():
     # #75: verify_adapters.py was previously referenced only in docs/snapshots, never actually run
     # by the gate — "runnable in CI" was an unrun claim. This runs the fast, representative
@@ -768,6 +781,7 @@ CHECKS = [
     ("12 install-mutations-doc-generated", check_install_mutations_doc_generated),
     ("13 canonical-manifest", check_canonical_manifest),
     ("14 contract-parity", check_contract_parity),
+    ("15 host-rule-sync-parity", check_host_rule_sync),
 ]
 
 

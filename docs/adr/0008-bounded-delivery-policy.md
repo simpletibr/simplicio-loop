@@ -13,8 +13,8 @@ behaviours obscure ownership and make a green result difficult to reproduce.
 ## Decision
 
 The canonical policy lives in
-`.claude/skills/simplicio-loop/SKILL.md#bounded-delivery-policy`; host files link to it rather than
-copying it. It establishes one implementation issue and one delivery PR per worker/session,
+`.claude/skills/simplicio-loop/references/full-flow.md#bounded-delivery-policy` (linked from the
+`SKILL.md` hot path); host files link to it rather than copying it. It establishes one implementation issue and one delivery PR per worker/session,
 re-queries the canonical live source immediately before freezing, records the source revision and
 provenance in the anchor, freezes that exact goal and ACs before mutation, and classifies findings
 as `AC_BLOCKER`, `REGRESSION_BLOCKER`, or `FOLLOW_UP`.

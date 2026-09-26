@@ -69,7 +69,7 @@ Module-level helpers that back these commands:
 | `simplicio_compress.py` | Base deterministic compression (8 algos, `ALGOS`). |
 | `simplicio_compress_extra.py` | Extra deterministic passes (4 algos, `EXTRA_ALGOS`). |
 | `simplicio_memory.py` | CCR (compress-cache-retrieve) key-value store. |
-| `simplicio_mcp.py` | Native JSON-RPC 2.0 stdio MCP server. |
+| `simplicio_tools_server.py` | Native JSON-RPC 2.0 stdio MCP server. |
 | `simplicio_init.py` | Client-config writer (codex/claude/copilot/openclaw). |
 | `simplicio_wrap.py` | Capture-routing launcher for a client. |
 | `simplicio_report.py` | Savings report (per model/provider, `--since`/`--top`/`--json`). |

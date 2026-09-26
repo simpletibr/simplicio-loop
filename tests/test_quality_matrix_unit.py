@@ -135,6 +135,20 @@ def test_coverage_missing_or_non_numeric_blocks(tmp_path):
         assert verdict["reason_code"] == "coverage_unmeasured", bad
 
 
+def test_coverage_not_applicable_status_passes(tmp_path):
+    # A delivery with no instrumentable source (e.g. only .html touched, no
+    # `Coverage verifier:` declared) is honestly not_applicable, not a fabricated
+    # numeric pass and not a permanent block.
+    receipt = _passing_receipt(coverage={
+        "status": "not_applicable", "measured": None,
+        "reason": "no instrumentable source in the delivery",
+    })
+    (tmp_path / "quality-matrix.json").write_text(json.dumps(receipt), encoding="utf-8")
+    verdict = evaluate_quality_matrix(str(tmp_path))
+    assert verdict["ready"] is True, verdict
+    assert verdict["coverage_measured"] is None
+
+
 def test_custom_coverage_threshold_is_honored(tmp_path):
     receipt = _passing_receipt(coverage_threshold=95, coverage={"measured": 90.0})
     (tmp_path / "quality-matrix.json").write_text(json.dumps(receipt), encoding="utf-8")

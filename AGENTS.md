@@ -262,7 +262,7 @@ before any tag.
 
 Delivery work follows the bounded WIP, frozen-AC, finding classification, review-cap, ownership,
 rebase, and release rules in [ADR 0008](docs/adr/0008-bounded-delivery-policy.md) and the canonical
-[`simplicio-loop` policy](.claude/skills/simplicio-loop/SKILL.md#bounded-delivery-policy).
+[`simplicio-loop` policy](.claude/skills/simplicio-loop/references/full-flow.md#bounded-delivery-policy).
 
 - Run commands for real — never simulate output.
 - **TDD is mandatory:** every new function or behavior change starts with a
