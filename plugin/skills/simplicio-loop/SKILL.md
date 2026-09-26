@@ -26,6 +26,7 @@ simplicio-loop apply .simplicio-loop/ops.json --repo . --json
 - No exploration first: never `pwd`/`ls`/`which`/`--help`/`cat` before Turn 1 -- the brief already returns the route, ranked target file contents and the plan groups.
 - Follow the brief's `route.next` literally. Do not re-run `orient`, do not `cat` files the brief already returned, do not look for repo-local scripts.
 - `.simplicio-loop/ops.json` = `{"tasks":[{"id","operations":[{"path","find","replace"}],"check","depends_on"}],"repo_state_chain":"<copy from the brief>"}`. A `find` must match exactly once (use `""` to create a new file); `check` is the task's own test command.
+- Dev CLI's own post-apply default verify is bounded (120s, `SIMPLICIO_TEST_TIMEOUT_S`) and scoped to tests referencing the changed files when no `check`/`SIMPLICIO_TEST_CMD` is given -- it never runs the whole suite (issue #1331). Override it explicitly with dev-cli's `edit --apply --check '<cmd>'` / `--verify-timeout-s <n>` flags.
 - `apply` validates every `find` before writing anything, applies through `simplicio-dev-cli`, runs independent tasks' checks concurrently, and writes a receipt. It ignores `.simplicio-loop/ops.json` itself (and anything else under `.simplicio-loop/`) when checking `repo_state_chain` for staleness.
 - **Effort:** plan **high** → execute **low** → review **medium**. Use the `effort` of each `route.next` step and the `next_effort` of `apply`'s result.
 - `apply` PASS means every `check` already ran — you are done; do not re-open the receipt or re-run checks.
@@ -52,9 +53,11 @@ simplicio-loop tick <run_id> --repo . --task-index <N>
 simplicio-loop verify <run_id> --repo .
 ```
 
-`edit-plan-<N>.json` operations are find/replace on an EXISTING file only — the wave path
-cannot create a new file yet (issue #1331). A task whose only change is a new file goes through
-the hot-path `apply` flow instead (`ops.json` creates a file via `find: ""`).
+`edit-plan-<N>.json` operations are find/replace text; `find: ""` against a path that does not yet
+exist creates it — same semantics as the hot-path `apply`/`ops.json` flow (issue #1331). An
+existing non-empty file with `find: ""` is still refused (`plan_create_target_exists`) — creation
+never silently overwrites real content. A TDD delivery that adds a new test file goes through the
+wave the same way as any other task. See `docs/evidence/1331-wave.md` for the real orient/prepare/wave/verify proof.
 
 - **Never** `simplicio-dev-cli task "prose"` (answers `plan_required`).
 - Every command answers `--help`; read it before guessing a flag.
@@ -84,7 +87,7 @@ Coverage verifier: `python3 -m pytest -q --cov=calc --cov-report=term`
 
 ## Done
 
-`wave`/`tick` verify automatically; `simplicio-loop verify <run_id>` re-runs it. Done = run `phase: done`, completion `VERIFIED`/`MEASURED`: the watcher measured every criterion and every lane passed. The loop then records the exact `<promise>` in `loop/last_response.txt`; emit it only after that, in the same turn.
+`wave`/`tick` verify automatically; `simplicio-loop verify <run_id>` re-runs it. Done = run `phase: done`, completion `VERIFIED`/`MEASURED`: the watcher measured every criterion and every lane passed. The loop then records the exact `<promise>` in `loop/last_response.txt`; emit it only after that, in the same turn. A second `orient`/`prepare` on an UNCHANGED tree reuses the survey by tree state (git tree id + working-tree dirty hash) instead of re-running the full Mapper index (issue #1331).
 
 ## Contract
 

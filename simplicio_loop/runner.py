@@ -1692,6 +1692,7 @@ def _validate_minimal_host_plan_paths(
     authorized = {str(item) for item in authorized_targets if str(item).strip()}
     not_authorized: List[str] = []
     not_found: List[str] = []
+    create_conflicts: List[str] = []
     seen: set[str] = set()
     resolved_repo = repo_path.resolve()
     for op in operations:
@@ -1708,8 +1709,18 @@ def _validate_minimal_host_plan_paths(
         except (OSError, ValueError):
             not_found.append(raw_path)
             continue
+        # issue #1331: `find: ""` creates a new file -- same semantics as
+        # `simplicio-dev-cli edit --apply`'s `compile_host_plan` and
+        # `simplicio-loop apply`'s `validate_ops`. A path that does not yet
+        # exist is fine for a create op; an existing NON-EMPTY file is still
+        # a hard block (creation never silently overwrites real content).
+        is_create = str(op.get("find") or "") == ""
         if not resolved.is_file():
+            if is_create:
+                continue
             not_found.append(raw_path)
+        elif is_create and resolved.stat().st_size > 0:
+            create_conflicts.append(raw_path)
     if not_authorized:
         return {
             "reason_code": "plan_path_not_authorized",
@@ -1724,6 +1735,14 @@ def _validate_minimal_host_plan_paths(
             "message": (
                 "edit plan references path(s) that do not exist in the repository: %s"
                 % ", ".join(sorted(not_found))
+            ),
+        }
+    if create_conflicts:
+        return {
+            "reason_code": "plan_create_target_exists",
+            "message": (
+                "edit plan uses find:\"\" (create) against already-existing, non-empty path(s): %s"
+                % ", ".join(sorted(create_conflicts))
             ),
         }
     return None

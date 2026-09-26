@@ -9,6 +9,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -107,17 +108,123 @@ def _configured_test_command(root: str | Path | None = None) -> tuple[str | None
     )
 
 
+# issue #1331: an unbounded default verify command is how one `edit --apply`
+# left a `pytest -q` running for 22+ CPU-minutes as an orphan. 120s is a
+# generous bound for the SCOPED command this module now runs by default
+# (never the whole suite); an explicit opt-out (0/off/none/unlimited) still
+# means unlimited, and an unparsable override falls back to the bounded
+# default rather than silently going unbounded.
+DEFAULT_VERIFICATION_TIMEOUT_S = 120
+
+
 def _verification_timeout_seconds() -> int | None:
     raw = os.environ.get("SIMPLICIO_TEST_TIMEOUT_S", "").strip()
     if not raw:
-        return None
+        return DEFAULT_VERIFICATION_TIMEOUT_S
     if raw.lower() in {"0", "off", "none", "unlimited"}:
         return None
     try:
         value = int(raw)
     except ValueError:
+        return DEFAULT_VERIFICATION_TIMEOUT_S
+    return value if value > 0 else DEFAULT_VERIFICATION_TIMEOUT_S
+
+
+def run_bounded_subprocess(
+    cmd: Any,
+    *,
+    shell: bool,
+    cwd: str,
+    env: dict[str, str],
+    timeout: int | float | None,
+    stdin: int = subprocess.DEVNULL,
+) -> tuple[int, str, str, bool]:
+    """Run ``cmd`` and, on timeout, kill its WHOLE process group.
+
+    issue #1331: a plain ``subprocess.run(..., timeout=...)`` only kills the
+    direct child; a shell-invoked test command (``pytest -q``, ``npm test``,
+    ...) spawns grandchildren that survive as orphans once the parent is
+    reaped -- the exact failure mode measured in docs/evidence/1327-wave.md
+    and docs/evidence/1328-wave.md (a 22+ CPU-minute orphaned `pytest`).
+    Returns ``(returncode, stdout, stderr, timed_out)``; a timeout reports
+    ``returncode == 124`` (the conventional shell timeout exit code).
+    """
+    popen_kwargs: dict[str, Any] = dict(
+        shell=shell,
+        cwd=cwd,
+        env=env,
+        stdin=stdin,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if hasattr(os, "setsid"):
+        popen_kwargs["start_new_session"] = True
+    proc = subprocess.Popen(cmd, **popen_kwargs)
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout)
+        return proc.returncode, stdout or "", stderr or "", False
+    except subprocess.TimeoutExpired:
+        try:
+            if hasattr(os, "killpg"):
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            else:
+                proc.kill()
+        except (ProcessLookupError, PermissionError, OSError):
+            pass
+        try:
+            stdout, stderr = proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            stdout, stderr = "", ""
+        return 124, stdout or "", stderr or "", True
+
+
+_TEST_NAME_GUESSES = ("test_{stem}.py", "{stem}_test.py")
+
+
+def _scoped_verification_command(root: str | Path, changed_files: list[str] | None) -> str | None:
+    """Best-effort scoped ``pytest`` command limited to tests that reference
+    the changed files -- never the whole suite (issue #1331).
+
+    Looks only at conventional locations (same directory, a sibling
+    ``tests/`` directory, and ``tests/`` mirroring the changed file's own
+    directory). A changed file that IS itself a test file is included
+    directly. Returns ``None`` when nothing is found; the caller then skips
+    verification rather than falling back to a full-suite run.
+    """
+    if not changed_files:
         return None
-    return value if value > 0 else None
+    repo = Path(root)
+    found: list[str] = []
+    seen: set[str] = set()
+
+    def _add(rel: Path) -> None:
+        key = rel.as_posix()
+        if key in seen:
+            return
+        if (repo / rel).is_file():
+            seen.add(key)
+            found.append(key)
+
+    for raw in changed_files:
+        rel_path = PurePosixPath(str(raw).replace("\\", "/"))
+        name = rel_path.name
+        if name.startswith("test_") and name.endswith(".py") or name.endswith("_test.py"):
+            _add(Path(str(rel_path)))
+            continue
+        stem = Path(name).stem
+        if not stem:
+            continue
+        parent = Path(str(rel_path.parent)) if str(rel_path.parent) != "." else Path()
+        for guess_template in _TEST_NAME_GUESSES:
+            guess_name = guess_template.format(stem=stem)
+            _add(parent / guess_name)
+            _add(Path("tests") / guess_name)
+            if parent != Path():
+                _add(Path("tests") / parent / guess_name)
+    if not found:
+        return None
+    return "pytest -q " + " ".join(sorted(found))
 
 
 def _patch_receipt(candidate: PatchCandidate | None, files: list[str] | None = None) -> dict[str, Any] | None:

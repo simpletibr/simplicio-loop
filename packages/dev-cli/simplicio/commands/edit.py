@@ -10,6 +10,7 @@ silently select a second Mapper edit vocabulary.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import shutil
@@ -33,9 +34,45 @@ CLI_PROG = "simplicio-py"
 RUNTIME_EDIT_TIMEOUT_S = 30.0
 
 
-def _verification_payload(root: str, *, applied: bool) -> dict[str, Any]:
-    """Run SIMPLICIO_TEST_CMD after apply, or mark verify skipped explicitly."""
-    from ..pipeline_stages import _configured_test_command, _verification_timeout_seconds
+@contextlib.contextmanager
+def _env_override(name: str, value: str):
+    previous = os.environ.get(name)
+    os.environ[name] = value
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = previous
+
+
+def _verification_payload(
+    root: str,
+    *,
+    applied: bool,
+    check: str | None = None,
+    changed_files: list[str] | None = None,
+) -> dict[str, Any]:
+    """Verify a just-applied edit, bounded and never against the whole suite.
+
+    issue #1331: this used to default to an unbounded, repo-wide `pytest -q`
+    (`_configured_test_command`'s "infer pytest -q for any repo with a tests
+    dir" fallback) regardless of what the plan/caller actually changed --
+    measured at 22+ CPU-minutes as an orphan in docs/evidence/1327-wave.md.
+    Precedence now is: an explicit ``check`` (the task's own declared
+    verifier) > an explicit ``SIMPLICIO_TEST_CMD`` override (still honored
+    for a caller that deliberately set one) > a scoped default limited to
+    tests referencing the changed files > skip (never the whole suite).
+    Every path is bounded by ``_verification_timeout_seconds()`` and kills
+    its whole process group on timeout (``run_bounded_subprocess``).
+    """
+    from ..pipeline_stages import (
+        _TEST_COMMAND_PLACEHOLDERS,
+        _scoped_verification_command,
+        _verification_timeout_seconds,
+        run_bounded_subprocess,
+    )
     from ..runtime_env import prepare_project_command, project_subprocess_env
 
     if not applied:
@@ -45,37 +82,49 @@ def _verification_payload(root: str, *, applied: bool) -> dict[str, Any]:
             "commands": [],
             "results": [],
         }
-    command, configuration_error = _configured_test_command(root)
-    if configuration_error or not command:
-        return {
-            "status": "skipped",
-            "reason_code": "verify_skipped_no_test_cmd",
-            "commands": [],
-            "results": [],
-        }
+    explicit_check = (check or "").strip()
+    env_override = os.environ.get("SIMPLICIO_TEST_CMD", "").strip()
+    command: str | None
+    if explicit_check:
+        command = explicit_check
+        source = "check"
+    elif env_override and env_override not in _TEST_COMMAND_PLACEHOLDERS:
+        command = env_override
+        source = "env"
+    else:
+        command = _scoped_verification_command(root, changed_files)
+        source = "scoped"
+        if command is None:
+            return {
+                "status": "skipped",
+                "reason_code": "verify_skipped_no_scoped_tests",
+                "commands": [],
+                "results": [],
+            }
     cmd, use_shell = prepare_project_command(root, command)
-    completed = subprocess.run(
+    returncode, stdout, stderr, timed_out = run_bounded_subprocess(
         cmd,
         shell=use_shell,
         cwd=root,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        timeout=_verification_timeout_seconds(),
-        check=False,
         env=project_subprocess_env(root),
+        timeout=_verification_timeout_seconds(),
     )
-    passed = completed.returncode == 0
+    passed = returncode == 0 and not timed_out
+    reason_code = (
+        "verification_timeout" if timed_out else "verification_passed" if passed else "verification_failed"
+    )
     return {
         "status": "passed" if passed else "failed",
-        "reason_code": "verification_passed" if passed else "verification_failed",
+        "reason_code": reason_code,
         "commands": [command],
         "results": [
             {
                 "command": command,
-                "exit_code": completed.returncode,
-                "stdout_tail": (completed.stdout or "")[-2000:],
-                "stderr_tail": (completed.stderr or "")[-2000:],
+                "exit_code": returncode,
+                "stdout_tail": (stdout or "")[-2000:],
+                "stderr_tail": (stderr or "")[-2000:],
+                "timed_out": timed_out,
+                "source": source,
             }
         ],
     }
@@ -144,7 +193,27 @@ def run_mechanical_edit(a: argparse.Namespace) -> int:
         # use the explicit delegation path below; never let an installed
         # Runtime binary silently change standalone ownership.
         result = execute_plan_json(plan_text, root=a.root, apply=a.apply, allow_native=False)
-        verify = _verification_payload(a.root, applied=bool(result.get("applied")))
+        changed_files: list[str] = [
+            str(row.get("path"))
+            for row in (result.get("files") or [])
+            if isinstance(row, dict) and row.get("path")
+        ]
+        verify_timeout_s = getattr(a, "verify_timeout_s", None)
+        if verify_timeout_s is not None:
+            with _env_override("SIMPLICIO_TEST_TIMEOUT_S", str(verify_timeout_s)):
+                verify = _verification_payload(
+                    a.root,
+                    applied=bool(result.get("applied")),
+                    check=getattr(a, "check", None),
+                    changed_files=changed_files or None,
+                )
+        else:
+            verify = _verification_payload(
+                a.root,
+                applied=bool(result.get("applied")),
+                check=getattr(a, "check", None),
+                changed_files=changed_files or None,
+            )
         result["verify"] = verify
         result["mutation_receipt"] = mutation_receipt(
             "standalone",
@@ -597,24 +666,30 @@ def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list
     The host (an LLM) decides the change; Dev CLI pins the current file hashes
     and source tree into the mapper binding and fills every digest, so a later
     ``edit --apply`` refuses the plan if the files drifted in between.
+
+    issue #1331: an operation with ``find: ""`` against a path that does not
+    yet exist creates that file (same semantics ``simplicio-loop apply``'s
+    in-memory ``validate_ops`` already promises via SKILL.md) instead of
+    being rejected outright as "non-empty find" was previously required
+    unconditionally. An empty ``find`` against a path that already exists
+    with non-empty content is still refused (``create_target_exists``) --
+    creation semantics never silently overwrite a real file.
     """
     import hashlib
 
-    from ..mapper_binding import build_mapper_binding
-    from ..mechanical_edit import TextEdit, build_edit_plan
+    from ..mapper_binding import build_mapper_binding, canonical_mapper_binding, mapper_binding_digest
+    from ..mechanical_edit import EDIT_PLAN_SCHEMA, TextEdit, _canonical_digest, build_edit_plan
 
     operations = plan.get("operations") if isinstance(plan, dict) else None
     if not isinstance(operations, list) or not operations:
         return None, [{"code": "invalid_plan", "message": "plan needs a non-empty operations list"}]
     errors: list[dict[str, Any]] = []
     edits: list[TextEdit] = []
+    create_ops: list[dict[str, Any]] = []
     hashes: dict[str, str] = {}
     for index, op in enumerate(operations):
-        if (
-            not isinstance(op, dict)
-            or not all(isinstance(op.get(key), str) for key in ("path", "find", "replace"))
-            or not op["find"]
-        ):
+        required_keys = ("path", "find", "replace")
+        if not isinstance(op, dict) or not all(isinstance(op.get(key), str) for key in required_keys):
             errors.append(
                 {
                     "code": "invalid_operation",
@@ -624,8 +699,17 @@ def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list
             )
             continue
         path = op["path"]
+        target = Path(root) / path
+        if op["find"] == "":
+            if target.is_file() and target.read_bytes():
+                errors.append(
+                    {"code": "create_target_exists", "path": path, "message": f"{path} already exists"}
+                )
+                continue
+            create_ops.append({"op": "create_file", "path": path, "text": op["replace"]})
+            continue
         try:
-            data = (Path(root) / path).read_bytes()
+            data = target.read_bytes()
         except OSError as exc:
             errors.append({"code": "file_unreadable", "path": path, "message": str(exc)})
             continue
@@ -654,8 +738,44 @@ def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list
             generation = str(snapshot_id or source_tree)
         except (OSError, ValueError):
             generation = source_tree
-    binding = build_mapper_binding(f"local/{Path(root).resolve().name}", generation, source_tree, hashes)
-    return build_edit_plan(edits, mapper_binding=binding), []
+    if hashes:
+        binding = build_mapper_binding(f"local/{Path(root).resolve().name}", generation, source_tree, hashes)
+    else:
+        # A pure create-file batch never reads/anchors an existing file, so
+        # there is nothing to pin a source hash to -- the binding still
+        # records repository/generation/tree identity for provenance.
+        binding = canonical_mapper_binding(
+            {
+                "schema": "simplicio.mapper-binding/v1",
+                "repository_id": f"local/{Path(root).resolve().name}",
+                "generation": generation,
+                "source_tree_id": source_tree,
+                "source_hashes": {},
+            },
+            require_source_hashes=False,
+        )
+    if not edits:
+        # A pure create-file batch never touches an existing anchor, so
+        # `build_edit_plan` (which requires a binding hash per op) does not
+        # apply; assemble the canonical plan body directly.
+        body: dict[str, Any] = {
+            "schema": EDIT_PLAN_SCHEMA,
+            "touched_files": sorted({op["path"] for op in create_ops}),
+            "operations": sorted(create_ops, key=lambda op: op["path"]),
+            "mapper_binding": binding,
+            "mapper_binding_digest": mapper_binding_digest(binding, require_source_hashes=False),
+            "runtime_authorization_required": True,
+        }
+        body["plan_digest"] = _canonical_digest(body)
+        return body, []
+    compiled = build_edit_plan(edits, mapper_binding=binding)
+    if create_ops:
+        compiled["operations"] = sorted(compiled["operations"] + create_ops, key=lambda op: op["path"])
+        compiled["touched_files"] = sorted(set(compiled["touched_files"]) | {op["path"] for op in create_ops})
+        compiled["plan_digest"] = _canonical_digest(
+            {k: v for k, v in compiled.items() if k != "plan_digest"}
+        )
+    return compiled, []
 
 
 def _run_compile(a: argparse.Namespace, plan: Any) -> int:
