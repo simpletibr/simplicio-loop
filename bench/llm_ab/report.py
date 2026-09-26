@@ -14,7 +14,6 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 import aggregate as agg  # noqa: E402
-import tasks as bench_tasks  # noqa: E402
 import verdict as bench_verdict  # noqa: E402
 
 import matplotlib  # noqa: E402
@@ -178,6 +177,45 @@ def build_timeline_table(arms: dict) -> str:
     return rows
 
 
+def build_pricing_table(pricing_rows: list[dict]) -> str:
+    """Render the fetched OpenRouter pricing (per-token USD, ``cost.py``'s
+    ``pricing_table``). Empty when the pricing fetch failed."""
+    if not pricing_rows:
+        return "<tr><td colspan='7'>preço não disponível (falha ao consultar /api/v1/models)</td></tr>\n"
+    rows = ""
+    for row in pricing_rows:
+        rows += (
+            f"<tr><td>{html_escape(row.get('model'))}</td>"
+            f"<td>{fmt(row.get('prompt'), 10)}</td>"
+            f"<td>{fmt(row.get('completion'), 10)}</td>"
+            f"<td>{fmt(row.get('input_cache_read'), 10)}</td>"
+            f"<td>{fmt(row.get('input_cache_write'), 10)}</td>"
+            f"<td>{fmt(row.get('internal_reasoning'), 10)}</td>"
+            f"<td>{html_escape(row.get('fetched_at'))}</td></tr>\n"
+        )
+    return rows
+
+
+def build_cost_table(cost_rows: list[dict]) -> str:
+    """Render ``cost.py``'s ``cost_table``: reported vs computed cost per
+    arm/task-kind, with the cache-savings breakdown."""
+    if not cost_rows:
+        return "<tr><td colspan='9'>sem dados de custo</td></tr>\n"
+    rows = ""
+    for row in cost_rows:
+        rows += (
+            f"<tr><td>{html_escape(row.get('arm'))}</td><td>{html_escape(row.get('kind'))}</td>"
+            f"<td>${fmt(row.get('reported_cost_usd'), 6)}</td>"
+            f"<td>${fmt(row.get('computed_cost_usd'), 6)}</td>"
+            f"<td>${fmt(row.get('uncached_input_usd'), 6)}</td>"
+            f"<td>${fmt(row.get('cached_input_usd'), 6)}</td>"
+            f"<td>${fmt(row.get('output_usd'), 6)}</td>"
+            f"<td>${fmt(row.get('cache_savings_usd'), 6)}</td>"
+            f"<td>{fmt(row.get('cache_hit_pct'), 1)}%</td></tr>\n"
+        )
+    return rows
+
+
 def build_history_table(current: dict, history: list[dict]) -> str:
     if not history:
         return "<tr><td colspan='3'>sem execuções anteriores nesta pasta de resultados</td></tr>\n"
@@ -200,20 +238,25 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
     arms = results.get("arms", {})
     charts = build_charts(arms)
     verdict_text = bench_verdict.compute_verdict(results)
-    history = agg.load_history(results_dir, exclude_path=current_path)
+    task_count = meta.get("task_count")
+    history = agg.load_history(results_dir, exclude_path=current_path, task_count=task_count)
 
     versions_html = "".join(
         f"<span class='pill'>{html_escape(k)} {html_escape(v)}</span> "
         for k, v in (meta.get("pip_versions") or {}).items()
     )
 
-    kinds = sorted({t["kind"] for t in bench_tasks.TASKS})
+    kinds = sorted({t.get("kind") for a in arms.values() for t in a.get("tasks", []) if t.get("kind")})
     kind_labels = {"create": "Tarefas de criação", "edit": "Tarefas de edição"}
     kind_sections = "".join(
         f"<h3>{html_escape(kind_labels.get(k, k))}</h3>"
         f"<table class='compare'>{build_arm_table_rows(arms, task_kind=k)}</table>"
         for k in kinds
     )
+
+    cost_report = results.get("cost_report") or {}
+    pricing_rows_html = build_pricing_table(cost_report.get("pricing_table") or [])
+    cost_rows_html = build_cost_table(cost_report.get("cost_table") or [])
 
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -263,6 +306,21 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
 
   <h2>Por tipo de tarefa (criação vs edição)</h2>
   {kind_sections}
+
+  <h2>Preço por token (OpenRouter, ao vivo)</h2>
+  <table class="compare">
+    <tr><th>modelo</th><th>prompt</th><th>completion</th><th>cache read</th>
+        <th>cache write</th><th>raciocínio interno</th><th>obtido em</th></tr>
+    {pricing_rows_html}
+  </table>
+
+  <h2>Custo real: reportado vs calculado (cache-aware)</h2>
+  <table class="compare">
+    <tr><th>braço</th><th>tipo</th><th>reportado</th><th>calculado</th>
+        <th>entrada não cacheada</th><th>entrada cacheada</th><th>saída</th>
+        <th>economia de cache</th><th>hit % de cache</th></tr>
+    {cost_rows_html}
+  </table>
 
   <h2>Gráficos</h2>
   <div class="charts">

@@ -9,13 +9,19 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cost as bench_cost  # noqa: E402
+
 DEFAULT_TIMEOUT = 600
 MODEL = "deepseek/deepseek-v4.1-flash"
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
+MODELS_URL = "https://openrouter.ai/api/v1/models"
+GENERATION_URL = "https://openrouter.ai/api/v1/generation"
 KEYS_PATH_ENV = "SIMPLICIO_BENCH_KEYS"
 
 
@@ -154,6 +160,7 @@ def chat(arm: str, messages: list[dict], temperature: float = 0,
     cost = usage.get("cost", None)
     return {
         "ok": True,
+        "id": parsed.get("id"),
         "content": content,
         "message": message,
         "latency_s": latency,
@@ -166,6 +173,68 @@ def chat(arm: str, messages: list[dict], temperature: float = 0,
         "finish_reason": choice.get("finish_reason"),
         "key_masked": mask(key),
     }
+
+
+def fetch_json(url: str, key: str | None = None, timeout: int = 30):
+    """GET ``url`` (optionally with a Bearer ``key``) and return
+    ``(status, parsed, raw)``.
+
+    ``status`` is ``None`` and ``raw`` carries the exception text when the
+    request never reached the server at all (DNS/connect/timeout failure);
+    for an HTTP error response (4xx/5xx) ``status`` is the real status code
+    and ``raw``/``parsed`` are the error body, exactly like a success
+    response -- callers branch on ``status``, never on an exception.
+    """
+    headers = {"Authorization": f"Bearer {key}"} if key else {}
+    req = urllib.request.Request(url, method="GET", headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8")
+            status = resp.status
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode("utf-8", errors="replace")
+        status = e.code
+    except Exception as e:
+        return None, None, f"{type(e).__name__}: {e}"
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        parsed = None
+    return status, parsed, raw
+
+
+def fetch_model_pricing(model: str = MODEL, timeout: int = 30) -> dict:
+    """Fetch real, current pricing for ``model`` from the PUBLIC (no key
+    needed) ``GET /api/v1/models`` endpoint. Parsing lives in
+    ``cost.parse_pricing`` so it stays independently unit-testable; a
+    network failure or a model not present in the response yields
+    ``{"available": False, ...}`` rather than raising or fabricating a
+    number.
+    """
+    status, parsed, _raw = fetch_json(MODELS_URL, timeout=timeout)
+    if status != 200:
+        return {"model": model, "available": False, "error": "fetch_failed"}
+    return bench_cost.parse_pricing(parsed, model)
+
+
+def fetch_generation_stats(arm: str, generation_id: str, timeout: int = 30, retry_delay: float = 1.0) -> dict:
+    """Fetch per-call native token/cost stats for one completion's
+    ``generation_id`` from ``GET /api/v1/generation?id=...``, using the
+    same per-arm key as the chat call that produced it (so OpenRouter
+    attributes the read the same way).
+
+    OpenRouter's generation stats can lag a few seconds behind the chat
+    response -- a 404 is retried exactly once after ``retry_delay`` seconds;
+    a second miss (or any other failure) marks the stats unavailable rather
+    than inventing figures.
+    """
+    key = get_key(arm)
+    url = f"{GENERATION_URL}?id={generation_id}"
+    status, parsed, _raw = fetch_json(url, key=key, timeout=timeout)
+    if status == 404:
+        time.sleep(retry_delay)
+        status, parsed, _raw = fetch_json(url, key=key, timeout=timeout)
+    return bench_cost.parse_generation_response(status, parsed)
 
 
 def extract_json(text: str) -> dict:

@@ -38,6 +38,7 @@ sys.path.insert(0, HERE)
 
 import agent  # noqa: E402
 import checker  # noqa: E402
+import cost as bench_cost  # noqa: E402
 import llm_client as lc  # noqa: E402
 import tasks as bench_tasks  # noqa: E402
 
@@ -106,9 +107,25 @@ def _commit_if_changed(repo_dir: str, message: str) -> None:
     )
 
 
+def _attach_generation_stats(arm: str, llm_calls: list[dict]) -> None:
+    """After a task's agent loop finishes, fetch real per-call native
+    token/cost stats for every ok call that carries a response ``id`` and
+    attach them as ``call["generation_stats"]``. Best-effort: a fetch
+    failure (network, 404 twice, malformed body) leaves
+    ``{"available": False}`` on that call rather than raising or skipping
+    silently -- the report can then show it as such instead of a fabricated
+    number."""
+    for call in llm_calls:
+        if not call.get("ok") or not call.get("id"):
+            continue
+        call["generation_stats"] = lc.fetch_generation_stats(arm, call["id"])
+
+
 def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
-            max_turns: int, cmd_timeout: int) -> dict:
+            max_turns: int, cmd_timeout: int, task_list: list[dict] | None = None) -> dict:
     import time
+
+    task_list = task_list if task_list is not None else bench_tasks.TASKS
 
     checker.seed_repo(fixture_dir, repo_dir)
     subprocess.run(["git", "init", "-q"], cwd=repo_dir, check=True, timeout=15)
@@ -117,9 +134,10 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
     results = {"arm": arm, "model": lc.MODEL, "tasks": []}
     total_wall_t0 = time.time()
 
-    for task in bench_tasks.TASKS:
+    for task in task_list:
         idx = task["index"]
         stage = task["verify_stage"]
+        task_checker = task.get("checker", "check_cadastro.py")
         system_prompt, user_prompt = build_prompts(arm, task)
 
         task_wall_t0 = time.time()
@@ -131,7 +149,9 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
 
         _commit_if_changed(repo_dir, f"{arm}: task {idx}")
 
-        passed, check_out, _check_metrics = checker.run_check(repo_dir, stage, python_bin)
+        passed, check_out, _check_metrics = checker.run_check(repo_dir, stage, python_bin, checker=task_checker)
+
+        _attach_generation_stats(arm, agent_result["llm_calls"])
 
         task_record = {
             "index": idx,
@@ -150,7 +170,10 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
         print(f"[{arm}] task {idx} success={passed} turns={agent_result['turns']}", file=sys.stderr)
 
     results["total_wall_s"] = round(time.time() - total_wall_t0, 3)
-    final_passed, final_out, _ = checker.run_check(repo_dir, bench_tasks.TASKS[-1]["verify_stage"], python_bin)
+    last_task = task_list[-1]
+    final_passed, final_out, _ = checker.run_check(
+        repo_dir, last_task["verify_stage"], python_bin, checker=last_task.get("checker", "check_cadastro.py")
+    )
     results["final"] = {
         "check_passed": final_passed,
         "check_output_tail": "\n".join(final_out.splitlines()[-30:]),
@@ -164,13 +187,29 @@ def default_work_dir() -> str:
     return tempfile.mkdtemp(prefix="llm-ab-")
 
 
-def main(argv=None) -> int:
+def result_filename(date: str, short_sha: str, task_count: int) -> str:
+    """``<date>-<short_sha>-t<task_count>.json`` -- the task count is part of
+    the filename so ``aggregate.load_history``/report history diffing never
+    mixes runs with a different task set (a 2-task run and a 4-task run
+    aren't comparable)."""
+    return f"{date}-{short_sha}-t{task_count}.json"
+
+
+def build_arg_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ap.add_argument(
         "--arms", default=",".join(ARM_CHOICES),
         help=f"comma-separated arms to run, from {ARM_CHOICES} (default: both)",
+    )
+    ap.add_argument(
+        "--tasks", type=int, default=2, choices=bench_tasks.TASK_SET_CHOICES,
+        help=(
+            "how many benchmark tasks to run (default: 2). 1: cadastro.html "
+            "create only. 2: cadastro.html create+edit. 4: cadastro.html "
+            "create+edit, then login.html create+edit."
+        ),
     )
     ap.add_argument(
         "--out", default=os.path.join(HERE, "results"),
@@ -196,6 +235,11 @@ def main(argv=None) -> int:
         "--skip-report", action="store_true",
         help="write results.json only; skip rendering REPORT.html (matplotlib not required)",
     )
+    return ap
+
+
+def main(argv=None) -> int:
+    ap = build_arg_parser()
     args = ap.parse_args(argv)
 
     arms = [a.strip() for a in args.arms.split(",") if a.strip()]
@@ -205,16 +249,21 @@ def main(argv=None) -> int:
 
     lc.keys_path()  # fail fast, before any work, if SIMPLICIO_BENCH_KEYS is unset/missing
 
+    task_list = bench_tasks.task_set(args.tasks)
+
     fixture_dir = os.path.join(HERE, "fixture")
     work_dir = args.work_dir or default_work_dir()
     os.makedirs(work_dir, exist_ok=True)
     os.makedirs(args.out, exist_ok=True)
+
+    pricing = lc.fetch_model_pricing()
 
     arms_results = {}
     for arm in arms:
         repo_dir = os.path.join(work_dir, f"{arm}-repo")
         arms_results[arm] = run_arm(
             arm, fixture_dir, repo_dir, args.python_bin, args.max_turns, args.cmd_timeout,
+            task_list=task_list,
         )
 
     meta = {
@@ -222,11 +271,17 @@ def main(argv=None) -> int:
         "date": datetime.date.today().isoformat(),
         "main_commit": _short_sha(REPO_ROOT),
         "pip_versions": _pip_versions(sys.executable),
+        "task_count": args.tasks,
+        "pricing": pricing,
     }
     results = {"meta": meta, "arms": arms_results}
+    results["cost_report"] = {
+        "pricing_table": bench_cost.pricing_table(pricing),
+        "cost_table": bench_cost.cost_table(results, pricing),
+    }
 
     short_sha = _short_sha(REPO_ROOT)
-    out_path = os.path.join(args.out, f"{meta['date']}-{short_sha}.json")
+    out_path = os.path.join(args.out, result_filename(meta["date"], short_sha, args.tasks))
     with open(out_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"wrote {out_path}", file=sys.stderr)

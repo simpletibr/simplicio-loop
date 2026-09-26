@@ -162,6 +162,36 @@ def test_summarize_handles_no_calls_or_commands():
     assert totals["cost_usd"] == 0.0
 
 
+def test_run_agent_records_the_llm_response_id_per_call(monkeypatch, tmp_path):
+    """Needed to correlate a call with GET /generation?id=... afterwards."""
+    calls = {"n": 0}
+
+    def fake_chat(arm, messages, temperature=0, tools=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {
+                "ok": True, "id": "gen-abc123", "message": {
+                    "role": "assistant",
+                    "tool_calls": [{"id": "c1", "function": {"name": "bash", "arguments": '{"command": "echo hi"}'}}],
+                },
+                "latency_s": 0.1, "prompt_tokens": 10, "completion_tokens": 5,
+                "reasoning_tokens": 0, "cached_tokens": 0, "cost_usd": 0.0001,
+                "finish_reason": "tool_calls",
+            }
+        return {
+            "ok": True, "id": "gen-def456",
+            "message": {"role": "assistant", "content": "DONE"},
+            "latency_s": 0.1, "prompt_tokens": 20, "completion_tokens": 2,
+            "reasoning_tokens": 0, "cached_tokens": 0, "cost_usd": 0.0002,
+            "finish_reason": "stop",
+        }
+
+    monkeypatch.setattr(agent.lc, "chat", fake_chat)
+    result = agent.run_agent("normal", "sys", "task", str(tmp_path), max_turns=5, cmd_timeout=10)
+    ids = [c.get("id") for c in result["llm_calls"]]
+    assert ids == ["gen-abc123", "gen-def456"]
+
+
 def test_default_work_dir_is_outside_the_repository():
     import run  # noqa: E402 - bench/llm_ab is on sys.path above
     work = run.default_work_dir()

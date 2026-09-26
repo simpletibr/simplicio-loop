@@ -1,0 +1,956 @@
+{
+  "meta": {
+    "model": "deepseek/deepseek-v4.1-flash",
+    "date": "2026-09-26",
+    "main_commit": "63a4a1a4c",
+    "pip_versions": {
+      "simplicio-cli": "0.18.16",
+      "simplicio-fast": "2.0.35",
+      "simplicio-loop": "3.43.16",
+      "simplicio-mapper": "0.26.34"
+    }
+  },
+  "arms": {
+    "normal": {
+      "arm": "normal",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "tasks": [
+        {
+          "index": 1,
+          "kind": "create",
+          "task_text": "Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a <form id=\"cadastro\"> containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button.",
+          "success": true,
+          "turns": 6,
+          "llm_calls": [
+            {
+              "turn": 1,
+              "ok": true,
+              "latency_s": 2.067631959915161,
+              "prompt_tokens": 417,
+              "completion_tokens": 168,
+              "reasoning_tokens": 70,
+              "cached_tokens": 0,
+              "cost_usd": 0.000310365,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 2,
+              "ok": true,
+              "latency_s": 1.5116360187530518,
+              "prompt_tokens": 769,
+              "completion_tokens": 72,
+              "reasoning_tokens": 15,
+              "cached_tokens": 512,
+              "cost_usd": 0.0001582434,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 3,
+              "ok": true,
+              "latency_s": 1.1315183639526367,
+              "prompt_tokens": 970,
+              "completion_tokens": 44,
+              "reasoning_tokens": 0,
+              "cached_tokens": 768,
+              "cost_usd": 0.0001121076,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 4,
+              "ok": true,
+              "latency_s": 4.271942377090454,
+              "prompt_tokens": 2745,
+              "completion_tokens": 860,
+              "reasoning_tokens": 164,
+              "cached_tokens": 896,
+              "cost_usd": 0.0015124722,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 5,
+              "ok": true,
+              "latency_s": 1.6473438739776611,
+              "prompt_tokens": 3625,
+              "completion_tokens": 151,
+              "reasoning_tokens": 18,
+              "cached_tokens": 3456,
+              "cost_usd": 0.0002400042,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 6,
+              "ok": true,
+              "latency_s": 2.026695966720581,
+              "prompt_tokens": 3824,
+              "completion_tokens": 151,
+              "reasoning_tokens": 54,
+              "cached_tokens": 3584,
+              "cost_usd": 0.0002609688,
+              "finish_reason": "stop",
+              "error": null
+            }
+          ],
+          "commands": [
+            {
+              "turn": 1,
+              "command": "ls -la && git log --oneline -5 2>/dev/null | head",
+              "returncode": 0,
+              "wall_s": 0.1236,
+              "cpu_s": 0.1311,
+              "peak_rss_mb": 7.17,
+              "is_simplicio": false,
+              "output_bytes": 316,
+              "output_tail": "total 24\ndrwxr-xr-x 4 root root 4096 Sep 26 03:19 .\ndrwx------ 3 root root 4096 Sep 26 03:19 ..\ndrwxr-xr-x 8 root root 4096 Sep 26 03:19 .git\n-rw-r--r-- 1 root root  371 Sep 26 02:29 README.md\n-rw-r--r-- 1 root root   67 Sep 26 02:39 cadastro.html\ndrwxr-xr-x 3 root root 4096 Sep 26 03:02 tests\nb128fcc seed fixture\n"
+            },
+            {
+              "turn": 1,
+              "command": "ls *.html 2>/dev/null; cat cadastro.html 2>/dev/null",
+              "returncode": 0,
+              "wall_s": 0.1224,
+              "cpu_s": 0.1232,
+              "peak_rss_mb": 7.17,
+              "is_simplicio": false,
+              "output_bytes": 81,
+              "output_tail": "cadastro.html\n<!-- SIMPLICIO-PLACEHOLDER: cadastro.html not implemented yet. -->\n"
+            },
+            {
+              "turn": 2,
+              "command": "find tests -type f | head -50 && echo \"---README---\" && cat README.md",
+              "returncode": 0,
+              "wall_s": 0.123,
+              "cpu_s": 0.1309,
+              "peak_rss_mb": 7.14,
+              "is_simplicio": false,
+              "output_bytes": 457,
+              "output_tail": "tests/check_cadastro.py\ntests/__pycache__/check_cadastro.cpython-311.pyc\n---README---\n# cadastro fixture\n\nMinimal fixture repository for the `bench/llm_ab` LLM A/B benchmark: a\nsingle HTML registration page (`cadastro.html`) created and then edited by\nthe benchmarked model. No Python application code -- `tests/check_cadastro.py`\nis the harness-owned, stdlib-only acceptance checker (never written by the\nmodel) shared by every arm and every quality lane.\n"
+            },
+            {
+              "turn": 3,
+              "command": "cat tests/check_cadastro.py",
+              "returncode": 0,
+              "wall_s": 0.1439,
+              "cpu_s": 0.1438,
+              "peak_rss_mb": 7.07,
+              "is_simplicio": false,
+              "output_bytes": 6720,
+              "output_tail": "\"\"\"Harness-owned acceptance checker for the `cadastro.html` benchmark tasks.\n\nStdlib only (``html.parser``). The benchmarked model never writes or sees\nthis file's content -- it ships with the fixture repo before any arm runs,\nand is used, unmodified, as the Independent verifier and every quality-lane\ncommand (Unit/Integration/System/Regression/Benchmark) for both benchmark\ntasks in ``bench/llm_ab/tasks.py``. There is no Python application code in\nthis fixture, so the Coverage lane is intentionally left undeclared (not\napplicable) rather than faked.\n\nStage 1 (task 1, create): ``<form id=\"cadastro\">`` with labeled\nname/email/password inputs and a submit control.\nStage 2 (task 2, edit): stage 1 plus a phone field and a password_confirm\nfield, with the original three fields still present.\n\"\"\"\nfrom __future__ import annotations\n\nimport argparse\nimport sys\nfrom html.parser import HTMLParser\nfrom pathlib import Path\n\n# tests/check_cadastro.py -> repo root -> cadastro.html\nDEFAULT_PATH = Path(__file__).resolve().parent.parent / \"cadastro.html\"\n\n\nclass FormFieldParser(HTMLParser):\n    \"\"\"Collect every ``<input>``/``<button>`` inside ``<form id=\"cadastro\">``.\"\"\"\n\n    def __init__(self) -> None:\n        super().__init__(convert_charrefs=True)\n        self.inputs: list[dict[str, str | None]] = []\n        self.buttons: list[dict[str, str | None]] = []\n        self.found_form_cadastro = False\n        self._form_depth = 0\n        self._in_target_form = False\n\n    def _start(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:\n        attrs_d = dict(attrs)\n        if tag == \"form\":\n            self._form_depth += 1\n            if attrs_d.get(\"id\") == \"cadastro\":\n                self._in_target_form = True\n                self.found_form_cadastro = True\n        elif self._in_target_form and tag == \"input\":\n            self.inputs.append(attrs_d)\n        elif self._in_target_form and tag == \"button\":\n            self.buttons.append(attrs_d)\n\n    def handle_starttag(self, tag, attrs):\n        self._start(tag, attrs)\n\n    def handle_startendtag(self, tag, attrs):\n        # self-closed tags, e.g. <input .../>\n        self._start(tag, attrs)\n\n    def handle_endtag(self, tag: str) -> None:\n        if tag == \"form\" and self._form_depth:\n            self._form_depth -= 1\n            if self._form_depth == 0:\n                self._in_target_form = False\n\n\ndef parse_cadastro(html_text: str) -> FormFieldParser:\n    parser = FormFieldParser()\n    parser.feed(html_text)\n    return parser\n\n\ndef _find_input(parser: FormFieldParser, name: str) -> dict | None:\n    for inp in parser.inputs:\n        if inp.get(\"name\") == name:\n            return inp\n    return None\n\n\ndef _has_submit(parser: FormFieldParser) -> bool:\n    for inp in parser.inputs:\n        if (inp.get(\"type\") or \"\").lower() == \"submit\":\n            return True\n    for btn in parser.buttons:\n        # a <button> with no explicit type defaults to type=\"submit\" per the\n        # HTML spec.\n        if (btn.get(\"type\") or \"submit\").lower() == \"submit\":\n            return True\n    return False\n\n\ndef check_stage1(parser: FormFieldParser) -> list[str]:\n    \"\"\"Return failure reasons for stage 1; an empty list means pass.\"\"\"\n    failures: list[str] = []\n    if not parser.found_form_cadastro:\n        return ['missing <form id=\"cadastro\">']\n\n    name = _find_input(parser, \"name\")\n    if name is None:\n        failures.append(\"missing input[name=name]\")\n    else:\n        if (name.get(\"type\") or \"text\").lower() != \"text\":\n            failures.append(\"input[name=name] must be type=text (or omitted)\")\n        if \"required\" not in name:\n            failures.append(\"input[name=name] must be required\")\n\n    email = _find_input(parser, \"email\")\n    if email is None:\n        failures.append(\"missing input[name=email]\")\n    else:\n        if (email.get(\"type\") or \"\").lower() != \"email\":\n            failures.append(\"input[name=email] must be type=email\")\n        if \"required\" not in email:\n            failures.append(\"input[name=email] must be required\")\n\n    password = _find_input(parser, \"password\")\n    if password is None:\n        failures.append(\"missing input[name=password]\")\n    else:\n        if (password.get(\"type\") or \"\").lower() != \"password\":\n            failures.append(\"input[name=password] must be type=password\")\n        if \"required\" not in password:\n            failures.append(\"input[name=password] must be required\")\n        if password.get(\"minlength\") != \"8\":\n            failures.append('input[name=password] must have minlength=\"8\"')\n\n    if not _has_submit(parser):\n        failures.append(\"missing a submit control in form#cadastro\")\n\n    return failures\n\n\ndef check_stage2(parser: FormFieldParser) -> list[str]:\n    \"\"\"Stage 1 plus the phone + password_confirm fields added by task 2.\"\"\"\n    failures = check_stage1(parser)\n\n    phone = _find_input(parser, \"phone\")\n    if phone is None:\n        failures.append(\"missing input[name=phone]\")\n    elif (phone.get(\"type\") or \"\").lower() != \"tel\":\n        failures.append(\"input[name=phone] must be type=tel\")\n\n    confirm = _find_input(parser, \"password_confirm\")\n    if confirm is None:\n        failures.append(\"missing input[name=password_confirm]\")\n    else:\n        if (confirm.get(\"type\") or \"\").lower() != \"password\":\n            failures.append(\"input[name=password_confirm] must be type=password\")\n        if \"required\" not in confirm:\n            failures.append(\"input[name=password_confirm] must be required\")\n        if confirm.get(\"minlength\") != \"8\":\n            failures.append('input[name=password_confirm] must have minlength=\"8\"')\n\n    return failures\n\n\nSTAGE_CHECKS = {1: check_stage1, 2: check_stage2}\n\n\ndef check_file(path: Path, stage: int) -> list[str]:\n    if not path.is_file():\n        return [f\"{path} does not exist\"]\n    text = path.read_text(encoding=\"utf-8\", errors=\"replace\")\n    return STAGE_CHECKS[stage](parse_cadastro(text))\n\n\ndef main(argv: list[str] | None = None) -> int:\n    ap = argparse.ArgumentParser(description=__doc__)\n    ap.add_argument(\n        \"--stage\", type=int, choices=sorted(STAGE_CHECKS), required=True,\n        help=\"1: base form (name/email/password/submit); \"\n             \"2: stage 1 plus phone + password_confirm\",\n    )\n    ap.add_argument(\n        \"--path\", default=str(DEFAULT_PATH),\n        help=\"path to cadastro.html (default: repo root, relative to this file)\",\n    )\n    args = ap.parse_args(argv)\n\n    failures = check_file(Path(args.path), args.stage)\n    if failures:\n        for reason in failures:\n            print(f\"FAIL: {reason}\", file=sys.stderr)\n        return 1\n    print(f\"PASS: stage {args.stage} ok\")\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n"
+            },
+            {
+              "turn": 4,
+              "command": "cat > cadastro.html <<'EOF'\n<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Cadastro de usu\u00e1rio</title>\n  <style>\n    :root { color-scheme: light dark; }\n    body {\n      font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif;\n      line-height: 1.5;\n      margin: 0;\n      padding: 2rem 1rem;\n      display: flex;\n      justify-content: center;\n    }\n    main { width: 100%; max-width: 26rem; }\n    h1 { font-size: 1.5rem; margin: 0 0 1.25rem; }\n    .campo { margin-bottom: 1rem; display: flex; flex-direction: column; }\n    label { font-weight: 600; margin-bottom: .25rem; }\n    input {\n      font: inherit;\n      padding: .5rem .6rem;\n      border: 1px solid #9aa0a6;\n      border-radius: .35rem;\n    }\n    input:focus-visible { outline: 2px solid #1a73e8; outline-offset: 1px; }\n    .dica { font-size: .8rem; opacity: .75; margin-top: .25rem; }\n    button {\n      font: inherit;\n      font-weight: 600;\n      padding: .6rem 1rem;\n      border: 0;\n      border-radius: .35rem;\n      background: #1a73e8;\n      color: #fff;\n      cursor: pointer;\n    }\n    button:hover { background: #1665c8; }\n  </style>\n</head>\n<body>\n  <main>\n    <h1>Cadastro de usu\u00e1rio</h1>\n\n    <form id=\"cadastro\" method=\"post\" action=\"#\">\n      <div class=\"campo\">\n        <label for=\"name\">Nome</label>\n        <input type=\"text\" id=\"name\" name=\"name\" required autocomplete=\"name\">\n      </div>\n\n      <div class=\"campo\">\n        <label for=\"email\">E-mail</label>\n        <input type=\"email\" id=\"email\" name=\"email\" required autocomplete=\"email\">\n      </div>\n\n      <div class=\"campo\">\n        <label for=\"password\">Senha</label>\n        <input type=\"password\" id=\"password\" name=\"password\" required\n               minlength=\"8\" autocomplete=\"new-password\"\n               aria-describedby=\"password-dica\">\n        <p class=\"dica\" id=\"password-dica\">A senha deve ter no m\u00ednimo 8 caracteres.</p>\n      </div>\n\n      <button type=\"submit\">Cadastrar</button>\n    </form>\n  </main>\n</body>\n</html>\nEOF\npython3 tests/check_cadastro.py --stage 1",
+              "returncode": 0,
+              "wall_s": 0.1643,
+              "cpu_s": 0.1638,
+              "peak_rss_mb": 12.14,
+              "is_simplicio": false,
+              "output_bytes": 17,
+              "output_tail": "PASS: stage 1 ok\n"
+            },
+            {
+              "turn": 5,
+              "command": "grep -nE 'src=|href=|http|<script' cadastro.html; echo \"exit:$?\"; python3 -c \"\nfrom html.parser import HTMLParser\nimport re\nt=open('cadastro.html').read()\nprint('labels:', re.findall(r'<label[^>]*>', t))\nprint('has form#cadastro:', bool(re.search(r'<form[^>]*id=\\\"cadastro\\\"', t)))\n\"",
+              "returncode": 0,
+              "wall_s": 0.1428,
+              "cpu_s": 0.1468,
+              "peak_rss_mb": 9.5,
+              "is_simplicio": false,
+              "output_bytes": 111,
+              "output_tail": "exit:1\nlabels: ['<label for=\"name\">', '<label for=\"email\">', '<label for=\"password\">']\nhas form#cadastro: True\n"
+            }
+          ],
+          "totals": {
+            "prompt_tokens": 12350,
+            "completion_tokens": 1446,
+            "reasoning_tokens": 321,
+            "cached_tokens": 9216,
+            "cost_usd": 0.002594,
+            "llm_latency_s": 12.6568,
+            "cmd_wall_s": 0.82,
+            "cmd_cpu_s": 0.8396,
+            "n_commands": 6,
+            "n_simplicio_commands": 0
+          },
+          "final_text": "Created `cadastro.html` \u2014 a standalone page (inline CSS only, no scripts or external assets) with `<form id=\"cadastro\">`, `<label for=...>` pairs for `name` (text, required), `email` (type=email, required), `password` (type=password, required, minlength=8), and a `<button type=\"submit\">`. The harness checker passes: `PASS: stage 1 ok`.\n\nDONE",
+          "wall_s": 13.481,
+          "check_output_tail": "PASS: stage 1 ok"
+        },
+        {
+          "index": 2,
+          "kind": "edit",
+          "task_text": "Edit cadastro.html: add a labeled phone field (input name=phone, type=tel) and a confirm-password field (name=password_confirm, type=password, required, minlength=8) to the same form, keeping the existing fields.",
+          "success": true,
+          "turns": 8,
+          "llm_calls": [
+            {
+              "turn": 1,
+              "ok": true,
+              "latency_s": 1.137094259262085,
+              "prompt_tokens": 405,
+              "completion_tokens": 62,
+              "reasoning_tokens": 0,
+              "cached_tokens": 384,
+              "cost_usd": 3.05928e-05,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 2,
+              "ok": true,
+              "latency_s": 1.3261656761169434,
+              "prompt_tokens": 1251,
+              "completion_tokens": 73,
+              "reasoning_tokens": 9,
+              "cached_tokens": 0,
+              "cost_usd": 0.000439755,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 3,
+              "ok": true,
+              "latency_s": 1.85776948928833,
+              "prompt_tokens": 8022,
+              "completion_tokens": 80,
+              "reasoning_tokens": 31,
+              "cached_tokens": 384,
+              "cost_usd": 0.0011045328,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 4,
+              "ok": true,
+              "latency_s": 1.518517017364502,
+              "prompt_tokens": 8148,
+              "completion_tokens": 67,
+              "reasoning_tokens": 23,
+              "cached_tokens": 1280,
+              "cost_usd": 0.0019766016,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 5,
+              "ok": true,
+              "latency_s": 3.679975986480713,
+              "prompt_tokens": 9945,
+              "completion_tokens": 658,
+              "reasoning_tokens": 140,
+              "cached_tokens": 8192,
+              "cost_usd": 0.00125547984,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 6,
+              "ok": true,
+              "latency_s": 1.7209124565124512,
+              "prompt_tokens": 10617,
+              "completion_tokens": 98,
+              "reasoning_tokens": 0,
+              "cached_tokens": 10368,
+              "cost_usd": 0.00023414736,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 7,
+              "ok": true,
+              "latency_s": 2.281881093978882,
+              "prompt_tokens": 11062,
+              "completion_tokens": 72,
+              "reasoning_tokens": 15,
+              "cached_tokens": 10496,
+              "cost_usd": 0.00029364192,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 8,
+              "ok": true,
+              "latency_s": 1.5205562114715576,
+              "prompt_tokens": 11509,
+              "completion_tokens": 64,
+              "reasoning_tokens": 0,
+              "cached_tokens": 11008,
+              "cost_usd": 0.00026969616,
+              "finish_reason": "stop",
+              "error": null
+            }
+          ],
+          "commands": [
+            {
+              "turn": 1,
+              "command": "ls -la && echo \"---\" && cat cadastro.html",
+              "returncode": 0,
+              "wall_s": 0.1227,
+              "cpu_s": 0.1258,
+              "peak_rss_mb": 7.07,
+              "is_simplicio": false,
+              "output_bytes": 2365,
+              "output_tail": "total 24\ndrwxr-xr-x 4 root root 4096 Sep 26 03:19 .\ndrwx------ 3 root root 4096 Sep 26 03:19 ..\ndrwxr-xr-x 8 root root 4096 Sep 26 03:19 .git\n-rw-r--r-- 1 root root  371 Sep 26 02:29 README.md\n-rw-r--r-- 1 root root 2069 Sep 26 03:19 cadastro.html\ndrwxr-xr-x 3 root root 4096 Sep 26 03:02 tests\n---\n<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Cadastro de usu\u00e1rio</title>\n  <style>\n    :root { color-scheme: light dark; }\n    body {\n      font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif;\n      line-height: 1.5;\n      margin: 0;\n      padding: 2rem 1rem;\n      display: flex;\n      justify-content: center;\n    }\n    main { width: 100%; max-width: 26rem; }\n    h1 { font-size: 1.5rem; margin: 0 0 1.25rem; }\n    .campo { margin-bottom: 1rem; display: flex; flex-direction: column; }\n    label { font-weight: 600; margin-bottom: .25rem; }\n    input {\n      font: inherit;\n      padding: .5rem .6rem;\n      border: 1px solid #9aa0a6;\n      border-radius: .35rem;\n    }\n    input:focus-visible { outline: 2px solid #1a73e8; outline-offset: 1px; }\n    .dica { font-size: .8rem; opacity: .75; margin-top: .25rem; }\n    button {\n      font: inherit;\n      font-weight: 600;\n      padding: .6rem 1rem;\n      border: 0;\n      border-radius: .35rem;\n      background: #1a73e8;\n      color: #fff;\n      cursor: pointer;\n    }\n    button:hover { background: #1665c8; }\n  </style>\n</head>\n<body>\n  <main>\n    <h1>Cadastro de usu\u00e1rio</h1>\n\n    <form id=\"cadastro\" method=\"post\" action=\"#\">\n      <div class=\"campo\">\n        <label for=\"name\">Nome</label>\n        <input type=\"text\" id=\"name\" name=\"name\" required autocomplete=\"name\">\n      </div>\n\n      <div class=\"campo\">\n        <label for=\"email\">E-mail</label>\n        <input type=\"email\" id=\"email\" name=\"email\" required autocomplete=\"email\">\n      </div>\n\n      <div class=\"campo\">\n        <label for=\"password\">Senha</label>\n        <input type=\"password\" id=\"password\" name=\"password\" required\n               minlength=\"8\" autocomplete=\"new-password\"\n               aria-describedby=\"password-dica\">\n        <p class=\"dica\" id=\"password-dica\">A senha deve ter no m\u00ednimo 8 caracteres.</p>\n      </div>\n\n      <button type=\"submit\">Cadastrar</button>\n    </form>\n  </main>\n</body>\n</html>\n"
+            },
+            {
+              "turn": 2,
+              "command": "find tests -type f | head -50 && echo \"---\" && cat tests/*/* 2>/dev/null | head -100",
+              "returncode": 0,
+              "wall_s": 0.1229,
+              "cpu_s": 0.1236,
+              "peak_rss_mb": 7.14,
+              "is_simplicio": false,
+              "output_bytes": 10972,
+              "output_tail": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0003\u0000\u0000\u0001\ufffd2\u0000\u0000\u0000\ufffd\u0000|\u0000\ufffd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0001|\u0002\ufffd\u0002\u0000\u0000\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000d\u0000S\u0000r(\u0000\u0000\u0000r)\u0000\u0000\u0000r*\u0000\u0000\u0000s\u0003\u0000\u0000\u0000   r\u0015\u0000\u0000\u0000\ufffd\u0012handle_startendtagz\"FormFieldParser.handle_startendtag5\u0000\u0000\u0000s\u001c\u0000\u0000\u0000\ufffd\u0000\ufffd\b\f\ufffd\u000b\ufffd\u000b\ufffdC\ufffd\u0015\ufffd\b\u001f\ufffd\b\u001f\ufffd\b\u001f\ufffd\b\u001f\ufffd\b\u001fr\u0016\u0000\u0000\u0000c\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0003\u0000\u0000\u0000\u0003\u0000\u0000\u0001\ufffdp\u0000\u0000\u0000\ufffd\u0000|\u0001d\u0001k\u0002\u0000\u0000\u0000\u0000r+|\u0000j\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000r&|\u0000x\u0001j\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0002z\u0017\u0000\u0000c\u0002_\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0000j\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0003k\u0002\u0000\u0000\u0000\u0000r\nd\u0004|\u0000_\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0000S\u0000d\u0000S\u0000d\u0000S\u0000d\u0000S\u0000)\u0005Nr\u001c\u0000\u0000\u0000r\u001d\u0000\u0000\u0000r\u0002\u0000\u0000\u0000F)\u0002r\u0011\u0000\u0000\u0000r\u0012\u0000\u0000\u0000)\u0002r\u0013\u0000\u0000\u0000r\u0017\u0000\u0000\u0000s\u0002\u0000\u0000\u0000  r\u0015\u0000\u0000\u0000\ufffd\nhandle_endtagz\u001dFormFieldParser.handle_endtag9\u0000\u0000\u0000sS\u0000\u0000\u0000\ufffd\u0000\ufffd\u000b\u000e\ufffd&\ufffd=\ufffd=\ufffdT\ufffd\u001d-\ufffd=\ufffd\f\u0010\ufffd\f\u001c\ufffd\f\u001c\ufffd\u0001\ufffd\f!\ufffd\f\u001c\ufffd\f\u001c\ufffd\u000f\u0013\ufffd\u000f\u001f\ufffd1\ufffd\u000f$\ufffd\u000f$\ufffd',\ufffd\u0004\ufffd\u0010$\ufffd\u0010$\ufffd\u0010$\ufffd\u0007\u0000\f\u0019\ufffd=\ufffd=\ufffd=\ufffd\u000f$\ufffd\u000f$r\u0016\u0000\u0000\u0000)\u0002r\b\u0000\u0000\u0000r\t\u0000\u0000\u0000)\u0006r\u0017\u0000\u0000\u0000r\u0018\u0000\u0000\u0000r\u0019\u0000\u0000\u0000r\u001a\u0000\u0000\u0000r\b\u0000\u0000\u0000r\t\u0000\u0000\u0000)\u0004r\u0017\u0000\u0000\u0000r\u0018\u0000\u0000\u0000r\b\u0000\u0000\u0000r\t\u0000\u0000\u0000)\n\ufffd\b__name__\ufffd\n__module__\ufffd\f__qualname__\ufffd\u0007__doc__r\n\u0000\u0000\u0000r&\u0000\u0000\u0000r+\u0000\u0000\u0000r-\u0000\u0000\u0000r/\u0000\u0000\u0000\ufffd\n__classcell__)\u0001r\u0014\u0000\u0000\u0000s\u0001\u0000\u0000\u0000@r\u0015\u0000\u0000\u0000r\u0007\u0000\u0000\u0000r\u0007\u0000\u0000\u0000\u001b\u0000\u0000\u0000s\ufffd\u0000\u0000\u0000\ufffd\ufffd\u0000\ufffd\u0000\ufffd\u0000\ufffd\u0000\ufffd\u0000\ufffd\u0004Q\ufffd\u0004Q\ufffd\u0004\u0006\u0005%\ufffd\u0000\u0006\u0005%\ufffd\u0000\u0006\u0005%\ufffd\u0000\u0006\u0005%\ufffd\u0000\u0006\u0005%\ufffd\u0000\u0006\u0005%\ufffd\u0010\n\u0005)\ufffd\u0000\n\u0005)\ufffd\u0000\n\u0005)\ufffd\u0000\n\u0005)\ufffd\u0018\u0001\u0005 \ufffd\u0000\u0001\u0005 \ufffd\u0000\u0001\u0005 \ufffd\u0006\u0002\u0005 \ufffd\u0000\u0002\u0005 \ufffd\u0000\u0002\u0005 \ufffd\b\u0004\u0005-\ufffd\u0000\u0004\u0005-\ufffd\u0000\u0004\u0005-\ufffd\u0000\u0004\u0005-\ufffd\u0000\u0004\u0005-\ufffd\u0000\u0004\u0005-\ufffd\u0000\u0004\u0005-\ufffd\u0000\u0004\u0005-r\u0016\u0000\u0000\u0000r\u0007\u0000\u0000\u0000\ufffd\thtml_textr\u0018\u0000\u0000\u0000r\b\u0000\u0000\u0000c\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0003\u0000\u0000\u0000\u0003\u0000\u0000\u0001\ufffdL\u0000\u0000\u0000\ufffd\u0000t\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000}\u0001|\u0001\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0000\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000|\u0001S\u0000r(\u0000\u0000\u0000)\u0002r\u0007\u0000\u0000\u0000\ufffd\u0004feed)\u0002r5\u0000\u0000\u0000\ufffd\u0006parsers\u0002\u0000\u0000\u0000  r\u0015\u0000\u0000\u0000\ufffd\u000eparse_cadastror9\u0000\u0000\u0000@\u0000\u0000\u0000s$\u0000\u0000\u0000\ufffd\u0000\ufffd\n\u001c\ufffd\n\u001e\ufffd\n\u001e\ufffdF\ufffd\u0004\n\ufffdK\ufffdK\ufffd\t\ufffd\u0004\u001a\ufffd\u0004\u001a\ufffd\u0004\u001a\ufffd\u000b\u0011\ufffdMr\u0016\u0000\u0000\u0000r8\u0000\u0000\u0000\ufffd\u0004name\ufffd\u000bdict | Nonec\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0003\u0000\u0000\u0001\ufffdT\u0000\u0000\u0000\ufffd\u0000|\u0000j\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000D\u0000]\u001f}\u0002|\u0002\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0001\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0001k\u0002\u0000\u0000\u0000\u0000r\u0004|\u0002c\u0002\u0001\u0000S\u0000\ufffd d\u0000S\u0000)\u0002Nr:\u0000\u0000\u0000)\u0002r\u000e\u0000\u0000\u0000r#\u0000\u0000\u0000)\u0003r8\u0000\u0000\u0000r:\u0000\u0000\u0000\ufffd\u0003inps\u0003\u0000\u0000\u0000   r\u0015\u0000\u0000\u0000\ufffd\u000b_find_inputr>\u0000\u0000\u0000F\u0000\u0000\u0000s;\u0000\u0000\u0000\ufffd\u0000\ufffd\u000f\u0015\ufffd}\ufffd\u0000\u0002\u0005\u0017\ufffd\u0000\u0002\u0005\u0017\ufffd\u0003\ufffd\u000b\u000e\ufffd7\ufffd7\ufffd6\ufffd?\ufffd?\ufffdd\ufffd\u000b\"\ufffd\u000b\"\ufffd\u0013\u0016\ufffdJ\ufffdJ\ufffdJ\ufffd\u0003\u0000\f#\ufffd\u000b\u000f\ufffd4r\u0016\u0000\u0000\u0000\ufffd\u0004boolc\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0003\u0000\u0000\u0001\ufffd\ufffd\u0000\u0000\u0000\ufffd\u0000|\u0000j\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000D\u0000]2}\u0001|\u0001\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0001\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000p\u0001d\u0002\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0003k\u0002\u0000\u0000\u0000\u0000r\u0003\u0001\u0000d\u0004S\u0000\ufffd3|\u0000j\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000D\u0000]2}\u0002|\u0002\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0001\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000p\u0001d\u0003\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0003k\u0002\u0000\u0000\u0000\u0000r\u0003\u0001\u0000d\u0004S\u0000\ufffd3d\u0005S\u0000)\u0006N\ufffd\u0004type\ufffd\u0000\ufffd\u0006submitTF)\u0004r\u000e\u0000\u0000\u0000r#\u0000\u0000\u0000\ufffd\u0005lowerr\u000f\u0000\u0000\u0000)\u0003r8\u0000\u0000\u0000r=\u0000\u0000\u0000\ufffd\u0003btns\u0003\u0000\u0000\u0000   r\u0015\u0000\u0000\u0000\ufffd\u000b_has_submitrF\u0000\u0000\u0000M\u0000\u0000\u0000s\ufffd\u0000\u0000\u0000\ufffd\u0000\ufffd\u000f\u0015\ufffd}\ufffd\u0000\u0002\u0005\u0018\ufffd\u0000\u0002\u0005\u0018\ufffd\u0003\ufffd\f\u000f\ufffdG\ufffdG\ufffdF\ufffdO\ufffdO\ufffd\f!\ufffdr\ufffd\u000b(\ufffd\u000b(\ufffd\u000b*\ufffd\u000b*\ufffdh\ufffd\u000b6\ufffd\u000b6\ufffd\u0013\u0017\ufffd4\ufffd4\ufffd\u0003\u0000\f7\ufffd\u000f\u0015\ufffd~\ufffd\u0000\u0004\u0005\u0018\ufffd\u0000\u0004\u0005\u0018\ufffd\u0003\ufffd\u0006\u0000\n\u0010\ufffdG\ufffdG\ufffdF\ufffdO\ufffdO\ufffd\f'\ufffdx\ufffd\u000b.\ufffd\u000b.\ufffd\u000b0\ufffd\u000b0\ufffdH\ufffd\u000b<\ufffd\u000b<\ufffd\u0013\u0017\ufffd4\ufffd4\ufffd\u0003\u0000\f=\ufffd\u000b\u0010\ufffd5r\u0016\u0000\u0000\u0000\ufffd\tlist[str]c\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0003\u0000\u0000\u0001\ufffd\ufffd\u0003\u0000\u0000\ufffd\u0000g\u0000}\u0001|\u0000j\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000s\u0003d\u0001g\u0001S\u0000t\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0000d\u0002\ufffd\u0002\u0000\u0000\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000}\u0002|\u0002\ufffd\u0016|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0004\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000n[|\u0002\ufffd\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0005\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000p\u0001d\u0006\ufffd\u0004\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0006k\u0003\u0000\u0000\u0000\u0000r\u0015|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0007\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000d\b|\u0002v\u0001r\u0015|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\t\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000t\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0000d\n\ufffd\u0002\u0000\u0000\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000}\u0003|\u0003\ufffd\u0016|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u000b\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000n[|\u0003\ufffd\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0005\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000p\u0001d\f\ufffd\u0004\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\nk\u0003\u0000\u0000\u0000\u0000r\u0015|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\n\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000d\b|\u0003v\u0001r\u0015|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u000e\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000t\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0000d\u000f\ufffd\u0002\u0000\u0000\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000}\u0004|\u0004\ufffd\u0016|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0010\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000n\ufffd|\u0004\ufffd\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0005\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000p\u0001d\f\ufffd\u0004\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u000fk\u0003\u0000\u0000\u0000\u0000r\u0015|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0011\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000d\b|\u0004v\u0001r\u0015|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0012\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000|\u0004\ufffd\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0013\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0014k\u0003\u0000\u0000\u0000\u0000r\u0015|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0015\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000t\u000b\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0000\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000s\u0015|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0016\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000|\u0001S\u0000)\u0017z=Return failure reasons for stage 1; an empty list means pass.z\u001cmissing <form id=\"cadastro\">r:\u0000\u0000\u0000Nz\u0018missing input[name=name]rA\u0000\u0000\u0000\ufffd\u0004textz/input[name=name] must be type=text (or omitted)\ufffd\brequiredz!input[name=name] must be required\ufffd\u0005emailz\u0019missing input[name=email]rB\u0000\u0000\u0000z$input[name=email] must be type=emailz\"input[name=email] must be required\ufffd\bpasswordz\u001cmissing input[name=password]z*input[name=password] must be type=passwordz%input[name=password] must be required\ufffd\tminlength\ufffd\u00018z,input[name=password] must have minlength=\"8\"z)missing a submit control in form#cadastro)\u0006r\u0010\u0000\u0000\u0000r>\u0000\u0000\u0000r$\u0000\u0000\u0000r#\u0000\u0000\u0000rD\u0000\u0000\u0000rF\u0000\u0000\u0000)\u0005r8\u0000\u0000\u0000\ufffd\bfailuresr:\u0000\u0000\u0000rK\u0000\u0000\u0000rL\u0000\u0000\u0000s\u0005\u0000\u0000\u0000     r\u0015\u0000\u0000\u0000\ufffd\fcheck_stage1rP\u0000\u0000\u0000Y\u0000\u0000\u0000s\ufffd\u0001\u0000\u0000\ufffd\u0000\ufffd\u001a\u001c\ufffdH\ufffd\u000b\u0011\ufffd\u000b%\ufffd\u0000\u0001\u00050\ufffd\u0010.\ufffd\u000f/\ufffd\b/\ufffd\u000b\u0016\ufffdv\ufffdv\ufffd\u000b&\ufffd\u000b&\ufffdD\ufffd\u0007\u000b\ufffd|\ufffd\b\u0010\ufffd\u000f\ufffd\u000f\ufffd\u00182\ufffd\b3\ufffd\b3\ufffd\b3\ufffd\b3\ufffd\f\u0010\ufffdH\ufffdH\ufffdV\ufffd\f\u001c\ufffd\f\u001c\ufffd\f&\ufffd\u0006\ufffd\u000b-\ufffd\u000b-\ufffd\u000b/\ufffd\u000b/\ufffd6\ufffd\u000b9\ufffd\u000b9\ufffd\f\u0014\ufffdO\ufffdO\ufffd\u001cM\ufffd\fN\ufffd\fN\ufffd\fN\ufffd\u000b\u0015\ufffdT\ufffd\u000b!\ufffd\u000b!\ufffd\f\u0014\ufffdO\ufffdO\ufffd\u001c?\ufffd\f@\ufffd\f@\ufffd\f@\ufffd\f\u0017\ufffd\u0006\ufffd\u0007\ufffd\f(\ufffd\f(\ufffdE\ufffd\u0007\f\ufffd}\ufffd\b\u0010\ufffd\u000f\ufffd\u000f\ufffd\u00183\ufffd\b4\ufffd\b4\ufffd\b4\ufffd\b4\ufffd\f\u0011\ufffdI\ufffdI\ufffdf\ufffd\f\u001d\ufffd\f\u001d\ufffd\f#\ufffd\u0012\ufffd\u000b*\ufffd\u000b*\ufffd\u000b,\ufffd\u000b,\ufffd\u0007\ufffd\u000b7\ufffd\u000b7\ufffd\f\u0014\ufffdO\ufffdO\ufffd\u001cB\ufffd\fC\ufffd\fC\ufffd\fC\ufffd\u000b\u0015\ufffdU\ufffd\u000b\"\ufffd\u000b\"\ufffd\f\u0014\ufffdO\ufffdO\ufffd\u001c@\ufffd\fA\ufffd\fA\ufffd\fA\ufffd\u000f\u001a\ufffd6\ufffd:\ufffd\u000f.\ufffd\u000f.\ufffdH\ufffd\u0007\u000f\ufffd\u0007\u0017\ufffd\b\u0010\ufffd\u000f\ufffd\u000f\ufffd\u00186\ufffd\b7\ufffd\b7\ufffd\b7\ufffd\b7\ufffd\f\u0014\ufffdL\ufffdL\ufffd\u0016\ufffd\f \ufffd\f \ufffd\f&\ufffdB\ufffd\u000b-\ufffd\u000b-\ufffd\u000b/\ufffd\u000b/\ufffd:\ufffd\u000b=\ufffd\u000b=\ufffd\f\u0014\ufffdO\ufffdO\ufffd\u001cH\ufffd\fI\ufffd\fI\ufffd\fI\ufffd\u000b\u0015\ufffdX\ufffd\u000b%\ufffd\u000b%\ufffd\f\u0014\ufffdO\ufffdO\ufffd\u001cC\ufffd\fD\ufffd\fD\ufffd\fD\ufffd\u000b\u0013\ufffd<\ufffd<\ufffd\u000b\ufffd\u000b$\ufffd\u000b$\ufffd\u0003\ufffd\u000b+\ufffd\u000b+\ufffd\f\u0014\ufffdO\ufffdO\ufffd\u001cJ\ufffd\fK\ufffd\fK\ufffd\fK\ufffd\u000b\u0016\ufffdv\ufffd\u000b\u001e\ufffd\u000b\u001e\ufffd\u0000\u0001\u0005E\u0001\ufffd\b\u0010\ufffd\u000f\ufffd\u000f\ufffd\u0018C\ufffd\bD\ufffd\bD\ufffd\bD\ufffd\u000b\u0013\ufffdOr\u0016\u0000\u0000\u0000c\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0003\u0000\u0000\u0001\ufffdZ\u0002\u0000\u0000\ufffd\u0000t\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0000\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000}\u0001t\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0000d\u0001\ufffd\u0002\u0000\u0000\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000}\u0002|\u0002\ufffd\u0016|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0003\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000nB|\u0002\ufffd\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0004\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000p\u0001d\u0005\ufffd\u0004\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0006k\u0003\u0000\u0000\u0000\u0000r\u0015|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0007\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000t\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0000d\b\ufffd\u0002\u0000\u0000\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000}\u0003|\u0003\ufffd\u0016|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\t\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000n\ufffd|\u0003\ufffd\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0004\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000p\u0001d\u0005\ufffd\u0004\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\nk\u0003\u0000\u0000\u0000\u0000r\u0015|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u000b\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000d\f|\u0003v\u0001r\u0015|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\n\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000|\u0003\ufffd\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u000e\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u000fk\u0003\u0000\u0000\u0000\u0000r\u0015|\u0001\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0010\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000|\u0001S\u0000)\u0011zAStage 1 plus the phone + password_confirm fields added by task 2.\ufffd\u0005phoneNz\u0019missing input[name=phone]rA\u0000\u0000\u0000rB\u0000\u0000\u0000\ufffd\u0003telz\"input[name=phone] must be type=tel\ufffd\u0010password_confirmz$missing input[name=password_confirm]rL\u0000\u0000\u0000z2input[name=password_confirm] must be type=passwordrJ\u0000\u0000\u0000z-input[name=password_confirm] must be requiredrM\u0000\u0000\u0000rN\u0000\u0000\u0000z4input[name=password_confirm] must have minlength=\"8\")\u0005rP\u0000\u0000\u0000r>\u0000\u0000\u0000r$\u0000\u0000\u0000r#\u0000\u0000\u0000rD\u0000\u0000\u0000)\u0004r8\u0000\u0000\u0000rO\u0000\u0000\u0000rR\u0000\u0000\u0000\ufffd\u0007confirms\u0004\u0000\u0000\u0000    r\u0015\u0000\u0000\u0000\ufffd\fcheck_stage2rV\u0000\u0000\u0000\ufffd\u0000\u0000\u0000s'\u0001\u0000\u0000\ufffd\u0000\ufffd\u000f\u001b\ufffdF\ufffd\u000f#\ufffd\u000f#\ufffdH\ufffd\f\u0017\ufffd\u0006\ufffd\u0007\ufffd\f(\ufffd\f(\ufffdE\ufffd\u0007\f\ufffd}\ufffd\b\u0010\ufffd\u000f\ufffd\u000f\ufffd\u00183\ufffd\b4\ufffd\b4\ufffd\b4\ufffd\b4\ufffd\n\u000f\ufffd)\ufffd)\ufffdF\ufffd\n\u001b\ufffd\n\u001b\ufffd\n!\ufffdr\ufffd\t(\ufffd\t(\ufffd\t*\ufffd\t*\ufffde\ufffd\t3\ufffd\t3\ufffd\b\u0010\ufffd\u000f\ufffd\u000f\ufffd\u0018<\ufffd\b=\ufffd\b=\ufffd\b=\ufffd\u000e\u0019\ufffd&\ufffd\"4\ufffd\u000e5\ufffd\u000e5\ufffdG\ufffd\u0007\u000e\ufffd\u007f\ufffd\b\u0010\ufffd\u000f\ufffd\u000f\ufffd\u0018>\ufffd\b?\ufffd\b?\ufffd\b?\ufffd\b?\ufffd\f\u0013\ufffdK\ufffdK\ufffd\u0006\ufffd\f\u001f\ufffd\f\u001f\ufffd\f%\ufffd2\ufffd\u000b,\ufffd\u000b,\ufffd\u000b.\ufffd\u000b.\ufffd*\ufffd\u000b<\ufffd\u000b<\ufffd\f\u0014\ufffdO\ufffdO\ufffd\u001cP\ufffd\fQ\ufffd\fQ\ufffd\fQ\ufffd\u000b\u0015\ufffdW\ufffd\u000b$\ufffd\u000b$\ufffd\f\u0014\ufffdO\ufffdO\ufffd\u001cK\ufffd\fL\ufffd\fL\ufffd\fL\ufffd\u000b\u0012\ufffd;\ufffd;\ufffd{\ufffd\u000b#\ufffd\u000b#\ufffds\ufffd\u000b*\ufffd\u000b*\ufffd\f\u0014\ufffdO\ufffdO\ufffd\u001cR\ufffd\fS\ufffd\fS\ufffd\fS\ufffd\u000b\u0013\ufffdOr\u0016\u0000\u0000\u0000)\u0002r\u001d\u0000\u0000\u0000\ufffd\u0002\u0000\u0000\u0000\ufffd\u0004pathr\u0005\u0000\u0000\u0000\ufffd\u0005stage\ufffd\u0003intc\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0005\u0000\u0000\u0000\u0003\u0000\u0000\u0001\ufffd\u0000\u0000\u0000\ufffd\u0000|\u0000\ufffd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\ufffd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000s\u0006|\u0000\ufffd\u0000d\u0001\ufffd\u0002g\u0001S\u0000|\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0002d\u0003\ufffd\u0004\ufffd\u0002\u0000\u0000\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000}\u0002t\u0005\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0001\u0019\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000t\u0007\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0002\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000S\u0000)\u0005Nz\u000f does not existz\u0005utf-8\ufffd\u0007replace)\u0002\ufffd\bencoding\ufffd\u0006errors)\u0004\ufffd\u0007is_file\ufffd\tread_text\ufffd\fSTAGE_CHECKSr9\u0000\u0000\u0000)\u0003rX\u0000\u0000\u0000rY\u0000\u0000\u0000rI\u0000\u0000\u0000s\u0003\u0000\u0000\u0000   r\u0015\u0000\u0000\u0000\ufffd\ncheck_filerb\u0000\u0000\u0000\ufffd\u0000\u0000\u0000sT\u0000\u0000\u0000\ufffd\u0000\ufffd\u000b\u000f\ufffd<\ufffd<\ufffd>\ufffd>\ufffd\u0000\u0001\u0005*\ufffd\u0013\u0017\ufffd\u0010(\ufffd\u0010(\ufffd\u0010(\ufffd\u000f)\ufffd\b)\ufffd\u000b\u000f\ufffd>\ufffd>\ufffd7\ufffd9\ufffd>\ufffd\u000b=\ufffd\u000b=\ufffdD\ufffd\u000b\u0017\ufffd\u0005\ufffd\u000b\u001e\ufffd~\ufffdd\ufffd\u001f3\ufffd\u001f3\ufffd\u000b4\ufffd\u000b4\ufffd\u00044r\u0016\u0000\u0000\u0000\ufffd\u0004argv\ufffd\u0010list[str] | Nonec\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0007\u0000\u0000\u0000\u0003\u0000\u0000\u0001\ufffd\ufffd\u0001\u0000\u0000\ufffd\u0000t\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000t\u0004\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0001\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000}\u0001|\u0001\ufffd\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0002t\b\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000t\u000b\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000t\f\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0003d\u0004\ufffd\u0005\ufffd\u0005\u0000\u0000\ufffd\u0005\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000|\u0001\ufffd\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0006t\u000f\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000t\u0010\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\u0007\ufffd\b\ufffd\u0003\u0000\u0000\ufffd\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000|\u0001\ufffd\t\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0000\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000}\u0002t\u0015\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000t\u0017\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0002j\f\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000|\u0002j\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0002\u0000\u0000\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000}\u0003|\u0003r%|\u0003D\u0000] }\u0004t\u001d\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\t|\u0004\ufffd\u0000\ufffd\u0002t\u001e\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j\u0010\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\n\ufffd\u0002\u0000\u0000\ufffd\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000\ufffd!d\u000bS\u0000t\u001d\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000d\f|\u0002j\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0000d\n\ufffd\u0003\ufffd\u0001\u0000\u0000\ufffd\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000d\u000eS\u0000)\u000fN)\u0001\ufffd\u000bdescriptionz\u0007--stageTzS1: base form (name/email/password/submit); 2: stage 1 plus phone + password_confirm)\u0004rA\u0000\u0000\u0000\ufffd\u0007choicesrJ\u0000\u0000\u0000\ufffd\u0004helpz\u0006--pathzApath to cadastro.html (default: repo root, relative to this file))\u0002\ufffd\u0007defaultrh\u0000\u0000\u0000z\u0006FAIL: )\u0001\ufffd\u0004filer\u001d\u0000\u0000\u0000z\fPASS: stage z\u0003 okr\u0002\u0000\u0000\u0000)\u0011\ufffd\bargparse\ufffd\u000eArgumentParserr3\u0000\u0000\u0000\ufffd\fadd_argumentrZ\u0000\u0000\u0000\ufffd\u0006sortedra\u0000\u0000\u0000r\u0018\u0000\u0000\u0000\ufffd\fDEFAULT_PATH\ufffd\nparse_argsrb\u0000\u0000\u0000r\u0005\u0000\u0000\u0000rX\u0000\u0000\u0000rY\u0000\u0000\u0000\ufffd\u0005print\ufffd\u0003sys\ufffd\u0006stderr)\u0005rc\u0000\u0000\u0000\ufffd\u0002ap\ufffd\u0004argsrO\u0000\u0000\u0000\ufffd\u0006reasons\u0005\u0000\u0000\u0000     r\u0015\u0000\u0000\u0000\ufffd\u0004mainrw\u0000\u0000\u0000\ufffd\u0000\u0000\u0000s\ufffd\u0000\u0000\u0000\ufffd\u0000\ufffd\t\u0011\ufffd\t \ufffdW\ufffd\t5\ufffd\t5\ufffd\t5\ufffdB\ufffd\u0004\u0006\ufffdO\ufffdO\ufffd\b\u0011\ufffd\u0003\ufffdV\ufffdL\ufffd%9\ufffd%9\ufffdD\ufffd\u0002\u0001\u000e8\ufffd\u0005\u0000\u0005\u0014\ufffd\u0000\u0004\u0005\u0006\ufffd\u0000\u0004\u0005\u0006\ufffd\u0000\u0004\u0005\u0006\ufffd\n\u0000\u0005\u0007\ufffdO\ufffdO\ufffd\b\u0010\ufffd#\ufffdl\ufffd\u001a+\ufffd\u001a+\ufffd\nP\ufffd\u0005\u0000\u0005\u0014\ufffd\u0000\u0003\u0005\u0006\ufffd\u0000\u0003\u0005\u0006\ufffd\u0000\u0003\u0005\u0006\ufffd\b\u0000\f\u000e\ufffd=\ufffd=\ufffd\u0014\ufffd\u000b\u001e\ufffd\u000b\u001e\ufffdD\ufffd\u000f\u0019\ufffd$\ufffdt\ufffdy\ufffd/\ufffd/\ufffd4\ufffd:\ufffd\u000f6\ufffd\u000f6\ufffdH\ufffd\u0007\u000f\ufffd\u0000\u0003\u0005\u0011\ufffd\u0016\u001e\ufffd\u0000\u0001\t6\ufffd\u0000\u0001\t6\ufffdF\ufffd\f\u0011\ufffd\u0012#\ufffd6\ufffd\u0012#\ufffd\u0012#\ufffd#\ufffd*\ufffd\f5\ufffd\f5\ufffd\f5\ufffd\f5\ufffd\f5\ufffd\u000f\u0010\ufffdq\ufffd\u0004\t\ufffd\n(\ufffd\u0014\ufffd\u001a\ufffd\n(\ufffd\n(\ufffd\n(\ufffd\u0004)\ufffd\u0004)\ufffd\u0004)\ufffd\u000b\f\ufffd1r\u0016\u0000\u0000\u0000\ufffd\b__main__)\u0004r5\u0000\u0000\u0000r\u0018\u0000\u0000\u0000r\b\u0000\u0000\u0000r\u0007\u0000\u0000\u0000)\u0006r8\u0000\u0000\u0000r\u0007\u0000\u0000\u0000r:\u0000\u0000\u0000r\u0018\u0000\u0000\u0000r\b\u0000\u0000\u0000r;\u0000\u0000\u0000)\u0004r8\u0000\u0000\u0000r\u0007\u0000\u0000\u0000r\b\u0000\u0000\u0000r?\u0000\u0000\u0000)\u0004r8\u0000\u0000\u0000r\u0007\u0000\u0000\u0000r\b\u0000\u0000\u0000rG\u0000\u0000\u0000)\u0006rX\u0000\u0000\u0000r\u0005\u0000\u0000\u0000rY\u0000\u0000\u0000rZ\u0000\u0000\u0000r\b\u0000\u0000\u0000rG\u0000\u0000\u0000r(\u0000\u0000\u0000)\u0004rc\u0000\u0000\u0000rd\u0000\u0000\u0000r\b\u0000\u0000\u0000rZ\u0000\u0000\u0000)\u0018r3\u0000\u0000\u0000\ufffd\n__future__r\u0003\u0000\u0000\u0000rk\u0000\u0000\u0000rr\u0000\u0000\u0000\ufffd\u000bhtml.parserr\u0004\u0000\u0000\u0000\ufffd\u0007pathlibr\u0005\u0000\u0000\u0000\ufffd\b__file__\ufffd\u0007resolve\ufffd\u0006parentro\u0000\u0000\u0000r\u0007\u0000\u0000\u0000r9\u0000\u0000\u0000r>\u0000\u0000\u0000rF\u0000\u0000\u0000rP\u0000\u0000\u0000rV\u0000\u0000\u0000ra\u0000\u0000\u0000rb\u0000\u0000\u0000rw\u0000\u0000\u0000r0\u0000\u0000\u0000\ufffd\nSystemExit\ufffd\u0000r\u0016\u0000\u0000\u0000r\u0015\u0000\u0000\u0000\ufffd\b<module>r\ufffd\u0000\u0000\u0000\u0001\u0000\u0000\u0000sv\u0001\u0000\u0000\ufffd\u0003\u0001\u0001\u0001\ufffd\u0002\u000e\u0001\u0004\ufffd\u0000\u000e\u0001\u0004\ufffd\u001e\u0000\u0001#\ufffd\u0000\"\ufffd\u0000\"\ufffd\u0000\"\ufffd\u0000\"\ufffd\u0000\"\ufffd\u0000\u000f\ufffd\u000f\ufffd\u000f\ufffd\u000f\ufffd\u0000\n\ufffd\n\ufffd\n\ufffd\n\ufffd\u0000\"\ufffd\u0000\"\ufffd\u0000\"\ufffd\u0000\"\ufffd\u0000\"\ufffd\u0000\"\ufffd\u0000\u0018\ufffd\u0000\u0018\ufffd\u0000\u0018\ufffd\u0000\u0018\ufffd\u0000\u0018\ufffd\u0000\u0018\ufffd\u0006\u0000\u0010\u0014\ufffdt\ufffdH\ufffd~\ufffd~\ufffd\u000f%\ufffd\u000f%\ufffd\u000f'\ufffd\u000f'\ufffd\u000f.\ufffd\u000f5\ufffd\u000f\ufffd\u000fG\ufffd\f\ufffd\u0006\"\u0001-\ufffd\u0000\"\u0001-\ufffd\u0000\"\u0001-\ufffd\u0000\"\u0001-\ufffd\u0000\"\u0001-\ufffdj\ufffd\u0000\"\u0001-\ufffd\u0000\"\u0001-\ufffd\u0000\"\u0001-\ufffdJ\u0001\u0003\u0001\u0012\ufffd\u0000\u0003\u0001\u0012\ufffd\u0000\u0003\u0001\u0012\ufffd\u0000\u0003\u0001\u0012\ufffd\f\u0004\u0001\u0010\ufffd\u0000\u0004\u0001\u0010\ufffd\u0000\u0004\u0001\u0010\ufffd\u0000\u0004\u0001\u0010\ufffd\u000e\t\u0001\u0011\ufffd\u0000\t\u0001\u0011\ufffd\u0000\t\u0001\u0011\ufffd\u0000\t\u0001\u0011\ufffd\u0018&\u0001\u0014\ufffd\u0000&\u0001\u0014\ufffd\u0000&\u0001\u0014\ufffd\u0000&\u0001\u0014\ufffdR\u0001\u0015\u0001\u0014\ufffd\u0000\u0015\u0001\u0014\ufffd\u0000\u0015\u0001\u0014\ufffd\u0000\u0015\u0001\u0014\ufffd0\u0000\u0014 \ufffdL\ufffd\u000f1\ufffd\u000f1\ufffd\f\ufffd\u0006\u0004\u00015\ufffd\u0000\u0004\u00015\ufffd\u0000\u0004\u00015\ufffd\u0000\u0004\u00015\ufffd\u000e\u0013\u0001\n\ufffd\u0000\u0013\u0001\n\ufffd\u0000\u0013\u0001\n\ufffd\u0000\u0013\u0001\n\ufffd\u0000\u0013\u0001\n\ufffd,\u0000\u0004\f\ufffdz\ufffd\u0003\u0019\ufffd\u0003\u0019\ufffd\n\u0014\ufffd*\ufffdT\ufffdT\ufffdV\ufffdV\ufffd\n\u001c\ufffd\n\u001c\ufffd\u0004\u001c\ufffd\u0003\u0000\u0004\u001a\ufffd\u0003\u0019r\u0016\u0000\u0000\u0000"
+            },
+            {
+              "turn": 3,
+              "command": "find tests -type f -o -type d | sort",
+              "returncode": 0,
+              "wall_s": 0.1227,
+              "cpu_s": 0.126,
+              "peak_rss_mb": 7.16,
+              "is_simplicio": false,
+              "output_bytes": 97,
+              "output_tail": "tests\ntests/__pycache__\ntests/__pycache__/check_cadastro.cpython-311.pyc\ntests/check_cadastro.py\n"
+            },
+            {
+              "turn": 4,
+              "command": "cat tests/check_cadastro.py",
+              "returncode": 0,
+              "wall_s": 0.1228,
+              "cpu_s": 0.1182,
+              "peak_rss_mb": 7.17,
+              "is_simplicio": false,
+              "output_bytes": 6720,
+              "output_tail": "\"\"\"Harness-owned acceptance checker for the `cadastro.html` benchmark tasks.\n\nStdlib only (``html.parser``). The benchmarked model never writes or sees\nthis file's content -- it ships with the fixture repo before any arm runs,\nand is used, unmodified, as the Independent verifier and every quality-lane\ncommand (Unit/Integration/System/Regression/Benchmark) for both benchmark\ntasks in ``bench/llm_ab/tasks.py``. There is no Python application code in\nthis fixture, so the Coverage lane is intentionally left undeclared (not\napplicable) rather than faked.\n\nStage 1 (task 1, create): ``<form id=\"cadastro\">`` with labeled\nname/email/password inputs and a submit control.\nStage 2 (task 2, edit): stage 1 plus a phone field and a password_confirm\nfield, with the original three fields still present.\n\"\"\"\nfrom __future__ import annotations\n\nimport argparse\nimport sys\nfrom html.parser import HTMLParser\nfrom pathlib import Path\n\n# tests/check_cadastro.py -> repo root -> cadastro.html\nDEFAULT_PATH = Path(__file__).resolve().parent.parent / \"cadastro.html\"\n\n\nclass FormFieldParser(HTMLParser):\n    \"\"\"Collect every ``<input>``/``<button>`` inside ``<form id=\"cadastro\">``.\"\"\"\n\n    def __init__(self) -> None:\n        super().__init__(convert_charrefs=True)\n        self.inputs: list[dict[str, str | None]] = []\n        self.buttons: list[dict[str, str | None]] = []\n        self.found_form_cadastro = False\n        self._form_depth = 0\n        self._in_target_form = False\n\n    def _start(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:\n        attrs_d = dict(attrs)\n        if tag == \"form\":\n            self._form_depth += 1\n            if attrs_d.get(\"id\") == \"cadastro\":\n                self._in_target_form = True\n                self.found_form_cadastro = True\n        elif self._in_target_form and tag == \"input\":\n            self.inputs.append(attrs_d)\n        elif self._in_target_form and tag == \"button\":\n            self.buttons.append(attrs_d)\n\n    def handle_starttag(self, tag, attrs):\n        self._start(tag, attrs)\n\n    def handle_startendtag(self, tag, attrs):\n        # self-closed tags, e.g. <input .../>\n        self._start(tag, attrs)\n\n    def handle_endtag(self, tag: str) -> None:\n        if tag == \"form\" and self._form_depth:\n            self._form_depth -= 1\n            if self._form_depth == 0:\n                self._in_target_form = False\n\n\ndef parse_cadastro(html_text: str) -> FormFieldParser:\n    parser = FormFieldParser()\n    parser.feed(html_text)\n    return parser\n\n\ndef _find_input(parser: FormFieldParser, name: str) -> dict | None:\n    for inp in parser.inputs:\n        if inp.get(\"name\") == name:\n            return inp\n    return None\n\n\ndef _has_submit(parser: FormFieldParser) -> bool:\n    for inp in parser.inputs:\n        if (inp.get(\"type\") or \"\").lower() == \"submit\":\n            return True\n    for btn in parser.buttons:\n        # a <button> with no explicit type defaults to type=\"submit\" per the\n        # HTML spec.\n        if (btn.get(\"type\") or \"submit\").lower() == \"submit\":\n            return True\n    return False\n\n\ndef check_stage1(parser: FormFieldParser) -> list[str]:\n    \"\"\"Return failure reasons for stage 1; an empty list means pass.\"\"\"\n    failures: list[str] = []\n    if not parser.found_form_cadastro:\n        return ['missing <form id=\"cadastro\">']\n\n    name = _find_input(parser, \"name\")\n    if name is None:\n        failures.append(\"missing input[name=name]\")\n    else:\n        if (name.get(\"type\") or \"text\").lower() != \"text\":\n            failures.append(\"input[name=name] must be type=text (or omitted)\")\n        if \"required\" not in name:\n            failures.append(\"input[name=name] must be required\")\n\n    email = _find_input(parser, \"email\")\n    if email is None:\n        failures.append(\"missing input[name=email]\")\n    else:\n        if (email.get(\"type\") or \"\").lower() != \"email\":\n            failures.append(\"input[name=email] must be type=email\")\n        if \"required\" not in email:\n            failures.append(\"input[name=email] must be required\")\n\n    password = _find_input(parser, \"password\")\n    if password is None:\n        failures.append(\"missing input[name=password]\")\n    else:\n        if (password.get(\"type\") or \"\").lower() != \"password\":\n            failures.append(\"input[name=password] must be type=password\")\n        if \"required\" not in password:\n            failures.append(\"input[name=password] must be required\")\n        if password.get(\"minlength\") != \"8\":\n            failures.append('input[name=password] must have minlength=\"8\"')\n\n    if not _has_submit(parser):\n        failures.append(\"missing a submit control in form#cadastro\")\n\n    return failures\n\n\ndef check_stage2(parser: FormFieldParser) -> list[str]:\n    \"\"\"Stage 1 plus the phone + password_confirm fields added by task 2.\"\"\"\n    failures = check_stage1(parser)\n\n    phone = _find_input(parser, \"phone\")\n    if phone is None:\n        failures.append(\"missing input[name=phone]\")\n    elif (phone.get(\"type\") or \"\").lower() != \"tel\":\n        failures.append(\"input[name=phone] must be type=tel\")\n\n    confirm = _find_input(parser, \"password_confirm\")\n    if confirm is None:\n        failures.append(\"missing input[name=password_confirm]\")\n    else:\n        if (confirm.get(\"type\") or \"\").lower() != \"password\":\n            failures.append(\"input[name=password_confirm] must be type=password\")\n        if \"required\" not in confirm:\n            failures.append(\"input[name=password_confirm] must be required\")\n        if confirm.get(\"minlength\") != \"8\":\n            failures.append('input[name=password_confirm] must have minlength=\"8\"')\n\n    return failures\n\n\nSTAGE_CHECKS = {1: check_stage1, 2: check_stage2}\n\n\ndef check_file(path: Path, stage: int) -> list[str]:\n    if not path.is_file():\n        return [f\"{path} does not exist\"]\n    text = path.read_text(encoding=\"utf-8\", errors=\"replace\")\n    return STAGE_CHECKS[stage](parse_cadastro(text))\n\n\ndef main(argv: list[str] | None = None) -> int:\n    ap = argparse.ArgumentParser(description=__doc__)\n    ap.add_argument(\n        \"--stage\", type=int, choices=sorted(STAGE_CHECKS), required=True,\n        help=\"1: base form (name/email/password/submit); \"\n             \"2: stage 1 plus phone + password_confirm\",\n    )\n    ap.add_argument(\n        \"--path\", default=str(DEFAULT_PATH),\n        help=\"path to cadastro.html (default: repo root, relative to this file)\",\n    )\n    args = ap.parse_args(argv)\n\n    failures = check_file(Path(args.path), args.stage)\n    if failures:\n        for reason in failures:\n            print(f\"FAIL: {reason}\", file=sys.stderr)\n        return 1\n    print(f\"PASS: stage {args.stage} ok\")\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n"
+            },
+            {
+              "turn": 5,
+              "command": "cd \"$(git rev-parse --show-toplevel)\" && python3 - <<'PY'\nfrom pathlib import Path\n\np = Path(\"cadastro.html\")\nhtml = p.read_text(encoding=\"utf-8\")\n\nphone_block = '''\n      <div class=\"campo\">\n        <label for=\"phone\">Telefone</label>\n        <input type=\"tel\" id=\"phone\" name=\"phone\" autocomplete=\"tel\">\n      </div>\n'''\n\nconfirm_block = '''\n      <div class=\"campo\">\n        <label for=\"password_confirm\">Confirme a senha</label>\n        <input type=\"password\" id=\"password_confirm\" name=\"password_confirm\" required\n               minlength=\"8\" autocomplete=\"new-password\"\n               aria-describedby=\"password-confirm-dica\">\n        <p class=\"dica\" id=\"password-confirm-dica\">Repita a senha informada acima.</p>\n      </div>\n'''\n\n# Phone after the email field block.\nemail_anchor = '''      <div class=\"campo\">\n        <label for=\"email\">E-mail</label>\n        <input type=\"email\" id=\"email\" name=\"email\" required autocomplete=\"email\">\n      </div>\n'''\nassert email_anchor in html, \"email block not found\"\nhtml = html.replace(email_anchor, email_anchor + phone_block, 1)\n\n# Confirm password after the password field block.\npw_anchor = '''      <div class=\"campo\">\n        <label for=\"password\">Senha</label>\n        <input type=\"password\" id=\"password\" name=\"password\" required\n               minlength=\"8\" autocomplete=\"new-password\"\n               aria-describedby=\"password-dica\">\n        <p class=\"dica\" id=\"password-dica\">A senha deve ter no m\u00ednimo 8 caracteres.</p>\n      </div>\n'''\nassert pw_anchor in html, \"password block not found\"\nhtml = html.replace(pw_anchor, pw_anchor + confirm_block, 1)\n\np.write_text(html, encoding=\"utf-8\")\nprint(\"updated\")\nPY",
+              "returncode": 0,
+              "wall_s": 0.1637,
+              "cpu_s": 0.1514,
+              "peak_rss_mb": 7.11,
+              "is_simplicio": false,
+              "output_bytes": 8,
+              "output_tail": "updated\n"
+            },
+            {
+              "turn": 6,
+              "command": "cd \"$(git rev-parse --show-toplevel)\" && sed -n '50,100p' cadastro.html && echo \"=== TESTS ===\" && python3 tests/check_cadastro.py --stage 1; python3 tests/check_cadastro.py --stage 2",
+              "returncode": 0,
+              "wall_s": 0.2044,
+              "cpu_s": 0.2133,
+              "peak_rss_mb": 8.62,
+              "is_simplicio": false,
+              "output_bytes": 1204,
+              "output_tail": "      </div>\n\n      <div class=\"campo\">\n        <label for=\"email\">E-mail</label>\n        <input type=\"email\" id=\"email\" name=\"email\" required autocomplete=\"email\">\n      </div>\n\n      <div class=\"campo\">\n        <label for=\"phone\">Telefone</label>\n        <input type=\"tel\" id=\"phone\" name=\"phone\" autocomplete=\"tel\">\n      </div>\n\n      <div class=\"campo\">\n        <label for=\"password\">Senha</label>\n        <input type=\"password\" id=\"password\" name=\"password\" required\n               minlength=\"8\" autocomplete=\"new-password\"\n               aria-describedby=\"password-dica\">\n        <p class=\"dica\" id=\"password-dica\">A senha deve ter no m\u00ednimo 8 caracteres.</p>\n      </div>\n\n      <div class=\"campo\">\n        <label for=\"password_confirm\">Confirme a senha</label>\n        <input type=\"password\" id=\"password_confirm\" name=\"password_confirm\" required\n               minlength=\"8\" autocomplete=\"new-password\"\n               aria-describedby=\"password-confirm-dica\">\n        <p class=\"dica\" id=\"password-confirm-dica\">Repita a senha informada acima.</p>\n      </div>\n\n      <button type=\"submit\">Cadastrar</button>\n    </form>\n  </main>\n</body>\n</html>\n=== TESTS ===\nPASS: stage 1 ok\nPASS: stage 2 ok\n"
+            },
+            {
+              "turn": 7,
+              "command": "cd \"$(git rev-parse --show-toplevel)\" && git diff --stat && git diff",
+              "returncode": 0,
+              "wall_s": 0.1435,
+              "cpu_s": 0.1253,
+              "peak_rss_mb": 7.12,
+              "is_simplicio": false,
+              "output_bytes": 1196,
+              "output_tail": " cadastro.html | 13 +++++++++++++\n 1 file changed, 13 insertions(+)\ndiff --git a/cadastro.html b/cadastro.html\nindex 348a419..fd7d76e 100644\n--- a/cadastro.html\n+++ b/cadastro.html\n@@ -54,6 +54,11 @@\n         <input type=\"email\" id=\"email\" name=\"email\" required autocomplete=\"email\">\n       </div>\n \n+      <div class=\"campo\">\n+        <label for=\"phone\">Telefone</label>\n+        <input type=\"tel\" id=\"phone\" name=\"phone\" autocomplete=\"tel\">\n+      </div>\n+\n       <div class=\"campo\">\n         <label for=\"password\">Senha</label>\n         <input type=\"password\" id=\"password\" name=\"password\" required\n@@ -62,6 +67,14 @@\n         <p class=\"dica\" id=\"password-dica\">A senha deve ter no m\u00ednimo 8 caracteres.</p>\n       </div>\n \n+      <div class=\"campo\">\n+        <label for=\"password_confirm\">Confirme a senha</label>\n+        <input type=\"password\" id=\"password_confirm\" name=\"password_confirm\" required\n+               minlength=\"8\" autocomplete=\"new-password\"\n+               aria-describedby=\"password-confirm-dica\">\n+        <p class=\"dica\" id=\"password-confirm-dica\">Repita a senha informada acima.</p>\n+      </div>\n+\n       <button type=\"submit\">Cadastrar</button>\n     </form>\n   </main>\n"
+            }
+          ],
+          "totals": {
+            "prompt_tokens": 60959,
+            "completion_tokens": 1174,
+            "reasoning_tokens": 218,
+            "cached_tokens": 42112,
+            "cost_usd": 0.005604,
+            "llm_latency_s": 15.0429,
+            "cmd_wall_s": 1.0027,
+            "cmd_cpu_s": 0.9836,
+            "n_commands": 7,
+            "n_simplicio_commands": 0
+          },
+          "final_text": "DONE \u2014 Added labeled `phone` (`type=tel`) and `password_confirm` (`type=password`, required, minlength=8) fields to the existing `#cadastro` form in cadastro.html; all original fields retained and the acceptance checker passes at stages 1 and 2.",
+          "wall_s": 16.051,
+          "check_output_tail": "PASS: stage 2 ok"
+        }
+      ],
+      "total_wall_s": 29.858,
+      "final": {
+        "check_passed": true,
+        "check_output_tail": "PASS: stage 2 ok"
+      }
+    },
+    "simplicio": {
+      "arm": "simplicio",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "tasks": [
+        {
+          "index": 1,
+          "kind": "create",
+          "task_text": "Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a <form id=\"cadastro\"> containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button.",
+          "success": true,
+          "turns": 9,
+          "llm_calls": [
+            {
+              "turn": 1,
+              "ok": true,
+              "latency_s": 7.885332345962524,
+              "prompt_tokens": 7118,
+              "completion_tokens": 132,
+              "reasoning_tokens": 14,
+              "cached_tokens": 0,
+              "cost_usd": 0.00060544851,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 2,
+              "ok": true,
+              "latency_s": 10.143797874450684,
+              "prompt_tokens": 7643,
+              "completion_tokens": 180,
+              "reasoning_tokens": 8,
+              "cached_tokens": 7168,
+              "cost_usd": 0.0001059780366,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 3,
+              "ok": true,
+              "latency_s": 12.139044046401978,
+              "prompt_tokens": 10544,
+              "completion_tokens": 217,
+              "reasoning_tokens": 19,
+              "cached_tokens": 7552,
+              "cost_usd": 0.0003176142024,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 4,
+              "ok": true,
+              "latency_s": 10.876958847045898,
+              "prompt_tokens": 12704,
+              "completion_tokens": 171,
+              "reasoning_tokens": 100,
+              "cached_tokens": 10496,
+              "cost_usd": 0.0002456255352,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 5,
+              "ok": true,
+              "latency_s": 18.406579971313477,
+              "prompt_tokens": 12910,
+              "completion_tokens": 573,
+              "reasoning_tokens": 126,
+              "cached_tokens": 12672,
+              "cost_usd": 0.0002204066964,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 6,
+              "ok": true,
+              "latency_s": 4.580832004547119,
+              "prompt_tokens": 13536,
+              "completion_tokens": 81,
+              "reasoning_tokens": 0,
+              "cached_tokens": 12800,
+              "cost_usd": 0.00010420746,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 7,
+              "ok": true,
+              "latency_s": 6.7460877895355225,
+              "prompt_tokens": 14938,
+              "completion_tokens": 107,
+              "reasoning_tokens": 27,
+              "cached_tokens": 13440,
+              "cost_usd": 0.000173795238,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 8,
+              "ok": true,
+              "latency_s": 13.648802280426025,
+              "prompt_tokens": 15343,
+              "completion_tokens": 168,
+              "reasoning_tokens": 85,
+              "cached_tokens": 14848,
+              "cost_usd": 0.0001159236726,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 9,
+              "ok": true,
+              "latency_s": 10.330053091049194,
+              "prompt_tokens": 15535,
+              "completion_tokens": 235,
+              "reasoning_tokens": 79,
+              "cached_tokens": 15488,
+              "cost_usd": 0.0001026839406,
+              "finish_reason": "stop",
+              "error": null
+            }
+          ],
+          "commands": [
+            {
+              "turn": 1,
+              "command": "pwd && ls -la && git log --oneline -3 2>/dev/null | head",
+              "returncode": 0,
+              "wall_s": 0.1434,
+              "cpu_s": 0.1409,
+              "peak_rss_mb": 7.07,
+              "is_simplicio": false,
+              "output_bytes": 352,
+              "output_tail": "/tmp/llm-ab-13a74n2r/simplicio-repo\ntotal 24\ndrwxr-xr-x 4 root root 4096 Sep 26 03:19 .\ndrwx------ 4 root root 4096 Sep 26 03:19 ..\ndrwxr-xr-x 8 root root 4096 Sep 26 03:19 .git\n-rw-r--r-- 1 root root  371 Sep 26 02:29 README.md\n-rw-r--r-- 1 root root   67 Sep 26 02:39 cadastro.html\ndrwxr-xr-x 3 root root 4096 Sep 26 03:02 tests\n4ca3de9 seed fixture\n"
+            },
+            {
+              "turn": 1,
+              "command": "which simplicio-loop simplicio-dev-cli simplicio-mapper simplicio-fast 2>&1; ls .simplicio 2>&1",
+              "returncode": 2,
+              "wall_s": 0.123,
+              "cpu_s": 0.1329,
+              "peak_rss_mb": 7.07,
+              "is_simplicio": true,
+              "output_bytes": 467,
+              "output_tail": "/tmp/claude-0/-home-user/0ec94cd2-06f4-56a2-844e-a9f409b7dfea/scratchpad/venv-int/bin/simplicio-loop\n/tmp/claude-0/-home-user/0ec94cd2-06f4-56a2-844e-a9f409b7dfea/scratchpad/venv-int/bin/simplicio-dev-cli\n/tmp/claude-0/-home-user/0ec94cd2-06f4-56a2-844e-a9f409b7dfea/scratchpad/venv-int/bin/simplicio-mapper\n/tmp/claude-0/-home-user/0ec94cd2-06f4-56a2-844e-a9f409b7dfea/scratchpad/venv-int/bin/simplicio-fast\nls: cannot access '.simplicio': No such file or directory\n"
+            },
+            {
+              "turn": 2,
+              "command": "cat README.md; echo ---; cat cadastro.html; echo ---; find tests -type f | head -50",
+              "returncode": 0,
+              "wall_s": 0.1231,
+              "cpu_s": 0.1217,
+              "peak_rss_mb": 7.09,
+              "is_simplicio": false,
+              "output_bytes": 519,
+              "output_tail": "# cadastro fixture\n\nMinimal fixture repository for the `bench/llm_ab` LLM A/B benchmark: a\nsingle HTML registration page (`cadastro.html`) created and then edited by\nthe benchmarked model. No Python application code -- `tests/check_cadastro.py`\nis the harness-owned, stdlib-only acceptance checker (never written by the\nmodel) shared by every arm and every quality lane.\n---\n<!-- SIMPLICIO-PLACEHOLDER: cadastro.html not implemented yet. -->\n---\ntests/check_cadastro.py\ntests/__pycache__/check_cadastro.cpython-311.pyc\n"
+            },
+            {
+              "turn": 2,
+              "command": "simplicio-loop orient --task \"Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a <form id=cadastro> containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button.\" --json 2>&1 | head -200",
+              "returncode": 0,
+              "wall_s": 2.8141,
+              "cpu_s": 2.7664,
+              "peak_rss_mb": 7.17,
+              "is_simplicio": true,
+              "output_bytes": 8474,
+              "output_tail": "f4474f2813\",\n      \"fallback\": false,\n      \"fast_receipt\": {\n        \"mapper\": {\n          \"artifact_digest\": \"1b3fa109aece8d3ce1d3a6c3f7e6c583ef0d8e4a73f46f642f54a8e727ccfe2c\",\n          \"artifacts\": [\n            {\n              \"bytes\": 30853,\n              \"name\": \"context_snapshot\",\n              \"path\": \".simplicio/context-snapshot.json\",\n              \"sha256\": \"c7d4c834fbdb1b23d9a4f2f7dc55cdb8528600967cb01b1abdefbfed708554db\"\n            },\n            {\n              \"bytes\": 14671,\n              \"name\": \"project_map\",\n              \"path\": \".simplicio/project-map.json\",\n              \"sha256\": \"dff384124d362f15891c305094adef8871e4f3fe7efd959ed747ee0b5bf438ba\"\n            },\n            {\n              \"bytes\": 5384,\n              \"name\": \"symbol_index\",\n              \"path\": \".simplicio/symbol-index.json\",\n              \"sha256\": \"d02237aff53ff19797a976fa8f9cc4da9c59576897ec229018e1b780d15d823a\"\n            },\n            {\n              \"bytes\": 20545,\n              \"name\": \"call_graph\",\n              \"path\": \".simplicio/call-graph.json\",\n              \"sha256\": \"794865626722624537bb1360496ffc7820cb656cf05717741db422e4c04bb818\"\n            },\n            {\n              \"bytes\": 17488,\n              \"name\": \"architecture_inventory\",\n              \"path\": \".simplicio/architecture-inventory.json\",\n              \"sha256\": \"7355778e61db6a68aa4f25ccea78beb35a3759ac765fb5071dc3f0e453a003c6\"\n            }\n          ],\n          \"capability_coverage\": {\n            \"context_graph\": true,\n            \"files\": true,\n            \"relations\": true,\n            \"source_hashes\": true,\n            \"stable_handles\": true,\n            \"symbols\": true\n          },\n          \"changed_paths\": [\n            \"tests/check_cadastro.py\"\n          ],\n          \"commit\": \"4ca3de9593cfcd1c8777cf8dfcb2f26aafc743fa\",\n          \"deleted_paths\": [],\n          \"fidelity\": {\n            \"gate\": \"ready\",\n            \"source\": \"simplicio.map-handoff/v1\"\n          },\n          \"generation\": \"00b86ead54b2d1d36b3c743aa104ba3ffc48010f087098c7acfd13f4e93fa3ab\",\n          \"handoff_sha256\": \"9087df5c695c340074ff85c4a8a0c7b6bc894a9f04c620c11897707ec3739a50\",\n          \"mapper_schema\": \"simplicio.mapper-fast-handoff/v1\",\n          \"mapper_version\": \"0.26.34\",\n          \"mode\": \"integrated\",\n          \"producer\": {\n            \"name\": \"simplicio-mapper\",\n            \"version\": \"0.26.34\"\n          },\n          \"repository_id\": \"simplicio-repo\",\n          \"schema\": \"simplicio.fast.mapper-ingest/v1\"\n        },\n        \"projection\": {\n          \"artifact_digest\": \"1b3fa109aece8d3ce1d3a6c3f7e6c583ef0d8e4a73f46f642f54a8e727ccfe2c\",\n          \"capability_coverage\": {\n            \"context_graph\": true,\n            \"files\": true,\n            \"relations\": true,\n            \"source_hashes\": true,\n            \"stable_handles\": true,\n            \"symbols\": true\n          },\n          \"fast_format_version\": 2,\n          \"fast_generation\": \"SFAST001:6d49703ef3aa992549babc9bb7bcff535230f9d573f31cf5b2f6d526463a8dfc\",\n          \"files\": 3,\n          \"mapper_generation\": \"00b86ead54b2d1d36b3c743aa104ba3ffc48010f087098c7acfd13f4e93fa3ab\",\n          \"mapper_schema\": \"simplicio.mapper-fast-handoff/v1\",\n          \"mapper_version\": \"0.26.34\",\n          \"relations\": 0,\n          \"repository_id\": \"simplicio-repo\",\n          \"schema\": \"simplicio.fast.mapper-snapshot/v1\",\n          \"symbols\": 13\n        },\n        \"schema\": \"simplicio.fast.ingest/v2\",\n        \"snapshot\": \"/tmp/llm-ab-13a74n2r/simplicio-repo/.simplicio/fast/survey-cache/sha256:0a9a486e2e7bc3435d59807f00f46c93f2809971f2afd782a666dbba9b70e51f/project.sfast\"\n      },\n      \"generation\": \"sha256:9c1ea17476c1c2cdfa2c8e81c544b0da1447a01d9ea3f804c27f0ba0ce991cf9\",\n      \"receipt_hash\": \"sha256:860552f29980dfd586764721795fcdb931871dfc2217891d200c2a717c151635\",\n      \"requested_engine\": \"auto\",\n      \"schema\": \"simplicio.loop-fast-receipt/v1\",\n      \"selected_engine\": \"python\",\n      \"snapshot\": \".simplicio/fast/survey-cache/sha256:0a9a486e2e7bc3435d59807f00f46c93f2809971f2afd782a666dbba9b70e51f/project.sfast\",\n      \"source_commit\": \"4ca3de9593cfcd1c8777cf8dfcb2f26aafc743fa\",\n      \"stage\": \"ingest\",\n      \"status\": \"MEASURED\"\n    },\n    \"understanding\": {\n      \"files\": [\n        \"tests/check_cadastro.py\"\n      ],\n      \"schema\": \"simplicio.fast.understanding/v2\",\n      \"symbols\": [\n        \"tests/check_cadastro.py::parse_cadastro\",\n        \"tests/check_cadastro.py::FormFieldParser\",\n        \"tests/check_cadastro.py::_has_submit\",\n        \"tests/check_cadastro.py::_find_input\",\n        \"tests/check_cadastro.py::check_stage2\",\n        \"tests/check_cadastro.py::check_stage1\",\n        \"tests/check_cadastro.py::check_file\",\n        \"tests/check_cadastro.py::__init__\",\n        \"tests/check_cadastro.py::_start\",\n        \"tests/check_cadastro.py::handle_startendtag\",\n        \"tests/check_cadastro.py::handle_starttag\",\n        \"tests/check_cadastro.py::main\"\n      ],\n      \"task\": \"Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a <form id=cadastro> containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button.\",\n      \"terms\": [\n        \"cadastro\",\n        \"html\",\n        \"pure\",\n        \"framework\",\n        \"external\",\n        \"css\",\n        \"user\",\n        \"registration\",\n        \"page\",\n        \"form\",\n        \"containing\",\n        \"labeled\",\n        \"inputs\",\n        \"name\",\n        \"text\",\n        \"required\",\n        \"email\",\n        \"type\",\n        \"password\",\n        \"minlength\",\n        \"submit\",\n        \"button\"\n      ],\n      \"loop_receipt\": {\n        \"schema\": \"simplicio.loop-fast-receipt/v1\",\n        \"status\": \"MEASURED\",\n        \"stage\": \"understand\",\n        \"fallback\": false,\n        \"generation\": \"sha256:9c1ea17476c1c2cdfa2c8e81c544b0da1447a01d9ea3f804c27f0ba0ce991cf9\",\n        \"context_hash\": \"sha256:6b47700d788e4eb84a86a070bdb86f96061bf9ac94a7b62cf502cca90bf5a8ab\",\n        \"context_count\": 12,\n        \"context_sha256\": \"sha256:268051776db9aa2d8d92f8069351ab1fdbad494b33c51b5566340aa7747c363b\",\n        \"receipt_hash\": \"sha256:921c2244d79cf47606663f90dcb7777dca1cf4f8e3866c998e06902f9b5a3d9f\"\n      }\n    },\n    \"plan\": {\n      \"root\": \"/tmp/llm-ab-13a74n2r/simplicio-repo\",\n      \"schema\": \"simplicio.fast.plandag/v2\",\n      \"task\": \"Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a <form id=cadastro> containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button.\",\n      \"status\": \"BLOCKED\",\n      \"intent_policy\": {\n        \"schema\": \"simplicio.loop-fast-intent-policy/v1\",\n        \"intent_mode\": \"mutable\",\n        \"mutable_authority\": true,\n        \"explicit_targets\": [\n          \"CSS/JS\"\n        ],\n        \"target_corridor\": [\n          \"CSS/JS\"\n        ],\n        \"corridor_source\": \"explicit\",\n        \"validated\": false,\n        \"allowed_files\": [\n          \"tests/check_cadastro.py\"\n        ],\n        \"context_path_count\": 1\n      },\n      \"blocked_preconditions\": [\n        {\n          \"code\": \"TARGET_PATH_UNRESOLVED\",\n          \"reason\": \"TARGET_PATH_UNRESOLVED\",\n          \"message\": \"explicit target paths must resolve under the orientation repository: CSS/JS. Use a repo-relative file that exists, e.g. --target plugin.js\",\n          \"next_surface\": \"target\",\n          \"retryable\": true,\n          \"next_command\": \"simplicio-loop orient --repo /tmp/llm-ab-13a74n2r/simplicio-repo --task \\\"Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a <form id=cadastro> containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button.\\\" --fast auto --target plugin.js\",\n          \"accepted_target_form\": \"repo-relative existing file, e.g. plugin.js\"\n        },\n"
+            },
+            {
+              "turn": 3,
+              "command": "simplicio-loop orient --task \"Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a <form id=cadastro> containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button.\" --json 2>/dev/null > /tmp/orient.json; python3 -c \"\nimport json\nd=json.load(open('/tmp/orient.json'))\nprint(list(d.keys()))\nprint(json.dumps(d.get('route'),indent=2)[:3000])\n\"",
+              "returncode": 0,
+              "wall_s": 1.4805,
+              "cpu_s": 1.449,
+              "peak_rss_mb": 10.61,
+              "is_simplicio": true,
+              "output_bytes": 648,
+              "output_tail": "['schema', 'status', 'provider', 'fallback', 'fallback_reason', 'fast_engine', 'fast', 'mapper', 'local_llm', 'commands', 'route', 'receipt', 'context', 'targets']\n{\n  \"mode\": \"fast-path\",\n  \"justification\": \"goal->1 file, fan-in 0, no sensitive surface\",\n  \"resolved_files\": [\n    \"cadastro.html\"\n  ],\n  \"next\": [\n    \"read the target file; write ops.json = {\\\"operations\\\":[{\\\"path\\\":\\\"<file>\\\",\\\"find\\\":\\\"<exact text>\\\",\\\"replace\\\":\\\"<new>\\\"}]}\",\n    \"simplicio-dev-cli edit --plan ops.json --compile plan.json\",\n    \"simplicio-dev-cli edit --plan plan.json --apply --json\",\n    \"run the task's own check (test/verifier) in the same turn\"\n  ]\n}\n"
+            },
+            {
+              "turn": 3,
+              "command": "cat tests/check_cadastro.py",
+              "returncode": 0,
+              "wall_s": 0.1229,
+              "cpu_s": 0.1169,
+              "peak_rss_mb": 7.16,
+              "is_simplicio": false,
+              "output_bytes": 6720,
+              "output_tail": "\"\"\"Harness-owned acceptance checker for the `cadastro.html` benchmark tasks.\n\nStdlib only (``html.parser``). The benchmarked model never writes or sees\nthis file's content -- it ships with the fixture repo before any arm runs,\nand is used, unmodified, as the Independent verifier and every quality-lane\ncommand (Unit/Integration/System/Regression/Benchmark) for both benchmark\ntasks in ``bench/llm_ab/tasks.py``. There is no Python application code in\nthis fixture, so the Coverage lane is intentionally left undeclared (not\napplicable) rather than faked.\n\nStage 1 (task 1, create): ``<form id=\"cadastro\">`` with labeled\nname/email/password inputs and a submit control.\nStage 2 (task 2, edit): stage 1 plus a phone field and a password_confirm\nfield, with the original three fields still present.\n\"\"\"\nfrom __future__ import annotations\n\nimport argparse\nimport sys\nfrom html.parser import HTMLParser\nfrom pathlib import Path\n\n# tests/check_cadastro.py -> repo root -> cadastro.html\nDEFAULT_PATH = Path(__file__).resolve().parent.parent / \"cadastro.html\"\n\n\nclass FormFieldParser(HTMLParser):\n    \"\"\"Collect every ``<input>``/``<button>`` inside ``<form id=\"cadastro\">``.\"\"\"\n\n    def __init__(self) -> None:\n        super().__init__(convert_charrefs=True)\n        self.inputs: list[dict[str, str | None]] = []\n        self.buttons: list[dict[str, str | None]] = []\n        self.found_form_cadastro = False\n        self._form_depth = 0\n        self._in_target_form = False\n\n    def _start(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:\n        attrs_d = dict(attrs)\n        if tag == \"form\":\n            self._form_depth += 1\n            if attrs_d.get(\"id\") == \"cadastro\":\n                self._in_target_form = True\n                self.found_form_cadastro = True\n        elif self._in_target_form and tag == \"input\":\n            self.inputs.append(attrs_d)\n        elif self._in_target_form and tag == \"button\":\n            self.buttons.append(attrs_d)\n\n    def handle_starttag(self, tag, attrs):\n        self._start(tag, attrs)\n\n    def handle_startendtag(self, tag, attrs):\n        # self-closed tags, e.g. <input .../>\n        self._start(tag, attrs)\n\n    def handle_endtag(self, tag: str) -> None:\n        if tag == \"form\" and self._form_depth:\n            self._form_depth -= 1\n            if self._form_depth == 0:\n                self._in_target_form = False\n\n\ndef parse_cadastro(html_text: str) -> FormFieldParser:\n    parser = FormFieldParser()\n    parser.feed(html_text)\n    return parser\n\n\ndef _find_input(parser: FormFieldParser, name: str) -> dict | None:\n    for inp in parser.inputs:\n        if inp.get(\"name\") == name:\n            return inp\n    return None\n\n\ndef _has_submit(parser: FormFieldParser) -> bool:\n    for inp in parser.inputs:\n        if (inp.get(\"type\") or \"\").lower() == \"submit\":\n            return True\n    for btn in parser.buttons:\n        # a <button> with no explicit type defaults to type=\"submit\" per the\n        # HTML spec.\n        if (btn.get(\"type\") or \"submit\").lower() == \"submit\":\n            return True\n    return False\n\n\ndef check_stage1(parser: FormFieldParser) -> list[str]:\n    \"\"\"Return failure reasons for stage 1; an empty list means pass.\"\"\"\n    failures: list[str] = []\n    if not parser.found_form_cadastro:\n        return ['missing <form id=\"cadastro\">']\n\n    name = _find_input(parser, \"name\")\n    if name is None:\n        failures.append(\"missing input[name=name]\")\n    else:\n        if (name.get(\"type\") or \"text\").lower() != \"text\":\n            failures.append(\"input[name=name] must be type=text (or omitted)\")\n        if \"required\" not in name:\n            failures.append(\"input[name=name] must be required\")\n\n    email = _find_input(parser, \"email\")\n    if email is None:\n        failures.append(\"missing input[name=email]\")\n    else:\n        if (email.get(\"type\") or \"\").lower() != \"email\":\n            failures.append(\"input[name=email] must be type=email\")\n        if \"required\" not in email:\n            failures.append(\"input[name=email] must be required\")\n\n    password = _find_input(parser, \"password\")\n    if password is None:\n        failures.append(\"missing input[name=password]\")\n    else:\n        if (password.get(\"type\") or \"\").lower() != \"password\":\n            failures.append(\"input[name=password] must be type=password\")\n        if \"required\" not in password:\n            failures.append(\"input[name=password] must be required\")\n        if password.get(\"minlength\") != \"8\":\n            failures.append('input[name=password] must have minlength=\"8\"')\n\n    if not _has_submit(parser):\n        failures.append(\"missing a submit control in form#cadastro\")\n\n    return failures\n\n\ndef check_stage2(parser: FormFieldParser) -> list[str]:\n    \"\"\"Stage 1 plus the phone + password_confirm fields added by task 2.\"\"\"\n    failures = check_stage1(parser)\n\n    phone = _find_input(parser, \"phone\")\n    if phone is None:\n        failures.append(\"missing input[name=phone]\")\n    elif (phone.get(\"type\") or \"\").lower() != \"tel\":\n        failures.append(\"input[name=phone] must be type=tel\")\n\n    confirm = _find_input(parser, \"password_confirm\")\n    if confirm is None:\n        failures.append(\"missing input[name=password_confirm]\")\n    else:\n        if (confirm.get(\"type\") or \"\").lower() != \"password\":\n            failures.append(\"input[name=password_confirm] must be type=password\")\n        if \"required\" not in confirm:\n            failures.append(\"input[name=password_confirm] must be required\")\n        if confirm.get(\"minlength\") != \"8\":\n            failures.append('input[name=password_confirm] must have minlength=\"8\"')\n\n    return failures\n\n\nSTAGE_CHECKS = {1: check_stage1, 2: check_stage2}\n\n\ndef check_file(path: Path, stage: int) -> list[str]:\n    if not path.is_file():\n        return [f\"{path} does not exist\"]\n    text = path.read_text(encoding=\"utf-8\", errors=\"replace\")\n    return STAGE_CHECKS[stage](parse_cadastro(text))\n\n\ndef main(argv: list[str] | None = None) -> int:\n    ap = argparse.ArgumentParser(description=__doc__)\n    ap.add_argument(\n        \"--stage\", type=int, choices=sorted(STAGE_CHECKS), required=True,\n        help=\"1: base form (name/email/password/submit); \"\n             \"2: stage 1 plus phone + password_confirm\",\n    )\n    ap.add_argument(\n        \"--path\", default=str(DEFAULT_PATH),\n        help=\"path to cadastro.html (default: repo root, relative to this file)\",\n    )\n    args = ap.parse_args(argv)\n\n    failures = check_file(Path(args.path), args.stage)\n    if failures:\n        for reason in failures:\n            print(f\"FAIL: {reason}\", file=sys.stderr)\n        return 1\n    print(f\"PASS: stage {args.stage} ok\")\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n"
+            },
+            {
+              "turn": 4,
+              "command": "cd /tmp/llm-ab-13a74n2r/simplicio-repo && cat -A cadastro.html && wc -c cadastro.html",
+              "returncode": 0,
+              "wall_s": 0.1231,
+              "cpu_s": 0.1178,
+              "peak_rss_mb": 7.15,
+              "is_simplicio": true,
+              "output_bytes": 85,
+              "output_tail": "<!-- SIMPLICIO-PLACEHOLDER: cadastro.html not implemented yet. -->$\n67 cadastro.html\n"
+            },
+            {
+              "turn": 5,
+              "command": "cd /tmp/llm-ab-13a74n2r/simplicio-repo && python3 - <<'PY'\nimport json\nhtml = '''<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Cadastro</title>\n  <style>\n    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 32rem; }\n    form { display: grid; gap: 0.75rem; }\n    label { font-weight: 600; }\n    input, button { font: inherit; padding: 0.5rem; }\n  </style>\n</head>\n<body>\n  <h1>Cadastro de usu\u00e1rio</h1>\n  <form id=\"cadastro\" action=\"#\" method=\"post\">\n    <label for=\"name\">Nome</label>\n    <input id=\"name\" name=\"name\" type=\"text\" required>\n\n    <label for=\"email\">E-mail</label>\n    <input id=\"email\" name=\"email\" type=\"email\" required>\n\n    <label for=\"password\">Senha</label>\n    <input id=\"password\" name=\"password\" type=\"password\" required minlength=\"8\">\n\n    <button type=\"submit\">Cadastrar</button>\n  </form>\n</body>\n</html>\n'''\nops = {\"operations\": [{\n  \"path\": \"cadastro.html\",\n  \"find\": \"<!-- SIMPLICIO-PLACEHOLDER: cadastro.html not implemented yet. -->\",\n  \"replace\": html.rstrip(\"\\n\"),\n}]}\njson.dump(ops, open(\"ops.json\",\"w\"), ensure_ascii=False, indent=2)\nprint(\"written\")\nPY\nsimplicio-dev-cli edit --plan ops.json --compile plan.json 2>&1 | tail -20",
+              "returncode": 0,
+              "wall_s": 0.2846,
+              "cpu_s": 0.2982,
+              "peak_rss_mb": 7.06,
+              "is_simplicio": true,
+              "output_bytes": 129,
+              "output_tail": "written\n{\"schema\": \"simplicio.dev-cli.edit-compile/v1\", \"status\": \"ok\", \"plan\": \"plan.json\", \"touched_files\": [\"cadastro.html\"]}\n"
+            },
+            {
+              "turn": 6,
+              "command": "cd /tmp/llm-ab-13a74n2r/simplicio-repo && simplicio-dev-cli edit --plan plan.json --apply --json 2>&1 | tail -20",
+              "returncode": 0,
+              "wall_s": 0.265,
+              "cpu_s": 0.2612,
+              "peak_rss_mb": 7.19,
+              "is_simplicio": true,
+              "output_bytes": 3389,
+              "output_tail": "[native_delegation] {\"verb\":\"edit\",\"route\":\"python-forced\",\"reason\":\"canonical-dev-cli-plan\"}\n[mutation_route_selected] {\"schema\":\"simplicio.dev-cli.mutation-route/v1\",\"entrypoint\":\"edit\",\"route\":\"standalone\",\"reason_code\":\"LEGACY_STANDALONE_SHADOW\",\"migration_phase\":\"shadow\",\"legacy_opt_in\":false}\n{\"applied\": true, \"errors\": [], \"files\": [{\"after_sha256\": \"01523aa6414ef03b66057b69e0b1baff4433fddd094ca1eb99b4c2e3b97e0bbe\", \"before_sha256\": \"19e3d42b7143be93b3d81e1f9eb2fd52805ecba4bbbdcfbf38801d31818c3c11\", \"path\": \"cadastro.html\"}], \"mapper_binding\": {\"binding_digest\": \"d0bbf9884ac24f6eabede07a41ea6da89caf2dbeff2faeabe7581f3f36cd97df\", \"generation\": \"00b86ead54b2d1d36b3c743aa104ba3ffc48010f087098c7acfd13f4e93fa3ab\", \"repository_id\": \"local/simplicio-repo\", \"schema\": \"simplicio.mapper-binding/v1\", \"source_hashes\": {\"cadastro.html\": \"19e3d42b7143be93b3d81e1f9eb2fd52805ecba4bbbdcfbf38801d31818c3c11\"}, \"source_tree_id\": \"206c5bcee44e0a6e85f1f51dc054d08b5e05120c\"}, \"mapper_binding_digest\": \"d0bbf9884ac24f6eabede07a41ea6da89caf2dbeff2faeabe7581f3f36cd97df\", \"mapper_refresh\": {\"changed_paths\": [\"cadastro.html\"], \"effective_source_digest\": \"c818fd9ff7916088fdf6b4b400863870b604267d61eed1807b7bdfa94e896265\", \"previous_generation\": \"00b86ead54b2d1d36b3c743aa104ba3ffc48010f087098c7acfd13f4e93fa3ab\", \"status\": \"required\"}, \"mutation_receipt\": {\"available\": {}, \"available_tuple\": [], \"changeset\": null, \"duration_ms\": null, \"entrypoint\": \"edit\", \"files\": [], \"final_status\": \"applied\", \"legacy\": false, \"migration_phase\": \"shadow\", \"plan\": null, \"receipt_version\": 1, \"retry\": {\"attempt\": 1, \"max_attempts\": 1, \"retryable\": false}, \"route\": \"standalone\", \"runtime_gated\": false, \"schema\": \"simplicio.dev-cli.mutation-route/v1\", \"verification\": {\"commands\": [], \"reason_code\": \"verify_skipped_no_test_cmd\", \"results\": [], \"status\": \"skipped\"}}, \"noop\": false, \"operation_count\": 1, \"plan_digest\": \"c0368a9987468c91c8e2b6218bdaf691fb3bf8068064a9e8e40f216868f3a33d\", \"planned_diff\": \"--- a/cadastro.html\\n+++ b/cadastro.html\\n@@ -1 +1,29 @@\\n-<!-- SIMPLICIO-PLACEHOLDER: cadastro.html not implemented yet. -->\\n+<!DOCTYPE html>\\n+<html lang=\\\"pt-BR\\\">\\n+<head>\\n+  <meta charset=\\\"utf-8\\\">\\n+  <meta name=\\\"viewport\\\" content=\\\"width=device-width, initial-scale=1\\\">\\n+  <title>Cadastro</title>\\n+  <style>\\n+    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 32rem; }\\n+    form { display: grid; gap: 0.75rem; }\\n+    label { font-weight: 600; }\\n+    input, button { font: inherit; padding: 0.5rem; }\\n+  </style>\\n+</head>\\n+<body>\\n+  <h1>Cadastro de usu\\u00e1rio</h1>\\n+  <form id=\\\"cadastro\\\" action=\\\"#\\\" method=\\\"post\\\">\\n+    <label for=\\\"name\\\">Nome</label>\\n+    <input id=\\\"name\\\" name=\\\"name\\\" type=\\\"text\\\" required>\\n+\\n+    <label for=\\\"email\\\">E-mail</label>\\n+    <input id=\\\"email\\\" name=\\\"email\\\" type=\\\"email\\\" required>\\n+\\n+    <label for=\\\"password\\\">Senha</label>\\n+    <input id=\\\"password\\\" name=\\\"password\\\" type=\\\"password\\\" required minlength=\\\"8\\\">\\n+\\n+    <button type=\\\"submit\\\">Cadastrar</button>\\n+  </form>\\n+</body>\\n+</html>\\n\", \"receipt_digest\": \"68b741b56f23957ae624f736467d008cf765509cfb3d58f57364c6b629232464\", \"root\": \".\", \"schema\": \"simplicio.dev-cli.edit-receipt/v1\", \"status\": \"ok\", \"validation\": [], \"verify\": {\"commands\": [], \"reason_code\": \"verify_skipped_no_test_cmd\", \"results\": [], \"status\": \"skipped\"}}\n"
+            },
+            {
+              "turn": 7,
+              "command": "cd /tmp/llm-ab-13a74n2r/simplicio-repo && python3 tests/check_cadastro.py --stage 1; echo \"exit=$?\"; echo ---; cat cadastro.html",
+              "returncode": 0,
+              "wall_s": 0.1639,
+              "cpu_s": 0.1722,
+              "peak_rss_mb": 7.07,
+              "is_simplicio": true,
+              "output_bytes": 903,
+              "output_tail": "PASS: stage 1 ok\nexit=0\n---\n<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Cadastro</title>\n  <style>\n    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 32rem; }\n    form { display: grid; gap: 0.75rem; }\n    label { font-weight: 600; }\n    input, button { font: inherit; padding: 0.5rem; }\n  </style>\n</head>\n<body>\n  <h1>Cadastro de usu\u00e1rio</h1>\n  <form id=\"cadastro\" action=\"#\" method=\"post\">\n    <label for=\"name\">Nome</label>\n    <input id=\"name\" name=\"name\" type=\"text\" required>\n\n    <label for=\"email\">E-mail</label>\n    <input id=\"email\" name=\"email\" type=\"email\" required>\n\n    <label for=\"password\">Senha</label>\n    <input id=\"password\" name=\"password\" type=\"password\" required minlength=\"8\">\n\n    <button type=\"submit\">Cadastrar</button>\n  </form>\n</body>\n</html>\n"
+            },
+            {
+              "turn": 8,
+              "command": "cd /tmp/llm-ab-13a74n2r/simplicio-repo && grep -cE '<script|<link' cadastro.html; rm -f ops.json plan.json; git status --porcelain",
+              "returncode": 0,
+              "wall_s": 0.1228,
+              "cpu_s": 0.1228,
+              "peak_rss_mb": 7.07,
+              "is_simplicio": true,
+              "output_bytes": 34,
+              "output_tail": "0\n M cadastro.html\n?? .simplicio/\n"
+            }
+          ],
+          "totals": {
+            "prompt_tokens": 110271,
+            "completion_tokens": 1864,
+            "reasoning_tokens": 458,
+            "cached_tokens": 94464,
+            "cost_usd": 0.001992,
+            "llm_latency_s": 94.7575,
+            "cmd_wall_s": 5.7664,
+            "cmd_cpu_s": 5.7,
+            "n_commands": 11,
+            "n_simplicio_commands": 8
+          },
+          "final_text": "MEASURED| `simplicio-dev-cli edit --plan plan.json --apply` applied 1 operation to `cadastro.html` (receipt `status: ok`, `applied: true`).\nMEASURED| `python3 tests/check_cadastro.py --stage 1` \u2192 `PASS: stage 1 ok`, exit 0 (form#cadastro, labeled name/email/password with required + minlength=8, submit button).\nMEASURED| `grep -cE '<script|<link' cadastro.html` \u2192 0 (no external CSS/JS, no framework).\n\nDONE \u2014 cadastro.html created via the fast-path edit plan; harness acceptance checker passes stage 1.",
+          "wall_s": 100.531,
+          "check_output_tail": "PASS: stage 1 ok"
+        },
+        {
+          "index": 2,
+          "kind": "edit",
+          "task_text": "Edit cadastro.html: add a labeled phone field (input name=phone, type=tel) and a confirm-password field (name=password_confirm, type=password, required, minlength=8) to the same form, keeping the existing fields.",
+          "success": true,
+          "turns": 11,
+          "llm_calls": [
+            {
+              "turn": 1,
+              "ok": true,
+              "latency_s": 2.258385419845581,
+              "prompt_tokens": 7106,
+              "completion_tokens": 189,
+              "reasoning_tokens": 70,
+              "cached_tokens": 256,
+              "cost_usd": 0.0010394552,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 2,
+              "ok": true,
+              "latency_s": 1.6866061687469482,
+              "prompt_tokens": 7514,
+              "completion_tokens": 125,
+              "reasoning_tokens": 10,
+              "cached_tokens": 172,
+              "cost_usd": 0.00294204,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 3,
+              "ok": true,
+              "latency_s": 2.489320993423462,
+              "prompt_tokens": 8880,
+              "completion_tokens": 114,
+              "reasoning_tokens": 0,
+              "cached_tokens": 0,
+              "cost_usd": 0.0028008,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 4,
+              "ok": true,
+              "latency_s": 1.8476321697235107,
+              "prompt_tokens": 12002,
+              "completion_tokens": 154,
+              "reasoning_tokens": 24,
+              "cached_tokens": 7384,
+              "cost_usd": 0.00201813,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 5,
+              "ok": true,
+              "latency_s": 1.9205963611602783,
+              "prompt_tokens": 13827,
+              "completion_tokens": 168,
+              "reasoning_tokens": 0,
+              "cached_tokens": 11872,
+              "cost_usd": 0.001074165,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 6,
+              "ok": true,
+              "latency_s": 3.2385029792785645,
+              "prompt_tokens": 14213,
+              "completion_tokens": 394,
+              "reasoning_tokens": 320,
+              "cached_tokens": 0,
+              "cost_usd": 0.004499865,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 7,
+              "ok": true,
+              "latency_s": 3.52750301361084,
+              "prompt_tokens": 14825,
+              "completion_tokens": 372,
+              "reasoning_tokens": 0,
+              "cached_tokens": 13698,
+              "cost_usd": 0.00108336,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 8,
+              "ok": true,
+              "latency_s": 1.3899660110473633,
+              "prompt_tokens": 15248,
+              "completion_tokens": 81,
+              "reasoning_tokens": 0,
+              "cached_tokens": 14696,
+              "cost_usd": 0.00043872,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 9,
+              "ok": true,
+              "latency_s": 1.7757461071014404,
+              "prompt_tokens": 16463,
+              "completion_tokens": 101,
+              "reasoning_tokens": 14,
+              "cached_tokens": 15118,
+              "cost_usd": 0.00076926,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 10,
+              "ok": true,
+              "latency_s": 2.3074557781219482,
+              "prompt_tokens": 17014,
+              "completion_tokens": 254,
+              "reasoning_tokens": 160,
+              "cached_tokens": 16334,
+              "cost_usd": 0.000758505,
+              "finish_reason": "tool_calls",
+              "error": null
+            },
+            {
+              "turn": 11,
+              "ok": true,
+              "latency_s": 5.759514093399048,
+              "prompt_tokens": 17558,
+              "completion_tokens": 251,
+              "reasoning_tokens": 58,
+              "cached_tokens": 16884,
+              "cost_usd": 0.00075588,
+              "finish_reason": "stop",
+              "error": null
+            }
+          ],
+          "commands": [
+            {
+              "turn": 1,
+              "command": "pwd; ls -la; git log --oneline -5 2>/dev/null; git status --porcelain 2>/dev/null | head",
+              "returncode": 0,
+              "wall_s": 0.1227,
+              "cpu_s": 0.1316,
+              "peak_rss_mb": 7.17,
+              "is_simplicio": false,
+              "output_bytes": 430,
+              "output_tail": "/tmp/llm-ab-13a74n2r/simplicio-repo\ntotal 28\ndrwxr-xr-x 5 root root 4096 Sep 26 03:21 .\ndrwx------ 4 root root 4096 Sep 26 03:19 ..\ndrwxr-xr-x 8 root root 4096 Sep 26 03:21 .git\ndrwxr-xr-x 6 root root 4096 Sep 26 03:21 .simplicio\n-rw-r--r-- 1 root root  371 Sep 26 02:29 README.md\n-rw------- 1 root root  876 Sep 26 03:21 cadastro.html\ndrwxr-xr-x 3 root root 4096 Sep 26 03:02 tests\nb91e821 simplicio: task 1\n4ca3de9 seed fixture\n"
+            },
+            {
+              "turn": 1,
+              "command": "find . -name \"cadastro.html\" -not -path \"*/node_modules/*\" 2>/dev/null",
+              "returncode": 0,
+              "wall_s": 0.1229,
+              "cpu_s": 0.1328,
+              "peak_rss_mb": 7.17,
+              "is_simplicio": false,
+              "output_bytes": 16,
+              "output_tail": "./cadastro.html\n"
+            },
+            {
+              "turn": 2,
+              "command": "cat -n cadastro.html; echo ---; cat README.md; echo ---; find tests -type f | head -50",
+              "returncode": 0,
+              "wall_s": 0.1226,
+              "cpu_s": 0.1233,
+              "peak_rss_mb": 7.14,
+              "is_simplicio": false,
+              "output_bytes": 1530,
+              "output_tail": "     1\t<!DOCTYPE html>\n     2\t<html lang=\"pt-BR\">\n     3\t<head>\n     4\t  <meta charset=\"utf-8\">\n     5\t  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n     6\t  <title>Cadastro</title>\n     7\t  <style>\n     8\t    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 32rem; }\n     9\t    form { display: grid; gap: 0.75rem; }\n    10\t    label { font-weight: 600; }\n    11\t    input, button { font: inherit; padding: 0.5rem; }\n    12\t  </style>\n    13\t</head>\n    14\t<body>\n    15\t  <h1>Cadastro de usu\u00e1rio</h1>\n    16\t  <form id=\"cadastro\" action=\"#\" method=\"post\">\n    17\t    <label for=\"name\">Nome</label>\n    18\t    <input id=\"name\" name=\"name\" type=\"text\" required>\n    19\t\n    20\t    <label for=\"email\">E-mail</label>\n    21\t    <input id=\"email\" name=\"email\" type=\"email\" required>\n    22\t\n    23\t    <label for=\"password\">Senha</label>\n    24\t    <input id=\"password\" name=\"password\" type=\"password\" required minlength=\"8\">\n    25\t\n    26\t    <button type=\"submit\">Cadastrar</button>\n    27\t  </form>\n    28\t</body>\n    29\t</html>\n---\n# cadastro fixture\n\nMinimal fixture repository for the `bench/llm_ab` LLM A/B benchmark: a\nsingle HTML registration page (`cadastro.html`) created and then edited by\nthe benchmarked model. No Python application code -- `tests/check_cadastro.py`\nis the harness-owned, stdlib-only acceptance checker (never written by the\nmodel) shared by every arm and every quality lane.\n---\ntests/check_cadastro.py\ntests/__pycache__/check_cadastro.cpython-311.pyc\n"
+            },
+            {
+              "turn": 2,
+              "command": "ls -la .simplicio; find .simplicio -maxdepth 3 -type f | head -50",
+              "returncode": 0,
+              "wall_s": 0.1223,
+              "cpu_s": 0.1267,
+              "peak_rss_mb": 7.07,
+              "is_simplicio": false,
+              "output_bytes": 1987,
+              "output_tail": "total 240\ndrwxr-xr-x 6 root root  4096 Sep 26 03:21 .\ndrwxr-xr-x 5 root root  4096 Sep 26 03:21 ..\n-rw-r--r-- 1 root root 17488 Sep 26 03:20 architecture-inventory.json\n-rw-r--r-- 1 root root  2278 Sep 26 03:20 artifact-manifest.json\n-rw-r--r-- 1 root root     0 Sep 26 03:20 background-index.log\ndrwxr-xr-x 2 root root  4096 Sep 26 03:20 cache\n-rw-r--r-- 1 root root 20545 Sep 26 03:20 call-graph.json\n-rw------- 1 root root 56051 Sep 26 03:20 context-cache.json\n-rw-r--r-- 1 root root 30853 Sep 26 03:20 context-snapshot.json\n-rw-r--r-- 1 root root   505 Sep 26 03:21 events.jsonl\n-rw-r--r-- 1 root root   465 Sep 26 03:20 execution-plan.json\ndrwxr-xr-x 3 root root  4096 Sep 26 03:20 fast\ndrwxr-xr-x 3 root root  4096 Sep 26 03:20 history\n-rw-r--r-- 1 root root   582 Sep 26 03:20 index-state.json\ndrwxr-xr-x 2 root root  4096 Sep 26 03:21 ledger\n-rw-r--r-- 1 root root  1670 Sep 26 03:20 map-job.json\n-rw-r--r-- 1 root root  2405 Sep 26 03:20 precedent-index.json\n-rw-r--r-- 1 root root   302 Sep 26 03:20 project-capability-generation.json\n-rw-r--r-- 1 root root 14671 Sep 26 03:20 project-map.json\n-rw-r--r-- 1 root root 31765 Sep 26 03:20 retrieval-index.json\n-rw-r--r-- 1 root root  5384 Sep 26 03:20 symbol-index.json\n.simplicio/symbol-index.json\n.simplicio/project-map.json\n.simplicio/background-index.log\n.simplicio/context-snapshot.json\n.simplicio/history/2026-09-26T03-20-14-233Z_46499695/digest.json\n.simplicio/history/2026-09-26T03-20-14-233Z_46499695/manifest.json\n.simplicio/history/2026-09-26T03-20-14-233Z_46499695/delta.json\n.simplicio/history/index.json\n.simplicio/cache/cache.db\n.simplicio/index-state.json\n.simplicio/events.jsonl\n.simplicio/precedent-index.json\n.simplicio/execution-plan.json\n.simplicio/ledger/savings-events.jsonl\n.simplicio/call-graph.json\n.simplicio/project-capability-generation.json\n.simplicio/architecture-inventory.json\n.simplicio/retrieval-index.json\n.simplicio/context-cache.json\n.simplicio/map-job.json\n.simplicio/artifact-manifest.json\n"
+            },
+            {
+              "turn": 3,
+              "command": "cat -n tests/check_cadastro.py",
+              "returncode": 0,
+              "wall_s": 0.1229,
+              "cpu_s": 0.1321,
+              "peak_rss_mb": 7.16,
+              "is_simplicio": false,
+              "output_bytes": 8029,
+              "output_tail": "tance checker for the `cadastro.html` benchmark tasks.\n     2\t\n     3\tStdlib only (``html.parser``). The benchmarked model never writes or sees\n     4\tthis file's content -- it ships with the fixture repo before any arm runs,\n     5\tand is used, unmodified, as the Independent verifier and every quality-lane\n     6\tcommand (Unit/Integration/System/Regression/Benchmark) for both benchmark\n     7\ttasks in ``bench/llm_ab/tasks.py``. There is no Python application code in\n     8\tthis fixture, so the Coverage lane is intentionally left undeclared (not\n     9\tapplicable) rather than faked.\n    10\t\n    11\tStage 1 (task 1, create): ``<form id=\"cadastro\">`` with labeled\n    12\tname/email/password inputs and a submit control.\n    13\tStage 2 (task 2, edit): stage 1 plus a phone field and a password_confirm\n    14\tfield, with the original three fields still present.\n    15\t\"\"\"\n    16\tfrom __future__ import annotations\n    17\t\n    18\timport argparse\n    19\timport sys\n    20\tfrom html.parser import HTMLParser\n    21\tfrom pathlib import Path\n    22\t\n    23\t# tests/check_cadastro.py -> repo root -> cadastro.html\n    24\tDEFAULT_PATH = Path(__file__).resolve().parent.parent / \"cadastro.html\"\n    25\t\n    26\t\n    27\tclass FormFieldParser(HTMLParser):\n    28\t    \"\"\"Collect every ``<input>``/``<button>`` inside ``<form id=\"cadastro\">``.\"\"\"\n    29\t\n    30\t    def __init__(self) -> None:\n    31\t        super().__init__(convert_charrefs=True)\n    32\t        self.inputs: list[dict[str, str | None]] = []\n    33\t        self.buttons: list[dict[str, str | None]] = []\n    34\t        self.found_form_cadastro = False\n    35\t        self._form_depth = 0\n    36\t        self._in_target_form = False\n    37\t\n    38\t    def _start(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:\n    39\t        attrs_d = dict(attrs)\n    40\t        if tag == \"form\":\n    41\t            self._form_depth += 1\n    42\t            if attrs_d.get(\"id\") == \"cadastro\":\n    43\t                self._in_target_form = True\n    44\t                self.found_form_cadastro = True\n    45\t        elif self._in_target_form and tag == \"input\":\n    46\t            self.inputs.append(attrs_d)\n    47\t        elif self._in_target_form and tag == \"button\":\n    48\t            self.buttons.append(attrs_d)\n    49\t\n    50\t    def handle_starttag(self, tag, attrs):\n    51\t        self._start(tag, attrs)\n    52\t\n    53\t    def handle_startendtag(self, tag, attrs):\n    54\t        # self-closed tags, e.g. <input .../>\n    55\t        self._start(tag, attrs)\n    56\t\n    57\t    def handle_endtag(self, tag: str) -> None:\n    58\t        if tag == \"form\" and self._form_depth:\n    59\t            self._form_depth -= 1\n    60\t            if self._form_depth == 0:\n    61\t                self._in_target_form = False\n    62\t\n    63\t\n    64\tdef parse_cadastro(html_text: str) -> FormFieldParser:\n    65\t    parser = FormFieldParser()\n    66\t    parser.feed(html_text)\n    67\t    return parser\n    68\t\n    69\t\n    70\tdef _find_input(parser: FormFieldParser, name: str) -> dict | None:\n    71\t    for inp in parser.inputs:\n    72\t        if inp.get(\"name\") == name:\n    73\t            return inp\n    74\t    return None\n    75\t\n    76\t\n    77\tdef _has_submit(parser: FormFieldParser) -> bool:\n    78\t    for inp in parser.inputs:\n    79\t        if (inp.get(\"type\") or \"\").lower() == \"submit\":\n    80\t            return True\n    81\t    for btn in parser.buttons:\n    82\t        # a <button> with no explicit type defaults to type=\"submit\" per the\n    83\t        # HTML spec.\n    84\t        if (btn.get(\"type\") or \"submit\").lower() == \"submit\":\n    85\t            return True\n    86\t    return False\n    87\t\n    88\t\n    89\tdef check_stage1(parser: FormFieldParser) -> list[str]:\n    90\t    \"\"\"Return failure reasons for stage 1; an empty list means pass.\"\"\"\n    91\t    failures: list[str] = []\n    92\t    if not parser.found_form_cadastro:\n    93\t        return ['missing <form id=\"cadastro\">']\n    94\t\n    95\t    name = _find_input(parser, \"name\")\n    96\t    if name is None:\n    97\t        failures.append(\"missing input[name=name]\")\n    98\t    else:\n    99\t        if (name.get(\"type\") or \"text\").lower() != \"text\":\n   100\t            failures.append(\"input[name=name] must be type=text (or omitted)\")\n   101\t        if \"required\" not in name:\n   102\t            failures.append(\"input[name=name] must be required\")\n   103\t\n   104\t    email = _find_input(parser, \"email\")\n   105\t    if email is None:\n   106\t        failures.append(\"missing input[name=email]\")\n   107\t    else:\n   108\t        if (email.get(\"type\") or \"\").lower() != \"email\":\n   109\t            failures.append(\"input[name=email] must be type=email\")\n   110\t        if \"required\" not in email:\n   111\t            failures.append(\"input[name=email] must be required\")\n   112\t\n   113\t    password = _find_input(parser, \"password\")\n   114\t    if password is None:\n   115\t        failures.append(\"missing input[name=password]\")\n   116\t    else:\n   117\t        if (password.get(\"type\") or \"\").lower() != \"password\":\n   118\t            failures.append(\"input[name=password] must be type=password\")\n   119\t        if \"required\" not in password:\n   120\t            failures.append(\"input[name=password] must be required\")\n   121\t        if password.get(\"minlength\") != \"8\":\n   122\t            failures.append('input[name=password] must have minlength=\"8\"')\n   123\t\n   124\t    if not _has_submit(parser):\n   125\t        failures.append(\"missing a submit control in form#cadastro\")\n   126\t\n   127\t    return failures\n   128\t\n   129\t\n   130\tdef check_stage2(parser: FormFieldParser) -> list[str]:\n   131\t    \"\"\"Stage 1 plus the phone + password_confirm fields added by task 2.\"\"\"\n   132\t    failures = check_stage1(parser)\n   133\t\n   134\t    phone = _find_input(parser, \"phone\")\n   135\t    if phone is None:\n   136\t        failures.append(\"missing input[name=phone]\")\n   137\t    elif (phone.get(\"type\") or \"\").lower() != \"tel\":\n   138\t        failures.append(\"input[name=phone] must be type=tel\")\n   139\t\n   140\t    confirm = _find_input(parser, \"password_confirm\")\n   141\t    if confirm is None:\n   142\t        failures.append(\"missing input[name=password_confirm]\")\n   143\t    else:\n   144\t        if (confirm.get(\"type\") or \"\").lower() != \"password\":\n   145\t            failures.append(\"input[name=password_confirm] must be type=password\")\n   146\t        if \"required\" not in confirm:\n   147\t            failures.append(\"input[name=password_confirm] must be required\")\n   148\t        if confirm.get(\"minlength\") != \"8\":\n   149\t            failures.append('input[name=password_confirm] must have minlength=\"8\"')\n   150\t\n   151\t    return failures\n   152\t\n   153\t\n   154\tSTAGE_CHECKS = {1: check_stage1, 2: check_stage2}\n   155\t\n   156\t\n   157\tdef check_file(path: Path, stage: int) -> list[str]:\n   158\t    if not path.is_file():\n   159\t        return [f\"{path} does not exist\"]\n   160\t    text = path.read_text(encoding=\"utf-8\", errors=\"replace\")\n   161\t    return STAGE_CHECKS[stage](parse_cadastro(text))\n   162\t\n   163\t\n   164\tdef main(argv: list[str] | None = None) -> int:\n   165\t    ap = argparse.ArgumentParser(description=__doc__)\n   166\t    ap.add_argument(\n   167\t        \"--stage\", type=int, choices=sorted(STAGE_CHECKS), required=True,\n   168\t        help=\"1: base form (name/email/password/submit); \"\n   169\t             \"2: stage 1 plus phone + password_confirm\",\n   170\t    )\n   171\t    ap.add_argument(\n   172\t        \"--path\", default=str(DEFAULT_PATH),\n   173\t        help=\"path to cadastro.html (default: repo root, relative to this file)\",\n   174\t    )\n   175\t    args = ap.parse_args(argv)\n   176\t\n   177\t    failures = check_file(Path(args.path), args.stage)\n   178\t    if failures:\n   179\t        for reason in failures:\n   180\t            print(f\"FAIL: {reason}\", file=sys.stderr)\n   181\t        return 1\n   182\t    print(f\"PASS: stage {args.stage} ok\")\n   183\t    return 0\n   184\t\n   185\t\n   186\tif __name__ == \"__main__\":\n   187\t    raise SystemExit(main())\n"
+            },
+            {
+              "turn": 3,
+              "command": "which simplicio-loop simplicio-dev-cli simplicio-mapper simplicio-fast 2>&1; echo ---; simplicio-loop --help 2>&1 | head -40",
+              "returncode": 0,
+              "wall_s": 0.325,
+              "cpu_s": 0.3278,
+              "peak_rss_mb": 7.07,
+              "is_simplicio": true,
+              "output_bytes": 3391,
+              "output_tail": "/tmp/claude-0/-home-user/0ec94cd2-06f4-56a2-844e-a9f409b7dfea/scratchpad/venv-int/bin/simplicio-loop\n/tmp/claude-0/-home-user/0ec94cd2-06f4-56a2-844e-a9f409b7dfea/scratchpad/venv-int/bin/simplicio-dev-cli\n/tmp/claude-0/-home-user/0ec94cd2-06f4-56a2-844e-a9f409b7dfea/scratchpad/venv-int/bin/simplicio-mapper\n/tmp/claude-0/-home-user/0ec94cd2-06f4-56a2-844e-a9f409b7dfea/scratchpad/venv-int/bin/simplicio-fast\n---\nusage: simplicio-loop [-h] [-V]\n                      {install,dashboard,task,prototype,plan,prepare,arm,orient,retrieve,extensions,oracle,status,stack,doctor,inspect,map,preflight,economy,ecc,deploy,verify,progress,resume,tick,batch,wave,prism,cancel,checkpoint,maintenance-deferred,defer-maintenance,deliver,decide,sync-source,drain,agent-slots,generation-broker,queue,hub-drain-plan,hub-drain-admit,ledger,findings,learn}\n                      ...\n\nInstall the simplicio-loop super-plugin, open the Token Monitor dashboard, or\ncompile task markdown into a canonical task contract.\n\npositional arguments:\n  {install,dashboard,task,prototype,plan,prepare,arm,orient,retrieve,extensions,oracle,status,stack,doctor,inspect,map,preflight,economy,ecc,deploy,verify,progress,resume,tick,batch,wave,prism,cancel,checkpoint,maintenance-deferred,defer-maintenance,deliver,decide,sync-source,drain,agent-slots,generation-broker,queue,hub-drain-plan,hub-drain-admit,ledger,findings,learn}\n    install             install bundled skills + hooks into a runtime\n    dashboard           open or stop the Token Monitor dashboard\n    task                compile, validate, or preview markdown task contracts\n    prototype           Prototype-First gate: plan/classify/validate-\n                        schema/doctor (#568 P0)\n    plan                compile a raw task into a contract and preview it\n    prepare (arm)       arm and preflight a run without executing tasks or\n                        calling a provider\n    orient              orient a task through Fast with Mapper fallback\n    retrieve            retrieve and verify a tee-cache output\n    extensions          negotiate installed Loop extension runtimes\n    oracle              evaluate completion and cross-runtime parity\n    status              show the latest run state or a specific run\n    stack               create or verify an installed-stack lock\n    doctor              inspect the installed stack or storage routing\n    inspect             inspect storage routing and MapperStore capabilities\n    map                 map-service cross-module status\n    preflight           verify bound operators (mapper/dev-cli/fast) are\n                        installed\n    economy             fastest + cheapest profile: token economy, bounded\n                        CPU/RAM, Prism/asyncio parallel\n    ecc                 inspect the opt-in ECC advisory integration\n    deploy              plan a gated serverless deployment (dry-run unless\n                        --apply is explicit)\n    verify              run the independent watcher and delivery gates\n    progress            render visual progress for a run\n    resume              resume a non-terminal run\n    tick                execute one planned task through simplicio-dev-cli\n    batch               continuously dispatch ready tasks through simplicio-\n                        dev-cli\n    wave                dispatch a governed wave with reconciliation barriers\n"
+            },
+            {
+              "turn": 4,
+              "command": "cd /tmp/llm-ab-13a74n2r/simplicio-repo && simplicio-loop orient --task \"Edit cadastro.html: add a labeled phone field (input name=phone, type=tel) and a confirm-password field (name=password_confirm, type=password, required, minlength=8) to the same form, keeping the existing fields.\" --json 2>&1 | head -120",
+              "returncode": 0,
+              "wall_s": 3.0199,
+              "cpu_s": 2.9854,
+              "peak_rss_mb": 7.08,
+              "is_simplicio": true,
+              "output_bytes": 4872,
+              "output_tail": "{\n  \"schema\": \"simplicio.loop-orient/v1\",\n  \"status\": \"READY\",\n  \"provider\": \"simplicio-fast\",\n  \"fallback\": false,\n  \"fast_engine\": \"auto\",\n  \"fast\": {\n    \"schema\": \"simplicio.loop-fast-integration/v1\",\n    \"status\": \"READY\",\n    \"ingest\": {\n      \"cache_key\": \"sha256:0f06d093664f16a09d67d6b46bc000323f822629fce8c2e24aee74e4cb0184cf\",\n      \"config_hash\": \"sha256:6fc008a09855685cc896bb3448dcc727dc93bc84f8790ef65e7d1af4474f2813\",\n      \"fallback\": false,\n      \"fast_receipt\": {\n        \"mapper\": {\n          \"artifact_digest\": \"0ad0be4f417b80fe9448fc2fedbf13fc591877740cf38cd8925de7afe6dc6c2c\",\n          \"artifacts\": [\n            {\n              \"bytes\": 33647,\n              \"name\": \"context_snapshot\",\n              \"path\": \".simplicio/context-snapshot.json\",\n              \"sha256\": \"ff011d793a5412bf991e938ac1668c9f54f5ba53d34885f447bc4455b41d838b\"\n            },\n            {\n              \"bytes\": 14775,\n              \"name\": \"project_map\",\n              \"path\": \".simplicio/project-map.json\",\n              \"sha256\": \"cc43082be128d8c19fc0f1c5bc4458d441da64a19fa1c04b1aa0d827e6bbf35f\"\n            },\n            {\n              \"bytes\": 6454,\n              \"name\": \"symbol_index\",\n              \"path\": \".simplicio/symbol-index.json\",\n              \"sha256\": \"e37a36bfa64e41f29ddf006d6ae5a6f7c8623bcd2afef85e6140c28481439fee\"\n            },\n            {\n              \"bytes\": 20545,\n              \"name\": \"call_graph\",\n              \"path\": \".simplicio/call-graph.json\",\n              \"sha256\": \"4d80fbb16b3dc17c222e78c878b915f14b72ec8024e3447a227eea0b2ac6a947\"\n            },\n            {\n              \"bytes\": 17646,\n              \"name\": \"architecture_inventory\",\n              \"path\": \".simplicio/architecture-inventory.json\",\n              \"sha256\": \"dc695780b4953098f74ce0ac2116e2c92e057f68494d87733cd6cfc1d4e40fe8\"\n            }\n          ],\n          \"capability_coverage\": {\n            \"context_graph\": true,\n            \"files\": true,\n            \"relations\": true,\n            \"source_hashes\": true,\n            \"stable_handles\": true,\n            \"symbols\": true\n          },\n          \"changed_paths\": [\n            \"cadastro.html\",\n            \"tests/check_cadastro.py\"\n          ],\n          \"commit\": \"b91e821ea6ccd7171e661c493843511a086f64fc\",\n          \"deleted_paths\": [],\n          \"fidelity\": {\n            \"gate\": \"ready\",\n            \"source\": \"simplicio.map-handoff/v1\"\n          },\n          \"generation\": \"2fa75ae94b936263fee9467e634cb8970c4ffc299a232f39b42ae087bec2300c\",\n          \"handoff_sha256\": \"59638677efcdab7674c54a30a0ab98846c462027289b7526b9d6130f81a60172\",\n          \"mapper_schema\": \"simplicio.mapper-fast-handoff/v1\",\n          \"mapper_version\": \"0.26.34\",\n          \"mode\": \"integrated\",\n          \"producer\": {\n            \"name\": \"simplicio-mapper\",\n            \"version\": \"0.26.34\"\n          },\n          \"repository_id\": \"simplicio-repo\",\n          \"schema\": \"simplicio.fast.mapper-ingest/v1\"\n        },\n        \"projection\": {\n          \"artifact_digest\": \"0ad0be4f417b80fe9448fc2fedbf13fc591877740cf38cd8925de7afe6dc6c2c\",\n          \"capability_coverage\": {\n            \"context_graph\": true,\n            \"files\": true,\n            \"relations\": true,\n            \"source_hashes\": true,\n            \"stable_handles\": true,\n            \"symbols\": true\n          },\n          \"fast_format_version\": 2,\n          \"fast_generation\": \"SFAST001:2fde49d848d9f1793742da7df8a7efb7805176e34a85944790ee3b85c49252f5\",\n          \"files\": 3,\n          \"mapper_generation\": \"2fa75ae94b936263fee9467e634cb8970c4ffc299a232f39b42ae087bec2300c\",\n          \"mapper_schema\": \"simplicio.mapper-fast-handoff/v1\",\n          \"mapper_version\": \"0.26.34\",\n          \"relations\": 0,\n          \"repository_id\": \"simplicio-repo\",\n          \"schema\": \"simplicio.fast.mapper-snapshot/v1\",\n          \"symbols\": 17\n        },\n        \"schema\": \"simplicio.fast.ingest/v2\",\n        \"snapshot\": \"/tmp/llm-ab-13a74n2r/simplicio-repo/.simplicio/fast/survey-cache/sha256:0f06d093664f16a09d67d6b46bc000323f822629fce8c2e24aee74e4cb0184cf/project.sfast\"\n      },\n      \"generation\": \"sha256:a10ec82f563558947133b9957e536b8c831e4185b4271cf65119d131f7f797fe\",\n      \"receipt_hash\": \"sha256:d1ec671270d0b6d3afc6d5af82eb1ee2993f524b1573c49fa40f3319e279df8c\",\n      \"requested_engine\": \"auto\",\n      \"schema\": \"simplicio.loop-fast-receipt/v1\",\n      \"selected_engine\": \"python\",\n      \"snapshot\": \".simplicio/fast/survey-cache/sha256:0f06d093664f16a09d67d6b46bc000323f822629fce8c2e24aee74e4cb0184cf/project.sfast\",\n      \"source_commit\": \"b91e821ea6ccd7171e661c493843511a086f64fc\",\n      \"stage\": \"ingest\",\n      \"status\": \"MEASURED\"\n    },\n    \"understanding\": {\n      \"files\": [\n        \"cadastro.html\",\n        \"tests/check_cadastro.py\"\n      ],\n      \"schema\": \"simplicio.fast.understanding/v2\",\n      \"symbols\": [\n        \"cadastro.html::password\",\n"
+            },
+            {
+              "turn": 5,
+              "command": "cd /tmp/llm-ab-13a74n2r/simplicio-repo && simplicio-loop orient --task \"Edit cadastro.html: add a labeled phone field (input name=phone, type=tel) and a confirm-password field (name=password_confirm, type=password, required, minlength=8) to the same form, keeping the existing fields.\" --json 2>&1 | python3 -c \"import json,sys; d=json.load(sys.stdin); print(json.dumps(d.get('route'),indent=2)); print('KEYS',list(d.keys()))\"",
+              "returncode": 0,
+              "wall_s": 1.3404,
+              "cpu_s": 1.335,
+              "peak_rss_mb": 7.07,
+              "is_simplicio": true,
+              "output_bytes": 642,
+              "output_tail": "{\n  \"mode\": \"fast-path\",\n  \"justification\": \"goal->1 file, fan-in 0, no sensitive surface\",\n  \"resolved_files\": [\n    \"cadastro.html\"\n  ],\n  \"next\": [\n    \"read the target file; write ops.json = {\\\"operations\\\":[{\\\"path\\\":\\\"<file>\\\",\\\"find\\\":\\\"<exact text>\\\",\\\"replace\\\":\\\"<new>\\\"}]}\",\n    \"simplicio-dev-cli edit --plan ops.json --compile plan.json\",\n    \"simplicio-dev-cli edit --plan plan.json --apply --json\",\n    \"run the task's own check (test/verifier) in the same turn\"\n  ]\n}\nKEYS ['schema', 'status', 'provider', 'fallback', 'fast_engine', 'fast', 'orient_receipt', 'local_llm', 'commands', 'route', 'receipt', 'context', 'targets']\n"
+            },
+            {
+              "turn": 6,
+              "command": "cd /tmp/llm-ab-13a74n2r/simplicio-repo && simplicio-dev-cli edit --help 2>&1 | head -40",
+              "returncode": 0,
+              "wall_s": 0.2646,
+              "cpu_s": 0.2674,
+              "peak_rss_mb": 7.17,
+              "is_simplicio": true,
+              "output_bytes": 826,
+              "output_tail": "usage: simplicio-py edit [-h] [--root ROOT] [--plan PLAN] [--compile OUT]\n                         [--apply] [--dry-run] [--json] [--no-runtime]\n\noptions:\n  -h, --help            show this help message and exit\n  --root ROOT, --repo ROOT\n  --plan PLAN           plan JSON path, or - for stdin. With --compile, the\n                        minimal host plan: {\"operations\": [{\"path\": \"...\",\n                        \"find\": \"<exact unique text>\", \"replace\": \"...\"}]}\n  --compile OUT         freeze the minimal --plan into a full edit plan at OUT\n                        (pins file hashes; never mutates); then run: edit\n                        --plan OUT --apply --json\n  --apply\n  --dry-run\n  --json\n  --no-runtime          use the Python mechanical-edit fallback instead of\n                        delegating to simplicio edit\n"
+            },
+            {
+              "turn": 7,
+              "command": "cd /tmp/llm-ab-13a74n2r/simplicio-repo && cat > ops.json <<'EOF'\n{\n  \"operations\": [\n    {\n      \"path\": \"cadastro.html\",\n      \"find\": \"    <label for=\\\"email\\\">E-mail</label>\\n    <input id=\\\"email\\\" name=\\\"email\\\" type=\\\"email\\\" required>\\n\",\n      \"replace\": \"    <label for=\\\"email\\\">E-mail</label>\\n    <input id=\\\"email\\\" name=\\\"email\\\" type=\\\"email\\\" required>\\n\\n    <label for=\\\"phone\\\">Telefone</label>\\n    <input id=\\\"phone\\\" name=\\\"phone\\\" type=\\\"tel\\\">\\n\"\n    },\n    {\n      \"path\": \"cadastro.html\",\n      \"find\": \"    <label for=\\\"password\\\">Senha</label>\\n    <input id=\\\"password\\\" name=\\\"password\\\" type=\\\"password\\\" required minlength=\\\"8\\\">\\n\",\n      \"replace\": \"    <label for=\\\"password\\\">Senha</label>\\n    <input id=\\\"password\\\" name=\\\"password\\\" type=\\\"password\\\" required minlength=\\\"8\\\">\\n\\n    <label for=\\\"password_confirm\\\">Confirme a senha</label>\\n    <input id=\\\"password_confirm\\\" name=\\\"password_confirm\\\" type=\\\"password\\\" required minlength=\\\"8\\\">\\n\"\n    }\n  ]\n}\nEOF\nsimplicio-dev-cli edit --plan ops.json --compile plan.json 2>&1 | tail -20",
+              "returncode": 0,
+              "wall_s": 0.2649,
+              "cpu_s": 0.2722,
+              "peak_rss_mb": 7.07,
+              "is_simplicio": true,
+              "output_bytes": 121,
+              "output_tail": "{\"schema\": \"simplicio.dev-cli.edit-compile/v1\", \"status\": \"ok\", \"plan\": \"plan.json\", \"touched_files\": [\"cadastro.html\"]}\n"
+            },
+            {
+              "turn": 8,
+              "command": "cd /tmp/llm-ab-13a74n2r/simplicio-repo && simplicio-dev-cli edit --plan plan.json --apply --json 2>&1 | tail -20",
+              "returncode": 0,
+              "wall_s": 0.3258,
+              "cpu_s": 0.3222,
+              "peak_rss_mb": 7.06,
+              "is_simplicio": true,
+              "output_bytes": 2929,
+              "output_tail": "[native_delegation] {\"verb\":\"edit\",\"route\":\"python-forced\",\"reason\":\"canonical-dev-cli-plan\"}\n[mutation_route_selected] {\"schema\":\"simplicio.dev-cli.mutation-route/v1\",\"entrypoint\":\"edit\",\"route\":\"standalone\",\"reason_code\":\"LEGACY_STANDALONE_SHADOW\",\"migration_phase\":\"shadow\",\"legacy_opt_in\":false}\n{\"applied\": true, \"errors\": [], \"files\": [{\"after_sha256\": \"2af9ecd6c2c1cb1e2905a35c9f08172a23c48a0ebf6bd7d9b9f98230d50faa4c\", \"before_sha256\": \"01523aa6414ef03b66057b69e0b1baff4433fddd094ca1eb99b4c2e3b97e0bbe\", \"path\": \"cadastro.html\"}], \"mapper_binding\": {\"binding_digest\": \"4b03e596d6f3e79cc068f0f8b1d2303a8a4c77e1effcea6f2254d3cab5529b8e\", \"generation\": \"2fa75ae94b936263fee9467e634cb8970c4ffc299a232f39b42ae087bec2300c\", \"repository_id\": \"local/simplicio-repo\", \"schema\": \"simplicio.mapper-binding/v1\", \"source_hashes\": {\"cadastro.html\": \"01523aa6414ef03b66057b69e0b1baff4433fddd094ca1eb99b4c2e3b97e0bbe\"}, \"source_tree_id\": \"6d10449643ec9afb1993e3a7822561d92384f20d\"}, \"mapper_binding_digest\": \"4b03e596d6f3e79cc068f0f8b1d2303a8a4c77e1effcea6f2254d3cab5529b8e\", \"mapper_refresh\": {\"changed_paths\": [\"cadastro.html\"], \"effective_source_digest\": \"2c993f2095f3ee98b5095a5963bccb8caf4d09b9f359d89e7230cc2e1cf2d287\", \"previous_generation\": \"2fa75ae94b936263fee9467e634cb8970c4ffc299a232f39b42ae087bec2300c\", \"status\": \"required\"}, \"mutation_receipt\": {\"available\": {}, \"available_tuple\": [], \"changeset\": null, \"duration_ms\": null, \"entrypoint\": \"edit\", \"files\": [], \"final_status\": \"applied\", \"legacy\": false, \"migration_phase\": \"shadow\", \"plan\": null, \"receipt_version\": 1, \"retry\": {\"attempt\": 1, \"max_attempts\": 1, \"retryable\": false}, \"route\": \"standalone\", \"runtime_gated\": false, \"schema\": \"simplicio.dev-cli.mutation-route/v1\", \"verification\": {\"commands\": [], \"reason_code\": \"verify_skipped_no_test_cmd\", \"results\": [], \"status\": \"skipped\"}}, \"noop\": false, \"operation_count\": 2, \"plan_digest\": \"556458399cf132659a723edb7fe344d3fc50db7b30bf43cb03de6e319f418858\", \"planned_diff\": \"--- a/cadastro.html\\n+++ b/cadastro.html\\n@@ -20,8 +20,14 @@\\n     <label for=\\\"email\\\">E-mail</label>\\n     <input id=\\\"email\\\" name=\\\"email\\\" type=\\\"email\\\" required>\\n \\n+    <label for=\\\"phone\\\">Telefone</label>\\n+    <input id=\\\"phone\\\" name=\\\"phone\\\" type=\\\"tel\\\">\\n+\\n     <label for=\\\"password\\\">Senha</label>\\n     <input id=\\\"password\\\" name=\\\"password\\\" type=\\\"password\\\" required minlength=\\\"8\\\">\\n+\\n+    <label for=\\\"password_confirm\\\">Confirme a senha</label>\\n+    <input id=\\\"password_confirm\\\" name=\\\"password_confirm\\\" type=\\\"password\\\" required minlength=\\\"8\\\">\\n \\n     <button type=\\\"submit\\\">Cadastrar</button>\\n   </form>\\n\", \"receipt_digest\": \"85d2107d0084f1116627017f0bb6d5996a87ffccbf2bc63b9bdb67ea31432036\", \"root\": \".\", \"schema\": \"simplicio.dev-cli.edit-receipt/v1\", \"status\": \"ok\", \"validation\": [], \"verify\": {\"commands\": [], \"reason_code\": \"verify_skipped_no_test_cmd\", \"results\": [], \"status\": \"skipped\"}}\n"
+            },
+            {
+              "turn": 9,
+              "command": "cd /tmp/llm-ab-13a74n2r/simplicio-repo && python3 tests/check_cadastro.py --stage 2; echo \"exit=$?\"; echo ---; cat -n cadastro.html",
+              "returncode": 0,
+              "wall_s": 0.1634,
+              "cpu_s": 0.1641,
+              "peak_rss_mb": 7.12,
+              "is_simplicio": true,
+              "output_bytes": 1393,
+              "output_tail": "PASS: stage 2 ok\nexit=0\n---\n     1\t<!DOCTYPE html>\n     2\t<html lang=\"pt-BR\">\n     3\t<head>\n     4\t  <meta charset=\"utf-8\">\n     5\t  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n     6\t  <title>Cadastro</title>\n     7\t  <style>\n     8\t    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 32rem; }\n     9\t    form { display: grid; gap: 0.75rem; }\n    10\t    label { font-weight: 600; }\n    11\t    input, button { font: inherit; padding: 0.5rem; }\n    12\t  </style>\n    13\t</head>\n    14\t<body>\n    15\t  <h1>Cadastro de usu\u00e1rio</h1>\n    16\t  <form id=\"cadastro\" action=\"#\" method=\"post\">\n    17\t    <label for=\"name\">Nome</label>\n    18\t    <input id=\"name\" name=\"name\" type=\"text\" required>\n    19\t\n    20\t    <label for=\"email\">E-mail</label>\n    21\t    <input id=\"email\" name=\"email\" type=\"email\" required>\n    22\t\n    23\t    <label for=\"phone\">Telefone</label>\n    24\t    <input id=\"phone\" name=\"phone\" type=\"tel\">\n    25\t\n    26\t    <label for=\"password\">Senha</label>\n    27\t    <input id=\"password\" name=\"password\" type=\"password\" required minlength=\"8\">\n    28\t\n    29\t    <label for=\"password_confirm\">Confirme a senha</label>\n    30\t    <input id=\"password_confirm\" name=\"password_confirm\" type=\"password\" required minlength=\"8\">\n    31\t\n    32\t    <button type=\"submit\">Cadastrar</button>\n    33\t  </form>\n    34\t</body>\n    35\t</html>\n"
+            },
+            {
+              "turn": 10,
+              "command": "cd /tmp/llm-ab-13a74n2r/simplicio-repo && python3 tests/check_cadastro.py --stage 1; echo \"stage1_exit=$?\"; rm -f ops.json plan.json; git status --porcelain",
+              "returncode": 0,
+              "wall_s": 0.1841,
+              "cpu_s": 0.1816,
+              "peak_rss_mb": 7.17,
+              "is_simplicio": true,
+              "output_bytes": 759,
+              "output_tail": "PASS: stage 1 ok\nstage1_exit=0\n M .simplicio/architecture-inventory.json\n M .simplicio/artifact-manifest.json\n M .simplicio/cache/cache.db\n M .simplicio/call-graph.json\n M .simplicio/context-cache.json\n M .simplicio/context-snapshot.json\n M .simplicio/events.jsonl\n M .simplicio/history/index.json\n M .simplicio/index-state.json\n M .simplicio/ledger/savings-events.jsonl\n M .simplicio/map-job.json\n M .simplicio/precedent-index.json\n M .simplicio/project-capability-generation.json\n M .simplicio/project-map.json\n M .simplicio/retrieval-index.json\n M .simplicio/symbol-index.json\n M cadastro.html\n?? .simplicio/fast/survey-cache/sha256:0f06d093664f16a09d67d6b46bc000323f822629fce8c2e24aee74e4cb0184cf/\n?? .simplicio/history/2026-09-26T03-21-45-953Z_f6930703/\n"
+            }
+          ],
+          "totals": {
+            "prompt_tokens": 144650,
+            "completion_tokens": 2203,
+            "reasoning_tokens": 656,
+            "cached_tokens": 96414,
+            "cost_usd": 0.01818,
+            "llm_latency_s": 28.2012,
+            "cmd_wall_s": 6.5015,
+            "cmd_cpu_s": 6.5022,
+            "n_commands": 13,
+            "n_simplicio_commands": 8
+          },
+          "final_text": "MEASURED| Applied via `simplicio-dev-cli edit` (fast-path, 2 operations, receipt `applied: true`).\n\n- `cadastro.html` now has, inside `<form id=\"cadastro\">`, a labeled phone field (`<label for=\"phone\">` + `<input id=\"phone\" name=\"phone\" type=\"tel\">`) and a labeled confirm-password field (`<label for=\"password_confirm\">` + `<input id=\"password_confirm\" name=\"password_confirm\" type=\"password\" required minlength=\"8\">`), with the original name/email/password/submit fields untouched.\n- Evidence: `python3 tests/check_cadastro.py --stage 2` \u2192 `PASS: stage 2 ok` (exit 0); `--stage 1` \u2192 `PASS: stage 1 ok` (exit 0).\n\nDONE",
+          "wall_s": 34.712,
+          "check_output_tail": "PASS: stage 2 ok"
+        }
+      ],
+      "total_wall_s": 135.594,
+      "final": {
+        "check_passed": true,
+        "check_output_tail": "PASS: stage 2 ok"
+      }
+    }
+  }
+}

@@ -114,17 +114,29 @@ def diff_history(current: dict, previous: dict) -> dict:
     return out
 
 
-def load_history(results_dir: str, exclude_path: Optional[str] = None) -> list[dict]:
+def load_history(
+    results_dir: str, exclude_path: Optional[str] = None, task_count: Optional[int] = None
+) -> list[dict]:
     """Load every ``*.json`` results file in ``results_dir`` (append-only
-    history), sorted by filename (the ``<UTC-date>-<shortsha>.json`` naming
-    convention sorts chronologically), excluding ``exclude_path`` (the file
-    currently being written). A file that fails to parse (corrupt, or from a
-    format this harness no longer writes) is skipped rather than raised."""
+    history), sorted by filename (the ``<UTC-date>-<shortsha>-t<N>.json``
+    naming convention sorts chronologically), excluding ``exclude_path`` (the
+    file currently being written). A file that fails to parse (corrupt, or
+    from a format this harness no longer writes) is skipped rather than
+    raised.
+
+    When ``task_count`` is given, only files whose name ends in
+    ``-t<task_count>.json`` are kept -- a 2-task run and a 4-task run are not
+    comparable, so history/diffing must never mix them. This also excludes
+    legacy files written before the ``-tN`` suffix existed (no way to know
+    how many tasks they ran)."""
     exclude_abs = os.path.abspath(exclude_path) if exclude_path else None
     paths = sorted(glob.glob(os.path.join(results_dir, "*.json")))
+    suffix = f"-t{task_count}.json" if task_count is not None else None
     history = []
     for path in paths:
         if exclude_abs and os.path.abspath(path) == exclude_abs:
+            continue
+        if suffix is not None and not os.path.basename(path).endswith(suffix):
             continue
         try:
             with open(path) as f:
