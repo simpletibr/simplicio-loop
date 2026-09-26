@@ -6,9 +6,12 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "bench" / "llm_ab"))
 
+pytest.importorskip("matplotlib")
 import report  # noqa: E402
 import standard  # noqa: E402
 
