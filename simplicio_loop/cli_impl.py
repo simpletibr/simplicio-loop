@@ -661,6 +661,10 @@ _ORIENT_SKIP_DIRS = {
 _ORIENT_SOURCE_EXT = {
     ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".go", ".rs",
     ".java", ".rb", ".php", ".cs", ".cpp", ".cc", ".c", ".h", ".hpp",
+    # Non-code deliverables are real targets too (issue #1310 benchmark is
+    # pure-HTML create/edit tasks) -- never leave a plain-HTML/CSS task with
+    # 0 candidates just because it has no function/class identifiers.
+    ".html", ".htm", ".css", ".md",
 }
 ORIENT_TARGET_MAX_FILES = 5
 ORIENT_TARGET_MAX_TOTAL_BYTES = 6 * 1024
@@ -851,12 +855,16 @@ def _orient_build_targets(root: Path, task: str, context_summary: Mapping[str, A
     }
 
 
-def orient(repo: str, task: str, fast_mode: str = "auto",
-           fast_context_budget: int = 48000, fast_engine: str = "auto",
-           tee: bool = False, targets: list[str] | None = None,
-           verbose: bool = False) -> int:
-    """Run bounded Fast orient with an explicit Mapper fallback receipt."""
-    root = Path(repo).resolve()
+def _orient_core(root: Path, task: str, fast_mode: str, fast_context_budget: int,
+                  fast_engine: str, targets: list[str] | None,
+                  verbose: bool) -> tuple[dict[str, Any], int]:
+    """Compute one task's orient payload (Fast, with an explicit Mapper
+    fallback receipt) without printing/tee -- shared by ``orient()`` (CLI,
+    single task) and ``orient_brief()`` (Turn 1 of issue #1310's
+    plan-once/apply-once hot path, N tasks). The verbose/trim shape is
+    identical to the pre-refactor inline body of ``orient()``; behavior for
+    a single task through the CLI is unchanged.
+    """
     if not root.is_dir() or not str(task).strip():
         payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
                    "provider": None, "fallback": False,
@@ -864,8 +872,7 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
         _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
                              fast_engine=fast_engine,
                              fast_context_budget=fast_context_budget)
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return 2
+        return payload, 2
     if fast_context_budget < 1:
         payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
                    "provider": None, "fallback": False,
@@ -873,8 +880,7 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
         _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
                              fast_engine=fast_engine,
                              fast_context_budget=fast_context_budget)
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return 2
+        return payload, 2
     if fast_engine not in {"auto", "rust", "python", "off"}:
         raise ValueError("fast_engine must be auto, rust, python, or off")
     config_mode = {"auto": "auto", "on": "required", "off": "standalone"}.get(fast_mode)
@@ -912,12 +918,7 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
         payload["targets"] = _orient_build_targets(root, str(task), payload["context"])
         if not verbose:
             payload = _orient_trim_verbose_fields(payload)
-        if tee:
-            from .tee_cache import write
-            path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
-            payload["tee_path"] = str(path)
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return 0
+        return payload, 0
     if fast_mode == "on" or fast_engine == "rust":
         fallback_reason = fallback_reason or _orient_extract_fallback_reason(fast_payload) or "fast_not_ready"
         payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
@@ -932,12 +933,7 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
                              fast_context_budget=fast_context_budget)
         if not verbose:
             payload = _orient_trim_verbose_fields(payload)
-        if tee:
-            from .tee_cache import write
-            path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
-            payload["tee_path"] = str(path)
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return 2
+        return payload, 2
     fallback_reason = (
         fallback_reason
         or _orient_extract_fallback_reason(fast_payload)
@@ -957,12 +953,228 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
     payload["targets"] = _orient_build_targets(root, str(task), payload["context"])
     if not verbose:
         payload = _orient_trim_verbose_fields(payload)
+    return payload, (0 if status == "FALLBACK" else 2)
+
+
+def orient(repo: str, task: str, fast_mode: str = "auto",
+           fast_context_budget: int = 48000, fast_engine: str = "auto",
+           tee: bool = False, targets: list[str] | None = None,
+           verbose: bool = False, brief: bool = False,
+           tasks: list[str] | None = None) -> int:
+    """Run bounded Fast orient with an explicit Mapper fallback receipt.
+
+    ``brief=True`` (issue #1310) renders Turn 1 of the plan-once/apply-once
+    hot path: a compact, multi-task payload built from the SAME Mapper
+    survey + Fast context this function always uses -- never a shortcut
+    around them. Non-brief output (single task) is byte-identical to
+    before this option existed.
+    """
+    root = Path(repo).resolve()
+    if brief:
+        task_list = list(tasks or ([task] if task else []))
+        payload = orient_brief(root, task_list, fast_mode=fast_mode,
+                               fast_context_budget=fast_context_budget,
+                               fast_engine=fast_engine, targets=targets)
+        if tee:
+            from .tee_cache import write
+            path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
+            payload["tee_path"] = str(path)
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if payload.get("status") in {"READY", "FALLBACK"} else 2
+    payload, code = _orient_core(root, task, fast_mode, fast_context_budget,
+                                  fast_engine, targets, verbose)
     if tee:
         from .tee_cache import write
         path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
         payload["tee_path"] = str(path)
     print(json.dumps(payload, ensure_ascii=False, indent=2))
-    return 0 if status == "FALLBACK" else 2
+    return code
+
+
+ORIENT_BRIEF_SCHEMA = "simplicio.loop-orient-brief/v1"
+ORIENT_BRIEF_TARGET_CAP_BYTES = 16 * 1024
+
+
+def _brief_head_tail(text: str, cap_bytes: int = ORIENT_BRIEF_TARGET_CAP_BYTES) -> tuple[str, bool]:
+    """Head+tail truncation to ``cap_bytes`` (issue #1310: 16 KB/file cap on
+    the brief's target content, so `apply --brief` never needs a separate
+    `cat` even for a file larger than the old 2 KB inline-content ceiling)."""
+    encoded = text.encode("utf-8", "surrogateescape")
+    if len(encoded) <= cap_bytes:
+        return text, False
+    half = cap_bytes // 2
+    head = encoded[:half].decode("utf-8", "replace")
+    tail = encoded[-half:].decode("utf-8", "replace")
+    return head + "\n...<truncated>...\n" + tail, True
+
+
+def _brief_suggest_checks(root: Path) -> list[str]:
+    """Suggested checks from the toolchain already on disk (issue #1310);
+    never invents a command the repo has no evidence of supporting."""
+    checks: list[str] = []
+    if any((root / name).is_file() for name in ("pyproject.toml", "pytest.ini", "setup.cfg")):
+        checks.append("pytest -q")
+    pkg = root / "package.json"
+    if pkg.is_file():
+        try:
+            data = json.loads(pkg.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            data = {}
+        scripts = data.get("scripts") if isinstance(data, Mapping) else None
+        if isinstance(scripts, Mapping) and "test" in scripts:
+            checks.append("npm test")
+    if (root / "Makefile").is_file():
+        checks.append("make check")
+    return checks
+
+
+def _brief_build_targets(root: Path, tasks: Sequence[str],
+                         per_task_context: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Target files with content, deduped across tasks, capped per file
+    (issue #1310: "the target files with content, no separate cat")."""
+    seen: dict[str, dict[str, Any]] = {}
+    for task, context in zip(tasks, per_task_context):
+        for path in _orient_target_seed_candidates(root, task, context)[:ORIENT_TARGET_MAX_FILES]:
+            rel = str(path.relative_to(root))
+            if rel in seen:
+                continue
+            try:
+                content = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            trimmed, truncated = _brief_head_tail(content)
+            seen[rel] = {"path": rel, "content": trimmed, "truncated": truncated}
+    return list(seen.values())
+
+
+def _brief_plan_groups(tasks: Sequence[str], per_task_targets: Sequence[Sequence[str]]) -> dict[str, Any]:
+    """``parallel`` for tasks touching disjoint target files, ``ordered``
+    groups (declared-order lists) for tasks that share one (issue #1310)."""
+    n = len(tasks)
+    parent = list(range(n))
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a: int, b: int) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    path_owner: dict[str, int] = {}
+    for i, paths in enumerate(per_task_targets):
+        for path in paths:
+            if path in path_owner:
+                union(path_owner[path], i)
+            else:
+                path_owner[path] = i
+
+    groups: dict[int, list[str]] = {}
+    for i in range(n):
+        groups.setdefault(find(i), []).append(tasks[i])
+    parallel = [group[0] for group in groups.values() if len(group) == 1]
+    ordered = [group for group in groups.values() if len(group) > 1]
+    return {"parallel": parallel, "ordered": ordered}
+
+
+def _brief_apply_command(root: Path) -> dict[str, Any]:
+    return {
+        "command": f"simplicio-loop apply ops.json --repo {root} --json",
+        "ops_format": {
+            "tasks": [{
+                "id": "<task-id>",
+                "operations": [{"path": "<repo-relative>", "find": "<exact unique text>", "replace": "<new text>"}],
+                "check": "<optional shell check command>",
+                "depends_on": ["<other task id, optional>"],
+            }],
+            "repo_state_chain": "<copy verbatim from this brief's own repo_state_chain field>",
+        },
+    }
+
+
+def orient_brief(root: Path, tasks: list[str], *, fast_mode: str = "auto",
+                  fast_context_budget: int = 48000, fast_engine: str = "auto",
+                  targets: list[str] | None = None) -> dict[str, Any]:
+    """Turn 1 of the plan-once/apply-once hot path (issue #1310): a compact
+    rendering of the SAME Mapper survey + Fast context ``orient`` always
+    runs, for one or more tasks -- never a shortcut around them. Route
+    first, then deduped target content, plan groups, suggested checks, the
+    Mapper/Fast generation + context hash (so cache reuse stays
+    measurable), and the exact ``apply`` command.
+    """
+    task_list = [str(t) for t in tasks if str(t).strip()]
+    if not task_list:
+        return {
+            "schema": ORIENT_BRIEF_SCHEMA, "status": "BLOCKED", "reason": "no_tasks",
+            "route": {"mode": "converge", "justification": "no task given", "resolved_files": [], "next": []},
+        }
+
+    per_task: list[dict[str, Any]] = []
+    for task in task_list:
+        payload, code = _orient_core(root, task, fast_mode, fast_context_budget,
+                                      fast_engine, targets, verbose=True)
+        per_task.append({"task": task, "payload": payload, "exit_code": code})
+
+    routes = [item["payload"].get("route") or {} for item in per_task]
+    if len(task_list) == 1:
+        overall_route = routes[0]
+    else:
+        overall_mode = "converge" if any(r.get("mode") == "converge" for r in routes) else "fast-path"
+        overall_route = {
+            "mode": overall_mode,
+            "justification": f"{len(task_list)} tasks: " + "; ".join(
+                f"{item['task']}={r.get('mode')}" for item, r in zip(per_task, routes)
+            ),
+            "resolved_files": sorted({f for r in routes for f in (r.get("resolved_files") or [])}),
+            "per_task": [{"task": item["task"], "mode": r.get("mode")} for item, r in zip(per_task, routes)],
+        }
+
+    contexts = [item["payload"].get("context") or {} for item in per_task]
+    per_task_target_lists = []
+    for item, context in zip(per_task, contexts):
+        entries = ((item["payload"].get("targets") or {}).get("files")) or []
+        all_paths = [e["path"] for e in entries if isinstance(e, Mapping) and e.get("path")]
+        # Plan grouping cares about which file(s) a task actually names, not
+        # every candidate a tiny/ambiguous repo's ranking surfaced (a 2-file
+        # repo returns both files as "candidates" for every task) -- prefer
+        # the path(s) literally mentioned in the task text when any match.
+        named = [p for p in all_paths if Path(p).name.lower() in item["task"].lower()]
+        per_task_target_lists.append(named or all_paths[:1])
+
+    statuses = [item["payload"].get("status") for item in per_task]
+    overall_status = "BLOCKED" if all(s == "BLOCKED" for s in statuses) else (
+        "READY" if all(s in {"READY", "FALLBACK"} for s in statuses) and any(s == "READY" for s in statuses)
+        else "FALLBACK"
+    )
+
+    generations = []
+    for item in per_task:
+        provenance = _orient_provider_provenance(item["payload"])
+        generations.append({
+            "task": item["task"],
+            "operator": provenance.get("operator"),
+            "generation": provenance.get("generation"),
+            "context_hash": provenance.get("context_hash"),
+        })
+
+    from .runner import _repo_fingerprint
+    repo_state_chain = _repo_fingerprint(root)
+
+    payload: dict[str, Any] = {}
+    payload["route"] = overall_route
+    payload["schema"] = ORIENT_BRIEF_SCHEMA
+    payload["status"] = overall_status
+    payload["tasks"] = task_list
+    payload["targets"] = _brief_build_targets(root, task_list, contexts)
+    payload["plan"] = _brief_plan_groups(task_list, per_task_target_lists)
+    payload["checks"] = _brief_suggest_checks(root)
+    payload["generations"] = generations
+    payload["repo_state_chain"] = repo_state_chain
+    payload["apply"] = _brief_apply_command(root)
+    return payload
 
 
 def extensions_doctor(provider: str, policy: str, schema: str) -> int:
@@ -2068,7 +2280,19 @@ def main(argv=None) -> int:
 
     p_orient = sub.add_parser("orient", help="orient a task through Fast with Mapper fallback")
     p_orient.add_argument("--repo", default=".", help="repository root")
-    p_orient.add_argument("--task", required=True, help="task text or issue objective")
+    p_orient.add_argument(
+        "--task", dest="tasks", action="append", default=[],
+        help="task text or issue objective (repeatable with --brief for N tasks)",
+    )
+    p_orient.add_argument(
+        "--brief", action="store_true",
+        help=(
+            "compact multi-task rendering (issue #1310, Turn 1 of the "
+            "plan-once/apply-once hot path): route first, deduped target "
+            "content, plan groups, suggested checks, Mapper/Fast "
+            "generation + context hash, and the exact `apply` command"
+        ),
+    )
     p_orient.add_argument("--fast", choices=("auto", "on", "off"), default="auto",
                           help="Fast policy: auto fallback, on fail-closed, or off")
     p_orient.add_argument("--fast-context-budget", type=int, default=48000,
@@ -2510,8 +2734,11 @@ def main(argv=None) -> int:
     if command in {"prepare", "arm"}:
         return prepare(args.repo, args.task, args.delivery, args.max_iterations)
     if command == "orient":
-        return orient(args.repo, args.task, args.fast, args.fast_context_budget, args.fast_engine, args.tee,
-                      args.targets, args.verbose)
+        task_list = list(args.tasks or [])
+        if not task_list:
+            parser.error("orient requires at least one --task")
+        return orient(args.repo, task_list[0], args.fast, args.fast_context_budget, args.fast_engine, args.tee,
+                      args.targets, args.verbose, args.brief, task_list)
     if command == "retrieve":
         from .tee_cache import retrieve
         try:
