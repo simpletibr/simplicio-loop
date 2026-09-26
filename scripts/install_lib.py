@@ -15,6 +15,7 @@ Also installs+verifies the REQUIRED loop operator distributions (`simplicio-cli`
 
 Usage:
     python3 scripts/install_lib.py <runtime> [--global] [--target DIR] [--skip-operators] [--lite]
+                                    [--with-runtime-mcp]
     <runtime> ∈ claude codex grok vscode cursor antigravity kiro opencode gemini aider
                simplicio_agent openclaw orca
                (hermes accepted as a legacy alias for simplicio_agent)
@@ -691,13 +692,16 @@ def detect():
     return "claude"
 
 
-OPCODE_CONFIG = os.path.join(HOME, ".config", "opencode", "opencode.json")
-OPCODE_SKILLS = os.path.join(HOME, ".config", "opencode", "skills")
+def copy_skills_opencode(target, is_global=False):
+    """Copy skills to OpenCode's skill directory.
 
-
-def copy_skills_opencode():
-    """Copy skills to OpenCode's skill directory (~/.config/opencode/skills/)."""
-    dst_root = OPCODE_SKILLS
+    Project-local (default): `<target>/.opencode/skills/`. `--global`
+    (`is_global=True`): the real user config, `$HOME/.config/opencode/skills/`.
+    Honors `target`/`is_global` exactly like `copy_skills()` -- a project-local
+    OpenCode install must never fall back to writing into the real `$HOME` (#1327).
+    """
+    dst_root = (os.path.join(HOME, ".config", "opencode", "skills") if is_global
+                else os.path.join(target, ".opencode", "skills"))
     os.makedirs(dst_root, exist_ok=True)
     for s in SKILLS:
         src = os.path.join(SOURCE, ".claude", "skills", s)
@@ -711,13 +715,22 @@ def copy_skills_opencode():
     log("opencode skills -> %s" % dst_root)
 
 
-def merge_opencode_mcp():
-    """Register simplicio MCP server in opencode.json.
-    Best-effort: any failure logs a warning and prints the manual command."""
+def merge_opencode_mcp(target, is_global=False):
+    """Register the OPTIONAL Simplicio Runtime bind in opencode.json.
+
+    Only called when the caller explicitly requested the runtime bind
+    (`--with-runtime-mcp` / `SIMPLICIO_INSTALL_RUNTIME_MCP=1`, see main()) -- the
+    loop's required operators remain mapper + dev-cli, never Runtime/MCP.
+    Project-local (default): `<target>/opencode.json`. `--global`
+    (`is_global=True`): `$HOME/.config/opencode/opencode.json`. Best-effort:
+    any failure logs a warning and prints the manual command.
+    """
+    config_path = (os.path.join(HOME, ".config", "opencode", "opencode.json") if is_global
+                   else os.path.join(target, "opencode.json"))
     try:
         data = {}
-        if os.path.exists(OPCODE_CONFIG):
-            with open(OPCODE_CONFIG, encoding="utf-8") as f:
+        if os.path.exists(config_path):
+            with open(config_path, encoding="utf-8") as f:
                 data = json.load(f)
         mcp = data.setdefault("mcp", {})
         if "simplicio" in mcp:
@@ -752,9 +765,10 @@ def merge_opencode_mcp():
             "command": [simplicio_path, "serve", "--mcp", "--stdio"],
             "enabled": True
         }
-        with open(OPCODE_CONFIG, "w", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(config_path) or ".", exist_ok=True)
+        with open(config_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
-        log("opencode MCP registered -> %s" % OPCODE_CONFIG)
+        log("opencode MCP registered -> %s" % config_path)
     except Exception as e:
         log("! opencode MCP registration failed: %s" % e)
         log('  manually add to opencode.json: {"mcp":{"simplicio":{"type":"local",'
@@ -960,6 +974,11 @@ def main():
     # (or SIMPLICIO_ALLOW_BREAK_SYSTEM_PACKAGES=1) is the one explicit opt-in that lets a PEP-668
     # externally-managed refusal escalate to it; see _pip_install()/ensure_operators() above.
     allow_break_system_packages = "--allow-break-system-packages" in args
+    # #1327: opencode.json registers an OPTIONAL Simplicio Runtime bind -- the loop's required
+    # operators remain mapper + dev-cli, never Runtime/MCP -- so it is only written when the
+    # caller explicitly asks for it, project-local or --global alike.
+    with_runtime_mcp = ("--with-runtime-mcp" in args
+                         or os.environ.get("SIMPLICIO_INSTALL_RUNTIME_MCP") == "1")
     test_fail_step = None
     if "--test-fail-step" in args:
         i = args.index("--test-fail-step")
@@ -968,7 +987,8 @@ def main():
     args = [a for a in args if a not in
             ("--global", "--skip-operators", "--with-monitor", "--minimal", "--no-monitor",
              "--with-service", "--full-stack", "--ci",
-             "--lite", "--strict", "--dry-run", "--transactional", "--allow-break-system-packages")]
+             "--lite", "--strict", "--dry-run", "--transactional", "--allow-break-system-packages",
+             "--with-runtime-mcp")]
     target = None
     if "--target" in args:
         i = args.index("--target")
@@ -1100,8 +1120,9 @@ def main():
     elif cfg["hooks"] != "claude":
         log("loop runs self-paced (no stop-hook) — see adapters/%s/README.md" % runtime)
     if runtime == "opencode":
-        copy_skills_opencode()
-        merge_opencode_mcp()
+        copy_skills_opencode(target, is_global)
+        if with_runtime_mcp:
+            merge_opencode_mcp(target, is_global)
     if cfg["mcp"]:
         log("required native bind:  simplicio install --global   (or: simplicio serve --mcp --stdio)")
     if not transactional:
