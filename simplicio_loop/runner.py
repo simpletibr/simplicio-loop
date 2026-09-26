@@ -7202,8 +7202,12 @@ def _assert_task_dependencies_ready(
     run_id: str,
     *,
     step: Mapping[str, Any] | None = None,
+    in_batch: Collection[int] = (),
 ) -> None:
-    """Reject a tick that arrives before every declared predecessor completed."""
+    """Reject a tick that arrives before every declared predecessor completed.
+
+    A predecessor dispatched in the same batch (``in_batch``) is ordered by
+    the batch's shared serial run, so it has no result marker yet."""
     aliases: dict[str, int] = {
         alias: index
         for index, task in enumerate(tasks, start=1)
@@ -7218,6 +7222,8 @@ def _assert_task_dependencies_ready(
             )
         if dependency_index == task_index:
             raise RuntimeError(f"task cannot depend on itself: task {task_index}")
+        if dependency_index in in_batch:
+            continue
         marker = run_dir / f"task-{dependency_index}-result.json"
         if not marker.is_file():
             raise RuntimeError(
@@ -9573,7 +9579,9 @@ def execute_operator_batch(
         items.append(item)
     for index in indices:
         step = contract_steps[index - 1] if index <= len(contract_steps) and isinstance(contract_steps[index - 1], Mapping) else None
-        _assert_task_dependencies_ready(run_dir, contract_tasks, index, run_id, step=step)
+        _assert_task_dependencies_ready(
+            run_dir, contract_tasks, index, run_id, step=step, in_batch=set(indices),
+        )
     items = _omit_satisfied_dispatch_dependencies(
         items,
         satisfied_aliases=_completed_task_aliases(run_dir, contract_tasks, run_id),
