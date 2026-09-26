@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/control-policy
+schema: simplicio.skill-reference/v1
+purpose: `simplicio_loop/control_policy.py` is a pure convergence policy, not a second control plane.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Control policy — RunProjection → LoopDecision (issue #261)
 
 `simplicio_loop/control_policy.py` is a pure convergence policy, not a second control plane. It

@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/extension-points
+schema: simplicio.skill-reference/v1
+purpose: These are the named points where work happens.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Extension points — the 50 named binding points
 
 These are the named points where work happens. For each, if the host runtime exposes a native

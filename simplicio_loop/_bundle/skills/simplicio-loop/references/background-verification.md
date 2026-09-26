@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/background-verification
+schema: simplicio.skill-reference/v1
+purpose: Referenced from `SKILL.md` § The loop contract, step 3 ("Work the goal"), alongside `triage-verify-detail.md`.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Background verification — run tests non-blocking, keep working (full detail)
 
 Referenced from `SKILL.md` § The loop contract, step 3 ("Work the goal"), alongside

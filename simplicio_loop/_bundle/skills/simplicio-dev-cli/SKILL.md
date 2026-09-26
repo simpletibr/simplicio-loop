@@ -3,6 +3,13 @@ name: simplicio-dev-cli
 description: Perform deterministic Simplicio code changes and validation through the Dev CLI. Use for file edits, patches, implementation, formatting, tests, diagnostics, pre-effect validation, retries, evidence files, and safe mutation workflows. The agent decides intent; Dev CLI owns the mutation and verification.
 ---
 
+<!-- simplicio-contract:begin -->
+contract: simplicio-dev-cli
+schema: simplicio.skill/v1
+purpose: Perform deterministic Simplicio code changes and validation through the Dev CLI.
+rules: Follow this skill end-to-end; mutable data (versions, dates, counts) lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Simplicio Dev CLI
 
 Use Dev CLI as the EXECUTE, EDIT, VALIDATE, and DIAGNOSTICS owner. Survey with Mapper first, then pass a bounded plan and evidence to the CLI. Read `references/capabilities.yaml` and `references/interfaces.md` for exact contracts and failure handling.
@@ -45,3 +52,22 @@ inside an active Loop route as `loop.dev_cli`. It is never a fourth peer Runtime
 route. A direct Runtime edit uses `simplicio edit` by default; an active Loop may
 use Dev CLI for bounded implementation and validation and delegate the mechanical
 write to that Runtime writer.
+
+## What the model sees
+
+When a host loads this skill, the model receives the YAML frontmatter, the
+immutable `simplicio-contract` header, and this body, verbatim. Files under
+`references/` enter the context only when this body points to them. Nothing
+here is generated per run.
+
+### Token effect
+
+The body is paid once per session as input tokens. References are paid only on
+demand, so the always-loaded part stays the short hot path.
+
+### KV cache effect
+
+The frontmatter and header are byte-stable across releases (pinned in
+`contracts/headers.lock.json`), and mutable data lives only at the end of the
+file. The provider can therefore reuse the cached prefix from the second call
+on, and a release does not invalidate it unless a `header-change:` note says so.

@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-tasks/video-evidence
+schema: simplicio.skill-reference/v1
+purpose: Concrete implementation of the `video_evidence` extension point: produce a demo video of a screen/feature and record it as evidence a change works.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Video evidence — `video_evidence` (Playwright by default · hyperframes on request)
 
 Concrete implementation of the `video_evidence` extension point: produce a demo video of a

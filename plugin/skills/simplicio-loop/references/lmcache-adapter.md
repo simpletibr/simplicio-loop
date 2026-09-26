@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/lmcache-adapter
+schema: simplicio.skill-reference/v1
+purpose: A concrete binding of the **`model_cache`** and **`inference_optimization`** extension points using [LMCache](https://github.com/LMCache/LMCache) — a high-performance KV cache management layer for LLM inference.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # LMCache adapter — KV cache management layer for local inference
 
 A concrete binding of the **`model_cache`** and **`inference_optimization`** extension points

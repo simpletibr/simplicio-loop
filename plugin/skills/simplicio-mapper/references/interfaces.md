@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-mapper/interfaces
+schema: simplicio.skill-reference/v1
+purpose: Use the repository's installed Mapper CLI/API/MCP surface discovered at runtime.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Mapper interfaces
 
 Use the repository's installed Mapper CLI/API/MCP surface discovered at runtime. Do not invent command names. The capability ID is stable; the concrete adapter may vary by version.

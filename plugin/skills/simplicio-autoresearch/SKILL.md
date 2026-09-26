@@ -3,6 +3,13 @@ name: simplicio-autoresearch
 description: Evolutionary optimize-by-metric loop — mutate a target, evaluate against fixed criteria, KEEP if the score improves (commit) or REVERT if it doesn't (git checkout), repeat, plateau-break after N stagnated runs. Adapts Karpathy's `autoresearch` pattern (and the ECC `autoresearch-agent`) with mandatory yool guardrails (§11 caps), git-isolated branch discipline, an anti-Goodhart eval order (correctness gate FIRST, score SECOND, labeled tokenizer), a local-first mutation ladder, and a `simplicio.savings-event/v1` receipt per run. Use when the user says "optimize this by <metric>", "autoresearch loop", "evolutionary optimize", "mutate/eval/keep-revert", or asks to shrink tokens/latency/bundle size/improve pass-rate against a fixed, measurable eval. Worker: `scripts/autoresearch.py`.
 ---
 
+<!-- simplicio-contract:begin -->
+contract: simplicio-autoresearch
+schema: simplicio.skill/v1
+purpose: Evolutionary optimize-by-metric loop — mutate a target, evaluate against fixed criteria, KEEP if the score improves (commit) or REVERT if it doesn't (git checkout), repeat, plateau-break after N stagnated runs.
+rules: Follow this skill end-to-end; mutable data (versions, dates, counts) lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # simplicio-autoresearch — evolutionary optimize-by-metric loop
 
 Credit: Andrej Karpathy's `autoresearch` pattern
@@ -163,3 +170,22 @@ python3 scripts/autoresearch.py selftest                   # pure decision math,
 - Never hand-type baseline/actual numbers in the receipt — they come from the eval command's own
   output, captured by the worker.
 - Never squash-finish on a losing state — `finish` refuses when the winner's gate isn't `pass`.
+
+## What the model sees
+
+When a host loads this skill, the model receives the YAML frontmatter, the
+immutable `simplicio-contract` header, and this body, verbatim. Files under
+`references/` enter the context only when this body points to them. Nothing
+here is generated per run.
+
+### Token effect
+
+The body is paid once per session as input tokens. References are paid only on
+demand, so the always-loaded part stays the short hot path.
+
+### KV cache effect
+
+The frontmatter and header are byte-stable across releases (pinned in
+`contracts/headers.lock.json`), and mutable data lives only at the end of the
+file. The provider can therefore reuse the cached prefix from the second call
+on, and a release does not invalidate it unless a `header-change:` note says so.

@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-prism/discovery
+schema: simplicio.skill-reference/v1
+purpose: Generate an inventory from the actual checkout or installed package before trusting an interface.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Capability discovery and confidence
 
 Generate an inventory from the actual checkout or installed package before trusting an interface. The inventory is the evidence layer; the human-authored `capabilities.yaml` explains routing semantics.

@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/run-journal-stall-detector
+schema: simplicio.skill-reference/v1
+purpose: Moved out of `SKILL.md` § Run-journal + stall detector as part of the #119 shrink (SKILL.md keeps only the three commands and the one-paragraph summary; this file has the full mechanics).
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Run-journal + stall detector (the loop's working memory) — full detail
 
 Moved out of `SKILL.md` § Run-journal + stall detector as part of the #119 shrink (SKILL.md keeps

@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/full-flow
+schema: simplicio.skill-reference/v1
+purpose: Moved out of `SKILL.md` as part of the SKILL.md hot-path shrink (SKILL.md keeps the fastest-route picker, the wave-flow commands, a short `tasks.md` format, Done/promise, Contract essentials, the SIMPLICIO-LLM-ORIENTATION block, and Guardrails; everything below is the full elaboration, read only whe
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Full per-turn protocol, modes, DoD, delivery — full detail
 
 Moved out of `SKILL.md` as part of the SKILL.md hot-path shrink (SKILL.md keeps the fastest-route

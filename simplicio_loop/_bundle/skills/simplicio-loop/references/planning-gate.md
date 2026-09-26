@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/planning-gate
+schema: simplicio.skill-reference/v1
+purpose: Moved out of `SKILL.md` § Planning gate (SKILL.md keeps the one-paragraph summary and the two mandatory-by-default flags; this file has the schema, reason codes, and drift/replan mechanics).
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Planning gate — task-intake contract + mutation authority (issue #284, full detail)
 
 Moved out of `SKILL.md` § Planning gate (SKILL.md keeps the one-paragraph summary and the two
