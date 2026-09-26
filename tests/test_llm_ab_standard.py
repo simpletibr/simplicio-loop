@@ -98,3 +98,42 @@ def test_summary_rows_are_cache_aware():
     assert "50.0%" in row          # simplicio cache hit
     assert "$0.14000" in row       # simplicio no-cache cost (1M prompt at list price)
     assert "$0.06790" in row       # simplicio cache savings: 500k * (0.14 - 0.0042)/1M
+
+
+def test_build_markdown_report_has_summary_create_edit_and_cache():
+    pricing = {"available": True, "prompt": 0.00000014, "completion": 0.00000042,
+               "input_cache_read": 0.0000000042}
+
+    def task(i, kind, cost):
+        return {"index": i, "kind": kind, "success": True, "turns": 3, "wall_s": 2.0,
+                "totals": {"cost_usd": cost, "prompt_tokens": 1000, "cached_tokens": 500,
+                           "completion_tokens": 10}}
+    res = {"meta": {"batch": False, "pricing": pricing, "model": "m", "main_commit": "abc"},
+           "arms": {"normal": {"tasks": [task(1, "create", 0.001), task(2, "edit", 0.002)]},
+                    "simplicio": {"tasks": [task(1, "create", 0.0005), task(2, "edit", 0.001)]}}}
+    md = standard.build_markdown([("t2", "results/r.json", "REPORT-t2.html")], {"t2": res})
+    assert md.startswith("# ")
+    assert "| t2 · criação |" in md and "| t2 · edição |" in md
+    assert "cache hit" in md and "50.0%" in md
+    assert "$0.00150 (50.0%)" in md  # total savings: 0.003 -> 0.0015
+
+
+def test_build_full_html_joins_summary_and_every_report_with_page_breaks():
+    index = "<html><head><style>a{}</style></head><body><h1>Resumo</h1></body></html>"
+    reports = {
+        "t1": "<html><head><style>.x{color:red}</style></head><body><h1>R1</h1><img src='data:image/png;base64,AA'></body></html>",
+        "t4": "<html><head><style>.x{color:red}</style></head><body><h1>R4</h1></body></html>",
+    }
+    full = standard.build_full_html(index, reports)
+    assert full.count("page-break-before") >= 2
+    assert "Resumo" in full and "R1" in full and "R4" in full
+    assert "data:image/png;base64,AA" in full  # charts carried over
+    assert ".x{color:red}" in full
+
+
+def test_find_chromium_honors_env(monkeypatch, tmp_path):
+    fake = tmp_path / "chrome"
+    fake.write_text("#!/bin/sh\n")
+    fake.chmod(0o755)
+    monkeypatch.setenv("SIMPLICIO_BENCH_CHROMIUM", str(fake))
+    assert standard.find_chromium() == str(fake)
