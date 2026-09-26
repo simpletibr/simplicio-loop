@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: registry/v1
+schema: simplicio.contract-doc/v1
+purpose: This registry is the versioned public boundary between `simplicio-mapper`, `simplicio-dev-cli`, `simplicio-loop` and the optional `simplicio-runtime` executor.
+rules: The JSON schema next to this file is authoritative; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Simplicio cross-repository contract registry
 
 This registry is the versioned public boundary between `simplicio-mapper`,

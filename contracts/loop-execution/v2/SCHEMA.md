@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: loop-execution/v2
+schema: simplicio.contract-doc/v1
+purpose: This is the canonical universal execution envelope for the existing Loop execution family.
+rules: The JSON schema next to this file is authoritative; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # `simplicio.loop-execution/v2`
 
 This is the canonical universal execution envelope for the existing Loop

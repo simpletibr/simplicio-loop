@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/multi-agent-coordination
+schema: simplicio.skill-reference/v1
+purpose: When the `simplicio-loop` drains a queue of issues and **every open issue returns `DEFER_ACTIVE_CLAIM`** (already claimed by another session/agent), the idle session MUST NOT idle.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Multi-Agent Coordination Convention
 
 When the `simplicio-loop` drains a queue of issues and **every open issue returns

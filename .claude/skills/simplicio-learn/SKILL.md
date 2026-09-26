@@ -3,6 +3,13 @@ name: simplicio-learn
 description: "Persist what a run taught you so the next run is cheaper and more correct — mine high-signal lessons from the trajectory, dedup them, and write them back to AGENTS.md / memory so they're applied not re-derived. Use after a run or at session end, when the user says \"remember this\", \"do a retrospective\", \"learn from this run\", or when simplicio-tasks closes its self-audit. Keeps memory lean: durable, reusable bullets only — no transcripts, no one-offs."
 ---
 
+<!-- simplicio-contract:begin -->
+contract: simplicio-learn
+schema: simplicio.skill/v1
+purpose: "Persist what a run taught you so the next run is cheaper and more correct — mine high-signal lessons from the trajectory, dedup them, and write them back to AGENTS.md / memory so they're applied not re-derived.
+rules: Follow this skill end-to-end; mutable data (versions, dates, counts) lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # simplicio-learn — retrospective & continual memory
 
 A run that doesn't record its lessons pays full price every time. This skill turns a finished
@@ -96,3 +103,22 @@ correct; padding memory with one-offs makes every future load more expensive.
 - Reutilize padrões validados por produtos maduros; não reinvente a roda.
 
 <!-- simplicio-global-llm-architecture-rules:end -->
+
+## What the model sees
+
+When a host loads this skill, the model receives the YAML frontmatter, the
+immutable `simplicio-contract` header, and this body, verbatim. Files under
+`references/` enter the context only when this body points to them. Nothing
+here is generated per run.
+
+### Token effect
+
+The body is paid once per session as input tokens. References are paid only on
+demand, so the always-loaded part stays the short hot path.
+
+### KV cache effect
+
+The frontmatter and header are byte-stable across releases (pinned in
+`contracts/headers.lock.json`), and mutable data lives only at the end of the
+file. The provider can therefore reuse the cached prefix from the second call
+on, and a release does not invalidate it unless a `header-change:` note says so.

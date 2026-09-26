@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: operator-run/v1
+schema: simplicio.contract-doc/v1
+purpose: A versioned, **testable** definition of the mandatory operator bridge — the only path through which `simplicio-loop` is allowed to make a production mutation.
+rules: The JSON schema next to this file is authoritative; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # `simplicio.operator-run/v1`
 
 A versioned, **testable** definition of the mandatory operator bridge — the only path through

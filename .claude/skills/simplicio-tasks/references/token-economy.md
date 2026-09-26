@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-tasks/token-economy
+schema: simplicio.skill-reference/v1
+purpose: The condensed rule lives in SKILL.md Step 1c; this is the full mechanism.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Token-economy routing gate (full detail)
 
 The condensed rule lives in SKILL.md Step 1c; this is the full mechanism. When `simplicio-orient`

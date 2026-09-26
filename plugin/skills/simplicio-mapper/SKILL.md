@@ -3,6 +3,13 @@ name: simplicio-mapper
 description: Survey and understand Simplicio codebases before action. Use for repository discovery, architecture mapping, symbol and dependency lookup, call-graph analysis, precedent search, snapshot creation, context selection, and any task where an agent must understand the project before editing. Do not use it as the mutation owner.
 ---
 
+<!-- simplicio-contract:begin -->
+contract: simplicio-mapper
+schema: simplicio.skill/v1
+purpose: Survey and understand Simplicio codebases before action.
+rules: Follow this skill end-to-end; mutable data (versions, dates, counts) lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Simplicio Mapper
 
 Use Mapper as the canonical SURVEY and context-selection layer. Produce a bounded, reproducible project snapshot before any non-trivial change. Read `references/capabilities.yaml` for the complete capability catalog and `references/interfaces.md` for interface-specific details.
@@ -44,3 +51,22 @@ may select it for a project edit before the direct `simplicio edit` mutation.
 Standalone Mapper use remains valid without Runtime, Loop, or a cross-component
 contract. Handoffs used by Fast or Loop must be fresh, complete, unlocked, and
 revision-compatible.
+
+## What the model sees
+
+When a host loads this skill, the model receives the YAML frontmatter, the
+immutable `simplicio-contract` header, and this body, verbatim. Files under
+`references/` enter the context only when this body points to them. Nothing
+here is generated per run.
+
+### Token effect
+
+The body is paid once per session as input tokens. References are paid only on
+demand, so the always-loaded part stays the short hot path.
+
+### KV cache effect
+
+The frontmatter and header are byte-stable across releases (pinned in
+`contracts/headers.lock.json`), and mutable data lives only at the end of the
+file. The provider can therefore reuse the cached prefix from the second call
+on, and a release does not invalidate it unless a `header-change:` note says so.

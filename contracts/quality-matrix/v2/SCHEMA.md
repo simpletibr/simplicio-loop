@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: quality-matrix/v2
+schema: simplicio.contract-doc/v1
+purpose: `schema.json` is the single canonical, packaged terminal contract.
+rules: The JSON schema next to this file is authoritative; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Quality matrix v2
 
 `schema.json` is the single canonical, packaged terminal contract. The broad provider report

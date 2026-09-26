@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/delivery-contract
+schema: simplicio.skill-reference/v1
+purpose: Client delivery restrictions said in natural language ("don't open a PR", "don't commit tests", "no comments in the code") become a **frozen contract** living next to the task anchor, with mechanical gates that enforce each clause — instead of prose the agent can forget mid-run.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Delivery contract — `delivery.json` (issue #526 Etapa 4)
 
 Client delivery restrictions said in natural language ("don't open a PR", "don't commit tests", "no

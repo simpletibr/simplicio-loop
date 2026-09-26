@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/standing-loop-247
+schema: simplicio.skill-reference/v1
+purpose: To run unattended for 24h and cover the WHOLE work universe, the skill becomes a durable, self-governing, self-healing loop.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # 24/7 standing loop + arming the watcher (Step 7 full detail)
 
 To run unattended for 24h and cover the WHOLE work universe, the skill becomes a durable,

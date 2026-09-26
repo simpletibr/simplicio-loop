@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-tasks/quality-safety-delivery
+schema: simplicio.skill-reference/v1
+purpose: edit → fmt → lint → targeted tests → analyze failure → fix → repeat until green or genuinely blocked.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Quality, safety, delivery & feedback (Steps 4–6b full detail)
 
 > Stack-agnostic: examples use Go/`go build` for concreteness, but every build/lint/typecheck/test

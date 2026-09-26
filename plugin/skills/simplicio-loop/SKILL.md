@@ -3,6 +3,13 @@ name: simplicio-loop
 description: "Ralph loop for mapper + simplicio-dev-cli. Same goal every turn; exit only on an evidence-gated promise or max_iterations. GitHub is SoT for issues/PRs. Host writes the edit plan."
 ---
 
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop
+schema: simplicio.skill/v1
+purpose: "Ralph loop for mapper + simplicio-dev-cli.
+rules: Follow this skill end-to-end; mutable data (versions, dates, counts) lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # /simplicio-loop
 
 Self-referential loop: re-feed the SAME goal every turn; exit only on a typed `<promise>` backed by in-turn evidence, or `max_iterations`. Credit: Ralph Wiggum / cursor `ralph-loop`.
@@ -127,3 +134,22 @@ Loop orientation:
 - Parallelism: 1–3 tasks direct; >3 route through the wider work-splitting mechanism the host provides. Writes serialized.
 
 Full per-turn protocol, modes, DoD, delivery: `references/full-flow.md` — read only when the task needs it.
+
+## What the model sees
+
+When a host loads this skill, the model receives the YAML frontmatter, the
+immutable `simplicio-contract` header, and this body, verbatim. Files under
+`references/` enter the context only when this body points to them. Nothing
+here is generated per run.
+
+### Token effect
+
+The body is paid once per session as input tokens. References are paid only on
+demand, so the always-loaded part stays the short hot path.
+
+### KV cache effect
+
+The frontmatter and header are byte-stable across releases (pinned in
+`contracts/headers.lock.json`), and mutable data lives only at the end of the
+file. The provider can therefore reuse the cached prefix from the second call
+on, and a release does not invalidate it unless a `header-change:` note says so.

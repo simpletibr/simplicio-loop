@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/test-infra-probe
+schema: simplicio.skill-reference/v1
+purpose: The 7-dimension DoD (`scripts/pr_dod_review.py` `DOD_DIMENSIONS` / AGENTS.md — implementation, unit, integration, system, regression, benchmark, coverage) stays the target.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Test infra probe & adaptive DoD (#526 Etapa 3 full detail)
 
 The 7-dimension DoD (`scripts/pr_dod_review.py` `DOD_DIMENSIONS` / AGENTS.md — implementation, unit,

@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/orchestration
+schema: simplicio.skill-reference/v1
+purpose: **Resolve the SOURCE ADAPTER first — do not assume GitHub.** Detect which connector is available and authed, then use it.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Orchestration — discover, intake, route, scale, speed (Steps 2–3d full detail)
 
 ## Step 2 — Discover + normalize work-items

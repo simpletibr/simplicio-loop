@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/spindle-handoff
+schema: simplicio.skill-reference/v1
+purpose: Moved out of `SKILL.md` § Agent-to-agent handoff as part of the #119 shrink (SKILL.md keeps only a short pointer; this file has the full terminology, state machine, protocol, and guardrails).
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Agent-to-agent handoff (spindle/latch pattern) — full detail
 
 Moved out of `SKILL.md` § Agent-to-agent handoff as part of the #119 shrink (SKILL.md keeps only a

@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: loop-execution/v1
+schema: simplicio.contract-doc/v1
+purpose: A versioned, testable export of the converge/drain execution discipline `simplicio-loop` actually runs — so `simplicio-runtime` (or any other consumer) can **reuse this semantics instead of inventing a second, incompatible execution contract** (issue #115).
+rules: The JSON schema next to this file is authoritative; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # `simplicio.loop-execution/v1`
 
 A versioned, testable export of the converge/drain execution discipline `simplicio-loop` actually

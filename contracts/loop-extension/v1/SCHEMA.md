@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: loop-extension/v1
+schema: simplicio.contract-doc/v1
+purpose: In-repo foundation for the extension contract requested by issue #557 ("Formalizar contrato de extensões de domínio para loop-oss e loop-marketing").
+rules: The JSON schema next to this file is authoritative; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # `simplicio.loop-extension/v1` — domain extension manifest (#557)
 
 In-repo foundation for the extension contract requested by issue #557

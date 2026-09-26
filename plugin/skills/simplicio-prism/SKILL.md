@@ -3,6 +3,13 @@ name: simplicio-prism
 description: Route broad or ambiguous work across Simplicio Mapper, Dev CLI, and Loop. Use when a request spans components, requires choosing the correct capability, needs an end-to-end workflow, or the agent is unsure which Simplicio skill to invoke. Prism classifies and composes; it does not execute mutations itself.
 ---
 
+<!-- simplicio-contract:begin -->
+contract: simplicio-prism
+schema: simplicio.skill/v1
+purpose: Route broad or ambiguous work across Simplicio Mapper, Fast, Dev CLI, and Loop.
+rules: Follow this skill end-to-end; mutable data (versions, dates, counts) lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Simplicio Prism
 
 ## Worker preflight and centralized artifact policy
@@ -63,3 +70,22 @@ Return `route_id`, `intent`, `selected_capabilities`, `order`, `preconditions`, 
 There is no Runtime/MCP backend in this stack. Each component package (Mapper,
 Dev CLI, Loop) is callable standalone; direct file edits go through
 `simplicio-dev-cli edit --plan`.
+
+## What the model sees
+
+When a host loads this skill, the model receives the YAML frontmatter, the
+immutable `simplicio-contract` header, and this body, verbatim. Files under
+`references/` enter the context only when this body points to them. Nothing
+here is generated per run.
+
+### Token effect
+
+The body is paid once per session as input tokens. References are paid only on
+demand, so the always-loaded part stays the short hot path.
+
+### KV cache effect
+
+The frontmatter and header are byte-stable across releases (pinned in
+`contracts/headers.lock.json`), and mutable data lives only at the end of the
+file. The provider can therefore reuse the cached prefix from the second call
+on, and a release does not invalidate it unless a `header-change:` note says so.

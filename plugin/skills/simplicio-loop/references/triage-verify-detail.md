@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/triage-verify-detail
+schema: simplicio.skill-reference/v1
+purpose: Moved out of `SKILL.md` § The loop contract as part of the #119 shrink (SKILL.md keeps the five-step list with the essential commands; this file has the full elaboration on WHY each sub-step matters and the extra flags for shared/public-contract changes).
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # The loop contract — triage (step 2) and verify (step 3) full detail
 
 Moved out of `SKILL.md` § The loop contract as part of the #119 shrink (SKILL.md keeps the

@@ -676,7 +676,7 @@ def run_ablation(args: argparse.Namespace) -> int:
         entries.append((n, final_path))
 
     write_ablation_reports(entries, args.out)
-    return 0
+    return per_call_cache_gate([(f"t{n}-ablation", path) for n, path in entries])
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -732,7 +732,27 @@ def main(argv: list[str] | None = None) -> int:
         entries.append((suffix, _result_path_for(args.out, combo["tasks"], combo["batch"])))
 
     write_reports(entries, args.out)
-    return 0
+    return per_call_cache_gate(entries)
+
+
+def per_call_cache_gate(entries: list[tuple[str, str]]) -> int:
+    """Fail (exit 3) when any simplicio call after the first of its task read
+    no prompt cache (issue #1342). Names the first cold call."""
+    import report as bench_report  # noqa: E402 -- needs matplotlib, imported lazily
+
+    status = 0
+    for suffix, result_path in entries:
+        with open(result_path) as f:
+            arms = json.load(f).get("arms", {})
+        cold = bench_report.first_cold_call(arms)
+        if cold is not None:
+            print(
+                f"per-call cache gate FAILED ({suffix}): task {cold['task']} turn {cold['turn']} "
+                f"had cache_read == 0 -- {cold['cause']}",
+                file=sys.stderr,
+            )
+            status = 3
+    return status
 
 
 if __name__ == "__main__":

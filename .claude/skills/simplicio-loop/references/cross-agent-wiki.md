@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/cross-agent-wiki
+schema: simplicio.skill-reference/v1
+purpose: Moved out of `SKILL.md` § Cross-agent persistent wiki as part of the #119 shrink.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Cross-agent persistent wiki (`.simplicio-loop/orchestrator/wiki/`) — full detail
 
 Moved out of `SKILL.md` § Cross-agent persistent wiki as part of the #119 shrink.

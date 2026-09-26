@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-tasks/token-capture
+schema: simplicio.skill-reference/v1
+purpose: The **Simplicio Token Monitor** (`hooks/simplicio_dashboard.py`, `:9090`) only *displays* numbers.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Token capture — how Simplicio really intercepts tokens
 
 The **Simplicio Token Monitor** (`hooks/simplicio_dashboard.py`, `:9090`) only *displays* numbers.

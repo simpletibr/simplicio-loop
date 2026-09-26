@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: remote-worker/v2
+schema: simplicio.contract-doc/v1
+purpose: Immutable task envelope for the real multi-device worker protocol (issue #286):
+rules: The JSON schema next to this file is authoritative; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # `simplicio.remote-worker/v2`
 
 Immutable task envelope for the real multi-device worker protocol (issue #286):

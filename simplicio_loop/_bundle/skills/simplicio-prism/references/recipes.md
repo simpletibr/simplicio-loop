@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-prism/recipes
+schema: simplicio.skill-reference/v1
+purpose: Use the smallest recipe that satisfies the request.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Prism recipes
 
 Use the smallest recipe that satisfies the request. Resolve concrete adapters from the capability registry before execution.

@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-dev-cli/interfaces
+schema: simplicio.skill-reference/v1
+purpose: The agent supplies intent and a bounded plan.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Dev CLI interfaces
 
 The agent supplies intent and a bounded plan. Dev CLI owns source mutations, validation, diagnostics, and evidence. Resolve the installed command/API/MCP adapter at runtime; never invent flags.

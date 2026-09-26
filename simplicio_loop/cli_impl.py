@@ -74,6 +74,7 @@ from .economy_profile import (
 )
 from .map_service_cli import configure_commands as configure_map_commands, dispatch as dispatch_map
 from .serverless_deploy import build_plan as build_serverless_plan, execute_plan as execute_serverless_plan
+from .json_order import stable_first
 
 BUNDLE = Path(__file__).resolve().parent / "_bundle"
 DASHBOARD = BUNDLE / "hooks" / "simplicio_dashboard.py"
@@ -235,9 +236,9 @@ def prepare(repo: str, task_path: str, delivery_arg: str, max_iterations: int) -
     """Arm and preflight a run without executing a task or calling a provider."""
     from .survey import MISSING_HINT, MISSING_REASON, provenance
     if provenance(Path(repo).resolve()) is None:
-        print(json.dumps({"schema": "simplicio.prepare-receipt/v1", "status": "blocked",
+        print(json.dumps(stable_first({"schema": "simplicio.prepare-receipt/v1", "status": "blocked",
                           "reason_code": MISSING_REASON, "hint": MISSING_HINT,
-                          "execution_started": False, "mutation_attempted": False},
+                          "execution_started": False, "mutation_attempted": False}),
                          ensure_ascii=False, indent=2))
         return 2
     try:
@@ -273,7 +274,7 @@ def prepare(repo: str, task_path: str, delivery_arg: str, max_iterations: int) -
             "reason_code": "prepare_failed",
             "error": redact_sensitive_text(str(exc)),
         }
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    print(json.dumps(stable_first(payload), ensure_ascii=False, indent=2))
     return 0 if payload["status"] == "prepared" else 2
 
 
@@ -1233,8 +1234,8 @@ def _brief_dump(payload: dict, *, pretty: bool = False) -> str:
     opts back into human-readable ``indent=2`` for interactive/debug use.
     """
     if pretty:
-        return json.dumps(payload, ensure_ascii=False, indent=2)
-    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+        return json.dumps(stable_first(payload, schema_first=False), ensure_ascii=False, indent=2)
+    return json.dumps(stable_first(payload, schema_first=False), ensure_ascii=False, separators=(",", ":"))
 
 
 def _mapper_index_budget_payload(schema: str, exc: Exception, root: Path) -> dict[str, Any]:
@@ -1278,7 +1279,7 @@ def orient(repo: str, task: str,
         payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED", "provider": None,
                    "fallback": False, "reason": str(exc),
                    "reason_code": "orient_internal_error", "local_llm": False}
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        print(json.dumps(stable_first(payload), ensure_ascii=False, indent=2))
         return 2
 
 
@@ -1303,7 +1304,7 @@ def _orient_impl(root: Path, task: str, tee: bool, targets: list[str] | None,
             from .tee_cache import write
             path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
             payload["tee_path"] = str(path)
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        print(json.dumps(stable_first(payload), ensure_ascii=False, indent=2))
         return 2
     if payload.get("status") != "BLOCKED":
         from .survey import write_survey
@@ -1315,7 +1316,7 @@ def _orient_impl(root: Path, task: str, tee: bool, targets: list[str] | None,
         from .tee_cache import write
         path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
         payload["tee_path"] = str(path)
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    print(json.dumps(stable_first(payload), ensure_ascii=False, indent=2))
     return code
 
 
@@ -1661,7 +1662,7 @@ def extensions_doctor(provider: str, policy: str, schema: str) -> int:
 def verify(repo: str, run_id: str) -> int:
     from .runner import verify_run
     payload = verify_run(repo, run_id)
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    print(json.dumps(stable_first(payload), ensure_ascii=False, indent=2))
     return 0 if payload["state"].get("phase") == "done" else 1
 
 
@@ -2117,7 +2118,7 @@ def tick(repo: str, run_id: str, task_index: int, provider_worker: str | None = 
             "run_id": run_id, "task_indices": [task_index],
         }
         public_payload = _finalize_public_flow(repo, run_id, "tick", payload)
-        print(json.dumps(public_payload, ensure_ascii=False, indent=2))
+        print(json.dumps(stable_first(public_payload), ensure_ascii=False, indent=2))
         return _dispatch_exit_code(public_payload)
     try:
         operator_kwargs = {"task_index": task_index}
@@ -2127,7 +2128,7 @@ def tick(repo: str, run_id: str, task_index: int, provider_worker: str | None = 
     except Exception as exc:
         payload = _dispatch_failure_payload("simplicio.tick-receipt/v1", repo, run_id, exc, [task_index])
     public_payload = _finalize_public_flow(repo, run_id, "tick", payload)
-    print(json.dumps(public_payload, ensure_ascii=False, indent=2))
+    print(json.dumps(stable_first(public_payload), ensure_ascii=False, indent=2))
     return _dispatch_exit_code(public_payload)
 
 
@@ -2145,7 +2146,7 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
             )
             persist_execution_envelope(flow=flow, repo=repo, run_id=run_id,
                                        observed={"run_id": run_id, "result": payload, "error": str(exc)})
-            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            print(json.dumps(stable_first(payload), ensure_ascii=False, indent=2))
             raise ValueError("--task-indices must be a comma-separated list of integers") from exc
 
     if indices is None:
@@ -2170,7 +2171,7 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
         }
         persist_execution_envelope(flow=flow, repo=repo, run_id=run_id,
                                    observed={**current, "result": payload, "governor": governor})
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        print(json.dumps(stable_first(payload), ensure_ascii=False, indent=2))
         return 2
 
     eligibility = prism_is_eligible(len(indices or []), explicit_serial=serial)
@@ -2188,7 +2189,7 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
             payload = _dispatch_failure_payload("simplicio.operator-batch-receipt/v1", repo, run_id, exc, indices)
         payload["prism"] = {**eligibility, "batch_size": None, "waves": 1}
         public_payload = _finalize_public_flow(repo, run_id, flow, payload)
-        print(json.dumps(public_payload, ensure_ascii=False, indent=2))
+        print(json.dumps(stable_first(public_payload), ensure_ascii=False, indent=2))
         return _dispatch_exit_code(public_payload)
 
     width = resolve_prism_batch_size(batch_size)
@@ -2231,7 +2232,7 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
     }
     _persist_prism_wave_receipt(repo, run_id, payload)
     public_payload = _finalize_public_flow(repo, run_id, flow, payload)
-    print(json.dumps(public_payload, ensure_ascii=False, indent=2))
+    print(json.dumps(stable_first(public_payload), ensure_ascii=False, indent=2))
     return _dispatch_exit_code(public_payload)
 
 

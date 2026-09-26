@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-tasks/web-evidence
+schema: simplicio.skill-reference/v1
+purpose: Concrete implementation of the `web_verify` extension point: drive a real browser to PROVE a front-end change works, and capture a **screenshot + trace** as evidence.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Web evidence — `web_verify` via Playwright (front-end proof)
 
 Concrete implementation of the `web_verify` extension point: drive a real browser to PROVE a
