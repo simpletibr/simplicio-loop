@@ -246,6 +246,46 @@ def build_per_call_cache_table(arms: dict) -> str:
     return rows
 
 
+def first_cold_call(arms: dict, arm: str = "simplicio") -> dict | None:
+    """Per-call prompt-cache gate (issue #1342, deepseek-harness
+    ``request-cache.e2e.ts`` pattern): every LLM call of ``arm`` after the
+    first one of its task must read some prompt cache. Returns the first
+    call that did not (``cached_tokens == 0``), with the previous call's
+    prompt size so the report can name the prefix change, or ``None``."""
+    data = arms.get(arm) or {}
+    for task in data.get("tasks", []):
+        previous = None
+        for call in task.get("llm_calls") or []:
+            if not call.get("ok", True):
+                continue
+            if previous is not None and not (call.get("cached_tokens") or 0):
+                prompt = call.get("prompt_tokens") or 0
+                prev_prompt = previous.get("prompt_tokens") or 0
+                cause = (
+                    "prefixo encolheu (compactação/reescrita do prompt)" if prompt < prev_prompt
+                    else "prefixo mudou antes do fim da chamada anterior (conteúdo volátil no topo ou troca de provedor)"
+                )
+                return {
+                    "arm": arm, "task": task.get("index"), "turn": call.get("turn"),
+                    "prompt_tokens": prompt, "previous_prompt_tokens": prev_prompt,
+                    "cause": cause,
+                }
+            previous = call
+    return None
+
+
+def build_cold_call_note(arms: dict) -> str:
+    cold = first_cold_call(arms)
+    if cold is None:
+        return "<p>Gate de cache por chamada: OK (toda chamada do simplicio após a 1ª leu cache).</p>"
+    return (
+        "<p><b>Gate de cache por chamada: FALHOU</b> — primeira chamada fria: "
+        f"tarefa {html_escape(cold['task'])}, turno {html_escape(cold['turn'])} "
+        f"({cold['prompt_tokens']} tokens de prompt; anterior {cold['previous_prompt_tokens']}). "
+        f"Causa provável: {html_escape(cold['cause'])}.</p>"
+    )
+
+
 EFFORT_COLUMNS = ("default", "low", "medium", "high")
 
 
@@ -342,6 +382,7 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
     effort_policy_label = meta.get("effort_policy") or "opencode-managed"
     effort_table_html = build_effort_table(arms)
     per_call_cache_html = build_per_call_cache_table(arms)
+    cold_call_note_html = build_cold_call_note(arms)
 
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -416,6 +457,8 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
         <th>economia de cache</th><th>hit % de cache</th><th>sinalizados</th></tr>
     {cost_rows_html}
   </table>
+
+  {cold_call_note_html}
 
   <h2>Cache por chamada de LLM (bisecção de quebras de prefixo, issue #1336)</h2>
   <p class="meta">Uma linha por chamada real ao provedor (evento ``step_finish`` do OpenCode).
