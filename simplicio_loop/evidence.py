@@ -89,6 +89,16 @@ def _command_policy(check: Dict[str, Any]) -> tuple[List[str] | None, str]:
     return normalized, "allowed"
 
 
+_VERIFIER_BYPRODUCT_EXCLUDES = tuple(
+    ":(exclude,glob)" + pattern
+    for pattern in (
+        "**/__pycache__/**", "**/*.pyc", "**/*.pyo",
+        "**/.pytest_cache/**", "**/.mypy_cache/**", "**/.ruff_cache/**",
+        "**/.coverage", "**/.coverage.*", "**/htmlcov/**",
+    )
+)
+
+
 def _git_meta(root: Path) -> Dict[str, str]:
     def _run(*args: str) -> str:
         try:
@@ -103,7 +113,9 @@ def _git_meta(root: Path) -> Dict[str, str]:
     try:
         # .simplicio/ is the loop's own bookkeeping; it changes between the
         # evidence receipt and the watcher, so it is never part of the run diff.
-        scope = ("--", ".", ":(exclude).simplicio")
+        # Neither are verifier byproducts: the receipt is sealed before the
+        # quality lanes run and the watcher re-hashes after them.
+        scope = ("--", ".", ":(exclude).simplicio", *_VERIFIER_BYPRODUCT_EXCLUDES)
         status = _run("status", "--porcelain", "--untracked-files=all", *scope)
         if status:
             add = subprocess.run(
