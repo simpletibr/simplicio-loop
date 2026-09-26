@@ -1,7 +1,9 @@
 """Pure results-aggregation functions shared by run.py (building results.json)
 and report.py (rendering REPORT.html). Every function here takes plain
-dicts/lists already parsed from JSON and returns plain data; the only I/O is
-``load_history``, which just reads sibling result files off disk.
+dicts/lists already parsed from JSON (the agentic-arm shape written by
+agent.run_agent + run.py -- one ``totals``/``commands``/``llm_calls`` per
+task) and returns plain data; the only I/O is ``load_history``, which just
+reads sibling result files off disk.
 """
 from __future__ import annotations
 
@@ -12,28 +14,23 @@ from typing import Optional
 
 
 def token_totals(arm_data: dict) -> dict:
-    """Sum LLM token/cost usage across every attempt of every task in one
-    arm's results, splitting cached vs uncached prompt tokens and reasoning
-    vs non-reasoning completion tokens. Attempts whose LLM call failed
-    (``ok`` falsy) contribute nothing -- there is no usage to report for a
-    call that never returned."""
+    """Sum LLM token/cost usage across every task's ``totals`` in one arm's
+    results, splitting cached vs uncached prompt tokens and reasoning vs
+    non-reasoning completion tokens. A task with no ``totals`` (a fatal
+    error before any LLM call) contributes nothing."""
     prompt_uncached = completion_non_reasoning = reasoning = cached = 0
     cost = 0.0
     for task in arm_data.get("tasks", []):
-        for attempt in task.get("attempts", []):
-            call = attempt.get("llm_call") or {}
-            if not call.get("ok"):
-                continue
-            pt = call.get("prompt_tokens") or 0
-            ct = call.get("completion_tokens") or 0
-            rt = call.get("reasoning_tokens") or 0
-            cat = call.get("cached_tokens") or 0
-            prompt_uncached += max(pt - cat, 0)
-            cached += cat
-            completion_non_reasoning += max(ct - rt, 0)
-            reasoning += rt
-            if call.get("cost_usd") is not None:
-                cost += call["cost_usd"]
+        totals = task.get("totals") or {}
+        pt = totals.get("prompt_tokens") or 0
+        ct = totals.get("completion_tokens") or 0
+        rt = totals.get("reasoning_tokens") or 0
+        cat = totals.get("cached_tokens") or 0
+        prompt_uncached += max(pt - cat, 0)
+        cached += cat
+        completion_non_reasoning += max(ct - rt, 0)
+        reasoning += rt
+        cost += totals.get("cost_usd") or 0
     return {
         "prompt_uncached": prompt_uncached,
         "cached": cached,
@@ -43,12 +40,14 @@ def token_totals(arm_data: dict) -> dict:
     }
 
 
-def attempts_stats(arm_data: dict) -> tuple[int, int, int]:
-    """``(total_attempts, first_try_successes, n_tasks)`` across one arm."""
+def turns_stats(arm_data: dict) -> tuple[int, int, int]:
+    """``(total_turns, first_try_successes, n_tasks)`` across one arm --
+    ``first_try_successes`` counts tasks the agent solved in exactly one
+    LLM turn."""
     tasks = arm_data.get("tasks", [])
-    total_attempts = sum(len(t.get("attempts", [])) for t in tasks)
-    first_try = sum(1 for t in tasks if len(t.get("attempts", [])) == 1 and t.get("success"))
-    return total_attempts, first_try, len(tasks)
+    total_turns = sum(t.get("turns") or 0 for t in tasks)
+    first_try = sum(1 for t in tasks if t.get("turns") == 1 and t.get("success"))
+    return total_turns, first_try, len(tasks)
 
 
 def success_summary(arm_data: dict) -> tuple[int, int]:
@@ -58,37 +57,34 @@ def success_summary(arm_data: dict) -> tuple[int, int]:
 
 
 def cpu_ram(arm_data: dict) -> tuple[float, float]:
-    """Total CPU seconds and peak RSS (MB) across every measured step
-    (per-attempt ``*_step``/``llm_call`` dicts, plus arm-level ``steps``
-    entries such as ``orient``)."""
+    """Total CPU seconds and peak RSS (MB) across every command every task
+    ran (the agent's own bash-tool commands, each already measured by
+    ``measure.run_subprocess``)."""
     cpu_total = 0.0
     peak_rss = 0.0
     for task in arm_data.get("tasks", []):
-        for attempt in task.get("attempts", []):
-            for value in attempt.values():
-                if not isinstance(value, dict):
-                    continue
-                if "cpu_s" in value:
-                    cpu_total += value.get("cpu_s") or 0
-                    peak_rss = max(peak_rss, value.get("peak_rss_mb") or 0)
-                if "step_cpu_s" in value:
-                    cpu_total += value.get("step_cpu_s") or 0
-                    peak_rss = max(peak_rss, value.get("step_peak_rss_mb") or 0)
-    for step in arm_data.get("steps", []):
-        metrics = step.get("metrics") or {}
-        cpu_total += metrics.get("cpu_s") or 0
-        peak_rss = max(peak_rss, metrics.get("peak_rss_mb") or 0)
+        for cmd in task.get("commands", []):
+            cpu_total += cmd.get("cpu_s") or 0
+            peak_rss = max(peak_rss, cmd.get("peak_rss_mb") or 0)
     return cpu_total, peak_rss
 
 
+def simplicio_command_count(arm_data: dict) -> int:
+    """How many of the agent's own bash-tool commands, across every task,
+    invoked a simplicio-loop/mapper/dev-cli/fast binary (``totals.
+    n_simplicio_commands``, summed)."""
+    return sum((t.get("totals") or {}).get("n_simplicio_commands") or 0
+               for t in arm_data.get("tasks", []))
+
+
 def check_run_count(arm_data: dict) -> int:
-    """How many times the harness-owned acceptance checker
-    (``check_cadastro.py``) actually ran, across every attempt of every task
-    -- one ``check_step`` per invocation."""
+    """How many times the agent itself invoked the harness-owned acceptance
+    checker (``check_cadastro.py``) via its own bash-tool commands, across
+    every task -- a signal of whether the agent verified its own work."""
     count = 0
     for task in arm_data.get("tasks", []):
-        for attempt in task.get("attempts", []):
-            if "check_step" in attempt:
+        for cmd in task.get("commands", []):
+            if "check_cadastro.py" in (cmd.get("command") or ""):
                 count += 1
     return count
 
@@ -96,9 +92,11 @@ def check_run_count(arm_data: dict) -> int:
 def diff_history(current: dict, previous: dict) -> dict:
     """Per-arm ``total_wall_s`` delta between two results.json-shaped dicts.
 
-    Missing data on either side yields ``None`` for that arm rather than a
-    fabricated number or a raised exception -- a prior run that never
-    exercised an arm is not a regression.
+    Missing data on either side (an arm absent from ``previous``, or an
+    older results file that used different arm names entirely -- e.g. the
+    pre-agent-loop ``simplicio-files``/``simplicio-fast`` split) yields
+    ``None`` for that arm rather than a fabricated number or a raised
+    exception.
     """
     current_arms = current.get("arms") or {}
     previous_arms = previous.get("arms") or {}
@@ -120,7 +118,8 @@ def load_history(results_dir: str, exclude_path: Optional[str] = None) -> list[d
     """Load every ``*.json`` results file in ``results_dir`` (append-only
     history), sorted by filename (the ``<UTC-date>-<shortsha>.json`` naming
     convention sorts chronologically), excluding ``exclude_path`` (the file
-    currently being written)."""
+    currently being written). A file that fails to parse (corrupt, or from a
+    format this harness no longer writes) is skipped rather than raised."""
     exclude_abs = os.path.abspath(exclude_path) if exclude_path else None
     paths = sorted(glob.glob(os.path.join(results_dir, "*.json")))
     history = []

@@ -2,7 +2,9 @@
 
 The verdict text must be computed purely from the `results` dict handed to
 it -- these tests plant distinctive numbers and assert they, and only they,
-show up (guards against a hardcoded verdict string creeping back in).
+show up (guards against a hardcoded verdict string creeping back in). Tasks
+are in the agentic-arm shape: one ``totals`` dict per task (no per-attempt
+list).
 """
 import os
 import sys
@@ -18,10 +20,14 @@ def _results(arms):
     return {"arms": arms}
 
 
+def _task(success=True, cost=0.0):
+    return {"success": success, "totals": {"cost_usd": cost}}
+
+
 def test_verdict_mentions_every_arm_name():
     results = _results({
-        "normal": {"tasks": [{"success": True, "attempts": []}], "total_wall_s": 1.0},
-                "simplicio": {"tasks": [{"success": True, "attempts": []}], "total_wall_s": 3.0},
+        "normal": {"tasks": [_task(True)], "total_wall_s": 1.0},
+        "simplicio": {"tasks": [_task(True)], "total_wall_s": 3.0},
     })
     text = bench_verdict.compute_verdict(results)
     for name in ("normal", "simplicio"):
@@ -30,8 +36,7 @@ def test_verdict_mentions_every_arm_name():
 
 def test_verdict_reflects_actual_success_counts():
     results = _results({
-        "arm-a": {"tasks": [{"success": True, "attempts": []}, {"success": False, "attempts": []}],
-                  "total_wall_s": 9.0},
+        "arm-a": {"tasks": [_task(True), _task(False)], "total_wall_s": 9.0},
     })
     text = bench_verdict.compute_verdict(results)
     assert "1/2" in text
@@ -39,7 +44,7 @@ def test_verdict_reflects_actual_success_counts():
 
 def test_verdict_reflects_actual_wall_time():
     results = _results({
-        "arm-a": {"tasks": [{"success": True, "attempts": []}], "total_wall_s": 42.7},
+        "arm-a": {"tasks": [_task(True)], "total_wall_s": 42.7},
     })
     text = bench_verdict.compute_verdict(results)
     assert "42.7" in text
@@ -47,21 +52,15 @@ def test_verdict_reflects_actual_wall_time():
 
 def test_verdict_reflects_actual_cost():
     results = _results({
-        "arm-a": {
-            "tasks": [{
-                "success": True,
-                "attempts": [{"llm_call": {"cost_usd": 0.01234}}],
-            }],
-            "total_wall_s": 1.0,
-        },
+        "arm-a": {"tasks": [_task(True, cost=0.01234)], "total_wall_s": 1.0},
     })
     text = bench_verdict.compute_verdict(results)
     assert "0.01234" in text
 
 
 def test_verdict_changes_when_data_changes():
-    a = _results({"arm-a": {"tasks": [{"success": True, "attempts": []}], "total_wall_s": 1.0}})
-    b = _results({"arm-a": {"tasks": [{"success": False, "attempts": []}], "total_wall_s": 99.0}})
+    a = _results({"arm-a": {"tasks": [_task(True)], "total_wall_s": 1.0}})
+    b = _results({"arm-a": {"tasks": [_task(False)], "total_wall_s": 99.0}})
     assert bench_verdict.compute_verdict(a) != bench_verdict.compute_verdict(b)
 
 
@@ -70,6 +69,12 @@ def test_verdict_handles_no_arms():
 
 
 def test_verdict_handles_missing_wall_time_gracefully():
-    results = _results({"arm-a": {"tasks": [{"success": True, "attempts": []}]}})
+    results = _results({"arm-a": {"tasks": [_task(True)]}})
     text = bench_verdict.compute_verdict(results)
     assert "n/d" in text
+
+
+def test_verdict_handles_task_with_no_totals():
+    results = _results({"arm-a": {"tasks": [{"success": False}], "total_wall_s": 1.0}})
+    text = bench_verdict.compute_verdict(results)
+    assert "0/1" in text

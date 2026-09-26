@@ -1,7 +1,9 @@
 """Build a single self-contained REPORT.html page (pt-BR) from one
-results.json (see run.py for its shape). Charts are small matplotlib PNGs,
-base64-inlined; run with a Python that has matplotlib installed (it is not a
-package dependency of the benchmark itself -- only of the report step).
+results.json (see run.py for its shape: one agentic run per arm, one
+``totals``/``commands``/``llm_calls`` list per task). Charts are small
+matplotlib PNGs, base64-inlined; run with a Python that has matplotlib
+installed (it is not a package dependency of the benchmark itself -- only of
+the report step).
 """
 from __future__ import annotations
 
@@ -97,8 +99,8 @@ def build_charts(arms: dict) -> dict:
 
 def build_arm_table_rows(arms: dict, task_kind: str | None = None) -> str:
     """One comparison table row per metric, one column per arm. When
-    ``task_kind`` is given, success/attempts figures are scoped to just that
-    kind's tasks (create vs edit split)."""
+    ``task_kind`` is given, figures are scoped to just that kind's tasks
+    (create vs edit split)."""
     arm_names = list(arms)
     rows = []
 
@@ -113,14 +115,17 @@ def build_arm_table_rows(arms: dict, task_kind: str | None = None) -> str:
         return [t for t in tasks if t.get("kind") == task_kind]
 
     def scoped_arm(arm_data):
-        return {"tasks": scoped_tasks(arm_data), "steps": arm_data.get("steps", [])}
+        return {"tasks": scoped_tasks(arm_data)}
 
-    success_vals, wall_vals, cpu_vals, rss_vals = [], [], [], []
-    prompt_vals, cached_vals, compl_vals, reason_vals, cost_vals, check_vals = [], [], [], [], [], []
+    success_vals, turns_vals, wall_vals, cpu_vals, rss_vals = [], [], [], [], []
+    prompt_vals, cached_vals, compl_vals, reason_vals, cost_vals = [], [], [], [], []
+    cmd_vals, simplicio_cmd_vals, check_vals = [], [], []
     for name in arm_names:
         scoped = scoped_arm(arms[name])
         n_success, n_tasks = agg.success_summary(scoped)
         success_vals.append(f"{n_success}/{n_tasks}")
+        total_turns, _first_try, _n = agg.turns_stats(scoped)
+        turns_vals.append(total_turns)
         cpu_total, peak_rss = agg.cpu_ram(scoped)
         cpu_vals.append(fmt(cpu_total, 2))
         rss_vals.append(fmt(peak_rss, 1))
@@ -130,6 +135,8 @@ def build_arm_table_rows(arms: dict, task_kind: str | None = None) -> str:
         compl_vals.append(tok["completion_non_reasoning"])
         reason_vals.append(tok["reasoning"])
         cost_vals.append(f"${fmt(tok['cost_usd'], 5)}")
+        cmd_vals.append(sum((t.get("totals") or {}).get("n_commands") or 0 for t in scoped["tasks"]))
+        simplicio_cmd_vals.append(agg.simplicio_command_count(scoped))
         check_vals.append(agg.check_run_count(scoped))
         if task_kind is None:
             wall_vals.append(fmt(arms[name].get("total_wall_s"), 1))
@@ -137,66 +144,50 @@ def build_arm_table_rows(arms: dict, task_kind: str | None = None) -> str:
     rows.append(row("Tarefas concluídas", success_vals))
     if task_kind is None:
         rows.append(row("Tempo total (parede, s)", wall_vals))
-    rows.append(row("CPU total (s)", cpu_vals))
+    rows.append(row("Turnos de LLM", turns_vals))
+    rows.append(row("Comandos executados", cmd_vals))
+    rows.append(row("... dos quais simplicio-*", simplicio_cmd_vals))
+    rows.append(row("CPU total (comandos, s)", cpu_vals))
     rows.append(row("Pico RAM (MB)", rss_vals))
     rows.append(row("Tokens prompt (não cacheado)", prompt_vals))
     rows.append(row("Tokens prompt (cacheado)", cached_vals))
     rows.append(row("Tokens completion", compl_vals))
     rows.append(row("Tokens de raciocínio", reason_vals))
     rows.append(row("Custo (USD)", cost_vals))
-    rows.append(row("Execuções do checker", check_vals))
+    rows.append(row("Invocações do checker pelo próprio agente", check_vals))
     header = "<tr><th>Métrica</th>" + "".join(f"<th>{html_escape(a)}</th>" for a in arm_names) + "</tr>\n"
     return header + "".join(rows)
 
 
-def build_cache_table(arms: dict) -> str:
+def build_timeline_table(arms: dict) -> str:
+    """Per-arm, per-task command timeline: every bash-tool command the
+    agent ran, in order, with its exit code and wall/CPU time."""
     rows = ""
     for arm_name, data in arms.items():
-        for rec in data.get("cache") or []:
-            hit = "sim" if (rec.get("mapper_cache_hit") or rec.get("fast_cache_hit")) else "não"
-            m = rec.get("metrics") or {}
-            rows += (
-                f"<tr><td>{html_escape(arm_name)}</td><td>{html_escape(rec.get('label'))}</td>"
-                f"<td>{html_escape(rec.get('status'))}</td>"
-                f"<td>{fmt(m.get('wall_s'), 2)}</td><td>{fmt(m.get('cpu_s'), 2)}</td>"
-                f"<td>{hit}</td></tr>\n"
-            )
+        for task in data.get("tasks", []):
+            for cmd in task.get("commands", []):
+                marker = " ★" if cmd.get("is_simplicio") else ""
+                rows += (
+                    f"<tr><td>{html_escape(arm_name)}</td><td>{task.get('index')}</td>"
+                    f"<td><code>{html_escape(cmd.get('command'))}{marker}</code></td>"
+                    f"<td>{html_escape(cmd.get('returncode'))}</td>"
+                    f"<td>{fmt(cmd.get('wall_s'), 2)}</td><td>{fmt(cmd.get('cpu_s'), 2)}</td></tr>\n"
+                )
     if not rows:
-        return "<tr><td colspan='6'>sem dados de orient (braço normal não usa Mapper)</td></tr>\n"
-    return rows
-
-
-def build_lanes_table(arms: dict) -> str:
-    rows = ""
-    for arm_name, data in arms.items():
-        qm = data.get("quality_matrix")
-        if not qm:
-            continue
-        for lane, entry in (qm.get("requirements") or {}).items():
-            status = entry.get("status", "-")
-            command = entry.get("command", "-")
-            rows += (
-                f"<tr><td>{html_escape(arm_name)}</td><td>{html_escape(lane)}</td>"
-                f"<td>{html_escape(status)}</td><td><code>{html_escape(command)}</code></td></tr>\n"
-            )
-        coverage = qm.get("coverage") or {}
-        rows += (
-            f"<tr><td>{html_escape(arm_name)}</td><td>coverage</td>"
-            f"<td>{'não aplicável (sem código Python de aplicação nesta fixture)' if coverage.get('measured') is None else coverage.get('measured')}</td>"
-            f"<td>-</td></tr>\n"
-        )
-    if not rows:
-        return "<tr><td colspan='4'>sem quality-matrix (braço normal não usa o loop)</td></tr>\n"
+        return "<tr><td colspan='6'>nenhum comando registrado</td></tr>\n"
     return rows
 
 
 def build_history_table(current: dict, history: list[dict]) -> str:
     if not history:
-        return "<tr><td colspan='4'>sem execuções anteriores nesta pasta de resultados</td></tr>\n"
+        return "<tr><td colspan='3'>sem execuções anteriores nesta pasta de resultados</td></tr>\n"
     rows = ""
     for prev in history:
         deltas = agg.diff_history(current, prev)
         date = (prev.get("meta") or {}).get("date", "?")
+        if not deltas:
+            rows += f"<tr><td>{html_escape(date)}</td><td colspan='2'>formato incompatível, ignorado</td></tr>\n"
+            continue
         for arm_name, d in deltas.items():
             delta = d.get("total_wall_s_delta")
             delta_s = f"{delta:+.1f}s" if isinstance(delta, (int, float)) else "n/d"
@@ -228,7 +219,7 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Benchmark A/B: normal vs simplicio-loop (files/fast)</title>
+<title>Benchmark A/B: agente com vs sem a skill simplicio-loop</title>
 <style>
   :root {{ --bg: #ffffff; --fg: #1a1a1a; --muted: #666; --border: #ddd; }}
   * {{ box-sizing: border-box; }}
@@ -247,10 +238,10 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
   table.compare th, table.compare td {{ border: 1px solid var(--border); padding: 3px 8px; text-align: right; }}
   table.compare th:first-child, table.compare td:first-child {{ text-align: left; }}
   table.compare th {{ background: #fafafa; }}
-  table.lanes th, table.lanes td, table.cache th, table.cache td, table.history th, table.history td {{
+  table.timeline th, table.timeline td, table.history th, table.history td {{
     border: 1px solid var(--border); padding: 3px 8px; text-align: left; font-size: 11.5px;
   }}
-  table.lanes th, table.cache th, table.history th {{ background: #fafafa; }}
+  table.timeline th, table.history th {{ background: #fafafa; }}
   .charts {{ display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; }}
   .charts img {{ border: 1px solid var(--border); border-radius: 4px; max-width: 32%; }}
   footer {{ color: var(--muted); font-size: 10.5px; margin-top: 10px; }}
@@ -258,7 +249,7 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
 </style>
 </head>
 <body>
-  <h1>Benchmark A/B: agente normal vs simplicio-loop (files vs fast)</h1>
+  <h1>Benchmark A/B: mesmo agente, com vs sem a skill simplicio-loop</h1>
   <div class="meta">
     Modelo: <b>{html_escape(meta.get('model', '?'))}</b> &nbsp;·&nbsp;
     Data: {html_escape(meta.get('date', '?'))} &nbsp;·&nbsp;
@@ -267,7 +258,7 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
   <div class="meta">{versions_html}</div>
   <div class="verdict"><b>Veredito:</b> {html_escape(verdict_text)}</div>
 
-  <h2>Comparação geral (sem simplicio vs simplicio no fluxo wave)</h2>
+  <h2>Comparação geral (agente normal vs agente com a skill simplicio-loop)</h2>
   <table class="compare">{build_arm_table_rows(arms)}</table>
 
   <h2>Por tipo de tarefa (criação vs edição)</h2>
@@ -280,17 +271,12 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
     <img src="data:image/png;base64,{charts['cost_per_arm']}" alt="custo por braço">
   </div>
 
-  <h2>Cache do orient (Mapper/Fast) — cold vs warm</h2>
-  <table class="cache">
-    <tr><th>braço</th><th>chamada</th><th>status</th><th>parede (s)</th><th>CPU (s)</th><th>cache hit</th></tr>
-    {build_cache_table(arms)}
+  <h2>Linha do tempo de comandos (por braço, por tarefa)</h2>
+  <table class="timeline">
+    <tr><th>braço</th><th>tarefa</th><th>comando</th><th>rc</th><th>parede (s)</th><th>CPU (s)</th></tr>
+    {build_timeline_table(arms)}
   </table>
-
-  <h2>Lanes de qualidade (executor: check_cadastro.py)</h2>
-  <table class="lanes">
-    <tr><th>braço</th><th>lane</th><th>status</th><th>comando</th></tr>
-    {build_lanes_table(arms)}
-  </table>
+  <p class="meta">★ = comando simplicio-loop/mapper/dev-cli/fast.</p>
 
   <h2>Histórico (comparação com execuções anteriores)</h2>
   <table class="history">

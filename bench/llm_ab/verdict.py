@@ -18,9 +18,7 @@ def compute_verdict(results: dict) -> str:
         wall_s = f"{wall:.1f}s" if isinstance(wall, (int, float)) else "n/d"
         cost = 0.0
         for task in tasks:
-            for attempt in task.get("attempts", []):
-                call = attempt.get("llm_call") or {}
-                cost += call.get("cost_usd") or 0
+            cost += (task.get("totals") or {}).get("cost_usd") or 0
         lines.append(f"{arm_name}: {n_success}/{n_tasks} tarefas, {wall_s}, US$ {cost:.5f}")
     if not lines:
         return "sem dados suficientes para veredito"

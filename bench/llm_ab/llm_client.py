@@ -66,12 +66,17 @@ def get_key(arm: str) -> str:
 
 
 def chat(arm: str, messages: list[dict], temperature: float = 0,
-         max_tokens: int | None = None, timeout: int = DEFAULT_TIMEOUT) -> dict:
+         max_tokens: int | None = None, timeout: int = DEFAULT_TIMEOUT,
+         tools: list[dict] | None = None) -> dict:
     """Call OpenRouter chat completions. Returns a dict with content + metrics.
 
     ``max_tokens=None`` (the default) omits the field entirely from the
     request body, so the model uses its own full default output budget --
     no output cap is imposed by this harness, in any arm.
+
+    ``tools`` (OpenAI-style tool definitions) is passed through verbatim when
+    given, enabling tool-calling; the returned dict's ``message`` key then
+    carries the raw assistant message, including any ``tool_calls``.
 
     Never raises the API key into the return value or an exception message.
     """
@@ -84,6 +89,8 @@ def chat(arm: str, messages: list[dict], temperature: float = 0,
     }
     if max_tokens is not None:
         body["max_tokens"] = max_tokens
+    if tools:
+        body["tools"] = tools
     data = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(
         API_URL,
@@ -134,7 +141,8 @@ def chat(arm: str, messages: list[dict], temperature: float = 0,
         }
     usage = parsed.get("usage", {}) or {}
     choice = (parsed.get("choices") or [{}])[0]
-    content = (choice.get("message") or {}).get("content", "")
+    message = choice.get("message") or {}
+    content = message.get("content", "")
     prompt_tokens = usage.get("prompt_tokens", 0)
     completion_tokens = usage.get("completion_tokens", 0)
     reasoning_tokens = (usage.get("completion_tokens_details") or {}).get(
@@ -147,6 +155,7 @@ def chat(arm: str, messages: list[dict], temperature: float = 0,
     return {
         "ok": True,
         "content": content,
+        "message": message,
         "latency_s": latency,
         "model": parsed.get("model", MODEL),
         "prompt_tokens": prompt_tokens,
