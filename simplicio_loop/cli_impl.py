@@ -443,6 +443,44 @@ def _orient_command_card(root: Path) -> dict[str, Any]:
     }
 
 
+def _orient_route(root: Path, task: str) -> dict[str, Any]:
+    """The fastest route for ``task`` plus its literal next commands.
+
+    Same decision as ``scripts/route_mode.py`` (loaded from the installed
+    bundle, so it works in any repo): one task on one leaf, non-sensitive
+    file -> ``fast-path`` (dev-cli edit, no run/wave); anything else, or no
+    survey -> ``converge`` (the wave)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_simplicio_route_mode", Path(__file__).parent / "_bundle" / "scripts" / "route_mode.py",
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    decision = module.decide(root, task, map_dir=Path(root) / ".simplicio")
+    if decision["mode"] == "fast-path":
+        steps = [
+            "read the target file; write ops.json = "
+            '{"operations":[{"path":"<file>","find":"<exact text>","replace":"<new>"}]}',
+            "simplicio-dev-cli edit --plan ops.json --compile plan.json",
+            "simplicio-dev-cli edit --plan plan.json --apply --json",
+            "run the task's own check (test/verifier) in the same turn",
+        ]
+    else:
+        steps = [
+            "write tasks.md (one System: block per task; dependents in the same file)",
+            f"simplicio-loop prepare --task tasks.md --repo {root}",
+            "write every .simplicio/loop-runs/<run_id>/edit-plan-<N>.json up front",
+            f"simplicio-loop wave <run_id> --repo {root}",
+        ]
+    return {
+        "mode": decision["mode"],
+        "justification": decision["justification"],
+        "resolved_files": decision["measurements"]["resolved_files"],
+        "next": steps,
+    }
+
+
 def _seal_orient_payload(
     payload: dict[str, Any], *, root: Path, task: str, fast_mode: str,
     fast_engine: str, fast_context_budget: int,
@@ -456,6 +494,7 @@ def _seal_orient_payload(
     }
     payload["llm_orientation"] = contract
     payload["commands"] = _orient_command_card(root)
+    payload["route"] = _orient_route(root, task)
     provenance = _orient_provider_provenance(payload)
     receipt = {
         "schema": ORIENT_RECEIPT_SCHEMA,
