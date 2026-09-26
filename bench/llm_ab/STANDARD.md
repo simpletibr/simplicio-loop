@@ -34,7 +34,8 @@ cost less than a smaller uncached one.
 Outputs of every run (also from `--reports-only`):
 
 - `REPORT.pdf` — **the report to share**: the summary plus every
-  combination's full report (all tables and charts), one per page, printed
+  combination's report (all tables and charts; the per-command timeline
+  stays in the HTML only), one per page, printed
   with the Chromium that Playwright already ships (no extra dependency;
   override with `SIMPLICIO_BENCH_CHROMIUM`). A missing Chromium fails the
   run loudly, never silently.

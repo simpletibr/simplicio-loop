@@ -451,12 +451,23 @@ def _between(html: str, open_re: str, close: str) -> str:
     return html[m.end():end if end != -1 else len(html)]
 
 
+_TIMELINE_RE = re.compile(
+    r"<h2>Linha do tempo de comandos.*?(?=<h2>|</body>|$)", re.S | re.I)
+
+
+def _drop_timeline(body: str) -> str:
+    """The PDF is the shareable summary: the per-command timeline (every
+    command line the agent ran) stays in the HTML reports only."""
+    return _TIMELINE_RE.sub("", body)
+
+
 def build_full_html(index_html: str, reports: dict[str, str]) -> str:
     """One printable document: the summary index, then every combination's
-    full report (all sections and base64 charts) on its own page."""
+    report (tables and base64 charts, without the per-command timeline) on
+    its own page."""
     styles = {_between(h, r"<style[^>]*>", "</style>") for h in [index_html, *reports.values()]}
     parts = [f"<section>{_between(index_html, r'<body[^>]*>', '</body>')}</section>"]
-    parts += [f"<section style='page-break-before: always'>{_between(h, r'<body[^>]*>', '</body>')}</section>"
+    parts += [f"<section style='page-break-before: always'>{_drop_timeline(_between(h, r'<body[^>]*>', '</body>'))}</section>"
               for h in reports.values()]
     style = "\n".join(s for s in styles if s)
     return (f"<!DOCTYPE html><html lang='pt-BR'><head><meta charset='utf-8'>"

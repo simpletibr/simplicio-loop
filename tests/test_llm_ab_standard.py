@@ -327,3 +327,17 @@ def test_find_chromium_honors_env(monkeypatch, tmp_path):
     fake.chmod(0o755)
     monkeypatch.setenv("SIMPLICIO_BENCH_CHROMIUM", str(fake))
     assert standard.find_chromium() == str(fake)
+
+
+def test_build_full_html_drops_the_command_timeline_from_the_pdf():
+    """The PDF is the shareable summary: the per-command timeline (every
+    command line the agent ran) stays in the HTML reports only."""
+    report = ("<html><head></head><body><h2>Gráficos</h2><img src='x'>"
+              "<h2>Linha do tempo de comandos (por braço, por tarefa)</h2>"
+              "<table class=\"timeline\"><tr><td>cat big.html</td></tr></table>"
+              "<p class=\"meta\">★ = comando simplicio-loop/mapper/dev-cli/fast.</p>"
+              "<h2>Histórico (comparação com execuções anteriores)</h2></body></html>")
+    full = standard.build_full_html("<html><body><h1>Resumo</h1></body></html>", {"t1": report})
+    assert "Linha do tempo de comandos" not in full
+    assert "cat big.html" not in full
+    assert "Gráficos" in full and "Histórico" in full
