@@ -251,7 +251,7 @@ protocol on 15 runtimes**, and it does all of this with **aggressive, honest tok
 
 The skill installs **standalone**: there is no Runtime/MCP backend, and no mandatory
 native component, to use `simplicio-loop`. The two bound operators (`simplicio-mapper`,
-`simplicio-dev-cli`) are the whole stack (issue #1343 removed `simplicio-fast` entirely).
+`simplicio-dev-cli`) are the whole stack.
 
 <p align="center">
   <img src="assets/simplicio-loop-infographic.png" alt="simplicio-loop detailed infographic: standalone install, 7 skills, 5 accelerators, 15 runtimes, 5 source adapters, and proof gates" width="920" />
@@ -282,8 +282,7 @@ fica quase concluída e mostra o blocker. Consulte o contrato completo em
 
 ## 📦 Monorepo packages
 
-This repository holds three packages, each with one responsibility (issue #1343 removed
-the `simplicio-fast` package entirely):
+This repository holds three packages, each with one responsibility:
 
 | Package | Path | Responsibility |
 |---|---|---|
@@ -603,9 +602,9 @@ Agent/Watcher corrective gate (`agent/asolaria_nest_contract.py` + unit tests, b
 | Arm | How work was done |
 |---|---|
 | **Without loop** | Ad-hoc `gh` + `rg` + **full-file reads** of candidate modules (LLM-style survey) |
-| **With loop** | STRICT env → `preflight --strict` → `simplicio-mapper` scan/inspect/handoff → `simplicio-fast doctor` → `arm_drain_prism` → **signatures-only** reads |
+| **With loop** | STRICT env → `preflight --strict` → `simplicio-mapper` scan/inspect/handoff → operator doctor → `arm_drain_prism` → **signatures-only** reads |
 
-**Stack measured:** `simplicio-loop 3.38.9` · `mapper 0.26.0` · `cli 0.18.0` · `fast 2.0.17`.
+**Stack measured:** `simplicio-loop 3.38.9` · `mapper 0.26.0` · `cli 0.18.0` (historical run; that stack still carried an optional accelerator operator that has since been removed).
 
 | Metric | Without loop | With loop | Ratio (with/without) |
 |---|---:|---:|---:|
@@ -614,7 +613,7 @@ Agent/Watcher corrective gate (`agent/asolaria_nest_contract.py` + unit tests, b
 | **Token savings** | — | **~90.3% fewer** est. tokens | — |
 | **Context bytes** | 626 303 | 60 982 | 0.097× |
 | **Shell/tool commands** | 16 | 12 | — |
-| **Operator calls** | 0 | 6 | preflight + mapper×3 + fast + arm |
+| **Operator calls** | 0 | 6 | preflight + mapper×3 + doctor + arm |
 | **Tests success** | true | true | same deliverable |
 
 **Phase times (seconds):**
@@ -640,35 +639,6 @@ token reduction usually dominates billed cost; wall-clock amortizes when the map
 
 **Artifacts:** PDF report [`docs/evidence/issue17_loop_vs_baseline.pdf`](docs/evidence/issue17_loop_vs_baseline.pdf) ·
 raw metrics in the bench scratch (re-run with the harness under `docs/evidence/` notes).
-
-### Loop-stack economy report (5 issues × 5 lanes + interpretation)
-
-Full interpretation of why multi-lane benches look the way they do — including **Fast as part of STRICT loop**, why `loop_no_fast` can “save more tokens” while doing less work, why **MCP is a bus not a compressor**, and why savings % depends on baseline size.
-
-| | |
-|--|--|
-| **PDF (pizza + bars + barramento + narrative)** | [`docs/evidence/loop_stack_economy_benchmark_report.pdf`](docs/evidence/loop_stack_economy_benchmark_report.pdf) |
-| **Raw metrics JSON** | [`docs/evidence/multi_issue_lanes_metrics.json`](docs/evidence/multi_issue_lanes_metrics.json) |
-| **Harness charts** | [`docs/evidence/multi_issue_lanes_bench.pdf`](https://github.com/simpletibr/simplicio-agent/blob/main/docs/evidence/multi_issue_lanes_bench.pdf) (agent harness) |
-
-**Mean token savings vs host baseline (issues #9, #96, #171, #322, #711):**
-
-| Lane | Mean | Median | Min → Max | Mean wall | Fast acting |
-|------|-----:|-------:|-----------|----------:|:------------|
-| **loop** (STRICT = mapper+fast) | ~39% | ~34% | −31% → ~83% | ~50 s | **yes (5)** |
-| **loop + Agent MCP** | ~38% | ~34% | −32% → ~83% | ~53 s | **yes (5)** |
-| **loop_no_fast** (diagnostic) | ~64% | ~61% | ~22% → ~90% | ~18 s | no |
-| **mcp_only** | ~99%* | ~99% | ~98% → ~100% | ~11 s | n/a |
-
-\*mcp_only high % = almost no repo survey (tool metadata only), **not** better delivery.
-
-**Contract reminder:** under STRICT, **Fast is already inside the loop** when operational — not a second stack on top of loop. Runtime/MCP remain optional for the loop core.
-
-Regenerate the interpretation PDF:
-
-```bash
-python scripts/render_loop_stack_economy_report_pdf.py
-```
 
 ### 🔎 Running `simplicio-loop`: economy vs measurement (per runtime)
 
@@ -833,8 +803,8 @@ launchd/systemd services so they run the new code, and prints the live stack + s
 ### Required Mapper context and automatic machine capacity
 
 Every Loop execution workflow requires **Simplicio Mapper**, including standalone,
-sequential, Prism/wave and Fast-assisted execution. Prepare context centrally and
-bind workers to its current generation and digest. Fast is an optional accelerator;
+sequential and Prism/wave execution. Prepare context centrally and
+bind workers to its current generation and digest.
 Runtime remains optional for ordinary orchestration. Missing or stale Mapper
 context blocks work until central preparation succeeds.
 
@@ -851,7 +821,7 @@ before using historical synthetic scheduler measurements as a recommendation.
 
 The main `simplicio-loop` entry point is the user-facing control surface for planning, executing, verifying, and delivering work. Use the most specific `--help` for the exact options available in the installed version.
 
-**Standalone by design.** Runtime is optional: without it, Loop uses its own scheduler/hooks plus the Mapper, Fast, and Dev CLI operators. When Runtime is available, it adds governed activation, physical admission, gates, receipts, and reconciliation; it does not replace the Loop.
+**Standalone by design.** Runtime is optional: without it, Loop uses its own scheduler/hooks plus the Mapper and Dev CLI operators. When Runtime is available, it adds governed activation, physical admission, gates, receipts, and reconciliation; it does not replace the Loop.
 
 ### Zero-config execution
 
@@ -873,7 +843,7 @@ simplicio-dev-cli edit --plan plan.json --apply --json
 
 > **Aviso de Descontinuação do `run`**: O comando `simplicio-loop run` foi descontinuado e excluído da interface pública. Caso seja invocado (`simplicio-loop run --task task.md` ou `simplicio-loop run <run_id>`), o comando é automaticamente interceptado e redirecionado para o fluxo padrão `simplicio-loop wave`, garantindo execução com barreira de integridade e a máxima velocidade.
 
-> **Operador Obrigatório**: O ecossistema agora opera com `simplicio-mapper` estritamente obrigatório (issue #1343 removeu o `simplicio-fast` completamente da stack). O `simplicio-mapper` garante a integridade estrutural do repositório e o prefix caching determinístico da LLM.
+> **Operador Obrigatório**: O ecossistema opera com `simplicio-mapper` estritamente obrigatório. O `simplicio-mapper` garante a integridade estrutural do repositório e o prefix caching determinístico da LLM.
 
 | Area | Commands | What they do |
 |---|---|---|
@@ -912,7 +882,7 @@ Em tarefas orquestradas pelo `simplicio-loop` com `simplicio-mapper` obrigatóri
 3. **Impacto no Custo e na Latência**:
    - O custo de tokens de entrada em cache hit cai em até **90%** (de \$0.14/M para \$0.014/M de tokens no DeepSeek v4.1 Flash).
    - A latência por tarefa (Time to First Token - TTFT) despenca drasticamente, pois a LLM não recalcula os embeddings nem a atenção de todo o repositório a cada iteração.
-   - Portanto, a percepção de que *"o cache vai aumentando a cada rodada de 30 tarefas"* é matematicamente real e um benefício direto da arquitetura do `simplicio-mapper` (issue #1343 removeu o `simplicio-fast` da stack).
+   - Portanto, a percepção de que *"o cache vai aumentando a cada rodada de 30 tarefas"* é matematicamente real e um benefício direto da arquitetura do `simplicio-mapper`.
 
 ### Candidate governed flow for 10 tasks — not yet a measured winner
 
@@ -942,7 +912,7 @@ Do not interpret ten logical tasks as ten unrestricted processes: physical CPU/R
 
 ### Where Prism fits
 
-The public `simplicio-loop prism` and `simplicio-loop wave` commands dispatch through the same governed batch implementation, with typed receipts and a reconcile-before-next barrier. The `simplicio-prism` skill/layer classifies the work and composes Mapper, Fast, Loop, and Dev CLI. The concrete drain-wave operator is `scripts/arm_drain_prism.py`.
+The public `simplicio-loop prism` and `simplicio-loop wave` commands dispatch through the same governed batch implementation, with typed receipts and a reconcile-before-next barrier. The `simplicio-prism` skill/layer classifies the work and composes Mapper, Loop, and Dev CLI. The concrete drain-wave operator is `scripts/arm_drain_prism.py`.
 
 A wave ends with lease/result reconciliation before the next group is admitted.
 Arming is preparation, not execution. Mapper remains mandatory. See the
@@ -1057,9 +1027,9 @@ python3 scripts/check.py             # complete local gate (core + satellite tes
 python3 scripts/check.py --core-gate # mandatory offline/bounded core; external lanes excluded
 ```
 
-Monorepo (`packages/mapper`, `packages/fast`, `packages/dev-cli`): `bash scripts/dev_install.sh`
-sets up one venv with all four packages editable from their in-repo paths, and
-`python3 scripts/check.py --package mapper|fast|dev-cli|loop|all` (or `--changed`, scoped to what
+Monorepo (`packages/mapper`, `packages/dev-cli`): `bash scripts/dev_install.sh`
+sets up one venv with all three packages editable from their in-repo paths, and
+`python3 scripts/check.py --package mapper|dev-cli|loop|all` (or `--changed`, scoped to what
 you touched vs `origin/main`) runs one package's own fast gate from its in-repo location — see [`AGENTS.md` § Development](AGENTS.md#development).
 
 Both commands require an importable `pytest`; its absence is `pytest_unavailable`, never a

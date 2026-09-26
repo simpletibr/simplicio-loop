@@ -32,7 +32,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `plan` | Compile a raw task into a frozen contract. |
 | `prepare` / `arm` | Arm and preflight a run without executing tasks or calling a provider; returns a `run_id` for `tick`, `batch`, `wave`, or `prism`. |
 | `run` | Arm, execute, and independently verify a task. |
-| `orient` | Build bounded context through the Mapper survey and emit `simplicio.llm-max-speed-orientation/v1` plus a hash-bound `simplicio.loop-orient-receipt/v1` (issue #1343: Mapper-only, Fast removed from the stack). `--brief` (repeatable `--task`, issue #1310) renders Turn 1 of the plan-once/apply-once hot path: route first, deduped target file content, plan groups, suggested checks, Mapper generation + a `repo_state_chain` fingerprint, and the exact `apply` command. |
+| `orient` | Build bounded context through the Mapper survey and emit `simplicio.llm-max-speed-orientation/v1` plus a hash-bound `simplicio.loop-orient-receipt/v1` (Mapper-only). `--brief` (repeatable `--task`, issue #1310) renders Turn 1 of the plan-once/apply-once hot path: route first, deduped target file content, plan groups, suggested checks, Mapper generation + a `repo_state_chain` fingerprint, and the exact `apply` command. |
 | `apply` | Turn 2 of the plan-once/apply-once hot path (issue #1310): apply one `ops.json` (`{"tasks":[{"id","operations":[{path,find,replace}],"check","depends_on"}]}`). Validates every `find` in memory before any write (BLOCKED + hint, nothing written, on a miss/non-unique/chained mismatch); mutates through `simplicio-dev-cli` (compile then apply); runs independent file-disjoint chains concurrently via asyncio with an isolated check environment (`PYTHONDONTWRITEBYTECODE`, `PYTEST_ADDOPTS=-p no:cacheprovider`, a per-task `COVERAGE_FILE`); fails closed on a stale `repo_state_chain` (the same generation-identity fingerprint `orient --brief` recorded); writes a receipt under `.simplicio-loop/apply/<run_id>/receipt.json`. Exit 0 only on PASS, 2 on BLOCKED, 1 on FAIL. |
 | `retrieve` | Retrieve and verify a tee-cache result. |
 | `extensions doctor` | Inspect an exact extension-provider/runtime handshake. |
@@ -42,7 +42,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `doctor` | Inspect stack identity, source adapters, resources, or storage routing. |
 | `inspect` | Inspect MapperStore capabilities and storage routing. |
 | `map` | Inspect or build map-service receipts. |
-| `preflight` | Verify Mapper, Dev CLI, Runtime, and Fast operators. |
+| `preflight` | Verify Mapper, Dev CLI, and Runtime operators. |
 | `economy` | Inspect, print, or apply the environment profile; inspect before applying, especially in CLI-only mode. |
 | `ecc doctor` | Diagnose the optional ECC integration. |
 | `deploy` | Plan a gated deployment; `--apply` is explicit. |
@@ -227,8 +227,7 @@ missing, incompatible, or non-activating Runtime decision.
 2. `simplicio-dev-cli --help` → `task --help` for the governed edit and verification step.
 3. `simplicio-loop preflight --help`, focused tests, then `simplicio-loop verify --help`.
 
-(issue #1343 removed `simplicio-fast` from the stack entirely; the survey every flow
-requires is Mapper-only.)
+The survey every flow requires is Mapper-only.
 
 The benchmark verified installed Loop `3.43.10` on 2026-09-11. Other component
 versions must be read from their installed release receipts, not inferred from
