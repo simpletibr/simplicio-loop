@@ -33,8 +33,12 @@ comparison rule, and the "run every release" policy).
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import os
+import re
+import shutil
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -121,33 +125,78 @@ def _usd(value: float | None) -> str:
     return "n/a" if value is None else f"${value:.5f}"
 
 
-def summary_rows(suffix: str, results: dict) -> list[str]:
-    """One row per slice of a result file: its total, plus create-only and
+def summary_records(suffix: str, results: dict) -> list[dict]:
+    """One record per slice of a result file: its total, plus create-only and
     edit-only for sequential runs (a batch run is one session, so its calls
-    cannot be split per task)."""
+    cannot be split per task). Shared by the HTML and Markdown summaries."""
     arms = results.get("arms") or {}
     pricing = (results.get("meta") or {}).get("pricing") or {}
     slices = [("total", None)]
     if not (results.get("meta") or {}).get("batch"):
         kinds = {t.get("kind") for a in arms.values() for t in a.get("tasks", [])}
         slices += [(label, kind) for label, kind in (("criação", "create"), ("edição", "edit")) if kind in kinds]
-    rows = []
+    records = []
     for label, kind in slices:
         sums = {}
         for arm in ("normal", "simplicio"):
             tasks = (arms.get(arm) or {}).get("tasks", [])
             sums[arm] = _arm_sums([t for t in tasks if kind is None or t.get("kind") == kind], pricing)
-        n, s = sums["normal"], sums["simplicio"]
-        saved = n["cost"] - s["cost"]
-        pct = f"{saved / n['cost'] * 100:.1f}%" if n["cost"] else "n/a"
-        cells = "".join(
-            f"<td>{a['ok']}/{a['n']}</td><td>{a['turns']}</td><td>{a['wall']:.1f}</td>"
-            f"<td>${a['cost']:.5f}</td><td>{a['hit']:.1f}%</td><td>{_usd(a['nocache'])}</td>"
-            f"<td>{_usd(a['cache_saved'])}</td>"
-            for a in (n, s)
-        )
-        rows.append(f"<tr><td>{suffix} · {label}</td>{cells}<td>${saved:.5f} ({pct})</td></tr>")
+        saved = sums["normal"]["cost"] - sums["simplicio"]["cost"]
+        pct = f"{saved / sums['normal']['cost'] * 100:.1f}%" if sums["normal"]["cost"] else "n/a"
+        records.append({"name": f"{suffix} · {label}", "normal": sums["normal"],
+                        "simplicio": sums["simplicio"], "saved": f"${saved:.5f} ({pct})"})
+    return records
+
+
+def _arm_cells(a: dict) -> list[str]:
+    return [f"{a['ok']}/{a['n']}", str(a["turns"]), f"{a['wall']:.1f}", f"${a['cost']:.5f}",
+            f"{a['hit']:.1f}%", _usd(a["nocache"]), _usd(a["cache_saved"])]
+
+
+def summary_rows(suffix: str, results: dict) -> list[str]:
+    rows = []
+    for r in summary_records(suffix, results):
+        cells = [r["name"], *_arm_cells(r["normal"]), *_arm_cells(r["simplicio"]), r["saved"]]
+        rows.append("<tr>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr>")
     return rows
+
+
+SUMMARY_HEADERS = [
+    "combinação",
+    "normal ok", "turnos", "tempo (s)", "custo real", "cache hit", "custo sem cache", "economia do cache",
+    "simplicio ok", "turnos", "tempo (s)", "custo real", "cache hit", "custo sem cache", "economia do cache",
+    "economia de custo real com simplicio",
+]
+CACHE_NOTE = ("Custo real = cobrado pelo OpenRouter (desconto de cache incluído). Custo sem cache = "
+              "os mesmos tokens ao preço cheio de prompt. Economia do cache = diferença, pelo preço "
+              "de cache read da própria execução. Batch = uma sessão para todas as tarefas, por isso "
+              "sem linhas de criação/edição; veja a execução sequencial do mesmo conjunto.")
+
+
+def build_markdown(written: list[tuple[str, str, str]], results_by_suffix: dict) -> str:
+    """`REPORT.md`: the same summary as REPORT.html (total / create-only /
+    edit-only per combination, cache-aware) as plain Markdown tables."""
+    meta = next((r.get("meta") or {} for r in results_by_suffix.values()), {})
+    lines = [
+        "# Benchmark A/B — matriz padrão (bench/llm_ab/STANDARD.md)",
+        "",
+        f"Modelo: `{meta.get('model') or bench_run.lc.MODEL}` · commit: `{meta.get('main_commit', '?')}` "
+        f"· braços: normal, simplicio",
+        "",
+        "## Resumo (normal vs simplicio)",
+        "",
+        "| " + " | ".join(SUMMARY_HEADERS) + " |",
+        "|" + "---|" * len(SUMMARY_HEADERS),
+    ]
+    for suffix, _, _ in written:
+        if suffix in results_by_suffix:
+            for r in summary_records(suffix, results_by_suffix[suffix]):
+                cells = [r["name"], *_arm_cells(r["normal"]), *_arm_cells(r["simplicio"]), r["saved"]]
+                lines.append("| " + " | ".join(cells) + " |")
+    lines += ["", CACHE_NOTE, "", "## Relatórios por combinação", ""]
+    lines += [f"- [{suffix}]({os.path.basename(report_path)}) — `{os.path.basename(result_path)}`"
+              for suffix, result_path, report_path in written]
+    return "\n".join(lines) + "\n"
 
 
 def build_index(written: list[tuple[str, str, str]], results_by_suffix: dict | None = None) -> str:
@@ -167,16 +216,9 @@ def build_index(written: list[tuple[str, str, str]], results_by_suffix: dict | N
         body = "".join(r for suffix, _, _ in written if suffix in results_by_suffix
                        for r in summary_rows(suffix, results_by_suffix[suffix]))
         summary = (
-            "<h2>Resumo (normal vs simplicio)</h2>\n<table border='1' cellpadding='4'>"
-            "<tr><th>combinação</th>"
-            "<th>normal ok</th><th>turnos</th><th>tempo (s)</th><th>custo real</th>"
-            "<th>cache hit</th><th>custo sem cache</th><th>economia do cache</th>"
-            "<th>simplicio ok</th><th>turnos</th><th>tempo (s)</th><th>custo real</th>"
-            "<th>cache hit</th><th>custo sem cache</th><th>economia do cache</th>"
-            "<th>economia de custo real com simplicio</th></tr>\n" + body + "</table>\n"
-            "<p>Custo real = cobrado pelo OpenRouter (desconto de cache incluído). Custo sem cache = "
-            "os mesmos tokens ao preço cheio de prompt. Economia do cache = diferença, pelo preço "
-            "de cache read da própria execução.</p>\n"
+            "<h2>Resumo (normal vs simplicio)</h2>\n<table border='1' cellpadding='4'><tr>"
+            + "".join(f"<th>{h}</th>" for h in SUMMARY_HEADERS) + "</tr>\n"
+            + body + "</table>\n" + f"<p>{CACHE_NOTE}</p>\n"
         )
     return f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -189,6 +231,60 @@ def build_index(written: list[tuple[str, str, str]], results_by_suffix: dict | N
 </body>
 </html>
 """
+
+
+def _between(html: str, open_re: str, close: str) -> str:
+    m = re.search(open_re, html, re.S | re.I)
+    if not m:
+        return ""
+    end = html.find(close, m.end())
+    return html[m.end():end if end != -1 else len(html)]
+
+
+def build_full_html(index_html: str, reports: dict[str, str]) -> str:
+    """One printable document: the summary index, then every combination's
+    full report (all sections and base64 charts) on its own page."""
+    styles = {_between(h, r"<style[^>]*>", "</style>") for h in [index_html, *reports.values()]}
+    parts = [f"<section>{_between(index_html, r'<body[^>]*>', '</body>')}</section>"]
+    parts += [f"<section style='page-break-before: always'>{_between(h, r'<body[^>]*>', '</body>')}</section>"
+              for h in reports.values()]
+    style = "\n".join(s for s in styles if s)
+    return (f"<!DOCTYPE html><html lang='pt-BR'><head><meta charset='utf-8'>"
+            f"<title>Benchmark A/B — relatório completo</title><style>{style}\n"
+            f"img {{ max-width: 100%; }} table {{ font-size: 10px; }}</style></head><body>"
+            + "\n".join(parts) + "</body></html>")
+
+
+def find_chromium() -> str | None:
+    """The Chromium Playwright already ships (no extra dependency):
+    ``SIMPLICIO_BENCH_CHROMIUM``, then chromium/chrome on PATH, then the
+    ``PLAYWRIGHT_BROWSERS_PATH`` install."""
+    env = os.environ.get("SIMPLICIO_BENCH_CHROMIUM")
+    if env and os.access(env, os.X_OK):
+        return env
+    for name in ("chromium", "chromium-browser", "google-chrome"):
+        found = shutil.which(name)
+        if found:
+            return found
+    root = os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "/opt/pw-browsers")
+    for pattern in ("chromium-*/chrome-linux/chrome", "chromium_headless_shell-*/chrome-linux/headless_shell"):
+        matches = sorted(glob.glob(os.path.join(root, pattern)))
+        if matches:
+            return matches[-1]
+    return None
+
+
+def html_to_pdf(html_path: str, pdf_path: str) -> None:
+    chrome = find_chromium()
+    if chrome is None:
+        raise RuntimeError("no Chromium found for the PDF report (set SIMPLICIO_BENCH_CHROMIUM)")
+    subprocess.run(
+        [chrome, "--headless", "--no-sandbox", "--disable-gpu", "--no-pdf-header-footer",
+         f"--print-to-pdf={pdf_path}", "file://" + os.path.abspath(html_path)],
+        check=True, capture_output=True, timeout=180,
+    )
+    if not os.path.isfile(pdf_path) or os.path.getsize(pdf_path) == 0:
+        raise RuntimeError(f"Chromium did not write {pdf_path}")
 
 
 def write_reports(entries: list[tuple[str, str]], out_dir: str) -> None:
@@ -210,6 +306,23 @@ def write_reports(entries: list[tuple[str, str]], out_dir: str) -> None:
     with open(index_path, "w") as f:
         f.write(build_index(written, loaded))
     print(f"wrote {index_path}", file=sys.stderr)
+    md_path = os.path.join(HERE, "REPORT.md")
+    with open(md_path, "w") as f:
+        f.write(build_markdown(written, loaded))
+    print(f"wrote {md_path}", file=sys.stderr)
+
+    reports = {}
+    for suffix, _, report_path in written:
+        with open(report_path) as f:
+            reports[suffix] = f.read()
+    with open(index_path) as f:
+        full = build_full_html(f.read(), reports)
+    full_path = os.path.join(HERE, "REPORT-full.html")
+    with open(full_path, "w") as f:
+        f.write(full)
+    pdf_path = os.path.join(HERE, "REPORT.pdf")
+    html_to_pdf(full_path, pdf_path)
+    print(f"wrote {pdf_path}", file=sys.stderr)
 
 
 def main(argv: list[str] | None = None) -> int:

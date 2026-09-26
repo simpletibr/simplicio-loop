@@ -27,6 +27,16 @@ from the run's own pricing snapshot. Never compare arms on raw token
 counts or list-price cost alone: a larger but mostly cached prompt can
 cost less than a smaller uncached one.
 
+Outputs of every run (also from `--reports-only`):
+
+- `REPORT.pdf` — **the report to share**: the summary plus every
+  combination's full report (all tables and charts), one per page, printed
+  with the Chromium that Playwright already ships (no extra dependency;
+  override with `SIMPLICIO_BENCH_CHROMIUM`). A missing Chromium fails the
+  run loudly, never silently.
+- `REPORT.md` — the summary tables in Markdown.
+- `REPORT.html` + `REPORT-<suffix>.html` — the same content as web pages.
+
 `REPORT.html` opens with a summary table: each combination's total, plus
 create-only and edit-only rows for the sequential runs. A batch run is one
 agent session for every task, so its calls cannot be split per task; its
