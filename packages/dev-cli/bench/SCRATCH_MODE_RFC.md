@@ -4,7 +4,7 @@
 > (1) modo "do zero" com templates de boas práticas por stack, (2) planner
 > remoto via DeepSeek-V4-Pro em vez de LLM local, (3) skill `skill-opt` pra
 > criar skill nova sob demanda.
-> **Repo:** `wesleysimplicio/simplicio-dev-cli`
+> **Repo:** `simpletibr/simplicio-loop` (`packages/dev-cli/`, formerly `wesleysimplicio/simplicio-dev-cli`)
 > **Dependências relevantes:** `simplicio/init.py`, `simplicio/providers.py`,
 > `simplicio/pipeline.py`, `.skills/`, `.specs/sprints/`.
 

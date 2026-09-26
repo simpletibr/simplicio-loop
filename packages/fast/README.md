@@ -548,7 +548,7 @@ tracked in [issue #46](https://github.com/simpletibr/simplicio-loop/issues/46).
 
 ## Star history
 
-[![Star History Chart](https://api.star-history.com/svg?repos=wesleysimplicio/simplicio-fast&type=Date)](https://star-history.com/#wesleysimplicio/simplicio-fast&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=simpletibr/simplicio-loop&type=Date)](https://star-history.com/#simpletibr/simplicio-loop&Date)
 
 > GitHub stars and the chart become externally visible when repository visibility and Star History access permit it.
 

@@ -1,7 +1,8 @@
 # Issue #302 — Loop authority-boundary evidence
 
-This document defines the cross-repository evidence lane for
-`wesleysimplicio/simplicio-dev-cli#302`. The Loop is the coordinator-facing
+This document defines the cross-repository evidence lane for issue #302
+(originally filed as `wesleysimplicio/simplicio-dev-cli#302`, now tracked in
+`simpletibr/simplicio-loop`). The Loop is the coordinator-facing
 boundary; the Dev CLI remains the owner of effect-specific proposal binding
 and the Runtime sink remains the final transport gate.
 

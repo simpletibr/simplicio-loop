@@ -194,7 +194,7 @@ simplicio-mapper → simplicio-runtime → simplicio-dev-cli → simplicio-loop
 MIT. See [LICENSE](LICENSE).
 
 <p align="center">
-  <a href="https://star-history.com/#simpletibr/simplicio-mapper&Date">
-    <img src="https://api.star-history.com/svg?repos=simpletibr/simplicio-mapper&type=Date" alt="Star history chart for simplicio-mapper">
+  <a href="https://star-history.com/#simpletibr/simplicio-loop&Date">
+    <img src="https://api.star-history.com/svg?repos=simpletibr/simplicio-loop&type=Date" alt="Star history chart for simplicio-loop">
   </a>
 </p>
