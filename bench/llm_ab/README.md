@@ -4,20 +4,27 @@ For the canonical release matrix (tasks 1+4, sequential+batch, the one
 `standard.sh`/`standard.py` command, metrics, results naming and the "run it
 every release" policy), see [`STANDARD.md`](STANDARD.md).
 
-Compares the SAME agentic coding loop (`agent.py`) run twice on the same
-dependent tasks (`--tasks`, default 2) and the same model:
+Compares the SAME real agent harness — [OpenCode](https://github.com/sst/opencode)
+(`opencode-ai` on npm), not a hand-rolled Python tool-calling loop — run
+twice on the same dependent tasks (`--tasks`, default 2) and the same model
+(issue #1325; the earlier version of this benchmark measured
+`bench/llm_ab/agent.py`, a minimal OpenAI-style loop with one `bash` tool,
+instead of a real agent):
 
-- **normal** — the agent gets a plain system prompt and the task text. It
-  decides for itself which shell commands to run.
-- **simplicio** — the agent gets the SAME system prompt, plus the full
-  `.claude/skills/simplicio-loop/SKILL.md` text appended, and its user
-  prompt is prefixed with `/simplicio-loop `. It decides for itself whether
-  and how to run `simplicio-loop orient`/`prepare`/`wave`/`verify` — this
-  harness never scripts the wave flow directly; the skill does, through the
-  model.
+- **normal** — OpenCode as installed, no skill available in the repo it is
+  pointed at. It decides for itself which shell commands to run.
+- **simplicio** — the SAME OpenCode CLI, but with
+  `.claude/skills/simplicio-loop/` copied into that arm's repo (OpenCode
+  scans a repo's `.claude/skills` by default, alongside its own native
+  `.opencode/skills` — see `STANDARD.md` § OpenCode for how that was
+  confirmed) and its user prompt prefixed with `/simplicio-loop `. It
+  decides for itself whether and how to run
+  `simplicio-loop orient`/`prepare`/`wave`/`verify` — this harness never
+  scripts the wave flow directly; the skill does, through the model.
 
-The only difference between the two arms is the prompt. Everything else —
-the tool-calling loop, the single `bash` tool, the fixture, the acceptance
+The only difference between the two arms is whether the skill directory is
+present and the prompt prefix. Everything else — the OpenCode binary, its
+model, its own internal tool-calling loop, the fixture, the acceptance
 checker — is identical, so the comparison isolates the effect of the skill
 itself.
 
@@ -54,23 +61,35 @@ count (`<date>-<shortsha>-t<N>.json`, see "Running it" below) and
 `aggregate.load_history`/the report's history section only diff a run
 against earlier runs with the SAME `-tN` suffix.
 
-## The agent loop (`agent.py`)
+## The agent driver (`opencode_agent.py`)
 
-`run_agent(arm, system_prompt, user_prompt, repo_dir, max_turns, cmd_timeout)`
-is an OpenAI-style tool-calling loop with exactly ONE tool, `bash`
-(`{"command": str}`), run as `bash -lc <command>` in `repo_dir`. Each turn:
-ask the model for the next step; if it replies with `tool_calls`, run every
-requested command and feed back its combined stdout/stderr (truncated to
-the **last 8000 characters**) as a `tool` message; stop when the model
-replies with no `tool_calls` (it says it's done) or `max_turns` is reached
-(default 30). The subprocess `PATH` is the caller's environment with the
-venv `bin/` holding `simplicio-loop`/`simplicio-mapper`/`simplicio-dev-cli`/
-`simplicio-fast` (`dirname(sys.executable)`) prepended, so the simplicio arm
-can actually invoke those binaries from its bash tool.
+`run_opencode(arm, prompt, repo_dir, config_dir=..., timeout=..., skill=bool)`
+runs the real `opencode run --model openrouter/deepseek/deepseek-v4.1-flash
+--format json --auto --dir <repo_dir> <prompt>` and parses its JSON event
+stream (`parse_run_events`). `--auto` auto-approves bash/edit permissions
+non-interactively; OpenCode drives its OWN multi-turn tool-calling loop
+internally — this harness never talks to the LLM directly for either arm.
+`skill=True` (the simplicio arm) copies `.claude/skills/simplicio-loop/`
+into `repo_dir` and prefixes the prompt with `/simplicio-loop `; `skill=False`
+(the normal arm) does neither. `config_dir` becomes OpenCode's own
+`HOME`/`XDG_CONFIG_HOME`/`XDG_DATA_HOME` for that invocation — a per-arm
+scratch directory, never the real `~` (see `STANDARD.md` § OpenCode for why
+that isolation is necessary). The subprocess `PATH` is the caller's
+environment with the venv `bin/` holding
+`simplicio-loop`/`simplicio-mapper`/`simplicio-dev-cli`/`simplicio-fast`
+(`dirname(sys.executable)`) prepended, so the simplicio arm can actually
+invoke those binaries from OpenCode's own bash tool. The OpenRouter key
+reaches the child process ONLY via the `OPENROUTER_API_KEY` environment
+variable — never on the command line.
 
-Every LLM call (tokens prompt/completion/reasoning/cached, cost, latency)
-and every command (text, exit code, wall/CPU time, whether its first token
-is a `simplicio-*` binary, output size) is recorded on the task's result.
+One OpenCode `step-finish` event is one LLM call; every LLM call (tokens
+input/output/reasoning/cached, OpenCode's own reported cost, latency) and
+every `bash` tool event (command text, exit code, wall time when OpenCode
+reports it, whether its first token is a `simplicio-*` binary, output size)
+is recorded on the task's result, in the same shape the rest of the
+pipeline (`aggregate.py`/`report.py`/`cost.py`) already consumes. See
+"Real cost from OpenRouter" below for how the REPORTED cost is reconciled
+against the real BILLED cost.
 
 ## Two fresh repos, sequential tasks, harness-owned commits
 
@@ -85,6 +104,11 @@ on disk — for both arms, identically.
 ```bash
 # once, in this repo:
 bash scripts/dev_install.sh && source .venv/bin/activate
+
+# once, OUTSIDE this repo (OpenCode is a benchmark tool, not a package
+# dependency -- never installed into this repo's own node_modules/venv):
+npm install --prefix /path/to/opencode-install opencode-ai
+export SIMPLICIO_BENCH_OPENCODE_BIN=/path/to/opencode-install/node_modules/.bin/opencode
 
 # keys.env (never commit it): OR_KEY_NORMAL / OR_KEY_SIMPLICIO
 export SIMPLICIO_BENCH_KEYS=/path/to/keys.env
@@ -108,46 +132,55 @@ python3 bench/llm_ab/report.py --results bench/llm_ab/results/<file>.json \
 ```
 
 Useful flags: `--tasks {1,2,4}` (default 2, see "Task sets" above),
-`--max-turns` (default 30, caps LLM calls per task), `--cmd-timeout`
-(default 180s, per bash-tool command), `--batch` (all tasks in ONE user
-prompt / one agent session per arm instead of one session per task --
-acceptance is still checked per task by the harness after the session; adds
-a `-batch` suffix to the results filename), `--effort-policy {hints,none}`
-(default `hints`: honor the most recent `effort`/`next_effort` hint parsed
-from a simplicio tool output for the next LLM call's reasoning effort; see
-"Per-phase reasoning effort" below).
+`--task-timeout` (default `opencode_agent.DEFAULT_RUN_TIMEOUT`, 900s: the
+wall-clock cap for one `opencode run` invocation per task -- OpenCode
+manages its own internal turn loop, so there is no separate
+`--max-turns`/`--cmd-timeout` the way the retired Python loop had),
+`--batch` (all tasks in ONE user prompt / one OpenCode session per arm
+instead of one session per task -- acceptance is still checked per task by
+the harness after the session; adds a `-batch` suffix to the results
+filename).
 
-## Per-phase reasoning effort (issue #1310 follow-up)
+## Per-call reasoning effort is not controllable (issue #1325)
 
-`simplicio_loop/effort.py` gives `orient --brief` an `effort` table
-(`plan`/`execute`/`review`) and `simplicio-loop apply`'s result a
-`next_effort` field. With `--effort-policy hints` (the default), `agent.py`
-parses the most recent such hint out of the simplicio arm's own tool output
-(`agent.parse_effort_hint`) and sends it as OpenRouter's
-`"reasoning": {"effort": ...}` on the NEXT LLM call
-(`llm_client.chat(..., reasoning_effort=...)`) -- until a hint is seen, no
-`reasoning` field is sent at all (the model's own default). The normal arm
-never runs a command that prints such a hint, so it naturally stays at
-`default` for the whole run -- no per-arm branching in `agent.py` itself.
-`--effort-policy none` disables this for the A/B control. Every LLM call
-records its own `reasoning_effort` (`None`/`"low"`/`"medium"`/`"high"`);
-`aggregate.effort_counts` and `report.build_effort_table` show the per-arm
-distribution.
+The retired `agent.py` parsed `orient --brief`'s `effort` table
+(`plan`/`execute`/`review`, `simplicio_loop/effort.py`) and
+`simplicio-loop apply`'s `next_effort` field out of the simplicio arm's own
+tool output and sent it as OpenRouter's `"reasoning": {"effort": ...}` on
+the very next LLM call it made directly. OpenCode does not expose that
+granularity: its own `--variant` flag (reasoning effort: `low`/`high`/...)
+only applies to the WHOLE `opencode run` invocation, not to an individual
+internal LLM step, and this benchmark's harness never calls the LLM
+directly any more -- OpenCode does, internally. Every recorded `llm_call`
+therefore carries `reasoning_effort: None` for both arms; `--variant` is not
+set by this harness (both arms get OpenCode's own default), and
+`aggregate.effort_counts`/`report.build_effort_table` are kept (not
+dropped) because the resulting table is real, non-fabricated data that
+documents this limitation (100% `default` for both arms) rather than
+hiding it.
 
 ## What each metric means
 
-- **turns** — how many LLM calls the agent needed for one task before
-  replying with no more tool calls (or hitting `--max-turns`).
-- **commands** — every bash-tool command the agent ran, in order, with exit
-  code and wall/CPU time (`measure.py`: `RUSAGE_CHILDREN` deltas,
-  `/proc/<pid>/status` `VmHWM` polling for peak RSS); `is_simplicio` flags a
-  command whose first token starts with `simplicio-` (loop/mapper/dev-cli/
-  fast).
-- **tokens/cost** — read straight from the OpenRouter response's `usage`
-  block (`prompt_tokens`, `completion_tokens`,
-  `completion_tokens_details.reasoning_tokens`,
-  `prompt_tokens_details.cached_tokens`, `usage.cost`); never estimated. See
-  "Real cost from OpenRouter" below for the cache-aware breakdown built on
+- **turns** — how many internal LLM steps OpenCode itself took for one task
+  (one `step-finish` event each) before it stopped, or `--task-timeout` was
+  hit.
+- **commands** — every `bash` tool event OpenCode emitted, in order, with
+  exit code and wall time OpenCode itself reports on the event
+  (`opencode_agent.parse_run_events`); `is_simplicio` flags a command whose
+  first token starts with `simplicio-` (loop/mapper/dev-cli/fast). CPU/peak
+  RSS per command are not measurable through the OpenCode CLI (OpenCode
+  itself shells out to bash, not this harness) -- `measure.py`'s
+  `RUSAGE_CHILDREN`/`VmHWM` measurement instead covers the WHOLE `opencode
+  run` process for that task. Unlike the retired `agent.py` (whose single
+  tool WAS bash), real OpenCode also ships native `edit`/`write`/etc. tools
+  -- a task the model solves entirely through one of those (observed for
+  simple create tasks on the normal arm) legitimately shows `n_commands: 0`
+  even though the file was written; `commands` counts bash-tool use
+  specifically (relevant to whether the simplicio arm actually invoked a
+  `simplicio-*` binary), not every file mutation.
+- **tokens/cost** — read straight from each OpenCode `step-finish` event's
+  own `tokens`/`cost` fields (never estimated); see "Real cost from
+  OpenRouter" below for the cache-aware breakdown built on
   top of these.
 - **check runs** — how many times the agent itself invoked the harness
   checker (`check_cadastro.py`/`check_login.py`) via its own bash commands
@@ -168,15 +201,17 @@ under `results["meta"]["pricing"]` (`prompt`, `completion`,
 model publishes them, plus `fetched_at`). It is never hardcoded, so it
 tracks OpenRouter's own price changes.
 
-For every ok LLM call whose response carried an `id`, after the arm finishes
-the harness also fetches
-`GET https://openrouter.ai/api/v1/generation?id=<id>` with that arm's own
-key (`llm_client.fetch_generation_stats`) for the native (provider-side)
-token counts and OpenRouter's own reported cost/cache-discount figures,
-stored as `call["generation_stats"]`. Generation stats can lag the chat
-response by a few seconds, so a 404 is retried once after 1s; if it's still
-unavailable the call simply carries `{"available": False}` -- never a
-fabricated number.
+**Real BILLED cost (issue #1325):** `opencode_agent.run_opencode` reads
+`GET https://openrouter.ai/api/v1/key`'s cumulative `data.usage` (USD) with
+that arm's own key immediately before and after the `opencode run`
+invocation, then polls the same endpoint (up to ~20s, every 2s --
+`poll_billed_delta`) until the usage actually moves; the observed delta
+becomes `totals["cost_usd"]` with `totals["cost_source"] =
+"billed-delta"`. OpenRouter's usage ledger can lag past that window; when it
+never moves, `totals["cost_usd"]` stays the SUM of OpenCode's own
+per-step reported cost (`totals["cost_usd_opencode_reported"]`,
+`cost_source = "opencode-reported"`) instead -- never a fabricated number,
+and the report shows which source backs each figure.
 
 `cost.cost_breakdown()` computes, per arm/task-kind
 (`cost.cost_table()`, embedded in `results["cost_report"]` and rendered in
@@ -195,8 +230,10 @@ directly -- reported vs computed cost side by side, per arm and task kind.
 - `tasks.py` — the task table (`TASKS` + `LOGIN_TASKS`, `kind`
   create/edit, `depends_on`, `checker`) and `task_set(n)` for `--tasks
   {1,2,4}`.
-- `agent.py` — the shared tool-calling agent loop + its pure helpers
-  (`truncate_tail`, `classify_command`, `parse_tool_calls`, `summarize`).
+- `opencode_agent.py` — drives the real `opencode` CLI per task/arm
+  (`run_opencode`), parses its JSON event stream (`parse_run_events`),
+  aggregates totals (`summarize`) and reconciles the real billed cost
+  (`fetch_key_usage_usd`, `poll_billed_delta`).
 - `aggregate.py` — pure results aggregation (tokens, CPU/RAM, success,
   turns, command/check counts, history diffing/loading, task-count-aware).
 - `cost.py` — pure OpenRouter pricing/generation-stats parsing and
@@ -206,15 +243,15 @@ directly -- reported vs computed cost side by side, per arm and task kind.
 - `checker.py` — subprocess wrapper around the harness-owned checker
   (`checker=` selects `check_cadastro.py`/`check_login.py`); also seeds a
   fresh fixture copy per arm.
-- `llm_client.py` — stdlib OpenRouter client (`SIMPLICIO_BENCH_KEYS`),
-  optional OpenAI-style `tools` for tool-calling, plus the real-cost fetch
-  helpers (`fetch_model_pricing`, `fetch_generation_stats`).
-- `measure.py` — wall/CPU/peak-RSS measurement helpers.
+- `llm_client.py` — stdlib OpenRouter client: `keys_path()`/`get_key()`
+  (`SIMPLICIO_BENCH_KEYS`), `fetch_json`, `fetch_model_pricing` (pricing
+  lookup, used regardless of which agent drives the benchmark).
+- `measure.py` — wall/CPU/peak-RSS measurement helpers (used here to time
+  the whole `opencode run` subprocess per task).
 - `report.py` — REPORT.html builder (pt-BR, base64 matplotlib PNGs), incl.
   the pricing/cost tables.
-- `run.py` — CLI entry point; builds the per-arm prompts (base prompt, or
-  base prompt + SKILL.md text), picks the task set (`--tasks`), fetches
-  pricing once, and drives both arms through `agent.py`.
+- `run.py` — CLI entry point; picks the task set (`--tasks`), fetches
+  pricing once, and drives both arms through `opencode_agent.run_opencode`.
 - `fixture/` — the minimal seed repo (`README.md`, placeholder
   `cadastro.html`/`login.html`, `tests/check_cadastro.py`/`check_login.py`).
 - `standard.py` / `standard.sh` — the ONE canonical benchmark matrix command

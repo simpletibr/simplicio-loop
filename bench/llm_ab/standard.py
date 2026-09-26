@@ -79,8 +79,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--out", default=os.path.join(HERE, "results"),
         help="directory for the append-only results/<date>-<sha>-t<N>[-batch].json history",
     )
-    ap.add_argument("--max-turns", type=int, default=30, help="per agent.run_agent call (see run.py)")
-    ap.add_argument("--cmd-timeout", type=int, default=180, help="per bash-tool command (see run.py)")
+    ap.add_argument(
+        "--task-timeout", type=int, default=bench_run.oc.DEFAULT_RUN_TIMEOUT,
+        help="per `opencode run` invocation per task, forwarded to run.py's --task-timeout",
+    )
     ap.add_argument(
         "--reports-only", metavar="SHA", default=None,
         help="re-render every REPORT-*.html and REPORT.html from the existing results/*-<SHA>-*.json "
@@ -359,8 +361,7 @@ def main(argv: list[str] | None = None) -> int:
             "--arms", "normal,simplicio",
             "--tasks", str(combo["tasks"]),
             "--out", args.out,
-            "--max-turns", str(args.max_turns),
-            "--cmd-timeout", str(args.cmd_timeout),
+            "--task-timeout", str(args.task_timeout),
             "--skip-report",
         ]
         if combo["batch"]:

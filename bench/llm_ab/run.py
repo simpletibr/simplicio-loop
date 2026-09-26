@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
-"""LLM A/B benchmark entry point: the SAME agentic coding loop, run twice --
-once with no simplicio-loop skill (``normal``), once given the
-simplicio-loop SKILL.md text and told to invoke it (``simplicio``) -- on 2
-dependent HTML tasks (create, then edit).
+"""LLM A/B benchmark entry point: the real OpenCode agent, run twice per task
+-- once with no simplicio-loop skill in the repo (``normal``), once with
+``.claude/skills/simplicio-loop`` installed and the prompt prefixed with
+``/simplicio-loop `` (``simplicio``) -- on 2 dependent HTML tasks (create,
+then edit).
 
-Both arms are driven by ``agent.run_agent``: an OpenAI-style tool-calling
-loop with exactly one tool, ``bash``. The ONLY difference between the arms
-is the prompt (see ``build_prompts`` below); nothing about the loop, the
-tool, or the fixture differs. The simplicio arm decides for itself, turn by
-turn, whether and how to run ``simplicio-loop`` -- this harness never
-scripts the wave flow directly.
+Both arms are driven by ``opencode_agent.run_opencode``: the real
+``opencode`` CLI (npm ``opencode-ai``), not a hand-rolled tool-calling loop
+(issue #1325 -- the retired ``agent.py`` measured a minimal Python loop
+instead of a real agent harness). The ONLY differences between the arms are
+whether the skill directory is installed into the arm's repo and whether the
+prompt is prefixed -- see ``opencode_agent.build_prompt``/``install_skill``.
+The simplicio arm decides for itself, turn by turn, whether and how to
+invoke the skill -- this harness never scripts the wave flow directly.
 
 Usage::
 
     SIMPLICIO_BENCH_KEYS=/path/to/keys.env \\
+      SIMPLICIO_BENCH_OPENCODE_BIN=/path/to/node_modules/.bin/opencode \\
       python3 bench/llm_ab/run.py --arms normal,simplicio \\
         --out bench/llm_ab/results
 
@@ -33,21 +37,15 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(HERE))
-SKILL_PATH = os.path.join(REPO_ROOT, ".claude", "skills", "simplicio-loop", "SKILL.md")
 sys.path.insert(0, HERE)
 
-import agent  # noqa: E402
 import checker  # noqa: E402
 import cost as bench_cost  # noqa: E402
 import llm_client as lc  # noqa: E402
+import opencode_agent as oc  # noqa: E402
 import tasks as bench_tasks  # noqa: E402
 
 ARM_CHOICES = ("normal", "simplicio")
-
-BASE_SYSTEM_PROMPT = (
-    "You are a coding agent working in a git repository via a bash tool. "
-    "Complete the task, then reply DONE with a one-line summary."
-)
 
 
 def _short_sha(repo: str) -> str:
@@ -71,42 +69,13 @@ def _pip_versions(python_bin: str) -> dict:
     }
 
 
-def _read_skill_text() -> str:
-    with open(SKILL_PATH, encoding="utf-8") as f:
-        return f.read()
-
-
-def build_batch_prompt(arm: str, task_list: list[dict]) -> tuple[str, str]:
-    """``(system_prompt, user_prompt)`` for ``--batch``: ALL of ``task_list``
-    in ONE user prompt, one agent session per arm (issue #1310 follow-up).
-    Same per-arm system-prompt/prefix rule as ``build_prompts``; acceptance
-    is still checked per task by the harness after the session finishes
-    (``run_arm_batch``), never asked of the model."""
-    texts = "\n\n".join(f"Task {t['index']}: {t['text']}" for t in task_list)
-    if arm == "simplicio":
-        system_prompt = BASE_SYSTEM_PROMPT + "\n\nSKILL (simplicio-loop):\n" + _read_skill_text()
-        user_prompt = "/simplicio-loop " + texts
-    else:
-        system_prompt = BASE_SYSTEM_PROMPT
-        user_prompt = texts
-    return system_prompt, user_prompt
-
-
-def build_prompts(arm: str, task: dict) -> tuple[str, str]:
-    """``(system_prompt, user_prompt)`` for one task in one arm.
-
-    ``normal``: the base system prompt, plain task text as the user prompt.
-    ``simplicio``: the base system prompt plus the full simplicio-loop
-    SKILL.md text, and the user prompt prefixed with ``/simplicio-loop `` --
-    the agent decides on its own whether/how to run the skill's commands.
-    """
-    if arm == "simplicio":
-        system_prompt = BASE_SYSTEM_PROMPT + "\n\nSKILL (simplicio-loop):\n" + _read_skill_text()
-        user_prompt = "/simplicio-loop " + task["text"]
-    else:
-        system_prompt = BASE_SYSTEM_PROMPT
-        user_prompt = task["text"]
-    return system_prompt, user_prompt
+def build_batch_prompt(task_list: list[dict]) -> str:
+    """The single user-prompt text for ``--batch``: ALL of ``task_list`` in
+    ONE prompt, one ``opencode run`` session per arm (issue #1310 follow-up,
+    carried over to the real-OpenCode driver by issue #1325). Per-arm
+    skill-install/prefix behavior is applied by ``opencode_agent.run_opencode``
+    (``skill=True``), not here."""
+    return "\n\n".join(f"Task {t['index']}: {t['text']}" for t in task_list)
 
 
 def _commit_if_changed(repo_dir: str, message: str) -> None:
@@ -123,26 +92,13 @@ def _commit_if_changed(repo_dir: str, message: str) -> None:
     )
 
 
-def _attach_generation_stats(arm: str, llm_calls: list[dict]) -> None:
-    """After a task's agent loop finishes, fetch real per-call native
-    token/cost stats for every ok call that carries a response ``id`` and
-    attach them as ``call["generation_stats"]``. Best-effort: a fetch
-    failure (network, 404 twice, malformed body) leaves
-    ``{"available": False}`` on that call rather than raising or skipping
-    silently -- the report can then show it as such instead of a fabricated
-    number."""
-    for call in llm_calls:
-        if not call.get("ok") or not call.get("id"):
-            continue
-        call["generation_stats"] = lc.fetch_generation_stats(arm, call["id"])
-
-
 def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
-            max_turns: int, cmd_timeout: int, task_list: list[dict] | None = None,
-            effort_policy: str = "hints") -> dict:
+            task_timeout: int, task_list: list[dict] | None = None,
+            config_dir: str | None = None) -> dict:
     import time
 
     task_list = task_list if task_list is not None else bench_tasks.TASKS
+    config_dir = config_dir or (repo_dir + "-oc-home")
 
     checker.seed_repo(fixture_dir, repo_dir)
     subprocess.run(["git", "init", "-q"], cwd=repo_dir, check=True, timeout=15)
@@ -155,20 +111,17 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
         idx = task["index"]
         stage = task["verify_stage"]
         task_checker = task.get("checker", "check_cadastro.py")
-        system_prompt, user_prompt = build_prompts(arm, task)
 
         task_wall_t0 = time.time()
-        agent_result = agent.run_agent(
-            arm, system_prompt, user_prompt, repo_dir,
-            max_turns=max_turns, cmd_timeout=cmd_timeout, effort_policy=effort_policy,
+        agent_result = oc.run_opencode(
+            arm, task["text"], repo_dir,
+            config_dir=config_dir, timeout=task_timeout, skill=(arm == "simplicio"),
         )
         task_wall_s = round(time.time() - task_wall_t0, 3)
 
         _commit_if_changed(repo_dir, f"{arm}: task {idx}")
 
         passed, check_out, _check_metrics = checker.run_check(repo_dir, stage, python_bin, checker=task_checker)
-
-        _attach_generation_stats(arm, agent_result["llm_calls"])
 
         task_record = {
             "index": idx,
@@ -199,38 +152,41 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
 
 
 def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
-                   max_turns: int, cmd_timeout: int, task_list: list[dict],
-                   effort_policy: str = "hints") -> dict:
+                   task_timeout: int, task_list: list[dict],
+                   config_dir: str | None = None) -> dict:
     """``--batch``: ALL of ``task_list`` in ONE agent session for this arm
-    (issue #1310 follow-up) -- the same seeded repo, but a single
-    ``agent.run_agent`` call instead of one per task. Acceptance is still
-    checked per task by the harness afterwards, running each task's own
-    ``checker``/``verify_stage`` against the final tree the session left --
-    the per-task acceptance checks are cumulative (a later stage's checker
-    is a superset of an earlier one's), so this is equivalent to checking
-    each task right after the model would have finished it.
+    (issue #1310 follow-up, carried over to the real-OpenCode driver by
+    issue #1325) -- the same seeded repo, but a single
+    ``opencode_agent.run_opencode`` call instead of one per task. Acceptance
+    is still checked per task by the harness afterwards, running each
+    task's own ``checker``/``verify_stage`` against the final tree the
+    session left -- the per-task acceptance checks are cumulative (a later
+    stage's checker is a superset of an earlier one's), so this is
+    equivalent to checking each task right after the model would have
+    finished it.
 
-    Per-call metrics (tokens/cost/reasoning-effort/commands) belong to the
-    ONE shared session, not to any single task -- they are attached in full
-    to the first task's record (``tasks[0]``) and left empty on the rest, so
-    every existing ``aggregate.py`` sum (which iterates ``tasks``) still
-    counts each LLM call/command exactly once instead of once per task.
+    Per-call metrics (tokens/cost/commands) belong to the ONE shared
+    session, not to any single task -- they are attached in full to the
+    first task's record (``tasks[0]``) and left empty on the rest, so every
+    existing ``aggregate.py`` sum (which iterates ``tasks``) still counts
+    each LLM call/command exactly once instead of once per task.
     """
     import time
+
+    config_dir = config_dir or (repo_dir + "-oc-home")
 
     checker.seed_repo(fixture_dir, repo_dir)
     subprocess.run(["git", "init", "-q"], cwd=repo_dir, check=True, timeout=15)
     _commit_if_changed(repo_dir, "seed fixture")
 
-    system_prompt, user_prompt = build_batch_prompt(arm, task_list)
+    batch_prompt = build_batch_prompt(task_list)
     total_wall_t0 = time.time()
-    agent_result = agent.run_agent(
-        arm, system_prompt, user_prompt, repo_dir,
-        max_turns=max_turns * len(task_list), cmd_timeout=cmd_timeout, effort_policy=effort_policy,
+    agent_result = oc.run_opencode(
+        arm, batch_prompt, repo_dir,
+        config_dir=config_dir, timeout=task_timeout * len(task_list), skill=(arm == "simplicio"),
     )
     total_wall_s = round(time.time() - total_wall_t0, 3)
     _commit_if_changed(repo_dir, f"{arm}: batch of {len(task_list)} tasks")
-    _attach_generation_stats(arm, agent_result["llm_calls"])
 
     results = {"arm": arm, "model": lc.MODEL, "tasks": [], "batch": True}
     for pos, task in enumerate(task_list):
@@ -246,7 +202,7 @@ def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
             "turns": agent_result["turns"] if shared else 0,
             "llm_calls": agent_result["llm_calls"] if shared else [],
             "commands": agent_result["commands"] if shared else [],
-            "totals": agent_result["totals"] if shared else agent.summarize([], []),
+            "totals": agent_result["totals"] if shared else oc.summarize([], []),
             "final_text": agent_result["final_text"] if shared else None,
             "wall_s": total_wall_s if shared else 0.0,
             "check_output_tail": "\n".join(check_out.splitlines()[-30:]),
@@ -313,12 +269,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="python interpreter used to run the harness-owned check_cadastro.py in each repo",
     )
     ap.add_argument(
-        "--max-turns", type=int, default=30,
-        help="max agent turns (LLM calls) per task before giving up (default: 30)",
-    )
-    ap.add_argument(
-        "--cmd-timeout", type=int, default=180,
-        help="timeout in seconds for each bash-tool command the agent runs (default: 180)",
+        "--task-timeout", type=int, default=oc.DEFAULT_RUN_TIMEOUT,
+        help=(
+            "timeout in seconds for one `opencode run` invocation per task "
+            f"(default: {oc.DEFAULT_RUN_TIMEOUT}; OpenCode manages its own internal "
+            "turn loop, so this is the only cap this harness imposes -- there is no "
+            "per-turn --max-turns/--cmd-timeout the way the retired Python loop had)"
+        ),
     )
     ap.add_argument(
         "--skip-report", action="store_true",
@@ -329,14 +286,6 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help=(
             "run ALL tasks in ONE user prompt / one agent session per arm, instead of one "
             "session per task; acceptance is still checked per task after the session finishes"
-        ),
-    )
-    ap.add_argument(
-        "--effort-policy", default="hints", choices=agent.EFFORT_POLICIES,
-        help=(
-            "'hints' (default): honor the most recent effort/next_effort hint parsed from a "
-            "simplicio tool output in this conversation for the next LLM call's reasoning "
-            "effort. 'none': never send a reasoning-effort param (always the model default)."
         ),
     )
     return ap
@@ -366,20 +315,22 @@ def main(argv=None) -> int:
     arms_results = {}
     for arm in arms:
         repo_dir = os.path.join(work_dir, f"{arm}-repo")
+        config_dir = os.path.join(work_dir, f"{arm}-oc-home")
         arms_results[arm] = run_fn(
-            arm, fixture_dir, repo_dir, args.python_bin, args.max_turns, args.cmd_timeout,
-            task_list=task_list, effort_policy=args.effort_policy,
+            arm, fixture_dir, repo_dir, args.python_bin, args.task_timeout,
+            task_list=task_list, config_dir=config_dir,
         )
 
     meta = {
-        "model": lc.MODEL,
+        "model": oc.OPENCODE_MODEL,
         "date": datetime.date.today().isoformat(),
         "main_commit": _short_sha(REPO_ROOT),
         "pip_versions": _pip_versions(sys.executable),
         "task_count": args.tasks,
         "pricing": pricing,
         "batch": args.batch,
-        "effort_policy": args.effort_policy,
+        "agent": "opencode",
+        "effort_policy": "opencode-managed (no per-call reasoning-effort control via the CLI)",
     }
     results = {"meta": meta, "arms": arms_results}
     results["cost_report"] = {
