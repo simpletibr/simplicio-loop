@@ -24,8 +24,12 @@ network, so the run never races again.
 from __future__ import annotations
 
 import os
+import signal
 import sys
+import time
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -42,3 +46,41 @@ def pytest_configure(config) -> None:  # noqa: ANN001 - pytest hook signature
     # the suite (every caller's own except-and-fall-back stays intact), it
     # just no longer gets the determinism guarantee this warms up for.
     warm_estimator()
+
+
+def _index_workers() -> set[int]:
+    """PIDs of detached ``simplicio_mapper.cli index`` workers (Linux /proc)."""
+    pids: set[int] = set()
+    proc = Path("/proc")
+    if not proc.is_dir():
+        return pids
+    for entry in proc.iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            argv = (entry / "cmdline").read_bytes().split(b"\0")
+        except OSError:
+            continue
+        if b"simplicio_mapper.cli" in argv and b"index" in argv:
+            pids.add(int(entry.name))
+    return pids
+
+
+@pytest.fixture(autouse=True)
+def _reap_background_index_workers():
+    """A test that runs ``scan`` without ``--sync`` starts a detached index
+    worker (``start_new_session=True``) and may return before it finishes.
+    Wait for workers the test started, then terminate stragglers, so no
+    worker outlives its test (the gate reports survivors as a leak)."""
+    before = _index_workers()
+    yield
+    started = _index_workers() - before
+    deadline = time.monotonic() + 15
+    while started and time.monotonic() < deadline:
+        started &= _index_workers()
+        time.sleep(0.05)
+    for pid in started:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass

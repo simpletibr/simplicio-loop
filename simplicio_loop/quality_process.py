@@ -616,6 +616,19 @@ def _pid_is_running(pid: int) -> Optional[bool]:
     return None
 
 
+def _describe_leaked(pids: Set[int]) -> str:
+    """One ``descendant_leak pid=<pid> cmd=<argv>`` line per leaked process."""
+    lines = []
+    for pid in sorted(pids):
+        try:
+            with open("/proc/%d/cmdline" % pid, "rb") as handle:
+                cmd = handle.read().replace(b"\0", b" ").decode("utf-8", "replace").strip()
+        except OSError:
+            cmd = "?"
+        lines.append("descendant_leak pid=%d cmd=%s\n" % (pid, cmd[:300]))
+    return "".join(lines)
+
+
 def _surviving_descendants(descendants: Set[int]) -> Optional[Set[int]]:
     """Return still-running descendants observed while the leader was alive."""
     if os.name == "nt":
@@ -977,6 +990,7 @@ def _bounded_capture(
             survivors = set()
         leaked_descendant = bool(survivors)
         if leaked_descendant:
+            chunks["stderr"].add(_describe_leaked(survivors).encode("utf-8"))
             if not _terminate_and_reap(
                 proc, survivors, baseline=baseline, discover=discover,
             ):
