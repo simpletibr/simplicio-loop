@@ -61,4 +61,4 @@ def test_check_isolation_env_present_in_child(tmp_path):
     assert result["status"] == "PASS"
     tail = result["tasks"][0]["check"]["stdout_tail"]
     assert "PYTHONDONTWRITEBYTECODE=1" in tail
-    assert "COVERAGE_FILE=.simplicio/apply/" in tail
+    assert "COVERAGE_FILE=.simplicio-loop/apply/" in tail

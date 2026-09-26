@@ -221,7 +221,7 @@ def _isolated_check_env(*, base_env: Mapping[str, str] | None, run_id: str, task
     existing_addopts = env.get("PYTEST_ADDOPTS", "")
     if "no:cacheprovider" not in existing_addopts:
         env["PYTEST_ADDOPTS"] = (existing_addopts + " -p no:cacheprovider").strip()
-    env["COVERAGE_FILE"] = f".simplicio/apply/{run_id}/{task_id}.coverage"
+    env["COVERAGE_FILE"] = f".simplicio-loop/apply/{run_id}/{task_id}.coverage"
     return env
 
 
@@ -397,7 +397,7 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".") -> dict[str, Any]:
             "next_effort": next_effort_for_status("BLOCKED"),
         }
 
-    run_dir = root / ".simplicio" / "apply" / run_id
+    run_dir = root / ".simplicio-loop" / "apply" / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     before_state = current_state if current_state is not None else _repo_fingerprint(root)
     by_id = {t["id"]: t for t in tasks}
