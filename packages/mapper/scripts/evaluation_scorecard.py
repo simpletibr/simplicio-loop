@@ -143,9 +143,35 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
         code, stdout, stderr, _ = _run_cli(["map", "--root", str(tempdir), "--silent"], ROOT)
         if code != 0:
             raise RuntimeError(f"map failed for {case['id']}: {stderr.strip()}")
-        code, stdout, stderr, _ = _run_cli(["scan", str(tempdir), "--sync", "--json"], ROOT)
-        if code != 0:
-            raise RuntimeError(f"scan failed for {case['id']}: {stderr.strip()}")
+        # `scan --sync` only maps its own process exit code to a "timeout"
+        # vs. everything-else distinction: a deep-index worker that failed
+        # (crash, resource contention, a leftover lock) or left a stale
+        # index still exits 0 with `phase: "failed"` in its JSON envelope —
+        # see `_run_scan` / `test_scan_sync_lock_guarded`, where this is the
+        # documented, intentional CLI contract: callers that need to know
+        # the scan actually completed must read `phase`, not just the exit
+        # code. Without that check a failed scan silently fell through to
+        # `handoff` against a stale/absent project map, producing a
+        # spuriously low recall instead of a clear, retryable error. A
+        # worker failure under contention (lock held a beat too long,
+        # transient spawn hiccup) is inherently transient, so retry the scan
+        # itself a bounded number of times before treating it as real.
+        scan_envelope: dict[str, Any] = {}
+        scan_attempts = 3
+        for attempt in range(scan_attempts):
+            code, stdout, stderr, _ = _run_cli(["scan", str(tempdir), "--sync", "--json"], ROOT)
+            if code != 0:
+                raise RuntimeError(f"scan failed for {case['id']}: {stderr.strip()}")
+            scan_envelope = _load_json(stdout, f"{case['id']} scan")
+            if scan_envelope.get("phase") == "complete":
+                break
+            if attempt == scan_attempts - 1:
+                raise RuntimeError(
+                    f"scan for {case['id']} did not complete after {scan_attempts} attempts: "
+                    f"phase={scan_envelope.get('phase')!r} "
+                    f"failure_reason={scan_envelope.get('deep', {}).get('failure_reason')!r}"
+                )
+            time.sleep(0.2)
 
         first_code, first_stdout, first_stderr, handoff_latency_ms = _run_cli(
             [

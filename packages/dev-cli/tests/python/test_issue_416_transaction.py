@@ -317,7 +317,11 @@ while not gate.exists():
     time.sleep(0.01)
 try:
     result = execute_changeset_transaction(
-        plan, root=root, idempotency_key=key, changeset_digest_value="digest-concurrent"
+        plan,
+        root=root,
+        idempotency_key=key,
+        changeset_digest_value="digest-concurrent",
+        lock_wait_seconds=25.0,
     )
 except ChangesetTransactionError as exc:
     print(json.dumps({"error": exc.code}), flush=True)
@@ -360,8 +364,25 @@ print(json.dumps(result), flush=True)
     for log_handle in log_handles:
         log_handle.close()
 
-    assert sum(process.returncode == 0 for process in processes) == 1
-    assert sum(process.returncode == 2 for process in processes) == workers - 1
+    # The idempotency-key lock now waits (bounded) for a live owner instead of
+    # failing every latecomer instantly, so every worker is expected to
+    # succeed: exactly one performs the real staged commit and every other
+    # one deterministically replays that same result — never a scheduling-
+    # dependent mix of successes and TRANSACTION_BUSY errors (issue #416).
+    assert all(process.returncode == 0 for process in processes), [
+        process.returncode for process in processes
+    ]
+    results = [
+        json.loads((tmp_path / f"worker-{index}.log").read_text(encoding="utf-8")) for index in range(workers)
+    ]
+    real_executions = [result for result in results if not result.get("replayed")]
+    replays = [result for result in results if result.get("replayed")]
+    assert len(real_executions) == 1, "expected exactly one real (non-replayed) execution"
+    assert len(replays) == workers - 1
+    winner = real_executions[0]
+    for replay in replays:
+        assert replay["transaction"]["after_sha256"] == winner["transaction"]["after_sha256"]
+        assert replay["status"] == winner["status"]
     assert target.read_text(encoding="utf-8") == "new\n"
 
 
