@@ -1,16 +1,15 @@
-"""Arm specs for the ablation benchmark (issue #1337).
+"""Arm specs for the ablation benchmark (issue #1337; issue #1343 dropped the
+Fast arms when simplicio-fast was removed from the stack entirely).
 
-Seven arms vary which Simplicio operators (mapper, fast, dev-cli) and skills
-the real OpenCode agent has, isolating each operator's individual and
-paired contribution to cost/speed against the ``normal`` (nothing
-installed) baseline and the ``simplicio`` (full loop) reference:
+Five arms vary which Simplicio operators (mapper, dev-cli) and skills the
+real OpenCode agent has, isolating each operator's individual and paired
+contribution to cost/speed against the ``normal`` (nothing installed)
+baseline and the ``simplicio`` (full loop) reference:
 
     normal        -- no skill, no simplicio-* binary on PATH
     mapper        -- simplicio-mapper only
-    mapper-fast   -- simplicio-mapper + simplicio-fast
     devcli        -- simplicio-dev-cli only
     mapper-devcli -- simplicio-mapper + simplicio-dev-cli
-    fast-devcli   -- simplicio-fast + simplicio-dev-cli
     simplicio     -- simplicio-loop skill, ALL binaries on PATH (reference)
 
 Each spec is ``{"skills": [...], "bins": [...], "prompt_prefix": str}``:
@@ -30,11 +29,10 @@ Each spec is ``{"skills": [...], "bins": [...], "prompt_prefix": str}``:
 from __future__ import annotations
 
 MAPPER_BIN = "simplicio-mapper"
-FAST_BIN = "simplicio-fast"
 DEVCLI_BIN = "simplicio-dev-cli"
 LOOP_BIN = "simplicio-loop"
 
-ALL_BINS = (MAPPER_BIN, FAST_BIN, DEVCLI_BIN, LOOP_BIN)
+ALL_BINS = (MAPPER_BIN, DEVCLI_BIN, LOOP_BIN)
 
 
 def _only_prefix(*named: tuple[str, str]) -> str:
@@ -59,13 +57,6 @@ ARM_SPECS: dict[str, dict] = {
         "bins": [MAPPER_BIN],
         "prompt_prefix": _only_prefix((MAPPER_BIN, "simplicio-mapper")),
     },
-    "mapper-fast": {
-        "skills": ["simplicio-mapper", "simplicio-fast"],
-        "bins": [MAPPER_BIN, FAST_BIN],
-        "prompt_prefix": _only_prefix(
-            (MAPPER_BIN, "simplicio-mapper"), (FAST_BIN, "simplicio-fast"),
-        ),
-    },
     "devcli": {
         "skills": ["simplicio-dev-cli"],
         "bins": [DEVCLI_BIN],
@@ -76,13 +67,6 @@ ARM_SPECS: dict[str, dict] = {
         "bins": [MAPPER_BIN, DEVCLI_BIN],
         "prompt_prefix": _only_prefix(
             (MAPPER_BIN, "simplicio-mapper"), (DEVCLI_BIN, "simplicio-dev-cli"),
-        ),
-    },
-    "fast-devcli": {
-        "skills": ["simplicio-fast", "simplicio-dev-cli"],
-        "bins": [FAST_BIN, DEVCLI_BIN],
-        "prompt_prefix": _only_prefix(
-            (FAST_BIN, "simplicio-fast"), (DEVCLI_BIN, "simplicio-dev-cli"),
         ),
     },
     "simplicio": {

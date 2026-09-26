@@ -202,6 +202,6 @@ def test_apply_without_orient_brief_is_blocked_and_tree_unchanged(tmp_path):
     ops_path.write_text(json.dumps(ops), encoding="utf-8")
     proc = _run_cli("apply", str(ops_path), "--repo", ".", "--json", cwd=repo)
     result = json.loads(proc.stdout)
-    assert result["reason_code"] == "mapper_fast_provenance_missing"
+    assert result["reason_code"] == "mapper_provenance_missing"
     assert proc.returncode == 2
     assert (repo / "cadastro.html").read_text(encoding="utf-8") == before

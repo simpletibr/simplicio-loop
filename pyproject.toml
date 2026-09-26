@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "simplicio-loop"
 version = "3.43.16"
-description = "Standalone orchestrator for mapper, fast, and simplicio-dev-cli. No Runtime."
+description = "Standalone orchestrator for mapper and simplicio-dev-cli. No Runtime."
 readme = "PYPI.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -23,15 +23,15 @@ classifiers = [
   "Topic :: Utilities",
   "Operating System :: OS Independent",
 ]
-# Loop is the aggregate of mapper + fast + simplicio-dev-cli. `simplicio-cli`
-# exports the `simplicio-dev-cli` entrypoint. There is no Runtime and no
+# Loop is the aggregate of mapper + simplicio-dev-cli (issue #1343 removed
+# simplicio-fast from the stack entirely). `simplicio-cli` exports the
+# `simplicio-dev-cli` entrypoint. There is no Runtime and no
 # simplicio-prompt on this train. Loop's in-process dev-cli capability probe
 # (strict_mode.action_operator_status) reads simplicio.capabilities, hence
 # the simplicio-cli floor raise to 0.18.16.
 dependencies = [
   "simplicio-cli>=0.18.16,<0.19",
   "simplicio-mapper>=0.26.34,<0.27",
-  "simplicio-fast>=2.0.35,<3",
   "tiktoken>=0.12.0,<1",
 ]
 
@@ -101,7 +101,7 @@ addopts = ["--import-mode=importlib"]
 markers = [
   "external_integration: installed or network-backed lane excluded from the hermetic core gate",
   "satellite: opt-in satellite functionality excluded from the mandatory core gate",
-  "no_survey: apply tests that must run without the seeded Mapper + Fast survey",
+  "no_survey: apply tests that must run without the seeded Mapper survey",
 ]
 # The bundle/plugin trees mirror source files and are validated by mirror-parity.
 # Collect the canonical tests once instead of executing mirrored probes repeatedly.

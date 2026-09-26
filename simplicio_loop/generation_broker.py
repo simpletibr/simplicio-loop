@@ -17,10 +17,23 @@ from .checkpoint_lifecycle import (
     LifecycleError,
     validate_candidate_id,
 )
-from .fast_fanout import CanonicalGeneration
 from .map_service import MapServiceRegistry, RepositoryIdentity
 
 SCHEMA = "simplicio.loop.generation-binding/v1"
+
+
+@dataclass(frozen=True)
+class CanonicalGeneration:
+    generation: str
+    context_hash: str
+    source_commit: str
+    plan_hash: str
+    receipt_hash: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {"generation": self.generation, "context_hash": self.context_hash,
+                "source_commit": self.source_commit, "plan_hash": self.plan_hash,
+                "receipt_hash": self.receipt_hash}
 
 
 def _digest(value: Mapping[str, Any]) -> str:

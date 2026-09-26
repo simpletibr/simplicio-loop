@@ -1,9 +1,11 @@
-"""Mapper + Fast survey provenance shared by every mutating flow (issue #1318).
+"""Mapper survey provenance shared by every mutating flow (issue #1318;
+issue #1343 removed simplicio-fast from the stack entirely -- Mapper is now
+the sole survey operator).
 
-`orient` (plain and `--brief`) records which Mapper/Fast generation and
-context it produced in `.simplicio-loop/survey.json`; `apply` (hot path) and
-`prepare` (wave) refuse to run without it, so no flow can mutate a repo that
-Mapper and Fast have not surveyed.
+`orient` (plain and `--brief`) records which Mapper generation it produced
+in `.simplicio-loop/survey.json`; `apply` (hot path) and `prepare` (wave)
+refuse to run without it, so no flow can mutate a repo that Mapper has not
+surveyed.
 """
 from __future__ import annotations
 
@@ -16,10 +18,10 @@ from .state_dir import ensure_state_dir
 
 SURVEY_FILE = "survey.json"
 PROJECT_MAP = "project-map.json"
-SURVEY_OPERATORS = frozenset({"simplicio-fast", "simplicio-mapper"})
-MISSING_REASON = "mapper_fast_provenance_missing"
+SURVEY_OPERATORS = frozenset({"simplicio-mapper"})
+MISSING_REASON = "mapper_provenance_missing"
 MISSING_HINT = ("run `simplicio-loop orient --brief --repo . --task ...` first "
-                "(Mapper + Fast survey); nothing was written")
+                "(Mapper survey); nothing was written")
 
 
 def write_survey(root: Path, generations: Sequence[Mapping[str, Any]]) -> Path:
@@ -30,11 +32,11 @@ def write_survey(root: Path, generations: Sequence[Mapping[str, Any]]) -> Path:
 
 
 def provenance(root: Path, generations: Any = None) -> dict[str, Any] | None:
-    """The Mapper + Fast survey bound to this run, or ``None`` when missing.
+    """The Mapper survey bound to this run, or ``None`` when missing.
 
     Requires the Mapper project map under `.simplicio-loop/` and, per task
-    generation (``generations`` if given, else `survey.json`), a Mapper/Fast
-    operator -- with a Fast ``context_hash`` whenever Fast produced it."""
+    generation (``generations`` if given, else `survey.json`), the Mapper
+    operator."""
     state = Path(root) / ".simplicio-loop"
     if not (state / PROJECT_MAP).is_file():
         return None
@@ -47,7 +49,5 @@ def provenance(root: Path, generations: Any = None) -> dict[str, Any] | None:
         return None
     for entry in generations:
         if not isinstance(entry, Mapping) or entry.get("operator") not in SURVEY_OPERATORS:
-            return None
-        if entry.get("operator") == "simplicio-fast" and not entry.get("context_hash"):
             return None
     return {"project_map": f".simplicio-loop/{PROJECT_MAP}", "generations": [dict(e) for e in generations]}

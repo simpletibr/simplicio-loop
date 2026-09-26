@@ -38,8 +38,7 @@ def test_route_is_the_first_key_of_the_orient_payload(tmp_path):
     """Agents read orient with `| head`; the route must survive truncation."""
     from simplicio_loop.cli_impl import _seal_orient_payload
 
-    payload = {"schema": "x", "status": "OK", "fast": {"big": "x" * 5000}}
-    _seal_orient_payload(payload, root=tmp_path, task="Edit a.html", fast_mode="auto",
-                         fast_engine="python", fast_context_budget=1000)
+    payload = {"schema": "x", "status": "OK", "mapper": {"big": "x" * 5000}}
+    _seal_orient_payload(payload, root=tmp_path, task="Edit a.html")
     assert list(payload)[0] == "route"
     assert "status" in payload and "receipt" in payload

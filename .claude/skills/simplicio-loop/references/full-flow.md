@@ -93,9 +93,10 @@ of blocked. Worktrees and lane branches are removed once integration
 finishes. Implementation: `simplicio_loop/wave_worktree.py`
 (`group_disjoint_tasks`, `run_worktree_wave`, `integrate_lane_results`).
 
-Mapper + Fast survey the **default branch** (`origin/HEAD`, falling back to
-the current `HEAD`) once per commit SHA; every worker in the wave reuses that
-one cached survey read-only instead of re-running it
+The Mapper survey (issue #1343 removed Fast from the stack entirely) covers
+the **default branch** (`origin/HEAD`, falling back to the current `HEAD`)
+once per commit SHA; every worker in the wave reuses that one cached survey
+read-only instead of re-running it
 (`wave_worktree.ArtifactCache`, keyed by the default-branch SHA). A worker
 never re-surveys; a missing/stale cache rebuilds once, centrally — the same
 "workers never rebuild canonical artifacts" rule as `AGENTS.md`'s central

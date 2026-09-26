@@ -1,5 +1,7 @@
 """TDD unit tests for bench/llm_ab/arms.py (issue #1337 ablation benchmark):
-the 7-arm spec table used to isolate skills + PATH binaries per arm."""
+the 5-arm spec table used to isolate skills + PATH binaries per arm (issue
+#1343 dropped the Fast arms, mapper-fast and fast-devcli, when
+simplicio-fast was removed from the stack entirely)."""
 import os
 import sys
 
@@ -12,12 +14,18 @@ sys.path.insert(0, os.path.join(REPO, "bench", "llm_ab"))
 import arms  # noqa: E402
 
 EXPECTED_ARMS = (
-    "normal", "mapper", "mapper-fast", "devcli", "mapper-devcli", "fast-devcli", "simplicio",
+    "normal", "mapper", "devcli", "mapper-devcli", "simplicio",
 )
 
 
-def test_arm_names_has_exactly_the_7_ablation_arms():
+def test_arm_names_has_exactly_the_5_ablation_arms():
     assert arms.ARM_NAMES == EXPECTED_ARMS
+
+
+def test_fast_arms_are_gone():
+    assert "mapper-fast" not in arms.ARM_SPECS
+    assert "fast-devcli" not in arms.ARM_SPECS
+    assert "simplicio-fast" not in arms.ALL_BINS
 
 
 @pytest.mark.parametrize("name", EXPECTED_ARMS)
@@ -40,7 +48,7 @@ def test_simplicio_arm_has_all_bins_and_loop_skill_and_slash_prefix():
     s = arms.ARM_SPECS["simplicio"]
     assert s["skills"] == ["simplicio-loop"]
     assert set(s["bins"]) == {
-        "simplicio-mapper", "simplicio-fast", "simplicio-dev-cli", "simplicio-loop",
+        "simplicio-mapper", "simplicio-dev-cli", "simplicio-loop",
     }
     assert s["prompt_prefix"] == "/simplicio-loop "
 
@@ -49,17 +57,15 @@ def test_simplicio_arm_has_all_bins_and_loop_skill_and_slash_prefix():
     "arm,expected_bins",
     [
         ("mapper", {"simplicio-mapper"}),
-        ("mapper-fast", {"simplicio-mapper", "simplicio-fast"}),
         ("devcli", {"simplicio-dev-cli"}),
         ("mapper-devcli", {"simplicio-mapper", "simplicio-dev-cli"}),
-        ("fast-devcli", {"simplicio-fast", "simplicio-dev-cli"}),
     ],
 )
 def test_single_and_pair_arms_expose_exactly_their_bins(arm, expected_bins):
     assert set(arms.ARM_SPECS[arm]["bins"]) == expected_bins
 
 
-@pytest.mark.parametrize("arm", ["mapper", "mapper-fast", "devcli", "mapper-devcli", "fast-devcli"])
+@pytest.mark.parametrize("arm", ["mapper", "devcli", "mapper-devcli"])
 def test_single_and_pair_arm_prefix_names_only_its_own_skills_and_forbids_the_rest(arm):
     s = arms.ARM_SPECS[arm]
     prefix = s["prompt_prefix"]

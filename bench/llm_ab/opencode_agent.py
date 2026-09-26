@@ -202,8 +202,8 @@ def build_env(arm: str, key: str, config_dir: str, base_env: dict | None = None,
     ``XDG_CONFIG_HOME``) and otherwise write into the real home directory.
 
     ``extra_path`` (default: the venv ``bin/`` holding
-    ``simplicio-loop``/``simplicio-mapper``/``simplicio-dev-cli``/
-    ``simplicio-fast``, i.e. ``dirname(sys.executable)``) is prepended to
+    ``simplicio-loop``/``simplicio-mapper``/``simplicio-dev-cli``,
+    i.e. ``dirname(sys.executable)``) is prepended to
     ``PATH`` so the simplicio arm's bash tool calls can actually invoke
     those binaries -- same convention as the retired ``agent.py``.
 

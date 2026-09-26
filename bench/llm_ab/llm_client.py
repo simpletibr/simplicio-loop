@@ -56,19 +56,17 @@ def mask(key: str | None) -> str:
 
 # One key per arm -- lets an OpenRouter dashboard attribute spend per arm
 # without ever mixing usage across them. Only 2 real keys exist
-# (OR_KEY_NORMAL/OR_KEY_SIMPLICIO); the 7-arm ablation benchmark (issue
-# #1337) ALTERNATES them across the arm table (arms.ARM_NAMES order) rather
-# than minting new key names -- normal/simplicio keep their historical
-# mapping, and the 5 single/pair-operator arms alternate starting from
-# OR_KEY_NORMAL, so consecutive sequential runs never reuse the same key
-# back-to-back.
+# (OR_KEY_NORMAL/OR_KEY_SIMPLICIO); the ablation benchmark (issue #1337,
+# reduced to 5 arms by issue #1343's Fast removal) ALTERNATES them across
+# the arm table (arms.ARM_NAMES order) rather than minting new key names --
+# normal/simplicio keep their historical mapping, and the single/pair-
+# operator arms alternate starting from OR_KEY_NORMAL, so consecutive
+# sequential runs never reuse the same key back-to-back.
 ARM_KEY_NAMES = {
     "normal": "OR_KEY_NORMAL",
     "mapper": "OR_KEY_NORMAL",
-    "mapper-fast": "OR_KEY_SIMPLICIO",
-    "devcli": "OR_KEY_NORMAL",
-    "mapper-devcli": "OR_KEY_SIMPLICIO",
-    "fast-devcli": "OR_KEY_NORMAL",
+    "devcli": "OR_KEY_SIMPLICIO",
+    "mapper-devcli": "OR_KEY_NORMAL",
     "simplicio": "OR_KEY_SIMPLICIO",
 }
 

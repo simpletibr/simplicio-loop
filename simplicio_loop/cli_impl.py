@@ -25,7 +25,6 @@ except Exception:  # pragma: no cover - keeps `simplicio-loop` importable if thi
 
 from . import __version__
 from .state_dir import ensure_state_dir
-from .fast_integration import FastConfig, FastIntegrationError, FastLoopIntegration
 from .checkpoint_lifecycle import CheckpointLifecycle, LifecycleError
 from . import delivery
 from .drain import (
@@ -471,7 +470,7 @@ def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
     ``simplicio-mapper orient``, but a genuine Fast ``READY`` (no fallback)
     never runs Mapper's ``orient``/``handoff`` itself and can leave a fresh
     repo without it -- `orient` reports success and writes `survey.json`, yet
-    `prepare` then blocks on `mapper_fast_provenance_missing`. There must be a
+    `prepare` then blocks on `mapper_provenance_missing`. There must be a
     single definition of "surveyed"; this makes `orient` -- whichever internal
     path it took -- respect it explicitly rather than leaving it to chance.
     A failure here (binary missing, timeout, non-git dir) is intentionally
@@ -694,7 +693,7 @@ def _orient_revision(root: Path) -> str | None:
 
 def _orient_provider_provenance(payload: Mapping[str, Any]) -> dict[str, Any]:
     provider = str(payload.get("provider") or "")
-    provider_payload = payload.get("fast") if provider == "simplicio-fast" else payload.get("mapper")
+    provider_payload = payload.get("mapper")
     provider_payload = provider_payload if isinstance(provider_payload, Mapping) else {}
     ingest = provider_payload.get("ingest") if isinstance(provider_payload.get("ingest"), Mapping) else {}
     mapper_result = provider_payload.get("result") if isinstance(provider_payload.get("result"), Mapping) else {}
@@ -788,16 +787,9 @@ def _orient_route(root: Path, task: str) -> dict[str, Any]:
 
 
 def _seal_orient_payload(
-    payload: dict[str, Any], *, root: Path, task: str, fast_mode: str,
-    fast_engine: str, fast_context_budget: int,
+    payload: dict[str, Any], *, root: Path, task: str,
 ) -> dict[str, Any]:
     contract = llm_max_speed_orientation_contract()
-    contract["request_policy"] = {
-        "fast_mode": fast_mode,
-        "fast_engine": fast_engine,
-        "context_budget_bytes": int(fast_context_budget),
-        "fallback_allowed": fast_mode != "on" and fast_engine != "rust",
-    }
     payload["llm_orientation"] = contract
     payload["commands"] = _orient_command_card(root)
     # Route first: hosts often read orient through `| head`.
@@ -868,46 +860,31 @@ def _mapper_orient_fallback(root: Path, task: str) -> dict:
             except OSError:
                 pass
 
-def _orient_extract_fallback_reason(fast_payload: Mapping[str, Any] | None) -> str:
-    """Pull the real cause out of a Fast prepare() FALLBACK payload.
+def _orient_extract_fallback_reason(mapper_payload: Mapping[str, Any] | None) -> str:
+    """Pull the real cause out of a Mapper orient BLOCKED payload.
 
-    ``FastLoopIntegration.prepare()`` nests the actual reason under
-    ``ingest``/``understanding`` (each stage's own fallback receipt); it is
-    never a top-level ``reason`` key except in tests that stub the whole
-    integration. Reading only the top level (issue #1288) silently collapsed
-    every real cause -- including a missing Mapper handoff with Fast fully
-    available -- into the generic ``fast_disabled_or_unavailable``.
+    Reading only the top-level ``reason`` key silently collapses every real
+    cause into a generic fallback, so this also checks the nested
+    ``result`` payload Mapper's own orient CLI returns.
     """
-    payload = fast_payload or {}
+    payload = mapper_payload or {}
     top_level = payload.get("reason")
     if top_level:
         return str(top_level)
-    for stage in ("ingest", "understanding"):
-        stage_payload = payload.get(stage)
-        if isinstance(stage_payload, Mapping):
-            value = stage_payload.get("reason")
-            if value:
-                return str(value)
+    result = payload.get("result")
+    if isinstance(result, Mapping):
+        value = result.get("reason")
+        if value:
+            return str(value)
     return ""
 
 
 def _orient_context_summary(payload: Mapping[str, Any]) -> dict[str, Any]:
     """Bounded, task-relevant leading context (issue #1288 AC2/AC3).
 
-    Extracted from whichever provider answered (Fast understanding or the
-    Mapper fallback selection) so the top of the payload always carries
-    paths/symbols instead of only receipts/policy text.
+    Extracted from the Mapper survey selection so the top of the payload
+    always carries paths/symbols instead of only receipts/policy text.
     """
-    provider = payload.get("provider")
-    if provider == "simplicio-fast":
-        understanding = ((payload.get("fast") or {}).get("understanding")
-                          if isinstance(payload.get("fast"), Mapping) else None)
-        understanding = understanding if isinstance(understanding, Mapping) else {}
-        return {
-            "paths": list(understanding.get("files") or []),
-            "symbols": list(understanding.get("symbols") or []),
-            "snippet_count": len(understanding.get("context") or []),
-        }
     mapper = payload.get("mapper") if isinstance(payload.get("mapper"), Mapping) else {}
     result = mapper.get("result") if isinstance(mapper.get("result"), Mapping) else {}
     selection = result.get("selection") if isinstance(result.get("selection"), Mapping) else {}
@@ -931,23 +908,6 @@ def _orient_trim_verbose_fields(payload: dict[str, Any]) -> dict[str, Any]:
     """
     trimmed = dict(payload)
     trimmed.pop("llm_orientation", None)
-    fast = trimmed.get("fast")
-    if isinstance(fast, Mapping):
-        fast = dict(fast)
-        for stage in ("ingest", "understanding"):
-            stage_payload = fast.get(stage)
-            if isinstance(stage_payload, Mapping):
-                stage_payload = dict(stage_payload)
-                stage_payload.pop("probe", None)
-                fast[stage] = stage_payload
-        # Raw Fast context/selection/plan nodes can reach hundreds of KB; the
-        # default view keeps what the caller decides on (files, terms, hashes).
-        for stage, bulky in (("understanding", ("selection", "context")),
-                             ("plan", ("nodes", "understanding", "context_handles"))):
-            stage_payload = fast.get(stage)
-            if isinstance(stage_payload, Mapping):
-                fast[stage] = {k: v for k, v in stage_payload.items() if k not in bulky}
-        trimmed["fast"] = fast
     mapper = trimmed.get("mapper")
     if isinstance(mapper, Mapping):
         mapper = dict(mapper)
@@ -1027,7 +987,7 @@ def _orient_file_score(path: Path, terms: set[str]) -> int:
 
 
 def _orient_lexical_rank_candidates(root: Path, task: str) -> list[Path]:
-    """Deterministic lexical-overlap ranking used when Mapper/Fast selection
+    """Deterministic lexical-overlap ranking used when Mapper selection
     is empty or FALLBACK, so the host is never left ungrounded (issue: 0
     Mapper candidates must never mean 0 real file content).
 
@@ -1117,7 +1077,7 @@ def _orient_build_target_entry(
 def _orient_target_seed_candidates(
     root: Path, task: str, context_summary: Mapping[str, Any],
 ) -> list[Path]:
-    """Prefer Mapper/Fast's own selection when it named real files; fall back
+    """Prefer Mapper's own selection when it named real files; fall back
     to the deterministic lexical ranking only when that selection is empty."""
     seeds: list[Path] = []
     for rel in context_summary.get("paths") or []:
@@ -1133,7 +1093,7 @@ def _orient_target_seed_candidates(
 
 def _orient_build_targets(root: Path, task: str, context_summary: Mapping[str, Any]) -> dict[str, Any]:
     """Bounded, grounded file targets (issue: never leave the host to
-    hallucinate paths/APIs when Mapper/Fast selection came back empty).
+    hallucinate paths/APIs when Mapper selection came back empty).
 
     Keeps the whole thing small: at most ``ORIENT_TARGET_MAX_FILES`` files
     and ``ORIENT_TARGET_MAX_TOTAL_BYTES`` combined, exact content for small
@@ -1181,127 +1141,58 @@ def _is_git_worktree(root: Path) -> bool:
     return result.returncode == 0 and result.stdout.strip() == "true"
 
 
-def _orient_not_a_git_repo_payload(root: Path, task: str, *, fast_mode: str,
-                                    fast_engine: str, fast_context_budget: int,
+def _orient_not_a_git_repo_payload(root: Path, task: str, *,
                                     verbose: bool) -> dict[str, Any]:
     payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
                "provider": None, "fallback": False,
                "reason": "not_a_git_repo", "reason_code": "not_a_git_repo",
                "hint": f"{root} is not inside a git work tree; orient refuses to survey it",
                "local_llm": False}
-    _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
-                         fast_engine=fast_engine,
-                         fast_context_budget=fast_context_budget)
+    _seal_orient_payload(payload, root=root, task=str(task))
     if not verbose:
         payload = _orient_trim_verbose_fields(payload)
     return payload
 
 
-def _orient_core(root: Path, task: str, fast_mode: str, fast_context_budget: int,
-                  fast_engine: str, targets: list[str] | None,
+def _orient_core(root: Path, task: str, targets: list[str] | None,
                   verbose: bool) -> tuple[dict[str, Any], int]:
-    """Compute one task's orient payload (Fast, with an explicit Mapper
-    fallback receipt) without printing/tee -- shared by ``orient()`` (CLI,
-    single task) and ``orient_brief()`` (Turn 1 of issue #1310's
-    plan-once/apply-once hot path, N tasks). The verbose/trim shape is
-    identical to the pre-refactor inline body of ``orient()``; behavior for
-    a single task through the CLI is unchanged.
+    """Compute one task's orient payload via the Mapper survey (issue #1343:
+    Fast removed, Mapper is the sole survey operator) without printing/tee --
+    shared by ``orient()`` (CLI, single task) and ``orient_brief()`` (Turn 1
+    of issue #1310's plan-once/apply-once hot path, N tasks).
     """
     if not root.is_dir() or not str(task).strip():
         payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
                    "provider": None, "fallback": False,
                    "reason": "repo_or_task_invalid", "local_llm": False}
-        _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
-                             fast_engine=fast_engine,
-                             fast_context_budget=fast_context_budget)
+        _seal_orient_payload(payload, root=root, task=str(task))
         return payload, 2
     if not _is_git_worktree(root):
-        payload = _orient_not_a_git_repo_payload(
-            root, task, fast_mode=fast_mode, fast_engine=fast_engine,
-            fast_context_budget=fast_context_budget, verbose=verbose,
-        )
+        payload = _orient_not_a_git_repo_payload(root, task, verbose=verbose)
         return payload, 2
-    if fast_context_budget < 1:
-        payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
-                   "provider": None, "fallback": False,
-                   "reason": "fast_context_budget_invalid", "local_llm": False}
-        _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
-                             fast_engine=fast_engine,
-                             fast_context_budget=fast_context_budget)
-        return payload, 2
-    if fast_engine not in {"auto", "rust", "python", "off"}:
-        raise ValueError("fast_engine must be auto, rust, python, or off")
-    config_mode = {"auto": "auto", "on": "required", "off": "standalone"}.get(fast_mode)
-    if config_mode is None:
-        raise ValueError("fast_mode must be auto, on, or off")
-    fast_payload = None
-    fallback_reason = ""
-    try:
-        effective_mode = (
-            "required" if fast_engine == "rust"
-            else ("standalone" if fast_engine == "off" else config_mode)
-        )
-        integration = FastLoopIntegration(
-            root,
-            config=FastConfig(mode=effective_mode, engine=fast_engine,
-                              max_bytes=int(fast_context_budget)),
-            extra_targets=list(targets or []),
-        )
-        fast_payload = integration.prepare(str(task))
-        if fast_mode == "on" and fast_payload.get("status") != "READY":
-            fallback_reason = str(fast_payload.get("reason") or "fast_not_ready")
-    except (FastIntegrationError, OSError, ValueError) as exc:
-        fallback_reason = str(exc)
-        fast_payload = {"status": "BLOCKED", "reason": fallback_reason}
-    if fast_payload and fast_payload.get("status") == "READY":
-        payload = {"schema": ORIENT_SCHEMA, "status": "READY",
-                          "provider": "simplicio-fast", "fallback": False,
-                          "fast_engine": fast_engine, "fast": fast_payload,
-                          "orient_receipt": fast_payload.get("loop_receipt"),
-                          "local_llm": False}
-        _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
-                             fast_engine=fast_engine,
-                             fast_context_budget=fast_context_budget)
-        payload["context"] = _orient_context_summary(payload)
-        payload["targets"] = _orient_build_targets(root, str(task), payload["context"])
-        if not verbose:
-            payload = _orient_trim_verbose_fields(payload)
-        return payload, 0
-    if fast_mode == "on" or fast_engine == "rust":
-        fallback_reason = fallback_reason or _orient_extract_fallback_reason(fast_payload) or "fast_not_ready"
-        payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
-                          "provider": "simplicio-fast", "fallback": False,
-                          "fast_engine": fast_engine,
-                          "fallback_reason": fallback_reason,
-                           "fast": fast_payload,
-                           "orient_receipt": (fast_payload or {}).get("loop_receipt"),
-                           "local_llm": False}
-        _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
-                             fast_engine=fast_engine,
-                             fast_context_budget=fast_context_budget)
-        if not verbose:
-            payload = _orient_trim_verbose_fields(payload)
-        return payload, 2
-    fallback_reason = (
-        fallback_reason
-        or _orient_extract_fallback_reason(fast_payload)
-        or "fast_disabled_or_unavailable"
-    )
+    # issue #1343: ensure the Mapper project-map/generation exists (bounded,
+    # tree-state cached) BEFORE the Mapper `orient` survey call below. With
+    # Fast gone, `orient` is the first thing that ever touches this repo's
+    # Mapper state; without this, a genesis/near-empty repo's first `orient`
+    # call can trigger Mapper's own scaffold side effects (e.g. generated
+    # `.agents/`/`.catalog/` files) mid-survey, then a second call on the
+    # now-changed tree sees a different candidate set -- breaking the
+    # same-tree determinism `orient --brief` promises. May raise
+    # ``MapperIndexTimedOut``/``MapperIndexRunning``; callers handle those.
+    _ensure_project_map(root, budget=_orient_budget_seconds())
     mapper = _mapper_orient_fallback(root, str(task))
-    status = "FALLBACK" if mapper.get("status") == "READY" else "BLOCKED"
+    status = "READY" if mapper.get("status") == "READY" else "BLOCKED"
     payload = {"schema": ORIENT_SCHEMA, "status": status,
-                      "provider": "simplicio-mapper", "fallback": True,
-                      "fallback_reason": fallback_reason, "fast_engine": fast_engine,
-                      "fast": fast_payload,
+                      "provider": "simplicio-mapper", "fallback": False,
                       "mapper": mapper, "local_llm": False}
-    _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
-                         fast_engine=fast_engine,
-                         fast_context_budget=fast_context_budget)
+    if status == "BLOCKED":
+        payload["fallback_reason"] = _orient_extract_fallback_reason(mapper) or "mapper_not_ready"
+    _seal_orient_payload(payload, root=root, task=str(task))
     payload["context"] = _orient_context_summary(payload)
     payload["targets"] = _orient_build_targets(root, str(task), payload["context"])
     if not verbose:
         payload = _orient_trim_verbose_fields(payload)
-    return payload, (0 if status == "FALLBACK" else 2)
+    return payload, (0 if status == "READY" else 2)
 
 
 def _brief_dump(payload: dict, *, pretty: bool = False) -> str:
@@ -1339,29 +1230,25 @@ def _mapper_index_budget_payload(schema: str, exc: Exception, root: Path) -> dic
     }
 
 
-def orient(repo: str, task: str, fast_mode: str = "auto",
-           fast_context_budget: int = 48000, fast_engine: str = "auto",
+def orient(repo: str, task: str,
            tee: bool = False, targets: list[str] | None = None,
            verbose: bool = False, brief: bool = False,
            tasks: list[str] | None = None, pretty: bool = False) -> int:
-    """Run bounded Fast orient with an explicit Mapper fallback receipt.
+    """Run orient through the Mapper survey (issue #1343: Fast removed).
 
     ``brief=True`` (issue #1310) renders Turn 1 of the plan-once/apply-once
     hot path: a compact, multi-task payload built from the SAME Mapper
-    survey + Fast context this function always uses -- never a shortcut
-    around them. Non-brief output (single task) is byte-identical to
-    before this option existed.
+    survey ``orient`` always runs -- never a shortcut around it.
 
     issue #1339: this always prints valid JSON. An exception ANYWHERE in the
-    computation below (Fast, Mapper, the project-map ensure step) is caught
-    here and rendered as a typed BLOCKED payload instead of leaving stdout
-    empty -- the one thing a caller piping this into ``json.tool`` can never
+    computation below (Mapper, the project-map ensure step) is caught here
+    and rendered as a typed BLOCKED payload instead of leaving stdout empty
+    -- the one thing a caller piping this into ``json.tool`` can never
     tolerate.
     """
     root = Path(repo).resolve()
     try:
-        return _orient_impl(root, task, fast_mode, fast_context_budget, fast_engine,
-                             tee, targets, verbose, brief, tasks, pretty)
+        return _orient_impl(root, task, tee, targets, verbose, brief, tasks, pretty)
     except Exception as exc:
         payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED", "provider": None,
                    "fallback": False, "reason": str(exc),
@@ -1370,35 +1257,30 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
         return 2
 
 
-def _orient_impl(root: Path, task: str, fast_mode: str, fast_context_budget: int,
-                  fast_engine: str, tee: bool, targets: list[str] | None,
+def _orient_impl(root: Path, task: str, tee: bool, targets: list[str] | None,
                   verbose: bool, brief: bool, tasks: list[str] | None, pretty: bool) -> int:
     if root.is_dir():
         ensure_state_dir(root)
     if brief:
         task_list = list(tasks or ([task] if task else []))
-        payload = orient_brief(root, task_list, fast_mode=fast_mode,
-                               fast_context_budget=fast_context_budget,
-                               fast_engine=fast_engine, targets=targets)
+        payload = orient_brief(root, task_list, targets=targets)
         if tee:
             from .tee_cache import write
             path = write(root, _brief_dump(payload, pretty=pretty))
             payload["tee_path"] = str(path)
         print(_brief_dump(payload, pretty=pretty))
         return 0 if payload.get("status") in {"READY", "FALLBACK"} else 2
-    payload, code = _orient_core(root, task, fast_mode, fast_context_budget,
-                                  fast_engine, targets, verbose)
+    try:
+        payload, code = _orient_core(root, task, targets, verbose)
+    except (MapperIndexTimedOut, MapperIndexRunning) as exc:
+        payload = _mapper_index_budget_payload(ORIENT_SCHEMA, exc, root)
+        if tee:
+            from .tee_cache import write
+            path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
+            payload["tee_path"] = str(path)
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 2
     if payload.get("status") != "BLOCKED":
-        try:
-            _ensure_project_map(root, budget=_orient_budget_seconds())
-        except (MapperIndexTimedOut, MapperIndexRunning) as exc:
-            payload = _mapper_index_budget_payload(ORIENT_SCHEMA, exc, root)
-            if tee:
-                from .tee_cache import write
-                path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
-                payload["tee_path"] = str(path)
-            print(json.dumps(payload, ensure_ascii=False, indent=2))
-            return 2
         from .survey import write_survey
         prov = _orient_provider_provenance(payload)
         write_survey(root, [{"task": task, "operator": prov.get("operator"),
@@ -1608,21 +1490,20 @@ def _brief_apply_command(root: Path, repo_state_chain: Mapping[str, Any],
                 "depends_on": ["<other task id, optional>"],
             }],
             "repo_state_chain": "<copy verbatim from this brief's own repo_state_chain field>",
-            "brief_generations": "<copy verbatim from this brief's own generations field (Mapper + Fast provenance)>",
+            "brief_generations": "<copy verbatim from this brief's own generations field (Mapper provenance)>",
         },
         "example": example,
     }
 
 
-def _orient_brief_impl(root: Path, tasks: list[str], *, fast_mode: str = "auto",
-                  fast_context_budget: int = 48000, fast_engine: str = "auto",
+def _orient_brief_impl(root: Path, tasks: list[str], *,
                   targets: list[str] | None = None) -> dict[str, Any]:
     """Turn 1 of the plan-once/apply-once hot path (issue #1310): a compact
-    rendering of the SAME Mapper survey + Fast context ``orient`` always
-    runs, for one or more tasks -- never a shortcut around them. Route
-    first, then deduped target content, plan groups, suggested checks, the
-    Mapper/Fast generation + context hash (so cache reuse stays
-    measurable), and the exact ``apply`` command.
+    rendering of the SAME Mapper survey ``orient`` always runs, for one or
+    more tasks -- never a shortcut around it. Route first, then deduped
+    target content, plan groups, suggested checks, the Mapper generation +
+    context hash (so cache reuse stays measurable), and the exact ``apply``
+    command.
     """
     task_list = [str(t) for t in tasks if str(t).strip()]
     if not task_list:
@@ -1641,8 +1522,14 @@ def _orient_brief_impl(root: Path, tasks: list[str], *, fast_mode: str = "auto",
 
     per_task: list[dict[str, Any]] = []
     for task in task_list:
-        payload, code = _orient_core(root, task, fast_mode, fast_context_budget,
-                                      fast_engine, targets, verbose=True)
+        try:
+            payload, code = _orient_core(root, task, targets, verbose=True)
+        except (MapperIndexTimedOut, MapperIndexRunning) as exc:
+            blocked = _mapper_index_budget_payload(ORIENT_BRIEF_SCHEMA, exc, root)
+            blocked["tasks"] = task_list
+            blocked["route"] = {"mode": "converge", "justification": blocked["reason"],
+                                 "resolved_files": [], "next": [blocked["next"]]}
+            return blocked
         per_task.append({"task": task, "payload": payload, "exit_code": code})
 
     routes = [item["payload"].get("route") or {} for item in per_task]
@@ -1706,32 +1593,23 @@ def _orient_brief_impl(root: Path, tasks: list[str], *, fast_mode: str = "auto",
     payload["apply"] = _brief_apply_command(root, repo_state_chain, generations)
     payload["effort"] = dict(PHASE_EFFORT)
     if overall_status != "BLOCKED":
-        # `apply` refuses to run without this Mapper + Fast survey (issue #1318).
+        # `apply` refuses to run without this Mapper survey (issue #1318).
+        # The project-map/generation is already ensured per-task above (in
+        # the `_orient_core` loop), so this is just the survey write.
         brief_path = ensure_state_dir(root) / "brief.json"
         brief_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        try:
-            _ensure_project_map(root, budget=_orient_budget_seconds())
-        except (MapperIndexTimedOut, MapperIndexRunning) as exc:
-            blocked = _mapper_index_budget_payload(ORIENT_BRIEF_SCHEMA, exc, root)
-            blocked["tasks"] = task_list
-            blocked["route"] = {"mode": "converge", "justification": blocked["reason"],
-                                 "resolved_files": [], "next": [blocked["next"]]}
-            return blocked
         from .survey import write_survey
         write_survey(root, generations)
     return payload
 
 
-def orient_brief(root: Path, tasks: list[str], *, fast_mode: str = "auto",
-                  fast_context_budget: int = 48000, fast_engine: str = "auto",
+def orient_brief(root: Path, tasks: list[str], *,
                   targets: list[str] | None = None) -> dict[str, Any]:
     """Public entry point (issue #1339): always returns a JSON-serializable
     dict, never raises -- any unexpected exception inside ``_orient_brief_impl``
     becomes a typed BLOCKED payload instead of propagating to the caller."""
     try:
-        return _orient_brief_impl(root, tasks, fast_mode=fast_mode,
-                                   fast_context_budget=fast_context_budget,
-                                   fast_engine=fast_engine, targets=targets)
+        return _orient_brief_impl(root, tasks, targets=targets)
     except Exception as exc:
         return {
             "schema": ORIENT_BRIEF_SCHEMA, "status": "BLOCKED",
@@ -2770,9 +2648,6 @@ def _redirect_run_to_wave(argv: Sequence[str]) -> int:
 
 def main(argv=None) -> int:
     argv_list = list(argv) if argv is not None else list(sys.argv[1:])
-    if argv_list[:1] == ["fast-v3"]:
-        from .fast_v3_cli import main as fast_v3_main
-        return fast_v3_main(argv_list[1:])
     if argv_list[:1] == ["hub-drain-admit"]:
         from .hub_drain_admission_cli import main as drain_admission_main
         return drain_admission_main(argv_list[1:])
@@ -2846,7 +2721,7 @@ def main(argv=None) -> int:
     )
     p_prepare.add_argument("--max-iterations", type=int, default=12, help="safety cap")
 
-    p_orient = sub.add_parser("orient", help="orient a task through Fast with Mapper fallback")
+    p_orient = sub.add_parser("orient", help="orient a task through the Mapper survey")
     p_orient.add_argument("--repo", default=".", help="repository root")
     p_orient.add_argument(
         "--task", dest="tasks", action="append", default=[],
@@ -2857,16 +2732,10 @@ def main(argv=None) -> int:
         help=(
             "compact multi-task rendering (issue #1310, Turn 1 of the "
             "plan-once/apply-once hot path): route first, deduped target "
-            "content, plan groups, suggested checks, Mapper/Fast "
+            "content, plan groups, suggested checks, Mapper "
             "generation + context hash, and the exact `apply` command"
         ),
     )
-    p_orient.add_argument("--fast", choices=("auto", "on", "off"), default="auto",
-                          help="Fast policy: auto fallback, on fail-closed, or off")
-    p_orient.add_argument("--fast-context-budget", type=int, default=48000,
-                          help="bounded Fast context bytes (default: 48000)")
-    p_orient.add_argument("--fast-engine", choices=("auto", "rust", "python", "off"), default="auto",
-                          help="Fast engine: Rust-first auto, explicit rust/python, or off")
     p_orient.add_argument("--tee", action="store_true", help="persist full JSON output in the reversible tee cache")
     p_orient.add_argument(
         "--target", dest="targets", action="append", default=[],
@@ -3333,7 +3202,7 @@ def main(argv=None) -> int:
         task_list = list(args.tasks or [])
         if not task_list:
             parser.error("orient requires at least one --task")
-        return orient(args.repo, task_list[0], args.fast, args.fast_context_budget, args.fast_engine, args.tee,
+        return orient(args.repo, task_list[0], args.tee,
                       args.targets, args.verbose, args.brief, task_list, args.pretty)
     if command == "apply":
         from .apply import main as apply_main

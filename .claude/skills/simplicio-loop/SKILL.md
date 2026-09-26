@@ -1,20 +1,20 @@
 ---
 name: simplicio-loop
-description: "Ralph loop for mapper + fast + simplicio-dev-cli. Same goal every turn; exit only on an evidence-gated promise or max_iterations. GitHub is SoT for issues/PRs. Host writes the edit plan."
+description: "Ralph loop for mapper + simplicio-dev-cli. Same goal every turn; exit only on an evidence-gated promise or max_iterations. GitHub is SoT for issues/PRs. Host writes the edit plan."
 ---
 
 # /simplicio-loop
 
 Self-referential loop: re-feed the SAME goal every turn; exit only on a typed `<promise>` backed by in-turn evidence, or `max_iterations`. Credit: Ralph Wiggum / cursor `ralph-loop`.
-Stack: `simplicio-mapper` (survey) → `simplicio-fast` (context) → `simplicio-dev-cli` (apply + verify) → `simplicio-loop` (run/wave/verify). **No Runtime. No MCP.**
+Stack: `simplicio-mapper` (survey) → `simplicio-dev-cli` (apply + verify) → `simplicio-loop` (run/wave/verify). **No Runtime. No MCP.** (issue #1343 removed `simplicio-fast` from the stack entirely.)
 You (the host LLM) decide each change as exact find/replace text; the operators freeze, apply and verify it — the loop never hand-edits or calls a provider to write code.
 
-**Every flow starts with Mapper + Fast** (`orient --brief` or `orient`): `apply` and `prepare` refuse to run without that survey (`mapper_fast_provenance_missing`, nothing written).
+**Every flow starts with Mapper** (`orient --brief` or `orient`): `apply` and `prepare` refuse to run without that survey (`mapper_provenance_missing`, nothing written).
 
 ## Hot path (default): 3 turns, any number of tasks
 
 ```bash
-# Turn 1 -- ONE call, no exploration/--help/cat before it: Mapper + Fast
+# Turn 1 -- ONE call, no exploration/--help/cat before it: Mapper survey
 # context, target file contents, plan groups, straight to a file
 mkdir -p .simplicio-loop && simplicio-loop orient --brief --repo . --task "<task 1>" [--task "<task 2>" ...] --json > .simplicio-loop/brief.json
 # Turn 2 -- read .simplicio-loop/brief.json, write .simplicio-loop/ops.json
@@ -36,7 +36,7 @@ simplicio-loop apply .simplicio-loop/ops.json --repo . --json
 
 ```bash
 # 1. Survey: what to change (plain-prose goal, one task, no "T1"/"T2" labels)
-simplicio-loop orient --task "<goal>" --json        # Mapper + Fast context in one call
+simplicio-loop orient --task "<goal>" --json        # Mapper survey context in one call
 
 # 2. Arm a run for 1..N tasks (see "Task file" below); prints run_id
 simplicio-loop prepare --task tasks.md --repo .
@@ -104,7 +104,7 @@ End every message: `DONE | NEXT | BLOCKED` (full drive/cadence detail: `referenc
 
 <!-- SIMPLICIO-LLM-ORIENTATION:BEGIN -->
 Loop orientation:
-- Stack: mapper + fast + simplicio-dev-cli + loop. No Runtime. No MCP.
+- Stack: mapper + simplicio-dev-cli + loop. No Runtime. No MCP.
 - GitHub is SoT for issues/PRs when the remote is GitHub.
 - Hot path (default, 1+ tasks): simplicio-loop orient --brief --repo . --task "<t>" [--task "<t2>" ...] --json > .simplicio-loop/brief.json → write .simplicio-loop/ops.json from its targets/plan/apply block → simplicio-loop apply .simplicio-loop/ops.json --repo <root> --json → follow its status/next_effort. No exploration/--help/cat before Turn 1.
 - Governed delivery (issues/PRs, receipts, watcher): simplicio-loop prepare --task tasks.md → write every edit-plan-<N>.json → wave <run_id> → verify <run_id>.

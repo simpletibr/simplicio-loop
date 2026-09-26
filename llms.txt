@@ -13,11 +13,11 @@ What this repo is:
 
 Current operator flow:
 - `simplicio-mapper --help` — survey operator; run `scan`, `inspect`, then `handoff`.
-- `simplicio-fast --help` — bounded snapshot/PlanDAG context when operational; readiness is not implementation.
 - `simplicio-dev-cli --help` — governed edit/verify operator; use `task ... --target ...` for the decided AC.
 - Run focused tests and `git diff --check`; re-query live PR/check/merge state before publishing.
 - Default profile is standalone: `SIMPLICIO_LOOP_REQUIRE_RUNTIME=off` and `SIMPLICIO_EXECUTION_PROFILE=standalone`.
-- Runtime/MCP is opt-in only; it is not part of the default flow and never replaces the three operators above.
+- Runtime/MCP is opt-in only; it is not part of the default flow and never replaces the two operators above.
+- issue #1343 removed `simplicio-fast` from the stack entirely; the survey every flow requires is Mapper-only.
 
 Non-negotiables:
 - Run commands for real; never simulate output.
@@ -41,13 +41,13 @@ Key commands:
 
 Complete command/feature map: `docs/CLI_COMMANDS.md`. Before using any
 entrypoint, run its most specific `--help`; public commands must explain their
-purpose there. Current train: Mapper 0.26.33, Dev CLI 0.18.15, Fast 2.0.35,
+purpose there. Current train: Mapper 0.26.33, Dev CLI 0.18.15,
 Loop 3.43.14. Issue work uses objective, implementation/deployment, and tests;
 do not add Acceptance Criteria sections.
 
 If you are an LLM agent:
 - Prefer deterministic edits / local verification.
-- Do not use stale Mapper/Fast artifacts or fabricate a handoff; start a fresh bounded survey.
+- Do not use stale Mapper artifacts or fabricate a handoff; start a fresh bounded survey.
 - Read the journal before retrying a failed approach.
 - Treat blocker receipts and next-action hints in the wiki/handoff as first-class context.
 
