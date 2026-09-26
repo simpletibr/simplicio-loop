@@ -430,6 +430,26 @@ class MapperIndexRunning(Exception):
     reason_code = "mapper_index_running"
 
 
+class OrientBudgetExceeded(MapperIndexTimedOut):
+    """Raised when the whole ``orient``/``orient --brief`` call runs out of its
+    single shared deadline (issue #1346) -- e.g. the Mapper ``orient`` survey
+    subprocess outlived the budget left after the index step."""
+
+    reason_code = "orient_budget_exceeded"
+
+
+def _orient_deadline() -> float:
+    """One monotonic deadline for the WHOLE orient call (issue #1346)."""
+    return time.monotonic() + _orient_budget_seconds()
+
+
+def _orient_remaining(deadline: float) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise OrientBudgetExceeded("orient budget exhausted before the Mapper survey finished")
+    return remaining
+
+
 def _current_tree_state(root: Path) -> str | None:
     """A cheap, real fingerprint of "has anything changed since the last
     index" -- the committed tree id plus a hash of the working tree's own
@@ -815,7 +835,7 @@ def _seal_orient_payload(
     payload["receipt"] = receipt
     return payload
 
-def _mapper_orient_fallback(root: Path, task: str) -> dict:
+def _mapper_orient_fallback(root: Path, task: str, *, timeout: float = 180) -> dict:
     """Run Mapper's read-only orient surface for the task.
 
     The scratch task-file MUST live under ``.simplicio-loop/`` (not the repo
@@ -841,7 +861,7 @@ def _mapper_orient_fallback(root: Path, task: str) -> dict:
         proc = subprocess.run(
             ["simplicio-mapper", "orient", str(root), "--task-file", str(task_path), "--json"],
             cwd=str(root), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, text=True, close_fds=True, timeout=180, check=False,
+            stderr=subprocess.PIPE, text=True, close_fds=True, timeout=timeout, check=False,
         )
         raw = (proc.stdout or "").strip()
         try:
@@ -851,6 +871,10 @@ def _mapper_orient_fallback(root: Path, task: str) -> dict:
         return {"status": "READY" if proc.returncode == 0 else "BLOCKED",
                 "returncode": proc.returncode, "result": result,
                 "stderr": (proc.stderr or "")[-2000:]}
+    except subprocess.TimeoutExpired as exc:
+        raise OrientBudgetExceeded(
+            f"simplicio-mapper orient exceeded the remaining orient budget ({timeout:.0f}s)"
+        ) from exc
     except (OSError, subprocess.SubprocessError) as exc:
         return {"status": "BLOCKED", "returncode": None, "reason": str(exc)}
     finally:
@@ -1155,7 +1179,7 @@ def _orient_not_a_git_repo_payload(root: Path, task: str, *,
 
 
 def _orient_core(root: Path, task: str, targets: list[str] | None,
-                  verbose: bool) -> tuple[dict[str, Any], int]:
+                  verbose: bool, *, deadline: float | None = None) -> tuple[dict[str, Any], int]:
     """Compute one task's orient payload via the Mapper survey (issue #1343:
     Fast removed, Mapper is the sole survey operator) without printing/tee --
     shared by ``orient()`` (CLI, single task) and ``orient_brief()`` (Turn 1
@@ -1179,8 +1203,9 @@ def _orient_core(root: Path, task: str, targets: list[str] | None,
     # now-changed tree sees a different candidate set -- breaking the
     # same-tree determinism `orient --brief` promises. May raise
     # ``MapperIndexTimedOut``/``MapperIndexRunning``; callers handle those.
-    _ensure_project_map(root, budget=_orient_budget_seconds())
-    mapper = _mapper_orient_fallback(root, str(task))
+    deadline = _orient_deadline() if deadline is None else deadline
+    _ensure_project_map(root, budget=_orient_remaining(deadline))
+    mapper = _mapper_orient_fallback(root, str(task), timeout=_orient_remaining(deadline))
     status = "READY" if mapper.get("status") == "READY" else "BLOCKED"
     payload = {"schema": ORIENT_SCHEMA, "status": status,
                       "provider": "simplicio-mapper", "fallback": False,
@@ -1521,9 +1546,10 @@ def _orient_brief_impl(root: Path, tasks: list[str], *,
         }
 
     per_task: list[dict[str, Any]] = []
+    deadline = _orient_deadline()
     for task in task_list:
         try:
-            payload, code = _orient_core(root, task, targets, verbose=True)
+            payload, code = _orient_core(root, task, targets, verbose=True, deadline=deadline)
         except (MapperIndexTimedOut, MapperIndexRunning) as exc:
             blocked = _mapper_index_budget_payload(ORIENT_BRIEF_SCHEMA, exc, root)
             blocked["tasks"] = task_list
