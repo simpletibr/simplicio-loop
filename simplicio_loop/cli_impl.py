@@ -2313,6 +2313,17 @@ def main(argv=None) -> int:
         help="no-op: orient always emits exactly one JSON document on stdout",
     )
 
+    p_apply = sub.add_parser(
+        "apply",
+        help="apply one ops.json (Turn 2 of the plan-once/apply-once hot path, issue #1310)",
+    )
+    p_apply.add_argument("ops", help="ops.json path, or - for stdin")
+    p_apply.add_argument("--repo", default=".", help="repository root")
+    p_apply.add_argument(
+        "--json", action="store_true",
+        help="no-op: apply always emits exactly one JSON document on stdout",
+    )
+
     p_retrieve = sub.add_parser("retrieve", help="retrieve and verify a tee-cache output")
     p_retrieve.add_argument("path")
     p_retrieve.add_argument("--repo", default=".")
@@ -2739,6 +2750,9 @@ def main(argv=None) -> int:
             parser.error("orient requires at least one --task")
         return orient(args.repo, task_list[0], args.fast, args.fast_context_budget, args.fast_engine, args.tee,
                       args.targets, args.verbose, args.brief, task_list)
+    if command == "apply":
+        from .apply import main as apply_main
+        return apply_main(args.ops, args.repo)
     if command == "retrieve":
         from .tee_cache import retrieve
         try:
