@@ -431,3 +431,46 @@ def test_orient_targets_truncate_to_span_for_big_repo(tmp_path, monkeypatch, cap
     assert "TaskStore" in store_entry["span"]["text"]
     total_bytes = len(json.dumps(targets, ensure_ascii=False).encode("utf-8"))
     assert total_bytes < 6 * 1024 + 2_000
+
+
+def test_orient_ready_via_fast_still_leaves_prepare_unblocked(tmp_path, monkeypatch, capsys):
+    """issue #1328 bug 2: a plain `orient` (non-`--brief`) that reaches Fast
+    ``READY`` directly (no Mapper fallback) must still guarantee the Mapper
+    project map `.simplicio-loop/project-map.json` that `survey.provenance()`
+    (and therefore `prepare`) requires. Before the fix, only the Mapper
+    fallback path (`_mapper_orient_fallback`) happened to produce that file as
+    a side effect of shelling out to `simplicio-mapper orient`; a genuine Fast
+    success skipped it entirely, leaving `prepare` blocked on
+    `mapper_fast_provenance_missing` right after a successful `orient`.
+    """
+    (tmp_path / "app.py").write_text("def hello():\n    return 'hi'\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"],
+        cwd=tmp_path, check=True,
+    )
+    monkeypatch.setattr(cli, "FastLoopIntegration", _ReadyFast)
+
+    assert cli.orient(str(tmp_path), "change app", "auto", 1234) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "READY", payload
+
+    from simplicio_loop.survey import provenance
+
+    project_map = tmp_path / ".simplicio-loop" / "project-map.json"
+    assert project_map.is_file(), "orient must guarantee the Mapper project map it advertises"
+    assert provenance(tmp_path) is not None
+
+    (tmp_path / "tasks.md").write_text(
+        "System: demo\nFeature: noop\nType: Chore\n\n"
+        "1. Acceptance Criteria\n\nScenario 1: noop\n  Given app.py\n  When nothing happens\n"
+        "  Then nothing changes [RN01]\n\n2. Business Rules\n\nRN01 - no-op.\n\n"
+        "5. Access\n\napp.py\n\n"
+        "Tests: none\n",
+        encoding="utf-8",
+    )
+    rc = cli.prepare(str(tmp_path), str(tmp_path / "tasks.md"), "implemented", 5)
+    prepared = json.loads(capsys.readouterr().out)
+    assert prepared.get("reason_code") != "mapper_fast_provenance_missing", prepared
+    assert rc == 0, prepared
+    assert prepared["status"] == "prepared", prepared

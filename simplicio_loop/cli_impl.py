@@ -373,6 +373,31 @@ ORIENT_SCHEMA = "simplicio.loop-orient/v1"
 ORIENT_RECEIPT_SCHEMA = "simplicio.loop-orient-receipt/v1"
 
 
+def _ensure_project_map(root: Path) -> None:
+    """Guarantee the single artifact ``survey.provenance()`` (and therefore
+    ``prepare``) requires as proof of a Mapper survey: `.simplicio-loop/project-map.json`.
+
+    issue #1328 bug 2: the Mapper fallback path (`_mapper_orient_fallback`)
+    happens to produce this file as a side effect of shelling out to
+    ``simplicio-mapper orient``, but a genuine Fast ``READY`` (no fallback)
+    never runs Mapper's ``orient``/``handoff`` itself and can leave a fresh
+    repo without it -- `orient` reports success and writes `survey.json`, yet
+    `prepare` then blocks on `mapper_fast_provenance_missing`. There must be a
+    single definition of "surveyed"; this makes `orient` -- whichever internal
+    path it took -- respect it explicitly rather than leaving it to chance.
+    A failure here (binary missing, timeout, non-git dir) is intentionally
+    swallowed: `orient` itself still succeeded, and `survey.provenance()`'s own
+    fail-closed check is what enforces the requirement downstream.
+    """
+    if (root / ".simplicio-loop" / "project-map.json").is_file():
+        return
+    try:
+        from .map_service_mapper import run_mapper_index
+        run_mapper_index(str(root))
+    except Exception:
+        pass
+
+
 def _orient_hash(value: Any) -> str:
     encoded = json.dumps(
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
@@ -1037,6 +1062,7 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
     payload, code = _orient_core(root, task, fast_mode, fast_context_budget,
                                   fast_engine, targets, verbose)
     if payload.get("status") != "BLOCKED":
+        _ensure_project_map(root)
         from .survey import write_survey
         prov = _orient_provider_provenance(payload)
         write_survey(root, [{"task": task, "operator": prov.get("operator"),
@@ -1347,6 +1373,7 @@ def orient_brief(root: Path, tasks: list[str], *, fast_mode: str = "auto",
         # `apply` refuses to run without this Mapper + Fast survey (issue #1318).
         brief_path = ensure_state_dir(root) / "brief.json"
         brief_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        _ensure_project_map(root)
         from .survey import write_survey
         write_survey(root, generations)
     return payload

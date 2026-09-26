@@ -4497,6 +4497,16 @@ def _build_plan(tasks: List[Dict[str, Any]], mapper_payload: Dict[str, Any], rep
 
 
 _FILE_HINT_RE = re.compile(r"(?P<path>[A-Za-z0-9_./\\-]+\.(?:py|tsx?|js|rs|html?|css))")
+# issue #1328 bug 3: `.md` is deliberately NOT a recognized extension in
+# `_FILE_HINT_RE` above -- a task/contract prose reference to a `.md` file
+# (a spec, a README) must never silently become a mutation target. The one
+# narrow exception is the loop's own skill sources: a task naming one of
+# these three skill-mirror paths explicitly IS naming a real, authorized
+# mutation target.
+_CLAUDE_SKILL_HINT_RE = re.compile(
+    r"(?P<path>(?:\.claude/skills|plugin/skills|simplicio_loop/_bundle/skills)/"
+    r"[A-Za-z0-9_./\\-]+\.md)"
+)
 _TECH_FILE_HINTS = frozenset({
     "node.js", "next.js", "vue.js", "react.js", "express.js", "deno.js",
     "bun.js", "alpine.js", "ember.js", "gatsby.js", "nuxt.js", "svelte.js",
@@ -4506,6 +4516,21 @@ _DEPENDENCY_BLOCK_RE = re.compile(
     r"(?ims)^(?:#{1,6}\s*)?(?:\d+\.\s*)?(?:dependencies|depend[êe]ncias)\b.*?"
     r"(?=^(?:#{1,6}\s*)?(?:\d+\.\s+)\S|\Z)",
 )
+# issue #1328 bug 3: `.claude/` is excluded wholesale everywhere below (it is
+# mostly local host config, hooks, and generated state -- never a legitimate
+# mutation target) EXCEPT for the loop's own skill sources and their two
+# mirrors, which a task is entitled to name explicitly (e.g. "fix a typo in
+# .claude/skills/simplicio-loop/SKILL.md"). Every other `.claude/` internal
+# (settings.json, hooks/, generated caches) stays excluded.
+_AUTHORIZED_CLAUDE_SKILL_PREFIXES = (
+    ".claude/skills/",
+    "plugin/skills/",
+    "simplicio_loop/_bundle/skills/",
+)
+
+
+def _is_authorized_claude_skill_mirror(low_path: str) -> bool:
+    return low_path.startswith(_AUTHORIZED_CLAUDE_SKILL_PREFIXES)
 
 
 def _strip_dependency_prose(task_text: str) -> str:
@@ -4517,7 +4542,7 @@ def _extract_repo_file_hints(task_text: str, repo_path: Path) -> List[str]:
     hints: List[str] = []
     scanned = _strip_dependency_prose(task_text)
     repo_root = repo_path.resolve()
-    for match in _FILE_HINT_RE.finditer(scanned):
+    for match in (*_FILE_HINT_RE.finditer(scanned), *_CLAUDE_SKILL_HINT_RE.finditer(scanned)):
         raw = match.group("path").strip().replace("\\", "/")
         if raw.lower() in _TECH_FILE_HINTS or Path(raw).name.lower() in _TECH_FILE_HINTS:
             continue
@@ -4533,11 +4558,13 @@ def _extract_repo_file_hints(task_text: str, repo_path: Path) -> List[str]:
         if "/" not in rel and not (repo_root / rel).is_file():
             continue
         low = rel.lower()
-        if low.startswith(".simplicio-loop/orchestrator/") or low.startswith(".claude/") or low.startswith(".github/"):
+        if low.startswith(".simplicio-loop/orchestrator/") or low.startswith(".github/"):
+            continue
+        if low.startswith(".claude/") and not _is_authorized_claude_skill_mirror(low):
             continue
         if low.startswith(".venv/") or low.startswith("venv/") or "/site-packages/" in low:
             continue
-        if "/_bundle/" in low:
+        if "/_bundle/" in low and not _is_authorized_claude_skill_mirror(low):
             continue
         if rel not in hints:
             hints.append(rel)
@@ -6144,13 +6171,27 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     state["current_action"] = "operator_executed" if returncode == 0 else "operator_failed"
     state["next_action"] = "watcher_behavioral_verification" if returncode == 0 else "repair_operator_or_plan"
     state["attempts"] = int(state.get("attempts", 0)) + 1
-    if returncode == 0:
+    if returncode == 0 or uncertain:
         # Advance this run's own chained baseline so the next dependent task's
         # plan_repo_state_stale check compares against the tree this task
         # actually left, not the frozen `prepare`-time snapshot. A failed/rolled
         # back attempt must never advance it -- `before`/`after` are identical
         # once `_restore_operator_checkpoint` runs, but skip the write outright
         # to keep the intent explicit.
+        #
+        # `uncertain` (issue #1328 bug 1) is included deliberately: a client-side
+        # timeout does not prove the underlying dev-cli subprocess never wrote to
+        # disk (see `_execute_operator_effect_unchecked`'s own comment on this).
+        # `_restore_operator_checkpoint` is never invoked for an uncertain outcome
+        # (only for a clean `returncode != 0`), so `after` here is always the real,
+        # current tree -- whether or not this attempt actually mutated it. Binding
+        # the chain to that real tree is what lets a later dependent task's
+        # freshness check compare against what is ACTUALLY on disk, instead of
+        # permanently misreporting this run's own (possibly-already-applied)
+        # attempt as external drift. A genuine external edit between `prepare`
+        # and the first dispatch attempt is unaffected: it is caught by the
+        # pre-attempt freshness check at the top of this function, before any
+        # attempt (and therefore before any chain rebind) ever runs.
         state["repo_state_chain"] = after
     _write_json(run_dir / "state.json", state)
     _transition(run_dir, state, "validating" if returncode == 0 else "blocked",

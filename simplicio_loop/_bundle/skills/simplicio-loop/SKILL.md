@@ -52,6 +52,10 @@ simplicio-loop tick <run_id> --repo . --task-index <N>
 simplicio-loop verify <run_id> --repo .
 ```
 
+`edit-plan-<N>.json` operations are find/replace on an EXISTING file only — the wave path
+cannot create a new file yet (issue #1331). A task whose only change is a new file goes through
+the hot-path `apply` flow instead (`ops.json` creates a file via `find: ""`).
+
 - **Never** `simplicio-dev-cli task "prose"` (answers `plan_required`).
 - Every command answers `--help`; read it before guessing a flag.
 
