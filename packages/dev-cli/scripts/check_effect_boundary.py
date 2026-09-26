@@ -51,7 +51,13 @@ from pathlib import Path
 # `TypeScriptAddNextRouteExecutor.execute` `write_text` (the template is now
 # written directly instead of shelling out to a temp `.cjs` script) —
 # strictly less Effect-adjacent I/O than before, not new mutation surface.
-BASELINE_SHA256 = "0723aca620eca95fd1bf4539c3167b6830fdedd8feafb72d7a41c9ef11a939ed"
+#
+# Reviewed 2026-09-26 (idempotency lock fix): only
+# `simplicio/changeset_transaction.py` changed -- `_acquire_recovery_lock`
+# became the shared `_acquire_transaction_lock` (same O_EXCL lock-file
+# primitives, bounded wait) and `execute_changeset_transaction` no longer
+# does its own inline `mkdir`; no new mutation surface.
+BASELINE_SHA256 = "3df3268eb9c5abf267dbcfb38066403e25e78f9d4f87aabdfd1236f8a8965a6b"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",
