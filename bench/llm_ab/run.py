@@ -76,6 +76,22 @@ def _read_skill_text() -> str:
         return f.read()
 
 
+def build_batch_prompt(arm: str, task_list: list[dict]) -> tuple[str, str]:
+    """``(system_prompt, user_prompt)`` for ``--batch``: ALL of ``task_list``
+    in ONE user prompt, one agent session per arm (issue #1310 follow-up).
+    Same per-arm system-prompt/prefix rule as ``build_prompts``; acceptance
+    is still checked per task by the harness after the session finishes
+    (``run_arm_batch``), never asked of the model."""
+    texts = "\n\n".join(f"Task {t['index']}: {t['text']}" for t in task_list)
+    if arm == "simplicio":
+        system_prompt = BASE_SYSTEM_PROMPT + "\n\nSKILL (simplicio-loop):\n" + _read_skill_text()
+        user_prompt = "/simplicio-loop " + texts
+    else:
+        system_prompt = BASE_SYSTEM_PROMPT
+        user_prompt = texts
+    return system_prompt, user_prompt
+
+
 def build_prompts(arm: str, task: dict) -> tuple[str, str]:
     """``(system_prompt, user_prompt)`` for one task in one arm.
 
@@ -122,7 +138,8 @@ def _attach_generation_stats(arm: str, llm_calls: list[dict]) -> None:
 
 
 def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
-            max_turns: int, cmd_timeout: int, task_list: list[dict] | None = None) -> dict:
+            max_turns: int, cmd_timeout: int, task_list: list[dict] | None = None,
+            effort_policy: str = "hints") -> dict:
     import time
 
     task_list = task_list if task_list is not None else bench_tasks.TASKS
@@ -143,7 +160,7 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
         task_wall_t0 = time.time()
         agent_result = agent.run_agent(
             arm, system_prompt, user_prompt, repo_dir,
-            max_turns=max_turns, cmd_timeout=cmd_timeout,
+            max_turns=max_turns, cmd_timeout=cmd_timeout, effort_policy=effort_policy,
         )
         task_wall_s = round(time.time() - task_wall_t0, 3)
 
@@ -181,18 +198,90 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
     return results
 
 
+def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
+                   max_turns: int, cmd_timeout: int, task_list: list[dict],
+                   effort_policy: str = "hints") -> dict:
+    """``--batch``: ALL of ``task_list`` in ONE agent session for this arm
+    (issue #1310 follow-up) -- the same seeded repo, but a single
+    ``agent.run_agent`` call instead of one per task. Acceptance is still
+    checked per task by the harness afterwards, running each task's own
+    ``checker``/``verify_stage`` against the final tree the session left --
+    the per-task acceptance checks are cumulative (a later stage's checker
+    is a superset of an earlier one's), so this is equivalent to checking
+    each task right after the model would have finished it.
+
+    Per-call metrics (tokens/cost/reasoning-effort/commands) belong to the
+    ONE shared session, not to any single task -- they are attached in full
+    to the first task's record (``tasks[0]``) and left empty on the rest, so
+    every existing ``aggregate.py`` sum (which iterates ``tasks``) still
+    counts each LLM call/command exactly once instead of once per task.
+    """
+    import time
+
+    checker.seed_repo(fixture_dir, repo_dir)
+    subprocess.run(["git", "init", "-q"], cwd=repo_dir, check=True, timeout=15)
+    _commit_if_changed(repo_dir, "seed fixture")
+
+    system_prompt, user_prompt = build_batch_prompt(arm, task_list)
+    total_wall_t0 = time.time()
+    agent_result = agent.run_agent(
+        arm, system_prompt, user_prompt, repo_dir,
+        max_turns=max_turns * len(task_list), cmd_timeout=cmd_timeout, effort_policy=effort_policy,
+    )
+    total_wall_s = round(time.time() - total_wall_t0, 3)
+    _commit_if_changed(repo_dir, f"{arm}: batch of {len(task_list)} tasks")
+    _attach_generation_stats(arm, agent_result["llm_calls"])
+
+    results = {"arm": arm, "model": lc.MODEL, "tasks": [], "batch": True}
+    for pos, task in enumerate(task_list):
+        passed, check_out, _check_metrics = checker.run_check(
+            repo_dir, task["verify_stage"], python_bin, checker=task.get("checker", "check_cadastro.py"),
+        )
+        shared = pos == 0
+        task_record = {
+            "index": task["index"],
+            "kind": task["kind"],
+            "task_text": task["text"],
+            "success": passed,
+            "turns": agent_result["turns"] if shared else 0,
+            "llm_calls": agent_result["llm_calls"] if shared else [],
+            "commands": agent_result["commands"] if shared else [],
+            "totals": agent_result["totals"] if shared else agent.summarize([], []),
+            "final_text": agent_result["final_text"] if shared else None,
+            "wall_s": total_wall_s if shared else 0.0,
+            "check_output_tail": "\n".join(check_out.splitlines()[-30:]),
+        }
+        results["tasks"].append(task_record)
+        print(f"[{arm}] batch task {task['index']} success={passed}", file=sys.stderr)
+
+    results["total_wall_s"] = total_wall_s
+    last_task = task_list[-1]
+    final_passed, final_out, _ = checker.run_check(
+        repo_dir, last_task["verify_stage"], python_bin, checker=last_task.get("checker", "check_cadastro.py")
+    )
+    results["final"] = {
+        "check_passed": final_passed,
+        "check_output_tail": "\n".join(final_out.splitlines()[-30:]),
+    }
+    return results
+
+
 def default_work_dir() -> str:
     """A fresh temp dir OUTSIDE this repository, so an agent exploring its
     workspace can never wander into the simplicio-loop source tree."""
     return tempfile.mkdtemp(prefix="llm-ab-")
 
 
-def result_filename(date: str, short_sha: str, task_count: int) -> str:
-    """``<date>-<short_sha>-t<task_count>.json`` -- the task count is part of
-    the filename so ``aggregate.load_history``/report history diffing never
-    mixes runs with a different task set (a 2-task run and a 4-task run
-    aren't comparable)."""
-    return f"{date}-{short_sha}-t{task_count}.json"
+def result_filename(date: str, short_sha: str, task_count: int, batch: bool = False) -> str:
+    """``<date>-<short_sha>-t<task_count>[-batch].json`` -- the task count is
+    part of the filename so ``aggregate.load_history``/report history
+    diffing never mixes runs with a different task set (a 2-task run and a
+    4-task run aren't comparable); ``-batch`` (issue #1310 follow-up) keeps a
+    ``--batch`` run's history separate from a sequential run's, for the same
+    reason -- one LLM session for all tasks measures something different
+    from one session per task."""
+    suffix = "-batch" if batch else ""
+    return f"{date}-{short_sha}-t{task_count}{suffix}.json"
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -235,6 +324,21 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--skip-report", action="store_true",
         help="write results.json only; skip rendering REPORT.html (matplotlib not required)",
     )
+    ap.add_argument(
+        "--batch", action="store_true",
+        help=(
+            "run ALL tasks in ONE user prompt / one agent session per arm, instead of one "
+            "session per task; acceptance is still checked per task after the session finishes"
+        ),
+    )
+    ap.add_argument(
+        "--effort-policy", default="hints", choices=agent.EFFORT_POLICIES,
+        help=(
+            "'hints' (default): honor the most recent effort/next_effort hint parsed from a "
+            "simplicio tool output in this conversation for the next LLM call's reasoning "
+            "effort. 'none': never send a reasoning-effort param (always the model default)."
+        ),
+    )
     return ap
 
 
@@ -258,12 +362,13 @@ def main(argv=None) -> int:
 
     pricing = lc.fetch_model_pricing()
 
+    run_fn = run_arm_batch if args.batch else run_arm
     arms_results = {}
     for arm in arms:
         repo_dir = os.path.join(work_dir, f"{arm}-repo")
-        arms_results[arm] = run_arm(
+        arms_results[arm] = run_fn(
             arm, fixture_dir, repo_dir, args.python_bin, args.max_turns, args.cmd_timeout,
-            task_list=task_list,
+            task_list=task_list, effort_policy=args.effort_policy,
         )
 
     meta = {
@@ -273,6 +378,8 @@ def main(argv=None) -> int:
         "pip_versions": _pip_versions(sys.executable),
         "task_count": args.tasks,
         "pricing": pricing,
+        "batch": args.batch,
+        "effort_policy": args.effort_policy,
     }
     results = {"meta": meta, "arms": arms_results}
     results["cost_report"] = {
@@ -281,7 +388,7 @@ def main(argv=None) -> int:
     }
 
     short_sha = _short_sha(REPO_ROOT)
-    out_path = os.path.join(args.out, result_filename(meta["date"], short_sha, args.tasks))
+    out_path = os.path.join(args.out, result_filename(meta["date"], short_sha, args.tasks, batch=args.batch))
     with open(out_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"wrote {out_path}", file=sys.stderr)

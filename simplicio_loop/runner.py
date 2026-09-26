@@ -3059,6 +3059,12 @@ def _execute_routed_runtime(item: Mapping[str, Any], run_dir: Path, *,
     return summary
 
 
+# 1-3 tasks run inline in the checkout (v3.43 "1-3 direct" policy): edits are
+# instant and the quality lanes run once at the end, so worktree setup and
+# patch integration would be pure overhead. Worktrees start at 4 tasks.
+WAVE_INLINE_MAX_TASKS = 3
+
+
 def _auto_worktree_dispatch(
     repo: str,
     run_id: str,
@@ -3075,6 +3081,8 @@ def _auto_worktree_dispatch(
     """
     if not _auto_fan_out_enabled() or len(indices) < 2:
         return None, {}, "auto_fan_out_disabled" if not _auto_fan_out_enabled() else "single_task"
+    if len(indices) <= WAVE_INLINE_MAX_TASKS:
+        return None, {}, "inline_small_batch"
     root = Path(repo).resolve()
     if not (root / ".git").exists():
         return None, {}, "not_git_checkout"
@@ -9600,7 +9608,7 @@ def execute_operator_batch(
     # keep their own, unchanged path below.
     if (
         not isolated_contexts and worktree_queue is None and distributed_queue is None
-        and not has_task_dependencies
+        and not has_task_dependencies and len(items) > WAVE_INLINE_MAX_TASKS
     ):
         result = _wave_worktree_dispatch(
             repo_path=Path(status["manifest"].get("repo") or repo).resolve(),
@@ -9688,7 +9696,7 @@ def execute_operator_batch(
     technical_debts: List[Dict[str, Any]] = []
     # Fan-out is an optimization. A safe serial lane is still useful work, so
     # capability loss is recorded as advisory debt instead of a global blocker.
-    if auto_reason and auto_reason not in {"explicit_contexts", "single_task"} and len(items) > 1:
+    if auto_reason and auto_reason not in {"explicit_contexts", "single_task", "inline_small_batch"} and len(items) > 1:
         technical_debts.append(_record_technical_debt(
             status["run_dir"],
             run_id=run_id,
@@ -9711,8 +9719,10 @@ def execute_operator_batch(
     if not contexts and len(items) > 1:
         # dispatch_operator_batch derives this from the shared isolation key; retain a clear
         # contract-level marker for callers inspecting the convenience API.
-        result["serial_fallback_reason"] = result.get("serial_fallback_reason") or "shared_run_state"
-        if not technical_debts:
+        result["serial_fallback_reason"] = result.get("serial_fallback_reason") or (
+            "inline_small_batch" if auto_reason == "inline_small_batch" else "shared_run_state"
+        )
+        if not technical_debts and auto_reason != "inline_small_batch":
             technical_debts.append(_record_technical_debt(
                 status["run_dir"],
                 run_id=run_id,

@@ -1,0 +1,214 @@
+"""Unit tests for `simplicio_loop.apply` (issue #1310, Turn 2 of the
+plan-once/apply-once hot path).
+
+Covers: validate-all-in-memory before any write, chain grouping
+(parallel vs ordered), the single-task shorthand, stdin ops loading, and
+concurrency isolation env for checks. System-level (real dev-cli subprocess,
+real concurrency timing) tests live in test_apply_system.py.
+"""
+from __future__ import annotations
+
+import json
+import subprocess
+
+import pytest
+
+from simplicio_loop import apply as apply_mod
+
+
+def _write(root, rel, content):
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    return path
+
+
+def test_load_ops_from_file(tmp_path):
+    ops_path = tmp_path / "ops.json"
+    ops_path.write_text(json.dumps({"tasks": [{"id": "t1", "operations": []}]}))
+    ops = apply_mod.load_ops(str(ops_path))
+    assert ops["tasks"][0]["id"] == "t1"
+
+
+def test_load_ops_from_stdin(monkeypatch):
+    payload = json.dumps({"tasks": [{"id": "t1", "operations": []}]})
+    monkeypatch.setattr("sys.stdin", __import__("io").StringIO(payload))
+    ops = apply_mod.load_ops("-")
+    assert ops["tasks"][0]["id"] == "t1"
+
+
+def test_normalize_tasks_shorthand_single_task():
+    """A single-task ops.json (no explicit list ceremony needed beyond one
+    entry) normalizes the same as a multi-task one."""
+    ops = {"tasks": [{"id": "solo", "operations": [{"path": "a.txt", "find": "x", "replace": "y"}]}]}
+    tasks = apply_mod._normalize_tasks(ops)
+    assert len(tasks) == 1
+    assert tasks[0]["depends_on"] == []
+    assert tasks[0]["check"] is None
+
+
+def test_normalize_tasks_rejects_duplicate_ids():
+    ops = {"tasks": [
+        {"id": "t1", "operations": [{"path": "a", "find": "x", "replace": "y"}]},
+        {"id": "t1", "operations": [{"path": "b", "find": "x", "replace": "y"}]},
+    ]}
+    with pytest.raises(ValueError):
+        apply_mod._normalize_tasks(ops)
+
+
+def test_build_chains_disjoint_paths_are_parallel():
+    tasks = [
+        {"id": "t1", "operations": [{"path": "a.html", "find": "x", "replace": "y"}], "depends_on": []},
+        {"id": "t2", "operations": [{"path": "b.html", "find": "x", "replace": "y"}], "depends_on": []},
+    ]
+    chains = apply_mod.build_chains(tasks)
+    assert sorted(tuple(c) for c in chains) == [("t1",), ("t2",)]
+
+
+def test_build_chains_shared_path_is_one_ordered_chain():
+    tasks = [
+        {"id": "create", "operations": [{"path": "a.html", "find": "", "replace": "<html></html>"}], "depends_on": []},
+        {"id": "edit", "operations": [{"path": "a.html", "find": "<html>", "replace": "<html lang=en>"}],
+         "depends_on": ["create"]},
+    ]
+    chains = apply_mod.build_chains(tasks)
+    assert chains == [["create", "edit"]]
+
+
+def test_build_chains_depends_on_without_shared_path_still_ordered():
+    tasks = [
+        {"id": "t1", "operations": [{"path": "a.txt", "find": "x", "replace": "y"}], "depends_on": []},
+        {"id": "t2", "operations": [{"path": "b.txt", "find": "x", "replace": "y"}], "depends_on": ["t1"]},
+    ]
+    chains = apply_mod.build_chains(tasks)
+    assert chains == [["t1", "t2"]]
+
+
+def test_validate_ops_missing_find_is_blocked(tmp_path):
+    _write(tmp_path, "a.txt", "hello world")
+    tasks = apply_mod._normalize_tasks({"tasks": [
+        {"id": "t1", "operations": [{"path": "a.txt", "find": "NOPE", "replace": "y"}]},
+    ]})
+    chains = apply_mod.build_chains(tasks)
+    problems = apply_mod.validate_ops(tmp_path, tasks, chains)
+    assert len(problems) == 1
+    assert problems[0]["reason"] == "find_not_found"
+
+
+def test_validate_ops_non_unique_find_is_blocked(tmp_path):
+    _write(tmp_path, "a.txt", "x x")
+    tasks = apply_mod._normalize_tasks({"tasks": [
+        {"id": "t1", "operations": [{"path": "a.txt", "find": "x", "replace": "y"}]},
+    ]})
+    chains = apply_mod.build_chains(tasks)
+    problems = apply_mod.validate_ops(tmp_path, tasks, chains)
+    assert len(problems) == 1
+    assert problems[0]["reason"] == "find_not_unique"
+
+
+def test_validate_ops_chained_find_sees_prior_operation_in_same_chain(tmp_path):
+    """A dependent edit's `find` must be checked against the state left by
+    the task it depends on, not the original on-disk file."""
+    _write(tmp_path, "a.html", "<html></html>")
+    tasks = apply_mod._normalize_tasks({"tasks": [
+        {"id": "create", "operations": [{"path": "a.html", "find": "<html></html>",
+                                          "replace": "<html><body></body></html>"}]},
+        {"id": "edit", "operations": [{"path": "a.html", "find": "<body></body>",
+                                        "replace": "<body>hi</body>"}], "depends_on": ["create"]},
+    ]})
+    chains = apply_mod.build_chains(tasks)
+    problems = apply_mod.validate_ops(tmp_path, tasks, chains)
+    assert problems == []
+
+
+def test_validate_ops_missing_path_is_blocked(tmp_path):
+    tasks = apply_mod._normalize_tasks({"tasks": [
+        {"id": "t1", "operations": [{"path": "missing.txt", "find": "x", "replace": "y"}]},
+    ]})
+    chains = apply_mod.build_chains(tasks)
+    problems = apply_mod.validate_ops(tmp_path, tasks, chains)
+    assert problems[0]["reason"] == "path_not_found"
+
+
+def test_validate_ops_create_new_file_with_empty_find(tmp_path):
+    tasks = apply_mod._normalize_tasks({"tasks": [
+        {"id": "t1", "operations": [{"path": "new.html", "find": "", "replace": "<html></html>"}]},
+    ]})
+    chains = apply_mod.build_chains(tasks)
+    problems = apply_mod.validate_ops(tmp_path, tasks, chains)
+    assert problems == []
+
+
+def test_run_blocked_validation_writes_nothing(tmp_path, monkeypatch):
+    _write(tmp_path, "a.txt", "hello")
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "NOPE", "replace": "y"}]}]}
+    called = {"n": 0}
+
+    def _boom(*a, **k):
+        called["n"] += 1
+        raise AssertionError("must not shell out on BLOCKED validation")
+
+    monkeypatch.setattr(subprocess, "run", _boom)
+    result = apply_mod.run(ops, repo=tmp_path)
+    assert result["status"] == "BLOCKED"
+    assert called["n"] == 0
+    assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "hello"
+
+
+def test_run_stale_generation_is_blocked_with_no_write(tmp_path, monkeypatch):
+    _write(tmp_path, "a.txt", "hello")
+    monkeypatch.setattr(apply_mod, "_repo_fingerprint", lambda root: {"tree_hash": "CURRENT", "head": "", "dirty_status_hash": ""})
+    ops = {
+        "tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}],
+        "repo_state_chain": {"tree_hash": "STALE"},
+    }
+    result = apply_mod.run(ops, repo=tmp_path)
+    assert result["status"] == "BLOCKED"
+    assert result["reason_code"] == "stale_mapper_generation"
+    assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "hello"
+
+
+def test_check_isolation_env_contains_expected_keys():
+    env = apply_mod._isolated_check_env(base_env={"PATH": "/bin"}, run_id="r1", task_id="t1")
+    assert env["PYTHONDONTWRITEBYTECODE"] == "1"
+    assert "no:cacheprovider" in env["PYTEST_ADDOPTS"]
+    assert "r1" in env["COVERAGE_FILE"] and "t1" in env["COVERAGE_FILE"]
+    assert env["PATH"] == "/bin"
+
+
+def test_run_result_carries_next_effort_medium_on_pass(tmp_path, monkeypatch):
+    """issue #1310 follow-up: PASS -> the next turn reviews the result, so
+    ``next_effort`` is the review-phase effort."""
+    from simplicio_loop.effort import PHASE_EFFORT
+
+    _write(tmp_path, "a.txt", "hello")
+    monkeypatch.setattr(apply_mod, "_apply_task_devcli", lambda root, task, run_dir: {"ok": True, "steps": [], "reason_code": None})
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}]}
+    result = apply_mod.run(ops, repo=tmp_path)
+    assert result["status"] == "PASS"
+    assert result["next_effort"] == PHASE_EFFORT["review"]
+
+
+def test_run_result_carries_next_effort_low_on_fail(tmp_path, monkeypatch):
+    """FAIL -> a mechanical fix turn with the failing tail already in hand,
+    so ``next_effort`` is the execute-phase effort."""
+    from simplicio_loop.effort import PHASE_EFFORT
+
+    _write(tmp_path, "a.txt", "hello")
+    monkeypatch.setattr(
+        apply_mod, "_apply_task_devcli",
+        lambda root, task, run_dir: {"ok": False, "steps": [], "reason_code": "dev_cli_apply_failed"},
+    )
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}]}
+    result = apply_mod.run(ops, repo=tmp_path)
+    assert result["status"] == "FAIL"
+    assert result["next_effort"] == PHASE_EFFORT["execute"]
+
+
+def test_run_result_carries_next_effort_low_on_blocked_validation(tmp_path):
+    from simplicio_loop.effort import PHASE_EFFORT
+
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "missing.txt", "find": "x", "replace": "y"}]}]}
+    result = apply_mod.run(ops, repo=tmp_path)
+    assert result["status"] == "BLOCKED"
+    assert result["next_effort"] == PHASE_EFFORT["execute"]

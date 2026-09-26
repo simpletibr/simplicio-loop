@@ -207,6 +207,26 @@ def build_cost_table(cost_rows: list[dict]) -> str:
     return rows
 
 
+EFFORT_COLUMNS = ("default", "low", "medium", "high")
+
+
+def build_effort_table(arms: dict) -> str:
+    """Per-arm count of LLM calls at each reasoning-effort value (issue
+    #1310 follow-up: ``agg.effort_counts``). ``default`` means no
+    ``reasoning`` param was sent for that call (no hint yet, or
+    ``--effort-policy none``) -- the model's own default effort."""
+    arm_names = list(arms)
+    header = "<tr><th>braço</th>" + "".join(f"<th>{html_escape(c)}</th>" for c in EFFORT_COLUMNS) + "</tr>\n"
+    rows = ""
+    for name in arm_names:
+        counts = agg.effort_counts(arms[name])
+        cells = "".join(f"<td>{counts.get(c, 0)}</td>" for c in EFFORT_COLUMNS)
+        rows += f"<tr><td>{html_escape(name)}</td>{cells}</tr>\n"
+    if not rows:
+        rows = f"<tr><td colspan='{1 + len(EFFORT_COLUMNS)}'>sem chamadas de LLM registradas</td></tr>\n"
+    return header + rows
+
+
 def build_history_table(current: dict, history: list[dict]) -> str:
     if not history:
         return "<tr><td colspan='3'>sem execuções anteriores nesta pasta de resultados</td></tr>\n"
@@ -248,6 +268,10 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
     cost_report = results.get("cost_report") or {}
     pricing_rows_html = build_pricing_table(cost_report.get("pricing_table") or [])
     cost_rows_html = build_cost_table(cost_report.get("cost_table") or [])
+    is_batch = bool(meta.get("batch"))
+    mode_label = "batch (todas as tarefas em uma sessão)" if is_batch else "sequencial (uma sessão por tarefa)"
+    effort_policy_label = meta.get("effort_policy") or "hints"
+    effort_table_html = build_effort_table(arms)
 
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -288,12 +312,17 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
     Modelo: <b>{html_escape(meta.get('model', '?'))}</b> &nbsp;·&nbsp;
     Data: {html_escape(meta.get('date', '?'))} &nbsp;·&nbsp;
     Commit (main): <code>{html_escape((meta.get('main_commit') or '?').split()[0] if meta.get('main_commit') else '?')}</code>
+    &nbsp;·&nbsp; Modo: <b>{html_escape(mode_label)}</b>
+    &nbsp;·&nbsp; Política de esforço: <code>{html_escape(effort_policy_label)}</code>
   </div>
   <div class="meta">{versions_html}</div>
   <div class="verdict"><b>Veredito:</b> {html_escape(verdict_text)}</div>
 
   <h2>Comparação geral (agente normal vs agente com a skill simplicio-loop)</h2>
   <table class="compare">{build_arm_table_rows(arms)}</table>
+
+  <h2>Esforço de raciocínio por chamada de LLM (plan alto / execute baixo / review médio)</h2>
+  <table class="compare">{effort_table_html}</table>
 
   <h2>Somente criação e somente edição (tarefas da mesma sessão)</h2>
   {kind_sections}
