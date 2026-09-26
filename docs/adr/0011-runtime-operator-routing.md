@@ -1,8 +1,15 @@
 # ADR 0011: Runtime operator routing and deterministic editing
 
-- **Status:** Accepted
+- **Status:** Superseded/Rejected (2026-09-26, issue #1305)
 - **Date:** 2026-08-05
 - **Mirrors:** `simplicio-runtime/docs/ADR-2026-08-05-RUNTIME-OPERATOR-ROUTING.md`
+
+**Why rejected:** this ADR assumed a `simplicio-runtime` binary/MCP backend that owns
+peer route decisions (Mapper/Fast/Loop) and a Runtime-selected deterministic `simplicio
+edit`. That backend was decided out of this monorepo — `AGENTS.md` states there is no
+Runtime/MCP backend in this stack, Loop activates directly (`/simplicio-loop`), and Dev
+CLI is a required standalone operator, not a route nested only under Loop. This ADR is
+kept for history; do not implement the routing it describes.
 
 ## Context
 

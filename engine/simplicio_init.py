@@ -24,7 +24,7 @@ from pathlib import Path
 
 # Repo root = simplicio-loop root = parents[1] of this file (engine/ -> repo).
 REPO_ROOT = Path(__file__).resolve().parents[1]
-MCP_SERVER = str(REPO_ROOT / "engine" / "simplicio_mcp.py")
+MCP_SERVER = str(REPO_ROOT / "engine" / "simplicio_tools_server.py")
 
 # Stable across versions — used to detect an existing install for idempotent re-init. Do NOT
 # rename (a changed marker makes an upgrade append a duplicate block instead of replacing).

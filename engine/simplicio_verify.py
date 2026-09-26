@@ -18,8 +18,8 @@ Checks
   5. compression     import the sibling compress module, shrink a verbose string,
                      assert it shrinks; report the % saved.
   6. memory_module   `simplicio_memory.py stats` exits 0.
-  7. mcp_module      pipe a JSON-RPC `initialize` into simplicio_mcp.py and assert
-                     serverInfo.name == "simplicio".
+  7. mcp_module      pipe a JSON-RPC `initialize` into simplicio_tools_server.py and
+                     assert serverInfo.name == "simplicio".
   8. det_operator    is `simplicio-dev-cli` on PATH? (WARN if absent, not FAIL).
 
 Each check is isolated: one raising does not abort the rest.
@@ -213,7 +213,7 @@ def check_memory_module():
 
 
 def check_mcp_module():
-    mcp = ENGINE_DIR / "simplicio_mcp.py"
+    mcp = ENGINE_DIR / "simplicio_tools_server.py"
     if not mcp.exists():
         return FAIL, "mcp module missing at {}".format(mcp)
     request = json.dumps({
