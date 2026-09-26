@@ -70,7 +70,7 @@ def test_build_kinds_are_derived_from_results_not_the_fixed_2_task_table(tmp_pat
     # silently render an "edit" section with no data) by reading the fixed
     # 2-task bench_tasks.TASKS list for section headers.
     html = report.build(_results(1), str(tmp_path))
-    assert "Tarefas de criação" in html
+    assert "Somente criação" in html
 
 
 def test_build_includes_pricing_table_section(tmp_path):
