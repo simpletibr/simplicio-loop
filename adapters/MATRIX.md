@@ -11,10 +11,6 @@ Three capabilities decide how rich an adapter is:
 - **Skill load** — how the runtime discovers `SKILL.md` files.
 - **Loop drive** — how `simplicio-loop` re-feeds the goal: a real **stop-hook**, or the
   **self-paced** fallback (host scheduler / cron / `/loop`).
-- **Native bind** — whether `simplicio-runtime` (or a native command set) binds extension points
-  for near-zero-token determinism. It is optional on every runtime: a missing/unreachable bind is
-  reported as explicit degraded mode while the standalone loop remains usable. See
-  each adapter's "MCP config" section for the exact file path and snippet.
 
 `orient_clamp.py` (token economy) works on **all** runtimes with no wiring — it's just a wrapper.
 
@@ -27,11 +23,11 @@ format every release. This repo therefore adopts a **two-tier system**:
 
 Three runtimes are **verified mechanically on every commit** and enjoy real parity:
 
-| # | Runtime | Skill load | Loop drive | Hooks | Optional native bind (MCP config) | Feedback | Adapter |
-|---|---|---|---|---|---|---|---|
-| 1 | **Claude Code** | `.claude/skills/` + `.claude-plugin/` | `Stop` hook | ✅ full | optional — `~/.claude.json` / `.mcp.json` | N1 (hook) + N3 | [claude](claude/README.md#mcp-config) |
-| 2 | **Codex** | `AGENTS.md` → `SKILL.md` | self-paced | ⚠️ partial | optional — `~/.codex/config.toml` | N2 (transcript) + N3 | [codex](codex/README.md#mcp-config) |
-| 3 | **Cursor** | `.cursor-plugin/` + `.claude/skills/` | `stop` + `afterAgentResponse` | ✅ full | optional — `.cursor/mcp.json` | N1 (hook) + N3 | [cursor](cursor/README.md#mcp-config) |
+| # | Runtime | Skill load | Loop drive | Hooks | Feedback | Adapter |
+|---|---|---|---|---|---|---|
+| 1 | **Claude Code** | `.claude/skills/` + `.claude-plugin/` | `Stop` hook | ✅ full | N1 (hook) + N3 | [claude](claude/README.md) |
+| 2 | **Codex** | `AGENTS.md` → `SKILL.md` | self-paced | ⚠️ partial | N2 (transcript) + N3 | [codex](codex/README.md) |
+| 3 | **Cursor** | `.cursor-plugin/` + `.claude/skills/` | `stop` + `afterAgentResponse` | ✅ full | N1 (hook) + N3 | [cursor](cursor/README.md) |
 
 These three are covered by:
 - `scripts/verify_adapters.py` running against each tier-1 runtime's install contract
@@ -49,26 +45,23 @@ These three are covered by:
 ### Tier 2 — Best-effort (ungated)
 
 Twelve runtimes are documented and supported on a best-effort basis — contributions welcome,
-no gate, no parity promise per release. The native bind is optional here too; "best-effort"
-describes how well the *MCP config path itself* is verified on that host. A missing bind is
-reported as degraded mode rather than preventing standalone operation. In the tables, a config
-path names how to enable the optional bind; it is not a precondition for the loop:
+no gate, no parity promise per release:
 
-| # | Runtime | Skill load | Loop drive | Hooks | Optional native bind (MCP config) | Feedback | Adapter |
-|---|---|---|---|---|---|---|---|
-| 4 | **VS Code (Copilot)** | `.github/copilot-instructions.md` | self-paced (tasks) | ⚠️ tasks | optional — `.vscode/mcp.json` (`servers` key) | N2 (transcript) + N3 | [vscode](vscode/README.md#mcp-config) |
-| 4b | **Grok** | `~/.grok/skills` + `~/.grok/rules` + `AGENTS.md` | self-paced | — | none required | N2 + N3 | [grok](grok/README.md) |
-| 5 | **Antigravity** | rules / `AGENTS.md` | self-paced | ⚠️ | optional — IDE MCP settings (path not verified) | N2 (transcript) + N3 | [antigravity](antigravity/README.md#mcp-config) |
-| 6 | **Kiro** | `.kiro/steering/` | self-paced (specs) | ⚠️ | optional — `.kiro/settings/mcp.json` | N2 (transcript) + N3 | [kiro](kiro/README.md#mcp-config) |
-| 7 | **OpenCode** | `AGENTS.md` + config | self-paced | ⚠️ | optional — `opencode.json` (`mcp` key) | N2 (transcript) + N3 | [opencode](opencode/README.md#mcp-config) |
-| 8 | **Gemini** (CLI / Code Assist) | `GEMINI.md` → `SKILL.md` | self-paced | ⚠️ | optional — `.gemini/settings.json` (CLI, verified); Code Assist not verified | N2 (transcript) + N3 | [gemini](gemini/README.md#mcp-config) |
-| 9 | **Kimi** | inlined conventions file | self-paced | ⚠️ | optional — no verified first-party config; best-effort | N2 (transcript) + N3 | [kimi](kimi/README.md#mcp-config) |
-| 10 | **Qwen** (Code / CLI) | `AGENTS.md`-equivalent | self-paced | ⚠️ | optional — `.qwen/settings.json` (best-effort, Gemini-CLI fork shape) | N2 (transcript) + N3 | [qwen](qwen/README.md#mcp-config) |
-| 11 | **DeepSeek** | inlined conventions file | self-paced | ⚠️ | optional — no first-party config; route via a wrapper's MCP client | N2 (transcript) + N3 | [deepseek](deepseek/README.md#mcp-config) |
-| 12 | **Aider** | `CONVENTIONS.md` (read) | self-paced | ❌ | optional — no host MCP client; standalone LLM execution remains available | N2 (inlined transcript) + N3 | [aider](aider/README.md) |
-| 13 | **Simplicio Agent** *(formerly Hermes)* | native skill recall | native loop | ✅ native | optional — native extension points (no MCP shim needed) | N1-equiv (native tick) + N3 | [simplicio_agent](simplicio_agent/README.md) |
-| 14 | **OpenClaw** | plugin SDK / `skills/` | native scheduler | ✅ native | optional — **native** (plugin SDK) | N1-equiv (native tick) + N3 | [openclaw](openclaw/README.md) |
-| 15 | **Orca** *(client opt-in only — not default)* | via inner agent (`.claude/skills/` + `AGENTS.md`) | **no core Orca hook**; inner agent hook / self-paced if client installed Orca | — | only if client requests (`CLIENT_INTEGRATIONS=orca`) | N1/N2 (inner) + N3 | [orca](orca/README.md#mcp-config) |
+| # | Runtime | Skill load | Loop drive | Hooks | Feedback | Adapter |
+|---|---|---|---|---|---|---|
+| 4 | **VS Code (Copilot)** | `.github/copilot-instructions.md` | self-paced (tasks) | ⚠️ tasks | N2 (transcript) + N3 | [vscode](vscode/README.md) |
+| 4b | **Grok** | `~/.grok/skills` + `~/.grok/rules` + `AGENTS.md` | self-paced | — | N2 + N3 | [grok](grok/README.md) |
+| 5 | **Antigravity** | rules / `AGENTS.md` | self-paced | ⚠️ | N2 (transcript) + N3 | [antigravity](antigravity/README.md) |
+| 6 | **Kiro** | `.kiro/steering/` | self-paced (specs) | ⚠️ | N2 (transcript) + N3 | [kiro](kiro/README.md) |
+| 7 | **OpenCode** | `AGENTS.md` + config | self-paced | ⚠️ | N2 (transcript) + N3 | [opencode](opencode/README.md) |
+| 8 | **Gemini** (CLI / Code Assist) | `GEMINI.md` → `SKILL.md` | self-paced | ⚠️ | N2 (transcript) + N3 | [gemini](gemini/README.md) |
+| 9 | **Kimi** | inlined conventions file | self-paced | ⚠️ | N2 (transcript) + N3 | [kimi](kimi/README.md) |
+| 10 | **Qwen** (Code / CLI) | `AGENTS.md`-equivalent | self-paced | ⚠️ | N2 (transcript) + N3 | [qwen](qwen/README.md) |
+| 11 | **DeepSeek** | inlined conventions file | self-paced | ⚠️ | N2 (transcript) + N3 | [deepseek](deepseek/README.md) |
+| 12 | **Aider** | `CONVENTIONS.md` (read) | self-paced | ❌ | N2 (inlined transcript) + N3 | [aider](aider/README.md) |
+| 13 | **Simplicio Agent** *(formerly Hermes)* | native skill recall | native loop | ✅ native | N1-equiv (native tick) + N3 | [simplicio_agent](simplicio_agent/README.md) |
+| 14 | **OpenClaw** | plugin SDK / `skills/` | native scheduler | ✅ native | N1-equiv (native tick) + N3 | [openclaw](openclaw/README.md) |
+| 15 | **Orca** *(client opt-in only — not default)* | via inner agent (`.claude/skills/` + `AGENTS.md`) | **no core Orca hook**; inner agent hook / self-paced if client installed Orca | — | N1/N2 (inner) + N3 | [orca](orca/README.md) |
 
 Rows 9–11 (Kimi, Qwen, DeepSeek) and Antigravity's IDE-side config are explicitly
 **best-effort / community-reported, not gated**.
@@ -79,8 +72,6 @@ the compat window and will be removed after the deprecation threshold (one relea
 a regression report), per the adapter-rebrand rollback policy (#262).
 
 Legend: ✅ first-class · ⚠️ partial / via a generic mechanism · ❌ none (degrade to fallback).
-Native binds are optional on every runtime. Missing native capabilities are reported as degraded
-mode; installing and driving the standalone loop remains available.
 
 ## Acompanhando o progresso (issue #303, EPIC #296)
 
@@ -118,31 +109,20 @@ pwsh scripts/install.ps1 <runtime> [-Global]      # Windows / pwsh
 ```
 
 The installer copies the 7 skills into the runtime's skills location and wires the loop hooks
-where supported. There is no Runtime/MCP backend in this stack; each host's own MCP config
-(where noted above) is an optional enhancement independent of the loop.
-
-## Loop→Runtime contract adapter
-
-All native bindings use the transport-neutral [`docs/runtime-adapter.md`](../docs/runtime-adapter.md)
-contract. The adapter negotiates `simplicio.runtime/v1`, preserves the same Run/WorkItem IDs,
-buffers operations during outages, and fails closed on incompatible versions. Standalone mode is
-available only with an explicit `standalone=True` choice and never claims runtime delivery.
+where supported. There is no Runtime/MCP backend in this stack.
 
 ## What degrades gracefully — and what does not
 
 - **No stop-hook** → the loop self-paces via the host scheduler (`simplicio-loop` "No-hook
   fallback"). Same exit conditions (evidence-gated promise, cap, STOP). This degradation is
   always allowed — it's a drive-mechanism choice, not a policy violation.
-- **No native bind** → explicit **degraded mode**. If the `simplicio` binary/MCP server is missing
-  or unreachable, the adapter reports degraded preflight status and continues with standalone
-  capabilities; install and verify the bind (`simplicio doctor --json`) when native features are
-  needed for a task.
+
 - **No skill loader** (e.g. Aider) → the adapter inlines `SKILL.md` as the runtime's
   conventions/instructions file. Larger context, identical behavior. Native capabilities remain
   optional independently of the skill-loading mechanism.
 
-The promise: **same protocol, same gates, same safety on all 16 — Tier 1 verified mechanically,
-Tier 2 best-effort with contributions welcome, optional native binds with explicit degradation.**
+The promise: **same protocol, same gates, same safety on all 15 — Tier 1 verified mechanically,
+Tier 2 best-effort with contributions welcome.**
 
 ## Verifying an adapter
 

@@ -468,7 +468,7 @@ installatie.
 Een live, altijd-aan zicht op de besparingen:
 
 - **Web-dashboard** — `http://127.0.0.1:9090` — realtime token-grafiek, besparingsmeter, de
-  LLMs/runtimes en **141/144 providers (98%)** die we onderscheppen, en een live proxy-log.
+  LLMs/runtimes en providers die we onderscheppen, en een live proxy-log.
 - **Menubalk- / tray-widget** — live bespaarde tokens in de systeemtray (macOS rumps · Windows/Linux pystray).
 - **Eén module** — `scripts/simplicio-economy.sh {status|up|wire}` brengt de capture-proxy + monitor
   + tray + de deterministische `simplicio-dev-cli`-operator op en rapporteert de hele stack.

@@ -436,6 +436,8 @@ def _run_step(tool_argv, task_args, *, phase, cwd, missing_reason, fail_reason, 
         return GateResult(False, fail_reason + "_timeout")
     if command.reason == CommandReason.CONTAINMENT_UNAVAILABLE:
         return GateResult(False, fail_reason + "_containment_unavailable")
+    if command.reason == CommandReason.DESCENDANT_LEAK:
+        return GateResult(False, fail_reason + "_descendant_leak")
     if command.returncode != 0:
         return GateResult(False, fail_reason)
     return None

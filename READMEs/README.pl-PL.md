@@ -486,7 +486,7 @@ czasie instalacji.
 Żywy, zawsze włączony widok oszczędności:
 
 - **Web dashboard** — `http://127.0.0.1:9090` — wykres tokenów w czasie rzeczywistym, miernik oszczędności, LLM-y/środowiska
-  i **141/144 dostawców (98%)**, których przechwytujemy, oraz żywy log proxy.
+  i dostawców, których przechwytujemy, oraz żywy log proxy.
 - **Widget na pasku menu / w zasobniku** — żywo zaoszczędzone tokeny w zasobniku systemowym (macOS rumps · Windows/Linux pystray).
 - **Jeden moduł** — `scripts/simplicio-economy.sh {status|up|wire}` podnosi proxy przechwytujące + monitor +
   zasobnik + deterministyczny operator `simplicio-dev-cli` i raportuje cały stos.

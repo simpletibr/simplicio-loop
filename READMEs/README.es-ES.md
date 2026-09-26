@@ -493,7 +493,7 @@ momento de la instalación.
 Una vista en vivo, siempre activa, del ahorro:
 
 - **Dashboard web** — `http://127.0.0.1:9090` — gráfico de tokens en tiempo real, medidor de ahorro,
-  los LLMs/runtimes y los **141/144 proveedores (98%)** que interceptamos, y un log de proxy en vivo.
+  los LLMs/runtimes y los proveedores que interceptamos, y un log de proxy en vivo.
 - **Widget de barra de menús / bandeja** — tokens ahorrados en vivo en la bandeja del sistema (macOS rumps · Windows/Linux pystray).
 - **Un módulo** — `scripts/simplicio-economy.sh {status|up|wire}` levanta el proxy de captura + monitor +
   bandeja + el operador determinista `simplicio-dev-cli` e informa de toda la pila.

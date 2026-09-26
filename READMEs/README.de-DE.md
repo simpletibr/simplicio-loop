@@ -499,7 +499,7 @@ erledigt dieses Routing für OpenAI-kompatible Clients zur Installationszeit.
 Eine Live-Ansicht der Einsparungen, immer aktiv:
 
 - **Web-Dashboard** — `http://127.0.0.1:9090` — Echtzeit-Token-Chart, Einsparungs-Anzeige, die LLMs/Laufzeiten
-  und **141/144 Provider (98 %)**, die wir abfangen, plus ein Live-Proxy-Log.
+  und Provider, die wir abfangen, plus ein Live-Proxy-Log.
 - **Menüleisten-/Tray-Widget** — live eingesparte Tokens im System-Tray (macOS rumps · Windows/Linux pystray).
 - **Ein Modul** — `scripts/simplicio-economy.sh {status|up|wire}` startet den Capture-Proxy + Monitor + Tray +
   den deterministischen `simplicio-dev-cli`-Operator und meldet den gesamten Stack.

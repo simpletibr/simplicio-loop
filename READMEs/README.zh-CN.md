@@ -450,7 +450,7 @@ OpenAI 兼容客户端完成这一路由。
 一个实时、始终在线的节省视图：
 
 - **Web 仪表盘** —— `http://127.0.0.1:9090` —— 实时 token 图表、节省仪表、我们拦截的
-  LLM/运行时与 **141/144 个供应商（98%）**，以及一份实时代理日志。
+  LLM/运行时与 个供应商，以及一份实时代理日志。
 - **菜单栏 / 托盘小组件** —— 在系统托盘中实时显示已节省的 token（macOS rumps · Windows/Linux pystray）。
 - **一个模块** —— `scripts/simplicio-economy.sh {status|up|wire}` 启动捕获代理 + 监视器 +
   托盘 + `simplicio-dev-cli` 确定性操作器，并汇报整套栈。

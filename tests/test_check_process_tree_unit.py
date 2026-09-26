@@ -454,7 +454,30 @@ def test_descendant_still_alive_past_grace_period_is_reported_as_leak(tmp_path) 
     assert result.timed_out is False
     assert result.reason == CommandReason.DESCENDANT_LEAK
     assert check._gate_result("stdlib_test", result).reason_code == "stdlib_test_descendant_leak"
+    # The leaked process is named in stderr so a gate failure is diagnosable.
+    leaked = int(child_pid.read_text())
+    assert "descendant_leak pid=%d" % leaked in result.stderr
+    assert "truly-leaked-child.pid" in result.stderr
     # The grace period (>= 1.5s, comfortably below the 2.0s budget) must
     # actually have been honored, not skipped.
     assert elapsed >= 1.5
     _assert_pid_gone(int(child_pid.read_text()))
+
+
+def test_package_gate_step_reports_descendant_leak_reason(tmp_path) -> None:
+    """A package-gate step whose tool exits 0 but leaves a descendant running
+    must fail with a typed ``_descendant_leak`` reason, not a generic
+    ``_failed`` that hides why a fully green test run was rejected."""
+    child = "import time; time.sleep(30)"
+    leader = (
+        "import subprocess,sys,time; "
+        "sys.argv[1:2] == ['--version'] and sys.exit(0); "
+        "subprocess.Popen([sys.executable, '-c', %r], start_new_session=True, "
+        "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(.15)" % child
+    )
+    fail = check._run_step(
+        [sys.executable, "-c", leader], [], phase="package_gate_tests", cwd=str(tmp_path),
+        missing_reason="pkg_missing", fail_reason="pkg_pytest_failed",
+    )
+    assert fail is not None
+    assert fail.reason_code == "pkg_pytest_failed_descendant_leak"
