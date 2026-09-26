@@ -142,12 +142,19 @@ def compare_reported_vs_computed(reported_cost: float | None, computed_cost: flo
 
 
 def cost_table(results: dict, pricing: dict) -> list[dict]:
-    """One row per (arm, task kind): reported vs computed cost breakdown,
-    aggregated over every task of that kind in that arm.
+    """One row per (arm, task kind): billed vs computed cost breakdown
+    (issue #1335), aggregated over every task of that kind in that arm.
 
-    Reads straight from the same ``totals`` each task already carries
-    (``agent.summarize``'s output) -- no re-derivation from raw llm_calls
-    needed since totals are already the per-task token sums.
+    Each task's ``totals`` is run through ``finalize_task_cost`` first, so
+    this works uniformly whether ``totals`` already carries the settled/
+    computed fields (a fresh ``run.py`` result) or predates this fix (an
+    older result rendered via ``standard.py --reports-only`` -- the fields
+    are computed here from the task's own token counts, never mutating the
+    stored file). ``reported_cost_usd``/``diff_usd`` in the returned row
+    compare the BILLED sum against the computed sum (``diff_usd`` is what
+    the OpenRouter ledger under- or over-reports relative to the tokens);
+    ``cost_flag_count`` is how many tasks in that bucket individually
+    diverged past ``DIVERGENCE_FLAG_PCT``.
     """
     rows: list[dict] = []
     arms = (results or {}).get("arms") or {}
@@ -155,21 +162,80 @@ def cost_table(results: dict, pricing: dict) -> list[dict]:
         by_kind: dict[str, dict] = {}
         for task in arm_data.get("tasks") or []:
             kind = task.get("kind", "unknown")
-            totals = task.get("totals") or {}
+            totals = finalize_task_cost(task.get("totals") or {}, pricing)
             bucket = by_kind.setdefault(
-                kind, {"prompt_tokens": 0, "cached_tokens": 0, "completion_tokens": 0, "reported_cost": 0.0}
+                kind, {"prompt_tokens": 0, "cached_tokens": 0, "completion_tokens": 0,
+                       "billed_cost": 0.0, "task_count": 0, "flag_count": 0}
             )
             bucket["prompt_tokens"] += totals.get("prompt_tokens") or 0
             bucket["cached_tokens"] += totals.get("cached_tokens") or 0
             bucket["completion_tokens"] += totals.get("completion_tokens") or 0
-            bucket["reported_cost"] += totals.get("cost_usd") or 0
+            bucket["billed_cost"] += totals.get("billed_cost_usd") if totals.get("billed_cost_usd") is not None \
+                else (totals.get("cost_usd") or 0)
+            bucket["task_count"] += 1
+            bucket["flag_count"] += 1 if totals.get("cost_flag") else 0
         for kind, bucket in by_kind.items():
             breakdown = cost_breakdown(
                 bucket["prompt_tokens"], bucket["cached_tokens"], bucket["completion_tokens"], pricing
             )
-            comparison = compare_reported_vs_computed(bucket["reported_cost"], breakdown["computed_cost_usd"])
-            rows.append({"arm": arm_name, "kind": kind, **breakdown, **comparison})
+            comparison = compare_reported_vs_computed(bucket["billed_cost"], breakdown["computed_cost_usd"])
+            rows.append({
+                "arm": arm_name, "kind": kind, **breakdown, **comparison,
+                "task_count": bucket["task_count"], "cost_flag_count": bucket["flag_count"],
+            })
     return rows
+
+
+DIVERGENCE_FLAG_PCT = 10.0
+
+
+def finalize_task_cost(totals: dict, pricing: dict) -> dict:
+    """Fill in the token-computed cross-check on a COPY of one task's
+    ``totals`` (issue #1335): ``computed_cost_usd`` (from
+    ``cost_breakdown`` over the task's own token counts and ``pricing``),
+    then settle ``cost_usd``/``cost_source`` against whatever settled-billed
+    figure is available:
+
+    - ``billed_cost_usd`` present (a settled key-usage delta -- or, for a
+      result recorded before this fix, backfilled from ``cost_usd`` when
+      ``cost_source`` was already ``"billed-delta"``): ``cost_usd`` is that
+      billed figure, and ``cost_divergence_pct``
+      (``|billed - computed| / computed * 100``, ``None`` when ``computed``
+      is 0) is flagged (``cost_flag``) above ``DIVERGENCE_FLAG_PCT``.
+    - No billed figure available (the usage never settled within the poll
+      window): ``cost_usd`` becomes the computed figure,
+      ``cost_source`` is ``"computed-from-tokens"`` -- never a fabricated
+      number, and no divergence to report.
+
+    Pure and non-mutating (returns a new dict), so it can run both when
+    ``run.py`` records a fresh result AND, unchanged, when a report is
+    rendered from an OLDER result that predates these fields
+    (``standard.py --reports-only`` -- see STANDARD.md § cost cross-check).
+    """
+    out = dict(totals)
+    breakdown = cost_breakdown(
+        out.get("prompt_tokens") or 0, out.get("cached_tokens") or 0,
+        out.get("completion_tokens") or 0, pricing or {},
+    )
+    computed = breakdown["computed_cost_usd"]
+    out["computed_cost_usd"] = computed
+
+    billed = out.get("billed_cost_usd")
+    if billed is None and out.get("cost_source") in ("billed-delta", "billed-settled"):
+        billed = out.get("cost_usd")
+        out["billed_cost_usd"] = billed
+
+    if billed is not None:
+        divergence = round(abs(billed - computed) / computed * 100.0, 2) if computed else None
+        out["cost_divergence_pct"] = divergence
+        out["cost_flag"] = bool(divergence is not None and divergence > DIVERGENCE_FLAG_PCT)
+        out["cost_usd"] = billed
+    else:
+        out["cost_usd"] = computed
+        out["cost_source"] = "computed-from-tokens"
+        out["cost_divergence_pct"] = None
+        out["cost_flag"] = False
+    return out
 
 
 def pricing_table(pricing: dict | None) -> list[dict]:

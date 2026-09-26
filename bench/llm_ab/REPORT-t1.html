@@ -91,13 +91,18 @@
 
   </table>
 
-  <h2>Custo real: reportado vs calculado (cache-aware)</h2>
+  <h2>Custo real: cobrado (delta assentado) vs calculado pelos tokens (cache-aware)</h2>
+  <p class="meta">Cobrado = delta assentado da chave OpenRouter (issue #1335: assentado é
+    ``GET /api/v1/key`` sem variar por 3 leituras seguidas, nunca o primeiro movimento) ou,
+    quando o uso nunca assenta, o próprio custo calculado (``cost_source =
+    computed-from-tokens``). Sinalizados = tarefas cujo custo cobrado divergiu do calculado
+    em mais de 10%.</p>
   <table class="compare">
-    <tr><th>braço</th><th>tipo</th><th>reportado</th><th>calculado</th>
+    <tr><th>braço</th><th>tipo</th><th>cobrado</th><th>calculado</th>
         <th>entrada não cacheada</th><th>entrada cacheada</th><th>saída</th>
-        <th>economia de cache</th><th>hit % de cache</th></tr>
-    <tr><td>normal</td><td>create</td><td>$0.002634</td><td>$0.002157</td><td>$0.001778</td><td>$0.000055</td><td>$0.000324</td><td>$0.002710</td><td>60.9%</td></tr>
-<tr><td>simplicio</td><td>create</td><td>$0.006005</td><td>$0.008357</td><td>$0.005906</td><td>$0.000478</td><td>$0.001973</td><td>$0.023407</td><td>80.2%</td></tr>
+        <th>economia de cache</th><th>hit % de cache</th><th>sinalizados</th></tr>
+    <tr><td>normal</td><td>create</td><td>$0.002634</td><td>$0.002157</td><td>$0.001778</td><td>$0.000055</td><td>$0.000324</td><td>$0.002710</td><td>60.9%</td><td><b>1</b>/1</td></tr>
+<tr><td>simplicio</td><td>create</td><td>$0.006005</td><td>$0.008357</td><td>$0.005906</td><td>$0.000478</td><td>$0.001973</td><td>$0.023407</td><td>80.2%</td><td><b>1</b>/1</td></tr>
 
   </table>
 

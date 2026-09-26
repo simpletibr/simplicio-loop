@@ -94,7 +94,9 @@ def _commit_if_changed(repo_dir: str, message: str) -> None:
 
 def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
             task_timeout: int, task_list: list[dict] | None = None,
-            config_dir: str | None = None) -> dict:
+            config_dir: str | None = None, settle_reads: int = oc.DEFAULT_SETTLE_READS,
+            settle_interval_s: float = oc.DEFAULT_SETTLE_INTERVAL_S,
+            settle_max_wait_s: float = oc.DEFAULT_SETTLE_MAX_WAIT_S) -> dict:
     import time
 
     task_list = task_list if task_list is not None else bench_tasks.TASKS
@@ -103,6 +105,15 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
     checker.seed_repo(fixture_dir, repo_dir)
     subprocess.run(["git", "init", "-q"], cwd=repo_dir, check=True, timeout=15)
     _commit_if_changed(repo_dir, "seed fixture")
+
+    key = lc.get_key(arm)
+    # Settle the ledger BEFORE the first task too (issue #1335), so task 1's
+    # baseline is a stable reading, never whatever was mid-flight when this
+    # arm's key was last used.
+    usage_baseline = oc.poll_settled_usage(
+        lambda: oc.fetch_key_usage_usd(key), reads=settle_reads, interval_s=settle_interval_s,
+        max_wait_s=settle_max_wait_s,
+    )["value"]
 
     results = {"arm": arm, "model": lc.MODEL, "tasks": []}
     total_wall_t0 = time.time()
@@ -114,9 +125,15 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
 
         task_wall_t0 = time.time()
         agent_result = oc.run_opencode(
-            arm, task["text"], repo_dir,
+            arm, task["text"], repo_dir, key=key,
             config_dir=config_dir, timeout=task_timeout, skill=(arm == "simplicio"),
+            usage_baseline=usage_baseline, settle_reads=settle_reads,
+            settle_interval_s=settle_interval_s, settle_max_wait_s=settle_max_wait_s,
         )
+        # Next task's baseline is THIS task's settled (or best-effort last
+        # observed) usage -- never the pre-task baseline, so no cost leaks
+        # across tasks either way.
+        usage_baseline = agent_result.get("usage_settled_value", usage_baseline)
         task_wall_s = round(time.time() - task_wall_t0, 3)
 
         _commit_if_changed(repo_dir, f"{arm}: task {idx}")
@@ -153,7 +170,9 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
 
 def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
                    task_timeout: int, task_list: list[dict],
-                   config_dir: str | None = None) -> dict:
+                   config_dir: str | None = None, settle_reads: int = oc.DEFAULT_SETTLE_READS,
+                   settle_interval_s: float = oc.DEFAULT_SETTLE_INTERVAL_S,
+                   settle_max_wait_s: float = oc.DEFAULT_SETTLE_MAX_WAIT_S) -> dict:
     """``--batch``: ALL of ``task_list`` in ONE agent session for this arm
     (issue #1310 follow-up, carried over to the real-OpenCode driver by
     issue #1325) -- the same seeded repo, but a single
@@ -179,11 +198,19 @@ def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
     subprocess.run(["git", "init", "-q"], cwd=repo_dir, check=True, timeout=15)
     _commit_if_changed(repo_dir, "seed fixture")
 
+    key = lc.get_key(arm)
+    usage_baseline = oc.poll_settled_usage(
+        lambda: oc.fetch_key_usage_usd(key), reads=settle_reads, interval_s=settle_interval_s,
+        max_wait_s=settle_max_wait_s,
+    )["value"]
+
     batch_prompt = build_batch_prompt(task_list)
     total_wall_t0 = time.time()
     agent_result = oc.run_opencode(
-        arm, batch_prompt, repo_dir,
+        arm, batch_prompt, repo_dir, key=key,
         config_dir=config_dir, timeout=task_timeout * len(task_list), skill=(arm == "simplicio"),
+        usage_baseline=usage_baseline, settle_reads=settle_reads,
+        settle_interval_s=settle_interval_s, settle_max_wait_s=settle_max_wait_s,
     )
     total_wall_s = round(time.time() - total_wall_t0, 3)
     _commit_if_changed(repo_dir, f"{arm}: batch of {len(task_list)} tasks")
@@ -282,6 +309,24 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="write results.json only; skip rendering REPORT.html (matplotlib not required)",
     )
     ap.add_argument(
+        "--settle-reads", type=int, default=oc.DEFAULT_SETTLE_READS,
+        help=(
+            "consecutive equal key-usage reads required to call the OpenRouter ledger "
+            f"settled after a task (default: {oc.DEFAULT_SETTLE_READS}; issue #1335)"
+        ),
+    )
+    ap.add_argument(
+        "--settle-interval", type=float, default=oc.DEFAULT_SETTLE_INTERVAL_S,
+        help=f"seconds between settle-poll reads (default: {oc.DEFAULT_SETTLE_INTERVAL_S})",
+    )
+    ap.add_argument(
+        "--settle-max-wait", type=float, default=oc.DEFAULT_SETTLE_MAX_WAIT_S,
+        help=(
+            "max seconds to wait for the ledger to settle before falling back to the "
+            f"token-computed cost (default: {oc.DEFAULT_SETTLE_MAX_WAIT_S})"
+        ),
+    )
+    ap.add_argument(
         "--batch", action="store_true",
         help=(
             "run ALL tasks in ONE user prompt / one agent session per arm, instead of one "
@@ -319,7 +364,17 @@ def main(argv=None) -> int:
         arms_results[arm] = run_fn(
             arm, fixture_dir, repo_dir, args.python_bin, args.task_timeout,
             task_list=task_list, config_dir=config_dir,
+            settle_reads=args.settle_reads, settle_interval_s=args.settle_interval,
+            settle_max_wait_s=args.settle_max_wait,
         )
+
+    # Token-computed cross-check (issue #1335): every task's totals gets
+    # `computed_cost_usd`/`cost_divergence_pct`/`cost_flag` from its own
+    # tokens and this run's pricing snapshot, and `cost_usd`/`cost_source`
+    # fall back to the computed figure whenever the ledger never settled.
+    for arm_data in arms_results.values():
+        for task in arm_data.get("tasks", []):
+            task["totals"] = bench_cost.finalize_task_cost(task.get("totals") or {}, pricing)
 
     meta = {
         "model": oc.OPENCODE_MODEL,
