@@ -7148,6 +7148,22 @@ def _release_shared_context(item: Mapping[str, Any], worktree_queue: Any, *, for
 
 
 
+_DEPENDENCY_PREFIX_RE = re.compile(
+    r"^\s*(?:Depends on|Depende de|Depend[êe]ncia|Dependencia)\s*:\s*", re.I,
+)
+_DEPENDENCY_NOTE_RE = re.compile(r"\s*\([^)]*\)\s*$")
+_TASK_NUMBER_RE = re.compile(r"^(?:(?:task|tarefa)\s*#?\s*|#)(\d+)$", re.I)
+
+
+def _normalize_dependency_reference(item: Any) -> str:
+    """Reduce a dependency as an LLM writes it ("Depends on: task 1 (x.html)")
+    to the runner's own alias ("task-1"); ids and titles pass through."""
+    text = _DEPENDENCY_PREFIX_RE.sub("", str(item)).strip().lstrip("-* ")
+    text = _DEPENDENCY_NOTE_RE.sub("", text).strip()
+    number = _TASK_NUMBER_RE.match(text)
+    return f"task-{number.group(1)}" if number else text
+
+
 def _dependency_references(value: Any) -> list[str]:
     if isinstance(value, Mapping):
         value = value.get("items") or value.get("depends_on") or ()
@@ -7155,7 +7171,8 @@ def _dependency_references(value: Any) -> list[str]:
         value = [part.strip() for part in value.split(",")]
     if not isinstance(value, (list, tuple, set)):
         return []
-    return [str(item).strip() for item in value if str(item).strip()]
+    references = (_normalize_dependency_reference(item) for item in value)
+    return [reference for reference in references if reference]
 
 
 def _task_dependency_references(task: Mapping[str, Any], step: Mapping[str, Any] | None = None) -> tuple[str, ...]:
@@ -7185,8 +7202,12 @@ def _assert_task_dependencies_ready(
     run_id: str,
     *,
     step: Mapping[str, Any] | None = None,
+    in_batch: Collection[int] = (),
 ) -> None:
-    """Reject a tick that arrives before every declared predecessor completed."""
+    """Reject a tick that arrives before every declared predecessor completed.
+
+    A predecessor dispatched in the same batch (``in_batch``) is ordered by
+    the batch's shared serial run, so it has no result marker yet."""
     aliases: dict[str, int] = {
         alias: index
         for index, task in enumerate(tasks, start=1)
@@ -7201,6 +7222,8 @@ def _assert_task_dependencies_ready(
             )
         if dependency_index == task_index:
             raise RuntimeError(f"task cannot depend on itself: task {task_index}")
+        if dependency_index in in_batch:
+            continue
         marker = run_dir / f"task-{dependency_index}-result.json"
         if not marker.is_file():
             raise RuntimeError(
@@ -9556,7 +9579,9 @@ def execute_operator_batch(
         items.append(item)
     for index in indices:
         step = contract_steps[index - 1] if index <= len(contract_steps) and isinstance(contract_steps[index - 1], Mapping) else None
-        _assert_task_dependencies_ready(run_dir, contract_tasks, index, run_id, step=step)
+        _assert_task_dependencies_ready(
+            run_dir, contract_tasks, index, run_id, step=step, in_batch=set(indices),
+        )
     items = _omit_satisfied_dispatch_dependencies(
         items,
         satisfied_aliases=_completed_task_aliases(run_dir, contract_tasks, run_id),

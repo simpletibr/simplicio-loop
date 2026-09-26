@@ -106,10 +106,21 @@ def _status_paths(text: str) -> tuple[list[str], list[str]]:
     return sorted(changed), sorted(new_files)
 
 
+# Loop/dev-cli bookkeeping and verifier byproducts are never the user's diff.
+_NOT_USER_DIFF = (
+    ":(exclude).simplicio", ":(exclude,glob)**/__pycache__/**", ":(exclude,glob)**/*.pyc",
+    ":(exclude,glob)**/.pytest_cache/**", ":(exclude,glob)**/.mypy_cache/**",
+    ":(exclude,glob)**/.ruff_cache/**", ":(exclude,glob)**/.coverage",
+    ":(exclude,glob)**/.coverage.*", ":(exclude,glob)**/htmlcov/**",
+)
+
+
 def read_git_snapshot(root: str | Path, baseline: str = "HEAD") -> dict[str, Any]:
     root_path = Path(root)
-    status_text = _git(root_path, ["status", "--porcelain=v1", "--untracked-files=all"])
-    numstat_text = _git(root_path, ["diff", "--numstat", baseline, "--"])
+    status_text = _git(
+        root_path, ["status", "--porcelain=v1", "--untracked-files=all", "--", ".", *_NOT_USER_DIFF],
+    )
+    numstat_text = _git(root_path, ["diff", "--numstat", baseline, "--", ".", *_NOT_USER_DIFF])
     numstat = parse_numstat(numstat_text)
     status_paths, new_files = _status_paths(status_text)
     measured_paths = set(status_paths)

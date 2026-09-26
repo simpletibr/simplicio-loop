@@ -1,4 +1,4 @@
-"""Mapper receipt normalization for single-task-fast (runtime issue #3853)."""
+"""Mapper receipt normalization (runtime issue #3853)."""
 from __future__ import annotations
 
 from typing import Any, Mapping

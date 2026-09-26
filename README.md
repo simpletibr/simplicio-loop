@@ -865,7 +865,10 @@ simplicio-loop prepare --task task.md --repo .
 simplicio-loop wave <run_id>
 
 # Ou para tarefa única ultrarrápida (local-first, sem latência externa):
-simplicio-loop single-task-fast --task-file task.json
+# ver SKILL.md "Pick the fastest route first" -- route_mode.py -> fast-path:
+python3 scripts/route_mode.py --root . --goal "<one task, plain prose>"
+simplicio-dev-cli edit --plan ops.json --compile plan.json
+simplicio-dev-cli edit --plan plan.json --apply --json
 ```
 
 > **Aviso de Descontinuação do `run`**: O comando `simplicio-loop run` foi descontinuado e excluído da interface pública. Caso seja invocado (`simplicio-loop run --task task.md` ou `simplicio-loop run <run_id>`), o comando é automaticamente interceptado e redirecionado para o fluxo padrão `simplicio-loop wave`, garantindo execução com barreira de integridade e a máxima velocidade.
@@ -876,7 +879,7 @@ simplicio-loop single-task-fast --task-file task.json
 |---|---|---|
 | Install and utilities | `install`, `dashboard`, `learn` | Install the bundled skills/hooks; open or stop the token-monitor dashboard; derive and persist a retrospective from completed runs. |
 | Intake and planning | `task`, `prototype`, `plan`, `orient` | Validate/preview task contracts; route prototype planning; compile Markdown into a frozen contract; build bounded Mapper/Fast context and an orientation receipt. |
-| Execution | `wave`, `prism`, `single-task-fast`, `batch`, `tick` | Dispatch ready tasks through governed wave barriers (`wave`, default flow); execute through isolated worktrees (`prism`); execute bounded tasks locally (`single-task-fast`); continuous background dispatch (`batch`); step-by-step single-task execution (`tick`). *(Nota: `run` foi descontinuado e redireciona para `wave`)*. |
+| Execution | `wave`, `prism`, `batch`, `tick` | Dispatch ready tasks through governed wave barriers (`wave`, default flow); execute through isolated worktrees (`prism`); continuous background dispatch (`batch`); step-by-step single-task execution (`tick`). A single bounded task is routed through the fast-path (`scripts/route_mode.py` -> `simplicio-dev-cli edit --compile/--apply`), not a dedicated command. *(Nota: `run` foi descontinuado e redireciona para `wave`)*. |
 | Run lifecycle | `status`, `progress`, `resume`, `cancel`, `verify`, `oracle`, `checkpoint` | Inspect a run; render progress as text/JSON/Markdown/ANSI; resume or cancel non-terminal work; run independent watcher/delivery gates; evaluate completion/parity; manage Fast V3 checkpoints. |
 | Repository and operators | `preflight`, `map`, `inspect`, `doctor`, `stack`, `extensions`, `retrieve` | Check Mapper/Dev CLI/Runtime/Fast readiness; inspect map-service receipts; inspect MapperStore capabilities; diagnose stack/source/resource/storage; lock or verify installed components; verify extension handshakes; retrieve tee-cache results. |
 | Queues and coordination | `queue`, `drain`, `agent-slots`, `generation-broker`, `ledger`, `hub-drain-plan`, `hub-drain-admit` | Operate the durable queue; evaluate or persist queue-drain receipts; inspect/reclaim Loop capacity; reconcile generation bindings; replay/validate the operational ledger; plan or admit GitHub drain work. |
@@ -889,7 +892,7 @@ Para garantir os melhores resultados de velocidade, economia e confiabilidade:
 
 | Cenário / Demanda | Fluxo Recomendado | Comando | Por que escolher? |
 |---|---|---|---|
-| **1 Tarefa Simples / Local** | `single-task-fast` | `simplicio-loop single-task-fast --task-file task.json` | **Mais Rápido e Barato**: Execução local-first imediata via Fast + Dev CLI. 0 chamadas de rede, custo zero de tokens. |
+| **1 Tarefa Simples / Local** | fast-path (`route_mode.py`) | `python3 scripts/route_mode.py --root . --goal "<task>"` seguido de `simplicio-dev-cli edit --plan ... --compile`/`--apply` | **Mais Rápido e Barato**: Execução local-first imediata via Dev CLI (sem comando de Loop dedicado). 0 chamadas de rede, custo zero de tokens. |
 | **Multi-tarefas Padrão (2 a 30+ tarefas)** | `wave` *(Padrão)* | `simplicio-loop wave <run_id>` | **Máxima Velocidade e Confiabilidade**: Despacha ondas concorrentes com barreiras de reconciliação de estado entre cada onda. Evita race conditions em arquivos compartilhados e aproveita 96%+ de cache hit. |
 | **Alta Concorrência em Árvores Isoladas** | `prism` | `simplicio-loop prism <run_id> --batch-size 10` | **Isolamento Total**: Worktrees Git isoladas para tarefas independentes que alteram partes distintas do código sem colisão. |
 | **Fila Contínua de Tarefas** | `batch` | `simplicio-loop batch <run_id>` | **Processamento em Massa**: Mantém workers ocupados continuamente processando tarefas prontas da fila até o esgotamento. |
