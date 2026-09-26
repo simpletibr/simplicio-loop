@@ -104,6 +104,72 @@ wiring the harness to it:
   `opencode_agent.DEFAULT_RUN_TIMEOUT` (900s) rather than the retired
   harness's 180s per-command cap.
 
+## Exact per-task cost: settled delta + token-computed cross-check (issue #1335)
+
+OpenCode's JSON events carry no OpenRouter *generation id*, so the
+per-generation stats endpoint (`GET /api/v1/generation?id=...`) is never
+available here — the only real-money ledger this harness can read is the
+key's own cumulative usage, `GET /api/v1/key`'s `data.usage` (USD),
+polled before and after each task with that arm's own key
+(`opencode_agent.fetch_key_usage_usd`).
+
+**The problem this fixes:** that ledger does not update atomically. It
+settles in several increments over the seconds after a task's last
+completion is billed, so returning on the FIRST observed movement (the
+retired `poll_billed_delta`) captured only part of the true delta — the
+rest silently leaked into whichever task read the ledger next, and the
+LAST task of a run was undercounted with nothing left to absorb its tail.
+Concretely, on the `c36db59ee` run this issue re-rendered: `t1-batch`'s
+`normal` task showed a billed cost of `$0.00048` while its own tokens
+price at `$0.00221` at this run's own pricing snapshot — a ~78%
+divergence, not a rounding error.
+
+**Settled usage (`opencode_agent.poll_settled_usage`):** poll the key's
+usage until it returns the SAME value (within float noise) for
+`DEFAULT_SETTLE_READS` consecutive reads (default 3), `DEFAULT_SETTLE_INTERVAL_S`
+apart (default 5s), bounded by `DEFAULT_SETTLE_MAX_WAIT_S` total (default
+120s) — configurable per run via `run.py`'s `--settle-reads`/
+`--settle-interval`/`--settle-max-wait` (forwarded from `standard.py` too).
+This settle runs BEFORE the first task (so task 1's baseline is a stable
+reading, not whatever was mid-flight from a previous use of the key) and
+AFTER every task (`run.py`'s per-arm loop threads each task's own settled
+reading as the NEXT task's baseline — never the stale pre-run baseline, so
+no cost leaks across tasks either way, including the last task).
+
+**Token-computed cross-check (`cost.finalize_task_cost`):** independently
+of the billed ledger, each task's own OpenCode token totals — uncached
+input, cache read/write, output, reasoning — are priced through
+`cost.cost_breakdown` against THIS run's own OpenRouter pricing snapshot,
+giving `computed_cost_usd`. This is always available (it needs no network
+call beyond the pricing fetch already made once per run) and never
+depends on the ledger settling.
+
+**The headline `cost_usd` per task:**
+
+- Ledger settled: `cost_usd` = the settled billed delta
+  (`billed_cost_usd`), `cost_source = "billed-settled"`. `cost_divergence_pct`
+  (`|billed - computed| / computed * 100`) is recorded, and `cost_flag` is
+  set when it exceeds 10% — a real, measured divergence worth looking at,
+  never silently hidden.
+- Ledger never settled within the window: `cost_usd` = the token-computed
+  figure, `cost_source = "computed-from-tokens"` — never a fabricated
+  number, and no divergence to report (there is nothing billed to compare
+  against).
+
+**Reports (`REPORT-<suffix>.html`, `REPORT.md`, `REPORT.pdf`):** every
+summary row shows "custo cobrado" (billed) and "custo calculado" (computed)
+side by side, plus how many tasks in that slice were flagged. The
+per-arm/per-kind cost table (`cost.cost_table`) does the same, with the
+cache breakdown. This cross-check works uniformly on a FRESH run's own
+JSON (which already carries `computed_cost_usd`/`cost_divergence_pct`/
+`cost_flag`) and on an OLDER result that predates this fix — both
+`standard.py`'s summary and `report.py`'s cost table run every task's
+`totals` through `cost.finalize_task_cost` before rendering, computing the
+missing fields from that run's own stored tokens and pricing snapshot
+rather than editing the append-only `results/*.json` history
+(`python3 bench/llm_ab/standard.py --reports-only <sha>` re-renders any
+past run's reports this way, no LLM calls, no keys needed).
+
 ## What the matrix covers
 
 The SAME real agent (OpenCode), run twice per combination — once with no
@@ -138,13 +204,12 @@ that same dependent create→edit shape and extends it with a second page, so
 - **Tokens** — prompt (cached vs uncached), completion, reasoning, straight
   from each OpenCode `step-finish` event's own `tokens` block; never
   estimated.
-- **Real OpenRouter cost, cache-aware** — live pricing fetch
-  (`llm_client.fetch_model_pricing`) plus the real BILLED cost from an
-  OpenRouter key-usage delta (`opencode_agent.fetch_key_usage_usd`/
-  `poll_billed_delta`, falling back to OpenCode's own reported cost when the
-  ledger doesn't move within the poll window — `totals["cost_source"]`
-  says which), broken down by cache hit % and cache savings (`cost.py`;
-  `README.md` § "Real cost from OpenRouter").
+- **Real OpenRouter cost, cache-aware, settled and cross-checked (issue
+  #1335)** — live pricing fetch (`llm_client.fetch_model_pricing`) plus the
+  real BILLED cost from a SETTLED OpenRouter key-usage delta, cross-checked
+  against a token-computed figure; broken down by cache hit % and cache
+  savings (`cost.py`; `README.md` § "Real cost from OpenRouter"). See
+  "Exact per-task cost" below for the full method.
 - **Savings % and $** — normal vs simplicio, per metric (`aggregate.savings`,
   rendered as the "Economia com simplicio" column).
 - **Create-only / edit-only tables** — the same comparison table scoped to

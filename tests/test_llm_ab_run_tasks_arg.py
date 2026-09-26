@@ -78,6 +78,69 @@ def test_result_filename_no_batch_suffix_by_default():
     assert name == "2026-09-26-abc1234-t4.json"
 
 
+def test_build_arg_parser_settle_defaults_match_opencode_agent():
+    ap = run.build_arg_parser()
+    args = ap.parse_args([])
+    assert args.settle_reads == run.oc.DEFAULT_SETTLE_READS
+    assert args.settle_interval == run.oc.DEFAULT_SETTLE_INTERVAL_S
+    assert args.settle_max_wait == run.oc.DEFAULT_SETTLE_MAX_WAIT_S
+
+
+def test_build_arg_parser_accepts_custom_settle_values():
+    ap = run.build_arg_parser()
+    args = ap.parse_args(["--settle-reads", "5", "--settle-interval", "1.5", "--settle-max-wait", "30"])
+    assert args.settle_reads == 5
+    assert args.settle_interval == 1.5
+    assert args.settle_max_wait == 30.0
+
+
+# -- settled-usage baseline threading across tasks (issue #1335, no leakage) -
+
+def test_run_arm_threads_settled_usage_as_next_tasks_baseline(monkeypatch, tmp_path):
+    """``run_arm`` must (1) settle the ledger BEFORE task 1 and (2) hand each
+    task's OWN settled reading to the next task as its baseline -- never the
+    stale pre-run baseline -- so no task's cost can leak into another's."""
+    monkeypatch.setattr(run.checker, "seed_repo", lambda fixture_dir, dest: None)
+    monkeypatch.setattr(run.subprocess, "run", lambda *a, **k: None)
+    monkeypatch.setattr(run, "_commit_if_changed", lambda *a, **k: None)
+    monkeypatch.setattr(run.checker, "run_check", lambda *a, **k: (True, "ok", {}))
+    monkeypatch.setattr(run.lc, "get_key", lambda arm: f"key-{arm}")
+
+    settle_calls = {"n": 0}
+
+    def fake_poll_settled_usage(fetch_fn, **kwargs):
+        settle_calls["n"] += 1
+        return {"value": 100.0, "settled": True}  # the pre-task-1 settle
+
+    monkeypatch.setattr(run.oc, "poll_settled_usage", fake_poll_settled_usage)
+
+    baselines_seen = []
+
+    def fake_run_opencode(arm, text, repo_dir, *, key, config_dir, timeout, skill,
+                           usage_baseline, settle_reads, settle_interval_s, settle_max_wait_s):
+        baselines_seen.append(usage_baseline)
+        # Each task settles at a strictly higher, distinct value.
+        settled_value = usage_baseline + 0.001
+        return {
+            "turns": 1, "llm_calls": [], "commands": [], "final_text": None,
+            "totals": run.oc.summarize([], []),
+            "usage_settled_value": settled_value,
+        }
+
+    monkeypatch.setattr(run.oc, "run_opencode", fake_run_opencode)
+
+    task_list = [
+        {"index": 1, "kind": "create", "text": "t1", "verify_stage": 1},
+        {"index": 2, "kind": "edit", "text": "t2", "verify_stage": 2},
+    ]
+    run.run_arm("normal", str(tmp_path / "fixture"), str(tmp_path / "repo"), sys.executable,
+                60, task_list=task_list, config_dir=str(tmp_path / "home"))
+
+    # Task 1's baseline is the pre-run settle (100.0); task 2's baseline is
+    # task 1's OWN settled value (100.001), not the original 100.0 again.
+    assert baselines_seen == [100.0, 100.001]
+
+
 def test_build_batch_prompt_combines_all_task_texts_in_one_user_prompt():
     """Per-arm skill install/prefixing is ``opencode_agent.run_opencode``'s
     job now (``skill=True``); ``build_batch_prompt`` just concatenates the

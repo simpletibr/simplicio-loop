@@ -201,17 +201,26 @@ under `results["meta"]["pricing"]` (`prompt`, `completion`,
 model publishes them, plus `fetched_at`). It is never hardcoded, so it
 tracks OpenRouter's own price changes.
 
-**Real BILLED cost (issue #1325):** `opencode_agent.run_opencode` reads
-`GET https://openrouter.ai/api/v1/key`'s cumulative `data.usage` (USD) with
-that arm's own key immediately before and after the `opencode run`
-invocation, then polls the same endpoint (up to ~20s, every 2s --
-`poll_billed_delta`) until the usage actually moves; the observed delta
-becomes `totals["cost_usd"]` with `totals["cost_source"] =
-"billed-delta"`. OpenRouter's usage ledger can lag past that window; when it
-never moves, `totals["cost_usd"]` stays the SUM of OpenCode's own
-per-step reported cost (`totals["cost_usd_opencode_reported"]`,
-`cost_source = "opencode-reported"`) instead -- never a fabricated number,
-and the report shows which source backs each figure.
+**Real BILLED cost, settled (issue #1325, then #1335):** OpenCode's JSON
+events carry no OpenRouter generation id, so the only real ledger available
+is the key's own cumulative usage, `GET https://openrouter.ai/api/v1/key`'s
+`data.usage` (USD). That ledger settles in several increments after a task
+finishes, not in one jump -- returning on the first observed movement
+undercounts a task and leaks the rest into whichever task reads the ledger
+next. `opencode_agent.poll_settled_usage` instead polls until the usage is
+UNCHANGED for `settle_reads` consecutive reads (default 3, 5s apart, capped
+at 120s total -- configurable via `run.py`'s `--settle-reads`/
+`--settle-interval`/`--settle-max-wait`), run BEFORE the first task and
+AFTER every task; `run.py`'s per-arm loop threads each task's own settled
+reading as the NEXT task's baseline, so no cost leaks across tasks. The
+settled delta becomes `totals["billed_cost_usd"]`/`totals["cost_usd"]` with
+`totals["cost_source"] = "billed-settled"`. When the ledger never settles
+within the window, `totals["cost_usd"]` falls back to the TOKEN-COMPUTED
+cost (`cost.finalize_task_cost`, `cost_source = "computed-from-tokens"`) --
+never a fabricated number, and every task also records `computed_cost_usd`/
+`cost_divergence_pct`/`cost_flag` as an independent cross-check even when
+the ledger DID settle (see `bench/llm_ab/STANDARD.md` § "Exact per-task
+cost" for the full method).
 
 `cost.cost_breakdown()` computes, per arm/task-kind
 (`cost.cost_table()`, embedded in `results["cost_report"]` and rendered in
@@ -232,8 +241,8 @@ directly -- reported vs computed cost side by side, per arm and task kind.
   {1,2,4}`.
 - `opencode_agent.py` — drives the real `opencode` CLI per task/arm
   (`run_opencode`), parses its JSON event stream (`parse_run_events`),
-  aggregates totals (`summarize`) and reconciles the real billed cost
-  (`fetch_key_usage_usd`, `poll_billed_delta`).
+  aggregates totals (`summarize`) and reconciles the real billed cost via a
+  settled key-usage delta (`fetch_key_usage_usd`, `poll_settled_usage`).
 - `aggregate.py` — pure results aggregation (tokens, CPU/RAM, success,
   turns, command/check counts, history diffing/loading, task-count-aware).
 - `cost.py` — pure OpenRouter pricing/generation-stats parsing and

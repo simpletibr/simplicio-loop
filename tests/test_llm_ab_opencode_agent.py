@@ -194,7 +194,7 @@ def test_summarize_empty_is_all_zeros():
     assert totals["n_commands"] == 0
 
 
-# -- real billed cost: OpenRouter key-usage delta (fake urlopen, no network) -
+# -- real billed cost: settled key-usage delta (fake urlopen/clock, no network) -
 
 class _FakeResponse:
     def __init__(self, body: bytes, status: int = 200):
@@ -232,29 +232,110 @@ def test_fetch_key_usage_usd_returns_none_on_bad_status(monkeypatch):
     assert oc.fetch_key_usage_usd("bad-key") is None
 
 
-def test_poll_billed_delta_returns_the_first_observed_increase():
-    calls = {"n": 0}
+def test_poll_settled_usage_returns_the_full_delta_not_the_first_step():
+    # Staircase: usage climbs in several increments before settling -- the
+    # settled value must be the LAST plateau (10.0007), not the first
+    # movement off the baseline (10.0002).
+    series = iter([10.0002, 10.0005, 10.0007, 10.0007, 10.0007])
 
     def fetch():
-        calls["n"] += 1
-        return 10.0 if calls["n"] < 2 else 10.0007
+        return next(series)
 
-    delta = oc.poll_billed_delta(
-        fetch, usage_before=10.0, timeout_s=10, interval_s=1,
-        sleep=lambda s: None, clock_values=[0, 1, 2, 3],
-    )
-    assert round(delta, 4) == 0.0007
-
-
-def test_poll_billed_delta_gives_up_after_timeout_and_returns_none():
-    delta = oc.poll_billed_delta(
-        lambda: 10.0,  # usage never changes
-        usage_before=10.0, timeout_s=5, interval_s=1,
+    settled = oc.poll_settled_usage(
+        fetch, reads=3, interval_s=1, max_wait_s=60,
         sleep=lambda s: None, clock_values=[0, 1, 2, 3, 4, 5, 6],
     )
-    assert delta is None
+    assert settled["settled"] is True
+    assert round(settled["value"], 4) == 10.0007
 
 
-def test_poll_billed_delta_returns_none_when_no_baseline_usage():
-    delta = oc.poll_billed_delta(lambda: 1.0, usage_before=None)
-    assert delta is None
+def test_poll_settled_usage_never_settling_reports_settled_false():
+    # Usage keeps drifting for the entire window -- N consecutive equal
+    # reads never happen, so the caller must fall back to computed cost.
+    series = iter([10.0001, 10.0002, 10.0003, 10.0004, 10.0005, 10.0006])
+
+    def fetch():
+        return next(series)
+
+    settled = oc.poll_settled_usage(
+        fetch, reads=3, interval_s=1, max_wait_s=7,
+        sleep=lambda s: None, clock_values=[0, 1, 2, 3, 4, 5, 6],
+    )
+    assert settled["settled"] is False
+    assert settled["value"] == 10.0006  # last observed reading, never fabricated
+
+
+def test_poll_settled_usage_no_successful_reads_returns_none_value():
+    settled = oc.poll_settled_usage(
+        lambda: None, reads=3, interval_s=1, max_wait_s=5,
+        sleep=lambda s: None, clock_values=[0, 1, 2, 3, 4, 5, 6],
+    )
+    assert settled["settled"] is False
+    assert settled["value"] is None
+
+
+def test_poll_settled_usage_settles_immediately_when_first_reads_already_equal():
+    def fetch():
+        return 5.0
+
+    settled = oc.poll_settled_usage(
+        fetch, reads=3, interval_s=1, max_wait_s=60,
+        sleep=lambda s: None, clock_values=[0, 1, 2, 3],
+    )
+    assert settled == {"value": 5.0, "settled": True}
+
+
+# -- run_opencode: wires the settle loop into totals["cost_usd"]/["cost_source"] --
+
+def _fake_run_subprocess_factory(events: list[dict]):
+    payload = "\n".join(json.dumps(ev) for ev in events)
+
+    def fake(cmd, cwd=None, timeout=None, env=None):
+        return payload, {"returncode": 0}
+
+    return fake
+
+
+def test_run_opencode_uses_settled_delta_as_billed_cost(monkeypatch):
+    monkeypatch.setattr(oc.measure, "run_subprocess", _fake_run_subprocess_factory(_load_fixture_events()))
+    # Usage climbs in steps after the run, then settles at the LAST value.
+    usage_series = iter([10.0001, 10.0007, 10.0007, 10.0007])
+    monkeypatch.setattr(oc, "fetch_key_usage_usd", lambda key, timeout=15: next(usage_series))
+
+    result = oc.run_opencode(
+        "normal", "do the thing", "/tmp/repo", key="sk-or-x", config_dir="/tmp/oc-home",
+        bin_path="/bin/opencode", usage_baseline=10.0, settle_reads=3, settle_interval_s=0.01,
+        settle_max_wait_s=5, sleep=lambda s: None,
+    )
+    totals = result["totals"]
+    assert totals["cost_source"] == "billed-settled"
+    assert round(totals["cost_usd"], 4) == 0.0007  # full settled delta, not the first step
+    assert totals["billed_cost_usd"] == totals["cost_usd"]
+    assert round(result["usage_settled_value"], 4) == 10.0007
+
+
+def test_run_opencode_falls_back_to_opencode_reported_cost_when_usage_never_settles(monkeypatch):
+    monkeypatch.setattr(oc.measure, "run_subprocess", _fake_run_subprocess_factory(_load_fixture_events()))
+    usage_series = iter([10.0001, 10.0002, 10.0003, 10.0004, 10.0005, 10.0006])
+
+    def fetch(key, timeout=15):
+        return next(usage_series)
+
+    monkeypatch.setattr(oc, "fetch_key_usage_usd", fetch)
+
+    # Deterministic clock: exactly 6 loop iterations (matching the 6-item,
+    # never-repeating series) before the settle window closes -- with a real
+    # clock and a no-op `sleep`, a strictly-increasing series that later fell
+    # back to a constant would eventually satisfy 3-in-a-row and falsely
+    # "settle"; the fake clock proves the never-settling case without racing
+    # real time.
+    result = oc.run_opencode(
+        "normal", "do the thing", "/tmp/repo", key="sk-or-x", config_dir="/tmp/oc-home",
+        bin_path="/bin/opencode", usage_baseline=10.0, settle_reads=3, settle_interval_s=1,
+        settle_max_wait_s=7, sleep=lambda s: None, clock_values=[0, 1, 2, 3, 4, 5, 6],
+    )
+    totals = result["totals"]
+    assert totals["billed_cost_usd"] is None
+    assert totals["cost_source"] == "opencode-reported"  # unchanged -- caller falls back to computed cost
+    # the last observed (unsettled) reading is still carried, for the next task's baseline
+    assert result["usage_settled_value"] == 10.0006

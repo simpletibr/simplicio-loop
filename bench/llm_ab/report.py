@@ -14,6 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 import aggregate as agg  # noqa: E402
+import cost as bench_cost  # noqa: E402
 import verdict as bench_verdict  # noqa: E402
 
 import matplotlib  # noqa: E402
@@ -188,12 +189,16 @@ def build_pricing_table(pricing_rows: list[dict]) -> str:
 
 
 def build_cost_table(cost_rows: list[dict]) -> str:
-    """Render ``cost.py``'s ``cost_table``: reported vs computed cost per
-    arm/task-kind, with the cache-savings breakdown."""
+    """Render ``cost.py``'s ``cost_table``: settled-billed vs token-computed
+    cost per arm/task-kind (issue #1335's cross-check), with the
+    cache-savings breakdown and how many tasks in that bucket were flagged
+    for a >10% divergence between the two."""
     if not cost_rows:
-        return "<tr><td colspan='9'>sem dados de custo</td></tr>\n"
+        return "<tr><td colspan='10'>sem dados de custo</td></tr>\n"
     rows = ""
     for row in cost_rows:
+        flags = row.get("cost_flag_count") or 0
+        flag_cell = f"<b>{flags}</b>" if flags else "0"
         rows += (
             f"<tr><td>{html_escape(row.get('arm'))}</td><td>{html_escape(row.get('kind'))}</td>"
             f"<td>${fmt(row.get('reported_cost_usd'), 6)}</td>"
@@ -202,7 +207,8 @@ def build_cost_table(cost_rows: list[dict]) -> str:
             f"<td>${fmt(row.get('cached_input_usd'), 6)}</td>"
             f"<td>${fmt(row.get('output_usd'), 6)}</td>"
             f"<td>${fmt(row.get('cache_savings_usd'), 6)}</td>"
-            f"<td>{fmt(row.get('cache_hit_pct'), 1)}%</td></tr>\n"
+            f"<td>{fmt(row.get('cache_hit_pct'), 1)}%</td>"
+            f"<td>{flag_cell}/{row.get('task_count') or 0}</td></tr>\n"
         )
     return rows
 
@@ -288,9 +294,16 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
 
     kind_sections = build_kind_sections(arms, bool(meta.get("batch")))
 
-    cost_report = results.get("cost_report") or {}
-    pricing_rows_html = build_pricing_table(cost_report.get("pricing_table") or [])
-    cost_rows_html = build_cost_table(cost_report.get("cost_table") or [])
+    # Recomputed fresh from this run's own `meta.pricing`, never trusted
+    # straight off the stored `results["cost_report"]` (issue #1335): an
+    # OLDER result's stored cost_table predates `computed_cost_usd`/
+    # `cost_flag_count`, so trusting it verbatim silently drops the
+    # cross-check on a `--reports-only` re-render. `cost.cost_table` is
+    # pure over `results`/`pricing`, so recomputing it here is free and
+    # always current -- it never edits the stored results file.
+    pricing = meta.get("pricing") or {}
+    pricing_rows_html = build_pricing_table(bench_cost.pricing_table(pricing))
+    cost_rows_html = build_cost_table(bench_cost.cost_table(results, pricing))
     is_batch = bool(meta.get("batch"))
     mode_label = "batch (todas as tarefas em uma sessão)" if is_batch else "sequencial (uma sessão por tarefa)"
     effort_policy_label = meta.get("effort_policy") or "opencode-managed"
@@ -357,11 +370,16 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
     {pricing_rows_html}
   </table>
 
-  <h2>Custo real: reportado vs calculado (cache-aware)</h2>
+  <h2>Custo real: cobrado (delta assentado) vs calculado pelos tokens (cache-aware)</h2>
+  <p class="meta">Cobrado = delta assentado da chave OpenRouter (issue #1335: assentado é
+    ``GET /api/v1/key`` sem variar por 3 leituras seguidas, nunca o primeiro movimento) ou,
+    quando o uso nunca assenta, o próprio custo calculado (``cost_source =
+    computed-from-tokens``). Sinalizados = tarefas cujo custo cobrado divergiu do calculado
+    em mais de 10%.</p>
   <table class="compare">
-    <tr><th>braço</th><th>tipo</th><th>reportado</th><th>calculado</th>
+    <tr><th>braço</th><th>tipo</th><th>cobrado</th><th>calculado</th>
         <th>entrada não cacheada</th><th>entrada cacheada</th><th>saída</th>
-        <th>economia de cache</th><th>hit % de cache</th></tr>
+        <th>economia de cache</th><th>hit % de cache</th><th>sinalizados</th></tr>
     {cost_rows_html}
   </table>
 

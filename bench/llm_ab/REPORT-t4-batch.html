@@ -77,15 +77,20 @@
 
   </table>
 
-  <h2>Custo real: reportado vs calculado (cache-aware)</h2>
+  <h2>Custo real: cobrado (delta assentado) vs calculado pelos tokens (cache-aware)</h2>
+  <p class="meta">Cobrado = delta assentado da chave OpenRouter (issue #1335: assentado é
+    ``GET /api/v1/key`` sem variar por 3 leituras seguidas, nunca o primeiro movimento) ou,
+    quando o uso nunca assenta, o próprio custo calculado (``cost_source =
+    computed-from-tokens``). Sinalizados = tarefas cujo custo cobrado divergiu do calculado
+    em mais de 10%.</p>
   <table class="compare">
-    <tr><th>braço</th><th>tipo</th><th>reportado</th><th>calculado</th>
+    <tr><th>braço</th><th>tipo</th><th>cobrado</th><th>calculado</th>
         <th>entrada não cacheada</th><th>entrada cacheada</th><th>saída</th>
-        <th>economia de cache</th><th>hit % de cache</th></tr>
-    <tr><td>normal</td><td>create</td><td>$0.000959</td><td>$0.005324</td><td>$0.003651</td><td>$0.000307</td><td>$0.001366</td><td>$0.015053</td><td>80.8%</td></tr>
-<tr><td>normal</td><td>edit</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>0.0%</td></tr>
-<tr><td>simplicio</td><td>create</td><td>$0.006056</td><td>$0.014537</td><td>$0.008507</td><td>$0.001021</td><td>$0.005010</td><td>$0.050013</td><td>85.7%</td></tr>
-<tr><td>simplicio</td><td>edit</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>0.0%</td></tr>
+        <th>economia de cache</th><th>hit % de cache</th><th>sinalizados</th></tr>
+    <tr><td>normal</td><td>create</td><td>$0.000959</td><td>$0.005324</td><td>$0.003651</td><td>$0.000307</td><td>$0.001366</td><td>$0.015053</td><td>80.8%</td><td><b>1</b>/2</td></tr>
+<tr><td>normal</td><td>edit</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>0.0%</td><td>0/2</td></tr>
+<tr><td>simplicio</td><td>create</td><td>$0.006056</td><td>$0.014537</td><td>$0.008507</td><td>$0.001021</td><td>$0.005010</td><td>$0.050013</td><td>85.7%</td><td><b>1</b>/2</td></tr>
+<tr><td>simplicio</td><td>edit</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>$0.000000</td><td>0.0%</td><td>0/2</td></tr>
 
   </table>
 
