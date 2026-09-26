@@ -9,6 +9,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -396,6 +397,40 @@ def _mapper_index_timeout_seconds() -> float:
     return value if value > 0 else _DEFAULT_MAPPER_INDEX_TIMEOUT_S
 
 
+_DEFAULT_ORIENT_BUDGET_S = 120.0
+
+
+def _orient_budget_seconds() -> float:
+    """Wall-clock budget for the WHOLE ``orient``/``orient --brief`` call
+    (issue #1339): a repo whose cold Mapper index would take longer than this
+    never blocks past it with empty stdout -- the index is left running
+    detached in the background and ``orient`` returns typed JSON instead.
+    Configurable via ``SIMPLICIO_LOOP_ORIENT_BUDGET_S``.
+    """
+    raw = os.environ.get("SIMPLICIO_LOOP_ORIENT_BUDGET_S", "").strip()
+    if not raw:
+        return _DEFAULT_ORIENT_BUDGET_S
+    try:
+        value = float(raw)
+    except ValueError:
+        return _DEFAULT_ORIENT_BUDGET_S
+    return value if value > 0 else _DEFAULT_ORIENT_BUDGET_S
+
+
+class MapperIndexTimedOut(Exception):
+    """Raised when a cold ``simplicio-mapper index`` outlives the orient
+    budget; the index keeps running detached in the background (issue #1339)."""
+
+    reason_code = "mapper_index_timeout"
+
+
+class MapperIndexRunning(Exception):
+    """Raised when a previous call's backgrounded ``simplicio-mapper index``
+    is still running (issue #1339); never a second concurrent index."""
+
+    reason_code = "mapper_index_running"
+
+
 def _current_tree_state(root: Path) -> str | None:
     """A cheap, real fingerprint of "has anything changed since the last
     index" -- the committed tree id plus a hash of the working tree's own
@@ -427,7 +462,7 @@ def _current_tree_state(root: Path) -> str | None:
     return f"{tree.stdout.strip()}:{dirty}"
 
 
-def _ensure_project_map(root: Path) -> None:
+def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
     """Guarantee the single artifact ``survey.provenance()`` (and therefore
     ``prepare``) requires as proof of a Mapper survey: `.simplicio-loop/project-map.json`.
 
@@ -452,6 +487,16 @@ def _ensure_project_map(root: Path) -> None:
     --help``); that is Mapper's own current limitation, not something this
     caller can work around, so a real change still pays a full index --
     it is just never paid twice for the same tree state.
+
+    issue #1339: ``budget`` (seconds) is the NEW, opt-in bounded mode used by
+    ``orient``/``orient --brief``. ``budget=None`` (every OTHER caller: this
+    function's own pre-#1339 tests, ``prepare``, etc.) keeps the original,
+    fully-blocking behavior byte-for-byte. With a budget, a cold index that
+    would outlive it is launched detached (its own process group, log under
+    ``.simplicio-loop/mapper-index.log``) instead of blocking -- the caller
+    gets a typed ``MapperIndexTimedOut``/``MapperIndexRunning`` instead of
+    minutes of silence, and the NEXT call reuses the finished index via the
+    same tree-state check above.
     """
     project_map = root / ".simplicio-loop" / "project-map.json"
     state_file = root / ".simplicio-loop" / "mapper-index-state.json"
@@ -465,16 +510,164 @@ def _ensure_project_map(root: Path) -> None:
             recorded_state = None
         if recorded_state == current_state:
             return
+    if budget is None:
+        try:
+            from .map_service_mapper import run_mapper_index
+            run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
+            if current_state is not None:
+                state_file.parent.mkdir(parents=True, exist_ok=True)
+                state_file.write_text(
+                    json.dumps({"tree_state": current_state}, ensure_ascii=False), encoding="utf-8"
+                )
+        except Exception:
+            pass
+        return
+    _ensure_project_map_bounded(root, project_map, state_file, current_state, budget)
+
+
+_MAPPER_INDEX_LOCK_NAME = "mapper-index.lock"
+_MAPPER_INDEX_LOG_NAME = "mapper-index.log"
+
+
+def _mapper_index_running_info(lock_file: Path) -> dict[str, Any] | None:
+    """Read+validate a backgrounded index's lock file; ``None`` when there is
+    none, it is unreadable, or its process is gone (a stale lock is cleaned
+    up here so the next attempt is never blocked by a crash).
+
+    A lock whose process has outlived ``_mapper_index_timeout_seconds()`` (the
+    hard cap on a single index run) is treated as a runaway: its WHOLE process
+    group is killed here, lazily, on the next call that looks at it -- issue
+    #1339's "kill the process group on timeout", without a separate persistent
+    watchdog.
+    """
+    if not lock_file.is_file():
+        return None
     try:
-        from .map_service_mapper import run_mapper_index
-        run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
-        if current_state is not None:
+        info = json.loads(lock_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        info = None
+    pid = info.get("pid") if isinstance(info, dict) else None
+    if not isinstance(pid, int):
+        try:
+            lock_file.unlink()
+        except OSError:
+            pass
+        return None
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        try:
+            lock_file.unlink()
+        except OSError:
+            pass
+        return None
+    except OSError:
+        pass  # alive but not ours to signal-probe (e.g. different uid) -- treat as running
+    started_at = info.get("started_at")
+    if isinstance(started_at, (int, float)) and (time.time() - started_at) > _mapper_index_timeout_seconds():
+        try:
+            os.killpg(pid, signal.SIGKILL)
+        except OSError:
+            pass
+        try:
+            lock_file.unlink()
+        except OSError:
+            pass
+        return None
+    return info
+
+
+def _mapper_index_reconcile_finished(log_path: Path, project_map: Path, state_file: Path,
+                                      current_state: str | None) -> bool:
+    """``True`` when a PRIOR backgrounded index -- one whose own
+    ``_ensure_project_map_bounded`` call already raised ``MapperIndexTimedOut``
+    and returned -- has since finished successfully on its own, so THIS call
+    can reuse it instead of starting a redundant new one.
+
+    Nothing keeps polling a backgrounded index once its caller has raised and
+    returned; without this reconciliation, the NEXT call would only see (via
+    ``_mapper_index_running_info``) that the process is gone and start a
+    brand new index instead of noticing the old one already succeeded --
+    reindexing forever instead of ever reusing (breaking the issue #1331
+    tree-state reuse this budget path must preserve).
+    """
+    if not log_path.is_file() or not project_map.is_file():
+        return False
+    try:
+        envelope = json.loads(log_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if not isinstance(envelope, dict) or envelope.get("error"):
+        return False
+    if current_state is not None:
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        state_file.write_text(
+            json.dumps({"tree_state": current_state}, ensure_ascii=False), encoding="utf-8"
+        )
+    return True
+
+
+def _ensure_project_map_bounded(root: Path, project_map: Path, state_file: Path,
+                                 current_state: str | None, budget: float) -> None:
+    """The ``budget``-bounded branch of ``_ensure_project_map`` (issue #1339).
+    Never blocks past ``budget`` seconds: a cold index is started detached
+    (``start_new_session`` -> its own process group) and polled; one still
+    running past the budget raises ``MapperIndexTimedOut`` and is left running
+    for a later call to pick up; one already running (from a PRIOR call) raises
+    ``MapperIndexRunning`` immediately, without starting a second one.
+    """
+    map_dir = root / ".simplicio-loop"
+    lock_file = map_dir / _MAPPER_INDEX_LOCK_NAME
+    log_path = map_dir / _MAPPER_INDEX_LOG_NAME
+    running = _mapper_index_running_info(lock_file)
+    if running is not None:
+        raise MapperIndexRunning(
+            f"simplicio-mapper index is already running in the background "
+            f"(pid={running.get('pid')}); log at {log_path}"
+        )
+    if _mapper_index_reconcile_finished(log_path, project_map, state_file, current_state):
+        return
+    try:
+        from .map_service_mapper import mapper_binary_path
+        binary = mapper_binary_path()
+    except Exception:
+        return  # binary missing: swallowed, same policy as the unbounded path above
+    map_dir.mkdir(parents=True, exist_ok=True)
+    resolved = str(root.resolve())
+    popen_kwargs: dict[str, Any] = {}
+    if hasattr(os, "setsid"):
+        popen_kwargs["start_new_session"] = True
+    with open(log_path, "wb") as log_handle:
+        proc = subprocess.Popen(
+            [binary, "index", resolved, "--json"],
+            stdout=log_handle, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+            close_fds=True, **popen_kwargs,
+        )
+    lock_file.write_text(
+        json.dumps({"pid": proc.pid, "started_at": time.time()}, ensure_ascii=False), encoding="utf-8",
+    )
+    deadline = time.monotonic() + budget
+    while time.monotonic() < deadline and proc.poll() is None:
+        time.sleep(0.1)
+    if proc.poll() is None:
+        raise MapperIndexTimedOut(
+            f"simplicio-mapper index exceeded the {budget:.0f}s orient budget "
+            f"(pid={proc.pid}); continuing in the background, log at {log_path}"
+        )
+    try:
+        lock_file.unlink()
+    except OSError:
+        pass
+    if proc.returncode == 0 and current_state is not None and project_map.is_file():
+        try:
+            envelope = json.loads(log_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            envelope = None
+        if isinstance(envelope, dict) and not envelope.get("error"):
             state_file.parent.mkdir(parents=True, exist_ok=True)
             state_file.write_text(
                 json.dumps({"tree_state": current_state}, ensure_ascii=False), encoding="utf-8"
             )
-    except Exception:
-        pass
 
 
 def _orient_hash(value: Any) -> str:
@@ -1128,6 +1321,24 @@ def _brief_dump(payload: dict, *, pretty: bool = False) -> str:
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
 
+def _mapper_index_budget_payload(schema: str, exc: Exception, root: Path) -> dict[str, Any]:
+    """Typed BLOCKED payload for a ``MapperIndexTimedOut``/``MapperIndexRunning``
+    (issue #1339) -- ``orient``/``orient --brief`` never block silently past
+    their budget; this is the JSON they print instead."""
+    reason_code = getattr(exc, "reason_code", "mapper_index_blocked")
+    return {
+        "schema": schema,
+        "status": "BLOCKED",
+        "reason": str(exc),
+        "reason_code": reason_code,
+        "next": (
+            f"the simplicio-mapper index for {root} is running detached in its own "
+            f"process group; re-run this exact orient command once it finishes -- "
+            f"it reuses the survey instead of re-indexing (see the log path above)"
+        ),
+    }
+
+
 def orient(repo: str, task: str, fast_mode: str = "auto",
            fast_context_budget: int = 48000, fast_engine: str = "auto",
            tee: bool = False, targets: list[str] | None = None,
@@ -1140,8 +1351,28 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
     survey + Fast context this function always uses -- never a shortcut
     around them. Non-brief output (single task) is byte-identical to
     before this option existed.
+
+    issue #1339: this always prints valid JSON. An exception ANYWHERE in the
+    computation below (Fast, Mapper, the project-map ensure step) is caught
+    here and rendered as a typed BLOCKED payload instead of leaving stdout
+    empty -- the one thing a caller piping this into ``json.tool`` can never
+    tolerate.
     """
     root = Path(repo).resolve()
+    try:
+        return _orient_impl(root, task, fast_mode, fast_context_budget, fast_engine,
+                             tee, targets, verbose, brief, tasks, pretty)
+    except Exception as exc:
+        payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED", "provider": None,
+                   "fallback": False, "reason": str(exc),
+                   "reason_code": "orient_internal_error", "local_llm": False}
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 2
+
+
+def _orient_impl(root: Path, task: str, fast_mode: str, fast_context_budget: int,
+                  fast_engine: str, tee: bool, targets: list[str] | None,
+                  verbose: bool, brief: bool, tasks: list[str] | None, pretty: bool) -> int:
     if root.is_dir():
         ensure_state_dir(root)
     if brief:
@@ -1158,7 +1389,16 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
     payload, code = _orient_core(root, task, fast_mode, fast_context_budget,
                                   fast_engine, targets, verbose)
     if payload.get("status") != "BLOCKED":
-        _ensure_project_map(root)
+        try:
+            _ensure_project_map(root, budget=_orient_budget_seconds())
+        except (MapperIndexTimedOut, MapperIndexRunning) as exc:
+            payload = _mapper_index_budget_payload(ORIENT_SCHEMA, exc, root)
+            if tee:
+                from .tee_cache import write
+                path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
+                payload["tee_path"] = str(path)
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            return 2
         from .survey import write_survey
         prov = _orient_provider_provenance(payload)
         write_survey(root, [{"task": task, "operator": prov.get("operator"),
@@ -1374,7 +1614,7 @@ def _brief_apply_command(root: Path, repo_state_chain: Mapping[str, Any],
     }
 
 
-def orient_brief(root: Path, tasks: list[str], *, fast_mode: str = "auto",
+def _orient_brief_impl(root: Path, tasks: list[str], *, fast_mode: str = "auto",
                   fast_context_budget: int = 48000, fast_engine: str = "auto",
                   targets: list[str] | None = None) -> dict[str, Any]:
     """Turn 1 of the plan-once/apply-once hot path (issue #1310): a compact
@@ -1469,10 +1709,37 @@ def orient_brief(root: Path, tasks: list[str], *, fast_mode: str = "auto",
         # `apply` refuses to run without this Mapper + Fast survey (issue #1318).
         brief_path = ensure_state_dir(root) / "brief.json"
         brief_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        _ensure_project_map(root)
+        try:
+            _ensure_project_map(root, budget=_orient_budget_seconds())
+        except (MapperIndexTimedOut, MapperIndexRunning) as exc:
+            blocked = _mapper_index_budget_payload(ORIENT_BRIEF_SCHEMA, exc, root)
+            blocked["tasks"] = task_list
+            blocked["route"] = {"mode": "converge", "justification": blocked["reason"],
+                                 "resolved_files": [], "next": [blocked["next"]]}
+            return blocked
         from .survey import write_survey
         write_survey(root, generations)
     return payload
+
+
+def orient_brief(root: Path, tasks: list[str], *, fast_mode: str = "auto",
+                  fast_context_budget: int = 48000, fast_engine: str = "auto",
+                  targets: list[str] | None = None) -> dict[str, Any]:
+    """Public entry point (issue #1339): always returns a JSON-serializable
+    dict, never raises -- any unexpected exception inside ``_orient_brief_impl``
+    becomes a typed BLOCKED payload instead of propagating to the caller."""
+    try:
+        return _orient_brief_impl(root, tasks, fast_mode=fast_mode,
+                                   fast_context_budget=fast_context_budget,
+                                   fast_engine=fast_engine, targets=targets)
+    except Exception as exc:
+        return {
+            "schema": ORIENT_BRIEF_SCHEMA, "status": "BLOCKED",
+            "reason": str(exc), "reason_code": "orient_internal_error",
+            "tasks": [str(t) for t in (tasks or [])],
+            "route": {"mode": "converge", "justification": str(exc),
+                       "resolved_files": [], "next": []},
+        }
 
 
 def extensions_doctor(provider: str, policy: str, schema: str) -> int:
