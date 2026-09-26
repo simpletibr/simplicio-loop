@@ -53,7 +53,7 @@ def run_subprocess(cmd, cwd=None, timeout=120, env=None):
     proc = subprocess.Popen(
         cmd, cwd=cwd, env=env,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True,
+        text=True, errors="replace",
     )
     holder = {"peak_kb": 0}
     stop_event = threading.Event()
