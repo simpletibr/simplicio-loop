@@ -28,6 +28,7 @@ simplicio-loop apply .simplicio-loop/ops.json --repo . --json
 - `.simplicio-loop/ops.json` = `{"tasks":[{"id","operations":[{"path","find","replace"}],"check","depends_on"}],"repo_state_chain":"<copy from the brief>"}`. A `find` must match exactly once (use `""` to create a new file); `check` is the task's own test command.
 - `apply` validates every `find` before writing anything, applies through `simplicio-dev-cli`, runs independent tasks' checks concurrently, and writes a receipt. It ignores `.simplicio-loop/ops.json` itself (and anything else under `.simplicio-loop/`) when checking `repo_state_chain` for staleness.
 - **Effort:** plan **high** → execute **low** → review **medium**. Use the `effort` of each `route.next` step and the `next_effort` of `apply`'s result.
+- `apply` PASS means every `check` already ran — you are done; do not re-open the receipt or re-run checks.
 - No `tasks.md`, no run, no scratchpad, no progress header on this path.
 
 ## Governed delivery: the wave flow (issues/PRs, receipts, watcher)
