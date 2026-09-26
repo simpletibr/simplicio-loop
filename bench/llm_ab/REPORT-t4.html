@@ -36,72 +36,72 @@
   <div class="meta">
     Modelo: <b>deepseek/deepseek-v4.1-flash</b> &nbsp;·&nbsp;
     Data: 2026-09-26 &nbsp;·&nbsp;
-    Commit (main): <code>468227863</code>
+    Commit (main): <code>8b206caae</code>
     &nbsp;·&nbsp; Modo: <b>sequencial (uma sessão por tarefa)</b>
     &nbsp;·&nbsp; Política de esforço: <code>hints</code>
   </div>
   <div class="meta"><span class='pill'>simplicio-cli 0.18.16</span> <span class='pill'>simplicio-fast 2.0.35</span> <span class='pill'>simplicio-loop 3.43.16</span> <span class='pill'>simplicio-mapper 0.26.34</span> </div>
-  <div class="verdict"><b>Veredito:</b> normal: 4/4 tarefas, 92.3s, US$ 0.00611 | simplicio: 4/4 tarefas, 363.6s, US$ 0.02437</div>
+  <div class="verdict"><b>Veredito:</b> normal: 4/4 tarefas, 68.5s, US$ 0.00413 | simplicio: 4/4 tarefas, 156.8s, US$ 0.01298</div>
 
   <h2>Comparação geral (agente normal vs agente com a skill simplicio-loop)</h2>
   <table class="compare"><tr><th>Métrica</th><th>normal</th><th>simplicio</th><th>Economia com simplicio</th></tr>
 <tr><td>Tarefas concluídas</td><td>4/4</td><td>4/4</td><td></td></tr>
-<tr><td>Tempo (s)</td><td>68.6</td><td>346.0</td><td>-277.3 (-404.1%)</td></tr>
-<tr><td>Turnos de LLM</td><td>25</td><td>40</td><td>-15 (-60.0%)</td></tr>
-<tr><td>Comandos executados</td><td>24</td><td>50</td><td>-26 (-108.3%)</td></tr>
-<tr><td>... dos quais simplicio-*</td><td>0</td><td>33</td><td></td></tr>
-<tr><td>CPU total (comandos, s)</td><td>3.35</td><td>153.40</td><td>-150.05 (-4476.1%)</td></tr>
-<tr><td>Pico RAM (MB)</td><td>12.42</td><td>10.55</td><td></td></tr>
-<tr><td>Tokens prompt (não cacheado)</td><td>29343</td><td>90298</td><td>-60955 (-207.7%)</td></tr>
-<tr><td>Tokens prompt (cacheado)</td><td>60928</td><td>290944</td><td></td></tr>
-<tr><td>Tokens completion</td><td>3112</td><td>8096</td><td>-4984 (-160.2%)</td></tr>
-<tr><td>Tokens de raciocínio</td><td>614</td><td>3773</td><td>-3159 (-514.5%)</td></tr>
-<tr><td>Custo (USD)</td><td>$0.00611</td><td>$0.02437</td><td>$-0.01826 (-299.0%)</td></tr>
-<tr><td>Invocações do checker pelo próprio agente</td><td>5</td><td>11</td><td></td></tr>
+<tr><td>Tempo (s)</td><td>46.9</td><td>136.6</td><td>-89.8 (-191.5%)</td></tr>
+<tr><td>Turnos de LLM</td><td>22</td><td>32</td><td>-10 (-45.5%)</td></tr>
+<tr><td>Comandos executados</td><td>21</td><td>28</td><td>-7 (-33.3%)</td></tr>
+<tr><td>... dos quais simplicio-*</td><td>0</td><td>20</td><td></td></tr>
+<tr><td>CPU total (comandos, s)</td><td>3.15</td><td>19.09</td><td>-15.93 (-505.1%)</td></tr>
+<tr><td>Pico RAM (MB)</td><td>11.77</td><td>32.78</td><td></td></tr>
+<tr><td>Tokens prompt (não cacheado)</td><td>18040</td><td>56257</td><td>-38217 (-211.8%)</td></tr>
+<tr><td>Tokens prompt (cacheado)</td><td>32768</td><td>177152</td><td></td></tr>
+<tr><td>Tokens completion</td><td>2952</td><td>6387</td><td>-3435 (-116.4%)</td></tr>
+<tr><td>Tokens de raciocínio</td><td>545</td><td>3071</td><td>-2526 (-463.5%)</td></tr>
+<tr><td>Custo (USD)</td><td>$0.00413</td><td>$0.01298</td><td>$-0.00885 (-214.2%)</td></tr>
+<tr><td>Invocações do checker pelo próprio agente</td><td>3</td><td>6</td><td></td></tr>
 </table>
 
   <h2>Esforço de raciocínio por chamada de LLM (plan alto / execute baixo / review médio)</h2>
   <table class="compare"><tr><th>braço</th><th>default</th><th>low</th><th>medium</th><th>high</th></tr>
-<tr><td>normal</td><td>25</td><td>0</td><td>0</td><td>0</td></tr>
-<tr><td>simplicio</td><td>14</td><td>12</td><td>0</td><td>14</td></tr>
+<tr><td>normal</td><td>22</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>simplicio</td><td>16</td><td>2</td><td>8</td><td>6</td></tr>
 </table>
 
   <h2>Somente criação e somente edição (tarefas da mesma sessão)</h2>
   <h3>Somente criação (mesma sessão)</h3><table class='compare'><tr><th>Métrica</th><th>normal</th><th>simplicio</th><th>Economia com simplicio</th></tr>
 <tr><td>Tarefas concluídas</td><td>2/2</td><td>2/2</td><td></td></tr>
-<tr><td>Tempo (s)</td><td>49.8</td><td>294.2</td><td>-244.4 (-490.8%)</td></tr>
-<tr><td>Turnos de LLM</td><td>13</td><td>23</td><td>-10 (-76.9%)</td></tr>
-<tr><td>Comandos executados</td><td>14</td><td>28</td><td>-14 (-100.0%)</td></tr>
-<tr><td>... dos quais simplicio-*</td><td>0</td><td>21</td><td></td></tr>
-<tr><td>CPU total (comandos, s)</td><td>1.91</td><td>140.45</td><td>-138.54 (-7247.5%)</td></tr>
-<tr><td>Pico RAM (MB)</td><td>12.42</td><td>10.55</td><td></td></tr>
-<tr><td>Tokens prompt (não cacheado)</td><td>15926</td><td>56496</td><td>-40570 (-254.7%)</td></tr>
-<tr><td>Tokens prompt (cacheado)</td><td>24064</td><td>177664</td><td></td></tr>
-<tr><td>Tokens completion</td><td>1812</td><td>4970</td><td>-3158 (-174.3%)</td></tr>
-<tr><td>Tokens de raciocínio</td><td>468</td><td>2659</td><td>-2191 (-468.2%)</td></tr>
-<tr><td>Custo (USD)</td><td>$0.00347</td><td>$0.01186</td><td>$-0.00839 (-241.9%)</td></tr>
-<tr><td>Invocações do checker pelo próprio agente</td><td>3</td><td>5</td><td></td></tr>
+<tr><td>Tempo (s)</td><td>25.1</td><td>77.3</td><td>-52.2 (-207.7%)</td></tr>
+<tr><td>Turnos de LLM</td><td>10</td><td>16</td><td>-6 (-60.0%)</td></tr>
+<tr><td>Comandos executados</td><td>10</td><td>14</td><td>-4 (-40.0%)</td></tr>
+<tr><td>... dos quais simplicio-*</td><td>0</td><td>10</td><td></td></tr>
+<tr><td>CPU total (comandos, s)</td><td>1.47</td><td>10.01</td><td>-8.54 (-581.6%)</td></tr>
+<tr><td>Pico RAM (MB)</td><td>11.77</td><td>32.78</td><td></td></tr>
+<tr><td>Tokens prompt (não cacheado)</td><td>6027</td><td>29703</td><td>-23676 (-392.8%)</td></tr>
+<tr><td>Tokens prompt (cacheado)</td><td>14720</td><td>94336</td><td></td></tr>
+<tr><td>Tokens completion</td><td>1649</td><td>3967</td><td>-2318 (-140.6%)</td></tr>
+<tr><td>Tokens de raciocínio</td><td>365</td><td>1928</td><td>-1563 (-428.2%)</td></tr>
+<tr><td>Custo (USD)</td><td>$0.00175</td><td>$0.00731</td><td>$-0.00556 (-317.5%)</td></tr>
+<tr><td>Invocações do checker pelo próprio agente</td><td>1</td><td>3</td><td></td></tr>
 </table><h3>Somente edição (mesma sessão)</h3><table class='compare'><tr><th>Métrica</th><th>normal</th><th>simplicio</th><th>Economia com simplicio</th></tr>
 <tr><td>Tarefas concluídas</td><td>2/2</td><td>2/2</td><td></td></tr>
-<tr><td>Tempo (s)</td><td>18.8</td><td>51.8</td><td>-33.0 (-175.0%)</td></tr>
-<tr><td>Turnos de LLM</td><td>12</td><td>17</td><td>-5 (-41.7%)</td></tr>
-<tr><td>Comandos executados</td><td>10</td><td>22</td><td>-12 (-120.0%)</td></tr>
-<tr><td>... dos quais simplicio-*</td><td>0</td><td>12</td><td></td></tr>
-<tr><td>CPU total (comandos, s)</td><td>1.44</td><td>12.95</td><td>-11.51 (-798.9%)</td></tr>
-<tr><td>Pico RAM (MB)</td><td>11.57</td><td>9.88</td><td></td></tr>
-<tr><td>Tokens prompt (não cacheado)</td><td>13417</td><td>33802</td><td>-20385 (-151.9%)</td></tr>
-<tr><td>Tokens prompt (cacheado)</td><td>36864</td><td>113280</td><td></td></tr>
-<tr><td>Tokens completion</td><td>1300</td><td>3126</td><td>-1826 (-140.5%)</td></tr>
-<tr><td>Tokens de raciocínio</td><td>146</td><td>1114</td><td>-968 (-663.0%)</td></tr>
-<tr><td>Custo (USD)</td><td>$0.00264</td><td>$0.01251</td><td>$-0.00987 (-374.0%)</td></tr>
-<tr><td>Invocações do checker pelo próprio agente</td><td>2</td><td>6</td><td></td></tr>
+<tr><td>Tempo (s)</td><td>21.7</td><td>59.3</td><td>-37.6 (-172.8%)</td></tr>
+<tr><td>Turnos de LLM</td><td>12</td><td>16</td><td>-4 (-33.3%)</td></tr>
+<tr><td>Comandos executados</td><td>11</td><td>14</td><td>-3 (-27.3%)</td></tr>
+<tr><td>... dos quais simplicio-*</td><td>0</td><td>10</td><td></td></tr>
+<tr><td>CPU total (comandos, s)</td><td>1.69</td><td>9.08</td><td>-7.39 (-438.5%)</td></tr>
+<tr><td>Pico RAM (MB)</td><td>7.16</td><td>32.71</td><td></td></tr>
+<tr><td>Tokens prompt (não cacheado)</td><td>12013</td><td>26554</td><td>-14541 (-121.0%)</td></tr>
+<tr><td>Tokens prompt (cacheado)</td><td>18048</td><td>82816</td><td></td></tr>
+<tr><td>Tokens completion</td><td>1303</td><td>2420</td><td>-1117 (-85.7%)</td></tr>
+<tr><td>Tokens de raciocínio</td><td>180</td><td>1143</td><td>-963 (-535.0%)</td></tr>
+<tr><td>Custo (USD)</td><td>$0.00238</td><td>$0.00567</td><td>$-0.00329 (-138.2%)</td></tr>
+<tr><td>Invocações do checker pelo próprio agente</td><td>2</td><td>3</td><td></td></tr>
 </table>
 
   <h2>Preço por token (OpenRouter, ao vivo)</h2>
   <table class="compare">
     <tr><th>modelo</th><th>prompt</th><th>completion</th><th>cache read</th>
         <th>cache write</th><th>raciocínio interno</th><th>obtido em</th></tr>
-    <tr><td>deepseek/deepseek-v4.1-flash</td><td>0.0000001400</td><td>0.0000004200</td><td>0.0000000042</td><td>-</td><td>-</td><td>2026-09-26T06:22:01.022862+00:00</td></tr>
+    <tr><td>deepseek/deepseek-v4.1-flash</td><td>0.0000003000</td><td>0.0000012000</td><td>0.0000000060</td><td>-</td><td>-</td><td>2026-09-26T07:07:06.681234+00:00</td></tr>
 
   </table>
 
@@ -110,466 +110,485 @@
     <tr><th>braço</th><th>tipo</th><th>reportado</th><th>calculado</th>
         <th>entrada não cacheada</th><th>entrada cacheada</th><th>saída</th>
         <th>economia de cache</th><th>hit % de cache</th></tr>
-    <tr><td>normal</td><td>create</td><td>$0.003469</td><td>$0.003288</td><td>$0.002230</td><td>$0.000101</td><td>$0.000958</td><td>$0.003268</td><td>60.2%</td></tr>
-<tr><td>normal</td><td>edit</td><td>$0.002640</td><td>$0.002641</td><td>$0.001878</td><td>$0.000155</td><td>$0.000607</td><td>$0.005006</td><td>73.3%</td></tr>
-<tr><td>simplicio</td><td>create</td><td>$0.011860</td><td>$0.011860</td><td>$0.007909</td><td>$0.000746</td><td>$0.003204</td><td>$0.024127</td><td>75.9%</td></tr>
-<tr><td>simplicio</td><td>edit</td><td>$0.012513</td><td>$0.006989</td><td>$0.004732</td><td>$0.000476</td><td>$0.001781</td><td>$0.015383</td><td>77.0%</td></tr>
+    <tr><td>normal</td><td>create</td><td>$0.001752</td><td>$0.004313</td><td>$0.001808</td><td>$0.000088</td><td>$0.002417</td><td>$0.004328</td><td>71.0%</td></tr>
+<tr><td>normal</td><td>edit</td><td>$0.002380</td><td>$0.005492</td><td>$0.003604</td><td>$0.000108</td><td>$0.001780</td><td>$0.005306</td><td>60.0%</td></tr>
+<tr><td>simplicio</td><td>create</td><td>$0.007314</td><td>$0.016551</td><td>$0.008911</td><td>$0.000566</td><td>$0.007074</td><td>$0.027735</td><td>76.1%</td></tr>
+<tr><td>simplicio</td><td>edit</td><td>$0.005670</td><td>$0.012739</td><td>$0.007966</td><td>$0.000497</td><td>$0.004276</td><td>$0.024348</td><td>75.7%</td></tr>
 
   </table>
 
   <h2>Gráficos</h2>
   <div class="charts">
-    <img src="data:image/png;base64,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" alt="tempo total por braço">
-    <img src="data:image/png;base64,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" alt="tokens empilhados">
-    <img src="data:image/png;base64,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" alt="custo por braço">
+    <img src="data:image/png;base64,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" alt="tempo total por braço">
+    <img src="data:image/png;base64,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" alt="tokens empilhados">
+    <img src="data:image/png;base64,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" alt="custo por braço">
   </div>
 
   <h2>Linha do tempo de comandos (por braço, por tarefa)</h2>
   <table class="timeline">
     <tr><th>braço</th><th>tarefa</th><th>comando</th><th>rc</th><th>parede (s)</th><th>CPU (s)</th></tr>
-    <tr><td>normal</td><td>1</td><td><code>ls -la &amp;&amp; git log --oneline -5 2&gt;/dev/null</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
-<tr><td>normal</td><td>1</td><td><code>cat README.md; echo ---; cat cadastro.html; echo ---; cat login.html; echo ---; find tests -type f | head -50</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>normal</td><td>1</td><td><code>cat tests/check_cadastro.py</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
+    <tr><td>normal</td><td>1</td><td><code>ls -la &amp;&amp; git log --oneline -5 2&gt;/dev/null</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
+<tr><td>normal</td><td>1</td><td><code>find . -name "*.html" -not -path "./.git/*" | head -20</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
+<tr><td>normal</td><td>1</td><td><code>cat cadastro.html; echo "---LOGIN---"; cat login.html; echo "---README---"; cat README.md</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
+<tr><td>normal</td><td>1</td><td><code>find tests -type f | head -50 &amp;&amp; echo "---" &amp;&amp; cat tests/* 2&gt;/dev/null | head -200</code></td><td>0</td><td>0.14</td><td>0.14</td></tr>
 <tr><td>normal</td><td>1</td><td><code>cat &gt; cadastro.html &lt;&lt;'EOF'
 &lt;!DOCTYPE html&gt;
 &lt;html lang="pt-BR"&gt;
 &lt;head&gt;
-&lt;meta charset="utf-8"&gt;
-&lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
-&lt;title&gt;Cadastro&lt;/title&gt;
-&lt;style&gt;
-  body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 26rem; padding: 0 1rem; }
-  h1 { font-size: 1.5rem; }
-  .campo { margin-bottom: 1rem; }
-  label { display: block; margin-bottom: .25rem; font-weight: 600; }
-  input { width: 100%; padding: .5rem; box-sizing: border-box; }
-  button { padding: .6rem 1.2rem; cursor: pointer; }
-&lt;/style&gt;
+  &lt;meta charset="utf-8"&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+  &lt;title&gt;Cadastro&lt;/title&gt;
 &lt;/head&gt;
 &lt;body&gt;
-&lt;h1&gt;Criar conta&lt;/h1&gt;
-&lt;form id="cadastro" method="post" action="cadastro"&gt;
-  &lt;div class="campo"&gt;
-    &lt;label for="name"&gt;Nome&lt;/label&gt;
-    &lt;input id="name" name="name" type="text" required autocomplete="name"&gt;
-  &lt;/div&gt;
-  &lt;div class="campo"&gt;
-    &lt;label for="email"&gt;E-mail&lt;/label&gt;
-    &lt;input id="email" name="email" type="email" required autocomplete="email"&gt;
-  &lt;/div&gt;
-  &lt;div class="campo"&gt;
-    &lt;label for="password"&gt;Senha&lt;/label&gt;
-    &lt;input id="password" name="password" type="password" required minlength="8" autocomplete="new-password"&gt;
-  &lt;/div&gt;
-  &lt;button type="submit"&gt;Cadastrar&lt;/button&gt;
-&lt;/form&gt;
+  &lt;main&gt;
+    &lt;h1&gt;Cadastro&lt;/h1&gt;
+    &lt;form id="cadastro" action="#" method="post"&gt;
+      &lt;p&gt;
+        &lt;label for="name"&gt;Nome&lt;/label&gt;
+        &lt;input id="name" name="name" type="text" required&gt;
+      &lt;/p&gt;
+      &lt;p&gt;
+        &lt;label for="email"&gt;E-mail&lt;/label&gt;
+        &lt;input id="email" name="email" type="email" required&gt;
+      &lt;/p&gt;
+      &lt;p&gt;
+        &lt;label for="password"&gt;Senha&lt;/label&gt;
+        &lt;input id="password" name="password" type="password" required minlength="8"&gt;
+      &lt;/p&gt;
+      &lt;p&gt;
+        &lt;button type="submit"&gt;Cadastrar&lt;/button&gt;
+      &lt;/p&gt;
+    &lt;/form&gt;
+  &lt;/main&gt;
 &lt;/body&gt;
 &lt;/html&gt;
 EOF
 python3 tests/check_cadastro.py --stage 1</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
-<tr><td>normal</td><td>1</td><td><code>python3 tests/check_cadastro.py --stage 1 &amp;&amp; python3 -c "
-from html.parser import HTMLParser
-import sys
-sys.path.insert(0,'tests')
-" ; grep -c 'label' cadastro.html; git status --short</code></td><td>0</td><td>0.20</td><td>0.20</td></tr>
-<tr><td>normal</td><td>2</td><td><code>ls -la; echo "---"; find . -name "cadastro.html" -not -path "*/node_modules/*" 2&gt;/dev/null</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
-<tr><td>normal</td><td>2</td><td><code>cat cadastro.html; echo "==== LOGIN ===="; cat login.html; echo "==== README ===="; cat README.md; echo "==== TESTS ===="; find tests -type f | head -50</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>normal</td><td>2</td><td><code>cat tests/check_cadastro.py</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
-<tr><td>normal</td><td>2</td><td><code>cd "$(git rev-parse --show-toplevel)" &amp;&amp; python3 - &lt;&lt;'EOF'
+<tr><td>normal</td><td>2</td><td><code>find . -name "cadastro.html" -not -path "*/node_modules/*" 2&gt;/dev/null</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
+<tr><td>normal</td><td>2</td><td><code>ls -la</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
+<tr><td>normal</td><td>2</td><td><code>cat cadastro.html; echo "-----"; cat README.md; echo "-----"; ls -R tests | head -50</code></td><td>0</td><td>0.14</td><td>0.14</td></tr>
+<tr><td>normal</td><td>2</td><td><code>cat tests/check_cadastro.py</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
+<tr><td>normal</td><td>2</td><td><code>cd . &amp;&amp; python3 - &lt;&lt;'EOF'
 from pathlib import Path
 p = Path("cadastro.html")
 s = p.read_text()
-
-phone_block = '''  &lt;div class="campo"&gt;
-    &lt;label for="phone"&gt;Telefone&lt;/label&gt;
-    &lt;input id="phone" name="phone" type="tel" autocomplete="tel"&gt;
-  &lt;/div&gt;
-'''
-confirm_block = '''  &lt;div class="campo"&gt;
-    &lt;label for="password_confirm"&gt;Confirmar senha&lt;/label&gt;
-    &lt;input id="password_confirm" name="password_confirm" type="password" required minlength="8" autocomplete="new-password"&gt;
-  &lt;/div&gt;
-'''
-
-email_anchor = '''  &lt;div class="campo"&gt;
-    &lt;label for="email"&gt;E-mail&lt;/label&gt;
-    &lt;input id="email" name="email" type="email" required autocomplete="email"&gt;
-  &lt;/div&gt;
-'''
-password_anchor = '''  &lt;div class="campo"&gt;
-    &lt;label for="password"&gt;Senha&lt;/label&gt;
-    &lt;input id="password" name="password" type="password" required minlength="8" autocomplete="new-password"&gt;
-  &lt;/div&gt;
-'''
-assert email_anchor in s and password_anchor in s
-s = s.replace(email_anchor, email_anchor + phone_block, 1)
-s = s.replace(password_anchor, password_anchor + confirm_block, 1)
+anchor = """      &lt;p&gt;
+        &lt;label for="password"&gt;Senha&lt;/label&gt;
+        &lt;input id="password" name="password" type="password" required minlength="8"&gt;
+      &lt;/p&gt;
+"""
+addition = """      &lt;p&gt;
+        &lt;label for="phone"&gt;Telefone&lt;/label&gt;
+        &lt;input id="phone" name="phone" type="tel"&gt;
+      &lt;/p&gt;
+      &lt;p&gt;
+        &lt;label for="password_confirm"&gt;Confirmar senha&lt;/label&gt;
+        &lt;input id="password_confirm" name="password_confirm" type="password" required minlength="8"&gt;
+      &lt;/p&gt;
+"""
+assert anchor in s
+s = s.replace(anchor, anchor + addition, 1)
 p.write_text(s)
-print("written")
-EOF</code></td><td>0</td><td>0.14</td><td>0.15</td></tr>
-<tr><td>normal</td><td>2</td><td><code>cd "$(git rev-parse --show-toplevel)" &amp;&amp; python3 tests/check_cadastro.py --stage 2 &amp;&amp; python3 tests/check_cadastro.py --stage 1 &amp;&amp; echo "--- file ---" &amp;&amp; cat cadastro.html</code></td><td>0</td><td>0.20</td><td>0.21</td></tr>
-<tr><td>normal</td><td>3</td><td><code>pwd &amp;&amp; ls -la &amp;&amp; git status --short 2&gt;/dev/null | head -20</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
-<tr><td>normal</td><td>3</td><td><code>ls login.html 2&gt;&amp;1; echo "---"; cat login.html 2&gt;/dev/null</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
-<tr><td>normal</td><td>3</td><td><code>cat cadastro.html; echo "=== README ==="; cat README.md</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>normal</td><td>3</td><td><code>find tests -type f | head -50; echo "==="; for f in $(find tests -type f -name '*.py' -o -type f -name '*.js' -o -type f -name '*.json' | head -20); do echo "--- $f ---"; cat "$f"; done</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
+EOF
+cat cadastro.html</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
+<tr><td>normal</td><td>2</td><td><code>python3 tests/check_cadastro.py --stage 2 &amp;&amp; python3 tests/check_cadastro.py --stage 1 &amp;&amp; python3 tests/check_login.py 2&gt;/dev/null || true</code></td><td>0</td><td>0.27</td><td>0.26</td></tr>
+<tr><td>normal</td><td>3</td><td><code>ls -la; git log --oneline -3 2&gt;/dev/null</code></td><td>0</td><td>0.13</td><td>0.14</td></tr>
+<tr><td>normal</td><td>3</td><td><code>cat README.md; echo ---; cat cadastro.html; echo ---; cat login.html; echo ---; find tests -type f | head -50</code></td><td>0</td><td>0.12</td><td>0.14</td></tr>
 <tr><td>normal</td><td>3</td><td><code>cat tests/check_login.py</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
 <tr><td>normal</td><td>3</td><td><code>cat &gt; login.html &lt;&lt;'EOF'
 &lt;!DOCTYPE html&gt;
+&lt;html lang="pt-BR"&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8"&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+  &lt;title&gt;Login&lt;/title&gt;
+  &lt;style&gt;
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #f5f6f8;
+      color: #1c1e21;
+    }
+    main {
+      width: 100%;
+      max-width: 22rem;
+      padding: 2rem;
+      background: #fff;
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+    }
+    h1 { margin: 0 0 1.5rem; font-size: 1.5rem; text-align: center; }
+    form p { margin: 0 0 1rem; }
+    label { display: block; margin-bottom: 0.35rem; font-weight: 600; }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.6rem 0.7rem;
+      font: inherit;
+      border: 1px solid #b8bcc2;
+      border-radius: 0.4rem;
+    }
+    input:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+    button {
+      width: 100%;
+      padding: 0.7rem;
+      font: inherit;
+      font-weight: 600;
+      color: #fff;
+      background: #2563eb;
+      border: 0;
+      border-radius: 0.4rem;
+      cursor: pointer;
+    }
+    button:hover { background: #1d4ed8; }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;main&gt;
+    &lt;h1&gt;Login&lt;/h1&gt;
+    &lt;form id="login" action="#" method="post"&gt;
+      &lt;p&gt;
+        &lt;label for="email"&gt;E-mail&lt;/label&gt;
+        &lt;input id="email" name="email" type="email" autocomplete="email" required&gt;
+      &lt;/p&gt;
+      &lt;p&gt;
+        &lt;label for="password"&gt;Senha&lt;/label&gt;
+        &lt;input id="password" name="password" type="password" autocomplete="current-password" required&gt;
+      &lt;/p&gt;
+      &lt;p&gt;
+        &lt;button type="submit"&gt;Entrar&lt;/button&gt;
+      &lt;/p&gt;
+    &lt;/form&gt;
+  &lt;/main&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+EOF
+python3 tests/check_login.py --stage 1 &amp;&amp; python3 tests/check_login.py --stage 2; echo "exit=$?"</code></td><td>0</td><td>0.22</td><td>0.22</td></tr>
+<tr><td>normal</td><td>3</td><td><code>grep -nEi 'src=|href=|@import|&lt;script' login.html || echo "no external resources"; python3 -c "
+from html.parser import HTMLParser
+import sys; sys.path.insert(0,'tests')
+from check_login import parse_login
+p=parse_login(open('login.html',encoding='utf-8').read())
+print('inputs:',p.inputs); print('buttons:',p.buttons); print('form#login:',p.found_form_login)"</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
+<tr><td>normal</td><td>4</td><td><code>ls -la &amp;&amp; cat login.html</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
+<tr><td>normal</td><td>4</td><td><code>find tests -type f | head -50 &amp;&amp; cat tests/* 2&gt;/dev/null | head -100 &amp;&amp; cat README.md</code></td><td>0</td><td>0.14</td><td>0.14</td></tr>
+<tr><td>normal</td><td>4</td><td><code>cat tests/check_login.py</code></td><td>0</td><td>0.14</td><td>0.14</td></tr>
+<tr><td>normal</td><td>4</td><td><code>cd "$(git rev-parse --show-toplevel)" &amp;&amp; python3 - &lt;&lt;'EOF'
+from pathlib import Path
+p = Path("login.html")
+t = p.read_text(encoding="utf-8")
+
+t = t.replace(
+    "    input:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }",
+    "    input:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }\n"
+    "    .remember { display: flex; align-items: center; gap: 0.5rem; }\n"
+    "    .remember label { margin-bottom: 0; font-weight: 400; }\n"
+    "    .remember input { width: auto; }\n"
+    "    .signup { margin: 1.25rem 0 0; text-align: center; font-size: 0.9rem; }\n"
+    "    .signup a { color: #2563eb; }"
+)
+
+t = t.replace(
+    """      &lt;p&gt;
+        &lt;button type="submit"&gt;Entrar&lt;/button&gt;
+      &lt;/p&gt;""",
+    """      &lt;p class="remember"&gt;
+        &lt;input id="remember" name="remember" type="checkbox" value="1"&gt;
+        &lt;label for="remember"&gt;Lembrar de mim&lt;/label&gt;
+      &lt;/p&gt;
+      &lt;p&gt;
+        &lt;button type="submit"&gt;Entrar&lt;/button&gt;
+      &lt;/p&gt;"""
+)
+
+t = t.replace(
+    """    &lt;/form&gt;
+  &lt;/main&gt;""",
+    """    &lt;/form&gt;
+    &lt;p class="signup"&gt;Não tem conta? &lt;a href="cadastro.html"&gt;Cadastre-se&lt;/a&gt;&lt;/p&gt;
+  &lt;/main&gt;"""
+)
+
+p.write_text(t, encoding="utf-8")
+EOF
+python3 tests/check_login.py --stage 2 &amp;&amp; git diff --stat</code></td><td>0</td><td>0.20</td><td>0.20</td></tr>
+<tr><td>normal</td><td>4</td><td><code>cd "$(git rev-parse --show-toplevel)" &amp;&amp; git diff</code></td><td>0</td><td>0.14</td><td>0.14</td></tr>
+<tr><td>simplicio</td><td>1</td><td><code>mkdir -p .simplicio-loop &amp;&amp; simplicio-loop orient --brief --repo . --task "Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a &lt;form id=\"cadastro\"&gt; containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button." --json &gt; .simplicio-loop/brief.json; echo "exit=$?"; cat .simplicio-loop/brief.json ★</code></td><td>0</td><td>3.61</td><td>3.52</td></tr>
+<tr><td>simplicio</td><td>1</td><td><code>cat tests/check_cadastro.py</code></td><td>0</td><td>0.17</td><td>0.16</td></tr>
+<tr><td>simplicio</td><td>1</td><td><code>pwd; cat &gt; .simplicio-loop/ops.json &lt;&lt;'JSON'
+{
+  "tasks": [
+    {
+      "id": "create-cadastro-html",
+      "operations": [
+        {
+          "path": "cadastro.html",
+          "find": "",
+          "replace": "&lt;!DOCTYPE html&gt;\n&lt;html lang=\"pt-BR\"&gt;\n&lt;head&gt;\n&lt;meta charset=\"utf-8\"&gt;\n&lt;meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"&gt;\n&lt;title&gt;Cadastro&lt;/title&gt;\n&lt;style&gt;\n  :root { color-scheme: light dark; }\n  body {\n    font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;\n    margin: 0;\n    padding: 2rem 1rem;\n    display: flex;\n    justify-content: center;\n  }\n  main { width: 100%; max-width: 28rem; }\n  h1 { font-size: 1.5rem; margin: 0 0 1.25rem; }\n  .field { display: flex; flex-direction: column; margin-bottom: 1rem; }\n  label { font-weight: 600; margin-bottom: 0.35rem; }\n  input {\n    font: inherit;\n    padding: 0.55rem 0.65rem;\n    border: 1px solid #9aa0a6;\n    border-radius: 0.35rem;\n  }\n  input:invalid:not(:placeholder-shown) { border-color: #c5221f; }\n  button {\n    font: inherit;\n    font-weight: 600;\n    padding: 0.6rem 1.1rem;\n    border: 0;\n    border-radius: 0.35rem;\n    background: #1a73e8;\n    color: #fff;\n    cursor: pointer;\n  }\n  button:hover { background: #1667cc; }\n&lt;/style&gt;\n&lt;/head&gt;\n&lt;body&gt;\n&lt;main&gt;\n  &lt;h1&gt;Criar conta&lt;/h1&gt;\n\n  &lt;form id=\"cadastro\" method=\"post\" action=\"#\"&gt;\n    &lt;div class=\"field\"&gt;\n      &lt;label for=\"name\"&gt;Nome&lt;/label&gt;\n      &lt;input id=\"name\" name=\"name\" type=\"text\" required autocomplete=\"name\"&gt;\n    &lt;/div&gt;\n\n    &lt;div class=\"field\"&gt;\n      &lt;label for=\"email\"&gt;E-mail&lt;/label&gt;\n      &lt;input id=\"email\" name=\"email\" type=\"email\" required autocomplete=\"email\"&gt;\n    &lt;/div&gt;\n\n    &lt;div class=\"field\"&gt;\n      &lt;label for=\"password\"&gt;Senha&lt;/label&gt;\n      &lt;input id=\"password\" name=\"password\" type=\"password\" required minlength=\"8\" autocomplete=\"new-password\"&gt;\n    &lt;/div&gt;\n\n    &lt;button type=\"submit\"&gt;Cadastrar&lt;/button&gt;\n  &lt;/form&gt;\n&lt;/main&gt;\n&lt;/body&gt;\n&lt;/html&gt;\n"
+        }
+      ],
+      "check": "python3 tests/check_cadastro.py --stage 1 &amp;&amp; ! grep -Eiq '&lt;script|stylesheet|src=|href=\"https?:' cadastro.html",
+      "depends_on": []
+    }
+  ],
+  "repo_state_chain": {
+    "head": "f21950ed033a92fa82106431109765e1914b9e6e",
+    "dirty_status_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tree_hash": "ad68b585104399981d850a06be71d6fd9abf7a06c3577472ccaab0fb12f88336"
+  },
+  "brief_generations": [
+    {
+      "task": "Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a &lt;form id=\"cadastro\"&gt; containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button.",
+      "operator": "simplicio-mapper",
+      "generation": null,
+      "context_hash": null
+    }
+  ]
+}
+JSON
+python3 -c "import json;json.load(open('.simplicio-loop/ops.json'));print('ops.json valid')"</code></td><td>0</td><td>0.18</td><td>0.19</td></tr>
+<tr><td>simplicio</td><td>1</td><td><code>simplicio-loop apply .simplicio-loop/ops.json --repo . --json ★</code></td><td>2</td><td>0.33</td><td>0.33</td></tr>
+<tr><td>simplicio</td><td>1</td><td><code>cat cadastro.html; python3 - &lt;&lt;'PY'
+import json
+p='.simplicio-loop/ops.json'
+d=json.load(open(p))
+d['tasks'][0]['operations'][0]['find']="&lt;!-- SIMPLICIO-PLACEHOLDER: cadastro.html not implemented yet. --&gt;\n"
+json.dump(d,open(p,'w'),indent=2)
+print('patched find')
+PY</code></td><td>0</td><td>0.16</td><td>0.15</td></tr>
+<tr><td>simplicio</td><td>1</td><td><code>simplicio-loop apply .simplicio-loop/ops.json --repo . --json ★</code></td><td>0</td><td>0.65</td><td>0.64</td></tr>
+<tr><td>simplicio</td><td>1</td><td><code>python3 tests/check_cadastro.py --stage 1; echo "checker_exit=$?"; grep -Eic '&lt;script|stylesheet|src=|href="https?:' cadastro.html; grep -c '&lt;label for=' cadastro.html; python3 - &lt;&lt;'PY'
+from html.parser import HTMLParser
+from pathlib import Path
+t=Path('cadastro.html').read_text()
+class P(HTMLParser):
+    def __init__(s):
+        super().__init__(); s.labels=[]; s.ids=set()
+    def handle_starttag(s,tag,attrs):
+        d=dict(attrs)
+        if tag=='label': s.labels.append(d.get('for'))
+        if d.get('id'): s.ids.add(d['id'])
+p=P(); p.feed(t)
+print('labels:',p.labels,'all resolve:',all(l in p.ids for l in p.labels))
+PY</code></td><td>0</td><td>0.20</td><td>0.20</td></tr>
+<tr><td>simplicio</td><td>2</td><td><code>mkdir -p .simplicio-loop &amp;&amp; simplicio-loop orient --brief --repo . --task "Edit cadastro.html: add a labeled phone field (input name=phone, type=tel) and a confirm-password field (name=password_confirm, type=password, required, minlength=8) to the same form, keeping the existing fields." --json &gt; .simplicio-loop/brief.json; echo "exit=$?"; wc -c .simplicio-loop/brief.json ★</code></td><td>0</td><td>3.08</td><td>3.05</td></tr>
+<tr><td>simplicio</td><td>2</td><td><code>cat .simplicio-loop/brief.json</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
+<tr><td>simplicio</td><td>2</td><td><code>sed -n '20,200p' tests/check_cadastro.py</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
+<tr><td>simplicio</td><td>2</td><td><code>python3 - &lt;&lt;'PY'
+import json, pathlib
+brief = json.loads(pathlib.Path(".simplicio-loop/brief.json").read_text())
+
+email_find = '''    &lt;div class="field"&gt;
+      &lt;label for="email"&gt;E-mail&lt;/label&gt;
+      &lt;input id="email" name="email" type="email" required autocomplete="email"&gt;
+    &lt;/div&gt;
+'''
+email_replace = '''    &lt;div class="field"&gt;
+      &lt;label for="email"&gt;E-mail&lt;/label&gt;
+      &lt;input id="email" name="email" type="email" required autocomplete="email"&gt;
+    &lt;/div&gt;
+
+    &lt;div class="field"&gt;
+      &lt;label for="phone"&gt;Telefone&lt;/label&gt;
+      &lt;input id="phone" name="phone" type="tel" autocomplete="tel"&gt;
+    &lt;/div&gt;
+'''
+
+pwd_find = '''    &lt;div class="field"&gt;
+      &lt;label for="password"&gt;Senha&lt;/label&gt;
+      &lt;input id="password" name="password" type="password" required minlength="8" autocomplete="new-password"&gt;
+    &lt;/div&gt;
+'''
+pwd_replace = '''    &lt;div class="field"&gt;
+      &lt;label for="password"&gt;Senha&lt;/label&gt;
+      &lt;input id="password" name="password" type="password" required minlength="8" autocomplete="new-password"&gt;
+    &lt;/div&gt;
+
+    &lt;div class="field"&gt;
+      &lt;label for="password_confirm"&gt;Confirmar senha&lt;/label&gt;
+      &lt;input id="password_confirm" name="password_confirm" type="password" required minlength="8" autocomplete="new-password"&gt;
+    &lt;/div&gt;
+'''
+
+ops = {
+  "tasks": [
+    {
+      "id": "cadastro-phone-confirm",
+      "operations": [
+        {"path": "cadastro.html", "find": email_find, "replace": email_replace},
+        {"path": "cadastro.html", "find": pwd_find, "replace": pwd_replace},
+      ],
+      "check": "python3 tests/check_cadastro.py --stage 2",
+      "depends_on": [],
+    }
+  ],
+  "repo_state_chain": brief["repo_state_chain"],
+  "brief_generations": brief["generations"],
+}
+pathlib.Path(".simplicio-loop/ops.json").write_text(json.dumps(ops, indent=2) + "\n")
+print("ops.json written")
+PY</code></td><td>0</td><td>0.16</td><td>0.17</td></tr>
+<tr><td>simplicio</td><td>2</td><td><code>simplicio-loop apply .simplicio-loop/ops.json --repo . --json ★</code></td><td>0</td><td>0.71</td><td>0.71</td></tr>
+<tr><td>simplicio</td><td>2</td><td><code>sed -n '40,75p' cadastro.html; echo '---'; python3 tests/check_cadastro.py --stage 2; python3 tests/check_cadastro.py --stage 1</code></td><td>0</td><td>0.20</td><td>0.21</td></tr>
+<tr><td>simplicio</td><td>3</td><td><code>mkdir -p .simplicio-loop &amp;&amp; simplicio-loop orient --brief --repo . --task "Create login.html: a pure HTML (no JS framework, no external CSS/JS) login page with a &lt;form id=\"login\"&gt; containing labeled inputs email (type=email, required) and password (type=password, required) and a submit button." --json &gt; .simplicio-loop/brief.json; echo "EXIT=$?"; head -c 4000 .simplicio-loop/brief.json ★</code></td><td>0</td><td>3.39</td><td>3.32</td></tr>
+<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-1y5cwl6_/simplicio-repo 2&gt;/dev/null || cd .; python3 - &lt;&lt;'EOF'
+import json
+b=json.load(open('.simplicio-loop/brief.json'))
+print(list(b.keys()))
+print(json.dumps(b.get('apply'), indent=2)[:3000])
+print('---PLAN---')
+print(json.dumps(b.get('plan'), indent=2)[:3000])
+print('---CHAIN---')
+print(b.get('repo_state_chain'))
+print('---STATUS---', b.get('status'))
+for t in b.get('targets',[]):
+    print(t['path'], t['truncated'], len(t['content']))
+EOF ★</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
+<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-1y5cwl6_/simplicio-repo 2&gt;/dev/null || cd .; python3 -c "
+import json;b=json.load(open('.simplicio-loop/brief.json'));print(json.dumps(b['checks'],indent=2)[:2000]);print(json.dumps(b['generations'],indent=2)[:800]);print(json.dumps(b['effort'],indent=2)[:500])
+"; echo ---; sed -n '1,200p' tests/check_login.py ★</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
+<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-1y5cwl6_/simplicio-repo 2&gt;/dev/null || cd .; echo "=== RED (before) ==="; python3 tests/check_login.py --stage 1; echo "exit=$?"; echo "=== cadastro.html ==="; cat cadastro.html; echo "=== README ==="; cat README.md ★</code></td><td>0</td><td>0.17</td><td>0.17</td></tr>
+<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-1y5cwl6_/simplicio-repo 2&gt;/dev/null || cd .; python3 - &lt;&lt;'PYEOF'
+import json
+
+brief = json.load(open('.simplicio-loop/brief.json'))
+
+html = '''&lt;!DOCTYPE html&gt;
 &lt;html lang="pt-BR"&gt;
 &lt;head&gt;
 &lt;meta charset="utf-8"&gt;
 &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
 &lt;title&gt;Entrar&lt;/title&gt;
 &lt;style&gt;
-  body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 26rem; padding: 0 1rem; }
-  h1 { font-size: 1.5rem; }
-  .campo { margin-bottom: 1rem; }
-  label { display: block; margin-bottom: .25rem; font-weight: 600; }
-  input { width: 100%; padding: .5rem; box-sizing: border-box; }
-  button { padding: .6rem 1.2rem; cursor: pointer; }
+  :root { color-scheme: light dark; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 2rem 1rem;
+    display: flex;
+    justify-content: center;
+  }
+  main { width: 100%; max-width: 28rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 1.25rem; }
+  .field { display: flex; flex-direction: column; margin-bottom: 1rem; }
+  label { font-weight: 600; margin-bottom: 0.35rem; }
+  input {
+    font: inherit;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid #9aa0a6;
+    border-radius: 0.35rem;
+  }
+  input:invalid:not(:placeholder-shown) { border-color: #c5221f; }
+  button {
+    font: inherit;
+    font-weight: 600;
+    padding: 0.6rem 1.1rem;
+    border: 0;
+    border-radius: 0.35rem;
+    background: #1a73e8;
+    color: #fff;
+    cursor: pointer;
+  }
+  button:hover { background: #1667cc; }
 &lt;/style&gt;
 &lt;/head&gt;
 &lt;body&gt;
-&lt;h1&gt;Entrar&lt;/h1&gt;
-&lt;form id="login" method="post" action="login"&gt;
-  &lt;div class="campo"&gt;
-    &lt;label for="email"&gt;E-mail&lt;/label&gt;
-    &lt;input id="email" name="email" type="email" required autocomplete="email"&gt;
-  &lt;/div&gt;
-  &lt;div class="campo"&gt;
-    &lt;label for="password"&gt;Senha&lt;/label&gt;
-    &lt;input id="password" name="password" type="password" required autocomplete="current-password"&gt;
-  &lt;/div&gt;
-  &lt;button type="submit"&gt;Entrar&lt;/button&gt;
-&lt;/form&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-EOF
-echo "written"</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
-<tr><td>normal</td><td>3</td><td><code>python3 tests/check_login.py --stage 1 &amp;&amp; echo "EXIT=$?"</code></td><td>0</td><td>0.16</td><td>0.17</td></tr>
-<tr><td>normal</td><td>3</td><td><code>grep -nEi 'src=|href=|&lt;script|&lt;link' login.html || echo "no external CSS/JS/script/link refs"</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
-<tr><td>normal</td><td>3</td><td><code>cat login.html; echo "=== git status ==="; git status --short</code></td><td>0</td><td>0.14</td><td>0.13</td></tr>
-<tr><td>normal</td><td>4</td><td><code>ls -la &amp;&amp; cat login.html 2&gt;/dev/null</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
-<tr><td>normal</td><td>4</td><td><code>find tests -type f | head -50 &amp;&amp; echo "---" &amp;&amp; cat tests/*/* 2&gt;/dev/null | head -100</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>normal</td><td>4</td><td><code>find tests -type f -exec ls -la {} \; &amp;&amp; find tests -name "*.py"</code></td><td>0</td><td>0.14</td><td>0.14</td></tr>
-<tr><td>normal</td><td>4</td><td><code>cat tests/check_login.py</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>normal</td><td>4</td><td><code>cd "$(git rev-parse --show-toplevel)" &amp;&amp; python3 - &lt;&lt;'EOF'
-from pathlib import Path
-p = Path("login.html")
-s = p.read_text()
-s = s.replace(
-'''  &lt;div class="campo"&gt;
-    &lt;label for="password"&gt;Senha&lt;/label&gt;
-    &lt;input id="password" name="password" type="password" required autocomplete="current-password"&gt;
-  &lt;/div&gt;''',
-'''  &lt;div class="campo"&gt;
-    &lt;label for="password"&gt;Senha&lt;/label&gt;
-    &lt;input id="password" name="password" type="password" required autocomplete="current-password"&gt;
-  &lt;/div&gt;
-  &lt;div class="campo"&gt;
-    &lt;label for="remember"&gt;Lembrar de mim&lt;/label&gt;
-    &lt;input id="remember" name="remember" type="checkbox"&gt;
-  &lt;/div&gt;''')
-s = s.replace(
-'''  &lt;button type="submit"&gt;Entrar&lt;/button&gt;
-&lt;/form&gt;''',
-'''  &lt;button type="submit"&gt;Entrar&lt;/button&gt;
-&lt;/form&gt;
-&lt;p&gt;Não tem conta? &lt;a href="cadastro.html"&gt;Cadastre-se&lt;/a&gt;&lt;/p&gt;''')
-p.write_text(s)
-EOF
-cat login.html &amp;&amp; echo "=== stage 2 ===" &amp;&amp; python3 tests/check_login.py --stage 2</code></td><td>0</td><td>0.18</td><td>0.18</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>pwd; ls -a; git log --oneline -3 2&gt;/dev/null | head</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>which simplicio-loop simplicio-mapper simplicio-fast simplicio-dev-cli 2&gt;&amp;1; ls scripts 2&gt;/dev/null; ls .simplicio-loop 2&gt;/dev/null ★</code></td><td>2</td><td>0.12</td><td>0.12</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>cat README.md; echo ---; ls -R tests; echo ---; cat cadastro.html; echo ---; cat login.html</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>simplicio-loop orient --help 2&gt;&amp;1 | head -50 ★</code></td><td>0</td><td>0.32</td><td>0.32</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>cat tests/check_cadastro.py; echo =====; cat tests/check_login.py</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>simplicio-loop orient --brief --task "Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a &lt;form id=cadastro&gt; containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button." --repo . --json 2&gt;&amp;1 | head -120 ★</code></td><td>0</td><td>3.00</td><td>2.96</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>simplicio-loop orient --brief --task "Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a &lt;form id=cadastro&gt; containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button." --repo . --json &gt; /tmp/brief.json 2&gt;&amp;1; python3 -c "
-import json;d=json.load(open('/tmp/brief.json'))
-print(json.dumps({k:d[k] for k in ('route','tasks','targets') if k in d},indent=1)[:3000])
-print(list(d.keys()))
-" ★</code></td><td>0</td><td>1.44</td><td>1.43</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; python3 tests/check_cadastro.py --stage 1; echo "exit=$?" ★</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; sed -n '60,120p' tests/check_cadastro.py ★</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; python3 - &lt;&lt;'PY'
-import json
-chain = json.load(open('/tmp/brief.json'))['repo_state_chain']
-html = """&lt;!DOCTYPE html&gt;
-&lt;html lang="pt-BR"&gt;
-&lt;head&gt;
-  &lt;meta charset="utf-8"&gt;
-  &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
-  &lt;title&gt;Cadastro&lt;/title&gt;
-  &lt;style&gt;
-    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 32rem; }
-    .campo { margin-bottom: 1rem; }
-    label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
-    input { width: 100%; padding: 0.5rem; box-sizing: border-box; }
-    .dica { color: #555; font-size: 0.875rem; margin: 0.25rem 0 0; }
-    button { padding: 0.6rem 1.2rem; }
-  &lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-  &lt;main&gt;
-    &lt;h1&gt;Cadastro&lt;/h1&gt;
-    &lt;p&gt;Crie sua conta preenchendo os campos abaixo.&lt;/p&gt;
-    &lt;form id="cadastro" action="#" method="post"&gt;
-      &lt;div class="campo"&gt;
-        &lt;label for="name"&gt;Nome&lt;/label&gt;
-        &lt;input id="name" name="name" type="text" required autocomplete="name"&gt;
-      &lt;/div&gt;
-      &lt;div class="campo"&gt;
-        &lt;label for="email"&gt;E-mail&lt;/label&gt;
-        &lt;input id="email" name="email" type="email" required autocomplete="email"&gt;
-      &lt;/div&gt;
-      &lt;div class="campo"&gt;
-        &lt;label for="password"&gt;Senha&lt;/label&gt;
-        &lt;input id="password" name="password" type="password" required minlength="8" autocomplete="new-password"&gt;
-        &lt;p class="dica"&gt;A senha deve ter no m&amp;iacute;nimo 8 caracteres.&lt;/p&gt;
-      &lt;/div&gt;
-      &lt;button type="submit"&gt;Cadastrar&lt;/button&gt;
-    &lt;/form&gt;
-  &lt;/main&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-"""
-ops = {"tasks":[{"id":"create-cadastro-html","operations":[{"path":"cadastro.html",
-  "find":"&lt;!-- SIMPLICIO-PLACEHOLDER: cadastro.html not implemented yet. --&gt;\n",
-  "replace":html}],
-  "check":"python3 tests/check_cadastro.py --stage 1"}],
-  "repo_state_chain":chain}
-json.dump(ops, open('ops.json','w'), indent=2)
-print("ops.json written")
-PY
-simplicio-loop apply ops.json --repo . --json 2&gt;&amp;1 | tail -40 ★</code></td><td>0</td><td>0.37</td><td>0.38</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; git status --porcelain; mv ops.json /tmp/ops.json; git status --porcelain ★</code></td><td>0</td><td>0.14</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; simplicio-loop apply /tmp/ops.json --repo . --json 2&gt;&amp;1 | tail -40 ★</code></td><td>0</td><td>0.67</td><td>0.66</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; python3 tests/check_cadastro.py --stage 1 &amp;&amp; echo "--- independent checks ---" &amp;&amp; python3 - &lt;&lt;'PY'
-import re,pathlib
-t=pathlib.Path('cadastro.html').read_text()
-print("script tags:", re.findall(r'&lt;script', t))
-print("external refs:", re.findall(r'(?:src|href)\s*=\s*"(?!#)[^"]*"', t))
-print("labels:", re.findall(r'&lt;label[^&gt;]*for="([^"]+)"', t))
-print("form:", re.findall(r'&lt;form[^&gt;]*&gt;', t))
-print("inputs:", re.findall(r'&lt;input[^&gt;]*&gt;', t))
-print("submit:", re.findall(r'&lt;button[^&gt;]*&gt;', t))
-PY
-git status --porcelain; git diff --stat ★</code></td><td>0</td><td>0.18</td><td>0.18</td></tr>
-<tr><td>simplicio</td><td>2</td><td><code>pwd &amp;&amp; ls -la &amp;&amp; git log --oneline -5 2&gt;/dev/null | head -20</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>2</td><td><code>which simplicio-loop simplicio-dev-cli simplicio-mapper simplicio-fast 2&gt;&amp;1; ls -la .simplicio-loop 2&gt;&amp;1 | head ★</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>2</td><td><code>simplicio-loop orient --brief --task "Edit cadastro.html: add a labeled phone field (input name=phone, type=tel) and a confirm-password field (name=password_confirm, type=password, required, minlength=8) to the same form, keeping the existing fields." --json 2&gt;&amp;1 | head -200 ★</code></td><td>0</td><td>2.96</td><td>2.92</td></tr>
-<tr><td>simplicio</td><td>2</td><td><code>cat cadastro.html; echo ---; ls -R tests | head -30</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>2</td><td><code>simplicio-loop orient --brief --task "Edit cadastro.html: add a labeled phone field (input name=phone, type=tel) and a confirm-password field (name=password_confirm, type=password, required, minlength=8) to the same form, keeping the existing fields." --json &gt; /tmp/brief.json 2&gt;/dev/null; python3 -c "
-import json
-d=json.load(open('/tmp/brief.json'))
-print(json.dumps({k:v for k,v in d.items() if k in ('route','targets','checks','plan','repo_state_chain')}, indent=1)[:6000])
-" ★</code></td><td>0</td><td>1.26</td><td>1.24</td></tr>
-<tr><td>simplicio</td><td>2</td><td><code>cat tests/check_cadastro.py</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
-<tr><td>simplicio</td><td>2</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; python3 tests/check_cadastro.py --stage 2; echo "exit=$?" ★</code></td><td>0</td><td>0.14</td><td>0.15</td></tr>
-<tr><td>simplicio</td><td>2</td><td><code>python3 - &lt;&lt;'EOF'
-import json
-brief=json.load(open('/tmp/brief.json'))
-ops={
- "tasks":[
-  {"id":"t1-phone-confirm",
-   "operations":[
-    {"path":"cadastro.html",
-     "find":"      &lt;div class=\"campo\"&gt;\n        &lt;label for=\"email\"&gt;E-mail&lt;/label&gt;\n        &lt;input id=\"email\" name=\"email\" type=\"email\" required autocomplete=\"email\"&gt;\n      &lt;/div&gt;\n",
-     "replace":"      &lt;div class=\"campo\"&gt;\n        &lt;label for=\"email\"&gt;E-mail&lt;/label&gt;\n        &lt;input id=\"email\" name=\"email\" type=\"email\" required autocomplete=\"email\"&gt;\n      &lt;/div&gt;\n      &lt;div class=\"campo\"&gt;\n        &lt;label for=\"phone\"&gt;Telefone&lt;/label&gt;\n        &lt;input id=\"phone\" name=\"phone\" type=\"tel\" autocomplete=\"tel\"&gt;\n      &lt;/div&gt;\n"},
-    {"path":"cadastro.html",
-     "find":"        &lt;p class=\"dica\"&gt;A senha deve ter no m&amp;iacute;nimo 8 caracteres.&lt;/p&gt;\n      &lt;/div&gt;\n",
-     "replace":"        &lt;p class=\"dica\"&gt;A senha deve ter no m&amp;iacute;nimo 8 caracteres.&lt;/p&gt;\n      &lt;/div&gt;\n      &lt;div class=\"campo\"&gt;\n        &lt;label for=\"password_confirm\"&gt;Confirme a senha&lt;/label&gt;\n        &lt;input id=\"password_confirm\" name=\"password_confirm\" type=\"password\" required minlength=\"8\" autocomplete=\"new-password\"&gt;\n      &lt;/div&gt;\n"}
-   ],
-   "check":"python3 tests/check_cadastro.py --stage 2"}
- ],
- "repo_state_chain":brief["repo_state_chain"]
-}
-json.dump(ops,open('/tmp/ops.json','w'),indent=2)
-print(open('/tmp/ops.json').read()[:400])
-EOF</code></td><td>0</td><td>0.14</td><td>0.15</td></tr>
-<tr><td>simplicio</td><td>2</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; simplicio-loop apply /tmp/ops.json --repo . --json 2&gt;&amp;1 | tail -60 ★</code></td><td>0</td><td>0.63</td><td>0.64</td></tr>
-<tr><td>simplicio</td><td>2</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; sed -n '20,45p' cadastro.html &amp;&amp; echo "--- verify ---" &amp;&amp; python3 tests/check_cadastro.py --stage 2 &amp;&amp; python3 tests/check_cadastro.py --stage 1 &amp;&amp; python3 -c "
-from html.parser import HTMLParser
-class P(HTMLParser):
-    def __init__(s):
-        super().__init__(); s.stack=[]; s.err=[]
-    def handle_starttag(s,t,a):
-        if t not in ('meta','input','br','img','link','hr'): s.stack.append(t)
-    def handle_endtag(s,t):
-        if s.stack and s.stack[-1]==t: s.stack.pop()
-        else: s.err.append(('mismatch',t,list(s.stack)))
-p=P(); p.feed(open('cadastro.html').read())
-print('unclosed:',p.stack,'errors:',p.err)
-" &amp;&amp; git diff --stat ★</code></td><td>0</td><td>0.22</td><td>0.23</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>ls -la; echo "---"; ls .simplicio-loop 2&gt;/dev/null; echo "---"; which simplicio-loop; simplicio-loop --help 2&gt;&amp;1 | head -50 ★</code></td><td>0</td><td>0.31</td><td>0.31</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>git log --oneline -5 2&gt;&amp;1; echo "---"; git status --short 2&gt;&amp;1 | head -20</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cat login.html; echo "=== cadastro ==="; cat cadastro.html; echo "=== tests ==="; find tests -type f | head -20; echo "=== README ==="; cat README.md</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>simplicio-loop orient --help 2&gt;&amp;1 | head -60 ★</code></td><td>0</td><td>0.33</td><td>0.32</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cat tests/check_login.py</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /root 2&gt;/dev/null; simplicio-loop orient --brief --task "Create login.html: a pure HTML (no JS framework, no external CSS/JS) login page with a &lt;form id=\"login\"&gt; containing labeled inputs email (type=email, required) and password (type=password, required) and a submit button." --repo . --json 2&gt;&amp;1 | head -200 ★</code></td><td>0</td><td>163.72</td><td>125.95</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>pwd</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; simplicio-loop orient --brief --task "Create login.html: a pure HTML (no JS framework, no external CSS/JS) login page with a &lt;form id=\"login\"&gt; containing labeled inputs email (type=email, required) and password (type=password, required) and a submit button." --repo . --json &gt; /tmp/brief.json 2&gt;/tmp/brief.err; echo "exit=$?"; python3 -c "
-import json
-d=json.load(open('/tmp/brief.json'))
-print(list(d.keys()))
-print(json.dumps(d.get('route'),indent=1))
-print(json.dumps(d.get('targets'),indent=1)[:2000])
-print(json.dumps(d.get('plan'),indent=1)[:2000])
-print(json.dumps(d.get('checks'),indent=1)[:2000])
-print(json.dumps(d.get('repo_state_chain'),indent=1))
-print(json.dumps(d.get('apply'),indent=1))
-print(json.dumps(d.get('effort'),indent=1))
-"; tail -5 /tmp/brief.err ★</code></td><td>0</td><td>3.22</td><td>3.17</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; python3 -c "
-import json
-d=json.load(open('/tmp/brief.json'))
-for t in d['targets']:
-    print('==',t['path'],'truncated=',t.get('truncated'))
-" ; echo "--- RED ---"; python3 tests/check_login.py --stage 1; echo "exit=$?"; echo "--- bytes ---"; od -c login.html | tail -5 ★</code></td><td>0</td><td>0.20</td><td>0.21</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; python3 - &lt;&lt;'PY'
-import json
-brief = json.load(open('/tmp/brief.json'))
+&lt;main&gt;
+  &lt;h1&gt;Entrar&lt;/h1&gt;
 
-html = '''&lt;!DOCTYPE html&gt;
-&lt;html lang="pt-BR"&gt;
-&lt;head&gt;
-  &lt;meta charset="utf-8"&gt;
-  &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
-  &lt;title&gt;Login&lt;/title&gt;
-  &lt;style&gt;
-    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 32rem; }
-    .campo { margin-bottom: 1rem; }
-    label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
-    input { width: 100%; padding: 0.5rem; box-sizing: border-box; }
-    button { padding: 0.6rem 1.2rem; }
-  &lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-  &lt;main&gt;
-    &lt;h1&gt;Login&lt;/h1&gt;
-    &lt;p&gt;Entre com seu e-mail e senha.&lt;/p&gt;
-    &lt;form id="login" action="#" method="post"&gt;
-      &lt;div class="campo"&gt;
-        &lt;label for="email"&gt;E-mail&lt;/label&gt;
-        &lt;input id="email" name="email" type="email" required autocomplete="email"&gt;
-      &lt;/div&gt;
-      &lt;div class="campo"&gt;
-        &lt;label for="password"&gt;Senha&lt;/label&gt;
-        &lt;input id="password" name="password" type="password" required autocomplete="current-password"&gt;
-      &lt;/div&gt;
-      &lt;button type="submit"&gt;Entrar&lt;/button&gt;
-    &lt;/form&gt;
-  &lt;/main&gt;
+  &lt;form id="login" method="post" action="#"&gt;
+    &lt;div class="field"&gt;
+      &lt;label for="email"&gt;E-mail&lt;/label&gt;
+      &lt;input id="email" name="email" type="email" required autocomplete="email"&gt;
+    &lt;/div&gt;
+
+    &lt;div class="field"&gt;
+      &lt;label for="password"&gt;Senha&lt;/label&gt;
+      &lt;input id="password" name="password" type="password" required autocomplete="current-password"&gt;
+    &lt;/div&gt;
+
+    &lt;button type="submit"&gt;Entrar&lt;/button&gt;
+  &lt;/form&gt;
+&lt;/main&gt;
 &lt;/body&gt;
 &lt;/html&gt;
 '''
 
 ops = {
-  "tasks": [
-    {
-      "id": "login-page",
-      "operations": [
+    "tasks": [
         {
-          "path": "login.html",
-          "find": "&lt;!-- SIMPLICIO-PLACEHOLDER: login.html not implemented yet. --&gt;\n",
-          "replace": html,
+            "id": "login-page",
+            "operations": [
+                {
+                    "path": "login.html",
+                    "find": "&lt;!-- SIMPLICIO-PLACEHOLDER: login.html not implemented yet. --&gt;\n",
+                    "replace": html,
+                }
+            ],
+            "check": "python3 tests/check_login.py --stage 1 &amp;&amp; grep -q 'for=\"email\"' login.html &amp;&amp; grep -q 'for=\"password\"' login.html",
         }
-      ],
-      "check": "python3 tests/check_login.py --stage 1",
-    }
-  ],
-  "repo_state_chain": brief["repo_state_chain"],
+    ],
+    "repo_state_chain": brief["repo_state_chain"],
+    "brief_generations": brief["generations"],
 }
-json.dump(ops, open('ops.json','w'), indent=2)
-print("written")
-PY
-cat ops.json | head -5 ★</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; simplicio-loop apply ops.json --repo . --json 2&gt;&amp;1 | tail -60 ★</code></td><td>0</td><td>0.35</td><td>0.35</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; rm -f ops.json &amp;&amp; simplicio-loop orient --brief --task "Create login.html: a pure HTML (no JS framework, no external CSS/JS) login page with a &lt;form id=\"login\"&gt; containing labeled inputs email (type=email, required) and password (type=password, required) and a submit button." --repo . --json &gt; /tmp/brief2.json 2&gt;/dev/null; python3 -c "
-import json;d=json.load(open('/tmp/brief2.json'));print(json.dumps(d['repo_state_chain'],indent=1))" ★</code></td><td>0</td><td>1.56</td><td>1.54</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; python3 - &lt;&lt;'PY'
+json.dump(ops, open('.simplicio-loop/ops.json', 'w'), indent=2)
+print("ops.json written", len(ops["tasks"]), "task(s)")
+PYEOF ★</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
+<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-1y5cwl6_/simplicio-repo 2&gt;/dev/null || cd .; simplicio-loop apply .simplicio-loop/ops.json --repo "$PWD" --json; echo "EXIT=$?" ★</code></td><td>0</td><td>0.69</td><td>0.68</td></tr>
+<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-1y5cwl6_/simplicio-repo 2&gt;/dev/null || cd .; echo "=== independent verifier (stage 1) ==="; python3 tests/check_login.py --stage 1; echo "exit=$?"; echo "=== no external CSS/JS ==="; grep -nE '&lt;script|&lt;link|src=|@import|https?://' login.html &amp;&amp; echo "FOUND-EXTERNAL" || echo "none (clean)"; echo "=== labels ==="; grep -nE '&lt;label|&lt;input|&lt;button|&lt;form' login.html; echo "=== git status ==="; git status --porcelain ★</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
+<tr><td>simplicio</td><td>4</td><td><code>mkdir -p .simplicio-loop &amp;&amp; simplicio-loop orient --brief --repo . --task "Edit login.html: add a checkbox input (name=remember) to the same form, and add a link &lt;a href=\"cadastro.html\"&gt; to the signup page somewhere on the page." --json &gt; .simplicio-loop/brief.json; echo "EXIT=$?"; tail -c 4000 .simplicio-loop/brief.json ★</code></td><td>0</td><td>3.10</td><td>3.04</td></tr>
+<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-1y5cwl6_/simplicio-repo 2&gt;/dev/null || cd .; python3 -c "
 import json
-brief = json.load(open('/tmp/brief2.json'))
-html = '''&lt;!DOCTYPE html&gt;
-&lt;html lang="pt-BR"&gt;
-&lt;head&gt;
-  &lt;meta charset="utf-8"&gt;
-  &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
-  &lt;title&gt;Login&lt;/title&gt;
-  &lt;style&gt;
-    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 32rem; }
-    .campo { margin-bottom: 1rem; }
-    label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
-    input { width: 100%; padding: 0.5rem; box-sizing: border-box; }
-    button { padding: 0.6rem 1.2rem; }
-  &lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-  &lt;main&gt;
-    &lt;h1&gt;Login&lt;/h1&gt;
-    &lt;p&gt;Entre com seu e-mail e senha.&lt;/p&gt;
-    &lt;form id="login" action="#" method="post"&gt;
-      &lt;div class="campo"&gt;
-        &lt;label for="email"&gt;E-mail&lt;/label&gt;
-        &lt;input id="email" name="email" type="email" required autocomplete="email"&gt;
-      &lt;/div&gt;
-      &lt;div class="campo"&gt;
-        &lt;label for="password"&gt;Senha&lt;/label&gt;
-        &lt;input id="password" name="password" type="password" required autocomplete="current-password"&gt;
-      &lt;/div&gt;
-      &lt;button type="submit"&gt;Entrar&lt;/button&gt;
-    &lt;/form&gt;
-  &lt;/main&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-'''
-ops = {"tasks":[{"id":"login-page","operations":[{"path":"login.html","find":"&lt;!-- SIMPLICIO-PLACEHOLDER: login.html not implemented yet. --&gt;\n","replace":html}],"check":"python3 tests/check_login.py --stage 1"}],"repo_state_chain":brief["repo_state_chain"]}
-json.dump(ops, open('/tmp/ops.json','w'), indent=2)
-print("ok")
-PY
-simplicio-loop apply /tmp/ops.json --repo . --json 2&gt;&amp;1 | tail -60 ★</code></td><td>0</td><td>0.79</td><td>0.76</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; echo "--- independent verifier ---" &amp;&amp; python3 tests/check_login.py --stage 1; echo "exit=$?"; echo "--- external refs (expect none) ---"; grep -nEi 'src=|href=|@import|&lt;script|cdn|http' login.html || echo "none"; echo "--- git status ---"; git status --short ★</code></td><td>0</td><td>0.16</td><td>0.17</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; cat login.html ★</code></td><td>0</td><td>0.14</td><td>0.14</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>pwd &amp;&amp; ls -la &amp;&amp; git log --oneline -5 2&gt;/dev/null</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>find . -name "login.html" -not -path "*/node_modules/*" 2&gt;/dev/null; echo "---"; ls .simplicio-loop 2&gt;/dev/null</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>cat login.html; echo "=== CADASTRO ==="; cat cadastro.html; echo "=== README ==="; cat README.md; echo "=== TESTS ==="; find tests -type f | head -50</code></td><td>0</td><td>0.19</td><td>0.18</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>which simplicio-loop simplicio-mapper simplicio-fast simplicio-dev-cli 2&gt;/dev/null; echo "---"; simplicio-loop --help 2&gt;&amp;1 | head -40 ★</code></td><td>0</td><td>0.43</td><td>0.43</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>cat tests/check_login.py; echo "=== CADASTRO CHECK ==="; cat tests/check_cadastro.py</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>head -80 tests/check_login.py</code></td><td>0</td><td>0.14</td><td>0.15</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>sed -n '80,140p' tests/check_login.py</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; python3 tests/check_login.py --stage 2; echo "exit=$?" ★</code></td><td>0</td><td>0.22</td><td>0.22</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; simplicio-loop orient --brief --task "Edit login.html: add a checkbox input (name=remember) to the same form, and add a link &lt;a href=\"cadastro.html\"&gt; to the signup page somewhere on the page." --json 2&gt;&amp;1 | head -120 ★</code></td><td>0</td><td>4.16</td><td>4.09</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; cat &gt; ops.json &lt;&lt;'EOF'
-{
-  "tasks": [
-    {
-      "id": "login-remember-and-signup-link",
-      "operations": [
-        {
-          "path": "login.html",
-          "find": "      &lt;button type=\"submit\"&gt;Entrar&lt;/button&gt;",
-          "replace": "      &lt;div class=\"campo\"&gt;\n        &lt;label for=\"remember\"&gt;Lembrar de mim&lt;/label&gt;\n        &lt;input id=\"remember\" name=\"remember\" type=\"checkbox\"&gt;\n      &lt;/div&gt;\n      &lt;button type=\"submit\"&gt;Entrar&lt;/button&gt;"
-        },
-        {
-          "path": "login.html",
-          "find": "    &lt;/form&gt;\n  &lt;/main&gt;",
-          "replace": "    &lt;/form&gt;\n    &lt;p&gt;N&amp;atilde;o tem conta? &lt;a href=\"cadastro.html\"&gt;Cadastre-se&lt;/a&gt;&lt;/p&gt;\n  &lt;/main&gt;"
-        }
-      ],
-      "check": "python3 tests/check_login.py --stage 2"
-    }
-  ],
-  "repo_state_chain": {
-    "head": "f30b315fc30b1ce0094be1a1a2aa0288751ee607",
-    "dirty_status_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "tree_hash": "af312984232fc4d981aa4e2d3076c16f57b7e2f0adbb26646dabf84930a58023"
-  }
+b=json.load(open('.simplicio-loop/brief.json'))
+print(json.dumps({k:v for k,v in b.items() if k not in ('targets',)}, indent=1)[:3000])
+print('---TARGETS---')
+for t in b.get('targets',[]):
+    print('PATH:', t['path'], 'truncated:', t.get('truncated'))
+    if 'login' in t['path']:
+        print(t['content'])
+" ★</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
+<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-1y5cwl6_/simplicio-repo; sed -n '18,400p' tests/check_login.py | grep -n "add_argument\|def main\|required\|stage\|argv"  ★</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
+<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-1y5cwl6_/simplicio-repo; sed -n '145,160p' tests/check_login.py ★</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
+<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-1y5cwl6_/simplicio-repo; grep -n "add_argument" -A4 tests/check_login.py | sed -n '1,40p' ★</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
+<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-1y5cwl6_/simplicio-repo
+echo "--- RED (pre-edit) ---"; python3 tests/check_login.py --stage 2 --path login.html; echo "exit=$?"
+python3 - &lt;&lt;'PY'
+import json
+brief = json.load(open('.simplicio-loop/brief.json'))
+find = """    &lt;button type="submit"&gt;Entrar&lt;/button&gt;
+  &lt;/form&gt;
+"""
+replace = """    &lt;div class="field checkbox"&gt;
+      &lt;label for="remember"&gt;
+        &lt;input id="remember" name="remember" type="checkbox" value="1"&gt;
+        Lembrar de mim
+      &lt;/label&gt;
+    &lt;/div&gt;
+
+    &lt;button type="submit"&gt;Entrar&lt;/button&gt;
+  &lt;/form&gt;
+
+  &lt;p class="signup"&gt;Ainda n\u00e3o tem conta? &lt;a href="cadastro.html"&gt;Cadastre-se&lt;/a&gt;&lt;/p&gt;
+"""
+ops = {
+  "tasks": [{
+    "id": "login-remember-and-signup-link",
+    "operations": [{"path": "login.html", "find": find, "replace": replace}],
+    "check": "python3 tests/check_login.py --stage 2 --path login.html"
+  }],
+  "repo_state_chain": brief["repo_state_chain"],
+  "brief_generations": brief["generations"]
 }
-EOF
-simplicio-loop apply ops.json --repo . --json 2&gt;&amp;1 | tail -60 ★</code></td><td>0</td><td>0.37</td><td>0.35</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; mv ops.json /tmp/ops.json &amp;&amp; simplicio-loop apply /tmp/ops.json --repo . --json 2&gt;&amp;1 | tail -60 ★</code></td><td>0</td><td>0.92</td><td>0.89</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-znqqz_b2/simplicio-repo &amp;&amp; python3 tests/check_login.py --stage 2 &amp;&amp; python3 tests/check_login.py --stage 1 &amp;&amp; python3 tests/check_cadastro.py --stage 2 &amp;&amp; echo "--- diff ---" &amp;&amp; git diff -- login.html &amp;&amp; echo "--- status ---" &amp;&amp; git status --short ★</code></td><td>0</td><td>0.27</td><td>0.27</td></tr>
+open('.simplicio-loop/ops.json','w').write(json.dumps(ops, indent=2, ensure_ascii=False))
+print("wrote ops.json")
+PY ★</code></td><td>0</td><td>0.18</td><td>0.19</td></tr>
+<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-1y5cwl6_/simplicio-repo &amp;&amp; simplicio-loop apply .simplicio-loop/ops.json --repo . --json; echo "EXIT=$?" ★</code></td><td>0</td><td>0.75</td><td>0.75</td></tr>
+<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-1y5cwl6_/simplicio-repo &amp;&amp; python3 tests/check_login.py --stage 2 --path login.html &amp;&amp; sed -n '40,70p' login.html ★</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
 
   </table>
   <p class="meta">★ = comando simplicio-loop/mapper/dev-cli/fast.</p>
@@ -577,8 +596,10 @@ simplicio-loop apply ops.json --repo . --json 2&gt;&amp;1 | tail -60 ★</code><
   <h2>Histórico (comparação com execuções anteriores)</h2>
   <table class="history">
     <tr><th>execução anterior</th><th>braço</th><th>Δ tempo total</th></tr>
-    <tr><td>2026-09-26</td><td>normal</td><td>-26.3s</td></tr>
-<tr><td>2026-09-26</td><td>simplicio</td><td>-38.3s</td></tr>
+    <tr><td>2026-09-26</td><td>normal</td><td>-50.1s</td></tr>
+<tr><td>2026-09-26</td><td>simplicio</td><td>-245.0s</td></tr>
+<tr><td>2026-09-26</td><td>normal</td><td>-23.8s</td></tr>
+<tr><td>2026-09-26</td><td>simplicio</td><td>-206.8s</td></tr>
 
   </table>
 
