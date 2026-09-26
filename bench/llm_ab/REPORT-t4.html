@@ -42,49 +42,51 @@
   <div class="verdict"><b>Veredito:</b> normal: 4/4 tarefas, 118.6s, US$ 0.01295 | simplicio: 4/4 tarefas, 401.9s, US$ 0.07034</div>
 
   <h2>Comparação geral (agente normal vs agente com a skill simplicio-loop)</h2>
-  <table class="compare"><tr><th>Métrica</th><th>normal</th><th>simplicio</th></tr>
-<tr><td>Tarefas concluídas</td><td>4/4</td><td>4/4</td></tr>
-<tr><td>Tempo total (parede, s)</td><td>118.6</td><td>401.9</td></tr>
-<tr><td>Turnos de LLM</td><td>25</td><td>78</td></tr>
-<tr><td>Comandos executados</td><td>23</td><td>96</td></tr>
-<tr><td>... dos quais simplicio-*</td><td>0</td><td>54</td></tr>
-<tr><td>CPU total (comandos, s)</td><td>3.38</td><td>53.60</td></tr>
-<tr><td>Pico RAM (MB)</td><td>9.7</td><td>28.9</td></tr>
-<tr><td>Tokens prompt (não cacheado)</td><td>31205</td><td>89605</td></tr>
-<tr><td>Tokens prompt (cacheado)</td><td>68224</td><td>1760960</td></tr>
-<tr><td>Tokens completion</td><td>3760</td><td>13801</td></tr>
-<tr><td>Tokens de raciocínio</td><td>1060</td><td>22470</td></tr>
-<tr><td>Custo (USD)</td><td>$0.01295</td><td>$0.07034</td></tr>
-<tr><td>Invocações do checker pelo próprio agente</td><td>4</td><td>17</td></tr>
+  <table class="compare"><tr><th>Métrica</th><th>normal</th><th>simplicio</th><th>Economia com simplicio</th></tr>
+<tr><td>Tarefas concluídas</td><td>4/4</td><td>4/4</td><td></td></tr>
+<tr><td>Tempo (s)</td><td>94.8</td><td>372.8</td><td>-278.0 (-293.2%)</td></tr>
+<tr><td>Turnos de LLM</td><td>25</td><td>78</td><td>-53 (-212.0%)</td></tr>
+<tr><td>Comandos executados</td><td>23</td><td>96</td><td>-73 (-317.4%)</td></tr>
+<tr><td>... dos quais simplicio-*</td><td>0</td><td>54</td><td></td></tr>
+<tr><td>CPU total (comandos, s)</td><td>3.38</td><td>53.60</td><td>-50.22 (-1484.2%)</td></tr>
+<tr><td>Pico RAM (MB)</td><td>9.69</td><td>28.93</td><td></td></tr>
+<tr><td>Tokens prompt (não cacheado)</td><td>31205</td><td>89605</td><td>-58400 (-187.2%)</td></tr>
+<tr><td>Tokens prompt (cacheado)</td><td>68224</td><td>1760960</td><td></td></tr>
+<tr><td>Tokens completion</td><td>3760</td><td>13801</td><td>-10041 (-267.1%)</td></tr>
+<tr><td>Tokens de raciocínio</td><td>1060</td><td>22470</td><td>-21410 (-2019.8%)</td></tr>
+<tr><td>Custo (USD)</td><td>$0.01295</td><td>$0.07034</td><td>$-0.05739 (-443.2%)</td></tr>
+<tr><td>Invocações do checker pelo próprio agente</td><td>4</td><td>17</td><td></td></tr>
 </table>
 
-  <h2>Por tipo de tarefa (criação vs edição)</h2>
-  <h3>Tarefas de criação</h3><table class='compare'><tr><th>Métrica</th><th>normal</th><th>simplicio</th></tr>
-<tr><td>Tarefas concluídas</td><td>2/2</td><td>2/2</td></tr>
-<tr><td>Turnos de LLM</td><td>13</td><td>39</td></tr>
-<tr><td>Comandos executados</td><td>13</td><td>46</td></tr>
-<tr><td>... dos quais simplicio-*</td><td>0</td><td>25</td></tr>
-<tr><td>CPU total (comandos, s)</td><td>1.87</td><td>22.29</td></tr>
-<tr><td>Pico RAM (MB)</td><td>7.2</td><td>25.0</td></tr>
-<tr><td>Tokens prompt (não cacheado)</td><td>14596</td><td>39541</td></tr>
-<tr><td>Tokens prompt (cacheado)</td><td>48640</td><td>817152</td></tr>
-<tr><td>Tokens completion</td><td>2289</td><td>5972</td></tr>
-<tr><td>Tokens de raciocínio</td><td>876</td><td>12516</td></tr>
-<tr><td>Custo (USD)</td><td>$0.00730</td><td>$0.03302</td></tr>
-<tr><td>Invocações do checker pelo próprio agente</td><td>2</td><td>6</td></tr>
-</table><h3>Tarefas de edição</h3><table class='compare'><tr><th>Métrica</th><th>normal</th><th>simplicio</th></tr>
-<tr><td>Tarefas concluídas</td><td>2/2</td><td>2/2</td></tr>
-<tr><td>Turnos de LLM</td><td>12</td><td>39</td></tr>
-<tr><td>Comandos executados</td><td>10</td><td>50</td></tr>
-<tr><td>... dos quais simplicio-*</td><td>0</td><td>29</td></tr>
-<tr><td>CPU total (comandos, s)</td><td>1.51</td><td>31.30</td></tr>
-<tr><td>Pico RAM (MB)</td><td>9.7</td><td>28.9</td></tr>
-<tr><td>Tokens prompt (não cacheado)</td><td>16609</td><td>50064</td></tr>
-<tr><td>Tokens prompt (cacheado)</td><td>19584</td><td>943808</td></tr>
-<tr><td>Tokens completion</td><td>1471</td><td>7829</td></tr>
-<tr><td>Tokens de raciocínio</td><td>184</td><td>9954</td></tr>
-<tr><td>Custo (USD)</td><td>$0.00565</td><td>$0.03732</td></tr>
-<tr><td>Invocações do checker pelo próprio agente</td><td>2</td><td>11</td></tr>
+  <h2>Somente criação e somente edição (tarefas da mesma sessão)</h2>
+  <h3>Somente criação (mesma sessão)</h3><table class='compare'><tr><th>Métrica</th><th>normal</th><th>simplicio</th><th>Economia com simplicio</th></tr>
+<tr><td>Tarefas concluídas</td><td>2/2</td><td>2/2</td><td></td></tr>
+<tr><td>Tempo (s)</td><td>78.1</td><td>209.9</td><td>-131.8 (-168.8%)</td></tr>
+<tr><td>Turnos de LLM</td><td>13</td><td>39</td><td>-26 (-200.0%)</td></tr>
+<tr><td>Comandos executados</td><td>13</td><td>46</td><td>-33 (-253.8%)</td></tr>
+<tr><td>... dos quais simplicio-*</td><td>0</td><td>25</td><td></td></tr>
+<tr><td>CPU total (comandos, s)</td><td>1.87</td><td>22.29</td><td>-20.42 (-1090.0%)</td></tr>
+<tr><td>Pico RAM (MB)</td><td>7.17</td><td>25.01</td><td></td></tr>
+<tr><td>Tokens prompt (não cacheado)</td><td>14596</td><td>39541</td><td>-24945 (-170.9%)</td></tr>
+<tr><td>Tokens prompt (cacheado)</td><td>48640</td><td>817152</td><td></td></tr>
+<tr><td>Tokens completion</td><td>2289</td><td>5972</td><td>-3683 (-160.9%)</td></tr>
+<tr><td>Tokens de raciocínio</td><td>876</td><td>12516</td><td>-11640 (-1328.8%)</td></tr>
+<tr><td>Custo (USD)</td><td>$0.00730</td><td>$0.03302</td><td>$-0.02571 (-352.1%)</td></tr>
+<tr><td>Invocações do checker pelo próprio agente</td><td>2</td><td>6</td><td></td></tr>
+</table><h3>Somente edição (mesma sessão)</h3><table class='compare'><tr><th>Métrica</th><th>normal</th><th>simplicio</th><th>Economia com simplicio</th></tr>
+<tr><td>Tarefas concluídas</td><td>2/2</td><td>2/2</td><td></td></tr>
+<tr><td>Tempo (s)</td><td>16.7</td><td>162.9</td><td>-146.2 (-875.0%)</td></tr>
+<tr><td>Turnos de LLM</td><td>12</td><td>39</td><td>-27 (-225.0%)</td></tr>
+<tr><td>Comandos executados</td><td>10</td><td>50</td><td>-40 (-400.0%)</td></tr>
+<tr><td>... dos quais simplicio-*</td><td>0</td><td>29</td><td></td></tr>
+<tr><td>CPU total (comandos, s)</td><td>1.51</td><td>31.30</td><td>-29.79 (-1973.3%)</td></tr>
+<tr><td>Pico RAM (MB)</td><td>9.69</td><td>28.93</td><td></td></tr>
+<tr><td>Tokens prompt (não cacheado)</td><td>16609</td><td>50064</td><td>-33455 (-201.4%)</td></tr>
+<tr><td>Tokens prompt (cacheado)</td><td>19584</td><td>943808</td><td></td></tr>
+<tr><td>Tokens completion</td><td>1471</td><td>7829</td><td>-6358 (-432.2%)</td></tr>
+<tr><td>Tokens de raciocínio</td><td>184</td><td>9954</td><td>-9770 (-5309.8%)</td></tr>
+<tr><td>Custo (USD)</td><td>$0.00565</td><td>$0.03732</td><td>$-0.03167 (-561.0%)</td></tr>
+<tr><td>Invocações do checker pelo próprio agente</td><td>2</td><td>11</td><td></td></tr>
 </table>
 
   <h2>Preço por token (OpenRouter, ao vivo)</h2>
