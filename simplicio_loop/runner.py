@@ -54,6 +54,7 @@ from .planning_gate import build_planning_receipt as _build_planning_receipt
 from .planning_gate import publish_planning_receipt as _publish_planning_receipt
 from .work_item_claims import AttemptCoordinator, LeaseLostDuringExecution
 from .merge_executor import MergeExecutor, MergeExecutorError
+from . import local_capacity
 from . import wave_worktree
 from .model_registry import ModelCapabilityRegistry, ModelRegistryError
 from .model_router import ModelRouterError, route as _model_route
@@ -3950,7 +3951,30 @@ def _validate_mapper_receipt(payload: Mapping[str, Any], repo_path: Path) -> Non
 
 
 def _mapper_generation(repo_path: Path) -> Dict[str, str]:
-    """Read the immutable Mapper index identity for the active attempt."""
+    """Read the immutable Mapper index identity for the active attempt.
+
+    Identity is exactly Mapper's ``head`` + ``tree_hash`` -- never
+    ``index-state.json``'s ``updated_at``, and never its ``status_hash``.
+
+    ``updated_at`` is rewritten to "now" on *every* Mapper invocation,
+    including a purely read-only re-survey (e.g. the host running
+    ``simplicio-loop orient`` again between ``prepare`` and ``wave`` to
+    refresh context before a retry) that touches no source file.
+
+    ``status_hash`` is a hash of Mapper's own ``git status`` snapshot at
+    survey time. Empirically (see the multiprocess/orient regression this
+    guards), it also changes across back-to-back re-surveys of an unchanged
+    tree -- Mapper's own scan writes timestamped bookkeeping under its own
+    excluded output directory, and that housekeeping alone was observed to
+    shift ``status_hash`` with no tracked or working-tree file touched.
+    ``head`` (the resolved commit) and ``tree_hash`` (a content/mtime digest
+    over the actual working tree, excluding Mapper's own output dir) are the
+    two fields that stayed stable across every read-only re-survey tested and
+    still change on any real source edit -- that pair is the right identity
+    for "did the tree Mapper surveyed actually change", not a field that
+    churns on Mapper's own bookkeeping and would turn every such read-only
+    re-survey into a false "active attempt mapper generation changed" block.
+    """
     path = repo_path / ".simplicio" / "index-state.json"
     try:
         document = _load_json(path)
@@ -3959,14 +3983,11 @@ def _mapper_generation(repo_path: Path) -> Dict[str, str]:
     signature = document.get("signature") if isinstance(document, Mapping) else None
     if not isinstance(signature, Mapping):
         return {}
-    generation = {
+    return {
         key: str(signature.get(key) or "")
-        for key in ("head", "tree_hash", "status_hash")
+        for key in ("head", "tree_hash")
         if str(signature.get(key) or "")
     }
-    if generation:
-        generation["updated_at"] = str(document.get("updated_at") or "")
-    return generation
 
 
 def _receipt_run_id(payload: Mapping[str, Any], expected_run_id: str) -> str:
@@ -5368,13 +5389,30 @@ def _plan_relevant_changed_paths(repo_path: Path) -> List[str]:
     })
 
 
-_TOOL_CACHE_DIRS = frozenset({"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"})
+_TOOL_CACHE_DIRS = frozenset({"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "htmlcov"})
+# pytest-cov/coverage.py rewrites `.coverage` (and, in parallel mode,
+# `.coverage.<host>.<pid>.<rand>` siblings) with fresh, non-deterministic
+# content on *every* run of the task's own "Coverage verifier" lane -- the
+# same non-source, tool-generated-byproduct category as __pycache__/.pyc
+# above, and gitignored here for the same reason (see .gitignore). Left
+# uncounted, a run's own Coverage verifier lane makes `state["repo_state_chain"]`
+# (persisted right after the dev-cli mutation, before that lane runs)
+# permanently mismatch a later task's own fresh `_repo_fingerprint` read in a
+# separate `tick`/`wave --task-indices` process, misreporting the run's own
+# evidence-gathering as external drift ("stale mapper context: repository
+# changed after planning" / "plan_repo_state_stale").
+_TOOL_CACHE_FILENAMES = frozenset({".coverage"})
 
 
 def _is_tool_cache_path(rel: str) -> bool:
-    """Caches a verifier writes while it runs (pytest, mypy, ruff, bytecode)."""
+    """Caches/data files a verifier writes while it runs (pytest, mypy, ruff, bytecode, coverage)."""
     parts = rel.rstrip("/").split("/")
-    return any(part in _TOOL_CACHE_DIRS for part in parts) or rel.endswith(".pyc")
+    if any(part in _TOOL_CACHE_DIRS for part in parts):
+        return True
+    if rel.endswith(".pyc"):
+        return True
+    name = parts[-1] if parts else rel
+    return name in _TOOL_CACHE_FILENAMES or name.startswith(".coverage.")
 
 
 def _capture_operator_checkpoint(run_dir: Path, repo_path: Path, targets: List[str]) -> Dict[str, Any]:
@@ -6330,6 +6368,43 @@ def _watcher_script() -> Path:
     return Path(__file__).resolve().parent / "_bundle" / "scripts" / "watcher_verify.py"
 
 
+def _ensure_current_quality_matrix(repo_path: Path, run_dir: Path) -> None:
+    """Keep ``quality-matrix.json`` from going stale across a run's own separate ticks.
+
+    `verify_run` (via `_finalize_public_flow`) runs after *every* `tick`/`wave
+    --task-indices`, not only once at the very end -- so the first call to
+    reach this run can build `quality-matrix.json` while other tasks are
+    still pending (correctly reporting them missing at that moment). The
+    independent watcher (`scripts/watcher_verify.py`, invoked right after
+    this) re-derives its verdict from that SAME on-disk receipt via
+    `quality_matrix.independent_reverify_quality_matrix`'s self-reported half
+    -- so a cache that is never refreshed keeps reporting those tasks
+    missing forever, even after a later task's own separate process applied
+    them. Rebuild it whenever the applied/missing task set it once measured
+    no longer matches what's actually on disk now; a matrix that already
+    reports every task applied is left alone (no need to re-run the lane
+    commands on every verify call).
+    """
+    from .lane_verifiers import build_quality_matrix, missing_or_unapplied_tasks
+
+    quality_matrix_path = run_dir / "quality-matrix.json"
+    contract = _load_json(run_dir / "task-contract.json")
+    task_texts = [str(t.get("original_text") or "") for t in contract.get("tasks") or []]
+    rebuild = not quality_matrix_path.exists()
+    if not rebuild:
+        try:
+            cached_matrix = _load_json(quality_matrix_path)
+        except (OSError, TypeError, ValueError):
+            cached_matrix = {}
+        cached_missing = (
+            (cached_matrix.get("requirements") or {}).get("implementation") or {}
+        ).get("missing_task_indices")
+        if cached_missing:
+            rebuild = missing_or_unapplied_tasks(run_dir, len(task_texts)) != cached_missing
+    if rebuild:
+        build_quality_matrix(repo_path, run_dir, task_texts)
+
+
 def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
     """Run the independent watcher and advance a run without a manual tick."""
     status = read_status(repo, run_id)
@@ -6348,7 +6423,22 @@ def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
         return read_status(repo, run_id)
     # Parallel lanes each write evidence after their own task; re-measure on the
     # final tree so the watcher compares against the diff it will actually see.
+    # This must run BEFORE `_ensure_current_quality_matrix` below: rebuilding
+    # the quality matrix runs the task's own lane commands (pytest, coverage,
+    # ...), which write byproducts (e.g. `.coverage`) to the tree -- doing
+    # that first would make the evidence receipt's diff-coverage check see
+    # those byproducts as an "uncovered diff outside operator receipt".
     _write_json(run_dir / "evidence-receipt.json", build_evidence_receipt(str(run_dir)))
+    # A run-scoped contract (task-contract.json) always exists by the time a
+    # run can be verified; only a synthetic/legacy caller without one skips
+    # this (there is then no task list to measure "missing" against anyway).
+    # Must run BEFORE the watcher below: the watcher independently re-derives
+    # its verdict from this SAME on-disk quality-matrix.json, so a stale one
+    # (a dependent task applied through its own separate `tick` process since
+    # this receipt was last built) would fail the watcher before this
+    # function's own later, redundant freshness check ever runs.
+    if (run_dir / "task-contract.json").is_file():
+        _ensure_current_quality_matrix(repo_path, run_dir)
     _transition(run_dir, state, "watching", "automatic conduct reached independent verification", receipt=str(run_dir / "operator-receipt.json"))
     env = _subprocess_env()
     env["SIMPLICIO_RUN_DIR"] = str(run_dir)
@@ -6605,6 +6695,43 @@ def conduct_run(repo: str, task_path: str, delivery: str = "verified", max_itera
     from .run_outcome import persist_run_outcome
     status["outcome"] = persist_run_outcome(status)
     return status
+
+
+def _resolve_dispatch_mode() -> str:
+    """Resolve the per-task child-execution mode every dispatch path shares.
+
+    ``process`` (the default) supervises each task in its own child process,
+    same as the classic ``dispatch_operator_batch`` path; ``thread`` is the
+    opt-out used by unit tests that stub the per-task worker with a local
+    closure (unpicklable across a real process boundary).
+    """
+    dispatch_mode = os.environ.get("SIMPLICIO_LOOP_DISPATCH_MODE", "process").strip().lower()
+    if dispatch_mode not in {"process", "thread"}:
+        raise ValueError("SIMPLICIO_LOOP_DISPATCH_MODE must be process or thread")
+    return dispatch_mode
+
+
+def _load_prior_dispatch_records(
+    journal_path: Path,
+) -> Dict[Tuple[str, str, int], Dict[str, Any]]:
+    """Return the last persisted attempt record per (repo, run_id, task_index).
+
+    Shared by every dispatch path that persists to one run's
+    ``operator-batch.jsonl`` (`_persist_attempt`'s file), so a resumed batch
+    -- whichever path dispatches it -- recognizes the same durably-succeeded
+    tasks and never re-dispatches them.
+    """
+    prior: Dict[Tuple[str, str, int], Dict[str, Any]] = {}
+    if not journal_path.exists():
+        return prior
+    for line in journal_path.read_text(encoding="utf-8").splitlines():
+        try:
+            rec = json.loads(line)
+            key = (str(rec.get("repo")), str(rec.get("run_id")), int(rec.get("task_index")))
+        except (ValueError, TypeError, json.JSONDecodeError):
+            continue
+        prior[key] = rec
+    return prior
 
 
 def _operator_worker_limit(requested: Optional[int], item_count: int) -> int:
@@ -8186,15 +8313,7 @@ def dispatch_operator_batch(
             )) & queueless_indices_by_run.get(str(run_id), set())
             if pending_indices:
                 recovery_pending_by_run[run_id] = pending_indices
-    prior: Dict[Tuple[str, str, int], Dict[str, Any]] = {}
-    if journal_path and journal_path.exists():
-        for line in journal_path.read_text(encoding="utf-8").splitlines():
-            try:
-                rec = json.loads(line)
-                key = (str(rec.get("repo")), str(rec.get("run_id")), int(rec.get("task_index")))
-            except (ValueError, TypeError, json.JSONDecodeError):
-                continue
-            prior[key] = rec
+    prior = _load_prior_dispatch_records(journal_path) if journal_path else {}
 
     # A persisted run is a privileged execution boundary.  Keep synthetic scheduler
     # contexts supported, but fail every run-backed dispatch globally before worktree
@@ -8578,9 +8697,7 @@ def dispatch_operator_batch(
         reason = str(admission.get("reason") or "capacity_not_admitted")
         capacity_stop_reason = f"{code}:{reason}"
 
-    dispatch_mode = os.environ.get("SIMPLICIO_LOOP_DISPATCH_MODE", "process").strip().lower()
-    if dispatch_mode not in {"process", "thread"}:
-        raise ValueError("SIMPLICIO_LOOP_DISPATCH_MODE must be process or thread")
+    dispatch_mode = _resolve_dispatch_mode()
     registry_manager = None
     owned_process_registry: Any = {}
     if dispatch_mode == "process":
@@ -8923,6 +9040,37 @@ def dispatch_operator_batch(
     return result
 
 
+def _wave_capacity_admission(
+    repo_path: Path,
+    lane_count: int,
+    requested_workers: Optional[int],
+    *,
+    physical_monitor_kwargs: Optional[Mapping[str, Any]] = None,
+) -> Tuple[int, Dict[str, Any]]:
+    """Resolve lane concurrency through the same physical admission governor
+    the classic dispatch path uses (`local_capacity.PhysicalAdmissionMonitor`),
+    instead of the raw ``min(cpu_count, len(lanes))`` guess `run_worktree_wave`
+    falls back to on its own -- a lane is exactly as much of a live local
+    worker (its own worktree + child process) as a classic dispatch item, so
+    it must be governed by the same physical evidence, not a fixed request.
+    """
+    effective_workers = _operator_worker_limit(requested_workers, lane_count)
+    if effective_workers <= 0:
+        return 0, {
+            "admitted": False, "reason_code": "NO_LANES", "reason": "no_lanes", "evidence": {},
+        }
+    capacity_root = Path(repo_path).resolve()
+    while not capacity_root.exists() and capacity_root != capacity_root.parent:
+        capacity_root = capacity_root.parent
+    monitor_kwargs = _physical_monitor_kwargs(physical_monitor_kwargs)
+    monitor = local_capacity.PhysicalAdmissionMonitor(
+        str(capacity_root), effective_workers, **monitor_kwargs,
+    )
+    sample = monitor.refresh(force=True)
+    effective_workers = max(0, min(effective_workers, int(sample.safe_workers)))
+    return effective_workers, monitor.admission_status()
+
+
 def _seed_wave_lane_run_context(run_dir: Path, run_id: str, worktree_path: Path) -> None:
     """Copy this run's persisted receipts into a lane worktree and repoint its
     manifest at that worktree -- mirrors `_persist_isolated_run_context`'s
@@ -8954,6 +9102,8 @@ def _wave_worktree_dispatch(
     items: Sequence[Mapping[str, Any]],
     retry_budget: int,
     max_workers: Optional[int],
+    physical_monitor_kwargs: Optional[Mapping[str, Any]] = None,
+    stop_requested: Optional[Callable[[], bool]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Lane-parallel wave dispatch.
 
@@ -8970,10 +9120,27 @@ def _wave_worktree_dispatch(
     directly on the now-integrated main tree instead of failing the wave.
     Worktrees are removed afterward (`cleanup_worktrees`).
 
+    Every safeguard the classic ``dispatch_operator_batch`` path has applies
+    here too, at lane granularity instead of task granularity: lane
+    concurrency is admitted by the same physical admission governor
+    (`_wave_capacity_admission`, `local_capacity.PhysicalAdmissionMonitor`)
+    rather than a raw CPU-count guess; each lane task's mutation runs in its
+    own child process by default (`SIMPLICIO_LOOP_DISPATCH_MODE`, reusing
+    `_run_operator_item_process` -- no new worker code); every terminal
+    per-task record is persisted to this run's own ``operator-batch.jsonl``
+    so a resumed batch recognizes durable success; ``stop_requested`` is
+    polled before a lane starts and again between integration steps; and a
+    caller-declared verifier command (``SIMPLICIO_TEST_CMD``) gates each
+    lane's integration through the existing (previously unwired)
+    ``verifier_for`` hook.
+
     Returns ``None`` -- the caller keeps its existing serial path unchanged --
-    when there is only one lane (every task shares a file with another) or
-    this repo is not a git checkout; a genuine lane-parallel wave never
-    replaces that safe fallback silently.
+    when there is only one lane (every task shares a file with another),
+    this repo is not a git checkout, this run's own journal already shows
+    durable progress on one of these items (a resume), or physical capacity
+    does not admit any lane worker right now; a genuine lane-parallel wave
+    never replaces that safe fallback silently, and in each of those cases
+    the fallback already does the right thing on its own.
     """
     ordered_items = list(items)
     if len(ordered_items) < 2 or not (repo_path / ".git").exists():
@@ -8993,6 +9160,30 @@ def _wave_worktree_dispatch(
     ]
     items_by_index = {int(item["task_index"]): dict(item) for item in ordered_items}
 
+    journal_path = Path(run_dir).resolve() / "operator-batch.jsonl"
+    prior = _load_prior_dispatch_records(journal_path)
+    if any(
+        prior.get(
+            (str(item.get("repo")), str(item.get("run_id")), int(item["task_index"])), {}
+        ).get("status") == "succeeded"
+        for item in ordered_items
+    ):
+        # A crash mid-wave (or an already-resumed batch) left durable progress
+        # in this exact journal file -- defer to the shared-run serial path,
+        # which reads it too (same `journal_dir`) and skips only the
+        # already-succeeded tasks instead of re-lane-grouping partial work.
+        return None
+
+    effective_workers, capacity_admission = _wave_capacity_admission(
+        repo_path, len(lane_task_indices), max_workers,
+        physical_monitor_kwargs=physical_monitor_kwargs,
+    )
+    if not capacity_admission.get("admitted"):
+        # Same physical evidence the classic path uses to refuse admission --
+        # deferring here gives this exact blocked state the exact same typed
+        # blocked receipts, instead of duplicating that logic in this path.
+        return None
+
     head = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=str(repo_path), capture_output=True,
         text=True, timeout=15, check=False, env=_subprocess_env(),
@@ -9000,6 +9191,38 @@ def _wave_worktree_dispatch(
     base_commit = (head.stdout or "").strip()
     if head.returncode != 0 or not base_commit:
         return None
+
+    dispatch_mode = _resolve_dispatch_mode()
+    process_pool: Optional[ProcessPoolExecutor] = None
+    if dispatch_mode == "process":
+        pool_kwargs: Dict[str, Any] = {"max_workers": max(1, effective_workers)}
+        if os.name == "posix":
+            try:
+                import multiprocessing as _mp
+                if "fork" in _mp.get_all_start_methods():
+                    pool_kwargs["mp_context"] = _mp.get_context("fork")
+            except (AttributeError, ValueError):
+                pass
+        process_pool = ProcessPoolExecutor(**pool_kwargs)
+        # Force every worker to fork now, on the main thread, before
+        # `asyncio.run` below starts its own default-executor threads.
+        # `fork()` only duplicates the calling thread; forking later from one
+        # of those asyncio worker threads while another thread holds an
+        # unrelated interpreter lock (import lock, logging, GC) is a real,
+        # intermittent deadlock hazard -- not hypothetical, reproduced empirically
+        # while hardening this exact path. A trivial warm-up call sidesteps it
+        # by making the fork happen here instead.
+        process_pool.submit(int, 0).result()
+
+    def _dispatch_one(lane_item: Mapping[str, Any]) -> List[Dict[str, Any]]:
+        # Reuses the exact same child-process worker the classic dispatch
+        # path submits to its own ProcessPoolExecutor -- no new worker code.
+        if process_pool is not None:
+            return process_pool.submit(_run_operator_item_process, dict(lane_item), retry_budget).result()
+        return _run_operator_item_process(lane_item, retry_budget)
+
+    test_cmd = os.environ.get("SIMPLICIO_TEST_CMD", "").strip()
+    lane_verifier_for = (lambda _lane_id, _cmd=test_cmd: _cmd) if test_cmd else None
 
     lane_records: Dict[Tuple[int, ...], List[Dict[str, Any]]] = {}
 
@@ -9010,7 +9233,7 @@ def _wave_worktree_dispatch(
         for task_index in task_indices:
             lane_item = dict(items_by_index[task_index])
             lane_item["repo"] = str(worktree_path)
-            attempts = _run_operator_item_process(lane_item, retry_budget)
+            attempts = _dispatch_one(lane_item)
             record = attempts[-1]
             records.append(record)
             if record.get("status") != "succeeded":
@@ -9031,7 +9254,7 @@ def _wave_worktree_dispatch(
         records: List[Dict[str, Any]] = []
         try:
             for task_index in task_indices:
-                attempts = _run_operator_item_process(dict(items_by_index[task_index]), retry_budget)
+                attempts = _dispatch_one(dict(items_by_index[task_index]))
                 record = attempts[-1]
                 records.append(record)
                 if record.get("status") != "succeeded":
@@ -9042,24 +9265,48 @@ def _wave_worktree_dispatch(
         finally:
             lane_records[tuple(task_indices)] = records
 
-    # Worktrees live OUTSIDE the receipts run_dir -- seeding a lane's worktree
-    # copies the whole run_dir tree into it (`_seed_wave_lane_run_context`),
-    # which would recurse into itself if the worktree root were nested inside
-    # run_dir.
-    wave_scratch_dir = repo_path / ".simplicio" / "orchestrator" / "wave" / run_id
-    results = asyncio.run(wave_worktree.run_worktree_wave(
-        repo_path, wave_scratch_dir, lane_task_indices, base_commit, apply_fn, max_workers=max_workers,
-    ))
-    integration = wave_worktree.integrate_lane_results(repo_path, results, reapply_fn)
+    try:
+        # Worktrees live OUTSIDE the receipts run_dir -- seeding a lane's worktree
+        # copies the whole run_dir tree into it (`_seed_wave_lane_run_context`),
+        # which would recurse into itself if the worktree root were nested inside
+        # run_dir.
+        wave_scratch_dir = repo_path / ".simplicio" / "orchestrator" / "wave" / run_id
+        results = asyncio.run(wave_worktree.run_worktree_wave(
+            repo_path, wave_scratch_dir, lane_task_indices, base_commit, apply_fn,
+            max_workers=effective_workers, verifier_for=lane_verifier_for,
+            stop_requested=stop_requested,
+        ))
+        integration = wave_worktree.integrate_lane_results(
+            repo_path, results, reapply_fn, stop_requested=stop_requested,
+        )
+    finally:
+        if process_pool is not None:
+            process_pool.shutdown(wait=True)
     integrated_lane_ids = set(integration["integrated_lanes"])
+    repaired_lane_ids = set(integration.get("repaired_lanes", []))
+    stopped_lane_ids = set(integration.get("stopped_lanes", []))
 
     final_records: List[Dict[str, Any]] = []
     for lane_result in results:
         key = tuple(lane_result.task_indices)
+        if lane_result.status == "stopped" or lane_result.lane_id in stopped_lane_ids:
+            # Never started, or applied but not yet integrated when the stop
+            # fired: none of this lane's work is on the main repo. Record it
+            # as held/pending (resumable) -- never as a failure or a
+            # dead-letter -- the exact vocabulary `dispatch_operator_batch`
+            # already uses for a drained batch.
+            for task_index in lane_result.task_indices:
+                final_records.append({
+                    "schema": "simplicio.operator-worker/v1", "task_index": task_index,
+                    "run_id": run_id, "repo": str(repo_path),
+                    "status": "pending", "execution_state": "pending",
+                    "reason_code": "operator_stop_requested",
+                    "drain_status": "held", "dead_letter": False,
+                })
+            continue
         records = lane_records.get(key) or []
         if lane_result.lane_id in integrated_lane_ids:
-            # This lane's patch applied cleanly onto the main repo (the repair
-            # path re-runs directly on the main repo already) -- the real
+            # This lane's patch applied cleanly onto the main repo -- the real
             # per-task receipts it wrote live in the lane's isolated checkout;
             # copy them back so #1295's receipt gate and the oracle see them
             # exactly where every other dispatch path leaves them.
@@ -9069,6 +9316,28 @@ def _wave_worktree_dispatch(
                     src = lane_run / name
                     if src.is_file():
                         shutil.copy2(src, run_dir / name)
+        elif lane_result.lane_id not in repaired_lane_ids:
+            # Neither integrated nor repaired: this lane's own apply step or
+            # its declared verifier (`SIMPLICIO_TEST_CMD`) failed, so nothing
+            # of it ever reached the main repo. A per-task record here that
+            # still reads "succeeded" only reflects that one isolated
+            # worktree's own local result -- report it as blocked, never as a
+            # false "succeeded", so the receipt never claims a delivery that
+            # never happened. A record that already reports its own real
+            # failure is kept as-is.
+            corrected: List[Dict[str, Any]] = []
+            for record in records:
+                if isinstance(record, Mapping) and record.get("status") == "succeeded":
+                    record = dict(record)
+                    record["status"] = "blocked"
+                    record["execution_state"] = "not_integrated"
+                    record["reason_code"] = "wave_lane_not_integrated"
+                    record["dead_letter"] = False
+                corrected.append(record)
+            records = corrected
+        # A repaired lane's records come from `reapply_fn` running directly
+        # on the already-integrated main repo -- they are the real, final
+        # truth already and need no correction or receipt copy.
         final_records.extend(records)
         covered = {int(r.get("task_index")) for r in records if isinstance(r, Mapping) and r.get("task_index") is not None}
         for task_index in lane_result.task_indices:
@@ -9084,6 +9353,23 @@ def _wave_worktree_dispatch(
                 })
 
     wave_worktree.cleanup_worktrees(repo_path, results)
+
+    # Persist every terminal (non-pending) per-task record to this run's own
+    # operator-batch.jsonl -- the same durable journal `dispatch_operator_batch`
+    # reads/writes -- so a crash-recovery resume, on whichever path handles it
+    # next, recognizes a durably-succeeded task and never re-dispatches it.
+    for record in final_records:
+        if record.get("status") == "pending":
+            continue
+        # `record["repo"]` may still be the lane's ephemeral worktree path
+        # (each lane task runs with its item's "repo" pointed at that
+        # worktree) -- the journal's resume key must match the canonical
+        # repo/run_id every caller (this function and the classic path) uses
+        # to look an item up, never the worktree it happened to run in.
+        journal_record = dict(record)
+        journal_record["run_id"] = run_id
+        journal_record["repo"] = str(repo_path)
+        _append_jsonl(journal_path, journal_record)
 
     # Rebind repo_state_chain to the just-integrated tree so `verify`'s
     # staleness checks compare against what this run actually left, not a
@@ -9104,10 +9390,14 @@ def _wave_worktree_dispatch(
     except (OSError, TypeError, ValueError):
         pass
 
+    drained = bool(stopped_lane_ids) or any(r.status == "stopped" for r in results)
     return {
         "schema": "simplicio.operator-batch-receipt/v1",
         "workers": final_records,
-        "max_workers": max_workers or len(lane_task_indices),
+        "max_workers": effective_workers or len(lane_task_indices),
+        "max_workers_requested": max_workers,
+        "capacity_admission": capacity_admission,
+        "dispatch_mode": dispatch_mode,
         "serial_fallback_reason": "",
         "completed_task_indices": sorted(
             int(r["task_index"]) for r in final_records if r.get("status") == "succeeded"
@@ -9121,6 +9411,13 @@ def _wave_worktree_dispatch(
         "dead_letter_task_indices": sorted(
             int(r["task_index"]) for r in final_records if r.get("dead_letter")
         ),
+        "drain": {
+            "status": "drained" if drained else "not_requested",
+            "reason_code": "operator_stop_requested" if drained else "none",
+            "pending_task_indices": sorted(
+                int(r["task_index"]) for r in final_records if r.get("status") == "pending"
+            ),
+        },
         "wave": {
             "schema": wave_worktree.SCHEMA,
             "lanes": lane_task_indices,
@@ -9337,6 +9634,8 @@ def execute_operator_batch(
             repo_path=Path(status["manifest"].get("repo") or repo).resolve(),
             run_id=run_id, run_dir=run_dir, items=items,
             retry_budget=retry_budget, max_workers=max_workers,
+            physical_monitor_kwargs=physical_monitor_kwargs,
+            stop_requested=_batch_stop_requested,
         )
     if result is None:
         result = dispatch_operator_batch(
