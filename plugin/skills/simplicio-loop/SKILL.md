@@ -71,6 +71,7 @@ Coverage verifier: `python3 -m pytest -q --cov=calc --cov-report=term`
 
 - One `<Lane> verifier:` per quality lane; a lane without a command blocks and names the line to add. `Type: Docs|Chore|Config`, or `Tests: none`, waives the whole lane matrix for that task.
 - **No `Coverage verifier:` declared** and every file this delivery touches is non-code (`.html`/`.htm`/`.css`/`.md`/`.txt`/`.json`/`.yaml`/`.yml`/`.svg`) → coverage is honestly `not_applicable`, never a fabricated number or a permanent block. Any code file touched, or a declared verifier, keeps the strict numeric-threshold gate.
+- Tasks from any tracker → export JSON/CSV → `simplicio-loop intake --from tasks.json --repo .` (writes this same `tasks.md` grammar; no per-tool adapter needed — see `docs/CLI_COMMANDS.md` § Generic task intake).
 - Full format, worked example, and lane-matrix mechanics: `references/full-flow.md`.
 
 ## Done

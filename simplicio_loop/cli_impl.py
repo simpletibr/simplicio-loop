@@ -2250,6 +2250,9 @@ def main(argv=None) -> int:
     if argv_list[:1] == ["tasks"]:
         from .tasks_cli import main as tasks_main
         return tasks_main(argv_list[1:])
+    if argv_list[:1] == ["intake"]:
+        from .intake_cli import main as intake_main
+        return intake_main(argv_list[1:])
     if argv_list[:1] == ["run"]:
         return _redirect_run_to_wave(argv_list[1:])
     parser = argparse.ArgumentParser(
