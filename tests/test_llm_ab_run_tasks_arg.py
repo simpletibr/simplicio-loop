@@ -141,6 +141,92 @@ def test_run_arm_threads_settled_usage_as_next_tasks_baseline(monkeypatch, tmp_p
     assert baselines_seen == [100.0, 100.001]
 
 
+# -- ablation arms (issue #1337): ARM_CHOICES, _spec_for, arm_spec isolation
+
+def test_arm_choices_has_all_7_ablation_arms():
+    assert set(run.ARM_CHOICES) == {
+        "normal", "mapper", "mapper-fast", "devcli", "mapper-devcli", "fast-devcli", "simplicio",
+    }
+
+
+def test_default_arms_stays_the_classic_pair():
+    ap = run.build_arg_parser()
+    args = ap.parse_args([])
+    assert args.arms == "normal,simplicio"
+
+
+def test_build_arg_parser_accepts_a_single_ablation_arm():
+    ap = run.build_arg_parser()
+    args = ap.parse_args(["--arms", "mapper-devcli"])
+    assert args.arms == "mapper-devcli"
+
+
+def test_main_rejects_unknown_arm():
+    with pytest.raises(SystemExit):
+        run.main(["--arms", "bogus-arm"])
+
+
+def test_spec_for_returns_none_for_legacy_arms_by_default():
+    assert run._spec_for("normal") is None
+    assert run._spec_for("simplicio") is None
+
+
+def test_spec_for_returns_spec_for_ablation_only_arms():
+    assert run._spec_for("mapper") == run.bench_arms.ARM_SPECS["mapper"]
+
+
+def test_spec_for_force_isolate_applies_to_legacy_arms_too():
+    assert run._spec_for("normal", force_isolate=True) == run.bench_arms.ARM_SPECS["normal"]
+    assert run._spec_for("simplicio", force_isolate=True) == run.bench_arms.ARM_SPECS["simplicio"]
+
+
+def test_build_arg_parser_isolate_arms_defaults_to_false():
+    ap = run.build_arg_parser()
+    args = ap.parse_args([])
+    assert args.isolate_arms is False
+
+
+def test_run_arm_with_arm_spec_installs_skills_and_uses_isolated_path(monkeypatch, tmp_path):
+    """When ``arm_spec`` is given, ``run_arm`` must install that arm's
+    skills, build an isolated PATH from its bins, prefix the prompt, and
+    call ``run_opencode`` with ``skill=False`` (isolation supersedes the
+    legacy skill-install-inside-run_opencode path)."""
+    monkeypatch.setattr(run.checker, "seed_repo", lambda fixture_dir, dest: None)
+    monkeypatch.setattr(run.subprocess, "run", lambda *a, **k: None)
+    monkeypatch.setattr(run, "_commit_if_changed", lambda *a, **k: None)
+    monkeypatch.setattr(run.checker, "run_check", lambda *a, **k: (True, "ok", {}))
+    monkeypatch.setattr(run.lc, "get_key", lambda arm: f"key-{arm}")
+    monkeypatch.setattr(run.oc, "poll_settled_usage", lambda *a, **k: {"value": 1.0, "settled": True})
+
+    installed = []
+    monkeypatch.setattr(run.oc, "install_skills", lambda repo_dir, names: installed.append((repo_dir, names)))
+    monkeypatch.setattr(run.oc, "build_arm_path", lambda bins: f"shim-for-{','.join(bins)}")
+
+    calls = []
+
+    def fake_run_opencode(arm, text, repo_dir, *, key, config_dir, timeout, skill,
+                           isolated_path=None, usage_baseline, settle_reads,
+                           settle_interval_s, settle_max_wait_s):
+        calls.append({"text": text, "skill": skill, "isolated_path": isolated_path})
+        return {
+            "turns": 1, "llm_calls": [], "commands": [], "final_text": None,
+            "totals": run.oc.summarize([], []),
+            "usage_settled_value": 1.0,
+        }
+
+    monkeypatch.setattr(run.oc, "run_opencode", fake_run_opencode)
+
+    spec = {"skills": ["simplicio-mapper"], "bins": ["simplicio-mapper"], "prompt_prefix": "Use mapper. "}
+    task_list = [{"index": 1, "kind": "create", "text": "make a thing", "verify_stage": 1}]
+    run.run_arm("mapper", str(tmp_path / "fixture"), str(tmp_path / "repo"), sys.executable,
+                60, task_list=task_list, config_dir=str(tmp_path / "home"), arm_spec=spec)
+
+    assert installed == [(str(tmp_path / "repo"), ["simplicio-mapper"])]
+    assert calls[0]["skill"] is False
+    assert calls[0]["isolated_path"] == "shim-for-simplicio-mapper"
+    assert calls[0]["text"] == "Use mapper. make a thing"
+
+
 def test_build_batch_prompt_combines_all_task_texts_in_one_user_prompt():
     """Per-arm skill install/prefixing is ``opencode_agent.run_opencode``'s
     job now (``skill=True``); ``build_batch_prompt`` just concatenates the

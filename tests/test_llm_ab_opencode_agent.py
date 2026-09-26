@@ -101,6 +101,116 @@ def test_build_env_prepends_extra_path_for_simplicio_binaries():
     assert env["PATH"].endswith("/usr/bin")
 
 
+def test_build_env_isolated_path_replaces_path_entirely():
+    """``isolated_path`` (issue #1337 ablation arms) REPLACES PATH outright --
+    it must never be appended to the inherited PATH, or a binary excluded
+    from the isolated path could still be found further down the chain."""
+    env = oc.build_env("mapper", "k", "/tmp/oc-home", base_env={"PATH": "/usr/local/bin:/venv/bin"},
+                        isolated_path="/shim:/usr/bin:/bin")
+    assert env["PATH"] == "/shim:/usr/bin:/bin"
+    assert "/usr/local/bin" not in env["PATH"]
+    assert "/venv/bin" not in env["PATH"]
+
+
+def test_build_env_isolated_path_wins_over_extra_path():
+    env = oc.build_env("mapper", "k", "/tmp/oc-home", base_env={"PATH": "/usr/bin"},
+                        extra_path="/venv/bin", isolated_path="/shim")
+    assert env["PATH"] == "/shim"
+
+
+# -- install_skills / build_shim_dir / build_arm_path (issue #1337) ---------
+
+def test_install_skills_copies_each_named_skill(tmp_path):
+    dsts = oc.install_skills(str(tmp_path), ["simplicio-mapper", "simplicio-fast"])
+    assert len(dsts) == 2
+    for d in dsts:
+        assert os.path.isfile(os.path.join(d, "SKILL.md"))
+    assert os.path.isdir(os.path.join(str(tmp_path), ".claude", "skills", "simplicio-mapper"))
+    assert os.path.isdir(os.path.join(str(tmp_path), ".claude", "skills", "simplicio-fast"))
+
+
+def test_install_skills_empty_list_installs_nothing(tmp_path):
+    dsts = oc.install_skills(str(tmp_path), [])
+    assert dsts == []
+    assert not os.path.isdir(os.path.join(str(tmp_path), ".claude"))
+
+
+def test_install_skills_is_idempotent(tmp_path):
+    first = oc.install_skills(str(tmp_path), ["simplicio-dev-cli"])
+    second = oc.install_skills(str(tmp_path), ["simplicio-dev-cli"])
+    assert first == second
+
+
+def test_build_shim_dir_symlinks_only_the_requested_bins(tmp_path):
+    venv_bin = tmp_path / "venv-bin"
+    venv_bin.mkdir()
+    for name in ("simplicio-mapper", "simplicio-fast", "simplicio-dev-cli", "simplicio-loop"):
+        (venv_bin / name).write_text("#!/bin/sh\necho fake\n")
+        os.chmod(venv_bin / name, 0o755)
+    shim = oc.build_shim_dir(["simplicio-mapper"], venv_bin=str(venv_bin))
+    entries = sorted(os.listdir(shim))
+    assert entries == ["simplicio-mapper"]
+    assert os.path.realpath(os.path.join(shim, "simplicio-mapper")) == str(venv_bin / "simplicio-mapper")
+
+
+def test_build_shim_dir_skips_a_missing_binary(tmp_path):
+    venv_bin = tmp_path / "venv-bin"
+    venv_bin.mkdir()
+    (venv_bin / "simplicio-mapper").write_text("#!/bin/sh\n")
+    shim = oc.build_shim_dir(["simplicio-mapper", "simplicio-does-not-exist"], venv_bin=str(venv_bin))
+    assert os.listdir(shim) == ["simplicio-mapper"]
+
+
+def test_build_shim_dir_empty_bins_yields_an_empty_dir(tmp_path):
+    venv_bin = tmp_path / "venv-bin"
+    venv_bin.mkdir()
+    shim = oc.build_shim_dir([], venv_bin=str(venv_bin))
+    assert os.listdir(shim) == []
+
+
+def test_build_arm_path_is_shim_plus_fixed_system_dirs(tmp_path):
+    venv_bin = tmp_path / "venv-bin"
+    venv_bin.mkdir()
+    (venv_bin / "simplicio-mapper").write_text("#!/bin/sh\n")
+    path = oc.build_arm_path(["simplicio-mapper"], venv_bin=str(venv_bin))
+    parts = path.split(os.pathsep)
+    assert parts[1:] == list(oc.SYSTEM_PATH_DIRS)
+    assert os.path.isfile(os.path.join(parts[0], "simplicio-mapper"))
+
+
+def test_build_arm_path_never_includes_venv_bin_or_usr_local_bin(tmp_path):
+    venv_bin = tmp_path / "venv-bin"
+    venv_bin.mkdir()
+    path = oc.build_arm_path(["simplicio-mapper"], venv_bin=str(venv_bin))
+    assert str(venv_bin) not in path
+    assert "/usr/local/bin" not in path
+
+
+def test_arm_path_resolves_exactly_the_allowed_bins_via_shutil_which(tmp_path):
+    """The isolation contract from a caller's point of view: under the
+    arm's PATH, ``shutil.which`` finds exactly the allowed simplicio-*
+    binaries and none of the disallowed ones, even when a disallowed one
+    also exists in ``/usr/local/bin`` on the real system PATH (never
+    included in the isolated path at all)."""
+    import shutil as _shutil
+
+    venv_bin = tmp_path / "venv-bin"
+    venv_bin.mkdir()
+    all_bins = ["simplicio-mapper", "simplicio-fast", "simplicio-dev-cli", "simplicio-loop"]
+    for name in all_bins:
+        p = venv_bin / name
+        p.write_text("#!/bin/sh\n")
+        os.chmod(p, 0o755)
+
+    allowed = ["simplicio-mapper", "simplicio-dev-cli"]
+    path = oc.build_arm_path(allowed, venv_bin=str(venv_bin))
+
+    for name in allowed:
+        assert _shutil.which(name, path=path) is not None
+    for name in set(all_bins) - set(allowed):
+        assert _shutil.which(name, path=path) is None
+
+
 def test_build_command_never_puts_the_key_on_the_command_line():
     cmd = oc.build_command("/bin/opencode", "/repo", "do the thing")
     assert "sk-or" not in " ".join(cmd)
