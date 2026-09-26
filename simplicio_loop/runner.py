@@ -7148,6 +7148,22 @@ def _release_shared_context(item: Mapping[str, Any], worktree_queue: Any, *, for
 
 
 
+_DEPENDENCY_PREFIX_RE = re.compile(
+    r"^\s*(?:Depends on|Depende de|Depend[êe]ncia|Dependencia)\s*:\s*", re.I,
+)
+_DEPENDENCY_NOTE_RE = re.compile(r"\s*\([^)]*\)\s*$")
+_TASK_NUMBER_RE = re.compile(r"^(?:(?:task|tarefa)\s*#?\s*|#)(\d+)$", re.I)
+
+
+def _normalize_dependency_reference(item: Any) -> str:
+    """Reduce a dependency as an LLM writes it ("Depends on: task 1 (x.html)")
+    to the runner's own alias ("task-1"); ids and titles pass through."""
+    text = _DEPENDENCY_PREFIX_RE.sub("", str(item)).strip().lstrip("-* ")
+    text = _DEPENDENCY_NOTE_RE.sub("", text).strip()
+    number = _TASK_NUMBER_RE.match(text)
+    return f"task-{number.group(1)}" if number else text
+
+
 def _dependency_references(value: Any) -> list[str]:
     if isinstance(value, Mapping):
         value = value.get("items") or value.get("depends_on") or ()
@@ -7155,7 +7171,8 @@ def _dependency_references(value: Any) -> list[str]:
         value = [part.strip() for part in value.split(",")]
     if not isinstance(value, (list, tuple, set)):
         return []
-    return [str(item).strip() for item in value if str(item).strip()]
+    references = (_normalize_dependency_reference(item) for item in value)
+    return [reference for reference in references if reference]
 
 
 def _task_dependency_references(task: Mapping[str, Any], step: Mapping[str, Any] | None = None) -> tuple[str, ...]:
