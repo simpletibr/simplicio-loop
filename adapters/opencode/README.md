@@ -9,35 +9,66 @@ own config (`opencode.json`). No stop-hook → self-paced loop.
 bash scripts/install.sh opencode
 ```
 
-The installer ensures `AGENTS.md` loads `.claude/skills/simplicio-tasks/SKILL.md` + satellites
-and registers the MCP server in `opencode.json`.
+The installer copies the 7 skills into OpenCode's default-scanned skill locations (a repo-local
+`.claude/skills/` the installer writes into `--target`, plus OpenCode's own global
+`~/.config/opencode/skills/`) and registers the MCP server in `opencode.json` when a `simplicio`
+binary is found on `PATH` (best-effort; the loop never requires it — see "Native bind" below).
+
+## Use
+
+```
+opencode run "/simplicio-loop finish all the open issues"
+```
+
+## The actual flow: Mapper + Fast survey, Dev CLI apply — no Runtime, no MCP required
+
+`simplicio-loop` does not survey or edit with the LLM directly, and does not require Runtime/MCP
+to run at all. Every flow starts with a Mapper + Fast survey, then the host LLM decides the exact
+find/replace edits and hands them to Dev CLI to apply and verify:
+
+```bash
+mkdir -p .simplicio-loop
+simplicio-loop orient --brief --repo . --task "<task 1>" [--task "<task 2>" ...] --json \
+  > .simplicio-loop/brief.json
+# write .simplicio-loop/ops.json from the brief's apply.ops_format, then:
+simplicio-loop apply .simplicio-loop/ops.json --repo . --json
+# PASS: done. BLOCKED/FAIL: fix the named find/check, re-run apply.
+```
+
+`apply`/`prepare` refuse to run without that Mapper + Fast survey
+(`mapper_fast_provenance_missing`, nothing written) — the two REQUIRED operators are
+`simplicio-mapper` (survey) and `simplicio-dev-cli` (apply + verify), both installed transitively
+via the `simplicio-cli` package. `simplicio-loop` BLOCKS if either binary is absent. See
+`.claude/skills/simplicio-loop/SKILL.md` for the full protocol.
 
 ## Loop drive — self-paced
 
 Drive ticks headlessly on a schedule:
 
 ```bash
-*/2 * * * *  cd /repo && opencode run "/simplicio-tasks continue the open queue"
+*/2 * * * *  cd /repo && opencode run "/simplicio-loop continue the open queue"
 ```
 
-`simplicio-loop` advances the scratchpad and exits on the evidence-gated promise, the cap,
-spindle handoff, or explicit STOP.
+`simplicio-loop` advances its own state and exits on the evidence-gated promise, the cap, or an
+explicit STOP.
 
 ## Token economy
 
 `orient_clamp.py` works as-is. Reference it in `AGENTS.md` so heavy commands are clamped.
 
-## Native bind — MCP (optional)
+## Native bind — MCP (optional, never required)
 
-`simplicio-runtime` native binding is optional on OpenCode. A missing/unreachable bind reports
-explicit degraded mode while the standalone loop remains available. Add this to `opencode.json`
-when native capabilities are needed:
+There is no Runtime/MCP backend requirement in this stack: `simplicio-loop` runs standalone on
+its two required operators (`simplicio-mapper`, `simplicio-dev-cli`). The `simplicio-runtime`
+native bind (the `simplicio` CLI / MCP server, package `simplicio-runtime`) is an OPTIONAL
+acceleration on OpenCode, exactly as on every other adapter — when it is installed and reachable
+it supplies native integrations; when it is unavailable the loop records that those integrations
+were skipped and continues normally with its required Mapper/Dev CLI operators. Add this to
+`opencode.json` only if you have installed `simplicio-runtime` and want the native bind:
 
 ```json
 { "mcp": { "simplicio": { "type": "local", "command": ["simplicio", "serve", "--mcp", "--stdio"] } } }
 ```
-
-Use `simplicio doctor --json` to confirm the bind.
 
 ## MCP config
 
@@ -60,42 +91,20 @@ Use `simplicio doctor --json` to confirm the bind.
 
   (OpenCode inherits the working directory it was launched from; run `opencode` from the target
   repo, or set `environment`/`cwd` per your OpenCode version's config reference.)
-- **Verify:** `simplicio doctor --json | grep -A2 mcp-host-registration`, or `opencode mcp list`
-  if your version ships that subcommand. Tier: **best-effort** — OpenCode is Tier 2 (provider-
-  agnostic MCP support is documented upstream but not mechanically gated here).
+- **Verify:** `opencode mcp list` if your version ships that subcommand, or inspect
+  `opencode.json` directly. Tier: **best-effort** — OpenCode is Tier 2 (provider-agnostic MCP
+  support is documented upstream but not mechanically gated here).
 
-## Use
+## Skills: where OpenCode looks
 
-```
-opencode run "/simplicio-tasks finish all the open issues"
-```
+OpenCode scans a repo's `.claude/skills/` by default (in addition to its own native
+`.opencode/skills/`), confirmed by inspecting the installed `opencode` binary
+(`OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` is the documented opt-out, meaning the scan is on by
+default). `scripts/install.sh opencode` writes the skills into `.claude/skills/` in the install
+target and into OpenCode's own global `~/.config/opencode/skills/`; either location alone is
+enough for OpenCode to discover `simplicio-loop` and invoke it via `/simplicio-loop`.
 
 ## Progresso do run
 
 Self-paced (N2): the tick echoes the turn-header. Universal fallback (N3, works with any config):
 `watch -n5 cat .simplicio-loop/orchestrator/loop/PROGRESS.md`.
-
-## Ecosystem law (2026-08) — read on every host
-
-Canonical guide (what each project is, install, step-by-step):
-
-- In **simplicio-runtime**: `docs/ECOSYSTEM_LLM_GUIDE.md`
-- In **simplicio-loop**: `docs/ECOSYSTEM_LLM_GUIDE.md` (same content)
-
-| Project | Role |
-|---------|------|
-| **runtime** | Kernel: gates, MCP, **owns loop**, **owns execution-report**, decides `use_loop` |
-| **loop** | Protocol + hooks + Prism under Runtime authority |
-| **mapper / dev-cli / fast** | Operators — **work alone** without Runtime |
-| **agent** | Optional coordinator/desktop — not mandatory gateway |
-
-**Commands every host must know:**
-
-```bash
-simplicio loop decide --task "<work>" --json
-simplicio execution-report start|record-task|finish|show|consolidate --json
-simplicio-loop preflight --strict --json
-```
-
-After Runtime install on Windows: `packaging/windows/install.ps1` then pip-install loop/mapper/dev-cli and re-run preflight until operational.
-

@@ -212,9 +212,14 @@ EFFORT_COLUMNS = ("default", "low", "medium", "high")
 
 def build_effort_table(arms: dict) -> str:
     """Per-arm count of LLM calls at each reasoning-effort value (issue
-    #1310 follow-up: ``agg.effort_counts``). ``default`` means no
-    ``reasoning`` param was sent for that call (no hint yet, or
-    ``--effort-policy none``) -- the model's own default effort."""
+    #1310 follow-up: ``agg.effort_counts``). Since issue #1325 moved both
+    arms onto the real OpenCode CLI, every call reports ``reasoning_effort =
+    None`` (bucketed as ``default``) -- OpenCode's ``--variant`` flag only
+    picks a reasoning effort for the WHOLE ``opencode run`` invocation, not
+    per internal LLM step, so this table is expected to show 100% ``default``
+    for both arms; it is kept (not dropped) because it is real, non-empty
+    data that documents this limitation rather than hiding it -- see
+    STANDARD.md § OpenCode."""
     arm_names = list(arms)
     header = "<tr><th>braço</th>" + "".join(f"<th>{html_escape(c)}</th>" for c in EFFORT_COLUMNS) + "</tr>\n"
     rows = ""
@@ -288,7 +293,7 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
     cost_rows_html = build_cost_table(cost_report.get("cost_table") or [])
     is_batch = bool(meta.get("batch"))
     mode_label = "batch (todas as tarefas em uma sessão)" if is_batch else "sequencial (uma sessão por tarefa)"
-    effort_policy_label = meta.get("effort_policy") or "hints"
+    effort_policy_label = meta.get("effort_policy") or "opencode-managed"
     effort_table_html = build_effort_table(arms)
 
     html = f"""<!DOCTYPE html>
