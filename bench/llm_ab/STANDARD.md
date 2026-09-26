@@ -19,6 +19,14 @@ python3 bench/llm_ab/standard.py --keys-file /path/to/keys.env
 python3 bench/llm_ab/standard.py --reports-only <short-sha>
 ```
 
+**Cache is always part of the numbers.** Every cost reported anywhere is
+the real billed cost (OpenRouter generation stats, cache discount
+included), always shown next to the cache hit %, the same tokens'
+no-cache cost at the list prompt rate, and the $ the cache saved, priced
+from the run's own pricing snapshot. Never compare arms on raw token
+counts or list-price cost alone: a larger but mostly cached prompt can
+cost less than a smaller uncached one.
+
 `REPORT.html` opens with a summary table: each combination's total, plus
 create-only and edit-only rows for the sequential runs. A batch run is one
 agent session for every task, so its calls cannot be split per task; its
