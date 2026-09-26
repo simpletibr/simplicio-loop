@@ -101,6 +101,7 @@ addopts = ["--import-mode=importlib"]
 markers = [
   "external_integration: installed or network-backed lane excluded from the hermetic core gate",
   "satellite: opt-in satellite functionality excluded from the mandatory core gate",
+  "no_survey: apply tests that must run without the seeded Mapper + Fast survey",
 ]
 # The bundle/plugin trees mirror source files and are validated by mirror-parity.
 # Collect the canonical tests once instead of executing mirrored probes repeatedly.

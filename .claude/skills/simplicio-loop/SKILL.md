@@ -9,6 +9,8 @@ Self-referential loop: re-feed the SAME goal every turn; exit only on a typed `<
 Stack: `simplicio-mapper` (survey) → `simplicio-fast` (context) → `simplicio-dev-cli` (apply + verify) → `simplicio-loop` (run/wave/verify). **No Runtime. No MCP.**
 You (the host LLM) decide each change as exact find/replace text; the operators freeze, apply and verify it — the loop never hand-edits or calls a provider to write code.
 
+**Every flow starts with Mapper + Fast** (`orient --brief` or `orient`): `apply` and `prepare` refuse to run without that survey (`mapper_fast_provenance_missing`, nothing written).
+
 ## Hot path (default): 3 turns, any number of tasks
 
 ```bash

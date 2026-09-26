@@ -31,6 +31,9 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from .survey import MISSING_HINT as SURVEY_MISSING_HINT
+from .survey import MISSING_REASON as SURVEY_MISSING_REASON
+from .survey import provenance as survey_provenance
 from .effort import next_effort_for_status
 from .runner import _repo_fingerprint, _repo_state_equivalent
 
@@ -390,6 +393,14 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".", ops_path: str | Path 
     ops_sha = _ops_sha(ops)
     ignore_paths = _ops_ignore_paths(root, ops_path)
 
+    provenance = survey_provenance(root, ops.get("brief_generations"))
+    if provenance is None:
+        return {
+            "schema": APPLY_SCHEMA, "status": "BLOCKED", "reason_code": SURVEY_MISSING_REASON,
+            "run_id": run_id, "ops_sha": ops_sha, "hint": SURVEY_MISSING_HINT,
+            "next_effort": next_effort_for_status("BLOCKED"),
+        }
+
     expected_state = ops.get("repo_state_chain") if isinstance(ops.get("repo_state_chain"), Mapping) else None
     current_state: dict[str, str] | None = None
     if expected_state is not None:
@@ -444,6 +455,7 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".", ops_path: str | Path 
         "repo_state_before": before_state,
         "repo_state_after": after_state,
         "diff": diff,
+        "mapper_fast": provenance,
         "created_at": time.time(),
     }
     receipt_path = run_dir / "receipt.json"

@@ -233,6 +233,13 @@ def plan(task_path: str, out_path: str) -> int:
 
 def prepare(repo: str, task_path: str, delivery_arg: str, max_iterations: int) -> int:
     """Arm and preflight a run without executing a task or calling a provider."""
+    from .survey import MISSING_HINT, MISSING_REASON, provenance
+    if provenance(Path(repo).resolve()) is None:
+        print(json.dumps({"schema": "simplicio.prepare-receipt/v1", "status": "blocked",
+                          "reason_code": MISSING_REASON, "hint": MISSING_HINT,
+                          "execution_started": False, "mutation_attempted": False},
+                         ensure_ascii=False, indent=2))
+        return 2
     try:
         ensure_state_dir(Path(repo).resolve())
         delivery_target = delivery.normalize_delivery_target(delivery_arg)
@@ -1029,6 +1036,12 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
         return 0 if payload.get("status") in {"READY", "FALLBACK"} else 2
     payload, code = _orient_core(root, task, fast_mode, fast_context_budget,
                                   fast_engine, targets, verbose)
+    if payload.get("status") != "BLOCKED":
+        from .survey import write_survey
+        prov = _orient_provider_provenance(payload)
+        write_survey(root, [{"task": task, "operator": prov.get("operator"),
+                             "generation": prov.get("generation"),
+                             "context_hash": prov.get("context_hash")}])
     if tee:
         from .tee_cache import write
         path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
@@ -1231,6 +1244,7 @@ def _brief_apply_command(root: Path) -> dict[str, Any]:
                 "depends_on": ["<other task id, optional>"],
             }],
             "repo_state_chain": "<copy verbatim from this brief's own repo_state_chain field>",
+            "brief_generations": "<copy verbatim from this brief's own generations field (Mapper + Fast provenance)>",
         },
     }
 
@@ -1326,6 +1340,12 @@ def orient_brief(root: Path, tasks: list[str], *, fast_mode: str = "auto",
     payload["repo_state_chain"] = repo_state_chain
     payload["apply"] = _brief_apply_command(root)
     payload["effort"] = dict(PHASE_EFFORT)
+    if overall_status != "BLOCKED":
+        # `apply` refuses to run without this Mapper + Fast survey (issue #1318).
+        brief_path = ensure_state_dir(root) / "brief.json"
+        brief_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        from .survey import write_survey
+        write_survey(root, generations)
     return payload
 
 

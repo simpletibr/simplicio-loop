@@ -203,3 +203,16 @@ def test_brief_total_content_budget_is_enforced(tmp_path):
     total = sum(len(t["content"].encode("utf-8")) for t in payload["targets"])
     assert total <= 24 * 1024
     assert any(t["truncated"] for t in payload["targets"])
+
+
+def test_brief_writes_itself_to_state_dir_with_generations(tmp_path):
+    """Issue #1318: the brief persists `.simplicio-loop/brief.json` (the
+    Mapper + Fast provenance `apply` requires) and its ops format asks for
+    `brief_generations`."""
+    import json as _json
+
+    _repo(tmp_path, {"a.html": "<html></html>"})
+    payload = orient_brief(tmp_path, ["Edit a.html"])
+    saved = _json.loads((tmp_path / ".simplicio-loop" / "brief.json").read_text())
+    assert saved["generations"] == payload["generations"]
+    assert "brief_generations" in payload["apply"]["ops_format"]

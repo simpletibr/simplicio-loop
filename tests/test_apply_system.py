@@ -29,6 +29,13 @@ def _run_cli(*args: str, cwd: Path) -> subprocess.CompletedProcess:
     )
 
 
+def _survey(repo: Path, task: str) -> None:
+    """Every flow goes through Mapper + Fast (issue #1318): run the real
+    `orient --brief` so `apply` finds its survey."""
+    proc = _run_cli("orient", "--repo", ".", "--task", task, "--brief", "--json", cwd=repo)
+    assert proc.returncode == 0, proc.stderr[-2000:]
+
+
 def _seed_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -119,6 +126,7 @@ def test_apply_bad_find_is_blocked_and_tree_unchanged(tmp_path):
     ]}]}
     ops_path = tmp_path / "ops.json"
     ops_path.write_text(json.dumps(ops), encoding="utf-8")
+    _survey(repo, "Edit cadastro.html")
 
     proc = _run_cli("apply", str(ops_path), "--repo", ".", "--json", cwd=repo)
     result = json.loads(proc.stdout)
@@ -174,10 +182,26 @@ def test_apply_stale_repo_state_chain_is_blocked_and_tree_unchanged(tmp_path):
     }
     ops_path = tmp_path / "ops.json"
     ops_path.write_text(json.dumps(ops), encoding="utf-8")
+    _survey(repo, "Edit cadastro.html")
 
     proc = _run_cli("apply", str(ops_path), "--repo", ".", "--json", cwd=repo)
     result = json.loads(proc.stdout)
     assert result["status"] == "BLOCKED"
     assert result["reason_code"] == "stale_mapper_generation"
+    assert proc.returncode == 2
+    assert (repo / "cadastro.html").read_text(encoding="utf-8") == before
+
+
+def test_apply_without_orient_brief_is_blocked_and_tree_unchanged(tmp_path):
+    """No Mapper + Fast survey -> apply refuses (issue #1318)."""
+    repo = _seed_repo(tmp_path)
+    before = (repo / "cadastro.html").read_text(encoding="utf-8")
+    ops = {"tasks": [{"id": "t1", "operations": [
+        {"path": "cadastro.html", "find": before, "replace": "<html>x</html>"}]}]}
+    ops_path = tmp_path / "ops.json"
+    ops_path.write_text(json.dumps(ops), encoding="utf-8")
+    proc = _run_cli("apply", str(ops_path), "--repo", ".", "--json", cwd=repo)
+    result = json.loads(proc.stdout)
+    assert result["reason_code"] == "mapper_fast_provenance_missing"
     assert proc.returncode == 2
     assert (repo / "cadastro.html").read_text(encoding="utf-8") == before

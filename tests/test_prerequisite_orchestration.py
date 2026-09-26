@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 import pytest
 
@@ -158,6 +157,8 @@ def test_public_prepare_arms_a_run_without_executing_it(monkeypatch, capsys):
 
     monkeypatch.setattr(cli_impl, "arm_run", fake_arm)
     monkeypatch.setattr(cli_impl, "conduct_run", lambda *_args, **_kwargs: pytest.fail("execution started"))
+    from simplicio_loop import survey
+    monkeypatch.setattr(survey, "provenance", lambda *_a, **_k: {"generations": []})
 
     assert cli_impl.prepare("repo", "tasks.md", "verified", 12) == 0
     payload = json.loads(capsys.readouterr().out)

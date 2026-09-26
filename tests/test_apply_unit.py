@@ -16,6 +16,24 @@ import pytest
 from simplicio_loop import apply as apply_mod
 
 
+def seed_mapper_fast_survey(root):
+    """Write the minimal Mapper + Fast survey `simplicio-loop apply` requires
+    (issue #1318): the Mapper project map and the brief's per-task Fast
+    provenance, as a real `orient --brief` leaves them."""
+    state = root / ".simplicio-loop"
+    state.mkdir(parents=True, exist_ok=True)
+    (state / "project-map.json").write_text("{}", encoding="utf-8")
+    (state / "survey.json").write_text(json.dumps({"generations": [{
+        "task": "t", "operator": "simplicio-fast",
+        "generation": "sha256:test", "context_hash": "sha256:test"}]}), encoding="utf-8")
+
+
+@pytest.fixture(autouse=True)
+def _mapper_fast_survey(request, tmp_path):
+    if request.node.get_closest_marker("no_survey") is None:
+        seed_mapper_fast_survey(tmp_path)
+
+
 def _write(root, rel, content):
     path = root / rel
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -249,3 +267,32 @@ def test_run_result_carries_next_effort_low_on_blocked_validation(tmp_path):
     result = apply_mod.run(ops, repo=tmp_path)
     assert result["status"] == "BLOCKED"
     assert result["next_effort"] == PHASE_EFFORT["execute"]
+
+
+@pytest.mark.no_survey
+def test_run_without_mapper_fast_survey_is_blocked_and_writes_nothing(tmp_path):
+    """Every flow goes through Mapper + Fast: no survey, no apply."""
+    _write(tmp_path, "a.txt", "hello\n")
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}]}
+    result = apply_mod.run(ops, repo=tmp_path)
+    assert result["status"] == "BLOCKED"
+    assert result["reason_code"] == "mapper_fast_provenance_missing"
+    assert (tmp_path / "a.txt").read_text() == "hello\n"
+
+
+@pytest.mark.no_survey
+def test_run_with_fast_provenance_but_no_mapper_map_is_blocked(tmp_path):
+    _write(tmp_path, "a.txt", "hello\n")
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}],
+           "brief_generations": [{"operator": "simplicio-fast", "generation": "g", "context_hash": "c"}]}
+    assert apply_mod.run(ops, repo=tmp_path)["reason_code"] == "mapper_fast_provenance_missing"
+
+
+def test_run_receipt_records_mapper_fast_provenance(tmp_path, monkeypatch):
+    _write(tmp_path, "a.txt", "hello\n")
+    monkeypatch.setattr(apply_mod, "_apply_task_devcli",
+                        lambda root, task, run_dir: {"ok": True, "steps": [], "reason_code": None})
+    ops = {"tasks": [{"id": "t1", "operations": [{"path": "a.txt", "find": "hello", "replace": "bye"}]}]}
+    result = apply_mod.run(ops, repo=tmp_path)
+    receipt = json.loads(open(result["receipt_path"]).read())
+    assert receipt["mapper_fast"]["generations"][0]["context_hash"] == "sha256:test"

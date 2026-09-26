@@ -174,6 +174,9 @@ def _cli(args: list, cwd: Path) -> dict:
 
 
 def _prepare(repo: Path) -> str:
+    # Every flow goes through Mapper + Fast first (issue #1318).
+    oriented = _cli(["orient", "--repo", ".", "--task", "survey the repo", "--json"], repo)
+    assert oriented.get("status") != "BLOCKED", oriented
     payload = _cli(["prepare", "--task", "tasks.md", "--repo", "."], repo)
     assert payload["status"] == "prepared", payload
     return payload["run_id"]
