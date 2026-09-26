@@ -1,10 +1,10 @@
 """Fastest + cheapest operational profile for the Simplicio stack.
 
 Goals (operator contract):
-- **Tokens:** mapper handoff / Runtime MCP first; no host bulk-read; Fast hot path.
-- **CPU/RAM:** bounded workers from host CPU count; leave headroom for OS + Runtime Tokio.
+- **Tokens:** mapper handoff first; no host bulk-read; Fast hot path.
+- **CPU/RAM:** bounded workers from host CPU count; leave headroom for the OS.
 - **Parallel:** Prism slots + ``SIMPLICIO_LOOP_AUTO_FAN_OUT`` (worktree lanes) + asyncio
-  supervisor concurrency. Runtime uses Tokio natively when ``simplicio`` is bound.
+  supervisor concurrency.
 
 This module only *recommends and applies env*. Logical parallelism is unbounded;
 physical execution still requires measured capacity and lease/claim isolation
@@ -165,23 +165,11 @@ def recommend_async_concurrency(cpu: Optional[int] = None) -> int:
 def economy_parallel_env(
     *,
     env: Optional[Mapping[str, str]] = None,
-    runtime_operational: Optional[bool] = None,
     prism_slots: Optional[int] = None,
     operator_workers: Optional[int] = None,
     prism_batch_size: Optional[int] = None,
 ) -> dict[str, str]:
-    """Return env map for fastest token path + parallel drain/batch.
-
-    When ``runtime_operational`` is None, probes PATH for the native Runtime binary.
-    """
-    if runtime_operational is None:
-        try:
-            from .strict_mode import runtime_status
-
-            runtime_operational = bool(runtime_status(env).get("operational"))
-        except Exception:
-            runtime_operational = False
-
+    """Return env map for fastest token path + parallel drain/batch."""
     workers = (
         int(operator_workers)
         if operator_workers is not None
@@ -198,9 +186,7 @@ def economy_parallel_env(
         "SIMPLICIO_REQUIRE_MUTATION_AUTHORITY": "1",
         "SIMPLICIO_LOOP_AUTO_PLANNING_RECEIPT": "1",
         "SIMPLICIO_LOOP_FORBID_HAND_EDIT": "1",
-        # Adaptive: runtime-backed when Runtime is up, standalone when it isn't.
-        "SIMPLICIO_LOOP_REQUIRE_RUNTIME": "auto",
-        "SIMPLICIO_EXECUTION_PROFILE": "auto",
+        "SIMPLICIO_EXECUTION_PROFILE": "standalone",
         # Fast hot path (mmap / understand-plan-apply)
         "SIMPLICIO_FAST_MODE": "required",
         # Always latest packages on preflight
@@ -215,11 +201,6 @@ def economy_parallel_env(
         "SIMPLICIO_ECONOMY_PARALLEL": "1",
         "SIMPLICIO_ECONOMY_PROFILE": PROFILE_NAME,
     }
-    # Token economy MCP layer follows the measured Runtime state: bind it when
-    # Runtime is operational, degrade (never fake) when it is not.
-    mcp_flag = "1" if runtime_operational else "0"
-    out["SIMPLICIO_REQUIRE_MCP"] = mcp_flag
-    out["SIMPLICIO_MCP_FORCE"] = mcp_flag
     return out
 
 
@@ -228,14 +209,8 @@ def llm_max_speed_orientation_contract() -> dict[str, Any]:
     return {
         "schema": "simplicio.llm-max-speed-orientation/v1",
         "canonical_doc": "docs/LLM_MAX_SPEED_ORIENTATION.md",
-        "runtime_twin": "simplicio-runtime/docs/LLM_MAX_SPEED_ORIENTATION.md",
         "skill_block": "plugin/skills/simplicio-loop/SKILL.md <!-- SIMPLICIO-LLM-ORIENTATION -->",
-        "law": "act>narrate; Runtime loop decide; Mapper→Fast→dev-cli; 1-3 direct / Prism>3; lease isolation; smallest AC gate; MEASURED only",
-        "control_plane": {
-            "authority": "simplicio-runtime",
-            "command": "simplicio loop decide --task … --repo . --json",
-            "host_may_override": False,
-        },
+        "law": "act>narrate; Mapper→Fast→dev-cli; 1-3 direct / Prism>3; lease isolation; smallest AC gate; MEASURED only",
         "context_route": {
             "primary": "simplicio-fast",
             "fallback": "simplicio-mapper",
@@ -249,7 +224,7 @@ def llm_max_speed_orientation_contract() -> dict[str, Any]:
         },
         "mutation_boundary": {
             "authorized": False,
-            "next_surfaces": ["simplicio-dev-cli task", "simplicio edit --plan"],
+            "next_surfaces": ["simplicio-dev-cli edit --plan --compile", "simplicio-dev-cli edit --plan --apply"],
         },
         "receipt_schema": "simplicio.loop-orient-receipt/v1",
         "message_cadence": ["DONE", "NEXT", "BLOCKED"],
@@ -257,23 +232,9 @@ def llm_max_speed_orientation_contract() -> dict[str, Any]:
             "full-repo fmt/test residual thrash",
             "3-reviewer panels on metadata-only",
             "hand-edit under STRICT",
-            "peer /simplicio-loop bypass when Runtime owns activation",
             "N full agents on one dirty tree without worktrees",
         ],
     }
-
-
-def _resolve_runtime_operational(
-    env: Optional[Mapping[str, str]], runtime_operational: Optional[bool]
-) -> bool:
-    if runtime_operational is not None:
-        return bool(runtime_operational)
-    try:
-        from .strict_mode import runtime_status
-
-        return bool(runtime_status(env).get("operational"))
-    except Exception:
-        return False
 
 
 def _persisted_env_matches(recommended: Mapping[str, str]) -> bool:
@@ -317,13 +278,8 @@ def _drift_explanation(
 
 def profile_status(
     env: Optional[Mapping[str, str]] = None,
-    *,
-    runtime_operational: Optional[bool] = None,
 ) -> dict[str, Any]:
-    resolved_runtime_operational = _resolve_runtime_operational(env, runtime_operational)
-    recommended = economy_parallel_env(
-        env=env, runtime_operational=resolved_runtime_operational
-    )
+    recommended = economy_parallel_env(env=env)
     source = os.environ if env is None else env
     applied = {
         key: str(source.get(key, ""))
@@ -331,8 +287,8 @@ def profile_status(
         if str(source.get(key, "")).strip() != ""
     }
     missing = [k for k, v in recommended.items() if str(source.get(k, "")).strip() != v]
-    execution_profile = "runtime-backed" if resolved_runtime_operational else "standalone"
-    note = None if resolved_runtime_operational else "UNVERIFIED|runtime_unavailable"
+    execution_profile = "standalone"
+    note = None
     drift_explanation = _drift_explanation(
         drift_keys=missing,
         persisted_matches=_persisted_env_matches(recommended),
@@ -349,22 +305,19 @@ def profile_status(
         "drift_explanation": drift_explanation["reason"],
         "drift_fix": drift_explanation["fix"],
         "aligned": len(missing) == 0,
-        "runtime_operational": resolved_runtime_operational,
         "execution_profile": execution_profile,
         "note": note,
         "backends": {
-            "runtime_tokio": "native when simplicio-runtime bound",
             "python_asyncio": "async_io_supervisor + async_bounded_queue + batch fan-out",
             "prism": "arm_drain_prism + SIMPLICIO_PRISM_SLOTS + lease isolation",
         },
         "hot_path": [
-            "simplicio loop decide --task \"…\" --repo . --json",
             "simplicio-loop preflight --strict --json",
             "simplicio-mapper scan . --await --json",
             "simplicio-mapper handoff . --for-llm toon --await",
             "simplicio-fast understand|plan|apply (when operational)",
             "simplicio-loop batch (AUTO_FAN_OUT worktrees) or arm_drain_prism --slots 0 --batch-size N",
-            "mutate: simplicio-dev-cli task (STRICT)",
+            "mutate: simplicio-dev-cli edit --plan --apply (STRICT)",
         ],
         # Always-on LLM orientation for hosts (max safe speed)
         "llm_orientation": llm_max_speed_orientation_contract(),
@@ -375,12 +328,9 @@ def apply_to_environ(
     target: MutableMapping[str, str],
     *,
     env: Optional[Mapping[str, str]] = None,
-    runtime_operational: Optional[bool] = None,
 ) -> dict[str, str]:
     """Mutate a mapping (e.g. os.environ) with the profile; return applied pairs."""
-    recommended = economy_parallel_env(
-        env=env, runtime_operational=runtime_operational
-    )
+    recommended = economy_parallel_env(env=env)
     for key, value in recommended.items():
         target[key] = value
     return recommended
@@ -456,12 +406,10 @@ def persist_posix_rc(sh_path: Path) -> list[str]:
 
 def persist_user_profile(
     *,
-    runtime_operational: Optional[bool] = None,
     set_windows_user_env: bool = True,
 ) -> dict[str, Any]:
     """Write ~/.simplicio/economy-parallel-env.* and optionally Windows User env."""
-    resolved_runtime_operational = _resolve_runtime_operational(None, runtime_operational)
-    recommended = economy_parallel_env(runtime_operational=resolved_runtime_operational)
+    recommended = economy_parallel_env()
     paths = user_env_paths()
     paths["dir"].mkdir(parents=True, exist_ok=True)
     paths["json"].write_text(
@@ -541,8 +489,6 @@ def persist_user_profile(
             "new interactive shells pick it up. This process is updated in-place."
         )
 
-    if not resolved_runtime_operational:
-        note = f"{note} UNVERIFIED|runtime_unavailable"
     return {
         "schema": SCHEMA,
         "ok": True,
@@ -550,8 +496,7 @@ def persist_user_profile(
         "paths": {k: str(v) for k, v in paths.items()},
         "env": recommended,
         "windows_user_env_keys": windows_set,
-        "runtime_operational": resolved_runtime_operational,
-        "execution_profile": "runtime-backed" if resolved_runtime_operational else "standalone",
+        "execution_profile": "standalone",
         "rc_files_changed": rc_files_changed,
         "note": note,
     }

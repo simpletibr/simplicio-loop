@@ -1,4 +1,4 @@
-"""Bound operators: core always required; Runtime adaptive when operational."""
+"""Bound operators: core mapper + dev-cli always required; Fast adaptive under strict."""
 from __future__ import annotations
 
 import importlib.util
@@ -30,11 +30,10 @@ def test_missing_bound_operators_flags_required_mapper(monkeypatch, tmp_path):
     monkeypatch.setattr(loop_stop, "_action_operator_operational", lambda: True)
     monkeypatch.setattr(loop_stop.shutil, "which", lambda b: None if b == "simplicio-mapper" else "/usr/bin/" + b)
     monkeypatch.delenv("SIMPLICIO_LOOP_STRICT", raising=False)
-    monkeypatch.setenv("SIMPLICIO_LOOP_REQUIRE_RUNTIME", "off")
     assert loop_stop.missing_bound_operators() == ["simplicio-mapper"]
 
 
-def test_missing_bound_operators_empty_when_core_present_runtime_absent(monkeypatch, tmp_path):
+def test_missing_bound_operators_empty_when_core_present(monkeypatch, tmp_path):
     _marker(tmp_path, monkeypatch)
     monkeypatch.setattr(
         loop_stop,
@@ -42,39 +41,9 @@ def test_missing_bound_operators_empty_when_core_present_runtime_absent(monkeypa
         lambda binary, args=("--version",): binary in {"simplicio-mapper"},
     )
     monkeypatch.setattr(loop_stop, "_action_operator_operational", lambda: True)
-    monkeypatch.setattr(loop_stop.shutil, "which", lambda b: None if b == "simplicio" else "/usr/bin/" + b)
-    monkeypatch.setenv("SIMPLICIO_LOOP_REQUIRE_RUNTIME", "auto")
+    monkeypatch.setattr(loop_stop.shutil, "which", lambda b: "/usr/bin/" + b)
     monkeypatch.delenv("SIMPLICIO_LOOP_STRICT", raising=False)
     assert loop_stop.missing_bound_operators() == []
-
-
-def test_runtime_required_when_operational_auto(monkeypatch, tmp_path):
-    _marker(tmp_path, monkeypatch)
-
-    def operational(binary, args=("--version",)):
-        return binary in {"simplicio-mapper", "simplicio"}
-
-    monkeypatch.setattr(loop_stop, "_binary_operational", operational)
-    monkeypatch.setattr(loop_stop, "_action_operator_operational", lambda: True)
-    monkeypatch.setattr(loop_stop.shutil, "which", lambda b: "/usr/bin/" + b)
-    monkeypatch.setenv("SIMPLICIO_LOOP_REQUIRE_RUNTIME", "auto")
-    required = loop_stop.required_bound_operators()
-    assert "simplicio" in required
-    # Still present → not missing
-    assert loop_stop.missing_bound_operators() == []
-
-
-def test_runtime_missing_blocks_when_required(monkeypatch, tmp_path):
-    _marker(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        loop_stop,
-        "_binary_operational",
-        lambda binary, args=("--version",): binary == "simplicio-mapper",
-    )
-    monkeypatch.setattr(loop_stop, "_action_operator_operational", lambda: True)
-    monkeypatch.setattr(loop_stop.shutil, "which", lambda b: None if b == "simplicio" else "/usr/bin/" + b)
-    monkeypatch.setenv("SIMPLICIO_LOOP_REQUIRE_RUNTIME", "required")
-    assert "simplicio" in loop_stop.missing_bound_operators()
 
 
 def test_strict_requires_operational_fast(monkeypatch, tmp_path):
@@ -87,5 +56,4 @@ def test_strict_requires_operational_fast(monkeypatch, tmp_path):
     monkeypatch.setattr(loop_stop, "_action_operator_operational", lambda: True)
     monkeypatch.setattr(loop_stop.shutil, "which", lambda b: "/usr/bin/" + b)
     monkeypatch.setenv("SIMPLICIO_LOOP_STRICT", "1")
-    monkeypatch.setenv("SIMPLICIO_LOOP_REQUIRE_RUNTIME", "off")
     assert "simplicio-fast" in loop_stop.required_bound_operators()
