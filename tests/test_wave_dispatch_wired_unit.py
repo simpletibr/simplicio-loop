@@ -73,6 +73,11 @@ def _intervals_overlap(a, b) -> bool:
 
 
 def test_three_disjoint_tasks_form_three_lanes_and_run_concurrently(tmp_path, monkeypatch):
+    # This test stubs the per-task worker with a local closure (`fake`), which
+    # cannot cross a real process boundary -- same reason every classic-dispatch
+    # unit test that stubs a worker this way pins thread mode (AGENTS.md item 2:
+    # the wave path now honors SIMPLICIO_LOOP_DISPATCH_MODE, default "process").
+    monkeypatch.setenv("SIMPLICIO_LOOP_DISPATCH_MODE", "thread")
     repo = _init_repo(tmp_path)
     run_id = "wave-run-1"
     run_dir = _seed_run_dir(repo, run_id)
@@ -137,6 +142,7 @@ def test_lane_conflict_at_integration_reapplies_serially_on_main_repo(tmp_path, 
     """One lane's patch no longer applies (a real conflicting commit lands on
     the main repo between the lane's worktree run and integration) -- the
     lane's task is re-run directly on the main repo, not dead-lettered."""
+    monkeypatch.setenv("SIMPLICIO_LOOP_DISPATCH_MODE", "thread")
     repo = _init_repo(tmp_path)
     run_id = "wave-run-conflict"
     run_dir = _seed_run_dir(repo, run_id)
