@@ -1,5 +1,9 @@
 # bench/llm_ab — LLM A/B benchmark: agent with vs without the simplicio-loop skill
 
+For the canonical release matrix (tasks 1+4, sequential+batch, the one
+`standard.sh`/`standard.py` command, metrics, results naming and the "run it
+every release" policy), see [`STANDARD.md`](STANDARD.md).
+
 Compares the SAME agentic coding loop (`agent.py`) run twice on the same
 dependent tasks (`--tasks`, default 2) and the same model:
 
@@ -105,7 +109,30 @@ python3 bench/llm_ab/report.py --results bench/llm_ab/results/<file>.json \
 
 Useful flags: `--tasks {1,2,4}` (default 2, see "Task sets" above),
 `--max-turns` (default 30, caps LLM calls per task), `--cmd-timeout`
-(default 180s, per bash-tool command).
+(default 180s, per bash-tool command), `--batch` (all tasks in ONE user
+prompt / one agent session per arm instead of one session per task --
+acceptance is still checked per task by the harness after the session; adds
+a `-batch` suffix to the results filename), `--effort-policy {hints,none}`
+(default `hints`: honor the most recent `effort`/`next_effort` hint parsed
+from a simplicio tool output for the next LLM call's reasoning effort; see
+"Per-phase reasoning effort" below).
+
+## Per-phase reasoning effort (issue #1310 follow-up)
+
+`simplicio_loop/effort.py` gives `orient --brief` an `effort` table
+(`plan`/`execute`/`review`) and `simplicio-loop apply`'s result a
+`next_effort` field. With `--effort-policy hints` (the default), `agent.py`
+parses the most recent such hint out of the simplicio arm's own tool output
+(`agent.parse_effort_hint`) and sends it as OpenRouter's
+`"reasoning": {"effort": ...}` on the NEXT LLM call
+(`llm_client.chat(..., reasoning_effort=...)`) -- until a hint is seen, no
+`reasoning` field is sent at all (the model's own default). The normal arm
+never runs a command that prints such a hint, so it naturally stays at
+`default` for the whole run -- no per-arm branching in `agent.py` itself.
+`--effort-policy none` disables this for the A/B control. Every LLM call
+records its own `reasoning_effort` (`None`/`"low"`/`"medium"`/`"high"`);
+`aggregate.effort_counts` and `report.build_effort_table` show the per-arm
+distribution.
 
 ## What each metric means
 
@@ -190,3 +217,6 @@ directly -- reported vs computed cost side by side, per arm and task kind.
   pricing once, and drives both arms through `agent.py`.
 - `fixture/` — the minimal seed repo (`README.md`, placeholder
   `cadastro.html`/`login.html`, `tests/check_cadastro.py`/`check_login.py`).
+- `standard.py` / `standard.sh` — the ONE canonical benchmark matrix command
+  (tasks 1+4, sequential+batch, both arms) for every release; see
+  [`STANDARD.md`](STANDARD.md).
