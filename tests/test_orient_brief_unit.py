@@ -257,3 +257,58 @@ def test_brief_apply_example_is_a_valid_concrete_ops_json(tmp_path):
     assert dependents, "example must include a dependent edit (depends_on)"
     checked = [t for t in tasks if t["check"]]
     assert checked, "example must include a task with a check command"
+
+
+# --- issue #1336: compact, deterministic `orient --brief` CLI stdout -------
+
+
+def _git_repo_with_file(tmp_path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / "a.html").write_text("<html></html>", encoding="utf-8")
+    return tmp_path
+
+
+def test_brief_cli_stdout_is_a_single_line_no_indentation(tmp_path, capsys):
+    """Compact JSON (no ``indent=2``) by default: this text is fed back to
+    the model as OpenCode tool output and becomes part of the next prompt,
+    so its size directly affects the prompt-cache-relevant prefix."""
+    from simplicio_loop import cli
+
+    repo = _git_repo_with_file(tmp_path)
+    assert cli.orient(str(repo), "Edit a.html", brief=True, tasks=["Edit a.html"]) in (0, 2)
+    out = capsys.readouterr().out
+    assert out.rstrip("\n").count("\n") == 0
+
+
+def test_brief_cli_stdout_is_deterministic_across_two_runs_on_same_tree(tmp_path, capsys):
+    from simplicio_loop import cli
+
+    repo = _git_repo_with_file(tmp_path)
+    cli.orient(str(repo), "Edit a.html", brief=True, tasks=["Edit a.html"])
+    first = capsys.readouterr().out
+    cli.orient(str(repo), "Edit a.html", brief=True, tasks=["Edit a.html"])
+    second = capsys.readouterr().out
+    assert first == second
+
+
+def test_brief_cli_stdout_compact_is_smaller_than_pretty(tmp_path, capsys):
+    from simplicio_loop import cli
+
+    repo = _git_repo_with_file(tmp_path)
+    cli.orient(str(repo), "Edit a.html", brief=True, tasks=["Edit a.html"])
+    compact = capsys.readouterr().out
+    cli.orient(str(repo), "Edit a.html", brief=True, tasks=["Edit a.html"], pretty=True)
+    pretty = capsys.readouterr().out
+    assert json.loads(compact) == json.loads(pretty)
+    assert len(compact.encode("utf-8")) < len(pretty.encode("utf-8"))
+    assert pretty.rstrip("\n").count("\n") > 0
+
+
+def test_brief_cli_pretty_flag_keeps_route_as_first_key(tmp_path, capsys):
+    """``--pretty`` only changes formatting, never key order/content."""
+    from simplicio_loop import cli
+
+    repo = _git_repo_with_file(tmp_path)
+    cli.orient(str(repo), "Edit a.html", brief=True, tasks=["Edit a.html"], pretty=True)
+    out = capsys.readouterr().out
+    assert next(iter(json.loads(out))) == "route"

@@ -163,3 +163,56 @@ def test_find_chromium_honors_env(monkeypatch, tmp_path):
     fake.chmod(0o755)
     monkeypatch.setenv("SIMPLICIO_BENCH_CHROMIUM", str(fake))
     assert standard.find_chromium() == str(fake)
+
+
+# --- issue #1336: STANDARD.md's simplicio cache-hit >= 80% gate (target 90%) -
+
+
+def test_flag_low_simplicio_cache_hit_marks_the_hit_cell():
+    cells = ["3/3", "10", "5.0", "$0.01000", "75.0%", "$0.02000", "$0.01000"]
+    standard._flag_low_simplicio_cache_hit(cells, 75.0)
+    assert "⚠" in cells[standard._ARM_CELL_CACHE_HIT_INDEX]
+    assert "<80%" in cells[standard._ARM_CELL_CACHE_HIT_INDEX]
+    assert "75.0%" in cells[standard._ARM_CELL_CACHE_HIT_INDEX]  # original value kept, not replaced
+
+
+def test_flag_low_simplicio_cache_hit_leaves_cell_alone_at_the_gate():
+    cells = ["3/3", "10", "5.0", "$0.01000", "80.0%", "$0.02000", "$0.01000"]
+    before = list(cells)
+    standard._flag_low_simplicio_cache_hit(cells, 80.0)
+    assert cells == before
+
+
+def _cache_hit_results(normal_cached: int, simplicio_cached: int) -> dict:
+    def totals(cached):
+        return {"prompt_tokens": 100, "cached_tokens": cached, "completion_tokens": 5, "cost_usd": 0.01}
+
+    return {
+        "meta": {"pricing": {}, "batch": False},
+        "arms": {
+            "normal": {"tasks": [{"kind": "create", "success": True, "turns": 1, "wall_s": 1.0,
+                                   "totals": totals(normal_cached)}]},
+            "simplicio": {"tasks": [{"kind": "create", "success": True, "turns": 1, "wall_s": 1.0,
+                                      "totals": totals(simplicio_cached)}]},
+        },
+    }
+
+
+def test_summary_rows_flags_simplicio_below_cache_hit_gate():
+    rows = standard.summary_rows("t1", _cache_hit_results(normal_cached=90, simplicio_cached=50))
+    joined = "".join(rows)
+    assert "⚠" in joined
+    assert "<80%" in joined
+
+
+def test_summary_rows_does_not_flag_simplicio_at_or_above_cache_hit_gate():
+    rows = standard.summary_rows("t1", _cache_hit_results(normal_cached=90, simplicio_cached=95))
+    joined = "".join(rows)
+    assert "⚠" not in joined
+
+
+def test_build_markdown_flags_simplicio_below_cache_hit_gate():
+    results = _cache_hit_results(normal_cached=90, simplicio_cached=50)
+    md = standard.build_markdown([("t1", "/out/r.json", "/out/REPORT-t1.html")], {"t1": results})
+    assert "⚠" in md
+    assert "<80%" in md

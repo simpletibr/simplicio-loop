@@ -31,6 +31,23 @@ from the run's own pricing snapshot. Never compare arms on raw token
 counts or list-price cost alone: a larger but mostly cached prompt can
 cost less than a smaller uncached one.
 
+**Requirement: simplicio arm prompt-cache hit >= 80%, target 90% (issue #1336).**
+Every combination's `simplicio` arm must reach a cache hit rate of at
+least 80% (`standard.SIMPLICIO_CACHE_HIT_GATE_PCT`); the target, still being
+worked on in #1336, is 90% (`SIMPLICIO_CACHE_HIT_TARGET_PCT`), and the gate
+moves up to it once runs reach it. The summary table
+in `REPORT.html`, `REPORT.md`, and the PDF flags any combination below
+that gate on its cache-hit cell (`⚠ X.Y% (<80%)`) -- report-only,
+it never changes the underlying cost/cache numbers. The two levers that
+make the gate achievable: (1) a **stable prefix** -- each arm's repo (and
+OpenCode's own config/data dirs) live at a fixed, wiped-and-reseeded-per-run
+path (`run.default_work_dir`), never a fresh random directory, so OpenCode's
+system prompt (which embeds the working directory) is byte-identical across
+tasks and sessions; and (2) **compact, deterministic loop output** --
+`simplicio-loop orient --brief` and `apply` emit stable-key-order JSON with
+no indentation and no timestamps/run-ids ahead of the content that matters,
+so the tool-output text the model sees is smaller and unchanged run to run.
+
 Outputs of every run (also from `--reports-only`):
 
 - `REPORT.pdf` — **the report to share**: the summary plus every

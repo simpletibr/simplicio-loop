@@ -250,9 +250,22 @@ def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
 
 
 def default_work_dir() -> str:
-    """A fresh temp dir OUTSIDE this repository, so an agent exploring its
-    workspace can never wander into the simplicio-loop source tree."""
-    return tempfile.mkdtemp(prefix="llm-ab-")
+    """A STABLE dir OUTSIDE this repository, so an agent exploring its
+    workspace can never wander into the simplicio-loop source tree.
+
+    Issue #1336: this used to be a fresh ``tempfile.mkdtemp`` per invocation,
+    so each arm's repo (and OpenCode's own config/data dirs, derived from
+    the same work dir) lived at a different random path every run. OpenCode
+    puts the working directory in its system prompt, so a random path made
+    the first and largest call of every task -- system + skill prompt --
+    unable to hit the model provider's prompt cache across sessions, even
+    though nothing about the repo or skill content had changed. A fixed
+    path makes that prefix byte-identical run over run; each arm's own
+    subdirectory is still wiped and reseeded by ``checker.seed_repo`` before
+    every ``run_arm``/``run_arm_batch`` call, so reuse is safe."""
+    path = os.path.join(tempfile.gettempdir(), "llm-ab")
+    os.makedirs(path, exist_ok=True)
+    return path
 
 
 def result_filename(date: str, short_sha: str, task_count: int, batch: bool = False) -> str:
@@ -289,7 +302,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     ap.add_argument(
         "--work-dir", default=None,
-        help="scratch directory for each arm's seeded repo (default: a temp dir under --out)",
+        help=(
+            "scratch directory for each arm's seeded repo (default: a STABLE "
+            "path, `<tmpdir>/llm-ab`, reused and re-seeded every run -- issue "
+            "#1336, so OpenCode's system prompt stays byte-identical across "
+            "sessions for prompt-cache hits)"
+        ),
     )
     ap.add_argument(
         "--python-bin", default=sys.executable,
