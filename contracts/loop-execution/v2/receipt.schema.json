@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "simplicio.loop-execution/v2",
   "title": "Universal simplicio.loop-execution/v2 envelope",
-  "$comment": "Successor to the verified-success simplicio.loop-execution/v1 receipt. This is the one canonical envelope for run, tick, batch, single-task-fast, wave, and prism observations.",
+  "$comment": "Successor to the verified-success simplicio.loop-execution/v1 receipt. This is the one canonical envelope for run, tick, batch, wave, and prism observations.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -26,7 +26,7 @@
     "envelope_id": { "type": "string", "minLength": 1 },
     "run_id": { "type": "string", "minLength": 1 },
     "flow": {
-      "enum": ["run", "tick", "batch", "single-task-fast", "wave", "prism"]
+      "enum": ["run", "tick", "batch", "wave", "prism"]
     },
     "status": {
       "enum": ["complete", "partial", "blocked", "error", "expected_governor_blocked"]

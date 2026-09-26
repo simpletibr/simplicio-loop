@@ -142,7 +142,7 @@ following parent-directory paths or reading files that are still changing.
 Runtime chain remains `simplicio-loop → simplicio-mapper → simplicio-dev-cli → simplicio-runtime`
 for v1 compatibility; Fast evidence is additive and does not alter that chain's field order.
 
-All public execution flows (`run`, `tick`, `batch`, `wave`, `prism`, and `single-task-fast`) use
+All public execution flows (`run`, `tick`, `batch`, `wave`, and `prism`) use
 this same publisher boundary. A flow may report `BLOCKED`, `PARTIAL`, or `ERROR` as an additive
 diagnostic projection, but it cannot report a verified v1 receipt unless the durable Mapper,
 frozen stack/Fast, Dev CLI, watcher/evidence, delivery, quality, and completion-oracle artifacts
@@ -159,7 +159,7 @@ are present and valid. A completed dispatch result without that v1 publication i
 ## Universal execution successor
 
 The v1 receipt remains the verified-success projection described above. The
-transport-neutral envelope for `run`, `tick`, `batch`, `single-task-fast`, `wave`,
+transport-neutral envelope for `run`, `tick`, `batch`, `wave`,
 and `prism` is the explicit successor
 [`simplicio.loop-execution/v2`](../v2/SCHEMA.md). v2 preserves v1 receipts as a
 verified-success subset and adds fail-closed partial, blocked, error, and expected

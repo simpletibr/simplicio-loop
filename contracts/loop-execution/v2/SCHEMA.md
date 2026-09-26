@@ -4,7 +4,7 @@ This is the canonical universal execution envelope for the existing Loop
 execution family. It is produced and validated by the pure
 `simplicio_loop.execution_envelope` core and is transport-neutral across:
 
-`run`, `tick`, `batch`, `single-task-fast`, `wave`, and `prism`.
+`run`, `tick`, `batch`, `wave`, and `prism`.
 
 ## Why v2
 

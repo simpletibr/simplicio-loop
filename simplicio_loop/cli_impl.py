@@ -51,7 +51,6 @@ from .loop_execution_receipt import (
     publish_loop_execution_for_flow,
 )
 from .execution_adapters import expected_governor_blocked, persist_execution_envelope
-from .intake_planner import dispatch_single_task_fast
 from .task_contract import compile_many, main as task_contract_main, preview_contract
 from .ops_ledger import (
     CONTEXT_SCHEMA,
@@ -2382,20 +2381,6 @@ def main(argv=None) -> int:
         }
         queue_command = queue_sub.add_parser(queue_action, help=queue_help_text[queue_action])
         queue_command.add_argument("task_id")
-    p_single_fast = sub.add_parser(
-        "single-task-fast",
-        help=("execute one bounded JSON task locally, or exactly two dependent "
-              "Markdown tasks through the provider-backed Loop route"),
-        description=("One JSON task uses the local-first Mapper/Fast/Dev CLI route. "
-                     "Exactly two dependent Markdown tasks use required Fast preparation "
-                     "and the ordered Loop provider route (configured provider worker; "
-                     "default: openrouter)."),
-    )
-    p_single_fast.add_argument(
-        "--task-file", required=True,
-        help="JSON task for local-first execution, or a two-task Markdown collection",
-    )
-    p_single_fast.add_argument("--repo", default=".", help="repository root for the two-task provider route")
     sub.add_parser(
         "hub-drain-plan",
         help="read-only PT-BR/EN GitHub drain intake; never executes the plan",
@@ -2620,89 +2605,6 @@ def main(argv=None) -> int:
         elif args.queue_action in {"inspect", "cancel"}:
             forwarded.append(args.task_id)
         return local_queue_main(forwarded)
-    if command == "single-task-fast":
-        task_file = Path(args.task_file)
-        try:
-            task_path = Path(args.task_file)
-            raw = task_path.read_text(encoding="utf-8")
-            task_file_for_collection = ""
-            try:
-                payload = json.loads(raw)
-            except json.JSONDecodeError:
-                if task_path.suffix.lower() not in {".md", ".markdown"}:
-                    raise
-                compiled = compile_many(raw, source_path=str(task_path.resolve()))
-                tasks = list(compiled.get("tasks") or [])
-                task_file_for_collection = str(task_path)
-            else:
-                is_collection = (
-                    isinstance(payload, Mapping)
-                    and str(payload.get("schema") or "") == "simplicio.task-contract/v1.collection"
-                    and isinstance(payload.get("tasks"), list)
-                )
-                if is_collection:
-                    tasks = list(payload["tasks"])
-                else:
-                    tasks = payload if isinstance(payload, list) else [payload]
-                if len(tasks) == 2 and is_collection:
-                    task_file_for_collection = str(task_path)
-            first_task = tasks[0] if tasks and isinstance(tasks[0], Mapping) else {}
-            governor = expected_governor_blocked({"task": first_task})
-            if governor is not None:
-                result = {
-                    "schema": "simplicio.single-task-fast-receipt/v1",
-                    "status": "BLOCKED",
-                    "reason_code": governor["reason_code"],
-                    "governor": governor,
-                    "route": "single-task-fast",
-                }
-                repo = str(first_task.get("repo") or task_path.parent)
-                persist_execution_envelope(
-                    flow="single-task-fast",
-                    repo=repo,
-                    observed={"task": first_task, "tasks": tasks, "result": result, "governor": governor},
-                )
-                print(json.dumps(result, sort_keys=True))
-                return 2
-            result = dispatch_single_task_fast(
-                tasks, task_file=task_file_for_collection, repo=args.repo,
-            )
-        except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
-            diagnostic = publish_loop_execution_for_flow(
-                repo=Path("."),
-                run_dir=Path(".") / ".simplicio" / "loop-runs" / "single-task-fast-invalid",
-                flow="single-task-fast",
-                flow_result={"status": "blocked"},
-            )
-            diagnostic.update({"reason_code": "invalid_task_file", "error": redact_sensitive_text(str(exc))})
-            persist_execution_envelope(flow="single-task-fast", repo=".", observed={"result": diagnostic, "status": "blocked"})
-            print(json.dumps(diagnostic, sort_keys=True))
-            return 2
-        task = tasks[0] if tasks and isinstance(tasks[0], Mapping) else {}
-        repo = str(result.get("repo") or task.get("repo") or ".")
-        run_id = str(result.get("run_id") or task.get("run_id") or "")
-        raw_run_dir = result.get("run_dir") or task.get("run_dir")
-        if raw_run_dir:
-            run_dir = Path(str(raw_run_dir))
-            if not run_dir.is_absolute():
-                run_dir = Path(repo).resolve() / run_dir
-        else:
-            run_dir = Path(repo).resolve() / ".simplicio" / "loop-runs" / (run_id or "single-task-fast-unbound")
-        public_payload = publish_loop_execution_for_flow(
-            repo=Path(repo),
-            run_dir=run_dir,
-            flow="single-task-fast",
-            flow_result={**dict(result), "run_id": run_id},
-        )
-        public_payload = _attach_dispatch(public_payload, result)
-        persist_execution_envelope(
-            flow="single-task-fast",
-            repo=repo,
-            run_id=run_id,
-            observed={"task": task, "tasks": tasks, "result": result, "run_id": run_id},
-        )
-        print(json.dumps(public_payload, sort_keys=True))
-        return 0 if public_payload.get("status") == "VERIFIED" and public_payload.get("verified") is True else 2
     if command == "ledger":
         return ledger_replay(
             args.path,

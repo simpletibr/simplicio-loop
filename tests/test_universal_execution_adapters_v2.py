@@ -195,33 +195,6 @@ def test_run_backed_public_flows_persist_one_canonical_v2_envelope(tmp_path, mon
     assert envelope["completion"] == {"verified": True, "oracle": "MEASURED"}
 
 
-def test_single_task_fast_persists_one_artifact_envelope(tmp_path, monkeypatch):
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    task_file = tmp_path / "task.json"
-    task = {
-        "repo": str(repo), "goal": "update one file", "issue": "I-1", "source_revision": "r1",
-        "acceptance_criteria": ["the file changes"], "target_hints": ["app.py"],
-        "verification_commands": [["python3", "-c", "print('ok')"]],
-        "budgets": {"max_context_bytes": 1000, "max_context_tokens": 1000, "max_diff_lines": 10, "max_iterations": 1},
-        "delivery_contract": {"watcher": True, "dod": True}, "stop": {"preserve": True}, "recovery": {"preserve": True},
-    }
-    _write_json(task_file, task)
-    receipt = {"schema": "simplicio.single-task-fast-receipt/v1", "status": "COMPLETED", "route": "single-task-fast",
-               "mapper": {"receipt": {"ok": True}}, "context": {"receipt": {"ok": True}},
-               "plan": {"receipt": {"ok": True}}, "mutation": {"receipt": {"ok": True}},
-               "watcher": {"ok": True}, "dod": {"ok": True}, "verification": {"focused_ok": True}}
-    monkeypatch.setattr(cli_impl, "dispatch_single_task_fast", lambda *args, **kwargs: receipt)
-    assert cli_impl.main(["single-task-fast", "--task-file", str(task_file)]) == 2
-    candidates = list((repo / ".simplicio" / "loop-executions").glob("**/" + ENVELOPE_FILENAME))
-    assert len(candidates) == 1
-    envelope = json.loads(candidates[0].read_text(encoding="utf-8"))
-    assert envelope["flow"] == "single-task-fast"
-    assert envelope["status"] != "complete"
-    assert envelope["completion"]["verified"] is False
-    assert validate_execution_envelope(envelope) is True
-
-
 def test_no_provider_or_receipt_never_becomes_complete_and_unknown_metrics_are_null(tmp_path):
     repo, run, manifest, state, contract = _run_fixture(tmp_path, phase="blocked")
     for name in ("mapper-context.json", "fast-receipt.json", "operator-receipt.json", "evidence-receipt.json"):
@@ -573,37 +546,6 @@ def test_expected_governor_blocked_short_circuits_tick_without_provider(tmp_path
     assert validate_execution_envelope(envelope) is True
 
 
-def test_expected_governor_blocked_short_circuits_single_task_fast_without_provider(tmp_path, monkeypatch):
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    task_file = tmp_path / "task.json"
-    task = {
-        "repo": str(repo), "goal": "governed task", "issue": "I-1", "source_revision": "r1",
-        "acceptance_criteria": ["the file changes"], "target_hints": ["app.py"],
-        "verification_commands": [["true"]],
-        "budgets": {"max_context_bytes": 1000, "max_context_tokens": 1000, "max_diff_lines": 10, "max_iterations": 1},
-        "delivery_contract": {"watcher": True, "dod": True}, "stop": {"preserve": True}, "recovery": {"preserve": True},
-        "governor": {"decision": "blocked", "expected": True, "reason_code": "PHYSICAL_CAPACITY_PRESSURE"},
-    }
-    _write_json(task_file, task)
-    called = False
-
-    def provider_must_not_run(*args, **kwargs):
-        nonlocal called
-        called = True
-        raise AssertionError("provider/dispatch called for expected governor block")
-
-    monkeypatch.setattr(cli_impl, "dispatch_single_task_fast", provider_must_not_run)
-    assert cli_impl.main(["single-task-fast", "--task-file", str(task_file)]) == 2
-    candidates = list((repo / ".simplicio" / "loop-executions").glob("**/" + ENVELOPE_FILENAME))
-    assert len(candidates) == 1
-    envelope = json.loads(candidates[0].read_text(encoding="utf-8"))
-    assert called is False
-    assert envelope["status"] == "expected_governor_blocked"
-    assert all(not phase["provider_called"] for phase in envelope["phases"].values())
-    assert validate_execution_envelope(envelope) is True
-
-
 @pytest.mark.parametrize("flow", ["tick", "batch", "wave", "prism"])
 def test_run_backed_failure_paths_persist_noncomplete_v2(tmp_path, monkeypatch, flow):
     repo, run, manifest, state, _contract = _run_fixture(tmp_path, phase="blocked")
@@ -624,26 +566,3 @@ def test_run_backed_failure_paths_persist_noncomplete_v2(tmp_path, monkeypatch, 
     assert envelope["completion"]["verified"] is False
 
 
-def test_single_task_fast_failure_path_persists_noncomplete_v2(tmp_path, monkeypatch):
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    task_file = tmp_path / "task.json"
-    task = {
-        "repo": str(repo), "goal": "update one file", "issue": "I-1", "source_revision": "r1",
-        "acceptance_criteria": ["the file changes"], "target_hints": ["app.py"],
-        "verification_commands": [["python3", "-c", "print('ok')"]],
-        "budgets": {"max_context_bytes": 1000, "max_context_tokens": 1000, "max_diff_lines": 10, "max_iterations": 1},
-        "delivery_contract": {"watcher": True, "dod": True}, "stop": {"preserve": True}, "recovery": {"preserve": True},
-    }
-    _write_json(task_file, task)
-    monkeypatch.setattr(cli_impl, "dispatch_single_task_fast", lambda *args, **kwargs: {
-        "schema": "simplicio.single-task-fast-receipt/v1", "status": "BLOCKED",
-        "route": "single-task-fast", "reason_code": "provider_receipt_missing",
-    })
-    assert cli_impl.main(["single-task-fast", "--task-file", str(task_file)]) == 2
-    candidates = list((repo / ".simplicio" / "loop-executions").glob("**/" + ENVELOPE_FILENAME))
-    assert len(candidates) == 1
-    envelope = json.loads(candidates[0].read_text(encoding="utf-8"))
-    assert envelope["status"] == "blocked"
-    assert envelope["completion"]["verified"] is False
-    assert validate_execution_envelope(envelope) is True

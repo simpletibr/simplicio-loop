@@ -3,7 +3,7 @@
 ``simplicio.loop-execution/v1`` is the published verified-success receipt for the
 original Loop chain.  Its result is intentionally too narrow for intermediate
 and governor outcomes.  This module owns the explicit successor used by every
-execution transport (run, tick, batch, single-task-fast, wave, and Prism).
+execution transport (run, tick, batch, wave, and Prism).
 
 The module does not execute providers, read files, create timestamps, or mutate
 inputs.  It only canonicalizes supplied observations and validates the resulting
@@ -26,7 +26,7 @@ SCHEMA = "simplicio.loop-execution/v2"
 V1_SCHEMA = "simplicio.loop-execution/v1"
 
 EXECUTION_FLOWS = frozenset(
-    {"run", "tick", "batch", "single-task-fast", "wave", "prism"}
+    {"run", "tick", "batch", "wave", "prism"}
 )
 EXECUTION_STATUSES = frozenset(
     {"complete", "partial", "blocked", "error", "expected_governor_blocked"}

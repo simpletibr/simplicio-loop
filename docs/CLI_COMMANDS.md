@@ -62,7 +62,6 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `agent-slots` | Inspect and reclaim Loop-owned agent capacity. |
 | `generation-broker` | Inspect and reconcile persisted generation bindings. |
 | `queue` | Operate the durable queue (`status`, `top`, `drain`, `resume`, `doctor`, `reclaim`, `gc`, `migrate`, `inspect`, `cancel`). |
-| `single-task-fast` | Execute one bounded JSON task locally, or exactly two dependent Markdown tasks through the provider-backed Loop route. |
 | `ledger` | Replay or validate the operational event ledger. |
 | `findings` | List, report, reconcile, diagnose, or import routed findings. |
 | `learn retrospective` | Derive durable lessons from completed runs. |
@@ -78,8 +77,12 @@ simplicio-loop wave RUN_ID
 # Preparar / Armar run a partir de markdown:
 simplicio-loop prepare --task task.md --repo .
 
-# Tarefa única ultrarrápida (local-first):
-simplicio-loop single-task-fast --task-file task.json
+# Tarefa única ultrarrápida (local-first): `route_mode.py` -> fast-path
+# (ver SKILL.md "Pick the fastest route first"):
+#   python3 scripts/route_mode.py --root . --goal "<one task, plain prose>"
+#   simplicio-dev-cli edit --plan ops.json --compile plan.json
+#   simplicio-dev-cli edit --plan plan.json --apply --json
+#   <the task's verification command>
 
 # Tick unitário e batch contínuo:
 simplicio-loop tick RUN_ID --repo .
@@ -113,14 +116,13 @@ admission still controls safe CPU/RAM/disk concurrency; `--serial` is an explici
 conflict/dependency choice, not the default. Receipts and validation gates remain
 mandatory.
 
-`single-task-fast --task-file TASK_FILE` keeps a one-task JSON input on the
-local-first Mapper/Fast/Dev CLI route. A file containing exactly two dependent
-tasks may be Markdown (or a compatible task-contract collection); that form
-selects the configured provider worker, defaults to `openrouter`, requires Fast
-preparation for each task, and executes the existing ordered Loop batch. The
-creation predecessor must complete with verified per-task receipts before the
-edit task is admitted. Missing Mapper, Fast, provider, Dev CLI, dependency, or
-evidence receipts remain blocked.
+A single bounded task is routed through the documented fast-path instead of a
+dedicated command: `python3 scripts/route_mode.py --root . --goal "<task>"`
+selects `fast-path` (one task, one file, fan-in ≤1, no sensitive surface),
+then `simplicio-dev-cli edit --plan ... --compile`/`--apply` performs the
+governed local edit and the task's own verification command closes it out — no
+run, no wave, no provider call. See
+`.claude/skills/simplicio-loop/SKILL.md` § "Pick the fastest route first".
 
 ## Prism and wave
 
