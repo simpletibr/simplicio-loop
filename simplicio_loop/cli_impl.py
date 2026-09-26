@@ -1088,19 +1088,6 @@ def _brief_suggest_checks(root: Path) -> list[str]:
 
 
 ORIENT_BRIEF_TOTAL_BUDGET_BYTES = 24 * 1024
-ORIENT_BRIEF_VERIFIER_HEAD_LINES = 20
-
-
-def _brief_is_verifier_path(rel: str) -> bool:
-    """A verifier/check/test file (issue #1318): its exact assertions matter
-    less than its existence/path for planning an edit, so it earns a short
-    head instead of full content -- keeping the brief's total budget for the
-    files a task actually edits."""
-    path = Path(rel)
-    if "tests" in path.parts or "test" in path.parts:
-        return True
-    name = path.name
-    return name.startswith("test_") or name.startswith("check_")
 
 
 def _brief_order_candidates_named_first(task: str, candidates: Sequence[Path]) -> list[Path]:
@@ -1111,13 +1098,6 @@ def _brief_order_candidates_named_first(task: str, candidates: Sequence[Path]) -
     named = [p for p in candidates if p.name.lower() in task_lower]
     rest = [p for p in candidates if p not in named]
     return named + rest
-
-
-def _brief_first_lines(text: str, max_lines: int = ORIENT_BRIEF_VERIFIER_HEAD_LINES) -> tuple[str, bool]:
-    lines = text.splitlines()
-    if len(lines) <= max_lines:
-        return text, False
-    return "\n".join(lines[:max_lines]), True
 
 
 def _brief_clip_to_budget(text: str, budget_bytes: int) -> tuple[str, bool]:
@@ -1144,9 +1124,9 @@ def _brief_build_targets(root: Path, tasks: Sequence[str],
     files with content, no separate cat" -- but bounded, and with the file
     a task names first).
 
-    Verifier/check/test files (``_brief_is_verifier_path``) are included by
-    path plus a short head only, never their full content -- they matter for
-    the ``check`` command in ``ops.json``, not for editing.
+    Verifier/check/test files get the SAME head+tail treatment as any other
+    target (issue #1323): they ARE the acceptance spec, so a check file that
+    fits the per-file/total budget comes back in full, not a fixed head.
     """
     seen: dict[str, dict[str, Any]] = {}
     remaining_budget = ORIENT_BRIEF_TOTAL_BUDGET_BYTES
@@ -1161,10 +1141,7 @@ def _brief_build_targets(root: Path, tasks: Sequence[str],
                 content = path.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
-            if _brief_is_verifier_path(rel):
-                trimmed, truncated = _brief_first_lines(content)
-            else:
-                trimmed, truncated = _brief_head_tail(content)
+            trimmed, truncated = _brief_head_tail(content)
             if remaining_budget <= 0:
                 seen[rel] = {"path": rel, "content": "", "truncated": True}
                 continue
@@ -1233,7 +1210,32 @@ def _brief_annotate_route_next(route: Mapping[str, Any], root: Path,
     return out
 
 
-def _brief_apply_command(root: Path) -> dict[str, Any]:
+def _brief_apply_command(root: Path, repo_state_chain: Mapping[str, Any],
+                         generations: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """issue #1323: ``example`` is a concrete, valid ops.json -- a create
+    (``find: ""``), a dependent edit (``depends_on``) and a ``check`` -- with
+    ``repo_state_chain``/``brief_generations`` copied verbatim from this same
+    brief, so the host never opens ``simplicio_loop/apply.py`` to learn the
+    ops format."""
+    example = {
+        "tasks": [
+            {
+                "id": "example-create-notes",
+                "operations": [{"path": "NOTES.md", "find": "", "replace": "# Notes\n"}],
+                "check": None,
+                "depends_on": [],
+            },
+            {
+                "id": "example-extend-notes",
+                "operations": [{"path": "NOTES.md", "find": "# Notes\n",
+                                "replace": "# Notes\n\n## Details\n"}],
+                "check": "python3 -c \"assert 'Details' in open('NOTES.md').read()\"",
+                "depends_on": ["example-create-notes"],
+            },
+        ],
+        "repo_state_chain": dict(repo_state_chain),
+        "brief_generations": [dict(g) for g in generations],
+    }
     return {
         "command": f"simplicio-loop apply .simplicio-loop/ops.json --repo {root} --json",
         "ops_format": {
@@ -1246,6 +1248,7 @@ def _brief_apply_command(root: Path) -> dict[str, Any]:
             "repo_state_chain": "<copy verbatim from this brief's own repo_state_chain field>",
             "brief_generations": "<copy verbatim from this brief's own generations field (Mapper + Fast provenance)>",
         },
+        "example": example,
     }
 
 
@@ -1338,7 +1341,7 @@ def orient_brief(root: Path, tasks: list[str], *, fast_mode: str = "auto",
     payload["checks"] = _brief_suggest_checks(root)
     payload["generations"] = generations
     payload["repo_state_chain"] = repo_state_chain
-    payload["apply"] = _brief_apply_command(root)
+    payload["apply"] = _brief_apply_command(root, repo_state_chain, generations)
     payload["effort"] = dict(PHASE_EFFORT)
     if overall_status != "BLOCKED":
         # `apply` refuses to run without this Mapper + Fast survey (issue #1318).

@@ -175,10 +175,11 @@ def test_brief_targets_named_file_comes_first(tmp_path):
     assert paths[0] == "login.html"
 
 
-def test_brief_verifier_file_included_by_path_with_head_only(tmp_path):
-    """A verifier/test/check file (path under tests/, or a name starting
-    with test_/check_) is worth pointing at, but its full body is not --
-    only the path plus a short head."""
+def test_brief_verifier_file_included_in_full_within_budget(tmp_path):
+    """issue #1323: a verifier/test/check file (path under tests/, or a name
+    starting with test_/check_) IS the acceptance spec -- when it fits the
+    existing 24 KB total budget it comes back in full, not head-only, so the
+    host never re-`cat`s it to see its real assertions."""
     lines = [f"line {i}\n" for i in range(1, 61)]
     _repo(tmp_path, {
         "a.html": "<html></html>",
@@ -186,11 +187,26 @@ def test_brief_verifier_file_included_by_path_with_head_only(tmp_path):
     })
     payload = orient_brief(tmp_path, ["Edit a.html, verified by tests/test_a.py"])
     entry = next(t for t in payload["targets"] if t["path"] == "tests/test_a.py")
-    assert entry["truncated"] is True
+    assert entry["truncated"] is False
     kept_lines = entry["content"].splitlines()
-    assert len(kept_lines) <= 20
+    assert len(kept_lines) == 60
     assert kept_lines[0] == "line 1"
-    assert "line 60" not in entry["content"]
+    assert "line 60" in entry["content"]
+
+
+def test_brief_verifier_file_over_budget_still_truncates(tmp_path):
+    """A verifier file bigger than the per-file 16 KB cap is still head+tail
+    truncated like any other target -- the fix removes the head-only special
+    case, not the size ceiling itself."""
+    big = "".join(f"line {i}\n" for i in range(1, 4000))
+    _repo(tmp_path, {
+        "a.html": "<html></html>",
+        "tests/test_big.py": big,
+    })
+    payload = orient_brief(tmp_path, ["Edit a.html, verified by tests/test_big.py"])
+    entry = next(t for t in payload["targets"] if t["path"] == "tests/test_big.py")
+    assert entry["truncated"] is True
+    assert "...<truncated>..." in entry["content"]
 
 
 def test_brief_total_content_budget_is_enforced(tmp_path):
@@ -216,3 +232,28 @@ def test_brief_writes_itself_to_state_dir_with_generations(tmp_path):
     saved = _json.loads((tmp_path / ".simplicio-loop" / "brief.json").read_text())
     assert saved["generations"] == payload["generations"]
     assert "brief_generations" in payload["apply"]["ops_format"]
+
+
+def test_brief_apply_example_is_a_valid_concrete_ops_json(tmp_path):
+    """issue #1323: `apply.example` is a real, runnable ops.json -- not a
+    placeholder template -- covering a create (`find: ""`), a dependent edit
+    (`depends_on`), a `check`, and `repo_state_chain`/`brief_generations`
+    copied verbatim from this same brief, so the host never has to open
+    `simplicio_loop/apply.py` to learn the shape."""
+    from simplicio_loop.apply import _normalize_tasks
+
+    _repo(tmp_path, {"a.html": "<html></html>"})
+    payload = orient_brief(tmp_path, ["Edit a.html"])
+    example = payload["apply"]["example"]
+
+    assert example["repo_state_chain"] == payload["repo_state_chain"]
+    assert example["brief_generations"] == payload["generations"]
+
+    tasks = _normalize_tasks(example)
+    assert len(tasks) >= 2
+    creates = [t for t in tasks if any(op["find"] == "" for op in t["operations"])]
+    assert creates, "example must include a create operation (find: \"\")"
+    dependents = [t for t in tasks if t["depends_on"]]
+    assert dependents, "example must include a dependent edit (depends_on)"
+    checked = [t for t in tasks if t["check"]]
+    assert checked, "example must include a task with a check command"
