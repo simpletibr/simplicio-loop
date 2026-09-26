@@ -271,7 +271,11 @@ def test_edit_plan_rejects_workspace_escape_before_effect(tmp_path) -> None:
         ("mapper_binding", None, "invalid_mapper_binding"),
         ("mapper_binding_digest", "0" * 64, "invalid_mapper_binding"),
         ("runtime_authorization_required", False, "invalid_authorization"),
-        ("operations", [{"op": "create_file", "path": "app.py", "text": "new"}], "unsupported_operation"),
+        # issue #1331: `create_file` became a supported canonical op (edit
+        # plans can now create files); an op name outside that list is what
+        # still exercises `unsupported_operation`.
+        ("operations", [{"op": "insert_before", "path": "app.py", "anchor": "old", "text": "new"}],
+         "unsupported_operation"),
         ("touched_files", ["other.py"], "invalid_schema"),
         (
             "operations",

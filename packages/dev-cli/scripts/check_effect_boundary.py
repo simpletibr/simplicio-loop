@@ -57,7 +57,18 @@ from pathlib import Path
 # became the shared `_acquire_transaction_lock` (same O_EXCL lock-file
 # primitives, bounded wait) and `execute_changeset_transaction` no longer
 # does its own inline `mkdir`; no new mutation surface.
-BASELINE_SHA256 = "3df3268eb9c5abf267dbcfb38066403e25e78f9d4f87aabdfd1236f8a8965a6b"
+#
+# Reviewed 2026-09-26 (issue #1331, bounded post-apply verification): the
+# only inventory change is one new scope,
+# `pipeline_stages.py::run_bounded_subprocess` (`Popen`, count 1) -- the
+# shared helper `edit.py::_verification_payload` now calls to run a
+# bounded, whole-process-group-killed verify command instead of the plain
+# `subprocess.run` it used inline before (that inline `run` primitive is
+# gone from `_verification_payload`'s own scope, replaced by this one
+# reviewed call site). No other scope changed shape;
+# `compile_host_plan`'s create-file handling adds dict/string logic only,
+# no new mutation primitive.
+BASELINE_SHA256 = "7237ef65b18acc0e9f9febd112294a61822a499315aa3e06130a7151b0315013"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",

@@ -6,10 +6,15 @@ from simplicio import pipeline_stages as stages
 
 
 def test_timeout_and_patch_candidate_edge_cases(monkeypatch, tmp_path):
+    # issue #1331: an invalid override now falls back to the bounded default
+    # (120s) rather than silently going unbounded -- unbounded is only what
+    # an explicit opt-out (0/off/none/unlimited) means.
     monkeypatch.setenv("SIMPLICIO_TEST_TIMEOUT_S", "not-a-number")
-    assert stages._verification_timeout_seconds() is None
+    assert stages._verification_timeout_seconds() == stages.DEFAULT_VERIFICATION_TIMEOUT_S
     monkeypatch.setenv("SIMPLICIO_TEST_TIMEOUT_S", "0")
     assert stages._verification_timeout_seconds() is None
+    monkeypatch.delenv("SIMPLICIO_TEST_TIMEOUT_S", raising=False)
+    assert stages._verification_timeout_seconds() == 120 == stages.DEFAULT_VERIFICATION_TIMEOUT_S
     assert stages._extract_patch_candidate("text", str(tmp_path), None).reason.startswith("no unified")
     assert (
         stages._extract_patch_candidate("FILE: app.py\nnew\n", str(tmp_path), ["app.py"]).strategy

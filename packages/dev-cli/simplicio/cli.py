@@ -485,6 +485,19 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="use the Python mechanical-edit fallback instead of delegating to simplicio edit",
     )
+    p_edit.add_argument(
+        "--check",
+        default=None,
+        help="verify with this command only after --apply (issue #1331); overrides any "
+        "inferred/whole-suite default and SIMPLICIO_TEST_CMD",
+    )
+    p_edit.add_argument(
+        "--verify-timeout-s",
+        type=int,
+        default=None,
+        help="bound the post-apply verify command to this many seconds (default 120, "
+        "or SIMPLICIO_TEST_TIMEOUT_S); the whole process group is killed on timeout",
+    )
 
     p_reconcile = sub.add_parser(
         "reconcile",
