@@ -1736,7 +1736,7 @@
   "generated_at": "1970-01-01T00:00:00.000Z",
   "integration": {
     "contract": "SIMPLICIO_INTEGRATION.md",
-    "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",
+    "dev_cli_mapper": "read .simplicio-loop/project-map.json, then use .simplicio-loop/precedent-index.json for task-specific examples",
     "llm_directives": {
       "instruction": "No-thinking: act directly, do not deliberate or chain-of-think. No-internet: do not access the network. Load only strictly necessary tools. Load only strictly necessary skills.",
       "no_internet": true,
@@ -1822,7 +1822,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:d8d88cfb0dab791bcb664e10d047c9655ccdcd9acb36a802f0dac30e665d2073",
+    "canonical_digest": "sha256:8b28ba7ce6c797159cde6975b0c6ed31c2a6284769996d072631d109ee0b1e34",
     "capability_coverage": {
       "architecture": "partial",
       "files": "partial",

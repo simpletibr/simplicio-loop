@@ -120,7 +120,7 @@
   "generated_at": "1970-01-01T00:00:00.000Z",
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:c2cbcb831e123aec195172ed9bc7a207efedba57deb4a43d294428007c648adf",
+    "canonical_digest": "sha256:1c636884a75246296d6ac496481c08b03f5d9f06582c5819d468f35d2a5aa196",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
@@ -154,6 +154,6 @@
     "status": "not_required",
     "symbols": 0
   },
-  "source_symbol_index": ".simplicio/symbol-index.json",
+  "source_symbol_index": ".simplicio-loop/symbol-index.json",
   "version": 1
 }

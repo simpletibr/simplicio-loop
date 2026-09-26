@@ -237,7 +237,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:c66a7dab5f849db35b50616677a8adbeffec4341806f64978a4bbc41554259a3",
+    "canonical_digest": "sha256:5d4fb31dca0b9d538bb90cde49d6633db638c55c3ff6daf7090d367a10545166",
     "capability_coverage": {
       "architecture": "full",
       "files": "full",
@@ -377,8 +377,8 @@
   ],
   "root": "<fixture-root>",
   "schema": "simplicio.architecture-inventory/v1",
-  "source_call_graph": ".simplicio/call-graph.json",
-  "source_project_map": ".simplicio/project-map.json",
-  "source_symbol_index": ".simplicio/symbol-index.json",
+  "source_call_graph": ".simplicio-loop/call-graph.json",
+  "source_project_map": ".simplicio-loop/project-map.json",
+  "source_symbol_index": ".simplicio-loop/symbol-index.json",
   "version": 1
 }
