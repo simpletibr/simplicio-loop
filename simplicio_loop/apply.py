@@ -27,8 +27,9 @@ import subprocess
 import sys
 import time
 import uuid
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from .runner import _repo_fingerprint, _repo_state_equivalent
 
@@ -133,23 +134,29 @@ def build_chains(tasks: Sequence[Mapping[str, Any]]) -> list[list[str]]:
 
     ordered_chains: list[list[str]] = []
     for ids in groups.values():
-        id_set = set(ids)
-        ordered: list[str] = []
-        seen: set[str] = set()
-
-        def visit(tid: str) -> None:
-            if tid in seen:
-                return
-            seen.add(tid)
-            for dep in by_id[tid]["depends_on"]:
-                if dep in id_set:
-                    visit(dep)
-            ordered.append(tid)
-
-        for tid in ids:
-            visit(tid)
-        ordered_chains.append(ordered)
+        ordered_chains.append(_topo_order_chain(ids, by_id))
     return ordered_chains
+
+
+def _topo_visit(tid: str, id_set: set[str], by_id: Mapping[str, Mapping[str, Any]],
+                 seen: set[str], ordered: list[str]) -> None:
+    if tid in seen:
+        return
+    seen.add(tid)
+    for dep in by_id[tid]["depends_on"]:
+        if dep in id_set:
+            _topo_visit(dep, id_set, by_id, seen, ordered)
+    ordered.append(tid)
+
+
+def _topo_order_chain(ids: Sequence[str], by_id: Mapping[str, Mapping[str, Any]]) -> list[str]:
+    """``depends_on``-first topological walk over one chain's task ids."""
+    id_set = set(ids)
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for tid in ids:
+        _topo_visit(tid, id_set, by_id, seen, ordered)
+    return ordered
 
 
 def validate_ops(root: Path, tasks: Sequence[Mapping[str, Any]], chains: Sequence[Sequence[str]]) -> list[dict[str, Any]]:
@@ -237,9 +244,8 @@ def _apply_task_devcli(root: Path, task: Mapping[str, Any], run_dir: Path) -> di
     ):
         try:
             proc = subprocess.run(
-                args, cwd=str(root), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE, text=True, close_fds=True,
-                timeout=DEV_CLI_TIMEOUT_S, check=False,
+                args, cwd=str(root), stdin=subprocess.DEVNULL, capture_output=True,
+                text=True, close_fds=True, timeout=DEV_CLI_TIMEOUT_S, check=False,
             )
         except (OSError, subprocess.SubprocessError) as exc:
             steps.append({"step": label, "ok": False, "error": str(exc)})
@@ -267,7 +273,7 @@ async def _run_check(root: Path, check: str, *, run_id: str, task_id: str) -> di
         )
         try:
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=CHECK_TIMEOUT_S)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             await proc.communicate()
             return {"ok": False, "reason_code": "check_timeout", "duration_s": time.monotonic() - started}

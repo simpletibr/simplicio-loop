@@ -16,8 +16,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = REPO_ROOT / "bench" / "llm_ab" / "fixture"
 
@@ -65,7 +63,7 @@ def test_orient_brief_then_apply_two_parallel_creates_and_one_dependent_edit(tmp
     assert brief_proc.returncode in (0, 2), brief_proc.stderr
     brief = json.loads(brief_proc.stdout)
     assert brief["schema"] == "simplicio.loop-orient-brief/v1"
-    assert list(brief)[0] == "route"
+    assert next(iter(brief)) == "route"
     assert "repo_state_chain" in brief
 
     ops = {

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 
-from simplicio_loop.cli_impl import orient_brief, ORIENT_BRIEF_SCHEMA
+from simplicio_loop.cli_impl import ORIENT_BRIEF_SCHEMA, orient_brief
 
 
 def _repo(tmp_path, files):
@@ -26,7 +26,7 @@ def _repo(tmp_path, files):
 def test_brief_route_is_first_key(tmp_path):
     _repo(tmp_path, {"a.html": "<html></html>"})
     payload = orient_brief(tmp_path, ["Edit a.html: add a title"])
-    assert list(payload)[0] == "route"
+    assert next(iter(payload)) == "route"
 
 
 def test_brief_schema_and_status(tmp_path):
