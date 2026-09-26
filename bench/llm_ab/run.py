@@ -29,6 +29,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -157,6 +158,12 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
     return results
 
 
+def default_work_dir() -> str:
+    """A fresh temp dir OUTSIDE this repository, so an agent exploring its
+    workspace can never wander into the simplicio-loop source tree."""
+    return tempfile.mkdtemp(prefix="llm-ab-")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -199,7 +206,7 @@ def main(argv=None) -> int:
     lc.keys_path()  # fail fast, before any work, if SIMPLICIO_BENCH_KEYS is unset/missing
 
     fixture_dir = os.path.join(HERE, "fixture")
-    work_dir = args.work_dir or os.path.join(args.out, "_work")
+    work_dir = args.work_dir or default_work_dir()
     os.makedirs(work_dir, exist_ok=True)
     os.makedirs(args.out, exist_ok=True)
 
