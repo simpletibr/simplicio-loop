@@ -373,6 +373,60 @@ ORIENT_SCHEMA = "simplicio.loop-orient/v1"
 ORIENT_RECEIPT_SCHEMA = "simplicio.loop-orient-receipt/v1"
 
 
+_DEFAULT_MAPPER_INDEX_TIMEOUT_S = 300.0
+
+
+def _mapper_index_timeout_seconds() -> float:
+    """Bound for the best-effort ``simplicio-mapper index`` call below.
+
+    issue #1331: the hardcoded 60s timeout this used to carry was too short
+    for a real ~3,900-file monorepo (measured at ~280s in
+    docs/evidence/1328-wave.md), so it silently timed out and retried a full
+    reindex from scratch on every subsequent ``orient``/``prepare``/``wave``
+    call -- the exact "full re-index every call" symptom. Configurable via
+    ``SIMPLICIO_LOOP_MAPPER_INDEX_TIMEOUT_S`` for a still-larger repo.
+    """
+    raw = os.environ.get("SIMPLICIO_LOOP_MAPPER_INDEX_TIMEOUT_S", "").strip()
+    if not raw:
+        return _DEFAULT_MAPPER_INDEX_TIMEOUT_S
+    try:
+        value = float(raw)
+    except ValueError:
+        return _DEFAULT_MAPPER_INDEX_TIMEOUT_S
+    return value if value > 0 else _DEFAULT_MAPPER_INDEX_TIMEOUT_S
+
+
+def _current_tree_state(root: Path) -> str | None:
+    """A cheap, real fingerprint of "has anything changed since the last
+    index" -- the committed tree id plus a hash of the working tree's own
+    dirty status, so an uncommitted edit counts as a change too. ``None``
+    for a non-git directory (reuse is then never claimed; every call falls
+    through to a real index attempt, same as before this issue)."""
+    if not (root / ".git").exists():
+        return None
+    try:
+        tree = subprocess.run(
+            ["git", "rev-parse", "HEAD^{tree}"], cwd=str(root), stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+            close_fds=True, timeout=10, check=False,
+        )
+        if tree.returncode != 0:
+            return None
+        status = subprocess.run(
+            # Exclude our OWN state directory regardless of .gitignore: writing
+            # project-map.json/mapper-index-state.json must never itself look
+            # like a tree change on the very next call.
+            ["git", "status", "--porcelain=v1", "--", ".", ":!.simplicio-loop"],
+            cwd=str(root), stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+            close_fds=True, timeout=10, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    dirty = hashlib.sha256((status.stdout or "").encode("utf-8")).hexdigest()
+    return f"{tree.stdout.strip()}:{dirty}"
+
+
 def _ensure_project_map(root: Path) -> None:
     """Guarantee the single artifact ``survey.provenance()`` (and therefore
     ``prepare``) requires as proof of a Mapper survey: `.simplicio-loop/project-map.json`.
@@ -388,12 +442,37 @@ def _ensure_project_map(root: Path) -> None:
     A failure here (binary missing, timeout, non-git dir) is intentionally
     swallowed: `orient` itself still succeeded, and `survey.provenance()`'s own
     fail-closed check is what enforces the requirement downstream.
+
+    issue #1331: reused by tree state (git tree id + working-tree dirty
+    hash) instead of by mere file existence -- a repeat call against an
+    UNCHANGED tree does not re-run the index at all, and a real change
+    (however small) does trigger one. Mapper's public verbs (``scan``/
+    ``inspect``/``handoff``/``ask``/``sync``) do not expose an incremental
+    reindex of this artifact, only a full one (see ``simplicio-mapper
+    --help``); that is Mapper's own current limitation, not something this
+    caller can work around, so a real change still pays a full index --
+    it is just never paid twice for the same tree state.
     """
-    if (root / ".simplicio-loop" / "project-map.json").is_file():
-        return
+    project_map = root / ".simplicio-loop" / "project-map.json"
+    state_file = root / ".simplicio-loop" / "mapper-index-state.json"
+    current_state = _current_tree_state(root)
+    if project_map.is_file():
+        if current_state is None:
+            return
+        try:
+            recorded_state = json.loads(state_file.read_text(encoding="utf-8")).get("tree_state")
+        except (OSError, ValueError):
+            recorded_state = None
+        if recorded_state == current_state:
+            return
     try:
         from .map_service_mapper import run_mapper_index
-        run_mapper_index(str(root))
+        run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
+        if current_state is not None:
+            state_file.parent.mkdir(parents=True, exist_ok=True)
+            state_file.write_text(
+                json.dumps({"tree_state": current_state}, ensure_ascii=False), encoding="utf-8"
+            )
     except Exception:
         pass
 

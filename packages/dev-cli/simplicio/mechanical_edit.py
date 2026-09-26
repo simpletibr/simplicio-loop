@@ -379,6 +379,13 @@ def execute_plan(
 
     errors = _validate_shape(plan)
     operations = plan.get("operations") if isinstance(plan.get("operations"), list) else []
+    # issue #1331: a pure create_file batch never reads/anchors an existing
+    # file, so its mapper_binding may carry an empty source_hashes -- every
+    # binding validation/digest call below must relax that requirement only
+    # for this shape.
+    only_creates = bool(operations) and all(
+        isinstance(item, dict) and item.get("op") == "create_file" for item in operations
+    )
     touched_files = _declared_touched_files(plan, operations)
     path_errors = _validate_paths(root_path, operations, touched_files)
     if canonical_plan:
@@ -415,7 +422,7 @@ def execute_plan(
     before = _snapshot(root_path, operations)
     mapper_binding = plan.get("mapper_binding")
     if mapper_binding is not None:
-        binding_errors = validate_mapper_binding(mapper_binding)
+        binding_errors = validate_mapper_binding(mapper_binding, require_source_hashes=not only_creates)
         if binding_errors:
             return _refused(
                 [{"code": "mapper_binding_invalid", "message": error} for error in binding_errors],
@@ -425,7 +432,9 @@ def execute_plan(
             )
         source_hash = _mapper_source_hash if mapper_binding is not None else _contract_hash
         observed_hashes = {path: None if raw is None else source_hash(raw) for path, raw in before.items()}
-        source_errors = verify_mapper_sources(mapper_binding, observed_hashes)
+        source_errors = verify_mapper_sources(
+            mapper_binding, observed_hashes, require_source_hashes=not only_creates
+        )
         if source_errors:
             return _refused(source_errors, root=root_path, schema=result_schema, plan=plan)
     try:
@@ -462,7 +471,9 @@ def execute_plan(
         }
     if mapper_binding is not None:
         result["mapper_binding"] = mapper_binding
-        result["mapper_binding_digest"] = mapper_binding_digest(mapper_binding)
+        result["mapper_binding_digest"] = mapper_binding_digest(
+            mapper_binding, require_source_hashes=not only_creates
+        )
     if not apply or noop:
         if canonical_plan:
             result["receipt_digest"] = _canonical_digest(
@@ -970,11 +981,20 @@ def _validate_canonical_plan(plan: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     else:
-        binding_errors = validate_mapper_binding(binding)
+        # issue #1331: a plan whose every operation is `create_file` never
+        # reads/anchors an existing file, so it has nothing to pin a source
+        # hash to -- only such a pure-create plan may carry an empty
+        # `source_hashes` binding.
+        plan_operations = plan.get("operations")
+        only_creates = isinstance(plan_operations, list) and bool(plan_operations) and all(
+            isinstance(item, Mapping) and item.get("op") == "create_file" for item in plan_operations
+        )
+        binding_errors = validate_mapper_binding(binding, require_source_hashes=not only_creates)
         errors.extend({"code": "invalid_mapper_binding", "message": error} for error in binding_errors)
         if isinstance(binding, Mapping) and not binding_errors:
             supplied_binding_digest = plan.get("mapper_binding_digest")
-            if supplied_binding_digest != mapper_binding_digest(binding):
+            expected_digest = mapper_binding_digest(binding, require_source_hashes=not only_creates)
+            if supplied_binding_digest != expected_digest:
                 errors.append(
                     {
                         "code": "invalid_mapper_binding",
@@ -996,11 +1016,22 @@ def _validate_canonical_plan(plan: dict[str, Any]) -> list[dict[str, Any]]:
         for index, operation in enumerate(operations):
             if not isinstance(operation, dict):
                 continue
-            if operation.get("op") != "replace_anchor":
+            op_name = operation.get("op")
+            if op_name not in {"replace_anchor", "create_file"}:
                 errors.append(
                     {
                         "code": "unsupported_operation",
-                        "message": "canonical Dev CLI edit plans only support replace_anchor",
+                        "message": (
+                            "canonical Dev CLI edit plans only support replace_anchor and create_file"
+                        ),
+                        "operation_index": index,
+                    }
+                )
+            elif op_name == "create_file" and not isinstance(operation.get("text"), str):
+                errors.append(
+                    {
+                        "code": "invalid_schema",
+                        "message": "create_file operation requires string text",
                         "operation_index": index,
                     }
                 )

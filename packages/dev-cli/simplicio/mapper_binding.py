@@ -150,17 +150,19 @@ def build_mapper_binding(
     )
 
 
-def mapper_binding_digest(value: Mapping[str, Any]) -> str:
+def mapper_binding_digest(value: Mapping[str, Any], *, require_source_hashes: bool = True) -> str:
     """Return the digest of the binding body, excluding its self-digest."""
-    return _digest(_body(canonical_mapper_binding(value)))
+    return _digest(_body(canonical_mapper_binding(value, require_source_hashes=require_source_hashes)))
 
 
 def verify_mapper_sources(
     binding: Mapping[str, Any],
     observed_hashes: Mapping[str, str | None],
+    *,
+    require_source_hashes: bool = True,
 ) -> list[dict[str, Any]]:
     """Compare an observed workspace snapshot with expected Mapper hashes."""
-    canonical = canonical_mapper_binding(binding)
+    canonical = canonical_mapper_binding(binding, require_source_hashes=require_source_hashes)
     errors: list[dict[str, Any]] = []
     for path, expected in canonical["source_hashes"].items():
         actual = _normalise_hash(observed_hashes.get(path))
