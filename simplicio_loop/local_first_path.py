@@ -50,7 +50,7 @@ class LocalFirstTaskPath:
         payload["receipt_hash"] = ""
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         receipt_hash = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-        directory = self.root / ".simplicio" / "orchestrator" / "local-first"
+        directory = self.root / ".simplicio-loop" / "orchestrator" / "local-first"
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / f"{result.binding.attempt_id}-{result.task_id}.json"
         stored = dict(payload)

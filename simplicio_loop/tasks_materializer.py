@@ -88,7 +88,7 @@ class LoopRunContractMaterializer:
             state = armed.get("state", {})
             raise ContractMaterializationError(f"issue {number} run preflight blocked: {state.get('blockers', [])}")
         run_dir = Path(str(armed["run_dir"])).resolve()
-        runs_root = (self.repo / ".simplicio" / "loop-runs").resolve()
+        runs_root = (self.repo / ".simplicio-loop" / "loop-runs").resolve()
         if run_dir == runs_root or runs_root not in run_dir.parents:
             raise ContractMaterializationError(f"issue {number} run_dir escapes canonical loop-runs root")
         state_path = run_dir / "state.json"
@@ -113,7 +113,7 @@ class LoopRunContractMaterializer:
     def __call__(self, intake: Mapping[str, Any]) -> list[Mapping[str, Any]]:
         identity = intake.get("run_identity", {})
         batch = _safe(identity.get("run_id") or identity.get("request_digest") or "tasks")
-        task_dir = self.repo / ".simplicio" / "tasks-run" / batch
+        task_dir = self.repo / ".simplicio-loop" / "tasks-run" / batch
         task_dir.mkdir(parents=True, exist_ok=True)
         receipt_path = task_dir / "materialization-receipt.json"
         if receipt_path.exists():

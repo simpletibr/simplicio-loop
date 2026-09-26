@@ -200,7 +200,7 @@ verwijst naar zijn uitgebreide sectie en zijn worker.
 | Capaciteit | Wat het doet | Bewijs / worker | Details |
 |---|---|---|---|
 | 🎬 **Video-bewijs** (`video_evidence`) | Legt de **echte browsersessie** vast als bewegend bewijs dat een UI-wijziging werkt (Playwright, standaard); rendert een **deterministische, ondertitelde MP4** met [hyperframes](https://github.com/heygen-com/hyperframes) voor een expliciet verzoek om een uitlegvideo (`/simplicio-loop make a video of screen X`) | `scripts/video_evidence.py` · GEBLOKKEERD (nooit fake-pass) zonder de toolchain | [§ Video-bewijs](#-video-evidence--playwright-by-default-hyperframes-on-request) |
-| 🧠 **Pogingengeheugen + stall-detector** | Een duurzaam run-journal (`.simplicio/orchestrator/loop/journal.jsonl`) + een stall-detector zodat de lus **van strategie verandert in plaats van te oscilleren**; incrementele triage (`since`) leest elke beurt alleen het verschil | `scripts/loop_journal.py` · `selftest` 9/9 | [§ Anti-oscillatie](#-pogingengeheugen--stall-detector-anti-oscillatie) |
+| 🧠 **Pogingengeheugen + stall-detector** | Een duurzaam run-journal (`.simplicio-loop/orchestrator/loop/journal.jsonl`) + een stall-detector zodat de lus **van strategie verandert in plaats van te oscilleren**; incrementele triage (`since`) leest elke beurt alleen het verschil | `scripts/loop_journal.py` · `selftest` 9/9 | [§ Anti-oscillatie](#-pogingengeheugen--stall-detector-anti-oscillatie) |
 | 🔒 **Fail-closed veiligheidspoort** (`action_gate`) | Een `PreToolUse`-/git-pre-push-hook die **mechanisch** force-push, history-herschrijving, massa-verwijdering, destructieve DDL, infra-afbraak en commits/pushes vol secrets **blokkeert** — Stap 5 uitvoerbaar gemaakt, niet als proza | `hooks/action_gate.py` · `selftest` 15/15 | [§ Veiligheid](#-veiligheid-niet-onderhandelbaar) |
 | 🔬 **Lokale verificatie** | Een testsuite (worker-selftests + een **e2e van de loop-driver** die bewijs-gepoorte uitgang aantoont) + een **claims-audit** (gerefereerde scripts bestaan · tellingen consistent · `_bundle ≡ source`) — allemaal lokaal, **geen betaalde CI** | `scripts/check.py` · `scripts/claims_audit.py` · `tests/` | [§ Tests & lokale checks](#-tests--lokale-checks-geen-betaalde-ci) |
 | ✅ **Eerlijke besparing** | De besparingsregel is nu **bewijs-gepoort, niet verplicht** — een getal wordt alleen getoond met een gemeten bewijsstuk (clamp/signatures/cache/`deterministic_edit`/ledger); nooit verzonnen | token-economie-contract | [§ Token-economie](#-token-economie) |
@@ -348,7 +348,7 @@ zodat de agent zijn eigen eerdere werk ziet. Uitgang is ALLEEN via:
    = genegeerd.
 2. **`max_iterations`-plafond** — harde veiligheidsbackstop
 3. **STOP/cancel path** — explicit STOP file or channel command stops unattended runs
-4. **STOP-signaal** — `.simplicio/orchestrator/STOP` of kanaalcommando
+4. **STOP-signaal** — `.simplicio-loop/orchestrator/STOP` of kanaalcommando
 
 Tussen beurten cachet LMCache (indien beschikbaar) de KV-toestand zodat herinvoer bijna-nul prefill
 kost.
@@ -357,7 +357,7 @@ kost.
 
 Een herinvoer-lus die niets onthoudt oscilleert — probeer X, faal, probeer X opnieuw — totdat het
 plafond opbrandt. simplicio-loop houdt een **duurzaam run-journal** bij
-(`.simplicio/orchestrator/loop/journal.jsonl`, append-only:
+(`.simplicio-loop/orchestrator/loop/journal.jsonl`, append-only:
 `iteration · action · hypothesis · gate · error-fingerprint`) en een **stall-detector**
 ([`scripts/loop_journal.py`](../scripts/loop_journal.py), deterministisch + modelvrij):
 

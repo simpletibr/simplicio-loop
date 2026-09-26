@@ -198,7 +198,7 @@ session 怎么知道哪些工作已经被认领、哪些 PR 已合并却没真�
 | 能力 | 它做什么 | 证明 / worker | 详情 |
 |---|---|---|---|
 | 🎬 **视频证据**（`video_evidence`） | 录制**真实浏览器会话**，作为 UI 改动确实可用的动态证明（Playwright，默认）；当显式索取讲解视频时（`/simplicio-loop make a video of screen X`），用 [hyperframes](https://github.com/heygen-com/hyperframes) 渲染一段 CI 可复现的**确定性带字幕 MP4** | `scripts/video_evidence.py` · 缺少工具链时 BLOCKED（绝不假装通过） | [§ 视频证据](#-视频证据--默认-playwright应请求时-hyperframes) |
-| 🧠 **尝试记忆 + 停滞检测器** | 一份耐久的运行日志（`.simplicio/orchestrator/loop/journal.jsonl`）+ 一个停滞检测器，让循环**改变策略而非来回振荡**；增量分诊（`since`）每轮只读取增量部分 | `scripts/loop_journal.py` · `selftest` 13/13 | [§ 防振荡](#-尝试记忆--停滞检测器防振荡) |
+| 🧠 **尝试记忆 + 停滞检测器** | 一份耐久的运行日志（`.simplicio-loop/orchestrator/loop/journal.jsonl`）+ 一个停滞检测器，让循环**改变策略而非来回振荡**；增量分诊（`since`）每轮只读取增量部分 | `scripts/loop_journal.py` · `selftest` 13/13 | [§ 防振荡](#-尝试记忆--停滞检测器防振荡) |
 | 🔒 **失败即关闭的安全门**（`action_gate`） | 一个 `PreToolUse`/git-pre-push 钩子，**以机械方式阻断** force-push、历史重写、批量删除、破坏性 DDL、基础设施拆除以及携带密钥的提交/推送 —— 把第 5 步从散文变成可执行 | `hooks/action_gate.py` · `selftest` 15/15 | [§ 安全](#-安全不可妥协) |
 | 🔬 **本地验证** | 一套测试套件（worker selftest + 一个证明经证据门控退出的**循环驱动器 e2e**）+ 一份 **claims-audit**（被引用的脚本存在 · 计数一致 · `_bundle ≡ source`）—— 全部本地、**无需付费 CI** | `scripts/check.py` · `scripts/claims_audit.py` · `tests/` | [§ 测试与本地检查](#-测试与本地检查无需付费-ci) |
 | ✅ **诚实的节省** | 节省那一行现在是**经证据门控的，而非强制的** —— 只有在拿到一份实测凭据（clamp/signatures/cache/`deterministic_edit`/ledger）时才会显示数字；绝不编造 | token 经济契约 | [§ Token 经济](#-token-经济) |
@@ -343,14 +343,14 @@ issue 都回来是 deferred 状态时，循环不会空转 —— 它转而用 `
    已合并的 PR、已关闭项的重新查询）。没有证据的承诺 = 被忽略。
 2. **`max_iterations` 上限** —— 硬性安全防线
 3. **STOP/cancel path** — explicit STOP file or channel command stops unattended runs
-4. **STOP 信号** —— `.simplicio/orchestrator/STOP` 或通道命令
+4. **STOP 信号** —— `.simplicio-loop/orchestrator/STOP` 或通道命令
 
 在各轮之间，LMCache（可用时）会缓存 KV 状态，于是重新投喂的 prefill 成本接近于零。
 
 ### 🧠 尝试记忆 + 停滞检测器（防振荡）
 
 一个什么都记不住的重新投喂循环会振荡 —— 试 X、失败、再试 X —— 直到把上限烧光。
-simplicio-loop 维护一份**耐久的运行日志**（`.simplicio/orchestrator/loop/journal.jsonl`，仅追加：
+simplicio-loop 维护一份**耐久的运行日志**（`.simplicio-loop/orchestrator/loop/journal.jsonl`，仅追加：
 `iteration · action · hypothesis · gate · error-fingerprint`）和一个**停滞检测器**
 （[`scripts/loop_journal.py`](../scripts/loop_journal.py)，确定性 + 无需模型）：
 

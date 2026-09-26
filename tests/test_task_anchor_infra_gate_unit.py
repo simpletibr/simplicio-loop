@@ -202,7 +202,7 @@ def test_dotnet_no_test_project_fixture_reaches_ready_via_harness_and_waivers(tm
     probe_result = test_infra_probe.probe(target_repo)
     assert probe_result["test_infra"] == {"unit": "absent", "coverage": "absent", "ci": "absent"}
 
-    # 2) anchor lives OUTSIDE the target repo (this loop's own .simplicio/orchestrator, standing in for it
+    # 2) anchor lives OUTSIDE the target repo (this loop's own .simplicio-loop/orchestrator, standing in for it
     #    here as a tmp_path anchor) — freezing the goal + the 3 DoD-shaped dimensions in play.
     anchor = tmp_path / "anchor.json"
     r = _cli(anchor, "set", "--item", "526-fixture", "--goal", "Fix Calc.Add",

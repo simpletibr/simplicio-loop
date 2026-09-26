@@ -39,7 +39,7 @@ def main() -> int:
                         help="required `scope` claim on tokens when --token-secret is set")
     parser.add_argument("--revocation-store",
                         default=os.environ.get("SIMPLICIO_QUEUE_REVOCATION_STORE",
-                                               ".simplicio/orchestrator/security/revoked-jti.json"),
+                                               ".simplicio-loop/orchestrator/security/revoked-jti.json"),
                         help="revocation store path checked when --token-secret is set")
     parser.add_argument("--tls-certfile", default=os.environ.get("SIMPLICIO_QUEUE_TLS_CERTFILE"))
     parser.add_argument("--tls-keyfile", default=os.environ.get("SIMPLICIO_QUEUE_TLS_KEYFILE"))

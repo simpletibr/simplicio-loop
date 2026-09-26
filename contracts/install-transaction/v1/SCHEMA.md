@@ -23,7 +23,7 @@ Fields present today:
 `scripts/install_executor.py::apply()` is the executor: it re-derives the same plan,
 refuses to mutate anything if it's `BLOCKED`, and otherwise applies each file effect
 with a pre-mutation backup, a before/after content hash, and a persisted receipt under
-`<target>/.simplicio/receipts/<transaction_id>.json` — with automatic rollback of every
+`<target>/.simplicio-loop/receipts/<transaction_id>.json` — with automatic rollback of every
 step already applied if a later one raises. `scripts/install_executor.py rollback
 <transaction_id> --target DIR` (or `install_lib.py rollback ...`) undoes a previously
 applied transaction from that same receipt.

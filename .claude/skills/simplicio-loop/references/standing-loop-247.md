@@ -83,7 +83,7 @@ per item. Daily meta-review: scan escapes/blocks → propose protocol tweaks, ba
 ### 10. Coordination & clean stop
 Multiple loop instances: atomic claims (tuple-space/labels/lockfile) + lease/heartbeat/TTL so a
 dead worker's items are reclaimed, never stolen while live. A single `STOP` signal (flag file
-`.simplicio/orchestrator/STOP` or channel command) halts cleanly between ticks.
+`.simplicio-loop/orchestrator/STOP` or channel command) halts cleanly between ticks.
 
 **Exit condition: none by design** — idle when drained, wake on any new item/comment/check. Only
 STOPS on the explicit stop signal, iteration cap, spindle handoff, or a safety halt.

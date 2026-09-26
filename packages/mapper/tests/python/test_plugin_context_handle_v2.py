@@ -74,7 +74,7 @@ class PluginContextHandleV2Test(unittest.TestCase):
         self.assertTrue(invalidated["local_map_cache"]["receipt"]["produced"])
         self.assertNotEqual(invalidated["context_id"], first["context_id"])
 
-        cache_path = self.root / ".simplicio" / "plugin-context-handle.json"
+        cache_path = self.root / ".simplicio-loop" / "plugin-context-handle.json"
         raw = json.loads(cache_path.read_text(encoding="utf-8"))
         for entry in raw["structured"]["entries"].values():
             entry["checksum"] = "corrupt"

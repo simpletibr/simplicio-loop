@@ -8,14 +8,14 @@
       "id": "AC1",
       "text": "Login page renders an SSO button",
       "status": "done",
-      "evidence": "web_verify .simplicio/orchestrator/tee/web/login.png",
+      "evidence": "web_verify .simplicio-loop/orchestrator/tee/web/login.png",
       "verified_at": "2026-07-01T10:20:00Z"
     },
     {
       "id": "AC2",
       "text": "Clicking it redirects to the IdP",
       "status": "done",
-      "evidence": "web_verify .simplicio/orchestrator/tee/web/redirect.png",
+      "evidence": "web_verify .simplicio-loop/orchestrator/tee/web/redirect.png",
       "verified_at": "2026-07-01T10:25:00Z"
     }
   ]

@@ -1,7 +1,7 @@
 {
   "$schema_note": "simplicio-dev-cli token/context budget baseline (issue #111). Regenerate with `python3 scripts/token_budget.py --update-baseline` after a deliberate, reviewed size change to a tracked artifact -- never to silence a regression you haven't looked at.",
   "artifacts": {
-    ".simplicio/map-inspection.json": {
+    ".simplicio-loop/map-inspection.json": {
       "label": "mapper artifact (map-inspection.json)",
       "tokens": 1340,
       "words": 272

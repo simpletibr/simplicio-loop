@@ -3,7 +3,7 @@ simplicio-loop 3.43.16:
 
 BUG 1 -- a read-only Mapper re-survey after ``prepare`` (e.g. the host running
 ``simplicio-loop orient`` again to refresh context before a retry) rewrites
-``.simplicio/index-state.json`` -- including its ``updated_at`` timestamp --
+``.simplicio-loop/index-state.json`` -- including its ``updated_at`` timestamp --
 even though nothing in the tracked tree changed. The armed run's preflight
 compared that ever-changing timestamp as part of the pinned Mapper
 "generation" identity, so the re-survey looked like drift and blocked the
@@ -196,7 +196,7 @@ def _chained_plan(ops_find: str, ops_replace: str, import_find: str, import_repl
 
 
 def _write_good_chain(repo: Path, run_id: str) -> None:
-    run_dir = repo / ".simplicio" / "loop-runs" / run_id
+    run_dir = repo / ".simplicio-loop" / "loop-runs" / run_id
     plans = [
         _chained_plan(
             "def sub(a, b):\n    return a - b\n",
@@ -236,7 +236,7 @@ def test_tick_from_three_separate_processes_chains_and_verify_reports_verified(t
     run_id = _prepare(repo)
     _write_good_chain(repo, run_id)
 
-    run_dir = repo / ".simplicio" / "loop-runs" / run_id
+    run_dir = repo / ".simplicio-loop" / "loop-runs" / run_id
     for task_index in (1, 2, 3):
         # `tick`'s own public-flow shape varies with how far the run got that
         # call (a raw dispatch/state envelope while other tasks are still

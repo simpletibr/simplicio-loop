@@ -62,7 +62,7 @@ rules file makes it follow the protocol).
 ## Progresso do run
 
 Self-paced (N2): the tick echoes `python3 scripts/loop_progress.py render --turn-header`.
-Universal fallback (N3): open `.simplicio/orchestrator/loop/PROGRESS.md` (auto-regenerated every turn).
+Universal fallback (N3): open `.simplicio-loop/orchestrator/loop/PROGRESS.md` (auto-regenerated every turn).
 
 ## Ecosystem law (2026-08) — read on every host
 

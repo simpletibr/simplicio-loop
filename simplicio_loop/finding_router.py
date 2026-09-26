@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional
 from .finding_report import emit_finding, fingerprint, SEVERITY_ENUM
 from .technical_debt import is_hard_blocker
 
-LOCAL_STORE = Path(".simplicio/orchestrator/findings/issue_routes.json")
+LOCAL_STORE = Path(".simplicio-loop/orchestrator/findings/issue_routes.json")
 
 
 @dataclass

@@ -72,7 +72,7 @@ def _run_case(root: Path, writers: int, repeats: int) -> dict[str, Any]:
         samples.append((time.perf_counter() - started) * 1000.0)
     cache = ContextBindingCache(case_root)
     state = cache._read()
-    log_path = case_root / ".simplicio" / "context-bindings.hbp"
+    log_path = case_root / ".simplicio-loop" / "context-bindings.hbp"
     health = {
         "entries": len(state.get("entries", {})),
         "bytes": log_path.stat().st_size if log_path.is_file() else 0,

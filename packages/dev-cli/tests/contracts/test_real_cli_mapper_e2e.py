@@ -41,7 +41,7 @@ def test_real_console_entrypoints_map_and_inspect_fresh_project(sample_project: 
     mapper = _required_executable("simplicio-mapper")
     dev_cli = _required_executable("simplicio-dev-cli")
 
-    artifacts = sample_project / ".simplicio"
+    artifacts = sample_project / ".simplicio-loop"
     shutil.rmtree(artifacts)
     source = sample_project / "src" / "app.py"
     source_before = _sha256(source)

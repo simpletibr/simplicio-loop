@@ -14,7 +14,7 @@ primitives already in `scripts/install_lib.py` (`copy_skills`, `copy_hooks`, `co
 - automatic rollback (restore-from-backup for pre-existing paths, remove for freshly-created
   ones) if any later step in the same transaction raises — so a mid-install failure never leaves
   partial state behind, only either a clean APPLIED transaction or a clean ROLLED_BACK one;
-- a persisted receipt (`<target>/.simplicio/receipts/<transaction_id>.json`) so the same
+- a persisted receipt (`<target>/.simplicio-loop/receipts/<transaction_id>.json`) so the same
   transaction can be rolled back LATER too, via `rollback()` / `install_lib.py rollback <id>`.
 
 Rollback only ever touches paths this module itself recorded backing up for that specific
@@ -112,7 +112,7 @@ MANIFEST_SCHEMA = "simplicio.install-manifest/v1"
 
 
 def _manifest_path(target: str) -> str:
-    return os.path.join(target, ".simplicio", "manifest.json")
+    return os.path.join(target, ".simplicio-loop", "manifest.json")
 
 
 def _read_manifest(target: str) -> Optional[Dict[str, Any]]:
@@ -176,11 +176,11 @@ class InstallTransactionError(RuntimeError):
 
 
 def _receipts_dir(target: str) -> str:
-    return os.path.join(target, ".simplicio", "receipts")
+    return os.path.join(target, ".simplicio-loop", "receipts")
 
 
 def _backups_dir(target: str, transaction_id: str) -> str:
-    return os.path.join(target, ".simplicio", "backups", transaction_id)
+    return os.path.join(target, ".simplicio-loop", "backups", transaction_id)
 
 
 def _hash_path(path: str) -> Optional[str]:

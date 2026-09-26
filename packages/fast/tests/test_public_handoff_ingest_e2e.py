@@ -4,7 +4,7 @@ Regression coverage for the documented agent workflow
 (``simplicio-mapper scan`` -> ``simplicio-mapper handoff --json`` -> Fast
 ``ingest --mapper-mode integrated``), which never calls the internal
 ``simplicio-mapper snapshot build``. Before the mapper-side fix, ``handoff``
-never materialized the canonical ``.simplicio/context-snapshot.json`` Fast
+never materialized the canonical ``.simplicio-loop/context-snapshot.json`` Fast
 reads symbol ids from, so this flow failed closed with
 ``mapper_artifact_missing: context_snapshot`` even though ``handoff --json``
 reported ``ready: true``. This test exercises the flow both without and
@@ -130,7 +130,7 @@ def test_scan_then_public_handoff_feeds_fast_integrated_ingest(
 
     # The public handoff envelope must point Fast at canonical artifacts
     # that actually exist on disk -- not just claim readiness.
-    snapshot_path = root / ".simplicio" / "context-snapshot.json"
+    snapshot_path = root / ".simplicio-loop" / "context-snapshot.json"
     assert snapshot_path.is_file(), (
         "handoff must materialize the canonical context snapshot Fast needs"
     )

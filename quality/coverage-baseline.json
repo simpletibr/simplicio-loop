@@ -4,7 +4,7 @@
   "commit": "2b002db9eef91cb831fdf096ee42593f5b30051a",
   "commit_note": "Originally recorded as short SHA '7bb73e7', which does not resolve in this repo's history -- that commit was squashed away by a later squash-merge before this file first landed on main. Re-anchored to 2b002db9eef91cb831fdf096ee42593f5b30051a (release: prepare simplicio-loop 3.43.6, #1223), the real, reachable commit that carries this file. The measured numbers below are unchanged; only the provenance pointer was corrected (never fabricate a fresh number to paper over a broken pointer).",
   "generated_at": "2026-07-15T20:43:11Z",
-  "measured_with": "scripts/coverage_gate.py --tests-path <65 files listed below> --diagnostics-dir .simplicio/quality-gate/coverage-baseline --emit-json",
+  "measured_with": "scripts/coverage_gate.py --tests-path <65 files listed below> --diagnostics-dir .simplicio-loop/quality-gate/coverage-baseline --emit-json",
   "coverage_py_version": "7.15.1",
   "python_version": "3.14.5",
   "instrumented_source": "simplicio_loop,engine,scripts",

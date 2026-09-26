@@ -83,12 +83,12 @@ Shipped as [`scripts/billing_aggregator.py`](scripts/billing_aggregator.py) (std
 
 ```
 scripts/billing_aggregator.py
-  collect   read .simplicio/orchestrator/{savings/snapshots.jsonl, trajectory/*, tee/video/ledger.txt}
+  collect   read .simplicio-loop/orchestrator/{savings/snapshots.jsonl, trajectory/*, tee/video/ledger.txt}
             → ONE append-only, text-free usage record (counts the savings TEXT then DISCARDS it)
   meter     pure roll-up: usd_spent, tokens_spent, tokens_saved, items_delivered, renders, seconds
   invoice   apply the tier rule (seat | run | metered) → line-item JSON (+ optional --prepaid guard)
   export    emit Stripe-style metered usage records / CSV — usage counts only, never customer code
-  rates     print the active rate card (DEFAULT_RATES, overridable via .simplicio/orchestrator/billing/rates.json)
+  rates     print the active rate card (DEFAULT_RATES, overridable via .simplicio-loop/orchestrator/billing/rates.json)
   selftest  deterministic arithmetic proof — no files (11/11 checks)
 ```
 
@@ -131,6 +131,6 @@ Properties (non-negotiable, mirror the existing safety spine):
    Enterprise (changes the aggregator's deployment, not its logic).
 
 *Done:* `scripts/billing_aggregator.py` (collect/meter/invoice/export/rates/selftest) is
-implemented against the existing `.simplicio/orchestrator/` records, with a deterministic `selftest` like
+implemented against the existing `.simplicio-loop/orchestrator/` records, with a deterministic `selftest` like
 `savings_harness`. *Next step if approved:* wire `export --format stripe` to a real Stripe metered
 subscription, and set the rate card from the first month of `proxy_savings.json` data.

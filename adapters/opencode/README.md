@@ -73,7 +73,7 @@ opencode run "/simplicio-tasks finish all the open issues"
 ## Progresso do run
 
 Self-paced (N2): the tick echoes the turn-header. Universal fallback (N3, works with any config):
-`watch -n5 cat .simplicio/orchestrator/loop/PROGRESS.md`.
+`watch -n5 cat .simplicio-loop/orchestrator/loop/PROGRESS.md`.
 
 ## Ecosystem law (2026-08) — read on every host
 

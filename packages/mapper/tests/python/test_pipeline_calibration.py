@@ -35,8 +35,8 @@ from simplicio_mapper.mapper.pipeline_calibration import (  # noqa: E402
 
 class CalibrationFilePathTest(unittest.TestCase):
     def test_path_is_under_output_dir(self) -> None:
-        path = calibration_file_path("/repo", output_dir=".simplicio")
-        self.assertTrue(path.replace("\\", "/").endswith(".simplicio/" + CALIBRATION_FILENAME))
+        path = calibration_file_path("/repo", output_dir=".simplicio-loop")
+        self.assertTrue(path.replace("\\", "/").endswith(".simplicio-loop/" + CALIBRATION_FILENAME))
 
 
 class LoadCalibratedThresholdTest(unittest.TestCase):
@@ -53,13 +53,13 @@ class LoadCalibratedThresholdTest(unittest.TestCase):
         self.assertIsNone(load_calibrated_threshold(str(self.dir)))
 
     def test_corrupt_json_returns_none(self) -> None:
-        target = self.dir / ".simplicio" / CALIBRATION_FILENAME
+        target = self.dir / ".simplicio-loop" / CALIBRATION_FILENAME
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text("{not valid json", encoding="utf-8")
         self.assertIsNone(load_calibrated_threshold(str(self.dir)))
 
     def test_non_dict_json_returns_none(self) -> None:
-        target = self.dir / ".simplicio" / CALIBRATION_FILENAME
+        target = self.dir / ".simplicio-loop" / CALIBRATION_FILENAME
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text("[1, 2, 3]", encoding="utf-8")
         self.assertIsNone(load_calibrated_threshold(str(self.dir)))

@@ -65,7 +65,7 @@ def test_run_mapper_tolerates_missing_optional_task_metadata(tmp_path, monkeypat
 
 def test_context_reference_expands_to_canonical_artifact(tmp_path):
     repo = tmp_path / "repo"
-    objects = repo / ".simplicio" / "handoff-objects"
+    objects = repo / ".simplicio-loop" / "handoff-objects"
     objects.mkdir(parents=True)
     run_root = tmp_path / "run"
     run_root.mkdir()
@@ -75,9 +75,9 @@ def test_context_reference_expands_to_canonical_artifact(tmp_path):
     execution.write_text(json.dumps({"schema": "simplicio.execution-context/v1"}), encoding="utf-8")
     reference = lambda schema, path: {"schema": "simplicio.context-reference/v1", "expansion_handle": {"path": path}}
     (run_root / "mapper-context.json").write_text(json.dumps({"handoff": {"stdout": {
-        "context_snapshot": reference("simplicio.context-snapshot/v1", ".simplicio/handoff-objects/context_snapshot-good.json"),
+        "context_snapshot": reference("simplicio.context-snapshot/v1", ".simplicio-loop/handoff-objects/context_snapshot-good.json"),
         "context_pack": {"schema": "simplicio.context-pack/v1", "pack_hash": "pack-1"},
-        "execution_context": reference("simplicio.execution-context/v1", ".simplicio/handoff-objects/execution_context-good.json"),
+        "execution_context": reference("simplicio.execution-context/v1", ".simplicio-loop/handoff-objects/execution_context-good.json"),
     }}}), encoding="utf-8")
     args, receipt = runner_mod._context_handoff_args(repo, run_root)
     assert receipt["status"] == "propagated"

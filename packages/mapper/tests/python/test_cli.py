@@ -117,7 +117,7 @@ class FreshnessSignatureWorktreeExclusionTest(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_signature_excludes_claude_worktrees_but_keeps_root_config(self) -> None:
-        entries = _signature(str(self.dir), ".simplicio")
+        entries = _signature(str(self.dir), ".simplicio-loop")
         paths = {os.path.relpath(p, str(self.dir)).replace(os.sep, "/") for p, _mtime, _size in entries}
         self.assertIn("src/keep.py", paths)
         self.assertIn(".claude/settings.json", paths)
@@ -127,9 +127,9 @@ class FreshnessSignatureWorktreeExclusionTest(unittest.TestCase):
         # A duplicated worktree's own churn (new/changed files under
         # .claude/worktrees) must not affect the freshness hash of the
         # primary project -- proves the exclusion, not just its presence.
-        before = _tree_signature(str(self.dir), ".simplicio")
+        before = _tree_signature(str(self.dir), ".simplicio-loop")
         _write(self.dir, ".claude/worktrees/worker/new_file.py", "print('more dup')\n")
-        after = _tree_signature(str(self.dir), ".simplicio")
+        after = _tree_signature(str(self.dir), ".simplicio-loop")
         self.assertEqual(before, after)
 
 
@@ -217,7 +217,7 @@ class MapperArtifactsTest(unittest.TestCase):
         self.assertTrue(os.path.exists(out["architecture_inventory_path"]))
         self.assertTrue(os.path.exists(out["symbol_index_path"]))
         self.assertTrue(os.path.exists(out["call_graph_path"]))
-        self.assertTrue((self.dir / ".simplicio" / "cache").exists())
+        self.assertTrue((self.dir / ".simplicio-loop" / "cache").exists())
 
         on_disk = json.loads(Path(out["project_map_path"]).read_text())
         self.assertEqual(on_disk["update_mode"], "full")
@@ -264,14 +264,14 @@ module.exports = { findUsers };
         write_mapping_artifacts(cwd=str(self.dir), meta={"stack": "python"})
 
         docs = write_architecture_docs(str(self.dir))
-        architecture_doc = self.dir / ".simplicio" / "docs" / "architecture.md"
+        architecture_doc = self.dir / ".simplicio-loop" / "docs" / "architecture.md"
         self.assertTrue(architecture_doc.exists())
         architecture_text = architecture_doc.read_text()
         self.assertIn("Architecture Inventory", architecture_text)
         self.assertIn("![Module dependency diagram](diagrams/architecture-modules.svg)", architecture_text)
         self.assertGreaterEqual(docs["counts"]["files"], 4)
 
-        svg_doc = self.dir / ".simplicio" / "docs" / "diagrams" / "architecture-modules.svg"
+        svg_doc = self.dir / ".simplicio-loop" / "docs" / "diagrams" / "architecture-modules.svg"
         self.assertTrue(svg_doc.exists())
         ET.fromstring(svg_doc.read_text())
 
@@ -453,7 +453,7 @@ class CliTest(unittest.TestCase):
                      "--product-name", "CLI Host", "--silent", "--sync"])
         self.assertEqual(code, 0)
 
-        project_map = json.loads((self.dir / ".simplicio" / "project-map.json").read_text())
+        project_map = json.loads((self.dir / ".simplicio-loop" / "project-map.json").read_text())
         self.assertEqual(project_map["product"]["name"], "CLI Host")
         self.assertEqual(project_map["product"]["stack"], "node")
 
@@ -486,10 +486,10 @@ class CliTest(unittest.TestCase):
         self.assertEqual(payload["schema"], "simplicio.mapper-index/v1")
         self.assertEqual(payload["status"], "updated")
         self.assertEqual(payload["skipped_reason"], None)
-        self.assertTrue(payload["paths"]["project_map"].endswith(".simplicio/project-map.json"))
-        self.assertTrue(payload["paths"]["execution_plan"].endswith(".simplicio/execution-plan.json"))
+        self.assertTrue(payload["paths"]["project_map"].endswith(".simplicio-loop/project-map.json"))
+        self.assertTrue(payload["paths"]["execution_plan"].endswith(".simplicio-loop/execution-plan.json"))
         self.assertEqual(payload["execution_plan"]["selected_profile"], "sync")
-        self.assertTrue(payload["paths"]["precedent_index"].endswith(".simplicio/precedent-index.json"))
+        self.assertTrue(payload["paths"]["precedent_index"].endswith(".simplicio-loop/precedent-index.json"))
         self.assertGreaterEqual(payload["counts"]["files"], 2)
         self.assertGreaterEqual(payload["counts"]["precedents"], 1)
 
@@ -511,7 +511,7 @@ class CliTest(unittest.TestCase):
         _write(self.dir, "src/index.js", "export function run() {}\n")
 
         self.assertEqual(main(["index", str(self.dir)]), 0)
-        state_path = self.dir / ".simplicio" / "index-state.json"
+        state_path = self.dir / ".simplicio-loop" / "index-state.json"
         state = json.loads(state_path.read_text(encoding="utf-8"))
         state["completeness"] = "partial"
         state_path.write_text(json.dumps(state), encoding="utf-8")
@@ -527,7 +527,7 @@ class CliTest(unittest.TestCase):
         self.assertIsNone(payload["skipped_reason"])
         rebuilt_state = json.loads(state_path.read_text(encoding="utf-8"))
         self.assertEqual(rebuilt_state["completeness"], "complete")
-        self.assertFalse((self.dir / ".simplicio" / "partial-scan.json").exists())
+        self.assertFalse((self.dir / ".simplicio-loop" / "partial-scan.json").exists())
 
     def test_index_skips_fresh_artifacts_quietly(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "fresh-host"}))
@@ -722,7 +722,7 @@ export const routes: Routes = [
         self.assertEqual(code, 0)
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["schema"], "simplicio.architecture-docs/v1")
-        self.assertTrue((self.dir / ".simplicio" / "docs" / "architecture.md").exists())
+        self.assertTrue((self.dir / ".simplicio-loop" / "docs" / "architecture.md").exists())
         self.assertGreaterEqual(payload["counts"]["files"], 4)
 
     def test_export_docs_command_copies_markdown(self) -> None:
@@ -878,7 +878,7 @@ async def ping(limit: int) -> PingResult:
         self.assertEqual(code, 0)
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["schema"], "simplicio.service-flowchart/v1")
-        doc = app_dir / ".simplicio" / "docs" / "flowchart.md"
+        doc = app_dir / ".simplicio-loop" / "docs" / "flowchart.md"
         self.assertTrue(doc.exists())
         text = doc.read_text(encoding="utf-8")
         self.assertIn("```mermaid", text)
@@ -931,7 +931,7 @@ export class ReportComponent {
     def test_docs_pipeline_includes_flowchart(self) -> None:
         app_dir = self._flowchart_app()
         write_architecture_docs(str(app_dir))
-        flowchart_doc = app_dir / ".simplicio" / "docs" / "flowchart.md"
+        flowchart_doc = app_dir / ".simplicio-loop" / "docs" / "flowchart.md"
         self.assertTrue(flowchart_doc.exists())
         self.assertIn("# Service Flowchart", flowchart_doc.read_text(encoding="utf-8"))
 
@@ -1052,7 +1052,7 @@ def load(api):
 
     def test_index_skips_with_explicit_lock(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "locked-host"}))
-        lock = self.dir / ".simplicio" / "index.lock"
+        lock = self.dir / ".simplicio-loop" / "index.lock"
         lock.parent.mkdir(parents=True, exist_ok=True)
         lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
 
@@ -1087,8 +1087,8 @@ def load(api):
         self.assertEqual(payload["schema"], "simplicio.background-index/v1")
         self.assertEqual(payload["status"], "started")
         self.assertGreater(payload["pid"], 0)
-        self.assertTrue(payload["log"].endswith(".simplicio/background-index.log"))
-        project_map = self.dir / ".simplicio" / "project-map.json"
+        self.assertTrue(payload["log"].endswith(".simplicio-loop/background-index.log"))
+        project_map = self.dir / ".simplicio-loop" / "project-map.json"
         for _ in range(100):
             if not _process_is_alive(payload["pid"]):
                 break
@@ -1105,14 +1105,14 @@ def load(api):
             "process_start": "late-start",
             "owner_token": "late-owner",
         }
-        job_path = self.dir / ".simplicio" / "map-job.json"
+        job_path = self.dir / ".simplicio-loop" / "map-job.json"
         results: list[bool] = []
 
         def finalize() -> None:
             results.append(
                 _finalize_map_job(
                     str(self.dir),
-                    ".simplicio",
+                    ".simplicio-loop",
                     identity,
                     exit_code=0,
                     phase="complete",
@@ -1148,12 +1148,12 @@ def load(api):
             return_value=(payload, object()),
         ):
             self.assertEqual(
-                _spawn_background_index({"root": str(self.dir), "out": ".simplicio"}),
+                _spawn_background_index({"root": str(self.dir), "out": ".simplicio-loop"}),
                 payload,
             )
 
     def test_background_worker_finalizer_fails_closed_and_preserves_other_jobs(self) -> None:
-        job_path = self.dir / ".simplicio" / "map-job.json"
+        job_path = self.dir / ".simplicio-loop" / "map-job.json"
         job_path.parent.mkdir(parents=True, exist_ok=True)
         identity = {"pid": 412, "process_start": "start-7", "owner_token": "owner-7"}
         job_path.write_text(
@@ -1167,7 +1167,7 @@ def load(api):
         self.assertTrue(
             _finalize_map_job(
                 str(self.dir),
-                ".simplicio",
+                ".simplicio-loop",
                 identity,
                 exit_code=7,
                 phase="failed",
@@ -1189,7 +1189,7 @@ def load(api):
         self.assertFalse(
             _finalize_map_job(
                 str(self.dir),
-                ".simplicio",
+                ".simplicio-loop",
                 identity,
                 exit_code=7,
                 phase="failed",
@@ -1210,7 +1210,7 @@ def load(api):
         self.assertEqual(code, 0)
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["schema"], "simplicio.architecture-docs/v1")
-        self.assertTrue((self.dir / ".simplicio" / "docs" / "architecture.md").exists())
+        self.assertTrue((self.dir / ".simplicio-loop" / "docs" / "architecture.md").exists())
 
     def _seed_multi_stack(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "macro-host"}))
@@ -1266,8 +1266,8 @@ def load(api):
         self.assertEqual(payload["phase"], "complete")
         self.assertTrue(payload["sync"])
         self.assertEqual(payload["macro"]["schema"], "simplicio.macro-map/v1")
-        self.assertTrue((self.dir / ".simplicio" / "project-map.json").exists())
-        self.assertTrue((self.dir / ".simplicio" / "map-job.json").exists())
+        self.assertTrue((self.dir / ".simplicio-loop" / "project-map.json").exists())
+        self.assertTrue((self.dir / ".simplicio-loop" / "map-job.json").exists())
 
     def test_scan_async_returns_before_deep_completes(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "async-host"}))
@@ -1281,7 +1281,7 @@ def load(api):
         self.assertFalse(payload["sync"])
         self.assertGreater(payload["deep"]["pid"], 0)
         # Wait for the detached deep pass to finish, then status must report complete.
-        project_map = self.dir / ".simplicio" / "project-map.json"
+        project_map = self.dir / ".simplicio-loop" / "project-map.json"
         for _ in range(80):
             if project_map.exists():
                 break
@@ -1295,7 +1295,7 @@ def load(api):
 
     def test_scan_sync_lock_guarded(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "guard-host"}))
-        lock = self.dir / ".simplicio" / "index.lock"
+        lock = self.dir / ".simplicio-loop" / "index.lock"
         lock.parent.mkdir(parents=True, exist_ok=True)
         lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
         out = StringIO()
@@ -1309,7 +1309,7 @@ def load(api):
     def test_status_reports_running_then_complete(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "status-host"}))
         _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
-        lock = self.dir / ".simplicio" / "index.lock"
+        lock = self.dir / ".simplicio-loop" / "index.lock"
         lock.parent.mkdir(parents=True, exist_ok=True)
         lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
         out = StringIO()
@@ -1340,7 +1340,7 @@ def load(api):
         with redirect_stdout(StringIO()):
             self.assertEqual(main(["scan", str(self.dir), "--sync", "--json"]), 0)
 
-        cache_path = self.dir / ".simplicio" / "context-cache.json"
+        cache_path = self.dir / ".simplicio-loop" / "context-cache.json"
         cache_path.write_text(json.dumps({
             "schema": "simplicio.context-cache/v1",
             "entries": {"abc": {"summary": "cached"}},
@@ -1356,12 +1356,12 @@ def load(api):
         self.assertTrue(payload["artifacts_present"])
         self.assertEqual(payload["warnings"], [])
         self.assertEqual(payload["root"], str(self.dir).replace(os.sep, "/"))
-        self.assertTrue(payload["out"].endswith(".simplicio"))
+        self.assertTrue(payload["out"].endswith(".simplicio-loop"))
         self.assertIn("files", payload["counts"])
         self.assertEqual(payload["cache"]["entries"], 1)
         self.assertEqual(payload["cache"]["sample_keys"], ["abc"])
         self.assertTrue(payload["job"]["sync"])
-        self.assertTrue(payload["map_job_path"].endswith(".simplicio/map-job.json"))
+        self.assertTrue(payload["map_job_path"].endswith(".simplicio-loop/map-job.json"))
         self.assertTrue(payload["commands"]["inspect"].endswith(" --json"))
         self.assertTrue(payload["evidence"]["artifacts"]["project_map"]["exists"])
         self.assertGreater(payload["evidence"]["artifacts"]["project_map"]["size_bytes"], 0)
@@ -1378,7 +1378,7 @@ def load(api):
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["schema"], "simplicio.map-inspection/v1")
         self.assertEqual(payload["status"]["phase"], "complete")
-        self.assertTrue(payload["artifacts"]["project_map"].endswith(".simplicio/project-map.json"))
+        self.assertTrue(payload["artifacts"]["project_map"].endswith(".simplicio-loop/project-map.json"))
         self.assertTrue(payload["evidence"]["artifacts"]["project_map"]["exists"])
 
     def test_handoff_command_embeds_context_pack_for_changed_files(self) -> None:

@@ -29,7 +29,7 @@ SPEC_DRIFT_SCHEMA = "simplicio.spec-drift/v1"
 SPEC_DRIFT_VERSION = 1
 
 _SPEC_DIRS = (".specs", "docs")
-_EXCLUDE_DIRS = {".simplicio", "node_modules", ".git", "__pycache__"}
+_EXCLUDE_DIRS = {".simplicio-loop", "node_modules", ".git", "__pycache__"}
 # All-caps SNAKE_CASE only (`<PRODUCT_NAME>`, `<TEAM>`, `<SYMPTOM>`) — matches
 # scripts/check-placeholders.sh's own convention. Deliberately excludes
 # lowercase CLI-usage placeholders like `<file>`/`<path>` in `usage: cmd <path>`
@@ -199,7 +199,7 @@ def _scoped_paths(manifest: dict, all_paths: list[str], scope: str) -> tuple[lis
 
 def build_spec_drift(
     cwd: str,
-    out_dir: str = ".simplicio",
+    out_dir: str = ".simplicio-loop",
     threshold: int = _DEFAULT_THRESHOLD,
     *,
     scope: str = "all",

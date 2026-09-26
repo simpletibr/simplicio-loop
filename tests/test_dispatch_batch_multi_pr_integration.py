@@ -60,7 +60,7 @@ def _write_host_edit_plan(repo, run_id, task_index=1):
     per-task ``edit-plan-<N>.json`` protocol). A tagged schema skips the real dev-cli
     compile step, so this fixture needs no real dev-cli binary; the actual mutation in
     this test comes from the faked ``run_guarded``, not from this plan's content."""
-    run_dir = repo / ".simplicio" / "loop-runs" / run_id
+    run_dir = repo / ".simplicio-loop" / "loop-runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / f"edit-plan-{task_index}.json").write_text(json.dumps({
         "schema": "simplicio.mechanical-edit/v1",
@@ -84,7 +84,7 @@ def _arm_fixture(tmp_path, monkeypatch, name):
     repo.mkdir(parents=True)
     (repo / "src").mkdir()
     (repo / "src" / "app.py").write_text("def main():\n    return 'ok'\n", encoding="utf-8")
-    (repo / ".gitignore").write_text(".simplicio/\n", encoding="utf-8")
+    (repo / ".gitignore").write_text(".simplicio-loop/\n", encoding="utf-8")
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
     subprocess.run(["git", "add", ".gitignore", "src/app.py"], cwd=repo, check=True)
     subprocess.run(

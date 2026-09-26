@@ -214,7 +214,7 @@ run = 1 planner + N doer calls. Caching mata isso.
 **Solução:** caching content-addressed em dois níveis.
 
 ```
-~/.simplicio/cache/
+~/.simplicio-loop/cache/
 ├── plans/
 │   ├── <sha256(planner_prompt)>.json
 │   └── ...
@@ -331,7 +331,7 @@ Sequência de PRs sugerida no `simplicio-dev-cli`:
 1. **`feat(cache): content-addressed completion cache`** (Alavanca D)
    - Novo módulo `simplicio/_cache.py` com SHA256-keyed JSON store
    - Hook em `providers.generate` e `providers.planner_complete`
-   - Env var `SIMPLICIO_BUST_CACHE=1`, `SIMPLICIO_CACHE_DIR=~/.simplicio/cache`
+   - Env var `SIMPLICIO_BUST_CACHE=1`, `SIMPLICIO_CACHE_DIR=~/.simplicio-loop/cache`
    - 2 dias
 
 2. **`feat(fixers): static fixers for install/import errors`** (C)

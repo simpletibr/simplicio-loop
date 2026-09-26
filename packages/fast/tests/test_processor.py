@@ -32,7 +32,7 @@ class ProjectProcessorTest(unittest.TestCase):
                 "    def create_user(self, name: str) -> str:\n"
                 "        return name\n"
             )
-            processor = ProjectProcessor(root, root / ".simplicio/fast/project.sfast")
+            processor = ProjectProcessor(root, root / ".simplicio-loop/fast/project.sfast")
 
             ingest = processor.ingest()
             self.assertEqual("simplicio.fast.ingest/v2", ingest["schema"])

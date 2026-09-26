@@ -609,7 +609,7 @@ def _standalone(
         observations["mapper_store_paths"] = sorted(
             str(path.relative_to(fixture))
             for path in fixture.rglob("*")
-            if path.is_file() and ".simplicio/mapper-store" in str(path.relative_to(fixture))
+            if path.is_file() and ".simplicio-loop/mapper-store" in str(path.relative_to(fixture))
         )
         if not upgrade and observations["legacy_sqlite_paths"]:
             return False, "legacy SQLite writer materialized a database", observations
@@ -619,7 +619,7 @@ def _standalone(
         if not validate_payload or validate_payload.get("ok") is not True:
             return False, "installed memory validation did not report ok", observations
         index_path = str((validate_payload.get("index") or {}).get("path", ""))
-        if ".simplicio/mapper-store" not in index_path:
+        if ".simplicio-loop/mapper-store" not in index_path:
             return False, "installed memory validation did not select MapperStore", observations
         preflight_payload = _last_json(observations["loop_preflight"].get("stdout", ""))
         if not preflight_payload or preflight_payload.get("all_present") is not True:

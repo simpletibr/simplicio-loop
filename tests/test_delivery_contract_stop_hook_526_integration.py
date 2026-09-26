@@ -101,7 +101,7 @@ def test_loop_stop_delivery_new_file_violation_blocks(tmp_path, monkeypatch):
     monkeypatch.syspath_prepend(str(scripts_dir))
     import delivery_contract as dc
 
-    loop_dir = repo / ".simplicio/orchestrator" / "loop"
+    loop_dir = repo / ".simplicio-loop/orchestrator" / "loop"
     loop_dir.mkdir(parents=True)
     anchor_path = loop_dir / "anchor.json"
     anchor = {"item": "526", "goal": "Ship the TFS_326750 fix", "goal_fp": "fp1",
@@ -135,7 +135,7 @@ def test_loop_stop_main_blocks_the_turn_and_writes_handoff(tmp_path, monkeypatch
     monkeypatch.syspath_prepend(str(scripts_dir))
     import delivery_contract as dc
 
-    loop_dir = repo / ".simplicio/orchestrator" / "loop"
+    loop_dir = repo / ".simplicio-loop/orchestrator" / "loop"
     loop_dir.mkdir(parents=True)
     scratchpad = loop_dir / "scratchpad.md"
     scratchpad.write_text(
@@ -158,7 +158,7 @@ def test_loop_stop_main_blocks_the_turn_and_writes_handoff(tmp_path, monkeypatch
     monkeypatch.setattr(loop_stop, "WATCHER_STATE", str(loop_dir / "watcher_state.json"))
     monkeypatch.setattr(loop_stop, "WATCHER_CHALLENGE", str(loop_dir / "watcher_challenge.json"))
     monkeypatch.setattr(loop_stop, "HANDOFF", str(loop_dir / "HANDOFF.md"))
-    monkeypatch.setattr(loop_stop, "STOP_SIGNAL", str(repo / ".simplicio/orchestrator" / "STOP"))
+    monkeypatch.setattr(loop_stop, "STOP_SIGNAL", str(repo / ".simplicio-loop/orchestrator" / "STOP"))
     monkeypatch.setattr(loop_stop, "SIMPLICIO_LOOP_SKILL_MARKER",
                         str(repo / "no-such-skill-marker.md"))  # no bound-operator requirement
     monkeypatch.setattr(dc, "DEFAULT_BASELINE", str(baseline_path))

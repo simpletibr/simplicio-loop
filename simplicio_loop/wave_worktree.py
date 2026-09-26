@@ -28,7 +28,7 @@ SCHEMA = "simplicio.wave-worktree/v1"
 # A caller's own state seeded into a lane worktree (e.g. a host's run receipts
 # copied in so its per-task operator dispatch can write real receipts there)
 # must never be captured in the lane's integration patch.
-EXCLUDED_DIFF_PATH = ".simplicio"
+EXCLUDED_DIFF_PATH = ".simplicio-loop"
 
 
 # --------------------------------------------------------------------------

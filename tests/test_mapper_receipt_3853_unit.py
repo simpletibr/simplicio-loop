@@ -21,7 +21,7 @@ def test_flat_mapper_index_from_real_cli_shape():
     receipt = {
         "schema": "simplicio.mapper-index/v1",
         "status": "updated",
-        "paths": {"project_map": "C:/repo/.simplicio/project-map.json"},
+        "paths": {"project_map": "C:/repo/.simplicio-loop/project-map.json"},
         "counts": {"files": 10},
         "changed_files": ["a.rs"],
     }

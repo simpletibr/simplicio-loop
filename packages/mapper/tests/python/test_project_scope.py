@@ -1,4 +1,4 @@
-"""Scoped .simplicio/data roots: core vs per-project isolation."""
+"""Scoped .simplicio-loop/data roots: core vs per-project isolation."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,7 +20,7 @@ def test_sanitize_and_slug_from_git_style_remote() -> None:
 
 def test_core_data_root_is_under_dot_simplicio(tmp_path: Path) -> None:
     root = core_data_root(home=tmp_path, environ={})
-    assert root == (tmp_path / ".simplicio" / "data").resolve()
+    assert root == (tmp_path / ".simplicio-loop" / "data").resolve()
 
 
 def test_project_data_root_isolated_under_repo(tmp_path: Path) -> None:
@@ -29,7 +29,7 @@ def test_project_data_root_isolated_under_repo(tmp_path: Path) -> None:
     root, slug, source = project_data_root(repo, environ={})
     assert slug == "appone"
     assert source == "directory"
-    assert root == (repo / ".simplicio" / "data" / "appone").resolve()
+    assert root == (repo / ".simplicio-loop" / "data" / "appone").resolve()
 
 
 def test_scoped_layout_separates_core_and_project(tmp_path: Path) -> None:
@@ -43,7 +43,7 @@ def test_scoped_layout_separates_core_and_project(tmp_path: Path) -> None:
         environ={},  # ignore process SIMPLICIO_* so isolation is deterministic
         include_project=True,
     )
-    assert layout.core.root == (home / ".simplicio" / "data").resolve()
+    assert layout.core.root == (home / ".simplicio-loop" / "data").resolve()
     assert layout.project is not None
     assert layout.project_slug == "proj-a"
     assert "proj-a" in str(layout.project.root)

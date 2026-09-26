@@ -132,7 +132,7 @@ def _receipt(*, status: str, reason: str, counters: Mapping[str, int]) -> dict[s
 def build_fast_handoff(
     root: str,
     *,
-    out: str = ".simplicio",
+    out: str = ".simplicio-loop",
     changed_paths: Sequence[str] = (),
     base_commit: str = "",
     expected_schema: str = HANDOFF_SCHEMA,
@@ -285,7 +285,7 @@ def build_fast_handoff(
     return handoff, receipt
 
 
-def verify_fast_handoff(root: str, *, out: str = ".simplicio") -> tuple[bool, str]:
+def verify_fast_handoff(root: str, *, out: str = ".simplicio-loop") -> tuple[bool, str]:
     repo = Path(root).resolve()
     try:
         handoff = _read_json(repo / out / "fast-handoff.json")
@@ -306,7 +306,7 @@ def run_fast_handoff_cli(argv: Sequence[str]) -> int:
         description="Emit the canonical machine-readable Mapper -> Fast handoff.",
     )
     parser.add_argument("root", nargs="?", default=os.getcwd())
-    parser.add_argument("--out", default=".simplicio")
+    parser.add_argument("--out", default=".simplicio-loop")
     parser.add_argument("--changed-path", action="append", default=[])
     parser.add_argument("--base-commit", default="")
     parser.add_argument("--expect-schema", default=HANDOFF_SCHEMA)

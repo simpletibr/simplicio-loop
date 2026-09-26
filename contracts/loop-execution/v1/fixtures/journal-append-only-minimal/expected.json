@@ -28,7 +28,7 @@
     "journal_fingerprints": ["e90b23a22c16", "e90b23a22c16"]
   },
   "notes": [
-    "Real records also carry a `commit` field (stamped by cmd_record for the `since` incremental-triage command) plus optional lineage fields (execution_state, stage_id, decision, retry_count, ...) — this fixture deliberately omits them to show the MINIMUM legal shape, not the full one (see fixtures/converge-success/.simplicio/orchestrator/loop/journal.jsonl for a record with `commit`).",
+    "Real records also carry a `commit` field (stamped by cmd_record for the `since` incremental-triage command) plus optional lineage fields (execution_state, stage_id, decision, retry_count, ...) — this fixture deliberately omits them to show the MINIMUM legal shape, not the full one (see fixtures/converge-success/.simplicio-loop/orchestrator/loop/journal.jsonl for a record with `commit`).",
     "This file is genuinely append-only in production: cmd_record() only ever opens the journal with mode 'a' (scripts/loop_journal.py:cmd_record) — there is no update/rewrite verb in the CLI at all."
   ]
 }

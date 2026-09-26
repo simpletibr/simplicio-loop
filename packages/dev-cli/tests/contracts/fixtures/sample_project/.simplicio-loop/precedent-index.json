@@ -2,7 +2,7 @@
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
   "generated_at": "2026-07-01T00:00:00.000Z",
-  "source_project_map": ".simplicio/project-map.json",
+  "source_project_map": ".simplicio-loop/project-map.json",
   "items": [
     {
       "id": "fixture0000001",

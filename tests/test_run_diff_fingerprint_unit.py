@@ -1,5 +1,5 @@
 """Evidence and watcher fingerprint the run's diff the same way, and the loop's
-own bookkeeping under .simplicio/ (which changes between the two) is excluded."""
+own bookkeeping under .simplicio-loop/ (which changes between the two) is excluded."""
 from __future__ import annotations
 
 import importlib.util
@@ -31,8 +31,8 @@ def test_loop_bookkeeping_does_not_change_the_fingerprint(tmp_path):
     repo = _repo(tmp_path)
     (repo / "app.py").write_text("x = 2\n")
     before = _git_meta(repo)["diff_hash"]
-    (repo / ".simplicio" / "loop-runs").mkdir(parents=True)
-    (repo / ".simplicio" / "loop-runs" / "state.json").write_text("{}")
+    (repo / ".simplicio-loop" / "loop-runs").mkdir(parents=True)
+    (repo / ".simplicio-loop" / "loop-runs" / "state.json").write_text("{}")
     assert _git_meta(repo)["diff_hash"] == before
 
 

@@ -17,7 +17,7 @@ from typing import Any, Dict, Optional
 
 from .map_service_status import default_status_path, load_status_file
 
-BUILD_RELATIVE = (".simplicio/orchestrator", "map", "build.json")
+BUILD_RELATIVE = (".simplicio-loop/orchestrator", "map", "build.json")
 
 
 def _repo_head(repo: str) -> str:
@@ -130,7 +130,7 @@ def configure_commands(subparsers: argparse._SubParsersAction) -> None:
     status.add_argument("--repo", default=".", help="repository root")
     status.add_argument(
         "--status-file", default="",
-        help="explicit status file (default: <repo>/.simplicio/orchestrator/map/status.json)",
+        help="explicit status file (default: <repo>/.simplicio-loop/orchestrator/map/status.json)",
     )
     status.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     for command in ("verify", "gc", "doctor"):

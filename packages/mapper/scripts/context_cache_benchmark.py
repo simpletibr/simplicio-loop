@@ -102,7 +102,7 @@ def _fixture_copy() -> tempfile.TemporaryDirectory[str]:
 
 
 def _cache_path(cwd: Path) -> Path:
-    return cwd / ".simplicio" / "context-cache.json"
+    return cwd / ".simplicio-loop" / "context-cache.json"
 
 
 def _run_query(cwd: Path, *, verb: str, arg: str, limit: int = 20) -> dict[str, Any]:

@@ -118,7 +118,7 @@ def _discover(root: Path) -> list[dict[str, Any]]:
     found: list[dict[str, Any]] = []
     for kind, relative in _KIND_FILES:
         found.extend(_iter_named_files(root, relative, kind))
-    user_home = Path.home() / ".simplicio" / "capabilities.json"
+    user_home = Path.home() / ".simplicio-loop" / "capabilities.json"
     if user_home.is_file():
         payload = json.loads(_read_text(user_home) or "{}")
         for item in payload.get("capabilities", []):

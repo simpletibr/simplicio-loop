@@ -18,13 +18,13 @@ Storage layout:
 * **Worktree overlay** — one JSON file per (worktree root, merge-base sha,
   dirty fingerprint), stored under that worktree's own git-dir (``git
   rev-parse --git-dir``), since it is specific to that worktree's actual
-  working-tree state. Deliberately NOT under ``<root>/.simplicio`` — a file
+  working-tree state. Deliberately NOT under ``<root>/.simplicio-loop`` — a file
   written inside the tracked working tree would show up as a new untracked
   file on the very next `git status`, shifting the dirty fingerprint (and
   therefore the overlay path itself) out from under the call that just
   computed it. The same reasoning is why this module logs via `info()`
   rather than `emit_event(..., root=...)`, which would append to
-  `<root>/.simplicio/events.jsonl` inside the tree on every call.
+  `<root>/.simplicio-loop/events.jsonl` inside the tree on every call.
 
 Neither file is ever trusted blindly: ``CanonicalMapManifest.matches``/
 ``WorktreeOverlay.matches`` re-check the live git identity every call, so a
@@ -325,7 +325,7 @@ def _overlay_path(identity: GitIdentity) -> Path | None:
 
     Stored under the worktree's own git-dir (``git rev-parse --git-dir``,
     e.g. ``.git`` for the main worktree or ``.git/worktrees/<name>`` for a
-    linked one) rather than under ``<root>/.simplicio`` — writing it inside
+    linked one) rather than under ``<root>/.simplicio-loop`` — writing it inside
     the tracked working tree would show up as a new untracked file on the
     next `git status`, changing `dirty_fingerprint` (and therefore
     `snapshot_id`) on every subsequent call and defeating the whole point
@@ -367,7 +367,7 @@ def get_effective_map_view(root: str | os.PathLike[str], *, force_remap: bool = 
     matches them — this is the "no redundant full remap" path (issue #213).
     """
     root_path = Path(root).resolve()
-    # Mapper inspection may materialize its own cache under ``.simplicio``.
+    # Mapper inspection may materialize its own cache under ``.simplicio-loop``.
     # Resolve that state before fingerprinting the worktree, otherwise the
     # cache write changes ``git status`` after the overlay path is chosen and
     # makes the just-created overlay unreachable on the next call.
@@ -429,7 +429,7 @@ def get_effective_map_view(root: str | os.PathLike[str], *, force_remap: bool = 
         source = SOURCE_FULL_REMAP if identity.is_git_repo else SOURCE_FALLBACK_STANDALONE
 
     # Deliberately `info()` (stderr only), not `emit_event(..., root=...)`:
-    # the latter would append to `<root>/.simplicio/events.jsonl` *inside
+    # the latter would append to `<root>/.simplicio-loop/events.jsonl` *inside
     # the working tree on every call*, making the tree itself newly dirty
     # and shifting `dirty_fingerprint` (and therefore `snapshot_id` and the
     # overlay path) out from under the very call that just computed it —

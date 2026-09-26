@@ -19,8 +19,8 @@ savings events alone are not enough.
    resources (CPU/RAM when MEASURED), tokens (in/out/cached/reasoning only from
    usage receipts), operators used, loop decision, measured vs unverified fields.
 4. Canonical paths (Runtime profile):
-   - `.simplicio/runtime/execution-reports/<run_id>.json`
-   - `.simplicio/runtime/execution-reports/latest.json`
+   - `.simplicio-loop/runtime/execution-reports/<run_id>.json`
+   - `.simplicio-loop/runtime/execution-reports/latest.json`
    - `index.jsonl` append-only
 5. Operator-standalone runs use the same schema with
    `execution_profile: "operator-standalone"` via

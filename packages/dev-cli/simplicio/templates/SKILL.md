@@ -60,7 +60,7 @@ First run on the repo (or after large changes): index once. Re-runs reuse embedd
 simplicio-py index --stack <stack>     # e.g. angular | react | django | dotnet | generic
 ```
 
-Skip if `.simplicio/` already exists and the affected files were not modified since last index (`ls .simplicio/ 2>/dev/null` non-empty → cache warm).
+Skip if `.simplicio-loop/` already exists and the affected files were not modified since last index (`ls .simplicio-loop/ 2>/dev/null` non-empty → cache warm).
 
 ### 3. Build the task call
 
@@ -127,7 +127,7 @@ If it's a UI change, also run Playwright (`npx playwright test --reporter=list,h
 - **Criteria as testable states** — "no admin perm: button absent from DOM" (testable). Not "button should be hidden properly" (vague).
 - **Constraints bound the blast radius** — list what the LLM must NOT change ("save flow", "auth middleware", "public API of `UserService`"). Without constraints, models drift.
 - **Stack `generic`** is fine for non-listed stacks — skips skill router but keeps mapper + precedent + 6-layer + test + verify.
-- **Cache is content-hash keyed** — `.simplicio/` directory holds embeddings. Don't `.gitignore`-ignore it casually; sharing the cache speeds team runs.
+- **Cache is content-hash keyed** — `.simplicio-loop/` directory holds embeddings. Don't `.gitignore`-ignore it casually; sharing the cache speeds team runs.
 - **Cost is real** — +61% input tokens, +24% wall-clock vs. raw prompt. Justified by **+58 pts pass-rate**. Don't use simplicio for a one-line typo fix — use it where pass-rate matters.
 
 ---

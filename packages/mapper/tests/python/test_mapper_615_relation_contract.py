@@ -164,8 +164,8 @@ class Mapper615DifferentialIntegrationTest(unittest.TestCase):
         self.temp.cleanup()
 
     def _build_serialized_artifacts(self) -> dict[str, dict]:
-        write_mapping_artifacts(str(self.root), output_dir=".simplicio")
-        artifact_dir = self.root / ".simplicio"
+        write_mapping_artifacts(str(self.root), output_dir=".simplicio-loop")
+        artifact_dir = self.root / ".simplicio-loop"
         names = (
             "project-map",
             "precedent-index",
@@ -300,7 +300,7 @@ class Mapper615DifferentialIntegrationTest(unittest.TestCase):
         self.assertTrue(target["relation_evidence"])
         self.assertEqual(target["test_evidence"][0]["evidence_class"], "inferred_by_name")
 
-        artifact_dir = self.root / ".simplicio"
+        artifact_dir = self.root / ".simplicio-loop"
         (artifact_dir / "context-snapshot.json").write_text(json.dumps(snapshot) + "\n", encoding="utf-8")
         handoff, _receipt = build_fast_handoff(str(self.root))
         self.assertIn("relation_id", handoff["capabilities"]["fields"])
@@ -324,7 +324,7 @@ class Mapper615WorktreeProvenanceTest(unittest.TestCase):
     def test_clean_dirty_and_untracked_runs_are_explicit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            _write(root, ".gitignore", ".simplicio/\n")
+            _write(root, ".gitignore", ".simplicio-loop/\n")
             _write(root, "src/target.py", "def target():\n    return 1\n")
             subprocess.run(["git", "init", "-q"], cwd=root, check=True)
             subprocess.run(["git", "config", "user.email", "mapper@example.invalid"], cwd=root, check=True)
@@ -332,18 +332,18 @@ class Mapper615WorktreeProvenanceTest(unittest.TestCase):
             subprocess.run(["git", "add", ".gitignore", "src/target.py"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "fixture"], cwd=root, check=True)
 
-            write_mapping_artifacts(str(root), output_dir=".simplicio")
-            clean = json.loads((root / ".simplicio/call-graph.json").read_text(encoding="utf-8"))
+            write_mapping_artifacts(str(root), output_dir=".simplicio-loop")
+            clean = json.loads((root / ".simplicio-loop/call-graph.json").read_text(encoding="utf-8"))
             self.assertFalse(clean["producer"]["source_generation"]["dirty"])
 
             (root / "src/target.py").write_text("def target():\n    return 2\n", encoding="utf-8")
-            write_mapping_artifacts(str(root), output_dir=".simplicio")
-            dirty = json.loads((root / ".simplicio/call-graph.json").read_text(encoding="utf-8"))
+            write_mapping_artifacts(str(root), output_dir=".simplicio-loop")
+            dirty = json.loads((root / ".simplicio-loop/call-graph.json").read_text(encoding="utf-8"))
             self.assertTrue(dirty["producer"]["source_generation"]["dirty"])
 
             _write(root, "src/untracked.py", "value = 3\n")
-            write_mapping_artifacts(str(root), output_dir=".simplicio")
-            untracked = json.loads((root / ".simplicio/call-graph.json").read_text(encoding="utf-8"))
+            write_mapping_artifacts(str(root), output_dir=".simplicio-loop")
+            untracked = json.loads((root / ".simplicio-loop/call-graph.json").read_text(encoding="utf-8"))
             self.assertTrue(untracked["producer"]["source_generation"]["dirty"])
 
 

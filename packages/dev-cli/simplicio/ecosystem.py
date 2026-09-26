@@ -11,7 +11,7 @@ API:
                                 # pip install -U everything that drifted
                                 # returns list of packages upgraded
 
-Cached: PyPI lookups go through a 24h cache in ~/.simplicio/cache/pypi_versions.json
+Cached: PyPI lookups go through a 24h cache in ~/.simplicio-loop/cache/pypi_versions.json
 so we don't hit pypi.org on every invocation.
 
 Controls:
@@ -94,7 +94,7 @@ def _cache_path() -> Path:
     root = os.environ.get("SIMPLICIO_CACHE_DIR")
     if root:
         return Path(root) / "pypi_versions.json"
-    return Path.home() / ".simplicio" / "cache" / "pypi_versions.json"
+    return Path.home() / ".simplicio-loop" / "cache" / "pypi_versions.json"
 
 
 def _read_pypi_cache() -> dict:

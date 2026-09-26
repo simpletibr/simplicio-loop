@@ -176,7 +176,7 @@ def test_changeset_cli_empty_or_malformed_stdin_never_creates_unknown_lock(
     receipt = json.loads(capsys.readouterr().out)
     assert receipt["status"] == "refused"
     assert receipt["errors"][0]["code"] == "invalid_json"
-    assert not (tmp_path / ".simplicio" / "effect-unknown.lock").exists()
+    assert not (tmp_path / ".simplicio-loop" / "effect-unknown.lock").exists()
 
 
 @pytest.mark.parametrize(

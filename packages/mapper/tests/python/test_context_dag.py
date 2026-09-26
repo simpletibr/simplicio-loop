@@ -253,30 +253,30 @@ class UpdateContextDagTest(unittest.TestCase):
     def test_first_run_is_full_invalidation_and_persists(self):
         with tempfile.TemporaryDirectory() as tmp:
             graph = {"nodes": [_node("a", "ha")], "edges": []}
-            result = update_context_dag(tmp, graph, out=".simplicio")
+            result = update_context_dag(tmp, graph, out=".simplicio-loop")
             self.assertTrue(result["diff"]["full_invalidation"])
             self.assertEqual(result["diff"]["reason"], REASON_NO_PREVIOUS)
-            self.assertTrue(os.path.isfile(os.path.join(tmp, ".simplicio", "context-dag.json")))
-            entries, diagnostics = read_journal(os.path.join(tmp, ".simplicio", "context-dag-journal.jsonl"))
+            self.assertTrue(os.path.isfile(os.path.join(tmp, ".simplicio-loop", "context-dag.json")))
+            entries, diagnostics = read_journal(os.path.join(tmp, ".simplicio-loop", "context-dag-journal.jsonl"))
             self.assertEqual(diagnostics, [])
             self.assertEqual(len(entries), 1)
 
     def test_second_run_unchanged_graph_invalidates_nothing(self):
         with tempfile.TemporaryDirectory() as tmp:
             graph = {"nodes": [_node("a", "ha"), _node("b", "hb")], "edges": []}
-            update_context_dag(tmp, graph, out=".simplicio")
-            result = update_context_dag(tmp, graph, out=".simplicio")
+            update_context_dag(tmp, graph, out=".simplicio-loop")
+            result = update_context_dag(tmp, graph, out=".simplicio-loop")
             self.assertFalse(result["diff"]["full_invalidation"])
             self.assertEqual(result["diff"]["counters"]["invalidated"], 0)
 
     def test_run_after_corrupted_cache_falls_back_to_full_rebuild(self):
         with tempfile.TemporaryDirectory() as tmp:
             graph = {"nodes": [_node("a", "ha")], "edges": []}
-            dag_path = os.path.join(tmp, ".simplicio", "context-dag.json")
+            dag_path = os.path.join(tmp, ".simplicio-loop", "context-dag.json")
             os.makedirs(os.path.dirname(dag_path), exist_ok=True)
             with open(dag_path, "w", encoding="utf-8") as handle:
                 handle.write("{not valid json")
-            result = update_context_dag(tmp, graph, out=".simplicio")
+            result = update_context_dag(tmp, graph, out=".simplicio-loop")
             self.assertTrue(result["diff"]["full_invalidation"])
             self.assertEqual(result["diff"]["reason"], REASON_CACHE_CORRUPTED)
             # the corrupted file must be safely overwritten with a valid one

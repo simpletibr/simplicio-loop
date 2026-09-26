@@ -11,7 +11,7 @@ SCOPE NOTE (read before trusting a number): #93 lists three upstream dependencie
 live in this environment at the time this script was written:
   - simplicio-mapper#148/#149 (native `--for-llm toon` on `handoff`) — not in the installed
     simplicio-mapper (checked: `simplicio-mapper handoff --help` has no such flag).
-  - simplicio-dev-cli#88 (`SIMPLICIO_PROMPT_TOON=1` + TOON rows in `.simplicio/runs.jsonl`) — not
+  - simplicio-dev-cli#88 (`SIMPLICIO_PROMPT_TOON=1` + TOON rows in `.simplicio-loop/runs.jsonl`) — not
     in the installed simplicio-cli (checked: no `SIMPLICIO_PROMPT_TOON` reference in the package).
   - simplicio-runtime#2774/#2775 (`simplicio memory`, the `auto_meter` savings-event emitter,
     the authoritative `simplicio.savings-event/v1` envelope) — the `simplicio` runtime binary is
@@ -25,8 +25,8 @@ onde preciso, honestamente rotulado").
 
 A separate, unrelated finding surfaced while building this: `simplicio-mapper macro` was observed
 returning file paths from an entirely different project (`/home/user/hermes-turbo-agent`) when run
-in this repo, apparently via a shared `~/.simplicio/cache/` on this multi-tenant sandbox. `handoff`
-and `inspect` were verified clean (isolated, correctly-scoped `.simplicio/` under the target repo)
+in this repo, apparently via a shared `~/.simplicio-loop/cache/` on this multi-tenant sandbox. `handoff`
+and `inspect` were verified clean (isolated, correctly-scoped `.simplicio-loop/` under the target repo)
 via a control run in an empty scratch directory, so this script only ever calls `handoff`/`inspect`
 and additionally sanity-checks the returned file paths never escape the repo before trusting them.
 This is a simplicio-mapper-side issue, out of scope to fix here — flagged for a follow-up issue
@@ -34,14 +34,14 @@ there, not fixed in this PR.
 
 Verbs:
   run       Execute the 4 hops for real against a target repo (default: this repo). Writes:
-              .simplicio/orchestrator/savings/snapshots.jsonl        (via savings_harness — so
+              .simplicio-loop/orchestrator/savings/snapshots.jsonl        (via savings_harness — so
                                                               `billing_aggregator.py collect` and
                                                               `savings_harness.py score` pick these
                                                               hops up for free, no new aggregation
                                                               code)
-              .simplicio/orchestrator/savings/e2e-demo-events.jsonl  (one simplicio.savings-event/v1-shaped
+              .simplicio-loop/orchestrator/savings/e2e-demo-events.jsonl  (one simplicio.savings-event/v1-shaped
                                                               receipt per hop)
-              .simplicio/orchestrator/savings/e2e-demo.md            (the human-readable report)
+              .simplicio-loop/orchestrator/savings/e2e-demo.md            (the human-readable report)
             A hop whose live tool is missing/failing is BLOCKED and reported as such — never a
             fake pass.
   audit     Read an existing e2e-demo events file and fail closed when any hop is still
@@ -76,7 +76,7 @@ if HERE not in sys.path:
 from toon_codec import encode_toon  # noqa: E402 — same codec task_anchor.py uses for --format toon
 import savings_harness  # noqa: E402 — reused snapshot store + tokenizer (single source of truth)
 
-DEFAULT_STORE = os.path.join(REPO, ".simplicio/orchestrator", "savings")
+DEFAULT_STORE = os.path.join(REPO, ".simplicio-loop/orchestrator", "savings")
 EVENTS_FILE = "e2e-demo-events.jsonl"
 REPORT_FILE = "e2e-demo.md"
 SCHEMA = "simplicio.savings-event/v1"
@@ -144,7 +144,7 @@ def build_event(hop, baseline_text, treatment_text, proof_kind, methodology, not
 
 def _snapshot(store, item, label, baseline_text, treatment_text):
     """Feed the SAME snapshot store savings_harness.py owns, so `savings_harness.py score` and
-    `billing_aggregator.py collect` (which reads .simplicio/orchestrator/savings/snapshots.jsonl) pick this
+    `billing_aggregator.py collect` (which reads .simplicio-loop/orchestrator/savings/snapshots.jsonl) pick this
     hop up for free — no new aggregation code (issue #93: 'agregado pelo billing_aggregator.py')."""
     bf = tf = None
     try:
@@ -270,7 +270,7 @@ def hop_edit(store, case=None):
                       "installed?" % err.strip()[:200])
     baseline = out
     treatment = encode_toon(case)
-    note = ("dev-cli's `SIMPLICIO_PROMPT_TOON=1` toggle + TOON rows in `.simplicio/runs.jsonl` "
+    note = ("dev-cli's `SIMPLICIO_PROMPT_TOON=1` toggle + TOON rows in `.simplicio-loop/runs.jsonl` "
             "(dev-cli#88) are not in the installed simplicio-cli — baseline is the REAL prompt "
             "text `simplicio.prompt.build_prompt()` builds TODAY for this case (called "
             "in-process, no LLM call, no API key — genuine current dev-cli output, not a mock); "
@@ -323,8 +323,8 @@ def hop_verify(store, item, out_dir):
     marks = [
         ("AC1", "done", "scripts/e2e_demo.py selftest; registered in claims_audit.py "
                         "SELFTEST_SCRIPTS + tests/test_worker_selftests_system.py"),
-        ("AC2", "done", ".simplicio/orchestrator/savings/e2e-demo-events.jsonl (4 records, one per hop)"),
-        ("AC3", "done", ".simplicio/orchestrator/savings/e2e-demo.md"),
+        ("AC2", "done", ".simplicio-loop/orchestrator/savings/e2e-demo-events.jsonl (4 records, one per hop)"),
+        ("AC3", "done", ".simplicio-loop/orchestrator/savings/e2e-demo.md"),
         ("AC4", "partial", "local TOON-vs-JSON stand-in attached (EDIT hop note); the live "
                            "SIMPLICIO_PROMPT_TOON on/off A/B needs dev-cli#88, not yet shipped"),
         ("AC5", "done", "selftest is fully offline: no subprocess to simplicio-mapper/"
@@ -587,7 +587,7 @@ def cmd_selftest(_opts):
     chk("event_id differs across hops", ev["event_id"] != ev2["event_id"])
 
     # 3) snapshot + score round-trip through the REAL savings_harness store format, in a temp dir
-    #    so this never touches the repo's real .simplicio/orchestrator/savings/ during the audit gate
+    #    so this never touches the repo's real .simplicio-loop/orchestrator/savings/ during the audit gate
     tmp_store = tempfile.mkdtemp(prefix="e2e-demo-selftest-")
     try:
         _snapshot(tmp_store, "map", "selftest map", "x" * 400, "x" * 100)

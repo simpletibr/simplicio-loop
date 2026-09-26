@@ -12,12 +12,12 @@ def test_checked_in_state_is_explicitly_inventory_classified():
 def test_new_internal_json_is_blocked(tmp_path):
     root = Path(__file__).parents[1]
     (tmp_path / "config").mkdir()
-    (tmp_path / ".simplicio").mkdir()
+    (tmp_path / ".simplicio-loop").mkdir()
     (tmp_path / "config" / "json-boundaries.toml").write_text(
         (root / "config" / "json-boundaries.toml").read_text(), encoding="utf-8"
     )
-    (tmp_path / ".simplicio" / "unexpected.json").write_text("{}", encoding="utf-8")
-    assert "UNCLASSIFIED .simplicio/unexpected.json" in check(tmp_path)
+    (tmp_path / ".simplicio-loop" / "unexpected.json").write_text("{}", encoding="utf-8")
+    assert "UNCLASSIFIED .simplicio-loop/unexpected.json" in check(tmp_path)
 
 
 def test_release_strict_mode_rejects_classified_legacy_json():
@@ -26,13 +26,13 @@ def test_release_strict_mode_rejects_classified_legacy_json():
     assert all(item.startswith("INTERNAL_JSON ") for item in findings)
 
 
-@pytest.mark.parametrize("path", [".simplicio/*.json", "../escape.json", "/tmp/state.json"])
+@pytest.mark.parametrize("path", [".simplicio-loop/*.json", "../escape.json", "/tmp/state.json"])
 def test_exception_paths_must_be_exact_and_repository_relative(tmp_path, path):
     (tmp_path / "config").mkdir()
     (tmp_path / "config" / "json-boundaries.toml").write_text(
         f'''version = 1
 [scanner]
-internal_roots = [".simplicio"]
+internal_roots = [".simplicio-loop"]
 formats = [".json"]
 [[exceptions]]
 path = "{path}"

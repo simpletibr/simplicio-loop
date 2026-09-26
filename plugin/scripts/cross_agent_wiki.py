@@ -3,7 +3,7 @@
 
 Evolved from the one-shot HANDOFF.md pattern. Instead of a single handoff
 text file, every turn's key decisions, findings, and dead-ends are captured
-into a persistent markdown wiki at `.simplicio/orchestrator/wiki/`.
+into a persistent markdown wiki at `.simplicio-loop/orchestrator/wiki/`.
 
 A fresh agent arriving in the repo — from any runtime (Hermes, Claude Code,
 Codex, Cursor) — reads the wiki and sees "where we left off" without needing
@@ -11,12 +11,12 @@ the prior conversation transcript.
 
 Architecture (ai-memory inspired, JesseBrown1980/ai-memory):
   - Zero-friction capture: lifecycle hooks call this script at turn boundaries
-  - Per-project isolation: wiki lives at `.simplicio/orchestrator/wiki/` inside the repo
+  - Per-project isolation: wiki lives at `.simplicio-loop/orchestrator/wiki/` inside the repo
   - Cross-agent handoffs: wiki is plain markdown, readable by any agent/editor
   - No vector DB: plain markdown in a git-ignored directory, grep-able
 
 State:
-  .simplicio/orchestrator/wiki/
+  .simplicio-loop/orchestrator/wiki/
     SUMMARY.md          — "where we left off" — regenerated each turn
     journal/            — per-turn entries (YYYY-MM-DD_HH-MM-SS.md)
     decisions/          — accepted ACs, rejected approaches, settled facts
@@ -38,16 +38,16 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-WIKI_DIR = os.path.join(REPO, ".simplicio/orchestrator", "wiki")
+WIKI_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "wiki")
 SUMMARY_FILE = os.path.join(WIKI_DIR, "SUMMARY.md")
 JOURNAL_DIR = os.path.join(WIKI_DIR, "journal")
 DECISIONS_DIR = os.path.join(WIKI_DIR, "decisions")
 ARTIFACTS_DIR = os.path.join(WIKI_DIR, "artifacts")
-JOURNAL_FILE = os.path.join(REPO, ".simplicio/orchestrator", "loop", "journal.jsonl")
-PHASE_FILE = os.path.join(REPO, ".simplicio/orchestrator", "loop", "phase.json")
-SCRATCHPAD = os.path.join(REPO, ".simplicio/orchestrator", "loop", "scratchpad.md")
-HANDOFF_FILE = os.path.join(REPO, ".simplicio/orchestrator", "loop", "HANDOFF.md")
-WATCHER_FILE = os.path.join(REPO, ".simplicio/orchestrator", "loop", "watcher_state.json")
+JOURNAL_FILE = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "journal.jsonl")
+PHASE_FILE = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "phase.json")
+SCRATCHPAD = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "scratchpad.md")
+HANDOFF_FILE = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "HANDOFF.md")
+WATCHER_FILE = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "watcher_state.json")
 
 
 def _set_repo(repo):
@@ -55,16 +55,16 @@ def _set_repo(repo):
     global REPO, WIKI_DIR, SUMMARY_FILE, JOURNAL_DIR, DECISIONS_DIR, ARTIFACTS_DIR
     global JOURNAL_FILE, PHASE_FILE, SCRATCHPAD, HANDOFF_FILE, WATCHER_FILE
     REPO = repo
-    WIKI_DIR = os.path.join(REPO, ".simplicio/orchestrator", "wiki")
+    WIKI_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "wiki")
     SUMMARY_FILE = os.path.join(WIKI_DIR, "SUMMARY.md")
     JOURNAL_DIR = os.path.join(WIKI_DIR, "journal")
     DECISIONS_DIR = os.path.join(WIKI_DIR, "decisions")
     ARTIFACTS_DIR = os.path.join(WIKI_DIR, "artifacts")
-    JOURNAL_FILE = os.path.join(REPO, ".simplicio/orchestrator", "loop", "journal.jsonl")
-    PHASE_FILE = os.path.join(REPO, ".simplicio/orchestrator", "loop", "phase.json")
-    SCRATCHPAD = os.path.join(REPO, ".simplicio/orchestrator", "loop", "scratchpad.md")
-    HANDOFF_FILE = os.path.join(REPO, ".simplicio/orchestrator", "loop", "HANDOFF.md")
-    WATCHER_FILE = os.path.join(REPO, ".simplicio/orchestrator", "loop", "watcher_state.json")
+    JOURNAL_FILE = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "journal.jsonl")
+    PHASE_FILE = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "phase.json")
+    SCRATCHPAD = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "scratchpad.md")
+    HANDOFF_FILE = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "HANDOFF.md")
+    WATCHER_FILE = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "watcher_state.json")
 
 
 def _now():
@@ -132,7 +132,7 @@ def _read_watcher_state():
     except (OSError, json.JSONDecodeError):
         return {
             "state": "corrupt",
-            "line": "UNVERIFIED|watcher: unreadable receipt (.simplicio/orchestrator/loop/watcher_state.json)",
+            "line": "UNVERIFIED|watcher: unreadable receipt (.simplicio-loop/orchestrator/loop/watcher_state.json)",
         }
 
     measured = bool(state.get("match")) and str(state.get("status", "")).upper() == "MEASURED"
@@ -325,7 +325,7 @@ def cmd_summary():
     summary.append("## Watcher verification")
     summary.append("")
     summary.append("- **Watcher state:** %s" % watcher.get("state", "unknown"))
-    summary.append("- **Receipt:** `.simplicio/orchestrator/loop/watcher_state.json`")
+    summary.append("- **Receipt:** `.simplicio-loop/orchestrator/loop/watcher_state.json`")
     if watcher.get("state") not in ("missing", "corrupt"):
         summary.append("- **Status:** %s" % watcher.get("status", "?"))
         summary.append("- **Match:** %s" % watcher.get("match", False))
@@ -481,11 +481,11 @@ def cmd_handoff():
     lines.append("")
     lines.append("## Resume instructions for the next agent")
     lines.append("")
-    lines.append("1. Read `.simplicio/orchestrator/wiki/SUMMARY.md` — the full journal and artifact index.")
+    lines.append("1. Read `.simplicio-loop/orchestrator/wiki/SUMMARY.md` — the full journal and artifact index.")
     lines.append("2. Read `scripts/loop_journal.py resume` — dead-end actions to avoid.")
-    lines.append("3. Check `.simplicio/orchestrator/loop/phase.json` — current HRM phase and tactical guard.")
+    lines.append("3. Check `.simplicio-loop/orchestrator/loop/phase.json` — current HRM phase and tactical guard.")
     lines.append("4. Do NOT re-try actions already marked as dead-ends (fingerprint collision).")
-    lines.append("5. If this is a different runtime (Codex → Claude, etc.), the wiki at `.simplicio/orchestrator/wiki/` is the shared context.")
+    lines.append("5. If this is a different runtime (Codex → Claude, etc.), the wiki at `.simplicio-loop/orchestrator/wiki/` is the shared context.")
 
     if git_log:
         lines.append("")
@@ -533,7 +533,7 @@ def cmd_selftest():
     try:
         with tempfile.TemporaryDirectory() as tmp:
             _set_repo(tmp)
-            loop = os.path.join(tmp, ".simplicio/orchestrator", "loop")
+            loop = os.path.join(tmp, ".simplicio-loop/orchestrator", "loop")
             os.makedirs(loop, exist_ok=True)
             _write_file(SCRATCHPAD, "---\niteration: 2\nmax_iterations: 5\n---\nShip a verified fix.\n")
             _write_file(HANDOFF_FILE, "Existing handoff note")

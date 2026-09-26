@@ -17,23 +17,23 @@ SCHEMA = "simplicio.storage-cutover-doctor/v1"
 _SQLITE_HEADER = b"SQLite format 3\x00"
 
 _LEGACY_RELATIVE_PATHS = (
-    ".simplicio/orchestrator/queue.sqlite3",
-    ".simplicio/orchestrator/agent-slots.sqlite",
-    ".simplicio/orchestrator/agent-slots.sqlite3",
-    ".simplicio/orchestrator/run-journal.sqlite",
-    ".simplicio/orchestrator/run-journal.sqlite3",
-    ".simplicio/orchestrator/hookwall.sqlite3",
+    ".simplicio-loop/orchestrator/queue.sqlite3",
+    ".simplicio-loop/orchestrator/agent-slots.sqlite",
+    ".simplicio-loop/orchestrator/agent-slots.sqlite3",
+    ".simplicio-loop/orchestrator/run-journal.sqlite",
+    ".simplicio-loop/orchestrator/run-journal.sqlite3",
+    ".simplicio-loop/orchestrator/hookwall.sqlite3",
 )
 _RUN_LEGACY_NAMES = ("run-journal.sqlite", "run-journal.sqlite3", "hookwall.sqlite3")
 _MIGRATION_MARKERS = (
-    ".simplicio/storage-migration.json",
-    ".simplicio/mapper-store-migration.json",
-    ".simplicio/orchestrator/storage-migration.json",
-    ".simplicio/orchestrator/mapper-store-migration.json",
-    ".simplicio/storage.migrating",
-    ".simplicio/mapper-store.migrating",
+    ".simplicio-loop/storage-migration.json",
+    ".simplicio-loop/mapper-store-migration.json",
+    ".simplicio-loop/orchestrator/storage-migration.json",
+    ".simplicio-loop/orchestrator/mapper-store-migration.json",
+    ".simplicio-loop/storage.migrating",
+    ".simplicio-loop/mapper-store.migrating",
 )
-_ROUTE_RECEIPT_GLOB = ".simplicio/loop-runs/*/storage-route-receipt.json"
+_ROUTE_RECEIPT_GLOB = ".simplicio-loop/loop-runs/*/storage-route-receipt.json"
 
 
 def _path_label(path: Path, root: Path) -> str:
@@ -64,7 +64,7 @@ def _file_observation(path: Path, root: Path) -> dict[str, Any]:
 
 def _discover_legacy_paths(root: Path) -> list[Path]:
     paths = [root / relative for relative in _LEGACY_RELATIVE_PATHS]
-    runs_root = root / ".simplicio" / "loop-runs"
+    runs_root = root / ".simplicio-loop" / "loop-runs"
     if runs_root.is_dir():
         for run_dir in sorted(path for path in runs_root.iterdir() if path.is_dir()):
             paths.extend(run_dir / name for name in _RUN_LEGACY_NAMES)
@@ -146,7 +146,7 @@ def inspect_storage_cutover(
     canonical = (
         Path(canonical_path).expanduser().absolute()
         if canonical_path is not None
-        else root / ".simplicio" / "data" / "operations.sqlite"
+        else root / ".simplicio-loop" / "data" / "operations.sqlite"
     )
     legacy_paths = _discover_legacy_paths(root)
     legacy = [_file_observation(path, root) for path in legacy_paths]

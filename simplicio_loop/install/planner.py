@@ -125,7 +125,7 @@ def apply_plan(
         "digest": plan["digest"],
         "paths": owned,
     }
-    marker = root / ".simplicio" / "install-ownership.json"
+    marker = root / ".simplicio-loop" / "install-ownership.json"
     if not dry_run:
         marker.parent.mkdir(parents=True, exist_ok=True)
         marker.write_text(json.dumps(ownership, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -141,7 +141,7 @@ def apply_plan(
 
 def uninstall(target: str | Path) -> dict[str, Any]:
     root = Path(target).resolve()
-    marker = root / ".simplicio" / "install-ownership.json"
+    marker = root / ".simplicio-loop" / "install-ownership.json"
     if not marker.is_file():
         raise InstallError("no Loop ownership receipt; refusing to uninstall unmanaged files")
     payload = json.loads(marker.read_text(encoding="utf-8"))

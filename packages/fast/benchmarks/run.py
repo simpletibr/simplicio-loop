@@ -245,7 +245,7 @@ def run_size(size: int, repetitions: int) -> dict[str, object]:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory) / "project"
         generate_project(root, size)
-        snapshot_path = root / ".simplicio/fast/project.sfast"
+        snapshot_path = root / ".simplicio-loop/fast/project.sfast"
         baseline = measure(lambda: baseline_query(root, "update_user"), repetitions)
 
         baseline_allocation = measure_allocations(

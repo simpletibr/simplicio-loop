@@ -57,7 +57,7 @@ def test_orient_json_carries_a_compact_command_card(tmp_path, monkeypatch, capsy
     assert card["wave"] == f"simplicio-loop wave <run_id> --repo {repo}"
     assert card["verify"] == f"simplicio-loop verify <run_id> --repo {repo}"
     assert card["tick"] == f"simplicio-loop tick <run_id> --repo {repo} --task-index <N>"
-    assert card["edit_plan_path"] == ".simplicio/loop-runs/<run_id>/edit-plan-<N>.json"
+    assert card["edit_plan_path"] == ".simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json"
     assert card["edit_plan_format"] == {
         "operations": [{"path": "<repo-relative>", "find": "<exact text>", "replace": "<new text>"}]
     }
@@ -95,12 +95,12 @@ def test_explicit_rust_does_not_fallback_to_mapper(tmp_path, monkeypatch, capsys
 
 def test_mapper_orient_fallback_writes_its_scratch_task_file_under_simplicio(tmp_path, monkeypatch):
     """BUG 1 regression: Mapper's own signature computation hashes ``git
-    status`` output, excluding only its ``.simplicio`` output *directory* by
+    status`` output, excluding only its ``.simplicio-loop`` output *directory* by
     pathspec -- a dotfile prefix at the repo root is not inside that
     directory and stays visible to `git status` for the window this
     subprocess runs, corrupting Mapper's own status_hash on every orient
     call even against an unchanged source tree. The scratch task file must
-    live under ``.simplicio/`` so it is excluded the same way Mapper's own
+    live under ``.simplicio-loop/`` so it is excluded the same way Mapper's own
     artifacts are.
     """
     captured = {}
@@ -118,7 +118,7 @@ def test_mapper_orient_fallback_writes_its_scratch_task_file_under_simplicio(tmp
 
     task_file = captured["task_file"]
     assert captured["existed_during_call"] is True
-    assert task_file.parent == tmp_path / ".simplicio", task_file
+    assert task_file.parent == tmp_path / ".simplicio-loop", task_file
     assert not task_file.exists(), "scratch task file must be cleaned up after the call"
 
 

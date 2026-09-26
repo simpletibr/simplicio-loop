@@ -72,7 +72,7 @@ FIXTURE_SOURCE = REPO / "simplicio_mapper" / "contracts" / "mapper-artifacts" / 
 DEFAULT_TYPE = "bug"
 DEFAULT_ARG = "src/app.py"
 
-_READ_EXCLUDE_DIRS = {".git", "__pycache__", ".simplicio"}
+_READ_EXCLUDE_DIRS = {".git", "__pycache__", ".simplicio-loop"}
 
 
 def _iter_source_files(root: Path) -> list[Path]:

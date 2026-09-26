@@ -94,7 +94,7 @@ def default_observability_path(
     """Return the opt-in, repository-relative component event path."""
     base = Path(root) if root is not None else Path(".")
     return (
-        base / ".simplicio" / "observability" / validate_component(component)
+        base / ".simplicio-loop" / "observability" / validate_component(component)
         / "events.jsonl"
     )
 

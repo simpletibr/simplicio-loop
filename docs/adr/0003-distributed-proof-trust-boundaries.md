@@ -68,7 +68,7 @@ add gap 6 as `docs/security/distributed-credentials-runbook.md`. Concretely:
 
 - **Structured audit logging** (new `scripts/security_audit_log.py`). One JSON line per
   accept/reject decision, appended (never overwritten) to
-  `.simplicio/orchestrator/security/audit-log.jsonl` by default. Wired into
+  `.simplicio-loop/orchestrator/security/audit-log.jsonl` by default. Wired into
   `secure_transport.request_json`, `distributed_trust_policy.authorize`/`.check_endpoint`, and
   `short_lived_credentials.verify_token`. Never logs the credential or signing secret itself —
   only identifiers (`who`, `operation`, `jti`, `scope`, `pin_status`, `reason`). Writing is
@@ -110,7 +110,7 @@ add gap 6 as `docs/security/distributed-credentials-runbook.md`. Concretely:
   `_resolve_queue_token` start raising `RuntimeError` after this change lands, until it either
   configures `SIMPLICIO_REMOTE_QUEUE_TOKEN_SECRET` or sets the explicit opt-in flag. This is
   the intended forcing function.
-- `.simplicio/orchestrator/security/audit-log.jsonl` is a new, growing, append-only file. It is not yet
+- `.simplicio-loop/orchestrator/security/audit-log.jsonl` is a new, growing, append-only file. It is not yet
   size-bounded or rotated by this change — operators running a long-lived queue server should
   add log rotation (e.g. `logrotate`, or a periodic archive-and-truncate script) as an
   operational follow-up; this ADR does not implement that.

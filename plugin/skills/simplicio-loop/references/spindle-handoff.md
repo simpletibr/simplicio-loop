@@ -90,5 +90,5 @@ the next agent will handle it from here.
   (never trap the loop on a corrupt file).
 - The `handoff.py` script is fail-open on all I/O — a write error never blocks the stop.
 - `handoff confirm` is idempotent: confirming an already-released latch is a no-op (exit 0).
-- Handoff events are logged to `.simplicio/orchestrator/loop/handoffs/events.jsonl` (append-only) for
+- Handoff events are logged to `.simplicio-loop/orchestrator/loop/handoffs/events.jsonl` (append-only) for
   auditability — each handoff, confirm, and clear is timestamped.

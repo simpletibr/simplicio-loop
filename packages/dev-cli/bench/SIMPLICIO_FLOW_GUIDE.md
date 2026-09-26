@@ -200,9 +200,9 @@ Arquivos: [`simplicio/cli.py`](../simplicio/cli.py), [`simplicio/pipeline.py`](.
 | 1. CLI parse | args | memória do processo |
 | 2. build_prompt | 6-layer text | memória |
 | 3. providers.generate | output text | memória + log via `log_run` |
-| 4. _apply_and_test | (ok, log) | `.simplicio/last_output.txt` no root |
+| 4. _apply_and_test | (ok, log) | `.simplicio-loop/last_output.txt` no root |
 | 5. retry feedback | feedback string | memória, anexada à próxima call |
-| 6. log_run | jsonl event | `.simplicio/runs.jsonl` |
+| 6. log_run | jsonl event | `.simplicio-loop/runs.jsonl` |
 
 ---
 
@@ -306,7 +306,7 @@ onde executor delega cada task ao pipeline existente do modo task.
    ║       substitui {project_name}, {goal} in-place      ║
    ║       → files_written list[Path]                     ║
    ║                                                       ║
-   ║   3.3 Write .simplicio/plan.json                     ║
+   ║   3.3 Write .simplicio-loop/plan.json                     ║
    ║       (audit trail completo do plan)                  ║
    ║                                                       ║
    ║   3.4 if stack.install_command and not skip_install: ║
@@ -341,7 +341,7 @@ onde executor delega cada task ao pipeline existente do modo task.
    ║         │       restore SIMPLICIO_TEST_CMD      │      ║
    ║         └─────────────────────────────────────┘      ║
    ║                                                       ║
-   ║   3.7 Write .simplicio/scratch_report.json           ║
+   ║   3.7 Write .simplicio-loop/scratch_report.json           ║
    ║       (per-task result, passed/skipped, duration)    ║
    ╚══════════════════════════════════════════════════════╝
 ```
@@ -513,7 +513,7 @@ Resumo visual do que chega e o que sai em cada chamada LLM:
             │
             ▼
    ┌──────────────────────────────────────────────┐
-   │ .simplicio/scratch_report.json                 │
+   │ .simplicio-loop/scratch_report.json                 │
    │   project_dir + N task results                 │
    │   passed/total, durations, log tails           │
    └──────────────────────────────────────────────┘
@@ -550,10 +550,10 @@ Cada execução deixa rastro em **3 lugares**:
 
 | Arquivo | Conteúdo | Quando escrito |
 |---|---|---|
-| `<root>/.simplicio/runs.jsonl` | per-attempt: mode, attempt, ok, failure_class, tokens_estimated, target, stack | `pipeline.log_run` (modo task) |
-| `<root>/.simplicio/last_output.txt` | output cru da última LLM call | `pipeline._apply_and_test` (modo task) |
-| `<project_dir>/.simplicio/plan.json` | plan validado completo, audit trail do scratch | `executor.execute_plan` (modo scratch) |
-| `<project_dir>/.simplicio/scratch_report.json` | per-task result com duration, log_tail, skipped reason | fim do `executor.execute_plan` |
+| `<root>/.simplicio-loop/runs.jsonl` | per-attempt: mode, attempt, ok, failure_class, tokens_estimated, target, stack | `pipeline.log_run` (modo task) |
+| `<root>/.simplicio-loop/last_output.txt` | output cru da última LLM call | `pipeline._apply_and_test` (modo task) |
+| `<project_dir>/.simplicio-loop/plan.json` | plan validado completo, audit trail do scratch | `executor.execute_plan` (modo scratch) |
+| `<project_dir>/.simplicio-loop/scratch_report.json` | per-task result com duration, log_tail, skipped reason | fim do `executor.execute_plan` |
 
 ---
 
@@ -586,7 +586,7 @@ SIMPLICIO_SKILLS_DIR=/custom/.skills    # override .skills/ root
 # Cache (issue #34)
 SIMPLICIO_CACHE=0                  # desliga totalmente o cache
 SIMPLICIO_BUST_CACHE=1             # força miss em todas as keys (caching novas)
-SIMPLICIO_CACHE_DIR=/custom/path   # override de ~/.simplicio/cache
+SIMPLICIO_CACHE_DIR=/custom/path   # override de ~/.simplicio-loop/cache
 SIMPLICIO_CACHE_TTL_DAYS=30        # tempo de vida de entries no disco
 SIMPLICIO_CACHE_MAX_MB=500         # cap de tamanho; LRU evicta ao passar
 

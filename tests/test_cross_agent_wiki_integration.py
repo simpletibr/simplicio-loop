@@ -10,7 +10,7 @@ import cross_agent_wiki as wiki  # noqa: E402
 
 
 def _seed_loop(root):
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     os.makedirs(loop, exist_ok=True)
     with open(os.path.join(loop, "scratchpad.md"), "w", encoding="utf-8") as f:
         f.write("---\niteration: 2\nmax_iterations: 5\n---\nShip the smallest verified fix.\n")
@@ -57,9 +57,9 @@ def test_capture_summary_and_handoff_materialize_cross_agent_artifacts(tmp_path)
         wiki.cmd_summary()
         wiki.cmd_handoff()
 
-        wiki_summary = os.path.join(root, ".simplicio/orchestrator", "wiki", "SUMMARY.md")
-        handoff_file = os.path.join(root, ".simplicio/orchestrator", "loop", "HANDOFF.md")
-        journal_dir = os.path.join(root, ".simplicio/orchestrator", "wiki", "journal")
+        wiki_summary = os.path.join(root, ".simplicio-loop/orchestrator", "wiki", "SUMMARY.md")
+        handoff_file = os.path.join(root, ".simplicio-loop/orchestrator", "loop", "HANDOFF.md")
+        journal_dir = os.path.join(root, ".simplicio-loop/orchestrator", "wiki", "journal")
         assert os.path.exists(wiki_summary)
         assert os.listdir(journal_dir)
 
@@ -96,7 +96,7 @@ def test_legacy_hermes_profile_env_var_still_resolves(tmp_path):
         os.environ.pop("SIMPLICIO_AGENT_PROFILE", None)
         os.environ["HERMES_PROFILE"] = "legacy-agent"
         wiki.cmd_capture()
-        journal_dir = os.path.join(root, ".simplicio/orchestrator", "wiki", "journal")
+        journal_dir = os.path.join(root, ".simplicio-loop/orchestrator", "wiki", "journal")
         assert os.listdir(journal_dir)
     finally:
         wiki._set_repo(origin)

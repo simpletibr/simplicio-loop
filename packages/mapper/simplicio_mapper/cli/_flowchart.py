@@ -51,7 +51,7 @@ def _scan_ts_classes(root: str) -> dict[str, dict]:
     skip = {
         ".git",
         "node_modules",
-        ".simplicio",
+        ".simplicio-loop",
         "dist",
         "build",
         "obj",
@@ -498,7 +498,7 @@ def render_service_flowchart_markdown(model: dict) -> str:
     lines = [
         "# Service Flowchart",
         "",
-        "Auto-generated from the `.simplicio` extractors. Maps frontend screens to the",
+        "Auto-generated from the `.simplicio-loop` extractors. Maps frontend screens to the",
         "services/endpoints they reach, the buttons that trigger them, and the backend",
         "process behind each endpoint (layer, payloads, external calls, database access).",
         "",

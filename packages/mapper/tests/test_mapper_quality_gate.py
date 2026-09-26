@@ -32,7 +32,7 @@ def test_release_gate_fails_closed_on_legacy_json_and_missing_evidence():
     )
     assert code == 1
     assert "Overall: **BLOCKED**" in report
-    assert "INTERNAL_JSON .simplicio/project-map.json" in report
+    assert "INTERNAL_JSON .simplicio-loop/project-map.json" in report
     assert "Cross-repository E2E | null" in report
 
 

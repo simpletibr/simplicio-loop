@@ -89,7 +89,7 @@ def _snapshot_edges(artifacts: dict) -> list[dict]:
 def _fingerprint(root: str) -> str:
     entries = []
     for current, dirs, files in os.walk(root):
-        dirs[:] = sorted(d for d in dirs if d not in {".git", ".simplicio", "__pycache__", "node_modules"})
+        dirs[:] = sorted(d for d in dirs if d not in {".git", ".simplicio-loop", "__pycache__", "node_modules"})
         for name in sorted(files):
             path = Path(current, name)
             try:
@@ -230,7 +230,7 @@ def _next_revision(previous: dict | None) -> str:
         return "r000001"
 
 
-def _run_incremental_scan_locked(root: str, *, out: str = ".simplicio", meta: dict | None = None,
+def _run_incremental_scan_locked(root: str, *, out: str = ".simplicio-loop", meta: dict | None = None,
                                   full_rescan: bool = False, changed_paths: list[str] | None = None) -> dict:
     """Persist the consumer base snapshot and emit the v1 event envelope.
 
@@ -287,7 +287,7 @@ def _run_incremental_scan_locked(root: str, *, out: str = ".simplicio", meta: di
     }
 
 
-def run_incremental_scan(root: str, *, out: str = ".simplicio", meta: dict | None = None,
+def run_incremental_scan(root: str, *, out: str = ".simplicio-loop", meta: dict | None = None,
                          full_rescan: bool = False, changed_paths: list[str] | None = None) -> dict:
     """Serialize incremental writers and return a truthful lock receipt."""
     resolved = os.path.abspath(root)

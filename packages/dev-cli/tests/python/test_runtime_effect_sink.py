@@ -181,7 +181,7 @@ def test_maps_full_transaction_and_verifies_completed_receipt(tmp_path, effect, 
     assert transaction["acceptance_criteria_refs"] == ["AC1"]
     assert transaction["validation_plan"][0]["verification_id"] == "verify-1"
     assert transaction["rollback_policy"] == "checkpoint"
-    assert list((tmp_path / ".simplicio/runtime-effects").glob("*.receipt.json"))
+    assert list((tmp_path / ".simplicio-loop/runtime-effects").glob("*.receipt.json"))
 
 
 def test_plan_provenance_mismatch_is_rejected_before_transport(tmp_path, effect, context):
@@ -208,7 +208,7 @@ def test_missing_authorization_is_rejected_before_transport(tmp_path, effect, co
         RuntimeEffectSink(transport, root=tmp_path).submit(effect, replace(context, authorization=None))
 
     assert transport.submitted == []
-    assert not (tmp_path / ".simplicio/runtime-effects").exists()
+    assert not (tmp_path / ".simplicio-loop/runtime-effects").exists()
 
 
 def test_authorization_binds_effect_and_fence_before_transport(tmp_path, effect, context):
@@ -300,7 +300,7 @@ def test_runtime_rejects_context_handle_mismatch_before_persist_or_submit(tmp_pa
     with pytest.raises(RuntimeEffectError, match="CONTEXT_HANDLE_MISMATCH"):
         RuntimeEffectSink(transport, root=tmp_path).submit(effect, context)
     assert transport.submitted == []
-    assert not (tmp_path / ".simplicio").exists()
+    assert not (tmp_path / ".simplicio-loop").exists()
 
 
 @pytest.mark.parametrize(
@@ -332,7 +332,7 @@ def test_capability_transport_failure_is_not_started_before_admission(tmp_path, 
     assert outcome.state == "not_started"
     assert outcome.reason_codes == ["RUNTIME_TRANSPORT_ERROR"]
     assert transport.submitted == []
-    assert next((tmp_path / ".simplicio/runtime-effects").glob("*.outcome.json"))
+    assert next((tmp_path / ".simplicio-loop/runtime-effects").glob("*.outcome.json"))
 
 
 def test_replay_reconciles_without_duplicate_submit(tmp_path, effect, context):
@@ -369,7 +369,7 @@ def test_forged_correlation_is_rejected(tmp_path, effect, context, field):
     outcome = RuntimeEffectSink(transport, root=tmp_path).submit(effect, context)
     assert outcome.state == "effect_unknown"
     assert outcome.reason_codes == ["RECEIPT_CORRELATION_MISMATCH"]
-    assert not list((tmp_path / ".simplicio/runtime-effects").glob("*.receipt.json"))
+    assert not list((tmp_path / ".simplicio-loop/runtime-effects").glob("*.receipt.json"))
 
 
 def test_tampered_receipt_digest_is_rejected(tmp_path, effect, context):
@@ -442,7 +442,7 @@ def test_incompatible_capability_fails_closed(tmp_path, effect, context):
 def test_same_key_different_digest_fails_closed(tmp_path, effect, context):
     sink = RuntimeEffectSink(FakeTransport(), root=tmp_path)
     outcome = sink.submit(effect, context)
-    intent = next((tmp_path / ".simplicio/runtime-effects").glob("*.intent.json"))
+    intent = next((tmp_path / ".simplicio-loop/runtime-effects").glob("*.intent.json"))
     payload = json.loads(intent.read_text())
     payload["effect_digest"] = "different"
     intent.write_text(json.dumps(payload))
@@ -467,7 +467,7 @@ def test_receipt_and_events_do_not_contain_effect_payload(tmp_path, effect, cont
     context = _reauthorize(secret_effect, context)
     sink = RuntimeEffectSink(FakeTransport(), root=tmp_path)
     sink.submit(secret_effect, context)
-    outcome_text = next((tmp_path / ".simplicio/runtime-effects").glob("*.outcome.json")).read_text()
+    outcome_text = next((tmp_path / ".simplicio-loop/runtime-effects").glob("*.outcome.json")).read_text()
     assert "TOKEN_DO_NOT_LOG" not in outcome_text
 
 
@@ -517,9 +517,9 @@ def test_invalid_receipt_is_durable_unknown_without_unsafe_receipt(tmp_path, eff
 
     assert outcome.state == "effect_unknown"
     assert outcome.latency_ms is not None
-    assert not list((tmp_path / ".simplicio/runtime-effects").glob("*.receipt.json"))
-    outcome_text = next((tmp_path / ".simplicio/runtime-effects").glob("*.outcome.json")).read_text()
-    events_text = (tmp_path / ".simplicio/events.jsonl").read_text()
+    assert not list((tmp_path / ".simplicio-loop/runtime-effects").glob("*.receipt.json"))
+    outcome_text = next((tmp_path / ".simplicio-loop/runtime-effects").glob("*.outcome.json")).read_text()
+    events_text = (tmp_path / ".simplicio-loop/events.jsonl").read_text()
     assert "DO_NOT_PERSIST" not in outcome_text + events_text
     assert "RECEIPT_REDACTION_INVALID" in outcome_text + events_text
 
@@ -528,7 +528,7 @@ def test_reconcile_invalid_receipt_is_durable_unknown(tmp_path, effect, context)
     transport = FakeTransport()
     sink = RuntimeEffectSink(transport, root=tmp_path)
     completed = sink.submit(effect, context)
-    receipt_path = next((tmp_path / ".simplicio/runtime-effects").glob("*.receipt.json"))
+    receipt_path = next((tmp_path / ".simplicio-loop/runtime-effects").glob("*.receipt.json"))
     receipt_path.unlink()
     assert transport.receipt is not None
     transport.receipt["causal"] = {**transport.receipt["causal"], "turn_id": "forged"}
@@ -540,7 +540,7 @@ def test_reconcile_invalid_receipt_is_durable_unknown(tmp_path, effect, context)
 
     assert outcome.state == "effect_unknown"
     assert outcome.reason_codes == ["RECEIPT_CORRELATION_MISMATCH"]
-    persisted = json.loads(next((tmp_path / ".simplicio/runtime-effects").glob("*.outcome.json")).read_text())
+    persisted = json.loads(next((tmp_path / ".simplicio-loop/runtime-effects").glob("*.outcome.json")).read_text())
     assert persisted["state"] == "effect_unknown"
 
 
@@ -556,7 +556,7 @@ def test_restart_reconcile_negotiation_failure_is_durable_unknown(tmp_path, effe
 
     assert outcome.state == "effect_unknown"
     assert outcome.reason_codes == ["RUNTIME_TRANSPORT_ERROR"]
-    persisted = json.loads(next((tmp_path / ".simplicio/runtime-effects").glob("*.outcome.json")).read_text())
+    persisted = json.loads(next((tmp_path / ".simplicio-loop/runtime-effects").glob("*.outcome.json")).read_text())
     assert persisted["state"] == "effect_unknown"
 
 

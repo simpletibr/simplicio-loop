@@ -30,7 +30,7 @@ def test_nonterminal_public_flow_preserves_diagnostic_state(tmp_path, phase):
     }
     status = {
         "manifest": {"run_id": "run-1", "repo": str(tmp_path)},
-        "run_dir": str(tmp_path / ".simplicio" / "loop-runs" / "run-1"),
+        "run_dir": str(tmp_path / ".simplicio-loop" / "loop-runs" / "run-1"),
         "state": state,
     }
 

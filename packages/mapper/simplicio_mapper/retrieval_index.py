@@ -182,7 +182,7 @@ _GENERIC_PATH_FRAGMENTS = (
     "/build/",
     "/target/",
     "/__pycache__/",
-    "/.simplicio/",
+    "/.simplicio-loop/",
     "/coverage/",
     "/.next/",
     "/out/",
@@ -944,7 +944,7 @@ def write_retrieval_index(root: str, out: str, index: Mapping[str, Any]) -> str:
     return path
 
 
-def load_retrieval_index(root: str, out: str = ".simplicio") -> dict | None:
+def load_retrieval_index(root: str, out: str = ".simplicio-loop") -> dict | None:
     path = os.path.join(os.path.abspath(os.path.join(root, out)), "retrieval-index.json")
     try:
         with open(path, encoding="utf-8") as handle:

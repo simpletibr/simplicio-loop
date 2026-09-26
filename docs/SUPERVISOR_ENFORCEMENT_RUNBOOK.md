@@ -20,7 +20,7 @@ and what the epic still needs.
 | Capability | Module | Real, tested behavior |
 |---|---|---|
 | Detector | `simplicio_loop/process_enforcement.py` — `scan_host_processes`, `is_simplicio_cmdline`, `detect_unsupervised` | Enumerates live OS processes (`/proc/<pid>/cmdline` on Linux, `ps -axo pid=,args=` fallback elsewhere on POSIX) and flags any whose argv matches a Simplicio-ecosystem signature (`SIMPLICIO_SIGNATURES`) but whose pid is not in the supervisor's own bookkeeping (`ProcessRegistry`). |
-| Bookkeeping | `ProcessRegistry` | A JSON file (default `.simplicio/orchestrator/supervisor/registry.json`) recording pid → lease_id/spec_hash/argv for every process currently running through `SupervisedProcessAdapter`. Persisted so a separate CLI invocation can read it. Stale entries (pid reused after a crash) are pruned via `os.kill(pid, 0)` liveness probing on every read. |
+| Bookkeeping | `ProcessRegistry` | A JSON file (default `.simplicio-loop/orchestrator/supervisor/registry.json`) recording pid → lease_id/spec_hash/argv for every process currently running through `SupervisedProcessAdapter`. Persisted so a separate CLI invocation can read it. Stale entries (pid reused after a crash) are pruned via `os.kill(pid, 0)` liveness probing on every read. |
 | Supervised spawn | `SupervisedProcessAdapter` | Wraps the #514 `PythonProcessAdapter`. Uses a new, additive `on_spawned` hook on `PythonProcessAdapter.run()` (backward compatible — default `None`, existing #514 tests unchanged) to register the real OS pid the instant it's known, and unregisters it when the process ends. |
 | CLI | `simplicio_loop/process_enforcement_cli.py` (`python -m simplicio_loop.process_enforcement_cli ...`) | `status` (enforcement mode + active count + breaker state), `top` (active supervised processes with pid/lease/age), `queue` (in-flight leases — see caveat below), `cancel --pid/--lease-id` (real SIGTERM), `drain --timeout [--force]` (waits for leases to finish; `--force` SIGTERMs stragglers), `reports [--scan] [--limit]` (replay a JSONL event log, or run + log a fresh detection pass). |
 | Enforcement mode | `enforcement_enabled()` / `enforce()` | **Opt-in, default OFF** (`SIMPLICIO_SUPERVISOR_ENFORCE=1` to turn on). Off: `enforce()` only reports what it *would* do (`action: "observed_only"`), never sends a signal — proven by a test that spawns a real flagged process and asserts it is still alive afterward. On: `enforce()` sends a real `SIGTERM` to flagged pids — proven by a test that spawns a real flagged process and asserts it is actually gone afterward. |
@@ -132,13 +132,13 @@ action** (confirmed: `grep -rn supervisor_enforcement simplicio_loop/ scripts/` 
 the module and its test returns nothing). Concretely, today:
 
 - `enable`/`disable` only flip a persisted JSON flag
-  (`.simplicio/orchestrator/supervisor_enforcement.json`, or `$SIMPLICIO_SUPERVISOR_STATE_FILE`).
+  (`.simplicio-loop/orchestrator/supervisor_enforcement.json`, or `$SIMPLICIO_SUPERVISOR_STATE_FILE`).
   Nothing in this repo currently reads that flag to terminate, block, or otherwise act
   on an unsupervised process — `enable` is a documented no-op beyond making `status`
   report `enabled: true`. Do not assume flipping it on will start killing processes.
 - `rollout --mode canary --percent N --allow ws` persists `canary_percent` and
   `canary_allowlist` and appends one JSONL event
-  (`.simplicio/orchestrator/supervisor_enforcement_events.jsonl`, schema
+  (`.simplicio-loop/orchestrator/supervisor_enforcement_events.jsonl`, schema
   `simplicio.supervisor-enforcement-event/v1`), but nothing yet *consumes* those fields
   to decide which workspace is actually enforced — the percentage/allowlist are
   recorded for a future consumer, not evaluated by anything today.
@@ -158,7 +158,7 @@ the module and its test returns nothing). Concretely, today:
 
 | Failure | Detection | Real cause in code |
 |---|---|---|
-| State file is corrupt or truncated (disk full mid-write, killed process) | `status` silently reports `enabled: false` even though it was enabled before | `load_state()` catches `(OSError, ValueError)` on JSON parse and returns `default_state()` — fails safe (disabled), never crashes, but also never surfaces *that* it fell back. Inspect `.simplicio/orchestrator/supervisor_enforcement.json` by hand (`cat` + `python3 -m json.tool`) if `status` shows unexpectedly-disabled state. |
+| State file is corrupt or truncated (disk full mid-write, killed process) | `status` silently reports `enabled: false` even though it was enabled before | `load_state()` catches `(OSError, ValueError)` on JSON parse and returns `default_state()` — fails safe (disabled), never crashes, but also never surfaces *that* it fell back. Inspect `.simplicio-loop/orchestrator/supervisor_enforcement.json` by hand (`cat` + `python3 -m json.tool`) if `status` shows unexpectedly-disabled state. |
 | `--scan-os` reports exit code 3 with no output | operator ran `detect --scan-os` expecting a real scan | `psutil` is not installed in the environment; `scan_os_processes()` returns `None` on `ImportError` and `cmd_detect` propagates that as exit 3, on purpose (never a fake empty list). Fix: `pip install psutil`. |
 | `status --governor-state-file` always shows `governor.available: false` | operator expects breaker-open visibility during a real incident | No writer in this repo currently produces a `ResourceGovernor.status()` JSON snapshot at that path in production — only tests write one manually. This is a real, open integration gap, not a bug to "fix" by editing this worker. |
 | `rollout --mode canary --percent 10` "isn't working" (still enforcing/not-enforcing everywhere) | `rollout` command exits 0 and persists the state, but behavior across workspaces is unchanged | there is no consumer of `canary_percent`/`canary_allowlist` yet — see bullet above. This is expected with the current code, not a defect. |
@@ -171,7 +171,7 @@ the module and its test returns nothing). Concretely, today:
   action (see above), the practical "kill switch" for this slice is simply: stop
   invoking the CLI. There is no running daemon or background thread it starts.
 - If the state file itself is suspect, delete it
-  (`rm .simplicio/orchestrator/supervisor_enforcement.json`, or `$SIMPLICIO_SUPERVISOR_STATE_FILE`
+  (`rm .simplicio-loop/orchestrator/supervisor_enforcement.json`, or `$SIMPLICIO_SUPERVISOR_STATE_FILE`
   if overridden) — `load_state()` treats a missing file identically to a fresh,
   disabled install (`default_state()`), which is exercised by
   `test_missing_state_file_falls_back_to_disabled_safely`.
@@ -184,7 +184,7 @@ the module and its test returns nothing). Concretely, today:
 Closes the previously-open "dashboard de métricas de rollout (só o log estruturado bruto
 existe)" gap. `python3 scripts/supervisor_enforcement.py metrics [--json] [--events-file FILE]`
 replays the same JSONL event log `rollout` writes
-(`.simplicio/orchestrator/supervisor_enforcement_events.jsonl`, or `$SIMPLICIO_SUPERVISOR_EVENTS_FILE`) and
+(`.simplicio-loop/orchestrator/supervisor_enforcement_events.jsonl`, or `$SIMPLICIO_SUPERVISOR_EVENTS_FILE`) and
 reports, deterministically from that log — never fabricated:
 
 - `total_transitions` — count of accepted rollout-mode changes ever recorded.

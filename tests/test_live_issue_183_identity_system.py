@@ -26,7 +26,7 @@ def _gh_runner(payload: dict, bucket: list[list[str]]):
 
 
 def test_live_issue_183_identity_receipt_is_measured_when_live_issue_and_local_receipts_align(tmp_path):
-    evidence_dir = tmp_path / ".simplicio/orchestrator" / "evidence" / "distributed-183-ac7-integration"
+    evidence_dir = tmp_path / ".simplicio-loop/orchestrator" / "evidence" / "distributed-183-ac7-integration"
     merge_a = evidence_dir / "WI-183-CODEX-a.json"
     merge_b = evidence_dir / "WI-183-CLAUDE-b.json"
     _write(merge_a, {"ok": True})
@@ -70,7 +70,7 @@ def test_live_issue_183_identity_receipt_is_measured_when_live_issue_and_local_r
         },
     )
     _write(
-        tmp_path / ".simplicio/orchestrator" / "evidence" / "distributed-183-local" / "distributed-epic-evidence.json",
+        tmp_path / ".simplicio-loop/orchestrator" / "evidence" / "distributed-183-local" / "distributed-epic-evidence.json",
         {
             "issue": 183,
             "title": "[EPIC][P0][Distributed] Multi-agent paralelo por default entre Codex, Claude e máquinas",
@@ -104,7 +104,7 @@ def test_live_issue_183_identity_receipt_is_measured_when_live_issue_and_local_r
 
 
 def test_live_issue_183_identity_receipt_degrades_to_unverified_on_title_mismatch(tmp_path):
-    evidence_dir = tmp_path / ".simplicio/orchestrator" / "evidence" / "distributed-183-ac7-manual"
+    evidence_dir = tmp_path / ".simplicio-loop/orchestrator" / "evidence" / "distributed-183-ac7-manual"
     merge_path = evidence_dir / "WI-183-CODEX-a.json"
     _write(merge_path, {"ok": True})
     _write(
@@ -133,7 +133,7 @@ def test_live_issue_183_identity_receipt_degrades_to_unverified_on_title_mismatc
         },
     )
     _write(
-        tmp_path / ".simplicio/orchestrator" / "issue183-ac7-proof" / "distributed-epic-evidence.json",
+        tmp_path / ".simplicio-loop/orchestrator" / "issue183-ac7-proof" / "distributed-epic-evidence.json",
         {
             "issue": 183,
             "title": "stale local title",

@@ -5,14 +5,14 @@ Validates every fixture under `contracts/loop-execution/v1/fixtures/` against th
 this repo ships — not a re-description of them. Two harnesses:
 
   1. **Subprocess harness** (`converge-success`, `stop-path`, `evidence-gated-done/*`): copies the
-     fixture's `.simplicio/orchestrator/` tree into an isolated temp directory and runs the actual
+     fixture's `.simplicio-loop/orchestrator/` tree into an isolated temp directory and runs the actual
      `hooks/loop_stop.py` there (cwd=temp dir) with the fixture's `stdin.json` on stdin. Asserts on
      the real exit code / stdout / resulting files — the same script Claude Code and Cursor invoke
      as the Stop hook, unmodified.
   2. **Pure-function harness** (`converge-stall-escalation`, `journal-append-only-minimal`): imports
      `scripts/loop_journal.py`'s side-effect-free `analyze()`/`fingerprint()` and calls them
      directly on the fixture's data — no subprocess needed, and no risk of touching this repo's own
-     `.simplicio/orchestrator/loop/journal.jsonl` (that module resolves its JOURNAL path relative to its own
+     `.simplicio-loop/orchestrator/loop/journal.jsonl` (that module resolves its JOURNAL path relative to its own
      file location, not argv/cwd, so it must never be invoked as a CLI against fixture data).
 
 `drain-empty-after-k-rounds` is the one exception: no script in this repo executes a drain
@@ -159,13 +159,13 @@ def schema_check_tree(fixture_dir, schema, errors):
 # ---------------------------------------------------------------------------
 
 def _copy_orchestrator_tree(fixture_dir, tmp_dir):
-    src = os.path.join(fixture_dir, ".simplicio/orchestrator")
+    src = os.path.join(fixture_dir, ".simplicio-loop/orchestrator")
     if os.path.isdir(src):
-        shutil.copytree(src, os.path.join(tmp_dir, ".simplicio/orchestrator"))
+        shutil.copytree(src, os.path.join(tmp_dir, ".simplicio-loop/orchestrator"))
 
 
 def _read_scratchpad_iteration(tmp_dir):
-    path = os.path.join(tmp_dir, ".simplicio/orchestrator", "loop", "scratchpad.md")
+    path = os.path.join(tmp_dir, ".simplicio-loop/orchestrator", "loop", "scratchpad.md")
     if not os.path.exists(path):
         return None
     with open(path, encoding="utf-8") as f:
@@ -230,7 +230,7 @@ def run_hook_fixture(fixture_dir, expected, errors, name):
 
         handoff_needles = exp.get("handoff_contains") or []
         if handoff_needles:
-            handoff_path = os.path.join(tmp_dir, ".simplicio/orchestrator", "loop", "HANDOFF.md")
+            handoff_path = os.path.join(tmp_dir, ".simplicio-loop/orchestrator", "loop", "HANDOFF.md")
             handoff_text = ""
             if os.path.exists(handoff_path):
                 with open(handoff_path, encoding="utf-8") as f:

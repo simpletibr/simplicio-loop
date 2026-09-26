@@ -19,7 +19,7 @@ The checkout must resolve to the pinned ECC commit
 During a Loop run:
 
 1. Loop records a bounded provenance-only admission at
-   `.simplicio/loop-runs/<run-id>/ecc-doctor.json`.
+   `.simplicio-loop/loop-runs/<run-id>/ecc-doctor.json`.
 2. Mapper/Dev CLI keep ownership of the ECC pack and prompt context.
 3. Dev CLI consumes the bounded advisory pack and returns only
    `simplicio.ecc-guidance-ref/v1` hashes in the operator receipt.

@@ -95,13 +95,13 @@ def test_clean_install_then_smoke_check_then_uninstall_leaves_no_trace(tmp_path)
     smoke = install_post_smoke.run_post_install_smoke(str(target))
     assert smoke["ok"], smoke
 
-    receipts = list((target / ".simplicio" / "receipts").glob("*.json"))
+    receipts = list((target / ".simplicio-loop" / "receipts").glob("*.json"))
     assert len(receipts) == 1
     receipt = json.loads(receipts[0].read_text(encoding="utf-8"))
     assert receipt["status"] == "APPLIED"
 
     # 4. uninstall == rollback the transaction. The clean target must return to baseline (plus
-    # the now-empty .simplicio bookkeeping dir — the receipt of what happened is legitimately
+    # the now-empty .simplicio-loop bookkeeping dir — the receipt of what happened is legitimately
     # kept, only the installed content is undone).
     rb = subprocess.run(
         [sys.executable, str(INSTALL_LIB), "rollback", receipt["transaction_id"],
@@ -112,7 +112,7 @@ def test_clean_install_then_smoke_check_then_uninstall_leaves_no_trace(tmp_path)
     assert rb.returncode == 0, rb.stdout + rb.stderr
     assert json.loads(rb.stdout)["status"] == "ROLLED_BACK"
 
-    remaining_content = [p for p in _snapshot(target) if not p.startswith(".simplicio")]
+    remaining_content = [p for p in _snapshot(target) if not p.startswith(".simplicio-loop")]
     assert remaining_content == [], \
         "uninstall must not leave any installed content behind: %r" % remaining_content
 
@@ -145,13 +145,13 @@ def test_forced_failure_mid_install_leaves_a_genuinely_clean_target(tmp_path):
     assert not (target / "scripts").exists()
     assert not (target / ".claude" / "settings.json").exists()
 
-    receipts = list((target / ".simplicio" / "receipts").glob("*.json"))
+    receipts = list((target / ".simplicio-loop" / "receipts").glob("*.json"))
     assert len(receipts) == 1
     receipt = json.loads(receipts[0].read_text(encoding="utf-8"))
     assert receipt["status"] == "ROLLED_BACK"
     assert receipt.get("error")
 
-    remaining_content = [p for p in _snapshot(target) if not p.startswith(".simplicio")]
+    remaining_content = [p for p in _snapshot(target) if not p.startswith(".simplicio-loop")]
     assert remaining_content == baseline, \
         "a rolled-back mid-transaction failure must leave the target exactly as clean as before"
 
@@ -181,7 +181,7 @@ def test_clean_install_survives_unicode_and_spaces_in_target_path(tmp_path):
         skill_md = target / ".claude" / "skills" / s / "SKILL.md"
         assert skill_md.is_file(), "%s not installed cleanly into a unicode/space path" % s
 
-    receipts = list((target / ".simplicio" / "receipts").glob("*.json"))
+    receipts = list((target / ".simplicio-loop" / "receipts").glob("*.json"))
     assert len(receipts) == 1
     receipt = json.loads(receipts[0].read_text(encoding="utf-8"))
     assert receipt["status"] == "APPLIED"
@@ -195,7 +195,7 @@ def test_clean_install_survives_unicode_and_spaces_in_target_path(tmp_path):
     assert rb.returncode == 0, rb.stdout + rb.stderr
     assert json.loads(rb.stdout)["status"] == "ROLLED_BACK"
 
-    remaining_content = [p for p in _snapshot(target) if not p.startswith(".simplicio")]
+    remaining_content = [p for p in _snapshot(target) if not p.startswith(".simplicio-loop")]
     assert remaining_content == [], \
         "rollback of a unicode/space-path install must leave no installed content behind: %r" \
         % remaining_content

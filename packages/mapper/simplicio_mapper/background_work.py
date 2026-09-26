@@ -37,7 +37,7 @@ IO_RATE = 8 * 1024 * 1024
 IGNORE = frozenset(
     {
         ".git",
-        ".simplicio",
+        ".simplicio-loop",
         ".venv",
         "venv",
         "node_modules",
@@ -859,7 +859,7 @@ def run_background_cli(argv: Sequence[str]) -> int:
     cache = Path(
         args.cache_root
         or os.environ.get(
-            "SIMPLICIO_MAPPER_SCOPED_CACHE", str(Path.home() / ".simplicio/mapper/scoped-context-cache")
+            "SIMPLICIO_MAPPER_SCOPED_CACHE", str(Path.home() / ".simplicio-loop/mapper/scoped-context-cache")
         )
     ).expanduser()
     if args.command == "run":

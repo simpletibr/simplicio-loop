@@ -14,7 +14,7 @@ def test_materializes_canonical_run_and_authorized_worktree_item(tmp_path):
     calls = []
     def arm(repo, task_path, delivery, max_iterations):
         calls.append((repo, Path(task_path).read_text(encoding="utf-8"), delivery, max_iterations))
-        run_dir = tmp_path / ".simplicio" / "loop-runs" / "run-7"
+        run_dir = tmp_path / ".simplicio-loop" / "loop-runs" / "run-7"
         run_dir.mkdir(parents=True)
         (run_dir / "plan.json").write_text(json.dumps({"steps": [{"candidate_targets": ["src/a.py"]}]}), encoding="utf-8")
         (run_dir / "state.json").write_text(json.dumps({"phase": "awaiting_decision"}), encoding="utf-8")
@@ -48,7 +48,7 @@ def test_replay_reuses_persisted_run_without_rearming(tmp_path):
     calls = []
     def arm(repo, task_path, delivery, max_iterations):
         calls.append(task_path)
-        run_dir = tmp_path / ".simplicio" / "loop-runs" / "run-7"
+        run_dir = tmp_path / ".simplicio-loop" / "loop-runs" / "run-7"
         run_dir.mkdir(parents=True)
         (run_dir / "state.json").write_text(json.dumps({"phase": "awaiting_decision"}), encoding="utf-8")
         (run_dir / "plan.json").write_text(json.dumps({"steps": [{"candidate_targets": ["src/a.py"]}]}), encoding="utf-8")
@@ -56,7 +56,7 @@ def test_replay_reuses_persisted_run_without_rearming(tmp_path):
     materialize = LoopRunContractMaterializer(str(tmp_path), arm=arm)
     assert materialize(intake()) == materialize(intake())
     assert len(calls) == 1
-    receipt = json.loads((tmp_path / ".simplicio" / "tasks-run" / "batch-1" / "materialization-receipt.json").read_text(encoding="utf-8"))
+    receipt = json.loads((tmp_path / ".simplicio-loop" / "tasks-run" / "batch-1" / "materialization-receipt.json").read_text(encoding="utf-8"))
     assert receipt["schema"] == "simplicio.tasks-materialization-receipt/v1"
 
     assert receipt["receipt_hash"]
@@ -64,7 +64,7 @@ def test_replay_reuses_persisted_run_without_rearming(tmp_path):
 
 def test_replay_rejects_tampered_hash_and_escaped_run_dir(tmp_path):
     materialize = LoopRunContractMaterializer(str(tmp_path), arm=lambda *args: None)
-    receipt_path = tmp_path / ".simplicio" / "tasks-run" / "batch-1" / "materialization-receipt.json"
+    receipt_path = tmp_path / ".simplicio-loop" / "tasks-run" / "batch-1" / "materialization-receipt.json"
     receipt_path.parent.mkdir(parents=True)
     receipt_path.write_text(json.dumps({"schema": "simplicio.tasks-materialization-receipt/v1", "items": {}, "receipt_hash": "tampered"}), encoding="utf-8")
     with pytest.raises(ContractMaterializationError, match="receipt hash"):
@@ -78,7 +78,7 @@ def test_replay_rejects_tampered_hash_and_escaped_run_dir(tmp_path):
         materialize._row("7", intake()["items"]["7"], {"manifest": {"run_id": "run-7"}, "run_dir": str(outside)})
 
 def test_corrupt_replay_receipt_fails_closed_without_rearming(tmp_path):
-    receipt = tmp_path / ".simplicio" / "tasks-run" / "batch-1" / "materialization-receipt.json"
+    receipt = tmp_path / ".simplicio-loop" / "tasks-run" / "batch-1" / "materialization-receipt.json"
     receipt.parent.mkdir(parents=True)
     receipt.write_text("{broken", encoding="utf-8")
     calls = []
@@ -111,7 +111,7 @@ def test_canonical_git_base_flows_from_materializer_to_merge_receipt(tmp_path):
     subprocess.run(["git", "-C", str(tmp_path), "add", "main"], check=True)
     subprocess.run(["git", "-C", str(tmp_path), "commit", "-qm", "main"], check=True)
     subprocess.run(["git", "-C", str(tmp_path), "update-ref", "refs/remotes/origin/main", "HEAD"], check=True)
-    run_dir = tmp_path / ".simplicio" / "loop-runs" / "run-7"
+    run_dir = tmp_path / ".simplicio-loop" / "loop-runs" / "run-7"
     run_dir.mkdir(parents=True)
     (run_dir / "plan.json").write_text(json.dumps({"steps": [{"candidate_targets": ["src/a.py"]}]}), encoding="utf-8")
     (run_dir / "state.json").write_text(json.dumps({"phase": "awaiting_decision"}), encoding="utf-8")

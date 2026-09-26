@@ -289,7 +289,7 @@ def run_live(repo: Path) -> dict[str, Any]:
             "doctor",
             "--json",
             "-s",
-            str(repo / ".simplicio" / "fast" / "missing.sfast"),
+            str(repo / ".simplicio-loop" / "fast" / "missing.sfast"),
         ],
         cwd=repo,
     )
@@ -319,7 +319,7 @@ def run_live(repo: Path) -> dict[str, Any]:
 def run_inprocess(repo: Path) -> dict[str, Any]:
     from simplicio_fast.processor import ProjectProcessor
 
-    snapshot = repo / ".simplicio" / "fast" / "project.sfast"
+    snapshot = repo / ".simplicio-loop" / "fast" / "project.sfast"
     processor = ProjectProcessor(repo, snapshot)
     started = time.perf_counter()
     ingest = processor.ingest()

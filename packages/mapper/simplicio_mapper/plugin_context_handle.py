@@ -198,7 +198,7 @@ def validate_plugin_context_handle(payload: Mapping[str, Any]) -> dict[str, Any]
 
 
 def _cache(root: Path) -> ContextCache:
-    path = root / ".simplicio" / "plugin-context-handle.json"
+    path = root / ".simplicio-loop" / "plugin-context-handle.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     return ContextCache(path)
 

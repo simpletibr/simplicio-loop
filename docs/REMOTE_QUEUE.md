@@ -57,11 +57,11 @@ for one machine or a shared filesystem that provides SQLite locking:
 
 ```python
 from simplicio_loop.remote_queue import SQLiteRemoteQueue
-q = SQLiteRemoteQueue(".simplicio/orchestrator/shared-queue.db")
+q = SQLiteRemoteQueue(".simplicio-loop/orchestrator/shared-queue.db")
 q.enqueue("issue-185", {"source": "github", "number": 185})
 lease = q.claim("issue-185", "codex@laptop-a", idempotency_key="run:185")
 lease = q.heartbeat(lease)
-q.complete(lease, receipt_ref=".simplicio/orchestrator/receipts/185.json")
+q.complete(lease, receipt_ref=".simplicio-loop/orchestrator/receipts/185.json")
 ```
 
 Claims are idempotent by `idempotency_key`; expired leases are reclaimable and
@@ -77,7 +77,7 @@ the SQLite transaction boundary authoritative while clients on separate
 machines use the same claim/lease/fencing protocol:
 
 ```powershell
-python scripts/remote_queue_server.py --db .simplicio/orchestrator/shared-queue.db --host 0.0.0.0 --port 8765 --token "$env:SIMPLICIO_QUEUE_TOKEN"
+python scripts/remote_queue_server.py --db .simplicio-loop/orchestrator/shared-queue.db --host 0.0.0.0 --port 8765 --token "$env:SIMPLICIO_QUEUE_TOKEN"
 ```
 
 Network-facing binds are fail-closed unless TLS is configured. Provide a certificate and
@@ -136,14 +136,14 @@ heartbeat itself fails (reclaimed lease / unreachable queue), the worker's coope
 from simplicio_loop.remote_queue import SQLiteRemoteQueue
 from simplicio_loop.worker_daemon import RemoteWorkerDaemon, sleep_in_slices
 
-queue = SQLiteRemoteQueue(".simplicio/orchestrator/shared-queue.db")
+queue = SQLiteRemoteQueue(".simplicio-loop/orchestrator/shared-queue.db")
 worker = RemoteWorkerDaemon(queue, agent_id="codex@laptop-a", heartbeat_interval=1.0, lease_ttl=5.0)
 lease = worker.try_claim("issue-185", idempotency_key="run:185")
 
 def work(check_cancelled):
     return {"finished": sleep_in_slices(30.0, slice_seconds=0.1, check_cancelled=check_cancelled)}
 
-outcome = worker.run_task(lease, work, receipt_ref=".simplicio/orchestrator/receipts/185.json")
+outcome = worker.run_task(lease, work, receipt_ref=".simplicio-loop/orchestrator/receipts/185.json")
 # outcome.status is one of "completed" | "cancelled" | "lease_lost"
 ```
 
@@ -199,7 +199,7 @@ Once that's set:
   fallback when `SIMPLICIO_REMOTE_QUEUE_TOKEN_SECRET` is unset: the runner
   raises `RuntimeError` unless `SIMPLICIO_ALLOW_STATIC_QUEUE_TOKEN=1` is also
   set, and every use of the opt-in path appends a line to the audit log
-  (`.simplicio/orchestrator/security/audit-log.jsonl`, `scripts/security_audit_log.py`)
+  (`.simplicio-loop/orchestrator/security/audit-log.jsonl`, `scripts/security_audit_log.py`)
   so an indefinitely-lived shared secret in production is discoverable, not
   invisible.
 * Operation-level credential scoping: a short-lived token's `ops` claim (set
@@ -249,7 +249,7 @@ in-process shortcut only for a deliberate same-host smoke test via
 otherwise -- after `--restart-backoff-seconds`:
 
 ```powershell
-python scripts/remote_worker_supervisor.py --db .simplicio/orchestrator/shared-queue.db --workers 3 --status-dir .simplicio/orchestrator/worker-status
+python scripts/remote_worker_supervisor.py --db .simplicio-loop/orchestrator/shared-queue.db --workers 3 --status-dir .simplicio-loop/orchestrator/worker-status
 ```
 
 `tests/test_remote_worker_supervisor.py` hard-kills a real supervised worker process by PID

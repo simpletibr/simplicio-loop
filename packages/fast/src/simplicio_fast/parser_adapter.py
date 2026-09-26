@@ -461,7 +461,7 @@ def _source_files(root: Path, changed_paths: Iterable[str] | None) -> list[Path]
     if changed_paths is None:
         ignored = {
             ".git",
-            ".simplicio",
+            ".simplicio-loop",
             ".simplicio-fast",
             "__pycache__",
             "node_modules",

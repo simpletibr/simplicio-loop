@@ -74,7 +74,7 @@ def is_simplicio_cmdline(cmdline: Sequence[str]) -> bool:
 
 
 def default_state_dir() -> Path:
-    return Path(os.environ.get("SIMPLICIO_SUPERVISOR_STATE_DIR", ".simplicio/orchestrator/supervisor"))
+    return Path(os.environ.get("SIMPLICIO_SUPERVISOR_STATE_DIR", ".simplicio-loop/orchestrator/supervisor"))
 
 
 def default_registry_path() -> Path:

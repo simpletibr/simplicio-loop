@@ -327,7 +327,7 @@ def install_codex_integration(
         if updated:
             home.mkdir(parents=True, exist_ok=True)
             if hooks_path.exists():
-                backup = hooks_path.with_name(f"{hooks_path.name}.simplicio.bak")
+                backup = hooks_path.with_name(f"{hooks_path.name}.simplicio-loop.bak")
                 if not backup.exists():
                     shutil.copy2(hooks_path, backup)
             hooks_path.write_text(json.dumps(settings, indent=2, sort_keys=True) + "\n", encoding="utf-8")

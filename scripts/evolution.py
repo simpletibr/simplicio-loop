@@ -36,7 +36,7 @@ unit-testable in isolation, same discipline as `loop_journal.py:fingerprint()`,
 `task_anchor.py:goal_fingerprint()`, and `finding_collector.py:compute_fingerprint()`.
 
 State (override the directory with $SIMPLICIO_EVOLUTION_DIR):
-    .simplicio/orchestrator/evolution/proposals.jsonl   one JSON record per proposal, keyed by fingerprint
+    .simplicio-loop/orchestrator/evolution/proposals.jsonl   one JSON record per proposal, keyed by fingerprint
                                                (rewritten in place on update — NOT append-only,
                                                same discipline as finding_collector.py's store)
 
@@ -99,7 +99,7 @@ except Exception:
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 EVOLUTION_DIR = os.environ.get("SIMPLICIO_EVOLUTION_DIR") or os.path.join(
-    REPO, ".simplicio/orchestrator", "evolution")
+    REPO, ".simplicio-loop/orchestrator", "evolution")
 PROPOSALS_FILE = os.path.join(EVOLUTION_DIR, "proposals.jsonl")
 
 if HERE not in sys.path:

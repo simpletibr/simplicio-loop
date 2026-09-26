@@ -470,7 +470,7 @@ class LargeRepositorySystemTest(unittest.TestCase):
         self.assertGreaterEqual(payload["counts"]["files"], self.file_count - 5)
 
         project_map = json.loads(
-            (self.root / ".simplicio" / "project-map.json").read_text(encoding="utf-8")
+            (self.root / ".simplicio-loop" / "project-map.json").read_text(encoding="utf-8")
         )
         errors = validate_instance(project_map, self.project_map_schema, str(SCHEMA_ROOT))
         self.assertEqual(errors, [], errors)

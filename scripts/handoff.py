@@ -20,8 +20,8 @@ up before the previous agent considers the handoff complete. If the next agent
 never confirms, the handoff remains LATCHED and the spindle is stalled — a
 detectable state (``handoff status`` shows `latch: true`).
 
-State file (single source of truth): `.simplicio/orchestrator/loop/spindle_state.json`
-Spindle handoff dir: `.simplicio/orchestrator/loop/handoffs/` (append-only, one JSONL per event)
+State file (single source of truth): `.simplicio-loop/orchestrator/loop/spindle_state.json`
+Spindle handoff dir: `.simplicio-loop/orchestrator/loop/handoffs/` (append-only, one JSONL per event)
 """
 
 import argparse
@@ -41,7 +41,7 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 from _locked_append import locked_append_line  # noqa: E402 — cross-process safe append (#127)
 
-LOOP_DIR = os.path.join(".simplicio/orchestrator", "loop")
+LOOP_DIR = os.path.join(".simplicio-loop/orchestrator", "loop")
 SPINDLE_STATE = os.path.join(LOOP_DIR, "spindle_state.json")
 LEGACY_SPINDLE_STATE = os.path.join(LOOP_DIR, "spindle.json")
 HANDOFF_FILE = os.path.join(LOOP_DIR, "HANDOFF.md")

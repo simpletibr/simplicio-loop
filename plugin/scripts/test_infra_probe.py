@@ -26,7 +26,7 @@ form used when `unit: absent` and the delivery contract forbids new files in the
 
 Usage:
     python3 scripts/test_infra_probe.py probe --root .
-    python3 scripts/test_infra_probe.py probe --root . --anchor .simplicio/orchestrator/loop/anchor.json
+    python3 scripts/test_infra_probe.py probe --root . --anchor .simplicio-loop/orchestrator/loop/anchor.json
     python3 scripts/test_infra_probe.py selftest
 """
 from __future__ import annotations

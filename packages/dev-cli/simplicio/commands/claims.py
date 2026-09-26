@@ -693,14 +693,14 @@ def tag_statement(statement: str) -> dict:
 # Report
 # ---------------------------------------------------------------------------
 
-DEFAULT_REPORT_PATH = ".simplicio/claims_report.json"
+DEFAULT_REPORT_PATH = ".simplicio-loop/claims_report.json"
 
 
 def generate_report(claims: list[str] | None = None, *, path: str | None = None) -> dict:
     """Generate a claims-gate report.
 
     If *claims* is None, the report is loaded from *path* (default:
-    ``.simplicio/claims_report.json``). Otherwise *claims* are checked
+    ``.simplicio-loop/claims_report.json``). Otherwise *claims* are checked
     and the result is returned directly.
     """
     if claims is not None:

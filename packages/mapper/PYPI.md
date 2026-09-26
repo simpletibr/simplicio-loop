@@ -7,18 +7,18 @@ Python-first project mapper for the Simplicio ecosystem. It scans a repository
 and emits machine-readable artifacts that agents and tooling can consume
 without parsing the human-readable markdown docs:
 
-- `.simplicio/project-map.json` (`simplicio.project-map/v1`) — file inventory,
+- `.simplicio-loop/project-map.json` (`simplicio.project-map/v1`) — file inventory,
   architecture signals, entry points, tests, modules, entities, dependencies
   and recent changes.
-- `.simplicio/precedent-index.json` (`simplicio.precedent-index/v1`) —
+- `.simplicio-loop/precedent-index.json` (`simplicio.precedent-index/v1`) —
   high-signal code examples tagged by change type, file, language, roles and
   snippet.
-- `.simplicio/architecture-inventory.json`
+- `.simplicio-loop/architecture-inventory.json`
   (`simplicio.architecture-inventory/v1`) — modules, layers, responsibilities,
   evidence pointers, tests, symbols and relationships.
-- `.simplicio/symbol-index.json` (`simplicio.symbol-index/v1`) — detected
+- `.simplicio-loop/symbol-index.json` (`simplicio.symbol-index/v1`) — detected
   classes, functions, methods and exports with file/line evidence.
-- `.simplicio/call-graph.json` (`simplicio.call-graph/v1`) — import and
+- `.simplicio-loop/call-graph.json` (`simplicio.call-graph/v1`) — import and
   heuristic caller/callee relationships with confidence scores.
 
 The full contract is documented in
@@ -36,7 +36,7 @@ pip install simplicio-mapper
 ## Usage
 
 ```bash
-# Map the current directory into .simplicio/
+# Map the current directory into .simplicio-loop/
 simplicio-mapper map
 
 # Refresh artifacts and record changed files since the last run
@@ -69,7 +69,7 @@ The `llm-project-mapper` console script is provided as an alias.
 |---|---|
 | `index <path>` | Scriptable index command. Returns `0` when refreshed or already fresh, `1` on failure. Quiet by default. |
 | `endpoints <path>` | Extract normalized client calls and server routes, including Python API clients, direct page-level Python calls and Angular HttpClient services. Use `--against <server-root>` to report `missing_from_server` with source files using schema `simplicio.endpoint-inventory/v1`. |
-| `docs <path>` | Render architecture inventory Markdown under `.simplicio/docs/`. |
+| `docs <path>` | Render architecture inventory Markdown under `.simplicio-loop/docs/`. |
 | `export-docs <path>` | Copy rendered Markdown docs to a local target directory. Remote publication is intentionally opt-in and not automatic. |
 | `--against <dir>` | Server/API project root for endpoint comparison. |
 | `--target <dir>` | Local target directory for `export-docs`. |
@@ -78,12 +78,12 @@ The `llm-project-mapper` console script is provided as an alias.
 | `--docs-only` | Render the Markdown docs without emitting the index JSON payload. |
 | `--json-only` | Compatibility alias for keeping `map`/`index` JSON-only. |
 | `--changed-only` | Compatibility alias for incremental refresh workflows. |
-| `--background` | Start a detached index refresh and write `.simplicio/background-index.log`. |
+| `--background` | Start a detached index refresh and write `.simplicio-loop/background-index.log`. |
 | `--json` | Emit stable `simplicio.mapper-index/v1` output for the `index` command. |
 | `--update` | Compatibility alias for index refresh workflows. |
 | `--verbose` | Show progress during `index` refreshes. |
 | `--root <dir>` | Project root to map. Defaults to the current directory. |
-| `--out <dir>` | Artifact directory. Defaults to `.simplicio`. |
+| `--out <dir>` | Artifact directory. Defaults to `.simplicio-loop`. |
 | `--stack <name>` | Stack hint when `.starter-meta.json` is absent. |
 | `--product-name <name>` | Product name hint when `.starter-meta.json` is absent. |
 | `--incremental` | Record changed files and update existing artifacts. |
@@ -98,7 +98,7 @@ The `llm-project-mapper` console script is provided as an alias.
 from pathlib import Path
 import json
 
-base = Path(".simplicio")
+base = Path(".simplicio-loop")
 project_map = json.loads((base / "project-map.json").read_text())
 precedents = json.loads((base / "precedent-index.json").read_text())
 

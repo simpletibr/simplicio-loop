@@ -15,7 +15,7 @@ class RuntimeScaleBenchmarkTest(unittest.TestCase):
             payload = rsb.generate_runtime_scale_corpus(Path(tmp), spec)
             self.assertEqual(payload["file_count"], 64)
             self.assertEqual(
-                json.loads((Path(tmp) / ".simplicio" / "project-map.json").read_text(encoding="utf-8"))["schema"],
+                json.loads((Path(tmp) / ".simplicio-loop" / "project-map.json").read_text(encoding="utf-8"))["schema"],
                 "simplicio.project-map/v1",
             )
             retrieval_path = Path(payload["retrieval_index_path"])

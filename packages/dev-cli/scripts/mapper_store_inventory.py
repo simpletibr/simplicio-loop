@@ -19,11 +19,11 @@ SCHEMA = "simplicio-dev-cli.mapper-store-inventory/v2"
 _MATCH = re.compile(r"sqlite3|index\.sqlite3|CREATE\s+(?:VIRTUAL\s+)?TABLE", re.IGNORECASE)
 _CONNECT = re.compile(r"sqlite3\.connect\s*\(", re.IGNORECASE)
 LEGACY_PATHS = (
-    ".simplicio/effect-transactions.sqlite3",
-    ".simplicio/mutation-worker.sqlite3",
-    ".simplicio/prism-transactions.sqlite3",
-    ".simplicio/write-set-locks.sqlite3",
-    ".simplicio/memory/index.sqlite3",
+    ".simplicio-loop/effect-transactions.sqlite3",
+    ".simplicio-loop/mutation-worker.sqlite3",
+    ".simplicio-loop/prism-transactions.sqlite3",
+    ".simplicio-loop/write-set-locks.sqlite3",
+    ".simplicio-loop/memory/index.sqlite3",
 )
 
 ALLOWLIST = {
@@ -53,87 +53,87 @@ CLASSIFICATION = {
         "kind": "derived_index",
         "owner": "DevCli legacy memory adapter",
         "source_of_truth": "memory Markdown/files",
-        "current_path": ".simplicio/memory/index.sqlite3",
+        "current_path": ".simplicio-loop/memory/index.sqlite3",
         "target": "MapperStore memory/handoff",
     },
     "simplicio/effect_transaction.py": {
         "kind": "transaction_ledger",
         "owner": "Dev CLI",
         "source_of_truth": "transaction receipt state",
-        "current_path": ".simplicio/effect-transactions.sqlite3",
+        "current_path": ".simplicio-loop/effect-transactions.sqlite3",
         "target": "MapperStore ledger adapter; preserve Dev CLI receipt ownership",
     },
     "simplicio/mutation_worker.py": {
         "kind": "mutation_ledger",
         "owner": "Dev CLI",
         "source_of_truth": "mutation lifecycle receipt",
-        "current_path": ".simplicio/mutation-worker.sqlite3",
+        "current_path": ".simplicio-loop/mutation-worker.sqlite3",
         "target": "MapperStore transaction/ledger adapter",
     },
     "simplicio/prism_transaction.py": {
         "kind": "transaction_ledger",
         "owner": "Dev CLI",
         "source_of_truth": "PRISM transaction receipt",
-        "current_path": ".simplicio/prism-transactions.sqlite3",
+        "current_path": ".simplicio-loop/prism-transactions.sqlite3",
         "target": "MapperStore transaction adapter",
     },
     "simplicio/write_set_lock.py": {
         "kind": "lock_ledger",
         "owner": "Dev CLI",
         "source_of_truth": "write-set fencing/lock state",
-        "current_path": ".simplicio/write-set-locks.sqlite3",
+        "current_path": ".simplicio-loop/write-set-locks.sqlite3",
         "target": "MapperStore lock adapter",
     },
 }
 
 MATERIALIZED_PLANS = {
-    ".simplicio/mapper-store/route.json": {
+    ".simplicio-loop/mapper-store/route.json": {
         "kind": "route_receipt",
         "owner": "Dev CLI",
         "source_of_truth": "selected MapperStore route and capability gate",
-        "current_path": ".simplicio/mapper-store/route.json",
+        "current_path": ".simplicio-loop/mapper-store/route.json",
         "target": "durable route freeze before the first effect intent",
     },
-    ".simplicio/mapper-store/effect-transactions": {
+    ".simplicio-loop/mapper-store/effect-transactions": {
         "kind": "transaction_ledger",
         "owner": "Dev CLI",
         "source_of_truth": "transaction receipt state",
-        "current_path": ".simplicio/mapper-store/effect-transactions",
+        "current_path": ".simplicio-loop/mapper-store/effect-transactions",
         "target": "MapperStore effect transaction records",
     },
-    ".simplicio/mapper-store/mutations": {
+    ".simplicio-loop/mapper-store/mutations": {
         "kind": "mutation_ledger",
         "owner": "Dev CLI",
         "source_of_truth": "mutation lifecycle receipt",
-        "current_path": ".simplicio/mapper-store/mutations",
+        "current_path": ".simplicio-loop/mapper-store/mutations",
         "target": "MapperStore mutation records",
     },
-    ".simplicio/mapper-store/prism-transactions": {
+    ".simplicio-loop/mapper-store/prism-transactions": {
         "kind": "transaction_ledger",
         "owner": "Dev CLI",
         "source_of_truth": "PRISM transaction receipt",
-        "current_path": ".simplicio/mapper-store/prism-transactions",
+        "current_path": ".simplicio-loop/mapper-store/prism-transactions",
         "target": "MapperStore PRISM transaction records",
     },
-    ".simplicio/mapper-store/locks": {
+    ".simplicio-loop/mapper-store/locks": {
         "kind": "lock_ledger",
         "owner": "Dev CLI",
         "source_of_truth": "write-set fencing/lock state",
-        "current_path": ".simplicio/mapper-store/locks",
+        "current_path": ".simplicio-loop/mapper-store/locks",
         "target": "MapperStore lock records",
     },
-    ".simplicio/mapper-store/memory-index": {
+    ".simplicio-loop/mapper-store/memory-index": {
         "kind": "derived_index",
         "owner": "Dev CLI memory adapter",
         "source_of_truth": "memory Markdown/files",
-        "current_path": ".simplicio/mapper-store/memory-index",
+        "current_path": ".simplicio-loop/mapper-store/memory-index",
         "target": "MapperStore memory index records",
     },
-    ".simplicio/mapper-store/memory-notes": {
+    ".simplicio-loop/mapper-store/memory-notes": {
         "kind": "derived_notes",
         "owner": "Dev CLI memory adapter",
         "source_of_truth": "memory Markdown/files",
-        "current_path": ".simplicio/mapper-store/memory-notes",
+        "current_path": ".simplicio-loop/mapper-store/memory-notes",
         "target": "MapperStore memory handoff records",
     },
 }
@@ -175,7 +175,7 @@ def inventory(root: Path) -> dict[str, Any]:
         and CLASSIFICATION.get(item["path"], {}).get("kind") not in {"fixture", "detection"}
     ]
     materialized: list[dict[str, Any]] = []
-    materialized_root = root / ".simplicio" / "mapper-store"
+    materialized_root = root / ".simplicio-loop" / "mapper-store"
     if materialized_root.is_dir():
         for path in sorted(item for item in materialized_root.rglob("*") if item.is_file()):
             relative = path.relative_to(root).as_posix()

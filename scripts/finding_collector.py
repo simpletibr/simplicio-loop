@@ -5,13 +5,13 @@ Issue #466 asks for a transversal Finding -> Report -> Issue -> Resolution lifec
 problem confirmed during any loop stage exists only in a log, comment, receipt or agent reply.
 That full lifecycle (GitHub issue creation, IssueTargetResolver across the ecosystem, transactional
 outbox with retry/dedup/reopen, CLI `findings list/report/flush/reconcile/doctor`) is a multi-PR
-program. This module is Phase 1 of that program (`.simplicio/orchestrator/backlog` item T1): the durable,
+program. This module is Phase 1 of that program (`.simplicio-loop/orchestrator/backlog` item T1): the durable,
 model-free **collector** — record a finding, compute a STABLE fingerprint so the same underlying
 defect always collapses to one record no matter how many times it's observed, and expose
 list/status for later stages (T2 IssueTargetResolver, T3 template validator, T4 stage_report
 integration) to build on. No GitHub calls happen here.
 
-State: `.simplicio/orchestrator/findings/findings.jsonl` — one JSON record per DISTINCT fingerprint (append
+State: `.simplicio-loop/orchestrator/findings/findings.jsonl` — one JSON record per DISTINCT fingerprint (append
 on first sight, rewrite-in-place on a repeat sighting to bump `occurrence_count` /
 `last_seen_ts` — never a second record for the same fingerprint).
 
@@ -59,7 +59,7 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-FINDINGS_DIR = os.path.join(REPO, ".simplicio/orchestrator", "findings")
+FINDINGS_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "findings")
 FINDINGS_PATH = os.path.join(FINDINGS_DIR, "findings.jsonl")
 
 SCHEMA = "simplicio.finding/v1"

@@ -218,7 +218,7 @@ Jede verlinkt auf ihren ausführlichen Abschnitt und ihren Worker.
 | Fähigkeit | Was sie tut | Nachweis / Worker | Details |
 |---|---|---|---|
 | 🎬 **Video-Belege** (`video_evidence`) | Zeichnet die **echte Browser-Session** als bewegten Beleg auf, dass eine UI-Änderung funktioniert (Playwright, Standard); rendert für eine explizite Erklärvideo-Anfrage (`/simplicio-loop make a video of screen X`) eine **deterministische, beschriftete MP4** mit [hyperframes](https://github.com/heygen-com/hyperframes) | `scripts/video_evidence.py` · BLOCKIERT (niemals Fake-Pass) ohne die Toolchain | [§ Video-Belege](#-video-belege--playwright-standardmäßig-hyperframes-auf-anfrage) |
-| 🧠 **Versuchsgedächtnis + Stall-Detektor** | Ein dauerhaftes Run-Journal (`.simplicio/orchestrator/loop/journal.jsonl`) + ein Stall-Detektor, sodass die Schleife **die Strategie ändert, statt zu oszillieren**; inkrementelle Triage (`since`) liest jede Runde nur das Delta | `scripts/loop_journal.py` · `selftest` 13/13 | [§ Anti-Oszillation](#-versuchsgedächtnis--stall-detektor-anti-oszillation) |
+| 🧠 **Versuchsgedächtnis + Stall-Detektor** | Ein dauerhaftes Run-Journal (`.simplicio-loop/orchestrator/loop/journal.jsonl`) + ein Stall-Detektor, sodass die Schleife **die Strategie ändert, statt zu oszillieren**; inkrementelle Triage (`since`) liest jede Runde nur das Delta | `scripts/loop_journal.py` · `selftest` 13/13 | [§ Anti-Oszillation](#-versuchsgedächtnis--stall-detektor-anti-oszillation) |
 | 🔒 **Fail-closed-Sicherheits-Gate** (`action_gate`) | Ein `PreToolUse`-/git-pre-push-Hook, der Force-Push, History-Rewrite, Massenlöschung, destruktives DDL, Infra-Teardown und secret-behaftete Commits/Pushes **mechanisch blockiert** — Schritt 5 ausführbar gemacht, nicht als Prosa | `hooks/action_gate.py` · `selftest` 15/15 | [§ Sicherheit](#-sicherheit-nicht-verhandelbar) |
 | 🔬 **Lokale Verifikation** | Eine Test-Suite (Worker-Selftests + ein **E2E des Schleifentreibers**, der den nachweis-gegateten Ausgang beweist) + ein **Claims-Audit** (referenzierte Skripte existieren · Zählungen konsistent · `_bundle ≡ source`) — alles lokal, **kein bezahltes CI** | `scripts/check.py` · `scripts/claims_audit.py` · `tests/` | [§ Tests & lokale Prüfungen](#-tests--lokale-prüfungen-kein-bezahltes-ci) |
 | ✅ **Ehrliche Einsparungen** | Die Einsparungszeile ist nun **nachweis-gegatet, nicht obligatorisch** — eine Zahl wird nur mit einem gemessenen Beleg gezeigt (Clamp/Signaturen/Cache/`deterministic_edit`/Ledger); niemals erfunden | Token-Ökonomie-Vertrag | [§ Token-Ökonomie](#-token-ökonomie) |
@@ -383,7 +383,7 @@ erneut ein, sodass der Agent seine eigene frühere Arbeit sieht. Der Ausgang erf
    Versprechen ohne Belege = ignoriert.
 2. **`max_iterations`-Obergrenze** — harter Sicherheitsanschlag
 3. **STOP/cancel path** — explicit STOP file or channel command stops unattended runs
-4. **STOP-Signal** — `.simplicio/orchestrator/STOP` oder Kanalbefehl
+4. **STOP-Signal** — `.simplicio-loop/orchestrator/STOP` oder Kanalbefehl
 
 Zwischen den Runden cached LMCache (sofern verfügbar) den KV-Zustand, sodass das erneute Einspeisen
 nahezu null Prefill kostet.
@@ -392,7 +392,7 @@ nahezu null Prefill kostet.
 
 Eine Re-Feed-Schleife, die sich nichts merkt, oszilliert — versuche X, scheitere, versuche X erneut — bis
 die Obergrenze verbrennt. simplicio-loop führt ein **dauerhaftes Run-Journal**
-(`.simplicio/orchestrator/loop/journal.jsonl`, nur anhängend: `iteration · action · hypothesis · gate ·
+(`.simplicio-loop/orchestrator/loop/journal.jsonl`, nur anhängend: `iteration · action · hypothesis · gate ·
 error-fingerprint`) und einen **Stall-Detektor** ([`scripts/loop_journal.py`](../scripts/loop_journal.py),
 deterministisch + modellfrei):
 

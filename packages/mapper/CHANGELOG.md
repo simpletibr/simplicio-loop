@@ -6,15 +6,15 @@
 
 ### Fixed
 
-- Handoff: materialize (and keep current) the canonical, unscoped `.simplicio/context-snapshot.json` on every `handoff` call, not only via the internal `snapshot build`. The documented agent workflow (`scan` -> `handoff --json` -> Fast `ingest --mapper-mode integrated`) never calls `snapshot build`, so `handoff` previously left the canonical snapshot unwritten entirely -- Fast's integrated ingest failed closed with `mapper_artifact_missing: context_snapshot` even though `handoff --json` reported `ready: true`. A task-aware (`--goal`) call still never overwrites the canonical file with its budget-pruned graph (issue #645/O2): it rebuilds a second, unbounded/task-agnostic snapshot for the canonical path (skipped when its content-addressed `snapshot_id` already matches what's on disk, so the file stays byte-stable across repeat calls) and keeps its own bounded snapshot scoped to `context-snapshot.task.json`.
+- Handoff: materialize (and keep current) the canonical, unscoped `.simplicio-loop/context-snapshot.json` on every `handoff` call, not only via the internal `snapshot build`. The documented agent workflow (`scan` -> `handoff --json` -> Fast `ingest --mapper-mode integrated`) never calls `snapshot build`, so `handoff` previously left the canonical snapshot unwritten entirely -- Fast's integrated ingest failed closed with `mapper_artifact_missing: context_snapshot` even though `handoff --json` reported `ready: true`. A task-aware (`--goal`) call still never overwrites the canonical file with its budget-pruned graph (issue #645/O2): it rebuilds a second, unbounded/task-agnostic snapshot for the canonical path (skipped when its content-addressed `snapshot_id` already matches what's on disk, so the file stays byte-stable across repeat calls) and keeps its own bounded snapshot scoped to `context-snapshot.task.json`.
 
 ## [0.26.33] - 2026-09-25
 
 ### Fixed
 
-- Handoff: stop the task-aware bounded snapshot from overwriting the canonical `.simplicio/context-snapshot.json`; persist it to a scoped `context-snapshot.task.json` instead, and order kept nodes by relevance instead of raw id sort so symbols survive the budget (issue #645).
+- Handoff: stop the task-aware bounded snapshot from overwriting the canonical `.simplicio-loop/context-snapshot.json`; persist it to a scoped `context-snapshot.task.json` instead, and order kept nodes by relevance instead of raw id sort so symbols survive the budget (issue #645).
 - Unblock the mapper test suite: schemas, receipts, digests, and remaining fixture-driven failures (issue #645).
-- Drop a stray `.simplicio` cache database committed under the fixture tree.
+- Drop a stray `.simplicio-loop` cache database committed under the fixture tree.
 
 ### Changed
 
@@ -121,10 +121,10 @@
 ## [0.26.15] - 2026-08-03
 
 ### Changed
-- Scoped data roots: **core/runtime** at `~/.simplicio/data`; **project** at
-  `<repo>/.simplicio/data/<slug>` (slug from git remote / SIMPLICIO_PROJECT /
+- Scoped data roots: **core/runtime** at `~/.simplicio-loop/data`; **project** at
+  `<repo>/.simplicio-loop/data/<slug>` (slug from git remote / SIMPLICIO_PROJECT /
   Codex·Cursor·Claude·Gemini workspace name). Memories and DBs no longer mix.
-- Default home store is `~/.simplicio/data` (not bare `~/data`).
+- Default home store is `~/.simplicio-loop/data` (not bare `~/data`).
 
 ### Added
 - `store/project_scope.py` + `data status|unify --repo|--project` scopes block.
@@ -149,7 +149,7 @@
 
 ### Added
 - Ecosystem data catalog: Mapper owns every durable bank under `SIMPLICIO_DATA_DIR`.
-- CLI `simplicio-mapper data layout|status|absorb|init` with absorb-from-legacy (`~/.simplicio/**`).
+- CLI `simplicio-mapper data layout|status|absorb|init` with absorb-from-legacy (`~/.simplicio-loop/**`).
 - Manifest `ecosystem-data-catalog.json` written on absorb; env hints for `SIMPLICIO_DATA_DIR` and `SIMPLICIO_MEMORY_DB`.
 
 ## [0.26.12] - 2026-08-03
@@ -157,7 +157,7 @@
 ### Added
 - Neural bank centralization: package Runtime seeds.sql, memory-schema.sql, and migrations under simplicio_mapper/store/neural/assets/.
 - CLI `simplicio-mapper neural init|absorb|status|seed` — Mapper owns SIMPLICIO_DATA_DIR/simplicio-memory.sqlite.
-- absorb copies ~/.simplicio/memory/simplicio-memory.sqlite into Mapper data root with backup + migrations.
+- absorb copies ~/.simplicio-loop/memory/simplicio-memory.sqlite into Mapper data root with backup + migrations.
 
 ## [0.26.11] - 2026-08-02
 
@@ -427,7 +427,7 @@
 
 - Token/context budget guard in CI (`scripts/token_budget.py`, issue #174):
   estimates token cost for `AGENTS.md`/`CLAUDE.md`, the largest
-  `simplicio_mapper/` modules, and the committed `.simplicio/*.json`-shaped
+  `simplicio_mapper/` modules, and the committed `.simplicio-loop/*.json`-shaped
   contract fixtures, and fails the `python-ci.yml` `python-tests` job when
   any artifact grows more than 25% above the committed baseline
   (`scripts/token_budget_baseline.json`). Default estimator is the stdlib
@@ -445,7 +445,7 @@
   fake-pass.
 - Savings ledger per verb (`simplicio_mapper/savings.py`): every native
   delegation hit records a `simplicio.savings-event/v1` entry to
-  `.simplicio/ledger/savings-events.jsonl`
+  `.simplicio-loop/ledger/savings-events.jsonl`
   (`source=native-delegation:<verb>`, `proof_kind` always `"estimated"`),
   mirroring the `simplicio-dev-cli` savings-event format without importing
   its code. Opt out with `SIMPLICIO_DISABLE_RUN_LOG`.
@@ -480,7 +480,7 @@
 - `ask precedent "<query>"` verb — searches the native `simplicio` runtime's
   SQLite/FTS5 precedent memory when the binary is available (`simplicio
   precedent search --json`), falling back to local tag-overlap ranking over
-  `.simplicio/precedent-index.json` otherwise. First real precedent *query*
+  `.simplicio-loop/precedent-index.json` otherwise. First real precedent *query*
   capability in this repo (previously only built the index, never searched
   it). Native results carry `source: "runtime-precedent-search"`; the local
   fallback carries `source: "local-tag-overlap"`, both capped at the top 5
@@ -527,7 +527,7 @@
   walk, text/import/symbol regex parsing, per-file role/importance tagging,
   precedent extraction, ~654 lines), `graph.py` (call-graph, symbol-index,
   architecture-inventory, macro-map construction, ~643 lines), `emit.py`
-  (`.simplicio/*.json` serialization + rendered architecture docs, ~544
+  (`.simplicio-loop/*.json` serialization + rendered architecture docs, ~544
   lines), with `mapper/__init__.py` re-exporting the full original API
   (including internal `_prefixed` helpers other modules import directly) so
   `from simplicio_mapper.mapper import X` is unchanged. Pure move-and-wire
@@ -587,7 +587,7 @@ Every Mermaid diagram type in `simplicio_mapper/diagrams.py` now has a
 pure-Python, dependency-free SVG sibling (`render_flowchart_svg`,
 `render_call_sequence_svg`, `render_state_diagram_svg`) — same determinism,
 truncation-guardrail and adversarial-label-escaping guarantees as the
-Mermaid renderer, written under `.simplicio/docs/diagrams/**` and linked
+Mermaid renderer, written under `.simplicio-loop/docs/diagrams/**` and linked
 from the parent Markdown doc.
 
 - `architecture.md`, `layers.md` link their standalone SVG next to the
@@ -716,7 +716,7 @@ that stays in sync with the code and keeps history. Full contracts in
   - `simplicio-mapper scan <path>` returning a `simplicio.map-job/v1` envelope:
     macro inline + deep-pass pointers, deep in background by default,
     synchronous under `CI=true`/`--sync`, `--await` to block until terminal,
-    persisted to `.simplicio/map-job.json` (#122).
+    persisted to `.simplicio-loop/map-job.json` (#122).
   - `simplicio-mapper status <path>` deriving `deep_running|complete|failed|unknown`
     from `index.lock` + `index-state.json` freshness + `map-job.json`, with a
     shared `--await`/`--timeout` helper (#123).
@@ -724,7 +724,7 @@ that stays in sync with the code and keeps history. Full contracts in
     `SIMPLICIO_INTEGRATION.md`.
 - `simplicio-mapper flowchart <path>` command and the
   `simplicio.service-flowchart/v1` contract. Builds a two-faced service map
-  and renders it as Mermaid in `.simplicio/docs/flowchart.md`:
+  and renders it as Mermaid in `.simplicio-loop/docs/flowchart.md`:
   - Frontend face — Angular screens linked to the services/endpoints in
     their module scope, clickable buttons (`(click)` handlers) tied to the
     endpoints their handler bodies call, and the *observable* rules encoded
@@ -826,7 +826,7 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added
 - `simplicio-mapper index|map|update --background` starts a detached refresh
-  and writes `.simplicio/background-index.log`, so long-running inventory
+  and writes `.simplicio-loop/background-index.log`, so long-running inventory
   updates can proceed without blocking the foreground workflow.
 - `simplicio-mapper index|map|update --docs-only` renders the Markdown wiki
   view without emitting the index JSON payload, useful for docs-only refreshes.
@@ -834,7 +834,7 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
   scripts that distinguish JSON-only and changed-file refresh modes.
 
 ### Changed
-- `simplicio-mapper index` now uses `.simplicio/index.lock` to avoid overlapping
+- `simplicio-mapper index` now uses `.simplicio-loop/index.lock` to avoid overlapping
   foreground/background refreshes and returns a stable `status=skipped,
   skipped_reason=locked` JSON contract when another refresh is active.
 
@@ -842,11 +842,11 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added
 - Living architecture inventory artifacts:
-  `.simplicio/architecture-inventory.json`,
-  `.simplicio/symbol-index.json`, and `.simplicio/call-graph.json`, with
+  `.simplicio-loop/architecture-inventory.json`,
+  `.simplicio-loop/symbol-index.json`, and `.simplicio-loop/call-graph.json`, with
   module/layer evidence, symbol file+line metadata, import edges and heuristic
   caller/callee relationships.
-- `simplicio-mapper docs <path>` renders `.simplicio/docs/*.md` from the JSON
+- `simplicio-mapper docs <path>` renders `.simplicio-loop/docs/*.md` from the JSON
   inventory for wiki/review workflows.
 - `simplicio-mapper export-docs <path> --target <dir>` copies rendered Markdown
   to an explicit local docs target without publishing remotely.
@@ -910,7 +910,7 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 ### Changed
 - Python mapper now skips generated `output/` trees, including Playwright
   HTML reports and trace result folders, so live evidence artifacts do not
-  pollute `.simplicio/project-map.json`.
+  pollute `.simplicio-loop/project-map.json`.
 
 ## [0.6.4] - 2026-05-31
 
@@ -945,7 +945,7 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added
 - `simplicio-mapper index <path>` idempotent orchestration command for
-  SendSprint. It writes the standard `.simplicio/project-map.json` and
+  SendSprint. It writes the standard `.simplicio-loop/project-map.json` and
   `precedent-index.json`, short-circuits fresh indexes with exit code `2`, and
   exposes a stable `--json` payload with artifact paths, counts, changed files
   and skipped reason.
@@ -961,7 +961,7 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 - Standalone Python distribution `simplicio-mapper` on PyPI: lightweight
   `simplicio_mapper.mapper` port of the Node mapper plus a `map` / `update` CLI
   exposed as the `simplicio-mapper` and `llm-project-mapper` console scripts.
-  Generates the same `.simplicio/project-map.json` and `precedent-index.json`
+  Generates the same `.simplicio-loop/project-map.json` and `precedent-index.json`
   without requiring a Node toolchain.
 - Performance optimizations for the Python mapper (closes #82): `orjson` for
   faster JSON serialization, persistent `diskcache` of per-file processing keyed
@@ -970,7 +970,7 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
   artifact contracts remain stable; the package now ships with two lightweight
   runtime dependencies (`orjson`, `diskcache`) instead of being dependency-free.
 - `map` / `update` CLI subcommands for generating and incrementally refreshing
-  `.simplicio/project-map.json` and `.simplicio/precedent-index.json`.
+  `.simplicio-loop/project-map.json` and `.simplicio-loop/precedent-index.json`.
 - Rich machine-readable mapper artifacts with file inventory, roles, imports,
   exports, entity extraction, architecture signals, dependency context, changed
   files, and precedent snippets for downstream consumers.
@@ -986,8 +986,8 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 ### Changed
 - Bootstrap now writes the structured mapper artifacts automatically and records
   the `simplicio` integration block in `.starter-meta.json`.
-- INIT prompts now require validation of `.simplicio/project-map.json` and
-  `.simplicio/precedent-index.json` during agent inspection.
+- INIT prompts now require validation of `.simplicio-loop/project-map.json` and
+  `.simplicio-loop/precedent-index.json` during agent inspection.
 - `AGENTS.md`, `CLAUDE.md`, and `.github/copilot-instructions.md` now point to the root spec, document the receipts schema, and align the generated catalog output on `.catalog/agents.json`.
 - The Node bootstrap path now mirrors the shell/PowerShell runtime scaffold so fresh `npx` installs create the catalog, receipts, and optional MCP edge templates consistently.
 

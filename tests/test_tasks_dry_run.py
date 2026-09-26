@@ -49,7 +49,7 @@ def test_live_dry_run_uses_read_only_orchestrator_path_without_agent_pipeline(tm
 def test_live_dry_run_does_not_consume_persisted_cancellation(tmp_path):
     request = "finish all issues in acme/widgets"
     batch = hashlib.sha256(request.encode("utf-8")).hexdigest()[:16]
-    journal_dir = tmp_path / ".simplicio" / "tasks-run" / batch / "journals"
+    journal_dir = tmp_path / ".simplicio-loop" / "tasks-run" / batch / "journals"
     journal_dir.mkdir(parents=True)
     cancel_path = journal_dir / "cancel.json"
     cancel_path.write_text('{"reason":"cancel_requested"}', encoding="utf-8")

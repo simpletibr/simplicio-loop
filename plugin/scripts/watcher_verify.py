@@ -21,7 +21,7 @@ from pathlib import Path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-LOOP_DIR = os.path.join(REPO, ".simplicio/orchestrator", "loop")
+LOOP_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop")
 CHALLENGE = os.path.join(LOOP_DIR, "watcher_challenge.json")
 ANCHOR = os.path.join(LOOP_DIR, "anchor.json")
 WATCHER_STATE = os.path.join(LOOP_DIR, "watcher_state.json")
@@ -47,14 +47,14 @@ def _emit_progress(status, outcome=None, detail=""):
     `$SIMPLICIO_REPO`/its own script location -- NOT from this module's `REPO`/`LOOP_DIR`, which
     `_set_repo()` may have redirected (every caller that isolates the watcher into a tmp repo,
     e.g. `cmd_selftest()` and several unit tests, does exactly that). Without this, a redirected
-    watcher still wrote progress events into the REAL repo's `.simplicio/orchestrator/loop/`
+    watcher still wrote progress events into the REAL repo's `.simplicio-loop/orchestrator/loop/`
     behind the isolation's back. Point `loop_progress` at the CURRENTLY active REPO/LOOP_DIR for
     the duration of this one call via its own documented env overrides, then restore them.
     """
     overrides = {
         "SIMPLICIO_PROGRESS_DIR": LOOP_DIR,
         "SIMPLICIO_ANCHOR_FILE": ANCHOR,
-        "SIMPLICIO_BACKLOG_FILE": os.path.join(REPO, ".simplicio/orchestrator", "backlog", "backlog.jsonl"),
+        "SIMPLICIO_BACKLOG_FILE": os.path.join(REPO, ".simplicio-loop/orchestrator", "backlog", "backlog.jsonl"),
     }
     # An explicit caller setting wins; only fill what the caller left unset.
     overrides = {k: v for k, v in overrides.items() if not os.environ.get(k)}
@@ -77,7 +77,7 @@ def _emit_progress(status, outcome=None, detail=""):
 def _set_repo(repo):
     global REPO, LOOP_DIR, CHALLENGE, ANCHOR, WATCHER_STATE
     REPO = repo
-    LOOP_DIR = os.path.join(REPO, ".simplicio/orchestrator", "loop")
+    LOOP_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop")
     CHALLENGE = os.path.join(LOOP_DIR, "watcher_challenge.json")
     ANCHOR = os.path.join(LOOP_DIR, "anchor.json")
     WATCHER_STATE = os.path.join(LOOP_DIR, "watcher_state.json")
@@ -94,11 +94,11 @@ def _set_loop_dir(loop_dir):
 
 def _resolve_wi_worktree(wi):
     """#561: resolve the Orca worktree for a given WI id (e.g. WI-3307 ->
-    .simplicio/orchestrator/worktrees/wi-3307). Returns None when no such worktree exists
+    .simplicio-loop/orchestrator/worktrees/wi-3307). Returns None when no such worktree exists
     (caller must fail closed to UNVERIFIED rather than silently using REPO)."""
     if not wi:
         return None
-    candidate = Path(REPO) / ".simplicio/orchestrator" / "worktrees" / wi.lower()
+    candidate = Path(REPO) / ".simplicio-loop/orchestrator" / "worktrees" / wi.lower()
     if candidate.is_dir():
         return str(candidate)
     return None
@@ -120,7 +120,7 @@ if _repo_override:
 # NOTE: SIMPLICIO_RUN_DIR selects the run-local artifact directory and must NOT
 # redefine REPO/LOOP_DIR — the run dir is resolved by _find_run_dir(wi=...) below.
 # The legacy parents[2] heuristic broke backlog/items/<wi>/run layouts (double
-# .simplicio/orchestrator path). REPO is SIMPLICIO_LOOP_REPO, else the cwd's git toplevel.
+# .simplicio-loop/orchestrator path). REPO is SIMPLICIO_LOOP_REPO, else the cwd's git toplevel.
 _loop_override = os.environ.get("SIMPLICIO_LOOP_DIR", "").strip()
 if _loop_override:
     _set_loop_dir(_loop_override)
@@ -146,9 +146,9 @@ def _find_run_dir(wi=None):
     run_dir = os.environ.get("SIMPLICIO_RUN_DIR", "").strip()
     if run_dir:
         return Path(run_dir)
-    orch = Path(REPO) / ".simplicio/orchestrator"
-    runs_root = orch / "runs"  # new convention: .simplicio/orchestrator/runs/wi-XXXX
-    legacy_root = orch          # legacy convention: .simplicio/orchestrator/run-WIXXXX
+    orch = Path(REPO) / ".simplicio-loop/orchestrator"
+    runs_root = orch / "runs"  # new convention: .simplicio-loop/orchestrator/runs/wi-XXXX
+    legacy_root = orch          # legacy convention: .simplicio-loop/orchestrator/run-WIXXXX
 
     def _has_independent(p):
         return p.is_dir() and (p / "independent-watcher-receipt.json").is_file()
@@ -597,7 +597,7 @@ def cmd_selftest():
                     {"id": "AC1", "status": "done"},
                     {"id": "AC2", "status": "done"},
                 ]}, f)
-            run_dir = os.path.join(tmp, ".simplicio/orchestrator", "runs", "demo")
+            run_dir = os.path.join(tmp, ".simplicio-loop/orchestrator", "runs", "demo")
             os.makedirs(run_dir, exist_ok=True)
             with open(os.path.join(run_dir, "evidence-receipt.json"), "w", encoding="utf-8") as f:
                 json.dump({
@@ -657,7 +657,7 @@ def main():
 def _wi_for_issue(issue):
     """#561: map a GitHub issue number to its canonical WI id via the tasks dir."""
     try:
-        tasks_root = Path(REPO) / ".simplicio/orchestrator" / "tasks"
+        tasks_root = Path(REPO) / ".simplicio-loop/orchestrator" / "tasks"
         if tasks_root.is_dir():
             for entry in sorted(tasks_root.glob("WI-*.md")):
                 text = entry.read_text(encoding="utf-8", errors="ignore")

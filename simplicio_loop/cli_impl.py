@@ -180,7 +180,7 @@ def dashboard(port: int, open_browser: bool, stop: bool) -> int:
         print("error: bundled dashboard not found in the installed package.", flush=True)
         return 1
     if not _port_up(port):
-        logdir = Path.home() / ".simplicio" / "logs"
+        logdir = Path.home() / ".simplicio-loop" / "logs"
         logdir.mkdir(parents=True, exist_ok=True)
         env = {**os.environ, "PORT": str(port)}
         # Detach so the server outlives this CLI process (own session / no console window).
@@ -198,7 +198,7 @@ def dashboard(port: int, open_browser: bool, stop: bool) -> int:
                 break
             time.sleep(0.2)
     if not _port_up(port):
-        print("⬡ failed to start the dashboard — see ~/.simplicio/logs/token-monitor.log", flush=True)
+        print("⬡ failed to start the dashboard — see ~/.simplicio-loop/logs/token-monitor.log", flush=True)
         return 1
     print(f"⬡ Simplicio Token Monitor → {url}")
     if open_browser and _gui_available():
@@ -334,7 +334,7 @@ def run(repo: str, task_path: str, delivery_arg: str, max_iterations: int,
             target.write_text(json.dumps(outcome, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         diagnostic = publish_loop_execution_for_flow(
             repo=Path(repo),
-            run_dir=Path(repo).resolve() / ".simplicio" / "loop-runs" / "run-failed",
+            run_dir=Path(repo).resolve() / ".simplicio-loop" / "loop-runs" / "run-failed",
             flow="run",
             flow_result={"status": "infrastructure_failure"},
         )
@@ -425,7 +425,7 @@ def _orient_command_card(root: Path) -> dict[str, Any]:
         "wave": f"simplicio-loop wave <run_id> --repo {repo}",
         "verify": f"simplicio-loop verify <run_id> --repo {repo}",
         "tick": f"simplicio-loop tick <run_id> --repo {repo} --task-index <N>",
-        "edit_plan_path": ".simplicio/loop-runs/<run_id>/edit-plan-<N>.json",
+        "edit_plan_path": ".simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json",
         "edit_plan_format": {
             "operations": [{"path": "<repo-relative>", "find": "<exact text>", "replace": "<new text>"}]
         },
@@ -457,7 +457,7 @@ def _orient_route(root: Path, task: str) -> dict[str, Any]:
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    decision = module.decide(root, task, map_dir=Path(root) / ".simplicio")
+    decision = module.decide(root, task, map_dir=Path(root) / ".simplicio-loop")
     if decision["mode"] == "fast-path":
         steps = [
             "read the target file; write ops.json = "
@@ -470,7 +470,7 @@ def _orient_route(root: Path, task: str) -> dict[str, Any]:
         steps = [
             "write tasks.md (one System: block per task; dependents in the same file)",
             f"simplicio-loop prepare --task tasks.md --repo {root}",
-            "write every .simplicio/loop-runs/<run_id>/edit-plan-<N>.json up front",
+            "write every .simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json up front",
             f"simplicio-loop wave <run_id> --repo {root}",
         ]
     return {
@@ -520,9 +520,9 @@ def _seal_orient_payload(
 def _mapper_orient_fallback(root: Path, task: str) -> dict:
     """Use Mapper's read-only orient surface when Fast is unavailable.
 
-    The scratch task-file MUST live under ``.simplicio/`` (not the repo
+    The scratch task-file MUST live under ``.simplicio-loop/`` (not the repo
     root): Mapper's own signature computation hashes ``git status`` output,
-    excluding only its own output directory (default ``.simplicio``) by
+    excluding only its own output directory (default ``.simplicio-loop``) by
     pathspec. A dotfile prefix alone does not put this file inside that
     directory, so a repo-root temp file is untracked and visible to `git
     status` for the brief window this subprocess runs -- exactly when Mapper
@@ -533,7 +533,7 @@ def _mapper_orient_fallback(root: Path, task: str) -> dict:
     """
     task_path = None
     try:
-        scratch_dir = root / ".simplicio"
+        scratch_dir = root / ".simplicio-loop"
         scratch_dir.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".md",
                                          prefix="loop-orient-",
@@ -654,7 +654,7 @@ ORIENT_TARGETS_SCHEMA = "simplicio.loop-orient-targets/v1"
 _ORIENT_IDENTIFIER_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _ORIENT_WORD_SPLIT_RE = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|[0-9]+")
 _ORIENT_SKIP_DIRS = {
-    ".git", ".simplicio", "__pycache__", "node_modules", ".venv", "venv",
+    ".git", ".simplicio-loop", "__pycache__", "node_modules", ".venv", "venv",
     "dist", "build", ".mypy_cache", ".pytest_cache", ".tox", ".ruff_cache",
     "egg-info", ".pytest-cache",
 }
@@ -1271,7 +1271,7 @@ def _public_flow_run_dir(repo: str, run_id: str) -> Path:
         candidate = Path(status["run_dir"])
         return candidate
     except (KeyError, OSError, TypeError, ValueError):
-        return Path(repo).resolve() / ".simplicio" / "loop-runs" / str(run_id)
+        return Path(repo).resolve() / ".simplicio-loop" / "loop-runs" / str(run_id)
 
 
 def _attach_dispatch(public_payload: Mapping[str, Any], dispatch: Mapping[str, Any]) -> dict[str, Any]:
@@ -1326,7 +1326,7 @@ def _finalize_public_flow(repo: str, run_id: str, flow: str, dispatch: Mapping[s
             and isinstance(loop_execution, Mapping)
             and loop_execution.get("status") == "VERIFIED"
         ):
-            receipt_path = Path(repo).resolve() / ".simplicio" / "loop-execution.json"
+            receipt_path = Path(repo).resolve() / ".simplicio-loop" / "loop-execution.json"
             envelope = json.loads(receipt_path.read_text(encoding="utf-8"))
             if (
                 isinstance(envelope, Mapping)
@@ -1377,7 +1377,7 @@ def _public_flow_from_status(status: Mapping[str, Any], flow: str, dispatch: Map
         and loop_execution.get("status") == "VERIFIED"
     ):
         repo = str((status.get("manifest") or {}).get("repo") or dispatch.get("repo") or ".")
-        receipt_path = Path(repo).resolve() / ".simplicio" / "loop-execution.json"
+        receipt_path = Path(repo).resolve() / ".simplicio-loop" / "loop-execution.json"
         try:
             envelope = json.loads(receipt_path.read_text(encoding="utf-8"))
         except (OSError, TypeError, ValueError):
@@ -1564,7 +1564,7 @@ def cancel(repo: str, run_id: str) -> int:
 def checkpoint_lifecycle(args) -> int:
     root = Path(args.repo).resolve()
     lifecycle = CheckpointLifecycle(
-        root / ".simplicio" / "loop-runs",
+        root / ".simplicio-loop" / "loop-runs",
         task_id=args.task_id,
         attempt_id=args.attempt_id,
         source_commit=args.source_commit,
@@ -2050,7 +2050,7 @@ def main(argv=None) -> int:
 
     p_plan = sub.add_parser("plan", help="compile a raw task into a contract and preview it")
     p_plan.add_argument("--task", required=True, help="markdown task file")
-    p_plan.add_argument("--out", default=os.path.join(".simplicio/orchestrator", "task-contract.json"),
+    p_plan.add_argument("--out", default=os.path.join(".simplicio-loop/orchestrator", "task-contract.json"),
                         help="where to write the compiled contract")
 
     p_prepare = sub.add_parser(
@@ -2102,7 +2102,7 @@ def main(argv=None) -> int:
     p_ext_doctor.add_argument("--json", action="store_true", help="machine-readable output (always JSON)")
 
     p_oracle = sub.add_parser("oracle", help="evaluate completion and cross-runtime parity")
-    p_oracle.add_argument("--loop-dir", default=os.path.join(".simplicio/orchestrator", "loop"))
+    p_oracle.add_argument("--loop-dir", default=os.path.join(".simplicio-loop/orchestrator", "loop"))
     p_oracle.add_argument("--run-dir", default=os.environ.get("SIMPLICIO_RUN_DIR", ""))
     p_oracle.add_argument("--response-text", default="")
     p_oracle.add_argument("--flow-gap", default="")
@@ -2130,7 +2130,7 @@ def main(argv=None) -> int:
     p_stack_lock.add_argument("--route", choices=("standalone",), required=True)
     p_stack_lock.add_argument("--run-id", default="")
     p_stack_lock.add_argument(
-        "--output", default=os.path.join(".simplicio", "orchestrator", "stack-lock.json")
+        "--output", default=os.path.join(".simplicio-loop", "orchestrator", "stack-lock.json")
     )
     p_stack_verify = stack_sub.add_parser(
         "verify", help="verify current observations against a persisted lock"
@@ -2170,7 +2170,7 @@ def main(argv=None) -> int:
     )
     p_doctor_resource.add_argument(
         "--root", dest="resource_root",
-        default=os.path.join(".simplicio", "orchestrator", "resource-fabric"),
+        default=os.path.join(".simplicio-loop", "orchestrator", "resource-fabric"),
     )
     p_doctor_resource.add_argument("--json", dest="doctor_json", action="store_true",
                                    help="emit machine-readable JSON")
@@ -2218,7 +2218,7 @@ def main(argv=None) -> int:
     p_economy_print.add_argument("--json", action="store_true")
     p_economy_apply = economy_sub.add_parser(
         "apply",
-        help="apply profile to this process + ~/.simplicio + Windows User env",
+        help="apply profile to this process + ~/.simplicio-loop + Windows User env",
     )
     p_economy_apply.add_argument(
         "--user",

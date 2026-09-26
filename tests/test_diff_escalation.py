@@ -210,7 +210,7 @@ def test_cli_emits_measured_json(capsys):
 
 
 def test_snapshot_ignores_loop_bookkeeping_and_verifier_byproducts(tmp_path):
-    """dev-cli writes .simplicio/events.jsonl + ledger on every apply and a
+    """dev-cli writes .simplicio-loop/events.jsonl + ledger on every apply and a
     check leaves __pycache__/.pytest_cache; none is the user's diff, so a
     one-line fast-path edit must stay fast-path."""
     run = lambda *a: subprocess.run(["git", *a], cwd=tmp_path, check=True, capture_output=True)
@@ -219,9 +219,9 @@ def test_snapshot_ignores_loop_bookkeeping_and_verifier_byproducts(tmp_path):
     run("add", "-A")
     run("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "seed")
     (tmp_path / "page.html").write_text("<p>b</p>\n")
-    (tmp_path / ".simplicio" / "ledger").mkdir(parents=True)
-    (tmp_path / ".simplicio" / "events.jsonl").write_text("{}\n")
-    (tmp_path / ".simplicio" / "ledger" / "savings-events.jsonl").write_text("{}\n")
+    (tmp_path / ".simplicio-loop" / "ledger").mkdir(parents=True)
+    (tmp_path / ".simplicio-loop" / "events.jsonl").write_text("{}\n")
+    (tmp_path / ".simplicio-loop" / "ledger" / "savings-events.jsonl").write_text("{}\n")
     (tmp_path / "tests" / "__pycache__").mkdir(parents=True)
     (tmp_path / "tests" / "__pycache__" / "c.pyc").write_bytes(b"\0")
     (tmp_path / ".pytest_cache").mkdir()

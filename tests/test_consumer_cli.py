@@ -21,7 +21,7 @@ def test_first_turn_smoke_from_consumer_directory(tmp_path, monkeypatch):
     consumer.mkdir()
     monkeypatch.chdir(consumer)
     assert consumer_cli.main(["loop_progress", "emit", "--step", "preflight", "--status", "begin"]) == 0
-    assert (consumer / ".simplicio/orchestrator" / "loop" / "progress.jsonl").is_file()
+    assert (consumer / ".simplicio-loop/orchestrator" / "loop" / "progress.jsonl").is_file()
     assert not (consumer / "scripts").exists()
 
 
@@ -36,7 +36,7 @@ def test_anchor_and_journal_use_consumer_repository(tmp_path):
         "--repo", str(consumer), "loop_journal", "record", "--iteration", "1",
         "--action", "smoke", "--hypothesis", "resolver target", "--gate", "pass",
     ]) == 0
-    loop_dir = consumer / ".simplicio/orchestrator" / "loop"
+    loop_dir = consumer / ".simplicio-loop/orchestrator" / "loop"
     anchor = json.loads((loop_dir / "anchor.json").read_text(encoding="utf-8"))
     assert anchor["item"] == "smoke"
     assert (loop_dir / "journal.jsonl").is_file()
@@ -47,7 +47,7 @@ def test_windows_style_repo_path_is_bound_without_rewriting(monkeypatch, tmp_pat
     repo.mkdir()
     env = consumer_cli._script_environment(repo)
     assert env["SIMPLICIO_REPO"] == str(repo.resolve())
-    assert env["SIMPLICIO_PROGRESS_DIR"].endswith(os.path.join(".simplicio", "orchestrator", "loop"))
+    assert env["SIMPLICIO_PROGRESS_DIR"].endswith(os.path.join(".simplicio-loop", "orchestrator", "loop"))
 
 
 def test_missing_bundle_reports_resolved_path_and_install_fallback(tmp_path, monkeypatch, capsys):

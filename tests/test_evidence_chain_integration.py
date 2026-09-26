@@ -13,8 +13,8 @@ This builds fixtures using the PRODUCERS' OWN naming convention (mirrored from w
 threads the exact paths through end to end.
 
 This test itself already caught a real drift while being written: `pr_evidence.py` defaulted to
-scanning ONLY `.simplicio/orchestrator/tee/web`, but `video_evidence.py`'s real default output directory is
-`.simplicio/orchestrator/tee/video` — a demo video was silently never embedded unless the caller manually
+scanning ONLY `.simplicio-loop/orchestrator/tee/web`, but `video_evidence.py`'s real default output directory is
+`.simplicio-loop/orchestrator/tee/video` — a demo video was silently never embedded unless the caller manually
 widened `--shots-dir`. Fixed in `pr_evidence.py` (`collect_all_evidence`, `--video-dir`) as part of
 this issue; this test pins the fix.
 """
@@ -90,7 +90,7 @@ def _freeze_anchor(tmp_path, anchor_path, item="12"):
 
 
 def test_web_verify_artifact_is_found_and_embedded_by_pr_evidence(tmp_path):
-    tee_web = str(tmp_path / ".simplicio/orchestrator" / "tee" / "web")
+    tee_web = str(tmp_path / ".simplicio-loop/orchestrator" / "tee" / "web")
     anchor_path = str(tmp_path / "anchor.json")
     shot, trace_zip = _write_web_verify_fixture(tee_web)
     env = _freeze_anchor(tmp_path, anchor_path)
@@ -119,8 +119,8 @@ def test_web_verify_artifact_is_found_and_embedded_by_pr_evidence(tmp_path):
 def test_video_evidence_artifact_is_found_and_embedded_by_pr_evidence(tmp_path):
     # Proves the fix for the drift this test discovered: video_evidence's REAL output dir
     # (tee/video) is picked up by default, not just tee/web.
-    tee_web = str(tmp_path / ".simplicio/orchestrator" / "tee" / "web")
-    tee_video = str(tmp_path / ".simplicio/orchestrator" / "tee" / "video")
+    tee_web = str(tmp_path / ".simplicio-loop/orchestrator" / "tee" / "web")
+    tee_video = str(tmp_path / ".simplicio-loop/orchestrator" / "tee" / "video")
     anchor_path = str(tmp_path / "anchor.json")
     _write_web_verify_fixture(tee_web)
     mp4 = _write_video_evidence_fixture(tee_video)
@@ -155,8 +155,8 @@ def test_pr_evidence_video_dir_scanned_even_without_explicit_flag(tmp_path):
 
 
 def test_evidence_comment_reports_accurate_counts_end_to_end(tmp_path):
-    tee_web = str(tmp_path / ".simplicio/orchestrator" / "tee" / "web")
-    tee_video = str(tmp_path / ".simplicio/orchestrator" / "tee" / "video")
+    tee_web = str(tmp_path / ".simplicio-loop/orchestrator" / "tee" / "web")
+    tee_video = str(tmp_path / ".simplicio-loop/orchestrator" / "tee" / "video")
     anchor_path = str(tmp_path / "anchor.json")
     _write_web_verify_fixture(tee_web)
     _write_video_evidence_fixture(tee_video)

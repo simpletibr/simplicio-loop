@@ -447,7 +447,7 @@ def update_context_dag(
     root: str,
     graph_dict: dict,
     *,
-    out: str = ".simplicio",
+    out: str = ".simplicio-loop",
     build_config_hash: str = "",
     producer: dict | None = None,
     revision: str = "",

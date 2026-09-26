@@ -422,7 +422,7 @@ MODEL_CONFIG=$(cat <<JSON
   "tier": "L3",
   "lmcache": {
     "enabled": true,
-    "config": "$HOME/.simplicio/orchestrator/lmcache.yaml",
+    "config": "$HOME/.simplicio-loop/orchestrator/lmcache.yaml",
     "endpoint": "$LMCACHE_URL",
     "cache_hit_rate": "$hit_rate",
     "estimated_ttft_ms": {
@@ -447,7 +447,7 @@ Append LMCache savings to the token economy report:
     "gpu_time_saved_sec": 368.64,
     "estimated_cost_saved_usd": 0.37,
     "cache_hit_rate": 0.80,
-    "config": "$HOME/.simplicio/orchestrator/lmcache.yaml"
+    "config": "$HOME/.simplicio-loop/orchestrator/lmcache.yaml"
   }
 }
 ```
@@ -514,15 +514,15 @@ pip install vLLM
 python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}'); print(f'Device count: {torch.cuda.device_count()}')"
 
 # 4. Create config
-mkdir -p ~/.simplicio/orchestrator
-cat > ~/.simplicio/orchestrator/lmcache.yaml << 'EOF'
+mkdir -p ~/.simplicio-loop/orchestrator
+cat > ~/.simplicio-loop/orchestrator/lmcache.yaml << 'EOF'
 chunk_size: 4096
 local_device: "cuda"
 max_local_cache_size: 4
 EOF
 
 # 5. Export config
-export LMCACHE_CONFIG="$HOME/.simplicio/orchestrator/lmcache.yaml"
+export LMCACHE_CONFIG="$HOME/.simplicio-loop/orchestrator/lmcache.yaml"
 
 # 6. Start inference server
 lmcache serve --model meta-llama/Llama-3.1-8B-Instruct &

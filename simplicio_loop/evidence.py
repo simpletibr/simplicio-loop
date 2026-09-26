@@ -111,11 +111,11 @@ def _git_meta(root: Path) -> Dict[str, str]:
     diff = ""
     staged = False
     try:
-        # .simplicio/ is the loop's own bookkeeping; it changes between the
+        # .simplicio-loop/ is the loop's own bookkeeping; it changes between the
         # evidence receipt and the watcher, so it is never part of the run diff.
         # Neither are verifier byproducts: the receipt is sealed before the
         # quality lanes run and the watcher re-hashes after them.
-        scope = ("--", ".", ":(exclude).simplicio", *_VERIFIER_BYPRODUCT_EXCLUDES)
+        scope = ("--", ".", ":(exclude).simplicio-loop", *_VERIFIER_BYPRODUCT_EXCLUDES)
         status = _run("status", "--porcelain", "--untracked-files=all", *scope)
         if status:
             add = subprocess.run(
@@ -175,8 +175,8 @@ def _changed_paths(root: Path) -> List[str]:
     return sorted({
         path for path in out
         if path
-        and not path.startswith(".simplicio/orchestrator/")
-        and not path.startswith(".simplicio/")
+        and not path.startswith(".simplicio-loop/orchestrator/")
+        and not path.startswith(".simplicio-loop/")
         and "__pycache__" not in path
         and not path.endswith((".pyc", ".pyo"))
         and not _is_verifier_byproduct(path)

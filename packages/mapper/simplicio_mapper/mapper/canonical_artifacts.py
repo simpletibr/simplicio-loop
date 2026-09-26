@@ -35,7 +35,7 @@ _OMISSION_DIRS = {
     "test-results",
     "playwright-report",
 }
-_OMISSION_SCAN_DIRS = {".git", ".simplicio", ".venv", "venv", "__pycache__"}
+_OMISSION_SCAN_DIRS = {".git", ".simplicio-loop", ".venv", "venv", "__pycache__"}
 
 _ARTIFACT_CAPABILITIES: dict[str, dict[str, str]] = {
     "project_map": {

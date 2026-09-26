@@ -40,7 +40,7 @@ SHADOW_SCHEMA = "simplicio.pipeline-shadow/v1"
 #: The planner's explicit profile override used for isolated comparison runs.
 _ENV_PROFILE = "SIMPLICIO_MAPPER_EXECUTION_PROFILE"
 
-#: Filename written under the target ``output_dir`` (``.simplicio`` by
+#: Filename written under the target ``output_dir`` (``.simplicio-loop`` by
 #: default, matching every other mapper artifact's location).
 SHADOW_REPORT_FILENAME = "pipeline-shadow.json"
 
@@ -94,7 +94,7 @@ def _diff_paths(left: Any, right: Any, path: str = "$", limit: int = 20) -> list
     return diffs
 
 
-def determine_configured_profile(cwd: str, output_dir: str = ".simplicio") -> str:
+def determine_configured_profile(cwd: str, output_dir: str = ".simplicio-loop") -> str:
     """Which profile (``"sync"``/``"async"``) ``build_artifacts()`` would
     pick right now for *cwd*, without running the pipeline."""
     # Local import: avoids a module-load-time cycle with `emit.py` (which
@@ -111,7 +111,7 @@ def run_shadow_comparison(
     cwd: str,
     meta: dict | None = None,
     incremental: bool = False,
-    output_dir: str = ".simplicio",
+    output_dir: str = ".simplicio-loop",
 ) -> dict[str, Any]:
     """Run the configured profile for real, shadow-run the other profile
     for comparison only, and report equivalence/timing. Never promotes the
@@ -180,7 +180,7 @@ def run_shadow_comparison(
     }
 
 
-def write_shadow_report(cwd: str, payload: dict[str, Any], output_dir: str = ".simplicio") -> str:
+def write_shadow_report(cwd: str, payload: dict[str, Any], output_dir: str = ".simplicio-loop") -> str:
     """Write *payload* atomically to ``<cwd>/<output_dir>/pipeline-shadow.json``.
 
     Matches the repo's existing atomic-write convention (tmp file +

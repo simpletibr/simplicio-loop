@@ -33,7 +33,7 @@ class VisualizationContractTests(unittest.TestCase):
         self.tempdir.cleanup()
 
     def test_bundle_has_normalized_language_diagnostics_and_stable_ids(self) -> None:
-        artifacts = build_artifacts(str(self.root), output_dir=".simplicio")
+        artifacts = build_artifacts(str(self.root), output_dir=".simplicio-loop")
         first = build_visualization_bundle(str(self.root), artifacts, generated_at="1970-01-01T00:00:00.000Z")
         second = build_visualization_bundle(str(self.root), artifacts, generated_at="1970-01-01T00:00:00.000Z")
         self.assertEqual(first, second)
@@ -70,7 +70,7 @@ class VisualizationContractTests(unittest.TestCase):
             preview_source(str(self.root), path="src/link.py")
 
     def test_symbol_entity_preview_is_read_only_and_full_export_is_explicit(self) -> None:
-        artifacts = build_artifacts(str(self.root), output_dir=".simplicio")
+        artifacts = build_artifacts(str(self.root), output_dir=".simplicio-loop")
         bundle = build_visualization_bundle(str(self.root), artifacts, generated_at="1970-01-01T00:00:00.000Z")
         symbol = next(node for node in bundle["nodes"] if node["kind"] == "symbol" and node["name"] == "greet")
         payload = preview_source(str(self.root), entity_id=symbol["id"], allow_full_content=True)

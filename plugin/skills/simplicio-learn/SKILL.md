@@ -31,7 +31,7 @@ Three durable categories — everything else is noise and is dropped:
    error).
 2. **Solved precedents** — a problem fingerprint → the solution shape that worked, so a future
    matching item is REUSED not regenerated. Store fingerprint + PR/commit link + the key edit.
-3. **Bug patterns** — structured root-cause pattern store (`.simplicio/orchestrator/patterns.jsonl`). Each entry:
+3. **Bug patterns** — structured root-cause pattern store (`.simplicio-loop/orchestrator/patterns.jsonl`). Each entry:
    - `fingerprint`: sha256 of root_cause + file
    - `root_cause`: the mechanism-level root cause
    - `symptom_pattern`: observable behavior
@@ -46,10 +46,10 @@ Three durable categories — everything else is noise and is dropped:
 
 ## Procedure (incremental, deduped)
 
-1. Read the target memory file (`AGENTS.md`, or `.simplicio/orchestrator/lessons.jsonl` for machine
+1. Read the target memory file (`AGENTS.md`, or `.simplicio-loop/orchestrator/lessons.jsonl` for machine
    reuse). Create `AGENTS.md` with two sections if missing: *Learned Workspace Facts* and
    *Learned User Preferences*.
-2. Load the incremental index (`.simplicio/orchestrator/learn-index.json`) — process only NEW trajectory
+2. Load the incremental index (`.simplicio-loop/orchestrator/learn-index.json`) — process only NEW trajectory
    entries / transcript segments since the last run (never reprocess).
 3. Extract candidate bullets from the new material only. Each bullet: one line, reusable, no
    metadata, no evidence dump, no transcript quotes.

@@ -62,14 +62,14 @@ python3 scripts/task_anchor.py set --item 526 --goal "Ship the TFS_326750 fix" \
 `pr_evidence.py build` reads the anchor's `delivery` clause; when `open_pr` is `false` it
 automatically runs in **local-report mode**: the evidence body (checklist + prints + delivery
 compliance section) is written to a local file
-(`.simplicio/orchestrator/loop/delivery_report.md` by default) instead of being handed to any PR-opening
+(`.simplicio-loop/orchestrator/loop/delivery_report.md` by default) instead of being handed to any PR-opening
 flow. `--local-report` can also be passed explicitly. The PR API is never called in this mode.
 
 ### `allow_new_files_in_repo: false` → stop-hook new-file guard
 
 Every turn, `hooks/loop_stop.py` calls `scripts/delivery_contract.new_file_guard(anchor)`:
 
-1. Read the frozen baseline (`.simplicio/orchestrator/loop/delivery_baseline.json`).
+1. Read the frozen baseline (`.simplicio-loop/orchestrator/loop/delivery_baseline.json`).
 2. Compute the CURRENT untracked/staged-new files (`git status --porcelain=v1
    --untracked-files=all`).
 3. Any file present now but ABSENT from the baseline is an unauthorized new file → the turn is

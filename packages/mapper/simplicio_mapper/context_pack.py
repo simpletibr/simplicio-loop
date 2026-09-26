@@ -263,12 +263,12 @@ def build_context_pack(
 
     `targets` is an iterable of `{"path": str, "ranges": [(start, end), ...]}`
     dicts. Pre-built `project_map` / `symbol_index` / `call_graph` payloads
-    can be passed in; otherwise the function looks under `.simplicio/` and
+    can be passed in; otherwise the function looks under `.simplicio-loop/` and
     emits `needs_broader_context=True` when any of them is missing.
     """
     target_rows = list(targets)
     abs_root = os.path.abspath(root)
-    base = os.path.join(abs_root, ".simplicio")
+    base = os.path.join(abs_root, ".simplicio-loop")
     project_map = (
         project_map if project_map is not None else _load_json(os.path.join(base, "project-map.json"))
     )

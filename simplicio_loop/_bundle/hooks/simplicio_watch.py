@@ -23,7 +23,7 @@ except Exception:
     pass
 
 HOME = os.path.expanduser("~")
-LOGS = os.path.join(HOME, ".simplicio", "logs")
+LOGS = os.path.join(HOME, ".simplicio-loop", "logs")
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _SCRIPTS_DIR = str(REPO_ROOT / "scripts")
 if _SCRIPTS_DIR not in sys.path:
@@ -75,7 +75,7 @@ def status():
             log(f"  {line.strip()}")
     # Savings ledger — tolerant count (#127): a truncated/illegible line is counted, not silently
     # folded into the total as if it were a real event.
-    ledger = REPO_ROOT / ".simplicio" / "ledger" / "savings-events.jsonl"
+    ledger = REPO_ROOT / ".simplicio-loop" / "ledger" / "savings-events.jsonl"
     if ledger.is_file():
         if count_jsonl_lines is not None:
             valid, corrupt = count_jsonl_lines(str(ledger))

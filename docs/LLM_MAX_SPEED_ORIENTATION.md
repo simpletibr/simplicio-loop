@@ -39,7 +39,7 @@
 
 ```bash
 simplicio-loop economy apply --json
-# or: source ~/.simplicio/economy-parallel-env.sh
+# or: source ~/.simplicio-loop/economy-parallel-env.sh
 ```
 
 Core flags (CPU-bounded; never invent higher than `economy status` recommended):
@@ -131,7 +131,7 @@ Done = evidence (+ PR Closes #N when required). BLOCKED = one reason code.
 ## Codex / self-paced hosts
 
 Self-paced hosts (Codex, Grok, VS Code, …) re-read
-`.simplicio/orchestrator/loop/scratchpad.md` each turn and obey this doc + host-rules
+`.simplicio-loop/orchestrator/loop/scratchpad.md` each turn and obey this doc + host-rules
 `packaging/host-rules/simplicio-loop-operator-flow.md`.
 
 Pasteable **FAST CLOSE** header for a session:

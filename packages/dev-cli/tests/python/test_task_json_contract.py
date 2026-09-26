@@ -18,7 +18,7 @@ def _true_cmd():
 
 
 def _event_records(root: Path) -> list[dict]:
-    path = root / ".simplicio" / "events.jsonl"
+    path = root / ".simplicio-loop" / "events.jsonl"
     assert path.is_file(), f"expected durable Dev CLI event receipt at {path}"
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
@@ -89,7 +89,7 @@ def test_task_dry_run_without_plan_is_plan_required(tmp_path, monkeypatch, capsy
         ]
     )
     _assert_plan_required(code, capsys.readouterr().out)
-    assert not (tmp_path / ".simplicio" / "last_output.txt").exists()
+    assert not (tmp_path / ".simplicio-loop" / "last_output.txt").exists()
 
 
 def test_task_verify_only_succeeds_without_model_or_mutation(tmp_path, monkeypatch, capsys):

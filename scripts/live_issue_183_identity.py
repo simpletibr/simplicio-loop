@@ -3,7 +3,7 @@
 
 This producer consults GitHub through ``gh api`` for the canonical issue
 identity, then reconciles those live fields against local distributed E2E
-artifacts already present under ``.simplicio/orchestrator``.
+artifacts already present under ``.simplicio-loop/orchestrator``.
 
 It proves only what can be observed locally in this repository plus the live
 GitHub issue metadata. Physical multi-machine execution remains explicitly
@@ -97,8 +97,8 @@ def _scan_ac7_receipts(root: Path, canonical: dict[str, Any]) -> dict[str, Any]:
     merge_receipts: list[dict[str, Any]] = []
     files = _preferred_artifacts(
         root,
-        ".simplicio/orchestrator/evidence/distributed-183-ac7-integration/distributed-183-ac7-receipt.json",
-        ".simplicio/orchestrator/**/distributed-183-ac7-receipt.json",
+        ".simplicio-loop/orchestrator/evidence/distributed-183-ac7-integration/distributed-183-ac7-receipt.json",
+        ".simplicio-loop/orchestrator/**/distributed-183-ac7-receipt.json",
     )
     for file_path in files:
         payload = _load_json(file_path)
@@ -152,8 +152,8 @@ def _scan_ac7_receipts(root: Path, canonical: dict[str, Any]) -> dict[str, Any]:
 def _scan_epic_receipts(root: Path, canonical: dict[str, Any]) -> dict[str, Any]:
     files = _preferred_artifacts(
         root,
-        ".simplicio/orchestrator/evidence/issue183-ac7-integration/distributed-epic-evidence.json",
-        ".simplicio/orchestrator/**/distributed-epic-evidence.json",
+        ".simplicio-loop/orchestrator/evidence/issue183-ac7-integration/distributed-epic-evidence.json",
+        ".simplicio-loop/orchestrator/**/distributed-epic-evidence.json",
     )
     titles: list[dict[str, Any]] = []
     mismatches: list[str] = []

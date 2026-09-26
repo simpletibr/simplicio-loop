@@ -5,7 +5,7 @@ complete and fresh, this module compiles bounded, read-only descriptors into
 the repository's existing ``.skills`` and ``.agents`` namespaces. Generated
 content is isolated below ``_generated``; human-authored siblings are never
 modified. A content-addressed copy and its receipt live under ``.catalog`` so
-removing reconstructible ``.simplicio`` artifacts cannot remove the last known
+removing reconstructible ``.simplicio-loop`` artifacts cannot remove the last known
 good generation.
 """
 
@@ -828,7 +828,7 @@ def _git_gate(root: Path, input_hash: str) -> GenerationGate:
                 "--untracked-files=all",
                 "--",
                 ".",
-                ":(exclude).simplicio/**",
+                ":(exclude).simplicio-loop/**",
                 ":(exclude).skills/_generated/**",
                 ":(exclude).agents/_generated/**",
                 ":(exclude).catalog/**",

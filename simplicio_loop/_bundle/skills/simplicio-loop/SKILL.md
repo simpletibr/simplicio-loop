@@ -37,7 +37,7 @@ simplicio-loop orient --task "<goal>" --json        # Mapper + Fast context in o
 simplicio-loop prepare --task tasks.md --repo .
 
 # 3. Per task N, write ONLY find/replace text (read the target file first):
-#    .simplicio/loop-runs/<run_id>/edit-plan-<N>.json
+#    .simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json
 #    {"operations": [{"path": "calc/ops.py", "find": "<exact text, unique in file>", "replace": "<new text>"}]}
 
 # 4. Execute: all tasks as a wave, or one task
@@ -82,10 +82,10 @@ Coverage verifier: `python3 -m pytest -q --cov=calc --cov-report=term`
 1. Evidence-gated exit. No in-turn evidence → no promise.
 2. Exact sentinel `<promise>EXACT TEXT</promise>` matching `completion_promise`.
 3. `max_iterations` is mandatory before iteration 1.
-4. Scratchpad `.simplicio/orchestrator/loop/scratchpad.md` is the agent SoT: YAML frontmatter (`iteration`, `max_iterations`, `completion_promise`, `evidence_required`, `mode`, `started_at`), then the goal verbatim below it.
+4. Scratchpad `.simplicio-loop/orchestrator/loop/scratchpad.md` is the agent SoT: YAML frontmatter (`iteration`, `max_iterations`, `completion_promise`, `evidence_required`, `mode`, `started_at`), then the goal verbatim below it.
 5. Review: **1 implement + 1 verify**. No 3–4 reviewer panels on ordinary diffs.
 
-A sibling `.simplicio/orchestrator/loop/done` flag is touched only when the promise is verified. `.simplicio/orchestrator/loop/journal.jsonl` is the loop's durable attempt memory (one record per turn: `iteration`, `action`, `hypothesis`, `gate`, failure `fingerprint`) — the scratchpad holds the GOAL, the journal holds WHAT WAS TRIED.
+A sibling `.simplicio-loop/orchestrator/loop/done` flag is touched only when the promise is verified. `.simplicio-loop/orchestrator/loop/journal.jsonl` is the loop's durable attempt memory (one record per turn: `iteration`, `action`, `hypothesis`, `gate`, failure `fingerprint`) — the scratchpad holds the GOAL, the journal holds WHAT WAS TRIED.
 
 Every turn's first line: `python3 scripts/loop_progress.py render --turn-header`.
 End every message: `DONE | NEXT | BLOCKED` (full drive/cadence detail: `references/full-flow.md`).

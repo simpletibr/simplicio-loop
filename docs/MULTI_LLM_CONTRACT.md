@@ -32,7 +32,7 @@ improvises: hand-edits, skips preflight, or serial drain. This contract + `host_
 ## Armada (before iteration 1)
 
 ```bash
-# or: source ~/.simplicio/loop-env.sh  (after host_rule_sync --global)
+# or: source ~/.simplicio-loop/loop-env.sh  (after host_rule_sync --global)
 export SIMPLICIO_LOOP=1 SIMPLICIO_LOOP_STRICT=1
 export SIMPLICIO_EXECUTION_PROFILE=standalone
 export SIMPLICIO_REQUIRE_MUTATION_AUTHORITY=1

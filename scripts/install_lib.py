@@ -79,7 +79,7 @@ def entry_block(runtime=None):
         "4. Host integrations (Orca, boards, chat) **only if the client requested** them "
         "(`docs/CLIENT_INTEGRATIONS.md`).\n"
         "5. Evidence-gated close/PR; MEASURED|/UNVERIFIED|; no theater ACs.\n"
-        "6. Self-paced hosts re-read `.simplicio/orchestrator/loop/scratchpad.md` every turn.\n\n"
+        "6. Self-paced hosts re-read `.simplicio-loop/orchestrator/loop/scratchpad.md` every turn.\n\n"
         "Rules: `packaging/host-rules/simplicio-loop-operator-flow.md` · "
         "`docs/MULTI_LLM_CONTRACT.md` · clamp: `python3 hooks/orient_clamp.py -- <cmd>`.\n"
     )
@@ -798,13 +798,13 @@ def install_all_deps(allow_break_system_packages=False):
 def _open_dashboard_first_run():
     """Open the Token Monitor dashboard ONCE, on the first install, so the user sees it works.
 
-    Guarded by a marker (~/.simplicio/.dashboard_shown): a re-install/update does NOT reopen it —
+    Guarded by a marker (~/.simplicio-loop/.dashboard_shown): a re-install/update does NOT reopen it —
     the dashboard is on-demand, never forced open. Opt out entirely with SIMPLICIO_NO_DASHBOARD=1
     (headless/CI). Best-effort: any failure (no browser, no display) is swallowed — never blocks.
     """
     if os.environ.get("SIMPLICIO_NO_DASHBOARD") == "1":
         return
-    marker = os.path.join(HOME, ".simplicio", ".dashboard_shown")
+    marker = os.path.join(HOME, ".simplicio-loop", ".dashboard_shown")
     if os.path.exists(marker):
         log("dashboard already shown once — open it any time:  simplicio-loop dashboard")
         return
@@ -836,7 +836,7 @@ def _open_dashboard_first_run():
 
     try:
         if not _up() and os.path.exists(dash):
-            logdir = os.path.join(HOME, ".simplicio", "logs")
+            logdir = os.path.join(HOME, ".simplicio-loop", "logs")
             os.makedirs(logdir, exist_ok=True)
             env = {**os.environ, "PORT": str(port)}
             kw = {"start_new_session": True} if os.name != "nt" else {"creationflags": 0x208}
@@ -1044,7 +1044,7 @@ def main():
                                             with_proxy=with_proxy, fail_step=test_fail_step)
         except install_executor.InstallTransactionError as e:
             log("! transaction ROLLED_BACK (no partial state left): %s" % e)
-            log("  receipt: %s" % os.path.join(target, ".simplicio", "receipts",
+            log("  receipt: %s" % os.path.join(target, ".simplicio-loop", "receipts",
                                                 e.receipt["transaction_id"] + ".json"))
             sys.exit(4)
         if receipt["status"] == "BLOCKED":

@@ -4,17 +4,17 @@
   "description": "Promise text matches, in-turn evidence present, watcher independently verified, task-anchor fully done -> the loop stops cleanly (no re-feed, no handoff).",
   "harness": "hooks/loop_stop.py",
   "harness_invocation": {
-    "cwd": "this fixture's .simplicio/orchestrator/ tree copied into an isolated temp dir",
+    "cwd": "this fixture's .simplicio-loop/orchestrator/ tree copied into an isolated temp dir",
     "stdin": "stdin.json"
   },
   "expected": {
     "returncode": 0,
     "stdout": "",
     "files_after": {
-      ".simplicio/orchestrator/loop/scratchpad.md": "absent",
-      ".simplicio/orchestrator/loop/watcher_state.json": "absent",
-      ".simplicio/orchestrator/loop/watcher_challenge.json": "absent",
-      ".simplicio/orchestrator/loop/HANDOFF.md": "absent"
+      ".simplicio-loop/orchestrator/loop/scratchpad.md": "absent",
+      ".simplicio-loop/orchestrator/loop/watcher_state.json": "absent",
+      ".simplicio-loop/orchestrator/loop/watcher_challenge.json": "absent",
+      ".simplicio-loop/orchestrator/loop/HANDOFF.md": "absent"
     }
   },
   "notes": [

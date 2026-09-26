@@ -10,7 +10,7 @@ escalates instead of re-feeding the same goal into the same failure.
 It is deterministic and model-free — the fingerprint + stall math never call an LLM, so a resume is
 reproducible from the on-disk journal (same discipline as `savings_harness`/`billing_aggregator`).
 
-State: `.simplicio/orchestrator/loop/journal.jsonl` — one append-only record per attempt:
+State: `.simplicio-loop/orchestrator/loop/journal.jsonl` — one append-only record per attempt:
     {"iteration", "action", "hypothesis", "gate": "pass|fail|blocked",
      "fingerprint": "<stable hash of the failure signature>", "note", "ts",
      "execution_state"?, "stage_id"?, "source_artifact"?, "chunk_id"?,
@@ -30,7 +30,7 @@ Verbs:
     fingerprint Print the stable fingerprint of a failure text (FILE or stdin). Standalone helper.
     stall       Read the journal -> verdict PROGRESS | STALLED. STALLED when the last K consecutive
   |             attempts all failed with the SAME fingerprint (default K=3). Also folds in the
-  |             dev-cli's own `.simplicio/events.jsonl` (schema `simplicio.dev-cli-event/v1`,
+  |             dev-cli's own `.simplicio-loop/events.jsonl` (schema `simplicio.dev-cli-event/v1`,
   |             `--events-root DIR` overrides the repo root) — a repeated `validation_fail` on the
   |             same target streaks like a repeated journal failure; `edit_applied`/`task_complete`
   |             reset the streak. Fail-open: no events file = behavior unchanged (#128).
@@ -44,7 +44,7 @@ Verbs:
   |             mirrors `task_anchor.py check --format toon`). `--json` remains a working alias
   |             for `--format json`.
     suggest     Consult simplicio-learn lessons for strategy recommendations.
-  |             Reads `.simplicio/orchestrator/lessons.jsonl` and `.simplicio/orchestrator/patterns.jsonl`,
+  |             Reads `.simplicio-loop/orchestrator/lessons.jsonl` and `.simplicio-loop/orchestrator/patterns.jsonl`,
   |             filters by repo/task-type tags, and emits discouraged strategies (with
   |             lesson citations) and untried strategies. Deterministic and model-free.
   |             Fail-open: if lesson files don't exist, emits empty suggestions.
@@ -93,11 +93,11 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.environ.get("SIMPLICIO_REPO") or os.path.dirname(HERE))
-LOOP_DIR = os.path.join(REPO, ".simplicio/orchestrator", "loop")
+LOOP_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop")
 JOURNAL = os.environ.get("SIMPLICIO_JOURNAL_FILE") or os.path.join(LOOP_DIR, "journal.jsonl")
 DEFAULT_K = 3
 
-# The dev-cli's own structured event log (#128) — `<repo>/.simplicio/events.jsonl`, schema
+# The dev-cli's own structured event log (#128) — `<repo>/.simplicio-loop/events.jsonl`, schema
 # `simplicio.dev-cli-event/v1`, written by `simplicio/observability.py:emit_event` in the
 # separate `simplicio-cli` pip package. This module does NOT import dev-cli code — it only reads
 # the documented JSONL shape, optionally and fail-open, so a repo without the dev-cli installed
@@ -284,7 +284,7 @@ def load_dev_cli_events(root=None):
     foreign or future-schema line is not a torn write) — this integration must never make the
     journal/stall detector less reliable than it was before dev-cli events existed.
     """
-    path = os.path.join(root or REPO, ".simplicio", "events.jsonl")
+    path = os.path.join(root or REPO, ".simplicio-loop", "events.jsonl")
     events, corrupt = [], 0
     if not os.path.exists(path):
         return events, corrupt
@@ -874,7 +874,7 @@ def cmd_claims_gate(opts):
 def cmd_suggest(opts):
     """Consult simplicio-learn lessons for strategy recommendations.
 
-    Reads `.simplicio/orchestrator/lessons.jsonl` and `.simplicio/orchestrator/patterns.jsonl`,
+    Reads `.simplicio-loop/orchestrator/lessons.jsonl` and `.simplicio-loop/orchestrator/patterns.jsonl`,
     filters by repo/task-type tags, and emits discouraged strategies.
     Fail-open: if files don't exist, emits empty suggestions.
     """
@@ -884,8 +884,8 @@ def cmd_suggest(opts):
     repo_tag = opts.get("repo", "")
     task_type = opts.get("task-type", "")
 
-    lessons_file = Path(root) / ".simplicio/orchestrator" / "lessons.jsonl"
-    patterns_file = Path(root) / ".simplicio/orchestrator" / "patterns.jsonl"
+    lessons_file = Path(root) / ".simplicio-loop/orchestrator" / "lessons.jsonl"
+    patterns_file = Path(root) / ".simplicio-loop/orchestrator" / "patterns.jsonl"
 
     discouraged: list[dict] = []
     strategies_failed: set[str] = set()

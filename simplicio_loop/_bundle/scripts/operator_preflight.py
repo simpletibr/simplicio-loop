@@ -131,8 +131,8 @@ def preflight(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--state", type=Path, default=Path.home() / ".simplicio" / "operator-check.json")
-    parser.add_argument("--run-state", type=Path, default=Path(".simplicio/orchestrator/loop/operator-pin.json"))
+    parser.add_argument("--state", type=Path, default=Path.home() / ".simplicio-loop" / "operator-check.json")
+    parser.add_argument("--run-state", type=Path, default=Path(".simplicio-loop/orchestrator/loop/operator-pin.json"))
     parser.add_argument("--run-id", default="unbound")
     parser.add_argument("--ttl-seconds", type=int, default=DEFAULT_TTL_SECONDS)
     parser.add_argument("--record", action="store_true")

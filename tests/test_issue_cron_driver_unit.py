@@ -95,7 +95,7 @@ reconcile_cursor = mod.reconcile_cursor
 
 
 def _write_cursor(tmp, state):
-    od = os.path.join(tmp, ".simplicio/orchestrator")
+    od = os.path.join(tmp, ".simplicio-loop/orchestrator")
     os.makedirs(od, exist_ok=True)
     p = os.path.join(od, "gh-issue-cursor.json")
     json.dump({"work_items_state": state, "last_scan_at": "2026-01-01T00:00:00Z"},
@@ -189,7 +189,7 @@ def test_ingest_backlog_into_cursor_adds_missing_wi():
     # New backlog item (wi613, blocked) not yet in the cursor projection must
     # be ingested as blocked / Blocked with the ingested_from_backlog flag.
     with tempfile.TemporaryDirectory() as tmp:
-        od = os.path.join(tmp, ".simplicio/orchestrator")
+        od = os.path.join(tmp, ".simplicio-loop/orchestrator")
         bl = os.path.join(od, "backlog")
         os.makedirs(bl, exist_ok=True)
         backlog = os.path.join(bl, "backlog.jsonl")
@@ -214,7 +214,7 @@ def test_ingest_backlog_into_cursor_updates_stale_wi():
     # A pre-existing cursor WI without the flag must be updated in place from
     # the backlog ground truth (no flip-flop on the next reconcile).
     with tempfile.TemporaryDirectory() as tmp:
-        od = os.path.join(tmp, ".simplicio/orchestrator")
+        od = os.path.join(tmp, ".simplicio-loop/orchestrator")
         bl = os.path.join(od, "backlog")
         os.makedirs(bl, exist_ok=True)
         backlog = os.path.join(bl, "backlog.jsonl")
@@ -240,7 +240,7 @@ def test_ingest_backlog_into_cursor_updates_stale_wi():
 def test_ingest_backlog_into_cursor_skips_closed_issue():
     # A backlog item whose issue is CLOSED on GitHub must NOT be ingested.
     with tempfile.TemporaryDirectory() as tmp:
-        od = os.path.join(tmp, ".simplicio/orchestrator")
+        od = os.path.join(tmp, ".simplicio-loop/orchestrator")
         bl = os.path.join(od, "backlog")
         os.makedirs(bl, exist_ok=True)
         backlog = os.path.join(bl, "backlog.jsonl")

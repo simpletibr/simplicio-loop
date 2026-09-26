@@ -59,26 +59,26 @@ def _init_repo(path: Path, *, default_branch: str = "main") -> None:
 
 class ConfigFingerprintTests(unittest.TestCase):
     def test_different_stack_overrides_never_share_a_fingerprint(self) -> None:
-        fp_a = compute_config_fingerprint({"stack": "python"}, ".simplicio")
-        fp_b = compute_config_fingerprint({"stack": "node"}, ".simplicio")
+        fp_a = compute_config_fingerprint({"stack": "python"}, ".simplicio-loop")
+        fp_b = compute_config_fingerprint({"stack": "node"}, ".simplicio-loop")
         self.assertNotEqual(fp_a, fp_b)
 
     def test_different_out_dir_never_shares_a_fingerprint(self) -> None:
-        fp_a = compute_config_fingerprint({}, ".simplicio")
+        fp_a = compute_config_fingerprint({}, ".simplicio-loop")
         fp_b = compute_config_fingerprint({}, ".simplicio-alt")
         self.assertNotEqual(fp_a, fp_b)
 
     def test_same_inputs_are_deterministic(self) -> None:
         meta = {"stack": "python", "product_name": "demo"}
         self.assertEqual(
-            compute_config_fingerprint(meta, ".simplicio"),
-            compute_config_fingerprint(dict(meta), ".simplicio"),
+            compute_config_fingerprint(meta, ".simplicio-loop"),
+            compute_config_fingerprint(dict(meta), ".simplicio-loop"),
         )
 
     def test_none_meta_does_not_raise(self) -> None:
         # attempt_canonical_reuse is always called with a real dict, but the
         # signature accepts None defensively -- must not raise either way.
-        self.assertTrue(compute_config_fingerprint(None, ".simplicio"))
+        self.assertTrue(compute_config_fingerprint(None, ".simplicio-loop"))
 
 
 class OptInSwitchTests(unittest.TestCase):
@@ -162,7 +162,7 @@ class AttemptCanonicalReuseIntegrationTests(unittest.TestCase):
     def test_clean_worktree_at_canonical_commit_is_a_hit(self) -> None:
         repo = self.base / "repo-clean"
         _init_repo(repo)
-        outcome = attempt_canonical_reuse(str(repo), ".simplicio", {})
+        outcome = attempt_canonical_reuse(str(repo), ".simplicio-loop", {})
         self.assertTrue(outcome.receipt["hit"], outcome.receipt)
         self.assertIsNone(outcome.receipt["fallback_reason"])
         self.assertIsNotNone(outcome.run_result)
@@ -202,7 +202,7 @@ class AttemptCanonicalReuseIntegrationTests(unittest.TestCase):
         repo = self.base / "repo-no-self-deadlock"
         _init_repo(repo)
         start = time.monotonic()
-        outcome = attempt_canonical_reuse(str(repo), ".simplicio", {})
+        outcome = attempt_canonical_reuse(str(repo), ".simplicio-loop", {})
         elapsed = time.monotonic() - start
         self.assertTrue(outcome.receipt["hit"], outcome.receipt)
         self.assertLess(
@@ -219,7 +219,7 @@ class AttemptCanonicalReuseIntegrationTests(unittest.TestCase):
         repo = self.base / "repo-dirty"
         _init_repo(repo)
         (repo / "README.md").write_text("edited locally\n", encoding="utf-8")
-        outcome = attempt_canonical_reuse(str(repo), ".simplicio", {})
+        outcome = attempt_canonical_reuse(str(repo), ".simplicio-loop", {})
         self.assertFalse(outcome.receipt["hit"])
         self.assertEqual(outcome.receipt["fallback_reason"], "overlay_not_trivial")
         self.assertIsNone(outcome.run_result)
@@ -228,7 +228,7 @@ class AttemptCanonicalReuseIntegrationTests(unittest.TestCase):
         repo = self.base / "repo-untracked"
         _init_repo(repo)
         (repo / "src" / "new_file.py").write_text("X = 1\n", encoding="utf-8")
-        outcome = attempt_canonical_reuse(str(repo), ".simplicio", {})
+        outcome = attempt_canonical_reuse(str(repo), ".simplicio-loop", {})
         self.assertFalse(outcome.receipt["hit"])
         self.assertEqual(outcome.receipt["fallback_reason"], "overlay_not_trivial")
 
@@ -246,7 +246,7 @@ class AttemptCanonicalReuseIntegrationTests(unittest.TestCase):
         divergent_wt = self.base / "repo-divergent-wt"
         _run(["worktree", "add", "--detach", str(divergent_wt), first_commit], repo)
         try:
-            outcome = attempt_canonical_reuse(str(divergent_wt), ".simplicio", {})
+            outcome = attempt_canonical_reuse(str(divergent_wt), ".simplicio-loop", {})
             self.assertFalse(outcome.receipt["hit"])
             self.assertEqual(outcome.receipt["fallback_reason"], "overlay_not_trivial")
             self.assertIsNone(outcome.run_result)
@@ -256,7 +256,7 @@ class AttemptCanonicalReuseIntegrationTests(unittest.TestCase):
     def test_non_git_directory_falls_back_to_identity_unresolved(self) -> None:
         plain = self.base / "plain"
         plain.mkdir()
-        outcome = attempt_canonical_reuse(str(plain), ".simplicio", {})
+        outcome = attempt_canonical_reuse(str(plain), ".simplicio-loop", {})
         self.assertFalse(outcome.receipt["hit"])
         self.assertEqual(outcome.receipt["fallback_reason"], "identity_unresolved")
         self.assertIsNone(outcome.run_result)
@@ -269,7 +269,7 @@ class AttemptCanonicalReuseIntegrationTests(unittest.TestCase):
         bogus_cache_root = self.base / "bogus-cache-root"
         bogus_cache_root.write_text("not a directory\n", encoding="utf-8")
         os.environ["SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR"] = str(bogus_cache_root)
-        outcome = attempt_canonical_reuse(str(repo), ".simplicio", {})
+        outcome = attempt_canonical_reuse(str(repo), ".simplicio-loop", {})
         self.assertFalse(outcome.receipt["hit"])
         self.assertIsNotNone(outcome.receipt["fallback_reason"])
         self.assertIsNone(outcome.run_result)
@@ -280,8 +280,8 @@ class AttemptCanonicalReuseIntegrationTests(unittest.TestCase):
         second_wt = self.base / "repo-multi-second"
         _run(["worktree", "add", str(second_wt)], repo)
         try:
-            first = attempt_canonical_reuse(str(repo), ".simplicio", {})
-            second = attempt_canonical_reuse(str(second_wt), ".simplicio", {})
+            first = attempt_canonical_reuse(str(repo), ".simplicio-loop", {})
+            second = attempt_canonical_reuse(str(second_wt), ".simplicio-loop", {})
             self.assertTrue(first.receipt["hit"])
             self.assertTrue(second.receipt["hit"])
             self.assertEqual(
@@ -294,7 +294,7 @@ class AttemptCanonicalReuseIntegrationTests(unittest.TestCase):
     def test_receipt_never_leaks_internal_timer_field(self) -> None:
         repo = self.base / "repo-receipt-shape"
         _init_repo(repo)
-        outcome = attempt_canonical_reuse(str(repo), ".simplicio", {})
+        outcome = attempt_canonical_reuse(str(repo), ".simplicio-loop", {})
         self.assertNotIn("_t0", outcome.receipt)
         self.assertEqual(outcome.receipt["schema"], canonical_reuse.RECEIPT_SCHEMA)
         self.assertEqual(outcome.receipt["schema_version"], canonical_reuse.RECEIPT_SCHEMA_VERSION)
@@ -339,7 +339,7 @@ class CliSubprocessSystemTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = self._last_json(result)
         self.assertNotIn("canonical_reuse", payload)
-        receipt_path = self.repo / ".simplicio" / "canonical-reuse-receipt.json"
+        receipt_path = self.repo / ".simplicio-loop" / "canonical-reuse-receipt.json"
         self.assertFalse(receipt_path.exists())
 
     def test_opt_in_flag_hits_and_writes_a_versioned_receipt(self) -> None:
@@ -349,13 +349,13 @@ class CliSubprocessSystemTests(unittest.TestCase):
         self.assertIn("canonical_reuse", payload)
         self.assertTrue(payload["canonical_reuse"]["hit"], payload["canonical_reuse"])
 
-        receipt_path = self.repo / ".simplicio" / "canonical-reuse-receipt.json"
+        receipt_path = self.repo / ".simplicio-loop" / "canonical-reuse-receipt.json"
         self.assertTrue(receipt_path.exists())
         on_disk = json.loads(receipt_path.read_text(encoding="utf-8"))
         self.assertEqual(on_disk["schema"], "simplicio.canonical-reuse-receipt/v1")
         self.assertTrue(on_disk["hit"])
 
-        project_map_path = self.repo / ".simplicio" / "project-map.json"
+        project_map_path = self.repo / ".simplicio-loop" / "project-map.json"
         self.assertTrue(project_map_path.is_file())
         project_map = json.loads(project_map_path.read_text(encoding="utf-8"))
         self.assertEqual(len(project_map["files"]), 2)
@@ -389,14 +389,14 @@ class CliSubprocessSystemTests(unittest.TestCase):
 
         # Never stale: the fallback full map must reflect the *real* current
         # file, not a cached/serve-from-canonical README entry.
-        project_map = json.loads((self.repo / ".simplicio" / "project-map.json").read_text(encoding="utf-8"))
+        project_map = json.loads((self.repo / ".simplicio-loop" / "project-map.json").read_text(encoding="utf-8"))
         readme_entries = [f for f in project_map["files"] if f["path"] == "README.md"]
         self.assertEqual(len(readme_entries), 1)
 
     def test_scan_sync_baseline_never_writes_a_receipt(self) -> None:
         result = self._cli("scan", str(self.repo), "--sync", "--timeout", "60", "--json", timeout=90)
         self.assertEqual(result.returncode, 0, result.stderr)
-        receipt_path = self.repo / ".simplicio" / "canonical-reuse-receipt.json"
+        receipt_path = self.repo / ".simplicio-loop" / "canonical-reuse-receipt.json"
         self.assertFalse(receipt_path.exists())
 
     def test_scan_sync_propagates_opt_in_to_deep_pass_worker(self) -> None:
@@ -415,7 +415,7 @@ class CliSubprocessSystemTests(unittest.TestCase):
             timeout=90,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        receipt_path = self.repo / ".simplicio" / "canonical-reuse-receipt.json"
+        receipt_path = self.repo / ".simplicio-loop" / "canonical-reuse-receipt.json"
         self.assertTrue(receipt_path.exists())
         on_disk = json.loads(receipt_path.read_text(encoding="utf-8"))
         self.assertTrue(on_disk["hit"], on_disk)

@@ -33,7 +33,7 @@ async with AsyncFabricScheduler(
     max_running=6,
     queue_capacity=64,
     capability_limits={"cpu": 4, "network": 6},
-    journal_path=".simplicio/fabric/transitions.jsonl",
+    journal_path=".simplicio-loop/fabric/transitions.jsonl",
 ) as scheduler:
     result = await scheduler.submit(
         FabricJob(

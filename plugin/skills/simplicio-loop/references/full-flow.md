@@ -117,7 +117,7 @@ spine; this is the full per-turn protocol it plugs into. Deep detail for any ste
 
 ### 0. Setup
 
-1. `.simplicio/orchestrator/loop/scratchpad.md` is the single state file (see
+1. `.simplicio-loop/orchestrator/loop/scratchpad.md` is the single state file (see
    § Contract below) — write it before iteration 1.
 2. **Phase 0 (vague goal / no source / empty repo):** freeze the decomposition
    first — `python3 scripts/task_backlog.py init --goal "<goal>" --item-file plan.json`
@@ -177,7 +177,7 @@ Full rationale + extra flags: `references/triage-verify-detail.md` and
    monotonic, journaled, never the reverse.
 4. `simplicio-loop verify <run_id> --repo .` / `python3 scripts/watcher_verify.py verify`
    — independently recomputes the anchor's done/pending state and writes
-   `.simplicio/orchestrator/loop/watcher_state.json` (`{"match": true, "status": "MEASURED"}`
+   `.simplicio-loop/orchestrator/loop/watcher_state.json` (`{"match": true, "status": "MEASURED"}`
    only when it agrees). Never hand-write this file.
 5. `python3 scripts/loop_journal.py record --iteration N --action "<change>" --hypothesis "<why>" --gate pass|fail --gate-output <log>`
    — records the attempt (fingerprinted so a repeated failure is recognised).
@@ -186,11 +186,11 @@ Full rationale + extra flags: `references/triage-verify-detail.md` and
 7. Tag every claim `MEASURED|` (in-turn gate/receipt) or `UNVERIFIED|`
    (no mechanical proof) — § Claims-gate below.
 8. UI change: `python3 scripts/web_verify.py run --url <URL> --expect "<text>" --issue <N>`
-   captures the real screen; `python3 scripts/video_evidence.py verify --name <slug> --frames .simplicio/orchestrator/tee/web --title "<screen>" --issue <N>`
+   captures the real screen; `python3 scripts/video_evidence.py verify --name <slug> --frames .simplicio-loop/orchestrator/tee/web --title "<screen>" --issue <N>`
    assembles a deterministic recording (`detect --goal "<goal>"` checks if
    this turn is a video request).
 9. `python3 scripts/cross_agent_wiki.py capture ...` — persist decisions/
-   dead-ends to the wiki (`.simplicio/orchestrator/wiki/`) so a fresh agent
+   dead-ends to the wiki (`.simplicio-loop/orchestrator/wiki/`) so a fresh agent
    (different vendor) sees "where we left off" with no transcript.
 
 ### 3. End of turn
@@ -212,8 +212,8 @@ Full rationale + extra flags: `references/triage-verify-detail.md` and
 6. Post-merge cleanup and agent handoff: see the two sections below.
 7. `simplicio-loop learn` (or the `simplicio-learn` skill) — retrospective
    into durable memory once the run is closed.
-8. Cancel: delete `.simplicio/orchestrator/loop/`, or drop a
-   `.simplicio/orchestrator/STOP` flag to halt between iterations.
+8. Cancel: delete `.simplicio-loop/orchestrator/loop/`, or drop a
+   `.simplicio-loop/orchestrator/STOP` flag to halt between iterations.
 
 ### Three loop modes
 

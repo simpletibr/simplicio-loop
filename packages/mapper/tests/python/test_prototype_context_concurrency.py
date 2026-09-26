@@ -15,7 +15,7 @@ committed `python-minimal` fixture
 
 The fixture is copied into a fresh temp directory once and shared read-only
 across all 1000 calls -- each call still exercises the SAME on-disk
-`.simplicio/cache` (`diskcache.Cache`, see `simplicio_mapper/cache.py`)
+`.simplicio-loop/cache` (`diskcache.Cache`, see `simplicio_mapper/cache.py`)
 concurrently, which is the actual concurrency surface this test is meant to
 prove safe: many threads racing to read/populate the same file-processing
 cache and the same `context-cache.json` must never corrupt either.

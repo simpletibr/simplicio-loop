@@ -6,4 +6,4 @@ dist/
 .env
 playwright-report/
 test-results/
-.simplicio/
+.simplicio-loop/

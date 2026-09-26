@@ -19,7 +19,7 @@ def main() -> int:
         tmp_path = Path(tmp)
         repo = tmp_path / "repo"
         run_id = "demo-maintenance-run"
-        run_dir = repo / ".simplicio" / "loop-runs" / run_id
+        run_dir = repo / ".simplicio-loop" / "loop-runs" / run_id
         (repo / "src").mkdir(parents=True)
         (repo / "src" / "app.py").write_text("def main():\n    return 'ok'\n", encoding="utf-8")
         (run_dir / "loop").mkdir(parents=True, exist_ok=True)
@@ -100,7 +100,7 @@ def main() -> int:
             correction_summary="Backlog-only capture for the frozen control-plane correction.",
             deferral_reason="The active run found a correction but the maintenance window owns mutation.",
             resume_instructions=[
-                "Inspect .simplicio/orchestrator/runs/<run-id>/maintenance-receipt.json.",
+                "Inspect .simplicio-loop/orchestrator/runs/<run-id>/maintenance-receipt.json.",
                 "Resume the run after the maintenance window and rerun mapper/operator.",
             ],
             evidence_status="UNVERIFIED",

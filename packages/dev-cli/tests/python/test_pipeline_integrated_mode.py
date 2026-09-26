@@ -151,7 +151,7 @@ def test_causal_verification_paths_uses_typed_plan_sets_and_falls_back():
 def _snapshot(root: Path) -> dict[str, str]:
     """Content snapshot of every source file under root, for effect-free assertions.
 
-    Excludes ``.simplicio/`` -- that directory holds observability evidence
+    Excludes ``.simplicio-loop/`` -- that directory holds observability evidence
     (``emit_event``'s ``events.jsonl``, run logs), which every pipeline mode
     (standalone included) legitimately writes as telemetry; it is not the
     application effect this test guards against. See
@@ -159,7 +159,7 @@ def _snapshot(root: Path) -> dict[str, str]:
     """
     snapshot = {}
     for path in sorted(root.rglob("*")):
-        if path.is_file() and ".simplicio" not in path.relative_to(root).parts:
+        if path.is_file() and ".simplicio-loop" not in path.relative_to(root).parts:
             snapshot[str(path.relative_to(root))] = path.read_bytes().hex()
     return snapshot
 

@@ -166,7 +166,7 @@ class NeedsBroaderContextTest(unittest.TestCase):
         self.assertIn("target missing", pack["needs_broader_context_reason"])
 
     def test_missing_upstream_artifacts_loaded_implicitly(self) -> None:
-        # No `.simplicio/` under the fixture dir, so build_context_pack
+        # No `.simplicio-loop/` under the fixture dir, so build_context_pack
         # falls into "absent" branches when no overrides are passed.
         pack = build_context_pack(str(FIXTURE), [{"path": "sample.py"}])
         self.assertTrue(pack["needs_broader_context"])

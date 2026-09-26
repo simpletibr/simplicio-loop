@@ -17,7 +17,7 @@ export SIMPLICIO_LOOP_CLIENT_INTEGRATIONS=orca
 
 ### Repo file (durable client contract)
 
-`.simplicio/client-integrations.json`:
+`.simplicio-loop/client-integrations.json`:
 
 ```json
 {

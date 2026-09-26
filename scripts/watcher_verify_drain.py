@@ -7,7 +7,7 @@ no execution anchor — its "truth" is the backlog ledger: every open GitHub iss
 MUST have exactly one work item with a valid canonical transition.
 
 This producer independently re-derives that truth from disk and writes
-``.simplicio/orchestrator/loop/watcher_state.json`` with ``match=true`` ONLY when the
+``.simplicio-loop/orchestrator/loop/watcher_state.json`` with ``match=true`` ONLY when the
 intake is genuinely complete. It is a real computation, never a hand-write.
 
 Usage:
@@ -22,8 +22,8 @@ import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-LOOP_DIR = os.path.join(REPO, ".simplicio/orchestrator", "loop")
-BACKLOG = os.path.join(REPO, ".simplicio/orchestrator", "backlog", "backlog.jsonl")
+LOOP_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop")
+BACKLOG = os.path.join(REPO, ".simplicio-loop/orchestrator", "backlog", "backlog.jsonl")
 WATCHER_STATE = os.path.join(LOOP_DIR, "watcher_state.json")
 CHALLENGE = os.path.join(LOOP_DIR, "watcher_challenge.json")
 

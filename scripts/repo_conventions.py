@@ -15,14 +15,14 @@ Untrusted-content note: PR titles/bodies are treated as DATA — only their head
 extracted (never executed), and the emitted profile is hash-pinned (`inputs_sha256`) so a later
 turn can detect tampering. A learned convention never overrides a safety gate.
 
-State: `.simplicio/orchestrator/conventions.json` — the load-bearing profile (guard with `transform_guard`):
+State: `.simplicio-loop/orchestrator/conventions.json` — the load-bearing profile (guard with `transform_guard`):
     {"version", "source": "history|config|default", "confidence",
      "branch": {...}, "commit": {...}, "pr": {...}, "item_type_to_branch": {...},
      "samples": {...}, "inputs_sha256"}
 
 Verbs:
   learn     Mine `git` (branches + commit subjects) and, when present, `gh` (merged PRs) → write
-            `.simplicio/orchestrator/conventions.json`. Prints a compact summary line. `gh` is OPTIONAL here
+            `.simplicio-loop/orchestrator/conventions.json`. Prints a compact summary line. `gh` is OPTIONAL here
             (git alone is enough); its absence degrades, never blocks.
   show      Print the current profile (computes a default if none learned yet).
   branch    Format a branch name per the learned scheme:
@@ -32,7 +32,7 @@ Verbs:
   selftest  Prove the inference + formatters deterministically — no git, no files.
 
 Usage:
-    python3 scripts/repo_conventions.py learn [--out .simplicio/orchestrator/conventions.json] [--limit 400]
+    python3 scripts/repo_conventions.py learn [--out .simplicio-loop/orchestrator/conventions.json] [--limit 400]
     python3 scripts/repo_conventions.py branch --type feat --slug "add SSO" [--ticket JIRA-9]
     python3 scripts/repo_conventions.py commit --type fix --scope api --subject "retry on 503"
     python3 scripts/repo_conventions.py show [--json]
@@ -53,7 +53,7 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-DEFAULT_OUT = os.path.join(REPO, ".simplicio/orchestrator", "conventions.json")
+DEFAULT_OUT = os.path.join(REPO, ".simplicio-loop/orchestrator", "conventions.json")
 
 # The conventional-commit type vocabulary (Angular convention + common extras).
 CC_TYPES = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor",

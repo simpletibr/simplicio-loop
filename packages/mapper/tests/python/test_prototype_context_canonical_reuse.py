@@ -106,7 +106,7 @@ def _init_git_repo(root: Path, *, extra_modules: int = 0, default_branch: str = 
     _run_git(["commit", "-m", "init"], root)
 
 
-def _clean_out_dir(root: Path, out_dir: str = ".simplicio") -> None:
+def _clean_out_dir(root: Path, out_dir: str = ".simplicio-loop") -> None:
     """Remove ``<root>/<out_dir>`` if present.
 
     A fresh-resolve `build_prototype_context()` call runs `build_artifacts()`,
@@ -179,7 +179,7 @@ class _CanonicalFixture(unittest.TestCase):
         os.environ[CANONICAL_CACHE_DIR_ENV_VAR] = str(self._cache_dir)
         self.addCleanup(self._restore_cache_env)
 
-        self.config_fingerprint = compute_config_fingerprint(None, ".simplicio")
+        self.config_fingerprint = compute_config_fingerprint(None, ".simplicio-loop")
         manifest = build_canonical_manifest(str(self.root), str(self._cache_dir), self.config_fingerprint)
         self.assertIsNotNone(manifest, "test setup requires a real canonical manifest to build successfully")
         self.manifest = manifest
@@ -191,10 +191,10 @@ class _CanonicalFixture(unittest.TestCase):
             os.environ.pop(CANONICAL_CACHE_DIR_ENV_VAR, None)
 
     def _assert_view_is_clean_and_reusable(self) -> None:
-        view = get_effective_map_view(str(self.root), out=".simplicio")
+        view = get_effective_map_view(str(self.root), out=".simplicio-loop")
         self.assertIsNotNone(view, "canonical view must resolve for a clean worktree at the canonical commit")
         assert view is not None
-        self.assertTrue(_overlay_is_worktree_identical(view, ".simplicio"))
+        self.assertTrue(_overlay_is_worktree_identical(view, ".simplicio-loop"))
 
 
 class CanonicalReuseEnabledUnitTest(unittest.TestCase):
@@ -242,7 +242,7 @@ class ResolveArtifactsUnitTest(unittest.TestCase):
         original = prototype_context.get_effective_map_view
         prototype_context.get_effective_map_view = lambda *a, **k: None
         try:
-            artifacts, served_from_canonical = _resolve_artifacts(self.root, ".simplicio", None)
+            artifacts, served_from_canonical = _resolve_artifacts(self.root, ".simplicio-loop", None)
         finally:
             prototype_context.get_effective_map_view = original
         self.assertFalse(served_from_canonical)
@@ -254,7 +254,7 @@ class ResolveArtifactsUnitTest(unittest.TestCase):
         prototype_context.get_effective_map_view = lambda *a, **k: object()
         prototype_context._load_artifacts_from_canonical_view = lambda *a, **k: None
         try:
-            artifacts, served_from_canonical = _resolve_artifacts(self.root, ".simplicio", None)
+            artifacts, served_from_canonical = _resolve_artifacts(self.root, ".simplicio-loop", None)
         finally:
             prototype_context.get_effective_map_view = original_view
             prototype_context._load_artifacts_from_canonical_view = original_load
@@ -274,7 +274,7 @@ class ResolveArtifactsUnitTest(unittest.TestCase):
         prototype_context.get_effective_map_view = lambda *a, **k: object()
         prototype_context._load_artifacts_from_canonical_view = lambda *a, **k: sentinel_artifacts
         try:
-            artifacts, served_from_canonical = _resolve_artifacts(self.root, ".simplicio", None)
+            artifacts, served_from_canonical = _resolve_artifacts(self.root, ".simplicio-loop", None)
         finally:
             prototype_context.get_effective_map_view = original_view
             prototype_context._load_artifacts_from_canonical_view = original_load
@@ -291,7 +291,7 @@ class ResolveArtifactsUnitTest(unittest.TestCase):
 
         prototype_context.get_effective_map_view = _tracking_stub
         try:
-            _resolve_artifacts(self.root, ".simplicio", False)
+            _resolve_artifacts(self.root, ".simplicio-loop", False)
         finally:
             prototype_context.get_effective_map_view = original
         self.assertEqual(calls, [])
@@ -306,11 +306,11 @@ class OverlayIdenticalUnitTest(_CanonicalFixture):
 
     def test_dirty_worktree_is_not_reusable(self) -> None:
         (self.root / "README.md").write_text("dirty\n", encoding="utf-8")
-        view = get_effective_map_view(str(self.root), out=".simplicio")
+        view = get_effective_map_view(str(self.root), out=".simplicio-loop")
         self.assertIsNotNone(view)
         assert view is not None
         self.assertTrue(view.overlay.dirty)
-        self.assertFalse(_overlay_is_worktree_identical(view, ".simplicio"))
+        self.assertFalse(_overlay_is_worktree_identical(view, ".simplicio-loop"))
 
     def test_committed_drift_is_not_reusable(self) -> None:
         # `default_branch` resolution (`main`, per `_init_git_repo`) is
@@ -326,23 +326,23 @@ class OverlayIdenticalUnitTest(_CanonicalFixture):
         (self.root / "src" / "new_module.py").write_text("def added():\n    return 2\n", encoding="utf-8")
         _run_git(["add", "."], self.root)
         _run_git(["commit", "-m", "drift"], self.root)
-        view = get_effective_map_view(str(self.root), out=".simplicio")
+        view = get_effective_map_view(str(self.root), out=".simplicio-loop")
         self.assertIsNotNone(view)
         assert view is not None
         self.assertTrue(view.overlay.changed_files)
-        self.assertFalse(_overlay_is_worktree_identical(view, ".simplicio"))
+        self.assertFalse(_overlay_is_worktree_identical(view, ".simplicio-loop"))
 
     def test_output_dir_only_noise_is_still_reusable(self) -> None:
-        # A freshly-created `.simplicio/` artifact (e.g. from an unrelated
+        # A freshly-created `.simplicio-loop/` artifact (e.g. from an unrelated
         # earlier run) must never count as worktree drift -- otherwise the
         # very act of using this mapper would starve its own reuse path.
-        out_dir = self.root / ".simplicio"
+        out_dir = self.root / ".simplicio-loop"
         out_dir.mkdir(exist_ok=True)
         (out_dir / "scratch.json").write_text("{}", encoding="utf-8")
-        view = get_effective_map_view(str(self.root), out=".simplicio")
+        view = get_effective_map_view(str(self.root), out=".simplicio-loop")
         self.assertIsNotNone(view)
         assert view is not None
-        self.assertTrue(_overlay_is_worktree_identical(view, ".simplicio"))
+        self.assertTrue(_overlay_is_worktree_identical(view, ".simplicio-loop"))
 
 
 class CanonicalReuseIntegrationTest(_CanonicalFixture):

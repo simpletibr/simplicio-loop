@@ -106,7 +106,7 @@ def cli_main(argv: Optional[Iterable[str]] = None) -> int:
 
     def common(command_parser: argparse.ArgumentParser) -> None:
         command_parser.add_argument("--repo", default=".", help="Loop Git worktree used to resolve MapperStore")
-        command_parser.add_argument("--db", default=".simplicio/orchestrator/agent-slots.sqlite")
+        command_parser.add_argument("--db", default=".simplicio-loop/orchestrator/agent-slots.sqlite")
         command_parser.add_argument(
             "--route", choices=("legacy", "mapper"), default="mapper",
             help="storage route (default: mapper; legacy is retired and fails closed)",

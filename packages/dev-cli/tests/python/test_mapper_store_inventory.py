@@ -30,7 +30,7 @@ def test_mapper_store_adapter_round_trip_and_lock(tmp_path: Path) -> None:
     with adapter.lock("key-1", operation="test"):
         adapter.write("key-1", {"schema": "test/v1", "value": 1})
         assert adapter.read("key-1") == {"schema": "test/v1", "value": 1}
-    assert list((tmp_path / ".simplicio" / "mapper-store" / "test-domain").glob("*.json"))
+    assert list((tmp_path / ".simplicio-loop" / "mapper-store" / "test-domain").glob("*.json"))
 
 
 def test_mapper_store_adapter_reads_missing_and_rejects_corrupt_records(tmp_path: Path) -> None:
@@ -152,7 +152,7 @@ def test_storage_capabilities_fail_closed_for_incompatible_mapper(tmp_path: Path
         "frozen_before_effect": True,
         "reason": "mapper-version-incompatible",
     }
-    assert not (tmp_path / ".simplicio").exists()
+    assert not (tmp_path / ".simplicio-loop").exists()
 
 
 def test_mapper_store_adapter_refuses_incompatible_mapper_before_materializing(
@@ -165,7 +165,7 @@ def test_mapper_store_adapter_refuses_incompatible_mapper_before_materializing(
         assert str(exc) == "MAPPER_STORE_UNAVAILABLE:mapper-version-incompatible"
     else:
         raise AssertionError("incompatible Mapper must block before adapter initialization")
-    assert not (tmp_path / ".simplicio").exists()
+    assert not (tmp_path / ".simplicio-loop").exists()
 
 
 def test_storage_capabilities_fail_closed_when_mapper_api_is_absent(tmp_path: Path, monkeypatch) -> None:
@@ -177,13 +177,13 @@ def test_storage_capabilities_fail_closed_when_mapper_api_is_absent(tmp_path: Pa
     assert payload["mapper_store"]["ready"] is False
     assert payload["mapper_store"]["reason"] == "mapper-package-not-installed"
     assert payload["route"]["selected"] == "blocked"
-    assert not (tmp_path / ".simplicio").exists()
+    assert not (tmp_path / ".simplicio-loop").exists()
 
 
 def test_mapper_store_adapter_freezes_route_before_first_record(tmp_path: Path, monkeypatch) -> None:
 
     adapter = MapperStoreAdapter(tmp_path, "route-test")
-    route = tmp_path / ".simplicio" / "mapper-store" / "route.json"
+    route = tmp_path / ".simplicio-loop" / "mapper-store" / "route.json"
     first = json.loads(route.read_text(encoding="utf-8"))
     assert first["selected"] == "mapper-store"
     adapter.write("key", {"value": 1})
@@ -195,7 +195,7 @@ def test_mapper_store_adapter_freezes_route_before_first_record(tmp_path: Path, 
     assert blocked["route"]["selected"] == "mapper-store"
     assert blocked["route"]["reason"] == "mapper-version-incompatible"
     assert json.loads(route.read_text(encoding="utf-8")) == first
-    assert not (tmp_path / ".simplicio" / "effect-transactions.sqlite3").exists()
+    assert not (tmp_path / ".simplicio-loop" / "effect-transactions.sqlite3").exists()
     monkeypatch.delenv("SIMPLICIO_MAPPER_VERSION")
     payload = storage_capabilities(tmp_path)
     assert payload["route"]["frozen"] is True
@@ -217,7 +217,7 @@ def test_mapper_store_route_freeze_retries_concurrent_replace(tmp_path: Path, mo
     monkeypatch.setattr(store_adapter.os, "replace", flaky_replace)
     MapperStoreAdapter(tmp_path, "route-retry")
 
-    route = tmp_path / ".simplicio" / "mapper-store" / "route.json"
+    route = tmp_path / ".simplicio-loop" / "mapper-store" / "route.json"
     assert json.loads(route.read_text(encoding="utf-8"))["selected"] == "mapper-store"
     assert calls["count"] == 2
     assert not list(route.parent.glob("route.tmp-*"))
@@ -231,7 +231,7 @@ def test_mapper_store_adapter_blocks_partial_mapper_capability_before_materializ
     monkeypatch.setattr(store_adapter, "release_lock_at", None)
     with pytest.raises(StoreAdapterError, match="mapper-api-unavailable"):
         MapperStoreAdapter(tmp_path, "partial")
-    assert not (tmp_path / ".simplicio").exists()
+    assert not (tmp_path / ".simplicio-loop").exists()
 
 
 def test_inventory_strict_gate_rejects_new_direct_connection(tmp_path: Path, capsys) -> None:
@@ -245,8 +245,8 @@ def test_inventory_strict_gate_rejects_new_direct_connection(tmp_path: Path, cap
 
 
 def test_inventory_reports_materialized_mapper_files_with_plans(tmp_path: Path) -> None:
-    route = tmp_path / ".simplicio" / "mapper-store" / "route.json"
-    record = tmp_path / ".simplicio" / "mapper-store" / "memory-index" / "record.json"
+    route = tmp_path / ".simplicio-loop" / "mapper-store" / "route.json"
+    record = tmp_path / ".simplicio-loop" / "mapper-store" / "memory-index" / "record.json"
     route.parent.mkdir(parents=True)
     record.parent.mkdir(parents=True)
     route.write_text('{"schema":"simplicio.dev-cli.storage-route/v1"}', encoding="utf-8")
@@ -255,13 +255,13 @@ def test_inventory_reports_materialized_mapper_files_with_plans(tmp_path: Path) 
     payload = inventory(tmp_path)
     materialized = {row["path"]: row for row in payload["materialized_files"]}
     assert set(materialized) == {
-        ".simplicio/mapper-store/route.json",
-        ".simplicio/mapper-store/memory-index/record.json",
+        ".simplicio-loop/mapper-store/route.json",
+        ".simplicio-loop/mapper-store/memory-index/record.json",
     }
     assert (
-        materialized[".simplicio/mapper-store/memory-index/record.json"]["owner"] == "Dev CLI memory adapter"
+        materialized[".simplicio-loop/mapper-store/memory-index/record.json"]["owner"] == "Dev CLI memory adapter"
     )
-    assert materialized[".simplicio/mapper-store/route.json"]["target"]
+    assert materialized[".simplicio-loop/mapper-store/route.json"]["target"]
     assert len(payload["store_plans"]) == 7
     assert payload["strict"] is True
 

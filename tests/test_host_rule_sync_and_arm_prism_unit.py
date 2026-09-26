@@ -28,7 +28,7 @@ def test_host_rule_sync_global_env_files(tmp_path, monkeypatch):
     # host_rule_sync._home uses SIMPLICIO_HOME first
     receipt = host_rule_sync.sync(do_global=True, target=None)
     assert receipt["ok"] is True
-    env_sh = home / ".simplicio" / "loop-env.sh"
+    env_sh = home / ".simplicio-loop" / "loop-env.sh"
     assert env_sh.is_file()
     env_text = env_sh.read_text(encoding="utf-8")
     assert "SIMPLICIO_LOOP_STRICT=1" in env_text

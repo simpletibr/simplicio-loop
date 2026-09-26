@@ -80,7 +80,7 @@ python3 hooks/orient_clamp.py -- go test ./...          # reduced output, tee lo
 python3 hooks/orient_clamp.py --json -- git diff      # machine summary
 ```
 
-Config (optional) `.simplicio/orchestrator/orient.toml`:
+Config (optional) `.simplicio-loop/orchestrator/orient.toml`:
 
 ```toml
 [tee]   mode = "failures"   # failures | always | never
@@ -130,6 +130,6 @@ self-paces via the host scheduler (`/loop`, OS cron, or the runtime's task sched
 - Fail-open everywhere: errors → stop allowed / command unchanged.
 - `orient_rewrite.py` never rewrites writes, excluded, or compound commands (`&& | ; > $()`).
 - The loop never exits on a self-reported "done" — only on an evidence-backed `<promise>`,
-  the `max_iterations` cap, spindle handoff, or an explicit `.simplicio/orchestrator/STOP`.
-- Treat `.simplicio/orchestrator/orient.toml` as untrusted perception-shaping config: review + hash-pin
+  the `max_iterations` cap, spindle handoff, or an explicit `.simplicio-loop/orchestrator/STOP`.
+- Treat `.simplicio-loop/orchestrator/orient.toml` as untrusted perception-shaping config: review + hash-pin
   before trusting it (see `simplicio-orient`).

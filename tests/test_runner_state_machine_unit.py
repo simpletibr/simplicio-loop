@@ -88,7 +88,7 @@ def _arm_fixture(tmp_path, monkeypatch):
     repo.mkdir(parents=True)
     (repo / "src").mkdir()
     (repo / "src" / "app.py").write_text("def main():\n    return 'ok'\n", encoding="utf-8")
-    (repo / ".gitignore").write_text(".simplicio/\n", encoding="utf-8")
+    (repo / ".gitignore").write_text(".simplicio-loop/\n", encoding="utf-8")
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
     subprocess.run(["git", "add", ".gitignore", "src/app.py"], cwd=repo, check=True)
     subprocess.run(
@@ -460,7 +460,7 @@ def test_read_status_graceful_when_no_runs_directory_exists(tmp_path):
 def test_read_status_graceful_when_runs_directory_is_empty(tmp_path):
     """Regression for issue #500: loop-runs exists but empty -> graceful no_runs."""
     repo = tmp_path / "repo"
-    (repo / ".simplicio" / "loop-runs").mkdir(parents=True)
+    (repo / ".simplicio-loop" / "loop-runs").mkdir(parents=True)
 
     result = runner_mod.read_status(str(repo))
     assert result["state"]["phase"] == "no_runs"
@@ -469,7 +469,7 @@ def test_read_status_graceful_when_runs_directory_is_empty(tmp_path):
 
 def test_read_status_graceful_no_runs_directory(tmp_path):
     """Issue #500: read_status must return a graceful no-runs state instead of
-    raising FileNotFoundError when the repository has no .simplicio/loop-runs dir."""
+    raising FileNotFoundError when the repository has no .simplicio-loop/loop-runs dir."""
     repo = tmp_path / "consumer_repo"
     repo.mkdir()
 
@@ -486,7 +486,7 @@ def test_read_status_graceful_no_runs_directory(tmp_path):
 def test_read_status_graceful_no_runs_empty_dir(tmp_path):
     """Issue #500 (variant): loop-runs exists but is empty -> graceful NO_RUNS."""
     repo = tmp_path / "consumer_repo"
-    (repo / ".simplicio" / "loop-runs").mkdir(parents=True)
+    (repo / ".simplicio-loop" / "loop-runs").mkdir(parents=True)
 
     result = runner_mod.read_status(str(repo))
 

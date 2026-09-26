@@ -118,7 +118,7 @@ def test_log_cache_receipt_persists_when_log_root_set(monkeypatch, tmp_path):
     monkeypatch.setenv("SIMPLICIO_LOG_ROOT", str(tmp_path))
     receipt = _blank_receipt()
     pcr._log_cache_receipt(receipt)
-    events_file = tmp_path / ".simplicio" / "events.jsonl"
+    events_file = tmp_path / ".simplicio-loop" / "events.jsonl"
     assert events_file.is_file() or any(tmp_path.rglob("*.jsonl"))
 
 

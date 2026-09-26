@@ -85,7 +85,7 @@ git diff -- contracts/context-snapshot/v1/contract-manifest.json
 ## CLI
 
 ```bash
-simplicio-mapper snapshot build  --root <repo> [--out .simplicio]
+simplicio-mapper snapshot build  --root <repo> [--out .simplicio-loop]
 simplicio-mapper snapshot validate <path> [<path> ...]
-simplicio-mapper snapshot summary --root <repo> [--out .simplicio]
+simplicio-mapper snapshot summary --root <repo> [--out .simplicio-loop]
 ```

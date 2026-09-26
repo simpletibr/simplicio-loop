@@ -11,7 +11,7 @@ and authed, then use it. Never claim a source works without a live connector.
 | Trello / Azure DevOps | host connector, else the `az boards` adapter (`scripts/az_boards_adapter.py`, see `azure-devops-adapter.md`) |
 | agentsview sessions | `scripts/agentsview_adapter.py` (see `agentsview-adapter.md`) | session observability, recovery of stalled sessions |
 | local files / CI queue | filesystem / CI API |
-| vague goal / no reachable board | the LOCAL BACKLOG — `scripts/task_backlog.py` (the frozen LLM decomposition, `.simplicio/orchestrator/backlog/`; SKILL.md § Phase 0) |
+| vague goal / no reachable board | the LOCAL BACKLOG — `scripts/task_backlog.py` (the frozen LLM decomposition, `.simplicio-loop/orchestrator/backlog/`; SKILL.md § Phase 0) |
 
 If the target source has no reachable adapter, STOP and report it as a blocker (do not silently
 fall back to GitHub). Each adapter exposes: list_ready (metadata-only), get_details, claim,
@@ -57,7 +57,7 @@ python3 scripts/impact_audit.py audit <root> \
   --file <seed-you-expect-to-touch> \
   --cover <files-already-in-plan> \
   --fail-on high \
-  --json > .simplicio/orchestrator/impact-audit.json
+  --json > .simplicio-loop/orchestrator/impact-audit.json
 ```
 
 Treat a `high` issue as a planning failure: a caller/dependent file sits outside the declared task

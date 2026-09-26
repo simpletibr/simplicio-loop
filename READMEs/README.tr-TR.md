@@ -193,7 +193,7 @@ biri kendi derin bölümüne ve worker'ına bağlanır.
 | Yetenek | Ne yapar | Kanıt / worker | Ayrıntılar |
 |---|---|---|---|
 | 🎬 **Video kanıtı** (`video_evidence`) | Bir UI değişikliğinin çalıştığına dair hareketli kanıt olarak **gerçek tarayıcı oturumunu** kaydeder (Playwright, varsayılan); açık bir açıklayıcı video isteği için ([hyperframes](https://github.com/heygen-com/hyperframes) ile) **deterministik, başlıklı bir MP4** render eder (`/simplicio-loop make a video of screen X`) | `scripts/video_evidence.py` · toolchain olmadan BLOCKED (asla sahte-geçiş) | [§ Video kanıtı](#-video-kanıtı--varsayılan-playwright-istek-üzerine-hyperframes) |
-| 🧠 **Deneme belleği + takılma dedektörü** | Kalıcı bir koşu-günlüğü (`.simplicio/orchestrator/loop/journal.jsonl`) + bir takılma dedektörü, böylece döngü **salınım yapmak yerine strateji değiştirir**; artımlı triaj (`since`) her turda yalnızca farkı okur | `scripts/loop_journal.py` · `selftest` 9/9 | [§ Anti-salınım](#-deneme-belleği--takılma-dedektörü-anti-salınım) |
+| 🧠 **Deneme belleği + takılma dedektörü** | Kalıcı bir koşu-günlüğü (`.simplicio-loop/orchestrator/loop/journal.jsonl`) + bir takılma dedektörü, böylece döngü **salınım yapmak yerine strateji değiştirir**; artımlı triaj (`since`) her turda yalnızca farkı okur | `scripts/loop_journal.py` · `selftest` 9/9 | [§ Anti-salınım](#-deneme-belleği--takılma-dedektörü-anti-salınım) |
 | 🔒 **Fail-closed güvenlik kapısı** (`action_gate`) | force-push, geçmiş yeniden yazma, toplu-silme, yıkıcı DDL, altyapı sökme ve gizli-yüklü commit/push'ları **mekanik olarak engelleyen** bir `PreToolUse`/git-pre-push hook'u — Adım 5 düzyazı değil, çalıştırılabilir hale getirildi | `hooks/action_gate.py` · `selftest` 15/15 | [§ Güvenlik](#-güvenlik-pazarlığa-kapalı) |
 | 🔬 **Yerel doğrulama** | Bir test paketi (worker selftest'leri + kanıt-kapılı çıkışı kanıtlayan bir **döngü sürücüsü e2e'si**) + bir **claims-audit** (referans verilen scriptler var · sayımlar tutarlı · `_bundle ≡ source`) — hepsi yerel, **ücretli CI yok** | `scripts/check.py` · `scripts/claims_audit.py` · `tests/` | [§ Testler & yerel kontroller](#-testler--yerel-kontroller-ücretli-ci-yok) |
 | ✅ **Dürüst tasarruflar** | Tasarruf satırı artık **zorunlu değil, kanıt-kapılıdır** — bir sayı yalnızca ölçülmüş bir makbuzla (clamp/signatures/cache/`deterministic_edit`/ledger) gösterilir; asla uydurulmaz | token-ekonomisi sözleşmesi | [§ Token ekonomisi](#-token-ekonomisi) |
@@ -335,7 +335,7 @@ kendi önceki çalışmasını görür. Çıkış YALNIZCA şunlarla olur:
    test, birleştirilmiş bir PR, kapatılmış-öğe yeniden sorgusu). Kanıtsız bir söz = yok sayılır.
 2. **`max_iterations` tavanı** — sıkı güvenlik desteği
 3. **STOP/cancel path** — explicit STOP file or channel command stops unattended runs
-4. **STOP sinyali** — `.simplicio/orchestrator/STOP` veya kanal komutu
+4. **STOP sinyali** — `.simplicio-loop/orchestrator/STOP` veya kanal komutu
 
 Turlar arasında, LMCache (mevcut olduğunda) KV durumunu cache'ler, böylece yeniden besleme neredeyse
 sıfır prefill maliyeti tutar.
@@ -344,7 +344,7 @@ sıfır prefill maliyeti tutar.
 
 Hiçbir şey hatırlamayan bir yeniden-besleme döngüsü salınım yapar — X'i dene, başarısız ol, X'i
 tekrar dene — tavan tükenene dek. simplicio-loop **kalıcı bir koşu-günlüğü** tutar
-(`.simplicio/orchestrator/loop/journal.jsonl`, yalnızca-ekleme: `iteration · action · hypothesis · gate ·
+(`.simplicio-loop/orchestrator/loop/journal.jsonl`, yalnızca-ekleme: `iteration · action · hypothesis · gate ·
 error-fingerprint`) ve bir **takılma dedektörü**
 ([`scripts/loop_journal.py`](../scripts/loop_journal.py), deterministik + modelden bağımsız):
 

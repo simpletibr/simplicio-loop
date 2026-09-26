@@ -55,7 +55,7 @@ def _text(value: object) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--root", type=Path, default=Path(".simplicio/benchmark"))
+    parser.add_argument("--root", type=Path, default=Path(".simplicio-loop/benchmark"))
     parser.add_argument("--name", action="append", dest="names", help="receipt directory name (repeatable)")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()

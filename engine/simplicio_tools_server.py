@@ -5,8 +5,8 @@ A Model Context Protocol server that clients connect to over stdin/stdout, one
 JSON message per line (newline-delimited JSON-RPC 2.0). It exposes three tools:
 
   - simplicio_compress  deterministic, fail-open text compression
-  - simplicio_retrieve  read a key from ~/.simplicio/memory.json
-  - simplicio_stats     read the lifetime totals from ~/.simplicio/proxy_savings.json
+  - simplicio_retrieve  read a key from ~/.simplicio-loop/memory.json
+  - simplicio_stats     read the lifetime totals from ~/.simplicio-loop/proxy_savings.json
 
 Run it as the command a stdio MCP client launches:
 
@@ -30,7 +30,7 @@ __version__ = "1.0.0"
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_NAME = "simplicio"
 
-DATA_DIR = Path(os.environ.get("SIMPLICIO_HOME", Path(os.path.expanduser("~")) / ".simplicio"))
+DATA_DIR = Path(os.environ.get("SIMPLICIO_HOME", Path(os.path.expanduser("~")) / ".simplicio-loop"))
 MEMORY_FILE = DATA_DIR / "memory.json"
 SAVINGS_FILE = DATA_DIR / "proxy_savings.json"
 
@@ -195,7 +195,7 @@ TOOLS = [
     },
     {
         "name": "simplicio_retrieve",
-        "description": "Retrieve the value stored under a key in ~/.simplicio/memory.json "
+        "description": "Retrieve the value stored under a key in ~/.simplicio-loop/memory.json "
                        "(a JSON object of key -> value). Returns a not-found message if the key "
                        "or the file is absent.",
         "inputSchema": {
@@ -209,7 +209,7 @@ TOOLS = [
     {
         "name": "simplicio_stats",
         "description": "Return the lifetime savings totals (tokens_saved, requests, "
-                       "compression_savings_usd) from ~/.simplicio/proxy_savings.json, or zeros "
+                       "compression_savings_usd) from ~/.simplicio-loop/proxy_savings.json, or zeros "
                        "if the file is absent.",
         "inputSchema": {"type": "object", "properties": {}},
     },
@@ -244,7 +244,7 @@ def _typed_runner_action(name, args):
             raise ValueError("task is required")
         path = Path(task)
         if not path.is_file():
-            root = Path(repo).resolve() / ".simplicio/orchestrator" / "mcp-tasks"
+            root = Path(repo).resolve() / ".simplicio-loop/orchestrator" / "mcp-tasks"
             root.mkdir(parents=True, exist_ok=True)
             path = root / ("task-" + __import__("hashlib").sha256(task.encode()).hexdigest()[:16] + ".md")
             path.write_text(task, encoding="utf-8")

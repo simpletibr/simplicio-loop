@@ -57,7 +57,7 @@ ACCEPTED_PROOFS = (
 # The strongest proof this repo can run today without a second physical machine.
 DEFAULT_PROOF = "tests/test_remote_worker_http_e2e.py"
 
-DEFAULT_MEASUREMENT_PATH = ".simplicio/orchestrator/remote-worker/measurement.json"
+DEFAULT_MEASUREMENT_PATH = ".simplicio-loop/orchestrator/remote-worker/measurement.json"
 
 REMOTE_ENV_VARS = ("SIMPLICIO_REMOTE_QUEUE_URL", "SIMPLICIO_REMOTE_ENVIRONMENT_ID")
 

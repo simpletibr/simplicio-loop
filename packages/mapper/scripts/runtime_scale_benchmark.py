@@ -274,7 +274,7 @@ def generate_runtime_scale_corpus(root: Path, spec: FixtureSpec) -> dict[str, An
         "edges": call_edges,
     }
 
-    artifact_root = root / ".simplicio"
+    artifact_root = root / ".simplicio-loop"
     artifact_root.mkdir(parents=True, exist_ok=True)
     (artifact_root / "project-map.json").write_text(json.dumps(project_map, ensure_ascii=False), encoding="utf-8")
     (artifact_root / "symbol-index.json").write_text(json.dumps(symbol_index, ensure_ascii=False), encoding="utf-8")
@@ -286,7 +286,7 @@ def generate_runtime_scale_corpus(root: Path, spec: FixtureSpec) -> dict[str, An
         call_graph=call_graph,
         root=str(root),
     )
-    retrieval_index_path = Path(ri.write_retrieval_index(str(root), ".simplicio", retrieval_index))
+    retrieval_index_path = Path(ri.write_retrieval_index(str(root), ".simplicio-loop", retrieval_index))
     return {
         "root": str(root),
         "project_map": project_map,
@@ -407,7 +407,7 @@ def _legacy_metadata_query(
     limit: int,
     token_budget: int,
 ) -> dict[str, Any]:
-    artifact_root = root / ".simplicio"
+    artifact_root = root / ".simplicio-loop"
     project_map = _load_json(artifact_root / "project-map.json")
     symbol_index = _load_json(artifact_root / "symbol-index.json")
     plan = ri.build_query_plan(query.goal, target=query.target)
@@ -488,7 +488,7 @@ def _indexed_query(
     limit: int,
     token_budget: int,
 ) -> dict[str, Any]:
-    artifact_root = root / ".simplicio"
+    artifact_root = root / ".simplicio-loop"
     project_map = _load_json(artifact_root / "project-map.json")
     symbol_index = _load_json(artifact_root / "symbol-index.json")
     call_graph = _load_json(artifact_root / "call-graph.json")

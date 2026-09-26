@@ -1,19 +1,19 @@
 {
   "fixture": "stop-path",
   "mode": "converge",
-  "description": "An explicit .simplicio/orchestrator/STOP signal beats everything, mid-loop, with one acceptance criterion still pending. The loop must halt cleanly and hand off, never re-feed.",
+  "description": "An explicit .simplicio-loop/orchestrator/STOP signal beats everything, mid-loop, with one acceptance criterion still pending. The loop must halt cleanly and hand off, never re-feed.",
   "harness": "hooks/loop_stop.py",
   "harness_invocation": {
-    "cwd": "this fixture's .simplicio/orchestrator/ tree copied into an isolated temp dir",
+    "cwd": "this fixture's .simplicio-loop/orchestrator/ tree copied into an isolated temp dir",
     "stdin": "stdin.json"
   },
   "expected": {
     "returncode": 0,
     "stdout": "",
     "files_after": {
-      ".simplicio/orchestrator/loop/scratchpad.md": "absent",
-      ".simplicio/orchestrator/loop/HANDOFF.md": "present",
-      ".simplicio/orchestrator/loop/done.flag": "absent"
+      ".simplicio-loop/orchestrator/loop/scratchpad.md": "absent",
+      ".simplicio-loop/orchestrator/loop/HANDOFF.md": "present",
+      ".simplicio-loop/orchestrator/loop/done.flag": "absent"
     },
     "handoff_contains": [
       "Stop reason: manual STOP signal",

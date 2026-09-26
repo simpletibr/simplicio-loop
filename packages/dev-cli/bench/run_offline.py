@@ -594,7 +594,7 @@ def build_pdf(by_model: dict, cases: list) -> None:
     p(f"BENCH_BASE_URL={BASE_URL} BENCH_API_KEY=... "
       f"BENCH_MODELS=\"{','.join(models)}\" python3 bench/run_offline.py")
     p("Raw model outputs per case/side are saved under "
-      ".simplicio/bench_runs/<model>/case_NN/{sem,com}.txt for audit. "
+      ".simplicio-loop/bench_runs/<model>/case_NN/{sem,com}.txt for audit. "
       "Charts are SVG under bench/charts/; aggregated data under bench/results.json.")
 
     pdf.output(str(RESULTS_PDF))
@@ -779,7 +779,7 @@ def run() -> int:
             )
 
             slug = model.replace("/", "_").replace(":", "_")
-            outdir = ROOT / ".simplicio" / "bench_runs" / slug / f"case_{i:02d}"
+            outdir = ROOT / ".simplicio-loop" / "bench_runs" / slug / f"case_{i:02d}"
             outdir.mkdir(parents=True, exist_ok=True)
             (outdir / "sem.txt").write_text(sem_out)
             (outdir / "com.txt").write_text(com_out)
@@ -1026,7 +1026,7 @@ def build_reports(by_model: dict, cases: list) -> int:
         "Hugging Face Hub); all others go through the OpenAI-compatible endpoint at ",
         "`BENCH_BASE_URL`. Cap local generation length with `BENCH_LOCAL_MAX_TOKENS`.",
         "",
-        "Raw model outputs are saved under `.simplicio/bench_runs/<model>/case_NN/{sem,com}.txt` ",
+        "Raw model outputs are saved under `.simplicio-loop/bench_runs/<model>/case_NN/{sem,com}.txt` ",
         "so you can audit what the LLM actually produced on each side. Charts are ",
         "SVG under `bench/charts/`; raw aggregated data under `bench/results.json`.",
         "",

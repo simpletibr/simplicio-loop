@@ -273,7 +273,7 @@
         "--help",
         "-h"
       ],
-      "help": "cross-vendor memory handoff (markdown + git under ~/.simplicio/memory)",
+      "help": "cross-vendor memory handoff (markdown + git under ~/.simplicio-loop/memory)",
       "subcommands": {
         "backup": {
           "flags": [

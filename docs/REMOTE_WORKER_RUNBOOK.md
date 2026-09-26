@@ -21,21 +21,21 @@ Minimum viable local setup: a queue server plus one or more workers pointed at i
 
 ```powershell
 # 1. Start the queue server (the state/lease/fencing authority)
-python scripts/remote_queue_server.py --db .simplicio/orchestrator/shared-queue.db `
+python scripts/remote_queue_server.py --db .simplicio-loop/orchestrator/shared-queue.db `
     --host 127.0.0.1 --port 8765 --token $env:SIMPLICIO_QUEUE_TOKEN
 
 # 2. Point a worker at it and claim/serve tasks
 python scripts/remote_worker_daemon.py serve --http http://127.0.0.1:8765 `
     --token $env:SIMPLICIO_QUEUE_TOKEN --agent-id "worker-a" `
-    --status-file .simplicio/orchestrator/worker-status/worker-a.json
+    --status-file .simplicio-loop/orchestrator/worker-status/worker-a.json
 ```
 
 Or run several workers under the lifecycle supervisor, which respawns any child that
 exits (crash, kill, or otherwise):
 
 ```powershell
-python scripts/remote_worker_supervisor.py --db .simplicio/orchestrator/shared-queue.db `
-    --workers 3 --status-dir .simplicio/orchestrator/worker-status
+python scripts/remote_worker_supervisor.py --db .simplicio-loop/orchestrator/shared-queue.db `
+    --workers 3 --status-dir .simplicio-loop/orchestrator/worker-status
 ```
 
 Once installed via `pip install simplicio-loop`, the same binaries are available as
@@ -43,9 +43,9 @@ packaged console scripts instead of repo-local paths (`docs/REMOTE_QUEUE.md` § 
 binaries"):
 
 ```powershell
-simplicio-remote-queue-server --db .simplicio/orchestrator/shared-queue.db --host 127.0.0.1 --port 8765
+simplicio-remote-queue-server --db .simplicio-loop/orchestrator/shared-queue.db --host 127.0.0.1 --port 8765
 simplicio-remote-worker serve --http http://127.0.0.1:8765 --agent-id worker-a
-simplicio-remote-worker-supervisor --db .simplicio/orchestrator/shared-queue.db --workers 3
+simplicio-remote-worker-supervisor --db .simplicio-loop/orchestrator/shared-queue.db --workers 3
 ```
 
 Before starting anything in a real environment, run the doctor check — it tells you
@@ -67,7 +67,7 @@ Three signals, cheapest first:
 2. **Supervisor liveness poll.** `scripts/remote_worker_supervisor.py` polls each
    child's PID every `--health-interval` seconds and respawns anything that exited. If
    you are running workers under the supervisor, "is a worker up" is answered by
-   `ls .simplicio/orchestrator/worker-status/` plus the supervisor's own log line for each
+   `ls .simplicio-loop/orchestrator/worker-status/` plus the supervisor's own log line for each
    restart, not by manually watching PIDs.
 3. **Queue events.** `RemoteQueue.events(after=last_seq)` (or
    `HTTPRemoteQueue.task(task_id)` for one task) gives the monotonic event trail the
@@ -144,7 +144,7 @@ task/lease untouched, never a silent downgrade to "trust the ref."
 | `VERIFIED` | Schema, hash, freshness, and provenance all checked out. | Nothing — this is the only status safe to treat as done. |
 | `MISSING_FIELD` | A required field (or a declared provenance field) is absent, empty, or `null`. The reason string names the exact field path(s). | Fix the receipt builder — `simplicio_loop.remote_queue.build_completion_receipt` (or the worker's own receipt construction) is omitting or blanking a field the schema requires. This usually means a caller is not using the standard receipt builder, or is constructing a partial receipt for testing and shouldn't be presenting it to `complete()`. |
 | `INVALID_SCHEMA` | A field with a fixed expected value (e.g. `schema: "simplicio.queue-receipt/v1"`) doesn't match, or a freshness timestamp couldn't be parsed. | Check the receipt's `schema` literal against the schema the caller passed to `verify_receipt`/`complete` — a version mismatch (old client, new server schema, or vice versa) is the most common cause. Do not silently downgrade a schema check to pass; fix the version mismatch or bump the schema deliberately. |
-| `TAMPERED` | The recomputed content hash doesn't match the receipt's declared hash, OR the receipt's timestamp is more than 60s in the future (clock-skew allowance). | Treat this as a security-relevant event, not a retry-and-hope case: something modified the receipt after it was hashed, or a clock is significantly wrong. Check the audit log (`.simplicio/orchestrator/security/audit-log.jsonl`, `scripts/security_audit_log.py`) and the worker's own NTP/clock sync before assuming benign clock drift. |
+| `TAMPERED` | The recomputed content hash doesn't match the receipt's declared hash, OR the receipt's timestamp is more than 60s in the future (clock-skew allowance). | Treat this as a security-relevant event, not a retry-and-hope case: something modified the receipt after it was hashed, or a clock is significantly wrong. Check the audit log (`.simplicio-loop/orchestrator/security/audit-log.jsonl`, `scripts/security_audit_log.py`) and the worker's own NTP/clock sync before assuming benign clock drift. |
 | `STALE` | The receipt's age (`checked_at - measured_at`) exceeds the caller's `max_age_seconds`. | The receipt was genuine but presented too late (e.g. a long queue/retry delay between the worker finishing and the completion call landing). Re-run the unit of work rather than force-accepting an old receipt — a stale receipt no longer proves the *current* repo/commit state matches what was measured. |
 
 The reason string on every non-`VERIFIED` verdict is intentionally specific (exact

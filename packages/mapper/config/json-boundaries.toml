@@ -2,14 +2,14 @@ version = 1
 policy = "internal-json-deny"
 
 [scanner]
-internal_roots = [".simplicio"]
+internal_roots = [".simplicio-loop"]
 formats = [".json", ".jsonl", ".ndjson"]
 
 # These are legacy artifacts retained only for the bounded migration window.
 # Every entry is exact (no glob is allowed) and must be removed when the
 # corresponding Runtime HBI/HBP contract is available in the published CLI.
 [[exceptions]]
-path = ".simplicio/architecture-inventory.json"
+path = ".simplicio-loop/architecture-inventory.json"
 category = "legacy-internal"
 target = "hbi"
 owner = "mapper"
@@ -17,7 +17,7 @@ reason = "migrate read-mostly architecture index to Runtime HBI v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/business-rules.json"
+path = ".simplicio-loop/business-rules.json"
 category = "legacy-internal"
 target = "hbi"
 owner = "mapper"
@@ -25,7 +25,7 @@ reason = "migrate read-mostly business-rules index to Runtime HBI v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/call-graph.json"
+path = ".simplicio-loop/call-graph.json"
 category = "legacy-internal"
 target = "hbi"
 owner = "mapper"
@@ -33,7 +33,7 @@ reason = "migrate read-mostly call graph to Runtime HBI v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/flow-inventory.json"
+path = ".simplicio-loop/flow-inventory.json"
 category = "legacy-internal"
 target = "hbi"
 owner = "mapper"
@@ -41,7 +41,7 @@ reason = "migrate read-mostly flow index to Runtime HBI v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/map-job.json"
+path = ".simplicio-loop/map-job.json"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -49,7 +49,7 @@ reason = "migrate append-only map job evidence to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/precedent-index.json"
+path = ".simplicio-loop/precedent-index.json"
 category = "legacy-internal"
 target = "hbi"
 owner = "mapper"
@@ -57,7 +57,7 @@ reason = "migrate read-mostly precedent index to Runtime HBI v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/project-map.json"
+path = ".simplicio-loop/project-map.json"
 category = "legacy-internal"
 target = "hbi"
 owner = "mapper"
@@ -65,7 +65,7 @@ reason = "migrate canonical project index to Runtime HBI v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/spec-drift.json"
+path = ".simplicio-loop/spec-drift.json"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -73,7 +73,7 @@ reason = "migrate drift evidence to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/symbol-index.json"
+path = ".simplicio-loop/symbol-index.json"
 category = "legacy-internal"
 target = "hbi"
 owner = "mapper"
@@ -81,7 +81,7 @@ reason = "migrate read-mostly symbol index to Runtime HBI v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/savings-ledger.jsonl"
+path = ".simplicio-loop/savings-ledger.jsonl"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -89,7 +89,7 @@ reason = "migrate append-only savings evidence to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/ledger/savings-events.jsonl"
+path = ".simplicio-loop/ledger/savings-events.jsonl"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -97,7 +97,7 @@ reason = "migrate append-only savings evidence to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/orchestrator/loop/journal.jsonl"
+path = ".simplicio-loop/orchestrator/loop/journal.jsonl"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -105,7 +105,7 @@ reason = "migrate orchestration journal to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/orchestrator/learn/pending.jsonl"
+path = ".simplicio-loop/orchestrator/learn/pending.jsonl"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -113,7 +113,7 @@ reason = "migrate append-only learning evidence to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/runs/sprint-1782916597218-47883/events.jsonl"
+path = ".simplicio-loop/runs/sprint-1782916597218-47883/events.jsonl"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -121,7 +121,7 @@ reason = "migrate run event receipt to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/runs/sprint-1782916597218-47883/state.json"
+path = ".simplicio-loop/runs/sprint-1782916597218-47883/state.json"
 category = "legacy-internal"
 target = "hbi"
 owner = "mapper"
@@ -129,7 +129,7 @@ reason = "migrate resumable run snapshot to Runtime HBI v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/session-hooks/06887c3c-e6d0-4eaf-a16e-2cd82ed16fcc-1782935876.json"
+path = ".simplicio-loop/session-hooks/06887c3c-e6d0-4eaf-a16e-2cd82ed16fcc-1782935876.json"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -137,7 +137,7 @@ reason = "migrate session hook evidence to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/session-hooks/23ebc9a5-7b62-47d3-b3e4-9b8536e07d8d-1783000499.json"
+path = ".simplicio-loop/session-hooks/23ebc9a5-7b62-47d3-b3e4-9b8536e07d8d-1783000499.json"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -145,7 +145,7 @@ reason = "migrate session hook evidence to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/session-hooks/23ebc9a5-7b62-47d3-b3e4-9b8536e07d8d-1783000837.json"
+path = ".simplicio-loop/session-hooks/23ebc9a5-7b62-47d3-b3e4-9b8536e07d8d-1783000837.json"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -153,7 +153,7 @@ reason = "migrate session hook evidence to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/session-hooks/23ebc9a5-7b62-47d3-b3e4-9b8536e07d8d-1783001202.json"
+path = ".simplicio-loop/session-hooks/23ebc9a5-7b62-47d3-b3e4-9b8536e07d8d-1783001202.json"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -161,7 +161,7 @@ reason = "migrate session hook evidence to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/session-hooks/23ebc9a5-7b62-47d3-b3e4-9b8536e07d8d-1783001262.json"
+path = ".simplicio-loop/session-hooks/23ebc9a5-7b62-47d3-b3e4-9b8536e07d8d-1783001262.json"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -169,7 +169,7 @@ reason = "migrate session hook evidence to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/session-hooks/8f6d9a4a-fc5c-4325-b3f3-9400ef51fce0-1783429467.json"
+path = ".simplicio-loop/session-hooks/8f6d9a4a-fc5c-4325-b3f3-9400ef51fce0-1783429467.json"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -177,7 +177,7 @@ reason = "migrate session hook evidence to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/session-hooks/8f6d9a4a-fc5c-4325-b3f3-9400ef51fce0-1783429504.json"
+path = ".simplicio-loop/session-hooks/8f6d9a4a-fc5c-4325-b3f3-9400ef51fce0-1783429504.json"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -185,7 +185,7 @@ reason = "migrate session hook evidence to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".simplicio/session-hooks/8f6d9a4a-fc5c-4325-b3f3-9400ef51fce0-1783429543.json"
+path = ".simplicio-loop/session-hooks/8f6d9a4a-fc5c-4325-b3f3-9400ef51fce0-1783429543.json"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"

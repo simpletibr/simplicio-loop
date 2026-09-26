@@ -10,9 +10,9 @@ def test_checked_in_state_is_inventory_classified():
 def test_unclassified_internal_state_is_blocked(tmp_path):
     source = Path(__file__).parents[1]
     (tmp_path / "config").mkdir()
-    (tmp_path / ".simplicio/orchestrator").mkdir(parents=True)
+    (tmp_path / ".simplicio-loop/orchestrator").mkdir(parents=True)
     (tmp_path / "config" / "json-boundaries.toml").write_text(
         (source / "config" / "json-boundaries.toml").read_text(), encoding="utf-8"
     )
-    (tmp_path / ".simplicio/orchestrator" / "unexpected.json").write_text("{}", encoding="utf-8")
-    assert "UNCLASSIFIED .simplicio/orchestrator/unexpected.json" in check(tmp_path)
+    (tmp_path / ".simplicio-loop/orchestrator" / "unexpected.json").write_text("{}", encoding="utf-8")
+    assert "UNCLASSIFIED .simplicio-loop/orchestrator/unexpected.json" in check(tmp_path)

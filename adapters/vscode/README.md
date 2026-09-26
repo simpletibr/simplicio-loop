@@ -142,7 +142,7 @@ the instructions file makes Copilot follow the protocol).
 ## Progresso do run
 
 Self-paced (N2, via tasks): the task tick echoes the turn-header. Simplest (N3, universal): open
-`.simplicio/orchestrator/loop/PROGRESS.md` in the editor — it auto-updates every turn, no extension needed.
+`.simplicio-loop/orchestrator/loop/PROGRESS.md` in the editor — it auto-updates every turn, no extension needed.
 
 ## Ecosystem law (2026-08) — read on every host
 

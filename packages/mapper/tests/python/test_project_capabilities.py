@@ -248,7 +248,7 @@ class ProjectCapabilityGenerationTests(unittest.TestCase):
         self.assertTrue((self.dir / ".agents" / "_generated").is_dir())
 
     def test_post_map_failure_writes_explicit_receipt_and_preserves_outputs(self) -> None:
-        artifact_root = self.dir / ".simplicio"
+        artifact_root = self.dir / ".simplicio-loop"
         artifact_root.mkdir()
         for source in FIXTURE_ROOT.glob("*.json"):
             shutil.copy2(source, artifact_root / source.name)
@@ -265,7 +265,7 @@ class ProjectCapabilityGenerationTests(unittest.TestCase):
         ):
             result = sync_project_capabilities_after_mapping(
                 self.dir,
-                ".simplicio",
+                ".simplicio-loop",
                 complete=True,
                 fresh=True,
                 lock_active=False,
@@ -309,7 +309,7 @@ class ProjectCapabilityGenerationTests(unittest.TestCase):
             "symbol-index.json",
             "call-graph.json",
         ):
-            (self.dir / ".simplicio" / name).unlink()
+            (self.dir / ".simplicio-loop" / name).unlink()
 
         time.sleep(0.02)
         with redirect_stdout(StringIO()):

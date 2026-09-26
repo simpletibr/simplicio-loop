@@ -334,7 +334,7 @@ def test_context_binding_cache_persists_a_disposable_lookup_index(
     cache.put(binding)
     assert cache.lookup(binding.context_handle)["hit"] is True
 
-    index = tmp_path / ".simplicio" / "context-bindings.hbp.idx"
+    index = tmp_path / ".simplicio-loop" / "context-bindings.hbp.idx"
     assert index.is_file()
     assert cache.doctor()["index_present"] is True
 
@@ -362,7 +362,7 @@ def test_context_binding_cache_replays_log_for_invalid_index_shapes(
     binding = bind_mapper_context(_payload(), _pack(_payload()))
     cache = ContextBindingCache(tmp_path)
     cache.put(binding)
-    index = tmp_path / ".simplicio" / "context-bindings.hbp.idx"
+    index = tmp_path / ".simplicio-loop" / "context-bindings.hbp.idx"
     index.write_text(json.dumps(index_payload), encoding="utf-8")
 
     second_process = ContextBindingCache(tmp_path)
@@ -479,9 +479,9 @@ def test_context_binding_cache_uses_hashed_append_log_and_recovers_truncation(
     cache = ContextBindingCache(tmp_path)
     cache.put(binding)
 
-    log = tmp_path / ".simplicio" / "context-bindings.hbp"
+    log = tmp_path / ".simplicio-loop" / "context-bindings.hbp"
     assert log.is_file()
-    assert not (tmp_path / ".simplicio" / "context-bindings.json").is_file()
+    assert not (tmp_path / ".simplicio-loop" / "context-bindings.json").is_file()
     assert cache.lookup(binding.context_handle)["hit"] is True
 
     with log.open("ab") as handle:
@@ -505,7 +505,7 @@ def test_context_binding_cache_recovery_receipt_discards_torn_tail(
     cache.put(first)
     cache.put(second)
 
-    log = tmp_path / ".simplicio" / "context-bindings.hbp"
+    log = tmp_path / ".simplicio-loop" / "context-bindings.hbp"
     raw = bytearray(log.read_bytes())
     raw[-1] ^= 0x01
     log.write_bytes(raw)
@@ -549,7 +549,7 @@ def test_context_binding_cache_migrates_legacy_json_once_and_removes_shadow_stor
 
 
 def test_context_binding_cache_migration_is_atomic_across_initializers(tmp_path: Any) -> None:
-    legacy = tmp_path / ".simplicio" / "context-bindings.json"
+    legacy = tmp_path / ".simplicio-loop" / "context-bindings.json"
     legacy.parent.mkdir(parents=True, exist_ok=True)
     key = "sha256:" + "a" * 64
     legacy.write_text(
@@ -578,14 +578,14 @@ def test_context_binding_cache_migration_is_atomic_across_initializers(tmp_path:
 
 
 def test_context_binding_cache_preserves_corrupt_legacy_store(mapper_boundary: None, tmp_path: Any) -> None:
-    legacy = tmp_path / ".simplicio" / "context-bindings.json"
+    legacy = tmp_path / ".simplicio-loop" / "context-bindings.json"
     legacy.parent.mkdir(parents=True, exist_ok=True)
     legacy.write_text("{not-json", encoding="utf-8")
 
     with pytest.raises(MapperContextError, match="legacy context cache is corrupt"):
         ContextBindingCache(tmp_path)
     assert legacy.is_file()
-    assert not (tmp_path / ".simplicio" / "context-bindings.hbp").exists()
+    assert not (tmp_path / ".simplicio-loop" / "context-bindings.hbp").exists()
 
 
 @pytest.mark.parametrize(
@@ -593,7 +593,7 @@ def test_context_binding_cache_preserves_corrupt_legacy_store(mapper_boundary: N
     [[], {"schema": "wrong", "entries": {}}],
 )
 def test_context_binding_cache_rejects_invalid_legacy_shapes(legacy: Any, tmp_path: Any) -> None:
-    path = tmp_path / ".simplicio" / "context-bindings.json"
+    path = tmp_path / ".simplicio-loop" / "context-bindings.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(legacy), encoding="utf-8")
 
@@ -1409,8 +1409,8 @@ def test_context_binding_cache_recovers_after_writer_process_dies_mid_append(
     cache = ContextBindingCache(tmp_path)
     cache.put(binding)
 
-    log = tmp_path / ".simplicio" / "context-bindings.hbp"
-    lock = tmp_path / ".simplicio" / "context-bindings.hbp.lock"
+    log = tmp_path / ".simplicio-loop" / "context-bindings.hbp"
+    lock = tmp_path / ".simplicio-loop" / "context-bindings.hbp.lock"
     worker = (
         "import os, struct, sys; "
         "lock_fd=os.open(sys.argv[2], os.O_CREAT | os.O_EXCL | os.O_WRONLY); "
@@ -1445,18 +1445,18 @@ def test_context_binding_cache_recovers_after_writer_process_dies_mid_append(
 
 @pytest.mark.parametrize("legacy_line", ["[]", "not-json"])
 def test_context_binding_cache_rejects_malformed_legacy_jsonl(legacy_line: str, tmp_path: Any) -> None:
-    legacy = tmp_path / ".simplicio" / "context-bindings.hbp.jsonl"
+    legacy = tmp_path / ".simplicio-loop" / "context-bindings.hbp.jsonl"
     legacy.parent.mkdir(parents=True, exist_ok=True)
     legacy.write_text(legacy_line + "\n", encoding="utf-8")
 
     with pytest.raises(MapperContextError, match="legacy context cache migration failed"):
         ContextBindingCache(tmp_path)
     assert legacy.is_file()
-    assert not (tmp_path / ".simplicio" / "context-bindings.hbp").exists()
+    assert not (tmp_path / ".simplicio-loop" / "context-bindings.hbp").exists()
 
 
 def test_context_binding_cache_migrates_valid_legacy_jsonl(tmp_path: Any) -> None:
-    legacy = tmp_path / ".simplicio" / "context-bindings.hbp.jsonl"
+    legacy = tmp_path / ".simplicio-loop" / "context-bindings.hbp.jsonl"
     legacy.parent.mkdir(parents=True, exist_ok=True)
     legacy.write_text(
         json.dumps(

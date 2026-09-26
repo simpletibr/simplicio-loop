@@ -56,7 +56,7 @@ def _project_relevant():
 
     The plugin's Bash gate must not impose itself on every repo on the machine — it acts
     only inside an active simplicio-loop project. Relevant when the opt-in env var
-    SIMPLICIO_LOOP (or SIMPLICIO_ORCHESTRATOR) is set, or when a `.simplicio/orchestrator/` marker
+    SIMPLICIO_LOOP (or SIMPLICIO_ORCHESTRATOR) is set, or when a `.simplicio-loop/orchestrator/` marker
     dir (the orchestrator's state dir, created when the loop runs) exists in the current
     working directory or an ancestor. Outside such a project the PreToolUse hook no-ops.
     The explicit CLI / git-hook entry points (check / scan-diff / selftest) are NOT gated —
@@ -69,10 +69,10 @@ def _project_relevant():
     for _ in range(40):  # depth backstop so an off-home tree can't climb forever
         parent = os.path.dirname(d)
         # Never treat the home dir or a drive/filesystem root as a project marker location:
-        # a stray ~/.simplicio/orchestrator, or a marker at a drive root, must not widen the scope.
+        # a stray ~/.simplicio-loop/orchestrator, or a marker at a drive root, must not widen the scope.
         if d == home or parent == d:
             return False
-        if os.path.isdir(os.path.join(d, ".simplicio/orchestrator")):
+        if os.path.isdir(os.path.join(d, ".simplicio-loop/orchestrator")):
             return True
         d = parent
     return False
@@ -195,7 +195,7 @@ def _push_diff(cwd=None):
 
 def _delivery_contract(cwd):
     """Load the optional frozen delivery contract for the effective repository."""
-    local_anchor = os.path.join(cwd, ".simplicio/orchestrator", "loop", "anchor.json")
+    local_anchor = os.path.join(cwd, ".simplicio-loop/orchestrator", "loop", "anchor.json")
     anchor_path = local_anchor if os.path.exists(local_anchor) else (
         os.environ.get("SIMPLICIO_ANCHOR_FILE") or local_anchor
     )
@@ -386,7 +386,7 @@ def _hbp_append_gate_blocked(reason, cmd=""):
         fp = hashlib.sha1((reason or "").encode("utf-8", "replace")).hexdigest()[:12]
         attempt = None
         try:  # attempt id = live loop iteration from the scratchpad frontmatter, when armed
-            with open(os.path.join(".simplicio/orchestrator", "loop", "scratchpad.md"),
+            with open(os.path.join(".simplicio-loop/orchestrator", "loop", "scratchpad.md"),
                       encoding="utf-8") as f:
                 m = re.search(r"^iteration:\s*(\d+)", f.read(), re.M)
             attempt = int(m.group(1)) if m else None

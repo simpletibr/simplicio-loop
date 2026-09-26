@@ -10,7 +10,7 @@ Two installed CLIs are the operators; the model only DECIDES, the operators do. 
 
 | Operator | CLI (binary) | Binds | Role in the loop |
 |---|---|---|---|
-| **simplicio-mapper** | `simplicio-mapper` | `orient` / `recall` | **Survey** — maps the repo(s) into `.simplicio/*.json` (project-map, precedent-index, symbol-index, call-graph, docs). Two-tier (v0.9+): `macro` is an instant shallow skeleton (no content reads), `scan` returns that skeleton now and runs the deep index in the background, `status` reports the deep-pass phase. v0.13+ adds `inspect` (machine-readable evidence that the artifacts actually exist — the survey's own evidence gate) and `handoff` (a compact context-pack — files, symbols, deps, `pack_hash` — that feeds the goal instead of re-reading the tree). v0.14+ adds the flow-docs engine: `ask` (low-token structured queries over the artifacts), `sync --check`/`drift --check` (docs-staleness + spec-drift gates), `flows`/`survey`/`business`/`history`/`diff` (flow inventory, onboarding report, business rules, architecture history). This survey, not an ad-hoc LLM read, is what feeds the goal each turn. |
+| **simplicio-mapper** | `simplicio-mapper` | `orient` / `recall` | **Survey** — maps the repo(s) into `.simplicio-loop/*.json` (project-map, precedent-index, symbol-index, call-graph, docs). Two-tier (v0.9+): `macro` is an instant shallow skeleton (no content reads), `scan` returns that skeleton now and runs the deep index in the background, `status` reports the deep-pass phase. v0.13+ adds `inspect` (machine-readable evidence that the artifacts actually exist — the survey's own evidence gate) and `handoff` (a compact context-pack — files, symbols, deps, `pack_hash` — that feeds the goal instead of re-reading the tree). v0.14+ adds the flow-docs engine: `ask` (low-token structured queries over the artifacts), `sync --check`/`drift --check` (docs-staleness + spec-drift gates), `flows`/`survey`/`business`/`history`/`diff` (flow inventory, onboarding report, business rules, architecture history). This survey, not an ad-hoc LLM read, is what feeds the goal each turn. |
 | **simplicio-dev-cli** | `simplicio-dev-cli` | `execute` / `deterministic_edit` / `validate` / `diagnostics` | **Operate** — applies a DECIDED change through its 6-layer contract (mapper context → precedent → prompt → diff → test → verify, ≤3 retries). The CLI edits and verifies; the AI does not hand-write the diff. |
 
 **Preflight (MANDATORY, BLOCKING).** Before iteration 1, auto-update the operator package to its
@@ -40,7 +40,7 @@ the background — the loop starts working immediately instead of blocking on a 
 `simplicio-mapper status . --json` (`phase`: `deep_running` → terminal) before relying on the deep
 artifacts; pass `--await [--timeout <s>]` to block until terminal, or `scan --sync` (forced when
 `CI=true`) for the old single-shot behavior. `simplicio-mapper index . --json` (add `--watch` for
-long runs) remains the synchronous full (re)build of `.simplicio/`. Read the survey artifacts —
+long runs) remains the synchronous full (re)build of `.simplicio-loop/`. Read the survey artifacts —
 never re-scan the tree by hand when a fresh map exists. For a multi-repo survey, run the mapper per
 repo root and aggregate the JSON.
 
@@ -80,7 +80,7 @@ glossary), and `history`/`diff` (architecture snapshots + semantic deltas).
 
 If the installed mapper predates 0.13 (`inspect`/`handoff` absent from `--help`), the
 preflight auto-update already pulls a current build; offline, fall back to `status` + reading
-`.simplicio/*.json` directly — the gate is then the file-existence check you do by hand.
+`.simplicio-loop/*.json` directly — the gate is then the file-existence check you do by hand.
 
 **Operate step (every turn that mutates code).** Once the AC and the change are DECIDED, delegate
 the mutation to the operator, one decided change at a time:
@@ -99,7 +99,7 @@ merge/close gates); the operators do survey + apply:
 | Phase | Operator | Command |
 |---|---|---|
 | Preflight (before iteration 1) | both | `python3 -m pip install -qU simplicio-cli` (auto-update to latest, fail-open) → `simplicio-mapper --version` · `simplicio-dev-cli --help` → BLOCK if either runtime bin is missing |
-| Survey (loop start; multi-repo: per root) | mapper | `simplicio-mapper scan . --json` (instant macro + deep index in background; `--sync`/`--await` to block) → `.simplicio/*.json`. `index . --json` for a forced synchronous build. Gate: `inspect . --json` (artifacts exist on disk) → feed goal: `handoff . --for-llm toon` (context-pack, TOON-rendered; `--json` fallback + logged reason if the installed mapper predates `--for-llm`) |
+| Survey (loop start; multi-repo: per root) | mapper | `simplicio-mapper scan . --json` (instant macro + deep index in background; `--sync`/`--await` to block) → `.simplicio-loop/*.json`. `index . --json` for a forced synchronous build. Gate: `inspect . --json` (artifacts exist on disk) → feed goal: `handoff . --for-llm toon` (context-pack, TOON-rendered; `--json` fallback + logged reason if the installed mapper predates `--for-llm`) |
 | Loop contract step 2 — Triage (every turn) | mapper | `simplicio-mapper handoff . --for-llm toon` → work from the `context_pack` (symbols/deps/recent_changes); `ask . impact\|tests-for\|callers <arg> --json` for targeted questions; `macro . --json` for an instant skeleton, or `scan`/`status` + `inspect` to refresh/re-gate if the tree changed |
 | Verify / DoD pass | mapper | `simplicio-mapper sync . --check --json` (stale generated docs) + `drift . --check --json` (spec↔code drift) — findings go in the turn report; BLOCK only when the AC itself is documentation |
 | Loop contract step 3 — Work the goal | dev-cli | `simplicio-dev-cli task "<decided change>" --target <file> [--json]` |

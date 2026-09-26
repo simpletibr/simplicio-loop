@@ -647,7 +647,7 @@ def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list
         return None, [{"code": "git_tree_unavailable", "message": tree.stderr.strip()}]
     source_tree = tree.stdout.strip()
     generation = source_tree
-    snapshot = Path(root) / ".simplicio" / "context-snapshot.json"
+    snapshot = Path(root) / ".simplicio-loop" / "context-snapshot.json"
     if snapshot.is_file():
         try:
             snapshot_id = json.loads(snapshot.read_text(encoding="utf-8")).get("snapshot_id")

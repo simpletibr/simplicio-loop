@@ -225,7 +225,7 @@ async def _process_one_file(
             # connection open would leak a file handle for the lifetime of
             # the whole process (observable on Windows as a "file still in
             # use" error the moment a caller tries to remove the
-            # `.simplicio/cache` directory right after this run). Closing
+            # `.simplicio-loop/cache` directory right after this run). Closing
             # it explicitly, from the same worker thread, right after this
             # one file's cache access, keeps every SQLite handle
             # short-lived regardless of thread-pool reuse or GC timing.
@@ -401,7 +401,7 @@ async def build_artifacts_async(
     cwd: str,
     meta: dict | None = None,
     incremental: bool = False,
-    output_dir: str = ".simplicio",
+    output_dir: str = ".simplicio-loop",
 ) -> dict:
     """Full async pipeline entry point (ADR-009 plan step 6).
 
@@ -513,7 +513,7 @@ async def build_artifacts_async(
         ],
         "changed_files": changed_files,
         "integration": {
-            "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",
+            "dev_cli_mapper": "read .simplicio-loop/project-map.json, then use .simplicio-loop/precedent-index.json for task-specific examples",
             "contract": "SIMPLICIO_INTEGRATION.md",
             "llm_directives": LLM_DIRECTIVES,
         },
@@ -524,7 +524,7 @@ async def build_artifacts_async(
         "schema": PRECEDENT_SCHEMA,
         "version": ARTIFACT_VERSION,
         "generated_at": generated_at,
-        "source_project_map": ".simplicio/project-map.json",
+        "source_project_map": ".simplicio-loop/project-map.json",
         "items": _build_precedent_items(abs_cwd, files, contents=contents),
     }
 

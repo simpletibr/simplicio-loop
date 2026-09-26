@@ -32,13 +32,13 @@ def _env(root):
     module there) — but the module's OWN default state directory is relative to wherever it
     physically lives on disk, not the caller's cwd. Pinning these three env vars makes every
     process in this test (the real hook subprocess AND this test's own direct CLI calls) agree
-    on the identical `.simplicio/orchestrator/loop/` under `root`, whichever copy of the script runs."""
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    on the identical `.simplicio-loop/orchestrator/loop/` under `root`, whichever copy of the script runs."""
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     full_env = dict(os.environ)
     full_env.update({
         "SIMPLICIO_PROGRESS_DIR": loop,
         "SIMPLICIO_ANCHOR_FILE": os.path.join(loop, "anchor.json"),
-        "SIMPLICIO_BACKLOG_FILE": os.path.join(root, ".simplicio/orchestrator", "backlog", "backlog.jsonl"),
+        "SIMPLICIO_BACKLOG_FILE": os.path.join(root, ".simplicio-loop/orchestrator", "backlog", "backlog.jsonl"),
     })
     return full_env
 
@@ -65,7 +65,7 @@ Implement the thing and prove it works.
 
 
 def _arm(root, iteration=1, max_iter=24):
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     os.makedirs(loop, exist_ok=True)
     with open(os.path.join(loop, "scratchpad.md"), "w", encoding="utf-8") as f:
         f.write(SCRATCHPAD_TPL.format(iteration=iteration, max_iter=max_iter))
@@ -74,7 +74,7 @@ def _arm(root, iteration=1, max_iter=24):
 
 
 def _scratchpad(root):
-    return os.path.join(root, ".simplicio/orchestrator", "loop", "scratchpad.md")
+    return os.path.join(root, ".simplicio-loop/orchestrator", "loop", "scratchpad.md")
 
 
 def _iteration(root):
@@ -86,14 +86,14 @@ def _iteration(root):
 
 
 def _write_anchor(root, criteria, item="T1", goal_fp="x"):
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     os.makedirs(loop, exist_ok=True)
     with open(os.path.join(loop, "anchor.json"), "w", encoding="utf-8") as f:
         json.dump({"item": item, "goal": "g", "goal_fp": goal_fp, "criteria": criteria}, f)
 
 
 def _write_watcher_pass(root, challenge="chal-1", goal_fp="", checked_at="2026-07-14T00:00:01Z"):
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     os.makedirs(loop, exist_ok=True)
     with open(os.path.join(loop, "watcher_challenge.json"), "w", encoding="utf-8") as f:
         json.dump({"challenge": challenge, "goal_fp": goal_fp, "written_at": "2026-07-14T00:00:00Z"}, f)
@@ -103,7 +103,7 @@ def _write_watcher_pass(root, challenge="chal-1", goal_fp="", checked_at="2026-0
 
 
 def _seed_verified_run(root, run_id="r1"):
-    run_dir = os.path.join(root, ".simplicio/orchestrator", "runs", run_id)
+    run_dir = os.path.join(root, ".simplicio-loop/orchestrator", "runs", run_id)
     os.makedirs(run_dir, exist_ok=True)
     with open(os.path.join(run_dir, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump({"schema": "simplicio.run-manifest/v1", "run_id": run_id,
@@ -151,7 +151,7 @@ def _tick(root, response_text):
 def _turn_header(root):
     """Run the REAL loop_progress.py CLI exactly as the SKILL.md § Output contract requires the
     agent to at the top of every turn: `render --turn-header`, echoed verbatim into the
-    transcript. Also driven as a subprocess against the shared `.simplicio/orchestrator/loop/` state."""
+    transcript. Also driven as a subprocess against the shared `.simplicio-loop/orchestrator/loop/` state."""
     r = subprocess.run([sys.executable, PROGRESS, "render", "--turn-header"],
                        capture_output=True, text=True, cwd=root, env=_env(root),
                        stdin=subprocess.DEVNULL)
@@ -172,7 +172,7 @@ def _emit(root, step, status, **kwargs):
 
 
 def _events(root):
-    path = os.path.join(root, ".simplicio/orchestrator", "loop", "progress.jsonl")
+    path = os.path.join(root, ".simplicio-loop/orchestrator", "loop", "progress.jsonl")
     if not os.path.exists(path):
         return []
     with open(path, encoding="utf-8") as f:

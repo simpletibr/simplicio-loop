@@ -296,7 +296,7 @@ def run(out: str | Path) -> dict:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="issue #178 local Execution Board E2E fixture")
-    parser.add_argument("--out", default=".simplicio/orchestrator/evidence/execution-board-178")
+    parser.add_argument("--out", default=".simplicio-loop/orchestrator/evidence/execution-board-178")
     args = parser.parse_args(argv)
     result = run(args.out)
     print(json.dumps(result, ensure_ascii=False, indent=2))

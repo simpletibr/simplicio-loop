@@ -56,7 +56,7 @@ SUBPROC_TIMEOUT = 15.0  # seconds for a child engine process
 
 def _simplicio_home():
     """Resolve the Simplicio data dir, honoring SIMPLICIO_HOME."""
-    return Path(os.environ.get("SIMPLICIO_HOME", Path(os.path.expanduser("~")) / ".simplicio"))
+    return Path(os.environ.get("SIMPLICIO_HOME", Path(os.path.expanduser("~")) / ".simplicio-loop"))
 
 
 def _env_port(name, default):

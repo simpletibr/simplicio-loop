@@ -8,7 +8,7 @@ cannot see: it **re-derives the same triage every turn** (wasted tokens) and it 
 tries X, fails, tries X again — until the cap burns. The journal + stall detector close both. Both
 are deterministic and model-free (`scripts/loop_journal.py`), so a resume is reproducible from disk.
 
-**1. The run-journal — `.simplicio/orchestrator/loop/journal.jsonl` (append-only attempt memory).** One
+**1. The run-journal — `.simplicio-loop/orchestrator/loop/journal.jsonl` (append-only attempt memory).** One
 record per turn: `{iteration, action, hypothesis, gate: pass|fail|blocked, fingerprint, ts}` with
 optional lineage fields such as `execution_state`, `stage_id`, `source_artifact`, `chunk_id`,
 `validator`, `decision`, `retry_count`, `blocked_reason`, and `next_action`. On a failing gate the

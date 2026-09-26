@@ -4,7 +4,7 @@
 Ports the pattern from `simplicio-loop`'s `scripts/token_budget.py`: estimate
 the token cost of the artifacts an LLM/loop loads before or while driving
 this repo (the cross-agent contract docs, the largest mapper modules most
-likely to be read whole, and the real `.simplicio/*.json`-shaped artifacts a
+likely to be read whole, and the real `.simplicio-loop/*.json`-shaped artifacts a
 fixture produces), report the delta against a committed baseline, and FAIL
 when a tracked artifact regresses past its threshold — so a doc/module/
 artifact that quietly balloons in size (burning context on every session
@@ -20,7 +20,7 @@ baseline/report so a swap is never silently mixed with old numbers.
 Tracked artifacts:
   - The largest modules under `simplicio_mapper/` an agent is likely to read
     whole while working on the mapper/graph/CLI layers.
-  - `.simplicio/*.json`-shaped mapper artifacts: rather than inventing a new
+  - `.simplicio-loop/*.json`-shaped mapper artifacts: rather than inventing a new
     throwaway fixture, this tracks the REAL mapper output already committed
     at `contracts/mapper-artifacts/v1/fixtures/python-minimal/artifacts/*.json`
     (issue #157) and `.../mapper-index-result.json` — genuine output of
@@ -63,7 +63,7 @@ TRACKED_ARTIFACTS = [
     ("toon.py", "simplicio_mapper/toon.py"),
 ]
 
-# `.simplicio/*.json`-shaped mapper artifacts: real output committed under
+# `.simplicio-loop/*.json`-shaped mapper artifacts: real output committed under
 # the mapper-artifacts contract fixture (issue #157), not a hand-written
 # stand-in. Regenerate with `python3 scripts/regen_contract_fixtures.py update`.
 FIXTURE_ARTIFACTS_DIR = os.path.join(
@@ -116,7 +116,7 @@ def _read_text(path):
 
 
 def discover_fixture_artifacts():
-    """Real `.simplicio/*.json`-shaped mapper artifacts committed under the
+    """Real `.simplicio-loop/*.json`-shaped mapper artifacts committed under the
     mapper-artifacts contract fixture (issue #157) — genuine mapper output,
     not a synthetic stand-in."""
     out = []

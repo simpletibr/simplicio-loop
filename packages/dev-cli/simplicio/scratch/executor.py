@@ -321,7 +321,7 @@ def _aggregate_line_stats(tasks: list[TaskResult]) -> dict[str, int]:
 
 _LINE_STAT_EXCLUDED_DIRS = {
     ".git",
-    ".simplicio",
+    ".simplicio-loop",
     ".venv",
     "__pycache__",
     ".pytest_cache",
@@ -466,8 +466,8 @@ def execute_plan(plan: Plan, stack: Stack, parent_dir: Path, skip_install: bool 
     }
     report.files_written = stack.render_tree(project_dir, render_vars)
 
-    # 2. Write the plan itself into .simplicio/plan.json for traceability
-    sim_dir = project_dir / ".simplicio"
+    # 2. Write the plan itself into .simplicio-loop/plan.json for traceability
+    sim_dir = project_dir / ".simplicio-loop"
     sim_dir.mkdir(exist_ok=True)
     plan_path = sim_dir / "plan.json"
     plan_path.write_text(

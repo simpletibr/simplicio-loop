@@ -74,7 +74,7 @@ def test_component_writer_uses_opt_in_default_path_and_labels(tmp_path):
         labels={"stage": "plan"},
     )
     assert writer.path == path
-    assert path == tmp_path / ".simplicio" / "observability" / "telemetry" / "events.jsonl"
+    assert path == tmp_path / ".simplicio-loop" / "observability" / "telemetry" / "events.jsonl"
     assert event["labels"]["project"] == "simplicio-loop"
     assert event["labels"]["component"] == "telemetry"
     assert event["labels"]["operation"] == "emit"

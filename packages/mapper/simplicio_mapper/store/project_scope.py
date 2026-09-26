@@ -1,11 +1,11 @@
-"""Project identity + scoped data roots under ``.simplicio/data``.
+"""Project identity + scoped data roots under ``.simplicio-loop/data``.
 
 Layout (no cross-project mixing):
 
-- **Core / Runtime** (global): ``~/.simplicio/data/``
+- **Core / Runtime** (global): ``~/.simplicio-loop/data/``
   - ``memory.sqlite`` and other core banks for Runtime/MCP
 - **Per project** (inside the git/workspace folder):
-  ``<repo>/.simplicio/data/<project_slug>/``
+  ``<repo>/.simplicio-loop/data/<project_slug>/``
   - project memory, caches, and project-local files
 
 ``project_slug`` is derived (first match wins):
@@ -119,7 +119,7 @@ def core_data_root(
     environ: dict[str, str] | None = None,
     home: str | Path | None = None,
 ) -> Path:
-    """Global Runtime/core data root: ``~/.simplicio/data``."""
+    """Global Runtime/core data root: ``~/.simplicio-loop/data``."""
     env = os.environ if environ is None else environ
     if env.get("SIMPLICIO_CORE_DATA_DIR"):
         path = Path(env["SIMPLICIO_CORE_DATA_DIR"]).expanduser()
@@ -127,14 +127,14 @@ def core_data_root(
         return path.resolve()
     if env.get("SIMPLICIO_HOME"):
         base = Path(env["SIMPLICIO_HOME"]).expanduser()
-        if base.name == ".simplicio":
+        if base.name == ".simplicio-loop":
             return (base / "data").resolve()
-        return (base / ".simplicio" / "data").resolve()
+        return (base / ".simplicio-loop" / "data").resolve()
     if home is not None:
         base = Path(os.fspath(home)).expanduser()
     else:
         base = Path.home()
-    return (base / ".simplicio" / "data").resolve()
+    return (base / ".simplicio-loop" / "data").resolve()
 
 
 def project_data_root(
@@ -146,8 +146,8 @@ def project_data_root(
 ) -> tuple[Path, str, str]:
     """Return ``(root, slug, source)`` for project-local data.
 
-    Default: ``<repo>/.simplicio/data/<slug>/``
-    If ``flat=True`` or ``SIMPLICIO_PROJECT_DATA_FLAT=1``: ``<repo>/.simplicio/data/``
+    Default: ``<repo>/.simplicio-loop/data/<slug>/``
+    If ``flat=True`` or ``SIMPLICIO_PROJECT_DATA_FLAT=1``: ``<repo>/.simplicio-loop/data/``
     """
     env = os.environ if environ is None else environ
     if env.get("SIMPLICIO_PROJECT_DATA_DIR"):
@@ -167,9 +167,9 @@ def project_data_root(
         "yes",
     }
     if use_flat:
-        root = (repo / ".simplicio" / "data").resolve()
+        root = (repo / ".simplicio-loop" / "data").resolve()
     else:
-        root = (repo / ".simplicio" / "data" / slug).resolve()
+        root = (repo / ".simplicio-loop" / "data" / slug).resolve()
     return root, slug, source
 
 
@@ -202,8 +202,8 @@ class ScopedDataLayout:
                 "memory": str(self.project.database("memory.sqlite")),
             },
             "policy": {
-                "core": "~/.simplicio/data (Runtime/MCP global)",
-                "project": "<repo>/.simplicio/data/<slug> (isolated per git/host project)",
+                "core": "~/.simplicio-loop/data (Runtime/MCP global)",
+                "project": "<repo>/.simplicio-loop/data/<slug> (isolated per git/host project)",
                 "no_mix": "project memories never share a DB file with core or other projects",
             },
         }
@@ -239,7 +239,7 @@ def resolve_scoped_layout(
     else:
         root = core_data_root(environ=env, home=home)
         reject_symlink_components(root)
-        core = StoreLocation(root, "core:.simplicio/data", root.exists())
+        core = StoreLocation(root, "core:.simplicio-loop/data", root.exists())
 
     project_loc = None
     slug = None

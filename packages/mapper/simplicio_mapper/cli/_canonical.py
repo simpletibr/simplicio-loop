@@ -68,7 +68,7 @@ internally-resolved cache-root path. ``canonical_gc.scan_canonical_gc``
 relativizes every path in its own receipt for the same reason.
 
 This is a **net-new, isolated CLI surface**: it does not read, write, or
-otherwise touch ``.simplicio/`` (the per-worktree index/scan artifacts) and
+otherwise touch ``.simplicio-loop/`` (the per-worktree index/scan artifacts) and
 is not called by ``index``/``scan``'s existing code paths. Wiring the
 canonical map into those commands is migration-plan step 6 and explicitly
 out of scope here (see issue #266's "Não objetivos"). Issue #266
@@ -217,10 +217,10 @@ def _git_diagnostics(root: str) -> dict:
 
 
 def _scoped_overlay(overlay):
-    """Drop the mapper's own out-of-scope paths (``SKIP_DIRS``, e.g. ``.simplicio/``) from ``overlay``.
+    """Drop the mapper's own out-of-scope paths (``SKIP_DIRS``, e.g. ``.simplicio-loop/``) from ``overlay``.
 
     ``compute_worktree_overlay`` reports every git-visible change verbatim,
-    including a stray ``.simplicio/cache/cache.db`` or ``.simplicio/index.lock``
+    including a stray ``.simplicio-loop/cache/cache.db`` or ``.simplicio-loop/index.lock``
     left untracked by a *previous* mapper invocation (``canonical
     verify``/``index``/``scan`` all write into the mapper's own output dir).
     ``canonical_verify._is_out_of_scope`` already excludes exactly this class

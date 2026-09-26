@@ -1,8 +1,8 @@
 """Unify ecosystem memory onto MapperStore SQLite (memory.sqlite) per scope.
 
 Policy (always-on):
-- **Core / Runtime:** ``~/.simplicio/data/memory.sqlite``
-- **Project:** ``<repo>/.simplicio/data/<slug>/memory.sqlite`` (never mixed)
+- **Core / Runtime:** ``~/.simplicio-loop/data/memory.sqlite``
+- **Project:** ``<repo>/.simplicio-loop/data/<slug>/memory.sqlite`` (never mixed)
 - Legacy neural ``simplicio-memory.sqlite`` is absorb/import source only.
 - FTS5 (semantic_fts) is mandatory after unify; sqlite-vec remains optional.
 - ``unify_memory`` is idempotent: re-run is safe and fills gaps.
@@ -448,7 +448,7 @@ def unify_memory(
 
     Steps:
     1. Ensure MapperStore schema on memory.sqlite
-    2. Optionally absorb ~/.simplicio/memory/simplicio-memory.sqlite if present
+    2. Optionally absorb ~/.simplicio-loop/memory/simplicio-memory.sqlite if present
     3. Bridge legacy neural file into canonical MapperStore tables
     4. Rebuild FTS5
     5. Write pointer + env hints
@@ -462,7 +462,7 @@ def unify_memory(
 
     absorb_report = None
     if absorb_legacy_home:
-        home_neural = Path.home() / ".simplicio" / "memory" / LEGACY_NEURAL_DB_NAME
+        home_neural = Path.home() / ".simplicio-loop" / "memory" / LEGACY_NEURAL_DB_NAME
         if home_neural.is_file():
             # Prefer hub copy; refresh from home if hub missing or smaller
             if (not neural.is_file()) or home_neural.stat().st_size > neural.stat().st_size * 0.9:

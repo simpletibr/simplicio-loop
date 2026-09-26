@@ -210,7 +210,7 @@ Każda linkuje do swojej szczegółowej sekcji i swojego workera.
 | Możliwość | Co robi | Dowód / worker | Szczegóły |
 |---|---|---|---|
 | 🎬 **Dowód wideo** (`video_evidence`) | Nagrywa **rzeczywistą sesję przeglądarki** jako ruchomy dowód, że zmiana UI działa (Playwright, domyślnie); renderuje **deterministyczne MP4 z napisami** przez [hyperframes](https://github.com/heygen-com/hyperframes) na wyraźną prośbę o film objaśniający (`/simplicio-loop make a video of screen X`) | `scripts/video_evidence.py` · BLOKOWANE (nigdy fałszywe zaliczenie) bez wymaganego toolchainu | [§ Dowód wideo](#-dowód-wideo--playwright-domyślnie-hyperframes-na-żądanie) |
-| 🧠 **Pamięć prób + detektor zastoju** | Trwały dziennik przebiegu (`.simplicio/orchestrator/loop/journal.jsonl`) + detektor zastoju, dzięki czemu pętla **zmienia strategię zamiast oscylować**; przyrostowy triage (`since`) odczytuje tylko deltę w każdej turze | `scripts/loop_journal.py` · `selftest` 9/9 | [§ Anty-oscylacja](#-pamięć-prób--detektor-zastoju-anty-oscylacja) |
+| 🧠 **Pamięć prób + detektor zastoju** | Trwały dziennik przebiegu (`.simplicio-loop/orchestrator/loop/journal.jsonl`) + detektor zastoju, dzięki czemu pętla **zmienia strategię zamiast oscylować**; przyrostowy triage (`since`) odczytuje tylko deltę w każdej turze | `scripts/loop_journal.py` · `selftest` 9/9 | [§ Anty-oscylacja](#-pamięć-prób--detektor-zastoju-anty-oscylacja) |
 | 🔒 **Bramka bezpieczeństwa fail-closed** (`action_gate`) | Hook `PreToolUse`/git-pre-push, który **mechanicznie blokuje** force-push, przepisanie historii, masowe usunięcie, destrukcyjny DDL, demontaż infrastruktury i commity/pushe z sekretami — Krok 5 zrobiony wykonywalnym, nie prozą | `hooks/action_gate.py` · `selftest` 15/15 | [§ Bezpieczeństwo](#-bezpieczeństwo-nie-podlega-negocjacji) |
 | 🔬 **Lokalna weryfikacja** | Zestaw testów (selftesty workerów + **e2e sterownika pętli** dowodzący wyjścia bramkowanego dowodami) + **claims-audit** (przywoływane skrypty istnieją · liczby spójne · `_bundle ≡ source`) — wszystko lokalnie, **bez płatnego CI** | `scripts/check.py` · `scripts/claims_audit.py` · `tests/` | [§ Testy i lokalne kontrole](#-testy-i-lokalne-kontrole-bez-płatnego-ci) |
 | ✅ **Uczciwe oszczędności** | Linia oszczędności jest teraz **bramkowana dowodami, nie obowiązkowa** — liczba pokazywana jest tylko z mierzonym pokwitowaniem (clamp/sygnatury/cache/`deterministic_edit`/ledger); nigdy fabrykowana | kontrakt ekonomii tokenów | [§ Ekonomia tokenów](#-ekonomia-tokenów) |
@@ -364,7 +364,7 @@ agent widział własną wcześniejszą pracę. Wyjście następuje WYŁĄCZNIE p
    dowód (przechodzący test, scalony PR, ponowne zapytanie o zamknięty element). Obietnica bez
    dowodu = ignorowana.
 2. **Pułap `max_iterations`** — twardy zawór bezpieczeństwa
-3. **Sygnał STOP** — `.simplicio/orchestrator/STOP` lub polecenie z kanału
+3. **Sygnał STOP** — `.simplicio-loop/orchestrator/STOP` lub polecenie z kanału
 
 Między turami LMCache (gdy dostępny) buforuje stan KV, więc ponowne podanie celu kosztuje niemal
 zerowy prefill.
@@ -373,7 +373,7 @@ zerowy prefill.
 
 Pętla z ponownym podawaniem celu, która niczego nie pamięta, oscyluje — spróbuj X, niepowodzenie,
 spróbuj X ponownie — aż pułap się wypali. simplicio-loop prowadzi **trwały dziennik przebiegu**
-(`.simplicio/orchestrator/loop/journal.jsonl`, tylko-dopisywanie:
+(`.simplicio-loop/orchestrator/loop/journal.jsonl`, tylko-dopisywanie:
 `iteration · action · hypothesis · gate · error-fingerprint`) i **detektor zastoju**
 ([`scripts/loop_journal.py`](../scripts/loop_journal.py), deterministyczny + bez modelu):
 

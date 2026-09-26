@@ -38,12 +38,12 @@ def test_delivery_api_defaults_to_integrated_and_requires_mapper_handoff(tmp_pat
         )
 
 
-def _provenance(path: str = ".simplicio/context-snapshot.json") -> dict[str, object]:
+def _provenance(path: str = ".simplicio-loop/context-snapshot.json") -> dict[str, object]:
     return {"artifacts": [{"name": "context_snapshot", "path": path}]}
 
 
 def test_mapper_symbol_handles_preserve_public_ids(tmp_path: Path) -> None:
-    artifact = tmp_path / ".simplicio" / "context-snapshot.json"
+    artifact = tmp_path / ".simplicio-loop" / "context-snapshot.json"
     artifact.parent.mkdir()
     artifact.write_text(
         json.dumps(
@@ -71,7 +71,7 @@ def test_mapper_symbol_handles_preserve_public_ids(tmp_path: Path) -> None:
 
 
 def test_integrated_traceability_fails_closed_without_symbol_nodes(tmp_path: Path) -> None:
-    artifact = tmp_path / ".simplicio" / "context-snapshot.json"
+    artifact = tmp_path / ".simplicio-loop" / "context-snapshot.json"
     artifact.parent.mkdir()
     artifact.write_text(
         json.dumps(
@@ -93,7 +93,7 @@ def test_integrated_traceability_fails_closed_without_symbol_nodes(tmp_path: Pat
 def test_malformed_mapper_graph_fails_closed_with_stable_reason(
     tmp_path: Path, graph: object
 ) -> None:
-    artifact = tmp_path / ".simplicio" / "context-snapshot.json"
+    artifact = tmp_path / ".simplicio-loop" / "context-snapshot.json"
     artifact.parent.mkdir()
     artifact.write_text(json.dumps(graph), encoding="utf-8")
 

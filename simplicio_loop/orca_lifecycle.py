@@ -4,7 +4,7 @@ Not part of the default loop path. The runner only enters this module when the
 client requested the ``orca`` integration (see ``client_integrations.py``):
 
 * ``SIMPLICIO_LOOP_CLIENT_INTEGRATIONS=orca``
-* ``.simplicio/client-integrations.json`` listing ``"orca"``
+* ``.simplicio-loop/client-integrations.json`` listing ``"orca"``
 * legacy ``SIMPLICIO_LOOP_ORCA_LIFECYCLE_SYNC=1``
 
 When enabled, uses the public ``orca worktree`` CLI and scopes writes to the

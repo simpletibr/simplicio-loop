@@ -108,7 +108,7 @@ def _status_paths(text: str) -> tuple[list[str], list[str]]:
 
 # Loop/dev-cli bookkeeping and verifier byproducts are never the user's diff.
 _NOT_USER_DIFF = (
-    ":(exclude).simplicio", ":(exclude,glob)**/__pycache__/**", ":(exclude,glob)**/*.pyc",
+    ":(exclude).simplicio-loop", ":(exclude,glob)**/__pycache__/**", ":(exclude,glob)**/*.pyc",
     ":(exclude,glob)**/.pytest_cache/**", ":(exclude,glob)**/.mypy_cache/**",
     ":(exclude,glob)**/.ruff_cache/**", ":(exclude,glob)**/.coverage",
     ":(exclude,glob)**/.coverage.*", ":(exclude,glob)**/htmlcov/**",
@@ -280,8 +280,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--baseline", default="HEAD")
     parser.add_argument("--max-files", type=int, default=DEFAULT_MAX_FILES)
     parser.add_argument("--max-lines", type=int, default=DEFAULT_MAX_LINES)
-    parser.add_argument("--anchor", default=".simplicio/orchestrator/loop/anchor.json")
-    parser.add_argument("--journal", default=".simplicio/orchestrator/loop/journal.jsonl")
+    parser.add_argument("--anchor", default=".simplicio-loop/orchestrator/loop/anchor.json")
+    parser.add_argument("--journal", default=".simplicio-loop/orchestrator/loop/journal.jsonl")
     parser.add_argument("--iteration", type=int, default=0)
     args = parser.parse_args(argv)
     try:

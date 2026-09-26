@@ -134,7 +134,7 @@ def test_persist_posix_rc_writes_idempotent_guarded_block(tmp_path, monkeypatch)
     monkeypatch.setattr(ep.Path, "home", staticmethod(lambda: tmp_path))
     bashrc = tmp_path / ".bashrc"
     bashrc.write_text("existing content\n", encoding="utf-8")
-    sh_path = tmp_path / ".simplicio" / "economy-parallel-env.sh"
+    sh_path = tmp_path / ".simplicio-loop" / "economy-parallel-env.sh"
 
     changed = ep.persist_posix_rc(sh_path)
     assert changed == [str(bashrc)]
@@ -151,7 +151,7 @@ def test_persist_posix_rc_writes_idempotent_guarded_block(tmp_path, monkeypatch)
 
 def test_persist_posix_rc_falls_back_to_profile_when_no_rc_exists(tmp_path, monkeypatch):
     monkeypatch.setattr(ep.Path, "home", staticmethod(lambda: tmp_path))
-    sh_path = tmp_path / ".simplicio" / "economy-parallel-env.sh"
+    sh_path = tmp_path / ".simplicio-loop" / "economy-parallel-env.sh"
 
     changed = ep.persist_posix_rc(sh_path)
     assert changed == [str(tmp_path / ".profile")]

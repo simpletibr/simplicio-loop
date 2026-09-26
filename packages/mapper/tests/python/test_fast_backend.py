@@ -127,7 +127,7 @@ class FastBackendTest(unittest.TestCase):
         self.assertEqual(snapshot["producer"]["name"], "simplicio-mapper")
         self.assertEqual(snapshot["graph"]["counts"]["micro"], 1)
         receipt = json.loads(
-            (self.root / ".simplicio" / "fast-backend-receipt.json").read_text(encoding="utf-8")
+            (self.root / ".simplicio-loop" / "fast-backend-receipt.json").read_text(encoding="utf-8")
         )
         self.assertEqual(receipt["selected_backend"], "fast")
 

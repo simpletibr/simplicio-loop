@@ -15,15 +15,15 @@ descendants, worktrees, or leases.
 The CLI surface is JSON-first:
 
 ```text
-python -m simplicio_loop.cli agent-slots status --repo . --mapper-db .simplicio/data/operations.sqlite
-python -m simplicio_loop.cli agent-slots acquire agent-a --repo . --mapper-db .simplicio/data/operations.sqlite --mapper-init
-python -m simplicio_loop.cli agent-slots start agent-a --repo . --mapper-db .simplicio/data/operations.sqlite
-python -m simplicio_loop.cli agent-slots close agent-a --status completed --repo . --mapper-db .simplicio/data/operations.sqlite
-python -m simplicio_loop.cli agent-slots reclaim --repo . --mapper-db .simplicio/data/operations.sqlite
+python -m simplicio_loop.cli agent-slots status --repo . --mapper-db .simplicio-loop/data/operations.sqlite
+python -m simplicio_loop.cli agent-slots acquire agent-a --repo . --mapper-db .simplicio-loop/data/operations.sqlite --mapper-init
+python -m simplicio_loop.cli agent-slots start agent-a --repo . --mapper-db .simplicio-loop/data/operations.sqlite
+python -m simplicio_loop.cli agent-slots close agent-a --status completed --repo . --mapper-db .simplicio-loop/data/operations.sqlite
+python -m simplicio_loop.cli agent-slots reclaim --repo . --mapper-db .simplicio-loop/data/operations.sqlite
 ```
 
 For a legacy database during the migration window, pass
-`--route legacy --db .simplicio/orchestrator/agent-slots.sqlite` explicitly.
+`--route legacy --db .simplicio-loop/orchestrator/agent-slots.sqlite` explicitly.
 
 `spawn_batch` is the programmatic seam for a real adapter. It retries a failed
 spawn at most `retry_limit` times, reuses the same logical agent record, and

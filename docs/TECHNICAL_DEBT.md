@@ -5,8 +5,8 @@ The loop distinguishes a **safe capability degradation** from a **hard execution
 Safe degradations use the versioned `simplicio.technical-debt/v1` contract. They are persisted
 under each run as:
 
-- `.simplicio/.../technical-debt.jsonl` — append-only observations;
-- `.simplicio/.../technical-debt.json` — deduplicated current index;
+- `.simplicio-loop/.../technical-debt.jsonl` — append-only observations;
+- `.simplicio-loop/.../technical-debt.json` — deduplicated current index;
 - `state.json` and `events.jsonl` — progress/status projection.
 
 A repeated observation keeps one fingerprinted notice and increments `occurrences`. The notice

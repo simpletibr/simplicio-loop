@@ -28,8 +28,8 @@ def test_receipt_retry_and_concurrency(tmp_path):
     receipt = worker.execute(plan(tmp_path), effect)
     assert worker.execute(plan(tmp_path), effect) == receipt
     assert len(calls) == 1 and receipt["receipt_hash"]
-    assert not (tmp_path / ".simplicio" / "mutation-worker.sqlite3").exists()
-    assert list((tmp_path / ".simplicio" / "mapper-store" / "mutations").glob("*.json"))
+    assert not (tmp_path / ".simplicio-loop" / "mutation-worker.sqlite3").exists()
+    assert list((tmp_path / ".simplicio-loop" / "mapper-store" / "mutations").glob("*.json"))
 
 
 def test_crash_path_and_hookwall_fail_closed(tmp_path):

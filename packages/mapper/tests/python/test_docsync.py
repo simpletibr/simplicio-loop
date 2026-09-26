@@ -57,8 +57,8 @@ class DocsSyncGitRepoTest(unittest.TestCase):
     def test_editing_one_module_only_regenerates_that_module_doc(self) -> None:
         # Baseline: write module docs for both modules once (full docs pass).
         write_architecture_docs(str(self.dir))
-        module_b_doc = self.dir / ".simplicio" / "docs" / "modules" / "moduleb.md"
-        module_a_doc = self.dir / ".simplicio" / "docs" / "modules" / "modulea.md"
+        module_b_doc = self.dir / ".simplicio-loop" / "docs" / "modules" / "moduleb.md"
+        module_a_doc = self.dir / ".simplicio-loop" / "docs" / "modules" / "modulea.md"
         self.assertTrue(module_a_doc.exists())
         self.assertTrue(module_b_doc.exists())
         before_b = module_b_doc.read_text(encoding="utf-8")
@@ -85,7 +85,7 @@ class DocsSyncGitRepoTest(unittest.TestCase):
 
     def test_check_mode_reports_stale_without_writing(self) -> None:
         write_architecture_docs(str(self.dir))
-        architecture_doc = self.dir / ".simplicio" / "docs" / "architecture.md"
+        architecture_doc = self.dir / ".simplicio-loop" / "docs" / "architecture.md"
         before = architecture_doc.read_text(encoding="utf-8")
 
         _write(self.dir, "moduleA/c.py", "def c():\n    return 3\n")
@@ -104,7 +104,7 @@ class DocsSyncGitRepoTest(unittest.TestCase):
         _write(self.dir, "moduleA/c.py", "def c():\n    return 3\n")
         payload = build_docs_sync(str(self.dir))
         self.assertTrue(any(doc.endswith("diagrams/architecture-modules.svg") for doc in payload["regenerated_docs"]))
-        svg_path = self.dir / ".simplicio" / "docs" / "diagrams" / "architecture-modules.svg"
+        svg_path = self.dir / ".simplicio-loop" / "docs" / "diagrams" / "architecture-modules.svg"
         self.assertTrue(svg_path.exists())
 
 
@@ -129,7 +129,7 @@ class DocsSyncFlowDiagramTest(unittest.TestCase):
         payload = build_docs_sync(str(self.dir))
         self.assertTrue(payload["affected_flows"])
         self.assertTrue(any("diagrams/flows/" in doc for doc in payload["regenerated_docs"]))
-        diagrams_dir = self.dir / ".simplicio" / "docs" / "diagrams" / "flows"
+        diagrams_dir = self.dir / ".simplicio-loop" / "docs" / "diagrams" / "flows"
         self.assertTrue(diagrams_dir.exists())
         self.assertTrue(list(diagrams_dir.glob("*.svg")))
 

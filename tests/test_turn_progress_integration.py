@@ -6,7 +6,7 @@ DRIFT/STALLED warning banner in loop_progress.py's render.
 
 loop_journal.py has no env-var path override (unlike task_anchor.py/task_backlog.py/
 loop_progress.py), so its tests import the module directly and monkeypatch its JOURNAL/LOOP_DIR
-module attributes rather than spawning a subprocess against the real repo's .simplicio/orchestrator/loop/.
+module attributes rather than spawning a subprocess against the real repo's .simplicio-loop/orchestrator/loop/.
 """
 import importlib.util
 import json
@@ -161,7 +161,7 @@ def test_watcher_verify_match_false_emits_watcher_end_outcome_fail(tmp_path):
     (never `blocked`/`begin`-only — the gate result IS the outcome)."""
     env = _env(tmp_path)
     env["SIMPLICIO_LOOP_REPO"] = str(tmp_path)
-    loop_dir = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop_dir = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     _write_json(str(loop_dir / "watcher_challenge.json"), {
         "challenge": "abc123", "goal_fp": "fp1", "iteration": 2,
         "written_at": "2026-07-10T00:00:00Z",
@@ -190,7 +190,7 @@ def test_watcher_verify_match_true_emits_watcher_end_outcome_pass(tmp_path):
     emit `watcher end outcome=pass`."""
     env = _env(tmp_path)
     env["SIMPLICIO_LOOP_REPO"] = str(tmp_path)
-    loop_dir = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop_dir = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     _write_json(str(loop_dir / "watcher_challenge.json"), {
         "challenge": "abc123", "goal_fp": "fp1", "iteration": 2,
         "written_at": "2026-07-10T00:00:00Z",
@@ -202,7 +202,7 @@ def test_watcher_verify_match_true_emits_watcher_end_outcome_pass(tmp_path):
             {"id": "AC2", "status": "done"},
         ],
     })
-    run_dir = tmp_path / ".simplicio/orchestrator" / "runs" / "demo"
+    run_dir = tmp_path / ".simplicio-loop/orchestrator" / "runs" / "demo"
     _write_json(str(run_dir / "evidence-receipt.json"), {
         "schema": "simplicio.evidence-receipt/v1",
         "run_id": "demo",
@@ -310,7 +310,7 @@ def test_journal_valid_record_appends_one_row_without_hypothesis(tmp_path):
                    ["record", "--iteration", "1", "--action", "hook", "--gate", "pass"],
                    str(tmp_path), env)
     assert result.returncode == 0, result.stdout + result.stderr
-    journal = tmp_path / ".simplicio" / "orchestrator" / "loop" / "journal.jsonl"
+    journal = tmp_path / ".simplicio-loop" / "orchestrator" / "loop" / "journal.jsonl"
     rows = [json.loads(line) for line in journal.read_text(encoding="utf-8").splitlines()]
     assert len(rows) == 1
     assert rows[0]["iteration"] == 1

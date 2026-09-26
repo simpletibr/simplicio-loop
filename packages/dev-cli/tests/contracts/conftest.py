@@ -23,8 +23,8 @@ SAMPLE_PROJECT = FIXTURES_DIR / "sample_project"
 def sample_project(tmp_path, monkeypatch):
     """A real (schema-faithful, hand-trimmed) mapper artifact pair on disk.
 
-    Copies fixtures/sample_project/ (.simplicio/project-map.json +
-    .simplicio/precedent-index.json + src/app.py) into an isolated tmp_path
+    Copies fixtures/sample_project/ (.simplicio-loop/project-map.json +
+    .simplicio-loop/precedent-index.json + src/app.py) into an isolated tmp_path
     so tests can mutate it freely, and disables the Claude Code
     auto-activation side effect the CLI otherwise triggers on first run.
     """

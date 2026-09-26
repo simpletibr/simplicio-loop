@@ -1,7 +1,7 @@
 """Command-line entry point for simplicio-mapper.
 
 Mirrors ``bin/map.js``: generates or refreshes the machine-readable mapper
-artifacts under ``.simplicio/``. Exposed as the ``simplicio-mapper`` and
+artifacts under ``.simplicio-loop/``. Exposed as the ``simplicio-mapper`` and
 ``llm-project-mapper`` console scripts (see ``pyproject.toml``).
 
 Issue #159 (god-file split): this module used to be a single ~2800-line

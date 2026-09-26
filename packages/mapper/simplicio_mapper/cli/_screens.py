@@ -11,7 +11,7 @@ def _screen_files(root: str):
     skip = {
         ".git",
         "node_modules",
-        ".simplicio",
+        ".simplicio-loop",
         "dist",
         "build",
         "obj",

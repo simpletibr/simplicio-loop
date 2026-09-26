@@ -11,7 +11,7 @@ Usage:
     python3 scripts/stage_coordinator.py run --run-id run-1 --task-id task-1 \
         --command "python3 fixtures/echo_agent.py {input} {output} {receipt}"
     python3 scripts/stage_coordinator.py status --run-id run-1 --task-id task-1 \
-        --journal .simplicio/orchestrator/stage-agents/run-1.jsonl
+        --journal .simplicio-loop/orchestrator/stage-agents/run-1.jsonl
     python3 scripts/stage_coordinator.py probe --command "..."
     python3 scripts/stage_coordinator.py selftest
 """
@@ -34,7 +34,7 @@ def _emit(payload: dict, *, exit_code: int = 0) -> int:
 
 
 def _default_journal_path(run_id: str) -> Path:
-    return Path(".simplicio/orchestrator") / "stage-agents" / f"{run_id}.jsonl"
+    return Path(".simplicio-loop/orchestrator") / "stage-agents" / f"{run_id}.jsonl"
 
 
 def _build_adapters(opts) -> list:

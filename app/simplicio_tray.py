@@ -25,7 +25,7 @@ HOME = os.path.expanduser("~")
 REPO = Path(__file__).resolve().parents[1]
 ICON = str(REPO / "assets" / "tray-icon.png")
 SAVINGS_CANDIDATES = [
-    Path(HOME) / ".simplicio" / "proxy_savings.json",
+    Path(HOME) / ".simplicio-loop" / "proxy_savings.json",
 ]
 PROXY_PORT = int(os.environ.get("SIMPLICIO_PROXY_PORT", "8788"))
 MONITOR_PORT = os.environ.get("SIMPLICIO_MONITOR_PORT", "9090")

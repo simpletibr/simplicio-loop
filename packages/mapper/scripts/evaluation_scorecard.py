@@ -74,7 +74,7 @@ def _measure_tree_bytes(root: Path) -> int:
 
 
 def _artifact_bytes(root: Path) -> int:
-    artifact_root = root / ".simplicio"
+    artifact_root = root / ".simplicio-loop"
     return _measure_tree_bytes(artifact_root) if artifact_root.exists() else 0
 
 

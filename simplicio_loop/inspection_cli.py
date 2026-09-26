@@ -338,7 +338,7 @@ def _issue_url(repo: str, url) -> bool:
 
 def _receipt_path(args) -> Path:
     explicit = str(getattr(args, "receipt", "") or "")
-    return Path(explicit) if explicit else Path(".simplicio/orchestrator/findings/import-receipt.json")
+    return Path(explicit) if explicit else Path(".simplicio-loop/orchestrator/findings/import-receipt.json")
 
 
 def _load_import_receipt(path: Path):

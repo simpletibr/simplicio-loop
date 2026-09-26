@@ -131,7 +131,7 @@ class HookwallAdapter:
             "idempotency_key": fabric_envelope["idempotency_key"],
             "workspace": self.workspace, "fence": fabric_envelope["fence"],
             "effect_set": ["process", "write"],
-            "write_set": [".simplicio/fabric/" + fabric_envelope["work_item_id"] + ".json"],
+            "write_set": [".simplicio-loop/fabric/" + fabric_envelope["work_item_id"] + ".json"],
             "command": ["simplicio-dev-cli", "task", "--json"],
         })
         pre = dict(self.pre_hook(hw))

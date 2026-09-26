@@ -77,7 +77,7 @@ write/confirm op). Tune per repo.
 | PR / list view | counts + titles only | ~87% | `--json`/`--jq` present |
 | package/image inventory | keep ≤50 rows | ~50% | — |
 | format / passthrough | run raw | 0% | always |
-| structured JSON payload → prompt (verdict-shaped, e.g. `task_anchor.py check`, `loop_journal.py stall`, mapper `handoff`) | encode via `toon_codec.encode_toon` (TOON — Token-Oriented Object Notation, lossless, `scripts/toon_codec.py`) | ~21–33% (chars4) / ~38–45% (bpe_estimate) measured on the first two real verdict payloads (`.simplicio/orchestrator/savings/snapshots.jsonl`, #92); up to ~40%+ on an ideal uniform tabular array of objects, per the toon-format benchmark — real non-tabular verdict payloads (few scalar keys, no row-shaped array) measure lower; snapshot more items before trusting a number outside this range | payload is empty / non-uniform (differing keys, mixed types, nested arrays-or-objects per element) — the codec auto-falls-back to compact JSON for THAT value, never lossy-compact; measure, don't assume the ideal-case number |
+| structured JSON payload → prompt (verdict-shaped, e.g. `task_anchor.py check`, `loop_journal.py stall`, mapper `handoff`) | encode via `toon_codec.encode_toon` (TOON — Token-Oriented Object Notation, lossless, `scripts/toon_codec.py`) | ~21–33% (chars4) / ~38–45% (bpe_estimate) measured on the first two real verdict payloads (`.simplicio-loop/orchestrator/savings/snapshots.jsonl`, #92); up to ~40%+ on an ideal uniform tabular array of objects, per the toon-format benchmark — real non-tabular verdict payloads (few scalar keys, no row-shaped array) measure lower; snapshot more items before trusting a number outside this range | payload is empty / non-uniform (differing keys, mixed types, nested arrays-or-objects per element) — the codec auto-falls-back to compact JSON for THAT value, never lossy-compact; measure, don't assume the ideal-case number |
 
 ## Signal-tiered truncation caps (one shared set)
 
@@ -101,12 +101,12 @@ Aggressive truncation is only safe if full context is recoverable WITHOUT re-run
 command (re-running re-burns tokens and may be non-deterministic). So:
 
 - On any **non-zero exit**, OR whenever a cap clips a FAILING command, write the full
-  unfiltered output to `.simplicio/orchestrator/tee/<ts>_<cmd-slug>.log` and surface only the path:
+  unfiltered output to `.simplicio-loop/orchestrator/tee/<ts>_<cmd-slug>.log` and surface only the path:
   ```
   FAILED: 2/15 tests
-  [full output: .simplicio/orchestrator/tee/1707753600_npm_test.log]
+  [full output: .simplicio-loop/orchestrator/tee/1707753600_npm_test.log]
   ```
-- Config knob (in `.simplicio/orchestrator/orient.toml`): `tee.mode = failures | always | never`
+- Config knob (in `.simplicio-loop/orchestrator/orient.toml`): `tee.mode = failures | always | never`
   (default `failures`). The agent reads the file lazily only if it needs more than the kept
   error lines.
 
@@ -143,7 +143,7 @@ full-body read only when actually editing the body.
 Where the host exposes a `PreToolUse`/pre-exec hook, bind `hooks/orient_rewrite.py`: it
 transparently rewrites a bare shell call into its clamped form before execution
 (`git status` → clamped, `<test>` → failures-only), so adoption is 100% across the main agent
-AND every subagent at zero token overhead. An exclusion list in `.simplicio/orchestrator/orient.toml`
+AND every subagent at zero token overhead. An exclusion list in `.simplicio-loop/orchestrator/orient.toml`
 keeps streaming/interactive/binary commands raw:
 
 ```toml

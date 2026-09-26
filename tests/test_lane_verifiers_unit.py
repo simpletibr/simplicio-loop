@@ -122,12 +122,12 @@ def test_declared_coverage_verifier_overrides_non_code_shortcut(tmp_path):
 
 
 def test_simplicio_bookkeeping_paths_are_ignored_when_classifying_delivery(tmp_path):
-    # `changed_paths` is a whole-repo diff and always includes `.simplicio/`
+    # `changed_paths` is a whole-repo diff and always includes `.simplicio-loop/`
     # bookkeeping (Mapper caches, run receipts, the ledger, ...) alongside the
     # actual delivery -- that machinery must never make an otherwise non-code
     # delivery look mixed/code.
     run_dir = _run_dir(tmp_path, changed_paths=[
-        ".simplicio/loop-runs/x/state.json", ".simplicio/cache/cache.db", "login.html",
+        ".simplicio-loop/loop-runs/x/state.json", ".simplicio-loop/cache/cache.db", "login.html",
     ])
     lv.build_quality_matrix(tmp_path, run_dir, [_task(**NO_COVERAGE)])
     verdict = evaluate_quality_matrix(str(run_dir))

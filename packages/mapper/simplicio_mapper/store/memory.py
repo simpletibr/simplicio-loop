@@ -79,7 +79,7 @@ def memory_dir() -> Path:
     override = os.environ.get("SIMPLICIO_MEMORY_DIR")
     if override:
         return Path(override).expanduser()
-    return (Path(os.environ.get("HOME", str(Path.home()))) / ".simplicio" / "memory").expanduser()
+    return (Path(os.environ.get("HOME", str(Path.home()))) / ".simplicio-loop" / "memory").expanduser()
 
 
 def _split_sections(text: str) -> list[str]:

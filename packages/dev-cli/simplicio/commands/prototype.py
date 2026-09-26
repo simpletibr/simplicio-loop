@@ -74,7 +74,7 @@ TYPES = (
 # sandboxes, receipts, decisions). Excluded from the source-tree hash so that
 # scaffolding/validating a candidate never perturbs the very source_sha it is
 # compared against (issue #236 stale-candidate detection).
-_SOURCE_EXCLUDES = (".git", ".simplicio")
+_SOURCE_EXCLUDES = (".git", ".simplicio-loop")
 
 
 class PrototypeError(RuntimeError):
@@ -101,7 +101,7 @@ def _tree(root: Path) -> dict[str, str]:
 
 def _source_tree(root: Path) -> dict[str, str]:
     """Like `_tree`, but also excludes the adapter's own bookkeeping dirs
-    (`.simplicio/`) so that scaffolding a candidate never changes the
+    (`.simplicio-loop/`) so that scaffolding a candidate never changes the
     source-tree hash it is later checked against (stale-candidate gate)."""
     result: dict[str, str] = {}
     if not root.exists():
@@ -196,7 +196,7 @@ def _candidate_dir(args: Any, plan: dict[str, Any]) -> Path:
     return (
         Path(candidate_override).resolve()
         if candidate_override
-        else Path(args.root).resolve() / ".simplicio" / "prototypes" / plan["plan_hash"][:16]
+        else Path(args.root).resolve() / ".simplicio-loop" / "prototypes" / plan["plan_hash"][:16]
     )
 
 

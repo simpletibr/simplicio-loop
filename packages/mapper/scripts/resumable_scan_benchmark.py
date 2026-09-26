@@ -55,8 +55,8 @@ def run_benchmark(*, files: int, runs: int, timeout: int) -> dict:
             )
             elapsed = time.perf_counter() - started
             payload = json.loads(result.stdout.strip().splitlines()[-1])
-            partial = json.loads((root / ".simplicio" / "partial-scan.json").read_text(encoding="utf-8"))
-            state = json.loads((root / ".simplicio" / "index-state.json").read_text(encoding="utf-8"))
+            partial = json.loads((root / ".simplicio-loop" / "partial-scan.json").read_text(encoding="utf-8"))
+            state = json.loads((root / ".simplicio-loop" / "index-state.json").read_text(encoding="utf-8"))
             samples.append(
                 {
                     "run": ordinal + 1,

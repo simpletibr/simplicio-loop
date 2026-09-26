@@ -21,7 +21,7 @@ suspected compromise.
 | Short-lived, revocable HMAC bearer credential (`exp`, `nbf`, `jti`, scope) | Done (#346, `scripts/short_lived_credentials.py`) |
 | Static-token fallback is opt-in, not silent | Done (this change) — `SIMPLICIO_ALLOW_STATIC_QUEUE_TOKEN=1` required, every use audited |
 | Operation-level credential scoping (`ops` claim, checked per queue operation) | Done (this change) |
-| Structured audit log of every authorize/check_endpoint/verify_token decision | Done (this change) — `.simplicio/orchestrator/security/audit-log.jsonl` |
+| Structured audit log of every authorize/check_endpoint/verify_token decision | Done (this change) — `.simplicio-loop/orchestrator/security/audit-log.jsonl` |
 | SPKI pin rotation with `current` + `next` | Done (this change) — `tls_sha256_pins` accepts `{"sha256","status"}` entries |
 | Additional live negative/fault-injection tests (redirect, DNS rebinding, proxy injection) | Done (this change) — `tests/test_secure_transport_fault_injection.py` |
 | **OIDC broker exchange (GitHub Actions issuer → broker → short-lived cloud/queue credential)** | **Permanently blocked.** The specific `.github/workflows/distributed-183-proof.yml` OIDC surface #289 was written against was removed in #311. The two current workflows (`simplicio-status-sync.yml` and `windows-progress-smoke.yml`) do not request `id-token: write`, provide no release/OIDC gate, and were not executed or used as evidence here. There is therefore no current source for the initial JWT this control depends on. This is not deferred pending more engineering time — it is architecturally unavailable until/unless a CI-hosted trigger with OIDC support is introduced, at which point this line item should be revisited from scratch, not resumed from partial work. |
@@ -67,7 +67,7 @@ requires at least one `"current"` pin at all times.
 
 ```bash
 python3 scripts/short_lived_credentials.py revoke --jti <jti> \
-  --revocation-store .simplicio/orchestrator/security/revoked-jti.json
+  --revocation-store .simplicio-loop/orchestrator/security/revoked-jti.json
 ```
 
 The revoked `jti` is rejected immediately by `verify_token()` (checked before any queue
@@ -116,7 +116,7 @@ set. If you see this error:
 ## 7. Incident response checklist
 
 1. Identify the affected `jti`/`sub`/`environment_id` from
-   `.simplicio/orchestrator/security/audit-log.jsonl` (never from a token value — tokens are never
+   `.simplicio-loop/orchestrator/security/audit-log.jsonl` (never from a token value — tokens are never
    logged).
 2. Revoke the specific `jti` (§4) and/or rotate the signing secret (§2/§5) depending on blast
    radius.

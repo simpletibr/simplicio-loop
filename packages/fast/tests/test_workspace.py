@@ -13,7 +13,7 @@ class WorkspaceGenerationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             store = WorkspaceStore(root)
-            self.assertEqual((root / ".simplicio" / "fast").resolve(), store.storage)
+            self.assertEqual((root / ".simplicio-loop" / "fast").resolve(), store.storage)
 
     def test_generation_and_worktree_ids_fail_closed(self) -> None:
         with self.assertRaises(ValueError):
@@ -103,7 +103,7 @@ class WorkspaceGenerationTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "overlay base generation"):
                 store.refresh("slot", "0" * 64, first.overlay_generation)
             receipts = sorted(
-                (root / ".simplicio" / "fast" / "receipts").glob("*-refresh.json")
+                (root / ".simplicio-loop" / "fast" / "receipts").glob("*-refresh.json")
             )
             self.assertTrue(receipts)
             self.assertEqual(
@@ -111,7 +111,7 @@ class WorkspaceGenerationTest(unittest.TestCase):
                 json.loads(receipts[-1].read_text())["previous_overlay_generation"],
             )
             receipt_files = list(
-                (root / ".simplicio" / "fast" / "receipts").glob("*.json")
+                (root / ".simplicio-loop" / "fast" / "receipts").glob("*.json")
             )
             self.assertGreaterEqual(len(receipt_files), 3)
 
@@ -132,7 +132,7 @@ class WorkspaceGenerationTest(unittest.TestCase):
             self.assertIn(base.generation_id, report["candidates"])
             store.gc(apply=True)
             self.assertFalse(
-                (root / ".simplicio" / "fast" / "base" / base.generation_id).exists()
+                (root / ".simplicio-loop" / "fast" / "base" / base.generation_id).exists()
             )
 
     def test_pinned_context_releases_and_expired_leases_are_collected(self) -> None:
@@ -147,7 +147,7 @@ class WorkspaceGenerationTest(unittest.TestCase):
                 self.assertTrue(
                     (
                         root
-                        / ".simplicio"
+                        / ".simplicio-loop"
                         / "fast"
                         / "leases"
                         / f"{lease.lease_id}.json"
@@ -155,7 +155,7 @@ class WorkspaceGenerationTest(unittest.TestCase):
                 )
             self.assertFalse(
                 (
-                    root / ".simplicio" / "fast" / "leases" / f"{lease.lease_id}.json"
+                    root / ".simplicio-loop" / "fast" / "leases" / f"{lease.lease_id}.json"
                 ).exists()
             )
             expired = store.pin(base.generation_id, "expired", ttl_seconds=-1)
@@ -163,7 +163,7 @@ class WorkspaceGenerationTest(unittest.TestCase):
             self.assertNotIn(base.generation_id, report["protected"])
             self.assertFalse(
                 (
-                    root / ".simplicio" / "fast" / "leases" / f"{expired.lease_id}.json"
+                    root / ".simplicio-loop" / "fast" / "leases" / f"{expired.lease_id}.json"
                 ).exists()
             )
 
@@ -234,7 +234,7 @@ class WorkspaceGenerationTest(unittest.TestCase):
             self.assertIsNotNone(first)
             second, _ = store.watch_once("slot", base.generation_id, state)
             self.assertIsNone(second)
-            temporary_files = list((root / ".simplicio" / "fast").rglob("*.tmp"))
+            temporary_files = list((root / ".simplicio-loop" / "fast").rglob("*.tmp"))
             self.assertEqual([], temporary_files)
 
     def test_adapters_preserve_language_symbols_and_explicit_fallback(self) -> None:
@@ -268,7 +268,7 @@ class WorkspaceGenerationTest(unittest.TestCase):
             for overlay in overlays:
                 path = (
                     root
-                    / ".simplicio"
+                    / ".simplicio-loop"
                     / "fast"
                     / "overlays"
                     / overlay.worktree_id
@@ -278,7 +278,7 @@ class WorkspaceGenerationTest(unittest.TestCase):
                     overlay.overlay_generation,
                     json.loads(path.read_text())["overlay_generation"],
                 )
-            self.assertEqual([], list((root / ".simplicio" / "fast").rglob("*.tmp")))
+            self.assertEqual([], list((root / ".simplicio-loop" / "fast").rglob("*.tmp")))
 
 
 if __name__ == "__main__":

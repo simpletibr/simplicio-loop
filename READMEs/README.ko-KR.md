@@ -206,7 +206,7 @@ LLM(Claude, Codex, Copilot, Gemini, Cursor, 로컬 모델)을 스스로 굴러�
 | 역량 | 하는 일 | 증명 / 워커 | 상세 |
 |---|---|---|---|
 | 🎬 **비디오 증거** (`video_evidence`) | UI 변경이 동작한다는 움직이는 증거로 **실제 브라우저 세션을 녹화**합니다(기본값 Playwright, `.webm` → FFmpeg로 `.mp4`); 명시적인 설명용 비디오 요청(`/simplicio-loop make a video of screen X`) 시에는 [hyperframes](https://github.com/heygen-com/hyperframes)로 **캡션이 달린 결정론적 MP4**를 렌더링 | `scripts/video_evidence.py` · 툴체인 없으면 BLOCKED(절대 가짜 통과 없음) | [§ 비디오 증거](#-비디오-증거--playwright-by-default-hyperframes-on-request) |
-| 🧠 **시도 메모리 + 정체 감지기** | 내구성 있는 실행 저널(`.simplicio/orchestrator/loop/journal.jsonl`) + 정체 감지기로 루프가 **진동하는 대신 전략을 바꾸게** 함; 증분 분류(`since`)로 매 턴 델타만 읽음 | `scripts/loop_journal.py` · `selftest` 13/13 | [§ 진동 방지](#-시도-메모리--정체-감지기진동-방지) |
+| 🧠 **시도 메모리 + 정체 감지기** | 내구성 있는 실행 저널(`.simplicio-loop/orchestrator/loop/journal.jsonl`) + 정체 감지기로 루프가 **진동하는 대신 전략을 바꾸게** 함; 증분 분류(`since`)로 매 턴 델타만 읽음 | `scripts/loop_journal.py` · `selftest` 13/13 | [§ 진동 방지](#-시도-메모리--정체-감지기진동-방지) |
 | 🔒 **페일 클로즈 안전 게이트** (`action_gate`) | force-push, 히스토리 재작성, 대량 삭제, 파괴적 DDL, 인프라 철거, 시크릿이 든 커밋/푸시를 **기계적으로 차단**하는 `PreToolUse`/git-pre-push 훅 — 산문이 아니라 실행 가능한 5단계 | `hooks/action_gate.py` · `selftest` 15/15 | [§ 안전성](#-안전성타협-불가) |
 | 🔬 **로컬 검증** | 테스트 스위트(워커 selftest + 증거 게이트 종료를 증명하는 **루프 드라이버 e2e**) + **claims-audit**(참조된 스크립트 존재 · 카운트 일관성 · `_bundle ≡ source`) — 모두 로컬, **유료 CI 없음** | `scripts/check.py` · `scripts/claims_audit.py` · `tests/` | [§ 테스트 & 로컬 점검](#-테스트--로컬-점검유료-ci-없음) |
 | ✅ **정직한 절감** | 절감 표시는 이제 **증거 게이트 방식이며 필수가 아님** — 측정된 영수증(clamp/signatures/cache/`deterministic_edit`/ledger)이 있을 때만 수치를 보여 줌; 절대 날조하지 않음 | 토큰 경제 계약 | [§ 토큰 경제](#-토큰-경제) |
@@ -362,7 +362,7 @@ DoD + acceptance criteria를 기준으로 열린 PR을 리뷰합니다(`scripts/
    병합된 PR, 종료된 항목 재조회)를 함께 실어야 합니다. 증거 없는 약속 = 무시됩니다.
 2. **`max_iterations` 상한** — 강력한 안전 백스톱
 3. **STOP/cancel path** — explicit STOP file or channel command stops unattended runs
-4. **STOP 신호** — `.simplicio/orchestrator/STOP` 또는 채널 명령
+4. **STOP 신호** — `.simplicio-loop/orchestrator/STOP` 또는 채널 명령
 
 턴 사이에서, LMCache(사용 가능할 때)는 KV 상태를 캐시해 재투입의 프리필 비용을 거의 0으로
 만듭니다.
@@ -370,7 +370,7 @@ DoD + acceptance criteria를 기준으로 열린 PR을 리뷰합니다(`scripts/
 ### 🧠 시도 메모리 + 정체 감지기(진동 방지)
 
 아무것도 기억하지 못하는 재투입 루프는 진동합니다 — X를 시도하고, 실패하고, 다시 X를 시도하고 —
-상한이 소진될 때까지. simplicio-loop는 **내구성 있는 실행 저널**(`.simplicio/orchestrator/loop/journal.jsonl`,
+상한이 소진될 때까지. simplicio-loop는 **내구성 있는 실행 저널**(`.simplicio-loop/orchestrator/loop/journal.jsonl`,
 추가 전용: `iteration · action · hypothesis · gate · error-fingerprint`)과 **정체 감지기**
 ([`scripts/loop_journal.py`](../scripts/loop_journal.py), 결정론적 + 모델 없음)를 유지합니다.
 

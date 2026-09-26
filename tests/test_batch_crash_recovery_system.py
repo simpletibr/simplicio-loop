@@ -76,7 +76,7 @@ def _arm_fixture(tmp_path, monkeypatch, name):
     repo.mkdir(parents=True)
     (repo / "src").mkdir()
     (repo / "src" / "app.py").write_text("def main():\n    return 'ok'\n", encoding="utf-8")
-    (repo / ".gitignore").write_text(".simplicio/\n", encoding="utf-8")
+    (repo / ".gitignore").write_text(".simplicio-loop/\n", encoding="utf-8")
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
     subprocess.run(["git", "add", ".gitignore", "src/app.py"], cwd=repo, check=True)
     subprocess.run(

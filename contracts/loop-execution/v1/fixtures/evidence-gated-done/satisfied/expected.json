@@ -4,14 +4,14 @@
   "description": "All four conditions hold at once: promise text matches EXACTLY, the turn's own text carries an evidence marker, the watcher independently re-verified, and no acceptance criterion is pending. Only then is the promise honored.",
   "harness": "hooks/loop_stop.py",
   "harness_invocation": {
-    "cwd": "this fixture's .simplicio/orchestrator/ tree copied into an isolated temp dir",
+    "cwd": "this fixture's .simplicio-loop/orchestrator/ tree copied into an isolated temp dir",
     "stdin": "stdin.json"
   },
   "expected": {
     "returncode": 0,
     "stdout": "",
     "files_after": {
-      ".simplicio/orchestrator/loop/scratchpad.md": "absent"
+      ".simplicio-loop/orchestrator/loop/scratchpad.md": "absent"
     }
   }
 }

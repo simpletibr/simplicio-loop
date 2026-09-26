@@ -94,8 +94,8 @@ simplicio doctor --json | grep -A2 mcp-host-registration
 
 Hook-bound (N1): `loop_stop.py` injects fase/etapa/item/ACs/% straight into the re-feed header —
 no action needed. Universal fallback (N3, works everywhere): open
-`.simplicio/orchestrator/loop/PROGRESS.md` in the editor (auto-regenerated every turn), or
-`watch -n5 cat .simplicio/orchestrator/loop/PROGRESS.md` in a terminal.
+`.simplicio-loop/orchestrator/loop/PROGRESS.md` in the editor (auto-regenerated every turn), or
+`watch -n5 cat .simplicio-loop/orchestrator/loop/PROGRESS.md` in a terminal.
 
 ## Ecosystem law (2026-08) — read on every host
 

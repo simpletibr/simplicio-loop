@@ -114,7 +114,7 @@ class MapperStore:
             memory_path = _safe_path(selected)
             selected = memory_path.parent
         else:
-            selected = _safe_path(selected or (Path.home() / ".simplicio" / "data"))
+            selected = _safe_path(selected or (Path.home() / ".simplicio-loop" / "data"))
             memory_path = selected / _CANONICAL_MEMORY
         self.root = _safe_path(selected)
         self.memory_database = memory_path

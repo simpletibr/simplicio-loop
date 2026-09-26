@@ -64,7 +64,7 @@ _QUERY_CACHE_SKIP_DIRS = {
     ".git",
     ".hg",
     ".svn",
-    ".simplicio",
+    ".simplicio-loop",
     "__pycache__",
     ".pytest_cache",
     "node_modules",
@@ -472,7 +472,7 @@ def _runtime_ask_query(cwd: str, verb: str, arg: str, limit: int) -> tuple[dict 
     return payload, "delegated"
 
 
-_NATIVE_BASELINE_SKIP_DIRS = {".git", "node_modules", ".simplicio", "venv", ".venv", "dist", "build", "__pycache__"}
+_NATIVE_BASELINE_SKIP_DIRS = {".git", "node_modules", ".simplicio-loop", "venv", ".venv", "dist", "build", "__pycache__"}
 _NATIVE_BASELINE_SOURCE_EXTS = {".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs", ".java", ".rb"}
 
 
@@ -546,7 +546,7 @@ def _local_precedent_fallback(items: list[dict], text: str, top_n: int) -> list[
 
 def run_query(
     cwd: str,
-    out_dir: str = ".simplicio",
+    out_dir: str = ".simplicio-loop",
     verb: str = "",
     arg: str | None = None,
     depth: int = DEFAULT_DEPTH,

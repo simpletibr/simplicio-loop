@@ -81,7 +81,7 @@ def test_default_server_lane_is_repo_scoped_mapper_store(monkeypatch, tmp_path: 
         def shutdown(self):
             pass
 
-    expected = tmp_path / "repo" / ".simplicio" / "data" / "operations.sqlite"
+    expected = tmp_path / "repo" / ".simplicio-loop" / "data" / "operations.sqlite"
     monkeypatch.setattr(remote_queue_server_cli, "_default_mapper_db",
                         lambda repo: (captured.__setitem__("repo", repo) or expected))
     monkeypatch.setattr(remote_queue_server_cli, "MapperRemoteQueue", FakeQueue)

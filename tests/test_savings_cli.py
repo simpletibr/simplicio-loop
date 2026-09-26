@@ -4,7 +4,7 @@ from simplicio_loop.savings_cli import main
 
 
 def test_savings_report_is_honest_when_provider_usage_is_unmeasured(tmp_path, capsys):
-    run = tmp_path / ".simplicio" / "loop-runs" / "run-1"
+    run = tmp_path / ".simplicio-loop" / "loop-runs" / "run-1"
     run.mkdir(parents=True)
     (run / "manifest.json").write_text("{}", encoding="utf-8")
     (run / "operator-batch.jsonl").write_text(json.dumps({

@@ -58,7 +58,7 @@ def test_node_js_is_not_treated_as_an_orient_target(tmp_path: Path):
 
 def test_mapper_handoff_supplies_selected_target_when_task_has_no_path(tmp_path: Path):
     (tmp_path / "plugin.js").write_text("export {}\n", encoding="utf-8")
-    pack_dir = tmp_path / ".simplicio" / "handoff-objects"
+    pack_dir = tmp_path / ".simplicio-loop" / "handoff-objects"
     pack_dir.mkdir(parents=True)
     (pack_dir / "context_pack-ready.json").write_text(
         json.dumps({
@@ -82,7 +82,7 @@ def test_mapper_handoff_supplies_selected_target_when_task_has_no_path(tmp_path:
 
 def test_unresolved_target_emits_concrete_next_command(tmp_path: Path):
     (tmp_path / "plugin.js").write_text("export {}\n", encoding="utf-8")
-    pack_dir = tmp_path / ".simplicio" / "handoff-objects"
+    pack_dir = tmp_path / ".simplicio-loop" / "handoff-objects"
     pack_dir.mkdir(parents=True)
     (pack_dir / "context_pack-ready.json").write_text(
         json.dumps({"explicit_target_added": "plugin.js", "files": [{"path": "plugin.js"}]}),

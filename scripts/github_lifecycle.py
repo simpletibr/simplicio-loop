@@ -8,7 +8,7 @@
     python3 scripts/github_lifecycle.py get-details --owner acme --repo widgets --issue 12
     python3 scripts/github_lifecycle.py requery --owner acme --repo widgets --issue 12
     python3 scripts/github_lifecycle.py reconcile --owner acme --repo widgets --issue 12 \
-        --operation-id <op-id> --outbox-dir .simplicio/orchestrator/github-outbox
+        --operation-id <op-id> --outbox-dir .simplicio-loop/orchestrator/github-outbox
     python3 scripts/github_lifecycle.py close --owner acme --repo widgets --issue 12 \
         --run-id r1 --attempt-id a1
     python3 scripts/github_lifecycle.py reconcile-duplicates --owner acme --repo widgets \

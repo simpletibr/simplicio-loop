@@ -48,7 +48,7 @@ def _run_mapper(
 
 
 def _envelope(root: Path, commit: str) -> dict[str, object]:
-    artifact = root / ".simplicio" / "context-snapshot.json"
+    artifact = root / ".simplicio-loop" / "context-snapshot.json"
     artifact.parent.mkdir(exist_ok=True)
     artifact.write_text(
         '{"schema":"simplicio.context-snapshot/v1"}\n', encoding="utf-8"
@@ -65,7 +65,7 @@ def _envelope(root: Path, commit: str) -> dict[str, object]:
             "artifacts": [
                 {
                     "name": "context_snapshot",
-                    "path": ".simplicio/context-snapshot.json",
+                    "path": ".simplicio-loop/context-snapshot.json",
                     "bytes": artifact.stat().st_size,
                     "sha256": digest,
                 }
@@ -92,7 +92,7 @@ def test_validates_mapper_owned_handoff_and_artifact_digest(tmp_path: Path) -> N
 
 def test_accepts_public_map_handoff_v1(tmp_path: Path) -> None:
     root = tmp_path / "checkers-1284"
-    artifact = root / ".simplicio" / "project-map.json"
+    artifact = root / ".simplicio-loop" / "project-map.json"
     artifact.parent.mkdir(parents=True)
     artifact.write_text('{"schema":"simplicio.project-map/v1"}\n', encoding="utf-8")
     envelope = {
@@ -156,7 +156,7 @@ def test_tampered_mapper_artifact_fails_closed(tmp_path: Path) -> None:
     root.mkdir()
     with patch("simplicio_fast.mapper_ingest._head", return_value="a" * 40):
         envelope = _envelope(root, "a" * 40)
-    artifact = root / ".simplicio" / "context-snapshot.json"
+    artifact = root / ".simplicio-loop" / "context-snapshot.json"
     artifact.write_text('{"tampered":true}\n', encoding="utf-8")
     with patch("simplicio_fast.mapper_ingest._head", return_value="a" * 40):
         with pytest.raises(MapperIngestError, match="mapper_digest_mismatch"):

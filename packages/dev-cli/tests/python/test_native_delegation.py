@@ -7,7 +7,7 @@ fake/absent `simplicio` binary (no real Rust runtime in this environment,
 same pattern `tests/contracts/conftest.py`'s `stub_runtime_binary` and
 `test_end_to_end_flow.py` already use) so the route (`native` /
 `python-fallback` / `python-forced`) is asserted from the resulting
-`.simplicio/events.jsonl` / `.simplicio/ledger/savings-events.jsonl`
+`.simplicio-loop/events.jsonl` / `.simplicio-loop/ledger/savings-events.jsonl`
 records rather than from internal call counts.
 """
 
@@ -37,7 +37,7 @@ from simplicio.runtime_bridge import (
 
 
 def _events(root) -> list[dict]:
-    out = root / ".simplicio" / "events.jsonl"
+    out = root / ".simplicio-loop" / "events.jsonl"
     if not out.exists():
         return []
     return [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line]
@@ -48,7 +48,7 @@ def _delegation_events(root) -> list[dict]:
 
 
 def _savings_events(root) -> list[dict]:
-    out = root / ".simplicio" / "ledger" / "savings-events.jsonl"
+    out = root / ".simplicio-loop" / "ledger" / "savings-events.jsonl"
     if not out.exists():
         return []
     return [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line]

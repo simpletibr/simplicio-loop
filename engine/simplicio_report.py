@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """simplicio-report — savings reporting for the proxy savings ledger.
 
-Reads ~/.simplicio/proxy_savings.json (schema v3) and prints a clean
+Reads ~/.simplicio-loop/proxy_savings.json (schema v3) and prints a clean
 report of lifetime + per-session savings plus per-model / per-provider
 breakdowns derived from the cumulative history.
 
@@ -27,7 +27,7 @@ def home_dir():
     override = os.environ.get("SIMPLICIO_HOME")
     if override:
         return override
-    return os.path.join(os.path.expanduser("~"), ".simplicio")
+    return os.path.join(os.path.expanduser("~"), ".simplicio-loop")
 
 
 def savings_path():

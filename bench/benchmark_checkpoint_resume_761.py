@@ -18,7 +18,7 @@ def measure(repetitions: int, work_units: int) -> dict:
         base = root / "base"
         base.mkdir()
         run = CheckpointLifecycle(
-            root / ".simplicio" / "loop-runs",
+            root / ".simplicio-loop" / "loop-runs",
             task_id="benchmark",
             attempt_id="attempt-1",
             source_commit="frozen",

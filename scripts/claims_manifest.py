@@ -52,7 +52,7 @@ CLAIMS = [
         "receipt": None,
         "note": (
             "Claim: '870-line file → 65 lines (93% saved)'. "
-            "No receipt snapshot in .simplicio/orchestrator/savings/snapshots.jsonl. "
+            "No receipt snapshot in .simplicio-loop/orchestrator/savings/snapshots.jsonl. "
             "Must produce a measured receipt before marking verified."
         ),
     },

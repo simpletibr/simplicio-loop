@@ -1,7 +1,7 @@
 """``simplicio-mapper snapshot`` — emit a ContextSnapshot (issue #208, Step 1).
 
 Builds a ``simplicio.context-snapshot/v1`` envelope from the canonical mapper
-artifacts under ``.simplicio/`` and writes it to ``.simplicio/context-snapshot.json``.
+artifacts under ``.simplicio-loop/`` and writes it to ``.simplicio-loop/context-snapshot.json``.
 
 Sub-commands:
 
@@ -232,7 +232,7 @@ def _run_summary(opts: dict) -> int:
 def run_snapshot_cli(argv: Sequence[str]) -> int:
     """Entry point for ``simplicio-mapper snapshot <subcommand> ...``."""
     if not argv:
-        return _run_build({"root": os.getcwd(), "out": ".simplicio", "json": False})
+        return _run_build({"root": os.getcwd(), "out": ".simplicio-loop", "json": False})
     if argv[0] in {"-h", "--help"}:
         print("usage: simplicio-mapper snapshot [build|validate|summary|dag] [options] [paths]")
         return 0
@@ -240,7 +240,7 @@ def run_snapshot_cli(argv: Sequence[str]) -> int:
     rest = argv[1:]
     base = {
         "root": os.getcwd(),
-        "out": ".simplicio",
+        "out": ".simplicio-loop",
         "json": False,
         "for_llm": "",
         "goal": "",

@@ -10,7 +10,7 @@ from simplicio_loop.telemetry import benchmark_overhead
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output-dir", default=".simplicio/benchmark/telemetry")
+    parser.add_argument("--output-dir", default=".simplicio-loop/benchmark/telemetry")
     parser.add_argument("--iterations", type=int, default=100)
     parser.add_argument("--samples", type=int, default=7)
     args = parser.parse_args()

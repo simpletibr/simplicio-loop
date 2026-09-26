@@ -37,7 +37,7 @@ class Qlt001InprocessFlowTest(unittest.TestCase):
         self.assertIn(QLT001_SYMBOL, understand["symbols"])
 
     def test_unknown_symbol_query_stays_empty(self) -> None:
-        snapshot = DEFAULT_FIXTURE / ".simplicio" / "fast" / "project.sfast"
+        snapshot = DEFAULT_FIXTURE / ".simplicio-loop" / "fast" / "project.sfast"
         processor = ProjectProcessor(DEFAULT_FIXTURE, snapshot)
         processor.ingest()
         from simplicio_fast.cli import main as cli_main

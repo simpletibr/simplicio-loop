@@ -42,7 +42,7 @@ def test_legacy_orca_env_maps_to_integration(monkeypatch, tmp_path):
 def test_repo_file_enables_named_integrations(monkeypatch, tmp_path):
     monkeypatch.delenv("SIMPLICIO_LOOP_CLIENT_INTEGRATIONS", raising=False)
     monkeypatch.delenv("SIMPLICIO_LOOP_ORCA_LIFECYCLE_SYNC", raising=False)
-    cfg = tmp_path / ".simplicio" / "client-integrations.json"
+    cfg = tmp_path / ".simplicio-loop" / "client-integrations.json"
     cfg.parent.mkdir(parents=True)
     cfg.write_text(
         json.dumps({"schema": "simplicio.client-integrations/v1", "integrations": ["linear"]}),

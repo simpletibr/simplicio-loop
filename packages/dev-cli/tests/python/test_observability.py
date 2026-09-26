@@ -111,7 +111,7 @@ def test_record_savings_event_writes_ledger(tmp_path, monkeypatch):
         note="test block",
     )
     assert out is not None
-    assert out == tmp_path / ".simplicio" / "ledger" / "savings-events.jsonl"
+    assert out == tmp_path / ".simplicio-loop" / "ledger" / "savings-events.jsonl"
     lines = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line]
     assert len(lines) == 1
     event = lines[0]
@@ -129,7 +129,7 @@ def test_record_savings_event_appends(tmp_path, monkeypatch):
     monkeypatch.delenv("SIMPLICIO_DISABLE_RUN_LOG", raising=False)
     record_savings_event(tmp_path, source="toon", baseline_tokens=10, actual_tokens=5)
     record_savings_event(tmp_path, source="autoresearch", baseline_tokens=20, actual_tokens=18)
-    out = tmp_path / ".simplicio" / "ledger" / "savings-events.jsonl"
+    out = tmp_path / ".simplicio-loop" / "ledger" / "savings-events.jsonl"
     lines = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line]
     assert len(lines) == 2
     assert {e["source"] for e in lines} == {"toon", "autoresearch"}
@@ -139,7 +139,7 @@ def test_record_savings_event_disabled_via_env(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
     out = record_savings_event(tmp_path, source="toon", baseline_tokens=10, actual_tokens=5)
     assert out is None
-    assert not (tmp_path / ".simplicio" / "ledger").exists()
+    assert not (tmp_path / ".simplicio-loop" / "ledger").exists()
 
 
 def test_record_savings_event_zero_baseline_no_division_error(tmp_path, monkeypatch):
@@ -326,7 +326,7 @@ def test_emit_event_appends_jsonl_with_documented_schema(tmp_path, monkeypatch):
     assert record["tokens_saved"] == 42
     assert "ts" in record
 
-    out = tmp_path / ".simplicio" / "events.jsonl"
+    out = tmp_path / ".simplicio-loop" / "events.jsonl"
     lines = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line]
     assert len(lines) == 1
     assert lines[0] == record
@@ -335,20 +335,20 @@ def test_emit_event_appends_jsonl_with_documented_schema(tmp_path, monkeypatch):
 def test_emit_event_without_root_only_logs_no_file_write(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     emit_event("handoff", {"tool": "dev_cli_memory"})
-    assert not (tmp_path / ".simplicio" / "events.jsonl").exists()
+    assert not (tmp_path / ".simplicio-loop" / "events.jsonl").exists()
 
 
 def test_emit_event_disabled_via_env(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
     emit_event("task_start", {}, root=str(tmp_path))
-    assert not (tmp_path / ".simplicio").exists()
+    assert not (tmp_path / ".simplicio-loop").exists()
 
 
 def test_emit_event_appends_multiple_events(tmp_path, monkeypatch):
     monkeypatch.delenv("SIMPLICIO_DISABLE_RUN_LOG", raising=False)
     emit_event("task_start", {"n": 1}, root=str(tmp_path))
     emit_event("task_complete", {"n": 2}, root=str(tmp_path))
-    out = tmp_path / ".simplicio" / "events.jsonl"
+    out = tmp_path / ".simplicio-loop" / "events.jsonl"
     lines = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line]
     assert [x["event"] for x in lines] == ["task_start", "task_complete"]
 
@@ -373,7 +373,7 @@ def test_events_summary_reports_count_and_recent(tmp_path, monkeypatch):
 
 
 def test_events_summary_tolerates_corrupt_trailing_line(tmp_path):
-    events_dir = tmp_path / ".simplicio"
+    events_dir = tmp_path / ".simplicio-loop"
     events_dir.mkdir()
     (events_dir / "events.jsonl").write_text(
         '{"schema": "simplicio.dev-cli-event/v1", "event": "task_start", "payload": {}}\nnot json\n',
@@ -386,7 +386,7 @@ def test_events_summary_tolerates_corrupt_trailing_line(tmp_path):
 def test_emit_event_rotates_large_jsonl(tmp_path, monkeypatch):
     monkeypatch.delenv("SIMPLICIO_DISABLE_RUN_LOG", raising=False)
     monkeypatch.setenv("SIMPLICIO_EVENTS_MAX_BYTES", "100")
-    events_dir = tmp_path / ".simplicio"
+    events_dir = tmp_path / ".simplicio-loop"
     events_dir.mkdir()
     (events_dir / "events.jsonl").write_text("x" * 101, encoding="utf-8")
 
@@ -398,7 +398,7 @@ def test_emit_event_rotates_large_jsonl(tmp_path, monkeypatch):
 
 
 def test_events_summary_streams_large_file_and_skips_corrupt_lines(tmp_path):
-    events_dir = tmp_path / ".simplicio"
+    events_dir = tmp_path / ".simplicio-loop"
     events_dir.mkdir()
     out = events_dir / "events.jsonl"
     with out.open("w", encoding="utf-8") as handle:
@@ -452,7 +452,7 @@ def test_native_delegation_summary_aggregates_per_verb_and_overall(tmp_path, mon
 
 
 def test_native_delegation_summary_tolerates_corrupt_trailing_line(tmp_path):
-    events_dir = tmp_path / ".simplicio"
+    events_dir = tmp_path / ".simplicio-loop"
     events_dir.mkdir()
     (events_dir / "events.jsonl").write_text(
         json.dumps(

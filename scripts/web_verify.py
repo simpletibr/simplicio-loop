@@ -21,7 +21,7 @@ Three verbs:
            This is the gate the quality loop (Step 4b) calls.
 
 CI artifact upload (the second half of issue #10):
-  - GitHub Actions:  .github/workflows/web-verify.yml uploads `.simplicio/orchestrator/tee/web` via
+  - GitHub Actions:  .github/workflows/web-verify.yml uploads `.simplicio-loop/orchestrator/tee/web` via
     actions/upload-artifact (gated on a front-end path filter; manual run via workflow_dispatch).
   - locally / ad-hoc: `run --upload --pr <N>` runs `gh release upload` + `gh pr comment` with the
     artifact URLs (links, never bytes). See web-evidence.md "Attach to the PR".
@@ -47,7 +47,7 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-DEFAULT_OUT = os.path.join(REPO, ".simplicio/orchestrator", "tee", "web")
+DEFAULT_OUT = os.path.join(REPO, ".simplicio-loop/orchestrator", "tee", "web")
 # same matcher as web-evidence.md "When it fires"
 FE_RE = re.compile(r"\.(tsx|jsx|vue|svelte|css|scss|html)$|^(components|pages|app|public|src/ui)/", re.I)
 

@@ -3,7 +3,7 @@
 For every worker instrumented by the sister issues (#299-#302), proves that sabotaging the
 progress subsystem in three ways never changes that worker's own behavior. Everything runs via
 subprocess (fresh interpreter per call) so env-var-configured paths are picked up correctly and
-no test can leak into the real repo's `.simplicio/orchestrator/` state.
+no test can leak into the real repo's `.simplicio-loop/orchestrator/` state.
 
   (S1) `scripts/loop_progress.py` is temporarily renamed out of the way — the literal "module
        deleted from the repo" scenario from issue #304's own AC2 wording. Every instrumented

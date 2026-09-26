@@ -3,7 +3,7 @@
 `simplicio.clustering-metrics/v1` is a deterministic, renderer-neutral
 projection of mapper files and call/import edges. It is embedded in the
 visualization bundle as `clustering` and emitted by `visualize` as
-`.simplicio/clustering-metrics.json`.
+`.simplicio-loop/clustering-metrics.json`.
 
 Clusters are strategy-scoped (`workspace`, `directory`, `package`,
 `namespace`, `domain`, `layer`, `flow`, and `graph-community`) and can

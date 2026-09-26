@@ -153,7 +153,7 @@ def test_partial_or_blocked_mapper_receipt_stays_fail_closed(
 ) -> None:
     root = tmp_path / "repo"
     commit = _make_repo(root)
-    artifact = root / ".simplicio" / "context-snapshot.json"
+    artifact = root / ".simplicio-loop" / "context-snapshot.json"
     artifact.parent.mkdir()
     artifact.write_text('{"schema":"simplicio.context-snapshot/v1"}\n', encoding="utf-8")
     envelope = {
@@ -167,7 +167,7 @@ def test_partial_or_blocked_mapper_receipt_stays_fail_closed(
             "artifacts": [
                 {
                     "name": "context_snapshot",
-                    "path": ".simplicio/context-snapshot.json",
+                    "path": ".simplicio-loop/context-snapshot.json",
                     "bytes": artifact.stat().st_size,
                     "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
                 }

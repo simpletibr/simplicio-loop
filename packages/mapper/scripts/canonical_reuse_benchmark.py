@@ -227,7 +227,7 @@ def run_benchmark(*, worktrees: int, files: int) -> dict[str, Any]:
 
                 def _full_run(wt: Path = wt) -> int:
                     artifacts = build_artifacts(
-                        str(wt), meta=None, incremental=False, output_dir=".simplicio"
+                        str(wt), meta=None, incremental=False, output_dir=".simplicio-loop"
                     )
                     return len(artifacts["project_map"]["files"])
 
@@ -248,7 +248,7 @@ def run_benchmark(*, worktrees: int, files: int) -> dict[str, Any]:
                 reuse_worktrees.append(wt)
 
                 def _reuse_run(wt: Path = wt) -> int:
-                    outcome = attempt_canonical_reuse(str(wt), ".simplicio", {})
+                    outcome = attempt_canonical_reuse(str(wt), ".simplicio-loop", {})
                     if outcome.run_result is None:
                         raise RuntimeError(f"expected a hit, got fallback: {outcome.receipt}")
                     return len(outcome.run_result["project_map"]["files"])

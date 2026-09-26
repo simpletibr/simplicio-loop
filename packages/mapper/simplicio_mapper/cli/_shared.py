@@ -49,7 +49,7 @@ SPEC_DRIFT_SCHEMA = "simplicio.spec-drift/v1"
 # Net-new, isolated schemas -- `canonical build`/`canonical status` never
 # reuse `INDEX_RESULT_SCHEMA`/`MAP_STATUS_SCHEMA` because they describe a
 # different artifact family (the cross-worktree canonical manifest, not the
-# per-worktree `.simplicio/` index) with its own versioning lifecycle.
+# per-worktree `.simplicio-loop/` index) with its own versioning lifecycle.
 CANONICAL_BUILD_SCHEMA = "simplicio.canonical-build/v1"
 CANONICAL_BUILD_SCHEMA_VERSION = 1
 

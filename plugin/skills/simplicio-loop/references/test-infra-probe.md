@@ -12,7 +12,7 @@ uses it to size the gate to what the repo actually HAS.
 
 ```bash
 python3 scripts/test_infra_probe.py probe --root .
-python3 scripts/test_infra_probe.py probe --root . --anchor .simplicio/orchestrator/loop/anchor.json
+python3 scripts/test_infra_probe.py probe --root . --anchor .simplicio-loop/orchestrator/loop/anchor.json
 ```
 
 Output is a MEASURED dict: `schema`, `measured: true`, a per-ecosystem breakdown (`unit`,
@@ -113,7 +113,7 @@ Goal: fix one function in `src/Calc.cs`. The repo has no `*.csproj` test project
 tooling, no CI. The delivery contract forbids creating new files in the repo.
 
 ```bash
-python3 scripts/test_infra_probe.py probe --root . --anchor .simplicio/orchestrator/loop/anchor.json
+python3 scripts/test_infra_probe.py probe --root . --anchor .simplicio-loop/orchestrator/loop/anchor.json
 # -> test_infra: {"unit": "absent", "coverage": "absent", "ci": "absent"}
 
 python3 scripts/task_anchor.py set --item 526-fixture --goal "Fix Calc.Add" \

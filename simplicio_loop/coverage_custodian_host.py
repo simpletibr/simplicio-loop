@@ -72,7 +72,7 @@ class CustodianHost:
             "workspace": workspace,
             "fence": envelope["fence"],
             "effect_set": ["process", "write"],
-            "write_set": [".simplicio/custodian/" + str(envelope["gap_id"]).replace(":", "_") + ".json"],
+            "write_set": [".simplicio-loop/custodian/" + str(envelope["gap_id"]).replace(":", "_") + ".json"],
             "command": ["simplicio-dev-cli", "task", "--json"],
         }
         # validate_envelope seals the canonical hash.

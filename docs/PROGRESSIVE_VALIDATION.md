@@ -29,8 +29,8 @@ Each receipt records:
 ```bash
 python3 scripts/progressive_validation.py \
   --plan verification-plan.json \
-  --cache .simplicio/validation-cache.json \
-  --receipt .simplicio/validation-receipt.json
+  --cache .simplicio-loop/validation-cache.json \
+  --receipt .simplicio-loop/validation-receipt.json
 ```
 
 The plan is a JSON object with complete `source_hash`, `tool_hash`, and

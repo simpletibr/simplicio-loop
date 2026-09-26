@@ -29,7 +29,7 @@ _up() { python3 -c "import socket,sys; socket.create_connection(('127.0.0.1',int
 _savings() {
   python3 - "$@" <<'PY' 2>/dev/null || true
 import json, os, sys
-for p in (os.path.expanduser("~/.simplicio/proxy_savings.json"),):
+for p in (os.path.expanduser("~/.simplicio-loop/proxy_savings.json"),):
     if os.path.exists(p):
         try:
             d = json.load(open(p)); life = d.get("lifetime", {})
@@ -81,7 +81,7 @@ cmd_up() {
 
 cmd_monitor() {
   # On-demand dashboard — start the server only if needed, then open the browser.
-  mkdir -p "$HOME/.simplicio/logs"
+  mkdir -p "$HOME/.simplicio-loop/logs"
   local url="http://127.0.0.1:$MONITOR_PORT"
   if [ "${1:-}" = "stop" ]; then
     pkill -f simplicio_dashboard.py 2>/dev/null && echo "⬡ Token Monitor dashboard stopped." || echo "⬡ dashboard was not running."
@@ -89,7 +89,7 @@ cmd_monitor() {
   fi
   if ! _up "$MONITOR_PORT"; then
     PORT="$MONITOR_PORT" SIMPLICIO_PROXY_PORT="$PROXY_PORT" \
-      nohup python3 "$SCRIPT_DIR/../hooks/simplicio_dashboard.py" >"$HOME/.simplicio/logs/token-monitor.log" 2>&1 &
+      nohup python3 "$SCRIPT_DIR/../hooks/simplicio_dashboard.py" >"$HOME/.simplicio-loop/logs/token-monitor.log" 2>&1 &
     sleep 2
   fi
   if _up "$MONITOR_PORT"; then
@@ -98,24 +98,24 @@ cmd_monitor() {
       || (command -v xdg-open >/dev/null 2>&1 && xdg-open "$url" 2>/dev/null) || true
     echo "  close it any time:  simplicio-economy monitor stop"
   else
-    echo "⬡ failed to start the dashboard — see ~/.simplicio/logs/token-monitor.log" >&2
+    echo "⬡ failed to start the dashboard — see ~/.simplicio-loop/logs/token-monitor.log" >&2
   fi
 }
 
 cmd_tray() {
   # On-demand menu-bar tray.
-  mkdir -p "$HOME/.simplicio/logs"
+  mkdir -p "$HOME/.simplicio-loop/logs"
   if [ "${1:-}" = "stop" ]; then
     pkill -f simplicio_tray.py 2>/dev/null && echo "⬡ Menu-bar tray stopped." || echo "⬡ tray was not running."
     return
   fi
   if pgrep -f simplicio_tray.py >/dev/null 2>&1; then echo "⬡ tray already running."; return; fi
   SIMPLICIO_PROXY_PORT="$PROXY_PORT" SIMPLICIO_MONITOR_PORT="$MONITOR_PORT" \
-    nohup python3 "$SCRIPT_DIR/../app/simplicio_tray.py" >"$HOME/.simplicio/logs/tray.log" 2>&1 &
+    nohup python3 "$SCRIPT_DIR/../app/simplicio_tray.py" >"$HOME/.simplicio-loop/logs/tray.log" 2>&1 &
   sleep 2
   pgrep -f simplicio_tray.py >/dev/null 2>&1 \
     && { echo "⬡ Menu-bar tray started (live tokens in the menu bar)."; echo "  close it any time:  simplicio-economy tray stop"; } \
-    || echo "⬡ failed to start the tray — see ~/.simplicio/logs/tray.log" >&2
+    || echo "⬡ failed to start the tray — see ~/.simplicio-loop/logs/tray.log" >&2
 }
 
 cmd_wire() {

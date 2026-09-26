@@ -106,15 +106,15 @@ def test_mapper_journal_uses_task_repo_root(monkeypatch, tmp_path):
     monkeypatch.setattr(
         runner_mod,
         "_mapper_operations_database",
-        lambda repo: str(Path(repo) / ".simplicio" / "operations.sqlite"),
+        lambda repo: str(Path(repo) / ".simplicio-loop" / "operations.sqlite"),
     )
     monkeypatch.setattr(runner_mod, "MapperRunJournal", FakeJournal)
 
     runner_mod._dispatch_journal_backend(
-        task_repo / ".simplicio" / "loop-runs" / "run" / "run-journal.sqlite",
+        task_repo / ".simplicio-loop" / "loop-runs" / "run" / "run-journal.sqlite",
     )
 
-    assert seen == [(str(task_repo / ".simplicio" / "operations.sqlite"), False)]
+    assert seen == [(str(task_repo / ".simplicio-loop" / "operations.sqlite"), False)]
 
 
 def test_mapper_warmup_requires_a_fresh_inspection():

@@ -115,10 +115,10 @@ def test_plan_dag_validate_and_round_trip_do_not_touch_filesystem(
 def test_compile_task_spec_does_not_write_designated_ledger_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, forbid_network_and_subprocess: None
 ) -> None:
-    """No `.simplicio/events.jsonl`-style ledger appears from a bare compile call."""
+    """No `.simplicio-loop/events.jsonl`-style ledger appears from a bare compile call."""
     monkeypatch.chdir(tmp_path)
 
     compile_task_spec_to_plan(_task_spec(), **COMPILE_KWARGS)
 
-    assert not (tmp_path / ".simplicio").exists()
+    assert not (tmp_path / ".simplicio-loop").exists()
     assert list(tmp_path.iterdir()) == []

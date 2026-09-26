@@ -112,7 +112,7 @@ from simplicio_loop.source_adapter import GitHubSourceAdapter, SourceAdapter
 from scripts.pr_evidence import publish_comment
 
 adapter = GitHubSourceAdapter("acme", "widgets", publish_comment_fn=publish_comment,
-                              outbox_dir=".simplicio/orchestrator/github-outbox")
+                              outbox_dir=".simplicio-loop/orchestrator/github-outbox")
 assert isinstance(adapter, SourceAdapter)  # runtime-checkable structural check
 
 adapter.claim("12", run_id="run-1", attempt_id="12-1")
@@ -180,14 +180,14 @@ CLI:
 
 ```bash
 python3 scripts/github_lifecycle.py publish --owner acme --repo widgets --issue 12 \
-  --state PLANNED --run-id run-1 --attempt-id issue-12-1 --run-dir .simplicio/orchestrator/run/run-1
+  --state PLANNED --run-id run-1 --attempt-id issue-12-1 --run-dir .simplicio-loop/orchestrator/run/run-1
 python3 scripts/github_lifecycle.py list-ready --owner acme --repo widgets
 python3 scripts/github_lifecycle.py get-details --owner acme --repo widgets --issue 12
 python3 scripts/github_lifecycle.py close --owner acme --repo widgets --issue 12 \
-  --run-id run-1 --attempt-id issue-12-1 --outbox-dir .simplicio/orchestrator/github-outbox \
-  --run-dir .simplicio/orchestrator/run/run-1
+  --run-id run-1 --attempt-id issue-12-1 --outbox-dir .simplicio-loop/orchestrator/github-outbox \
+  --run-dir .simplicio-loop/orchestrator/run/run-1
 python3 scripts/github_lifecycle.py reconcile --owner acme --repo widgets --issue 12 \
-  --operation-id <op-id> --outbox-dir .simplicio/orchestrator/github-outbox
+  --operation-id <op-id> --outbox-dir .simplicio-loop/orchestrator/github-outbox
 ```
 
 ## Tests

@@ -4,7 +4,7 @@ Two fixed case sets, deliberately using only the TWO code paths of
 `build_precedent_block()` that are reachable with zero heavy ML dependency
 (no `sentence-transformers`/torch needed in this sandbox):
 
-  1. the structured "indexed" branch (a `.simplicio/precedent-index.json` is present —
+  1. the structured "indexed" branch (a `.simplicio-loop/precedent-index.json` is present —
      this is the real production path once `simplicio-mapper` has run `precedent-index`)
   2. the "unknown stack" fallback branch (no scanner for the given stack -> static message)
 
@@ -120,7 +120,7 @@ def render_case(case):
 
     with _tmp_root() as root:
         if case["index"] is not None:
-            idx_dir = os.path.join(root, ".simplicio")
+            idx_dir = os.path.join(root, ".simplicio-loop")
             os.makedirs(idx_dir, exist_ok=True)
             with open(os.path.join(idx_dir, "precedent-index.json"), "w", encoding="utf-8") as f:
                 json.dump(case["index"], f)

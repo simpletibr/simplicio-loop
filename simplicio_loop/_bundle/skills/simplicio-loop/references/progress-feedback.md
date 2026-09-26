@@ -5,7 +5,7 @@ persisted. Every stage of the loop calls `emit` at begin/end; nothing else compu
 sister issues (#299-#304 — intake, turn, delivery, transcript, runtimes, gates) are pure
 instrumentation callers of this worker.
 
-## State on disk (new, `.simplicio/orchestrator/loop/`, override the directory with `$SIMPLICIO_PROGRESS_DIR`)
+## State on disk (new, `.simplicio-loop/orchestrator/loop/`, override the directory with `$SIMPLICIO_PROGRESS_DIR`)
 
 | File | Role |
 |---|---|
@@ -114,7 +114,7 @@ unchanged — the progress section does not count as evidence).
 Publishes/updates ONE comment per issue, matched by the invisible HTML anchor
 `<!-- simplicio-loop:progress -->` (`find_existing_progress_comment()` greps `gh api
 .../issues/N/comments` for the marker; a hit PATCHes that comment id, a miss POSTs a new one).
-Rate-limited: `.simplicio/orchestrator/loop/progress_comment_state.json` records `last_posted_at`; a call
+Rate-limited: `.simplicio-loop/orchestrator/loop/progress_comment_state.json` records `last_posted_at`; a call
 within `--min-interval` (default 60s) of the last one is a no-op (`skip`). Fully fail-open: no `gh`
 on PATH, no `--issue`, or any `gh api` failure all resolve to exit 0 with a log line — remote
 progress delivery must never block the loop. The `_gh_run()` call is an injectable function

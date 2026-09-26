@@ -38,7 +38,7 @@ def _git_commit(path):
 def test_git_meta_isolates_worktree():
     """AC5: _git_meta(worktree=wt) reads the worktree commit, not REPO."""
     repo_commit = _git_commit(REPO)
-    wi_wt = REPO / ".simplicio/orchestrator" / "worktrees" / "wi-3307"
+    wi_wt = REPO / ".simplicio-loop/orchestrator" / "worktrees" / "wi-3307"
     if not wi_wt.is_dir():
         pytest.skip(
             "EXTERNAL_INTEGRATION_UNAVAILABLE[wi_3307_worktree]: "
@@ -55,7 +55,7 @@ def test_git_meta_isolates_worktree():
 
 def test_find_run_dir_isolates_by_wi():
     """AC5: _find_run_dir(wi='WI-3307') returns a WI-scoped run dir when present."""
-    runs_root = REPO / ".simplicio/orchestrator"
+    runs_root = REPO / ".simplicio-loop/orchestrator"
     wi_run = runs_root / "run-WI3307"
     wi_run.mkdir(parents=True, exist_ok=True)
     (wi_run / "independent-watcher-receipt.json").write_text(
@@ -74,8 +74,8 @@ def test_find_run_dir_isolates_by_wi():
 def test_resolve_wi_worktree():
     """AC5: _resolve_wi_worktree maps WI id -> worktree path."""
     wt = wv._resolve_wi_worktree("WI-3307")
-    if (REPO / ".simplicio/orchestrator" / "worktrees" / "wi-3307").is_dir():
-        assert wt == str(REPO / ".simplicio/orchestrator" / "worktrees" / "wi-3307")
+    if (REPO / ".simplicio-loop/orchestrator" / "worktrees" / "wi-3307").is_dir():
+        assert wt == str(REPO / ".simplicio-loop/orchestrator" / "worktrees" / "wi-3307")
     else:
         assert wt is None
     assert wv._resolve_wi_worktree(None) is None
@@ -84,7 +84,7 @@ def test_resolve_wi_worktree():
 
 def test_verify_isolates_worktree_end_to_end():
     """AC6: cmd_verify(wi='WI-3307') passes the watcher-gate using the WI worktree commit."""
-    wi_wt = REPO / ".simplicio/orchestrator" / "worktrees" / "wi-3307"
+    wi_wt = REPO / ".simplicio-loop/orchestrator" / "worktrees" / "wi-3307"
     if not wi_wt.is_dir():
         pytest.skip(
             "EXTERNAL_INTEGRATION_UNAVAILABLE[wi_3307_worktree]: "
@@ -121,7 +121,7 @@ def test_verify_isolates_worktree_end_to_end():
                 {"id": "AC2", "status": "MEASURED", "match": True, "evidence_ids": ["proof-2"]},
             ],
         }), encoding="utf-8")
-        wi_run = REPO / ".simplicio/orchestrator" / "run-WI3307"
+        wi_run = REPO / ".simplicio-loop/orchestrator" / "run-WI3307"
         wi_run.mkdir(parents=True, exist_ok=True)
         try:
             shutil.copy(loop_dir / "independent-watcher-receipt.json",
@@ -164,16 +164,16 @@ def test_find_run_dir_fallback_global():
 
 def test_wi_for_issue_maps_number(tmp_path, monkeypatch):
     """AC1: _wi_for_issue resolves a GitHub issue number to its WI id (isolated fixture)."""
-    tasks = tmp_path / ".simplicio/orchestrator" / "tasks"
+    tasks = tmp_path / ".simplicio-loop/orchestrator" / "tasks"
     tasks.mkdir(parents=True)
     (tasks / "WI-561.md").write_text(
         "# WI-561\nissue #561 source\n", encoding="utf-8"
     )
     (tasks / "WI-999.md").write_text("# WI-999\nissue #999\n", encoding="utf-8")
     monkeypatch.setattr(wv, "REPO", str(tmp_path))
-    # _wi_for_issue reads REPO/.simplicio/orchestrator/tasks; force it via monkeypatched root
+    # _wi_for_issue reads REPO/.simplicio-loop/orchestrator/tasks; force it via monkeypatched root
     def _patched(issue):
-        root = Path(str(tmp_path)) / ".simplicio/orchestrator" / "tasks"
+        root = Path(str(tmp_path)) / ".simplicio-loop/orchestrator" / "tasks"
         for entry in sorted(root.glob("WI-*.md")):
             if ("#%s" % str(issue)) in entry.read_text(encoding="utf-8", errors="ignore"):
                 return entry.stem

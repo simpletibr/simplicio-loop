@@ -68,7 +68,7 @@ def test_orient_clamp_keeps_error_signal_and_tees_on_failure(tmp_path):
     )
     assert r.returncode == 1
     assert "Error: boom" in r.stdout
-    tee_dir = tmp_path / ".simplicio/orchestrator" / "tee"
+    tee_dir = tmp_path / ".simplicio-loop/orchestrator" / "tee"
     assert tee_dir.is_dir() and list(tee_dir.iterdir()), "a failing command should tee full output"
 
 
@@ -77,7 +77,7 @@ def test_orient_clamp_excluded_command_runs_raw_unclamped(tmp_path):
     # no tee, no reduction), whatever its own exit behavior is on this machine.
     r = _run_hook("orient_clamp.py", args=["--", "less", "--version"], cwd=str(tmp_path))
     assert r.returncode in (0, 1, 127), r.stdout + r.stderr
-    assert not (tmp_path / ".simplicio/orchestrator" / "tee").exists(), "an excluded command must never be teed"
+    assert not (tmp_path / ".simplicio-loop/orchestrator" / "tee").exists(), "an excluded command must never be teed"
 
 
 def test_orient_clamp_json_mode_reports_reduction(tmp_path):
@@ -110,7 +110,7 @@ def test_orient_rewrite_noop_outside_a_simplicio_loop_project(tmp_path):
 
 
 def test_orient_rewrite_wraps_allowed_readonly_command_inside_project(tmp_path):
-    (tmp_path / ".simplicio/orchestrator").mkdir(parents=True)
+    (tmp_path / ".simplicio-loop/orchestrator").mkdir(parents=True)
     out = _rewrite({"command": "git status"}, cwd=str(tmp_path))
     updated = out["hookSpecificOutput"].get("updatedInput", {}).get("command", "")
     assert "orient_clamp.py" in updated and "git status" in updated
@@ -123,21 +123,21 @@ def test_orient_rewrite_env_var_gate_without_orchestrator_dir(tmp_path):
 
 
 def test_orient_rewrite_leaves_compound_command_unchanged(tmp_path):
-    (tmp_path / ".simplicio/orchestrator").mkdir(parents=True)
+    (tmp_path / ".simplicio-loop/orchestrator").mkdir(parents=True)
     out = _rewrite({"command": "git status && rm -rf /tmp/x"}, cwd=str(tmp_path))
     assert "updatedInput" not in out["hookSpecificOutput"], \
         "a compound/unsafe-shaped command must never be rewritten"
 
 
 def test_orient_rewrite_leaves_non_allowlisted_command_unchanged(tmp_path):
-    (tmp_path / ".simplicio/orchestrator").mkdir(parents=True)
+    (tmp_path / ".simplicio-loop/orchestrator").mkdir(parents=True)
     out = _rewrite({"command": "npm install left-pad"}, cwd=str(tmp_path))
     assert "updatedInput" not in out["hookSpecificOutput"], \
         "a write command outside the read-only allowlist must never be rewritten"
 
 
 def test_orient_rewrite_leaves_already_wrapped_command_unchanged(tmp_path):
-    (tmp_path / ".simplicio/orchestrator").mkdir(parents=True)
+    (tmp_path / ".simplicio-loop/orchestrator").mkdir(parents=True)
     out = _rewrite({"command": 'python3 "hooks/orient_clamp.py" -- git status'}, cwd=str(tmp_path))
     assert "updatedInput" not in out["hookSpecificOutput"]
 
@@ -146,7 +146,7 @@ def test_orient_rewrite_leaves_already_wrapped_command_unchanged(tmp_path):
 
 
 def _arm_capture(root, promise="SIMPLICIO_DONE", evidence_required=True):
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     os.makedirs(loop, exist_ok=True)
     with open(os.path.join(loop, "scratchpad.md"), "w", encoding="utf-8") as f:
         f.write("---\niteration: 1\nmax_iterations: 5\ncompletion_promise: \"%s\"\n"
@@ -155,7 +155,7 @@ def _arm_capture(root, promise="SIMPLICIO_DONE", evidence_required=True):
 
 
 def _done_flag_exists(root):
-    return os.path.exists(os.path.join(root, ".simplicio/orchestrator", "loop", "done"))
+    return os.path.exists(os.path.join(root, ".simplicio-loop/orchestrator", "loop", "done"))
 
 
 def test_loop_capture_does_not_raise_done_flag_with_evidence(tmp_path):
@@ -182,7 +182,7 @@ def test_loop_capture_no_flag_without_evidence(tmp_path):
 def test_loop_capture_no_flag_with_pending_anchor(tmp_path):
     root = str(tmp_path)
     _arm_capture(root)
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     with open(os.path.join(loop, "anchor.json"), "w", encoding="utf-8") as f:
         json.dump({"goal_fp": "x", "criteria": [{"id": "AC1", "status": "pending"}]}, f)
     r = _run_hook("loop_capture.py",
@@ -204,7 +204,7 @@ def test_loop_capture_noop_without_scratchpad(tmp_path):
 def test_loop_capture_stashes_last_response(tmp_path):
     root = str(tmp_path)
     _run_hook("loop_capture.py", stdin_data=json.dumps({"text": "hello world"}), cwd=root)
-    last_resp = os.path.join(root, ".simplicio/orchestrator", "loop", "last_response.txt")
+    last_resp = os.path.join(root, ".simplicio-loop/orchestrator", "loop", "last_response.txt")
     assert os.path.exists(last_resp)
     assert open(last_resp, encoding="utf-8").read() == "hello world"
 

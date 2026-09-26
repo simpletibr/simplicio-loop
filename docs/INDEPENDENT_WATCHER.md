@@ -11,8 +11,8 @@ implementer.
 
 ```powershell
 python scripts/independent_watcher.py --repo . `
-  --plan .simplicio/orchestrator/runs/<run>/watcher-plan.json `
-  --out .simplicio/orchestrator/runs/<run>/independent-watcher-receipt.json
+  --plan .simplicio-loop/orchestrator/runs/<run>/watcher-plan.json `
+  --out .simplicio-loop/orchestrator/runs/<run>/independent-watcher-receipt.json
 ```
 
 The plan is rejected when the commit or diff fingerprint is stale, when the

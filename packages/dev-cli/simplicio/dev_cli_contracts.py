@@ -253,7 +253,7 @@ def dry_run(plan_envelope: dict[str, Any], *, root: str | Path) -> dict[str, Any
 
 def _receipt_path(root: Path, key: str) -> Path:
     root_resolved = root.resolve()
-    state_dir = root_resolved / ".simplicio"
+    state_dir = root_resolved / ".simplicio-loop"
     if state_dir.exists() and not state_dir.resolve().is_relative_to(root_resolved):
         raise ValueError("unsafe receipt path")
     receipt_dir = state_dir / "dev-cli-receipts"

@@ -278,9 +278,9 @@ def _task_rows(repo: Path) -> list[dict[str, Any]]:
     ]
     queue = WorktreeQueue(
         repo_root=str(repo),
-        state_path=str(repo / ".simplicio/orchestrator" / "distributed-183-worktree-queue.json"),
+        state_path=str(repo / ".simplicio-loop/orchestrator" / "distributed-183-worktree-queue.json"),
         run_id="issue-183-ac7",
-        worktree_root=str(repo / ".simplicio/orchestrator" / "worktrees" / "issue-183-ac7"),
+        worktree_root=str(repo / ".simplicio-loop/orchestrator" / "worktrees" / "issue-183-ac7"),
     )
     queue.register_tasks(
         [
@@ -483,7 +483,7 @@ def run(out: str | Path) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Local AC7 distributed fixture for issue #183")
-    parser.add_argument("--out", default=".simplicio/orchestrator/evidence/distributed-183-ac7")
+    parser.add_argument("--out", default=".simplicio-loop/orchestrator/evidence/distributed-183-ac7")
     args = parser.parse_args(argv)
     result = run(args.out)
     print(json.dumps(result["receipt"], ensure_ascii=False, indent=2))

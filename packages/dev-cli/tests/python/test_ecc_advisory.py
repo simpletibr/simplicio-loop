@@ -56,7 +56,7 @@ def _guidance() -> dict:
 
 
 def _write_project_map(tmp_path):
-    artifact_dir = tmp_path / ".simplicio"
+    artifact_dir = tmp_path / ".simplicio-loop"
     artifact_dir.mkdir()
     (artifact_dir / "project-map.json").write_text(
         json.dumps(

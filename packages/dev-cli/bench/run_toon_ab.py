@@ -12,7 +12,7 @@ merged TOON branch was DEAD on the real handoff path until this PR):
     calls for every real task, both on the mapper 0.13+ `handoff` path (the
     one that was dead) and the project-map fallback path.
   - `bench/cases.json` does not ship a `simplicio-mapper` artifact (no
-    `.simplicio/project-map.json`, no live `handoff` binary in this sandbox),
+    `.simplicio-loop/project-map.json`, no live `handoff` binary in this sandbox),
     so `map_handoff` is monkeypatched to return a synthetic context-pack
     shaped exactly like the `simplicio.map-handoff/v1` schema
     (`_render_handoff_context`'s tests use the same shape) with the case's

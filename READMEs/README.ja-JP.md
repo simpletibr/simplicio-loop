@@ -193,7 +193,7 @@ flowchart LR
 | 機能 | 何をするか | 証明／ワーカー | 詳細 |
 |---|---|---|---|
 | 🎬 **Video evidence**（`video_evidence`） | UI変更が動作することの動く証明として**実際のブラウザセッションを録画**する（Playwright、既定）；明示的な解説動画の依頼（`/simplicio-loop make a video of screen X`）には [hyperframes](https://github.com/heygen-com/hyperframes) で**決定論的なキャプション付きMP4**をレンダリングする | `scripts/video_evidence.py` · ツールチェーンがなければ BLOCKED（決してフェイクで通さない） | [§ Video evidence](#-video-evidence--playwright-by-default-hyperframes-on-request) |
-| 🧠 **試行メモリ＋ストール検出器** | 耐久性のあるランジャーナル（`.simplicio/orchestrator/loop/journal.jsonl`）＋ストール検出器により、ループが**振動する代わりに戦略を変える**；増分トリアージ（`since`）は毎ターン差分のみを読む | `scripts/loop_journal.py` · `selftest` 9/9 | [§ 振動防止](#-attempt-memory--stall-detector-anti-oscillation) |
+| 🧠 **試行メモリ＋ストール検出器** | 耐久性のあるランジャーナル（`.simplicio-loop/orchestrator/loop/journal.jsonl`）＋ストール検出器により、ループが**振動する代わりに戦略を変える**；増分トリアージ（`since`）は毎ターン差分のみを読む | `scripts/loop_journal.py` · `selftest` 9/9 | [§ 振動防止](#-attempt-memory--stall-detector-anti-oscillation) |
 | 🔒 **フェイルクローズの安全ゲート**（`action_gate`） | force-push、履歴の書き換え、大量削除、破壊的なDDL、インフラの解体、シークレットを含むコミット／プッシュを**機械的にブロック**する `PreToolUse`／git-pre-push フック——Step 5 を散文ではなく実行可能にしたもの | `hooks/action_gate.py` · `selftest` 15/15 | [§ Safety](#-safety-non-negotiable) |
 | 🔬 **ローカル検証** | テストスイート（ワーカーのselftest＋エビデンスゲートでの終了を証明する**ループドライバのe2e**）＋**claims-audit**（参照されるスクリプトが存在 · カウントが一貫 · `_bundle ≡ source`）——すべてローカル、**有料CIなし** | `scripts/check.py` · `scripts/claims_audit.py` · `tests/` | [§ Tests & local checks](#-tests--local-checks-no-paid-ci) |
 | ✅ **誠実な節約** | 節約の行は**エビデンスゲート付きで、必須ではない**ものになった——数値は計測されたレシート（clamp／signatures／cache／`deterministic_edit`／ledger）がある場合にのみ表示される；決して捏造しない | token-economy contract | [§ Token economy](#-token-economy) |
@@ -339,7 +339,7 @@ flowchart LR
    ない約束＝無視されます。
 2. **`max_iterations` 上限** — 強制的な安全のバックストップ
 3. **STOP/cancel path** — explicit STOP file or channel command stops unattended runs
-4. **STOPシグナル** — `.simplicio/orchestrator/STOP` またはチャネルコマンド
+4. **STOPシグナル** — `.simplicio-loop/orchestrator/STOP` またはチャネルコマンド
 
 ターンの間、LMCache（利用可能な場合）はKV状態をキャッシュするので、再投入のプレフィルコストは
 ほぼゼロになります。
@@ -347,7 +347,7 @@ flowchart LR
 ### 🧠 Attempt memory + stall detector (anti-oscillation)
 
 何も覚えていない再投入ループは振動します——Xを試し、失敗し、またXを試す——上限を使い切るまで。
-simplicio-loop は**耐久性のあるランジャーナル**（`.simplicio/orchestrator/loop/journal.jsonl`、追記専用：
+simplicio-loop は**耐久性のあるランジャーナル**（`.simplicio-loop/orchestrator/loop/journal.jsonl`、追記専用：
 `iteration · action · hypothesis · gate · error-fingerprint`）と**ストール検出器**
 （[`scripts/loop_journal.py`](../scripts/loop_journal.py)、決定論的でモデル不要）を保持します：
 

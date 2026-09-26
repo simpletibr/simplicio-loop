@@ -142,7 +142,7 @@ def _run_once(opts: dict) -> dict:
         root=root,
     )
     write_retrieval_index(root, opts["out"], retrieval_index)
-    # History snapshots (.simplicio/history/*.json) are always cheap JSON and
+    # History snapshots (.simplicio-loop/history/*.json) are always cheap JSON and
     # never create a docs/ directory on their own. The changelog markdown is
     # only appended when docs are actually being rendered for this run, so
     # --json-only/--no-docs flows stay JSON-only as documented.
@@ -250,7 +250,7 @@ def _hash_text(value: str) -> str:
 
 def _git_signature(root: str, out: str) -> dict | None:
     ignored_out = os.path.relpath(os.path.abspath(os.path.join(root, out)), root)
-    ignored_out = ignored_out.replace(os.sep, "/").rstrip("/") or ".simplicio"
+    ignored_out = ignored_out.replace(os.sep, "/").rstrip("/") or ".simplicio-loop"
     try:
         inside = subprocess.run(
             ["git", "rev-parse", "--is-inside-work-tree"],

@@ -18,7 +18,7 @@ python3 scripts/host_rule_sync.py --global --json
 
 - Skills → `~/.grok/skills/` (and `~/.agents/skills/` via host_rule_sync mirrors)
 - Always-on rule → `~/.grok/rules/simplicio-loop-operator-flow.md`
-- Strict env → `~/.simplicio/loop-env.ps1` / `loop-env.sh`
+- Strict env → `~/.simplicio-loop/loop-env.ps1` / `loop-env.sh`
 
 ## MUST
 

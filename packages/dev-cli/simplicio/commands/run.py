@@ -468,7 +468,7 @@ def _run_sprint(a: argparse.Namespace) -> int:
         print(f"{CLI_PROG} run: {exc}", file=sys.stderr)
         return 2
 
-    state_dir = Path(a.root) / ".simplicio"
+    state_dir = Path(a.root) / ".simplicio-loop"
     state_dir.mkdir(parents=True, exist_ok=True)
     state_path = state_dir / "sprint_state.json"
     if not sprint.tasks:

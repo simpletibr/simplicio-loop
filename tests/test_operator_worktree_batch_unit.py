@@ -108,7 +108,7 @@ class FakeQueue:
 
 def _success(repo, run_id, task_index):
     return {
-        "run_dir": str(Path(repo) / ".simplicio/orchestrator" / "runs" / run_id),
+        "run_dir": str(Path(repo) / ".simplicio-loop/orchestrator" / "runs" / run_id),
         "state": {
             "phase": "validating",
             "attempts": 1,

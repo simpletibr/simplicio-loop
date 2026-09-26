@@ -855,7 +855,7 @@ def _native_effect_unknown(
                 }
             ],
             "validation": [],
-            "effect_unknown_lock": ".simplicio/effect-unknown.lock",
+            "effect_unknown_lock": ".simplicio-loop/effect-unknown.lock",
         }
     )
     return result

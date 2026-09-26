@@ -29,7 +29,7 @@
       "repo": "mapper",
       "file": "simplicio_mapper/store/catalog.py",
       "current_path": "simplicio_mapper/store/catalog.py",
-      "target_path": "~/.simplicio/data/catalog.sqlite",
+      "target_path": "~/.simplicio-loop/data/catalog.sqlite",
       "kinds": ["ddl", "library"],
       "classification": "production-candidate",
       "current_owner": "mapper",
@@ -55,7 +55,7 @@
   },
   "target_topology": {
     "schema": "MapperStore/v1",
-    "root": "~/.simplicio/data/",
+    "root": "~/.simplicio-loop/data/",
     "stores": [],
     "excluded": []
   },

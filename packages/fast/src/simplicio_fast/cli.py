@@ -44,7 +44,7 @@ from .context_adapters import adapter_manifest
 from .context_security import security_manifest
 from .sdk import SDK_SCHEMA, SDK_SUPPORT_MATRIX
 
-DEFAULT_STATE_DIR = ".simplicio/fast"
+DEFAULT_STATE_DIR = ".simplicio-loop/fast"
 DEFAULT_SNAPSHOT = f"{DEFAULT_STATE_DIR}/project.sfast"
 DEFAULT_MAPPER_MODE = "integrated"
 WRITE_ALLOW_ENV = "SIMPLICIO_FAST_ALLOW_WRITE"
@@ -259,7 +259,7 @@ def build_parser() -> argparse.ArgumentParser:
                 )
             ),
             description=(
-                "Publish a bounded snapshot under .simplicio/fast/project.sfast. "
+                "Publish a bounded snapshot under .simplicio-loop/fast/project.sfast. "
                 "Default --mapper-mode integrated projects a validated canonical "
                 "Mapper handoff and fails closed without --mapper-handoff. "
                 "Bootstrap mode is an explicit development-only choice."

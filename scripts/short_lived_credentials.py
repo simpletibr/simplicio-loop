@@ -46,7 +46,7 @@ except ImportError:  # pragma: no cover
 
 TOKEN_SCHEMA = "simplicio.short-lived-credential/v1"
 REVOCATION_STORE_SCHEMA = "simplicio.revocation-store/v1"
-DEFAULT_REVOCATION_STORE = Path(".simplicio/orchestrator") / "security" / "revoked-jti.json"
+DEFAULT_REVOCATION_STORE = Path(".simplicio-loop/orchestrator") / "security" / "revoked-jti.json"
 DEFAULT_TTL_SECONDS = 300.0
 DEFAULT_CLOCK_SKEW_SECONDS = 5.0
 

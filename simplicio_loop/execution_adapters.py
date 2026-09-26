@@ -30,7 +30,7 @@ from .receipt_verifier import (
 )
 
 ENVELOPE_FILENAME = "execution-envelope.json"
-ARTIFACT_DIRECTORY = ".simplicio/loop-executions"
+ARTIFACT_DIRECTORY = ".simplicio-loop/loop-executions"
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 _PHASE_STATUSES = {"not_run", "running", "complete", "partial", "blocked", "error"}
 _TASK_STATUSES = {"queued", "running", "complete", "partial", "blocked", "error", "cancelled"}
@@ -130,7 +130,7 @@ def _run_dir(repo: Path, run_id: str, observed: Mapping[str, Any]) -> tuple[Path
     candidates = []
     if supplied:
         candidates.append(Path(str(supplied)))
-    candidates.append(repo / ".simplicio" / "loop-runs" / resolved_id)
+    candidates.append(repo / ".simplicio-loop" / "loop-runs" / resolved_id)
     for candidate in candidates:
         candidate = candidate if candidate.is_absolute() else repo / candidate
         if candidate.is_dir() and not candidate.is_symlink() and _within(repo, candidate):

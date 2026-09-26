@@ -65,7 +65,7 @@ def test_live_cancel_persists_before_source_or_intake_construction(tmp_path):
                                   source_factory=forbidden_source, pipeline_factory=Pipeline)
     assert consumed["state"] == "cancelled"
     assert consumed["reason"] == "persisted_cancel_enforced"
-    assert not (tmp_path / ".simplicio" / "tasks-run" / result["idempotency_key"][:16] / "journals" / "cancel.json").exists()
+    assert not (tmp_path / ".simplicio-loop" / "tasks-run" / result["idempotency_key"][:16] / "journals" / "cancel.json").exists()
     assert Path(consumed["cancel_ack"]).exists()
     resumed = tasks_live.run_live(request, workspace=str(tmp_path), agent_command=["agent"],
                                   action_gate=True, source_factory=Source, intake_factory=Intake,

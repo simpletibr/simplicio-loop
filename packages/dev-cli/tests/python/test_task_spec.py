@@ -397,7 +397,7 @@ Tipo: Evolução
 Dependências
 - depends on: Login
 """
-    batch_path = tmp_path / ".simplicio" / "task_batch.json"
+    batch_path = tmp_path / ".simplicio-loop" / "task_batch.json"
     code = intake_cmd.run(
         ns(
             text=raw,
@@ -507,7 +507,7 @@ def test_crlf_acceptance_source_span_preserves_exact_original_bytes() -> None:
 
 
 def _write_mapper_artifacts(root: Path, *, files: list[dict], precedents: list[dict]) -> None:
-    simplicio_dir = root / ".simplicio"
+    simplicio_dir = root / ".simplicio-loop"
     simplicio_dir.mkdir(parents=True, exist_ok=True)
     (simplicio_dir / "project-map.json").write_text(
         json.dumps(

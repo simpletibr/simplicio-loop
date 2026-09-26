@@ -697,7 +697,7 @@ def _build_parser() -> argparse.ArgumentParser:
         ),  # noqa: E501
     )
     p_proto_plan.add_argument("--root", default=".", help="source tree the plan's source_sha is anchored to")
-    p_proto_plan.add_argument("--output", default=".simplicio/prototype-plan.json")
+    p_proto_plan.add_argument("--output", default=".simplicio-loop/prototype-plan.json")
     p_proto_plan.add_argument("--json", action="store_true")
     prototype_help = {
         "scaffold": "create a prototype candidate from a frozen plan",
@@ -737,11 +737,11 @@ def _build_parser() -> argparse.ArgumentParser:
     p_proto_batch.add_argument("--json", action="store_true")
 
     p_memory = sub.add_parser(
-        "memory", help="cross-vendor memory handoff (markdown + git under ~/.simplicio/memory)"
+        "memory", help="cross-vendor memory handoff (markdown + git under ~/.simplicio-loop/memory)"
     )
     memory_sub = p_memory.add_subparsers(dest="memory_cmd", required=True)
     p_mem_init = memory_sub.add_parser("init", help="create the memory store")
-    p_mem_init.add_argument("--dir", default=None, help="override memory dir (default ~/.simplicio/memory)")
+    p_mem_init.add_argument("--dir", default=None, help="override memory dir (default ~/.simplicio-loop/memory)")
     p_mem_init.add_argument("--json", action="store_true")
     p_mem_store = memory_sub.add_parser("store", help="append a note")
     p_mem_store.add_argument("topic")

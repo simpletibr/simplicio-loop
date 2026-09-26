@@ -11,7 +11,7 @@ have), git-isolated branch discipline (never `main`/`master`), an anti-Goodhart 
 (correctness GATE first, score SECOND — a failing gate is always `revert`, regardless of score),
 and a `simplicio.savings-event/v1`-shaped receipt per run.
 
-State: `<git-root>/.simplicio/orchestrator/autoresearch/<slug>/` (override with --store or
+State: `<git-root>/.simplicio-loop/orchestrator/autoresearch/<slug>/` (override with --store or
 $SIMPLICIO_AUTORESEARCH_STORE):
     config.json    guardrails + eval command + baseline, frozen at `init`
     journal.jsonl  one append-only record per attempt: {iteration, gate, score, decision, note, ts}
@@ -265,7 +265,7 @@ def _run_eval(cmd, cwd, timeout_s):
 # ----- I/O + commands ------------------------------------------------------------------------------
 
 def _default_store_root(repo_root, slug):
-    return os.path.join(repo_root, ".simplicio/orchestrator", "autoresearch", slug)
+    return os.path.join(repo_root, ".simplicio-loop/orchestrator", "autoresearch", slug)
 
 
 def _resolve_store(opts, required=True):
@@ -629,7 +629,7 @@ def cmd_selftest(_opts):
     chk("parse.empty_is_fail", parse_eval_output(""), ("fail", None))
 
     # receipt shape: schema + source + gate-first fields present
-    cfg = {"target": "t.py", "branch": "autoresearch/x", "store_rel": ".simplicio/orchestrator/autoresearch/x",
+    cfg = {"target": "t.py", "branch": "autoresearch/x", "store_rel": ".simplicio-loop/orchestrator/autoresearch/x",
           "tokenizer_id": "n/a", "metric_key": "score", "direction": "max",
           "baseline": {"gate": "pass", "score": 5.0}, "guardrails": {"max_iterations": 5}}
     journal = [{"decision": "keep", "gate": "pass", "score": 7.0},

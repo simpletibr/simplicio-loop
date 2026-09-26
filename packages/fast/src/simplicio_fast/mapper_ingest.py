@@ -15,11 +15,11 @@ SCHEMA = "simplicio.fast.mapper-ingest/v1"
 HANDOFF_SCHEMA = "simplicio.mapper-fast-handoff/v1"
 PUBLIC_HANDOFF_SCHEMA = "simplicio.map-handoff/v1"
 PUBLIC_ARTIFACTS = (
-    ("context_snapshot", ".simplicio/context-snapshot.json"),
-    ("project_map", ".simplicio/project-map.json"),
-    ("symbol_index", ".simplicio/symbol-index.json"),
-    ("call_graph", ".simplicio/call-graph.json"),
-    ("architecture_inventory", ".simplicio/architecture-inventory.json"),
+    ("context_snapshot", ".simplicio-loop/context-snapshot.json"),
+    ("project_map", ".simplicio-loop/project-map.json"),
+    ("symbol_index", ".simplicio-loop/symbol-index.json"),
+    ("call_graph", ".simplicio-loop/call-graph.json"),
+    ("architecture_inventory", ".simplicio-loop/architecture-inventory.json"),
 )
 
 
@@ -347,7 +347,7 @@ def validate_handoff(
 
 
 def load_handoff(root: Path, path: Path | None = None) -> dict[str, Any]:
-    source = path or root / ".simplicio" / "fast-handoff.json"
+    source = path or root / ".simplicio-loop" / "fast-handoff.json"
     try:
         envelope = json.loads(source.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:

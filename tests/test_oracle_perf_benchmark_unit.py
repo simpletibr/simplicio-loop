@@ -96,9 +96,9 @@ def _seed_run(run_dir):
 
 
 def test_evaluate_completion_stays_within_time_budget(tmp_path):
-    loop = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
-    run_dir = tmp_path / ".simplicio/orchestrator" / "runs" / "r1"
+    run_dir = tmp_path / ".simplicio-loop/orchestrator" / "runs" / "r1"
     run_dir.mkdir(parents=True)
     _seed_loop(loop)
     _seed_run(run_dir)

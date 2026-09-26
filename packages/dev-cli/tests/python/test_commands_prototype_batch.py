@@ -13,7 +13,7 @@ Covers the acceptance criteria from the task:
 - a large-ish batch (50 plans) completes without unbounded thread/resource
   growth.
 
-All plan JSON files live under `<tmp_path>/.simplicio/plans/` (the adapter's
+All plan JSON files live under `<tmp_path>/.simplicio-loop/plans/` (the adapter's
 own bookkeeping dir, excluded from the source-tree hash) so that writing N
 plan files one after another never invalidates an earlier plan's
 `source_sha` baseline — same rationale documented in
@@ -35,7 +35,7 @@ from simplicio.commands import prototype
 
 
 def _plans_dir(tmp_path: Path) -> Path:
-    directory = tmp_path / ".simplicio" / "plans"
+    directory = tmp_path / ".simplicio-loop" / "plans"
     directory.mkdir(parents=True, exist_ok=True)
     return directory
 
@@ -435,7 +435,7 @@ def test_batch_accepts_glob_pattern_for_plans(tmp_path, capsys):
 def test_batch_never_writes_outside_its_own_candidate_dirs(tmp_path, capsys, concurrency):
     """Cross-check against the full working tree hash, mirroring
     test_scaffold_writes_only_inside_isolated_candidate_dir: everything the
-    batch produces must land under .simplicio/prototypes/<plan_hash>, and a
+    batch produces must land under .simplicio-loop/prototypes/<plan_hash>, and a
     real working-tree file must remain untouched."""
     source_file = tmp_path / "src.py"
     source_file.write_text("print('real working tree file')\n", encoding="utf-8")
@@ -461,5 +461,5 @@ def test_batch_never_writes_outside_its_own_candidate_dirs(tmp_path, capsys, con
     assert code == 0
     for result in payload["results"]:
         candidate = Path(result["candidate"])
-        assert candidate.is_relative_to(tmp_path / ".simplicio" / "prototypes")
+        assert candidate.is_relative_to(tmp_path / ".simplicio-loop" / "prototypes")
     assert source_file.read_bytes() == source_before

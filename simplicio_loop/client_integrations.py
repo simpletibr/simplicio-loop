@@ -8,7 +8,7 @@ Enable via either:
 
 * env ``SIMPLICIO_LOOP_CLIENT_INTEGRATIONS`` — comma-separated names
   (e.g. ``orca`` or ``orca,linear``)
-* file ``.simplicio/client-integrations.json`` in the repo (or path in
+* file ``.simplicio-loop/client-integrations.json`` in the repo (or path in
   ``SIMPLICIO_LOOP_CLIENT_INTEGRATIONS_FILE``)::
 
       {"schema": "simplicio.client-integrations/v1", "integrations": ["orca"]}
@@ -75,10 +75,10 @@ def resolve_integrations(*, repo_root: str | Path | None = None) -> FrozenSet[st
     if file_raw:
         found |= _from_file(Path(file_raw).expanduser())
     elif repo_root is not None:
-        found |= _from_file(Path(repo_root) / ".simplicio" / "client-integrations.json")
+        found |= _from_file(Path(repo_root) / ".simplicio-loop" / "client-integrations.json")
     else:
         # Best-effort: cwd project file (hosts often cwd at repo root).
-        found |= _from_file(Path.cwd() / ".simplicio" / "client-integrations.json")
+        found |= _from_file(Path.cwd() / ".simplicio-loop" / "client-integrations.json")
     # Unknown names are kept (forward-compatible) but never invent defaults.
     return frozenset(found)
 

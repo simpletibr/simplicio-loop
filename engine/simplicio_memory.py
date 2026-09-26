@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """simplicio_memory — native compress-cache-retrieve (CCR) key-value memory store.
 
-Stdlib-only. Stores at ``$SIMPLICIO_HOME/memory.json`` (default ``~/.simplicio``),
+Stdlib-only. Stores at ``$SIMPLICIO_HOME/memory.json`` (default ``~/.simplicio-loop``),
 matching the rest of the engine. CCR semantics: every ``remember`` keeps a
 deterministically-compressed (zlib+base64) form of the value, so ``recall``
 returns the byte-exact original (lossless round-trip) while the store tracks how
@@ -18,7 +18,7 @@ import zlib
 from pathlib import Path
 
 HOME = os.path.expanduser("~")
-DATA_DIR = Path(os.environ.get("SIMPLICIO_HOME", Path(HOME) / ".simplicio"))
+DATA_DIR = Path(os.environ.get("SIMPLICIO_HOME", Path(HOME) / ".simplicio-loop"))
 STORE_PATH = DATA_DIR / "memory.json"
 
 _LOCK = threading.RLock()

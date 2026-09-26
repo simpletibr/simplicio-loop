@@ -11,7 +11,7 @@ def lifecycle(tmp_path: Path) -> CheckpointLifecycle:
     base = tmp_path / "base"
     base.mkdir()
     return CheckpointLifecycle(
-        tmp_path / ".simplicio" / "loop-runs",
+        tmp_path / ".simplicio-loop" / "loop-runs",
         task_id="task-761",
         attempt_id="attempt-1",
         source_commit="abc",

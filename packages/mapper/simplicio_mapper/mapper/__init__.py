@@ -1,8 +1,8 @@
 """Project mapper that emits the Simplicio machine-readable artifacts.
 
 This is the Python port of ``bin/mapper-artifacts.js``. It produces
-``.simplicio/project-map.json`` (schema ``simplicio.project-map/v1``) and
-``.simplicio/precedent-index.json`` (schema ``simplicio.precedent-index/v1``)
+``.simplicio-loop/project-map.json`` (schema ``simplicio.project-map/v1``) and
+``.simplicio-loop/precedent-index.json`` (schema ``simplicio.precedent-index/v1``)
 as documented in ``SIMPLICIO_INTEGRATION.md``.
 
 Split (issue #159) from a single ~1830-line ``mapper.py`` into this package:
@@ -11,7 +11,7 @@ Split (issue #159) from a single ~1830-line ``mapper.py`` into this package:
   regex parsing, per-file role/importance tagging, precedent extraction).
 - ``.graph`` -- call-graph, symbol-index, architecture-inventory and
   macro-map construction (cross-file structure over the discovered files).
-- ``.emit`` -- serialization: assembles and writes ``.simplicio/*.json``
+- ``.emit`` -- serialization: assembles and writes ``.simplicio-loop/*.json``
   artifacts plus the rendered markdown/SVG architecture docs.
 
 Pure move-and-wire refactor: no renamed public API, no behavior change.

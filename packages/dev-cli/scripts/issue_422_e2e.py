@@ -452,7 +452,7 @@ def _runtime_scenario() -> dict[str, Any]:
             "reason": "SIMPLICIO_RUNTIME_E2E_ROOT is not an existing directory",
         }
     run_id = f"issue-422-runtime-{os.getpid()}"
-    artifact_dir = root / ".simplicio" / "issue-422-runtime" / run_id
+    artifact_dir = root / ".simplicio-loop" / "issue-422-runtime" / run_id
     target = artifact_dir / "result.txt"
     artifact = artifact_dir / "effect-plan.json"
     artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -630,7 +630,7 @@ def _runtime_scenario() -> dict[str, Any]:
             "validation_plan": "runtime-file-hashes",
             "rollback_plan": "safe-boundary-only",
             "redaction_plan": "none",
-            "write_set": [".simplicio/ops/mcp-effects/hbp-inbox.bin"],
+            "write_set": [".simplicio-loop/ops/mcp-effects/hbp-inbox.bin"],
             "preconditions": ["isolated-root"],
             "lease": {"id": lease_id, "fence": 1},
             "deadline_ms": int(time.time() * 1000) + 300_000,

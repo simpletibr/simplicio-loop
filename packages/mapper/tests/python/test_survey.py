@@ -124,7 +124,7 @@ class SurveyTest(unittest.TestCase):
         self.assertEqual(code, 0)
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["schema"], ONBOARDING_SCHEMA)
-        self.assertTrue((app_dir / ".simplicio" / "docs" / "onboarding.md").exists())
+        self.assertTrue((app_dir / ".simplicio-loop" / "docs" / "onboarding.md").exists())
 
     def test_survey_command_target_copies_to_root(self) -> None:
         app_dir = self._app()

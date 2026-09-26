@@ -130,7 +130,7 @@
 
 ## 2.0.9 - 2026-07-27
 
-- Publish the canonical .simplicio/fast snapshot defaults and V3 integration updates.
+- Publish the canonical .simplicio-loop/fast snapshot defaults and V3 integration updates.
 
 ## 2.0.8 - 2026-07-27
 

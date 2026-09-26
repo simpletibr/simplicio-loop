@@ -113,7 +113,7 @@ class ParseShadowArgsTest(unittest.TestCase):
     def test_defaults_when_no_flags_given(self) -> None:
         opts = _parse_shadow_args([])
         self.assertEqual(opts["root"], ".")
-        self.assertEqual(opts["out"], ".simplicio")
+        self.assertEqual(opts["out"], ".simplicio-loop")
         self.assertFalse(opts["json"])
 
     def test_positional_sets_root(self) -> None:
@@ -180,7 +180,7 @@ class BenchmarkPipelineThresholdCliTest(unittest.TestCase):
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["schema"], "simplicio.pipeline-calibration/v1")
         self.assertIn("recommended_threshold", payload)
-        calibration_path = self.root / ".simplicio" / CALIBRATION_FILENAME
+        calibration_path = self.root / ".simplicio-loop" / CALIBRATION_FILENAME
         self.assertTrue(calibration_path.exists())
         with open(calibration_path, encoding="utf-8") as handle:
             on_disk = json.load(handle)
@@ -213,7 +213,7 @@ class BenchmarkPipelineThresholdCliTest(unittest.TestCase):
         )
         self.assertEqual(code, 0)
         self.assertTrue((self.root / ".custom-out" / CALIBRATION_FILENAME).exists())
-        self.assertFalse((self.root / ".simplicio" / CALIBRATION_FILENAME).exists())
+        self.assertFalse((self.root / ".simplicio-loop" / CALIBRATION_FILENAME).exists())
 
     def test_subsequent_build_artifacts_call_honors_the_written_calibration(self) -> None:
         # Materialize a tiny real tree, calibrate against it, force a known
@@ -249,7 +249,7 @@ class BenchmarkPipelineThresholdCliTest(unittest.TestCase):
                 mock.patch.object(emit_module, "_build_artifacts_sync", wraps=emit_module._build_artifacts_sync) as spy_sync:
             os.environ.pop("SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES", None)
             # Same output_dir the calibration file was written under
-            # (default ".simplicio") -- the override is scoped per
+            # (default ".simplicio-loop") -- the override is scoped per
             # output_dir, not global to the machine.
             artifacts = build_artifacts(str(self.root))
         # Threshold calibration is honored in the receipt...
@@ -281,7 +281,7 @@ class BenchmarkShadowRolloutCliTest(unittest.TestCase):
         self.assertIn("configured_profile", payload)
         self.assertIn("candidate_profile", payload)
         self.assertFalse(payload["promoted"])
-        report_path = self.root / ".simplicio" / SHADOW_REPORT_FILENAME
+        report_path = self.root / ".simplicio-loop" / SHADOW_REPORT_FILENAME
         self.assertTrue(report_path.exists())
         with open(report_path, encoding="utf-8") as handle:
             on_disk = json.load(handle)
@@ -303,7 +303,7 @@ class BenchmarkShadowRolloutCliTest(unittest.TestCase):
         )
         self.assertEqual(code, 0)
         self.assertTrue((self.root / ".custom-out" / SHADOW_REPORT_FILENAME).exists())
-        self.assertFalse((self.root / ".simplicio" / SHADOW_REPORT_FILENAME).exists())
+        self.assertFalse((self.root / ".simplicio-loop" / SHADOW_REPORT_FILENAME).exists())
 
     def test_missing_out_value_exits_2(self) -> None:
         err = StringIO()
@@ -360,7 +360,7 @@ class BenchmarkShadowRolloutCliTest(unittest.TestCase):
         # A real build_artifacts() call still succeeds and is dispatched by
         # the unchanged, unmodified threshold -- shadow-rollout never wrote
         # a pipeline-calibration.json (only pipeline-shadow.json).
-        self.assertFalse((self.root / ".simplicio" / "pipeline-calibration.json").exists())
+        self.assertFalse((self.root / ".simplicio-loop" / "pipeline-calibration.json").exists())
         artifacts = build_artifacts(str(self.root))
         self.assertIn("project_map", artifacts)
 

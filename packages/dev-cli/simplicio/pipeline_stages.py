@@ -706,14 +706,14 @@ def _git_apply_patch(root: str, patch: str, *, subprocess_run=subprocess.run) ->
 def _copy_transaction_workspace(root: str, candidate: Path) -> None:
     src_root = Path(root)
     for item in src_root.iterdir():
-        if item.name in {".git", ".simplicio", "__pycache__"}:
+        if item.name in {".git", ".simplicio-loop", "__pycache__"}:
             continue
         destination = candidate / item.name
         if item.is_dir():
             shutil.copytree(
                 item,
                 destination,
-                ignore=shutil.ignore_patterns(".git", ".simplicio", "__pycache__", "*.pyc"),
+                ignore=shutil.ignore_patterns(".git", ".simplicio-loop", "__pycache__", "*.pyc"),
                 dirs_exist_ok=True,
             )
         elif item.is_file():
@@ -906,7 +906,7 @@ def run_apply_stage(
             changed_files=changed_files,
         )
 
-    simplicio_dir = root_path / ".simplicio"
+    simplicio_dir = root_path / ".simplicio-loop"
     simplicio_dir.mkdir(parents=True, exist_ok=True)
     (simplicio_dir / "last_output.txt").write_text(output or "", encoding="utf-8")
     (simplicio_dir / "last_patch.diff").write_text(patch, encoding="utf-8")

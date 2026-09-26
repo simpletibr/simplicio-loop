@@ -7,10 +7,10 @@ sub-step matters and the extra flags for shared/public-contract changes).
 ## Step 2 — Triage the live state FIRST (mandatory), full detail
 
 Before any action each turn, re-read the ground truth — the **`simplicio-mapper` survey**
-(`.simplicio/*.json`; refresh it with `simplicio-mapper macro . --json` for an instant skeleton or
+(`.simplicio-loop/*.json`; refresh it with `simplicio-mapper macro . --json` for an instant skeleton or
 `scan . --json` if the tree changed), `git status`/`git diff`, the working tree, the scratchpad
 notes, AND the source of record (re-query the open issues/PRs, existing branches, the
-`.simplicio/orchestrator/loop/done` flag).
+`.simplicio-loop/orchestrator/loop/done` flag).
 
 **Also read the attempt memory FIRST**: `python3 scripts/loop_journal.py resume` — it lists what
 was already tried and the dead-end actions to AVOID, so the turn never re-runs a known-failing
@@ -24,13 +24,13 @@ never wander silently.
 
 Before deciding the next code change, refresh the local impact map for the planned seed files with
 `python3 scripts/impact_audit.py audit <root> --file <seed> --cover <known-reviewed-file> --json >
-.simplicio/orchestrator/impact-audit.json` so the turn sees callers, neighboring dependencies, and related
+.simplicio-loop/orchestrator/impact-audit.json` so the turn sees callers, neighboring dependencies, and related
 tests before it edits. For shared/public contracts or signature changes, tighten that gate to
 `--fail-on medium`.
 
 For mixed front/back/service workspaces or any cross-surface user flow, also refresh the flow map
 with `python3 scripts/flow_audit.py audit <root> --fail-on high --json >
-.simplicio/orchestrator/flow-audit.json` so triage sees UI actions, frontend calls, backend endpoints, and
+.simplicio-loop/orchestrator/flow-audit.json` so triage sees UI actions, frontend calls, backend endpoints, and
 service calls before deciding the next move.
 
 The journal is the loop's memory for ATTEMPTS; the anchor is its memory for SCOPE; the impact
@@ -47,9 +47,9 @@ EVERY iteration with a short, concrete verification — the operator's passing t
 
 **After the operator passes, run the watcher producer**: `python3 scripts/watcher_verify.py
 verify` — it reads the per-iteration challenge the stop-hook issued
-(`.simplicio/orchestrator/loop/watcher_challenge.json`) and independently recomputes the frozen anchor's
+(`.simplicio-loop/orchestrator/loop/watcher_challenge.json`) and independently recomputes the frozen anchor's
 done/pending state from disk (never trusting anything asserted in-context), then writes
-`.simplicio/orchestrator/loop/watcher_state.json` with `{"match": true, "status": "MEASURED", "challenge":
+`.simplicio-loop/orchestrator/loop/watcher_state.json` with `{"match": true, "status": "MEASURED", "challenge":
 ..., "goal_fp": ...}` only when `reported == watcher.recomputed_truth` AND the receipt echoes the
 current challenge.
 

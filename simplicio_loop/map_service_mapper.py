@@ -4,7 +4,7 @@
 git-only, signal. This module closes the specific remaining AC ("integração
 Git/mapper real") by shelling out to the actual `simplicio-mapper` binary (this
 repo's bound `orient` operator, per AGENTS.md), reading its real
-`.simplicio/project-map.json` output, and deriving tree_hash/files from the
+`.simplicio-loop/project-map.json` output, and deriving tree_hash/files from the
 mapper's own per-file content hashes — not git blob shas, the mapper's own
 signal, so a real multi-worktree scenario is driven by the actual tool this
 ecosystem uses for orientation, not a git shortcut standing in for it.
@@ -69,11 +69,11 @@ def run_mapper_index(path: str, *, timeout: float = 60.0) -> dict:
 def mapper_tree_snapshot(path: str, *, timeout: float = 60.0) -> Tuple[str, List[str]]:
     """A REAL tree_hash + file list for `build_canonical`/`build_overlay`, derived from
     the actual `simplicio-mapper` binary's own per-file content hashes (read from the
-    real `.simplicio/project-map.json` it writes) — the bound orient operator's own
+    real `.simplicio-loop/project-map.json` it writes) — the bound orient operator's own
     signal, not a git-only shortcut."""
     resolved = str(Path(path).expanduser().resolve(strict=True))
     run_mapper_index(resolved, timeout=timeout)
-    project_map_path = Path(resolved) / ".simplicio" / "project-map.json"
+    project_map_path = Path(resolved) / ".simplicio-loop" / "project-map.json"
     if not project_map_path.is_file():
         raise MapperIndexError(
             "simplicio-mapper index reported success but %s does not exist" % project_map_path

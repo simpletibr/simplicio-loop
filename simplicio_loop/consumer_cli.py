@@ -58,7 +58,7 @@ def _repo_root(value: str | os.PathLike[str] | None) -> Path:
 def _script_environment(repo: Path) -> dict[str, str]:
     """Bind all stateful scripts to ``repo`` while retaining caller configuration."""
 
-    loop_dir = repo / ".simplicio" / "orchestrator" / "loop"
+    loop_dir = repo / ".simplicio-loop" / "orchestrator" / "loop"
     env = dict(os.environ)
     env["SIMPLICIO_REPO"] = str(repo)
     env.setdefault("SIMPLICIO_PROGRESS_DIR", str(loop_dir))

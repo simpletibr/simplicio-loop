@@ -18,7 +18,7 @@ def _norm(value: str) -> str:
 
 
 def _iter_records(root: Path, run_id: str | None) -> Iterable[tuple[Path, dict[str, Any]]]:
-    base = root / ".simplicio" / "orchestrator" / "trajectory"
+    base = root / ".simplicio-loop" / "orchestrator" / "trajectory"
     paths = sorted(base.glob("*.jsonl")) if base.exists() else []
     if run_id:
         paths = [p for p in paths if p.stem == run_id or run_id in p.stem]
@@ -52,7 +52,7 @@ def retrospective(root: str | Path = ".", run_id: str | None = None) -> dict[str
             candidates.append(lesson)
             source_files.add(str(path.relative_to(repo)))
 
-    base = repo / ".simplicio" / "orchestrator"
+    base = repo / ".simplicio-loop" / "orchestrator"
     base.mkdir(parents=True, exist_ok=True)
     lessons_path = base / "lessons.jsonl"
     existing: dict[str, dict[str, Any]] = {}

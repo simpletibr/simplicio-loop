@@ -12,7 +12,7 @@ embedding model would. What it gives you is a real, working, reproducible
 relevance ranking with zero dependencies.
 
 It reads the Simplicio CCR memory store at ``$SIMPLICIO_HOME/memory.json``
-(default ``~/.simplicio/memory.json``). The plaintext values are obtained through
+(default ``~/.simplicio-loop/memory.json``). The plaintext values are obtained through
 ``simplicio_memory.recall`` / ``simplicio_memory.list_keys`` (which transparently
 decompress the zlib+base64 blobs). If that import fails for any reason, it falls
 back to reading the raw JSON store directly and using any string values it finds.
@@ -202,7 +202,7 @@ def load_memories():
 def _load_memories_raw():
     """Fallback: read the raw JSON store; keep string values as-is."""
     home = os.path.expanduser("~")
-    data_dir = os.environ.get("SIMPLICIO_HOME", os.path.join(home, ".simplicio"))
+    data_dir = os.environ.get("SIMPLICIO_HOME", os.path.join(home, ".simplicio-loop"))
     store_path = os.path.join(data_dir, "memory.json")
     try:
         with open(store_path, "r", encoding="utf-8") as fh:

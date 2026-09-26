@@ -149,7 +149,7 @@ def test_two_disjoint_lanes_run_concurrently_and_integrate_serially(git_repo):
         return await apply_fn(wt_path, task_indices)
 
     results = asyncio.run(ww.run_worktree_wave(
-        git_repo, git_repo / ".simplicio" / "run", lanes, base, _sleepy_apply,
+        git_repo, git_repo / ".simplicio-loop" / "run", lanes, base, _sleepy_apply,
     ))
 
     assert {r.status for r in results} == {"applied"}
@@ -174,7 +174,7 @@ def test_two_disjoint_lanes_run_concurrently_and_integrate_serially(git_repo):
 
     ww.cleanup_worktrees(git_repo, results)
     worktree_list = _git(git_repo, "worktree", "list")
-    assert str(git_repo / ".simplicio" / "run" / "wt") not in worktree_list
+    assert str(git_repo / ".simplicio-loop" / "run" / "wt") not in worktree_list
 
 
 def test_lane_that_no_longer_applies_falls_back_to_serial_reapply(git_repo):
@@ -182,7 +182,7 @@ def test_lane_that_no_longer_applies_falls_back_to_serial_reapply(git_repo):
     lanes = [[1]]
     apply_fn = _apply_writes({1: ("a.py", "double = 1")})
 
-    results = asyncio.run(ww.run_worktree_wave(git_repo, git_repo / ".simplicio" / "run", lanes, base, apply_fn))
+    results = asyncio.run(ww.run_worktree_wave(git_repo, git_repo / ".simplicio-loop" / "run", lanes, base, apply_fn))
     assert results[0].status == "applied"
 
     # Simulate the integrated tree moving under the lane's patch: someone
@@ -212,7 +212,7 @@ def test_lane_apply_failure_is_recorded_and_never_integrated(git_repo):
     async def _failing_apply(wt_path: Path, task_indices):
         return {"applied": False}
 
-    results = asyncio.run(ww.run_worktree_wave(git_repo, git_repo / ".simplicio" / "run", lanes, base, _failing_apply))
+    results = asyncio.run(ww.run_worktree_wave(git_repo, git_repo / ".simplicio-loop" / "run", lanes, base, _failing_apply))
     assert results[0].status == "failed"
 
     def _reapply(lane_id, task_indices):
@@ -229,7 +229,7 @@ def test_lane_verifier_failure_blocks_integration_of_that_lane(git_repo):
     apply_fn = _apply_writes({1: ("a.py", "double = 1")})
 
     results = asyncio.run(ww.run_worktree_wave(
-        git_repo, git_repo / ".simplicio" / "run", lanes, base, apply_fn,
+        git_repo, git_repo / ".simplicio-loop" / "run", lanes, base, apply_fn,
         verifier_for=lambda lane_id: f"{sys.executable} -c \"import sys; sys.exit(1)\"",
     ))
     assert results[0].status == "failed"

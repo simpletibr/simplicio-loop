@@ -75,7 +75,7 @@ class StackAndProductHintInjectionTest(unittest.TestCase):
         ])
         self.assertEqual(code, 0)
         project_map = json.loads(
-            (self.dir / ".simplicio" / "project-map.json").read_text()
+            (self.dir / ".simplicio-loop" / "project-map.json").read_text()
         )
         self.assertEqual(project_map["product"]["stack"], "python-fastapi")
         self.assertEqual(project_map["product"]["name"], "Hint Host")
@@ -97,7 +97,7 @@ class JsonOnlyAndChangedOnlyAliasesTest(unittest.TestCase):
         ])
         self.assertEqual(code, 0)
         # docs should not have been rendered as a side effect.
-        self.assertFalse((self.dir / ".simplicio" / "docs").exists())
+        self.assertFalse((self.dir / ".simplicio-loop" / "docs").exists())
 
     def test_changed_only_triggers_incremental_refresh(self) -> None:
         # First run primes the cache.
@@ -108,7 +108,7 @@ class JsonOnlyAndChangedOnlyAliasesTest(unittest.TestCase):
         ])
         self.assertEqual(code, 0)
         project_map = json.loads(
-            (self.dir / ".simplicio" / "project-map.json").read_text()
+            (self.dir / ".simplicio-loop" / "project-map.json").read_text()
         )
         self.assertEqual(project_map["update_mode"], "incremental")
 
@@ -126,7 +126,7 @@ class DocsOnlyShortCircuitTest(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_docs_only_on_index_renders_docs_without_rewriting_json(self) -> None:
-        project_map_path = self.dir / ".simplicio" / "project-map.json"
+        project_map_path = self.dir / ".simplicio-loop" / "project-map.json"
         before = project_map_path.read_text()
         code, _, _ = _run([
             "index", str(self.dir), "--docs-only", "--json",
@@ -136,7 +136,7 @@ class DocsOnlyShortCircuitTest(unittest.TestCase):
         # JSON payload is not rewritten by --docs-only.
         self.assertEqual(before, after)
         # At least one markdown file is rendered.
-        docs_dir = self.dir / ".simplicio" / "docs"
+        docs_dir = self.dir / ".simplicio-loop" / "docs"
         self.assertTrue(docs_dir.exists())
         self.assertTrue(any(docs_dir.rglob("*.md")))
 
@@ -170,7 +170,7 @@ class WatchLoopExitsOnInterruptTest(unittest.TestCase):
         opts = {
             "command": "map",
             "root": str(target),
-            "out": ".simplicio",
+            "out": ".simplicio-loop",
             "stack": "",
             "product_name": "",
             "incremental": True,
@@ -213,7 +213,7 @@ class SynchronousScanTimeoutTest(unittest.TestCase):
         spawned = {
             "pid": 424242,
             "process_start": "fake-start",
-            "log": str(target / ".simplicio" / "background-index.log"),
+            "log": str(target / ".simplicio-loop" / "background-index.log"),
         }
         with (
             mock.patch.object(status_engine, "_spawn_index_process", return_value=(spawned, StuckWorker())),
@@ -229,14 +229,14 @@ class SynchronousScanTimeoutTest(unittest.TestCase):
         self.assertTrue(payload["sync"])
         self.assertEqual(payload["deep"]["failure_reason"], "scan_timeout")
         self.assertEqual(payload["deep"]["timeout_seconds"], 1)
-        partial = json.loads((target / ".simplicio" / "partial-scan.json").read_text(encoding="utf-8"))
+        partial = json.loads((target / ".simplicio-loop" / "partial-scan.json").read_text(encoding="utf-8"))
         self.assertEqual(partial["schema"], "simplicio.partial-scan/v1")
         self.assertEqual(partial["completeness"], "partial")
         self.assertEqual(partial["progress"]["phase"], "timeout")
         self.assertGreaterEqual(partial["progress"]["files_discovered"], 2)
         self.assertIsNone(partial["progress"]["eta_seconds"])
         self.assertTrue(partial["resume"]["reuses_unchanged_files"])
-        state = json.loads((target / ".simplicio" / "index-state.json").read_text(encoding="utf-8"))
+        state = json.loads((target / ".simplicio-loop" / "index-state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["completeness"], "partial")
         self.assertEqual(state["resume"]["mode"], "incremental")
 
@@ -265,7 +265,7 @@ class SynchronousScanTimeoutTest(unittest.TestCase):
                 {
                     "pid": 424243,
                     "process_start": "fake-resume",
-                    "log": str(target / ".simplicio" / "background-index.log"),
+                    "log": str(target / ".simplicio-loop" / "background-index.log"),
                 },
                 FailedWorker(),
             )
@@ -299,7 +299,7 @@ class BackgroundWorkerNeverInheritsStdinTest(unittest.TestCase):
 
         opts = {
             "root": str(target),
-            "out": ".simplicio",
+            "out": ".simplicio-loop",
             "stack": None,
             "product_name": None,
             "docs": False,
@@ -355,7 +355,7 @@ class BackgroundWorkerNeverInheritsStdinTest(unittest.TestCase):
             "os.close(0);"
             "from simplicio_mapper.cli._background import _spawn_background_index;"
             "opts = {"
-            f"'root': {str(target)!r}, 'out': '.simplicio', 'stack': None,"
+            f"'root': {str(target)!r}, 'out': '.simplicio-loop', 'stack': None,"
             "'product_name': None, 'docs': False, 'incremental': False, 'verbose': False"
             "};"
             "payload = _spawn_background_index(opts);"
@@ -398,7 +398,7 @@ class BackgroundWorkerNeverInheritsStdinTest(unittest.TestCase):
             "background worker did not exit before the timeout",
         )
 
-        project_map = target / ".simplicio" / "project-map.json"
+        project_map = target / ".simplicio-loop" / "project-map.json"
         self.assertTrue(project_map.exists(), "background worker never produced artifacts")
 
 
@@ -409,7 +409,7 @@ class BackgroundSpawnFailureReasonCodeTest(unittest.TestCase):
     def test_run_background_surfaces_worker_spawn_failed(self) -> None:
         opts = {
             "root": str(ROOT),
-            "out": ".simplicio",
+            "out": ".simplicio-loop",
             "stack": None,
             "product_name": None,
             "docs": False,
@@ -447,7 +447,7 @@ class BackgroundSpawnFailureReasonCodeTest(unittest.TestCase):
         self.assertEqual(envelope["phase"], "failed")
         self.assertEqual(envelope["deep"]["reason_code"], "worker_spawn_failed")
         self.assertEqual(envelope["deep"]["failure_reason"], "worker_spawn_failed")
-        lock_path = target / ".simplicio" / "index.lock"
+        lock_path = target / ".simplicio-loop" / "index.lock"
         self.assertFalse(lock_path.exists(), "spawn failure must not leave an orphan lock")
 
 

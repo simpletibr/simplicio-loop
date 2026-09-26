@@ -6,7 +6,7 @@ from simplicio_loop.cli_impl import _orient_route
 
 
 def _survey(root, files, edges=()):
-    out = root / ".simplicio"
+    out = root / ".simplicio-loop"
     out.mkdir()
     (out / "project-map.json").write_text(json.dumps({"files": [{"path": f} for f in files]}))
     (out / "symbol-index.json").write_text(json.dumps({"symbols": []}))

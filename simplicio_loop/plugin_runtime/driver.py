@@ -68,7 +68,7 @@ class PluginLoopDriver:
         self.receipts: list[dict[str, Any]] = []
         self.journal: list[dict[str, Any]] = []
         self.watcher: dict[str, Any] = {"fresh": True, "tampered": False}
-        self.state_path = self.root / ".simplicio" / "plugin-runtime" / "session.json"
+        self.state_path = self.root / ".simplicio-loop" / "plugin-runtime" / "session.json"
 
     def start(self, session: Mapping[str, Any]) -> dict[str, Any]:
         goal = str(session.get("goal") or "").strip()

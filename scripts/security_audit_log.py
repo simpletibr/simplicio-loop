@@ -33,7 +33,7 @@ from typing import Any, Dict, List, Optional
 
 SCHEMA = "simplicio.security-audit-log/v1"
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_AUDIT_LOG_PATH = REPO_ROOT / ".simplicio/orchestrator" / "security" / "audit-log.jsonl"
+DEFAULT_AUDIT_LOG_PATH = REPO_ROOT / ".simplicio-loop/orchestrator" / "security" / "audit-log.jsonl"
 
 
 def _now_iso() -> str:

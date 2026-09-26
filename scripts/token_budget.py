@@ -13,13 +13,13 @@ budget guard never prevents a loop from reporting its state.
 The estimator actually used is recorded in the baseline/report so a swap is never silently mixed
 with old numbers.
 
-Tracked artifacts (adjusted to what this repo actually ships — no `mapper.py`/`.simplicio/*.json`
+Tracked artifacts (adjusted to what this repo actually ships — no `mapper.py`/`.simplicio-loop/*.json`
 survey artifacts exist here since this repo IS the orchestrator skill, not a project that has been
-mapped; the check includes any `.simplicio/*.json` it finds anyway, for parity with repos that do
+mapped; the check includes any `.simplicio-loop/*.json` it finds anyway, for parity with repos that do
 have them):
   - `.claude/skills/simplicio-loop/SKILL.md` — the skill a fresh runtime loads every session
   - `AGENTS.md` — the single cross-agent contract doc
-  - `.simplicio/*.json` — mapper survey artifacts, if this repo has been mapped locally
+  - `.simplicio-loop/*.json` — mapper survey artifacts, if this repo has been mapped locally
   - the largest scripts a task is likely to read whole: `simplicio_loop/cli.py`,
     `scripts/loop_journal.py`, `scripts/task_anchor.py`, `scripts/claims_audit.py`,
     `scripts/video_evidence.py`, `scripts/check.py`
@@ -98,8 +98,8 @@ def _read_text(path):
 
 
 def discover_mapper_artifacts():
-    """`.simplicio/*.json` — only present if this repo has been mapped locally; not committed."""
-    pattern = os.path.join(REPO, ".simplicio", "*.json")
+    """`.simplicio-loop/*.json` — only present if this repo has been mapped locally; not committed."""
+    pattern = os.path.join(REPO, ".simplicio-loop", "*.json")
     out = []
     for p in sorted(glob.glob(pattern)):
         rel = os.path.relpath(p, REPO)

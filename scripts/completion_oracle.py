@@ -22,7 +22,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="completion_oracle")
     if argv == ["selftest"] or (argv is None and len(sys.argv) > 1 and sys.argv[1] == "selftest"):
         return selftest()
-    parser.add_argument("--loop-dir", default=os.path.join(".simplicio/orchestrator", "loop"))
+    parser.add_argument("--loop-dir", default=os.path.join(".simplicio-loop/orchestrator", "loop"))
     parser.add_argument("--run-dir", default=os.environ.get("SIMPLICIO_RUN_DIR", ""))
     parser.add_argument("--response-text", default="")
     parser.add_argument("--flow-gap", default="")
