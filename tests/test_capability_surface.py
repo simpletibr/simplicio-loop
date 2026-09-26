@@ -9,7 +9,9 @@ def test_catalog_exposes_stable_skills_and_schema() -> None:
     assert catalog["schema"] == "simplicio.capability-catalog/v1"
     assert catalog["language"] == "en"
     assert catalog["instruction_language"] == "en"
-    assert len(catalog["capabilities"]) == 18
+    assert len(catalog["capabilities"]) == 16
+    assert not any(item["component"] == "fast" for item in catalog["capabilities"])
+    assert "simplicio-fast" not in catalog["skills"]
     assert catalog["skills"] == sorted(catalog["skills"])
     assert catalog["load_policy"] == "index-first, skill-on-demand"
 
@@ -17,7 +19,7 @@ def test_catalog_exposes_stable_skills_and_schema() -> None:
 def test_prism_routes_portuguese_sprint_issue_to_full_stack() -> None:
     result = route(
         "Portfolio Intake Agent delegando lifecycle e completion ao Loop; "
-        "validar Mapper, Fast, Dev CLI e abrir PR"
+        "validar Mapper, Dev CLI e abrir PR"
     )
     assert result["schema"] == "simplicio.route/v1"
     assert result["language"] == "en"
@@ -25,11 +27,11 @@ def test_prism_routes_portuguese_sprint_issue_to_full_stack() -> None:
     assert result["intent"] == "orchestrate"
     assert result["unresolved"] == []
     assert result["skills_to_load"] == [
-        "simplicio-dev-cli", "simplicio-fast", "simplicio-loop", "simplicio-mapper"
+        "simplicio-dev-cli", "simplicio-loop", "simplicio-mapper"
     ]
     assert result["selected_capabilities"][-1] == "loop.complete"
     assert {adapter["component"] for adapter in result["existing_adapters"]} == {
-        "mapper", "fast", "dev-cli", "loop"
+        "mapper", "dev-cli", "loop"
     }
 
 

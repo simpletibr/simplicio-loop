@@ -1,8 +1,8 @@
 """Versioned cross-repository contract registry.
 
-The loop is the coordination boundary for Mapper, Fast and Dev CLI.  This
+The loop is the coordination boundary for Mapper and Dev CLI.  This
 module provides a small, dependency-light validator for the public envelopes
-that cross that boundary.  It intentionally does not expose Fast's internal
+that cross that boundary.  It intentionally does not expose internal index
 storage offsets or implementation handles.
 
 The registry is data-driven: ``contracts/registry/v1/registry.json`` is the
@@ -46,8 +46,8 @@ COMMON_REQUIRED = (
     "payload",
 )
 
-# These names are implementation details of Fast's mmap/vector index.  They
-# must never become part of the public Mapper/Fast/Dev CLI/Loop protocol.
+# These names are implementation details of an index's storage layout.  They
+# must never become part of the public Mapper/Dev CLI/Loop protocol.
 FORBIDDEN_INTERNAL_FIELDS = frozenset(
     {
         "offset",
@@ -261,7 +261,7 @@ class ContractRegistry:
             raise ContractValidationError(REASON_IDEMPOTENCY, "idempotency_key must not be empty")
         forbidden = _walk_forbidden(envelope.get("payload"))
         if forbidden:
-            raise ContractValidationError(REASON_INTERNAL_FIELD, "internal Fast field is not public: %s" % forbidden, details=forbidden)
+            raise ContractValidationError(REASON_INTERNAL_FIELD, "internal index field is not public: %s" % forbidden, details=forbidden)
         if str(envelope["content_hash"]) != content_hash(envelope["payload"]):
             raise ContractValidationError(REASON_HASH, "content_hash does not match payload")
         self._validate_payload_shape(contract_id, envelope["payload"])

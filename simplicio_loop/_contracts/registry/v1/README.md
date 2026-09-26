@@ -1,7 +1,7 @@
 # Simplicio cross-repository contract registry
 
 This registry is the versioned public boundary between `simplicio-mapper`,
-`simplicio-fast`, `simplicio-dev-cli`, `simplicio-loop` and the optional
+`simplicio-dev-cli`, `simplicio-loop` and the optional
 `simplicio-runtime` executor.  It does not replace legacy contracts; it gives
 new integrations one canonical ID, owner and compatibility rule.
 
@@ -27,11 +27,10 @@ closed on a major-version mismatch.
 
 | Contract | Owner | Producers | Consumers |
 | --- | --- | --- | --- |
-| `simplicio.context-snapshot/v1` | mapper | mapper | fast, dev-cli, loop |
-| `simplicio.context-delta/v1` | mapper | mapper | fast, dev-cli, loop |
-| `simplicio.fast-generation/v1` | fast | fast | loop, dev-cli |
-| `simplicio.capability-request/v1` | loop | loop, dev-cli | runtime, fast, loop |
-| `simplicio.plan-dag/v1` | dev-cli | dev-cli, loop | loop, fast |
+| `simplicio.context-snapshot/v1` | mapper | mapper | dev-cli, loop |
+| `simplicio.context-delta/v1` | mapper | mapper | dev-cli, loop |
+| `simplicio.capability-request/v1` | loop | loop, dev-cli | runtime, loop |
+| `simplicio.plan-dag/v1` | dev-cli | dev-cli, loop | loop |
 | `simplicio.change-set/v1` | dev-cli | dev-cli | loop, runtime |
 | `simplicio.verification-plan/v1` | loop | loop, dev-cli | loop, runtime |
 | `simplicio.effect-receipt/v1` | runtime | runtime, dev-cli | loop, dev-cli |
@@ -40,7 +39,7 @@ closed on a major-version mismatch.
 
 The owner is the only component allowed to change the semantic meaning of a
 contract. A producer may populate a contract but cannot create a competing
-schema ID. Fast's mmap/vector offsets, posting-list positions and storage
+schema ID. Storage offsets, posting-list positions and index storage
 handles are deliberately not public fields.
 
 ## Validation

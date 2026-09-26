@@ -6,8 +6,8 @@ configuration. Each component reports one of `available`, `missing`,
 `disabled`, `degraded`, or `incompatible`, plus its observed version,
 entrypoints, capabilities, supported schemas and evidence-backed SHA.
 
-`standalone` requires Loop, Mapper and Dev CLI. Fast and Runtime are optional
-and are reported as explicit fallbacks. `full-stack` requires all five
+`standalone` requires Loop, Mapper and Dev CLI. Runtime is optional
+and is reported as an explicit fallback. `full-stack` requires all four
 components. A required mismatch makes `ready=false` and exits non-zero.
 
 When persistence is enabled, the exact receipt is bound by a `handshake_sha`

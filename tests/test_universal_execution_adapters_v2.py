@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import hashlib
 from pathlib import Path
 
 import pytest
@@ -47,7 +46,6 @@ def _run_fixture(tmp_path: Path, *, phase: str = "done", governor: dict | None =
         "phase": phase,
         "task_ids": ["task-a", "task-b"],
         "mapper": {"ready": True, "receipt": str(run / "mapper-context.json")},
-        "fast": {"ready": True, "receipt": str(run / "fast-receipt.json")},
         "operator": {"ready": True, "receipt": str(run / "operator-receipt.json"), "execution_state": "applied"},
         "evidence": {"ready": True, "receipt": str(run / "evidence-receipt.json"), "status": "VERIFIED"},
         "loop": {"ready": phase == "done", "receipt": str(loop / "watcher_state.json"), "status": "complete" if phase == "done" else "blocked"},
@@ -70,15 +68,6 @@ def _run_fixture(tmp_path: Path, *, phase: str = "done", governor: dict | None =
         "run_id": "run-1",
         "task_contract_hash": "contract-1",
     }
-    fast_receipt = {
-        "schema": "simplicio.loop-fast-receipt/v1", "status": "MEASURED",
-        "repo": str(repo), "run_id": "run-1", "generation": "fast-1",
-        "operator": "simplicio-fast", "stage": "plan",
-        "fast_receipt": {"schema": "simplicio.fast.plandag/v2", "nodes": [{"id": "node-1"}]},
-    }
-    fast_receipt["receipt_hash"] = hashlib.sha256(
-        json.dumps(fast_receipt, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
     operator_receipt = {
         "schema": "simplicio.operator-receipt/v0", "mode": "apply",
         "tool": "simplicio-dev-cli", "execution_state": "applied", "target": "app.py",
@@ -134,7 +123,6 @@ def _run_fixture(tmp_path: Path, *, phase: str = "done", governor: dict | None =
         run / "task-contract.json": contract,
         run / "state.json": state,
         run / "mapper-context.json": mapper_receipt,
-        run / "fast-receipt.json": fast_receipt,
         run / "operator-receipt.json": operator_receipt,
         run / "operator-receipt-task-1.json": operator_receipt_task_1,
         run / "operator-receipt-task-2.json": operator_receipt_task_2,
@@ -197,7 +185,7 @@ def test_run_backed_public_flows_persist_one_canonical_v2_envelope(tmp_path, mon
 
 def test_no_provider_or_receipt_never_becomes_complete_and_unknown_metrics_are_null(tmp_path):
     repo, run, manifest, state, contract = _run_fixture(tmp_path, phase="blocked")
-    for name in ("mapper-context.json", "fast-receipt.json", "operator-receipt.json", "evidence-receipt.json"):
+    for name in ("mapper-context.json", "operator-receipt.json", "evidence-receipt.json"):
         (run / name).unlink()
     observed = {"run_dir": str(run), "manifest": manifest, "state": state, "contract": contract, "status": "blocked"}
     envelope = persist_execution_envelope(flow="run", repo=repo, run_id="run-1", observed=observed)
@@ -209,7 +197,7 @@ def test_no_provider_or_receipt_never_becomes_complete_and_unknown_metrics_are_n
 
 def test_three_empty_receipts_and_success_flags_are_not_complete(tmp_path):
     repo, run, manifest, state, contract = _run_fixture(tmp_path)
-    for name in ("mapper-context.json", "fast-receipt.json", "operator-receipt.json"):
+    for name in ("mapper-context.json", "operator-receipt.json"):
         _write_json(run / name, {})
 
     envelope = persist_execution_envelope(
@@ -233,13 +221,13 @@ def test_three_empty_receipts_and_success_flags_are_not_complete(tmp_path):
     assert envelope["completion"]["verified"] is False
     assert all(
         not envelope["phases"][phase]["provider_called"]
-        for phase in ("mapper", "fast", "dev_cli")
+        for phase in ("mapper", "dev_cli")
     )
 
 
 def test_arbitrary_json_receipts_are_not_phase_receipts(tmp_path):
     repo, run, manifest, state, contract = _run_fixture(tmp_path)
-    for name in ("mapper-context.json", "fast-receipt.json", "operator-receipt.json"):
+    for name in ("mapper-context.json", "operator-receipt.json"):
         _write_json(run / name, {"success": True, "status": "COMPLETE"})
 
     envelope = persist_execution_envelope(
@@ -253,7 +241,7 @@ def test_arbitrary_json_receipts_are_not_phase_receipts(tmp_path):
     assert envelope["status"] != "complete"
     assert all(
         not envelope["phases"][phase]["provider_called"]
-        for phase in ("mapper", "fast", "dev_cli")
+        for phase in ("mapper", "dev_cli")
     )
 
 
@@ -285,7 +273,6 @@ def test_in_memory_receipt_mappings_do_not_establish_provider_or_completion(tmp_
             "phase": "done",
             "completion": {"ready": True},
             "mapper": {"status": "complete", "receipt": {"schema": "simplicio.mapper-receipt/v1", "verified": True}},
-            "fast": {"status": "complete", "receipt": {"schema": "simplicio.fast-receipt/v1", "status": "COMPLETE"}},
             "operator": {"status": "complete", "receipt": {"schema": "simplicio.operator-receipt/v0", "execution_state": "applied"}},
         },
         "contract": {"tasks": [{"id": "task-1"}]},
@@ -301,14 +288,13 @@ def test_in_memory_receipt_mappings_do_not_establish_provider_or_completion(tmp_
 
 def test_generic_receipt_field_cannot_be_reused_across_phases(tmp_path):
     repo, run, manifest, state, contract = _run_fixture(tmp_path)
-    for name in ("mapper-context.json", "fast-receipt.json", "operator-receipt.json", "evidence-receipt.json", "completion-receipt.json"):
+    for name in ("mapper-context.json", "operator-receipt.json", "evidence-receipt.json", "completion-receipt.json"):
         (run / name).unlink()
     (run / "loop" / "watcher_state.json").unlink()
     shared = run / "shared-receipt.json"
     _write_json(shared, {"schema": "simplicio.mapper-receipt/v1", "verified": True})
     state = dict(state)
     state["mapper"] = {"ready": True, "status": "complete"}
-    state["fast"] = {"ready": True, "status": "complete"}
     state["operator"] = {"ready": True, "status": "complete"}
     state["evidence"] = {"ready": True, "status": "complete"}
     state["loop"] = {"ready": True, "status": "complete"}
@@ -505,7 +491,7 @@ def test_run_public_flow_persists_exactly_once_at_cli_boundary(tmp_path, monkeyp
 def test_expected_governor_blocked_short_circuits_batch_without_provider(tmp_path, monkeypatch):
     governor = {"decision": "blocked", "expected": True, "reason_code": "PHYSICAL_CAPACITY_PRESSURE"}
     repo, run, _manifest, _state, _contract = _run_fixture(tmp_path, phase="executing", governor=governor)
-    for name in ("mapper-context.json", "fast-receipt.json", "operator-receipt.json", "evidence-receipt.json", "completion-receipt.json"):
+    for name in ("mapper-context.json", "operator-receipt.json", "evidence-receipt.json", "completion-receipt.json"):
         (run / name).unlink()
     (run / "loop" / "watcher_state.json").unlink()
     called = False
@@ -528,7 +514,7 @@ def test_expected_governor_blocked_short_circuits_batch_without_provider(tmp_pat
 def test_expected_governor_blocked_short_circuits_tick_without_provider(tmp_path, monkeypatch):
     governor = {"decision": "blocked", "expected": True, "reason_code": "PHYSICAL_CAPACITY_PRESSURE"}
     repo, run, _manifest, _state, _contract = _run_fixture(tmp_path, phase="executing", governor=governor)
-    for name in ("mapper-context.json", "fast-receipt.json", "operator-receipt.json", "evidence-receipt.json", "completion-receipt.json"):
+    for name in ("mapper-context.json", "operator-receipt.json", "evidence-receipt.json", "completion-receipt.json"):
         (run / name).unlink()
     (run / "loop" / "watcher_state.json").unlink()
     called = False

@@ -209,13 +209,13 @@ def _validate_durable_artifacts(
     if stack.run_id != run_id:
         raise LoopExecutionReceiptError("stack lock run_id does not match the persisted manifest")
     components = {item.name: item for item in stack.components}
-    required_components = {"simplicio-mapper", "simplicio-fast", "simplicio-cli", "simplicio-runtime"}
+    required_components = {"simplicio-mapper", "simplicio-cli", "simplicio-runtime"}
     missing_components = sorted(required_components - set(components))
     if missing_components:
         raise LoopExecutionReceiptError(
             "stack lock is missing required component(s): " + ", ".join(missing_components)
         )
-    for component_name in ("simplicio-mapper", "simplicio-cli", "simplicio-fast"):
+    for component_name in ("simplicio-mapper", "simplicio-cli"):
         component = components[component_name]
         if not component.available or not component.version:
             raise LoopExecutionReceiptError(
@@ -365,12 +365,11 @@ def build_receipt(
 
     mapper = _stack_component(stack_lock, "simplicio-mapper")
     dev_cli = _stack_component(stack_lock, "simplicio-cli")
-    fast = _stack_component(stack_lock, "simplicio-fast")
     runtime = _stack_component(stack_lock, "simplicio-runtime")
 
     if any(
         bool(component.get("fallback") or component.get("fallback_used") or component.get("fallback_declared"))
-        for component in (mapper, dev_cli, fast, runtime)
+        for component in (mapper, dev_cli, runtime)
     ):
         raise LoopExecutionReceiptError("fallback execution cannot publish a verified receipt")
     if any(
@@ -381,11 +380,6 @@ def build_receipt(
 
     mapper_version = str(mapper_preflight.get("version") or mapper.get("version") or "")
     dev_version = str(operator_preflight.get("version") or dev_cli.get("version") or "")
-    fast_version = str(fast.get("version") or "")
-    if not fast_version:
-        raise LoopExecutionReceiptError("Fast version is missing from the stack lock")
-    if fast.get("available") is False:
-        raise LoopExecutionReceiptError("Fast is unavailable in the frozen stack lock")
     runtime_version = str(runtime.get("version") or "")
     runtime_available = bool(runtime.get("available", True))
     runtime_optional = False
@@ -432,11 +426,6 @@ def build_receipt(
             origin=str(dev_cli.get("executable") or "installed"),
             receipt="dev-cli.json",
             source_receipt="operator-receipt.json",
-        ),
-        "fast": _component(
-            version=fast_version,
-            origin=str(fast.get("executable") or "installed"),
-            verified=bool(fast.get("available", True)),
         ),
         "runtime": _component(
             version=runtime_version,
