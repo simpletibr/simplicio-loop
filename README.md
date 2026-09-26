@@ -251,7 +251,7 @@ protocol on 15 runtimes**, and it does all of this with **aggressive, honest tok
 
 The skill installs **standalone**: there is no Runtime/MCP backend, and no mandatory
 native component, to use `simplicio-loop`. The two bound operators (`simplicio-mapper`,
-`simplicio-dev-cli`) and the optional `simplicio-fast` accelerator are the whole stack.
+`simplicio-dev-cli`) are the whole stack (issue #1343 removed `simplicio-fast` entirely).
 
 <p align="center">
   <img src="assets/simplicio-loop-infographic.png" alt="simplicio-loop detailed infographic: standalone install, 7 skills, 5 accelerators, 15 runtimes, 5 source adapters, and proof gates" width="920" />
@@ -282,17 +282,17 @@ fica quase concluída e mostra o blocker. Consulte o contrato completo em
 
 ## 📦 Monorepo packages
 
-This repository holds four packages, each with one responsibility:
+This repository holds three packages, each with one responsibility (issue #1343 removed
+the `simplicio-fast` package entirely):
 
 | Package | Path | Responsibility |
 |---|---|---|
 | **`simplicio-loop`** | repo root (`simplicio_loop/`) | **orchestration** — the loop, skills, hooks, and the evidence/PR/progress workers described below |
 | **`simplicio-mapper`** | [`packages/mapper/`](packages/mapper/) | **survey** — `scan` / `inspect` / `handoff` |
-| **`simplicio-fast`** | [`packages/fast/`](packages/fast/) | **retrieval** — `ingest` / `understand` / `plan` |
 | **`simplicio-dev-cli`** | [`packages/dev-cli/`](packages/dev-cli/) | **mutation** — `edit` / `test` / capabilities |
 
-Dev setup (editable-installs all four into one venv): `bash scripts/dev_install.sh`. Local
-gate: `python3 scripts/check.py --package all` (or `--package mapper|fast|dev-cli|loop`, or
+Dev setup (editable-installs all three into one venv): `bash scripts/dev_install.sh`. Local
+gate: `python3 scripts/check.py --package all` (or `--package mapper|dev-cli|loop`, or
 `--changed` to run only what a diff touches). There is no GitHub Actions gate here — the
 local gate is authoritative. The 5-command flow through the loop is: **orient → prepare →
 wave → tick → verify** (see [The loop](#-the-loop) below).
@@ -873,15 +873,15 @@ simplicio-dev-cli edit --plan plan.json --apply --json
 
 > **Aviso de Descontinuação do `run`**: O comando `simplicio-loop run` foi descontinuado e excluído da interface pública. Caso seja invocado (`simplicio-loop run --task task.md` ou `simplicio-loop run <run_id>`), o comando é automaticamente interceptado e redirecionado para o fluxo padrão `simplicio-loop wave`, garantindo execução com barreira de integridade e a máxima velocidade.
 
-> **Operadores Obrigatórios**: O ecossistema agora opera com `simplicio-mapper` e `simplicio-fast` estritamente obrigatórios. O `simplicio-fast` acelera a indexação e o planejamento sintático, enquanto o `simplicio-mapper` garante a integridade estrutural do repositório e o prefix caching determinístico da LLM.
+> **Operador Obrigatório**: O ecossistema agora opera com `simplicio-mapper` estritamente obrigatório (issue #1343 removeu o `simplicio-fast` completamente da stack). O `simplicio-mapper` garante a integridade estrutural do repositório e o prefix caching determinístico da LLM.
 
 | Area | Commands | What they do |
 |---|---|---|
 | Install and utilities | `install`, `dashboard`, `learn` | Install the bundled skills/hooks; open or stop the token-monitor dashboard; derive and persist a retrospective from completed runs. |
-| Intake and planning | `task`, `prototype`, `plan`, `orient` | Validate/preview task contracts; route prototype planning; compile Markdown into a frozen contract; build bounded Mapper/Fast context and an orientation receipt. |
+| Intake and planning | `task`, `prototype`, `plan`, `orient` | Validate/preview task contracts; route prototype planning; compile Markdown into a frozen contract; build bounded Mapper context and an orientation receipt. |
 | Execution | `wave`, `prism`, `batch`, `tick` | Dispatch ready tasks through governed wave barriers (`wave`, default flow); execute through isolated worktrees (`prism`); continuous background dispatch (`batch`); step-by-step single-task execution (`tick`). A single bounded task is routed through the fast-path (`scripts/route_mode.py` -> `simplicio-dev-cli edit --compile/--apply`), not a dedicated command. *(Nota: `run` foi descontinuado e redireciona para `wave`)*. |
 | Run lifecycle | `status`, `progress`, `resume`, `cancel`, `verify`, `oracle`, `checkpoint` | Inspect a run; render progress as text/JSON/Markdown/ANSI; resume or cancel non-terminal work; run independent watcher/delivery gates; evaluate completion/parity; manage Fast V3 checkpoints. |
-| Repository and operators | `preflight`, `map`, `inspect`, `doctor`, `stack`, `extensions`, `retrieve` | Check Mapper/Dev CLI/Runtime/Fast readiness; inspect map-service receipts; inspect MapperStore capabilities; diagnose stack/source/resource/storage; lock or verify installed components; verify extension handshakes; retrieve tee-cache results. |
+| Repository and operators | `preflight`, `map`, `inspect`, `doctor`, `stack`, `extensions`, `retrieve` | Check Mapper/Dev CLI/Runtime readiness; inspect map-service receipts; inspect MapperStore capabilities; diagnose stack/source/resource/storage; lock or verify installed components; verify extension handshakes; retrieve tee-cache results. |
 | Queues and coordination | `queue`, `drain`, `agent-slots`, `generation-broker`, `ledger`, `hub-drain-plan`, `hub-drain-admit` | Operate the durable queue; evaluate or persist queue-drain receipts; inspect/reclaim Loop capacity; reconcile generation bindings; replay/validate the operational ledger; plan or admit GitHub drain work. |
 | Delivery and source control | `deliver`, `decide`, `sync-source`, `findings`, `maintenance-deferred`, `defer-maintenance` | Reconcile delivery with source evidence; apply a human decision and invalidate dependent artifacts; requery external source state; list/report/reconcile/diagnose/import findings; record deferred maintenance. `defer-maintenance` is the alias form. |
 | Economy, safety, and deployment | `economy`, `ecc`, `deploy` | Inspect/print/apply the economy-parallel environment; verify ECC provenance and safety policy; plan a gated deployment (`--apply` is explicit). |
@@ -912,7 +912,7 @@ Em tarefas orquestradas pelo `simplicio-loop` com `simplicio-mapper` obrigatóri
 3. **Impacto no Custo e na Latência**:
    - O custo de tokens de entrada em cache hit cai em até **90%** (de \$0.14/M para \$0.014/M de tokens no DeepSeek v4.1 Flash).
    - A latência por tarefa (Time to First Token - TTFT) despenca drasticamente, pois a LLM não recalcula os embeddings nem a atenção de todo o repositório a cada iteração.
-   - Portanto, a percepção de que *"o cache vai aumentando a cada rodada de 30 tarefas"* é matematicamente real e um benefício direto da arquitetura do `simplicio-mapper` + `simplicio-fast`.
+   - Portanto, a percepção de que *"o cache vai aumentando a cada rodada de 30 tarefas"* é matematicamente real e um benefício direto da arquitetura do `simplicio-mapper` (issue #1343 removeu o `simplicio-fast` da stack).
 
 ### Candidate governed flow for 10 tasks — not yet a measured winner
 
@@ -929,7 +929,6 @@ simplicio-loop preflight --strict --json
 simplicio-mapper scan . --sync --json
 simplicio-mapper inspect . --json
 simplicio-mapper handoff . --task-file task.md --execution-context --json
-simplicio-fast understand --repo .
 
 # 4. Arm the drain scratchpad; this does NOT start workers
 # The CLI resolves slots=0 via its machine-capacity recommendation.

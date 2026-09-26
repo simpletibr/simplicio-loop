@@ -92,9 +92,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
     ap.add_argument(
         "--ablation", action="store_true",
         help=(
-            "run the 7-arm ablation matrix instead (issue #1337): normal, mapper, "
-            "mapper-fast, devcli, mapper-devcli, fast-devcli, simplicio (arms.ARM_SPECS), "
-            "each isolated to only its own skills/binaries, on --tasks 1 and --tasks 4 "
+            "run the 5-arm ablation matrix instead (issue #1337; issue #1343 dropped "
+            "the Fast arms): normal, mapper, devcli, mapper-devcli, simplicio "
+            "(arms.ARM_SPECS), each isolated to only its own skills/binaries, on "
+            "--tasks 1 and --tasks 4 "
             "(sequential only, no --batch) -- writes results/<date>-<sha>-t<N>-ablation.json "
             "and REPORT-ablation.md/.html/.pdf ranked by computed cost ascending"
         ),
@@ -155,11 +156,11 @@ def _usd(value: float | None) -> str:
     return "n/a" if value is None else f"${value:.5f}"
 
 
-# -- 7-arm ablation matrix (issue #1337) -------------------------------------
-# normal / mapper / mapper-fast / devcli / mapper-devcli / fast-devcli /
-# simplicio, on --tasks 1 and --tasks 4, sequential only (no --batch), all 7
-# arms isolated uniformly (run.py --isolate-arms) so cost/speed differences
-# are attributable to the operators actually granted, never a PATH leak.
+# -- 5-arm ablation matrix (issue #1337; issue #1343 dropped the Fast arms) --
+# normal / mapper / devcli / mapper-devcli / simplicio, on --tasks 1 and
+# --tasks 4, sequential only (no --batch), all arms isolated uniformly
+# (run.py --isolate-arms) so cost/speed differences are attributable to the
+# operators actually granted, never a PATH leak.
 
 ABLATION_HEADERS = [
     "arm", "ok/n", "turns", "wall (s)", "custo calculado", "custo cobrado",
@@ -641,7 +642,8 @@ def write_ablation_reports(entries: list[tuple[int, str]], out_dir: str) -> None
 
 
 def run_ablation(args: argparse.Namespace) -> int:
-    """The 7-arm ablation matrix (issue #1337): ``arms.ARM_NAMES``, on
+    """The 5-arm ablation matrix (issue #1337; issue #1343 dropped the Fast
+    arms): ``arms.ARM_NAMES``, on
     ``--tasks 1`` and ``--tasks 4``, sequential only (``run.py
     --isolate-arms``, never ``--batch`` -- per-arm isolation is the point of
     this matrix, so every arm -- including normal/simplicio -- gets the same

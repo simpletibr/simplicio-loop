@@ -5,10 +5,10 @@
 
 ## Monorepo layout
 
-Four packages, one responsibility each: root `simplicio_loop/` = **orchestration** (this
-package); `packages/mapper/` = **survey** (`scan`/`inspect`/`handoff`); `packages/fast/` =
-**retrieval** (`ingest`/`understand`/`plan`); `packages/dev-cli/` = **mutation**
-(`edit`/`test`/capabilities). Dev setup: `bash scripts/dev_install.sh`. Local gate:
+Three packages, one responsibility each: root `simplicio_loop/` = **orchestration** (this
+package); `packages/mapper/` = **survey** (`scan`/`inspect`/`handoff`); `packages/dev-cli/` =
+**mutation** (`edit`/`test`/capabilities). `packages/fast/` was removed entirely (issue #1343):
+the survey that every flow requires is now Mapper-only. Dev setup: `bash scripts/dev_install.sh`. Local gate:
 `python3 scripts/check.py --package all` (or `--package <name>` / `--changed`). No GitHub
 Actions gate — the local gate is authoritative.
 
@@ -49,11 +49,11 @@ and `.claude/skills/simplicio-loop/references/extension-points.md` § bound oper
 
 Every subagent, worker, and provider session MUST read `AGENTS.md` and every relevant local skill before operating. For Loop work, the baseline skills are `.claude/skills/simplicio-loop/SKILL.md` and `.claude/skills/simplicio-prism/SKILL.md`; load additional satellite skills selected by the task before mutation.
 
-The canonical default branch owns one centrally built binary/artifact set. Workers consume that binary read-only; they MUST NOT rebuild binaries or regenerate canonical Mapper/Fast artifacts. Worktrees isolate source edits and receipts only. Every receipt/handoff MUST record repository and revision, binary digest/version, Mapper generation and artifact digest. Missing, stale, incompatible, or mismatched central artifacts fail closed and route to the central rebuild path only; a worker may not repair them locally or fall back to fabricated/uncertified context.
+The canonical default branch owns one centrally built binary/artifact set. Workers consume that binary read-only; they MUST NOT rebuild binaries or regenerate canonical Mapper artifacts. Worktrees isolate source edits and receipts only. Every receipt/handoff MUST record repository and revision, binary digest/version, Mapper generation and artifact digest. Missing, stale, incompatible, or mismatched central artifacts fail closed and route to the central rebuild path only; a worker may not repair them locally or fall back to fabricated/uncertified context.
 
 
 ### Full-stack boundaries
-`simplicio-mapper` / `simplicio-dev-cli` / `simplicio-fast` observe, plan, and edit **standalone
+`simplicio-mapper` / `simplicio-dev-cli` observe, plan, and edit **standalone
 — there is no Runtime/MCP backend in this stack.** `simplicio-loop` owns the full loop subsystem
 (activation + convergence authority) and **mandatory execution-report metrics** (per task +
 consolidated). Coordinators own cognition, not loop activation. See `docs/adr/0009` and
@@ -118,7 +118,7 @@ confirm scope in one line only if ambiguous.
 ## LLM quick flow
 
 The compact current sequence is canonical in [`llms.txt`](llms.txt): Mapper `--help` →
-`scan`/`inspect`/`handoff`, Fast bounded context, Dev CLI governed edit/verify, focused gates,
+`scan`/`inspect`/`handoff`, Dev CLI governed edit/verify, focused gates,
 then live PR re-query. Execution is always standalone; there is no Runtime/MCP backend.
 
 ## Extension points (bind native when available)
@@ -189,14 +189,13 @@ turn×event/runtime×level tables: `.claude/skills/simplicio-loop/references/pro
 ## Development
 
 `scripts/dev_install.sh` creates ONE venv and installs the four in-repo packages editable, from
-their in-repo paths, in dependency order (mapper, fast, dev-cli, then loop) — so the loop you run
+their in-repo paths, in dependency order (mapper, dev-cli, then loop) — so the loop you run
 locally always talks to its in-repo siblings, never a stale PyPI release:
 
 ```bash
 bash scripts/dev_install.sh            # venv at .venv/ (default)
 source .venv/bin/activate
 python3 scripts/check.py --package mapper    # ruff + pytest tests/python -q
-python3 scripts/check.py --package fast      # pytest -q, PYTHONPATH=src
 python3 scripts/check.py --package dev-cli   # ruff + mypy + pytest tests/python tests/contracts -q
 python3 scripts/check.py --package loop      # no-op alias: the loop's own gate is the rest of this script
 python3 scripts/check.py --package all       # all four
@@ -253,7 +252,7 @@ mass-delete, destructive DDL, infra teardown) and secret-laden commits/pushes be
 
 ## Releases in a monorepo
 
-Each package tags and releases independently: `loop vX.Y.Z`, `mapper-vX.Y.Z`, `fast-vX.Y.Z`,
+Each package tags and releases independently: `loop vX.Y.Z`, `mapper-vX.Y.Z`,
 `dev-cli-vX.Y.Z` — a local build per package plus its own tag. There is no GitHub Actions gate and
 no cross-repo release-train machinery; `python3 scripts/check.py` is the authoritative local gate
 before any tag.
@@ -293,7 +292,7 @@ The complete installed-entry-point and `simplicio-loop` command map is
 [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md). Run the most specific
 `--help` before invoking a command. Every new public command must have
 meaningful `help=` text, documentation in that file, and a help regression
-check. The current train is Mapper 0.26.34, Dev CLI 0.18.16, Fast 2.0.35, and
+check. The current train is Mapper 0.26.34, Dev CLI 0.18.16, and
 Loop 3.43.16.
 
 For GitHub work items, keep the body focused on objective, implementation,

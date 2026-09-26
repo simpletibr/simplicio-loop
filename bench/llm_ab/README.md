@@ -76,7 +76,7 @@ into `repo_dir` and prefixes the prompt with `/simplicio-loop `; `skill=False`
 scratch directory, never the real `~` (see `STANDARD.md` § OpenCode for why
 that isolation is necessary). The subprocess `PATH` is the caller's
 environment with the venv `bin/` holding
-`simplicio-loop`/`simplicio-mapper`/`simplicio-dev-cli`/`simplicio-fast`
+`simplicio-loop`/`simplicio-mapper`/`simplicio-dev-cli`
 (`dirname(sys.executable)`) prepended, so the simplicio arm can actually
 invoke those binaries from OpenCode's own bash tool. The OpenRouter key
 reaches the child process ONLY via the `OPENROUTER_API_KEY` environment
@@ -182,7 +182,7 @@ hiding it.
 - **commands** — every `bash` tool event OpenCode emitted, in order, with
   exit code and wall time OpenCode itself reports on the event
   (`opencode_agent.parse_run_events`); `is_simplicio` flags a command whose
-  first token starts with `simplicio-` (loop/mapper/dev-cli/fast). CPU/peak
+  first token starts with `simplicio-` (loop/mapper/dev-cli). CPU/peak
   RSS per command are not measurable through the OpenCode CLI (OpenCode
   itself shells out to bash, not this harness) -- `measure.py`'s
   `RUSAGE_CHILDREN`/`VmHWM` measurement instead covers the WHOLE `opencode

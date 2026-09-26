@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from simplicio_loop.checkpoint_lifecycle import CheckpointLifecycle, LifecycleError
-from simplicio_loop.fast_fanout import CanonicalGeneration
+from simplicio_loop.generation_broker import CanonicalGeneration
 from simplicio_loop.generation_broker import GenerationBroker, _digest
 from simplicio_loop.generation_broker_cli import _load, cli_main
 from simplicio_loop.map_service import MapServiceRegistry, RepositoryIdentity

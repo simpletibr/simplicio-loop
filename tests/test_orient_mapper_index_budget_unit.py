@@ -98,10 +98,8 @@ def test_ensure_project_map_bounded_raises_timed_out_then_running(tmp_path, fake
 
 def test_orient_brief_prints_valid_json_with_timeout_reason_code(tmp_path, fake_slow_mapper, capsys):
     repo = _git_repo(tmp_path)
-    # Force the Fast path off so the only slow step exercised is the mapper
-    # index this issue is about, not Fast's own (out-of-scope) timeouts.
     started = time.monotonic()
-    rc = cli_impl.orient(str(repo), "fix a.py", brief=True, fast_mode="off")
+    rc = cli_impl.orient(str(repo), "fix a.py", brief=True)
     elapsed = time.monotonic() - started
     out = capsys.readouterr().out
     assert out.strip(), "orient --brief must never print empty stdout"
@@ -115,7 +113,7 @@ def test_orient_brief_prints_valid_json_with_timeout_reason_code(tmp_path, fake_
 def test_orient_non_brief_prints_valid_json_with_timeout_reason_code(tmp_path, fake_slow_mapper, capsys):
     repo = _git_repo(tmp_path)
     started = time.monotonic()
-    rc = cli_impl.orient(str(repo), "fix a.py", fast_mode="off")
+    rc = cli_impl.orient(str(repo), "fix a.py")
     elapsed = time.monotonic() - started
     out = capsys.readouterr().out
     assert out.strip()

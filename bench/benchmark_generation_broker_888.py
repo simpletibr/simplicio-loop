@@ -14,7 +14,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from simplicio_loop.checkpoint_lifecycle import CheckpointLifecycle  # noqa: E402
-from simplicio_loop.fast_fanout import CanonicalGeneration  # noqa: E402
+from simplicio_loop.generation_broker import CanonicalGeneration  # noqa: E402
 from simplicio_loop.generation_broker import GenerationBroker  # noqa: E402
 from simplicio_loop.map_service import MapServiceRegistry, RepositoryIdentity  # noqa: E402
 

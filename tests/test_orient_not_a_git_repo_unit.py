@@ -1,6 +1,6 @@
 """orient (brief and non-brief) must BLOCK quickly with a typed reason_code
 when `--repo` (or cwd) is not inside a git work tree (issue #1318 cause 4:
-an `orient` run outside a repo scanned `/root` for 163.7s). No Mapper/Fast
+an `orient` run outside a repo scanned `/root` for 163.7s). No Mapper
 survey, no lexical file walk -- just a fast, typed refusal.
 """
 from __future__ import annotations
@@ -14,7 +14,7 @@ from simplicio_loop import cli_impl
 def test_orient_core_blocks_fast_on_non_git_dir(tmp_path):
     started = time.monotonic()
     payload, code = cli_impl._orient_core(
-        tmp_path, "Edit a.html", "auto", 48000, "auto", None, verbose=True,
+        tmp_path, "Edit a.html", None, verbose=True,
     )
     elapsed = time.monotonic() - started
     assert code == 2
@@ -46,6 +46,6 @@ def test_orient_git_repo_is_unaffected(tmp_path):
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     (tmp_path / "a.html").write_text("<html></html>", encoding="utf-8")
     payload, code = cli_impl._orient_core(
-        tmp_path, "Edit a.html", "auto", 48000, "auto", None, verbose=True,
+        tmp_path, "Edit a.html", None, verbose=True,
     )
     assert payload.get("reason_code") != "not_a_git_repo"

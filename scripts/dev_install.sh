@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Development workspace bootstrap for the monorepo (mapper + fast + dev-cli + loop).
+# Development workspace bootstrap for the monorepo (mapper + dev-cli + loop;
+# issue #1343 removed simplicio-fast from the stack entirely).
 #
-# Creates ONE venv and installs the four in-repo packages editable, from their
-# in-repo paths, in dependency order (mapper, fast, dev-cli, then loop) --
+# Creates ONE venv and installs the three in-repo packages editable, from
+# their in-repo paths, in dependency order (mapper, dev-cli, then loop) --
 # so the loop always runs against its in-repo siblings, never a stale PyPI
-# release of simplicio-mapper/simplicio-fast/simplicio-cli.
+# release of simplicio-mapper/simplicio-cli.
 #
 # Usage:
 #   bash scripts/dev_install.sh [VENV_DIR]
@@ -53,14 +54,13 @@ fi
 #     too keeps this step self-describing and idempotent either way).
 "$VENV_PY" -m pip install --upgrade build wheel setuptools "hatchling>=1.27,<1.33" >/dev/null
 
-# Dependency order matters: fast/dev-cli/loop each expect the mapper contract
+# Dependency order matters: dev-cli/loop each expect the mapper contract
 # and CLI to already be importable when THEIR own extras resolve.
 "$VENV_PY" -m pip install -e "$REPO/packages/mapper[dev]"
-"$VENV_PY" -m pip install -e "$REPO/packages/fast"
 "$VENV_PY" -m pip install -e "$REPO/packages/dev-cli[dev]"
 "$VENV_PY" -m pip install -e "$REPO[dev]"
 
 echo
 echo "monorepo dev workspace ready: $VENV_DIR"
 echo "activate with: source $VENV_DIR/bin/activate"
-echo "the loop now runs against the in-repo mapper/fast/dev-cli siblings, not a published release."
+echo "the loop now runs against the in-repo mapper/dev-cli siblings, not a published release."

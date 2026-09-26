@@ -383,14 +383,12 @@ def run_package_content():
 
 PACKAGE_ROOTS = {
     "mapper": os.path.join(REPO, "packages", "mapper"),
-    "fast": os.path.join(REPO, "packages", "fast"),
     "dev-cli": os.path.join(REPO, "packages", "dev-cli"),
     "loop": REPO,
 }
-PACKAGE_NAMES = ("mapper", "fast", "dev-cli", "loop")
+PACKAGE_NAMES = ("mapper", "dev-cli", "loop")
 PACKAGE_PREFIXES = {
     "packages/mapper/": "mapper",
-    "packages/fast/": "fast",
     "packages/dev-cli/": "dev-cli",
 }
 
@@ -492,17 +490,6 @@ def run_package_gate(pkg):
             return fail
         return GateResult(True, "ok")
 
-    if pkg == "fast":
-        env = dict(os.environ)
-        env["PYTHONPATH"] = os.path.join(root, "src") + os.pathsep + env.get("PYTHONPATH", "")
-        fail = _run_step(
-            _pytest_command(), ["-q"], phase="package_gate_tests", cwd=root, env=env,
-            missing_reason="package_fast_pytest_missing", fail_reason="package_fast_pytest_failed",
-        )
-        if fail:
-            return fail
-        return GateResult(True, "ok")
-
     if pkg == "dev-cli":
         fail = _run_step(
             _tool_argv("ruff"), ["check", "."], phase="package_gate_lint", cwd=root,
@@ -531,27 +518,6 @@ def run_package_gate(pkg):
         return GateResult(True, "ok")
 
     return GateResult(False, "package_unknown")
-
-
-def run_cross_package_e2e():
-    """Cross-package e2e (Mapper handoff -> Fast integrated ingest), always
-    in the default set (not gated behind --package fast) -- see
-    packages/fast/tests/test_public_handoff_ingest_e2e.py for the flow and
-    its own documented skip (no simplicio-mapper binary on PATH)."""
-    _hr("cross-package e2e: mapper handoff -> fast ingest")
-    fast_root = PACKAGE_ROOTS["fast"]
-    test_path = os.path.join(fast_root, "tests", "test_public_handoff_ingest_e2e.py")
-    if not os.path.isfile(test_path):
-        return GateResult(False, "cross_package_e2e_missing")
-    env = dict(os.environ)
-    env["PYTHONPATH"] = os.path.join(fast_root, "src") + os.pathsep + env.get("PYTHONPATH", "")
-    fail = _run_step(
-        _pytest_command(), [test_path, "-q"], phase="package_gate_tests", cwd=fast_root, env=env,
-        missing_reason="cross_package_e2e_pytest_missing", fail_reason="cross_package_e2e_failed",
-    )
-    if fail:
-        return fail
-    return GateResult(True, "ok")
 
 
 def _changed_packages():
@@ -597,12 +563,12 @@ def main():
     if "--package" in args:
         idx = args.index("--package")
         if idx + 1 >= len(args):
-            print("check: FAIL (--package requires a value: mapper|fast|dev-cli|loop|all)",
+            print("check: FAIL (--package requires a value: mapper|dev-cli|loop|all)",
                   file=sys.stderr)
             sys.exit(2)
         package_arg = args[idx + 1]
         if package_arg not in PACKAGE_NAMES and package_arg != "all":
-            print("check: FAIL (--package must be one of mapper|fast|dev-cli|loop|all, got %r)"
+            print("check: FAIL (--package must be one of mapper|dev-cli|loop|all, got %r)"
                   % package_arg, file=sys.stderr)
             sys.exit(2)
         args = args[:idx] + args[idx + 2:]
@@ -628,7 +594,6 @@ def main():
     results = {name: GateResult(True, "not_run") for name in (
         "audit", "mirror_parity", "tests", "loop_contract", "clean_env",
         "token_budget", "repo_budget", "conformance", "package_content",
-        "cross_package_e2e",
     )}
     if not any_only or "--audit-only" in args or core_gate:
         results["audit"] = run_audit()
@@ -646,10 +611,6 @@ def main():
         results["repo_budget"] = run_repository_budget()
     if not any_only or "--conformance" in args or core_gate:
         results["conformance"] = run_conformance()
-    if not any_only or core_gate:
-        # Cross-package e2e is part of the default set (#1297 follow-up),
-        # not gated behind --package fast/all.
-        results["cross_package_e2e"] = run_cross_package_e2e()
     if "--package-content" in args:
         # Deliberately NOT included in "not any_only" (the default full run) or core_gate — see
         # run_package_content()'s docstring: opt-in only, ~20-30s, a release-time check.
@@ -669,8 +630,6 @@ def main():
                 results["package_%s" % name.replace("-", "_")] = run_package_gate(name)
             else:
                 results["package_%s" % name.replace("-", "_")] = GateResult(True, "not_run")
-        if "fast" in selected:
-            results["cross_package_e2e"] = run_cross_package_e2e()
 
     ok = all(result.ok for result in results.values())
     status = {
@@ -682,11 +641,10 @@ def main():
             "PASS" if ok else "FAIL", status["audit"], status["mirror_parity"],
             status["tests"], status["loop_contract"], status["clean_env"],
             status["token_budget"], status["repo_budget"], status["conformance"]))
-    print("\ncheck: %s  (audit=%s · mirror-parity=%s · tests=%s · loop-contract=%s · clean-env=%s · token-budget=%s · repo-budget=%s · conformance=%s · package-content=%s · cross-package-e2e=%s)" % (
+    print("\ncheck: %s  (audit=%s · mirror-parity=%s · tests=%s · loop-contract=%s · clean-env=%s · token-budget=%s · repo-budget=%s · conformance=%s · package-content=%s)" % (
         "PASS" if ok else "FAIL", status["audit"], status["mirror_parity"], status["tests"],
         status["loop_contract"], status["clean_env"], status["token_budget"],
-        status["repo_budget"], status["conformance"], status["package_content"],
-        status["cross_package_e2e"]))
+        status["repo_budget"], status["conformance"], status["package_content"]))
     if package_mode:
         print("package-gate: %s" % " · ".join(
             "%s=%s" % (name, status["package_%s" % name.replace("-", "_")])

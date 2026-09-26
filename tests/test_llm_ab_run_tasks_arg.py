@@ -143,9 +143,9 @@ def test_run_arm_threads_settled_usage_as_next_tasks_baseline(monkeypatch, tmp_p
 
 # -- ablation arms (issue #1337): ARM_CHOICES, _spec_for, arm_spec isolation
 
-def test_arm_choices_has_all_7_ablation_arms():
+def test_arm_choices_has_all_5_ablation_arms():
     assert set(run.ARM_CHOICES) == {
-        "normal", "mapper", "mapper-fast", "devcli", "mapper-devcli", "fast-devcli", "simplicio",
+        "normal", "mapper", "devcli", "mapper-devcli", "simplicio",
     }
 
 

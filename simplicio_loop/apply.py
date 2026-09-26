@@ -447,7 +447,7 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".", ops_path: str | Path 
 
     # Key order (issue #1336): content that is the SAME across two runs of
     # the same ops.json on an unchanged tree (schema/ops_sha/chains/tasks/
-    # status/repo state/diff/mapper_fast) comes first, so the serialized
+    # status/repo state/diff/mapper) comes first, so the serialized
     # JSON's byte-prefix up to that point stays stable across runs; the
     # inherently-per-run bytes (`run_id`, `created_at`) are last, so they
     # invalidate only the tail of the prompt-cache-relevant prefix, never
@@ -461,7 +461,7 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".", ops_path: str | Path 
         "repo_state_before": before_state,
         "repo_state_after": after_state,
         "diff": diff,
-        "mapper_fast": provenance,
+        "mapper": provenance,
         "run_id": run_id,
         "created_at": time.time(),
     }

@@ -47,9 +47,10 @@ Now invoke it from your agent runtime (Claude Code, Cursor, Codex, Gemini, …):
 - **Token economy** — honest "answer concisely" baseline; savings credited only on verified-correct
   outcomes.
 
-Requires Python 3.11+. The Loop dependency closure includes `simplicio-fast`,
-`simplicio-mapper`, and `simplicio-cli`; Python 3.11 is therefore the honest
-minimum for an installed bundle. The package remains pure cross-platform Python.
+Requires Python 3.11+. The Loop dependency closure includes `simplicio-mapper`
+and `simplicio-cli` (issue #1343 removed `simplicio-fast`); Python 3.11 is
+therefore the honest minimum for an installed bundle. The package remains
+pure cross-platform Python.
 
 MIT — part of the [Simplicio](https://github.com/wesleysimplicio) ecosystem.
 Full docs: <https://github.com/wesleysimplicio/simplicio-loop>

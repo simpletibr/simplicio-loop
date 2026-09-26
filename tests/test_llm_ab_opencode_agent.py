@@ -121,12 +121,12 @@ def test_build_env_isolated_path_wins_over_extra_path():
 # -- install_skills / build_shim_dir / build_arm_path (issue #1337) ---------
 
 def test_install_skills_copies_each_named_skill(tmp_path):
-    dsts = oc.install_skills(str(tmp_path), ["simplicio-mapper", "simplicio-fast"])
+    dsts = oc.install_skills(str(tmp_path), ["simplicio-mapper", "simplicio-dev-cli"])
     assert len(dsts) == 2
     for d in dsts:
         assert os.path.isfile(os.path.join(d, "SKILL.md"))
     assert os.path.isdir(os.path.join(str(tmp_path), ".claude", "skills", "simplicio-mapper"))
-    assert os.path.isdir(os.path.join(str(tmp_path), ".claude", "skills", "simplicio-fast"))
+    assert os.path.isdir(os.path.join(str(tmp_path), ".claude", "skills", "simplicio-dev-cli"))
 
 
 def test_install_skills_empty_list_installs_nothing(tmp_path):

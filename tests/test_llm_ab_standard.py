@@ -188,7 +188,7 @@ def test_build_ablation_html_index_renders_a_table_per_task_set():
 
 def test_arm_choices_includes_all_ablation_arms():
     assert set(standard.bench_arms.ARM_NAMES) == {
-        "normal", "mapper", "mapper-fast", "devcli", "mapper-devcli", "fast-devcli", "simplicio",
+        "normal", "mapper", "devcli", "mapper-devcli", "simplicio",
     }
 
 

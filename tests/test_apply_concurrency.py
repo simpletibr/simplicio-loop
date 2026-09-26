@@ -12,14 +12,15 @@ from simplicio_loop import apply as apply_mod
 
 
 def seed_mapper_fast_survey(root):
-    """Write the minimal Mapper + Fast survey `simplicio-loop apply` requires
-    (issue #1318): the Mapper project map and the brief's per-task Fast
-    provenance, as a real `orient --brief` leaves them."""
+    """Write the minimal Mapper survey `simplicio-loop apply` requires
+    (issue #1318; issue #1343 removed Fast from the stack entirely): the
+    Mapper project map and the brief's per-task Mapper provenance, as a
+    real `orient --brief` leaves them."""
     state = root / ".simplicio-loop"
     state.mkdir(parents=True, exist_ok=True)
     (state / "project-map.json").write_text("{}", encoding="utf-8")
     (state / "survey.json").write_text(json.dumps({"generations": [{
-        "task": "t", "operator": "simplicio-fast",
+        "task": "t", "operator": "simplicio-mapper",
         "generation": "sha256:test", "context_hash": "sha256:test"}]}), encoding="utf-8")
 
 

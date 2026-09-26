@@ -80,7 +80,6 @@ def standalone_import_proof(
         "simplicio_loop.engine_dependency_guard",
         "simplicio_loop.prism_scheduler",
         "simplicio_loop.prism_reducer",
-        "simplicio_loop.local_first_path",
         "simplicio_loop.delivery",
     ),
 ) -> dict[str, Any]:

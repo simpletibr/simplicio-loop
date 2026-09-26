@@ -118,7 +118,6 @@ def test_pack_lists_relevant_skills_and_real_observed_commands():
         ".claude/skills/simplicio-loop/SKILL.md",
         ".claude/skills/simplicio-prism/SKILL.md",
         ".claude/skills/simplicio-mapper/SKILL.md",
-        ".claude/skills/simplicio-fast/SKILL.md",
         ".claude/skills/simplicio-dev-cli/SKILL.md",
         ".claude/skills/simplicio-orient/SKILL.md",
     }
@@ -131,7 +130,7 @@ def test_pack_lists_relevant_skills_and_real_observed_commands():
 
     observed_commands = _values(parsed["commands"], "observed.")
     assert parsed["commands"]["entrypoints"] == (
-        "simplicio-loop; simplicio-mapper; simplicio-dev-cli; optional simplicio-fast"
+        "simplicio-loop; simplicio-mapper; simplicio-dev-cli"
     )
     assert {
         "simplicio-loop --help",
@@ -178,11 +177,9 @@ def test_pack_covers_tdd_validation_handoff_governors_and_limits():
     assert "python3 scripts/check_loop_contract.py" in tests["contract_gate"]
 
     assert parsed["workflow"]["sequence"] == "map -> memory -> skills -> gate/checkpoint -> TDD -> validate -> evidence"
-    for component in ("mapper", "fast", "dev_cli", "runtime"):
+    for component in ("mapper", "dev_cli", "runtime"):
         assert component in parsed["handoff"]
-    assert parsed["known_limits"]["fast_cli"] == "UNAVAILABLE|simplicio-fast command not found"
     assert parsed["known_limits"]["mcp_architecture_map"] == "BLOCKED|MAP_OPERATION_DECLARED_ONLY"
-    assert parsed["known_limits"]["fast_snapshot"] == "UNAVAILABLE|snapshot missing or invalid; mapper-deferred"
 
 
 def test_pack_parser_rejects_secret_looking_assignments():
