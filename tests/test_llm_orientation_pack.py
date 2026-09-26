@@ -94,7 +94,6 @@ def test_pack_has_project_identity_and_authoritative_sources_with_sha256():
         "docs/LLM_MAX_SPEED_ORIENTATION.md",
         ".claude/skills/simplicio-loop/SKILL.md",
         ".claude/skills/simplicio-prism/SKILL.md",
-        ".claude/skills/simplicio-runtime/SKILL.md",
         "contracts/loop-execution/v1/schema.json",
         "contracts/loop-execution/v1/receipt.schema.json",
         "contracts/loop-execution/v1/SCHEMA.md",
@@ -118,7 +117,6 @@ def test_pack_lists_relevant_skills_and_real_observed_commands():
     required_skills = {
         ".claude/skills/simplicio-loop/SKILL.md",
         ".claude/skills/simplicio-prism/SKILL.md",
-        ".claude/skills/simplicio-runtime/SKILL.md",
         ".claude/skills/simplicio-mapper/SKILL.md",
         ".claude/skills/simplicio-fast/SKILL.md",
         ".claude/skills/simplicio-dev-cli/SKILL.md",
@@ -133,7 +131,7 @@ def test_pack_lists_relevant_skills_and_real_observed_commands():
 
     observed_commands = _values(parsed["commands"], "observed.")
     assert parsed["commands"]["entrypoints"] == (
-        "simplicio; simplicio-loop; simplicio-mapper; simplicio-dev-cli; optional simplicio-fast"
+        "simplicio-loop; simplicio-mapper; simplicio-dev-cli; optional simplicio-fast"
     )
     assert {
         "simplicio-loop --help",
@@ -145,10 +143,6 @@ def test_pack_lists_relevant_skills_and_real_observed_commands():
         "simplicio-loop verify --help",
         "simplicio-mapper --help",
         "simplicio-dev-cli --help",
-        "simplicio runtime map --help",
-        "simplicio contracts smoke --help",
-        "simplicio validate --help",
-        "simplicio edit --help",
     } <= observed_commands
 
 
@@ -158,7 +152,7 @@ def test_pack_preserves_v1_contract_authority_and_receipt_semantics():
     assert "simplicio.loop-execution/v1" in contracts.values()
     assert "contracts/loop-execution/v1/schema.json" in contracts.values()
     assert "contracts/loop-execution/v1/receipt.schema.json" in contracts.values()
-    assert any("simplicio-runtime" in value for key, value in contracts.items() if key.endswith(".owner"))
+    assert any("simplicio-loop" in value for key, value in contracts.items() if key.endswith(".owner"))
     forbidden_contract = "simplicio.loop-execution/" + "v2"
     assert not any(forbidden_contract in value for value in contracts.values())
 

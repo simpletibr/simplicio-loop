@@ -57,8 +57,7 @@ ORIENTATION_END = "<!-- SIMPLICIO-LLM-ORIENTATION:END -->"
 ORIENTATION_LABEL = "[simplicio-loop startup orientation]"
 # Core operate/survey pair — always required when the simplicio-loop skill is present.
 BOUND_OPERATORS = ("simplicio-mapper", "simplicio-dev-cli")
-# Adaptive: Runtime (simplicio) and Fast are required only when operational (or forced).
-RUNTIME_BINARY = "simplicio"
+# Adaptive: Fast is required only when operational (under strict mode).
 FAST_BINARY = "simplicio-fast"
 WEB_EXTS = {".tsx", ".jsx", ".vue", ".svelte", ".html"}
 _TRUE = frozenset({"1", "true", "yes", "on", "strict", "full-stack", "required"})
@@ -567,22 +566,9 @@ def required_bound_operators():
     """Binaries this running loop must keep available.
 
     Always (skill present): mapper + operate.
-    Runtime (``simplicio``): when SIMPLICIO_LOOP_REQUIRE_RUNTIME=required, always;
-    when auto (default), only if currently operational — then it is required so a
-    mid-run disappearance cannot silently drop to standalone.
     Fast: under strict mode, if currently operational it becomes required.
     """
     required = list(BOUND_OPERATORS)
-    rt_mode = _env_flag("SIMPLICIO_LOOP_REQUIRE_RUNTIME", "off") or "off"
-    if rt_mode in _FALSE:
-        rt_mode = "off"
-    elif rt_mode in _TRUE:
-        rt_mode = "required"
-    elif rt_mode not in {"auto", "off", "required"}:
-        rt_mode = "off"
-    runtime_ok = _binary_operational(RUNTIME_BINARY, ("--version",))
-    if rt_mode == "required" or (rt_mode == "auto" and runtime_ok):
-        required.append(RUNTIME_BINARY)
     if _strict_loop_enabled() and _binary_operational(FAST_BINARY, ("--version",)):
         required.append(FAST_BINARY)
     # de-dupe
@@ -605,11 +591,6 @@ def missing_bound_operators():
     marketplace install, a PATH mismatch, or an operator uninstalled after setup silently
     degraded to LLM hand-survey/hand-edit — exactly what the operators exist to prevent.
 
-    Runtime (``simplicio`` from simplicio-runtime) is adaptive: if available and operational
-    (or forced via SIMPLICIO_LOOP_REQUIRE_RUNTIME=1 / strict+required), it is part of the
-    required set and mid-run disappearance BLOCKS. If it is not installed, the core
-    mapper → dev-cli loop continues.
-
     Scoped to repos that actually ship the `simplicio-loop` skill (its SKILL.md is the marker) —
     a bare `simplicio-tasks` loop with no `simplicio-loop` companion has no operator requirement.
     Fail-open: any probe error is treated as "present" (never trap the loop over a probe bug).
@@ -622,10 +603,6 @@ def missing_bound_operators():
             if binary == "simplicio-dev-cli":
                 if not _action_operator_operational():
                     missing.append("simplicio-dev-cli")
-                continue
-            if binary == RUNTIME_BINARY:
-                if not _binary_operational(RUNTIME_BINARY, ("--version",)):
-                    missing.append(RUNTIME_BINARY)
                 continue
             if binary == FAST_BINARY:
                 if not _binary_operational(FAST_BINARY, ("--version",)):
@@ -823,63 +800,6 @@ def auto_record_journal(iteration, has_evidence):
         )
     except Exception:
         pass
-
-
-def _discover_simplicio_cli():
-    """Probe for simplicio CLI in priority order. Returns (binary, sub) or (None, None).
-    Silent-fail: any probe error returns (None, None) — never blocks.
-    """
-    candidates = [
-        ("simplicio", "claims"),
-        ("simplicio-py", "claims"),
-        ("python3", ["-m", "simplicio.cli", "claims"]),
-    ]
-    for binary, sub in candidates:
-        try:
-            args = [binary] + (sub if isinstance(sub, list) else [sub, "--help"])
-            subprocess.run(args, capture_output=True, timeout=5)
-            return binary, sub
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            continue
-    return None, None
-
-
-def _call_simplicio_claims():
-    """Run ``simplicio claims check`` silently. Fail-open."""
-    binary, _ = _discover_simplicio_cli()
-    if not binary:
-        return
-    try:
-        subprocess.run(
-            [binary, "claims", "check"],
-            capture_output=True, timeout=15,
-        )
-    except Exception:
-        pass
-
-
-def _call_simplicio_nest():
-    """Run ``simplicio nest verify`` silently. Fail-open."""
-    candidates = [
-        ("simplicio", "nest"),
-        ("simplicio-py", "nest"),
-        ("python3", ["-m", "simplicio.cli", "nest"]),
-    ]
-    for binary, sub in candidates:
-        try:
-            args = [binary] + (sub if isinstance(sub, list) else [sub, "--help"])
-            subprocess.run(args, capture_output=True, timeout=5)
-            nest_binary = binary
-            try:
-                subprocess.run(
-                    [nest_binary, "nest", "verify"],
-                    capture_output=True, timeout=15,
-                )
-            except Exception:
-                pass
-            return
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            continue
 
 
 def _call_simplicio_checkpoint(iteration):
@@ -1246,12 +1166,10 @@ def main():
             except OSError:
                 meta, body = None, None
 
-        # Fire-and-forget simplicio CLI callout: verify claims and nest tree, and
-        # checkpoint this loop boundary. Disabled when no scratchpad exists (no active
-        # loop). Silent failure if the CLI is not installed — the loop proceeds either way.
+        # Fire-and-forget checkpoint of this loop boundary. Disabled when no scratchpad
+        # exists (no active loop). Silent failure if the binary is not installed — the
+        # loop proceeds either way.
         if os.path.exists(SCRATCHPAD):
-            _call_simplicio_claims()
-            _call_simplicio_nest()
             _call_simplicio_checkpoint((meta or {}).get("iteration", "?"))
 
         # Explicit STOP signal beats everything — but still hand off if there was live state.
