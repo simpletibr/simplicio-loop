@@ -1,7 +1,0 @@
-{
-  "default_branch": "master",
-  "dependency_source": "pyproject.toml",
-  "integration_extra": "integrated",
-  "schema": "simplicio.fast.release-policy/v1",
-  "version_source": "pyproject.toml"
-}
