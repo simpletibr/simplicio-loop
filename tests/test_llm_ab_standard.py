@@ -38,6 +38,170 @@ def test_build_arg_parser_defaults():
     ap = standard.build_arg_parser()
     args = ap.parse_args([])
     assert args.keys_file is None
+
+
+# -- 7-arm ablation matrix (issue #1337) -------------------------------------
+
+PRICING = {
+    "available": True, "prompt": 1e-6, "completion": 2e-6,
+    "input_cache_read": 5e-7, "input_cache_write": None, "internal_reasoning": None,
+}
+
+
+def _task(kind, success, turns, wall, prompt, cached, completion):
+    return {
+        "kind": kind, "success": success, "turns": turns, "wall_s": wall,
+        "totals": {
+            "prompt_tokens": prompt, "cached_tokens": cached, "completion_tokens": completion,
+            "cost_usd": 0.0, "cost_source": "computed-from-tokens",
+        },
+    }
+
+
+def _ablation_results(arms_tasks: dict[str, list[dict]]) -> dict:
+    return {"meta": {"pricing": PRICING}, "arms": {a: {"tasks": t} for a, t in arms_tasks.items()}}
+
+
+def test_ablation_result_filename_has_the_ablation_suffix():
+    name = standard.ablation_result_filename("2026-09-26", "abc1234", 4)
+    assert name == "2026-09-26-abc1234-t4-ablation.json"
+
+
+def test_ablation_rows_sorted_by_computed_cost_ascending():
+    results = _ablation_results({
+        "normal": [_task("create", True, 3, 10.0, 1000, 0, 500)],
+        "mapper": [_task("create", True, 2, 8.0, 400, 100, 200)],
+        "simplicio": [_task("create", True, 1, 5.0, 200, 50, 100)],
+    })
+    rows = standard.ablation_rows(results)
+    assert [r["arm"] for r in rows] == sorted(
+        [r["arm"] for r in rows], key=lambda a: next(r["computed_cost"] for r in rows if r["arm"] == a)
+    )
+    costs = [r["computed_cost"] for r in rows]
+    assert costs == sorted(costs)
+    # simplicio has fewer/cheaper tokens here, so it must rank first.
+    assert rows[0]["arm"] == "simplicio"
+
+
+def test_ablation_rows_kind_filter_scopes_tokens_and_wall():
+    results = _ablation_results({
+        "normal": [
+            _task("create", True, 1, 4.0, 100, 0, 50),
+            _task("edit", True, 1, 6.0, 200, 0, 100),
+        ],
+    })
+    create_rows = standard.ablation_rows(results, kind="create")
+    edit_rows = standard.ablation_rows(results, kind="edit")
+    assert create_rows[0]["wall"] == 4.0
+    assert edit_rows[0]["wall"] == 6.0
+    assert create_rows[0]["prompt_tokens"] == 100
+    assert edit_rows[0]["prompt_tokens"] == 200
+
+
+def test_ablation_rows_reports_ok_over_n():
+    results = _ablation_results({
+        "devcli": [
+            _task("create", True, 1, 1.0, 10, 0, 10),
+            _task("edit", False, 1, 1.0, 10, 0, 10),
+        ],
+    })
+    row = standard.ablation_rows(results)[0]
+    assert row["ok"] == 1
+    assert row["n"] == 2
+
+
+def test_ablation_winners_picks_lowest_cost_and_lowest_wall_independently():
+    rows = [
+        {"arm": "a", "computed_cost": 0.01, "wall": 50.0, "ok": 1, "n": 1},
+        {"arm": "b", "computed_cost": 0.02, "wall": 5.0, "ok": 1, "n": 1},
+    ]
+    winners = standard.ablation_winners(rows)
+    assert winners["cheapest"]["arm"] == "a"
+    assert winners["fastest"]["arm"] == "b"
+
+
+def test_ablation_winners_empty_rows_returns_none():
+    winners = standard.ablation_winners([])
+    assert winners == {"cheapest": None, "fastest": None}
+
+
+def test_ablation_sections_total_only_for_t1():
+    results = _ablation_results({"normal": [_task("create", True, 1, 1.0, 10, 0, 10)]})
+    sections = standard.ablation_sections(results, 1)
+    assert [label for label, _ in sections] == ["Total"]
+
+
+def test_ablation_sections_total_create_edit_for_t4():
+    results = _ablation_results({
+        "normal": [
+            _task("create", True, 1, 1.0, 10, 0, 10),
+            _task("edit", True, 1, 1.0, 10, 0, 10),
+        ],
+    })
+    sections = standard.ablation_sections(results, 4)
+    assert [label for label, _ in sections] == ["Total", "Criação (create)", "Edição (edit)"]
+
+
+def test_build_ablation_markdown_includes_both_task_sets_and_winner_lines():
+    results = {
+        1: _ablation_results({
+            "normal": [_task("create", True, 3, 10.0, 1000, 0, 500)],
+            "simplicio": [_task("create", True, 1, 2.0, 100, 50, 50)],
+        }),
+        4: _ablation_results({
+            "normal": [
+                _task("create", True, 1, 1.0, 10, 0, 10),
+                _task("edit", True, 1, 1.0, 10, 0, 10),
+            ],
+            "simplicio": [
+                _task("create", True, 1, 1.0, 5, 0, 5),
+                _task("edit", True, 1, 1.0, 5, 0, 5),
+            ],
+        }),
+    }
+    md = standard.build_ablation_markdown(results)
+    assert "## t1" in md
+    assert "## t4" in md
+    assert "Menor custo" in md
+    assert "Mais rápido" in md
+    assert "Criação (create)" in md
+    assert "Edição (edit)" in md
+
+
+def test_build_ablation_markdown_flags_a_failing_arm():
+    results = {
+        1: _ablation_results({
+            "normal": [_task("create", True, 1, 1.0, 10, 0, 10)],
+            "mapper": [_task("create", False, 5, 20.0, 5000, 0, 5000)],
+        }),
+    }
+    md = standard.build_ablation_markdown(results)
+    assert "mapper" in md and "falhou" in md
+
+
+def test_build_ablation_html_index_renders_a_table_per_task_set():
+    results = {1: _ablation_results({"normal": [_task("create", True, 1, 1.0, 10, 0, 10)]})}
+    html = standard.build_ablation_html_index(results)
+    assert "<h2>t1</h2>" in html
+    assert "<table" in html
+
+
+def test_arm_choices_includes_all_ablation_arms():
+    assert set(standard.bench_arms.ARM_NAMES) == {
+        "normal", "mapper", "mapper-fast", "devcli", "mapper-devcli", "fast-devcli", "simplicio",
+    }
+
+
+def test_build_arg_parser_has_ablation_flag_defaulting_false():
+    ap = standard.build_arg_parser()
+    args = ap.parse_args([])
+    assert args.ablation is False
+
+
+def test_build_arg_parser_accepts_ablation_flag():
+    ap = standard.build_arg_parser()
+    args = ap.parse_args(["--ablation"])
+    assert args.ablation is True
     assert args.task_timeout == standard.bench_run.oc.DEFAULT_RUN_TIMEOUT
     assert args.out.endswith(os.path.join("llm_ab", "results"))
 
