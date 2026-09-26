@@ -1,6 +1,0 @@
-usage: simplicio-py status [-h] [--root ROOT] [--json]
-
-options:
-  -h, --help   show this help message and exit
-  --root ROOT
-  --json
