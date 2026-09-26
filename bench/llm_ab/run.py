@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""LLM A/B benchmark entry point: normal agent vs simplicio-loop
-(Mapper-only context vs Mapper+Fast context), on 2 dependent HTML tasks.
+"""LLM A/B benchmark entry point: normal agent vs the simplicio-loop wave
+flow, on 2 dependent HTML tasks (create, then edit).
 
 Usage::
 
     SIMPLICIO_BENCH_KEYS=/path/to/keys.env \\
-      python3 bench/llm_ab/run.py --arms normal,simplicio-files,simplicio-fast \\
+      python3 bench/llm_ab/run.py --arms normal,simplicio \\
         --out bench/llm_ab/results
 
 Writes ``<out>/<UTC-date>-<shortsha>.json`` (append-only history) and
@@ -30,7 +30,7 @@ import llm_client as lc  # noqa: E402
 import runner_loop  # noqa: E402
 import runner_normal  # noqa: E402
 
-ARM_CHOICES = ("normal", "simplicio-files", "simplicio-fast")
+ARM_CHOICES = ("normal", "simplicio")
 
 
 def _find_loop_bin() -> str:
@@ -39,7 +39,7 @@ def _find_loop_bin() -> str:
         raise RuntimeError(
             "simplicio-loop not found on PATH -- install it "
             "(bash scripts/dev_install.sh && source .venv/bin/activate) before running "
-            "the simplicio-files/simplicio-fast arms."
+            "the simplicio arm."
         )
     return found
 
@@ -104,25 +104,17 @@ def main(argv=None) -> int:
     os.makedirs(args.out, exist_ok=True)
 
     loop_bin = None
-    if "simplicio-files" in arms or "simplicio-fast" in arms:
+    if "simplicio" in arms:
         loop_bin = _find_loop_bin()
 
     arms_results = {}
     if "normal" in arms:
         repo_dir = os.path.join(work_dir, "normal-repo")
         arms_results["normal"] = runner_normal.run_arm(fixture_dir, repo_dir, args.python_bin)
-    if "simplicio-files" in arms:
-        repo_dir = os.path.join(work_dir, "simplicio-files-repo")
-        arms_results["simplicio-files"] = runner_loop.run_arm(
-            arm="simplicio-files", include_fast=False,
-            fixture_dir=fixture_dir, repo_dir=repo_dir,
-            loop_bin=loop_bin, python_bin=args.python_bin, loop_src=REPO_ROOT,
-        )
-    if "simplicio-fast" in arms:
-        repo_dir = os.path.join(work_dir, "simplicio-fast-repo")
-        arms_results["simplicio-fast"] = runner_loop.run_arm(
-            arm="simplicio-fast", include_fast=True,
-            fixture_dir=fixture_dir, repo_dir=repo_dir,
+    if "simplicio" in arms:
+        repo_dir = os.path.join(work_dir, "simplicio-repo")
+        arms_results["simplicio"] = runner_loop.run_arm(
+            arm="simplicio", fixture_dir=fixture_dir, repo_dir=repo_dir,
             loop_bin=loop_bin, python_bin=args.python_bin, loop_src=REPO_ROOT,
         )
 

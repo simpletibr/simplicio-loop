@@ -1,18 +1,18 @@
-"""Shared driver for the two simplicio-loop arms (`simplicio-files` and
-`simplicio-fast`): orient -> prepare (both tasks, ONE run) -> per task
-(orient warm -> LLM edit-plan -> tick) -> verify.
+"""Driver for the `simplicio` arm, the SKILL.md wave flow: orient (once)
+-> prepare (both tasks, ONE run) -> LLM writes EVERY edit plan up front
+(plan N+1 against the content plan N leaves) -> ONE `wave` -> verify.
 
 Per SKILL.md, the host (this script, driven by the benchmarked LLM) decides
 each change as an exact find/replace edit plan; simplicio-dev-cli /
 simplicio-loop freeze, apply and verify it. The loop itself never calls a
 provider to write code.
 
-Both tasks run inside ONE `prepare`d run (`tasks.md` carries both task
-blocks) -- task 2 depends on task 1 and is ticked only after task 1's
-operator receipt is applied, on the very tree task 1 left. Mapper/Fast
-generation state is therefore shared across both tasks of a run; the cache
-table this driver records is exactly that sharing (cold orient once, warm
-orient once per task, compared against the immediately preceding call).
+Both tasks run inside ONE `prepare`d run and ONE `wave`: the wave freezes
+each plan right before applying it, so task 2 binds to the tree task 1 left.
+The prompt carries the orient JSON (Mapper + Fast) plus the target file as
+the host reads it, which is what SKILL.md prescribes. Mapper/Fast state is
+shared across both tasks; the cache table records the cold orient and one
+warm orient before the wave.
 """
 from __future__ import annotations
 
@@ -142,11 +142,60 @@ def record_versions(loop_bin: str, loop_src: str) -> dict:
     return {"pip_versions": versions, "main_commit": commit}
 
 
-def run_arm(*, arm: str, include_fast: bool, fixture_dir: str, repo_dir: str,
+def simulate_plan(files: dict, plan: dict) -> dict:
+    """Apply a find/replace plan to an in-memory {path: content} map.
+
+    The host knows what its own plan will leave on disk, so plan N+1 can be
+    written against that content before the wave runs. A `find` that is
+    missing or not unique raises ValueError (dev-cli would reject it too)."""
+    out = dict(files)
+    for op in plan.get("operations") or []:
+        path, find = op.get("path", ""), op.get("find", "")
+        current = out.get(path, "")
+        if current.count(find) != 1:
+            raise ValueError(f"find text must match exactly once in {path}")
+        out[path] = current.replace(find, op.get("replace", ""), 1)
+    return out
+
+
+def _llm_plan(arm: str, orient_prompt_json: str, task: dict, content: str, prior_error):
+    user_content = (
+        f"ORIENT CONTEXT (from simplicio-loop orient, Mapper + Fast):\n{orient_prompt_json}\n\n"
+        f"CURRENT FILE CONTENTS (ground truth for `find`):\n--- FILE: {task['target']} ---\n"
+        f"{content}\n--- END FILE: {task['target']} ---\n\nTASK:\n{task['text']}\n\n"
+    )
+    if prior_error:
+        user_content += f"PREVIOUS ATTEMPT FAILED. Reason/details:\n{prior_error}\n\nFix the edit plan.\n\n"
+    user_content += "Reply with ONLY the JSON edit-plan object described in the system prompt."
+    messages = [{"role": "system", "content": EDIT_SYSTEM_PROMPT}, {"role": "user", "content": user_content}]
+    llm_result, call_metrics = measure.measure_call(lambda: lc.chat(arm, messages, temperature=0))
+    record = {
+        "ok": llm_result.get("ok"),
+        "latency_s": llm_result.get("latency_s"),
+        "prompt_tokens": llm_result.get("prompt_tokens"),
+        "completion_tokens": llm_result.get("completion_tokens"),
+        "reasoning_tokens": llm_result.get("reasoning_tokens"),
+        "cached_tokens": llm_result.get("cached_tokens"),
+        "cost_usd": llm_result.get("cost_usd"),
+        "finish_reason": llm_result.get("finish_reason"),
+        "error": llm_result.get("error"),
+        "step_wall_s": call_metrics["wall_s"],
+        "step_cpu_s": call_metrics["cpu_s"],
+        "step_peak_rss_mb": call_metrics["peak_rss_mb"],
+    }
+    plan = None
+    if llm_result.get("ok"):
+        try:
+            plan = lc.extract_json(llm_result.get("content") or "")
+            assert isinstance(plan.get("operations"), list)
+        except Exception as exc:  # noqa: BLE001 - recorded as the attempt's outcome
+            record["parse_error"] = str(exc)
+            plan = None
+    return plan, record, len(orient_prompt_json), len(content)
+
+
+def run_arm(*, arm: str, fixture_dir: str, repo_dir: str,
            loop_bin: str, python_bin: str, loop_src: str) -> dict:
-    """``arm`` is ``simplicio-files`` or ``simplicio-fast``; ``include_fast``
-    controls whether the orient JSON handed to the model keeps its ``fast``
-    block (True) or has it stripped (False -- Mapper-only context)."""
     checker.seed_repo(fixture_dir, repo_dir)
     subprocess.run(["git", "init", "-q"], cwd=repo_dir, check=True)
     subprocess.run(["git", "add", "-A"], cwd=repo_dir, check=True)
@@ -155,189 +204,117 @@ def run_arm(*, arm: str, include_fast: bool, fixture_dir: str, repo_dir: str,
          "commit", "-q", "-m", "seed fixture"],
         cwd=repo_dir, check=True,
     )
-
     results = {
         "arm": arm, "model": lc.MODEL, "tasks": [], "steps": [],
         "venv_versions": record_versions(loop_bin, loop_src),
         "harness_note": (
-            "Both tasks run inside ONE simplicio-loop run (single `prepare`, "
-            "one `tick` per task index) -- the Mapper/Fast run state is "
-            "shared across tasks, matching the `cache` table below."
+            "SKILL.md wave flow: orient once, one `prepare` for both tasks, every "
+            "edit plan written up front, ONE `wave` applies + verifies them."
         ),
     }
-    total_wall_t0 = time.time()
+    t0 = time.time()
     generations = {"mapper_generation": None, "fast_generation": None}
     cache_records = []
-
-    # Step 0: orient ONCE, cold, before `prepare` -- surveys the freshly
-    # seeded repo before any run exists.
-    cold_record, _cold_json = orient_mod.orient_call_record(
+    cold_record, _ = orient_mod.orient_call_record(
         loop_bin, repo_dir, "survey the repository before any task", "cadastro.html",
         generations, label="cold",
     )
     cache_records.append(cold_record)
     results["steps"].append({"step": "orient-cold", "metrics": cold_record["metrics"]})
 
-    task_md_path = os.path.join(repo_dir, "tasks.md")
-    write_task_md(task_md_path)
+    write_task_md(os.path.join(repo_dir, "tasks.md"))
     prep_out, prep_metrics = run_loop_cmd(loop_bin, repo_dir, ["prepare", "--task", "tasks.md", "--repo", "."])
     prep_json = try_parse_json(prep_out)
     results["steps"].append({"step": "prepare", "metrics": prep_metrics, "result": prep_json})
     if not prep_json or "run_id" not in prep_json:
         results["fatal_error"] = "prepare_failed"
         results["prepare_output_tail"] = "\n".join(prep_out.splitlines()[-60:])
-        results["total_wall_s"] = round(time.time() - total_wall_t0, 3)
+        results["total_wall_s"] = round(time.time() - t0, 3)
         results["cache"] = cache_records
         return results
-    run_id = prep_json["run_id"]
-    run_dir = prep_json["run_dir"]
+    run_id, run_dir = prep_json["run_id"], prep_json["run_dir"]
     results["run_id"] = run_id
 
-    for task in bench_tasks.TASKS:
-        idx = task["index"]
-        stage = task["verify_stage"]
-        task_record = {"task_index": idx, "kind": task["kind"], "task_text": task["text"], "attempts": []}
-        success = False
-        prior_error = None
+    warm_record, warm_json = orient_mod.orient_call_record(
+        loop_bin, repo_dir, " ".join(t["text"] for t in bench_tasks.TASKS), "cadastro.html",
+        generations, label="warm-before-wave",
+    )
+    cache_records.append(warm_record)
+    results["steps"].append({"step": "orient-warm", "metrics": warm_record["metrics"]})
+    orient_prompt_json = orient_mod.orient_json_for_prompt(warm_json)
 
-        # Step 1: orient WARM, once per task (not re-run inside the retry
-        # loop -- re-orienting mid-retry against a live run has historically
-        # invalidated the Mapper generation `tick` pinned; one warm call per
-        # task, reused across its attempts, is the safe, validated pattern).
-        warm_record, warm_json = orient_mod.orient_call_record(
-            loop_bin, repo_dir, task["text"], task["target"], generations,
-            label=f"warm-task-{idx}",
-        )
-        cache_records.append(warm_record)
-        results["steps"].append({"step": "orient-warm", "task_index": idx, "metrics": warm_record["metrics"]})
-
-        orient_prompt_json = orient_mod.orient_json_for_prompt(warm_json, include_fast=include_fast)
-
-        for attempt in range(1, 4):
-            attempt_record = {"attempt": attempt}
-            attempt_record["orient_bytes_sent"] = len(orient_prompt_json)
-
-            if include_fast:
-                # simplicio-fast: no separate raw file dump -- only whatever
-                # content Mapper's own survey already embedded in orient's
-                # `targets.files` (part of the JSON already sent above).
-                context_text = ""
-            else:
-                # simplicio-files: the host explicitly reads the CURRENT
-                # on-disk target file content (SKILL.md requires the host
-                # read the target before writing find/replace text).
-                target_path = os.path.join(repo_dir, task["target"])
-                try:
-                    with open(target_path, errors="replace") as f:
-                        content = f.read()
-                except FileNotFoundError:
-                    content = "<FILE DOES NOT EXIST YET>"
-                context_text = f"--- FILE: {task['target']} ---\n{content}\n--- END FILE: {task['target']} ---"
-            attempt_record["context_files_bytes_sent"] = len(context_text)
-
-            user_content = f"ORIENT CONTEXT (from simplicio-loop orient):\n{orient_prompt_json}\n\n"
-            if context_text:
-                user_content += f"CURRENT FILE CONTENTS (ground truth for `find`):\n{context_text}\n\n"
-            user_content += f"TASK:\n{task['text']}\n\n"
-            if prior_error:
-                user_content += f"PREVIOUS ATTEMPT FAILED. Reason/details:\n{prior_error}\n\nFix the edit plan and try again.\n\n"
-            user_content += "Reply with ONLY the JSON edit-plan object described in the system prompt."
-
-            messages = [
-                {"role": "system", "content": EDIT_SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
-            ]
-
-            def do_call():
-                return lc.chat(arm, messages, temperature=0)
-
-            llm_result, call_metrics = measure.measure_call(do_call)
-            attempt_record["llm_call"] = {
-                "ok": llm_result.get("ok"),
-                "latency_s": llm_result.get("latency_s"),
-                "prompt_tokens": llm_result.get("prompt_tokens"),
-                "completion_tokens": llm_result.get("completion_tokens"),
-                "reasoning_tokens": llm_result.get("reasoning_tokens"),
-                "cached_tokens": llm_result.get("cached_tokens"),
-                "cost_usd": llm_result.get("cost_usd"),
-                "finish_reason": llm_result.get("finish_reason"),
-                "error": llm_result.get("error"),
-                "step_wall_s": call_metrics["wall_s"],
-                "step_cpu_s": call_metrics["cpu_s"],
-                "step_peak_rss_mb": call_metrics["peak_rss_mb"],
-            }
-
-            if not llm_result.get("ok"):
-                attempt_record["outcome"] = "llm_error"
-                task_record["attempts"].append(attempt_record)
-                prior_error = f"llm_error: {llm_result.get('error')}"
-                continue
-
-            content = llm_result.get("content") or ""
-            try:
-                plan = lc.extract_json(content)
-                assert "operations" in plan and isinstance(plan["operations"], list)
-            except Exception as e:
-                attempt_record["outcome"] = "plan_parse_error"
-                attempt_record["parse_error"] = str(e)
-                task_record["attempts"].append(attempt_record)
-                prior_error = f"plan_parse_error: {e}. Raw (truncated): {content[:500]}"
-                continue
-
-            plan_path = os.path.join(run_dir, f"edit-plan-{idx}.json")
-            with open(plan_path, "w") as f:
-                json.dump(plan, f)
-            attempt_record["plan_path"] = plan_path
-            attempt_record["operations_count"] = len(plan["operations"])
-
-            tick_out, tick_metrics = run_loop_cmd(
-                loop_bin, repo_dir, ["tick", run_id, "--repo", ".", "--task-index", str(idx)], timeout=120
-            )
-            attempt_record["tick_step"] = tick_metrics
-            receipt_applied = operator_receipt_applied(run_dir, idx)
-            attempt_record["operator_receipt_applied"] = receipt_applied
-
-            # The harness's own independent confirmation (not the loop's
-            # quality-matrix, which merges lane commands across the whole
-            # multi-task run and keeps task 1's verifier -- see README.md).
-            check_passed, check_out, check_metrics = checker.run_check(repo_dir, stage, python_bin)
-            attempt_record["check_step"] = check_metrics
-            attempt_record["check_output_tail"] = "\n".join(check_out.splitlines()[-30:])
-
-            task_record["attempts"].append(attempt_record)
-
-            if receipt_applied and check_passed:
-                attempt_record["outcome"] = "success"
-                success = True
-                break
-            attempt_record["outcome"] = "tick_failed_or_check_failed"
-            attempt_record["tick_output_tail"] = "\n".join(tick_out.splitlines()[-60:])
-            prior_error = (
-                f"operator_receipt_applied={receipt_applied}, check_passed={check_passed}. "
-                f"check output (tail): {attempt_record['check_output_tail']}"
-            )
-
-        task_record["success"] = success
-        results["tasks"].append(task_record)
-        print(f"[{arm}] task {idx} success={success} attempts={len(task_record['attempts'])}", file=sys.stderr)
-        if not success:
-            # Task 2 depends on task 1's tree; do not attempt it against a
-            # broken base.
+    task_records = {t["index"]: {"task_index": t["index"], "kind": t["kind"], "task_text": t["text"],
+                                 "attempts": [], "success": False} for t in bench_tasks.TASKS}
+    prior_errors: dict = {}
+    for attempt in range(1, 4):
+        pending = [t for t in bench_tasks.TASKS if not operator_receipt_applied(run_dir, t["index"])]
+        if not pending:
             break
-
-    results["total_wall_s"] = round(time.time() - total_wall_t0, 3)
+        files = {}
+        for t in bench_tasks.TASKS:
+            path = os.path.join(repo_dir, t["target"])
+            if t["target"] not in files:
+                with open(path, errors="replace") as fh:
+                    files[t["target"]] = fh.read()
+        wrote_all = True
+        for t in pending:
+            idx = t["index"]
+            record = {"attempt": attempt}
+            plan, llm_record, orient_bytes, file_bytes = _llm_plan(
+                arm, orient_prompt_json, t, files[t["target"]], prior_errors.get(idx))
+            record.update(llm_call=llm_record, orient_bytes_sent=orient_bytes, context_files_bytes_sent=file_bytes)
+            task_records[idx]["attempts"].append(record)
+            if plan is None:
+                record["outcome"] = "plan_parse_error" if llm_record["ok"] else "llm_error"
+                prior_errors[idx] = record["outcome"]
+                wrote_all = False
+                break
+            try:
+                files = simulate_plan(files, plan)
+            except ValueError as exc:
+                record["outcome"] = "plan_does_not_apply"
+                prior_errors[idx] = str(exc)
+                wrote_all = False
+                break
+            plan_path = os.path.join(run_dir, f"edit-plan-{idx}.json")
+            with open(plan_path, "w") as fh:
+                json.dump(plan, fh)
+            record.update(plan_path=plan_path, operations_count=len(plan["operations"]))
+        if not wrote_all:
+            continue
+        wave_out, wave_metrics = run_loop_cmd(loop_bin, repo_dir, ["wave", run_id, "--repo", "."], timeout=300)
+        wave_json = try_parse_json(wave_out) or {}
+        results["steps"].append({"step": "wave", "attempt": attempt, "metrics": wave_metrics,
+                                 "status": wave_json.get("status"), "reason_code": wave_json.get("reason_code")})
+        for t in pending:
+            idx = t["index"]
+            applied = operator_receipt_applied(run_dir, idx)
+            check_passed, check_out, check_metrics = checker.run_check(repo_dir, t["verify_stage"], python_bin)
+            record = task_records[idx]["attempts"][-1]
+            record.update(wave_step=wave_metrics, wave_status=wave_json.get("status"),
+                          operator_receipt_applied=applied, check_step=check_metrics,
+                          check_output_tail="\n".join(check_out.splitlines()[-30:]))
+            if applied and check_passed:
+                record["outcome"] = "success"
+                task_records[idx]["success"] = True
+            else:
+                record["outcome"] = "wave_failed_or_check_failed"
+                record["wave_output_tail"] = "\n".join(wave_out.splitlines()[-60:])
+                prior_errors[idx] = (f"operator_receipt_applied={applied}, check_passed={check_passed}. "
+                                     f"wave status={wave_json.get('status')} reason={wave_json.get('reason_code')}")
+        if all(r["success"] for r in task_records.values()):
+            break
+    for rec in task_records.values():
+        results["tasks"].append(rec)
+        print(f"[{arm}] task {rec['task_index']} success={rec['success']} attempts={len(rec['attempts'])}",
+              file=sys.stderr)
+    results["total_wall_s"] = round(time.time() - t0, 3)
     results["cache"] = cache_records
-
     verify_out, verify_metrics = run_loop_cmd(loop_bin, repo_dir, ["verify", run_id, "--repo", "."], timeout=120)
     verify_json = try_parse_json(verify_out)
     results["steps"].append({"step": "verify", "metrics": verify_metrics, "result": verify_json})
     results["verify"] = verify_json
     results["quality_matrix"] = read_json_file(os.path.join(run_dir, "quality-matrix.json"))
-
-    final_stage = bench_tasks.TASKS[-1]["verify_stage"]
-    final_passed, final_out, _ = checker.run_check(repo_dir, final_stage, python_bin)
-    results["final"] = {
-        "check_passed": final_passed,
-        "check_output_tail": "\n".join(final_out.splitlines()[-30:]),
-    }
+    final_passed, final_out, _ = checker.run_check(repo_dir, bench_tasks.TASKS[-1]["verify_stage"], python_bin)
+    results["final"] = {"check_passed": final_passed, "check_output_tail": "\n".join(final_out.splitlines()[-30:])}
     return results

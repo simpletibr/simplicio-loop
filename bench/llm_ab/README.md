@@ -1,9 +1,8 @@
 # bench/llm_ab — LLM A/B benchmark: normal agent vs simplicio-loop
 
-Compares a plain LLM-writes-files agent against the `simplicio-loop` flow
-(orient → prepare → per-task edit-plan → tick → verify), on the same 2
-dependent tasks against the same model, two ways: with Mapper-only context
-(`simplicio-files`) and with Mapper+Fast context (`simplicio-fast`).
+Compares a plain LLM-writes-files agent (**normal**) against the
+`simplicio-loop` **wave** flow (**simplicio**) on the same 2 dependent tasks
+and the same model.
 
 ## The 2 tasks (`tasks.py`)
 
@@ -25,34 +24,20 @@ application code to instrument, so the coverage lane is honestly left
 **not applicable** (`quality-matrix.json`'s `coverage.measured` stays
 `null`) rather than faked with a hardcoded percentage.
 
-## The 3 arms
+## The 2 arms
 
-- **normal** — plain agent: full file tree + full file contents sent every
-  turn, the model replies with complete file contents
-  (`{"files":[{"path","content"}]}`), the harness writes them and runs the
-  checker. Up to 3 attempts per task, one conversation per task.
-- **simplicio-files** — `simplicio-loop orient --json` **without** its
-  `fast` block (Mapper-only survey) plus the CURRENT on-disk content of
-  `cadastro.html` (the host reads the target before writing `find`/`replace`
-  text, per SKILL.md). The model replies with a mechanical edit plan
-  (`{"operations":[{"path","find","replace"}]}`), consumed by
-  `simplicio-dev-cli` through `simplicio-loop tick`.
-- **simplicio-fast** — the same flow, but the orient JSON handed to the
-  model **keeps** its `fast` block (`fast.understanding`, `fast.plan`) and
-  the harness sends **no separate raw file dump** — only whatever content
-  Mapper's own survey already embedded in orient's `targets.files`. This is
-  a real, measured trade-off: if Mapper's ranking does not surface the
-  target file's content, the model has less ground truth for `find` text
-  than the `simplicio-files` arm, and that shows up honestly in its
-  success/attempt numbers.
-
-Both `simplicio-*` arms run their two tasks inside **one shared
-`simplicio-loop` run**: a single `prepare` compiles `tasks.md` (two task
-blocks, `System:`-delimited) into a 2-task run, then `tick <run_id>
---task-index 1` and `tick <run_id> --task-index 2` apply each task in order
-against the tree the previous one left. Mapper/Fast run state (generation
-ids, cache) is therefore shared across both tasks — see the cache table
-below.
+- **normal** — plain agent: full file contents sent every turn, the model
+  replies with complete file contents (`{"files":[{"path","content"}]}`), the
+  harness writes them and runs the checker. Up to 3 attempts per task.
+- **simplicio** — the SKILL.md wave flow: `orient` once cold (Mapper + Fast),
+  one `prepare` for both tasks (ONE run), one warm `orient`, then the model
+  writes **every** edit plan up front
+  (`{"operations":[{"path","find","replace"}]}`) — plan 2 against the content
+  plan 1 leaves, computed in memory by `runner_loop.simulate_plan` — and ONE
+  `simplicio-loop wave` applies and verifies them through `simplicio-dev-cli`.
+  The prompt carries the whole orient JSON plus the target file as the host
+  reads it. A failed task is re-planned and the wave re-run (up to 3 rounds;
+  applied tasks are skipped by the dispatch journal).
 
 ## Mapper target-corridor assumption (read this before changing the fixture)
 
@@ -93,7 +78,7 @@ bash scripts/dev_install.sh && source .venv/bin/activate
 # keys.env (never commit it): OR_KEY_NORMAL / OR_KEY_SIMPLICIO_FILES / OR_KEY_SIMPLICIO_FAST
 export SIMPLICIO_BENCH_KEYS=/path/to/keys.env
 
-python3 bench/llm_ab/run.py --arms normal,simplicio-files,simplicio-fast \
+python3 bench/llm_ab/run.py --arms normal,simplicio \
   --out bench/llm_ab/results
 ```
 

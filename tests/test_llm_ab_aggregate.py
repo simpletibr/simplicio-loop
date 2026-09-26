@@ -110,10 +110,10 @@ def test_diff_history_reports_deltas_between_two_summaries():
 
 
 def test_diff_history_tolerates_missing_arm_in_previous():
-    current = {"arms": {"simplicio-fast": {"total_wall_s": 5.0}}}
+    current = {"arms": {"simplicio": {"total_wall_s": 5.0}}}
     previous = {"arms": {}}
     deltas = agg.diff_history(current, previous)
-    assert deltas["simplicio-fast"]["total_wall_s_delta"] is None
+    assert deltas["simplicio"]["total_wall_s_delta"] is None
 
 
 def test_load_history_reads_and_sorts_other_result_files(tmp_path):

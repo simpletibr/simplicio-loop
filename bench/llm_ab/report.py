@@ -22,8 +22,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 ARM_COLORS = {
     "normal": "#4C72B0",
-    "simplicio-files": "#DD8452",
-    "simplicio-fast": "#55A868",
+    "simplicio": "#DD8452",
 }
 COLOR_CACHED = "#8FB2E0"
 COLOR_COMPLETION = "#64B5A0"
@@ -268,7 +267,7 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
   <div class="meta">{versions_html}</div>
   <div class="verdict"><b>Veredito:</b> {html_escape(verdict_text)}</div>
 
-  <h2>Comparação geral (normal vs simplicio-files vs simplicio-fast)</h2>
+  <h2>Comparação geral (sem simplicio vs simplicio no fluxo wave)</h2>
   <table class="compare">{build_arm_table_rows(arms)}</table>
 
   <h2>Por tipo de tarefa (criação vs edição)</h2>

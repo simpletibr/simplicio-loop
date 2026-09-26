@@ -21,11 +21,10 @@ def _results(arms):
 def test_verdict_mentions_every_arm_name():
     results = _results({
         "normal": {"tasks": [{"success": True, "attempts": []}], "total_wall_s": 1.0},
-        "simplicio-files": {"tasks": [{"success": True, "attempts": []}], "total_wall_s": 2.0},
-        "simplicio-fast": {"tasks": [{"success": True, "attempts": []}], "total_wall_s": 3.0},
+                "simplicio": {"tasks": [{"success": True, "attempts": []}], "total_wall_s": 3.0},
     })
     text = bench_verdict.compute_verdict(results)
-    for name in ("normal", "simplicio-files", "simplicio-fast"):
+    for name in ("normal", "simplicio"):
         assert name in text
 
 

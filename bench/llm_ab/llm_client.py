@@ -24,7 +24,7 @@ def keys_path() -> str:
     if not path:
         raise RuntimeError(
             f"{KEYS_PATH_ENV} is not set -- point it at a keys.env file with "
-            "OR_KEY_NORMAL / OR_KEY_SIMPLICIO_FILES / OR_KEY_SIMPLICIO_FAST "
+            "OR_KEY_NORMAL / OR_KEY_SIMPLICIO "
             "(never commit this file)."
         )
     return path
@@ -52,8 +52,7 @@ def mask(key: str | None) -> str:
 # without ever mixing usage across them.
 ARM_KEY_NAMES = {
     "normal": "OR_KEY_NORMAL",
-    "simplicio-files": "OR_KEY_SIMPLICIO_FILES",
-    "simplicio-fast": "OR_KEY_SIMPLICIO_FAST",
+    "simplicio": "OR_KEY_SIMPLICIO",
 }
 
 

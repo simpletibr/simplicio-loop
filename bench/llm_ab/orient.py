@@ -61,18 +61,9 @@ def orient_call_record(loop_bin: str, repo: str, task_text: str, target: str,
     return record, orient_json
 
 
-def orient_json_for_prompt(orient_json: dict | None, *, include_fast: bool) -> str:
-    """Serialize one orient JSON payload for inclusion in an LLM prompt.
-
-    ``include_fast=False`` (the simplicio-files arm) strips the ``fast``
-    block entirely -- the prompt gets Mapper's own survey (``targets``,
-    ``context``, ``commands``, ...) but none of Fast's understanding/plan.
-    ``include_fast=True`` (the simplicio-fast arm) keeps everything,
-    including ``fast.understanding``/``fast.plan``.
-    """
+def orient_json_for_prompt(orient_json: dict | None) -> str:
+    """Serialize the whole orient JSON (Mapper survey + Fast understanding/plan)
+    for the LLM prompt -- the context SKILL.md step 1 hands the host."""
     if not orient_json:
         return "{}"
-    payload = dict(orient_json)
-    if not include_fast:
-        payload.pop("fast", None)
-    return json.dumps(payload, ensure_ascii=False)
+    return json.dumps(orient_json, ensure_ascii=False)
