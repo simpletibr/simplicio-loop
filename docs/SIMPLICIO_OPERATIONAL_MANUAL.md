@@ -21,6 +21,6 @@ simplicio contracts smoke --json
 python scripts/check.py --tests-only
 ```
 
-See [`REMOTE_QUEUE.md`](REMOTE_QUEUE.md), [`runtime-adapter.md`](runtime-adapter.md),
-and [`delivery-target-receipts.md`](delivery-target-receipts.md) for the detailed
+See [`REMOTE_QUEUE.md`](REMOTE_QUEUE.md) and
+[`delivery-target-receipts.md`](delivery-target-receipts.md) for the detailed
 contracts and evidence requirements.
