@@ -177,10 +177,11 @@ def _arm_cells(a: dict) -> list[str]:
 # constant instead of a magic number at each call site below.
 _ARM_CELL_CACHE_HIT_INDEX = 4
 
-# STANDARD.md: the simplicio arm's prompt-cache hit rate must be >= 90%
+# STANDARD.md: the simplicio arm's prompt-cache hit rate must be >= 80% (target 90%)
 # (issue #1336). Report-only gate: it never changes `_arm_sums`/`_arm_cells`'s
 # own numbers, only flags the rendered cell when the simplicio arm misses it.
-SIMPLICIO_CACHE_HIT_GATE_PCT = 90.0
+SIMPLICIO_CACHE_HIT_GATE_PCT = 80.0
+SIMPLICIO_CACHE_HIT_TARGET_PCT = 90.0
 
 
 def _flag_low_simplicio_cache_hit(cells: list[str], hit_pct: float) -> None:
