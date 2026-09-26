@@ -38,8 +38,7 @@ def test_build_arg_parser_defaults():
     ap = standard.build_arg_parser()
     args = ap.parse_args([])
     assert args.keys_file is None
-    assert args.max_turns == 30
-    assert args.cmd_timeout == 180
+    assert args.task_timeout == standard.bench_run.oc.DEFAULT_RUN_TIMEOUT
     assert args.out.endswith(os.path.join("llm_ab", "results"))
 
 

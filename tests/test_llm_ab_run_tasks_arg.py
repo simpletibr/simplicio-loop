@@ -44,22 +44,16 @@ def test_result_filename_differs_per_task_count():
     assert len({a, b, c}) == 3
 
 
-def test_build_arg_parser_defaults_effort_policy_to_hints():
+def test_build_arg_parser_defaults_task_timeout_to_opencode_default():
     ap = run.build_arg_parser()
     args = ap.parse_args([])
-    assert args.effort_policy == "hints"
+    assert args.task_timeout == run.oc.DEFAULT_RUN_TIMEOUT
 
 
-def test_build_arg_parser_accepts_effort_policy_none():
+def test_build_arg_parser_accepts_custom_task_timeout():
     ap = run.build_arg_parser()
-    args = ap.parse_args(["--effort-policy", "none"])
-    assert args.effort_policy == "none"
-
-
-def test_build_arg_parser_rejects_unknown_effort_policy():
-    ap = run.build_arg_parser()
-    with pytest.raises(SystemExit):
-        ap.parse_args(["--effort-policy", "bogus"])
+    args = ap.parse_args(["--task-timeout", "120"])
+    assert args.task_timeout == 120
 
 
 def test_build_arg_parser_batch_defaults_to_false():
@@ -85,19 +79,14 @@ def test_result_filename_no_batch_suffix_by_default():
 
 
 def test_build_batch_prompt_combines_all_task_texts_in_one_user_prompt():
+    """Per-arm skill install/prefixing is ``opencode_agent.run_opencode``'s
+    job now (``skill=True``); ``build_batch_prompt`` just concatenates the
+    raw task texts into one prompt, arm-agnostic."""
     task_list = [
         {"index": 1, "text": "Create a.html"},
         {"index": 2, "text": "Edit a.html"},
     ]
-    system_prompt, user_prompt = run.build_batch_prompt("normal", task_list)
-    assert "Create a.html" in user_prompt
-    assert "Edit a.html" in user_prompt
-    assert not user_prompt.startswith("/simplicio-loop")
-    assert "SKILL" not in system_prompt
-
-
-def test_build_batch_prompt_simplicio_arm_prefixes_and_includes_skill():
-    task_list = [{"index": 1, "text": "Create a.html"}]
-    system_prompt, user_prompt = run.build_batch_prompt("simplicio", task_list)
-    assert user_prompt.startswith("/simplicio-loop ")
-    assert "SKILL" in system_prompt
+    prompt = run.build_batch_prompt(task_list)
+    assert "Create a.html" in prompt
+    assert "Edit a.html" in prompt
+    assert not prompt.startswith("/simplicio-loop")
