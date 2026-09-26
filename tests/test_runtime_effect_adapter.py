@@ -7,31 +7,23 @@ def request():
     return EffectRequest("C:/repo", "run:task:attempt", ("repo:src",), "lease-1", 3)
 
 
-class FakeBridge:
-    def execute(self, *args, **kwargs):
-        return {"ok": True, "argv": args[1]}
-
-    def runtime_call(self, *args, **kwargs):
-        return {"ok": True, "tool": args[1]}
-
-
-def test_runtime_profile_routes_through_bridge_and_preserves_authority():
-    adapter = RuntimeEffectAdapter(profile="runtime-backed", bridge=FakeBridge())
-    receipt = adapter.execute(request(), ["pytest", "-q"])
-    assert receipt["executor"] == "simplicio-runtime"
-    assert receipt["lease_id"] == "lease-1"
-    assert receipt["fencing_token"] == 3
-    assert receipt["result"]["ok"] is True
-
-
 def test_standalone_profile_is_explicit_and_never_fakes_runtime_delivery():
     receipt = RuntimeEffectAdapter(profile="standalone").call(request(), "simplicio_status", {})
     assert receipt["status"] == "UNAVAILABLE"
     assert receipt["result"]["reason"] == "standalone_profile"
+    assert receipt["executor"] == "standalone"
 
 
-def test_runtime_profile_requires_bridge_and_effect_identity():
-    with pytest.raises(RuntimeEffectError, match="RuntimeBridge"):
+def test_execute_is_always_standalone_and_preserves_effect_identity():
+    receipt = RuntimeEffectAdapter().execute(request(), ["pytest", "-q"])
+    assert receipt["profile"] == "standalone"
+    assert receipt["status"] == "UNAVAILABLE"
+    assert receipt["lease_id"] == "lease-1"
+    assert receipt["fencing_token"] == 3
+
+
+def test_unsupported_profile_and_effect_identity_are_rejected():
+    with pytest.raises(RuntimeEffectError, match="unsupported execution profile"):
         RuntimeEffectAdapter(profile="runtime-backed")
     with pytest.raises(RuntimeEffectError, match="lease"):
         EffectRequest("C:/repo", "key", ("repo:src",), "", 0)

@@ -64,7 +64,7 @@ SCHEMA = "simplicio.async-pipeline-after-benchmark/v1"
 MD_DOC_PATH = ROOT / "docs" / "async-pipeline-after-benchmark.md"
 JSON_DOC_PATH = ROOT / "docs" / "evidence" / "async-pipeline-after-benchmark.json"
 BASELINE_JSON_PATH = ROOT / "docs" / "evidence" / "async-pipeline-baseline-benchmark.json"
-FIXTURE_ROOT = ROOT / "contracts" / "mapper-artifacts" / "v1" / "fixtures" / "python-minimal" / "source"
+FIXTURE_ROOT = ROOT / "simplicio_mapper" / "contracts" / "mapper-artifacts" / "v1" / "fixtures" / "python-minimal" / "source"
 
 SEED = 20260717
 

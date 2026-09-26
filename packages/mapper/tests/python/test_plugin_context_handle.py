@@ -69,7 +69,7 @@ class PluginContextHandleTest(unittest.TestCase):
         self.assertEqual(ok["handle"], built["handle"])
 
     def test_schema_and_offline_fixture(self) -> None:
-        schema = json.loads((REPO / "contracts/plugin-context-handle/v1/schema.json").read_text(encoding="utf-8"))
+        schema = json.loads((REPO / "simplicio_mapper/contracts/plugin-context-handle/v1/schema.json").read_text(encoding="utf-8"))
         fixture = json.loads((REPO / "fixtures/plugin-context-handle/sample-handle.json").read_text(encoding="utf-8"))
         self.assertEqual(schema["title"], "PluginContextHandle")
         self.assertEqual(fixture["schema"], SCHEMA)

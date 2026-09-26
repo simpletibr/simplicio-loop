@@ -9,7 +9,7 @@ from simplicio_mapper.context_snapshot import build_context_snapshot
 from simplicio_mapper.contract import validate_instance
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-CONTRACT_ROOT = os.path.join(REPO_ROOT, "contracts", "evidence-certificate", "v1")
+CONTRACT_ROOT = os.path.join(REPO_ROOT, "simplicio_mapper", "contracts", "evidence-certificate", "v1")
 SCHEMA_PATH = os.path.join(CONTRACT_ROOT, "schemas", "evidence-certificate.schema.json")
 FIXTURE_PATH = os.path.join(CONTRACT_ROOT, "fixtures", "runtime-shaped", "evidence-certificate.json")
 

@@ -8,7 +8,7 @@ from simplicio_loop.strict_mode import CORE_OPERATORS, required_bound_operators
 
 def test_core_operators_always_include_mapper():
     assert CORE_OPERATORS[0] == "simplicio-mapper"
-    required = required_bound_operators({"SIMPLICIO_LOOP_REQUIRE_RUNTIME": "off"})
+    required = required_bound_operators({})
     assert "simplicio-mapper" in required
 
 

@@ -72,19 +72,16 @@ def entry_block(runtime=None):
         "`simplicio-autoresearch`; `simplicio-tasks` = legacy alias) **IN FULL**.\n\n"
         "**Operator floor (Claude / Codex / Grok / Cursor / VS Code / Antigravity / Kiro / Hermes):**\n"
         "1. Arm STRICT env (`SIMPLICIO_LOOP_STRICT=1`, `FORBID_HAND_EDIT=1`, `FAST_MODE=required`, "
-        "`REQUIRE_RUNTIME=auto`, `REQUIRE_MCP=1`). Runtime is **optional** for the loop.\n"
+        "`EXECUTION_PROFILE=standalone`). There is no Runtime/MCP backend in this stack.\n"
         "2. `simplicio-loop preflight --strict --json` before work.\n"
         "3. Core: survey with `simplicio-mapper`; hot path with `simplicio-fast`; mutate with "
-        "`simplicio-dev-cli` / `simplicio-py task`. When Runtime is present, prefer MCP tools "
-        "(`simplicio_map`/`search`/`memory`/`gate`/`edit`) for orient — not host Write/Edit under STRICT.\n"
+        "`simplicio-dev-cli edit --plan` — not host Write/Edit under STRICT.\n"
         "4. Host integrations (Orca, boards, chat) **only if the client requested** them "
         "(`docs/CLIENT_INTEGRATIONS.md`).\n"
         "5. Evidence-gated close/PR; MEASURED|/UNVERIFIED|; no theater ACs.\n"
         "6. Self-paced hosts re-read `.simplicio/orchestrator/loop/scratchpad.md` every turn.\n\n"
         "Rules: `packaging/host-rules/simplicio-loop-operator-flow.md` · "
-        "`packaging/host-rules/simplicio-runtime-mcp-force.md` · "
         "`docs/MULTI_LLM_CONTRACT.md` · clamp: `python3 hooks/orient_clamp.py -- <cmd>`.\n"
-        "Force MCP: `python3 scripts/mcp_force_sync.py --global --json` · `simplicio mcp register`.\n"
     )
     body += (
         "\nInvoke: `/simplicio-loop <body of work>` · "
@@ -1096,21 +1093,6 @@ def main():
             log("host rules synced -> %d surfaces (multi-LLM floor)" % _hrs_receipt.get("count", 0))
         except Exception as exc:
             log("! host_rule_sync skipped (fail-open): %s" % exc)
-        # FORCE Simplicio Runtime MCP registration + MCP-first rules (token economy)
-        try:
-            sys.path.insert(0, HERE)
-            import mcp_force_sync as _mfs
-            from pathlib import Path as _Path2
-            if is_global:
-                _mfs_receipt = _mfs.sync(do_global=True, target=None, register=True)
-            else:
-                _mfs_receipt = _mfs.sync(do_global=False, target=_Path2(target), register=True)
-            log(
-                "mcp force synced -> %d surfaces; register=%s"
-                % (_mfs_receipt.get("count", 0), _mfs_receipt.get("register", {}).get("ok"))
-            )
-        except Exception as exc:
-            log("! mcp_force_sync skipped (fail-open): %s" % exc)
     if cfg["hooks"] == "cursor":
         log("loop hooks active via hooks/hooks.json (Cursor format)")
     elif cfg["hooks"] == "native":

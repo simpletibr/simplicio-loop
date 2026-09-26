@@ -19,7 +19,7 @@ from simplicio_mapper.ecosystem_contract import (  # noqa: E402
     validate_payload,
 )
 
-CONTRACT_ROOT = ROOT / "contracts" / "ecosystem" / "v1"
+CONTRACT_ROOT = ROOT / "simplicio_mapper" / "contracts" / "ecosystem" / "v1"
 FIXTURE_ROOT = CONTRACT_ROOT / "fixtures" / "asolaria-ecosystem"
 GRAPH_FILE = FIXTURE_ROOT / "ecosystem-graph.json"
 CANVAS_FILE = FIXTURE_ROOT / "canvas-flow.json"

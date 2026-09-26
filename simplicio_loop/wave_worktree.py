@@ -179,7 +179,7 @@ class ArtifactCache:
 class LaneResult:
     lane_id: int
     task_indices: List[int]
-    status: str  # "applied" | "failed"
+    status: str  # "applied" | "failed" | "stopped"
     patch: str = ""
     log: str = ""
     worktree: str = ""
@@ -310,6 +310,7 @@ async def run_worktree_wave(
     branch_prefix: str = "simplicio-wave",
     verifier_for: Optional[Callable[[int], Optional[str]]] = None,
     max_workers: Optional[int] = None,
+    stop_requested: Optional[Callable[[], bool]] = None,
 ) -> List[LaneResult]:
     """Run every lane concurrently, bounded by ``min(cpu_count, len(lanes))``."""
     repo, run_dir = Path(repo), Path(run_dir)
@@ -324,6 +325,14 @@ async def run_worktree_wave(
 
     async def _bounded(lane_id: int, task_indices: Sequence[int]) -> LaneResult:
         async with semaphore:
+            # Checked once the lane is actually about to start (post-admission,
+            # not at fan-out time) so a stop requested while earlier lanes were
+            # still running is honored for every lane not yet underway --
+            # cleanly, before it ever touches git or the shared repo.
+            if stop_requested is not None and stop_requested():
+                return LaneResult(
+                    lane_id, list(task_indices), "stopped", log="stop_requested_before_lane_start",
+                )
             verifier_cmd = verifier_for(lane_id) if verifier_for else None
             return await run_worktree_lane(
                 repo, wt_root, lane_id, branch_prefix, base_commit,
@@ -351,6 +360,8 @@ def integrate_lane_results(
     repo: Path,
     results: Sequence[LaneResult],
     reapply_fn: ReapplyFn,
+    *,
+    stop_requested: Optional[Callable[[], bool]] = None,
 ) -> Dict[str, Any]:
     """Serially apply every lane's patch onto the main repo, in lane order.
 
@@ -358,13 +369,25 @@ def integrate_lane_results(
     the lane's edit-plan is re-run directly on the already-integrated tree
     via ``reapply_fn`` (a serial repair, matching the file's own
     "compile binds to the new tree" contract), and the wave continues.
+
+    ``stop_requested``, when given, is polled between lanes -- the only
+    integration step that is safe to interrupt without leaving the shared
+    tree half-applied, since each lane's patch is applied atomically by
+    ``git apply``. A lane already applied before the stop fires is kept
+    integrated; every lane not yet reached is left un-integrated and
+    reported separately so a retry/resume never re-applies it silently.
     """
     repo = Path(repo)
     integrated: List[int] = []
     repaired: List[int] = []
     failed: List[int] = []
+    stopped: List[int] = []
     logs: Dict[int, str] = {}
     for result in results:
+        if stop_requested is not None and stop_requested():
+            stopped.append(result.lane_id)
+            logs[result.lane_id] = "stopped_before_integration"
+            continue
         if result.status != "applied":
             failed.append(result.lane_id)
             logs[result.lane_id] = result.log
@@ -386,6 +409,7 @@ def integrate_lane_results(
         "integrated_lanes": integrated,
         "repaired_lanes": repaired,
         "failed_lanes": failed,
+        "stopped_lanes": stopped,
         "logs": logs,
     }
 

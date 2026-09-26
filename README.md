@@ -249,18 +249,17 @@ and keeps watching **24/7** for new work — all behind safety gates and evidenc
 Three things make it different: it is a **super-plugin of focused skills**, it runs the **same
 protocol on 15 runtimes**, and it does all of this with **aggressive, honest token economy**.
 
-The skill installs **standalone** too: you do **not** need `simplicio-runtime` or any mandatory
-runtime-native component just to use `simplicio-loop`. Native binds, operators, capture services,
-and the wider Simplicio runtime stack are optional accelerators on top of the core skill bundle.
+The skill installs **standalone**: there is no Runtime/MCP backend, and no mandatory
+native component, to use `simplicio-loop`. The two bound operators (`simplicio-mapper`,
+`simplicio-dev-cli`) and the optional `simplicio-fast` accelerator are the whole stack.
 
 <p align="center">
-  <img src="assets/simplicio-loop-infographic.png" alt="simplicio-loop detailed infographic: standalone install, optional native binds, 7 skills, 5 accelerators, 15 runtimes, 5 source adapters, and proof gates" width="920" />
+  <img src="assets/simplicio-loop-infographic.png" alt="simplicio-loop detailed infographic: standalone install, 7 skills, 5 accelerators, 15 runtimes, 5 source adapters, and proof gates" width="920" />
 </p>
 
 Within the Simplicio product line, this repo is also the **current reference task flow** for
-company work. `simplicio-runtime` is the unified entrypoint going forward, but it is expected to
-reuse this loop's evidence-gated converge/drain discipline, durable attempt journal, and worker
-coordination patterns instead of creating a separate task semantics.
+company work: its evidence-gated converge/drain discipline, durable attempt journal, and worker
+coordination patterns are the pattern other Simplicio tools reuse.
 
 ### 👁️ Progresso visual, honesto e portátil
 
@@ -391,36 +390,34 @@ See each adapter's reference doc under `.claude/skills/simplicio-loop/references
 ## 🌐 15 runtimes, one protocol — 3 guaranteed + 12 best-effort
 
 One universal skill core + one set of hooks drives every runtime. An adapter is thin: it tells a
-runtime *where to load the skills*, *how to arm the loop*, and *how to bind native speed*. **The
-skill names no runtime; the runtime detects the skill.** The native `simplicio-runtime` MCP bind
-is optional: when it is missing or unreachable, the adapter reports explicit degraded mode rather
-than blocking the standalone loop — see [`docs/MCP_SETUP.md`](docs/MCP_SETUP.md) for per-host
-configuration.
+runtime *where to load the skills* and *how to arm the loop*. **The skill names no runtime; the
+runtime detects the skill.** There is no Runtime/MCP backend in this stack — every host runs the
+same standalone loop against `simplicio-mapper` and `simplicio-dev-cli`.
 
 ### Tier 1 — Guaranteed (gated on every commit)
 
-| Runtime | Skill load | Loop drive | Native bind (MCP) |
-|---|---|---|---|
-| **Claude Code** | `.claude/skills/` + plugin | `Stop` hook | optional — `~/.claude.json` |
-| **Codex** | `AGENTS.md` | self-paced | optional — `~/.codex/config.toml` |
-| **Cursor** | `.cursor-plugin/` | `stop`+`afterAgentResponse` | optional — `.cursor/mcp.json` |
+| Runtime | Skill load | Loop drive |
+|---|---|---|
+| **Claude Code** | `.claude/skills/` + plugin | `Stop` hook |
+| **Codex** | `AGENTS.md` | self-paced |
+| **Cursor** | `.cursor-plugin/` | `stop`+`afterAgentResponse` |
 
 ### Tier 2 — Best-effort (contributions welcome, no gate)
 
-| Runtime | Skill load | Loop drive | Native bind (MCP) |
-|---|---|---|---|
-| **VS Code (Copilot)** | `copilot-instructions.md` | tasks | optional — `.vscode/mcp.json` |
-| **Antigravity** | rules / `AGENTS.md` | self-paced | optional — best-effort path |
-| **Kiro** | `.kiro/steering/` | specs | optional — `.kiro/settings/mcp.json` |
-| **OpenCode** | `AGENTS.md` | self-paced | optional — `opencode.json` |
-| **Gemini** (CLI/Code Assist) | `GEMINI.md` | self-paced | optional — `.gemini/settings.json` (CLI) |
-| **Kimi** | inlined conventions | self-paced | optional — best-effort, no verified client |
-| **Qwen** (Code/CLI) | `AGENTS.md`-equivalent | self-paced | optional — `.qwen/settings.json` (best-effort) |
-| **DeepSeek** | inlined conventions | self-paced | optional — no first-party client, best-effort |
-| **Aider** | `CONVENTIONS.md` | self-paced | optional — no MCP client (LLM fallback for exec) |
-| **Simplicio Agent** *(formerly Hermes)* | native recall | native loop | optional — **native** |
-| **OpenClaw** | plugin SDK | native scheduler | optional — **native** |
-| **Orca** | via inner agent + skills registry | inner hook / scheduled automations | optional — registry/inner-agent config |
+| Runtime | Skill load | Loop drive |
+|---|---|---|
+| **VS Code (Copilot)** | `copilot-instructions.md` | tasks |
+| **Antigravity** | rules / `AGENTS.md` | self-paced |
+| **Kiro** | `.kiro/steering/` | specs |
+| **OpenCode** | `AGENTS.md` | self-paced |
+| **Gemini** (CLI/Code Assist) | `GEMINI.md` | self-paced |
+| **Kimi** | inlined conventions | self-paced |
+| **Qwen** (Code/CLI) | `AGENTS.md`-equivalent | self-paced |
+| **DeepSeek** | inlined conventions | self-paced |
+| **Aider** | `CONVENTIONS.md` | self-paced |
+| **Simplicio Agent** *(formerly Hermes)* | native recall | native loop |
+| **OpenClaw** | plugin SDK | native scheduler |
+| **Orca** | via inner agent + skills registry | inner hook / scheduled automations |
 
 The promise: **same protocol, same gates, same safety on all 15 — Tier 1 verified mechanically,
 Tier 2 best-effort.** `orient_clamp.py` (token economy) works on every runtime with zero wiring. See
@@ -916,30 +913,26 @@ Em tarefas orquestradas pelo `simplicio-loop` com `simplicio-mapper` obrigatóri
 
 ### Candidate governed flow for 10 tasks — not yet a measured winner
 
-Ten tasks are above the three-task direct-parallel threshold, so the Loop routes them through a Prism wave: isolated worktrees, leases, a wave barrier, and serialized writes. This wave works in standalone mode; when Runtime is available, Runtime governs activation and physical admission while Prism coordinates the wave.
+Ten tasks are above the three-task direct-parallel threshold, so the Loop routes them through a Prism wave: isolated worktrees, leases, a wave barrier, and serialized writes. Execution is always standalone — there is no Runtime/MCP backend in this stack.
 
 ```bash
-# 1. If using Runtime, ask its activation authority (optional integration)
-simplicio loop decide --task "complete these 10 tasks" --repo . --json
-
-# 2. Inspect the profile before applying environment changes
-# 3.43.11 recommends MCP-required flags; do not apply it blindly in CLI-only mode.
+# 1. Inspect the profile before applying environment changes
 simplicio-loop economy status --json
 
-# 3. Block until the required operators and strict mutation policy are ready
+# 2. Block until the required operators and strict mutation policy are ready
 simplicio-loop preflight --strict --json
 
-# 4. Survey and enrich context through the bound operators
+# 3. Survey and enrich context through the bound operators
 simplicio-mapper scan . --sync --json
 simplicio-mapper inspect . --json
 simplicio-mapper handoff . --task-file task.md --execution-context --json
 simplicio-fast understand --repo .
 
-# 5. Arm the drain scratchpad; this does NOT start workers
+# 4. Arm the drain scratchpad; this does NOT start workers
 # The CLI resolves slots=0 via its machine-capacity recommendation.
 python3 scripts/arm_drain_prism.py --repo . --slots 0 --batch-size 10 --json
 
-# 6. Each task follows claim → implement → focused gate → evidence → PR/merge
+# 5. Each task follows claim → implement → focused gate → evidence → PR/merge
 #    The next wave starts only after reconcile-before-next.
 ```
 
@@ -947,11 +940,11 @@ Do not interpret ten logical tasks as ten unrestricted processes: physical CPU/R
 
 ### Where Prism fits
 
-The public `simplicio-loop prism` and `simplicio-loop wave` commands dispatch through the same governed batch implementation, with typed receipts and a reconcile-before-next barrier. The `simplicio-prism` skill/layer classifies the work and composes Mapper, Fast, Loop, Dev CLI, and Runtime. The concrete drain-wave operator is `scripts/arm_drain_prism.py`; Runtime's `simplicio loop decide` remains the authority for Loop activation.
+The public `simplicio-loop prism` and `simplicio-loop wave` commands dispatch through the same governed batch implementation, with typed receipts and a reconcile-before-next barrier. The `simplicio-prism` skill/layer classifies the work and composes Mapper, Fast, Loop, and Dev CLI. The concrete drain-wave operator is `scripts/arm_drain_prism.py`.
 
 A wave ends with lease/result reconciliation before the next group is admitted.
-Arming is preparation, not execution. In standalone operation Runtime/MCP is
-optional; Mapper remains mandatory. See the [Prism/wave interface details](docs/CLI_COMMANDS.md#prism-and-wave).
+Arming is preparation, not execution. Mapper remains mandatory. See the
+[Prism/wave interface details](docs/CLI_COMMANDS.md#prism-and-wave).
 
 **Measured benchmark status (2026-09-11):** ten simulated tasks pass the independent
 verifier after real OpenRouter proposals and native edits. This is a diagnostic

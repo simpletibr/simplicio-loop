@@ -476,12 +476,26 @@ def _seal_orient_payload(
     return payload
 
 def _mapper_orient_fallback(root: Path, task: str) -> dict:
-    """Use Mapper's read-only orient surface when Fast is unavailable."""
+    """Use Mapper's read-only orient surface when Fast is unavailable.
+
+    The scratch task-file MUST live under ``.simplicio/`` (not the repo
+    root): Mapper's own signature computation hashes ``git status`` output,
+    excluding only its own output directory (default ``.simplicio``) by
+    pathspec. A dotfile prefix alone does not put this file inside that
+    directory, so a repo-root temp file is untracked and visible to `git
+    status` for the brief window this subprocess runs -- exactly when Mapper
+    snapshots its own status_hash. That transient extra untracked file
+    changed status_hash on every orient call, even against an unchanged
+    source tree, making a purely read-only re-survey between `prepare` and
+    `wave` look like "active attempt mapper generation changed" drift.
+    """
     task_path = None
     try:
+        scratch_dir = root / ".simplicio"
+        scratch_dir.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".md",
-                                         prefix=".simplicio-loop-orient-",
-                                         dir=str(root), delete=False) as handle:
+                                         prefix="loop-orient-",
+                                         dir=str(scratch_dir), delete=False) as handle:
             handle.write(task)
             task_path = Path(handle.name)
         proc = subprocess.run(
@@ -1047,10 +1061,9 @@ def economy_command(args) -> int:
 
 
 def preflight(repo: str, as_json: bool = False, *, strict: bool = False) -> int:
-    """Verify bound operators and report Runtime/Fast availability.
+    """Verify the bound operators (mapper, dev-cli) and report Fast availability.
 
     Under ``--strict`` / ``SIMPLICIO_LOOP_STRICT=1``:
-    - Runtime is required when operational (auto) or always when forced
     - Fast is required when operational
     - hand-edit is reported as forbidden
 
@@ -1066,7 +1079,6 @@ def preflight(repo: str, as_json: bool = False, *, strict: bool = False) -> int:
         _os.environ["SIMPLICIO_LOOP_STRICT"] = "1"
     payload = preflight_payload(str(repo_path), strict=strict)
     all_present = bool(payload.get("all_present"))
-    runtime_available = bool(payload.get("runtime_available"))
     missing = list(payload.get("missing_operators") or [])
     if as_json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
@@ -1090,10 +1102,6 @@ def preflight(repo: str, as_json: bool = False, *, strict: bool = False) -> int:
         print("  all_present: true" if all_present else "  NOT ALL REQUIRED OPERATORS PRESENT")
         print(f"  execution_profile: {payload.get('execution_profile')}")
         print(f"  hand_edit_forbidden: {payload.get('hand_edit_forbidden')}")
-        if runtime_available:
-            print("  runtime integration: operational (bound when auto/required)")
-        else:
-            print("  runtime integration: unavailable (core loop continues unless required)")
         if payload.get("strict"):
             print("  recommended_env:")
             for key, value in (recommended_env() or {}).items():
@@ -1751,15 +1759,10 @@ def stack_doctor_command(args) -> int:
         by_name = {component.name: component for component in components}
         required = ("simplicio-loop", "simplicio-mapper")
         missing = [name for name in required if not by_name.get(name, None) or not by_name[name].available]
-        runtime = by_name.get("simplicio-runtime")
         routes = {
             "standalone": {
                 "available": not missing,
                 "missing": missing,
-            },
-            "runtime-backed": {
-                "available": not missing and bool(runtime and runtime.available),
-                "missing": missing + ([] if runtime and runtime.available else ["simplicio-runtime"]),
             },
         }
         status = "READY" if routes["standalone"]["available"] else "BLOCKED"
@@ -2082,7 +2085,7 @@ def main(argv=None) -> int:
         default="",
         help="optional simplicio.stack-registry/v1 compatibility registry; blocks incompatible locks",
     )
-    p_stack_lock.add_argument("--route", choices=("standalone", "runtime-backed"), required=True)
+    p_stack_lock.add_argument("--route", choices=("standalone",), required=True)
     p_stack_lock.add_argument("--run-id", default="")
     p_stack_lock.add_argument(
         "--output", default=os.path.join(".simplicio", "orchestrator", "stack-lock.json")
@@ -2092,7 +2095,7 @@ def main(argv=None) -> int:
     )
     p_stack_verify.add_argument("--lock", required=True, help="persisted stack lock JSON")
     p_stack_verify.add_argument("--components", required=True, help="JSON component observations")
-    p_stack_verify.add_argument("--route", choices=("standalone", "runtime-backed"), default=None)
+    p_stack_verify.add_argument("--route", choices=("standalone",), default=None)
 
     p_doctor = sub.add_parser("doctor", help="inspect the installed stack or storage routing")
     p_doctor.set_defaults(doctor_command=None, stack_json=False, doctor_json=False)
@@ -2144,14 +2147,14 @@ def main(argv=None) -> int:
     configure_map_commands(map_sub)
 
     p_preflight = sub.add_parser(
-        "preflight", help="verify bound operators (mapper/dev-cli/runtime/fast) are installed")
+        "preflight", help="verify bound operators (mapper/dev-cli/fast) are installed")
     p_preflight.add_argument("--repo", default=".", help="repository root")
     p_preflight.add_argument("--json", action="store_true",
                              help="emit machine-readable JSON (default: human-readable text)")
     p_preflight.add_argument(
         "--strict",
         action="store_true",
-        help="arm SIMPLICIO_LOOP_STRICT: require operational Runtime/Fast when present, "
+        help="arm SIMPLICIO_LOOP_STRICT: require operational Fast when present, "
              "forbid hand-edit, lock evidence/mutation authority",
     )
 

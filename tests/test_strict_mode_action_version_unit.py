@@ -81,9 +81,6 @@ def test_preflight_payload_reports_real_versions_from_in_process_probes(monkeypa
         return {"simplicio-mapper": "0.26.11", "simplicio-fast": "2.0.23"}[package]
 
     monkeypatch.setattr(strict_mode._metadata, "version", fake_version)
-    monkeypatch.setattr(strict_mode, "runtime_status", lambda env=None: {
-        "binary": "simplicio", "present": True, "operational": True, "version": "3.5.7", "error": "",
-    })
 
     receipt = strict_mode.preflight_payload(str(tmp_path), strict=True)
     ops = {item["name"]: item for item in receipt["operators"]}

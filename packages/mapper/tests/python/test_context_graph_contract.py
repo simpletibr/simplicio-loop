@@ -6,9 +6,9 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FIXTURE = ROOT / "contracts" / "context-graph" / "v1" / "fixtures" / "parity.json"
-COMPATIBILITY_FIXTURE = ROOT / "contracts" / "context-graph" / "v1" / "fixtures" / "compatibility.json"
-SCHEMA = ROOT / "contracts" / "context-graph" / "v1" / "schema.json"
+FIXTURE = ROOT / "simplicio_mapper" / "contracts" / "context-graph" / "v1" / "fixtures" / "parity.json"
+COMPATIBILITY_FIXTURE = ROOT / "simplicio_mapper" / "contracts" / "context-graph" / "v1" / "fixtures" / "compatibility.json"
+SCHEMA = ROOT / "simplicio_mapper" / "contracts" / "context-graph" / "v1" / "schema.json"
 sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper.context_graph_contract import (  # noqa: E402

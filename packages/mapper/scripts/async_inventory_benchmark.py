@@ -86,7 +86,7 @@ except ImportError:  # pragma: no cover - psutil is a project dependency already
 SCHEMA = "simplicio.async-inventory-benchmark/v1"
 MD_DOC_PATH = ROOT / "docs" / "async-inventory-benchmark.md"
 JSON_DOC_PATH = ROOT / "docs" / "evidence" / "async-inventory-benchmark.json"
-FIXTURE_ROOT = ROOT / "contracts" / "mapper-artifacts" / "v1" / "fixtures" / "python-minimal" / "source"
+FIXTURE_ROOT = ROOT / "simplicio_mapper" / "contracts" / "mapper-artifacts" / "v1" / "fixtures" / "python-minimal" / "source"
 
 _MODULE_TEMPLATE = '''"""Synthetic module {index} for the async-inventory benchmark."""
 

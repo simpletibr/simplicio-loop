@@ -29,7 +29,7 @@ from simplicio_mapper.contract import (  # noqa: E402
     validate_payload,
 )
 
-CONTRACT_ROOT = str(ROOT / "contracts" / "mapper-artifacts" / "v1")
+CONTRACT_ROOT = str(ROOT / "simplicio_mapper" / "contracts" / "mapper-artifacts" / "v1")
 FIXTURES_ROOT = os.path.join(CONTRACT_ROOT, "fixtures")
 
 

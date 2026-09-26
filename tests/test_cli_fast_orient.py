@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -90,6 +91,35 @@ def test_explicit_rust_does_not_fallback_to_mapper(tmp_path, monkeypatch, capsys
     assert payload["fallback"] is False
     assert payload["fast_engine"] == "rust"
     assert _UnavailableRust.last_config.mode == "required"
+
+
+def test_mapper_orient_fallback_writes_its_scratch_task_file_under_simplicio(tmp_path, monkeypatch):
+    """BUG 1 regression: Mapper's own signature computation hashes ``git
+    status`` output, excluding only its ``.simplicio`` output *directory* by
+    pathspec -- a dotfile prefix at the repo root is not inside that
+    directory and stays visible to `git status` for the window this
+    subprocess runs, corrupting Mapper's own status_hash on every orient
+    call even against an unchanged source tree. The scratch task file must
+    live under ``.simplicio/`` so it is excluded the same way Mapper's own
+    artifacts are.
+    """
+    captured = {}
+
+    def _fake_run(argv, **kwargs):
+        # argv: ["simplicio-mapper", "orient", root, "--task-file", path, "--json"]
+        task_file = Path(argv[argv.index("--task-file") + 1])
+        captured["task_file"] = task_file
+        captured["existed_during_call"] = task_file.is_file()
+        import subprocess as _subprocess
+        return _subprocess.CompletedProcess(argv, 0, stdout="{}", stderr="")
+
+    monkeypatch.setattr(cli.subprocess, "run", _fake_run)
+    cli._mapper_orient_fallback(tmp_path, "add a function")
+
+    task_file = captured["task_file"]
+    assert captured["existed_during_call"] is True
+    assert task_file.parent == tmp_path / ".simplicio", task_file
+    assert not task_file.exists(), "scratch task file must be cleaned up after the call"
 
 
 def test_orient_auto_uses_mapper_fallback_with_reason(tmp_path, monkeypatch, capsys):

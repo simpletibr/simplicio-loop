@@ -53,7 +53,7 @@ class ClusteringMetricsTests(unittest.TestCase):
     def test_committed_fixture_and_schema_validate(self) -> None:
         contract_root = find_contract_root()
         schema = load_schema(CLUSTERING_SCHEMA, contract_root)
-        fixture = Path(__file__).parents[2] / "contracts" / "clustering" / "v1" / "fixtures" / "small-deterministic" / "clustering.json"
+        fixture = Path(__file__).parents[2] / "simplicio_mapper" / "contracts" / "clustering" / "v1" / "fixtures" / "small-deterministic" / "clustering.json"
         payload = json.loads(fixture.read_text(encoding="utf-8"))
         self.assertEqual(validate_instance(payload, schema), [])
 

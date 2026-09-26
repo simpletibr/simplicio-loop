@@ -1,6 +1,6 @@
 ---
 name: simplicio-prism
-description: Route broad or ambiguous work across Simplicio Mapper, Fast, Dev CLI, Loop, and Runtime. Use when a request spans components, requires choosing the correct capability, needs an end-to-end workflow, or the agent is unsure which Simplicio skill to invoke. Prism classifies and composes; it does not execute mutations itself.
+description: Route broad or ambiguous work across Simplicio Mapper, Fast, Dev CLI, and Loop. Use when a request spans components, requires choosing the correct capability, needs an end-to-end workflow, or the agent is unsure which Simplicio skill to invoke. Prism classifies and composes; it does not execute mutations itself.
 ---
 
 # Simplicio Prism
@@ -9,7 +9,7 @@ description: Route broad or ambiguous work across Simplicio Mapper, Fast, Dev CL
 
 Before routing or operating, each worker reads repository `AGENTS.md` and all relevant local skills. Prism only composes a route after that preflight. One binary/artifact set is built centrally from the canonical default branch and shared read-only; workers never rebuild binaries or regenerate canonical Mapper/Fast artifacts. Worktrees isolate source edits and receipts only. Route evidence and receipts carry repository/revision, binary digest/version, Mapper generation, and artifact digest. Missing, stale, incompatible, or mismatched central artifacts fail closed and select the central rebuild path only.
 
-The async boundary is explicit: Loop/Prism uses Python `asyncio` for scheduling, leases, and I/O; Runtime/Tokio owns gates, effects, receipts, and reconciliation. Neither async layer authorizes a worker-local rebuild or canonical artifact regeneration.
+Loop/Prism uses Python `asyncio` for scheduling, leases, and I/O; there is no Runtime/MCP backend in this stack. Asyncio scheduling never authorizes a worker-local rebuild or canonical artifact regeneration.
 
 
 Use Prism as the top-level capability router. Read `references/capabilities.yaml` for routing rules and `references/recipes.md` for end-to-end compositions. Load a component skill only after Prism has selected it; do not duplicate component documentation here.
@@ -35,8 +35,7 @@ The inventory covers CLI entry points and subcommands, MCP registrations, public
 4. Require Mapper before non-trivial mutation; require Dev CLI for mutation.
 5. Add Fast for compatible repeated/large retrieval.
 6. Add Loop for multi-step, parallel, retryable, or convergent work.
-7. Add Runtime only for MCP, native execution, gates, receipts, checkpoints, backpressure, or governed subagents.
-8. Emit a routing decision with reasons, fallbacks, and expected evidence.
+7. Emit a routing decision with reasons, fallbacks, and expected evidence.
 
 For task-count routing, one to three tasks use direct parallelism; more than three tasks activate
 Prism. An omitted quantity defaults to a minimum logical batch of ten tasks per slot. Slot count,
@@ -48,7 +47,6 @@ route when the repository already provides that integration.
 
 - Prism never edits files and never fabricates a capability.
 - Unknown or unavailable capabilities become explicit `unresolved` items.
-- Loop remains usable without Runtime.
 - A reported success is not completion until the selected verifier proves it.
 - Prefer the cheapest capability that satisfies the contract.
 
@@ -62,9 +60,8 @@ Return `route_id`, `intent`, `selected_capabilities`, `order`, `preconditions`, 
 - `references/recipes.md`: tested compositions for common workflows.
 - `scripts/probe-capabilities.py`: validate the registry and detect duplicate IDs.
 
-## Runtime precedence (normative, 2026-08-05)
+## Standalone precedence
 
-Consult Runtime before composing a cross-component route. Runtime has peer routes
-for Mapper, Fast, and Loop only; Dev CLI is selected only as `loop.dev_cli` after
-Loop activation. Direct file edits default to `simplicio edit`. Standalone
-component packages remain callable when Runtime or a flow is absent.
+There is no Runtime/MCP backend in this stack. Each component package (Mapper,
+Fast, Dev CLI, Loop) is callable standalone; direct file edits go through
+`simplicio-dev-cli edit --plan`.

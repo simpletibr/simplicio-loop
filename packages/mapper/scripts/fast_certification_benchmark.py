@@ -13,7 +13,7 @@ from pathlib import Path
 from simplicio_mapper.fast_certification import certify_fast
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXTURES = ROOT / "contracts" / "fast-certification" / "v1" / "fixtures"
+FIXTURES = ROOT / "simplicio_mapper" / "contracts" / "fast-certification" / "v1" / "fixtures"
 
 
 def main() -> int:
@@ -47,7 +47,7 @@ def main() -> int:
         "environment": {
             "python": platform.python_version(),
             "platform": platform.platform(),
-            "corpus": "contracts/fast-certification/v1/fixtures/golden-corpus.json",
+            "corpus": "simplicio_mapper/contracts/fast-certification/v1/fixtures/golden-corpus.json",
         },
         "runs": args.runs,
         "samples": samples,

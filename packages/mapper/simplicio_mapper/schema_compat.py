@@ -98,14 +98,14 @@ def _package_tag_prefix(root: str) -> str:
 #: Artifact surfaces named in issue #280 that have a real on-disk JSON
 #: Schema file to structurally diff. ``(surface name, repo-relative path)``.
 TRACKED_JSON_SCHEMAS: tuple[tuple[str, str], ...] = (
-    ("project-map", "contracts/mapper-artifacts/v1/schemas/project-map.schema.json"),
+    ("project-map", "simplicio_mapper/contracts/mapper-artifacts/v1/schemas/project-map.schema.json"),
     (
         "precedent-index",
-        "contracts/mapper-artifacts/v1/schemas/precedent-index.schema.json",
+        "simplicio_mapper/contracts/mapper-artifacts/v1/schemas/precedent-index.schema.json",
     ),
     (
         "context-snapshot",
-        "contracts/context-snapshot/v1/schemas/context-snapshot.schema.json",
+        "simplicio_mapper/contracts/context-snapshot/v1/schemas/context-snapshot.schema.json",
     ),
 )
 

@@ -1,7 +1,0 @@
-usage: simplicio-py init [-h] [--claude-home CLAUDE_HOME] [--dry-run]
-
-options:
-  -h, --help            show this help message and exit
-  --claude-home CLAUDE_HOME
-                        override ~/.claude (for tests)
-  --dry-run

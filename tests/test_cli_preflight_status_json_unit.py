@@ -53,7 +53,6 @@ class _CliShimTestCase(TestCase):
             "simplicio-dev-cli": "simplicio-dev-cli 0.16.1",
             "simplicio-py": "simplicio-py 0.16.1",
             "simplicio-fast": "simplicio-fast 2.0.22",
-            "simplicio": "simplicio-runtime 1.0.0",
         }
         for name, version in versions.items():
             if os.name == "nt":
@@ -90,7 +89,7 @@ class PreflightContractTest(_CliShimTestCase):
         self.assertEqual(rc, 0, msg=f"stderr={err}")
         self.assertIn("simplicio-loop preflight", out)
         self.assertIn("simplicio-mapper", out)
-        self.assertIn("simplicio-runtime", out)
+        self.assertIn("simplicio-dev-cli", out)
 
     def test_preflight_rejects_unknown_subcommand_still_absent(self):
         # Sanity: a genuinely unknown command must still error (proves we only ADDED preflight).
@@ -132,7 +131,6 @@ class DirectCallCoverageTest(TestCase):
             "simplicio-mapper": "simplicio-mapper 0.23.1",
             "simplicio-dev-cli": "simplicio-dev-cli 0.16.1",
             "simplicio-py": "simplicio-py 0.16.1",
-            "simplicio": "simplicio-runtime 1.0.0",
             "simplicio-fast": "simplicio-fast 2.0.16",
         }
         return subprocess.CompletedProcess(command, 0, stdout=names[command[0]] + "\n", stderr="")
@@ -142,8 +140,6 @@ class DirectCallCoverageTest(TestCase):
         buf = io.StringIO()
         with patch.object(cli.subprocess, "run", side_effect=self._present_operator_run), \
              patch.object(strict_mode.shutil, "which", side_effect=lambda name: name), \
-             patch.object(strict_mode, "RUNTIME_BIN_ENV_KEYS", ()), \
-             patch.object(strict_mode, "_runtime_candidate_paths", return_value=["simplicio"]), \
              contextlib.redirect_stdout(buf):
             rc = cli.preflight(str(REPO), as_json=False)
         self.assertEqual(rc, 0)
@@ -154,8 +150,6 @@ class DirectCallCoverageTest(TestCase):
         buf = io.StringIO()
         with patch.object(cli.subprocess, "run", side_effect=self._present_operator_run), \
              patch.object(strict_mode.shutil, "which", side_effect=lambda name: name), \
-             patch.object(strict_mode, "RUNTIME_BIN_ENV_KEYS", ()), \
-             patch.object(strict_mode, "_runtime_candidate_paths", return_value=["simplicio"]), \
              contextlib.redirect_stdout(buf):
             rc = cli.preflight(str(REPO), as_json=True)
         self.assertEqual(rc, 0)
@@ -173,8 +167,6 @@ class DirectCallCoverageTest(TestCase):
         buf = io.StringIO()
         with patch.object(cli.subprocess, "run", side_effect=missing_mapper), \
              patch.object(strict_mode.shutil, "which", side_effect=lambda name: name), \
-             patch.object(strict_mode, "RUNTIME_BIN_ENV_KEYS", ()), \
-             patch.object(strict_mode, "_runtime_candidate_paths", return_value=["simplicio"]), \
              patch.object(finding_router, "route_finding"), \
              contextlib.redirect_stdout(buf):
             rc = cli.preflight(str(REPO), as_json=True)

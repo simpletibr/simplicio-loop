@@ -1,13 +1,15 @@
-"""Deterministic Next.js route handler generation for scratch tasks."""
+"""Deterministic Next.js route handler generation for scratch tasks.
+
+Pure Python: the handler bodies are small, fixed shapes (a JSON list/echo
+per HTTP method) generated from string templates and merged into the target
+file by text, not by parsing/mutating a TypeScript AST. There is no Node.js
+or npm dependency anywhere in this module or its runtime path — this
+package is Python-only end to end.
+"""
 
 from __future__ import annotations
 
-import json
-import os
 import re
-import shutil
-import subprocess
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -16,6 +18,7 @@ from ..stack_registry import Stack
 from .types import CodegenResult, TaskExecutor
 
 _SUPPORTED_METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE")
+_NO_BODY_METHODS = frozenset({"GET", "DELETE"})
 
 
 @dataclass(frozen=True)
@@ -58,16 +61,11 @@ class TypeScriptAddNextRouteExecutor(TaskExecutor):
 
         target.parent.mkdir(parents=True, exist_ok=True)
         methods = list(missing or list(spec.methods))
-        ok, log = _write_with_ts_morph(project_dir, target, spec, methods)
-        if not ok:
-            return _fallback(log)
+        target.write_text(_render_route_file(original, spec, methods), encoding="utf-8")
         return CodegenResult(
             passed=True,
             files_modified=[target],
-            log=(
-                "generated Next.js route handlers with ts-morph "
-                f"{', '.join(missing or list(spec.methods))} for {spec.resource}"
-            ),
+            log=f"generated Next.js route handlers {', '.join(methods)} for {spec.resource}",
         )
 
 
@@ -148,170 +146,39 @@ def _has_exported_method(text: str, method: str) -> bool:
     )
 
 
-def _write_with_ts_morph(
-    project_dir: Path,
-    target: Path,
-    spec: _NextRouteSpec,
-    methods: list[str],
-) -> tuple[bool, str]:
-    payload = {
-        "routePath": str(target),
-        "methods": methods,
-        "resource": spec.resource,
-        "variableName": spec.variable_name,
-    }
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".cjs", delete=False) as handle:
-        handle.write(_TS_MORPH_SCRIPT)
-        script = Path(handle.name)
-    node = shutil.which("node") or shutil.which("node.exe")
-    if node is None:
-        try:
-            script.unlink()
-        except OSError:
-            pass
-        return False, "ts-morph execution failed: node was not found"
-    ok, env_or_log = _ts_morph_env(project_dir)
-    if not ok:
-        try:
-            script.unlink()
-        except OSError:
-            pass
-        return False, env_or_log
-    try:
-        proc = subprocess.run(
-            [
-                node,
-                str(script),
-                json.dumps(payload),
-            ],
-            cwd=project_dir,
-            capture_output=True,
-            text=True,
-            env=env_or_log,
-            timeout=120,
+def _success_status(method: str) -> int:
+    return 201 if method == "POST" else 200
+
+
+def _render_function(method: str, variable_name: str) -> str:
+    """One exported async route handler, matching the fixed shapes the
+    former ts-morph script produced: GET returns an empty list, DELETE
+    acknowledges deletion, and every other verb echoes the parsed JSON
+    request body with a method-appropriate status code."""
+    if method == "GET":
+        params = ""
+        body = (
+            f"  const {variable_name}: Array<Record<string, unknown>> = [];\n"
+            f"  return Response.json({variable_name});\n"
         )
-    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
-        return False, f"ts-morph execution failed: {exc}"
-    finally:
-        try:
-            script.unlink()
-        except OSError:
-            pass
-    if proc.returncode != 0:
-        log = ((proc.stdout or "") + (proc.stderr or "")).strip()
-        return False, f"ts-morph execution failed: {log[-1000:]}"
-    return True, (proc.stdout or "").strip()
-
-
-def _ts_morph_env(project_dir: Path) -> tuple[bool, dict[str, str] | str]:
-    env = os.environ.copy()
-    node_modules = _find_node_modules_with_ts_morph(project_dir)
-    if node_modules is None:
-        ok, node_modules_or_log = _ensure_ts_morph_cache()
-        if not ok:
-            return False, node_modules_or_log
-        node_modules = node_modules_or_log
-    existing = env.get("NODE_PATH")
-    env["NODE_PATH"] = str(node_modules) if not existing else os.pathsep.join([str(node_modules), existing])
-    return True, env
-
-
-def _find_node_modules_with_ts_morph(project_dir: Path) -> Path | None:
-    candidates = [
-        project_dir / "node_modules",
-        Path.cwd() / "node_modules",
-    ]
-    for node_modules in candidates:
-        if (node_modules / "ts-morph" / "package.json").is_file():
-            return node_modules
-    return None
-
-
-def _ensure_ts_morph_cache() -> tuple[bool, Path | str]:
-    cache = Path(
-        os.environ.get(
-            "SIMPLICIO_TS_MORPH_CACHE",
-            str(Path(tempfile.gettempdir()) / "simplicio-ts-morph-node"),
+    elif method == "DELETE":
+        params = ""
+        body = "  return Response.json({ deleted: true });\n"
+    else:
+        params = "request: Request"
+        body = (
+            "  const body = (await request.json()) as Record<string, unknown>;\n"
+            f"  return Response.json(body, {{ status: {_success_status(method)} }});\n"
         )
-    )
-    node_modules = cache / "node_modules"
-    if (node_modules / "ts-morph" / "package.json").is_file():
-        return True, node_modules
-    npm = shutil.which("npm") or shutil.which("npm.cmd")
-    if npm is None:
-        return False, "ts-morph execution failed: npm was not found"
-    cache.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.run(
-        [
-            npm,
-            "install",
-            "--prefix",
-            str(cache),
-            "--no-save",
-            "--silent",
-            "ts-morph@^28.0.0",
-            "typescript@^5",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    if proc.returncode != 0:
-        log = ((proc.stdout or "") + (proc.stderr or "")).strip()
-        return False, f"ts-morph dependency install failed: {log[-1000:]}"
-    return True, node_modules
+    return f"export async function {method}({params}): Promise<Response> {{\n{body}}}\n"
 
 
-_TS_MORPH_SCRIPT = r"""
-const { Project, QuoteKind } = require("ts-morph");
-
-const input = JSON.parse(process.argv[2]);
-const project = new Project({
-  manipulationSettings: {
-    quoteKind: QuoteKind.Double,
-    indentationText: "  ",
-  },
-});
-const sourceFile = project.addSourceFileAtPathIfExists(input.routePath)
-  ?? project.createSourceFile(input.routePath, "", { overwrite: true });
-
-function successStatus(method) {
-  return method === "POST" ? 201 : 200;
-}
-
-function statementsFor(method) {
-  if (method === "GET") {
-    return [
-      `const ${input.variableName}: Array<Record<string, unknown>> = [];`,
-      `return Response.json(${input.variableName});`,
-    ];
-  }
-  if (method === "DELETE") {
-    return ["return Response.json({ deleted: true });"];
-  }
-  return [
-    "const body = (await request.json()) as Record<string, unknown>;",
-    `return Response.json(body, { status: ${successStatus(method)} });`,
-  ];
-}
-
-for (const method of input.methods) {
-  if (sourceFile.getFunction(method)) continue;
-  sourceFile.addFunction({
-    isExported: true,
-    isAsync: true,
-    name: method,
-    returnType: "Promise<Response>",
-    parameters: method === "GET" || method === "DELETE"
-      ? []
-      : [{ name: "request", type: "Request" }],
-    statements: statementsFor(method),
-  });
-}
-
-sourceFile.formatText();
-sourceFile.saveSync();
-"""
+def _render_route_file(original: str, spec: _NextRouteSpec, methods: list[str]) -> str:
+    blocks = "\n".join(_render_function(method, spec.variable_name) for method in methods)
+    if not original:
+        return blocks
+    prefix = original if original.endswith("\n") else original + "\n"
+    return f"{prefix}\n{blocks}"
 
 
 def _fallback(log: str) -> CodegenResult:

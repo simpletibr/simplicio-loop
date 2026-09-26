@@ -270,7 +270,7 @@ def test_task_spec_payload_uses_declared_test_command(monkeypatch):
 
 
 def test_prepare_operator_receipt_uses_typed_task_spec_file(tmp_path, monkeypatch):
-    monkeypatch.setenv("SIMPLICIO_EXECUTION_PROFILE", "runtime-backed")
+    monkeypatch.setenv("SIMPLICIO_EXECUTION_PROFILE", "standalone")
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "src").mkdir()
@@ -304,7 +304,7 @@ def test_prepare_operator_receipt_uses_typed_task_spec_file(tmp_path, monkeypatc
 
 
 def test_prepare_operator_receipt_propagates_canonical_context_when_mapper_supplies_it(tmp_path, monkeypatch):
-    monkeypatch.setenv("SIMPLICIO_EXECUTION_PROFILE", "runtime-backed")
+    monkeypatch.setenv("SIMPLICIO_EXECUTION_PROFILE", "standalone")
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "src").mkdir()
@@ -751,29 +751,6 @@ def test_run_mapper_degraded_pack_refuses_unbounded_candidates_without_target_hi
     assert files == []
     assert result["handoff"]["stdout"]["ready"] is False
     assert result["evidence_status"] == "UNVERIFIED"
-
-
-def test_run_mapper_does_not_degrade_runtime_backed_profile(tmp_path, monkeypatch):
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    run_root = tmp_path / "run"
-    run_root.mkdir()
-
-    monkeypatch.setenv("SIMPLICIO_EXECUTION_PROFILE", "runtime-backed")
-    monkeypatch.setenv("SIMPLICIO_LOOP_ALLOW_DEGRADED_MAPPER", "1")
-    monkeypatch.setattr(runner_mod, "_preflight_mapper", lambda *args: {
-        "task_aware_supported": False,
-        "help_stdout": "  inspect <path>\n  handoff <path>",
-    })
-
-    def fake_run(argv, cwd):
-        if argv[1] == "scan":
-            return SimpleNamespace(returncode=1, stdout="{}", stderr="")
-        return SimpleNamespace(returncode=0, stdout="{}", stderr="")
-
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
-    with pytest.raises(RuntimeError, match="mapper scan/inspect/snapshot/handoff failed"):
-        runner_mod._run_mapper(repo, run_root, target_hint="src/app.py")
 
 
 def test_extract_repo_file_hints_accepts_rust_targets(tmp_path):

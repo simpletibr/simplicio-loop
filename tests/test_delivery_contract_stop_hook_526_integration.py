@@ -163,8 +163,6 @@ def test_loop_stop_main_blocks_the_turn_and_writes_handoff(tmp_path, monkeypatch
                         str(repo / "no-such-skill-marker.md"))  # no bound-operator requirement
     monkeypatch.setattr(dc, "DEFAULT_BASELINE", str(baseline_path))
     # Never touch the real network/CLI callouts from this test.
-    monkeypatch.setattr(loop_stop, "_call_simplicio_claims", lambda: None)
-    monkeypatch.setattr(loop_stop, "_call_simplicio_nest", lambda: None)
     monkeypatch.setattr(loop_stop, "_call_simplicio_checkpoint", lambda *_: None)
     monkeypatch.setattr(loop_stop, "_call_hierarchical_planner", lambda: None)
     monkeypatch.setattr(loop_stop, "refresh_cross_agent_wiki", lambda *_a, **_k: None)

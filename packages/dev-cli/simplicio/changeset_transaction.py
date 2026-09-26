@@ -260,26 +260,48 @@ def _lock_owned_by_live_process(lock_path: Path) -> bool:
     return True
 
 
-def _acquire_recovery_lock(lock_path: Path) -> int:
+_LOCK_POLL_SECONDS = 0.02
+
+
+def _acquire_transaction_lock(lock_path: Path, *, wait_seconds: float = 0.0) -> int:
+    """Atomically claim ``lock_path`` (``O_CREAT|O_EXCL``) across processes.
+
+    A stale lock (owner process no longer alive) is reclaimed immediately. A
+    lock held by a live owner is busy: with ``wait_seconds <= 0`` (the
+    default — every caller except an opt-in concurrent one) this raises
+    ``TRANSACTION_BUSY`` right away, matching the historical fail-fast
+    contract. With ``wait_seconds > 0`` the caller is explicitly asking to
+    wait for the live owner to finish (e.g. deliberately racing the same
+    idempotency key from multiple processes) instead of getting a
+    scheduling-dependent busy/replay split; this polls for the bounded
+    window before giving up with the same ``TRANSACTION_BUSY`` error.
+    """
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    for _attempt in range(2):
+    deadline = time.monotonic() + max(0.0, wait_seconds)
+    while True:
         try:
             descriptor = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
                 handle.write(f"pid={os.getpid()}\n")
             return descriptor
         except FileExistsError as exc:
-            if _lock_owned_by_live_process(lock_path):
+            if not _lock_owned_by_live_process(lock_path):
+                try:
+                    lock_path.unlink()
+                except OSError as unlink_error:
+                    raise ChangesetTransactionError(
+                        "TRANSACTION_BUSY", "stale transaction lock could not be reclaimed"
+                    ) from unlink_error
+                continue
+            if time.monotonic() >= deadline:
                 raise ChangesetTransactionError(
                     "TRANSACTION_BUSY", "another process owns this idempotency key"
                 ) from exc
-            try:
-                lock_path.unlink()
-            except OSError as unlink_error:
-                raise ChangesetTransactionError(
-                    "TRANSACTION_BUSY", "stale transaction lock could not be reclaimed"
-                ) from unlink_error
-    raise ChangesetTransactionError("TRANSACTION_BUSY", "another process owns this idempotency key")
+            time.sleep(_LOCK_POLL_SECONDS)
+
+
+def _acquire_recovery_lock(lock_path: Path) -> int:
+    return _acquire_transaction_lock(lock_path)
 
 
 def recover_changeset_transaction(
@@ -400,20 +422,22 @@ def execute_changeset_transaction(
     changeset_digest_value: str,
     causal_ids: dict[str, str] | None = None,
     route_admission: dict[str, Any] | None = None,
+    lock_wait_seconds: float = 0.0,
 ) -> dict[str, Any]:
-    """Serialize one idempotency key before staging or committing it."""
+    """Serialize one idempotency key before staging or committing it.
+
+    ``lock_wait_seconds`` is 0 by default: a caller finding the key busy
+    fails fast with ``TRANSACTION_BUSY``, as always. A caller that is
+    deliberately racing several processes against the same idempotency key
+    (e.g. duplicate concurrent submissions of the same operation) can pass a
+    positive bound to wait for the in-flight owner instead — it then either
+    performs the work itself or deterministically replays the winner's
+    result, rather than getting an outcome that depends on OS scheduling.
+    """
     state_path = _state_path(Path(root).resolve(), idempotency_key)
     _validate_route_admission(route_admission)
     lock_path = state_path.with_suffix(".lock")
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        descriptor = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(f"pid={os.getpid()}\n")
-    except FileExistsError as exc:
-        raise ChangesetTransactionError(
-            "TRANSACTION_BUSY", "another process owns this idempotency key"
-        ) from exc
+    _acquire_transaction_lock(lock_path, wait_seconds=lock_wait_seconds)
     try:
         return _execute_changeset_transaction(
             plan,

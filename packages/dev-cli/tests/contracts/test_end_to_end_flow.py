@@ -5,16 +5,17 @@
     verification
 
 against the real fixture project (tests/contracts/fixtures/sample_project),
-with no network calls. Covers both legs of "standalone-Python execution
-and, where feasible, the integrated-with-runtime path":
+with no network calls.
 
-- standalone: `simplicio.commands.test_run.run()` falls back to a plain
-  subprocess when no `simplicio` Rust binary is on PATH / SIMPLICIO_BIN.
-- runtime-integrated: same call, but SIMPLICIO_BIN points at a **stub**
-  binary (see conftest.py's `stub_runtime_binary` fixture) — the real
-  Rust runtime isn't built in this environment, so this leg is explicitly
-  a stub of the delegation contract, not a real integration test. Anything
-  claiming otherwise would be faking a real integration; this doesn't.
+Runtime is not part of this stack (see `simplicio.runtime_bridge`'s module
+docstring: discovery/native routing/binary invocation are hard-closed —
+`discover_simplicio()` always returns ``None``), so there is only one leg
+left to cover: `simplicio.commands.test_run.run()` falling back to a plain
+subprocess. A prior revision of this suite also covered a "runtime-
+integrated" leg by pointing SIMPLICIO_BIN at a stub Rust binary
+(conftest.py's now-removed `stub_runtime_binary` fixture); that leg tested
+a delegation path this product no longer has, so it was deleted along with
+the fixture instead of being kept as dead weight.
 """
 
 from __future__ import annotations
@@ -114,21 +115,3 @@ def test_auto_standalone_keeps_strict_mapper_identity_gate(sample_project, monke
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "blocked"
     assert payload["reason_code"] == "plan_required"
-
-
-def test_minimal_flow_runtime_integrated_leg_is_stubbed(sample_project, stub_runtime_binary, capsys):
-    """Same `test run` contract, but delegated to SIMPLICIO_BIN (stub Rust
-    runtime — see conftest.py). Proves `simplicio/commands/test_run.py`'s
-    runtime-delegation branch (`_run_via_runtime`) round-trips the
-    `simplicio.test-run/v1` schema correctly; does NOT prove the real Rust
-    binary behaves identically (that needs `simplicio-runtime` built and
-    installed, which this sandbox does not have)."""
-    from simplicio.commands.test_run import run as test_run_run
-
-    ns = argparse.Namespace(cmd="pytest", json=True, repo=str(sample_project), timeout=30.0)
-    rc = test_run_run(ns, [])
-
-    assert rc == 0
-    payload = json.loads(capsys.readouterr().out)
-    assert_schema_id(payload, "simplicio.test-run/v1", where="test run --json (stubbed runtime)")
-    assert payload["summary"] == "1 passed in 0.01s (stub runtime binary)"

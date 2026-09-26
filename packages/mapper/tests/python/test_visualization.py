@@ -39,7 +39,7 @@ class VisualizationBundleTests(unittest.TestCase):
         self.assertNotIn("user", json.dumps(first["provenance"]))
 
     def test_committed_golden_fixture_validates(self) -> None:
-        fixture = Path(__file__).parents[2] / "contracts" / "visualization" / "v1" / "fixtures" / "python-minimal" / "visualization-bundle.json"
+        fixture = Path(__file__).parents[2] / "simplicio_mapper" / "contracts" / "visualization" / "v1" / "fixtures" / "python-minimal" / "visualization-bundle.json"
         payload = json.loads(fixture.read_text(encoding="utf-8"))
         errors = validate_instance(payload, load_schema(VISUALIZATION_SCHEMA, find_contract_root()))
         self.assertEqual(errors, [])

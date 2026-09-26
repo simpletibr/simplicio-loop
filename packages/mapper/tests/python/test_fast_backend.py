@@ -94,7 +94,7 @@ class FastBackendTest(unittest.TestCase):
         self.assertEqual(first.receipt["projection_hash"], second.receipt["projection_hash"])
 
     def test_versioned_cross_language_fixture_preserves_all_languages(self) -> None:
-        fixture = REPO_ROOT / "contracts" / "fast-context" / "v1" / "fixtures" / "cross-language.json"
+        fixture = REPO_ROOT / "simplicio_mapper" / "contracts" / "fast-context" / "v1" / "fixtures" / "cross-language.json"
         resolution = resolve_backend(
             root=str(self.root),
             local_artifacts=self.local,

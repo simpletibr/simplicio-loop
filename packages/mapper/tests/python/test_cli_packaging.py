@@ -48,15 +48,15 @@ class DistributionContractsTest(unittest.TestCase):
                 sdist_names = set(archive.getnames())
             prefix = sdist.name.removesuffix(".tar.gz")
             self.assertIn(
-                f"{prefix}/contracts/context-snapshot/v1/schemas/context-snapshot.schema.json",
+                f"{prefix}/simplicio_mapper/contracts/context-snapshot/v1/schemas/context-snapshot.schema.json",
                 sdist_names,
             )
             self.assertIn(
-                f"{prefix}/contracts/task-orientation/v1/schemas/task-context.schema.json",
+                f"{prefix}/simplicio_mapper/contracts/task-orientation/v1/schemas/task-context.schema.json",
                 sdist_names,
             )
             self.assertIn(
-                f"{prefix}/contracts/ecosystem/v1/fixtures/python-task/execution.json",
+                f"{prefix}/simplicio_mapper/contracts/ecosystem/v1/fixtures/python-task/execution.json",
                 sdist_names,
             )
 

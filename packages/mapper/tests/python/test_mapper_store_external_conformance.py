@@ -39,7 +39,7 @@ class ExternalConformanceProducerTest(unittest.TestCase):
             reason="measured",
             platform_name="macOS",
         )
-        schema_path = Path(__file__).parents[2] / "contracts/mapper-store/v1/schemas/conformance-evidence.schema.json"
+        schema_path = Path(__file__).parents[2] / "simplicio_mapper/contracts/mapper-store/v1/schemas/conformance-evidence.schema.json"
         errors = validate_instance(receipt, json.loads(schema_path.read_text(encoding="utf-8")))
         self.assertEqual(errors, [])
 
