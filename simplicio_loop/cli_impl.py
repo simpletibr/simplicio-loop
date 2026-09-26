@@ -1111,11 +1111,28 @@ def _orient_core(root: Path, task: str, fast_mode: str, fast_context_budget: int
     return payload, (0 if status == "FALLBACK" else 2)
 
 
+def _brief_dump(payload: dict, *, pretty: bool = False) -> str:
+    """Render an ``orient --brief`` payload for stdout/tee (issue #1336).
+
+    Default: no indentation, no space after ``,``/``:`` -- compact, and
+    deterministic because it preserves the payload dict's own insertion
+    order (``route`` first, see ``orient_brief``) rather than sorting keys.
+    A byte-identical prompt-cache-relevant tool output across turns/sessions
+    on an unchanged tree is the whole point: this text becomes part of the
+    OpenCode conversation the model prompt is built from, so shrinking and
+    stabilizing it raises the cross-call prompt-cache hit rate. ``pretty``
+    opts back into human-readable ``indent=2`` for interactive/debug use.
+    """
+    if pretty:
+        return json.dumps(payload, ensure_ascii=False, indent=2)
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+
 def orient(repo: str, task: str, fast_mode: str = "auto",
            fast_context_budget: int = 48000, fast_engine: str = "auto",
            tee: bool = False, targets: list[str] | None = None,
            verbose: bool = False, brief: bool = False,
-           tasks: list[str] | None = None) -> int:
+           tasks: list[str] | None = None, pretty: bool = False) -> int:
     """Run bounded Fast orient with an explicit Mapper fallback receipt.
 
     ``brief=True`` (issue #1310) renders Turn 1 of the plan-once/apply-once
@@ -1134,9 +1151,9 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
                                fast_engine=fast_engine, targets=targets)
         if tee:
             from .tee_cache import write
-            path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
+            path = write(root, _brief_dump(payload, pretty=pretty))
             payload["tee_path"] = str(path)
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        print(_brief_dump(payload, pretty=pretty))
         return 0 if payload.get("status") in {"READY", "FALLBACK"} else 2
     payload, code = _orient_core(root, task, fast_mode, fast_context_budget,
                                   fast_engine, targets, verbose)
@@ -2596,6 +2613,14 @@ def main(argv=None) -> int:
         "--json", action="store_true",
         help="no-op: orient always emits exactly one JSON document on stdout",
     )
+    p_orient.add_argument(
+        "--pretty", action="store_true",
+        help=(
+            "indent --brief output for humans (issue #1336: default is compact, "
+            "no-indent JSON -- the smaller and more stable the OpenCode tool "
+            "output, the higher the prompt-cache hit rate on repeat turns)"
+        ),
+    )
 
     p_apply = sub.add_parser(
         "apply",
@@ -2606,6 +2631,15 @@ def main(argv=None) -> int:
     p_apply.add_argument(
         "--json", action="store_true",
         help="no-op: apply always emits exactly one JSON document on stdout",
+    )
+    p_apply.add_argument(
+        "--pretty", action="store_true",
+        help=(
+            "print the full receipt-shaped result, indented (issue #1336: default "
+            "is a compact short summary -- status, per-task status/tail on failure, "
+            "next_effort, receipt_path -- full per-task/diff detail stays in the "
+            "receipt file)"
+        ),
     )
 
     p_retrieve = sub.add_parser("retrieve", help="retrieve and verify a tee-cache output")
@@ -3033,10 +3067,10 @@ def main(argv=None) -> int:
         if not task_list:
             parser.error("orient requires at least one --task")
         return orient(args.repo, task_list[0], args.fast, args.fast_context_budget, args.fast_engine, args.tee,
-                      args.targets, args.verbose, args.brief, task_list)
+                      args.targets, args.verbose, args.brief, task_list, args.pretty)
     if command == "apply":
         from .apply import main as apply_main
-        return apply_main(args.ops, args.repo)
+        return apply_main(args.ops, args.repo, pretty=args.pretty)
     if command == "retrieve":
         from .tee_cache import retrieve
         try:

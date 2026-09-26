@@ -296,3 +296,92 @@ def test_run_receipt_records_mapper_fast_provenance(tmp_path, monkeypatch):
     result = apply_mod.run(ops, repo=tmp_path)
     receipt = json.loads(open(result["receipt_path"]).read())
     assert receipt["mapper_fast"]["generations"][0]["context_hash"] == "sha256:test"
+
+
+# --- issue #1336: compact/slim default `apply` CLI output ------------------
+
+
+def test_slim_task_view_pass_has_only_id_and_status():
+    view = apply_mod._slim_task_view({"id": "t1", "status": "PASS", "check": {"ok": True, "stdout_tail": "x" * 5000}})
+    assert view == {"id": "t1", "status": "PASS"}
+
+
+def test_slim_task_view_skipped_carries_reason_code():
+    view = apply_mod._slim_task_view({"id": "t2", "status": "SKIPPED", "reason_code": "upstream_task_failed"})
+    assert view == {"id": "t2", "status": "SKIPPED", "reason_code": "upstream_task_failed"}
+
+
+def test_slim_task_view_fail_includes_check_tail_last_20_lines():
+    lines = [f"line{i}" for i in range(1, 40)]
+    task_result = {"id": "t3", "status": "FAIL",
+                   "apply": {"ok": True}, "check": {"ok": False, "stderr_tail": "\n".join(lines)}}
+    view = apply_mod._slim_task_view(task_result)
+    assert view["id"] == "t3"
+    assert view["status"] == "FAIL"
+    kept = view["check_tail"].splitlines()
+    assert len(kept) == 20
+    assert kept[0] == "line20"
+    assert kept[-1] == "line39"
+
+
+def test_slim_task_view_fail_from_apply_step_has_reason_code_no_check_tail():
+    task_result = {"id": "t4", "status": "FAIL", "apply": {"ok": False, "reason_code": "dev_cli_apply_failed"}}
+    view = apply_mod._slim_task_view(task_result)
+    assert view == {"id": "t4", "status": "FAIL", "reason_code": "dev_cli_apply_failed"}
+
+
+def test_slim_result_blocked_is_passed_through_unchanged():
+    blocked = {"schema": "s", "status": "BLOCKED", "reason_code": "x", "hint": "h"}
+    assert apply_mod._slim_result(blocked) == blocked
+
+
+def test_slim_result_pass_drops_diff_and_full_task_detail():
+    result = {
+        "schema": "s", "status": "PASS", "run_id": "r1", "ops_sha": "sha", "next_effort": "low",
+        "receipt_path": "/tmp/receipt.json",
+        "tasks": [{"id": "t1", "status": "PASS", "apply": {"ok": True, "steps": ["big"]},
+                   "check": {"ok": True, "stdout_tail": "noise"}}],
+        "diff": {"changed": ["a.txt"]},
+    }
+    slim = apply_mod._slim_result(result)
+    assert slim["status"] == "PASS"
+    assert slim["tasks"] == [{"id": "t1", "status": "PASS"}]
+    assert slim["receipt_path"] == "/tmp/receipt.json"
+    assert "diff" not in slim
+
+
+def test_apply_main_default_stdout_is_compact_single_line(tmp_path, monkeypatch, capsys):
+    _write(tmp_path, "a.txt", "hello")
+    monkeypatch.setattr(apply_mod, "_apply_task_devcli",
+                        lambda root, task, run_dir: {"ok": True, "steps": [], "reason_code": None})
+    ops_path = tmp_path / "ops.json"
+    ops_path.write_text(json.dumps({"tasks": [{"id": "t1", "operations": [
+        {"path": "a.txt", "find": "hello", "replace": "bye"}]}]}), encoding="utf-8")
+
+    code = apply_mod.main(str(ops_path), repo=str(tmp_path))
+    out = capsys.readouterr().out
+    assert code == 0
+    assert out.rstrip("\n").count("\n") == 0
+    payload = json.loads(out)
+    assert payload["status"] == "PASS"
+    assert payload["tasks"] == [{"id": "t1", "status": "PASS"}]
+    assert "diff" not in payload
+
+
+def test_apply_main_pretty_flag_is_larger_and_indented(tmp_path, monkeypatch, capsys):
+    _write(tmp_path, "a.txt", "hello")
+    monkeypatch.setattr(apply_mod, "_apply_task_devcli",
+                        lambda root, task, run_dir: {"ok": True, "steps": [], "reason_code": None})
+    ops_path = tmp_path / "ops.json"
+    ops_path.write_text(json.dumps({"tasks": [{"id": "t1", "operations": [
+        {"path": "a.txt", "find": "hello", "replace": "bye"}]}]}), encoding="utf-8")
+
+    apply_mod.main(str(ops_path), repo=str(tmp_path))
+    slim_out = capsys.readouterr().out
+
+    apply_mod.main(str(ops_path), repo=str(tmp_path), pretty=True)
+    pretty_out = capsys.readouterr().out
+
+    assert pretty_out.rstrip("\n").count("\n") > 0
+    assert len(slim_out) < len(pretty_out)
+    assert "diff" in json.loads(pretty_out)
