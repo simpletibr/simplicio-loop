@@ -12,16 +12,6 @@ from .skill_router import build_skill_block
 
 _LAST_PROMPT_ENVELOPE: PromptEnvelope | None = None
 
-# Optional Rust hot-path (issues #17/#18). If `simplicio_core` is installed
-# (built via `cd rust/simplicio-core && maturin develop --release`), the
-# substitution + comment-strip step runs ~5x faster. The Python fallback
-# below stays the source of truth and is what pip-installed users get
-# until a wheel ships.
-try:
-    from simplicio_core import build_6layer_prompt as _rs_build
-except ImportError:  # pragma: no cover - exercised at import time
-    _rs_build = None
-
 
 @lru_cache(maxsize=4)
 def _load_template(path: str) -> str:
@@ -45,7 +35,7 @@ def _assemble_python(
     criteria: str,
     constraints: str,
 ) -> str:
-    """Python reference implementation — exact contract the Rust impl mirrors."""
+    """Substitute the 6-layer template placeholders and strip `{# ... #}` comments."""
     for s, v in {
         "{{STACK}}": stack,
         "{{GOAL}}": goal,
@@ -82,8 +72,6 @@ def build_prompt(root, stack, goal, target, criteria, constraints):
         template_version="simplicio_prompt.md/v1",
     )
     _LAST_PROMPT_ENVELOPE = envelope
-    if _rs_build is not None:
-        return _rs_build(tpl, stack, goal, target_block, prec, skill, adaptation, criteria, constraints)
     return _assemble_python(tpl, stack, goal, target_block, prec, skill, adaptation, criteria, constraints)
 
 

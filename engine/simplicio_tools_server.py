@@ -10,7 +10,12 @@ JSON message per line (newline-delimited JSON-RPC 2.0). It exposes three tools:
 
 Run it as the command a stdio MCP client launches:
 
-    python3 engine/simplicio_mcp.py
+    python3 engine/simplicio_tools_server.py
+
+(File renamed from `simplicio_mcp.py` in #1305 — the name collided with the
+Runtime/MCP backend concept this stack does not have; this module still
+implements the real, external Model Context Protocol for capture-proxy
+clients, unrelated to that backend.)
 
 Everything is deterministic and offline. No network, no third-party deps.
 """
