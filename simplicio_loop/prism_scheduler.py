@@ -376,6 +376,12 @@ class PrismScheduler:
         self.states: dict[str, str] = {}
         self.queued_reasons: dict[str, str] = {}
         self._served: dict[str, int] = {}
+        # Monotonic submission order, independent of ``task_id`` spelling. Two
+        # tasks tied on (served-count, priority, slot) must break the tie by
+        # *when they were submitted*, not by comparing ``task_id`` as a raw
+        # string -- "run-task-10" sorts before "run-task-2" lexicographically,
+        # which silently reordered a same-lane wave of 10+ tasks (issue #1298).
+        self._sequence: dict[str, int] = {}
         self._decisions: list[dict[str, Any]] = []
         self._timings: dict[str, dict[str, int]] = {}
         self._max_overlap = 0
@@ -409,6 +415,7 @@ class PrismScheduler:
         updated, receipt = admit_task(slot, task.ownership)
         self.tasks[task.task_id] = task
         self.states[task.task_id] = "queued"
+        self._sequence[task.task_id] = len(self._sequence)
         if receipt.admitted:
             self.slots[slot.slot_id] = updated
             self.queued_reasons[task.task_id] = "READY_CHECK_PENDING"
@@ -451,7 +458,7 @@ class PrismScheduler:
                 self._served.get(task.slot_id, 0),
                 -task.priority,
                 task.slot_id,
-                task.task_id,
+                self._sequence.get(task.task_id, 0),
             )
         )
         return tuple(task.task_id for task in ready)

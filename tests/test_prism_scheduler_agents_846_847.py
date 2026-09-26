@@ -99,6 +99,40 @@ def test_slot_admission_never_exceeds_ten_and_queues_eleventh():
     assert scheduler.queued_reasons["t-10"] == "SLOT_LOGICAL_CAPACITY"
 
 
+def test_ready_set_admits_in_submission_order_not_lexicographic_task_id():
+    """Regression (issue #1298 wave10 smoke): a wave of same-lane (single-file,
+    overlapping edit-plan path) tasks is dispatched one at a time via repeated
+    ``next_batch()`` calls, since only one worker may touch that shared file at
+    once. Ten or more such tasks are named ``<run>-task-<N>`` -- ``ready_set()``
+    used ``task.task_id`` as its final sort tiebreaker, which orders those ids
+    lexicographically ("...-task-10" sorts before "...-task-2"), admitting task
+    10 second instead of tenth and applying its cumulative find/replace edit
+    plan against the wrong intermediate file state (``plan_find_not_found``).
+    Submission order must be preserved regardless of how many digits the
+    trailing index has.
+    """
+    _, slots = hierarchy()
+    scheduler = PrismScheduler(
+        PrismPolicy(global_worker_limit=1, recovery_reserve=0, validation_reserve=0)
+    )
+    scheduler.register_slot(slots[0])
+    task_ids = [f"run-abc-task-{index}" for index in range(1, 11)]
+    for task_id in task_ids:
+        scheduler.submit(task(task_id, slots[0].slot_id))
+
+    admitted_order: list[str] = []
+    for _ in range(len(task_ids)):
+        batch = scheduler.next_batch()
+        assert len(batch) == 1
+        admitted = batch[0]
+        admitted_order.append(admitted.task_id)
+        scheduler.complete(
+            admitted.task_id, "accepted",
+            owner_agent=admitted.ownership.owner_agent, fence=1,
+        )
+    assert admitted_order == task_ids
+
+
 def test_dependencies_conflicts_and_exclusive_resources_serialize_only_affected_group():
     _, slots = hierarchy()
     scheduler = PrismScheduler(
