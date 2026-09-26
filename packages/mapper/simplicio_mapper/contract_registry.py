@@ -25,7 +25,7 @@ CONTRACT_REGISTRY_SCHEMA = "simplicio.contract-registry/v1"
 CONTRACT_ENTRY_SCHEMA = "simplicio.contract-registry-entry/v1"
 _CONTRACT_RE = re.compile(r"\bsimplicio[.][A-Za-z0-9_.-]+/v[0-9]+(?:[.][0-9]+)*\b")
 _SUFFIXES = {".c", ".cc", ".cpp", ".go", ".h", ".hpp", ".js", ".jsx", ".json", ".md", ".mjs", ".py", ".rs", ".sql", ".toml", ".ts", ".tsx", ".yml", ".yaml"}
-_SKIP_DIRS = {".git", ".simplicio", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache", "node_modules", "target", "dist", "build"}
+_SKIP_DIRS = {".git", ".simplicio-loop", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache", "node_modules", "target", "dist", "build"}
 
 _CONTRACTS_HELP = """usage: simplicio-mapper contracts <inventory|validate|diff|impact> [options]
 

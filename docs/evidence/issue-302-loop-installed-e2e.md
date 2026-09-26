@@ -1,14 +1,15 @@
 # Issue #302 — Loop authority-boundary evidence
 
-This document defines the cross-repository evidence lane for
-`wesleysimplicio/simplicio-dev-cli#302`. The Loop is the coordinator-facing
+This document defines the cross-repository evidence lane for issue #302
+(originally filed as `wesleysimplicio/simplicio-dev-cli#302`, now tracked in
+`simpletibr/simplicio-loop`). The Loop is the coordinator-facing
 boundary; the Dev CLI remains the owner of effect-specific proposal binding
 and the Runtime sink remains the final transport gate.
 
 ## Boundary implemented in Loop
 
 `simplicio_loop.authority_boundary` accepts only the fixed coordinator artifact
-`.simplicio/orchestrator/.../effect-authorization.json`. It validates the versioned
+`.simplicio-loop/orchestrator/.../effect-authorization.json`. It validates the versioned
 schema, exact fields, canonical digest, coordinator issuer, validity window,
 and optional causal bindings. Mapper/LLM payloads are never searched for an
 authorization path. A valid artifact is forwarded to the installed Dev CLI
@@ -22,7 +23,7 @@ Run this from a clean environment containing the installed packages and their
 console scripts:
 
 ```bash
-python scripts/authority_e2e.py run --out .simplicio/orchestrator/runs/issue-302/authority-e2e.json
+python scripts/authority_e2e.py run --out .simplicio-loop/orchestrator/runs/issue-302/authority-e2e.json
 ```
 
 The command exits non-zero when `simplicio-dev-cli`, `simplicio-mapper`, or

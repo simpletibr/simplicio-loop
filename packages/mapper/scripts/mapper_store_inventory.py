@@ -24,7 +24,7 @@ from urllib.parse import quote
 SCHEMA = "simplicio.mapper-store-inventory/v1"
 MAX_FILE_BYTES = 1_000_000
 SKIP_DIRS = {
-    ".git", ".simplicio", ".venv", "__pycache__", ".mypy_cache", ".pytest_cache",
+    ".git", ".simplicio-loop", ".venv", "__pycache__", ".mypy_cache", ".pytest_cache",
     ".ruff_cache", ".hypothesis", ".tox", ".nox", ".cache", ".sfast", "node_modules",
     "target", "dist", "build", "coverage", "playwright-report", "test-results",
 }
@@ -322,7 +322,7 @@ def _target_store_path(relative: str, kinds: set[str], hints: str = "") -> str:
         store = "catalog.sqlite"
     else:
         store = "semantic.sqlite"
-    return f"~/.simplicio/data/{store}"
+    return f"~/.simplicio-loop/data/{store}"
 
 
 def _scan_sources(repo_id: str, root: Path, changed_files: set[str] | None = None) -> tuple[list[dict], list[dict]]:
@@ -537,7 +537,7 @@ def build_inventory(repos: list[tuple[str, Path]], databases: list[tuple], deter
         "policy": _policy(matrix),
         "target_topology": {
             "schema": "MapperStore/v1",
-            "root": "~/.simplicio/data/",
+            "root": "~/.simplicio-loop/data/",
             "stores": [
                 {"name": "semantic.sqlite", "owner": "mapper-store", "domains": ["ContextGraph", "symbols", "precedents", "documents"]},
                 {"name": "memory.sqlite", "owner": "mapper-store", "domains": ["memory", "handoff", "FTS5", "embeddings", "sqlite-vec-optional"]},

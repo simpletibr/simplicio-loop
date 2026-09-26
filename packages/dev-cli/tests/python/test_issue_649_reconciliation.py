@@ -19,7 +19,7 @@ from simplicio.standalone_migration import (
 )
 
 KEY = "issue-649-key"
-EVIDENCE_LOCATOR = ".simplicio/runtime-effects/reconciliation/issue-649-key.json"
+EVIDENCE_LOCATOR = ".simplicio-loop/runtime-effects/reconciliation/issue-649-key.json"
 
 
 def _args(root: Path, *, evidence_file: str = EVIDENCE_LOCATOR) -> argparse.Namespace:
@@ -330,7 +330,7 @@ def test_key_repo_and_store_mismatches_fail_closed(tmp_path, monkeypatch, capsys
     assert json.loads(capsys.readouterr().out)["error"]["code"] == "EFFECT_UNKNOWN_LOCK_KEY_MISMATCH"
 
     args = _record_lock(tmp_path / "repo-mismatch")
-    lock_path = Path(args.root) / ".simplicio" / "effect-unknown.lock"
+    lock_path = Path(args.root) / ".simplicio-loop" / "effect-unknown.lock"
     lock = json.loads(lock_path.read_text(encoding="utf-8"))
     lock["repo"] = str(tmp_path / "another-repo")
     lock_path.write_text(json.dumps(lock), encoding="utf-8")

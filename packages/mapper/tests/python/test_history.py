@@ -58,14 +58,14 @@ class HistoryTest(unittest.TestCase):
         first = create_snapshot(str(self.dir))
         _write(self.dir, "lib/helper.py", "def helper():\n    return 3\n")
         second = create_snapshot(str(self.dir))
-        payload = diff_snapshots(str(self.dir), ".simplicio", first["id"], second["id"])
+        payload = diff_snapshots(str(self.dir), ".simplicio-loop", first["id"], second["id"])
         self.assertEqual(payload["schema"], DOC_HISTORY_SCHEMA)
         self.assertEqual(payload["modules"]["added"], second["delta"]["modules"]["added"])
 
     def test_diff_unknown_id_raises(self) -> None:
         create_snapshot(str(self.dir))
         with self.assertRaises(ValueError):
-            diff_snapshots(str(self.dir), ".simplicio", "nope", "also-nope")
+            diff_snapshots(str(self.dir), ".simplicio-loop", "nope", "also-nope")
 
     def test_retention_gc_removes_oldest_first(self) -> None:
         ids = []
@@ -80,7 +80,7 @@ class HistoryTest(unittest.TestCase):
 
     def test_maybe_snapshot_appends_changelog_once(self) -> None:
         maybe_snapshot(str(self.dir), trigger="map")
-        changelog = self.dir / ".simplicio" / "docs" / "architecture-changelog.md"
+        changelog = self.dir / ".simplicio-loop" / "docs" / "architecture-changelog.md"
         self.assertTrue(changelog.exists())
         first_text = changelog.read_text(encoding="utf-8")
 

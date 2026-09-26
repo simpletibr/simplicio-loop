@@ -89,15 +89,15 @@ def resolve_store_location(
     temp_dir: str | os.PathLike[str] | None = None,
     allow_temp: bool = False,
 ) -> StoreLocation:
-    """Resolve store root with scoped ``.simplicio/data`` policy.
+    """Resolve store root with scoped ``.simplicio-loop/data`` policy.
 
     Precedence:
 
     1. ``data_dir`` flag
     2. ``SIMPLICIO_DATA_DIR`` / ``SIMPLICIO_CORE_DATA_DIR``
     3. Project scope when ``repo_root`` is set (or ``SIMPLICIO_STORE_SCOPE=repo``):
-       ``<repo>/.simplicio/data/<project_slug>``
-    4. Core/runtime default: ``~/.simplicio/data`` (or ``$SIMPLICIO_HOME/.../data``)
+       ``<repo>/.simplicio-loop/data/<project_slug>``
+    4. Core/runtime default: ``~/.simplicio-loop/data`` (or ``$SIMPLICIO_HOME/.../data``)
     5. Explicit temp only when ``allow_temp=True``
 
     Resolution never creates a directory unless callers use ``ensure_root``.
@@ -124,7 +124,7 @@ def resolve_store_location(
     if repo_root is not None and env.get("SIMPLICIO_STORE_SCOPE") == "repo":
         repo = _candidate(repo_root, "repo_root")
         assert repo is not None
-        return location(repo / ".simplicio" / "data", "repo")
+        return location(repo / ".simplicio-loop" / "data", "repo")
 
     if project_scope and repo_root is not None:
         from .project_scope import project_data_root
@@ -132,7 +132,7 @@ def resolve_store_location(
         root, slug, slug_source = project_data_root(repo_root, environ=env)
         return location(root, f"project:{slug}:{slug_source}")
 
-    # Core / Runtime default: ~/.simplicio/data (never bare ~/data)
+    # Core / Runtime default: ~/.simplicio-loop/data (never bare ~/data)
     from .project_scope import core_data_root
 
     home_path = _candidate(home, "home")
@@ -146,7 +146,7 @@ def resolve_store_location(
             "no store root resolved; pass data_dir, SIMPLICIO_DATA_DIR, or allow_temp=True"
         )
     try:
-        return location(core_data_root(environ=env, home=home_path), "core:.simplicio/data")
+        return location(core_data_root(environ=env, home=home_path), "core:.simplicio-loop/data")
     except Exception:
         if allow_temp:
             temporary = _candidate(temp_dir, "temp_dir")

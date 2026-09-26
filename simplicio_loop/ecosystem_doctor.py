@@ -425,7 +425,7 @@ def _append_journal_line(target: Path, line: str) -> bool:
 
 def persist_handshake(report: Mapping[str, Any], repo: Path, *, journal_path: Path | None = None) -> dict[str, Any]:
     """Append the handshake before planning, using the loop's cross-process lock."""
-    target = journal_path or repo / ".simplicio" / "orchestrator" / "loop" / "journal.jsonl"
+    target = journal_path or repo / ".simplicio-loop" / "orchestrator" / "loop" / "journal.jsonl"
     record = {"schema": HANDSHAKE_SCHEMA, "event": "ecosystem_handshake",
               "phase": "pre_planning", "recorded_at": report.get("checked_at"),
               "doctor_schema": SCHEMA, "status": report.get("status"),

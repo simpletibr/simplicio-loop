@@ -2,7 +2,7 @@
 
 ``handoff`` is the only public verb an integrated Fast ingest can rely on --
 it never calls the internal ``snapshot build`` -- so it must guarantee the
-canonical ``.simplicio/context-snapshot.json`` Fast reads symbol ids from
+canonical ``.simplicio-loop/context-snapshot.json`` Fast reads symbol ids from
 actually exists and is current by the time it returns (cross-package
 regression: ``handoff --json`` reported ``ready: true`` while Fast failed
 closed with ``mapper_artifact_missing: context_snapshot``). ``fast-handoff``
@@ -52,7 +52,7 @@ class FastHandoffCliContractTest(unittest.TestCase):
                 code, _stdout, stderr = _invoke(argv)
                 self.assertEqual(code, 0, msg=f"{argv!r}: {stderr}")
 
-            snapshot_path = root / ".simplicio" / "context-snapshot.json"
+            snapshot_path = root / ".simplicio-loop" / "context-snapshot.json"
             self.assertFalse(
                 snapshot_path.exists(), "index/scan/inspect/delta must not fabricate a snapshot"
             )
@@ -70,8 +70,8 @@ class FastHandoffCliContractTest(unittest.TestCase):
             self.assertEqual(receipt["counters"]["degraded"], 1)
             self.assertIn("canonical_artifact_unavailable", receipt["reason"])
             self.assertIn("simplicio-mapper snapshot build", receipt["reason"])
-            self.assertTrue((root / ".simplicio" / "fast-handoff-receipt.json").is_file())
-            self.assertFalse((root / ".simplicio" / "fast-handoff.json").exists())
+            self.assertTrue((root / ".simplicio-loop" / "fast-handoff-receipt.json").is_file())
+            self.assertFalse((root / ".simplicio-loop" / "fast-handoff.json").exists())
 
     def test_handoff_materializes_the_canonical_snapshot_fast_ingest_needs(self) -> None:
         """Regression: ``handoff`` used to leave the canonical snapshot
@@ -98,7 +98,7 @@ class FastHandoffCliContractTest(unittest.TestCase):
                 code, _stdout, stderr = _invoke(argv)
                 self.assertEqual(code, 0, msg=f"{argv!r}: {stderr}")
 
-            snapshot_path = root / ".simplicio" / "context-snapshot.json"
+            snapshot_path = root / ".simplicio-loop" / "context-snapshot.json"
             self.assertTrue(
                 snapshot_path.is_file(),
                 "handoff must materialize the canonical snapshot Fast ingest reads",
@@ -114,7 +114,7 @@ class FastHandoffCliContractTest(unittest.TestCase):
 
     def test_task_aware_handoff_never_overwrites_the_canonical_snapshot_fast_reads(self) -> None:
         """Regression: a budget-pruned, task-aware `handoff --goal` used to
-        overwrite the canonical `.simplicio/context-snapshot.json` with an
+        overwrite the canonical `.simplicio-loop/context-snapshot.json` with an
         alphabetical-prefix, symbol-starved graph — breaking `fast-handoff`
         (mapper_id_missing) for any consumer relying on the canonical file.
         """
@@ -134,7 +134,7 @@ class FastHandoffCliContractTest(unittest.TestCase):
             )
             self.assertEqual(build_code, 0, build_stderr)
             canonical = json.loads(build_stdout)
-            snapshot_path = root / ".simplicio" / "context-snapshot.json"
+            snapshot_path = root / ".simplicio-loop" / "context-snapshot.json"
             self.assertTrue(snapshot_path.is_file())
             before = snapshot_path.read_text(encoding="utf-8")
 
@@ -156,7 +156,7 @@ class FastHandoffCliContractTest(unittest.TestCase):
             self.assertEqual(before, after, "task-aware handoff must not mutate the canonical snapshot")
             self.assertEqual(json.loads(after)["snapshot_id"], canonical["snapshot_id"])
 
-            scoped_path = root / ".simplicio" / "context-snapshot.task.json"
+            scoped_path = root / ".simplicio-loop" / "context-snapshot.task.json"
             self.assertTrue(scoped_path.is_file(), "bounded snapshot must be written to a task-scoped path")
 
 

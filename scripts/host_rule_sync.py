@@ -44,10 +44,10 @@ def global_destinations(home: Path) -> list[tuple[str, Path]]:
         ("antigravity", home / ".antigravity" / "rules" / RULE_NAME),
         ("kiro_user", home / ".kiro" / "steering" / RULE_NAME),
         ("hermes", home / ".hermes" / "rules" / RULE_NAME),
-        ("simplicio_agent", home / ".simplicio" / "rules" / RULE_NAME),
+        ("simplicio_agent", home / ".simplicio-loop" / "rules" / RULE_NAME),
         ("opencode", home / ".config" / "opencode" / "rules" / RULE_NAME),
-        ("env_ps1", home / ".simplicio" / "loop-env.ps1"),
-        ("env_sh", home / ".simplicio" / "loop-env.sh"),
+        ("env_ps1", home / ".simplicio-loop" / "loop-env.ps1"),
+        ("env_sh", home / ".simplicio-loop" / "loop-env.sh"),
     ]
 
 
@@ -57,7 +57,7 @@ def project_destinations(root: Path) -> list[tuple[str, Path]]:
         ("project_cursor", root / ".cursor" / "rules" / RULE_NAME),
         ("project_kiro", root / ".kiro" / "steering" / RULE_NAME),
         ("project_github", root / ".github" / "simplicio-loop-operator-flow.md"),
-        ("project_simplicio", root / ".simplicio" / "host-rules" / RULE_NAME),
+        ("project_simplicio", root / ".simplicio-loop" / "host-rules" / RULE_NAME),
     ]
 
 
@@ -121,7 +121,7 @@ def sync(*, do_global: bool, target: Path | None) -> dict:
             written.append({"surface": name, "path": _write(path, ENV_SH), "kind": "env"})
             continue
         if path.is_file() and not _is_ours(path):
-            alt = path.with_name(path.stem + ".simplicio" + path.suffix)
+            alt = path.with_name(path.stem + ".simplicio-loop" + path.suffix)
             written.append({"surface": name, "path": _write(alt, body), "kind": "rule-sidecar"})
             skipped.append({"surface": name, "path": str(path), "reason": "foreign_file_preserved"})
             continue

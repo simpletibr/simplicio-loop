@@ -110,7 +110,7 @@ or bump the version instead, then re-run the generator. CI runs `--check`
 
 ## `simplicio-mapper contract validate` / `scripts/regen_contract_fixtures.py` (issue #157)
 
-The JSON shape of `.simplicio/*.json` mapper artifacts is a versioned,
+The JSON shape of `.simplicio-loop/*.json` mapper artifacts is a versioned,
 testable contract under
 [`contracts/mapper-artifacts/v1/`](../contracts/mapper-artifacts/v1/README.md).
 See that README for schemas, fixtures, the validate command, and how

@@ -341,7 +341,7 @@ def _journal_state(journal: Sequence[dict[str, Any]], index: int) -> str | None:
 
 
 def _crash_marker_path(root: Path, attempt_id: str) -> Path:
-    return root / ".simplicio" / "plugin-reconcile" / f"{attempt_id}.crash.json"
+    return root / ".simplicio-loop" / "plugin-reconcile" / f"{attempt_id}.crash.json"
 
 
 def main() -> int:

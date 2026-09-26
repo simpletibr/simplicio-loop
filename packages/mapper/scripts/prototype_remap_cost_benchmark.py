@@ -148,7 +148,7 @@ def run_benchmark(*, files: int) -> dict[str, Any]:
         # commit, amortized across every worktree/change after it. Not
         # counted in either of the two compared numbers below, but reported
         # so the full picture (amortized cost) is visible, not hidden.
-        config_fingerprint = compute_config_fingerprint(None, ".simplicio")
+        config_fingerprint = compute_config_fingerprint(None, ".simplicio-loop")
         build_result, canonical_build_seconds = _timed(
             lambda: build_canonical_manifest_with_diagnostics(str(repo), str(storage_root), config_fingerprint)
         )

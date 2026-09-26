@@ -109,3 +109,46 @@ def test_kind_scoped_table_shows_time_and_savings():
     html = report.build_arm_table_rows(arms, task_kind="edit")
     assert "Tempo (s)" in html
     assert "5.0 (50.0%)" in html
+
+
+# -- per-phase reasoning-effort table (issue #1310 follow-up) ----------------
+
+def _task_with_calls(index, kind, calls):
+    task = _task(index, kind)
+    task["llm_calls"] = calls
+    return task
+
+
+def test_build_effort_table_counts_per_arm_per_effort_value():
+    arms = {
+        "normal": {"tasks": [_task_with_calls(1, "create", [
+            {"ok": True, "reasoning_effort": None}, {"ok": True, "reasoning_effort": None},
+        ])]},
+        "simplicio": {"tasks": [_task_with_calls(1, "create", [
+            {"ok": True, "reasoning_effort": "high"}, {"ok": True, "reasoning_effort": "low"},
+        ])]},
+    }
+    html = report.build_effort_table(arms)
+    assert "normal" in html and "simplicio" in html
+    assert "default" in html
+    assert "high" in html and "low" in html
+
+
+def test_build_includes_effort_section_in_the_page(tmp_path):
+    results = _results(1)
+    html = report.build(results, str(tmp_path))
+    assert "esforço" in html.lower() or "effort" in html.lower()
+
+
+def test_build_labels_sequential_mode_by_default(tmp_path):
+    results = _results(1)
+    results["meta"]["batch"] = False
+    html = report.build(results, str(tmp_path))
+    assert "sequencial" in html.lower()
+
+
+def test_build_labels_batch_mode(tmp_path):
+    results = _results(1)
+    results["meta"]["batch"] = True
+    html = report.build(results, str(tmp_path))
+    assert "batch" in html.lower()

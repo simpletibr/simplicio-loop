@@ -585,19 +585,19 @@ def test_cli_blocks_when_anchor_file_missing(tmp_path, monkeypatch):
     spec.loader.exec_module(mod)
 
     fake_repo = tmp_path / "repo"
-    (fake_repo / ".simplicio/orchestrator" / "loop").mkdir(parents=True)
-    (fake_repo / ".simplicio").mkdir(parents=True, exist_ok=True)
-    (fake_repo / ".simplicio/orchestrator" / "loop" / "stage_instances.json").write_text("[]", encoding="utf-8")
-    (fake_repo / ".simplicio/orchestrator" / "loop" / "stage_receipts.json").write_text("[]", encoding="utf-8")
+    (fake_repo / ".simplicio-loop/orchestrator" / "loop").mkdir(parents=True)
+    (fake_repo / ".simplicio-loop").mkdir(parents=True, exist_ok=True)
+    (fake_repo / ".simplicio-loop/orchestrator" / "loop" / "stage_instances.json").write_text("[]", encoding="utf-8")
+    (fake_repo / ".simplicio-loop/orchestrator" / "loop" / "stage_receipts.json").write_text("[]", encoding="utf-8")
 
     mod._set_repo(str(fake_repo))
-    monkeypatch.setattr(mod.sa, "STAGES_FILE", str(fake_repo / ".simplicio" / "stages.json"), raising=False)
-    (fake_repo / ".simplicio" / "stages.json").write_text(json.dumps({"stages": []}), encoding="utf-8")
+    monkeypatch.setattr(mod.sa, "STAGES_FILE", str(fake_repo / ".simplicio-loop" / "stages.json"), raising=False)
+    (fake_repo / ".simplicio-loop" / "stages.json").write_text(json.dumps({"stages": []}), encoding="utf-8")
     monkeypatch.setenv("SIMPLICIO_AUDITOR_INSTANCE_ID", "auditor-test-1")
 
     exit_code = mod.cmd_audit(None)
 
     assert exit_code == 1
-    audit_out = json.loads((fake_repo / ".simplicio/orchestrator" / "loop" / "completion_audit.json").read_text(encoding="utf-8"))
+    audit_out = json.loads((fake_repo / ".simplicio-loop/orchestrator" / "loop" / "completion_audit.json").read_text(encoding="utf-8"))
     assert audit_out["verdict"] == ca.VERDICT_BLOCKED
     assert audit_out["reason_code"] == ca.REASON_AC_COVERAGE_INCOMPLETE

@@ -67,7 +67,7 @@ def test_agent_slots_cli_defaults_to_mapper_without_legacy_database(monkeypatch,
 
     assert agent_slots.cli_main(["status", "--repo", str(tmp_path)]) == 0
     assert adapter.calls == [("status",)]
-    assert not (tmp_path / ".simplicio" / "orchestrator" / "agent-slots.sqlite").exists()
+    assert not (tmp_path / ".simplicio-loop" / "orchestrator" / "agent-slots.sqlite").exists()
     assert '"active_slots": 0' in capsys.readouterr().out
 
 

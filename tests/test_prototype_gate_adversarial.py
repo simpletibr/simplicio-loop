@@ -136,7 +136,7 @@ def test_state_path_sanitizes_directory_traversal_in_work_item_id(tmp_path):
     traversal_id = "../../../../etc/passwd"
     path = state_path(traversal_id, repo=str(tmp_path))
     resolved = os.path.realpath(path)
-    state_dir = os.path.realpath(os.path.join(str(tmp_path), ".simplicio/orchestrator", "loop", "prototype"))
+    state_dir = os.path.realpath(os.path.join(str(tmp_path), ".simplicio-loop/orchestrator", "loop", "prototype"))
     # The computed path must stay INSIDE the state dir -- no "/" survives sanitization, so no
     # segment of the traversal id can walk the path up and out.
     assert os.path.commonpath([resolved, state_dir]) == state_dir
@@ -147,7 +147,7 @@ def test_state_path_sanitizes_absolute_paths_and_null_like_ids(tmp_path):
     for hostile_id in ("/etc/shadow", "//evil//host/share", "..", "....//....//etc/passwd"):
         path = state_path(hostile_id, repo=str(tmp_path))
         resolved = os.path.realpath(path)
-        state_dir = os.path.realpath(os.path.join(str(tmp_path), ".simplicio/orchestrator", "loop", "prototype"))
+        state_dir = os.path.realpath(os.path.join(str(tmp_path), ".simplicio-loop/orchestrator", "loop", "prototype"))
         assert os.path.commonpath([resolved, state_dir]) == state_dir
 
 
@@ -156,7 +156,7 @@ def test_save_state_with_hostile_work_item_id_never_escapes_state_dir(tmp_path):
     state = init_state(work_item_id="../../../../tmp/pwned", plan=plan)
     saved_path = save_state(state, repo=str(tmp_path))
     resolved = os.path.realpath(saved_path)
-    state_dir = os.path.realpath(os.path.join(str(tmp_path), ".simplicio/orchestrator", "loop", "prototype"))
+    state_dir = os.path.realpath(os.path.join(str(tmp_path), ".simplicio-loop/orchestrator", "loop", "prototype"))
     assert os.path.commonpath([resolved, state_dir]) == state_dir
     # And it actually landed on disk inside the sandboxed dir, not at some other location.
     assert os.path.isfile(saved_path)

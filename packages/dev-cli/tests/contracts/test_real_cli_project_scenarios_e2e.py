@@ -60,7 +60,7 @@ def _assert_no_traceback(process: subprocess.CompletedProcess[str], command: str
 
 def test_real_cli_handles_empty_project(tmp_path: Path) -> None:
     """A brand-new, completely empty project directory: no source files, no
-    `.simplicio/` artifacts yet. `mapper index` must produce a valid,
+    `.simplicio-loop/` artifacts yet. `mapper index` must produce a valid,
     zero-count index rather than erroring, and `dev-cli inspect` against a
     target that doesn't exist yet must degrade gracefully (empty context, no
     crash) instead of raising."""
@@ -88,7 +88,7 @@ def test_real_cli_handles_empty_project(tmp_path: Path) -> None:
     assert index_payload.get("error") is None
     assert index_payload["counts"]["files"] == 0
 
-    project_map_path = empty_project / ".simplicio" / "project-map.json"
+    project_map_path = empty_project / ".simplicio-loop" / "project-map.json"
     assert project_map_path.is_file()
     project_map = json.loads(project_map_path.read_text(encoding="utf-8"))
     assert project_map["schema"] == "simplicio.project-map/v1"
@@ -119,7 +119,7 @@ def test_real_cli_handles_empty_project(tmp_path: Path) -> None:
 
 
 def test_real_cli_degrades_gracefully_on_corrupted_project_map(tmp_path: Path) -> None:
-    """A project whose `.simplicio/project-map.json` is present but not
+    """A project whose `.simplicio-loop/project-map.json` is present but not
     valid JSON (partially written, truncated by a crash, hand-edited, etc.).
     `dev-cli inspect` must treat the artifact as absent (`present: False`)
     rather than raising `JSONDecodeError` out of the process, and a fresh
@@ -129,11 +129,11 @@ def test_real_cli_degrades_gracefully_on_corrupted_project_map(tmp_path: Path) -
     env = _base_env()
 
     project = tmp_path / "corrupted-project"
-    (project / ".simplicio").mkdir(parents=True)
+    (project / ".simplicio-loop").mkdir(parents=True)
     (project / "src").mkdir()
     (project / "src" / "app.py").write_text('def greet(name):\n    return f"hi, {name}"\n', encoding="utf-8")
 
-    corrupted_map_path = project / ".simplicio" / "project-map.json"
+    corrupted_map_path = project / ".simplicio-loop" / "project-map.json"
     corrupted_map_path.write_text("{not valid json, truncated mid-write", encoding="utf-8")
 
     inspect_process = subprocess.run(

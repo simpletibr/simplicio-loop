@@ -10071,7 +10071,7 @@ new concepts are called out below.
 | GateGuard (block dangerous commands) | the **action gate** (`simplicio gate` / `action_gate`) + hardline blocklist |
 | MCP integration (14 servers) | `simplicio serve --mcp` (10 tools) + ToolSearch to all session MCPs |
 | Token optimization | the token economy (map / memory / deterministic edit / savings ledger) |
-| Memory persistence across sessions | the neural memory (`.simplicio/memory/`), per-project, evolves |
+| Memory persistence across sessions | the neural memory (`.simplicio-loop/memory/`), per-project, evolves |
 
 ## Ideas worth ADOPTING (the new value)
 
@@ -28375,7 +28375,7 @@ competent baseline the real numbers are modest on small work, large on big work.
 ## The tray / savings ledger (real, not theater)
 
 - Source of truth is `simplicio savings record|report|dashboard` →
-  `.simplicio/ledger/savings-events.jsonl` (append-only, hash-chained).
+  `.simplicio-loop/ledger/savings-events.jsonl` (append-only, hash-chained).
 - Always record with `--proof-kind measured` AND `--model <id> --provider <id>`
   so the event captures the real LLM + USD cost (versioned pricing catalog).
 - **Lead with `measured`; show `estimated` separately, never blended.** Cost in
@@ -28430,10 +28430,10 @@ Three durable categories — everything else is noise and is dropped:
 
 ## Procedure (incremental, deduped)
 
-1. Read the target memory file (`AGENTS.md`, or `.simplicio/orchestrator/lessons.jsonl` for machine
+1. Read the target memory file (`AGENTS.md`, or `.simplicio-loop/orchestrator/lessons.jsonl` for machine
    reuse). Create `AGENTS.md` with two sections if missing: *Learned Workspace Facts* and
    *Learned User Preferences*.
-2. Load the incremental index (`.simplicio/orchestrator/learn-index.json`) — process only NEW trajectory
+2. Load the incremental index (`.simplicio-loop/orchestrator/learn-index.json`) — process only NEW trajectory
    entries / transcript segments since the last run (never reprocess).
 3. Extract candidate bullets from the new material only. Each bullet: one line, reusable, no
    metadata, no evidence dump, no transcript quotes.
@@ -34273,7 +34273,7 @@ op run -- sh -c ''[ -n "$DB_PASSWORD" ] && echo "DB_PASSWORD is set" || echo "DB
 ## Guardrails
 
 - Never print raw secrets back to user unless they explicitly request the value.
-- Prefer `op','.simplicio\skills\1password\SKILL.md','91f54ace8dcf396444face89230f25b0687b70121d1d2b326bf997a503990bd8','skill,simplicio,coding',1.3);
+- Prefer `op','.simplicio-loop\skills\1password\SKILL.md','91f54ace8dcf396444face89230f25b0687b70121d1d2b326bf997a503990bd8','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:3-statement-model','project_skill','skill://simplicio-runtime/3-statement-model','skill: 3-statement-model','---
 name: 3-statement-model
 description: Build fully-integrated 3-statement models (IS, BS, CF) in Excel with working capital schedules, D&A roll-forwards, debt schedule, and the plugs that make cash and retained earnings tie. Pairs with excel-author.
@@ -34343,7 +34343,7 @@ Templates vary in their tab naming conventions and organization. Before populati
 | BS, Balance Sheet | Balance Sheet |
 | CF, CFS, Cash Flow | Cash Flow Statement |
 | WC, Working Capital | Working Capital Schedule |
-| DA, D&A, Depreciation, PP&E | ','.simplicio\skills\3-statement-model\SKILL.md','9de2cd36eecec8813222415979e3dc60fd826e006193abe81c9a6e0b15a150e5','skill,simplicio,coding',1.3);
+| DA, D&A, Depreciation, PP&E | ','.simplicio-loop\skills\3-statement-model\SKILL.md','9de2cd36eecec8813222415979e3dc60fd826e006193abe81c9a6e0b15a150e5','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:_template','project_skill','skill://simplicio-runtime/_template','skill: _template','---
 name: nome-da-skill
 description: descreva em uma frase quando o agente deve ativar essa skill
@@ -34419,7 +34419,7 @@ echo "substituir por exemplo real"
 - Link pra ADR relacionada: `.specs/architecture/ADR-XXX.md`.
 - Doc externa: `<url>`.
 - Última revisão: `<YYYY-MM-DD>`.
-','.simplicio\skills\_template\SKILL.md','449fc6a7bcbec3836b0e0201fb1381e5d9e27be46cc0eae153f855d207d1a6bd','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\_template\SKILL.md','449fc6a7bcbec3836b0e0201fb1381e5d9e27be46cc0eae153f855d207d1a6bd','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:accelerate','project_skill','skill://simplicio-runtime/accelerate','skill: accelerate','---
 name: huggingface-accelerate
 description: Simplest distributed training API. 4 lines to add distributed support to any PyTorch script. Unified API for DeepSpeed/FSDP/Megatron/DDP. Automatic device placement, mixed precision (FP16/BF16/FP8). Interactive config, single launch command. HuggingFace ecosystem standard.
@@ -34588,7 +34588,7 @@ model, optimizer, dataloader = accelerator.prepare(model, optimizer, dataloader)
 **Or via config**:
 ```bash
 accelerate config
-# Select: Dee','.simplicio\skills\accelerate\SKILL.md','0ee0870e2fcc918e54ea2b21d2de0f52d0ef68827f1ccb8e5b756cd6de14e082','skill,simplicio,orchestration',1.3);
+# Select: Dee','.simplicio-loop\skills\accelerate\SKILL.md','0ee0870e2fcc918e54ea2b21d2de0f52d0ef68827f1ccb8e5b756cd6de14e082','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:agentmail','project_skill','skill://simplicio-runtime/agentmail','skill: agentmail','---
 name: agentmail
 description: Give the agent its own dedicated email inbox via AgentMail. Send, receive, and manage email autonomously using agent-owned email addresses (e.g. hermes-agent@agentmail.to).
@@ -34713,7 +34713,7 @@ You should see the new inbox address returned.
 ## References
 - AgentMail docs: https://docs.agentmail.to/
 - AgentMail console: https://console.agentmail.to
-- AgentMail MCP repo: https://github.com/agentmail-to/','.simplicio\skills\agentmail\SKILL.md','98d828cca7228afcd6cfb9404e783a5f9ab2054146e75638500f0f1a6dfe3b89','skill,simplicio,coding',1.3);
+- AgentMail MCP repo: https://github.com/agentmail-to/','.simplicio-loop\skills\agentmail\SKILL.md','98d828cca7228afcd6cfb9404e783a5f9ab2054146e75638500f0f1a6dfe3b89','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:airtable','project_skill','skill://simplicio-runtime/airtable','skill: airtable','---
 name: airtable
 description: Airtable REST API via curl. Records CRUD, filters, upserts.
@@ -34815,7 +34815,7 @@ curl -s "https://api.airtable.com/v0/$BASE_ID/$TABLE/$RECORD_ID" \
 Airtable formulas must be URL-encoded. Let Python stdlib do it — never hand-encode:
 ```bash
 FORMULA="{Status}=''Todo''"
-ENC=$(python3 -c ''import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe="','.simplicio\skills\airtable\SKILL.md','e97ef59b5dfc7ed148ceada8c51ba764a6b11bd8b4252ed722d1e0390e08d55b','skill,simplicio,coding',1.3);
+ENC=$(python3 -c ''import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe="','.simplicio-loop\skills\airtable\SKILL.md','e97ef59b5dfc7ed148ceada8c51ba764a6b11bd8b4252ed722d1e0390e08d55b','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:animejs','project_skill','skill://simplicio-runtime/animejs','skill: animejs','---
 name: animejs
 description: Anime.js adapter patterns for HyperFrames. Use when writing Anime.js animations or timelines inside HyperFrames compositions, registering animations on window.__hfAnime, making Anime.js seek-driven and deterministic, or translating Anime.js examples into render-safe HyperFrames HTML.
@@ -34930,7 +34930,7 @@ npx hyperframes validate
 
 - HyperFrames adapter source: `packages/core/src/runtime/adapters/animejs.ts`.
 - Anime.js documentation for `autoplay`, `pause()`, and `seek()`: https://animejs.com/documentation/
-','.simplicio\skills\animejs\SKILL.md','1ca46135880d2475c7149d5e54fc41ce3d85d63809fddfdb4f4ded649120f8de','skill,simplicio,video',1.3);
+','.simplicio-loop\skills\animejs\SKILL.md','1ca46135880d2475c7149d5e54fc41ce3d85d63809fddfdb4f4ded649120f8de','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:antigravity-cli','project_skill','skill://simplicio-runtime/antigravity-cli','skill: antigravity-cli','---
 name: antigravity-cli
 description: "Operate the Antigravity CLI (agy): plugins, auth, sandbox."
@@ -35049,7 +35049,7 @@ paths below — do not `cat` them through the terminal.
 
 ## Settings and permissions
 
-### Common settin','.simplicio\skills\antigravity-cli\SKILL.md','f7f0f73be1240e70ed7c0e7960037fea05347f033e1babb572c1d7fcc8ed2d70','skill,simplicio,coding',1.3);
+### Common settin','.simplicio-loop\skills\antigravity-cli\SKILL.md','f7f0f73be1240e70ed7c0e7960037fea05347f033e1babb572c1d7fcc8ed2d70','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:apple-notes','project_skill','skill://simplicio-runtime/apple-notes','skill: apple-notes','---
 name: apple-notes
 description: "Manage Apple Notes via memo CLI: create, search, edit."
@@ -35140,7 +35140,7 @@ memo notes -ex                    # Export to HTML/Markdown
 1. Prefer Apple Notes when user wants cross-device sync (iPhone/iPad/Mac)
 2. Use the `memory` tool for agent-internal notes that don''t need to sync
 3. Use the `obsidian` skill for Markdown-native knowledge management
-','.simplicio\skills\apple-notes\SKILL.md','c652e01e47938b8ac21c97873e0a14f5f3a773b554bd10737fbfdcc5e5c28d23','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\apple-notes\SKILL.md','c652e01e47938b8ac21c97873e0a14f5f3a773b554bd10737fbfdcc5e5c28d23','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:apple-reminders','project_skill','skill://simplicio-runtime/apple-reminders','skill: apple-reminders','---
 name: apple-reminders
 description: "Apple Reminders via remindctl: add, list, complete."
@@ -35271,7 +35271,7 @@ Accepted by `--due` and date filters:
 1. When user says "remind me", clarify: Apple Reminders (syncs to phone) vs agent cronjob alert
 2. Always confirm reminder content and due date before creating
 3. Use `--json` for programmatic parsing
-','.simplicio\skills\apple-reminders\SKILL.md','ee5084f2d7ec196488bef2c74248fb3d8328d1b2e3277ddda3f0de9da6fc7131','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\apple-reminders\SKILL.md','ee5084f2d7ec196488bef2c74248fb3d8328d1b2e3277ddda3f0de9da6fc7131','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:architecture-diagram','project_skill','skill://simplicio-runtime/architecture-diagram','skill: architecture-diagram','---
 name: architecture-diagram
 description: "Dark-themed SVG architecture/cloud/infra diagrams as HTML."
@@ -35376,7 +35376,7 @@ Components are rounded rectangles (`rx="6"`) with 1.5px strokes. To prevent arro
 - **Boundaries:**
   - *Security Groups:* Dashed (`4,4`), rose color
   - *Regions:* Large dashed (`8,4`), amber color, `rx="12"`
-','.simplicio\skills\architecture-diagram\SKILL.md','17a929a97c1de49e14478ed20ec1445919c5bb2efda81ef74371aa7d1a599b78','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\architecture-diagram\SKILL.md','17a929a97c1de49e14478ed20ec1445919c5bb2efda81ef74371aa7d1a599b78','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:arxiv','project_skill','skill://simplicio-runtime/arxiv','skill: arxiv','---
 name: arxiv
 description: "Search arXiv papers by keyword, author, category, or ID."
@@ -35504,7 +35504,7 @@ entry = root.find(''a:entry'', ns)
 if entry is None: sys.exit(''Paper not found'')
 title = entry.find(''a:title'', ns).text.strip().replace(''\n'', '' '')
 authors = '' and ''.join(a.find(''a:name'', ns).text for a in entry.findall(''a:author'', ns))
-year = entry.find(''a:','.simplicio\skills\arxiv\SKILL.md','3fef9adcc14c080a504e8178af022d67e03b499f085299471d27c27354beaf1c','skill,simplicio,coding',1.3);
+year = entry.find(''a:','.simplicio-loop\skills\arxiv\SKILL.md','3fef9adcc14c080a504e8178af022d67e03b499f085299471d27c27354beaf1c','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:ascii-art','project_skill','skill://simplicio-runtime/ascii-art','skill: ascii-art','---
 name: ascii-art
 description: "ASCII art: pyfiglet, cowsay, boxes, image-to-ascii."
@@ -35640,7 +35640,7 @@ Draw decorative ASCII art borders/frames around any text. 70+ built-in designs.
 ### Setup
 
 ```bash
-sudo apt install boxes ','.simplicio\skills\ascii-art\SKILL.md','663a6fb34c0a65758d54aca0a136e96297322a61e7e925e91303fa958cbcd69b','skill,simplicio,coding',1.3);
+sudo apt install boxes ','.simplicio-loop\skills\ascii-art\SKILL.md','663a6fb34c0a65758d54aca0a136e96297322a61e7e925e91303fa958cbcd69b','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:ascii-video','project_skill','skill://simplicio-runtime/ascii-video','skill: ascii-video','---
 name: ascii-video
 description: "ASCII video: convert video/audio to colored ASCII MP4/GIF."
@@ -35706,7 +35706,7 @@ Every mode follows the same 6-stage pipeline:
 INPUT → ANALYZE → SCENE_FN → TONEMAP → SHADE → ENCODE
 ```
 
-1. **INPUT** — Load/decode source material (video frames, audio samples, images, or nothi','.simplicio\skills\ascii-video\SKILL.md','f00a59b42939d2fa82de23c4f32203dc50f4c72dc27161e06f1605497f8d22c3','skill,simplicio,video',1.3);
+1. **INPUT** — Load/decode source material (video frames, audio samples, images, or nothi','.simplicio-loop\skills\ascii-video\SKILL.md','f00a59b42939d2fa82de23c4f32203dc50f4c72dc27161e06f1605497f8d22c3','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:baoyu-article-illustrator','project_skill','skill://simplicio-runtime/baoyu-article-illustrator','skill: baoyu-article-illustrator','---
 name: baoyu-article-illustrator
 description: "Article illustrations: type × style × palette consistency."
@@ -35804,7 +35804,7 @@ If the user asks for a different layout (e.g., images alongside the article, or 
 If the user supplies reference images (paths pasted inline, attachments, or a URL):
 
 1. For each reference, call `vision_analyze` with the path/URL and a question asking for style, palette, composition, and subject. Record the returned description in `{output-dir}/references/NN-ref-{slug}.md` via `write_file`.
-2. **Do not** try to copy the binary via `write_file` / `read_file` — those are text-only. If you want a local copy for the record, use `terminal` (`cp "$src" "{output-dir}/references/NN-ref-{slug}.{ext}"`). The skill itself never need','.simplicio\skills\baoyu-article-illustrator\SKILL.md','c5262418d7b5e0dba01ecab692a50be729890d7db7a9d9dffb2349ad3dedbffb','skill,simplicio,coding',1.3);
+2. **Do not** try to copy the binary via `write_file` / `read_file` — those are text-only. If you want a local copy for the record, use `terminal` (`cp "$src" "{output-dir}/references/NN-ref-{slug}.{ext}"`). The skill itself never need','.simplicio-loop\skills\baoyu-article-illustrator\SKILL.md','c5262418d7b5e0dba01ecab692a50be729890d7db7a9d9dffb2349ad3dedbffb','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:baoyu-comic','project_skill','skill://simplicio-runtime/baoyu-comic','skill: baoyu-comic','---
 name: baoyu-comic
 description: "Knowledge comics (知识漫画): educational, biography, tutorial."
@@ -35889,7 +35889,7 @@ Details: [references/partial-workflows.md](references/partial-workflows.md)
 
   | Preset | Equivalent | Hook |
   |--------|-----------|------|
-  | `ohmsha` | manga + neutral | Visual metaphors, no talking heads, gadget ','.simplicio\skills\baoyu-comic\SKILL.md','887d529fae27fdb2ec44e0e209867e31c6d5ef7eefe67ffea0ea2265d5fc1b63','skill,simplicio,coding',1.3);
+  | `ohmsha` | manga + neutral | Visual metaphors, no talking heads, gadget ','.simplicio-loop\skills\baoyu-comic\SKILL.md','887d529fae27fdb2ec44e0e209867e31c6d5ef7eefe67ffea0ea2265d5fc1b63','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:baoyu-infographic','project_skill','skill://simplicio-runtime/baoyu-infographic','skill: baoyu-infographic','---
 name: baoyu-infographic
 description: "Infographics: 21 layouts x 21 styles (信息图, 可视化)."
@@ -35991,7 +35991,7 @@ Full definitions: `references/styles/<style>.md`
 | Cycles | `circular-flow` + `craft-handmade` |
 | Technical | `structural-breakdown` + `technical-schematic` |
 | Metrics | `dashboard` + `corporate-memphis` |
-| Educational | `bento-grid` + `chalkboard','.simplicio\skills\baoyu-infographic\SKILL.md','c91946447f085c0b6cfffbf835d7ae82a2f20e00058f00e5b1eaf5aa0e03c593','skill,simplicio,coding',1.3);
+| Educational | `bento-grid` + `chalkboard','.simplicio-loop\skills\baoyu-infographic\SKILL.md','c91946447f085c0b6cfffbf835d7ae82a2f20e00058f00e5b1eaf5aa0e03c593','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:bioinformatics','project_skill','skill://simplicio-runtime/bioinformatics','skill: bioinformatics','---
 name: bioinformatics
 description: Gateway to 400+ bioinformatics skills from bioSkills and ClawBio. Covers genomics, transcriptomics, single-cell, variant calling, pharmacogenomics, metagenomics, structural biology, and more. Fetches domain-specific reference material on demand.
@@ -36069,7 +36069,7 @@ bioSkills:
   expression-matrix/ — counts-ingest, gene-id-mapping, metadata-joins, sparse-handling
 ClawBio:
   rnaseq-de — Full DE pipeline with QC, normalization, and visualization
-  diff-visualizer — Rich visualization and reporting for DE ','.simplicio\skills\bioinformatics\SKILL.md','f94941234409486d255d31ea6cd2d2b0d682b7690a26a251b1585ede7fd1f483','skill,simplicio,coding',1.3);
+  diff-visualizer — Rich visualization and reporting for DE ','.simplicio-loop\skills\bioinformatics\SKILL.md','f94941234409486d255d31ea6cd2d2b0d682b7690a26a251b1585ede7fd1f483','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:blackbox','project_skill','skill://simplicio-runtime/blackbox','skill: blackbox','---
 name: blackbox
 description: Delegate coding tasks to Blackbox AI CLI agent. Multi-model agent with built-in judge that runs tasks through multiple LLMs and picks the best result. Requires the blackbox CLI and a Blackbox AI API key.
@@ -36183,7 +36183,7 @@ Blackbox''s unique feature is running the same task through multiple models and 
 | Flag | Effect |
 |------|--------|
 | `--prompt "task"` | Non-interactive one-shot execution |
-| `','.simplicio\skills\blackbox\SKILL.md','350cce5dab1524a79d64e7402da89fdad00116c1dbca0df4d39d8b5288342989','skill,simplicio,coding',1.3);
+| `','.simplicio-loop\skills\blackbox\SKILL.md','350cce5dab1524a79d64e7402da89fdad00116c1dbca0df4d39d8b5288342989','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:blender-mcp','project_skill','skill://simplicio-runtime/blender-mcp','skill: blender-mcp','---
 name: blender-mcp
 description: Control Blender directly from Hermes via socket connection to the blender-mcp addon. Create 3D objects, materials, animations, and run arbitrary Blender Python (bpy) code. Use when user wants to create or modify anything in Blender.
@@ -36300,7 +36300,7 @@ Use this inside execute_code tool calls:
 - Addon server must be started inside Blender each session (N-panel > BlenderMCP > Connect)
 - Break complex scenes into multiple smaller execute_code calls to avoid timeouts
 - Render output path must be absolute (/tmp/...) not relative
-- shade_smooth()','.simplicio\skills\blender-mcp\SKILL.md','407c03c1a8312ad5b436a12a5e7deba3e7b0ee387bd46381e75985962a1cb1ed','skill,simplicio,coding',1.3);
+- shade_smooth()','.simplicio-loop\skills\blender-mcp\SKILL.md','407c03c1a8312ad5b436a12a5e7deba3e7b0ee387bd46381e75985962a1cb1ed','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:blogwatcher','project_skill','skill://simplicio-runtime/blogwatcher','skill: blogwatcher','---
 name: blogwatcher
 description: "Monitor blogs and RSS/Atom feeds via blogwatcher-cli tool."
@@ -36400,7 +36400,7 @@ Tracked blogs (1):
   xkcd
     URL: https://xkcd.com
     Feed: https://xkcd.com/atom.xml
-    Last scanned: 2026-04-0','.simplicio\skills\blogwatcher\SKILL.md','2fcd5407ae3ae576526d4a63092ba5e6d1d59160ee7c65536b9f4b7b827a436f','skill,simplicio,coding',1.3);
+    Last scanned: 2026-04-0','.simplicio-loop\skills\blogwatcher\SKILL.md','2fcd5407ae3ae576526d4a63092ba5e6d1d59160ee7c65536b9f4b7b827a436f','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:brainstorming','project_skill','skill://simplicio-runtime/brainstorming','skill: brainstorming','---
 name: brainstorming
 description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
@@ -36473,7 +36473,7 @@ digraph brainstorming {
 **Understanding the idea:**
 
 - Check out the current project state first (files, docs, recent commits)
-- Before asking detailed questions, assess scope: if the request describes multiple independ','.simplicio\skills\brainstorming\SKILL.md','474b78aa46064e775201f5be2415bff9883ef2df2f0a711d83c68011d1088741','skill,simplicio,coding',1.3);
+- Before asking detailed questions, assess scope: if the request describes multiple independ','.simplicio-loop\skills\brainstorming\SKILL.md','474b78aa46064e775201f5be2415bff9883ef2df2f0a711d83c68011d1088741','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:canvas','project_skill','skill://simplicio-runtime/canvas','skill: canvas','---
 name: canvas
 description: Canvas LMS integration — fetch enrolled courses and assignments using API token authentication.
@@ -36572,7 +36572,7 @@ Canvas uses `Link` headers for pagination. The Python script handles pagination 
 | Empty course list | Try `--enrollment-state active` or omit the flag to see all states |
 | Wrong institution | Verify `CANVAS_BASE_URL` matches the URL in your browser |
 | Timeout errors | Check network connectivity to your Canvas instance |
-','.simplicio\skills\canvas\SKILL.md','2ae9112e968ec78bcdf08fce00bf93649ca4414715da523b2ec3893f01368188','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\canvas\SKILL.md','2ae9112e968ec78bcdf08fce00bf93649ca4414715da523b2ec3893f01368188','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:caveman:skills','project_skill','skill://simplicio-runtime/caveman','skill: caveman','---
 name: caveman
 description: Modo de resposta terse (estilo caveman) para economizar tokens de saída ~65%. Sempre ativo neste projeto. Preserva precisão técnica, código, commits, PRs intocados.
@@ -36685,7 +36685,7 @@ Resume caveman depois da parte clara.
 - Plugin global equivalente: `caveman:caveman` (já instalado `~/.claude/`).
 - Comandos relacionados: `/caveman-commit`, `/caveman-review`, `/caveman-compress`.
 - Economia média: ~65% tokens output (full), ~75% (ultra).
-','.simplicio\skills\caveman\SKILL.md','d05f7d2b79b3bda5cf8a51c1b512e5dda1644075437920bca3cb4b3f9cffe6c0','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\caveman\SKILL.md','d05f7d2b79b3bda5cf8a51c1b512e5dda1644075437920bca3cb4b3f9cffe6c0','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:chroma','project_skill','skill://simplicio-runtime/chroma','skill: chroma','---
 name: chroma
 description: Open-source embedding database for AI applications. Store embeddings and metadata, perform vector and full-text search, filter by metadata. Simple 4-function API. Scales from notebooks to production clusters. Use for semantic search, RAG applications, or document retrieval. Best for local development and open-source projects.
@@ -36870,7 +36870,7 @@ docs = collection.get()
 ### 5. Update documents
 
 ```python
-# Update document content','.simplicio\skills\chroma\SKILL.md','e9f406f94d8b7fbe62bb0ef0d612115f9a59390fa6e1b319986afb6dd00620ad','skill,simplicio,orchestration',1.3);
+# Update document content','.simplicio-loop\skills\chroma\SKILL.md','e9f406f94d8b7fbe62bb0ef0d612115f9a59390fa6e1b319986afb6dd00620ad','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:claude','project_skill','skill://simplicio-runtime/claude','skill: claude','---
 name: sendsprint
 description: Autonomous sprint delivery. Reads a Jira / Azure DevOps / GitHub sprint, delegates each task''s code edit to simplicio-cli, captures evidence, and opens a draft PR. Triggers on "rode o sendsprint", "executar sprint", "entregar sprint", "run sendsprint", "ship my sprint", "deliver my sprint", "ejecutar sprint".
@@ -36950,7 +36950,7 @@ simplicio, re-collects evidence, and pushes — until the user approves.
 - Credentials: `sendsprint login jira` / `sendsprint login azuredevops`; `GITHUB_TOKEN` for GitHub.
 - Subagent fan-out needs the simplicio-prompt kernel (`SIMPLICIO_PROMPT_KERNEL`,
   auto-set by `sendsprint update`).
-','.simplicio\skills\claude\SKILL.md','adbec91536bf96a5d58b7c75e4c547e5aece51467081cefbd613269dbbbbbd0a','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\claude\SKILL.md','adbec91536bf96a5d58b7c75e4c547e5aece51467081cefbd613269dbbbbbd0a','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:claude-code','project_skill','skill://simplicio-runtime/claude-code','skill: claude-code','---
 name: claude-code
 description: "Delegate coding to Claude Code CLI (features, PRs)."
@@ -37049,7 +37049,7 @@ Claude Code presents up to two confirmation dialogs on first launch. You MUST ha
 ```
 **Handling:** Must navigate DOWN first, then Enter:
 ```
-tmux send-keys -t <session> Down && s','.simplicio\skills\claude-code\SKILL.md','be029fae449fae3966348dc547750c96401a1368057b97d02684f1ffe44c9e90','skill,simplicio,orchestration',1.3);
+tmux send-keys -t <session> Down && s','.simplicio-loop\skills\claude-code\SKILL.md','be029fae449fae3966348dc547750c96401a1368057b97d02684f1ffe44c9e90','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:claude-design','project_skill','skill://simplicio-runtime/claude-design','skill: claude-design','---
 name: claude-design
 description: Design one-off HTML artifacts (landing, deck, prototype).
@@ -37121,7 +37121,7 @@ Default deliverable:
 - exact on-disk path in the final response
 - verification using available local methods before saying it is done
 
-If the user asks for implementation in an existing repo, generate code in the repo''s actual stack instead of forcing a standalone HTML artifac','.simplicio\skills\claude-design\SKILL.md','69eca13c824a92508b9684930865d806fb932c4b3e3cd10314a22d6d9c7384bb','skill,simplicio,video',1.3);
+If the user asks for implementation in an existing repo, generate code in the repo''s actual stack instead of forcing a standalone HTML artifac','.simplicio-loop\skills\claude-design\SKILL.md','69eca13c824a92508b9684930865d806fb932c4b3e3cd10314a22d6d9c7384bb','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:cli','project_skill','skill://simplicio-runtime/cli','skill: cli','---
 name: inference-sh-cli
 description: "Run 150+ AI apps via inference.sh CLI (infsh) — image generation, video creation, LLMs, search, 3D, social automation. Uses the terminal tool. Triggers: inference.sh, infsh, ai apps, flux, veo, image generation, video generation, seedream, seedance, tavily"
@@ -37268,7 +37268,7 @@ infsh app list --search twitter
 
 1. **Never guess app IDs** — always run `infsh app list --search <term>` first. App IDs change and new apps are added frequently.
 2. **Always use `--json`** — raw output is hard to parse. The `--json` flag gives structured output with URLs.
-3. **Check authentication** — if commands fail with auth errors, run `infsh login` or verify `','.simplicio\skills\cli\SKILL.md','89b9c63ebcf63767de5ffb2a3a1fcd61ef5d04e6fb4d32794752ad5ffdff6f69','skill,simplicio,video',1.3);
+3. **Check authentication** — if commands fail with auth errors, run `infsh login` or verify `','.simplicio-loop\skills\cli\SKILL.md','89b9c63ebcf63767de5ffb2a3a1fcd61ef5d04e6fb4d32794752ad5ffdff6f69','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:clip','project_skill','skill://simplicio-runtime/clip','skill: clip','---
 name: clip
 description: OpenAI''s model connecting vision and language. Enables zero-shot image classification, image-text matching, and cross-modal retrieval. Trained on 400M image-text pairs. Use for image search, content moderation, or vision-language tasks without fine-tuning. Best for general-purpose image understanding.
@@ -37417,7 +37417,7 @@ for idx, score in zip(top_k.indices, top_k.values):
     print(f"{image_paths[idx]}: {score:.3f}")
 ```
 
-## Content moderat','.simplicio\skills\clip\SKILL.md','0fdc2fdd93a9dbeeaa91aaf01bde49f8154cc477c8deaac8d583bee2be15637d','skill,simplicio,content',1.3);
+## Content moderat','.simplicio-loop\skills\clip\SKILL.md','0fdc2fdd93a9dbeeaa91aaf01bde49f8154cc477c8deaac8d583bee2be15637d','skill,simplicio,content',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:code-wiki','project_skill','skill://simplicio-runtime/code-wiki','skill: code-wiki','---
 name: code-wiki
 description: "Generate wiki docs + Mermaid diagrams for any codebase."
@@ -37534,7 +37534,7 @@ pygount --format=summary \
 Then `read_file` the relevant manifests (`package.json`, `pyproject.toml`, `setup.py`, `Cargo.toml`, `go.mod`, `pom.xml`, `build.gradle`) and the project README. Use `search_files target=''files''` to find them rather than guessing names.
 
 ### 3. Pick modules to document
-','.simplicio\skills\code-wiki\SKILL.md','517fff82d0c675105794eff41e3017762b4f72ec8cabbd2b735037595e94d06a','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\code-wiki\SKILL.md','517fff82d0c675105794eff41e3017762b4f72ec8cabbd2b735037595e94d06a','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:codebase-inspection','project_skill','skill://simplicio-runtime/codebase-inspection','skill: codebase-inspection','---
 name: codebase-inspection
 description: "Inspect codebases w/ pygount: LOC, languages, ratios."
@@ -37651,7 +37651,7 @@ Special pseudo-languages:
 2. **Markdown shows 0 code lines** — pygount classifies all Markdown content as comments, not code. This is expected behavior.
 3. **JSON files show low code counts** — pygount may count JSON lines conservatively. For accurate JSON line counts, use `wc -l` directly.
 4. **Large monorepos** — for very large repos, consider using `--suffix` to target specific languages rather than scanning everything.
-','.simplicio\skills\codebase-inspection\SKILL.md','87ddc0578d9bcbc80addb34ca045e4263689873ce02b1b73e3d57275ec6315c6','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\codebase-inspection\SKILL.md','87ddc0578d9bcbc80addb34ca045e4263689873ce02b1b73e3d57275ec6315c6','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:codex','project_skill','skill://simplicio-runtime/codex','skill: codex','---
 name: codex
 description: "Delegate coding to OpenAI Codex CLI (features, PRs)."
@@ -37772,7 +37772,7 @@ process(action="list")
 
 # After completion, push and create PRs
 terminal(command="cd /tmp/issue-78 && git push -u origin fix/issue-78")
-terminal(command="gh pr create --repo user/repo --head fix/issue-78 --title ''fix: ...','.simplicio\skills\codex\SKILL.md','489b60f50127f7d852d547e9ad33035c683c0b3f2e826b807ba8e3487fc05e7d','skill,simplicio,coding',1.3);
+terminal(command="gh pr create --repo user/repo --head fix/issue-78 --title ''fix: ...','.simplicio-loop\skills\codex\SKILL.md','489b60f50127f7d852d547e9ad33035c683c0b3f2e826b807ba8e3487fc05e7d','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:comfyui','project_skill','skill://simplicio-runtime/comfyui','skill: comfyui','---
 name: comfyui
 description: "Generate images, video, and audio with ComfyUI — install, launch, manage nodes/models, run workflows with parameter injection. Uses the official comfy-cli for lifecycle and direct REST/WebSocket API for execution."
@@ -37863,7 +37863,7 @@ SDXL inpaint, ESRGAN upscale, AnimateDiff video, Wan T2V. See
 ┌─────────────────────────▼───────────────────────────┐
 │ Layer 2: REST/WebSocket API + skill scripts         │
 │   Workflow execution, param injection, monitoring   │
-│   POST /api/prompt, GET /api/view, WS /ws      ','.simplicio\skills\comfyui\SKILL.md','3849ec3833cbdf6377c5c066d79bed5d7e89e32b0e11be377ed81d8aec48ed52','skill,simplicio,video',1.3);
+│   POST /api/prompt, GET /api/view, WS /ws      ','.simplicio-loop\skills\comfyui\SKILL.md','3849ec3833cbdf6377c5c066d79bed5d7e89e32b0e11be377ed81d8aec48ed52','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:comps-analysis','project_skill','skill://simplicio-runtime/comps-analysis','skill: comps-analysis','---
 name: comps-analysis
 description: Build comparable company analysis in Excel — operating metrics, valuation multiples, statistical benchmarking vs peer sets. Pairs with excel-author. Use for public-company valuation, IPO pricing, sector benchmarking, or outlier detection.
@@ -37934,7 +37934,7 @@ User-provided examples and explicit preferences always take precedence over defa
 ## Core Philosophy
 **"Build the right structure first, then let the data tell the story."**
 
-Start with headers that force strategic thinking about what matters, input clean data, build transparent formulas, and let statistics emerge automatically. A good comp should be immediately reada','.simplicio\skills\comps-analysis\SKILL.md','a507c1d34d78761b73ce5973b3b3a933868f5d036f3c64ebaa394843d113f234','skill,simplicio,coding',1.3);
+Start with headers that force strategic thinking about what matters, input clean data, build transparent formulas, and let statistics emerge automatically. A good comp should be immediately reada','.simplicio-loop\skills\comps-analysis\SKILL.md','a507c1d34d78761b73ce5973b3b3a933868f5d036f3c64ebaa394843d113f234','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:concept-diagrams','project_skill','skill://simplicio-runtime/concept-diagrams','skill: concept-diagrams','---
 name: concept-diagrams
 description: Generate flat, minimal light/dark-aware SVG diagrams as standalone HTML files, using a unified educational visual language with 9 semantic color ramps, sentence-case typography, and automatic dark mode. Best suited for educational and non-software visuals — physics setups, chemistry mechanisms, math curves, physical objects (aircraft, turbines, smartphones, mechanical watches), anatomy, floor plans, cross-sections, narrative journeys (lifecycle of X, process of Y), hub-spoke system integrations (smart city, IoT), and exploded layer views. If a more specialized skill exists for the subject (dedicated software/cloud architecture, hand-drawn sketches, animated explainers, etc.), prefer that — otherwise this skill can also serve as a general-purpose SVG diagram fallback with a clean educational look. Ships with 15 example diagrams.
@@ -38006,7 +38006,7 @@ The template embeds the full CSS design system (`c-*` color classes, text classe
 
 | Class      | 50 (lightest) | 100     | 200     | 400     | 600     | 800     | 900 (darkest) |
 |------------|---------------|---------|---------|---------|---------|---------|---------------|
-| `c-purple` | #EEEDFE | #CECBF6 | #AFA9EC | #7F77D','.simplicio\skills\concept-diagrams\SKILL.md','434eb40d8bdfeb2b111622e50441deb21d280ab13849129203f0c31f4ab72365','skill,simplicio,coding',1.3);
+| `c-purple` | #EEEDFE | #CECBF6 | #AFA9EC | #7F77D','.simplicio-loop\skills\concept-diagrams\SKILL.md','434eb40d8bdfeb2b111622e50441deb21d280ab13849129203f0c31f4ab72365','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:contribute-catalog','project_skill','skill://simplicio-runtime/contribute-catalog','skill: contribute-catalog','---
 name: contribute-catalog
 description: Author a new HyperFrames registry block (caption style, VFX block, transition, lower third) or component (text effect, overlay, snippet) and ship it as an upstream PR to the hyperframes repo. Use ONLY when the user wants to CONTRIBUTE to the public catalog — for in-project caption/transition authoring use the `hyperframes` skill, for installing existing registry items use the `hyperframes-registry` skill.
@@ -38128,7 +38128,7 @@ Apply the correct template based on type. See [templates.md](templates.md) for c
 - Stagger via `tl.set` at computed intervals from word timestamps
 - Cursors/decorative elements: use `tl.set` at intervals — NOT CSS animation (not seekable)
 
-**Positioning varian','.simplicio\skills\contribute-catalog\SKILL.md','6b51a91f2ee1378c301a0b90d0f2479b542e5b2470d8489529ee687c71cc4105','skill,simplicio,video',1.3);
+**Positioning varian','.simplicio-loop\skills\contribute-catalog\SKILL.md','6b51a91f2ee1378c301a0b90d0f2479b542e5b2470d8489529ee687c71cc4105','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:conventional-commits','project_skill','skill://simplicio-runtime/conventional-commits','skill: conventional-commits','---
 name: conventional-commits
 description: padronizar mensagens de commit seguindo Conventional Commits (type, scope opcional, subject curto, breaking change marcado)
@@ -38240,7 +38240,7 @@ The old route returns 410 Gone. See migration guide in .specs/architecture/ADR-0
 
 ## Definition of Done
 
-- [ ] Mensagem segue `<type>(<scope>)?: <subject>` com type válido da lis','.simplicio\skills\conventional-commits\SKILL.md','dbc789f69ccf7da4c1d5b5fc794a998da613ae81075a3ede680888caa3a7a03e','skill,simplicio,coding',1.3);
+- [ ] Mensagem segue `<type>(<scope>)?: <subject>` com type válido da lis','.simplicio-loop\skills\conventional-commits\SKILL.md','dbc789f69ccf7da4c1d5b5fc794a998da613ae81075a3ede680888caa3a7a03e','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:creative-ideation','project_skill','skill://simplicio-runtime/creative-ideation','skill: creative-ideation','---
 name: ideation
 title: Creative Ideation — Constraint-Driven Project Generation
@@ -38334,7 +38334,7 @@ See `references/full-prompt-library.md` for 30+ additional constraints across co
 
 | User says | Pick from |
 |-----------|-----------|
-| "I want to build some','.simplicio\skills\creative-ideation\SKILL.md','1145354ec68eac30708cca0324d85f38715e43c56a910c7326ce701ec72f6fec','skill,simplicio,coding',1.3);
+| "I want to build some','.simplicio-loop\skills\creative-ideation\SKILL.md','1145354ec68eac30708cca0324d85f38715e43c56a910c7326ce701ec72f6fec','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:css-animations','project_skill','skill://simplicio-runtime/css-animations','skill: css-animations','---
 name: css-animations
 description: CSS animation adapter patterns for HyperFrames. Use when authoring CSS keyframes, animation-delay based timing, animation-fill-mode, animation-play-state, or CSS-only motion that HyperFrames must seek deterministically during preview and rendering.
@@ -38459,7 +38459,7 @@ npx hyperframes validate
 - HyperFrames adapter source: `packages/core/src/runtime/adapters/css.ts`.
 - MDN CSS animation documentation: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/animation
 - MDN `animation-fill-mode`: https://developer.mozilla.org/en-US/docs/Web/CSS/animation-fill-mode
-','.simplicio\skills\css-animations\SKILL.md','a8239c96ac9400e40b806ad0b14a059cf643c58fcef4bfdc630723fa130f93ef','skill,simplicio,video',1.3);
+','.simplicio-loop\skills\css-animations\SKILL.md','a8239c96ac9400e40b806ad0b14a059cf643c58fcef4bfdc630723fa130f93ef','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:darwinian-evolver','project_skill','skill://simplicio-runtime/darwinian-evolver','skill: darwinian-evolver','---
 name: darwinian-evolver
 description: Evolve prompts/regex/SQL/code with Imbue''s evolution loop.
@@ -38578,7 +38578,7 @@ landing around 0.6–0.8 (the seed `Say {{ phrase }}` scored 0.000).
 
 ## Defining a Custom Problem
 
-The skill ships `temp','.simplicio\skills\darwinian-evolver\SKILL.md','2ae2bd5d9435e0e130db272d8b435f306d696c68207a9b0c46ae05248adda465','skill,simplicio,coding',1.3);
+The skill ships `temp','.simplicio-loop\skills\darwinian-evolver\SKILL.md','2ae2bd5d9435e0e130db272d8b435f306d696c68207a9b0c46ae05248adda465','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:dcf-model','project_skill','skill://simplicio-runtime/dcf-model','skill: dcf-model','---
 name: dcf-model
 description: Build institutional-quality DCF valuation models in Excel — revenue projections, FCF build, WACC, terminal value, Bear/Base/Bull scenarios, 5x5 sensitivity tables. Pairs with excel-author. Use for intrinsic-value equity analysis.
@@ -38642,7 +38642,7 @@ These constraints apply throughout all DCF model building. Review before startin
 - Do not defer to end or write "TODO: add source"
 
 **Model Layout Planning:**
-- Define ALL section row positions BEFORE writing any formu','.simplicio\skills\dcf-model\SKILL.md','1b9293af4560052dc5bce61c5beb84f10678b5dd01c36819fcc8712094d559c5','skill,simplicio,coding',1.3);
+- Define ALL section row positions BEFORE writing any formu','.simplicio-loop\skills\dcf-model\SKILL.md','1b9293af4560052dc5bce61c5beb84f10678b5dd01c36819fcc8712094d559c5','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:design-md','project_skill','skill://simplicio-runtime/design-md','skill: design-md','---
 name: design-md
 description: Author/validate/export Google''s DESIGN.md token spec files.
@@ -38776,7 +38776,7 @@ if the value type is valid. Unknown component properties produce a warning.
    direction. If they provided a site, image, or vibe, translate it to the
    token shape above.
 2. **Write `DESIGN.md`** in their project root using `write_file`. Always
-','.simplicio\skills\design-md\SKILL.md','95edf35d5b4ec7d8adb57004e28e833bf6855cffb1b9b8f336d7bb6f08ee303f','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\design-md\SKILL.md','95edf35d5b4ec7d8adb57004e28e833bf6855cffb1b9b8f336d7bb6f08ee303f','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:docker-management','project_skill','skill://simplicio-runtime/docker-management','skill: docker-management','---
 name: docker-management
 description: Manage Docker containers, images, volumes, networks, and Compose stacks — lifecycle ops, debugging, cleanup, and Dockerfile optimization.
@@ -38893,7 +38893,7 @@ docker exec -u root NAME apt update    # run as specific user
 docker logs --tail 100 -f NAME         # follow last 100 lines
 docker logs --since 2h NAME            # logs from last 2 hours
 docker cp NAME:/path/file ./local      # copy file from container
-docker cp ./file NAME:/path/           # copy file','.simplicio\skills\docker-management\SKILL.md','37f493d360f764f1e385987b713b8bcee8af608b7bf4fadc2f3c155891bf1058','skill,simplicio,coding',1.3);
+docker cp ./file NAME:/path/           # copy file','.simplicio-loop\skills\docker-management\SKILL.md','37f493d360f764f1e385987b713b8bcee8af608b7bf4fadc2f3c155891bf1058','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:dogfood','project_skill','skill://simplicio-runtime/dogfood','skill: dogfood','---
 name: dogfood
 description: "Exploratory QA of web apps: find bugs, evidence, reports."
@@ -39010,7 +39010,7 @@ For every issue found:
 2. De-duplicate — merge issues that are the same bug manifesting in different places.
 3. Assign final severity and category to each issue.
 4. Sort by severity (Critical first, then High, Medium, Low).
-5. Count i','.simplicio\skills\dogfood\SKILL.md','76baf5783480891cf5d959237833e05a39924a347a9486848af739b0ce5dd97a','skill,simplicio,coding',1.3);
+5. Count i','.simplicio-loop\skills\dogfood\SKILL.md','76baf5783480891cf5d959237833e05a39924a347a9486848af739b0ce5dd97a','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:domain-intel','project_skill','skill://simplicio-runtime/domain-intel','skill: domain-intel','---
 name: domain-intel
 description: Passive domain reconnaissance using Python stdlib. Subdomain discovery, SSL certificate inspection, WHOIS lookups, DNS records, domain availability checks, and bulk multi-domain analysis. No API keys required.
@@ -39098,7 +39098,7 @@ All queries are **passive** — no port scanning, no vulnerability testing:
 - **System DNS** — A/AAAA record resolution
 - **SSL check** is the only "active" operation (TCP connection to target:443)
 
-## No','.simplicio\skills\domain-intel\SKILL.md','ea2b6aae7fe58639e15ec170737545961d5b53009c19ead2a2c101e1b578d6cb','skill,simplicio,coding',1.3);
+## No','.simplicio-loop\skills\domain-intel\SKILL.md','ea2b6aae7fe58639e15ec170737545961d5b53009c19ead2a2c101e1b578d6cb','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:drug-discovery','project_skill','skill://simplicio-runtime/drug-discovery','skill: drug-discovery','---
 name: drug-discovery
 description: >
@@ -39204,7 +39204,7 @@ rot  = int(props.get(''RotatableBondCount'', 0))
 tpsa = float(props.get(''TPSA'', 0))
 print(''=== Lipinski Rule of Five (Ro5) ==='')
 print(f''  MW   {mw:.1f} Da    {\"✓\" if mw<=500 else \"✗ VIOLATION (>500)\"}'')
-print(f''  LogP {logp:.2f}   ','.simplicio\skills\drug-discovery\SKILL.md','256735663d7d2175281eff5215940ae289b89ae120c154b12acfd9dffc0c4b51','skill,simplicio,coding',1.3);
+print(f''  LogP {logp:.2f}   ','.simplicio-loop\skills\drug-discovery\SKILL.md','256735663d7d2175281eff5215940ae289b89ae120c154b12acfd9dffc0c4b51','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:duckduckgo-search','project_skill','skill://simplicio-runtime/duckduckgo-search','skill: duckduckgo-search','---
 name: duckduckgo-search
 description: Free web search via DuckDuckGo — text, news, images, videos. No API key needed. Prefer the `ddgs` CLI when installed; use the Python DDGS library only after verifying that `ddgs` is available in the current runtime.
@@ -39338,7 +39338,7 @@ with DDGS() as ddgs:
     for r in ddgs.news("AI regulation 2026", max_results=5):
         print(r["date"], "-", r["title"])
         print(r.get("source", ""), "|", r["url"])
-        print(r.get("body", "")[:200])','.simplicio\skills\duckduckgo-search\SKILL.md','dbb5ab26aa4a698ceffd8662709408207c967e228dc7167c08194f688dce75ab','skill,simplicio,video',1.3);
+        print(r.get("body", "")[:200])','.simplicio-loop\skills\duckduckgo-search\SKILL.md','dbb5ab26aa4a698ceffd8662709408207c967e228dc7167c08194f688dce75ab','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:everything-claude-code','project_skill','skill://simplicio-runtime/everything-claude-code','skill: everything-claude-code','---
 name: everything-claude-code
 description: Bundle de ~60 agents + ~221 skills cobrindo reviewers, build-resolvers, TDD, E2E, security, autonomous loops. Padrão do projeto — usar o MÁXIMO de agents possível em paralelo a cada alteração.
@@ -39434,7 +39434,7 @@ Catálogo + protocolo de uso da suite ECC. Padrão do projeto: **toda alteraçã
 
 ---
 
-##','.simplicio\skills\everything-claude-code\SKILL.md','03af78997385fc75fa6f346732acedc9be73e3b67dd082300b1631512d7e2fa6','skill,simplicio,coding',1.3);
+##','.simplicio-loop\skills\everything-claude-code\SKILL.md','03af78997385fc75fa6f346732acedc9be73e3b67dd082300b1631512d7e2fa6','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:evm','project_skill','skill://simplicio-runtime/evm','skill: evm','---
 name: evm
 description: "Read-only EVM client: wallets, tokens, gas across 8 chains."
@@ -39536,7 +39536,7 @@ python3 $SCRIPT ens 0xd8dA...96045               # Address -> ENS name
 
 # Whale detection
 python3 $SCRIPT whale                            # Large transfers (last 20 blocks, >$10k)
-python3 $SCRIPT whale --blocks 50 --min-usd 100000 --chain arbi','.simplicio\skills\evm\SKILL.md','acbf4a2f1177b6c08df7bcfb087f80bbd139156193d4394276b3cbd4e578e2a6','skill,simplicio,coding',1.3);
+python3 $SCRIPT whale --blocks 50 --min-usd 100000 --chain arbi','.simplicio-loop\skills\evm\SKILL.md','acbf4a2f1177b6c08df7bcfb087f80bbd139156193d4394276b3cbd4e578e2a6','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:excalidraw','project_skill','skill://simplicio-runtime/excalidraw','skill: excalidraw','---
 name: excalidraw
 description: "Hand-drawn Excalidraw JSON diagrams (arch, flow, seq)."
@@ -39657,7 +39657,7 @@ The shape needs `boundElements` listing the text, and the text needs `containerI
 ```json
 { "type": "arrow", "id": "a1", "x": 300, "y": 150, "width": 200, "height": 0,
   "points": [[0,0],[200,0]], "endArrowhead": "arrow",
-  "boundElemen','.simplicio\skills\excalidraw\SKILL.md','d7b0fb8b0bc086a5baab82ccbe637eca11e96fb8a14d9aebacd62c312562cb82','skill,simplicio,coding',1.3);
+  "boundElemen','.simplicio-loop\skills\excalidraw\SKILL.md','d7b0fb8b0bc086a5baab82ccbe637eca11e96fb8a14d9aebacd62c312562cb82','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:excel-author','project_skill','skill://simplicio-runtime/excel-author','skill: excel-author','---
 name: excel-author
 description: Build auditable Excel workbooks headless with openpyxl — blue/black/green cell conventions, formulas over hardcodes, named ranges, balance checks, sensitivity tables. Use for financial models, audit outputs, reconciliations.
@@ -39768,7 +39768,7 @@ BLUE = Font(color="0000FF")
 BLACK = Font(color="000000")
 GREEN = Font(color="006100")
 BOLD = Font(bold=True)
-HEADER_FILL = Pattern','.simplicio\skills\excel-author\SKILL.md','929d63d8dbbb3d3c9cf752f948cc0924b18d2886db9472ae083f2480a60e39f8','skill,simplicio,coding',1.3);
+HEADER_FILL = Pattern','.simplicio-loop\skills\excel-author\SKILL.md','929d63d8dbbb3d3c9cf752f948cc0924b18d2886db9472ae083f2480a60e39f8','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:extraction-plan','project_skill','skill://simplicio-runtime/extraction-plan','skill: extraction-plan','---
 name: extraction-plan
 description: Use when the user wants to crawl or research external sites and GitHub repositories, document them in detail, distill the best ideas into a Simplicio module/app/skill/tool roadmap, and optionally ingest curated knowledge into project-local Simplicio memory.
@@ -39784,8 +39784,8 @@ The goal is not to mirror the internet. The goal is to build a durable, evidence
 
 - Durable docs belong in the active project, usually under `docs/research/<topic>/`.
 - Raw crawls, clone caches, JSON snapshots, and SQLite memory are generated caches and should be ignored unless the user explicitly wants them committed.
-- Portable memory belongs in a versioned JSONL seed such as `.simplicio/memory-seeds/<topic>.jsonl`; rebuild local SQLite from the seed instead of committing `.sqlite`.
-- Simplicio memory should be project-local by default: `.simplicio/memory/simplicio-memory.sqlite`.
+- Portable memory belongs in a versioned JSONL seed such as `.simplicio-loop/memory-seeds/<topic>.jsonl`; rebuild local SQLite from the seed instead of committing `.sqlite`.
+- Simplicio memory should be project-local by default: `.simplicio-loop/memory/simplicio-memory.sqlite`.
 - User-level skills belong in `~/.codex/skills/<skill-name>` when the user asks for a reusable skill.
 - Do not claim AGI. Model it as bounded curation: read evidence, rank patterns, propose changes, and require explicit gates for writes, execution, credentials, network side effects, and publishing.
 
@@ -39827,7 +39827,7 @@ The goal is not to mirror the internet. The goal is to build a durable, evidence
 
 7. **Ingest curated memory.**
    - Initialize memory with `simplicio memory init --repo <repo> --json` when available.
-   - Upsert compact rows into `memory_items`, not raw p','.simplicio\skills\extraction-plan\SKILL.md','0ae453dc9cdc959ca576d40a1b0f45cf993ce54d054ca3d3c6764f629ec92bb4','skill,simplicio,coding',1.3);
+   - Upsert compact rows into `memory_items`, not raw p','.simplicio-loop\skills\extraction-plan\SKILL.md','0ae453dc9cdc959ca576d40a1b0f45cf993ce54d054ca3d3c6764f629ec92bb4','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:faiss','project_skill','skill://simplicio-runtime/faiss','skill: faiss','---
 name: faiss
 description: Facebook''s library for efficient similarity search and clustering of dense vectors. Supports billions of vectors, GPU acceleration, and various index types (Flat, IVF, HNSW). Use for fast k-NN search, large-scale vector retrieval, or when you need pure similarity search without metadata. Best for high-performance applications.
@@ -40020,7 +40020,7 @@ results = vectorstore.similarity_search("query", k=5)
 from llama_index.vector_stores.faiss import FaissVectorStore
 import faiss
 
-# Creat','.simplicio\skills\faiss\SKILL.md','15529815a6ad0edf256922762c98e7e40616d837126c14621b43e474bfd319f6','skill,simplicio,orchestration',1.3);
+# Creat','.simplicio-loop\skills\faiss\SKILL.md','15529815a6ad0edf256922762c98e7e40616d837126c14621b43e474bfd319f6','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:fastmcp','project_skill','skill://simplicio-runtime/fastmcp','skill: fastmcp','---
 name: fastmcp
 description: Build, test, inspect, install, and deploy MCP servers with FastMCP in Python. Use when creating a new MCP server, wrapping an API or database as MCP tools, exposing resources or prompts, or preparing a FastMCP server for Claude Code, Cursor, or HTTP deployment.
@@ -40157,7 +40157,7 @@ Do not turn every document into a prompt. Prefer:
 
 ### 5. Test the Server Before Integrating It Anywhere
 
-Use the FastMCP CLI for lo','.simplicio\skills\fastmcp\SKILL.md','13f9d9eafba5e43450f8c93040498a268708baa8ce6e2bdd14bf93c939d5e457','skill,simplicio,coding',1.3);
+Use the FastMCP CLI for lo','.simplicio-loop\skills\fastmcp\SKILL.md','13f9d9eafba5e43450f8c93040498a268708baa8ce6e2bdd14bf93c939d5e457','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:findmy','project_skill','skill://simplicio-runtime/findmy','skill: findmy','---
 name: findmy
 description: "Track Apple devices/AirTags via FindMy.app on macOS."
@@ -40289,7 +40289,7 @@ Analyze each screenshot with vision to extract coordinates, then compile a route
 2. Use `vision_analyze` to read screenshot content — don''t try to parse pixels
 3. For ongoing tracking, use a cronjob to periodically capture and log locations
 4. Respect privacy — only track devices/items the user owns
-','.simplicio\skills\findmy\SKILL.md','19ec56e3b7f9f0be13c26d99948ed5684d8fb1f9c478da078c19356b5df63f57','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\findmy\SKILL.md','19ec56e3b7f9f0be13c26d99948ed5684d8fb1f9c478da078c19356b5df63f57','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:fitness-nutrition','project_skill','skill://simplicio-runtime/fitness-nutrition','skill: fitness-nutrition','---
 name: fitness-nutrition
 description: >
@@ -40406,7 +40406,7 @@ Equipment:
 ```bash
 # Search exercises by name
 QUERY="$1"
-ENCODED=$(python3 -c "','.simplicio\skills\fitness-nutrition\SKILL.md','75cabca181833ff80593fd6dcf6dc1847670f835e268de78cadd6210a0144d53','skill,simplicio,coding',1.3);
+ENCODED=$(python3 -c "','.simplicio-loop\skills\fitness-nutrition\SKILL.md','75cabca181833ff80593fd6dcf6dc1847670f835e268de78cadd6210a0144d53','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:flash-attention','project_skill','skill://simplicio-runtime/flash-attention','skill: flash-attention','---
 name: optimizing-attention-flash
 description: Optimizes transformer attention with Flash Attention for 2-4x speedup and 10-20x memory reduction. Use when training/running transformers with long sequences (>512 tokens), encountering GPU memory issues with attention, or need faster inference. Supports PyTorch native SDPA, flash-attn library, H100 FP8, and sliding window attention.
@@ -40553,7 +40553,7 @@ Copy this checklist:
 
 ```
 flash-attn Library Setup:
-- [ ] Step','.simplicio\skills\flash-attention\SKILL.md','78475ffbc7b54f151741d10b018f5b10a9779569f6630a36020fafdedd6f0a75','skill,simplicio,coding',1.3);
+- [ ] Step','.simplicio-loop\skills\flash-attention\SKILL.md','78475ffbc7b54f151741d10b018f5b10a9779569f6630a36020fafdedd6f0a75','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:gif-search','project_skill','skill://simplicio-runtime/gif-search','skill: gif-search','---
 name: gif-search
 description: "Search/download GIFs from Tenor via curl + jq."
@@ -40645,7 +40645,7 @@ Each result has multiple formats under `.media_formats`:
 - URL-encode the query: spaces as `+`, special chars as `%XX`
 - For sending in chat, `tinygif` URLs are lighter weight
 - GIF URLs can be used directly in markdown: `![alt](url)`
-','.simplicio\skills\gif-search\SKILL.md','ee2d14e32314e083d2bb999f502ec409df5762f4c7429e03718fc8835a26abb6','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\gif-search\SKILL.md','ee2d14e32314e083d2bb999f502ec409df5762f4c7429e03718fc8835a26abb6','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:github-auth','project_skill','skill://simplicio-runtime/github-auth','skill: github-auth','---
 name: github-auth
 description: "GitHub auth setup: HTTPS tokens, SSH keys, gh CLI login."
@@ -40779,7 +40779,7 @@ cat ~/.ssh/id_ed25519.pub
 Tell the user to add the public key at: **https://github.com/settings/keys**
 - Click "New SSH key"
 - Paste the public key content
-- Give it a title like "her','.simplicio\skills\github-auth\SKILL.md','3e92492e6aca71bf7276d408c5db1999e1a1814d4e8b2e23976481631cf4a3a8','skill,simplicio,coding',1.3);
+- Give it a title like "her','.simplicio-loop\skills\github-auth\SKILL.md','3e92492e6aca71bf7276d408c5db1999e1a1814d4e8b2e23976481631cf4a3a8','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:github-code-review','project_skill','skill://simplicio-runtime/github-code-review','skill: github-code-review','---
 name: github-code-review
 description: "Review PRs: diffs, inline comments via gh or REST."
@@ -40941,7 +40941,7 @@ curl -s \
   https://api.github.com/repos/$OWNER/$REPO/pulls/$PR_NUMBER/files \
   | python3 -c "
 import sys, json
-for f in json.load(sys.','.simplicio\skills\github-code-review\SKILL.md','aff56d1e7505ac2497696898e6858ebf92f11a639bf91ae89193c5b3c5adb50e','skill,simplicio,coding',1.3);
+for f in json.load(sys.','.simplicio-loop\skills\github-code-review\SKILL.md','aff56d1e7505ac2497696898e6858ebf92f11a639bf91ae89193c5b3c5adb50e','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:github-issues','project_skill','skill://simplicio-runtime/github-issues','skill: github-issues','---
 name: github-issues
 description: "Create, triage, label, assign GitHub issues via gh or REST."
@@ -41078,7 +41078,7 @@ curl -s -X POST \
   https://api.github.com/repos/$OWNER/$REPO/issues \
   -d ''{
     "title": "Login redirect ignores ?next= parameter",
-    "body": "## Description\nAfter logging in, users always land on /dashboard.\n\n## Steps to Reproduce\n1. Navigate to /settings while logged out\n2. Get redirected to /login?next=/settings\n3. Log in\n4. Actual: redirected to /dashboard\n\n## Expected Behavior\nRespect','.simplicio\skills\github-issues\SKILL.md','3b82db06b47b8d4a78488de66f2c515576628ce5b0185ef1655f7735ae5e0383','skill,simplicio,coding',1.3);
+    "body": "## Description\nAfter logging in, users always land on /dashboard.\n\n## Steps to Reproduce\n1. Navigate to /settings while logged out\n2. Get redirected to /login?next=/settings\n3. Log in\n4. Actual: redirected to /dashboard\n\n## Expected Behavior\nRespect','.simplicio-loop\skills\github-issues\SKILL.md','3b82db06b47b8d4a78488de66f2c515576628ce5b0185ef1655f7735ae5e0383','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:github-pr-workflow','project_skill','skill://simplicio-runtime/github-pr-workflow','skill: github-pr-workflow','---
 name: github-pr-workflow
 description: "GitHub PR lifecycle: branch, commit, open, CI, merge."
@@ -41247,7 +41247,7 @@ gh pr checks --watch
 **With git + curl:**
 
 ```bash
-# Get the latest c','.simplicio\skills\github-pr-workflow\SKILL.md','54791a0f2562508fbac5614557530c6df5ab8a30ab69356dbc1d7f2c01fd73e2','skill,simplicio,coding',1.3);
+# Get the latest c','.simplicio-loop\skills\github-pr-workflow\SKILL.md','54791a0f2562508fbac5614557530c6df5ab8a30ab69356dbc1d7f2c01fd73e2','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:github-repo-management','project_skill','skill://simplicio-runtime/github-repo-management','skill: github-repo-management','---
 name: github-repo-management
 description: "Clone/create/fork repos; manage remotes, releases."
@@ -41410,7 +41410,7 @@ curl -s -X POST \
 **With gh:**
 
 ```bash
-gh repo fork ow','.simplicio\skills\github-repo-management\SKILL.md','e61e8f966fe0c995cddd2388909077b516b7510185e34d97afbbe656908778e7','skill,simplicio,coding',1.3);
+gh repo fork ow','.simplicio-loop\skills\github-repo-management\SKILL.md','e61e8f966fe0c995cddd2388909077b516b7510185e34d97afbbe656908778e7','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:gitnexus-explorer','project_skill','skill://simplicio-runtime/gitnexus-explorer','skill: gitnexus-explorer','---
 name: gitnexus-explorer
 description: Index a codebase with GitNexus and serve an interactive knowledge graph via web UI + Cloudflare tunnel.
@@ -41539,7 +41539,7 @@ function proxyToApi(req, res) {
 }
 
 function serveStatic(req, res) {
-  let filePath = path.join(DIST_DIR, req.url === ''/'' ? ''index.html'' : req.url.spli','.simplicio\skills\gitnexus-explorer\SKILL.md','3fb04aff223336d6c28180c26680671c3fb5535bac3cb24b7fcab05329f0c6a3','skill,simplicio,coding',1.3);
+  let filePath = path.join(DIST_DIR, req.url === ''/'' ? ''index.html'' : req.url.spli','.simplicio-loop\skills\gitnexus-explorer\SKILL.md','3fb04aff223336d6c28180c26680671c3fb5535bac3cb24b7fcab05329f0c6a3','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:godmode','project_skill','skill://simplicio-runtime/godmode','skill: godmode','---
 name: godmode
 description: "Jailbreak LLMs: Parseltongue, GODMODE, ULTRAPLINIAN."
@@ -41627,7 +41627,7 @@ undo_jailbreak()
 2. **Identifies the model family** (Claude, GPT, Gemini, Grok, Hermes, DeepSeek, etc.)
 3. **Selects strategies** in order of effectiveness for that family
 4. **Tests baseline** — confirms the model actually refuses without jailbreaking
-5. **Tries eac','.simplicio\skills\godmode\SKILL.md','b3d92f1b25d94c8a716912b16892c0d6bb17f2bf5966be131baab54ec5b0a2e8','skill,simplicio,coding',1.3);
+5. **Tries eac','.simplicio-loop\skills\godmode\SKILL.md','b3d92f1b25d94c8a716912b16892c0d6bb17f2bf5966be131baab54ec5b0a2e8','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:google-workspace','project_skill','skill://simplicio-runtime/google-workspace','skill: google-workspace','---
 name: google-workspace
 description: "Gmail, Calendar, Drive, Docs, Sheets via gws CLI or Python."
@@ -41730,7 +41730,7 @@ Tell the user:
 >    Audience → Test users → Add users
 > 6. Download the JSON file and tell me the file path
 >
-> Important Hermes CLI note: if the file path starts with `/`, do NOT send only the bare path as its own message in the CLI, because it can be mistaken for a slash command. Send it in a sente','.simplicio\skills\google-workspace\SKILL.md','f41cd31a3a89c64cbb1f064aa0cc062dbd6076b24a4d369683ce3916f4eb08fc','skill,simplicio,coding',1.3);
+> Important Hermes CLI note: if the file path starts with `/`, do NOT send only the bare path as its own message in the CLI, because it can be mistaken for a slash command. Send it in a sente','.simplicio-loop\skills\google-workspace\SKILL.md','f41cd31a3a89c64cbb1f064aa0cc062dbd6076b24a4d369683ce3916f4eb08fc','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:google_meet','project_skill','skill://simplicio-runtime/google_meet','skill: google_meet','---
 name: google_meet
 description: Join a Google Meet call, transcribe live captions, optionally speak in realtime, and do the followup work afterwards. Use when the user asks the agent to sit in on a meeting, take notes, summarize, respond in-call, or action items from it.
@@ -41830,7 +41830,7 @@ Run `hermes meet setup` to preflight local prereqs.
 | `meet_join` | `url`, `mode?`, `guest_name?`, `duration?`, `headed?`, `node?` | Start bot |
 | `meet_status` | `node?` | Liveness + progress |
 | `meet_transcript` | `last?`, `node?` | Read captions |
-| `meet_leave` | `node?` | Cl','.simplicio\skills\google_meet\SKILL.md','2547e8461ba201c7ab380d40b795e8723d7fb0d7b5a794bfec79eea6f0ed9cae','skill,simplicio,video',1.3);
+| `meet_leave` | `node?` | Cl','.simplicio-loop\skills\google_meet\SKILL.md','2547e8461ba201c7ab380d40b795e8723d7fb0d7b5a794bfec79eea6f0ed9cae','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:grok','project_skill','skill://simplicio-runtime/grok','skill: grok','---
 name: grok
 description: "Delegate coding to xAI Grok Build CLI (features, PRs)."
@@ -41930,7 +41930,7 @@ terminal(command="tmux send-keys -t grok-work ''/quit'' Enter && sleep 1 && tmux
 ```
 
 **Tip for headless-but-inline output:** if you want TUI-style output without the
-fullscreen alt-screen takeover (e.g. for cleaner lo','.simplicio\skills\grok\SKILL.md','5ec202a3315374547fa1ed081c48ba6a4d84b6cd7b507f848be7d65442c725c9','skill,simplicio,orchestration',1.3);
+fullscreen alt-screen takeover (e.g. for cleaner lo','.simplicio-loop\skills\grok\SKILL.md','5ec202a3315374547fa1ed081c48ba6a4d84b6cd7b507f848be7d65442c725c9','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:gsap','project_skill','skill://simplicio-runtime/gsap','skill: gsap','---
 name: gsap
 description: GSAP animation reference for HyperFrames. Covers gsap.to(), from(), fromTo(), easing, stagger, defaults, timelines (gsap.timeline(), position parameter, labels, nesting, playback), and performance (transforms, will-change, quickTo). Use when writing GSAP animations in HyperFrames compositions.
@@ -42037,7 +42037,7 @@ tween.time(0.2);
 Runs setup only when a media query matches; auto-reverts when it stops matching.
 
 ```javascript
-le','.simplicio\skills\gsap\SKILL.md','f545f1923eac057b0cb1043fa5809f304d2b1507a3e5b3094f2e2047a00891fe','skill,simplicio,video',1.3);
+le','.simplicio-loop\skills\gsap\SKILL.md','f545f1923eac057b0cb1043fa5809f304d2b1507a3e5b3094f2e2047a00891fe','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:guidance','project_skill','skill://simplicio-runtime/guidance','skill: guidance','---
 name: guidance
 description: Control LLM output with regex and grammars, guarantee valid JSON/XML/code generation, enforce structured formats, and build multi-step workflows with Guidance - Microsoft Research''s constrained generation framework
@@ -42201,7 +42201,7 @@ Guidance automatically "heals" token boundaries between prompt and generation.
 ```python
 # Without token healing
 prompt = "The capital of France is "
-# La','.simplicio\skills\guidance\SKILL.md','c923aaf67fd05d3dc846b08010268aa9af1d65481dc6c1b123e211123f9dc57b','skill,simplicio,orchestration',1.3);
+# La','.simplicio-loop\skills\guidance\SKILL.md','c923aaf67fd05d3dc846b08010268aa9af1d65481dc6c1b123e211123f9dc57b','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:heartmula','project_skill','skill://simplicio-runtime/heartmula','skill: heartmula','---
 name: heartmula
 description: "HeartMuLa: Suno-like song generation from lyrics + tags."
@@ -42301,7 +42301,7 @@ HeartMuLa uses CUDA by default (`--mula_device cuda --codec_device cuda`). No ex
 
 - The installed `torch==2.4.1` includes CUDA 12.1 support out of the box
 - `torchtune` may report version `0.4.0+cpu` — this is just package metadata, it still uses CUDA via PyTorch
-- To verify GPU is being used, look for "CUDA memory" lines in the output (e.g. "CUDA memory before ','.simplicio\skills\heartmula\SKILL.md','5bd0ab003ad52a86e79975fed0b967fe05eb418f4743f60295d02f65f5bff07f','skill,simplicio,coding',1.3);
+- To verify GPU is being used, look for "CUDA memory" lines in the output (e.g. "CUDA memory before ','.simplicio-loop\skills\heartmula\SKILL.md','5bd0ab003ad52a86e79975fed0b967fe05eb418f4743f60295d02f65f5bff07f','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:here-now','project_skill','skill://simplicio-runtime/here-now','skill: here-now','---
 name: here.now
 description: Publish static sites to {slug}.here.now and store private files in cloud Drives for agent-to-agent handoff.
@@ -42411,7 +42411,7 @@ bash "$DRIVE" cat "My Drive" notes/today.md
 bash "$DRIVE" share "My Drive" --perms write --prefix notes/ --ttl 7d
 ```
 
-Use scoped Drive tokens for agent-to-agent handoff. If you receive a `herenow_drive` share block, use its `token` as `Authorization: Bearer <token>` against `api_base`, respect `pathPrefix` when present, and preserve ETag','.simplicio\skills\here-now\SKILL.md','10b98f011b5f35ab613d1d6e07a272175a7886a9bd1f903956537c7dfecbcdb7','skill,simplicio,coding',1.3);
+Use scoped Drive tokens for agent-to-agent handoff. If you receive a `herenow_drive` share block, use its `token` as `Authorization: Bearer <token>` against `api_base`, respect `pathPrefix` when present, and preserve ETag','.simplicio-loop\skills\here-now\SKILL.md','10b98f011b5f35ab613d1d6e07a272175a7886a9bd1f903956537c7dfecbcdb7','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:hermes-agent','project_skill','skill://simplicio-runtime/hermes-agent','skill: hermes-agent','---
 name: hermes-agent
 description: "Configure, extend, or contribute to Hermes Agent."
@@ -42505,7 +42505,7 @@ hermes chat [flags]
 ### Configuration
 
 ```
-hermes setup ','.simplicio\skills\hermes-agent\SKILL.md','05145b53affd5f7d62f36c873220c45d1c3d9ed132e3db4a1073139409d7d227','skill,simplicio,coding',1.3);
+hermes setup ','.simplicio-loop\skills\hermes-agent\SKILL.md','05145b53affd5f7d62f36c873220c45d1c3d9ed132e3db4a1073139409d7d227','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:hermes-agent-skill-authoring','project_skill','skill://simplicio-runtime/hermes-agent-skill-authoring','skill: hermes-agent-skill-authoring','---
 name: hermes-agent-skill-authoring
 description: "Author in-repo SKILL.md: frontmatter, validator, structure."
@@ -42622,7 +42622,7 @@ Pick the closest existing category. Don''t invent new top-level categories casua
 4. **Validate locally**:
    ```python
    import yaml, re, pathlib
-   content = pathlib.Path("skills/<category>/<name>/SKILL.md").read_text','.simplicio\skills\hermes-agent-skill-authoring\SKILL.md','3c1830216145f94ce426131836c995b705af6979a49ba2a472f799536dcc0678','skill,simplicio,coding',1.3);
+   content = pathlib.Path("skills/<category>/<name>/SKILL.md").read_text','.simplicio-loop\skills\hermes-agent-skill-authoring\SKILL.md','3c1830216145f94ce426131836c995b705af6979a49ba2a472f799536dcc0678','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:hermes-s6-container-supervision','project_skill','skill://simplicio-runtime/hermes-s6-container-supervision','skill: hermes-s6-container-supervision','---
 name: hermes-s6-container-supervision
 description: Modify, debug, or extend the s6-overlay supervision tree inside the Hermes Agent Docker image — adding new services, debugging profile gateways, understanding the Architecture B main-program pattern.
@@ -42696,7 +42696,7 @@ If you''re just running the Hermes Agent and want to use Docker, see `website/do
 | `docker/s6-rc.d/dashboard/run` | Conditional service — `exec sleep infinity` unless `HERMES_DASHBOARD` is truthy. |
 | `docker/entrypoint.sh` | Back-compat shim that `exec`s the stage2 hook. External scripts that hard-coded the old entrypoint path still work. |
 | `hermes_cli/service_manager.py` | `S6ServiceManager`: `register_profile_gateway`, `unregister_profile_gateway`, `start/stop/restart/is_running`, `list_profile_gateways`. |
-| `hermes_cli/container_boot.py` | `recon','.simplicio\skills\hermes-s6-container-supervision\SKILL.md','2411e4362f3b2bcb80d89c488921c427d7b35def1485f6c01263a01a1503ef57','skill,simplicio,coding',1.3);
+| `hermes_cli/container_boot.py` | `recon','.simplicio-loop\skills\hermes-s6-container-supervision\SKILL.md','2411e4362f3b2bcb80d89c488921c427d7b35def1485f6c01263a01a1503ef57','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:himalaya','project_skill','skill://simplicio-runtime/himalaya','skill: himalaya','---
 name: himalaya
 description: "Himalaya CLI: IMAP/SMTP email from terminal."
@@ -42827,7 +42827,7 @@ List emails in a specific folder:
 himalaya envelope list --folder "Sent"
 ```
 
-List wit','.simplicio\skills\himalaya\SKILL.md','0fbb4442907c2df13cf35235f1d703b48b181f9020a17793f273af7b76304f4e','skill,simplicio,coding',1.3);
+List wit','.simplicio-loop\skills\himalaya\SKILL.md','0fbb4442907c2df13cf35235f1d703b48b181f9020a17793f273af7b76304f4e','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:honcho','project_skill','skill://simplicio-runtime/honcho','skill: honcho','---
 name: honcho
 description: Configure and use Honcho memory with Hermes -- cross-session user modeling, multi-profile peer isolation, observation config, dialectic reasoning, session summaries, and context budget enforcement. Use when setting up Honcho, troubleshooting memory, managing profiles with Honcho peers, or tuning observation, recall, and dialectic settings.
@@ -42937,7 +42937,7 @@ Or use the shorthand presets:
 
 | Preset | User | AI | Use case |
 |--------|------|----|----------|
-| `"directional"` (default) | me:on, others:on | me:on, others:','.simplicio\skills\honcho\SKILL.md','170d69331e733c8f9786f661b98656e568dabfe9108dd8cc904287c8c01619fe','skill,simplicio,coding',1.3);
+| `"directional"` (default) | me:on, others:on | me:on, others:','.simplicio-loop\skills\honcho\SKILL.md','170d69331e733c8f9786f661b98656e568dabfe9108dd8cc904287c8c01619fe','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:huggingface-hub','project_skill','skill://simplicio-runtime/huggingface-hub','skill: huggingface-hub','---
 name: huggingface-hub
 description: "HuggingFace hf CLI: search/download/upload models, datasets."
@@ -43019,7 +43019,7 @@ The `hf` command is the modern command-line interface for interacting with the H
 ### Extensions & Skills
 *   **Extensions:** Extend CLI functionality via GitHub repositories using `hf extensions install REPO_ID`.
 *   **Skills:** Manage AI assistant skills with `hf skills add`.
-','.simplicio\skills\huggingface-hub\SKILL.md','10d5bdf26e08ce4728923d8321493d1d18f7413f3a621e64c8feae6263cfe54c','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\huggingface-hub\SKILL.md','10d5bdf26e08ce4728923d8321493d1d18f7413f3a621e64c8feae6263cfe54c','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:huggingface-tokenizers','project_skill','skill://simplicio-runtime/huggingface-tokenizers','skill: huggingface-tokenizers','---
 name: huggingface-tokenizers
 description: Fast tokenizers optimized for research and production. Rust-based implementation tokenizes 1GB in <20 seconds. Supports BPE, WordPiece, and Unigram algorithms. Train custom vocabularies, track alignments, handle padding/truncation. Integrates seamlessly with transformers. Use when you need high-performance tokenization or custom tokenizer training.
@@ -43167,7 +43167,7 @@ tokenizer.train(files=["data.txt"], trainer=trainer)
 - Flexible vocabulary size
 - Good for morphologically rich languages
 
-**Trade-off','.simplicio\skills\huggingface-tokenizers\SKILL.md','0f3674467f430fc1f8707d7ee72ed9e61cfed35650df5c3b6d1015d362b72d63','skill,simplicio,coding',1.3);
+**Trade-off','.simplicio-loop\skills\huggingface-tokenizers\SKILL.md','0f3674467f430fc1f8707d7ee72ed9e61cfed35650df5c3b6d1015d362b72d63','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:humanizer','project_skill','skill://simplicio-runtime/humanizer','skill: humanizer','---
 name: humanizer
 description: "Humanize text: strip AI-isms and add real voice."
@@ -43238,7 +43238,7 @@ If the user provides a writing sample (their own previous writing), analyze it b
 3. **When no sample is provided,** fall back to the default behavior (natural, varied, opinionated voice from the PERSONALITY AND SOUL section below).
 
 ### How to provide a sample
-- Inline: "Humanize this text. Here''s a sample of my writing for voice m','.simplicio\skills\humanizer\SKILL.md','60b419af3f767c4f20ab24fbce48723562e7efd178af230ee7549ca38a6603ae','skill,simplicio,content',1.3);
+- Inline: "Humanize this text. Here''s a sample of my writing for voice m','.simplicio-loop\skills\humanizer\SKILL.md','60b419af3f767c4f20ab24fbce48723562e7efd178af230ee7549ca38a6603ae','skill,simplicio,content',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:hyperframes:skills','project_skill','skill://simplicio-runtime/hyperframes','skill: hyperframes','---
 name: hyperframes
 description: Create HTML-based video compositions, animated title cards, social overlays, captioned talking-head videos, audio-reactive visuals, and shader transitions using HyperFrames. HTML is the source of truth for video. Use when the user wants a rendered MP4/WebM from an HTML composition, wants to animate text/logos/charts over media, needs captions synced to audio, wants TTS narration, or wants to convert a website into a video.
@@ -43319,7 +43319,7 @@ Before touching code, articulate at a high level:
 
 **Visual Identity Gate (HARD-GATE).** Before writing ANY composition HTML, a visual identity must be defined. Do NOT write compositions with default or generic colors (`#333`, `#3b82f6`, `Roboto` are tells that this step was skipped). Check in order:
 
-1. **`DESIGN.md` at project root?** → Use its exact colors, fonts, mo','.simplicio\skills\hyperframes\SKILL.md','e8b25f40abdd4e24bfa43bfd262eef51f6608a593c1d40d80200c128fbcafc59','skill,simplicio,video',1.3);
+1. **`DESIGN.md` at project root?** → Use its exact colors, fonts, mo','.simplicio-loop\skills\hyperframes\SKILL.md','e8b25f40abdd4e24bfa43bfd262eef51f6608a593c1d40d80200c128fbcafc59','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:hyperframes-cli:skills','project_skill','skill://simplicio-runtime/hyperframes-cli','skill: hyperframes-cli','---
 name: hyperframes-cli
 description: HyperFrames CLI dev loop — `npx hyperframes` for scaffolding (init), validation (lint, inspect), preview, render, and environment troubleshooting (doctor, browser, info, upgrade). Use when running any of these commands or troubleshooting the HyperFrames build/render environment. For asset preprocessing commands (`tts`, `transcribe`, `remove-background`), invoke the `hyperframes-media` skill instead.
@@ -43399,7 +43399,7 @@ npx hyperframes preview --port 4567       # custom port (default 3002)
 Hot-reloads on file changes. Opens the studio in your browser automatically.
 
 When handing a project back to the user, use the Studio project URL, not the
-source `index.','.simplicio\skills\hyperframes-cli\SKILL.md','097f0f414f011e670d0f4d88a6aea2be1cb12a85a834f566cda81f8df8742bb2','skill,simplicio,video',1.3);
+source `index.','.simplicio-loop\skills\hyperframes-cli\SKILL.md','097f0f414f011e670d0f4d88a6aea2be1cb12a85a834f566cda81f8df8742bb2','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:hyperframes-media:skills','project_skill','skill://simplicio-runtime/hyperframes-media','skill: hyperframes-media','---
 name: hyperframes-media
 description: Asset preprocessing for HyperFrames compositions — text-to-speech narration (Kokoro), audio/video transcription (Whisper), and background removal for transparent overlays (u2net). Use when generating voiceover from text, transcribing speech for captions, removing the background from a video or image to use as a transparent overlay, choosing a TTS voice or whisper model, or chaining these (TTS → transcribe → captions). Each command downloads its own model on first run.
@@ -43479,7 +43479,7 @@ npx hyperframes transcribe openai-response.json
 
 **Default model is `small`, not `small.en`.**
 
-##','.simplicio\skills\hyperframes-media\SKILL.md','fa521bb95cfc3b83ab7395f0ad54b4cb1802ca7cb0fd53c4fc570081aec92815','skill,simplicio,video',1.3);
+##','.simplicio-loop\skills\hyperframes-media\SKILL.md','fa521bb95cfc3b83ab7395f0ad54b4cb1802ca7cb0fd53c4fc570081aec92815','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:hyperframes-registry:skills','project_skill','skill://simplicio-runtime/hyperframes-registry','skill: hyperframes-registry','---
 name: hyperframes-registry
 description: Install and wire registry blocks and components into HyperFrames compositions. Use when running hyperframes add, installing a block or component, wiring an installed item into index.html, or working with hyperframes.json. Covers the add command, install locations, block sub-composition wiring, component snippet merging, and registry discovery.
@@ -43581,7 +43581,7 @@ Browse available items:
 curl -s https://raw.githubusercontent.com/heygen-com/hyperframes/main/registry/registry.json
 ```
 
-Each item''s `registry-item.json` contains: name, type, title, description, t','.simplicio\skills\hyperframes-registry\SKILL.md','136a59faa28820ff9be31b8fb463e6bd1ef7ae4e44a163127b82e303095c69ca','skill,simplicio,video',1.3);
+Each item''s `registry-item.json` contains: name, type, title, description, t','.simplicio-loop\skills\hyperframes-registry\SKILL.md','136a59faa28820ff9be31b8fb463e6bd1ef7ae4e44a163127b82e303095c69ca','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:hyperliquid','project_skill','skill://simplicio-runtime/hyperliquid','skill: hyperliquid','---
 name: hyperliquid
 description: Hyperliquid market data, account history, trade review.
@@ -43709,7 +43709,7 @@ python3 ~/.hermes/skills/blockchain/hyperliquid/scripts/hyperliquid_client.py \
 Use when asked about book depth, near-term liquidity, or potential market
 impact of a large order.
 
-###','.simplicio\skills\hyperliquid\SKILL.md','22a990eafa5f89e6b6ad50a40b2b9b5215bc9ea9e5c047d23f0949d3fb1e74fe','skill,simplicio,coding',1.3);
+###','.simplicio-loop\skills\hyperliquid\SKILL.md','22a990eafa5f89e6b6ad50a40b2b9b5215bc9ea9e5c047d23f0949d3fb1e74fe','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:imessage','project_skill','skill://simplicio-runtime/imessage','skill: imessage','---
 name: imessage
 description: Send and receive iMessages/SMS via the imsg CLI on macOS.
@@ -43812,7 +43812,7 @@ imsg chats --limit 20 --json | jq ''.[] | select(.displayName | contains("Mom"))
 # 3. Send after confirmation
 imsg send --to "+1555123456" --text "I''ll be late"
 ```
-','.simplicio\skills\imessage\SKILL.md','bc68b1648e301409bc25b1084ec26766213ca9f3c1b2fd3d3d6ebe3dbde9e967','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\imessage\SKILL.md','bc68b1648e301409bc25b1084ec26766213ca9f3c1b2fd3d3d6ebe3dbde9e967','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:instructor','project_skill','skill://simplicio-runtime/instructor','skill: instructor','---
 name: instructor
 description: Extract structured data from LLM responses with Pydantic validation, retry failed extractions automatically, parse complex JSON with type safety, and stream partial results with Instructor - battle-tested structured output library
@@ -43983,7 +43983,7 @@ from enum import Enum
 class Sentiment(str, Enum):
     POSITIVE = "positive"
     NEGATIVE = "negative"
-    NEUT','.simplicio\skills\instructor\SKILL.md','adf6964496eb14b886766e0ff0333a9a228fc9e30b6c5e38e759da09f731d4d4','skill,simplicio,orchestration',1.3);
+    NEUT','.simplicio-loop\skills\instructor\SKILL.md','adf6964496eb14b886766e0ff0333a9a228fc9e30b6c5e38e759da09f731d4d4','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:jira-task-runner','project_skill','skill://simplicio-runtime/jira-task-runner','skill: jira-task-runner','---
 name: jira-task-runner
 description: "Jira: list assigned issues, execute repo work, collect evidence, and report status back."
@@ -44100,7 +44100,7 @@ For every issue, produce a durable evidence bundle:
 Use a concise comment body:
 
 ```text
-Simplicio execution','.simplicio\skills\jira-task-runner\SKILL.md','a7eb041a6966ea7541dfa758c814960d0f0f39118b08adf1001cdfcae6047a71','skill,simplicio,coding',1.3);
+Simplicio execution','.simplicio-loop\skills\jira-task-runner\SKILL.md','a7eb041a6966ea7541dfa758c814960d0f0f39118b08adf1001cdfcae6047a71','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:jupyter-live-kernel','project_skill','skill://simplicio-runtime/jupyter-live-kernel','skill: jupyter-live-kernel','---
 name: jupyter-live-kernel
 description: "Iterative Python via live Jupyter kernel (hamelnb)."
@@ -44241,7 +44241,7 @@ uv run "$SCRIPT" restart-run-all --path <notebook.ipynb> --save-outputs --compac
 1. **First execution after server start may timeout** — the kernel needs a moment
    to initialize. If you get a timeout, just retry.
 
-2. **The kernel Python is JupyterLab''s Python** — pac','.simplicio\skills\jupyter-live-kernel\SKILL.md','17ce757cb55ce320470d4942e184e2bf2004910b252f4a3a6f09eadf235cced9','skill,simplicio,coding',1.3);
+2. **The kernel Python is JupyterLab''s Python** — pac','.simplicio-loop\skills\jupyter-live-kernel\SKILL.md','17ce757cb55ce320470d4942e184e2bf2004910b252f4a3a6f09eadf235cced9','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:kanban-orchestrator','project_skill','skill://simplicio-runtime/kanban-orchestrator','skill: kanban-orchestrator','---
 name: kanban-orchestrator
 description: Decomposition playbook + anti-temptation rules for an orchestrator profile routing work through Kanban. The "don''t do the work yourself" rule and the basic lifecycle are auto-injected into every kanban worker''s system prompt; this skill is the deeper playbook when you''re specifically playing the orchestrator role.
@@ -44296,7 +44296,7 @@ Your job description says "route, don''t execute." The rules that enforce that:
 - **Split multi-lane requests before creating cards.** A user prompt can contain several independent workstreams. Extract those lanes first, then create one card per lane instead of bundling unrelated work into a single implementer card.
 - **Run independent lanes in parallel.** If two cards do not need each other''s output, leave them unlinked so the dispatcher can fan them out. Link only true data dependencies.
 - **Never create dependent work as independent ready cards.** If a card must wait for another card, pass `parents=[...]` in the original `kanban_create` call. Do not create it first and link it later, and do not rely on prose like "wait for T1" inside the body.
-- **If no speciali','.simplicio\skills\kanban-orchestrator\SKILL.md','1ffdd34190fc5017fe37b02aea9dd0b167d93f49fb9c76452339e1e1b3f1553d','skill,simplicio,orchestration',1.3);
+- **If no speciali','.simplicio-loop\skills\kanban-orchestrator\SKILL.md','1ffdd34190fc5017fe37b02aea9dd0b167d93f49fb9c76452339e1e1b3f1553d','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:kanban-video-orchestrator','project_skill','skill://simplicio-runtime/kanban-video-orchestrator','skill: kanban-video-orchestrator','---
 name: kanban-video-orchestrator
 description: Plan, set up, and monitor a multi-agent video production pipeline backed by Hermes Kanban. Use when the user wants to make ANY video — narrative film, product/marketing, music video, explainer, ASCII/terminal art, abstract/generative loop, comic, 3D, real-time/installation — and the work warrants decomposition into specialized profiles (writer, designer, animator, renderer, voice, editor, etc.) coordinated through a kanban board. Performs adaptive discovery to scope the brief, designs an appropriate team for the requested style, generates the setup script that creates Hermes profiles + initial kanban task, then helps monitor execution and intervene when tasks stall or fail. Routes scenes to whichever Hermes rendering / audio / design skill fits each beat (`ascii-video`, `manim-video`, `p5js`, `comfyui`, `touchdesigner-mcp`, `blender-mcp`, `pixel-art`, `baoyu-comic`, `claude-design`, `excalidraw`, `songsee`, `heartmula`, …) plus external APIs for TTS, image-gen, and image-to-video as needed.
@@ -44358,7 +44358,7 @@ start with three questions to identify the broad shape:
 - **What aspect ratio + target platform?** (1:1 / 9:16 / 16:9; X, IG, YouTube, internal, etc.)
 
 From the answer, classify the style category. The style determines which
-follow-up questions to ask. **Do not ask all questions','.simplicio\skills\kanban-video-orchestrator\SKILL.md','ec60f6bdd2183af02f511dc19b486c8df7d0840c384178d340ddde602c5cfbd6','skill,simplicio,video',1.3);
+follow-up questions to ask. **Do not ask all questions','.simplicio-loop\skills\kanban-video-orchestrator\SKILL.md','ec60f6bdd2183af02f511dc19b486c8df7d0840c384178d340ddde602c5cfbd6','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:kanban-worker','project_skill','skill://simplicio-runtime/kanban-worker','skill: kanban-worker','---
 name: kanban-worker
 description: Pitfalls, examples, and edge cases for Hermes Kanban workers. The lifecycle itself is auto-injected into every worker''s system prompt as KANBAN_GUIDANCE (from agent/prompt_builder.py); this skill is what you load when you want deeper detail on specific scenarios.
@@ -44437,7 +44437,7 @@ Use `kanban_complete` only when the task is genuinely terminal — e.g. a one-li
 kanban_complete(
     summary="3 competing libraries reviewed; vLLM wins on throughput, SGLang on latency, Tensorrt-LLM on memory efficiency",
     metadata={
-        "sources_','.simplicio\skills\kanban-worker\SKILL.md','2dd4eb9a32578954416899965167aa0a7a0604ceb1f75fc5130daae5c6745ed5','skill,simplicio,coding',1.3);
+        "sources_','.simplicio-loop\skills\kanban-worker\SKILL.md','2dd4eb9a32578954416899965167aa0a7a0604ceb1f75fc5130daae5c6745ed5','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:lambda-labs','project_skill','skill://simplicio-runtime/lambda-labs','skill: lambda-labs','---
 name: lambda-labs-gpu-cloud
 description: Reserved and on-demand GPU cloud instances for ML training and inference. Use when you need dedicated GPU instances with simple SSH access, persistent filesystems, or high-performance multi-node clusters for large-scale training.
@@ -44597,7 +44597,7 @@ with lambda_cloud_client.ApiClient(configuration) as api_client:
 
     # Get available instance types
     types = api.instance_types()
-    for name, info in types.data.ite','.simplicio\skills\lambda-labs\SKILL.md','a0e70622f8e1766537095e44268cfbec46191bce36d1ab30211f9b7e6e9e18e4','skill,simplicio,orchestration',1.3);
+    for name, info in types.data.ite','.simplicio-loop\skills\lambda-labs\SKILL.md','a0e70622f8e1766537095e44268cfbec46191bce36d1ab30211f9b7e6e9e18e4','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:lbo-model','project_skill','skill://simplicio-runtime/lbo-model','skill: lbo-model','---
 name: lbo-model
 description: Build leveraged buyout models in Excel — sources & uses, debt schedule, cash sweep, exit multiple, IRR/MOIC sensitivity. Pairs with excel-author. Use for PE screening, sponsor-case valuation, or illustrative LBO in a pitch.
@@ -44652,7 +44652,7 @@ Use Python/openpyxl. Write formula strings (`ws["D20"] = "=B5*B6"`), then run th
 ### Fill Color Palette — Professional Blues & Greys (Default unless user/template specifies otherwise)
 * **Keep it minimal** — only use blues and greys for cell fills. Do NOT introduce greens, yellows, reds, or multiple accents. A professional LBO model uses restraint.
 * **Default fill palette:**
-  * **Section headers** (Sources & Uses, Operating Model, etc.): Dark blue `#1F4E79` with white','.simplicio\skills\lbo-model\SKILL.md','9591c893fd7cfc325c8bfa2068dc3d1822ede364e16d864116b822ebf1b06bd7','skill,simplicio,coding',1.3);
+  * **Section headers** (Sources & Uses, Operating Model, etc.): Dark blue `#1F4E79` with white','.simplicio-loop\skills\lbo-model\SKILL.md','9591c893fd7cfc325c8bfa2068dc3d1822ede364e16d864116b822ebf1b06bd7','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:llava','project_skill','skill://simplicio-runtime/llava','skill: llava','---
 name: llava
 description: Large Language and Vision Assistant. Enables visual instruction tuning and image-based conversations. Combines CLIP vision encoder with Vicuna/LLaMA language models. Supports multi-turn image chat, visual question answering, and instruction following. Use for vision-language chatbots or image understanding tasks. Best for conversational image analysis.
@@ -44803,7 +44803,7 @@ python -m llava.serve.gradio_web_server \
 conv = conv_templates["llava_v1"].copy()
 
 # Turn 1
-conv.append_message(conv.ro','.simplicio\skills\llava\SKILL.md','0b303a5bd0437c8b33b34ffc7c367dbb3e83860feb18852f8468ec9c260adc98','skill,simplicio,coding',1.3);
+conv.append_message(conv.ro','.simplicio-loop\skills\llava\SKILL.md','0b303a5bd0437c8b33b34ffc7c367dbb3e83860feb18852f8468ec9c260adc98','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:llm-verification','project_skill','skill://simplicio-runtime/llm-verification','skill: llm-verification','---
 name: llm-verification
 description: verificação independente e adversarial de uma task DEPOIS que o DoD está todo verde, antes de declarar "feito"; ativa ao fechar qualquer task técnica, ao responder "deu ok?" / "verifica de novo", ou quando alguém confunde "verde no DoD" com "concluído de verdade"
@@ -44878,7 +44878,7 @@ Registro: 1 bug real (string vazia) que o golden-path-only não pegou.
 
 - Esta skill é a operacionalização do item de DoD "Verificação independente/adversarial pós-verde" (ver `AGENTS.md` / `CLAUDE.md`).
 - Última revisão: 2026-05-27.
-','.simplicio\skills\llm-verification\SKILL.md','e793ae6a439c63fa6083b8a8bb831e3466ed5b44d54a77e5db48f2de538df2cc','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\llm-verification\SKILL.md','e793ae6a439c63fa6083b8a8bb831e3466ed5b44d54a77e5db48f2de538df2cc','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:llm-wiki:skills','project_skill','skill://simplicio-runtime/llm-wiki','skill: llm-wiki','---
 name: llm-wiki
 description: "Karpathy''s LLM Wiki: build/query interlinked markdown KB."
@@ -44984,7 +44984,7 @@ When the user asks to create or start a wiki:
 3. Ask the user what domain the wiki covers — be specific
 4. Write `SCHEMA.md` customized to the domain (see template below)
 5. Write initial `index.md` with sectioned header
-6. Write initial `log.md` with crea','.simplicio\skills\llm-wiki\SKILL.md','4655a95b88fef2a3ebece85a96bc21e0f029fd850e63340493085fd4e5f87994','skill,simplicio,coding',1.3);
+6. Write initial `log.md` with crea','.simplicio-loop\skills\llm-wiki\SKILL.md','4655a95b88fef2a3ebece85a96bc21e0f029fd850e63340493085fd4e5f87994','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:lottie','project_skill','skill://simplicio-runtime/lottie','skill: lottie','---
 name: lottie
 description: Lottie and dotLottie adapter patterns for HyperFrames. Use when embedding lottie-web JSON animations, .lottie files, @lottiefiles/dotlottie-web players, registering instances on window.__hfLottie, or making After Effects exports deterministic in HyperFrames.
@@ -45097,7 +45097,7 @@ npx hyperframes validate
 - lottie-web by Airbnb: https://github.com/airbnb/lottie-web
 - lottie-web `loadAnimation` options: https://github.com/airbnb/lottie-web/wiki/loadAnimation-options
 - dotLottie web player methods by LottieFiles: https://developers.lottiefiles.com/docs/dotlottie-player/dotlottie-web/methods
-','.simplicio\skills\lottie\SKILL.md','35551db7646402f60c9622d64534b59a9a4aeaecf63253142bb295b4f6f34d94','skill,simplicio,video',1.3);
+','.simplicio-loop\skills\lottie\SKILL.md','35551db7646402f60c9622d64534b59a9a4aeaecf63253142bb295b4f6f34d94','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:macos-computer-use','project_skill','skill://simplicio-runtime/macos-computer-use','skill: macos-computer-use','---
 name: macos-computer-use
 description: |
@@ -45223,7 +45223,7 @@ computer_use(action="drag", from_element=3, to_element=17)
 For a rubber-band selection on empty canvas, use coordinates:
 
 ```
-compu','.simplicio\skills\macos-computer-use\SKILL.md','13495469953451eebf320fe78a488a21f88f798fc0a548fa808b8517a31493df','skill,simplicio,coding',1.3);
+compu','.simplicio-loop\skills\macos-computer-use\SKILL.md','13495469953451eebf320fe78a488a21f88f798fc0a548fa808b8517a31493df','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:manim-video','project_skill','skill://simplicio-runtime/manim-video','skill: manim-video','---
 name: manim-video
 description: "Manim CE animations: 3Blue1Brown math/algo videos."
@@ -45289,7 +45289,7 @@ PLAN --> CODE --> RENDER --> STITCH --> AUDIO (optional) --> REVIEW
 1. **PLAN** — Write `plan.md` with narrative arc, scene list, visual elements, color palette, voiceover script
 2. **CODE** — Write `script.py` with one class per scene, each independently renderable
 3. **RENDER** — `manim -ql script.py Scene1 Scene2 ...` for draft, `-qh` for production
-4. **STITCH** — ffmpeg concat of scene clips i','.simplicio\skills\manim-video\SKILL.md','46d68d8d8633383e2d5c5f4895666791dddeef324839f94b53b963e26b315959','skill,simplicio,video',1.3);
+4. **STITCH** — ffmpeg concat of scene clips i','.simplicio-loop\skills\manim-video\SKILL.md','46d68d8d8633383e2d5c5f4895666791dddeef324839f94b53b963e26b315959','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:maps','project_skill','skill://simplicio-runtime/maps','skill: maps','---
 name: maps
 description: "Geocode, POIs, routes, timezones via OpenStreetMap/OSRM."
@@ -45410,7 +45410,7 @@ maneuver type (turn, depart, arrive, etc.).
 ```bash
 python3 $MAPS timezone 48.8584 2.2945
 python3 $MAPS timezone 35.6762 139.6503
-`','.simplicio\skills\maps\SKILL.md','09e3f39af06f3ce387a1ec8b7ce460ff2610b37a4fb437f52eb18720fb8130c6','skill,simplicio,coding',1.3);
+`','.simplicio-loop\skills\maps\SKILL.md','09e3f39af06f3ce387a1ec8b7ce460ff2610b37a4fb437f52eb18720fb8130c6','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:mcporter','project_skill','skill://simplicio-runtime/mcporter','skill: mcporter','---
 name: mcporter
 description: Use the mcporter CLI to list, configure, auth, and call MCP servers/tools directly (HTTP or stdio), including ad-hoc servers, config edits, and CLI/type generation.
@@ -45534,7 +45534,7 @@ mcporter emit-ts <server> --mode types
 - Use `--output json` for structured output that''s easier to parse
 - Ad-hoc servers (HTTP URL or `--stdio` command) work without any config — useful for one-off calls
 - OAuth auth may require interactive browser flow — use `terminal(command="mcporter auth <server>", pty=true)` if needed
-','.simplicio\skills\mcporter\SKILL.md','cfa853b5deabe6b170545bb33337500f22d91a30c9e5ea59456b562fd09d5e98','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\mcporter\SKILL.md','cfa853b5deabe6b170545bb33337500f22d91a30c9e5ea59456b562fd09d5e98','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:meme-generation','project_skill','skill://simplicio-runtime/meme-generation','skill: meme-generation','---
 name: meme-generation
 description: Generate real meme images by picking a template and overlaying text with Pillow. Produces actual .png meme files.
@@ -45623,7 +45623,7 @@ Use this when no classic template fits, or when the user wants something origina
    ```
    vision_analyze(image_url="/tmp/meme.png", question="Is the text legible and well-positioned? Does the meme work visually?")
    ```
-   If the vision model flags issues (text hard to read, bad ','.simplicio\skills\meme-generation\SKILL.md','0e2487dc0bfa09c24c2862aa73004237ec2f0c2131f87e03f8155bca774870ba','skill,simplicio,coding',1.3);
+   If the vision model flags issues (text hard to read, bad ','.simplicio-loop\skills\meme-generation\SKILL.md','0e2487dc0bfa09c24c2862aa73004237ec2f0c2131f87e03f8155bca774870ba','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:memento-flashcards','project_skill','skill://simplicio-runtime/memento-flashcards','skill: memento-flashcards','---
 name: memento-flashcards
 description: >-
@@ -45710,7 +45710,7 @@ Not every factual statement should become a flashcard. Use this three-tier check
 2. **Implicit intent** — the user sends a factual statement without mentioning flashcards (e.g. "The speed of light is 299,792 km/s") → **ask first**: "Want me to save this as a Memento flashcard?" Only create the card if the user confirms.
 3. **No intent** — the message is a coding task, a question, instructions, normal conversation, or anything that is clearly not a fact to memorize → **do NOT activate this skill at all**. Let other skills or default behavior handle it.
 
-When activation is confirmed (tier 1 directly, tier 2 ','.simplicio\skills\memento-flashcards\SKILL.md','b4a9a4f3531987f972551ad91a6eca5f35db21a1a8c61b3bc5455f500919f0ce','skill,simplicio,content',1.3);
+When activation is confirmed (tier 1 directly, tier 2 ','.simplicio-loop\skills\memento-flashcards\SKILL.md','b4a9a4f3531987f972551ad91a6eca5f35db21a1a8c61b3bc5455f500919f0ce','skill,simplicio,content',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:merger-model','project_skill','skill://simplicio-runtime/merger-model','skill: merger-model','---
 name: merger-model
 description: Build accretion/dilution (merger) models in Excel — pro-forma P&L, synergies, financing mix, EPS impact. Pairs with excel-author. Use for M&A pitches, board materials, or deal evaluation.
@@ -45836,7 +45836,7 @@ Calculate the minimum synergies needed for the deal to be EPS-neutral in Year 1.
 - Stock deals: use acquirer''s current price for exchange ratio, note dilution from new shares
 - Include purchase price allocation — goodwill and intangible amortization matter for GAAP EPS
 - Synergy phase-in is critical — Year 1 is often only 25-50% of run-rate synergies
-- Don''t forget foregone interest i','.simplicio\skills\merger-model\SKILL.md','3cfae930455746d90b7f2f0c1ea338460ce778a472f0d3e436f208ee26ba8f5c','skill,simplicio,coding',1.3);
+- Don''t forget foregone interest i','.simplicio-loop\skills\merger-model\SKILL.md','3cfae930455746d90b7f2f0c1ea338460ce778a472f0d3e436f208ee26ba8f5c','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:minecraft-modpack-server','project_skill','skill://simplicio-runtime/minecraft-modpack-server','skill: minecraft-modpack-server','---
 name: minecraft-modpack-server
 description: "Host modded Minecraft servers (CurseForge, Modrinth)."
@@ -45967,7 +45967,7 @@ Check with: `sudo ufw status | grep 25565`
 
 ### 8. Create Launch Script
 ```bash
-cat > ~/start-minecraf','.simplicio\skills\minecraft-modpack-server\SKILL.md','58948be8715e7eb785833b3181b07a547fd4757bdb0d3114f02ef0e10ff85bd3','skill,simplicio,coding',1.3);
+cat > ~/start-minecraf','.simplicio-loop\skills\minecraft-modpack-server\SKILL.md','58948be8715e7eb785833b3181b07a547fd4757bdb0d3114f02ef0e10ff85bd3','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:modal','project_skill','skill://simplicio-runtime/modal','skill: modal','---
 name: modal-serverless-gpu
 description: Serverless GPU cloud platform for running ML workloads. Use when you need on-demand GPU access without infrastructure management, deploying ML models as APIs, or running batch jobs with automatic scaling.
@@ -46111,7 +46111,7 @@ def main():
 # Multiple GPUs (up to 8)
 @app.function(gpu="H100:4")
 
-','.simplicio\skills\modal\SKILL.md','ddb146766a795d9e13f6b73b5b8bf060ac4baf289e7f94618322d67364286bd8','skill,simplicio,orchestration',1.3);
+','.simplicio-loop\skills\modal\SKILL.md','ddb146766a795d9e13f6b73b5b8bf060ac4baf289e7f94618322d67364286bd8','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:nano-pdf','project_skill','skill://simplicio-runtime/nano-pdf','skill: nano-pdf','---
 name: nano-pdf
 description: "Edit PDF text/typos/titles via nano-pdf CLI (NL prompts)."
@@ -46164,7 +46164,7 @@ nano-pdf edit contract.pdf 2 "Change the client name from ''Acme Corp'' to ''Acm
 - Always verify the output PDF after editing (use `read_file` to check file size, or open it)
 - The tool uses an LLM under the hood — requires an API key (check `nano-pdf --help` for config)
 - Works well for text changes; complex layout modifications may need a different approach
-','.simplicio\skills\nano-pdf\SKILL.md','4243b329789c6d7fcea95749438228e5f8cbc0234cd44d2d72cd86f837bf1f35','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\nano-pdf\SKILL.md','4243b329789c6d7fcea95749438228e5f8cbc0234cd44d2d72cd86f837bf1f35','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:nemo-curator','project_skill','skill://simplicio-runtime/nemo-curator','skill: nemo-curator','---
 name: nemo-curator
 description: GPU-accelerated data curation for LLM training. Supports text/image/video/audio. Features fuzzy deduplication (16× faster), quality filtering (30+ heuristics), semantic deduplication, PII redaction, NSFW detection. Scales across GPUs with RAPIDS. Use for preparing high-quality training datasets, cleaning web data, or deduplicating large corpora.
@@ -46320,7 +46320,7 @@ pii_redactor = PIIRedactor(
     anonymize_action="replace"  # or "redact"
 )
 
-redacted ','.simplicio\skills\nemo-curator\SKILL.md','547554d3131520680cf715727b69e08455ed5319354a59c9df4ef65e3889a213','skill,simplicio,video',1.3);
+redacted ','.simplicio-loop\skills\nemo-curator\SKILL.md','547554d3131520680cf715727b69e08455ed5319354a59c9df4ef65e3889a213','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:neuroskill-bci','project_skill','skill://simplicio-runtime/neuroskill-bci','skill: neuroskill-bci','---
 name: neuroskill-bci
 description: >
@@ -46423,7 +46423,7 @@ npx neuroskill status --json
 ```
 
 **Always use `--json`** for reliable parsing. The default output is colorized
-human-readab','.simplicio\skills\neuroskill-bci\SKILL.md','dacfa0b7899a0a7e645b68f02c898c86d2d837d015f89b42b957e8dbd61de41e','skill,simplicio,video',1.3);
+human-readab','.simplicio-loop\skills\neuroskill-bci\SKILL.md','dacfa0b7899a0a7e645b68f02c898c86d2d837d015f89b42b957e8dbd61de41e','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:node-inspect-debugger','project_skill','skill://simplicio-runtime/node-inspect-debugger','skill: node-inspect-debugger','---
 name: node-inspect-debugger
 description: "Debug Node.js via --inspect + Chrome DevTools Protocol CLI."
@@ -46546,7 +46546,7 @@ const CDP = require(''chrome-remote-interface'');
   const client = await CDP({ port: 9229 });
   const { Debugger, Runtime } = client;
 
-  Debugger.paused(async ','.simplicio\skills\node-inspect-debugger\SKILL.md','7a01e3774442cff79989b8d3a030fe1ffb652ba095dfc5b0f09ad3947aec3054','skill,simplicio,coding',1.3);
+  Debugger.paused(async ','.simplicio-loop\skills\node-inspect-debugger\SKILL.md','7a01e3774442cff79989b8d3a030fe1ffb652ba095dfc5b0f09ad3947aec3054','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:notion','project_skill','skill://simplicio-runtime/notion','skill: notion','---
 name: notion
 description: "Notion API + ntn CLI: pages, databases, markdown, Workers."
@@ -46690,7 +46690,7 @@ ntn files create --external-url https://example.com/photo.png
 ntn files list
 ```
 
-Compare to the 3-step HTTP flow (create upload → ','.simplicio\skills\notion\SKILL.md','a6be213ffcfc72006e1f0e6419e2011e2ef2b52b15ee914d0848531e1cf2dec1','skill,simplicio,coding',1.3);
+Compare to the 3-step HTTP flow (create upload → ','.simplicio-loop\skills\notion\SKILL.md','a6be213ffcfc72006e1f0e6419e2011e2ef2b52b15ee914d0848531e1cf2dec1','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:obliteratus','project_skill','skill://simplicio-runtime/obliteratus','skill: obliteratus','---
 name: obliteratus
 description: "OBLITERATUS: abliterate LLM refusals (diff-in-means)."
@@ -46793,7 +46793,7 @@ obliteratus info <model_name>
 
 # Get telemetry-driven recommendation for best method & params
 obliteratus recommend <model_name>
-obliteratus recommend <mod','.simplicio\skills\obliteratus\SKILL.md','e9d26cee54055f31c768c8ea76cf7a418f7733bc13622d62ffc74d175e207575','skill,simplicio,coding',1.3);
+obliteratus recommend <mod','.simplicio-loop\skills\obliteratus\SKILL.md','e9d26cee54055f31c768c8ea76cf7a418f7733bc13622d62ffc74d175e207575','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:obsidian','project_skill','skill://simplicio-runtime/obsidian','skill: obsidian','---
 name: obsidian
 description: Read, search, create, and edit notes in the Obsidian vault.
@@ -46855,7 +46855,7 @@ Use `patch` for focused note changes when the current content gives you stable c
 ## Wikilinks
 
 Obsidian links notes with `[[Note Name]]` syntax. When creating notes, use these to link related content.
-','.simplicio\skills\obsidian\SKILL.md','d2d080f82893dac86190e3885720e27acb6730cbea8bbb1dd7c25aaa53231127','skill,simplicio,content',1.3);
+','.simplicio-loop\skills\obsidian\SKILL.md','d2d080f82893dac86190e3885720e27acb6730cbea8bbb1dd7c25aaa53231127','skill,simplicio,content',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:ocr-and-documents','project_skill','skill://simplicio-runtime/ocr-and-documents','skill: ocr-and-documents','---
 name: ocr-and-documents
 description: "Extract text from PDFs/scans (pymupdf, marker-pdf)."
@@ -46991,7 +46991,7 @@ import pymupdf
 doc = pymupdf.open("report.pdf")
 new = pymupdf.open()
 for i in range(5):
-    new.insert_pdf(doc, from_pag','.simplicio\skills\ocr-and-documents\SKILL.md','7d6a419320e917d3c512e642b67bba202d2d3d780769d687bfb27dca5862899e','skill,simplicio,coding',1.3);
+    new.insert_pdf(doc, from_pag','.simplicio-loop\skills\ocr-and-documents\SKILL.md','7d6a419320e917d3c512e642b67bba202d2d3d780769d687bfb27dca5862899e','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:one-three-one-rule','project_skill','skill://simplicio-runtime/one-three-one-rule','skill: one-three-one-rule','---
 name: one-three-one-rule
 description: >
@@ -47081,7 +47081,7 @@ Agent:
   Pros: Non-blocking; failed calls are tracked and replayable; scales well.
   Cons: Significant complexity increase; requires a queue backend; overkill for low-volume services.
 
-**Recommendation:** Option A.','.simplicio\skills\one-three-one-rule\SKILL.md','b899ee001a1caca821ded6a9f6680d9c1ba9bb914667e99a50a96c5e2072db12','skill,simplicio,coding',1.3);
+**Recommendation:** Option A.','.simplicio-loop\skills\one-three-one-rule\SKILL.md','b899ee001a1caca821ded6a9f6680d9c1ba9bb914667e99a50a96c5e2072db12','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:openclaw-migration','project_skill','skill://simplicio-runtime/openclaw-migration','skill: openclaw-migration','---
 name: openclaw-migration
 description: Migrate a user''s OpenClaw customization footprint into Hermes Agent. Imports Hermes-compatible memories, SOUL.md, command allowlists, user skills, and selected workspace assets from ~/.openclaw, then reports exactly what could not be migrated and why.
@@ -47168,7 +47168,7 @@ With `--migrate-secrets`, it will also import a small allowlisted set of Hermes-
 
 ## User interaction protocol
 
-Hermes CLI supports the `clarify` tool for interactive prompts, b','.simplicio\skills\openclaw-migration\SKILL.md','2e6e12ab9d6fecbffb7401b380c65c49bea66449b303bafc40e971d20b33b509','skill,simplicio,coding',1.3);
+Hermes CLI supports the `clarify` tool for interactive prompts, b','.simplicio-loop\skills\openclaw-migration\SKILL.md','2e6e12ab9d6fecbffb7401b380c65c49bea66449b303bafc40e971d20b33b509','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:opencode','project_skill','skill://simplicio-runtime/opencode','skill: opencode','---
 name: opencode
 description: "Delegate coding to OpenCode CLI (features, PR review)."
@@ -47300,7 +47300,7 @@ terminal(command="opencode -s ses_abc123", workdir="~/project", background=true,
 | `--agent <name>` | Choose OpenCode agent (build or plan) |
 | `--model provider/model` | Force specific model |
 | `--format json` | Machine-readable output/events |
-|','.simplicio\skills\opencode\SKILL.md','81c2044dad7f2ba989b7d97ef56ed32bbfea36060b1545cf8975da8f6c650e3f','skill,simplicio,coding',1.3);
+|','.simplicio-loop\skills\opencode\SKILL.md','81c2044dad7f2ba989b7d97ef56ed32bbfea36060b1545cf8975da8f6c650e3f','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:openhands','project_skill','skill://simplicio-runtime/openhands','skill: openhands','---
 name: openhands
 description: Delegate coding to OpenHands CLI (model-agnostic, LiteLLM).
@@ -47401,7 +47401,7 @@ Verified against `openhands --help` (CLI 1.16.0). Anything not in this table is 
 | `--last` | Resume most recent (with `--resume`). |
 | `--override-with-envs` | Apply `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` env vars. Without this, OpenHands uses `~/.openhands/settings.json` and ignores the env. |
 | `--exit-without-confirmation` | Don''t show the "are you sure" exit dialog. |
-| `--alwa','.simplicio\skills\openhands\SKILL.md','5237552f955df8343c89f82548456ea50297d6fb5c6c50f7e7eafcdb2c5b0aaa','skill,simplicio,coding',1.3);
+| `--alwa','.simplicio-loop\skills\openhands\SKILL.md','5237552f955df8343c89f82548456ea50297d6fb5c6c50f7e7eafcdb2c5b0aaa','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:openhue','project_skill','skill://simplicio-runtime/openhue','skill: openhue','---
 name: openhue
 description: "Control Philips Hue lights, scenes, rooms via OpenHue CLI."
@@ -47511,7 +47511,7 @@ openhue set room "Living Room" --off
 - Colors only work on color-capable bulbs (not white-only models)
 - Light and room names are case-sensitive — use `openhue get light` to check exact names
 - Works great with cron jobs for scheduled lighting (e.g. dim at bedtime, bright at wake)
-','.simplicio\skills\openhue\SKILL.md','550f94848d10ab82619db8fec240a4d2b792c33606fba5d391bf3a78bc1119e9','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\openhue\SKILL.md','550f94848d10ab82619db8fec240a4d2b792c33606fba5d391bf3a78bc1119e9','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:osint-investigation','project_skill','skill://simplicio-runtime/osint-investigation','skill: osint-investigation','---
 name: osint-investigation
 description: Public-records OSINT investigation framework — SEC EDGAR filings, USAspending contracts, Senate lobbying, OFAC sanctions, ICIJ offshore leaks, NYC property records (ACRIS), OpenCorporates registries, CourtListener court records, Wayback Machine archives, Wikipedia + Wikidata, GDELT news monitoring. Entity resolution across sources, cross-link analysis, timing correlation, evidence chains. Python stdlib only.
@@ -47596,7 +47596,7 @@ cat SKILL_DIR/references/sources/opencorporates.md  # global corporate registry
 cat SKILL_DIR/references/sources/courtlistener.md   # court records (federal + state)
 cat SKILL_DIR/references/sources/wayback.md         # Wayback Machine archives
 cat SKILL_DIR/references/sources/wikipedia.md       # Wikipedia + Wikidata
-cat SKILL_DIR/references/sources/gdelt.md          ','.simplicio\skills\osint-investigation\SKILL.md','830fce347d5b32d2a54325f1dcdf16129a212280c108086770d4ee63155e8eb0','skill,simplicio,coding',1.3);
+cat SKILL_DIR/references/sources/gdelt.md          ','.simplicio-loop\skills\osint-investigation\SKILL.md','830fce347d5b32d2a54325f1dcdf16129a212280c108086770d4ee63155e8eb0','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:oss-forensics','project_skill','skill://simplicio-runtime/oss-forensics','skill: oss-forensics','---
 name: oss-forensics
 description: |
@@ -47666,7 +47666,7 @@ Read these before every investigation step. Violating them invalidates the repor
 1. Create investigation working directory:
    ```bash
    mkdir investigation_$(echo "REPO_NAME" | tr ''/'' ''_'')
-   cd investigation_$(echo "REPO_NAME" | tr ''/'' ','.simplicio\skills\oss-forensics\SKILL.md','96cb1810ad2a174edc040de69e29d967bd4b640ef0656300ca4b8c801347b7ae','skill,simplicio,coding',1.3);
+   cd investigation_$(echo "REPO_NAME" | tr ''/'' ','.simplicio-loop\skills\oss-forensics\SKILL.md','96cb1810ad2a174edc040de69e29d967bd4b640ef0656300ca4b8c801347b7ae','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:p5js','project_skill','skill://simplicio-runtime/p5js','skill: p5js','---
 name: p5js
 description: "p5.js sketches: gen art, shaders, interactive, 3D."
@@ -47724,7 +47724,7 @@ Single self-contained HTML file per project. No build step required.
 |-------|------|---------|
 | Core | p5.js 1.11.3 (CDN) | Canvas rendering, math, transforms, event handling |
 | 3D | p5.js WebGL mode | 3D geometry, camera, lighting, GLSL shaders |
-| Audio | p5.sound.js (CDN) | FFT analysis, amplitude, mic input, ','.simplicio\skills\p5js\SKILL.md','8c65e7403f299b0b89921c1d2d75549c6b0ac21d2b9acac34fb2ed3ef16ebc3a','skill,simplicio,video',1.3);
+| Audio | p5.sound.js (CDN) | FFT analysis, amplitude, mic input, ','.simplicio-loop\skills\p5js\SKILL.md','8c65e7403f299b0b89921c1d2d75549c6b0ac21d2b9acac34fb2ed3ef16ebc3a','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:page-agent','project_skill','skill://simplicio-runtime/page-agent','skill: page-agent','---
 name: page-agent
 description: Embed alibaba/page-agent into your own web application — a pure-JavaScript in-page GUI agent that ships as a single <script> tag or npm package and lets end-users of your site drive the UI with natural language ("click login, fill username as John"). No Python, no headless browser, no extension required. Use this skill when the user is a web developer who wants to add an AI copilot to their SaaS / admin panel / B2B tool, make a legacy web app accessible via natural language, or evaluate page-agent against a local (Ollama) or cloud (Qwen / OpenAI / OpenRouter) LLM. NOT for server-side browser automation — point those users to Hermes'' built-in browser tool instead.
@@ -47806,7 +47806,7 @@ const agent = new PageAgent({
 agent.panel.show()
 
 // Or drive it programmatically:
-await agent.ex','.simplicio\skills\page-agent\SKILL.md','9ecb8f5bb47ce22ec328b0a67fcae7d05741d528183752c3290a7a45b0e22277','skill,simplicio,coding',1.3);
+await agent.ex','.simplicio-loop\skills\page-agent\SKILL.md','9ecb8f5bb47ce22ec328b0a67fcae7d05741d528183752c3290a7a45b0e22277','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:parallel-cli','project_skill','skill://simplicio-runtime/parallel-cli','skill: parallel-cli','---
 name: parallel-cli
 description: Optional vendor skill for Parallel CLI — agent-native web search, extraction, deep research, enrichment, FindAll, and monitoring. Prefer JSON output and non-interactive flows.
@@ -47951,7 +47951,7 @@ Commonly useful flags:
 Read from stdin when convenient:
 
 ```bash
-echo "What is the latest funding for Anthropic?" | parallel','.simplicio\skills\parallel-cli\SKILL.md','28d23c4e02deda724827d957e9224d205963eb401ec4e4751d7f5fb9f0ed717e','skill,simplicio,coding',1.3);
+echo "What is the latest funding for Anthropic?" | parallel','.simplicio-loop\skills\parallel-cli\SKILL.md','28d23c4e02deda724827d957e9224d205963eb401ec4e4751d7f5fb9f0ed717e','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:payments','project_skill','skill://simplicio-runtime/payments','skill: payments','---
 name: payments
 description: Create invoices/charges, check payment status, issue refunds, and reconcile statements across Stripe, PayPal, Mercado Pago, and PIX. Use when the user asks to charge a customer, create an invoice, check a payment, refund a transaction, or reconcile a date range.
@@ -48047,7 +48047,7 @@ payments:pix.qrcode <amount> --key <pix_key> [--merchant ...] [--city ...] [--tx
 ## Padrões
 
 - Toda saída é **JSON em stdout**; erros vão para stderr com exit code != 0.
-- Valores monetário','.simplicio\skills\payments\SKILL.md','f5096f0bc6f28cc490224b43770109dd84d4d7c9df3d1ab0933bd4ae5715f191','skill,simplicio,coding',1.3);
+- Valores monetário','.simplicio-loop\skills\payments\SKILL.md','f5096f0bc6f28cc490224b43770109dd84d4d7c9df3d1ab0933bd4ae5715f191','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:peft','project_skill','skill://simplicio-runtime/peft','skill: peft','---
 name: peft-fine-tuning
 description: Parameter-efficient fine-tuning for LLMs using LoRA, QLoRA, and 25+ methods. Use when fine-tuning large models (7B-70B) with limited GPU memory, when you need to train <1% of parameters with minimal accuracy loss, or for multi-adapter serving. HuggingFace''s official library integrated with transformers ecosystem.
@@ -48169,7 +48169,7 @@ model.save_pretrained("./lora-llama-adapter")
 from transformers import AutoModelForCausalLM, BitsAndBytesConfig
 from peft import get_peft_model, LoraConfig, prepare_model_for_kbit_training
 
-# 4-bit quantization ','.simplicio\skills\peft\SKILL.md','dd3b21d349380daa5b2b514065afdd45436e7ba341139a2af2752c68622b02b2','skill,simplicio,orchestration',1.3);
+# 4-bit quantization ','.simplicio-loop\skills\peft\SKILL.md','dd3b21d349380daa5b2b514065afdd45436e7ba341139a2af2752c68622b02b2','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:pinecone','project_skill','skill://simplicio-runtime/pinecone','skill: pinecone','---
 name: pinecone
 description: Managed vector database for production AI applications. Fully managed, auto-scaling, with hybrid search (dense + sparse), metadata filtering, and namespaces. Low latency (<100ms p95). Use for production RAG, recommendation systems, or semantic search at scale. Best for serverless, managed infrastructure.
@@ -48363,7 +48363,7 @@ filter = {"tags": {"$in": ["python", "ml"]}}
 ## Namespaces
 
 ```python
-# Partition data by namespace','.simplicio\skills\pinecone\SKILL.md','8316751ad470a4f131f1ef8b65ab9c50d32973f5e430ce3b99f6076f1d455f24','skill,simplicio,orchestration',1.3);
+# Partition data by namespace','.simplicio-loop\skills\pinecone\SKILL.md','8316751ad470a4f131f1ef8b65ab9c50d32973f5e430ce3b99f6076f1d455f24','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:pinggy-tunnel','project_skill','skill://simplicio-runtime/pinggy-tunnel','skill: pinggy-tunnel','---
 name: pinggy-tunnel
 description: Zero-install localhost tunnels over SSH via Pinggy.
@@ -48465,7 +48465,7 @@ echo $! > /tmp/pinggy-8000.pid
 
 `StrictHostKeyChecking=no` + `UserKnownHostsFile=/dev/null` skips the first-run host-key prompt. `ServerAliveInterval=30` keeps the SSH session from getting torn down by an idle NAT.
 
-### 3. Parse the UR','.simplicio\skills\pinggy-tunnel\SKILL.md','db99dceda97693e0125be1ecf3cbbc2f48d005eb02597429e7f6ac16e0f9e9a5','skill,simplicio,coding',1.3);
+### 3. Parse the UR','.simplicio-loop\skills\pinggy-tunnel\SKILL.md','db99dceda97693e0125be1ecf3cbbc2f48d005eb02597429e7f6ac16e0f9e9a5','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:pixel-art','project_skill','skill://simplicio-runtime/pixel-art','skill: pixel-art','---
 name: pixel-art
 description: "Pixel art w/ era palettes (NES, Game Boy, PICO-8)."
@@ -48578,7 +48578,7 @@ Named palettes live in `scripts/palettes.py` (see `references/palettes.md` for
 the complete list — 28 named palettes total). Any preset can be overridden:
 
 ```python
-pixel_art("in.png", "out.png", preset="snes", palette="PICO_8",','.simplicio\skills\pixel-art\SKILL.md','8163d0d8d1d97115ed90d6ea405210dbbcc15bab92360b63076fbc88d6d78fa1','skill,simplicio,video',1.3);
+pixel_art("in.png", "out.png", preset="snes", palette="PICO_8",','.simplicio-loop\skills\pixel-art\SKILL.md','8163d0d8d1d97115ed90d6ea405210dbbcc15bab92360b63076fbc88d6d78fa1','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:plan','project_skill','skill://simplicio-runtime/plan','skill: plan','---
 name: plan
 description: "Plan mode: write an actionable markdown plan to .hermes/plans/, no execution. Bite-sized tasks, exact paths, complete code."
@@ -48702,7 +48702,7 @@ Every plan MUST start with:
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For Hermes:** Use','.simplicio\skills\plan\SKILL.md','cb1a8c3dd5338bfe580aa514828b439d0860d21f09bde4d39bd80e39cccc4f38','skill,simplicio,coding',1.3);
+> **For Hermes:** Use','.simplicio-loop\skills\plan\SKILL.md','cb1a8c3dd5338bfe580aa514828b439d0860d21f09bde4d39bd80e39cccc4f38','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:playwright-e2e','project_skill','skill://simplicio-runtime/playwright-e2e','skill: playwright-e2e','---
 name: playwright-e2e
 description: escrever ou atualizar testes end-to-end com Playwright neste projeto, garantindo trace, screenshot, vídeo e asserções consistentes
@@ -48769,7 +48769,7 @@ Regra dura, sem exceção: nenhum PR fecha sem **trace + screenshot + video** sa
 ## Definition of Done
 
 - [ ] Spec roda local sem erro: `npx playwright test tests/e2e/<feature>.spec.ts`.
-- [ ] Cenários documentados: caminho feliz + ao menos 1 erro + 1 viewport alternat','.simplicio\skills\playwright-e2e\SKILL.md','6fd739e0498b912b79e6f22233c55df0798aad631a5572d9c133fd7ed2576a6d','skill,simplicio,coding',1.3);
+- [ ] Cenários documentados: caminho feliz + ao menos 1 erro + 1 viewport alternat','.simplicio-loop\skills\playwright-e2e\SKILL.md','6fd739e0498b912b79e6f22233c55df0798aad631a5572d9c133fd7ed2576a6d','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:pokemon-player','project_skill','skill://simplicio-runtime/pokemon-player','skill: pokemon-player','---
 name: pokemon-player
 description: "Play Pokemon via headless emulator + RAM reads."
@@ -48880,7 +48880,7 @@ intended. This is the MOST IMPORTANT step. Without vision you WILL get lost.
 - Take a screenshot every 2-4 movement steps
 - The RAM state tells you position and HP but NOT what is around you
 - Ledges, fences, signs, building doors, NPCs — only visible via screenshot
-- Ask the vision model specific questions: "wh','.simplicio\skills\pokemon-player\SKILL.md','2253fe5bc47621b31b7e0bd786e18234c250c3e94038617bf2c9970a0b775513','skill,simplicio,coding',1.3);
+- Ask the vision model specific questions: "wh','.simplicio-loop\skills\pokemon-player\SKILL.md','2253fe5bc47621b31b7e0bd786e18234c250c3e94038617bf2c9970a0b775513','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:polymarket','project_skill','skill://simplicio-runtime/polymarket','skill: polymarket','---
 name: polymarket
 description: "Query Polymarket: markets, prices, orderbooks, history."
@@ -48958,7 +48958,7 @@ Generous — unlikely to hit for normal usage:
 - Trading requires wallet-based crypto authentication (EIP-712 signatures)
 - Some new markets may have empty price history
 - Geographic restrictions apply to trading but read-only data is globally accessible
-','.simplicio\skills\polymarket\SKILL.md','becfa71e730b482c3f087c4de4071fd25f0feb475aec1293aee0b845c10fa190','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\polymarket\SKILL.md','becfa71e730b482c3f087c4de4071fd25f0feb475aec1293aee0b845c10fa190','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:popular-web-designs','project_skill','skill://simplicio-runtime/popular-web-designs','skill: popular-web-designs','---
 name: popular-web-designs
 description: 54 real design systems (Stripe, Linear, Vercel) as HTML/CSS.
@@ -49065,7 +49065,7 @@ substitute that preserves the design''s character. Common mappings:
 | CoinbaseDisplay/Sans | DM Sans | Geometric, trustworthy |
 | UberMove | DM Sans | Bold, tight |
 | HashiCorp Sans | Inter | Enterprise, neutral |
-| waldenburgNormal (Sanity) | Space ','.simplicio\skills\popular-web-designs\SKILL.md','d46b48297047a888d11c9ee7a4f3b6f70ea60dc776f7306cd41609bece840288','skill,simplicio,coding',1.3);
+| waldenburgNormal (Sanity) | Space ','.simplicio-loop\skills\popular-web-designs\SKILL.md','d46b48297047a888d11c9ee7a4f3b6f70ea60dc776f7306cd41609bece840288','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:powerpoint','project_skill','skill://simplicio-runtime/powerpoint','skill: powerpoint','---
 name: powerpoint
 description: "Create, read, edit .pptx decks, slides, notes, templates."
@@ -49160,7 +49160,7 @@ Choose colors that match your topic — don''t default to generic blue. Use thes
 - Half-bleed image (full left or right side) with content overlay
 
 **Data display:**
-','.simplicio\skills\powerpoint\SKILL.md','edad502ed9eaebd9a06026137e056c5afbe8049c9f9966263632ffb93f8c24b7','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\powerpoint\SKILL.md','edad502ed9eaebd9a06026137e056c5afbe8049c9f9966263632ffb93f8c24b7','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:pptx-author','project_skill','skill://simplicio-runtime/pptx-author','skill: pptx-author','---
 name: pptx-author
 description: Build PowerPoint decks headless with python-pptx. Pairs with excel-author for model-backed decks where every number traces to a workbook cell. Use for pitch decks, IC memos, earnings notes.
@@ -49266,7 +49266,7 @@ data = [
     ("Trading comps",     "35", "41", "48"),
     ("Precedent M&A",     "39", "45", "52"),
     ("DCF (base)",        "36", "43", "51"),
-    ("LBO (10% IRR)','.simplicio\skills\pptx-author\SKILL.md','7d5b7f38a93eb2179f2850508aae6b99a90baa26db8b9cbb5cdb676e962886b4','skill,simplicio,coding',1.3);
+    ("LBO (10% IRR)','.simplicio-loop\skills\pptx-author\SKILL.md','7d5b7f38a93eb2179f2850508aae6b99a90baa26db8b9cbb5cdb676e962886b4','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:pretext','project_skill','skill://simplicio-runtime/pretext','skill: pretext','---
 name: pretext
 description: "Use when building creative browser demos with @chenglou/pretext — DOM-free text layout for ASCII art, typographic flow around obstacles, text-as-geometry games, kinetic typography, and text-powered generative art. Produces single-file HTML demos by default."
@@ -49331,7 +49331,7 @@ Single self-contained HTML file per demo. No build step.
 
 ```html
 <script type="module">
-import {','.simplicio\skills\pretext\SKILL.md','4e625a31285f98e71957bf09f3fa5ad2b42786f58fafae99322cc09f54014e72','skill,simplicio,coding',1.3);
+import {','.simplicio-loop\skills\pretext\SKILL.md','4e625a31285f98e71957bf09f3fa5ad2b42786f58fafae99322cc09f54014e72','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:python-debugpy','project_skill','skill://simplicio-runtime/python-debugpy','skill: python-debugpy','---
 name: python-debugpy
 description: "Debug Python: pdb REPL + debugpy remote (DAP)."
@@ -49450,7 +49450,7 @@ source .venv/bin/activate
 python -m pytest tests/foo_test.py::test_bar --pdb
 ```
 
-This bypasses the hermetic-','.simplicio\skills\python-debugpy\SKILL.md','d9b0d688f8835b606620feb6b6d69023d955588de73567feb5068e7bf7428784','skill,simplicio,coding',1.3);
+This bypasses the hermetic-','.simplicio-loop\skills\python-debugpy\SKILL.md','d9b0d688f8835b606620feb6b6d69023d955588de73567feb5068e7bf7428784','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:pytorch-fsdp','project_skill','skill://simplicio-runtime/pytorch-fsdp','skill: pytorch-fsdp','---
 name: pytorch-fsdp
 description: Expert guidance for Fully Sharded Data Parallel training with PyTorch FSDP - parameter sharding, mixed precision, CPU offloading, FSDP2
@@ -49482,7 +49482,7 @@ This skill should be triggered when:
 
 ### Common Patterns
 
-**Pattern 1:** Generic Join Context Manager# Created On: Jun 06, 2025 | Last Updated On: Jun 06, 2025 The generic join context manager facilitates distributed training on uneven inputs. This page outlines the API of the relevant classes: Join, Joinable, and JoinHook. For a tutorial, see Distributed Training with Uneven Inputs Using the Join Context Manager. class torch.distributed.algorithms.Join(joinables, enable=True, throw_on_early_termination=False, **kwargs)[source]# This class defines the generic join context manager, which allows custom hooks to be called after a process joins. These hooks should shadow the collective communications of non-joined processes to prevent hanging and erroring and to ensure algorithmic correctness. Refer to JoinHook for details about the hook definition. Warning The context manager requires each participating Joinable to call the method notify_join_context() before its own per- iteration collective communications to ensure correctness. Warning The context manager requires that all process_group attributes in the JoinHook objects are the same. If there are multiple JoinHook objects, then the device of the first is used. The process group and device information is used for checking for non- joined processes and for notifying processes to throw an exception if throw_on_early_termination is enabled, both of which using an all- reduce. Parameters joinables (List[Joinable]) – a list of the participating Joinable s; their hooks are iterated over in the given order. enable (bool) – a flag enabling uneven input detection; setting to False disables the context manager’s functionality and should only be set when the user knows the inputs will not be uneven (default: True). throw_on_early_termination (bool) – a flag controlling whether to throw an exception upon detecting uneven inputs (default: False). Example: >>> import os >>> import torch >>> import torch.distributed as dist >>> import torch.multiprocessing as mp >>> import torch.nn.parallel.DistributedDataParallel as DDP >>> import torch.distributed.optim.ZeroRedundancyOptimizer as ZeRO >>> from torch.distributed.algorithms.join import Join >>> >>> # On each spawned worker >>> def worker(rank): >>> dist.init_process_group("nccl", rank=rank, world_size=2) >>> model = DDP(torch.nn.Linear(1, 1).to(rank), device_ids=[rank]) >>> optim = ZeRO(model.parameters(), torch.optim.Adam, lr=0.01) >>> # Rank 1 gets one more input than rank 0 >>> inputs = [torch.tensor([1.]).to(rank) for _ in range(10 + rank)] >>> with Join([model, optim]): >>> for input in inputs: >>> loss = model(input).sum() >>> loss.backward() >>> optim.step() >>> # All ranks reach here without hanging/erroring static notify_join_context(joinable)[source]# Notifies the join context manager that the calling process has not yet joined. Then, if throw_on_early_termination=True, checks if uneven inputs have been detected (i.e. if one process has already joined) and throws an exception if so. This method should be called from a Joinable object before its per-iteration collective communications. For example, this should be called at the beginning of the forward pass in DistributedDataParallel. Only the first Joinable object passed into the context mana','.simplicio\skills\pytorch-fsdp\SKILL.md','b07cf84ef519ea991cd6473b7a92a23c5afed060d4fd0dc365e14a390140c57b','skill,simplicio,orchestration',1.3);
+**Pattern 1:** Generic Join Context Manager# Created On: Jun 06, 2025 | Last Updated On: Jun 06, 2025 The generic join context manager facilitates distributed training on uneven inputs. This page outlines the API of the relevant classes: Join, Joinable, and JoinHook. For a tutorial, see Distributed Training with Uneven Inputs Using the Join Context Manager. class torch.distributed.algorithms.Join(joinables, enable=True, throw_on_early_termination=False, **kwargs)[source]# This class defines the generic join context manager, which allows custom hooks to be called after a process joins. These hooks should shadow the collective communications of non-joined processes to prevent hanging and erroring and to ensure algorithmic correctness. Refer to JoinHook for details about the hook definition. Warning The context manager requires each participating Joinable to call the method notify_join_context() before its own per- iteration collective communications to ensure correctness. Warning The context manager requires that all process_group attributes in the JoinHook objects are the same. If there are multiple JoinHook objects, then the device of the first is used. The process group and device information is used for checking for non- joined processes and for notifying processes to throw an exception if throw_on_early_termination is enabled, both of which using an all- reduce. Parameters joinables (List[Joinable]) – a list of the participating Joinable s; their hooks are iterated over in the given order. enable (bool) – a flag enabling uneven input detection; setting to False disables the context manager’s functionality and should only be set when the user knows the inputs will not be uneven (default: True). throw_on_early_termination (bool) – a flag controlling whether to throw an exception upon detecting uneven inputs (default: False). Example: >>> import os >>> import torch >>> import torch.distributed as dist >>> import torch.multiprocessing as mp >>> import torch.nn.parallel.DistributedDataParallel as DDP >>> import torch.distributed.optim.ZeroRedundancyOptimizer as ZeRO >>> from torch.distributed.algorithms.join import Join >>> >>> # On each spawned worker >>> def worker(rank): >>> dist.init_process_group("nccl", rank=rank, world_size=2) >>> model = DDP(torch.nn.Linear(1, 1).to(rank), device_ids=[rank]) >>> optim = ZeRO(model.parameters(), torch.optim.Adam, lr=0.01) >>> # Rank 1 gets one more input than rank 0 >>> inputs = [torch.tensor([1.]).to(rank) for _ in range(10 + rank)] >>> with Join([model, optim]): >>> for input in inputs: >>> loss = model(input).sum() >>> loss.backward() >>> optim.step() >>> # All ranks reach here without hanging/erroring static notify_join_context(joinable)[source]# Notifies the join context manager that the calling process has not yet joined. Then, if throw_on_early_termination=True, checks if uneven inputs have been detected (i.e. if one process has already joined) and throws an exception if so. This method should be called from a Joinable object before its per-iteration collective communications. For example, this should be called at the beginning of the forward pass in DistributedDataParallel. Only the first Joinable object passed into the context mana','.simplicio-loop\skills\pytorch-fsdp\SKILL.md','b07cf84ef519ea991cd6473b7a92a23c5afed060d4fd0dc365e14a390140c57b','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:pytorch-lightning','project_skill','skill://simplicio-runtime/pytorch-lightning','skill: pytorch-lightning','---
 name: pytorch-lightning
 description: High-level PyTorch framework with Trainer class, automatic distributed training (DDP/FSDP/DeepSpeed), callbacks system, and minimal boilerplate. Scales from laptop to supercomputer with same code. Use when you want clean training loops with built-in best practices.
@@ -49628,7 +49628,7 @@ class LitModel(L.LightningModule):
 
 # Train with validation
 trainer = L.Trainer(max_epochs=10)
-trainer.fit(model, train_lo','.simplicio\skills\pytorch-lightning\SKILL.md','b45ee9425b4b3497b050a4c16abad20a9887dc0e29731bb1dbd281ed6eacfed9','skill,simplicio,orchestration',1.3);
+trainer.fit(model, train_lo','.simplicio-loop\skills\pytorch-lightning\SKILL.md','b45ee9425b4b3497b050a4c16abad20a9887dc0e29731bb1dbd281ed6eacfed9','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:qdrant','project_skill','skill://simplicio-runtime/qdrant','skill: qdrant','---
 name: qdrant-vector-search
 description: High-performance vector similarity search engine for RAG and semantic search. Use when building production RAG systems requiring fast nearest neighbor search, hybrid search with filtering, or scalable vector storage with Rust-powered performance.
@@ -49771,7 +49771,7 @@ client.create_collection(
     collection_name="documents",
     vectors_config=VectorParams(
         size=384,                        # Vector dimensions
-        distance=Distance.COSINE         # COSINE, EUCLID, D','.simplicio\skills\qdrant\SKILL.md','a79a258539612486260698a151c5dc4809b82fe81d310d09f58b8afcf4f48f3a','skill,simplicio,orchestration',1.3);
+        distance=Distance.COSINE         # COSINE, EUCLID, D','.simplicio-loop\skills\qdrant\SKILL.md','a79a258539612486260698a151c5dc4809b82fe81d310d09f58b8afcf4f48f3a','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:qmd','project_skill','skill://simplicio-runtime/qmd','skill: qmd','---
 name: qmd
 description: Search personal knowledge bases, notes, docs, and meeting transcripts locally using qmd — a hybrid retrieval engine with BM25, vector search, and LLM reranking. Supports CLI and MCP integration.
@@ -49906,7 +49906,7 @@ qmd embed
 ```
 
 This processes all documents in all collections and generates vector
-embeddings. Re-run after adding new ','.simplicio\skills\qmd\SKILL.md','bf111efd1da590ae26d64d66ebdb66d4554e320b4a95da03799cdc80d79bb953','skill,simplicio,coding',1.3);
+embeddings. Re-run after adding new ','.simplicio-loop\skills\qmd\SKILL.md','bf111efd1da590ae26d64d66ebdb66d4554e320b4a95da03799cdc80d79bb953','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:ralph-loop','project_skill','skill://simplicio-runtime/ralph-loop','skill: ralph-loop','---
 name: ralph-loop
 description: Loop autônomo de coding (read → plan → execute → lint → unit → e2e → fix → repeat) até DoD verde. Padrão deste projeto em TODA task técnica com acceptance criteria mensurável.
@@ -49988,7 +49988,7 @@ Dispara em paralelo conforme contexto:
 | E2E | `everything-claude-code:e2e-runner` |
 | Docs | `everything-claude-code:doc-updater` |
 
-P','.simplicio\skills\ralph-loop\SKILL.md','7143dc67ef40e88d264caee7f2f09ae1e131c8a531d5767415b9018be2eeccdd','skill,simplicio,orchestration',1.3);
+P','.simplicio-loop\skills\ralph-loop\SKILL.md','7143dc67ef40e88d264caee7f2f09ae1e131c8a531d5767415b9018be2eeccdd','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:remotion-to-hyperframes:skills','project_skill','skill://simplicio-runtime/remotion-to-hyperframes','skill: remotion-to-hyperframes','---
 name: remotion-to-hyperframes
 description: Translate an existing Remotion (React-based) video composition into a HyperFrames HTML composition. Use ONLY when the user explicitly asks to port, convert, migrate, translate, or rewrite a Remotion composition as HyperFrames (e.g. "port my Remotion project to HyperFrames"). Do NOT use when (a) authoring a NEW HyperFrames composition (even if A/B-testing a Remotion video); (b) Remotion is mentioned in passing; (c) Remotion code is shared as reference, not for translation; (d) the user wants "the same video as my Remotion one" without explicitly asking to migrate the source — treat as a fresh HyperFrames build. When in doubt, default to the `hyperframes` skill. Detects unsupported patterns (useState, useEffect side effects, async calculateMetadata, third-party React component libraries, `@remotion/lambda`) and recommends the runtime interop escape hatch instead of a lossy translation.
@@ -50038,7 +50038,7 @@ If any blocker fires, **stop**. Read [`references/escape-hatch.md`](references/e
 Read [`references/api-map.md`](references/api-map.md) — the index of every Remotion API and its HF equivalent or per-topic reference. Identify which topic references you''ll need based on what the source uses:
 
 | Source contains                                                           | Load reference                                |
-| ---------------------------','.simplicio\skills\remotion-to-hyperframes\SKILL.md','83980f426cdbb1746f24ed30cb7bd855b3721c1880c6f028ddb45798a4cc2ef1','skill,simplicio,video',1.3);
+| ---------------------------','.simplicio-loop\skills\remotion-to-hyperframes\SKILL.md','83980f426cdbb1746f24ed30cb7bd855b3721c1880c6f028ddb45798a4cc2ef1','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:requesting-code-review','project_skill','skill://simplicio-runtime/requesting-code-review','skill: requesting-code-review','---
 name: requesting-code-review
 description: "Pre-commit review: security scan, quality gates, auto-fix."
@@ -50168,7 +50168,7 @@ Quick scan before dispatching the reviewer:
 Call `delegate_task` directly — it is NOT available inside execute_code or scripts.
 
 The reviewer gets ONLY the diff and static scan results. No shared context with
-the implementer. Fail-closed:','.simplicio\skills\requesting-code-review\SKILL.md','0531dc4ec026f6f8578f1eddf3ab031d714bb5121f1b04e2d11f35aa48d61736','skill,simplicio,coding',1.3);
+the implementer. Fail-closed:','.simplicio-loop\skills\requesting-code-review\SKILL.md','0531dc4ec026f6f8578f1eddf3ab031d714bb5121f1b04e2d11f35aa48d61736','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:research-paper-writing','project_skill','skill://simplicio-runtime/research-paper-writing','skill: research-paper-writing','---
 name: research-paper-writing
 title: Research Paper Writing Pipeline
@@ -50245,7 +50245,7 @@ Use this skill when:
 | Confidence Level | Action |
 |-----------------|--------|
 | **High** (clear repo, obvious contribution) | Write full draft, deliver, iterate on feedback |
-| **Mediu','.simplicio\skills\research-paper-writing\SKILL.md','7c814d90a3b83d8513d404944e4cc4cfb5fd830db9521695c79f6d8dda70f063','skill,simplicio,orchestration',1.3);
+| **Mediu','.simplicio-loop\skills\research-paper-writing\SKILL.md','7c814d90a3b83d8513d404944e4cc4cfb5fd830db9521695c79f6d8dda70f063','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:rest-graphql-debug','project_skill','skill://simplicio-runtime/rest-graphql-debug','skill: rest-graphql-debug','---
 name: rest-graphql-debug
 description: "Debug REST/GraphQL APIs: status codes, auth, schemas, repro."
@@ -50387,7 +50387,7 @@ except ReadTimeout:
 '''''')
 ```
 
-Diagnosis: high `time_connect` is networ','.simplicio\skills\rest-graphql-debug\SKILL.md','c50e5cf3430fa6a40bb2f2e2855b99a64cf1f363161241ab4728b87f18526f2d','skill,simplicio,coding',1.3);
+Diagnosis: high `time_connect` is networ','.simplicio-loop\skills\rest-graphql-debug\SKILL.md','c50e5cf3430fa6a40bb2f2e2855b99a64cf1f363161241ab4728b87f18526f2d','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:revisao-humanizada','project_skill','skill://simplicio-runtime/revisao-humanizada','skill: revisao-humanizada','---
 name: revisao-humanizada
 description: Revisa e reescreve textos para soarem humanos, naturais e conversacionais — removendo a "cara de IA". Use SEMPRE que o usuário pedir para revisar, humanizar, deixar natural, tirar cara de IA, reescrever, polir ou melhorar um texto, roteiro, post, legenda, e-mail, copy, artigo, script de YouTube, carrossel ou qualquer conteúdo escrito. Também acione em pedidos como "revisa esse texto", "tá com cara de ChatGPT", "deixa mais humano", "tira o ar de IA", "naturaliza", "reescreve isso", "melhora a escrita", "faz soar como pessoa", "revisão de roteiro", "humanizar copy", mesmo que o usuário não cite IA explicitamente. Dispara também quando o texto colado tem sinais óbvios de geração por IA (estrutura rígida, palavras corporativas, regra de três excessiva, parágrafos simétricos).
@@ -50452,7 +50452,7 @@ Essas palavras/expressões quase nunca aparecem em fala natural. A IA abusa dela
 
 **Verbos genéricos** (substitua por ação concreta):
 - "fazer" → quebrar, montar, puxar, empurrar, cortar (use o verbo específico)
-- "realizar" → f','.simplicio\skills\revisao-humanizada\SKILL.md','052f1b12149d406e4b390b4bcf5b9f0e0b3bed493af366529f25527b12bdc5ad','skill,simplicio,content',1.3);
+- "realizar" → f','.simplicio-loop\skills\revisao-humanizada\SKILL.md','052f1b12149d406e4b390b4bcf5b9f0e0b3bed493af366529f25527b12bdc5ad','skill,simplicio,content',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:rtk-cli','project_skill','skill://simplicio-runtime/rtk-cli','skill: rtk-cli','---
 name: rtk-cli
 description: usar RTK CLI para reduzir tokens em exploração de repositório, git, grep/find e comandos shell verbosos, preservando o sinal técnico relevante
@@ -50536,7 +50536,7 @@ command -v rtk >/dev/null 2>&1 && rtk npm test || npm test
 - Docs oficiais: `rtk init --codex`, `rtk init -g`, `rtk gain`, `rtk --version`.
 - Fonte primária: `rtk-ai/rtk`.
 - Integração com Codex é por instrução/prompt-level; não depende de hook nativo no Codex.
-','.simplicio\skills\rtk-cli\SKILL.md','49ff0b1fbb0e6cee8b74bd305bf6b025b75805f96adc8057f853c79c97aa5073','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\rtk-cli\SKILL.md','49ff0b1fbb0e6cee8b74bd305bf6b025b75805f96adc8057f853c79c97aa5073','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:saelens','project_skill','skill://simplicio-runtime/saelens','skill: saelens','---
 name: sparse-autoencoder-training
 description: Provides guidance for training and analyzing Sparse Autoencoders (SAEs) using SAELens to decompose neural network activations into interpretable features. Use when discovering interpretable features, analyzing superposition, or studying monosemantic representations in language models.
@@ -50639,7 +50639,7 @@ for pos in range(tokens.shape[1]):
     print(f"Token ''{token}'': features {top_features.indices.tolist()}")
 
 # 5. Reconstruct activations
-reconstructed = sae.decode(sae_f','.simplicio\skills\saelens\SKILL.md','92ff3be75958794059d19e0e193c0f61a65e0fa0cc1176993e9c463daadcddfb','skill,simplicio,orchestration',1.3);
+reconstructed = sae.decode(sae_f','.simplicio-loop\skills\saelens\SKILL.md','92ff3be75958794059d19e0e193c0f61a65e0fa0cc1176993e9c463daadcddfb','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:scrapling','project_skill','skill://simplicio-runtime/scrapling','skill: scrapling','---
 name: scrapling
 description: Web scraping with Scrapling - HTTP fetching, stealth browser automation, Cloudflare bypass, and spider crawling via CLI and Python.
@@ -50799,7 +50799,7 @@ data = page.css(''.js-loaded-content::text'').getall()
 
 ### Wait for Specific Element
 
-```','.simplicio\skills\scrapling\SKILL.md','d68e9f06f350a5cb68a848d6e1bdecc7e8d0132efb1051526c89b0e6d0725fa9','skill,simplicio,coding',1.3);
+```','.simplicio-loop\skills\scrapling\SKILL.md','d68e9f06f350a5cb68a848d6e1bdecc7e8d0132efb1051526c89b0e6d0725fa9','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:searxng-search','project_skill','skill://simplicio-runtime/searxng-search','skill: searxng-search','---
 name: searxng-search
 description: Free meta-search via SearXNG — aggregates results from 70+ search engines. Self-hosted or use a public instance. No API key needed. Falls back automatically when the web search toolset is unavailable.
@@ -50928,7 +50928,7 @@ for r in data.get("results", []):
 
 ## Method 3: searxng-data Python Package
 
-For more structured access, install the `searxng-da','.simplicio\skills\searxng-search\SKILL.md','b8a46f22f5be86f23c21b5e14ebe5d4dc89b771d003f6158f89ce08daf176378','skill,simplicio,coding',1.3);
+For more structured access, install the `searxng-da','.simplicio-loop\skills\searxng-search\SKILL.md','b8a46f22f5be86f23c21b5e14ebe5d4dc89b771d003f6158f89ce08daf176378','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:sherlock','project_skill','skill://simplicio-runtime/sherlock','skill: sherlock','---
 name: sherlock
 description: OSINT username search across 400+ social networks. Hunt down social media accounts by username.
@@ -51052,7 +51052,7 @@ Some sites are slow or block automated requests. Use `--timeout 120` to increase
 - Using `--proxy` with an alternative proxy
 
 ### False Positives
-Some sites a','.simplicio\skills\sherlock\SKILL.md','55c9af80b7aeae9cce754bb70f9baf6d19e15f975fc75eb5648775c2931f772d','skill,simplicio,content',1.3);
+Some sites a','.simplicio-loop\skills\sherlock\SKILL.md','55c9af80b7aeae9cce754bb70f9baf6d19e15f975fc75eb5648775c2931f772d','skill,simplicio,content',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:shop-app','project_skill','skill://simplicio-runtime/shop-app','skill: shop-app','---
 name: shop-app
 description: "Shop.app: product search, order tracking, returns, reorder."
@@ -51154,7 +51154,7 @@ Required for orders, tracking, returns, reorder. Not required for product search
 | `access_token` | until expired / 401 | Bearer token for authenticated endpoints |
 | `refresh_token` | until refresh fails | Renews `access_token` without re-auth |
 | `device_id` | whole session | `shop-skill--<uuid>` — generate once, reuse for every request |
-| `country','.simplicio\skills\shop-app\SKILL.md','7281b8fe2965ea35716d3d7e8ee3795c88332823afeea0fd975647d88f8bb54e','skill,simplicio,coding',1.3);
+| `country','.simplicio-loop\skills\shop-app\SKILL.md','7281b8fe2965ea35716d3d7e8ee3795c88332823afeea0fd975647d88f8bb54e','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:shopify','project_skill','skill://simplicio-runtime/shopify','skill: shopify','---
 name: shopify
 description: Shopify Admin & Storefront GraphQL APIs via curl. Products, orders, customers, inventory, metafields.
@@ -51227,7 +51227,7 @@ shop_gql() {
   local query="$1"
   local variables="${2:-{}}"
   curl -sS -X POST \
-    "https://${SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSIO','.simplicio\skills\shopify\SKILL.md','679e25afd983e894ba790f0fd4baa77ec32bc5ca07977675556985628fd8df6e','skill,simplicio,coding',1.3);
+    "https://${SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSIO','.simplicio-loop\skills\shopify\SKILL.md','679e25afd983e894ba790f0fd4baa77ec32bc5ca07977675556985628fd8df6e','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:simplicio-cli','project_skill','skill://simplicio-runtime/simplicio-cli','skill: simplicio-cli','---
 name: simplicio-cli
 description: Use simplicio-cli to turn a one-line task into a verified code change (diff + test + verify loop). Trigger ALWAYS when the user asks for a small/medium code edit in a known file — "hide X for non-admins", "add validation to Y", "fix the empty-state on Z", "rename the prop in <file>" — even if they do not mention the word "simplicio". Especially trigger when the active model is small/local (Ollama, Gemma, Llama 3 sub-8B, Phi, Qwen 7B), or the user mentions "task-to-code", "diff+test", "verify loop", "6-layer contract", "pass-rate", "precedent + skill router", or any of the benchmark numbers (+39 pts, +51 pts, +58 pts, 99% pass-rate). Use this skill BEFORE writing the edit by hand — simplicio-cli measurably boosts pass-rate on the same model from ~41% to ~99% on frontier and ~35% to ~74% on sub-4B by stacking mapper + precedent + skill-router + 6-layer prompt + test + verify-loop. Also trigger on explicit Python invocations: `$simplicio-py`, `/simplicio-py`, "use simplicio-py", "rode o simplicio-py", "via simplicio-cli".
@@ -51296,7 +51296,7 @@ If `smoke` fails: set the env vars and retry. Read `~/.config/simplicio/.env` or
 First run on the repo (or after large changes): index once. Re-runs reuse embeddings keyed by content hash — unchanged blocks cost zero.
 
 ```bash
-simplicio-py ','.simplicio\skills\simplicio-cli\SKILL.md','f8dcf98d290a0a8695f4b5fc9e550d9e56def6c8bb93c2c22b1663e58a2379b9','skill,simplicio,coding',1.3);
+simplicio-py ','.simplicio-loop\skills\simplicio-cli\SKILL.md','f8dcf98d290a0a8695f4b5fc9e550d9e56def6c8bb93c2c22b1663e58a2379b9','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:simplify-code','project_skill','skill://simplicio-runtime/simplify-code','skill: simplify-code','---
 name: simplify-code
 description: "Parallel 3-agent cleanup of recent code changes."
@@ -51397,7 +51397,7 @@ Pass these three goals (drop any the user''s focus excludes):
 > Review this diff for code that duplicates functionality already in the
 > codebase. Search utility modules, shared helpers, and adjacent files
 > (use search_files / grep) for existing functions, constants, or patterns
-> the new ','.simplicio\skills\simplify-code\SKILL.md','bfd2dbb1581909ba0071fd834c6f6c918603e028d6b467f2d3890c0aeafde879','skill,simplicio,coding',1.3);
+> the new ','.simplicio-loop\skills\simplify-code\SKILL.md','bfd2dbb1581909ba0071fd834c6f6c918603e028d6b467f2d3890c0aeafde879','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:simpo','project_skill','skill://simplicio-runtime/simpo','skill: simpo','---
 name: simpo-training
 description: Simple Preference Optimization for LLM alignment. Reference-free alternative to DPO with better performance (+6.4 points on AlpacaEval 2.0). No reference model needed, more efficient than DPO. Use for preference alignment when want simpler, faster training than DPO/PPO.
@@ -51544,7 +51544,7 @@ gradient_accumulation_steps: 16
 
 **Use alternatives instead**:
 - **OpenRLHF**: Multi-node distributed training, PPO/GRPO
-- **TRL**: Need multiple methods in one','.simplicio\skills\simpo\SKILL.md','6db4bbc9cd6c49f9088a44d2a0ee358f5aa95325174f12ede64a4c57070c2a5a','skill,simplicio,orchestration',1.3);
+- **TRL**: Need multiple methods in one','.simplicio-loop\skills\simpo\SKILL.md','6db4bbc9cd6c49f9088a44d2a0ee358f5aa95325174f12ede64a4c57070c2a5a','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:siyuan','project_skill','skill://simplicio-runtime/siyuan','skill: siyuan','---
 name: siyuan
 description: SiYuan Note API for searching, reading, creating, and managing blocks and documents in a self-hosted knowledge base via curl.
@@ -51666,7 +51666,7 @@ curl -s -X POST "${SIYUAN_URL:-http://127.0.0.1:6806}/api/block/getBlockKramdown
 curl -s -X POST "${SIYUAN_URL:-http://127.0.0.1:6806}/api/block/getChildBlocks" \
   -H "Authorization: Token $SIYUAN_TOKEN" \
   -H "Content-Type: application/json" \
-','.simplicio\skills\siyuan\SKILL.md','6e0507c4f670bd748aabe433af388331a2d25e785a79ce9f391c0aa50d3c0aad','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\siyuan\SKILL.md','6e0507c4f670bd748aabe433af388331a2d25e785a79ce9f391c0aa50d3c0aad','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:sketch','project_skill','skill://simplicio-runtime/sketch','skill: sketch','---
 name: sketch
 description: "Throwaway HTML mockups: 2-3 design variants to compare."
@@ -51754,7 +51754,7 @@ Each variant is a **single self-contained HTML file**:
 
 Open it in a browser. If it looks broken, fix it before showing the user.
 
-**Verify variants visually — us','.simplicio\skills\sketch\SKILL.md','2edd91f8f2a9c525e20ad2a50791cca1e3f2e87e39644a26de3d09be29f0a826','skill,simplicio,coding',1.3);
+**Verify variants visually — us','.simplicio-loop\skills\sketch\SKILL.md','2edd91f8f2a9c525e20ad2a50791cca1e3f2e87e39644a26de3d09be29f0a826','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:skill','project_skill','skill://simplicio-runtime/skill','skill: skill','---
 name: simplicio
 description: SEMPRE ATIVO em qualquer tarefa de código, repositório ou execução. Antes de explorar use `simplicio runtime map`; antes de re-derivar use `simplicio memory`; para mudança mecânica decidida use `simplicio edit` (zero token). Reporta a economia de tokens medida pelo runtime.
@@ -51786,7 +51786,7 @@ antes de gastar tokens do modelo. Não é obrigatória — é um fluxo otimizado
 
 Net: **o modelo decide/revisa · o Simplicio mapeia, recorda, edita
 determinístico, gateia e prova** — e a conta de tokens cai.
-','.simplicio\skills\skill\SKILL.md','e305de7cb0d54a613bb2713bde2e9abcf871f963220b418368bd01f9f0070a5f','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\skill\SKILL.md','e305de7cb0d54a613bb2713bde2e9abcf871f963220b418368bd01f9f0070a5f','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:skill-opt','project_skill','skill://simplicio-runtime/skill-opt','skill: skill-opt','---
 name: skill-opt
 description: Generates new .skills/<slug>/SKILL.md entries on demand from a one-line description, guarded by a review gate so unreviewed skills do not become defaults.
@@ -51857,7 +51857,7 @@ or open a PR. Skill-opt always CREATES, never amends.
 - **Running on a model that isn''t `SIMPLICIO_PLANNER`.** Doer-grade models
   often produce malformed YAML or skip the review gate. Planner provider
   is the contract.
-','.simplicio\skills\skill-opt\SKILL.md','031be31a5883787002f89b6a5d0a6abd8f8cc865374e2cd6b017754b74e6efa9','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\skill-opt\SKILL.md','031be31a5883787002f89b6a5d0a6abd8f8cc865374e2cd6b017754b74e6efa9','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:slime','project_skill','skill://simplicio-runtime/slime','skill: slime','---
 name: slime-rl-training
 description: Provides guidance for LLM post-training with RL using slime, a Megatron+SGLang framework. Use when training GLM models, implementing custom data generation workflows, or needing tight Megatron-LM integration for RL scaling.
@@ -51995,7 +51995,7 @@ Choose a pre-configured model script:
 ls scripts/models/
 # glm4-9B.sh, qwen3-4B.sh, qwen3-30B-A3B.sh, deepseek-v3.sh, llama3-8B.sh, ...
 
-# Source your mod','.simplicio\skills\slime\SKILL.md','ac4421a553bcd1ea351c58772d97fddcf133d9428b0cb8e4721deea74515b893','skill,simplicio,orchestration',1.3);
+# Source your mod','.simplicio-loop\skills\slime\SKILL.md','ac4421a553bcd1ea351c58772d97fddcf133d9428b0cb8e4721deea74515b893','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:social-media-ops','project_skill','skill://simplicio-runtime/social-media-ops','skill: social-media-ops','---
 name: social-media-ops
 description: Use when Simplicio needs to plan, post, schedule, analyze, optimize, or gather evidence for social media operations across Instagram, X.com, TikTok, Kwai, YouTube, Facebook, and Pinterest.
@@ -52092,7 +52092,7 @@ Before considering a social-media task done, capture:
 - status: `queued`, `posted`, `failed`, `dry_run`, or `requires_approval`;
 - approval gate state for first posts, DMs, replies, and paid generation;
 - key platform metrics such as reach, impressions, likes, comments, shares,
-  saves, DM shares, watch time, complet','.simplicio\skills\social-media-ops\SKILL.md','c2fc76f9cb989117958aa828c8b883b6a9d0fb81faf0356175b311e3877b02c4','skill,simplicio,content',1.3);
+  saves, DM shares, watch time, complet','.simplicio-loop\skills\social-media-ops\SKILL.md','c2fc76f9cb989117958aa828c8b883b6a9d0fb81faf0356175b311e3877b02c4','skill,simplicio,content',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:solana','project_skill','skill://simplicio-runtime/solana','skill: solana','---
 name: solana
 description: Query Solana blockchain data with USD pricing — wallet balances, token portfolios with values, transaction details, NFTs, whale detection, and live network stats. Uses Solana RPC + CoinGecko. No API key required.
@@ -52229,7 +52229,7 @@ python3 ~/.hermes/skills/blockchain/solana/scripts/solana_client.py \
 
 ### 5. NFT Portfolio
 
-List NFTs owned by a wallet (he','.simplicio\skills\solana\SKILL.md','8036f0a7f2db7e19ac893e455c453d66291f6b43d8085144f6b88a3ee4954d8d','skill,simplicio,coding',1.3);
+List NFTs owned by a wallet (he','.simplicio-loop\skills\solana\SKILL.md','8036f0a7f2db7e19ac893e455c453d66291f6b43d8085144f6b88a3ee4954d8d','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:songsee','project_skill','skill://simplicio-runtime/songsee','skill: songsee','---
 name: songsee
 description: "Audio spectrograms/features (mel, chroma, MFCC) via CLI."
@@ -52313,7 +52313,7 @@ Multiple `--viz` types render as a grid in a single image.
 - WAV and MP3 are decoded natively; other formats require `ffmpeg`
 - Output images can be inspected with `vision_analyze` for automated audio analysis
 - Useful for comparing audio outputs, debugging synthesis, or documenting audio processing pipelines
-','.simplicio\skills\songsee\SKILL.md','d9d8d1394c630bd83329cd54cd8f18e0e3cd140debe31c3ccf5d9667f054de07','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\songsee\SKILL.md','d9d8d1394c630bd83329cd54cd8f18e0e3cd140debe31c3ccf5d9667f054de07','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:songwriting-and-ai-music','project_skill','skill://simplicio-runtime/songwriting-and-ai-music','skill: songwriting-and-ai-music','---
 name: songwriting-and-ai-music
 description: "Songwriting craft and Suno AI music prompts."
@@ -52437,7 +52437,7 @@ AVOID (unless you''re doing it on purpose):
 When rewriting an existing song with new lyrics:
 
 THE SKELETON: Map the original''s structure first.
-- Count syllables per l','.simplicio\skills\songwriting-and-ai-music\SKILL.md','c6aa3c5fa40cf10d2eb6e1cc52f5c04e0e1e6058488ff1f855c79e96e1f23b66','skill,simplicio,coding',1.3);
+- Count syllables per l','.simplicio-loop\skills\songwriting-and-ai-music\SKILL.md','c6aa3c5fa40cf10d2eb6e1cc52f5c04e0e1e6058488ff1f855c79e96e1f23b66','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:spike','project_skill','skill://simplicio-runtime/spike','skill: spike','---
 name: spike
 description: "Throwaway experiments to validate an idea before build."
@@ -52519,7 +52519,7 @@ Spikes are not research-free — you research enough to pick the right approach,
 Use Hermes tools for the research step:
 
 - `web_search("python websocket streaming libraries 2025")` — find candidates
-- `web_extract(urls=["https://websockets.readthedocs.io/..."])` — read the actual docs (returns ','.simplicio\skills\spike\SKILL.md','8e18ebaad839f49b8465548951f7c36d016d8c7c9fe86473556239ee22a42370','skill,simplicio,coding',1.3);
+- `web_extract(urls=["https://websockets.readthedocs.io/..."])` — read the actual docs (returns ','.simplicio-loop\skills\spike\SKILL.md','8e18ebaad839f49b8465548951f7c36d016d8c7c9fe86473556239ee22a42370','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:stable-diffusion','project_skill','skill://simplicio-runtime/stable-diffusion','skill: stable-diffusion','---
 name: stable-diffusion-image-generation
 description: State-of-the-art text-to-image generation with Stable Diffusion models via HuggingFace Diffusers. Use when generating images from text prompts, performing image-to-image translation, inpainting, or building custom diffusion pipelines.
@@ -52667,7 +52667,7 @@ Schedulers control the denoising process:
 | Scheduler | Steps | Quality | Use Case |
 |-----------|-------|---------|----------|
 | `EulerDiscreteScheduler` | 20-50 | Good | Default choice |
-|','.simplicio\skills\stable-diffusion\SKILL.md','0271aa7f992c21a0b886c4ccca878c82cd5f517a931c0675ad9087fdbc8547df','skill,simplicio,orchestration',1.3);
+|','.simplicio-loop\skills\stable-diffusion\SKILL.md','0271aa7f992c21a0b886c4ccca878c82cd5f517a931c0675ad9087fdbc8547df','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:stocks','project_skill','skill://simplicio-runtime/stocks','skill: stocks','---
 name: stocks
 description: Stock quotes, history, search, compare, crypto via Yahoo.
@@ -52763,7 +52763,7 @@ python3 ~/.hermes/skills/finance/stocks/scripts/stocks_client.py quote AAPL
 ```
 
 Returns a JSON object with `symbol: "AAPL"` and a numeric `price` field.
-','.simplicio\skills\stocks\SKILL.md','8f8c724cf99515f3f2d138e4c134bed5dd2046fbe4947f65e132e0f53e160ff0','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\stocks\SKILL.md','8f8c724cf99515f3f2d138e4c134bed5dd2046fbe4947f65e132e0f53e160ff0','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:subagent-driven-development','project_skill','skill://simplicio-runtime/subagent-driven-development','skill: subagent-driven-development','---
 name: subagent-driven-development
 description: Use when executing implementation plans with independent tasks in the current session
@@ -52836,7 +52836,7 @@ digraph process {
     "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
     "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
     "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
-    "Imple','.simplicio\skills\subagent-driven-development\SKILL.md','2e402aa57132b123df8d30a7665fed90b6e7b83b325d07474af1b403b6d03a12','skill,simplicio,coding',1.3);
+    "Imple','.simplicio-loop\skills\subagent-driven-development\SKILL.md','2e402aa57132b123df8d30a7665fed90b6e7b83b325d07474af1b403b6d03a12','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:systematic-debugging','project_skill','skill://simplicio-runtime/systematic-debugging','skill: systematic-debugging','---
 name: systematic-debugging
 description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes
@@ -52981,7 +52981,7 @@ You MUST complete each phase before proceeding to the next.
    - What settings, config, environment?
    - What assumptions does it make?
 
-### Phase 3: Hypothesis','.simplicio\skills\systematic-debugging\SKILL.md','a4706ee120e34bfa3c4d0abf0308cc2f67de271f847ba6197eee00fcf4ce7ac3','skill,simplicio,coding',1.3);
+### Phase 3: Hypothesis','.simplicio-loop\skills\systematic-debugging\SKILL.md','a4706ee120e34bfa3c4d0abf0308cc2f67de271f847ba6197eee00fcf4ce7ac3','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:tailwind','project_skill','skill://simplicio-runtime/tailwind','skill: tailwind','---
 name: tailwind
 description: Tailwind CSS v4.2 browser-runtime patterns for HyperFrames compositions. Use when scaffolding or editing projects created with `hyperframes init --tailwind`, writing Tailwind utility classes in composition HTML, adding CSS-first Tailwind v4 theme tokens, debugging v3 vs v4 syntax, or deciding when to compile Tailwind to CSS instead of using the browser runtime.
@@ -53085,7 +53085,7 @@ Use complete class names in HTML, data attributes, or explicit CSS instead:
 <div data-tone="blue" class="bg-blue-500 data-[tone=rose]:bg-rose-500"></div>
 ```
 
-If a generated class is ','.simplicio\skills\tailwind\SKILL.md','216abbefa6a497f5cc1944a2725624f639ec8744491beff49a0ae5b3e09bda61','skill,simplicio,video',1.3);
+If a generated class is ','.simplicio-loop\skills\tailwind\SKILL.md','216abbefa6a497f5cc1944a2725624f639ec8744491beff49a0ae5b3e09bda61','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:teams-meeting-pipeline','project_skill','skill://simplicio-runtime/teams-meeting-pipeline','skill: teams-meeting-pipeline','---
 name: teams-meeting-pipeline
 description: "Operate the Teams meeting summary pipeline via Hermes CLI — summarize meetings, inspect pipeline status, replay jobs, manage Microsoft Graph subscriptions."
@@ -53176,7 +53176,7 @@ hermes teams-pipeline maintain-subscriptions --dry-run  # show what would be ren
 ## Decision tree for common asks
 
 - User asks "why didn''t I get a summary for today''s meeting?" → start with `list --status failed`, then `show <job-id>` on the relevant row. If the job doesn''t exist at all, check `subscriptions` — the webhook may have expired (see pitfall below).
-- User asks "is setup working?" → `validate','.simplicio\skills\teams-meeting-pipeline\SKILL.md','6f944753ab1ee4c2ac6a0882038c58879afcdd4feeb942dd2857b54ec8f96351','skill,simplicio,coding',1.3);
+- User asks "is setup working?" → `validate','.simplicio-loop\skills\teams-meeting-pipeline\SKILL.md','6f944753ab1ee4c2ac6a0882038c58879afcdd4feeb942dd2857b54ec8f96351','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:telephony','project_skill','skill://simplicio-runtime/telephony','skill: telephony','---
 name: telephony
 description: Give Hermes phone capabilities without core tool changes. Provision and persist a Twilio number, send and receive SMS/MMS, make direct calls, and place AI-driven outbound calls through Bland.ai or Vapi.
@@ -53289,7 +53289,7 @@ Used for long-lived provider credentials and owned-number IDs, for example:
 - `TWILIO_AUTH_TOKEN`
 - `TWILIO_PHONE_NUMBER`
 - `TWILIO_PHONE_NUMBER_SID`
-- `BLAN','.simplicio\skills\telephony\SKILL.md','42049eb3ab621574c31f0fa831801df76698523d4d49d31a9e0b39e427eeef3b','skill,simplicio,coding',1.3);
+- `BLAN','.simplicio-loop\skills\telephony\SKILL.md','42049eb3ab621574c31f0fa831801df76698523d4d49d31a9e0b39e427eeef3b','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:tensorrt-llm','project_skill','skill://simplicio-runtime/tensorrt-llm','skill: tensorrt-llm','---
 name: tensorrt-llm
 description: Optimizes LLM inference with NVIDIA TensorRT for maximum throughput and lowest latency. Use for production deployment on NVIDIA GPUs (A100/H100), when you need 10-100x faster inference than PyTorch, or for serving models with quantization (FP8/INT4), in-flight batching, and multi-GPU scaling.
@@ -53449,7 +53449,7 @@ outputs = llm.generate(
 
 ## Performance benchmarks
 
-**Meta Llama ','.simplicio\skills\tensorrt-llm\SKILL.md','bb895c769cc2e65718cd564c42509e553c50f2077afc14c257d74643efd76682','skill,simplicio,orchestration',1.3);
+**Meta Llama ','.simplicio-loop\skills\tensorrt-llm\SKILL.md','bb895c769cc2e65718cd564c42509e553c50f2077afc14c257d74643efd76682','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:test-driven-development','project_skill','skill://simplicio-runtime/test-driven-development','skill: test-driven-development','---
 name: test-driven-development
 description: Use when implementing any feature or bugfix, before writing implementation code
@@ -53645,7 +53645,7 @@ Keep tests green. Don''t add behavior.
 
 ### Repeat
 
-','.simplicio\skills\test-driven-development\SKILL.md','1416bb34d34c440f78436d85364186d8ead6c4b923df1657dc4b64a85c83994c','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\test-driven-development\SKILL.md','1416bb34d34c440f78436d85364186d8ead6c4b923df1657dc4b64a85c83994c','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:three','project_skill','skill://simplicio-runtime/three','skill: three','---
 name: three
 description: Three.js and WebGL adapter patterns for HyperFrames. Use when creating deterministic Three.js scenes, WebGL canvas layers, AnimationMixer timelines, camera motion, shader-driven visuals, or canvas renders that respond to HyperFrames hf-seek events.
@@ -53752,7 +53752,7 @@ npx hyperframes validate
 - HyperFrames adapter source: `packages/core/src/runtime/adapters/three.ts`.
 - Three.js `WebGLRenderer` docs: https://threejs.org/docs/pages/WebGLRenderer.html
 - Three.js `AnimationMixer.setTime()` docs: https://threejs.org/docs/pages/AnimationMixer.html
-','.simplicio\skills\three\SKILL.md','12dd949a36e878fae99aedee3b22de2fe11be32598970166c7c171a223a8fde1','skill,simplicio,video',1.3);
+','.simplicio-loop\skills\three\SKILL.md','12dd949a36e878fae99aedee3b22de2fe11be32598970166c7c171a223a8fde1','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:torchtitan','project_skill','skill://simplicio-runtime/torchtitan','skill: torchtitan','---
 name: distributed-llm-pretraining-torchtitan
 description: Provides PyTorch-native distributed LLM pretraining using torchtitan with 4D parallelism (FSDP2, TP, PP, CP). Use when pretraining Llama 3.1, DeepSeek V3, or custom models at scale from 8 to 512+ GPUs with Float8, torch.compile, and distributed checkpointing.
@@ -53934,7 +53934,7 @@ Float8 provides 30-50% speedup on H100 GPUs.
 
 ```
 Float8 Training:
-- [ ] St','.simplicio\skills\torchtitan\SKILL.md','cdbf5e89459dd0a08c8ab6ec2e49764c071927edc8a88a20a12737edd68f2baf','skill,simplicio,orchestration',1.3);
+- [ ] St','.simplicio-loop\skills\torchtitan\SKILL.md','cdbf5e89459dd0a08c8ab6ec2e49764c071927edc8a88a20a12737edd68f2baf','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:touchdesigner-mcp','project_skill','skill://simplicio-runtime/touchdesigner-mcp','skill: touchdesigner-mcp','---
 name: touchdesigner-mcp
 description: "Control a running TouchDesigner instance via twozero MCP — create operators, set parameters, wire connections, execute Python, build real-time visuals. 36 native tools."
@@ -54037,7 +54037,7 @@ for name, optype in [(''bg'', noiseTOP), (''fx'', levelTOP), (''out'', nullTOP)]
     nodes.append(n.path)
 # Wire chain
 for i in range(len(nodes)-1):
-    op(nodes[i]).outputConnectors[0].connect(op(nodes[i+1]).inputCo','.simplicio\skills\touchdesigner-mcp\SKILL.md','1b933bd1121eba57cb0f699ec221ea489c02d6e4d76e18d53bbcc080fda02de3','skill,simplicio,coding',1.3);
+    op(nodes[i]).outputConnectors[0].connect(op(nodes[i+1]).inputCo','.simplicio-loop\skills\touchdesigner-mcp\SKILL.md','1b933bd1121eba57cb0f699ec221ea489c02d6e4d76e18d53bbcc080fda02de3','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:typegpu','project_skill','skill://simplicio-runtime/typegpu','skill: typegpu','---
 name: typegpu
 description: TypeGPU and raw WebGPU adapter patterns for HyperFrames. Use when creating GPU-rendered compositions with TypeGPU, raw WebGPU, WGSL fragment shaders, compute pipelines, liquid glass effects, particle systems, or any canvas layer driven by navigator.gpu that responds to HyperFrames hf-seek events.
@@ -54153,7 +54153,7 @@ const bgTex = device.createTexture({
     GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
 });
 
-function render(t) ','.simplicio\skills\typegpu\SKILL.md','c9f20195f0098dc0a2c5c6732aa176e93029d95e2492e31ff014223d20925c90','skill,simplicio,video',1.3);
+function render(t) ','.simplicio-loop\skills\typegpu\SKILL.md','c9f20195f0098dc0a2c5c6732aa176e93029d95e2492e31ff014223d20925c90','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:unreal-engine-mcp','project_skill','skill://simplicio-runtime/unreal-engine-mcp','skill: unreal-engine-mcp','---
 name: unreal-engine-mcp
 description: Drive Unreal Engine 5 editor over its local MCP server. Spawn actors, configure lighting and materials, run automation tests, execute editor scripting — all from Simplicio without leaving the terminal.
@@ -54298,7 +54298,7 @@ The exact tool surface depends on which toolsets are enabled in your project.
 ## Notes and Pitfalls
 
 - The server runs tool calls **serially on the engine game thread** — do not
-  issue overlapping calls; wait for','.simplicio\skills\unreal-engine-mcp\SKILL.md','9b2759a3145ec22a3cc70696b4a6ff65012cf1dea80a9817351c3f415f912b79','skill,simplicio,coding',1.3);
+  issue overlapping calls; wait for','.simplicio-loop\skills\unreal-engine-mcp\SKILL.md','9b2759a3145ec22a3cc70696b4a6ff65012cf1dea80a9817351c3f415f912b79','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:using-superpowers','project_skill','skill://simplicio-runtime/using-superpowers','skill: using-superpowers','---
 name: using-superpowers
 description: Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions
@@ -54385,7 +54385,7 @@ These thoughts mean STOP—you''re rationalizing:
 | "This is just a simple question" | Questions are tasks. Check for skills. |
 | "I need more context first" | Skill check comes BEFORE clarifying questions. |
 | "Let me explore the codebase first" | Skills tell you HOW to explore. Check first. |
-| "I can check git/files quickly" | Files lack ','.simplicio\skills\using-superpowers\SKILL.md','68b1504ab97eb25a633426f6a44e0f93150a0de9c2c5293029a515d63cbaf1c0','skill,simplicio,coding',1.3);
+| "I can check git/files quickly" | Files lack ','.simplicio-loop\skills\using-superpowers\SKILL.md','68b1504ab97eb25a633426f6a44e0f93150a0de9c2c5293029a515d63cbaf1c0','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:verification-before-completion','project_skill','skill://simplicio-runtime/verification-before-completion','skill: verification-before-completion','---
 name: verification-before-completion
 description: Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always
@@ -54522,7 +54522,7 @@ From 24 failure memories:
 
 **No shortcuts for verification.**
 
-Run the command. Read the out','.simplicio\skills\verification-before-completion\SKILL.md','97b00936d335c70410f7df9c405800244c23929e0f56e66985db4a7fffdbe2bd','skill,simplicio,coding',1.3);
+Run the command. Read the out','.simplicio-loop\skills\verification-before-completion\SKILL.md','97b00936d335c70410f7df9c405800244c23929e0f56e66985db4a7fffdbe2bd','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:viral-product-strategist','project_skill','skill://simplicio-runtime/viral-product-strategist','skill: viral-product-strategist','---
 name: viral-product-strategist
 description: Activates for product, SaaS, app, course, CLI, offer, pricing, launch, conversion, copywriting, positioning, hero section, CTA, paywall, testimonial, OG image, footer, and landing page/LP work. Use when the user wants to audit an existing LP, improve conversion, make a product more viral, rewrite sales copy, strengthen an offer, simplify pricing, compare competitors, or apply the 32 principles of viral products.
@@ -54617,7 +54617,7 @@ Follow these rules while using the skill:
 6. Treat the product demo as more persuasive than explanation.
 7. Reduce choices. One product promise. One main CTA. Three pricing options max.
 8. Make the product easy to describe in under 10 words.
-9. Make the copy sound like the founder or customer, not a corporate ','.simplicio\skills\viral-product-strategist\SKILL.md','4aa19f8f9378aff38fe316fa5d44114fdaa679b55001556098e70bba235455b6','skill,simplicio,coding',1.3);
+9. Make the copy sound like the founder or customer, not a corporate ','.simplicio-loop\skills\viral-product-strategist\SKILL.md','4aa19f8f9378aff38fe316fa5d44114fdaa679b55001556098e70bba235455b6','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:waapi','project_skill','skill://simplicio-runtime/waapi','skill: waapi','---
 name: waapi
 description: Web Animations API adapter patterns for HyperFrames. Use when authoring element.animate() motion, Animation currentTime seeking, document.getAnimations(), KeyframeEffect timing, fill modes, or native browser animations that must render deterministically in HyperFrames.
@@ -54712,7 +54712,7 @@ npx hyperframes validate
 - HyperFrames adapter source: `packages/core/src/runtime/adapters/waapi.ts`.
 - MDN Web Animations API guide: https://developer.mozilla.org/docs/Web/API/Web_Animations_API/Using_the_Web_Animations_API
 - MDN `Animation.currentTime`: https://developer.mozilla.org/en-US/docs/Web/API/Animation/currentTime
-','.simplicio\skills\waapi\SKILL.md','e465beaf82a4f2de0fc40c705bdddddf59d851fc96ebb339c931ed9458d30cfb','skill,simplicio,video',1.3);
+','.simplicio-loop\skills\waapi\SKILL.md','e465beaf82a4f2de0fc40c705bdddddf59d851fc96ebb339c931ed9458d30cfb','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:watchers','project_skill','skill://simplicio-runtime/watchers','skill: watchers','---
 name: watchers
 description: Poll RSS, JSON APIs, and GitHub with watermark dedup.
@@ -54821,7 +54821,7 @@ All three scripts use the same template: load watermark, fetch, diff, save, emit
 ## Common Pitfalls
 
 1. **Printing a "no new items" header every tick.** Callers rely on empty stdout = silent. If you print anything on an empty delta, you spam the channel. The shipped scripts handle this; custom scripts must too.
-2. **Expecting the first run to emit items.** It won''t — first run records a baseline. If you need an initial digest, delete the state fi','.simplicio\skills\watchers\SKILL.md','2bb720761bdc0648ed6f02792d005ded2c611c36392f5239a73bd9e746227428','skill,simplicio,coding',1.3);
+2. **Expecting the first run to emit items.** It won''t — first run records a baseline. If you need an initial digest, delete the state fi','.simplicio-loop\skills\watchers\SKILL.md','2bb720761bdc0648ed6f02792d005ded2c611c36392f5239a73bd9e746227428','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:web-pentest','project_skill','skill://simplicio-runtime/web-pentest','skill: web-pentest','---
 name: web-pentest
 description: |
@@ -54913,7 +54913,7 @@ Violating any of these invalidates the engagement and may be illegal.
 8. **Authority of the report.** This skill produces a security
    assessment, not a "PASS." Even a clean run is "no exploitable issues
    FOUND in scope X within time T using methods Y" — not "the application
-   is secure." Mirror that language in the repo','.simplicio\skills\web-pentest\SKILL.md','3706fe253a37950b4a1bb4f1d1633e33e8ad4f5f149757b08da6107e9dfed020','skill,simplicio,coding',1.3);
+   is secure." Mirror that language in the repo','.simplicio-loop\skills\web-pentest\SKILL.md','3706fe253a37950b4a1bb4f1d1633e33e8ad4f5f149757b08da6107e9dfed020','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:website-to-hyperframes','project_skill','skill://simplicio-runtime/website-to-hyperframes','skill: website-to-hyperframes','---
 name: website-to-hyperframes
 description: |
@@ -54991,7 +54991,7 @@ If Step 2 said no narration — ask about background music, then skip to Step 5.
 **Read:** The `hyperframes` skill (load it — every rule matters)
 **Read:** [references/step-5-build.md](references/step-5-build.md)
 
-Build index.ht','.simplicio\skills\website-to-hyperframes\SKILL.md','25046dbd4bfbf2cbead22b29d1e89b69a79710955c8e779ac7ebe62484202bfa','skill,simplicio,video',1.3);
+Build index.ht','.simplicio-loop\skills\website-to-hyperframes\SKILL.md','25046dbd4bfbf2cbead22b29d1e89b69a79710955c8e779ac7ebe62484202bfa','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:whisper','project_skill','skill://simplicio-runtime/whisper','skill: whisper','---
 name: whisper
 description: OpenAI''s general-purpose speech recognition model. Supports 99 languages, transcription, translation to English, and language identification. Six model sizes from tiny (39M params) to large (1550M params). Use for speech-to-text, podcast transcription, or multilingual audio processing. Best for robust, multilingual ASR.
@@ -55162,7 +55162,7 @@ whisper audio.mp3 --output_format vtt     # WebVTT
 whisper audio.mp3 --output_format json    # JSON with timestamps
 
 # Language
-whisper audio.mp3 --la','.simplicio\skills\whisper\SKILL.md','0f894a20dc46da0ed6c62489478c82d928cc5ec4f5739c5cbdc3bb66eee35eba','skill,simplicio,orchestration',1.3);
+whisper audio.mp3 --la','.simplicio-loop\skills\whisper\SKILL.md','0f894a20dc46da0ed6c62489478c82d928cc5ec4f5739c5cbdc3bb66eee35eba','skill,simplicio,orchestration',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:writing-plans','project_skill','skill://simplicio-runtime/writing-plans','skill: writing-plans','---
 name: writing-plans
 description: Use when you have a spec or requirements for a multi-step task, before touching code
@@ -55273,7 +55273,7 @@ git commit -m "feat: add specific feature"
 Every step must contain the actual content an engineer needs. These are **plan failures** — never write them:
 - "TBD", "TODO", "implement later", "fill in details"
 - "Add appropriate error handling" / "add validation" / "handle edge cases"
-- "Wri','.simplicio\skills\writing-plans\SKILL.md','15a5ca28ce1bcc62b06edb295042e146cb9deaa5b35afb39f6be2cb9d068eeeb','skill,simplicio,coding',1.3);
+- "Wri','.simplicio-loop\skills\writing-plans\SKILL.md','15a5ca28ce1bcc62b06edb295042e146cb9deaa5b35afb39f6be2cb9d068eeeb','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:xurl','project_skill','skill://simplicio-runtime/xurl','skill: xurl','---
 name: xurl
 description: "X/Twitter via xurl CLI: post, search, DM, media, v2 API."
@@ -55378,7 +55378,7 @@ These steps must be performed by the user directly, NOT by the agent, because th
    ```
    This binds the token to your handle and skips the broken `/2/users/me` call.
 6. Set the app as default so all commands use it:
-   ```b','.simplicio\skills\xurl\SKILL.md','1203af39ff56874b2bfd05688272f569f5648fd2bb3ddf086ff7d0e027b177ff','skill,simplicio,content',1.3);
+   ```b','.simplicio-loop\skills\xurl\SKILL.md','1203af39ff56874b2bfd05688272f569f5648fd2bb3ddf086ff7d0e027b177ff','skill,simplicio,content',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:youtube-content','project_skill','skill://simplicio-runtime/youtube-content','skill: youtube-content','---
 name: youtube-content
 description: "YouTube transcripts to summaries, threads, blogs."
@@ -55452,7 +55452,7 @@ After fetching the transcript, format it based on what the user asks for:
 - **Private/unavailable video**: relay the error and ask the user to verify the URL.
 - **No matching language**: retry without `--language` to fetch any available transcript, then note the actual language to the user.
 - **Dependency missing**: run `pip install youtube-transcript-api` and retry.
-','.simplicio\skills\youtube-content\SKILL.md','f6e573f84f3f62dadaa0839491d1558071b6e6da9db9878e7c765fe1311c66be','skill,simplicio,video',1.3);
+','.simplicio-loop\skills\youtube-content\SKILL.md','f6e573f84f3f62dadaa0839491d1558071b6e6da9db9878e7c765fe1311c66be','skill,simplicio,video',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:yuanbao','project_skill','skill://simplicio-runtime/yuanbao','skill: yuanbao','---
 name: yuanbao
 description: "Yuanbao (元宝) groups: @mention users, query info/members."
@@ -55561,7 +55561,7 @@ yb_query_group_info({ "group_code": "328306697" })
 - `group_code` comes from chat_id: `group:328306697` → `328306697`
 - Groups are called "派 (Pai)" in the Yuanbao app
 - Member roles: `user`, `yuanbao_ai`, `bot`
-','.simplicio\skills\yuanbao\SKILL.md','239e4875f511124fab06e94ff21511fd8f857554c6ffd82dfb796ed275b4ff32','skill,simplicio,coding',1.3);
+','.simplicio-loop\skills\yuanbao\SKILL.md','239e4875f511124fab06e94ff21511fd8f857554c6ffd82dfb796ed275b4ff32','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:revisao-humanizada:.skills','project_skill','skill://simplicio-runtime/revisao-humanizada','skill: revisao-humanizada','---
 name: revisao-humanizada
 description: Revisa e reescreve textos para soarem humanos, naturais e conversacionais — removendo a "cara de IA". Use SEMPRE que o usuário pedir para revisar, humanizar, deixar natural, tirar cara de IA, reescrever, polir ou melhorar um texto, roteiro, post, legenda, e-mail, copy, artigo, script de YouTube, carrossel ou qualquer conteúdo escrito. Também acione em pedidos como "revisa esse texto", "tá com cara de ChatGPT", "deixa mais humano", "tira o ar de IA", "naturaliza", "reescreve isso", "melhora a escrita", "faz soar como pessoa", "revisão de roteiro", "humanizar copy", mesmo que o usuário não cite IA explicitamente. Dispara também quando o texto colado tem sinais óbvios de geração por IA (estrutura rígida, palavras corporativas, regra de três excessiva, parágrafos simétricos).
@@ -55714,7 +55714,7 @@ The persona must be **specific enough to stay in character** for 20 minutes of t
 
 ## Step 3: The Rant (Write Feedback in Character)
 
-Write the feedback AS ','.simplicio\skills\dogfood\adversarial-ux-test\SKILL.md','6df3f38b974bb3370f82b1758158576cb37c3fa19197ee1b31aeca38d03705a6','skill,simplicio,coding',1.3);
+Write the feedback AS ','.simplicio-loop\skills\dogfood\adversarial-ux-test\SKILL.md','6df3f38b974bb3370f82b1758158576cb37c3fa19197ee1b31aeca38d03705a6','skill,simplicio,coding',1.3);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('skill:simplicio-runtime:google_meet:plugins','project_skill','skill://simplicio-runtime/google_meet','skill: google_meet','---
 name: google_meet
 description: Join a Google Meet call, transcribe live captions, optionally speak in realtime, and do the followup work afterwards. Use when the user asks the agent to sit in on a meeting, take notes, summarize, respond in-call, or action items from it.
@@ -79399,7 +79399,7 @@ the primary surface; MCP is fallback only.
   o Hermes em programação** (loop que itera até passar, dirigido por diagnósticos).
 - **Análise de gaps:** `docs/SIMPLICIO_OPERATIONAL_MANUAL.md`. Fonte de verdade:
   corpus Hermes/Pi/OpenClaw já na memória neural
-  (`.simplicio/memory/simplicio-memory.sqlite`, 876 `memory_items`).
+  (`.simplicio-loop/memory/simplicio-memory.sqlite`, 876 `memory_items`).
 - **Backlog (épica #235, sub-issues):**
   - Cérebro/ecossistema: **#190** (intent+contexto), **#193** (extensões/RPC),
     **#194** (skills na memória).
@@ -79597,7 +79597,7 @@ The mandatory rule is **enforced**, not just documented:
 - **Session orient gate (default):** `.claude/hooks/orient-gate.sh` (PreToolUse,
   wired in `.claude/settings.json`) blocks raw exploration — Read/Grep/Glob and
   shell `grep`/`rg`/`cat`/`find` — until `simplicio runtime map` has run in the
-  session. The map run stamps the session; contract docs and `.simplicio/` stay
+  session. The map run stamps the session; contract docs and `.simplicio-loop/` stay
   readable for bootstrap. Opt out: `SIMPLICIO_ORIENT_GATE=0`. The git hook
   catches commits; this catches the exploration *before* them.
 - **Contract:** this file + `CLAUDE.md` + `GEMINI.md` + copilot — all MANDATORY.
@@ -79824,10 +79824,10 @@ one product, not four separate installs (#27).
 
 Use a **managed-venv-first hybrid** resolution order for every Python component:
 
-1. Explicit `[tools]` config in `.simplicio/runtime.toml` (user override).
+1. Explicit `[tools]` config in `.simplicio-loop/runtime.toml` (user override).
 2. Workspace sibling build (monorepo checkout).
 3. Known system install on PATH.
-4. **Managed venv** under `.simplicio/managed-python/` — owned by `simplicio`.
+4. **Managed venv** under `.simplicio-loop/managed-python/` — owned by `simplicio`.
 5. Generic PATH fallback.
 
 The managed venv is created by `simplicio doctor --repair` and the fresh-machine
@@ -79839,8 +79839,8 @@ unpinned) via `requirements-ecosystem.txt` + `scripts/install-ecosystem.{sh,ps1}
 - Fresh machine: `scripts/bootstrap-fresh-machine.{sh,ps1}` runs
   `doctor` (before) -> `install --global --dry-run` (plan) -> install the Python
 ecossystem + verify llama.cpp/GGUF -> `doctor --repair` -> `doctor` (after),
-  writing before/after logs under `.simplicio/bootstrap/`.
-- `doctor --repair` scaffolds `.simplicio/managed-python/` and links/copies a
+  writing before/after logs under `.simplicio-loop/bootstrap/`.
+- `doctor --repair` scaffolds `.simplicio-loop/managed-python/` and links/copies a
   cached GGUF from a local model cache when present (never auto-downloads onto a
   machine that has not opted into network access).
 
@@ -80085,9 +80085,9 @@ instead. No other correction or new integration work was requested.
 2. **`cosign_chain.rs` is not restored.** Its `pub mod cosign_chain;`
    declaration was dropped from `src/asolaria/mod.rs`. All 8 call sites that
    used it now append to the shared `hbp` evidence ledger instead, via a new
-   `crate::asolaria::global_hbp_dir()` helper (`~/.simplicio/agent-hbp/` —
+   `crate::asolaria::global_hbp_dir()` helper (`~/.simplicio-loop/agent-hbp/` —
    these callers are repo-agnostic, unlike `simplicio edit`''s per-repo
-   `.simplicio/hbp/` ledger):
+   `.simplicio-loop/hbp/` ledger):
    - `src/asolaria/hookwall.rs::hookwall_post`
    - `src/wormhole_command.rs::{cmd_send, cmd_receive, cmd_traverse}`
    - `src/agent_state_command.rs::{cmd_record_task, cmd_self_observe_run, cmd_cosign, cmd_watcher}`
@@ -80109,7 +80109,7 @@ instead. No other correction or new integration work was requested.
 ## Consequences
 
 - `agent-state`/`agent-pub` persistence returns to the asolaria-backed
-  store (SQLite, `~/.simplicio/memory/simplicio-memory.sqlite`); any data
+  store (SQLite, `~/.simplicio-loop/memory/simplicio-memory.sqlite`); any data
   written to the brief interim JSON-file store during the removal window is
   not migrated.
 - `wormhole` and `agent-persist`/`agent-worker` work again, with their known
@@ -80120,7 +80120,7 @@ instead. No other correction or new integration work was requested.
 - **Known, surfaced (not hidden) risk:** `hbp::HbpInbox::append` has no file
   locking, unlike `cosign_chain`''s SQLite backing which got basic
   concurrent-writer safety from SQLite''s own locking. Two processes
-  appending to the same global `~/.simplicio/agent-hbp/` ledger concurrently
+  appending to the same global `~/.simplicio-loop/agent-hbp/` ledger concurrently
   (plausible for multi-worker `agent-persist`/`wormhole` use) can race and
   corrupt the chain, which `verify_chain()` would then report as a sequence
   gap or broken link. Accepted as-is per the "literal restore" scope; a
@@ -80140,7 +80140,7 @@ The Simplicio MCP server (`simplicio serve --mcp --stdio`, or the persistent
 HTTP daemon `com.simplicio.runtime` on port 6119) can report a healthy
 `/healthz` while two dependent components are silently missing:
 
-- the neural memory DB (`~/.simplicio/memory/simplicio-memory.sqlite`), with
+- the neural memory DB (`~/.simplicio-loop/memory/simplicio-memory.sqlite`), with
   seeds (`seeds.sql`) and migrations applied,
 - the native local LLM (`com.simplicio.local-llm`, llama-server running
   `Qwen2.5-Coder-1.5B-Instruct-Q6_K_L.gguf` on port 11435).
@@ -80294,7 +80294,7 @@ Orca e Simplicio são ambos orquestradores de agentes CLI, mas em camadas difere
 2. **Extração da CLI surface** direto de `src/cli/specs/*.ts` (fonte autoritativa) — **184 comandos** em 15 grupos COMMAND_SPECS, não de documentação externa.
 3. **Curadoria em 5 facts** (não dump bruto de README): overview, CLI surface (184 comandos comprimidos por grupo), worktree id-model, orchestration layer, integration points (Orca × Simplicio + gaps descobertos).
 4. **Persistência dupla** conforme `neural-memory-seeding`:
-   - `INSERT OR IGNORE` em `.simplicio/memory/seeds.sql` (bootstrap).
+   - `INSERT OR IGNORE` em `.simplicio-loop/memory/seeds.sql` (bootstrap).
    - Migration forward `migrations/0006_orca_absorption.sql` (aplicada ao DB live).
 5. **Validação real**: facts queryáveis via SQL direto + `simplicio memory` retrieval (3/5 facts recuperáveis por FTS em query isolada; todos os 5 presentes no DB).
 6. **Gaps do Simplicio Runtime descobertos durante a absorção** (registrados aqui e abertos como issues):
@@ -80443,7 +80443,7 @@ Runtime SHALL own the complete default-model lifecycle:
 2. explicit-consent or full-profile provisioning;
 3. resumable locked download to a temporary file;
 4. expected-size, GGUF-header and fixed SHA-256 verification;
-5. atomic install into `~/.simplicio/models`;
+5. atomic install into `~/.simplicio-loop/models`;
 6. durable provenance, license and engine manifest;
 7. in-process load and hardware offload selection;
 8. one shared warm inference pool with bounded queues and backpressure;
@@ -81058,7 +81058,7 @@ hash of the *reusable prefix*:
 
 ```
 key = sha256(model_path \n system_prompt \n "ctx=<n>;v=<version>")[..32]
-file = <repo>/.simplicio/cache/kv/<key>.bin
+file = <repo>/.simplicio-loop/cache/kv/<key>.bin
 ```
 
 Because the key is derived only from the stable prefix, **every call that shares a
@@ -81730,7 +81730,7 @@ seguro: os gates locais cobrem fmt + test + build.
 
 - **Sem segredos reais commitados.** Os matches de varredura são (a) a chave de
   exemplo `AKIAIOSFODNN7EXAMPLE` num fixture de teste e (b) placeholders
-  `ghp_xxx`/`sk-xxx` dentro de docs do Hermes crawladas em `.simplicio/research/`.
+  `ghp_xxx`/`sk-xxx` dentro de docs do Hermes crawladas em `.simplicio-loop/research/`.
   Nenhuma credencial viva.
 - **`unsafe`:** apenas **1** bloco (`Mmap::map` em `orientation_mmap_verified`),
   documentado e sólido — mapeia read-only um artefato publicado por rename
@@ -81771,9 +81771,9 @@ enquanto empresta `jobs` imutavelmente (converter geraria conflito de borrow).
 
 ## 5. ✅ Higiene do repositório
 
-- `.gitignore` restaurado/estendido em PRs anteriores para `.simplicio/runs|
+- `.gitignore` restaurado/estendido em PRs anteriores para `.simplicio-loop/runs|
   agents|repl_history` + journal nativo (tinham caído num merge).
-- **Observação (não bloqueante):** `.simplicio/research/external-intelligence/`
+- **Observação (não bloqueante):** `.simplicio-loop/research/external-intelligence/`
   carrega um corpus crawlado grande (centenas de KB de JSON) versionado. Não é
   risco de segurança, mas é peso no repo. Considerar mover para um seed
   compacto (já há `memory-seeds/` para isso) — alinhado com a issue #160.
@@ -81787,7 +81787,7 @@ enquanto empresta `jobs` imutavelmente (converter geraria conflito de borrow).
 2. **[usuário] Rotacionar credenciais** vazadas no chat.
 3. Triar/fechar as PRs duplicadas do Codex abertas (várias cobrem features já na
    main).
-4. Trimar `.simplicio/research/` para seed compacto (#160).
+4. Trimar `.simplicio-loop/research/` para seed compacto (#160).
 5. Seguir reduzindo clippy nos pontos arquiteturais quando o CI voltar.','docs/AUDIT_2026_06_05.md','f2605e52bca562380ed163317443c0f160644bfccd45207b3d89de808643cad3','doc,simplicio',1.1);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/AUDIT_FAKE_CODE_2026-06-11.md','project_doc','doc://simplicio-runtime/docs/AUDIT_FAKE_CODE_2026-06-11.md','doc: SIMPLICIO RUNTIME — CONSOLIDATED FAKE-CODE AUDIT REPORT','# SIMPLICIO RUNTIME — CONSOLIDATED FAKE-CODE AUDIT REPORT
 Scope: 147 module files + src/main.rs (~83.6k lines). All file paths relative to `C:\Users\Z0059V7A\m\ai\simplicio-runtime\src\`.
@@ -81824,7 +81824,7 @@ Scope: 147 module files + src/main.rs (~83.6k lines). All file paths relative to
 1. **main.rs ~22076 `benchmark_run_external_agent`** — Three-agent benchmark (#748) never runs Hermes/OpenClaw: built CLI args received as `_shell_args` and discarded; report prints per-agent ✓/✗ as if they ran. Fabricated competitive results. [PRINTS_BUT_NO_ACTION]
 2. **main.rs ~42310/~42327 `value_demo_run` / `value_demo_benchmark`** — Hardcoded `tokens_saved:480`, fake scores `simplicio 92 / hermes 78 / openclaw 74`. Fake competitive claims. [HARDCODED_DATA]
 3. **main.rs ~68941 `hermes_port_command benchmark`** — Hardcoded `simplicio:95` vs `hermes_estimated:340` ms; no measurement. [HARDCODED_DATA]
-4. **main.rs ~43175 `evidence_show_summary/ledger/tokens`** — Always prints zeros + "no active run ledger found"; never reads `.simplicio/runs/` even though real ledgers exist there. [STUB_NO_LOGIC]
+4. **main.rs ~43175 `evidence_show_summary/ledger/tokens`** — Always prints zeros + "no active run ledger found"; never reads `.simplicio-loop/runs/` even though real ledgers exist there. [STUB_NO_LOGIC]
 5. **main.rs ~63783 `browser_evidence`** — Claims evidence artifacts (`evidence-{ts}.png/.html`, `yool://evidence/{ts}`); none created. [PRINTS_BUT_NO_ACTION]
 6. **main.rs ~1735 `contracts_smoke`** — Smoke test that always prints `status: passed` with hardcoded chain; nothing invoked. [HARDCODED_DATA]
 7. **main.rs ~45529 `write_foreground_functional_gates`** — Gates hardcoded `"passed"`; cannot fail. (Reported HIGH; release-blocking in context of delivery gates.) [HARDCODED_DATA]
@@ -82040,7 +82040,7 @@ and the extension guide for new work-source adapters.
 
 | File | Responsibility | State |
 |---|---|---|
-| `src/scheduler.rs` | Priority-lane work queue (critical/high/normal/background). Dispatches `SchedulerWorkItem`. Dependency-aware (`after` field). Stuck detection, persisted queue at `.simplicio/scheduler/queue.json`. Integrates `LazyAgentManager`. | done |
+| `src/scheduler.rs` | Priority-lane work queue (critical/high/normal/background). Dispatches `SchedulerWorkItem`. Dependency-aware (`after` field). Stuck detection, persisted queue at `.simplicio-loop/scheduler/queue.json`. Integrates `LazyAgentManager`. | done |
 | `src/cron_scheduler.rs` | Cron-based work source. Converts cron triggers into ingestable work-item payloads. | done |
 | `src/coding_loop.rs` | Execution loop. Iterates a task until tests pass (iterate-until-green). Drives diagnostics on failure. Integrates with action gate and evidence emission. | done |
 | `src/action_bridge.rs` | Chat-to-action spine. Gate-mode persistence (ask/auto/safe), bounded gate check, git-stash checkpoints with undo, task dispatch routing. | done |
@@ -82083,15 +82083,15 @@ Key improvements over v4:
 
 ## Configuration Defaults
 
-The canonical default config is produced by `simplicio autopilot-config init` and written to `.simplicio/autopilot-config.json`.
+The canonical default config is produced by `simplicio autopilot-config init` and written to `.simplicio-loop/autopilot-config.json`.
 
 ```json
 {
   "max_parallel": 4,
   "risk_threshold": 0.7,
   "dry_run": false,
-  "evidence_dir": ".simplicio/evidence",
-  "ledger_dir": ".simplicio/ledger"
+  "evidence_dir": ".simplicio-loop/evidence",
+  "ledger_dir": ".simplicio-loop/ledger"
 }
 ```
 
@@ -82100,8 +82100,8 @@ The canonical default config is produced by `simplicio autopilot-config init` an
 | `max_parallel` | `usize` | `4` | Maximum number of tasks running concurrently inside a single autopilot session. |
 | `risk_threshold` | `f64` | `0.7` | Action Gate threshold: actions with a risk score ≥ this value require explicit user approval. Range `[0.0, 1.0]`. |
 | `dry_run` | `bool` | `false` | When `true`, all mutations are simulated (no files written, no commands executed). |
-| `evidence_dir` | `String` | `.simplicio/evidence` | Directory where HBP evidence JSON-L files are stored. |
-| `ledger_dir` | `String` | `.simplicio/ledger` | Directory where the verifiable HBP ledger lives. |
+| `evidence_dir` | `String` | `.simplicio-loop/evidence` | Directory where HBP evidence JSON-L files are stored. |
+| `ledger_dir` | `String` | `.simplicio-loop/ledger` | Directory where the verifiable HBP ledger lives. |
 
 ### Environment overrides
 
@@ -82123,7 +82123,7 @@ Any field can be overridden at runtime via environment variables:
 
 | Area | v4 | v5 |
 |---|---|---|
-| Config file | `~/.simplicio/autopilot.toml` (TOML) | `.simplicio/autopilot-config.json` (JSON, per-repo) |
+| Config file | `~/.simplicio-loop/autopilot.toml` (TOML) | `.simplicio-loop/autopilot-config.json` (JSON, per-repo) |
 | Parallelism flag | `--jobs N` | `max_parallel` in config or `--max-parallel N` CLI flag |
 | Risk level | `--risk low\|medium\|high` | `risk_threshold` float `[0.0, 1.0]` |
 | Dry-run | `--simulate` | `--dry-run` / `dry_run: true` in config |
@@ -82135,7 +82135,7 @@ Any field can be overridden at runtime via environment variables:
 **Step 1 — Back up your v4 config**
 
 ```bash
-cp ~/.simplicio/autopilot.toml ~/.simplicio/autopilot.toml.v4-backup
+cp ~/.simplicio-loop/autopilot.toml ~/.simplicio-loop/autopilot.toml.v4-backup
 ```
 
 **Step 2 — Initialize the v5 config for your repo**
@@ -82143,16 +82143,16 @@ cp ~/.simplicio/autopilot.toml ~/.simplicio/autopilot.toml.v4-backup
 ```bash
 cd /path/to/your-repo
 simplicio autopilot-config init
-# Writes .simplicio/autopilot-config.json with defaults
+# Writes .simplicio-loop/autopilot-config.json with defaults
 ```
 
 **Step 3 — Port your v4 settings**
 
-Open `.simplicio/autopilot-config.json` and update the fields to match your old TOML values:
+Open `.simplicio-loop/autopilot-config.json` and update the fields to match your old TOML values:
 
 ```bash
 # Example: if v4 had --jobs 8
-# Edit .simplicio/autopilot-config.json → "max_parallel": 8
+# Edit .simplicio-loop/autopilot-config.json → "max_parallel": 8
 
 # Example: if v4 had --risk low (conservative)
 # risk_threshold ~0.4 means fewer actions pass the gate automatically
@@ -82183,7 +82183,7 @@ simplicio gate classify --action "write file src/lib.rs"
 **Step 7 — Remove the v4 TOML** (after confirming v5 works)
 
 ```bash
-rm ~/.simplicio/autopilot.toml.v4-backup  # when satisfied
+rm ~/.simplicio-loop/autopilot.toml.v4-backup  # when satisfied
 ```
 
 ---
@@ -82220,7 +82220,7 @@ simplicio ap-config <subcommand>
 | Subcommand | Description |
 |---|---|
 | `show` | Print the current effective config as JSON (file + env overrides). |
-| `init` | Write `.simplicio/autopilot-config.json` with default values (no-op if already exists). |
+| `init` | Write `.simplicio-loop/autopilot-config.json` with default values (no-op if already exists). |
 | `validate` | Validate all fields; print warnings and exit non-zero on error. |
 
 **Examples**
@@ -82648,9 +82648,9 @@ os preços codificados** em `src/license.rs`.
 | Kill switch | `public_beta_active()` == true salvo `SIMPLICIO_BETA_OFF` | `src/license.rs:242-253` | Beta ON desde 2026-06-11 |
 | Gate comercial | `guard_command()` bloqueia `chat/reason/run/vision` sem tier; upsell → simpleti.com.br/simplicio | `src/license.rs` | Pronto |
 | Assinatura/webhook | Catálogo de planos, webhook Stripe (`customer.subscription.*`, `invoice.payment_*`), máquina Active/PastDue/Canceled, `enforce_entitlement()` | `src/monetization_1164.rs` (#1164) | Implementado + testado; **fiação no dispatch em TODO** (o caminho vivo é license.rs) |
-| Trial | Pro 7 dias, `~/.simplicio/trial.toml` | `src/free_trial.rs` (#2224) | Pronto |
+| Trial | Pro 7 dias, `~/.simplicio-loop/trial.toml` | `src/free_trial.rs` (#2224) | Pronto |
 | Dunning | Máquina de falha de pagamento | `src/dunning.rs` (#2219) | Pronto |
-| Histórico de cobrança | Ledger JSONL `~/.simplicio/billing/history.jsonl` | `src/billing_history.rs` (#2213) | Pronto |
+| Histórico de cobrança | Ledger JSONL `~/.simplicio-loop/billing/history.jsonl` | `src/billing_history.rs` (#2213) | Pronto |
 | Stripe client | Checkout/Portal/funnel via REST, `--dry-run` | `src/growth_stripe.rs`, `src/growth/stripe.rs` | Pronto (exige `STRIPE_SECRET_KEY`) |
 | Entitlement remoto | `GET simpleti.com.br/api/entitlement.php` + `X-Simplicio-Token`, cache 10min, offline-first (falha nunca bloqueia) | `src/entitlement_remote.rs` | Pronto |
 | Backend site | `stripe-checkout.php` (subscription, trial 7d), `entitlement.php`, `stripe-sync.php` (cron 07h/19h), `google-auth.php`, MySQL `subscriptions` + `pix_payments` | `site/api/` | Pronto (PHP/Apache/FTP deploy) |
@@ -82972,7 +82972,7 @@ differed from a repeat (warm) run, both numbers are shown.
 
 | Command | Wall time (ms) | Exit | Artifacts produced | LLM tokens |
 |---|---:|---:|---|---|
-| `simplicio map --repo <fx> --json` (cold, first run on fixture) | 13,065.2 | 0 | `.simplicio/runtime-project-map.json`, `.simplicio/endpoint-inventory.json`, `.simplicio/screen-inventory.json` | 0 local / 0 remote |
+| `simplicio map --repo <fx> --json` (cold, first run on fixture) | 13,065.2 | 0 | `.simplicio-loop/runtime-project-map.json`, `.simplicio-loop/endpoint-inventory.json`, `.simplicio-loop/screen-inventory.json` | 0 local / 0 remote |
 | `simplicio map --repo <fx> --json` (repeat) | 259.4 | 0 | same (regenerated; `cache_hit:false`) | 0 / 0 |
 | `simplicio validate --repo <fx> --json --task "api change"` | 134.3 | 0 | validation plan JSON on stdout (4 progressive levels, `task_kind:"api"`) | 0 / 0 |
 | `simplicio edit --plan edit-plan.json --repo <fx> --json` (2 ops on `src/util.js`) | 1,078.3 | 0 | mechanically edited file (+9/-1 lines), `simplicio.edit-result/v1` with before/after SHA-256 | 0 remote; ledger logs `local_tokens:2` (runtime-internal accounting — **no model was loaded or invoked**) |
@@ -82997,7 +82997,7 @@ Final result line (repeat run):
 
 ```json
 {"schema":"simplicio.map-result/v1","status":"native",
- "artifact":"...\\cs002-fixture\\.simplicio\\runtime-project-map.json",
+ "artifact":"...\\cs002-fixture\\.simplicio-loop\\runtime-project-map.json",
  "fallback_used":false,"changed_files":3,"cache_hit":false,"adapter_record":null}
 ```
 
@@ -83006,10 +83006,10 @@ Final result line (repeat run):
 ```json
 {"schema":"simplicio.project-map/v1","repo":"cs002-fixture","files":6,
  "changed_files":3,"rust_files":0,"docs":1,
- "artifacts":{"project_map":".simplicio/runtime-project-map.json",
-  "symbol_index":".simplicio/symbol-index.json",
-  "endpoint_inventory":".simplicio/endpoint-inventory.json",
-  "screen_inventory":".simplicio/screen-inventory.json"},
+ "artifacts":{"project_map":".simplicio-loop/runtime-project-map.json",
+  "symbol_index":".simplicio-loop/symbol-index.json",
+  "endpoint_inventory":".simplicio-loop/endpoint-inventory.json",
+  "screen_inventory":".simplicio-loop/screen-inventory.json"},
  "endpoints":[],"screens":[],
  "sample_files":["README.md","src\\api.ts","src\\util.js", "..."]}
 ```
@@ -83234,7 +83234,7 @@ Three modes:
 - `auto` — execute mutating actions without prompt
 - `safe` — block all mutating actions
 
-Gate mode persisted in `.simplicio/action-gate-mode`.
+Gate mode persisted in `.simplicio-loop/action-gate-mode`.
 
 ### Checkpoints & Rollback (#232)
 ```
@@ -83530,8 +83530,8 @@ Simplicio has: hooks_command.rs, config_command.rs, security_command.rs, action_
 ### Settings precedence (documented)
 1. CLI flags (highest priority)
 2. Environment variables
-3. Project .simplicio/config.json
-4. User ~/.simplicio/config.json
+3. Project .simplicio-loop/config.json
+4. User ~/.simplicio-loop/config.json
 5. Global defaults (lowest priority)
 
 ### Test fixtures needed
@@ -83837,7 +83837,7 @@ Claude Code admin and configuration commands: `claude remote-control`,
 | `claude project purge` | ausente | to-implement: `simplicio cache purge --project` — removes cached artifacts, embeddings, and intermediate build outputs for the current project. **Gated action** (risk = `destructive`); writes an audit entry to the HBP evidence ledger before deleting; requires explicit `--confirm` or action-gate approval. |
 | `claude setup-token` | parcial | equivalente: `simplicio auth add <provider> --api-key <key>` persists credentials to the runtime config, or set env `SIMPLICIO_API_KEY` / `SIMPLICIO_BASE_URL` / `SIMPLICIO_MODEL`. Gap: no interactive wizard matching `claude setup-token`''s UX; to-implement as `simplicio auth setup` interactive flow (reads from stdin, stores securely). |
 | `claude plugin ...` | parcial | equivalente: `simplicio capabilities` lists enabled capability modules; `simplicio install <capability>` activates one. Gap: no `--tree` rendering of the plugin dependency graph. to-implement: `simplicio capabilities --tree` showing parent→child capability dependencies in a collapsible ASCII tree. |
-| `claude auto-mode defaults/config` | ausente | equivalente split across two existing commands: gate policy → `simplicio gate mode auto\|ask\|safe`; resource tier → `simplicio runtime-profile use normal\|full\|low`. Gap: no single `auto-mode` entry point. to-implement: `simplicio auto-mode` as a thin alias that sets both gate mode and runtime profile in one call, persisted to `.simplicio/config.toml`. |
+| `claude auto-mode defaults/config` | ausente | equivalente split across two existing commands: gate policy → `simplicio gate mode auto\|ask\|safe`; resource tier → `simplicio runtime-profile use normal\|full\|low`. Gap: no single `auto-mode` entry point. to-implement: `simplicio auto-mode` as a thin alias that sets both gate mode and runtime profile in one call, persisted to `.simplicio-loop/config.toml`. |
 
 ## Guard Rails
 
@@ -83996,7 +83996,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 ### /init
 - **Legenda:** parcial
 - **Decisão:** equivalente to-complete
-- **Surface:** `simplicio install --init project` initializes a project (CLAUDE.md, .simplicio/, initial memory). Add `/init` as a REPL alias for the project initialization flow.
+- **Surface:** `simplicio install --init project` initializes a project (CLAUDE.md, .simplicio-loop/, initial memory). Add `/init` as a REPL alias for the project initialization flow.
 - **Gap:** The init flow exists in the install module but `/init` is not a first-class REPL command. To-complete: add alias + ensure CLAUDE.md scaffold is generated.
 - **Evidência:** install module, CLAUDE.md template in the runtime.
 
@@ -84377,7 +84377,7 @@ and had to report 0 progress on its remaining batch of work.
 
 Follow-up comments on #3317 (from parallel sessions hitting related symptoms) additionally
 found: pinned worktrees that never received a real checkout (absent from `git worktree
-list`, contents empty except `.simplicio/orchestrator/`); a manual `git worktree add` inside such an
+list`, contents empty except `.simplicio-loop/orchestrator/`); a manual `git worktree add` inside such an
 environment reporting success while still producing an empty directory; and — most
 seriously — two parallel agents ending up pointed at the **same physical worktree
 directory** mid-session, with one agent''s branch and uncommitted files bleeding into the
@@ -84768,14 +84768,14 @@ release inputs, not safe defaults to guess in source code.
 The harness runs one command at a time with `shell=False`, never starts a
 daemon or mapper, and refuses promotion when a required command, screenshot,
 artifact, or hash is missing. It writes a redacted step log and a receipt under
-`.simplicio/e2e/clean-machine/<run-id>/`.
+`.simplicio-loop/e2e/clean-machine/<run-id>/`.
 
 ## Run a release manifest
 
 ```bash
 python scripts/clean-machine-e2e.py \
   --manifest path/to/published-clean-machine-manifest.json \
-  --output .simplicio/e2e/clean-machine
+  --output .simplicio-loop/e2e/clean-machine
 ```
 
 Validate the shape without executing commands:
@@ -85198,7 +85198,7 @@ Runtime: Simplicio (any strong LLM/runtime). Coordination: delegate_task, spawn,
 ## Protocol — Lifecycle Steps
 
 ### Step 0 — Auto-arm the loop
-- Write `.simplicio/orchestrator/loop/scratchpad.md` with goal, cap, and promise.
+- Write `.simplicio-loop/orchestrator/loop/scratchpad.md` with goal, cap, and promise.
 - Loop re-feeds the goal each turn until completion promise verified or cap hit.
 
 ### Step 1 — Identity + Environment
@@ -86249,7 +86249,7 @@ Configure in `apps/simplicio-desktop/electron/main.ts` (or `main/index.ts`).
 ## Configuration (user-facing)
 
 Settings screen toggle: "Automatically check for updates" (default: on)  
-`~/.simplicio/config.toml`:
+`~/.simplicio-loop/config.toml`:
 ```toml
 [desktop]
 auto_update = true
@@ -86300,7 +86300,7 @@ feature.
 
 Show onboarding when:
 ```
-~/.simplicio/config.toml [desktop] onboarding_completed = false  (or key absent)
+~/.simplicio-loop/config.toml [desktop] onboarding_completed = false  (or key absent)
 ```
 
 After completion or skip: set `onboarding_completed = true`.
@@ -86330,7 +86330,7 @@ After completion or skip: set `onboarding_completed = true`.
 **Goal:** show that Simplicio remembers decisions.
 
 - Action: run `simplicio memory "demo query" --repo . --json` against the demo
-  memory store (bundled sample `.simplicio/memory/`)
+  memory store (bundled sample `.simplicio-loop/memory/`)
 - Show: a sample memory recall result with token-savings annotation
 - CTA: "Next"
 
@@ -86426,7 +86426,7 @@ explicit, scoped exception rather than default extension.
 
 | Module | Role |
 |---|---|
-| `autonomous_loop.rs` | Observe → Think → Plan → Act → Reflect loop; state under `.simplicio/yool/consciousness/` |
+| `autonomous_loop.rs` | Observe → Think → Plan → Act → Reflect loop; state under `.simplicio-loop/yool/consciousness/` |
 | `central_loop.rs` | "Central Consciousness Loop (Brain)" orchestrator |
 | `architecture.rs` | Heart/Brain/Organ multi-loop coordination |
 | `vision.rs` | Organism vision manifest |
@@ -86510,7 +86510,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 │              └─────────────────────┘                 │
 │                                                      │
 │  Config: .env (tokens)                               │
-│  Estado: .simplicio/gateway/ (offsets, sessões)     │
+│  Estado: .simplicio-loop/gateway/ (offsets, sessões)     │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -86792,7 +86792,7 @@ For the Fast#232 blocker, after the Runtime fix is installed, use the exact
 key and an evidence artifact produced in the Fast worktree:
 
 ```text
-simplicio effect reconcile --idempotency-key e84b1b002bfa0dc3b019da92b05537d6999151457d3d18e42e988a65b4e36c19 --repo <fast-232-worktree> --evidence-file <fast-232-worktree>/.simplicio/ops/mcp-effects/reconciliation/e84b1b002bfa0dc3b019da92b05537d6999151457d3d18e42e988a65b4e36c19.json --json
+simplicio effect reconcile --idempotency-key e84b1b002bfa0dc3b019da92b05537d6999151457d3d18e42e988a65b4e36c19 --repo <fast-232-worktree> --evidence-file <fast-232-worktree>/.simplicio-loop/ops/mcp-effects/reconciliation/e84b1b002bfa0dc3b019da92b05537d6999151457d3d18e42e988a65b4e36c19.json --json
 ```
 
 The result must explicitly show `safe_to_clear_pending: true` and either
@@ -86843,7 +86843,7 @@ O E2E flow é verificado automaticamente em:
 
 ## Evidência
 
-Cada pipeline gera um receipt em .simplicio/e2e/<pipeline>/<timestamp>.json
+Cada pipeline gera um receipt em .simplicio-loop/e2e/<pipeline>/<timestamp>.json
 O receipt contém: status, duração, cada etapa, logs de erro, screenshots (front).
 
 ## Implementação
@@ -86866,8 +86866,8 @@ gap by building a typed, versioned, governed execution layer for every VS Code
 command class.
 
 Local evidence files:
-- `.simplicio/codex-evidence/vscode-command-coverage-2026-06-15.md`
-- `.simplicio/codex-evidence/vscode-command-coverage-2026-06-15.json`
+- `.simplicio-loop/codex-evidence/vscode-command-coverage-2026-06-15.md`
+- `.simplicio-loop/codex-evidence/vscode-command-coverage-2026-06-15.json`
 
 ## Goal
 
@@ -87057,7 +87057,7 @@ Simplicio:
 Parallel:
 
 - Hermes exposes an artifact browser with visual/file/link history.
-- Simplicio exposes the same category of surface, but the data is not mocked: the frontend calls `list_artifacts` via `invoke(...)` in [apps/desktop/src/lib/runtime.ts](../../../apps/desktop/src/lib/runtime.ts), and the Rust backend walks real run directories under `.simplicio/runs` in [apps/desktop/src-tauri/src/main.rs](../../../apps/desktop/src-tauri/src/main.rs).
+- Simplicio exposes the same category of surface, but the data is not mocked: the frontend calls `list_artifacts` via `invoke(...)` in [apps/desktop/src/lib/runtime.ts](../../../apps/desktop/src/lib/runtime.ts), and the Rust backend walks real run directories under `.simplicio-loop/runs` in [apps/desktop/src-tauri/src/main.rs](../../../apps/desktop/src-tauri/src/main.rs).
 - Concretely, the Rust command `list_artifacts` reads recent runs, collects files, infers image/file/link kinds, and returns the records consumed by the desktop UI.
 
 ## 3. Cron
@@ -87154,17 +87154,17 @@ path/schema behavior and the next migration decision.
 
 | Runtime surface | Observed persistence | Classification | Mapper target / next action |
 | --- | --- | --- | --- |
-| `crates/simplicio-memory/src/store.rs`, `memory_v2.rs`, `vector_memory.rs` | `~/.simplicio/memory/simplicio-memory.sqlite`; local migrations, `memory_items`, FTS5, packed vectors, optional vec0 | legacy neural authority | `memory.sqlite` / semantic store; freeze fixtures, import idempotently, then cut over |
+| `crates/simplicio-memory/src/store.rs`, `memory_v2.rs`, `vector_memory.rs` | `~/.simplicio-loop/memory/simplicio-memory.sqlite`; local migrations, `memory_items`, FTS5, packed vectors, optional vec0 | legacy neural authority | `memory.sqlite` / semantic store; freeze fixtures, import idempotently, then cut over |
 | `src/mapper_memory.rs`, `src/hermes_import.rs`, `src/asolaria/consolidator.rs` | reads/writes or imports against the same `simplicio-memory.sqlite` path | legacy neural writers/readers | route through the semantic adapter only after differential/import evidence |
-| `crates/simplicio-agents/src/agent_store.rs` | `.simplicio/agents/agent-store.sqlite`; lifecycle, heartbeats, serialized state, embeddings | operational candidate with a distinct existing schema | map to operations extensions plus semantic projections; no direct merge until state-machine mapping |
-| `crates/simplicio-agents/src/agent_ops_bounded_1536.rs` | `.simplicio/agents.db` monitor scan | compatibility/reference path; separate from `agent-store.sqlite` | resolve whether it is live authority; block cutover until one path is proven |
+| `crates/simplicio-agents/src/agent_store.rs` | `.simplicio-loop/agents/agent-store.sqlite`; lifecycle, heartbeats, serialized state, embeddings | operational candidate with a distinct existing schema | map to operations extensions plus semantic projections; no direct merge until state-machine mapping |
+| `crates/simplicio-agents/src/agent_ops_bounded_1536.rs` | `.simplicio-loop/agents.db` monitor scan | compatibility/reference path; separate from `agent-store.sqlite` | resolve whether it is live authority; block cutover until one path is proven |
 | `src/idempotency_ext.rs` | caller-supplied `seen.db`; `seen` fingerprints and cleanup | operational candidate | map to Mapper idempotency/effect lineage; preserve source IDs and TTL semantics |
 | `src/asolaria/store_ops.rs` + `src/asolaria/writer.rs` | caller-supplied SQLite connection; pages, sessions, observations, handoffs, embeddings | semantic/context candidate with single-writer actor | target `semantic.sqlite` projections and Mapper receipts; first capture the injected path at construction |
-| `src/savings_ledger.rs` | production path is JSONL (`.simplicio/ledger/token-spend.jsonl`); SQLite name is legacy documentation | non-SQLite projection/reference | exclude from SQLite migration; preserve JSONL ledger authority |
+| `src/savings_ledger.rs` | production path is JSONL (`.simplicio-loop/ledger/token-spend.jsonl`); SQLite name is legacy documentation | non-SQLite projection/reference | exclude from SQLite migration; preserve JSONL ledger authority |
 | `src/htool_kanban_tools.rs`, `src/hermes_import.rs` | `~/.hermes/.../kanban.db` and `state.db` external compatibility sources | external/import source | import only through explicit bounded adapters; never treat as Runtime authority |
 | `src/imessage.rs` | `~/Library/Messages/chat.db` | external OS database | exclude; read-only integration only |
 | `crates/simplicio-tokill/src/stats.rs`, tests and fixtures | caller-supplied or in-memory stats databases | rebuildable metrics/fixture | exclude from operations authority; retain local test fixtures |
-| `src/organism/terminal_chat.rs` | `.simplicio/memory/vector_memory.db` local vector path | legacy/rebuildable neural cache | map to semantic embeddings only after path ownership is confirmed |
+| `src/organism/terminal_chat.rs` | `.simplicio-loop/memory/vector_memory.db` local vector path | legacy/rebuildable neural cache | map to semantic embeddings only after path ownership is confirmed |
 
 ## Invariants for the next migration slice
 
@@ -87598,7 +87598,7 @@ This document describes how to set up and run the Simplicio Discord bot, inspire
 | `scripts/ai.simplicio.gateway.plist` | macOS launchd configuration for auto-start |
 | `scripts/log-rotate.sh` | Rotates log files when they exceed 10MB |
 | `scripts/simplicio-daemon.sh` | Manual start/stop/status commands |
-| `~/.simplicio/.env` | Environment variables (tokens, channel IDs) |
+| `~/.simplicio-loop/.env` | Environment variables (tokens, channel IDs) |
 
 ## Quick Start
 
@@ -87650,7 +87650,7 @@ launchctl stop ai.simplicio.gateway
 
 ## Environment Variables
 
-Create `~/.simplicio/.env`:
+Create `~/.simplicio-loop/.env`:
 
 ```bash
 # Discord Bot Token
@@ -87668,18 +87668,18 @@ OPENAI_API_KEY=sk-...
 
 | File | Content |
 |------|---------|
-| `~/.simplicio/logs/gateway.log` | Gateway stdout |
-| `~/.simplicio/logs/gateway.error.log` | Gateway stderr |
-| `~/.simplicio/logs/guardian.log` | Guardian/monitor logs |
-| `~/.simplicio/logs/guardian.error.log` | Guardian errors |
+| `~/.simplicio-loop/logs/gateway.log` | Gateway stdout |
+| `~/.simplicio-loop/logs/gateway.error.log` | Gateway stderr |
+| `~/.simplicio-loop/logs/guardian.log` | Guardian/monitor logs |
+| `~/.simplicio-loop/logs/guardian.error.log` | Guardian errors |
 
 ## State Files
 
 | File | Purpose |
 |------|---------|
-| `~/.simplicio/gateway.pid` | Current process PID |
-| `~/.simplicio/gateway.lock` | Lock file |
-| `~/.simplicio/gateway_state.json` | Runtime state |
+| `~/.simplicio-loop/gateway.pid` | Current process PID |
+| `~/.simplicio-loop/gateway.lock` | Lock file |
+| `~/.simplicio-loop/gateway_state.json` | Runtime state |
 
 ## Differences from Hermes
 
@@ -87703,7 +87703,7 @@ OPENAI_API_KEY=sk-...
 
 2. Check logs:
    ```bash
-   tail -f ~/.simplicio/logs/gateway.error.log
+   tail -f ~/.simplicio-loop/logs/gateway.error.log
    ```
 
 3. Verify token:
@@ -87715,7 +87715,7 @@ OPENAI_API_KEY=sk-...
 
 Check guardian logs:
 ```bash
-tail -f ~/.simplicio/logs/guardian.log
+tail -f ~/.simplicio-loop/logs/guardian.log
 ```
 
 Common causes:
@@ -87752,7 +87752,7 @@ Common causes:
 
 - `docs/SIMPLICIO_OPERATIONAL_MANUAL.md` — Full operational manual
 - `scripts/start-gateway.sh` — Quick start commands
-- `.simplicio/.env.example` — Environment template','docs/GATEWAY_DISCORD.md','53a8d1e5635dd17d9490d18c71cce3b2c6cd91133b985be5ed717d079b41925b','doc,simplicio',1.1);
+- `.simplicio-loop/.env.example` — Environment template','docs/GATEWAY_DISCORD.md','53a8d1e5635dd17d9490d18c71cce3b2c6cd91133b985be5ed717d079b41925b','doc,simplicio',1.1);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/getting-started.md','project_doc','doc://simplicio-runtime/docs/getting-started.md','doc: Getting Started with Simplicio Runtime','# Getting Started with Simplicio Runtime
 
 **5-10 minutes to your first real task.**
@@ -87794,7 +87794,7 @@ chmod +x simplicio && sudo mv simplicio /usr/local/bin/
 simplicio welcome          # what THIS machine has: runtime tier, local model, provider
 simplicio doctor --repair
 simplicio self-test        # real probes: adapter resolution, validation plan, evidence dir
-simplicio first-run start  # guided onboarding — progress persists in ~/.simplicio/onboarding.json
+simplicio first-run start  # guided onboarding — progress persists in ~/.simplicio-loop/onboarding.json
 ```
 
 `simplicio welcome` reports the live runtime tiers (`low`, `normal`, `full`)
@@ -87806,7 +87806,7 @@ real doctor checks pass, and `complete` refuses until every step is done.
 
 `simplicio doctor --repair` checks your environment and repairs common issues
 automatically:
-- Creates `.simplicio/` layout in the current repo
+- Creates `.simplicio-loop/` layout in the current repo
 - Verifies `git` is on PATH
 - Checks the embedded llama.cpp engine and the governed GGUF cache
 - Checks Python adapters (`simplicio-py`, `simplicio-dev-cli`)
@@ -87817,7 +87817,7 @@ Simplicio Runtime <version>
 repo: /home/you/myproject
 health: warning
   ✓ git                 git found on PATH
-  ✓ local-layout        .simplicio directory present
+  ✓ local-layout        .simplicio-loop directory present
   ✓ llama-cpp           embedded Runtime inference engine available
   ⚠ gguf-model          canonical Qwen3.5-4B Q4_K_M absent
     → simplicio model fetch --tier auto --yes
@@ -88141,10 +88141,10 @@ Não, ainda não temos paridade completa de comandos Hermes no Simplicio. O Herm
 
 ## Evidência local
 
-- `.simplicio/hermes-command-audit/command-inventory.json`
-- `.simplicio/hermes-command-audit/hermes-help.txt`
-- `.simplicio/hermes-command-audit/simplicio-help.txt`
-- `.simplicio/hermes-command-audit/simplicio-missing-probe.json`
+- `.simplicio-loop/hermes-command-audit/command-inventory.json`
+- `.simplicio-loop/hermes-command-audit/hermes-help.txt`
+- `.simplicio-loop/hermes-command-audit/simplicio-help.txt`
+- `.simplicio-loop/hermes-command-audit/simplicio-missing-probe.json`
 
 Versões auditadas:
 
@@ -88254,7 +88254,7 @@ Erro observado:
   3. `$USERPROFILE/.hermes`;
   4. Windows native: `$LOCALAPPDATA/hermes`.
 - `--dry-run` do import de dados Hermes deixou de escrever artefatos de
-  config/kanban/cron/MCP em `.simplicio/hermes-migration`.
+  config/kanban/cron/MCP em `.simplicio-loop/hermes-migration`.
 - Testes focados adicionados para `HERMES_HOME`, fallback `LOCALAPPDATA` e
   dry-run sem escrita.
 
@@ -88286,7 +88286,7 @@ Resultado do dry-run após a correção:
 }
 ```
 
-Nenhum arquivo foi criado em `.simplicio/hermes-migration` durante o dry-run.
+Nenhum arquivo foi criado em `.simplicio-loop/hermes-migration` durante o dry-run.
 
 Follow-up aberto no mesmo issue: o Hermes nativo atual tem `config.yaml`, mas o
 importador ainda só mapeia `config.json`. Precisamos decidir se YAML entra como
@@ -88421,7 +88421,7 @@ All commands are governed by Helo rules:
 
 ### model use/select
 - `simplicio model use <provider>[/<model>]` → `ModelSelectCommand::execute`
-- Writes `provider`/`model` to `~/.simplicio/config.json`
+- Writes `provider`/`model` to `~/.simplicio-loop/config.json`
 - Exports `SIMPLICIO_PROVIDER` / `SIMPLICIO_MODEL` env vars when `apply_env=true`
 
 ### fallback
@@ -88430,7 +88430,7 @@ All commands are governed by Helo rules:
 - `simplicio fallback remove <provider>` → `FallbackCommand::remove`
 - `simplicio fallback clear` → `FallbackCommand::clear`
 - `simplicio fallback status` → `FallbackCommand::status`
-- Persisted at `~/.simplicio/fallback.json`; priorities re-assigned on remove
+- Persisted at `~/.simplicio-loop/fallback.json`; priorities re-assigned on remove
 
 ### secrets
 - `simplicio secrets setup --bitwarden <token> <project>` → `SecretsCommand::setup_bitwarden`
@@ -88438,7 +88438,7 @@ All commands are governed by Helo rules:
 - `simplicio secrets test` → `SecretsCommand::test` (shallow config reachability)
 - `simplicio secrets list` → `SecretsCommand::list` (all secrets redacted)
 - `simplicio secrets remove <label>` → `SecretsCommand::remove`
-- Persisted at `~/.simplicio/secrets.json`
+- Persisted at `~/.simplicio-loop/secrets.json`
 
 ### config
 - `simplicio config show` → `ConfigParityCommand::show` (secrets auto-redacted)
@@ -88446,7 +88446,7 @@ All commands are governed by Helo rules:
 - `simplicio config path` → `ConfigParityCommand::path` (Windows paths normalised)
 - `simplicio config env` → `ConfigParityCommand::env` (watched env vars, secrets redacted)
 - `simplicio config reset [key]` → `ConfigParityCommand::reset`
-- Persisted at `~/.simplicio/config.json`
+- Persisted at `~/.simplicio-loop/config.json`
 
 ### portal
 - `simplicio portal login <user> <token>` → `PortalCommand::login` (token fingerprint only)
@@ -88455,7 +88455,7 @@ All commands are governed by Helo rules:
 - `simplicio portal open` → `PortalCommand::open_url`
 - `simplicio portal model` → `PortalCommand::model_list` (partial; live fetch deferred)
 - `simplicio portal tool-gateway list|add|remove` → `PortalCommand::gateway_{list,add,remove}`
-- Session persisted at `~/.simplicio/portal_session.json`
+- Session persisted at `~/.simplicio-loop/portal_session.json`
 
 ### prompt-size
 - `simplicio prompt-size` → `prompt_size_report()`
@@ -88467,7 +88467,7 @@ All commands are governed by Helo rules:
 - `simplicio auth logout <provider>` → `AuthParityCommand::logout`
 - `simplicio auth list` → `AuthParityCommand::list`
 - `simplicio auth rotate <provider>` → `AuthParityCommand::rotate`
-- Persisted at `~/.simplicio/auth_pool.json`
+- Persisted at `~/.simplicio-loop/auth_pool.json`
 
 ## Partial / Deferred
 
@@ -88517,7 +88517,7 @@ six command categories identified in the #1553 parity audit:
 
 All implementations are deterministic, JSON-backed, and provenance-tracked.
 Mutations (install, configure, archive, pin, enable/disable) write to
-`~/.simplicio/` with explicit dry-run or review paths where applicable.
+`~/.simplicio-loop/` with explicit dry-run or review paths where applicable.
 
 ---
 
@@ -88614,7 +88614,7 @@ Schema: `simplicio.hermes-parity-messaging/v1`
 ## What was analyzed
 
 Hermes v0.16.0 messaging/gateway surface from the 2026-06-15 command audit
-(`.simplicio/hermes-command-audit/`):
+(`.simplicio-loop/hermes-command-audit/`):
 
 - `gateway run/start/stop/restart` — lifecycle helpers
 - `send <platform> <msg>` — generic top-level send
@@ -88651,7 +88651,7 @@ Hermes v0.16.0 messaging/gateway surface from the 2026-06-15 command audit
   platform-agnostic send; dispatches to Telegram, Slack, WhatsApp Cloud, Discord
   adapters via `curl` (no extra crate dependencies).
 - `WhatsAppCloudConfig` + `WhatsAppCloudVerb` + `whatsapp_cloud_command()` —
-  Business Cloud API setup (reads env vars, writes `~/.simplicio/gateways/whatsapp-cloud/config.json`),
+  Business Cloud API setup (reads env vars, writes `~/.simplicio-loop/gateways/whatsapp-cloud/config.json`),
   status, webhook registration.
 - `SlackAppManifest` + `SlackCliVerb` + `slack_cli_command()` — YAML manifest
   generator, OAuth install URL, `auth.test` connectivity check.
@@ -88735,7 +88735,7 @@ All destructive operations (prune / delete / clear / uninstall / import) are:
 1. Gated through the Action Gate before any filesystem mutation.
 2. Protected by a dry-run mode (`--dry-run` flag).
 3. Recorded as evidence in the HBP ledger on execution.
-4. Preceded by an automatic backup snapshot when the target is within `~/.simplicio`.
+4. Preceded by an automatic backup snapshot when the target is within `~/.simplicio-loop`.
 
 ## Windows / HOME-not-set path
 
@@ -89129,7 +89129,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 > Ownership note (issue #1540): this matrix is reference-only documentation for
 > residual Python surface mapping. The tracked quarantine/ownership artifact for
 > non-Rust scripts now lives in `docs/SCRIPT_OWNERSHIP_QUARANTINE.md` and
-> `./.simplicio/docs/script-ownership-inventory.json`.
+> `./.simplicio-loop/docs/script-ownership-inventory.json`.
 
 Coverage matrix for porting the hermes-agent `agent/` package (113 Python files,
 ~72k LOC, vendored at `agent/` as reference source) into the Rust runtime
@@ -89255,8 +89255,8 @@ native Rust).
 |---|---|---|---|
 | #448 | closed self-learning loop (autonomous skills) | `simplicio skill-memory` (`simplicio.skill-memory/v1`, "Hermes-style procedural memory for learning, storing, ranking, curating skills"), `simplicio trajectory suggest` (`simplicio.learn-suggestion-list/v1`, gate-required) | **partial** — procedural skill memory + learn-suggestions exist; fully-autonomous create/evolve loop is the gap |
 | #449 | multi-platform messaging gateway | `simplicio telegram status` (`simplicio.telegram/v1`, configured/curl) | **partial** — Telegram only; Discord/WhatsApp/Signal + cross-platform continuity + voice transcription are gaps |
-| #450 | native cron + unattended NL tasks | `simplicio cron status/add/tick/run` (`simplicio.cron/v1`); `cron add "every 2h" "<prompt>"` takes a schedule + natural-language prompt, runs unattended, writes to `.simplicio/cron/output` | **present** — NL prompt + unattended runs; multi-platform delivery ties into #449 |
-| #451 | flexible deploy + serverless hibernation | `simplicio deploy --target <modal\|daytona\|fly\|vercel> [--app NAME] [--dry-run\|--confirm]` (`simplicio.deploy-serverless/v1`, `src/deploy_serverless.rs`): `--dry-run` (default) prints a plan + static cost estimate + the gate decision a real deploy would require, no mutation; a real attempt is gated (ask/auto/safe via `--mode`, requires `--allow` + `--confirm` outside safe mode) and every attempt is appended to `.simplicio/deploy/deploy-events.jsonl`. Modal/Daytona backends (`src/modal_deploy.rs`, `src/daytona_deploy.rs`) exec the real CLI and return an honest `Err` when the CLI/credentials are absent — never fake success. Fly/Vercel are cost-estimated but have no backend wired yet. | **partial** — Modal/Daytona path implemented and gated; Fly/Vercel still error "no backend wired" |
+| #450 | native cron + unattended NL tasks | `simplicio cron status/add/tick/run` (`simplicio.cron/v1`); `cron add "every 2h" "<prompt>"` takes a schedule + natural-language prompt, runs unattended, writes to `.simplicio-loop/cron/output` | **present** — NL prompt + unattended runs; multi-platform delivery ties into #449 |
+| #451 | flexible deploy + serverless hibernation | `simplicio deploy --target <modal\|daytona\|fly\|vercel> [--app NAME] [--dry-run\|--confirm]` (`simplicio.deploy-serverless/v1`, `src/deploy_serverless.rs`): `--dry-run` (default) prints a plan + static cost estimate + the gate decision a real deploy would require, no mutation; a real attempt is gated (ask/auto/safe via `--mode`, requires `--allow` + `--confirm` outside safe mode) and every attempt is appended to `.simplicio-loop/deploy/deploy-events.jsonl`. Modal/Daytona backends (`src/modal_deploy.rs`, `src/daytona_deploy.rs`) exec the real CLI and return an honest `Err` when the CLI/credentials are absent — never fake success. Fly/Vercel are cost-estimated but have no backend wired yet. | **partial** — Modal/Daytona path implemented and gated; Fly/Vercel still error "no backend wired" |
 | #452 | advanced TUI (multiline, autocomplete, interrupt-redirect) | Ratatui TUI (`simplicio tui`) being extended | **partial** — actively under way |
 | #453 | deep persistent memory + user modeling | `simplicio memory status` (`simplicio.memory-backend/v1`, sqlite-fts5, offline, persistent) | **partial** — persistent neural memory present; Honcho-style user modeling is the gap |
 | #454 | batch trajectory generation (research) | `simplicio trajectory record/show/suggest` | **partial** — per-session trajectories exist; batch corpus export for training is the gap |
@@ -89266,14 +89266,14 @@ native Rust).
 
 ```text
 $ simplicio cron status --json
-{"schema":"simplicio.cron/v1","action":"status","jobs":0,"enabled_jobs":0,"output_dir":".simplicio/cron/output",...}
+{"schema":"simplicio.cron/v1","action":"status","jobs":0,"enabled_jobs":0,"output_dir":".simplicio-loop/cron/output",...}
 $ simplicio cron add --help
 cron add requires a schedule and prompt, e.g. simplicio cron add "every 2h" "update auto"
 
 $ simplicio onboard            # providers list
 Providers: openai-codex, claude-pro-max, openrouter, deepseek, groq, mistral, cerebras, xai, custom
 $ simplicio onboard status --json
-{"schema":"simplicio.chat-provider/v1","configured":false,"path":"~/.simplicio/chat-provider.json"}
+{"schema":"simplicio.chat-provider/v1","configured":false,"path":"~/.simplicio-loop/chat-provider.json"}
 
 $ simplicio skill-memory "audit" --json
 {"schema":"simplicio.skill-memory/v1","positioning":"Hermes-style procedural memory for learning, storing, ranking, and curating skills with offline SQLite indexes",...}
@@ -89486,7 +89486,7 @@ orientation task that stamps the session before any agent reads files:
 {
   "label": "Simplicio: edit via plan",
   "type": "shell",
-  "command": "simplicio edit --plan ${workspaceFolder}/.simplicio/plans/last.json",
+  "command": "simplicio edit --plan ${workspaceFolder}/.simplicio-loop/plans/last.json",
   "problemMatcher": [],
   "dependsOn": "Simplicio: orient (session gate)"
 }
@@ -89696,7 +89696,7 @@ pwsh scripts/bootstrap-fresh-machine.ps1 -Apply   # Windows
 ```
 
 The script is **offline-first**: it never downloads unexpected binaries or
-models. It records a transcript under `.simplicio/bootstrap/`:
+models. It records a transcript under `.simplicio-loop/bootstrap/`:
 
 | Step | Command | Artifact |
 |------|---------|----------|
@@ -89711,7 +89711,7 @@ models. It records a transcript under `.simplicio/bootstrap/`:
 - The user does **not** memorize four `pip install` commands — the bootstrap
   script installs `simplicio-cli`, `simplicio-mapper`, `simplicio-prompt`,
   `simplicio-sprint` via `requirements-ecosystem.txt`.
-- `doctor --repair` fixes common missing pieces (`.simplicio` layout, `[tools]`
+- `doctor --repair` fixes common missing pieces (`.simplicio-loop` layout, `[tools]`
   pointers for a project venv, cached GGUF) and re-verifies with real before/
   after values (never assumed).
 - After bootstrap, **offline-first mode** works: `simplicio doctor` reports
@@ -89722,7 +89722,7 @@ models. It records a transcript under `.simplicio/bootstrap/`:
 
 `simplicio install --global` produces a reviewable plan (`install-plan.json`):
 `--dry-run` prints it, `--yes` applies it, and every changed assistant config is
-backed up under `.simplicio/backups/assistant-configs`. `simplicio adapters
+backed up under `.simplicio-loop/backups/assistant-configs`. `simplicio adapters
 rollback` restores the previous state — installation is always reversible.
 
 ## Assistant Adapters
@@ -90288,7 +90288,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 - Criar `src/tts_piper.rs`: wrapper que carrega modelo ONNX pt_BR, expõe `fn synthesize(text: &str) -> Result<Vec<i16>, String>`
 - Registrar `"piper"` como provider no `TtsRegistry` (`src/tts_provider.rs`)
 - Atualizar `htool_tts_tool.rs` para rotear para piper in-process quando feature ativa
-- Modelo default: `~/.simplicio/models/piper/pt_BR-faber-medium.onnx` (~63 MB)
+- Modelo default: `~/.simplicio-loop/models/piper/pt_BR-faber-medium.onnx` (~63 MB)
 - Fallback: se modelo ausente, `Err` com instrução de download (sem panic)
 
 **Deps:** `piper-rs` (MIT), nenhuma GPL
@@ -90511,15 +90511,15 @@ verifying the current state and completing the real implementation.
 ## Current state
 
 - **Remediation batches b01--b21** have been created under
-  `.simplicio/remediation/status/` grouping related findings into actionable
+  `.simplicio-loop/remediation/status/` grouping related findings into actionable
   blocks. Each batch status file tracks which findings are fixed.
-- **Handoff documents** exist under `.simplicio/remediation/` for major subsystems
+- **Handoff documents** exist under `.simplicio-loop/remediation/` for major subsystems
   (mcp, webhook, cron, video, etc.) describing wiring instructions.
-- **37 open issues** remain in `.simplicio/issues/open-issues.jsonl` (numbers
+- **37 open issues** remain in `.simplicio-loop/issues/open-issues.jsonl` (numbers
   173--256) covering architecture-level features not yet implemented.
 - The audit report files referenced in the epic
-  (`.simplicio/reports/issue-integration-audit-2026-06-12.md` and
-  `.simplicio/reports/issue-remediation-created-2026-06-12.json`) do not exist on
+  (`.simplicio-loop/reports/issue-integration-audit-2026-06-12.md` and
+  `.simplicio-loop/reports/issue-remediation-created-2026-06-12.json`) do not exist on
   disk; the remediation tracking lives in the batch status files instead.
 
 ## Decomposition
@@ -90785,7 +90785,7 @@ The codebase has **substantial scaffolding** but zero in-process audio:
 1. Add `piper-rs` as optional dep under feature `voice` in `Cargo.toml`.
 2. Create `src/tts_piper.rs`:
    - `pub fn synthesize(text: &str) -> Result<Vec<i16>, String>`
-   - Lazy model load from `~/.simplicio/models/piper/pt_BR-faber-medium.onnx`
+   - Lazy model load from `~/.simplicio-loop/models/piper/pt_BR-faber-medium.onnx`
    - `Err` with download instructions if model missing (no panic)
 3. Register `"piper"` in `TtsRegistry` as a native provider (it is already in `BUILTIN_NAMES`).
 4. Update `htool_tts_tool.rs` piper match arm: call `tts_piper::synthesize` when feature `voice` is active, fall through to shell-out otherwise.
@@ -91137,7 +91137,7 @@ Overlay filesystem isolation is **not implemented end-to-end**. Partial pieces e
 |---|---|---|
 | `src/file_safety.rs` | Write-deny lists, read-block checks, sandbox-mirror warnings | Soft/defense-in-depth only; no actual FS overlay enforcement |
 | `src/daytona_deploy.rs` | CLI wrapper for `daytona create/sandbox` | Shells out to external CLI; no overlay FS integration |
-| `.simplicio/sandbox-policy.json` | Schema with `trust=restricted` | Schema-only; not enforced at runtime |
+| `.simplicio-loop/sandbox-policy.json` | Schema with `trust=restricted` | Schema-only; not enforced at runtime |
 | `src/htool_delegate_tool.rs` | Isolated context descriptions for sub-agents | No FS overlay applied to spawned sub-agents |
 | `src/htool_code_execution_tool.rs` | Temp dir for code execution | Uses plain temp dirs, not overlay FS |
 | `src/capability_broker.rs` | Capability request/approve/deny/revoke/run lifecycle | Policy from sandbox-policy.json not wired through |
@@ -91159,7 +91159,7 @@ Overlay filesystem isolation is **not implemented end-to-end**. Partial pieces e
 
 ### Sub-issue 2: Wire sandbox-policy.json enforcement through capability_broker
 
-**Files:** `src/capability_broker.rs`, `.simplicio/sandbox-policy.json`
+**Files:** `src/capability_broker.rs`, `.simplicio-loop/sandbox-policy.json`
 
 - Parse `sandbox-policy.json` at startup (serde_json).
 - Add `is_capability_allowed(capability: &str, scope: &str) -> bool` that checks the policy.
@@ -92343,11 +92343,11 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 ## Evidence
 
 ### 1. `risk_configure` persists limits (src/main.rs ~line 48361)
-- Writes user-defined risk limits to `.simplicio/risk-config.json`
+- Writes user-defined risk limits to `.simplicio-loop/risk-config.json`
 - Validates input and returns error when no flags are provided
 
 ### 2. `risk_check` reads persisted config (src/main.rs ~line 48286)
-- Reads from `.simplicio/risk-config.json` instead of using hardcoded $50 value
+- Reads from `.simplicio-loop/risk-config.json` instead of using hardcoded $50 value
 - Ensures financial decisions use real, user-configured limits
 
 ### 3. `polymarket_bet` returns honest errors (src/main.rs ~line 48198)
@@ -92376,7 +92376,7 @@ Epic cobrindo 7+ subsistemas de persistencia no simplicio-runtime que alegam per
 
 ### Sub-issue 2: personal_memory — integracao end-to-end
 - **Arquivos**: `src/plugins/memory/mod.rs`, `src/plugins/memory/mem0.rs`
-- **Problema**: Ja tem persistencia JSONL real em `.simplicio/personal-memory.json`, mas falta integracao end-to-end com runtime surface e testes comportamentais.
+- **Problema**: Ja tem persistencia JSONL real em `.simplicio-loop/personal-memory.json`, mas falta integracao end-to-end com runtime surface e testes comportamentais.
 - **Entrega**: Conectar personal_memory ao tool_registry; testes que provem round-trip (write -> restart -> read).
 
 ### Sub-issue 3: deep_mem (#453) — init flow e testes sqlite
@@ -92852,7 +92852,7 @@ Decomposition plan for remediating ~615 fake-code findings from audit #841.
 **Files:** `memory_command.rs`, `main.rs` (lines ~41341, ~66630, ~37371, ~37013, ~38356, ~7152, ~6362, ~65090)
 **Work:**
 - `memory_command::reset()`: actually clear memory store files
-- `personal_memory_store/recall`: implement file-based read/write to `.simplicio/memory/`
+- `personal_memory_store/recall`: implement file-based read/write to `.simplicio-loop/memory/`
 - `deep_mem_*`: wire to real SQLite or file store; remove hardcoded counts
 - `exec_checkpoint_save/restore`: serialize/deserialize process state to disk
 - `yool_get_command/yool_query_command`: read from the same path `yool_put` writes to
@@ -92873,7 +92873,7 @@ Decomposition plan for remediating ~615 fake-code findings from audit #841.
 - `quality_dimensions/gates_run/status/configure/report`: implement real measurement or return Err("not configured")
 - `auto_learn_*`: wire to real learning cycle state or remove
 - `hermes_parity_update`: persist parity status changes to file
-- `evidence_show_summary/ledger/tokens`: read from `.simplicio/runs/` directory
+- `evidence_show_summary/ledger/tokens`: read from `.simplicio-loop/runs/` directory
 **Acceptance:** `obs_export` creates a real file; quality gates can fail; evidence reads real ledger data
 
 ---
@@ -92937,7 +92937,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 
 ## Status: Already Implemented
 
-All three changes from the edit plan (`.simplicio/edit-plan-test-fixes-5-tui.json`) have already been applied to `src/tui_app.rs`.
+All three changes from the edit plan (`.simplicio-loop/edit-plan-test-fixes-5-tui.json`) have already been applied to `src/tui_app.rs`.
 
 ## Evidence
 
@@ -93069,7 +93069,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 
 - Em `growth_stripe.rs`, implementar `verify_subscription_active(email: &str) -> Result<bool, String>`.
 - Respeitar `entitlement.schema.json` campo `enforcement`: quando `"strict"`, falhar se Stripe retornar subscription inativa.
-- Implementar cache local (arquivo JSON em `~/.simplicio/stripe_cache.json`) com TTL de 24h para evitar chamadas excessivas.
+- Implementar cache local (arquivo JSON em `~/.simplicio-loop/stripe_cache.json`) com TTL de 24h para evitar chamadas excessivas.
 - Fail-closed: se a verificacao falhar (rede, timeout, erro Stripe), negar acesso a features pagas.
 - Grace period: 3 dias apos expiracao para permitir reativacao sem perda de acesso.
 - **Testes:** mock de respostas Stripe (sucesso, falha, timeout), verificacao de fail-closed.
@@ -93103,7 +93103,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 **Prioridade:** P2
 
 - Em `action_gate.rs`, alem do risk analysis atual, consultar entitlement policy.
-- Carregar `entitlement.schema.json` policy file de `~/.simplicio/entitlement.json`.
+- Carregar `entitlement.schema.json` policy file de `~/.simplicio-loop/entitlement.json`.
 - Se `current_phase == "free"` e acao requer paid tier -> deny com mensagem de upgrade.
 - Se `subscription_check.enabled == true` e `should_check_now == true` -> chamar `verify_subscription_active`.
 - Adicionar campo `entitlement_status` ao JSON de decisao do gate.
@@ -93797,9 +93797,9 @@ functionality exists.
 - Include a secrets filter that strips API keys, tokens, and credentials from
   parsed metadata before indexing.
 
-### 2. Governed index in `.simplicio/` (`src/hermes_index.rs`)
+### 2. Governed index in `.simplicio-loop/` (`src/hermes_index.rs`)
 
-- Persist an index file at `~/.simplicio/hermes-index.json` tracking imported
+- Persist an index file at `~/.simplicio-loop/hermes-index.json` tracking imported
   Hermes capabilities with provenance (clone path, git commit SHA, import timestamp).
 - Support incremental updates (re-import only changed capabilities).
 - Schema: `{ version, entries: [{ id, source_path, commit, imported_at, metadata_hash }] }`.
@@ -94168,7 +94168,7 @@ review, and no neural memory namespaces for pricing data.
 - Environment: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
 
 ### 4. Neural memory namespaces (`#1190-4`)
-- Create namespaces in `.simplicio/memory/`: `offer-history`,
+- Create namespaces in `.simplicio-loop/memory/`: `offer-history`,
   `pricing-decisions`, `objection-patterns`, `checkout-analytics`.
 - Integrate with `memory_v2` for semantic recall of prior pricing decisions.
 - Auto-store every offer create/update/archive event with provenance.
@@ -94255,7 +94255,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 - Handle events: `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `subscription.created`, `subscription.updated`, `subscription.deleted`
 - Signature verification via `Stripe-Signature` header (HMAC-SHA256)
 - Idempotency: deduplicate by event ID using neural DB `stripe_events` namespace
-- Structured receipt logging to `.simplicio/runs/`
+- Structured receipt logging to `.simplicio-loop/runs/`
 - Error handling: return 200 on success, 400 on bad signature, 500 on processing failure (no `.unwrap()`)
 
 ### 2. Neural DB Schemas (`stripe-neural-schemas`)
@@ -94272,7 +94272,7 @@ Namespace schemas:
 **Files:** `src/growth_autopilot.rs`, `src/growth_stripe.rs`
 
 - Hourly: webhook reconciliation — compare Stripe API list of recent events against `stripe_events` namespace, flag/process any missed events
-- Daily: revenue attribution report — aggregate revenue by source/campaign, write summary to `.simplicio/runs/daily-revenue-YYYY-MM-DD.json`
+- Daily: revenue attribution report — aggregate revenue by source/campaign, write summary to `.simplicio-loop/runs/daily-revenue-YYYY-MM-DD.json`
 - Integration with existing autopilot scheduler
 
 ### 4. Agent Lease/Handoff Integration (`stripe-agent-leases`)
@@ -94300,14 +94300,14 @@ Gates requiring human approval before execution:
 - Canceling subscriptions
 - Any operation above a configurable monetary threshold
 
-Implementation: integrate with existing `.simplicio` approval gate system, log gate decisions to evidence ledger.
+Implementation: integrate with existing `.simplicio-loop` approval gate system, log gate decisions to evidence ledger.
 
 ### 6. Evidence Ledger and Structured Receipts (`stripe-evidence-ledger`)
 **Files:** `src/growth_stripe.rs`
 
-- Write structured JSON receipts to `.simplicio/runs/` for every Stripe operation
+- Write structured JSON receipts to `.simplicio-loop/runs/` for every Stripe operation
 - Receipt format: `{ operation, timestamp, agent, input_hash, output_hash, stripe_ids, approval_gate, dry_run }`
-- Index file at `.simplicio/runs/stripe-ledger-index.jsonl`
+- Index file at `.simplicio-loop/runs/stripe-ledger-index.jsonl`
 - Retention policy configuration
 
 ### 7. Integration/Smoke Tests (`stripe-integration-tests`)
@@ -96237,7 +96237,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 - `src/exec_graph.rs:745` — test `conditional_edges_route_on_success_and_failure`
 
 ### 3. Checkpoint/resume persists state
-- `src/exec_graph_runtime.rs:51` — state dir at `.simplicio/exec-graph`
+- `src/exec_graph_runtime.rs:51` — state dir at `.simplicio-loop/exec-graph`
 - `src/exec_graph_runtime.rs:8-10` — schemas for run, state, and current
 
 ### 4. Role/goal fields on ExecGraphNodeSpec
@@ -96861,7 +96861,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 **Files**: `src/license.rs`, new `src/entitlement_cache.rs`
 
 **Work**:
-- Create `EntitlementCache` struct that stores a signed entitlement snapshot to `~/.simplicio/entitlement.cache`
+- Create `EntitlementCache` struct that stores a signed entitlement snapshot to `~/.simplicio-loop/entitlement.cache`
 - Implement cache validation (check ed25519 signature, check expiry + grace window)
 - Transition to `OfflineGrace` state when cache is valid but network is unavailable
 - Transition to `Blocked` when cache has expired beyond grace period
@@ -96881,7 +96881,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 **Work**:
 - Implement adapter that shells out to `simplicio license status --json` and parses the result
 - Map the 8 `EntitlementState` values to UI-facing module lock/unlock decisions
-- Hot-reload support: file-watch on `~/.simplicio/entitlement.cache` to detect changes without app restart
+- Hot-reload support: file-watch on `~/.simplicio-loop/entitlement.cache` to detect changes without app restart
 - IPC channel from main process to renderer for state updates
 - Ensure no secrets (Stripe key, signing key) are accessible in renderer process
 - Integration test: mock CLI output and verify adapter produces correct UI state
@@ -97355,14 +97355,14 @@ Build a script that runs the test suite and collects evidence artifacts.
   - Run the flow
   - Capture screenshot (Playwright)
   - Record console logs
-  - Save to `.simplicio/reports/<run-id>/<platform>/<state>/<flow>/`
-- Generate summary JSON: `.simplicio/reports/<run-id>/summary.json`
-- Generate markdown report: `.simplicio/reports/<run-id>/report.md`
+  - Save to `.simplicio-loop/reports/<run-id>/<platform>/<state>/<flow>/`
+- Generate summary JSON: `.simplicio-loop/reports/<run-id>/summary.json`
+- Generate markdown report: `.simplicio-loop/reports/<run-id>/report.md`
 
 Files to create:
 - `apps/desktop/scripts/qa-evidence.ts`
 - `apps/desktop/scripts/state-fixtures.ts` — mock product/runtime state injection
-- `.simplicio/reports/.gitkeep`
+- `.simplicio-loop/reports/.gitkeep`
 
 ---
 
@@ -97427,7 +97427,7 @@ File: `.github/workflows/desktop-qa.yml`
 
 - Matrix strategy: `[windows-latest, macos-latest, ubuntu-latest]`
 - Steps: install deps, build Tauri app, run unit tests, run E2E tests, run evidence script
-- Upload `.simplicio/reports/` as artifact
+- Upload `.simplicio-loop/reports/` as artifact
 - Post summary to PR comment
 - Run on: push to `main`, PRs touching `apps/desktop/**`
 
@@ -97635,7 +97635,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
   - `dry_run: bool`
   - `applied: bool`
   - `warnings: Vec<String>`
-- Serialize to JSON, write to `.simplicio/reports/hermes-sync/{date}-{sha_short}.json`.
+- Serialize to JSON, write to `.simplicio-loop/reports/hermes-sync/{date}-{sha_short}.json`.
 - Deserialize for `hermes diff` display.
 
 **Acceptance:** Round-trip serde test; report file written to correct path.
@@ -97647,7 +97647,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 **Files:** `src/hermes_import.rs`, `src/hermes_cli.rs`
 
 - Implement the sync loop:
-  1. Read last-seen SHA from `.simplicio/reports/hermes-sync/.last-seen-sha`.
+  1. Read last-seen SHA from `.simplicio-loop/reports/hermes-sync/.last-seen-sha`.
   2. Enumerate Hermes commits since that SHA.
   3. Classify each commit (sub-task 2).
   4. Generate report (sub-task 3).
@@ -97664,8 +97664,8 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 
 **Files:** `src/hermes_report.rs`, `src/cron_scheduler.rs`, `scripts/hermes-sync-cron.sh`
 
-- Persist reports under `.simplicio/reports/hermes-sync/` with timestamp-based filenames.
-- Track last-seen SHA in `.simplicio/reports/hermes-sync/.last-seen-sha` (atomic write via temp file + rename).
+- Persist reports under `.simplicio-loop/reports/hermes-sync/` with timestamp-based filenames.
+- Track last-seen SHA in `.simplicio-loop/reports/hermes-sync/.last-seen-sha` (atomic write via temp file + rename).
 - Add `hermes-sync` as a known cron profile in `cron_scheduler.rs` so `simplicio cron add hermes-sync --interval daily` works.
 - Update `scripts/hermes-sync-cron.sh` to delegate to `simplicio hermes sync` instead of doing its own git-log parsing.
 
@@ -97903,7 +97903,7 @@ This epic decomposes into 5 sub-issues.
 **Design:**
 - Stable key format: `hermes:{sha_short}:{classification}:{path_hash}`
 - `path_hash` = first 8 chars of SHA-256 of sorted affected paths
-- Persist known keys in `.simplicio/cron/issue-index.json`
+- Persist known keys in `.simplicio-loop/cron/issue-index.json`
 - Schema: `{ "version": 1, "entries": { "<key>": { "issue_number": N, "created_at": "...", "status": "open|closed" } } }`
 
 **Files to create/edit:**
@@ -98011,7 +98011,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 
 - `scripts/hermes-sync-cron.sh` detects new Hermes commits and identifies features, but does not produce structured per-import learning records.
 - `src/memory_command.rs` provides memory-db status/reset but no ingestion of import records.
-- `.simplicio/reports/hermes-sync/` evidence directory does not exist.
+- `.simplicio-loop/reports/hermes-sync/` evidence directory does not exist.
 - No ignore-rule learning from skipped imports.
 - No automated GitHub closeout comments with evidence links.
 
@@ -98025,8 +98025,8 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 
 ### 2. Create evidence directory and writer
 - **File:** `src/hermes_evidence.rs` (new)
-- On each sync run, ensure `.simplicio/reports/hermes-sync/` exists.
-- Write one JSON file per import: `.simplicio/reports/hermes-sync/{sha}.json` containing `HermesImportRecord`.
+- On each sync run, ensure `.simplicio-loop/reports/hermes-sync/` exists.
+- Write one JSON file per import: `.simplicio-loop/reports/hermes-sync/{sha}.json` containing `HermesImportRecord`.
 - Validate no `.unwrap()` — all I/O errors propagated as `Result`.
 
 ### 3. Extend hermes-sync-cron.sh to emit per-import records
@@ -98037,12 +98037,12 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 
 ### 4. Wire memory-db ingestion of import records
 - **File:** `src/memory_command.rs` (extend)
-- Add `ingest_hermes_records()` method that reads all JSON files from `.simplicio/reports/hermes-sync/`, inserts into `memory_items` table with type `hermes_import`.
+- Add `ingest_hermes_records()` method that reads all JSON files from `.simplicio-loop/reports/hermes-sync/`, inserts into `memory_items` table with type `hermes_import`.
 - Deduplicate by SHA to avoid re-ingestion.
 
 ### 5. Add ignore-rule persistence
 - **File:** `src/hermes_ignore_rules.rs` (new)
-- Maintain `.simplicio/hermes-ignore-rules.json` — a list of patterns (commit-msg regex or file-path glob) that auto-classify future imports as `skip`.
+- Maintain `.simplicio-loop/hermes-ignore-rules.json` — a list of patterns (commit-msg regex or file-path glob) that auto-classify future imports as `skip`.
 - When a user marks an import as "skip", append the rule.
 - `hermes-sync-cron.sh` checks ignore rules before classifying.
 
@@ -98054,7 +98054,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 ### 7. GitHub closeout comments with evidence links
 - **File:** `scripts/hermes-sync-cron.sh` (extend)
 - After processing all imports, for each commit that maps to a GitHub issue (parsed from commit message `#NNNN`), post a comment via `gh issue comment` with a link to the evidence JSON.
-- Template: "Hermes import validated. Evidence: `.simplicio/reports/hermes-sync/{sha}.json`. Classification: {class}."
+- Template: "Hermes import validated. Evidence: `.simplicio-loop/reports/hermes-sync/{sha}.json`. Classification: {class}."
 
 ### 8. Feed Helo with validated records
 - **File:** `src/hermes_evidence.rs` (extend)
@@ -98394,7 +98394,7 @@ This covers roughly 30% of the acceptance criteria.
 **Files:** `src/pairing_command.rs`, new `src/device_keys.rs`
 **Scope:**
 - Generate Ed25519 keypair per device on first pairing
-- Store desktop keypair in `~/.simplicio/device_key.json` (private) and embed pubkey in QR
+- Store desktop keypair in `~/.simplicio-loop/device_key.json` (private) and embed pubkey in QR
 - Mobile device sends its pubkey during verify step
 - Replace symmetric token with signed challenge-response using keypairs
 - Key rotation command
@@ -98470,7 +98470,7 @@ Enable Simplicio Mobile clients to dispatch and monitor agent runs on the deskto
 - On first connection, gateway generates a 6-digit pairing code displayed in the TUI.
 - Mobile sends the code; gateway returns a session token (random 256-bit, hex-encoded).
 - Subsequent requests include the token in a header/field; gateway validates.
-- Paired devices stored in `~/.simplicio/paired_devices.json`.
+- Paired devices stored in `~/.simplicio-loop/paired_devices.json`.
 - `simplicio unpair <device_id>` CLI command to revoke.
 
 ### 3. Structured Endpoints (JSON-RPC methods)
@@ -99143,7 +99143,7 @@ Mobile module for workspace discovery, repository selection, runtime context map
 
 ### 1. Workspace list schema definition
 - Define `WorkspaceListEntry` schema (id, name, path, last_accessed, repo_count, status).
-- Add to `.simplicio/runtime-resource-map.json` under a new `workspaces` key.
+- Add to `.simplicio-loop/runtime-resource-map.json` under a new `workspaces` key.
 - Output: JSON Schema + Rust types in `src/schema/workspace.rs`.
 
 ### 2. Mobile app scaffold (`apps/mobile`)
@@ -99329,7 +99329,7 @@ negotiated at pairing time and enforced by the approval system.
 **Scope:** Create a configurable allowlist/denylist for commands that can be triggered
 from the mobile app. Extend `action_gate.rs` risk classification to add a
 `mobile_origin` factor and integrate with a new `policy_engine.rs` that loads rules
-from `~/.simplicio/mobile-policy.json`.
+from `~/.simplicio-loop/mobile-policy.json`.
 **Depends on:** #4.
 
 ### 6. Approval TTLs
@@ -99342,7 +99342,7 @@ approval from the mobile app expires after a configurable duration. Extend
 ### 7. Audit Logging
 **Files:** `src/audit_command.rs` (extend or new module), `src/security_command.rs`
 **Scope:** Log every mobile-originated action (command, approval decision, pairing
-event) to a structured audit log (`~/.simplicio/audit/mobile.jsonl`). Include
+event) to a structured audit log (`~/.simplicio-loop/audit/mobile.jsonl`). Include
 timestamp, device ID, action, risk level, and outcome.
 **Depends on:** #5, #6.
 
@@ -99985,7 +99985,7 @@ The runtime already has a basic TTS adapter (`tools/tts_tool.py`, `src/tts_provi
 ### Sub-issue 2: Narration Settings Model
 - Define a `NarrationLevel` enum: `Silent`, `Important`, `Verbose`.
 - Add a `NarrationSettings` struct with fields: `level`, `voice_id`, `speed`, `locale`.
-- Persist settings via serde JSON to `~/.simplicio/narration.json`.
+- Persist settings via serde JSON to `~/.simplicio-loop/narration.json`.
 - **Deliverable:** Rust module + serde round-trip tests.
 
 ### Sub-issue 3: TTS Adapter Integration for Narration
@@ -100262,11 +100262,11 @@ cutting token usage by ~57% on navigation-heavy tasks.
   - Import/module dependencies
 - **Files:** `src/codegraph_parser.rs`, `src/main.rs` (add subcommand)
 - **Effort:** L
-- **Acceptance:** `simplicio index .` produces `.simplicio/index/graph.json`
+- **Acceptance:** `simplicio index .` produces `.simplicio-loop/index/graph.json`
 
 ### 2. Graph Storage Format
 - **Scope:** Define a compact JSON (or MessagePack) schema for the graph
-  stored in `.simplicio/index/`. Must support fast lookup by symbol name.
+  stored in `.simplicio-loop/index/`. Must support fast lookup by symbol name.
   Include file-level checksums for incremental updates.
 - **Files:** `src/codegraph_store.rs`, `schemas/codegraph.schema.json`
 - **Effort:** M
@@ -100315,7 +100315,7 @@ query API to be stable.
 - std + serde + serde_json only (no tree-sitter or syn crate initially;
   use regex-based extraction for v1)
 - No `.unwrap()` in production code
-- Index must be `.gitignore`-able (lives in `.simplicio/index/`)','docs/issues/1289-plan.md','f4229f14a5aaf4da38830c0150fdcdfe7d833cc46db90d1fe86dfea6529d524e','doc,simplicio',1.1);
+- Index must be `.gitignore`-able (lives in `.simplicio-loop/index/`)','docs/issues/1289-plan.md','f4229f14a5aaf4da38830c0150fdcdfe7d833cc46db90d1fe86dfea6529d524e','doc,simplicio',1.1);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/issues/1290-plan.md','project_doc','doc://simplicio-runtime/docs/issues/1290-plan.md','doc: Plan: #1290 — Knowledge-work plugins (official Anthropic specialist personas)','# Plan: #1290 — Knowledge-work plugins (official Anthropic specialist personas)
 
 ## Overview
@@ -100723,7 +100723,7 @@ python3 scripts/measure-local-neural-runtime.py \
   --task "run the existing test suite and fix the failing test" \
   --runtime-sha "$(git rev-parse HEAD)" \
   --loop-sha "8155d2203f0018b00d842ddea5910271bd85d3c4" \
-  --out .simplicio/evidence/local-neural-benchmark.json \
+  --out .simplicio-loop/evidence/local-neural-benchmark.json \
   --trials 3
 ```
 
@@ -100748,7 +100748,7 @@ Runtime consumes the contract published by Simplicio Loop at
 `8155d2203f0018b00d842ddea5910271bd85d3c4`). Runtime does not reinterpret the
 state files or infer success from a subprocess exit code.
 
-An E2E run publishes `.simplicio/loop-execution.json`. The receipt binds the
+An E2E run publishes `.simplicio-loop/loop-execution.json`. The receipt binds the
 run to one workspace and one ordered chain:
 
 ```text
@@ -101063,7 +101063,7 @@ core CLI commands.
 The Runtime-owned `simplicio_prototype_artifact_write` and
 `simplicio_prototype_artifact_read` tools persist
 `simplicio.prototype-artifact/v1` artifacts only under
-`.simplicio/artifacts/prototype-first/`. Artifact IDs are bounded safe ASCII
+`.simplicio-loop/artifacts/prototype-first/`. Artifact IDs are bounded safe ASCII
 identifiers; traversal, symlink escapes, oversized payloads, and conflicting
 rewrites are rejected. Writes require a valid
 `simplicio.effect-transaction/v1` transaction, while reads remain read-only.
@@ -102297,13 +102297,13 @@ Config and the repo are bind-mounted; nothing secret is baked into the image.
 ```bash
 # Deterministic command — no model, no network needed:
 docker run --rm \
-  -v "$HOME/.simplicio:/home/simplicio/.simplicio" \
+  -v "$HOME/.simplicio-loop:/home/simplicio/.simplicio-loop" \
   -v "$PWD:/work" -w /work \
   simplicio:latest map --repo . --json
 ```
 
-The container''s config dir is `/home/simplicio/.simplicio`
-(`SIMPLICIO_HOME`); mount your host `~/.simplicio` there to persist memory and
+The container''s config dir is `/home/simplicio/.simplicio-loop`
+(`SIMPLICIO_HOME`); mount your host `~/.simplicio-loop` there to persist memory and
 checkpoints.
 
 ## docker-compose
@@ -102871,7 +102871,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 
 ## Overview
 
-Each integration adds a skill (user-facing, in `.simplicio/skills/`) and a Rust
+Each integration adds a skill (user-facing, in `.simplicio-loop/skills/`) and a Rust
 adapter module (`src/integrations/<name>/`). The adapter handles OAuth/API auth,
 request/response mapping, and exposes a typed Rust API. The skill wraps it in
 natural language.
@@ -102897,7 +102897,7 @@ pub trait Integration: Send + Sync {
 }
 ```
 
-OAuth tokens stored encrypted in `.simplicio/tokens/<integration>.enc` (AES-256-GCM, key = machine secret).
+OAuth tokens stored encrypted in `.simplicio-loop/tokens/<integration>.enc` (AES-256-GCM, key = machine secret).
 
 ## Integration Catalogue
 
@@ -103038,7 +103038,7 @@ src/integrations/
     mod.rs               — OpenWeatherMap, no auth module needed
   ...
 
-.simplicio/skills/
+.simplicio-loop/skills/
   skill_calendar.rs
   skill_gmail.rs
   skill_notion.rs
@@ -103820,7 +103820,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 
 > **Goal:** Make `simplicio install` (and `simplicio doctor --install`) automatically download local model, init memory DB, run runtime map, and install orient gate — so users have ALL features immediately.
 
-**Architecture:** Add an `install` subcommand that runs a complete setup pipeline. Modify `doctor --repair` (already wired) to auto-download the local model if missing. Add a first-run check in `main()` that auto-runs install if `.simplicio/` is empty.
+**Architecture:** Add an `install` subcommand that runs a complete setup pipeline. Modify `doctor --repair` (already wired) to auto-download the local model if missing. Add a first-run check in `main()` that auto-runs install if `.simplicio-loop/` is empty.
 
 **Files:**
 - Modify: `src/main.rs` — add `install` command dispatch, auto-install check at startup
@@ -103867,7 +103867,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 - Modify: `src/main.rs` around `repair_local_layout()`
 
 **Approach:**
-- If `~/.simplicio/memory/simplicio-memory.sqlite` doesn''t exist or has no schema:
+- If `~/.simplicio-loop/memory/simplicio-memory.sqlite` doesn''t exist or has no schema:
   - Call `memory-db init` programmatically or run the schema SQL directly
   - Import default skills
 
@@ -103888,13 +103888,13 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 
 ### Task 5: Add first-run auto-install check in main()
 
-**Objective:** On first invokation, auto-run install if `.simplicio/` is empty.
+**Objective:** On first invokation, auto-run install if `.simplicio-loop/` is empty.
 
 **Files:**
 - Modify: `src/main.rs` around the `main()` function
 
 **Approach:**
-- After parsing args but before dispatch, check if `.simplicio/` exists and has content
+- After parsing args but before dispatch, check if `.simplicio-loop/` exists and has content
 - If empty/fresh, print "First run — running auto-install..." and call `doctor --repair`
 - Only do this for non-install/doctor commands (don''t recurse)
 
@@ -104066,7 +104066,7 @@ simplicio version
 simplicio setup
 ```
 
-The wizard checks your environment, seeds local config under `~/.simplicio`, and
+The wizard checks your environment, seeds local config under `~/.simplicio-loop`, and
 reports what is ready. Re-run it any time — it is idempotent.
 
 Then confirm everything is healthy:
@@ -104200,7 +104200,7 @@ simplicio version
 simplicio setup
 ```
 
-O assistente checa o ambiente, semeia a config local em `~/.simplicio` e informa
+O assistente checa o ambiente, semeia a config local em `~/.simplicio-loop` e informa
 o que está pronto. Rode quantas vezes quiser — é idempotente.
 
 Depois confirme que está tudo saudável:
@@ -105159,7 +105159,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 Audit: `docs/AUDIT_FAKE_CODE_2026-06-11.md` (48 agents, 2026-06-11).
 Execution: multi-agent workflow (modules parallel w/ exclusive file ownership,
 main.rs sequential by disjoint line blocks, tests rewrite, verify+repair loop).
-State for resume: `.simplicio/remediation/status/*.md` + git commits on `main`
+State for resume: `.simplicio-loop/remediation/status/*.md` + git commits on `main`
 prefixed `fix(858):`.
 
 ## Cluster → issue map
@@ -105206,7 +105206,7 @@ prefixed `fix(858):`.
 ## Workflow phases
 
 1. **Modules** (~35 agents, parallel) — each owns exclusive standalone files;
-   never touches main.rs; cross-file needs go to `.simplicio/remediation/handoff-*.md`.
+   never touches main.rs; cross-file needs go to `.simplicio-loop/remediation/handoff-*.md`.
 2. **BuildFix** (sequential) — cargo check repair + apply handoffs + commit.
 3. **MainRS** (~19 sequential block agents) — disjoint line ranges; each agent
    runs lean cargo check, fixes own fallout, commits `fix(858): <block>`.
@@ -105222,7 +105222,7 @@ Full build: `LIBCLANG_PATH=''C:\Users\Z0059V7A\AppData\Local\Python\pythoncore-3
 ## Resume after token/context loss
 
 1. `git log --oneline -30` — `fix(858):` commits show completed blocks.
-2. `.simplicio/remediation/status/` — one file per finished agent.
+2. `.simplicio-loop/remediation/status/` — one file per finished agent.
 3. Re-launch remaining blocks with the same prompts (workflow script saved in
    the session dir; resumable via `resumeFromRunId`).','docs/REMEDIATION_PLAN_858.md','6f8e6f07c1b3f7b85b4873ed339980f6ab3ba6a4d4b5fb099e5aa33db38b76b1','doc,simplicio',1.1);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/reports/LEVANTAMENTO_FUNCIONALIDADES.md','project_doc','doc://simplicio-runtime/docs/reports/LEVANTAMENTO_FUNCIONALIDADES.md','doc: Simplicio Runtime — Levantamento Completo de Funcionalidades e Fluxos','# Simplicio Runtime — Levantamento Completo de Funcionalidades e Fluxos
@@ -105386,7 +105386,7 @@ How an LLM should use this runtime:
 ## Zero-copy Orientation Pack
 
 - Isa uses SQLite/FTS/vector memory to rank project docs, examples, schemas, and orientation files, then resolves `path + offset + len` into the generated pack.
-- `simplicio orientation pack --repo . --json` builds `.simplicio/cache/orientation.pack` and `.simplicio/cache/orientation-index.json` as serialized generated artifacts.
+- `simplicio orientation pack --repo . --json` builds `.simplicio-loop/cache/orientation.pack` and `.simplicio-loop/cache/orientation-index.json` as serialized generated artifacts.
 - The runtime opens the pack read-only through `mmap`; source `.md`, docs, examples, and schemas remain editable source of truth.
 - Agents never touch the SQLite neural memory or mmap pack directly; they receive materialized snippets through Simplicio, with Isa handling project/user context and Helo handling runtime/function knowledge.
 
@@ -106375,7 +106375,7 @@ Stage 5: remote LLM (paid, gated, explicit --remote flag required)
 
 ## Feature Gating
 
-Gating is enforced at the binary level via the Action Gate (`action_gate` / `action_bridge`). License tier is read from `~/.simplicio/license.json` (JWT, verified offline against embedded public key, refreshed weekly).
+Gating is enforced at the binary level via the Action Gate (`action_gate` / `action_bridge`). License tier is read from `~/.simplicio-loop/license.json` (JWT, verified offline against embedded public key, refreshed weekly).
 
 | Feature | Free | Pro | Enterprise |
 |---|---|---|---|
@@ -106393,7 +106393,7 @@ Gating is enforced at the binary level via the Action Gate (`action_gate` / `act
 
 ## Subscription Management
 
-- **Billing:** Stripe (LIVE mode). Plan stored in `~/.simplicio/license.json`.
+- **Billing:** Stripe (LIVE mode). Plan stored in `~/.simplicio-loop/license.json`.
 - **Upgrade flow:** `simplicio account upgrade` → opens browser to Stripe checkout → webhook updates license → CLI polls for updated JWT.
 - **Cancellation:** immediate downgrade to Free at end of billing period. Data (memory, checkpoints) retained 90 days.
 - **Trial:** 14-day Pro trial on signup (no credit card required for local-only features).
@@ -106478,7 +106478,7 @@ PUT  /v1/sync/resolve
 
 ### Sync Cursor
 - Each device maintains `last_sync_cursor: {server_seq: u64, device_cursors: Map<Uuid, u64>}`.
-- Stored in `.simplicio/cloud/sync_state.json` (local, not synced).
+- Stored in `.simplicio-loop/cloud/sync_state.json` (local, not synced).
 
 ---
 
@@ -106568,7 +106568,7 @@ simplicio cloud login
 | Feature | Offline behavior |
 |---|---|
 | Neural memory read/write | Full (local SQLite) |
-| Sync push | Queued in `.simplicio/cloud/outbox.jsonl` |
+| Sync push | Queued in `.simplicio-loop/cloud/outbox.jsonl` |
 | Sync pull | Stale data served from last pull |
 | Backup | Skipped; retried on next connectivity event |
 | Cloud auth | Cached JWT used until expiry; then local-only mode |
@@ -106982,7 +106982,7 @@ Session ghost report:
   Mechanical edits applied: 7
 ```
 
-Written to `.simplicio/sessions/<id>/ghost_report.json`.
+Written to `.simplicio-loop/sessions/<id>/ghost_report.json`.
 
 ## Data Sources
 
@@ -107000,7 +107000,7 @@ Written to `.simplicio/sessions/<id>/ghost_report.json`.
 
 - Add `GhostReport` struct to `src/ghost_mode.rs`.
 - Instrument `map`, `memory`, `edit`, and `action_gate` to emit events to a
-  per-session ghost log (append-only JSONL under `.simplicio/sessions/<id>/`).
+  per-session ghost log (append-only JSONL under `.simplicio-loop/sessions/<id>/`).
 - Compute `tokens_spent` from actual LLM response metadata.
 
 ### Phase 2 — Display (v0.4-beta)
@@ -107272,7 +107272,7 @@ simplicio life health import apple-health export.xml
 ```
 
 ### Privacy
-- All data stored locally (`.simplicio/life/health.db`).
+- All data stored locally (`.simplicio-loop/life/health.db`).
 - Never synced to cloud by default (`scope=local`).
 - Opt-in: `simplicio life health export --format csv` for user-controlled sharing.
 
@@ -107582,7 +107582,7 @@ struct MeshPeer {
 1. On peer connect, exchange skill manifest lists.
 2. Diff by `(skill_id, version, hash)`.
 3. Missing skills fetched via `skill.fetch` request (chunked transfer, max 512 KB chunks).
-4. Installed under `.simplicio/skills/mesh/<node_id>/`.
+4. Installed under `.simplicio-loop/skills/mesh/<node_id>/`.
 5. Checksum verified before activation.
 
 ### Conflict Resolution
@@ -108237,7 +108237,7 @@ Microphone input
 ### Wake Word
 - Default: "Hey Simplicio"
 - Custom wake word: `simplicio voice set-wake "<phrase>"`
-- Porcupine model file stored at `.simplicio/voice/wake.ppn`.
+- Porcupine model file stored at `.simplicio-loop/voice/wake.ppn`.
 
 ### Intent Classification
 Intent mapped to command via a small lookup table + regex, avoiding LLM for
@@ -108301,7 +108301,7 @@ User command: "Book the cheapest flight to London in July"
 - Chromium control (via CDP / Playwright).
 - macOS native GUI (macOS only; via Accessibility API).
 - Web scraping with anti-bot awareness (randomized timing, human-like mouse paths).
-- Session persistence (cookies saved to `.simplicio/computer_use/sessions/`).
+- Session persistence (cookies saved to `.simplicio-loop/computer_use/sessions/`).
 - Task recording: all actions logged to HBP chain for audit.
 
 ### Commands
@@ -108365,7 +108365,7 @@ Routines are named sequences of Simplicio commands with scheduling, conditions,
 and inter-step dependencies.
 
 ```yaml
-# .simplicio/routines/morning.yaml
+# .simplicio-loop/routines/morning.yaml
 name: morning
 schedule: "07:00 Mon-Fri"
 steps:
@@ -108395,7 +108395,7 @@ simplicio routine delete morning
 ### Scheduler
 - Integrates with OS scheduler (launchd on macOS, systemd on Linux, Task Scheduler on Windows).
 - Fallback: built-in Tokio scheduler when OS integration unavailable.
-- Run log: `.simplicio/routines/run_log.jsonl`.
+- Run log: `.simplicio-loop/routines/run_log.jsonl`.
 
 ---
 
@@ -108449,7 +108449,7 @@ pub enum PrewarmOp {
 
 ### Pattern storage
 
-Stored in `.simplicio/prewarm/patterns.sqlite` (FTS + frequency table).
+Stored in `.simplicio-loop/prewarm/patterns.sqlite` (FTS + frequency table).
 Updated after every turn with the actual ops consumed.
 
 ### Confidence threshold
@@ -109318,7 +109318,7 @@ the on-disk layout, the redaction policy, and how to inspect a finished run.
 ## Two append-only streams
 
 Every run materializes a stable run directory under
-`.simplicio/runs/<run-id>/`. The runtime writes two independent, line-delimited
+`.simplicio-loop/runs/<run-id>/`. The runtime writes two independent, line-delimited
 JSONL streams there:
 
 | File          | Schema id                       | Writer             | Contents |
@@ -109596,7 +109596,7 @@ stuck-kill with evidence, not to invent the model.
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/SCRIPT_OWNERSHIP_QUARANTINE.md','project_doc','doc://simplicio-runtime/docs/SCRIPT_OWNERSHIP_QUARANTINE.md','doc: Script ownership & quarantine matrix','# Script ownership & quarantine matrix
 
 Artefato humano mínimo para a #1540. O inventário canônico legível por máquina fica em
-`./.simplicio/docs/script-ownership-inventory.json`.
+`./.simplicio-loop/docs/script-ownership-inventory.json`.
 
 ## Escopo
 
@@ -109664,7 +109664,7 @@ py scripts/audit-script-ownership.py
 | `hooks/orient_rewrite.py` | `shell` | `repo-governance` | `mandatory-gate` | 0 |
 | `hooks/pre-commit` | `shell` | `repo-governance` | `mandatory-gate` | 3 |
 
-_A lista completa fica no JSON canônico sob `.simplicio/docs/`._','docs/SCRIPT_OWNERSHIP_QUARANTINE.md','952e0f2a78d4304c55c933fe5bd818c85488de9dd1e498eb4af43aedd3607adb','doc,simplicio',1.1);
+_A lista completa fica no JSON canônico sob `.simplicio-loop/docs/`._','docs/SCRIPT_OWNERSHIP_QUARANTINE.md','952e0f2a78d4304c55c933fe5bd818c85488de9dd1e498eb4af43aedd3607adb','doc,simplicio',1.1);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/security/PRIVACY.md','project_doc','doc://simplicio-runtime/docs/security/PRIVACY.md','doc: Simplicio Runtime — Privacy Policy (Local-First)','# Simplicio Runtime — Privacy Policy (Local-First)
 
 > Companion to [`SECURITY.md`](SECURITY.md) · Issue [#32](https://github.com/wesleysimplicio/simplicio-runtime/issues/32)
@@ -109726,7 +109726,7 @@ can audit when a remote model was used and for what reason.
 
 - Set `SIMPLICIO_OFFLINE_ONLY=1` to guarantee zero egress.
 - Set `SIMPLICIO_REDACTION_PROFILE=strict` to guarantee no PII in any payload.
-- Delete local state any time: `.simplicio/` is local and git-ignored.','docs/security/PRIVACY.md','db47989a18061e1ad12ff7ff37cfa7388d42a5d5d5859474e26945b13a8a6ac5','doc,simplicio',1.1);
+- Delete local state any time: `.simplicio-loop/` is local and git-ignored.','docs/security/PRIVACY.md','db47989a18061e1ad12ff7ff37cfa7388d42a5d5d5859474e26945b13a8a6ac5','doc,simplicio',1.1);
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/security/SECRETS_VAULT_SPEC.md','project_doc','doc://simplicio-runtime/docs/security/SECRETS_VAULT_SPEC.md','doc: Secrets Vault — Issue #2222','# Secrets Vault — Issue #2222
 
 ## Overview
@@ -109745,7 +109745,7 @@ master passphrase or OS keychain integration.
 
 ## Storage format
 
-File: `~/.simplicio/vault.enc`
+File: `~/.simplicio-loop/vault.enc`
 
 ```
 [4 bytes] magic "SIMV"
@@ -109956,7 +109956,7 @@ see exactly when a remote model was permitted or used — no silent egress.
 
 ## 5. Protecting evidence artifacts
 
-Evidence and receipts are written under `.simplicio/` (local). They never
+Evidence and receipts are written under `.simplicio-loop/` (local). They never
 contain raw secrets: the redaction layer is applied to command records and
 privacy reports before they are persisted (see the `CommandRecord` redactions in
 `redacts_common_secret_shapes`). Evidence files are git-ignored by default and
@@ -110017,7 +110017,7 @@ gate-level `high` risk approval.
 Skills run as a child process spawned via `std::process::Command` with:
 - `stdin` closed (no piped input)
 - `stdout`/`stderr` captured (never inherited)
-- Working directory set to a per-execution temp dir under `.simplicio/sandbox/runs/<id>/`
+- Working directory set to a per-execution temp dir under `.simplicio-loop/sandbox/runs/<id>/`
 - Environment stripped to an allowlist (see below)
 
 ### Environment allowlist
@@ -110036,9 +110036,9 @@ are explicitly excluded.
 
 ### Filesystem restrictions
 
-- Write access: only `.simplicio/sandbox/runs/<id>/` (the temp dir)
+- Write access: only `.simplicio-loop/sandbox/runs/<id>/` (the temp dir)
 - Read access: project directory (read-only via bind mount on Linux; path restriction on Windows/macOS)
-- Skill cannot write to `~/.simplicio/`, `~/.config/`, or any system path
+- Skill cannot write to `~/.simplicio-loop/`, `~/.config/`, or any system path
 
 Implementation: use OS jail on Linux (`seccomp` + `unshare`), `sandbox-exec` on macOS,
 job objects + restricted token on Windows.
@@ -110935,7 +110935,7 @@ Princípio do produto (confirmado com você):
 INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_path,source_hash,tags,weight) VALUES('doc:simplicio-runtime:docs/SIMPLICIO_GROWTH_PLAN.md','project_doc','doc://simplicio-runtime/docs/SIMPLICIO_GROWTH_PLAN.md','doc: Simplicio Growth Plan — live reports, WOW entrance, promo video, Claude container','# Simplicio Growth Plan — live reports, WOW entrance, promo video, Claude container
 
 Four initiatives requested 2026-06-17. The savings ledger
-(`.simplicio/ledger/savings-events.jsonl`) already captures every dimension we
+(`.simplicio-loop/ledger/savings-events.jsonl`) already captures every dimension we
 need; the dashboard (`simplicio web-dashboard`, :9119, compiled-in React app +
 the living "ser vivo" layer) is the surface. Default English, 15 languages
 (see [[site-branding-and-i18n]]). Brand = neon-green on dark (logo).
@@ -110979,11 +110979,11 @@ Phases:
   2. Desktop/menubar tray entry "Open dashboard" (when desktop app present).
   3. Opt-in: email/Telegram a daily "your savings" digest with the link (uses the
      existing gateways) — requires `privacy.sync_opt_in`.
-- **Data survives updates (guarantee)** — user data lives under `~/.simplicio/`
-  and the repo''s `.simplicio/ledger/`. Updates replace only the **binary**
-  (`~/.local/bin/simplicio`), never `~/.simplicio/`. Add a test/assertion that the
-  installer + `simplicio update` never touch `.simplicio/ledger/` or
-  `~/.simplicio/runtime.toml` / `action-gate-mode`. Document the contract.
+- **Data survives updates (guarantee)** — user data lives under `~/.simplicio-loop/`
+  and the repo''s `.simplicio-loop/ledger/`. Updates replace only the **binary**
+  (`~/.local/bin/simplicio`), never `~/.simplicio-loop/`. Add a test/assertion that the
+  installer + `simplicio update` never touch `.simplicio-loop/ledger/` or
+  `~/.simplicio-loop/runtime.toml` / `action-gate-mode`. Document the contract.
 
 ## 3. Remotion promo video (60s, "best token-saving system")
 
@@ -111261,7 +111261,7 @@ simplicio runtime-profile use low
 
 `full` remains the default profile, but it now uses adaptive limits to avoid
 saturating RAM/disk on common developer machines. The bootstrap flow also seeds
-`.simplicio/runtime.toml` with conservative capacity defaults and evidence
+`.simplicio-loop/runtime.toml` with conservative capacity defaults and evidence
 retention (`max_runs = 20`).
 
 ---
@@ -111393,7 +111393,7 @@ Root `README.md` and translated `READMEs/` are intentionally left separate becau
     from `SIMPLICIO_DISCORD_TOKEN` or `DISCORD_BOT_TOKEN`. Requires
     `SIMPLICIO_DISCORD_CHANNEL_ID` for listen mode. Starter script at
     `scripts/start-gateway.sh`. Example env template at
-    `.simplicio/.env.example`. See `## Discord Bot Deployment` below.
+    `.simplicio-loop/.env.example`. See `## Discord Bot Deployment` below.
   - `2026-06-06` — **Tokio async fabric enabled by default** (`v0.3.67`):
     `async-runtime` is now in `default` features; `simplicio tokio-runtime`
     runs real `JoinSet` + semaphore spawns, `fabric` (inference pool + async
@@ -111452,7 +111452,7 @@ is configured; mark "model-backed") · **D** = runtime-bound, needs refactor to 
 |---|---|---|---|
 | Route task through spine (gate→bridge→evidence) | `simplicio_run` / `mcp_serve.rs` | **A** | Already an MCP tool. The mutating entry point. |
 | Repo map (compressed repo view) | `repo_map` / `map` | **A** | Already MCP. Zero model. |
-| Neural memory recall (FTS+vector) | `memory_recall` / `memory_command.rs` | **A** | Already MCP. Reads `.simplicio/memory/*.sqlite`. |
+| Neural memory recall (FTS+vector) | `memory_recall` / `memory_command.rs` | **A** | Already MCP. Reads `.simplicio-loop/memory/*.sqlite`. |
 | Skills recall (rank/lazy-load) | `skills_recall` | **A** | Already MCP. Zero model. |
 | Token-economy + delivery metrics | `token_economy`,`success_rate`,`regression_rate`,`pr_acceptance`,`evidence_completeness`,`autonomy_time` | **A** | Already MCP. Pure read. |
 | **Deterministic mechanical edit** (zero-token writer) | `edit` (dispatch in `main.rs`) | **B** | ⭐ Highest-value gap. Git-apply ops: replace/insert/replace_line/append. The crown jewel for "any LLM edits via Simplicio". |
@@ -111491,7 +111491,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 
 **Date:** 2026-06-26 · **Method:** `/simplicio-tasks` orchestration — two reader waves (9 + 20 parallel
 agents) across the entire documentation + code surface.
-**Scope read:** 1290 markdown files (697 skills · 295 `docs/` · 81 `.simplicio/` memory · ~30 root canon ·
+**Scope read:** 1290 markdown files (697 skills · 295 `docs/` · 81 `.simplicio-loop/` memory · ~30 root canon ·
 23k-line operational manual consolidating 142 source docs) + `src/` (851 `.rs`, Cargo features, CLI dispatch)
 + `apps/`, `proofs/`, `specs/`, `.github/`, `scripts/`, `site/`, `website/`.
 
@@ -111654,7 +111654,7 @@ missing, outdated, or has a stale artifact, and what to run to fix it.
 | Repo | What it is | Canonical command | Standalone use? |
 |---|---|---|---|
 | **`simplicio-runtime`** (this repo) | The Rust control plane. Single compiled binary. Orchestrates everything below: planning, agents, local LLM, validation, evidence, token economy. | `simplicio` | This IS the entry point — nothing to "stand alone" from. |
-| **`simplicio-mapper`** | Repo/endpoint/screen mapper. Produces `.simplicio/project-map.json` and the flow/docs/business-rules engine. Python, PyPI `simplicio-mapper`. | `simplicio-mapper` (or `simplicio-mapper-py`) | Yes — usable directly (`simplicio-mapper --repo . --json`), but the runtime has a native embedded fallback so `simplicio map` never hard-fails when it''s absent. |
+| **`simplicio-mapper`** | Repo/endpoint/screen mapper. Produces `.simplicio-loop/project-map.json` and the flow/docs/business-rules engine. Python, PyPI `simplicio-mapper`. | `simplicio-mapper` (or `simplicio-mapper-py`) | Yes — usable directly (`simplicio-mapper --repo . --json`), but the runtime has a native embedded fallback so `simplicio map` never hard-fails when it''s absent. |
 | **`simplicio-dev-cli`** (aka `simplicio-cli`, ships `simplicio-py`) | Deterministic implementation/write adapter — the mechanical editor + `simplicio-py task` precedent/skill-router flow. PyPI `simplicio-cli`. | `simplicio-dev-cli` / `simplicio-py` | Yes, same story as the mapper: `simplicio edit`/`simplicio run` fall back to the runtime''s own embedded writer when it''s absent. |
 | **`simplicio-loop`** | Runtime-agnostic super-plugin: the autonomous Ralph-style loop (`/simplicio-loop`) plus satellite skills (orient, review, compress, learn, autoresearch). Distributed as a skill bundle for Claude/Codex/Cursor/etc., not primarily a PATH binary. | the `/simplicio-loop` skill inside your assistant | Yes — it is designed to run standalone in any AGENTS.md-compatible host. When paired with `simplicio-runtime`, its two bound operators (`simplicio-mapper`, `simplicio-dev-cli`) are the same components in this table. |
 | **`simplicio-prompt`** | LLM artifact contract producer/reviewer (prompt envelopes, diff review, codemod plans). | `simplicio-prompt` | Yes, with the same embedded-fallback relationship as mapper/dev-cli. |
@@ -111966,7 +111966,7 @@ INSERT OR IGNORE INTO memory_items(stable_id,kind,source,title,content,artifact_
 
 Everything needed to keep working on the marketing site and the public install
 channel from any machine. **Secrets are NOT here** — passwords/keys live only in
-local gitignored files or `~/.simplicio/`; fetch them from the password manager
+local gitignored files or `~/.simplicio-loop/`; fetch them from the password manager
 or the original machine.
 
 ## Repos
@@ -112005,8 +112005,8 @@ or the original machine.
 
 - Release build (embeds the update-channel public key):
   `SIMPLICIO_UPDATE_PUBLIC_KEY="o6YT6wYlhyziBwYk/e4OtjsswOAEcq5o/te1qDSdOq8=" cargo build --release --locked`
-- Private signing keys (NEVER in git): `~/.simplicio/license-signing-key.b64`,
-  `~/.simplicio/update-signing-key.b64` — copy them between machines manually.
+- Private signing keys (NEVER in git): `~/.simplicio-loop/license-signing-key.b64`,
+  `~/.simplicio-loop/update-signing-key.b64` — copy them between machines manually.
 - Version: 1.0.0 public/free distribution. Runtime source remains private;
   publish compiled GitHub Release assets only. Auto-update is disabled by
   default: users see an update-available message and choose when to stage it.
@@ -112191,7 +112191,7 @@ The `PatternDetector` scans the command history (HBP ledger) for:
 
 ## Skill scaffold
 
-Auto-created skills are placed in `.simplicio/skills/<name>/skill.toml`:
+Auto-created skills are placed in `.simplicio-loop/skills/<name>/skill.toml`:
 
 ```toml
 [skill]
@@ -112224,7 +112224,7 @@ pub struct AutoSkillCreator {
 1. `detect_patterns(ledger)` — returns `Vec<DetectedPattern>`
 2. For each new pattern above threshold: propose `SkillDraft`
 3. Gate: classify as `medium` risk (creates files); present to user as suggestion
-4. On approval: render scaffold → write `.simplicio/skills/<name>/skill.toml`
+4. On approval: render scaffold → write `.simplicio-loop/skills/<name>/skill.toml`
 5. Register in skill registry; log to HBP evidence chain
 
 ## Naming heuristic
@@ -113947,7 +113947,7 @@ RUST_LOG=debug simplicio <command> ...
 Capture a diagnostics bundle for a bug report:
 
 ```bash
-simplicio dump      # writes a diagnostics dump under .simplicio/dump/
+simplicio dump      # writes a diagnostics dump under .simplicio-loop/dump/
 ```
 
 ---
@@ -114133,7 +114133,7 @@ RUST_LOG=debug simplicio <comando> ...
 Capture um pacote de diagnóstico para um relatório de bug:
 
 ```bash
-simplicio dump      # escreve um dump de diagnóstico em .simplicio/dump/
+simplicio dump      # escreve um dump de diagnóstico em .simplicio-loop/dump/
 ```
 
 ---
@@ -114280,7 +114280,7 @@ Two disjoint sets of rows live in the same `memory_items` table, distinguished b
 | **core** (ships with Simplicio) | `project_skill` / `project_doc` / `project_behavior` / `project_tool` | `skill:simplicio-runtime:*`, `doc:*`, `behavior:*`, `tools:*` | the product |
 | **user capture** | anything else (`user_capture`, ingested code/git/decisions) | the user''s own ids | the user |
 
-- The committed **core artifact** is `.simplicio/memory/seeds.sql` — regenerated by
+- The committed **core artifact** is `.simplicio-loop/memory/seeds.sql` — regenerated by
   `scripts/build_seed_sql.py` whenever skills/docs change, and it contains **only
   core rows**.
 - On `doctor`, first memory access, or after a binary update, `ensure_memory_operational()`
@@ -114419,7 +114419,7 @@ ln -sf ~/.local/bin/simplicio ~/.cargo/bin/simplicio
 ## After upgrading
 
 - Run `simplicio doctor` to confirm the environment is still healthy.
-- Your data under `~/.simplicio` (config, memory, evidence) is preserved across
+- Your data under `~/.simplicio-loop` (config, memory, evidence) is preserved across
   upgrades; the binary is the only thing replaced.
 - If a command behaves unexpectedly after an upgrade, check
   [docs/TROUBLESHOOTING.md](TROUBLESHOOTING.md).
@@ -114461,7 +114461,7 @@ directions), run:
 
 ```bash
 python3 scripts/release/verify_tag_build.py --offline --upgrade-test \
-  --report .simplicio/release/tag-build-upgrade-gate.md
+  --report .simplicio-loop/release/tag-build-upgrade-gate.md
 ```
 
 The Markdown receipt records command status and duration without copying
@@ -114573,7 +114573,7 @@ ln -sf ~/.local/bin/simplicio ~/.cargo/bin/simplicio
 ## Após atualizar
 
 - Rode `simplicio doctor` para confirmar que o ambiente continua saudável.
-- Seus dados em `~/.simplicio` (config, memória, evidência) são preservados entre
+- Seus dados em `~/.simplicio-loop` (config, memória, evidência) são preservados entre
   atualizações; apenas o binário é substituído.
 - Se um comando se comportar de forma inesperada após atualizar, veja
   [docs/TROUBLESHOOTING.pt-BR.md](TROUBLESHOOTING.pt-BR.md).
@@ -114615,7 +114615,7 @@ preservação), execute:
 
 ```bash
 python3 scripts/release/verify_tag_build.py --offline --upgrade-test \
-  --report .simplicio/release/tag-build-upgrade-gate.md
+  --report .simplicio-loop/release/tag-build-upgrade-gate.md
 ```
 
 O receipt Markdown registra status e duração dos comandos sem copiar
@@ -114635,7 +114635,7 @@ should be guided to a working state in under two minutes without reading any doc
 Show the onboarding wizard when **all** of the following are true on `simplicio`
 startup:
 
-- No `.simplicio/` directory exists in `$HOME` or the current repo root.
+- No `.simplicio-loop/` directory exists in `$HOME` or the current repo root.
 - `SIMPLICIO_SKIP_ONBOARDING` is not set.
 - stdin is a TTY (not piped/CI).
 
@@ -114650,7 +114650,7 @@ Step 2 — Detect environment (auto, 3 s)
   ✓ Rust toolchain: cargo 1.78
   ✓ Git: 2.45
   ✗ Local LLM not found — will use remote provider
-  ✓ Neural memory: fresh (will create .simplicio/)
+  ✓ Neural memory: fresh (will create .simplicio-loop/)
 
 Step 3 — Provider selection (interactive)
   Which LLM backend should Simplicio use?
@@ -114660,7 +114660,7 @@ Step 3 — Provider selection (interactive)
 
 Step 4 — Credentials (only if [2] chosen)
   Base URL: ___________  (default: https://openrouter.ai/api/v1)
-  API key:  ___________  (masked, stored in ~/.simplicio/credentials.toml, mode 0600)
+  API key:  ___________  (masked, stored in ~/.simplicio-loop/credentials.toml, mode 0600)
 
 Step 5 — Smoke test (auto, 10 s)
   Running: simplicio map --repo . --for-llm markdown
@@ -114679,7 +114679,7 @@ Step 6 — Summary + next steps
 - Wizard lives in `src/onboarding.rs`; called from `main()` before command
   dispatch when trigger conditions are met.
 - Uses `reedline` (already compiled) for masked password input.
-- Creates `~/.simplicio/` with `config.toml` and `credentials.toml` (mode 0600).
+- Creates `~/.simplicio-loop/` with `config.toml` and `credentials.toml` (mode 0600).
 - `SIMPLICIO_SKIP_ONBOARDING=1` skips silently (CI/scripting).
 - Every step is skippable via `s`; partial completion is valid.
 - On re-run after partial setup, show "Welcome back. Your config: …" summary
@@ -114717,7 +114717,7 @@ simplicio video script <topic> [--duration <secs>] [--lang pt-BR] [--json]
 Generates `simplicio.video-script/v1` JSON with scenes, narration, on-screen text,
 b-roll descriptions, and durations.
 
-Saved to `.simplicio/video/script-<topic>.json`.
+Saved to `.simplicio-loop/video/script-<topic>.json`.
 
 ### Audio / Voiceover (#247)
 ```
@@ -114778,16 +114778,16 @@ Schema: `simplicio.video-assets/v1`.
 simplicio video script "inteligência artificial em 2026" --duration 90 --json
 
 # 2. Plan assets
-simplicio video assets .simplicio/video/script-intelig.json --json
+simplicio video assets .simplicio-loop/video/script-intelig.json --json
 
 # 3. Plan audio
-simplicio video audio .simplicio/video/script-intelig.json --json
+simplicio video audio .simplicio-loop/video/script-intelig.json --json
 
 # 4. Plan timeline
-simplicio video timeline .simplicio/video/assets/ --json
+simplicio video timeline .simplicio-loop/video/assets/ --json
 
 # 5. Render
-simplicio video render .simplicio/video/timeline.json --backend ffmpeg --json
+simplicio video render .simplicio-loop/video/timeline.json --backend ffmpeg --json
 
 # 6. Captions
 simplicio video captions output.mp4 --format srt --json
@@ -115591,204 +115591,204 @@ INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path)
 INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('wycheproof','skill:simplicio-runtime:wycheproof','coding','.claude\skills\wycheproof\SKILL.md');
 INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('yara-rule-authoring','skill:simplicio-runtime:yara-rule-authoring','coding','.claude\skills\yara-rule-authoring\SKILL.md');
 INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('zeroize-audit','skill:simplicio-runtime:zeroize-audit','coding','.claude\skills\zeroize-audit\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('1password','skill:simplicio-runtime:1password','coding','.simplicio\skills\1password\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('3-statement-model','skill:simplicio-runtime:3-statement-model','coding','.simplicio\skills\3-statement-model\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('_template','skill:simplicio-runtime:_template','coding','.simplicio\skills\_template\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('accelerate','skill:simplicio-runtime:accelerate','orchestration','.simplicio\skills\accelerate\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('agentmail','skill:simplicio-runtime:agentmail','coding','.simplicio\skills\agentmail\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('airtable','skill:simplicio-runtime:airtable','coding','.simplicio\skills\airtable\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('animejs','skill:simplicio-runtime:animejs','video','.simplicio\skills\animejs\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('antigravity-cli','skill:simplicio-runtime:antigravity-cli','coding','.simplicio\skills\antigravity-cli\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('apple-notes','skill:simplicio-runtime:apple-notes','coding','.simplicio\skills\apple-notes\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('apple-reminders','skill:simplicio-runtime:apple-reminders','coding','.simplicio\skills\apple-reminders\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('architecture-diagram','skill:simplicio-runtime:architecture-diagram','coding','.simplicio\skills\architecture-diagram\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('arxiv','skill:simplicio-runtime:arxiv','coding','.simplicio\skills\arxiv\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('ascii-art','skill:simplicio-runtime:ascii-art','coding','.simplicio\skills\ascii-art\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('ascii-video','skill:simplicio-runtime:ascii-video','video','.simplicio\skills\ascii-video\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('baoyu-article-illustrator','skill:simplicio-runtime:baoyu-article-illustrator','coding','.simplicio\skills\baoyu-article-illustrator\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('baoyu-comic','skill:simplicio-runtime:baoyu-comic','coding','.simplicio\skills\baoyu-comic\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('baoyu-infographic','skill:simplicio-runtime:baoyu-infographic','coding','.simplicio\skills\baoyu-infographic\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('bioinformatics','skill:simplicio-runtime:bioinformatics','coding','.simplicio\skills\bioinformatics\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('blackbox','skill:simplicio-runtime:blackbox','coding','.simplicio\skills\blackbox\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('blender-mcp','skill:simplicio-runtime:blender-mcp','coding','.simplicio\skills\blender-mcp\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('blogwatcher','skill:simplicio-runtime:blogwatcher','coding','.simplicio\skills\blogwatcher\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('brainstorming','skill:simplicio-runtime:brainstorming','coding','.simplicio\skills\brainstorming\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('canvas','skill:simplicio-runtime:canvas','coding','.simplicio\skills\canvas\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('caveman','skill:simplicio-runtime:caveman:skills','coding','.simplicio\skills\caveman\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('chroma','skill:simplicio-runtime:chroma','orchestration','.simplicio\skills\chroma\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('claude','skill:simplicio-runtime:claude','coding','.simplicio\skills\claude\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('claude-code','skill:simplicio-runtime:claude-code','orchestration','.simplicio\skills\claude-code\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('claude-design','skill:simplicio-runtime:claude-design','video','.simplicio\skills\claude-design\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('cli','skill:simplicio-runtime:cli','video','.simplicio\skills\cli\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('clip','skill:simplicio-runtime:clip','content','.simplicio\skills\clip\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('code-wiki','skill:simplicio-runtime:code-wiki','coding','.simplicio\skills\code-wiki\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('codebase-inspection','skill:simplicio-runtime:codebase-inspection','coding','.simplicio\skills\codebase-inspection\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('codex','skill:simplicio-runtime:codex','coding','.simplicio\skills\codex\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('comfyui','skill:simplicio-runtime:comfyui','video','.simplicio\skills\comfyui\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('comps-analysis','skill:simplicio-runtime:comps-analysis','coding','.simplicio\skills\comps-analysis\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('concept-diagrams','skill:simplicio-runtime:concept-diagrams','coding','.simplicio\skills\concept-diagrams\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('contribute-catalog','skill:simplicio-runtime:contribute-catalog','video','.simplicio\skills\contribute-catalog\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('conventional-commits','skill:simplicio-runtime:conventional-commits','coding','.simplicio\skills\conventional-commits\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('creative-ideation','skill:simplicio-runtime:creative-ideation','coding','.simplicio\skills\creative-ideation\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('css-animations','skill:simplicio-runtime:css-animations','video','.simplicio\skills\css-animations\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('darwinian-evolver','skill:simplicio-runtime:darwinian-evolver','coding','.simplicio\skills\darwinian-evolver\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('dcf-model','skill:simplicio-runtime:dcf-model','coding','.simplicio\skills\dcf-model\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('design-md','skill:simplicio-runtime:design-md','coding','.simplicio\skills\design-md\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('docker-management','skill:simplicio-runtime:docker-management','coding','.simplicio\skills\docker-management\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('dogfood','skill:simplicio-runtime:dogfood','coding','.simplicio\skills\dogfood\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('domain-intel','skill:simplicio-runtime:domain-intel','coding','.simplicio\skills\domain-intel\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('drug-discovery','skill:simplicio-runtime:drug-discovery','coding','.simplicio\skills\drug-discovery\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('duckduckgo-search','skill:simplicio-runtime:duckduckgo-search','video','.simplicio\skills\duckduckgo-search\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('everything-claude-code','skill:simplicio-runtime:everything-claude-code','coding','.simplicio\skills\everything-claude-code\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('evm','skill:simplicio-runtime:evm','coding','.simplicio\skills\evm\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('excalidraw','skill:simplicio-runtime:excalidraw','coding','.simplicio\skills\excalidraw\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('excel-author','skill:simplicio-runtime:excel-author','coding','.simplicio\skills\excel-author\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('extraction-plan','skill:simplicio-runtime:extraction-plan','coding','.simplicio\skills\extraction-plan\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('faiss','skill:simplicio-runtime:faiss','orchestration','.simplicio\skills\faiss\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('fastmcp','skill:simplicio-runtime:fastmcp','coding','.simplicio\skills\fastmcp\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('findmy','skill:simplicio-runtime:findmy','coding','.simplicio\skills\findmy\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('fitness-nutrition','skill:simplicio-runtime:fitness-nutrition','coding','.simplicio\skills\fitness-nutrition\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('flash-attention','skill:simplicio-runtime:flash-attention','coding','.simplicio\skills\flash-attention\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('gif-search','skill:simplicio-runtime:gif-search','coding','.simplicio\skills\gif-search\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('github-auth','skill:simplicio-runtime:github-auth','coding','.simplicio\skills\github-auth\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('github-code-review','skill:simplicio-runtime:github-code-review','coding','.simplicio\skills\github-code-review\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('github-issues','skill:simplicio-runtime:github-issues','coding','.simplicio\skills\github-issues\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('github-pr-workflow','skill:simplicio-runtime:github-pr-workflow','coding','.simplicio\skills\github-pr-workflow\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('github-repo-management','skill:simplicio-runtime:github-repo-management','coding','.simplicio\skills\github-repo-management\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('gitnexus-explorer','skill:simplicio-runtime:gitnexus-explorer','coding','.simplicio\skills\gitnexus-explorer\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('godmode','skill:simplicio-runtime:godmode','coding','.simplicio\skills\godmode\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('google-workspace','skill:simplicio-runtime:google-workspace','coding','.simplicio\skills\google-workspace\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('google_meet','skill:simplicio-runtime:google_meet','video','.simplicio\skills\google_meet\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('grok','skill:simplicio-runtime:grok','orchestration','.simplicio\skills\grok\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('gsap','skill:simplicio-runtime:gsap','video','.simplicio\skills\gsap\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('guidance','skill:simplicio-runtime:guidance','orchestration','.simplicio\skills\guidance\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('heartmula','skill:simplicio-runtime:heartmula','coding','.simplicio\skills\heartmula\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('here-now','skill:simplicio-runtime:here-now','coding','.simplicio\skills\here-now\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hermes-agent','skill:simplicio-runtime:hermes-agent','coding','.simplicio\skills\hermes-agent\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hermes-agent-skill-authoring','skill:simplicio-runtime:hermes-agent-skill-authoring','coding','.simplicio\skills\hermes-agent-skill-authoring\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hermes-s6-container-supervision','skill:simplicio-runtime:hermes-s6-container-supervision','coding','.simplicio\skills\hermes-s6-container-supervision\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('himalaya','skill:simplicio-runtime:himalaya','coding','.simplicio\skills\himalaya\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('honcho','skill:simplicio-runtime:honcho','coding','.simplicio\skills\honcho\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('huggingface-hub','skill:simplicio-runtime:huggingface-hub','coding','.simplicio\skills\huggingface-hub\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('huggingface-tokenizers','skill:simplicio-runtime:huggingface-tokenizers','coding','.simplicio\skills\huggingface-tokenizers\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('humanizer','skill:simplicio-runtime:humanizer','content','.simplicio\skills\humanizer\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hyperframes','skill:simplicio-runtime:hyperframes:skills','video','.simplicio\skills\hyperframes\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hyperframes-cli','skill:simplicio-runtime:hyperframes-cli:skills','video','.simplicio\skills\hyperframes-cli\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hyperframes-media','skill:simplicio-runtime:hyperframes-media:skills','video','.simplicio\skills\hyperframes-media\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hyperframes-registry','skill:simplicio-runtime:hyperframes-registry:skills','video','.simplicio\skills\hyperframes-registry\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hyperliquid','skill:simplicio-runtime:hyperliquid','coding','.simplicio\skills\hyperliquid\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('imessage','skill:simplicio-runtime:imessage','coding','.simplicio\skills\imessage\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('instructor','skill:simplicio-runtime:instructor','orchestration','.simplicio\skills\instructor\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('jira-task-runner','skill:simplicio-runtime:jira-task-runner','coding','.simplicio\skills\jira-task-runner\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('jupyter-live-kernel','skill:simplicio-runtime:jupyter-live-kernel','coding','.simplicio\skills\jupyter-live-kernel\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('kanban-orchestrator','skill:simplicio-runtime:kanban-orchestrator','orchestration','.simplicio\skills\kanban-orchestrator\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('kanban-video-orchestrator','skill:simplicio-runtime:kanban-video-orchestrator','video','.simplicio\skills\kanban-video-orchestrator\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('kanban-worker','skill:simplicio-runtime:kanban-worker','coding','.simplicio\skills\kanban-worker\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('lambda-labs','skill:simplicio-runtime:lambda-labs','orchestration','.simplicio\skills\lambda-labs\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('lbo-model','skill:simplicio-runtime:lbo-model','coding','.simplicio\skills\lbo-model\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('llava','skill:simplicio-runtime:llava','coding','.simplicio\skills\llava\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('llm-verification','skill:simplicio-runtime:llm-verification','coding','.simplicio\skills\llm-verification\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('llm-wiki','skill:simplicio-runtime:llm-wiki:skills','coding','.simplicio\skills\llm-wiki\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('lottie','skill:simplicio-runtime:lottie','video','.simplicio\skills\lottie\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('macos-computer-use','skill:simplicio-runtime:macos-computer-use','coding','.simplicio\skills\macos-computer-use\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('manim-video','skill:simplicio-runtime:manim-video','video','.simplicio\skills\manim-video\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('maps','skill:simplicio-runtime:maps','coding','.simplicio\skills\maps\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('mcporter','skill:simplicio-runtime:mcporter','coding','.simplicio\skills\mcporter\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('meme-generation','skill:simplicio-runtime:meme-generation','coding','.simplicio\skills\meme-generation\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('memento-flashcards','skill:simplicio-runtime:memento-flashcards','content','.simplicio\skills\memento-flashcards\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('merger-model','skill:simplicio-runtime:merger-model','coding','.simplicio\skills\merger-model\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('minecraft-modpack-server','skill:simplicio-runtime:minecraft-modpack-server','coding','.simplicio\skills\minecraft-modpack-server\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('modal','skill:simplicio-runtime:modal','orchestration','.simplicio\skills\modal\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('nano-pdf','skill:simplicio-runtime:nano-pdf','coding','.simplicio\skills\nano-pdf\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('nemo-curator','skill:simplicio-runtime:nemo-curator','video','.simplicio\skills\nemo-curator\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('neuroskill-bci','skill:simplicio-runtime:neuroskill-bci','video','.simplicio\skills\neuroskill-bci\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('node-inspect-debugger','skill:simplicio-runtime:node-inspect-debugger','coding','.simplicio\skills\node-inspect-debugger\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('notion','skill:simplicio-runtime:notion','coding','.simplicio\skills\notion\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('obliteratus','skill:simplicio-runtime:obliteratus','coding','.simplicio\skills\obliteratus\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('obsidian','skill:simplicio-runtime:obsidian','content','.simplicio\skills\obsidian\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('ocr-and-documents','skill:simplicio-runtime:ocr-and-documents','coding','.simplicio\skills\ocr-and-documents\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('one-three-one-rule','skill:simplicio-runtime:one-three-one-rule','coding','.simplicio\skills\one-three-one-rule\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('openclaw-migration','skill:simplicio-runtime:openclaw-migration','coding','.simplicio\skills\openclaw-migration\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('opencode','skill:simplicio-runtime:opencode','coding','.simplicio\skills\opencode\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('openhands','skill:simplicio-runtime:openhands','coding','.simplicio\skills\openhands\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('openhue','skill:simplicio-runtime:openhue','coding','.simplicio\skills\openhue\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('osint-investigation','skill:simplicio-runtime:osint-investigation','coding','.simplicio\skills\osint-investigation\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('oss-forensics','skill:simplicio-runtime:oss-forensics','coding','.simplicio\skills\oss-forensics\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('p5js','skill:simplicio-runtime:p5js','video','.simplicio\skills\p5js\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('page-agent','skill:simplicio-runtime:page-agent','coding','.simplicio\skills\page-agent\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('parallel-cli','skill:simplicio-runtime:parallel-cli','coding','.simplicio\skills\parallel-cli\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('payments','skill:simplicio-runtime:payments','coding','.simplicio\skills\payments\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('peft','skill:simplicio-runtime:peft','orchestration','.simplicio\skills\peft\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pinecone','skill:simplicio-runtime:pinecone','orchestration','.simplicio\skills\pinecone\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pinggy-tunnel','skill:simplicio-runtime:pinggy-tunnel','coding','.simplicio\skills\pinggy-tunnel\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pixel-art','skill:simplicio-runtime:pixel-art','video','.simplicio\skills\pixel-art\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('plan','skill:simplicio-runtime:plan','coding','.simplicio\skills\plan\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('playwright-e2e','skill:simplicio-runtime:playwright-e2e','coding','.simplicio\skills\playwright-e2e\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pokemon-player','skill:simplicio-runtime:pokemon-player','coding','.simplicio\skills\pokemon-player\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('polymarket','skill:simplicio-runtime:polymarket','coding','.simplicio\skills\polymarket\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('popular-web-designs','skill:simplicio-runtime:popular-web-designs','coding','.simplicio\skills\popular-web-designs\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('powerpoint','skill:simplicio-runtime:powerpoint','coding','.simplicio\skills\powerpoint\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pptx-author','skill:simplicio-runtime:pptx-author','coding','.simplicio\skills\pptx-author\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pretext','skill:simplicio-runtime:pretext','coding','.simplicio\skills\pretext\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('python-debugpy','skill:simplicio-runtime:python-debugpy','coding','.simplicio\skills\python-debugpy\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pytorch-fsdp','skill:simplicio-runtime:pytorch-fsdp','orchestration','.simplicio\skills\pytorch-fsdp\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pytorch-lightning','skill:simplicio-runtime:pytorch-lightning','orchestration','.simplicio\skills\pytorch-lightning\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('qdrant','skill:simplicio-runtime:qdrant','orchestration','.simplicio\skills\qdrant\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('qmd','skill:simplicio-runtime:qmd','coding','.simplicio\skills\qmd\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('ralph-loop','skill:simplicio-runtime:ralph-loop','orchestration','.simplicio\skills\ralph-loop\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('remotion-to-hyperframes','skill:simplicio-runtime:remotion-to-hyperframes:skills','video','.simplicio\skills\remotion-to-hyperframes\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('requesting-code-review','skill:simplicio-runtime:requesting-code-review','coding','.simplicio\skills\requesting-code-review\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('research-paper-writing','skill:simplicio-runtime:research-paper-writing','orchestration','.simplicio\skills\research-paper-writing\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('rest-graphql-debug','skill:simplicio-runtime:rest-graphql-debug','coding','.simplicio\skills\rest-graphql-debug\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('revisao-humanizada','skill:simplicio-runtime:revisao-humanizada','content','.simplicio\skills\revisao-humanizada\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('rtk-cli','skill:simplicio-runtime:rtk-cli','coding','.simplicio\skills\rtk-cli\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('saelens','skill:simplicio-runtime:saelens','orchestration','.simplicio\skills\saelens\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('scrapling','skill:simplicio-runtime:scrapling','coding','.simplicio\skills\scrapling\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('searxng-search','skill:simplicio-runtime:searxng-search','coding','.simplicio\skills\searxng-search\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('sherlock','skill:simplicio-runtime:sherlock','content','.simplicio\skills\sherlock\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('shop-app','skill:simplicio-runtime:shop-app','coding','.simplicio\skills\shop-app\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('shopify','skill:simplicio-runtime:shopify','coding','.simplicio\skills\shopify\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('simplicio-cli','skill:simplicio-runtime:simplicio-cli','coding','.simplicio\skills\simplicio-cli\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('simplify-code','skill:simplicio-runtime:simplify-code','coding','.simplicio\skills\simplify-code\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('simpo','skill:simplicio-runtime:simpo','orchestration','.simplicio\skills\simpo\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('siyuan','skill:simplicio-runtime:siyuan','coding','.simplicio\skills\siyuan\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('sketch','skill:simplicio-runtime:sketch','coding','.simplicio\skills\sketch\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('skill','skill:simplicio-runtime:skill','coding','.simplicio\skills\skill\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('skill-opt','skill:simplicio-runtime:skill-opt','coding','.simplicio\skills\skill-opt\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('slime','skill:simplicio-runtime:slime','orchestration','.simplicio\skills\slime\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('social-media-ops','skill:simplicio-runtime:social-media-ops','content','.simplicio\skills\social-media-ops\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('solana','skill:simplicio-runtime:solana','coding','.simplicio\skills\solana\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('songsee','skill:simplicio-runtime:songsee','coding','.simplicio\skills\songsee\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('songwriting-and-ai-music','skill:simplicio-runtime:songwriting-and-ai-music','coding','.simplicio\skills\songwriting-and-ai-music\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('spike','skill:simplicio-runtime:spike','coding','.simplicio\skills\spike\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('stable-diffusion','skill:simplicio-runtime:stable-diffusion','orchestration','.simplicio\skills\stable-diffusion\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('stocks','skill:simplicio-runtime:stocks','coding','.simplicio\skills\stocks\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('subagent-driven-development','skill:simplicio-runtime:subagent-driven-development','coding','.simplicio\skills\subagent-driven-development\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('systematic-debugging','skill:simplicio-runtime:systematic-debugging','coding','.simplicio\skills\systematic-debugging\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('tailwind','skill:simplicio-runtime:tailwind','video','.simplicio\skills\tailwind\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('teams-meeting-pipeline','skill:simplicio-runtime:teams-meeting-pipeline','coding','.simplicio\skills\teams-meeting-pipeline\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('telephony','skill:simplicio-runtime:telephony','coding','.simplicio\skills\telephony\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('tensorrt-llm','skill:simplicio-runtime:tensorrt-llm','orchestration','.simplicio\skills\tensorrt-llm\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('test-driven-development','skill:simplicio-runtime:test-driven-development','coding','.simplicio\skills\test-driven-development\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('three','skill:simplicio-runtime:three','video','.simplicio\skills\three\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('torchtitan','skill:simplicio-runtime:torchtitan','orchestration','.simplicio\skills\torchtitan\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('touchdesigner-mcp','skill:simplicio-runtime:touchdesigner-mcp','coding','.simplicio\skills\touchdesigner-mcp\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('typegpu','skill:simplicio-runtime:typegpu','video','.simplicio\skills\typegpu\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('unreal-engine-mcp','skill:simplicio-runtime:unreal-engine-mcp','coding','.simplicio\skills\unreal-engine-mcp\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('using-superpowers','skill:simplicio-runtime:using-superpowers','coding','.simplicio\skills\using-superpowers\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('verification-before-completion','skill:simplicio-runtime:verification-before-completion','coding','.simplicio\skills\verification-before-completion\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('viral-product-strategist','skill:simplicio-runtime:viral-product-strategist','coding','.simplicio\skills\viral-product-strategist\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('waapi','skill:simplicio-runtime:waapi','video','.simplicio\skills\waapi\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('watchers','skill:simplicio-runtime:watchers','coding','.simplicio\skills\watchers\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('web-pentest','skill:simplicio-runtime:web-pentest','coding','.simplicio\skills\web-pentest\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('website-to-hyperframes','skill:simplicio-runtime:website-to-hyperframes','video','.simplicio\skills\website-to-hyperframes\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('whisper','skill:simplicio-runtime:whisper','orchestration','.simplicio\skills\whisper\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('writing-plans','skill:simplicio-runtime:writing-plans','coding','.simplicio\skills\writing-plans\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('xurl','skill:simplicio-runtime:xurl','content','.simplicio\skills\xurl\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('youtube-content','skill:simplicio-runtime:youtube-content','video','.simplicio\skills\youtube-content\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('yuanbao','skill:simplicio-runtime:yuanbao','coding','.simplicio\skills\yuanbao\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('1password','skill:simplicio-runtime:1password','coding','.simplicio-loop\skills\1password\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('3-statement-model','skill:simplicio-runtime:3-statement-model','coding','.simplicio-loop\skills\3-statement-model\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('_template','skill:simplicio-runtime:_template','coding','.simplicio-loop\skills\_template\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('accelerate','skill:simplicio-runtime:accelerate','orchestration','.simplicio-loop\skills\accelerate\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('agentmail','skill:simplicio-runtime:agentmail','coding','.simplicio-loop\skills\agentmail\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('airtable','skill:simplicio-runtime:airtable','coding','.simplicio-loop\skills\airtable\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('animejs','skill:simplicio-runtime:animejs','video','.simplicio-loop\skills\animejs\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('antigravity-cli','skill:simplicio-runtime:antigravity-cli','coding','.simplicio-loop\skills\antigravity-cli\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('apple-notes','skill:simplicio-runtime:apple-notes','coding','.simplicio-loop\skills\apple-notes\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('apple-reminders','skill:simplicio-runtime:apple-reminders','coding','.simplicio-loop\skills\apple-reminders\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('architecture-diagram','skill:simplicio-runtime:architecture-diagram','coding','.simplicio-loop\skills\architecture-diagram\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('arxiv','skill:simplicio-runtime:arxiv','coding','.simplicio-loop\skills\arxiv\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('ascii-art','skill:simplicio-runtime:ascii-art','coding','.simplicio-loop\skills\ascii-art\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('ascii-video','skill:simplicio-runtime:ascii-video','video','.simplicio-loop\skills\ascii-video\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('baoyu-article-illustrator','skill:simplicio-runtime:baoyu-article-illustrator','coding','.simplicio-loop\skills\baoyu-article-illustrator\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('baoyu-comic','skill:simplicio-runtime:baoyu-comic','coding','.simplicio-loop\skills\baoyu-comic\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('baoyu-infographic','skill:simplicio-runtime:baoyu-infographic','coding','.simplicio-loop\skills\baoyu-infographic\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('bioinformatics','skill:simplicio-runtime:bioinformatics','coding','.simplicio-loop\skills\bioinformatics\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('blackbox','skill:simplicio-runtime:blackbox','coding','.simplicio-loop\skills\blackbox\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('blender-mcp','skill:simplicio-runtime:blender-mcp','coding','.simplicio-loop\skills\blender-mcp\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('blogwatcher','skill:simplicio-runtime:blogwatcher','coding','.simplicio-loop\skills\blogwatcher\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('brainstorming','skill:simplicio-runtime:brainstorming','coding','.simplicio-loop\skills\brainstorming\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('canvas','skill:simplicio-runtime:canvas','coding','.simplicio-loop\skills\canvas\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('caveman','skill:simplicio-runtime:caveman:skills','coding','.simplicio-loop\skills\caveman\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('chroma','skill:simplicio-runtime:chroma','orchestration','.simplicio-loop\skills\chroma\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('claude','skill:simplicio-runtime:claude','coding','.simplicio-loop\skills\claude\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('claude-code','skill:simplicio-runtime:claude-code','orchestration','.simplicio-loop\skills\claude-code\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('claude-design','skill:simplicio-runtime:claude-design','video','.simplicio-loop\skills\claude-design\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('cli','skill:simplicio-runtime:cli','video','.simplicio-loop\skills\cli\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('clip','skill:simplicio-runtime:clip','content','.simplicio-loop\skills\clip\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('code-wiki','skill:simplicio-runtime:code-wiki','coding','.simplicio-loop\skills\code-wiki\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('codebase-inspection','skill:simplicio-runtime:codebase-inspection','coding','.simplicio-loop\skills\codebase-inspection\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('codex','skill:simplicio-runtime:codex','coding','.simplicio-loop\skills\codex\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('comfyui','skill:simplicio-runtime:comfyui','video','.simplicio-loop\skills\comfyui\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('comps-analysis','skill:simplicio-runtime:comps-analysis','coding','.simplicio-loop\skills\comps-analysis\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('concept-diagrams','skill:simplicio-runtime:concept-diagrams','coding','.simplicio-loop\skills\concept-diagrams\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('contribute-catalog','skill:simplicio-runtime:contribute-catalog','video','.simplicio-loop\skills\contribute-catalog\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('conventional-commits','skill:simplicio-runtime:conventional-commits','coding','.simplicio-loop\skills\conventional-commits\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('creative-ideation','skill:simplicio-runtime:creative-ideation','coding','.simplicio-loop\skills\creative-ideation\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('css-animations','skill:simplicio-runtime:css-animations','video','.simplicio-loop\skills\css-animations\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('darwinian-evolver','skill:simplicio-runtime:darwinian-evolver','coding','.simplicio-loop\skills\darwinian-evolver\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('dcf-model','skill:simplicio-runtime:dcf-model','coding','.simplicio-loop\skills\dcf-model\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('design-md','skill:simplicio-runtime:design-md','coding','.simplicio-loop\skills\design-md\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('docker-management','skill:simplicio-runtime:docker-management','coding','.simplicio-loop\skills\docker-management\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('dogfood','skill:simplicio-runtime:dogfood','coding','.simplicio-loop\skills\dogfood\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('domain-intel','skill:simplicio-runtime:domain-intel','coding','.simplicio-loop\skills\domain-intel\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('drug-discovery','skill:simplicio-runtime:drug-discovery','coding','.simplicio-loop\skills\drug-discovery\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('duckduckgo-search','skill:simplicio-runtime:duckduckgo-search','video','.simplicio-loop\skills\duckduckgo-search\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('everything-claude-code','skill:simplicio-runtime:everything-claude-code','coding','.simplicio-loop\skills\everything-claude-code\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('evm','skill:simplicio-runtime:evm','coding','.simplicio-loop\skills\evm\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('excalidraw','skill:simplicio-runtime:excalidraw','coding','.simplicio-loop\skills\excalidraw\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('excel-author','skill:simplicio-runtime:excel-author','coding','.simplicio-loop\skills\excel-author\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('extraction-plan','skill:simplicio-runtime:extraction-plan','coding','.simplicio-loop\skills\extraction-plan\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('faiss','skill:simplicio-runtime:faiss','orchestration','.simplicio-loop\skills\faiss\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('fastmcp','skill:simplicio-runtime:fastmcp','coding','.simplicio-loop\skills\fastmcp\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('findmy','skill:simplicio-runtime:findmy','coding','.simplicio-loop\skills\findmy\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('fitness-nutrition','skill:simplicio-runtime:fitness-nutrition','coding','.simplicio-loop\skills\fitness-nutrition\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('flash-attention','skill:simplicio-runtime:flash-attention','coding','.simplicio-loop\skills\flash-attention\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('gif-search','skill:simplicio-runtime:gif-search','coding','.simplicio-loop\skills\gif-search\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('github-auth','skill:simplicio-runtime:github-auth','coding','.simplicio-loop\skills\github-auth\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('github-code-review','skill:simplicio-runtime:github-code-review','coding','.simplicio-loop\skills\github-code-review\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('github-issues','skill:simplicio-runtime:github-issues','coding','.simplicio-loop\skills\github-issues\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('github-pr-workflow','skill:simplicio-runtime:github-pr-workflow','coding','.simplicio-loop\skills\github-pr-workflow\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('github-repo-management','skill:simplicio-runtime:github-repo-management','coding','.simplicio-loop\skills\github-repo-management\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('gitnexus-explorer','skill:simplicio-runtime:gitnexus-explorer','coding','.simplicio-loop\skills\gitnexus-explorer\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('godmode','skill:simplicio-runtime:godmode','coding','.simplicio-loop\skills\godmode\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('google-workspace','skill:simplicio-runtime:google-workspace','coding','.simplicio-loop\skills\google-workspace\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('google_meet','skill:simplicio-runtime:google_meet','video','.simplicio-loop\skills\google_meet\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('grok','skill:simplicio-runtime:grok','orchestration','.simplicio-loop\skills\grok\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('gsap','skill:simplicio-runtime:gsap','video','.simplicio-loop\skills\gsap\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('guidance','skill:simplicio-runtime:guidance','orchestration','.simplicio-loop\skills\guidance\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('heartmula','skill:simplicio-runtime:heartmula','coding','.simplicio-loop\skills\heartmula\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('here-now','skill:simplicio-runtime:here-now','coding','.simplicio-loop\skills\here-now\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hermes-agent','skill:simplicio-runtime:hermes-agent','coding','.simplicio-loop\skills\hermes-agent\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hermes-agent-skill-authoring','skill:simplicio-runtime:hermes-agent-skill-authoring','coding','.simplicio-loop\skills\hermes-agent-skill-authoring\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hermes-s6-container-supervision','skill:simplicio-runtime:hermes-s6-container-supervision','coding','.simplicio-loop\skills\hermes-s6-container-supervision\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('himalaya','skill:simplicio-runtime:himalaya','coding','.simplicio-loop\skills\himalaya\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('honcho','skill:simplicio-runtime:honcho','coding','.simplicio-loop\skills\honcho\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('huggingface-hub','skill:simplicio-runtime:huggingface-hub','coding','.simplicio-loop\skills\huggingface-hub\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('huggingface-tokenizers','skill:simplicio-runtime:huggingface-tokenizers','coding','.simplicio-loop\skills\huggingface-tokenizers\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('humanizer','skill:simplicio-runtime:humanizer','content','.simplicio-loop\skills\humanizer\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hyperframes','skill:simplicio-runtime:hyperframes:skills','video','.simplicio-loop\skills\hyperframes\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hyperframes-cli','skill:simplicio-runtime:hyperframes-cli:skills','video','.simplicio-loop\skills\hyperframes-cli\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hyperframes-media','skill:simplicio-runtime:hyperframes-media:skills','video','.simplicio-loop\skills\hyperframes-media\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hyperframes-registry','skill:simplicio-runtime:hyperframes-registry:skills','video','.simplicio-loop\skills\hyperframes-registry\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('hyperliquid','skill:simplicio-runtime:hyperliquid','coding','.simplicio-loop\skills\hyperliquid\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('imessage','skill:simplicio-runtime:imessage','coding','.simplicio-loop\skills\imessage\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('instructor','skill:simplicio-runtime:instructor','orchestration','.simplicio-loop\skills\instructor\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('jira-task-runner','skill:simplicio-runtime:jira-task-runner','coding','.simplicio-loop\skills\jira-task-runner\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('jupyter-live-kernel','skill:simplicio-runtime:jupyter-live-kernel','coding','.simplicio-loop\skills\jupyter-live-kernel\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('kanban-orchestrator','skill:simplicio-runtime:kanban-orchestrator','orchestration','.simplicio-loop\skills\kanban-orchestrator\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('kanban-video-orchestrator','skill:simplicio-runtime:kanban-video-orchestrator','video','.simplicio-loop\skills\kanban-video-orchestrator\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('kanban-worker','skill:simplicio-runtime:kanban-worker','coding','.simplicio-loop\skills\kanban-worker\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('lambda-labs','skill:simplicio-runtime:lambda-labs','orchestration','.simplicio-loop\skills\lambda-labs\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('lbo-model','skill:simplicio-runtime:lbo-model','coding','.simplicio-loop\skills\lbo-model\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('llava','skill:simplicio-runtime:llava','coding','.simplicio-loop\skills\llava\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('llm-verification','skill:simplicio-runtime:llm-verification','coding','.simplicio-loop\skills\llm-verification\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('llm-wiki','skill:simplicio-runtime:llm-wiki:skills','coding','.simplicio-loop\skills\llm-wiki\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('lottie','skill:simplicio-runtime:lottie','video','.simplicio-loop\skills\lottie\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('macos-computer-use','skill:simplicio-runtime:macos-computer-use','coding','.simplicio-loop\skills\macos-computer-use\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('manim-video','skill:simplicio-runtime:manim-video','video','.simplicio-loop\skills\manim-video\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('maps','skill:simplicio-runtime:maps','coding','.simplicio-loop\skills\maps\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('mcporter','skill:simplicio-runtime:mcporter','coding','.simplicio-loop\skills\mcporter\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('meme-generation','skill:simplicio-runtime:meme-generation','coding','.simplicio-loop\skills\meme-generation\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('memento-flashcards','skill:simplicio-runtime:memento-flashcards','content','.simplicio-loop\skills\memento-flashcards\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('merger-model','skill:simplicio-runtime:merger-model','coding','.simplicio-loop\skills\merger-model\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('minecraft-modpack-server','skill:simplicio-runtime:minecraft-modpack-server','coding','.simplicio-loop\skills\minecraft-modpack-server\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('modal','skill:simplicio-runtime:modal','orchestration','.simplicio-loop\skills\modal\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('nano-pdf','skill:simplicio-runtime:nano-pdf','coding','.simplicio-loop\skills\nano-pdf\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('nemo-curator','skill:simplicio-runtime:nemo-curator','video','.simplicio-loop\skills\nemo-curator\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('neuroskill-bci','skill:simplicio-runtime:neuroskill-bci','video','.simplicio-loop\skills\neuroskill-bci\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('node-inspect-debugger','skill:simplicio-runtime:node-inspect-debugger','coding','.simplicio-loop\skills\node-inspect-debugger\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('notion','skill:simplicio-runtime:notion','coding','.simplicio-loop\skills\notion\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('obliteratus','skill:simplicio-runtime:obliteratus','coding','.simplicio-loop\skills\obliteratus\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('obsidian','skill:simplicio-runtime:obsidian','content','.simplicio-loop\skills\obsidian\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('ocr-and-documents','skill:simplicio-runtime:ocr-and-documents','coding','.simplicio-loop\skills\ocr-and-documents\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('one-three-one-rule','skill:simplicio-runtime:one-three-one-rule','coding','.simplicio-loop\skills\one-three-one-rule\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('openclaw-migration','skill:simplicio-runtime:openclaw-migration','coding','.simplicio-loop\skills\openclaw-migration\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('opencode','skill:simplicio-runtime:opencode','coding','.simplicio-loop\skills\opencode\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('openhands','skill:simplicio-runtime:openhands','coding','.simplicio-loop\skills\openhands\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('openhue','skill:simplicio-runtime:openhue','coding','.simplicio-loop\skills\openhue\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('osint-investigation','skill:simplicio-runtime:osint-investigation','coding','.simplicio-loop\skills\osint-investigation\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('oss-forensics','skill:simplicio-runtime:oss-forensics','coding','.simplicio-loop\skills\oss-forensics\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('p5js','skill:simplicio-runtime:p5js','video','.simplicio-loop\skills\p5js\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('page-agent','skill:simplicio-runtime:page-agent','coding','.simplicio-loop\skills\page-agent\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('parallel-cli','skill:simplicio-runtime:parallel-cli','coding','.simplicio-loop\skills\parallel-cli\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('payments','skill:simplicio-runtime:payments','coding','.simplicio-loop\skills\payments\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('peft','skill:simplicio-runtime:peft','orchestration','.simplicio-loop\skills\peft\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pinecone','skill:simplicio-runtime:pinecone','orchestration','.simplicio-loop\skills\pinecone\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pinggy-tunnel','skill:simplicio-runtime:pinggy-tunnel','coding','.simplicio-loop\skills\pinggy-tunnel\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pixel-art','skill:simplicio-runtime:pixel-art','video','.simplicio-loop\skills\pixel-art\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('plan','skill:simplicio-runtime:plan','coding','.simplicio-loop\skills\plan\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('playwright-e2e','skill:simplicio-runtime:playwright-e2e','coding','.simplicio-loop\skills\playwright-e2e\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pokemon-player','skill:simplicio-runtime:pokemon-player','coding','.simplicio-loop\skills\pokemon-player\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('polymarket','skill:simplicio-runtime:polymarket','coding','.simplicio-loop\skills\polymarket\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('popular-web-designs','skill:simplicio-runtime:popular-web-designs','coding','.simplicio-loop\skills\popular-web-designs\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('powerpoint','skill:simplicio-runtime:powerpoint','coding','.simplicio-loop\skills\powerpoint\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pptx-author','skill:simplicio-runtime:pptx-author','coding','.simplicio-loop\skills\pptx-author\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pretext','skill:simplicio-runtime:pretext','coding','.simplicio-loop\skills\pretext\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('python-debugpy','skill:simplicio-runtime:python-debugpy','coding','.simplicio-loop\skills\python-debugpy\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pytorch-fsdp','skill:simplicio-runtime:pytorch-fsdp','orchestration','.simplicio-loop\skills\pytorch-fsdp\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('pytorch-lightning','skill:simplicio-runtime:pytorch-lightning','orchestration','.simplicio-loop\skills\pytorch-lightning\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('qdrant','skill:simplicio-runtime:qdrant','orchestration','.simplicio-loop\skills\qdrant\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('qmd','skill:simplicio-runtime:qmd','coding','.simplicio-loop\skills\qmd\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('ralph-loop','skill:simplicio-runtime:ralph-loop','orchestration','.simplicio-loop\skills\ralph-loop\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('remotion-to-hyperframes','skill:simplicio-runtime:remotion-to-hyperframes:skills','video','.simplicio-loop\skills\remotion-to-hyperframes\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('requesting-code-review','skill:simplicio-runtime:requesting-code-review','coding','.simplicio-loop\skills\requesting-code-review\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('research-paper-writing','skill:simplicio-runtime:research-paper-writing','orchestration','.simplicio-loop\skills\research-paper-writing\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('rest-graphql-debug','skill:simplicio-runtime:rest-graphql-debug','coding','.simplicio-loop\skills\rest-graphql-debug\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('revisao-humanizada','skill:simplicio-runtime:revisao-humanizada','content','.simplicio-loop\skills\revisao-humanizada\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('rtk-cli','skill:simplicio-runtime:rtk-cli','coding','.simplicio-loop\skills\rtk-cli\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('saelens','skill:simplicio-runtime:saelens','orchestration','.simplicio-loop\skills\saelens\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('scrapling','skill:simplicio-runtime:scrapling','coding','.simplicio-loop\skills\scrapling\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('searxng-search','skill:simplicio-runtime:searxng-search','coding','.simplicio-loop\skills\searxng-search\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('sherlock','skill:simplicio-runtime:sherlock','content','.simplicio-loop\skills\sherlock\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('shop-app','skill:simplicio-runtime:shop-app','coding','.simplicio-loop\skills\shop-app\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('shopify','skill:simplicio-runtime:shopify','coding','.simplicio-loop\skills\shopify\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('simplicio-cli','skill:simplicio-runtime:simplicio-cli','coding','.simplicio-loop\skills\simplicio-cli\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('simplify-code','skill:simplicio-runtime:simplify-code','coding','.simplicio-loop\skills\simplify-code\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('simpo','skill:simplicio-runtime:simpo','orchestration','.simplicio-loop\skills\simpo\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('siyuan','skill:simplicio-runtime:siyuan','coding','.simplicio-loop\skills\siyuan\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('sketch','skill:simplicio-runtime:sketch','coding','.simplicio-loop\skills\sketch\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('skill','skill:simplicio-runtime:skill','coding','.simplicio-loop\skills\skill\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('skill-opt','skill:simplicio-runtime:skill-opt','coding','.simplicio-loop\skills\skill-opt\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('slime','skill:simplicio-runtime:slime','orchestration','.simplicio-loop\skills\slime\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('social-media-ops','skill:simplicio-runtime:social-media-ops','content','.simplicio-loop\skills\social-media-ops\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('solana','skill:simplicio-runtime:solana','coding','.simplicio-loop\skills\solana\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('songsee','skill:simplicio-runtime:songsee','coding','.simplicio-loop\skills\songsee\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('songwriting-and-ai-music','skill:simplicio-runtime:songwriting-and-ai-music','coding','.simplicio-loop\skills\songwriting-and-ai-music\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('spike','skill:simplicio-runtime:spike','coding','.simplicio-loop\skills\spike\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('stable-diffusion','skill:simplicio-runtime:stable-diffusion','orchestration','.simplicio-loop\skills\stable-diffusion\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('stocks','skill:simplicio-runtime:stocks','coding','.simplicio-loop\skills\stocks\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('subagent-driven-development','skill:simplicio-runtime:subagent-driven-development','coding','.simplicio-loop\skills\subagent-driven-development\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('systematic-debugging','skill:simplicio-runtime:systematic-debugging','coding','.simplicio-loop\skills\systematic-debugging\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('tailwind','skill:simplicio-runtime:tailwind','video','.simplicio-loop\skills\tailwind\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('teams-meeting-pipeline','skill:simplicio-runtime:teams-meeting-pipeline','coding','.simplicio-loop\skills\teams-meeting-pipeline\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('telephony','skill:simplicio-runtime:telephony','coding','.simplicio-loop\skills\telephony\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('tensorrt-llm','skill:simplicio-runtime:tensorrt-llm','orchestration','.simplicio-loop\skills\tensorrt-llm\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('test-driven-development','skill:simplicio-runtime:test-driven-development','coding','.simplicio-loop\skills\test-driven-development\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('three','skill:simplicio-runtime:three','video','.simplicio-loop\skills\three\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('torchtitan','skill:simplicio-runtime:torchtitan','orchestration','.simplicio-loop\skills\torchtitan\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('touchdesigner-mcp','skill:simplicio-runtime:touchdesigner-mcp','coding','.simplicio-loop\skills\touchdesigner-mcp\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('typegpu','skill:simplicio-runtime:typegpu','video','.simplicio-loop\skills\typegpu\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('unreal-engine-mcp','skill:simplicio-runtime:unreal-engine-mcp','coding','.simplicio-loop\skills\unreal-engine-mcp\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('using-superpowers','skill:simplicio-runtime:using-superpowers','coding','.simplicio-loop\skills\using-superpowers\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('verification-before-completion','skill:simplicio-runtime:verification-before-completion','coding','.simplicio-loop\skills\verification-before-completion\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('viral-product-strategist','skill:simplicio-runtime:viral-product-strategist','coding','.simplicio-loop\skills\viral-product-strategist\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('waapi','skill:simplicio-runtime:waapi','video','.simplicio-loop\skills\waapi\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('watchers','skill:simplicio-runtime:watchers','coding','.simplicio-loop\skills\watchers\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('web-pentest','skill:simplicio-runtime:web-pentest','coding','.simplicio-loop\skills\web-pentest\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('website-to-hyperframes','skill:simplicio-runtime:website-to-hyperframes','video','.simplicio-loop\skills\website-to-hyperframes\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('whisper','skill:simplicio-runtime:whisper','orchestration','.simplicio-loop\skills\whisper\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('writing-plans','skill:simplicio-runtime:writing-plans','coding','.simplicio-loop\skills\writing-plans\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('xurl','skill:simplicio-runtime:xurl','content','.simplicio-loop\skills\xurl\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('youtube-content','skill:simplicio-runtime:youtube-content','video','.simplicio-loop\skills\youtube-content\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('yuanbao','skill:simplicio-runtime:yuanbao','coding','.simplicio-loop\skills\yuanbao\SKILL.md');
 INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('revisao-humanizada','skill:simplicio-runtime:revisao-humanizada:.skills','content','.skills\revisao-humanizada\SKILL.md');
-INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('adversarial-ux-test','skill:simplicio-runtime:adversarial-ux-test','coding','.simplicio\skills\dogfood\adversarial-ux-test\SKILL.md');
+INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('adversarial-ux-test','skill:simplicio-runtime:adversarial-ux-test','coding','.simplicio-loop\skills\dogfood\adversarial-ux-test\SKILL.md');
 INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('google_meet','skill:simplicio-runtime:google_meet:plugins','video','plugins\google_meet\SKILL.md');
 INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('skill','skill:simplicio-runtime:skill:simplicio','coding','publish\simpleti\simplicio\skill\SKILL.md');
 INSERT OR IGNORE INTO skills_registry(skill_name,stable_id,domain,artifact_path) VALUES('_template','skill:simplicio-runtime:_template:skills','coding','skills\_template\SKILL.md');

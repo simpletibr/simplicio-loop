@@ -2,7 +2,7 @@
 """Materialize canonical work-item state for recently opened GitHub issues.
 
 For each issue in the given range that has an intake contract + planning receipt
-but no ``.simplicio/orchestrator/backlog/items/wiNNN/`` trio (anchor + mapping + run state),
+but no ``.simplicio-loop/orchestrator/backlog/items/wiNNN/`` trio (anchor + mapping + run state),
 create the trio from the intake artifacts. This closes the gap between the
 issue cursor projection (``gh-issue-cursor.json``) and the execution
 source-of-truth (``items/wiNNN/``) so the canonical lifecycle (intake ->
@@ -25,8 +25,8 @@ sys.path.insert(0, HERE)
 
 import issue_cron_driver as drv  # reuse _is_infra_dependent
 
-INTAKE_DIR = os.path.join(REPO, ".simplicio/orchestrator", "intake")
-ITEMS_DIR = os.path.join(REPO, ".simplicio/orchestrator", "backlog", "items")
+INTAKE_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "intake")
+ITEMS_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "backlog", "items")
 GH_REPO = "wesleysimplicio/simplicio-loop"
 
 
@@ -107,10 +107,10 @@ def materialize(issue_num, issue_meta):
         "item_id": wi_id,
         "mapped_at": _ts(),
         "repo_context": {
-            "project_map": ".simplicio/project-map.json",
-            "call_graph": ".simplicio/call-graph.json",
-            "architecture_inventory": ".simplicio/architecture-inventory.json",
-            "worktree": ".simplicio/orchestrator/worktrees/%s" % wi_id,
+            "project_map": ".simplicio-loop/project-map.json",
+            "call_graph": ".simplicio-loop/call-graph.json",
+            "architecture_inventory": ".simplicio-loop/architecture-inventory.json",
+            "worktree": ".simplicio-loop/orchestrator/worktrees/%s" % wi_id,
         },
         "scope": goal,
         "impact_files": [],

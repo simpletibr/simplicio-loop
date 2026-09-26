@@ -144,9 +144,9 @@ class BusinessRulesTest(unittest.TestCase):
         self.assertEqual(code, 0)
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["schema"], BUSINESS_RULES_SCHEMA)
-        self.assertTrue((app_dir / ".simplicio" / "business-rules.json").exists())
-        self.assertTrue((app_dir / ".simplicio" / "docs" / "business-flows.md").exists())
-        diagrams_dir = app_dir / ".simplicio" / "docs" / "diagrams" / "business"
+        self.assertTrue((app_dir / ".simplicio-loop" / "business-rules.json").exists())
+        self.assertTrue((app_dir / ".simplicio-loop" / "docs" / "business-flows.md").exists())
+        diagrams_dir = app_dir / ".simplicio-loop" / "docs" / "diagrams" / "business"
         self.assertTrue(diagrams_dir.exists())
         self.assertTrue(list(diagrams_dir.glob("*.svg")))
 

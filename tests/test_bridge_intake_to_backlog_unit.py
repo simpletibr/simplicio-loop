@@ -7,7 +7,7 @@ AC3: built item matches the canonical task_backlog item schema (kind/id/acs/stat
 AC4: a simulated closed issue in the ledger is NOT bridged even if present in ledger
 
 Tests pass an explicit ``backlog_path`` to ``main()`` so they NEVER touch the
-real ``.simplicio/orchestrator/backlog/backlog.jsonl`` on disk.
+real ``.simplicio-loop/orchestrator/backlog/backlog.jsonl`` on disk.
 """
 from __future__ import annotations
 

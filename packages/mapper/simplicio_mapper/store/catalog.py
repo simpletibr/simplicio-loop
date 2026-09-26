@@ -2,7 +2,7 @@
 
 Policy: Mapper is the sole data centralizer. Runtime, loop, fast, and host tools
 may write only through paths resolved from this catalog (or SIMPLICIO_DATA_DIR).
-Legacy locations under ~/.simplicio/** are absorb sources, not canonical roots.
+Legacy locations under ~/.simplicio-loop/** are absorb sources, not canonical roots.
 """
 
 from __future__ import annotations
@@ -125,14 +125,14 @@ class BankSpec:
     kind: str  # sqlite | jsonl | json | directory | file
     owners: tuple[str, ...]
     description: str
-    legacy: tuple[str, ...]  # relative to home/.simplicio or absolute-style tokens
+    legacy: tuple[str, ...]  # relative to home/.simplicio-loop or absolute-style tokens
     required: bool = False
 
     def canonical(self, root: Path) -> Path:
         return root / self.relative
 
     def legacy_candidates(self, home: Path) -> list[Path]:
-        base = home / ".simplicio"
+        base = home / ".simplicio-loop"
         out: list[Path] = []
         for token in self.legacy:
             if token.startswith("~/"):
@@ -185,7 +185,7 @@ ECOSYSTEM_BANKS: tuple[BankSpec, ...] = (
         relative="agents.sqlite",
         kind="sqlite",
         owners=("runtime", "loop"),
-        description="Agent registry (absorbed from repo .simplicio/agents.db)",
+        description="Agent registry (absorbed from repo .simplicio-loop/agents.db)",
         legacy=("agents.db", "agents.sqlite"),
         required=False,
     ),
@@ -312,21 +312,21 @@ def layout_tree() -> dict[str, Any]:
     return {
         "schema": CATALOG_API_SCHEMA,
         "root_env": "SIMPLICIO_CORE_DATA_DIR / SIMPLICIO_DATA_DIR",
-        "default_root": "~/.simplicio/data",
+        "default_root": "~/.simplicio-loop/data",
         "policy": (
-            "All durable files live under .simplicio. Core/Runtime memory is "
-            "~/.simplicio/data; each project isolates under "
-            "<repo>/.simplicio/data/<slug> so banks never mix."
+            "All durable files live under .simplicio-loop. Core/Runtime memory is "
+            "~/.simplicio-loop/data; each project isolates under "
+            "<repo>/.simplicio-loop/data/<slug> so banks never mix."
         ),
         "scopes": {
             "core_runtime": {
-                "root": "~/.simplicio/data",
-                "memory": "~/.simplicio/data/memory.sqlite",
+                "root": "~/.simplicio-loop/data",
+                "memory": "~/.simplicio-loop/data/memory.sqlite",
                 "env": ["SIMPLICIO_CORE_DATA_DIR", "SIMPLICIO_DATA_DIR", "SIMPLICIO_MEMORY_DB"],
             },
             "project": {
-                "root": "<repo>/.simplicio/data/<project_slug>",
-                "memory": "<repo>/.simplicio/data/<project_slug>/memory.sqlite",
+                "root": "<repo>/.simplicio-loop/data/<project_slug>",
+                "memory": "<repo>/.simplicio-loop/data/<project_slug>/memory.sqlite",
                 "slug_from": [
                     "SIMPLICIO_PROJECT",
                     "git remote origin name",
@@ -339,8 +339,8 @@ def layout_tree() -> dict[str, Any]:
         "canonical_memory": {
             "path": CANONICAL_MEMORY_DB,
             "schema": "simplicio.mapper-store.memory/v1 + semantic + FTS5",
-            "core_env": "SIMPLICIO_MEMORY_DB → ~/.simplicio/data/memory.sqlite",
-            "project_env": "SIMPLICIO_PROJECT_MEMORY_DB → <repo>/.simplicio/data/<slug>/memory.sqlite",
+            "core_env": "SIMPLICIO_MEMORY_DB → ~/.simplicio-loop/data/memory.sqlite",
+            "project_env": "SIMPLICIO_PROJECT_MEMORY_DB → <repo>/.simplicio-loop/data/<slug>/memory.sqlite",
         },
         "banks": [
             {
@@ -357,29 +357,29 @@ def layout_tree() -> dict[str, Any]:
         "mapper_fast_integration": {
             "note": (
                 "Mapper extracts (project-map/context-snapshot); Fast builds disposable "
-                ".sfast under <repo>/.simplicio/fast/. Core Runtime memory stays in "
-                "~/.simplicio/data; project memory under <repo>/.simplicio/data/<slug>."
+                ".sfast under <repo>/.simplicio-loop/fast/. Core Runtime memory stays in "
+                "~/.simplicio-loop/data; project memory under <repo>/.simplicio-loop/data/<slug>."
             ),
             "commands": [
                 "simplicio-mapper status .",
                 "simplicio-mapper data status --repo .",
                 "simplicio-mapper data unify --repo .",
                 "simplicio-mapper fast-handoff .",
-                "simplicio-fast build . -o .simplicio/fast/project.sfast",
+                "simplicio-fast build . -o .simplicio-loop/fast/project.sfast",
             ],
             "dependency": "simplicio-fast depends on simplicio-mapper>=0.26.11,<0.27",
         },
         "repo_scoped_artifacts": {
             "note": (
-                "Working copies stay under <repo>/.simplicio/ (project-map, fast, "
-                "orchestrator). Durable project DBs live under .simplicio/data/<slug>."
+                "Working copies stay under <repo>/.simplicio-loop/ (project-map, fast, "
+                "orchestrator). Durable project DBs live under .simplicio-loop/data/<slug>."
             ),
             "examples": [
-                ".simplicio/project-map.json",
-                ".simplicio/precedent-index.json",
-                ".simplicio/fast/project.sfast",
-                ".simplicio/data/<slug>/memory.sqlite",
-                ".simplicio/orchestrator/",
+                ".simplicio-loop/project-map.json",
+                ".simplicio-loop/precedent-index.json",
+                ".simplicio-loop/fast/project.sfast",
+                ".simplicio-loop/data/<slug>/memory.sqlite",
+                ".simplicio-loop/orchestrator/",
             ],
         },
     }
@@ -510,10 +510,10 @@ def absorb_bank(
             repo = Path(repo_root).expanduser().absolute()
             candidates.extend(
                 [
-                    repo / ".simplicio" / "agents.db",
-                    repo / ".simplicio" / "data" / "operations.sqlite",
-                    repo / ".simplicio" / "orchestrator" / "agent-slots.sqlite",
-                    repo / ".simplicio" / "cache" / "cache.db",
+                    repo / ".simplicio-loop" / "agents.db",
+                    repo / ".simplicio-loop" / "data" / "operations.sqlite",
+                    repo / ".simplicio-loop" / "orchestrator" / "agent-slots.sqlite",
+                    repo / ".simplicio-loop" / "cache" / "cache.db",
                 ]
             )
         src = next((p for p in candidates if p.exists()), None)

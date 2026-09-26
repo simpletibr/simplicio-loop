@@ -73,11 +73,11 @@ def _mapper_fixture(root: Path) -> tuple[dict[str, object], dict[str, dict[str, 
         "symbol_index": "symbol-index.json",
         "call_graph": "call-graph.json",
     }
-    artifact_dir = root / ".simplicio"
+    artifact_dir = root / ".simplicio-loop"
     artifact_dir.mkdir()
     artifacts: list[dict[str, str]] = []
     for name, document in docs.items():
-        relative = f".simplicio/{path_names[name]}"
+        relative = f".simplicio-loop/{path_names[name]}"
         (root / relative).write_text(json.dumps(document), encoding="utf-8")
         artifacts.append({"name": name, "path": relative})
     return {
@@ -95,7 +95,7 @@ class ParserAdapter244Test(unittest.TestCase):
             provenance, docs = _mapper_fixture(root)
             self.assertEqual(set(), _git_ignored(root, []))
             docs["project_map"]["files"] = [None]
-            (root / ".simplicio/project-map.json").write_text(
+            (root / ".simplicio-loop/project-map.json").write_text(
                 json.dumps(docs["project_map"]), encoding="utf-8"
             )
             with patch(
@@ -104,7 +104,7 @@ class ParserAdapter244Test(unittest.TestCase):
             ), self.assertRaisesRegex(ParserAdapterError, "mapper_files_invalid"):
                 build_payload_from_mapper(root, {"ignored": True})
             docs["project_map"]["files"] = [{"path": "service.rs"}]
-            (root / ".simplicio/project-map.json").write_text(
+            (root / ".simplicio-loop/project-map.json").write_text(
                 json.dumps(docs["project_map"]), encoding="utf-8"
             )
             with patch(
@@ -115,7 +115,7 @@ class ParserAdapter244Test(unittest.TestCase):
             docs["project_map"]["files"] = [
                 {"path": "service.rs", "language": "text", "file_hash": "0" * 64}
             ]
-            (root / ".simplicio/project-map.json").write_text(
+            (root / ".simplicio-loop/project-map.json").write_text(
                 json.dumps(docs["project_map"]), encoding="utf-8"
             )
             with patch(
@@ -135,7 +135,7 @@ class ParserAdapter244Test(unittest.TestCase):
             ), self.assertRaisesRegex(ParserAdapterError, "mapper_incomplete"):
                 build_payload_from_mapper(root, {"ignored": True})
 
-            context_path = root / ".simplicio/context-snapshot.json"
+            context_path = root / ".simplicio-loop/context-snapshot.json"
             context_path.write_text("{not-json", encoding="utf-8")
             with patch(
                 "simplicio_fast.parser_adapter.validate_handoff",
@@ -159,7 +159,7 @@ class ParserAdapter244Test(unittest.TestCase):
             context_path.write_text(json.dumps(docs["context_snapshot"]), encoding="utf-8")
 
             docs["symbol_index"]["symbols"] = [None]
-            (root / ".simplicio/symbol-index.json").write_text(
+            (root / ".simplicio-loop/symbol-index.json").write_text(
                 json.dumps(docs["symbol_index"]), encoding="utf-8"
             )
             with patch(
@@ -177,12 +177,12 @@ class ParserAdapter244Test(unittest.TestCase):
                     "line": 1,
                 }
             ]
-            (root / ".simplicio/symbol-index.json").write_text(
+            (root / ".simplicio-loop/symbol-index.json").write_text(
                 json.dumps(docs["symbol_index"]), encoding="utf-8"
             )
 
             docs["call_graph"]["edges"] = [None]
-            (root / ".simplicio/call-graph.json").write_text(
+            (root / ".simplicio-loop/call-graph.json").write_text(
                 json.dumps(docs["call_graph"]), encoding="utf-8"
             )
             with patch(
@@ -199,7 +199,7 @@ class ParserAdapter244Test(unittest.TestCase):
                     "confidence": 2,
                 }
             ]
-            (root / ".simplicio/call-graph.json").write_text(
+            (root / ".simplicio-loop/call-graph.json").write_text(
                 json.dumps(docs["call_graph"]), encoding="utf-8"
             )
             with patch(
@@ -209,7 +209,7 @@ class ParserAdapter244Test(unittest.TestCase):
                 build_payload_from_mapper(root, {"ignored": True})
 
             docs["call_graph"]["edges"][0]["confidence"] = 0.5
-            (root / ".simplicio/call-graph.json").write_text(
+            (root / ".simplicio-loop/call-graph.json").write_text(
                 json.dumps(docs["call_graph"]), encoding="utf-8"
             )
             with patch(
@@ -242,7 +242,7 @@ class ParserAdapter244Test(unittest.TestCase):
                 if expected == "encoding_invalid":
                     digest = hashlib.sha256((root / "service.rs").read_bytes()).hexdigest()
                     docs["project_map"]["files"][0]["file_hash"] = digest
-                    (root / ".simplicio/project-map.json").write_text(
+                    (root / ".simplicio-loop/project-map.json").write_text(
                         json.dumps(docs["project_map"]), encoding="utf-8"
                     )
                 with patch(
@@ -264,7 +264,7 @@ class ParserAdapter244Test(unittest.TestCase):
                     "file_hash": hashlib.sha256(second.read_bytes()).hexdigest(),
                 }
             )
-            (root / ".simplicio/project-map.json").write_text(
+            (root / ".simplicio-loop/project-map.json").write_text(
                 json.dumps(docs["project_map"]), encoding="utf-8"
             )
             with patch(
@@ -290,10 +290,10 @@ class ParserAdapter244Test(unittest.TestCase):
                     "source": {"file": "service.rs", "line": 1},
                 }
             )
-            (root / ".simplicio/symbol-index.json").write_text(
+            (root / ".simplicio-loop/symbol-index.json").write_text(
                 json.dumps(docs["symbol_index"]), encoding="utf-8"
             )
-            (root / ".simplicio/context-snapshot.json").write_text(
+            (root / ".simplicio-loop/context-snapshot.json").write_text(
                 json.dumps(docs["context_snapshot"]), encoding="utf-8"
             )
             with patch(
@@ -304,7 +304,7 @@ class ParserAdapter244Test(unittest.TestCase):
                     build_payload_from_mapper(root, {"ignored": True}, limits={"max_symbols": 1})
             docs["symbol_index"]["symbols"].pop()
             docs["call_graph"]["edges"].append(dict(docs["call_graph"]["edges"][0]))
-            (root / ".simplicio/call-graph.json").write_text(
+            (root / ".simplicio-loop/call-graph.json").write_text(
                 json.dumps(docs["call_graph"]), encoding="utf-8"
             )
             with patch(
@@ -367,7 +367,7 @@ class ParserAdapter244Test(unittest.TestCase):
 
             project = docs["project_map"]
             project["files"] = None
-            (root / ".simplicio/project-map.json").write_text(json.dumps(project), encoding="utf-8")
+            (root / ".simplicio-loop/project-map.json").write_text(json.dumps(project), encoding="utf-8")
             with self.assertRaisesRegex(ParserAdapterError, "mapper_files_missing"):
                 build()
 
@@ -387,7 +387,7 @@ class ParserAdapter244Test(unittest.TestCase):
                 }
             )
             (root / ".gitignore").write_text(".pytest-basetemp-*/\n", encoding="utf-8")
-            (root / ".simplicio/project-map.json").write_text(json.dumps(project), encoding="utf-8")
+            (root / ".simplicio-loop/project-map.json").write_text(json.dumps(project), encoding="utf-8")
             calls = docs["call_graph"]
             calls["edges"].append(
                 {
@@ -417,7 +417,7 @@ class ParserAdapter244Test(unittest.TestCase):
                     "confidence": 0.5,
                 }
             )
-            (root / ".simplicio/call-graph.json").write_text(json.dumps(calls), encoding="utf-8")
+            (root / ".simplicio-loop/call-graph.json").write_text(json.dumps(calls), encoding="utf-8")
             with patch(
                 "simplicio_fast.parser_adapter.validate_handoff",
                 return_value=provenance,
@@ -489,7 +489,7 @@ class ParserAdapter244Test(unittest.TestCase):
             }
             artifact_paths = []
             for name, value in artifact_names.items():
-                path = root / ".simplicio" / {
+                path = root / ".simplicio-loop" / {
                     "context_snapshot": "context-snapshot.json",
                     "project_map": "project-map.json",
                     "symbol_index": "symbol-index.json",
@@ -516,7 +516,7 @@ class ParserAdapter244Test(unittest.TestCase):
             source = root / "service.ts"
             source.write_text("export function run() {}\n", encoding="utf-8")
             digest = hashlib.sha256(source.read_bytes()).hexdigest()
-            (root / ".simplicio").mkdir()
+            (root / ".simplicio-loop").mkdir()
             docs = {
                 "context_snapshot.json": {
                     "schema": "simplicio.context-snapshot/v1",
@@ -537,12 +537,12 @@ class ParserAdapter244Test(unittest.TestCase):
                 "call-graph.json": {"schema": "simplicio.call-graph/v1", "edges": []},
             }
             for name, value in docs.items():
-                (root / ".simplicio" / name).write_text(json.dumps(value), encoding="utf-8")
+                (root / ".simplicio-loop" / name).write_text(json.dumps(value), encoding="utf-8")
             provenance = {
                 "commit": "a" * 40,
                 "generation": "generation-1",
                 "artifacts": [
-                    {"name": key.removesuffix(".json").replace("-", "_"), "path": f".simplicio/{key}"}
+                    {"name": key.removesuffix(".json").replace("-", "_"), "path": f".simplicio-loop/{key}"}
                     for key in docs
                 ],
                 "changed_paths": [],

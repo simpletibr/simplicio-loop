@@ -52,7 +52,7 @@ class WriteSetLockManager:
         if not ready:
             raise LockError("MAPPER_STORE_UNAVAILABLE", reason)
         _freeze_route(self.root, mapper_version)
-        self.lock_root: Path = self.root / ".simplicio" / "mapper-store" / "locks"
+        self.lock_root: Path = self.root / ".simplicio-loop" / "mapper-store" / "locks"
         self.lock_root.mkdir(parents=True, exist_ok=True)
         self._handles: dict[str, LockHandle] = {}
 

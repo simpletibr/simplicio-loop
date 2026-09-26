@@ -21,8 +21,8 @@ _WILDCARDS = "*?[]{}"
 _TARGETS = {"hbp", "hbi", "toml"}
 # These directories are disposable outputs from external/runtime probes. They
 # are not checked-in state and must not turn a clean test run into a dirty
-# inventory finding. Persistent JSON under .simplicio remains fail-closed.
-_EPHEMERAL_ROOTS = (".simplicio/issue-422-runtime", ".simplicio/update")
+# inventory finding. Persistent JSON under .simplicio-loop remains fail-closed.
+_EPHEMERAL_ROOTS = (".simplicio-loop/issue-422-runtime", ".simplicio-loop/update")
 
 
 @dataclass(frozen=True)

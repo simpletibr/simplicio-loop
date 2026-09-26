@@ -43,7 +43,7 @@ def changeset():
 
 def test_fast_fanout_uses_durable_overlays_fence_and_cancellation(tmp_path):
     lifecycle = CheckpointLifecycle(
-        tmp_path / ".simplicio" / "loop-runs",
+        tmp_path / ".simplicio-loop" / "loop-runs",
         task_id="task",
         attempt_id="attempt",
         source_commit="commit",
@@ -73,7 +73,7 @@ def test_fast_fanout_uses_durable_overlays_fence_and_cancellation(tmp_path):
 
 def test_lifecycle_failure_blocks_before_any_fast_apply(tmp_path, monkeypatch):
     lifecycle = CheckpointLifecycle(
-        tmp_path / ".simplicio" / "loop-runs",
+        tmp_path / ".simplicio-loop" / "loop-runs",
         task_id="task",
         attempt_id="attempt",
         source_commit="commit",
@@ -101,7 +101,7 @@ def test_lifecycle_failure_blocks_before_any_fast_apply(tmp_path, monkeypatch):
 
 def test_checkpoint_cli_inspect_cancel_and_gc(tmp_path, capsys):
     lifecycle = CheckpointLifecycle(
-        tmp_path / ".simplicio" / "loop-runs",
+        tmp_path / ".simplicio-loop" / "loop-runs",
         task_id="task",
         attempt_id="attempt",
         source_commit="commit",

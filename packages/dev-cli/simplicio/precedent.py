@@ -79,7 +79,7 @@ SKIP = (
     "/bin/",
     "/obj/",
     "/.angular/",
-    "/.simplicio/",
+    "/.simplicio-loop/",
     "__pycache__",
     ".venv",
     "/venv/",

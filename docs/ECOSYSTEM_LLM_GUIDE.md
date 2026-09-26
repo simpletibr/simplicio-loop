@@ -115,7 +115,7 @@ Expected: preflight green, or explicit degraded labels — never a silent fake O
 | Orca | **opt-in only** (`CLIENT_INTEGRATIONS`) | same |
 | Gemini / Aider / Antigravity | self-paced / conventions file | STRICT |
 
-Self-paced: re-read `.simplicio/orchestrator/loop/scratchpad.md` each turn.
+Self-paced: re-read `.simplicio-loop/orchestrator/loop/scratchpad.md` each turn.
 
 ---
 

@@ -38,7 +38,7 @@ def _device_id() -> str:
 
 def identity_path(path: Optional[str] = None) -> Path:
     return Path(path or os.environ.get("SIMPLICIO_IDENTITY_FILE") or
-                os.path.join(".simplicio/orchestrator", "agent-identity.json"))
+                os.path.join(".simplicio-loop/orchestrator", "agent-identity.json"))
 
 
 def _read(path: Path) -> Optional[dict[str, Any]]:

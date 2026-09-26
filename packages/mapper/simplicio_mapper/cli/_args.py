@@ -33,7 +33,7 @@ def _read_json_safe(file: str) -> dict:
 def _parse_args(argv: Sequence[str]) -> dict:
     opts = {
         "root": os.getcwd(),
-        "out": ".simplicio",
+        "out": ".simplicio-loop",
         "stack": "",
         "product_name": "",
         "incremental": False,

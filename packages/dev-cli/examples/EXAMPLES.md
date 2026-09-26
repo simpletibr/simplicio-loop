@@ -16,9 +16,9 @@ ambiguous effect remains fail-closed.
 ## Memory and handoff
 
 ```powershell
-python -m simplicio.cli memory init --dir .\.simplicio\memory --json
-python -m simplicio.cli memory store "release process" "Ship through a reviewed PR." --dir .\.simplicio\memory --json
-python -m simplicio.cli memory handoff "reviewed PR" --dir .\.simplicio\memory --json
+python -m simplicio.cli memory init --dir .\.simplicio-loop\memory --json
+python -m simplicio.cli memory store "release process" "Ship through a reviewed PR." --dir .\.simplicio-loop\memory --json
+python -m simplicio.cli memory handoff "reviewed PR" --dir .\.simplicio-loop\memory --json
 ```
 
 Markdown notes remain exportable source material. The derived index is

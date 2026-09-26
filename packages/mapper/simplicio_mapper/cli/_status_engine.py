@@ -928,7 +928,7 @@ def _build_handoff_payload(opts: dict) -> dict:
     )
     # `handoff` is the only public verb an integrated Fast ingest can rely on
     # (it never calls the internal `snapshot build`), so it must guarantee the
-    # canonical, unscoped `.simplicio/context-snapshot.json` Fast reads symbol
+    # canonical, unscoped `.simplicio-loop/context-snapshot.json` Fast reads symbol
     # ids from actually exists and is current — otherwise `handoff --json`
     # reports `ready: true` while Fast fails closed with
     # `mapper_artifact_missing: context_snapshot` (issue: cross-package

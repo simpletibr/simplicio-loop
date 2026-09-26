@@ -17,13 +17,13 @@ already dev-only. Fails closed: if `coverage` isn't importable, this exits 1 rat
 skipping the gate.
 
 On failure, writes the full HTML + XML coverage report under `--diagnostics-dir` (default
-`.simplicio/quality-gate/coverage/`) so a CI failure ships a reviewable per-line report as an
+`.simplicio-loop/quality-gate/coverage/`) so a CI failure ships a reviewable per-line report as an
 artifact, not just a percentage.
 
 Usage:
     python3 scripts/coverage_gate.py
     python3 scripts/coverage_gate.py --global-threshold 85 --critical-threshold 90
-    python3 scripts/coverage_gate.py --diagnostics-dir .simplicio/quality-gate/coverage
+    python3 scripts/coverage_gate.py --diagnostics-dir .simplicio-loop/quality-gate/coverage
     python3 scripts/coverage_gate.py --emit-json coverage-report.json
 
 #283: `--emit-json PATH` unconditionally (pass or fail) writes the measured percentages plus the
@@ -99,7 +99,7 @@ def main() -> int:
                 fh.write("\n")
         return 1
 
-    diagnostics_dir = args.diagnostics_dir or os.path.join(REPO, ".simplicio", "quality-gate", "coverage")
+    diagnostics_dir = args.diagnostics_dir or os.path.join(REPO, ".simplicio-loop", "quality-gate", "coverage")
     os.makedirs(diagnostics_dir, exist_ok=True)
     data_file = os.path.join(diagnostics_dir, ".coverage")
 

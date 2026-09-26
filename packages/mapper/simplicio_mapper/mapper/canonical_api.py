@@ -31,7 +31,7 @@ from .effective_view import compose_effective_view
 def get_effective_map_view(
     root: str,
     *,
-    out: str = ".simplicio",
+    out: str = ".simplicio-loop",
     meta: dict | None = None,
     config_fingerprint: str | None = None,
     storage_root: str | None = None,
@@ -65,7 +65,7 @@ def get_effective_map_view(
 async def get_effective_map_view_async(
     root: str,
     *,
-    out: str = ".simplicio",
+    out: str = ".simplicio-loop",
     meta: dict | None = None,
     config_fingerprint: str | None = None,
     storage_root: str | None = None,

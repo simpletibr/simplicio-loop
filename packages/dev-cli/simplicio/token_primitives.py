@@ -105,7 +105,7 @@ class ContextCache:
 
     def __init__(self, root: str | Path = ".") -> None:
         self.root = Path(root)
-        self.path = self.root / ".simplicio" / "context-cache.json"
+        self.path = self.root / ".simplicio-loop" / "context-cache.json"
 
     def get(self, key: str, content: str) -> dict[str, Any]:
         digest = sha256_text(content)

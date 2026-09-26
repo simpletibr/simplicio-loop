@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 SCHEMA = "simplicio.dev-cli.quality-gate-receipt/v1"
-DEFAULT_RECEIPT = Path(".simplicio/quality-gate-receipt.json")
+DEFAULT_RECEIPT = Path(".simplicio-loop/quality-gate-receipt.json")
 QUALITY_GATE_ENV_EXCLUSIONS = ("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY",)
 QUALITY_GATE_ENV_EXCLUSION_PREFIXES = ("SIMPLICIO_",)
 QUALITY_GATE_ENV_OVERRIDES: dict[str, str] = {}

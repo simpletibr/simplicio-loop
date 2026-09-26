@@ -37,7 +37,7 @@ class StructuralGraphTests(unittest.TestCase):
     def test_json_publication_is_round_trippable(self) -> None:
         graph = self.make_graph()
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / ".simplicio" / "graph.json"
+            path = Path(directory) / ".simplicio-loop" / "graph.json"
             graph.publish_json(path)
             self.assertEqual(graph_from_dict(json.loads(path.read_text())).digest(), graph.digest())
 

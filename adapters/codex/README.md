@@ -75,7 +75,7 @@ codex exec "/simplicio-tasks finish all the open issues"
 
 Self-paced (N2): the tick echoes `python3 scripts/loop_progress.py render --turn-header` at the
 start of every turn — the % is right there in the transcript. For a live panel outside the
-transcript (N3, universal): `watch -n5 cat .simplicio/orchestrator/loop/PROGRESS.md`.
+transcript (N3, universal): `watch -n5 cat .simplicio-loop/orchestrator/loop/PROGRESS.md`.
 
 ## Ecosystem law (2026-08) — read on every host
 

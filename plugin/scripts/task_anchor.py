@@ -21,7 +21,7 @@ source-item comment — so the PR shows a line per acceptance criterion with its
 Deterministic and model-free: the fingerprint + coverage + drift math never call an LLM, so a resume
 is reproducible from the on-disk anchor (same discipline as `loop_journal.py`).
 
-State: `.simplicio/orchestrator/loop/anchor.json` (override with $SIMPLICIO_ANCHOR_FILE):
+State: `.simplicio-loop/orchestrator/loop/anchor.json` (override with $SIMPLICIO_ANCHOR_FILE):
     {"item", "goal", "goal_fp", "frozen_at",
      "criteria": [{"id","text","verify",
                    "status":"pending|partial|done|waived:no-infra",
@@ -76,7 +76,7 @@ Verbs:
 Usage:
     python3 scripts/task_anchor.py set --item 12 --goal "Add SSO login" \\
         --ac "Login page renders an SSO button" --ac "Clicking it redirects to the IdP"
-    python3 scripts/task_anchor.py mark --id AC1 --status done --evidence "web_verify .simplicio/orchestrator/tee/web/login.png"
+    python3 scripts/task_anchor.py mark --id AC1 --status done --evidence "web_verify .simplicio-loop/orchestrator/tee/web/login.png"
     python3 scripts/task_anchor.py mark --id AC2 --status waived:no-infra --reason "no coverage tooling detected (test_infra_probe)"
     python3 scripts/task_anchor.py check --goal "Add SSO login" --exit-code
     python3 scripts/task_anchor.py check --goal "Add SSO login" --format toon
@@ -99,7 +99,7 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.environ.get("SIMPLICIO_REPO") or os.path.dirname(HERE))
-LOOP_DIR = os.path.join(REPO, ".simplicio/orchestrator", "loop")
+LOOP_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop")
 ANCHOR = os.environ.get("SIMPLICIO_ANCHOR_FILE") or os.path.join(LOOP_DIR, "anchor.json")
 
 if HERE not in sys.path:
@@ -601,7 +601,7 @@ def cmd_check(opts):
 def _prototype_gate_status(anchor):
     """#568 P0 slice: the Prototype-First gate's own done-gate integration point. A work item
     with a TRACKED, unresolved prototype-necessity flow (`simplicio_loop.prototype_gate`,
-    `.simplicio/orchestrator/loop/prototype/<item>.json`) also blocks "done" here, alongside the
+    `.simplicio-loop/orchestrator/loop/prototype/<item>.json`) also blocks "done" here, alongside the
     acceptance-criteria coverage this gate already enforces. Fail-open: an item with no
     tracked flow, or a repo where the prototype module is unavailable, is never blocked by
     this check — it is additive, not a new hard requirement for repos that never opted in."""

@@ -96,7 +96,7 @@ def _render_human(result, profile) -> None:
 def _render_events(summary: dict) -> None:
     """Issue #107: surface the structured event stream (`emit_event`) that
     feeds a host loop's journal, so `doctor` is a place to see it's wired up
-    without hand-inspecting `.simplicio/events.jsonl`."""
+    without hand-inspecting `.simplicio-loop/events.jsonl`."""
     print()
     print("observability events (issue #107 unified evidence flow):")
     if not summary["exists"]:
@@ -195,7 +195,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--root",
         default=".",
-        help="repo root to read .simplicio/events.jsonl from (issue #107)",
+        help="repo root to read .simplicio-loop/events.jsonl from (issue #107)",
     )
     p.add_argument(
         "--events-limit",
@@ -250,7 +250,7 @@ def main(argv: list[str] | None = None) -> int:
     # see `simplicio/component_manifest.py`'s `DriftResult` docstring and
     # `tests/python/test_versions_command.py::test_versions_report_does_not_interfere_with_active_task`.
     # Deliberately does NOT forward `args.root` (the *target project* root
-    # for `.simplicio/events.jsonl`) — the Mapper version/manifest state is
+    # for `.simplicio-loop/events.jsonl`) — the Mapper version/manifest state is
     # about the `simplicio-cli` checkout itself, a different root entirely
     # (see `commands/versions.py::versions_report`'s docstring).
     mapper_versions = versions_report(refresh=bool(args.refresh))

@@ -19,7 +19,7 @@ regex checks failed in the previous output. No LLM judges the LLM.
 Outputs:
   bench/results_4quadrant.{md,json,pdf}
   bench/charts/4q_*.svg
-  .simplicio/bench_4q/<model>/case_NN/q*_iter*.txt
+  .simplicio-loop/bench_4q/<model>/case_NN/q*_iter*.txt
 
 Usage:
   OPENROUTER_API_KEY=... \
@@ -40,7 +40,7 @@ OUT_MD = ROOT / "bench" / "results_4quadrant.md"
 OUT_JSON = ROOT / "bench" / "results_4quadrant.json"
 OUT_PDF = ROOT / "bench" / "results_4quadrant.pdf"
 CHART_DIR = ROOT / "bench" / "charts"
-RAW_DIR = ROOT / ".simplicio" / "bench_4q"
+RAW_DIR = ROOT / ".simplicio-loop" / "bench_4q"
 
 MODELS = [m.strip() for m in os.environ.get(
     "BENCH_MODELS",
@@ -502,7 +502,7 @@ def build_markdown(by_model: dict, cases: list, agg: dict) -> str:
         "```",
         "",
         "Raw model outputs (one file per iteration per quadrant) live under "
-        "`.simplicio/bench_4q/<model>/case_NN/q*_iter*.txt`.",
+        "`.simplicio-loop/bench_4q/<model>/case_NN/q*_iter*.txt`.",
         "",
     ]
     return "\n".join(md)
@@ -650,7 +650,7 @@ def build_pdf(by_model: dict, cases: list, agg: dict) -> None:
     p("export OPENROUTER_API_KEY=...")
     p(f'BENCH_MODELS="{",".join(by_model.keys())}" BENCH_MAX_ITERS={MAX_ITERS} python3 bench/run_4quadrant.py')
     p("Methodology: docs/benchmark-4quadrant.md")
-    p("Raw outputs: .simplicio/bench_4q/<model>/case_NN/q*_iter*.txt")
+    p("Raw outputs: .simplicio-loop/bench_4q/<model>/case_NN/q*_iter*.txt")
 
     pdf.output(str(OUT_PDF))
 

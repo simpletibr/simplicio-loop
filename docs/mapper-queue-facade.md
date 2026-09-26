@@ -14,8 +14,8 @@ The queue CLI can now select this facade explicitly without creating the legacy
 database:
 
 ```text
-simplicio-loop queue --route mapper --mapper-db ~/.simplicio/data/operations.sqlite status
-simplicio-loop queue --route mapper --mapper-db ~/.simplicio/data/operations.sqlite top
+simplicio-loop queue --route mapper --mapper-db ~/.simplicio-loop/data/operations.sqlite status
+simplicio-loop queue --route mapper --mapper-db ~/.simplicio-loop/data/operations.sqlite top
 ```
 
 `status`, `top`, `inspect`, `cancel`, `doctor`, and `reclaim` delegate to

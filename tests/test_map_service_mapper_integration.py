@@ -51,7 +51,7 @@ def test_run_mapper_index_produces_a_real_project_map(tmp_path: Path) -> None:
     envelope = run_mapper_index(str(tmp_path))
     assert envelope["schema"] == "simplicio.mapper-index/v1"
     assert envelope["counts"]["files"] == 1
-    assert (tmp_path / ".simplicio" / "project-map.json").is_file()
+    assert (tmp_path / ".simplicio-loop" / "project-map.json").is_file()
 
 
 def test_mapper_tree_snapshot_changes_when_file_content_changes(tmp_path: Path) -> None:

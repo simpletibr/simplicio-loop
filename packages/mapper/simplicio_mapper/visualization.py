@@ -27,7 +27,7 @@ PREVIEW_SCHEMA = "simplicio.visualization-preview/v1"
 PREVIEW_VERSION = 1
 DEFAULT_PREVIEW_BYTES = 16 * 1024
 DEFAULT_PREVIEW_LINES = 200
-_DENIED_PARTS = {".git", ".simplicio", "node_modules", "vendor", "vendors", "generated", "gen"}
+_DENIED_PARTS = {".git", ".simplicio-loop", "node_modules", "vendor", "vendors", "generated", "gen"}
 _SECRET_NAMES = re.compile(r"(^|[._-])(env|secret|secrets|credential|credentials|token|password|passwd|private|id_rsa)([._-]|$)", re.I)
 _DENIED_EXTENSIONS = {".pem", ".key", ".p12", ".pfx", ".crt", ".der", ".db", ".sqlite", ".sqlite3"}
 

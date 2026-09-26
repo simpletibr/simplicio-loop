@@ -16,13 +16,13 @@ def _load_token_budget_module():
 
 def test_token_budget_normalizes_mapper_artifact_paths(tmp_path):
     module = _load_token_budget_module()
-    artifact = tmp_path / ".simplicio" / "project-map.json"
+    artifact = tmp_path / ".simplicio-loop" / "project-map.json"
     artifact.parent.mkdir(parents=True)
     artifact.write_text("{}", encoding="utf-8")
 
     discovered = module.discover_mapper_artifacts(tmp_path)
 
-    assert discovered == [("mapper artifact (project-map.json)", ".simplicio/project-map.json")]
+    assert discovered == [("mapper artifact (project-map.json)", ".simplicio-loop/project-map.json")]
 
 
 def test_token_budget_tracks_extracted_pipeline_stage_and_current_thresholds():

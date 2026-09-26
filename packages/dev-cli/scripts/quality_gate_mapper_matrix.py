@@ -117,7 +117,7 @@ def _partial_shim(root: Path) -> Path:
 
 
 def _path_portability() -> dict[str, object]:
-    expected = (".simplicio", "mapper-store", "route.json")
+    expected = (".simplicio-loop", "mapper-store", "route.json")
     values = {}
     for name, path in {
         "linux": PurePosixPath("/tmp/project"),

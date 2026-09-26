@@ -1,10 +1,10 @@
-.simplicio/*
+.simplicio-loop/*
 .venv/
-!.simplicio/orchestrator/
-.simplicio/orchestrator/*
-!.simplicio/orchestrator/savings/
-!.simplicio/orchestrator/savings/snapshots.jsonl
-# Legacy Simplicio state roots are quarantined; all new state belongs under .simplicio/.
+!.simplicio-loop/orchestrator/
+.simplicio-loop/orchestrator/*
+!.simplicio-loop/orchestrator/savings/
+!.simplicio-loop/orchestrator/savings/snapshots.jsonl
+# Legacy Simplicio state roots are quarantined; all new state belongs under .simplicio-loop/.
 .orchestrator/
 .simplicio-fast/
 *.egg-info/
@@ -46,7 +46,7 @@ htmlcov/
 d/
 
 # Per-package runtime artifacts written by running a package's own CLI/tests in place
-# (e.g. packages/dev-cli/.simplicio/, packages/dev-cli/hbp-inbox.bin) — not source, and
-# distinct from the root .simplicio/ rules above which carry their own tracked exceptions.
-packages/*/.simplicio/
+# (e.g. packages/dev-cli/.simplicio-loop/, packages/dev-cli/hbp-inbox.bin) — not source, and
+# distinct from the root .simplicio-loop/ rules above which carry their own tracked exceptions.
+packages/*/.simplicio-loop/
 hbp-inbox.bin

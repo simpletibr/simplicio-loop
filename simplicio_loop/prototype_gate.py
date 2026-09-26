@@ -541,7 +541,7 @@ def _state_dir(repo: str = ".") -> str:
     override = os.environ.get("SIMPLICIO_PROTOTYPE_STATE_DIR")
     if override:
         return override
-    return os.path.join(repo, ".simplicio/orchestrator", "loop", "prototype")
+    return os.path.join(repo, ".simplicio-loop/orchestrator", "loop", "prototype")
 
 
 def state_path(work_item_id: str, repo: str = ".") -> str:

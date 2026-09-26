@@ -26,7 +26,7 @@ python -m simplicio_loop.cli maintenance-deferred --repo . <run-id> `
 python -m simplicio_loop.cli resume --repo . <run-id>
 ```
 
-The command writes `.simplicio/orchestrator/runs/<run-id>/maintenance-receipt.json` with the correction, reason, resume instructions, timestamp, and evidence status. It sets `completion.ready=false`, marks the operator `backlog_only`, and advances `next_action=resume_from_maintenance_receipt`. No mutation operator is invoked and a completion promise remains rejected until the normal evidence and watcher gates pass.
+The command writes `.simplicio-loop/orchestrator/runs/<run-id>/maintenance-receipt.json` with the correction, reason, resume instructions, timestamp, and evidence status. It sets `completion.ready=false`, marks the operator `backlog_only`, and advances `next_action=resume_from_maintenance_receipt`. No mutation operator is invoked and a completion promise remains rejected until the normal evidence and watcher gates pass.
 
 ### Requesting a local-only run
 
@@ -53,7 +53,7 @@ Do not use backlog-only as a generic skip path. If the control plane is writable
 
 ## Resume steps
 
-1. Inspect `.simplicio/orchestrator/runs/<run-id>/maintenance-receipt.json` and confirm the correction summary plus resume instructions.
+1. Inspect `.simplicio-loop/orchestrator/runs/<run-id>/maintenance-receipt.json` and confirm the correction summary plus resume instructions.
 2. Re-open the run with `python -m simplicio_loop.cli resume --repo . <run-id>`.
 3. Re-run mapper/operator work from the resumed state (`next_action=mapper_scan_required`) during the writable maintenance window.
 4. Finish only after the normal evidence, watcher, and completion gates pass.

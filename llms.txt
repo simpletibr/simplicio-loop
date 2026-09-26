@@ -27,11 +27,11 @@ Non-negotiables:
 - Do not use `simplicio-runtime`, `simplicio`, or Runtime MCP by default; record missing-operator residuals honestly.
 
 Key loop artifacts:
-- `.simplicio/orchestrator/loop/scratchpad.md` — single source of truth for loop state
-- `.simplicio/orchestrator/loop/journal.jsonl` — durable attempt memory / stall detector input
-- `.simplicio/orchestrator/loop/phase.json` — current HRM phase
-- `.simplicio/orchestrator/loop/HANDOFF.md` — resume note for the next agent/runtime
-- `.simplicio/orchestrator/wiki/SUMMARY.md` — cross-agent persistent summary
+- `.simplicio-loop/orchestrator/loop/scratchpad.md` — single source of truth for loop state
+- `.simplicio-loop/orchestrator/loop/journal.jsonl` — durable attempt memory / stall detector input
+- `.simplicio-loop/orchestrator/loop/phase.json` — current HRM phase
+- `.simplicio-loop/orchestrator/loop/HANDOFF.md` — resume note for the next agent/runtime
+- `.simplicio-loop/orchestrator/wiki/SUMMARY.md` — cross-agent persistent summary
 
 Key commands:
 - `python3 scripts/check.py`

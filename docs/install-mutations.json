@@ -133,7 +133,7 @@
     },
     {
       "consent_required": "governed entirely by the plan's `permissions_required` (see `install_plan.py`)",
-      "effect": "wraps every one of the above FILE effects (skills/hooks/scripts/entry/claude_settings, + `engine`/`app` in full-stack mode) with a pre-mutation backup + before/after hash + persisted receipt under `<target>/.simplicio/receipts/<id>.json`; automatic rollback of every already-applied step if a later step raises",
+      "effect": "wraps every one of the above FILE effects (skills/hooks/scripts/entry/claude_settings, + `engine`/`app` in full-stack mode) with a pre-mutation backup + before/after hash + persisted receipt under `<target>/.simplicio-loop/receipts/<id>.json`; automatic rollback of every already-applied step if a later step raises",
       "function": "apply()",
       "reversible": "yes, byte-for-byte via `rollback()`",
       "scope": "project/user",

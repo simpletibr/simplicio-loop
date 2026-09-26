@@ -10,21 +10,21 @@ for generation, per-artifact digest, and coverage consistency.
 `simplicio-mapper` produces the five public JSON artifacts, an artifact-set
 commit marker, and the `index --json` payload consumed across the Simplicio
 ecosystem (simplicio-dev-cli, simplicio-loop, simplicio-runtime, and anything
-else that reads `.simplicio/*.json`):
+else that reads `.simplicio-loop/*.json`):
 
 | Artifact | File | Schema id |
 |---|---|---|
-| Whole-repo inventory | `.simplicio/project-map.json` | `simplicio.project-map/v1` |
-| Task-relevant snippets | `.simplicio/precedent-index.json` | `simplicio.precedent-index/v1` |
-| Module/layer rollup | `.simplicio/architecture-inventory.json` | `simplicio.architecture-inventory/v1` |
-| Symbol table | `.simplicio/symbol-index.json` | `simplicio.symbol-index/v1` |
-| canonical calls/imports relations | `.simplicio/call-graph.json` | `simplicio.call-graph/v1` |
-| Artifact-set commit marker | `.simplicio/artifact-manifest.json` | `simplicio.mapper-artifact-set/v1` |
+| Whole-repo inventory | `.simplicio-loop/project-map.json` | `simplicio.project-map/v1` |
+| Task-relevant snippets | `.simplicio-loop/precedent-index.json` | `simplicio.precedent-index/v1` |
+| Module/layer rollup | `.simplicio-loop/architecture-inventory.json` | `simplicio.architecture-inventory/v1` |
+| Symbol table | `.simplicio-loop/symbol-index.json` | `simplicio.symbol-index/v1` |
+| canonical calls/imports relations | `.simplicio-loop/call-graph.json` | `simplicio.call-graph/v1` |
+| Artifact-set commit marker | `.simplicio-loop/artifact-manifest.json` | `simplicio.mapper-artifact-set/v1` |
 | `index --json` result | (stdout of `simplicio-mapper index <path> --json`) | `simplicio.mapper-index/v1` |
-| Renderer-neutral visualization bundle | `.simplicio/visualization-bundle.json` / fixture | `simplicio.visualization-bundle/v1` |
+| Renderer-neutral visualization bundle | `.simplicio-loop/visualization-bundle.json` / fixture | `simplicio.visualization-bundle/v1` |
 | Bounded read-only source preview | `simplicio-mapper preview <path>` JSON | `simplicio.visualization-preview/v1` |
 | Incremental graph delta | `simplicio-mapper delta <path> --json` | `simplicio.graph-delta/v1` |
-| Incremental graph snapshot | `.simplicio/graph-snapshot.json` | `simplicio.graph-snapshot/v1` |
+| Incremental graph snapshot | `.simplicio-loop/graph-snapshot.json` | `simplicio.graph-snapshot/v1` |
 
 ## Incremental graph delta (issue #191)
 
@@ -42,7 +42,7 @@ for reverse import dependents that were not themselves changed. Missing,
 malformed, incompatible, or wrong-root snapshots use `full-rescan` mode with
 `resync.required=true` and `action=replace_snapshot`; the consumer replaces
 its snapshot instead of applying partial events. The snapshot is written to
-`.simplicio/graph-snapshot.json` after the response is computed.
+`.simplicio-loop/graph-snapshot.json` after the response is computed.
 
 Before this issue, that shape was implicit — whatever `simplicio_mapper/mapper.py`
 happened to emit. This directory makes it an explicit, versioned contract:
@@ -91,7 +91,7 @@ produced by running the real `simplicio-mapper` CLI against the sibling
 `source/` directory, not hand-written. Two things are normalized before
 committing so fixtures do not churn on irrelevant noise: the fixture's
 absolute source/output directory paths are replaced with the placeholder
-`<fixture-root>` (and `<fixture-root>/.simplicio` for output paths), and
+`<fixture-root>` (and `<fixture-root>/.simplicio-loop` for output paths), and
 `generated_at`/`last_modified` fields are pinned to
 `1970-01-01T00:00:00.000Z`. The local `repository_id` is pinned to a fixture
 sentinel; the semantic digest is
@@ -127,7 +127,7 @@ Wired into the CLI (issue #157 AC):
 simplicio-mapper contract validate <path> [<path> ...]
 # e.g.
 simplicio-mapper contract validate contracts/mapper-artifacts/v1/fixtures/python-minimal/artifacts
-simplicio-mapper contract validate .simplicio/project-map.json
+simplicio-mapper contract validate .simplicio-loop/project-map.json
 ```
 
 Visualization bundles and preview payloads use the same validator. `preview`
@@ -181,7 +181,7 @@ review the diff, and commit it alongside any schema change that motivated it.
 ## How downstream repos should use these fixtures
 
 simplicio-dev-cli / simplicio-loop / simplicio-runtime all parse
-`.simplicio/*.json`. Recommended pattern for their own test suites:
+`.simplicio-loop/*.json`. Recommended pattern for their own test suites:
 
 1. Vendor or fetch `contracts/mapper-artifacts/v1/fixtures/<name>/artifacts/*.json`
    (pick whichever of `python-minimal` / `node-minimal` / `mixed-workspace` /

@@ -47,7 +47,7 @@ def _parse_benchmark_args(argv: Sequence[str]) -> dict:
         "root": ".",
         "sizes": DEFAULT_CALIBRATION_SIZES,
         "runs": 1,
-        "out": ".simplicio",
+        "out": ".simplicio-loop",
         "json": False,
     }
     positionals: list[str] = []
@@ -96,7 +96,7 @@ def _parse_benchmark_args(argv: Sequence[str]) -> dict:
 
 
 def _parse_shadow_args(argv: Sequence[str]) -> dict:
-    opts: dict = {"root": ".", "out": ".simplicio", "json": False}
+    opts: dict = {"root": ".", "out": ".simplicio-loop", "json": False}
     positionals: list[str] = []
     i = 0
     while i < len(argv):

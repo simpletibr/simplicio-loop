@@ -224,7 +224,7 @@ def _append_jsonl(path: Path, record: dict[str, Any]) -> None:
 def log_run(root: str, event: dict[str, Any]) -> Path | None:
     if os.environ.get("SIMPLICIO_DISABLE_RUN_LOG"):
         return None
-    out = Path(root) / ".simplicio" / "runs.jsonl"
+    out = Path(root) / ".simplicio-loop" / "runs.jsonl"
     payload = {
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "model": os.environ.get("SIMPLICIO_MODEL") or os.environ.get("MODEL") or "",
@@ -265,7 +265,7 @@ def record_savings_event(
     (issue #88): every module that made a measured token-saving decision
     (TOON encoding today; autoresearch template mutation, issue #90) calls
     this instead of writing ad-hoc JSONL. Written to
-    `<root>/.simplicio/ledger/savings-events.jsonl`, one JSON object per
+    `<root>/.simplicio-loop/ledger/savings-events.jsonl`, one JSON object per
     line, honoring the same `SIMPLICIO_DISABLE_RUN_LOG` kill-switch as
     `log_run`. Fails open: a write error never raises into the caller's
     generation path.
@@ -301,7 +301,7 @@ def record_savings_event(
         payload["note"] = note
     if extra:
         payload["extra"] = extra
-    out = Path(root) / ".simplicio" / "ledger" / "savings-events.jsonl"
+    out = Path(root) / ".simplicio-loop" / "ledger" / "savings-events.jsonl"
     try:
         _append_jsonl(out, payload)
     except OSError:
@@ -393,7 +393,7 @@ def emit_event(
      - **stderr** (always, via `info`/`warn`/`error`): a short human-readable
        line — this is diagnostic output, never suppressed except
       by the normal ``--quiet``/`SIMPLICIO_LOG_LEVEL` rules.
-    - **``<root>/.simplicio/events.jsonl``** (only when *root* is given):
+    - **``<root>/.simplicio-loop/events.jsonl``** (only when *root* is given):
       the structured record above, one JSON object per line, honoring the
       same ``SIMPLICIO_DISABLE_RUN_LOG`` kill-switch as `log_run` /
       `record_savings_event`. Fails open: a write error never raises into
@@ -417,7 +417,7 @@ def emit_event(
     log_func(f"[{event_type}] {dumps_str(payload)}")
 
     if root and not os.environ.get("SIMPLICIO_DISABLE_RUN_LOG"):
-        out = Path(root) / ".simplicio" / "events.jsonl"
+        out = Path(root) / ".simplicio-loop" / "events.jsonl"
         try:
             max_bytes = int(os.environ.get("SIMPLICIO_EVENTS_MAX_BYTES", str(10 * 1024 * 1024)))
             try:
@@ -432,13 +432,13 @@ def emit_event(
 
 
 def events_summary(root: str, *, limit: int = 5) -> dict[str, Any]:
-    """Read `<root>/.simplicio/events.jsonl` and summarize it for `doctor`.
+    """Read `<root>/.simplicio-loop/events.jsonl` and summarize it for `doctor`.
 
     Returns a JSON-serializable dict: ``path``, ``exists``, ``count``, and
     ``recent`` (the last *limit* records, oldest first). Tolerant of a
     missing file or a corrupt trailing line (best-effort — never raises).
     """
-    out = Path(root) / ".simplicio" / "events.jsonl"
+    out = Path(root) / ".simplicio-loop" / "events.jsonl"
     if not out.is_file():
         return {"path": str(out), "exists": False, "count": 0, "recent": []}
     recent: deque[dict[str, Any]] = deque(maxlen=max(0, limit))
@@ -466,7 +466,7 @@ def events_summary(root: str, *, limit: int = 5) -> dict[str, Any]:
 def native_delegation_summary(root: str) -> dict[str, Any]:
     """Aggregate `native_delegation` events (issue #111) for `doctor`.
 
-    Streams the same `<root>/.simplicio/events.jsonl` file `events_summary`
+    Streams the same `<root>/.simplicio-loop/events.jsonl` file `events_summary`
     reads, but only counts records with ``event == "native_delegation"``
     (emitted by `simplicio.runtime_bridge.record_delegation` for every
     delegable-verb invocation — ``gate``/``nest``/``edit``/``file``/
@@ -479,7 +479,7 @@ def native_delegation_summary(root: str) -> dict[str, Any]:
     own route counts and ``native_pct``. Tolerant of a missing file or a
     corrupt trailing line (best-effort — never raises).
     """
-    out = Path(root) / ".simplicio" / "events.jsonl"
+    out = Path(root) / ".simplicio-loop" / "events.jsonl"
     if not out.is_file():
         return {"path": str(out), "exists": False, "total": 0, "native_pct": 0.0, "verbs": {}}
 

@@ -262,7 +262,7 @@ def _check_sources(envelope: StageMutationEnvelopeV1, root: Path, paths: tuple[s
 
 def _receipt_path(root: Path, idempotency_key: str) -> Path:
     key_digest = hashlib.sha256(idempotency_key.encode("utf-8")).hexdigest()
-    return root / ".simplicio" / "stage-abi" / f"{key_digest}.receipt.json"
+    return root / ".simplicio-loop" / "stage-abi" / f"{key_digest}.receipt.json"
 
 
 def _load_idempotent(path: Path, *, plan_digest: str) -> dict[str, Any] | None:

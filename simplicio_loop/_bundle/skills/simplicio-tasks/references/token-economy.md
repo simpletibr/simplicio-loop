@@ -62,9 +62,9 @@ If ANY error/warning line exists, fall back to signal-tiered caps — a collapse
 
 ## tee cache + CCR reversible retrieve (failure escape hatch)
 On any NON-ZERO exit, or when a cap clips a FAILING command, write full output to
-`.simplicio/orchestrator/tee/<ts>_<cmd-slug>.log` and surface only the path + kept error lines. The agent
+`.simplicio-loop/orchestrator/tee/<ts>_<cmd-slug>.log` and surface only the path + kept error lines. The agent
 re-reads it lazily only if needed — recovering full context WITHOUT re-running (which re-burns
-tokens and may be non-deterministic). Config `.simplicio/orchestrator/orient.toml` → `tee.mode =
+tokens and may be non-deterministic). Config `.simplicio-loop/orchestrator/orient.toml` → `tee.mode =
 failures|always|never` (default `failures`).
 
 **CCR (compress-cache-retrieve):** make the clamp REVERSIBLE, not lossy.

@@ -4,7 +4,7 @@ Each call to :func:`maybe_snapshot` compares a compact semantic digest of
 the current tree (modules, layers, cross-module dependencies, flows,
 symbols) against the last stored snapshot. A new snapshot is written only
 when the digest changed — ``map`` runs with no real delta never grow
-``.simplicio/history/``. Snapshots are append-only; garbage collection only
+``.simplicio-loop/history/``. Snapshots are append-only; garbage collection only
 ever removes the *oldest* snapshots once ``retention`` is exceeded (see
 YOOL_TUPLE_HAMT.md §11.2 disk guardrail).
 
@@ -206,7 +206,7 @@ def _gc(history_dir: str, snapshots: list[dict], retention: int) -> list[str]:
 
 def create_snapshot(
     cwd: str,
-    out_dir: str = ".simplicio",
+    out_dir: str = ".simplicio-loop",
     trigger: str = "map",
     retention: int = DEFAULT_RETENTION_COUNT,
     artifacts: dict | None = None,
@@ -280,7 +280,7 @@ def append_changelog(cwd: str, out_dir: str, entry: dict) -> str:
     else:
         header = (
             "# Architecture Changelog\n\n"
-            "Append-only. Each entry is a `.simplicio/history/` snapshot created "
+            "Append-only. Each entry is a `.simplicio-loop/history/` snapshot created "
             "by `map`/`update`/`sync` when the tree's semantic digest changed.\n\n"
         )
         with open(changelog_path, "w", encoding="utf-8") as handle:
@@ -290,7 +290,7 @@ def append_changelog(cwd: str, out_dir: str, entry: dict) -> str:
 
 def maybe_snapshot(
     cwd: str,
-    out_dir: str = ".simplicio",
+    out_dir: str = ".simplicio-loop",
     trigger: str = "map",
     retention: int = DEFAULT_RETENTION_COUNT,
     artifacts: dict | None = None,
@@ -302,7 +302,7 @@ def maybe_snapshot(
     return result
 
 
-def list_snapshots(cwd: str, out_dir: str = ".simplicio") -> list[dict]:
+def list_snapshots(cwd: str, out_dir: str = ".simplicio-loop") -> list[dict]:
     index = _read_json(os.path.join(_history_dir(cwd, out_dir), "index.json")) or {"snapshots": []}
     return index["snapshots"]
 

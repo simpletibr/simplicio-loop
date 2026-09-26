@@ -473,7 +473,7 @@ def test_feature_mode_guard_emits_blocked_route_without_running_planner(tmp_path
     assert guarded[0]["warnings"] == ["LEGACY_STANDALONE_OPT_IN_REQUIRED"]
     events = [
         json.loads(line)
-        for line in (tmp_path / ".simplicio" / "events.jsonl").read_text(encoding="utf-8").splitlines()
+        for line in (tmp_path / ".simplicio-loop" / "events.jsonl").read_text(encoding="utf-8").splitlines()
     ]
     route = next(event for event in events if event["event"] == "mutation_route_selected")
     assert route["payload"]["entrypoint"] == "feature"

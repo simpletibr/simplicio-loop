@@ -67,7 +67,7 @@ class OfflineRuntimeTransport:
 
     def __init__(self, *, root: str | Path, failure: str | None = None) -> None:
         self.root = Path(root)
-        self.store = self.root / ".simplicio" / "runtime-effects"
+        self.store = self.root / ".simplicio-loop" / "runtime-effects"
         self.failure = failure
         self.apply_count = 0
 
@@ -326,7 +326,7 @@ class RuntimeEffectSink:
     ) -> None:
         self.transport = transport
         self.root = Path(root)
-        self.store = self.root / ".simplicio" / "runtime-effects"
+        self.store = self.root / ".simplicio-loop" / "runtime-effects"
         self.max_payload_bytes = max_payload_bytes
         self.breaker = _CircuitBreaker()
         self._negotiated = False

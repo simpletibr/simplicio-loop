@@ -92,7 +92,7 @@ class BuildArtifactsTest(unittest.TestCase):
 
     def test_write_mapping_artifacts_writes_json_files_to_disk(self) -> None:
         write_mapping_artifacts(str(self.dir))
-        out = self.dir / ".simplicio"
+        out = self.dir / ".simplicio-loop"
         for name in ("project-map.json", "precedent-index.json", "architecture-inventory.json"):
             self.assertTrue((out / name).exists(), f"missing {name}")
 

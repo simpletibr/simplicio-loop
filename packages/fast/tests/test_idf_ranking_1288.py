@@ -48,7 +48,7 @@ class IdfRankingTest(unittest.TestCase):
             "def test_apply_behavior_again():\n"
             "    assert apply_all([]) == []\n"
         )
-        processor = ProjectProcessor(root, root / ".simplicio/fast/project.sfast")
+        processor = ProjectProcessor(root, root / ".simplicio-loop/fast/project.sfast")
         processor.ingest()
         return processor
 
@@ -106,7 +106,7 @@ class IdfRankingTest(unittest.TestCase):
                 "    def apply(self):\n"
                 "        return True\n"
             )
-            processor = ProjectProcessor(root, root / ".simplicio/fast/project.sfast")
+            processor = ProjectProcessor(root, root / ".simplicio-loop/fast/project.sfast")
             processor.ingest()
 
             understanding = processor.understand("apply", max_results=5)

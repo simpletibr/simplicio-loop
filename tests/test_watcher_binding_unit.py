@@ -4,7 +4,7 @@ from pathlib import Path
 import scripts.watcher_verify as watcher
 
 _REAL_REPO = Path(__file__).resolve().parents[1]
-_REAL_PROGRESS_JSONL = _REAL_REPO / ".simplicio/orchestrator/loop/progress.jsonl"
+_REAL_PROGRESS_JSONL = _REAL_REPO / ".simplicio-loop/orchestrator/loop/progress.jsonl"
 
 
 def _write_anchor_bundle(loop, challenge="c1"):
@@ -20,8 +20,8 @@ def _write_anchor_bundle(loop, challenge="c1"):
 
 def test_watcher_rejects_run_from_different_commit(tmp_path, monkeypatch):
     repo = tmp_path / "repo"
-    loop = repo / ".simplicio/orchestrator" / "loop"
-    run = repo / ".simplicio/orchestrator" / "runs" / "r1"
+    loop = repo / ".simplicio-loop/orchestrator" / "loop"
+    run = repo / ".simplicio-loop/orchestrator" / "runs" / "r1"
     loop.mkdir(parents=True)
     run.mkdir(parents=True)
     watcher._set_repo(str(repo))
@@ -39,8 +39,8 @@ def test_watcher_rejects_run_from_different_commit(tmp_path, monkeypatch):
 
 def test_watcher_accepts_independent_receipt_when_evidence_receipt_is_deferred(tmp_path, monkeypatch):
     repo = tmp_path / "repo"
-    loop = repo / ".simplicio/orchestrator" / "loop"
-    run = repo / ".simplicio/orchestrator" / "runs" / "r1"
+    loop = repo / ".simplicio-loop/orchestrator" / "loop"
+    run = repo / ".simplicio-loop/orchestrator" / "runs" / "r1"
     loop.mkdir(parents=True)
     run.mkdir(parents=True)
     watcher._set_repo(str(repo))
@@ -76,8 +76,8 @@ def test_watcher_accepts_independent_receipt_when_evidence_receipt_is_deferred(t
 
 def test_watcher_rejects_independent_receipt_with_mismatched_challenge(tmp_path, monkeypatch):
     repo = tmp_path / "repo"
-    loop = repo / ".simplicio/orchestrator" / "loop"
-    run = repo / ".simplicio/orchestrator" / "runs" / "r1"
+    loop = repo / ".simplicio-loop/orchestrator" / "loop"
+    run = repo / ".simplicio-loop/orchestrator" / "runs" / "r1"
     loop.mkdir(parents=True)
     run.mkdir(parents=True)
     watcher._set_repo(str(repo))
@@ -112,13 +112,13 @@ def test_cmd_verify_on_redirected_repo_never_touches_the_real_repos_progress_sta
     `_set_repo()` last pointed it at (here, an isolated tmp repo) -- its fail-open progress
     hook (`_emit_progress` -> `loop_progress.emit_event`) must follow that SAME redirection,
     never fall back to `loop_progress`'s own default (this checkout's real
-    `.simplicio/orchestrator/loop/progress.jsonl`). Regression for a leak where every unit test
+    `.simplicio-loop/orchestrator/loop/progress.jsonl`). Regression for a leak where every unit test
     calling `cmd_verify()` in-process polluted the real repo's progress state as a side effect."""
     before = _REAL_PROGRESS_JSONL.read_bytes() if _REAL_PROGRESS_JSONL.is_file() else None
 
     repo = tmp_path / "repo"
-    loop = repo / ".simplicio/orchestrator" / "loop"
-    run = repo / ".simplicio/orchestrator" / "runs" / "r1"
+    loop = repo / ".simplicio-loop/orchestrator" / "loop"
+    run = repo / ".simplicio-loop/orchestrator" / "runs" / "r1"
     loop.mkdir(parents=True)
     run.mkdir(parents=True)
     watcher._set_repo(str(repo))

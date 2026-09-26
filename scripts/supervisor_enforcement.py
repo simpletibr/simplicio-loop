@@ -12,7 +12,7 @@ Enforcement is OFF by default and stays OFF until an operator explicitly opts in
 takes a JSON process-list on stdin so behavior is deterministic and testable, matching this repo's
 "never fake evidence" discipline (see scripts/check.py).
 
-State: .simplicio/orchestrator/supervisor_enforcement.json (override with $SIMPLICIO_SUPERVISOR_STATE_FILE):
+State: .simplicio-loop/orchestrator/supervisor_enforcement.json (override with $SIMPLICIO_SUPERVISOR_STATE_FILE):
     {"schema": "simplicio.supervisor-enforcement/v1", "enabled": bool, "rollout": {"mode": str,
      "canary_percent": int, "canary_allowlist": [str]}, "updated_at": float}
 
@@ -37,14 +37,14 @@ Verbs:
            mode meaningful while enabled=false too), canary (enforce for --percent of workspaces or
            workspaces in --allow NAME, repeatable), or full. Rejects any other mode string. Every
            accepted transition appends one structured event to
-           .simplicio/orchestrator/supervisor_enforcement_events.jsonl (schema
+           .simplicio-loop/orchestrator/supervisor_enforcement_events.jsonl (schema
            simplicio.supervisor-enforcement-event/v1, via this repo's `_locked_append` convention —
            the same cross-process-safe JSONL append `loop_progress.py`/`loop_journal.py` use) so
            canary/shadow/full transitions are observable after the fact.
   selftest Prove default-off, guarded enable, detect flagging, and rollout validation
            deterministically — no real process interaction, an isolated temp state file.
   metrics  Rollout metrics dashboard: replays the JSONL event log (--events-file, default
-           .simplicio/orchestrator/supervisor_enforcement_events.jsonl) and reports transition counts
+           .simplicio-loop/orchestrator/supervisor_enforcement_events.jsonl) and reports transition counts
            per mode, the current mode/state, and the most recent transition. Never fabricates
            a number — an absent/empty event log reports zero transitions honestly instead of
            guessing at history.
@@ -72,8 +72,8 @@ if HERE not in sys.path:
 from _locked_append import locked_append_line  # noqa: E402
 
 SCHEMA = "simplicio.supervisor-enforcement/v1"
-DEFAULT_STATE_FILE = ".simplicio/orchestrator/supervisor_enforcement.json"
-DEFAULT_EVENTS_FILE = ".simplicio/orchestrator/supervisor_enforcement_events.jsonl"
+DEFAULT_STATE_FILE = ".simplicio-loop/orchestrator/supervisor_enforcement.json"
+DEFAULT_EVENTS_FILE = ".simplicio-loop/orchestrator/supervisor_enforcement_events.jsonl"
 ROLLOUT_MODES = ("shadow", "canary", "full")
 SIMPLICIO_BINARY_PATTERNS = (
     "simplicio-mapper",

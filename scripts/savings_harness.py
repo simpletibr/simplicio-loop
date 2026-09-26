@@ -51,7 +51,7 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-DEFAULT_STORE = os.path.join(REPO, ".simplicio/orchestrator", "savings")
+DEFAULT_STORE = os.path.join(REPO, ".simplicio-loop/orchestrator", "savings")
 SNAPSHOTS = "snapshots.jsonl"
 
 # Optional, more accurate token estimator (~3.2 chars/token on dense JSON vs chars4's flat 4.0).

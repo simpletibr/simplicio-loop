@@ -3,7 +3,7 @@
 Covers scripts/pr_evidence.py (progress section in the PR body, the `progress-comment` verb —
 idempotent/rate-limited/fail-open), scripts/loop_progress.py's `run_state` derivation, and the
 web_verify.py/video_evidence.py `evidence` emit hooks (via in-process opts calls, never touching
-the real repo's .simplicio/orchestrator/tee/*).
+the real repo's .simplicio-loop/orchestrator/tee/*).
 """
 import importlib.util
 import json

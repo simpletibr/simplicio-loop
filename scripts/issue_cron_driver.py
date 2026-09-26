@@ -49,7 +49,7 @@ from simplicio_loop.intake_contract import (  # noqa: E402
 )
 from simplicio_loop.planning_gate import build_planning_receipt  # noqa: E402
 
-LEDGER_DIR = HERE / ".simplicio/orchestrator" / "intake"
+LEDGER_DIR = HERE / ".simplicio-loop/orchestrator" / "intake"
 LEDGER_PATH = LEDGER_DIR / "ledger.jsonl"
 
 # Issues that CANNOT be executed on this single host (no remote workers / no API key /
@@ -402,7 +402,7 @@ def append_ledger(row: Dict[str, Any]) -> None:
 
 
 def reconcile_cursor(gh_repo: str = "wesleysimplicio/simplicio-loop") -> Dict[str, Any]:
-    """Fail-closed integrity pass over `.simplicio/orchestrator/gh-issue-cursor.json`.
+    """Fail-closed integrity pass over `.simplicio-loop/orchestrator/gh-issue-cursor.json`.
 
     The cron drain projects work items into ``work_items_state``. Across many
     ticks (epic decomposition, manual journal edits, merged-PR drift) that
@@ -423,7 +423,7 @@ def reconcile_cursor(gh_repo: str = "wesleysimplicio/simplicio-loop") -> Dict[st
          open   issue otherwise    -> todo / Todo
     Returns a summary dict; writes the reconciled cursor back to disk.
     """
-    cursor_path = HERE / ".simplicio/orchestrator" / "gh-issue-cursor.json"
+    cursor_path = HERE / ".simplicio-loop/orchestrator" / "gh-issue-cursor.json"
     if not cursor_path.exists():
         return {"ok": False, "reason": "no_cursor"}
     cur = json.loads(cursor_path.read_text(encoding="utf-8"))
@@ -589,7 +589,7 @@ def ingest_backlog_into_cursor(target_dict: Dict[str, Any], gh_repo: str) -> Dic
     import re as _re
     backlog_path = (
         os.environ.get("SIMPLICIO_BACKLOG_FILE")
-        or os.path.join(HERE, ".simplicio/orchestrator", "backlog", "backlog.jsonl")
+        or os.path.join(HERE, ".simplicio-loop/orchestrator", "backlog", "backlog.jsonl")
     )
     if not os.path.exists(backlog_path):
         return {"ingested": 0, "skipped": 0}
@@ -697,7 +697,7 @@ def main() -> int:
     ap.add_argument("--per-issue-timeout", type=int, default=20)
     ap.add_argument("--total-budget", type=int, default=250)
     ap.add_argument("--reconcile", action="store_true",
-                    help="reconcile .simplicio/orchestrator/gh-issue-cursor.json integrity "
+                    help="reconcile .simplicio-loop/orchestrator/gh-issue-cursor.json integrity "
                          "(drop repo:None, 1-WI-per-issue, sync GitHub truth) and exit")
     ap.add_argument("--verify-backend", dest="verify_backend", action="store_true",
                     help="check whether the configured model backend is capable of "
@@ -816,8 +816,8 @@ def main() -> int:
     print(f"MEASURED| ledger path={LEDGER_PATH}", flush=True)
 
     # --- Bridge to canonical backlog (intake/drain state split) ---
-    # The intake ledger (.simplicio/orchestrator/intake/ledger.jsonl) and the execution
-    # backlog (.simplicio/orchestrator/backlog/backlog.jsonl) are separate state stores.
+    # The intake ledger (.simplicio-loop/orchestrator/intake/ledger.jsonl) and the execution
+    # backlog (.simplicio-loop/orchestrator/backlog/backlog.jsonl) are separate state stores.
     # Without a bridge the drain loop's ``task_backlog.py next/status`` never sees
     # the freshly-intaken issues and terminates prematurely ("source empty").
     # Bridge is opt-in (default OFF) so it never surprises a caller that only

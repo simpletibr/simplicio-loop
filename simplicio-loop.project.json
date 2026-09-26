@@ -87,7 +87,7 @@
       "token_impact": "Core",
       "key_mechanics": ["50 extension points", "dual-path router (fast/heavy)", "self-audit convergence", "auto-arma o loop na invocação (sem /loop separado)"],
       "steps": [
-        "Step 0 — Auto-arm the loop (escreve .simplicio/orchestrator/loop/scratchpad.md)",
+        "Step 0 — Auto-arm the loop (escreve .simplicio-loop/orchestrator/loop/scratchpad.md)",
         "Step 1 — Identity + environment",
         "Step 1a — Pre-flight (source auth, watcher, STOP path)",
         "Step 1a' — Repo conventions (branch/commit/PR/CI)",
@@ -129,9 +129,9 @@
         "converge": "Tarefa única e difícil — termina no <promise> evidence-gated ou escalada por stall",
         "drain": "Fila de itens — termina quando a re-query da fonte fica vazia K rodadas (dry>=2) e o working set está idle"
       },
-      "state_file": ".simplicio/orchestrator/loop/scratchpad.md (YAML frontmatter: iteration, max_iterations, completion_promise, evidence_required, mode, started_at)",
-      "journal_file": ".simplicio/orchestrator/loop/journal.jsonl (append-only: iteration, action, hypothesis, gate, fingerprint, ts)",
-      "done_flag": ".simplicio/orchestrator/loop/done (touch só quando promise verificado)",
+      "state_file": ".simplicio-loop/orchestrator/loop/scratchpad.md (YAML frontmatter: iteration, max_iterations, completion_promise, evidence_required, mode, started_at)",
+      "journal_file": ".simplicio-loop/orchestrator/loop/journal.jsonl (append-only: iteration, action, hypothesis, gate, fingerprint, ts)",
+      "done_flag": ".simplicio-loop/orchestrator/loop/done (touch só quando promise verificado)",
       "bound_operators_required": true,
       "stall_detector": "K falhas consecutivas com o MESMO error-fingerprint (default K=3) = STALLED → switch-strategy (K) ou escalate (>K). Fingerprint estável: normaliza números de linha, paths, hex/uuid, timestamps, durações.",
       "video_evidence_producer": "hyperframes — não é bound operator (nunca BLOCKa o loop); fira só em pedido de vídeo ou prova de UI"
@@ -147,7 +147,7 @@
       "the_one_rule": "Se a resposta é um fato sobre filesystem/git/processos/recursos — o terminal sabe exatamente e barato. O LLM é para raciocínio; o terminal é para fatos. EXECUTE comandos de verdade, nunca raciocine sobre o que um comando 'retornaria'.",
       "execution_priority": ["host-native shell_exec bound", "shell/Bash com clamp", "NUNCA: LLM narrando saída provável"],
       "primitives": ["success-collapse (unless errors present)", "dedup-with-counts (line ×N)"],
-      "tee_cache": ".simplicio/orchestrator/tee/<ts>_<cmd-slug>.log na falha; surface só o path; CCR retrieve <path> [--lines a-b] [--grep PATTERN] reversível",
+      "tee_cache": ".simplicio-loop/orchestrator/tee/<ts>_<cmd-slug>.log na falha; surface só o path; CCR retrieve <path> [--lines a-b] [--grep PATTERN] reversível",
       "signatures_reads": "Arquivo 600 linhas → ~40 linhas de assinaturas; bodies elididos",
       "fail_open": "Qualquer erro/dep ausente → roda comando original e propaga o exit REAL"
     },
@@ -184,14 +184,14 @@
       "id": 6,
       "name": "simplicio-learn",
       "icon": "🎓",
-      "role": "Retrospectiva pós-run → lições duráveis, deduplicadas, escritas na memória (AGENTS.md / .simplicio/orchestrator/lessons.jsonl).",
+      "role": "Retrospectiva pós-run → lições duráveis, deduplicadas, escritas na memória (AGENTS.md / .simplicio-loop/orchestrator/lessons.jsonl).",
       "absorbs": "continual-learning + teaching (cursor)",
       "path": ".claude/skills/simplicio-learn/SKILL.md",
       "token_impact": "Mais inteligente a cada run",
       "captures": [
         "Corrections — comando que falhou e quase-idêntico que funcionou {wrong→right, error-class, count}; exclui compile/test failures e human-rejections",
         "Solved precedents — fingerprint do problema → shape da solução (reuso, não regeneração)",
-        "Bug patterns — .simplicio/orchestrator/patterns.jsonl {fingerprint, root_cause, symptom_pattern, fix_summary, sibling_files, hit_count, last_seen}; hit_count>1 sinaliza módulo p/ atenção estrutural",
+        "Bug patterns — .simplicio-loop/orchestrator/patterns.jsonl {fingerprint, root_cause, symptom_pattern, fix_summary, sibling_files, hit_count, last_seen}; hit_count>1 sinaliza módulo p/ atenção estrutural",
         "Stable facts & preferences — build command, test runner, repo conventions, preferências do usuário"
       ],
       "output": "learned: <N new> · merged <M dups> · pruned <P>; cap ~12 bullets por seção (evict lowest-count, oldest first); silêncio se nada durável surgiu"
@@ -215,7 +215,7 @@
         "pip_pkg": "simplicio-mapper",
         "repo": "packages/mapper/",
         "binds": ["orient", "recall"],
-        "role": "SURVEY — mapeia o(s) repo(s) em .simplicio/*.json (project-map, precedent-index, symbol-index, call-graph, docs). Esse levantamento, não uma leitura ad-hoc do LLM, alimenta o goal a cada turno.",
+        "role": "SURVEY — mapeia o(s) repo(s) em .simplicio-loop/*.json (project-map, precedent-index, symbol-index, call-graph, docs). Esse levantamento, não uma leitura ad-hoc do LLM, alimenta o goal a cada turno.",
         "preflight": "simplicio-mapper --version",
         "survey_cmd": "simplicio-mapper index . --json (add --watch para runs longos)"
       },
@@ -257,11 +257,11 @@
     "exit_conditions": [
       "Evidence-gated <promise> — o turno que emite o promise DEVE carregar prova concreta (teste passando, PR mergeado, re-query de item fechado). Promise sem evidência = ignorado.",
       "max_iterations cap — backstop de segurança (default: 3× item-count, min 10; 0 só quando scheduler durável + STOP path controlam a execução)",
-      "STOP signal — .simplicio/orchestrator/STOP ou comando de canal"
+      "STOP signal — .simplicio-loop/orchestrator/STOP ou comando de canal"
     ],
     "between_turns": "Quando disponível, LMCache cacheia o estado KV para re-feed com prefill near-zero.",
     "anti_oscillation": {
-      "journal": ".simplicio/orchestrator/loop/journal.jsonl (append-only)",
+      "journal": ".simplicio-loop/orchestrator/loop/journal.jsonl (append-only)",
       "worker": "scripts/loop_journal.py (determinístico + model-free, selftest 9/9)",
       "error_fingerprint": "Saída do gate falho reduzida a hash estável (line numbers, paths, hex/uuid, timestamps, durações normalizados)",
       "stall_definition": "K falhas idênticas em fila (default K=3) = STALLED; fingerprint mudando = PROGRESS",
@@ -269,10 +269,10 @@
       "cli": ["loop_journal.py resume", "loop_journal.py record --iteration N --action ... --gate fail --gate-output test.log", "loop_journal.py stall --k 3 --exit-code", "loop_journal.py since", "loop_journal.py fingerprint", "loop_journal.py status", "loop_journal.py selftest"]
     },
     "hooks": {
-      "afterAgentResponse → loop_capture.py": "Extrai <promise>; se == completion_promise E há evidência in-turn → touch .simplicio/orchestrator/loop/done. Fire-and-forget, exit 0.",
+      "afterAgentResponse → loop_capture.py": "Extrai <promise>; se == completion_promise E há evidência in-turn → touch .simplicio-loop/orchestrator/loop/done. Fire-and-forget, exit 0.",
       "stop → loop_stop.py": "Guard clauses: (1) sem scratchpad → stop; (2) frontmatter corrompido → stop; (3) flag done → stop; (4) iteration>=max_iterations>0 → stop (cap); (5) spindle latched → stop; senão incrementa iteration e emite followup_message para re-feed."
     },
-    "cancel": "Apagar .simplicio/orchestrator/loop/ (análogo cancel-ralph). Flag .simplicio/orchestrator/STOP ou comando de canal para entre iterações."
+    "cancel": "Apagar .simplicio-loop/orchestrator/loop/ (análogo cancel-ralph). Flag .simplicio-loop/orchestrator/STOP ou comando de canal para entre iterações."
   },
 
   "video_evidence_hyperframes": {
@@ -288,7 +288,7 @@
     "worker_verbs": ["detect", "scaffold", "render", "lint", "verify"],
     "example_cmds": [
       "python3 scripts/video_evidence.py detect --goal \"grave um vídeo da tela de checkout\"",
-      "python3 scripts/video_evidence.py verify --name checkout-demo --frames .simplicio/orchestrator/tee/web --title \"Checkout\" --issue 42 [--upload --pr 42]"
+      "python3 scripts/video_evidence.py verify --name checkout-demo --frames .simplicio-loop/orchestrator/tee/web --title \"Checkout\" --issue 42 [--upload --pr 42]"
     ],
     "v393_fix": "Reescrita da composição para o schema real do hyperframes 0.7.x (#root[data-composition-id] + .clip[data-start/data-duration/data-track-index] via GSAP timeline em window.__timelines); render passa o project dir posicionalmente; screenshots copiadas para <project>/assets/."
   },
@@ -318,7 +318,7 @@
     ],
     "clamp_primitives": ["success-collapse (exit 0 + clean pattern + no error/warning → 1 linha)", "dedup-with-counts (line ×N)"],
     "signal_tiered_caps": { "CAP_ERRORS": 20, "CAP_WARNINGS": 10, "CAP_LIST": 20, "CAP_INVENTORY": 50, "rule": "Sempre manter linhas ERROR sobre contexto; cap rebaixado é underflow-safe; nunca flat head N + tail N" },
-    "tee_ccr": "On non-zero exit: full output em .simplicio/orchestrator/tee/<ts>_<cmd-slug>.log; surface só o path + linhas de erro. retrieve <path> [--lines a-b] [--grep PATTERN]. Config .simplicio/orchestrator/orient.toml tee.mode = failures|always|never (default failures).",
+    "tee_ccr": "On non-zero exit: full output em .simplicio-loop/orchestrator/tee/<ts>_<cmd-slug>.log; surface só o path + linhas de erro. retrieve <path> [--lines a-b] [--grep PATTERN]. Config .simplicio-loop/orchestrator/orient.toml tee.mode = failures|always|never (default failures).",
     "model_routing_tiers": {
       "L0": "Determinístico, ZERO LLM tokens: deterministic_edit, orient, recall",
       "L1": "Local/cheap mass model: triage, dedup, classify, summarize, status comments, geração repetitiva",
@@ -344,13 +344,13 @@
         "deterministic_edit aplicou mudança → 0 edit tokens",
         "capture proxy / savings_ledger / savings_harness score → gasto medido vs baseline real"
       ],
-      "format_example": "savings: signatures 870→65 lines (93%) · clamp 12KB→0.4KB (tee=.simplicio/orchestrator/tee/…) · cache hit ×1",
+      "format_example": "savings: signatures 870→65 lines (93%) · clamp 12KB→0.4KB (tee=.simplicio-loop/orchestrator/tee/…) · cache hit ×1",
       "baseline_definition": "control arm = caminho NÃO-orquestrado mais barato e sensato para o MESMO resultado (passe genérico 'answer concisely' só nos arquivos genuinamente necessários), NÃO um strawman verboso; medido via savings_harness snapshot→score com tokenizer fixo"
     }
   },
 
   "token_monitor": {
-    "capture_proxy": { "always_on": true, "port": 8788, "role": "Captura + mede Claude + Codex + Simplicio Agent em background; o único serviço auto-started", "savings_file": "~/.simplicio/proxy_savings.json (schema v3)" },
+    "capture_proxy": { "always_on": true, "port": 8788, "role": "Captura + mede Claude + Codex + Simplicio Agent em background; o único serviço auto-started", "savings_file": "~/.simplicio-loop/proxy_savings.json (schema v3)" },
     "web_dashboard": { "url": "http://127.0.0.1:9090", "shows": ["chart de tokens em tempo real", "savings gauge", "LLMs/runtimes e 141/144 providers (98%) interceptados", "live proxy log"], "opens_once": "na primeira instalação (marker-guarded; re-install/update não reabre; opt-out SIMPLICIO_NO_DASHBOARD=1)", "reopen": ["simplicio-loop dashboard", "simplicio-loop dashboard --stop", "simplicio-loop dashboard --no-browser", "bash scripts/simplicio-economy.sh monitor", "perguntar ao agente: 'open the token dashboard'"] },
     "tray_widget": { "what": "Tokens salvos ao vivo na system tray (macOS rumps · Windows/Linux pystray)", "on_demand": ["bash scripts/simplicio-economy.sh tray", "… tray stop"], "never_opens_by_itself": true },
     "service_backends": { "macOS": "launchd", "Linux": "systemd --user", "Windows": "Startup folder" },
@@ -369,11 +369,11 @@
     "port": 8788,
     "port_env": "SIMPLICIO_PROXY_PORT",
     "files_written": {
-      "~/.simplicio/proxy_savings.json": "Savings ledger schema v3 (lifetime, display_session, history cap 5000)",
-      "~/.simplicio/memory.json": "CCR key-value store (zlib+base64 + savings por entrada)",
-      "~/.simplicio/cache/": "Response cache (LRU, 500 entries / 50MB, .json por shard sha256)",
-      "~/.simplicio/logs/proxy.log": "START/PERF/UPSTREAM_ERROR",
-      "~/.simplicio/copilot_oauth.json": "GitHub Copilot OAuth token (chmod 600)"
+      "~/.simplicio-loop/proxy_savings.json": "Savings ledger schema v3 (lifetime, display_session, history cap 5000)",
+      "~/.simplicio-loop/memory.json": "CCR key-value store (zlib+base64 + savings por entrada)",
+      "~/.simplicio-loop/cache/": "Response cache (LRU, 500 entries / 50MB, .json por shard sha256)",
+      "~/.simplicio-loop/logs/proxy.log": "START/PERF/UPSTREAM_ERROR",
+      "~/.simplicio-loop/copilot_oauth.json": "GitHub Copilot OAuth token (chmod 600)"
     },
     "provider_families": ["OpenAI (gpt,o1,o3,o4,chatgpt)", "Anthropic (claude)", "DeepSeek", "XAI (grok)", "Mistral/Mixtral", "Google (gemini)", "LLaMA"],
     "commands": [
@@ -411,12 +411,12 @@
     { "file": "simplicio_kompress.py", "role": "Headroom ONNX token-pruning real via chopratejas/kompress-v2-base (ModernBERT int8); reversível via restore_info." },
     { "file": "simplicio_tokens.py", "role": "Token estimator stdlib-only (~15% do BPE real); per-class weighting (~4.0 chars/token prosa, ~3.2 code)." },
     { "file": "simplicio_signatures.py", "role": "Extrator de esqueleto estrutural (Python via AST, outros via regex); emite imports/signatures/docstring headers; 80-95% de economia." },
-    { "file": "simplicio_cache.py", "role": "Response cache content-addressed (LRU, 500 entries/50MB); só cacheia request determinístico (temp=0, non-streaming). ~/.simplicio/cache/." },
-    { "file": "simplicio_memory.py", "role": "CCR (compress-cache-retrieve) key-value store; zlib+base64 lossless; ~/.simplicio/memory.json; thread-safe." },
+    { "file": "simplicio_cache.py", "role": "Response cache content-addressed (LRU, 500 entries/50MB); só cacheia request determinístico (temp=0, non-streaming). ~/.simplicio-loop/cache/." },
+    { "file": "simplicio_memory.py", "role": "CCR (compress-cache-retrieve) key-value store; zlib+base64 lossless; ~/.simplicio-loop/memory.json; thread-safe." },
     { "file": "simplicio_rag.py", "role": "Retrieval TF-IDF/cosine sobre o CCR store (sem embeddings/vector DB). CLI: simplicio rag \"<query>\"." },
     { "file": "simplicio_image.py", "role": "Compressão de tokens de imagem para vision-LLM via Pillow + SigLIP ONNX verifier opcional. Técnicas: preserve, full_low, crop, transcode, auto." },
     { "file": "simplicio_embed.py", "role": "ONNX sentence embeddings via Qdrant/all-MiniLM-L6-v2-onnx (384-dim); alimenta RAG/memory. Exit 3 se deps ausentes." },
-    { "file": "simplicio_copilot.py", "role": "GitHub Copilot OAuth manager (device-code flow → bearer token). ~/.simplicio/copilot_oauth.json (chmod 600)." },
+    { "file": "simplicio_copilot.py", "role": "GitHub Copilot OAuth manager (device-code flow → bearer token). ~/.simplicio-loop/copilot_oauth.json (chmod 600)." },
     { "file": "simplicio_audit.py", "role": "Scanner: aplica compressão a cada arquivo de texto, ranqueia por savings. CLI: simplicio audit ./logs --top 10 --json." },
     { "file": "simplicio_capture.py", "role": "Dry-run analyzer: payload OpenAI/Anthropic JSON → mostra savings por mensagem SEM enviar. CLI: simplicio capture --file body.json." },
     { "file": "simplicio_evals.py", "role": "Harness de eval/regressão de compressão (~10 amostras logs/hex/prose/code). Exit 0 se passa. CLI: simplicio evals --json." },
@@ -425,7 +425,7 @@
     { "file": "simplicio_wrap.py", "role": "Roda client com routing de captura (injeta OPENAI_BASE_URL, ANTHROPIC_BASE_URL). CLI: simplicio wrap codex -- chat." },
     { "file": "simplicio_mcp.py", "role": "MCP server stdio JSON-RPC 2.0; 3 tools: simplicio_compress, simplicio_retrieve, simplicio_stats." },
     { "file": "simplicio_router.py", "role": "Classificador de técnica (headroom chopratejas/technique-router-onnx); roteia texto à técnica certa." },
-    { "file": "simplicio_report.py", "role": "Leitor do savings ledger (~/.simplicio/proxy_savings.json schema v3); lifetime/session/per-model. CLI: simplicio report --json --since 120 --top 5." }
+    { "file": "simplicio_report.py", "role": "Leitor do savings ledger (~/.simplicio-loop/proxy_savings.json schema v3); lifetime/session/per-model. CLI: simplicio report --json --since 120 --top 5." }
   ],
 
   "rust_crates": {
@@ -515,7 +515,7 @@
     "rule": "Em cada ponto: se o host expõe capacidade nativa, BIND (determinístico, near-zero token); senão o LLM faz o fallback. O skill depende da ABSTRAÇÃO, nunca do runtime. Regra core: toda mudança DECIDIDA passa por deterministic_edit.",
     "points": [
       { "name": "orient", "what": "Mapa comprimido do repo/trabalho", "fallback": "rg/git grep/git log + ler poucos arquivos; ou .understand-anything/knowledge-graph.json" },
-      { "name": "pattern_match", "what": "Casa fingerprint de root-cause contra .simplicio/orchestrator/patterns.jsonl; hit_count>1 sinaliza módulo", "fallback": "LLM busca PRs/issues por keyword, extrai root cause do git history" },
+      { "name": "pattern_match", "what": "Casa fingerprint de root-cause contra .simplicio-loop/orchestrator/patterns.jsonl; hit_count>1 sinaliza módulo", "fallback": "LLM busca PRs/issues por keyword, extrai root cause do git history" },
       { "name": "recall", "what": "Decisões/precedentes prévios", "fallback": "ler ADRs/git history/PRs passados" },
       { "name": "normalize", "what": "Work-item → schema canônico", "fallback": "LLM mapeia campos à mão" },
       { "name": "deterministic_edit", "what": "Writer mecânico (zero-token apply de mudança decidida)", "fallback": "LLM aplica edit com file tool" },
@@ -703,7 +703,7 @@
     "bin": "bin/simplicio (entry da engine)",
     "pip_bundle": "simplicio_loop/ (__init__.py, cli.py, _bundle/{hooks,skills} byte-idênticos à source)",
     "plugin_manifests": [".claude-plugin/plugin.json", ".claude-plugin/marketplace.json", ".cursor-plugin/", ".codex/config.toml + hooks.json"],
-    "runtime_state_dirs": [".simplicio/orchestrator/{loop,tee,learn,STOP,patterns.jsonl,orient.toml}", ".simplicio/{*.json survey artifacts}", "~/.simplicio/{proxy_savings.json,memory.json,cache,logs,copilot_oauth.json}"],
+    "runtime_state_dirs": [".simplicio-loop/orchestrator/{loop,tee,learn,STOP,patterns.jsonl,orient.toml}", ".simplicio-loop/{*.json survey artifacts}", "~/.simplicio-loop/{proxy_savings.json,memory.json,cache,logs,copilot_oauth.json}"],
     "assets": ["assets/simplicio-loop-hero.jpg (213KB)", "assets/simplicio-loop-logo.png (504KB)", "assets/simplicio-loop-overview.png (1.9MB)", "assets/tray-icon.png"],
     "ci": ".github/workflows/web-verify.yml"
   },

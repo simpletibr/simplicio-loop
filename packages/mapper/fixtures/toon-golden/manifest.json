@@ -20,12 +20,12 @@
     {
       "id": "mapper-real-project-map-excerpt",
       "tags": ["real-excerpt", "mapper"],
-      "description": "Small excerpt of simplicio-mapper's own .simplicio/project-map.json files[] shape (exports/imports list cells)."
+      "description": "Small excerpt of simplicio-mapper's own .simplicio-loop/project-map.json files[] shape (exports/imports list cells)."
     },
     {
       "id": "mapper-real-precedent-index-excerpt",
       "tags": ["real-excerpt", "mapper"],
-      "description": "Small excerpt of simplicio-mapper's own .simplicio/precedent-index.json items[] shape (tags list cells)."
+      "description": "Small excerpt of simplicio-mapper's own .simplicio-loop/precedent-index.json items[] shape (tags list cells)."
     },
     {
       "id": "sprint-cards-representative",
@@ -50,7 +50,7 @@
     {
       "id": "nested-fallback-real",
       "tags": ["real-excerpt", "mapper", "fallback"],
-      "description": "Real .simplicio/flow-inventory.json excerpt whose flows[] elements contain dict-valued cells (entry/steps/effects) -- expected to fall back to embedded JSON, not a bug; exercises the toon_fallbacks report honestly."
+      "description": "Real .simplicio-loop/flow-inventory.json excerpt whose flows[] elements contain dict-valued cells (entry/steps/effects) -- expected to fall back to embedded JSON, not a bug; exercises the toon_fallbacks report honestly."
     }
   ],
   "invalid": [

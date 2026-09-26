@@ -250,7 +250,7 @@ def _apply_directives(prompt):
 LOCAL_DEFAULT_MODEL = "openbmb/minicpm5:latest"
 LOCAL_DEFAULT_REPO = "openbmb/MiniCPM5-1B-GGUF"
 LOCAL_DEFAULT_FILE = "MiniCPM5-1B-Q4_K_M.gguf"
-LOCAL_EXECUTOR_DIR = "~/.simplicio/models/executor"
+LOCAL_EXECUTOR_DIR = "~/.simplicio-loop/models/executor"
 LOCAL_MODEL_PREFIX = "local-llama/"
 LOCAL_DEFAULT_CTX = 2048
 LOCAL_MAX_CTX = 4096

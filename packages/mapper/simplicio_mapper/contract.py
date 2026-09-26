@@ -1,6 +1,6 @@
 """Mapper-artifacts contract validator (issue #157).
 
-The mapper produces six JSON artifacts (``.simplicio/project-map.json``,
+The mapper produces six JSON artifacts (``.simplicio-loop/project-map.json``,
 ``precedent-index.json``, ``architecture-inventory.json``,
 ``symbol-index.json``, ``call-graph.json``, and the ``index --json`` payload
 ``simplicio.mapper-index/v1``) that simplicio-dev-cli/simplicio-loop/

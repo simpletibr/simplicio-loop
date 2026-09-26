@@ -488,7 +488,7 @@ def _overlay_is_worktree_identical(view: EffectiveMapView, out_dir: str) -> bool
     Delegates to `canonical_reuse._overlay_is_trivial` -- the same
     already-tested "no delta outside `out_dir`" check issue #269's opt-in
     `index`/`scan` adapter uses -- rather than a stricter from-scratch
-    check, specifically so a freshly-created `.simplicio/` output directory
+    check, specifically so a freshly-created `.simplicio-loop/` output directory
     (untracked cache files, lock files, etc. written by this very process)
     never counts as worktree drift and starves the reuse path on an
     otherwise-clean checkout. Any change to a real source file -- committed
@@ -586,7 +586,7 @@ def _resolve_artifacts(abs_root: str, out_dir: str, use_canonical: bool | None) 
 
 def build_prototype_context(
     root: str,
-    out_dir: str = ".simplicio",
+    out_dir: str = ".simplicio-loop",
     type_: str = "",
     arg: str = "",
     limit: int = DEFAULT_LIMIT,

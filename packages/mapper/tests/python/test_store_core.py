@@ -62,7 +62,7 @@ def test_resolver_supports_env_repo_scope_and_location_guards(tmp_path: Path) ->
     repo_location = resolve_store_location(
         environ={"SIMPLICIO_STORE_SCOPE": "repo"}, repo_root=repo, home=tmp_path / "home"
     )
-    assert repo_location.root == repo / ".simplicio" / "data"
+    assert repo_location.root == repo / ".simplicio-loop" / "data"
     assert repo_location.source == "repo"
     assert repo_location.database("semantic.sqlite").name == "semantic.sqlite"
     with pytest.raises(StorePathError):

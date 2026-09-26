@@ -233,7 +233,7 @@ def _benchmark_size(spec: SizeSpec, runs: int) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="async-pipeline-after-") as tmp:
         tmp_path = Path(tmp)
         source_dir = tmp_path / "source"
-        output_dir_name = ".simplicio"
+        output_dir_name = ".simplicio-loop"
         if spec.use_real_fixture:
             file_count = _copy_real_fixture(source_dir)
         else:

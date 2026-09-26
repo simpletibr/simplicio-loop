@@ -70,8 +70,8 @@ DEFAULT_BLOCKING_IMPACT_SEVERITIES = frozenset(("high",))
 # product code, a commit, or a PR -- strictly out of boundary for this role
 # (see issue #425 "Não pode": "alterar código do produto", "criar commit/PR/merge").
 ALLOWED_MUTATION_PATH_PREFIXES: tuple[str, ...] = (
-    ".simplicio/orchestrator/",
-    ".simplicio/",
+    ".simplicio-loop/orchestrator/",
+    ".simplicio-loop/",
     "task-intake.json",
     "planning-receipt.json",
     "ac-matrix.json",

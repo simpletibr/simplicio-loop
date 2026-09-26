@@ -22,10 +22,10 @@ VERBS = {"status", "absorb", "layout", "init", "unify"}
 
 _HELP = """usage: simplicio-mapper data <verb> [options]
 
-Scoped data hub under .simplicio (no cross-project mixing):
+Scoped data hub under .simplicio-loop (no cross-project mixing):
 
-  Core / Runtime:   ~/.simplicio/data/memory.sqlite
-  Project:          <repo>/.simplicio/data/<slug>/memory.sqlite
+  Core / Runtime:   ~/.simplicio-loop/data/memory.sqlite
+  Project:          <repo>/.simplicio-loop/data/<slug>/memory.sqlite
 
   slug from: SIMPLICIO_PROJECT | git remote name | Codex/Cursor/Claude/Gemini
              workspace name | directory name
@@ -39,7 +39,7 @@ Verbs:
 
 Options:
   --data-dir PATH    override core data root
-  --repo PATH        project root → isolates under PATH/.simplicio/data/<slug>
+  --repo PATH        project root → isolates under PATH/.simplicio-loop/data/<slug>
   --project SLUG     force project slug (overrides git/host inference)
   --bank ID          absorb a single bank
   --source PATH      explicit source for single --bank absorb

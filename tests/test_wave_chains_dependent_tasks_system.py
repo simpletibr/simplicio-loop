@@ -189,7 +189,7 @@ def _chained_plan(ops_find: str, ops_replace: str, import_find: str, import_repl
 
 
 def _write_good_chain(repo: Path, run_id: str) -> None:
-    run_dir = repo / ".simplicio" / "loop-runs" / run_id
+    run_dir = repo / ".simplicio-loop" / "loop-runs" / run_id
     plans = [
         _chained_plan(
             "def sub(a, b):\n    return a - b\n",
@@ -251,7 +251,7 @@ def test_wave_chains_three_dependent_tasks_and_verify_reports_verified(tmp_path)
     assert completion["tag"] == "MEASURED", completion
 
     quality_matrix = json.loads(
-        (repo / ".simplicio" / "loop-runs" / run_id / "quality-matrix.json").read_text(encoding="utf-8")
+        (repo / ".simplicio-loop" / "loop-runs" / run_id / "quality-matrix.json").read_text(encoding="utf-8")
     )
     assert quality_matrix["requirements"]["implementation"]["status"] == "pass"
     assert quality_matrix["requirements"]["implementation"]["missing_task_indices"] == []
@@ -266,7 +266,7 @@ def test_verify_never_reports_verified_when_a_task_plan_is_invalid(tmp_path):
     repo.mkdir()
     _init_repo(repo)
     run_id = _prepare(repo)
-    run_dir = repo / ".simplicio" / "loop-runs" / run_id
+    run_dir = repo / ".simplicio-loop" / "loop-runs" / run_id
 
     good_task1 = _chained_plan(
         "def sub(a, b):\n    return a - b\n",

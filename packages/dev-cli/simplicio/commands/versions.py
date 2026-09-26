@@ -91,7 +91,7 @@ def versions_report(
     current working directory first, then this installed package's own
     parent directory (see `component_manifest._pyproject_path`). This is
     deliberately independent of `doctor`'s `--root` (the target project
-    root for `.simplicio/events.jsonl`) — the two roots answer different
+    root for `.simplicio-loop/events.jsonl`) — the two roots answer different
     questions and are never the same path in the common case of a `pip
     install`ed `simplicio-cli` used against some other project.
 

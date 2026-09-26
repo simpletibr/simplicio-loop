@@ -13,7 +13,7 @@ Each JSONL row uses `simplicio.loop-observation/v1` and contains a typed `kind`:
 ```python
 from simplicio_loop.attempt_journal import AttemptJournal, build_observation
 
-journal = AttemptJournal(".simplicio/orchestrator/loop/attempts.jsonl")
+journal = AttemptJournal(".simplicio-loop/orchestrator/loop/attempts.jsonl")
 journal.append(build_observation(
     run_id="run-1", work_item_id="WI-1", attempt_id="A-1",
     actor="codex@host-a", kind="validation", sequence=1, event_id="evt-1",

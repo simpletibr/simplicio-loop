@@ -148,7 +148,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:7781181301b9b8fa9504775b920a9ecfdd225d9ba9b5d8361dda2107cf7191c7",
+    "canonical_digest": "sha256:d97b95c2b51cc2a7ed794347a659b16221c5c1788d5dd72f7825bd68bb4f6b4e",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
@@ -173,6 +173,6 @@
     "version": "0.26.28"
   },
   "schema": "simplicio.precedent-index/v1",
-  "source_project_map": ".simplicio/project-map.json",
+  "source_project_map": ".simplicio-loop/project-map.json",
   "version": 1
 }

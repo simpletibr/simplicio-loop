@@ -268,11 +268,11 @@ class ContextBindingCache:
 
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root)
-        self.path = self.root / ".simplicio" / "context-bindings.json"
-        self.log_path = self.root / ".simplicio" / "context-bindings.hbp"
-        self.index_path = self.root / ".simplicio" / "context-bindings.hbp.idx"
-        self.legacy_log_path = self.root / ".simplicio" / "context-bindings.hbp.jsonl"
-        self.lock_path = self.root / ".simplicio" / "context-bindings.hbp.lock"
+        self.path = self.root / ".simplicio-loop" / "context-bindings.json"
+        self.log_path = self.root / ".simplicio-loop" / "context-bindings.hbp"
+        self.index_path = self.root / ".simplicio-loop" / "context-bindings.hbp.idx"
+        self.legacy_log_path = self.root / ".simplicio-loop" / "context-bindings.hbp.jsonl"
+        self.lock_path = self.root / ".simplicio-loop" / "context-bindings.hbp.lock"
         self._read_cache_signature: tuple[int, int, int, int] | None = None
         self._read_cache: dict[str, Any] | None = None
         self._migrate_legacy_once()

@@ -24,7 +24,7 @@ class TaskBatchAndTraceabilityTest(unittest.TestCase):
             {"path": "src/model.py", "roles": ["frontend", "backend"]},
             {"path": "tests/test_model.py", "roles": ["test"]},
         ]}
-        write_retrieval_index(str(self.root), ".simplicio", build_retrieval_index(self.project_map, root=str(self.root)))
+        write_retrieval_index(str(self.root), ".simplicio-loop", build_retrieval_index(self.project_map, root=str(self.root)))
 
     def tearDown(self) -> None:
         self.tmp.cleanup()

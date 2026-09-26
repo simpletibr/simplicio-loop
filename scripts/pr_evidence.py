@@ -8,8 +8,8 @@ skippable. This worker makes the PR body deterministic and model-free, gathering
 
   • the **item-by-item acceptance-criteria checklist** from the task anchor (`task_anchor.py`) —
     one line per AC, with its status + the receipt that verified it;
-  • the **prints / screenshots** captured by `web_verify.py` under `.simplicio/orchestrator/tee/web`
-    (`--shots-dir`) AND any demo video from `video_evidence.py` under `.simplicio/orchestrator/tee/video`
+  • the **prints / screenshots** captured by `web_verify.py` under `.simplicio-loop/orchestrator/tee/web`
+    (`--shots-dir`) AND any demo video from `video_evidence.py` under `.simplicio-loop/orchestrator/tee/video`
     (`--video-dir`) — embedded as markdown image links / a video link (paths + a count, never the
     bytes — token economy);
   • the gate receipts / ledger rows already on disk.
@@ -51,7 +51,7 @@ Verbs:
 Usage:
     python3 scripts/pr_evidence.py build --title "Add SSO login" --item 12 \\
         --summary "Adds an SSO button and the IdP redirect." \\
-        --shots-dir .simplicio/orchestrator/tee/web --require-evidence --out .simplicio/orchestrator/pr_body.md
+        --shots-dir .simplicio-loop/orchestrator/tee/web --require-evidence --out .simplicio-loop/orchestrator/pr_body.md
     python3 scripts/pr_evidence.py comment --item 12 --pr 34
     python3 scripts/pr_evidence.py comment --item 12 --pr 34 --publish --issue 12 \\
         --repo wesleysimplicio/simplicio-loop
@@ -74,13 +74,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 if REPO not in sys.path:  # so `from simplicio_loop import github_lifecycle` resolves (#285)
     sys.path.insert(0, REPO)
-DEFAULT_SHOTS = os.path.join(REPO, ".simplicio/orchestrator", "tee", "web")
+DEFAULT_SHOTS = os.path.join(REPO, ".simplicio-loop/orchestrator", "tee", "web")
 # video_evidence.py's REAL default output dir (see its DEFAULT_OUT) — a separate directory from
 # DEFAULT_SHOTS. #81 found this drift: docs claimed recordings land under tee/web too, but the
 # producer actually writes tee/video, so a demo video was silently never picked up by
 # `build`/`comment` unless the caller manually widened --shots-dir. Scanned in ADDITION to
 # --shots-dir by default so the evidence chain connects without extra flags.
-DEFAULT_VIDEO_SHOTS = os.path.join(REPO, ".simplicio/orchestrator", "tee", "video")
+DEFAULT_VIDEO_SHOTS = os.path.join(REPO, ".simplicio-loop/orchestrator", "tee", "video")
 DEFAULT_TEMPLATE = os.path.join(REPO, ".github", "PULL_REQUEST_TEMPLATE.md")
 
 IMG_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp")
@@ -92,7 +92,7 @@ sys.path.insert(0, HERE)
 try:
     from task_anchor import render_checklist, coverage, ANCHOR as ANCHOR_DEFAULT
 except Exception:  # pragma: no cover - keep pr_evidence usable even if the import path shifts
-    ANCHOR_DEFAULT = os.path.join(REPO, ".simplicio/orchestrator", "loop", "anchor.json")
+    ANCHOR_DEFAULT = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "anchor.json")
 
     def coverage(criteria):
         total = len(criteria)
@@ -126,7 +126,7 @@ try:
 except Exception:  # pragma: no cover
     _delivery = None
 
-DEFAULT_LOCAL_REPORT = os.path.join(REPO, ".simplicio/orchestrator", "loop", "delivery_report.md")
+DEFAULT_LOCAL_REPORT = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "delivery_report.md")
 
 
 def log(msg):
@@ -160,7 +160,7 @@ def render_progress_section():
 # ----- progress-comment (idempotent, rate-limited, fail-open) --------------------------------
 
 PROGRESS_COMMENT_MARKER = "<!-- simplicio-loop:progress -->"
-PROGRESS_COMMENT_STATE = os.path.join(REPO, ".simplicio/orchestrator", "loop", "progress_comment_state.json")
+PROGRESS_COMMENT_STATE = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "progress_comment_state.json")
 DEFAULT_MIN_INTERVAL_S = 60.0
 
 
@@ -450,7 +450,7 @@ def _load_backlog(opts):
         return None, []
     path = (opts.get("backlog") if isinstance(opts.get("backlog"), str) else
             os.environ.get("SIMPLICIO_BACKLOG_FILE") or
-            os.path.join(REPO, ".simplicio/orchestrator", "backlog", "backlog.jsonl"))
+            os.path.join(REPO, ".simplicio-loop/orchestrator", "backlog", "backlog.jsonl"))
     if not os.path.exists(path):
         return None, []
     master = None

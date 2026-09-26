@@ -39,7 +39,7 @@ class CheckpointStore:
 
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root).resolve()
-        self.base = self.root / ".simplicio" / "checkpoints"
+        self.base = self.root / ".simplicio-loop" / "checkpoints"
         self.base.mkdir(parents=True, exist_ok=True)
 
     def create(self, checkpoint_id: str, write_set: Sequence[str]) -> dict[str, Any]:

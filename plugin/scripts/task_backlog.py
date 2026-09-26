@@ -3,7 +3,7 @@
 
 Freezes a body-of-work backlog once, lets the loop claim the next item deterministically, and
 renders a markdown checklist table that can be embedded in PR evidence. The backlog lives at
-`.simplicio/orchestrator/backlog/backlog.jsonl` (override with $SIMPLICIO_BACKLOG_FILE) as one master record
+`.simplicio-loop/orchestrator/backlog/backlog.jsonl` (override with $SIMPLICIO_BACKLOG_FILE) as one master record
 plus one record per item; `task_anchor.py` remains the per-item source of truth for AC receipts.
 
 Verbs:
@@ -54,7 +54,7 @@ except Exception:
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 BACKLOG = (os.environ.get("SIMPLICIO_BACKLOG_FILE") or
-           os.path.join(REPO, ".simplicio/orchestrator", "backlog", "backlog.jsonl"))
+           os.path.join(REPO, ".simplicio-loop/orchestrator", "backlog", "backlog.jsonl"))
 
 # The Windows CRT lock API can report a transient ``PermissionError`` (and on
 # some Python/CRT combinations a plain ``OSError``) while another process
@@ -88,7 +88,7 @@ if REPO not in sys.path:
 try:
     from task_anchor import ANCHOR as ANCHOR_DEFAULT, coverage, goal_fingerprint, lint_criteria
 except Exception:  # pragma: no cover
-    ANCHOR_DEFAULT = os.path.join(REPO, ".simplicio/orchestrator", "loop", "anchor.json")
+    ANCHOR_DEFAULT = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "anchor.json")
 
     def goal_fingerprint(goal):
         return (goal or "").strip().lower()

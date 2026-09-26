@@ -8,8 +8,8 @@ Examples:
     @lru_cache(maxsize=256)
     def parse_template(path: str) -> str: ...
 
-The disk cache lives under `.simplicio/cache/` next to the existing
-`.simplicio/embedding_cache.npz`. Each namespace gets its own subdir so
+The disk cache lives under `.simplicio-loop/cache/` next to the existing
+`.simplicio-loop/embedding_cache.npz`. Each namespace gets its own subdir so
 entries from different decorators never collide.
 """
 
@@ -29,7 +29,7 @@ except ImportError:  # pragma: no cover - degrades gracefully
 
 
 def _cache_root() -> Path:
-    root = Path(os.environ.get("SIMPLICIO_CACHE_DIR", str(Path.cwd() / ".simplicio" / "cache")))
+    root = Path(os.environ.get("SIMPLICIO_CACHE_DIR", str(Path.cwd() / ".simplicio-loop" / "cache")))
     root.mkdir(parents=True, exist_ok=True)
     return root
 

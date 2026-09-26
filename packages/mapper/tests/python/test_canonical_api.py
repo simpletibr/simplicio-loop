@@ -75,7 +75,7 @@ class CanonicalApiTests(unittest.TestCase):
         self.assertIsNotNone(view.overlay)
         self.assertTrue(view.overlay.dirty)
         self.assertEqual(view.diagnostics.files_remapped, 1)
-        self.assertFalse((repo / ".simplicio" / "project-map.json").exists())
+        self.assertFalse((repo / ".simplicio-loop" / "project-map.json").exists())
 
     def test_sync_api_returns_none_for_non_git_directory(self) -> None:
         plain = self.base / "plain"

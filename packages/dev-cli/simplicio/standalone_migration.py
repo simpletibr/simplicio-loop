@@ -17,8 +17,8 @@ MutationRoute = Literal["runtime_effect_api", "standalone", "legacy_standalone",
 MIGRATION_PHASES = ("shadow", "opt_in", "warning", "read_only", "removed")
 MUTATION_ROUTE_SCHEMA = "simplicio.dev-cli.mutation-route/v1"
 ROLLOUT_EVIDENCE_SCHEMA = "simplicio.dev-cli.standalone-rollout-evidence/v1"
-ROLLOUT_EVIDENCE_PATH = ".simplicio/standalone-rollout-evidence.json"
-EFFECT_UNKNOWN_LOCK = ".simplicio/effect-unknown.lock"
+ROLLOUT_EVIDENCE_PATH = ".simplicio-loop/standalone-rollout-evidence.json"
+EFFECT_UNKNOWN_LOCK = ".simplicio-loop/effect-unknown.lock"
 _REQUIRED_ROLLOUT_RECEIPTS = (
     "runtime_loop",
     "offline_parity",
@@ -157,7 +157,7 @@ def effect_unknown_details(
     key = _safe_lock_key(idempotency_key or plan_payload.get("idempotency_key"))
     if key == "unknown":
         key = _sha256_text(f"{repo}\n{plan_digest}")
-    evidence_file = f".simplicio/runtime-effects/reconciliation/{key}.json"
+    evidence_file = f".simplicio-loop/runtime-effects/reconciliation/{key}.json"
     preconditions: list[dict[str, Any]] = []
     for native_plan in native_plans or []:
         path = native_plan.get("file")
@@ -179,8 +179,8 @@ def effect_unknown_details(
                 }
             )
     receipt_locator = {
-        "intent": f".simplicio/runtime-effects/{key}.intent.json",
-        "receipt": f".simplicio/runtime-effects/{key}.receipt.json",
+        "intent": f".simplicio-loop/runtime-effects/{key}.intent.json",
+        "receipt": f".simplicio-loop/runtime-effects/{key}.receipt.json",
         "runtime_status_command": [
             "simplicio",
             "effect",
@@ -269,7 +269,7 @@ def clear_effect_unknown(root: str, *, runtime_reconciled: bool) -> None:
 
 
 def standalone_policy_for_root(root: str, *, previous_effect_outcome: str | None = None) -> StandalonePolicy:
-    path = Path(root) / ".simplicio" / "execution.json"
+    path = Path(root) / ".simplicio-loop" / "execution.json"
     try:
         config = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):

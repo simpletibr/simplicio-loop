@@ -67,7 +67,7 @@ class LocalTaskQueue:
         root = Path(root).resolve()
         if str(root).startswith("\\\\"):
             raise QueueUnavailable("network filesystem locking is not trusted")
-        self.data_dir = root / ".simplicio" / "data"
+        self.data_dir = root / ".simplicio-loop" / "data"
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.path = str(_mapper_database(root))
         self._queue = MapperRemoteQueue(

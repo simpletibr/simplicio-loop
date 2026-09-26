@@ -46,7 +46,7 @@ class ScopedContextTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def _write_artifacts(self, root: Path):
-        artifact_dir = root / ".simplicio"
+        artifact_dir = root / ".simplicio-loop"
         artifact_dir.mkdir(exist_ok=True)
         files = [
             {"path": "src/target.py"},
@@ -132,7 +132,7 @@ class ScopedContextTests(unittest.TestCase):
     def test_same_size_artifact_mutation_invalidates_artifact_cache(self):
         self._artifacts()
         first = build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="artifact", cache_root=str(self.cache), start_background=False)
-        project_map = self.root / ".simplicio/project-map.json"
+        project_map = self.root / ".simplicio-loop/project-map.json"
         before = project_map.stat()
         project_map.write_text(project_map.read_text(encoding="utf-8").replace("fixture", "otherxx"), encoding="utf-8")
         os.utime(project_map, ns=(before.st_atime_ns, before.st_mtime_ns))
@@ -219,7 +219,7 @@ class ScopedContextTests(unittest.TestCase):
         self.assertEqual(REASON_CACHE_INCOMPATIBLE, error.exception.reason_code)
 
     def test_stale_artifact_fails_closed(self):
-        artifact_dir = self.root / ".simplicio"
+        artifact_dir = self.root / ".simplicio-loop"
         artifact_dir.mkdir()
         (artifact_dir / "project-map.json").write_text("{not-json", encoding="utf-8")
         with self.assertRaises(ScopedContextError) as error:
@@ -303,17 +303,17 @@ class ScopedContextTests(unittest.TestCase):
 
     def test_nearest_tests_and_precedents_are_bounded_and_ranked(self):
         self._artifacts()
-        project_map = json.loads((self.root / ".simplicio/project-map.json").read_text(encoding="utf-8"))
+        project_map = json.loads((self.root / ".simplicio-loop/project-map.json").read_text(encoding="utf-8"))
         for index in range(6):
             path = f"tests/test_target_variant_{index}.py"
             (self.root / path).write_text("def test_variant(): pass\n", encoding="utf-8")
             project_map["files"].append({"path": path})
-        (self.root / ".simplicio/project-map.json").write_text(json.dumps(project_map), encoding="utf-8")
+        (self.root / ".simplicio-loop/project-map.json").write_text(json.dumps(project_map), encoding="utf-8")
         precedents = {"items": [
             {"id": f"p{index}", "path": f"src/target_example_{index}.py", "summary": "target example"}
             for index in range(6)
         ]}
-        (self.root / ".simplicio/precedent-index.json").write_text(json.dumps(precedents), encoding="utf-8")
+        (self.root / ".simplicio-loop/precedent-index.json").write_text(json.dumps(precedents), encoding="utf-8")
         payload = build_scoped_context(str(self.root), target_hints=["src/target.py"], cache_root=str(self.cache), start_background=False)
         nearest_tests = [row["path"] for row in payload["selected_paths"] if "nearest_test" in row["why"]]
         self.assertLessEqual(len(nearest_tests), 3)
@@ -340,7 +340,7 @@ class ScopedContextTests(unittest.TestCase):
         repo_b = self.root / "repo-b"
         shutil.copytree(repo_a / "src", repo_b / "src")
         shutil.copytree(repo_a / "tests", repo_b / "tests")
-        shutil.copytree(repo_a / ".simplicio", repo_b / ".simplicio")
+        shutil.copytree(repo_a / ".simplicio-loop", repo_b / ".simplicio-loop")
         shutil.copy2(repo_a / "pyproject.toml", repo_b / "pyproject.toml")
         (repo_b / ".git").write_text(f"gitdir: {common_git / 'worktrees/b'}\n", encoding="utf-8")
         first = build_scoped_context(str(repo_a), target_hints=["src/target.py"], task_fingerprint="worktree", cache_root=str(self.cache), start_background=False)
@@ -353,7 +353,7 @@ class ScopedContextTests(unittest.TestCase):
         payload = build_scoped_context(str(self.root), target_hints=["src/target.py"], cache_root=str(self.cache), start_background=False)
         self.assertEqual("RUN_FOCUSED_VERIFICATION", payload["recommended_next_action"])
         self.assertEqual(payload["artifact_digest"], payload["generation"]["artifact_digest"])
-        records = _artifact_records(self.root, self.root / ".simplicio")[1]
+        records = _artifact_records(self.root, self.root / ".simplicio-loop")[1]
         self.assertEqual(payload["artifact_digest"], _artifact_digest(records))
         from simplicio_mapper import __version__ as _installed_version
 

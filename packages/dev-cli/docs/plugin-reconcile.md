@@ -39,5 +39,5 @@ kills stay unrun. Unexecuted tests are never marked pass.
 
 ## Crash markers
 
-Crash state is written to `.simplicio/plugin-reconcile/<attempt_id>.crash.json`
+Crash state is written to `.simplicio-loop/plugin-reconcile/<attempt_id>.crash.json`
 and can be deleted after a successful inspect. Cleanup is file-local.

@@ -266,7 +266,7 @@ def _span(repo: Path, path: str) -> dict[str, Any]:
     }
 
 def _default_cache_root() -> Path:
-    return Path(os.environ.get("SIMPLICIO_MAPPER_SCOPED_CACHE", str(Path.home() / ".simplicio/mapper/scoped-context-cache"))).expanduser()
+    return Path(os.environ.get("SIMPLICIO_MAPPER_SCOPED_CACHE", str(Path.home() / ".simplicio-loop/mapper/scoped-context-cache"))).expanduser()
 
 
 def _cache_paths(base: Path, repo_key: str, request_key: str) -> tuple[Path, Path, Path, Path]:
@@ -777,7 +777,7 @@ def build_scoped_context(
     context_budget: int = 8000,
     attempt_id: str = "",
     configuration_fingerprint: str = "",
-    out: str = ".simplicio",
+    out: str = ".simplicio-loop",
     changed_paths: Sequence[str] = (),
     cache_root: str | None = None,
     start_background: bool = True,
@@ -873,7 +873,7 @@ def run_scoped_context_cli(argv: Sequence[str]) -> int:
     parser.add_argument("--configuration-fingerprint", default="")
     parser.add_argument("--attempt-id", default="")
     parser.add_argument("--context-budget", type=int, default=8000)
-    parser.add_argument("--out", default=".simplicio")
+    parser.add_argument("--out", default=".simplicio-loop")
     parser.add_argument("--cache-root")
     parser.add_argument("--no-background", action="store_true")
     parser.add_argument("--json", action="store_true")

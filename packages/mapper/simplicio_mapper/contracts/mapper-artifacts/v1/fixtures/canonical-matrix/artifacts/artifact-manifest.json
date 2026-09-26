@@ -1,20 +1,20 @@
 {
-  "artifact_set_digest": "sha256:be58b0e6f0eb6e0c98baeda6f9992f95e80e56f92a95f220e5e787cf3882f7d2",
+  "artifact_set_digest": "sha256:c4678270bcf0bf4907c182d0590e58e4da8a0fc2e3ec0e9d48a7d8912af63f1c",
   "artifacts": {
     "architecture_inventory": {
-      "canonical_digest": "sha256:44221be71c13e826febf0df0f0351cc7d2be04588311e2b957e6b1b099ebb181",
+      "canonical_digest": "sha256:c9309884d314e72e59593a512244498b29d19e3b3db608613b92ac9116764a44",
       "schema": "simplicio.architecture-inventory/v1"
     },
     "call_graph": {
-      "canonical_digest": "sha256:0719a46597e5990c87bf1ae8085ed869885f9b4898a8f794d9373898b2686273",
+      "canonical_digest": "sha256:421ad8f9721a3630e2d7028c8493a6214c8b64f8d45bdbafc0b315181730380f",
       "schema": "simplicio.call-graph/v1"
     },
     "precedent_index": {
-      "canonical_digest": "sha256:7781181301b9b8fa9504775b920a9ecfdd225d9ba9b5d8361dda2107cf7191c7",
+      "canonical_digest": "sha256:d97b95c2b51cc2a7ed794347a659b16221c5c1788d5dd72f7825bd68bb4f6b4e",
       "schema": "simplicio.precedent-index/v1"
     },
     "project_map": {
-      "canonical_digest": "sha256:d8d88cfb0dab791bcb664e10d047c9655ccdcd9acb36a802f0dac30e665d2073",
+      "canonical_digest": "sha256:8b28ba7ce6c797159cde6975b0c6ed31c2a6284769996d072631d109ee0b1e34",
       "schema": "simplicio.project-map/v1"
     },
     "symbol_index": {

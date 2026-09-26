@@ -45,7 +45,7 @@ class QueryCacheablePathsWorktreeExclusionTest(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_excludes_worktrees_but_keeps_root_claude_config(self) -> None:
-        rel_paths = set(_query_cacheable_paths(str(self.dir), ".simplicio"))
+        rel_paths = set(_query_cacheable_paths(str(self.dir), ".simplicio-loop"))
         self.assertIn("src/keep.py", rel_paths)
         self.assertIn(str(Path(".claude") / "settings.json").replace("\\", "/"), {p.replace("\\", "/") for p in rel_paths})
         self.assertTrue(all(".claude/worktrees" not in p.replace("\\", "/") for p in rel_paths))

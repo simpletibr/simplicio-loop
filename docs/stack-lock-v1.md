@@ -17,10 +17,10 @@ simplicio-loop stack lock \
   --components components.json \
   --route standalone \
   --run-id run-123 \
-  --output .simplicio/orchestrator/stack-lock.json
+  --output .simplicio-loop/orchestrator/stack-lock.json
 
 simplicio-loop stack verify \
-  --lock .simplicio/orchestrator/stack-lock.json \
+  --lock .simplicio-loop/orchestrator/stack-lock.json \
   --components components.json
 ```
 
@@ -41,7 +41,7 @@ simplicio-loop stack lock \
   --components components.json \
   --registry stack-registry.json \
   --route standalone \
-  --output .simplicio/orchestrator/stack-lock.json
+  --output .simplicio-loop/orchestrator/stack-lock.json
 ~~~
 
 The registry is evaluated before StackLock.create or any lock write. A

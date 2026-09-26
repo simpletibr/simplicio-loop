@@ -21,7 +21,7 @@ Installers copy this file into each host's always-on surface via
 
 1. **Economy-parallel env** before autonomous work (fastest tokens + parallel):
    ```bash
-   simplicio-loop economy apply --json   # or: source ~/.simplicio/economy-parallel-env.sh
+   simplicio-loop economy apply --json   # or: source ~/.simplicio-loop/economy-parallel-env.sh
    ```
    - `SIMPLICIO_LOOP=1` · `SIMPLICIO_LOOP_STRICT=1`
    - `SIMPLICIO_EXECUTION_PROFILE=standalone` (the only execution profile)
@@ -58,7 +58,7 @@ Installers copy this file into each host's always-on surface via
    asyncio I/O · **writes serialized**. See `docs/LLM_MAX_SPEED_ORIENTATION.md`.
 
 10. **Integrations** (Orca, Linear, …) only if the **client requested** them
-    (`SIMPLICIO_LOOP_CLIENT_INTEGRATIONS` or `.simplicio/client-integrations.json`).
+    (`SIMPLICIO_LOOP_CLIENT_INTEGRATIONS` or `.simplicio-loop/client-integrations.json`).
 
 11. **Max-speed orientation (always):** act > narrate; Mapper→Fast→dev-cli hot path;
     smallest gate that proves the AC; no full-repo residual thrash; no 3-reviewer panels on
@@ -83,7 +83,7 @@ Installers copy this file into each host's always-on surface via
 | Codex / Grok / VS Code / Antigravity / Kiro / Hermes | **self-paced** | this rule + env STRICT as hard law |
 | Simplicio Agent | native tick | native + this rule |
 
-Self-paced: re-read `.simplicio/orchestrator/loop/scratchpad.md` every turn;
+Self-paced: re-read `.simplicio-loop/orchestrator/loop/scratchpad.md` every turn;
 triage → decide → operate → verify → journal.
 
 ## Invoke

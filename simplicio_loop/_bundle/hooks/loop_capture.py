@@ -9,7 +9,7 @@ import json
 import os
 import sys
 
-LOOP_DIR = os.path.join(".simplicio/orchestrator", "loop")
+LOOP_DIR = os.path.join(".simplicio-loop/orchestrator", "loop")
 LAST_RESP = os.path.join(LOOP_DIR, "last_response.txt")
 
 

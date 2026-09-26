@@ -9,7 +9,7 @@ items), `task_anchor.py` (per-item acceptance criteria) and the `progress.jsonl`
 (turn position) — and renders it for three audiences: a human (`PROGRESS.md`), a transcript
 (`render --turn-header`, one line) and a machine (`status --json`).
 
-State (new, `.simplicio/orchestrator/loop/`, override the directory with $SIMPLICIO_PROGRESS_DIR):
+State (new, `.simplicio-loop/orchestrator/loop/`, override the directory with $SIMPLICIO_PROGRESS_DIR):
     progress.jsonl   append-only events (locked via `_locked_append.py`, same discipline as
                      `loop_journal.py`/`handoff.py`)
     progress.json    derived snapshot (never authoritative — see invariant below)
@@ -56,7 +56,7 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.environ.get("SIMPLICIO_REPO") or os.path.dirname(HERE))
-LOOP_DIR = os.path.join(REPO, ".simplicio/orchestrator", "loop")
+LOOP_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop")
 
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
@@ -106,7 +106,7 @@ def _anchor_path():
 
 def _backlog_path():
     return (os.environ.get("SIMPLICIO_BACKLOG_FILE") or
-            os.path.join(REPO, ".simplicio/orchestrator", "backlog", "backlog.jsonl"))
+            os.path.join(REPO, ".simplicio-loop/orchestrator", "backlog", "backlog.jsonl"))
 
 
 # ----- tolerant source readers (never raise, missing/corrupt -> None) -----------------------------

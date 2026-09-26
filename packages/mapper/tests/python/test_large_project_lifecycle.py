@@ -249,7 +249,7 @@ class LargeProjectLifecycleTest(unittest.TestCase):
 
         # Simulate a crash mid-write: the persisted snapshot state is
         # truncated/corrupted, as if the process died while writing it.
-        state_path = self.root / ".simplicio" / "graph-snapshot.json"
+        state_path = self.root / ".simplicio-loop" / "graph-snapshot.json"
         state_path.write_text("{not valid json", encoding="utf-8")
 
         recovered = self._rescan()

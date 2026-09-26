@@ -9,7 +9,7 @@ the loop stops on **evidence**, not on a bare promise, and not by accident. We d
   • promise + evidence, ACs done   → STOP                          ← anchor satisfied
   • no promise, under cap          → CONTINUE (iteration bumped)
   • iteration >= max_iterations    → STOP by cap                   ← distinct from the evidence exit
-  • .simplicio/orchestrator/STOP signal      → STOP immediately
+  • .simplicio-loop/orchestrator/STOP signal      → STOP immediately
 
 This is the "stopped by evidence, not by cap" proof: cases 1 and 4 stop for *different* reasons,
 and case 2 proves a promise alone never escapes the loop.
@@ -23,8 +23,8 @@ from pathlib import Path
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOOK = os.path.join(REPO, "hooks", "loop_stop.py")
-JOURNAL = os.path.join(".simplicio/orchestrator", "loop", "journal.jsonl")
-HANDOFF = os.path.join(".simplicio/orchestrator", "loop", "HANDOFF.md")
+JOURNAL = os.path.join(".simplicio-loop/orchestrator", "loop", "journal.jsonl")
+HANDOFF = os.path.join(".simplicio-loop/orchestrator", "loop", "HANDOFF.md")
 
 SCRATCHPAD = """---
 iteration: {iteration}
@@ -38,7 +38,7 @@ Implement the thing and prove it works.
 
 
 def _arm(root, iteration=1, max_iter=5):
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     os.makedirs(loop, exist_ok=True)
     with open(os.path.join(loop, "scratchpad.md"), "w", encoding="utf-8") as f:
         f.write(SCRATCHPAD.format(iteration=iteration, max_iter=max_iter))
@@ -52,7 +52,7 @@ def _tick(root, response_text, env=None):
 
 
 def _scratchpad(root):
-    return os.path.join(root, ".simplicio/orchestrator", "loop", "scratchpad.md")
+    return os.path.join(root, ".simplicio-loop/orchestrator", "loop", "scratchpad.md")
 
 
 def _iteration(root):
@@ -96,7 +96,7 @@ def _tick_hook(root, hook_path, response_text, mode="cursor", env=None):
 
 def _write_watcher_challenge(root, challenge="chal-1", goal_fp="", written_at="2026-07-01T00:00:00Z"):
     """Simulate a challenge already issued by a prior turn's re-feed (#82)."""
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     os.makedirs(loop, exist_ok=True)
     with open(os.path.join(loop, "watcher_challenge.json"), "w", encoding="utf-8") as f:
         json.dump({"challenge": challenge, "goal_fp": goal_fp, "written_at": written_at}, f)
@@ -106,7 +106,7 @@ def _write_watcher_pass(root, challenge="chal-1", goal_fp="", checked_at="2026-0
     """Write a passing watcher state (Asolaria N-Nest Corrective Gate) that echoes the current
     per-iteration challenge (#82) — a receipt written without a matching challenge on disk must
     NOT satisfy the gate; see test_watcher_receipt_without_challenge_does_not_stop."""
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     os.makedirs(loop, exist_ok=True)
     _write_watcher_challenge(root, challenge=challenge, goal_fp=goal_fp, written_at="2026-07-01T00:00:00Z")
     with open(os.path.join(loop, "watcher_state.json"), "w", encoding="utf-8") as f:
@@ -115,7 +115,7 @@ def _write_watcher_pass(root, challenge="chal-1", goal_fp="", checked_at="2026-0
 
 
 def _write_phase(root, phase="implement", strategy="Ship the smallest verified increment", guard="Do not refactor unrelated code"):
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     os.makedirs(loop, exist_ok=True)
     with open(os.path.join(loop, "phase.json"), "w", encoding="utf-8") as f:
         json.dump({
@@ -148,7 +148,7 @@ def test_promise_without_run_receipt_never_uses_legacy_fallback(tmp_path):
     assert r.returncode == 0
     assert "followup_message" in r.stdout or "block" in r.stdout
     assert os.path.exists(_scratchpad(root)), "missing run receipt must not bypass the oracle"
-    assert not os.path.exists(os.path.join(root, ".simplicio/orchestrator", "runs")), "no run receipt was created"
+    assert not os.path.exists(os.path.join(root, ".simplicio-loop/orchestrator", "runs")), "no run receipt was created"
 
 
 def test_bare_promise_without_evidence_continues(tmp_path):
@@ -164,14 +164,14 @@ def test_bare_promise_without_evidence_continues(tmp_path):
 
 
 def _write_anchor(root, criteria):
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     os.makedirs(loop, exist_ok=True)
     with open(os.path.join(loop, "anchor.json"), "w", encoding="utf-8") as f:
         json.dump({"item": "1", "goal": "g", "goal_fp": "x", "criteria": criteria}, f)
 
 
 def _seed_verified_run(root, run_id="r1"):
-    run_dir = os.path.join(root, ".simplicio/orchestrator", "runs", run_id)
+    run_dir = os.path.join(root, ".simplicio-loop/orchestrator", "runs", run_id)
     os.makedirs(run_dir, exist_ok=True)
     with open(os.path.join(run_dir, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump({"schema": "simplicio.run-manifest/v1", "run_id": run_id,
@@ -263,9 +263,9 @@ def test_continue_runs_planner_and_refreshes_wiki(tmp_path):
     r = _tick(root, "Still implementing; no promise yet.")
     assert r.returncode == 0
     assert "phase=implement" in r.stdout, r.stdout
-    phase = os.path.join(root, ".simplicio/orchestrator", "loop", "phase.json")
-    summary = os.path.join(root, ".simplicio/orchestrator", "wiki", "SUMMARY.md")
-    journal_dir = os.path.join(root, ".simplicio/orchestrator", "wiki", "journal")
+    phase = os.path.join(root, ".simplicio-loop/orchestrator", "loop", "phase.json")
+    summary = os.path.join(root, ".simplicio-loop/orchestrator", "wiki", "SUMMARY.md")
+    journal_dir = os.path.join(root, ".simplicio-loop/orchestrator", "wiki", "journal")
     assert os.path.exists(phase), "planner should materialize phase.json on first active turn"
     assert os.path.exists(summary), "continue path should refresh the cross-agent wiki summary"
     assert os.listdir(journal_dir), "continue path should capture at least one wiki journal entry"
@@ -334,7 +334,7 @@ def test_iteration_cap_handoff_carries_attempt_lineage(tmp_path):
 def test_stop_signal_halts(tmp_path):
     root = str(tmp_path)
     _arm(root)
-    open(os.path.join(root, ".simplicio/orchestrator", "STOP"), "w").close()
+    open(os.path.join(root, ".simplicio-loop/orchestrator", "STOP"), "w").close()
     r = _tick(root, "anything")
     assert r.stdout.strip() == ""
     assert not os.path.exists(_scratchpad(root))
@@ -493,7 +493,7 @@ def test_watcher_receipt_without_challenge_does_not_stop(tmp_path):
     # satisfy the gate — this is exactly the one-Write-call spoof the challenge binding closes.
     root = str(tmp_path)
     _arm(root, iteration=1, max_iter=5)
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     os.makedirs(loop, exist_ok=True)
     with open(os.path.join(loop, "watcher_state.json"), "w", encoding="utf-8") as f:
         json.dump({"match": True, "status": "MEASURED", "checked_at": "2026-07-01T00:00:00Z"}, f)
@@ -509,7 +509,7 @@ def test_watcher_receipt_wrong_challenge_does_not_stop(tmp_path):
     root = str(tmp_path)
     _arm(root, iteration=1, max_iter=5)
     _write_watcher_challenge(root, challenge="real-challenge")
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     with open(os.path.join(loop, "watcher_state.json"), "w", encoding="utf-8") as f:
         json.dump({"match": True, "status": "MEASURED", "checked_at": "2026-07-01T00:00:01Z",
                     "challenge": "guessed-or-stale-challenge"}, f)
@@ -527,7 +527,7 @@ def test_watcher_receipt_matching_challenge_stops(tmp_path):
     _write_watcher_pass(root, challenge="issued-this-turn")
     _write_anchor(root, [{"id": "AC1", "status": "done"}])
     _seed_verified_run(root)
-    with open(os.path.join(root, ".simplicio/orchestrator", "loop", "watcher_state.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(root, ".simplicio-loop/orchestrator", "loop", "watcher_state.json"), "w", encoding="utf-8") as f:
         json.dump({"match": True, "status": "MEASURED", "checked_at": "2026-07-01T00:00:01Z",
                     "challenge": "issued-this-turn", "goal_fp": ""}, f)
     r = _tick(root, "All green. <promise>SIMPLICIO_DONE</promise> tests pass ✓ "
@@ -647,7 +647,7 @@ def test_flow_audit_green_receipt_allows_stop(tmp_path):
     _write_watcher_pass(root)
     _write_anchor(root, [{"id": "AC1", "status": "done"}])
     _seed_verified_run(root)
-    orch = os.path.join(root, ".simplicio/orchestrator")
+    orch = os.path.join(root, ".simplicio-loop/orchestrator")
     os.makedirs(orch, exist_ok=True)
     receipt = os.path.join(orch, "flow-audit.json")
     with open(receipt, "w", encoding="utf-8") as f:

@@ -4,7 +4,7 @@
   "modes": ["converge", "drain"],
   "artifacts": {
     "scratchpad_frontmatter": {
-      "path": ".simplicio/orchestrator/loop/scratchpad.md",
+      "path": ".simplicio-loop/orchestrator/loop/scratchpad.md",
       "format": "markdown with a --- delimited YAML-ish frontmatter block (key: value per line) followed by the free-text goal body",
       "producer": "the agent/skill, written once when the loop is armed; iteration is rewritten in place by hooks/loop_stop.py on every re-feed",
       "required_fields": [
@@ -20,7 +20,7 @@
       }
     },
     "journal_record": {
-      "path": ".simplicio/orchestrator/loop/journal.jsonl",
+      "path": ".simplicio-loop/orchestrator/loop/journal.jsonl",
       "format": "append-only JSON Lines — one JSON object per line, never rewritten, only appended",
       "producer": "scripts/loop_journal.py record (and a fallback auto-record from hooks/loop_stop.py when the agent forgot to)",
       "required_fields": ["iteration", "action", "hypothesis", "gate", "fingerprint", "note", "ts"],
@@ -42,7 +42,7 @@
       ]
     },
     "anchor": {
-      "path": ".simplicio/orchestrator/loop/anchor.json",
+      "path": ".simplicio-loop/orchestrator/loop/anchor.json",
       "format": "single JSON object, overwritten in place by scripts/task_anchor.py (frozen at intake, then per-criterion status updates)",
       "producer": "scripts/task_anchor.py set / mark",
       "required_fields": ["item", "goal", "goal_fp", "frozen_at", "criteria"],
@@ -56,13 +56,13 @@
       ]
     },
     "watcher_challenge": {
-      "path": ".simplicio/orchestrator/loop/watcher_challenge.json",
+      "path": ".simplicio-loop/orchestrator/loop/watcher_challenge.json",
       "format": "single JSON object, overwritten each re-feed",
       "producer": "hooks/loop_stop.py:write_watcher_challenge, at the END of a turn that re-feeds (before the next turn's agent acts)",
       "required_fields": ["challenge", "iteration", "goal_fp", "written_at"]
     },
     "watcher_state": {
-      "path": ".simplicio/orchestrator/loop/watcher_state.json",
+      "path": ".simplicio-loop/orchestrator/loop/watcher_state.json",
       "format": "single JSON object",
       "producer": "scripts/watcher_verify.py verify (a separate, independent re-computation of the anchor's done/pending state — must NOT trust anything the calling agent asserts)",
       "required_fields": ["match", "status", "challenge", "goal_fp", "checked_at"],
@@ -75,12 +75,12 @@
       ]
     },
     "done_flag": {
-      "path": ".simplicio/orchestrator/loop/done.flag (legacy alias: .simplicio/orchestrator/loop/done)",
+      "path": ".simplicio-loop/orchestrator/loop/done.flag (legacy alias: .simplicio-loop/orchestrator/loop/done)",
       "format": "empty marker file",
       "producer": "hooks/loop_capture.py on runtimes with a separate post-response hook (e.g. Cursor); on Claude Code this is folded into hooks/loop_stop.py directly instead"
     },
     "stop_signal": {
-      "path": ".simplicio/orchestrator/STOP",
+      "path": ".simplicio-loop/orchestrator/STOP",
       "format": "any file (content is not parsed — presence is the signal)",
       "producer": "a human or an external channel command",
       "invariants": [
@@ -89,7 +89,7 @@
       ]
     },
     "handoff": {
-      "path": ".simplicio/orchestrator/loop/HANDOFF.md",
+      "path": ".simplicio-loop/orchestrator/loop/HANDOFF.md",
       "format": "free-text markdown (not JSON) — frozen goal, per-criterion checklist, last journal attempts, resume steps",
       "producer": "hooks/loop_stop.py:write_handoff, called only on an INCOMPLETE stop (STOP signal, max_iterations cap, spindle handoff, missing bound operator) — never on a fulfilled promise"
     },

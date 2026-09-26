@@ -30,7 +30,7 @@ def test_dry_run_does_not_write(tmp_path: Path):
     assert result["status"] == "dry_run"
     assert result["written"] == 0
     assert not (target / ".claude").exists()
-    assert not (target / ".simplicio" / "install-ownership.json").exists()
+    assert not (target / ".simplicio-loop" / "install-ownership.json").exists()
 
 
 def test_apply_is_idempotent_and_owned(tmp_path: Path):
@@ -42,7 +42,7 @@ def test_apply_is_idempotent_and_owned(tmp_path: Path):
     second = apply_plan(plan, bundle=bundle)
     assert first["status"] == second["status"] == "applied"
     assert (target / ".claude" / "skills" / "simplicio-loop" / "SKILL.md").is_file()
-    assert (target / ".simplicio" / "install-ownership.json").is_file()
+    assert (target / ".simplicio-loop" / "install-ownership.json").is_file()
 
 
 def test_uninstall_removes_only_loop_ownership(tmp_path: Path):
@@ -53,7 +53,7 @@ def test_uninstall_removes_only_loop_ownership(tmp_path: Path):
     removed = uninstall(target)
     assert removed["status"] == "removed"
     assert (target / "keep.txt").is_file()
-    assert not (target / ".simplicio" / "install-ownership.json").exists()
+    assert not (target / ".simplicio-loop" / "install-ownership.json").exists()
     with pytest.raises(InstallError, match="ownership"):
         uninstall(target)
 

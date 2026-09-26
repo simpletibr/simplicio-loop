@@ -35,7 +35,7 @@ MARK_END = "# --- end simplicio mcp ---"
 SERVER_ENTRY = {
     "command": "python3",
     "args": [MCP_SERVER],
-    "env": {"SIMPLICIO_HOME": "~/.simplicio"},
+    "env": {"SIMPLICIO_HOME": "~/.simplicio-loop"},
 }
 
 
@@ -67,7 +67,7 @@ def _codex_block() -> str:
         f"args = [{args_toml}]\n"
         "\n"
         "[mcp_servers.simplicio.env]\n"
-        'SIMPLICIO_HOME = "~/.simplicio"\n'
+        'SIMPLICIO_HOME = "~/.simplicio-loop"\n'
         f"{MARK_END}\n"
     )
 

@@ -20,7 +20,7 @@ Architecture:
     - Never change the phase
     - Record to journal as usual
 
-State: `.simplicio/orchestrator/loop/phase.json`
+State: `.simplicio-loop/orchestrator/loop/phase.json`
   {"phase": "...", "strategy": "...", "scope": [...], "created_at": "...",
    "iteration": N, "max_iterations": N, "tactical_guard": "...",
    "stall_count_at_creation": 0}
@@ -46,7 +46,7 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-LOOP_DIR = os.path.join(REPO, ".simplicio/orchestrator", "loop")
+LOOP_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop")
 PHASE_FILE = os.path.join(LOOP_DIR, "phase.json")
 JOURNAL = os.path.join(LOOP_DIR, "journal.jsonl")
 SCRATCHPAD = os.path.join(LOOP_DIR, "scratchpad.md")
@@ -56,7 +56,7 @@ def _set_repo(repo):
     """Rebind repo-relative state paths. Used by selftest and temp-repo tests."""
     global REPO, LOOP_DIR, PHASE_FILE, JOURNAL, SCRATCHPAD
     REPO = repo
-    LOOP_DIR = os.path.join(REPO, ".simplicio/orchestrator", "loop")
+    LOOP_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop")
     PHASE_FILE = os.path.join(LOOP_DIR, "phase.json")
     JOURNAL = os.path.join(LOOP_DIR, "journal.jsonl")
     SCRATCHPAD = os.path.join(LOOP_DIR, "scratchpad.md")

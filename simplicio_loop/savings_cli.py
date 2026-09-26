@@ -9,7 +9,7 @@ from typing import Any
 
 
 def _latest_run(repo: Path) -> Path | None:
-    root = repo / ".simplicio" / "loop-runs"
+    root = repo / ".simplicio-loop" / "loop-runs"
     runs = sorted(
         path for path in root.iterdir()
         if root.is_dir() and path.is_dir() and (path / "manifest.json").is_file()

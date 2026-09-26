@@ -26,7 +26,7 @@ simulated success.
 
 ```powershell
 $env:SIMPLICIO_QUEUE_TOKEN = "development-only-token"
-python scripts/remote_queue_server.py --db .simplicio/orchestrator/shared-queue.db --port 8765 --token $env:SIMPLICIO_QUEUE_TOKEN
+python scripts/remote_queue_server.py --db .simplicio-loop/orchestrator/shared-queue.db --port 8765 --token $env:SIMPLICIO_QUEUE_TOKEN
 ```
 
 Use `HTTPRemoteQueue` from `simplicio_loop.remote_queue` for authenticated claims,

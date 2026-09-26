@@ -84,7 +84,7 @@ def test_pipeline_emits_terminal_and_returns_without_mutation(tmp_path, monkeypa
     assert (tmp_path / "app.py").read_text(encoding="utf-8") == "old\n"
     events = [
         json.loads(line)
-        for line in (tmp_path / ".simplicio" / "events.jsonl").read_text(encoding="utf-8").splitlines()
+        for line in (tmp_path / ".simplicio-loop" / "events.jsonl").read_text(encoding="utf-8").splitlines()
     ]
     assert [event["event"] for event in events] == [
         "mutation_route_selected",

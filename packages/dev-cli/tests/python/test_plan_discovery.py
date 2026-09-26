@@ -20,7 +20,7 @@ from simplicio.task_spec import parse_task_document
 
 
 def _write_mapper_artifacts(root: Path, *, files: list[dict], precedents: list[dict]) -> None:
-    simplicio_dir = root / ".simplicio"
+    simplicio_dir = root / ".simplicio-loop"
     simplicio_dir.mkdir(parents=True, exist_ok=True)
     (simplicio_dir / "project-map.json").write_text(
         json.dumps(

@@ -41,7 +41,7 @@ class SnapshotCliTest(unittest.TestCase):
         with redirect_stdout(out):
             code = main(["snapshot", "build", "--root", str(self.root)])
         self.assertEqual(code, 0)
-        dest = self.root / ".simplicio" / "context-snapshot.json"
+        dest = self.root / ".simplicio-loop" / "context-snapshot.json"
         self.assertTrue(dest.is_file())
         snapshot = json.loads(dest.read_text(encoding="utf-8"))
         self.assertEqual(snapshot["schema"], "simplicio.context-snapshot/v1")
@@ -70,7 +70,7 @@ class SnapshotCliTest(unittest.TestCase):
         finally:
             os.chdir(cwd)
         self.assertEqual(code, 0)
-        self.assertTrue((self.root / ".simplicio" / "context-snapshot.json").is_file())
+        self.assertTrue((self.root / ".simplicio-loop" / "context-snapshot.json").is_file())
 
     def test_summary_without_prior_build_fails_with_guidance(self) -> None:
         err = StringIO()
@@ -85,13 +85,13 @@ class SnapshotCliTest(unittest.TestCase):
         with redirect_stdout(out):
             code = main(["snapshot", "summary", "--root", str(self.root)])
         self.assertEqual(code, 0)
-        dest = self.root / ".simplicio" / "context-snapshot.json"
+        dest = self.root / ".simplicio-loop" / "context-snapshot.json"
         snapshot = json.loads(dest.read_text(encoding="utf-8"))
         self.assertIn(snapshot["snapshot_id"][:16], out.getvalue())
 
     def test_validate_reports_ok_for_a_real_snapshot(self) -> None:
         main(["snapshot", "build", "--root", str(self.root)])
-        dest = self.root / ".simplicio" / "context-snapshot.json"
+        dest = self.root / ".simplicio-loop" / "context-snapshot.json"
         out = StringIO()
         with redirect_stdout(out):
             code = main(["snapshot", "validate", str(dest)])
@@ -100,7 +100,7 @@ class SnapshotCliTest(unittest.TestCase):
 
     def test_validate_reports_fail_for_a_broken_snapshot(self) -> None:
         main(["snapshot", "build", "--root", str(self.root)])
-        dest = self.root / ".simplicio" / "context-snapshot.json"
+        dest = self.root / ".simplicio-loop" / "context-snapshot.json"
         snapshot = json.loads(dest.read_text(encoding="utf-8"))
         del snapshot["snapshot_id"]
         dest.write_text(json.dumps(snapshot), encoding="utf-8")
@@ -122,8 +122,8 @@ class SnapshotCliTest(unittest.TestCase):
         with redirect_stdout(out):
             code = main(["snapshot", "dag", "--root", str(self.root)])
         self.assertEqual(code, 0)
-        self.assertTrue((self.root / ".simplicio" / "context-dag.json").is_file())
-        self.assertTrue((self.root / ".simplicio" / "context-dag-journal.jsonl").is_file())
+        self.assertTrue((self.root / ".simplicio-loop" / "context-dag.json").is_file())
+        self.assertTrue((self.root / ".simplicio-loop" / "context-dag-journal.jsonl").is_file())
 
     def test_dag_build_json_emits_journal_entry(self) -> None:
         out = StringIO()
@@ -147,7 +147,7 @@ class SnapshotCliTest(unittest.TestCase):
             code = main(["snapshot", "build", "--help"])
         self.assertEqual(code, 0)
         self.assertIn("usage", out.getvalue())
-        self.assertFalse((self.root / ".simplicio").exists())
+        self.assertFalse((self.root / ".simplicio-loop").exists())
 
     def test_bare_snapshot_help_has_no_build_side_effect(self) -> None:
         import os
@@ -162,7 +162,7 @@ class SnapshotCliTest(unittest.TestCase):
             os.chdir(cwd)
         self.assertEqual(code, 0)
         self.assertIn("usage", out.getvalue())
-        self.assertFalse((self.root / ".simplicio").exists())
+        self.assertFalse((self.root / ".simplicio-loop").exists())
 
     def test_unknown_option_is_rejected(self) -> None:
         err = StringIO()
@@ -180,7 +180,7 @@ class SnapshotCliTest(unittest.TestCase):
         self.assertEqual(code, 0)
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["schema"], "simplicio.context-snapshot/v1")
-        project_map = json.loads((self.root / ".simplicio" / "project-map.json").read_text(encoding="utf-8"))
+        project_map = json.loads((self.root / ".simplicio-loop" / "project-map.json").read_text(encoding="utf-8"))
         self.assertTrue(any(f["path"] == "src/extra.py" for f in project_map["files"]))
 
 

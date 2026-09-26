@@ -25,7 +25,7 @@ def _run(cmd, cwd, env=None):
 
 def test_issue_generates_deterministic_anchor_bound_challenge(tmp_path):
     repo = tmp_path / "repo"
-    loop = repo / ".simplicio/orchestrator" / "loop"
+    loop = repo / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
     (loop / "anchor.json").write_text(json.dumps({
         "goal_fp": "goal-1",
@@ -68,9 +68,9 @@ def test_issue_generates_deterministic_anchor_bound_challenge(tmp_path):
 
 def test_anchor_bound_challenge_stays_unverified_without_independent_receipt(tmp_path):
     repo = tmp_path / "repo"
-    loop = repo / ".simplicio/orchestrator" / "loop"
+    loop = repo / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
-    run_dir = repo / ".simplicio/orchestrator" / "runs" / "demo"
+    run_dir = repo / ".simplicio-loop/orchestrator" / "runs" / "demo"
     run_dir.mkdir(parents=True)
 
     (loop / "anchor.json").write_text(json.dumps({

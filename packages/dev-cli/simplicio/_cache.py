@@ -47,7 +47,7 @@ def _cache_root() -> Path:
     override = os.environ.get("SIMPLICIO_CACHE_DIR")
     if override:
         return Path(override)
-    return Path.home() / ".simplicio" / "cache"
+    return Path.home() / ".simplicio-loop" / "cache"
 
 
 def make_key(provider_id: str, model: str, prompt: str, **kwargs: Any) -> str:

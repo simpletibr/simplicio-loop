@@ -13,7 +13,7 @@ const patterns = [
   ["serialization-call", "JSON.parse"], ["serialization-call", "JSON.stringify"],
   ["protocol", "JSON-RPC"], ["protocol", "json-rpc"],
 ];
-const ignored = new Set([".git", "target", "node_modules", "vendor", ".venv", ".simplicio"]);
+const ignored = new Set([".git", "target", "node_modules", "vendor", ".venv", ".simplicio-loop"]);
 const exceptionCategories = new Set(["external-adapter", "historical-documentation", "legacy-internal", "scanner-self", "toolchain-mandated"]);
 const maxTextBytes = 4 * 1024 * 1024;
 

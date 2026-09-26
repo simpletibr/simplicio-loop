@@ -1,7 +1,7 @@
 """Token-savings ledger events (issue #174, "savings por verbo").
 
 Mirrors the shape `simplicio-dev-cli`'s `simplicio/observability.py`
-(`record_savings_event`) already writes to `.simplicio/ledger/savings-events.jsonl`
+(`record_savings_event`) already writes to `.simplicio-loop/ledger/savings-events.jsonl`
 -- read as a format reference only, no code imported from that repo. Every
 native-delegation decision in `simplicio_mapper.query` that actually took the
 native (Rust runtime) fast path instead of the local Python computation
@@ -118,7 +118,7 @@ def record_savings_event(
     extra: dict[str, Any] | None = None,
 ) -> Path | None:
     """Append one ``simplicio.savings-event/v1`` record to
-    ``<root>/.simplicio/ledger/savings-events.jsonl``.
+    ``<root>/.simplicio-loop/ledger/savings-events.jsonl``.
 
     Returns the path written to, or ``None`` if the ledger is disabled
     (``SIMPLICIO_DISABLE_RUN_LOG``) or the write failed (fails open --
@@ -146,7 +146,7 @@ def record_savings_event(
         payload["note"] = note
     if extra:
         payload["extra"] = extra
-    out = Path(root) / ".simplicio" / "ledger" / "savings-events.jsonl"
+    out = Path(root) / ".simplicio-loop" / "ledger" / "savings-events.jsonl"
     try:
         _append_jsonl(out, payload)
     except OSError:

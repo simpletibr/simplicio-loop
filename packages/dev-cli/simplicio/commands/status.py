@@ -66,8 +66,8 @@ def run(a: argparse.Namespace) -> int:
     from ..orchestrator.multi_task import BatchError, TaskBatch
 
     root = Path(a.root).resolve()
-    state_path = root / ".simplicio" / "sprint_state.json"
-    batch_path = root / ".simplicio" / "task_batch.json"
+    state_path = root / ".simplicio-loop" / "sprint_state.json"
+    batch_path = root / ".simplicio-loop" / "task_batch.json"
     batch_payload = None
     if batch_path.is_file():
         try:

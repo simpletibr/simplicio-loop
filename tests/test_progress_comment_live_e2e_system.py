@@ -80,7 +80,7 @@ def _run_progress_comment(issue, min_interval=0):
 
 
 def _reset_rate_limit_state():
-    state = os.path.join(REPO, ".simplicio/orchestrator", "loop", "progress_comment_state.json")
+    state = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop", "progress_comment_state.json")
     try:
         os.remove(state)
     except OSError:

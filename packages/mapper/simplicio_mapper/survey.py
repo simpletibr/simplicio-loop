@@ -201,7 +201,7 @@ def render_survey_markdown(survey: dict) -> str:
     lines += [
         "## 3. Mental map",
         "",
-        "_See `.simplicio/docs/architecture.md` for the full module dependency diagram._",
+        "_See `.simplicio-loop/docs/architecture.md` for the full module dependency diagram._",
         "",
         "## 4. Suggested reading order",
         "",
@@ -219,7 +219,7 @@ def render_survey_markdown(survey: dict) -> str:
         for flow in survey["top_flows"]:
             lines.append(f"| `{flow['id']}` | {flow['kind']} | {flow['effect_count']} |")
         lines.append("")
-        lines.append("_Full detail (steps, evidence, diagrams) in `.simplicio/docs/flows.md`._")
+        lines.append("_Full detail (steps, evidence, diagrams) in `.simplicio-loop/docs/flows.md`._")
     else:
         lines.append("No flows detected.")
     lines.append("")
@@ -230,7 +230,7 @@ def render_survey_markdown(survey: dict) -> str:
         f"- {summary['rules']} observable rule(s), {summary['state_machines']} state machine(s), "
         f"{summary['glossary_terms']} glossary term(s)."
     )
-    lines.append("_Full detail in `.simplicio/docs/business-flows.md`._")
+    lines.append("_Full detail in `.simplicio-loop/docs/business-flows.md`._")
     if survey["glossary"]:
         lines += ["", "| Term | Status |", "| --- | --- |"]
         for item in survey["glossary"][:20]:

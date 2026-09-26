@@ -148,11 +148,11 @@ class FlowInventoryTest(unittest.TestCase):
         self.assertEqual(code, 0)
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["schema"], FLOW_INVENTORY_SCHEMA)
-        inventory_path = app_dir / ".simplicio" / "flow-inventory.json"
-        doc_path = app_dir / ".simplicio" / "docs" / "flows.md"
+        inventory_path = app_dir / ".simplicio-loop" / "flow-inventory.json"
+        doc_path = app_dir / ".simplicio-loop" / "docs" / "flows.md"
         self.assertTrue(inventory_path.exists())
         self.assertTrue(doc_path.exists())
-        diagrams_dir = app_dir / ".simplicio" / "docs" / "diagrams" / "flows"
+        diagrams_dir = app_dir / ".simplicio-loop" / "docs" / "diagrams" / "flows"
         self.assertTrue(diagrams_dir.exists())
         self.assertTrue(list(diagrams_dir.glob("*.svg")))
 

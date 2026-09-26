@@ -223,7 +223,7 @@ def test_mapper_cli_route_does_not_construct_legacy_queue(tmp_path, monkeypatch,
     ]) == 0
     assert json.loads(capsys.readouterr().out)["schema"] == "mapper"
     assert calls == [("construct", database, False), ("status", None)]
-    assert not (tmp_path / ".simplicio/orchestrator/queue.sqlite3").exists()
+    assert not (tmp_path / ".simplicio-loop/orchestrator/queue.sqlite3").exists()
 
 
 def test_mapper_route_is_default_and_resolves_repo_scoped_store(tmp_path, monkeypatch, capsys):
@@ -246,8 +246,8 @@ def test_mapper_route_is_default_and_resolves_repo_scoped_store(tmp_path, monkey
     monkeypatch.setattr("simplicio_loop.local_task_queue_cli.MapperQueue", FakeMapperQueue)
     assert cli_main(["--repo", str(tmp_path), "status"]) == 0
     assert json.loads(capsys.readouterr().out)["schema"] == "mapper"
-    assert calls == [(str(tmp_path / ".simplicio/data/operations.sqlite"), False)]
-    assert not (tmp_path / ".simplicio/orchestrator/queue.sqlite3").exists()
+    assert calls == [(str(tmp_path / ".simplicio-loop/data/operations.sqlite"), False)]
+    assert not (tmp_path / ".simplicio-loop/orchestrator/queue.sqlite3").exists()
 
 
 def test_mapper_cli_rejects_legacy_only_actions(tmp_path, capsys):

@@ -78,7 +78,7 @@ class FastTaskBridge:
         self.root = Path(root).resolve()
         if not self.root.is_dir():
             raise ValueError("Fast bridge root must be a directory")
-        self.storage = Path(storage).resolve() if storage else self.root / ".simplicio" / "fast-storage"
+        self.storage = Path(storage).resolve() if storage else self.root / ".simplicio-loop" / "fast-storage"
         self._store_factory = store_factory or self._default_store
         self.config = dict(config or {})
         self.fast_version = fast_version

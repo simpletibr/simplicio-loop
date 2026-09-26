@@ -8,7 +8,7 @@ import hierarchical_planner as planner  # noqa: E402
 
 
 def _write_goal(root, goal):
-    loop = os.path.join(root, ".simplicio/orchestrator", "loop")
+    loop = os.path.join(root, ".simplicio-loop/orchestrator", "loop")
     os.makedirs(loop, exist_ok=True)
     with open(os.path.join(loop, "scratchpad.md"), "w", encoding="utf-8") as f:
         f.write("---\niteration: 1\nmax_iterations: 5\n---\n%s\n" % goal)

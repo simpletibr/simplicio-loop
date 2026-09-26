@@ -86,7 +86,7 @@ goal (vago) → de-vague step:
 
 - N features × N tasks × cli+ag
 - Custo escala MUITO — `--max-cost` é obrigatório
-- Estado salvo a cada task em `.simplicio/sprint_state.json` (resumível)
+- Estado salvo a cada task em `.simplicio-loop/sprint_state.json` (resumível)
 - Wall-clock pode passar horas — mensagem clara: "isso vai rodar X tempo, custar ~$Y, OK pressionar Enter?"
 
 #### scope=scratch (já existe — `simplicio-py scratch`)

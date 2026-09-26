@@ -29,7 +29,7 @@ def _run_mapper(root: Path) -> dict[str, Any]:
     result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
     if result.returncode:
         raise RuntimeError(result.stderr or result.stdout)
-    output = root / ".simplicio" / "visualization-bundle.json"
+    output = root / ".simplicio-loop" / "visualization-bundle.json"
     if not output.is_file():
         raise RuntimeError(f"mapper did not produce {output}")
     return json.loads(output.read_text(encoding="utf-8"))

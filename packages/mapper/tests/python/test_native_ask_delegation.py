@@ -70,7 +70,7 @@ class NativeAskDelegationTest(unittest.TestCase):
         return FAKE_BINARY if name == "simplicio" else shutil.which(name)
 
     def _ledger_path(self) -> Path:
-        return self.dir / ".simplicio" / "ledger" / "savings-events.jsonl"
+        return self.dir / ".simplicio-loop" / "ledger" / "savings-events.jsonl"
 
     # -- impact ------------------------------------------------------------
 

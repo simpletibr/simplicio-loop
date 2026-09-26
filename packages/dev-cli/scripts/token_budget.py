@@ -26,7 +26,7 @@ numbers.
 Tracked artifacts:
   - `AGENTS.md`, `CLAUDE.md` -- the cross-agent / Claude-specific contract
     docs every session reads first.
-  - `.simplicio/*.json` -- mapper survey artifacts, if this repo has been
+  - `.simplicio-loop/*.json` -- mapper survey artifacts, if this repo has been
     mapped locally (not committed; skipped when absent).
   - the largest modules under `simplicio/` an agent is likely to read
     whole while working a task: `providers.py`, `commands/claims.py`,
@@ -116,9 +116,9 @@ def _normalize_rel(path: str) -> str:
 
 
 def discover_mapper_artifacts(repo=REPO):
-    """`.simplicio/*.json` -- only present if this repo has been mapped
+    """`.simplicio-loop/*.json` -- only present if this repo has been mapped
     locally; not committed."""
-    pattern = os.path.join(repo, ".simplicio", "*.json")
+    pattern = os.path.join(repo, ".simplicio-loop", "*.json")
     out = []
     for p in sorted(glob.glob(pattern)):
         rel = _normalize_rel(os.path.relpath(p, repo))

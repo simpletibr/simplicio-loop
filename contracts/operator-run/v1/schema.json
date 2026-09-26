@@ -18,7 +18,7 @@
       "safety_policy"
     ],
     "field_types": {
-      "run_id": "string — the .simplicio/orchestrator/runs/<id> identifier",
+      "run_id": "string — the .simplicio-loop/orchestrator/runs/<id> identifier",
       "task_index": "integer >= 1 — position of the task in the task-contract collection",
       "task_id": "string — stable task identity from the task-contract",
       "ac_id": "string — acceptance-criterion id the decided change is scoped to",

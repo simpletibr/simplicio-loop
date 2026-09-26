@@ -36,7 +36,7 @@ def make_repo(tmp_path: Path) -> Path:
     (repo / "file.py").write_text("value = 1\n", encoding="utf-8")
     git(repo, "add", "file.py")
     git(repo, "commit", "-q", "-m", "init")
-    state = repo / ".simplicio/orchestrator" / "loop"
+    state = repo / ".simplicio-loop/orchestrator" / "loop"
     state.mkdir(parents=True)
     (state / "anchor.json").write_text(json.dumps({"delivery": {
         "schema": "simplicio.delivery-contract/v1",
@@ -57,7 +57,7 @@ def test_stop_guard_records_baseline_then_blocks_new_file(tmp_path: Path) -> Non
     reason = hook._delivery_stop_guard(str(repo), 2)
     assert reason is not None
     assert "new files" in reason
-    journal = repo / ".simplicio/orchestrator" / "loop" / "journal.jsonl"
+    journal = repo / ".simplicio-loop/orchestrator" / "loop" / "journal.jsonl"
     assert "delivery contract guard" in journal.read_text(encoding="utf-8")
 
 
@@ -75,7 +75,7 @@ def test_stop_guard_allows_non_code_comment_when_contract_is_strict(tmp_path: Pa
     repo = make_repo(tmp_path)
     hook = load_hook()
     assert hook._delivery_stop_guard(str(repo), 1) is None
-    anchor = repo / ".simplicio/orchestrator" / "loop" / "anchor.json"
+    anchor = repo / ".simplicio-loop/orchestrator" / "loop" / "anchor.json"
     payload = json.loads(anchor.read_text(encoding="utf-8"))
     payload["delivery"]["allow_new_files_in_repo"] = True
     anchor.write_text(json.dumps(payload), encoding="utf-8")

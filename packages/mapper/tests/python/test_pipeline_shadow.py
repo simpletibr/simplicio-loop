@@ -145,11 +145,11 @@ class RunShadowComparisonTest(unittest.TestCase):
 
     def test_configured_run_does_not_write_into_a_throwaway_shadow_dir(self) -> None:
         # The candidate profile's isolated temp output dir must never leak
-        # into the real `<root>/.simplicio` tree.
+        # into the real `<root>/.simplicio-loop` tree.
         before = set(os.listdir(self.root)) if self.root.exists() else set()
         run_shadow_comparison(str(self.root))
         after_dirs = {p for p in os.listdir(self.root) if os.path.isdir(self.root / p)}
-        self.assertEqual(after_dirs - before, {".simplicio"})
+        self.assertEqual(after_dirs - before, {".simplicio-loop"})
 
     def test_candidate_forcing_env_var_is_restored(self) -> None:
         os.environ.pop("SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES", None)
@@ -197,7 +197,7 @@ class RunShadowComparisonMismatchTest(unittest.TestCase):
     def test_reports_diffs_when_profiles_disagree(self) -> None:
         calls = {"n": 0}
 
-        def fake_build_artifacts(cwd, meta=None, incremental=False, output_dir=".simplicio"):
+        def fake_build_artifacts(cwd, meta=None, incremental=False, output_dir=".simplicio-loop"):
             calls["n"] += 1
             # First call is the real, configured-profile run; second call
             # is the forced candidate run into an isolated temp dir.
@@ -222,7 +222,7 @@ class WriteShadowReportTest(unittest.TestCase):
         path = write_shadow_report(
             str(self.dir), {"schema": SHADOW_SCHEMA, "equivalent_output": True}
         )
-        self.assertTrue(path.replace("\\", "/").endswith(".simplicio/" + SHADOW_REPORT_FILENAME))
+        self.assertTrue(path.replace("\\", "/").endswith(".simplicio-loop/" + SHADOW_REPORT_FILENAME))
         with open(path, encoding="utf-8") as handle:
             payload = json.load(handle)
         self.assertTrue(payload["equivalent_output"])

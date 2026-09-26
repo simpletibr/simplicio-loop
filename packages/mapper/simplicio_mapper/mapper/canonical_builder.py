@@ -138,7 +138,7 @@ class CanonicalBuildResult(NamedTuple):
 
 #: Logical artifact name -> filename inside the digest directory. Kept in
 #: sync with the artifact set ``write_mapping_artifacts`` would normally
-#: write under ``.simplicio/`` for a live worktree (architecture-inventory is
+#: write under ``.simplicio-loop/`` for a live worktree (architecture-inventory is
 #: derived documentation, not one of the four canonical artifacts the ADR's
 #: manifest tracks, so it is intentionally excluded here).
 #:

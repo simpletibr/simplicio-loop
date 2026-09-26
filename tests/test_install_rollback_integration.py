@@ -38,7 +38,7 @@ def _rollback(transaction_id, target, home):
 
 
 def _receipt_ids(target):
-    d = Path(target) / ".simplicio" / "receipts"
+    d = Path(target) / ".simplicio-loop" / "receipts"
     if not d.is_dir():
         return []
     return [p.stem for p in d.glob("*.json")]
@@ -51,7 +51,7 @@ def test_transactional_apply_produces_a_receipt_with_status_applied(tmp_path):
     assert r.returncode == 0, r.stdout + r.stderr
     ids = _receipt_ids(target)
     assert len(ids) == 1
-    receipt = json.loads((target / ".simplicio" / "receipts" / (ids[0] + ".json")).read_text())
+    receipt = json.loads((target / ".simplicio-loop" / "receipts" / (ids[0] + ".json")).read_text())
     assert receipt["schema"] == "simplicio.install-transaction/v1"
     assert receipt["status"] == "APPLIED"
 
@@ -107,7 +107,7 @@ def test_forced_mid_install_failure_rolls_back_and_leaves_no_partial_skills(tmp_
 
     ids = _receipt_ids(target)
     assert len(ids) == 1
-    receipt = json.loads((target / ".simplicio" / "receipts" / (ids[0] + ".json")).read_text())
+    receipt = json.loads((target / ".simplicio-loop" / "receipts" / (ids[0] + ".json")).read_text())
     assert receipt["status"] == "ROLLED_BACK"
 
 

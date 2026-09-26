@@ -21,7 +21,7 @@ class FastHandoffTest(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
-        out = self.root / ".simplicio"
+        out = self.root / ".simplicio-loop"
         out.mkdir()
         snapshot = {
             "schema": "simplicio.context-snapshot/v1",
@@ -132,7 +132,7 @@ class FastHandoffTest(unittest.TestCase):
         self.assertEqual(receipt["counters"]["fallback"], 1)
 
     def test_missing_corrupt_and_stale_artifacts_degrade_safely(self) -> None:
-        snapshot_path = self.root / ".simplicio" / "context-snapshot.json"
+        snapshot_path = self.root / ".simplicio-loop" / "context-snapshot.json"
         original = snapshot_path.read_text(encoding="utf-8")
         snapshot_path.write_text("{", encoding="utf-8")
         handoff, receipt = build_fast_handoff(str(self.root))
@@ -142,7 +142,7 @@ class FastHandoffTest(unittest.TestCase):
 
         snapshot_path.write_text(original, encoding="utf-8")
         build_fast_handoff(str(self.root))
-        (self.root / ".simplicio" / "project-map.json").write_text("{}\n", encoding="utf-8")
+        (self.root / ".simplicio-loop" / "project-map.json").write_text("{}\n", encoding="utf-8")
         valid, reason = verify_fast_handoff(str(self.root))
         self.assertFalse(valid)
         self.assertTrue(reason.startswith("checksum_mismatch:"))

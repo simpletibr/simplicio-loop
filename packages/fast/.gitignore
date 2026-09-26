@@ -1,6 +1,6 @@
-# Legacy Fast state; new generated state is rooted at .simplicio/fast/.
+# Legacy Fast state; new generated state is rooted at .simplicio-loop/fast/.
 .simplicio-fast/
-.simplicio/
+.simplicio-loop/
 .mapper-handoff.json
 coverage/
 .coverage

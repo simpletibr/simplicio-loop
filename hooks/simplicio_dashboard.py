@@ -39,11 +39,11 @@ except Exception:
     count_jsonl_lines = None
 # Structured savings file written by the capture engine — the primary data source.
 SAVINGS_JSON_CANDIDATES = [
-    Path(HOME) / ".simplicio" / "proxy_savings.json",
+    Path(HOME) / ".simplicio-loop" / "proxy_savings.json",
 ]
 # Raw proxy log (Simplicio-named first; engine dir kept for back-compat).
 LOG_CANDIDATES = [
-    Path(HOME) / ".simplicio" / "logs" / "proxy.log",
+    Path(HOME) / ".simplicio-loop" / "logs" / "proxy.log",
     Path(HOME) / ".simplicio-agent" / "logs" / "simplicio-proxy.log",
     Path(HOME) / ".hermes" / "logs" / "simplicio-proxy.log",  # legacy alias, compat window
 ]
@@ -742,7 +742,7 @@ def get_status():
 
     # Tolerant count (#127): a truncated/illegible line is counted separately, not folded into
     # the event total as if it were real data.
-    ledger = REPO_ROOT / ".simplicio" / "ledger" / "savings-events.jsonl"
+    ledger = REPO_ROOT / ".simplicio-loop" / "ledger" / "savings-events.jsonl"
     if ledger.exists() and count_jsonl_lines is not None:
         lc, ledger_corrupt = count_jsonl_lines(str(ledger))
     elif ledger.exists():
@@ -878,7 +878,7 @@ _RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 def _progress_root():
     configured = os.environ.get("SIMPLICIO_RUNS_DIR", "")
-    return Path(configured).expanduser() if configured else Path.cwd() / ".simplicio/orchestrator" / "runs"
+    return Path(configured).expanduser() if configured else Path.cwd() / ".simplicio-loop/orchestrator" / "runs"
 
 
 def _progress_response(run_id):

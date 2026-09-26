@@ -198,13 +198,13 @@
 
 ### Changed
 - Publish the current main line with the guarded Stage ABI mutation worker,
-  `.simplicio` state parity, and Fast provenance/changeset contracts.
+  `.simplicio-loop` state parity, and Fast provenance/changeset contracts.
 
 ## [0.16.4] - 2026-07-27
 
 ### Changed
 - Added the guarded Stage ABI mutation worker to the main release line.
-- Kept Dev CLI state and ecosystem artifacts under `.simplicio`.
+- Kept Dev CLI state and ecosystem artifacts under `.simplicio-loop`.
 - Continued the Fast provenance, atomic changeset, and fail-closed local-inference policy surfaces already present on main.
 
 ## [0.16.3] — 2026-07-25
@@ -321,7 +321,7 @@
   `file`, `test-run`), tagged with the route taken (`native`,
   `python-fallback`, `python-forced`) and, for a fallback, the reason.
   `simplicio.observability.native_delegation_summary()` aggregates
-  `.simplicio/events.jsonl` per verb; `simplicio-py doctor` (human and
+  `.simplicio-loop/events.jsonl` per verb; `simplicio-py doctor` (human and
   `--json`) now renders overall and per-verb native-routing percentages
   under `native_delegation`.
 - **Token/context budget guard wired into CI** (#111). `scripts/token_budget.py
@@ -406,7 +406,7 @@
   `simplicio-mapper`'s own `ask precedent` verb (which this mirrors): a
   valid but *empty* candidate list is also treated as "nothing gained" and
   falls through, rather than being trusted as a final answer, because the
-  native precedent-memory database (`.simplicio/precedents/*.sqlite`, built
+  native precedent-memory database (`.simplicio-loop/precedents/*.sqlite`, built
   from run history via `simplicio precedent index`) and this repo's
   `precedent-index.json` artifact are independent stores — an
   uninitialized native store must not shadow real candidates the
@@ -481,20 +481,20 @@
   non-uniform arrays (logged at DEBUG). Set `SIMPLICIO_PROMPT_TOON=0` to
   restore the legacy bullet rendering.
 - **`SIMPLICIO_LOG_ROOT`** — opt-in per-provider-call usage logging.
-  `generate()`/`planner_complete()` append one `.simplicio/runs.jsonl` event
+  `generate()`/`planner_complete()` append one `.simplicio-loop/runs.jsonl` event
   per call (cache hit or miss) when this points at a project root; token
   counts are labeled `usage_source: "provider"` when the SDK/endpoint
   reported real usage (Anthropic `usage.input_tokens`/`output_tokens`,
   OpenAI-compatible `usage.prompt_tokens`/`completion_tokens`) or
   `"estimated"` otherwise.
 - `simplicio.observability.record_savings_event()` — the producer side of
-  the `.simplicio/ledger/savings-events.jsonl` ledger (`simplicio.savings-
+  the `.simplicio-loop/ledger/savings-events.jsonl` ledger (`simplicio.savings-
   event/v1`), previously only hosted, never written, by this repo. TOON
   activation now emits one event per render call; the door is open for
   `#90`'s autoresearch template optimization to emit `source=autoresearch`
   events against the same ledger.
 - `simplicio-dev-cli memory init|store|recall` — cross-vendor memory
-  handoff, markdown + git under `~/.simplicio/memory/`
+  handoff, markdown + git under `~/.simplicio-loop/memory/`
   (`SIMPLICIO_MEMORY_DIR` to override). Deterministic keyword recall, no
   LLM call. Ports the P0 slice of the `ai-memory`
   (JesseBrown1980/ai-memory) pattern; FTS5/vector-hybrid recall and the
@@ -794,10 +794,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Default local execution now prefers `Qwen2.5-Coder-1.5B-Instruct-Q8_0`
-  with `Q6_K_L` fallback from `~/.simplicio/models/executor`.
+  with `Q6_K_L` fallback from `~/.simplicio-loop/models/executor`.
 - `simplicio task` now applies generated diffs through `git apply` before
   reporting success, propagates failed non-JSON runs with exit code `1`, and
-  records the extracted patch at `.simplicio/last_patch.diff`.
+  records the extracted patch at `.simplicio-loop/last_patch.diff`.
 - The patch gate accepts external `SIMPLICIO_TEST_CMD` evidence and retries
   Git hunk count mismatches with `git apply --recount`, making small local
   models usable in SendSprint/SimplicioCode flows without weakening Git's
@@ -853,7 +853,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.4] — 2026-05-30
 
 ### Added
-- Commit `.simplicio/project-map.json` and `.simplicio/precedent-index.json`
+- Commit `.simplicio-loop/project-map.json` and `.simplicio-loop/precedent-index.json`
   so downstream LLM executions can load the repository map directly.
 
 ## [0.4.3] — 2026-05-29
@@ -869,7 +869,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `simplicio task --dry-run-task --json` for SendSprint orchestration. It
   generates the would-be task output, returns the stable
   `{task_id, applied, files_changed, tokens_used, cost_usd, diff_summary,
-  warnings}` JSON contract, and does not write `.simplicio/last_output.txt` or
+  warnings}` JSON contract, and does not write `.simplicio-loop/last_output.txt` or
   run the test/apply loop.
 - `simplicio task --bound-paths <glob>` repeatable edit-surface guard. Generated
   diffs outside the allowed globs are refused before the test loop and reported
@@ -949,7 +949,7 @@ with the new versions installed.
     pooling and env-driven timeouts; `post_json()` helper.
   - `serialization.py` — orjson-backed `dumps` / `dumps_str` / `loads`,
     with stdlib `json` fallback so the import never breaks.
-  - `cache.py` — `diskcache` namespaces under `.simplicio/cache/` plus a
+  - `cache.py` — `diskcache` namespaces under `.simplicio-loop/cache/` plus a
     `memoize_disk(namespace=, ttl=)` decorator.
 - **`simplicio-core` Rust crate (closes #15, #17, #18):**
   - New `rust/simplicio-core/` with PyO3 0.22 + bumpalo. Build with
@@ -1001,8 +1001,8 @@ with the new versions installed.
 ## [0.3.0] — 2026-05-27
 
 ### Added
-- Real mapper consumption for `.simplicio/project-map.json` and
-  `.simplicio/precedent-index.json`, including relevant files, architecture
+- Real mapper consumption for `.simplicio-loop/project-map.json` and
+  `.simplicio-loop/precedent-index.json`, including relevant files, architecture
   signals, modules, recent changes, and fallback target inspection.
 - Structured precedent retrieval from the mapper `precedent-index.json` before
   falling back to embedding-based grep candidates.
@@ -1011,7 +1011,7 @@ with the new versions installed.
 - Pre-apply output validation, failure classification, and targeted retry
   feedback for syntax, assertion, dependency, timeout, runtime, and unknown
   failures.
-- Opt-in run observability at `.simplicio/runs.jsonl`, recording prompt
+- Opt-in run observability at `.simplicio-loop/runs.jsonl`, recording prompt
   variant, model/provider, estimated tokens, modes, targets, attempts, and
   failure class.
 
@@ -1150,7 +1150,7 @@ with the new versions installed.
   shipping `fpdf2>=2.7` for the PDF report. Install via `pip install -e ".[bench]"`.
 - Outputs `bench/results_4quadrant.{md,pdf,json}`, charts under
   `bench/charts/4q_*.svg`, raw per-iteration outputs under
-  `.simplicio/bench_4q/<model>/case_NN/q*_iter*.txt` for audit.
+  `.simplicio-loop/bench_4q/<model>/case_NN/q*_iter*.txt` for audit.
 
 ### Changed
 - `pyproject.toml` version bumped 0.2.7 → 0.2.8.
@@ -1358,7 +1358,7 @@ with the new versions installed.
 ### Added
 - Initial release of `simplicio-cli`.
 - Pipeline: mapper → precedent → skill-router → 6-layer prompt → verify loop.
-- Content-hash embedding cache under `.simplicio/`.
+- Content-hash embedding cache under `.simplicio-loop/`.
 - Provider-agnostic LLM client (any OpenAI-compatible endpoint + Anthropic native).
 - CLI commands: `index`, `task`, `bench`, `smoke`.
 

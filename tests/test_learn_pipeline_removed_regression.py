@@ -1,5 +1,5 @@
 """#69: the write-only learn pipeline (`hooks/learn_stop.py` enqueuing
-`.simplicio/orchestrator/learn/pending.jsonl`) had no consumer anywhere in the repo — markers went in,
+`.simplicio-loop/orchestrator/learn/pending.jsonl`) had no consumer anywhere in the repo — markers went in,
 nothing ever came out. Chosen fix: remove the producer everywhere (Option B from the issue) rather
 than build a consumer for a queue nothing reads. This pins that removal so the hook, and its
 wiring, cannot silently reappear half-wired.

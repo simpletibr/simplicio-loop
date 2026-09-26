@@ -57,7 +57,7 @@ python3 hooks/orient_clamp.py -- go test ./...     # reduced output, tee log on 
 ## 5. (Optional) Before an unattended 24/7 run
 
 Confirm source auth is persistent, keep the irreversible-op human gate + secret-scan on, and make
-sure the operator has a reachable STOP/cancel path (`.simplicio/orchestrator/STOP` or the runtime's native
+sure the operator has a reachable STOP/cancel path (`.simplicio-loop/orchestrator/STOP` or the runtime's native
 cancel command). The loop stops on its `max_iterations` cap, an evidence-gated `<promise>`,
 spindle handoff, or explicit STOP.
 

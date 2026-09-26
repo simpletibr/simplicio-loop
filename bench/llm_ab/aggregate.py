@@ -154,6 +154,24 @@ def savings(normal_value: float, simplicio_value: float) -> dict:
     return {"value": value, "pct": pct}
 
 
+def effort_counts(arm_data: dict) -> dict[str, int]:
+    """Count of ok LLM calls at each reasoning-effort value, across every
+    task's ``llm_calls`` (issue #1310 follow-up: per-phase reasoning-effort
+    hints). A call with no ``reasoning_effort`` (no hint was in hand yet, or
+    ``--effort-policy none``) is bucketed under the literal key
+    ``"default"`` -- no reasoning param was sent, so the model ran at its
+    own default. A failed call (``ok`` false) is skipped, same as
+    ``token_totals``."""
+    counts: dict[str, int] = {}
+    for task in arm_data.get("tasks", []):
+        for call in task.get("llm_calls", []):
+            if not call.get("ok"):
+                continue
+            effort = call.get("reasoning_effort") or "default"
+            counts[effort] = counts.get(effort, 0) + 1
+    return counts
+
+
 def task_wall(arm_data: dict) -> float:
     """Wall-clock seconds summed over the arm's (possibly kind-scoped) tasks."""
     return round(sum(t.get("wall_s") or 0 for t in arm_data.get("tasks", [])), 3)

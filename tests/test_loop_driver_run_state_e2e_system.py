@@ -15,7 +15,7 @@ copies `scripts/loop_progress.py` + its `_locked_append.py` dependency into the 
 `scripts/` dir, exactly like `test_loop_e2e.py._install_runtime_scripts` does for the planner/wiki
 scripts. Once copied there, `loop_progress.py`'s own `REPO = dirname(HERE)` resolves to the
 scratch root itself, so `progress.json`/`progress.jsonl`/`PROGRESS.md` land under
-`<root>/.simplicio/orchestrator/loop/` with zero env-var overrides needed — the same directory
+`<root>/.simplicio-loop/orchestrator/loop/` with zero env-var overrides needed — the same directory
 `hooks/loop_stop.py` uses for `anchor.json`/`scratchpad.md`.
 """
 import json
@@ -26,7 +26,7 @@ import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOOK = os.path.join(REPO, "hooks", "loop_stop.py")
-LOOP_DIR_REL = os.path.join(".simplicio/orchestrator", "loop")
+LOOP_DIR_REL = os.path.join(".simplicio-loop/orchestrator", "loop")
 
 SCRATCHPAD_TPL = """---
 iteration: {iteration}
@@ -75,7 +75,7 @@ def _write_watcher_pass(root, challenge="chal-1", goal_fp=""):
 
 
 def _seed_verified_run(root, run_id="r1"):
-    run_dir = os.path.join(root, ".simplicio/orchestrator", "runs", run_id)
+    run_dir = os.path.join(root, ".simplicio-loop/orchestrator", "runs", run_id)
     os.makedirs(run_dir, exist_ok=True)
     with open(os.path.join(run_dir, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump({"schema": "simplicio.run-manifest/v1", "run_id": run_id,

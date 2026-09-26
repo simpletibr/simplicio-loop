@@ -69,7 +69,7 @@ Kiro follow the protocol and honor the safety gates.
 ## Progresso do run
 
 Self-paced (N2, via specs): each tick echoes the turn-header. Universal fallback (N3): open
-`.simplicio/orchestrator/loop/PROGRESS.md` in the editor (auto-regenerated every turn).
+`.simplicio-loop/orchestrator/loop/PROGRESS.md` in the editor (auto-regenerated every turn).
 
 ## Ecosystem law (2026-08) — read on every host
 

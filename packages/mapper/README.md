@@ -16,7 +16,7 @@
   <strong><a href="video/assets/simplicio-mapper-ink-press.en.mp4">Watch the 36-second product film</a></strong>
 </p>
 
-`simplicio-mapper` is the mapping engine in the Simplicio ecosystem. It reads a codebase once, produces versioned artifacts under `.simplicio/`, and gives a human or an agent a small, explainable context pack instead of an unbounded dump of files. The result is useful for orientation, implementation planning, review, impact analysis, onboarding, and handoffs.
+`simplicio-mapper` is the mapping engine in the Simplicio ecosystem. It reads a codebase once, produces versioned artifacts under `.simplicio-loop/`, and gives a human or an agent a small, explainable context pack instead of an unbounded dump of files. The result is useful for orientation, implementation planning, review, impact analysis, onboarding, and handoffs.
 
 ## What it delivers
 
@@ -36,7 +36,7 @@ Requires Python 3.10 or newer.
 ```bash
 pip install -U simplicio-mapper
 
-# Create or refresh machine-readable artifacts in ./.simplicio
+# Create or refresh machine-readable artifacts in ./.simplicio-loop
 simplicio-mapper index . --json
 
 # Produce architecture docs from the artifacts
@@ -48,7 +48,7 @@ simplicio-mapper handoff . \
   --token-budget 1200 \
   --json
 ```
-By default, `handoff` and `orient` emit TOON for the LLM-facing context path. Use `--json` for machine-readable output or set `SIMPLICIO_TOON=0` to disable the default; canonical artifacts under `.simplicio/` remain JSON.
+By default, `handoff` and `orient` emit TOON for the LLM-facing context path. Use `--json` for machine-readable output or set `SIMPLICIO_TOON=0` to disable the default; canonical artifacts under `.simplicio-loop/` remain JSON.
 
 For a fast shallow skeleton before the deep pass, use `simplicio-mapper macro . --json`. For a repository whose files changed, use `simplicio-mapper sync . --check --json` to see whether artifacts are stale, then `simplicio-mapper sync . --json` to refresh only what the diff affects.
 
@@ -57,7 +57,7 @@ For a fast shallow skeleton before the deep pass, use `simplicio-mapper macro . 
 ```mermaid
 flowchart LR
   A[Repository] --> B[Map / index]
-  B --> C[.simplicio versioned artifacts]
+  B --> C[.simplicio-loop versioned artifacts]
   C --> D[ContextSnapshot and ContextGraph]
   D --> E[Task-aware retrieval]
   E --> F[Human or AI agent]
@@ -79,7 +79,7 @@ The diagram is deliberately a loop: mapping gives an agent a bounded starting po
 sequenceDiagram
   participant Operator as Human or agent
   participant CLI as simplicio-mapper handoff
-  participant Artifacts as .simplicio artifacts
+  participant Artifacts as .simplicio-loop artifacts
   participant Ranker as Task-aware retrieval
 
   Operator->>CLI: goal + token budget
@@ -152,7 +152,7 @@ stateDiagram-v2
 
 ```bash
 # Validate generated mapper artifacts against the public schemas
-simplicio-mapper contract validate .simplicio
+simplicio-mapper contract validate .simplicio-loop
 
 # Validate the repository contract fixtures
 simplicio-mapper doctor --contracts
@@ -194,7 +194,7 @@ simplicio-mapper → simplicio-runtime → simplicio-dev-cli → simplicio-loop
 MIT. See [LICENSE](LICENSE).
 
 <p align="center">
-  <a href="https://star-history.com/#simpletibr/simplicio-mapper&Date">
-    <img src="https://api.star-history.com/svg?repos=simpletibr/simplicio-mapper&type=Date" alt="Star history chart for simplicio-mapper">
+  <a href="https://star-history.com/#simpletibr/simplicio-loop&Date">
+    <img src="https://api.star-history.com/svg?repos=simpletibr/simplicio-loop&type=Date" alt="Star history chart for simplicio-loop">
   </a>
 </p>

@@ -471,7 +471,7 @@ def chk_release_version():
 
 def chk_map_service():
     """Report whether a live map receipt exists; missing Hub state uses standalone fallback."""
-    path = REPO / ".simplicio/orchestrator" / "map" / "build.json"
+    path = REPO / ".simplicio-loop/orchestrator" / "map" / "build.json"
     if not path.exists():
         return {"status": WARN, "tier": "OPTIONAL", "name": "map_service",
                 "msg": "no Hub map receipt; standalone map fallback is available"}

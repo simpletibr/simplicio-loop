@@ -115,7 +115,7 @@ MUTATIONS = [
     ("install_executor.py", "apply()",
      "wraps every one of the above FILE effects (skills/hooks/scripts/entry/claude_settings, "
      "+ `engine`/`app` in full-stack mode) with a pre-mutation backup + before/after hash + "
-     "persisted receipt under `<target>/.simplicio/receipts/<id>.json`; automatic rollback of "
+     "persisted receipt under `<target>/.simplicio-loop/receipts/<id>.json`; automatic rollback of "
      "every already-applied step if a later step raises",
      "project/user", "yes, byte-for-byte via `rollback()`",
      "governed entirely by the plan's `permissions_required` (see `install_plan.py`)"),

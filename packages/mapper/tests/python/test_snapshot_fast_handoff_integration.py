@@ -56,9 +56,9 @@ class SnapshotFastHandoffIntegrationTest(unittest.TestCase):
             index_result = self._cli(repo, launcher, "index", str(fixture), "--json")
             self.assertEqual(index_result.returncode, 0, index_result.stderr)
 
-            snapshot_path = fixture / ".simplicio" / "context-snapshot.json"
-            handoff_path = fixture / ".simplicio" / "fast-handoff.json"
-            handoff_receipt_path = fixture / ".simplicio" / "fast-handoff-receipt.json"
+            snapshot_path = fixture / ".simplicio-loop" / "context-snapshot.json"
+            handoff_path = fixture / ".simplicio-loop" / "fast-handoff.json"
+            handoff_receipt_path = fixture / ".simplicio-loop" / "fast-handoff-receipt.json"
 
             blocked = self._cli(repo, launcher, "fast-handoff", str(fixture))
             self.assertEqual(blocked.returncode, 2, blocked.stderr)
@@ -77,7 +77,7 @@ class SnapshotFastHandoffIntegrationTest(unittest.TestCase):
             self.assertRegex(snapshot["root_hash"], r"^[0-9a-f]{64}$")
             self.assertTrue(snapshot_path.is_file())
             self.assertEqual(json.loads(snapshot_path.read_text(encoding="utf-8")), snapshot)
-            backend_receipt_path = fixture / ".simplicio" / "fast-backend-receipt.json"
+            backend_receipt_path = fixture / ".simplicio-loop" / "fast-backend-receipt.json"
             self.assertTrue(backend_receipt_path.is_file())
             backend_receipt = json.loads(backend_receipt_path.read_text(encoding="utf-8"))
             self.assertEqual(

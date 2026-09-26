@@ -51,7 +51,7 @@ def _approx_tokens(text: str) -> int:
 
 
 def _measure(name: str) -> dict:
-    path = os.path.join(ROOT, ".simplicio", f"{name}.json")
+    path = os.path.join(ROOT, ".simplicio-loop", f"{name}.json")
     with open(path, encoding="utf-8") as handle:
         data = json.load(handle)
     json_compact = json.dumps(data, separators=(",", ":"))

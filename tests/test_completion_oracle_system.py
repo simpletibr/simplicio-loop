@@ -63,9 +63,9 @@ def _seed_loop(loop):
 
 
 def test_oracle_requires_matching_watcher_and_verified_evidence(tmp_path):
-    loop = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
-    run_dir = tmp_path / ".simplicio/orchestrator" / "runs" / "r1"
+    run_dir = tmp_path / ".simplicio-loop/orchestrator" / "runs" / "r1"
     run_dir.mkdir(parents=True)
     _seed_loop(loop)
     _seed_run(run_dir)
@@ -103,9 +103,9 @@ def test_oracle_requires_matching_watcher_and_verified_evidence(tmp_path):
 
 
 def test_oracle_blocks_when_anchor_is_missing_even_with_verified_receipts(tmp_path):
-    loop = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
-    run_dir = tmp_path / ".simplicio/orchestrator" / "runs" / "r1"
+    run_dir = tmp_path / ".simplicio-loop/orchestrator" / "runs" / "r1"
     run_dir.mkdir(parents=True)
     (loop / "scratchpad.md").write_text("---\ncompletion_promise: \"SIMPLICIO_DONE\"\n---\ngoal\n", encoding="utf-8")
     (loop / "watcher_challenge.json").write_text(json.dumps({
@@ -131,9 +131,9 @@ def test_oracle_blocks_when_anchor_is_missing_even_with_verified_receipts(tmp_pa
 
 
 def test_oracle_distinguishes_verified_from_merge_ready(tmp_path):
-    loop = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
-    run_dir = tmp_path / ".simplicio/orchestrator" / "runs" / "r1"
+    run_dir = tmp_path / ".simplicio-loop/orchestrator" / "runs" / "r1"
     run_dir.mkdir(parents=True)
     _seed_loop(loop)
     _seed_run(run_dir)
@@ -184,9 +184,9 @@ def test_oracle_distinguishes_verified_from_merge_ready(tmp_path):
 
 
 def test_oracle_requires_pr_receipt_fields_for_pr_open(tmp_path):
-    loop = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
-    run_dir = tmp_path / ".simplicio/orchestrator" / "runs" / "r1"
+    run_dir = tmp_path / ".simplicio-loop/orchestrator" / "runs" / "r1"
     run_dir.mkdir(parents=True)
     _seed_loop(loop)
     _seed_run(run_dir)
@@ -217,9 +217,9 @@ def test_oracle_requires_pr_receipt_fields_for_pr_open(tmp_path):
 
 
 def test_oracle_requires_merge_ready_source_requery_fields(tmp_path):
-    loop = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
-    run_dir = tmp_path / ".simplicio/orchestrator" / "runs" / "r1"
+    run_dir = tmp_path / ".simplicio-loop/orchestrator" / "runs" / "r1"
     run_dir.mkdir(parents=True)
     _seed_loop(loop)
     _seed_run(run_dir)
@@ -255,9 +255,9 @@ def test_oracle_requires_merge_ready_source_requery_fields(tmp_path):
 
 
 def test_oracle_requires_release_proofs_for_released_target(tmp_path):
-    loop = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
-    run_dir = tmp_path / ".simplicio/orchestrator" / "runs" / "r1"
+    run_dir = tmp_path / ".simplicio-loop/orchestrator" / "runs" / "r1"
     run_dir.mkdir(parents=True)
     _seed_loop(loop)
     _seed_run(run_dir)
@@ -329,9 +329,9 @@ def _seed_merge_ready_run(run_dir, head_sha="cafef00d"):
 def test_oracle_blocks_merge_ready_when_quality_matrix_has_no_commit_binding(tmp_path):
     """#290: a green #283 receipt that never declares which commit it covers must not
     satisfy `merge-ready` -- it could be stale evidence for an unrelated SHA."""
-    loop = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
-    run_dir = tmp_path / ".simplicio/orchestrator" / "runs" / "r1"
+    run_dir = tmp_path / ".simplicio-loop/orchestrator" / "runs" / "r1"
     run_dir.mkdir(parents=True)
     _seed_loop(loop)
     _seed_run(run_dir)
@@ -348,9 +348,9 @@ def test_oracle_blocks_merge_ready_when_quality_matrix_has_no_commit_binding(tmp
 def test_oracle_blocks_merge_ready_when_quality_matrix_commit_mismatches_delivery(tmp_path):
     """#290: #283 and #288/delivery evidence for two different SHAs must never both PASS
     the same merge-ready gate, even though each is green in isolation."""
-    loop = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
-    run_dir = tmp_path / ".simplicio/orchestrator" / "runs" / "r1"
+    run_dir = tmp_path / ".simplicio-loop/orchestrator" / "runs" / "r1"
     run_dir.mkdir(parents=True)
     _seed_loop(loop)
     _seed_run(run_dir)
@@ -368,9 +368,9 @@ def test_oracle_blocks_merge_ready_when_quality_matrix_commit_mismatches_deliver
 def test_oracle_completes_merge_ready_when_quality_matrix_commit_matches_delivery(tmp_path):
     """#290: once #283's receipt is bound to the same head sha the delivery receipt claims,
     the commit-binding gate passes and completion proceeds (no other gate blocks it here)."""
-    loop = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
-    run_dir = tmp_path / ".simplicio/orchestrator" / "runs" / "r1"
+    run_dir = tmp_path / ".simplicio-loop/orchestrator" / "runs" / "r1"
     run_dir.mkdir(parents=True)
     _seed_loop(loop)
     _seed_run(run_dir)
@@ -388,9 +388,9 @@ def test_oracle_completes_merge_ready_when_quality_matrix_commit_matches_deliver
 def test_oracle_commit_binding_gate_not_applicable_below_merge_ready(tmp_path):
     """#290: the commit-binding gate must not newly block pre-existing `verified`-target runs
     that never carried a head sha at all -- it only activates at merge-ready or above."""
-    loop = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
-    run_dir = tmp_path / ".simplicio/orchestrator" / "runs" / "r1"
+    run_dir = tmp_path / ".simplicio-loop/orchestrator" / "runs" / "r1"
     run_dir.mkdir(parents=True)
     _seed_loop(loop)
     _seed_run(run_dir)
@@ -415,9 +415,9 @@ def test_oracle_commit_binding_gate_not_applicable_below_merge_ready(tmp_path):
 
 
 def test_oracle_writes_completion_receipt_bound_to_run_and_challenge(tmp_path):
-    loop = tmp_path / ".simplicio/orchestrator" / "loop"
+    loop = tmp_path / ".simplicio-loop/orchestrator" / "loop"
     loop.mkdir(parents=True)
-    run_dir = tmp_path / ".simplicio/orchestrator" / "runs" / "r1"
+    run_dir = tmp_path / ".simplicio-loop/orchestrator" / "runs" / "r1"
     run_dir.mkdir(parents=True)
     _seed_loop(loop)
     _seed_run(run_dir)

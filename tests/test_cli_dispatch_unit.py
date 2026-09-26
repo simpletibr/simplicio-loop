@@ -308,11 +308,11 @@ def test_progress_missing_run_dir_returns_2(monkeypatch, capsys):
 
 def test_progress_streams_when_run_dir_present(monkeypatch):
     captured = {}
-    monkeypatch.setattr(cli, "read_status", lambda repo, run_id: {"run_dir": "/r/.simplicio/orchestrator/run-1"})
+    monkeypatch.setattr(cli, "read_status", lambda repo, run_id: {"run_dir": "/r/.simplicio-loop/orchestrator/run-1"})
     monkeypatch.setattr(cli, "stream_progress", lambda run_dir, **kw: captured.update(run_dir=run_dir, **kw))
     rc = cli.progress("/r", "run-1", "json", True, 0.5, no_animation=True, ascii_only=True)
     assert rc == 0
-    assert captured["run_dir"] == "/r/.simplicio/orchestrator/run-1"
+    assert captured["run_dir"] == "/r/.simplicio-loop/orchestrator/run-1"
     assert captured["fmt"] == "json"
     assert captured["ascii_only"] is True
 

@@ -95,7 +95,7 @@ def run(root: str | Path, size: str, samples: int) -> dict[str, Any]:
         started = time.perf_counter()
         from simplicio_mapper.mapper.emit import build_artifacts
 
-        build_artifacts(str(destination), output_dir=".simplicio")
+        build_artifacts(str(destination), output_dir=".simplicio-loop")
         samples_out.append({"sample": sample + 1, "wall_ms": (time.perf_counter() - started) * 1000})
     return {
         "schema": "simplicio.mapper-perf-run/v1",

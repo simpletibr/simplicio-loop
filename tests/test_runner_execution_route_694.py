@@ -61,8 +61,8 @@ def test_route_receipt_currentity_requires_verified_capability_identity():
 
 def test_route_receipt_identity_reaches_status_progress_delivery_and_completion(tmp_path):
     repo = tmp_path / "repo"
-    run = repo / ".simplicio" / "loop-runs" / "run-694"
-    loop = repo / ".simplicio/orchestrator" / "loop"
+    run = repo / ".simplicio-loop" / "loop-runs" / "run-694"
+    loop = repo / ".simplicio-loop/orchestrator" / "loop"
     run.mkdir(parents=True)
     loop.mkdir(parents=True)
     manifest = {"run_id": "run-694", "delivery_target": "implemented", "source_kind": "local"}

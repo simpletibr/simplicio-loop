@@ -34,12 +34,12 @@ def _toon_enabled() -> bool:
 
 
 PROJECT_MAP_CANDIDATES = (
-    ".simplicio/project-map.json",
+    ".simplicio-loop/project-map.json",
     "project-map.json",
     ".mapper/project-map.json",
 )
 PRECEDENT_INDEX_CANDIDATES = (
-    ".simplicio/precedent-index.json",
+    ".simplicio-loop/precedent-index.json",
     "precedent-index.json",
     ".mapper/precedent-index.json",
 )
@@ -737,7 +737,7 @@ def _native_precedent_search(
     but *empty* candidate list. Empty is deliberately treated the same as
     failure here (stricter than `simplicio-mapper`'s own `ask precedent`,
     which trusts an empty native answer as final): the native precedent
-    memory (`.simplicio/precedents/*.sqlite`, built from run history) and
+    memory (`.simplicio-loop/precedents/*.sqlite`, built from run history) and
     this module's `precedent-index.json` artifact are independent stores, so
     an empty/uninitialized native store must not shadow real candidates the
     artifact-file chain below might still have. Never raises.

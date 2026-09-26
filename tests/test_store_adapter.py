@@ -59,7 +59,7 @@ def test_runner_hookwall_route_uses_legacy_only_when_requested(monkeypatch, tmp_
     monkeypatch.setenv("SIMPLICIO_STORAGE_ROUTE", "legacy")
     monkeypatch.setattr(runner, "HookwallEffectLedger", FakeLedger)
     runner._hookwall_ledger(tmp_path)
-    assert selected == [(tmp_path / ".simplicio" / "orchestrator" / "hookwall.sqlite3", {})]
+    assert selected == [(tmp_path / ".simplicio-loop" / "orchestrator" / "hookwall.sqlite3", {})]
 
 
 def test_mapper_route_selects_installed_capabilities_without_creating_state(

@@ -48,7 +48,7 @@
   "generated_at": "1970-01-01T00:00:00.000Z",
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:0719a46597e5990c87bf1ae8085ed869885f9b4898a8f794d9373898b2686273",
+    "canonical_digest": "sha256:421ad8f9721a3630e2d7028c8493a6214c8b64f8d45bdbafc0b315181730380f",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
@@ -86,7 +86,7 @@
     "status": "not_required",
     "symbols": 0
   },
-  "source_symbol_index": ".simplicio/symbol-index.json",
+  "source_symbol_index": ".simplicio-loop/symbol-index.json",
   "unresolved": [
     {
       "kind": "import",

@@ -4,7 +4,7 @@
   "description": "The promise text matches EXACTLY and the watcher/anchor would both pass, but the turn's own text carries NO evidence marker (no PR link, no pass/green/ok, no file:line, no checkmark). evidence_required defaults true, so the promise MUST be ignored and the loop re-feeds instead of stopping. Only the evidence variable changed vs. evidence-gated-done/satisfied.",
   "harness": "hooks/loop_stop.py",
   "harness_invocation": {
-    "cwd": "this fixture's .simplicio/orchestrator/ tree copied into an isolated temp dir",
+    "cwd": "this fixture's .simplicio-loop/orchestrator/ tree copied into an isolated temp dir",
     "stdin": "stdin.json"
   },
   "expected": {
@@ -14,7 +14,7 @@
       "decision": "block"
     },
     "files_after": {
-      ".simplicio/orchestrator/loop/scratchpad.md": "present"
+      ".simplicio-loop/orchestrator/loop/scratchpad.md": "present"
     },
     "scratchpad_iteration_after": 3
   },

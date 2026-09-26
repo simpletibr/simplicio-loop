@@ -25,7 +25,7 @@ def test_layout_lists_core_banks() -> None:
 
 def test_absorb_all_from_legacy_home(tmp_path: Path) -> None:
     home = tmp_path / "home"
-    legacy = home / ".simplicio"
+    legacy = home / ".simplicio-loop"
     (legacy / "memory").mkdir(parents=True)
     (legacy / "ops").mkdir(parents=True)
     (legacy / "ledger").mkdir(parents=True)
@@ -89,7 +89,7 @@ def test_absorb_all_from_legacy_home(tmp_path: Path) -> None:
 
 def test_absorb_single_bank(tmp_path: Path) -> None:
     home = tmp_path / "h"
-    src = home / ".simplicio" / "runtime-resource-map.json"
+    src = home / ".simplicio-loop" / "runtime-resource-map.json"
     src.parent.mkdir(parents=True)
     src.write_text('{"ok":true}', encoding="utf-8")
     data_root = tmp_path / "d"

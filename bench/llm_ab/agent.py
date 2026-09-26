@@ -25,6 +25,44 @@ TAIL_CHARS = 8000
 
 SIMPLICIO_PREFIX = "simplicio-"
 
+VALID_EFFORTS = {"low", "medium", "high"}
+EFFORT_POLICIES = ("none", "hints")
+
+
+def parse_effort_hint(text: str | None) -> str | None:
+    """Best-effort extraction of the NEXT reasoning-effort hint from one
+    tool call's output text (issue #1310 follow-up).
+
+    ``simplicio-loop apply``'s top-level ``next_effort`` takes priority when
+    both parse from the same text; otherwise ``orient --brief``'s
+    ``effort.plan`` (the plan-phase hint for the turn that writes ops.json)
+    is used. Tolerates JSON embedded in surrounding text (finds the first
+    ``{``..last ``}`` span) and rejects anything outside
+    ``{"low", "medium", "high"}``. Returns ``None`` for plain text,
+    malformed JSON, or a value it doesn't recognize -- never guesses.
+    """
+    if not text:
+        return None
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return None
+    try:
+        parsed = json.loads(text[start:end + 1])
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    next_effort = parsed.get("next_effort")
+    if isinstance(next_effort, str) and next_effort in VALID_EFFORTS:
+        return next_effort
+    effort = parsed.get("effort")
+    if isinstance(effort, dict):
+        plan = effort.get("plan")
+        if isinstance(plan, str) and plan in VALID_EFFORTS:
+            return plan
+    return None
+
 BASH_TOOL = {
     "type": "function",
     "function": {
@@ -136,7 +174,8 @@ def summarize(llm_calls: list[dict], commands: list[dict]) -> dict:
 
 
 def run_agent(arm: str, system_prompt: str, user_prompt: str, repo_dir: str,
-              max_turns: int = 30, cmd_timeout: int = 180, env: dict | None = None) -> dict:
+              max_turns: int = 30, cmd_timeout: int = 180, env: dict | None = None,
+              effort_policy: str = "hints") -> dict:
     """Drive one agentic task to completion (or ``max_turns``) in ``repo_dir``.
 
     OpenAI-style tool-calling loop with the single ``bash`` tool: each turn,
@@ -145,6 +184,16 @@ def run_agent(arm: str, system_prompt: str, user_prompt: str, repo_dir: str,
     the truncated combined output as a ``tool`` message; stop when the
     assistant replies with no ``tool_calls`` (it is done) or ``max_turns``
     is reached.
+
+    ``effort_policy`` (issue #1310 follow-up, default ``"hints"``): before
+    each LLM call, the reasoning effort is the most recent
+    ``effort``/``next_effort`` hint parsed (``parse_effort_hint``) from a
+    simplicio tool output seen so far in this conversation -- or no
+    reasoning param at all until one is seen (the model's own default). The
+    normal arm never runs a command that prints such a hint, so it stays at
+    the model default throughout, naturally, with no per-arm branching here.
+    ``effort_policy="none"`` disables this entirely (always the model
+    default), for the A/B control.
 
     The subprocess ``PATH`` is the caller's environment with the venv bin
     holding ``simplicio-loop``/``simplicio-mapper``/``simplicio-dev-cli``/
@@ -165,11 +214,14 @@ def run_agent(arm: str, system_prompt: str, user_prompt: str, repo_dir: str,
     commands: list[dict] = []
     final_text = None
     turns = 0
+    current_effort_hint: str | None = None
 
     for turn in range(1, max_turns + 1):
         turns = turn
+        reasoning_effort = current_effort_hint if effort_policy == "hints" else None
+        chat_kwargs = {"reasoning_effort": reasoning_effort} if reasoning_effort else {}
         llm_result, _call_metrics = measure.measure_call(
-            lambda: lc.chat(arm, messages, temperature=0, tools=[BASH_TOOL])
+            lambda: lc.chat(arm, messages, temperature=0, tools=[BASH_TOOL], **chat_kwargs)
         )
         llm_calls.append({
             "turn": turn,
@@ -183,6 +235,7 @@ def run_agent(arm: str, system_prompt: str, user_prompt: str, repo_dir: str,
             "cost_usd": llm_result.get("cost_usd"),
             "finish_reason": llm_result.get("finish_reason"),
             "error": llm_result.get("error"),
+            "reasoning_effort": reasoning_effort,
         })
         if not llm_result.get("ok"):
             break
@@ -216,6 +269,9 @@ def run_agent(arm: str, system_prompt: str, user_prompt: str, repo_dir: str,
                 "tool_call_id": call.get("id"),
                 "content": tail if tail else "(no output)",
             })
+            hint = parse_effort_hint(out)
+            if hint:
+                current_effort_hint = hint
 
     return {
         "turns": turns,

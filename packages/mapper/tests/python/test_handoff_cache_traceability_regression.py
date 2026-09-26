@@ -93,7 +93,7 @@ def test_handoff_persists_mapper_receipts_and_reports_context_cache_hit_separate
 
     assert main(["map", "--root", str(tmp_path), "--silent"]) == 0
     assert main(["inspect", str(tmp_path), "--await", "--json"]) == 0
-    inspection_path = tmp_path / ".simplicio" / "map-inspection.json"
+    inspection_path = tmp_path / ".simplicio-loop" / "map-inspection.json"
     assert inspection_path.is_file()
     inspection = json.loads(inspection_path.read_text(encoding="utf-8"))
     assert inspection["schema"] == "simplicio.map-inspection/v1"
@@ -101,7 +101,7 @@ def test_handoff_persists_mapper_receipts_and_reports_context_cache_hit_separate
     snapshot_code, snapshot_stdout = _json_cli(["snapshot", "build", "--root", str(tmp_path), "--json"])
     assert snapshot_code == 0
     assert snapshot_stdout["schema"] == "simplicio.context-snapshot/v1"
-    snapshot_path = tmp_path / ".simplicio" / "context-snapshot.json"
+    snapshot_path = tmp_path / ".simplicio-loop" / "context-snapshot.json"
     assert snapshot_path.is_file()
     persisted_snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
     assert persisted_snapshot["snapshot_id"] == snapshot_stdout["snapshot_id"]
@@ -171,7 +171,7 @@ def test_handoff_persists_mapper_receipts_and_reports_context_cache_hit_separate
     assert fast["handoff"]["schema"] == "simplicio.mapper-fast-handoff/v1"
     assert fast["receipt"]["schema"] == "simplicio.mapper-fast-handoff-receipt/v1"
     assert fast["receipt"]["status"] in {"parsed", "reused"}
-    fast_receipt_path = tmp_path / ".simplicio" / "fast-handoff-receipt.json"
+    fast_receipt_path = tmp_path / ".simplicio-loop" / "fast-handoff-receipt.json"
     assert fast_receipt_path.is_file()
     persisted_fast_receipt = json.loads(fast_receipt_path.read_text(encoding="utf-8"))
     assert persisted_fast_receipt["handoff_sha256"] == fast["receipt"]["handoff_sha256"]

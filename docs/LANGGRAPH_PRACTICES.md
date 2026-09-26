@@ -21,7 +21,7 @@ core path (which would conflict with Runtime ownership of MCP/gates/effects).
 | `interrupt` / HITL | Action Gate + states HELD / CANCELLED / promotion fence | Aligned |
 | No concurrent `thread_id` writers | Overlay exclusivity + fence | Aligned |
 | Separate resume call (no nest) | Loop drain / self-paced tick re-reads scratchpad + checkpoint | Aligned |
-| Durable storage | File JSON under `.simplicio/loop-runs/…` (atomic write + fsync) | Aligned (local) |
+| Durable storage | File JSON under `.simplicio-loop/loop-runs/…` (atomic write + fsync) | Aligned (local) |
 | Postgres/SQLite checkpointer package | Not used; MapperStore owns **global memory**, not loop attempt state | Intentional split |
 | Embed LangGraph runtime | **Out of scope** for core — Runtime is Rust | Do not adopt |
 

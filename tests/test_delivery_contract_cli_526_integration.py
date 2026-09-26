@@ -8,7 +8,7 @@
   * `scripts/delivery_contract.py` subcommands driven as a real subprocess against a real git repo.
 
 Uses the same subprocess + `SIMPLICIO_ANCHOR_FILE`/env-override isolation pattern as
-`tests/test_intake_progress.py` so nothing here ever touches this repo's own `.simplicio/orchestrator/`.
+`tests/test_intake_progress.py` so nothing here ever touches this repo's own `.simplicio-loop/orchestrator/`.
 """
 import json
 import os

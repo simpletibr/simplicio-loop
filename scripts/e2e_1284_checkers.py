@@ -137,7 +137,7 @@ def main() -> None:
         ],
         check=False,
     )
-    call_graph = json.loads((ROOT / ".simplicio" / "call-graph.json").read_text())
+    call_graph = json.loads((ROOT / ".simplicio-loop" / "call-graph.json").read_text())
     excepts = [edge for edge in call_graph.get("edges", []) if edge.get("queried_symbol") == "except"]
     unknowns = [
         edge for edge in call_graph.get("edges", []) if edge.get("resolution_status") in {None, "unknown"}

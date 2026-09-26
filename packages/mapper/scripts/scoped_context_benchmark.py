@@ -81,7 +81,7 @@ def main() -> int:
         (root / "src/caller.py").write_text("from src.target import value\n", encoding="utf-8")
         (root / "tests/test_target.py").write_text("def test_target(): pass\n", encoding="utf-8")
         (root / "pyproject.toml").write_text("[build-system]\n", encoding="utf-8")
-        artifact_dir = root / ".simplicio"
+        artifact_dir = root / ".simplicio-loop"
         artifact_dir.mkdir()
         files = [{"path": path} for path in ("src/target.py", "src/helper.py", "src/caller.py", "tests/test_target.py", "pyproject.toml")]
         (artifact_dir / "project-map.json").write_text(json.dumps({"files": files}), encoding="utf-8")

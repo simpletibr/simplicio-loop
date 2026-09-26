@@ -54,7 +54,7 @@ def _approx_tokens(text: str) -> int:
 def score() -> int:
     total = 0
     for name in ARTIFACTS:
-        path = os.path.join(ROOT, ".simplicio", f"{name}.json")
+        path = os.path.join(ROOT, ".simplicio-loop", f"{name}.json")
         with open(path, encoding="utf-8") as handle:
             data = json.load(handle)
         total += _approx_tokens(encode_toon(data))

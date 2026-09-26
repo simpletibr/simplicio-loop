@@ -1,4 +1,4 @@
-"""Serialization layer: assembles ``.simplicio/*.json`` artifacts
+"""Serialization layer: assembles ``.simplicio-loop/*.json`` artifacts
 (project-map, precedent-index, architecture-inventory, symbol-index,
 call-graph) from ``.parse``/``.graph`` output, writes them + the
 rendered markdown/SVG architecture docs to disk. Split from the
@@ -104,7 +104,7 @@ _ASYNC_PIPELINE_MIN_FILES_ENV = "SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES"
 _DEFAULT_ASYNC_PIPELINE_MIN_FILES = 600
 
 
-def _async_pipeline_min_files(cwd: str | None = None, output_dir: str = ".simplicio") -> int:
+def _async_pipeline_min_files(cwd: str | None = None, output_dir: str = ".simplicio-loop") -> int:
     """Return the calibrated threshold retained in the execution receipt.
 
     Resolution order (issue #279 Phase-0: local per-machine calibration,
@@ -163,7 +163,7 @@ def _fast_file_count(cwd: str, cap: int) -> int:
 
 
 def _build_artifacts_sync(cwd: str, meta: dict | None = None, incremental: bool = False,
-                           output_dir: str = ".simplicio") -> dict:
+                           output_dir: str = ".simplicio-loop") -> dict:
     """Original, fully-synchronous pipeline (pre-issue-#235 behavior).
 
     Kept side-by-side with the async pipeline (`async_pipeline.build_artifacts_async`)
@@ -248,7 +248,7 @@ def _build_artifacts_sync(cwd: str, meta: dict | None = None, incremental: bool 
         ],
         "changed_files": changed_files,
         "integration": {
-            "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",
+            "dev_cli_mapper": "read .simplicio-loop/project-map.json, then use .simplicio-loop/precedent-index.json for task-specific examples",
             "contract": "SIMPLICIO_INTEGRATION.md",
             "llm_directives": LLM_DIRECTIVES,
         },
@@ -259,7 +259,7 @@ def _build_artifacts_sync(cwd: str, meta: dict | None = None, incremental: bool 
         "schema": PRECEDENT_SCHEMA,
         "version": ARTIFACT_VERSION,
         "generated_at": generated_at,
-        "source_project_map": ".simplicio/project-map.json",
+        "source_project_map": ".simplicio-loop/project-map.json",
         "items": _build_precedent_items(abs_cwd, files, contents=contents),
     }
 
@@ -297,8 +297,8 @@ def _build_artifacts_sync(cwd: str, meta: dict | None = None, incremental: bool 
 
 
 def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = False,
-                    output_dir: str = ".simplicio") -> dict:
-    """Build every `.simplicio/*.json` artifact for *cwd*.
+                    output_dir: str = ".simplicio-loop") -> dict:
+    """Build every `.simplicio-loop/*.json` artifact for *cwd*.
 
     Every normal ``auto`` run uses the bounded-concurrency async pipeline
     (`async_pipeline.build_artifacts_async`, driven to completion via
@@ -347,7 +347,7 @@ def _write_json_stable(file: str, data: Any) -> None:
     os.replace(tmp, file)
 
 def write_mapping_artifacts(cwd: str, meta: dict | None = None, incremental: bool = False,
-                            output_dir: str = ".simplicio",
+                            output_dir: str = ".simplicio-loop",
                             log: Callable[[str], None] | None = None) -> dict:
     log = log or (lambda _line: None)
     abs_cwd = os.path.abspath(cwd or os.getcwd())
@@ -483,7 +483,7 @@ def _render_architecture_overview(inventory: dict, symbol_index: dict, call_grap
     lines = [
         f"# {product.get('name') or 'Project'} Architecture Inventory",
         "",
-        "Generated from `.simplicio` machine-readable artifacts. Statements below are derived from repository structure, imports, symbols and deterministic heuristics.",
+        "Generated from `.simplicio-loop` machine-readable artifacts. Statements below are derived from repository structure, imports, symbols and deterministic heuristics.",
         "",
         "## Coverage",
         "",
@@ -630,7 +630,7 @@ def _global_diagram_svgs(inventory: dict, call_graph: dict) -> dict[str, str]:
         )["svg"]
     return extras
 
-def write_architecture_docs(cwd: str, output_dir: str = ".simplicio",
+def write_architecture_docs(cwd: str, output_dir: str = ".simplicio-loop",
                             docs_dir: str | None = None) -> dict:
     abs_cwd = os.path.abspath(cwd or os.getcwd())
     abs_out = os.path.abspath(os.path.join(abs_cwd, output_dir))
@@ -680,7 +680,7 @@ def write_architecture_docs(cwd: str, output_dir: str = ".simplicio",
         },
     }
 
-def export_architecture_docs(cwd: str, target_dir: str, output_dir: str = ".simplicio") -> dict:
+def export_architecture_docs(cwd: str, target_dir: str, output_dir: str = ".simplicio-loop") -> dict:
     if not target_dir:
         raise ValueError("--target is required for export-docs")
     docs = write_architecture_docs(cwd, output_dir=output_dir)

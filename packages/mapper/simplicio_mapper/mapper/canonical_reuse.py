@@ -80,7 +80,7 @@ RECEIPT_SCHEMA = "simplicio.canonical-reuse-receipt/v1"
 RECEIPT_SCHEMA_VERSION = 1
 
 #: Filename the receipt is additionally persisted under, inside the mapper's
-#: own output dir (``.simplicio/`` by default) -- alongside the artifacts it
+#: own output dir (``.simplicio-loop/`` by default) -- alongside the artifacts it
 #: describes, so an operator inspecting a worktree after the fact sees the
 #: hit/miss/fallback evidence without needing to re-run anything.
 RECEIPT_FILE_NAME = "canonical-reuse-receipt.json"
@@ -132,7 +132,7 @@ def compute_config_fingerprint(meta: dict | None, out: str) -> str:
 
 
 def _out_dir_prefix(out: str) -> str:
-    """Normalize ``out`` (e.g. ``".simplicio"``) to a ``"prefix/"`` match string."""
+    """Normalize ``out`` (e.g. ``".simplicio-loop"``) to a ``"prefix/"`` match string."""
     rel = out.replace("\\", "/").strip("/")
     return f"{rel}/" if rel else ""
 
@@ -148,8 +148,8 @@ def _overlay_is_trivial(overlay: WorktreeOverlay, canonical_commit_sha: str, out
     """Whether ``overlay`` represents "no delta at all" against the canonical base.
 
     Deliberately ignores changes confined entirely to the mapper's own
-    ``out`` directory (e.g. a freshly created ``.simplicio/index.lock`` or
-    ``.simplicio/cache/`` before this very run wrote anything) -- those are
+    ``out`` directory (e.g. a freshly created ``.simplicio-loop/index.lock`` or
+    ``.simplicio-loop/cache/`` before this very run wrote anything) -- those are
     an artifact of running the mapper itself, not a real divergence from the
     canonical commit, and would otherwise make ``git status`` report the
     worktree as permanently "dirty" the very first time a caller opts in,

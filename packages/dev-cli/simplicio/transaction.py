@@ -128,7 +128,7 @@ def _tree_digest(root: Path, paths: Iterable[str] | None = None) -> str:
     selected = sorted({_relative(path) for path in paths}) if paths is not None else None
     if selected is None:
         for item in root.rglob("*"):
-            if item.is_file() and ".git" not in item.parts and ".simplicio" not in item.parts:
+            if item.is_file() and ".git" not in item.parts and ".simplicio-loop" not in item.parts:
                 selected = selected or []
                 selected.append(item.relative_to(root).as_posix())
         selected = sorted(set(selected or []))
@@ -410,7 +410,7 @@ def begin_transaction(
     candidate_path.mkdir(parents=True, exist_ok=True)
     tx_id = transaction_id or f"tx-{uuid.uuid4().hex}"
     base_sha = _tree_digest(root_path)
-    journal = root_path / ".simplicio" / "transactions" / f"{tx_id}.jsonl"
+    journal = root_path / ".simplicio-loop" / "transactions" / f"{tx_id}.jsonl"
     tx = Transaction(root_path, candidate_path, tx_id, dirty_policy, base_sha, base_sha, journal)
     tx._append("begin", dirty_policy=dirty_policy, base_sha=base_sha, candidate=str(candidate_path))
     return tx

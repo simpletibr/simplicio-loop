@@ -38,7 +38,7 @@ def run_live(
         from .economy_profile import recommend_operator_workers
         max_workers = recommend_operator_workers()
     batch = hashlib.sha256(request.encode("utf-8")).hexdigest()[:16]
-    journal_dir = root / ".simplicio" / "tasks-run" / batch / "journals"
+    journal_dir = root / ".simplicio-loop" / "tasks-run" / batch / "journals"
     cancel_path = journal_dir / "cancel.json"
     if dry_run:
         if cancel:
@@ -98,7 +98,7 @@ def run_live(
         agent_command, str(journal_dir), host_total_slots=max_workers + 1
     )
     intent = parse_natural_drain_request(request)
-    checkpoint_path = checkpoint or str(root / ".simplicio" / "tasks-run" / batch / "intake.json")
+    checkpoint_path = checkpoint or str(root / ".simplicio-loop" / "tasks-run" / batch / "intake.json")
     source = source_factory(intent.owner, intent.repo, publish_comment_fn=_forbidden_publish)
     intake = intake_factory(source=source, checkpoint=checkpoint_path, workspace=str(root), map_reader=ReadOnlyLocalGitMap())
     materializer = materializer_factory(str(root))
@@ -106,7 +106,7 @@ def run_live(
 
     def contracts(plan):
         rows = materializer(plan)
-        queue = queue_factory(repo_root=str(root), run_id=f"tasks-{batch}", state_path=str(root / ".simplicio" / "tasks-run" / batch / "worktree-queue.json"), worktree_root=str(root / ".simplicio" / "tasks-worktrees" / batch))
+        queue = queue_factory(repo_root=str(root), run_id=f"tasks-{batch}", state_path=str(root / ".simplicio-loop" / "tasks-run" / batch / "worktree-queue.json"), worktree_root=str(root / ".simplicio-loop" / "tasks-worktrees" / batch))
         specs = [TaskSpec(id=row["task_id"], goal=row["task_spec"]["goal"], files_affected=list(row["task_spec"]["files_affected"])) for row in rows]
         queue.register_tasks(specs)
         holder["orchestrator"].worktree_queue = queue

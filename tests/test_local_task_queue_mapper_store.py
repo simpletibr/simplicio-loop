@@ -22,8 +22,8 @@ def test_local_task_queue_uses_mapper_operations_and_replays_outcomes(tmp_path):
     assert receipt["digest"].startswith("sha256:")
 
     restarted = LocalTaskQueue(tmp_path)
-    assert restarted.path.endswith(".simplicio/data/operations.sqlite")
-    assert not (tmp_path / ".simplicio/orchestrator/queue.sqlite3").exists()
+    assert restarted.path.endswith(".simplicio-loop/data/operations.sqlite")
+    assert not (tmp_path / ".simplicio-loop/orchestrator/queue.sqlite3").exists()
     assert restarted.inspect_local("a")["outcome"]["outcome"] == "verified_success"
     assert restarted.claim_local("b", "worker-2", idempotency_key="b-2").task_id == "b"
     replay = restarted._operations.replay(restarted._journal_id)

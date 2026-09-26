@@ -70,8 +70,8 @@ class IncrementalDeltaTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "repo"
             copytree(source, root)
-            (root / ".simplicio").mkdir(exist_ok=True)
-            (root / ".simplicio" / "graph-snapshot.json").write_text('{"schema":"old/v0","revision":"r9"}', encoding="utf-8")
+            (root / ".simplicio-loop").mkdir(exist_ok=True)
+            (root / ".simplicio-loop" / "graph-snapshot.json").write_text('{"schema":"old/v0","revision":"r9"}', encoding="utf-8")
             result = run_incremental_scan(str(root))
             self.assertEqual(result["event_type"], "resync_required")
             self.assertTrue(result["fallback"]["required"])

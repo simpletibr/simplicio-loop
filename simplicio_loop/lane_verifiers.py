@@ -124,7 +124,7 @@ def _changed_paths_from_applied_receipts(run_dir: Path, task_count: int) -> list
     callers must treat an empty result as "unknown", never as "all non-code".
 
     ``changed_paths`` is a whole-repo git diff, not scoped to the plan's own
-    ``touched_files`` -- it always includes ``.simplicio/`` bookkeeping (Mapper
+    ``touched_files`` -- it always includes ``.simplicio-loop/`` bookkeeping (Mapper
     caches, run receipts, the ledger, ...). That is the loop's own machinery,
     never part of the delivery being classified, so it is excluded here the
     same way ``simplicio_loop.evidence._git_meta`` already excludes it from
@@ -150,7 +150,7 @@ def _changed_paths_from_applied_receipts(run_dir: Path, task_count: int) -> list
                 normalized = candidate.replace("\\", "/")
                 if normalized.startswith("./"):
                     normalized = normalized[2:]
-                if normalized == ".simplicio" or normalized.startswith(".simplicio/"):
+                if normalized == ".simplicio-loop" or normalized.startswith(".simplicio-loop/"):
                     continue
                 paths.append(candidate)
     return paths

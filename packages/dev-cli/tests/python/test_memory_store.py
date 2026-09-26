@@ -20,7 +20,7 @@ def _isolated_home(tmp_path, monkeypatch):
 def test_memory_dir_defaults_under_home(monkeypatch, tmp_path):
     home = tmp_path / "home"
     monkeypatch.setenv("HOME", str(home))
-    assert memory_store.memory_dir() == home / ".simplicio" / "memory"
+    assert memory_store.memory_dir() == home / ".simplicio-loop" / "memory"
 
 
 def test_memory_dir_honors_override(monkeypatch, tmp_path):

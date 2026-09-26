@@ -73,7 +73,7 @@ def get_key(arm: str) -> str:
 
 def chat(arm: str, messages: list[dict], temperature: float = 0,
          max_tokens: int | None = None, timeout: int = DEFAULT_TIMEOUT,
-         tools: list[dict] | None = None) -> dict:
+         tools: list[dict] | None = None, reasoning_effort: str | None = None) -> dict:
     """Call OpenRouter chat completions. Returns a dict with content + metrics.
 
     ``max_tokens=None`` (the default) omits the field entirely from the
@@ -83,6 +83,13 @@ def chat(arm: str, messages: list[dict], temperature: float = 0,
     ``tools`` (OpenAI-style tool definitions) is passed through verbatim when
     given, enabling tool-calling; the returned dict's ``message`` key then
     carries the raw assistant message, including any ``tool_calls``.
+
+    ``reasoning_effort`` (``"low"``/``"medium"``/``"high"``), when given,
+    sends OpenRouter's ``"reasoning": {"effort": <x>}`` block -- the
+    per-phase hint the simplicio arm honors (see ``agent.py``). ``None``
+    (the default) omits the ``reasoning`` field entirely, so the model runs
+    at its own default effort -- exactly what the normal arm gets, since it
+    never sees a hint to pass.
 
     Never raises the API key into the return value or an exception message.
     """
@@ -97,6 +104,8 @@ def chat(arm: str, messages: list[dict], temperature: float = 0,
         body["max_tokens"] = max_tokens
     if tools:
         body["tools"] = tools
+    if reasoning_effort:
+        body["reasoning"] = {"effort": reasoning_effort}
     data = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(
         API_URL,

@@ -581,7 +581,7 @@ def test_status_reports_missing_state(tmp_path, monkeypatch, capsys):
 def test_status_json_includes_mapper_artifacts(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     _write(
-        tmp_path / ".simplicio" / "sprint_state.json",
+        tmp_path / ".simplicio-loop" / "sprint_state.json",
         json.dumps(
             {
                 "scope": "sprint",
@@ -596,7 +596,7 @@ def test_status_json_includes_mapper_artifacts(tmp_path, monkeypatch, capsys):
         ),
     )
     _write(
-        tmp_path / ".simplicio" / "project-map.json",
+        tmp_path / ".simplicio-loop" / "project-map.json",
         json.dumps(
             {
                 "schema": "project-map/v1",
@@ -621,7 +621,7 @@ def test_status_json_includes_mapper_artifacts(tmp_path, monkeypatch, capsys):
 def test_status_json_reports_task_batch_when_present_without_sprint_state(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     _write(
-        tmp_path / ".simplicio" / "task_batch.json",
+        tmp_path / ".simplicio-loop" / "task_batch.json",
         json.dumps(
             {
                 "schema": "simplicio.dev-cli.task-batch/v1",
@@ -670,7 +670,7 @@ def test_inspect_command_returns_mapper_backed_json(tmp_path, monkeypatch, capsy
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     _write(tmp_path / "src" / "app.py", "import os\n")
     _write(
-        tmp_path / ".simplicio" / "project-map.json",
+        tmp_path / ".simplicio-loop" / "project-map.json",
         json.dumps(
             {
                 "schema": "project-map/v1",
@@ -699,7 +699,7 @@ def test_inspect_command_returns_mapper_backed_json(tmp_path, monkeypatch, capsy
 
 def test_status_json_reports_invalid_state_file(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
-    _write(tmp_path / ".simplicio" / "sprint_state.json", "{invalid json")
+    _write(tmp_path / ".simplicio-loop" / "sprint_state.json", "{invalid json")
 
     code = cli.main(["status", "--root", str(tmp_path), "--json"])
 
@@ -725,7 +725,7 @@ def test_status_text_reports_state_and_cost(tmp_path, monkeypatch, capsys):
             "cost": {"spent_usd": "0.25", "budget_usd": "1"},
         }
         payload.update(overrides)
-        _write(root / ".simplicio" / "sprint_state.json", json.dumps(payload))
+        _write(root / ".simplicio-loop" / "sprint_state.json", json.dumps(payload))
 
     complete_root = tmp_path / "complete"
     write_state(complete_root, state="complete", completed_features=2, complete=True)
@@ -787,7 +787,7 @@ def test_run_scope_sprint_rejects_empty_sprint(tmp_path, monkeypatch, capsys):
 
     assert code == 2
     assert "sprint has no task specs" in capsys.readouterr().err
-    state = json.loads((tmp_path / ".simplicio" / "sprint_state.json").read_text(encoding="utf-8"))
+    state = json.loads((tmp_path / ".simplicio-loop" / "sprint_state.json").read_text(encoding="utf-8"))
     assert state["state"] == "failed"
     assert state["complete"] is False
     assert state["total_features"] == 0
@@ -834,7 +834,7 @@ def test_run_scope_sprint_resumes_completed_features(tmp_path, monkeypatch, caps
         "# Reports\n\n## Goal\nImplement reports\n",
         encoding="utf-8",
     )
-    state_dir = tmp_path / ".simplicio"
+    state_dir = tmp_path / ".simplicio-loop"
     state_dir.mkdir()
     (state_dir / "sprint_state.json").write_text(
         json.dumps(
@@ -915,7 +915,7 @@ def test_run_scope_sprint_does_not_resume_ambiguous_duplicate_titles(
         "# Same\n\n## Goal\nImplement reports\n",
         encoding="utf-8",
     )
-    state_dir = tmp_path / ".simplicio"
+    state_dir = tmp_path / ".simplicio-loop"
     state_dir.mkdir()
     (state_dir / "sprint_state.json").write_text(
         json.dumps(

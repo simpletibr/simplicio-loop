@@ -85,7 +85,7 @@ def arm(
         raise ValueError("Prism slots must be non-negative")
     slots = requested_slots or int(recommend_prism_slots())
     slots = max(1, slots)
-    loop_dir = repo / ".simplicio" / "orchestrator" / "loop"
+    loop_dir = repo / ".simplicio-loop" / "orchestrator" / "loop"
     loop_dir.mkdir(parents=True, exist_ok=True)
     open_n = _open_issue_count(repo)
     versions = _versions()
@@ -168,7 +168,7 @@ Open issues at arm: {open_n if open_n is not None else "unknown (gh unavailable)
         "operator_versions": versions,
         "recommended_env": env_hint,
         "next_steps": [
-            "source ~/.simplicio/loop-env.sh (or set recommended_env)",
+            "source ~/.simplicio-loop/loop-env.sh (or set recommended_env)",
             "simplicio-loop preflight --strict --json",
             "simplicio-mapper scan . --json",
             "claim the next Prism wave (default 10; --batch-size N); reconcile leases/results; PR+merge",

@@ -181,7 +181,7 @@ propria sezione approfondita e al proprio worker.
 | Capacità | Cosa fa | Prova / worker | Dettagli |
 |---|---|---|---|
 | 🎬 **Video evidence** (`video_evidence`) | Registra la **sessione reale del browser** come prova in movimento che una modifica della UI funziona (Playwright, default); renderizza un **MP4 deterministico con didascalie** tramite [hyperframes](https://github.com/heygen-com/hyperframes) per una richiesta esplicita di explainer (`/simplicio-loop make a video of screen X`) | `scripts/video_evidence.py` · BLOCCATO (mai un fake-pass) senza il toolchain | [§ Video evidence](#-video-evidence--playwright-by-default-hyperframes-on-request) |
-| 🧠 **Memoria dei tentativi + rilevatore di stallo** | Un run-journal durevole (`.simplicio/orchestrator/loop/journal.jsonl`) + un rilevatore di stallo così che il loop **cambi strategia invece di oscillare**; triage incrementale (`since`) che legge solo il delta a ogni turno | `scripts/loop_journal.py` · `selftest` 9/9 | [§ Anti-oscillazione](#-memoria-dei-tentativi--rilevatore-di-stallo-anti-oscillazione) |
+| 🧠 **Memoria dei tentativi + rilevatore di stallo** | Un run-journal durevole (`.simplicio-loop/orchestrator/loop/journal.jsonl`) + un rilevatore di stallo così che il loop **cambi strategia invece di oscillare**; triage incrementale (`since`) che legge solo il delta a ogni turno | `scripts/loop_journal.py` · `selftest` 9/9 | [§ Anti-oscillazione](#-memoria-dei-tentativi--rilevatore-di-stallo-anti-oscillazione) |
 | 🔒 **Gate di sicurezza fail-closed** (`action_gate`) | Un hook `PreToolUse`/git-pre-push che **blocca meccanicamente** force-push, riscrittura della history, eliminazione massiva, DDL distruttiva, smantellamento dell'infra e commit/push contenenti segreti — lo Step 5 reso eseguibile, non prosa | `hooks/action_gate.py` · `selftest` 15/15 | [§ Sicurezza](#-sicurezza-non-negoziabile) |
 | 🔬 **Verifica locale** | Una suite di test (selftest dei worker + un **e2e del driver del loop** che dimostra l'uscita vincolata a evidenze) + un **claims-audit** (gli script referenziati esistono · i conteggi sono coerenti · `_bundle ≡ source`) — tutto locale, **senza CI a pagamento** | `scripts/check.py` · `scripts/claims_audit.py` · `tests/` | [§ Test e controlli locali](#-test-e-controlli-locali-senza-ci-a-pagamento) |
 | ✅ **Risparmi onesti** | La riga dei risparmi è ora **vincolata a evidenze, non obbligatoria** — un numero viene mostrato solo con una ricevuta misurata (clamp/firme/cache/`deterministic_edit`/ledger); mai fabbricato | contratto dell'economia dei token | [§ Economia dei token](#-economia-dei-token) |
@@ -321,7 +321,7 @@ così che l'agente veda il proprio lavoro precedente. L'uscita avviene SOLO tram
    ignorata.
 2. **Limite `max_iterations`** — backstop di sicurezza rigido
 3. **STOP/cancel path** — explicit STOP file or channel command stops unattended runs
-4. **Segnale STOP** — `.simplicio/orchestrator/STOP` o comando di canale
+4. **Segnale STOP** — `.simplicio-loop/orchestrator/STOP` o comando di canale
 
 Tra un turno e l'altro, LMCache (quando disponibile) memorizza lo stato KV così che la ri-iniezione costi
 un prefill quasi nullo.
@@ -330,7 +330,7 @@ un prefill quasi nullo.
 
 Un loop di ri-iniezione che non ricorda nulla oscilla — prova X, fallisci, prova di nuovo X — finché il
 limite non si esaurisce. simplicio-loop tiene un **run-journal durevole**
-(`.simplicio/orchestrator/loop/journal.jsonl`, solo-append: `iteration · action · hypothesis · gate ·
+(`.simplicio-loop/orchestrator/loop/journal.jsonl`, solo-append: `iteration · action · hypothesis · gate ·
 error-fingerprint`) e un **rilevatore di stallo**
 ([`scripts/loop_journal.py`](../scripts/loop_journal.py), deterministico + senza modello):
 

@@ -65,7 +65,7 @@ def build_orientation(
     """Return a versioned task-context envelope without IO beyond local artifacts."""
     abs_root = Path(root).resolve()
     intent = parse_task_intent(task)
-    project_map = _read_json(abs_root / ".simplicio" / "project-map.json")
+    project_map = _read_json(abs_root / ".simplicio-loop" / "project-map.json")
     selection = select_context_targets(
         str(abs_root), project_map, goal="", task_intent=intent, target=target, limit=limit
     )
@@ -83,7 +83,7 @@ def build_orientation(
             )
         )
 
-    symbol_index = _read_json(abs_root / ".simplicio" / "symbol-index.json")
+    symbol_index = _read_json(abs_root / ".simplicio-loop" / "symbol-index.json")
     selected_paths = {row["path"] for row in selection["targets"]}
     for symbol in symbol_index.get("symbols", []):
         if not isinstance(symbol, dict) or symbol.get("defined_in") not in selected_paths:

@@ -78,7 +78,7 @@ Recovery is always the same shape:
    effect. If it did not land, the fresh re-query observes the pre-effect state and the run
    retries the effect under the new attempt's idempotency key.
 5. Every prior attempt's events remain in its own append-only `events.jsonl` under
-   `.simplicio/orchestrator/runs/<run_id>/<work_item_id>/<attempt_id>/` — inspect them to reconstruct
+   `.simplicio-loop/orchestrator/runs/<run_id>/<work_item_id>/<attempt_id>/` — inspect them to reconstruct
    exactly where the crash happened, but never mutate them.
 
 ### Regression after a terminal state

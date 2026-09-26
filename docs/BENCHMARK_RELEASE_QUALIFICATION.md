@@ -15,15 +15,15 @@ Loop stopped before an LLM call.
 
 | Flow/configuration | Ten-task delivery | Wall s | Child CPU s | Peak RSS MiB | Measured outcome | Receipt |
 |---|---:|---:|---:|---:|---|---|
-| `run --delivery implemented --max-iterations 1` | 0/10 (one-task intake probe) | 7.592 | 6.579 | 175.5 | `exit=20`, blocked by physical capacity/disk pressure | [receipt](../.simplicio/benchmark/qualification-run-current-GH102/receipt.json) |
-| `batch` automatic (`max-workers=0`) | 0/10 | 0.465 | 0.294 | 43.6 | `run is not runnable: blocked` | [receipt](../.simplicio/benchmark/qualification-batch-auto-current/receipt.json) |
-| `batch --serial` | 0/10 | 0.343 | 0.264 | 50.0 | same blocked run; no worker dispatched | [receipt](../.simplicio/benchmark/qualification-batch-serial-current/receipt.json) |
-| `batch --batch-size 10` (Prism wave width 10) | 0/10 | 0.457 | 0.290 | 43.8 | same blocked run; no wave dispatched | [receipt](../.simplicio/benchmark/qualification-batch-wave10-current/receipt.json) |
-| `batch --batch-size 30` (wide wave) | 0/10 | 0.343 | 0.284 | 41.5 | same blocked run; no wave dispatched | [receipt](../.simplicio/benchmark/qualification-batch-wave30-current/receipt.json) |
-| `tick --task-index 1` | 0/10 | 1.250 | 0.999 | 75.8 | `STALE_FENCE`; mutation rejected | [receipt](../.simplicio/benchmark/qualification-tick-current/receipt.json) |
-| `tasks run --dry-run` installed release | 0/10 | 0.345 | 0.233 | 40.0 | `ValueError: agent command is required`; no plan | [receipt](../.simplicio/benchmark/qualification-tasks-release-dry/receipt.json) |
-| `tasks run --dry-run` checkout entrypoint | 0/10 | 10.479 | 2.064 | 88.2 | 10 issues planned, `PLANNED_NOT_EXECUTED`; no delivery | [receipt](../.simplicio/benchmark/qualification-tasks-checkout-entrypoint-dry/receipt.json) |
-| Prism arm: `arm_drain_prism.py --slots 0 --batch-size 10` | 0/10 (arm only) | 2.882 | 1.255 | 87.4 | eligible, selected 2 slots / logical capacity 20; no worker | [receipt](../.simplicio/benchmark/qualification-prism-arm/receipt.json) |
+| `run --delivery implemented --max-iterations 1` | 0/10 (one-task intake probe) | 7.592 | 6.579 | 175.5 | `exit=20`, blocked by physical capacity/disk pressure | [receipt](../.simplicio-loop/benchmark/qualification-run-current-GH102/receipt.json) |
+| `batch` automatic (`max-workers=0`) | 0/10 | 0.465 | 0.294 | 43.6 | `run is not runnable: blocked` | [receipt](../.simplicio-loop/benchmark/qualification-batch-auto-current/receipt.json) |
+| `batch --serial` | 0/10 | 0.343 | 0.264 | 50.0 | same blocked run; no worker dispatched | [receipt](../.simplicio-loop/benchmark/qualification-batch-serial-current/receipt.json) |
+| `batch --batch-size 10` (Prism wave width 10) | 0/10 | 0.457 | 0.290 | 43.8 | same blocked run; no wave dispatched | [receipt](../.simplicio-loop/benchmark/qualification-batch-wave10-current/receipt.json) |
+| `batch --batch-size 30` (wide wave) | 0/10 | 0.343 | 0.284 | 41.5 | same blocked run; no wave dispatched | [receipt](../.simplicio-loop/benchmark/qualification-batch-wave30-current/receipt.json) |
+| `tick --task-index 1` | 0/10 | 1.250 | 0.999 | 75.8 | `STALE_FENCE`; mutation rejected | [receipt](../.simplicio-loop/benchmark/qualification-tick-current/receipt.json) |
+| `tasks run --dry-run` installed release | 0/10 | 0.345 | 0.233 | 40.0 | `ValueError: agent command is required`; no plan | [receipt](../.simplicio-loop/benchmark/qualification-tasks-release-dry/receipt.json) |
+| `tasks run --dry-run` checkout entrypoint | 0/10 | 10.479 | 2.064 | 88.2 | 10 issues planned, `PLANNED_NOT_EXECUTED`; no delivery | [receipt](../.simplicio-loop/benchmark/qualification-tasks-checkout-entrypoint-dry/receipt.json) |
+| Prism arm: `arm_drain_prism.py --slots 0 --batch-size 10` | 0/10 (arm only) | 2.882 | 1.255 | 87.4 | eligible, selected 2 slots / logical capacity 20; no worker | [receipt](../.simplicio-loop/benchmark/qualification-prism-arm/receipt.json) |
 
 `wave` is not a top-level command in `3.43.10`; `simplicio-loop wave --help` returned
 `invalid choice`, and the real wave surface is `batch --batch-size N`. “Serial” is the
@@ -64,7 +64,7 @@ provider call. The current central Mapper preparation itself took 9.669 s (10 ta
 records), snapshot build took 0.350 s, and the Mapper → Fast handoff remained degraded
 because the canonical Fast artifact was unavailable; an integrated Fast build also
 rejected the legacy Mapper handoff schema. Those are integration qualification results,
-not delivery winners. Full receipts are under `.simplicio/benchmark/`.
+not delivery winners. Full receipts are under `.simplicio-loop/benchmark/`.
 
 ### Current decision
 
@@ -101,43 +101,43 @@ Installed `psutil==7.2.2` into the global Python 3.14 environment without changi
 
 Wall 0.345 s; child CPU 0.233 s; sampled peak RSS 40.05 MiB; exit 2.
 
-Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
+Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
 
 ```sh
 simplicio-loop tasks run --dry-run --workspace . "finish all open issues in wesleysimplicio/simplicio-loop-benchmark-20260911"
 ```
 
-[Receipt](../.simplicio/benchmark/qualification-tasks-release-dry/receipt.json), [stdout](../.simplicio/benchmark/qualification-tasks-release-dry/stdout.txt), [stderr](../.simplicio/benchmark/qualification-tasks-release-dry/stderr.txt).
+[Receipt](../.simplicio-loop/benchmark/qualification-tasks-release-dry/receipt.json), [stdout](../.simplicio-loop/benchmark/qualification-tasks-release-dry/stdout.txt), [stderr](../.simplicio-loop/benchmark/qualification-tasks-release-dry/stderr.txt).
 
 ### qualification-resume-psutil-GH102
 
 Wall 0.462 s; child CPU 0.350 s; sampled peak RSS 40.63 MiB; exit 0.
 
-Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
+Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
 
 ```sh
-env SIMPLICIO_STORAGE_ROUTE=mapper SIMPLICIO_MODEL=deepseek/deepseek-v4.1-flash SIMPLICIO_PLANNER=openrouter/deepseek/deepseek-v4.1-flash SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1 SIMPLICIO_LOG_ROOT=/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/provider-qualification-resume simplicio-loop resume --repo . run-20260911-152024-1bat3hs6
+env SIMPLICIO_STORAGE_ROUTE=mapper SIMPLICIO_MODEL=deepseek/deepseek-v4.1-flash SIMPLICIO_PLANNER=openrouter/deepseek/deepseek-v4.1-flash SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1 SIMPLICIO_LOG_ROOT=/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/provider-qualification-resume simplicio-loop resume --repo . run-20260911-152024-1bat3hs6
 ```
 
-[Receipt](../.simplicio/benchmark/qualification-resume-psutil-GH102/receipt.json), [stdout](../.simplicio/benchmark/qualification-resume-psutil-GH102/stdout.txt), [stderr](../.simplicio/benchmark/qualification-resume-psutil-GH102/stderr.txt).
+[Receipt](../.simplicio-loop/benchmark/qualification-resume-psutil-GH102/receipt.json), [stdout](../.simplicio-loop/benchmark/qualification-resume-psutil-GH102/stdout.txt), [stderr](../.simplicio-loop/benchmark/qualification-resume-psutil-GH102/stderr.txt).
 
 ### qualification-batch-psutil-GH102
 
 Wall 0.690 s; child CPU 0.527 s; sampled peak RSS 45.08 MiB; exit 0.
 
-Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
+Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
 
 ```sh
-env SIMPLICIO_STORAGE_ROUTE=mapper SIMPLICIO_MODEL=deepseek/deepseek-v4.1-flash SIMPLICIO_PLANNER=openrouter/deepseek/deepseek-v4.1-flash SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1 SIMPLICIO_LOG_ROOT=/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/provider-qualification-batch-psutil simplicio-loop batch --serial --repo . run-20260911-152024-1bat3hs6
+env SIMPLICIO_STORAGE_ROUTE=mapper SIMPLICIO_MODEL=deepseek/deepseek-v4.1-flash SIMPLICIO_PLANNER=openrouter/deepseek/deepseek-v4.1-flash SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1 SIMPLICIO_LOG_ROOT=/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/provider-qualification-batch-psutil simplicio-loop batch --serial --repo . run-20260911-152024-1bat3hs6
 ```
 
-[Receipt](../.simplicio/benchmark/qualification-batch-psutil-GH102/receipt.json), [stdout](../.simplicio/benchmark/qualification-batch-psutil-GH102/stdout.txt), [stderr](../.simplicio/benchmark/qualification-batch-psutil-GH102/stderr.txt).
+[Receipt](../.simplicio-loop/benchmark/qualification-batch-psutil-GH102/receipt.json), [stdout](../.simplicio-loop/benchmark/qualification-batch-psutil-GH102/stdout.txt), [stderr](../.simplicio-loop/benchmark/qualification-batch-psutil-GH102/stderr.txt).
 
 The recovered serial batch measured 1,864,237,056 available RAM bytes and 20,781,002,752 free disk bytes. Admission still rejected execution: `PHYSICAL_CAPACITY_PRESSURE` / `disk_pressure`, against a 21,474,836,480-byte reserve. It returned exit zero but `completed_task_indices=[]`, `blocked_task_indices=[1]`, and a non-ready receipt contract. Exit zero therefore does not establish successful task execution. The earlier missing-RAM worker record is retained historical evidence, not the new capacity sample.
 
 The native `run` advanced to watcher verification although its batch contained blocked rather than failed tasks. The watcher correctly refused completion. Both the run transition and batch exit semantics need qualification before unattended benchmarking.
 
-The reconciled interface pass executed **107 help invocations**, including forwarded `tasks` and `tasks run`; all returned successfully. [Complete command inventory](../.simplicio/benchmark/help-coverage-reconciled-20260911/coverage.json). This is **zero workflow executions** in that help pass and does not establish coverage of every semantic flag combination.
+The reconciled interface pass executed **107 help invocations**, including forwarded `tasks` and `tasks run`; all returned successfully. [Complete command inventory](../.simplicio-loop/benchmark/help-coverage-reconciled-20260911/coverage.json). This is **zero workflow executions** in that help pass and does not establish coverage of every semantic flag combination.
 
 Focused local verification: `tests/test_tasks_cli.py`, `tests/test_tasks_live.py`, `tests/test_tasks_dry_run.py`, and `tests/test_benchmark_help_discovery.py`: **13 passed**. The complete repository gate has not passed; these tests do not qualify all unrelated dirty changes.
 
@@ -146,10 +146,10 @@ Focused local verification: `tests/test_tasks_cli.py`, `tests/test_tasks_live.py
 The corrected checkout's real CLI entry point successfully read all ten live
 GitHub issues. Its receipt explicitly reports `PLANNED_NOT_EXECUTED`, no delivery
 evidence, and unmeasured provider tokens/cost. This qualifies read-only intake,
-not implementation. [Command and resource receipt](../.simplicio/benchmark/qualification-tasks-checkout-entrypoint-dry/receipt.json)
-and [full intake result](../.simplicio/benchmark/qualification-tasks-checkout-entrypoint-dry/stdout.txt).
+not implementation. [Command and resource receipt](../.simplicio-loop/benchmark/qualification-tasks-checkout-entrypoint-dry/receipt.json)
+and [full intake result](../.simplicio-loop/benchmark/qualification-tasks-checkout-entrypoint-dry/stdout.txt).
 An earlier `python -m simplicio_loop` attempt failed because the package has no
-`__main__`; [failed invocation receipt](../.simplicio/benchmark/qualification-tasks-checkout-dry/receipt.json).
+`__main__`; [failed invocation receipt](../.simplicio-loop/benchmark/qualification-tasks-checkout-dry/receipt.json).
 
 The generated intake currently lists no dependencies for any issue, including
 GH-104, whose benchmark oracle requires GH-102. Its derived criteria reference
@@ -160,7 +160,7 @@ comparison is admissible.
 Final focused command:
 
 ```sh
-.simplicio/benchmark/telemetry-venv/bin/python -m pytest tests/test_tasks_cli.py tests/test_tasks_live.py tests/test_tasks_dry_run.py tests/test_benchmark_help_discovery.py tests/test_arm_prism_auto_capacity.py tests/test_benchmark_resource_sampler.py tests/test_benchmark_diagnostic_summary.py tests/test_benchmark_proposal_bridge.py tests/test_benchmark_repair_guard.py -q
+.simplicio-loop/benchmark/telemetry-venv/bin/python -m pytest tests/test_tasks_cli.py tests/test_tasks_live.py tests/test_tasks_dry_run.py tests/test_benchmark_help_discovery.py tests/test_arm_prism_auto_capacity.py tests/test_benchmark_resource_sampler.py tests/test_benchmark_diagnostic_summary.py tests/test_benchmark_proposal_bridge.py tests/test_benchmark_repair_guard.py -q
 ```
 
 Result: **30 passed, 4 warnings in 2.25 seconds**. `git diff --check` also passed.
@@ -184,43 +184,43 @@ Machine: 8 logical CPUs, 8 GiB RAM, macOS 26.3 arm64. Sampling interval: 100 ms.
 
 ### qualification-run-GH102
 
-Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
+Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
 
 ```sh
-env SIMPLICIO_STORAGE_ROUTE=mapper SIMPLICIO_MODEL=deepseek/deepseek-v4.1-flash SIMPLICIO_PLANNER=openrouter/deepseek/deepseek-v4.1-flash SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1 simplicio-loop run --task /Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/queue-3.43.10-20260911T151422687497Z/GH-102.md --repo . --delivery implemented --max-iterations 1
+env SIMPLICIO_STORAGE_ROUTE=mapper SIMPLICIO_MODEL=deepseek/deepseek-v4.1-flash SIMPLICIO_PLANNER=openrouter/deepseek/deepseek-v4.1-flash SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1 simplicio-loop run --task /Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/queue-3.43.10-20260911T151422687497Z/GH-102.md --repo . --delivery implemented --max-iterations 1
 ```
 
-[Resource receipt](../.simplicio/benchmark/qualification-run-GH102/receipt.json), [stdout](../.simplicio/benchmark/qualification-run-GH102/stdout.txt), [stderr](../.simplicio/benchmark/qualification-run-GH102/stderr.txt).
+[Resource receipt](../.simplicio-loop/benchmark/qualification-run-GH102/receipt.json), [stdout](../.simplicio-loop/benchmark/qualification-run-GH102/stdout.txt), [stderr](../.simplicio-loop/benchmark/qualification-run-GH102/stderr.txt).
 
 ### qualification-run-watcher-GH102
 
-Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
+Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
 
 ```sh
-env SIMPLICIO_STORAGE_ROUTE=mapper SIMPLICIO_MODEL=deepseek/deepseek-v4.1-flash SIMPLICIO_PLANNER=openrouter/deepseek/deepseek-v4.1-flash SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1 SIMPLICIO_LOG_ROOT=/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/provider-qualification-watcher simplicio-loop run --task /Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/queue-3.43.10-20260911T151422687497Z/GH-102.md --repo . --delivery implemented --max-iterations 1
+env SIMPLICIO_STORAGE_ROUTE=mapper SIMPLICIO_MODEL=deepseek/deepseek-v4.1-flash SIMPLICIO_PLANNER=openrouter/deepseek/deepseek-v4.1-flash SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1 SIMPLICIO_LOG_ROOT=/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/provider-qualification-watcher simplicio-loop run --task /Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/queue-3.43.10-20260911T151422687497Z/GH-102.md --repo . --delivery implemented --max-iterations 1
 ```
 
-[Resource receipt](../.simplicio/benchmark/qualification-run-watcher-GH102/receipt.json), [stdout](../.simplicio/benchmark/qualification-run-watcher-GH102/stdout.txt), [stderr](../.simplicio/benchmark/qualification-run-watcher-GH102/stderr.txt).
+[Resource receipt](../.simplicio-loop/benchmark/qualification-run-watcher-GH102/receipt.json), [stdout](../.simplicio-loop/benchmark/qualification-run-watcher-GH102/stdout.txt), [stderr](../.simplicio-loop/benchmark/qualification-run-watcher-GH102/stderr.txt).
 
 ### qualification-run-fresh-GH102
 
-Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
+Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
 
 ```sh
-env SIMPLICIO_STORAGE_ROUTE=mapper SIMPLICIO_MODEL=deepseek/deepseek-v4.1-flash SIMPLICIO_PLANNER=openrouter/deepseek/deepseek-v4.1-flash SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1 SIMPLICIO_LOG_ROOT=/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/provider-qualification-fresh simplicio-loop run --task /Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/queue-3.43.10-20260911T151422687497Z/GH-102.md --repo . --delivery implemented --max-iterations 1
+env SIMPLICIO_STORAGE_ROUTE=mapper SIMPLICIO_MODEL=deepseek/deepseek-v4.1-flash SIMPLICIO_PLANNER=openrouter/deepseek/deepseek-v4.1-flash SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1 SIMPLICIO_LOG_ROOT=/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/provider-qualification-fresh simplicio-loop run --task /Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/queue-3.43.10-20260911T151422687497Z/GH-102.md --repo . --delivery implemented --max-iterations 1
 ```
 
-[Resource receipt](../.simplicio/benchmark/qualification-run-fresh-GH102/receipt.json), [stdout](../.simplicio/benchmark/qualification-run-fresh-GH102/stdout.txt), [stderr](../.simplicio/benchmark/qualification-run-fresh-GH102/stderr.txt).
+[Resource receipt](../.simplicio-loop/benchmark/qualification-run-fresh-GH102/receipt.json), [stdout](../.simplicio-loop/benchmark/qualification-run-fresh-GH102/stdout.txt), [stderr](../.simplicio-loop/benchmark/qualification-run-fresh-GH102/stderr.txt).
 
 ### qualification-batch-serial-GH102
 
-Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
+Working directory: `/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/queue-3.43.10-20260911T151422687497Z/fixture`.
 
 ```sh
-env SIMPLICIO_STORAGE_ROUTE=mapper SIMPLICIO_MODEL=deepseek/deepseek-v4.1-flash SIMPLICIO_PLANNER=openrouter/deepseek/deepseek-v4.1-flash SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1 SIMPLICIO_LOG_ROOT=/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio/benchmark/provider-qualification-batch simplicio-loop batch --serial --repo . run-20260911-152024-1bat3hs6
+env SIMPLICIO_STORAGE_ROUTE=mapper SIMPLICIO_MODEL=deepseek/deepseek-v4.1-flash SIMPLICIO_PLANNER=openrouter/deepseek/deepseek-v4.1-flash SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1 SIMPLICIO_LOG_ROOT=/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.simplicio-loop/benchmark/provider-qualification-batch simplicio-loop batch --serial --repo . run-20260911-152024-1bat3hs6
 ```
 
-[Resource receipt](../.simplicio/benchmark/qualification-batch-serial-GH102/receipt.json), [stdout](../.simplicio/benchmark/qualification-batch-serial-GH102/stdout.txt), [stderr](../.simplicio/benchmark/qualification-batch-serial-GH102/stderr.txt).
+[Resource receipt](../.simplicio-loop/benchmark/qualification-batch-serial-GH102/receipt.json), [stdout](../.simplicio-loop/benchmark/qualification-batch-serial-GH102/stdout.txt), [stderr](../.simplicio-loop/benchmark/qualification-batch-serial-GH102/stderr.txt).
 
 ## Fixture and corrections
 

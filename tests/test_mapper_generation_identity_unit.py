@@ -1,7 +1,7 @@
 """BUG 1 regression: a read-only Mapper re-survey must not look like drift.
 
 ``_mapper_generation`` reads Mapper's content identity from
-``.simplicio/index-state.json``'s ``signature`` (``head`` + ``tree_hash``
+``.simplicio-loop/index-state.json``'s ``signature`` (``head`` + ``tree_hash``
 only) so a later preflight can tell "the tree this run's mapper survey
 pinned" from "the tree now". Two fields are deliberately excluded from that
 identity because both were empirically observed to change across a
@@ -28,7 +28,7 @@ from simplicio_loop import runner
 
 
 def _write_index_state(repo, *, head="h1", tree_hash="t1", status_hash="s1", updated_at="2026-01-01T00:00:00Z"):
-    simplicio_dir = repo / ".simplicio"
+    simplicio_dir = repo / ".simplicio-loop"
     simplicio_dir.mkdir(parents=True, exist_ok=True)
     (simplicio_dir / "index-state.json").write_text(
         json.dumps({

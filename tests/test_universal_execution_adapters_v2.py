@@ -22,7 +22,7 @@ def _write_json(path: Path, payload: object) -> None:
 
 def _run_fixture(tmp_path: Path, *, phase: str = "done", governor: dict | None = None):
     repo = tmp_path / "repo"
-    run = repo / ".simplicio" / "loop-runs" / "run-1"
+    run = repo / ".simplicio-loop" / "loop-runs" / "run-1"
     loop = run / "loop"
     loop.mkdir(parents=True)
     manifest = {

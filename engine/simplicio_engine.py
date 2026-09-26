@@ -5,7 +5,7 @@ A transparent OpenAI/Anthropic-compatible HTTP proxy: it measures prompt tokens,
 applies **deterministic** compression to message content (whitespace collapse,
 consecutive-line dedup, oversized-output capping), forwards the request to the real
 upstream **without changing the model**, streams the response straight back, and
-records savings to ~/.simplicio/proxy_savings.json (schema v3 — the exact format the
+records savings to ~/.simplicio-loop/proxy_savings.json (schema v3 — the exact format the
 Simplicio Token Monitor reads) plus a PERF log.
 
 This is the native Simplicio core. It is intentionally NOT a reimplementation of the
@@ -38,7 +38,7 @@ __version__ = "1.0.0"
 
 HOME = os.path.expanduser("~")
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = Path(os.environ.get("SIMPLICIO_HOME", Path(HOME) / ".simplicio"))
+DATA_DIR = Path(os.environ.get("SIMPLICIO_HOME", Path(HOME) / ".simplicio-loop"))
 SAVINGS_PATH = DATA_DIR / "proxy_savings.json"
 LOG_PATH = DATA_DIR / "logs" / "proxy.log"
 SCHEMA_VERSION = 3

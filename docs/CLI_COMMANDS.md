@@ -32,7 +32,8 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `plan` | Compile a raw task into a frozen contract. |
 | `prepare` / `arm` | Arm and preflight a run without executing tasks or calling a provider; returns a `run_id` for `tick`, `batch`, `wave`, or `prism`. |
 | `run` | Arm, execute, and independently verify a task. |
-| `orient` | Build bounded context through Fast and emit `simplicio.llm-max-speed-orientation/v1` plus a hash-bound `simplicio.loop-orient-receipt/v1`; auto may fall back read-only to Mapper, while required Fast/Rust fails closed. |
+| `orient` | Build bounded context through Fast and emit `simplicio.llm-max-speed-orientation/v1` plus a hash-bound `simplicio.loop-orient-receipt/v1`; auto may fall back read-only to Mapper, while required Fast/Rust fails closed. `--brief` (repeatable `--task`, issue #1310) renders Turn 1 of the plan-once/apply-once hot path: route first, deduped target file content, plan groups, suggested checks, Mapper/Fast generation + a `repo_state_chain` fingerprint, and the exact `apply` command. |
+| `apply` | Turn 2 of the plan-once/apply-once hot path (issue #1310): apply one `ops.json` (`{"tasks":[{"id","operations":[{path,find,replace}],"check","depends_on"}]}`). Validates every `find` in memory before any write (BLOCKED + hint, nothing written, on a miss/non-unique/chained mismatch); mutates through `simplicio-dev-cli` (compile then apply); runs independent file-disjoint chains concurrently via asyncio with an isolated check environment (`PYTHONDONTWRITEBYTECODE`, `PYTEST_ADDOPTS=-p no:cacheprovider`, a per-task `COVERAGE_FILE`); fails closed on a stale `repo_state_chain` (the same generation-identity fingerprint `orient --brief` recorded); writes a receipt under `.simplicio-loop/apply/<run_id>/receipt.json`. Exit 0 only on PASS, 2 on BLOCKED, 1 on FAIL. |
 | `retrieve` | Retrieve and verify a tee-cache result. |
 | `extensions doctor` | Inspect an exact extension-provider/runtime handshake. |
 | `oracle` | Evaluate completion and cross-runtime parity. |
@@ -67,6 +68,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `learn retrospective` | Derive durable lessons from completed runs. |
 | `hub-drain-plan` | Read-only GitHub drain intake. |
 | `hub-drain-admit` | Admit a held final checkpoint without dispatching it. |
+| `intake` | Normalize any tracker export (JSON/CSV/Markdown, or an http(s) URL returning JSON) into `tasks.md`, auto-detecting GitHub/Jira/Linear/ClickUp/GitLab/Azure DevOps field shapes. |
 
 ### Zero-config start
 
@@ -123,6 +125,61 @@ then `simplicio-dev-cli edit --plan ... --compile`/`--apply` performs the
 governed local edit and the task's own verification command closes it out — no
 run, no wave, no provider call. See
 `.claude/skills/simplicio-loop/SKILL.md` § "Pick the fastest route first".
+
+## Generic task intake
+
+`simplicio-loop intake` drains work items from any tracker into `tasks.md`
+without a dedicated adapter per tool (issue #1312). GitHub keeps its native
+`hub-drain-plan` path; `intake` is the universal fallback for everything else
+— Jira, Linear, ClickUp, GitLab, Azure DevOps, Notion exports, a spreadsheet,
+or plain text.
+
+```bash
+simplicio-loop intake --from tasks.json --repo . --out tasks.md
+simplicio-loop intake --from tasks.csv  --repo .
+simplicio-loop intake --from https://example.test/board.json --repo . --json
+cat export.json | simplicio-loop intake --from - --repo .
+```
+
+- **Input formats**: a JSON array, `{items|issues|data|value|nodes: [...]}`,
+  CSV, the existing `tasks.md` Markdown grammar (passed through), or an
+  http(s) URL that returns JSON. `--from -` reads stdin. This command handles
+  no credentials — when a source needs auth, fetch it with the host's own
+  connector/CLI (`gh`, `jira`, `linear`, an MCP connector, …) and pass the
+  exported file here.
+- **Field auto-detection** covers the common export shapes of GitHub
+  (`number`, `title`, `body`, `labels[].name`, `html_url`), Jira (`key`,
+  `fields.summary`, `fields.description`, `fields.labels`,
+  `fields.issuelinks` "is blocked by"), Linear (`identifier`, `title`,
+  `description`, `labels.nodes[].name`, `url`, `relations`), ClickUp (`id`,
+  `name`, `description`, `tags[].name`, `url`, `dependencies`), GitLab
+  (`iid`, `title`, `description`, `labels`, `web_url`), and Azure DevOps
+  (`id`, `fields["System.Title"]`, `fields["System.Description"]`,
+  `fields["System.Tags"]`, `url`). `--map key=dotted.path` (repeatable)
+  overrides any of the seven normalized fields (`id`, `title`, `body`,
+  `labels`, `depends_on`, `source`, `url`) for anything else.
+- **Dependencies** are read from each tracker's own relation/link field when
+  present, and are also mined from body text lines such as `Depends on #12`
+  / `blocked by ABC-3`.
+- **Output**: `tasks.md` blocks in the same grammar `prepare` compiles — one
+  `System:`/`Feature:`/`Type:` block per item, an Acceptance Criteria
+  scenario derived from the item body, `Depends on: task N` lines mapped
+  from source ids to this batch's task indices, and `Source: <url>` under
+  Additional Information. `--freeze-backlog` additionally freezes the same
+  items into `--repo`'s `scripts/task_backlog.py` backlog through that
+  script's own `init --item-file` API (skipped with a warning if `--repo`
+  has no `scripts/task_backlog.py`) — `intake` never writes under the state
+  directory itself. `--json` prints a per-item summary (id, title, source,
+  url, resolved dependency task indices).
+- **Malformed input** (invalid JSON, a JSON object with none of
+  `items`/`issues`/`data`/`value`/`nodes`, an empty CSV, or markdown with no
+  `System:`/`Sistema:` block) fails closed: a typed `reason_code` on stderr
+  and exit code 2.
+- **Drain** each item the normal way: `orient --brief` → `apply` for a single
+  bounded task, or `prepare` → `wave` → `verify` for governed multi-item
+  delivery. Write-back (closing the source issue, posting a comment) stays
+  with the host, which owns the tracker credentials; `intake`/the loop only
+  print the per-item result and source URL for the host to post.
 
 ## Prism and wave
 

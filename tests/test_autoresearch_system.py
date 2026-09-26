@@ -57,7 +57,7 @@ def test_init_never_leaves_main_master_and_creates_isolated_branch(tmp_path):
     _init_repo(tmp_path)
     r = _run(["init", "--target", "target.py", "--eval", "python3 eval.py",
               "--branch", "run1", "--max-iterations", "5", "--max-token-budget", "1000",
-              "--store", ".simplicio/orchestrator/autoresearch/run1"], tmp_path)
+              "--store", ".simplicio-loop/orchestrator/autoresearch/run1"], tmp_path)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "MEASURED|baseline gate=pass score=1.0" in r.stdout, r.stdout
     branch = _git(["rev-parse", "--abbrev-ref", "HEAD"], tmp_path).stdout.strip()
@@ -67,7 +67,7 @@ def test_init_never_leaves_main_master_and_creates_isolated_branch(tmp_path):
 
 def test_record_reverts_failing_gate_regardless_of_score(tmp_path):
     _init_repo(tmp_path)
-    store = ".simplicio/orchestrator/autoresearch/run2"
+    store = ".simplicio-loop/orchestrator/autoresearch/run2"
     _run(["init", "--target", "target.py", "--eval", "python3 eval.py", "--branch", "run2",
           "--max-iterations", "5", "--max-token-budget", "1000", "--store", store], tmp_path)
     # mutate to a HUGE score that nonetheless fails the correctness gate (v < 0)
@@ -82,7 +82,7 @@ def test_record_reverts_failing_gate_regardless_of_score(tmp_path):
 
 def test_record_keeps_and_commits_an_improving_pass(tmp_path):
     _init_repo(tmp_path)
-    store = ".simplicio/orchestrator/autoresearch/run3"
+    store = ".simplicio-loop/orchestrator/autoresearch/run3"
     _run(["init", "--target", "target.py", "--eval", "python3 eval.py", "--branch", "run3",
           "--max-iterations", "5", "--max-token-budget", "1000", "--store", store], tmp_path)
     (tmp_path / "target.py").write_text("x = 9\n")
@@ -95,7 +95,7 @@ def test_record_keeps_and_commits_an_improving_pass(tmp_path):
 
 def test_record_blocks_iteration_beyond_cap(tmp_path):
     _init_repo(tmp_path)
-    store = ".simplicio/orchestrator/autoresearch/run4"
+    store = ".simplicio-loop/orchestrator/autoresearch/run4"
     _run(["init", "--target", "target.py", "--eval", "python3 eval.py", "--branch", "run4",
           "--max-iterations", "2", "--max-token-budget", "1000", "--store", store], tmp_path)
     r = _run(["record", "--iteration", "99", "--store", store, "--gate", "pass", "--score", "1"],
@@ -106,7 +106,7 @@ def test_record_blocks_iteration_beyond_cap(tmp_path):
 
 def test_plateau_and_finish_squash_with_receipt(tmp_path):
     _init_repo(tmp_path)
-    store = ".simplicio/orchestrator/autoresearch/run5"
+    store = ".simplicio-loop/orchestrator/autoresearch/run5"
     _run(["init", "--target", "target.py", "--eval", "python3 eval.py", "--branch", "run5",
           "--max-iterations", "10", "--max-token-budget", "1000", "--store", store,
           "--plateau-n", "2"], tmp_path)
@@ -143,7 +143,7 @@ def test_plateau_and_finish_squash_with_receipt(tmp_path):
 
 def test_finish_blocks_when_winner_gate_is_not_pass(tmp_path):
     _init_repo(tmp_path)
-    store = ".simplicio/orchestrator/autoresearch/run6"
+    store = ".simplicio-loop/orchestrator/autoresearch/run6"
     # baseline eval command always fails the gate (target starts at x = -5)
     (tmp_path / "target.py").write_text("x = -5\n")
     _git(["add", "-A"], tmp_path)

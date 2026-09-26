@@ -1,6 +1,6 @@
 # Durable local task queue
 
-`LocalTaskQueue` composes the existing `SQLiteRemoteQueue` database under `.simplicio/orchestrator/queue.sqlite3`; it does not create a parallel broker. The inherited task, lease, fencing, idempotency and event tables remain authoritative. Versioned local tables add dependencies, outcomes, intent/receipts and append-only transitions.
+`LocalTaskQueue` composes the existing `SQLiteRemoteQueue` database under `.simplicio-loop/orchestrator/queue.sqlite3`; it does not create a parallel broker. The inherited task, lease, fencing, idempotency and event tables remain authoritative. Versioned local tables add dependencies, outcomes, intent/receipts and append-only transitions.
 
 Supported outcomes are `never_started`, `running`, `unknown_outcome`, `verified_success`, `retryable_failure`, `blocked` and `dead_letter`. Unknown effects require reconciliation, and retries require idempotency provenance. STOP blocks claims and requests bounded cooperative cancellation. Terminal GC requires released generation/worktree resources.
 

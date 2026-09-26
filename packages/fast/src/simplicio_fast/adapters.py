@@ -73,7 +73,7 @@ def language_for_path(path: Path) -> str | None:
     return SUPPORTED_EXTENSIONS.get(path.suffix.casefold())
 
 
-_RUST_IGNORED_DIRS = {".git", ".simplicio", ".simplicio-fast", "target", "vendor"}
+_RUST_IGNORED_DIRS = {".git", ".simplicio-loop", ".simplicio-fast", "target", "vendor"}
 
 
 def discover_rust_projects(root: Path) -> list[Path]:
@@ -167,7 +167,7 @@ def discover_typescript_projects(root: Path) -> list[Path]:
     }
     ignored = {
         ".git",
-        ".simplicio",
+        ".simplicio-loop",
         ".yarn",
         ".pnpm-store",
         "node_modules",
@@ -229,7 +229,7 @@ def discover_csharp_projects(root: Path) -> list[Path]:
         and (
             path.suffix.casefold() in {".sln", ".slnx", ".csproj"} or path.name in names
         )
-        and not any(part in {".git", ".simplicio", "bin", "obj"} for part in path.parts)
+        and not any(part in {".git", ".simplicio-loop", "bin", "obj"} for part in path.parts)
     )
 
 

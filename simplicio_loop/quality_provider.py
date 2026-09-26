@@ -9,7 +9,7 @@ own scheduler / queue / process pool.
 Lifecycle:
   load_quality_provider(name, policy) -> QualityProviderSpec (negotiated)
   run_quality_gate(repo, run_id, spec, cancel_event) -> QualityResult
-    writes .simplicio/.../quality-matrix.json (simplicio.quality-matrix/v1)
+    writes .simplicio-loop/.../quality-matrix.json (simplicio.quality-matrix/v1)
     returns {"status": "PASS"|"FAIL"|"BLOCKED", ...}
 
 Fail-closed: a missing, version-incompatible, crashing, or timed-out mandatory
@@ -306,12 +306,12 @@ def run_quality_gate(
 
 
 def _resolve_run_dir(repo: str, run_id: str) -> Optional[str]:
-    """Best-effort discovery of the run directory under .simplicio/runs."""
+    """Best-effort discovery of the run directory under .simplicio-loop/runs."""
     root = Path(repo).resolve()
-    candidate = root / ".simplicio" / "runs" / run_id
+    candidate = root / ".simplicio-loop" / "runs" / run_id
     if candidate.exists():
         return str(candidate)
-    runs_root = root / ".simplicio" / "runs"
+    runs_root = root / ".simplicio-loop" / "runs"
     if runs_root.exists():
         for child in runs_root.iterdir():
             status_file = child / "state.json"

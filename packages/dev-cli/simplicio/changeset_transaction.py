@@ -106,7 +106,7 @@ def _operation_summary(plan: dict[str, Any], paths: list[str]) -> dict[str, Any]
 
 def _state_path(root: Path, key: str) -> Path:
     digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
-    return root / ".simplicio" / "changeset-transactions" / f"{digest}.json"
+    return root / ".simplicio-loop" / "changeset-transactions" / f"{digest}.json"
 
 
 def _write_state(path: Path, state: dict[str, Any]) -> None:

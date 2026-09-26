@@ -7,7 +7,7 @@ point it at.
 The engine sits **in the HTTP path** as an OpenAI/Anthropic-compatible proxy. It
 measures prompt tokens, applies safe deterministic compression to message content,
 forwards the request to the real provider **without changing the model**, streams
-the response straight back, and records savings to `~/.simplicio/proxy_savings.json`.
+the response straight back, and records savings to `~/.simplicio-loop/proxy_savings.json`.
 It is **fail-open**: if anything goes wrong parsing or compressing a request, the
 original bytes are forwarded unchanged.
 
@@ -87,7 +87,7 @@ Module-level helpers that back these commands:
 ```
 client ──HTTP──▶ simplicio-cli proxy ──HTTP──▶ real provider ──▶ proxy ──stream──▶ client
                       │
-                      └── records → ~/.simplicio/proxy_savings.json (schema v3)
+                      └── records → ~/.simplicio-loop/proxy_savings.json (schema v3)
 ```
 
 - **In the HTTP path.** The proxy parses the request body, measures input tokens
@@ -151,14 +151,14 @@ or summarize meaning.
 
 ## Data files
 
-All under `~/.simplicio` by default; override the root with the **`SIMPLICIO_HOME`**
+All under `~/.simplicio-loop` by default; override the root with the **`SIMPLICIO_HOME`**
 env var.
 
 | Path | Contents |
 |---|---|
-| `~/.simplicio/proxy_savings.json` | Savings ledger (schema v3): `lifetime`, `display_session`, `history`. |
-| `~/.simplicio/memory.json` | CCR key-value store (zlib+base64 values + per-entry savings). |
-| `~/.simplicio/logs/proxy.log` | Proxy `START` / `PERF` / `UPSTREAM_ERROR` log lines. |
+| `~/.simplicio-loop/proxy_savings.json` | Savings ledger (schema v3): `lifetime`, `display_session`, `history`. |
+| `~/.simplicio-loop/memory.json` | CCR key-value store (zlib+base64 values + per-entry savings). |
+| `~/.simplicio-loop/logs/proxy.log` | Proxy `START` / `PERF` / `UPSTREAM_ERROR` log lines. |
 
 Relevant env vars: `SIMPLICIO_HOME`, `SIMPLICIO_PROXY_PORT` (default `8788`),
 `SIMPLICIO_UPSTREAM`, `SIMPLICIO_MONITOR_PORT` (default `9090`, used by `verify`),

@@ -163,7 +163,7 @@ def test_full_stack_apply_is_blocked_without_consent_and_mutates_nothing(tmp_pat
                                      mode="full-stack")
     assert receipt["status"] == "BLOCKED"
     assert not (target / ".claude").exists()
-    assert not (target / ".simplicio").exists()
+    assert not (target / ".simplicio-loop").exists()
 
 
 @pytest.mark.external_integration

@@ -418,7 +418,7 @@ def test_heartbeat_fires_at_configured_interval(tmp_path):
     )
     assert result.phase == PHASE_COMPLETED
 
-    events_path = root / ".simplicio" / "events.jsonl"
+    events_path = root / ".simplicio-loop" / "events.jsonl"
     assert events_path.exists()
     records = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines() if line]
     heartbeats = [r for r in records if r["event"] == "provider_heartbeat"]
@@ -450,7 +450,7 @@ def test_long_running_process_emits_review_without_timeout(tmp_path):
     assert result.phase == PHASE_COMPLETED
     records = [
         json.loads(line)
-        for line in (root / ".simplicio" / "events.jsonl").read_text(encoding="utf-8").splitlines()
+        for line in (root / ".simplicio-loop" / "events.jsonl").read_text(encoding="utf-8").splitlines()
         if line
     ]
     reviews = [record for record in records if record["event"] == "provider_long_running"]

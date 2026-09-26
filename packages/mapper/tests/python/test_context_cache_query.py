@@ -29,7 +29,7 @@ class ContextCacheQueryTest(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
-        self.cache_path = self.root / ".simplicio" / "context-cache.json"
+        self.cache_path = self.root / ".simplicio-loop" / "context-cache.json"
         _write(self.root, "src/app.py", "print('v1')\n")
 
     def tearDown(self) -> None:

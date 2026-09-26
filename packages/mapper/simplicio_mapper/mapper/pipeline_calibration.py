@@ -18,7 +18,7 @@ beats sync's as local performance evidence. If async never wins at any
 measured size, the hardcoded threshold is retained in the receipt.
 
 This module never changes ``emit.py``'s default behavior on its own. It only
-writes the optional ``.simplicio/pipeline-calibration.json`` receipt when a
+writes the optional ``.simplicio-loop/pipeline-calibration.json`` receipt when a
 caller explicitly runs ``simplicio-mapper benchmark pipeline-threshold``.
 """
 
@@ -39,7 +39,7 @@ from typing import Any
 #: Schema id for the calibration artifact written by this module.
 CALIBRATION_SCHEMA = "simplicio.pipeline-calibration/v1"
 
-#: Filename written under the target ``output_dir`` (``.simplicio`` by
+#: Filename written under the target ``output_dir`` (``.simplicio-loop`` by
 #: default, matching every other mapper artifact's location).
 CALIBRATION_FILENAME = "pipeline-calibration.json"
 
@@ -61,13 +61,13 @@ _MODULE_TEMPLATE = (
 )
 
 
-def calibration_file_path(cwd: str, output_dir: str = ".simplicio") -> str:
+def calibration_file_path(cwd: str, output_dir: str = ".simplicio-loop") -> str:
     """Absolute path where a calibration artifact for *cwd* would live."""
     abs_cwd = os.path.abspath(cwd)
     return os.path.join(abs_cwd, output_dir, CALIBRATION_FILENAME)
 
 
-def load_calibrated_threshold(cwd: str, output_dir: str = ".simplicio") -> int | None:
+def load_calibrated_threshold(cwd: str, output_dir: str = ".simplicio-loop") -> int | None:
     """Read a previously written calibration file and return its threshold.
 
     Fail-safe by design: ANY problem reading/parsing/validating the file
@@ -205,7 +205,7 @@ def run_calibration(
 
 
 def write_calibration(
-    cwd: str, payload: dict[str, Any], output_dir: str = ".simplicio"
+    cwd: str, payload: dict[str, Any], output_dir: str = ".simplicio-loop"
 ) -> str:
     """Write *payload* atomically to ``<cwd>/<output_dir>/pipeline-calibration.json``.
 

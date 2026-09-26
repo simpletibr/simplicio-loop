@@ -162,8 +162,8 @@ def test_effect_transaction_uses_mapper_store_without_sqlite(tmp_path) -> None:
     transaction = EffectTransaction(tmp_path)
     execute(transaction, change_set(), [])
 
-    assert not (tmp_path / ".simplicio" / "effect-transactions.sqlite3").exists()
-    assert list((tmp_path / ".simplicio" / "mapper-store" / "effect-transactions").glob("*.json"))
+    assert not (tmp_path / ".simplicio-loop" / "effect-transactions.sqlite3").exists()
+    assert list((tmp_path / ".simplicio-loop" / "mapper-store" / "effect-transactions").glob("*.json"))
 
 
 def test_effect_transaction_maps_store_read_and_write_failures(tmp_path, monkeypatch) -> None:

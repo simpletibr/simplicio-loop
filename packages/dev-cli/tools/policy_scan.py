@@ -32,7 +32,7 @@ PATTERNS = (
     ("protocol", "JSON-RPC"),
     ("protocol", "json-rpc"),
 )
-IGNORED = {".git", "target", "node_modules", "vendor", ".venv", ".simplicio"}
+IGNORED = {".git", "target", "node_modules", "vendor", ".venv", ".simplicio-loop"}
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 EXCEPTION_CATEGORIES = {
     "external-adapter",

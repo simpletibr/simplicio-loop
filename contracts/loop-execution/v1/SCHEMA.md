@@ -40,7 +40,7 @@ dynamic layered on top of `converge`, tracked in the anchor's `route_mode` field
 | Anti-pattern it avoids | oscillation (retrying the same dead-end) | missing late-arriving work (stopping too early) |
 
 Both obey three universal exits regardless of mode: the evidence-gated promise, the
-`max_iterations` cap, and an explicit `.simplicio/orchestrator/STOP` signal (which always wins, checked
+`max_iterations` cap, and an explicit `.simplicio-loop/orchestrator/STOP` signal (which always wins, checked
 before anything else).
 
 **Implementation status in THIS repo:** `converge` is fully implemented and is what the fixtures
@@ -58,14 +58,14 @@ Full field-level shape: [`schema.json`](schema.json). Summary:
 
 | Object | Path | Producer | Role |
 |---|---|---|---|
-| Scratchpad frontmatter | `.simplicio/orchestrator/loop/scratchpad.md` | the skill, on arm; iteration bumped by `loop_stop.py` | the frozen goal + cap + promise + mode |
-| Journal record | `.simplicio/orchestrator/loop/journal.jsonl` | `scripts/loop_journal.py record` (append-only) | attempt memory — anti-oscillation |
-| Anchor | `.simplicio/orchestrator/loop/anchor.json` | `scripts/task_anchor.py set/mark` | frozen acceptance criteria — anti-drift |
-| Watcher challenge | `.simplicio/orchestrator/loop/watcher_challenge.json` | `loop_stop.py` at end of a re-feed turn | the per-iteration nonce a watcher receipt must echo |
-| Watcher state | `.simplicio/orchestrator/loop/watcher_state.json` | `scripts/watcher_verify.py verify` | independent re-verification of the anchor's done/pending state |
-| Done flag | `.simplicio/orchestrator/loop/done.flag` (legacy `done`) | `hooks/loop_capture.py` (Cursor-style runtimes) | cross-runtime completion signal |
-| STOP signal | `.simplicio/orchestrator/STOP` | human / channel | hard halt, always checked first |
-| Handoff | `.simplicio/orchestrator/loop/HANDOFF.md` | `loop_stop.py:write_handoff` | cross-agent continuation artifact on an INCOMPLETE stop |
+| Scratchpad frontmatter | `.simplicio-loop/orchestrator/loop/scratchpad.md` | the skill, on arm; iteration bumped by `loop_stop.py` | the frozen goal + cap + promise + mode |
+| Journal record | `.simplicio-loop/orchestrator/loop/journal.jsonl` | `scripts/loop_journal.py record` (append-only) | attempt memory — anti-oscillation |
+| Anchor | `.simplicio-loop/orchestrator/loop/anchor.json` | `scripts/task_anchor.py set/mark` | frozen acceptance criteria — anti-drift |
+| Watcher challenge | `.simplicio-loop/orchestrator/loop/watcher_challenge.json` | `loop_stop.py` at end of a re-feed turn | the per-iteration nonce a watcher receipt must echo |
+| Watcher state | `.simplicio-loop/orchestrator/loop/watcher_state.json` | `scripts/watcher_verify.py verify` | independent re-verification of the anchor's done/pending state |
+| Done flag | `.simplicio-loop/orchestrator/loop/done.flag` (legacy `done`) | `hooks/loop_capture.py` (Cursor-style runtimes) | cross-runtime completion signal |
+| STOP signal | `.simplicio-loop/orchestrator/STOP` | human / channel | hard halt, always checked first |
+| Handoff | `.simplicio-loop/orchestrator/loop/HANDOFF.md` | `loop_stop.py:write_handoff` | cross-agent continuation artifact on an INCOMPLETE stop |
 | Drain queue state | *(runtime-defined path)* | *(reference only — see above)* | dry-round counting for the drain termination rule |
 
 ## Evidence-gated completion, precisely
@@ -93,12 +93,12 @@ changing ONLY the evidence marker flips the outcome from re-feed to stop.
 | [`converge-success`](fixtures/converge-success/) | All four completion conditions hold → the loop stops cleanly, no re-feed, no handoff | `hooks/loop_stop.py` subprocess |
 | [`converge-stall-escalation`](fixtures/converge-stall-escalation/) | K+1 consecutive same-fingerprint failures → STALLED, recommend `escalate`, dead-end action named | `scripts/loop_journal.py:analyze()` (pure) |
 | [`drain-empty-after-k-rounds`](fixtures/drain-empty-after-k-rounds/) | 2 consecutive dry rounds after real prior work → DRAINED (idle, not a hard stop) | reference algorithm (see status note above) |
-| [`stop-path`](fixtures/stop-path/) | `.simplicio/orchestrator/STOP` wins mid-task, even with an open acceptance criterion → clean halt + handoff | `hooks/loop_stop.py` subprocess |
+| [`stop-path`](fixtures/stop-path/) | `.simplicio-loop/orchestrator/STOP` wins mid-task, even with an open acceptance criterion → clean halt + handoff | `hooks/loop_stop.py` subprocess |
 | [`evidence-gated-done/satisfied`](fixtures/evidence-gated-done/satisfied/) | promise + evidence + watcher + anchor all clear → done | `hooks/loop_stop.py` subprocess |
 | [`evidence-gated-done/withheld`](fixtures/evidence-gated-done/withheld/) | same state, only the evidence marker is missing → re-feeds instead of stopping | `hooks/loop_stop.py` subprocess |
 | [`journal-append-only-minimal`](fixtures/journal-append-only-minimal/) | the minimal legal record shape + fingerprint stability across a recurring bug (why append, never rewrite) | `scripts/loop_journal.py:fingerprint()` (pure) |
 
-Each fixture directory contains the raw input files (an `.simplicio/orchestrator/` tree to copy into a temp
+Each fixture directory contains the raw input files (an `.simplicio-loop/orchestrator/` tree to copy into a temp
 cwd, or a bare JSON/text file for the pure-function fixtures) plus an `expected.json` describing
 what `scripts/check_loop_contract.py` asserts and why.
 
@@ -119,7 +119,7 @@ what `scripts/check_loop_contract.py` asserts and why.
    addition, not a `v2` break).
 4. **Journal payloads:** `journal-append-only-minimal` plus `converge-stall-escalation` together
    give enough real record shapes (minimal core fields, a full record with lineage fields in
-   `fixtures/converge-success/.simplicio/orchestrator/loop/journal.jsonl`, and a 4-record stall/escalate
+   `fixtures/converge-success/.simplicio-loop/orchestrator/loop/journal.jsonl`, and a 4-record stall/escalate
    sequence) for a runtime to build its own journal-shape tests without re-deriving the format from
    `scripts/loop_journal.py`'s docstring.
 5. **Never invent a second promise/evidence/anchor/watcher gate.** Reuse the four-condition rule
@@ -128,7 +128,7 @@ what `scripts/check_loop_contract.py` asserts and why.
 ## Published Runtime handoff receipt
 
 When a real run reaches `done`, `simplicio_loop.runner.verify_run` publishes the envelope described
-by [`receipt.schema.json`](receipt.schema.json) at `.simplicio/loop-execution.json`. The envelope is
+by [`receipt.schema.json`](receipt.schema.json) at `.simplicio-loop/loop-execution.json`. The envelope is
 written only after the watcher, delivery, quality-matrix, and completion-oracle gates pass.
 
 The envelope points to a run-owned `runtime-loop-execution/` bundle containing copies of the five

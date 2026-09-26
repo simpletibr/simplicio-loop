@@ -30,7 +30,7 @@ def _args(**overrides):
 
 
 def test_worker_defaults_to_repo_scoped_mapper_without_implicit_creation(monkeypatch, tmp_path):
-    resolved = tmp_path / ".simplicio" / "data" / "operations.sqlite"
+    resolved = tmp_path / ".simplicio-loop" / "data" / "operations.sqlite"
     monkeypatch.setattr(remote_worker_cli, "_default_mapper_db", lambda repo: resolved)
     monkeypatch.setattr(remote_worker_cli, "MapperRemoteQueue", _FakeMapperQueue)
 
@@ -43,7 +43,7 @@ def test_worker_defaults_to_repo_scoped_mapper_without_implicit_creation(monkeyp
 
 
 def test_worker_explicit_mapper_init_is_the_only_default_creation_transition(monkeypatch, tmp_path):
-    resolved = tmp_path / ".simplicio" / "data" / "operations.sqlite"
+    resolved = tmp_path / ".simplicio-loop" / "data" / "operations.sqlite"
     monkeypatch.setattr(remote_worker_cli, "_default_mapper_db", lambda repo: resolved)
     monkeypatch.setattr(remote_worker_cli, "MapperRemoteQueue", _FakeMapperQueue)
 

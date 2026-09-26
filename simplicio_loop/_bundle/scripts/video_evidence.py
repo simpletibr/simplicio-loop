@@ -41,7 +41,7 @@ Usage:
         --name login-demo --expect "Sign in" [--seconds 4] [--issue 12] [--upload --pr N]
     # explicit custom explainer (hyperframes):
     python3 scripts/video_evidence.py verify --engine hyperframes --name login-demo \\
-        --frames .simplicio/orchestrator/tee/web --title "Login screen" [--seconds 2.0] [--issue 12]
+        --frames .simplicio-loop/orchestrator/tee/web --title "Login screen" [--seconds 2.0] [--issue 12]
 """
 import glob
 import os
@@ -59,7 +59,7 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-DEFAULT_OUT = os.path.join(REPO, ".simplicio/orchestrator", "tee", "video")
+DEFAULT_OUT = os.path.join(REPO, ".simplicio-loop/orchestrator", "tee", "video")
 # Multilingual intent matcher for "create a demonstration video of screen/feature X".
 # Matches a video noun near a make/show/demo verb (EN/PT/ES). Deliberately broad but anchored
 # on an explicit video noun so a normal code task never trips it.
@@ -202,7 +202,7 @@ def cmd_scaffold(opts):
     shots = _collect_shots(opts)
     if not shots:
         log("! no screenshots found (--frames DIR / --shots a.png,b.png). Run web_verify first "
-            "to capture per-step shots into .simplicio/orchestrator/tee/web/.")
+            "to capture per-step shots into .simplicio-loop/orchestrator/tee/web/.")
         sys.exit(2)
 
     # `npx hyperframes init` scaffolds the project skeleton; best-effort (we still write our own

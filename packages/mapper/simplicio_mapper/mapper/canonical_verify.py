@@ -85,7 +85,7 @@ def _is_out_of_scope(path: str) -> bool:
     """Whether ``path`` falls under a directory the full remap structurally skips.
 
     ``compute_worktree_overlay`` reports every git-visible change, including
-    the mapper's own output/cache directory (``.simplicio/``, part of
+    the mapper's own output/cache directory (``.simplicio-loop/``, part of
     ``simplicio_mapper.mapper.parse.SKIP_DIRS``) when it happens to be
     untracked rather than gitignored. The full remap side of this
     comparison (:func:`simplicio_mapper.mapper.emit.build_artifacts`) never

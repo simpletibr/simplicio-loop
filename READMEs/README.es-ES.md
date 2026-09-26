@@ -224,7 +224,7 @@ enlaza con su sección detallada y su worker.
 | Capacidad | Qué hace | Prueba / worker | Detalles |
 |---|---|---|---|
 | 🎬 **Evidencia en vídeo** (`video_evidence`) | Graba la **sesión real del navegador** como prueba en movimiento de que un cambio de UI funciona (Playwright, por defecto); renderiza un **MP4 determinista con subtítulos** con [hyperframes](https://github.com/heygen-com/hyperframes) para una petición explícita de vídeo explicativo (`/simplicio-loop make a video of screen X`) | `scripts/video_evidence.py` · BLOQUEADO (nunca fake-pass) sin el toolchain | [§ Evidencia en vídeo](#-evidencia-en-vídeo--playwright-por-defecto-hyperframes-bajo-demanda) |
-| 🧠 **Memoria de intentos + detector de estancamiento** | Un run-journal duradero (`.simplicio/orchestrator/loop/journal.jsonl`) + un detector de estancamiento para que el bucle **cambie de estrategia en lugar de oscilar**; el triaje incremental (`since`) lee solo el delta de cada turno | `scripts/loop_journal.py` · `selftest` 9/9 | [§ Anti-oscilación](#-memoria-de-intentos--detector-de-estancamiento-anti-oscilación) |
+| 🧠 **Memoria de intentos + detector de estancamiento** | Un run-journal duradero (`.simplicio-loop/orchestrator/loop/journal.jsonl`) + un detector de estancamiento para que el bucle **cambie de estrategia en lugar de oscilar**; el triaje incremental (`since`) lee solo el delta de cada turno | `scripts/loop_journal.py` · `selftest` 9/9 | [§ Anti-oscilación](#-memoria-de-intentos--detector-de-estancamiento-anti-oscilación) |
 | 🔒 **Gate de seguridad fail-closed** (`action_gate`) | Un hook `PreToolUse`/git-pre-push que **bloquea mecánicamente** force-push, reescritura de historial, borrado masivo, DDL destructivo, teardown de infra y commits/pushes con secretos — el Paso 5 hecho ejecutable, no prosa | `hooks/action_gate.py` · `selftest` 15/15 | [§ Seguridad](#-seguridad-innegociable) |
 | 🔬 **Verificación local** | Una suite de tests (selftests de workers + un **e2e del driver del bucle** que prueba la salida ligada a evidencia) + una **claims-audit** (los scripts referenciados existen · counts consistentes · `_bundle ≡ source`) — todo local, **sin CI de pago** | `scripts/check.py` · `scripts/claims_audit.py` · `tests/` | [§ Tests y comprobaciones locales](#-tests-y-comprobaciones-locales-sin-ci-de-pago) |
 | ✅ **Ahorro honesto** | La línea de ahorro ahora es **ligada a evidencia, no obligatoria** — solo se muestra un número con un recibo medido (clamp/firmas/caché/`deterministic_edit`/ledger); nunca se fabrica | contrato de economía de tokens | [§ Economía de tokens](#-economía-de-tokens) |
@@ -374,7 +374,7 @@ para que el agente vea su propio trabajo previo. La salida es ÚNICAMENTE vía:
    evidencia = ignorada.
 2. **Tope de `max_iterations`** — barrera estricta de seguridad
 3. **STOP/cancel path** — explicit STOP file or channel command stops unattended runs
-4. **Señal STOP** — `.simplicio/orchestrator/STOP` o un comando de canal
+4. **Señal STOP** — `.simplicio-loop/orchestrator/STOP` o un comando de canal
 
 Entre turnos, LMCache (cuando está disponible) cachea el estado KV para que la realimentación cueste
 un prefill casi nulo.
@@ -383,7 +383,7 @@ un prefill casi nulo.
 
 Un bucle de realimentación que no recuerda nada oscila — prueba X, falla, prueba X de nuevo — hasta
 que el tope se consume. simplicio-loop mantiene un **run-journal duradero**
-(`.simplicio/orchestrator/loop/journal.jsonl`, solo-append:
+(`.simplicio-loop/orchestrator/loop/journal.jsonl`, solo-append:
 `iteration · action · hypothesis · gate · error-fingerprint`) y un **detector de estancamiento**
 ([`scripts/loop_journal.py`](../scripts/loop_journal.py), determinista + sin modelo):
 

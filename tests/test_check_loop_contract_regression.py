@@ -1,7 +1,7 @@
 """Regression test: `scripts/check_loop_contract.py` must stay green under pytest, not only
 under the `scripts/check.py` local gate. This directly guards against the class of bug just
 fixed here — a fixture (`converge-success`, `evidence-gated-done/satisfied`) that predates a
-tightened `simplicio_loop/oracle.py` completion-oracle requirement (the `.simplicio/orchestrator/runs/
+tightened `simplicio_loop/oracle.py` completion-oracle requirement (the `.simplicio-loop/orchestrator/runs/
 <run-id>/` artifact bundle) and can therefore never reach `ready: true`, so `hooks/loop_stop.py`
 never honors its `<promise>` and the fixture silently drifts from the real producer it claims to
 describe.
@@ -29,7 +29,7 @@ def test_check_loop_contract_passes_all_fixtures():
 
 def test_converge_success_and_evidence_gated_done_satisfied_fixtures_ship_run_artifacts():
     # Belt-and-suspenders: assert the specific artifact bundle exists on disk for the two
-    # fixtures that were stale (no `.simplicio/orchestrator/runs/<run-id>/` at all) before this fix, so a
+    # fixtures that were stale (no `.simplicio-loop/orchestrator/runs/<run-id>/` at all) before this fix, so a
     # future edit that deletes the bundle again fails here even before check_loop_contract runs.
     required = {
         "manifest.json", "task-contract.json", "mapper-context.json",
@@ -37,10 +37,10 @@ def test_converge_success_and_evidence_gated_done_satisfied_fixtures_ship_run_ar
     }
     for rel in ("converge-success", os.path.join("evidence-gated-done", "satisfied")):
         fixture_dir = os.path.join(REPO, "contracts", "loop-execution", "v1", "fixtures", rel)
-        runs_dir = os.path.join(fixture_dir, ".simplicio/orchestrator", "runs")
-        assert os.path.isdir(runs_dir), f"{rel}: missing .simplicio/orchestrator/runs/ directory"
+        runs_dir = os.path.join(fixture_dir, ".simplicio-loop/orchestrator", "runs")
+        assert os.path.isdir(runs_dir), f"{rel}: missing .simplicio-loop/orchestrator/runs/ directory"
         run_ids = [d for d in os.listdir(runs_dir) if os.path.isdir(os.path.join(runs_dir, d))]
-        assert run_ids, f"{rel}: .simplicio/orchestrator/runs/ has no run directory"
+        assert run_ids, f"{rel}: .simplicio-loop/orchestrator/runs/ has no run directory"
         present = set(os.listdir(os.path.join(runs_dir, run_ids[0])))
         missing = required - present
         assert not missing, f"{rel}/{run_ids[0]}: missing artifact(s) {missing}"

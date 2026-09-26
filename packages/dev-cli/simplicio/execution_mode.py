@@ -71,7 +71,7 @@ class PreparedExecutionInputs:
 
 
 def _config(root: str | os.PathLike[str]) -> dict[str, Any]:
-    path = Path(root) / ".simplicio" / "execution.json"
+    path = Path(root) / ".simplicio-loop" / "execution.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):

@@ -15,7 +15,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS_PATH = ROOT / "tests" / "fixtures" / "evaluation_corpus" / "advanced" / "manifest.json"
 SCHEMA = "simplicio.hypothesis-report/v1"
-OUT_DIR = ".simplicio"
+OUT_DIR = ".simplicio-loop"
 TOKEN_BUDGET = 512
 LIMIT = 2
 

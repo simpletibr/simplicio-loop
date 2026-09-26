@@ -15,10 +15,10 @@ dispatch). Covers the acceptance criteria from #236:
   detected and rejected at both validate and promote.
 
 All plan/decision JSON artifacts written by these tests live under
-`<tmp_path>/.simplicio/...` (the adapter's own bookkeeping dir, excluded from
+`<tmp_path>/.simplicio-loop/...` (the adapter's own bookkeeping dir, excluded from
 the source-tree hash by `_SOURCE_EXCLUDES`) rather than directly under
 `--root`, mirroring the CLI's own default (`--output
-.simplicio/prototype-plan.json`). Writing them straight into `--root` would
+.simplicio-loop/prototype-plan.json`). Writing them straight into `--root` would
 make every plan self-invalidate the moment it's written, since the file
 would not have existed yet when `source_sha` was computed.
 """
@@ -57,7 +57,7 @@ def _tree_hash(root: Path) -> str:
 
 
 def _artifacts_dir(tmp_path: Path) -> Path:
-    directory = tmp_path / ".simplicio" / "artifacts"
+    directory = tmp_path / ".simplicio-loop" / "artifacts"
     directory.mkdir(parents=True, exist_ok=True)
     return directory
 
@@ -150,7 +150,7 @@ def test_scaffold_writes_only_inside_isolated_candidate_dir(tmp_path, capsys, pr
 
     # Real artifact landed in the sandbox...
     assert candidate.is_dir()
-    assert candidate.is_relative_to(tmp_path / ".simplicio" / "prototypes")
+    assert candidate.is_relative_to(tmp_path / ".simplicio-loop" / "prototypes")
     assert any(candidate.iterdir())
 
     # ...and the working-tree source file is byte-for-byte untouched.
@@ -185,7 +185,7 @@ def test_scaffold_rejects_a_plan_name_that_path_traverses_out_of_the_sandbox(tmp
     assert code == 0
     capsys.readouterr()
 
-    candidate = tmp_path / ".simplicio" / "prototypes" / "traversal-candidate"
+    candidate = tmp_path / ".simplicio-loop" / "prototypes" / "traversal-candidate"
     code = cli.main(
         [
             "prototype",

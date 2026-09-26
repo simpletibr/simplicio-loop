@@ -28,7 +28,7 @@ DOCS_SYNC_SCHEMA = "simplicio.docs-sync/v1"
 DOCS_SYNC_VERSION = 1
 
 _MANUAL_DOC_DIRS = ("docs", ".specs")
-_MANUAL_DOC_EXCLUDE_DIRS = {".simplicio", "node_modules", ".git", "__pycache__"}
+_MANUAL_DOC_EXCLUDE_DIRS = {".simplicio-loop", "node_modules", ".git", "__pycache__"}
 
 
 def _run_git(cwd: str, args: list[str]) -> str | None:
@@ -130,7 +130,7 @@ def _would_change(path: str, new_text: str) -> bool:
 
 def build_docs_sync(
     cwd: str,
-    out_dir: str = ".simplicio",
+    out_dir: str = ".simplicio-loop",
     range_spec: str | None = None,
     staged: bool = False,
     check: bool = False,

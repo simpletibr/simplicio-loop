@@ -72,7 +72,7 @@ def run(repeats: int = DEFAULT_REPEATS) -> dict:
         raise SystemExit(f"fixture source not found: {FIXTURE_SOURCE}")
 
     # Measure against a throwaway COPY of the fixture, never the committed
-    # source tree directly -- `build_artifacts` writes a `.simplicio/cache/`
+    # source tree directly -- `build_artifacts` writes a `.simplicio-loop/cache/`
     # dir as a side effect of running, which must not leak into
     # `contracts/mapper-artifacts/v1/fixtures/python-minimal/source/`.
     tmp_root = tempfile.mkdtemp(prefix="measure-verbs-")

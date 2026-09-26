@@ -22,4 +22,4 @@ def isolated_execution_environment(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("NO_PROXY", "*")
     monkeypatch.setenv("no_proxy", "*")
     yield
-    (REPO_ROOT / ".simplicio" / "events.jsonl").unlink(missing_ok=True)
+    (REPO_ROOT / ".simplicio-loop" / "events.jsonl").unlink(missing_ok=True)

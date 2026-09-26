@@ -57,8 +57,8 @@ def test_operations_adapter_uses_canonical_mapper_database(tmp_path: Path, monke
     _install_operations_store(monkeypatch, FakeOperationsStore)
     adapter = MapperOperationsAdapter(tmp_path)
 
-    assert adapter.database == tmp_path / ".simplicio" / "data" / "operations.sqlite"
-    assert not (tmp_path / ".simplicio").exists()
+    assert adapter.database == tmp_path / ".simplicio-loop" / "data" / "operations.sqlite"
+    assert not (tmp_path / ".simplicio-loop").exists()
 
     ready = adapter.initialize()
     assert ready["status"] == "ready"
@@ -72,7 +72,7 @@ def test_operations_adapter_uses_canonical_mapper_database(tmp_path: Path, monke
     }
     assert adapter.update_payload("task-1", {"value": 2})["status"] == "payload_updated"
     assert adapter.find_task("idem-1")["payload"] == {"value": 2}
-    assert not (tmp_path / ".simplicio" / "mapper-store").exists()
+    assert not (tmp_path / ".simplicio-loop" / "mapper-store").exists()
 
 
 def test_operations_adapter_rejects_incomplete_mapper_store_api(tmp_path: Path, monkeypatch) -> None:

@@ -113,7 +113,7 @@ def _normalize(value, source_dir_abs: str, out_dir_abs: str | None = None):
     if isinstance(value, str):
         text = value
         if out_dir_abs and out_dir_abs in text:
-            text = text.replace(out_dir_abs, NORMALIZED_ROOT_PLACEHOLDER + "/.simplicio")
+            text = text.replace(out_dir_abs, NORMALIZED_ROOT_PLACEHOLDER + "/.simplicio-loop")
         if source_dir_abs in text:
             text = text.replace(source_dir_abs, NORMALIZED_ROOT_PLACEHOLDER)
         return text

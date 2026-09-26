@@ -5,7 +5,7 @@ Why hash, not file: if a code block didn't change, the hash is the same ->
 reuse the vector. File changes but the relevant snippet didn't? Still a
 cache hit. Snippet changes -> new hash -> only that one is re-embedded. Granular.
 
-Persisted in .simplicio/emb_cache.npz (vectors) + .json (hash->row index).
+Persisted in .simplicio-loop/emb_cache.npz (vectors) + .json (hash->row index).
 """
 
 import hashlib
@@ -25,7 +25,7 @@ class EmbeddingCacheMissError(KeyError):
 
 class EmbeddingCache:
     def __init__(self, root):
-        self.dir = os.path.join(root, ".simplicio")
+        self.dir = os.path.join(root, ".simplicio-loop")
         os.makedirs(self.dir, exist_ok=True)
         self.vec_path = os.path.join(self.dir, "emb_cache.npz")
         self.idx_path = os.path.join(self.dir, "emb_index.json")

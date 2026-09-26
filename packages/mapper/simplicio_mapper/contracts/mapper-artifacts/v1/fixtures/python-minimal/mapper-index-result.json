@@ -28,12 +28,12 @@
   },
   "lock_reason_code": "lock_acquired",
   "paths": {
-    "architecture_inventory": "<fixture-root>/.simplicio/architecture-inventory.json",
-    "call_graph": "<fixture-root>/.simplicio/call-graph.json",
-    "execution_plan": "<fixture-root>/.simplicio/execution-plan.json",
-    "precedent_index": "<fixture-root>/.simplicio/precedent-index.json",
-    "project_map": "<fixture-root>/.simplicio/project-map.json",
-    "symbol_index": "<fixture-root>/.simplicio/symbol-index.json"
+    "architecture_inventory": "<fixture-root>/.simplicio-loop/architecture-inventory.json",
+    "call_graph": "<fixture-root>/.simplicio-loop/call-graph.json",
+    "execution_plan": "<fixture-root>/.simplicio-loop/execution-plan.json",
+    "precedent_index": "<fixture-root>/.simplicio-loop/precedent-index.json",
+    "project_map": "<fixture-root>/.simplicio-loop/project-map.json",
+    "symbol_index": "<fixture-root>/.simplicio-loop/symbol-index.json"
   },
   "schema": "simplicio.mapper-index/v1",
   "skipped_reason": null,

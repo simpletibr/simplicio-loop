@@ -319,7 +319,7 @@ def _unwrap_context_pack(payload: Mapping[str, Any]) -> Mapping[str, Any]:
 def mapper_selected_targets(root: Path) -> list[str]:
     """Read the newest Mapper handoff / run context for an existing code target."""
     found: list[str] = []
-    simplicio = root / ".simplicio"
+    simplicio = root / ".simplicio-loop"
     if not simplicio.is_dir():
         return found
 
@@ -745,8 +745,8 @@ class FastConfig:
     mode: str = "auto"
     command: tuple[str, ...] = ("simplicio-fast",)
     mapper_command: tuple[str, ...] = ("simplicio-mapper",)
-    snapshot: str = ".simplicio/fast/project.sfast"
-    state: str = ".simplicio/fast/loop-ingest.json"
+    snapshot: str = ".simplicio-loop/fast/project.sfast"
+    state: str = ".simplicio-loop/fast/loop-ingest.json"
     max_bytes: int = 48_000
     timeout_seconds: int = 180
     require_binding: bool = True
@@ -902,7 +902,7 @@ class FastLoopIntegration:
 
         ``git rev-parse --git-common-dir`` returns the one common git
         directory every worktree of a repository shares; its parent is the
-        repository root that owns the shared ``.simplicio/`` survey cache
+        repository root that owns the shared ``.simplicio-loop/`` survey cache
         (issue: shared survey cache). Falls back to this root's own
         ``.git`` when git is unavailable or this is not a repository.
         """
@@ -924,7 +924,7 @@ class FastLoopIntegration:
 
     def _shared_cache_root(self) -> Path:
         """Survey-cache root shared by every worktree of this repository."""
-        return self._git_common_dir().parent / ".simplicio" / "fast" / "survey-cache"
+        return self._git_common_dir().parent / ".simplicio-loop" / "fast" / "survey-cache"
 
     def _survey_key(self) -> str:
         """Cache key: the default branch's commit + this worktree's own diff.
@@ -1046,7 +1046,7 @@ class FastLoopIntegration:
     def _worktree_digest(self) -> str:
         """Uncommitted content: a snapshot of HEAD is stale once a file is edited.
 
-        Excludes ``.simplicio/`` itself: when that directory is not
+        Excludes ``.simplicio-loop/`` itself: when that directory is not
         gitignored (common on a fixture/fresh repo), the survey cache this
         digest gates (issue: shared survey cache) would otherwise show up
         as its own new untracked files, changing the digest -- and so the
@@ -1054,8 +1054,8 @@ class FastLoopIntegration:
         invalidating itself.
         """
         parts = []
-        for argv in (["git", "diff", "HEAD", "--no-ext-diff", "--", ".", ":(exclude).simplicio"],
-                     ["git", "ls-files", "--others", "--exclude-standard", "--", ".", ":(exclude).simplicio"]):
+        for argv in (["git", "diff", "HEAD", "--no-ext-diff", "--", ".", ":(exclude).simplicio-loop"],
+                     ["git", "ls-files", "--others", "--exclude-standard", "--", ".", ":(exclude).simplicio-loop"]):
             try:
                 completed = self._runner(argv, cwd=str(self.root), capture_output=True,
                                          text=True, timeout=30, check=False)
@@ -1143,7 +1143,7 @@ class FastLoopIntegration:
 
         The Mapper handoff + Fast ingest survey is expensive and identical
         for every worktree sitting on the same default-branch commit with
-        no local edits, so it is cached under the shared ``.simplicio/``
+        no local edits, so it is cached under the shared ``.simplicio-loop/``
         (issue: shared survey cache) instead of once per worktree: a second
         ``orient``/``prepare`` on an unchanged tree -- in this worktree or
         any other linked one -- reuses the build and spawns neither
@@ -1390,7 +1390,7 @@ class FastLoopIntegration:
         """Persist an atomic Fast rollout transition for this Loop root."""
         if mode not in {"shadow", "canary", "integrated", "fallback", "rollback"}:
             raise ValueError("unsupported Fast rollout mode")
-        state_path = Path(state) if state is not None else self.root / ".simplicio/fast" / "rollout.json"
+        state_path = Path(state) if state is not None else self.root / ".simplicio-loop/fast" / "rollout.json"
         command = ["rollout", mode, "--state", str(state_path)]
         if generation:
             command.extend(["--generation", str(generation)])

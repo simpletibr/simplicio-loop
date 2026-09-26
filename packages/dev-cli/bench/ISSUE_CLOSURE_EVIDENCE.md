@@ -1,7 +1,7 @@
 # GitHub Issue Closure Evidence
 
 Date: 2026-05-31
-Repo: `wesleysimplicio/simplicio-dev-cli`
+Repo: `simpletibr/simplicio-loop` (`packages/dev-cli/`, formerly `wesleysimplicio/simplicio-dev-cli`)
 Branch inspected: `codex/finish-open-issues-evidence`
 
 This file is a local evidence index for tracked GitHub issues `#33` and `#41`.

@@ -575,7 +575,7 @@ def source_files(root: Path) -> list[Path]:
         ".venv",
         "__pycache__",
         ".simplicio-fast",
-        ".simplicio",
+        ".simplicio-loop",
         "node_modules",
     }
     suffixes = {".py", ".pyi", ".ts", ".tsx", ".js", ".jsx", ".rs", ".cs"}
@@ -888,7 +888,7 @@ def build_snapshot(
     if max_file_bytes < 1:
         raise ValueError("max_file_bytes must be positive")
     root = root.resolve()
-    if os.path.isfile(root / ".simplicio" / "fast-handoff.json"):
+    if os.path.isfile(root / ".simplicio-loop" / "fast-handoff.json"):
         raise SnapshotProvenanceError(
             "canonical Mapper handoff is present; compile a Mapper projection instead"
         )

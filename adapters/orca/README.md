@@ -3,7 +3,7 @@
 > **Not part of the default Simplicio armada.** Install and enable Orca **only when the client
 > contracted the Orca host**. Core Loop / Mapper / Fast / Dev-CLI never depend on Orca.
 > Lifecycle card sync stays **off** unless the client enables the `orca` integration
-> (`SIMPLICIO_LOOP_CLIENT_INTEGRATIONS=orca` or `.simplicio/client-integrations.json`).
+> (`SIMPLICIO_LOOP_CLIENT_INTEGRATIONS=orca` or `.simplicio-loop/client-integrations.json`).
 > See `docs/CLIENT_INTEGRATIONS.md` and `simplicio_loop/client_integrations.py`.
 
 [Orca](https://www.onorca.dev/docs) is a desktop **worktree IDE for AI coding agents**: it runs
@@ -22,7 +22,7 @@ bash scripts/install.sh orca            # macOS/Linux
 pwsh scripts/install.ps1 orca           # Windows
 # enable lifecycle card projection (optional, client-requested):
 export SIMPLICIO_LOOP_CLIENT_INTEGRATIONS=orca
-# or: echo '{"schema":"simplicio.client-integrations/v1","integrations":["orca"]}' > .simplicio/client-integrations.json
+# or: echo '{"schema":"simplicio.client-integrations/v1","integrations":["orca"]}' > .simplicio-loop/client-integrations.json
 ```
 
 The installer copies the 7 skills into `.claude/skills/` and writes the idempotent
@@ -45,8 +45,8 @@ command; that registration is optional and never replaces the repo-level install
   automations**: schedule a tick that re-invokes `/simplicio-loop` per the skill's "Self-paced
   drive" section. Same exit conditions (evidence-gated promise, `max_iterations` cap, STOP).
 
-**Worktree isolation fits the loop's state model.** All loop state (`.simplicio/orchestrator/loop/`,
-`.simplicio/orchestrator/backlog/`) is per-worktree, so each Orca task runs its own independent loop — one
+**Worktree isolation fits the loop's state model.** All loop state (`.simplicio-loop/orchestrator/loop/`,
+`.simplicio-loop/orchestrator/backlog/`) is per-worktree, so each Orca task runs its own independent loop — one
 scratchpad, one journal, one anchor per task, with no cross-task interference. Orca's worktree
 checkpoints compose with (never replace) the loop's own journal + evidence gates.
 
@@ -88,13 +88,13 @@ Open a task in Orca (it allocates the worktree), then in the task's agent sessio
 
 Manual smoke (the one step a file-level harness can't do): run a small `/simplicio-loop` task in
 an Orca worktree, confirm the loop drives (hook or scheduled tick), the gates fire, and the state
-stays inside that worktree's `.simplicio/orchestrator/`.
+stays inside that worktree's `.simplicio-loop/orchestrator/`.
 
 ## Progresso do run
 
 Inner-agent hook or self-paced tick (N1/N2 depending on how the inner agent is configured): the
 turn-header contract applies identically inside the Orca worktree. Universal fallback (N3): open
-`.simplicio/orchestrator/loop/PROGRESS.md` inside that worktree (auto-regenerated every turn, scoped to the
+`.simplicio-loop/orchestrator/loop/PROGRESS.md` inside that worktree (auto-regenerated every turn, scoped to the
 worktree like all other loop state).
 
 ## Status e comentários automáticos

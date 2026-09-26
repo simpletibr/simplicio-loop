@@ -2,7 +2,7 @@
 """CLI shell for the #284 planning-receipt / mutation-authority gate.
 
     python3 scripts/planning_gate.py capture-source --repo owner/name --issue 284 \
-        --out .simplicio/loop-runs/<run>/source-snapshot.json
+        --out .simplicio-loop/loop-runs/<run>/source-snapshot.json
     python3 scripts/planning_gate.py build --run-dir <dir> --task-contract <path> \
         --plan <path> --run-id <id> --attempt <n> [--lease-id L] [--fencing-token F] \
         [--source-snapshot <path from capture-source>]

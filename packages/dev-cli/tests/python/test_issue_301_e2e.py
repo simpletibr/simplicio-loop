@@ -309,7 +309,7 @@ def test_issue_301_offline_effect_receipt_idempotency_and_rollback(tmp_path, mon
     assert second.state == "completed"
     assert transport.apply_count == 1
     assert (tmp_path / "offline-plan.txt").read_text(encoding="utf-8") == "Effect API\n"
-    assert list((tmp_path / ".simplicio" / "runtime-effects").glob("*.offline-receipt.json"))
+    assert list((tmp_path / ".simplicio-loop" / "runtime-effects").glob("*.offline-receipt.json"))
 
     failed_artifact = _write_artifact(
         tmp_path,
@@ -510,7 +510,7 @@ def test_issue_301_task_feature_sprint_entrypoints_fail_closed_without_runtime(
     before = sorted(
         path.relative_to(tmp_path).as_posix()
         for path in tmp_path.rglob("*")
-        if path.is_file() and ".simplicio" not in path.relative_to(tmp_path).parts
+        if path.is_file() and ".simplicio-loop" not in path.relative_to(tmp_path).parts
     )
     code = cli.main([*argv, "--root", str(tmp_path)])
     captured = capsys.readouterr()
@@ -531,7 +531,7 @@ def test_issue_301_task_feature_sprint_entrypoints_fail_closed_without_runtime(
     after = sorted(
         path.relative_to(tmp_path).as_posix()
         for path in tmp_path.rglob("*")
-        if path.is_file() and ".simplicio" not in path.relative_to(tmp_path).parts
+        if path.is_file() and ".simplicio-loop" not in path.relative_to(tmp_path).parts
     )
     assert before == after
 

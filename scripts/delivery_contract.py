@@ -25,12 +25,12 @@ semantics `task_anchor.py`'s goal re-anchor already established: a changed contr
 unless `--force` — a silent contract swap mid-run is exactly the drift class this exists to catch.
 
 State:
-  `.simplicio/orchestrator/loop/delivery_baseline.json` — the new-file baseline captured once, at freeze
+  `.simplicio-loop/orchestrator/loop/delivery_baseline.json` — the new-file baseline captured once, at freeze
       time (`capture_baseline`). Every path listed there is "pre-existing" and never re-flagged;
       everything else that later shows up as untracked/staged-new is a violation. NOT rewound on
       an ordinary turn — only re-captured by an explicit re-freeze (`--force`), matching the
       contract's "no new files, period" semantics for its whole lifetime.
-  `.simplicio/orchestrator/loop/delivery_report.md` — the default `--local-report` output path used by
+  `.simplicio-loop/orchestrator/loop/delivery_report.md` — the default `--local-report` output path used by
       `pr_evidence.py` when `open_pr: false`.
 
 Verbs:
@@ -49,7 +49,7 @@ Usage:
     python3 scripts/delivery_contract.py lint-comments --working-tree
     python3 scripts/delivery_contract.py check-commit-message \\
         --message "#526 - feat: add delivery contract" --convention "#<issue> - <type>: <desc>"
-    python3 scripts/delivery_contract.py report --anchor .simplicio/orchestrator/loop/anchor.json
+    python3 scripts/delivery_contract.py report --anchor .simplicio-loop/orchestrator/loop/anchor.json
 """
 from __future__ import annotations
 
@@ -72,11 +72,11 @@ SCHEMA = "simplicio.delivery-contract/v1"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-LOOP_DIR = os.path.join(REPO, ".simplicio/orchestrator", "loop")
+LOOP_DIR = os.path.join(REPO, ".simplicio-loop/orchestrator", "loop")
 DEFAULT_ANCHOR = os.environ.get("SIMPLICIO_ANCHOR_FILE") or os.path.join(LOOP_DIR, "anchor.json")
 # Env overrides mirror task_anchor.py's SIMPLICIO_ANCHOR_FILE -- lets a subprocess-driven test
 # (or an alternate install layout) redirect state without ever touching this repo's own
-# .simplicio/orchestrator/loop/ (same isolation discipline as test_intake_progress.py's SIMPLICIO_*_FILE).
+# .simplicio-loop/orchestrator/loop/ (same isolation discipline as test_intake_progress.py's SIMPLICIO_*_FILE).
 DEFAULT_BASELINE = (os.environ.get("SIMPLICIO_DELIVERY_BASELINE_FILE")
                      or os.path.join(LOOP_DIR, "delivery_baseline.json"))
 DEFAULT_LOCAL_REPORT = (os.environ.get("SIMPLICIO_DELIVERY_REPORT_FILE")
@@ -165,7 +165,7 @@ def _git(root, args: Sequence) -> str:
 # itself, mid-capture) or the loop's/runtime's own state look like a "new file" the client's
 # contract forbids -- the exact self-inflicted false-positive class `hooks/loop_stop.py`'s
 # `_changed_files()` already guards against for its own diff heuristic.
-_IGNORED_PREFIXES = (".simplicio/orchestrator/", ".simplicio/")
+_IGNORED_PREFIXES = (".simplicio-loop/orchestrator/", ".simplicio-loop/")
 
 
 def _new_file_paths(status_text: str) -> list:

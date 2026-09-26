@@ -141,7 +141,7 @@ def test_build_report_persists_preplanning_handshake_and_no_secrets(monkeypatch,
     assert report["status"] == "READY"
     handshake = report["handshake"]
     assert handshake["written"] is True
-    line = (tmp_path / ".simplicio/orchestrator/loop/journal.jsonl").read_text().strip()
+    line = (tmp_path / ".simplicio-loop/orchestrator/loop/journal.jsonl").read_text().strip()
     record = json.loads(line)
     assert record["schema"] == doctor.HANDSHAKE_SCHEMA
     assert record["phase"] == "pre_planning"

@@ -193,7 +193,7 @@ def _git_status(root: Path) -> str | None:
 class WorkspaceStore:
     def __init__(self, root: Path, storage: Path | None = None) -> None:
         self.root = root.resolve()
-        self.storage = (storage or self.root / ".simplicio" / "fast").resolve()
+        self.storage = (storage or self.root / ".simplicio-loop" / "fast").resolve()
         self.base_dir = self.storage / "base"
         self.overlay_dir = self.storage / "overlays"
         self.lease_dir = self.storage / "leases"

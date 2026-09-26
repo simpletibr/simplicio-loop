@@ -23,8 +23,8 @@ def test_mapper_fast_status_standalone_and_repo(tmp_path: Path) -> None:
     assert status["mapper"]["modules"].get("fast_certification") is True
 
     repo = tmp_path / "repo"
-    (repo / ".simplicio" / "fast").mkdir(parents=True)
-    (repo / ".simplicio" / "project-map.json").write_text("{}", encoding="utf-8")
+    (repo / ".simplicio-loop" / "fast").mkdir(parents=True)
+    (repo / ".simplicio-loop" / "project-map.json").write_text("{}", encoding="utf-8")
     repo_status = mapper_fast_status(repo=repo, data_dir=data)
     assert repo_status["repo"] is not None
     assert repo_status["repo"]["project_map"]["exists"] is True

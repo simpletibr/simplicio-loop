@@ -20,7 +20,7 @@ def _write_json(path: Path, payload: object) -> None:
 
 def _fixture(tmp_path: Path) -> tuple[Path, Path]:
     repo = tmp_path / "repo"
-    run = repo / ".simplicio" / "loop-runs" / "run-1"
+    run = repo / ".simplicio-loop" / "loop-runs" / "run-1"
     loop = run / "loop"
     loop.mkdir(parents=True)
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -116,7 +116,7 @@ def test_publish_creates_runtime_bound_snapshot(tmp_path, monkeypatch):
     )
 
     assert result["status"] == "VERIFIED"
-    envelope = json.loads((repo / ".simplicio" / "loop-execution.json").read_text(encoding="utf-8"))
+    envelope = json.loads((repo / ".simplicio-loop" / "loop-execution.json").read_text(encoding="utf-8"))
     assert envelope["chain"] == receipt_mod.CHAIN
     assert envelope["result"] == {"run_id": "run-1", "status": "VERIFIED", "verified": True}
     assert envelope["fast"]["version"] == "2.0.23"
@@ -147,7 +147,7 @@ def test_publish_skips_non_git_legacy_fixture(tmp_path, monkeypatch):
         "reason": "repository_not_git",
         "detail": "not a git repo",
     }
-    assert not (repo / ".simplicio" / "loop-execution.json").exists()
+    assert not (repo / ".simplicio-loop" / "loop-execution.json").exists()
 
 
 def test_publish_rejects_missing_state_artifact(tmp_path, monkeypatch):
@@ -233,7 +233,7 @@ def test_publish_allows_missing_optional_runtime_in_standalone_profile(tmp_path,
     )
 
     assert result["status"] == "VERIFIED"
-    envelope = json.loads((repo / ".simplicio" / "loop-execution.json").read_text(encoding="utf-8"))
+    envelope = json.loads((repo / ".simplicio-loop" / "loop-execution.json").read_text(encoding="utf-8"))
     assert envelope["runtime"] == {
         "version": "unavailable",
         "origin": "installed",
@@ -336,7 +336,7 @@ def test_flow_publication_calls_the_v1_publisher_once_for_terminal_status(tmp_pa
 
     def fake_publish(**kwargs):
         published.append(kwargs)
-        return {"status": "VERIFIED", "receipt": str(repo / ".simplicio" / "loop-execution.json")}
+        return {"status": "VERIFIED", "receipt": str(repo / ".simplicio-loop" / "loop-execution.json")}
 
     monkeypatch.setattr(receipt_mod, "publish_loop_execution_receipt", fake_publish)
     result = receipt_mod.publish_loop_execution_for_flow(

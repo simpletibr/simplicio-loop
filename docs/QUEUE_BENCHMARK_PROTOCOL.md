@@ -51,7 +51,7 @@ consistency fix is not evidence that all commands have safe adaptive saturation.
 
 The diagnostic fixture now passes **all ten independent behavioral checks**,
 including the test task's rejection of the original mutant. Evidence:
-`.simplicio/benchmark/queue-final-verification-20260911/stdout.txt` and its
+`.simplicio-loop/benchmark/queue-final-verification-20260911/stdout.txt` and its
 resource `receipt.json`. This completes the diagnostic implementation pilot,
 **not** the equivalent-arm Loop performance comparison. There is still no
 qualified fastest/cheapest production default. The sections below preserve the
@@ -59,7 +59,7 @@ chronological observations; earlier zero/seven-task counts are historical.
 
 The last three accepted attempts are `diagnostic-ADO303-repair`,
 `diagnostic-GH101-requirements`, and `diagnostic-GH104-requirements` under
-`.simplicio/benchmark/`. ADO-303 used one explicit format repair after a terminal
+`.simplicio-loop/benchmark/`. ADO-303 used one explicit format repair after a terminal
 response; both paid calls count. No unresolved request was retried. GH-101 and
 GH-104 initially failed Mapper lexical-coverage gates (0.182 and 0.154 versus
 0.200). Reading the task file alone did not fix GH-104. The fixture then received
@@ -78,7 +78,7 @@ The full `scripts/check.py` invocation exited 1: the first three reported shards
 had 90 passes, 69 passes, then 51 passes and one failure in
 `test_batch_crash_recovery_system.py::test_orchestrator_crash_mid_batch_is_recovered_by_a_fresh_process`
 (process A exited before journaling item 0). Evidence:
-`.simplicio/spill/1789138614-python-ccadfa6775bf.log`.
+`.simplicio-loop/spill/1789138614-python-ccadfa6775bf.log`.
 During that check a parallel worker invoked a checkpoint that stashed the dirty
 tree (`f27e524d44945ba03368fba4a1b2749b47a42704`). The source/report were recovered,
 and ignored benchmark receipts remained intact. Because the source state changed
@@ -239,7 +239,7 @@ No winning production default has been established by this session yet.
 Global Loop was upgraded from 3.43.8 to release 3.43.10 and its version verified.
 The new preparation run compiled all ten task contracts and executed central
 Mapper scan/inspect successfully. Its artifacts are under
-`.simplicio/benchmark/queue-3.43.10-20260911T135542012322Z/`.
+`.simplicio-loop/benchmark/queue-3.43.10-20260911T135542012322Z/`.
 No task implementation or provider call is represented by these preparation times.
 
 The earlier `prism-run.json` measures synthetic `asyncio.sleep` scheduling only.
@@ -272,12 +272,12 @@ Both probes used the existing fixture and this command shape:
 simplicio-loop run --task <root>/<ID>.md --repo <root>/fixture --delivery implemented --result-file <root>/run-<ID>.json
 ```
 
-Here `<root>` is `.simplicio/benchmark/queue-3.43.10-20260911T135542012322Z`.
+Here `<root>` is `.simplicio-loop/benchmark/queue-3.43.10-20260911T135542012322Z`.
 
 | Task | Run ID | Actual result | Full output |
 |---|---|---|---|
-| GH-101 (create) | run-20260911-140438-7p4izo65 | Exit 20, BLOCKED: mapper-derived plan rejected `target_missing_without_to_create:src/slug.py` | `.simplicio/spill/1789135480-sh-940c27561006.log` |
-| GH-102 (edit) | run-20260911-140449-2ncdndnm | Exit 20, BLOCKED: planning and operator dry-run completed, then independent watcher unavailable | `.simplicio/spill/1789135492-sh-22d354884ef9.log` |
+| GH-101 (create) | run-20260911-140438-7p4izo65 | Exit 20, BLOCKED: mapper-derived plan rejected `target_missing_without_to_create:src/slug.py` | `.simplicio-loop/spill/1789135480-sh-940c27561006.log` |
+| GH-102 (edit) | run-20260911-140449-2ncdndnm | Exit 20, BLOCKED: planning and operator dry-run completed, then independent watcher unavailable | `.simplicio-loop/spill/1789135492-sh-22d354884ef9.log` |
 
 Outcome receipts are `<root>/run-GH-101.json` and `<root>/run-GH-102.json`.
 The fixture has no `scripts/watcher_verify.py`, which the inspected `verify_run`
@@ -305,13 +305,13 @@ The resumed session received `OPENROUTER_API_KEY`. The new
 the credential or authentication response body. Both authenticated `/key` and
 `/models` requests succeeded, and the exact requested model
 `deepseek/deepseek-v4.1-flash` exists. Evidence:
-`.simplicio/benchmark/openrouter-preflight-20260911.json`.
+`.simplicio-loop/benchmark/openrouter-preflight-20260911.json`.
 These are metadata requests, not completions; completion calls remain zero.
 Provider access is no longer a blocker.
 
 The bounded CLI help sweep completed 105 help invocations across 12 installed
 entry points. Evidence is
-`.simplicio/benchmark/cli-coverage-bounded-20260911/coverage.json`.
+`.simplicio-loop/benchmark/cli-coverage-bounded-20260911/coverage.json`.
 This is not 105 functionally verified workflows. Forwarding wrappers that repeat
 parent help require manual reconciliation. The earlier unbounded sweep expanded
 such repeated help and was terminated; its inflated count is invalid coverage.
@@ -320,7 +320,7 @@ tests/test_benchmark_help_discovery.py` (3 passed).
 
 Additional actual execution probes:
 
-| Invocation | Observed outcome | Evidence under `.simplicio/spill/` |
+| Invocation | Observed outcome | Evidence under `.simplicio-loop/spill/` |
 |---|---|---|
 | `tick --task-index 1` on `run-20260911-140449-2ncdndnm` | Exit 1: `LEGACY_HOOKWALL_READ_ONLY`, before operator effect | `1789136839-simplicio-loop-41fe3be1bb01.log` |
 | New GH-102 `run` with `SIMPLICIO_STORAGE_ROUTE=mapper` | Exit 20: `mapper_replay_failed:STORE_NOT_INITIALIZED` | `1789136869-env-d00126986fc4.log` |
@@ -349,12 +349,12 @@ complete execution. The published package was not modified for this probe.
 
 `python3 bench/verify_queue_fixture.py --repo <root>/fixture` now independently
 checks the ten behaviors and correctly rejected all ten unfinished tasks.
-Evidence: `.simplicio/spill/1789137165-python3-817de04374a8.log`.
+Evidence: `.simplicio-loop/spill/1789137165-python3-817de04374a8.log`.
 The verifier is not yet wired into the Loop watcher receipt protocol.
 
 `bench/openrouter_worker_probe.py` made one real proposal request for GH-102,
 using that run's recorded Mapper context. It did not apply files or claim a task
-delivery. Receipt: `.simplicio/benchmark/openrouter-worker-GH-102.json`.
+delivery. Receipt: `.simplicio-loop/benchmark/openrouter-worker-GH-102.json`.
 
 | Metric | Observed value |
 |---|---:|
@@ -415,9 +415,9 @@ further source-dependent work on this now-changed fixture.
 After central Mapper refresh, `bench/prepare_queue_contexts.py` tested ten
 handoffs at each of 1,200, 6,000 and 12,000 envelope tokens, with `--limit 2`
 and `--execution-context`. Evidence directories are
-`.simplicio/benchmark/bounded-contexts-20260911`,
-`.simplicio/benchmark/bounded-contexts-6000-20260911`, and
-`.simplicio/benchmark/bounded-contexts-12000-20260911`.
+`.simplicio-loop/benchmark/bounded-contexts-20260911`,
+`.simplicio-loop/benchmark/bounded-contexts-6000-20260911`, and
+`.simplicio-loop/benchmark/bounded-contexts-12000-20260911`.
 Only the last configuration produced ready handoffs (seven of ten). GH-101,
 GH-104 and JIRA-203 still requested broader context and were not submitted.
 Exit code zero alone did not prove readiness: the JSON gate was also checked.
@@ -429,7 +429,7 @@ context digests. GH-103 used this mode and produced the exact expected JSON
 pointer/value answer, applied by native `simplicio edit` and independently
 verified with `verify_queue_fixture.py --task GH-103` (exit 0).
 
-Provider receipt: `.simplicio/benchmark/openrouter-worker-GH-103.json`.
+Provider receipt: `.simplicio-loop/benchmark/openrouter-worker-GH-103.json`.
 Actual request time was 3.890690084 seconds; input 1,725 tokens; completion 429
 tokens including 393 reasoning tokens; cached input 0; reported cost USD
 0.0010323; actual provider SiliconFlow. This is a different task from GH-102,
@@ -451,14 +451,14 @@ the sampled maximum is not an exact OS peak. No provider tokens are inferred.
 Timeouts stop only the newly owned process group and are marked explicitly.
 
 The instrumentation dependency is isolated in
-`.simplicio/benchmark/telemetry-venv` (psutil 7.2.2), not added to production
+`.simplicio-loop/benchmark/telemetry-venv` (psutil 7.2.2), not added to production
 dependencies or the global Loop release. Resource, proposal and help tests passed
 with this environment: 10 passed in 0.43 seconds. A real GH-103 verification was
-measured separately under `.simplicio/benchmark/resource-verifier-pilot`; it is
+measured separately under `.simplicio-loop/benchmark/resource-verifier-pilot`; it is
 not a full provider/task measurement and is not included in any arm ranking.
 
 After GH-103, central Mapper scan and handoffs were refreshed under
-`.simplicio/benchmark/contexts-after-GH103`. The native-shell entrypoint is now
+`.simplicio-loop/benchmark/contexts-after-GH103`. The native-shell entrypoint is now
 blocked by the active host hook; commands were moved to the permitted Simplicio
 MCP transport. That transport's environment probe reported the OpenRouter key
 absent, unlike the earlier CLI child environment used by the two paid probes.
@@ -474,7 +474,7 @@ The earlier MCP environment mismatch is not a blocker for this available route.
 
 JIRA-201 was proposed, applied and independently verified with separate resource
 receipts in `resource-worker-JIRA201`, `resource-apply-JIRA201`, and
-`resource-verify-JIRA201` under `.simplicio/benchmark`. Its provider receipt is
+`resource-verify-JIRA201` under `.simplicio-loop/benchmark`. Its provider receipt is
 `openrouter-worker-JIRA-201.json`: 5.192997791 seconds, 1,670 input tokens,
 716 completion tokens (647 reasoning), zero cached input, USD 0.0013602.
 
@@ -494,7 +494,7 @@ do not replace repeated equal-work arm comparisons.
 
 The consolidated independent verifier now reports seven passes and three
 failures (GH-101, GH-104, ADO-303). Evidence:
-`.simplicio/spill/1789137919-python3-0f37bb9c01e7.log`.
+`.simplicio-loop/spill/1789137919-python3-0f37bb9c01e7.log`.
 ADO-303 returned a root-level path/content object instead of the required
 `files` object; the proposal was rejected before application. Its earlier generic
 error said scope escape, but inspection proves a response-shape failure, not an

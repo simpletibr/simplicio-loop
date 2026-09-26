@@ -9,7 +9,7 @@ simplicio-loop batch --repo . <run-id>
 
 The scheduler freezes the task contract, builds impact keys from each plan step, rejects
 overlapping targets for concurrent execution, registers a durable queue under
-`.simplicio/orchestrator/runs/<run-id>/worktree-queue.json`, and allocates one owned worktree per
+`.simplicio-loop/orchestrator/runs/<run-id>/worktree-queue.json`, and allocates one owned worktree per
 task before starting the operator pool. The JSON result exposes:
 
 ```json

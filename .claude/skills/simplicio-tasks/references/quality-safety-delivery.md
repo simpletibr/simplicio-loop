@@ -10,7 +10,7 @@ blocked. Never mark done without green gates + evidence. Code failure is NOT a b
 investigate first. Drive with `diagnostics` (parse build/test output → fix root cause); apply each
 fix via `deterministic_edit` with its assertion so fix + verification are one step.
 
-**Architecture + practices gate (before the first edit):** re-read `.simplicio/orchestrator/conventions.json`
+**Architecture + practices gate (before the first edit):** re-read `.simplicio-loop/orchestrator/conventions.json`
 `architecture.docs` (mined by `repo_conventions` — see `extension-points.md`) for the layer/module
 boundaries, naming, and patterns this repo actually uses (e.g. hexagonal vs layered, where a new
 endpoint/service/model belongs) — new code MUST land in the place and shape that the discovered
@@ -58,7 +58,7 @@ python3 scripts/impact_audit.py audit <root> \
   --file <seed-you-touch> \
   --cover <reviewed-or-adjusted-files> \
   --fail-on high \
-  --json > .simplicio/orchestrator/impact-audit.json
+  --json > .simplicio-loop/orchestrator/impact-audit.json
 ```
 
 The audit maps three things around each seed file:
@@ -81,7 +81,7 @@ imported modules, run the stricter gate:
 python3 scripts/impact_audit.py audit <root> --fail-on medium
 ```
 
-The final evidence can cite `.simplicio/orchestrator/impact-audit.json` or summarize the explicit caller/test
+The final evidence can cite `.simplicio-loop/orchestrator/impact-audit.json` or summarize the explicit caller/test
 classification. "I changed one file" is not enough when the dependency map says the task reached
 farther.
 
@@ -101,7 +101,7 @@ When a workspace contains frontend, backend, and services under the same root �
 any cross-surface user flow — run a structural flow audit before planning and again before done:
 
 ```
-python3 scripts/flow_audit.py audit <root> --fail-on high --json > .simplicio/orchestrator/flow-audit.json
+python3 scripts/flow_audit.py audit <root> --fail-on high --json > .simplicio-loop/orchestrator/flow-audit.json
 ```
 
 The audit builds a static map of UI actions, frontend HTTP calls, backend endpoints, and backend
@@ -121,7 +121,7 @@ integration for a UI flow, run the stricter gate:
 python3 scripts/flow_audit.py audit <root> --fail-on medium
 ```
 
-The final evidence must include either `.simplicio/orchestrator/flow-audit.json` or the human summary. A green
+The final evidence must include either `.simplicio-loop/orchestrator/flow-audit.json` or the human summary. A green
 unit test is not enough when the flow graph still has an unclassified loose end.
 
 ### 4c — Adversarial verify for EVERY item (multi-vote, no tier shortcut)
@@ -174,7 +174,7 @@ On hard failure issue ONE targeted fix on the flagged tokens (≤2 retries); els
 
 ## Step 6 — Deliver + close + self-audit
 For each completed item, shape every artifact to the LEARNED `repo_conventions` profile (Step 1a',
-`.simplicio/orchestrator/conventions.json`) — don't hand-guess the format: branch name via
+`.simplicio-loop/orchestrator/conventions.json`) — don't hand-guess the format: branch name via
 `repo_conventions.py branch --type <item-type> --slug <title> [--ticket <id>]`, commit subject via
 `repo_conventions.py commit --type <t> [--scope <s>] --subject <s>` (Conventional Commits when the
 repo uses them, plain when it doesn't; English), and fill the PR body from the profile's PR-template
@@ -185,10 +185,10 @@ history), fall back to Conventional Commits and say so.
 **Every PR carries prints + an item-by-item AC check (the `pr_evidence` worker).** Do NOT hand-write
 the PR body and risk forgetting the proof — assemble it mechanically:
 `python3 scripts/pr_evidence.py build --item <id> --title "<t>" --summary "<s>" --require-evidence
---out .simplicio/orchestrator/pr_body.md`. It pulls the item-by-item checklist from the task anchor (one line
+--out .simplicio-loop/orchestrator/pr_body.md`. It pulls the item-by-item checklist from the task anchor (one line
 per AC, with its status + the receipt that verified it) AND embeds every screenshot
-(`web_verify`, under `.simplicio/orchestrator/tee/web`) and recording (`video_evidence`, under
-`.simplicio/orchestrator/tee/video`). For body-of-work / Phase-0 runs, `task_backlog.py checklist` renders the
+(`web_verify`, under `.simplicio-loop/orchestrator/tee/web`) and recording (`video_evidence`, under
+`.simplicio-loop/orchestrator/tee/video`). For body-of-work / Phase-0 runs, `task_backlog.py checklist` renders the
 master goal + multi-item table that `pr_evidence.py build --backlog ...` inserts ABOVE the per-item
 anchor checklist, so the PR shows backlog progress even after the anchor is cleared for the next item.
 With `--require-evidence` it FAILS CLOSED — exit 3 (`blocked`), never a body — when there is neither

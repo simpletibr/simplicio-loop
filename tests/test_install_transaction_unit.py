@@ -40,7 +40,7 @@ def test_apply_creates_every_expected_file_and_writes_applied_receipt(tmp_path):
     assert (target / "scripts" / "install_lib.py").is_file()
     assert (target / ".claude" / "settings.json").is_file()
 
-    receipt_path = target / ".simplicio" / "receipts" / (receipt["transaction_id"] + ".json")
+    receipt_path = target / ".simplicio-loop" / "receipts" / (receipt["transaction_id"] + ".json")
     assert receipt_path.is_file()
     on_disk = json.loads(receipt_path.read_text(encoding="utf-8"))
     assert on_disk["status"] == "APPLIED"
@@ -73,7 +73,7 @@ def test_blocked_plan_never_persists_a_transaction(tmp_path, monkeypatch):
     receipt = install_executor.apply("claude", target=str(target), is_global=False)
     assert receipt["status"] == "BLOCKED"
     assert not (target / ".claude").exists(), "a BLOCKED plan must not mutate anything"
-    assert not (target / ".simplicio").exists(), "a BLOCKED plan must not persist a transaction"
+    assert not (target / ".simplicio-loop").exists(), "a BLOCKED plan must not persist a transaction"
 
 
 def test_mid_transaction_failure_rolls_back_everything_already_applied(tmp_path):
@@ -97,7 +97,7 @@ def test_mid_transaction_failure_rolls_back_everything_already_applied(tmp_path)
     assert not (target / ".claude" / "settings.json").exists()
 
     on_disk = json.loads(
-        (target / ".simplicio" / "receipts" / (receipt["transaction_id"] + ".json"))
+        (target / ".simplicio-loop" / "receipts" / (receipt["transaction_id"] + ".json"))
         .read_text(encoding="utf-8"))
     assert on_disk["status"] == "ROLLED_BACK"
     assert "error" in on_disk
@@ -171,7 +171,7 @@ def test_cli_transactional_install_and_rollback_round_trip(tmp_path):
     assert r.returncode == 0, r.stdout + r.stderr
     assert (target / ".claude" / "skills" / "simplicio-loop").is_dir()
 
-    receipts_dir = target / ".simplicio" / "receipts"
+    receipts_dir = target / ".simplicio-loop" / "receipts"
     transaction_id = next(receipts_dir.glob("*.json")).stem
 
     r2 = subprocess.run(

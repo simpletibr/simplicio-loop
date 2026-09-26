@@ -192,7 +192,7 @@ def test_shadow_observes_but_never_dispatches_integrated(monkeypatch):
 
 
 def test_precedence_flag_env_config_default(tmp_path, monkeypatch):
-    config = tmp_path / ".simplicio" / "execution.json"
+    config = tmp_path / ".simplicio-loop" / "execution.json"
     config.parent.mkdir()
     config.write_text('{"mode":"integrated"}', encoding="utf-8")
     assert requested_mode(None, tmp_path) == "integrated"

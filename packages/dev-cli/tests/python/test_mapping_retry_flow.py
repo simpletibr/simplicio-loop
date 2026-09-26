@@ -21,7 +21,7 @@ def test_mapper_consumes_project_map_and_precedent_index(tmp_path):
     target.parent.mkdir(parents=True)
     target.write_text("from service import run\n\nrun()\n", encoding="utf-8")
     write_json(
-        tmp_path / ".simplicio" / "project-map.json",
+        tmp_path / ".simplicio-loop" / "project-map.json",
         {
             "schema": "simplicio.project-map/v1",
             "generated_at": "2026-05-27T00:00:00Z",
@@ -49,7 +49,7 @@ def test_mapper_consumes_project_map_and_precedent_index(tmp_path):
         },
     )
     write_json(
-        tmp_path / ".simplicio" / "precedent-index.json",
+        tmp_path / ".simplicio-loop" / "precedent-index.json",
         {
             "schema": "simplicio.precedent-index/v1",
             "items": [
@@ -76,7 +76,7 @@ def test_mapper_consumes_project_map_and_precedent_index(tmp_path):
 
 def test_precedent_index_ranks_candidates_without_embedding(tmp_path):
     write_json(
-        tmp_path / ".simplicio" / "precedent-index.json",
+        tmp_path / ".simplicio-loop" / "precedent-index.json",
         {
             "items": [
                 {
@@ -251,7 +251,7 @@ def test_apply_and_test_applies_unified_diff_before_running_test(tmp_path, monke
 
     assert ok, log
     assert "Simplicio Sprint CLI E2E - terminal" in target.read_text(encoding="utf-8")
-    assert (tmp_path / ".simplicio" / "last_patch.diff").exists()
+    assert (tmp_path / ".simplicio-loop" / "last_patch.diff").exists()
 
 
 def test_apply_and_test_fails_closed_without_real_test_command(tmp_path, monkeypatch):
@@ -384,7 +384,7 @@ def test_apply_and_test_builds_diff_from_full_file_artifact(tmp_path, monkeypatc
 
     assert ok, log
     assert target.read_text(encoding="utf-8") == "new\n"
-    assert (tmp_path / ".simplicio" / "last_patch_strategy.txt").read_text(
+    assert (tmp_path / ".simplicio-loop" / "last_patch_strategy.txt").read_text(
         encoding="utf-8"
     ) == "full_file_artifact\n"
 
@@ -418,7 +418,7 @@ def test_apply_and_test_recovers_stale_patch_from_full_file_artifact(tmp_path, m
 
     assert ok, log
     assert target.read_text(encoding="utf-8") == "fixed\n"
-    assert (tmp_path / ".simplicio" / "last_patch_strategy.txt").read_text(
+    assert (tmp_path / ".simplicio-loop" / "last_patch_strategy.txt").read_text(
         encoding="utf-8"
     ) == "full_file_after_patch_failure\n"
     receipt = pipeline._LAST_PATCH_RECEIPT
@@ -450,7 +450,7 @@ def test_apply_and_test_persists_receipt_when_git_apply_fails(tmp_path, monkeypa
     assert ok is False
     assert "git apply" in log.lower()
     assert target.read_text(encoding="utf-8") == "old\n"
-    journals = sorted((tmp_path / ".simplicio" / "transactions").glob("*.jsonl"))
+    journals = sorted((tmp_path / ".simplicio-loop" / "transactions").glob("*.jsonl"))
     assert journals, "expected a transaction journal for the failed apply attempt"
     receipt_events = []
     for line in journals[-1].read_text(encoding="utf-8").splitlines():
@@ -488,7 +488,7 @@ def test_apply_and_test_keeps_worktree_byte_for_byte_when_verification_fails(tmp
     assert ok is False
     assert target.read_text(encoding="utf-8") == "old\n"
     assert untouched.read_text(encoding="utf-8") == "keep me\n"
-    assert ".simplicio" not in log
+    assert ".simplicio-loop" not in log
 
 
 def test_apply_and_test_persists_transaction_receipt_for_failed_verification(tmp_path, monkeypatch):
@@ -513,7 +513,7 @@ def test_apply_and_test_persists_transaction_receipt_for_failed_verification(tmp
     ok, _log = pipeline._apply_and_test(output, str(tmp_path))
 
     assert ok is False
-    journals = sorted((tmp_path / ".simplicio" / "transactions").glob("*.jsonl"))
+    journals = sorted((tmp_path / ".simplicio-loop" / "transactions").glob("*.jsonl"))
     assert journals, "expected a transaction journal for the failed attempt"
     receipt_events = []
     for line in journals[-1].read_text(encoding="utf-8").splitlines():
@@ -582,7 +582,7 @@ def test_apply_and_test_persists_timeout_receipt_and_preserves_worktree(tmp_path
     assert ok is False
     assert "timed out" in log
     assert target.read_text(encoding="utf-8") == "old\n"
-    journals = sorted((tmp_path / ".simplicio" / "transactions").glob("*.jsonl"))
+    journals = sorted((tmp_path / ".simplicio-loop" / "transactions").glob("*.jsonl"))
     assert journals
     receipt_events = []
     for line in journals[-1].read_text(encoding="utf-8").splitlines():
@@ -1098,7 +1098,7 @@ def test_benchmark_writes_observability_log(tmp_path, monkeypatch):
             "target": "src/app.py",
             "criteria": "- output captured",
             "constraints": "- no hallucinated paths",
-            "test_cmd": "test -f .simplicio/bench_out.txt",
+            "test_cmd": "test -f .simplicio-loop/bench_out.txt",
         }
     ]
     cases_path = tmp_path / "cases.json"
@@ -1113,7 +1113,7 @@ def test_benchmark_writes_observability_log(tmp_path, monkeypatch):
 
     bench.run_bench(str(tmp_path), "python", str(cases_path))
 
-    run_log = tmp_path / ".simplicio" / "runs.jsonl"
+    run_log = tmp_path / ".simplicio-loop" / "runs.jsonl"
     assert run_log.exists()
     events = [json.loads(line) for line in run_log.read_text(encoding="utf-8").splitlines()]
     assert {event["mode"] for event in events} == {"baseline", "pipeline"}
@@ -1172,7 +1172,7 @@ def test_codex_corrupt_patch_recovers_from_full_file_fixture(tmp_path, monkeypat
 
     assert ok, log
     assert target.read_text(encoding="utf-8") == "fixed\n"
-    assert (tmp_path / ".simplicio" / "last_patch_strategy.txt").read_text(
+    assert (tmp_path / ".simplicio-loop" / "last_patch_strategy.txt").read_text(
         encoding="utf-8"
     ) == "full_file_after_patch_failure\n"
     receipt = pipeline._LAST_PATCH_RECEIPT
@@ -1201,7 +1201,7 @@ def test_codex_patch_does_not_apply_recovers_from_full_file_fixture(tmp_path, mo
 
     assert ok, log
     assert target.read_text(encoding="utf-8") == "fixed\n"
-    assert (tmp_path / ".simplicio" / "last_patch_strategy.txt").read_text(
+    assert (tmp_path / ".simplicio-loop" / "last_patch_strategy.txt").read_text(
         encoding="utf-8"
     ) == "full_file_after_patch_failure\n"
     receipt = pipeline._LAST_PATCH_RECEIPT

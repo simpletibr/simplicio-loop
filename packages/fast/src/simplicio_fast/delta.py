@@ -183,7 +183,7 @@ def _normal_path(value: str) -> str:
         or "/../" in candidate
     ):
         raise DeltaError("delta_path_invalid", f"invalid changed path: {value}")
-    if candidate.startswith(".simplicio/") or candidate == ".simplicio":
+    if candidate.startswith(".simplicio-loop/") or candidate == ".simplicio-loop":
         raise DeltaError(
             "delta_path_derived", f"derived path is not a source delta: {value}"
         )

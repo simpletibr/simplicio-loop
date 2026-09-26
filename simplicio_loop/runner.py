@@ -415,7 +415,7 @@ def _distributed_configuration(repo: str) -> tuple[Any, Optional[Dict[str, Any]]
             return None, None
         raise RuntimeError("distributed identity adapter unavailable")
     identity = ensure_identity(
-        path=os.environ.get("SIMPLICIO_IDENTITY_FILE") or str(Path(repo) / ".simplicio/orchestrator" / "agent-identity.json"),
+        path=os.environ.get("SIMPLICIO_IDENTITY_FILE") or str(Path(repo) / ".simplicio-loop/orchestrator" / "agent-identity.json"),
         runtime=os.environ.get("SIMPLICIO_RUNTIME", "unknown-runtime"),
         capabilities=["claim", "heartbeat", "fencing", "receipts", "events", "evidence", "completion"],
     )
@@ -748,7 +748,7 @@ def _dispatch_identity_fields(repo_path: Optional[Path]) -> Dict[str, str]:
         return {}
     try:
         identity = ensure_identity(
-            path=os.environ.get("SIMPLICIO_IDENTITY_FILE") or str(repo_path / ".simplicio/orchestrator" / "agent-identity.json"),
+            path=os.environ.get("SIMPLICIO_IDENTITY_FILE") or str(repo_path / ".simplicio-loop/orchestrator" / "agent-identity.json"),
             runtime=os.environ.get("SIMPLICIO_RUNTIME", "unknown-runtime"),
         )
     except Exception:
@@ -2068,7 +2068,7 @@ def _hookwall_ledger(
     if route == StorageRoute.SHADOW:
         raise StoreAdapterError("SHADOW_ROUTE_NOT_EXECUTABLE")
     return HookwallEffectLedger(
-        repo_path / ".simplicio" / "orchestrator" / "hookwall.sqlite3"
+        repo_path / ".simplicio-loop" / "orchestrator" / "hookwall.sqlite3"
     )
 
 
@@ -2266,8 +2266,8 @@ def _is_loop_generated_path(path: str) -> bool:
 def _is_loop_owned_status_path(path: str) -> bool:
     normalized = _normalized_repo_path(path)
     return (
-        normalized.startswith(".simplicio/orchestrator/")
-        or normalized.startswith(".simplicio/")
+        normalized.startswith(".simplicio-loop/orchestrator/")
+        or normalized.startswith(".simplicio-loop/")
         or normalized == ".simplicio-fast"
         or normalized.startswith(".simplicio-fast/")
         or normalized.startswith(".claude/")
@@ -2292,7 +2292,7 @@ def _repo_fingerprint(repo_path: Path) -> Dict[str, str]:
     if listed.returncode == 0:
         # Respect .gitignore: build outputs and verifier byproducts are not source.
         for rel in sorted({item for item in (listed.stdout or "").split("\0") if item}):
-            if _is_loop_generated_path(rel) or _is_tool_cache_path(rel) or rel.startswith(".simplicio/"):
+            if _is_loop_generated_path(rel) or _is_tool_cache_path(rel) or rel.startswith(".simplicio-loop/"):
                 continue
             try:
                 files.append((rel, (repo_path / rel).read_bytes()))
@@ -2304,7 +2304,7 @@ def _repo_fingerprint(repo_path: Path) -> Dict[str, str]:
             relative_root = ""
         dirs[:] = [
             d for d in dirs
-            if d not in {".git", ".simplicio/orchestrator", ".simplicio", ".simplicio-fast", "__pycache__"}
+            if d not in {".git", ".simplicio-loop/orchestrator", ".simplicio-loop", ".simplicio-fast", "__pycache__"}
             and not _is_loop_generated_path(
                 f"{relative_root}/{d}" if relative_root else d
             )
@@ -2357,7 +2357,7 @@ def _repo_state_equivalent(left: Dict[str, str], right: Dict[str, str]) -> bool:
     """Return True when repo content and base commit are unchanged.
 
     `dirty_status_hash` is useful telemetry, but it can drift because helper-generated
-    `.simplicio/orchestrator`/`.simplicio` state or other non-material status noise changes while the
+    `.simplicio-loop/orchestrator`/`.simplicio-loop` state or other non-material status noise changes while the
     tracked working tree bytes remain identical. Freshness gates should therefore key on the
     semantic repository state: commit + tree content hash.
     """
@@ -2650,7 +2650,7 @@ def _context_handoff_args(
     snapshot_path = persist_artifact(
         first_value(("context_snapshot", "canonical_context_snapshot", "context_snapshot_path")),
         "context-snapshot.json",
-        (repo_path / ".simplicio" / "context-snapshot.json",),
+        (repo_path / ".simplicio-loop" / "context-snapshot.json",),
     )
     pack_path = persist_artifact(
         first_value(("context_pack", "canonical_context_pack", "context_pack_path")),
@@ -3059,6 +3059,12 @@ def _execute_routed_runtime(item: Mapping[str, Any], run_dir: Path, *,
     return summary
 
 
+# 1-3 tasks run inline in the checkout (v3.43 "1-3 direct" policy): edits are
+# instant and the quality lanes run once at the end, so worktree setup and
+# patch integration would be pure overhead. Worktrees start at 4 tasks.
+WAVE_INLINE_MAX_TASKS = 3
+
+
 def _auto_worktree_dispatch(
     repo: str,
     run_id: str,
@@ -3075,6 +3081,8 @@ def _auto_worktree_dispatch(
     """
     if not _auto_fan_out_enabled() or len(indices) < 2:
         return None, {}, "auto_fan_out_disabled" if not _auto_fan_out_enabled() else "single_task"
+    if len(indices) <= WAVE_INLINE_MAX_TASKS:
+        return None, {}, "inline_small_batch"
     root = Path(repo).resolve()
     if not (root / ".git").exists():
         return None, {}, "not_git_checkout"
@@ -3108,8 +3116,8 @@ def _auto_worktree_dispatch(
         queue = WorktreeQueue(
             repo_root=str(root),
             run_id=run_id,
-            state_path=str(root / ".simplicio" / "loop-runs" / run_id / "worktree-queue.json"),
-            worktree_root=str(root / ".simplicio" / "loop-worktrees" / run_id),
+            state_path=str(root / ".simplicio-loop" / "loop-runs" / run_id / "worktree-queue.json"),
+            worktree_root=str(root / ".simplicio-loop" / "loop-worktrees" / run_id),
         )
         # Registration is an explicit preflight gate.  Allocation happens inside the
         # dispatcher, before any worker starts, and is persisted by the queue.
@@ -3319,7 +3327,7 @@ def _record_event(run_dir: Path, state: Dict[str, Any], event: Dict[str, Any],
     _sync_github_lifecycle(run_dir, state, event)
     # Host integrations (Orca cards, boards, chat) are NEVER default — only when
     # the client explicitly requested them via SIMPLICIO_LOOP_CLIENT_INTEGRATIONS
-    # / .simplicio/client-integrations.json (see client_integrations.py).
+    # / .simplicio-loop/client-integrations.json (see client_integrations.py).
     if integration_enabled("orca"):
         _sync_orca_lifecycle(run_dir, state, event)
     return state
@@ -3924,7 +3932,7 @@ def _mapper_generation(repo_path: Path) -> Dict[str, str]:
     churns on Mapper's own bookkeeping and would turn every such read-only
     re-survey into a false "active attempt mapper generation changed" block.
     """
-    path = repo_path / ".simplicio" / "index-state.json"
+    path = repo_path / ".simplicio-loop" / "index-state.json"
     try:
         document = _load_json(path)
     except (OSError, TypeError, ValueError):
@@ -4512,7 +4520,7 @@ def _extract_repo_file_hints(task_text: str, repo_path: Path) -> List[str]:
         if "/" not in rel and not (repo_root / rel).is_file():
             continue
         low = rel.lower()
-        if low.startswith(".simplicio/orchestrator/") or low.startswith(".claude/") or low.startswith(".github/"):
+        if low.startswith(".simplicio-loop/orchestrator/") or low.startswith(".claude/") or low.startswith(".github/"):
             continue
         if low.startswith(".venv/") or low.startswith("venv/") or "/site-packages/" in low:
             continue
@@ -4596,7 +4604,7 @@ def _task_context_plan_data(context: Mapping[str, Any], task: Mapping[str, Any],
         except (OSError, ValueError):
             continue
         low = path.lower()
-        if (low.startswith((".simplicio/orchestrator/", ".claude/", ".github/", ".venv/", "venv/"))
+        if (low.startswith((".simplicio-loop/orchestrator/", ".claude/", ".github/", ".venv/", "venv/"))
                 or "/site-packages/" in low or "/_bundle/" in low):
             continue
         if not low.endswith(_CODE_TARGET_SUFFIXES):
@@ -4781,7 +4789,7 @@ def _candidate_targets(mapper_payload: Dict[str, Any], repo_path: Path) -> List[
         except (OSError, ValueError):
             continue
         low = path.lower()
-        if low.startswith(".simplicio/orchestrator/") or low.startswith(".claude/"):
+        if low.startswith(".simplicio-loop/orchestrator/") or low.startswith(".claude/"):
             continue
         if low.startswith(".venv/") or low.startswith("venv/") or "/site-packages/" in low:
             continue
@@ -4978,10 +4986,10 @@ def arm_run(repo: str, task_path: str, delivery: str, max_iterations: int) -> Di
         raise ValueError("invalid task contract: " + "; ".join(validation_errors))
 
     run_id = _run_id()
-    # Keep loop run state under .simplicio/ (which simplicio-mapper ignores for
-    # freshness) instead of .simplicio/orchestrator/ (which the mapper sees as repo churn and
+    # Keep loop run state under .simplicio-loop/ (which simplicio-mapper ignores for
+    # freshness) instead of .simplicio-loop/orchestrator/ (which the mapper sees as repo churn and
     # marks artifacts_not_fresh, blocking the loop before any implementation work).
-    run_root = repo_path / ".simplicio" / "loop-runs" / run_id
+    run_root = repo_path / ".simplicio-loop" / "loop-runs" / run_id
     loop_dir = run_root / "loop"
     loop_dir.mkdir(parents=True, exist_ok=True)
     # Keep the append-only loop attempt-memory artifact present even when the
@@ -5321,7 +5329,7 @@ def _plan_relevant_changed_paths(repo_path: Path) -> List[str]:
     """Return worktree changes relevant to a frozen execution plan.
 
     The Loop writes its own Mapper, ledger, cache, and run receipts under
-    ``.simplicio/`` while a shared-run batch advances from one dependent task to
+    ``.simplicio-loop/`` while a shared-run batch advances from one dependent task to
     the next. Those bookkeeping writes necessarily change the repository
     fingerprint, but they are not source drift and cannot be authorized by a
     task's candidate targets. Keep the strict stale-plan check for every
@@ -5330,8 +5338,8 @@ def _plan_relevant_changed_paths(repo_path: Path) -> List[str]:
     return sorted({
         str(path).replace("\\", "/")
         for path in _changed_paths(repo_path)
-        if str(path).replace("\\", "/") not in {".simplicio"}
-        and not str(path).replace("\\", "/").startswith(".simplicio/")
+        if str(path).replace("\\", "/") not in {".simplicio-loop"}
+        and not str(path).replace("\\", "/").startswith(".simplicio-loop/")
         and not _is_loop_generated_path(str(path))
         and not _is_tool_cache_path(str(path).replace("\\", "/"))
         and str(path).strip()
@@ -6484,7 +6492,7 @@ def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
         state["next_action"] = "inspect_and_recover"
         state["evidence"] = {
             "ready": False,
-            "receipt": str(repo_path / ".simplicio" / "loop-execution.json"),
+            "receipt": str(repo_path / ".simplicio-loop" / "loop-execution.json"),
             "status": "UNVERIFIED",
         }
         _write_json(run_dir / "state.json", state)
@@ -6987,13 +6995,13 @@ def _persist_isolated_run_context(item: Dict[str, Any], context: Dict[str, Any])
         return
     target_root = Path(path).resolve()
     target_root.mkdir(parents=True, exist_ok=True)
-    context_dir = target_root / ".simplicio/orchestrator" / "dispatch-context"
+    context_dir = target_root / ".simplicio-loop/orchestrator" / "dispatch-context"
     context_dir.mkdir(parents=True, exist_ok=True)
     context_path = context_dir / (str(context.get("task_id") or item.get("task_index")) + ".json")
     context["context_path"] = str(context_path)
     _write_json(context_path, context)
 
-    source_state_path = source_repo / ".simplicio" / "loop-runs" / run_id / "state.json"
+    source_state_path = source_repo / ".simplicio-loop" / "loop-runs" / run_id / "state.json"
     if source_state_path.exists():
         try:
             source_run = source_state_path.parent
@@ -7006,8 +7014,8 @@ def _persist_isolated_run_context(item: Dict[str, Any], context: Dict[str, Any])
             # The worker's normal receipts remain authoritative if the coordinator is gone.
             pass
 
-    source_run = source_repo / ".simplicio" / "loop-runs" / run_id
-    target_run = target_root / ".simplicio" / "loop-runs" / run_id
+    source_run = source_repo / ".simplicio-loop" / "loop-runs" / run_id
+    target_run = target_root / ".simplicio-loop" / "loop-runs" / run_id
     if source_run.is_dir() and target_root != source_repo and not target_run.exists():
         target_run.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(source_run, target_run)
@@ -7667,7 +7675,7 @@ def _operator_dispatch_run_dir(item: Mapping[str, Any]) -> Path:
     repo_path = Path(item["repo"]).resolve()
 
     run_scope = hashlib.sha256(str(item["run_id"]).encode("utf-8")).hexdigest()[:16]
-    run_dir = repo_path / ".simplicio" / "orchestrator" / "dispatch-routes" / run_scope
+    run_dir = repo_path / ".simplicio-loop" / "orchestrator" / "dispatch-routes" / run_scope
     run_dir.mkdir(parents=True, exist_ok=True)
     return run_dir
 
@@ -8139,7 +8147,7 @@ def _dispatch_journal_backend(
         if root is None and journal_path is not None:
             journal = Path(journal_path).resolve()
             for parent in (journal.parent, *journal.parents):
-                if parent.name == "loop-runs" and parent.parent.name == ".simplicio":
+                if parent.name == "loop-runs" and parent.parent.name == ".simplicio-loop":
                     root = parent.parent.parent
                     break
         root = root or Path.cwd()
@@ -8296,7 +8304,7 @@ def dispatch_operator_batch(
         if prior.get(key, {}).get("status") == "succeeded":
             continue
         repo_path = Path(item["repo"]).resolve()
-        run_dir = repo_path / ".simplicio" / "loop-runs" / item["run_id"]
+        run_dir = repo_path / ".simplicio-loop" / "loop-runs" / item["run_id"]
         if not run_dir.is_dir():
             continue
         try:
@@ -9049,7 +9057,7 @@ def _seed_wave_lane_run_context(run_dir: Path, run_id: str, worktree_path: Path)
     through the exact same `execute_operator` boundary every other dispatch
     path uses.
     """
-    target_run = worktree_path / ".simplicio" / "loop-runs" / run_id
+    target_run = worktree_path / ".simplicio-loop" / "loop-runs" / run_id
     if not target_run.exists():
         target_run.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(run_dir, target_run)
@@ -9240,7 +9248,7 @@ def _wave_worktree_dispatch(
         # copies the whole run_dir tree into it (`_seed_wave_lane_run_context`),
         # which would recurse into itself if the worktree root were nested inside
         # run_dir.
-        wave_scratch_dir = repo_path / ".simplicio" / "orchestrator" / "wave" / run_id
+        wave_scratch_dir = repo_path / ".simplicio-loop" / "orchestrator" / "wave" / run_id
         results = asyncio.run(wave_worktree.run_worktree_wave(
             repo_path, wave_scratch_dir, lane_task_indices, base_commit, apply_fn,
             max_workers=effective_workers, verifier_for=lane_verifier_for,
@@ -9280,7 +9288,7 @@ def _wave_worktree_dispatch(
             # per-task receipts it wrote live in the lane's isolated checkout;
             # copy them back so #1295's receipt gate and the oracle see them
             # exactly where every other dispatch path leaves them.
-            lane_run = Path(lane_result.worktree) / ".simplicio" / "loop-runs" / run_id
+            lane_run = Path(lane_result.worktree) / ".simplicio-loop" / "loop-runs" / run_id
             for task_index in lane_result.task_indices:
                 for name in (f"operator-receipt-{task_index}.json", f"task-{task_index}-result.json"):
                     src = lane_run / name
@@ -9600,7 +9608,7 @@ def execute_operator_batch(
     # keep their own, unchanged path below.
     if (
         not isolated_contexts and worktree_queue is None and distributed_queue is None
-        and not has_task_dependencies
+        and not has_task_dependencies and len(items) > WAVE_INLINE_MAX_TASKS
     ):
         result = _wave_worktree_dispatch(
             repo_path=Path(status["manifest"].get("repo") or repo).resolve(),
@@ -9637,7 +9645,7 @@ def execute_operator_batch(
             or "mapper-fallback"
         )
         lifecycle = CheckpointLifecycle(
-            repo_root / ".simplicio" / "loop-runs",
+            repo_root / ".simplicio-loop" / "loop-runs",
             task_id=run_id,
             attempt_id=f"batch-{int((status['state'] or {}).get('attempts', 0)) + 1}",
             source_commit=source_commit,
@@ -9688,7 +9696,7 @@ def execute_operator_batch(
     technical_debts: List[Dict[str, Any]] = []
     # Fan-out is an optimization. A safe serial lane is still useful work, so
     # capability loss is recorded as advisory debt instead of a global blocker.
-    if auto_reason and auto_reason not in {"explicit_contexts", "single_task"} and len(items) > 1:
+    if auto_reason and auto_reason not in {"explicit_contexts", "single_task", "inline_small_batch"} and len(items) > 1:
         technical_debts.append(_record_technical_debt(
             status["run_dir"],
             run_id=run_id,
@@ -9711,8 +9719,10 @@ def execute_operator_batch(
     if not contexts and len(items) > 1:
         # dispatch_operator_batch derives this from the shared isolation key; retain a clear
         # contract-level marker for callers inspecting the convenience API.
-        result["serial_fallback_reason"] = result.get("serial_fallback_reason") or "shared_run_state"
-        if not technical_debts:
+        result["serial_fallback_reason"] = result.get("serial_fallback_reason") or (
+            "inline_small_batch" if auto_reason == "inline_small_batch" else "shared_run_state"
+        )
+        if not technical_debts and auto_reason != "inline_small_batch":
             technical_debts.append(_record_technical_debt(
                 status["run_dir"],
                 run_id=run_id,
@@ -9798,7 +9808,7 @@ def defer_maintenance_backlog_only(
 
 def read_status(repo: str, run_id: str = "") -> Dict[str, Any]:
     repo_path = Path(repo).resolve()
-    runs_root = repo_path / ".simplicio" / "loop-runs"
+    runs_root = repo_path / ".simplicio-loop" / "loop-runs"
     if not runs_root.exists():
         return {
             "run_dir": None,

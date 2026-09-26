@@ -38,8 +38,8 @@ def test_write_set_lock_uses_mapper_store_files(tmp_path):
     mgr = WriteSetLockManager(tmp_path)
     mgr.acquire(["src/a.py"], owner="a1", lease_id="L1", fencing_token="F1")
 
-    assert not (tmp_path / ".simplicio" / "write-set-locks.sqlite3").exists()
-    lock_files = list((tmp_path / ".simplicio" / "mapper-store" / "locks").glob("*.lock"))
+    assert not (tmp_path / ".simplicio-loop" / "write-set-locks.sqlite3").exists()
+    lock_files = list((tmp_path / ".simplicio-loop" / "mapper-store" / "locks").glob("*.lock"))
     assert len(lock_files) == 1
     assert mgr.held_paths() == ["src/a.py"]
     assert mgr.release(owner="a1", lease_id="L1")["status"] == "released"
@@ -191,8 +191,8 @@ def test_prism_envelope_and_transaction_exactly_once(tmp_path):
     assert first == second
     assert calls == ["checkpoint", "apply", "verify"]
     assert first["prism_id"] == "P1"
-    assert not (tmp_path / ".simplicio" / "prism-transactions.sqlite3").exists()
-    assert list((tmp_path / ".simplicio" / "mapper-store" / "prism-transactions").glob("*.json"))
+    assert not (tmp_path / ".simplicio-loop" / "prism-transactions.sqlite3").exists()
+    assert list((tmp_path / ".simplicio-loop" / "mapper-store" / "prism-transactions").glob("*.json"))
     receipt = build_effect_receipt(
         env,
         status="committed",

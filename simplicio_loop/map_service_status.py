@@ -12,7 +12,7 @@ from .map_service_single_flight import MapHandle, SingleFlightMapStore
 from .map_service_watchers import MapWatcherManager
 
 SCHEMA = "simplicio.map-service-status/v1"
-DEFAULT_RELATIVE_PATH = (".simplicio/orchestrator", "map", "status.json")
+DEFAULT_RELATIVE_PATH = (".simplicio-loop/orchestrator", "map", "status.json")
 
 
 class MapServiceSession:

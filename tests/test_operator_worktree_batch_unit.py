@@ -23,26 +23,40 @@ def test_auto_fan_out_requires_independent_plan_targets(monkeypatch, tmp_path):
 
     import scripts.worktree_queue as worktree_queue
     monkeypatch.setattr(worktree_queue, "WorktreeQueue", Queue)
-    contract = {"tasks": [{"identity": {"feature": "A"}}, {"identity": {"feature": "B"}}]}
-    plan = {"steps": [{"candidate_targets": ["src/a.py"]}, {"candidate_targets": ["src/b.py"]}]}
+    names = ["a", "b", "c", "d"]
+    contract = {"tasks": [{"identity": {"feature": n.upper()}} for n in names]}
+    plan = {"steps": [{"candidate_targets": [f"src/{n}.py"]} for n in names]}
 
     queue, contexts, reason = runner._auto_worktree_dispatch(
-        str(tmp_path), "run-1", contract, plan, [1, 2]
+        str(tmp_path), "run-1", contract, plan, [1, 2, 3, 4]
     )
 
     assert isinstance(queue, Queue)
     assert reason == ""
-    assert set(contexts) == {1, 2}
-    assert {spec.files_affected[0] for spec in queue.registered} == {"src/a.py", "src/b.py"}
+    assert set(contexts) == {1, 2, 3, 4}
+    assert {spec.files_affected[0] for spec in queue.registered} == {f"src/{n}.py" for n in names}
+
+
+def test_three_or_fewer_tasks_stay_inline_without_worktrees(tmp_path):
+    """1-3 tasks: edits are instant and quality lanes run once at the end, so
+    worktree setup/integration is pure overhead -- run inline in the tree."""
+    (tmp_path / ".git").mkdir()
+    for count in (2, 3):
+        contract = {"tasks": [{"identity": {"feature": str(i)}} for i in range(count)]}
+        plan = {"steps": [{"candidate_targets": [f"src/{i}.py"]} for i in range(count)]}
+        queue, contexts, reason = runner._auto_worktree_dispatch(
+            str(tmp_path), "run-1", contract, plan, list(range(1, count + 1))
+        )
+        assert (queue, contexts, reason) == (None, {}, "inline_small_batch")
 
 
 def test_auto_fan_out_falls_back_for_overlapping_targets(monkeypatch, tmp_path):
     (tmp_path / ".git").mkdir()
-    contract = {"tasks": [{"identity": {"feature": "A"}}, {"identity": {"feature": "B"}}]}
-    plan = {"steps": [{"candidate_targets": ["src/shared.py"]}, {"candidate_targets": ["src/shared.py"]}]}
+    contract = {"tasks": [{"identity": {"feature": str(i)}} for i in range(4)]}
+    plan = {"steps": [{"candidate_targets": ["src/shared.py"]} for _ in range(4)]}
 
     queue, contexts, reason = runner._auto_worktree_dispatch(
-        str(tmp_path), "run-1", contract, plan, [1, 2]
+        str(tmp_path), "run-1", contract, plan, [1, 2, 3, 4]
     )
 
     assert queue is None
@@ -108,7 +122,7 @@ class FakeQueue:
 
 def _success(repo, run_id, task_index):
     return {
-        "run_dir": str(Path(repo) / ".simplicio/orchestrator" / "runs" / run_id),
+        "run_dir": str(Path(repo) / ".simplicio-loop/orchestrator" / "runs" / run_id),
         "state": {
             "phase": "validating",
             "attempts": 1,

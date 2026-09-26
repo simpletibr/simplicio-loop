@@ -396,7 +396,7 @@ print(s)
 EOF</code></td><td>0</td><td>0.14</td><td>0.15</td></tr>
 <tr><td>normal</td><td>4</td><td><code>python3 tests/check_login.py --stage 1 &amp;&amp; python3 tests/check_login.py --stage 2</code></td><td>0</td><td>0.18</td><td>0.19</td></tr>
 <tr><td>simplicio</td><td>1</td><td><code>pwd &amp;&amp; ls -la &amp;&amp; git log --oneline -5 2&gt;/dev/null | head</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>1</td><td><code>which simplicio-loop simplicio-dev-cli simplicio-mapper simplicio-fast 2&gt;&amp;1; ls .simplicio 2&gt;&amp;1 ★</code></td><td>2</td><td>0.12</td><td>0.12</td></tr>
+<tr><td>simplicio</td><td>1</td><td><code>which simplicio-loop simplicio-dev-cli simplicio-mapper simplicio-fast 2&gt;&amp;1; ls .simplicio-loop 2&gt;&amp;1 ★</code></td><td>2</td><td>0.12</td><td>0.12</td></tr>
 <tr><td>simplicio</td><td>1</td><td><code>cat README.md; echo ---; cat cadastro.html; echo ---; cat login.html; echo ---; find tests -type f | head -50</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
 <tr><td>simplicio</td><td>1</td><td><code>simplicio-loop orient --task "Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a &lt;form id=cadastro&gt; containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button." --json 2&gt;&amp;1 | head -200 ★</code></td><td>0</td><td>2.86</td><td>2.83</td></tr>
 <tr><td>simplicio</td><td>1</td><td><code>simplicio-loop orient --task "Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a &lt;form id=cadastro&gt; containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button." --json 2&gt;&amp;1 | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d.get('route'),indent=2)); print(json.dumps(d.get('commands'),indent=2)); print(json.dumps(d.get('targets'),indent=2)[:3000])" ★</code></td><td>0</td><td>1.38</td><td>1.40</td></tr>
@@ -446,7 +446,7 @@ simplicio-dev-cli edit --plan ops.json --compile plan.json 2&gt;&amp;1 | tail -2
 <tr><td>simplicio</td><td>2</td><td><code>pwd &amp;&amp; ls -la &amp;&amp; git log --oneline -5 2&gt;/dev/null | head</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
 <tr><td>simplicio</td><td>2</td><td><code>find . -name "cadastro.html" -not -path "*/node_modules/*" 2&gt;/dev/null</code></td><td>0</td><td>0.13</td><td>0.12</td></tr>
 <tr><td>simplicio</td><td>2</td><td><code>cat -A cadastro.html | head -50; echo "-----"; cat cadastro.html; echo "-----"; cat login.html; echo "-----"; cat README.md; echo "-----"; ls -R tests</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>2</td><td><code>ls -R .simplicio | head -50; echo ---; which simplicio-loop simplicio-dev-cli; echo ---; simplicio-loop --help 2&gt;&amp;1 | head -30 ★</code></td><td>0</td><td>0.34</td><td>0.35</td></tr>
+<tr><td>simplicio</td><td>2</td><td><code>ls -R .simplicio-loop | head -50; echo ---; which simplicio-loop simplicio-dev-cli; echo ---; simplicio-loop --help 2&gt;&amp;1 | head -30 ★</code></td><td>0</td><td>0.34</td><td>0.35</td></tr>
 <tr><td>simplicio</td><td>2</td><td><code>cat tests/check_cadastro.py; echo "====="; cat tests/check_login.py</code></td><td>0</td><td>0.12</td><td>0.14</td></tr>
 <tr><td>simplicio</td><td>2</td><td><code>simplicio-loop orient --task "Edit cadastro.html: add a labeled phone field (input name=phone, type=tel) and a confirm-password field (name=password_confirm, type=password, required, minlength=8) to the same form, keeping the existing fields." --json 2&gt;&amp;1 | head -200 ★</code></td><td>0</td><td>3.04</td><td>3.00</td></tr>
 <tr><td>simplicio</td><td>2</td><td><code>sed -n 1,80p tests/check_cadastro.py</code></td><td>0</td><td>0.14</td><td>0.14</td></tr>
@@ -465,7 +465,7 @@ simplicio-dev-cli edit --plan ops.json --compile plan.json 2&gt;&amp;1 | tail -2
 EOF
 simplicio-dev-cli edit --plan /tmp/ops.json --compile /tmp/plan.json &amp;&amp; simplicio-dev-cli edit --plan /tmp/plan.json --apply --json ★</code></td><td>0</td><td>0.41</td><td>0.40</td></tr>
 <tr><td>simplicio</td><td>2</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; python3 tests/check_cadastro.py --stage 2; echo "stage2_exit=$?"; python3 tests/check_cadastro.py --stage 1; echo "stage1_exit=$?"; git diff --stat; cat cadastro.html ★</code></td><td>0</td><td>0.22</td><td>0.23</td></tr>
-<tr><td>simplicio</td><td>2</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; git status --porcelain | grep -v '^ M .simplicio' ; echo "---"; python3 - &lt;&lt;'EOF'
+<tr><td>simplicio</td><td>2</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; git status --porcelain | grep -v '^ M .simplicio-loop' ; echo "---"; python3 - &lt;&lt;'EOF'
 import re,pathlib
 t=pathlib.Path("cadastro.html").read_text()
 labels=re.findall(r'&lt;label for="([^"]+)"',t)
@@ -474,15 +474,15 @@ print("labels:",labels)
 print("all labels bound:",all(l in ids for l in labels))
 EOF ★</code></td><td>0</td><td>0.16</td><td>0.18</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>pwd &amp;&amp; ls -la &amp;&amp; git log --oneline -3 2&gt;/dev/null | head</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>which simplicio-loop simplicio-dev-cli simplicio-mapper simplicio-fast 2&gt;&amp;1; ls .simplicio 2&gt;&amp;1 ★</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
+<tr><td>simplicio</td><td>3</td><td><code>which simplicio-loop simplicio-dev-cli simplicio-mapper simplicio-fast 2&gt;&amp;1; ls .simplicio-loop 2&gt;&amp;1 ★</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>cat login.html; echo "=== cadastro ==="; cat cadastro.html; echo "=== tests ==="; find tests -type f | head -50; echo "=== README ==="; cat README.md</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>simplicio-loop orient --task "Create login.html: a pure HTML (no JS framework, no external CSS/JS) login page with a &lt;form id=login&gt; containing labeled inputs email (type=email, required) and password (type=password, required) and a submit button." --json 2&gt;&amp;1 | head -100 ★</code></td><td>0</td><td>3.06</td><td>3.01</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>cat tests/check_login.py; echo "=== check_cadastro ==="; sed -n 1,200p tests/check_cadastro.py</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>sed -n 1,80p tests/check_login.py</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>sed -n 80,140p tests/check_login.py</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>ls .simplicio/loop-runs 2&gt;/dev/null; ls .simplicio/orchestrator 2&gt;/dev/null; cat .simplicio/orchestrator/loop/scratchpad.md 2&gt;/dev/null</code></td><td>1</td><td>0.12</td><td>0.13</td></tr>
+<tr><td>simplicio</td><td>3</td><td><code>ls .simplicio-loop/loop-runs 2&gt;/dev/null; ls .simplicio-loop/orchestrator 2&gt;/dev/null; cat .simplicio-loop/orchestrator/loop/scratchpad.md 2&gt;/dev/null</code></td><td>1</td><td>0.12</td><td>0.13</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>simplicio-loop --help 2&gt;&amp;1 | head -40; echo ====; simplicio-loop prepare --help 2&gt;&amp;1 | head -40 ★</code></td><td>0</td><td>0.47</td><td>0.48</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>ls -a; cat .simplicio/orchestrator/loop-journal* 2&gt;/dev/null; ls .simplicio/ledger 2&gt;/dev/null; find / -name "*.md" -path "*simplicio*loop*" -maxdepth 8 2&gt;/dev/null | head</code></td><td>0</td><td>0.37</td><td>0.37</td></tr>
+<tr><td>simplicio</td><td>3</td><td><code>ls -a; cat .simplicio-loop/orchestrator/loop-journal* 2&gt;/dev/null; ls .simplicio-loop/ledger 2&gt;/dev/null; find / -name "*.md" -path "*simplicio*loop*" -maxdepth 8 2&gt;/dev/null | head</code></td><td>0</td><td>0.37</td><td>0.37</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>python3 -m pytest --version 2&gt;&amp;1 | head -2; python3 -m coverage --version 2&gt;&amp;1 | head -2; python3 -c "import html.parser; print('ok')"</code></td><td>0</td><td>0.39</td><td>0.39</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>P=$(python3 -c "import simplicio_loop,os;print(os.path.dirname(simplicio_loop.__file__))" 2&gt;/dev/null); echo $P; ls $P 2&gt;/dev/null | head -40</code></td><td>0</td><td>0.18</td><td>0.18</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>P=/home/user/wt/loop-suite-int/simplicio_loop; sed -n 1,80p $P/lane_verifiers.py 2&gt;/dev/null; echo ===; grep -rn "lanes_required" $P/lane_verifiers.py | head</code></td><td>0</td><td>0.14</td><td>0.14</td></tr>
@@ -528,8 +528,8 @@ Benchmark verifier: `python3 tests/check_login.py --stage 1`
 Coverage verifier: `python3 -m coverage erase &amp;&amp; python3 -m coverage run --include="tests/check_*.py" tests/check_login.py --stage 1 &gt;/dev/null 2&gt;&amp;1; python3 -m coverage run --append --include="tests/check_*.py" tests/check_login.py --stage 2 &gt;/dev/null 2&gt;&amp;1; python3 -m coverage run --append --include="tests/check_*.py" tests/check_cadastro.py --stage 2 &gt;/dev/null 2&gt;&amp;1; python3 -m coverage report`
 EOF
 simplicio-loop prepare --task tasks.md --repo . 2&gt;&amp;1 | tail -40 ★</code></td><td>0</td><td>2.53</td><td>2.51</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; find .simplicio/loop-runs/run-20260926-034309-swzoxh4r -maxdepth 2 | head -30 &amp;&amp; cat .simplicio/loop-runs/run-20260926-034309-swzoxh4r/task-contract.json 2&gt;/dev/null | head -60 ★</code></td><td>0</td><td>0.12</td><td>0.14</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; R=.simplicio/loop-runs/run-20260926-034309-swzoxh4r &amp;&amp; python3 - "$R" &lt;&lt;'PY'
+<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; find .simplicio-loop/loop-runs/run-20260926-034309-swzoxh4r -maxdepth 2 | head -30 &amp;&amp; cat .simplicio-loop/loop-runs/run-20260926-034309-swzoxh4r/task-contract.json 2&gt;/dev/null | head -60 ★</code></td><td>0</td><td>0.12</td><td>0.14</td></tr>
+<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; R=.simplicio-loop/loop-runs/run-20260926-034309-swzoxh4r &amp;&amp; python3 - "$R" &lt;&lt;'PY'
 import json, sys, pathlib
 run = pathlib.Path(sys.argv[1])
 new = """&lt;!DOCTYPE html&gt;
@@ -567,13 +567,13 @@ print("written")
 PY
 ls $R | grep edit-plan ★</code></td><td>0</td><td>0.14</td><td>0.15</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; simplicio-loop wave run-20260926-034309-swzoxh4r --repo . 2&gt;&amp;1 | tail -60 ★</code></td><td>0</td><td>2.64</td><td>2.84</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; R=.simplicio/loop-runs/run-20260926-034309-swzoxh4r &amp;&amp; cat login.html &amp;&amp; ls $R | head -40 &amp;&amp; python3 -c "
+<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; R=.simplicio-loop/loop-runs/run-20260926-034309-swzoxh4r &amp;&amp; cat login.html &amp;&amp; ls $R | head -40 &amp;&amp; python3 -c "
 import json,pathlib
 p=pathlib.Path('$R/quality-matrix.json')
 print(p.exists())
 if p.exists(): print(json.dumps(json.loads(p.read_text()),indent=2)[:2500])
 " ★</code></td><td>0</td><td>0.14</td><td>0.15</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; cat .simplicio/loop-runs/run-20260926-034309-swzoxh4r/lanes/coverage.log | tail -20 ★</code></td><td>0</td><td>0.14</td><td>0.14</td></tr>
+<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; cat .simplicio-loop/loop-runs/run-20260926-034309-swzoxh4r/lanes/coverage.log | tail -20 ★</code></td><td>0</td><td>0.14</td><td>0.14</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; python3 -m coverage erase &amp;&amp; python3 -m coverage run --include="tests/check_*.py" tests/check_login.py --stage 1 &gt;/dev/null 2&gt;&amp;1; python3 -m coverage run --append --include="tests/check_*.py" tests/check_login.py --stage 2 &gt;/dev/null 2&gt;&amp;1; python3 -m coverage run --append --include="tests/check_*.py" tests/check_cadastro.py --stage 2 &gt;/dev/null 2&gt;&amp;1; python3 -m coverage report -m ★</code></td><td>0</td><td>0.71</td><td>0.71</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; python3 -m coverage erase &amp;&amp; python3 -m coverage run --include="*/tests/check_*.py" tests/check_login.py --stage 1 &gt;/dev/null 2&gt;&amp;1; python3 -m coverage run --append --include="*/tests/check_*.py" tests/check_login.py --stage 2 &gt;/dev/null 2&gt;&amp;1; python3 -m coverage run --append --include="*/tests/check_*.py" tests/check_cadastro.py --stage 2 &gt;/dev/null 2&gt;&amp;1; python3 -m coverage run --append --include="*/tests/check_*.py" -c '
 import sys; sys.path.insert(0, "tests")
@@ -591,7 +591,7 @@ p = L.parse_login("")
 print(L.check_stage1(p))
 '; python3 -m coverage report ★</code></td><td>1</td><td>0.37</td><td>0.37</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; python3 -m coverage erase &amp;&amp; PY=python3; python3 -m coverage run --include="tests/check_login.py" tests/check_login.py --stage 1 &gt;/dev/null 2&gt;&amp;1; python3 -m coverage run --append --include="tests/check_login.py" tests/check_login.py --stage 2 &gt;/dev/null 2&gt;&amp;1; T=$(mktemp); printf '%s' '&lt;form id="login"&gt;&lt;input name="email"&gt;&lt;input name="password"&gt;&lt;a href="cadastro.html"&gt;x&lt;/a&gt;&lt;/form&gt;' &gt; "$T"; python3 -m coverage run --append --include="tests/check_login.py" tests/check_login.py --stage 1 --path "$T" &gt;/dev/null 2&gt;&amp;1; python3 -m coverage run --append --include="tests/check_login.py" tests/check_login.py --stage 2 --path "$T" &gt;/dev/null 2&gt;&amp;1; printf '%s' '&lt;form id="login"&gt;&lt;input name="email" type="email" required&gt;&lt;input name="password" type="password"&gt;&lt;input name="remember" type="checkbox"&gt;&lt;button type="submit"&gt;&lt;/button&gt;&lt;/form&gt;' &gt; "$T"; python3 -m coverage run --append --include="tests/check_login.py" tests/check_login.py --stage 2 --path "$T" &gt;/dev/null 2&gt;&amp;1; rm -f "$T"; python3 -m coverage report -m ★</code></td><td>0</td><td>0.98</td><td>0.97</td></tr>
-<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; R=.simplicio/loop-runs/run-20260926-034309-swzoxh4r &amp;&amp; python3 -c "
+<tr><td>simplicio</td><td>3</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; R=.simplicio-loop/loop-runs/run-20260926-034309-swzoxh4r &amp;&amp; python3 -c "
 import json,pathlib
 for f in ['state.json','watcher-receipt.json','delivery-receipt.json']:
     p=pathlib.Path('$R')/f
@@ -609,7 +609,7 @@ for n in ['simplicio_dev_cli','simplicio_devcli','dev_cli']:
 " ★</code></td><td>0</td><td>0.16</td><td>0.17</td></tr>
 <tr><td>simplicio</td><td>3</td><td><code>P=$(python3 -c "import simplicio,os;print(os.path.dirname(simplicio.__file__))"); echo $P; grep -rn "no-op\|noop\|identical\|unchanged\|same as" $P --include=*.py 2&gt;/dev/null | grep -i "replace\|plan\|edit" | head -20</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>pwd &amp;&amp; ls -la &amp;&amp; git log --oneline -3 2&gt;/dev/null</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>find . -name "login.html" -not -path "*/node_modules/*" 2&gt;/dev/null; echo "---"; ls .simplicio 2&gt;/dev/null</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
+<tr><td>simplicio</td><td>4</td><td><code>find . -name "login.html" -not -path "*/node_modules/*" 2&gt;/dev/null; echo "---"; ls .simplicio-loop 2&gt;/dev/null</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>cat login.html; echo "=== CADASTRO ==="; cat cadastro.html; echo "=== TASKS ==="; cat tasks.md</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>which simplicio-loop simplicio-dev-cli simplicio-mapper simplicio-fast 2&gt;/dev/null; echo "---"; simplicio-loop orient --task "Edit login.html: add a checkbox input (name=remember) to the same form, and add a link &lt;a href=cadastro.html&gt; to the signup page somewhere on the page." --json 2&gt;&amp;1 | head -100 ★</code></td><td>0</td><td>3.06</td><td>2.98</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>ls -R tests; echo "==="; cat tests/check_login.py 2&gt;/dev/null; echo "=== CAD ==="; cat tests/check_cadastro.py 2&gt;/dev/null</code></td><td>0</td><td>0.12</td><td>0.13</td></tr>
@@ -651,7 +651,7 @@ simplicio-loop prepare --task tasks.md --repo . 2&gt;&amp;1 | tail -20 ★</code
 <tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; python3 - &lt;&lt;'PY'
 import json, pathlib
 run="run-20260926-034450-rwkqehc8"
-d=pathlib.Path(".simplicio/loop-runs")/run
+d=pathlib.Path(".simplicio-loop/loop-runs")/run
 d.mkdir(parents=True, exist_ok=True)
 plan={"operations":[
  {"path":"login.html",
@@ -670,12 +670,12 @@ import json,sys
 d=json.load(sys.stdin)
 print(json.dumps({k:d[k] for k in d if k not in ('receipt',)},indent=1)[:3000])
 " 2&gt;&amp;1 | head -60 ★</code></td><td>0</td><td>0.37</td><td>0.39</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo/.simplicio/loop-runs/run-20260926-034450-rwkqehc8 &amp;&amp; ls -la &amp;&amp; for f in *.json; do echo "=== $f"; head -c 1500 "$f"; echo; done</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
+<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo/.simplicio-loop/loop-runs/run-20260926-034450-rwkqehc8 &amp;&amp; ls -la &amp;&amp; for f in *.json; do echo "=== $f"; head -c 1500 "$f"; echo; done</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; cat login.html &amp;&amp; git status --porcelain &amp;&amp; python3 tests/check_login.py --stage 2 ★</code></td><td>0</td><td>0.16</td><td>0.16</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo/.simplicio/loop-runs/run-20260926-034450-rwkqehc8 &amp;&amp; ls lanes 2&gt;/dev/null &amp;&amp; cat operator-receipt.json 2&gt;/dev/null | head -60 &amp;&amp; echo "=== EVID" &amp;&amp; python3 -c "
+<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo/.simplicio-loop/loop-runs/run-20260926-034450-rwkqehc8 &amp;&amp; ls lanes 2&gt;/dev/null &amp;&amp; cat operator-receipt.json 2&gt;/dev/null | head -60 &amp;&amp; echo "=== EVID" &amp;&amp; python3 -c "
 import json;d=json.load(open('evidence-receipt.json'));print(json.dumps(d,indent=1)[:2500])"</code></td><td>0</td><td>0.14</td><td>0.15</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; python3 -m coverage erase &amp;&amp; for a in "tests/check_login.py --stage 1" "tests/check_login.py --stage 2" "tests/check_cadastro.py --stage 1" "tests/check_cadastro.py --stage 2"; do python3 -m coverage run --append --include="tests/check_*.py" $a &gt;/dev/null 2&gt;&amp;1; done; python3 -m coverage report ★</code></td><td>0</td><td>0.85</td><td>0.85</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>cat /tmp/llm-ab-g63lzr9f/simplicio-repo/.simplicio/loop-runs/run-20260926-034450-rwkqehc8/lanes/coverage.log /tmp/llm-ab-g63lzr9f/simplicio-repo/.simplicio/loop-runs/run-20260926-034450-rwkqehc8/lanes/reverify-coverage.log</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
+<tr><td>simplicio</td><td>4</td><td><code>cat /tmp/llm-ab-g63lzr9f/simplicio-repo/.simplicio-loop/loop-runs/run-20260926-034450-rwkqehc8/lanes/coverage.log /tmp/llm-ab-g63lzr9f/simplicio-repo/.simplicio-loop/loop-runs/run-20260926-034450-rwkqehc8/lanes/reverify-coverage.log</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>python3 -c "import simplicio_loop,os;print(os.path.dirname(simplicio_loop.__file__))" 2&gt;/dev/null; ls /tmp/claude-0/-home-user/0ec94cd2-06f4-56a2-844e-a9f409b7dfea/scratchpad/venv-int/lib/python*/site-packages/ | head -40</code></td><td>0</td><td>0.18</td><td>0.19</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>cd /home/user/wt/loop-suite-int/simplicio_loop &amp;&amp; sed -n 1,200p lane_verifiers.py</code></td><td>0</td><td>0.14</td><td>0.13</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>cd /home/user/wt/loop-suite-int/simplicio_loop &amp;&amp; sed -n 1,120p quality_matrix.py; echo "=== grep threshold"; grep -rn "coverage_threshold\|below the required\|85" --include=*.py . | head -40</code></td><td>0</td><td>0.12</td><td>0.14</td></tr>
@@ -729,7 +729,7 @@ PY ★</code></td><td>0</td><td>1.50</td><td>1.50</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; python3 - &lt;&lt;'PY'
 import json, pathlib
 run="run-20260926-034609-zfmgt2hc"
-d=pathlib.Path(".simplicio/loop-runs")/run
+d=pathlib.Path(".simplicio-loop/loop-runs")/run
 plan={"operations":[
  {"path":"login.html",
   "find":"  &lt;p&gt;\n    &lt;button type=\"submit\"&gt;Entrar&lt;/button&gt;\n  &lt;/p&gt;",
@@ -751,10 +751,10 @@ print('blockers',st.get('blockers'))
 " ★</code></td><td>0</td><td>4.34</td><td>4.57</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; python3 -c "
 import json
-d=json.load(open('.simplicio/loop-runs/run-20260926-034609-zfmgt2hc/state.json'))
+d=json.load(open('.simplicio-loop/loop-runs/run-20260926-034609-zfmgt2hc/state.json'))
 print('phase',d['phase']); print('completion',d.get('completion')); print('delivery',d.get('delivery',{}).get('ready'),d.get('delivery',{}).get('current_state'))
 " ; echo "=== QM"; python3 -c "
-import json;q=json.load(open('.simplicio/loop-runs/run-20260926-034609-zfmgt2hc/quality-matrix.json'))
+import json;q=json.load(open('.simplicio-loop/loop-runs/run-20260926-034609-zfmgt2hc/quality-matrix.json'))
 print(q['coverage']); print({k:v['status'] for k,v in q['requirements'].items()}); print(q.get('policy'))" ★</code></td><td>0</td><td>0.16</td><td>0.17</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; git diff --stat login.html &amp;&amp; python3 tests/check_login.py --stage 2 &amp;&amp; python3 tests/check_login.py --stage 1 ★</code></td><td>0</td><td>0.18</td><td>0.19</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; simplicio-loop verify run-20260926-034609-zfmgt2hc --repo . 2&gt;&amp;1 | python3 -c "
@@ -764,7 +764,7 @@ print('status',d.get('status'),'verified',d.get('verified'))
 st=d.get('state',{})
 print('phase',st.get('phase'),'completion',st.get('completion'))
 " ; echo "=== ORACLE"; simplicio-loop oracle --help 2&gt;&amp;1 | head -15 ★</code></td><td>0</td><td>0.51</td><td>0.51</td></tr>
-<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; ls .simplicio/loop-runs/run-20260926-034609-zfmgt2hc/loop/ &amp;&amp; cat .simplicio/loop-runs/run-20260926-034609-zfmgt2hc/loop/last_response.txt 2&gt;/dev/null; echo "---watcher"; cat .simplicio/loop-runs/run-20260926-034609-zfmgt2hc/loop/watcher_state.json ★</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
+<tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; ls .simplicio-loop/loop-runs/run-20260926-034609-zfmgt2hc/loop/ &amp;&amp; cat .simplicio-loop/loop-runs/run-20260926-034609-zfmgt2hc/loop/last_response.txt 2&gt;/dev/null; echo "---watcher"; cat .simplicio-loop/loop-runs/run-20260926-034609-zfmgt2hc/loop/watcher_state.json ★</code></td><td>0</td><td>0.12</td><td>0.12</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; git show --stat --oneline HEAD | head -20; echo ---; git show --stat --oneline HEAD~1 | head -20; echo ---; ls .git; cat .git/HEAD ★</code></td><td>0</td><td>0.14</td><td>0.15</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; cat login.html | sed -n 15,30p &amp;&amp; python3 tests/check_login.py --stage 2 &amp;&amp; python3 tests/check_cadastro.py --stage 2 &amp;&amp; git add -A &amp;&amp; git commit -q -m "simplicio: task 4" &amp;&amp; git log --oneline -2 &amp;&amp; git status --porcelain | head ★</code></td><td>0</td><td>0.37</td><td>0.31</td></tr>
 <tr><td>simplicio</td><td>4</td><td><code>cd /tmp/llm-ab-g63lzr9f/simplicio-repo &amp;&amp; simplicio-loop verify run-20260926-034609-zfmgt2hc --repo . 2&gt;&amp;1 | python3 -c "

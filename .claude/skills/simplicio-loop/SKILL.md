@@ -37,7 +37,7 @@ simplicio-loop orient --task "<goal>" --json        # Mapper + Fast context in o
 simplicio-loop prepare --task tasks.md --repo .
 
 # 3. Per task N, write ONLY find/replace text (read the target file first):
-#    .simplicio/loop-runs/<run_id>/edit-plan-<N>.json
+#    .simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json
 #    {"operations": [{"path": "calc/ops.py", "find": "<exact text, unique in file>", "replace": "<new text>"}]}
 
 # 4. Execute: all tasks as a wave, or one task
@@ -71,6 +71,7 @@ Coverage verifier: `python3 -m pytest -q --cov=calc --cov-report=term`
 
 - One `<Lane> verifier:` per quality lane; a lane without a command blocks and names the line to add. `Type: Docs|Chore|Config`, or `Tests: none`, waives the whole lane matrix for that task.
 - **No `Coverage verifier:` declared** and every file this delivery touches is non-code (`.html`/`.htm`/`.css`/`.md`/`.txt`/`.json`/`.yaml`/`.yml`/`.svg`) → coverage is honestly `not_applicable`, never a fabricated number or a permanent block. Any code file touched, or a declared verifier, keeps the strict numeric-threshold gate.
+- Tasks from any tracker → export JSON/CSV → `simplicio-loop intake --from tasks.json --repo .` (writes this same `tasks.md` grammar; no per-tool adapter needed — see `docs/CLI_COMMANDS.md` § Generic task intake).
 - Full format, worked example, and lane-matrix mechanics: `references/full-flow.md`.
 
 ## Done
@@ -82,10 +83,10 @@ Coverage verifier: `python3 -m pytest -q --cov=calc --cov-report=term`
 1. Evidence-gated exit. No in-turn evidence → no promise.
 2. Exact sentinel `<promise>EXACT TEXT</promise>` matching `completion_promise`.
 3. `max_iterations` is mandatory before iteration 1.
-4. Scratchpad `.simplicio/orchestrator/loop/scratchpad.md` is the agent SoT: YAML frontmatter (`iteration`, `max_iterations`, `completion_promise`, `evidence_required`, `mode`, `started_at`), then the goal verbatim below it.
+4. Scratchpad `.simplicio-loop/orchestrator/loop/scratchpad.md` is the agent SoT: YAML frontmatter (`iteration`, `max_iterations`, `completion_promise`, `evidence_required`, `mode`, `started_at`), then the goal verbatim below it.
 5. Review: **1 implement + 1 verify**. No 3–4 reviewer panels on ordinary diffs.
 
-A sibling `.simplicio/orchestrator/loop/done` flag is touched only when the promise is verified. `.simplicio/orchestrator/loop/journal.jsonl` is the loop's durable attempt memory (one record per turn: `iteration`, `action`, `hypothesis`, `gate`, failure `fingerprint`) — the scratchpad holds the GOAL, the journal holds WHAT WAS TRIED.
+A sibling `.simplicio-loop/orchestrator/loop/done` flag is touched only when the promise is verified. `.simplicio-loop/orchestrator/loop/journal.jsonl` is the loop's durable attempt memory (one record per turn: `iteration`, `action`, `hypothesis`, `gate`, failure `fingerprint`) — the scratchpad holds the GOAL, the journal holds WHAT WAS TRIED.
 
 Every turn's first line: `python3 scripts/loop_progress.py render --turn-header`.
 End every message: `DONE | NEXT | BLOCKED` (full drive/cadence detail: `references/full-flow.md`).
@@ -96,10 +97,12 @@ Loop orientation:
 - GitHub is SoT for issues/PRs when the remote is GitHub.
 - Context: simplicio-loop orient --task "<goal>" --json (Mapper + Fast).
 - Route first: simplicio-loop orient --task "<task>" --json → follow route.mode / route.next. fast-path (1 task, 1 file) → simplicio-dev-cli edit --plan ops.json --compile plan.json → edit --plan plan.json --apply → run the task's check. No run, no wave.
+- Hot path (1+ tasks): simplicio-loop orient --brief --task "<t>" [--task "<t2>" ...] --json → write ops.json from its targets/plan/apply block → simplicio-loop apply ops.json --repo <root> --json → follow its status/next_effort.
 - 2+ tasks or converge: simplicio-loop prepare --task tasks.md → write every edit-plan-<N>.json → wave <run_id> → verify <run_id>.
 - edit-plan-<N>.json = {"operations": [{"path","find","replace"}]}; find must match exactly once.
 - Never simplicio-dev-cli task "prose". No plan → plan_required (do not call OpenRouter).
 - Review: 1 implement + 1 verify. Promise only after verify MEASURED.
+- Effort: plan high → execute low → review medium (simplicio_loop/effort.py). Honor `effort`/`next_effort` from orient --brief / apply's JSON — never re-derive the mapping.
 - End: DONE | NEXT | BLOCKED.
 <!-- SIMPLICIO-LLM-ORIENTATION:END -->
 

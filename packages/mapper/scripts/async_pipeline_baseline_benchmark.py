@@ -233,7 +233,7 @@ def _benchmark_size(spec: SizeSpec, runs: int) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="async-pipeline-baseline-") as tmp:
         tmp_path = Path(tmp)
         source_dir = tmp_path / "source"
-        output_dir_name = ".simplicio"
+        output_dir_name = ".simplicio-loop"
         if spec.use_real_fixture:
             file_count = _copy_real_fixture(source_dir)
         else:
@@ -326,7 +326,7 @@ def _render_markdown(results: list[dict[str, Any]], generated_at: str, python_ve
             "discovery, per-file blocking `open()` + regex parse "
             "(`_cached_parse_file`), one `diskcache` miss+set per file, then "
             "a single-threaded write of 5 JSON artifacts.",
-            "- **Warm** re-runs against the same `.simplicio/cache` dir, so "
+            "- **Warm** re-runs against the same `.simplicio-loop/cache` dir, so "
             "every file should hit `FileProcessingCache.get_processed_file` "
             "instead of re-parsing -- the warm/cold ratio is the current "
             "cache's real speedup, which any async rewrite must not regress.",

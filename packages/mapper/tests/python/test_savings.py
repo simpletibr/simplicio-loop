@@ -47,7 +47,7 @@ class RecordSavingsEventTest(unittest.TestCase):
         os.environ.update(self._env_backup)
 
     def _ledger_path(self) -> Path:
-        return Path(self.root) / ".simplicio" / "ledger" / "savings-events.jsonl"
+        return Path(self.root) / ".simplicio-loop" / "ledger" / "savings-events.jsonl"
 
     def test_writes_one_jsonl_record_with_expected_shape(self) -> None:
         path = record_savings_event(

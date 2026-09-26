@@ -1,6 +1,6 @@
 """#293 §4: manifest/version reconciliation + a real N-1 -> N upgrade test.
 
-`scripts/install_executor.py` now persists `.simplicio/manifest.json`
+`scripts/install_executor.py` now persists `.simplicio-loop/manifest.json`
 (`simplicio.install-manifest/v1`) on every successful `apply()`, recording the resolved
 version and the exact skill set that transaction installed. A SUBSEQUENT `apply()` diffs the
 skill set it is about to install against the skill set the PRIOR manifest recorded, and removes
@@ -45,7 +45,7 @@ def _seed_n_minus_1(target):
     version + an OLDER skill set that includes one skill the CURRENT release no longer declares,
     plus that skill's directory actually present on disk (as a real N-1 install would have left
     it) with a marker file inside so we can prove its content, not just its presence."""
-    manifest_dir = target / ".simplicio"
+    manifest_dir = target / ".simplicio-loop"
     manifest_dir.mkdir(parents=True, exist_ok=True)
     old_skills = list(CURRENT_SKILLS) + [STALE_SKILL_NAME]
     (manifest_dir / "manifest.json").write_text(json.dumps({
@@ -89,7 +89,7 @@ def test_apply_reconciles_stale_skill_and_writes_new_manifest(tmp_path):
         assert (target / ".claude" / "skills" / s / "SKILL.md").is_file(), \
             "%s must still be installed after upgrade" % s
 
-    manifest = json.loads((target / ".simplicio" / "manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads((target / ".simplicio-loop" / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["schema"] == "simplicio.install-manifest/v1"
     assert manifest["previous_version"] == "0.0.1-old"
     assert manifest["version"] == receipt["resolved_version"]
@@ -129,7 +129,7 @@ def test_rollback_of_upgrade_transaction_restores_stale_skill_and_prior_manifest
     assert stale_dir.is_dir(), "rollback of the upgrade must restore the N-1 leftover skill"
     assert (stale_dir / "SKILL.md").read_text(encoding="utf-8").startswith("# stale N-1 skill")
 
-    manifest = json.loads((target / ".simplicio" / "manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads((target / ".simplicio-loop" / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["version"] == "0.0.1-old", \
         "rollback must restore the PRIOR manifest, not leave the new version recorded"
     assert STALE_SKILL_NAME in manifest["skills"]

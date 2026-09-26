@@ -275,7 +275,7 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
             code = _run_handoff(
                 {
                     "root": str(self.root),
-                    "out": ".simplicio",
+                    "out": ".simplicio-loop",
                     "await": False,
                     "timeout": 0,
                     "json": True,
@@ -327,7 +327,7 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
             code = _run_handoff(
                 {
                     "root": str(self.root),
-                    "out": ".simplicio",
+                    "out": ".simplicio-loop",
                     "await": False,
                     "timeout": 0,
                     "json": True,
@@ -369,7 +369,7 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
             code = _run_handoff(
                 {
                     "root": str(self.root),
-                    "out": ".simplicio",
+                    "out": ".simplicio-loop",
                     "await": False,
                     "timeout": 0,
                     "json": True,

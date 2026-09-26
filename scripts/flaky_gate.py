@@ -12,7 +12,7 @@ back to parsing `pytest -v` output per-test (works with a bare pytest install, n
 dependency required to run this gate locally).
 
 On any flaky or failing test, writes a diagnostic bundle (`--diagnostics-dir`, default
-`.simplicio/quality-gate/flaky/`) with the raw output of every run so a failure in CI leaves
+`.simplicio-loop/quality-gate/flaky/`) with the raw output of every run so a failure in CI leaves
 enough trace to reproduce it without re-running the whole matrix.
 
 Usage:
@@ -83,7 +83,7 @@ def main() -> int:
     parser.add_argument("--repeat", type=int, default=5, help="number of repeated runs (default: 5)")
     parser.add_argument("--target", nargs="*", default=None, help="explicit test file(s)/node id(s); default: critical subset")
     parser.add_argument("--stress", action="store_true", help="stress mode: default repeat becomes 25 and target is the whole tests/ dir unless --target given")
-    parser.add_argument("--diagnostics-dir", default=None, help="directory to write per-run logs + summary (default: .simplicio/quality-gate/flaky)")
+    parser.add_argument("--diagnostics-dir", default=None, help="directory to write per-run logs + summary (default: .simplicio-loop/quality-gate/flaky)")
     parser.add_argument("--json", action="store_true", help="print machine-readable summary")
     args = parser.parse_args()
 
@@ -94,7 +94,7 @@ def main() -> int:
     if not args.target:
         targets = _existing_targets(targets) if not args.stress else targets
 
-    diagnostics_dir = args.diagnostics_dir or os.path.join(REPO, ".simplicio", "quality-gate", "flaky")
+    diagnostics_dir = args.diagnostics_dir or os.path.join(REPO, ".simplicio-loop", "quality-gate", "flaky")
 
     history = {}  # nodeid -> list of outcomes across runs
     return_codes = []

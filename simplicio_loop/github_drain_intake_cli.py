@@ -36,7 +36,7 @@ def _emit(payload: dict) -> int:
 def _default_checkpoint(workspace: str, repository: str) -> str:
     return str(
         Path(workspace).resolve()
-        / ".simplicio/orchestrator"
+        / ".simplicio-loop/orchestrator"
         / "drain-intake"
         / (repository.replace("/", "--") + ".json")
     )

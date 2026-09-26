@@ -185,7 +185,7 @@ PR मर्ज होकर भी अधूरा रह गया, और ख
 | क्षमता | यह क्या करती है | प्रमाण / वर्कर | विवरण |
 |---|---|---|---|
 | 🎬 **Video evidence** (`video_evidence`) | किसी UI परिवर्तन के काम करने के चलते-फिरते प्रमाण के रूप में **असली ब्राउज़र सत्र** को रिकॉर्ड करती है (Playwright, डिफ़ॉल्ट); किसी स्पष्ट explainer अनुरोध के लिए [hyperframes](https://github.com/heygen-com/hyperframes) के साथ एक **नियतात्मक कैप्शन-युक्त MP4** रेंडर करती है (`/simplicio-loop make a video of screen X`) | `scripts/video_evidence.py` · toolchain के बिना BLOCKED (कभी fake-pass नहीं) | [§ Video evidence](#-video-evidence--playwright-by-default-hyperframes-on-request) |
-| 🧠 **Attempt memory + stall detector** | एक टिकाऊ रन-जर्नल (`.simplicio/orchestrator/loop/journal.jsonl`) + एक stall detector ताकि लूप **दोलन करने के बजाय रणनीति बदले**; वृद्धिशील ट्राइएज (`since`) हर बारी केवल डेल्टा पढ़ता है | `scripts/loop_journal.py` · `selftest` 9/9 | [§ Anti-oscillation](#-attempt-memory--stall-detector-दोलन-रोधी) |
+| 🧠 **Attempt memory + stall detector** | एक टिकाऊ रन-जर्नल (`.simplicio-loop/orchestrator/loop/journal.jsonl`) + एक stall detector ताकि लूप **दोलन करने के बजाय रणनीति बदले**; वृद्धिशील ट्राइएज (`since`) हर बारी केवल डेल्टा पढ़ता है | `scripts/loop_journal.py` · `selftest` 9/9 | [§ Anti-oscillation](#-attempt-memory--stall-detector-दोलन-रोधी) |
 | 🔒 **Fail-closed safety gate** (`action_gate`) | एक `PreToolUse`/git-pre-push हुक जो force-push, इतिहास पुनर्लेखन, मास-डिलीट, विनाशकारी DDL, इन्फ़्रा teardown, और सीक्रेट-युक्त कमिट्स/पुश को **यांत्रिक रूप से ब्लॉक** करता है — Step 5 को निष्पादन-योग्य बनाया गया, गद्य नहीं | `hooks/action_gate.py` · `selftest` 15/15 | [§ Safety](#-सुरक्षा-गैर-समझौता-योग्य) |
 | 🔬 **Local verification** | एक टेस्ट सूट (वर्कर selftests + लूप ड्राइवर का एक **e2e** जो साक्ष्य-गेटेड निकास सिद्ध करता है) + एक **claims-audit** (संदर्भित स्क्रिप्ट्स मौजूद · गणनाएँ संगत · `_bundle ≡ source`) — सब स्थानीय, **कोई सशुल्क CI नहीं** | `scripts/check.py` · `scripts/claims_audit.py` · `tests/` | [§ Tests & local checks](#-परीक्षण-और-स्थानीय-जाँच-कोई-सशुल्क-ci-नहीं) |
 | ✅ **Honest savings** | बचत पंक्ति अब **साक्ष्य-गेटेड है, अनिवार्य नहीं** — कोई संख्या केवल किसी मापी गई रसीद के साथ दिखाई जाती है (clamp/signatures/cache/`deterministic_edit`/ledger); कभी मनगढ़ंत नहीं | token-economy अनुबंध | [§ Token economy](#-टोकन-अर्थव्यवस्था) |
@@ -319,14 +319,14 @@ flowchart LR
    ले जाना चाहिए (पास होता टेस्ट, मर्ज-किया-गया PR, बंद-आइटम पुनः-क्वेरी)। बिना साक्ष्य वाला वादा = अनदेखा।
 2. **`max_iterations` सीमा** — कठोर सुरक्षा बैकस्टॉप
 3. **STOP/cancel path** — explicit STOP file or channel command stops unattended runs
-4. **STOP संकेत** — `.simplicio/orchestrator/STOP` या चैनल कमांड
+4. **STOP संकेत** — `.simplicio-loop/orchestrator/STOP` या चैनल कमांड
 
 बारियों के बीच, LMCache (जब उपलब्ध हो) KV स्थिति को कैश करता है ताकि पुनः-फ़ीड की लागत लगभग-शून्य प्रीफ़िल हो।
 
 ### 🧠 Attempt memory + stall detector (दोलन-रोधी)
 
 एक पुनः-फ़ीड लूप जो कुछ याद नहीं रखता वह दोलन करता है — X आज़माओ, असफल, X फिर आज़माओ — जब तक
-सीमा भस्म न हो जाए। simplicio-loop एक **टिकाऊ रन-जर्नल** रखता है (`.simplicio/orchestrator/loop/journal.jsonl`,
+सीमा भस्म न हो जाए। simplicio-loop एक **टिकाऊ रन-जर्नल** रखता है (`.simplicio-loop/orchestrator/loop/journal.jsonl`,
 append-only: `iteration · action · hypothesis · gate · error-fingerprint`) और एक **stall detector**
 ([`scripts/loop_journal.py`](../scripts/loop_journal.py), नियतात्मक + मॉडल-मुक्त):
 

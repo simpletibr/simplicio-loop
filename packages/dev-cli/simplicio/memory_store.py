@@ -6,7 +6,7 @@ that any agent vendor — Claude Code, Codex, Cursor, this CLI itself — can
 read and write, so a decision made in one session survives into the next
 session run by a different tool.
 
-Storage layout, under `memory_dir()` (default `~/.simplicio/memory/`,
+Storage layout, under `memory_dir()` (default `~/.simplicio-loop/memory/`,
 override via `SIMPLICIO_MEMORY_DIR`):
 
     <memory_dir>/
@@ -54,7 +54,7 @@ def memory_dir() -> Path:
     if override:
         return Path(override)
     home = os.environ.get("HOME")
-    return (Path(home) if home else Path.home()) / ".simplicio" / "memory"
+    return (Path(home) if home else Path.home()) / ".simplicio-loop" / "memory"
 
 
 def _notes_dir(base: Path) -> Path:

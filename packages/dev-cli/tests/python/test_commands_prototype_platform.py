@@ -25,7 +25,7 @@ from simplicio.commands import prototype
 
 
 def _artifacts_dir(tmp_path: Path) -> Path:
-    directory = tmp_path / ".simplicio" / "artifacts"
+    directory = tmp_path / ".simplicio-loop" / "artifacts"
     directory.mkdir(parents=True, exist_ok=True)
     return directory
 

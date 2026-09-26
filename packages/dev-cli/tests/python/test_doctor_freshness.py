@@ -177,7 +177,7 @@ def test_doctor_storage_json_is_read_only_and_reports_route(tmp_path, capsys) ->
 
 
 def test_doctor_storage_human_output_reports_legacy_artifact(tmp_path, capsys) -> None:
-    legacy = tmp_path / ".simplicio" / "effect-transactions.sqlite3"
+    legacy = tmp_path / ".simplicio-loop" / "effect-transactions.sqlite3"
     legacy.parent.mkdir()
     legacy.write_bytes(b"legacy")
 
@@ -186,7 +186,7 @@ def test_doctor_storage_human_output_reports_legacy_artifact(tmp_path, capsys) -
 
     assert code == 0
     assert "storage capabilities (read-only):" in out
-    assert "legacy present   .simplicio/effect-transactions.sqlite3" in out
+    assert "legacy present   .simplicio-loop/effect-transactions.sqlite3" in out
 
 
 def test_doctor_list_tiers_supports_json_and_human_output(capsys) -> None:

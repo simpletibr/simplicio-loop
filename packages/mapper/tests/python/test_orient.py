@@ -19,7 +19,7 @@ class OrientContractTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
-        (self.root / ".simplicio").mkdir()
+        (self.root / ".simplicio-loop").mkdir()
         (self.root / "src").mkdir()
         (self.root / "src/order_lines.py").write_text(
             "def order_lines(lines):\n"
@@ -35,7 +35,7 @@ class OrientContractTest(unittest.TestCase):
                 {"path": "docs.md", "importance": 0.9},
             ],
         }
-        (self.root / ".simplicio/project-map.json").write_text(
+        (self.root / ".simplicio-loop/project-map.json").write_text(
             json.dumps(project_map),
             encoding="utf-8",
         )
@@ -51,7 +51,7 @@ class OrientContractTest(unittest.TestCase):
         # warm path instead of asserting content-match behavior that the
         # cold path intentionally does not provide.
         write_retrieval_index(
-            str(self.root), ".simplicio", build_retrieval_index(project_map, root=str(self.root))
+            str(self.root), ".simplicio-loop", build_retrieval_index(project_map, root=str(self.root))
         )
 
     def tearDown(self) -> None:

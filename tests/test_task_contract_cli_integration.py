@@ -66,7 +66,7 @@ def test_package_cli_exposes_task_subcommand(tmp_path):
 def test_package_cli_plan_writes_default_contract_and_preview(tmp_path):
     task = tmp_path / "task.md"
     task.write_text(SAMPLE, encoding="utf-8")
-    out = tmp_path / ".simplicio/orchestrator" / "task-contract.json"
+    out = tmp_path / ".simplicio-loop/orchestrator" / "task-contract.json"
     r = _run(CLI + ["plan", "--task", str(task), "--out", str(out)], REPO)
     assert r.returncode == 0, r.stdout + r.stderr
     assert out.exists()

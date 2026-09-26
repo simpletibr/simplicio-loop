@@ -315,8 +315,8 @@ and its worker.
 | Capability | What it does | Proof / worker | Details |
 |---|---|---|---|
 | 🎬 **Video evidence** (`video_evidence`) | Records the **real browser session** as moving proof a UI change works (Playwright, default); renders a **deterministic captioned MP4** with [hyperframes](https://github.com/heygen-com/hyperframes) for an explicit explainer request (`/simplicio-loop make a video of screen X`) | `scripts/video_evidence.py` · BLOCKED (never fake-pass) without the toolchain | [§ Video evidence](#-video-evidence--playwright-by-default-hyperframes-on-request) |
-| 🧠 **Attempt memory + stall detector** | A durable run-journal (`.simplicio/orchestrator/loop/journal.jsonl`) + a stall detector so the loop **changes strategy instead of oscillating**; incremental triage (`since`) reads only the delta each turn, and optional stage lineage makes retries/governance explicit | `scripts/loop_journal.py` · `selftest` 13/13 | [§ Anti-oscillation](#-attempt-memory--stall-detector-anti-oscillation) |
-| 🧭 **Repo conventions** (`repo_conventions`) | **Learns the repo's own playbook** — mines git history + merged PRs + static config into `.simplicio/orchestrator/conventions.json` so every new branch/commit/PR mirrors the team's established style; worktree-per-item isolation is the default | `scripts/repo_conventions.py` · `selftest` 19/19 | [§ The full flow](#️-the-full-flow--from-demand-to-delivery) |
+| 🧠 **Attempt memory + stall detector** | A durable run-journal (`.simplicio-loop/orchestrator/loop/journal.jsonl`) + a stall detector so the loop **changes strategy instead of oscillating**; incremental triage (`since`) reads only the delta each turn, and optional stage lineage makes retries/governance explicit | `scripts/loop_journal.py` · `selftest` 13/13 | [§ Anti-oscillation](#-attempt-memory--stall-detector-anti-oscillation) |
+| 🧭 **Repo conventions** (`repo_conventions`) | **Learns the repo's own playbook** — mines git history + merged PRs + static config into `.simplicio-loop/orchestrator/conventions.json` so every new branch/commit/PR mirrors the team's established style; worktree-per-item isolation is the default | `scripts/repo_conventions.py` · `selftest` 19/19 | [§ The full flow](#️-the-full-flow--from-demand-to-delivery) |
 | 🧩 **Scope reflection** (`dependency_graph`) | Maps local dependencies, reverse dependents, and related tests from the planned touched files; blocks task plans that ignore callers, sibling files, or proof points before the edit starts | `scripts/impact_audit.py` · `selftest` | [§ Tests & local checks](#-tests--local-checks-no-paid-ci) |
 | 🕸️ **Flow coverage** (`endpoint_compare`) | Maps mixed front/back/service workspaces: UI actions → frontend HTTP calls → backend endpoints → service calls; blocks frontend calls with no backend endpoint and stubbed endpoints, and surfaces unclassified loose ends | `scripts/flow_audit.py` · `selftest` | [§ Tests & local checks](#-tests--local-checks-no-paid-ci) |
 | 🔒 **Fail-closed safety gate** (`action_gate`) | A `PreToolUse`/git-pre-push hook that **mechanically blocks** force-push, history rewrite, mass-delete, destructive DDL, infra teardown, and secret-laden commits/pushes — Step 5 made executable, not prose | `hooks/action_gate.py` · `selftest` 15/15 | [§ Safety](#-safety-non-negotiable) |
@@ -486,14 +486,14 @@ agent sees its own prior work. Exit is ONLY via:
 1. **Evidence-gated `<promise>`** — the turn that emits the promise MUST also carry concrete
    proof (passing test, merged PR, closed-item re-query). A promise with no evidence = ignored.
 2. **`max_iterations` cap** — hard safety backstop
-3. **STOP signal** — `.simplicio/orchestrator/STOP` or channel command
+3. **STOP signal** — `.simplicio-loop/orchestrator/STOP` or channel command
 
 Between turns, LMCache (when available) caches the KV state so re-feed costs near-zero prefill.
 
 ### 🧠 Attempt memory + stall detector (anti-oscillation)
 
 A re-feed loop that remembers nothing oscillates — try X, fail, try X again — until the cap burns.
-simplicio-loop keeps a **durable run-journal** (`.simplicio/orchestrator/loop/journal.jsonl`, append-only:
+simplicio-loop keeps a **durable run-journal** (`.simplicio-loop/orchestrator/loop/journal.jsonl`, append-only:
 `iteration · action · hypothesis · gate · error-fingerprint`, plus optional lineage like
 `execution_state · stage_id · validator · decision · retry_count`) and a **stall detector**
 ([`scripts/loop_journal.py`](scripts/loop_journal.py), deterministic + model-free):
@@ -589,7 +589,7 @@ shown only when a turn actually ran an economy-producing command and the number 
 measured receipt (clamp tee, signatures-read, cache hit, `deterministic_edit`, `savings_ledger`).
 No measured economy → no savings line; the orchestrator never fabricates a baseline or a percentage.
 **Most quantitative savings figures in this README remain UNVERIFIED** (no receipt snapshot in
-`.simplicio/orchestrator/savings/snapshots.jsonl`) — except the **measured comparative bench**
+`.simplicio-loop/orchestrator/savings/snapshots.jsonl`) — except the **measured comparative bench**
 below. See `references/token-economy.md` and `scripts/claims_manifest.py`.
 
 ### Measured benchmark (issue #17)
@@ -725,7 +725,7 @@ python3 scripts/e2e_demo.py run         # live: real simplicio-mapper + task_anc
 python3 scripts/e2e_demo.py selftest    # offline: proves the receipt/report math, no external tools
 ```
 
-`run` writes `.simplicio/orchestrator/savings/e2e-demo.md` (the report), `e2e-demo-events.jsonl` (one receipt
+`run` writes `.simplicio-loop/orchestrator/savings/e2e-demo.md` (the report), `e2e-demo-events.jsonl` (one receipt
 per hop), and feeds the same `snapshots.jsonl` store `savings_harness.py score` and
 `billing_aggregator.py collect`/`meter` already read — so this demo's numbers roll up into the
 existing aggregation with no new code. MAP and VERIFY call real live tools

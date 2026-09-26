@@ -138,7 +138,7 @@ class PythonMemoryBackend:
     async def start(self, task: str) -> Mapping[str, Any]:
         del task
         documents: list[tuple[str, str]] = []
-        ignored = {".git", ".simplicio", "__pycache__", ".venv", "node_modules"}
+        ignored = {".git", ".simplicio-loop", "__pycache__", ".venv", "node_modules"}
         for path in sorted(self.root.rglob("*")):
             if not path.is_file() or ignored.intersection(path.parts):
                 continue

@@ -24,7 +24,7 @@ Subcommands
 
 Design constraints (see issue #432 "Harness"):
     - deterministic fixtures (fixed graph, fixed echo_agent, fixed clock strings)
-    - JSON report + evidence paths under .simplicio/orchestrator/tee/stage_agent_conformance/
+    - JSON report + evidence paths under .simplicio-loop/orchestrator/tee/stage_agent_conformance/
     - capability/limitation classification: PASS / BLOCKED / NOT_VERIFIABLE_IN_SANDBOX
     - no synthetic PASS for anything the harness could not actually observe
     - secrets sanitized before any subprocess output is persisted
@@ -56,7 +56,7 @@ from simplicio_loop import stage_agent_coordinator as sc  # noqa: E402
 from simplicio_loop import stage_agents as sa  # noqa: E402
 
 ECHO_AGENT = REPO / "contracts" / "stage-agents" / "v1" / "adapter-fixtures" / "echo_agent.py"
-EVIDENCE_ROOT = REPO / ".simplicio/orchestrator" / "tee" / "stage_agent_conformance"
+EVIDENCE_ROOT = REPO / ".simplicio-loop/orchestrator" / "tee" / "stage_agent_conformance"
 
 STATUS_PASS = "pass"
 STATUS_BLOCKED = "blocked"

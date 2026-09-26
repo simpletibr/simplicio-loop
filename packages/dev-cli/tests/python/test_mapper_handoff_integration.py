@@ -19,7 +19,7 @@ def _clear_cli_cache():
 
 
 def _write_project_map(tmp_path):
-    art_dir = tmp_path / ".simplicio"
+    art_dir = tmp_path / ".simplicio-loop"
     art_dir.mkdir()
     (art_dir / "project-map.json").write_text(
         json.dumps(
@@ -266,7 +266,7 @@ def test_handoff_path_toon_records_savings_event(monkeypatch, tmp_path):
     _setup_handoff_target(tmp_path)
     monkeypatch.setattr(mapper, "map_handoff", lambda _root: _HANDOFF_PACK_FIXTURE)
     mapper.build_mapper_context(tmp_path, "src/app.py")
-    ledger = tmp_path / ".simplicio" / "ledger" / "savings-events.jsonl"
+    ledger = tmp_path / ".simplicio-loop" / "ledger" / "savings-events.jsonl"
     assert ledger.exists()
     lines = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line]
     assert any(e.get("schema") == "simplicio.savings-event/v1" and e.get("source") == "toon" for e in lines)
@@ -278,7 +278,7 @@ def test_handoff_path_toon_disabled_writes_no_savings_event(monkeypatch, tmp_pat
     _setup_handoff_target(tmp_path)
     monkeypatch.setattr(mapper, "map_handoff", lambda _root: _HANDOFF_PACK_FIXTURE)
     mapper.build_mapper_context(tmp_path, "src/app.py")
-    ledger = tmp_path / ".simplicio" / "ledger" / "savings-events.jsonl"
+    ledger = tmp_path / ".simplicio-loop" / "ledger" / "savings-events.jsonl"
     assert not ledger.exists()
 
 
@@ -436,7 +436,7 @@ def _native_payload(candidates):
 
 
 def _write_precedent_index(tmp_path, items):
-    art_dir = tmp_path / ".simplicio"
+    art_dir = tmp_path / ".simplicio-loop"
     art_dir.mkdir(exist_ok=True)
     (art_dir / "precedent-index.json").write_text(
         json.dumps({"schema": "simplicio.precedent-index/v1", "items": items}),

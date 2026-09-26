@@ -2,7 +2,7 @@
 
 `simplicio_loop/remote_worker_measurement.py` backs the `scripts/doctor.py`
 "remote worker (#286)" check. These tests operate against an isolated `tmp_path`
-"repo" so they never touch this checkout's real `.simplicio/orchestrator/` state.
+"repo" so they never touch this checkout's real `.simplicio-loop/orchestrator/` state.
 """
 import json
 import os

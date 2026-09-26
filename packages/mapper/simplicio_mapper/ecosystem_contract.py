@@ -257,7 +257,7 @@ def run_doctor_cli(argv: list[str]) -> int:
     Validates both ``contracts/mapper-artifacts/v1/`` fixtures (issue #157)
     and ``contracts/ecosystem/v1/`` fixtures (issue #164) by default. Extra
     positional paths are validated additionally against the ecosystem schemas
-    (e.g. real ``.simplicio/*.json`` output is out of scope here -- use
+    (e.g. real ``.simplicio-loop/*.json`` output is out of scope here -- use
     ``simplicio-mapper contract validate`` for that instead).
     """
     if "--help" in argv or "-h" in argv:

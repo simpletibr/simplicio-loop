@@ -47,11 +47,11 @@ MAPPER_MIN_VERSION = (0, 26, 2)
 ROUTE_SCHEMA = "simplicio.dev-cli.storage-route/v1"
 ROUTE_FILENAME = "route.json"
 LEGACY_STORE_PATHS = (
-    ".simplicio/effect-transactions.sqlite3",
-    ".simplicio/mutation-worker.sqlite3",
-    ".simplicio/prism-transactions.sqlite3",
-    ".simplicio/write-set-locks.sqlite3",
-    ".simplicio/memory/index.sqlite3",
+    ".simplicio-loop/effect-transactions.sqlite3",
+    ".simplicio-loop/mutation-worker.sqlite3",
+    ".simplicio-loop/prism-transactions.sqlite3",
+    ".simplicio-loop/write-set-locks.sqlite3",
+    ".simplicio-loop/memory/index.sqlite3",
 )
 _ROUTE_FREEZE_LOCK = threading.Lock()
 
@@ -59,7 +59,7 @@ _ROUTE_FREEZE_LOCK = threading.Lock()
 def storage_capabilities(root: str | Path = ".") -> dict[str, Any]:
     """Return read-only cutover diagnostics without materializing state."""
     resolved = Path(root).resolve()
-    mapper_store_root = resolved / ".simplicio" / "mapper-store"
+    mapper_store_root = resolved / ".simplicio-loop" / "mapper-store"
     mapper_version, mapper_ready, mapper_reason = _mapper_status()
     route_path = mapper_store_root / ROUTE_FILENAME
     route_receipt = _read_route(route_path)
@@ -143,7 +143,7 @@ def _read_route(path: Path) -> dict[str, Any] | None:
 
 def _freeze_route(root: Path, mapper_version: str | None) -> None:
     with _ROUTE_FREEZE_LOCK:
-        route_root = root / ".simplicio" / "mapper-store"
+        route_root = root / ".simplicio-loop" / "mapper-store"
         route_path = route_root / ROUTE_FILENAME
         existing = _read_route(route_path)
         if existing is not None:
@@ -191,7 +191,7 @@ class MapperStoreAdapter:
             raise StoreAdapterError(f"MAPPER_STORE_UNAVAILABLE:{reason}")
         self.root = Path(root).resolve()
         _freeze_route(self.root, mapper_version)
-        self.directory = self.root / ".simplicio" / "mapper-store" / domain
+        self.directory = self.root / ".simplicio-loop" / "mapper-store" / domain
         self.directory.mkdir(parents=True, exist_ok=True)
 
     def _digest(self, key: str) -> str:
@@ -284,7 +284,7 @@ class MapperOperationsAdapter:
         self.database = (
             Path(database).expanduser().resolve()
             if database is not None
-            else self.root / ".simplicio" / "data" / "operations.sqlite"
+            else self.root / ".simplicio-loop" / "data" / "operations.sqlite"
         )
 
     def _store(self, *, auto_create: bool) -> Any:

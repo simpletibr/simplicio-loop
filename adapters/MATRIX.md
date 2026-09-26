@@ -85,7 +85,7 @@ get the last one:
   `render --turn-header`) is normative for ALL 15 runtimes, hook or not — it must be reflected in
   whichever surface that host loads the skill FROM (`AGENTS.md`, `GEMINI.md`, `CONVENTIONS.md`,
   `.github/copilot-instructions.md`, `.kiro/steering/`, OpenCode config, …), never forked by hand.
-- **N3 (file, universal denominator).** `.simplicio/orchestrator/loop/PROGRESS.md` + `progress.json` are
+- **N3 (file, universal denominator).** `.simplicio-loop/orchestrator/loop/PROGRESS.md` + `progress.json` are
   regenerated every turn regardless of runtime — any editor, `watch`, or CI panel reads it with
   ZERO adapter code. This is the fallback for every runtime not yet adapted, and for any future
   host: a brand-new runtime gets N3 for free the moment it runs `scripts/loop_progress.py`.

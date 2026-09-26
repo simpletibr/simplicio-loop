@@ -17,15 +17,15 @@ test-results/
 rust/*/target/
 
 # Simplicio ecosystem state has one root; legacy roots are quarantined.
-.simplicio/orchestrator/
+.simplicio-loop/orchestrator/
 .orchestrator/
 .simplicio-fast/
 
 # Per-bench-run scratchpad: every model × case raw output. Regenerated on
 # every bench run; we keep results JSON/MD/PDF artifacts under bench/ but
 # not the per-case scratchpads.
-.simplicio/bench_runs/
-.simplicio/cache/
+.simplicio-loop/bench_runs/
+.simplicio-loop/cache/
 # local GGUF model blobs (kept out of git; see bench/RESULTS_LOCAL_GGUF.md)
 models/*.gguf
 models/.cache/

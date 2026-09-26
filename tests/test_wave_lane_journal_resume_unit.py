@@ -34,7 +34,7 @@ def _init_repo(tmp_path: Path) -> Path:
 
 
 def _seed_run_dir(repo: Path, run_id: str) -> Path:
-    run_dir = repo / ".simplicio" / "loop-runs" / run_id
+    run_dir = repo / ".simplicio-loop" / "loop-runs" / run_id
     run_dir.mkdir(parents=True)
     (run_dir / "manifest.json").write_text(
         '{"schema": "simplicio.loop-manifest/v1", "repo": "%s", "run_id": "%s"}' % (repo, run_id),

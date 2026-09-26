@@ -298,7 +298,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--n-minus-1-source", type=Path, help="N-1 Mapper checkout containing the contracts tree"
     )
-    parser.add_argument("--output", type=Path, default=Path(".simplicio/release-train-conformance.json"))
+    parser.add_argument("--output", type=Path, default=Path(".simplicio-loop/release-train-conformance.json"))
     args = parser.parse_args(argv)
     try:
         root = args.root.resolve()

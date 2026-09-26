@@ -43,8 +43,8 @@ class RepoCommandsCliTest(unittest.TestCase):
         self.assertEqual(code, 0)
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["schema"], "simplicio.visualization-bundle/v1")
-        self.assertTrue((self.dir / ".simplicio" / "visualization-bundle.json").is_file())
-        self.assertTrue((self.dir / ".simplicio" / "clustering-metrics.json").is_file())
+        self.assertTrue((self.dir / ".simplicio-loop" / "visualization-bundle.json").is_file())
+        self.assertTrue((self.dir / ".simplicio-loop" / "clustering-metrics.json").is_file())
 
     def test_visualize_human_output_summarizes_counts(self) -> None:
         out = StringIO()

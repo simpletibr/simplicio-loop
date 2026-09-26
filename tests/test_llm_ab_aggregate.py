@@ -201,3 +201,25 @@ def test_savings_with_zero_baseline_has_no_percent():
 def test_task_wall_sums_scoped_tasks():
     arm = {"tasks": [{"kind": "create", "wall_s": 1.5}, {"kind": "edit", "wall_s": 2.0}]}
     assert agg.task_wall(arm) == 3.5
+
+
+def _call(ok=True, reasoning_effort=None):
+    return {"ok": ok, "reasoning_effort": reasoning_effort}
+
+
+def test_effort_counts_buckets_by_reasoning_effort_across_tasks():
+    arm = {"tasks": [
+        {"llm_calls": [_call(reasoning_effort="high"), _call(reasoning_effort=None)]},
+        {"llm_calls": [_call(reasoning_effort="high"), _call(reasoning_effort="medium")]},
+    ]}
+    assert agg.effort_counts(arm) == {"high": 2, "default": 1, "medium": 1}
+
+
+def test_effort_counts_skips_failed_calls():
+    arm = {"tasks": [{"llm_calls": [_call(ok=False, reasoning_effort="high"), _call(reasoning_effort="low")]}]}
+    assert agg.effort_counts(arm) == {"low": 1}
+
+
+def test_effort_counts_empty_for_no_calls():
+    assert agg.effort_counts({"tasks": []}) == {}
+    assert agg.effort_counts({"tasks": [{"llm_calls": []}]}) == {}

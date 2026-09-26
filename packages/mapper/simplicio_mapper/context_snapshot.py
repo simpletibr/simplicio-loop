@@ -1,7 +1,7 @@
 """simplicio.context-snapshot/v1 — the ecosystem's canonical observer output (issue #208).
 
 The mapper becomes the canonical observer of the Simplicio ecosystem. Instead
-of emitting a pile of loosely-related ``.simplicio/*.json`` artifacts that each
+of emitting a pile of loosely-related ``.simplicio-loop/*.json`` artifacts that each
 consumer re-parses ad hoc, it now emits a single versioned, content-addressed,
 sufficiently-faithful ``ContextSnapshot`` plus a ``ContextGraph`` that links the
 micro (symbols/spans), meso (modules/flows) and macro (subsystems/ADRs) scales.

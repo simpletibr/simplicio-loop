@@ -49,7 +49,7 @@ def _result(mode,goal,files,callers,sensitive,survey_available,forced,justificat
     return {"schema":SCHEMA,"mode":mode,"measured":True,"goal":goal,"force_converge":forced,"justification":justification,
             "measurements":{"goal_files":len(files),"resolved_files":files,"fan_in":callers,"sensitive_files":sensitive,
             "sensitive_surface":bool(sensitive),"survey_available":survey_available}}
-def decide(root:str|Path,goal:str,*,map_dir:str|Path=".simplicio",force_converge:bool=False)->dict[str,Any]:
+def decide(root:str|Path,goal:str,*,map_dir:str|Path=".simplicio-loop",force_converge:bool=False)->dict[str,Any]:
     del root
     try: survey=load_survey(map_dir)
     except SurveyUnavailable: return _result("converge",goal,[],None,[],False,force_converge,"goal->0 files, fan-in unknown, survey unavailable; converge fail-closed")
@@ -71,7 +71,7 @@ def record_anchor(anchor_path:str|Path,route:Mapping[str,Any])->bool:
     except (OSError,UnicodeError,ValueError): return False
 def main(argv:list[str]|None=None)->int:
     parser=argparse.ArgumentParser(description=__doc__); parser.add_argument("--root",default="."); parser.add_argument("--goal",required=True)
-    parser.add_argument("--map-dir",default=".simplicio"); parser.add_argument("--anchor",default=".simplicio/orchestrator/loop/anchor.json"); parser.add_argument("--force-converge",action="store_true")
+    parser.add_argument("--map-dir",default=".simplicio-loop"); parser.add_argument("--anchor",default=".simplicio-loop/orchestrator/loop/anchor.json"); parser.add_argument("--force-converge",action="store_true")
     args=parser.parse_args(argv); route=dict(decide(args.root,args.goal,map_dir=args.map_dir,force_converge=args.force_converge)); route["anchor_updated"]=record_anchor(args.anchor,route)
     print(json.dumps(route,ensure_ascii=False,sort_keys=True)); return 0
 if __name__=="__main__": sys.exit(main())

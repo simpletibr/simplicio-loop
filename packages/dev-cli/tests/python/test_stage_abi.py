@@ -56,7 +56,7 @@ def test_dry_run_is_non_mutating_and_has_hash_receipt(tmp_path, monkeypatch):
     assert result["mutation_receipt"]["before_hashes"] == {"new.txt": ""}
     assert result["mutation_receipt"]["after_hashes"] == {"new.txt": ""}
     assert not target.exists()
-    assert not (tmp_path / ".simplicio" / "stage-abi").exists()
+    assert not (tmp_path / ".simplicio-loop" / "stage-abi").exists()
 
 
 def test_source_drift_and_hookwall_are_fail_closed(tmp_path):
@@ -117,7 +117,7 @@ def test_apply_receipt_is_verifiable_and_retry_is_idempotent(tmp_path, monkeypat
     assert second["status"] == "idempotent"
     assert second["mutation_receipt"] == receipt
     assert (
-        json.loads(next((tmp_path / ".simplicio" / "stage-abi").glob("*.receipt.json")).read_text())
+        json.loads(next((tmp_path / ".simplicio-loop" / "stage-abi").glob("*.receipt.json")).read_text())
         == receipt
     )
 

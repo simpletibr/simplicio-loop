@@ -238,7 +238,7 @@ def llm_max_speed_orientation_contract() -> dict[str, Any]:
 
 
 def _persisted_env_matches(recommended: Mapping[str, str]) -> bool:
-    """True when ~/.simplicio/economy-parallel-env.json already holds this profile."""
+    """True when ~/.simplicio-loop/economy-parallel-env.json already holds this profile."""
     try:
         raw = user_env_paths()["json"].read_text(encoding="utf-8")
         stored = json.loads(raw).get("env", {})
@@ -269,7 +269,7 @@ def _drift_explanation(
         }
     return {
         "reason_code": "applied_not_loaded",
-        "reason": "the profile is persisted under ~/.simplicio but this shell "
+        "reason": "the profile is persisted under ~/.simplicio-loop but this shell "
         "was not started after apply() wired the rc-file source line, or the "
         "active shell's rc file was not one of the ones apply() edited",
         "fix": f". {user_env_paths()['sh']}",
@@ -338,7 +338,7 @@ def apply_to_environ(
 
 def user_env_paths() -> dict[str, Path]:
     home = Path.home()
-    root = home / ".simplicio"
+    root = home / ".simplicio-loop"
     return {
         "dir": root,
         "json": root / "economy-parallel-env.json",
@@ -408,7 +408,7 @@ def persist_user_profile(
     *,
     set_windows_user_env: bool = True,
 ) -> dict[str, Any]:
-    """Write ~/.simplicio/economy-parallel-env.* and optionally Windows User env."""
+    """Write ~/.simplicio-loop/economy-parallel-env.* and optionally Windows User env."""
     recommended = economy_parallel_env()
     paths = user_env_paths()
     paths["dir"].mkdir(parents=True, exist_ok=True)
@@ -428,7 +428,7 @@ def persist_user_profile(
     )
     # PowerShell
     ps_lines = [
-        "# Simplicio economy-parallel profile — dot-source: . $HOME\\.simplicio\\economy-parallel-env.ps1",
+        "# Simplicio economy-parallel profile — dot-source: . $HOME\\.simplicio-loop\\economy-parallel-env.ps1",
         "$ErrorActionPreference = 'SilentlyContinue'",
     ]
     for key, value in sorted(recommended.items()):
@@ -436,7 +436,7 @@ def persist_user_profile(
     paths["ps1"].write_text("\n".join(ps_lines) + "\n", encoding="utf-8", newline="\n")
     # POSIX
     sh_lines = [
-        "# Simplicio economy-parallel profile — source ~/.simplicio/economy-parallel-env.sh",
+        "# Simplicio economy-parallel profile — source ~/.simplicio-loop/economy-parallel-env.sh",
     ]
     for key, value in sorted(recommended.items()):
         sh_lines.append(f'export {key}="{value}"')

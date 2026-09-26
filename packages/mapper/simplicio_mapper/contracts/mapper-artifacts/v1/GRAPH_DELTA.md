@@ -1,7 +1,7 @@
 # Incremental graph delta contract — `simplicio.graph-delta/v1` (issue #191)
 
 `simplicio-mapper delta <root> --json` emits an initial snapshot on first run
-and stores it as `.simplicio/graph-snapshot.json`. Later runs emit the same
+and stores it as `.simplicio-loop/graph-snapshot.json`. Later runs emit the same
 versioned envelope with ordered `add`, `update`, `remove`, and `invalidate`
 events plus the new snapshot. Ordering is `op,entity_type,id`; consumers can
 apply events deterministically and verify `base_revision` before applying.

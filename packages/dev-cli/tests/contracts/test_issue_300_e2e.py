@@ -327,7 +327,7 @@ def test_loop_mapper_dev_cli_runtime_receipt_is_one_causal_flow(
     assert "api_key" not in json.dumps(result, sort_keys=True).lower()
     assert (tmp_path / "generated-by-runtime.txt").read_text(encoding="utf-8") == "Runtime receipt\n"
 
-    runtime_dir = tmp_path / ".simplicio/runtime-effects"
+    runtime_dir = tmp_path / ".simplicio-loop/runtime-effects"
     intent = next(runtime_dir.glob("*.intent.json"))
     receipt = next(runtime_dir.glob("*.receipt.json"))
     transaction = json.loads(intent.read_text(encoding="utf-8"))

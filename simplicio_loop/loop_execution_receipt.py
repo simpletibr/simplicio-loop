@@ -533,7 +533,7 @@ def publish_loop_execution_receipt(
         )
         os.replace(staging_bundle, final_bundle)
         bundle_published = True
-        receipt_path = repo / ".simplicio" / "loop-execution.json"
+        receipt_path = repo / ".simplicio-loop" / "loop-execution.json"
         _contained_path(repo, receipt_path.parent, "receipt directory")
         _atomic_json(receipt_path, receipt)
         published = True

@@ -2,9 +2,9 @@
 """Bridge intake-ledger work-items into the canonical task_backlog.jsonl.
 
 The ``issue_cron_driver.py`` writes intake contracts + planning receipts into
-``.simplicio/orchestrator/intake/ledger.jsonl`` (one row per issue, ACCUMULATED across
+``.simplicio-loop/orchestrator/intake/ledger.jsonl`` (one row per issue, ACCUMULATED across
 all past cron runs) but does NOT append the corresponding work-item to
-``.simplicio/orchestrator/backlog/backlog.jsonl`` — the file ``task_backlog.py`` (and the
+``.simplicio-loop/orchestrator/backlog/backlog.jsonl`` — the file ``task_backlog.py`` (and the
 drain loop's ``next``/``status`` verbs) actually reads.  Without this bridge the
 drain loop sees a stale/empty backlog and terminates prematurely even though
 GitHub has open issues.
@@ -63,7 +63,7 @@ def _is_infra_dependent_issue(title, labels=(), body=""):
                     "performance", "release-train", "infra", "blocked-infra")
             for lbl in (labels or ()))
 
-LEDGER = os.path.join(REPO, ".simplicio/orchestrator", "intake", "ledger.jsonl")
+LEDGER = os.path.join(REPO, ".simplicio-loop/orchestrator", "intake", "ledger.jsonl")
 BACKLOG = tb.BACKLOG
 GH_REPO = "wesleysimplicio/simplicio-loop"
 
@@ -171,7 +171,7 @@ def build_item(row):
         "required_evidence": [],
         "estimate": None,
         "scheduling_hints": {},
-        "run_dir": os.path.join(REPO, ".simplicio/orchestrator", "backlog", "items", wi_id, "run"),
+        "run_dir": os.path.join(REPO, ".simplicio-loop/orchestrator", "backlog", "items", wi_id, "run"),
         "blocked_at": row.get("ts", "") if infra_dep else "",
         "intake_hash": row.get("intake_hash", ""),
         "planning_receipt_verdict": row.get("planning_receipt_verdict", "UNKNOWN"),

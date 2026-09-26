@@ -45,7 +45,7 @@ class NormalizeTest(unittest.TestCase):
         normalized = self.mod._normalize(payload, "/abs/fixture/source", "/abs/tmp-out")
         self.assertEqual(
             normalized["paths"]["project_map"],
-            f"{self.mod.NORMALIZED_ROOT_PLACEHOLDER}/.simplicio/project-map.json",
+            f"{self.mod.NORMALIZED_ROOT_PLACEHOLDER}/.simplicio-loop/project-map.json",
         )
 
     def test_pins_generated_at_regardless_of_value(self) -> None:

@@ -34,7 +34,7 @@ class IndexLockRecoveryTest(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
-        self.out = ".simplicio"
+        self.out = ".simplicio-loop"
         self.path = Path(_lock_path(str(self.root), self.out))
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -417,7 +417,7 @@ class IndexLockCrashRecoveryIntegrationTest(unittest.TestCase):
         self.assertEqual(status_payload["phase"], "failed")
         self.assertEqual(status_payload["failure_reason"], "worker_died_before_terminal")
         self.assertFalse(status_payload["lock"])
-        receipt = json.loads((self.root / ".simplicio" / "map-job.json").read_text(encoding="utf-8"))
+        receipt = json.loads((self.root / ".simplicio-loop" / "map-job.json").read_text(encoding="utf-8"))
         self.assertEqual(receipt["phase"], "failed")
         self.assertEqual(receipt["deep"]["exit_code"], -1)
         self.assertEqual(receipt["deep"]["failure_reason"], "worker_died_before_terminal")
@@ -460,7 +460,7 @@ class IndexLockCrashRecoveryIntegrationTest(unittest.TestCase):
             time.sleep(0.05)
         self.assertFalse(_process_is_alive(pid), "detached index child did not terminate")
 
-        job_path = self.root / ".simplicio" / "map-job.json"
+        job_path = self.root / ".simplicio-loop" / "map-job.json"
         receipt = json.loads(job_path.read_text(encoding="utf-8"))
         self.assertEqual(receipt["phase"], "complete")
         self.assertEqual(receipt["deep"]["exit_code"], 0)
@@ -486,7 +486,7 @@ class IndexLockCrashRecoveryIntegrationTest(unittest.TestCase):
         self.assertEqual(retry["deep"]["exit_code"], 0)
 
     def test_real_async_scan_persists_nonzero_terminal_failure(self) -> None:
-        index_state = self.root / ".simplicio" / "index-state.json"
+        index_state = self.root / ".simplicio-loop" / "index-state.json"
         index_state.parent.mkdir(parents=True, exist_ok=True)
         index_state.mkdir()
 
@@ -497,7 +497,7 @@ class IndexLockCrashRecoveryIntegrationTest(unittest.TestCase):
             time.sleep(0.05)
         self.assertFalse(_process_is_alive(pid), "failing detached worker did not terminate")
 
-        receipt = json.loads((self.root / ".simplicio" / "map-job.json").read_text(encoding="utf-8"))
+        receipt = json.loads((self.root / ".simplicio-loop" / "map-job.json").read_text(encoding="utf-8"))
         self.assertEqual(receipt["phase"], "failed")
         self.assertNotEqual(receipt["deep"]["exit_code"], 0)
         self.assertTrue(receipt["deep"]["failure_reason"])
@@ -539,7 +539,7 @@ class IndexLockCrashRecoveryIntegrationTest(unittest.TestCase):
         }
         time.sleep(0.2)
         self.assertIsNone(process.poll(), "worker must wait for the delayed map-job receipt")
-        job_path = self.root / ".simplicio" / "map-job.json"
+        job_path = self.root / ".simplicio-loop" / "map-job.json"
         job_path.parent.mkdir(parents=True, exist_ok=True)
         job_path.write_text(
             json.dumps({
@@ -587,7 +587,7 @@ class IndexLockCrashRecoveryIntegrationTest(unittest.TestCase):
                 "owner_token": "replacement-owner",
             },
         }
-        job_path = self.root / ".simplicio" / "map-job.json"
+        job_path = self.root / ".simplicio-loop" / "map-job.json"
         job_path.parent.mkdir(parents=True, exist_ok=True)
         job_path.write_text(json.dumps(replacement), encoding="utf-8")
         _stdout, stderr = process.communicate(timeout=30)
@@ -597,7 +597,7 @@ class IndexLockCrashRecoveryIntegrationTest(unittest.TestCase):
     def test_status_durably_reconciles_fresh_nonterminal_job(self) -> None:
         sync = self._cli("scan", str(self.root), "--sync", "--json", timeout=60)
         self.assertEqual(sync["phase"], "complete")
-        job_path = self.root / ".simplicio" / "map-job.json"
+        job_path = self.root / ".simplicio-loop" / "map-job.json"
         dead_identity = {
             "pid": 2_147_483_647,
             "process_start": "dead-start",
@@ -674,7 +674,7 @@ class IndexLockConcurrentProcessRaceTest(unittest.TestCase):
         for payload in (payload1, payload2):
             if payload["status"] == "skipped":
                 self.assertIn(payload["skipped_reason"], ("locked", "already_fresh"))
-        lock_path = Path(_lock_path(str(self.root), ".simplicio"))
+        lock_path = Path(_lock_path(str(self.root), ".simplicio-loop"))
         self.assertFalse(lock_path.exists())
 
 

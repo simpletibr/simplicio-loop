@@ -23,6 +23,7 @@ except Exception:  # pragma: no cover - keeps `simplicio-loop` importable if thi
     _prototype_cli = None
 
 from . import __version__
+from .state_dir import ensure_state_dir
 from .fast_integration import FastConfig, FastIntegrationError, FastLoopIntegration
 from .checkpoint_lifecycle import CheckpointLifecycle, LifecycleError
 from . import delivery
@@ -180,7 +181,7 @@ def dashboard(port: int, open_browser: bool, stop: bool) -> int:
         print("error: bundled dashboard not found in the installed package.", flush=True)
         return 1
     if not _port_up(port):
-        logdir = Path.home() / ".simplicio" / "logs"
+        logdir = Path.home() / ".simplicio-loop" / "logs"
         logdir.mkdir(parents=True, exist_ok=True)
         env = {**os.environ, "PORT": str(port)}
         # Detach so the server outlives this CLI process (own session / no console window).
@@ -198,7 +199,7 @@ def dashboard(port: int, open_browser: bool, stop: bool) -> int:
                 break
             time.sleep(0.2)
     if not _port_up(port):
-        print("⬡ failed to start the dashboard — see ~/.simplicio/logs/token-monitor.log", flush=True)
+        print("⬡ failed to start the dashboard — see ~/.simplicio-loop/logs/token-monitor.log", flush=True)
         return 1
     print(f"⬡ Simplicio Token Monitor → {url}")
     if open_browser and _gui_available():
@@ -233,6 +234,7 @@ def plan(task_path: str, out_path: str) -> int:
 def prepare(repo: str, task_path: str, delivery_arg: str, max_iterations: int) -> int:
     """Arm and preflight a run without executing a task or calling a provider."""
     try:
+        ensure_state_dir(Path(repo).resolve())
         delivery_target = delivery.normalize_delivery_target(delivery_arg)
         armed = arm_run(repo, task_path, delivery_target, max_iterations)
         manifest = armed.get("manifest") or {}
@@ -334,7 +336,7 @@ def run(repo: str, task_path: str, delivery_arg: str, max_iterations: int,
             target.write_text(json.dumps(outcome, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         diagnostic = publish_loop_execution_for_flow(
             repo=Path(repo),
-            run_dir=Path(repo).resolve() / ".simplicio" / "loop-runs" / "run-failed",
+            run_dir=Path(repo).resolve() / ".simplicio-loop" / "loop-runs" / "run-failed",
             flow="run",
             flow_result={"status": "infrastructure_failure"},
         )
@@ -425,7 +427,7 @@ def _orient_command_card(root: Path) -> dict[str, Any]:
         "wave": f"simplicio-loop wave <run_id> --repo {repo}",
         "verify": f"simplicio-loop verify <run_id> --repo {repo}",
         "tick": f"simplicio-loop tick <run_id> --repo {repo} --task-index <N>",
-        "edit_plan_path": ".simplicio/loop-runs/<run_id>/edit-plan-<N>.json",
+        "edit_plan_path": ".simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json",
         "edit_plan_format": {
             "operations": [{"path": "<repo-relative>", "find": "<exact text>", "replace": "<new text>"}]
         },
@@ -457,7 +459,7 @@ def _orient_route(root: Path, task: str) -> dict[str, Any]:
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    decision = module.decide(root, task, map_dir=Path(root) / ".simplicio")
+    decision = module.decide(root, task, map_dir=Path(root) / ".simplicio-loop")
     if decision["mode"] == "fast-path":
         steps = [
             "read the target file; write ops.json = "
@@ -470,7 +472,7 @@ def _orient_route(root: Path, task: str) -> dict[str, Any]:
         steps = [
             "write tasks.md (one System: block per task; dependents in the same file)",
             f"simplicio-loop prepare --task tasks.md --repo {root}",
-            "write every .simplicio/loop-runs/<run_id>/edit-plan-<N>.json up front",
+            "write every .simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json up front",
             f"simplicio-loop wave <run_id> --repo {root}",
         ]
     return {
@@ -520,9 +522,9 @@ def _seal_orient_payload(
 def _mapper_orient_fallback(root: Path, task: str) -> dict:
     """Use Mapper's read-only orient surface when Fast is unavailable.
 
-    The scratch task-file MUST live under ``.simplicio/`` (not the repo
+    The scratch task-file MUST live under ``.simplicio-loop/`` (not the repo
     root): Mapper's own signature computation hashes ``git status`` output,
-    excluding only its own output directory (default ``.simplicio``) by
+    excluding only its own output directory (default ``.simplicio-loop``) by
     pathspec. A dotfile prefix alone does not put this file inside that
     directory, so a repo-root temp file is untracked and visible to `git
     status` for the brief window this subprocess runs -- exactly when Mapper
@@ -533,7 +535,7 @@ def _mapper_orient_fallback(root: Path, task: str) -> dict:
     """
     task_path = None
     try:
-        scratch_dir = root / ".simplicio"
+        scratch_dir = root / ".simplicio-loop"
         scratch_dir.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".md",
                                          prefix="loop-orient-",
@@ -654,13 +656,17 @@ ORIENT_TARGETS_SCHEMA = "simplicio.loop-orient-targets/v1"
 _ORIENT_IDENTIFIER_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _ORIENT_WORD_SPLIT_RE = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|[0-9]+")
 _ORIENT_SKIP_DIRS = {
-    ".git", ".simplicio", "__pycache__", "node_modules", ".venv", "venv",
+    ".git", ".simplicio-loop", "__pycache__", "node_modules", ".venv", "venv",
     "dist", "build", ".mypy_cache", ".pytest_cache", ".tox", ".ruff_cache",
     "egg-info", ".pytest-cache",
 }
 _ORIENT_SOURCE_EXT = {
     ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".go", ".rs",
     ".java", ".rb", ".php", ".cs", ".cpp", ".cc", ".c", ".h", ".hpp",
+    # Non-code deliverables are real targets too (issue #1310 benchmark is
+    # pure-HTML create/edit tasks) -- never leave a plain-HTML/CSS task with
+    # 0 candidates just because it has no function/class identifiers.
+    ".html", ".htm", ".css", ".md",
 }
 ORIENT_TARGET_MAX_FILES = 5
 ORIENT_TARGET_MAX_TOTAL_BYTES = 6 * 1024
@@ -851,12 +857,16 @@ def _orient_build_targets(root: Path, task: str, context_summary: Mapping[str, A
     }
 
 
-def orient(repo: str, task: str, fast_mode: str = "auto",
-           fast_context_budget: int = 48000, fast_engine: str = "auto",
-           tee: bool = False, targets: list[str] | None = None,
-           verbose: bool = False) -> int:
-    """Run bounded Fast orient with an explicit Mapper fallback receipt."""
-    root = Path(repo).resolve()
+def _orient_core(root: Path, task: str, fast_mode: str, fast_context_budget: int,
+                  fast_engine: str, targets: list[str] | None,
+                  verbose: bool) -> tuple[dict[str, Any], int]:
+    """Compute one task's orient payload (Fast, with an explicit Mapper
+    fallback receipt) without printing/tee -- shared by ``orient()`` (CLI,
+    single task) and ``orient_brief()`` (Turn 1 of issue #1310's
+    plan-once/apply-once hot path, N tasks). The verbose/trim shape is
+    identical to the pre-refactor inline body of ``orient()``; behavior for
+    a single task through the CLI is unchanged.
+    """
     if not root.is_dir() or not str(task).strip():
         payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
                    "provider": None, "fallback": False,
@@ -864,8 +874,7 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
         _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
                              fast_engine=fast_engine,
                              fast_context_budget=fast_context_budget)
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return 2
+        return payload, 2
     if fast_context_budget < 1:
         payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
                    "provider": None, "fallback": False,
@@ -873,8 +882,7 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
         _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
                              fast_engine=fast_engine,
                              fast_context_budget=fast_context_budget)
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return 2
+        return payload, 2
     if fast_engine not in {"auto", "rust", "python", "off"}:
         raise ValueError("fast_engine must be auto, rust, python, or off")
     config_mode = {"auto": "auto", "on": "required", "off": "standalone"}.get(fast_mode)
@@ -912,12 +920,7 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
         payload["targets"] = _orient_build_targets(root, str(task), payload["context"])
         if not verbose:
             payload = _orient_trim_verbose_fields(payload)
-        if tee:
-            from .tee_cache import write
-            path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
-            payload["tee_path"] = str(path)
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return 0
+        return payload, 0
     if fast_mode == "on" or fast_engine == "rust":
         fallback_reason = fallback_reason or _orient_extract_fallback_reason(fast_payload) or "fast_not_ready"
         payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
@@ -932,12 +935,7 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
                              fast_context_budget=fast_context_budget)
         if not verbose:
             payload = _orient_trim_verbose_fields(payload)
-        if tee:
-            from .tee_cache import write
-            path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
-            payload["tee_path"] = str(path)
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return 2
+        return payload, 2
     fallback_reason = (
         fallback_reason
         or _orient_extract_fallback_reason(fast_payload)
@@ -957,12 +955,258 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
     payload["targets"] = _orient_build_targets(root, str(task), payload["context"])
     if not verbose:
         payload = _orient_trim_verbose_fields(payload)
+    return payload, (0 if status == "FALLBACK" else 2)
+
+
+def orient(repo: str, task: str, fast_mode: str = "auto",
+           fast_context_budget: int = 48000, fast_engine: str = "auto",
+           tee: bool = False, targets: list[str] | None = None,
+           verbose: bool = False, brief: bool = False,
+           tasks: list[str] | None = None) -> int:
+    """Run bounded Fast orient with an explicit Mapper fallback receipt.
+
+    ``brief=True`` (issue #1310) renders Turn 1 of the plan-once/apply-once
+    hot path: a compact, multi-task payload built from the SAME Mapper
+    survey + Fast context this function always uses -- never a shortcut
+    around them. Non-brief output (single task) is byte-identical to
+    before this option existed.
+    """
+    root = Path(repo).resolve()
+    if root.is_dir():
+        ensure_state_dir(root)
+    if brief:
+        task_list = list(tasks or ([task] if task else []))
+        payload = orient_brief(root, task_list, fast_mode=fast_mode,
+                               fast_context_budget=fast_context_budget,
+                               fast_engine=fast_engine, targets=targets)
+        if tee:
+            from .tee_cache import write
+            path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
+            payload["tee_path"] = str(path)
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if payload.get("status") in {"READY", "FALLBACK"} else 2
+    payload, code = _orient_core(root, task, fast_mode, fast_context_budget,
+                                  fast_engine, targets, verbose)
     if tee:
         from .tee_cache import write
         path = write(root, json.dumps(payload, ensure_ascii=False, indent=2))
         payload["tee_path"] = str(path)
     print(json.dumps(payload, ensure_ascii=False, indent=2))
-    return 0 if status == "FALLBACK" else 2
+    return code
+
+
+ORIENT_BRIEF_SCHEMA = "simplicio.loop-orient-brief/v1"
+ORIENT_BRIEF_TARGET_CAP_BYTES = 16 * 1024
+
+
+def _brief_head_tail(text: str, cap_bytes: int = ORIENT_BRIEF_TARGET_CAP_BYTES) -> tuple[str, bool]:
+    """Head+tail truncation to ``cap_bytes`` (issue #1310: 16 KB/file cap on
+    the brief's target content, so `apply --brief` never needs a separate
+    `cat` even for a file larger than the old 2 KB inline-content ceiling)."""
+    encoded = text.encode("utf-8", "surrogateescape")
+    if len(encoded) <= cap_bytes:
+        return text, False
+    half = cap_bytes // 2
+    head = encoded[:half].decode("utf-8", "replace")
+    tail = encoded[-half:].decode("utf-8", "replace")
+    return head + "\n...<truncated>...\n" + tail, True
+
+
+def _brief_suggest_checks(root: Path) -> list[str]:
+    """Suggested checks from the toolchain already on disk (issue #1310);
+    never invents a command the repo has no evidence of supporting."""
+    checks: list[str] = []
+    if any((root / name).is_file() for name in ("pyproject.toml", "pytest.ini", "setup.cfg")):
+        checks.append("pytest -q")
+    pkg = root / "package.json"
+    if pkg.is_file():
+        try:
+            data = json.loads(pkg.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            data = {}
+        scripts = data.get("scripts") if isinstance(data, Mapping) else None
+        if isinstance(scripts, Mapping) and "test" in scripts:
+            checks.append("npm test")
+    if (root / "Makefile").is_file():
+        checks.append("make check")
+    return checks
+
+
+def _brief_build_targets(root: Path, tasks: Sequence[str],
+                         per_task_context: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Target files with content, deduped across tasks, capped per file
+    (issue #1310: "the target files with content, no separate cat")."""
+    seen: dict[str, dict[str, Any]] = {}
+    for task, context in zip(tasks, per_task_context):
+        for path in _orient_target_seed_candidates(root, task, context)[:ORIENT_TARGET_MAX_FILES]:
+            rel = str(path.relative_to(root))
+            if rel in seen:
+                continue
+            try:
+                content = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            trimmed, truncated = _brief_head_tail(content)
+            seen[rel] = {"path": rel, "content": trimmed, "truncated": truncated}
+    return list(seen.values())
+
+
+def _brief_plan_groups(tasks: Sequence[str], per_task_targets: Sequence[Sequence[str]]) -> dict[str, Any]:
+    """``parallel`` for tasks touching disjoint target files, ``ordered``
+    groups (declared-order lists) for tasks that share one (issue #1310)."""
+    n = len(tasks)
+    parent = list(range(n))
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a: int, b: int) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    path_owner: dict[str, int] = {}
+    for i, paths in enumerate(per_task_targets):
+        for path in paths:
+            if path in path_owner:
+                union(path_owner[path], i)
+            else:
+                path_owner[path] = i
+
+    groups: dict[int, list[str]] = {}
+    for i in range(n):
+        groups.setdefault(find(i), []).append(tasks[i])
+    parallel = [group[0] for group in groups.values() if len(group) == 1]
+    ordered = [group for group in groups.values() if len(group) > 1]
+    return {"parallel": parallel, "ordered": ordered}
+
+
+def _brief_annotate_route_next(route: Mapping[str, Any]) -> dict[str, Any]:
+    """Tag ``route["next"]``'s first step -- writing ops.json, the plan
+    phase -- with its reasoning-effort hint (issue #1310 follow-up), so the
+    host that reads the brief knows the NEXT turn should run at
+    ``PHASE_EFFORT["plan"]`` without re-deriving the mapping. Steps stay
+    readable text; only the annotation is added, and a route with no
+    ``next`` (BLOCKED) passes through unchanged."""
+    from .effort import PHASE_EFFORT
+
+    steps = route.get("next")
+    if not steps:
+        return dict(route)
+    annotated = []
+    for idx, step in enumerate(steps):
+        entry: dict[str, Any] = {"step": step}
+        if idx == 0:
+            entry["phase"] = "plan"
+            entry["effort"] = PHASE_EFFORT["plan"]
+        annotated.append(entry)
+    out = dict(route)
+    out["next"] = annotated
+    return out
+
+
+def _brief_apply_command(root: Path) -> dict[str, Any]:
+    return {
+        "command": f"simplicio-loop apply ops.json --repo {root} --json",
+        "ops_format": {
+            "tasks": [{
+                "id": "<task-id>",
+                "operations": [{"path": "<repo-relative>", "find": "<exact unique text>", "replace": "<new text>"}],
+                "check": "<optional shell check command>",
+                "depends_on": ["<other task id, optional>"],
+            }],
+            "repo_state_chain": "<copy verbatim from this brief's own repo_state_chain field>",
+        },
+    }
+
+
+def orient_brief(root: Path, tasks: list[str], *, fast_mode: str = "auto",
+                  fast_context_budget: int = 48000, fast_engine: str = "auto",
+                  targets: list[str] | None = None) -> dict[str, Any]:
+    """Turn 1 of the plan-once/apply-once hot path (issue #1310): a compact
+    rendering of the SAME Mapper survey + Fast context ``orient`` always
+    runs, for one or more tasks -- never a shortcut around them. Route
+    first, then deduped target content, plan groups, suggested checks, the
+    Mapper/Fast generation + context hash (so cache reuse stays
+    measurable), and the exact ``apply`` command.
+    """
+    task_list = [str(t) for t in tasks if str(t).strip()]
+    if not task_list:
+        return {
+            "schema": ORIENT_BRIEF_SCHEMA, "status": "BLOCKED", "reason": "no_tasks",
+            "route": {"mode": "converge", "justification": "no task given", "resolved_files": [], "next": []},
+        }
+
+    per_task: list[dict[str, Any]] = []
+    for task in task_list:
+        payload, code = _orient_core(root, task, fast_mode, fast_context_budget,
+                                      fast_engine, targets, verbose=True)
+        per_task.append({"task": task, "payload": payload, "exit_code": code})
+
+    routes = [item["payload"].get("route") or {} for item in per_task]
+    if len(task_list) == 1:
+        overall_route = routes[0]
+    else:
+        overall_mode = "converge" if any(r.get("mode") == "converge" for r in routes) else "fast-path"
+        overall_route = {
+            "mode": overall_mode,
+            "justification": f"{len(task_list)} tasks: " + "; ".join(
+                f"{item['task']}={r.get('mode')}" for item, r in zip(per_task, routes)
+            ),
+            "resolved_files": sorted({f for r in routes for f in (r.get("resolved_files") or [])}),
+            "per_task": [{"task": item["task"], "mode": r.get("mode")} for item, r in zip(per_task, routes)],
+        }
+
+    contexts = [item["payload"].get("context") or {} for item in per_task]
+    per_task_target_lists = []
+    for item, context in zip(per_task, contexts):
+        entries = ((item["payload"].get("targets") or {}).get("files")) or []
+        all_paths = [e["path"] for e in entries if isinstance(e, Mapping) and e.get("path")]
+        # Plan grouping cares about which file(s) a task actually names, not
+        # every candidate a tiny/ambiguous repo's ranking surfaced (a 2-file
+        # repo returns both files as "candidates" for every task) -- prefer
+        # the path(s) literally mentioned in the task text when any match.
+        named = [p for p in all_paths if Path(p).name.lower() in item["task"].lower()]
+        per_task_target_lists.append(named or all_paths[:1])
+
+    statuses = [item["payload"].get("status") for item in per_task]
+    overall_status = "BLOCKED" if all(s == "BLOCKED" for s in statuses) else (
+        "READY" if all(s in {"READY", "FALLBACK"} for s in statuses) and any(s == "READY" for s in statuses)
+        else "FALLBACK"
+    )
+
+    generations = []
+    for item in per_task:
+        provenance = _orient_provider_provenance(item["payload"])
+        generations.append({
+            "task": item["task"],
+            "operator": provenance.get("operator"),
+            "generation": provenance.get("generation"),
+            "context_hash": provenance.get("context_hash"),
+        })
+
+    from .runner import _repo_fingerprint
+    repo_state_chain = _repo_fingerprint(root)
+
+    from .effort import PHASE_EFFORT
+    overall_route = _brief_annotate_route_next(overall_route)
+
+    payload: dict[str, Any] = {}
+    payload["route"] = overall_route
+    payload["schema"] = ORIENT_BRIEF_SCHEMA
+    payload["status"] = overall_status
+    payload["tasks"] = task_list
+    payload["targets"] = _brief_build_targets(root, task_list, contexts)
+    payload["plan"] = _brief_plan_groups(task_list, per_task_target_lists)
+    payload["checks"] = _brief_suggest_checks(root)
+    payload["generations"] = generations
+    payload["repo_state_chain"] = repo_state_chain
+    payload["apply"] = _brief_apply_command(root)
+    payload["effort"] = dict(PHASE_EFFORT)
+    return payload
 
 
 def extensions_doctor(provider: str, policy: str, schema: str) -> int:
@@ -1271,7 +1515,7 @@ def _public_flow_run_dir(repo: str, run_id: str) -> Path:
         candidate = Path(status["run_dir"])
         return candidate
     except (KeyError, OSError, TypeError, ValueError):
-        return Path(repo).resolve() / ".simplicio" / "loop-runs" / str(run_id)
+        return Path(repo).resolve() / ".simplicio-loop" / "loop-runs" / str(run_id)
 
 
 def _attach_dispatch(public_payload: Mapping[str, Any], dispatch: Mapping[str, Any]) -> dict[str, Any]:
@@ -1326,7 +1570,7 @@ def _finalize_public_flow(repo: str, run_id: str, flow: str, dispatch: Mapping[s
             and isinstance(loop_execution, Mapping)
             and loop_execution.get("status") == "VERIFIED"
         ):
-            receipt_path = Path(repo).resolve() / ".simplicio" / "loop-execution.json"
+            receipt_path = Path(repo).resolve() / ".simplicio-loop" / "loop-execution.json"
             envelope = json.loads(receipt_path.read_text(encoding="utf-8"))
             if (
                 isinstance(envelope, Mapping)
@@ -1377,7 +1621,7 @@ def _public_flow_from_status(status: Mapping[str, Any], flow: str, dispatch: Map
         and loop_execution.get("status") == "VERIFIED"
     ):
         repo = str((status.get("manifest") or {}).get("repo") or dispatch.get("repo") or ".")
-        receipt_path = Path(repo).resolve() / ".simplicio" / "loop-execution.json"
+        receipt_path = Path(repo).resolve() / ".simplicio-loop" / "loop-execution.json"
         try:
             envelope = json.loads(receipt_path.read_text(encoding="utf-8"))
         except (OSError, TypeError, ValueError):
@@ -1564,7 +1808,7 @@ def cancel(repo: str, run_id: str) -> int:
 def checkpoint_lifecycle(args) -> int:
     root = Path(args.repo).resolve()
     lifecycle = CheckpointLifecycle(
-        root / ".simplicio" / "loop-runs",
+        root / ".simplicio-loop" / "loop-runs",
         task_id=args.task_id,
         attempt_id=args.attempt_id,
         source_commit=args.source_commit,
@@ -2006,6 +2250,9 @@ def main(argv=None) -> int:
     if argv_list[:1] == ["tasks"]:
         from .tasks_cli import main as tasks_main
         return tasks_main(argv_list[1:])
+    if argv_list[:1] == ["intake"]:
+        from .intake_cli import main as intake_main
+        return intake_main(argv_list[1:])
     if argv_list[:1] == ["run"]:
         return _redirect_run_to_wave(argv_list[1:])
     parser = argparse.ArgumentParser(
@@ -2050,7 +2297,7 @@ def main(argv=None) -> int:
 
     p_plan = sub.add_parser("plan", help="compile a raw task into a contract and preview it")
     p_plan.add_argument("--task", required=True, help="markdown task file")
-    p_plan.add_argument("--out", default=os.path.join(".simplicio/orchestrator", "task-contract.json"),
+    p_plan.add_argument("--out", default=os.path.join(".simplicio-loop/orchestrator", "task-contract.json"),
                         help="where to write the compiled contract")
 
     p_prepare = sub.add_parser(
@@ -2068,7 +2315,19 @@ def main(argv=None) -> int:
 
     p_orient = sub.add_parser("orient", help="orient a task through Fast with Mapper fallback")
     p_orient.add_argument("--repo", default=".", help="repository root")
-    p_orient.add_argument("--task", required=True, help="task text or issue objective")
+    p_orient.add_argument(
+        "--task", dest="tasks", action="append", default=[],
+        help="task text or issue objective (repeatable with --brief for N tasks)",
+    )
+    p_orient.add_argument(
+        "--brief", action="store_true",
+        help=(
+            "compact multi-task rendering (issue #1310, Turn 1 of the "
+            "plan-once/apply-once hot path): route first, deduped target "
+            "content, plan groups, suggested checks, Mapper/Fast "
+            "generation + context hash, and the exact `apply` command"
+        ),
+    )
     p_orient.add_argument("--fast", choices=("auto", "on", "off"), default="auto",
                           help="Fast policy: auto fallback, on fail-closed, or off")
     p_orient.add_argument("--fast-context-budget", type=int, default=48000,
@@ -2089,6 +2348,17 @@ def main(argv=None) -> int:
         help="no-op: orient always emits exactly one JSON document on stdout",
     )
 
+    p_apply = sub.add_parser(
+        "apply",
+        help="apply one ops.json (Turn 2 of the plan-once/apply-once hot path, issue #1310)",
+    )
+    p_apply.add_argument("ops", help="ops.json path, or - for stdin")
+    p_apply.add_argument("--repo", default=".", help="repository root")
+    p_apply.add_argument(
+        "--json", action="store_true",
+        help="no-op: apply always emits exactly one JSON document on stdout",
+    )
+
     p_retrieve = sub.add_parser("retrieve", help="retrieve and verify a tee-cache output")
     p_retrieve.add_argument("path")
     p_retrieve.add_argument("--repo", default=".")
@@ -2102,7 +2372,7 @@ def main(argv=None) -> int:
     p_ext_doctor.add_argument("--json", action="store_true", help="machine-readable output (always JSON)")
 
     p_oracle = sub.add_parser("oracle", help="evaluate completion and cross-runtime parity")
-    p_oracle.add_argument("--loop-dir", default=os.path.join(".simplicio/orchestrator", "loop"))
+    p_oracle.add_argument("--loop-dir", default=os.path.join(".simplicio-loop/orchestrator", "loop"))
     p_oracle.add_argument("--run-dir", default=os.environ.get("SIMPLICIO_RUN_DIR", ""))
     p_oracle.add_argument("--response-text", default="")
     p_oracle.add_argument("--flow-gap", default="")
@@ -2130,7 +2400,7 @@ def main(argv=None) -> int:
     p_stack_lock.add_argument("--route", choices=("standalone",), required=True)
     p_stack_lock.add_argument("--run-id", default="")
     p_stack_lock.add_argument(
-        "--output", default=os.path.join(".simplicio", "orchestrator", "stack-lock.json")
+        "--output", default=os.path.join(".simplicio-loop", "orchestrator", "stack-lock.json")
     )
     p_stack_verify = stack_sub.add_parser(
         "verify", help="verify current observations against a persisted lock"
@@ -2170,7 +2440,7 @@ def main(argv=None) -> int:
     )
     p_doctor_resource.add_argument(
         "--root", dest="resource_root",
-        default=os.path.join(".simplicio", "orchestrator", "resource-fabric"),
+        default=os.path.join(".simplicio-loop", "orchestrator", "resource-fabric"),
     )
     p_doctor_resource.add_argument("--json", dest="doctor_json", action="store_true",
                                    help="emit machine-readable JSON")
@@ -2218,7 +2488,7 @@ def main(argv=None) -> int:
     p_economy_print.add_argument("--json", action="store_true")
     p_economy_apply = economy_sub.add_parser(
         "apply",
-        help="apply profile to this process + ~/.simplicio + Windows User env",
+        help="apply profile to this process + ~/.simplicio-loop + Windows User env",
     )
     p_economy_apply.add_argument(
         "--user",
@@ -2510,8 +2780,14 @@ def main(argv=None) -> int:
     if command in {"prepare", "arm"}:
         return prepare(args.repo, args.task, args.delivery, args.max_iterations)
     if command == "orient":
-        return orient(args.repo, args.task, args.fast, args.fast_context_budget, args.fast_engine, args.tee,
-                      args.targets, args.verbose)
+        task_list = list(args.tasks or [])
+        if not task_list:
+            parser.error("orient requires at least one --task")
+        return orient(args.repo, task_list[0], args.fast, args.fast_context_budget, args.fast_engine, args.tee,
+                      args.targets, args.verbose, args.brief, task_list)
+    if command == "apply":
+        from .apply import main as apply_main
+        return apply_main(args.ops, args.repo)
     if command == "retrieve":
         from .tee_cache import retrieve
         try:

@@ -287,13 +287,13 @@ def absorb_runtime_neural(
 ) -> dict[str, Any]:
     """Copy Runtime neural DB into Mapper data root (centralizer).
 
-    Default source: ~/.simplicio/memory/simplicio-memory.sqlite
+    Default source: ~/.simplicio-loop/memory/simplicio-memory.sqlite
     Destination: <SIMPLICIO_DATA_DIR or ~/data>/simplicio-memory.sqlite
     """
     env = os.environ if environ is None else environ
     if source is None:
         home = Path(env.get("USERPROFILE") or env.get("HOME") or Path.home())
-        source_path = home / ".simplicio" / "memory" / "simplicio-memory.sqlite"
+        source_path = home / ".simplicio-loop" / "memory" / "simplicio-memory.sqlite"
     else:
         source_path = Path(source).expanduser().absolute()
     if not source_path.is_file():

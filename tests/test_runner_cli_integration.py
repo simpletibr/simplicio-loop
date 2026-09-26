@@ -88,8 +88,8 @@ def test_plan_relevant_changed_paths_ignores_loop_owned_storage(monkeypatch, tmp
         runner_mod,
         "_changed_paths",
         lambda _repo: [
-            ".simplicio/events.jsonl",
-            ".simplicio/loop-runs/run-1/state.json",
+            ".simplicio-loop/events.jsonl",
+            ".simplicio-loop/loop-runs/run-1/state.json",
             "site/checkers.html",
             "requirements/checkers-tasks.md",
         ],
@@ -382,7 +382,7 @@ def test_prepare_operator_receipt_uses_standalone_degraded_context_pack(tmp_path
 def test_context_handoff_uses_snapshot_fallback_without_requiring_handle(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
-    snapshot_dir = repo / ".simplicio"
+    snapshot_dir = repo / ".simplicio-loop"
     snapshot_dir.mkdir()
     (snapshot_dir / "context-snapshot.json").write_text(
         json.dumps({"schema": "simplicio.context-snapshot/v1", "snapshot_id": "snap-fallback"}),
@@ -541,7 +541,7 @@ def test_run_mapper_sync_rollback_is_explicit_and_receipted(tmp_path, monkeypatc
 def test_cancel_run_stops_queued_mapper_background_job(tmp_path, monkeypatch):
     repo = tmp_path / "repo"
     repo.mkdir()
-    run_dir = repo / ".simplicio" / "loop-runs" / "run-1"
+    run_dir = repo / ".simplicio-loop" / "loop-runs" / "run-1"
     run_dir.mkdir(parents=True)
     state = {
         "run_id": "run-1",
@@ -867,7 +867,7 @@ def test_build_plan_uses_filtered_candidate_targets(tmp_path):
                 "context_pack": {
                     "pack_hash": "pack-1",
                     "files": [
-                        {"path": ".simplicio/orchestrator/loop/runtime_run_task.md"},
+                        {"path": ".simplicio-loop/orchestrator/loop/runtime_run_task.md"},
                         {"path": "docs/README.md"},
                         {"path": "src/worker.py"},
                         {"path": "src/worker.rs"},
@@ -1039,7 +1039,7 @@ def test_maintenance_deferred_cli_rejects_non_deferred_mode(tmp_path):
         "reason_code": "maintenance_mode_invalid",
         "tag": "UNVERIFIED",
     }
-    assert not (repo / ".simplicio/orchestrator" / "runs" / run_id / "maintenance-receipt.json").exists()
+    assert not (repo / ".simplicio-loop/orchestrator" / "runs" / run_id / "maintenance-receipt.json").exists()
 
 
 def test_resume_rejects_terminal_cancelled_run(tmp_path):
@@ -1693,7 +1693,7 @@ def _setup_deterministic_preflight_fixture(
     repo.mkdir(parents=True)
     (repo / "src").mkdir()
     (repo / "src" / "app.py").write_text("def main():\n    return 'ok'\n", encoding="utf-8")
-    (repo / ".gitignore").write_text(".simplicio/\n", encoding="utf-8")
+    (repo / ".gitignore").write_text(".simplicio-loop/\n", encoding="utf-8")
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
     subprocess.run(["git", "add", ".gitignore", "src/app.py"], cwd=repo, check=True)
     subprocess.run(
@@ -1866,7 +1866,7 @@ def test_conduct_run_fails_explicitly_blocked_when_batch_preflight_raises(tmp_pa
     repo, task = _setup_deterministic_preflight_fixture(monkeypatch, tmp_path)
 
     def fail_batch(repo_arg, run_id, **kwargs):
-        run_dir = Path(repo_arg) / ".simplicio" / "loop-runs" / run_id
+        run_dir = Path(repo_arg) / ".simplicio-loop" / "loop-runs" / run_id
         state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
         runner_mod._persist_batch_preflight_block(
             run_dir, state, Path(repo_arg), "stale operator receipt: repository changed",

@@ -31,9 +31,9 @@ _MAX_BYTES = 50 * 1024 * 1024  # 50 MB
 
 
 def _cache_root() -> Path:
-    """Resolve the cache dir: <SIMPLICIO_HOME>/cache, else ~/.simplicio/cache."""
+    """Resolve the cache dir: <SIMPLICIO_HOME>/cache, else ~/.simplicio-loop/cache."""
     home = os.environ.get("SIMPLICIO_HOME")
-    base = Path(home) if home else Path.home() / ".simplicio"
+    base = Path(home) if home else Path.home() / ".simplicio-loop"
     return base / "cache"
 
 

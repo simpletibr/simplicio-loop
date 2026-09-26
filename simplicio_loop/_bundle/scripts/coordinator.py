@@ -44,8 +44,8 @@ Verbs:
 
 Usage:
     python3 scripts/coordinator.py survey --repo wesleysimplicio/simplicio-loop \\
-        --issues 466,467,468,469 > .simplicio/orchestrator/coordinator/snapshot.json
-    python3 scripts/coordinator.py decide --snapshot-file .simplicio/orchestrator/coordinator/snapshot.json \\
+        --issues 466,467,468,469 > .simplicio-loop/orchestrator/coordinator/snapshot.json
+    python3 scripts/coordinator.py decide --snapshot-file .simplicio-loop/orchestrator/coordinator/snapshot.json \\
         --self-branch claude/simplicio-loop-skill-issues-4cff87
     python3 scripts/coordinator.py selftest
 """

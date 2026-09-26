@@ -28,7 +28,7 @@ def _fp(text: str) -> str:
 
 
 def _reports_dir(repo: Path) -> Path:
-    d = repo / ".simplicio" / "runtime" / "execution-reports"
+    d = repo / ".simplicio-loop" / "runtime" / "execution-reports"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

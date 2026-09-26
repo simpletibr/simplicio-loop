@@ -74,7 +74,7 @@ Whatever prompt surface your Kimi CLI/agent shell exposes: paste or reference th
 ## Progresso do run
 
 Self-paced (N2): the tick should echo `python3 scripts/loop_progress.py render --turn-header`.
-Universal fallback (N3): open `.simplicio/orchestrator/loop/PROGRESS.md` (auto-regenerated every turn) —
+Universal fallback (N3): open `.simplicio-loop/orchestrator/loop/PROGRESS.md` (auto-regenerated every turn) —
 this works with zero Kimi-specific code.
 
 ## Ecosystem law (2026-08) — read on every host

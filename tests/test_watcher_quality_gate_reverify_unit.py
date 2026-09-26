@@ -32,8 +32,8 @@ def _write_evidence(run):
 
 def _setup(tmp_path, monkeypatch):
     repo = tmp_path / "repo"
-    loop = repo / ".simplicio/orchestrator" / "loop"
-    run = repo / ".simplicio/orchestrator" / "runs" / "r1"
+    loop = repo / ".simplicio-loop/orchestrator" / "loop"
+    run = repo / ".simplicio-loop/orchestrator" / "runs" / "r1"
     loop.mkdir(parents=True)
     run.mkdir(parents=True)
     watcher._set_repo(str(repo))

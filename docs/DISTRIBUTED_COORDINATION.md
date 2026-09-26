@@ -53,7 +53,7 @@ default; overlapping or unallocatable work falls back to a serialized lane.
 When several machines share a queue, set `SIMPLICIO_REMOTE_QUEUE_URL` (and,
 when configured, `SIMPLICIO_REMOTE_QUEUE_TOKEN`). The runner then:
 
-1. persists a stable identity at `.simplicio/orchestrator/agent-identity.json` (override
+1. persists a stable identity at `.simplicio-loop/orchestrator/agent-identity.json` (override
    with `SIMPLICIO_IDENTITY_FILE`),
 2. sends only an allow-listed task context pack to the worker,
 3. claims each task atomically before invoking the operator and completes it

@@ -130,7 +130,7 @@ class CanonicalCliBuildTests(unittest.TestCase):
         repo = self.base / "repo-isolated"
         _init_repo(repo)
         _invoke_json(["canonical", "build", str(repo), "--json"])
-        self.assertFalse((repo / ".simplicio").exists())
+        self.assertFalse((repo / ".simplicio-loop").exists())
 
     def test_build_non_git_directory_returns_stable_error_receipt(self) -> None:
         plain = self.base / "plain-dir"

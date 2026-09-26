@@ -135,10 +135,10 @@ class WorktreeQueue:
         requested_run_id = run_id
         self.run_id = _slug(run_id or "run-%d" % int(time.time()))
         self.state_path = os.path.abspath(
-            state_path or os.path.join(self.repo_root, ".simplicio/orchestrator", "worktree-queue.json")
+            state_path or os.path.join(self.repo_root, ".simplicio-loop/orchestrator", "worktree-queue.json")
         )
         self.worktree_root = os.path.abspath(
-            worktree_root or os.path.join(self.repo_root, ".simplicio/orchestrator", "worktrees", self.run_id)
+            worktree_root or os.path.join(self.repo_root, ".simplicio-loop/orchestrator", "worktrees", self.run_id)
         )
         self.lock_path = self.state_path + ".lock"
         self._ensure_state()
@@ -153,7 +153,7 @@ class WorktreeQueue:
                 if existing_run:
                     self.run_id = _slug(existing_run)
                     self.worktree_root = os.path.abspath(
-                        worktree_root or os.path.join(self.repo_root, ".simplicio/orchestrator", "worktrees", self.run_id)
+                        worktree_root or os.path.join(self.repo_root, ".simplicio-loop/orchestrator", "worktrees", self.run_id)
                     )
             except (OSError, ValueError, TypeError):
                 pass

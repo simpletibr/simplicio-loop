@@ -41,7 +41,7 @@ def _sha256_file(path: Path) -> str:
 
 def _legacy_queue_path(repo: str) -> Path:
     root = _git_root(repo)
-    path = root / ".simplicio" / "orchestrator" / "queue.sqlite3"
+    path = root / ".simplicio-loop" / "orchestrator" / "queue.sqlite3"
     if path.is_symlink() or not path.is_file():
         raise QueueUnavailable(f"legacy queue is missing: {path}")
     return path

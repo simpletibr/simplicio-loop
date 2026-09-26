@@ -63,7 +63,7 @@ AUTOSTART = {"proxy": SERVICES["proxy"]}
 # SIMPLICIO_HOME is set explicitly so the proxy can always write savings/logs even when the
 # service runs with an unset/unwritable $HOME (verified necessary in the systemd field-test).
 ENVS = {"PORT": MONITOR_PORT, "SIMPLICIO_PROXY_PORT": PROXY_PORT, "SIMPLICIO_MONITOR_PORT": MONITOR_PORT,
-        "SIMPLICIO_HOME": str(HOME / ".simplicio")}
+        "SIMPLICIO_HOME": str(HOME / ".simplicio-loop")}
 
 
 # ── Linux: systemd --user ────────────────────────────────────────────────────

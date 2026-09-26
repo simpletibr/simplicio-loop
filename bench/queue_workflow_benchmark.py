@@ -26,11 +26,11 @@ TASKS = [
 def prepare(include_requirements=False):
     root = Path(__file__).resolve().parents[1]
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    out = root / ".simplicio/benchmark" / ("queue-3.43.10-" + stamp)
+    out = root / ".simplicio-loop/benchmark" / ("queue-3.43.10-" + stamp)
     fixture = out / "fixture"
     fixture.mkdir(parents=True)
     files = {
-        ".gitignore": ".simplicio/\n__pycache__/\n",
+        ".gitignore": ".simplicio-loop/\n__pycache__/\n",
         "src/total.py": "def total(values):\n    return len(values)\n",
         "src/clamp.py": "def clamp(value, low, high):\n    return low\n",
         "src/boolean.py": "def parse_bool(text):\n    return bool(text)\n",
