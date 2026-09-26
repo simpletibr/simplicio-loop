@@ -76,6 +76,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     ap.add_argument("--max-turns", type=int, default=30, help="per agent.run_agent call (see run.py)")
     ap.add_argument("--cmd-timeout", type=int, default=180, help="per bash-tool command (see run.py)")
+    ap.add_argument(
+        "--reports-only", metavar="SHA", default=None,
+        help="re-render every REPORT-*.html and REPORT.html from the existing results/*-<SHA>-*.json "
+             "files, without calling any LLM (no keys needed)",
+    )
     return ap
 
 
@@ -85,11 +90,47 @@ def _result_path_for(out_dir: str, tasks: int, batch: bool) -> str:
     return os.path.join(out_dir, bench_run.result_filename(date, short_sha, tasks, batch=batch))
 
 
-def build_index(written: list[tuple[str, str, str]]) -> str:
-    """``written`` is ``[(suffix, result_path, report_path), ...]``. A plain
-    static index -- no charts, no aggregation across combinations (a
-    1-task run and a 4-task run, or a sequential and a batch run, are never
-    comparable -- see STANDARD.md's history rule)."""
+def _arm_sums(tasks: list[dict]) -> dict:
+    return {
+        "ok": sum(1 for t in tasks if t.get("success")),
+        "n": len(tasks),
+        "turns": sum(t.get("turns") or 0 for t in tasks),
+        "wall": sum(t.get("wall_s") or 0.0 for t in tasks),
+        "cost": sum((t.get("totals") or {}).get("cost_usd") or 0.0 for t in tasks),
+    }
+
+
+def summary_rows(suffix: str, results: dict) -> list[str]:
+    """One row per slice of a result file: its total, plus create-only and
+    edit-only for sequential runs (a batch run is one session, so its calls
+    cannot be split per task)."""
+    arms = results.get("arms") or {}
+    slices = [("total", None)]
+    if not (results.get("meta") or {}).get("batch"):
+        kinds = {t.get("kind") for a in arms.values() for t in a.get("tasks", [])}
+        slices += [(label, kind) for label, kind in (("criação", "create"), ("edição", "edit")) if kind in kinds]
+    rows = []
+    for label, kind in slices:
+        sums = {}
+        for arm in ("normal", "simplicio"):
+            tasks = (arms.get(arm) or {}).get("tasks", [])
+            sums[arm] = _arm_sums([t for t in tasks if kind is None or t.get("kind") == kind])
+        n, s = sums["normal"], sums["simplicio"]
+        saved = n["cost"] - s["cost"]
+        pct = f"{saved / n['cost'] * 100:.1f}%" if n["cost"] else "n/a"
+        cells = "".join(
+            f"<td>{a['ok']}/{a['n']}</td><td>{a['turns']}</td><td>{a['wall']:.1f}</td><td>${a['cost']:.5f}</td>"
+            for a in (n, s)
+        )
+        rows.append(f"<tr><td>{suffix} · {label}</td>{cells}<td>${saved:.5f} ({pct})</td></tr>")
+    return rows
+
+
+def build_index(written: list[tuple[str, str, str]], results_by_suffix: dict | None = None) -> str:
+    """``written`` is ``[(suffix, result_path, report_path), ...]``. Links
+    every combination's report, plus a summary table (total / create-only /
+    edit-only per combination) when ``results_by_suffix`` is given. Rows are
+    never aggregated across combinations (STANDARD.md's history rule)."""
     rows = "".join(
         f"<li><a href='{os.path.basename(report_path)}'>{suffix}</a> "
         f"&mdash; <code>{os.path.basename(result_path)}</code></li>\n"
@@ -97,29 +138,76 @@ def build_index(written: list[tuple[str, str, str]]) -> str:
     )
     if not rows:
         rows = "<li>nenhuma combinação da matriz foi executada</li>\n"
+    summary = ""
+    if results_by_suffix:
+        body = "".join(r for suffix, _, _ in written if suffix in results_by_suffix
+                       for r in summary_rows(suffix, results_by_suffix[suffix]))
+        summary = (
+            "<h2>Resumo (normal vs simplicio)</h2>\n<table border='1' cellpadding='4'>"
+            "<tr><th>combinação</th><th>normal ok</th><th>turnos</th><th>tempo (s)</th><th>custo</th>"
+            "<th>simplicio ok</th><th>turnos</th><th>tempo (s)</th><th>custo</th>"
+            "<th>economia de custo com simplicio</th></tr>\n" + body + "</table>\n"
+        )
     return f"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="utf-8"><title>Benchmark A/B — matriz padrão</title></head>
 <body>
 <h1>Benchmark A/B: matriz padrão (bench/llm_ab/STANDARD.md)</h1>
 <p>Modelo: <code>{bench_run.lc.MODEL}</code> &middot; braços: normal, simplicio</p>
-<ul>
+{summary}<ul>
 {rows}</ul>
 </body>
 </html>
 """
 
 
+def write_reports(entries: list[tuple[str, str]], out_dir: str) -> None:
+    """Render ``REPORT-<suffix>.html`` for each ``(suffix, result_path)`` and
+    the combined ``REPORT.html`` index with its summary table."""
+    import report as bench_report  # noqa: E402 -- needs matplotlib, imported lazily
+
+    written: list[tuple[str, str, str]] = []
+    loaded: dict[str, dict] = {}
+    for suffix, result_path in entries:
+        with open(result_path) as f:
+            loaded[suffix] = json.load(f)
+        report_path = os.path.join(HERE, f"REPORT-{suffix}.html")
+        with open(report_path, "w") as f:
+            f.write(bench_report.build(loaded[suffix], out_dir, current_path=result_path))
+        print(f"wrote {report_path}", file=sys.stderr)
+        written.append((suffix, result_path, report_path))
+    index_path = os.path.join(HERE, "REPORT.html")
+    with open(index_path, "w") as f:
+        f.write(build_index(written, loaded))
+    print(f"wrote {index_path}", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = build_arg_parser()
     args = ap.parse_args(argv)
+
+    if args.reports_only:
+        entries = []
+        for combo in MATRIX:
+            suffix = suffix_for(combo["tasks"], combo["batch"])
+            matches = sorted(
+                f for f in os.listdir(args.out)
+                if f.endswith(f"-{args.reports_only}-{suffix}.json")
+            )
+            if matches:
+                entries.append((suffix, os.path.join(args.out, matches[-1])))
+        if not entries:
+            print(f"standard matrix: no results for sha {args.reports_only} in {args.out}", file=sys.stderr)
+            return 2
+        write_reports(entries, args.out)
+        return 0
 
     if args.keys_file:
         os.environ["SIMPLICIO_BENCH_KEYS"] = args.keys_file
     bench_run.lc.keys_path()  # fail fast, before any work, if unset/missing
 
     os.makedirs(args.out, exist_ok=True)
-    written: list[tuple[str, str, str]] = []
+    entries: list[tuple[str, str]] = []
 
     for combo in MATRIX:
         suffix = suffix_for(combo["tasks"], combo["batch"])
@@ -139,24 +227,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"standard matrix: run.py failed for {suffix} (exit {rc})", file=sys.stderr)
             return rc
 
-        result_path = _result_path_for(args.out, combo["tasks"], combo["batch"])
-        with open(result_path) as f:
-            results_data = json.load(f)
+        entries.append((suffix, _result_path_for(args.out, combo["tasks"], combo["batch"])))
 
-        import report as bench_report  # noqa: E402 -- needs matplotlib, imported lazily
-
-        html = bench_report.build(results_data, args.out, current_path=result_path)
-        report_path = os.path.join(HERE, f"REPORT-{suffix}.html")
-        with open(report_path, "w") as f:
-            f.write(html)
-        print(f"wrote {result_path}", file=sys.stderr)
-        print(f"wrote {report_path}", file=sys.stderr)
-        written.append((suffix, result_path, report_path))
-
-    index_path = os.path.join(HERE, "REPORT.html")
-    with open(index_path, "w") as f:
-        f.write(build_index(written))
-    print(f"wrote {index_path}", file=sys.stderr)
+    write_reports(entries, args.out)
     return 0
 
 

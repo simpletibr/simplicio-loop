@@ -15,7 +15,14 @@ bash bench/llm_ab/standard.sh
 python3 bench/llm_ab/standard.py
 # or, passing the keys file directly instead of exporting it:
 python3 bench/llm_ab/standard.py --keys-file /path/to/keys.env
+# re-render every REPORT-*.html + REPORT.html from existing results (no LLM calls, no keys):
+python3 bench/llm_ab/standard.py --reports-only <short-sha>
 ```
+
+`REPORT.html` opens with a summary table: each combination's total, plus
+create-only and edit-only rows for the sequential runs. A batch run is one
+agent session for every task, so its calls cannot be split per task; its
+report says so and points at the sequential run of the same set.
 
 Run it from the venv you want measured (it runs on whatever `python3`/venv is
 on `PATH`, exactly like `run.py`). It never reads, prints, or hardcodes a raw

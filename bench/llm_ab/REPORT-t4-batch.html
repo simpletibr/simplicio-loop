@@ -67,35 +67,7 @@
 </table>
 
   <h2>Somente criação e somente edição (tarefas da mesma sessão)</h2>
-  <h3>Somente criação (mesma sessão)</h3><table class='compare'><tr><th>Métrica</th><th>normal</th><th>simplicio</th><th>Economia com simplicio</th></tr>
-<tr><td>Tarefas concluídas</td><td>2/2</td><td>2/2</td><td></td></tr>
-<tr><td>Tempo (s)</td><td>76.3</td><td>59.2</td><td>17.1 (22.4%)</td></tr>
-<tr><td>Turnos de LLM</td><td>12</td><td>8</td><td>4 (33.3%)</td></tr>
-<tr><td>Comandos executados</td><td>11</td><td>7</td><td>4 (36.4%)</td></tr>
-<tr><td>... dos quais simplicio-*</td><td>0</td><td>4</td><td></td></tr>
-<tr><td>CPU total (comandos, s)</td><td>1.88</td><td>8.96</td><td>-7.09 (-377.5%)</td></tr>
-<tr><td>Pico RAM (MB)</td><td>12.3</td><td>34.8</td><td></td></tr>
-<tr><td>Tokens prompt (não cacheado)</td><td>10157</td><td>17839</td><td>-7682 (-75.6%)</td></tr>
-<tr><td>Tokens prompt (cacheado)</td><td>40704</td><td>59264</td><td></td></tr>
-<tr><td>Tokens completion</td><td>1944</td><td>2495</td><td>-551 (-28.3%)</td></tr>
-<tr><td>Tokens de raciocínio</td><td>367</td><td>1539</td><td>-1172 (-319.4%)</td></tr>
-<tr><td>Custo (USD)</td><td>$0.00256</td><td>$0.00444</td><td>$-0.00188 (-73.2%)</td></tr>
-<tr><td>Invocações do checker pelo próprio agente</td><td>7</td><td>4</td><td></td></tr>
-</table><h3>Somente edição (mesma sessão)</h3><table class='compare'><tr><th>Métrica</th><th>normal</th><th>simplicio</th><th>Economia com simplicio</th></tr>
-<tr><td>Tarefas concluídas</td><td>2/2</td><td>2/2</td><td></td></tr>
-<tr><td>Tempo (s)</td><td>0.0</td><td>0.0</td><td>0.0 (n/a)</td></tr>
-<tr><td>Turnos de LLM</td><td>0</td><td>0</td><td>0 (n/a)</td></tr>
-<tr><td>Comandos executados</td><td>0</td><td>0</td><td>0 (n/a)</td></tr>
-<tr><td>... dos quais simplicio-*</td><td>0</td><td>0</td><td></td></tr>
-<tr><td>CPU total (comandos, s)</td><td>0.00</td><td>0.00</td><td>0.00 (n/a)</td></tr>
-<tr><td>Pico RAM (MB)</td><td>0.0</td><td>0.0</td><td></td></tr>
-<tr><td>Tokens prompt (não cacheado)</td><td>0</td><td>0</td><td>0 (n/a)</td></tr>
-<tr><td>Tokens prompt (cacheado)</td><td>0</td><td>0</td><td></td></tr>
-<tr><td>Tokens completion</td><td>0</td><td>0</td><td>0 (n/a)</td></tr>
-<tr><td>Tokens de raciocínio</td><td>0</td><td>0</td><td>0 (n/a)</td></tr>
-<tr><td>Custo (USD)</td><td>$0.00000</td><td>$0.00000</td><td>$0.00000 (n/a)</td></tr>
-<tr><td>Invocações do checker pelo próprio agente</td><td>0</td><td>0</td><td></td></tr>
-</table>
+  <p>Modo batch: criação e edição acontecem em <b>uma única sessão</b>, então turnos, tempo e custo não são separáveis por tarefa. Os números somente criação / somente edição estão no relatório sequencial do mesmo conjunto (ex.: <code>REPORT-t4.html</code>) e no resumo de <code>REPORT.html</code>.</p>
 
   <h2>Preço por token (OpenRouter, ao vivo)</h2>
   <table class="compare">
