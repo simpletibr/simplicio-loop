@@ -217,3 +217,59 @@ def test_parse_generation_response_404_marks_unavailable():
 def test_parse_generation_response_non_dict_body_marks_unavailable():
     assert cost.parse_generation_response(200, None) == {"available": False}
     assert cost.parse_generation_response(200, "not a dict") == {"available": False}
+
+
+# -- finalize_task_cost: settled-billed vs token-computed cross-check (#1335) -
+
+def test_finalize_task_cost_computes_from_tokens_matching_cost_breakdown():
+    totals = {"prompt_tokens": 1000, "cached_tokens": 400, "completion_tokens": 200}
+    out = cost.finalize_task_cost(totals, PRICING)
+    breakdown = cost.cost_breakdown(1000, 400, 200, PRICING)
+    assert out["computed_cost_usd"] == breakdown["computed_cost_usd"]
+
+
+def test_finalize_task_cost_no_billed_falls_back_to_computed_source():
+    totals = {"prompt_tokens": 1000, "cached_tokens": 0, "completion_tokens": 200,
+              "cost_usd": 0.0, "cost_source": "opencode-reported"}
+    out = cost.finalize_task_cost(totals, PRICING)
+    assert out["cost_source"] == "computed-from-tokens"
+    assert out["cost_usd"] == out["computed_cost_usd"]
+    assert out["cost_flag"] is False
+    assert out["cost_divergence_pct"] is None
+
+
+def test_finalize_task_cost_billed_close_to_computed_is_not_flagged():
+    totals = {"prompt_tokens": 1000, "cached_tokens": 0, "completion_tokens": 200,
+              "billed_cost_usd": 0.000224, "cost_source": "billed-settled"}
+    out = cost.finalize_task_cost(totals, PRICING)
+    assert out["cost_usd"] == 0.000224
+    assert out["cost_flag"] is False
+    assert out["cost_divergence_pct"] is not None
+    assert abs(out["cost_divergence_pct"]) < 1.0
+
+
+def test_finalize_task_cost_billed_far_from_computed_is_flagged():
+    # billed ~4x under the token-computed price -- issue #1335's own example.
+    totals = {"prompt_tokens": 1000, "cached_tokens": 0, "completion_tokens": 200,
+              "billed_cost_usd": 0.00005, "cost_source": "billed-settled"}
+    out = cost.finalize_task_cost(totals, PRICING)
+    assert out["cost_usd"] == 0.00005
+    assert out["cost_flag"] is True
+    assert out["cost_divergence_pct"] > 10.0
+
+
+def test_finalize_task_cost_backfills_billed_from_legacy_billed_delta_field():
+    # Pre-#1335 results carry no `billed_cost_usd`; `cost_usd` under
+    # `cost_source == "billed-delta"` WAS the billed figure -- backfill it
+    # so a --reports-only render of old results still cross-checks.
+    totals = {"prompt_tokens": 1000, "cached_tokens": 0, "completion_tokens": 200,
+              "cost_usd": 0.00005, "cost_source": "billed-delta"}
+    out = cost.finalize_task_cost(totals, PRICING)
+    assert out["billed_cost_usd"] == 0.00005
+    assert out["cost_flag"] is True
+
+
+def test_finalize_task_cost_does_not_mutate_input():
+    totals = {"prompt_tokens": 1000, "cached_tokens": 0, "completion_tokens": 200}
+    cost.finalize_task_cost(totals, PRICING)
+    assert "computed_cost_usd" not in totals

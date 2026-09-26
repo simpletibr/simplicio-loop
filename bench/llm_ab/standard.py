@@ -97,11 +97,26 @@ def _result_path_for(out_dir: str, tasks: int, batch: bool) -> str:
     return os.path.join(out_dir, bench_run.result_filename(date, short_sha, tasks, batch=batch))
 
 
+def _finalized_tasks(tasks: list[dict], pricing: dict) -> list[dict]:
+    """``tasks`` with every ``totals`` run through
+    ``cost.finalize_task_cost`` (issue #1335) -- non-mutating, so this works
+    the same whether ``tasks`` already carries the settled/computed cost
+    fields (a fresh run) or predates this fix (an OLDER result rendered via
+    ``--reports-only``, which never has its stored JSON edited)."""
+    return [dict(t, totals=bench_cost.finalize_task_cost(t.get("totals") or {}, pricing)) for t in tasks]
+
+
 def _arm_sums(tasks: list[dict], pricing: dict) -> dict:
-    """Per-slice totals. ``cost`` is the real billed cost (OpenRouter
-    generation stats, cache discount included); ``nocache`` prices the same
-    tokens at the list prompt rate, so ``cache_saved`` is what the cache
-    actually saved -- both from the run's own pricing snapshot."""
+    """Per-slice totals. ``cost`` is the settled-billed cost (or the
+    token-computed fallback when the ledger never settled -- ``cost_usd``
+    after ``finalize_task_cost``); ``cost_computed`` is always the
+    token-computed figure, for the side-by-side cross-check;
+    ``flagged`` counts tasks whose billed/computed divergence exceeded 10%.
+    ``nocache`` prices the same tokens at the list prompt rate, so
+    ``cache_saved`` is what the cache actually saved -- both from the run's
+    own pricing snapshot."""
+    tasks = _finalized_tasks(tasks, pricing)
+
     def tot(key: str) -> float:
         return sum((t.get("totals") or {}).get(key) or 0 for t in tasks)
 
@@ -112,6 +127,8 @@ def _arm_sums(tasks: list[dict], pricing: dict) -> dict:
         "turns": sum(t.get("turns") or 0 for t in tasks),
         "wall": sum(t.get("wall_s") or 0.0 for t in tasks),
         "cost": tot("cost_usd"),
+        "cost_computed": tot("computed_cost_usd"),
+        "flagged": sum(1 for t in tasks if (t.get("totals") or {}).get("cost_flag")),
         "hit": (cached / prompt * 100.0) if prompt else 0.0,
         "nocache": None,
         "cache_saved": None,
@@ -152,6 +169,7 @@ def summary_records(suffix: str, results: dict) -> list[dict]:
 
 def _arm_cells(a: dict) -> list[str]:
     return [f"{a['ok']}/{a['n']}", str(a["turns"]), f"{a['wall']:.1f}", f"${a['cost']:.5f}",
+            _usd(a.get("cost_computed")), str(a.get("flagged", 0)),
             f"{a['hit']:.1f}%", _usd(a["nocache"]), _usd(a["cache_saved"])]
 
 
@@ -165,14 +183,23 @@ def summary_rows(suffix: str, results: dict) -> list[str]:
 
 SUMMARY_HEADERS = [
     "combinação",
-    "normal ok", "turnos", "tempo (s)", "custo real", "cache hit", "custo sem cache", "economia do cache",
-    "simplicio ok", "turnos", "tempo (s)", "custo real", "cache hit", "custo sem cache", "economia do cache",
-    "economia de custo real com simplicio",
+    "normal ok", "turnos", "tempo (s)", "custo cobrado", "custo calculado", "sinalizados",
+    "cache hit", "custo sem cache", "economia do cache",
+    "simplicio ok", "turnos", "tempo (s)", "custo cobrado", "custo calculado", "sinalizados",
+    "cache hit", "custo sem cache", "economia do cache",
+    "economia de custo cobrado com simplicio",
 ]
-CACHE_NOTE = ("Custo real = cobrado pelo OpenRouter (desconto de cache incluído). Custo sem cache = "
-              "os mesmos tokens ao preço cheio de prompt. Economia do cache = diferença, pelo preço "
-              "de cache read da própria execução. Batch = uma sessão para todas as tarefas, por isso "
-              "sem linhas de criação/edição; veja a execução sequencial do mesmo conjunto.")
+CACHE_NOTE = ("Custo cobrado = delta assentado da chave OpenRouter (issue #1335: assentado é "
+              "3+ leituras seguidas sem variar, nunca o primeiro movimento), ou o próprio custo "
+              "calculado quando o uso nunca assenta dentro da janela (`cost_source = "
+              "computed-from-tokens`). Custo calculado = os mesmos tokens pelo preço da própria "
+              "execução (prompt/cache/completion), sempre presente, mesmo para runs antigas sem o "
+              "campo (recalculado aqui a partir dos tokens armazenados, nunca editando o "
+              "results/*.json histórico). Sinalizados = tarefas cujo custo cobrado divergiu do "
+              "calculado em mais de 10%. Custo sem cache = os mesmos tokens ao preço cheio de "
+              "prompt. Economia do cache = diferença, pelo preço de cache read da própria "
+              "execução. Batch = uma sessão para todas as tarefas, por isso sem linhas de "
+              "criação/edição; veja a execução sequencial do mesmo conjunto.")
 
 
 def build_markdown(written: list[tuple[str, str, str]], results_by_suffix: dict) -> str:

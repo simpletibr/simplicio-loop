@@ -52,8 +52,16 @@ DEFAULT_RUN_TIMEOUT = 900  # generous: OpenCode's first invocation against a
 # later invocations against the same config_dir are fast (seconds).
 
 KEY_URL = "https://openrouter.ai/api/v1/key"
-DEFAULT_POLL_TIMEOUT_S = 20
-DEFAULT_POLL_INTERVAL_S = 2.0
+
+# Settled-usage polling (issue #1335): OpenRouter's key-usage ledger settles
+# in several increments after a run finishes, not in one jump -- returning
+# on the FIRST observed movement (the old `poll_billed_delta`, removed)
+# undercounts the task that just ran and leaks the rest of its cost into the
+# next task's "before" baseline. Instead, poll until the usage has been
+# UNCHANGED for `reads` consecutive reads, bounded by `max_wait_s` total.
+DEFAULT_SETTLE_READS = 3
+DEFAULT_SETTLE_INTERVAL_S = 5.0
+DEFAULT_SETTLE_MAX_WAIT_S = 120.0
 
 
 def opencode_bin() -> str:
@@ -270,10 +278,12 @@ def parse_run_events(events: list[dict]) -> dict:
 
 def summarize(llm_calls: list[dict], commands: list[dict]) -> dict:
     """Same shape as the retired ``agent.summarize``, plus ``cost_source``/
-    ``cost_usd_opencode_reported`` (issue #1325's real-billed-cost
-    breakdown). ``cost_usd`` starts as the sum of OpenCode's own per-call
-    reported cost; ``run_opencode`` overwrites it with the real OpenRouter
-    key-usage delta when that delta was observed (see ``poll_billed_delta``)."""
+    ``cost_usd_opencode_reported``/``billed_cost_usd`` (issue #1325/#1335's
+    real-billed-cost breakdown). ``cost_usd`` starts as the sum of OpenCode's
+    own per-call reported cost; ``run_opencode`` overwrites it with the
+    settled OpenRouter key-usage delta when one was observed (see
+    ``poll_settled_usage``); ``billed_cost_usd`` starts ``None`` and is set
+    the same way."""
     prompt = completion = reasoning = cached = 0
     cost = 0.0
     llm_latency = 0.0
@@ -303,6 +313,7 @@ def summarize(llm_calls: list[dict], commands: list[dict]) -> dict:
         "cost_usd": reported_cost,
         "cost_usd_opencode_reported": reported_cost,
         "cost_source": "opencode-reported",
+        "billed_cost_usd": None,
         "llm_latency_s": round(llm_latency, 4),
         "cmd_wall_s": round(cmd_wall, 4),
         "cmd_cpu_s": 0.0,  # not measurable per-command through the opencode CLI (see README)
@@ -323,23 +334,28 @@ def fetch_key_usage_usd(key: str, timeout: int = 15) -> float | None:
     return float(usage) if isinstance(usage, (int, float)) else None
 
 
-def poll_billed_delta(fetch_fn, usage_before: float | None, *, timeout_s: float = DEFAULT_POLL_TIMEOUT_S,
-                       interval_s: float = DEFAULT_POLL_INTERVAL_S, sleep=time.sleep,
-                       clock_values: list[float] | None = None) -> float | None:
-    """Poll ``fetch_fn()`` (no-arg -> ``float | None`` usage) until it rises
-    above ``usage_before`` by more than float noise, up to ``timeout_s``
-    seconds, sleeping ``interval_s`` between attempts. Returns the observed
-    delta, or ``None`` when there was no baseline to compare against or the
-    usage never moved within the window (OpenRouter's ledger can lag; the
-    caller falls back to OpenCode's own reported cost in that case, marking
-    ``cost_source`` accordingly -- never a fabricated number).
+def poll_settled_usage(fetch_fn, *, reads: int = DEFAULT_SETTLE_READS,
+                        interval_s: float = DEFAULT_SETTLE_INTERVAL_S,
+                        max_wait_s: float = DEFAULT_SETTLE_MAX_WAIT_S, sleep=time.sleep,
+                        clock_values: list[float] | None = None) -> dict:
+    """Poll ``fetch_fn()`` (no-arg -> ``float | None`` usage) until it
+    returns the SAME value (within float noise) for ``reads`` consecutive
+    reads in a row, bounded by ``max_wait_s`` seconds total, sleeping
+    ``interval_s`` between reads.
+
+    Returns ``{"value": <last observed reading or None>, "settled": bool}``.
+    ``settled`` is True only once ``reads`` consecutive equal reads were
+    observed -- the returned ``value`` is then the settled figure (the FULL
+    delta from a baseline, not the first step off it). On timeout,
+    ``settled`` is False and ``value`` is the LAST reading seen (never
+    ``None`` unless every read failed) -- a caller still uses it as the next
+    baseline (no leakage across tasks) even though this window's cost falls
+    back to the token-computed figure.
 
     ``clock_values`` (test-only): an explicit sequence consumed instead of
-    real ``time.time()`` calls, one per loop condition check, so the timeout
-    loop is deterministic under test without any real waiting.
+    real ``time.time()`` calls, one per loop condition check, so the
+    timeout loop is deterministic under test without any real waiting.
     """
-    if usage_before is None:
-        return None
     if clock_values is not None:
         ticks = iter(clock_values)
 
@@ -347,23 +363,40 @@ def poll_billed_delta(fetch_fn, usage_before: float | None, *, timeout_s: float 
             try:
                 return next(ticks)
             except StopIteration:
-                return usage_before + timeout_s + 1  # force loop exit
+                return max_wait_s * 10  # force loop exit
+
     else:
         now = time.time
 
     start = now()
-    deadline = start + timeout_s
+    deadline = start + max_wait_s
+    last_value: float | None = None
+    streak = 0
+
     while now() < deadline:
+        value = fetch_fn()
+        if value is not None:
+            if last_value is not None and abs(value - last_value) <= 1e-9:
+                streak += 1
+            else:
+                streak = 1
+            last_value = value
+            if streak >= reads:
+                return {"value": last_value, "settled": True}
+        else:
+            streak = 0
         sleep(interval_s)
-        usage_after = fetch_fn()
-        if usage_after is not None and usage_after > usage_before + 1e-9:
-            return round(usage_after - usage_before, 8)
-    return None
+
+    return {"value": last_value, "settled": False}
 
 
 def run_opencode(arm: str, prompt: str, repo_dir: str, *, key: str | None = None,
                   config_dir: str, timeout: int = DEFAULT_RUN_TIMEOUT, skill: bool = False,
-                  bin_path: str | None = None, extra_path: str | None = None) -> dict:
+                  bin_path: str | None = None, extra_path: str | None = None,
+                  usage_baseline: float | None = None, settle_reads: int = DEFAULT_SETTLE_READS,
+                  settle_interval_s: float = DEFAULT_SETTLE_INTERVAL_S,
+                  settle_max_wait_s: float = DEFAULT_SETTLE_MAX_WAIT_S, sleep=time.sleep,
+                  clock_values: list[float] | None = None) -> dict:
     """Drive one task to completion via the real OpenCode CLI in ``repo_dir``.
 
     ``skill=True`` (the simplicio arm): installs ``.claude/skills/
@@ -371,15 +404,29 @@ def run_opencode(arm: str, prompt: str, repo_dir: str, *, key: str | None = None
     with ``/simplicio-loop ``. ``skill=False`` (the normal arm): the prompt
     is sent unchanged and no skill directory is added.
 
-    Real billed cost: ``GET /api/v1/key``'s usage is read before and after
-    the run with this arm's own key, and the resulting delta becomes
-    ``totals["cost_usd"]`` (``cost_source="billed-delta"``) when observed;
-    otherwise ``totals["cost_usd"]`` stays OpenCode's own reported cost sum
-    (``cost_source="opencode-reported"``) -- see ``poll_billed_delta``.
+    Real billed cost (issue #1335, settled): OpenCode's JSON events carry no
+    OpenRouter generation id, so per-generation stats aren't available and
+    the key's cumulative ``GET /api/v1/key`` usage is the only ledger. That
+    ledger settles in several increments after the run finishes, so this
+    polls with ``poll_settled_usage`` until it has been unchanged for
+    ``settle_reads`` consecutive reads (bounded by ``settle_max_wait_s``)
+    rather than returning on the first movement. ``usage_baseline`` is the
+    ALREADY-SETTLED usage from before this task started (the caller's job --
+    see ``run.py``'s per-arm loop -- so no cost leaks across tasks). When the
+    usage settles, the full delta becomes ``totals["billed_cost_usd"]`` /
+    ``totals["cost_usd"]`` (``cost_source="billed-settled"``); when it never
+    settles within the window, ``totals["billed_cost_usd"]`` stays ``None``
+    and ``totals["cost_usd"]``/``cost_source`` stay OpenCode's own reported
+    sum -- the caller (``run.py``, via ``cost.finalize_task_cost``) then
+    falls back to the token-computed cost, never a fabricated number.
+
+    The result also carries ``usage_settled_value`` (the last observed
+    reading, settled or not) so the caller can thread it as the NEXT task's
+    ``usage_baseline`` with no gap.
 
     Returns the same shape ``run.py`` already consumes from the retired
-    ``agent.run_agent``: ``{"turns", "llm_calls", "commands", "final_text",
-    "totals"}``.
+    ``agent.run_agent``, plus ``usage_settled_value``: ``{"turns",
+    "llm_calls", "commands", "final_text", "totals", "usage_settled_value"}``.
     """
     key = key if key is not None else lc.get_key(arm)
     bin_path = bin_path or opencode_bin()
@@ -393,7 +440,6 @@ def run_opencode(arm: str, prompt: str, repo_dir: str, *, key: str | None = None
     env = build_env(arm, key, config_dir, extra_path=extra_path)
     cmd = build_command(bin_path, repo_dir, full_prompt)
 
-    usage_before = fetch_key_usage_usd(key)
     out, metrics = measure.run_subprocess(cmd, cwd=repo_dir, timeout=timeout, env=env)
 
     if metrics.get("returncode") != 0:
@@ -408,6 +454,7 @@ def run_opencode(arm: str, prompt: str, repo_dir: str, *, key: str | None = None
             "final_text": None,
             "totals": summarize([], []),
             "raw_output_tail": truncate_tail(out),
+            "usage_settled_value": usage_baseline,
         }
 
     events: list[dict] = []
@@ -423,10 +470,18 @@ def run_opencode(arm: str, prompt: str, repo_dir: str, *, key: str | None = None
     parsed = parse_run_events(events)
     totals = summarize(parsed["llm_calls"], parsed["commands"])
 
-    billed_delta = poll_billed_delta(lambda: fetch_key_usage_usd(key), usage_before)
-    if billed_delta is not None:
-        totals["cost_usd"] = billed_delta
-        totals["cost_source"] = "billed-delta"
+    settled = poll_settled_usage(
+        lambda: fetch_key_usage_usd(key), reads=settle_reads, interval_s=settle_interval_s,
+        max_wait_s=settle_max_wait_s, sleep=sleep, clock_values=clock_values,
+    )
+    if usage_baseline is not None and settled["settled"] and settled["value"] is not None:
+        billed = round(settled["value"] - usage_baseline, 8)
+        totals["billed_cost_usd"] = billed
+        totals["cost_usd"] = billed
+        totals["cost_source"] = "billed-settled"
+    # else: never settled (or no baseline to compare against) -- leave
+    # totals["cost_usd"]/["cost_source"] as OpenCode's own reported sum;
+    # billed_cost_usd stays None (summarize()'s default).
 
     return {
         "turns": parsed["turns"],
@@ -434,4 +489,5 @@ def run_opencode(arm: str, prompt: str, repo_dir: str, *, key: str | None = None
         "commands": parsed["commands"],
         "final_text": parsed["final_text"],
         "totals": totals,
+        "usage_settled_value": settled["value"],
     }

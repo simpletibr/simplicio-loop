@@ -68,7 +68,8 @@ def test_build_index_handles_empty_matrix_without_crashing():
 def test_build_index_has_summary_with_create_and_edit_rows():
     def task(i, kind, cost, turns, wall):
         return {"index": i, "kind": kind, "success": True, "turns": turns, "wall_s": wall,
-                "totals": {"cost_usd": cost, "prompt_tokens": 10, "cached_tokens": 5}}
+                "totals": {"cost_usd": cost, "cost_source": "billed-delta",
+                           "prompt_tokens": 10, "cached_tokens": 5}}
     res = {"meta": {"batch": False}, "arms": {
         "normal": {"tasks": [task(1, "create", 0.001, 5, 10.0), task(2, "edit", 0.002, 6, 12.0)]},
         "simplicio": {"tasks": [task(1, "create", 0.003, 7, 20.0), task(2, "edit", 0.001, 3, 6.0)]},
@@ -105,8 +106,8 @@ def test_build_markdown_report_has_summary_create_edit_and_cache():
 
     def task(i, kind, cost):
         return {"index": i, "kind": kind, "success": True, "turns": 3, "wall_s": 2.0,
-                "totals": {"cost_usd": cost, "prompt_tokens": 1000, "cached_tokens": 500,
-                           "completion_tokens": 10}}
+                "totals": {"cost_usd": cost, "cost_source": "billed-delta",
+                           "prompt_tokens": 1000, "cached_tokens": 500, "completion_tokens": 10}}
     res = {"meta": {"batch": False, "pricing": pricing, "model": "m", "main_commit": "abc"},
            "arms": {"normal": {"tasks": [task(1, "create", 0.001), task(2, "edit", 0.002)]},
                     "simplicio": {"tasks": [task(1, "create", 0.0005), task(2, "edit", 0.001)]}}}
@@ -128,6 +129,32 @@ def test_build_full_html_joins_summary_and_every_report_with_page_breaks():
     assert "Resumo" in full and "R1" in full and "R4" in full
     assert "data:image/png;base64,AA" in full  # charts carried over
     assert ".x{color:red}" in full
+
+
+def test_summary_shows_billed_and_computed_cost_side_by_side_with_flag_count():
+    """Issue #1335: the summary must show custo cobrado (billed) AND custo
+    calculado (token-computed) side by side, plus how many tasks were
+    flagged for a >10% divergence between the two."""
+    pricing = {"available": True, "prompt": 0.00000014, "completion": 0.00000042}
+
+    def task(cost_usd):
+        # billed far below the token price -- issue #1335's own example.
+        return {"index": 1, "kind": "create", "success": True, "turns": 1, "wall_s": 1.0,
+                "totals": {"cost_usd": cost_usd, "cost_source": "billed-delta",
+                           "prompt_tokens": 1000, "cached_tokens": 0, "completion_tokens": 0}}
+
+    res = {"meta": {"batch": False, "pricing": pricing}, "arms": {
+        "normal": {"tasks": [task(0.00005)]},
+        "simplicio": {"tasks": [task(0.00014)]},
+    }}
+    rec = standard.summary_records("t1", res)[0]
+    assert rec["normal"]["cost"] == 0.00005            # billed kept as cost_usd
+    assert round(rec["normal"]["cost_computed"], 6) == 0.00014  # token-computed cross-check
+    assert rec["normal"]["flagged"] == 1                # >10% divergence
+    assert rec["simplicio"]["flagged"] == 0              # matches computed, not flagged
+
+    row = standard.summary_rows("t1", res)[0]
+    assert "$0.00014" in row  # computed cost shown alongside billed
 
 
 def test_find_chromium_honors_env(monkeypatch, tmp_path):
