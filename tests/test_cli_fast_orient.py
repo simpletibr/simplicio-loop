@@ -1,11 +1,19 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
 
 from simplicio_loop import cli
+
+
+@pytest.fixture(autouse=True)
+def _git_repo(tmp_path):
+    """issue #1318: `orient` now fails closed on a non-git directory, so
+    every real-repo-shaped fixture here needs a git work tree under it."""
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
 
 
 class _ReadyFast:

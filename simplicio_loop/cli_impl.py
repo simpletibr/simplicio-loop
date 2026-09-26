@@ -857,6 +857,42 @@ def _orient_build_targets(root: Path, task: str, context_summary: Mapping[str, A
     }
 
 
+_ORIENT_GIT_CHECK_TIMEOUT_S = 5
+
+
+def _is_git_worktree(root: Path) -> bool:
+    """True iff ``root`` is inside a git work tree -- checked with a short
+    timeout so a huge or unreachable directory can never turn this into a
+    slow scan (issue #1318 cause 4: `orient` run against `/root` took
+    163.7s). A non-git directory (or a `git` that errors/hangs) is simply
+    not a work tree; never raises."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=str(root), capture_output=True, text=True,
+            timeout=_ORIENT_GIT_CHECK_TIMEOUT_S,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0 and result.stdout.strip() == "true"
+
+
+def _orient_not_a_git_repo_payload(root: Path, task: str, *, fast_mode: str,
+                                    fast_engine: str, fast_context_budget: int,
+                                    verbose: bool) -> dict[str, Any]:
+    payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
+               "provider": None, "fallback": False,
+               "reason": "not_a_git_repo", "reason_code": "not_a_git_repo",
+               "hint": f"{root} is not inside a git work tree; orient refuses to survey it",
+               "local_llm": False}
+    _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
+                         fast_engine=fast_engine,
+                         fast_context_budget=fast_context_budget)
+    if not verbose:
+        payload = _orient_trim_verbose_fields(payload)
+    return payload
+
+
 def _orient_core(root: Path, task: str, fast_mode: str, fast_context_budget: int,
                   fast_engine: str, targets: list[str] | None,
                   verbose: bool) -> tuple[dict[str, Any], int]:
@@ -874,6 +910,12 @@ def _orient_core(root: Path, task: str, fast_mode: str, fast_context_budget: int
         _seal_orient_payload(payload, root=root, task=str(task), fast_mode=fast_mode,
                              fast_engine=fast_engine,
                              fast_context_budget=fast_context_budget)
+        return payload, 2
+    if not _is_git_worktree(root):
+        payload = _orient_not_a_git_repo_payload(
+            root, task, fast_mode=fast_mode, fast_engine=fast_engine,
+            fast_context_budget=fast_context_budget, verbose=verbose,
+        )
         return payload, 2
     if fast_context_budget < 1:
         payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
@@ -1032,13 +1074,73 @@ def _brief_suggest_checks(root: Path) -> list[str]:
     return checks
 
 
+ORIENT_BRIEF_TOTAL_BUDGET_BYTES = 24 * 1024
+ORIENT_BRIEF_VERIFIER_HEAD_LINES = 20
+
+
+def _brief_is_verifier_path(rel: str) -> bool:
+    """A verifier/check/test file (issue #1318): its exact assertions matter
+    less than its existence/path for planning an edit, so it earns a short
+    head instead of full content -- keeping the brief's total budget for the
+    files a task actually edits."""
+    path = Path(rel)
+    if "tests" in path.parts or "test" in path.parts:
+        return True
+    name = path.name
+    return name.startswith("test_") or name.startswith("check_")
+
+
+def _brief_order_candidates_named_first(task: str, candidates: Sequence[Path]) -> list[Path]:
+    """A file the task text literally names sorts before any other candidate
+    the same task's ranking surfaced (issue #1318: "targets put the files
+    each task names first")."""
+    task_lower = task.lower()
+    named = [p for p in candidates if p.name.lower() in task_lower]
+    rest = [p for p in candidates if p not in named]
+    return named + rest
+
+
+def _brief_first_lines(text: str, max_lines: int = ORIENT_BRIEF_VERIFIER_HEAD_LINES) -> tuple[str, bool]:
+    lines = text.splitlines()
+    if len(lines) <= max_lines:
+        return text, False
+    return "\n".join(lines[:max_lines]), True
+
+
+def _brief_clip_to_budget(text: str, budget_bytes: int) -> tuple[str, bool]:
+    """Hard-clip ``text`` to at most ``budget_bytes`` UTF-8 bytes, on a line
+    boundary where possible, marking it truncated whenever it clips."""
+    encoded = text.encode("utf-8", "surrogateescape")
+    if len(encoded) <= budget_bytes:
+        return text, False
+    out_lines: list[str] = []
+    used = 0
+    for line in text.splitlines():
+        line_len = len(line.encode("utf-8", "surrogateescape")) + 1
+        if used + line_len > budget_bytes:
+            break
+        out_lines.append(line)
+        used += line_len
+    return "\n".join(out_lines), True
+
+
 def _brief_build_targets(root: Path, tasks: Sequence[str],
                          per_task_context: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """Target files with content, deduped across tasks, capped per file
-    (issue #1310: "the target files with content, no separate cat")."""
+    """Target files with content, deduped across tasks, capped per file and,
+    combined, under a total size budget (issue #1310/#1318: "the target
+    files with content, no separate cat" -- but bounded, and with the file
+    a task names first).
+
+    Verifier/check/test files (``_brief_is_verifier_path``) are included by
+    path plus a short head only, never their full content -- they matter for
+    the ``check`` command in ``ops.json``, not for editing.
+    """
     seen: dict[str, dict[str, Any]] = {}
+    remaining_budget = ORIENT_BRIEF_TOTAL_BUDGET_BYTES
     for task, context in zip(tasks, per_task_context):
-        for path in _orient_target_seed_candidates(root, task, context)[:ORIENT_TARGET_MAX_FILES]:
+        candidates = _orient_target_seed_candidates(root, task, context)
+        ordered = _brief_order_candidates_named_first(task, candidates)[:ORIENT_TARGET_MAX_FILES]
+        for path in ordered:
             rel = str(path.relative_to(root))
             if rel in seen:
                 continue
@@ -1046,8 +1148,17 @@ def _brief_build_targets(root: Path, tasks: Sequence[str],
                 content = path.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
-            trimmed, truncated = _brief_head_tail(content)
-            seen[rel] = {"path": rel, "content": trimmed, "truncated": truncated}
+            if _brief_is_verifier_path(rel):
+                trimmed, truncated = _brief_first_lines(content)
+            else:
+                trimmed, truncated = _brief_head_tail(content)
+            if remaining_budget <= 0:
+                seen[rel] = {"path": rel, "content": "", "truncated": True}
+                continue
+            clipped, budget_truncated = _brief_clip_to_budget(trimmed, remaining_budget)
+            entry_bytes = len(clipped.encode("utf-8", "surrogateescape"))
+            remaining_budget -= entry_bytes
+            seen[rel] = {"path": rel, "content": clipped, "truncated": truncated or budget_truncated}
     return list(seen.values())
 
 
@@ -1098,10 +1209,10 @@ def _brief_annotate_route_next(route: Mapping[str, Any], root: Path,
         return dict(route)
     out = dict(route)
     out["next"] = [
-        {"step": "read `targets`; write ops.json in the `apply.ops_format` shape "
-                 "(exact find/replace per task, copy `repo_state_chain`)",
+        {"step": "read `targets`; write `.simplicio-loop/ops.json` in the `apply.ops_format` "
+                 "shape (exact find/replace per task, copy `repo_state_chain`)",
          "phase": "plan", "effort": PHASE_EFFORT["plan"]},
-        {"step": f"simplicio-loop apply ops.json --repo {root} --json",
+        {"step": f"simplicio-loop apply .simplicio-loop/ops.json --repo {root} --json",
          "phase": "execute", "effort": PHASE_EFFORT["execute"]},
         {"step": "PASS -> done; BLOCKED/FAIL -> fix the named find/check and re-run apply "
                  "(effort = the result's `next_effort`)"},
@@ -1111,7 +1222,7 @@ def _brief_annotate_route_next(route: Mapping[str, Any], root: Path,
 
 def _brief_apply_command(root: Path) -> dict[str, Any]:
     return {
-        "command": f"simplicio-loop apply ops.json --repo {root} --json",
+        "command": f"simplicio-loop apply .simplicio-loop/ops.json --repo {root} --json",
         "ops_format": {
             "tasks": [{
                 "id": "<task-id>",
@@ -1139,6 +1250,14 @@ def orient_brief(root: Path, tasks: list[str], *, fast_mode: str = "auto",
         return {
             "schema": ORIENT_BRIEF_SCHEMA, "status": "BLOCKED", "reason": "no_tasks",
             "route": {"mode": "converge", "justification": "no task given", "resolved_files": [], "next": []},
+        }
+    if not _is_git_worktree(root):
+        return {
+            "schema": ORIENT_BRIEF_SCHEMA, "status": "BLOCKED",
+            "reason": "not_a_git_repo", "reason_code": "not_a_git_repo",
+            "hint": f"{root} is not inside a git work tree; orient refuses to survey it",
+            "route": {"mode": "converge", "justification": "not a git work tree",
+                      "resolved_files": [], "next": []},
         }
 
     per_task: list[dict[str, Any]] = []
