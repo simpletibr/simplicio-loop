@@ -494,7 +494,11 @@ def _seal_orient_payload(
     }
     payload["llm_orientation"] = contract
     payload["commands"] = _orient_command_card(root)
+    # Route first: hosts often read orient through `| head`.
+    rest = list(payload.items())
+    payload.clear()
     payload["route"] = _orient_route(root, task)
+    payload.update(rest)
     provenance = _orient_provider_provenance(payload)
     receipt = {
         "schema": ORIENT_RECEIPT_SCHEMA,
