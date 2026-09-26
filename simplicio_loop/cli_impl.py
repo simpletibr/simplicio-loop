@@ -23,6 +23,7 @@ except Exception:  # pragma: no cover - keeps `simplicio-loop` importable if thi
     _prototype_cli = None
 
 from . import __version__
+from .state_dir import ensure_state_dir
 from .fast_integration import FastConfig, FastIntegrationError, FastLoopIntegration
 from .checkpoint_lifecycle import CheckpointLifecycle, LifecycleError
 from . import delivery
@@ -233,6 +234,7 @@ def plan(task_path: str, out_path: str) -> int:
 def prepare(repo: str, task_path: str, delivery_arg: str, max_iterations: int) -> int:
     """Arm and preflight a run without executing a task or calling a provider."""
     try:
+        ensure_state_dir(Path(repo).resolve())
         delivery_target = delivery.normalize_delivery_target(delivery_arg)
         armed = arm_run(repo, task_path, delivery_target, max_iterations)
         manifest = armed.get("manifest") or {}
@@ -857,6 +859,8 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
            verbose: bool = False) -> int:
     """Run bounded Fast orient with an explicit Mapper fallback receipt."""
     root = Path(repo).resolve()
+    if root.is_dir():
+        ensure_state_dir(root)
     if not root.is_dir() or not str(task).strip():
         payload = {"schema": ORIENT_SCHEMA, "status": "BLOCKED",
                    "provider": None, "fallback": False,
