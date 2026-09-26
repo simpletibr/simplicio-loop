@@ -213,6 +213,39 @@ def build_cost_table(cost_rows: list[dict]) -> str:
     return rows
 
 
+def build_per_call_cache_table(arms: dict) -> str:
+    """Per-LLM-call prompt-cache breakdown (issue #1336): every
+    ``llm_calls`` entry already carries its own ``prompt_tokens``/
+    ``cached_tokens`` (OpenCode's own ``step_finish`` event, see
+    ``opencode_agent.parse_run_events``) -- rendering one row per call, in
+    order, lets a prefix break (a call whose cache hit % drops after a run
+    of high-hit calls) be bisected to the exact turn instead of only seeing
+    the task-level average the other tables show. The first call of a task
+    (``turn == 1``, the largest -- it carries the system + skill prompt) is
+    labeled distinctly from the rest, since this is specifically the call
+    issue #1336's stable-workdir/session-pinning fixes target."""
+    rows = ""
+    for arm_name, data in arms.items():
+        for task in data.get("tasks", []):
+            for call in task.get("llm_calls") or []:
+                if not call.get("ok", True):
+                    continue
+                prompt = call.get("prompt_tokens") or 0
+                cached = call.get("cached_tokens") or 0
+                hit_pct = (cached / prompt * 100.0) if prompt else 0.0
+                turn = call.get("turn")
+                label = "primeira chamada" if turn == 1 else "demais"
+                rows += (
+                    f"<tr><td>{html_escape(arm_name)}</td><td>{html_escape(task.get('index'))}</td>"
+                    f"<td>{html_escape(turn)}</td><td>{html_escape(label)}</td>"
+                    f"<td>{prompt}</td><td>{cached}</td>"
+                    f"<td>{fmt(hit_pct, 1)}%</td></tr>\n"
+                )
+    if not rows:
+        return "<tr><td colspan='7'>sem chamadas de LLM registradas</td></tr>\n"
+    return rows
+
+
 EFFORT_COLUMNS = ("default", "low", "medium", "high")
 
 
@@ -308,6 +341,7 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
     mode_label = "batch (todas as tarefas em uma sessão)" if is_batch else "sequencial (uma sessão por tarefa)"
     effort_policy_label = meta.get("effort_policy") or "opencode-managed"
     effort_table_html = build_effort_table(arms)
+    per_call_cache_html = build_per_call_cache_table(arms)
 
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -381,6 +415,17 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
         <th>entrada não cacheada</th><th>entrada cacheada</th><th>saída</th>
         <th>economia de cache</th><th>hit % de cache</th><th>sinalizados</th></tr>
     {cost_rows_html}
+  </table>
+
+  <h2>Cache por chamada de LLM (bisecção de quebras de prefixo, issue #1336)</h2>
+  <p class="meta">Uma linha por chamada real ao provedor (evento ``step_finish`` do OpenCode).
+    "primeira chamada" (turno 1) carrega o prompt de sistema + skill inteiro e é o alvo direto
+    das correções de caminho estável / ``session_id`` do OpenRouter; "demais" são os turnos
+    seguintes da mesma tarefa.</p>
+  <table class="compare">
+    <tr><th>braço</th><th>tarefa</th><th>turno</th><th>chamada</th>
+        <th>tokens de prompt</th><th>tokens cacheados</th><th>hit % de cache</th></tr>
+    {per_call_cache_html}
   </table>
 
   <h2>Gráficos</h2>

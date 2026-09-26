@@ -141,6 +141,82 @@ def test_install_skills_is_idempotent(tmp_path):
     assert first == second
 
 
+# -- provider stickiness: stable session id + opencode.json config (#1336) --
+
+
+def test_session_id_for_arm_is_stable_across_calls():
+    assert oc.session_id_for_arm("simplicio") == oc.session_id_for_arm("simplicio")
+
+
+def test_session_id_for_arm_differs_per_arm():
+    assert oc.session_id_for_arm("simplicio") != oc.session_id_for_arm("normal")
+
+
+def test_write_opencode_provider_config_sets_openrouter_session_header(tmp_path):
+    path = oc.write_opencode_provider_config(str(tmp_path), "simplicio")
+    assert os.path.isfile(path)
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    headers = data["provider"]["openrouter"]["options"]["headers"]
+    assert headers["x-session-id"] == oc.session_id_for_arm("simplicio")
+
+
+def test_write_opencode_provider_config_is_idempotent(tmp_path):
+    first = oc.write_opencode_provider_config(str(tmp_path), "simplicio")
+    second = oc.write_opencode_provider_config(str(tmp_path), "simplicio")
+    assert first == second
+    with open(first, encoding="utf-8") as f:
+        data = json.load(f)
+    assert data["provider"]["openrouter"]["options"]["headers"]["x-session-id"] == (
+        oc.session_id_for_arm("simplicio")
+    )
+
+
+def test_write_opencode_provider_config_preserves_unrelated_existing_keys(tmp_path):
+    config_path = os.path.join(str(tmp_path), ".config", "opencode", "opencode.json")
+    os.makedirs(os.path.dirname(config_path))
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump({"theme": "dark", "provider": {"anthropic": {"options": {"apiKey": "x"}}}}, f)
+
+    oc.write_opencode_provider_config(str(tmp_path), "simplicio")
+
+    with open(config_path, encoding="utf-8") as f:
+        data = json.load(f)
+    assert data["theme"] == "dark"
+    assert data["provider"]["anthropic"]["options"]["apiKey"] == "x"
+    assert data["provider"]["openrouter"]["options"]["headers"]["x-session-id"] == (
+        oc.session_id_for_arm("simplicio")
+    )
+
+
+def test_write_opencode_provider_config_different_arms_get_different_ids(tmp_path):
+    p1 = oc.write_opencode_provider_config(str(tmp_path / "a"), "normal")
+    p2 = oc.write_opencode_provider_config(str(tmp_path / "b"), "simplicio")
+    with open(p1, encoding="utf-8") as f:
+        h1 = json.load(f)["provider"]["openrouter"]["options"]["headers"]["x-session-id"]
+    with open(p2, encoding="utf-8") as f:
+        h2 = json.load(f)["provider"]["openrouter"]["options"]["headers"]["x-session-id"]
+    assert h1 != h2
+
+
+def test_run_opencode_writes_the_arm_provider_config(monkeypatch, tmp_path):
+    monkeypatch.setattr(oc.measure, "run_subprocess", _fake_run_subprocess_factory(_load_fixture_events()))
+    monkeypatch.setattr(oc, "fetch_key_usage_usd", lambda key, timeout=15: None)
+
+    config_dir = str(tmp_path / "oc-home")
+    oc.run_opencode(
+        "simplicio", "do the thing", str(tmp_path / "repo"), key="sk-or-x", config_dir=config_dir,
+        bin_path="/bin/opencode",
+    )
+    config_path = os.path.join(config_dir, ".config", "opencode", "opencode.json")
+    assert os.path.isfile(config_path)
+    with open(config_path, encoding="utf-8") as f:
+        data = json.load(f)
+    assert data["provider"]["openrouter"]["options"]["headers"]["x-session-id"] == (
+        oc.session_id_for_arm("simplicio")
+    )
+
+
 def test_build_shim_dir_symlinks_only_the_requested_bins(tmp_path):
     venv_bin = tmp_path / "venv-bin"
     venv_bin.mkdir()

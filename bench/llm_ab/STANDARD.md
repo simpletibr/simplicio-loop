@@ -33,20 +33,42 @@ cost less than a smaller uncached one.
 
 **Requirement: simplicio arm prompt-cache hit >= 80%, target 90% (issue #1336).**
 Every combination's `simplicio` arm must reach a cache hit rate of at
-least 80% (`standard.SIMPLICIO_CACHE_HIT_GATE_PCT`); the target, still being
-worked on in #1336, is 90% (`SIMPLICIO_CACHE_HIT_TARGET_PCT`), and the gate
-moves up to it once runs reach it. The summary table
-in `REPORT.html`, `REPORT.md`, and the PDF flags any combination below
-that gate on its cache-hit cell (`⚠ X.Y% (<80%)`) -- report-only,
-it never changes the underlying cost/cache numbers. The two levers that
-make the gate achievable: (1) a **stable prefix** -- each arm's repo (and
-OpenCode's own config/data dirs) live at a fixed, wiped-and-reseeded-per-run
-path (`run.default_work_dir`), never a fresh random directory, so OpenCode's
-system prompt (which embeds the working directory) is byte-identical across
-tasks and sessions; and (2) **compact, deterministic loop output** --
+least 80% (`standard.SIMPLICIO_CACHE_HIT_GATE_PCT`); the target is 90%
+(`SIMPLICIO_CACHE_HIT_TARGET_PCT`), and the gate moves up to it once runs
+reliably reach it. The summary table in `REPORT.html`, `REPORT.md`, and the
+PDF flags any combination below that gate on its cache-hit cell
+(`⚠ X.Y% (<80%)`) -- report-only, it never changes the underlying cost/cache
+numbers. The levers that make the target achievable: (1) a **stable prefix**
+-- each arm's repo (and OpenCode's own config/data dirs) live at a fixed,
+wiped-and-reseeded-per-run path (`run.default_work_dir`), never a fresh
+random directory, so OpenCode's system prompt (which embeds the working
+directory) is byte-identical across tasks and sessions; (2) a **pinned
+OpenRouter session from request 1** -- `opencode_agent.write_opencode_provider_config`
+writes a stable `x-session-id` header (`opencode_agent.session_id_for_arm`,
+constant per arm) into the arm's OpenCode global config
+(`provider.openrouter.options.headers`), so OpenRouter routes every call to
+the SAME upstream provider from the first request, instead of relying on
+sticky routing that only engages after a first cache hit and expires after
+10 minutes idle; and (3) **compact, deterministic loop output** --
 `simplicio-loop orient --brief` and `apply` emit stable-key-order JSON with
 no indentation and no timestamps/run-ids ahead of the content that matters,
 so the tool-output text the model sees is smaller and unchanged run to run.
+
+**Measured (issue #1336, 3× `--arms simplicio --tasks 1`, same tree/commit,
+`2026-09-26-52185c6f7-t1.json` overwritten and captured after each run):
+91.02%, 90.02%, 89.03% (mean 90.02%)** -- above the 80% gate, hovering right
+at the 90% target but not yet reliably clearing it every run, so the gate
+stays at 80 rather than moving to 90 on a result this close to the noise
+floor. The per-call breakdown (now also in `REPORT.html`'s own "Cache por
+chamada de LLM" table, one row per turn) is consistent across all three
+runs and pinpoints the remaining miss source precisely: turn 1 (the
+system+skill prompt, ~24% hit -- unavoidably cold, since the model provider
+has never seen this exact prefix before) and turn 2 (~70% hit, still
+partially assembling the cached prefix) are the only calls below ~85%;
+every turn from 3 onward lands between 85% and 99%. Closing the remaining
+gap means shrinking or further stabilizing that FIRST call specifically
+(smaller/more stable system+skill prompt content), not the steady-state
+turns, which are already at or above the target.
 
 Outputs of every run (also from `--reports-only`):
 

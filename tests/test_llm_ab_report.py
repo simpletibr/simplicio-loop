@@ -134,6 +134,61 @@ def test_build_effort_table_counts_per_arm_per_effort_value():
     assert "high" in html and "low" in html
 
 
+# -- per-LLM-call cache breakdown (issue #1336) ------------------------------
+
+
+def test_build_per_call_cache_table_has_one_row_per_ok_call():
+    arms = {
+        "simplicio": {"tasks": [_task_with_calls(1, "create", [
+            {"ok": True, "turn": 1, "prompt_tokens": 1000, "cached_tokens": 100},
+            {"ok": True, "turn": 2, "prompt_tokens": 1200, "cached_tokens": 1150},
+        ])]},
+    }
+    html = report.build_per_call_cache_table(arms)
+    assert html.count("<tr>") == 2
+    assert "10.0%" in html   # first call: 100/1000
+    assert "95.8%" in html   # second call: 1150/1200
+
+
+def test_build_per_call_cache_table_skips_failed_calls():
+    arms = {
+        "simplicio": {"tasks": [_task_with_calls(1, "create", [
+            {"ok": False, "turn": 1, "prompt_tokens": 0, "cached_tokens": 0},
+        ])]},
+    }
+    html = report.build_per_call_cache_table(arms)
+    assert "colspan" in html  # placeholder row only -- no per-call row was rendered
+
+
+def test_build_per_call_cache_table_marks_the_first_call_distinctly():
+    arms = {
+        "simplicio": {"tasks": [_task_with_calls(1, "create", [
+            {"ok": True, "turn": 1, "prompt_tokens": 500, "cached_tokens": 0},
+            {"ok": True, "turn": 2, "prompt_tokens": 500, "cached_tokens": 500},
+        ])]},
+    }
+    html = report.build_per_call_cache_table(arms)
+    lines = [line for line in html.splitlines() if "<tr>" in line]
+    assert len(lines) == 2
+    assert lines[0] != lines[1]
+
+
+def test_build_per_call_cache_table_empty_when_no_calls():
+    html = report.build_per_call_cache_table({"normal": {"tasks": [_task(1, "create")]}})
+    assert "<tr>" in html  # placeholder row
+    assert "colspan" in html
+
+
+def test_build_includes_per_call_cache_section_in_html(tmp_path):
+    results = _results(1)
+    results["arms"]["normal"]["tasks"][0]["llm_calls"] = [
+        {"ok": True, "turn": 1, "prompt_tokens": 100, "cached_tokens": 10},
+    ]
+    html = report.build(results, str(tmp_path))
+    assert "cache" in html.lower()
+    assert "por chamada" in html.lower()
+
+
 def test_build_includes_effort_section_in_the_page(tmp_path):
     results = _results(1)
     html = report.build(results, str(tmp_path))
