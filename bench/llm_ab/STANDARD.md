@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: bench-standard
+schema: simplicio.bench-standard/v1
+purpose: The canonical A/B benchmark standard: one command, fixed arms and matrix, real billed cost with and without prompt cache.
+rules: Run the standard as written; results and dates live in the results files, never in this header.
+<!-- simplicio-contract:end -->
+
 # bench/llm_ab — the standard benchmark matrix
 
 This is the canonical benchmark standard for every `simplicio-loop` release.

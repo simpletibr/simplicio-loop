@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: run-state/v1
+schema: simplicio.contract-doc/v1
+purpose: Contrato mínimo do runner público iniciado por `simplicio-loop run`.
+rules: The JSON schema next to this file is authoritative; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # `simplicio.run-state/v1`
 
 Contrato mínimo do runner público iniciado por `simplicio-loop run`.

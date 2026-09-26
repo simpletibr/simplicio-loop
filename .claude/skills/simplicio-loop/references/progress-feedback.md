@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/progress-feedback
+schema: simplicio.skill-reference/v1
+purpose: `scripts/loop_progress.py` is the ONE place "em que etapa estamos / quanto falta" is computed and persisted.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Progress feedback nucleus (issue #298, EPIC #296) — full detail
 
 `scripts/loop_progress.py` is the ONE place "em que etapa estamos / quanto falta" is computed and

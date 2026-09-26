@@ -1150,3 +1150,24 @@ Labels still update when no Project is configured. Human comments do not move ca
 marked Simplicio lifecycle comment, issue open/close/reopen events, or an explicit workflow
 dispatch can change the status. The workflow uses `issues: write` and `repository-projects: write`
 and never posts a second coordination comment.
+
+## What the model sees
+
+An agent using this repository sees `AGENTS.md`, the loaded `SKILL.md` files,
+and the compact JSON printed by `simplicio-loop` (`orient --brief`, `prepare`,
+`apply`, `wave`, `verify`). Source files enter the context only as the targets
+those commands name, never as a full-tree dump.
+
+### Token effect
+
+The loop answers repository facts with the Mapper survey and deterministic
+commands instead of model reads, and each command prints compact JSON. Input
+tokens therefore grow with the task's targets, not with the repository size.
+
+### KV cache effect
+
+Every contract starts with an immutable header, and every loop JSON prints
+`schema` and stable fields first, with volatile fields (`run_id`, timestamps,
+paths) last. The prompt prefix stays byte-identical across turns, so the
+provider serves it from cache after the first call. The benchmark fails a run
+when a later call reads no cache (`bench/llm_ab`).

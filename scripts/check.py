@@ -319,6 +319,15 @@ def run_loop_contract():
     )
 
 
+def run_contract_headers():
+    _hr("contract-headers (immutable header + What the model sees, #1342)")
+    path = os.path.join(HERE, "contract_headers.py")
+    return _gate_result(
+        "contract_headers",
+        _run_bounded([sys.executable, path], phase="contract_headers"),
+    )
+
+
 def run_clean_env_contract():
     _hr("clean-env-contract")
     path = os.path.join(HERE, "clean_env_contract.py")
@@ -593,10 +602,11 @@ def main():
     any_only = any(a in args for a in only_flags) or core_gate or package_mode
     results = {name: GateResult(True, "not_run") for name in (
         "audit", "mirror_parity", "tests", "loop_contract", "clean_env",
-        "token_budget", "repo_budget", "conformance", "package_content",
+        "token_budget", "repo_budget", "conformance", "package_content", "contract_headers",
     )}
     if not any_only or "--audit-only" in args or core_gate:
         results["audit"] = run_audit()
+        results["contract_headers"] = run_contract_headers()
     if not any_only or "--mirror-parity-only" in args or core_gate:
         results["mirror_parity"] = run_mirror_parity()
     if not any_only or "--tests-only" in args or core_gate:

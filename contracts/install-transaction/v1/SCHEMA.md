@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: install-transaction/v1
+schema: simplicio.contract-doc/v1
+purpose: A **planner-produced, pre-mutation** description of what one installer run would do.
+rules: The JSON schema next to this file is authoritative; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # `simplicio.install-transaction/v1`
 
 A **planner-produced, pre-mutation** description of what one installer run would do.

@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: event-metadata/v1
+schema: simplicio.contract-doc/v1
+purpose: Versioned metadata envelope for append-only loop events and their progress projections.
+rules: The JSON schema next to this file is authoritative; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # `simplicio.event-metadata/v1`
 
 Versioned metadata envelope for append-only loop events and their progress projections.

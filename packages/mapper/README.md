@@ -198,3 +198,20 @@ MIT. See [LICENSE](LICENSE).
     <img src="https://api.star-history.com/svg?repos=simpletibr/simplicio-loop&type=Date" alt="Star history chart for simplicio-loop">
   </a>
 </p>
+
+## What the model sees
+
+The model never reads Mapper's index. It sees only the compact survey the loop
+forwards: ranked target paths, symbols, and a context hash from
+`scan`/`inspect`/`handoff`.
+
+### Token effect
+
+Mapper does the repository walk locally, without an LLM. Tokens scale with the
+number of targets returned, not with the files indexed.
+
+### KV cache effect
+
+The survey output is deterministic for an unchanged tree (same targets, same
+order, same hash), so repeating it in a later turn keeps the prompt prefix
+cacheable.

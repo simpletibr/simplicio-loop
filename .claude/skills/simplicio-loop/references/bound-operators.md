@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/bound-operators
+schema: simplicio.skill-reference/v1
+purpose: Moved out of `SKILL.md` § Bound operators as part of the #119 shrink (SKILL.md keeps only the operator table, the preflight one-liner, and the BLOCK rule; this file has the full mechanics).
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # Bound operators — survey + operate (full detail)
 
 Moved out of `SKILL.md` § Bound operators as part of the #119 shrink (SKILL.md keeps only the

@@ -3,6 +3,13 @@ name: simplicio-orient
 description: Terminal-first execution — answer facts with the shell, never with the LLM. Use whenever a step needs a fact about the filesystem, git, processes, or system resources, or runs a build/test/lint/diff whose output would flood context. Substitutes deterministic shell/CLI calls for native LLM operations and clamps their output 60–90% (rtk-style) with a failure-safe tee cache, signatures-only reads, and an optional auto-rewrite hook. This is the token-economy spine of simplicio-tasks, usable standalone.
 ---
 
+<!-- simplicio-contract:begin -->
+contract: simplicio-orient
+schema: simplicio.skill/v1
+purpose: Terminal-first execution — answer facts with the shell, never with the LLM.
+rules: Follow this skill end-to-end; mutable data (versions, dates, counts) lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # simplicio-orient — terminal-first, token-frugal execution
 
 For **max-speed delivery law** (Runtime decide, Mapper→Fast→dev-cli, Prism waves,
@@ -192,3 +199,22 @@ skip an untrusted or hash-changed version.
 
 Run the command, return the clamped result (or the tee path on failure), and — when invoked
 standalone — a one-line note of the recipe applied and tokens saved.
+
+## What the model sees
+
+When a host loads this skill, the model receives the YAML frontmatter, the
+immutable `simplicio-contract` header, and this body, verbatim. Files under
+`references/` enter the context only when this body points to them. Nothing
+here is generated per run.
+
+### Token effect
+
+The body is paid once per session as input tokens. References are paid only on
+demand, so the always-loaded part stays the short hot path.
+
+### KV cache effect
+
+The frontmatter and header are byte-stable across releases (pinned in
+`contracts/headers.lock.json`), and mutable data lives only at the end of the
+file. The provider can therefore reuse the cached prefix from the second call
+on, and a release does not invalidate it unless a `header-change:` note says so.

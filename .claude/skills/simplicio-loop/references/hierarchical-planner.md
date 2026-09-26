@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: simplicio-loop/hierarchical-planner
+schema: simplicio.skill-reference/v1
+purpose: Moved out of `SKILL.md` § HRM-style hierarchical planner as part of the #119 shrink.
+rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # HRM-style hierarchical planner (two-level reasoning loop) — full detail
 
 Moved out of `SKILL.md` § HRM-style hierarchical planner as part of the #119 shrink.

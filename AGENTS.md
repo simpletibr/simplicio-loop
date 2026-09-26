@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: agents
+schema: simplicio.agents/v1
+purpose: Operating contract for every agent in this repository: layout, bound operators, skills, and delivery rules.
+rules: Read before operating; mutable data (versions, dates, counts) lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # AGENTS.md — simplicio-loop
 
 > **Full map + step-by-step:** [docs/ECOSYSTEM_LLM_GUIDE.md](docs/ECOSYSTEM_LLM_GUIDE.md) · ADR [0009](docs/adr/0009-loop-inside-runtime-operators-standalone.md) · [0010](docs/adr/0010-execution-metrics-report-standard.md)  

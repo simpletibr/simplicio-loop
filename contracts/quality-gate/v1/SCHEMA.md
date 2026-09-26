@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: quality-gate/v1
+schema: simplicio.contract-doc/v1
+purpose: This directory documents the JSON contract the loop's **Quality Gate** reads to decide whether a work item may ever be reported `COMPLETE`.
+rules: The JSON schema next to this file is authoritative; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # `simplicio.quality-matrix/v1` — the Quality Gate receipt (#283)
 
 This directory documents the JSON contract the loop's **Quality Gate** reads to decide

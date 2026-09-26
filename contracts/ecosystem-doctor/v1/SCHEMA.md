@@ -1,3 +1,10 @@
+<!-- simplicio-contract:begin -->
+contract: ecosystem-doctor/v1
+schema: simplicio.contract-doc/v1
+purpose: The doctor is a read-only, fail-closed pre-planning receipt.
+rules: The JSON schema next to this file is authoritative; mutable data lives in the footer, never in this header.
+<!-- simplicio-contract:end -->
+
 # `simplicio.ecosystem-doctor/v1`
 
 The doctor is a read-only, fail-closed pre-planning receipt. It probes the
