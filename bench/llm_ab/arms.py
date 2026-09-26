@@ -1,5 +1,5 @@
 """Arm specs for the ablation benchmark (issue #1337; issue #1343 dropped the
-Fast arms when simplicio-fast was removed from the stack entirely).
+Fast arms when the Fast operator was removed from the stack entirely).
 
 Five arms vary which Simplicio operators (mapper, dev-cli) and skills the
 real OpenCode agent has, isolating each operator's individual and paired

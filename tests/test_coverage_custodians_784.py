@@ -56,7 +56,7 @@ def dispatch_fixture():
     )
     receipt = {
         "schema": cc.CUSTODIAN_RECEIPT_SCHEMA,
-        "verdict_schema": cc.FAST_VERDICT_SCHEMA,
+        "verdict_schema": cc.WORKER_VERDICT_SCHEMA,
         "gap_id": item["gap_id"],
         "envelope_digest": envelope["envelope_digest"],
         "idempotency_key": envelope["idempotency_key"],

@@ -52,7 +52,7 @@ def test_hierarchical_boundary_never_silently_exceeds_hard_budget():
 
 
 def test_dedup_provenance_hash_and_receipt_outside_prompt():
-    item = span("def execute(): pass", handle="fast://page/1")
+    item = span("def execute(): pass", handle="mapper://page/1")
     subject = controller()
     subject.seed([item, item])
     receipt = subject.receipt("READY")
@@ -61,7 +61,7 @@ def test_dedup_provenance_hash_and_receipt_outside_prompt():
     assert receipt["spans"][0]["hash"].startswith("sha256:")
     assert receipt["spans"][0]["provenance"] == "mapper:signature"
     assert "expansions" not in prompt
-    assert prompt["context"][0]["handle"] == "fast://page/1"
+    assert prompt["context"][0]["handle"] == "mapper://page/1"
 
 
 def test_expansion_requires_observable_gap_and_records_reason():
@@ -78,25 +78,22 @@ def test_expansion_requires_observable_gap_and_records_reason():
     assert expanded["observed"]["context_tokens"] == 5
 
 
-def test_fast_paging_is_hash_bound_and_cache_is_reused():
-    pages = {
-        None: {"spans": [{"content": "alpha beta", "provenance": "fast:g1",
-                           "revision": "abc123", "handle": "fast://g1/a"}],
-               "next_cursor": "page-2"},
-        "page-2": {"spans": [{"content": "gamma", "provenance": "fast:g1",
-                              "revision": "abc123", "handle": "fast://g1/b"}]},
-    }
+def test_expansion_is_hash_bound_and_cache_is_reused():
     subject = controller(soft=1, hard=10)
-    receipt = subject.expand_from_fast(
-        lambda cursor, size: pages[cursor],
+    receipt = subject.expand(
+        [span("alpha beta", provenance="mapper:g1", handle="mapper://g1/a"),
+         span("gamma", provenance="mapper:g1", handle="mapper://g1/b")],
         reason=ExpansionReason.INSUFFICIENT_EVIDENCE,
-        evidence="only signature available", page_size=1, max_pages=2,
+        evidence="only signature available",
     )
-    assert len(receipt["fast_pages"]) == 2
-    assert receipt["fast_pages"][0]["page_hash"].startswith("sha256:")
+    assert "fast_pages" not in receipt
     assert receipt["observed"]["context_tokens"] == 3
     subject.receipt("AGAIN")
     assert subject.receipt("AGAIN")["cache_hits"] > 0
+
+
+def test_fast_paging_api_is_gone():
+    assert not hasattr(AdaptiveContextController, "expand_from_fast")
 
 
 def test_stale_span_and_unknown_counter_fail_closed():

@@ -2,7 +2,7 @@
 """Portable conformance check for the #802 contract registry.
 
 The script is intentionally stdlib-only at the command boundary.  It can be
-copied with ``contracts/registry/v1`` into Mapper, Fast or Dev CLI and run
+copied with ``contracts/registry/v1`` into Mapper or Dev CLI and run
 there without contacting GitHub or a provider.
 """
 from __future__ import annotations

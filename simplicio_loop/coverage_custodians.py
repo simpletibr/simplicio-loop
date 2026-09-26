@@ -1,6 +1,6 @@
 """Coverage Atlas -> Virtual Custodian authority reducer (issue #784).
 
-This module is deliberately I/O-free. Mapper observations and Fast receipts are
+This module is deliberately I/O-free. Mapper observations and worker receipts are
 untrusted data; only this Loop reducer may authorize dispatch or transition a
 gap to VERIFIED. Stable content digests make decisions replayable.
 """
@@ -12,9 +12,9 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 COVERAGE_DELTA_SCHEMA = "simplicio.coverage-delta/v1"
 CUSTODIAN_ADDRESS_SCHEMA = "simplicio.custodian-address/v1"
-WORK_ENVELOPE_SCHEMA = "simplicio.fast-work-envelope/v1"
+WORK_ENVELOPE_SCHEMA = "simplicio.custodian-work-envelope/v1"
 CUSTODIAN_RECEIPT_SCHEMA = "simplicio.custodian-receipt/v1"
-FAST_VERDICT_SCHEMA = "simplicio.fast-verdict/v1"
+WORKER_VERDICT_SCHEMA = "simplicio.custodian-verdict/v1"
 LEDGER_SCHEMA = "simplicio.work-gap-ledger/v1"
 
 ACTION_DISPATCH = "DISPATCH"
@@ -233,7 +233,7 @@ def validate_receipt(
             return False, "idempotency_mismatch"
         if receipt.get("fence") != envelope.get("fence"):
             return False, "fence_mismatch"
-        if receipt.get("verdict_schema") != FAST_VERDICT_SCHEMA:
+        if receipt.get("verdict_schema") != WORKER_VERDICT_SCHEMA:
             return False, "invalid_fast_verdict"
         if receipt.get("verdict") not in ("FIXED", "NO_CHANGE", "BLOCKED"):
             return False, "invalid_fast_verdict"
@@ -259,7 +259,7 @@ def reduce_ledger(
 ) -> Dict[str, Any]:
     """Replay inputs into the authoritative Work Gap Ledger.
 
-    Fast FIXED means REPORTED_FIXED only. VERIFIED requires a subsequent Mapper
+    Worker FIXED means REPORTED_FIXED only. VERIFIED requires a subsequent Mapper
     delta where the gap disappeared and an independent verifier receipt.
     """
     clean = validate_coverage_delta(delta)

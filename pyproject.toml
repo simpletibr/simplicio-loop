@@ -24,7 +24,7 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 # Loop is the aggregate of mapper + simplicio-dev-cli (issue #1343 removed
-# simplicio-fast from the stack entirely). `simplicio-cli` exports the
+# the Fast operator from the stack entirely). `simplicio-cli` exports the
 # `simplicio-dev-cli` entrypoint. There is no Runtime and no
 # simplicio-prompt on this train. Loop's in-process dev-cli capability probe
 # (strict_mode.action_operator_status) reads simplicio.capabilities, hence

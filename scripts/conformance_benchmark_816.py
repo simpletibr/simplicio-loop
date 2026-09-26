@@ -64,8 +64,8 @@ def fabric_fixture(workspace: Path, attempt: int = 1):
         "simplicio-loop", "router", FabricCapability("route", "1", "DEFAULT", "c"), 1, "loop://router",
     )
     recipient = FabricAddress(
-        "simplicio-fast", "executor", FabricCapability("execute", "1", "MEASURED", "c"), 1,
-        "fast://executor",
+        "simplicio-mapper", "executor", FabricCapability("execute", "1", "MEASURED", "c"), 1,
+        "mapper://executor",
     )
     registry.register(sender); registry.register(recipient)
     adapter = HookwallAdapter(
@@ -78,7 +78,7 @@ def fabric_fixture(workspace: Path, attempt: int = 1):
     envelope = build_envelope(
         run_id="benchmark-816", task_id="same-task", work_item_id="same-work-item",
         stage="execution", attempt=attempt, fence="f1", plan_revision="1",
-        sender=sender, recipient=recipient, payload_handle="fast://page/same",
+        sender=sender, recipient=recipient, payload_handle="mapper://page/same",
         payload_hash=sha(b"same-input"), causal_parent="root", sequence=attempt,
         scope="cross-repo", repo="wesleysimplicio/simplicio-loop", commit="a7bef68170f871af3acd89c92a4757aa0db0b5d8",
         worktree=str(workspace), policy_hash="policy-v1", ttl_seconds=120,
@@ -235,7 +235,7 @@ def environment_receipt(installed_root: Path, wheel_hashes: Mapping[str, str]) -
             if line.lower().startswith("model name")
         ), None)
     modules = {}
-    for name in ("simplicio_loop", "simplicio_mapper", "simplicio_fast"):
+    for name in ("simplicio_loop", "simplicio_mapper"):
         path = Path(__import__(name).__file__).resolve()
         modules[name] = {"path": str(path), "sha256": file_sha(path)}
     return {
@@ -256,12 +256,11 @@ def environment_receipt(installed_root: Path, wheel_hashes: Mapping[str, str]) -
             }),
         },
         "versions": {name: importlib.metadata.version(name) for name in (
-            "simplicio-loop", "simplicio-mapper", "simplicio-fast",
+            "simplicio-loop", "simplicio-mapper",
         )},
         "commits": {
             "simplicio-loop": "a7bef68170f871af3acd89c92a4757aa0db0b5d8",
             "simplicio-mapper": "0387c3c5cf391c4cbfc1aaa4f2005db283ceb534",
-            "simplicio-fast": "5c6f7e8dcd3b3237a95975e303df82cbf6fafcc0",
         },
         "installed_root": str(installed_root), "installed_modules": modules,
         "wheel_sha256": dict(wheel_hashes),
@@ -280,7 +279,6 @@ def main() -> None:
     parser.add_argument("--repetitions", type=int, default=10)
     parser.add_argument("--loop-wheel-sha256", required=True)
     parser.add_argument("--mapper-wheel-sha256", required=True)
-    parser.add_argument("--fast-wheel-sha256", required=True)
     args = parser.parse_args()
     if args.repetitions < REPETITIONS_MIN:
         parser.error("at least 10 repetitions required")
@@ -295,7 +293,6 @@ def main() -> None:
             {
                 "simplicio-loop": args.loop_wheel_sha256,
                 "simplicio-mapper": args.mapper_wheel_sha256,
-                "simplicio-fast": args.fast_wheel_sha256,
             },
         ),
         "lanes": {

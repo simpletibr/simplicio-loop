@@ -1,18 +1,13 @@
 """Regression guard for issue #1343: `simplicio-fast` was removed from the
 `simplicio-loop` stack entirely (Mapper-only survey).
 
-Scope note: this repo is a monorepo that also vendors `packages/mapper/`
-and `packages/dev-cli/` as their OWN packages with their own release
-trains (see AGENTS.md "Releases in a monorepo"). Those two packages have
-their own, separate, optional Fast-awareness features (e.g. mapper's
-`store/fast_link.py`, dev-cli's `fast_contracts.py`) that issue #1343 does
-not ask this repo to gut -- that is those packages' own scope, tracked
-separately. This guard covers exactly what issue #1343 asked for: the
-`simplicio-fast` package itself, the `simplicio_loop` package's own Fast
-integration modules, the `simplicio-fast` skill, the survey/orient
-Mapper-only contract, the 5-arm ablation benchmark, and the packaging/tooling
-surfaces the issue names explicitly (`scripts/check.py`, `pyproject.toml`,
-`scripts/dev_install.sh`).
+Scope note: this guard covers the `simplicio-fast` package itself, the
+`simplicio_loop` package's own Fast integration modules, the
+`simplicio-fast` skill, the survey/orient Mapper-only contract, the 5-arm
+ablation benchmark, the packaging/tooling surfaces the issue names
+explicitly (`scripts/check.py`, `pyproject.toml`, `scripts/dev_install.sh`)
+and, via `test_loop_owned_code_has_no_fast_reference`, every loop-owned
+code, hook, script, contract, catalog and fixture tree.
 """
 from __future__ import annotations
 
@@ -105,3 +100,50 @@ def test_pyproject_has_no_simplicio_fast_dependency():
 def test_llm_orientation_toon_has_no_fast_skill_entry():
     text = _text("docs/LLM_ORIENTATION.toon")
     assert "simplicio-fast/SKILL.md" not in text
+
+
+# Loop-owned code/contract trees that must not reference the removed Fast
+# operator.  Generated copies (`_bundle`) and historical benchmark evidence
+# (`bench/llm_ab/results`, rendered `REPORT-*.html`) are not code.
+_CODE_TREES = (
+    "simplicio_loop", "hooks", "scripts", "contracts", "bench/llm_ab", "tests/fixtures",
+)
+_CODE_SUFFIXES = {".py", ".json", ".md", ".sh", ".ps1", ".toml", ".yaml", ".yml"}
+_FAST_REFERENCE = re.compile(
+    r"simplicio[-_]fast|SIMPLICIO_FAST|mapper_fast|fast_handoff|fast_link"
+    r"|fast_backend|fast_certification|fast-context|fast-certification|fast-generation",
+    re.IGNORECASE,
+)
+
+
+def _loop_owned_files():
+    for tree in _CODE_TREES:
+        for path in sorted((REPO / tree).rglob("*")):
+            rel = path.relative_to(REPO).as_posix()
+            if not path.is_file() or path.suffix not in _CODE_SUFFIXES:
+                continue
+            if "/_bundle/" in f"/{rel}" or "/__pycache__/" in f"/{rel}":
+                continue
+            if rel.startswith("bench/llm_ab/results/"):
+                continue
+            yield rel, path
+
+
+def test_loop_owned_code_has_no_fast_reference():
+    offenders = []
+    for rel, path in _loop_owned_files():
+        for number, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if _FAST_REFERENCE.search(line):
+                offenders.append(f"{rel}:{number}: {line.strip()[:120]}")
+    assert offenders == []
+
+
+def test_pyproject_has_no_fast_reference():
+    assert not _FAST_REFERENCE.search(_text("pyproject.toml"))
+
+
+def test_fast_only_loop_surfaces_are_gone():
+    assert not (REPO / "simplicio_loop" / "context_packet_consumer.py").exists()
+    assert not (REPO / "scripts" / "installed_coverage_custodian_e2e_784.py").exists()
+    for base in ("contracts", "simplicio_loop/_contracts"):
+        assert not (REPO / base / "registry" / "v1" / "schemas" / "fast-generation.schema.json").exists()

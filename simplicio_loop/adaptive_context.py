@@ -6,7 +6,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Iterable, Mapping, Protocol, Sequence
+from typing import Any, Iterable, Mapping, Protocol, Sequence
 
 SCHEMA = "simplicio.loop-adaptive-context/v1"
 RECEIPT_SCHEMA = "simplicio.loop-adaptive-context-receipt/v1"
@@ -130,7 +130,6 @@ class ContextSpan:
                 "tokens": tokens}
 
 
-PageFetcher = Callable[[str | None, int], Mapping[str, Any]]
 
 
 class AdaptiveContextController:
@@ -221,44 +220,6 @@ class AdaptiveContextController:
         event["event_hash"] = _hash(event)
         self._expansions.append(event)
         return self.receipt("EXPANDED", expansion=event)
-
-    def expand_from_fast(self, fetch_page: PageFetcher, *, reason: ExpansionReason,
-                         evidence: str, page_size: int = 20,
-                         max_pages: int = 1) -> dict[str, Any]:
-        if page_size < 1 or max_pages < 1:
-            raise ValueError("page_size and max_pages must be positive")
-        cursor: str | None = None
-        spans: list[ContextSpan] = []
-        page_receipts: list[dict[str, Any]] = []
-        for index in range(max_pages):
-            page = dict(fetch_page(cursor, page_size))
-            rows = page.get("spans", [])
-            if not isinstance(rows, list):
-                raise ContextBudgetError("Fast page spans must be a list")
-            for row in rows:
-                if not isinstance(row, Mapping):
-                    continue
-                spans.append(ContextSpan(
-                    content=str(row.get("content") or ""),
-                    provenance=str(row.get("provenance") or "simplicio-fast"),
-                    revision=str(row.get("revision") or ""),
-                    kind=str(row.get("kind") or "fact"),
-                    priority=int(row.get("priority") or 100),
-                    handle=str(row.get("handle") or ""),
-                ))
-            page_receipts.append({
-                "page": index + 1, "cursor_hash": _hash(cursor),
-                "span_count": len(rows), "page_hash": _hash(page),
-            })
-            cursor = str(page.get("next_cursor") or "") or None
-            if cursor is None:
-                break
-        result = self.expand(spans, reason=reason, evidence=evidence)
-        result["fast_pages"] = page_receipts
-        result["next_cursor_hash"] = _hash(cursor) if cursor else None
-        result["receipt_hash"] = _hash({key: value for key, value in result.items()
-                                        if key != "receipt_hash"})
-        return result
 
     def record_provider_usage(self, usage: Mapping[str, Any] | None) -> None:
         if not usage:

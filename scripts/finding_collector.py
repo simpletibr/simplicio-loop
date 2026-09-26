@@ -72,10 +72,9 @@ DEFAULT_OWNERSHIP_MAP = {
     "scripts/": "wesleysimplicio/simplicio-loop",
     ".claude/skills/": "wesleysimplicio/simplicio-loop",
     "simplicio_loop/": "wesleysimplicio/simplicio-loop",
-    # mapper/fast/dev-cli are monorepo packages of this same repo now (#1298); route their
+    # mapper/dev-cli are monorepo packages of this same repo now (#1298); route their
     # findings here instead of to their pre-monorepo standalone repos.
     "packages/mapper/": "wesleysimplicio/simplicio-loop",
-    "packages/fast/": "wesleysimplicio/simplicio-loop",
     "packages/dev-cli/": "wesleysimplicio/simplicio-loop",
     "simplicio-mapper": "wesleysimplicio/simplicio-loop",
     "simplicio-dev-cli": "wesleysimplicio/simplicio-loop",

@@ -113,7 +113,6 @@ def test_generation_binding_is_pinned_to_worker_and_merge_candidate(tmp_path):
         "schema": "simplicio.loop.generation-binding/v1",
         "candidate_id": "A",
         "mapper_generation": "mapper-1",
-        "fast_generation": "fast-1",
         "canonical_cache_key": "sha256:base",
         "overlay_path": str(tmp_path / "overlay-A"),
         "receipt_hash": "sha256:binding",
@@ -126,7 +125,6 @@ def test_generation_binding_is_pinned_to_worker_and_merge_candidate(tmp_path):
     assert candidate["generation_binding"] == {
         "schema": "simplicio.loop.generation-binding/v1",
         "mapper_generation": "mapper-1",
-        "fast_generation": "fast-1",
         "canonical_cache_key": "sha256:base",
         "overlay_path": str(tmp_path / "overlay-A"),
         "receipt_hash": "sha256:binding",

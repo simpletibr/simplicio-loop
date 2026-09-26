@@ -65,7 +65,6 @@ class GenerationBinding:
     files_digest: str
     config_identity: str
     mapper_generation: str
-    fast_generation: str
     canonical_cache_key: str
     source_commit: str
     context_hash: str
@@ -109,7 +108,7 @@ class GenerationBroker:
         self._bindings: dict[str, GenerationBinding] = {}
         self._events: list[dict[str, Any]] = []
         self._identity_aliases: dict[str, str] = {}
-        self._promoted_generation = lifecycle.fast_generation
+        self._promoted_generation = lifecycle.mapper_generation
         self._metrics = {"cache_hits": 0, "cache_misses": 0, "build_wait_ns": 0}
         self._lock_path = lifecycle.attempt / ".generation-broker.lock"
         self._recover_gc()
@@ -189,7 +188,7 @@ class GenerationBroker:
             "task_id": self.lifecycle.task_id,
             "attempt_id": self.lifecycle.attempt_id,
             "source_commit": self.lifecycle.source_commit,
-            "fast_generation": self.lifecycle.fast_generation,
+            "mapper_generation": self.lifecycle.mapper_generation,
             "base_path": str(self.lifecycle.base_path),
             "promoted_generation": self._promoted_generation,
             "identities": identities,
@@ -219,7 +218,6 @@ class GenerationBroker:
                     "files_digest": value["files_digest"],
                     "config_identity": value["config_identity"],
                     "mapper_generation": value["mapper_generation"],
-                    "fast_generation": value["fast_generation"],
                     "canonical_cache_key": value["canonical_cache_key"],
                     "source_commit": value["source_commit"],
                     "context_hash": value["context_hash"],
@@ -245,7 +243,7 @@ class GenerationBroker:
             while identity_key in self._identity_aliases and identity_key not in seen:
                 seen.add(identity_key)
                 identity_key = self._identity_aliases[identity_key]
-            if generation.generation != self.lifecycle.fast_generation:
+            if generation.generation != self.lifecycle.mapper_generation:
                 raise LifecycleError("stale canonical generation")
             identity = self.registry.identity(identity_key)
             if (
@@ -299,7 +297,6 @@ class GenerationBroker:
                     "config_identity": _digest({"mapper_config": identity.mapper_config}),
                     "canonical_cache_key": cache_key,
                     "mapper_generation": generation.generation,
-                    "fast_generation": generation.generation,
                     "source_commit": generation.source_commit,
                     "context_hash": generation.context_hash,
                     "plan_hash": generation.plan_hash,
@@ -320,7 +317,6 @@ class GenerationBroker:
                 "files_digest": files_digest,
                 "config_identity": config_identity,
                 "mapper_generation": generation.generation,
-                "fast_generation": generation.generation,
                 "canonical_cache_key": cache_key,
                 "source_commit": generation.source_commit,
                 "context_hash": generation.context_hash,
@@ -397,7 +393,7 @@ class GenerationBroker:
             return released
 
     def event(self, event: str, **details: Any) -> dict[str, Any]:
-        """Record a Mapper/Fast foreground or background event without repinning."""
+        """Record a Mapper foreground or background event without repinning."""
         with self._lock, self._process_lock():
             self._record(str(event), **details)
             return dict(self._events[-1])
@@ -471,7 +467,7 @@ class GenerationBroker:
             self.registry.restore_identity(old_identity)
             self._identity_aliases[old_key] = new_key
             self._promoted_generation = generation.generation
-            self.lifecycle.fast_generation = generation.generation
+            self.lifecycle.mapper_generation = generation.generation
             self.lifecycle.source_commit = generation.source_commit
             self._persist_state()
             self._record("promotion", previous=previous, generation=generation.generation)

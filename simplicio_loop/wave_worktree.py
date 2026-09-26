@@ -75,7 +75,7 @@ def group_disjoint_tasks(task_paths: Sequence[Sequence[str]]) -> List[List[int]]
 
 
 # --------------------------------------------------------------------------
-# 2. Shared default-branch artifact cache (Mapper/Fast survey, built once).
+# 2. Shared default-branch artifact cache (Mapper survey, built once).
 # --------------------------------------------------------------------------
 
 def default_branch_commit(repo: str | Path, *, timeout: int = 10) -> str:
@@ -118,7 +118,7 @@ class ArtifactCache:
     the first caller builds it, every later caller (this run or a future
     one) reuses the same directory read-only. A stale/missing cache
     rebuilds exactly once, centrally, through ``builder`` — workers never
-    invoke Mapper/Fast themselves.
+    invoke Mapper themselves.
     """
 
     MARKER = ".complete"

@@ -2,7 +2,7 @@
 
 Integrations (Orca card sync, vendor MCP hosts, third-party boards, …) run only
 when the **client explicitly opts in**. Default is an empty set: a plain
-Loop/Mapper/Fast/Dev-CLI armada has zero host side-channels.
+Loop/Mapper/Dev-CLI armada has zero host side-channels.
 
 Enable via either:
 

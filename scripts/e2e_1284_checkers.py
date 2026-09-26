@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hot-path e2e for loop#1284: mapper -> fast -> edit -> test on checkers.html."""
+"""Hot-path e2e for loop#1284: mapper -> edit -> test on checkers.html."""
 from __future__ import annotations
 
 import hashlib
@@ -56,7 +56,6 @@ def main() -> None:
     subprocess.check_call(["/usr/bin/git", "commit", "-qm", "seed"], cwd=ROOT)
 
     mapper = str(VENV / "simplicio-mapper")
-    fast = str(VENV / "simplicio-fast")
     cli = str(VENV / "simplicio-dev-cli")
     _run([mapper, "scan", str(ROOT), "--json", "--target", "site/checkers.html"])
     _run([mapper, "inspect", str(ROOT), "--json", "--await", "--timeout", "60"], timeout=90)
@@ -81,10 +80,6 @@ def main() -> None:
     except json.JSONDecodeError:
         payload = {"ready": False}
     print("handoff_ready", payload.get("ready"), "reason", payload.get("reason"), "chars", len(hand.stdout))
-    ingest = _run(
-        [fast, "ingest", str(ROOT), "--mapper-handoff", str(handoff_path), "--json"],
-        check=False,
-    )
 
     html = (ROOT / "site" / "checkers.html").read_text(encoding="utf-8")
     if FIND not in html:
@@ -145,7 +140,6 @@ def main() -> None:
     summary = {
         "handoff_ready": payload.get("ready"),
         "handoff_chars": len(hand.stdout),
-        "ingest_exit": ingest.returncode,
         "edit_applied": edit_payload.get("applied"),
         "verify": edit_payload.get("verify"),
         "test_exit": test.returncode,
@@ -168,8 +162,6 @@ def main() -> None:
         raise SystemExit(3)
     if summary["runtime_bin"]:
         raise SystemExit(4)
-    if summary["ingest_exit"] != 0:
-        raise SystemExit(5)
     if summary["test_exit"] != 0:
         raise SystemExit(6)
     if summary["browser_exit"] != 0:
