@@ -106,7 +106,7 @@ def test_llm_orientation_toon_has_no_fast_skill_entry():
 # operator.  Generated copies (`_bundle`) and historical benchmark evidence
 # (`bench/llm_ab/results`, rendered `REPORT-*.html`) are not code.
 _CODE_TREES = (
-    "simplicio_loop", "hooks", "scripts", "contracts", "bench/llm_ab", "tests/fixtures",
+    "simplicio_loop", "hooks", "scripts", "contracts", "bench", "tests/fixtures",
 )
 _CODE_SUFFIXES = {".py", ".json", ".md", ".sh", ".ps1", ".toml", ".yaml", ".yml"}
 _FAST_REFERENCE = re.compile(
