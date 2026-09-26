@@ -10,44 +10,37 @@ Installers copy this file into each host's always-on surface via
 
 ## MUST
 
-0. **Loop lives inside Runtime. Runtime decides when to use it.**
-   - Entry: `simplicio loop decide --task "..." --json` (or action-bridge / run spine).
-   - Honor `.simplicio/runtime/loop-decision.json` (`use_loop`, `verdict`, `host_may_override=false`).
-   - Do **not** start `/simplicio-loop` as a peer path that bypasses Runtime activation.
-   - **Operators alone OK:** mapper, dev-cli, fast work without Runtime (ADR 0009 / 04b).
+0. **`/simplicio-loop` is the entrypoint. There is no Runtime/MCP backend in this stack.**
+   - Start the loop directly: `/simplicio-loop <body of work>`.
+   - **Bound operators (required):** `simplicio-mapper` (survey) + `simplicio-dev-cli`
+     (mutate). Fast (`simplicio-fast`) joins when installed and operational.
    - **Metrics mandatory:** every run writes `simplicio.execution-report/v1`
      (per task/issue + consolidated: speed, latency, CPU/RAM when MEASURED, tokens in/out).
-     CLI: `simplicio execution-report …` or `python -m simplicio_loop.execution_report …`.
-     Never invent numbers (ADR 0010 / ADR-2026-08-05).
-   - ADRs: runtime `ADR-2026-08-04`, `04b`, `05`; loop `docs/adr/0009`, `0010`.
+     CLI: `python -m simplicio_loop.execution_report …`. Never invent numbers.
+   - ADR: loop `docs/adr/0009`, `0010`.
 
 1. **Economy-parallel env** before autonomous work (fastest tokens + parallel):
    ```bash
    simplicio-loop economy apply --json   # or: source ~/.simplicio/economy-parallel-env.sh
    ```
    - `SIMPLICIO_LOOP=1` · `SIMPLICIO_LOOP_STRICT=1`
-   - `SIMPLICIO_LOOP_REQUIRE_RUNTIME=auto` (**preferred: Runtime present**; degraded only if missing)
-   - `SIMPLICIO_EXECUTION_PROFILE=auto` → **`runtime-backed` when Runtime is up** (canonical)
+   - `SIMPLICIO_EXECUTION_PROFILE=standalone` (the only execution profile)
    - `SIMPLICIO_FAST_MODE=required` (when Fast operational)
    - `SIMPLICIO_LOOP_AUTO_FAN_OUT=1` (parallel worktrees on `batch`)
    - `SIMPLICIO_LOOP_OPERATOR_WORKERS` / `SIMPLICIO_PRISM_SLOTS` / `SIMPLICIO_ASYNC_IO_MAX_CONCURRENCY` (CPU-bounded)
    - `SIMPLICIO_OPERATOR_ALWAYS_LATEST=1`
-   - `SIMPLICIO_REQUIRE_MCP=1` / `SIMPLICIO_MCP_FORCE=1` (**when** Runtime present)
    - Safety: mutation authority + planning receipt + forbid hand-edit
    - Opt out of economy defaults: `SIMPLICIO_ECONOMY_PARALLEL=0`
 
 2. **Preflight (blocking):** `simplicio-loop preflight --strict --json`  
-   Core operators = **Runtime (owns loop) + mapper + dev-cli** (+ Fast when up).
-   When Runtime MCP is registered: prefer `simplicio_map` / `search` / `memory` / `gate` / `edit`
-   and **`simplicio loop decide`** over host bulk Read/Grep/cat.
-   Without Runtime: report `UNVERIFIED|runtime_unavailable` — degraded, not preferred.
-   Wire MCP: `python3 scripts/mcp_force_sync.py --global` · `simplicio mcp register`.
+   Core operators = **mapper + dev-cli** (+ Fast when up). Terminal-first: prefer real
+   shell/CLI commands (`simplicio-orient`) over host bulk Read/Grep/cat.
 
 3. **Survey:** `simplicio-mapper` (scan / inspect / handoff) — not ad-hoc full-tree LLM walks.
 
 4. **Hot path:** `simplicio-fast` when operational (understand / plan / apply / mmap).
 
-5. **Mutate:** `simplicio-dev-cli` / `simplicio-py task` (or Fast apply) under STRICT.  
+5. **Mutate:** `simplicio-dev-cli edit --plan --compile/--apply` (or Fast apply) under STRICT.  
    Host Write / Edit / StrReplace / ApplyPatch are **forbidden** as the primary mutation path
    when STRICT is on (`hooks/action_gate.py` PreToolUse on Claude/Cursor; instruction law on
    self-paced hosts).
@@ -61,7 +54,7 @@ Installers copy this file into each host's always-on surface via
 8. **Evidence-gated exit:** MEASURED tags; no theater AC stubs; no false completion.
 
 9. **Parallelism** only with lease/claim + isolation + reducer — no double-writers without coordination.
-   1–3 tasks = direct parallelism; >3 = Prism. Layers: Runtime Tokio · Prism · operator workers ·
+   1–3 tasks = direct parallelism; >3 = Prism. Layers: Prism · operator workers ·
    asyncio I/O · **writes serialized**. See `docs/LLM_MAX_SPEED_ORIENTATION.md`.
 
 10. **Integrations** (Orca, Linear, …) only if the **client requested** them
@@ -70,7 +63,7 @@ Installers copy this file into each host's always-on surface via
 11. **Max-speed orientation (always):** act > narrate; Mapper→Fast→dev-cli hot path;
     smallest gate that proves the AC; no full-repo residual thrash; no 3-reviewer panels on
     metadata-only diffs; end each message with `DONE | NEXT | BLOCKED`.
-    Canonical: `docs/LLM_MAX_SPEED_ORIENTATION.md` (Runtime twin + LLM re-feed block in SKILL.md).
+    Canonical: `docs/LLM_MAX_SPEED_ORIENTATION.md` (re-feed block in SKILL.md).
 
 ## MUST NOT
 
