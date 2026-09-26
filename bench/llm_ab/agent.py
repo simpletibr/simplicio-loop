@@ -174,6 +174,7 @@ def run_agent(arm: str, system_prompt: str, user_prompt: str, repo_dir: str,
         llm_calls.append({
             "turn": turn,
             "ok": llm_result.get("ok"),
+            "id": llm_result.get("id"),
             "latency_s": llm_result.get("latency_s"),
             "prompt_tokens": llm_result.get("prompt_tokens"),
             "completion_tokens": llm_result.get("completion_tokens"),

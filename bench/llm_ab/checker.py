@@ -13,21 +13,22 @@ import os
 import measure
 
 
-def run_check(repo: str, stage: int, python: str, timeout: int = 30):
-    """Run ``check_cadastro.py --stage <stage>`` in ``repo``.
+def run_check(repo: str, stage: int, python: str, checker: str = "check_cadastro.py", timeout: int = 30):
+    """Run ``<checker> --stage <stage>`` in ``repo`` (default
+    ``check_cadastro.py``; login.html tasks pass ``checker="check_login.py"``).
 
     Returns ``(passed, output, metrics)`` where ``metrics`` is the
     ``measure.run_subprocess`` dict (wall/cpu/peak_rss/returncode).
     """
-    cmd = [python, "tests/check_cadastro.py", "--stage", str(stage)]
+    cmd = [python, f"tests/{checker}", "--stage", str(stage)]
     out, metrics = measure.run_subprocess(cmd, cwd=repo, timeout=timeout)
     passed = metrics["returncode"] == 0
     return passed, out, metrics
 
 
-def verifier_line(stage: int) -> str:
+def verifier_line(stage: int, checker: str = "check_cadastro.py") -> str:
     """The verifier command exactly as declared in a task's markdown file."""
-    return f"python3 tests/check_cadastro.py --stage {stage}"
+    return f"python3 tests/{checker} --stage {stage}"
 
 
 def seed_repo(fixture_dir: str, dest_dir: str) -> None:

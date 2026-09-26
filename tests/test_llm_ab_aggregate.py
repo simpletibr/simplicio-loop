@@ -171,3 +171,19 @@ def test_load_history_skips_unreadable_files_gracefully(tmp_path):
     (tmp_path / "2026-01-01-abc1234.json").write_text("{not valid json")
     history = agg.load_history(str(tmp_path), exclude_path=None)
     assert history == []
+
+
+def test_load_history_filters_by_task_count_suffix(tmp_path):
+    (tmp_path / "2026-01-01-abc1234-t2.json").write_text(json.dumps({"meta": {"date": "2026-01-01", "task_count": 2}}))
+    (tmp_path / "2026-02-01-def5678-t4.json").write_text(json.dumps({"meta": {"date": "2026-02-01", "task_count": 4}}))
+    history = agg.load_history(str(tmp_path), exclude_path=None, task_count=4)
+    assert len(history) == 1
+    assert history[0]["meta"]["task_count"] == 4
+
+
+def test_load_history_task_count_filter_excludes_legacy_unsuffixed_files(tmp_path):
+    (tmp_path / "2026-01-01-abc1234.json").write_text(json.dumps({"meta": {"date": "2026-01-01"}}))
+    (tmp_path / "2026-02-01-def5678-t2.json").write_text(json.dumps({"meta": {"date": "2026-02-01", "task_count": 2}}))
+    history = agg.load_history(str(tmp_path), exclude_path=None, task_count=2)
+    assert len(history) == 1
+    assert history[0]["meta"]["date"] == "2026-02-01"
