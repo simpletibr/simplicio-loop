@@ -1,9 +1,0 @@
-usage: simplicio-py release-train [-h] {verify,doctor} ...
-
-positional arguments:
-  {verify,doctor}
-    verify         fail-closed verification of one component-release-event/v1
-    doctor         report release-train evidence readiness
-
-options:
-  -h, --help       show this help message and exit

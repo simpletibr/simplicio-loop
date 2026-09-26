@@ -1,6 +1,0 @@
-usage: simplicio-py smoke [-h] [--json] [--root ROOT]
-
-options:
-  -h, --help   show this help message and exit
-  --json
-  --root ROOT
