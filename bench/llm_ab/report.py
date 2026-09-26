@@ -244,6 +244,30 @@ def build_history_table(current: dict, history: list[dict]) -> str:
     return rows
 
 
+def build_kind_sections(arms: dict, is_batch: bool) -> str:
+    """Create-only / edit-only tables. A batch run is one agent session for
+    every task, so its LLM calls cannot be split per task -- say so instead
+    of rendering an empty edit table; a task set with no task of a kind
+    says so too."""
+    if is_batch:
+        return ("<p>Modo batch: criação e edição acontecem em <b>uma única sessão</b>, "
+                "então turnos, tempo e custo não são separáveis por tarefa. Os números "
+                "somente criação / somente edição estão no relatório sequencial do mesmo "
+                "conjunto (ex.: <code>REPORT-t4.html</code>) e no resumo de "
+                "<code>REPORT.html</code>.</p>")
+    labels = {"create": ("Somente criação (mesma sessão)", "criação"),
+              "edit": ("Somente edição (mesma sessão)", "edição")}
+    present = {t.get("kind") for a in arms.values() for t in a.get("tasks", [])}
+    out = []
+    for kind, (title, noun) in labels.items():
+        if kind in present:
+            out.append(f"<h3>{html_escape(title)}</h3>"
+                       f"<table class='compare'>{build_arm_table_rows(arms, task_kind=kind)}</table>")
+        else:
+            out.append(f"<p>Este conjunto não tem tarefa de {noun}.</p>")
+    return "".join(out)
+
+
 def build(results: dict, results_dir: str, current_path: str | None = None) -> str:
     meta = results.get("meta", {})
     arms = results.get("arms", {})
@@ -257,13 +281,7 @@ def build(results: dict, results_dir: str, current_path: str | None = None) -> s
         for k, v in (meta.get("pip_versions") or {}).items()
     )
 
-    kinds = sorted({t.get("kind") for a in arms.values() for t in a.get("tasks", []) if t.get("kind")})
-    kind_labels = {"create": "Somente criação (mesma sessão)", "edit": "Somente edição (mesma sessão)"}
-    kind_sections = "".join(
-        f"<h3>{html_escape(kind_labels.get(k, k))}</h3>"
-        f"<table class='compare'>{build_arm_table_rows(arms, task_kind=k)}</table>"
-        for k in kinds
-    )
+    kind_sections = build_kind_sections(arms, bool(meta.get("batch")))
 
     cost_report = results.get("cost_report") or {}
     pricing_rows_html = build_pricing_table(cost_report.get("pricing_table") or [])

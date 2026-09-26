@@ -64,3 +64,17 @@ def test_build_index_links_every_written_report():
 def test_build_index_handles_empty_matrix_without_crashing():
     html = standard.build_index([])
     assert "<html" in html
+
+
+def test_build_index_has_summary_with_create_and_edit_rows():
+    def task(i, kind, cost, turns, wall):
+        return {"index": i, "kind": kind, "success": True, "turns": turns, "wall_s": wall,
+                "totals": {"cost_usd": cost, "prompt_tokens": 10, "cached_tokens": 5}}
+    res = {"meta": {"batch": False}, "arms": {
+        "normal": {"tasks": [task(1, "create", 0.001, 5, 10.0), task(2, "edit", 0.002, 6, 12.0)]},
+        "simplicio": {"tasks": [task(1, "create", 0.003, 7, 20.0), task(2, "edit", 0.001, 3, 6.0)]},
+    }}
+    html = standard.build_index([("t2", "r.json", "REPORT-t2.html")], {"t2": res})
+    assert "Resumo" in html
+    assert "t2 · edição" in html and "t2 · criação" in html
+    assert "$0.00100" in html  # simplicio edit cost

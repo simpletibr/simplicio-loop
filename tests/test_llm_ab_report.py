@@ -152,3 +152,16 @@ def test_build_labels_batch_mode(tmp_path):
     results["meta"]["batch"] = True
     html = report.build(results, str(tmp_path))
     assert "batch" in html.lower()
+
+
+def test_batch_run_explains_single_session_instead_of_empty_edit_table(tmp_path):
+    results = _results(4)
+    results["meta"]["batch"] = True
+    html = report.build(results, str(tmp_path))
+    assert "uma única sessão" in html
+    assert "Somente edição (mesma sessão)" not in html
+
+
+def test_set_without_edit_task_says_so_instead_of_empty_table(tmp_path):
+    html = report.build(_results(1), str(tmp_path))
+    assert "não tem tarefa de edição" in html

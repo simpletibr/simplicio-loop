@@ -67,21 +67,7 @@
 </table>
 
   <h2>Somente criação e somente edição (tarefas da mesma sessão)</h2>
-  <h3>Somente criação (mesma sessão)</h3><table class='compare'><tr><th>Métrica</th><th>normal</th><th>simplicio</th><th>Economia com simplicio</th></tr>
-<tr><td>Tarefas concluídas</td><td>1/1</td><td>1/1</td><td></td></tr>
-<tr><td>Tempo (s)</td><td>36.7</td><td>85.6</td><td>-48.9 (-133.2%)</td></tr>
-<tr><td>Turnos de LLM</td><td>5</td><td>13</td><td>-8 (-160.0%)</td></tr>
-<tr><td>Comandos executados</td><td>4</td><td>16</td><td>-12 (-300.0%)</td></tr>
-<tr><td>... dos quais simplicio-*</td><td>0</td><td>3</td><td></td></tr>
-<tr><td>CPU total (comandos, s)</td><td>0.53</td><td>5.93</td><td>-5.40 (-1010.2%)</td></tr>
-<tr><td>Pico RAM (MB)</td><td>12.42</td><td>7.16</td><td></td></tr>
-<tr><td>Tokens prompt (não cacheado)</td><td>3186</td><td>11434</td><td>-8248 (-258.9%)</td></tr>
-<tr><td>Tokens prompt (cacheado)</td><td>4608</td><td>116480</td><td></td></tr>
-<tr><td>Tokens completion</td><td>520</td><td>3206</td><td>-2686 (-516.5%)</td></tr>
-<tr><td>Tokens de raciocínio</td><td>43</td><td>2842</td><td>-2799 (-6509.3%)</td></tr>
-<tr><td>Custo (USD)</td><td>$0.00044</td><td>$0.00463</td><td>$-0.00419 (-957.1%)</td></tr>
-<tr><td>Invocações do checker pelo próprio agente</td><td>2</td><td>8</td><td></td></tr>
-</table>
+  <p>Modo batch: criação e edição acontecem em <b>uma única sessão</b>, então turnos, tempo e custo não são separáveis por tarefa. Os números somente criação / somente edição estão no relatório sequencial do mesmo conjunto (ex.: <code>REPORT-t4.html</code>) e no resumo de <code>REPORT.html</code>.</p>
 
   <h2>Preço por token (OpenRouter, ao vivo)</h2>
   <table class="compare">
@@ -305,6 +291,8 @@ echo "--- last_response ---" &amp;&amp; cat "$L/last_response.txt" &amp;&amp; ls
 <tr><td>2026-09-26</td><td>simplicio</td><td>-23.8s</td></tr>
 <tr><td>2026-09-26</td><td>normal</td><td>+19.1s</td></tr>
 <tr><td>2026-09-26</td><td>simplicio</td><td>+26.3s</td></tr>
+<tr><td>2026-09-26</td><td>normal</td><td>+21.6s</td></tr>
+<tr><td>2026-09-26</td><td>simplicio</td><td>+16.1s</td></tr>
 
   </table>
 
