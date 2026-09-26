@@ -18,21 +18,22 @@ a provider to write code.
 ## Pick the fastest route first
 
 ```bash
-python3 scripts/route_mode.py --root . --goal "<one task, plain prose>"
+simplicio-loop orient --task "<one task, plain prose>" --json   # ONE call: Mapper + Fast + route
 ```
 
-- **`fast-path`** (ONE task, one file, fan-in ≤1, no sensitive surface) — no
-  run, no wave, no quality lanes. Read the file, write the find/replace, apply,
-  run the task's own check in the same turn:
+Read `route.mode` in that JSON and run `route.next` literally — do not
+re-run `orient`, do not look for repo-local scripts.
+
+- **`fast-path`** (one task, one leaf file, no sensitive surface) — no run,
+  no wave, no quality lanes:
 
   ```bash
   simplicio-dev-cli edit --plan ops.json --compile plan.json   # ops.json = {"operations":[{"path","find","replace"}]}
   simplicio-dev-cli edit --plan plan.json --apply --json
-  <the task's verification command>                            # e.g. python3 -m pytest -q / the repo's check
-  python3 scripts/diff_escalation.py --root . --mode fast-path  # over the limit → promote to the wave below
+  <the task's own check>                                       # same turn; that is the evidence
   ```
 
-- **`converge`/`drain`** (2+ tasks, or any task route_mode sends there) — the
+- **`converge`** (2+ tasks, several files, a hub or sensitive file) — the
   wave flow below. Tasks that depend on each other go in the SAME `tasks.md`
   and the SAME `wave`; write every `edit-plan-<N>.json` up front.
 
@@ -355,7 +356,7 @@ Loop orientation:
 - Stack: mapper + fast + simplicio-dev-cli + loop. No Runtime. No MCP.
 - GitHub is SoT for issues/PRs when the remote is GitHub.
 - Context: simplicio-loop orient --task "<goal>" --json (Mapper + Fast).
-- Route first: scripts/route_mode.py --goal "<task>". fast-path (1 task, 1 file) → simplicio-dev-cli edit --plan ops.json --compile plan.json → edit --plan plan.json --apply → run the task's check. No run, no wave.
+- Route first: simplicio-loop orient --task "<task>" --json → follow route.mode / route.next. fast-path (1 task, 1 file) → simplicio-dev-cli edit --plan ops.json --compile plan.json → edit --plan plan.json --apply → run the task's check. No run, no wave.
 - 2+ tasks or converge: simplicio-loop prepare --task tasks.md → write every edit-plan-<N>.json → wave <run_id> → verify <run_id>.
 - edit-plan-<N>.json = {"operations": [{"path","find","replace"}]}; find must match exactly once.
 - Never simplicio-dev-cli task "prose". No plan → plan_required (do not call OpenRouter).

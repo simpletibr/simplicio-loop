@@ -52,6 +52,12 @@ def test_classify_command_true_with_leading_path():
     assert agent.classify_command("/venv/bin/simplicio-loop verify run-1") is True
 
 
+def test_classify_command_true_inside_a_compound_command():
+    assert agent.classify_command("cd /tmp/repo && simplicio-loop orient --task x") is True
+    assert agent.classify_command("mkdir -p a; timeout 120 simplicio-dev-cli edit --plan p.json") is True
+    assert agent.classify_command("ls | simplicio-fast ingest .") is True
+
+
 def test_classify_command_false_for_other_commands():
     assert agent.classify_command("git status") is False
     assert agent.classify_command("python3 tests/check_cadastro.py --stage 1") is False
@@ -154,3 +160,12 @@ def test_summarize_handles_no_calls_or_commands():
     assert totals["n_commands"] == 0
     assert totals["n_simplicio_commands"] == 0
     assert totals["cost_usd"] == 0.0
+
+
+def test_default_work_dir_is_outside_the_repository():
+    import run  # noqa: E402 - bench/llm_ab is on sys.path above
+    work = run.default_work_dir()
+    try:
+        assert not os.path.abspath(work).startswith(os.path.abspath(REPO) + os.sep)
+    finally:
+        os.rmdir(work)

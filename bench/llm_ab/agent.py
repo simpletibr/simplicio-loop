@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -61,16 +62,17 @@ def truncate_tail(text: str | None, limit: int = TAIL_CHARS) -> str:
 
 
 def classify_command(command: str | None) -> bool:
-    """True iff ``command``'s first token names a simplicio-loop/mapper/
-    dev-cli/fast binary (bare, or via a relative/absolute path prefix)."""
+    """True iff any command in ``command`` (including after ``cd x &&``,
+    ``;`` or ``|``) runs a simplicio-loop/mapper/dev-cli/fast binary."""
     if not command:
         return False
     stripped = command.strip()
     if not stripped:
         return False
-    first_token = stripped.split()[0]
-    first_token = first_token.rsplit("/", 1)[-1]
-    return first_token.startswith(SIMPLICIO_PREFIX)
+    for token in re.split(r"[\s;&|()]+", stripped):
+        if token.rsplit("/", 1)[-1].startswith(SIMPLICIO_PREFIX):
+            return True
+    return False
 
 
 def parse_tool_calls(message: dict | None) -> list[dict]:
