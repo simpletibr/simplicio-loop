@@ -361,17 +361,39 @@ def _measure_diff(root: Path, before: Mapping[str, str]) -> dict[str, Any]:
         return {"schema": "simplicio.diff-escalation/v1", "measured": False}
 
 
-def run(ops: Mapping[str, Any], *, repo: str | Path = ".") -> dict[str, Any]:
+def _ops_ignore_paths(root: Path, ops_path: str | Path | None) -> set[str]:
+    """The ops source file's own repo-relative path, so it never counts as a
+    drift when `apply` re-checks the repo state it was planned against
+    (issue #1318): an ops.json written at the repo root -- not just under
+    `.simplicio-loop/`, which `_repo_fingerprint` already excludes -- must
+    never itself make the stale-state check fail."""
+    if not ops_path or ops_path == "-":
+        return set()
+    try:
+        resolved = Path(ops_path).resolve()
+    except OSError:
+        return set()
+    try:
+        rel = resolved.relative_to(root)
+    except ValueError:
+        return set()
+    return {rel.as_posix()}
+
+
+def run(ops: Mapping[str, Any], *, repo: str | Path = ".", ops_path: str | Path | None = None) -> dict[str, Any]:
     """Execute one ops.json against ``repo``. Never raises for input errors;
-    those come back as a BLOCKED payload."""
+    those come back as a BLOCKED payload. ``ops_path`` (the file `ops` was
+    loaded from, when any) is excluded from the repo-state freshness check --
+    see `_ops_ignore_paths`."""
     root = Path(repo).resolve()
     run_id = f"{int(time.time())}-{uuid.uuid4().hex[:8]}"
     ops_sha = _ops_sha(ops)
+    ignore_paths = _ops_ignore_paths(root, ops_path)
 
     expected_state = ops.get("repo_state_chain") if isinstance(ops.get("repo_state_chain"), Mapping) else None
     current_state: dict[str, str] | None = None
     if expected_state is not None:
-        current_state = _repo_fingerprint(root)
+        current_state = _repo_fingerprint(root, ignore_paths=ignore_paths)
         if not _repo_state_equivalent(dict(expected_state), current_state):
             return {
                 "schema": APPLY_SCHEMA, "status": "BLOCKED", "reason_code": "stale_mapper_generation",
@@ -399,7 +421,7 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".") -> dict[str, Any]:
 
     run_dir = root / ".simplicio-loop" / "apply" / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
-    before_state = current_state if current_state is not None else _repo_fingerprint(root)
+    before_state = current_state if current_state is not None else _repo_fingerprint(root, ignore_paths=ignore_paths)
     by_id = {t["id"]: t for t in tasks}
 
     async def _run_all() -> list[list[dict[str, Any]]]:
@@ -409,7 +431,7 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".") -> dict[str, Any]:
     task_results: list[dict[str, Any]] = [item for chain in chain_results for item in chain]
     overall = "PASS" if all(r.get("status") == "PASS" for r in task_results) else "FAIL"
 
-    after_state = _repo_fingerprint(root)
+    after_state = _repo_fingerprint(root, ignore_paths=ignore_paths)
     diff = _measure_diff(root, before_state)
 
     receipt = {
@@ -446,6 +468,6 @@ def main(source: str, repo: str = ".", as_json: bool = True) -> int:
         print(json.dumps({"schema": APPLY_SCHEMA, "status": "BLOCKED",
                           "reason_code": "ops_unreadable", "hint": str(exc)}))
         return 2
-    result = run(ops, repo=repo)
+    result = run(ops, repo=repo, ops_path=source)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result.get("status") == "PASS" else (2 if result.get("status") == "BLOCKED" else 1)

@@ -132,6 +132,37 @@ def test_apply_bad_find_is_blocked_and_tree_unchanged(tmp_path):
     assert tracked_dirty == []
 
 
+def test_apply_ops_json_at_repo_root_is_not_treated_as_stale(tmp_path):
+    """issue #1318: brief -> write ops.json AT THE REPO ROOT (not /tmp) ->
+    apply -> PASS. Regression for the real hot-path bug: an untracked
+    ops.json inside the repo used to change `repo_state_chain`'s tree hash
+    between `orient --brief` and `apply`, blocking a run that touched
+    nothing else."""
+    repo = _seed_repo(tmp_path)
+    before = (repo / "cadastro.html").read_text(encoding="utf-8")
+
+    brief_proc = _run_cli(
+        "orient", "--repo", ".", "--task", "Add a lang attribute to cadastro.html's html tag",
+        "--brief", "--json", cwd=repo,
+    )
+    brief = json.loads(brief_proc.stdout)
+
+    ops = {
+        "tasks": [{"id": "t1", "operations": [
+            {"path": "cadastro.html", "find": before,
+             "replace": "<html lang=\"en\"><body><form>signup</form></body></html>"},
+        ]}],
+        "repo_state_chain": brief["repo_state_chain"],
+    }
+    ops_path = repo / "ops.json"
+    ops_path.write_text(json.dumps(ops), encoding="utf-8")
+
+    apply_proc = _run_cli("apply", "ops.json", "--repo", ".", "--json", cwd=repo)
+    result = json.loads(apply_proc.stdout)
+    assert result["status"] == "PASS", result
+    assert apply_proc.returncode == 0
+
+
 def test_apply_stale_repo_state_chain_is_blocked_and_tree_unchanged(tmp_path):
     repo = _seed_repo(tmp_path)
     before = (repo / "cadastro.html").read_text(encoding="utf-8")
