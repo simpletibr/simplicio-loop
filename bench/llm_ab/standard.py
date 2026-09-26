@@ -155,10 +155,35 @@ def _arm_cells(a: dict) -> list[str]:
             f"{a['hit']:.1f}%", _usd(a["nocache"]), _usd(a["cache_saved"])]
 
 
+# Index of the cache-hit cell within `_arm_cells`'s return -- kept as a named
+# constant instead of a magic number at each call site below.
+_ARM_CELL_CACHE_HIT_INDEX = 4
+
+# STANDARD.md: the simplicio arm's prompt-cache hit rate must be >= 90%
+# (issue #1336). Report-only gate: it never changes `_arm_sums`/`_arm_cells`'s
+# own numbers, only flags the rendered cell when the simplicio arm misses it.
+SIMPLICIO_CACHE_HIT_GATE_PCT = 90.0
+
+
+def _flag_low_simplicio_cache_hit(cells: list[str], hit_pct: float) -> None:
+    """Mutate ``cells`` (a ``simplicio``-arm ``_arm_cells()`` result) in
+    place, marking its cache-hit cell when ``hit_pct`` is below the
+    STANDARD.md gate -- so a combination that misses the requirement is
+    visibly flagged in REPORT.html, REPORT.md, and the PDF (which renders
+    the same HTML) without anyone having to cross-reference raw numbers."""
+    if hit_pct < SIMPLICIO_CACHE_HIT_GATE_PCT:
+        cells[_ARM_CELL_CACHE_HIT_INDEX] = (
+            f"⚠ {cells[_ARM_CELL_CACHE_HIT_INDEX]} (<{SIMPLICIO_CACHE_HIT_GATE_PCT:.0f}%)"
+        )
+
+
 def summary_rows(suffix: str, results: dict) -> list[str]:
     rows = []
     for r in summary_records(suffix, results):
-        cells = [r["name"], *_arm_cells(r["normal"]), *_arm_cells(r["simplicio"]), r["saved"]]
+        normal_cells = _arm_cells(r["normal"])
+        simplicio_cells = _arm_cells(r["simplicio"])
+        _flag_low_simplicio_cache_hit(simplicio_cells, r["simplicio"]["hit"])
+        cells = [r["name"], *normal_cells, *simplicio_cells, r["saved"]]
         rows.append("<tr>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr>")
     return rows
 
@@ -193,7 +218,10 @@ def build_markdown(written: list[tuple[str, str, str]], results_by_suffix: dict)
     for suffix, _, _ in written:
         if suffix in results_by_suffix:
             for r in summary_records(suffix, results_by_suffix[suffix]):
-                cells = [r["name"], *_arm_cells(r["normal"]), *_arm_cells(r["simplicio"]), r["saved"]]
+                normal_cells = _arm_cells(r["normal"])
+                simplicio_cells = _arm_cells(r["simplicio"])
+                _flag_low_simplicio_cache_hit(simplicio_cells, r["simplicio"]["hit"])
+                cells = [r["name"], *normal_cells, *simplicio_cells, r["saved"]]
                 lines.append("| " + " | ".join(cells) + " |")
     lines += ["", CACHE_NOTE, "", "## Relatórios por combinação", ""]
     lines += [f"- [{suffix}]({os.path.basename(report_path)}) — `{os.path.basename(result_path)}`"

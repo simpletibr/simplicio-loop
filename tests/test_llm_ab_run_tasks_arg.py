@@ -90,3 +90,23 @@ def test_build_batch_prompt_combines_all_task_texts_in_one_user_prompt():
     assert "Create a.html" in prompt
     assert "Edit a.html" in prompt
     assert not prompt.startswith("/simplicio-loop")
+
+
+def test_default_work_dir_is_stable_across_calls(tmp_path, monkeypatch):
+    """issue #1336: a fixed path -- not a fresh ``tempfile.mkdtemp`` per
+    invocation -- so an arm's repo dir (and OpenCode's config/data dirs,
+    derived from the same work dir in ``main()``) stay byte-identical across
+    separate `run.py`/`standard.py` invocations, letting the model provider's
+    prompt cache hit across sessions, not just within one."""
+    monkeypatch.setattr(run.tempfile, "gettempdir", lambda: str(tmp_path))
+    first = run.default_work_dir()
+    second = run.default_work_dir()
+    assert first == second
+    assert os.path.isdir(first)
+
+
+def test_default_work_dir_is_named_llm_ab_under_the_system_tmp_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr(run.tempfile, "gettempdir", lambda: str(tmp_path))
+    path = run.default_work_dir()
+    assert os.path.basename(path) == "llm-ab"
+    assert os.path.dirname(path) == str(tmp_path)

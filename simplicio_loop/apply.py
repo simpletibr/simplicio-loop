@@ -473,13 +473,66 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".", ops_path: str | Path 
     }
 
 
-def main(source: str, repo: str = ".", as_json: bool = True) -> int:
+def _slim_task_view(task_result: Mapping[str, Any]) -> dict[str, Any]:
+    """Per-task view for the default (non-``--pretty``) CLI result (issue
+    #1336): ``id``/``status`` always; a short failing-check tail (last 20
+    lines) and a ``reason_code`` only on ``FAIL``/``SKIPPED``. Full detail
+    (every apply step, full stdout/stderr, the diff) stays in the receipt
+    file ``run()`` already writes at ``receipt_path`` -- this view never
+    drops information, it moves it behind a path."""
+    status = task_result.get("status")
+    view: dict[str, Any] = {"id": task_result.get("id"), "status": status}
+    if status == "SKIPPED":
+        view["reason_code"] = task_result.get("reason_code")
+        return view
+    if status != "FAIL":
+        return view
+    apply_result = task_result.get("apply") or {}
+    if not apply_result.get("ok", True) and apply_result.get("reason_code"):
+        view["reason_code"] = apply_result["reason_code"]
+    check = task_result.get("check")
+    if isinstance(check, Mapping):
+        if check.get("reason_code"):
+            view["reason_code"] = check["reason_code"]
+        tail = check.get("stderr_tail") or check.get("stdout_tail") or ""
+        if tail:
+            view["check_tail"] = "\n".join(tail.splitlines()[-20:])
+    return view
+
+
+def _slim_result(result: Mapping[str, Any]) -> dict[str, Any]:
+    """The default ``apply`` stdout payload (issue #1336): a short summary
+    instead of every task's full apply/check detail and the diff -- both
+    already persisted in full at ``receipt_path``. A ``BLOCKED`` result
+    (validation/staleness/missing-survey; no ``tasks`` key) is already small
+    and every field on it is load-bearing, so it passes through unchanged."""
+    if result.get("status") == "BLOCKED":
+        return dict(result)
+    return {
+        "schema": result.get("schema"),
+        "status": result.get("status"),
+        "run_id": result.get("run_id"),
+        "ops_sha": result.get("ops_sha"),
+        "tasks": [_slim_task_view(t) for t in result.get("tasks") or []],
+        "receipt_path": result.get("receipt_path"),
+        "next_effort": result.get("next_effort"),
+    }
+
+
+def _dump(payload: Mapping[str, Any], *, pretty: bool) -> str:
+    if pretty:
+        return json.dumps(payload, ensure_ascii=False, indent=2)
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+
+def main(source: str, repo: str = ".", as_json: bool = True, pretty: bool = False) -> int:
     try:
         ops = load_ops(source)
     except (OSError, json.JSONDecodeError) as exc:
-        print(json.dumps({"schema": APPLY_SCHEMA, "status": "BLOCKED",
-                          "reason_code": "ops_unreadable", "hint": str(exc)}))
+        print(_dump({"schema": APPLY_SCHEMA, "status": "BLOCKED",
+                     "reason_code": "ops_unreadable", "hint": str(exc)}, pretty=pretty))
         return 2
     result = run(ops, repo=repo, ops_path=source)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    rendered = result if pretty else _slim_result(result)
+    print(_dump(rendered, pretty=pretty))
     return 0 if result.get("status") == "PASS" else (2 if result.get("status") == "BLOCKED" else 1)
