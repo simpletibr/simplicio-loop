@@ -157,16 +157,29 @@ class DirectCallCoverageTest(TestCase):
         self.assertEqual(doc["schema"], "simplicio.preflight/v1")
 
     def test_preflight_direct_call_missing_core_operator_blocks(self):
+        """mapper/dev-cli/fast presence is now an in-process metadata/manifest
+        read (``strict_mode.mapper_status`` / ``action_operator_status`` /
+        ``fast_status``), not a ``--version`` subprocess probe -- see
+        ``strict_mode._metadata_status`` and ``action_operator_status``
+        docstrings. Simulate a missing mapper at that layer instead of
+        mocking ``subprocess.run``, which no longer sits on this path.
+        """
         from simplicio_loop import cli, finding_router, strict_mode
 
-        def missing_mapper(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-            if command[0] == "simplicio-mapper":
-                return subprocess.CompletedProcess(command, 1, stdout="", stderr="not installed")
-            return self._present_operator_run(command)
+        missing_mapper_status = {
+            "binary": "simplicio-mapper",
+            "present": False,
+            "operational": False,
+            "version": "",
+            "error": "package_not_installed",
+            "reason": "package_not_installed",
+            "package": "simplicio-mapper",
+        }
 
         buf = io.StringIO()
-        with patch.object(cli.subprocess, "run", side_effect=missing_mapper), \
+        with patch.object(cli.subprocess, "run", side_effect=self._present_operator_run), \
              patch.object(strict_mode.shutil, "which", side_effect=lambda name: name), \
+             patch.object(strict_mode, "mapper_status", return_value=missing_mapper_status), \
              patch.object(finding_router, "route_finding"), \
              contextlib.redirect_stdout(buf):
             rc = cli.preflight(str(REPO), as_json=True)

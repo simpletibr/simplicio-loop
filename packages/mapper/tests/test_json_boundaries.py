@@ -4,6 +4,33 @@ import pytest
 
 from scripts.check_json_boundaries import _load, check, main
 
+_LIVE_EXCEPTION_CONFIG = '''version = 1
+[scanner]
+internal_roots = [".simplicio-loop"]
+formats = [".json"]
+[[exceptions]]
+path = ".simplicio-loop/legacy-index.json"
+category = "legacy-internal"
+target = "hbi"
+owner = "mapper"
+reason = "bounded migration"
+expires = "2099-01-01"
+'''
+
+
+def _write_live_exception_repo(tmp_path: Path, *, with_file: bool) -> Path:
+    """A ``.simplicio-loop`` is gitignored (generated runtime state, never
+    checked into this repo), so a currently-live, non-stale exception can
+    only be exercised against a synthetic repo, not the real
+    ``packages/mapper`` root -- see ``config/json-boundaries.toml``.
+    """
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "json-boundaries.toml").write_text(_LIVE_EXCEPTION_CONFIG, encoding="utf-8")
+    if with_file:
+        (tmp_path / ".simplicio-loop").mkdir()
+        (tmp_path / ".simplicio-loop" / "legacy-index.json").write_text("{}", encoding="utf-8")
+    return tmp_path
+
 
 def test_checked_in_state_is_explicitly_inventory_classified():
     assert check(Path(__file__).parents[1]) == []
@@ -20,8 +47,9 @@ def test_new_internal_json_is_blocked(tmp_path):
     assert "UNCLASSIFIED .simplicio-loop/unexpected.json" in check(tmp_path)
 
 
-def test_release_strict_mode_rejects_classified_legacy_json():
-    findings = check(Path(__file__).parents[1], mode="strict")
+def test_release_strict_mode_rejects_classified_legacy_json(tmp_path):
+    _write_live_exception_repo(tmp_path, with_file=True)
+    findings = check(tmp_path, mode="strict")
     assert findings
     assert all(item.startswith("INTERNAL_JSON ") for item in findings)
 
@@ -53,8 +81,9 @@ def test_cli_reports_baseline_pass(capsys):
     assert "baseline=pass" in capsys.readouterr().out
 
 
-def test_cli_reports_strict_findings(capsys):
-    assert main(["--root", str(Path(__file__).parents[1]), "--strict"]) == 1
+def test_cli_reports_strict_findings(tmp_path, capsys):
+    _write_live_exception_repo(tmp_path, with_file=True)
+    assert main(["--root", str(tmp_path), "--strict"]) == 1
     assert "strict=blocked" in capsys.readouterr().out
 
 
@@ -64,9 +93,9 @@ def test_cli_fails_closed_for_missing_configuration(tmp_path, capsys):
 
 
 def test_stale_exception_is_rejected(tmp_path):
-    (tmp_path / "config").mkdir()
-    source = Path(__file__).parents[1] / "config" / "json-boundaries.toml"
-    (tmp_path / "config" / "json-boundaries.toml").write_text(
-        source.read_text(encoding="utf-8"), encoding="utf-8"
-    )
+    # A live exception with no corresponding file at all is exactly the
+    # STALE_EXCEPTION case (see config/json-boundaries.toml's history: entries
+    # left behind after "chore(mapper): drop generated/dogfood artifacts from
+    # git, re-baseline repository size budget" removed the files they named).
+    _write_live_exception_repo(tmp_path, with_file=False)
     assert check(tmp_path)[0].startswith("STALE_EXCEPTION ")
