@@ -66,7 +66,7 @@
   "contracts/operator-run/v1/SCHEMA.md": "78474f033f2e329e33e24906f059c3c1ee23485e84bbce41f681d8da88b0f1e5",
   "contracts/quality-gate/v1/SCHEMA.md": "7d71dc3a0a47d7a7b26b3fb20936e9e46d1117e8c4bbb62d84e4e16bf1f27649",
   "contracts/quality-matrix/v2/SCHEMA.md": "3c8e813251561175df106f51fc3a667f6a475fc55a244457e237b8726b534b06",
-  "contracts/registry/v1/README.md": "44d15efeb557095dcf0a7cd82898d01f4061cf0a652941a085784186eeb8bd53",
+  "contracts/registry/v1/README.md": "7a29ed0ba89bd274b6ba1b442f8137494f0003735a97790e4ce77b84db4b632e",
   "contracts/remote-worker/v2/SCHEMA.md": "34ac07aa768f4ec375edd9829fa78f3556221bf59ae5d35cf2fc425e38205287",
   "contracts/run-state/v1/SCHEMA.md": "1a1a723651ae152825105cef3ffb72f87ab18c9d882f5a3e5080d1432f761ae5",
   "contracts/task-contract/v1/SCHEMA.md": "6bb1c5df7e88516ad63dd3cd66061d1821923dc54ce9456bf761357d7cd70674"
