@@ -455,7 +455,7 @@ compatibles OpenAI au moment de l'installation.
 Une vue en direct, toujours active, des économies :
 
 - **Tableau de bord web** — `http://127.0.0.1:9090` — graphe de tokens en temps réel, jauge d'économies,
-  les LLMs/runtimes et **141/144 fournisseurs (98 %)** que nous interceptons, et un journal de proxy en
+  les LLMs/runtimes et fournisseurs que nous interceptons, et un journal de proxy en
   direct.
 - **Widget barre de menus / zone de notification** — tokens économisés en direct dans la barre système
   (macOS rumps · Windows/Linux pystray).

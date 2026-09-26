@@ -454,7 +454,7 @@ loop_journal.py stall --k 3 --exit-code      # PROGRESS → re-feed · STALLED �
 節約を、常時稼働でライブに見られるビューです：
 
 - **Webダッシュボード** — `http://127.0.0.1:9090` — リアルタイムのトークンチャート、節約ゲージ、
-  傍受しているLLM／ランタイムと **141/144プロバイダ（98%）**、そしてライブのプロキシログ。
+  傍受しているLLM／ランタイムと プロバイダ、そしてライブのプロキシログ。
 - **メニューバー／トレイウィジェット** — システムトレイに節約したトークンをライブ表示（macOS rumps · Windows/Linux pystray）。
 - **1つのモジュール** — `scripts/simplicio-economy.sh {status|up|wire}` がキャプチャプロキシ＋モニター＋
   トレイ＋`simplicio-dev-cli` 決定論的オペレーターを立ち上げ、スタック全体を報告します。

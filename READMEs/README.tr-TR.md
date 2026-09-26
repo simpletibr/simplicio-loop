@@ -452,7 +452,7 @@ yönlendirmeyi yapar.
 Tasarrufların canlı, her zaman açık bir görünümü:
 
 - **Web panosu** — `http://127.0.0.1:9090` — gerçek zamanlı token grafiği, tasarruf göstergesi,
-  araya girdiğimiz LLM'ler/runtime'lar ve **141/144 sağlayıcı (%98)** ve canlı bir proxy günlüğü.
+  araya girdiğimiz LLM'ler/runtime'lar ve sağlayıcılar ve canlı bir proxy günlüğü.
 - **Menü-çubuğu / tepsi widget'ı** — sistem tepsisinde canlı kaydedilen token'lar (macOS rumps · Windows/Linux pystray).
 - **Tek modül** — `scripts/simplicio-economy.sh {status|up|wire}` yakalama proxy'sini + monitörü +
   tepsiyi + `simplicio-dev-cli` deterministik operatörünü çalıştırır ve tüm yığını raporlar.

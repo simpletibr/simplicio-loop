@@ -494,7 +494,7 @@ momento da instalação.
 Uma visão ao vivo e sempre ligada da economia:
 
 - **Dashboard web** — `http://127.0.0.1:9090` — gráfico de tokens em tempo real, medidor de economia, os LLMs/runtimes
-  e **141/144 provedores (98%)** que interceptamos, e um log de proxy ao vivo.
+  e provedores que interceptamos, e um log de proxy ao vivo.
 - **Widget na barra de menus / bandeja** — tokens economizados ao vivo na bandeja do sistema (macOS rumps · Windows/Linux pystray).
 - **Um módulo** — `scripts/simplicio-economy.sh {status|up|wire}` sobe o proxy de captura + monitor +
   bandeja + o operador determinístico `simplicio-dev-cli` e reporta a stack inteira.

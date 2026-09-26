@@ -699,7 +699,7 @@ A view of the savings you open when you want — only the capture is always-on:
 - **Capture proxy** — **always-on** (the one auto-started service; the wired clients need it
   reachable). It silently captures + measures Claude + Codex + Simplicio Agent in the background.
 - **Web dashboard** — `http://127.0.0.1:9090` — real-time token chart, savings gauge, the LLMs/runtimes
-  and **141/144 providers (98%)** we intercept, a live proxy log. **Opens once on the first install**
+  and providers we intercept, a live proxy log. **Opens once on the first install**
   so you see it works, then it's **on-demand** — re-open it any of these ways:
   - `simplicio-loop dashboard` — works from anywhere after the pip install (no repo path needed);
     `simplicio-loop dashboard --stop` to close, `--no-browser` to just start the server.
