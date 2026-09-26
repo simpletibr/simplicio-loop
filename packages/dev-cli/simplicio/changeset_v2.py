@@ -1,13 +1,10 @@
-"""Official ``simplicio.fast.changeset/v2`` execution adapter."""
+"""Dev CLI ``simplicio.fast.changeset/v2`` JSON execution adapter."""
 
 from __future__ import annotations
 
-import base64
-import hashlib
 import json
 import platform
 import sys
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -17,23 +14,12 @@ from .changeset_transaction import (
     execute_changeset_transaction,
     existing_transaction_result,
 )
-from .fast_contracts import FastEngineError, FastEngineSession, select_fast_engine
 from .mechanical_edit import execute_plan
 from .standalone_migration import MutationRouteAdmission
 
 CHANGESET_SCHEMA = "simplicio.fast.changeset/v2"
-BINARY_SCHEMA = "simplicio.fast.binary-changeset/v1"
-BINARY_MAGIC = b"SFBCHG01"
 RECEIPT_SCHEMA = "simplicio.fast.changeset-receipt/v2"
 MECHANICAL_SCHEMA = "simplicio.mechanical-edit/v1"
-_BINARY_IDENTITY_FIELDS = (
-    "base_generation",
-    "overlay_generation",
-    "attempt",
-    "worktree_id",
-    "lease_id",
-    "fencing_token",
-)
 _CAUSAL_ID_FIELDS = (
     "changeset_id",
     "correlation_id",
@@ -71,29 +57,6 @@ def _causal_ids(source: dict[str, Any]) -> dict[str, str]:
     if "generation" not in result and isinstance(source.get("base_generation"), str):
         result["generation"] = source["base_generation"]
     return result
-
-
-def _validate_binary_identity(value: dict[str, Any]) -> None:
-    """Validate causal bindings before handing the changeset to the executor."""
-
-    for field in _BINARY_IDENTITY_FIELDS:
-        identity = value.get(field)
-        if not isinstance(identity, str) or not identity.strip():
-            raise ChangesetError(
-                "binary_authority_invalid",
-                f"binary authority field {field!r} must be a non-empty string",
-                field=field,
-            )
-    allowed_paths = value.get("allowed_paths")
-    if (
-        not isinstance(allowed_paths, list)
-        or not allowed_paths
-        or not all(isinstance(path, str) and path.strip() for path in allowed_paths)
-    ):
-        raise ChangesetError(
-            "binary_allowlist_invalid",
-            "binary allowed_paths must be a non-empty list of non-empty strings",
-        )
 
 
 def adapt_changeset(changeset: dict[str, Any], *, current_generation: str | None = None) -> dict[str, Any]:
@@ -317,13 +280,23 @@ def execute_changeset(
 
 
 def execute_changeset_json(
-    text: str,
+    text: str | bytes,
     *,
     root: str | Path = ".",
     apply: bool = False,
     current_generation: str | None = None,
     route_admission: MutationRouteAdmission | None = None,
 ) -> dict[str, Any]:
+    if isinstance(text, bytes):
+        try:
+            text = text.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            return _refused_receipt(
+                {},
+                {"code": "invalid_encoding", "message": f"changeset is not UTF-8 JSON: {exc.reason}"},
+                apply=apply,
+                route_admission=route_admission,
+            )
     try:
         payload = json.loads(text)
     except json.JSONDecodeError as exc:
@@ -347,155 +320,6 @@ def execute_changeset_json(
         current_generation=current_generation,
         route_admission=route_admission,
     )
-
-
-def execute_changeset_bytes(
-    payload: bytes,
-    *,
-    root: str | Path = ".",
-    apply: bool = False,
-    current_generation: str | None = None,
-    route_admission: MutationRouteAdmission | None = None,
-    fast_engine: str | None = None,
-    refresh_fn: Callable[[tuple[str, ...]], Any] | None = None,
-    refresh_producer: Callable[[Path, tuple[str, ...]], Any] | None = None,
-    engine_session: FastEngineSession | None = None,
-) -> dict[str, Any]:
-    """Consume a sealed Fast binary changeset without decoding it as UTF-8/JSON."""
-    if not isinstance(payload, bytes) or not payload.startswith(BINARY_MAGIC):
-        return _refused_receipt(
-            {},
-            {"code": "binary_magic_invalid", "message": "payload is not a Fast binary changeset"},
-            apply=apply,
-        )
-    root_path = Path(root).resolve()
-    try:
-        engine = (
-            engine_session.select(fast_engine or "auto")
-            if engine_session is not None
-            else select_fast_engine(fast_engine or "auto")
-        )
-    except FastEngineError as exc:
-        return _refused_receipt({}, {"code": exc.code, "message": str(exc)}, apply=apply)
-    if engine.name == "none":
-        return _refused_receipt(
-            {},
-            {
-                "code": "binary_decoder_unavailable",
-                "message": "install the simplicio-fast binary conformance decoder",
-            },
-            apply=apply,
-        )
-    try:
-        value = engine.decode_binary(payload)
-        if value.get("repository") != str(root_path):
-            raise ChangesetError("binary_repository_mismatch", "binary repository does not match --root")
-        changeset = _public_changeset_from_binary(value)
-        _validate_binary_identity(value)
-        required_identity = _BINARY_IDENTITY_FIELDS
-        receipt = execute_changeset(
-            changeset,
-            root=root_path,
-            apply=apply,
-            current_generation=current_generation,
-            causal_ids=_causal_ids(value),
-            route_admission=route_admission,
-        )
-        refresh = None
-        transaction = receipt.get("transaction")
-        if apply and receipt.get("status") == "ok" and isinstance(transaction, dict):
-            if transaction.get("state") == "COMMITTED" and not receipt.get("replayed"):
-                refresh_callback = refresh_fn
-                if refresh_callback is None and refresh_producer is not None:
-
-                    def refresh_callback(paths: tuple[str, ...]) -> Any:
-                        assert refresh_producer is not None
-                        return refresh_producer(root_path, paths)
-
-                refresh = engine.refresh(
-                    engine.changed_paths(value),
-                    refresh_fn=refresh_callback,
-                )
-        receipt.update(
-            {
-                "input_format": BINARY_SCHEMA,
-                "binary_sha256": hashlib.sha256(payload).hexdigest(),
-                "binary_changeset_id": value.get("changeset_id"),
-                "fast_identity": {field: value.get(field) for field in required_identity},
-                "fast_engine": engine.receipt(),
-            }
-        )
-        if refresh is not None:
-            receipt["refresh"] = refresh
-        return receipt
-    except ChangesetError as exc:
-        return _refused_receipt(
-            {},
-            exc.row | {"input_format": BINARY_SCHEMA},
-            apply=apply,
-        )
-    except FastEngineError as exc:
-        return _refused_receipt(
-            {}, {"code": exc.code, "message": str(exc), "input_format": BINARY_SCHEMA}, apply=apply
-        )
-    except Exception as exc:
-        return _refused_receipt(
-            {},
-            {
-                "code": "binary_decode_failed",
-                "message": f"Fast binary decoder rejected the envelope: {type(exc).__name__}",
-                "input_format": BINARY_SCHEMA,
-            },
-            apply=apply,
-        )
-
-
-def _public_changeset_from_binary(value: dict[str, Any]) -> dict[str, Any]:
-    operations = []
-    for index, raw in enumerate(value.get("operations", [])):
-        if not isinstance(raw, dict):
-            raise ChangesetError(
-                "binary_operation_invalid", "binary operation must be an object", operation_index=index
-            )
-        operation = dict(raw)
-        kind = operation.pop("op", None)
-        mapped = {
-            "replace-range": "replace_range",
-            "create": "create",
-            "delete": "delete",
-            "rename": "move",
-        }.get(kind)
-        if mapped is None:
-            raise ChangesetError(
-                "binary_operation_unsupported",
-                f"unsupported binary operation {kind!r}",
-                operation_index=index,
-            )
-        operation["kind"] = mapped
-        if "dest" in operation:
-            operation["target"] = operation.pop("dest")
-        if "line_map" in operation:
-            line_map = operation.pop("line_map")
-            if isinstance(line_map, dict):
-                operation.update(
-                    {key: line_map[key] for key in ("start_line", "end_line") if key in line_map}
-                )
-        if "content_b64" in operation and "content" not in operation:
-            try:
-                operation["content"] = base64.b64decode(operation.pop("content_b64"), validate=True).decode(
-                    operation.get("encoding") or "utf-8"
-                )
-            except (ValueError, UnicodeDecodeError) as exc:
-                raise ChangesetError("binary_content_invalid", "binary content is not valid text") from exc
-        operations.append(operation)
-    return {
-        "schema": CHANGESET_SCHEMA,
-        "changeset_id": value.get("changeset_id"),
-        "generation": value.get("base_generation"),
-        "allowlist": list(value.get("allowed_paths", [])),
-        "operations": operations,
-        "validation": [{"cmd": [command]} for command in value.get("verification_commands", [])],
-    }
 
 
 def benchmark_environment() -> dict[str, Any]:

@@ -228,7 +228,7 @@ def test_capabilities_report_exposes_mode_readiness_without_runtime_probe(tmp_pa
     assert readiness["standalone_ready"] == {"ready": True, "reason": "ready"}
     assert readiness["runtime_ready"]["ready"] is False
     assert readiness["runtime_ready"]["reason"] == "not-probed-standalone"
-    assert readiness["fast_ready"]["ready"] in {True, False}
+    assert "fast_ready" not in readiness
 
 
 def test_task_cli_forwards_integrated_coordinator_inputs(monkeypatch, capsys):

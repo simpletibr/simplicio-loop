@@ -78,7 +78,8 @@ def test_base_dependencies_exclude_heavy_and_provider_packages():
 def test_optional_dependencies_groups_match_actual_imports():
     data = _load_pyproject()
     extras = data["project"]["optional-dependencies"]
-    assert {"ml", "bench", "fast", "performance", "all"} <= extras.keys()
+    assert {"ml", "bench", "performance", "all"} <= extras.keys()
+    assert "fast" not in extras
     assert "providers" not in extras
     assert "local" not in extras
 

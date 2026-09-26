@@ -68,7 +68,12 @@ from pathlib import Path
 # reviewed call site). No other scope changed shape;
 # `compile_host_plan`'s create-file handling adds dict/string logic only,
 # no new mutation primitive.
-BASELINE_SHA256 = "7237ef65b18acc0e9f9febd112294a61822a499315aa3e06130a7151b0315013"
+#
+# Reviewed 2026-09-26 (issue #1343): Simplicio Fast was removed. The only
+# inventory change is the deletion of `fast_contracts.py` (Fast engine
+# primitives) and of `commands/changeset.py::_mapper_refresh_producer` (the
+# binary-changeset Mapper refresh). No primitive was added.
+BASELINE_SHA256 = "352d2c24411154d3826303e374d3bcb29746ef8a5a97f160e7b773ae0269549d"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",

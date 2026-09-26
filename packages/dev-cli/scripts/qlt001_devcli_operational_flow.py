@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Operational Dev CLI flow for QLT-001: standalone, mapper, Fast, and Loop."""
+"""Operational Dev CLI flow for QLT-001: standalone, mapper, and Loop."""
 
 from __future__ import annotations
 
@@ -102,7 +102,6 @@ def _write_plan(root: Path, *, apply_kind: str) -> Path:
 def run_flow(repo: Path) -> dict[str, Any]:
     cli = _which("simplicio-dev-cli")
     mapper = _which("simplicio-mapper")
-    fast = _which("simplicio-fast")
     loop = _which("simplicio-loop")
     steps: list[dict[str, Any]] = []
 
@@ -281,18 +280,6 @@ def run_flow(repo: Path) -> dict[str, Any]:
             elapsed_ms=mapper_scan["elapsed_ms"],
             route=mapper_payload.get("route"),
             phase=mapper_payload.get("phase"),
-        )
-    )
-
-    fast_query = _run([fast, "query", "LoopInvoker", "--limit", "5", "--json"], cwd=repo)
-    fast_payload = fast_query["payload"] if isinstance(fast_query["payload"], dict) else {}
-    steps.append(
-        _step(
-            "fast_query_after_mapper",
-            fast_query["returncode"] == 0 and bool(fast_payload.get("matches")),
-            returncode=fast_query["returncode"],
-            elapsed_ms=fast_query["elapsed_ms"],
-            match_count=len(fast_payload.get("matches") or []),
         )
     )
 
