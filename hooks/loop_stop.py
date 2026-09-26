@@ -57,8 +57,6 @@ ORIENTATION_END = "<!-- SIMPLICIO-LLM-ORIENTATION:END -->"
 ORIENTATION_LABEL = "[simplicio-loop startup orientation]"
 # Core operate/survey pair — always required when the simplicio-loop skill is present.
 BOUND_OPERATORS = ("simplicio-mapper", "simplicio-dev-cli")
-# Adaptive: Fast is required only when operational (under strict mode).
-FAST_BINARY = "simplicio-fast"
 WEB_EXTS = {".tsx", ".jsx", ".vue", ".svelte", ".html"}
 _TRUE = frozenset({"1", "true", "yes", "on", "strict", "full-stack", "required"})
 _FALSE = frozenset({"0", "false", "no", "off", "disabled", "standalone", "legacy"})
@@ -566,19 +564,8 @@ def required_bound_operators():
     """Binaries this running loop must keep available.
 
     Always (skill present): mapper + operate.
-    Fast: under strict mode, if currently operational it becomes required.
     """
-    required = list(BOUND_OPERATORS)
-    if _strict_loop_enabled() and _binary_operational(FAST_BINARY, ("--version",)):
-        required.append(FAST_BINARY)
-    # de-dupe
-    seen = set()
-    ordered = []
-    for name in required:
-        if name not in seen:
-            seen.add(name)
-            ordered.append(name)
-    return ordered
+    return list(BOUND_OPERATORS)
 
 
 def missing_bound_operators():
@@ -603,10 +590,6 @@ def missing_bound_operators():
             if binary == "simplicio-dev-cli":
                 if not _action_operator_operational():
                     missing.append("simplicio-dev-cli")
-                continue
-            if binary == FAST_BINARY:
-                if not _binary_operational(FAST_BINARY, ("--version",)):
-                    missing.append(FAST_BINARY)
                 continue
             if shutil.which(binary) is None or not _binary_operational(binary, ("--version",)):
                 missing.append(binary)
@@ -1202,7 +1185,7 @@ def main():
 
         # (2b) Bound operators required (#83) — when this repo ships the simplicio-loop
         # companion skill, `simplicio-mapper`/`simplicio-dev-cli` are hard deps of the running
-        # loop, not just the installer. Runtime/Fast join the set when operational (or forced).
+        # loop, not just the installer.
         # A genuine BLOCK (handoff + stop), mirroring the cap gate, so a marketplace install /
         # PATH gap can never silently degrade to LLM hand-survey/hand-edit.
         missing_ops = missing_bound_operators()

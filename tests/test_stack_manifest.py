@@ -19,7 +19,9 @@ def test_loop_declares_both_required_operator_distributions_directly() -> None:
     )
     assert "simplicio-mapper" in dependencies
     assert "simplicio-cli" in dependencies
-    assert "simplicio-fast" in dependencies
+    assert "simplicio-fast" not in dependencies
+    assert "simplicio-fast" not in {name for name, _role in manifest._COMPONENT_ROLES}
+    assert "simplicio-fast" not in manifest._FALLBACK_FLOORS
     assert "simplicio-prompt" not in dependencies
     assert "simplicio-prompt" not in {name for name, _role in manifest._COMPONENT_ROLES}
     scripts = project["scripts"]

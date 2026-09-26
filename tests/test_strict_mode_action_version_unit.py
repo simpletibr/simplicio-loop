@@ -42,20 +42,18 @@ def test_action_operator_status_fails_closed_when_the_manifest_is_unavailable(mo
     assert "dev_cli_capabilities_unavailable" in status["error"]
 
 
-def test_mapper_and_fast_status_read_package_metadata_in_process(monkeypatch):
+def test_mapper_status_reads_package_metadata_in_process(monkeypatch):
     def fake_version(package: str) -> str:
-        return {"simplicio-mapper": "0.26.11", "simplicio-fast": "2.0.23"}[package]
+        return {"simplicio-mapper": "0.26.11"}[package]
 
     def boom(*_a, **_k):
-        raise AssertionError("mapper/fast status must not spawn a subprocess")
+        raise AssertionError("mapper status must not spawn a subprocess")
 
     monkeypatch.setattr(strict_mode._metadata, "version", fake_version)
     monkeypatch.setattr(strict_mode.subprocess, "run", boom)
 
     mapper = strict_mode.mapper_status()
-    fast = strict_mode.fast_status()
     assert mapper["operational"] is True and mapper["version"] == "0.26.11"
-    assert fast["operational"] is True and fast["version"] == "2.0.23"
 
 
 def test_mapper_status_fails_closed_when_the_distribution_is_missing(monkeypatch):
@@ -78,7 +76,7 @@ def test_preflight_payload_reports_real_versions_from_in_process_probes(monkeypa
     monkeypatch.setattr(strict_mode, "_load_dev_cli_capabilities", lambda: manifest)
 
     def fake_version(package: str) -> str:
-        return {"simplicio-mapper": "0.26.11", "simplicio-fast": "2.0.23"}[package]
+        return {"simplicio-mapper": "0.26.11"}[package]
 
     monkeypatch.setattr(strict_mode._metadata, "version", fake_version)
 
@@ -91,5 +89,4 @@ def test_preflight_payload_reports_real_versions_from_in_process_probes(monkeypa
     assert not ops["simplicio-dev-cli"]["version"].lower().startswith("usage:")
     assert ops["simplicio-py"]["present"] is True
     assert ops["simplicio-py"]["version"] == "0.18.16"
-    assert ops["simplicio-fast"]["present"] is True
-    assert ops["simplicio-fast"]["version"] == "2.0.23"
+    assert "simplicio-fast" not in ops

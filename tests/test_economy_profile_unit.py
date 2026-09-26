@@ -61,7 +61,7 @@ def test_economy_env_enables_fan_out_and_latest():
     assert env["SIMPLICIO_PRISM_SLOTS"] == "4"
     assert env["SIMPLICIO_PRISM_BATCH_SIZE"] == "10"
     assert env["SIMPLICIO_LOOP_OPERATOR_WORKERS"] == "6"
-    assert env["SIMPLICIO_FAST_MODE"] == "required"
+    assert "SIMPLICIO_FAST_MODE" not in env
     assert env["SIMPLICIO_EXECUTION_PROFILE"] == "standalone"
 
 
@@ -72,8 +72,10 @@ def test_profile_status_exposes_llm_max_speed_orientation():
     assert orient["canonical_doc"] == "docs/LLM_MAX_SPEED_ORIENTATION.md"
     assert "DONE" in orient["message_cadence"]
     assert any("hand-edit" in f for f in orient["forbid"])
-    assert orient["context_route"]["primary"] == "simplicio-fast"
-    assert orient["fallback_policy"]["auto"] == "mapper_read_only"
+    assert orient["context_route"] == {"primary": "simplicio-mapper", "bounded": True, "local_llm": False}
+    assert "fallback_policy" not in orient
+    assert "Fast" not in orient["law"]
+    assert not any("simplicio-fast" in step for step in status["hot_path"])
     assert orient["mutation_boundary"]["authorized"] is False
     assert orient["receipt_schema"] == "simplicio.loop-orient-receipt/v1"
     assert status["hot_path"][0].startswith("simplicio-loop preflight")
@@ -106,11 +108,6 @@ def test_profile_status_reports_standalone():
 
 def test_recommended_env_uses_economy_when_enabled(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_ECONOMY_PARALLEL", "1")
-    monkeypatch.setattr(
-        strict_mode,
-        "fast_status",
-        lambda env=None: {"operational": True, "present": True, "version": "2.0.23"},
-    )
     rec = strict_mode.recommended_env({})
     assert rec["SIMPLICIO_LOOP_AUTO_FAN_OUT"] == "1"
     assert rec["SIMPLICIO_OPERATOR_ALWAYS_LATEST"] == "1"
@@ -119,11 +116,6 @@ def test_recommended_env_uses_economy_when_enabled(monkeypatch):
 
 def test_recommended_env_opt_out_minimal(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_ECONOMY_PARALLEL", "0")
-    monkeypatch.setattr(
-        strict_mode,
-        "fast_status",
-        lambda env=None: {"operational": False, "present": False, "version": ""},
-    )
     rec = strict_mode.recommended_env({})
     assert rec["SIMPLICIO_LOOP"] == "1"
     # minimal path still prefers auto fan-out + always-latest

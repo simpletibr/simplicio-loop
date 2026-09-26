@@ -51,9 +51,6 @@ MINIMUMS = {
 }
 MAPPER_CAPABILITIES = ("inspect", "handoff", "ask", "sync", "drift")
 DEVCLI_CAPABILITIES = (" edit", "--plan", "--apply", "--json")
-# Keep preflight aligned with the Fast release validated by the Loop flow.
-FAST_MINIMUM = (2, 0, 14)
-FAST_CAPABILITIES = ("build", "understand", "plan", "apply", "doctor")
 
 
 def _version(value: str) -> tuple[int, int, int]:
@@ -175,85 +172,6 @@ def _probe_runtime(cwd: Path) -> Dict[str, Any]:
     return report
 
 
-def _probe_fast(cwd: Path) -> Dict[str, Any]:
-    """Probe Fast v2 as the required context operator."""
-    command = "simplicio-fast"
-    path = shutil.which(command)
-    base: Dict[str, Any] = {"identity": command, "path": path or "", "returncode": 1}
-    if not path:
-        return {
-            "schema": "simplicio.fast.integration-status/v1",
-            "name": command,
-            "command": command,
-            "identity": command,
-            "path": "",
-            "identity_ok": False,
-            "version": "0.0.0",
-            "minimum_version": _version_text(FAST_MINIMUM),
-            "version_ok": False,
-            "returncode": 1,
-            "required_capabilities": list(FAST_CAPABILITIES),
-            "missing_capabilities": list(FAST_CAPABILITIES),
-            "capabilities_ok": False,
-            "integrated_ready": False,
-            "status": "fallback",
-            "reason": "missing_operator",
-            "error": "command not found",
-        }
-    try:
-        version = _run([path, "--version"], cwd)
-        help_result = _run([path, "--help"], cwd)
-    except (OSError, subprocess.SubprocessError) as exc:
-        base["error"] = f"probe failed: {exc}"
-        version = help_result = None
-    if version is None or help_result is None:
-        return {
-            "schema": "simplicio.fast.integration-status/v1",
-            "name": command,
-            "command": command,
-            "identity": command,
-            "path": path,
-            "identity_ok": False,
-            "version": "0.0.0",
-            "minimum_version": _version_text(FAST_MINIMUM),
-            "version_ok": False,
-            "returncode": 1,
-            "required_capabilities": list(FAST_CAPABILITIES),
-            "missing_capabilities": list(FAST_CAPABILITIES),
-            "capabilities_ok": False,
-            "integrated_ready": False,
-            "status": "fallback",
-            "reason": "probe_failed",
-            "error": str(base.get("error") or "probe failed"),
-        }
-    surface = (help_result.stdout or "") + "\n" + (help_result.stderr or "")
-    parsed = _version(version.stdout.strip() or version.stderr.strip())
-    missing = [token for token in FAST_CAPABILITIES if token not in surface]
-    identity_ok = "simplicio-fast" in Path(path).stem.lower()
-    version_ok = parsed >= FAST_MINIMUM
-    capabilities_ok = not missing
-    ready = identity_ok and version_ok and capabilities_ok and version.returncode == 0 and help_result.returncode == 0
-    return {
-        "schema": "simplicio.fast.integration-status/v1",
-        "name": command,
-        "command": command,
-        "identity": command,
-        "path": path,
-        "identity_ok": identity_ok,
-        "version": _version_text(parsed),
-        "minimum_version": _version_text(FAST_MINIMUM),
-        "version_ok": version_ok,
-        "returncode": 0 if ready else 1,
-        "required_capabilities": list(FAST_CAPABILITIES),
-        "missing_capabilities": missing,
-        "capabilities_ok": capabilities_ok,
-        "integrated_ready": ready,
-        "status": "ready" if ready else "fallback",
-        "reason": None if ready else "incompatible_operator",
-        "error": (version.stderr or help_result.stderr or "").strip(),
-    }
-
-
 def build_report(cwd: Path) -> Dict[str, Any]:
     _emit_progress("begin", detail="operadores: verificação/atualização")
     mapper = _probe_component("simplicio-mapper", "simplicio-mapper", cwd,
@@ -261,7 +179,6 @@ def build_report(cwd: Path) -> Dict[str, Any]:
     devcli = _probe_component("simplicio-dev-cli", "simplicio-dev-cli", cwd,
                               ("--version", "--json"), ("edit", "--help"), DEVCLI_CAPABILITIES)
     runtime = _probe_runtime(cwd)
-    fast = _probe_fast(cwd)
     runtime_available = (
         bool(runtime.get("identity_ok"))
         and bool(runtime.get("version_ok"))
@@ -274,23 +191,18 @@ def build_report(cwd: Path) -> Dict[str, Any]:
         bool(item.get("identity_ok")) and bool(item.get("version_ok")) and bool(item.get("capabilities_ok", True))
         and int(item.get("returncode", 1)) == 0
         for item in (mapper, devcli)
-    ) and bool(fast.get("integrated_ready"))
+    )
     degraded = []
     if not runtime_available:
         degraded.append("runtime-integration")
-    if not fast["integrated_ready"]:
-        degraded.append("fast-context")
     if ready:
         detail = "; ".join("%s %s" % (item["name"], item["version"]) for item in components)
-        detail += "; fast " + fast["status"]
         if not runtime_available:
             detail += "; simplicio-runtime unavailable (runtime integrations skipped)"
         _emit_progress("end", outcome="pass", detail=detail)
     else:
         missing = [item["name"] for item in components
                   if not (item.get("identity_ok") and item.get("version_ok"))]
-        if not fast["integrated_ready"]:
-            missing.append("simplicio-fast")
         _emit_progress("blocked", outcome="blocked",
                        detail="missing operator %s" % (", ".join(missing) or "unknown"))
     return {
@@ -300,7 +212,6 @@ def build_report(cwd: Path) -> Dict[str, Any]:
         "ready": ready,
         "status": "READY" if ready else "BLOCKED",
         "components": components,
-        "fast": fast,
         "runtime_available": runtime_available,
         "degraded_features": degraded,
     }

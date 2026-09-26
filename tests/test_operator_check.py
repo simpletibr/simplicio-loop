@@ -115,7 +115,7 @@ def test_default_upgrade_requests_both_direct_operator_packages(monkeypatch):
     operator_check.run_pip_upgrade()
     assert "simplicio-cli" in captured["argv"]
     assert "simplicio-mapper" in captured["argv"]
-    assert "simplicio-fast" in captured["argv"]
+    assert "simplicio-fast" not in captured["argv"]
     assert "simplicio-loop" in captured["argv"]
 
 
