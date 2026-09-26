@@ -40,6 +40,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+import cost as bench_cost  # noqa: E402
 import run as bench_run  # noqa: E402
 
 # Each entry: (--tasks value, --batch flag). Order matters only for the
@@ -90,14 +91,34 @@ def _result_path_for(out_dir: str, tasks: int, batch: bool) -> str:
     return os.path.join(out_dir, bench_run.result_filename(date, short_sha, tasks, batch=batch))
 
 
-def _arm_sums(tasks: list[dict]) -> dict:
-    return {
+def _arm_sums(tasks: list[dict], pricing: dict) -> dict:
+    """Per-slice totals. ``cost`` is the real billed cost (OpenRouter
+    generation stats, cache discount included); ``nocache`` prices the same
+    tokens at the list prompt rate, so ``cache_saved`` is what the cache
+    actually saved -- both from the run's own pricing snapshot."""
+    def tot(key: str) -> float:
+        return sum((t.get("totals") or {}).get(key) or 0 for t in tasks)
+
+    prompt, cached, compl = int(tot("prompt_tokens")), int(tot("cached_tokens")), int(tot("completion_tokens"))
+    sums = {
         "ok": sum(1 for t in tasks if t.get("success")),
         "n": len(tasks),
         "turns": sum(t.get("turns") or 0 for t in tasks),
         "wall": sum(t.get("wall_s") or 0.0 for t in tasks),
-        "cost": sum((t.get("totals") or {}).get("cost_usd") or 0.0 for t in tasks),
+        "cost": tot("cost_usd"),
+        "hit": (cached / prompt * 100.0) if prompt else 0.0,
+        "nocache": None,
+        "cache_saved": None,
     }
+    if pricing.get("prompt") is not None and pricing.get("completion") is not None:
+        breakdown = bench_cost.cost_breakdown(prompt, cached, compl, pricing)
+        sums["cache_saved"] = breakdown["cache_savings_usd"]
+        sums["nocache"] = breakdown["computed_cost_usd"] + breakdown["cache_savings_usd"]
+    return sums
+
+
+def _usd(value: float | None) -> str:
+    return "n/a" if value is None else f"${value:.5f}"
 
 
 def summary_rows(suffix: str, results: dict) -> list[str]:
@@ -105,6 +126,7 @@ def summary_rows(suffix: str, results: dict) -> list[str]:
     edit-only for sequential runs (a batch run is one session, so its calls
     cannot be split per task)."""
     arms = results.get("arms") or {}
+    pricing = (results.get("meta") or {}).get("pricing") or {}
     slices = [("total", None)]
     if not (results.get("meta") or {}).get("batch"):
         kinds = {t.get("kind") for a in arms.values() for t in a.get("tasks", [])}
@@ -114,12 +136,14 @@ def summary_rows(suffix: str, results: dict) -> list[str]:
         sums = {}
         for arm in ("normal", "simplicio"):
             tasks = (arms.get(arm) or {}).get("tasks", [])
-            sums[arm] = _arm_sums([t for t in tasks if kind is None or t.get("kind") == kind])
+            sums[arm] = _arm_sums([t for t in tasks if kind is None or t.get("kind") == kind], pricing)
         n, s = sums["normal"], sums["simplicio"]
         saved = n["cost"] - s["cost"]
         pct = f"{saved / n['cost'] * 100:.1f}%" if n["cost"] else "n/a"
         cells = "".join(
-            f"<td>{a['ok']}/{a['n']}</td><td>{a['turns']}</td><td>{a['wall']:.1f}</td><td>${a['cost']:.5f}</td>"
+            f"<td>{a['ok']}/{a['n']}</td><td>{a['turns']}</td><td>{a['wall']:.1f}</td>"
+            f"<td>${a['cost']:.5f}</td><td>{a['hit']:.1f}%</td><td>{_usd(a['nocache'])}</td>"
+            f"<td>{_usd(a['cache_saved'])}</td>"
             for a in (n, s)
         )
         rows.append(f"<tr><td>{suffix} · {label}</td>{cells}<td>${saved:.5f} ({pct})</td></tr>")
@@ -144,9 +168,15 @@ def build_index(written: list[tuple[str, str, str]], results_by_suffix: dict | N
                        for r in summary_rows(suffix, results_by_suffix[suffix]))
         summary = (
             "<h2>Resumo (normal vs simplicio)</h2>\n<table border='1' cellpadding='4'>"
-            "<tr><th>combinação</th><th>normal ok</th><th>turnos</th><th>tempo (s)</th><th>custo</th>"
-            "<th>simplicio ok</th><th>turnos</th><th>tempo (s)</th><th>custo</th>"
-            "<th>economia de custo com simplicio</th></tr>\n" + body + "</table>\n"
+            "<tr><th>combinação</th>"
+            "<th>normal ok</th><th>turnos</th><th>tempo (s)</th><th>custo real</th>"
+            "<th>cache hit</th><th>custo sem cache</th><th>economia do cache</th>"
+            "<th>simplicio ok</th><th>turnos</th><th>tempo (s)</th><th>custo real</th>"
+            "<th>cache hit</th><th>custo sem cache</th><th>economia do cache</th>"
+            "<th>economia de custo real com simplicio</th></tr>\n" + body + "</table>\n"
+            "<p>Custo real = cobrado pelo OpenRouter (desconto de cache incluído). Custo sem cache = "
+            "os mesmos tokens ao preço cheio de prompt. Economia do cache = diferença, pelo preço "
+            "de cache read da própria execução.</p>\n"
         )
     return f"""<!DOCTYPE html>
 <html lang="pt-BR">

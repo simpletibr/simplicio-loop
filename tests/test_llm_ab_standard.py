@@ -78,3 +78,23 @@ def test_build_index_has_summary_with_create_and_edit_rows():
     assert "Resumo" in html
     assert "t2 · edição" in html and "t2 · criação" in html
     assert "$0.00100" in html  # simplicio edit cost
+
+
+def test_summary_rows_are_cache_aware():
+    """Every summary row shows cache hit %, the no-cache (list price) cost and
+    the $ saved by the cache, priced from the run's own pricing snapshot."""
+    pricing = {"available": True, "prompt": 0.00000014, "completion": 0.00000042,
+               "input_cache_read": 0.0000000042}
+
+    def task(kind, prompt, cached, compl, cost):
+        return {"index": 1, "kind": kind, "success": True, "turns": 2, "wall_s": 1.0,
+                "totals": {"cost_usd": cost, "prompt_tokens": prompt,
+                           "cached_tokens": cached, "completion_tokens": compl}}
+    res = {"meta": {"batch": True, "pricing": pricing}, "arms": {
+        "normal": {"tasks": [task("create", 1_000_000, 0, 0, 0.14)]},
+        "simplicio": {"tasks": [task("create", 1_000_000, 500_000, 0, 0.0721)]},
+    }}
+    row = standard.summary_rows("t1-batch", res)[0]
+    assert "50.0%" in row          # simplicio cache hit
+    assert "$0.14000" in row       # simplicio no-cache cost (1M prompt at list price)
+    assert "$0.06790" in row       # simplicio cache savings: 500k * (0.14 - 0.0042)/1M
