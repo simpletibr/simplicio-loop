@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Ablation benchmark — 7 arms</title></head>
+<body>
+<h1>Ablation benchmark: 7 arms (issue #1337)</h1>
+<p>Modelo: <code>deepseek/deepseek-v4.1-flash</code> &middot; braços: normal, mapper, mapper-fast, devcli, mapper-devcli, fast-devcli, simplicio</p>
+<h2>t1</h2>
+<ul><li>Menor custo: `normal` ($0.00396 calculado, $0.00000 cobrado, 1/1 ok)</li><li>Mais rápido: `normal` (22.3s, 1/1 ok)</li></ul>
+<h3>Total</h3>
+<table border='1' cellpadding='4'><tr><th>arm</th><th>ok/n</th><th>turns</th><th>wall (s)</th><th>custo calculado</th><th>custo cobrado</th><th>cache hit</th><th>tokens prompt</th><th>tokens cache</th><th>tokens completion</th></tr>
+<tr><td>normal</td><td>1/1</td><td>7</td><td>22.3</td><td>$0.00396</td><td>$0.00000</td><td>85.6%</td><td>63689</td><td>54528</td><td>741</td></tr>
+<tr><td>mapper</td><td>1/1</td><td>7</td><td>42.4</td><td>$0.00579</td><td>$0.00497</td><td>85.8%</td><td>80113</td><td>68736</td><td>1635</td></tr>
+<tr><td>mapper-fast</td><td>1/1</td><td>11</td><td>170.2</td><td>$0.00927</td><td>$0.00188</td><td>88.9%</td><td>169648</td><td>150784</td><td>2259</td></tr>
+<tr><td>simplicio</td><td>1/1</td><td>13</td><td>43.3</td><td>$0.00954</td><td>$0.00545</td><td>91.9%</td><td>188207</td><td>173056</td><td>3294</td></tr>
+<tr><td>fast-devcli</td><td>1/1</td><td>10</td><td>38.4</td><td>$0.00966</td><td>$0.00519</td><td>89.3%</td><td>146706</td><td>131072</td><td>3487</td></tr>
+<tr><td>devcli</td><td>1/1</td><td>18</td><td>48.6</td><td>$0.01650</td><td>$0.01323</td><td>92.6%</td><td>406460</td><td>376320</td><td>4333</td></tr>
+<tr><td>mapper-devcli</td><td>1/1</td><td>15</td><td>51.0</td><td>$0.01685</td><td>$0.00821</td><td>89.4%</td><td>323159</td><td>288896</td><td>4034</td></tr>
+</table>
+
+</body>
+</html>
