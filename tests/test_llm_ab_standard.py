@@ -408,3 +408,33 @@ def test_build_full_html_drops_the_per_call_cache_table_from_the_pdf():
     assert "Cache por chamada de LLM" not in full
     assert "99.9%" not in full
     assert "Custo real" in full and "Gráficos" in full
+
+
+def test_ablation_never_clobbers_the_classic_matrix_result(tmp_path, monkeypatch):
+    """The ablation's raw run.py output must not reuse the classic matrix's
+    ``-t<N>.json`` path: moving it to ``-ablation.json`` used to delete the
+    standard result written earlier in the same day/commit."""
+    out = str(tmp_path)
+    for n in standard.ABLATION_TASK_COUNTS:
+        with open(standard._result_path_for(out, n, batch=False), "w", encoding="utf-8") as f:
+            f.write('{"classic": true}')
+
+    def fake_run(argv):
+        run_out = argv[argv.index("--out") + 1]
+        n = int(argv[argv.index("--tasks") + 1])
+        os.makedirs(run_out, exist_ok=True)
+        with open(standard._result_path_for(run_out, n, batch=False), "w", encoding="utf-8") as f:
+            f.write('{"ablation": true}')
+        return 0
+
+    monkeypatch.setattr(standard.bench_run, "main", fake_run)
+    monkeypatch.setattr(standard, "write_ablation_reports", lambda entries, out_dir: None)
+    monkeypatch.setattr(standard, "per_call_cache_gate", lambda entries: 0)
+    args = standard.build_arg_parser().parse_args(["--ablation", "--out", out])
+
+    assert standard.run_ablation(args) == 0
+    for n in standard.ABLATION_TASK_COUNTS:
+        with open(standard._result_path_for(out, n, batch=False), encoding="utf-8") as f:
+            assert f.read() == '{"classic": true}'
+        with open(standard._ablation_result_path(out, n), encoding="utf-8") as f:
+            assert f.read() == '{"ablation": true}'

@@ -63,7 +63,7 @@ def _spec_for(arm: str, force_isolate: bool = False) -> dict | None:
     """The ``arms.ARM_SPECS`` entry to apply for ``arm``, or ``None`` to keep
     the legacy (non-isolated) ``run_opencode`` code path. ``force_isolate``
     (``standard.py --ablation``) applies the spec even to ``normal``/
-    ``simplicio`` so all 7 arms in that run share one isolation contract."""
+    ``simplicio`` so all arms in that run share one isolation contract."""
     if force_isolate or arm not in LEGACY_ARMS:
         return bench_arms.spec(arm)
     return None
