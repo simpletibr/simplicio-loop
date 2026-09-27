@@ -288,7 +288,7 @@ def ablation_sections(results: dict, task_count: int) -> list[tuple[str, list[di
 
 def build_ablation_markdown(results_by_n: dict[int, dict]) -> str:
     lines = [
-        "# Ablation benchmark — 7 arms (issue #1337)", "",
+        f"# Ablation benchmark — {len(bench_arms.ARM_NAMES)} arms (issue #1337)", "",
         f"Modelo: `{bench_run.lc.MODEL}` · braços: {', '.join(bench_arms.ARM_NAMES)}", "",
     ]
     for n in sorted(results_by_n):
@@ -317,9 +317,9 @@ def build_ablation_html_index(results_by_n: dict[int, dict]) -> str:
     body = "\n".join(sections)
     return f"""<!DOCTYPE html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><title>Ablation benchmark — 7 arms</title></head>
+<head><meta charset="utf-8"><title>Ablation benchmark — {len(bench_arms.ARM_NAMES)} arms</title></head>
 <body>
-<h1>Ablation benchmark: 7 arms (issue #1337)</h1>
+<h1>Ablation benchmark: {len(bench_arms.ARM_NAMES)} arms (issue #1337)</h1>
 <p>Modelo: <code>{bench_run.lc.MODEL}</code> &middot; braços: {", ".join(bench_arms.ARM_NAMES)}</p>
 {body}
 </body>
