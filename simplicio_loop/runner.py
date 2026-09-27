@@ -3089,10 +3089,10 @@ def _execute_routed_runtime(item: Mapping[str, Any], run_dir: Path, *,
     return summary
 
 
-# 1-3 tasks run inline in the checkout (v3.43 "1-3 direct" policy): edits are
-# instant and the quality lanes run once at the end, so worktree setup and
-# patch integration would be pure overhead. Worktrees start at 4 tasks.
-WAVE_INLINE_MAX_TASKS = 3
+# One task stays on the shared checkout and is executed with ``tick``.
+# Two or more tasks are a wave: disjoint lanes run together and the wave
+# returns only after every lane has integrated or failed closed.
+WAVE_INLINE_MAX_TASKS = 1
 
 
 def _auto_worktree_dispatch(
