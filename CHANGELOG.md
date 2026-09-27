@@ -2017,3 +2017,5 @@ require ML models, not stdlib code) — and are not faked.
 - LMCache inference accelerator, agentsview session-observability source adapter.
 - 11 runtime adapters + universal installer; hardened Ralph loop with bound operators
   (`simplicio-mapper` + `simplicio-cli`).
+
+- header-change: .claude/skills/simplicio-loop/SKILL.md (classic mapper + dev-cli flow restored)

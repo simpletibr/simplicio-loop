@@ -6,7 +6,7 @@ description: "Persist what a run taught you so the next run is cheaper and more 
 <!-- simplicio-contract:begin -->
 contract: simplicio-learn
 schema: simplicio.skill/v1
-purpose: "Persist what a run taught you so the next run is cheaper and more correct — mine high-signal lessons from the trajectory, dedup them, and write them back to AGENTS.md / memory so they're applied not re-derived.
+purpose: Persist what a run taught you so the next run is cheaper and more correct — mine high-signal lessons from the trajectory, dedup them, and write them back to AGENTS.md / memory so they're applied not re-derived.
 rules: Follow this skill end-to-end; mutable data (versions, dates, counts) lives in the footer, never in this header.
 <!-- simplicio-contract:end -->
 
