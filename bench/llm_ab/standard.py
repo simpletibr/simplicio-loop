@@ -325,9 +325,9 @@ def build_ablation_html_index(results_by_n: dict[int, dict]) -> str:
     body = "\n".join(sections)
     return f"""<!DOCTYPE html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><title>Ablation benchmark — 7 arms</title></head>
+<head><meta charset="utf-8"><title>Ablation benchmark — 5 arms</title></head>
 <body>
-<h1>Ablation benchmark: 7 arms (issue #1337)</h1>
+<h1>Ablation benchmark: 5 arms (issue #1337)</h1>
 <p>Modelo: <code>{bench_run.lc.MODEL}</code> &middot; braços: {", ".join(bench_arms.ARM_NAMES)}</p>
 {body}
 </body>
