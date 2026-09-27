@@ -164,7 +164,8 @@ def _usd(value: float | None) -> str:
 
 ABLATION_HEADERS = [
     "arm", "ok/n", "turns", "wall (s)", "custo calculado", "custo cobrado",
-    "cache hit", "tokens prompt", "tokens cache", "tokens completion",
+    "cache hit", "custo sem cache", "economia do cache",
+    "tokens prompt", "tokens cache", "tokens completion",
 ]
 
 
@@ -186,6 +187,11 @@ def _ablation_arm_row(arm: str, tasks: list[dict], pricing: dict) -> dict:
         return sum((t.get("totals") or {}).get(key) or 0 for t in tasks)
 
     prompt, cached, compl = int(tot("prompt_tokens")), int(tot("cached_tokens")), int(tot("completion_tokens"))
+    nocache = cache_saved = None
+    if pricing.get("prompt") is not None and pricing.get("completion") is not None:
+        breakdown = bench_cost.cost_breakdown(prompt, cached, compl, pricing)
+        cache_saved = breakdown["cache_savings_usd"]
+        nocache = breakdown["computed_cost_usd"] + cache_saved
     return {
         "arm": arm,
         "ok": sum(1 for t in tasks if t.get("success")),
@@ -198,6 +204,8 @@ def _ablation_arm_row(arm: str, tasks: list[dict], pricing: dict) -> dict:
         "prompt_tokens": prompt,
         "cached_tokens": cached,
         "completion_tokens": compl,
+        "nocache": nocache,
+        "cache_saved": cache_saved,
     }
 
 
@@ -222,6 +230,7 @@ def _ablation_row_cells(r: dict) -> list[str]:
     return [
         r["arm"], f"{r['ok']}/{r['n']}", str(r["turns"]), f"{r['wall']:.1f}",
         f"${r['computed_cost']:.5f}", f"${r['billed_cost']:.5f}", f"{r['cache_hit']:.1f}%",
+        _usd(r.get("nocache")), _usd(r.get("cache_saved")),
         str(r["prompt_tokens"]), str(r["cached_tokens"]), str(r["completion_tokens"]),
     ]
 
