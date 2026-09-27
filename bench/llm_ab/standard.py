@@ -40,6 +40,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -654,12 +655,16 @@ def run_ablation(args: argparse.Namespace) -> int:
     arm_arg = ",".join(bench_arms.ARM_NAMES)
     entries: list[tuple[int, str]] = []
 
+    # run.py names its raw result like the classic matrix (-t<N>.json); a
+    # separate scratch dir keeps it from overwriting that result.
+    raw_out = tempfile.mkdtemp(prefix=".ablation-raw-", dir=args.out)
+
     for n in ABLATION_TASK_COUNTS:
         print(f"=== ablation matrix: t{n} ({arm_arg}) ===", file=sys.stderr)
         run_argv = [
             "--arms", arm_arg,
             "--tasks", str(n),
-            "--out", args.out,
+            "--out", raw_out,
             "--task-timeout", str(args.task_timeout),
             "--skip-report",
             "--isolate-arms",
@@ -669,12 +674,13 @@ def run_ablation(args: argparse.Namespace) -> int:
             print(f"ablation matrix: run.py failed for t{n} (exit {rc})", file=sys.stderr)
             return rc
 
-        raw_path = _result_path_for(args.out, n, batch=False)
+        raw_path = _result_path_for(raw_out, n, batch=False)
         final_path = _ablation_result_path(args.out, n)
         os.replace(raw_path, final_path)
         print(f"wrote {final_path}", file=sys.stderr)
         entries.append((n, final_path))
 
+    shutil.rmtree(raw_out, ignore_errors=True)
     write_ablation_reports(entries, args.out)
     return per_call_cache_gate([(f"t{n}-ablation", path) for n, path in entries])
 
