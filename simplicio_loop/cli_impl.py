@@ -2135,7 +2135,7 @@ def tick(repo: str, run_id: str, task_index: int, provider_worker: str | None = 
 def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_budget: int,
           serial: bool = False, batch_size: Optional[int] = None,
           provider_worker: str | None = None, *, flow: str = "batch") -> int:
-    """Route up to three tasks directly; dispatch larger work in Prism waves."""
+    """One task stays direct. Two or more tasks enter the wave; Prism schedules a wave wider than three."""
     indices = None
     if task_indices.strip():
         try:

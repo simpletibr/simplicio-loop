@@ -37,17 +37,45 @@ def test_auto_fan_out_requires_independent_plan_targets(monkeypatch, tmp_path):
     assert {spec.files_affected[0] for spec in queue.registered} == {f"src/{n}.py" for n in names}
 
 
-def test_three_or_fewer_tasks_stay_inline_without_worktrees(tmp_path):
-    """1-3 tasks: edits are instant and quality lanes run once at the end, so
-    worktree setup/integration is pure overhead -- run inline in the tree."""
+def test_one_task_stays_on_the_shared_checkout(tmp_path):
+    """Exactly one task is ``tick`` on the shared tree, not a wave lane."""
     (tmp_path / ".git").mkdir()
+    contract = {"tasks": [{"identity": {"feature": "only"}}]}
+    plan = {"steps": [{"candidate_targets": ["src/only.py"]}]}
+    queue, contexts, reason = runner._auto_worktree_dispatch(
+        str(tmp_path), "run-1", contract, plan, [1]
+    )
+    assert (queue, contexts, reason) == (None, {}, "single_task")
+    assert runner.WAVE_INLINE_MAX_TASKS == 1
+
+
+def test_two_or_more_tasks_enter_the_wave(monkeypatch, tmp_path):
+    """More than one task is a wave. Two and three no longer stay inline."""
+    (tmp_path / ".git").mkdir()
+
+    class Queue:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+            self.registered = []
+
+        def register_tasks(self, specs):
+            self.registered = list(specs)
+
+        @staticmethod
+        def conflict_graph(specs):
+            return {spec.id: [] for spec in specs}
+
+    import scripts.worktree_queue as worktree_queue
+    monkeypatch.setattr(worktree_queue, "WorktreeQueue", Queue)
     for count in (2, 3):
         contract = {"tasks": [{"identity": {"feature": str(i)}} for i in range(count)]}
         plan = {"steps": [{"candidate_targets": [f"src/{i}.py"]} for i in range(count)]}
         queue, contexts, reason = runner._auto_worktree_dispatch(
             str(tmp_path), "run-1", contract, plan, list(range(1, count + 1))
         )
-        assert (queue, contexts, reason) == (None, {}, "inline_small_batch")
+        assert reason == ""
+        assert isinstance(queue, Queue)
+        assert set(contexts) == set(range(1, count + 1))
 
 
 def test_auto_fan_out_falls_back_for_overlapping_targets(monkeypatch, tmp_path):

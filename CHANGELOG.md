@@ -5,6 +5,7 @@ Total output lines: 1972
 
 ## [Unreleased] - monorepo
 
+- A wave starts at two tasks. One task stays on `tick` in the shared checkout; two or more enter the wave lane dispatcher instead of the old 1-3 inline cutoff. (#1354)
 - Restore the pre-monorepo flow inside this repo: one task runs `tick`, more than one task runs `wave`, both after `orient` and `prepare`. No external project install. (#1353)
 - On invocation the simplicio-loop skill starts the monorepo engine (`orient --brief` then `apply`; drain `prepare` → edit plans → `wave` → `verify`) for any repository via `--repo`, with the Mapper survey cached and `--tee` storing the JSON. (#1353)
 - Root hygiene pass: dropped ~40 committed `.simplicio/session/orientation-delivered.json`
