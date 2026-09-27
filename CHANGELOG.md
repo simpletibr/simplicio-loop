@@ -5,6 +5,7 @@ Total output lines: 1972
 
 ## [Unreleased] - monorepo
 
+- Restore the pre-monorepo flow inside this repo: one task runs `tick`, more than one task runs `wave`, both after `orient` and `prepare`. No external project install. (#1353)
 - On invocation the simplicio-loop skill starts the monorepo engine (`orient --brief` then `apply`; drain `prepare` → edit plans → `wave` → `verify`) for any repository via `--repo`, with the Mapper survey cached and `--tee` storing the JSON. (#1353)
 - Root hygiene pass: dropped ~40 committed `.simplicio/session/orientation-delivered.json`
   cache markers, a stale `benchmarks/projection-v4/` simulated report, an orphaned

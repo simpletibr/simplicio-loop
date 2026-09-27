@@ -12,49 +12,83 @@ rules: Follow this skill end-to-end; mutable data (versions, dates, counts) live
 
 # /simplicio-loop
 
-On invocation, start the engine. Do not survey the repository by hand. Any repository via `--repo <path>`.
+On invocation, start this engine. Do not explore the tree and do not call
+`simplicio-mapper scan`, `inspect`, or `handoff` by hand.
 
-Monorepo stays: `packages/mapper`, `packages/dev-cli`, loop at the root. No Runtime. No Fast package.
+One monorepo. `packages/mapper` surveys and `packages/dev-cli` applies.
+Do not install those as external projects. No Runtime. No Fast package.
+`orient` is the Mapper survey. It is cached: a second call on an unchanged
+tree reuses it. `--tee` stores the JSON in the tee cache.
 
-Self-referential iteration: the SAME goal is re-fed each turn. Exit ONLY when the typed `<promise>…</promise>` is true **and** in-turn evidence exists, or when `max_iterations` fires. Credit: Ralph Wiggum / cursor `ralph-loop`.
+Self-referential iteration: the SAME goal is re-fed each turn. Exit ONLY when
+the typed `<promise>…</promise>` is true **and** in-turn evidence exists, or
+when `max_iterations` fires. Credit: Ralph Wiggum / cursor `ralph-loop`.
 
-The host LLM writes find/replace text (`simplicio.dev-cli.edit-plan/v1`). The engine applies it. The loop never calls a provider to generate diffs.
+The host LLM writes find/replace text. The engine freezes, applies, and
+verifies it. The loop never calls a provider to write code.
 
-## GitHub source of truth
+## The flow (one task and many tasks)
 
-When the remote is GitHub, GitHub is the coordination SoT: Issues, PR comments, checks, merge path. Re-query live state before closing. Do not substitute another tracker unless the user asks.
-
-## Fast deterministic path
-
-The fast deterministic path is `orient --brief` then `apply`.
-
-```bash
-simplicio-loop orient --brief --repo <path> --task "<task>" [--task "<task 2>" ...] --json --tee
-simplicio-loop apply .simplicio-loop/ops.json --repo <path> --json
-```
-
-- That first call is the survey. It returns the route, target contents, and plan groups. Do not explore the tree before it, and do not re-run it when the brief already answered.
-- The Mapper survey is cached and a second call on an unchanged tree reuses it (git tree id plus the working-tree dirty hash).
-- `--tee` stores the JSON in the tee cache. `simplicio-loop retrieve` reads that object back.
-- `.simplicio-loop/ops.json` is `{"tasks":[{"id","operations":[{"path","find","replace"}],"check","depends_on"}],"repo_state_chain":"<copy from the brief>"}`. A `find` must match exactly once; `""` creates a new file.
-- `simplicio-loop apply` validates every `find` before writing, applies through `simplicio-dev-cli`, and runs independent checks concurrently. PASS means those checks already ran.
-
-## Drain path
-
-The drain path is `prepare` → edit plans → `wave` → `verify`.
+Run these, in order. The same sequence covers one task and many tasks.
+Any repository: pass `--repo <path>`.
 
 ```bash
-simplicio-loop orient --repo <path> --task "<goal>" --json --tee
+# 1. Survey (plain-prose goal, no "T1"/"T2" labels)
+simplicio-loop orient --repo <path> --task "<goal>" --tee --json
+
+# 2. Arm a run for 1..N tasks (see "Task file" below); prints run_id
 simplicio-loop prepare --task tasks.md --repo <path>
-# .simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json
-# {"operations":[{"path":"<file>","find":"<exact text, unique in file>","replace":"<new text>"}]}
+
+# 3. Per task N, write ONLY find/replace text:
+#    .simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json
+#    {"operations": [{"path": "calc/ops.py", "find": "<exact text, unique in file>", "replace": "<new text>"}]}
+
+# 4. Execute
+#    more than one task: one wave, lanes in parallel, finishes when every lane has integrated or failed closed
 simplicio-loop wave <run_id> --repo <path>
+#    exactly one task
+simplicio-loop tick <run_id> --repo <path> --task-index 1
+
+# 5. Independent verification
 simplicio-loop verify <run_id> --repo <path>
 ```
 
-Disjoint lanes run together with asyncio and the wave finishes only when every lane has integrated or failed closed. Paths that overlap stay in one lane and run in order. Integration back into the shared tree is serial.
+- Write every `edit-plan-<N>.json` up front. The loop freezes each one
+  (`simplicio-dev-cli edit --compile`) right before applying it, so task 2
+  binds to the tree task 1 left. A `find` that does not match exactly once
+  blocks that task. Fix the text and re-run. `find: ""` creates a missing
+  file and does not overwrite an existing non-empty file.
+- Disjoint paths run together with asyncio. Paths that overlap stay in one
+  lane, in order. Integration back into the shared tree is serial.
+- One small change, no run:
+  `simplicio-dev-cli edit --plan ops.json --compile plan.json` then
+  `simplicio-dev-cli edit --plan plan.json --apply --json` then
+  `simplicio-dev-cli test --json`.
+- **Never** `simplicio-dev-cli task "prose"` (answers `plan_required`).
 
-`find: ""` creates a missing file and never overwrites an existing non-empty file. **Never** `simplicio-dev-cli task "prose"` (answers `plan_required`).
+## Task file (`tasks.md`)
+
+One block per task. A new `System:` line starts the next block.
+
+```markdown
+System: calc
+Feature: add mul(a, b)
+Type: Feature
+
+1. Acceptance Criteria
+Scenario 1: mul multiplies two numbers — returns 12 for mul(3, 4)
+
+8. Additional Information
+Independent verifier: `python3 -m pytest -q`
+```
+
+`Type: Docs|Chore|Config` or `Tests: none` waives the lane matrix for that task.
+
+## Done
+
+`wave` and `tick` verify automatically. `simplicio-loop verify <run_id>`
+re-runs it. Done = run phase `done` and completion `VERIFIED` or `MEASURED`.
+Emit the `<promise>` only after that, in the same turn.
 
 ## Contract
 
@@ -81,25 +115,25 @@ started_at: "<ISO-8601>"
 <goal, verbatim>
 ```
 
-Journal: `.simplicio-loop/orchestrator/loop/journal.jsonl`. `simplicio-loop verify` re-runs the watcher and the delivery gates. Done means phase `done` and completion `VERIFIED` or `MEASURED`. Emit the promise only after that, in the same turn.
+Journal: `.simplicio-loop/orchestrator/loop/journal.jsonl`.
 
 ## Drive
 
 Hook hosts (Claude/Cursor): capture + stop hooks re-feed the goal.
 Self-paced hosts: re-read the scratchpad every turn; triage → decide → operate → verify → journal.
 
-Wave and governed runs: every turn's first line is `python3 scripts/loop_progress.py render --turn-header`. The fast path skips the scratchpad.
+Every turn's first line is `python3 scripts/loop_progress.py render --turn-header`.
 
 End every message: `DONE | NEXT | BLOCKED`.
 
 <!-- SIMPLICIO-LLM-ORIENTATION:BEGIN -->
 Loop orientation:
 - On invocation, start the engine. Any repository via `--repo <path>`.
-- Monorepo stays: packages/mapper, packages/dev-cli, loop at the root. No Runtime. No Fast package.
-- Fast deterministic path: simplicio-loop orient --brief then simplicio-loop apply.
-- Drain path: prepare → edit plans → simplicio-loop wave → simplicio-loop verify.
-- The Mapper survey is cached and a second call on an unchanged tree reuses it. `--tee` stores the JSON in the tee cache.
-- Disjoint lanes run together with asyncio and the wave finishes only when every lane has integrated or failed closed.
+- Monorepo: packages/mapper, packages/dev-cli, loop at the root. Do not install them as external projects. No Runtime. No Fast package.
+- One flow for one task and for many: orient --tee → prepare tasks.md → edit-plan-<N>.json → tick when exactly one task, wave when more than one → verify.
+- One small change, no run: simplicio-dev-cli edit --plan, compile, apply, test.
+- Mapper survey is cached. `--tee` stores the JSON.
+- Disjoint lanes run together with asyncio. The wave finishes only when every lane has integrated or failed closed.
 - GitHub is SoT for issues/PRs when the remote is GitHub.
 - Never simplicio-dev-cli task "prose". No plan → plan_required.
 - Review: 1 implement + 1 verify. Promise only after verify MEASURED.
@@ -108,14 +142,14 @@ Loop orientation:
 
 ## Bounded delivery
 
-One implementation issue and one delivery PR per worker. Freeze ACs before mutation. Findings: `AC_BLOCKER` / `REGRESSION_BLOCKER` / `FOLLOW_UP`. Only blockers hold the current delivery.
+One implementation issue and one delivery PR per worker. Freeze the goal before mutation. Findings: `AC_BLOCKER` / `REGRESSION_BLOCKER` / `FOLLOW_UP`. Only blockers hold the current delivery.
 
 ## Guardrails
 
 - Do not invent MEASURED numbers.
 - Do not close issues without a live GitHub re-query.
-- Do not hand-edit source as the primary mutation path; write the edit plan and let the engine apply it.
-- Parallelism: 1–3 tasks direct; >3 Prism. Writes serialized.
+- Do not hand-edit source as the primary mutation path. Write the edit plan and let the engine apply it.
+- Exactly one task uses `tick`. More than one task uses `wave`.
 
 Full per-turn protocol: `references/full-flow.md` — read it only when the task needs it.
 
