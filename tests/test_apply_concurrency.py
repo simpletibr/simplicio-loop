@@ -64,7 +64,15 @@ def test_two_independent_sleep_checks_run_concurrently(tmp_path):
     result = apply_mod.run(ops, repo=tmp_path)
     elapsed = time.monotonic() - started
     assert result["status"] == "PASS"
-    assert elapsed < 1.8, f"expected concurrent checks under 1.8s, took {elapsed:.2f}s"
+    # Dev-cli startup is part of each chain and varies by machine. Overlap is
+    # wall clock against the sum of the two recorded chains: a serial run is
+    # about that sum, a concurrent run is about the slower chain.
+    chain_s = sum(
+        task["apply_duration_s"] + task["check"]["duration_s"] for task in result["tasks"]
+    )
+    assert elapsed < chain_s * 0.75, (
+        f"expected overlapping chains, wall {elapsed:.2f}s vs sum {chain_s:.2f}s"
+    )
     assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "bye-a"
     assert (tmp_path / "b.txt").read_text(encoding="utf-8") == "bye-b"
 
