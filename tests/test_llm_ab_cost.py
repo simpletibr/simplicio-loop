@@ -248,6 +248,18 @@ def test_finalize_task_cost_billed_close_to_computed_is_not_flagged():
     assert abs(out["cost_divergence_pct"]) < 1.0
 
 
+def test_finalize_task_cost_flagged_zero_bill_is_not_stored_as_cost():
+    """A settled ledger delta of 0 that disagrees with the tokens is not the cost."""
+    totals = {"prompt_tokens": 1000, "cached_tokens": 0, "completion_tokens": 200,
+              "billed_cost_usd": 0.0, "cost_source": "billed-settled"}
+    out = cost.finalize_task_cost(totals, PRICING)
+    assert out["billed_cost_usd"] == 0.0
+    assert out["computed_cost_usd"] > 0
+    assert out["cost_usd"] == out["computed_cost_usd"]
+    assert out["cost_flag"] is True
+    assert out["cost_source"] == "computed-from-tokens"
+
+
 def test_finalize_task_cost_billed_far_from_computed_is_flagged():
     # billed ~4x under the token-computed price -- issue #1335's own example.
     totals = {"prompt_tokens": 1000, "cached_tokens": 0, "completion_tokens": 200,
