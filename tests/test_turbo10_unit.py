@@ -75,9 +75,9 @@ def test_prefix_cache_rule_matches_the_deepseek_harness():
     assert miss is not None
     assert miss["turn"] == 3
     result = json.loads(Path(
-        "bench/llm_ab/results/2026-09-28-2400cedd-t10.json"
+        "bench/llm_ab/results/2026-09-28-4a0a7bb6-t10.json"
     ).read_text(encoding="utf-8"))
-    assert result["meta"]["main_commit"] == "2400cedd"
+    assert result["meta"]["main_commit"] == "4a0a7bb6"
     calls = []
     for task in result["arms"]["simplicio"]["tasks"]:
         calls.extend(task.get("llm_calls") or [])
@@ -91,6 +91,7 @@ def test_prefix_cache_rule_matches_the_deepseek_harness():
     assert simplicio["total_wall_s"] < normal["total_wall_s"]
     normal_cost = sum((task.get("totals") or {}).get("cost_usd") or 0 for task in normal["tasks"])
     simplicio_cost = sum((task.get("totals") or {}).get("cost_usd") or 0 for task in simplicio["tasks"])
+    assert simplicio_cost > 0
     assert simplicio_cost < normal_cost
 
 
