@@ -74,7 +74,34 @@ LOGIN_TASKS = [
     },
 ]
 
-TASK_SET_CHOICES = (1, 2, 4)
+def page_tasks(n: int = 10) -> list[dict]:
+    """``n`` independent HTML pages, ``p01.html`` .. ``pNN.html``.
+
+    Each page is one harness task. ``--stage`` on ``check_page.py`` is the
+    page number. Used by the 10-task turbo comparison; the 1/2/4 cadastro
+    set is unchanged.
+    """
+    tasks = []
+    for index in range(1, n + 1):
+        pid = f"p{index:02d}"
+        tasks.append({
+            "index": index,
+            "kind": "create",
+            "depends_on": [index - 1] if index > 1 else [],
+            "target": f"{pid}.html",
+            "checker": "check_page.py",
+            "text": (
+                f"Create {pid}.html: a pure HTML page (no JS framework, no "
+                f'external CSS/JS) with a <form id="{pid}"> containing a '
+                "labeled input email (type=email, name=email, required) and "
+                "a submit button."
+            ),
+            "verify_stage": index,
+        })
+    return tasks
+
+
+TASK_SET_CHOICES = (1, 2, 4, 10)
 
 
 def task_set(n: int) -> list[dict]:
@@ -87,6 +114,8 @@ def task_set(n: int) -> list[dict]:
         return list(TASKS)
     if n == 4:
         return list(TASKS) + list(LOGIN_TASKS)
+    if n == 10:
+        return page_tasks(10)
     raise ValueError(f"unsupported task count {n!r}; choose from {TASK_SET_CHOICES}")
 
 

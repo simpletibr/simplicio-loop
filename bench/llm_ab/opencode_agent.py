@@ -118,11 +118,21 @@ def classify_command(command: str | None) -> bool:
 
 def build_prompt(arm: str, task_text: str) -> str:
     """``normal``: the task text unchanged. ``simplicio``: prefixed with
-    ``/simplicio-loop `` -- OpenCode's own slash-command convention for
-    invoking a skill by name, exactly like a human driving it interactively."""
-    if arm == "simplicio":
-        return "/simplicio-loop " + task_text
-    return task_text
+    ``/simplicio-loop ``. Turbo (``SIMPLICIO_BENCH_TURBO=1``) tells the
+    model to survey with Mapper once, write every file, and stop."""
+    if arm != "simplicio":
+        return task_text
+    if os.environ.get("SIMPLICIO_BENCH_TURBO") == "1":
+        return (
+            "/simplicio-loop turbo. "
+            "Run `simplicio-loop orient --repo . --task 'survey the pages' --tee --json` "
+            "exactly once so Mapper surveys the repo a single time. "
+            "Then write every HTML file the tasks name, in one pass. "
+            "Do not call orient again, do not explore, do not run --help. "
+            "Stop when those files exist.\n"
+            + task_text
+        )
+    return "/simplicio-loop " + task_text
 
 
 def install_skill(repo_dir: str, skill_src: str = SKILL_SRC) -> str:
@@ -566,8 +576,10 @@ def run_opencode(arm: str, prompt: str, repo_dir: str, *, key: str | None = None
     write_opencode_provider_config(config_dir, arm)
 
     full_prompt = prompt
-    if skill:
+    turbo = os.environ.get("SIMPLICIO_BENCH_TURBO") == "1" and arm == "simplicio"
+    if skill and not turbo:
         install_skill(repo_dir)
+    if skill or turbo:
         full_prompt = build_prompt(arm, prompt)
 
     env = build_env(arm, key, config_dir, extra_path=extra_path, isolated_path=isolated_path)
