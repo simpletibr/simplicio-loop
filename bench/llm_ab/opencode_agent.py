@@ -124,12 +124,9 @@ def build_prompt(arm: str, task_text: str) -> str:
         return task_text
     if os.environ.get("SIMPLICIO_BENCH_TURBO") == "1":
         return (
-            "/simplicio-loop turbo. "
-            "Run `simplicio-loop orient --repo . --task 'survey the pages' --tee --json` "
-            "exactly once so Mapper surveys the repo a single time. "
-            "Then write every HTML file the tasks name, in one pass. "
-            "Do not call orient again, do not explore, do not run --help. "
-            "Stop when those files exist.\n"
+            "/simplicio-loop turbo. Read the repo once, send that reading with "
+            "the tasks to the model, and apply the returned edit plan with "
+            "simplicio-dev-cli. Do not explore and do not hand-edit files.\n"
             + task_text
         )
     return "/simplicio-loop " + task_text

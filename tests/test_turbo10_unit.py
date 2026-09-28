@@ -158,3 +158,88 @@ def test_turbo_run_opencode_installs_the_skill(tmp_path, monkeypatch):
     joined = " ".join(seen["cmd"])
     assert "turbo" in joined
     assert "/simplicio-loop" in joined
+
+
+def test_turbo_prompt_follows_the_engine_flow(monkeypatch):
+    import bench.llm_ab.opencode_agent as oc
+    monkeypatch.setenv("SIMPLICIO_BENCH_TURBO", "1")
+    prompt = oc.build_prompt("simplicio", "Create the page described below.")
+    assert "simplicio-dev-cli" in prompt
+    assert "Read the repo once" in prompt
+    assert "write every HTML" not in prompt
+    assert "hand-edit files" in prompt
+
+
+def test_turbo_read_ai_devcli_writes_what_the_model_returns(tmp_path, monkeypatch):
+    """The shipped turbo reads, asks, and lets dev-cli create the file."""
+    import subprocess
+    from simplicio_loop.turbo import run_read_ai_devcli
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "a@b.c"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "a"], cwd=tmp_path, check=True)
+    (tmp_path / "README.md").write_text("fixture\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
+
+    def complete(arm, messages, **kwargs):
+        assert arm == "simplicio"
+        assert messages[0]["role"] == "system"
+        assert "MAPMARK" in messages[1]["content"]
+        assert "Create page" in messages[1]["content"]
+        return {
+            "ok": True,
+            "content": '{"operations":[{"path":"made.html","find":"","replace":"<p>made</p>"}]}',
+            "prompt_tokens": 120,
+            "completion_tokens": 30,
+            "reasoning_tokens": 0,
+            "cached_tokens": 0,
+        }
+
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    state = tmp_path / ".simplicio"
+    state.mkdir()
+    (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
+    tasks = [{"index": 1, "text": "Create page made.html with a paragraph."}]
+    result = run_read_ai_devcli(tmp_path, tasks, complete)
+    assert (tmp_path / "made.html").read_text(encoding="utf-8") == "<p>made</p>"
+    assert result["turns"] == 1
+    assert any("simplicio-dev-cli" in cmd["command"] and "--apply" in cmd["command"] for cmd in result["commands"])
+
+
+def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monkeypatch):
+    import subprocess
+    from simplicio_loop.turbo import run_turbo
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "a@b.c"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "a"], cwd=tmp_path, check=True)
+    (tmp_path / "README.md").write_text("fixture\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    state = tmp_path / ".simplicio"
+    state.mkdir()
+    (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
+    seen = []
+
+    def complete(arm, messages, **kwargs):
+        body = messages[1]["content"]
+        seen.append(body)
+        assert "MAPMARK" in body
+        name = "page" + body.strip().split("Tasks:", 1)[1].strip().split(".", 1)[0].strip()
+        return {
+            "ok": True,
+            "content": '{"operations":[{"path":"%s.html","find":"","replace":"<p>%s</p>"}]}' % (name, name),
+            "prompt_tokens": 40,
+            "completion_tokens": 10,
+            "reasoning_tokens": 0,
+            "cached_tokens": 0,
+        }
+
+    tasks = [{"index": index, "text": "Create %s" % index} for index in range(1, 5)]
+    result = run_turbo(tmp_path, tasks, complete)
+    assert result["wave"] is True
+    assert len(seen) == 4
+    assert (tmp_path / "page1.html").is_file()
+    assert (tmp_path / "page4.html").read_text(encoding="utf-8") == "<p>page4</p>"

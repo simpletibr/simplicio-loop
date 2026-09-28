@@ -91,6 +91,17 @@ def _pip_versions(python_bin: str) -> dict:
     }
 
 
+def _install_random_spec(repo_dir: str) -> None:
+    """Copy the drawn spec into the seeded repo so the harness checker can read it."""
+    spec = os.environ.get("SIMPLICIO_BENCH_RANDOM_SPEC")
+    if not spec:
+        return
+    dest = os.path.join(repo_dir, "tests", "random_spec.json")
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    import shutil
+    shutil.copy(spec, dest)
+
+
 def build_batch_prompt(task_list: list[dict]) -> str:
     """The single user-prompt text for ``--batch``: ALL of ``task_list`` in
     ONE prompt, one ``opencode run`` session per arm (issue #1310 follow-up,
@@ -132,6 +143,7 @@ def run_arm(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
     config_dir = config_dir or (repo_dir + "-oc-home")
 
     checker.seed_repo(fixture_dir, repo_dir)
+    _install_random_spec(repo_dir)
     subprocess.run(["git", "init", "-q"], cwd=repo_dir, check=True, timeout=15)
     _commit_if_changed(repo_dir, "seed fixture")
 
@@ -237,6 +249,7 @@ def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
     config_dir = config_dir or (repo_dir + "-oc-home")
 
     checker.seed_repo(fixture_dir, repo_dir)
+    _install_random_spec(repo_dir)
     subprocess.run(["git", "init", "-q"], cwd=repo_dir, check=True, timeout=15)
     _commit_if_changed(repo_dir, "seed fixture")
 
@@ -248,10 +261,10 @@ def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
 
     batch_prompt = build_batch_prompt(task_list)
     total_wall_t0 = time.time()
-    if os.environ.get("SIMPLICIO_BENCH_TURBO") == "1" and arm == "simplicio":
-        from simplicio_loop.turbo import survey_tasks
-        survey_tasks(Path(repo_dir), task_list)
-    if arm_spec is not None:
+    if arm == "simplicio" and arm_spec is None and os.environ.get("SIMPLICIO_BENCH_TURBO", "1") != "0":
+        from simplicio_loop.turbo import run_turbo
+        agent_result = run_turbo(Path(repo_dir), task_list, lc.chat)
+    elif arm_spec is not None:
         oc.install_skills(repo_dir, arm_spec["skills"])
         isolated_path = oc.build_arm_path(arm_spec["bins"])
         agent_result = oc.run_opencode(
@@ -414,11 +427,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
     ap.add_argument(
         "--turbo", action="store_true",
         help=(
-            "10-task turbo comparison: simplicio surveys with Mapper once, "
-            "then one OpenCode session for all tasks; normal stays one session "
-            "per task. This is the only comparison shape used to judge speed "
-            "and cost against the no-skill arm."
+            "Simplicio surveys with Mapper once, then one OpenCode session "
+            "that must run orient, prepare, edit plans, tick or wave, and "
+            "verify. Normal stays one session per task."
         ),
+    )
+    ap.add_argument(
+        "--random", action="store_true",
+        help="Draw 2 tasks at run time and compare them with --turbo.",
     )
     ap.add_argument(
         "--isolate-arms", action="store_true",
@@ -442,11 +458,22 @@ def main(argv=None) -> int:
 
     lc.keys_path()  # fail fast, before any work, if SIMPLICIO_BENCH_KEYS is unset/missing
 
-    if args.turbo and args.tasks != 10:
-        ap.error("--turbo compares exactly 10 tasks")
-    if args.turbo:
+    if args.random:
+        from random_tasks import generate, write_spec
+        drawn, spec = generate(2)
+        spec_path = os.path.join(tempfile.gettempdir(), "simplicio-random-spec.json")
+        write_spec(spec, Path(spec_path))
+        os.environ["SIMPLICIO_BENCH_RANDOM_SPEC"] = spec_path
         os.environ["SIMPLICIO_BENCH_TURBO"] = "1"
-    task_list = bench_tasks.task_set(args.tasks)
+        args.turbo = True
+        task_list = drawn
+        print("random tasks:", ", ".join(task["target"] for task in drawn), file=sys.stderr)
+    else:
+        if args.turbo and args.tasks != 10:
+            ap.error("--turbo compares exactly 10 tasks")
+        if args.turbo:
+            os.environ["SIMPLICIO_BENCH_TURBO"] = "1"
+        task_list = bench_tasks.task_set(args.tasks)
 
     fixture_dir = os.path.join(HERE, "fixture")
     work_dir = args.work_dir or default_work_dir()
@@ -462,7 +489,9 @@ def main(argv=None) -> int:
         config_dir = os.path.join(work_dir, f"{arm}-oc-home")
         # Turbo keeps the no-skill arm sequential (one cold session per task)
         # and folds the simplicio arm into one session after a single survey.
-        arm_fn = run_arm_batch if (args.turbo and arm == "simplicio") or args.batch else run_fn
+        # Turbo is the default simplicio arm: one Mapper read, then the model,
+        # then dev-cli. Above three tasks that runs as an asyncio wave.
+        arm_fn = run_arm_batch if arm == "simplicio" or args.batch else run_fn
         arms_results[arm] = arm_fn(
             arm, fixture_dir, repo_dir, args.python_bin, args.task_timeout,
             task_list=task_list, config_dir=config_dir,
