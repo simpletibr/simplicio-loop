@@ -26,3 +26,10 @@ def test_skill_does_not_hand_the_host_a_mapper_scan() -> None:
     text = SKILL.read_text(encoding="utf-8")
     assert "simplicio-mapper scan . --json" not in text
     assert "Do not install those as external projects." in text
+
+
+def test_skill_turbo_keeps_the_mapper_map_as_the_cached_header() -> None:
+    text = SKILL.read_text(encoding="utf-8")
+    assert "header and stays byte-identical" in text
+    assert "sent back once" in text
+    assert "call runs alone" in text

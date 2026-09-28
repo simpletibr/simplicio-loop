@@ -185,8 +185,10 @@ def test_turbo_read_ai_devcli_writes_what_the_model_returns(tmp_path, monkeypatc
     def complete(arm, messages, **kwargs):
         assert arm == "simplicio"
         assert messages[0]["role"] == "system"
-        assert "MAPMARK" in messages[1]["content"]
-        assert "Create page" in messages[1]["content"]
+        assert "MAPMARK" in messages[0]["content"]
+        assert messages[0]["role"] == "system"
+        assert "Create page" in messages[-1]["content"]
+        assert "MAPMARK" not in messages[-1]["content"]
         return {
             "ok": True,
             "content": '{"operations":[{"path":"made.html","find":"","replace":"<p>made</p>"}]}',
@@ -224,10 +226,13 @@ def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monke
     seen = []
 
     def complete(arm, messages, **kwargs):
-        body = messages[1]["content"]
-        seen.append(body)
-        assert "MAPMARK" in body
-        name = "page" + body.strip().split("Tasks:", 1)[1].strip().split(".", 1)[0].strip()
+        header = messages[0]["content"]
+        task = messages[-1]["content"]
+        seen.append(messages)
+        assert messages[0]["role"] == "system"
+        assert "MAPMARK" in header
+        assert "Tasks:" not in header
+        name = "page" + task.split("Tasks:", 1)[1].strip().split(".", 1)[0].strip()
         return {
             "ok": True,
             "content": '{"operations":[{"path":"%s.html","find":"","replace":"<p>%s</p>"}]}' % (name, name),
@@ -243,3 +248,115 @@ def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monke
     assert len(seen) == 4
     assert (tmp_path / "page1.html").is_file()
     assert (tmp_path / "page4.html").read_text(encoding="utf-8") == "<p>page4</p>"
+
+
+def test_devcli_rejection_is_sent_back_once(tmp_path, monkeypatch):
+    """A refused plan goes back to the model one time, then turbo stops."""
+    import subprocess
+    from simplicio_loop.turbo import run_turbo
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "a@b.c"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "a"], cwd=tmp_path, check=True)
+    (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    state = tmp_path / ".simplicio"
+    state.mkdir()
+    (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
+    seen = []
+
+    def complete(arm, messages, **kwargs):
+        seen.append(messages[-1]["content"])
+        if len(seen) == 1:
+            body = '{"operations":[{"path":"note.txt","find":"goodbye","replace":"bye"}]}'
+        else:
+            body = '{"operations":[{"path":"note.txt","find":"hello","replace":"bye"}]}'
+        return {
+            "ok": True,
+            "content": body,
+            "prompt_tokens": 50,
+            "completion_tokens": 20,
+            "reasoning_tokens": 0,
+            "cached_tokens": 0 if len(seen) == 1 else 40,
+        }
+
+    tasks = [{"index": 1, "text": "Replace hello with bye in note.txt."}]
+    result = run_turbo(tmp_path, tasks, complete)
+    assert len(seen) == 2
+    assert "dev-cli rejected the plan" in seen[1]
+    assert (tmp_path / "note.txt").read_text(encoding="utf-8") == "bye\n"
+    assert result["turns"] == 2
+    assert result["llm_calls"][1]["cached_tokens"] == 40
+
+
+def test_devcli_rejection_stops_after_one_correction(tmp_path, monkeypatch):
+    import subprocess
+    from simplicio_loop.turbo import run_turbo
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "a@b.c"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "a"], cwd=tmp_path, check=True)
+    (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    state = tmp_path / ".simplicio"
+    state.mkdir()
+    (state / "project-map.json").write_text("{}", encoding="utf-8")
+    seen = []
+
+    def complete(arm, messages, **kwargs):
+        seen.append(messages[-1]["content"])
+        return {
+            "ok": True,
+            "content": '{"operations":[{"path":"note.txt","find":"missing","replace":"x"}]}',
+            "prompt_tokens": 10,
+            "completion_tokens": 10,
+            "reasoning_tokens": 0,
+            "cached_tokens": 0,
+        }
+
+    run_turbo(tmp_path, [{"index": 1, "text": "Replace hello."}], complete)
+    assert len(seen) == 2
+    assert (tmp_path / "note.txt").read_text(encoding="utf-8") == "hello\n"
+
+
+def test_reader_prefix_stays_fixed_when_a_call_is_appended(tmp_path, monkeypatch):
+    """The Mapper reader is byte-identical on the retry; only the tail grows."""
+    import subprocess
+    from simplicio_loop.turbo import run_turbo
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "a@b.c"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "a"], cwd=tmp_path, check=True)
+    (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    state = tmp_path / ".simplicio"
+    state.mkdir()
+    (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
+    snapshots = []
+
+    def complete(arm, messages, **kwargs):
+        snapshots.append([dict(message) for message in messages])
+        if len(snapshots) == 1:
+            body = '{"operations":[{"path":"note.txt","find":"goodbye","replace":"bye"}]}'
+        else:
+            body = '{"operations":[{"path":"note.txt","find":"hello","replace":"bye"}]}'
+        return {
+            "ok": True, "content": body,
+            "prompt_tokens": 80, "completion_tokens": 20,
+            "reasoning_tokens": 0, "cached_tokens": 0 if len(snapshots) == 1 else 60,
+        }
+
+    run_turbo(tmp_path, [{"index": 1, "text": "Replace hello with bye in note.txt."}], complete)
+    first, second = snapshots
+    assert first[0] == second[0]
+    assert first[0]["role"] == "system"
+    assert "MAPMARK" in first[0]["content"]
+    assert second[:len(first)] == first
+    assert second[len(first)]["role"] == "assistant"
+    assert second[-1]["content"].startswith("dev-cli rejected the plan")

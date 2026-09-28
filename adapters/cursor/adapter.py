@@ -16,7 +16,7 @@ from typing import Any, Mapping
 
 SCHEMA = "simplicio.host-adapter/v1"
 HOST = "cursor"
-ADAPTER_VERSION = "3.43.16"
+ADAPTER_VERSION = "3.43.17"
 
 NATIVE_HOOKS = {
     "Stop": "hooks/stop.py",

@@ -20,6 +20,12 @@ Total output lines: 1972
   `CLAUDE.md`'s bound-operator links now point at `packages/mapper/` and `packages/dev-cli/`
   instead of the pre-monorepo external repos.
 
+## [3.43.17] - 2026-09-28
+
+- Turbo keeps the Mapper project map as a byte-identical header. The task text and the current target file stay in the suffix. A dev-cli rejection goes back once. Above three tasks the first call runs alone so later calls can read that header from prompt cache; dependent tasks stay in order and independent plans apply one at a time.
+- The standard 1-task and 4-task run of that path is recorded in `bench/llm_ab/results/2026-09-28-495a79e9-t1.json` and `2026-09-28-495a79e9-t4.json`, and rendered as `bench/llm_ab/REPORT.md` and `bench/llm_ab/REPORT.pdf`. The summary shows the model-priced cost beside the settled bill.
+- The report cache-hit gate marks the hit cell. Find/replace plans that already carry a schema still compile before apply (#1364).
+
 ## [3.43.16] - 2026-09-25
 
 - Wave lane dispatch: worktree-parallel lane execution (disjoint edit-plan
