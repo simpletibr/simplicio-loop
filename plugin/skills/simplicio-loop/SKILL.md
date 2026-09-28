@@ -20,10 +20,13 @@ Do not install those as external projects. No Runtime. No Fast package.
 `orient` is the Mapper survey. It is cached: a second call on an unchanged
 tree reuses it. `--tee` stores the JSON in the tee cache.
 
-Turbo, for a fixed set of many tasks: call that Mapper survey once, reuse the
-same generation for the rest of the set, write every target file, and stop.
-Do not survey again. A stable prompt prefix is required so every model call
-after the first reads prompt cache (DeepSeek harness `request-cache.e2e.ts`).
+Turbo is the default. Mapper reads the repo once and that project map
+is what the model sees. The model returns an edit plan and
+`simplicio-dev-cli` applies it. Up to three tasks share one model call.
+Above three tasks, wave turbo runs one lane per task with asyncio.
+The model does not edit files itself. A stable prompt prefix is required
+so every model call after the first reads prompt cache
+(DeepSeek harness `request-cache.e2e.ts`).
 
 Self-referential iteration: the SAME goal is re-fed each turn. Exit ONLY when
 the typed `<promise>…</promise>` is true **and** in-turn evidence exists, or
