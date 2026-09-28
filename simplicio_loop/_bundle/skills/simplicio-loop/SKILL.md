@@ -20,6 +20,17 @@ Do not install those as external projects. No Runtime. No Fast package.
 `orient` is the Mapper survey. It is cached: a second call on an unchanged
 tree reuses it. `--tee` stores the JSON in the tee cache.
 
+Turbo is the default. Mapper reads the repo once. That project map is the
+header and stays byte-identical on every call. The task text and the current
+target file are the suffix. The model returns an edit plan and
+`simplicio-dev-cli` applies it. A rejected plan is sent back once, then turbo
+stops. Up to three tasks share one model call. Above three tasks the first
+call runs alone, then the rest follow so every later call can read that
+header from prompt cache. Dependent tasks stay in order. Independent tasks
+share the header, and dev-cli applies one plan at a time. The model does not
+edit files itself. Every model call after the first must read prompt cache
+(DeepSeek harness `request-cache.e2e.ts`).
+
 Self-referential iteration: the SAME goal is re-fed each turn. Exit ONLY when
 the typed `<promise>…</promise>` is true **and** in-turn evidence exists, or
 when `max_iterations` fires. Credit: Ralph Wiggum / cursor `ralph-loop`.
@@ -60,6 +71,11 @@ simplicio-loop verify <run_id> --repo <path>
   file and does not overwrite an existing non-empty file.
 - Disjoint paths run together with asyncio. Paths that overlap stay in one
   lane, in order. Integration back into the shared tree is serial.
+- The 50 binding points are `references/extension-points.md`. A delivery run
+  still closes on `delivery_gate` and `verify`. Two or more tasks are one wave:
+  the lanes run together, and the wave returns only when every lane has closed.
+  If the machine is under disk pressure but still has safe workers, the wave
+  runs at that width instead of being skipped.
 - One small change, no run:
   `simplicio-dev-cli edit --plan ops.json --compile plan.json` then
   `simplicio-dev-cli edit --plan plan.json --apply --json` then
@@ -83,6 +99,9 @@ Independent verifier: `python3 -m pytest -q`
 ```
 
 `Type: Docs|Chore|Config` or `Tests: none` waives the lane matrix for that task.
+
+`Then` is its own line. A `Then` on the same line as `Given` or `When` is refused.
+When the Mapper handoff does not authorize files, each task needs `Target: <path>`.
 
 ## Done
 
