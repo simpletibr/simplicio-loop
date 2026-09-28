@@ -111,3 +111,22 @@ def test_dispatch_finds_a_minimal_host_plan_in_the_run_dir(tmp_path):
     plan, path, source = runner._resolve_host_edit_plan(tmp_path, task_index=2, env={})
     assert plan is not None and path.name == "edit-plan-2.json"
     assert source == "run_dir:edit-plan-2.json"
+
+
+def test_schema_find_replace_plan_is_still_compiled(tmp_path):
+    """Issue #1364: a schema does not skip compile when ops are still find/replace."""
+    repo = _repo(tmp_path)
+    plan_path = tmp_path / "edit-plan-1.json"
+    plan_path.write_text(json.dumps({
+        "schema": "simplicio.dev-cli.edit-plan/v1",
+        "operations": [{
+            "path": "ops.py",
+            "find": "    return a + b\n",
+            "replace": "    return a + b  # ok\n",
+        }],
+    }))
+    compiled, reason_code, error = runner._compile_minimal_host_plan(repo, plan_path)
+    assert reason_code == ""
+    assert error == ""
+    ops = compiled["operations"]
+    assert ops and "op" in ops[0]
