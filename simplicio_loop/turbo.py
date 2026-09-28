@@ -17,23 +17,15 @@ IndexFn = Callable[[Path], str]
 def _default_index(root: Path) -> str:
     """Run the shipped Mapper index once and digest the project map it wrote.
 
-    Mapper writes ``.simplicio/project-map.json``. An empty digest is not a
+    Mapper writes ``.simplicio-loop/project-map.json``. An empty digest is not a
     survey, so a missing map fails instead of being cached.
     """
     import hashlib
     from .cli_impl import _ensure_project_map
 
     _ensure_project_map(root)
-    candidates = (
-        root / ".simplicio" / "project-map.json",
-        root / ".simplicio-loop" / "project-map.json",
-    )
-    payload = b""
-    for path in candidates:
-        if path.is_file():
-            payload = path.read_bytes()
-            if payload:
-                break
+    path = root / ".simplicio-loop" / "project-map.json"
+    payload = path.read_bytes() if path.is_file() else b""
     if not payload:
         raise RuntimeError(f"mapper survey produced no project-map under {root}")
     return hashlib.sha256(payload).hexdigest()
@@ -91,12 +83,9 @@ _MAPPER_READING_LIMIT = 12000
 
 def mapper_reading(root: Path) -> str:
     """The Mapper project map. This is the only repo reading sent to the model."""
-    for path in (
-        root / ".simplicio" / "project-map.json",
-        root / ".simplicio-loop" / "project-map.json",
-    ):
-        if path.is_file() and path.stat().st_size:
-            return path.read_text(encoding="utf-8")[:_MAPPER_READING_LIMIT]
+    path = root / ".simplicio-loop" / "project-map.json"
+    if path.is_file() and path.stat().st_size:
+        return path.read_text(encoding="utf-8")[:_MAPPER_READING_LIMIT]
     raise RuntimeError(f"mapper survey produced no project-map under {root}")
 
 
@@ -173,7 +162,6 @@ def _call_record(reply: Mapping[str, Any], turn: int) -> dict[str, Any]:
 def _apply_operations(root: Path, operations: list[dict], binary: str, label: str) -> list[dict]:
     import json
     import subprocess
-    import threading
     state = root / ".simplicio-loop"
     state.mkdir(parents=True, exist_ok=True)
     ops_path = state / f"turbo-ops-{label}.json"

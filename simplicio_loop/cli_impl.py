@@ -2736,6 +2736,10 @@ def main(argv=None) -> int:
     p_install.add_argument("--verify", action="store_true", help="validate plan version/digest")
     p_install.add_argument("--uninstall", action="store_true", help="remove Loop-owned files only")
 
+    p_update = sub.add_parser("update", help="install the latest GitHub release of simpletibr/simplicio-loop")
+    p_update.add_argument("--check", action="store_true", help="only report installed vs latest; change nothing")
+    p_update.add_argument("--force", action="store_true", help="reinstall even when already on the latest release")
+
     p_dashboard = sub.add_parser("dashboard", help="open or stop the Token Monitor dashboard")
     p_dashboard.add_argument("--port", type=int, default=DEFAULT_DASH_PORT,
                              help="dashboard port (default: %(default)s)")
@@ -3229,6 +3233,9 @@ def main(argv=None) -> int:
             return drain_intake_main(argv_list)
     args = parser.parse_args(argv_list)
     command = args.command or "install"
+    if command == "update":
+        from .self_update import run_update
+        return run_update(check=args.check, force=args.force)
     if command == "dashboard":
         return dashboard(args.port, not args.no_browser, args.stop)
     if command == "task":

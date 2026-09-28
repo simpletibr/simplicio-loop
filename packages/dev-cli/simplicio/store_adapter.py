@@ -104,14 +104,9 @@ def _mapper_status() -> tuple[str | None, bool, str]:
         }:
             return None, False, "mapper-package-not-installed"
         return None, False, "mapper-api-unavailable"
-    try:
-        import importlib.metadata
+    from simplicio_mapper import __version__ as bundled_mapper_version
 
-        mapper_version = os.environ.get("SIMPLICIO_MAPPER_VERSION") or importlib.metadata.version(
-            "simplicio-mapper"
-        )
-    except importlib.metadata.PackageNotFoundError:
-        return None, False, "mapper-package-not-installed"
+    mapper_version = os.environ.get("SIMPLICIO_MAPPER_VERSION") or bundled_mapper_version
     match = re.match(r"^(\d+)\.(\d+)(?:\.(\d+))?", mapper_version)
     parsed = tuple(int(part or 0) for part in match.groups()) if match else None
     if parsed is None or parsed < MAPPER_MIN_VERSION:

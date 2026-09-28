@@ -1535,11 +1535,7 @@ def test_remaining_cache_and_boundary_guards_are_covered(
 
     no_version = dict(payload)
     no_version["producer"] = {}
-    monkeypatch.setattr(
-        mapper_context.importlib.metadata,
-        "version",
-        lambda _name: (_ for _ in ()).throw(mapper_context.importlib.metadata.PackageNotFoundError()),
-    )
+    monkeypatch.setitem(sys.modules, "simplicio_mapper", None)  # bundled mapper unimportable
     with pytest.raises(MapperContextError, match="MAPPER_VERSION_UNAVAILABLE"):
         bind_mapper_context(no_version, _pack(no_version))
 

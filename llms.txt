@@ -14,6 +14,7 @@ What this repo is:
 Current operator flow:
 - `simplicio-mapper --help` — survey operator; run `scan`, `inspect`, then `handoff`.
 - `simplicio-dev-cli --help` — governed edit/verify operator; use `task ... --target ...` for the decided AC.
+- Both operators are built into the one `simplicio-loop` wheel (`pip install simplicio-loop`); update with `simplicio-loop update`.
 - Run focused tests and `git diff --check`; re-query live PR/check/merge state before publishing.
 - Default profile is standalone: `SIMPLICIO_LOOP_REQUIRE_RUNTIME=off` and `SIMPLICIO_EXECUTION_PROFILE=standalone`.
 - Runtime/MCP is opt-in only; it is not part of the default flow and never replaces the two operators above.

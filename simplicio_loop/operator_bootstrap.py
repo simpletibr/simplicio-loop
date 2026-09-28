@@ -1,8 +1,8 @@
 """Bounded recovery for missing/incompatible Simplicio operators.
 
-The loop is allowed to repair only its two required operator binaries.  Their
-two distributions are requested directly: ``simplicio-cli`` exposes
-``simplicio-dev-cli`` and ``simplicio-mapper`` exposes the survey binary.
+The loop is allowed to repair only its two required operator binaries.  Both
+ship inside the single ``simplicio-loop`` distribution (monorepo), so that is
+the only package requested.
 Every attempt is persisted in the run directory and a run may perform at most
 one networked install.
 """
@@ -22,11 +22,7 @@ from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Seque
 SCHEMA = "simplicio.operator-bootstrap/v1"
 # Unpinned + --upgrade in _pip_commands → always the latest published release.
 # Floors live only in pyproject for install-time resolution; bootstrap upgrades freely.
-PACKAGE_SPECS = (
-    "simplicio-cli",
-    "simplicio-mapper",
-    "simplicio-loop",
-)
+PACKAGE_SPECS = ("simplicio-loop",)
 REQUIRED_BINARIES = ("simplicio-mapper", "simplicio-dev-cli")
 RECEIPT_NAME = "operator-bootstrap.json"
 AUTO_BOOTSTRAP_ENV = "SIMPLICIO_LOOP_AUTO_BOOTSTRAP_OPERATORS"

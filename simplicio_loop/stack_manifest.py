@@ -20,31 +20,29 @@ from typing import Any
 STACK_SCHEMA = "simplicio.loop-stack/v1"
 
 # Role labels are fixed; expected floors come from pyproject (see _train_components).
-# Issue #1343: public stack is mapper + cli + loop (Fast removed). simplicio-prompt
-# is not a required component and must not appear here.
+# Monorepo: mapper (survey) and dev-cli (mutation) are built into the single
+# simplicio-loop distribution, so the stack is one component.
 _COMPONENT_ROLES = (
-    ("simplicio-mapper", "understand"),
-    ("simplicio-cli", "change,verify"),
-    ("simplicio-loop", "run"),
+    ("simplicio-loop", "understand,change,verify,run"),
 )
 
 # Fallback floors when pyproject cannot be read (offline wheel / missing checkout).
-# simplicio-cli train target is 0.18.16 (loop's in-process dev-cli capability
-# probe reads simplicio.capabilities.load_capabilities_manifest()).
 _FALLBACK_FLOORS = {
-    "simplicio-mapper": "0.26.34",
-    "simplicio-cli": "0.18.16",
-    "simplicio-loop": "3.43.17",
+    "simplicio-loop": "3.44.0",
 }
 
-# These are operator identities, not distribution names.  ``simplicio-dev-cli``
-# is the required mutation entrypoint exported by the ``simplicio-cli``
-# distribution; it is intentionally checked separately from the distribution
-# so a partial or transitive install cannot look like a complete Loop stack.
+# Operator identities, not distribution names: both entrypoints are exported by
+# the single ``simplicio-loop`` distribution and checked separately so a partial
+# install cannot look like a complete Loop stack.
 REQUIRED_OPERATOR_BINDINGS = (
-    ("simplicio-mapper", "simplicio-mapper", "simplicio-mapper"),
-    ("simplicio-dev-cli", "simplicio-cli", "simplicio-dev-cli"),
+    ("simplicio-mapper", "simplicio-loop", "simplicio-mapper"),
+    ("simplicio-dev-cli", "simplicio-loop", "simplicio-dev-cli"),
 )
+
+# Pre-monorepo standalone distributions.  They own the same files as the single wheel
+# (simplicio/, simplicio_mapper/, the operator scripts): uninstalling one after the wheel
+# is installed deletes the wheel's files, so their presence is reported as drift.
+LEGACY_DISTRIBUTIONS = ("simplicio-cli", "simplicio-mapper")
 
 MAPPER_VERSION_SCHEMA = "simplicio.mapper-version/v1"
 REQUIRED_MAPPER_CAPABILITIES = (
@@ -92,31 +90,6 @@ def _dependency_specs_from_pyproject(pyproject_text: str) -> dict[str, str]:
     return result
 
 
-def _declared_dependency_specs() -> dict[str, str]:
-    """Read Loop's direct dependencies from checkout or installed metadata.
-
-    A wheel does not contain the repository's ``pyproject.toml``.  Falling back
-    to ``Requires-Dist`` keeps the same validation available to users who run
-    ``simplicio-loop-stack`` after a normal PyPI installation.
-    """
-    path = _pyproject_path()
-    if path.is_file():
-        try:
-            return _dependency_specs_from_pyproject(path.read_text(encoding="utf-8"))
-        except OSError:
-            pass
-    try:
-        requirements = metadata.requires("simplicio-loop") or []
-    except metadata.PackageNotFoundError:
-        requirements = []
-    return {
-        name: str(spec)
-        for spec in requirements
-        if (name := _requirement_name(str(spec)))
-        and "; extra ==" not in str(spec).lower()
-    }
-
-
 def _console_entrypoint_owners() -> dict[str, set[str]]:
     """Return console-script names grouped by their owning distribution."""
     owners: dict[str, set[str]] = {}
@@ -137,12 +110,11 @@ def _console_entrypoint_owners() -> dict[str, set[str]]:
 
 def operator_bindings() -> list[dict[str, Any]]:
     """Verify the two mandatory Loop operators and their real entrypoints."""
-    declared = _declared_dependency_specs()
     owners = _console_entrypoint_owners()
     bindings: list[dict[str, Any]] = []
     for operator, distribution, entrypoint in REQUIRED_OPERATOR_BINDINGS:
         normalized_distribution = _normalize_distribution_name(distribution)
-        dependency_declared = normalized_distribution in declared
+        dependency_declared = True  # bundled in this distribution
         installed = _installed_version(distribution)
         entrypoint_declared = entrypoint in owners.get(normalized_distribution, set())
         resolved = shutil.which(entrypoint) or ""
@@ -161,7 +133,7 @@ def operator_bindings() -> list[dict[str, Any]]:
             "distribution": distribution,
             "entrypoint": entrypoint,
             "dependency_declared": dependency_declared,
-            "dependency_spec": declared.get(normalized_distribution, ""),
+            "dependency_spec": "bundled in simplicio-loop",
             "installed": installed,
             "entrypoint_declared": entrypoint_declared,
             "resolved": resolved,
@@ -255,7 +227,9 @@ def _mapper_identity(binding: dict[str, Any], *, timeout_seconds: float = 10.0) 
     if receipt.get("component") != "simplicio-mapper":
         result["reason_code"] = "mapper-component-mismatch"
         return result
-    if receipt.get("version") != binding.get("installed"):
+    from simplicio_mapper import __version__ as bundled_mapper_version
+
+    if receipt.get("version") != bundled_mapper_version:
         result["reason_code"] = "mapper-version-mismatch"
         return result
     if not isinstance(result["artifact_digest"], str) or not result["artifact_digest"].startswith("sha256:"):
@@ -283,6 +257,10 @@ def _installed_version(distribution: str) -> str | None:
         return metadata.version(distribution)
     except metadata.PackageNotFoundError:
         return None
+
+
+def installed_legacy_distributions() -> list[str]:
+    return [name for name in LEGACY_DISTRIBUTIONS if _installed_version(name) is not None]
 
 
 def _version_tuple(version: str) -> tuple[int, int, int] | None:
@@ -325,15 +303,6 @@ def _train_components() -> list[tuple[str, str, str]]:
         except OSError:
             pass
     else:
-        # Installed wheels carry dependency metadata, but not the checkout's
-        # pyproject.  Use that metadata instead of retaining stale fallback
-        # floors from an older release.
-        for name, spec in _declared_dependency_specs().items():
-            if name not in floors or name == "simplicio-loop":
-                continue
-            floor_match = re.search(r"(?:>=|==|~=)\s*([0-9A-Za-z.\-+]+)", spec)
-            if floor_match:
-                floors[name] = floor_match.group(1)
         installed_loop = _installed_version("simplicio-loop")
         if installed_loop:
             floors["simplicio-loop"] = installed_loop
@@ -382,7 +351,9 @@ def stack_manifest() -> dict[str, Any]:
         if mapper_binding.get("status") == "ok" and mapper_identity["status"] != "ok"
         else []
     )
-    missing_or_drifted = list(dict.fromkeys([*drifted, *binding_drift, *identity_drift]))
+    legacy = installed_legacy_distributions()
+    legacy_drift = [f"{name}-legacy-standalone" for name in legacy]
+    missing_or_drifted = list(dict.fromkeys([*drifted, *binding_drift, *identity_drift, *legacy_drift]))
     return {
         "schema": STACK_SCHEMA,
         "version": 1,
@@ -391,6 +362,11 @@ def stack_manifest() -> dict[str, Any]:
         "operator_bindings": bindings,
         "mapper_identity": mapper_identity,
         "operator_contract_healthy": not binding_drift and not identity_drift,
+        "legacy_distributions": legacy,
+        "legacy_remediation": (
+            f"pip uninstall -y {' '.join(legacy)} && pip install --force-reinstall --no-deps simplicio-loop"
+            if legacy else ""
+        ),
         "healthy": not missing_or_drifted,
         "missing_or_drifted": missing_or_drifted,
         "source": "pyproject.toml or installed Requires-Dist metadata",
@@ -414,6 +390,9 @@ def main(argv: list[str] | None = None) -> int:
                 f"- operator {binding['operator']}: {binding['status']} "
                 f"({binding['distribution']} -> {binding['entrypoint']})"
             )
+        if document["legacy_distributions"]:
+            print("- legacy standalone distributions: " + ", ".join(document["legacy_distributions"])
+                  + f"\n  fix: {document['legacy_remediation']}")
     return 0 if document["healthy"] or not args.check else 1
 
 

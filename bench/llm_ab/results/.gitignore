@@ -1,1 +1,8 @@
 _work/
+# Only the release-standard runs (1 and 4 tasks, plain or -batch) are versioned.
+# Ad-hoc runs (other task counts, ablations, experiments) stay local.
+*.json
+!*-t1.json
+!*-t4.json
+!*-t1-batch.json
+!*-t4-batch.json

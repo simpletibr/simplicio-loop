@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "simplicio-loop"
-version = "3.43.17"
+version = "3.44.0"
 description = "Standalone orchestrator for mapper and simplicio-dev-cli. No Runtime."
 readme = "PYPI.md"
 requires-python = ">=3.11"
@@ -30,9 +30,13 @@ classifiers = [
 # (strict_mode.action_operator_status) reads simplicio.capabilities, hence
 # the simplicio-cli floor raise to 0.18.16.
 dependencies = [
-  "simplicio-cli>=0.18.16,<0.19",
-  "simplicio-mapper>=0.26.34,<0.27",
   "tiktoken>=0.12.0,<1",
+  # mapper (survey) + dev-cli (mutation) ship inside this wheel; their runtime deps:
+  "numpy>=2.1.0",
+  "httpx>=0.28.1",
+  "orjson>=3.11.9,<4",
+  "diskcache>=5.6.3,<6",
+  "libcst>=1.8.6",
 ]
 
 # Optional: the real embedding backend for `simplicio-cli semantic --ml` / `simplicio-cli rag --ml`.
@@ -66,13 +70,20 @@ simplicio-process-supervisor = "simplicio_loop.process_enforcement_cli:main"
 simplicio-loop-stack = "simplicio_loop.stack_manifest:main"
 simplicio-capabilities = "simplicio_loop.capability_catalog:main"
 simplicio-route = "simplicio_loop.route:main"
+# packages/mapper (survey) and packages/dev-cli (mutation) are built into this same wheel.
+simplicio-mapper = "simplicio_mapper.cli:main"
+llm-project-mapper = "simplicio_mapper.cli:main"
+simplicio-dev-cli = "simplicio.cli:main"
+simplicio-cli = "simplicio.cli:main"
+simplicio-py = "simplicio.cli:main"
+simplicio-codex-wrapper = "simplicio.codex_wrapper:main"
 
 [tool.setuptools]
 include-package-data = true
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["simplicio_loop*"]
+where = [".", "packages/mapper", "packages/dev-cli"]
+include = ["simplicio_loop*", "simplicio_mapper*", "simplicio", "simplicio.*"]
 namespaces = true
 
 [tool.setuptools.package-data]
@@ -80,9 +91,12 @@ simplicio_loop = ["_bundle/**/*", "_contracts/**/*.json", "_catalog/*.json"]
 "simplicio_loop._bundle" = ["**/*"]
 "simplicio_loop._contracts" = ["**/*.json", "*.json"]
 "simplicio_loop._catalog" = ["*.json"]
+# every non-Python file of the merged packages (contracts, schemas, templates, fixtures) ships
+simplicio = ["**/*", "**/.*"]
+simplicio_mapper = ["**/*", "**/.*"]
 
 [tool.setuptools.exclude-package-data]
-"*" = ["**/__pycache__/*", "**/*.py[cod]"]
+"*" = ["**/__pycache__/*", "**/*.py[cod]", "**/.DS_Store"]
 
 [tool.coverage.run]
 source = ["simplicio_loop"]

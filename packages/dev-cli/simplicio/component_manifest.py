@@ -43,7 +43,6 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass, field
-from importlib import metadata
 from pathlib import Path
 from typing import Any
 
@@ -317,10 +316,9 @@ def declared_own_version(root: str | os.PathLike[str] | None = None) -> str | No
     version = data.get("project", {}).get("version") if data else None
     if isinstance(version, str) and version:
         return version
-    try:
-        return metadata.version("simplicio-cli")
-    except metadata.PackageNotFoundError:
-        return None
+    from . import __version__
+
+    return __version__
 
 
 # ---------------------------------------------------------------------------#

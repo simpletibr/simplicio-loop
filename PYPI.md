@@ -13,6 +13,9 @@ checks, at up to **96% fewer tokens**. Not a chatbot. A worker.
 pip install simplicio-loop
 ```
 
+One wheel: mapper and dev-cli are built in, so it also provides the two required operators,
+`simplicio-mapper` and `simplicio-dev-cli`. Update later with `simplicio-loop update`.
+
 Then drop the skills + hooks into your project (or globally):
 
 ```bash
@@ -47,9 +50,8 @@ Now invoke it from your agent runtime (Claude Code, Cursor, Codex, Gemini, …):
 - **Token economy** — honest "answer concisely" baseline; savings credited only on verified-correct
   outcomes.
 
-Requires Python 3.11+. The Loop dependency closure includes `simplicio-mapper`
-and `simplicio-cli`; Python 3.11 is
-therefore the honest minimum for an installed bundle. The package remains
+Requires Python 3.11+. Mapper and dev-cli ship inside this wheel, so there are no separate
+`simplicio-mapper` / `simplicio-cli` packages to install. The package remains
 pure cross-platform Python.
 
 MIT — part of the [Simplicio](https://github.com/wesleysimplicio) ecosystem.

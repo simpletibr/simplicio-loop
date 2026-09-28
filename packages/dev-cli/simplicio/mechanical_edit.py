@@ -986,8 +986,10 @@ def _validate_canonical_plan(plan: dict[str, Any]) -> list[dict[str, Any]]:
         # hash to -- only such a pure-create plan may carry an empty
         # `source_hashes` binding.
         plan_operations = plan.get("operations")
-        only_creates = isinstance(plan_operations, list) and bool(plan_operations) and all(
-            isinstance(item, Mapping) and item.get("op") == "create_file" for item in plan_operations
+        only_creates = (
+            isinstance(plan_operations, list)
+            and bool(plan_operations)
+            and all(isinstance(item, Mapping) and item.get("op") == "create_file" for item in plan_operations)
         )
         binding_errors = validate_mapper_binding(binding, require_source_hashes=not only_creates)
         errors.extend({"code": "invalid_mapper_binding", "message": error} for error in binding_errors)

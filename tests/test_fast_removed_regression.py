@@ -85,11 +85,17 @@ def test_check_py_has_no_fast_package_gate():
     assert "run_cross_package_e2e" not in text
 
 
-def test_dev_install_sh_installs_only_three_packages():
+def test_dev_install_sh_installs_one_editable_root_package():
     text = _text("scripts/dev_install.sh")
     assert "packages/fast" not in text
-    assert "packages/mapper" in text
-    assert "packages/dev-cli" in text
+    # mapper + dev-cli are built into the root distribution, so the dev workspace is ONE
+    # editable install of the root package (no per-package editable installs).
+    editable_installs = [
+        line.strip()
+        for line in text.splitlines()
+        if "pip install" in line and " -e " in line and not line.lstrip().startswith("#")
+    ]
+    assert editable_installs == ['"$VENV_PY" -m pip install -e "$REPO[dev]"']
 
 
 def test_pyproject_has_no_simplicio_fast_dependency():

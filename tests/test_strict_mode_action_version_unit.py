@@ -1,6 +1,10 @@
 """Preflight operate-binary probes are in-process (no --version/--help subprocess)."""
 from __future__ import annotations
 
+import sys
+
+import simplicio_mapper
+
 from simplicio_loop import strict_mode
 
 
@@ -42,25 +46,19 @@ def test_action_operator_status_fails_closed_when_the_manifest_is_unavailable(mo
     assert "dev_cli_capabilities_unavailable" in status["error"]
 
 
-def test_mapper_status_reads_package_metadata_in_process(monkeypatch):
-    def fake_version(package: str) -> str:
-        return {"simplicio-mapper": "0.26.11"}[package]
-
+def test_mapper_status_reads_the_bundled_package_in_process(monkeypatch):
     def boom(*_a, **_k):
         raise AssertionError("mapper status must not spawn a subprocess")
 
-    monkeypatch.setattr(strict_mode._metadata, "version", fake_version)
+    monkeypatch.setattr(simplicio_mapper, "__version__", "0.26.11")
     monkeypatch.setattr(strict_mode.subprocess, "run", boom)
 
     mapper = strict_mode.mapper_status()
     assert mapper["operational"] is True and mapper["version"] == "0.26.11"
 
 
-def test_mapper_status_fails_closed_when_the_distribution_is_missing(monkeypatch):
-    def missing_version(package: str) -> str:
-        raise strict_mode._metadata.PackageNotFoundError(package)
-
-    monkeypatch.setattr(strict_mode._metadata, "version", missing_version)
+def test_mapper_status_fails_closed_when_the_package_is_missing(monkeypatch):
+    monkeypatch.setitem(sys.modules, "simplicio_mapper", None)
     status = strict_mode.mapper_status()
     assert status["operational"] is False
     assert status["present"] is False
@@ -75,10 +73,7 @@ def test_preflight_payload_reports_real_versions_from_in_process_probes(monkeypa
     }
     monkeypatch.setattr(strict_mode, "_load_dev_cli_capabilities", lambda: manifest)
 
-    def fake_version(package: str) -> str:
-        return {"simplicio-mapper": "0.26.11"}[package]
-
-    monkeypatch.setattr(strict_mode._metadata, "version", fake_version)
+    monkeypatch.setattr(simplicio_mapper, "__version__", "0.26.11")
 
     receipt = strict_mode.preflight_payload(str(tmp_path), strict=True)
     ops = {item["name"]: item for item in receipt["operators"]}

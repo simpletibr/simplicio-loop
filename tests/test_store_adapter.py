@@ -234,13 +234,3 @@ def test_mapper_route_fails_closed_when_version_is_absent_everywhere(monkeypatch
     report = probe_mapper()
     assert report.status == "incompatible"
     assert report.reason_code == "MAPPER_VERSION_UNAVAILABLE"
-
-
-def test_mapper_route_keeps_metadata_version_fallback(monkeypatch):
-    fake_mapper(monkeypatch)
-    del sys.modules["simplicio_mapper"].__version__
-    monkeypatch.setattr(importlib.metadata, "version", lambda _: "0.26.9")
-
-    report = probe_mapper()
-    assert report.status == "available"
-    assert report.mapper_version == "0.26.9"

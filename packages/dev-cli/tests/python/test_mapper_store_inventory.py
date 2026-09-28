@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib.metadata
 import json
 from pathlib import Path
 
@@ -118,12 +117,11 @@ def test_mapper_status_reports_uninstalled_and_unparseable_versions(monkeypatch)
     import simplicio.store_adapter as store_adapter
 
     monkeypatch.delenv("SIMPLICIO_MAPPER_VERSION", raising=False)
-    monkeypatch.setattr(
-        importlib.metadata,
-        "version",
-        lambda name: (_ for _ in ()).throw(importlib.metadata.PackageNotFoundError(name)),
-    )
-    assert store_adapter._mapper_status() == (None, False, "mapper-package-not-installed")
+    with monkeypatch.context() as unimportable:
+        unimportable.setattr(
+            store_adapter, "_MAPPER_IMPORT_ERROR", ModuleNotFoundError("no mapper", name="simplicio_mapper")
+        )
+        assert store_adapter._mapper_status() == (None, False, "mapper-package-not-installed")
 
     monkeypatch.setenv("SIMPLICIO_MAPPER_VERSION", "development")
     assert store_adapter._mapper_status() == ("development", False, "mapper-version-incompatible")
@@ -259,7 +257,8 @@ def test_inventory_reports_materialized_mapper_files_with_plans(tmp_path: Path) 
         ".simplicio-loop/mapper-store/memory-index/record.json",
     }
     assert (
-        materialized[".simplicio-loop/mapper-store/memory-index/record.json"]["owner"] == "Dev CLI memory adapter"
+        materialized[".simplicio-loop/mapper-store/memory-index/record.json"]["owner"]
+        == "Dev CLI memory adapter"
     )
     assert materialized[".simplicio-loop/mapper-store/route.json"]["target"]
     assert len(payload["store_plans"]) == 7

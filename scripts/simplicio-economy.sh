@@ -52,7 +52,7 @@ cmd_status() {
   _up "$PROXY_PORT"   && echo "  ● capture proxy      :$PROXY_PORT  live"   || echo "  ○ capture proxy      :$PROXY_PORT  OFFLINE (run: simplicio-economy up)"
   _up "$MONITOR_PORT" && echo "  ● token monitor      :$MONITOR_PORT  http://127.0.0.1:$MONITOR_PORT (open)" || echo "  ○ token monitor      on-demand — open: simplicio-economy monitor"
   pgrep -f simplicio_tray.py >/dev/null 2>&1 && echo "  ● menu-bar tray      running" || echo "  ○ menu-bar tray      on-demand — open: simplicio-economy tray"
-  if command -v simplicio-dev-cli >/dev/null 2>&1; then echo "  ● deterministic op   simplicio-dev-cli ready"; else echo "  ○ deterministic op   simplicio-dev-cli MISSING (pip install simplicio-cli)"; fi
+  if command -v simplicio-dev-cli >/dev/null 2>&1; then echo "  ● deterministic op   simplicio-dev-cli ready"; else echo "  ○ deterministic op   simplicio-dev-cli MISSING (pip install simplicio-loop)"; fi
   local an="✗" oa="✗"
   grep -qE "^export ANTHROPIC_BASE_URL=http://127.0.0.1:$PROXY_PORT" "$HOME/.zshrc" 2>/dev/null && an="✓"
   grep -qE "^export OPENAI_BASE_URL=http://127.0.0.1:$PROXY_PORT" "$HOME/.zshrc" 2>/dev/null && oa="✓"

@@ -53,7 +53,7 @@ SKILLS = ["simplicio-tasks", "simplicio-loop", "simplicio-orient",
 # prevents a partial/transitive install from leaving the loop without its mapper.
 # (the bare `simplicio` command is reserved for the separate `simplicio-runtime`, not this operator.)
 OPERATOR_PACKAGE = "simplicio-cli"
-OPERATOR_PACKAGES = ("simplicio-cli", "simplicio-mapper")
+OPERATOR_PACKAGES = ("simplicio-loop",)
 OPERATOR_BINS = ("simplicio-dev-cli", "simplicio-mapper")
 LEGACY_MARK_A, LEGACY_MARK_B = "<!-- simplicio-tasks:begin -->", "<!-- simplicio-tasks:end -->"
 MARK_A, MARK_B = "<!-- simplicio-loop:begin -->", "<!-- simplicio-loop:end -->"

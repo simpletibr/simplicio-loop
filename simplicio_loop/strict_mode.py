@@ -9,7 +9,6 @@ Runtime/MCP backend in this stack.
 
 from __future__ import annotations
 
-import importlib.metadata as _metadata
 import os
 import shutil
 import subprocess
@@ -95,31 +94,21 @@ def _probe_version(
         }
 
 
-def _metadata_status(binary: str, package: str) -> dict[str, Any]:
-    """In-process package-version probe -- no subprocess, no --version/--help.
-
-    Mapper ships as an ordinary installed Python distribution, so
-    its presence/version is a plain ``importlib.metadata`` read; a
-    missing distribution fails closed with a typed reason instead of
-    falling back to spawning the binary.
-    """
+def mapper_status(env: Optional[Mapping[str, str]] = None) -> dict[str, Any]:
+    """Probe the survey operator in-process: it ships inside this distribution."""
+    del env
     try:
-        version = _metadata.version(package)
-    except _metadata.PackageNotFoundError:
+        from simplicio_mapper import __version__ as version
+    except ImportError:
         return {
-            "binary": binary, "present": False, "operational": False, "version": "",
-            "error": "package_not_installed", "reason": "package_not_installed", "package": package,
+            "binary": "simplicio-mapper", "present": False, "operational": False, "version": "",
+            "error": "package_not_installed", "reason": "package_not_installed",
+            "package": "simplicio_mapper",
         }
     return {
-        "binary": binary, "present": True, "operational": True, "version": version,
-        "error": "", "package": package,
+        "binary": "simplicio-mapper", "present": True, "operational": True, "version": str(version),
+        "error": "", "package": "simplicio-loop",
     }
-
-
-def mapper_status(env: Optional[Mapping[str, str]] = None) -> dict[str, Any]:
-    """Probe the survey operator via installed package metadata, in-process."""
-    del env
-    return _metadata_status("simplicio-mapper", "simplicio-mapper")
 
 
 def _sanitize_version_banner(version: str) -> str:

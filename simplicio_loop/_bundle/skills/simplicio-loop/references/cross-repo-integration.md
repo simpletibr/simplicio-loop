@@ -41,7 +41,7 @@ next candidate.
 
 ### Optional dependency
 
-`simplicio-dev-cli` (from `pip install simplicio-cli`) is the **operate** operator of the loop
+`simplicio-dev-cli` (built into the `simplicio-loop` wheel) is the **operate** operator of the loop
 (see `SKILL.md` § Bound operators / `references/bound-operators.md`). The bare `simplicio` binary
 probed here is the separate `simplicio-runtime` package, which provides gate/nest/claims
 subcommands independently of the operator CLI. Neither is required for the loop to function; the

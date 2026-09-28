@@ -14,8 +14,8 @@
 | Project | Role (one line) | Install surface | Works alone? |
 |---------|-----------------|-----------------|--------------|
 | **simplicio-loop** | Orchestrator core + hardened Ralph loop — the entrypoint | `pip install simplicio-loop` + skills/hooks | **Yes** |
-| **simplicio-mapper** | Read-only repo observer / map / handoff | `simplicio-mapper` CLI | **Yes** |
-| **simplicio-dev-cli** | Focused plan compiler + deterministic edits | `simplicio-dev-cli` / `simplicio-py` | **Yes** |
+| **simplicio-mapper** | Read-only repo observer / map / handoff | `simplicio-mapper` CLI (built into the `simplicio-loop` wheel) | **Yes** |
+| **simplicio-dev-cli** | Focused plan compiler + deterministic edits | `simplicio-dev-cli` / `simplicio-py` (built into the `simplicio-loop` wheel) | **Yes** |
 
 **Law (bound operators, ADR 0009/0010):**
 
@@ -45,8 +45,11 @@
 ## 3. Step-by-step — first-time install
 
 ```bash
-pip install -U simplicio-loop simplicio-mapper simplicio-dev-cli
+pip install -U simplicio-loop   # one wheel: also provides simplicio-mapper and simplicio-dev-cli
 ```
+
+Mapper and dev-cli are built into the `simplicio-loop` wheel; there are no separate PyPI
+packages to install. Update later with `simplicio-loop update` (`--check` only reports).
 
 Or as a marketplace plugin:
 

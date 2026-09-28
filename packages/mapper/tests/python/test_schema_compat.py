@@ -220,50 +220,11 @@ class PreviousReleaseTagTest(unittest.TestCase):
             )
             self.assertIsNone(previous_release_tag(tmp))
 
-    def test_resolves_prefixed_tag_from_package_name(self) -> None:
-        """A package tags its own releases as ``<short-name>-vX.Y.Z``; the
-        prefix is derived from this package's own ``pyproject.toml`` name,
-        never from the enclosing monorepo's tags or dirname."""
-        import subprocess
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as tmp:
-            subprocess.run(["git", "init", "-q", tmp], check=True)
-            subprocess.run(
-                ["git", "-C", tmp, "config", "user.email", "test@example.com"],
-                check=True,
-            )
-            subprocess.run(
-                ["git", "-C", tmp, "config", "user.name", "test"], check=True
-            )
-            (Path(tmp) / "pyproject.toml").write_text(
-                '[project]\nname = "simplicio-widget"\n', encoding="utf-8"
-            )
-            subprocess.run(["git", "-C", tmp, "add", "."], check=True)
-            subprocess.run(
-                ["git", "-C", tmp, "commit", "-q", "-m", "init"], check=True
-            )
-            subprocess.run(
-                ["git", "-C", tmp, "tag", "widget-v1.0.0"], check=True
-            )
-            (Path(tmp) / "README.md").write_text("later\n", encoding="utf-8")
-            subprocess.run(["git", "-C", tmp, "add", "."], check=True)
-            subprocess.run(
-                ["git", "-C", tmp, "commit", "-q", "-m", "second"], check=True
-            )
-            tag = previous_release_tag(tmp)
-            self.assertEqual(tag, "widget-v1.0.0")
-
-    def test_read_file_at_ref_returns_none_for_missing_ref(self) -> None:
-        self.assertIsNone(
-            read_file_at_ref(str(ROOT), "not-a-real-ref-xyz", "package.json")
-        )
-
     def test_read_file_at_ref_reads_real_content(self) -> None:
         tag = previous_release_tag(str(ROOT))
-        content = read_file_at_ref(str(ROOT), tag, "package.json")
+        content = read_file_at_ref(str(ROOT), tag, "pyproject.toml")
         self.assertIsNotNone(content)
-        json.loads(content)  # must be valid JSON
+        self.assertIn("[project]", content)
 
 
 class ClassifyVersionOnlySurfaceTest(unittest.TestCase):

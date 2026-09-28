@@ -9,7 +9,6 @@ import shlex
 import shutil
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
 
@@ -43,11 +42,11 @@ REQUIRED_TASK_FLAGS = (
 )
 
 MAPPER_API_PROBE = r'''
-import importlib.metadata as metadata
 import json
 import sys
 from pathlib import Path
 
+import simplicio_mapper
 from simplicio_mapper.store import OperationsStore, resolve_store_location
 
 root = Path(sys.argv[1])
@@ -88,7 +87,7 @@ status = store.status("compatibility-task")
 assert status["state"] == "completed", status
 
 print(json.dumps({
-    "installed_version": metadata.version("simplicio-mapper"),
+    "installed_version": simplicio_mapper.__version__,
     "store_schema": initialized["schema"],
     "resolved_source": location.source,
     "task_status": status["state"],
@@ -96,9 +95,9 @@ print(json.dumps({
 '''
 
 DEV_CLI_API_PROBE = r'''
-import importlib.metadata as metadata
 import json
 
+import simplicio
 from simplicio.plan_compiler import PLAN_DAG_SCHEMA, PlanDAG, PlanNode, VerificationPlan
 
 edit = PlanNode(
@@ -135,7 +134,7 @@ assert plan.to_dict()["schema"] == PLAN_DAG_SCHEMA == "simplicio.plan-dag/v1"
 assert round_trip.canonical_hash() == plan.canonical_hash()
 
 print(json.dumps({
-    "installed_version": metadata.version("simplicio-cli"),
+    "installed_version": simplicio.__version__,
     "plan_schema": PLAN_DAG_SCHEMA,
     "node_count": len(round_trip.nodes),
     "round_trip_hash": round_trip.canonical_hash(),
@@ -147,14 +146,18 @@ def _version(value: str) -> tuple[int, ...]:
     return tuple(int(part) for part in value.split("."))
 
 
-def _bounds(dependency: str, name: str) -> tuple[str, str]:
-    match = re.fullmatch(rf"{re.escape(name)}>=(\d+\.\d+\.\d+),<(\d+(?:\.\d+){{0,2}})", dependency)
-    assert match, f"unexpected dependency declaration for {name}: {dependency}"
-    return match.group(1), match.group(2)
+def _bundled_version(name: str) -> str:
+    import simplicio
+    import simplicio_mapper
+
+    return {"simplicio-mapper": simplicio_mapper, "simplicio-cli": simplicio}[name].__version__
 
 
 def _operator_binary(name: str) -> str:
-    binary = shutil.which(name)
+    # The operators are console scripts of this repo's single simplicio-loop wheel, so prefer
+    # the ones installed next to the interpreter running the tests over anything else on PATH
+    # (a stale global install must not stand in for the bundled operators).
+    binary = shutil.which(name, path=str(Path(sys.executable).parent)) or shutil.which(name)
     assert binary, (
         f"required installed public operator {name!r} is unavailable on PATH; "
         "source-head compatibility evidence cannot be collected"
@@ -263,15 +266,10 @@ def _assert_installed_version(name: str, installed_version: object) -> None:
         f"installed {name} {installed_version} is older than requested source head "
         f"{requested_version}"
     )
-    manifest = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    dependencies = manifest["project"]["dependencies"]
-    declaration = next(
-        dependency for dependency in dependencies
-        if dependency.startswith(f"{name}>=")
-    )
-    floor, ceiling = _bounds(declaration, name)
-    assert _version(floor) <= _version(installed_version) < _version(ceiling), (
-        f"installed {name} {installed_version} falls outside {declaration}"
+    bundled_version = _bundled_version(name)
+    assert installed_version == bundled_version, (
+        f"the {name} operator reports {installed_version} but the simplicio-loop wheel "
+        f"bundles {bundled_version}"
     )
 
 
@@ -303,18 +301,11 @@ def _run_operator_contract_probes(root: Path) -> dict[str, dict[str, object]]:
     }
 
 
-def test_requested_source_heads_satisfy_loop_dependency_floors() -> None:
-    manifest = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    dependencies = manifest["project"]["dependencies"]
-
+def test_requested_source_heads_are_bundled_in_the_loop_wheel() -> None:
     for name, source_version in SOURCE_HEAD_VERSIONS.items():
-        declaration = next(
-            dependency for dependency in dependencies
-            if dependency.startswith(f"{name}>=")
-        )
-        floor, ceiling = _bounds(declaration, name)
-        assert _version(floor) <= _version(source_version) < _version(ceiling), (
-            f"{name} declaration {declaration} excludes requested source head "
+        bundled_version = _bundled_version(name)
+        assert _version(bundled_version) >= _version(source_version), (
+            f"bundled {name} {bundled_version} is older than requested source head "
             f"{source_version}"
         )
 

@@ -772,9 +772,7 @@ def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list
     if create_ops:
         compiled["operations"] = sorted(compiled["operations"] + create_ops, key=lambda op: op["path"])
         compiled["touched_files"] = sorted(set(compiled["touched_files"]) | {op["path"] for op in create_ops})
-        compiled["plan_digest"] = _canonical_digest(
-            {k: v for k, v in compiled.items() if k != "plan_digest"}
-        )
+        compiled["plan_digest"] = _canonical_digest({k: v for k, v in compiled.items() if k != "plan_digest"})
     return compiled, []
 
 

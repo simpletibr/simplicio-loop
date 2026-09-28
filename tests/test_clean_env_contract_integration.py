@@ -24,7 +24,13 @@ def test_clean_env_contract_check_reports_structured_checks():
     payload = json.loads(r.stdout)
     names = {row.get("name") for row in payload.get("checks", [])}
     assert payload.get("ok") in (True, False)
-    assert {"dependency.simplicio_cli", "entrypoint.cli", "bundle.skill.exists"} <= names
+    assert {"dependency.no_external_operators", "entrypoint.cli", "bundle.skill.exists"} <= names
+    # mapper and dev-cli are bundled in the single wheel: the per-operator dependency checks are gone
+    assert not {"dependency.simplicio_cli", "dependency.simplicio_mapper"} & names
+    no_external = next(
+        row for row in payload["checks"] if row.get("name") == "dependency.no_external_operators"
+    )
+    assert no_external["ok"] is True, no_external
 
 
 if __name__ == "__main__":

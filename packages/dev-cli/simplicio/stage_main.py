@@ -15,7 +15,9 @@ from .mutation_worker import MutationWorker
 def _tree_hash(root: Path) -> str:
     digest = hashlib.sha256()
     for path in sorted(
-        p for p in root.rglob("*") if p.is_file() and ".git" not in p.parts and ".simplicio-loop" not in p.parts
+        p
+        for p in root.rglob("*")
+        if p.is_file() and ".git" not in p.parts and ".simplicio-loop" not in p.parts
     ):
         digest.update(path.relative_to(root).as_posix().encode())
         digest.update(b"\0")

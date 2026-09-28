@@ -540,7 +540,9 @@ def test_reconcile_invalid_receipt_is_durable_unknown(tmp_path, effect, context)
 
     assert outcome.state == "effect_unknown"
     assert outcome.reason_codes == ["RECEIPT_CORRELATION_MISMATCH"]
-    persisted = json.loads(next((tmp_path / ".simplicio-loop/runtime-effects").glob("*.outcome.json")).read_text())
+    persisted = json.loads(
+        next((tmp_path / ".simplicio-loop/runtime-effects").glob("*.outcome.json")).read_text()
+    )
     assert persisted["state"] == "effect_unknown"
 
 
@@ -556,7 +558,9 @@ def test_restart_reconcile_negotiation_failure_is_durable_unknown(tmp_path, effe
 
     assert outcome.state == "effect_unknown"
     assert outcome.reason_codes == ["RUNTIME_TRANSPORT_ERROR"]
-    persisted = json.loads(next((tmp_path / ".simplicio-loop/runtime-effects").glob("*.outcome.json")).read_text())
+    persisted = json.loads(
+        next((tmp_path / ".simplicio-loop/runtime-effects").glob("*.outcome.json")).read_text()
+    )
     assert persisted["state"] == "effect_unknown"
 
 

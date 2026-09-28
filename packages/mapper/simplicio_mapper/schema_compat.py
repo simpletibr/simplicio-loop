@@ -65,36 +65,6 @@ REPO_ROOT = os.path.dirname(_PACKAGE_DIR)
 _VERSION_TAG_RE = re.compile(r"^v\d+\.\d+\.\d+$")
 
 
-def _package_tag_prefix(root: str) -> str:
-    """Return this package's release-tag prefix (monorepo, issue #280 follow-up).
-
-    A monorepo host holds several packages under one ``git`` history, so a
-    bare ``vX.Y.Z`` tag is ambiguous. Each package tags its own releases as
-    ``<short-name>-vX.Y.Z`` (e.g. ``mapper-v1.2.3``), except the umbrella
-    ``simplicio-loop`` package at the repo root, which keeps the legacy
-    unprefixed ``vX.Y.Z`` scheme. The short name is derived from this
-    package's own ``pyproject.toml`` ``[project] name`` -- never from the
-    enclosing git remote or checkout dirname, which name the monorepo, not
-    the package.
-    """
-    pyproject = os.path.join(root, "pyproject.toml")
-    name = ""
-    try:
-        with open(pyproject, encoding="utf-8") as handle:
-            for line in handle:
-                stripped = line.strip()
-                if stripped.startswith("name") and "=" in stripped:
-                    _, _, value = stripped.partition("=")
-                    name = value.strip().strip('"').strip("'")
-                    break
-    except OSError:
-        pass
-    if not name or name == "simplicio-loop":
-        return ""
-    if name.startswith("simplicio-"):
-        name = name[len("simplicio-") :]
-    return f"{name}-"
-
 #: Artifact surfaces named in issue #280 that have a real on-disk JSON
 #: Schema file to structurally diff. ``(surface name, repo-relative path)``.
 TRACKED_JSON_SCHEMAS: tuple[tuple[str, str], ...] = (
@@ -174,14 +144,8 @@ def previous_release_tag(root: str | None = None, before_ref: str = "HEAD") -> s
     silently skip the check.
     """
     resolved_root = os.path.abspath(root or REPO_ROOT)
-    prefix = _package_tag_prefix(resolved_root)
-    tag_re = (
-        _VERSION_TAG_RE
-        if not prefix
-        else re.compile(rf"^{re.escape(prefix)}v\d+\.\d+\.\d+$")
-    )
     result = _run_git(
-        ["tag", "--list", f"{prefix}v*", "--sort=-creatordate", "--merged", before_ref],
+        ["tag", "--list", "v*", "--sort=-creatordate", "--merged", before_ref],
         resolved_root,
     )
     if result is None or result.returncode != 0:
@@ -189,7 +153,7 @@ def previous_release_tag(root: str | None = None, before_ref: str = "HEAD") -> s
     head_sha = _commit_sha_for_ref(resolved_root, before_ref)
     for line in result.stdout.splitlines():
         tag = line.strip()
-        if not tag or not tag_re.match(tag):
+        if not tag or not _VERSION_TAG_RE.match(tag):
             continue
         tag_sha = _commit_sha_for_ref(resolved_root, tag)
         if tag_sha is not None and tag_sha == head_sha:
