@@ -24,7 +24,12 @@ def test_hermetic_comparison_is_ten_tasks_and_does_not_call_openrouter(tmp_path,
         raise AssertionError("OpenRouter was called")
 
     monkeypatch.setattr("urllib.request.urlopen", refuse)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda _root: None)
+    def write_map(root):
+        state = Path(root) / ".simplicio"
+        state.mkdir(parents=True, exist_ok=True)
+        (state / "project-map.json").write_text('{"files": 6}', encoding="utf-8")
+
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", write_map)
     out = tmp_path / "hermetic.json"
     rc = compare10.main(["--root", str(tmp_path), "--out", str(out)])
     payload = json.loads(out.read_text(encoding="utf-8"))
@@ -41,9 +46,9 @@ def test_mapper_survey_runs_once_and_is_reused_for_the_other_nine(tmp_path, monk
 
     def fake_index(root):
         calls.append(root)
-        state = root / ".simplicio-loop"
+        state = root / ".simplicio"
         state.mkdir(parents=True, exist_ok=True)
-        (state / "project-map.json").write_text("{}", encoding="utf-8")
+        (state / "project-map.json").write_text('{"files": 6}', encoding="utf-8")
 
     monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", fake_index)
     tasks = bench_tasks.task_set(10)

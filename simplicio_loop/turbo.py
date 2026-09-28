@@ -15,13 +15,27 @@ IndexFn = Callable[[Path], str]
 
 
 def _default_index(root: Path) -> str:
-    """Run the shipped Mapper index once and return a stable digest."""
+    """Run the shipped Mapper index once and digest the project map it wrote.
+
+    Mapper writes ``.simplicio/project-map.json``. An empty digest is not a
+    survey, so a missing map fails instead of being cached.
+    """
+    import hashlib
     from .cli_impl import _ensure_project_map
 
     _ensure_project_map(root)
-    project_map = root / ".simplicio-loop" / "project-map.json"
-    payload = project_map.read_bytes() if project_map.is_file() else b""
-    import hashlib
+    candidates = (
+        root / ".simplicio" / "project-map.json",
+        root / ".simplicio-loop" / "project-map.json",
+    )
+    payload = b""
+    for path in candidates:
+        if path.is_file():
+            payload = path.read_bytes()
+            if payload:
+                break
+    if not payload:
+        raise RuntimeError(f"mapper survey produced no project-map under {root}")
     return hashlib.sha256(payload).hexdigest()
 
 
