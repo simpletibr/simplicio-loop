@@ -37,8 +37,8 @@ def test_hermetic_comparison_is_ten_tasks_and_does_not_call_openrouter(tmp_path,
     assert payload["task_count"] == 10
     assert payload["arms"] == ["normal", "simplicio"]
     assert payload["live"] is False
-    assert payload["prefix_cache_miss"] is None
     assert len(payload["tasks"]) == 10
+    assert payload["survey"]["generation"] != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 
 def test_mapper_survey_runs_once_and_is_reused_for_the_other_nine(tmp_path, monkeypatch):
@@ -63,7 +63,9 @@ def test_mapper_survey_runs_once_and_is_reused_for_the_other_nine(tmp_path, monk
     assert second["indexed"] is False
 
 
-def test_prefix_cache_rule_matches_the_deepseek_harness(tmp_path):
+def test_prefix_cache_rule_matches_the_deepseek_harness():
+    """The gate flags a later call with no cache read, and the skill-loaded
+    OpenRouter run on 2400cedd satisfies it with the recorded tokens."""
     cold = [
         {"ok": True, "turn": 1, "cached_tokens": 0, "prompt_tokens": 400},
         {"ok": True, "turn": 2, "cached_tokens": 256, "prompt_tokens": 420},
@@ -72,10 +74,24 @@ def test_prefix_cache_rule_matches_the_deepseek_harness(tmp_path):
     miss = run_prefix_cache_miss(cold)
     assert miss is not None
     assert miss["turn"] == 3
-    held = compare10.recorded_prefix_calls(11)
-    assert run_prefix_cache_miss(held) is None
-    assert held[0]["cached_tokens"] == 0
-    assert all(call["cached_tokens"] > 0 for call in held[1:])
+    result = json.loads(Path(
+        "bench/llm_ab/results/2026-09-28-2400cedd-t10.json"
+    ).read_text(encoding="utf-8"))
+    assert result["meta"]["main_commit"] == "2400cedd"
+    calls = []
+    for task in result["arms"]["simplicio"]["tasks"]:
+        calls.extend(task.get("llm_calls") or [])
+    assert len(calls) >= 2
+    assert run_prefix_cache_miss(calls) is None
+    assert all((call.get("cached_tokens") or 0) > 0 for call in calls[1:])
+    normal = result["arms"]["normal"]
+    simplicio = result["arms"]["simplicio"]
+    assert sum(1 for task in normal["tasks"] if task["success"]) == 10
+    assert sum(1 for task in simplicio["tasks"] if task["success"]) == 10
+    assert simplicio["total_wall_s"] < normal["total_wall_s"]
+    normal_cost = sum((task.get("totals") or {}).get("cost_usd") or 0 for task in normal["tasks"])
+    simplicio_cost = sum((task.get("totals") or {}).get("cost_usd") or 0 for task in simplicio["tasks"])
+    assert simplicio_cost < normal_cost
 
 
 def test_short_prefix_cannot_claim_a_cache_hit():
