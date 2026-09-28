@@ -257,7 +257,8 @@ def test_inventory_reports_materialized_mapper_files_with_plans(tmp_path: Path) 
         ".simplicio-loop/mapper-store/memory-index/record.json",
     }
     assert (
-        materialized[".simplicio-loop/mapper-store/memory-index/record.json"]["owner"] == "Dev CLI memory adapter"
+        materialized[".simplicio-loop/mapper-store/memory-index/record.json"]["owner"]
+        == "Dev CLI memory adapter"
     )
     assert materialized[".simplicio-loop/mapper-store/route.json"]["target"]
     assert len(payload["store_plans"]) == 7

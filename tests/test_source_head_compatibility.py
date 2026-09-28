@@ -9,7 +9,6 @@ import shlex
 import shutil
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
 
@@ -19,13 +18,6 @@ ROOT = Path(__file__).parents[1]
 SOURCE_HEAD_VERSIONS = {
     "simplicio-mapper": "0.26.31",
     "simplicio-cli": "0.18.12",
-}
-
-# Both operators ship inside the single simplicio-loop wheel; these in-repo packages are
-# the ones the wheel carries, so their versions are what an install actually provides.
-BUNDLED_PACKAGE_PYPROJECTS = {
-    "simplicio-mapper": ROOT / "packages" / "mapper" / "pyproject.toml",
-    "simplicio-cli": ROOT / "packages" / "dev-cli" / "pyproject.toml",
 }
 
 CLI_ENVIRONMENT = {
@@ -155,8 +147,10 @@ def _version(value: str) -> tuple[int, ...]:
 
 
 def _bundled_version(name: str) -> str:
-    manifest = tomllib.loads(BUNDLED_PACKAGE_PYPROJECTS[name].read_text(encoding="utf-8"))
-    return manifest["project"]["version"]
+    import simplicio
+    import simplicio_mapper
+
+    return {"simplicio-mapper": simplicio_mapper, "simplicio-cli": simplicio}[name].__version__
 
 
 def _operator_binary(name: str) -> str:

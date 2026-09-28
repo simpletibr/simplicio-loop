@@ -9,6 +9,7 @@ unrelated full-suite `pytest -q` by default.
 - a timed-out verification kills the whole process group, not just the
   direct child.
 """
+
 from __future__ import annotations
 
 import os
@@ -43,7 +44,10 @@ def test_scoped_command_none_when_no_matching_tests(tmp_path):
 def test_verification_payload_uses_explicit_check_only(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")  # must be ignored: explicit check wins
     verify = edit_cmd._verification_payload(
-        str(tmp_path), applied=True, check="python3 -c \"print('ok')\"", changed_files=["anything.py"],
+        str(tmp_path),
+        applied=True,
+        check="python3 -c \"print('ok')\"",
+        changed_files=["anything.py"],
     )
     assert verify["status"] == "passed"
     assert verify["commands"] == ["python3 -c \"print('ok')\""]
@@ -78,7 +82,11 @@ def test_bounded_subprocess_kills_whole_process_group_on_timeout(tmp_path):
     # observed from `pytest -q` under a shell.
     script = f"(sleep 5; echo dead > {marker}) &\nsleep 30\n"
     returncode, _stdout, _stderr, timed_out = stages.run_bounded_subprocess(
-        script, shell=True, cwd=str(tmp_path), env=dict(os.environ), timeout=0.3,
+        script,
+        shell=True,
+        cwd=str(tmp_path),
+        env=dict(os.environ),
+        timeout=0.3,
     )
     assert timed_out is True
     assert returncode == 124

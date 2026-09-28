@@ -40,7 +40,9 @@ def test_disposable_runtime_probe_outputs_are_not_checked_in_state(policy_root: 
     assert check(policy_root) == []
 
 
-@pytest.mark.parametrize("path", [".simplicio-loop/*.json", ".simplicio-loop/../state.json", "/.simplicio-loop/state.json"])
+@pytest.mark.parametrize(
+    "path", [".simplicio-loop/*.json", ".simplicio-loop/../state.json", "/.simplicio-loop/state.json"]
+)
 def test_exception_registry_rejects_non_exact_paths(policy_root: Path, path: str):
     registry = policy_root / "config" / "json-boundaries.toml"
     registry.write_text(

@@ -57,3 +57,9 @@ def test_single_wheel_ships_every_package_file_and_operator_script(tmp_path):
                     expected.add(os.path.relpath(os.path.join(dirpath, filename), base).replace(os.sep, "/"))
         missing = sorted(expected - names)
         assert not missing, f"{package}: {len(missing)} files missing from the wheel, e.g. {missing[:5]}"
+
+
+def test_subpackage_distributions_can_never_be_uploaded_on_their_own():
+    for package in ("mapper", "dev-cli"):
+        text = (ROOT / "packages" / package / "pyproject.toml").read_text(encoding="utf-8")
+        assert '"Private :: Do Not Upload"' in text, package

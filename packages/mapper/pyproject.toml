@@ -2,6 +2,7 @@
 requires = ["hatchling>=1.27,<1.33"]
 build-backend = "hatchling.build"
 
+# Component identity only: shipped inside the single simplicio-loop wheel, never published on its own.
 [project]
 name = "simplicio-mapper"
 version = "0.26.34"
@@ -12,6 +13,7 @@ license = { file = "LICENSE" }
 authors = [{ name = "Wesley Simplicio", email = "wesleybob4@gmail.com" }]
 keywords = ["simplicio", "mapper", "llm", "project-map", "precedent", "agent"]
 classifiers = [
+  "Private :: Do Not Upload",  # built into the simplicio-loop wheel; PyPI rejects uploads of this
   "Development Status :: 4 - Beta",
   "Environment :: Console",
   "Intended Audience :: Developers",

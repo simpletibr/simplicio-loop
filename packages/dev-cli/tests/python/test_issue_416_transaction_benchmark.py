@@ -19,4 +19,3 @@ def _module():
 def test_issue_416_benchmark_requires_ten_repetitions():
     with pytest.raises(ValueError, match="at least 10"):
         _module().run_benchmark(repeats=9)
-

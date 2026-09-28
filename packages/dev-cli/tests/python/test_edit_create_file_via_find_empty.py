@@ -4,6 +4,7 @@ path that does not yet exist creates that file -- the same semantics
 (SKILL.md), which ``edit --compile``/``--apply`` did not honor before this
 change (it rejected any empty ``find`` outright).
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -45,7 +46,11 @@ def test_compile_host_plan_blocks_empty_find_against_existing_nonempty_file(tmp_
 
 def test_compile_and_apply_end_to_end_creates_file_on_disk(tmp_path):
     _git_init(tmp_path)
-    plan = {"operations": [{"path": "tests/test_new.py", "find": "", "replace": "def test_x():\n    assert True\n"}]}
+    plan = {
+        "operations": [
+            {"path": "tests/test_new.py", "find": "", "replace": "def test_x():\n    assert True\n"}
+        ]
+    }
     compiled, errors = compile_host_plan(str(tmp_path), plan)
     assert errors == []
     result = execute_plan(compiled, root=str(tmp_path), apply=True, allow_native=False)

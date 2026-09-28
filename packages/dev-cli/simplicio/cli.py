@@ -718,7 +718,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     memory_sub = p_memory.add_subparsers(dest="memory_cmd", required=True)
     p_mem_init = memory_sub.add_parser("init", help="create the memory store")
-    p_mem_init.add_argument("--dir", default=None, help="override memory dir (default ~/.simplicio-loop/memory)")
+    p_mem_init.add_argument(
+        "--dir", default=None, help="override memory dir (default ~/.simplicio-loop/memory)"
+    )
     p_mem_init.add_argument("--json", action="store_true")
     p_mem_store = memory_sub.add_parser("store", help="append a note")
     p_mem_store.add_argument("topic")

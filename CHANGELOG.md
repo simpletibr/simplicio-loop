@@ -3,9 +3,19 @@ Total output lines: 1972
 
 # Changelog
 
-## [Unreleased] - monorepo
+## [3.44.0] - 2026-09-28
 
 - Single wheel: `pip install simplicio-loop` now ships mapper and dev-cli inside the package (`simplicio-mapper`, `simplicio-dev-cli`, `simplicio-cli`, `simplicio-py`, `simplicio-codex-wrapper`, `llm-project-mapper`) and the loop no longer depends on the external `simplicio-cli` / `simplicio-mapper` PyPI distributions; the stack manifest, operator bootstrap, clean-env contract and installer all treat `simplicio-loop` as the only package. New `simplicio-loop update` installs the latest GitHub release of `simpletibr/simplicio-loop` (`--check` only reports, `--force` reinstalls) and removes the retired standalone `simplicio-cli` / `simplicio-mapper` distributions first.
+- `simplicio-loop update` installs the latest GitHub release of `simpletibr/simplicio-loop` (`--check` only reports, `--force` reinstalls, an editable checkout is told to `git pull`). It removes the standalone `simplicio-cli` and `simplicio-mapper` distributions first: they own the same files as the wheel, and uninstalling one after the wheel is installed leaves `simplicio_mapper` with 2 of 408 files. (#1369)
+- `simplicio-loop-stack` / doctor report a co-installed standalone `simplicio-cli` or `simplicio-mapper` as drift, with the fix command.
+- Every non-Python file of the merged packages (contracts, schemas, templates, fixtures, dotfiles) ships in the wheel; a contract test builds the wheel and compares it with the source tree.
+- Mapper and Dev CLI read their version from the bundled package, not from a distribution that no longer exists.
+- One release tag `vX.Y.Z`; the per-package `mapper-v`/`dev-cli-v` scheme is retired (the Mapper schema-compat check diffs against `vX.Y.Z`), and `packages/mapper` / `packages/dev-cli` are marked `Private :: Do Not Upload` so PyPI rejects a standalone upload.
+- Turbo reads the Mapper map only from `.simplicio-loop/` (it used to prefer a stale `.simplicio/project-map.json`).
+- Only the release-standard bench results (1 and 4 tasks, plain or `-batch`) are versioned; other runs stay local.
+
+## [Unreleased] - monorepo
+
 - A wave starts at two tasks. One task stays on `tick` in the shared checkout; two or more enter the wave lane dispatcher instead of the old 1-3 inline cutoff. (#1354)
 - Restore the pre-monorepo flow inside this repo: one task runs `tick`, more than one task runs `wave`, both after `orient` and `prepare`. No external project install. (#1353)
 - On invocation the simplicio-loop skill starts the monorepo engine (`orient --brief` then `apply`; drain `prepare` → edit plans → `wave` → `verify`) for any repository via `--repo`, with the Mapper survey cached and `--tee` storing the JSON. (#1353)
