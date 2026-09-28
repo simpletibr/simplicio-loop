@@ -239,9 +239,6 @@ def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
     checker.seed_repo(fixture_dir, repo_dir)
     subprocess.run(["git", "init", "-q"], cwd=repo_dir, check=True, timeout=15)
     _commit_if_changed(repo_dir, "seed fixture")
-    if os.environ.get("SIMPLICIO_BENCH_TURBO") == "1" and arm == "simplicio":
-        from simplicio_loop.turbo import survey_tasks
-        survey_tasks(Path(repo_dir), task_list)
 
     key = lc.get_key(arm)
     usage_baseline = oc.poll_settled_usage(
@@ -251,6 +248,9 @@ def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
 
     batch_prompt = build_batch_prompt(task_list)
     total_wall_t0 = time.time()
+    if os.environ.get("SIMPLICIO_BENCH_TURBO") == "1" and arm == "simplicio":
+        from simplicio_loop.turbo import survey_tasks
+        survey_tasks(Path(repo_dir), task_list)
     if arm_spec is not None:
         oc.install_skills(repo_dir, arm_spec["skills"])
         isolated_path = oc.build_arm_path(arm_spec["bins"])

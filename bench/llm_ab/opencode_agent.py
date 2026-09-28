@@ -577,7 +577,7 @@ def run_opencode(arm: str, prompt: str, repo_dir: str, *, key: str | None = None
 
     full_prompt = prompt
     turbo = os.environ.get("SIMPLICIO_BENCH_TURBO") == "1" and arm == "simplicio"
-    if skill and not turbo:
+    if skill:
         install_skill(repo_dir)
     if skill or turbo:
         full_prompt = build_prompt(arm, prompt)

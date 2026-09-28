@@ -95,3 +95,44 @@ def test_page_checker_accepts_boolean_required(tmp_path):
         encoding="utf-8",
     )
     assert mod.check(page, 1) == []
+
+
+def test_turbo_run_opencode_installs_the_skill(tmp_path, monkeypatch):
+    """Turbo still loads .claude/skills/simplicio-loop before the agent runs."""
+    import bench.llm_ab.opencode_agent as oc
+
+    monkeypatch.setenv("SIMPLICIO_BENCH_TURBO", "1")
+    seen = {}
+
+    def fake_run(cmd, cwd=None, timeout=None, env=None):
+        seen["cmd"] = cmd
+        seen["cwd"] = cwd
+        return "", {"returncode": 0, "wall_s": 0.0, "cpu_s": 0.0, "peak_rss_mb": 0.0}
+
+    monkeypatch.setattr(oc.measure, "run_subprocess", fake_run)
+    monkeypatch.setattr(oc, "fetch_key_usage_usd", lambda key: 1.0)
+    monkeypatch.setattr(oc, "write_opencode_provider_config", lambda *args, **kwargs: None)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "README.md").write_text("fixture\n", encoding="utf-8")
+    oc.run_opencode(
+        "simplicio",
+        "Create p01.html",
+        str(repo),
+        key="k",
+        config_dir=str(tmp_path / "oc"),
+        bin_path="/bin/echo",
+        skill=True,
+        usage_baseline=1.0,
+        settle_reads=1,
+        settle_interval_s=0,
+        settle_max_wait_s=0,
+    )
+    skill = repo / ".claude" / "skills" / "simplicio-loop" / "SKILL.md"
+    assert skill.is_file()
+    body = skill.read_text(encoding="utf-8")
+    assert "contract: simplicio-loop" in body
+    assert "Mapper survey" in body
+    joined = " ".join(seen["cmd"])
+    assert "turbo" in joined
+    assert "/simplicio-loop" in joined
