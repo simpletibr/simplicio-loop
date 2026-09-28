@@ -97,6 +97,9 @@ Independent verifier: `python3 -m pytest -q`
 
 `Type: Docs|Chore|Config` or `Tests: none` waives the lane matrix for that task.
 
+`Then` is its own line. A `Then` on the same line as `Given` or `When` is refused.
+When the Mapper handoff does not authorize files, each task needs `Target: <path>`.
+
 ## Done
 
 `wave` and `tick` verify automatically. `simplicio-loop verify <run_id>`

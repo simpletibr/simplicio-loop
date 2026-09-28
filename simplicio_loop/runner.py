@@ -791,11 +791,11 @@ def _operator_timeout(kind: str) -> int:
 def _mapper_timeout_seconds() -> int:
     """Return the bounded wait used by every Mapper deep-pass command.
 
-    Large repositories routinely need more than the Mapper CLI's 120-second default.
-    Keep the wait bounded, but make the production default generous and let operators
-    lower it explicitly for constrained environments.
+    The same runaway ceiling as the mapper index (300 s). Operators can raise it
+    with SIMPLICIO_LOOP_MAPPER_TIMEOUT_SEC. A detached index must not be awaited
+    for an hour.
     """
-    default = 3600
+    default = 300
     raw = os.environ.get("SIMPLICIO_LOOP_MAPPER_TIMEOUT_SEC", "").strip()
     if not raw:
         return default
@@ -1822,7 +1822,12 @@ def _compile_minimal_host_plan(repo_path: Path, plan_path: Path) -> tuple[Dict[s
     set (and ``compiled_plan`` is ``None``) on failure.
     """
     plan = _load_json(plan_path)
-    if plan.get("schema"):
+    operations = _minimal_plan_operations(plan)
+    already_compiled = bool(operations) and all("op" in op for op in operations)
+    # A schema on a find/replace plan used to skip compile and the apply then
+    # rejected every lane with invalid_plan. Compile those. An already compiled
+    # plan (each operation has op) still passes through.
+    if plan.get("schema") and (already_compiled or not operations):
         return plan, "", ""
     compiled_path = plan_path.with_name(plan_path.stem + ".compiled.json")
     result = _run_cmd(
@@ -4138,7 +4143,12 @@ def _validate_run_receipts(
     if operator.get("mapper_pack_hash") != plan.get("mapper_pack_hash"):
         raise RuntimeError("operator receipt does not match the mapper context")
     if operator.get("mapper_context_hash") != mapper_context_hash:
-        raise RuntimeError("operator receipt does not match the mapper receipt")
+        raise RuntimeError(
+            "operator receipt does not match the mapper receipt "
+            f"(operator mapper_context_hash={operator.get('mapper_context_hash')!r}, "
+            f"mapper mapper_context_hash={mapper_context_hash!r}). "
+            "Open a new run; this blocked run will not reapply the stale receipt."
+        )
     operator_state = operator.get("repo_state_before") or {}
     if not operator_state.get("tree_hash") or not _repo_state_equivalent(operator_state, current_state):
         raise RuntimeError("stale operator receipt: repository changed")

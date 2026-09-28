@@ -575,6 +575,35 @@ def _flow_diagnostic(
     return diagnostic
 
 
+
+def _missing_check_names(state: Mapping[str, Any] | None) -> list[str]:
+    if not isinstance(state, Mapping):
+        return []
+    tasks = state.get("tasks") or []
+    contract = state.get("contract")
+    if not tasks and isinstance(contract, Mapping):
+        tasks = contract.get("tasks") or []
+    names: list[str] = []
+    for task in tasks:
+        if not isinstance(task, Mapping):
+            continue
+        for scenario in task.get("scenarios") or []:
+            if not isinstance(scenario, Mapping) or scenario.get("verified") is True:
+                continue
+            names.append(str(scenario.get("title") or scenario.get("id") or "unnamed scenario"))
+    return names
+
+
+def _held_reason(raw_status: str, state: Mapping[str, Any] | None) -> str:
+    reason = (
+        f"public flow status {raw_status or 'missing'!r} cannot publish a VERIFIED v1 receipt"
+    )
+    missing = _missing_check_names(state)
+    if missing:
+        reason += ". Unverified checks: " + "; ".join(missing)
+    return reason
+
+
 def publish_loop_execution_for_flow(
     *, repo: Path, run_dir: Path, flow: str, flow_result: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -602,7 +631,7 @@ def publish_loop_execution_for_flow(
             flow=flow,
             flow_result=flow_result,
             reason_code="flow_not_terminal",
-            reason=f"public flow status {raw_status or 'missing'!r} cannot publish a VERIFIED v1 receipt",
+            reason=_held_reason(raw_status, state),
             state=state,
         )
     if not run_dir.is_dir():
