@@ -37,8 +37,8 @@ simplicio-loop apply .simplicio-loop/ops.json --repo . --json
 
 `apply`/`prepare` refuse to run without that Mapper survey
 (`mapper_provenance_missing`, nothing written) — the two REQUIRED operators are
-`simplicio-mapper` (survey) and `simplicio-dev-cli` (apply + verify), both installed transitively
-via the `simplicio-cli` package. `simplicio-loop` BLOCKS if either binary is absent. See
+`simplicio-mapper` (survey) and `simplicio-dev-cli` (apply + verify), both built into the
+`simplicio-loop` wheel. `simplicio-loop` BLOCKS if either binary is absent. See
 `.claude/skills/simplicio-loop/SKILL.md` for the full protocol.
 
 ## Loop drive — self-paced

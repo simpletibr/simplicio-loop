@@ -1293,8 +1293,8 @@ def bind_mapper_context(
     mapper_version = producer.get("version") if isinstance(producer, Mapping) else None
     if not isinstance(mapper_version, str) or not mapper_version:
         try:
-            mapper_version = importlib.metadata.version("simplicio-mapper")
-        except importlib.metadata.PackageNotFoundError as exc:
+            from simplicio_mapper import __version__ as mapper_version
+        except ImportError as exc:
             raise MapperContextError(
                 "MAPPER_VERSION_UNAVAILABLE", "Mapper producer version is unavailable"
             ) from exc

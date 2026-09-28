@@ -26,6 +26,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | Command | Purpose |
 |---|---|
 | `install` | Install bundled skills and hooks into a supported runtime. |
+| `update` | Install the latest GitHub release of `simpletibr/simplicio-loop` (`--check` only reports, `--force` reinstalls) and refresh the global skills. |
 | `dashboard` | Open or stop the token-monitor dashboard. |
 | `task` | Compile, validate, or preview a Markdown task contract. |
 | `prototype` | Route prototype planning and validation commands. |

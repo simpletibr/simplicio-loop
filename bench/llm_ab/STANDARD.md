@@ -291,6 +291,10 @@ for every release, and commit:
 - the 4 regenerated `bench/llm_ab/REPORT-<suffix>.html` files, and
 - the regenerated `bench/llm_ab/REPORT.html` index.
 
+Only these standard runs are versioned: `results/.gitignore` ignores every other
+result file (other task counts, ablations, experiments), so ad-hoc runs never
+reach a commit. To keep one on purpose, `git add -f` it.
+
 ## Keys
 
 Never commit a keys file. `standard.py`/`standard.sh` reuse `llm_client.py`'s

@@ -10,8 +10,10 @@ importa `simplicio-runtime` de volta, e o runtime ainda não consome o contrato)
 publicada para essa reutilização acontecer. Ver `contracts/loop-execution/v1/SCHEMA.md`.
 
 ## De quem este repo depende
-- [simplicio-mapper](packages/mapper/) — hard dep (binds `orient`), agora um pacote deste monorepo
-- [simplicio-dev-cli](packages/dev-cli/) (pip pkg `simplicio-cli`) — hard dep (binds `execute`/`deterministic_edit`), agora um pacote deste monorepo
+- [simplicio-mapper](packages/mapper/) — operador obrigatório (binds `orient`), embutido no wheel único `simplicio-loop` (não é mais uma distribuição PyPI separada)
+- [simplicio-dev-cli](packages/dev-cli/) — operador obrigatório (binds `execute`/`deterministic_edit`), embutido no wheel único `simplicio-loop` (não é mais uma distribuição PyPI separada)
+
+`pip install simplicio-loop` fornece `simplicio-mapper` e `simplicio-dev-cli`; atualize com `simplicio-loop update`.
 
 ## Versão atual
 3.22.2 (pyproject.toml)

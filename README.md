@@ -772,7 +772,10 @@ simplicio-loop install --global   # user-wide
 ```
 
 That installs the skills + hooks only. If your runtime can bind native helpers, they are an
-**optional speed-up**, not a prerequisite.
+**optional speed-up**, not a prerequisite. `pip install simplicio-loop` is one wheel: mapper and
+dev-cli are built into it, so it also provides the two required operators, `simplicio-mapper`
+(survey) and `simplicio-dev-cli` (mutation) — there is no separate `simplicio-mapper` /
+`simplicio-cli` package to install.
 
 **Full-stack path: repo installer.** Use this when you also want the broader Simplicio local stack
 (operators, capture proxy, dashboards, services, runtime wiring):
@@ -789,8 +792,8 @@ pwsh scripts/install.ps1 <runtime> [-Global]                    # Windows
 ```
 
 **The repo installer is full-stack by default — it installs everything.** One command sets up the whole stack:
-the loop operator package (`simplicio-cli`, which exposes `simplicio-dev-cli` and also brings
-`simplicio-mapper` transitively, auto-handling PEP 668 / externally-managed Python and symlinking
+the operators (`simplicio-mapper` and `simplicio-dev-cli`, built into the single `simplicio-loop`
+wheel and installed with it, auto-handling PEP 668 / externally-managed Python and symlinking
 the binaries onto `PATH`), the **full Python stack** (the package itself),
 the **7 skills + hooks** with the loop's Stop hook wired, and the **always-on capture proxy**
 with Claude + Codex + Simplicio Agent **routed and measured** in the background. The **dashboard opens once** on a
@@ -804,7 +807,13 @@ Pass **`--minimal`** only for headless/CI to skip the heavy deps + the machine s
 ```bash
 python3 scripts/release_check.py check   # is a newer release published? — never auto-updates
 bash scripts/update.sh [<runtime>]       # git pull → reinstall skills/hooks/operators → restart services
+simplicio-loop update                    # pip-installed: latest GitHub release (--check: report only, --force: reinstall)
 ```
+
+`simplicio-loop update` installs the latest GitHub release of `simpletibr/simplicio-loop` and
+refreshes the global skills. Because mapper and dev-cli are bundled in the wheel, it first removes
+any pre-monorepo standalone `simplicio-cli` / `simplicio-mapper` distributions (they own the same
+files); an editable checkout install is told to `git pull` and re-run `scripts/dev_install.sh`.
 
 `release_check.py` compares the local canonical version (`pyproject.toml`) against the latest
 GitHub release tag and prints an explicit `MEASURED|release-check: a newer release is available …`
@@ -988,7 +997,7 @@ python3 scripts/preflight.py --json   # fail-closed mapper + dev-cli; optional R
 # also: bash scripts/simplicio-economy.sh doctor [--repair]
 ```
 
-`doctor` separates **REQUIRED** (python3, the loop operator package and its mapper/dev-cli bins,
+`doctor` separates **REQUIRED** (python3, the loop package and its bundled mapper/dev-cli bins,
 the 7 skills, the loop hooks, the capture proxy — `--repair` installs/wires them) from
 **OPTIONAL** accelerators (the native Simplicio Runtime bind and the tray dependency).
 **Missing an optional piece is never a failure and

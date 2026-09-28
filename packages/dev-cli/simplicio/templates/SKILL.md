@@ -41,7 +41,7 @@ Wrap a code task in simplicio-cli's 6-layer contract instead of asking the LLM t
 ```bash
 # is simplicio-py on PATH?
 command -v simplicio-py \
-  || pip install --user simplicio-cli \
+  || pip install --user simplicio-loop \
   || pip install -e .            # fallback: editable install from repo root (locked venv / no PyPI)
 
 # deterministic health check; never sends an LLM request

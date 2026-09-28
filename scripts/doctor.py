@@ -33,7 +33,7 @@ DARWIN = sys.platform == "darwin"
 SKILLS = ["simplicio-tasks", "simplicio-loop", "simplicio-orient",
           "simplicio-review", "simplicio-compress", "simplicio-learn",
           "simplicio-autoresearch"]
-OPERATOR_PKG = "simplicio-cli"
+OPERATOR_PKG = "simplicio-loop"
 OPERATOR_BINS = ("simplicio-dev-cli", "simplicio-mapper")
 
 OK, WARN, FAIL = "ok", "warn", "fail"
@@ -109,7 +109,7 @@ def chk_operators():
 
     return dict(name="loop operator package", tier="REQUIRED",
                 status=OK if not missing else FAIL,
-                msg="simplicio-cli installed; simplicio-dev-cli + simplicio-mapper on PATH"
+                msg="simplicio-loop installed; simplicio-dev-cli + simplicio-mapper on PATH"
                 if not missing else "missing runtime bin(s): " + ", ".join(missing),
                 repair=repair)
 
@@ -123,7 +123,7 @@ MAPPER_CAPABILITY_VERBS = ("inspect", "handoff", "ask", "sync", "drift")
 def chk_mapper_capabilities():
     if not shutil.which("simplicio-mapper"):
         return dict(name="mapper 0.13/0.14 surface", tier="OPTIONAL", status=WARN,
-                    msg="mapper bin missing (expected transitively from simplicio-cli)",
+                    msg="mapper bin missing (shipped with simplicio-loop)",
                     repair=lambda: False)
 
     def _missing():

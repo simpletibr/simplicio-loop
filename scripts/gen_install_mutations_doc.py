@@ -74,7 +74,7 @@ MUTATIONS = [
      "project only", "yes (file replace/delete)",
      "no — but a *foreign* existing hook is never overwritten (logged, not clobbered)"),
     ("install_lib.py", "ensure_operators() / _pip_install()",
-     "`pip install -U simplicio-cli simplicio-mapper` (the 2 required operator binaries)",
+     "`pip install -U simplicio-loop` (ships the 2 required operator binaries)",
      "**global** Python environment (whatever `sys.executable` resolves to — a venv if active, "
      "else the system/user Python)",
      "**not reversible by this installer** (a real `pip uninstall` is a separate, manual step)",

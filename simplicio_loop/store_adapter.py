@@ -19,7 +19,6 @@ import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from typing import Any
 
@@ -65,16 +64,8 @@ def _version_tuple(value: str) -> tuple[int, ...]:
 
 
 def _mapper_version(module: Any) -> str | None:
-    package = sys.modules.get("simplicio_mapper")
-    if package is not None and hasattr(package, "__version__"):
-        value = getattr(package, "__version__")
-        return None if value is None else str(value)
-    try:
-        from importlib.metadata import version
-
-        return version("simplicio-mapper")
-    except (ImportError, PackageNotFoundError, TypeError, ValueError):  # pragma: no cover
-        return None
+    value = getattr(sys.modules.get("simplicio_mapper"), "__version__", None)
+    return None if value is None else str(value)
 
 
 def _version_failure(version: str | None) -> str | None:

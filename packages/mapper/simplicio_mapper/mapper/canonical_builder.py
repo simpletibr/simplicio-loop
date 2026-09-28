@@ -173,12 +173,9 @@ _FILE_MANIFEST_FILE_NAME = "file-manifest.jsonl"
 
 
 def _mapper_version() -> str:
-    try:
-        from importlib.metadata import version
+    from simplicio_mapper import __version__
 
-        return version("simplicio-mapper")
-    except Exception:  # noqa: BLE001 - source checkouts may not be installed
-        return "unknown"
+    return __version__
 
 
 def _run_git(args: list[str], cwd: str) -> subprocess.CompletedProcess | None:

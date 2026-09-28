@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from importlib import metadata
 from pathlib import Path
 from typing import Any
 
@@ -54,9 +53,10 @@ MAPPER_DIST_NAME = "simplicio-mapper"
 
 def _installed_mapper_version() -> str | None:
     try:
-        return metadata.version(MAPPER_DIST_NAME)
-    except metadata.PackageNotFoundError:
+        from simplicio_mapper import __version__
+    except ImportError:
         return None
+    return __version__
 
 
 def _latest_mapper_version(*, refresh: bool = False) -> tuple[str | None, str | None]:

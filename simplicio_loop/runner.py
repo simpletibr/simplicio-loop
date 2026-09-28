@@ -3812,7 +3812,7 @@ def _devcli_capability_probe(repo_path: Path) -> Dict[str, Any]:
         raise DevCliCapabilitiesUnavailableError(
             "simplicio-dev-cli capabilities are unavailable: neither the in-process "
             "simplicio.capabilities manifest nor `simplicio-dev-cli capabilities --json` "
-            "resolved. Install simplicio-cli>=0.18.16."
+            "resolved. Install simplicio-loop>=3.43.17."
         )
     commands = manifest.get("commands") or {}
     edit_spec = commands.get("edit") or {}

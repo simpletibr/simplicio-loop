@@ -14,7 +14,10 @@ rules: Read before operating; mutable data (versions, dates, counts) lives in th
 
 Three packages, one responsibility each: root `simplicio_loop/` = **orchestration** (this
 package); `packages/mapper/` = **survey** (`scan`/`inspect`/`handoff`); `packages/dev-cli/` =
-**mutation** (`edit`/`test`/capabilities). `packages/fast/` was removed entirely (issue #1343):
+**mutation** (`edit`/`test`/capabilities). All three ship in ONE wheel: `pip install simplicio-loop`
+provides `simplicio-mapper`, `simplicio-dev-cli` and every other console script (there are no
+separate `simplicio-mapper` / `simplicio-cli` PyPI dependencies; update with `simplicio-loop update`).
+`packages/fast/` was removed entirely (issue #1343):
 the survey that every flow requires is now Mapper-only. Dev setup: `bash scripts/dev_install.sh`. Local gate:
 `python3 scripts/check.py --package all` (or `--package <name>` / `--changed`). No GitHub
 Actions gate — the local gate is authoritative.
@@ -195,9 +198,9 @@ turn×event/runtime×level tables: `.claude/skills/simplicio-loop/references/pro
 
 ## Development
 
-`scripts/dev_install.sh` creates ONE venv and installs the four in-repo packages editable, from
-their in-repo paths, in dependency order (mapper, dev-cli, then loop) — so the loop you run
-locally always talks to its in-repo siblings, never a stale PyPI release:
+`scripts/dev_install.sh` creates ONE venv and installs the root package editable (mapper and
+dev-cli are built into the single `simplicio-loop` wheel) — so the loop you run locally always
+talks to its in-repo siblings, never a stale PyPI release:
 
 ```bash
 bash scripts/dev_install.sh            # venv at .venv/ (default)
@@ -259,9 +262,10 @@ mass-delete, destructive DDL, infra teardown) and secret-laden commits/pushes be
 
 ## Releases in a monorepo
 
-Each package tags and releases independently: `loop vX.Y.Z`, `mapper-vX.Y.Z`,
-`dev-cli-vX.Y.Z` — a local build per package plus its own tag. There is no GitHub Actions gate and
-no cross-repo release-train machinery; `python3 scripts/check.py` is the authoritative local gate
+One wheel, one tag: `vX.Y.Z` releases `simplicio-loop`, which carries the Mapper and the Dev CLI
+(their own `__version__` values are component versions, not separate releases). Bump every surface with
+`python3 scripts/version_sync.py apply --version X.Y.Z`. There is no GitHub Actions gate and no
+cross-repo release-train machinery; `python3 scripts/check.py` is the authoritative local gate
 before any tag.
 
 ## Non-negotiables
@@ -299,8 +303,7 @@ The complete installed-entry-point and `simplicio-loop` command map is
 [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md). Run the most specific
 `--help` before invoking a command. Every new public command must have
 meaningful `help=` text, documentation in that file, and a help regression
-check. The current train is Mapper 0.26.34, Dev CLI 0.18.16, and
-Loop 3.43.17.
+check. Current release: Loop 3.43.17 (Mapper 0.26.34 and Dev CLI 0.18.16 are bundled).
 
 For GitHub work items, keep the body focused on objective, implementation,
 deployment, and tests. Do not add an Acceptance Criteria section to new or

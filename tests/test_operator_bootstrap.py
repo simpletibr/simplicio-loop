@@ -18,10 +18,13 @@ class _Result:
         self.stderr = stderr
 
 
-def test_normal_package_contract_requests_both_operator_distributions():
+def test_operators_ship_inside_the_loop_distribution():
     pyproject = (Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf-8")
-    assert '"simplicio-cli>=0.18.12,<0.19"' in pyproject
-    assert '"simplicio-mapper>=0.26.31,<0.27"' in pyproject
+    assert '"simplicio-cli' not in pyproject.split("[project.optional-dependencies]")[0]
+    assert '"simplicio-mapper' not in pyproject.split("[project.optional-dependencies]")[0]
+    assert 'simplicio-mapper = "simplicio_mapper.cli:main"' in pyproject
+    assert 'simplicio-dev-cli = "simplicio.cli:main"' in pyproject
+    assert operator_bootstrap.PACKAGE_SPECS == ("simplicio-loop",)
 
 
 def test_available_operators_do_not_run_pip(tmp_path, monkeypatch):
@@ -59,11 +62,13 @@ def test_missing_operators_install_together_and_become_visible(tmp_path, monkeyp
     receipt = operator_bootstrap.ensure_operators(tmp_path, env={}, run=fake_run)
     assert receipt["status"] == "installed"
     assert receipt["missing_after"] == []
-    assert calls and "simplicio-cli" in calls[0]
-    assert "simplicio-mapper" in calls[0]
+    # ONE package: mapper and dev-cli ship inside the loop wheel, so pip is asked for
+    # simplicio-loop only, never for external operator distributions.
+    assert calls and "simplicio-loop" in calls[0]
+    assert "simplicio-cli" not in calls[0]
+    assert "simplicio-mapper" not in calls[0]
     assert "simplicio-fast" not in calls[0]
     assert operator_bootstrap.REQUIRED_BINARIES == ("simplicio-mapper", "simplicio-dev-cli")
-    assert "simplicio-loop" in calls[0]
 
 
 def test_bootstrap_uses_safe_user_fallback_without_break_system_packages(

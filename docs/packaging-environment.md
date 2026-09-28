@@ -1,9 +1,9 @@
 # Packaging environment boundary
 
 `simplicio-loop` is installed as an independent Python distribution. Its supported
-closure contains Loop, Simplicio CLI, Mapper, Fast, and the declared optional
-extras in `pyproject.toml`. It does **not** install `hermes-agent` or
-`simplicio-sprint` and does not declare `rich` directly.
+closure is that one wheel (Loop plus the Mapper and Dev CLI packages built into it)
+and the declared optional extras in `pyproject.toml`. It does **not** install
+`hermes-agent` or `simplicio-sprint` and does not declare `rich` directly.
 
 ## Supported installation
 
@@ -18,10 +18,11 @@ python -m pip check
 python -m pytest -q
 ```
 
-Loop is the aggregate distribution for its two mandatory operators. A normal
-`pip install simplicio-loop` declares both `simplicio-mapper` and `simplicio-cli`
-directly; `simplicio-cli` provides the `simplicio-dev-cli` entrypoint. Verify the
-installed bundle, including dependency ownership and PATH entrypoints, with:
+Loop is the single distribution for its two mandatory operators. A normal
+`pip install simplicio-loop` ships Mapper and Dev CLI inside the wheel and provides the
+`simplicio-mapper` and `simplicio-dev-cli` entrypoints itself; it does not depend on the
+separate `simplicio-mapper` / `simplicio-cli` PyPI distributions. Verify the
+installed bundle, including entrypoint ownership and PATH entrypoints, with:
 
 ```bash
 simplicio-loop-stack --check
@@ -29,7 +30,9 @@ simplicio-loop preflight --repo . --strict --json
 ```
 
 The check is expected to fail for `pip install --no-deps`, a manually removed
-operator, or an environment where the console scripts are not on `PATH`.
+operator, an install whose operator entrypoints belong to the retired standalone
+`simplicio-cli` / `simplicio-mapper` distributions (`simplicio-loop update` replaces
+it), or an environment where the console scripts are not on `PATH`.
 Runtime and other accelerators remain separate optional components.
 
 Hermes Agent and Simplicio Sprint are separate consumers. Do not install both

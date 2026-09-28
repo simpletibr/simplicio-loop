@@ -5,6 +5,7 @@ Total output lines: 1972
 
 ## [Unreleased] - monorepo
 
+- Single wheel: `pip install simplicio-loop` now ships mapper and dev-cli inside the package (`simplicio-mapper`, `simplicio-dev-cli`, `simplicio-cli`, `simplicio-py`, `simplicio-codex-wrapper`, `llm-project-mapper`) and the loop no longer depends on the external `simplicio-cli` / `simplicio-mapper` PyPI distributions; the stack manifest, operator bootstrap, clean-env contract and installer all treat `simplicio-loop` as the only package. New `simplicio-loop update` installs the latest GitHub release of `simpletibr/simplicio-loop` (`--check` only reports, `--force` reinstalls) and removes the retired standalone `simplicio-cli` / `simplicio-mapper` distributions first.
 - A wave starts at two tasks. One task stays on `tick` in the shared checkout; two or more enter the wave lane dispatcher instead of the old 1-3 inline cutoff. (#1354)
 - Restore the pre-monorepo flow inside this repo: one task runs `tick`, more than one task runs `wave`, both after `orient` and `prepare`. No external project install. (#1353)
 - On invocation the simplicio-loop skill starts the monorepo engine (`orient --brief` then `apply`; drain `prepare` → edit plans → `wave` → `verify`) for any repository via `--repo`, with the Mapper survey cached and `--tee` storing the JSON. (#1353)

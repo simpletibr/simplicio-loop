@@ -99,12 +99,9 @@ def _lock_ttl_seconds() -> float:
 
 
 def _mapper_version() -> str:
-    try:
-        from importlib.metadata import version
+    from simplicio_mapper import __version__
 
-        return version("simplicio-mapper")
-    except Exception:  # noqa: BLE001 - source checkouts may not be installed
-        return "unknown"
+    return __version__
 
 
 def _lock_file_snapshot(path: str) -> tuple[bytes, tuple[int, int, int]] | None:
