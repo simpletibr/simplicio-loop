@@ -356,9 +356,9 @@ def _arm_cells(a: dict) -> list[str]:
             f"{a['hit']:.1f}%", _usd(a["nocache"]), _usd(a["cache_saved"])]
 
 
-# Index of the cache-hit cell within `_arm_cells`'s return -- kept as a named
-# constant instead of a magic number at each call site below.
-_ARM_CELL_CACHE_HIT_INDEX = 4
+# Index of the cache-hit percent cell in `_arm_cells`: ok, turns, wall,
+# billed cost, computed cost, flag count, then hit.
+_ARM_CELL_CACHE_HIT_INDEX = 6
 
 # STANDARD.md: the simplicio arm's prompt-cache hit rate must be >= 80% (target 90%)
 # (issue #1336). Report-only gate: it never changes `_arm_sums`/`_arm_cells`'s

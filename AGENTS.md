@@ -300,7 +300,7 @@ The complete installed-entry-point and `simplicio-loop` command map is
 `--help` before invoking a command. Every new public command must have
 meaningful `help=` text, documentation in that file, and a help regression
 check. The current train is Mapper 0.26.34, Dev CLI 0.18.16, and
-Loop 3.43.16.
+Loop 3.43.17.
 
 For GitHub work items, keep the body focused on objective, implementation,
 deployment, and tests. Do not add an Acceptance Criteria section to new or

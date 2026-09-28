@@ -34,7 +34,7 @@ _COMPONENT_ROLES = (
 _FALLBACK_FLOORS = {
     "simplicio-mapper": "0.26.34",
     "simplicio-cli": "0.18.16",
-    "simplicio-loop": "3.43.16",
+    "simplicio-loop": "3.43.17",
 }
 
 # These are operator identities, not distribution names.  ``simplicio-dev-cli``

@@ -333,11 +333,18 @@ def test_find_chromium_honors_env(monkeypatch, tmp_path):
 
 
 def test_flag_low_simplicio_cache_hit_marks_the_hit_cell():
-    cells = ["3/3", "10", "5.0", "$0.01000", "75.0%", "$0.02000", "$0.01000"]
+    cells = standard._arm_cells({
+        "ok": 3, "n": 3, "turns": 10, "wall": 5.0,
+        "cost": 0.01, "cost_computed": 0.01, "flagged": 0,
+        "hit": 75.0, "nocache": 0.02, "cache_saved": 0.01,
+    })
+    hit_at = next(i for i, cell in enumerate(cells) if cell == "75.0%")
     standard._flag_low_simplicio_cache_hit(cells, 75.0)
-    assert "⚠" in cells[standard._ARM_CELL_CACHE_HIT_INDEX]
-    assert "<80%" in cells[standard._ARM_CELL_CACHE_HIT_INDEX]
-    assert "75.0%" in cells[standard._ARM_CELL_CACHE_HIT_INDEX]  # original value kept, not replaced
+    assert cells[hit_at].startswith("⚠ ")
+    assert "75.0%" in cells[hit_at]
+    assert "<80%" in cells[hit_at]
+    assert standard._ARM_CELL_CACHE_HIT_INDEX == hit_at
+    assert all("⚠" not in cell for i, cell in enumerate(cells) if i != hit_at)
 
 
 def test_flag_low_simplicio_cache_hit_leaves_cell_alone_at_the_gate():
