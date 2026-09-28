@@ -734,6 +734,29 @@ def _orient_provider_provenance(payload: Mapping[str, Any]) -> dict[str, Any]:
 
 COMMAND_CARD_SCHEMA = "simplicio.loop-command-card/v1"
 COMMAND_CARD_MAX_BYTES = 1_500
+DELIVERY_EXECUTE_RULE = "1 task -> tick; 2 or more -> wave"
+
+
+def delivery_execute_verb(task_count: int) -> str:
+    """The execute step of the one delivery flow.
+
+    A prepared contract with one task stays on ``tick``. Two or more tasks
+    are one ``wave``. Both end in ``verify``.
+    """
+    return "tick" if int(task_count) <= 1 else "wave"
+
+
+def delivery_flow_commands(root: Path) -> list[str]:
+    """Literal commands orient gives the host for any task count."""
+    repo = str(root)
+    return [
+        "write tasks.md (one System: block per task)",
+        f"simplicio-loop prepare --task tasks.md --repo {repo}",
+        "write every .simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json up front",
+        f"simplicio-loop tick <run_id> --repo {repo} --task-index 1",
+        f"simplicio-loop wave <run_id> --repo {repo}",
+        f"simplicio-loop verify <run_id> --repo {repo}",
+    ]
 
 
 def _orient_command_card(root: Path) -> dict[str, Any]:
@@ -751,6 +774,8 @@ def _orient_command_card(root: Path) -> dict[str, Any]:
         "wave": f"simplicio-loop wave <run_id> --repo {repo}",
         "verify": f"simplicio-loop verify <run_id> --repo {repo}",
         "tick": f"simplicio-loop tick <run_id> --repo {repo} --task-index <N>",
+        "execute_rule": DELIVERY_EXECUTE_RULE,
+        "flow": ["orient", "prepare", "edit-plan", "tick-or-wave", "verify"],
         "edit_plan_path": ".simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json",
         "edit_plan_format": {
             "operations": [{"path": "<repo-relative>", "find": "<exact text>", "replace": "<new text>"}]
@@ -770,40 +795,23 @@ def _orient_command_card(root: Path) -> dict[str, Any]:
 
 
 def _orient_route(root: Path, task: str) -> dict[str, Any]:
-    """The fastest route for ``task`` plus its literal next commands.
+    """One delivery flow for every task count.
 
-    Same decision as ``scripts/route_mode.py`` (loaded from the installed
-    bundle, so it works in any repo): one task on one leaf, non-sensitive
-    file -> ``fast-path`` (dev-cli edit, no run/wave); anything else, or no
-    survey -> ``converge`` (the wave)."""
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location(
-        "_simplicio_route_mode", Path(__file__).parent / "_bundle" / "scripts" / "route_mode.py",
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    decision = module.decide(root, task, map_dir=Path(root) / ".simplicio-loop")
-    if decision["mode"] == "fast-path":
-        steps = [
-            "read the target file; write ops.json = "
-            '{"operations":[{"path":"<file>","find":"<exact text>","replace":"<new>"}]}',
-            "simplicio-dev-cli edit --plan ops.json --compile plan.json",
-            "simplicio-dev-cli edit --plan plan.json --apply --json",
-            "run the task's own check (test/verifier) in the same turn",
-        ]
-    else:
-        steps = [
-            "write tasks.md (one System: block per task; dependents in the same file)",
-            f"simplicio-loop prepare --task tasks.md --repo {root}",
-            "write every .simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json up front",
-            f"simplicio-loop wave <run_id> --repo {root}",
-        ]
+    The host writes ``tasks.md`` and the edit plans. ``prepare`` arms the
+    run. One task executes with ``tick``; two or more execute with ``wave``.
+    ``verify`` is the only close. A one-file goal does not skip this flow.
+    """
+    goal = " ".join(str(task).split())
     return {
-        "mode": decision["mode"],
-        "justification": decision["justification"],
-        "resolved_files": decision["measurements"]["resolved_files"],
-        "next": steps,
+        "mode": "deliver",
+        "justification": (
+            "delivery flow"
+            + (f" for {goal[:80]}" if goal else "")
+            + ": prepare, edit plans, tick for one task or wave for two or more, then verify"
+        ),
+        "resolved_files": [],
+        "execute_rule": DELIVERY_EXECUTE_RULE,
+        "next": delivery_flow_commands(root),
     }
 
 
@@ -1456,26 +1464,39 @@ def _brief_plan_groups(tasks: Sequence[str], per_task_targets: Sequence[Sequence
 
 
 def _brief_annotate_route_next(route: Mapping[str, Any], root: Path,
-                               status: str) -> dict[str, Any]:
-    """Point ``route["next"]`` at the plan-once/apply-once hot path (issues
-    #1310/#1315) whatever ``route.mode`` says: write ops.json (plan phase),
-    then ``simplicio-loop apply`` (execute phase), then follow its
-    ``status``/``next_effort``. Each step carries its reasoning-effort hint
-    so the host never re-derives the mapping. A BLOCKED brief passes
-    through unchanged."""
+                               status: str, task_count: int = 1) -> dict[str, Any]:
+    """Point ``route["next"]`` at the delivery flow for this task count.
+
+    Plan writes ``tasks.md`` and every edit plan. Execute is ``prepare``
+    plus ``tick`` for one task or ``wave`` for two or more. Review is
+    ``verify``. A BLOCKED brief passes through unchanged.
+    """
     from .effort import PHASE_EFFORT
 
     if status == "BLOCKED":
         return dict(route)
+    verb = delivery_execute_verb(task_count)
+    repo = str(root)
+    if verb == "tick":
+        execute = (
+            f"simplicio-loop prepare --task tasks.md --repo {repo} && "
+            f"simplicio-loop tick <run_id> --repo {repo} --task-index 1"
+        )
+    else:
+        execute = (
+            f"simplicio-loop prepare --task tasks.md --repo {repo} && "
+            f"simplicio-loop wave <run_id> --repo {repo}"
+        )
     out = dict(route)
+    out["mode"] = "deliver"
+    out["execute"] = verb
+    out["execute_rule"] = DELIVERY_EXECUTE_RULE
     out["next"] = [
-        {"step": "read `targets`; write `.simplicio-loop/ops.json` in the `apply.ops_format` "
-                 "shape (exact find/replace per task, copy `repo_state_chain`)",
+        {"step": "write tasks.md (one System: block per task) and every edit-plan-<N>.json (exact find/replace)",
          "phase": "plan", "effort": PHASE_EFFORT["plan"]},
-        {"step": f"simplicio-loop apply .simplicio-loop/ops.json --repo {root} --json",
-         "phase": "execute", "effort": PHASE_EFFORT["execute"]},
-        {"step": "PASS -> done; BLOCKED/FAIL -> fix the named find/check and re-run apply "
-                 "(effort = the result's `next_effort`)"},
+        {"step": execute, "phase": "execute", "effort": PHASE_EFFORT["execute"]},
+        {"step": f"simplicio-loop verify <run_id> --repo {repo}",
+         "phase": "review", "effort": PHASE_EFFORT["review"]},
     ]
     return out
 
@@ -1605,7 +1626,7 @@ def _orient_brief_impl(root: Path, tasks: list[str], *,
     repo_state_chain = _repo_fingerprint(root)
 
     from .effort import PHASE_EFFORT
-    overall_route = _brief_annotate_route_next(overall_route, root, overall_status)
+    overall_route = _brief_annotate_route_next(overall_route, root, overall_status, len(task_list))
 
     payload: dict[str, Any] = {}
     payload["route"] = overall_route
@@ -1618,6 +1639,9 @@ def _orient_brief_impl(root: Path, tasks: list[str], *,
     payload["generations"] = generations
     payload["repo_state_chain"] = repo_state_chain
     payload["apply"] = _brief_apply_command(root, repo_state_chain, generations)
+    execute_steps = [step.get("step") for step in overall_route.get("next") or [] if step.get("phase") == "execute"]
+    if execute_steps:
+        payload["apply"]["command"] = execute_steps[0]
     payload["effort"] = dict(PHASE_EFFORT)
     if overall_status != "BLOCKED":
         # `apply` refuses to run without this Mapper survey (issue #1318).

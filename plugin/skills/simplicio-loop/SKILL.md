@@ -60,6 +60,11 @@ simplicio-loop verify <run_id> --repo <path>
   file and does not overwrite an existing non-empty file.
 - Disjoint paths run together with asyncio. Paths that overlap stay in one
   lane, in order. Integration back into the shared tree is serial.
+- The 50 binding points are `references/extension-points.md`. A delivery run
+  still closes on `delivery_gate` and `verify`. Two or more tasks are one wave:
+  the lanes run together, and the wave returns only when every lane has closed.
+  If the machine is under disk pressure but still has safe workers, the wave
+  runs at that width instead of being skipped.
 - One small change, no run:
   `simplicio-dev-cli edit --plan ops.json --compile plan.json` then
   `simplicio-dev-cli edit --plan plan.json --apply --json` then
