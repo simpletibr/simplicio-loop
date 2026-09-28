@@ -9220,10 +9220,10 @@ def _wave_worktree_dispatch(
     Returns ``None`` -- the caller keeps its existing serial path unchanged --
     when there is only one lane (every task shares a file with another),
     this repo is not a git checkout, this run's own journal already shows
-    durable progress on one of these items (a resume), or physical capacity
-    does not admit any lane worker right now; a genuine lane-parallel wave
-    never replaces that safe fallback silently, and in each of those cases
-    the fallback already does the right thing on its own.
+    durable progress on one of these items (a resume), or the governor
+    reports zero safe workers. Pressure that refuses a fresh admission but
+    still reports safe workers does not skip the wave: the lanes run at that
+    width and the call returns only after every lane has closed.
     """
     ordered_items = list(items)
     if len(ordered_items) < 2 or not (repo_path / ".git").exists():
@@ -9262,10 +9262,14 @@ def _wave_worktree_dispatch(
         physical_monitor_kwargs=physical_monitor_kwargs,
     )
     if not capacity_admission.get("admitted"):
-        # Same physical evidence the classic path uses to refuse admission --
-        # deferring here gives this exact blocked state the exact same typed
-        # blocked receipts, instead of duplicating that logic in this path.
-        return None
+        if effective_workers < 1:
+            # Zero safe workers: the classic path owns the typed blocked receipt.
+            return None
+        # Pressure refused a brand-new admission, but workers are still safe.
+        # Keep the wave: lanes run, and this call returns only when they close.
+        capacity_admission = dict(capacity_admission)
+        capacity_admission["wave_mode"] = "admitted-under-pressure"
+        capacity_admission["effective_workers"] = effective_workers
 
     head = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=str(repo_path), capture_output=True,

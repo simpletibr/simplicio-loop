@@ -229,7 +229,12 @@ def finalize_task_cost(totals: dict, pricing: dict) -> dict:
         divergence = round(abs(billed - computed) / computed * 100.0, 2) if computed else None
         out["cost_divergence_pct"] = divergence
         out["cost_flag"] = bool(divergence is not None and divergence > DIVERGENCE_FLAG_PCT)
-        out["cost_usd"] = billed
+        # A settled delta of 0 that the token cross-check rejects is not a cost.
+        if billed == 0 and out["cost_flag"] and computed > 0:
+            out["cost_usd"] = computed
+            out["cost_source"] = "computed-from-tokens"
+        else:
+            out["cost_usd"] = billed
     else:
         out["cost_usd"] = computed
         out["cost_source"] = "computed-from-tokens"

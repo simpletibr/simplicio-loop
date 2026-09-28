@@ -274,6 +274,24 @@ def first_cold_call(arms: dict, arm: str = "simplicio") -> dict | None:
     return None
 
 
+def run_prefix_cache_miss(calls: list[dict]) -> dict | None:
+    """DeepSeek harness ``request-cache.e2e.ts`` rule, over one run.
+
+    The first recorded call may miss. Every later call must report
+    ``cached_tokens > 0``. ``calls`` is the simplicio arm in order, across
+    every task, not reset per task.
+    """
+    seen = [call for call in calls if call.get("ok", True)]
+    for call in seen[1:]:
+        if not (call.get("cached_tokens") or 0):
+            return {
+                "turn": call.get("turn"),
+                "prompt_tokens": call.get("prompt_tokens") or 0,
+                "cached_tokens": 0,
+            }
+    return None
+
+
 def build_cold_call_note(arms: dict) -> str:
     cold = first_cold_call(arms)
     if cold is None:

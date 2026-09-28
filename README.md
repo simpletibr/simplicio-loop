@@ -293,8 +293,8 @@ This repository holds three packages, each with one responsibility:
 Dev setup (editable-installs all three into one venv): `bash scripts/dev_install.sh`. Local
 gate: `python3 scripts/check.py --package all` (or `--package mapper|dev-cli|loop`, or
 `--changed` to run only what a diff touches). There is no GitHub Actions gate here — the
-local gate is authoritative. The 5-command flow through the loop is: **orient → prepare →
-wave → tick → verify** (see [The loop](#-the-loop) below).
+local gate is authoritative. The delivery flow for any task count is: **orient → prepare →
+edit-plan → tick (exactly one task) or wave (two or more) → verify** (see [The loop](#-the-loop) below).
 
 ---
 
@@ -476,6 +476,25 @@ are mandatory by default — see `.claude/skills/simplicio-loop/references/plann
 `docs/adr/0004-planning-gate-rollout.md`.
 
 ---
+
+
+## 🔌 The 50 extension points
+
+These are the named places a host can bind a native capability. The full contract,
+including the two required bindings (Mapper on `orient`, Dev CLI on `deterministic_edit`),
+is [`.claude/skills/simplicio-loop/references/extension-points.md`](.claude/skills/simplicio-loop/references/extension-points.md).
+Every delivery run still closes through the same flow: orient, prepare, one edit plan per
+task, `tick` for one task or `wave` for two or more, then verify.
+
+`orient` · `pattern_match` · `recall` · `normalize` · `deterministic_edit` · `autoscale` ·
+`plan` · `execute` · `issue_factory` · `claim` · `worktree` · `diagnostics` · `validate` ·
+`pr` · `watcher` · `savings_ledger` · `capability_rank` · `compress` · `trajectory` ·
+`learn` · `human_gate` · `shell_exec` · `retry` · `convergence_policy` · `status` ·
+`security` · `intake` · `dependency_graph` · `durable_workflow` · `work_queue` ·
+`resource_governor` · `delivery_gate` · `action_gate` · `repo_conventions` · `pr_template` ·
+`reuse_precedent` · `sibling_search` · `source_adapter` · `prompt_budget` · `model_route` ·
+`model_preflight` · `toolchain_detect` · `checkpoint_restore` · `notify` · `endpoint_compare` ·
+`web_verify` · `video_evidence` · `web_research` · `transform_guard` · `judge`
 
 ## 🔁 The loop
 
@@ -834,11 +853,9 @@ simplicio-loop prepare --task task.md --repo .
 # Executar via fluxo wave padrão (recomendado):
 simplicio-loop wave <run_id>
 
-# Ou para tarefa única ultrarrápida (local-first, sem latência externa):
-# ver SKILL.md "Pick the fastest route first" -- route_mode.py -> fast-path:
-python3 scripts/route_mode.py --root . --goal "<one task, plain prose>"
-simplicio-dev-cli edit --plan ops.json --compile plan.json
-simplicio-dev-cli edit --plan plan.json --apply --json
+# Uma tarefa usa tick; duas ou mais usam wave. As duas fecham com verify:
+simplicio-loop tick <run_id> --repo . --task-index 1
+simplicio-loop verify <run_id> --repo .
 ```
 
 > **Aviso de Descontinuação do `run`**: O comando `simplicio-loop run` foi descontinuado e excluído da interface pública. Caso seja invocado (`simplicio-loop run --task task.md` ou `simplicio-loop run <run_id>`), o comando é automaticamente interceptado e redirecionado para o fluxo padrão `simplicio-loop wave`, garantindo execução com barreira de integridade e a máxima velocidade.
@@ -849,7 +866,7 @@ simplicio-dev-cli edit --plan plan.json --apply --json
 |---|---|---|
 | Install and utilities | `install`, `dashboard`, `learn` | Install the bundled skills/hooks; open or stop the token-monitor dashboard; derive and persist a retrospective from completed runs. |
 | Intake and planning | `task`, `prototype`, `plan`, `orient` | Validate/preview task contracts; route prototype planning; compile Markdown into a frozen contract; build bounded Mapper context and an orientation receipt. |
-| Execution | `wave`, `prism`, `batch`, `tick` | Dispatch ready tasks through governed wave barriers (`wave`, default flow); execute through isolated worktrees (`prism`); continuous background dispatch (`batch`); step-by-step single-task execution (`tick`). A single bounded task is routed through the fast-path (`scripts/route_mode.py` -> `simplicio-dev-cli edit --compile/--apply`), not a dedicated command. *(Nota: `run` foi descontinuado e redireciona para `wave`)*. |
+| Execution | `wave`, `prism`, `batch`, `tick` | Dispatch ready tasks through governed wave barriers (`wave`, default flow); execute through isolated worktrees (`prism`); continuous background dispatch (`batch`); step-by-step single-task execution (`tick`). Exactly one prepared task executes with `tick`; two or more execute with `wave`. Both close with `verify`. *(Nota: `run` foi descontinuado e redireciona para `wave`)*. |
 | Run lifecycle | `status`, `progress`, `resume`, `cancel`, `verify`, `oracle`, `checkpoint` | Inspect a run; render progress as text/JSON/Markdown/ANSI; resume or cancel non-terminal work; run independent watcher/delivery gates; evaluate completion/parity; manage candidate checkpoints. |
 | Repository and operators | `preflight`, `map`, `inspect`, `doctor`, `stack`, `extensions`, `retrieve` | Check Mapper/Dev CLI/Runtime readiness; inspect map-service receipts; inspect MapperStore capabilities; diagnose stack/source/resource/storage; lock or verify installed components; verify extension handshakes; retrieve tee-cache results. |
 | Queues and coordination | `queue`, `drain`, `agent-slots`, `generation-broker`, `ledger`, `hub-drain-plan`, `hub-drain-admit` | Operate the durable queue; evaluate or persist queue-drain receipts; inspect/reclaim Loop capacity; reconcile generation bindings; replay/validate the operational ledger; plan or admit GitHub drain work. |
@@ -862,7 +879,7 @@ Para garantir os melhores resultados de velocidade, economia e confiabilidade:
 
 | Cenário / Demanda | Fluxo Recomendado | Comando | Por que escolher? |
 |---|---|---|---|
-| **1 Tarefa Simples / Local** | fast-path (`route_mode.py`) | `python3 scripts/route_mode.py --root . --goal "<task>"` seguido de `simplicio-dev-cli edit --plan ... --compile`/`--apply` | **Mais Rápido e Barato**: Execução local-first imediata via Dev CLI (sem comando de Loop dedicado). 0 chamadas de rede, custo zero de tokens. |
+| **1 tarefa** | o mesmo fluxo de entrega | `simplicio-loop prepare` → `tick <run_id> --task-index 1` → `verify <run_id>` | Uma tarefa fica no checkout compartilhado. O fechamento continua sendo o `verify`. |
 | **Multi-tarefas Padrão (2 a 30+ tarefas)** | `wave` *(Padrão)* | `simplicio-loop wave <run_id>` | **Máxima Velocidade e Confiabilidade**: Despacha ondas concorrentes com barreiras de reconciliação de estado entre cada onda. Evita race conditions em arquivos compartilhados e aproveita 96%+ de cache hit. |
 | **Alta Concorrência em Árvores Isoladas** | `prism` | `simplicio-loop prism <run_id> --batch-size 10` | **Isolamento Total**: Worktrees Git isoladas para tarefas independentes que alteram partes distintas do código sem colisão. |
 | **Fila Contínua de Tarefas** | `batch` | `simplicio-loop batch <run_id>` | **Processamento em Massa**: Mantém workers ocupados continuamente processando tarefas prontas da fila até o esgotamento. |

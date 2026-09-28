@@ -166,3 +166,39 @@ def test_wave_dispatch_defers_to_serial_fallback_when_capacity_is_not_admitted(t
     assert calls == []
     worktree_list = _git(repo, "worktree", "list")
     assert "lane-" not in worktree_list
+
+
+def test_wave_runs_when_pressure_blocks_admission_but_safe_workers_remain(tmp_path, monkeypatch):
+    """Disk pressure used to skip the wave entirely. If the governor still
+    reports safe workers, the wave runs at that width and returns only after
+    every lane closes."""
+    monkeypatch.setenv("SIMPLICIO_LOOP_DISPATCH_MODE", "thread")
+    repo = _init_repo(tmp_path)
+    run_id = "wave-run-pressure"
+    run_dir = _seed_run_dir(repo, run_id)
+    items = [
+        {"task_index": 1, "run_id": run_id, "repo": str(repo), "task_spec": {"files_affected": ["a.txt"]}},
+        {"task_index": 2, "run_id": run_id, "repo": str(repo), "task_spec": {"files_affected": ["b.txt"]}},
+    ]
+    monkeypatch.setattr(runner_mod, "_run_operator_item_process", _make_fake_dispatch())
+
+    class PressuredMonitor(_FakeMonitor):
+        def refresh(self, *, force=False):
+            return _FakeSample(2)
+
+        def admission_status(self):
+            return {
+                "admitted": False,
+                "reason_code": "PHYSICAL_PRESSURE_TERMINATE",
+                "reason": "pressure_terminate_owned",
+                "evidence": {"sample": {"safe_workers": 2}},
+            }
+
+    monkeypatch.setattr(runner_mod.local_capacity, "PhysicalAdmissionMonitor", PressuredMonitor)
+    result = runner_mod._wave_worktree_dispatch(
+        repo_path=repo, run_id=run_id, run_dir=run_dir,
+        items=items, retry_budget=0, max_workers=2,
+    )
+    assert result is not None
+    assert result["completed_task_indices"] == [1, 2]
+    assert result["capacity_admission"]["wave_mode"] == "admitted-under-pressure"

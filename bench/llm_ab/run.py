@@ -31,6 +31,7 @@ import argparse
 import datetime
 import json
 import os
+from pathlib import Path
 import subprocess
 import sys
 import tempfile
@@ -247,6 +248,9 @@ def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
 
     batch_prompt = build_batch_prompt(task_list)
     total_wall_t0 = time.time()
+    if os.environ.get("SIMPLICIO_BENCH_TURBO") == "1" and arm == "simplicio":
+        from simplicio_loop.turbo import survey_tasks
+        survey_tasks(Path(repo_dir), task_list)
     if arm_spec is not None:
         oc.install_skills(repo_dir, arm_spec["skills"])
         isolated_path = oc.build_arm_path(arm_spec["bins"])
@@ -408,6 +412,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     ap.add_argument(
+        "--turbo", action="store_true",
+        help=(
+            "10-task turbo comparison: simplicio surveys with Mapper once, "
+            "then one OpenCode session for all tasks; normal stays one session "
+            "per task. This is the only comparison shape used to judge speed "
+            "and cost against the no-skill arm."
+        ),
+    )
+    ap.add_argument(
         "--isolate-arms", action="store_true",
         help=(
             "apply arms.ARM_SPECS-driven skill/PATH isolation (issue #1337) even to "
@@ -429,6 +442,10 @@ def main(argv=None) -> int:
 
     lc.keys_path()  # fail fast, before any work, if SIMPLICIO_BENCH_KEYS is unset/missing
 
+    if args.turbo and args.tasks != 10:
+        ap.error("--turbo compares exactly 10 tasks")
+    if args.turbo:
+        os.environ["SIMPLICIO_BENCH_TURBO"] = "1"
     task_list = bench_tasks.task_set(args.tasks)
 
     fixture_dir = os.path.join(HERE, "fixture")
@@ -443,7 +460,10 @@ def main(argv=None) -> int:
     for arm in arms:
         repo_dir = os.path.join(work_dir, f"{arm}-repo")
         config_dir = os.path.join(work_dir, f"{arm}-oc-home")
-        arms_results[arm] = run_fn(
+        # Turbo keeps the no-skill arm sequential (one cold session per task)
+        # and folds the simplicio arm into one session after a single survey.
+        arm_fn = run_arm_batch if (args.turbo and arm == "simplicio") or args.batch else run_fn
+        arms_results[arm] = arm_fn(
             arm, fixture_dir, repo_dir, args.python_bin, args.task_timeout,
             task_list=task_list, config_dir=config_dir,
             settle_reads=args.settle_reads, settle_interval_s=args.settle_interval,

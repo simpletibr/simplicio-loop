@@ -98,7 +98,8 @@ def test_brief_apply_command_and_ops_format(tmp_path):
     _repo(tmp_path, {"a.html": "<html></html>"})
     payload = orient_brief(tmp_path, ["Edit a.html"])
     apply_block = payload["apply"]
-    assert "simplicio-loop apply" in apply_block["command"]
+    assert "simplicio-loop prepare --task tasks.md" in apply_block["command"]
+    assert "simplicio-loop tick" in apply_block["command"]
     assert "operations" in apply_block["ops_format"]["tasks"][0]
     assert "repo_state_chain" in apply_block["ops_format"]
 
@@ -117,7 +118,8 @@ def test_brief_size_is_compact(tmp_path):
 def test_brief_single_task_shorthand_matches_list_form(tmp_path):
     _repo(tmp_path, {"a.html": "<html></html>"})
     from_list = orient_brief(tmp_path, ["Edit a.html"])
-    assert from_list["route"]["mode"] in {"fast-path", "converge"}
+    assert from_list["route"]["mode"] == "deliver"
+    assert from_list["route"]["execute"] == "tick"
     assert len(from_list["targets"]) >= 1
 
 
@@ -140,28 +142,37 @@ def test_brief_carries_per_phase_effort_hint(tmp_path):
     assert payload["route"]["next"][0]["effort"] == PHASE_EFFORT["plan"]
 
 
-def test_brief_route_next_is_apply_hot_path_for_one_task(tmp_path):
-    """Issue #1315: the brief must steer the host to ``simplicio-loop apply``
-    (plan high -> execute low), never to the legacy dev-cli compile/apply
-    pair, even for a one-task fast-path route."""
+def test_brief_route_next_is_tick_delivery_for_one_task(tmp_path):
+    """One task still plans, then prepare+tick, then verify."""
     from simplicio_loop.effort import PHASE_EFFORT
 
     _repo(tmp_path, {"a.html": "<html></html>"})
-    steps = orient_brief(tmp_path, ["Edit a.html"])["route"]["next"]
+    route = orient_brief(tmp_path, ["Edit a.html"])["route"]
+    steps = route["next"]
     text = " ".join(s["step"] for s in steps)
-    assert "simplicio-loop apply .simplicio-loop/ops.json" in text
+    assert route["execute"] == "tick"
+    assert "simplicio-loop prepare --task tasks.md" in text
+    assert "simplicio-loop tick" in text
+    assert "simplicio-loop verify" in text
+    assert "simplicio-loop wave" not in text
     assert "simplicio-dev-cli" not in text
     assert steps[0]["phase"] == "plan"
     assert steps[0]["effort"] == PHASE_EFFORT["plan"]
     assert steps[1]["phase"] == "execute"
     assert steps[1]["effort"] == PHASE_EFFORT["execute"]
+    assert steps[2]["phase"] == "review"
+    assert steps[2]["effort"] == PHASE_EFFORT["review"]
 
 
-def test_brief_route_next_is_apply_hot_path_for_many_tasks(tmp_path):
+def test_brief_route_next_is_wave_delivery_for_many_tasks(tmp_path):
     _repo(tmp_path, {"a.html": "<html></html>", "b.html": "<html></html>"})
-    steps = orient_brief(tmp_path, ["Edit a.html", "Edit b.html"])["route"]["next"]
-    assert any("simplicio-loop apply .simplicio-loop/ops.json" in s["step"] for s in steps)
-    assert not any("prepare" in s["step"] or "wave" in s["step"] for s in steps)
+    route = orient_brief(tmp_path, ["Edit a.html", "Edit b.html"])["route"]
+    text = " ".join(s["step"] for s in route["next"])
+    assert route["execute"] == "wave"
+    assert "simplicio-loop prepare --task tasks.md" in text
+    assert "simplicio-loop wave" in text
+    assert "simplicio-loop verify" in text
+    assert "simplicio-loop tick" not in text
 
 
 def test_brief_targets_named_file_comes_first(tmp_path):
