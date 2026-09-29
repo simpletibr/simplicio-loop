@@ -340,13 +340,17 @@ def default_work_dir() -> str:
 def turbo_complete(arm: str, messages: list[dict], **kwargs) -> dict:
     """The turbo arm's model call: the arm's pinned OpenRouter session (the same
     ``x-session-id`` the OpenCode arms get) and reasoning switched off, since the
-    call only writes an edit plan that dev-cli verifies."""
+    call only writes an edit plan that dev-cli verifies.
+    ``SIMPLICIO_BENCH_TURBO_REASONING=on`` (``--turbo-reasoning``) leaves the
+    model's default reasoning on, to measure what switching it off costs."""
+    if os.environ.get("SIMPLICIO_BENCH_TURBO_REASONING", "").lower() == "on":
+        return lc.chat(arm, messages, session_id=oc.session_id_for_arm(arm), **kwargs)
     return lc.chat(arm, messages, session_id=oc.session_id_for_arm(arm),
                    reasoning={"enabled": False}, **kwargs)
 
 
 def result_filename(date: str, short_sha: str, task_count: int, batch: bool = False,
-                    independent: bool = False) -> str:
+                    independent: bool = False, hard: bool = False, reasoning: bool = False) -> str:
     """``<date>-<short_sha>-t<task_count>[-batch].json`` -- the task count is
     part of the filename so ``aggregate.load_history``/report history
     diffing never mixes runs with a different task set (a 2-task run and a
@@ -354,7 +358,8 @@ def result_filename(date: str, short_sha: str, task_count: int, batch: bool = Fa
     ``--batch`` run's history separate from a sequential run's, for the same
     reason -- one LLM session for all tasks measures something different
     from one session per task."""
-    suffix = ("-batch" if batch else "") + ("-ind" if independent else "")
+    suffix = ("-batch" if batch else "") + ("-ind" if independent else "") + ("-hard" if hard else "")
+    suffix += "-reason" if reasoning else ""
     return f"{date}-{short_sha}-t{task_count}{suffix}.json"
 
 
@@ -449,6 +454,20 @@ def build_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     ap.add_argument(
+        "--hard", action="store_true",
+        help=(
+            "--tasks 4 only: the hard Python set on fixture_hard/ (logic, bug fix, two-file "
+            "refactor, parser) checked by hidden tests outside the arm repo; results ...-t4-hard.json"
+        ),
+    )
+    ap.add_argument(
+        "--turbo-reasoning", action="store_true",
+        help=(
+            "keep the model's default reasoning on the turbo calls (default: off); "
+            "results get a -reason suffix"
+        ),
+    )
+    ap.add_argument(
         "--random", action="store_true",
         help="Draw 2 tasks at run time and compare them with --turbo.",
     )
@@ -491,9 +510,16 @@ def main(argv=None) -> int:
             os.environ["SIMPLICIO_BENCH_TURBO"] = "1"
         if args.independent and args.tasks != 10:
             ap.error("--independent applies to --tasks 10")
-        task_list = bench_tasks.task_set(args.tasks, independent=args.independent)
+        if args.hard and args.tasks != 4:
+            ap.error("--hard applies to --tasks 4")
+        if args.hard:
+            task_list = bench_tasks.hard_task_set()
+        else:
+            task_list = bench_tasks.task_set(args.tasks, independent=args.independent)
+    if args.turbo_reasoning:
+        os.environ["SIMPLICIO_BENCH_TURBO_REASONING"] = "on"
 
-    fixture_dir = os.path.join(HERE, "fixture")
+    fixture_dir = os.path.join(HERE, "fixture_hard" if args.hard else "fixture")
     work_dir = args.work_dir or default_work_dir()
     os.makedirs(work_dir, exist_ok=True)
     os.makedirs(args.out, exist_ok=True)
@@ -536,6 +562,8 @@ def main(argv=None) -> int:
         "batch": args.batch,
         "agent": "opencode",
         "effort_policy": "opencode-managed (no per-call reasoning-effort control via the CLI)",
+        "task_set": "hard" if args.hard else ("independent" if args.independent else "standard"),
+        "turbo_reasoning": "on" if args.turbo_reasoning else "off",
     }
     results = {"meta": meta, "arms": arms_results}
     results["cost_report"] = {
@@ -546,6 +574,7 @@ def main(argv=None) -> int:
     short_sha = _short_sha(REPO_ROOT)
     out_path = os.path.join(args.out, result_filename(
         meta["date"], short_sha, args.tasks, batch=args.batch, independent=args.independent,
+        hard=args.hard, reasoning=args.turbo_reasoning,
     ))
     with open(out_path, "w") as f:
         json.dump(results, f, indent=2)

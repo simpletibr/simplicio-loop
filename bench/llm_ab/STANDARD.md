@@ -109,6 +109,21 @@ sets are dependency chains, so the wave runs them serially; `--tasks 10 --indepe
 runs the same ten pages without the chain (results `...-t10-ind.json`) to measure the
 fan-out. `SIMPLICIO_BENCH_TURBO=0` measures the OpenCode + skill arm instead.
 
+## Hard set: does switching reasoning off cost quality?
+
+`--tasks 4 --hard` runs four independent Python tasks on `fixture_hard/`:
+- `pricing.py`: coupon rules plus a half-up rounding trap that Python's `round()` gets wrong.
+- `inventory.py`: two bugs to fix without changing the API.
+- A two-file refactor into `shop/money.py`.
+- `duration.py`: a parser with edge cases.
+
+Their acceptance tests live in `hidden/check_hard.py`, outside the fixture, so neither arm can read them. The harness runs them by absolute path with `cwd` set to the arm's repo. Turbo also sends the files a task lists under `context`, so the refactor sees both source files. `--turbo-reasoning` keeps the model's default reasoning on the turbo calls; the default is off. Results: `...-t4-hard.json` and `...-t4-hard-reason.json`.
+
+```bash
+python3 bench/llm_ab/run.py --arms normal,simplicio --tasks 4 --hard --out OUT            # reasoning off
+python3 bench/llm_ab/run.py --arms simplicio --tasks 4 --hard --turbo-reasoning --out OUT # reasoning on
+```
+
 ## OpenCode (issue #1325)
 
 Both arms run the real [OpenCode](https://github.com/sst/opencode) agent

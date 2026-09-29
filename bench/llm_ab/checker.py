@@ -20,7 +20,8 @@ def run_check(repo: str, stage: int, python: str, checker: str = "check_cadastro
     Returns ``(passed, output, metrics)`` where ``metrics`` is the
     ``measure.run_subprocess`` dict (wall/cpu/peak_rss/returncode).
     """
-    cmd = [python, f"tests/{checker}", "--stage", str(stage)]
+    script = checker if os.path.isabs(checker) else f"tests/{checker}"  # hidden checkers live outside the repo
+    cmd = [python, script, "--stage", str(stage)]
     out, metrics = measure.run_subprocess(cmd, cwd=repo, timeout=timeout)
     passed = metrics["returncode"] == 0
     return passed, out, metrics
