@@ -1,7 +1,6 @@
 """Unit tests for the #425 `intake_planner` concrete stage-agent role.
 
-Builds on the #284 fixtures (task contract / plan / intake / matrix) already
-used by `tests/test_intake_impact_matrix_replan_284_unit.py`, and covers the
+Builds on the #284 fixtures (task contract / plan / intake / matrix) and covers the
 #425-specific checklist: the typed `intake-planner-receipt`, boundary
 enforcement (no product-code mutation / no commit-PR-merge), the risk
 register gate, the dependency DAG explicitness, the impact-gap threshold, and
