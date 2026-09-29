@@ -143,6 +143,9 @@ def test_the_loop_machinery_is_for_queues_and_re_fed_goals_only() -> None:
     loop = _flat(text.split("\n## Loop", 1)[1].split("\n## ", 1)[0])
     assert "Queue goals" in loop and "re-fed goals" in loop and "a task run needs none of it" in loop
     assert "skip it when the script is missing" in _flat(text.split("## Drive", 1)[1].split("\n## ", 1)[0])
+    delivery = _flat(text.split("\n## Bounded delivery\n", 1)[1].split("\n## ", 1)[0])
+    assert delivery.startswith("For queue goals:")  # a one-file task opens no issue and no PR
+    assert "a task run never needs it" in _flat(text.split("\n## Guardrails\n", 1)[1].split("\n## ", 1)[0])
 
 
 def test_skill_does_not_hand_the_host_a_mapper_scan() -> None:
