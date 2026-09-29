@@ -12,8 +12,9 @@ What this repo is:
 - Evidence-gated loop: never exit on a fake “done”
 
 Current operator flow:
-- `simplicio-mapper --help` — survey operator; run `scan`, `inspect`, then `handoff`.
-- `simplicio-dev-cli --help` — governed edit/verify operator; use `task ... --target ...` for the decided AC.
+- `simplicio-loop turbo --repo <path> --task "<task>" [--verify "<tests>"]` — the default way to run any task: Mapper reads the repo once, the model returns the plan, `simplicio-dev-cli` applies it. Needs `OPENROUTER_API_KEY`; without it the command blocks and you stop. Do not write plans or edit files yourself.
+- `simplicio-mapper --help` — survey operator; turbo runs it for you.
+- `simplicio-dev-cli --help` — governed edit/verify operator; turbo drives it.
 - Both operators are built into the one `simplicio-loop` wheel (`pip install simplicio-loop`); update with `simplicio-loop update`.
 - Run focused tests and `git diff --check`; re-query live PR/check/merge state before publishing.
 - Default profile is standalone: `SIMPLICIO_LOOP_REQUIRE_RUNTIME=off` and `SIMPLICIO_EXECUTION_PROFILE=standalone`.
@@ -42,9 +43,9 @@ Key commands:
 
 Complete command/feature map: `docs/CLI_COMMANDS.md`. Before using any
 entrypoint, run its most specific `--help`; public commands must explain their
-purpose there. Current train: Mapper 0.26.33, Dev CLI 0.18.15,
-Loop 3.43.14. Issue work uses objective, implementation/deployment, and tests;
-do not add Acceptance Criteria sections.
+purpose there. Current release: Loop 3.45.0 (Mapper 0.26.34 and Dev CLI
+0.18.16 are bundled). Issue work uses objective, implementation/deployment, and
+tests; do not add Acceptance Criteria sections.
 
 If you are an LLM agent:
 - Prefer deterministic edits / local verification.

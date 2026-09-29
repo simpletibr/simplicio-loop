@@ -1,6 +1,6 @@
 ---
 name: simplicio-loop
-description: "Ralph loop for mapper + simplicio-dev-cli. Same goal every turn; exit only on an evidence-gated promise or max_iterations. GitHub is SoT for issues/PRs. Host writes the edit plan."
+description: "Ralph loop for mapper + simplicio-dev-cli. Same goal every turn; exit only on an evidence-gated promise or max_iterations. GitHub is SoT for issues/PRs. Invoking it runs simplicio-loop turbo."
 ---
 
 <!-- simplicio-contract:begin -->
@@ -12,101 +12,50 @@ rules: Follow this skill end-to-end; mutable data (versions, dates, counts) live
 
 # /simplicio-loop
 
-On invocation, start this engine. Do not explore the tree and do not call
-`simplicio-mapper scan`, `inspect`, or `handoff` by hand.
+On invocation, run the turbo engine. It is the path the benchmark measures,
+and every host runs the same command:
+
+```bash
+simplicio-loop turbo --repo <path> --task "<task>" [--task "<task 2>" ...] [--verify "<test command>"]
+```
+
+- Put the whole request in `--task` and name every file to create or change
+  in the text (or pass `--target`/`--context` with a single `--task`), so the
+  model sees its current content. Several requests: one `--task` each, in one
+  command.
+- Do not explore the tree, write plans, or edit files yourself, and do not
+  call `simplicio-mapper scan`, `inspect`, or `handoff` by hand.
+- Turbo is the default. Mapper reads the repo once. That project map is the
+  header and stays byte-identical on every call; the task text and the current
+  target file are the suffix. The model (`deepseek/deepseek-v4.1-flash` on
+  OpenRouter, pinned session, reasoning off) returns a find/replace plan and
+  `simplicio-dev-cli` applies it. A rejected plan is sent back once, then turbo
+  stops. Up to three tasks share one model call. Above three tasks the first
+  call runs alone, then the rest fan out and read the header from prompt cache.
+  Tasks on the same file stay in order.
+- It needs `OPENROUTER_API_KEY`. Without it the command prints
+  `status: blocked` with `reason_code: turbo_provider_key_missing`: tell the
+  user to export the key, and stop. Never fall back to hand edits.
+- It prints one JSON document: `status` (ok, failed or blocked), `applied`,
+  `failed` with the dev-cli reason, `model_calls`, `retries`, tokens,
+  `cache_hit_pct`, `cost_usd`, `wall_s`, and `verify`. Report those numbers as
+  printed.
+- On `failed`, re-run once with a sharper `--task` that names the file and the
+  exact change, then report.
+- Pass the project's tests as `--verify` whenever the repository has them.
 
 One monorepo. `packages/mapper` surveys and `packages/dev-cli` applies.
 Do not install those as external projects. No Runtime. No Fast package.
 `orient` is the Mapper survey. It is cached: a second call on an unchanged
 tree reuses it. `--tee` stores the JSON in the tee cache.
 
-Turbo is the default. Mapper reads the repo once. That project map is the
-header and stays byte-identical on every call. The task text and the current
-target file are the suffix. The model returns an edit plan and
-`simplicio-dev-cli` applies it. A rejected plan is sent back once, then turbo
-stops. Up to three tasks share one model call. Above three tasks the first
-call runs alone, then the rest follow so every later call can read that
-header from prompt cache. Dependent tasks stay in order. Independent tasks
-share the header, and dev-cli applies one plan at a time. The model does not
-edit files itself. Every model call after the first must read prompt cache
-(DeepSeek harness `request-cache.e2e.ts`).
-
 Self-referential iteration: the SAME goal is re-fed each turn. Exit ONLY when
 the typed `<promise>…</promise>` is true **and** in-turn evidence exists, or
 when `max_iterations` fires. Credit: Ralph Wiggum / cursor `ralph-loop`.
 
-The host LLM writes find/replace text. The engine freezes, applies, and
-verifies it. The loop never calls a provider to write code.
-
-## The flow (one task and many tasks)
-
-Run these, in order. The same sequence covers one task and many tasks.
-Any repository: pass `--repo <path>`.
-
-```bash
-# 1. Survey (plain-prose goal, no "T1"/"T2" labels)
-simplicio-loop orient --repo <path> --task "<goal>" --tee --json
-
-# 2. Arm a run for 1..N tasks (see "Task file" below); prints run_id
-simplicio-loop prepare --task tasks.md --repo <path>
-
-# 3. Per task N, write ONLY find/replace text:
-#    .simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json
-#    {"operations": [{"path": "calc/ops.py", "find": "<exact text, unique in file>", "replace": "<new text>"}]}
-
-# 4. Execute
-#    more than one task: one wave, lanes in parallel, finishes when every lane has integrated or failed closed
-simplicio-loop wave <run_id> --repo <path>
-#    exactly one task
-simplicio-loop tick <run_id> --repo <path> --task-index 1
-
-# 5. Independent verification
-simplicio-loop verify <run_id> --repo <path>
-```
-
-- Write every `edit-plan-<N>.json` up front. The loop freezes each one
-  (`simplicio-dev-cli edit --compile`) right before applying it, so task 2
-  binds to the tree task 1 left. A `find` that does not match exactly once
-  blocks that task. Fix the text and re-run. `find: ""` creates a missing
-  file and does not overwrite an existing non-empty file.
-- Disjoint paths run together with asyncio. Paths that overlap stay in one
-  lane, in order. Integration back into the shared tree is serial.
-- The 50 binding points are `references/extension-points.md`. A delivery run
-  still closes on `delivery_gate` and `verify`. Two or more tasks are one wave:
-  the lanes run together, and the wave returns only when every lane has closed.
-  If the machine is under disk pressure but still has safe workers, the wave
-  runs at that width instead of being skipped.
-- One small change, no run:
-  `simplicio-dev-cli edit --plan ops.json --compile plan.json` then
-  `simplicio-dev-cli edit --plan plan.json --apply --json` then
-  `simplicio-dev-cli test --json`.
-- **Never** `simplicio-dev-cli task "prose"` (answers `plan_required`).
-
-## Task file (`tasks.md`)
-
-One block per task. A new `System:` line starts the next block.
-
-```markdown
-System: calc
-Feature: add mul(a, b)
-Type: Feature
-
-1. Acceptance Criteria
-Scenario 1: mul multiplies two numbers — returns 12 for mul(3, 4)
-
-8. Additional Information
-Independent verifier: `python3 -m pytest -q`
-```
-
-`Type: Docs|Chore|Config` or `Tests: none` waives the lane matrix for that task.
-
-`Then` is its own line. A `Then` on the same line as `Given` or `When` is refused.
-When the Mapper handoff does not authorize files, each task needs `Target: <path>`.
-
 ## Done
 
-`wave` and `tick` verify automatically. `simplicio-loop verify <run_id>`
-re-runs it. Done = run phase `done` and completion `VERIFIED` or `MEASURED`.
+Done = `status: "ok"` and, when `--verify` was given, `verify.passed: true`.
 Emit the `<promise>` only after that, in the same turn.
 
 ## Contract
@@ -147,15 +96,13 @@ End every message: `DONE | NEXT | BLOCKED`.
 
 <!-- SIMPLICIO-LLM-ORIENTATION:BEGIN -->
 Loop orientation:
-- On invocation, start the engine. Any repository via `--repo <path>`.
+- On invocation, run `simplicio-loop turbo --repo <path> --task "<task>" [--verify "<tests>"]`. One command for one task and for many: one `--task` each.
+- It needs `OPENROUTER_API_KEY`. Without it the command prints status blocked (`turbo_provider_key_missing`): tell the user, stop. No fallback to hand edits.
+- Do not write plans or edit files yourself. Do not explore the tree.
+- Done = status ok and, when `--verify` was given, verify passed. Promise only after that.
 - Monorepo: packages/mapper, packages/dev-cli, loop at the root. Do not install them as external projects. No Runtime. No Fast package.
-- One flow for one task and for many: orient --tee → prepare tasks.md → edit-plan-<N>.json → tick when exactly one task, wave when more than one → verify.
-- One small change, no run: simplicio-dev-cli edit --plan, compile, apply, test.
-- Mapper survey is cached. `--tee` stores the JSON.
-- Disjoint lanes run together with asyncio. The wave finishes only when every lane has integrated or failed closed.
 - GitHub is SoT for issues/PRs when the remote is GitHub.
-- Never simplicio-dev-cli task "prose". No plan → plan_required.
-- Review: 1 implement + 1 verify. Promise only after verify MEASURED.
+- Review: 1 implement + 1 verify.
 - End: DONE | NEXT | BLOCKED.
 <!-- SIMPLICIO-LLM-ORIENTATION:END -->
 
@@ -167,8 +114,7 @@ One implementation issue and one delivery PR per worker. Freeze the goal before 
 
 - Do not invent MEASURED numbers.
 - Do not close issues without a live GitHub re-query.
-- Do not hand-edit source as the primary mutation path. Write the edit plan and let the engine apply it.
-- Exactly one task uses `tick`. More than one task uses `wave`.
+- Do not hand-edit source. Run simplicio-loop turbo.
 
 Full per-turn protocol: `references/full-flow.md` — read it only when the task needs it.
 

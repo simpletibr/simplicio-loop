@@ -338,15 +338,15 @@ def default_work_dir() -> str:
 
 
 def turbo_complete(arm: str, messages: list[dict], **kwargs) -> dict:
-    """The turbo arm's model call: the arm's pinned OpenRouter session (the same
-    ``x-session-id`` the OpenCode arms get) and reasoning switched off, since the
-    call only writes an edit plan that dev-cli verifies.
-    ``SIMPLICIO_BENCH_TURBO_REASONING=on`` (``--turbo-reasoning``) leaves the
-    model's default reasoning on, to measure what switching it off costs."""
-    if os.environ.get("SIMPLICIO_BENCH_TURBO_REASONING", "").lower() == "on":
-        return lc.chat(arm, messages, session_id=oc.session_id_for_arm(arm), **kwargs)
-    return lc.chat(arm, messages, session_id=oc.session_id_for_arm(arm),
-                   reasoning={"enabled": False}, **kwargs)
+    """The turbo arm's model call is the product's own (``simplicio_loop.turbo_provider``),
+    so the benchmark measures what ``simplicio-loop turbo`` sends: the arm's pinned
+    OpenRouter session and reasoning off. ``SIMPLICIO_BENCH_TURBO_REASONING=on``
+    (``--turbo-reasoning``) keeps the model's default reasoning on."""
+    from simplicio_loop import turbo_provider
+
+    reasoning_on = os.environ.get("SIMPLICIO_BENCH_TURBO_REASONING", "").lower() == "on"
+    return turbo_provider.complete(arm, messages, api_key=lc.get_key(arm),
+                                   session_id=oc.session_id_for_arm(arm), reasoning_off=not reasoning_on)
 
 
 def result_filename(date: str, short_sha: str, task_count: int, batch: bool = False,

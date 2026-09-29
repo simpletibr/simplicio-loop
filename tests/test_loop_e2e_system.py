@@ -280,7 +280,9 @@ def test_refeed_injects_canonical_startup_orientation_once(tmp_path):
     followup = payload["followup_message"]
     assert "[simplicio-loop startup orientation]" in followup
     assert "No Runtime" in followup
-    assert "plan_required" in followup
+    assert 'simplicio-loop turbo --repo <path> --task "<task>"' in followup
+    assert "OPENROUTER_API_KEY" in followup
+    assert "edit-plan" not in followup
     assert followup.count("[simplicio-loop startup orientation]") == 1
     assert followup.count("No Runtime") == 1
 

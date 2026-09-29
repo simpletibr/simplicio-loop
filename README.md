@@ -293,8 +293,9 @@ This repository holds three packages, each with one responsibility:
 Dev setup (editable-installs all three into one venv): `bash scripts/dev_install.sh`. Local
 gate: `python3 scripts/check.py --package all` (or `--package mapper|dev-cli|loop`, or
 `--changed` to run only what a diff touches). There is no GitHub Actions gate here — the
-local gate is authoritative. The delivery flow for any task count is: **orient → prepare →
-edit-plan → tick (exactly one task) or wave (two or more) → verify** (see [The loop](#-the-loop) below).
+local gate is authoritative. The delivery flow for any task count is one command:
+**`simplicio-loop turbo`** — Mapper surveys once, the model returns the plan, Dev CLI applies it and
+`--verify` runs the tests (needs `OPENROUTER_API_KEY`; see [Zero-config execution](#zero-config-execution)).
 
 ---
 
@@ -853,7 +854,18 @@ The main `simplicio-loop` entry point is the user-facing control surface for pla
 
 ### Zero-config execution
 
-The standard entry point uses the governed `wave` flow (with automatic reconciliation barriers):
+The default entry point is `simplicio-loop turbo`: one command for one task or many. Mapper reads the
+repo once, the model (`deepseek/deepseek-v4.1-flash` on OpenRouter, pinned session, reasoning off)
+returns the find/replace plan, `simplicio-dev-cli` applies it, and `--verify` runs your tests. It
+needs `OPENROUTER_API_KEY`; without it the command stops with `turbo_provider_key_missing` and never
+falls back to hand edits. It prints one JSON document (`status`, `applied`, `failed`, `model_calls`,
+`cache_hit_pct`, `cost_usd`, `verify`).
+
+```bash
+simplicio-loop turbo --repo . --task "Create pricing.py with order_total" --task "Fix the two bugs in inventory.py" --verify "python -m pytest -q"
+```
+
+Governed runs from a `tasks.md` (queues, batches, Prism) use the `wave` flow (with automatic reconciliation barriers):
 
 ```bash
 # Preparar / Armar run a partir de especificação markdown:
@@ -875,7 +887,7 @@ simplicio-loop verify <run_id> --repo .
 |---|---|---|
 | Install and utilities | `install`, `dashboard`, `learn` | Install the bundled skills/hooks; open or stop the token-monitor dashboard; derive and persist a retrospective from completed runs. |
 | Intake and planning | `task`, `prototype`, `plan`, `orient` | Validate/preview task contracts; route prototype planning; compile Markdown into a frozen contract; build bounded Mapper context and an orientation receipt. |
-| Execution | `wave`, `prism`, `batch`, `tick` | Dispatch ready tasks through governed wave barriers (`wave`, default flow); execute through isolated worktrees (`prism`); continuous background dispatch (`batch`); step-by-step single-task execution (`tick`). Exactly one prepared task executes with `tick`; two or more execute with `wave`. Both close with `verify`. *(Nota: `run` foi descontinuado e redireciona para `wave`)*. |
+| Execution | `turbo`, `wave`, `prism`, `batch`, `tick` | Run tasks through the default engine (`turbo`: Mapper survey, model plan, Dev CLI apply, `--verify`); dispatch ready tasks through governed wave barriers (`wave`, default flow); execute through isolated worktrees (`prism`); continuous background dispatch (`batch`); step-by-step single-task execution (`tick`). Exactly one prepared task executes with `tick`; two or more execute with `wave`. Both close with `verify`. *(Nota: `run` foi descontinuado e redireciona para `wave`)*. |
 | Run lifecycle | `status`, `progress`, `resume`, `cancel`, `verify`, `oracle`, `checkpoint` | Inspect a run; render progress as text/JSON/Markdown/ANSI; resume or cancel non-terminal work; run independent watcher/delivery gates; evaluate completion/parity; manage candidate checkpoints. |
 | Repository and operators | `preflight`, `map`, `inspect`, `doctor`, `stack`, `extensions`, `retrieve` | Check Mapper/Dev CLI/Runtime readiness; inspect map-service receipts; inspect MapperStore capabilities; diagnose stack/source/resource/storage; lock or verify installed components; verify extension handshakes; retrieve tee-cache results. |
 | Queues and coordination | `queue`, `drain`, `agent-slots`, `generation-broker`, `ledger`, `hub-drain-plan`, `hub-drain-admit` | Operate the durable queue; evaluate or persist queue-drain receipts; inspect/reclaim Loop capacity; reconcile generation bindings; replay/validate the operational ledger; plan or admit GitHub drain work. |
@@ -888,7 +900,8 @@ Para garantir os melhores resultados de velocidade, economia e confiabilidade:
 
 | Cenário / Demanda | Fluxo Recomendado | Comando | Por que escolher? |
 |---|---|---|---|
-| **1 tarefa** | o mesmo fluxo de entrega | `simplicio-loop prepare` → `tick <run_id> --task-index 1` → `verify <run_id>` | Uma tarefa fica no checkout compartilhado. O fechamento continua sendo o `verify`. |
+| **Qualquer tarefa (padrão)** | `turbo` | `simplicio-loop turbo --repo . --task "…" --verify "<testes>"` | **Padrão**: o motor medido no benchmark. O Mapper lê o repositório uma vez, o modelo devolve o plano e o Dev CLI aplica. Precisa de `OPENROUTER_API_KEY`. |
+| **1 tarefa em run governada (`tasks.md`)** | o mesmo fluxo de entrega | `simplicio-loop prepare` → `tick <run_id> --task-index 1` → `verify <run_id>` | Uma tarefa fica no checkout compartilhado. O fechamento continua sendo o `verify`. |
 | **Multi-tarefas Padrão (2 a 30+ tarefas)** | `wave` *(Padrão)* | `simplicio-loop wave <run_id>` | **Máxima Velocidade e Confiabilidade**: Despacha ondas concorrentes com barreiras de reconciliação de estado entre cada onda. Evita race conditions em arquivos compartilhados e aproveita 96%+ de cache hit. |
 | **Alta Concorrência em Árvores Isoladas** | `prism` | `simplicio-loop prism <run_id> --batch-size 10` | **Isolamento Total**: Worktrees Git isoladas para tarefas independentes que alteram partes distintas do código sem colisão. |
 | **Fila Contínua de Tarefas** | `batch` | `simplicio-loop batch <run_id>` | **Processamento em Massa**: Mantém workers ocupados continuamente processando tarefas prontas da fila até o esgotamento. |
@@ -967,6 +980,7 @@ Important nested command surfaces:
 Typical single-task commands:
 
 ```bash
+simplicio-loop turbo --repo . --task "<task>" --verify "<tests>"   # default; needs OPENROUTER_API_KEY
 simplicio-loop preflight --repo . --json
 simplicio-loop orient --task "understand this repository" --repo .
 simplicio-loop plan --task task.md --out contract.json

@@ -31,10 +31,11 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `task` | Compile, validate, or preview a Markdown task contract. |
 | `prototype` | Route prototype planning and validation commands. |
 | `plan` | Compile a raw task into a frozen contract. |
+| `turbo` | The default way to run a task. Mapper reads the repo once, one model call per lane goes to OpenRouter (`deepseek/deepseek-v4.1-flash`, `SIMPLICIO_TURBO_MODEL` overrides; pinned session, reasoning off), and `simplicio-dev-cli` applies the returned plan. `--task` (repeat for several), `--target`/`--context` (one task), `--tasks-file`, `--verify "<tests>"`. Up to three tasks share one call; a rejected plan goes back once. Needs `OPENROUTER_API_KEY`: without it, `status: blocked` with `turbo_provider_key_missing`. Prints one `simplicio.turbo-run/v1` JSON document; exit 0 ok, 1 failed, 2 blocked. |
 | `prepare` / `arm` | Arm and preflight a run without executing tasks or calling a provider; returns a `run_id` for `tick`, `batch`, `wave`, or `prism`. |
 | `run` | Arm, execute, and independently verify a task. |
-| `orient` | Build bounded context through the Mapper survey and emit `simplicio.llm-max-speed-orientation/v1` plus a hash-bound `simplicio.loop-orient-receipt/v1` (Mapper-only). `--brief` (repeatable `--task`, issue #1310) renders Turn 1 of the plan-once/apply-once hot path: route first, deduped target file content, plan groups, suggested checks, Mapper generation + a `repo_state_chain` fingerprint, and the exact `apply` command. |
-| `apply` | Turn 2 of the plan-once/apply-once hot path (issue #1310): apply one `ops.json` (`{"tasks":[{"id","operations":[{path,find,replace}],"check","depends_on"}]}`). Validates every `find` in memory before any write (BLOCKED + hint, nothing written, on a miss/non-unique/chained mismatch); mutates through `simplicio-dev-cli` (compile then apply); runs independent file-disjoint chains concurrently via asyncio with an isolated check environment (`PYTHONDONTWRITEBYTECODE`, `PYTEST_ADDOPTS=-p no:cacheprovider`, a per-task `COVERAGE_FILE`); fails closed on a stale `repo_state_chain` (the same generation-identity fingerprint `orient --brief` recorded); writes a receipt under `.simplicio-loop/apply/<run_id>/receipt.json`. Exit 0 only on PASS, 2 on BLOCKED, 1 on FAIL. |
+| `orient` | Build bounded context through the Mapper survey and emit `simplicio.llm-max-speed-orientation/v1` plus a hash-bound `simplicio.loop-orient-receipt/v1` (Mapper-only). `--brief` (repeatable `--task`, issue #1310) renders the compact form: route first (its one next step is the `turbo` command carrying every task and `--verify`), deduped target file content, plan groups, suggested checks, Mapper generation + a `repo_state_chain` fingerprint, and the ops format of `apply`. |
+| `apply` | Apply one host-written `ops.json` (issue #1310; `turbo` is the default path, this is for a plan you already have) (`{"tasks":[{"id","operations":[{path,find,replace}],"check","depends_on"}]}`). Validates every `find` in memory before any write (BLOCKED + hint, nothing written, on a miss/non-unique/chained mismatch); mutates through `simplicio-dev-cli` (compile then apply); runs independent file-disjoint chains concurrently via asyncio with an isolated check environment (`PYTHONDONTWRITEBYTECODE`, `PYTEST_ADDOPTS=-p no:cacheprovider`, a per-task `COVERAGE_FILE`); fails closed on a stale `repo_state_chain` (the same generation-identity fingerprint `orient --brief` recorded); writes a receipt under `.simplicio-loop/apply/<run_id>/receipt.json`. Exit 0 only on PASS, 2 on BLOCKED, 1 on FAIL. |
 | `retrieve` | Retrieve and verify a tee-cache result. |
 | `extensions doctor` | Inspect an exact extension-provider/runtime handshake. |
 | `oracle` | Evaluate completion and cross-runtime parity. |
@@ -74,23 +75,20 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 ### Zero-config start
 
 ```bash
-# Multi-tarefas / Governed waves (padrão recomendado):
-simplicio-loop wave RUN_ID
+# Default: any task, one or many, one command (needs OPENROUTER_API_KEY):
+simplicio-loop turbo --repo . --task "Create pricing.py with order_total" --verify "python -m pytest -q"
 
-# Preparar / Armar run a partir de markdown:
+# Governed runs from a tasks.md (queues, batches, Prism):
 simplicio-loop prepare --task task.md --repo .
-
-# Tarefa única ultrarrápida (local-first): `route_mode.py` -> fast-path
-# (ver SKILL.md "Pick the fastest route first"):
-#   python3 scripts/route_mode.py --root . --goal "<one task, plain prose>"
-#   simplicio-dev-cli edit --plan ops.json --compile plan.json
-#   simplicio-dev-cli edit --plan plan.json --apply --json
-#   <the task's verification command>
-
-# Tick unitário e batch contínuo:
+simplicio-loop wave RUN_ID
 simplicio-loop tick RUN_ID --repo .
 simplicio-loop batch RUN_ID
 ```
+
+`turbo` prints one JSON document (`simplicio.turbo-run/v1`): `status` (`ok`, `failed` or
+`blocked`), `applied`, `failed` (the dev-cli reason per lane), `model_calls`, `retries`, `tokens`,
+`cache_hit_pct`, `cost_usd`, `calls`, `verify`, `wall_s`. Done is `status: "ok"` and, when
+`--verify` was given, `verify.passed: true`. Name every file to change in the task text.
 
 > **Nota de Descontinuação**: O comando `simplicio-loop run` foi descontinuado. Qualquer invocação a `simplicio-loop run --task task.md` ou `simplicio-loop run <run_id>` é interceptada e automaticamente redirecionada para o fluxo governado padrão `wave`.
 
@@ -118,14 +116,6 @@ the index is still warming, and derive worker demand from the task set. Physical
 admission still controls safe CPU/RAM/disk concurrency; `--serial` is an explicit
 conflict/dependency choice, not the default. Receipts and validation gates remain
 mandatory.
-
-A single bounded task is routed through the documented fast-path instead of a
-dedicated command: `python3 scripts/route_mode.py --root . --goal "<task>"`
-selects `fast-path` (one task, one file, fan-in ≤1, no sensitive surface),
-then `simplicio-dev-cli edit --plan ... --compile`/`--apply` performs the
-governed local edit and the task's own verification command closes it out — no
-run, no wave, no provider call. See
-`.claude/skills/simplicio-loop/SKILL.md` § "Pick the fastest route first".
 
 ## Generic task intake
 
@@ -176,8 +166,8 @@ cat export.json | simplicio-loop intake --from - --repo .
   `items`/`issues`/`data`/`value`/`nodes`, an empty CSV, or markdown with no
   `System:`/`Sistema:` block) fails closed: a typed `reason_code` on stderr
   and exit code 2.
-- **Drain** each item the normal way: `orient --brief` → `apply` for a single
-  bounded task, or `prepare` → `wave` → `verify` for governed multi-item
+- **Drain** each item the normal way: `turbo --task "<item>"` for a bounded
+  task, or `prepare` → `wave` → `verify` for governed multi-item
   delivery. Write-back (closing the source issue, posting a comment) stays
   with the host, which owns the tracker credentials; `intake`/the loop only
   print the per-item result and source URL for the host to post.
@@ -224,9 +214,11 @@ missing, incompatible, or non-activating Runtime decision.
 
 ## Operator order for LLMs
 
-1. `simplicio-mapper --help` → `scan` → `inspect` → `handoff`.
-2. `simplicio-dev-cli --help` → `task --help` for the governed edit and verification step.
-3. `simplicio-loop preflight --help`, focused tests, then `simplicio-loop verify --help`.
+1. `simplicio-loop turbo --help`, then `simplicio-loop turbo --repo <path> --task "<task>" [--verify "<tests>"]`:
+   the default way to run a task. It runs the Mapper survey and the Dev CLI edit for you and needs
+   `OPENROUTER_API_KEY`.
+2. `simplicio-mapper --help` and `simplicio-dev-cli --help` to inspect an operator, not to run a delivery.
+3. `simplicio-loop preflight --help`, focused tests, then `simplicio-loop verify --help` for governed runs.
 
 The survey every flow requires is Mapper-only.
 

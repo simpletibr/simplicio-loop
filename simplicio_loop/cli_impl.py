@@ -734,84 +734,63 @@ def _orient_provider_provenance(payload: Mapping[str, Any]) -> dict[str, Any]:
 
 COMMAND_CARD_SCHEMA = "simplicio.loop-command-card/v1"
 COMMAND_CARD_MAX_BYTES = 1_500
-DELIVERY_EXECUTE_RULE = "1 task -> tick; 2 or more -> wave"
+TURBO_EXECUTE_RULE = (
+    "simplicio-loop turbo: up to 3 tasks share one model call; more fan out after the first; "
+    "tasks on the same file stay in order"
+)
 
 
-def delivery_execute_verb(task_count: int) -> str:
-    """The execute step of the one delivery flow.
+def turbo_command(root: Path, tasks: Sequence[str] = ()) -> str:
+    """The one command every host runs: the benchmarked turbo engine."""
+    import shlex
 
-    A prepared contract with one task stays on ``tick``. Two or more tasks
-    are one ``wave``. Both end in ``verify``.
-    """
-    return "tick" if int(task_count) <= 1 else "wave"
+    parts = [f"simplicio-loop turbo --repo {shlex.quote(str(root))}"]
+    for task in tasks or ["<goal, naming the files to change>"]:
+        parts.append(f"--task {shlex.quote(' '.join(str(task).split()))}")
+    parts.append('--verify "<test command>"')
+    return " ".join(parts)
 
 
-def delivery_flow_commands(root: Path) -> list[str]:
-    """Literal commands orient gives the host for any task count."""
-    repo = str(root)
-    return [
-        "write tasks.md (one System: block per task)",
-        f"simplicio-loop prepare --task tasks.md --repo {repo}",
-        "write every .simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json up front",
-        f"simplicio-loop tick <run_id> --repo {repo} --task-index 1",
-        f"simplicio-loop wave <run_id> --repo {repo}",
-        f"simplicio-loop verify <run_id> --repo {repo}",
-    ]
+def delivery_flow_commands(root: Path, tasks: Sequence[str] = ()) -> list[str]:
+    """Literal command orient gives the host for any task count: the turbo engine."""
+    return [turbo_command(root, tasks)]
 
 
 def _orient_command_card(root: Path) -> dict[str, Any]:
-    """Exact next commands for this repo (< 1.5 KB serialized).
+    """The exact next command for this repo: the benchmarked turbo engine.
 
-    An LLM host that just ran ``orient`` needs the literal next commands,
-    the edit-plan path pattern/minimal format, and the task-file lane +
-    waiver lines without re-reading ``SKILL.md`` -- so orient answers it
-    directly.
+    The host runs it and reports its JSON; it does not write edit plans itself.
     """
-    repo = str(root)
+    from .turbo_provider import DEFAULT_MODEL, KEY_ENV, MODEL_ENV
+
     return {
         "schema": COMMAND_CARD_SCHEMA,
-        "prepare": f"simplicio-loop prepare --task tasks.md --repo {repo}",
-        "wave": f"simplicio-loop wave <run_id> --repo {repo}",
-        "verify": f"simplicio-loop verify <run_id> --repo {repo}",
-        "tick": f"simplicio-loop tick <run_id> --repo {repo} --task-index <N>",
-        "execute_rule": DELIVERY_EXECUTE_RULE,
-        "flow": ["orient", "prepare", "edit-plan", "tick-or-wave", "verify"],
-        "edit_plan_path": ".simplicio-loop/loop-runs/<run_id>/edit-plan-<N>.json",
-        "edit_plan_format": {
-            "operations": [{"path": "<repo-relative>", "find": "<exact text>", "replace": "<new text>"}]
-        },
-        "edit_plan_rule": "find must match exactly once in path",
-        "task_file_lanes": [
-            "Independent verifier:",
-            "Unit verifier:",
-            "Integration verifier:",
-            "System verifier:",
-            "Regression verifier:",
-            "Benchmark verifier:",
-            "Coverage verifier:",
-        ],
-        "waiver": {"type_line": "Type: Docs|Chore|Config", "tests_line": "Tests: none"},
+        "turbo": turbo_command(root),
+        "flow": ["turbo"],
+        "execute_rule": TURBO_EXECUTE_RULE,
+        "requires": KEY_ENV,
+        "model": f"{DEFAULT_MODEL} ({MODEL_ENV} overrides)",
+        "done": "status ok, and verify.passed when --verify was given",
     }
 
 
 def _orient_route(root: Path, task: str) -> dict[str, Any]:
-    """One delivery flow for every task count.
+    """One flow for every task count: the host runs ``simplicio-loop turbo``.
 
-    The host writes ``tasks.md`` and the edit plans. ``prepare`` arms the
-    run. One task executes with ``tick``; two or more execute with ``wave``.
-    ``verify`` is the only close. A one-file goal does not skip this flow.
+    Turbo surveys with Mapper, asks the model for the plan and applies it with
+    dev-cli; ``--verify`` runs the tests. A one-file goal takes the same path.
     """
     goal = " ".join(str(task).split())
     return {
         "mode": "deliver",
         "justification": (
-            "delivery flow"
+            "turbo"
             + (f" for {goal[:80]}" if goal else "")
-            + ": prepare, edit plans, tick for one task or wave for two or more, then verify"
+            + ": Mapper once, one model plan per lane, dev-cli applies, --verify runs the tests"
         ),
         "resolved_files": [],
-        "execute_rule": DELIVERY_EXECUTE_RULE,
-        "next": delivery_flow_commands(root),
+        "execute_rule": TURBO_EXECUTE_RULE,
+        "next": delivery_flow_commands(root, [goal] if goal else ()),
     }
 
 
@@ -1464,39 +1443,24 @@ def _brief_plan_groups(tasks: Sequence[str], per_task_targets: Sequence[Sequence
 
 
 def _brief_annotate_route_next(route: Mapping[str, Any], root: Path,
-                               status: str, task_count: int = 1) -> dict[str, Any]:
-    """Point ``route["next"]`` at the delivery flow for this task count.
+                               status: str, task_count: int = 1,
+                               tasks: Sequence[str] = ()) -> dict[str, Any]:
+    """Point ``route["next"]`` at ``simplicio-loop turbo`` for these tasks.
 
-    Plan writes ``tasks.md`` and every edit plan. Execute is ``prepare``
-    plus ``tick`` for one task or ``wave`` for two or more. Review is
-    ``verify``. A BLOCKED brief passes through unchanged.
+    The host runs that one command; turbo plans with the model, applies with
+    dev-cli and verifies with ``--verify``. A BLOCKED brief passes through unchanged.
     """
     from .effort import PHASE_EFFORT
 
     if status == "BLOCKED":
         return dict(route)
-    verb = delivery_execute_verb(task_count)
-    repo = str(root)
-    if verb == "tick":
-        execute = (
-            f"simplicio-loop prepare --task tasks.md --repo {repo} && "
-            f"simplicio-loop tick <run_id> --repo {repo} --task-index 1"
-        )
-    else:
-        execute = (
-            f"simplicio-loop prepare --task tasks.md --repo {repo} && "
-            f"simplicio-loop wave <run_id> --repo {repo}"
-        )
+    del task_count
     out = dict(route)
     out["mode"] = "deliver"
-    out["execute"] = verb
-    out["execute_rule"] = DELIVERY_EXECUTE_RULE
+    out["execute"] = "turbo"
+    out["execute_rule"] = TURBO_EXECUTE_RULE
     out["next"] = [
-        {"step": "write tasks.md (one System: block per task) and every edit-plan-<N>.json (exact find/replace)",
-         "phase": "plan", "effort": PHASE_EFFORT["plan"]},
-        {"step": execute, "phase": "execute", "effort": PHASE_EFFORT["execute"]},
-        {"step": f"simplicio-loop verify <run_id> --repo {repo}",
-         "phase": "review", "effort": PHASE_EFFORT["review"]},
+        {"step": turbo_command(root, tasks), "phase": "execute", "effort": PHASE_EFFORT["execute"]},
     ]
     return out
 
@@ -1626,7 +1590,8 @@ def _orient_brief_impl(root: Path, tasks: list[str], *,
     repo_state_chain = _repo_fingerprint(root)
 
     from .effort import PHASE_EFFORT
-    overall_route = _brief_annotate_route_next(overall_route, root, overall_status, len(task_list))
+    overall_route = _brief_annotate_route_next(overall_route, root, overall_status, len(task_list),
+                                               tasks=[str(t) for t in task_list])
 
     payload: dict[str, Any] = {}
     payload["route"] = overall_route
@@ -2736,6 +2701,28 @@ def main(argv=None) -> int:
     p_install.add_argument("--verify", action="store_true", help="validate plan version/digest")
     p_install.add_argument("--uninstall", action="store_true", help="remove Loop-owned files only")
 
+    p_turbo = sub.add_parser(
+        "turbo",
+        help="run tasks through the benchmarked engine: Mapper once, model plan, dev-cli apply",
+        description=(
+            "Default way to run a task. Mapper surveys the repo once and its map becomes a fixed header. "
+            "Each lane gets one model call to OpenRouter (model deepseek/deepseek-v4.1-flash, override "
+            "with SIMPLICIO_TURBO_MODEL) on a pinned session with reasoning off, and simplicio-dev-cli "
+            "applies the returned find/replace plan. Up to three tasks share one call; more fan out after "
+            "the first. A rejected plan goes back to the model once. Requires OPENROUTER_API_KEY; without "
+            "it the command stops with reason turbo_provider_key_missing. Prints one JSON document; "
+            "exit 0 ok, 1 failed, 2 blocked."
+        ),
+    )
+    p_turbo.add_argument("--repo", default=".", help="repository to change (default: .)")
+    p_turbo.add_argument("--task", action="append", default=[],
+                         help="task text; repeat for several tasks. Name the files to change in the text")
+    p_turbo.add_argument("--target", help="with one --task: the file to create or change")
+    p_turbo.add_argument("--context", action="append", default=[],
+                         help="with one --task: another file the model must see; repeatable")
+    p_turbo.add_argument("--tasks-file", help="JSON list of {text, target?, context?, depends_on?}")
+    p_turbo.add_argument("--verify", help="shell command run in the repo after every plan applied, e.g. tests")
+
     p_update = sub.add_parser("update", help="install the latest GitHub release of simpletibr/simplicio-loop")
     p_update.add_argument("--check", action="store_true", help="only report installed vs latest; change nothing")
     p_update.add_argument("--force", action="store_true", help="reinstall even when already on the latest release")
@@ -3233,6 +3220,10 @@ def main(argv=None) -> int:
             return drain_intake_main(argv_list)
     args = parser.parse_args(argv_list)
     command = args.command or "install"
+    if command == "turbo":
+        from .turbo_cli import run as run_turbo_cli
+        return run_turbo_cli(args.repo, args.task, target=args.target, context=args.context,
+                             tasks_file=args.tasks_file, verify=args.verify)
     if command == "update":
         from .self_update import run_update
         return run_update(check=args.check, force=args.force)

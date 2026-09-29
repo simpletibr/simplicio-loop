@@ -27,6 +27,17 @@ def test_core_gate_adds_no_network_env_to_every_bounded_phase(monkeypatch) -> No
     assert all(call["env"]["SIMPLICIO_CORE_NO_NETWORK"] == "1" for call in calls)
 
 
+def test_every_bounded_phase_used_by_check_has_a_timeout() -> None:
+    """`scripts/check.py` runs each phase through run_bounded, which looks its timeout up by name."""
+    import re
+    from pathlib import Path
+
+    source = Path(check.__file__).read_text(encoding="utf-8")
+    phases = set(re.findall(r'phase="([a-z_]+)"', source))
+    assert "contract_headers" in phases
+    assert not sorted(phases - set(check.PHASE_TIMEOUT_SECONDS))
+
+
 def test_claims_audit_receives_core_argv_only_from_core_gate(monkeypatch) -> None:
     calls = []
 

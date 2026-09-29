@@ -35,7 +35,7 @@
        │ thinks, plans, selects tools
        ▼
   simplicio-loop protocol (journal / anchor / backlog / hooks)
-       │ orient → route → mutate
+       │ turbo: survey → plan → apply
        ├── simplicio-mapper   (required, standalone)
        └── simplicio-dev-cli  (required, standalone)
 ```
@@ -73,12 +73,12 @@ Expected: preflight green, or explicit degraded labels — never a silent fake O
 
 ## 4. Step-by-step — every non-trivial task
 
-1. **Orient:** `simplicio-loop orient --task "<task>" --json` (Mapper survey context).
-2. **Route:** follow `route.mode` / `route.next` from the orient output.
-   - **fast-path** (1 task, 1 file): `simplicio-dev-cli edit --plan ops.json --compile plan.json`
-     → `edit --plan plan.json --apply` → run the task's own check. No run, no wave.
-   - **2+ tasks or converge:** `simplicio-loop prepare --task tasks.md`, write every
-     `edit-plan-<N>.json`, `wave <run_id>`, `verify <run_id>`.
+1. **Run turbo:** `simplicio-loop turbo --repo <path> --task "<task>" [--task "<task 2>" ...] [--verify "<tests>"]`.
+   Mapper reads the repo once, the model returns the plan, `simplicio-dev-cli` applies it. Name every
+   file to change in the task text. It needs `OPENROUTER_API_KEY`; without it the command prints
+   `status: blocked` (`turbo_provider_key_missing`) and you stop: no plans and no edits by hand.
+2. **Read its JSON:** `status` (ok/failed/blocked), `applied`, `failed`, `model_calls`,
+   `cache_hit_pct`, `cost_usd`, `verify`. On `failed`, re-run once with a sharper `--task`.
 3. **Record metrics per task/issue:**
    ```text
    python -m simplicio_loop.execution_report record-task --task-id t1 --issue 42 --title "…" \
@@ -95,8 +95,8 @@ Expected: preflight green, or explicit degraded labels — never a silent fake O
 |--------|---------|
 | Preflight (blocking) | `simplicio-loop preflight --strict --json` |
 | Orient + route | `simplicio-loop orient --task "…" --json` |
-| Fast-path edit | `simplicio-dev-cli edit --plan ops.json --compile plan.json` |
-| Multi-task converge | `simplicio-loop prepare --task tasks.md` → `wave` → `verify` |
+| Run a task (default) | `simplicio-loop turbo --repo . --task "…" --verify "<tests>"` |
+| Governed run from a tasks.md | `simplicio-loop prepare --task tasks.md` → `wave` → `verify` |
 | Drain a queue | `python3 scripts/arm_drain_prism.py --repo . --slots 0 --batch-size N --json` |
 | Start metrics report | `python -m simplicio_loop.execution_report start --json` |
 | Per-task metrics | `python -m simplicio_loop.execution_report record-task …` |

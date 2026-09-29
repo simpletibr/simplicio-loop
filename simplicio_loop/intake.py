@@ -18,7 +18,7 @@ relation/link field when present.
 
 ``render_tasks_markdown`` compiles normalized items into the same ``tasks.md``
 grammar ``simplicio_loop.task_contract``/``prepare`` already understand — see
-``.claude/skills/simplicio-loop/SKILL.md`` "Task file (tasks.md)". This module
+``.claude/skills/simplicio-loop/references/full-flow.md`` "Task file (tasks.md)". This module
 writes no files itself and touches no state directory: the CLI
 (``simplicio_loop/intake_cli.py``) owns writing ``tasks.md``, and any backlog
 freeze goes through ``scripts/task_backlog.py``'s own CLI/API, so this module
