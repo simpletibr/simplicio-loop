@@ -109,7 +109,7 @@ Loop orientation:
 
 ## Bounded delivery
 
-One implementation issue and one delivery PR per worker. Freeze the goal before mutation. Findings: `AC_BLOCKER` / `REGRESSION_BLOCKER` / `FOLLOW_UP`. Only blockers hold the current delivery.
+For queue goals: one implementation issue and one delivery PR per worker. Freeze the goal before mutation. Findings: `AC_BLOCKER` / `REGRESSION_BLOCKER` / `FOLLOW_UP`. Only blockers hold the current delivery.
 
 ## Guardrails
 
@@ -117,7 +117,7 @@ One implementation issue and one delivery PR per worker. Freeze the goal before 
 - Do not close issues without a live GitHub re-query.
 - Do not hand-edit source: the plan is the edit, `simplicio-loop turbo --apply -` lets dev-cli apply it.
 
-Full per-turn protocol: `references/full-flow.md` — read it only when the task needs it.
+Armed loops and queues only: the full per-turn protocol is `references/full-flow.md`; a task run never needs it.
 
 ## What the model sees
 
