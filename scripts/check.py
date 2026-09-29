@@ -211,7 +211,7 @@ def _impacted_test_files(base):
     return _IMPACT_CACHE[base]
 
 
-def run_tests(only_core=False, impact=False, base="origin/main"):
+def run_tests(only_core=False, impact=False, base_ref="origin/main"):
     tests_dir = os.path.join(REPO, "tests")
     if not os.path.isdir(tests_dir):
         print("tests/ not found")
@@ -223,12 +223,12 @@ def run_tests(only_core=False, impact=False, base="origin/main"):
         test_files = _core_test_files(tests_dir)
         label = "tests/ (core-gate — satellite tests skipped)"
     elif impact:
-        test_files = [os.path.join(REPO, t) for t in _impacted_test_files(base)
+        test_files = [os.path.join(REPO, t) for t in _impacted_test_files(base_ref)
                       if t.startswith("tests/") and os.path.isfile(os.path.join(REPO, t))]
-        label = "tests/ (impact vs %s: %d files)" % (base, len(test_files))
+        label = "tests/ (impact vs %s: %d files)" % (base_ref, len(test_files))
         if not test_files:
             _hr("tests (impact)")
-            print("impact: no test is affected by the change vs %s" % base)
+            print("impact: no test is affected by the change vs %s" % base_ref)
             return GateResult(True, "no_impacted_tests")
     else:
         test_files = sorted(glob.glob(os.path.join(tests_dir, "test_*.py")))
@@ -661,7 +661,7 @@ def main():
     if not any_only or "--mirror-parity-only" in args or core_gate:
         results["mirror_parity"] = run_mirror_parity()
     if not any_only or "--tests-only" in args or core_gate:
-        results["tests"] = run_tests(only_core=core_gate, impact=not (full or core_gate), base=base)
+        results["tests"] = run_tests(only_core=core_gate, impact=not (full or core_gate), base_ref=base)
     if not any_only or "--loop-contract-only" in args or core_gate:
         results["loop_contract"] = run_loop_contract()
     if not any_only or "--clean-env-only" in args or core_gate:

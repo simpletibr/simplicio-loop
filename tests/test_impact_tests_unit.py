@@ -61,7 +61,7 @@ def test_a_changed_test_file_is_always_selected_and_nothing_else_runs_without_ch
 def test_check_runs_no_tests_when_nothing_is_impacted(monkeypatch):
     check = _load("check")
     monkeypatch.setattr(check, "_impacted_test_files", lambda base: [])
-    result = check.run_tests(impact=True, base="HEAD")
+    result = check.run_tests(impact=True, base_ref="HEAD")
     assert result.ok and result.reason_code == "no_impacted_tests"
 
 
@@ -119,3 +119,22 @@ def test_a_changed_conftest_reaches_tests_by_fixture_name_and_an_autouse_fixture
                         encoding="utf-8")
     assert impact.impacted_tests("HEAD")[0] == sorted(
         f"tests/{name}" for name in ("test_docs.py", "test_other.py", "test_tax.py", "test_total.py", "test_uses_fixture.py"))
+
+
+def test_package_gate_runs_only_its_impacted_tests_and_skips_pytest_when_none(monkeypatch):
+    check = _load("check")
+    default = ["tests/python", "-q"]
+    monkeypatch.setattr(check, "_impacted_test_files", lambda base: [
+        "tests/test_root.py", "packages/mapper/tests/python/test_a.py", "packages/dev-cli/tests/python/test_b.py"])
+    assert check._package_test_args("mapper", default, False, "origin/main") == default
+    assert check._package_test_args("mapper", default, True, "origin/main") == ["tests/python/test_a.py", "-q"]
+    assert check._package_test_args("dev-cli", default, True, "origin/main") == ["tests/python/test_b.py", "-q"]
+    monkeypatch.setattr(check, "_impacted_test_files", lambda base: ["tests/test_root.py"])
+    assert check._package_test_args("mapper", default, True, "origin/main") is None
+
+    ran = []
+    monkeypatch.setattr(check, "_run_step", lambda tool_argv, task_args, **kw: ran.append(list(task_args)) or None)
+    monkeypatch.setattr(check.shutil, "which", lambda name: None)  # no node: the gate ends after pytest
+    assert check.run_package_gate("mapper", impact=True, base="origin/main").ok
+    assert not [args for args in ran if args and "pytest" in " ".join(args)] and ["check", "."] in ran
+    assert all(args != ["tests/python", "-q"] for args in ran)
