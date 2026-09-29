@@ -8,7 +8,7 @@ Goal
     ├── SlotSupervisor (minimum 10 logical tasks; no upper ceiling)
     │   ├── TaskOwnership (one owner, lease, attempt, fence)
     │   └── child SlotSupervisor
-    └── deterministic reducer → independent completion oracle
+    └── independent completion oracle
 ```
 
 Logical capacity is not process count. A slot defaults to ten tasks and can
@@ -54,11 +54,7 @@ logical overflow slot. A transition from a different owner or stale fence raises
   after relief.
 - Device loss: fenced reassignment or `DEVICE_LOST_RECOVERY_REQUIRED`; no
   duplicate execution.
-- Orphan effect intent: consult an existing Dev CLI receipt; never re-execute
-  the unresolved effect.
-- Corrupt, truncated or partial HBP journal: fail closed.
-- Runtime unavailable/incompatible: reason-coded Python fallback.
 
 The schemas and cross-language fixtures ship under
 `simplicio_loop/_contracts/prism/v1`. `hbp-golden.json` freezes exact bytes for
-Python/Runtime parity; `conformance-cases.json` freezes adversarial decisions.
+cross-language parity; `conformance-cases.json` freezes adversarial decisions.

@@ -7,17 +7,12 @@ boundary so adapters cannot silently bypass the gate.
 P0 foundation slice (issue #568, this repo's own piece): four versioned schemas
 (`plan`, `candidate`, `decision`, `receipt`), an explainable prototype-necessity
 classifier, and a promotion state machine (`P0 -> P1 -> P2 -> FULL`) with bounded
-`REVISE` + stall detection + drift invalidation. Candidate fan-out execution
-(`simplicio_loop/prototype_fanout.py`, a pluggable `CandidateExecutor` with a
-real `LocalSubprocessExecutor` default) and independent judgment
-(`simplicio_loop/prototype_judge.py`, a pluggable `Judge` protocol with a
-deterministic `RuleBasedJudge` default, wired via `judge_and_decide()`/
-`judge_transition()` into a real ACCEPT/REVISE/REJECT transition through
-`apply_decision` below) are both now wired in. Multi-repo conformance
-(`scripts/prototype_conformance_suite.py`) and the adversarial/chaos-security
-suite (`tests/test_prototype_gate_adversarial.py`) validate this contract
-from outside the module. See each module's own docstring for its scoring
-contract, self-judging block, and LLM-backed-judge extension point.
+`REVISE` + stall detection + drift invalidation. Candidate execution and the
+ACCEPT/REVISE/REJECT judgment are decided by the caller and recorded through
+`apply_decision` below; this module ships no fan-out executor and no judge.
+Multi-repo conformance (`scripts/prototype_conformance_suite.py`) and the
+adversarial/chaos-security suite (`tests/test_prototype_gate_adversarial.py`)
+validate this contract from outside the module.
 """
 from __future__ import annotations
 

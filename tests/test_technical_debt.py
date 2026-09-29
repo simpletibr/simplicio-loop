@@ -7,8 +7,6 @@ from pathlib import Path
 import pytest
 
 from simplicio_loop import finding_router
-from simplicio_loop.control_policy import decide
-from simplicio_loop.flow_semantics import evaluate_drain
 from simplicio_loop.technical_debt import (
     build_notice,
     read_notices,
@@ -57,44 +55,6 @@ def test_hard_blocker_cannot_be_downgraded():
             message="drift",
             next_action="replan",
         )
-
-
-def test_control_policy_continues_for_explicit_non_blocking_debt():
-    result = decide({
-        "blocked": True,
-        "blocked_reason": "fanout_serial_fallback",
-        "technical_debts": [{
-            "reason_code": "fanout_serial_fallback",
-            "blocking": False,
-        }],
-        "acs_open": 1,
-    })
-    assert result["decision"] == "CONTINUE_SERIAL"
-    assert result["reason_code"] == "technical_debt_notified"
-    assert result["technical_debt_count"] == 1
-
-
-def test_control_policy_preserves_unknown_blocker():
-    result = decide({
-        "blocked": True,
-        "blocked_reason": "source_drift",
-        "technical_debts": [{
-            "reason_code": "source_drift",
-            "blocking": False,
-        }],
-        "acs_open": 1,
-    })
-    assert result["decision"] == "STOP_BLOCKED"
-
-
-def test_drain_quarantine_is_advisory():
-    result = evaluate_drain([
-        {"ready": [], "active": [], "blocked": [{"id": "T1", "reason": "optional adapter"}]},
-        {"ready": [], "active": []},
-    ], k=2)
-    assert result["status"] == "DRAINED"
-    assert result["technical_debts"][0]["reason_code"] == "quarantined_item"
-    assert result["technical_debts"][0]["blocking"] is False
 
 
 def test_finding_router_technical_debt_does_not_block(tmp_path: Path, monkeypatch):

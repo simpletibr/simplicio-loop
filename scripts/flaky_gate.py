@@ -45,7 +45,6 @@ DEFAULT_TARGETS = [
     "tests/test_fan_out_scheduler_integration.py",
     "tests/test_completion_oracle_system.py",
     "tests/test_completion_oracle_matrix_unit.py",
-    "tests/test_control_policy_unit.py",
     "tests/test_run_state.py",
 ]
 

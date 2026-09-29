@@ -76,22 +76,11 @@ def test_redaction_never_emits_credentials():
     assert "safe_id" in encoded
 
 
-def test_source_and_resource_doctors_are_read_only(tmp_path, capsys):
+def test_source_doctor_is_read_only(capsys):
     assert main(["doctor", "source", "--provider", "jira-cloud", "--json"]) == 0
     source = json.loads(capsys.readouterr().out)
     assert source["status"] == "READY"
     assert source["real_provider_auth"] == "UNVERIFIED"
     assert source["effects_attempted"] is False
-
-    assert main(["doctor", "resource", "--root", str(tmp_path), "--json"]) == 2
-    missing = json.loads(capsys.readouterr().out)
-    assert missing["reason_code"] == "RESOURCE_FABRIC_NOT_STARTED"
-    assert not (tmp_path / "resource-fabric.sqlite").exists()
-
-    state = tmp_path / "resource-fabric.json"
-    state.write_text(json.dumps({"schema": "simplicio.resource-fabric/v1", "draining": False}), encoding="utf-8")
-    assert main(["doctor", "resource", "--root", str(tmp_path), "--json"]) == 0
-    observed = json.loads(capsys.readouterr().out)
-    assert observed["status"] == "OBSERVED"
 
 

@@ -2524,35 +2524,6 @@ def source_doctor_command(args) -> int:
     return 0
 
 
-def resource_doctor_command(args) -> int:
-    """Inspect a prior Resource Fabric state file without constructing the fabric."""
-    path = Path(args.resource_root).expanduser().absolute() / "resource-fabric.json"
-    result = {
-        "schema": "simplicio.resource-doctor/v1",
-        "path": str(path),
-        "effects_attempted": False,
-    }
-    if not path.exists():
-        result.update({
-            "status": "UNVERIFIED",
-            "reason_code": "RESOURCE_FABRIC_NOT_STARTED",
-            "next_action": "start ResourceFabric explicitly before admitting work",
-        })
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 2
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(payload, dict) or payload.get("schema") != "simplicio.resource-fabric/v1":
-            raise ValueError("resource fabric state schema mismatch")
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
-        result.update({"status": "BLOCKED", "reason_code": "RESOURCE_STATE_INVALID", "error": str(exc)})
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 2
-    result.update({"status": "OBSERVED", "state": payload})
-    print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-    return 0
-
-
 def _redirect_run_to_wave(argv: Sequence[str]) -> int:
     """Redirect deprecated 'run' invocation to the default 'wave' flow."""
     sys.stderr.write(
@@ -2914,15 +2885,6 @@ def main(argv=None) -> int:
     )
     p_doctor_source.add_argument("--json", dest="doctor_json", action="store_true",
                                  help="emit machine-readable JSON")
-    p_doctor_resource = doctor_sub.add_parser(
-        "resource", help="inspect Resource Fabric state without starting it"
-    )
-    p_doctor_resource.add_argument(
-        "--root", dest="resource_root",
-        default=os.path.join(".simplicio-loop", "orchestrator", "resource-fabric"),
-    )
-    p_doctor_resource.add_argument("--json", dest="doctor_json", action="store_true",
-                                   help="emit machine-readable JSON")
 
     p_inspect = sub.add_parser("inspect", help="inspect storage routing and MapperStore capabilities")
     p_inspect.add_argument("--storage", action="store_true", required=True,
@@ -3297,8 +3259,6 @@ def main(argv=None) -> int:
         return stack_doctor_command(args)
     if command == "doctor" and getattr(args, "doctor_command", None) == "source":
         return source_doctor_command(args)
-    if command == "doctor" and getattr(args, "doctor_command", None) == "resource":
-        return resource_doctor_command(args)
     if command in {"doctor", "inspect"}:
         if command == "doctor" and not args.storage:
             parser.error("doctor requires --storage or the stack subcommand")

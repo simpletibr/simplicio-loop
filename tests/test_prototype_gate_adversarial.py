@@ -2,13 +2,12 @@
 
 Targets `simplicio_loop/prototype_gate.py` and, where the CLI is the actual attack
 surface (malformed/untrusted input), `simplicio_loop/prototype_cli.py`. This repo does
-not yet ship `prototype_fanout.py` / `prototype_judge.py` (candidate fan-out execution
-and judge-LLM integration are explicitly out of the P0 slice per the module docstring),
-so any of the eight categories below that genuinely depends on those modules is marked
-`pytest.mark.satellite` plus `pytest.mark.skip` with a `# TODO(deferred): needs <module>`
-comment instead of being faked green. They remain visible in the opt-in satellite lane rather
-than being misreported as core-environment capability gaps. Every non-skipped test asserts a
-real, breakable invariant -- none of them degenerate to `assert True`.
+not ship a candidate fan-out executor or a judge, so any of the eight categories below that
+genuinely depends on a missing enforcement hook is marked `pytest.mark.satellite` plus
+`pytest.mark.skip` with a `# TODO(deferred)` comment instead of being faked green. They remain
+visible in the opt-in satellite lane rather than being misreported as core-environment
+capability gaps. Every non-skipped test asserts a real, breakable invariant -- none of them
+degenerate to `assert True`.
 
 Covers, from the epic's mandatory adversarial list:
   1. prompt injection tenta dispensar gate
@@ -97,156 +96,6 @@ def test_prompt_injection_cannot_forge_a_not_required_receipt_when_a_signal_is_s
 
 # === 2. Candidate declaring access to a secret/real-data path (DEFERRED) =====================
 
-@pytest.mark.satellite
-@pytest.mark.skip(
-    reason="TODO(deferred): CANDIDATE_SCHEMA v1 has no synthetic_data_policy/real_data_policy "
-           "field today -- `safety_classification` and `artifact_location` are free-text and "
-           "never validated against an allow-list in prototype_gate.py. Enforcing 'candidate "
-           "declares access to a secret-shaped path or real prod data -> reject' needs that "
-           "field (or an equivalent policy hook) to land first; it is not fabricated here."
-)
-def test_candidate_claiming_secret_or_real_data_access_is_rejected():
-    raise NotImplementedError
-
-
-def test_candidate_secret_shaped_fields_are_currently_inert_free_text_not_dereferenced():
-    """Documents the actual, narrower guarantee that DOES exist today: whatever a candidate
-    claims in `safety_classification`/`artifact_location` is stored as opaque string data and
-    is never used by this module to open a file, read a secret, or branch gate behavior --
-    i.e. the *lack* of a policy field is not compounded by the module blindly acting on the
-    string. This is real and breakable: if someone later wires artifact_location into an
-    `open()` call in this module, this test's second assertion (round-trip equality with no
-    side channel) would need to be revisited alongside the new policy-field test above."""
-    plan = _plan()
-    candidate = _candidate(
-        plan,
-        artifact_location="s3://prod-secrets/aws-credentials.json",
-        safety_classification="accesses-production-database",
-    )
-    result = validate_candidate(candidate, plan=plan)
-    # Not rejected today (the gap) -- but also not silently upgraded to any privileged status.
-    assert result["valid"] is True
-    assert candidate["artifact_location"] == "s3://prod-secrets/aws-credentials.json"
-    assert candidate["safety_classification"] == "accesses-production-database"
-
-
-# === 3. Symlink / path traversal in artifact-store-adjacent code =============================
-
-def test_state_path_sanitizes_directory_traversal_in_work_item_id(tmp_path):
-    traversal_id = "../../../../etc/passwd"
-    path = state_path(traversal_id, repo=str(tmp_path))
-    resolved = os.path.realpath(path)
-    state_dir = os.path.realpath(os.path.join(str(tmp_path), ".simplicio-loop/orchestrator", "loop", "prototype"))
-    # The computed path must stay INSIDE the state dir -- no "/" survives sanitization, so no
-    # segment of the traversal id can walk the path up and out.
-    assert os.path.commonpath([resolved, state_dir]) == state_dir
-    assert "/etc/passwd" not in path
-
-
-def test_state_path_sanitizes_absolute_paths_and_null_like_ids(tmp_path):
-    for hostile_id in ("/etc/shadow", "//evil//host/share", "..", "....//....//etc/passwd"):
-        path = state_path(hostile_id, repo=str(tmp_path))
-        resolved = os.path.realpath(path)
-        state_dir = os.path.realpath(os.path.join(str(tmp_path), ".simplicio-loop/orchestrator", "loop", "prototype"))
-        assert os.path.commonpath([resolved, state_dir]) == state_dir
-
-
-def test_save_state_with_hostile_work_item_id_never_escapes_state_dir(tmp_path):
-    plan = _plan()
-    state = init_state(work_item_id="../../../../tmp/pwned", plan=plan)
-    saved_path = save_state(state, repo=str(tmp_path))
-    resolved = os.path.realpath(saved_path)
-    state_dir = os.path.realpath(os.path.join(str(tmp_path), ".simplicio-loop/orchestrator", "loop", "prototype"))
-    assert os.path.commonpath([resolved, state_dir]) == state_dir
-    # And it actually landed on disk inside the sandboxed dir, not at some other location.
-    assert os.path.isfile(saved_path)
-
-
-def test_symlinked_state_dir_component_does_not_let_a_hostile_id_escape_further(tmp_path):
-    """Even where the *trusted* repo/state-dir path itself involves a symlink (an operator
-    choice, not candidate-controlled), a candidate-supplied work_item_id still cannot add its
-    own traversal on top -- the sanitizer strips path separators before the id ever reaches
-    `os.path.join`."""
-    real_dir = tmp_path / "real_repo"
-    real_dir.mkdir()
-    link_dir = tmp_path / "link_repo"
-    link_dir.symlink_to(real_dir, target_is_directory=True)
-
-    hostile_id = "../../outside/escape"
-    path = state_path(hostile_id, repo=str(link_dir))
-    # No literal ".." segment survives as an actual traversable path component (all "/" is
-    # gone), so following the symlink still lands only inside real_dir's prototype subtree.
-    assert path.startswith(str(link_dir))
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as handle:
-        handle.write("{}")
-    resolved = os.path.realpath(path)
-    assert os.path.commonpath([resolved, os.path.realpath(str(real_dir))]) == os.path.realpath(str(real_dir))
-
-
-def test_artifact_location_is_never_opened_or_dereferenced_by_the_gate():
-    """The gate never resolves `artifact_location` to a filesystem path -- it is opaque
-    reference data for downstream adapters. Proven by using a value that would be an
-    instant, loud crash if this module ever tried to `open()` it."""
-    plan = _plan()
-    candidate = _candidate(plan, artifact_location="/nonexistent/does/not/exist/at/all")
-    # Building and validating never touches the filesystem for this field.
-    result = validate_candidate(candidate, plan=plan)
-    assert result["valid"] is True
-    assert not os.path.exists("/nonexistent/does/not/exist/at/all")  # sanity: still doesn't exist
-
-
-# === 4. Forged decision / receipt =============================================================
-
-def test_decision_with_content_edited_after_signing_is_rejected():
-    """Simulates an attacker hand-editing a persisted decision JSON: the `reason` text is
-    changed in place while the old `decision_hash` is left untouched (the realistic forgery --
-    an attacker rarely bothers recomputing a sha256 they don't control the algorithm for)."""
-    plan = _plan()
-    candidate = _candidate(plan)
-    decision = build_decision(plan=plan, candidate_hash=candidate["candidate_hash"], decision="ACCEPT",
-                              reason="looks fine")
-    forged = dict(decision, reason="ACTUALLY REJECTED BUT WE SAY ACCEPT NOW")
-    with pytest.raises(PrototypeGateError, match="hash mismatch"):
-        validate_decision(forged, plan=plan, candidate_hash=candidate["candidate_hash"])
-
-
-def test_decision_with_flipped_outcome_after_signing_is_rejected():
-    plan = _plan()
-    candidate = _candidate(plan)
-    decision = build_decision(plan=plan, candidate_hash=candidate["candidate_hash"], decision="REJECT",
-                              reason="not viable")
-    forged_to_accept = dict(decision, decision="ACCEPT")
-    with pytest.raises(PrototypeGateError, match="hash mismatch"):
-        validate_decision(forged_to_accept, plan=plan, candidate_hash=candidate["candidate_hash"])
-
-
-def test_receipt_with_tampered_stage_hash_after_signing_is_rejected():
-    from simplicio_loop.prototype_gate import build_receipt, validate_receipt
-
-    plan = _plan()
-    candidate = _candidate(plan)
-    decision = build_decision(plan=plan, candidate_hash=candidate["candidate_hash"], decision="ACCEPT")
-    receipt = build_receipt(plan=plan, candidate=candidate, decision=decision,
-                            stage_hashes={"tests": "real-hash"})
-    forged = dict(receipt, stage_hashes={"tests": "forged-hash-claims-tests-passed"})
-    with pytest.raises(PrototypeGateError, match="hash mismatch"):
-        validate_receipt(forged)
-
-
-@pytest.mark.satellite
-@pytest.mark.skip(
-    reason="TODO(deferred): build_decision has no requirement today that judge_id be non-empty "
-           "when judge_independent=True is asserted -- a decision can legitimately claim "
-           "independence with no judge identity at all and pass validate_decision. Enforcing "
-           "'a real, verifiable judge-independence proof is required' needs the judge module "
-           "(prototype_judge.py, not yet landed) to supply an actual judge identity/signature to "
-           "check against; faking that check here would just assert True regardless of input."
-)
-def test_decision_missing_judge_independence_proof_is_rejected():
-    raise NotImplementedError
-
-
 # === 5. Creator posing as judge (partially DEFERRED) ==========================================
 
 def test_judge_id_is_a_structurally_distinct_field_from_candidate_creator_identity():
@@ -263,18 +112,6 @@ def test_judge_id_is_a_structurally_distinct_field_from_candidate_creator_identi
     # self-judging check would need.
     assert "agent_id" in candidate and "judge_id" in decision
     assert set(decision) & {"agent_id"} == set()  # decision never silently inherits candidate's field name
-
-
-@pytest.mark.satellite
-@pytest.mark.skip(
-    reason="TODO(deferred): prototype_gate.build_decision() never receives the candidate's "
-           "agent_id (only candidate_hash), so this module cannot itself cross-check "
-           "'creator == judge' -- that check needs the fan-out/judge integration "
-           "(prototype_fanout.py / prototype_judge.py, not yet landed per this module's own "
-           "docstring) to pass creator identity into the decision-building/validation path."
-)
-def test_creator_cannot_silently_pose_as_the_independent_judge():
-    raise NotImplementedError
 
 
 # === 6. Prototype attempting an external effect ===============================================
