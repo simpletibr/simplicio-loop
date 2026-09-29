@@ -1,0 +1,4 @@
+{
+ "type": "error",
+ "message": "Couldn't start session: you are not authenticated"
+}

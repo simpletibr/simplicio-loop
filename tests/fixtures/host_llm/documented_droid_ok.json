@@ -1,0 +1,9 @@
+{
+ "type": "result",
+ "subtype": "success",
+ "is_error": false,
+ "duration_ms": 5657,
+ "num_turns": 1,
+ "result": "OK",
+ "session_id": "8af22e0a-d222-42c6-8c7e-7a059e391b0b"
+}

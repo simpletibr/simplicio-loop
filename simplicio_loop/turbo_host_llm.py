@@ -358,28 +358,73 @@ def _parse_pi(stdout: str, _stderr: str, _code: int, _llm: Mapping[str, Any]) ->
 
 
 def _parse_json_paths(stdout: str, _stderr: str, _code: int, llm: Mapping[str, Any]) -> Parsed:
-    """One JSON document; ``llm.paths`` names where the text, the success flag, the error, the usage and the model are."""
-    documents = _json_objects(stdout)
+    """One JSON document (or an array of messages); ``llm.paths`` says where its parts are.
+
+    ``text``, ``model`` and ``cost`` are paths (``a.b.0.c``); a token field is a path or a list of paths to add up; ``select``
+    picks the last element of an array whose fields equal it. A failure is ``ok`` (``{"path", "equals"}``) not holding,
+    ``failed`` matching, or, when neither is given, a non-empty ``error`` path; ``error`` also names the message.
+    """
+    try:
+        whole = json.loads(stdout)
+    except ValueError:
+        whole = None
+    documents = whole if isinstance(whole, list) else _json_objects(stdout)
+    paths = llm.get("paths") or {}
+    select = paths.get("select") or {}
+    documents = [d for d in documents if isinstance(d, dict) and all(d.get(k) == v for k, v in select.items())]
     if not documents:
         return Parsed()
-    doc, paths = documents[-1], llm.get("paths") or {}
+    doc = documents[-1]
 
     def get(key: str) -> Any:
-        return _dig(doc, paths[key]) if key in paths else None
+        return _dig(doc, paths[key]) if isinstance(paths.get(key), str) else None
+
+    def count(key: str) -> int:
+        spec = paths.get(key)
+        if isinstance(spec, list):
+            return sum(_int(_dig(doc, path)) for path in spec)
+        return _int(get(key)) if spec else 0
 
     parsed = Parsed(model=get("model") if isinstance(get("model"), str) else None)
-    parsed.prompt_tokens, parsed.cached_tokens = _int(get("prompt_tokens")), _int(get("cached_tokens"))
-    parsed.completion_tokens, parsed.reasoning_tokens = _int(get("completion_tokens")), _int(get("reasoning_tokens"))
+    parsed.prompt_tokens, parsed.cached_tokens = count("prompt_tokens"), count("cached_tokens")
+    parsed.completion_tokens, parsed.reasoning_tokens = count("completion_tokens"), count("reasoning_tokens")
     parsed.usage = bool(parsed.prompt_tokens or parsed.completion_tokens)
     parsed.cost = get("cost") if isinstance(get("cost"), (int, float)) else None
-    ok = paths.get("ok")
-    if isinstance(ok, dict) and _dig(doc, ok["path"]) != ok.get("equals"):
-        message = get("error")
-        parsed.error = str(message if message else f"the host reported {ok['path']}={_dig(doc, ok['path'])!r}")
+    ok, failed, message = paths.get("ok"), paths.get("failed"), get("error")
+    if isinstance(ok, dict):
+        problem = _dig(doc, ok["path"]) != ok.get("equals")
+    elif isinstance(failed, dict):
+        problem = _dig(doc, failed["path"]) == failed.get("equals")
+    else:
+        problem = bool(message)
+    if problem:
+        parsed.error = str(message) if message else "the host reported a failure"
         parsed.cause = classify(parsed.error)
     else:
         text = get("text")
         parsed.text = text if isinstance(text, str) else None
+    return parsed
+
+
+def _parse_codex(stdout: str, _stderr: str, _code: int, _llm: Mapping[str, Any]) -> Parsed:
+    """``codex exec --json``: the last ``agent_message`` item is the text, ``turn.completed`` carries the usage."""
+    parsed, soft_error, failed = Parsed(), None, None
+    for event in _json_objects(stdout):
+        kind, item = event.get("type"), event.get("item") or {}
+        if kind == "item.completed" and item.get("type") == "agent_message" and item.get("text"):
+            parsed.text = item["text"]
+        elif kind == "turn.completed":
+            usage = event.get("usage") or {}
+            parsed.prompt_tokens, parsed.cached_tokens = _int(usage.get("input_tokens")), _int(usage.get("cached_input_tokens"))
+            parsed.completion_tokens, parsed.reasoning_tokens = _int(usage.get("output_tokens")), _int(usage.get("reasoning_output_tokens"))
+            parsed.usage = True
+        elif kind == "turn.failed":
+            failed = str((event.get("error") or {}).get("message") or "the turn failed")
+        elif kind == "error" and event.get("message"):
+            soft_error = str(event["message"])
+    if failed or (soft_error and not parsed.text):
+        parsed.error = failed or soft_error
+        parsed.cause = classify(parsed.error)
     return parsed
 
 
@@ -389,6 +434,7 @@ def _parse_text(stdout: str, _stderr: str, _code: int, _llm: Mapping[str, Any]) 
 
 PARSERS: dict[str, Callable[[str, str, int, Mapping[str, Any]], Parsed]] = {
     "opencode": _parse_opencode, "claude": _parse_claude, "pi": _parse_pi, "json": _parse_json_paths, "text": _parse_text,
+    "codex": _parse_codex,
 }
 
 

@@ -1,0 +1,19 @@
+[
+ {
+  "type": "system",
+  "subtype": "session_start",
+  "uuid": "u1",
+  "session_id": "s1",
+  "model": "qwen3-coder-plus"
+ },
+ {
+  "type": "result",
+  "subtype": "error_during_execution",
+  "uuid": "u3",
+  "session_id": "s1",
+  "is_error": true,
+  "duration_ms": 90,
+  "result": "401 Invalid Authentication",
+  "usage": {}
+ }
+]

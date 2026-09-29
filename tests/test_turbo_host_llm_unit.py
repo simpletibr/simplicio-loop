@@ -86,6 +86,36 @@ def test_json_paths_family_reads_the_text_and_usage_named_by_the_entry():
     assert failed.text is None and failed.error and failed.cause == "host_error"
 
 
+def test_codex_jsonl_gives_the_agent_message_and_the_turn_usage():
+    """Documented schema (developers.openai.com/codex/noninteractive); codex is not signed in on the machine that checked it."""
+    parsed = hl.parse_output(hl.entry("codex"), fakes.fixture("documented_codex_ok.jsonl"), "", 0)
+    assert parsed.error is None and parsed.text == "OK"
+    assert (parsed.prompt_tokens, parsed.cached_tokens, parsed.completion_tokens, parsed.reasoning_tokens) == (24763, 24448, 122, 30)
+    failed = hl.parse_output(hl.entry("codex"), fakes.fixture("documented_codex_error.jsonl"), "", 1)
+    assert failed.text is None and failed.cause == "host_auth" and "401" in failed.error
+
+
+def test_json_paths_family_reads_the_documented_shapes_of_gemini_grok_and_qwen():
+    gemini = hl.parse_output(hl.entry("gemini"), fakes.fixture("documented_gemini_ok.json"), "", 0)
+    assert gemini.error is None and gemini.text == "OK" and gemini.prompt_tokens == 0
+    bad = hl.parse_output(hl.entry("gemini"), fakes.fixture("documented_gemini_error.json"), "", 1)
+    assert bad.text is None and "Auth method" in bad.error
+    grok = hl.parse_output(hl.entry("grok"), fakes.fixture("documented_grok_ok.json"), "", 0)
+    assert grok.error is None and grok.text == "OK" and grok.cost == 0.0012
+    assert (grok.prompt_tokens, grok.cached_tokens, grok.completion_tokens, grok.reasoning_tokens) == (1212, 400, 45, 5)  # uncached + cache hits
+    grok_bad = hl.parse_output(hl.entry("grok"), fakes.fixture("documented_grok_error.json"), "", 1)
+    assert grok_bad.text is None and grok_bad.cause == "host_auth"
+    qwen = hl.parse_output(hl.entry("qwen-code"), fakes.fixture("documented_qwen_ok.json"), "", 0)  # an array: the last `result` message
+    assert qwen.error is None and qwen.text == "OK" and (qwen.prompt_tokens, qwen.completion_tokens) == (50, 2)
+    qwen_bad = hl.parse_output(hl.entry("qwen-code"), fakes.fixture("documented_qwen_error.json"), "", 1)
+    assert qwen_bad.text is None and qwen_bad.cause == "host_auth"
+
+
+def test_droid_prints_the_shape_claude_code_prints():
+    parsed = hl.parse_output(hl.entry("droid"), fakes.fixture("documented_droid_ok.json"), "", 0)
+    assert parsed.error is None and parsed.text == "OK" and parsed.usage is False
+
+
 def test_text_family_takes_stdout_as_the_reply_and_a_nonzero_exit_as_the_error():
     ok = hl.parse_output(hl.entry("hermes"), fakes.fixture("hermes_ok.txt"), "", 0)
     assert ok.error is None and ok.text == "OK" and ok.prompt_tokens == 0

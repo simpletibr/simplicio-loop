@@ -18,9 +18,49 @@
         "surface": ".claude/skills/ + .claude/settings.json (Stop and PreToolUse hooks)",
         "source": "https://code.claude.com/docs/en/skills"
       },
-      "detect": null,
+      "detect": {
+        "env": [
+          "CLAUDECODE=1",
+          "CLAUDE_CODE_ENTRYPOINT"
+        ],
+        "process": [
+          "claude"
+        ],
+        "observed_on": "2026-09-29"
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "verified",
+        "verified_on": "2026-09-29",
+        "verified_version": "claude 2.1.284",
+        "binary": "claude",
+        "argv": [
+          "claude",
+          "-p",
+          "--output-format",
+          "json",
+          "--safe-mode",
+          "--system-prompt",
+          "{system}",
+          "--tools",
+          "",
+          "--no-session-persistence"
+        ],
+        "model_args": [
+          "--model",
+          "{model}"
+        ],
+        "prompt": "stdin",
+        "system": "flag",
+        "output": "json",
+        "parse": "claude",
+        "network": "allowed",
+        "probe": [
+          "api.anthropic.com:443"
+        ],
+        "tools": "disabled",
+        "cost": "list-price",
+        "overhead_tokens": 440,
+        "notes": "--safe-mode drops CLAUDE.md, hooks, skills and MCP servers from the nested call (auth and model are unchanged), --tools \"\" disables every tool. Same account and model as the session."
       }
     },
     {
@@ -33,9 +73,53 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://learn.chatgpt.com/docs/agent-configuration/agents-md"
       },
-      "detect": null,
+      "detect": {
+        "env": [
+          "CODEX_THREAD_ID",
+          "CODEX_SESSION_ID",
+          "CODEX_SANDBOX"
+        ],
+        "process": [
+          "codex"
+        ],
+        "source": "https://github.com/openai/codex/blob/main/codex-rs/core/src/exec_env.rs"
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "documented",
+        "source": "https://developers.openai.com/codex/noninteractive",
+        "help_checked_on": "2026-09-29",
+        "help_checked_version": "codex-cli 0.155.1",
+        "binary": "codex",
+        "argv": [
+          "codex",
+          "exec",
+          "--json",
+          "--ephemeral",
+          "--sandbox",
+          "read-only",
+          "--skip-git-repo-check",
+          "-"
+        ],
+        "model_args": [
+          "-m",
+          "{model}"
+        ],
+        "prompt": "stdin",
+        "system": "prompt",
+        "output": "jsonl",
+        "parse": "codex",
+        "network": "blocked-when-sandboxed",
+        "network_env": [
+          "CODEX_SANDBOX_NETWORK_DISABLED"
+        ],
+        "probe": [
+          "api.openai.com:443",
+          "chatgpt.com:443"
+        ],
+        "tools": "read-only",
+        "cost": "none",
+        "overhead_tokens": null,
+        "notes": "Not signed in on the machine that checked the flags, so no live call. The read-only sandbox lets the agent read files but not write. When the session's own sandbox has the network off (CODEX_SANDBOX_NETWORK_DISABLED=1) the nested codex cannot reach the API: host mode."
       }
     },
     {
@@ -48,9 +132,56 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://docs.x.ai/build/features/skills-plugins-marketplaces"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "grok"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "documented",
+        "source": "https://x.ai/cli",
+        "help_checked_on": "2026-09-29",
+        "help_checked_version": "grok 1.0.41",
+        "binary": "grok",
+        "argv": [
+          "grok",
+          "-p",
+          "{prompt}",
+          "--output-format",
+          "json",
+          "--system-prompt-override",
+          "{system}",
+          "--max-turns",
+          "1",
+          "--no-subagents",
+          "--disable-web-search"
+        ],
+        "model_args": [
+          "-m",
+          "{model}"
+        ],
+        "prompt": "arg",
+        "system": "flag",
+        "output": "json",
+        "parse": "json",
+        "paths": {
+          "text": "text",
+          "error": "message",
+          "prompt_tokens": [
+            "usage.input_tokens",
+            "usage.cache_read_input_tokens",
+            "usage.cache_creation_input_tokens"
+          ],
+          "cached_tokens": "usage.cache_read_input_tokens",
+          "completion_tokens": "usage.output_tokens",
+          "reasoning_tokens": "usage.reasoning_tokens",
+          "cost": "total_cost_usd"
+        },
+        "network": "allowed",
+        "tools": "limited-by-max-turns",
+        "cost": "reported",
+        "overhead_tokens": null,
+        "notes": "Flags and the output schema come from the guide that ships with the CLI (~/.grok/docs/user-guide/14-headless-mode.md, grok 1.0.41) and `grok --help`; `grok models` said \"You are not authenticated\" on the machine that checked, so no live call. --max-turns 1 stops a tool loop after one turn."
       }
     },
     {
@@ -63,9 +194,35 @@
         "surface": ".claude/skills/ + hooks/ (hooks.json, Cursor format)",
         "source": "https://cursor.com/docs/rules"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "cursor-agent"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "documented",
+        "source": "https://cursor.com/docs/cli/headless",
+        "binary": "cursor-agent",
+        "argv": [
+          "cursor-agent",
+          "-p",
+          "--mode",
+          "ask",
+          "{prompt}"
+        ],
+        "model_args": [
+          "--model",
+          "{model}"
+        ],
+        "prompt": "arg",
+        "system": "prompt",
+        "output": "text",
+        "parse": "text",
+        "network": "allowed",
+        "tools": "read-only",
+        "cost": "none",
+        "overhead_tokens": null,
+        "notes": "Print mode has access to every tool, so --mode ask (read-only questions) is passed and --force is not; the docs name the binary `agent`, which is also installed as cursor-agent. Not installed here."
       }
     },
     {
@@ -78,9 +235,39 @@
         "surface": ".claude/skills/ + .github/copilot-instructions.md",
         "source": "https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/add-custom-instructions/add-repository-instructions"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "copilot"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "documented",
+        "source": "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference",
+        "binary": "copilot",
+        "argv": [
+          "copilot",
+          "-p",
+          "{prompt}",
+          "--silent",
+          "--no-ask-user",
+          "--no-custom-instructions"
+        ],
+        "model_args": [
+          "--model",
+          "{model}"
+        ],
+        "prompt": "arg",
+        "system": "prompt",
+        "output": "text",
+        "parse": "text",
+        "network": "allowed",
+        "probe": [
+          "api.githubcopilot.com:443"
+        ],
+        "tools": "approval-denied",
+        "cost": "none",
+        "overhead_tokens": null,
+        "notes": "--silent prints only the agent response. Without --allow-all-tools a tool that needs confirmation is not run. Not installed here."
       }
     },
     {
@@ -93,9 +280,53 @@
         "surface": ".claude/skills/ + AGENTS.md + .opencode/skills/",
         "source": "https://opencode.ai/docs/rules/"
       },
-      "detect": null,
+      "detect": {
+        "env": [
+          "OPENCODE=1",
+          "OPENCODE_PID"
+        ],
+        "process": [
+          "opencode"
+        ],
+        "observed_on": "2026-09-29"
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "verified",
+        "verified_on": "2026-09-29",
+        "verified_version": "opencode 1.18.32",
+        "binary": "opencode",
+        "argv": [
+          "opencode",
+          "run",
+          "--pure",
+          "--agent",
+          "simplicio-planner",
+          "--format",
+          "json",
+          "--title",
+          "simplicio-turbo"
+        ],
+        "model_args": [
+          "-m",
+          "{model}"
+        ],
+        "prompt": "stdin",
+        "system": "agent",
+        "setup": "opencode",
+        "env": {
+          "OPENCODE_DISABLE_PROJECT_CONFIG": "1",
+          "OPENCODE_PERMISSION": "{\"*\":\"deny\"}"
+        },
+        "output": "jsonl",
+        "parse": "opencode",
+        "fatal_stderr": [
+          "not found\\. Falling back to default agent"
+        ],
+        "network": "allowed",
+        "tools": "disabled",
+        "cost": "catalog-estimate",
+        "overhead_tokens": 220,
+        "notes": "Runs on the user's own OpenCode configuration, provider and default model; one planner agent (no tools, no model) is merged in through OPENCODE_CONFIG and nothing is written to the user's config. A missing agent falls back to the tool-enabled default agent, so tools are also denied through OPENCODE_PERMISSION, and the project's AGENTS.md is kept out of the call (OPENCODE_DISABLE_PROJECT_CONFIG). Sessions go to a scratch OPENCODE_DB under .simplicio-loop/host-llm/. Reasoning is switched off only for openrouter/deepseek/deepseek-v4.1-flash. A dead network makes opencode retry for about a minute before it fails; the connect probe catches that first."
       }
     },
     {
@@ -110,7 +341,8 @@
       },
       "detect": null,
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "notes": "No headless one-shot model call was checked for MiMo Code."
       }
     },
     {
@@ -123,9 +355,15 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://ampcode.com/docs/customize/agents-md"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "amp"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "source": "https://ampcode.com/manual",
+        "notes": "Amp has an execute mode (`amp -x`), but its documentation pages are client-rendered and were not read; left in host mode."
       }
     },
     {
@@ -138,9 +376,15 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://github.com/Twigpine/openclaude/blob/main/src/utils/projectInstructions.ts"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "openclaude"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "source": "https://github.com/Gitlawb/openclaude",
+        "notes": "OpenClaude is a Claude Code fork with a --print run, but its flags were not checked; left in host mode."
       }
     },
     {
@@ -153,9 +397,51 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://antigravity.google/docs/rules"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "agy"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "verified",
+        "verified_on": "2026-09-29",
+        "verified_version": "agy 1.2.9",
+        "binary": "agy",
+        "argv": [
+          "agy",
+          "--print",
+          "{prompt}",
+          "--output-format",
+          "json",
+          "--disable-slash-commands",
+          "--print-timeout",
+          "120s"
+        ],
+        "model_args": [
+          "--model",
+          "{model}"
+        ],
+        "prompt": "arg",
+        "system": "prompt",
+        "output": "json",
+        "parse": "json",
+        "paths": {
+          "text": "response",
+          "error": "error",
+          "ok": {
+            "path": "status",
+            "equals": "SUCCESS"
+          },
+          "prompt_tokens": "usage.input_tokens",
+          "cached_tokens": "usage.cache_read_tokens",
+          "completion_tokens": "usage.output_tokens",
+          "reasoning_tokens": "usage.thinking_tokens"
+        },
+        "network": "allowed",
+        "tools": "cannot-be-disabled",
+        "cost": "none",
+        "overhead_tokens": 26800,
+        "notes": "\"Reply with OK\" cost 26.8k input tokens and 11.6 s (measured): the agent's own prompt and tools are always sent. Never pass --dangerously-skip-permissions (the `gemini` shell alias adds it; a subprocess does not use aliases). SIMPLICIO_TURBO_LLM=host avoids the cost."
       }
     },
     {
@@ -168,9 +454,43 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/configuration.md"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "pi"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "verified",
+        "verified_on": "2026-09-29",
+        "verified_version": "pi 0.85.1",
+        "binary": "pi",
+        "argv": [
+          "pi",
+          "-p",
+          "--mode",
+          "json",
+          "--no-tools",
+          "--no-session",
+          "--no-context-files",
+          "--no-extensions",
+          "--no-skills",
+          "--no-prompt-templates",
+          "--system-prompt",
+          "{system}"
+        ],
+        "model_args": [
+          "--model",
+          "{model}"
+        ],
+        "prompt": "stdin",
+        "system": "flag",
+        "output": "jsonl",
+        "parse": "pi",
+        "network": "allowed",
+        "tools": "disabled",
+        "cost": "provider-price-table",
+        "overhead_tokens": 80,
+        "notes": "Exits 0 even when the model call fails: the reply then carries stopReason \"error\", which is a failed call."
       }
     },
     {
@@ -183,9 +503,44 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://github.com/can1357/oh-my-pi/blob/main/docs/context-files.md"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "omp"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "verified",
+        "verified_on": "2026-09-29",
+        "verified_version": "omp 18.2.4",
+        "binary": "omp",
+        "argv": [
+          "omp",
+          "-p",
+          "--mode",
+          "json",
+          "--no-tools",
+          "--no-session",
+          "--no-extensions",
+          "--no-skills",
+          "--no-rules",
+          "--no-lsp",
+          "--no-title",
+          "--system-prompt",
+          "{system}"
+        ],
+        "model_args": [
+          "--model",
+          "{model}"
+        ],
+        "prompt": "stdin",
+        "system": "flag",
+        "output": "jsonl",
+        "parse": "pi",
+        "network": "allowed",
+        "tools": "disabled",
+        "cost": "provider-price-table",
+        "overhead_tokens": 280,
+        "notes": "Same event stream as pi; exits 0 on a model error, so stopReason \"error\" is a failed call."
       }
     },
     {
@@ -200,9 +555,35 @@
         "surface": ".claude/skills/",
         "source": "https://hermes-agent.nousresearch.com/docs/user-guide/features/context-files"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "hermes"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "verified",
+        "verified_on": "2026-09-29",
+        "verified_version": "hermes 0.21.4",
+        "binary": "hermes",
+        "argv": [
+          "hermes",
+          "-z",
+          "{prompt}",
+          "--ignore-rules"
+        ],
+        "model_args": [
+          "-m",
+          "{model}"
+        ],
+        "prompt": "arg",
+        "system": "prompt",
+        "output": "text",
+        "parse": "text",
+        "network": "allowed",
+        "tools": "cannot-be-disabled",
+        "cost": "none",
+        "overhead_tokens": 12900,
+        "notes": "One-shot -z prints only the final text, so no usage is reported. Its default system prompt and toolset are always sent: about 12.9k input tokens for \"Reply with OK\" (measured), with no flag to shrink it. Approvals are bypassed in -z mode. SIMPLICIO_TURBO_LLM=host avoids the cost."
       }
     },
     {
@@ -215,9 +596,14 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://docs.devin.ai/onboard-devin/agents-md"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "devin"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "notes": "No headless one-shot model call is documented for Devin."
       }
     },
     {
@@ -230,9 +616,31 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://goose-docs.ai/docs/guides/context-engineering/using-goosehints/"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "goose"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "documented",
+        "source": "https://goose-docs.ai/docs/guides/running-tasks",
+        "binary": "goose",
+        "argv": [
+          "goose",
+          "run",
+          "--no-session",
+          "-i",
+          "-"
+        ],
+        "prompt": "stdin",
+        "system": "prompt",
+        "output": "text",
+        "parse": "text",
+        "network": "allowed",
+        "tools": "unverified",
+        "cost": "none",
+        "overhead_tokens": null,
+        "notes": "`goose run -i -` reads the instruction from stdin and --no-session keeps no session file. Not installed here."
       }
     },
     {
@@ -245,9 +653,34 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://docs.augmentcode.com/cli/rules"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "auggie"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "documented",
+        "source": "https://docs.augmentcode.com/cli/reference",
+        "binary": "auggie",
+        "argv": [
+          "auggie",
+          "--print",
+          "--quiet",
+          "{prompt}"
+        ],
+        "model_args": [
+          "--model",
+          "{model}"
+        ],
+        "prompt": "arg",
+        "system": "prompt",
+        "output": "text",
+        "parse": "text",
+        "network": "allowed",
+        "tools": "unverified",
+        "cost": "none",
+        "overhead_tokens": null,
+        "notes": "--print --quiet shows only the final assistant message. Not installed here."
       }
     },
     {
@@ -260,9 +693,14 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://docs.autohand.ai/working-with-autohand-code/agents-md"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "autohand"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "notes": "No headless one-shot model call was checked for Autohand Code."
       }
     },
     {
@@ -275,9 +713,15 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://github.com/charmbracelet/crush"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "crush"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "source": "https://github.com/charmbracelet/crush",
+        "notes": "No non-interactive run command appears in the Crush README; left in host mode."
       }
     },
     {
@@ -290,9 +734,15 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://docs.cline.bot/customization/cline-rules"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "cline"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "source": "https://docs.cline.bot/cline-cli/overview",
+        "notes": "Cline CLI has a headless --json mode, but its output schema and approval behaviour were not checked; left in host mode."
       }
     },
     {
@@ -305,9 +755,14 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://www.codebuff.com/docs/help/faq"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "codebuff"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "notes": "Codebuff is driven through its SDK, not a one-shot CLI call."
       }
     },
     {
@@ -322,7 +777,8 @@
       },
       "detect": null,
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "notes": "No headless one-shot model call was checked for Command Code."
       }
     },
     {
@@ -335,9 +791,34 @@
         "surface": ".claude/skills/ + .continue/rules/simplicio-loop.md",
         "source": "https://docs.continue.dev/customize/deep-dives/rules"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "cn"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "documented",
+        "source": "https://docs.continue.dev/cli/headless-mode",
+        "binary": "cn",
+        "argv": [
+          "cn",
+          "-p",
+          "{prompt}",
+          "--silent"
+        ],
+        "model_args": [
+          "--model",
+          "{model}"
+        ],
+        "prompt": "arg",
+        "system": "prompt",
+        "output": "text",
+        "parse": "text",
+        "network": "allowed",
+        "tools": "approval-denied",
+        "cost": "none",
+        "overhead_tokens": null,
+        "notes": "In headless mode tools that would ask for permission are excluded automatically. Not installed here."
       }
     },
     {
@@ -350,9 +831,34 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://docs.factory.ai/harness/agents-md"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "droid"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "documented",
+        "source": "https://docs.factory.ai/cli/droid-exec/overview",
+        "binary": "droid",
+        "argv": [
+          "droid",
+          "exec",
+          "--output-format",
+          "json"
+        ],
+        "model_args": [
+          "--model",
+          "{model}"
+        ],
+        "prompt": "stdin",
+        "system": "prompt",
+        "output": "json",
+        "parse": "claude",
+        "network": "allowed",
+        "tools": "read-only",
+        "cost": "none",
+        "overhead_tokens": null,
+        "notes": "droid exec starts read-only (spec mode) unless --auto is given; the JSON result has the shape of Claude Code's (type result, is_error, result) and carries no usage. Not installed here."
       }
     },
     {
@@ -365,9 +871,15 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://kilo.ai/docs/customize/agents-md"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "kilo"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "source": "https://kilo.ai/docs/cli",
+        "notes": "`kilo run` exists (an OpenCode fork) but only its --auto autonomous mode is documented, which approves every tool; left in host mode."
       }
     },
     {
@@ -380,9 +892,36 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://moonshotai.github.io/kimi-code/en/customization/agents.html"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "kimi"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "documented",
+        "source": "https://moonshotai.github.io/kimi-cli/en/customization/print-mode.md",
+        "help_checked_on": "2026-09-29",
+        "help_checked_version": "kimi 1.47.0",
+        "binary": "kimi",
+        "argv": [
+          "kimi",
+          "--quiet",
+          "-p",
+          "{prompt}"
+        ],
+        "model_args": [
+          "-m",
+          "{model}"
+        ],
+        "prompt": "arg",
+        "system": "prompt",
+        "output": "text",
+        "parse": "text",
+        "network": "allowed",
+        "tools": "auto-approved",
+        "cost": "none",
+        "overhead_tokens": null,
+        "notes": "--quiet is --print --output-format text --final-message-only. Print mode auto-approves tool calls and reports no usage. No credentials on the machine that checked (no ~/.kimi/config), so no live call."
       }
     },
     {
@@ -395,9 +934,30 @@
         "surface": ".claude/skills/ + .kiro/steering/simplicio-loop.md",
         "source": "https://kiro.dev/docs/steering/"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "kiro-cli"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "documented",
+        "source": "https://kiro.dev/docs/cli/headless/",
+        "binary": "kiro-cli",
+        "argv": [
+          "kiro-cli",
+          "chat",
+          "--no-interactive",
+          "--trust-tools=read,grep"
+        ],
+        "prompt": "stdin",
+        "system": "prompt",
+        "output": "text",
+        "parse": "text",
+        "network": "allowed",
+        "tools": "read-only",
+        "cost": "none",
+        "overhead_tokens": null,
+        "notes": "Headless mode authenticates with an API key only (KIRO_API_KEY, Pro plans and up): without it the call fails with an auth error and the fallback is host mode. Not installed here."
       }
     },
     {
@@ -410,9 +970,29 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://github.com/mistralai/mistral-vibe"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "vibe"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "documented",
+        "source": "https://github.com/mistralai/mistral-vibe#programmatic-mode",
+        "binary": "vibe",
+        "argv": [
+          "vibe",
+          "--prompt",
+          "{prompt}"
+        ],
+        "prompt": "arg",
+        "system": "prompt",
+        "output": "text",
+        "parse": "text",
+        "network": "allowed",
+        "tools": "edits-auto-approved",
+        "cost": "none",
+        "overhead_tokens": null,
+        "notes": "Programmatic mode uses the configured default agent (accept-edits unless changed). Not installed here."
       }
     },
     {
@@ -427,9 +1007,52 @@
         "surface": ".claude/skills/ + QWEN.md",
         "source": "https://qwenlm.github.io/qwen-code-docs/en/users/features/memory/"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "qwen"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "documented",
+        "source": "https://github.com/QwenLM/qwen-code/blob/main/docs/users/features/headless.md",
+        "binary": "qwen",
+        "argv": [
+          "qwen",
+          "-p",
+          "{prompt}",
+          "--system-prompt",
+          "{system}",
+          "--output-format",
+          "json",
+          "--exclude-tools",
+          "shell,write,edit"
+        ],
+        "model_args": [
+          "-m",
+          "{model}"
+        ],
+        "prompt": "arg",
+        "system": "flag",
+        "output": "json",
+        "parse": "json",
+        "paths": {
+          "select": {
+            "type": "result"
+          },
+          "text": "result",
+          "failed": {
+            "path": "is_error",
+            "equals": true
+          },
+          "error": "result",
+          "prompt_tokens": "usage.input_tokens",
+          "completion_tokens": "usage.output_tokens"
+        },
+        "network": "allowed",
+        "tools": "read-only",
+        "cost": "none",
+        "overhead_tokens": null,
+        "notes": "The JSON output is an array of messages; the last `result` message carries the text. Not installed here."
       }
     },
     {
@@ -442,9 +1065,14 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://support.atlassian.com/rovo/docs/use-memory-in-rovo-dev-cli/"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "acli"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "notes": "No headless one-shot model call was checked for Rovo Dev."
       }
     },
     {
@@ -457,9 +1085,46 @@
         "surface": ".claude/skills/ + GEMINI.md",
         "source": "https://geminicli.com/docs/cli/gemini-md/"
       },
-      "detect": null,
+      "detect": {
+        "env": [
+          "GEMINI_CLI=1"
+        ],
+        "process": [
+          "gemini"
+        ],
+        "source": "https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/shell.md"
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "documented",
+        "source": "https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/headless.md",
+        "binary": "gemini",
+        "argv": [
+          "gemini",
+          "-p",
+          "{prompt}",
+          "--output-format",
+          "json"
+        ],
+        "model_args": [
+          "-m",
+          "{model}"
+        ],
+        "prompt": "arg",
+        "system": "prompt",
+        "output": "json",
+        "parse": "json",
+        "paths": {
+          "text": "response",
+          "error": "error.message"
+        },
+        "network": "allowed",
+        "probe": [
+          "generativelanguage.googleapis.com:443"
+        ],
+        "tools": "approval-denied",
+        "cost": "none",
+        "overhead_tokens": null,
+        "notes": "Headless mode does not approve tools that need approval. Not installed here (the `gemini` shell alias on this machine points at agy, the Antigravity CLI)."
       }
     },
     {
@@ -474,7 +1139,8 @@
       },
       "detect": null,
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "notes": "An editor, not a CLI: there is no one-shot model call to make."
       }
     },
     {
@@ -489,9 +1155,14 @@
         "surface": ".claude/skills/ + AGENTS.md",
         "source": "https://www.onorca.dev/docs/agents/supported"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "orca"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "notes": "Orca is an agent orchestrator: `orca --help` (1.4.204, checked here) lists worktree, terminal and orchestration commands and no one-shot model call."
       }
     },
     {
@@ -504,9 +1175,15 @@
         "surface": ".claude/skills/ + CONVENTIONS.md",
         "source": "https://aider.chat/docs/usage/conventions.html"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "aider"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "source": "https://aider.chat/docs/scripting.html",
+        "notes": "aider --message applies the model's reply as edits to the files, so it is not a plain planning call."
       }
     },
     {
@@ -521,7 +1198,8 @@
       },
       "detect": null,
       "llm": {
-        "status": "host-mode"
+        "status": "host-mode",
+        "notes": "A model family, not a host executable: nothing to detect and no headless CLI to call."
       }
     },
     {
@@ -534,9 +1212,48 @@
         "surface": ".claude/skills/",
         "source": "https://docs.openclaw.ai/tools/skills"
       },
-      "detect": null,
+      "detect": {
+        "process": [
+          "openclaw"
+        ]
+      },
       "llm": {
-        "status": "host-mode"
+        "status": "verified",
+        "verified_on": "2026-09-29",
+        "verified_version": "openclaw 2026.6.1",
+        "binary": "openclaw",
+        "argv": [
+          "openclaw",
+          "infer",
+          "model",
+          "run",
+          "--local",
+          "--json",
+          "--prompt",
+          "{prompt}"
+        ],
+        "model_args": [
+          "--model",
+          "{model}"
+        ],
+        "prompt": "arg",
+        "system": "prompt",
+        "output": "json",
+        "parse": "json",
+        "paths": {
+          "text": "outputs.0.text",
+          "ok": {
+            "path": "ok",
+            "equals": true
+          },
+          "error": "error",
+          "model": "model"
+        },
+        "network": "allowed",
+        "tools": "disabled",
+        "cost": "none",
+        "overhead_tokens": null,
+        "notes": "A raw one-shot model turn (no agent persona, no tools) that reports no usage. --local needs the provider key in the environment."
       }
     }
   ]

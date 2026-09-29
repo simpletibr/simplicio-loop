@@ -1,0 +1,13 @@
+{
+ "response": "OK",
+ "stats": {
+  "models": {
+   "gemini-2.5-pro": {
+    "tokens": {
+     "prompt": 10,
+     "candidates": 1
+    }
+   }
+  }
+ }
+}

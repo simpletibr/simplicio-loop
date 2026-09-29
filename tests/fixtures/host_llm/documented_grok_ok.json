@@ -1,0 +1,25 @@
+{
+ "text": "OK",
+ "stopReason": "end_turn",
+ "sessionId": "abc123",
+ "requestId": "xyz789",
+ "num_turns": 1,
+ "usage": {
+  "input_tokens": 812,
+  "cache_read_input_tokens": 400,
+  "cache_creation_input_tokens": 0,
+  "output_tokens": 45,
+  "reasoning_tokens": 5,
+  "total_tokens": 1257
+ },
+ "modelUsage": {
+  "grok-4.6": {
+   "inputTokens": 812,
+   "outputTokens": 45,
+   "cacheReadInputTokens": 400,
+   "modelCalls": 1,
+   "costUSD": 0.0012
+  }
+ },
+ "total_cost_usd": 0.0012
+}

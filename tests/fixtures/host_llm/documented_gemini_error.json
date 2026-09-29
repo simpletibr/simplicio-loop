@@ -1,0 +1,7 @@
+{
+ "error": {
+  "type": "AuthError",
+  "message": "Please set an Auth method in your settings.json",
+  "code": 41
+ }
+}

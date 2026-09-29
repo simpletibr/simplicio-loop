@@ -235,3 +235,94 @@ def test_powershell_launcher_installs_a_new_runtime(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
     assert (target / ".continue" / "rules" / "simplicio-loop.md").is_file()
     assert (target / ".claude" / "skills" / "simplicio-loop" / "SKILL.md").is_file()
+
+
+# --- detect and llm: how the hybrid mode recognises a host and calls its headless CLI (3.47.0) --------------------------
+
+LLM_STATUSES = {"verified", "documented", "host-mode"}
+HARNESSES_DOC = REPO / "docs" / "HARNESSES.md"
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _headless() -> list[dict]:
+    return [e for e in _entries() if e["llm"]["status"] != "host-mode"]
+
+
+def test_every_llm_entry_has_a_valid_status_and_its_evidence() -> None:
+    for entry in _entries():
+        llm = entry["llm"]
+        assert llm["status"] in LLM_STATUSES, entry["id"]
+        if llm["status"] == "verified":  # run locally: a date and the version that ran
+            assert DATE_RE.match(llm["verified_on"]) and llm["verified_version"].strip(), entry["id"]
+        if llm["status"] == "documented":  # from the host's own docs: the URL of the page
+            assert llm["source"].startswith("https://"), entry["id"]
+        if llm["status"] == "host-mode":  # no headless one-shot: nothing to run
+            assert "argv" not in llm and llm.get("notes", "").strip(), entry["id"]
+
+
+def test_every_headless_entry_names_a_command_a_parser_and_consistent_placeholders() -> None:
+    from simplicio_loop import turbo_host_llm as hl
+
+    assert _headless()
+    for entry in _headless():
+        llm = entry["llm"]
+        assert llm["binary"] == llm["argv"][0] and all(isinstance(a, str) for a in llm["argv"]), entry["id"]
+        assert llm["prompt"] in {"stdin", "arg"} and llm["system"] in {"flag", "agent", "prompt"}, entry["id"]
+        assert llm["output"] in {"json", "jsonl", "text"} and llm["parse"] in hl.PARSERS, entry["id"]
+        assert ("{prompt}" in llm["argv"]) == (llm["prompt"] == "arg"), entry["id"]
+        assert ("{system}" in llm["argv"]) == (llm["system"] == "flag"), entry["id"]
+        assert ("{model}" in llm.get("model_args", [])) or "model_args" not in llm, entry["id"]
+        assert llm["network"] and llm["tools"], entry["id"]
+        if llm["parse"] == "json":
+            assert llm["paths"].get("text"), entry["id"]
+        if llm.get("setup"):
+            assert llm["setup"] in hl.SETUPS, entry["id"]
+
+
+def test_detect_is_null_or_lists_env_markers_and_process_names() -> None:
+    for entry in _entries():
+        detect = entry["detect"]
+        if detect is None:
+            assert entry["llm"]["status"] == "host-mode", entry["id"]  # a host that can be called can be recognised
+            continue
+        assert set(detect) <= {"env", "process", "observed_on", "source"}, entry["id"]
+        assert detect.get("env") or detect.get("process"), entry["id"]
+        assert all(re.fullmatch(r"[A-Z][A-Z0-9_]*(=.*)?", rule) for rule in detect.get("env", [])), entry["id"]
+        assert all(name == name.lower() and "/" not in name for name in detect.get("process", [])), entry["id"]
+
+
+def test_the_two_hosts_measured_on_the_session_side_keep_their_observed_markers() -> None:
+    by_id = {e["id"]: e for e in _entries()}
+    assert "OPENCODE=1" in by_id["opencode"]["detect"]["env"] and by_id["opencode"]["detect"]["observed_on"]
+    assert "CLAUDECODE=1" in by_id["claude-code"]["detect"]["env"] and by_id["claude-code"]["detect"]["observed_on"]
+
+
+def test_the_measured_fixed_overhead_of_the_heavy_hosts_is_on_record() -> None:
+    by_id = {e["id"]: e["llm"] for e in _entries()}
+    assert by_id["hermes"]["overhead_tokens"] > 10000 and by_id["antigravity"]["overhead_tokens"] > 20000
+    assert by_id["opencode"]["overhead_tokens"] < 1000
+
+
+def _row(entry_id: str) -> str:
+    rows = [line for line in HARNESSES_DOC.read_text(encoding="utf-8").splitlines() if line.startswith(f"| `{entry_id}` |")]
+    assert len(rows) == 1, (entry_id, rows)
+    return rows[0]
+
+
+def test_harnesses_doc_has_one_row_per_entry_with_its_status_and_command() -> None:
+    import shlex
+
+    for entry in _entries():
+        row = _row(entry["id"])
+        assert f"| {entry['llm']['status']} |" in row, entry["id"]
+        if entry["llm"]["status"] != "host-mode":
+            assert shlex.join(entry["llm"]["argv"]) in row, entry["id"]
+
+
+def test_harnesses_doc_states_the_counts_per_status() -> None:
+    text = HARNESSES_DOC.read_text(encoding="utf-8")
+    entries = _entries()
+    counts = {status: sum(1 for e in entries if e["llm"]["status"] == status) for status in LLM_STATUSES}
+    line = (f"{len(entries)} hosts: {counts['verified']} verified, {counts['documented']} documented, "
+            f"{counts['host-mode']} host-mode")
+    assert line in text
