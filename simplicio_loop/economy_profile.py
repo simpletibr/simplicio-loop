@@ -216,7 +216,7 @@ def llm_max_speed_orientation_contract() -> dict[str, Any]:
         },
         "mutation_boundary": {
             "authorized": False,
-            "next_surfaces": ["simplicio-dev-cli edit --plan --compile", "simplicio-dev-cli edit --plan --apply"],
+            "next_surfaces": ["simplicio-loop turbo"],
         },
         "receipt_schema": "simplicio.loop-orient-receipt/v1",
         "message_cadence": ["DONE", "NEXT", "BLOCKED"],
@@ -305,10 +305,8 @@ def profile_status(
         },
         "hot_path": [
             "simplicio-loop preflight --strict --json",
-            "simplicio-mapper scan . --await --json",
-            "simplicio-mapper handoff . --for-llm toon --await",
+            'simplicio-loop turbo --repo . --task "<task>" --verify "<tests>" (Mapper survey, model plan, dev-cli apply)',
             "simplicio-loop batch (AUTO_FAN_OUT worktrees) or arm_drain_prism --slots 0 --batch-size N",
-            "mutate: simplicio-dev-cli edit --plan --apply (STRICT)",
         ],
         # Always-on LLM orientation for hosts (max safe speed)
         "llm_orientation": llm_max_speed_orientation_contract(),

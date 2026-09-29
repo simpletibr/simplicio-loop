@@ -1,29 +1,42 @@
 <!-- simplicio-contract:begin -->
 contract: simplicio-loop/full-flow
 schema: simplicio.skill-reference/v1
-purpose: Moved out of `SKILL.md` as part of the SKILL.md hot-path shrink (SKILL.md keeps the fastest-route picker, the wave-flow commands, a short `tasks.md` format, Done/promise, Contract essentials, the SIMPLICIO-LLM-ORIENTATION block, and Guardrails; everything below is the full elaboration, read only whe
+purpose: Moved out of `SKILL.md` as part of the SKILL.md hot-path shrink (SKILL.md keeps the turbo command, Done/promise, Contract essentials, the SIMPLICIO-LLM-ORIENTATION block, and Guardrails; everything below is the full elaboration, read only whe
 rules: Read only when the parent SKILL.md points here; mutable data lives in the footer, never in this header.
 <!-- simplicio-contract:end -->
 
 # Full per-turn protocol, modes, DoD, delivery — full detail
 
-Moved out of `SKILL.md` as part of the SKILL.md hot-path shrink (SKILL.md keeps the fastest-route
-picker, the wave-flow commands, a short `tasks.md` format, Done/promise, Contract essentials, the
-SIMPLICIO-LLM-ORIENTATION block, and Guardrails; everything below is the full elaboration, read
-only when the task needs it).
+Moved out of `SKILL.md` as part of the SKILL.md hot-path shrink (SKILL.md keeps the turbo command,
+Done/promise, Contract essentials, the SIMPLICIO-LLM-ORIENTATION block, and Guardrails; everything
+below is the full elaboration, read only when the task needs it).
 
-## The wave flow — full detail
+## The turbo flow — full detail
 
-- `orient --json` answers with a `commands` card (the exact `prepare`/`wave`/
-  `verify`/`tick` invocations for this repo, the edit-plan path/format, and
-  the task-file lanes) and `targets` (bounded, grounded file contents —
-  small files in full, larger ones as a line-numbered symbol span — to copy
-  `find` text from, so the host never hallucinates a path or an anchor).
-- Write every `edit-plan-<N>.json` up front: the loop freezes each one
-  (`simplicio-dev-cli edit --compile`) right before applying it, so task 2 binds
-  to the tree task 1 left. A bad plan blocks with a precise reason instead of
-  retrying: `plan_path_not_found`, `plan_path_not_authorized`,
-  `plan_find_not_found`, `plan_find_not_unique` — fix the text and re-run.
+- `simplicio-loop turbo --repo <path> --task "<task>" [--task ...] [--verify "<cmd>"]` is the
+  default path on every host (`simplicio_loop/turbo_cli.py`). Files named in the task text become
+  the target and the context the model sees. Or pass `--target`/`--context` with one `--task`, or
+  `--tasks-file` with `{text, target?, context?, depends_on?}` items. Tasks that touch the same file
+  stay in order.
+- Mapper builds the project map once per invocation. It is the byte-identical header of every model
+  call; the task text and the current target file are the suffix (`simplicio_loop/turbo.py`). The
+  model client is `simplicio_loop/turbo_provider.py`: OpenRouter, `deepseek/deepseek-v4.1-flash`
+  (`SIMPLICIO_TURBO_MODEL` overrides), temperature 0, reasoning off, a session pinned per
+  repository (`x-session-id`). The benchmark's turbo arm calls the same client.
+- The model returns a find/replace plan and `simplicio-dev-cli` compiles and applies it. A plan
+  dev-cli rejects (`plan_path_not_found`, `plan_path_not_authorized`, `plan_find_not_found`,
+  `plan_find_not_unique`) is sent back to the model once; a second rejection ends that lane as
+  `failed` with the dev-cli reason.
+- Up to three tasks share one model call. Above three, the first call runs alone so the rest read
+  the header from prompt cache, then the remaining lanes fan out.
+- Without `OPENROUTER_API_KEY` it prints `status: blocked` (`turbo_provider_key_missing`) and exits
+  2. Exit codes: 0 ok, 1 failed, 2 blocked. The one JSON document is `simplicio.turbo-run/v1`:
+  `status`, `applied`, `failed`, `model_calls`, `retries`, `tokens`, `cache_hit_pct`, `cost_usd`,
+  `calls`, `verify`, `wall_s`.
+- `orient --json` still answers with a `commands` card and a `route` whose next step is that turbo
+  command, and `targets` (bounded, grounded file contents).
+- The rest of this file describes governed runs from a `tasks.md` (`prepare`, `wave`, `tick`,
+  `verify`), used for queues, batches and Prism.
 
 ## Task file (`tasks.md`)
 
@@ -95,8 +108,8 @@ overlap stay in the same lane, in order, so one file is never raced.
 A lane whose patch no longer applies (the tree moved under it during
 integration) falls back to a serial re-run of that lane's edit-plan directly
 on the now-integrated tree — the same "compile binds to the tree the
-previous task left" contract as `edit-plan-<N>.json`, just recovered instead
-of blocked. Worktrees and lane branches are removed once integration
+previous task left" contract as a governed run's per-task plan files, just
+recovered instead of blocked. Worktrees and lane branches are removed once integration
 finishes. Implementation: `simplicio_loop/wave_worktree.py`
 (`group_disjoint_tasks`, `run_worktree_wave`, `integrate_lane_results`).
 
@@ -119,7 +132,7 @@ whole plan.
 
 ## Full flow (per turn)
 
-The 5-command core in `SKILL.md` § Pick the fastest route first / The wave flow is the mechanical
+The turbo command in `SKILL.md` is the mechanical
 spine; this is the full per-turn protocol it plugs into. Deep detail for any step lives in
 `references/*.md`; this section only names the real command.
 
@@ -177,7 +190,7 @@ Full rationale + extra flags: `references/triage-verify-detail.md` and
 ### 2. Work
 
 1. Decide the ONE AC-scoped change (the model's own step — no worker for this).
-2. Write `edit-plan-<N>.json`, run `wave`/`tick` (§ The flow above) — the
+2. Run `simplicio-loop turbo` (§ The turbo flow above) — the model plans, the
    `simplicio-dev-cli` operator applies and verifies it; never hand-edit.
 3. `fast-path` only: `python3 scripts/diff_escalation.py --root . --mode fast-path --anchor <anchor.json>`
    re-measures the REAL diff against safe limits (default ≤2 files, ≤80

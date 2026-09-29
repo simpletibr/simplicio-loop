@@ -199,6 +199,7 @@ def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
     calls: list[dict] = []
     commands: list[dict] = []
     content = ""
+    applied_ok, reason = False, None
     for attempt in (1, 2):
         reply = complete("simplicio", messages)
         content = reply.get("content") or ""
@@ -213,7 +214,12 @@ def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
         applied = _apply_operations(root, operations, binary, f"{turn}-{attempt}") if operations else []
         commands.extend(applied)
         rejected = _rejection(applied)
-        if operations and rejected is None:
+        applied_ok = bool(operations) and rejected is None
+        if not applied_ok:
+            reason = rejected or reason or (str(reply.get("error")) if not reply.get("ok", True) else None) \
+                or "the model returned no plan"
+        if applied_ok:
+            reason = None
             break
         if attempt == 2:
             break
@@ -224,7 +230,8 @@ def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
             {"role": "user", "content": f"dev-cli rejected the plan:\n{detail}\nReturn a corrected JSON plan."},
         ]
     messages.append({"role": "assistant", "content": content})
-    return calls, commands, content, messages
+    outcome = {"tasks": [int(t.get("index") or 0) for t in tasks], "applied": applied_ok, "reason": reason}
+    return calls, commands, content, messages, outcome
 
 
 def _ready(pending: list[Mapping[str, Any]], done: set[int]) -> list[Mapping[str, Any]]:
@@ -244,6 +251,7 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
     calls: list[dict] = []
     commands: list[dict] = []
     contents: list[str] = []
+    outcomes: list[dict] = []
     stack = [header_message(reading)]
     while pending:
         ready = _ready(pending, done)
@@ -251,9 +259,10 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
             raise RuntimeError("turbo tasks have a dependency cycle")
         if not calls or len(ready) == 1:
             task = ready[0]
-            lane_calls, lane_commands, content, stack = _one_lane(
+            lane_calls, lane_commands, content, stack, outcome = _one_lane(
                 root, [task], complete, reading, generation, binary, len(calls) + 1, base=stack,
             )
+            outcomes.append(outcome)
             calls.extend(lane_calls)
             commands.extend(lane_commands)
             contents.append(content)
@@ -285,6 +294,9 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
             applied = _apply_operations(root, operations, binary, f"wave-{task.get('index')}-1") if operations else []
             commands.extend(applied)
             rejected = _rejection(applied)
+            outcome = {"tasks": [int(task.get("index") or 0)], "applied": bool(operations) and rejected is None,
+                       "reason": None if operations and rejected is None else
+                       (rejected or reason or str(reply.get("error") or "the model returned no plan"))}
             if not operations or rejected is not None:
                 detail = rejected or reason or "dev-cli did not apply a plan"
                 retry_messages = [
@@ -302,10 +314,15 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
                 applied = _apply_operations(root, operations, binary, f"wave-{task.get('index')}-2") if operations else []
                 commands.extend(applied)
                 content = retry_content
+                retry_rejected = _rejection(applied)
+                outcome = {"tasks": outcome["tasks"], "applied": bool(operations) and retry_rejected is None,
+                           "reason": None if operations and retry_rejected is None else
+                           (retry_rejected or str(retry.get("error") or "the model returned no plan"))}
+            outcomes.append(outcome)
             contents.append(content)
             done.add(int(task.get("index") or 0))
             pending.remove(task)
-    return calls, commands, "\n".join(contents)
+    return calls, commands, "\n".join(contents), outcomes
 
 
 def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None) -> dict[str, Any]:
@@ -315,11 +332,12 @@ def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli:
     binary = dev_cli or _dev_cli_bin()
     task_list = list(tasks)
     if len(task_list) <= WAVE_TURBO_ABOVE:
-        calls, commands, content, _stack = _one_lane(
+        calls, commands, content, _stack, outcome = _one_lane(
             root, task_list, complete, reading, survey["generation"], binary, 1,
         )
+        outcomes = [outcome]
     else:
-        calls, commands, content = _run_wave(
+        calls, commands, content, outcomes = _run_wave(
             root, task_list, complete, reading, survey["generation"], binary,
         )
     return {
@@ -337,6 +355,8 @@ def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli:
         },
         "survey": survey,
         "wave": len(task_list) > WAVE_TURBO_ABOVE,
+        "outcomes": outcomes,
+        "applied_all": all(outcome["applied"] for outcome in outcomes),
     }
 
 

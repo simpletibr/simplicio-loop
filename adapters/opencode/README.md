@@ -20,26 +20,21 @@ binary is found on `PATH` (best-effort; the loop never requires it — see "Nati
 opencode run "/simplicio-loop finish all the open issues"
 ```
 
-## The actual flow: Mapper survey, Dev CLI apply — no Runtime, no MCP required
+## The actual flow: `simplicio-loop turbo` — no Runtime, no MCP required
 
-`simplicio-loop` does not survey or edit with the LLM directly, and does not require Runtime/MCP
-to run at all. Every flow starts with a Mapper survey, then the host LLM decides the exact
-find/replace edits and hands them to Dev CLI to apply and verify:
+`simplicio-loop` does not survey or edit with the host LLM, and does not require Runtime/MCP to run
+at all. Invoking the skill runs one command: Mapper surveys the repo once, the model returns the
+find/replace plan, and Dev CLI applies and verifies it.
 
 ```bash
-mkdir -p .simplicio-loop
-simplicio-loop orient --brief --repo . --task "<task 1>" [--task "<task 2>" ...] --json \
-  > .simplicio-loop/brief.json
-# write .simplicio-loop/ops.json from the brief's apply.ops_format, then:
-simplicio-loop apply .simplicio-loop/ops.json --repo . --json
-# PASS: done. BLOCKED/FAIL: fix the named find/check, re-run apply.
+export OPENROUTER_API_KEY=...   # required; without it the command blocks and you stop
+simplicio-loop turbo --repo . --task "<task 1>" [--task "<task 2>" ...] --verify "<tests>"
+# status ok + verify.passed: done. failed: re-run once with a sharper --task that names the file.
 ```
 
-`apply`/`prepare` refuse to run without that Mapper survey
-(`mapper_provenance_missing`, nothing written) — the two REQUIRED operators are
-`simplicio-mapper` (survey) and `simplicio-dev-cli` (apply + verify), both built into the
-`simplicio-loop` wheel. `simplicio-loop` BLOCKS if either binary is absent. See
-`.claude/skills/simplicio-loop/SKILL.md` for the full protocol.
+The two REQUIRED operators are `simplicio-mapper` (survey) and `simplicio-dev-cli` (apply +
+verify), both built into the `simplicio-loop` wheel. `simplicio-loop` BLOCKS if either binary is
+absent. See `.claude/skills/simplicio-loop/SKILL.md` for the full protocol.
 
 ## Loop drive — self-paced
 

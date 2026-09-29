@@ -3,6 +3,20 @@ Total output lines: 1972
 
 # Changelog
 
+## [3.45.0] - 2026-09-29
+
+- New command `simplicio-loop turbo --repo R --task "..." [--task ...] [--verify "cmd"]`. Mapper reads the repo once, one OpenRouter call per lane (`deepseek/deepseek-v4.1-flash`, pinned session, reasoning off) returns a find/replace plan, and `simplicio-dev-cli` applies it. Files named in the task text become the target and context, and tasks on the same file stay in order. It prints one `simplicio.turbo-run/v1` JSON document (status, applied, failed, model_calls, retries, tokens, cache_hit_pct, cost_usd, verify, wall_s) and exits 0 ok, 1 failed, 2 blocked.
+- Invoking the skill now runs `simplicio-loop turbo` by default. The host no longer writes `tasks.md`, edit plans or `simplicio-dev-cli edit --plan` operations. `SKILL.md` and the orientation block the stop hook re-feeds every turn, `docs/LLM_MAX_SPEED_ORIENTATION.md`, `docs/ECOSYSTEM_LLM_GUIDE.md`, `docs/CLI_COMMANDS.md`, `llms.txt`, `AGENTS.md`, `README.md`, the host rule files, the OpenCode adapter and the bench docs all name that one command. Done is `status: "ok"` and, when `--verify` was given, `verify.passed: true`.
+- `simplicio_loop/turbo_provider.py` is the model client for both the product and the benchmark's turbo arm, so the benchmark measures the code that ships. `SIMPLICIO_TURBO_MODEL` overrides the model.
+- `OPENROUTER_API_KEY` is required. Without it the command prints `status: blocked` with `reason_code: turbo_provider_key_missing` and exits 2. There is no fallback to hand edits.
+- `run_turbo` reports per-lane outcomes (`outcomes`: tasks, applied, reason) and `applied_all`. A plan that dev-cli rejects twice is a `failed` result that names the dev-cli reason.
+- `orient` points at turbo. `route["next"]` is the `simplicio-loop turbo` command (`orient --brief` carries every task and `--verify` in one step), the command card and the `llm_orientation` and `hot_path` data of `economy status` name turbo, and no prepare, tick, wave or edit-plan guidance is left in them.
+- Each `simplicio-loop turbo` invocation asks Mapper again. Mapper's own tree-state cache keeps an unchanged tree free and byte-identical; before, every later invocation reused the first map saved in `.simplicio-loop/turbo-survey.json`.
+- `SKILL.md` is 1571 tokens (o200k_base), down from 2118 in 3.44.2, and the token-budget baseline is regenerated. Removed the unused `delivery_execute_verb` and `DELIVERY_EXECUTE_RULE`.
+- `scripts/check.py` no longer crashes with `KeyError: 'contract_headers'` after claims-audit: the phase had no timeout entry in `PHASE_TIMEOUT_SECONDS`, so the full local gate never reached the test phase. A test now requires every phase `check.py` names to have one.
+- header-change: .claude/skills/simplicio-loop/SKILL.md (frontmatter description: "Host writes the edit plan." became "Invoking it runs simplicio-loop turbo.")
+- header-change: .claude/skills/simplicio-loop/references/full-flow.md (purpose no longer lists the fastest-route picker and the wave-flow commands as kept in SKILL.md)
+
 ## [3.44.2] - 2026-09-29
 
 - `bench/llm_ab/run.py --tasks 4 --hard` adds a hard Python set with hidden acceptance tests outside the arm repo: coupon logic with a half-up rounding trap, a two-bug fix, a two-file refactor, and a duration parser. `--turbo-reasoning` keeps the model's reasoning on for the turbo calls, so on and off can be compared. Turbo also sends a task's `context` files to the model. The checker accepts an absolute path.

@@ -2,7 +2,7 @@
   "schema": "simplicio.plugin-descriptor/v1",
   "name": "simplicio-loop",
   "displayName": "simplicio-loop — Universal Looping AI Orchestrator",
-  "version": "3.44.2",
+  "version": "3.45.0",
   "description": "Autonomous looping orchestrator + satellite skills that drains a backlog end-to-end on any LLM/runtime: discover, implement, verify, review, merge, close. /simplicio-loop is the unified public entrypoint for core + hardened loop; /simplicio-tasks remains only a legacy alias. Exits only on evidence-gated completion, max-iteration cap, or explicit STOP/cancel path. Installs project-scoped safety and output-control hooks where supported. Runs locally with no telemetry.",
   "author": {
     "name": "Wesley Simplicio",
@@ -33,5 +33,5 @@
     "PostToolUse",
     "Stop"
   ],
-  "digest": "sha256:c958bdfa0e7b02c64d0462f9ab70eccbafbf37869ca8679fdafb11dd89e0566a"
+  "digest": "sha256:5f14d7033cc640d9563299c167608c57bf3955edaa5256d7417aa70e119fc3dd"
 }

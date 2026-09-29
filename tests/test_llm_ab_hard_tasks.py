@@ -80,14 +80,17 @@ def test_hard_flag_names_results_and_toggles_turbo_reasoning(monkeypatch):
     assert bench_run.result_filename("d", "s", 4, hard=True, reasoning=True) == "d-s-t4-hard-reason.json"
     args = bench_run.build_arg_parser().parse_args(["--tasks", "4", "--hard", "--turbo-reasoning"])
     assert args.hard is True and args.turbo_reasoning is True
+    from simplicio_loop import turbo_provider
+
     captured = {}
-    monkeypatch.setattr(bench_run.lc, "chat", lambda arm, messages, **kw: captured.update(kw) or {"ok": True})
+    monkeypatch.setattr(bench_run.lc, "get_key", lambda arm: "sk-arm")
+    monkeypatch.setattr(turbo_provider, "complete", lambda arm, messages, **kw: captured.update(kw) or {"ok": True})
     monkeypatch.setenv("SIMPLICIO_BENCH_TURBO_REASONING", "on")
     bench_run.turbo_complete("simplicio", [])
-    assert "reasoning" not in captured and captured["session_id"]
+    assert captured["reasoning_off"] is False and captured["session_id"]
     monkeypatch.delenv("SIMPLICIO_BENCH_TURBO_REASONING")
     bench_run.turbo_complete("simplicio", [])
-    assert captured["reasoning"] == {"enabled": False}
+    assert captured["reasoning_off"] is True
 
 
 def test_turbo_applies_reference_plans_on_the_hard_fixture_and_the_hidden_tests_pass(tmp_path, monkeypatch):

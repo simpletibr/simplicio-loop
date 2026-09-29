@@ -100,14 +100,17 @@ API key — see "Keys" below.
 ## The simplicio arm in turbo mode
 
 Turbo is the default. The `simplicio` arm is then the loop engine calling OpenRouter
-directly (`run.turbo_complete`), not OpenCode: every call uses the arm's pinned
+through the product's own client (`simplicio_loop.turbo_provider`, the code
+`simplicio-loop turbo` runs; `run.turbo_complete` only passes the arm's key, session and
+reasoning flag), not OpenCode: every call uses the arm's pinned
 `x-session-id` (the same session pin the OpenCode arms get) and
 `"reasoning": {"enabled": false}`, because the call only writes an edit plan that
 dev-cli verifies. `"effort": "low"`/`"minimal"` was measured not to reduce reasoning
 tokens on this model. Each call records `latency_s` and `provider`. The standard task
 sets are dependency chains, so the wave runs them serially; `--tasks 10 --independent`
 runs the same ten pages without the chain (results `...-t10-ind.json`) to measure the
-fan-out. `SIMPLICIO_BENCH_TURBO=0` measures the OpenCode + skill arm instead.
+fan-out. `SIMPLICIO_BENCH_TURBO=0` measures the OpenCode + skill arm instead: the skill runs
+`simplicio-loop turbo` inside OpenCode, which already receives `OPENROUTER_API_KEY`.
 
 ## Hard set: does switching reasoning off cost quality?
 

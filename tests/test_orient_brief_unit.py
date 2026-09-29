@@ -1,19 +1,23 @@
-"""Unit tests for `simplicio-loop orient --brief` (issue #1310, Turn 1 of
-the plan-once/apply-once hot path).
+"""Unit tests for `simplicio-loop orient --brief` (issue #1310).
 
 `--brief` renders a compact multi-task payload from the SAME Mapper survey
-+ Fast context orient always used -- route first, target file content
++ Fast context orient always used -- route first (its one next step is the
+`simplicio-loop turbo` command for these tasks), target file content
 (deduped, capped), plan groups, suggested checks, mapper/fast generation +
-context hash, and the exact `apply` command/ops format. Non-brief output
-must stay byte-identical to before (covered by test_cli_fast_orient.py /
-test_orient_route_unit.py, unchanged here).
+context hash, and the ops format of `simplicio-loop apply`. The non-brief route is
+covered by test_orient_route_unit.py.
 """
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 
-from simplicio_loop.cli_impl import ORIENT_BRIEF_SCHEMA, orient_brief
+from simplicio_loop.cli_impl import ORIENT_BRIEF_SCHEMA, TURBO_EXECUTE_RULE, orient_brief, turbo_command
+
+# Commands of the host-writes-the-plan flow. The brief's `route["next"]` must not carry any of them.
+OLD_FLOW = ("simplicio-loop prepare", "simplicio-loop tick", "simplicio-loop wave", "edit-plan",
+            "simplicio-dev-cli edit", "tasks.md")
 
 
 def _repo(tmp_path, files):
@@ -94,12 +98,14 @@ def test_brief_has_generation_and_context_hash(tmp_path):
     assert "generations" in payload
 
 
-def test_brief_apply_command_and_ops_format(tmp_path):
+def test_brief_apply_command_is_the_turbo_command_and_keeps_the_ops_format(tmp_path):
+    """`apply.command` is the same turbo command as `route.next`. The ops format below it documents
+    the input of the still-public `simplicio-loop apply`; it does not depend on the route."""
     _repo(tmp_path, {"a.html": "<html></html>"})
     payload = orient_brief(tmp_path, ["Edit a.html"])
     apply_block = payload["apply"]
-    assert "simplicio-loop prepare --task tasks.md" in apply_block["command"]
-    assert "simplicio-loop tick" in apply_block["command"]
+    assert apply_block["command"] == payload["route"]["next"][0]["step"]
+    assert apply_block["command"].startswith("simplicio-loop turbo --repo ")
     assert "operations" in apply_block["ops_format"]["tasks"][0]
     assert "repo_state_chain" in apply_block["ops_format"]
 
@@ -119,7 +125,7 @@ def test_brief_single_task_shorthand_matches_list_form(tmp_path):
     _repo(tmp_path, {"a.html": "<html></html>"})
     from_list = orient_brief(tmp_path, ["Edit a.html"])
     assert from_list["route"]["mode"] == "deliver"
-    assert from_list["route"]["execute"] == "tick"
+    assert from_list["route"]["execute"] == "turbo"
     assert len(from_list["targets"]) >= 1
 
 
@@ -129,50 +135,45 @@ def test_brief_no_tasks_is_blocked(tmp_path):
 
 
 def test_brief_carries_per_phase_effort_hint(tmp_path):
-    """Per-phase reasoning-effort hints (plan high / execute low / review
-    medium) so the host that calls the LLM knows what the NEXT turn --
-    writing ops.json, i.e. the plan phase -- should run at."""
+    """Per-phase reasoning-effort hints stay in the brief. The one next step is the
+    execute phase: turbo asks the model for the plan, the host only runs the command."""
     from simplicio_loop.effort import PHASE_EFFORT
 
     _repo(tmp_path, {"a.html": "<html></html>"})
     payload = orient_brief(tmp_path, ["Edit a.html"])
     assert payload["effort"] == PHASE_EFFORT
     assert payload["route"]["next"]
-    assert payload["route"]["next"][0]["phase"] == "plan"
-    assert payload["route"]["next"][0]["effort"] == PHASE_EFFORT["plan"]
+    assert payload["route"]["next"][0]["phase"] == "execute"
+    assert payload["route"]["next"][0]["effort"] == PHASE_EFFORT["execute"]
 
 
-def test_brief_route_next_is_tick_delivery_for_one_task(tmp_path):
-    """One task still plans, then prepare+tick, then verify."""
+def test_brief_route_next_is_one_turbo_step_for_one_task(tmp_path):
+    """One task: the single next step is the turbo command, in the execute phase."""
     from simplicio_loop.effort import PHASE_EFFORT
 
     _repo(tmp_path, {"a.html": "<html></html>"})
     route = orient_brief(tmp_path, ["Edit a.html"])["route"]
-    steps = route["next"]
-    text = " ".join(s["step"] for s in steps)
-    assert route["execute"] == "tick"
-    assert "simplicio-loop prepare --task tasks.md" in text
-    assert "simplicio-loop tick" in text
-    assert "simplicio-loop verify" in text
-    assert "simplicio-loop wave" not in text
-    assert "simplicio-dev-cli" not in text
-    assert steps[0]["phase"] == "plan"
-    assert steps[0]["effort"] == PHASE_EFFORT["plan"]
-    assert steps[1]["phase"] == "execute"
-    assert steps[1]["effort"] == PHASE_EFFORT["execute"]
-    assert steps[2]["phase"] == "review"
-    assert steps[2]["effort"] == PHASE_EFFORT["review"]
+    assert route["execute"] == "turbo"
+    assert route["execute_rule"] == TURBO_EXECUTE_RULE
+    assert route["next"] == [{"step": turbo_command(tmp_path, ["Edit a.html"]), "phase": "execute",
+                              "effort": PHASE_EFFORT["execute"]}]
+    text = " ".join(step["step"] for step in route["next"])
+    assert not [needle for needle in OLD_FLOW if needle in text]
 
 
-def test_brief_route_next_is_wave_delivery_for_many_tasks(tmp_path):
+def test_brief_route_next_carries_every_task_and_verify_in_one_turbo_step(tmp_path):
+    """Many tasks: still ONE step. The command carries one `--task` per task, in order, and `--verify`."""
     _repo(tmp_path, {"a.html": "<html></html>", "b.html": "<html></html>"})
-    route = orient_brief(tmp_path, ["Edit a.html", "Edit b.html"])["route"]
-    text = " ".join(s["step"] for s in route["next"])
-    assert route["execute"] == "wave"
-    assert "simplicio-loop prepare --task tasks.md" in text
-    assert "simplicio-loop wave" in text
-    assert "simplicio-loop verify" in text
-    assert "simplicio-loop tick" not in text
+    tasks = ["Edit a.html", "Edit b.html"]
+    route = orient_brief(tmp_path, tasks)["route"]
+    assert route["execute"] == "turbo"
+    assert len(route["next"]) == 1 and route["next"][0]["phase"] == "execute"
+    argv = shlex.split(route["next"][0]["step"])
+    assert argv[:2] == ["simplicio-loop", "turbo"]
+    assert argv[argv.index("--repo") + 1] == str(tmp_path)
+    assert [argv[i + 1] for i, part in enumerate(argv) if part == "--task"] == tasks
+    assert "--verify" in argv
+    assert not [needle for needle in OLD_FLOW if needle in route["next"][0]["step"]]
 
 
 def test_brief_targets_named_file_comes_first(tmp_path):

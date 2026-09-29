@@ -15,7 +15,8 @@ instead of a real agent):
   pointed at. It decides for itself which shell commands to run.
 > **Turbo (the default, `SIMPLICIO_BENCH_TURBO=1`) replaces this arm.** With turbo the
 > `simplicio` arm does not open OpenCode: it is the loop engine (`simplicio_loop.turbo`)
-> calling OpenRouter directly — one Mapper survey, one model call per task on the arm's
+> calling OpenRouter through the product's own client (`simplicio_loop.turbo_provider`, the
+> code `simplicio-loop turbo` runs) — one Mapper survey, one model call per task on the arm's
 > pinned `x-session-id` session with reasoning switched off, then `simplicio-dev-cli`
 > applies and verifies the plan. Only `normal` runs in OpenCode. Set
 > `SIMPLICIO_BENCH_TURBO=0` to measure the OpenCode + skill arm described below.
@@ -24,10 +25,10 @@ instead of a real agent):
   `.claude/skills/simplicio-loop/` copied into that arm's repo (OpenCode
   scans a repo's `.claude/skills` by default, alongside its own native
   `.opencode/skills` — see `STANDARD.md` § OpenCode for how that was
-  confirmed) and its user prompt prefixed with `/simplicio-loop `. It
-  decides for itself whether and how to run
-  `simplicio-loop orient`/`prepare`/`wave`/`verify` — this harness never
-  scripts the wave flow directly; the skill does, through the model.
+  confirmed) and its user prompt prefixed with `/simplicio-loop `. The skill
+  tells it to run `simplicio-loop turbo --repo . --task ...` — this harness
+  never scripts that command; the skill does, through the model. OpenCode
+  already receives `OPENROUTER_API_KEY`, which turbo needs.
 
 The only difference between the two arms is whether the skill directory is
 present and the prompt prefix. Everything else — the OpenCode binary, its

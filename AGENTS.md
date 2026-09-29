@@ -69,8 +69,9 @@ The canonical default branch owns one centrally built binary/artifact set. Worke
 consolidated). Coordinators own cognition, not loop activation. See `docs/adr/0009` and
 `docs/adr/0010`. Providers are workers, never authorities.
 
-Use `simplicio-mapper` for inspection, `simplicio-dev-cli edit --plan` for mutation, preserve
-`simplicio.io/v1`, and close only with real tests plus recorded evidence. Facts are `MEASURED|`
+Delivery runs through `simplicio-loop turbo` (`simplicio-mapper` surveys, the model plans,
+`simplicio-dev-cli` applies), preserve `simplicio.io/v1`, and close only with real tests plus
+recorded evidence. Facts are `MEASURED|`
 only with receipts; otherwise `UNVERIFIED|`. Missing dependencies fail closed; never fabricate
 context, tests, savings or provider output.
 This repository ships a runtime-agnostic **super-plugin**: the Universal Looping AI
@@ -127,9 +128,11 @@ confirm scope in one line only if ambiguous.
 
 ## LLM quick flow
 
-The compact current sequence is canonical in [`llms.txt`](llms.txt): Mapper `--help` →
-`scan`/`inspect`/`handoff`, Dev CLI governed edit/verify, focused gates,
-then live PR re-query. Execution is always standalone; there is no Runtime/MCP backend.
+The compact current sequence is canonical in [`llms.txt`](llms.txt): run
+`simplicio-loop turbo --repo <path> --task "<task>" [--verify "<tests>"]` (Mapper reads the repo
+once, the model returns the plan, Dev CLI applies it), read its JSON, run the focused gates, then
+live PR re-query. It needs `OPENROUTER_API_KEY`; without it the command blocks and you stop, with
+no fallback to hand edits. Execution is always standalone; there is no Runtime/MCP backend.
 
 ## Extension points (bind native when available)
 
@@ -303,7 +306,7 @@ The complete installed-entry-point and `simplicio-loop` command map is
 [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md). Run the most specific
 `--help` before invoking a command. Every new public command must have
 meaningful `help=` text, documentation in that file, and a help regression
-check. Current release: Loop 3.44.2 (Mapper 0.26.34 and Dev CLI 0.18.16 are bundled).
+check. Current release: Loop 3.45.0 (Mapper 0.26.34 and Dev CLI 0.18.16 are bundled).
 
 For GitHub work items, keep the body focused on objective, implementation,
 deployment, and tests. Do not add an Acceptance Criteria section to new or
