@@ -8,10 +8,12 @@ later task.
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 IndexFn = Callable[[Path], str]
+_clock = time.monotonic  # the run deadline is measured with this (a test replaces it)
 
 
 def _default_index(root: Path) -> str:
@@ -240,6 +242,16 @@ def _call_record(reply: Mapping[str, Any], turn: int) -> dict[str, Any]:
     }
 
 
+def _fatal_of(reply: Mapping[str, Any]) -> dict[str, str]:
+    """The cause of a reply the engine must not retry (``fatal``: the host CLI, not the plan, failed)."""
+    return {"reason_code": str(reply.get("reason_code") or "host_error"), "detail": str(reply.get("error") or "")}
+
+
+def _skipped(task: Mapping[str, Any], stopped: Mapping[str, str]) -> dict[str, Any]:
+    return {"tasks": [int(task.get("index") or 0)], "applied": False, "skipped": True,
+            "reason": f"not attempted: {stopped['reason_code']}"}
+
+
 def _apply_operations(root: Path, operations: list[dict], binary: str, label: str) -> list[dict]:
     import json
     import subprocess
@@ -284,11 +296,15 @@ def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
     calls: list[dict] = []
     commands: list[dict] = []
     content = ""
-    applied_ok, reason = False, None
+    applied_ok, reason, fatal = False, None, None
     for attempt in (1, 2):
         reply = complete("simplicio", messages)
         content = reply.get("content") or ""
         calls.append(_call_record(reply, len(calls) + 1 if turn == 1 else turn))
+        if reply.get("fatal"):
+            fatal = _fatal_of(reply)
+            reason = fatal["detail"] or fatal["reason_code"]
+            break
         try:
             operations = _parse_operations(content) if reply.get("ok", True) else []
         except (ValueError, json.JSONDecodeError) as exc:
@@ -316,6 +332,8 @@ def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
         ]
     messages.append({"role": "assistant", "content": content})
     outcome = {"tasks": [int(t.get("index") or 0) for t in tasks], "applied": applied_ok, "reason": reason}
+    if fatal:
+        outcome["fatal"] = fatal
     return calls, commands, content, messages, outcome
 
 
@@ -328,8 +346,14 @@ def _ready(pending: list[Mapping[str, Any]], done: set[int]) -> list[Mapping[str
     return ready
 
 
-def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str) -> tuple[list[dict], list[dict], str]:
-    """First call runs alone so the header is cached. Later calls append or fan out after it."""
+def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str,
+              deadline: float | None = None, warm: bool = True
+              ) -> tuple[list[dict], list[dict], str, list[dict], dict[str, str] | None]:
+    """First call runs alone so the header is cached. Later calls append or fan out after it.
+
+    ``warm=False`` (a host CLI has no prompt cache to warm) fans independent tasks out at once. A fatal reply, or a spent
+    ``deadline``, stops the dispatch: what was applied stays, the tasks not asked are reported as not attempted.
+    """
     import asyncio
     pending = [task for task in tasks]
     done: set[int] = set()
@@ -337,17 +361,24 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
     commands: list[dict] = []
     contents: list[str] = []
     outcomes: list[dict] = []
+    stopped: dict[str, str] | None = None
     stack = [header_message(reading)]
     while pending:
+        if deadline is not None and _clock() >= deadline:
+            stopped = {"reason_code": "budget", "detail": "the time budget is spent"}
+            break
         ready = _ready(pending, done)
         if not ready:
             raise RuntimeError("turbo tasks have a dependency cycle")
-        if not calls and len(ready) > 1:
+        if warm and not calls and len(ready) > 1:
             # Independent tasks: a 1-token call writes the header into the provider's cache,
             # then every ready task fans out at once instead of waiting for a whole first task.
-            warm = complete("simplicio", [header_message(reading), _WARM_MESSAGE], max_tokens=1)
-            calls.append({**_call_record(warm, 0), "warm": True})
-        elif not calls or len(ready) == 1:
+            warm_reply = complete("simplicio", [header_message(reading), _WARM_MESSAGE], max_tokens=1)
+            calls.append({**_call_record(warm_reply, 0), "warm": True})
+            if warm_reply.get("fatal"):
+                stopped = _fatal_of(warm_reply)
+                break
+        elif len(ready) == 1:
             task = ready[0]
             lane_calls, lane_commands, content, stack, outcome = _one_lane(
                 root, [task], complete, reading, generation, binary, len(calls) + 1, base=stack,
@@ -358,6 +389,9 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
             contents.append(content)
             done.add(int(task.get("index") or 0))
             pending.remove(task)
+            if outcome.get("fatal"):
+                stopped = outcome["fatal"]
+                break
             continue
         base = list(stack)
 
@@ -375,6 +409,15 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
         for task, messages, reply in asked:
             content = reply.get("content") or ""
             calls.append(_call_record(reply, len(calls) + 1))
+            if reply.get("fatal"):
+                fatal = _fatal_of(reply)
+                outcomes.append({"tasks": [int(task.get("index") or 0)], "applied": False,
+                                 "reason": fatal["detail"] or fatal["reason_code"], "fatal": fatal})
+                contents.append("")
+                done.add(int(task.get("index") or 0))
+                pending.remove(task)
+                stopped = stopped or fatal
+                continue
             try:
                 operations = _parse_operations(content) if reply.get("ok", True) else []
                 reason = None
@@ -397,6 +440,8 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
                 retry = complete("simplicio", retry_messages)
                 calls.append(_call_record(retry, len(calls) + 1))
                 retry_content = retry.get("content") or ""
+                retry_fatal = _fatal_of(retry) if retry.get("fatal") else None
+                stopped = stopped or retry_fatal
                 try:
                     operations = _parse_operations(retry_content) if retry.get("ok", True) else []
                 except (ValueError, json.JSONDecodeError):
@@ -408,15 +453,26 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
                 outcome = {"tasks": outcome["tasks"], "applied": bool(operations) and retry_rejected is None,
                            "reason": None if operations and retry_rejected is None else
                            (retry_rejected or str(retry.get("error") or "the model returned no plan"))}
+                if retry_fatal:
+                    outcome["fatal"] = retry_fatal
             outcomes.append(outcome)
             contents.append(content)
             done.add(int(task.get("index") or 0))
             pending.remove(task)
-    return calls, commands, "\n".join(contents), outcomes
+        if stopped:
+            break
+    for task in pending:  # never asked: the run stopped first
+        outcomes.append(_skipped(task, stopped or {"reason_code": "stopped"}))
+    return calls, commands, "\n".join(contents), outcomes, stopped
 
 
-def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None) -> dict[str, Any]:
-    """Mapper reads once. Up to 3 tasks share one model call. Above that, the first call warms the header and the rest follow."""
+def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None,
+              deadline: float | None = None, warm: bool = True) -> dict[str, Any]:
+    """Mapper reads once. Up to 3 tasks share one model call. Above that, the first call warms the header and the rest follow.
+
+    ``stopped`` is None for a run that asked every lane, else ``{"reason_code", "detail"}``: a reply marked ``fatal`` (a host
+    failure, not a bad plan) or the ``deadline`` (a ``time.monotonic()`` value) ended it. ``warm=False`` skips the warm-up call.
+    """
     survey = survey_tasks(root, tasks)
     single = len(list(tasks)) == 1
     reading = mapper_reading(root, focus=focus_paths(tasks) if single and slice_enabled() else None)
@@ -426,10 +482,10 @@ def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli:
         calls, commands, content, _stack, outcome = _one_lane(
             root, task_list, complete, reading, survey["generation"], binary, 1,
         )
-        outcomes = [outcome]
+        outcomes, stopped = [outcome], outcome.get("fatal")
     else:
-        calls, commands, content, outcomes = _run_wave(
-            root, task_list, complete, reading, survey["generation"], binary,
+        calls, commands, content, outcomes, stopped = _run_wave(
+            root, task_list, complete, reading, survey["generation"], binary, deadline=deadline, warm=warm,
         )
     return {
         "turns": len(calls),
@@ -447,6 +503,7 @@ def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli:
         "survey": survey,
         "wave": len(task_list) > WAVE_TURBO_ABOVE,
         "outcomes": outcomes,
+        "stopped": stopped,
         "applied_all": all(outcome["applied"] for outcome in outcomes),
     }
 
@@ -494,6 +551,10 @@ def repair_with_test_output(root: Path, tasks: Sequence[Mapping[str, Any]], comp
          + "\nReturn a JSON plan that makes them pass."},
     ]
     reply = complete("simplicio", messages)
+    if reply.get("fatal"):
+        fatal = _fatal_of(reply)
+        return {"llm_calls": [_call_record(reply, 1)], "commands": [], "applied": False,
+                "reason": fatal["detail"] or fatal["reason_code"], "fatal": fatal}
     try:
         operations = _parse_operations(reply.get("content") or "") if reply.get("ok", True) else []
         reason = None
