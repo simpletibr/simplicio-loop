@@ -2677,10 +2677,14 @@ def main(argv=None) -> int:
 
     p_turbo = sub.add_parser(
         "turbo",
-        help="run a task in two commands: Mapper survey, you write the plan, dev-cli applies it (no key needed)",
+        help="run a task: one command through the host's own CLI, or two commands with your plan (no key needed)",
         description=(
-            "Default way to run a task, in exactly two commands; `simplicio-loop \"<task>\"` is the shortest form "
-            "of the first. Host mode needs no provider and no key: the invoking model plans and "
+            "Default way to run a task; `simplicio-loop \"<task>\"` is the shortest form. Hybrid mode: when the invoking "
+            "host has a headless CLI (see docs/HARNESSES.md; SIMPLICIO_TURBO_LLM=<harness id>|host|provider forces a "
+            "backend) ONE command runs Mapper, the model through that CLI, simplicio-dev-cli and --verify, and prints "
+            "simplicio.turbo-run/v1 with mode hybrid, within SIMPLICIO_TURBO_BUDGET_S seconds (default 240); when it "
+            "cannot it prints the host-mode request with reason hybrid_unavailable: <cause>. Host mode needs no "
+            "provider and no key: exactly two commands, the invoking model plans and "
             "simplicio-dev-cli edits. Command 1, `turbo --task T [--verify V]`: Mapper surveys the repo and "
             "the command prints a request (status needs_plan): the task, the map slice, the current text of "
             "the files it names, the plan format and the ONE next command, with a heredoc for the plan. "
