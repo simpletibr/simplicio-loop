@@ -133,6 +133,7 @@ def test_an_empty_reply_and_a_silent_failure_are_errors():
 @pytest.mark.parametrize("message, status, cause", [
     ("User not found.", 401, "host_auth"),
     ("Not logged in · Please run /login", None, "host_auth"),
+    ("OpenRouter API key is missing. Pass it using the 'apiKey' parameter", None, "host_auth"),  # a real opencode without a key
     ("Cannot connect to API: Unable to connect. Is the computer able to access the url?", None, "network"),
     ("getaddrinfo ENOTFOUND api.example.com", None, "network"),
     ("The usage limit has been reached", None, "host_http"),

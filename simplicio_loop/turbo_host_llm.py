@@ -229,7 +229,8 @@ class Parsed:
 
 _AUTH = re.compile(
     r"\b(?:401|403)\b|unauthori[sz]ed|forbidden|not logged in|/login\b|log ?in required|invalid[_ ]api[_ ]key|api key is invalid"
-    r"|user not found|authenticat|credential|no api key|missing api key|permission denied|rejected your api key", re.I)
+    r"|user not found|authenticat|credential|no api key|missing api key|api key is (?:missing|required)|permission denied"
+    r"|rejected your api key", re.I)
 _NETWORK = re.compile(
     r"cannot connect|unable to connect|econnrefused|econnreset|enotfound|eai_again|getaddrinfo|could not resolve|"
     r"name or service not known|network is unreachable|enetunreach|ehostunreach|connection refused|connection reset|"
