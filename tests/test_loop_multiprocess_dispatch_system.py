@@ -168,6 +168,9 @@ def _env() -> dict:
     # The verify lanes run a bare `python3 -m pytest`: make that the interpreter running this suite, so the
     # result does not depend on which python3 (and which user site-packages) the host PATH finds first.
     env["PATH"] = os.path.dirname(sys.executable) + os.pathsep + env.get("PATH", "")
+    # The declared `Coverage verifier: ... --cov` needs the pytest-cov plugin. The local gate disables plugin
+    # autoload for ITS pytest run; that must not leak into the product under test.
+    env.pop("PYTEST_DISABLE_PLUGIN_AUTOLOAD", None)
     return env
 
 
