@@ -17,9 +17,8 @@ A task is ONE command: `simplicio-loop "<task>" [--verify "<test command>"]`, th
 the model through your own CLI, `simplicio-dev-cli` and `--verify`, and prints one JSON result. There is no provider call and
 no API key. `status: "ok"` or `"failed"` (`mode: "hybrid"`) is final: report it as printed.
 
-Only when it prints `status: "needs_plan"` (`mode: "host"`, with a `reason`) you plan: `tasks` (what is left; `applied` is
-done), `map`, the current text of the files it names (`files`), `format`, `rules` and the exact `apply` command. Run that
-command once, your plan as its heredoc body:
+Only when it prints `status: "needs_plan"` (`mode: "host"`, with a `reason`) you plan from `tasks` (what is left; `applied` is
+done), `files` (their current text) and the exact `apply` command. Run that command once, your plan as its heredoc body:
 
    ```bash
    simplicio-loop turbo --repo <path> --apply - --verify "<test command>" <<'PLAN'
@@ -27,25 +26,25 @@ command once, your plan as its heredoc body:
    PLAN
    ```
 
-   An empty `find` creates the file. dev-cli applies the plan, then `--verify` runs: `status` (`ok` or `failed`), `applied`,
-   `failed` (dev-cli reason and file excerpt), `verify`.
+   An empty `find` creates the file. It prints `status` (`ok` or `failed`), `applied`, `failed` (dev-cli reason and file
+   excerpt) and `verify`.
 
 Nothing else. Do not explore, list or read files: the request holds their text (name every file to change in
-the task text, or pass `--target`/`--context` with one `--task`). Do not run tests yourself: `--verify` does;
+the task text). Do not run tests yourself: `--verify` does;
 pass the test command you already know, never search for one. Do not run `--help`, `simplicio-mapper` or
 `simplicio-dev-cli`, and do not write a plan file, a scratchpad, a journal or a turn header. Never hand-edit; the
 plan is the edit. On `status: "failed"`, fix the plan once from `reason` and `excerpt` (or the `verify` output)
-and run the `apply` command printed with it. Several requests: one `--task` each.
+and run the `apply` command printed with it. Several tasks in one message: run ONE command with one `--task` per task,
+`simplicio-loop turbo --repo <path> --task "<t1>" --task "<t2>" --verify "<tests>"`. Never run one command per task: that is not a queue.
 `.simplicio-loop/` is local run state: keep it in `.gitignore` (the engine adds it when the file exists) and never commit it.
 
-Goal over a queue ("all open issues", "drain the board"): one such command per item, in order; the orientation block below
-has the recipe. Done only on `status: "ok"` plus a passing verify.
+A queue is separate work items, each with its own issue and PR ("all open issues", "drain the board"): the orientation block
+below has the recipe. Done only on `status: "ok"` plus a passing verify.
 
 ## Done
 
 Done = `status: "ok"` and, when `--verify` was given, `verify.passed: true`. Report `applied`, `failed` and
-`verify` as printed, then end with `DONE`. Emit the `<promise>` only after that, in the same turn, and only
-when a loop is armed.
+`verify` as printed, then end with `DONE`. Emit the `<promise>` only after that, in the same turn, and only when a loop is armed.
 
 ## Loop
 
@@ -91,11 +90,12 @@ End every message: `DONE | NEXT | BLOCKED`.
 
 <!-- SIMPLICIO-LLM-ORIENTATION:BEGIN -->
 Loop orientation:
-- A task is ONE command: `simplicio-loop "<task>" [--verify "<tests>"]`, short for `simplicio-loop turbo --repo <path> --task "<task>"` (no key, no provider): Mapper, the model through the host's own CLI, dev-cli edits and `--verify`. `status ok` or `failed` is final: report it as printed.
+- A task is ONE command: `simplicio-loop "<task>" [--verify "<tests>"]`, short for `simplicio-loop turbo --repo <path> --task "<task>"` (no key, no provider). `status ok` or `failed` is final: report it as printed.
 - Only on `needs_plan`: run the request's `apply` command once, your JSON plan as its heredoc body (`... --apply - <<'PLAN'`); `find` is copied from the printed text. dev-cli makes every edit; never hand-edit.
 - Do not explore, list or read files, and do not run tests yourself (`--verify` does). No plan file, scratchpad, journal or turn header for a task run.
 - On `failed`, fix the plan once from the reported reason and apply again.
-- Queue goal (all open issues, drain the board): list the items (`gh issue list --state open --json number,title,body`), run `simplicio-loop turbo --repo <path> --task "<title>: <body>" --verify "<tests>"` per item, in order (name the files when the item names them), and the printed `apply` on `needs_plan`; one CLAIMED issue and one PR per item.
+- Several tasks in one message: run ONE command with one `--task` per task, `simplicio-loop turbo --repo <path> --task "<t1>" --task "<t2>" --verify "<tests>"`. Never run one command per task: that is not a queue.
+- Queue goal (separate work items, each with its own issue and PR: all open issues, drain the board): `gh issue list --state open --json number,title,body`, then per item, in order, `simplicio-loop turbo --repo <path> --task "<title>: <body>" --verify "<tests>"` (name the files when the item names them) and the printed `apply` on `needs_plan`; one CLAIMED issue and one PR per item.
 - `.simplicio-loop/` is local run state: keep it in `.gitignore` (the engine adds it when the file exists) and never commit it.
 - Done = status ok and, when `--verify` was given, verify passed. Promise only after that.
 - One monorepo: packages/mapper surveys, packages/dev-cli applies. Do not install those as external projects. No Runtime. No Fast package.

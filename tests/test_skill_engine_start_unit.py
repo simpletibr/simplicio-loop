@@ -137,8 +137,26 @@ def test_skill_says_how_to_drain_a_queue_with_one_command_per_item() -> None:
     assert queue in block and per_item in block and "one CLAIMED issue" in block and "one PR" in block  # the recipe, re-fed each turn
     assert "in order" in block and "the printed `apply` on `needs_plan`" in block and "name the files when the item names them" in block
     body = _flat(text.split(BEGIN, 1)[0])  # the body points at it: one command per item, done on ok plus a passing verify
-    assert "one such command per item, in order" in body and "the orientation block below has the recipe" in body
+    assert "A queue is separate work items" in body and "the orientation block below has the recipe" in body
     assert "plus a passing verify" in body
+
+
+def test_several_tasks_in_one_message_go_in_one_command_with_repeated_task_flags() -> None:
+    """The 3.47.0 benchmark: a host model ran one command per task (10 tasks, 10 commands, 82 s against 19 s for plain OpenCode).
+
+    One command with one `--task` per task lets the engine fan them out. Several tasks in a request are not a queue.
+    """
+    text = SKILL.read_text(encoding="utf-8")
+    body, block = _flat(text.split(BEGIN, 1)[0]), _flat(_orientation_block(text))
+    for name, surface in (("body", body), ("orientation block", block)):
+        assert 'run ONE command with one `--task` per task' in surface, name
+        assert '--task "<t1>" --task "<t2>"' in surface, name
+        assert "Never run one command per task" in surface, name
+        assert "not a queue" in surface, name
+    for rel in MODEL_FACING:
+        assert "one such command per" not in (ROOT / rel).read_text(encoding="utf-8"), rel
+    assert "Several requests: one `--task` each" not in text
+    assert "separate work items" in body and "own issue and PR" in body  # what a queue is
 
 
 def test_skill_short_form_is_documented_next_to_the_long_form() -> None:
