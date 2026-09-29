@@ -21,6 +21,7 @@ Then drop the skills + hooks into your project (or globally):
 ```bash
 simplicio-loop install            # into ./.claude of the current project
 simplicio-loop install --global   # into ~/.claude (all projects)
+simplicio-loop install --all-skills   # also the companion skills (default: the simplicio-loop skill only)
 ```
 
 Now invoke it from your agent runtime (Claude Code, Cursor, Codex, Gemini, …):

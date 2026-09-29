@@ -65,8 +65,8 @@ def test_install_copies_skills_and_hooks_project_local(tmp_path, monkeypatch, ca
 
 def test_install_copies_skills_globally_under_home(tmp_path, monkeypatch):
     fake_bundle = tmp_path / "bundle"
-    (fake_bundle / "skills").mkdir(parents=True)
-    (fake_bundle / "skills" / "s.md").write_text("x", encoding="utf-8")
+    (fake_bundle / "skills" / "simplicio-loop").mkdir(parents=True)
+    (fake_bundle / "skills" / "simplicio-loop" / "SKILL.md").write_text("x", encoding="utf-8")
     (fake_bundle / "hooks").mkdir(parents=True)
     (fake_bundle / "hooks" / "h.py").write_text("x", encoding="utf-8")
     monkeypatch.setattr(cli_mod, "BUNDLE", fake_bundle)
@@ -78,8 +78,40 @@ def test_install_copies_skills_globally_under_home(tmp_path, monkeypatch):
     rc = cli_mod.install(tmp_path / "unused-target", globally=True)
 
     assert rc == 0
-    assert (fake_home / ".claude" / "skills" / "s.md").is_file()
+    assert (fake_home / ".claude" / "skills" / "simplicio-loop" / "SKILL.md").is_file()
     assert (fake_home / ".claude" / "hooks" / "h.py").is_file()
+
+
+def _ten_skill_bundle(tmp_path):
+    bundle = tmp_path / "bundle"
+    for name in ("simplicio-loop", "simplicio-orient", "simplicio-review", "simplicio-tasks"):
+        (bundle / "skills" / name).mkdir(parents=True)
+        (bundle / "skills" / name / "SKILL.md").write_text(name, encoding="utf-8")
+    (bundle / "hooks").mkdir()
+    (bundle / "hooks" / "h.py").write_text("x", encoding="utf-8")
+    return bundle
+
+
+def test_the_global_default_installs_one_skill_and_all_skills_installs_the_bundle(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli_mod, "BUNDLE", _ten_skill_bundle(tmp_path))
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(cli_mod.Path, "home", classmethod(lambda cls: home))
+    assert cli_mod.main(["install", "--global"]) == 0
+    assert sorted(p.name for p in (home / ".claude" / "skills").iterdir()) == ["simplicio-loop"]
+    out = capsys.readouterr().out
+    assert "skills -> simplicio-loop" in out and "--all-skills" in out  # says how to get the others
+    assert cli_mod.main(["install", "--global", "--all-skills"]) == 0
+    assert sorted(p.name for p in (home / ".claude" / "skills").iterdir()) == [
+        "simplicio-loop", "simplicio-orient", "simplicio-review", "simplicio-tasks"]
+    assert cli_mod.main(["install", "--global"]) == 0  # dropping the opt-in removes what this installer added
+    assert sorted(p.name for p in (home / ".claude" / "skills").iterdir()) == ["simplicio-loop"]
+
+
+def test_install_help_names_the_all_skills_flag(capsys):
+    with __import__("pytest").raises(SystemExit):
+        cli_mod.main(["install", "--help"])
+    assert "--all-skills" in capsys.readouterr().out
 
 
 def test_gui_available_true_on_darwin(monkeypatch):

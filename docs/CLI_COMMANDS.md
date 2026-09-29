@@ -21,7 +21,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 
 | Command | Purpose |
 |---|---|
-| `install` | Install bundled skills and hooks into a supported runtime. |
+| `install` | Install the `simplicio-loop` skill and the hooks into a supported runtime. The model is shown the listing of every installed skill on every turn (about 1,000 tokens for ten), so the default is one skill; `--all-skills` also installs orient, review, compress, learn, autoresearch, prism, mapper, dev-cli and the tasks alias. An install or `update` removes the skills an earlier install of this package wrote (`.simplicio-loop/install-ownership.json` lists what it owns) when `--all-skills` does not ask for them; skills you added yourself are never touched. `--uninstall` removes only what that file lists. |
 | `update` | Install the latest GitHub release of `simpletibr/simplicio-loop` (`--check` only reports, `--force` reinstalls) and refresh the global skills. |
 | `dashboard` | Open or stop the token-monitor dashboard. |
 | `task` | Compile, validate, or preview a Markdown task contract. |

@@ -106,7 +106,7 @@ def _copy_tree(src: Path, dst: Path) -> int:
 
 
 def install(target: Path, globally: bool, host: str = "claude",
-            dry_run: bool = False, uninstall: bool = False, verify: bool = False) -> int:
+            dry_run: bool = False, uninstall: bool = False, verify: bool = False, all_skills: bool = False) -> int:
     from .install.planner import InstallError, apply_plan, plan_install
     from .install.planner import uninstall as remove_owned
     from .install.planner import verify_plan
@@ -121,7 +121,7 @@ def install(target: Path, globally: bool, host: str = "claude",
         print(f"simplicio-loop uninstalled {len(payload.get('removed') or [])} owned paths")
         return 0
     try:
-        plan = plan_install(root, host=host, globally=globally)
+        plan = plan_install(root, host=host, globally=globally, all_skills=all_skills)
         if verify:
             verify_plan(plan)
             print(f"simplicio-loop install plan ok host={host} digest={plan['digest']}")
@@ -134,7 +134,11 @@ def install(target: Path, globally: bool, host: str = "claude",
     print(f"simplicio-loop {__version__} {status}:")
     print(f"  host   -> {host}")
     print(f"  owned  -> {', '.join(result['owned'])}")
+    if result.get("removed"):
+        print(f"  removed -> {', '.join(result['removed'])}")
     print(f"  files  -> {result['written']}")
+    if not all_skills:
+        print("  skills -> simplicio-loop only (the model sees every installed skill's listing each turn); --all-skills adds the rest")
     print("")
     print("Use it in your agent runtime (Claude Code, Cursor, ...):")
     print("  /simplicio-loop finish all the open issues")
@@ -2674,6 +2678,9 @@ def main(argv=None) -> int:
     p_install.add_argument("--dry-run", action="store_true", help="plan only; write nothing")
     p_install.add_argument("--verify", action="store_true", help="validate plan version/digest")
     p_install.add_argument("--uninstall", action="store_true", help="remove Loop-owned files only")
+    p_install.add_argument("--all-skills", action="store_true",
+                           help="also install orient, review, compress, learn, autoresearch, prism, mapper, dev-cli and the "
+                                "tasks alias (default: the simplicio-loop skill only)")
 
     p_turbo = sub.add_parser(
         "turbo",
@@ -3386,6 +3393,7 @@ def main(argv=None) -> int:
         getattr(args, "dry_run", False),
         getattr(args, "uninstall", False),
         getattr(args, "verify", False),
+        getattr(args, "all_skills", False),
     )
 
 

@@ -771,9 +771,11 @@ is enough — **no native runtime dependency is required**:
 pip install simplicio-loop
 simplicio-loop install            # current project
 simplicio-loop install --global   # user-wide
+simplicio-loop install --all-skills   # also orient, review, compress, learn, autoresearch, prism, mapper, dev-cli
 ```
 
-That installs the skills + hooks only. If your runtime can bind native helpers, they are an
+That installs the `simplicio-loop` skill + hooks only: the model is shown the listing of every installed skill on every turn,
+so the companion skills are opt-in (`--all-skills`), and an upgrade removes the ones an earlier install wrote unless you opt in. If your runtime can bind native helpers, they are an
 **optional speed-up**, not a prerequisite. `pip install simplicio-loop` is one wheel: mapper and
 dev-cli are built into it, so it also provides the two required operators, `simplicio-mapper`
 (survey) and `simplicio-dev-cli` (mutation) — there is no separate `simplicio-mapper` /

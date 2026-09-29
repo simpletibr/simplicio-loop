@@ -16,13 +16,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--verify", action="store_true")
     parser.add_argument("--uninstall", action="store_true")
+    parser.add_argument("--all-skills", action="store_true", help="also install the skills other than simplicio-loop")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     try:
         if args.uninstall:
             payload = uninstall(args.target)
         else:
-            plan = plan_install(args.target, host=args.host, globally=args.globally)
+            plan = plan_install(args.target, host=args.host, globally=args.globally, all_skills=args.all_skills)
             if args.verify:
                 payload = verify_plan(plan)
             else:
