@@ -20,7 +20,7 @@ from simplicio_loop.prompt_bridge import enrich_user_prompt
 
 SCHEMA = "simplicio.host-adapter/v1"
 HOST = "claude"
-ADAPTER_VERSION = "3.45.2"
+ADAPTER_VERSION = "3.46.0"
 PLUGIN_NAME = "simplicio-loop"
 
 LIFECYCLE_STAGES = (
