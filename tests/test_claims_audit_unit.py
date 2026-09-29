@@ -319,6 +319,40 @@ def test_unverified_claim_with_receipt_still_requires_the_file_to_exist():
             restore()
 
 
+HEADER = "<!-- simplicio-contract:begin -->\ncontract: %s/x\nschema: simplicio.skill-reference/v1\n<!-- simplicio-contract:end -->\n"
+
+
+def test_skill_pair_parity_ignores_the_contract_headers_own_skill_name():
+    # #1342: each skill's immutable header names itself (`contract: simplicio-loop/x` vs `simplicio-tasks/x`), so the
+    # shared references cannot be byte-identical; the rest of the file must be.
+    with tempfile.TemporaryDirectory() as tmp:
+        body = "\n# Shared reference\n\nsame body\n"
+        _write(os.path.join(tmp, ".claude", "skills", "simplicio-loop", "references", "x.md"),
+               HEADER % "simplicio-loop" + body)
+        _write(os.path.join(tmp, ".claude", "skills", "simplicio-tasks", "references", "x.md"),
+               HEADER % "simplicio-tasks" + body)
+        restore = _patched(tmp)
+        try:
+            ok, detail = claims_audit.check_skill_pair_parity()
+            assert ok, detail
+        finally:
+            restore()
+
+
+def test_skill_pair_parity_still_flags_a_body_difference_behind_the_header():
+    with tempfile.TemporaryDirectory() as tmp:
+        _write(os.path.join(tmp, ".claude", "skills", "simplicio-loop", "references", "x.md"),
+               HEADER % "simplicio-loop" + "\nloop body\n")
+        _write(os.path.join(tmp, ".claude", "skills", "simplicio-tasks", "references", "x.md"),
+               HEADER % "simplicio-tasks" + "\ntasks body\n")
+        restore = _patched(tmp)
+        try:
+            ok, detail = claims_audit.check_skill_pair_parity()
+            assert not ok and "x.md" in detail, detail
+        finally:
+            restore()
+
+
 def test_skill_pair_parity_ignores_unilateral_files_and_skill_md():
     with tempfile.TemporaryDirectory() as tmp:
         _write(os.path.join(tmp, ".claude", "skills", "simplicio-loop", "references", "only-loop.md"),
