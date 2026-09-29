@@ -90,11 +90,12 @@ class PreflightContractTest(_CliShimTestCase):
         self.assertIn("simplicio-mapper", out)
         self.assertIn("simplicio-dev-cli", out)
 
-    def test_preflight_rejects_unknown_subcommand_still_absent(self):
-        # Sanity: a genuinely unknown command must still error (proves we only ADDED preflight).
-        rc, _out, err = self.run_cli(["nonexistent-xyz"])
+    def test_an_unknown_option_is_still_rejected(self):
+        # Sanity: the parser still rejects what it does not know. An unknown first WORD is a task since
+        # 3.45.1 (`simplicio-loop "<task>"`, see tests/test_turbo_3451_unit.py), so this uses an option.
+        rc, _out, err = self.run_cli(["--nonexistent-xyz"])
         self.assertNotEqual(rc, 0)
-        self.assertIn("invalid choice", err)
+        self.assertIn("unrecognized arguments", err)
 
 
 class StatusJsonContractTest(_CliShimTestCase):

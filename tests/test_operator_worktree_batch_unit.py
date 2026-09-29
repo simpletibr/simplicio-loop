@@ -3,7 +3,11 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from simplicio_loop import runner
+
+pytestmark = pytest.mark.usefixtures("admitting_capacity")  # host pressure must not decide these dispatch tests
 
 
 def test_auto_fan_out_requires_independent_plan_targets(monkeypatch, tmp_path):
