@@ -134,7 +134,7 @@ it is not (yet) mechanically verified the way the other four clauses are.
 
 ## Fixture (reproduces the real-world case)
 
-`tests/test_delivery_contract_526_unit.py` freezes the exact 3-restriction contract from the
+`tests/test_delivery_contract_stop_hook_integration.py` freezes the exact 3-restriction contract from the
 issue's motivating session (`open_pr: false`, `allow_new_files_in_repo: false`,
 `allow_comments_in_code: false`) and then simulates a turn that creates `FooTests.cs` — the guard
 blocks with a reason naming `FooTests.cs` explicitly.
