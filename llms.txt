@@ -12,7 +12,7 @@ What this repo is:
 - Evidence-gated loop: never exit on a fake “done”
 
 Current operator flow:
-- `simplicio-loop "<task>" [--verify "<tests>"]` (short for `simplicio-loop turbo --repo . --task "<task>"`) — the default way to run any task, no provider and no API key: Mapper reads the repo once and the command prints a `needs_plan` request. You are the model: write the JSON plan to `plan_path`, run the printed `apply` command (`simplicio-dev-cli` applies it and runs `--verify`), and on `failed` fix the plan once and re-apply. Never edit files by hand. `--provider openrouter` is the explicit headless mode and the only one that needs `OPENROUTER_API_KEY`.
+- `simplicio-loop "<task>" [--verify "<tests>"]` (short for `simplicio-loop turbo --repo . --task "<task>"`) — the default way to run any task, no provider and no API key: Mapper reads the repo once and the command prints a `needs_plan` request with the text of the files it names. You are the model: run the printed `apply` command once with your JSON plan as its heredoc body (`simplicio-loop turbo --repo . --apply - --verify "<tests>" <<'PLAN'`, the plan, `PLAN`; `simplicio-dev-cli` applies it and runs `--verify`), and on `failed` fix the plan once and run it again. Exactly two commands: do not explore, list or read files, and do not run the tests yourself. Never edit files by hand.
 - `simplicio-mapper --help` — survey operator; turbo runs it for you.
 - `simplicio-dev-cli --help` — governed edit/verify operator; turbo drives it.
 - Both operators are built into the one `simplicio-loop` wheel (`pip install simplicio-loop`); update with `simplicio-loop update`.

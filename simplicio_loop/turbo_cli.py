@@ -1,13 +1,15 @@
 """`simplicio-loop turbo`: the default way to run a task.
 
-Host mode (the default: no provider call, no key). The invoking model plans and simplicio-dev-cli applies:
+Host mode (the default: no provider call, no key). The invoking model plans and simplicio-dev-cli applies, in
+exactly two commands:
 
-1. ``turbo --task T`` surveys with Mapper and prints a ``needs_plan`` request: the map slice, the task and
-   the current file text, plus the exact ``--apply`` command to run next.
-2. The model writes a find/replace JSON plan to ``plan_path``; ``turbo --apply PLAN`` applies it through
-   dev-cli and runs ``--verify``.
+1. ``turbo --task T`` surveys with Mapper and prints a ``needs_plan`` request: the task, the map slice, the
+   current text of the files it names, the plan format and the ONE next command, in heredoc form.
+2. That command, ``turbo --apply - [--verify V] <<'PLAN'`` + the find/replace JSON plan + ``PLAN``, reads the
+   plan from stdin, applies it through dev-cli and runs ``--verify``. ``--apply FILE`` reads the plan from a
+   file instead: the same code path.
 
-Provider mode (``--provider openrouter``, explicit): the headless benchmarked engine. One model call per
+Provider mode (``--provider openrouter``, headless automation only): the benchmarked engine. One model call per
 lane (``turbo_provider``: OpenRouter, pinned session, reasoning off), then dev-cli applies each plan.
 
 The output is one compact JSON document. Exit code: 0 ok / needs_plan, 1 failed, 2 blocked.
@@ -20,17 +22,20 @@ import json
 import re
 import shlex
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any, Sequence
 
 SCHEMA = "simplicio.turbo-run/v1"
 REQUEST_SCHEMA = "simplicio.turbo-request/v1"
-PLAN_PATH = ".simplicio-loop/turbo/plan.json"
-REQUEST_PATH = ".simplicio-loop/turbo/request.json"
 PLAN_FORMAT = {"operations": [{"path": "<repo-relative>",
                                "find": "<exact text that occurs once; empty creates the file>",
                                "replace": "<new text>"}]}
+RULES = ("Write the plan from the file contents above; do not open, list or read other files; "
+         "do not run tests yourself; run the command below once.")
+STDIN_HINT = ("pipe the JSON plan on stdin: `simplicio-loop turbo --repo <path> --apply - <<'PLAN'`, the plan, "
+              "then `PLAN`")
 _EXCERPT_CHARS = 600
 _CODE_EXTENSIONS = frozenset((
     "py", "js", "jsx", "ts", "tsx", "mjs", "cjs", "html", "htm", "css", "scss", "md", "json", "yml",
@@ -97,9 +102,9 @@ def _run_verify(root: Path, command: str) -> tuple[dict[str, Any], str]:
 def run(repo: str, texts: Sequence[str], target: str | None = None, context: Sequence[str] = (),
         tasks_file: str | None = None, verify: str | None = None, apply: str | None = None,
         provider: str | None = None) -> int:
-    """Host mode by default: ``apply`` applies the plan the host wrote, otherwise print the plan request.
+    """Host mode by default: ``apply`` applies the plan the host wrote (``-``: from stdin), otherwise print the request.
 
-    ``provider="openrouter"`` is the explicit opt-in to the headless engine; only then is a key needed.
+    ``provider="openrouter"`` is the headless engine, for automation only; only then is a key needed.
     """
     if provider == "openrouter":
         return _run_provider(repo, texts, target, context, tasks_file, verify)
@@ -108,9 +113,17 @@ def run(repo: str, texts: Sequence[str], target: str | None = None, context: Seq
     return _request_plan(repo, texts, target, context, tasks_file, verify)
 
 
+def _map_slice(reading: str) -> Any:
+    """The map slice as JSON, so the request does not carry it escaped inside a string."""
+    try:
+        return json.loads(reading)
+    except ValueError:  # a map cut at the size cap is not JSON any more
+        return reading
+
+
 def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
                   tasks_file: str | None, verify: str | None) -> int:
-    from .turbo import focus_paths, header_message, mapper_reading, slice_enabled, survey_tasks, task_message
+    from .turbo import current_files, focus_paths, mapper_reading, slice_enabled, survey_tasks
 
     root = Path(repo).resolve()
     head = {"schema": SCHEMA, "repo": str(root), "mode": "host"}
@@ -120,33 +133,29 @@ def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: 
         return 2
     # The saved survey marker belongs to one run. Ask Mapper again on every invocation: its own
     # tree-state cache keeps an unchanged tree free and byte-identical, and a changed tree gets a new map.
-    state = root / ".simplicio-loop"
-    (state / "turbo-survey.json").unlink(missing_ok=True)
+    (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
     try:
         survey_tasks(root, tasks)
-        reading = mapper_reading(root, focus=focus_paths(tasks) if len(tasks) == 1 and slice_enabled() else None)
+        # No prompt cache to warm in host mode: the map is only the slice of the files the tasks name.
+        reading = mapper_reading(root, focus=focus_paths(tasks) if slice_enabled() else None)
     except RuntimeError as exc:
         _emit({**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
         return 2
-    apply_command = f"simplicio-loop turbo --repo {shlex.quote(str(root))} --apply {PLAN_PATH}"
+    apply_command = f"simplicio-loop turbo --repo {shlex.quote(str(root))} --apply -"
     if verify:
         apply_command += f" --verify {shlex.quote(verify)}"
-    document = {
+    apply_command += " <<'PLAN'\n<JSON plan>\nPLAN"
+    _emit({
         "schema": REQUEST_SCHEMA,
         "status": "needs_plan",
         "mode": "host",
-        "repo": str(root),
-        "plan_path": PLAN_PATH,
-        "apply": apply_command,
+        "tasks": [task["text"] for task in tasks],
+        "map": _map_slice(reading),
+        "files": current_files(root, tasks),
         "format": PLAN_FORMAT,
-        "tasks": [{k: task[k] for k in ("index", "text", "target", "context")} for task in tasks],
-        "prompt": header_message(reading)["content"] + "\n\n" + task_message(tasks, root)["content"],
-    }
-    request = root / REQUEST_PATH
-    request.parent.mkdir(parents=True, exist_ok=True)
-    (root / PLAN_PATH).unlink(missing_ok=True)  # a plan left by an earlier request must not be applied to this one
-    request.write_text(json.dumps(document, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
-    _emit(document)
+        "rules": RULES,
+        "apply": apply_command,
+    })
     return 0
 
 
@@ -176,24 +185,38 @@ def _plan_failures(root: Path, operations: list[dict], reason: str) -> list[dict
     return failures or [{"path": None, "reason": reason, "excerpt": ""}]
 
 
+def _plan_text(root: Path, plan: str) -> tuple[str | None, str]:
+    """The plan text (stdin for ``-``, else a file) or None with the reason there is none. UTF-8 either way."""
+    if plan == "-":
+        if sys.stdin is None or sys.stdin.isatty():
+            return None, f"stdin is a terminal, not a plan: {STDIN_HINT}"
+        stream = getattr(sys.stdin, "buffer", None)
+        # Bytes, not the locale-decoded text stream: a plan in Portuguese must survive a cp1252 or C locale.
+        text = stream.read().decode("utf-8-sig") if stream is not None else sys.stdin.read()
+        return (text, "") if text.strip() else (None, f"nothing arrived on stdin: {STDIN_HINT}")
+    path = Path(plan)
+    if not path.is_absolute() and (root / path).is_file():
+        path = root / path
+    if not path.is_file():
+        return None, f"no plan at {plan}: write the JSON plan there, or {STDIN_HINT}"
+    return path.read_text(encoding="utf-8"), ""
+
+
 def _apply_plan(repo: str, plan: str, verify: str | None) -> int:
     from .turbo import apply_plan, load_operations
 
     started = time.time()
     root = Path(repo).resolve()
     head = {"schema": SCHEMA, "repo": str(root), "mode": "host"}
-    path = Path(plan)
-    if not path.is_absolute() and (root / path).is_file():
-        path = root / path
-    if not path.is_file():
-        _emit({**head, "status": "failed", "reason_code": "turbo_plan_missing",
-               "detail": f"no plan at {plan}: write the JSON plan there, then run the apply command again"})
-        return 1
     try:
-        operations = load_operations(path.read_text(encoding="utf-8"))
-    except (ValueError, UnicodeDecodeError) as exc:
+        text, missing = _plan_text(root, plan)
+        operations = load_operations(text) if text is not None else []
+    except ValueError as exc:  # not UTF-8, not JSON, or not a plan
         _emit({**head, "status": "failed", "reason_code": "turbo_plan_malformed", "detail": str(exc),
                "format": PLAN_FORMAT})
+        return 1
+    if text is None:
+        _emit({**head, "status": "failed", "reason_code": "turbo_plan_missing", "detail": missing})
         return 1
     try:
         result = apply_plan(root, operations, "host-1")

@@ -71,6 +71,14 @@ gate. There is no bypass flag: fix the gate, don't skip it. `python3 hooks/actio
 selftest` proves the ruleset. `action_gate.py check --staged` (the pre-commit-flavored,
 secret-scan-only mode) remains available for a lighter pre-commit wiring.
 
+One shape is read as data: the JSON plan a host pipes to `simplicio-loop turbo --repo R --apply - <<'PLAN'`. The
+gate reads the whole Bash command, so without this a plan that merely contains a destructive statement (a
+migration, a runbook) would be blocked for what it says. `strip_plan_heredoc` drops that heredoc body before
+classifying, and only when the first line is one plain `simplicio-loop turbo ... --apply -` command (no unquoted
+operator, so no other command can read the heredoc), the delimiter is quoted (the shell expands nothing in the
+body), it is the last line and no earlier line equals it. Any other command, and every other reader of a heredoc,
+is classified in full.
+
 ## The always-works one (no wiring needed)
 
 `orient_clamp.py` is a plain wrapper — use it anywhere, any runtime, no hooks:

@@ -189,6 +189,26 @@ def header_message(reading: str) -> dict[str, str]:
     }
 
 
+FILE_CHARS = 6000
+
+
+def current_files(root: Path, tasks: Sequence[Mapping[str, Any]]) -> dict[str, str]:
+    """The current text of every existing target and context file, each once, in task order.
+
+    A file past ``FILE_CHARS`` is cut and the last line says so, so a model that needs the rest knows to read it.
+    """
+    files: dict[str, str] = {}
+    for task in tasks:
+        for name in [task.get("target"), *(task.get("context") or [])]:
+            path = root / str(name) if name else None
+            if not name or str(name) in files or path is None or not path.is_file():
+                continue
+            body = path.read_text(encoding="utf-8", errors="replace")
+            cut = len(body) - FILE_CHARS
+            files[str(name)] = body if cut <= 0 else body[:FILE_CHARS] + f"\n[truncated: {cut} more characters not shown]"
+    return files
+
+
 def task_message(tasks: Sequence[Mapping[str, Any]], root: Path | None = None) -> dict[str, str]:
     """Task text plus the current target bytes. This is the suffix, not the header."""
     parts = []
@@ -199,7 +219,7 @@ def task_message(tasks: Sequence[Mapping[str, Any]], root: Path | None = None) -
         for name in [task.get("target"), *(task.get("context") or [])]:
             path = root / str(name) if name else None
             if path is not None and path.is_file():
-                body = path.read_text(encoding="utf-8", errors="replace")[:6000]
+                body = path.read_text(encoding="utf-8", errors="replace")[:FILE_CHARS]
                 parts.append(f"Current {name}:\n{body}")
     return {"role": "user", "content": "Tasks:\n" + "\n".join(parts)}
 

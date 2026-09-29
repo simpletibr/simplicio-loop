@@ -131,10 +131,11 @@ confirm scope in one line only if ambiguous.
 
 The compact current sequence is canonical in [`llms.txt`](llms.txt): run
 `simplicio-loop "<task>" [--verify "<tests>"]` (short for `simplicio-loop turbo --repo . --task "<task>"`;
-Mapper reads the repo once and it prints a `needs_plan` request), write the JSON plan it asks for to
-`plan_path`, run the printed `apply` command (Dev CLI applies it and runs `--verify`; on `failed` fix the
-plan once and re-apply), run the focused gates, then live PR re-query. No provider and no API key: the key
-is only for the explicit headless mode `--provider openrouter`. Never hand-edit; Dev CLI makes every edit.
+Mapper reads the repo once and it prints a `needs_plan` request), then run the printed `apply` command once
+with your JSON plan as its heredoc body (`simplicio-loop turbo --repo . --apply - --verify "<tests>" <<'PLAN'`;
+Dev CLI applies it and runs `--verify`; on `failed` fix the plan once and run it again). Exactly two commands:
+do not explore, list or read files, and do not run the tests yourself. Then run the focused gates and the live
+PR re-query. No provider and no API key. Never hand-edit; Dev CLI makes every edit.
 Execution is always standalone; there is no Runtime/MCP backend.
 
 ## Extension points (bind native when available)

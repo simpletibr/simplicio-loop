@@ -31,7 +31,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `task` | Compile, validate, or preview a Markdown task contract. |
 | `prototype` | Route prototype planning and validation commands. |
 | `plan` | Compile a raw task into a frozen contract. |
-| `turbo` | The default way to run a task; `simplicio-loop "<task>"` is the shortest form (a first argument that is not a subcommand is a task, unless it asks for all issues/tickets/tarefas, which goes to the drain intake). No provider and no API key: the invoking model plans and `simplicio-dev-cli` edits. `turbo --task T` surveys with Mapper and prints a `simplicio.turbo-request/v1` document (`status: "needs_plan"`: `prompt` with the map slice, the task and the current file text, `format`, `plan_path`, the exact `apply` command). `turbo --apply PLAN` applies the find/replace JSON plan through dev-cli, runs `--verify`, and prints `simplicio.turbo-run/v1` with `mode: "host"` (`status` ok or failed, `applied`, `failed` with the dev-cli reason and a file excerpt, `verify`). `--task` (repeat for several), `--target`/`--context` (one task), `--tasks-file`, `--verify "<tests>"`. `--provider openrouter` is the explicit headless mode: one model call per lane to OpenRouter (`deepseek/deepseek-v4.1-flash`, `SIMPLICIO_TURBO_MODEL` overrides; pinned session, reasoning off), a rejected plan goes back once, and it needs `OPENROUTER_API_KEY` (`status: blocked`, `turbo_provider_key_missing` without it). Exit 0 ok or needs_plan, 1 failed, 2 blocked. |
+| `turbo` | The default way to run a task; `simplicio-loop "<task>"` is the shortest form (a first argument that is not a subcommand is a task, unless it asks for all issues/tickets/tarefas, which goes to the drain intake). No provider and no API key: the invoking model plans and `simplicio-dev-cli` edits, in exactly two commands. `turbo --task T` surveys with Mapper and prints a `simplicio.turbo-request/v1` document (`status: "needs_plan"`: `tasks`, the `map` slice, the current text of the named `files`, `format`, `rules`, and `apply`, the one next command with a heredoc for the plan). `turbo --apply - [--verify V] <<'PLAN'` reads the find/replace JSON plan from stdin (`--apply FILE` reads a file: the same code path), applies it through dev-cli, runs `--verify`, and prints `simplicio.turbo-run/v1` with `mode: "host"` (`status` ok or failed, `applied`, `failed` with the dev-cli reason and a file excerpt, `verify`). `--task` (repeat for several), `--target`/`--context` (one task), `--tasks-file`, `--verify "<tests>"`. `--provider openrouter` is headless automation only; agents invoking the skill must not use it: one model call per lane to OpenRouter (`deepseek/deepseek-v4.1-flash`, `SIMPLICIO_TURBO_MODEL` overrides; pinned session, reasoning off; a duplicate request only after `SIMPLICIO_TURBO_HEDGE_AFTER` seconds, default 10), a rejected plan goes back once, and it needs `OPENROUTER_API_KEY` (`status: blocked`, `turbo_provider_key_missing` without it). Exit 0 ok or needs_plan, 1 failed, 2 blocked. |
 | `prepare` / `arm` | Arm and preflight a run without executing tasks or calling a provider; returns a `run_id` for `tick`, `batch`, `wave`, or `prism`. |
 | `run` | Arm, execute, and independently verify a task. |
 | `orient` | Build bounded context through the Mapper survey and emit `simplicio.llm-max-speed-orientation/v1` plus a hash-bound `simplicio.loop-orient-receipt/v1` (Mapper-only). `--brief` (repeatable `--task`, issue #1310) renders the compact form: route first (its one next step is the `turbo` command carrying every task and `--verify`), deduped target file content, plan groups, suggested checks, Mapper generation + a `repo_state_chain` fingerprint, and the ops format of `apply`. |
@@ -75,12 +75,16 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 ### Zero-config start
 
 ```bash
-# Default: any task, one or many. Two commands, no provider and no API key.
-# 1. Mapper surveys and the command prints a needs_plan request (plan_path, apply, prompt):
+# Default: any task, one or many. Exactly two commands, no provider and no API key.
+# 1. Mapper surveys and the command prints a needs_plan request (tasks, map, files, format, rules, apply):
 simplicio-loop "Create pricing.py with order_total" --verify "python -m pytest -q"
-# 2. Write {"operations":[{"path","find","replace"}]} to .simplicio-loop/turbo/plan.json, then run the printed command:
-simplicio-loop turbo --repo . --apply .simplicio-loop/turbo/plan.json --verify "python -m pytest -q"
-# Explicit headless mode (asks OpenRouter for the plan, needs OPENROUTER_API_KEY):
+# 2. Run the printed apply command once, with {"operations":[{"path","find","replace"}]} as its heredoc body:
+simplicio-loop turbo --repo . --apply - --verify "python -m pytest -q" <<'PLAN'
+{"operations":[{"path":"pricing.py","find":"","replace":"def order_total(items):\n    ...\n"}]}
+PLAN
+# (any way of piping the plan to stdin works, e.g. a PowerShell here-string; `--apply plan.json` reads a file.
+# Under SIMPLICIO_LOOP_STRICT a host may write only .simplicio-loop/turbo/plan.json.)
+# Headless automation only; agents invoking the skill must not use it (asks OpenRouter for the plan, needs OPENROUTER_API_KEY):
 simplicio-loop turbo --repo . --provider openrouter --task "Create pricing.py with order_total" --verify "python -m pytest -q"
 
 # Governed runs from a tasks.md (queues, batches, Prism):
@@ -92,8 +96,9 @@ simplicio-loop batch RUN_ID
 
 `turbo --apply` prints one JSON document (`simplicio.turbo-run/v1`, `mode: "host"`): `status` (`ok` or
 `failed`; `blocked` when dev-cli is missing), `applied`, `failed` (per operation: the dev-cli reason and a
-short excerpt of the file around a `find` that did not match), `verify`, `wall_s`. A missing or
-malformed plan is `failed` with `turbo_plan_missing` or `turbo_plan_malformed`. In provider mode the
+short excerpt of the file around a `find` that did not match), `verify`, `wall_s`. A missing plan (an
+empty stdin, a terminal on stdin, no such file) is `failed` with `turbo_plan_missing`; a plan that is not UTF-8,
+not JSON or not `{"operations":[...]}` is `failed` with `turbo_plan_malformed`. In provider mode the
 document also carries `model_calls`, `retries`, `tokens`, `cache_hit_pct`, `cost_usd` and `calls`.
 Done is `status: "ok"` and, when `--verify` was given, `verify.passed: true`. Name every file to change
 in the task text.
@@ -101,7 +106,7 @@ in the task text.
 For a goal over a queue ("all open issues", "drain the board"), list the items (GitHub:
 `gh issue list --state open --json number,title,body`) and run the two commands per item, in order:
 `simplicio-loop turbo --repo <path> --task "<title>: <body>" --verify "<tests>"`, then the printed apply
-command; one CLAIMED issue and one PR per item.
+command with your plan as its heredoc body; one CLAIMED issue and one PR per item.
 
 > **Nota de Descontinuação**: O comando `simplicio-loop run` foi descontinuado. Qualquer invocação a `simplicio-loop run --task task.md` ou `simplicio-loop run <run_id>` é interceptada e automaticamente redirecionada para o fluxo governado padrão `wave`.
 
@@ -227,10 +232,11 @@ missing, incompatible, or non-activating Runtime decision.
 
 ## Operator order for LLMs
 
-1. `simplicio-loop turbo --help`, then `simplicio-loop "<task>" [--verify "<tests>"]` (short for
+1. `simplicio-loop "<task>" [--verify "<tests>"]` (short for
    `simplicio-loop turbo --repo . --task "<task>"`): the default way to run a task. It runs the Mapper
-   survey and prints a request; you write the plan and run the printed apply command, and Dev CLI
-   edits. No provider and no API key.
+   survey and prints a request; you run the printed apply command once with your plan as its heredoc body,
+   and Dev CLI edits. Exactly two commands: do not explore, list or read files, and do not run the tests
+   yourself. No provider and no API key.
 2. `simplicio-mapper --help` and `simplicio-dev-cli --help` to inspect an operator, not to run a delivery.
 3. `simplicio-loop preflight --help`, focused tests, then `simplicio-loop verify --help` for governed runs.
 

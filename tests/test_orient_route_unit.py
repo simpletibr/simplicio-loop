@@ -70,9 +70,11 @@ def test_orient_command_card_is_the_turbo_card(tmp_path):
     card = _orient_command_card(tmp_path)
     assert card["schema"] == COMMAND_CARD_SCHEMA
     assert card["turbo"] == turbo_command(tmp_path)
-    assert card["flow"] == ["turbo", "plan_path", "apply"]
+    assert card["flow"] == ["turbo", "apply"]  # two commands: no plan file in between
     assert card["execute_rule"] == TURBO_EXECUTE_RULE
-    assert card["requires"].startswith("no provider and no key")  # host mode; only --provider openrouter needs a key
+    assert "heredoc" in card["execute_rule"] and "do not explore" in card["execute_rule"]
+    assert card["requires"] == "no provider and no key"
+    assert "--provider" not in json.dumps(card) and "OPENROUTER_API_KEY" not in json.dumps(card)
     assert "model" not in card
     assert "verify.passed" in card["done"]
     assert len(json.dumps(card).encode("utf-8")) < COMMAND_CARD_MAX_BYTES

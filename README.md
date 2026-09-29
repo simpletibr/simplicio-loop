@@ -293,10 +293,10 @@ This repository holds three packages, each with one responsibility:
 Dev setup (editable-installs all three into one venv): `bash scripts/dev_install.sh`. Local
 gate: `python3 scripts/check.py --package all` (or `--package mapper|dev-cli|loop`, or
 `--changed` to run only what a diff touches). There is no GitHub Actions gate here — the
-local gate is authoritative. The delivery flow for any task count is one command:
-**`simplicio-loop "<task>"`** (short for `simplicio-loop turbo`) — Mapper surveys once, the invoking model
-writes the plan, Dev CLI applies it and `--verify` runs the tests; no provider and no API key (see
-[Zero-config execution](#zero-config-execution)).
+local gate is authoritative. The delivery flow for any task count is two commands:
+**`simplicio-loop "<task>"`** (short for `simplicio-loop turbo`) — Mapper surveys once and prints the one apply
+command; the invoking model runs it with its plan in the heredoc, Dev CLI applies it and `--verify` runs the
+tests; no provider and no API key (see [Zero-config execution](#zero-config-execution)).
 
 ---
 
@@ -856,18 +856,20 @@ The main `simplicio-loop` entry point is the user-facing control surface for pla
 ### Zero-config execution
 
 The default entry point is `simplicio-loop "<task>"` (short for `simplicio-loop turbo --repo . --task "<task>"`):
-one command for one task or many. It needs no provider and no API key: the model that invoked the skill
-plans and `simplicio-dev-cli` edits. Step 1 surveys with Mapper and prints a `needs_plan` request (the map
-slice, the task, the current file text, the exact apply command). Step 2: the model writes the JSON
-find/replace plan to `plan_path` and runs the printed apply command; `simplicio-dev-cli` applies it and
-`--verify` runs your tests (`status`, `applied`, `failed` with the dev-cli reason and a file excerpt,
-`verify`). The headless alternative `--provider openrouter` asks OpenRouter (`deepseek/deepseek-v4.1-flash`,
-pinned session, reasoning off) for the plan and is the only mode that needs `OPENROUTER_API_KEY`.
+one entry point for one task or many. It needs no provider and no API key: the model that invoked the skill
+plans and `simplicio-dev-cli` edits, in exactly two commands. Command 1 surveys with Mapper and prints a
+`needs_plan` request (the task, the map slice, the current text of the files it names, the plan format and the
+exact apply command). Command 2 is that apply command: the model puts its JSON find/replace plan in the
+heredoc body, `simplicio-dev-cli` applies it and `--verify` runs your tests (`status`, `applied`, `failed` with
+the dev-cli reason and a file excerpt, `verify`). Headless automation can ask OpenRouter for the plan instead;
+see [docs/CLI_COMMANDS.md](docs/CLI_COMMANDS.md).
 
 ```bash
 simplicio-loop "Create pricing.py with order_total and fix the two bugs in inventory.py" --verify "python -m pytest -q"
-# write the plan the request asks for to .simplicio-loop/turbo/plan.json, then run the printed command:
-simplicio-loop turbo --repo . --apply .simplicio-loop/turbo/plan.json --verify "python -m pytest -q"
+# then run the printed command once, with the plan as its heredoc body (the plan can also come from a file: --apply plan.json):
+simplicio-loop turbo --repo . --apply - --verify "python -m pytest -q" <<'PLAN'
+{"operations":[{"path":"pricing.py","find":"","replace":"..."}]}
+PLAN
 ```
 
 Governed runs from a `tasks.md` (queues, batches, Prism) use the `wave` flow (with automatic reconciliation barriers):
