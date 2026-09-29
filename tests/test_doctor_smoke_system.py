@@ -26,8 +26,6 @@ def _run_doctor(args, tmp_path, extra_env=None):
     env["HOMEPATH"] = str(tmp_path)[len(str(tmp_path.drive or "C:")):]
     env["PYTHONIOENCODING"] = "utf-8"
     env.pop("ANTHROPIC_API_KEY", None)
-    env.pop("SIMPLICIO_REMOTE_QUEUE_URL", None)
-    env.pop("SIMPLICIO_REMOTE_ENVIRONMENT_ID", None)
     if extra_env:
         env.update(extra_env)
     return subprocess.run(
@@ -103,26 +101,10 @@ def test_doctor_unknown_flag_is_a_clean_argparse_error_not_a_traceback(tmp_path)
     assert "usage" in r.stderr.lower()
 
 
-def test_doctor_remote_worker_tristate_defaults_local_only(tmp_path):
-    # #286: without SIMPLICIO_REMOTE_QUEUE_URL/SIMPLICIO_REMOTE_ENVIRONMENT_ID set (both are
-    # popped by _run_doctor above) and no measurement receipt checked into the real repo, the
-    # remote-worker check must report LOCAL_ONLY -- the default, healthy state -- never a FAIL.
+def test_doctor_has_no_remote_worker_check(tmp_path):
     r = _run_doctor(["--json"], tmp_path)
-    items = json.loads(r.stdout)
-    rw = next(it for it in items if it["name"] == "remote worker (#286)")
-    assert rw["tier"] == "OPTIONAL"
-    assert rw["status"] == "ok", rw
-    assert "LOCAL_ONLY" in rw["msg"]
-
-
-def test_doctor_remote_worker_reports_ready_when_configured_but_unproven(tmp_path):
-    r = _run_doctor(["--json"], tmp_path, extra_env={"SIMPLICIO_REMOTE_QUEUE_URL": "https://queue.example.internal"})
-    items = json.loads(r.stdout)
-    rw = next(it for it in items if it["name"] == "remote worker (#286)")
-    # Real repo checkout has no measurement receipt, so configuring the URL alone must not
-    # fabricate REMOTE_MEASURED -- it should report REMOTE_READY (configured, unproven).
-    assert rw["status"] == "warn", rw
-    assert "REMOTE_READY" in rw["msg"]
+    names = [item["name"] for item in json.loads(r.stdout)]
+    assert names and not any("remote worker" in name for name in names)
 
 
 def test_doctor_never_invokes_repair_by_default(tmp_path):

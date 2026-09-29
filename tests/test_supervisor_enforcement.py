@@ -153,59 +153,6 @@ def test_selftest_passes():
     assert mod.cmd_selftest(Opts()) == 0
 
 
-def test_governor_circuit_open_true_when_state_open():
-    assert mod.governor_circuit_open({"circuit": {"state": "open"}}) is True
-
-
-def test_governor_circuit_open_false_when_closed_or_missing():
-    assert mod.governor_circuit_open({"circuit": {"state": "closed"}}) is False
-    assert mod.governor_circuit_open({}) is False
-    assert mod.governor_circuit_open(None) is False
-
-
-def test_load_governor_status_missing_file_returns_none(tmp_path):
-    assert mod.load_governor_status(str(tmp_path / "nope.json")) is None
-
-
-def test_load_governor_status_corrupt_file_returns_none(tmp_path):
-    path = tmp_path / "gov.json"
-    path.write_text("not json{{{")
-    assert mod.load_governor_status(str(path)) is None
-
-
-def test_status_surfaces_real_governor_circuit_open(state_file, tmp_path, capsys):
-    from simplicio_loop.hub_governor import PressureReading, ResourceGovernor, ResourceLimits
-
-    governor = ResourceGovernor(ResourceLimits(cpu=4), circuit_threshold=1, cooldown_seconds=60)
-    receipt = governor.evaluate_pressure(
-        PressureReading(cpu_percent=99.0, source="test"), cpu_percent_limit=10.0
-    )
-    assert receipt["circuit"]["state"] == "open"
-
-    gov_path = tmp_path / "governor.json"
-    gov_path.write_text(json.dumps(governor.status()))
-
-    opts = Opts()
-    opts.json = True
-    opts.governor_state_file = str(gov_path)
-    rc = mod.cmd_status(opts)
-    out = json.loads(capsys.readouterr().out)
-    assert rc == 0
-    assert out["governor"]["available"] is True
-    assert out["governor"]["circuit_open"] is True
-
-
-def test_status_governor_unavailable_when_no_file(state_file, capsys):
-    opts = Opts()
-    opts.json = True
-    opts.governor_state_file = None
-    rc = mod.cmd_status(opts)
-    out = json.loads(capsys.readouterr().out)
-    assert rc == 0
-    assert out["governor"]["available"] is False
-    assert out["governor"]["circuit_open"] is False
-
-
 def test_scan_os_returns_none_when_psutil_absent(monkeypatch):
     import builtins
 
@@ -401,25 +348,21 @@ def test_cmd_detect_stdin_not_a_list(monkeypatch, state_file):
     assert rc == 2
 
 
-def test_cmd_status_text_output_canary_and_governor_open(state_file, tmp_path, capsys):
+def test_cmd_status_text_output_canary(state_file, capsys):
     rollout_opts = Opts()
     rollout_opts.mode = "canary"
     rollout_opts.percent = 40
     rollout_opts.allow = ["ws-a"]
     mod.cmd_rollout(rollout_opts)
 
-    gov_path = tmp_path / "governor.json"
-    gov_path.write_text(json.dumps({"circuit": {"state": "open"}}))
-
     opts = Opts()
     opts.json = False
-    opts.governor_state_file = str(gov_path)
     rc = mod.cmd_status(opts)
     out = capsys.readouterr().out
     assert rc == 0
     assert "rollout: canary" in out
     assert "canary_percent: 40" in out
-    assert "governor_circuit: OPEN" in out
+    assert "governor" not in out
 
 
 def test_metrics_reports_zero_transitions_when_no_events_file(state_file, tmp_path, capsys):
@@ -489,12 +432,3 @@ def test_metrics_text_output(state_file, tmp_path, monkeypatch, capsys):
     assert "canary: 1" in out
     assert "last transition: mode=canary percent=20" in out
 
-
-def test_cmd_status_text_output_governor_unavailable(state_file, capsys):
-    opts = Opts()
-    opts.json = False
-    opts.governor_state_file = None
-    rc = mod.cmd_status(opts)
-    out = capsys.readouterr().out
-    assert rc == 0
-    assert "governor_circuit: unavailable" in out

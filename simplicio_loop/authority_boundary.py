@@ -120,7 +120,7 @@ def prepare_authorization_handoff(
 
     Mapper/LLM payloads are intentionally not inspected for an authorization
     path.  A missing artifact is a typed absence; callers may make it a hard
-    block for Runtime-backed execution with ``required=True``.
+    block with ``required=True``.
     """
     root = Path(run_root).resolve()
     path = root / AUTHORIZATION_FILENAME

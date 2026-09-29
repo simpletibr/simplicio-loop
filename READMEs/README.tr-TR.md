@@ -11,7 +11,7 @@
   <a href="#-12-skill--hızlandırıcı"><img src="https://img.shields.io/badge/skills-12-7C3AED" alt="12 skills"></a>
   <a href="#-kaynak-adaptörleri"><img src="https://img.shields.io/badge/source%20adapters-5-00E08A" alt="5 source adapters"></a>
   <a href="#-15-runtime-tek-protokol"><img src="https://img.shields.io/badge/runtimes-15-2563EB" alt="15 runtimes"></a>
-  <a href="#-token-ekonomisi"><img src="https://img.shields.io/badge/extension%20points-50-00E08A" alt="50 extension points"></a>
+  <a href="#-token-ekonomisi"><img src="https://img.shields.io/badge/extension%20points-48-00E08A" alt="48 extension points"></a>
   <a href="#-token-ekonomisi"><img src="https://img.shields.io/badge/tokens-up%20to%2096%25%20fewer-green" alt="Up to 96% fewer tokens"></a>
   <a href="../LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
 </p>

@@ -261,26 +261,6 @@ EVIDENCE_RECEIPT_SCHEMA = ReceiptSchema(
     hash_field="receipt_sha",
 )
 
-QUEUE_RECEIPT_SCHEMA = ReceiptSchema(
-    name="queue-completion-receipt",
-    required_fields=("schema", "task_id", "agent_id", "fencing_token", "receipt_ref", "measured_at"),
-    required_values={"schema": "simplicio.queue-receipt/v1"},
-    provenance_fields=("task_id", "agent_id", "fencing_token", "receipt_ref"),
-    freshness_field="measured_at",
-    hash_field="receipt_sha",
-)
-"""Wire schema for ``RemoteQueue.complete``'s optional ``receipt`` argument (issue #286 step 9).
-
-Unlike ``OPERATOR_RECEIPT_SCHEMA``/``EVIDENCE_RECEIPT_SCHEMA`` -- which describe content a
-*worker's own device* produces and can only self-attest to -- this schema is what the *queue
-server* itself independently verifies before ever transitioning a task to ``completed``. It
-binds the receipt to the task/agent/fence of the lease actually presenting it
-(``simplicio_loop.remote_queue.build_completion_receipt`` builds one; ``SQLiteRemoteQueue.complete``
-recomputes ``receipt_sha`` and cross-checks ``task_id``/``agent_id``/``fencing_token`` against the
-active lease), so a stale or forged receipt is rejected server-side rather than merely trusted
-because a client claims it is legitimate.
-"""
-
 
 __all__ = [
     "ReceiptStatus",
@@ -291,5 +271,4 @@ __all__ = [
     "verify_receipt",
     "OPERATOR_RECEIPT_SCHEMA",
     "EVIDENCE_RECEIPT_SCHEMA",
-    "QUEUE_RECEIPT_SCHEMA",
 ]

@@ -135,7 +135,7 @@ def load_quality_provider(name: str, policy: str, *, repo: str = ".") -> Quality
     module_name = PROVIDER_MODULE_TEMPLATE.format(name=name)
     # Prefer a selected extension entry point over a legacy same-named builtin.
     # This prevents the core compatibility shim from shadowing a real external
-    # provider that owns the Hub-backed execution contract.
+    # provider that owns the execution contract.
     selected_entry = _quality_extension_entry(name)
     if selected_entry is not None:
         # External quality distributions are opt-in extensions. Resolve only

@@ -51,10 +51,10 @@ structural blocker — not a TODO, not a gap in this round's scope, and not some
 round should re-attempt without first confirming the precondition below has changed.**
 
 1. This ADR is the single, durable, signed-off record of that decision, matching the pattern
-   already used for issue #289's OIDC broker exchange
-   (`docs/adr/0003-distributed-proof-trust-boundaries.md` §"OIDC broker exchange: permanently
-   blocked, re-confirmed") and issue #290's attestation-policy narrowing
-   (`docs/adr/0003-attestation-and-sbom-policy.md`).
+   already used for issue #290's attestation-policy narrowing
+   (`docs/adr/0003-attestation-and-sbom-policy.md`). (The earlier record for issue #289's OIDC
+   broker exchange lived in the distributed-worker ADR, removed with that stack in 3.46.0; see
+   git history.)
 2. The **precondition for revisiting this decision** is explicit and mechanically checkable: a
    CI identity provider capable of minting an OIDC token with `id-token: write` semantics exists
    again in this repository — either a workflow with those release/OIDC controls is introduced,

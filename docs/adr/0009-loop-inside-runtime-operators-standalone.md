@@ -35,11 +35,18 @@ remain valid without Runtime. See also ADR 0010 (execution metrics standard).
 The standalone operator rule is package-level and does not create four peer Runtime
 hops. Runtime selects Mapper and Loop separately; Dev CLI is nested only as
 `loop.dev_cli` after Loop activation. Direct file edits default to
-`simplicio edit`. See the mirrored Runtime decision in
-[ADR 0011](./0011-runtime-operator-routing.md).
+`simplicio edit`. The mirrored Runtime decision (ADR 0011) was removed with the
+Runtime integration in 3.46.0; see git history.
 
 ## Amendment 2026-09-26
 
 Issue #1343 removed `simplicio-fast` from the stack. The standalone operators are
 `simplicio-mapper` (survey) and `simplicio-dev-cli` (mutate); there is no optional
 third operator.
+
+## Amendment 2026-09-29
+
+Issue #1379 (loop 3.46.0) removed the Runtime/MCP integration from this repository:
+there is no `runtime-backed` route, no Runtime activation gate and no Runtime binary
+discovery. Decision items 1 and 3 no longer apply; the standalone path in item 2 is the
+only path, and `simplicio-loop` owns activation and convergence itself.

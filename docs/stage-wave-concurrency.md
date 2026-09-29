@@ -1,7 +1,7 @@
 # Stage wave concurrency
 
 `StageAgentCoordinator.run_all()` submits every dependency-ready stage in a wave at
-once. The Hub slot grant (`host_total_slots - coordinator_slots`) is the only
+once. The host slot grant (`host_total_slots - coordinator_slots`) is the only
 concurrency limit: the coordinator does not let adapters create extra capacity. A
 grant of one uses an explicit serial path. Later waves are evaluated only after the
 current wave has completed, so every prerequisite receipt must already be accepted.

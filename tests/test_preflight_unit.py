@@ -50,37 +50,14 @@ def test_build_report_is_stable_shape(monkeypatch, tmp_path: Path):
                 "returncode": 0, "identity_ok": True, "version_ok": True, "capabilities_ok": True}
 
     monkeypatch.setattr(preflight, "_probe_component", component)
-    monkeypatch.setattr(preflight, "_probe_runtime", lambda cwd: {
-        "name": "simplicio-runtime", "version": "3.5.0", "minimum_version": "3.5.0",
-        "returncode": 0, "identity_ok": True, "version_ok": True, "capabilities_ok": True,
-        "runtime_contract_ok": True,
-    })
     report = preflight.build_report(tmp_path)
     assert report["schema"] == "simplicio.preflight/v1"
     assert report["ready"] is True
     assert [item["name"] for item in report["components"]] == [
-        "simplicio-mapper", "simplicio-dev-cli", "simplicio-runtime"
+        "simplicio-mapper", "simplicio-dev-cli"
     ]
     assert "fast" not in report
+    assert "runtime_available" not in report
     assert not hasattr(preflight, "_probe_fast")
+    assert not hasattr(preflight, "_probe_runtime")
     json.dumps(report)
-
-
-def test_build_report_is_ready_without_optional_runtime(monkeypatch, tmp_path: Path):
-    def component(*args, **kwargs):
-        name = args[0]
-        return {"name": name, "version": "1.0.0", "minimum_version": "0.0.0",
-                "returncode": 0, "identity_ok": True, "version_ok": True, "capabilities_ok": True}
-
-    monkeypatch.setattr(preflight, "_probe_component", component)
-    monkeypatch.setattr(preflight, "_probe_runtime", lambda cwd: {
-        "name": "simplicio-runtime", "version": "0.0.0", "minimum_version": "3.5.0",
-        "returncode": 1, "identity_ok": False, "version_ok": False, "capabilities_ok": True,
-        "runtime_contract_ok": False, "error": "command not found",
-    })
-    report = preflight.build_report(tmp_path)
-
-    assert report["ready"] is True
-    assert report["runtime_available"] is False
-    assert "fast" not in report
-    assert report["degraded_features"] == ["runtime-integration"]

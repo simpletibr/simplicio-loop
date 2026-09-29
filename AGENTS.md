@@ -142,7 +142,7 @@ Execution is always standalone; there is no Runtime/MCP backend.
 
 ## Extension points (bind native when available)
 
-The skill defines **50 named extension points** (see the Step 1b table in `SKILL.md`).
+The skill defines **48 named extension points** (see the Step 1b table in `SKILL.md`).
 For each point, if this runtime exposes a faster native capability, **bind it** —
 the step becomes deterministic and near-zero-token. The skill never requires a specific
 runtime; the binding lives here in the host, not in the skill.
@@ -298,8 +298,6 @@ rebase, and release rules in [ADR 0008](docs/adr/0008-bounded-delivery-policy.md
 - Never mark an item done without green gates + evidence ("works, not just compiles").
 - Secret-scan every diff; route irreversible ops through the human gate. Where hooks exist this is
   ENFORCED fail-closed by `hooks/action_gate.py` (PreToolUse/pre-push) — not left to the model.
-- Unattended 24/7 runs require persistent source auth, human gate + secret scan, and a reachable
-  STOP/cancel path.
 - Report token-savings ONLY when a measured receipt backs it (clamp / signatures-read / cache hit /
   `deterministic_edit` / `savings_ledger`); never fabricate a figure. No measured economy → no
   savings line. Credited only on a passing quality gate.
@@ -318,7 +316,7 @@ The complete installed-entry-point and `simplicio-loop` command map is
 `--help` before invoking a command (not `simplicio-loop turbo` for a task run: the skill and the quick flow
 above give its two commands in full). Every new public command must have
 meaningful `help=` text, documentation in that file, and a help regression
-check. Current release: Loop 3.45.2 (Mapper 0.26.34 and Dev CLI 0.18.16 are bundled).
+check. Current release: Loop 3.46.0 (Mapper 0.26.34 and Dev CLI 0.18.16 are bundled).
 
 For GitHub work items, keep the body focused on objective, implementation,
 deployment, and tests. Do not add an Acceptance Criteria section to new or

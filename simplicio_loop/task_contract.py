@@ -55,9 +55,7 @@ WS_RE = re.compile(r"\s+")
 URL_RE = re.compile(r"https?://\S+", re.I)
 
 # -- routing (issue #287: role/capability/budget/fallback fields on the task ----
-# contract, so simplicio_loop/model_router.py::route()/route_with_fallback() can
-# be driven by a real, frozen task contract instead of a synthetic requirements
-# dict handed in ad hoc.
+# contract).
 ROUTING_LINE_RE = re.compile(r"^\s*-?\s*(?P<key>[^:]+):\s*(?P<value>.*)$")
 ROUTING_LABELS = {
     "papel": "role",
@@ -469,8 +467,7 @@ def _empty_routing() -> Dict[str, Any]:
 
 def _parse_routing(lines: Iterable[str]) -> Dict[str, Any]:
     """Parse the optional '9. Roteamento' section into role/capability/budget/
-    fallback-policy fields the router can consume directly (see
-    :func:`routing_requirements`). Absent section => explicit ``state:
+    fallback-policy fields. Absent section => explicit ``state:
     "unspecified"`` defaults, never a silently-invented role/policy."""
     fields: Dict[str, str] = {}
     for raw in lines:
@@ -518,24 +515,6 @@ def _parse_routing(lines: Iterable[str]) -> Dict[str, Any]:
         "fallback_policy": fallback_policy,
         "max_routes": max_routes,
         "independent_review": _parse_bool_pt(fields.get("independent_review", "")),
-    }
-
-
-def routing_requirements(contract: Mapping[str, Any]) -> Dict[str, Any]:
-    """Project a compiled contract's ``routing`` section onto the requirements
-    shape ``simplicio_loop.model_router.route()``/``route_with_fallback()``
-    expect. Budget/fallback_policy/max_routes are not part of registry
-    eligibility (they drive the fallback layer, not candidate filtering) so
-    they are intentionally left out of the returned dict; read them from
-    ``contract["routing"]`` directly when driving retries."""
-    routing = contract.get("routing") or _empty_routing()
-    return {
-        "role": routing.get("role") or DEFAULT_ROUTING_ROLE,
-        "required_capabilities": list(routing.get("required_capabilities") or []),
-        "preferred_capabilities": list(routing.get("preferred_capabilities") or []),
-        "allowed_providers": list(routing.get("allowed_providers") or []),
-        "denied_providers": list(routing.get("denied_providers") or []),
-        "independent_review": bool(routing.get("independent_review")),
     }
 
 

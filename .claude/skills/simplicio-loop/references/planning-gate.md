@@ -13,7 +13,7 @@ mandatory-by-default flags; this file has the schema, reason codes, and drift/re
 ## Why this exists
 
 `simplicio_loop` had the pieces to plan deeply (`task_contract`, `task_anchor.py`,
-`plan_contract.validate_plan()`, `work_item_claims.AttemptCoordinator`) before issue #284, but
+`plan_contract.validate_plan()`) before issue #284, but
 nothing tied "the task was claimed" to "planning was proven complete" to "mutation may begin"
 into one atomic, fail-closed contract. `simplicio_loop/planning_gate.py` and the wiring in
 `simplicio_loop/runner.py` are that contract.

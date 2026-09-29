@@ -5,7 +5,7 @@
 path, near ``_task_context_plan_data``/``_candidate_targets``). A task whose
 only real target is a skill file (``.claude/skills/<name>/SKILL.md``) could
 never get an authorized target, and blocked with ``no_authorized_target``
-before any operator ever ran (see ``docs/evidence/1323-wave.md`` task 3).
+before any operator ever ran (measured in the #1323 wave, task 3).
 
 ``.claude/skills/**`` (and its ``plugin/`` / ``simplicio_loop/_bundle/``
 mirrors) must be authorized targets when the task text names them explicitly.

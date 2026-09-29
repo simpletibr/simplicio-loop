@@ -46,24 +46,14 @@ silently downgrade to last-write-wins. Runtime adapters should show the
 identity in task receipts, never expose another agent's prompt/context, and
 re-query the source after reconnecting.
 
-## Default fan-out and remote mode
+## Default fan-out
 
 `execute_operator_batch` fans out independent tasks into isolated worktrees by
-default; overlapping or unallocatable work falls back to a serialized lane.
-When several machines share a queue, set `SIMPLICIO_REMOTE_QUEUE_URL` (and,
-when configured, `SIMPLICIO_REMOTE_QUEUE_TOKEN`). The runner then:
-
-1. persists a stable identity at `.simplicio-loop/orchestrator/agent-identity.json` (override
-   with `SIMPLICIO_IDENTITY_FILE`),
-2. sends only an allow-listed task context pack to the worker,
-3. claims each task atomically before invoking the operator and completes it
-   only after a successful receipt, and
-4. pauses with `network_paused` or `claim_conflict` rather than mutating when
-   the queue is unavailable or another worker owns the fencing token.
-
-`SIMPLICIO_RUNTIME` labels the runtime (for example `codex` or `claude`), while
-`SIMPLICIO_REMOTE_QUEUE_TTL` and `SIMPLICIO_REMOTE_QUEUE_TIMEOUT` bound leases
-and network calls. Unset the URL for the local, worktree-isolated mode.
+default; overlapping or unallocatable work falls back to a serialized lane. The
+runner persists a stable identity at `.simplicio-loop/orchestrator/agent-identity.json`
+(override with `SIMPLICIO_IDENTITY_FILE`), and `SIMPLICIO_RUNTIME` labels the runtime
+(for example `codex` or `claude`). The shared-queue remote mode
+(`SIMPLICIO_REMOTE_QUEUE_*`) was removed in 3.46.0.
 
 ## Context isolation and receipts
 
@@ -78,9 +68,6 @@ and network calls. Unset the URL for the local, worktree-isolated mode.
 - `bind_receipt()` attaches the immutable `agent` record and rejects a receipt
   or context pack assigned to a different agent.
 
-The SQLite queue persists the identity and capability set with each lease and
-returns it in the completion receipt. A reconnecting worker must present the
-same identity and fencing token; a duplicate/replayed identity is rejected.
-The runtime adapter carries the same identity on every envelope and binds
-evidence/completion receipts before delivery or outbox buffering.
+A reconnecting worker must present the same identity and fencing token; a
+duplicate/replayed identity is rejected.
 

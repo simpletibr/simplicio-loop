@@ -2,8 +2,8 @@
 ``plan_repo_state_stale`` after the run's own mutation.
 
 Root cause (confirmed against the real affected runs
-``run-20260926-074454-qdptdesh``/``run-20260926-080225-5s223dnu``, evidence
-in ``docs/evidence/1323-wave.md``): when a task's dev-cli invocation reports
+``run-20260926-074454-qdptdesh``/``run-20260926-080225-5s223dnu``, measured
+in the #1323 wave): when a task's dev-cli invocation reports
 an *uncertain* outcome (client-side timeout after the underlying subprocess
 was killed, ``execution_state: "uncertain"``, ``returncode: None`` --
 ``runner._execute_operator_effect_unchecked``'s own comment: "A timeout does

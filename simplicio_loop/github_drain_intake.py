@@ -1,7 +1,7 @@
 """Read-only intake and planning for a future GitHub issue drain.
 
 This module intentionally stops before every effect boundary.  It never claims
-an issue, submits a Hub job, starts a worker, mutates a worktree, or closes
+an issue, submits a job, starts a worker, mutates a worktree, or closes
 GitHub state.  A successful run is therefore ``PLANNED_NOT_EXECUTED`` with a
 non-zero exit code, not a misleading drain completion.
 """

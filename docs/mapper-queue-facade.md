@@ -21,5 +21,5 @@ simplicio-loop queue --route mapper --mapper-db ~/.simplicio-loop/data/operation
 `status`, `top`, `inspect`, `cancel`, `doctor`, and `reclaim` delegate to
 MapperStore. Legacy-only local state-machine actions (`drain`, `resume`,
 `migrate`, and `gc`) fail closed on this route. Default route, import/rollback,
-standalone/runtime-backed E2E, and final DDL removal remain tracked by
+the standalone E2E, and final DDL removal remain tracked by
 #1026/#1027.

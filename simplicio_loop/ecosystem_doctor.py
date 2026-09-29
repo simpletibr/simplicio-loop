@@ -63,9 +63,6 @@ CAPABILITY_EVIDENCE: dict[str, tuple[str, ...]] = {
     ),
     "validate": ("validate", "verify", "claims", "test"),
     "diagnostics": ("diagnostics", "doctor", "smoke", "status", "inspect"),
-    # Runtime control plane.
-    "contracts": ("contracts", "schema", "doctor"),
-    "events": ("events", "journal", "hbp", "checkpoint"),
 }
 
 
@@ -87,7 +84,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "capabilities": ("plan", "orient", "run", "doctor"),
         "schemas": ("simplicio.ecosystem-doctor/v1", "simplicio.preflight/v1",
                      "simplicio.run-outcome/v1"),
-        "entrypoint_names": ("simplicio-loop", "simplicio-hub"),
+        "entrypoint_names": ("simplicio-loop",),
     },
     "simplicio-mapper": {
         "distribution": "simplicio-mapper", "command": "simplicio-mapper",
@@ -103,17 +100,9 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "schemas": ("simplicio.task-contract/v1", "simplicio.dev-cli-event/v1"),
         "entrypoint_names": ("simplicio-dev-cli",),
     },
-    "simplicio-runtime": {
-        "distribution": "simplicio-runtime", "command": "simplicio",
-        "version_args": ("--version",), "help_args": ("--help",),
-        "capabilities": ("execute", "contracts", "events"),
-        "schemas": ("simplicio.io/v1", "simplicio.runtime/v1"),
-        "entrypoint_names": ("simplicio",),
-    },
 }
 
-# A profile is data, not hidden policy.  An operator may therefore fail closed
-# for full-stack execution while still being a valid standalone installation.
+# A profile is data, not hidden policy.
 PROFILES: dict[str, dict[str, dict[str, Any]]] = {
     "standalone": {
         "simplicio-loop": {"min_version": "3.38.7", "required": True,
@@ -122,18 +111,6 @@ PROFILES: dict[str, dict[str, dict[str, Any]]] = {
                               "capabilities": ("orient", "recall")},
         "simplicio-dev-cli": {"min_version": "0.18.6", "required": True,
                                "capabilities": ("execute", "validate")},
-        "simplicio-runtime": {"min_version": "3.5.0", "required": False,
-                               "capabilities": ("contracts",)},
-    },
-    "full-stack": {
-        "simplicio-loop": {"min_version": "3.38.7", "required": True,
-                            "capabilities": ("plan", "orient", "run")},
-        "simplicio-mapper": {"min_version": "0.26.10", "required": True,
-                              "capabilities": ("orient", "recall")},
-        "simplicio-dev-cli": {"min_version": "0.18.6", "required": True,
-                               "capabilities": ("execute", "validate")},
-        "simplicio-runtime": {"min_version": "3.5.0", "required": True,
-                               "capabilities": ("execute", "contracts")},
     },
 }
 
@@ -204,7 +181,7 @@ def _component_sha(component: str, root: Path, submodules: Mapping[str, str],
     """Return an evidence-backed component SHA and its source.
 
     The Loop checkout SHA must never be copied onto an independently installed
-    mapper/CLI/runtime package.  Only a matching submodule or a git checkout
+    mapper/CLI package.  Only a matching submodule or a git checkout
     rooted at the component's path is accepted; wheels report ``unavailable``.
     """
     if component == "simplicio-loop":
@@ -237,7 +214,7 @@ def _distribution(distribution: str) -> dict[str, Any]:
                 from . import __version__
                 return {"installed": True, "version": __version__,
                         "path": str(Path(__file__).resolve().parent),
-                        "entrypoints": ["simplicio-loop", "simplicio-hub"]}
+                        "entrypoints": ["simplicio-loop"]}
             except Exception:
                 pass
         return {"installed": False, "version": None, "path": None, "entrypoints": []}
@@ -440,17 +417,13 @@ def build_report(repo: str | Path = ".", *, profile: str = "standalone",
     degraded = [item["name"] for item in components if item["status"] == STATUS_DEGRADED]
     status = "BLOCKED" if blockers else ("DEGRADED" if degraded else "READY")
     optional = [item["name"] for item in components if not item["required"]]
-    fallbacks = []
-    if "simplicio-runtime" in optional and next(item for item in components if item["name"] == "simplicio-runtime")["status"] != STATUS_AVAILABLE:
-        fallbacks.append({"feature": "runtime_integration", "provider": "local_loop",
-                          "when": "simplicio-runtime unavailable or incompatible"})
     report: dict[str, Any] = {
         "schema": SCHEMA, "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "repo": str(root), "profile": profile, "status": status, "ready": not blockers,
         "blockers": blockers, "degraded": degraded, "environment": environment,
         "components": components,
         "policy": {"automatic_upgrade": False, "required_components": [x["name"] for x in required],
-                    "optional_components": optional, "fallbacks": fallbacks},
+                    "optional_components": optional},
     }
     report["handshake"] = persist_handshake(report, root) if persist else {"written": False, "path": None}
     return report

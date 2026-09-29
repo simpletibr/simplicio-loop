@@ -10,9 +10,7 @@
   ".claude/skills/simplicio-loop/references/background-verification.md": "6cf37e349245abd7b7ded05eaca0c224d4cd903b1d302faff82f857445899ade",
   ".claude/skills/simplicio-loop/references/bound-operators.md": "7e57f99dce15900a3ac6045af3705877f51d803c0da06e26d151e69a7e72f136",
   ".claude/skills/simplicio-loop/references/claims-gate.md": "5c0142fef632fa64f5470a09bcfc08273e39c11e0869b4f016dc803902ec54d7",
-  ".claude/skills/simplicio-loop/references/control-policy.md": "dde1e8082fe0e58cad6cabddbc814224005430a8bbc43766468fa79ec246bf75",
   ".claude/skills/simplicio-loop/references/cross-agent-wiki.md": "a999ef96e43d84013f6f4e79c564550156d426e3b46351cebb5ea1afd07b1463",
-  ".claude/skills/simplicio-loop/references/cross-repo-integration.md": "3a8e4600b4afc06710670e3c500d49e5073279f03614e4cf5c641d64a957574c",
   ".claude/skills/simplicio-loop/references/delivery-contract.md": "efcfeab41272b6dad7c07d7e1b353363eb44ca7c7201d7e634c491354fbd459d",
   ".claude/skills/simplicio-loop/references/extension-points.md": "5c29c9498bfa94aa9504335a93e23c85ef76381a48db5782ca1634e890537a56",
   ".claude/skills/simplicio-loop/references/full-flow.md": "a6275c983d9284b6728293e87248dadae16f7031b62566bf55fe3c2ac916cc2f",
@@ -59,7 +57,6 @@
   "contracts/ecosystem-doctor/v1/SCHEMA.md": "309fb981360b8fb98cc6b00136a2e6ca1e84f65c77c0a748d6b4c064fb84710c",
   "contracts/event-metadata/v1/SCHEMA.md": "ba8d5e2f571587dc28dddaf5893e1d1e46949ce5a0defbcb4d9589312f91e2e2",
   "contracts/install-transaction/v1/SCHEMA.md": "af4484c6261a728a4dbd5cb41094eb047eaae4666b77a00c36080cd6af5942b1",
-  "contracts/loop-driver/v1/SCHEMA.md": "87d53519d322ecb9f5cff6e75b69e4378499cddc55813df13aaeebde828f0de8",
   "contracts/loop-execution/v1/SCHEMA.md": "e3828ec581781cfe8ed9ef77d1758fd8e57db11351110fdc5b2d7763ab458e07",
   "contracts/loop-execution/v2/SCHEMA.md": "974de8d862635ec1a97ad78a6f1c3133fd73e36ffa885f6f9ca6b38ce74dc39a",
   "contracts/loop-extension/v1/SCHEMA.md": "6dbc8d7ea31a8d6936c161e28dff5c980baf4313a3d1808510bde900d76d377b",
@@ -67,7 +64,6 @@
   "contracts/quality-gate/v1/SCHEMA.md": "7d71dc3a0a47d7a7b26b3fb20936e9e46d1117e8c4bbb62d84e4e16bf1f27649",
   "contracts/quality-matrix/v2/SCHEMA.md": "3c8e813251561175df106f51fc3a667f6a475fc55a244457e237b8726b534b06",
   "contracts/registry/v1/README.md": "7a29ed0ba89bd274b6ba1b442f8137494f0003735a97790e4ce77b84db4b632e",
-  "contracts/remote-worker/v2/SCHEMA.md": "34ac07aa768f4ec375edd9829fa78f3556221bf59ae5d35cf2fc425e38205287",
   "contracts/run-state/v1/SCHEMA.md": "1a1a723651ae152825105cef3ffb72f87ab18c9d882f5a3e5080d1432f761ae5",
   "contracts/task-contract/v1/SCHEMA.md": "6bb1c5df7e88516ad63dd3cd66061d1821923dc54ce9456bf761357d7cd70674"
 }

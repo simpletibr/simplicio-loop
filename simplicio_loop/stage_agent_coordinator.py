@@ -47,7 +47,6 @@ from pathlib import Path
 from typing import Any, Mapping, Protocol, Sequence
 
 from . import stage_agents as sa
-from .hub_queue_agent import HubQueueAgentClient
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -655,12 +654,7 @@ def _kill_tree(popen: subprocess.Popen) -> None:
             pass
 
 
-# --------------------------------------------------------------------------
-# Hub queue provider is implemented in hub_queue_agent.py.
-# --------------------------------------------------------------------------
-
-
-# QueueAgentAdapter — local/remote queue workers.
+# QueueAgentAdapter — queue workers.
 #
 # Delegates claim/lease/fence semantics to whatever queue client is bound.
 
@@ -670,7 +664,6 @@ class QueueAgentAdapter:
 
     def __init__(self, *, queue_client: Any = None):
         self._client = queue_client
-        self.kind = "hub" if isinstance(queue_client, HubQueueAgentClient) else "queue"
 
     def probe(self) -> bool:
         if self._client is None:
@@ -777,25 +770,14 @@ class HumanGateAdapter:
 # Capability probe + adapter registry (fallback order per issue #424).
 # --------------------------------------------------------------------------
 
-FALLBACK_ORDER = ("native", "agent-fabric", "hub", "command", "queue", "human")
+FALLBACK_ORDER = ("native", "agent-fabric", "command", "queue", "human")
 
 
 class AdapterRegistry:
-    def __init__(self, adapters: Sequence[AgentDriver], *, strict_hub: bool = False):
+    def __init__(self, adapters: Sequence[AgentDriver]):
         self._by_kind = {a.kind: a for a in adapters}
-        self.strict_hub = strict_hub
 
     def select(self, *, role: Mapping[str, Any], stage: Mapping[str, Any]) -> AgentDriver:
-        if self.strict_hub:
-            adapter = self._by_kind.get("hub") or self._by_kind.get("queue")
-            if not isinstance(getattr(adapter, "_client", None), HubQueueAgentClient):
-                raise StageCoordinatorError(
-                    "strict Hub mode requires QueueAgentAdapter(HubQueueAgentClient)",
-                    reason_code="hub_required",
-                )
-            if adapter.probe() and adapter.compatible_with(role, stage):
-                return adapter
-            raise StageCoordinatorError("Hub unavailable in strict mode", reason_code="hub_unavailable")
         for kind in FALLBACK_ORDER:
             adapter = self._by_kind.get(kind)
             if adapter is None:
@@ -897,7 +879,7 @@ class StageAgentCoordinator:
     def __init__(self, *, graph: Mapping[str, Any] | None = None, run_id: str, task_id: str,
                  adapters: Sequence[AgentDriver], journal: StageCoordinatorJournal | None = None,
                  host_total_slots: int = 4, coordinator_slots: int = 1,
-                 poll_interval_seconds: float = 0.05, strict_hub: bool = False):
+                 poll_interval_seconds: float = 0.05):
         self.graph = graph or sa.load_graph()
         ok, errors = sa.validate_graph(self.graph)
         if not ok:
@@ -909,7 +891,7 @@ class StageAgentCoordinator:
         self.manifest_hash = str(self.graph.get("manifest_hash") or _sha256(self.graph))
         self.run_id = run_id
         self.task_id = task_id
-        self.registry = AdapterRegistry(adapters, strict_hub=strict_hub)
+        self.registry = AdapterRegistry(adapters)
         self.journal = journal
         self.passed_stages: dict[str, dict[str, Any]] = {}
         self.rejected: list[dict[str, Any]] = []
@@ -1112,10 +1094,10 @@ class StageAgentCoordinator:
         return stage_ids
 
     def run_all(self, **stage_kwargs: Any) -> dict[str, StageResult]:
-        """Drive dependency waves concurrently, bounded by the Hub slot grant.
+        """Drive dependency waves concurrently, bounded by the host slot grant.
 
         The executor only overlaps coordinator waits; adapters remain the sole process
-        launchers and the Hub-provided ``slots`` value is the hard admission bound.
+        launchers and the ``slots`` value is the hard admission bound.
         A one-slot grant deliberately follows the serial path.
         """
         for wave in plan_waves(self.graph):
@@ -1147,7 +1129,7 @@ class StageAgentCoordinator:
                 for stage_id in ready:
                     completed[stage_id] = execute(stage_id, time.monotonic())
             else:
-                with ThreadPoolExecutor(max_workers=self.slots, thread_name_prefix="hub-stage") as executor:
+                with ThreadPoolExecutor(max_workers=self.slots, thread_name_prefix="stage") as executor:
                     futures: dict[Future[StageResult], str] = {
                         executor.submit(execute, stage_id, time.monotonic()): stage_id
                         for stage_id in ready
@@ -1195,7 +1177,7 @@ __all__ = [
     "COORDINATOR_AGENT_ID", "REASON_CANCELLED", "REASON_INVALID_INSTANCE", "REASON_INVALID_RECEIPT",
     "REASON_NOT_READY", "REASON_NO_COMPATIBLE_ADAPTER", "REASON_STALE_RECEIPT", "REASON_TIMEOUT",
     "REASON_ZERO_CAPACITY", "AdapterRegistry", "AgentDriver", "AgentFabricAdapter", "AgentInstance", "CommandAgentAdapter",
-    "FALLBACK_ORDER", "HubQueueAgentClient", "HumanGateAdapter", "NativeAgentAdapter", "QueueAgentAdapter", "StageAgentCoordinator",
+    "FALLBACK_ORDER", "HumanGateAdapter", "NativeAgentAdapter", "QueueAgentAdapter", "StageAgentCoordinator",
     "StageCoordinatorError", "StageCoordinatorJournal", "StageResult", "available_slots", "plan_waves",
     "role_by_id", "stage_by_id",
 ]

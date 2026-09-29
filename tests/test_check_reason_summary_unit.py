@@ -163,8 +163,6 @@ def test_python38_collects_pep585_annotation_test_modules() -> None:
         [
             python38, "-m", "pytest", "--collect-only", "-q",
             "tests/test_completion_oracle_matrix_unit.py",
-            "tests/test_distributed_183_external_probe_integration.py",
-            "tests/test_live_issue_183_identity_system.py",
             "tests/test_map_service_git_mapper_system.py",
             "tests/test_merge_queue_live_probe_integration.py",
         ],

@@ -69,5 +69,4 @@ spindle handoff, or explicit STOP.
 
 - A strong LLM agent runtime (any host in `adapters/MATRIX.md`).
 - `python3` on PATH. `git` and, for GitHub sources, an authenticated `gh`.
-- That's it. Every extension point has an LLM fallback, so no native runtime is required —
-  though `simplicio-runtime`, if present, makes the skill faster and cheaper.
+- That's it. Every extension point has an LLM fallback, so no native runtime is required.

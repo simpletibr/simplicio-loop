@@ -43,8 +43,6 @@ SIMPLICIO_SIGNATURES: Sequence[str] = (
     "simplicio-cli",
     "simplicio-dev-cli",
     "simplicio-mapper",
-    "simplicio-remote-worker",
-    "simplicio-remote-queue-server",
 )
 
 FAILURE_ERROR_CODES = {"spawn_error", "executable_not_found"}
@@ -698,8 +696,8 @@ class ProcessRegistry:
 
         Looks up the pid the registry already tracks for this lease and kills its whole tree
         via :func:`kill_process_tree` -- independent of whichever thread/coroutine is currently
-        blocked awaiting that process's completion (e.g. a Hub ``execute`` call in flight on a
-        different connection thread). Returns a status dict rather than raising: an unknown or
+        blocked awaiting that process's completion (e.g. a call in flight on a
+        different thread). Returns a status dict rather than raising: an unknown or
         already-finished lease is a normal "nothing to cancel" outcome, not an error.
         """
         for pid, record in self.active().items():

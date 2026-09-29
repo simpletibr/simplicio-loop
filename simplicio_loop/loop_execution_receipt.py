@@ -1,9 +1,9 @@
 """Publish the run-bound ``simplicio.loop-execution/v1`` receipt.
 
-The Loop owns the execution state and publishes one immutable, runtime-readable
-projection only after the watcher, delivery, quality-matrix, and oracle gates
-have passed.  The projection is a separate bundle so the Runtime never has to
-guess which nested run files belong together or follow ``..`` paths.
+The Loop owns the execution state and publishes one immutable projection only
+after the watcher, delivery, quality-matrix, and oracle gates have passed.  The
+projection is a separate bundle so a consumer never has to guess which nested
+run files belong together or follow ``..`` paths.
 """
 
 from __future__ import annotations
@@ -23,7 +23,6 @@ CHAIN = [
     "simplicio-loop",
     "simplicio-mapper",
     "simplicio-dev-cli",
-    "simplicio-runtime",
 ]
 
 _STATE_FILES = {
@@ -209,7 +208,7 @@ def _validate_durable_artifacts(
     if stack.run_id != run_id:
         raise LoopExecutionReceiptError("stack lock run_id does not match the persisted manifest")
     components = {item.name: item for item in stack.components}
-    required_components = {"simplicio-mapper", "simplicio-cli", "simplicio-runtime"}
+    required_components = {"simplicio-mapper", "simplicio-cli"}
     missing_components = sorted(required_components - set(components))
     if missing_components:
         raise LoopExecutionReceiptError(
@@ -365,11 +364,10 @@ def build_receipt(
 
     mapper = _stack_component(stack_lock, "simplicio-mapper")
     dev_cli = _stack_component(stack_lock, "simplicio-cli")
-    runtime = _stack_component(stack_lock, "simplicio-runtime")
 
     if any(
         bool(component.get("fallback") or component.get("fallback_used") or component.get("fallback_declared"))
-        for component in (mapper, dev_cli, runtime)
+        for component in (mapper, dev_cli)
     ):
         raise LoopExecutionReceiptError("fallback execution cannot publish a verified receipt")
     if any(
@@ -380,19 +378,6 @@ def build_receipt(
 
     mapper_version = str(mapper_preflight.get("version") or mapper.get("version") or "")
     dev_version = str(operator_preflight.get("version") or dev_cli.get("version") or "")
-    runtime_version = str(runtime.get("version") or "")
-    runtime_available = bool(runtime.get("available", True))
-    runtime_optional = False
-    if not runtime_version or runtime_version.lower() == "installed":
-        # The standalone Loop profile deliberately runs without the optional
-        # runtime-backed executor.  Preserve that fact in the receipt instead
-        # of fabricating a runtime version or rejecting an otherwise verified
-        # mapper-backed run.  Runtime-backed profiles remain fail-closed.
-        if str(stack_lock.get("route") or "") == "standalone" and not runtime_available:
-            runtime_version = "unavailable"
-            runtime_optional = True
-        else:
-            raise LoopExecutionReceiptError("Runtime version is missing from the stack lock")
 
     flow_name = str(flow or "run").strip()
     if not flow_name:
@@ -427,14 +412,6 @@ def build_receipt(
             receipt="dev-cli.json",
             source_receipt="operator-receipt.json",
         ),
-        "runtime": _component(
-            version=runtime_version,
-            origin=str(runtime.get("executable") or "installed"),
-            build_sha=str(runtime.get("build_sha") or ""),
-            available=runtime_available,
-            required=not runtime_optional,
-            optional=runtime_optional,
-        ),
         "result": {
             "run_id": str(manifest.get("run_id") or run_dir.name),
             "status": "VERIFIED",
@@ -461,10 +438,10 @@ def publish_loop_execution_receipt(
     repo = repo.resolve()
     run_dir = _contained_path(repo, run_dir, "run directory")
     _contained_path(run_dir, run_dir / "loop", "loop state directory")
-    final_bundle = _contained_path(run_dir, run_dir / "runtime-loop-execution", "runtime bundle")
+    final_bundle = _contained_path(run_dir, run_dir / "loop-execution", "loop-execution bundle")
     if final_bundle.exists() or final_bundle.is_symlink():
         raise LoopExecutionReceiptError(
-            f"runtime bundle already exists; refusing to overwrite: {final_bundle}"
+            f"loop-execution bundle already exists; refusing to overwrite: {final_bundle}"
         )
     supplied_run_id = _validated_run_id(manifest, run_dir)
 
@@ -477,10 +454,10 @@ def publish_loop_execution_receipt(
 
     loop_dir = run_dir / "loop"
     try:
-        staging_bundle = Path(tempfile.mkdtemp(prefix=".runtime-loop-execution-", dir=str(run_dir)))
-        _contained_path(run_dir, staging_bundle, "staging runtime bundle")
+        staging_bundle = Path(tempfile.mkdtemp(prefix=".loop-execution-", dir=str(run_dir)))
+        _contained_path(run_dir, staging_bundle, "staging loop-execution bundle")
     except (OSError, LoopExecutionReceiptError) as exc:
-        raise LoopExecutionReceiptError(f"runtime bundle staging failed: {exc}") from exc
+        raise LoopExecutionReceiptError(f"loop-execution bundle staging failed: {exc}") from exc
     published = False
     bundle_published = False
     source_paths = {
@@ -529,7 +506,7 @@ def publish_loop_execution_receipt(
     except LoopExecutionReceiptError:
         raise
     except (OSError, ValueError, TypeError) as exc:
-        raise LoopExecutionReceiptError(f"runtime receipt publication failed: {exc}") from exc
+        raise LoopExecutionReceiptError(f"loop-execution receipt publication failed: {exc}") from exc
     finally:
         if not published and staging_bundle.exists():
             shutil.rmtree(staging_bundle, ignore_errors=True)

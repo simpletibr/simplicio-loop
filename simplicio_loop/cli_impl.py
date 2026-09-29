@@ -383,7 +383,7 @@ def _mapper_index_timeout_seconds() -> float:
 
     issue #1331: the hardcoded 60s timeout this used to carry was too short
     for a real ~3,900-file monorepo (measured at ~280s in
-    docs/evidence/1328-wave.md), so it silently timed out and retried a full
+    the #1328 wave; evidence removed in 3.46.0, see git history), so it silently timed out and retried a full
     reindex from scratch on every subsequent ``orient``/``prepare``/``wave``
     call -- the exact "full re-index every call" symptom. Configurable via
     ``SIMPLICIO_LOOP_MAPPER_INDEX_TIMEOUT_S`` for a still-larger repo.
@@ -2524,35 +2524,6 @@ def source_doctor_command(args) -> int:
     return 0
 
 
-def resource_doctor_command(args) -> int:
-    """Inspect a prior Resource Fabric state file without constructing the fabric."""
-    path = Path(args.resource_root).expanduser().absolute() / "resource-fabric.json"
-    result = {
-        "schema": "simplicio.resource-doctor/v1",
-        "path": str(path),
-        "effects_attempted": False,
-    }
-    if not path.exists():
-        result.update({
-            "status": "UNVERIFIED",
-            "reason_code": "RESOURCE_FABRIC_NOT_STARTED",
-            "next_action": "start ResourceFabric explicitly before admitting work",
-        })
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 2
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(payload, dict) or payload.get("schema") != "simplicio.resource-fabric/v1":
-            raise ValueError("resource fabric state schema mismatch")
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
-        result.update({"status": "BLOCKED", "reason_code": "RESOURCE_STATE_INVALID", "error": str(exc)})
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 2
-    result.update({"status": "OBSERVED", "state": payload})
-    print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-    return 0
-
-
 def _redirect_run_to_wave(argv: Sequence[str]) -> int:
     """Redirect deprecated 'run' invocation to the default 'wave' flow."""
     sys.stderr.write(
@@ -2669,9 +2640,6 @@ def _prose_as_turbo(argv: Sequence[str]) -> list[str]:
 
 def main(argv=None) -> int:
     argv_list = list(argv) if argv is not None else list(sys.argv[1:])
-    if argv_list[:1] == ["hub-drain-admit"]:
-        from .hub_drain_admission_cli import main as drain_admission_main
-        return drain_admission_main(argv_list[1:])
     if argv_list[:1] == ["hub-drain-plan"]:
         from .github_drain_intake_cli import main as drain_intake_main
         forwarded = argv_list[1:]
@@ -2914,15 +2882,6 @@ def main(argv=None) -> int:
     )
     p_doctor_source.add_argument("--json", dest="doctor_json", action="store_true",
                                  help="emit machine-readable JSON")
-    p_doctor_resource = doctor_sub.add_parser(
-        "resource", help="inspect Resource Fabric state without starting it"
-    )
-    p_doctor_resource.add_argument(
-        "--root", dest="resource_root",
-        default=os.path.join(".simplicio-loop", "orchestrator", "resource-fabric"),
-    )
-    p_doctor_resource.add_argument("--json", dest="doctor_json", action="store_true",
-                                   help="emit machine-readable JSON")
 
     p_inspect = sub.add_parser("inspect", help="inspect storage routing and MapperStore capabilities")
     p_inspect.add_argument("--storage", action="store_true", required=True,
@@ -3176,10 +3135,6 @@ def main(argv=None) -> int:
         "hub-drain-plan",
         help="read-only PT-BR/EN GitHub drain intake; never executes the plan",
     )
-    sub.add_parser(
-        "hub-drain-admit",
-        help="admit a final #627 checkpoint as held; never dispatches or executes it",
-    )
     p_ledger = sub.add_parser("ledger", help="validate/replay the operational event ledger")
     p_findings = sub.add_parser("findings", help="WI-466: inspect and reconcile continuous findings")
     findings_sub = p_findings.add_subparsers(dest="findings_command", required=True)
@@ -3297,8 +3252,6 @@ def main(argv=None) -> int:
         return stack_doctor_command(args)
     if command == "doctor" and getattr(args, "doctor_command", None) == "source":
         return source_doctor_command(args)
-    if command == "doctor" and getattr(args, "doctor_command", None) == "resource":
-        return resource_doctor_command(args)
     if command in {"doctor", "inspect"}:
         if command == "doctor" and not args.storage:
             parser.error("doctor requires --storage or the stack subcommand")

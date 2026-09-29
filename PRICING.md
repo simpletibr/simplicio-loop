@@ -7,7 +7,7 @@
 ## Model — Open-core + usage-based hosted tier
 
 The **engine stays MIT and free**: the `/simplicio-tasks` orchestrator, the five satellite
-skills, the hooks, the 50 extension points, and the token-economy stack. Adoption is the moat —
+skills, the hooks, the 48 extension points, and the token-economy stack. Adoption is the moat —
 the free tier must be fully usable, self-hostable, and never crippled.
 
 The **paid offering is convenience + scale**, not the code:

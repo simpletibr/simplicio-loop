@@ -30,7 +30,7 @@ top of that primitive this module adds:
     sucesso se o ID e body hash observados coincidirem" requirement — producing
     a `simplicio.github-lifecycle-receipt/v1` receipt rather than a bare bool.
     It now also accepts an optional `require_active` callable (typically
-    `AttemptCoordinator.assert_active`, #183) invoked immediately before the
+    a lease/fence check, #183) invoked immediately before the
     remote write — a stale/lost lease raises and blocks the write, never
     silently proceeds — and an optional `outbox_dir` so a pending-operation
     record is persisted BEFORE the remote call and only cleared after the
@@ -871,7 +871,7 @@ def publish_lifecycle_state(
     propagates -- fail-closed, never silently swallowed into a fake "verified".
 
     `require_active`, when given, is called with no arguments IMMEDIATELY before the
-    remote write (e.g. `AttemptCoordinator.assert_active`, #183) -- a lost/stale lease
+    remote write (e.g. a lease/fence check, #183) -- a lost/stale lease
     raises there and the write never happens (#285 "verificar lease/fence imediatamente
     antes da escrita"). `outbox_dir`, when given, persists a pending-operation record
     before the remote call and clears it only after the write is confirmed (#285's

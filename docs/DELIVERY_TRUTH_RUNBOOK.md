@@ -4,7 +4,7 @@ Operator guidance for when the delivery-truth pipeline (`simplicio_loop/source_s
 `simplicio_loop/external_verifiers.py`, `simplicio_loop/merge_executor.py`,
 `simplicio_loop/github_lifecycle.py`, `simplicio_loop/delivery.py`) reports `FAIL` or
 `UNVERIFIED` instead of a clean `PASS`. The pipeline is fail-closed by design (see
-`docs/delivery-target-receipts.md` and `docs/verified-agent-delivery.md`): a stuck or
+`docs/delivery-target-receipts.md`): a stuck or
 unverified gate is expected, correct behavior under real-world provider flakiness, permission
 gaps, or genuine negative facts — **never** treat a stuck gate as a bug to route around with a
 manual override, and never hand-edit a receipt file to make a gate pass.
@@ -60,17 +60,14 @@ manual override, and never hand-edit a receipt file to make a gate pass.
 ### Crash / interruption mid-transition
 
 Symptom: a run was interrupted (process killed, host restarted, network cut) while a merge,
-release, deploy, or issue-close effect was in flight. `tests/test_delivery_concurrency_fault_injection.py`
-proves this class of failure end-to-end (see `test_crash_between_intent_and_effect_recovers_without_duplicating_the_effect`,
-`test_crash_during_merge_command_network_call_produces_no_false_positive_receipt`, and
-`test_crash_during_deployment_verifier_network_call_produces_no_false_positive_payload`).
+release, deploy, or issue-close effect was in flight.
 
 Recovery is always the same shape:
 
 1. Do **not** assume the interrupted effect succeeded or failed — the client's own exit code
    proves nothing about what GitHub actually did with an in-flight request.
-2. Re-claim the work item (a new `AttemptCoordinator.claim()` picks up the expired lease with a
-   higher fencing token; the dead attempt's idempotency key is never replayed).
+2. Re-claim the work item (a new claim picks up the expired lease with a higher fencing token;
+   the dead attempt's idempotency key is never replayed).
 3. Re-query the provider fresh (`MergeExecutor.reconcile()`, a fresh `github_delivery_payload()`
    call, or the relevant verifier) to determine the actual remote state.
 4. If the effect already landed remotely (e.g. GitHub processed the merge before the client
@@ -123,9 +120,5 @@ the added surface for this round — flagged here rather than silently dropped.
 ## Where to look for more detail
 
 - `docs/delivery-target-receipts.md` — receipt schema and target → gate → receipt mapping.
-- `docs/verified-agent-delivery.md` — end-to-end verified-delivery narrative.
 - `docs/adr/0003-attestation-and-sbom-policy.md` — frozen attestation/SBOM policy decision.
 - `docs/INDEPENDENT_WATCHER.md` — independent re-verification of implementer claims.
-- `tests/test_delivery_concurrency_fault_injection.py` — the concurrency/crash/fault-injection
-  matrix referenced above, runnable locally with `python -m pytest
-  tests/test_delivery_concurrency_fault_injection.py -v`.

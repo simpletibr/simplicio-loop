@@ -38,7 +38,7 @@ redacts anything that looks like a token/secret before it ever reaches a public 
 same comment and compares the observed body hash against the expected one, producing a
 `simplicio.github-lifecycle-receipt/v1` receipt with `verified: bool`. Two extra hooks:
 
-* `require_active`, when given (typically `AttemptCoordinator.assert_active`, #183), is called
+* `require_active`, when given (typically a lease's `assert_active`), is called
   immediately before the remote write — a lost/stale lease raises there and the write never
   happens.
 * `outbox_dir`, when given, persists a pending-operation record (`record_pending_operation`)
@@ -91,10 +91,9 @@ and the local receipt **without ever posting a second comment**.
 
 ## 6. Lease/fencing-gated ownership
 
-`publish_lifecycle_state`/`close_source_issue` both take `require_active`, wired in practice to
-`AttemptCoordinator.assert_active` (`simplicio_loop/work_item_claims.py`, #183) rather than
-reinventing lease/fencing — a lost/stale lease blocks the write, fail-closed, before any `gh`
-call is made.
+`publish_lifecycle_state`/`close_source_issue` both take `require_active`, wired to a lease's
+`assert_active` rather than reinventing lease/fencing — a lost/stale lease blocks the write,
+fail-closed, before any `gh` call is made.
 
 ## 7. The unified `SourceAdapter` Protocol
 
@@ -149,17 +148,6 @@ enabled) is not penalized — the gate reports `source_lifecycle_not_configured`
 additive rather than a new hard requirement for sourceless runs. See
 `tests/test_oracle_source_lifecycle_gate.py`.
 
-## 10. A real two-lease/two-device concurrency E2E
-
-`tests/test_github_lifecycle_concurrency_e2e.py` spawns two independent OS **processes** (not
-threads) that race to claim the SAME work item against a shared on-disk SQLite queue
-(`simplicio_loop.remote_queue.SQLiteRemoteQueue`) and a shared on-disk fake-GitHub comment store.
-Only one process ever wins the lease (real `BEGIN IMMEDIATE` transactional locking); the loser
-gets a clean, typed `QueueConflict` rejection and NEVER calls
-`GitHubSourceAdapter.claim`/`publish_lifecycle_state`, so it can never post or corrupt a comment.
-The winner's write is confirmed end-to-end, and the shared comment store ends up with exactly one
-canonical comment, authored by the winner only.
-
 ## Example
 
 ```python
@@ -200,8 +188,6 @@ python3 scripts/github_lifecycle.py reconcile --owner acme --repo widgets --issu
 * `tests/test_source_adapter_protocol.py` — `GitHubSourceAdapter` satisfies `SourceAdapter` at
   runtime (`isinstance`), claim→update_status reuse the same comment id, `attach_evidence`
   embeds evidence text, `close` is fail-closed and re-query-confirmed, outbox round-trip.
-* `tests/test_github_lifecycle_concurrency_e2e.py` — the real two-process concurrency proof
-  (§ 10).
 * `tests/test_github_lifecycle_live_e2e.py` — opt-in (`SIMPLICIO_LIVE_GH_E2E=1`, real `gh` auth
   required, skipped otherwise) full-cycle live proof: CLAIMED → IN_PROGRESS → VERIFYING (with
   evidence) → CLOSED against a real, disposable scratch issue, all on the SAME canonical comment

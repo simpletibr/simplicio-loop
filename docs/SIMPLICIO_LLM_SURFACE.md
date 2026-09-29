@@ -17,7 +17,7 @@ Prism expands declared prerequisites before returning `order`, so a route never
 asks an LLM to load a capability without its required precondition. Portuguese
 terms such as `validar`, `verificar`, `orquestrar`, `delegar`, `paralelo` and
 `abrir PR` are recognized alongside their English equivalents.
-The `existing_adapters` field points at the established `scripts/preflight.py`,
-`scripts/route_mode.py`, and Runtime doctor surfaces, so discovery does not
+The `existing_adapters` field points at the established `scripts/preflight.py`
+and `scripts/route_mode.py` surfaces, so discovery does not
 create a second orchestration or preflight protocol.
 

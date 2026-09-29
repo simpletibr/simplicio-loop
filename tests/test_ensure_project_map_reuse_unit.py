@@ -1,7 +1,7 @@
 """issue #1331: `orient`/`prepare`/`wave`'s `_ensure_project_map` must not
 re-run a full Mapper deep index on every call against an unchanged tree, and
 its previously-hardcoded 60s timeout (too short for a real ~3,900-file
-monorepo per docs/evidence/1328-wave.md) must be raised/configurable.
+monorepo, measured in the #1328 wave) must be raised/configurable.
 """
 from __future__ import annotations
 
