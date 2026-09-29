@@ -184,6 +184,14 @@ def test_a_model_override_is_passed_to_the_host_and_reasoning_off_follows_an_ope
     assert set(config["provider"]["openrouter"]["models"]) == {"deepseek/deepseek-v4.1-flash"}  # nothing added for another provider
 
 
+def test_an_opencode_config_or_database_the_user_already_names_is_kept(tmp_path):
+    call = hl.build_call(_backend("opencode"), tmp_path, _messages(),
+                         environ={"OPENCODE_CONFIG": "/home/u/mine.json", "OPENCODE_DB": "/home/u/mine.db"})
+    assert call.env["OPENCODE_CONFIG"] == "/home/u/mine.json" and call.env["OPENCODE_DB"] == "/home/u/mine.db"
+    merged = json.loads(call.env["OPENCODE_CONFIG_CONTENT"])  # the planner agent rides on top, as inline content
+    assert merged["agent"]["simplicio-planner"]["permission"] == {"*": "deny"}
+
+
 def test_claude_call_passes_the_system_text_as_a_flag_and_the_prompt_on_stdin(tmp_path):
     call = hl.build_call(_backend("claude-code"), tmp_path, _messages(tmp_path), environ={})
     assert call.argv[:6] == ["claude", "-p", "--output-format", "json", "--safe-mode", "--system-prompt"]

@@ -31,7 +31,6 @@ import socket
 import subprocess
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
@@ -592,7 +591,7 @@ def _semaphore() -> threading.BoundedSemaphore:
 
 def _terminate(proc: subprocess.Popen) -> None:
     """Stop the CLI and everything it started (its own process group), then reap it."""
-    for sig in (signal.SIGTERM, signal.SIGKILL):
+    for sig in (signal.SIGTERM, getattr(signal, "SIGKILL", signal.SIGTERM)):  # Windows has no SIGKILL: proc.kill() below
         try:
             if os.name == "posix":
                 os.killpg(proc.pid, sig)
