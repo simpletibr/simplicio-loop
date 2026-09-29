@@ -139,7 +139,10 @@ byte-identical on every call; the task text and the current target file are the 
 The model returns a find/replace plan and dev-cli compiles and applies it. A plan dev-cli rejects
 (`plan_path_not_found`, `plan_path_not_authorized`, `plan_find_not_found`, `plan_find_not_unique`) is sent back
 once; a second rejection ends that lane as `failed` with the dev-cli reason. After a failed `--verify` one repair
-call gets the test output. Up to three tasks share one model call. Above three, the first call runs alone (a
+call gets the test output, and says the listed files already exist: on that path an empty `find` for a file that now
+exists is sent to dev-cli as a whole-file replacement (`find` = the file's current text), because a repeated create
+is refused as `create_target_exists` (5 of 15 repair attempts in the benchmark). Up to three tasks share one
+model call. Above three, the first call runs alone (a
 1-token warm-up) so the rest read the header from prompt cache, then the remaining lanes fan out. The JSON document
 has `status`, `applied`, `failed`, `model_calls`, `retries`, `tokens`, `cache_hit_pct`, `cost_usd`, `calls`,
 `verify`, `wall_s`.

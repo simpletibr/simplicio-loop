@@ -451,11 +451,36 @@ def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli:
     }
 
 
+def _rewrite_existing_creates(root: Path, operations: list[dict]) -> list[dict]:
+    """Turn a create (empty ``find``) of a file that already exists into a whole-file replacement.
+
+    The repair runs after the first plan was applied, so a task that created a file is answered with the same
+    create again, and dev-cli refuses it (``create_target_exists``). ``find`` becomes the file's current text,
+    read as bytes so its own line endings survive. What cannot be a whole-file find stays as it is and dev-cli
+    decides: a real ``find``, a new file, an empty file, a path outside the repository, a file that is not UTF-8.
+    """
+    base = root.resolve()
+    rewritten = []
+    for operation in operations:
+        target = (base / str(operation.get("path", ""))).resolve()
+        if operation.get("find") or not target.is_relative_to(base) or not target.is_file():
+            rewritten.append(operation)
+            continue
+        try:
+            current = target.read_bytes().decode("utf-8")
+        except UnicodeDecodeError:
+            current = ""
+        rewritten.append({**operation, "find": current} if current else operation)
+    return rewritten
+
+
 def repair_with_test_output(root: Path, tasks: Sequence[Mapping[str, Any]], complete, test_output: str,
                             dev_cli: str | None = None) -> dict[str, Any]:
     """One more call after the tests failed: the same header, the current files and the test output.
 
-    The header is byte-identical to the run's, so the provider serves it from cache.
+    The header is byte-identical to the run's, so the provider serves it from cache. The files the task named
+    exist by now, so the prompt says so, and an empty ``find`` for one of them is sent as a whole-file replacement
+    (see ``_rewrite_existing_creates``); this is the only path that rewrites a plan.
     """
     task_list = list(tasks)
     single = len(task_list) == 1
@@ -464,8 +489,9 @@ def repair_with_test_output(root: Path, tasks: Sequence[Mapping[str, Any]], comp
     messages = [
         header_message(reading),
         task_message(task_list, root),
-        {"role": "user", "content": "The tests failed after your plan was applied:\n"
-         + test_output[-4000:] + "\nReturn a JSON plan that makes them pass."},
+        {"role": "user", "content": "The tests failed after your plan was applied:\n" + test_output[-4000:]
+         + "\nNote: the files above already exist; to rewrite one, send its whole current text as find."
+         + "\nReturn a JSON plan that makes them pass."},
     ]
     reply = complete("simplicio", messages)
     try:
@@ -473,6 +499,7 @@ def repair_with_test_output(root: Path, tasks: Sequence[Mapping[str, Any]], comp
         reason = None
     except (ValueError, json.JSONDecodeError) as exc:
         operations, reason = [], str(exc)
+    operations = _rewrite_existing_creates(root, operations)
     applied = _apply_operations(root, operations, binary, "repair-1") if operations else []
     rejected = _rejection(applied)
     return {
