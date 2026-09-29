@@ -40,6 +40,10 @@ reports the MACHINE tier.
 Message the bot on any connected channel: `/simplicio-tasks finish all the open issues`. Progress
 digests and approval prompts come back on the same channel.
 
+## Run simplicio-loop
+
+Tell the agent `/simplicio-loop <task>`. It runs `simplicio-loop "<task>" --verify "<tests>"` through the host's shell tool, writes the JSON plan the command prints to `plan_path` and runs the printed `apply` command; `simplicio-dev-cli` makes every edit. `simplicio-loop` must be on the PATH of the machine where the host runs its shell (`pip install simplicio-loop`). Full flow: `.claude/skills/simplicio-loop/SKILL.md`.
+
 ## Progresso do run
 
 Native scheduler (N1-equivalent): call `loop_progress.py emit`/`render --turn-header` at the

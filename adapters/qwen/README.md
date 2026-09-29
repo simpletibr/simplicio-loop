@@ -1,88 +1,22 @@
-# Qwen adapter (Qwen Code / Qwen CLI)
+# Qwen Code adapter
 
-Qwen Code (Alibaba's `qwen-code` CLI, a fork of Gemini CLI) and Qwen's other CLI surfaces read a
-`.qwen/settings.json`-style config analogous to Gemini CLI's `.gemini/settings.json`, including
-`mcpServers` support inherited from the fork. This is documented upstream but **not verified
-against a real install in this repo** — treat the config path/shape as best-effort until you
-confirm it against your installed Qwen Code version.
+Qwen Code (Alibaba's CLI agent) reads `QWEN.md` as its memory file, and also reads an `AGENTS.md` the repository already has. Install status: **wired**.
 
-## Install
-
-`qwen` is not yet a recognized target of `scripts/install.sh`/`scripts/install_lib.py` (see
-`adapters/MATRIX.md` § Install for the currently wired runtime list). Until it is wired in,
-install by hand — write a `QWEN.md` (or reuse `AGENTS.md` if your Qwen CLI reads that convention,
-as its Gemini CLI upstream does) that loads `.claude/skills/simplicio-tasks/SKILL.md` +
-satellites, mirroring the [Gemini adapter](../gemini/README.md)'s approach.
-
-## Loop drive — self-paced
-
-No stop-hook → self-pace via cron / CI tick:
+## Skill load
 
 ```bash
-*/2 * * * *  cd /repo && qwen -p "/simplicio-tasks continue the open queue"
+bash scripts/install.sh qwen     # macOS / Linux
+pwsh scripts/install.ps1 qwen    # Windows
 ```
 
-## Token economy
+The installer copies the 7 skills into `.claude/skills/` and writes the `simplicio-loop` marker block into `QWEN.md`, which Qwen Code loads from the project root (user-wide memory is `~/.qwen/QWEN.md`). The block tells the agent to load `.claude/skills/simplicio-loop/SKILL.md`. A second run changes nothing.
 
-`orient_clamp.py` works as-is. Reference it in your Qwen conventions file.
+Documentation for this surface: <https://qwenlm.github.io/qwen-code-docs/en/users/features/memory/>
 
-## Native bind — MCP (optional, best-effort wiring)
+## Loop drive
 
-`simplicio-runtime` native binding is optional on Qwen. A missing/unreachable bind reports
-explicit degraded mode while the standalone loop remains available.
+Self-paced: the installer wires no stop hook for Qwen Code. The agent re-reads `.simplicio-loop/orchestrator/loop/scratchpad.md` every turn and ends each message with `DONE | NEXT | BLOCKED`. Progress: the first line of every turn is `python3 scripts/loop_progress.py render --turn-header` (N2), and `.simplicio-loop/orchestrator/loop/PROGRESS.md` is regenerated every turn (N3).
 
-```bash
-pip install -U simplicio-installer && simplicio install --global
-```
+## Run
 
-## MCP config
-
-- **Config file:** `.qwen/settings.json` (project scope) or `~/.qwen/settings.json` (user scope),
-  under an `mcpServers` key — inherited from the Gemini CLI fork's schema. **Best-effort**: the
-  Qwen Code project documents MCP support but this repo has not mechanically verified the exact
-  file path/schema against a live install.
-- **Snippet:**
-
-```json
-{ "mcpServers": { "simplicio": { "command": "simplicio", "args": ["serve", "--mcp", "--stdio"], "cwd": "/path/to/your/repo" } } }
-```
-
-- **Verify:** `simplicio doctor --json | grep -A2 mcp-host-registration` confirms the runtime
-  side; use `qwen mcp list` if your CLI version ships that subcommand (mirrors Gemini CLI's
-  surface). Tier: **best-effort / community-reported, not gated**.
-
-## Use
-
-```
-qwen -p "/simplicio-tasks finish all the open issues"
-```
-
-## Progresso do run
-
-Self-paced (N2): the tick echoes the turn-header. Universal fallback (N3): open
-`.simplicio-loop/orchestrator/loop/PROGRESS.md` (auto-regenerated every turn).
-
-## Ecosystem law (2026-08) — read on every host
-
-Canonical guide (what each project is, install, step-by-step):
-
-- In **simplicio-runtime**: `docs/ECOSYSTEM_LLM_GUIDE.md`
-- In **simplicio-loop**: `docs/ECOSYSTEM_LLM_GUIDE.md` (same content)
-
-| Project | Role |
-|---------|------|
-| **runtime** | Kernel: gates, MCP, **owns loop**, **owns execution-report**, decides `use_loop` |
-| **loop** | Protocol + hooks + Prism under Runtime authority |
-| **mapper / dev-cli / fast** | Operators — **work alone** without Runtime |
-| **agent** | Optional coordinator/desktop — not mandatory gateway |
-
-**Commands every host must know:**
-
-```bash
-simplicio loop decide --task "<work>" --json
-simplicio execution-report start|record-task|finish|show|consolidate --json
-simplicio-loop preflight --strict --json
-```
-
-After Runtime install on Windows: `packaging/windows/install.ps1` then pip-install loop/mapper/dev-cli and re-run preflight until operational.
-
+Tell the agent `/simplicio-loop <task>`. It runs `simplicio-loop "<task>" --verify "<tests>"` through Qwen Code's shell tool, writes the JSON plan the command prints to `plan_path` and runs the printed `apply` command; `simplicio-dev-cli` makes every edit. `simplicio-loop` must be on the PATH of the machine where Qwen Code runs its shell (`pip install simplicio-loop`).

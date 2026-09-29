@@ -1,0 +1,543 @@
+{
+  "schema": "simplicio.harnesses/v1",
+  "upstream": {
+    "repo": "simpletibr/simplicio",
+    "path": "plugins/simplicio/host-surfaces.json",
+    "sha": "a9c8a480e69246bf72db0f0f7b5d2684c87e79ce"
+  },
+  "harnesses": [
+    {
+      "id": "claude-code",
+      "name": "Claude Code",
+      "aliases": [
+        "claude"
+      ],
+      "install": {
+        "status": "wired",
+        "runtime": "claude",
+        "surface": ".claude/skills/ + .claude/settings.json (Stop and PreToolUse hooks)",
+        "source": "https://code.claude.com/docs/en/skills"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "codex",
+      "name": "Codex",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "codex",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://learn.chatgpt.com/docs/agent-configuration/agents-md"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "grok",
+      "name": "Grok",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "grok",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://docs.x.ai/build/features/skills-plugins-marketplaces"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "cursor",
+        "surface": ".claude/skills/ + hooks/ (hooks.json, Cursor format)",
+        "source": "https://cursor.com/docs/rules"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "github-copilot",
+      "name": "GitHub Copilot",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "github-copilot",
+        "surface": ".claude/skills/ + .github/copilot-instructions.md",
+        "source": "https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/add-custom-instructions/add-repository-instructions"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "opencode",
+        "surface": ".claude/skills/ + AGENTS.md + .opencode/skills/",
+        "source": "https://opencode.ai/docs/rules/"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "mimo-code",
+      "name": "MiMo Code",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "mimo-code",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://mimo.xiaomi.com/mimocode/rules"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "amp",
+      "name": "Amp",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "amp",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://ampcode.com/docs/customize/agents-md"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "openclaude",
+      "name": "OpenClaude",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "openclaude",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://github.com/Twigpine/openclaude/blob/main/src/utils/projectInstructions.ts"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "antigravity",
+      "name": "Antigravity",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "antigravity",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://antigravity.google/docs/rules"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "pi",
+      "name": "Pi",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "pi",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/configuration.md"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "oh-my-pi",
+      "name": "oh-my-pi",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "oh-my-pi",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://github.com/can1357/oh-my-pi/blob/main/docs/context-files.md"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "hermes",
+      "name": "Hermes Agent (Simplicio Agent)",
+      "aliases": [
+        "simplicio_agent"
+      ],
+      "install": {
+        "status": "wired",
+        "runtime": "simplicio_agent",
+        "surface": ".claude/skills/",
+        "source": "https://hermes-agent.nousresearch.com/docs/user-guide/features/context-files"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "devin",
+      "name": "Devin",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "devin",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://docs.devin.ai/onboard-devin/agents-md"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "goose",
+      "name": "Goose",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "goose",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://goose-docs.ai/docs/guides/context-engineering/using-goosehints/"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "auggie",
+      "name": "Auggie",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "auggie",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://docs.augmentcode.com/cli/rules"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "autohand",
+      "name": "Autohand Code",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "autohand",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://docs.autohand.ai/working-with-autohand-code/agents-md"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "charm",
+      "name": "Charm",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "charm",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://github.com/charmbracelet/crush"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "cline",
+      "name": "Cline",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "cline",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://docs.cline.bot/customization/cline-rules"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "codebuff",
+      "name": "Codebuff",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "codebuff",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://www.codebuff.com/docs/help/faq"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "command-code",
+      "name": "Command Code",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "command-code",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://commandcode.ai/docs/memory"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "continue",
+      "name": "Continue",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "continue",
+        "surface": ".claude/skills/ + .continue/rules/simplicio-loop.md",
+        "source": "https://docs.continue.dev/customize/deep-dives/rules"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "droid",
+      "name": "Droid",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "droid",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://docs.factory.ai/harness/agents-md"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "kilocode",
+      "name": "Kilocode",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "kilocode",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://kilo.ai/docs/customize/agents-md"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "kimi",
+      "name": "Kimi",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "kimi",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://moonshotai.github.io/kimi-code/en/customization/agents.html"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "kiro",
+      "name": "Kiro",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "kiro",
+        "surface": ".claude/skills/ + .kiro/steering/simplicio-loop.md",
+        "source": "https://kiro.dev/docs/steering/"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "mistral-vibe",
+      "name": "Mistral Vibe",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "mistral-vibe",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://github.com/mistralai/mistral-vibe"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "qwen-code",
+      "name": "Qwen Code",
+      "aliases": [
+        "qwen"
+      ],
+      "install": {
+        "status": "wired",
+        "runtime": "qwen",
+        "surface": ".claude/skills/ + QWEN.md",
+        "source": "https://qwenlm.github.io/qwen-code-docs/en/users/features/memory/"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "rovo-dev",
+      "name": "Rovo Dev",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "rovo-dev",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://support.atlassian.com/rovo/docs/use-memory-in-rovo-dev-cli/"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini CLI",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "gemini",
+        "surface": ".claude/skills/ + GEMINI.md",
+        "source": "https://geminicli.com/docs/cli/gemini-md/"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "vscode",
+      "name": "Visual Studio Code",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "vscode",
+        "surface": ".claude/skills/ + .github/copilot-instructions.md",
+        "source": "https://code.visualstudio.com/docs/agent-customization/custom-instructions"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "orca-dev",
+      "name": "OrcaDev / Orca ADE",
+      "aliases": [
+        "orca"
+      ],
+      "install": {
+        "status": "wired",
+        "runtime": "orca",
+        "surface": ".claude/skills/ + AGENTS.md",
+        "source": "https://www.onorca.dev/docs/agents/supported"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "aider",
+      "name": "Aider",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "aider",
+        "surface": ".claude/skills/ + CONVENTIONS.md",
+        "source": "https://aider.chat/docs/usage/conventions.html"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "aliases": [],
+      "install": {
+        "status": "manual",
+        "runtime": null,
+        "surface": "none: a model provider, not a host; use a wired host pointed at the DeepSeek API",
+        "source": "https://api-docs.deepseek.com/guides/coding_agents/"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    },
+    {
+      "id": "openclaw",
+      "name": "OpenClaw",
+      "aliases": [],
+      "install": {
+        "status": "wired",
+        "runtime": "openclaw",
+        "surface": ".claude/skills/",
+        "source": "https://docs.openclaw.ai/tools/skills"
+      },
+      "detect": null,
+      "llm": {
+        "status": "host-mode"
+      }
+    }
+  ]
+}

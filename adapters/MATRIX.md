@@ -14,20 +14,35 @@ Three capabilities decide how rich an adapter is:
 
 `orient_clamp.py` (token economy) works on **all** runtimes with no wiring — it's just a wrapper.
 
+## The catalog and install status
+
+The hosts are listed once, in [`simplicio_loop/_catalog/harnesses.json`](../simplicio_loop/_catalog/harnesses.json)
+(schema `simplicio.harnesses/v1`): the 32 host surfaces declared by `simpletibr/simplicio`
+(`plugins/simplicio/host-surfaces.json`, at the commit recorded in the file) plus Aider, DeepSeek and
+OpenClaw. Each entry names its adapter directory (the `id`, or an alias such as `claude` for
+`claude-code`), the installer runtime, where the skills and the entry file land, and the official
+documentation of that surface.
+
+- **wired** — `scripts/install.sh <runtime>` (`scripts/install.ps1` on Windows) is an installer target for the
+  host and writes the files its documentation says it reads. `tests/test_harness_catalog.py` installs every
+  wired runtime into a throwaway target and checks that a second run changes nothing.
+- **manual** — there is no installer target (DeepSeek is a model provider, not a host); the adapter README lists
+  the exact steps.
+
 ## Runtime tiers
 
-Maintaining real parity across 15 distinct runtimes is infeasible — each host changes its hook/skill
+Maintaining real parity across 35 distinct runtimes is infeasible — each host changes its hook/skill
 format every release. This repo therefore adopts a **two-tier system**:
 
 ### Tier 1 — Guaranteed (gated)
 
 Three runtimes are **verified mechanically on every commit** and enjoy real parity:
 
-| # | Runtime | Skill load | Loop drive | Hooks | Feedback | Adapter |
-|---|---|---|---|---|---|---|
-| 1 | **Claude Code** | `.claude/skills/` + `.claude-plugin/` | `Stop` hook | ✅ full | N1 (hook) + N3 | [claude](claude/README.md) |
-| 2 | **Codex** | `AGENTS.md` → `SKILL.md` | self-paced | ⚠️ partial | N2 (transcript) + N3 | [codex](codex/README.md) |
-| 3 | **Cursor** | `.cursor-plugin/` + `.claude/skills/` | `stop` + `afterAgentResponse` | ✅ full | N1 (hook) + N3 | [cursor](cursor/README.md) |
+| # | Runtime | Skill load | Loop drive | Hooks | Feedback | Install | Adapter |
+|---|---|---|---|---|---|---|---|
+| 1 | **Claude Code** | `.claude/skills/` + `.claude-plugin/` | `Stop` hook | ✅ full | N1 (hook) + N3 | wired | [claude](claude/README.md) |
+| 2 | **Codex** | `AGENTS.md` → `SKILL.md` | self-paced | ⚠️ partial | N2 (transcript) + N3 | wired | [codex](codex/README.md) |
+| 3 | **Cursor** | `.cursor-plugin/` + `.claude/skills/` | `stop` + `afterAgentResponse` | ✅ full | N1 (hook) + N3 | wired | [cursor](cursor/README.md) |
 
 These three are covered by:
 - `scripts/verify_adapters.py` running against each tier-1 runtime's install contract
@@ -44,34 +59,57 @@ These three are covered by:
 
 ### Tier 2 — Best-effort (ungated)
 
-Twelve runtimes are documented and supported on a best-effort basis — contributions welcome,
+Thirty-two runtimes are documented and supported on a best-effort basis — contributions welcome,
 no gate, no parity promise per release:
 
-| # | Runtime | Skill load | Loop drive | Hooks | Feedback | Adapter |
-|---|---|---|---|---|---|---|
-| 4 | **VS Code (Copilot)** | `.github/copilot-instructions.md` | self-paced (tasks) | ⚠️ tasks | N2 (transcript) + N3 | [vscode](vscode/README.md) |
-| 4b | **Grok** | `~/.grok/skills` + `~/.grok/rules` + `AGENTS.md` | self-paced | — | N2 + N3 | [grok](grok/README.md) |
-| 5 | **Antigravity** | rules / `AGENTS.md` | self-paced | ⚠️ | N2 (transcript) + N3 | [antigravity](antigravity/README.md) |
-| 6 | **Kiro** | `.kiro/steering/` | self-paced (specs) | ⚠️ | N2 (transcript) + N3 | [kiro](kiro/README.md) |
-| 7 | **OpenCode** | `AGENTS.md` + config | self-paced | ⚠️ | N2 (transcript) + N3 | [opencode](opencode/README.md) |
-| 8 | **Gemini** (CLI / Code Assist) | `GEMINI.md` → `SKILL.md` | self-paced | ⚠️ | N2 (transcript) + N3 | [gemini](gemini/README.md) |
-| 9 | **Kimi** | inlined conventions file | self-paced | ⚠️ | N2 (transcript) + N3 | [kimi](kimi/README.md) |
-| 10 | **Qwen** (Code / CLI) | `AGENTS.md`-equivalent | self-paced | ⚠️ | N2 (transcript) + N3 | [qwen](qwen/README.md) |
-| 11 | **DeepSeek** | inlined conventions file | self-paced | ⚠️ | N2 (transcript) + N3 | [deepseek](deepseek/README.md) |
-| 12 | **Aider** | `CONVENTIONS.md` (read) | self-paced | ❌ | N2 (inlined transcript) + N3 | [aider](aider/README.md) |
-| 13 | **Simplicio Agent** *(formerly Hermes)* | native skill recall | native loop | ✅ native | N1-equiv (native tick) + N3 | [simplicio_agent](simplicio_agent/README.md) |
-| 14 | **OpenClaw** | plugin SDK / `skills/` | native scheduler | ✅ native | N1-equiv (native tick) + N3 | [openclaw](openclaw/README.md) |
-| 15 | **Orca** *(client opt-in only — not default)* | via inner agent (`.claude/skills/` + `AGENTS.md`) | **no core Orca hook**; inner agent hook / self-paced if client installed Orca | — | N1/N2 (inner) + N3 | [orca](orca/README.md) |
+| # | Runtime | Skill load | Loop drive | Hooks | Feedback | Install | Adapter |
+|---|---|---|---|---|---|---|---|
+| 4 | **VS Code (Copilot)** | `.github/copilot-instructions.md` | self-paced (tasks) | ⚠️ tasks | N2 (transcript) + N3 | wired | [vscode](vscode/README.md) |
+| 5 | **Grok** | `~/.grok/skills` + `~/.grok/rules` + `AGENTS.md` | self-paced | — | N2 + N3 | wired | [grok](grok/README.md) |
+| 6 | **Antigravity** | rules / `AGENTS.md` | self-paced | ⚠️ | N2 (transcript) + N3 | wired | [antigravity](antigravity/README.md) |
+| 7 | **Kiro** | `.kiro/steering/` | self-paced (specs) | ⚠️ | N2 (transcript) + N3 | wired | [kiro](kiro/README.md) |
+| 8 | **OpenCode** | `AGENTS.md` + config | self-paced | ⚠️ | N2 (transcript) + N3 | wired | [opencode](opencode/README.md) |
+| 9 | **Gemini** (CLI / Code Assist) | `GEMINI.md` → `SKILL.md` | self-paced | ⚠️ | N2 (transcript) + N3 | wired | [gemini](gemini/README.md) |
+| 10 | **Kimi** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [kimi](kimi/README.md) |
+| 11 | **Qwen** (Code / CLI) | `QWEN.md` | self-paced | — | N2 (transcript) + N3 | wired | [qwen](qwen/README.md) |
+| 12 | **DeepSeek** | none: a model provider, run through a wired host | the host's | — | the host's | manual | [deepseek](deepseek/README.md) |
+| 13 | **Aider** | `CONVENTIONS.md` (read) | self-paced | ❌ | N2 (inlined transcript) + N3 | wired | [aider](aider/README.md) |
+| 14 | **Simplicio Agent** *(formerly Hermes)* | native skill recall | native loop | ✅ native | N1-equiv (native tick) + N3 | wired | [simplicio_agent](simplicio_agent/README.md) |
+| 15 | **OpenClaw** | plugin SDK / `skills/` | native scheduler | ✅ native | N1-equiv (native tick) + N3 | wired | [openclaw](openclaw/README.md) |
+| 16 | **Orca** *(client opt-in only — not default)* | via inner agent (`.claude/skills/` + `AGENTS.md`) | **no core Orca hook**; inner agent hook / self-paced if client installed Orca | — | N1/N2 (inner) + N3 | wired | [orca](orca/README.md) |
+| 17 | **GitHub Copilot** | `.github/copilot-instructions.md` | self-paced | — | N2 (transcript) + N3 | wired | [github-copilot](github-copilot/README.md) |
+| 18 | **MiMo Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [mimo-code](mimo-code/README.md) |
+| 19 | **Amp** | `AGENTS.md` (+ native `.claude/skills/`) | self-paced | — | N2 (transcript) + N3 | wired | [amp](amp/README.md) |
+| 20 | **OpenClaude** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [openclaude](openclaude/README.md) |
+| 21 | **Pi** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [pi](pi/README.md) |
+| 22 | **oh-my-pi** | `AGENTS.md` (+ native `.claude/skills/`) | self-paced | — | N2 (transcript) + N3 | wired | [oh-my-pi](oh-my-pi/README.md) |
+| 23 | **Devin** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [devin](devin/README.md) |
+| 24 | **goose** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [goose](goose/README.md) |
+| 25 | **Auggie** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [auggie](auggie/README.md) |
+| 26 | **Autohand Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [autohand](autohand/README.md) |
+| 27 | **Charm** (Crush) | `AGENTS.md` (+ native `.claude/skills/`) | self-paced | — | N2 (transcript) + N3 | wired | [charm](charm/README.md) |
+| 28 | **Cline** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [cline](cline/README.md) |
+| 29 | **Codebuff** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [codebuff](codebuff/README.md) |
+| 30 | **Command Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [command-code](command-code/README.md) |
+| 31 | **Continue** | `.continue/rules/simplicio-loop.md` | self-paced | — | N2 (transcript) + N3 | wired | [continue](continue/README.md) |
+| 32 | **Droid** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [droid](droid/README.md) |
+| 33 | **Kilo Code** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [kilocode](kilocode/README.md) |
+| 34 | **Mistral Vibe** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [mistral-vibe](mistral-vibe/README.md) |
+| 35 | **Rovo Dev** | `AGENTS.md` | self-paced | — | N2 (transcript) + N3 | wired | [rovo-dev](rovo-dev/README.md) |
 
-Rows 9–11 (Kimi, Qwen, DeepSeek) and Antigravity's IDE-side config are explicitly
-**best-effort / community-reported, not gated**.
+Every Tier 2 row is **best-effort, not gated**: the installer writes the files the host's documentation
+says it reads (each catalog entry links that documentation) and `scripts/verify_adapters.py` proves the
+files land, but launching the host is a manual smoke per adapter README. Antigravity's IDE-side config is
+community-reported.
 
-`hermes` is kept as a **legacy shim** for row 13 (Simplicio Agent), not a 16th runtime — see
-[hermes/README.md](hermes/README.md). It installs/binds identically to `simplicio_agent` during
-the compat window and will be removed after the deprecation threshold (one release cycle without
+`hermes` is the upstream id of Simplicio Agent (formerly Hermes): the catalog entry `hermes` has the alias
+`simplicio_agent`, which is the adapter directory and the installer runtime. The `hermes` directory is a
+**legacy shim**, not a separate runtime — see [hermes/README.md](hermes/README.md). It installs/binds
+identically to `simplicio_agent` during the compat window and will be removed after the deprecation threshold (one release cycle without
 a regression report), per the adapter-rebrand rollback policy (#262).
 
-Legend: ✅ first-class · ⚠️ partial / via a generic mechanism · ❌ none (degrade to fallback).
+Legend: ✅ first-class · ⚠️ partial / via a generic mechanism · ❌ none (degrade to fallback) · — none wired
+by the installer (the loop self-paces).
 
 ## Acompanhando o progresso (issue #303, EPIC #296)
 
@@ -82,7 +120,7 @@ get the last one:
   Simplicio Agent/OpenClaw), the host injects fase/etapa/item/ACs/% directly into the re-feed
   header (`hooks/loop_stop.py`) — zero extra action from the user.
 - **N2 (transcript).** The turn-header contract (SKILL.md § Output: first line of every turn =
-  `render --turn-header`) is normative for ALL 15 runtimes, hook or not — it must be reflected in
+  `render --turn-header`) is normative for ALL 35 runtimes, hook or not — it must be reflected in
   whichever surface that host loads the skill FROM (`AGENTS.md`, `GEMINI.md`, `CONVENTIONS.md`,
   `.github/copilot-instructions.md`, `.kiro/steering/`, OpenCode config, …), never forked by hand.
 - **N3 (file, universal denominator).** `.simplicio-loop/orchestrator/loop/PROGRESS.md` + `progress.json` are
@@ -101,11 +139,13 @@ the progress-injecting `loop_stop.py`.
 # from a clone of this repo:
 bash scripts/install.sh <runtime> [--global]      # macOS/Linux
 pwsh scripts/install.ps1 <runtime> [-Global]      # Windows / pwsh
-# <runtime> ∈ claude codex grok vscode cursor antigravity kiro opencode gemini aider simplicio_agent
-#            openclaw orca   (hermes still accepted as a legacy alias for simplicio_agent)
+# <runtime> = the `install.runtime` of a wired host in simplicio_loop/_catalog/harnesses.json:
+#   claude codex cursor vscode grok antigravity kiro opencode gemini aider simplicio_agent openclaw orca
+#   github-copilot mimo-code amp openclaude pi oh-my-pi devin goose auggie autohand charm cline codebuff
+#   command-code continue droid kilocode kimi mistral-vibe qwen rovo-dev
+#   (hermes is still accepted as a legacy alias for simplicio_agent)
 # omit <runtime> to auto-detect
-# kimi / qwen / deepseek are NOT yet wired into scripts/install.sh — see their adapter READMEs
-# for the manual/best-effort install steps
+# deepseek is a model provider, not a host: adapters/deepseek/README.md lists the manual steps
 ```
 
 The installer copies the 7 skills into the runtime's skills location and wires the loop hooks
@@ -121,7 +161,7 @@ where supported. There is no Runtime/MCP backend in this stack.
   conventions/instructions file. Larger context, identical behavior. Native capabilities remain
   optional independently of the skill-loading mechanism.
 
-The promise: **same protocol, same gates, same safety on all 15 — Tier 1 verified mechanically,
+The promise: **same protocol, same gates, same safety on all 35 — Tier 1 verified mechanically,
 Tier 2 best-effort with contributions welcome.**
 
 ## Verifying an adapter
@@ -135,13 +175,13 @@ into a throwaway target and asserts each promise — no risk to your real config
 ```bash
 python3 scripts/verify_adapters.py tier1                        # Tier 1 — gated, run on every commit
 python3 scripts/verify_adapters.py claude codex cursor          # same as above
-python3 scripts/verify_adapters.py                              # all 16 (~45s/runtime — run manually or in a slower CI job)
+python3 scripts/verify_adapters.py                              # every installer runtime (~20s in total)
 python3 scripts/verify_adapters.py antigravity kiro opencode aider   # a Tier-2 subset
 ```
 
 `scripts/claims_audit.py` (check 7, part of `python3 scripts/check.py`) runs the fast, single-runtime
 form (`verify_adapters.py claude`, ~15s) on every gate so the Tier-1 install contract is never dead
-assurance — it does NOT run the full 14-runtime sweep above; run that manually before a release.
+assurance — it does NOT run the full sweep above; run that manually before a release.
 
 That covers everything up to launching the runtime itself. The final manual smoke — open the
 runtime, run `/simplicio-loop <small task>`, confirm the loop drives and the gates fire — is the

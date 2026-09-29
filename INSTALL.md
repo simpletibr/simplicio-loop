@@ -20,8 +20,12 @@ bash scripts/install.sh <runtime> [--global] [--target DIR]
 pwsh scripts/install.ps1 <runtime> [-Global] [-Target DIR]
 ```
 
-`<runtime>` ∈ `claude codex vscode cursor antigravity kiro opencode gemini aider simplicio_agent
-openclaw orca` (`hermes` still accepted as a legacy alias for `simplicio_agent`). Omit it to
+`<runtime>` is the `install.runtime` of a `wired` host in
+[`simplicio_loop/_catalog/harnesses.json`](simplicio_loop/_catalog/harnesses.json): `claude codex cursor
+vscode grok antigravity kiro opencode gemini aider simplicio_agent openclaw orca github-copilot mimo-code
+amp openclaude pi oh-my-pi devin goose auggie autohand charm cline codebuff command-code continue droid
+kilocode kimi mistral-vibe qwen rovo-dev` (`hermes` still accepted as a legacy alias for
+`simplicio_agent`; DeepSeek is a model provider, see `adapters/deepseek/README.md`). Omit it to
 auto-detect from the current directory. `--target DIR` installs into
 another project; `--global` installs to the runtime's user-wide location.
 
@@ -63,6 +67,6 @@ spindle handoff, or explicit STOP.
 
 ## Requirements
 
-- A strong LLM agent runtime (any of the 12 above).
+- A strong LLM agent runtime (any host in `adapters/MATRIX.md`).
 - `python3` on PATH. `git` and, for GitHub sources, an authenticated `gh`.
 - That's it. Every extension point has an LLM fallback, so no native runtime is required.

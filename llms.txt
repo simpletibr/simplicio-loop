@@ -10,6 +10,7 @@ What this repo is:
 - Runtime-agnostic autonomous looping orchestrator (`/simplicio-loop`)
 - Current reference task flow for the Simplicio line
 - Evidence-gated loop: never exit on a fake “done”
+- Runs on 35 agent hosts. `simplicio_loop/_catalog/harnesses.json` lists them; install a `wired` one with `scripts/install.sh <runtime>`; per-host notes are in `adapters/<host>/README.md`.
 
 Current operator flow:
 - `simplicio-loop "<task>" [--verify "<tests>"]` (short for `simplicio-loop turbo --repo . --task "<task>"`) — the default way to run any task, no provider and no API key: Mapper reads the repo once and the command prints a `needs_plan` request with the text of the files it names. You are the model: run the printed `apply` command once with your JSON plan as its heredoc body (`simplicio-loop turbo --repo . --apply - --verify "<tests>" <<'PLAN'`, the plan, `PLAN`; `simplicio-dev-cli` applies it and runs `--verify`), and on `failed` fix the plan once and run it again. Exactly two commands: do not explore, list or read files, and do not run the tests yourself. Never edit files by hand.

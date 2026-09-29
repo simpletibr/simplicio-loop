@@ -56,7 +56,8 @@ from simplicio_loop import stage_agents as sa  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 ADAPTERS_DIR = os.path.join(_REPO_ROOT, "adapters")
 
-# The 15 runtimes declared in adapters/MATRIX.md (Tier-1 + Tier-2).
+# The 15 runtimes that have a stage-agent conformance profile: a subset of the harness catalog
+# (simplicio_loop/_catalog/harnesses.json), which lists every host in adapters/MATRIX.md.
 RUNTIMES = [
     "claude", "codex", "cursor", "vscode", "antigravity", "kiro", "opencode",
     "gemini", "aider", "simplicio_agent", "openclaw", "orca", "deepseek",

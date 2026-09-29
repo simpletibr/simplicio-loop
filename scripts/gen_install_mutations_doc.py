@@ -60,8 +60,9 @@ MUTATIONS = [
      "`<target>/.claude/scripts` (global)",
      "project/user", "yes", "no"),
     ("install_lib.py", "ensure_entry()",
-     "creates/updates the runtime's entry file (`AGENTS.md`, `GEMINI.md`, "
-     "`.github/copilot-instructions.md`, `.kiro/steering/simplicio-loop.md`, `CONVENTIONS.md`) "
+     "creates/updates the runtime's entry file (`AGENTS.md`, `GEMINI.md`, `QWEN.md`, "
+     "`.github/copilot-instructions.md`, `.kiro/steering/simplicio-loop.md`, "
+     "`.continue/rules/simplicio-loop.md`, `CONVENTIONS.md`) "
      "between `<!-- simplicio-loop:begin/end -->` markers",
      "project/user",
      "yes (marker-delimited block is removable without touching the rest of the file)", "no"),

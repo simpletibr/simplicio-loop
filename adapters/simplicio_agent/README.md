@@ -56,6 +56,10 @@ moved from `~/.hermes/config.yaml` to `~/.simplicio-agent/config.yaml` and logs 
 kept as a legacy shim for one release cycle; scripts in this repo detect either binary and warn
 when they fall back to the legacy one.
 
+## Run simplicio-loop
+
+Tell the agent `/simplicio-loop <task>`. It runs `simplicio-loop "<task>" --verify "<tests>"` through the host's shell tool, writes the JSON plan the command prints to `plan_path` and runs the printed `apply` command; `simplicio-dev-cli` makes every edit. `simplicio-loop` must be on the PATH of the machine where the host runs its shell (`pip install simplicio-loop`). Full flow: `.claude/skills/simplicio-loop/SKILL.md`.
+
 ## Progresso do run
 
 Native loop (N1-equivalent): wire the native tick to call `python3 scripts/loop_progress.py emit

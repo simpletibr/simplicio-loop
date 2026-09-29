@@ -32,12 +32,39 @@ SKILLS = ["simplicio-tasks", "simplicio-loop", "simplicio-orient",
           "simplicio-autoresearch"]
 
 # Runtimes whose entry file lives outside .claude/ and therefore counts as a "create or
-# update" file effect distinct from the skills copy.
+# update" file effect distinct from the skills copy. Mirrors `install_lib.RUNTIMES` (a test
+# keeps the two equal); it is a literal so this planner stays import-light.
 ENTRY_FILES = {
-    "codex": "AGENTS.md", "vscode": ".github/copilot-instructions.md",
-    "antigravity": "AGENTS.md", "kiro": ".kiro/steering/simplicio-loop.md",
-    "opencode": "AGENTS.md", "gemini": "GEMINI.md", "aider": "CONVENTIONS.md",
+    "codex": "AGENTS.md",
+    "grok": "AGENTS.md",
+    "vscode": ".github/copilot-instructions.md",
+    "antigravity": "AGENTS.md",
+    "kiro": ".kiro/steering/simplicio-loop.md",
+    "opencode": "AGENTS.md",
+    "gemini": "GEMINI.md",
+    "aider": "CONVENTIONS.md",
     "orca": "AGENTS.md",
+    "github-copilot": ".github/copilot-instructions.md",
+    "mimo-code": "AGENTS.md",
+    "amp": "AGENTS.md",
+    "openclaude": "AGENTS.md",
+    "pi": "AGENTS.md",
+    "oh-my-pi": "AGENTS.md",
+    "devin": "AGENTS.md",
+    "goose": "AGENTS.md",
+    "auggie": "AGENTS.md",
+    "autohand": "AGENTS.md",
+    "charm": "AGENTS.md",
+    "cline": "AGENTS.md",
+    "codebuff": "AGENTS.md",
+    "command-code": "AGENTS.md",
+    "continue": ".continue/rules/simplicio-loop.md",
+    "droid": "AGENTS.md",
+    "kilocode": "AGENTS.md",
+    "kimi": "AGENTS.md",
+    "mistral-vibe": "AGENTS.md",
+    "qwen": "QWEN.md",
+    "rovo-dev": "AGENTS.md",
 }
 
 
