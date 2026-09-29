@@ -1,0 +1,3 @@
+OpenCode Zen rejected your API key, so the model can't be reached. Update it in Settings → Providers, or run `hermes setup` in a terminal.
+
+Provider said: HTTP 403: OpenCode's free tier can only be used from within OpenCode

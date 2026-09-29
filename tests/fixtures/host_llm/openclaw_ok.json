@@ -1,0 +1,14 @@
+{
+ "ok": true,
+ "capability": "model.run",
+ "transport": "local",
+ "provider": "openrouter",
+ "model": "deepseek/deepseek-v4.1-flash",
+ "attempts": [],
+ "outputs": [
+  {
+   "text": "OK",
+   "mediaUrl": null
+  }
+ ]
+}

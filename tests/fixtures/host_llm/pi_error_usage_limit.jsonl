@@ -1,0 +1,10 @@
+{"type":"session","version":3,"id":"01a0edf9-8e60-7250-8a80-c2baa98d4a4c","timestamp":"2026-09-29T16:22:30.241Z","cwd":"/tmp/repo"}
+{"type":"agent_start"}
+{"type":"turn_start"}
+{"type":"message_start","message":{"role":"user","content":[{"type":"text","text":"Reply with OK"}],"timestamp":1790698950289}}
+{"type":"message_end","message":{"role":"user","content":[{"type":"text","text":"Reply with OK"}],"timestamp":1790698950289}}
+{"type":"message_start","message":{"role":"assistant","content":[],"api":"openai-codex-responses","provider":"openai-codex","model":"gpt-5.5","usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"totalTokens":0,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},"stopReason":"error","timestamp":1790698950884,"errorMessage":"Codex error: The usage limit has been reached"}}
+{"type":"message_end","message":{"role":"assistant","content":[],"api":"openai-codex-responses","provider":"openai-codex","model":"gpt-5.5","usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"totalTokens":0,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},"stopReason":"error","timestamp":1790698950884,"errorMessage":"Codex error: The usage limit has been reached"}}
+{"type":"turn_end","message":{"role":"assistant","content":[],"api":"openai-codex-responses","provider":"openai-codex","model":"gpt-5.5","usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"totalTokens":0,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},"stopReason":"error","timestamp":1790698950884,"errorMessage":"Codex error: The usage limit has been reached"},"toolResults":[]}
+{"type":"agent_end","messages":[{"role":"user","content":[{"type":"text","text":"Reply with OK"}],"timestamp":1790698950289},{"role":"assistant","content":[],"api":"openai-codex-responses","provider":"openai-codex","model":"gpt-5.5","usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"totalTokens":0,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},"stopReason":"error","timestamp":1790698950884,"errorMessage":"Codex error: The usage limit has been reached"}],"willRetry":false}
+{"type":"agent_settled"}

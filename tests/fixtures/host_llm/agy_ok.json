@@ -1,0 +1,14 @@
+{
+ "conversation_id": "b445b628-500f-4305-83a7-2140f8af88ef",
+ "status": "SUCCESS",
+ "response": "OK\n",
+ "duration_seconds": 11.637342,
+ "num_turns": 1,
+ "usage": {
+  "input_tokens": 26817,
+  "output_tokens": 1,
+  "thinking_tokens": 0,
+  "cache_read_tokens": 0,
+  "total_tokens": 26818
+ }
+}
