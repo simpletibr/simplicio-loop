@@ -43,7 +43,7 @@ Key commands:
 
 Complete command/feature map: `docs/CLI_COMMANDS.md`. Before using any
 entrypoint, run its most specific `--help`; public commands must explain their
-purpose there. Current release: Loop 3.45.0 (Mapper 0.26.34 and Dev CLI
+purpose there. Current release: Loop 3.45.2 (Mapper 0.26.34 and Dev CLI
 0.18.16 are bundled). Issue work uses objective, implementation/deployment, and
 tests; do not add Acceptance Criteria sections.
 

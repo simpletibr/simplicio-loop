@@ -36,6 +36,7 @@ pass the test command you already know, never search for one. Do not run `--help
 `simplicio-dev-cli`, and do not write a plan file, a scratchpad, a journal or a turn header. Never hand-edit; the
 plan is the edit. On `status: "failed"`, fix the plan once from `reason` and `excerpt` (or the `verify` output)
 and run the same `apply` command again. Several requests: one `--task` each, one plan for all.
+`.simplicio-loop/` is local run state: keep it in `.gitignore` (the engine adds it when the file exists) and never commit it.
 
 Goal over a queue ("all open issues", "drain the board"): list the items (GitHub:
 `gh issue list --state open --json number,title,body`). For each item, in order, run the two commands:
@@ -100,6 +101,7 @@ Loop orientation:
 - Do not explore, list or read files, and do not run tests yourself (`--verify` does). No plan file, scratchpad, journal or turn header for a task run.
 - On `failed`, fix the plan once from the reported reason and apply again.
 - Queue goal (all open issues, drain the board): list the items (`gh issue list --state open --json number,title,body`), run `simplicio-loop turbo --repo <path> --task "<title>: <body>" --verify "<tests>"` and the printed `apply` per item, in order; one CLAIMED issue and one PR per item.
+- `.simplicio-loop/` is local run state: keep it in `.gitignore` (the engine adds it when the file exists) and never commit it.
 - Done = status ok and, when `--verify` was given, verify passed. Promise only after that.
 - Monorepo: packages/mapper, packages/dev-cli, loop at the root. Do not install them as external projects. No Runtime. No Fast package.
 - GitHub is SoT for issues/PRs when the remote is GitHub.

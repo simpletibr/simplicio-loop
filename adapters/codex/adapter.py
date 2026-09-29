@@ -15,7 +15,7 @@ from typing import Any, Mapping
 
 SCHEMA = "simplicio.host-adapter/v1"
 HOST = "codex"
-ADAPTER_VERSION = "3.45.1"
+ADAPTER_VERSION = "3.45.2"
 CLAIMED_NATIVE_HOOKS: dict[str, str] = {}  # none — do not invent PreToolUse
 
 

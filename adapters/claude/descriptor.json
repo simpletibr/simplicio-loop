@@ -2,7 +2,7 @@
   "schema": "simplicio.plugin-descriptor/v1",
   "name": "simplicio-loop",
   "host": "claude",
-  "version": "3.45.1",
+  "version": "3.45.2",
   "entrypoint": "simplicio-loop=simplicio_loop.cli:main",
   "lifecycle": [
     "SessionStart",
@@ -18,5 +18,5 @@
     "PostToolUse": "hooks/post_tool_use.py",
     "Stop": "hooks/stop.py"
   },
-  "digest": "sha256:d252f7839673bdab5c0ad5b55545fb2db547c40968d593e7aff3e0730339a678"
+  "digest": "sha256:7275be2901adc8990ea713be5037dd3eb84b61d187e291c994a0411fd133911d"
 }
