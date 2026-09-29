@@ -103,8 +103,9 @@ def test_the_request_is_compact_and_ends_with_the_one_apply_command(tmp_path, ho
     repo = _seed(tmp_path)
     rc, out = _request(repo, capsys, "--task", "Fix the two bugs in inventory.py.", "--verify", "pytest -q")
     assert rc == 0
-    assert list(out) == ["schema", "status", "mode", "tasks", "map", "files", "format", "rules", "apply"]
+    assert list(out) == ["schema", "status", "mode", "reason", "tasks", "map", "files", "format", "rules", "apply"]
     assert out["schema"] == "simplicio.turbo-request/v1" and out["status"] == "needs_plan" and out["mode"] == "host"
+    assert out["reason"] == "hybrid_unavailable: no_host_detected"  # no host CLI to call: the two-command flow (3.47.0)
     assert out["tasks"] == ["Fix the two bugs in inventory.py."]
     assert out["files"] == {"inventory.py": (FIXTURE / "inventory.py").read_text(encoding="utf-8")}
     # One task: only its slice of the Mapper map.

@@ -1,6 +1,13 @@
 """`simplicio-loop turbo`: the default way to run a task.
 
-Host mode (the default: no provider call, no key). The invoking model plans and simplicio-dev-cli applies, in
+Hybrid mode (the default when the invoking host has a headless CLI, see ``turbo_host_llm``): ONE command. The turbo engine runs the
+whole flow (Mapper survey, fan-out, dev-cli apply, ``--verify``, one repair) and every model call it needs goes through the
+host's own CLI, so it uses the same model, account and configuration with no key of its own. The result has ``mode: "hybrid"``
+and ``llm: <host>``. When the hybrid backend cannot be used (no host detected, its CLI missing, no network, an auth or HTTP
+error, a timeout, the ``SIMPLICIO_TURBO_BUDGET_S`` time budget spent) the same invocation prints the host-mode request below with
+``reason: "hybrid_unavailable: <cause>"``; a failure mid-run keeps what was applied and hands over the remaining tasks only.
+
+Host mode (no host CLI to call; no provider call, no key). The invoking model plans and simplicio-dev-cli applies, in
 exactly two commands:
 
 1. ``turbo --task T`` surveys with Mapper and prints a ``needs_plan`` request: the task, the map slice, the
@@ -101,10 +108,30 @@ def _run_verify(root: Path, command: str) -> tuple[dict[str, Any], str]:
             "output_tail": output[-1500:]}, output
 
 
+def _verify_with_repair(root: Path, tasks: Sequence[dict[str, Any]], complete, verify: str, document: dict[str, Any],
+                        calls: list[dict[str, Any]]) -> None:
+    """Run ``--verify``; when it fails, ONE repair call with the test output, then the tests run again."""
+    from .turbo import repair_with_test_output
+
+    document["verify"], output = _run_verify(root, verify)
+    if document["verify"]["passed"]:
+        return
+    repair = repair_with_test_output(root, tasks, complete, output)
+    calls.extend(repair["llm_calls"])
+    retry = {"attempted": True, "applied": repair["applied"], "reason": repair["reason"], "passed": False}
+    if repair["applied"]:
+        document["verify"], _output = _run_verify(root, verify)
+        retry["passed"] = document["verify"]["passed"]
+    document["verify_retry"] = retry
+    if not retry["passed"]:
+        document["status"] = "failed"
+
+
 def run(repo: str, texts: Sequence[str], target: str | None = None, context: Sequence[str] = (),
         tasks_file: str | None = None, verify: str | None = None, apply: str | None = None,
         provider: str | None = None) -> int:
-    """Host mode by default: ``apply`` applies the plan the host wrote (``-``: from stdin), otherwise print the request.
+    """Hybrid when a host CLI can answer the model calls, else host mode. ``apply`` applies the plan the host wrote (``-``:
+    from stdin).
 
     ``provider="openrouter"`` is the headless engine, for automation only; only then is a key needed.
     """
@@ -112,7 +139,20 @@ def run(repo: str, texts: Sequence[str], target: str | None = None, context: Seq
         return _run_provider(repo, texts, target, context, tasks_file, verify)
     if apply:
         return _apply_plan(repo, apply, verify)
-    return _request_plan(repo, texts, target, context, tasks_file, verify)
+    from . import turbo_host_llm as host_llm
+
+    choice = host_llm.resolve()
+    if choice.provider:  # SIMPLICIO_TURBO_LLM=provider
+        return _run_provider(repo, texts, target, context, tasks_file, verify)
+    if choice.cause == "unknown_llm":
+        valid = [h["id"] for h in host_llm.catalog() if (h.get("llm") or {}).get("argv")] + ["host", "provider", "auto"]
+        _emit({"schema": SCHEMA, "repo": str(Path(repo).resolve()), "mode": "host", "status": "blocked",
+               "reason_code": "turbo_llm_unknown",
+               "detail": f"{host_llm.LLM_ENV}={choice.detail!r} is not one of: {', '.join(valid)}"})
+        return 2
+    if choice.backend is None:
+        return _request_plan(repo, texts, target, context, tasks_file, verify, reason=choice.reason, detail=choice.detail)
+    return _run_hybrid(repo, texts, target, context, tasks_file, verify, choice.backend)
 
 
 def _register_state_dir(root: Path) -> None:
@@ -129,10 +169,16 @@ def _map_slice(reading: str) -> Any:
         return reading
 
 
-def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
-                  tasks_file: str | None, verify: str | None) -> int:
-    from .turbo import current_files, focus_paths, mapper_reading, slice_enabled, survey_tasks
+def _apply_command(root: Path, verify: str | None) -> str:
+    """The ONE next command of host mode: apply the plan the host writes as the heredoc body."""
+    command = f"simplicio-loop turbo --repo {shlex.quote(str(root))} --apply -"
+    if verify:
+        command += f" --verify {shlex.quote(verify)}"
+    return command + " <<'PLAN'\n<JSON plan>\nPLAN"
 
+
+def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
+                  tasks_file: str | None, verify: str | None, reason: str | None = None, detail: str | None = None) -> int:
     root = Path(repo).resolve()
     head = {"schema": SCHEMA, "repo": str(root), "mode": "host"}
     tasks = build_tasks(root, texts, target, context, tasks_file)
@@ -140,6 +186,18 @@ def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: 
         _emit({**head, "status": "blocked", "reason_code": "turbo_no_tasks", "detail": "pass --task or --tasks-file"})
         return 2
     _register_state_dir(root)
+    return _emit_request(root, tasks, verify, head, reason=reason, detail=detail)
+
+
+def _emit_request(root: Path, tasks: Sequence[dict[str, Any]], verify: str | None, head: dict[str, Any],
+                  reason: str | None = None, detail: str | None = None, applied: Sequence[int] = ()) -> int:
+    """Print the host-mode ``needs_plan`` request for ``tasks``.
+
+    ``reason`` (``hybrid_unavailable: <cause>``) says why the hybrid backend did not answer; ``applied`` lists the tasks it
+    had already applied before it stopped, and ``tasks`` are then the remaining ones only.
+    """
+    from .turbo import current_files, focus_paths, mapper_reading, slice_enabled, survey_tasks
+
     # The saved survey marker belongs to one run. Ask Mapper again on every invocation: its own
     # tree-state cache keeps an unchanged tree free and byte-identical, and a changed tree gets a new map.
     (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
@@ -150,21 +208,22 @@ def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: 
     except RuntimeError as exc:
         _emit({**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
         return 2
-    apply_command = f"simplicio-loop turbo --repo {shlex.quote(str(root))} --apply -"
-    if verify:
-        apply_command += f" --verify {shlex.quote(verify)}"
-    apply_command += " <<'PLAN'\n<JSON plan>\nPLAN"
-    _emit({
-        "schema": REQUEST_SCHEMA,
-        "status": "needs_plan",
-        "mode": "host",
+    document: dict[str, Any] = {"schema": REQUEST_SCHEMA, "status": "needs_plan", "mode": "host"}
+    if reason:
+        document["reason"] = reason
+        if detail:
+            document["detail"] = detail[:300]
+    if applied:
+        document["applied"] = list(applied)
+    document.update({
         "tasks": [task["text"] for task in tasks],
         "map": _map_slice(reading),
         "files": current_files(root, tasks),
         "format": PLAN_FORMAT,
         "rules": RULES,
-        "apply": apply_command,
+        "apply": _apply_command(root, verify),
     })
+    _emit(document)
     return 0
 
 
@@ -253,7 +312,7 @@ def _apply_plan(repo: str, plan: str, verify: str | None) -> int:
 def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
                   tasks_file: str | None, verify: str | None) -> int:
     from . import turbo_provider
-    from .turbo import repair_with_test_output, run_turbo
+    from .turbo import run_turbo
 
     root = Path(repo).resolve()
     head = {"schema": SCHEMA, "repo": str(root), "mode": "provider", "model": turbo_provider.model_name(),
@@ -291,18 +350,7 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
         "verify": None,
     }
     if verify and result["applied_all"]:
-        document["verify"], output = _run_verify(root, verify)
-        if not document["verify"]["passed"]:
-            # One repair call with the test output, then the tests run again.
-            repair = repair_with_test_output(root, tasks, complete, output)
-            calls.extend(repair["llm_calls"])
-            retry = {"attempted": True, "applied": repair["applied"], "reason": repair["reason"], "passed": False}
-            if repair["applied"]:
-                document["verify"], _output = _run_verify(root, verify)
-                retry["passed"] = document["verify"]["passed"]
-            document["verify_retry"] = retry
-            if not retry["passed"]:
-                document["status"] = "failed"
+        _verify_with_repair(root, tasks, complete, verify, document, calls)
     losers = turbo_provider.drain_hedges()
     billed = calls + losers
     tokens = {k: sum(c.get(k) or 0 for c in billed)
@@ -317,5 +365,88 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
                                          "completion_tokens", "hedged", "warm")} for c in calls],
     })
     document["wall_s"] = round(time.time() - started, 2)
+    _emit(document)
+    return 0 if document["status"] == "ok" else 1
+
+
+def _why_unfinished(result: dict[str, Any]) -> tuple[str, str]:
+    """The cause the engine stopped, or why the plan of the first task it could not apply was refused."""
+    if result.get("stopped"):
+        return result["stopped"]["reason_code"], result["stopped"]["detail"]
+    first = next((o for o in result["outcomes"] if not o["applied"]), {})
+    return "plan_rejected", str(first.get("reason") or "the model returned no usable plan")
+
+
+def _run_hybrid(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
+                tasks_file: str | None, verify: str | None, backend) -> int:
+    """The whole turbo flow behind one command, its model calls answered by the host's own CLI."""
+    from . import turbo_host_llm as host_llm
+    from .turbo import current_files, run_turbo
+
+    root = Path(repo).resolve()
+    head = {"schema": SCHEMA, "repo": str(root), "mode": "hybrid", "llm": backend.id}
+    tasks = build_tasks(root, texts, target, context, tasks_file)
+    if not tasks:
+        _emit({**head, "status": "blocked", "reason_code": "turbo_no_tasks", "detail": "pass --task or --tasks-file"})
+        return 2
+    _register_state_dir(root)
+    started, budget = time.time(), host_llm.budget_s()
+    deadline = time.monotonic() + budget
+    host_llm.install_cleanup()
+    notes: dict[str, Any] = {}
+    models: set[str] = set()
+
+    def complete(arm: str, messages, **kwargs):
+        reply = host_llm.complete(arm, messages, backend=backend, root=root, deadline=deadline, **kwargs)
+        notes.update(reply.get("notes") or {})
+        if reply.get("model"):
+            models.add(str(reply["model"]))
+        return reply
+
+    (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
+    try:
+        result = run_turbo(root, tasks, complete, deadline=deadline, warm=False)
+    except RuntimeError as exc:
+        _emit({**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
+        return 2
+    calls = list(result["llm_calls"])
+    applied = [i for o in result["outcomes"] if o["applied"] for i in o["tasks"]]
+    remaining = [t for t in tasks if t["index"] not in applied]
+    if remaining:  # keep what was applied; the host plans the rest with the two-command flow
+        cause, detail = _why_unfinished(result)
+        return _emit_request(root, remaining, verify, {"schema": SCHEMA, "repo": str(root), "mode": "host"},
+                             reason=f"hybrid_unavailable: {cause}", detail=detail, applied=applied)
+    document: dict[str, Any] = {
+        **head,
+        "status": "ok",
+        "tasks": len(tasks),
+        "model_calls": len(calls),
+        "retries": max(0, len(calls) - len(result["outcomes"])),
+        "applied": applied,
+        "failed": [],
+        "verify": None,
+    }
+    if verify:
+        _verify_with_repair(root, tasks, complete, verify, document, calls)
+    tokens = {k: sum(c.get(k) or 0 for c in calls)
+              for k in ("prompt_tokens", "cached_tokens", "completion_tokens", "reasoning_tokens")}
+    costs = [c["cost_usd"] for c in calls if c.get("cost_usd") is not None]
+    document.update({
+        "model_calls": len(calls),
+        "tokens": tokens,
+        "tokens_reported": bool(tokens["prompt_tokens"] or tokens["completion_tokens"]),
+        "cache_hit_pct": round(100 * tokens["cached_tokens"] / tokens["prompt_tokens"], 1) if tokens["prompt_tokens"] else 0.0,
+        "cost_usd": round(sum(costs), 6) if costs else None,
+        "cost_basis": "host-reported",
+        "calls": [{k: c.get(k) for k in ("latency_s", "prompt_tokens", "cached_tokens", "completion_tokens",
+                                         "reasoning_tokens", "cost_usd", "ok")} for c in calls],
+        **({"model": next(iter(models))} if len(models) == 1 else {}),
+        **notes,
+    })
+    if document["status"] == "failed":  # what the host needs to fix it once, in host mode
+        document["apply"] = _apply_command(root, verify)
+        document["files"] = current_files(root, tasks)
+    document["wall_s"] = round(time.time() - started, 2)
+    document["budget_s"] = budget
     _emit(document)
     return 0 if document["status"] == "ok" else 1

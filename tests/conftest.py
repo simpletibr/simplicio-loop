@@ -21,6 +21,25 @@ def disable_operator_bootstrap_network_by_default(monkeypatch) -> None:
     monkeypatch.setenv("SIMPLICIO_LOOP_AUTO_BOOTSTRAP_OPERATORS", "0")
 
 
+@pytest.fixture(autouse=True)
+def hermetic_hybrid_detection(monkeypatch) -> None:
+    """A test never sees the host it runs under (Claude Code, OpenCode, ...) and never probes the real network.
+
+    Hybrid mode picks its host from env markers and parent-process names; a developer running the suite from inside a host would
+    otherwise get that host's headless CLI called by every test that reaches `simplicio-loop turbo`. Hybrid tests set what they need.
+    """
+    from simplicio_loop import turbo_host_llm
+
+    for item in turbo_host_llm.catalog():
+        for rule in (item.get("detect") or {}).get("env") or []:
+            monkeypatch.delenv(rule.partition("=")[0], raising=False)
+    for name in (turbo_host_llm.LLM_ENV, turbo_host_llm.NESTED_ENV, turbo_host_llm.MODEL_ENV, turbo_host_llm.BUDGET_ENV,
+                 turbo_host_llm.CALL_TIMEOUT_ENV, turbo_host_llm.PARALLEL_ENV):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv(turbo_host_llm.PROBE_ENV, "0")
+    monkeypatch.setattr(turbo_host_llm, "ancestor_names", lambda limit=12: [])
+
+
 @pytest.fixture
 def admitting_capacity(monkeypatch) -> None:
     """Pin the documented physical-admission profile so host disk or memory pressure cannot block a dispatch test.

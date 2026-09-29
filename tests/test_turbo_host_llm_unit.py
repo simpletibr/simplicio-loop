@@ -369,15 +369,15 @@ def test_probe_network_connects_to_any_target_within_its_budget():
     server.listen(32)  # nobody accepts: every probe connection just waits in the backlog
     try:
         port = server.getsockname()[1]
-        assert hl.probe_network([f"127.0.0.1:{port}"], budget=2.0) is True
-        assert hl.probe_network(["127.0.0.1:1", f"127.0.0.1:{port}"], budget=2.0) is True  # one is enough
+        assert hl.probe_network([f"127.0.0.1:{port}"], budget=2.0, environ={}) is True
+        assert hl.probe_network(["127.0.0.1:1", f"127.0.0.1:{port}"], budget=2.0, environ={}) is True  # one is enough
         # a proxy in the environment is what the CLI goes through, so that is what is probed
         assert hl.probe_network(["nonexistent.invalid:443"], budget=2.0, environ={"HTTPS_PROXY": f"http://127.0.0.1:{port}"}) is True
     finally:
         server.close()
     started = time.monotonic()
-    assert hl.probe_network(["127.0.0.1:1"], budget=2.0) is False
-    assert hl.probe_network(["nonexistent.invalid:443"], budget=2.0) is False
+    assert hl.probe_network(["127.0.0.1:1"], budget=2.0, environ={}) is False
+    assert hl.probe_network(["nonexistent.invalid:443"], budget=2.0, environ={}) is False
     assert time.monotonic() - started < 6
     assert hl.probe_network(["127.0.0.1:1"], budget=2.0, environ={hl.PROBE_ENV: "0"}) is True  # the escape hatch
 

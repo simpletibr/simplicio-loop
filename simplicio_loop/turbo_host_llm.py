@@ -574,22 +574,45 @@ def kill_active() -> None:
             _terminate(proc)
 
 
+_cleanup_installed = False
+
+
 def install_cleanup() -> None:
+    """Once per process: kill the host CLIs on exit and on SIGTERM/SIGINT, then let the previous handler run."""
+    global _cleanup_installed
+    if _cleanup_installed:
+        return
+    _cleanup_installed = True
     atexit.register(kill_active)
+    if threading.current_thread() is not threading.main_thread():
+        return
     for name in ("SIGTERM", "SIGINT"):
         sig = getattr(signal, name, None)
-        if sig is None or threading.current_thread() is not threading.main_thread():
+        if sig is None:
             continue
 
-        def _handler(signum, _frame, _previous=signal.getsignal(sig)):
+        def _handler(signum, frame, _previous=signal.getsignal(sig)):
             kill_active()
-            signal.signal(signum, signal.SIG_DFL)
-            os.kill(os.getpid(), signum)
+            if callable(_previous):
+                _previous(signum, frame)
+            else:
+                signal.signal(signum, signal.SIG_DFL)
+                os.kill(os.getpid(), signum)
 
         try:
             signal.signal(sig, _handler)
         except (ValueError, OSError):
             pass
+
+
+def budget_s(environ: Mapping[str, str] | None = None) -> float:
+    """The time budget of one run: past it no new lane starts and the rest is handed to the host (default 240 s)."""
+    raw = (os.environ if environ is None else environ).get(BUDGET_ENV) or ""
+    try:
+        value = float(raw)
+    except ValueError:
+        return DEFAULT_BUDGET_S
+    return value if value > 0 else DEFAULT_BUDGET_S
 
 
 def _fatal(code: str, detail: str, started: float, host: str) -> dict[str, Any]:
