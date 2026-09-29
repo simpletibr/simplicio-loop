@@ -2,7 +2,7 @@
 
 Hybrid mode (the default when the invoking host has a headless CLI, see ``turbo_host_llm``): ONE command. The turbo engine runs the
 whole flow (Mapper survey, fan-out, dev-cli apply, ``--verify``, one repair) and every model call it needs goes through the
-host's own CLI (a chain of dependent tasks is ONE call, independent tasks are asked at the same time), so it uses the same model, account and configuration with no key of its own. The result has ``mode: "hybrid"``
+host's own CLI (at most ``SIMPLICIO_TURBO_HOST_PARALLEL`` calls, all at once; tasks that depend on each other are never split), so it uses the same model, account and configuration with no key of its own. The result has ``mode: "hybrid"``
 and ``llm: <host>``. When the hybrid backend cannot be used (no host detected, its CLI missing, no network, an auth or HTTP
 error, a timeout, the ``SIMPLICIO_TURBO_BUDGET_S`` time budget spent) the same invocation prints the host-mode request below with
 ``reason: "hybrid_unavailable: <cause>"``; a failure mid-run keeps what was applied and hands over the remaining tasks only.
@@ -16,8 +16,8 @@ exactly two commands:
    plan from stdin, applies it through dev-cli and runs ``--verify``. ``--apply FILE`` reads the plan from a
    file instead: the same code path.
 
-Provider mode (``--provider openrouter``, headless automation only): the benchmarked engine. One model call per
-group of dependent tasks, the groups at the same time (``turbo_provider``: OpenRouter, pinned session, reasoning off), then dev-cli applies each plan.
+Provider mode (``--provider openrouter``, headless automation only): the benchmarked engine. At most ``SIMPLICIO_TURBO_HOST_PARALLEL`` model
+calls, packed as above and asked at the same time (``turbo_provider``: OpenRouter, pinned session, reasoning off), then dev-cli applies each plan.
 
 The output is one compact JSON document. Exit code: 0 ok / needs_plan, 1 failed, 2 blocked.
 """
@@ -38,6 +38,11 @@ from .state_dir import ensure_state_dir
 
 SCHEMA = "simplicio.turbo-run/v1"
 REQUEST_SCHEMA = "simplicio.turbo-request/v1"
+# One fixed line in every hybrid result: the host that ran the command must not keep working after it (measured: it read
+# 11 files and wrote its own verification script after an ok result).
+NEXT_FINAL = "Final. Report status, applied and verify as printed, then stop: do not read files, do not write or run tests or scripts."
+NEXT_FAILED = ("Failed. Fix the plan once from files and verify, run apply as printed, report its result and stop: "
+               "do not read other files, do not write or run tests or scripts.")
 PLAN_FORMAT = {"operations": [{"path": "<repo-relative>",
                                "find": "<exact text that occurs once; empty creates the file>",
                                "replace": "<new text>"}]}
@@ -84,7 +89,7 @@ def build_tasks(root: Path, texts: Sequence[str], target: str | None = None,
         task = {"index": index, "text": str(spec["text"]), "target": task_target,
                 "context": list(dict.fromkeys(extra))}
         files = {task_target, *task["context"]} - {None}
-        # Tasks that touch the same file depend on each other (one model call); the rest are asked at the same time.
+        # Tasks that touch the same file depend on each other (never split across calls); the rest are packed into at most `slots` calls.
         task["depends_on"] = spec.get("depends_on") or [
             earlier["index"] for earlier in tasks
             if files & ({earlier["target"], *earlier["context"]} - {None})
@@ -311,6 +316,7 @@ def _apply_plan(repo: str, plan: str, verify: str | None) -> int:
 
 def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
                   tasks_file: str | None, verify: str | None) -> int:
+    from . import turbo_host_llm as host_llm
     from . import turbo_provider
     from .turbo import run_turbo
 
@@ -334,7 +340,7 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
     (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
     started = time.time()
     try:
-        result = run_turbo(root, tasks, complete)
+        result = run_turbo(root, tasks, complete, slots=host_llm.parallel())
     except RuntimeError as exc:
         _emit({**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
         return 2
@@ -405,7 +411,7 @@ def _run_hybrid(repo: str, texts: Sequence[str], target: str | None, context: Se
 
     (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
     try:
-        result = run_turbo(root, tasks, complete, deadline=deadline)
+        result = run_turbo(root, tasks, complete, deadline=deadline, slots=host_llm.parallel())
     except RuntimeError as exc:
         _emit({**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
         return 2
@@ -448,5 +454,8 @@ def _run_hybrid(repo: str, texts: Sequence[str], target: str | None, context: Se
         document["files"] = current_files(root, tasks)
     document["wall_s"] = round(time.time() - started, 2)
     document["budget_s"] = budget
+    document = {**{key: document[key] for key in head}, "status": document["status"],
+                "next": NEXT_FINAL if document["status"] == "ok" else NEXT_FAILED,
+                **{key: value for key, value in document.items() if key not in head and key != "status"}}
     _emit(document)
     return 0 if document["status"] == "ok" else 1

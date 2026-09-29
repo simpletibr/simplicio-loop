@@ -594,17 +594,21 @@ _active_lock = threading.Lock()
 _slots: queue.LifoQueue | None = None
 
 
+def parallel(environ: Mapping[str, str] | None = None) -> int:
+    """How many host CLI processes run at once: the number of slots, and so the most calls one run makes."""
+    try:
+        return max(1, int((os.environ if environ is None else environ).get(PARALLEL_ENV, "") or DEFAULT_PARALLEL))
+    except ValueError:
+        return DEFAULT_PARALLEL
+
+
 def _slot_pool() -> queue.LifoQueue:
     """The free concurrency slots (0..width-1). Last in, first out: calls that follow each other reuse slot 0."""
     global _slots
     with _active_lock:
         if _slots is None:
-            try:
-                width = max(1, int(os.environ.get(PARALLEL_ENV, "") or DEFAULT_PARALLEL))
-            except ValueError:
-                width = DEFAULT_PARALLEL
             _slots = queue.LifoQueue()
-            for index in reversed(range(width)):
+            for index in reversed(range(parallel())):
                 _slots.put(index)
         return _slots
 

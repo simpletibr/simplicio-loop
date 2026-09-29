@@ -289,7 +289,7 @@ def apply_plan(root: Path, operations: list[dict], label: str = "host-1", dev_cl
 
 def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, binary: str, turn: int
               ) -> tuple[list[dict], list[dict], str, dict]:
-    """One component, one model call. If dev-cli rejects the plan, send that error back one time."""
+    """One call for a set of tasks (a component, or several packed together). If dev-cli rejects the plan, send that error back once."""
     messages = [header_message(reading), task_message(tasks, root)]
     calls: list[dict] = []
     commands: list[dict] = []
@@ -354,13 +354,27 @@ def _components(tasks: Sequence[Mapping[str, Any]]) -> list[list[Mapping[str, An
     return list(groups.values())
 
 
-def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None,
-              deadline: float | None = None) -> dict[str, Any]:
-    """Mapper reads once. Each dependency component is ONE model call; components that do not depend on each other run together.
+def _pack(task_list: Sequence[Mapping[str, Any]], groups: list[list[Mapping[str, Any]]], slots: int | None
+          ) -> list[list[Mapping[str, Any]]]:
+    """At most ``slots`` calls: each component goes to the call with the fewest tasks so far, biggest first. None is never split."""
+    if not slots or slots >= len(groups):
+        return groups
+    packs: list[list[Mapping[str, Any]]] = [[] for _ in range(slots)]
+    for group in sorted(groups, key=len, reverse=True):  # stable: equal sizes keep their task order
+        min(packs, key=len).extend(group)  # the first of the least loaded
+    position = {id(task): n for n, task in enumerate(task_list)}
+    return [sorted(pack, key=lambda task: position[id(task)]) for pack in packs]
 
-    The model calls overlap (asyncio); dev-cli applies one plan at a time. ``stopped`` is None for a run that asked every
-    component, else ``{"reason_code", "detail"}``: a reply marked ``fatal`` (a host failure, not a bad plan) or a
-    ``deadline`` (a ``time.monotonic()`` value) already spent when the run starts. What the other components applied stays.
+
+def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None,
+              deadline: float | None = None, slots: int | None = None) -> dict[str, Any]:
+    """Mapper reads once. Tasks that depend on each other are one component and are never split; components that do not
+    depend on each other are packed into at most ``slots`` model calls (None: one call per component), asked at the same time.
+
+    The calls overlap (asyncio); dev-cli applies one plan at a time, and a call's plan is applied whole. ``outcomes`` has one
+    entry per call. ``stopped`` is None for a run that asked every call, else ``{"reason_code", "detail"}``: a reply marked
+    ``fatal`` (a host failure, not a bad plan) or a ``deadline`` (a ``time.monotonic()`` value) already spent when the run
+    starts. What the other calls applied stays.
     """
     import asyncio
     survey = survey_tasks(root, tasks)
@@ -378,7 +392,7 @@ def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli:
         async def _fan_out():
             return await asyncio.gather(*(
                 asyncio.to_thread(_one_lane, root, group, complete, reading, binary, turn)
-                for turn, group in enumerate(_components(task_list), 1)
+                for turn, group in enumerate(_pack(task_list, _components(task_list), slots), 1)
             ))
 
         for lane_calls, lane_commands, content, outcome in asyncio.run(_fan_out()):

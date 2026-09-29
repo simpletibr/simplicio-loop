@@ -29,10 +29,9 @@ done), `files` (their current text) and the exact `apply` command. Run that comm
    An empty `find` creates the file. It prints `status` (`ok` or `failed`), `applied`, `failed` (dev-cli reason and file
    excerpt) and `verify`.
 
-Nothing else. Do not explore, list or read files: the request holds their text (name every file to change in
-the task text). Do not run tests yourself: `--verify` does;
-pass the test command you already know, never search for one. Do not run `--help`, `simplicio-mapper` or
-`simplicio-dev-cli`, and do not write a plan file, a scratchpad, a journal or a turn header. Never hand-edit; the
+Nothing else. Do not explore, list or read files: the request holds their text (name the files to change
+in the task). Do not run tests yourself: `--verify` does. Do not run `--help`, `simplicio-mapper` or
+`simplicio-dev-cli`, and write no plan file, scratchpad, journal or turn header. Never hand-edit; the
 plan is the edit. On `status: "failed"`, fix the plan once from `reason` and `excerpt` (or the `verify` output)
 and run the `apply` command printed with it. Several tasks in one message: run ONE command with one `--task` per task,
 `simplicio-loop turbo --repo <path> --task "<t1>" --task "<t2>" --verify "<tests>"`. Never run one command per task: that is not a queue.
@@ -43,8 +42,9 @@ below has the recipe. Done only on `status: "ok"` plus a passing verify.
 
 ## Done
 
-Done = `status: "ok"` and, when `--verify` was given, `verify.passed: true`. Report `applied`, `failed` and
-`verify` as printed, then end with `DONE`. Emit the `<promise>` only after that, in the same turn, and only when a loop is armed.
+Done = `status: "ok"` and, when `--verify` was given, `verify.passed: true`. After an ok result do not read files or write or
+run tests or verification scripts; with no known test command pass no `--verify` and create none. Report `applied`, `failed` and
+`verify` as printed, then end with `DONE`. Emit the `<promise>` after that, in the same turn, only when a loop is armed.
 
 ## Loop
 

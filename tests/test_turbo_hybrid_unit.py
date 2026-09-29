@@ -18,6 +18,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _host_cli_fakes as fakes  # noqa: E402
 
+from simplicio_loop import turbo_cli  # noqa: E402
 from simplicio_loop import turbo_host_llm as hl  # noqa: E402
 from simplicio_loop import turbo_provider  # noqa: E402
 from simplicio_loop.cli_impl import main as cli_main  # noqa: E402
@@ -107,6 +108,8 @@ def test_one_command_runs_survey_plan_apply_and_verify_through_the_host_cli(tmp_
     assert isinstance(out["wall_s"], float) and out["budget_s"] == 100.0
     assert [c["prompt_tokens"] for c in out["calls"]] == [970] and out["calls"][0]["latency_s"] >= 0
     assert "apply" not in out and "files" not in out  # nothing is left for the host to do
+    assert out["next"] == turbo_cli.NEXT_FINAL and list(out)[:6] == ["schema", "repo", "mode", "llm", "status", "next"]
+    assert "then stop" in out["next"] and "do not read files" in out["next"] and "tests or scripts" in out["next"]
     assert (repo / "inventory.py").read_text(encoding="utf-8") == (SOLUTION / "inventory.py").read_text(encoding="utf-8")
     (seen,) = fakes.log(bin_dir, "opencode")  # one model call, through the host's own CLI
     assert "Current inventory.py:" in seen["stdin"] and TASK in seen["stdin"]
@@ -152,6 +155,7 @@ def test_a_verify_that_still_fails_after_the_repair_is_failed_and_hands_the_host
     assert out["verify"]["passed"] is False and out["verify_retry"]["passed"] is False
     assert out["apply"].startswith("simplicio-loop turbo --repo ") and "--verify" in out["apply"] and out["apply"].endswith("\nPLAN")
     assert out["files"]["inventory.py"].endswith("# again\n")  # the current text, so the host can fix it in one call
+    assert out["next"] == turbo_cli.NEXT_FAILED and turbo_cli.NEXT_FAILED != turbo_cli.NEXT_FINAL  # a failed result still has one fix left
 
 
 def test_a_plan_the_model_gets_wrong_twice_is_handed_to_the_host(tmp_path, monkeypatch, capsys):
@@ -334,17 +338,44 @@ def test_a_failure_in_one_component_keeps_the_others_and_hands_over_only_that_on
     assert f"--verify {shlex.quote(VERIFY)}" in out["apply"]  # the host's apply command verifies the whole result
 
 
-def test_the_time_budget_stops_calls_still_waiting_for_a_slot_and_hands_the_rest_over(tmp_path, monkeypatch, capsys):
+def _pack_reply(*numbers: int) -> dict:
+    """The reply for the invocation whose first task is ``numbers[0]``: it plans every page of its pack."""
+    return {"mode": "opencode", "when": f"Tasks:\n{numbers[0]}. Create page{numbers[0]}.html.",
+            "reply": json.dumps({"operations": [{"path": f"page{n}.html", "find": "", "replace": f"page {n}\n"} for n in numbers]})}
+
+
+def test_ten_independent_tasks_are_four_host_calls_in_one_round(tmp_path, monkeypatch, capsys):
     repo = _seed(tmp_path)
-    bin_dir = fakes.install(tmp_path, "opencode", calls=[_page(i, sleep=2.3) for i in (1, 2, 3)])
+    # Four slots: the ten components are dealt round-robin, so the calls hold tasks 1 5 9, 2 6 10, 3 7 and 4 8.
+    bin_dir = fakes.install(tmp_path, "opencode", calls=[_pack_reply(1, 5, 9), _pack_reply(2, 6, 10), _pack_reply(3, 7), _pack_reply(4, 8)])
     _on_opencode(monkeypatch, bin_dir)
-    monkeypatch.setenv(hl.BUDGET_ENV, "3")
-    monkeypatch.setenv(hl.PARALLEL_ENV, "1")  # one CLI at a time: the second call waits for the first, and its budget runs down
-    monkeypatch.setattr(hl, "_slots", None)
-    rc, out = _run(repo, capsys, "--tasks-file", _tasks_file(repo, 3, chained=False))
-    assert rc == 0 and out["reason"] == "hybrid_unavailable: budget"
-    assert len(out["applied"]) == 1 and len(out["tasks"]) == 2 and len(fakes.log(bin_dir, "opencode")) == 1  # the others never started
-    assert sum((repo / f"page{i}.html").is_file() for i in (1, 2, 3)) == 1
+    rc, out = _run(repo, capsys, "--tasks-file", _tasks_file(repo, 10, chained=False))
+    seen = fakes.log(bin_dir, "opencode")
+    assert len(seen) == 4 and rc == 0 and out["status"] == "ok" and out["model_calls"] == 4 and out["retries"] == 0
+    assert sorted(out["applied"]) == list(range(1, 11))
+    starts = sorted(s["start"] for s in seen)
+    assert starts[-1] - starts[0] < 3  # all four were spawned together, not in rounds
+    assert all((repo / f"page{i}.html").is_file() for i in range(1, 11))
+
+
+def test_the_host_parallel_setting_sets_how_many_calls_a_run_makes(tmp_path, monkeypatch, capsys):
+    repo = _seed(tmp_path)
+    bin_dir = fakes.install(tmp_path, "opencode", calls=[_pack_reply(1, 3), _pack_reply(2, 4)])
+    _on_opencode(monkeypatch, bin_dir)
+    monkeypatch.setenv(hl.PARALLEL_ENV, "2")
+    rc, out = _run(repo, capsys, "--tasks-file", _tasks_file(repo, 4, chained=False))
+    assert len(fakes.log(bin_dir, "opencode")) == 2 and rc == 0 and out["model_calls"] == 2 and sorted(out["applied"]) == [1, 2, 3, 4]
+
+
+def test_the_time_budget_is_checked_again_before_the_one_retry_and_the_rest_is_handed_over(tmp_path, monkeypatch, capsys):
+    repo = _seed(tmp_path)
+    wrong = json.dumps({"operations": [{"path": "inventory.py", "find": "NOT IN THE FILE", "replace": "x"}]})
+    bin_dir = fakes.install(tmp_path, "opencode", mode="opencode", reply=wrong, sleep=2.3)
+    _on_opencode(monkeypatch, bin_dir)
+    monkeypatch.setenv(hl.BUDGET_ENV, "3")  # the first call alone takes 2.3 s or more: less than the 1 s a call needs is left
+    rc, out = _run(repo, capsys, "--task", TASK)
+    assert rc == 0 and out["reason"] == "hybrid_unavailable: budget" and out["tasks"] == [TASK]
+    assert len(fakes.log(bin_dir, "opencode")) == 1  # the retry was never started
 
 
 def test_the_budget_is_100_seconds_unless_the_environment_says_otherwise(monkeypatch):

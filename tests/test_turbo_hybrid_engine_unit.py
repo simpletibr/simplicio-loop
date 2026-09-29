@@ -1,8 +1,9 @@
-"""3.47.0 hybrid mode, the engine: dependency components, one model call each, all at the same time.
+"""3.47.0 hybrid mode, the engine: dependency components, packed into at most ``slots`` model calls, asked at the same time.
 
-Tasks that depend on each other (a file they share, ``depends_on``) are ONE component and ONE model call. Components that
-do not depend on each other are asked at the same time (asyncio), so a run costs about one call's wall time, not the sum.
-There is no warm-up call and no wave.
+Tasks that depend on each other (a file they share, ``depends_on``) are ONE component and are never split. Components that
+do not depend on each other are asked at the same time (asyncio), and when there are more of them than ``slots`` several share
+one call and one plan: a spawned host CLI costs far more than the dev-cli apply, so a run makes ``min(components, slots)``
+calls, one round. There is no warm-up call and no wave.
 
 A reply marked ``fatal`` (the host CLI is missing, not logged in, timed out, the budget is spent) is not a bad plan, so
 the engine does not send it back to the model as a dev-cli rejection. It keeps what the other components applied and
@@ -141,6 +142,91 @@ def test_there_is_no_warm_up_call_and_no_wave(repo):
     assert len(seen) == 6 and all(kw == {} and count == 2 for kw, count in seen)  # header + tasks; no 1-token call
     assert "wave" not in result and not any("warm" in call for call in result["llm_calls"])
     assert not hasattr(turbo, "WAVE_TURBO_ABOVE")
+
+
+def test_ten_independent_tasks_with_four_slots_are_exactly_four_calls_at_once(repo):
+    barrier = threading.Barrier(4, timeout=10)  # four calls in flight together, or the barrier breaks
+    seen, lock = [], threading.Lock()
+
+    def complete(arm, messages, **kwargs):
+        try:
+            barrier.wait()
+        except threading.BrokenBarrierError:
+            return {"ok": False, "error": "the calls did not overlap"}
+        with lock:
+            seen.append(_asked(messages))
+        return {"ok": True, "content": _plan_for(messages)}
+
+    result = run_turbo(repo, _tasks(10), complete, slots=4)
+    assert result["turns"] == 4 and result["applied_all"] is True and result["stopped"] is None
+    assert sorted(len(asked) for asked in seen) == [2, 2, 3, 3]  # dealt round-robin by task count
+    assert sorted(n for asked in seen for n in asked) == list(range(1, 11))  # every task in exactly one call
+    assert [o["tasks"] for o in result["outcomes"]] == [[1, 5, 9], [2, 6, 10], [3, 7], [4, 8]]  # one outcome per call, in call order
+    assert all((repo / f"page{i}.html").is_file() for i in range(1, 11))
+
+
+def test_three_independent_tasks_with_four_slots_are_three_calls(repo):
+    seen, lock = [], threading.Lock()
+
+    def complete(arm, messages, **kwargs):
+        with lock:
+            seen.append(_asked(messages))
+        return {"ok": True, "content": _plan_for(messages)}
+
+    result = run_turbo(repo, _tasks(3), complete, slots=4)
+    assert sorted(seen) == [[1], [2], [3]] and result["turns"] == 3
+
+
+def test_one_slot_packs_everything_into_one_call(repo):
+    seen = []
+
+    def complete(arm, messages, **kwargs):
+        seen.append(_asked(messages))
+        return {"ok": True, "content": _plan_for(messages)}
+
+    result = run_turbo(repo, _tasks(5), complete, slots=1)
+    assert seen == [[1, 2, 3, 4, 5]] and result["turns"] == 1 and result["applied_all"] is True
+
+
+def test_a_chain_is_never_split_when_it_shares_a_call_with_independent_tasks(repo):
+    seen, lock = [], threading.Lock()
+    tasks = [*_tasks(3, chained=True), *_tasks(5, start=4)]  # a chain of three, then five independent tasks
+
+    def complete(arm, messages, **kwargs):
+        with lock:
+            seen.append(_asked(messages))
+        return {"ok": True, "content": _plan_for(messages)}
+
+    result = run_turbo(repo, tasks, complete, slots=2)
+    assert result["turns"] == 2 and sorted(n for asked in seen for n in asked) == list(range(1, 9))
+    assert [asked for asked in seen if 1 in asked] == [[1, 2, 3, 7]]  # the chain whole, in task order, with one independent task
+    assert sorted(asked for asked in seen if 1 not in asked) == [[4, 5, 6, 8]]
+
+
+def test_a_fatal_reply_in_one_packed_call_keeps_the_other_calls_and_hands_over_that_calls_tasks(repo):
+    def complete(arm, messages, **kwargs):
+        if _asked(messages) == [2, 4]:
+            return dict(FATAL)
+        return {"ok": True, "content": _plan_for(messages)}
+
+    result = run_turbo(repo, _tasks(4), complete, slots=2)  # the calls are [1, 3] and [2, 4]
+    assert [(o["tasks"], o["applied"]) for o in result["outcomes"]] == [([1, 3], True), ([2, 4], False)]
+    assert result["stopped"]["reason_code"] == "host_timeout" and result["turns"] == 2
+    assert all((repo / f"page{i}.html").is_file() for i in (1, 3)) and not (repo / "page2.html").exists()
+
+
+def test_a_packed_call_the_dev_cli_refuses_is_retried_once_with_the_error(repo):
+    seen = []
+
+    def complete(arm, messages, **kwargs):
+        seen.append([dict(m) for m in messages])
+        if _asked(messages) == [2, 4] and len(messages) == 2:  # the first plan of that call is wrong
+            return {"ok": True, "content": json.dumps({"operations": [{"path": "README.md", "find": "NOPE", "replace": "x"}]})}
+        return {"ok": True, "content": _plan_for(messages)}
+
+    result = run_turbo(repo, _tasks(4), complete, slots=2)
+    assert result["turns"] == 3 and result["applied_all"] is True  # [1, 3], [2, 4], and the one retry of [2, 4]
+    assert any("dev-cli rejected the plan" in m[-1]["content"] for m in seen)
 
 
 def test_a_fatal_reply_in_one_component_keeps_the_others_that_answered(repo):

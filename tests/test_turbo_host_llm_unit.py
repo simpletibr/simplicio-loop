@@ -338,6 +338,12 @@ def test_the_default_number_of_host_processes_is_four_and_the_environment_overri
     assert hl._slot_pool().qsize() == 3
 
 
+def test_parallel_is_how_many_host_processes_and_so_how_many_calls_a_run_makes():
+    assert hl.parallel({}) == hl.DEFAULT_PARALLEL == 4
+    assert hl.parallel({hl.PARALLEL_ENV: "2"}) == 2 and hl.parallel({hl.PARALLEL_ENV: "0"}) == 1
+    assert hl.parallel({hl.PARALLEL_ENV: "many"}) == hl.DEFAULT_PARALLEL
+
+
 def test_a_call_that_waited_for_a_slot_past_the_deadline_never_starts_the_cli(tmp_path, repo, monkeypatch):
     bin_dir = fakes.install(tmp_path, "opencode", mode="opencode", reply=PLAN)
     monkeypatch.setenv("PATH", fakes.path_with(bin_dir))

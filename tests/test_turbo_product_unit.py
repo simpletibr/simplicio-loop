@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -121,6 +122,28 @@ def test_cli_turbo_runs_the_engine_end_to_end_and_verifies(tmp_path, monkeypatch
     assert "Current inventory.py:" in messages[-1]["content"]  # named file reached the model
 
 
+def test_cli_turbo_provider_mode_packs_independent_tasks_into_at_most_four_calls(tmp_path, monkeypatch, capsys):
+    repo = _seed(tmp_path)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+    monkeypatch.delenv("SIMPLICIO_TURBO_HOST_PARALLEL", raising=False)
+    (repo / "tasks.json").write_text(json.dumps([{"text": f"Create page{i}.html.", "target": f"page{i}.html"} for i in range(1, 11)]),
+                                     encoding="utf-8")
+    seen = []
+
+    def fake_complete(arm, messages, **kwargs):
+        seen.append(messages[-1]["content"])
+        pages = re.findall(r"^\d+\. Create (page\d+\.html)\.", messages[-1]["content"], flags=re.M)
+        return {"ok": True, "latency_s": 0.1, "prompt_tokens": 100, "cached_tokens": 0, "completion_tokens": 50, "reasoning_tokens": 0,
+                "cost": 0.0002, "content": json.dumps({"operations": [{"path": p, "find": "", "replace": p} for p in pages]})}
+
+    monkeypatch.setattr(turbo_provider, "complete", fake_complete)
+    rc = cli_main(["turbo", "--provider", "openrouter", "--repo", str(repo), "--tasks-file", str(repo / "tasks.json")])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0 and out["status"] == "ok" and out["tasks"] == 10
+    assert out["model_calls"] == 4 == len(seen) and out["retries"] == 0  # one round of four calls, not ten
+    assert all((repo / f"page{i}.html").is_file() for i in range(1, 11))
+
+
 def test_cli_turbo_surveys_again_on_every_invocation(tmp_path, monkeypatch, capsys):
     """The saved survey marker belongs to one run. A later invocation asks Mapper again (its own
     tree-state cache makes an unchanged tree free), so a repo that changed does not keep the first map."""
@@ -192,6 +215,12 @@ HOST_PLAN_PHRASES = (
     "Host writes the edit plan.",
     "write every `edit-plan",
 )
+
+
+def test_the_skill_ends_the_run_at_the_result_and_never_asks_for_a_verification_script():
+    text = " ".join(SKILL.read_text(encoding="utf-8").split())
+    assert "After an ok result do not read files or write or run tests or verification scripts" in text
+    assert "with no known test command pass no `--verify` and create none" in text
 
 
 @pytest.mark.parametrize("rel", ORIENTATION_SURFACES)
