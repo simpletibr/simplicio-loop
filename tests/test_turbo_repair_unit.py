@@ -12,8 +12,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 from simplicio_loop import turbo_provider
 from simplicio_loop.cli_impl import main as cli_main
 from simplicio_loop.turbo import _rewrite_existing_creates, repair_with_test_output
