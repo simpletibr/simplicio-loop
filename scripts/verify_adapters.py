@@ -15,7 +15,7 @@ aider) and running `/simplicio-loop` inside it. That manual smoke step is listed
 adapters/MATRIX.md and the per-adapter READMEs; this harness gates everything up to that point.
 
 Usage:
-    python3 scripts/verify_adapters.py [runtime ...]   # default: all 12
+    python3 scripts/verify_adapters.py [runtime ...]   # default: every installer runtime
     python3 scripts/verify_adapters.py antigravity kiro opencode aider   # the #11 TODO set
 Exit code 0 = all verified, 1 = at least one runtime failed its contract.
 """

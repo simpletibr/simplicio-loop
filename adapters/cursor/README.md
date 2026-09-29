@@ -73,6 +73,10 @@ model-per-role choices (pstack-style) if you use the simplicio-runtime model rou
 /simplicio-tasks finish all the open issues
 ```
 
+## Run simplicio-loop
+
+Tell the agent `/simplicio-loop <task>`. It runs `simplicio-loop "<task>" --verify "<tests>"` through the host's shell tool, writes the JSON plan the command prints to `plan_path` and runs the printed `apply` command; `simplicio-dev-cli` makes every edit. `simplicio-loop` must be on the PATH of the machine where the host runs its shell (`pip install simplicio-loop`). Full flow: `.claude/skills/simplicio-loop/SKILL.md`.
+
 ## Progresso do run
 
 Hook-bound (N1): both the `stop` hook and `afterAgentResponse` capture feed `loop_stop.py`, which

@@ -139,6 +139,10 @@ confirm the bind.
 Open Copilot Chat and type: `/simplicio-tasks finish all the open issues` (or paste the goal —
 the instructions file makes Copilot follow the protocol).
 
+## Run simplicio-loop
+
+Tell the agent `/simplicio-loop <task>`. It runs `simplicio-loop "<task>" --verify "<tests>"` through the host's shell tool, writes the JSON plan the command prints to `plan_path` and runs the printed `apply` command; `simplicio-dev-cli` makes every edit. `simplicio-loop` must be on the PATH of the machine where the host runs its shell (`pip install simplicio-loop`). Full flow: `.claude/skills/simplicio-loop/SKILL.md`.
+
 ## Progresso do run
 
 Self-paced (N2, via tasks): the task tick echoes the turn-header. Simplest (N3, universal): open

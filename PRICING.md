@@ -29,7 +29,7 @@ fleet), which is exactly the part that costs us compute.
 - Local token economy: `orient_clamp.py`, the capture engine, `savings_ledger` on disk, the
   local dashboard at `http://127.0.0.1:9090`.
 - `video_evidence` **local** render (hyperframes via local Node 22+/FFmpeg).
-- Self-hosting on any of the 12 runtimes.
+- Self-hosting on any supported runtime.
 
 ### What the paid tiers add (convenience + scale, not capability lock-in)
 - **We host the 24/7 watcher** so it survives reboots without the user running their own cron.

@@ -1,97 +1,25 @@
 # DeepSeek adapter
 
-DeepSeek has no first-party agentic IDE/CLI with an independently documented MCP client contract
-comparable to Claude/Cursor/VS Code. In practice, DeepSeek models are reached from agent shells
-(OpenCode, generic OpenAI-compatible wrappers, or a Claude Code/Cursor front-end configured to
-route model calls at a DeepSeek-compatible endpoint) that bring their own MCP support. This
-adapter documents the protocol wiring and is explicitly **best-effort / community-reported**.
+DeepSeek is a model provider, not an agent host: there is no DeepSeek executable to install into, so `scripts/install.sh` has no `deepseek` runtime. Install status: **manual**.
 
-## Install
+## Skill load
 
-`deepseek` is not yet a recognized target of `scripts/install.sh`/`scripts/install_lib.py` (see
-`adapters/MATRIX.md` § Install for the currently wired runtime list). Until it is wired in,
-install by hand, mirroring the Aider pattern since there's no native `.claude/skills`-style loader
-for a bare DeepSeek CLI:
+DeepSeek's own documentation lists the coding agents it works with: Claude Code, OpenCode and OpenClaw (<https://api-docs.deepseek.com/guides/coding_agents/>). Load the skills through one of them. For Claude Code:
 
 ```bash
-cp .claude/skills/simplicio-loop/SKILL.md CONVENTIONS.md   # or your wrapper's own instructions file
+bash scripts/install.sh claude          # opencode / openclaw for the other two hosts
+# then, in the shell that starts the host (never in a committed file):
+export ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
+export ANTHROPIC_AUTH_TOKEN=<your DeepSeek API key>
+# plus the model variables the DeepSeek page lists
 ```
 
-## Loop drive — self-paced
+For everything after that, follow the host's own README: [claude](../claude/README.md), [opencode](../opencode/README.md) or [openclaw](../openclaw/README.md).
 
-No stop-hook. Drive ticks via whichever wrapper/CLI you use to reach a DeepSeek model, same exit
-conditions (evidence-gated promise, cap, spindle handoff, STOP) as any self-paced runtime.
+## Loop drive
 
-## Token economy
+Whatever the host uses: Claude Code has a real `Stop` hook, OpenCode is self-paced and OpenClaw runs the loop on its own scheduler. A self-paced agent re-reads `.simplicio-loop/orchestrator/loop/scratchpad.md` every turn and ends each message with `DONE | NEXT | BLOCKED`.
 
-`orient_clamp.py` works as-is: `python3 hooks/orient_clamp.py -- <build/test/diff command>`.
+## Run
 
-## Native bind — MCP (optional, best-effort wiring)
-
-`simplicio-runtime` native binding is optional on DeepSeek. A missing/unreachable bind reports
-explicit degraded mode while the standalone loop remains available.
-
-```bash
-pip install -U simplicio-installer && simplicio install --global
-```
-
-## MCP config
-
-- **Config file:** **no verified, DeepSeek-specific MCP config file is known to this repo.** If
-  you reach DeepSeek through a wrapper that has its own MCP client (e.g. OpenCode configured with
-  a DeepSeek-compatible provider, or a generic Anthropic/OpenAI-compatible agent shell), configure
-  the bind through *that wrapper's* adapter section instead — e.g.
-  [opencode](../opencode/README.md#mcp-config). This file exists so DeepSeek is not silently
-  undocumented, not to claim a first-party integration that doesn't exist.
-- **Best-effort snippet** (generic `mcpServers` shape, for wrappers that support it):
-
-```json
-{
-  "mcpServers": {
-    "simplicio": {
-      "command": "simplicio",
-      "args": ["serve", "--mcp", "--stdio"],
-      "cwd": "/path/to/your/repo"
-    }
-  }
-}
-```
-
-- **Verify:** `simplicio doctor --json | grep -A2 mcp-host-registration` confirms the runtime
-  side only; there is no known DeepSeek-side MCP status command. Tier: **best-effort /
-  community-reported, not gated** — do not treat this as equivalent to the Tier 1 verified hosts.
-
-## Use
-
-Whatever prompt surface your DeepSeek wrapper/CLI exposes: paste or reference the goal, e.g.
-"`/simplicio-loop finish all the open issues`" if the shell loads the inlined conventions file.
-
-## Progresso do run
-
-Self-paced (N2): the tick should echo `python3 scripts/loop_progress.py render --turn-header`.
-Universal fallback (N3): open `.simplicio-loop/orchestrator/loop/PROGRESS.md` (auto-regenerated every turn).
-
-## Ecosystem law (2026-08) — read on every host
-
-Canonical guide (what each project is, install, step-by-step):
-
-- In **simplicio-runtime**: `docs/ECOSYSTEM_LLM_GUIDE.md`
-- In **simplicio-loop**: `docs/ECOSYSTEM_LLM_GUIDE.md` (same content)
-
-| Project | Role |
-|---------|------|
-| **runtime** | Kernel: gates, MCP, **owns loop**, **owns execution-report**, decides `use_loop` |
-| **loop** | Protocol + hooks + Prism under Runtime authority |
-| **mapper / dev-cli / fast** | Operators — **work alone** without Runtime |
-| **agent** | Optional coordinator/desktop — not mandatory gateway |
-
-**Commands every host must know:**
-
-```bash
-simplicio loop decide --task "<work>" --json
-simplicio execution-report start|record-task|finish|show|consolidate --json
-simplicio-loop preflight --strict --json
-```
-
-After Runtime install on Windows: `packaging/windows/install.ps1` then pip-install loop/mapper/dev-cli and re-run preflight until operational.
-
+Tell the agent `/simplicio-loop <task>`. It runs `simplicio-loop "<task>" --verify "<tests>"` through the host's shell tool, writes the JSON plan the command prints to `plan_path` and runs the printed `apply` command; `simplicio-dev-cli` makes every edit. The model that plans is the DeepSeek model behind the host.

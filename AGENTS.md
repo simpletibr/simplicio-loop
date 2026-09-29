@@ -76,7 +76,7 @@ recorded evidence. Facts are `MEASURED|`
 only with receipts; otherwise `UNVERIFIED|`. Missing dependencies fail closed; never fabricate
 context, tests, savings or provider output.
 This repository ships a runtime-agnostic **super-plugin**: the Universal Looping AI
-Orchestrator plus five satellite skills, packaged for 15 runtimes. Any agent runtime that
+Orchestrator plus five satellite skills, packaged for 35 runtimes. Any agent runtime that
 reads `AGENTS.md` / skill folders can run it.
 
 ## What to load
@@ -108,11 +108,13 @@ auto-clamp). See [`hooks/README.md`](hooks/README.md).
 
 ## Runtimes
 
-15 runtimes are documented in [`adapters/MATRIX.md`](adapters/MATRIX.md): Claude Code · Codex ·
-VS Code (Copilot) · Cursor · Antigravity · Kiro · OpenCode · Gemini (CLI/Code Assist) · Kimi ·
-Qwen (Code/CLI) · DeepSeek · Aider · Simplicio Agent (formerly Hermes) · OpenClaw · Orca. Install
-12 of them with `scripts/install.sh <runtime>` (or `install.ps1`); Kimi/Qwen/DeepSeek are not yet
-wired into the installer — see their adapter READMEs for manual/best-effort steps.
+35 runtimes are listed in [`simplicio_loop/_catalog/harnesses.json`](simplicio_loop/_catalog/harnesses.json)
+and documented in [`adapters/MATRIX.md`](adapters/MATRIX.md): the 32 host surfaces of `simpletibr/simplicio`
+(Claude Code, Codex, Grok, Cursor, GitHub Copilot, OpenCode, MiMo Code, Amp, OpenClaude, Antigravity, Pi,
+oh-my-pi, Hermes / Simplicio Agent, Devin, goose, Auggie, Autohand Code, Charm, Cline, Codebuff, Command
+Code, Continue, Droid, Kilo Code, Kimi, Kiro, Mistral Vibe, Qwen Code, Rovo Dev, Gemini, VS Code, Orca) plus
+Aider, DeepSeek and OpenClaw. Install every `wired` one with `scripts/install.sh <runtime>` (or `install.ps1`);
+DeepSeek is a model provider, not a host, so its adapter README lists manual steps.
 
 ## Activation
 

@@ -29,8 +29,8 @@ spec.loader.exec_module(sac)  # type: ignore[union-attr]
 
 
 def test_matrix_covers_every_matrix_md_runtime():
-    # adapters/MATRIX.md names 15 runtimes (Tier 1 + Tier 2); the frozen snapshot must not
-    # silently drop one.
+    # The frozen snapshot covers these 15 runtimes of adapters/MATRIX.md; it must not silently
+    # drop one.
     expected_min = {
         "claude", "codex", "vscode", "cursor", "antigravity", "kiro", "opencode", "gemini",
         "kimi", "qwen", "deepseek", "aider", "simplicio_agent", "openclaw", "orca",

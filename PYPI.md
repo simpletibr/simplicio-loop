@@ -43,8 +43,9 @@ Now invoke it from your agent runtime (Claude Code, Cursor, Codex, Gemini, …):
 
 ## Highlights
 
-- **12 runtimes, one protocol** — Claude Code, Codex, VS Code/Copilot, Cursor, Antigravity, Kiro,
-  OpenCode, Gemini, Aider, Simplicio Agent (formerly Hermes), OpenClaw, Orca.
+- **35 runtimes, one protocol** — Claude Code, Codex, Cursor, VS Code/Copilot, Gemini, Kiro, OpenCode,
+  Amp, Cline, Continue, Droid, goose, Aider, Simplicio Agent (formerly Hermes), OpenClaw, Orca and more; the
+  full list is `adapters/MATRIX.md` in the repository.
 - **Evidence-gated completion** — never a false "done"; exits only on a verified `<promise>`,
   cap, spindle handoff, or STOP.
 - **Token economy** — honest "answer concisely" baseline; savings credited only on verified-correct

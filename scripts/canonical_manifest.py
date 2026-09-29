@@ -47,13 +47,7 @@ SKILLS_DIR = os.path.join(REPO, ".claude", "skills")
 ADAPTERS_DIR = os.path.join(REPO, "adapters")
 CHANGELOG_PATH = os.path.join(REPO, "CHANGELOG.md")
 MATRIX_PATH = os.path.join(ADAPTERS_DIR, "MATRIX.md")
-
-# `hermes` is the deliberately-kept legacy shim for `simplicio_agent` (#262 rename) — both
-# directories exist under adapters/ for the compat window, but they are ONE canonical runtime,
-# not two, for the supported-runtime count the README/MATRIX badges advertise. `grok` is a host
-# rule shim, not a separate supported runtime entry in that matrix.
-ADAPTER_ALIASES = {"hermes": "simplicio_agent"}
-ADAPTER_NON_CANONICAL = {"grok"}
+CATALOG_PATH = os.path.join(REPO, "simplicio_loop", "_catalog", "harnesses.json")
 
 CORE_SKILL_NAMES = frozenset({
     "simplicio-loop",
@@ -89,17 +83,29 @@ def count_skills():
                 and os.path.isfile(os.path.join(SKILLS_DIR, n, "SKILL.md"))])
 
 
+def load_harnesses():
+    with open(CATALOG_PATH, encoding="utf-8") as f:
+        return json.load(f)["harnesses"]
+
+
 def count_runtimes():
-    """Canonical runtime count: every directory under adapters/, with legacy-shim aliases
-    (hermes -> simplicio_agent) collapsed to their canonical name so a compat shim never
-    double-counts a runtime."""
-    if not os.path.isdir(ADAPTERS_DIR):
-        return 0, []
-    dirs = [n for n in os.listdir(ADAPTERS_DIR)
-            if n not in ADAPTER_NON_CANONICAL
-            and os.path.isdir(os.path.join(ADAPTERS_DIR, n))]
-    canonical = sorted({ADAPTER_ALIASES.get(n, n) for n in dirs})
-    return len(canonical), canonical
+    """Canonical runtime count: one per harness catalog entry. An adapter directory named after an
+    alias (claude, qwen, orca, simplicio_agent) belongs to its entry, so it never double-counts."""
+    names = sorted(h["id"] for h in load_harnesses())
+    return len(names), names
+
+
+def adapter_drift():
+    """Every adapters/<dir> must be the id or an alias of a catalog entry, and every entry needs
+    at least one adapters/ directory."""
+    harnesses = load_harnesses()
+    dirs = sorted(n for n in os.listdir(ADAPTERS_DIR)
+                  if os.path.isdir(os.path.join(ADAPTERS_DIR, n)) and n != "__pycache__")
+    known = {name for h in harnesses for name in [h["id"], *h["aliases"]]}
+    drift = [f"adapters/{n} has no harness catalog entry" for n in dirs if n not in known]
+    drift += [f"harness {h['id']} has no adapters/ directory" for h in harnesses
+              if not any(n in dirs for n in [h["id"], *h["aliases"]])]
+    return drift
 
 
 def latest_changelog_version():
@@ -137,8 +143,9 @@ def build_manifest():
         bad = {n: sorted(files) for n, files in runtime_claims.items() if n != runtime_count}
         if bad:
             issues.append(
-                "runtime-count claim(s) disagree with adapters/ tree (%d canonical runtimes: %s): %s"
+                "runtime-count claim(s) disagree with the harness catalog (%d runtimes: %s): %s"
                 % (runtime_count, ", ".join(runtime_names), json.dumps(bad)))
+    issues.extend(adapter_drift())
 
     if release["mismatches"] or release["errors"]:
         issues.extend("release-manifest: %s" % m for m in (release["mismatches"] + release["errors"]))
@@ -150,8 +157,6 @@ def build_manifest():
         "skill_count": skill_count,
         "runtime_count": runtime_count,
         "runtime_names": runtime_names,
-        "adapter_aliases": ADAPTER_ALIASES,
-        "adapter_non_canonical": sorted(ADAPTER_NON_CANONICAL),
         "changelog_latest_version": changelog_version,
         "quantitative_claims": claim_statuses,
         "lean_mirror": {

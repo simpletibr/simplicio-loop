@@ -66,6 +66,10 @@ Use `simplicio doctor --json` to confirm the bind.
 Create a spec or chat: `/simplicio-tasks finish all the open issues`. The steering file makes
 Kiro follow the protocol and honor the safety gates.
 
+## Run simplicio-loop
+
+Tell the agent `/simplicio-loop <task>`. It runs `simplicio-loop "<task>" --verify "<tests>"` through the host's shell tool, writes the JSON plan the command prints to `plan_path` and runs the printed `apply` command; `simplicio-dev-cli` makes every edit. `simplicio-loop` must be on the PATH of the machine where the host runs its shell (`pip install simplicio-loop`). Full flow: `.claude/skills/simplicio-loop/SKILL.md`.
+
 ## Progresso do run
 
 Self-paced (N2, via specs): each tick echoes the turn-header. Universal fallback (N3): open

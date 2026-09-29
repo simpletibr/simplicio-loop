@@ -90,6 +90,10 @@ Manual smoke (the one step a file-level harness can't do): run a small `/simplic
 an Orca worktree, confirm the loop drives (hook or scheduled tick), the gates fire, and the state
 stays inside that worktree's `.simplicio-loop/orchestrator/`.
 
+## Run simplicio-loop
+
+Tell the agent `/simplicio-loop <task>`. It runs `simplicio-loop "<task>" --verify "<tests>"` through the host's shell tool, writes the JSON plan the command prints to `plan_path` and runs the printed `apply` command; `simplicio-dev-cli` makes every edit. `simplicio-loop` must be on the PATH of the machine where the host runs its shell (`pip install simplicio-loop`). Full flow: `.claude/skills/simplicio-loop/SKILL.md`.
+
 ## Progresso do run
 
 Inner-agent hook or self-paced tick (N1/N2 depending on how the inner agent is configured): the

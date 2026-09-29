@@ -38,6 +38,14 @@ python3 scripts/arm_drain_prism.py --repo . --slots 4 --json
 
 See `docs/MULTI_LLM_CONTRACT.md`.
 
+## Loop drive — self-paced
+
+Grok has no stop hook in this matrix: the agent re-reads `.simplicio-loop/orchestrator/loop/scratchpad.md` every turn and ends each message with `DONE | NEXT | BLOCKED`. Progress: the first line of every turn is `python3 scripts/loop_progress.py render --turn-header` (N2), and `.simplicio-loop/orchestrator/loop/PROGRESS.md` is regenerated every turn (N3).
+
+## Run simplicio-loop
+
+Tell the agent `/simplicio-loop <task>`. It runs `simplicio-loop "<task>" --verify "<tests>"` through the host's shell tool, writes the JSON plan the command prints to `plan_path` and runs the printed `apply` command; `simplicio-dev-cli` makes every edit. `simplicio-loop` must be on the PATH of the machine where the host runs its shell (`pip install simplicio-loop`). Full flow: `.claude/skills/simplicio-loop/SKILL.md`.
+
 ## Ecosystem law (2026-08) — read on every host
 
 Canonical guide (what each project is, install, step-by-step):

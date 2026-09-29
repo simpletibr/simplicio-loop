@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """simplicio-loop — checkout installer.
 
-The packaged command is `python -m simplicio_loop.install` /
-`simplicio-loop install --host ...` (simplicio_loop/install/planner.py).
-This script remains the repo-checkout helper and must not diverge on hosts.
+The hosts are listed in `simplicio_loop/_catalog/harnesses.json`; this script wires every `wired`
+host (`RUNTIMES` below). The packaged command (`python -m simplicio_loop.install` /
+`simplicio-loop install --host ...`, simplicio_loop/install/planner.py) covers the original
+subset of them and never advertises a host this script does not wire.
 
 Copies the 7 skills + hooks into a target, wires the loop where the runtime supports it,
 ensures the runtime's entry/instructions file references the skill, and prints the MCP-bind
@@ -16,9 +17,8 @@ Also installs+verifies the REQUIRED loop operator distributions (`simplicio-cli`
 Usage:
     python3 scripts/install_lib.py <runtime> [--global] [--target DIR] [--skip-operators] [--lite]
                                     [--with-runtime-mcp]
-    <runtime> ∈ claude codex grok vscode cursor antigravity kiro opencode gemini aider
-               simplicio_agent openclaw orca
-               (hermes accepted as a legacy alias for simplicio_agent)
+    <runtime> = the `install.runtime` of a `wired` host in the catalog (the keys of RUNTIMES below;
+               hermes is accepted as a legacy alias for simplicio_agent)
     omit <runtime> to auto-detect.
 
 --lite mode:
@@ -111,6 +111,30 @@ RUNTIMES = {
     # when the client contracted the Orca host. Core loop never requires Orca; lifecycle
     # card sync stays off unless SIMPLICIO_LOOP_CLIENT_INTEGRATIONS includes `orca`.
     "orca":        {"entry": "AGENTS.md",                       "mcp": "orca",        "hooks": None},
+    # Hosts that read a plain-file surface. `entry` is the file the host reads (the catalog's
+    # `install.source` links its documentation); skills land in .claude/skills like every other
+    # runtime and the marker block points the host at them. None wires a stop hook: self-paced.
+    "github-copilot": {"entry": ".github/copilot-instructions.md", "mcp": None,       "hooks": None},
+    "mimo-code":   {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "amp":         {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "openclaude":  {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "pi":          {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "oh-my-pi":    {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "devin":       {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "goose":       {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "auggie":      {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "autohand":    {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "charm":       {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "cline":       {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "codebuff":    {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "command-code": {"entry": "AGENTS.md",                      "mcp": None,          "hooks": None},
+    "continue":    {"entry": ".continue/rules/simplicio-loop.md", "mcp": None,        "hooks": None},
+    "droid":       {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "kilocode":    {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "kimi":        {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
+    "mistral-vibe": {"entry": "AGENTS.md",                      "mcp": None,          "hooks": None},
+    "qwen":        {"entry": "QWEN.md",                         "mcp": None,          "hooks": None},
+    "rovo-dev":    {"entry": "AGENTS.md",                       "mcp": None,          "hooks": None},
 }
 
 
@@ -415,9 +439,9 @@ def ensure_entry(target, rel, runtime=None):
         begin, end = LEGACY_MARK_A, LEGACY_MARK_B
     if begin and end:
         # refresh the block in place, migrating legacy markers to the new public command block
-        pre = existing.split(begin)[0]
+        pre = existing.split(begin)[0].rstrip()
         post = existing.split(end, 1)[1]
-        new = pre.rstrip() + "\n\n" + block + post
+        new = (pre + "\n\n" if pre else "") + block + post
     else:
         new = (existing.rstrip() + "\n\n" if existing.strip() else "") + block + "\n"
     with open(path, "w", encoding="utf-8") as f:

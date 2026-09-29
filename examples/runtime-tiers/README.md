@@ -8,7 +8,7 @@ This directory demonstrates the two-tier runtime matrix.
 # Verify tier-1 runtimes (Claude Code, Codex, Cursor)
 python3 scripts/verify_adapters.py claude codex cursor
 
-# Verify all 12 runtimes (slow — ~45s/runtime)
+# Verify every installer runtime (~20s in total)
 python3 scripts/verify_adapters.py
 
 # The claims-audit check 7 runs `verify_adapters.py claude` on every gate
