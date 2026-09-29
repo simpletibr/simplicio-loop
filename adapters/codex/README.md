@@ -71,6 +71,10 @@ cwd = "/path/to/your/repo"
 codex exec "/simplicio-tasks finish all the open issues"
 ```
 
+## Run simplicio-loop
+
+Tell the agent `/simplicio-loop <task>`. It runs `simplicio-loop "<task>" --verify "<tests>"` through the host's shell tool, writes the JSON plan the command prints to `plan_path` and runs the printed `apply` command; `simplicio-dev-cli` makes every edit. `simplicio-loop` must be on the PATH of the machine where the host runs its shell (`pip install simplicio-loop`). Full flow: `.claude/skills/simplicio-loop/SKILL.md`.
+
 ## Progresso do run
 
 Self-paced (N2): the tick echoes `python3 scripts/loop_progress.py render --turn-header` at the

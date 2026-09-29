@@ -3,6 +3,12 @@ Total output lines: 1972
 
 # Changelog
 
+## [Unreleased]
+
+- Harness catalog: `simplicio_loop/_catalog/harnesses.json` (`simplicio.harnesses/v1`, shipped in the wheel) lists the 32 host surfaces of `simpletibr/simplicio` (pinned to `plugins/simplicio/host-surfaces.json` at `a9c8a480`) plus Aider, DeepSeek and OpenClaw: 35 hosts, 34 `wired` and 1 `manual` (DeepSeek is a model provider, not a host). Existing adapter directory names map onto upstream ids through `aliases` (`claude` to `claude-code`, `qwen` to `qwen-code`, `orca` to `orca-dev`, `simplicio_agent` to `hermes`).
+- `scripts/install.sh` and `scripts/install.ps1` (both launch `scripts/install_lib.py`) gain 21 runtimes: `github-copilot mimo-code amp openclaude pi oh-my-pi devin goose auggie autohand charm cline codebuff command-code continue droid kilocode kimi mistral-vibe qwen rovo-dev`. Each writes the file its host documents (`AGENTS.md` for most, plus `.github/copilot-instructions.md`, `.continue/rules/simplicio-loop.md` and `QWEN.md`) and the `.claude/skills` copy. `adapters/<host>/README.md` exists for every entry and `adapters/MATRIX.md` has one row per entry with its install status. The runtime count (35) is derived from the catalog by `scripts/canonical_manifest.py`, which also fails when an `adapters/` directory or a catalog entry has no counterpart.
+- Fix: a second `install_lib.py` run changed the entry file (`AGENTS.md`, `GEMINI.md`, ...) by prepending two blank lines when the marker block started the file; re-running an install is now byte-identical.
+
 ## [3.45.2] - 2026-09-29
 
 - The real skill path is two commands. Measured on 3.45.1 (deepseek-v4.1-flash through OpenCode), the direct turbo engine was 88-96% faster and 48-80% cheaper than plain OpenCode, but a host agent invoking `/simplicio-loop` took 9-20 turns, and every turn re-sends the whole conversation (120k-540k prompt tokens). It tied with or lost to plain OpenCode: 38-45 s against 30 s for 1 task, and 324-496 s and $0.020 against 112 s and $0.008 for 4 hard tasks. The archived sessions show where the turns went: `loop_progress.py render --turn-header`, a script the target repository does not have; `ls`, `cat` and `read` of the tree and the tests; `--help`; a scratchpad and a journal written by hand; the plan written to `plan.json` as a separate tool call; the model's own test run; a re-read of the result. The model also used `--provider openrouter` on its own, because the docs and the help mention it.
