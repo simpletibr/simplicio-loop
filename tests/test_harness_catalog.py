@@ -326,3 +326,45 @@ def test_harnesses_doc_states_the_counts_per_status() -> None:
     line = (f"{len(entries)} hosts: {counts['verified']} verified, {counts['documented']} documented, "
             f"{counts['host-mode']} host-mode")
     assert line in text
+
+
+# What makes each auto-selected host safe to hand untrusted repository text to: an explicit tools-off (or read-only) marker.
+# A host that keeps its tools is `"auto": false` and is only used when SIMPLICIO_TURBO_LLM names it.
+TOOLS_OFF = {
+    "claude-code": lambda llm: llm["argv"][llm["argv"].index("--tools") + 1] == "",
+    "opencode": lambda llm: llm["env"]["OPENCODE_PERMISSION"] == '{"*":"deny"}' and llm["setup"] == "opencode",
+    "pi": lambda llm: "--no-tools" in llm["argv"],
+    "oh-my-pi": lambda llm: "--no-tools" in llm["argv"],
+    "openclaw": lambda llm: llm["argv"][1:4] == ["infer", "model", "run"],
+    "codex": lambda llm: llm["argv"][llm["argv"].index("--sandbox") + 1] == "read-only",
+    "cursor": lambda llm: llm["argv"][llm["argv"].index("--mode") + 1] == "ask",
+    "kiro": lambda llm: "--trust-tools=read,grep" in llm["argv"],
+    "qwen-code": lambda llm: llm["argv"][llm["argv"].index("--exclude-tools") + 1] == "shell,write,edit",
+    "droid": lambda llm: llm["argv"][1] == "exec" and "--auto" not in llm["argv"],  # exec is read-only unless --auto
+}
+KEEPS_TOOLS = {"antigravity", "hermes", "goose", "auggie", "continue", "grok", "github-copilot", "gemini", "kimi", "mistral-vibe"}
+
+
+def test_every_auto_selected_host_has_an_explicit_tools_off_marker() -> None:
+    for entry in _headless():
+        llm = entry["llm"]
+        if llm.get("auto") is False:
+            continue
+        assert entry["id"] in TOOLS_OFF, f"{entry['id']} is auto-selected without a tools-off marker: add one or set auto false"
+        assert TOOLS_OFF[entry["id"]](llm), entry["id"]
+
+
+def test_hosts_that_may_keep_their_tools_are_opt_in() -> None:
+    off = {e["id"] for e in _headless() if e["llm"].get("auto") is False}
+    assert off == KEEPS_TOOLS
+    assert not off & set(TOOLS_OFF)
+    for entry in _entries():
+        assert entry["llm"].get("auto", True) in (True, False), entry["id"]
+        if entry["llm"]["status"] == "host-mode":
+            assert "auto" not in entry["llm"], entry["id"]
+
+
+def test_harnesses_doc_says_which_hosts_are_auto_selected() -> None:
+    for entry in _headless():
+        row = _row(entry["id"])
+        assert f"| {'no' if entry['llm'].get('auto') is False else 'yes'} |" in row, entry["id"]

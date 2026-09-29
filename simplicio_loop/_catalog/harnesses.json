@@ -181,7 +181,8 @@
         "tools": "limited-by-max-turns",
         "cost": "reported",
         "overhead_tokens": null,
-        "notes": "Flags and the output schema come from the guide that ships with the CLI (~/.grok/docs/user-guide/14-headless-mode.md, grok 1.0.41) and `grok --help`; `grok models` said \"You are not authenticated\" on the machine that checked, so no live call. --max-turns 1 stops a tool loop after one turn."
+        "notes": "Flags and the output schema come from the guide that ships with the CLI (~/.grok/docs/user-guide/14-headless-mode.md, grok 1.0.41) and `grok --help`; `grok models` said \"You are not authenticated\" on the machine that checked, so no live call. --max-turns 1 stops a tool loop after one turn.",
+        "auto": false
       }
     },
     {
@@ -267,7 +268,8 @@
         "tools": "approval-denied",
         "cost": "none",
         "overhead_tokens": null,
-        "notes": "--silent prints only the agent response. Without --allow-all-tools a tool that needs confirmation is not run. Not installed here."
+        "notes": "--silent prints only the agent response. Without --allow-all-tools a tool that needs confirmation is not run. Not installed here.",
+        "auto": false
       }
     },
     {
@@ -441,7 +443,8 @@
         "tools": "cannot-be-disabled",
         "cost": "none",
         "overhead_tokens": 26800,
-        "notes": "\"Reply with OK\" cost 26.8k input tokens and 11.6 s (measured): the agent's own prompt and tools are always sent. Never pass --dangerously-skip-permissions (the `gemini` shell alias adds it; a subprocess does not use aliases). SIMPLICIO_TURBO_LLM=host avoids the cost."
+        "notes": "\"Reply with OK\" cost 26.8k input tokens and 11.6 s (measured): the agent's own prompt and tools are always sent. Never pass --dangerously-skip-permissions (the `gemini` shell alias adds it; a subprocess does not use aliases). SIMPLICIO_TURBO_LLM=host avoids the cost.",
+        "auto": false
       }
     },
     {
@@ -583,7 +586,8 @@
         "tools": "cannot-be-disabled",
         "cost": "none",
         "overhead_tokens": 12900,
-        "notes": "One-shot -z prints only the final text, so no usage is reported. Its default system prompt and toolset are always sent: about 12.9k input tokens for \"Reply with OK\" (measured), with no flag to shrink it. Approvals are bypassed in -z mode. SIMPLICIO_TURBO_LLM=host avoids the cost."
+        "notes": "One-shot -z prints only the final text, so no usage is reported. Its default system prompt and toolset are always sent: about 12.9k input tokens for \"Reply with OK\" (measured), with no flag to shrink it. Approvals are bypassed in -z mode. SIMPLICIO_TURBO_LLM=host avoids the cost.",
+        "auto": false
       }
     },
     {
@@ -640,7 +644,8 @@
         "tools": "unverified",
         "cost": "none",
         "overhead_tokens": null,
-        "notes": "`goose run -i -` reads the instruction from stdin and --no-session keeps no session file. Not installed here."
+        "notes": "`goose run -i -` reads the instruction from stdin and --no-session keeps no session file. Not installed here.",
+        "auto": false
       }
     },
     {
@@ -680,7 +685,8 @@
         "tools": "unverified",
         "cost": "none",
         "overhead_tokens": null,
-        "notes": "--print --quiet shows only the final assistant message. Not installed here."
+        "notes": "--print --quiet shows only the final assistant message. Not installed here.",
+        "auto": false
       }
     },
     {
@@ -818,7 +824,8 @@
         "tools": "approval-denied",
         "cost": "none",
         "overhead_tokens": null,
-        "notes": "In headless mode tools that would ask for permission are excluded automatically. Not installed here."
+        "notes": "In headless mode tools that would ask for permission are excluded automatically. Not installed here.",
+        "auto": false
       }
     },
     {
@@ -921,7 +928,8 @@
         "tools": "auto-approved",
         "cost": "none",
         "overhead_tokens": null,
-        "notes": "--quiet is --print --output-format text --final-message-only. Print mode auto-approves tool calls and reports no usage. No credentials on the machine that checked (no ~/.kimi/config), so no live call."
+        "notes": "--quiet is --print --output-format text --final-message-only. Print mode auto-approves tool calls and reports no usage. No credentials on the machine that checked (no ~/.kimi/config), so no live call.",
+        "auto": false
       }
     },
     {
@@ -992,7 +1000,8 @@
         "tools": "edits-auto-approved",
         "cost": "none",
         "overhead_tokens": null,
-        "notes": "Programmatic mode uses the configured default agent (accept-edits unless changed). Not installed here."
+        "notes": "Programmatic mode uses the configured default agent (accept-edits unless changed). Not installed here.",
+        "auto": false
       }
     },
     {
@@ -1124,7 +1133,8 @@
         "tools": "approval-denied",
         "cost": "none",
         "overhead_tokens": null,
-        "notes": "Headless mode does not approve tools that need approval. Not installed here (the `gemini` shell alias on this machine points at agy, the Antigravity CLI)."
+        "notes": "Headless mode does not approve tools that need approval. Not installed here (the `gemini` shell alias on this machine points at agy, the Antigravity CLI).",
+        "auto": false
       }
     },
     {

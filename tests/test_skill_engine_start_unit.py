@@ -67,12 +67,12 @@ def test_skill_runs_one_command_and_the_plan_command_only_on_needs_plan() -> Non
     assert head.index("is final: report it as printed") < head.index('status: "needs_plan"')  # a finished result is reported, not planned
 
 
-def test_skill_says_how_to_allow_the_one_command_once() -> None:
-    body = _flat(_body_head(SKILL.read_text(encoding="utf-8")))
-    for needle in ("Allow the one command once so the host never prompts", "OpenCode `permission.bash` rule",
-                   '"simplicio-loop *": "allow"', "`opencode.json`", "Claude Code `Bash(simplicio-loop:*)`",
-                   "That one approval covers everything the engine runs inside it"):
-        assert needle in body, needle
+def test_no_model_facing_surface_tells_the_model_to_widen_the_users_permissions() -> None:
+    """An allow rule for `simplicio-loop *` approves any --verify command: that advice is for the human (docs/HARNESSES.md)."""
+    for rel in MODEL_FACING:
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        assert "permission.bash" not in text and "Bash(simplicio-loop" not in text and '"simplicio-loop *"' not in text, rel
+        assert "never prompts" not in text, rel
 
 
 def test_skill_says_what_not_to_do() -> None:

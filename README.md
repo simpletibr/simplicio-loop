@@ -859,8 +859,8 @@ one entry point for one task or many. It needs no provider and no API key.
 behind the command: Mapper survey, fan-out, `simplicio-dev-cli` apply, `--verify` and one repair, and every model call
 it needs goes through that host's own CLI, so it uses the same model, account and configuration with no key of its own.
 The result says `mode: "hybrid"` and `llm: <host>`. Which hosts, and how each is called, is data in
-[docs/HARNESSES.md](docs/HARNESSES.md). Allow the one command once so the host never prompts (OpenCode
-`permission.bash` rule `"simplicio-loop *": "allow"`, Claude Code `Bash(simplicio-loop:*)`).
+[docs/HARNESSES.md](docs/HARNESSES.md), which also says why only some hosts are auto-selected and what an allow rule for the
+command would really permit.
 
 **Host mode (two commands).** When no host CLI can be used (none detected, its CLI missing, no network, an auth or
 HTTP error, a timeout, the `SIMPLICIO_TURBO_BUDGET_S` time budget spent) the same invocation prints a request with

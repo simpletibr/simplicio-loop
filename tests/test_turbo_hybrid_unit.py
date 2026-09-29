@@ -104,7 +104,7 @@ def test_one_command_runs_survey_plan_apply_and_verify_through_the_host_cli(tmp_
     assert out["tokens"] == {"prompt_tokens": 970, "cached_tokens": 0, "completion_tokens": 255, "reasoning_tokens": 0}
     assert out["cost_usd"] == 0.0006 and out["cost_basis"] == "host-reported"
     assert out["reasoning_off_for"] == ["openrouter/deepseek/deepseek-v4.1-flash"]
-    assert isinstance(out["wall_s"], float) and out["budget_s"] == 240.0
+    assert isinstance(out["wall_s"], float) and out["budget_s"] == 100.0
     assert [c["prompt_tokens"] for c in out["calls"]] == [970] and out["calls"][0]["latency_s"] >= 0
     assert "apply" not in out and "files" not in out  # nothing is left for the host to do
     assert (repo / "inventory.py").read_text(encoding="utf-8") == (SOLUTION / "inventory.py").read_text(encoding="utf-8")
@@ -219,6 +219,16 @@ def test_no_network_is_found_by_the_probe_before_any_call_is_made(tmp_path, monk
     assert fakes.log(bin_dir, "opencode") == []  # the CLI was never started
 
 
+def test_a_host_that_may_keep_its_tools_falls_back_to_host_mode_until_it_is_named(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(hl, "ancestor_names", lambda limit=12: ["hermes"])
+    bin_dir = fakes.install(tmp_path, "hermes", mode="text", reply="{}")
+    monkeypatch.setenv("PATH", fakes.path_with(bin_dir))
+    rc, out = _run(_seed(tmp_path), capsys, "--task", TASK)
+    assert rc == 0
+    _assert_host_request(out, "opt_in", [TASK])
+    assert "SIMPLICIO_TURBO_LLM=hermes" in out["detail"] and fakes.log(bin_dir, "hermes") == []  # the CLI was never started
+
+
 def test_a_forced_host_mode_skips_the_hybrid_backend(tmp_path, monkeypatch, capsys):
     bin_dir = fakes.install(tmp_path, "opencode", mode="opencode", reply="{}")
     _on_opencode(monkeypatch, bin_dir)
@@ -310,10 +320,10 @@ def test_the_time_budget_stops_new_lanes_and_hands_the_rest_over(tmp_path, monke
     assert (repo / "page1.html").is_file()
 
 
-def test_the_budget_is_240_seconds_unless_the_environment_says_otherwise(monkeypatch):
-    assert hl.budget_s({}) == 240.0
+def test_the_budget_is_100_seconds_unless_the_environment_says_otherwise(monkeypatch):
+    assert hl.budget_s({}) == 100.0  # under the 120 s tool timeout of Claude Code and OpenCode
     assert hl.budget_s({hl.BUDGET_ENV: "90"}) == 90.0
-    assert hl.budget_s({hl.BUDGET_ENV: "0"}) == 240.0 and hl.budget_s({hl.BUDGET_ENV: "soon"}) == 240.0
+    assert hl.budget_s({hl.BUDGET_ENV: "0"}) == 100.0 and hl.budget_s({hl.BUDGET_ENV: "soon"}) == 100.0
 
 
 def test_independent_tasks_fan_out_without_a_warm_up_call(tmp_path, monkeypatch, capsys):

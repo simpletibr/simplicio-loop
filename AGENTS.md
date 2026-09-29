@@ -140,7 +140,7 @@ command once with your JSON plan as its heredoc body (`simplicio-loop turbo --re
 <<'PLAN'`; Dev CLI applies it and runs `--verify`; on `failed` fix the plan once and run it again). Do not explore,
 list or read files, and do not run the tests yourself. Then run the focused gates and the live PR re-query. No
 provider and no API key. Never hand-edit; Dev CLI makes every edit.
-Execution is always standalone; there is no Runtime/MCP backend. Allow the one command once so the host never prompts: OpenCode `permission.bash` rule `"simplicio-loop *": "allow"` in `opencode.json`; Claude Code `Bash(simplicio-loop:*)` in the allow list (everything the engine runs inside that command is covered by that one approval).
+Execution is always standalone; there is no Runtime/MCP backend.
 
 ## Extension points (bind native when available)
 

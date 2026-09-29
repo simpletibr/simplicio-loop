@@ -10,7 +10,8 @@ Which host, and how to call it, is DATA: ``_catalog/harnesses.json`` (schema ``s
   ``process`` names looked for among the ancestors of this process (the nearest match wins);
 * ``llm``: ``status`` (``verified``: run locally on ``verified_on``; ``documented``: from ``source``; ``host-mode``: no headless
   one-shot, so the two-command plan request applies), ``argv`` (the command; ``{system}``, ``{prompt}`` and ``{model}`` are
-  substituted), ``model_args``, ``prompt`` (``stdin`` | ``arg``), ``system`` (``flag`` | ``agent`` | ``prompt``: how the planner
+  substituted), ``auto`` (``false``: the run may keep its tools, so the host is only used when ``SIMPLICIO_TURBO_LLM`` names it),
+  ``model_args``, ``prompt`` (``stdin`` | ``arg``), ``system`` (``flag`` | ``agent`` | ``prompt``: how the planner
   rule reaches the model), ``env``, ``parse`` (the output family) with its ``paths``, ``network``, ``probe`` and the measured
   ``overhead_tokens``.
 
@@ -43,7 +44,7 @@ BUDGET_ENV = "SIMPLICIO_TURBO_BUDGET_S"
 CALL_TIMEOUT_ENV = "SIMPLICIO_TURBO_CALL_TIMEOUT_S"
 PARALLEL_ENV = "SIMPLICIO_TURBO_HOST_PARALLEL"
 PROBE_ENV = "SIMPLICIO_TURBO_PROBE"
-DEFAULT_BUDGET_S = 240.0
+DEFAULT_BUDGET_S = 100.0  # the Claude Code and OpenCode bash tools time out at 120 s
 DEFAULT_CALL_TIMEOUT_S = 90.0
 DEFAULT_PARALLEL = 4
 MIN_CALL_S = 1.0
@@ -201,6 +202,9 @@ def resolve(environ: Mapping[str, str] | None = None, ancestors: Sequence[str] |
     llm = host.get("llm") or {}
     if llm.get("status") not in ("verified", "documented") or not llm.get("argv"):
         return Choice(cause="host_mode_only", detail=f"{host['name']} has no headless one-shot mode")
+    if forced is None and llm.get("auto") is False:  # repository text is untrusted: a run that may keep its tools is opt-in
+        return Choice(cause="opt_in", detail=f"{host['name']} runs an agent that may keep its tools; set {LLM_ENV}={host['id']} "
+                                             "to use it in a trusted repository")
     binary = llm["argv"][0]
     if which(binary, path=env.get("PATH")) is None:
         return Choice(cause="host_cli_missing", detail=f"{binary} is not on PATH")
@@ -652,7 +656,7 @@ def install_cleanup() -> None:
 
 
 def budget_s(environ: Mapping[str, str] | None = None) -> float:
-    """The time budget of one run: past it no new lane starts and the rest is handed to the host (default 240 s)."""
+    """The time budget of one run: past it no new lane starts and the rest is handed to the host (default 100 s)."""
     raw = (os.environ if environ is None else environ).get(BUDGET_ENV) or ""
     try:
         value = float(raw)

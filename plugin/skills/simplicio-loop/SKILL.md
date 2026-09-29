@@ -36,8 +36,6 @@ pass the test command you already know, never search for one. Do not run `--help
 `simplicio-dev-cli`, and do not write a plan file, a scratchpad, a journal or a turn header. Never hand-edit; the
 plan is the edit. On `status: "failed"`, fix the plan once from `reason` and `excerpt` (or the `verify` output)
 and run the `apply` command printed with it. Several requests: one `--task` each.
-Allow the one command once so the host never prompts: OpenCode `permission.bash` rule `"simplicio-loop *": "allow"` in
-`opencode.json`, Claude Code `Bash(simplicio-loop:*)`. That one approval covers everything the engine runs inside it.
 `.simplicio-loop/` is local run state: keep it in `.gitignore` (the engine adds it when the file exists) and never commit it.
 
 Goal over a queue ("all open issues", "drain the board"): one such command per item, in order; the orientation block below

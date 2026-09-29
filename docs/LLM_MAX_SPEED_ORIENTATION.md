@@ -84,9 +84,7 @@ Prism routing (Loop): **1–3 tasks → direct parallelism**; **>3 → Prism**. 
    itself, Mapper survey, model calls answered by the host's own CLI (same model, account and configuration, no
    key), dev-cli apply, `--verify` and one repair, and prints the result (`mode: "hybrid"`, `llm: <host>`).
    No provider and no API key. Name every file to change in the task text. Do not run `simplicio-mapper
-   scan`/`inspect`/`handoff` yourself. Allow the one command once so the host never prompts: OpenCode
-   `permission.bash` rule `"simplicio-loop *": "allow"` in `opencode.json`; Claude Code `Bash(simplicio-loop:*)`
-   in the allow list; everything the engine runs inside it is covered by that approval.
+   scan`/`inspect`/`handoff` yourself.
 4. `status: "ok"` or `"failed"` is final: read the JSON (`status`, `applied`, `failed`, `verify`); done =
    `status: "ok"` and `verify.passed: true`. Only when it prints `status: "needs_plan"` (`mode: "host"`,
    `reason: "hybrid_unavailable: <cause>"`: no host CLI, CLI missing, no network, an auth or HTTP error, a

@@ -39,9 +39,8 @@ PLAN
 # status ok + verify.passed: done. failed: fix the plan once from the reason and excerpt, run it again.
 ```
 
-Allow the one command once so OpenCode never prompts, in `opencode.json`:
-`{"permission": {"bash": {"simplicio-loop *": "allow"}}}`. Everything the engine runs inside that command
-(including the nested `opencode run`) is covered by that one approval.
+OpenCode prompts once for the `simplicio-loop` command like for any bash command. An allow rule is optional and broad; see
+[docs/HARNESSES.md](../../docs/HARNESSES.md#permissions) before adding one.
 
 No exploring, no listing or reading files, no running the tests yourself (`--verify` does): every extra tool
 call re-sends the whole conversation.

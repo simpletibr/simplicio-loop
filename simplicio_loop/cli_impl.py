@@ -2682,7 +2682,7 @@ def main(argv=None) -> int:
             "Default way to run a task; `simplicio-loop \"<task>\"` is the shortest form. Hybrid mode: when the invoking "
             "host has a headless CLI (see docs/HARNESSES.md; SIMPLICIO_TURBO_LLM=<harness id>|host|provider forces a "
             "backend) ONE command runs Mapper, the model through that CLI, simplicio-dev-cli and --verify, and prints "
-            "simplicio.turbo-run/v1 with mode hybrid, within SIMPLICIO_TURBO_BUDGET_S seconds (default 240); when it "
+            "simplicio.turbo-run/v1 with mode hybrid, within SIMPLICIO_TURBO_BUDGET_S seconds (default 100); when it "
             "cannot it prints the host-mode request with reason hybrid_unavailable: <cause>. Host mode needs no "
             "provider and no key: exactly two commands, the invoking model plans and "
             "simplicio-dev-cli edits. Command 1, `turbo --task T [--verify V]`: Mapper surveys the repo and "

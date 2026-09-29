@@ -349,6 +349,8 @@ ENTRIES = [
      "llm": {"status": "verified", "argv": ["alpha-cli", "{prompt}"], "prompt": "arg", "system": "prompt", "parse": "text",
              "probe": ["127.0.0.1:9"], "network_env": ["ALPHA_NO_NET"]}},
     {"id": "beta", "name": "Beta", "aliases": [], "detect": {"env": ["BETA"]}, "llm": {"status": "host-mode"}},
+    {"id": "delta", "name": "Delta", "aliases": [], "detect": {"env": ["DELTA"]},
+     "llm": {"status": "verified", "argv": ["delta-cli", "{prompt}"], "prompt": "arg", "system": "prompt", "parse": "text", "auto": False}},
     {"id": "gamma", "name": "Gamma", "aliases": [], "detect": None, "llm": {"status": "host-mode"}},
 ]
 
@@ -376,6 +378,7 @@ def test_resolve_picks_the_detected_host_and_reads_the_model_override():
     ({"ALPHA": "1", hl.NESTED_ENV: "1"}, {}, "nested"),                       # the recursion guard
     ({"ALPHA": "1", hl.LLM_ENV: "host"}, {}, "forced_host"),
     ({"ALPHA": "1", hl.LLM_ENV: "nope"}, {}, "unknown_llm"),
+    ({"DELTA": "1"}, {}, "opt_in"),                                           # its run may keep its tools: never auto-selected
 ])
 def test_resolve_names_why_the_hybrid_backend_cannot_be_used(environ, kwargs, cause):
     choice = _resolve(environ, **kwargs)
@@ -388,6 +391,16 @@ def test_llm_env_forces_an_entry_by_id_or_alias_even_without_its_markers_and_ski
         assert choice.cause is None and choice.backend.id == "alpha" and choice.backend.forced is True
     assert _resolve({hl.LLM_ENV: "provider"}).provider is True
     assert _resolve({hl.LLM_ENV: "auto", "ALPHA": "1"}).backend.id == "alpha"
+
+
+def test_an_entry_that_may_keep_its_tools_is_only_used_when_forced_by_name():
+    choice = _resolve({"DELTA": "1"})
+    assert choice.backend is None and choice.cause == "opt_in" and choice.reason == "hybrid_unavailable: opt_in"
+    assert f"{hl.LLM_ENV}=delta" in choice.detail and "trusted repository" in choice.detail
+    forced = _resolve({hl.LLM_ENV: "delta"})
+    assert forced.cause is None and forced.backend.id == "delta" and forced.backend.forced is True
+    real = hl.resolve(environ={}, ancestors=["zsh", "hermes"], which=lambda name, **kw: "/x/" + name)  # the real catalog
+    assert real.cause == "opt_in" and "Hermes" in real.detail
 
 
 def test_the_nested_guard_beats_a_forced_entry():
