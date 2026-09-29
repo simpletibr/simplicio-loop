@@ -18,7 +18,7 @@ def test_check_only_reports_without_installing(capsys):
 def test_up_to_date_is_noop(capsys):
     calls = []
     rc = su.run_update(installed="3.43.17", fetch=lambda: "v3.43.17",
-                       runner=lambda cmd: calls.append(cmd) or 0, editable=False)
+                       runner=lambda cmd: calls.append(cmd) or 0, editable=False, legacy=[])
     assert rc == 0 and calls == []
     assert "up to date" in capsys.readouterr().out
 
@@ -65,3 +65,14 @@ def test_legacy_uninstall_failure_stops_before_install():
                        runner=lambda cmd: calls.append(cmd) or 1, editable=False,
                        legacy=["simplicio-cli"])
     assert rc == 1 and len(calls) == 1
+
+
+def test_up_to_date_with_legacy_distributions_repairs_them(capsys):
+    calls = []
+    rc = su.run_update(installed="3.44.1", fetch=lambda: "v3.44.1",
+                       runner=lambda cmd: calls.append(cmd) or 0, editable=False,
+                       legacy=["simplicio-cli", "simplicio-mapper"])
+    assert rc == 0 and len(calls) == 2
+    assert calls[0][3:] == ["uninstall", "-y", "simplicio-cli", "simplicio-mapper"]
+    assert "--force-reinstall" in calls[1] and "--no-deps" in calls[1]
+    assert calls[1][-1].endswith("@v3.44.1")

@@ -12,12 +12,12 @@ def test_tracked_packages_includes_ecosystem_and_pyproject_deps() -> None:
     names = ecosystem.tracked_packages()
 
     # simplicio ecosystem pair comes first (prompt is not a base dependency)
-    assert names[:2] == ("simplicio-mapper", "simplicio-sprint")
+    assert names[:2] == ("simplicio-loop", "simplicio-sprint")
     # declared pyproject dependencies are folded in
     for expected in ("numpy", "sentence-transformers"):
         assert expected in names
     assert "simplicio-prompt" not in names
-    # no duplicates (simplicio-mapper declared in both places)
+    # no duplicates
     assert len(names) == len(set(names))
 
 
@@ -262,3 +262,12 @@ def test_doctor_human_path_runs_dependency_render(monkeypatch, tmp_path, capsys)
     out = capsys.readouterr().out
 
     assert "dependency freshness (installed / floor / pypi-latest):" in out
+
+
+def test_tracked_packages_never_reinstall_the_bundled_operators() -> None:
+    # Mapper and Dev CLI ship inside the simplicio-loop wheel; upgrading them from
+    # PyPI would put the retired standalone distributions back on top of it.
+    names = ecosystem.tracked_packages()
+    assert "simplicio-mapper" not in names
+    assert "simplicio-cli" not in names
+    assert "simplicio-loop" in names

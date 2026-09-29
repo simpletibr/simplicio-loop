@@ -156,6 +156,8 @@ def _call_record(reply: Mapping[str, Any], turn: int) -> dict[str, Any]:
         "reasoning_tokens": reply.get("reasoning_tokens") or 0,
         "cached_tokens": reply.get("cached_tokens") or 0,
         "cost_usd": reply.get("cost"),
+        "latency_s": reply.get("latency_s"),
+        "provider": reply.get("provider"),
     }
 
 
@@ -256,11 +258,6 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
             contents.append(content)
             done.add(int(task.get("index") or 0))
             pending.remove(task)
-            if len(calls) == len(lane_calls) and pending:
-                # The provider records the header only after the first response
-                # returns. Later calls started in that gap stay cold.
-                import time
-                time.sleep(3)
             continue
         base = list(stack)
 
