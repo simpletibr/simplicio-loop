@@ -138,12 +138,13 @@ def _task_message(tasks: Sequence[Mapping[str, Any]], root: Path | None = None) 
     parts = []
     for task in tasks:
         parts.append(f"{task.get('index')}. {task.get('text')}")
-        target = task.get("target")
-        if root is not None and target:
-            path = root / str(target)
-            if path.is_file():
+        if root is None:
+            continue
+        for name in [task.get("target"), *(task.get("context") or [])]:
+            path = root / str(name) if name else None
+            if path is not None and path.is_file():
                 body = path.read_text(encoding="utf-8", errors="replace")[:6000]
-                parts.append(f"Current {target}:\n{body}")
+                parts.append(f"Current {name}:\n{body}")
     return {"role": "user", "content": "Tasks:\n" + "\n".join(parts)}
 
 

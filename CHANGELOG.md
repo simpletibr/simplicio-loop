@@ -3,6 +3,12 @@ Total output lines: 1972
 
 # Changelog
 
+## [3.44.2] - 2026-09-29
+
+- `bench/llm_ab/run.py --tasks 4 --hard` adds a hard Python set with hidden acceptance tests outside the arm repo: coupon logic with a half-up rounding trap, a two-bug fix, a two-file refactor, and a duration parser. `--turbo-reasoning` keeps the model's reasoning on for the turbo calls, so on and off can be compared. Turbo also sends a task's `context` files to the model. The checker accepts an absolute path.
+- Hard-set result: with reasoning off, turbo passed 12/12 hidden-test tasks at 5.4 s and $0.0027 per run (mean of 3). The OpenCode arm passed 11/12 at 112.6 s and $0.0122. With reasoning on, turbo passed 7/8, and one call ran away to 131k reasoning tokens. Turbo keeps reasoning off.
+- Every benchmark run of 3.44.0 to 3.44.2 is archived under `bench/llm_ab/results/runs/` with a summary `README.md`, outside the release-to-release history.
+
 ## [3.44.1] - 2026-09-29
 
 - Turbo calls in the benchmark pin the arm's OpenRouter session (`x-session-id`, as the OpenCode arms already did) and switch reasoning off (`"reasoning": {"enabled": false}`). Measured before the change: an unpinned call switched provider and lost the prompt cache in 1 of 2 trials, while pinned calls read it 4 of 4 times. `effort: low/minimal` did not reduce reasoning tokens, and `enabled: false` removed them.
