@@ -27,7 +27,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `task` | Compile, validate, or preview a Markdown task contract. |
 | `prototype` | Route prototype planning and validation commands. |
 | `plan` | Compile a raw task into a frozen contract. |
-| `turbo` | The default way to run a task; `simplicio-loop "<task>"` is the shortest form (a first argument that is not a subcommand is a task, unless it asks for all issues/tickets/tarefas, which goes to the drain intake). No provider and no API key: the invoking model plans and `simplicio-dev-cli` edits, in exactly two commands. `turbo --task T` surveys with Mapper and prints a `simplicio.turbo-request/v1` document (`status: "needs_plan"`: `tasks`, the `map` slice, the current text of the named `files`, `format`, `rules`, and `apply`, the one next command with a heredoc for the plan). `turbo --apply - [--verify V] <<'PLAN'` reads the find/replace JSON plan from stdin (`--apply FILE` reads a file: the same code path), applies it through dev-cli, runs `--verify`, and prints `simplicio.turbo-run/v1` with `mode: "host"` (`status` ok or failed, `applied`, `failed` with the dev-cli reason and a file excerpt, `verify`). `--task` (repeat for several), `--target`/`--context` (one task), `--tasks-file`, `--verify "<tests>"`. `--provider openrouter` is headless automation only; agents invoking the skill must not use it: one model call per lane to OpenRouter (`deepseek/deepseek-v4.1-flash`, `SIMPLICIO_TURBO_MODEL` overrides; pinned session, reasoning off; a duplicate request only after `SIMPLICIO_TURBO_HEDGE_AFTER` seconds, default 10), a rejected plan goes back once, and it needs `OPENROUTER_API_KEY` (`status: blocked`, `turbo_provider_key_missing` without it). Exit 0 ok or needs_plan, 1 failed, 2 blocked. |
+| `turbo` | The default way to run a task; `simplicio-loop "<task>"` is the shortest form (a first argument that is not a subcommand is a task, unless it asks for all issues/tickets/tarefas, which goes to the drain intake). No provider and no API key. Hybrid mode (see [Hybrid mode](#hybrid-mode)): when the invoking host has a headless CLI ([HARNESSES.md](HARNESSES.md)), ONE command runs Mapper, the model through that CLI, `simplicio-dev-cli` and `--verify`, and prints `simplicio.turbo-run/v1` with `mode: "hybrid"` and `llm: <host>`; otherwise the invoking model plans and `simplicio-dev-cli` edits, in two commands. `turbo --task T` surveys with Mapper and, when the hybrid backend cannot be used (it then adds `reason: "hybrid_unavailable: <cause>"`), prints a `simplicio.turbo-request/v1` document (`status: "needs_plan"`: `tasks`, the `map` slice, the current text of the named `files`, `format`, `rules`, and `apply`, the one next command with a heredoc for the plan). `turbo --apply - [--verify V] <<'PLAN'` reads the find/replace JSON plan from stdin (`--apply FILE` reads a file: the same code path), applies it through dev-cli, runs `--verify`, and prints `simplicio.turbo-run/v1` with `mode: "host"` (`status` ok or failed, `applied`, `failed` with the dev-cli reason and a file excerpt, `verify`). `--task` (repeat for several), `--target`/`--context` (one task), `--tasks-file`, `--verify "<tests>"`. `--provider openrouter` is headless automation only; agents invoking the skill must not use it: one model call per lane to OpenRouter (`deepseek/deepseek-v4.1-flash`, `SIMPLICIO_TURBO_MODEL` overrides; pinned session, reasoning off; a duplicate request only after `SIMPLICIO_TURBO_HEDGE_AFTER` seconds, default 10), a rejected plan goes back once, and it needs `OPENROUTER_API_KEY` (`status: blocked`, `turbo_provider_key_missing` without it). Exit 0 ok or needs_plan, 1 failed, 2 blocked. |
 | `prepare` / `arm` | Arm and preflight a run without executing tasks or calling a provider; returns a `run_id` for `tick`, `batch`, `wave`, or `prism`. |
 | `run` | Arm, execute, and independently verify a task. |
 | `orient` | Build bounded context through the Mapper survey and emit `simplicio.llm-max-speed-orientation/v1` plus a hash-bound `simplicio.loop-orient-receipt/v1` (Mapper-only). `--brief` (repeatable `--task`, issue #1310) renders the compact form: route first (its one next step is the `turbo` command carrying every task and `--verify`), deduped target file content, plan groups, suggested checks, Mapper generation + a `repo_state_chain` fingerprint, and the ops format of `apply`. |
@@ -70,10 +70,11 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 ### Zero-config start
 
 ```bash
-# Default: any task, one or many. Exactly two commands, no provider and no API key.
-# 1. Mapper surveys and the command prints a needs_plan request (tasks, map, files, format, rules, apply):
+# Default: any task, one or many. ONE command on a host with a headless CLI, no provider and no API key:
+# Mapper surveys, the model plans through the host's own CLI, dev-cli applies, --verify runs; it prints the result.
 simplicio-loop "Create pricing.py with order_total" --verify "python -m pytest -q"
-# 2. Run the printed apply command once, with {"operations":[{"path","find","replace"}]} as its heredoc body:
+# Only when it prints a needs_plan request (tasks, map, files, format, rules, apply; reason "hybrid_unavailable: <cause>"),
+# run the printed apply command once, with {"operations":[{"path","find","replace"}]} as its heredoc body:
 simplicio-loop turbo --repo . --apply - --verify "python -m pytest -q" <<'PLAN'
 {"operations":[{"path":"pricing.py","find":"","replace":"def order_total(items):\n    ...\n"}]}
 PLAN
@@ -104,10 +105,45 @@ repository's `.gitignore` when that file exists and no line already covers the d
 `.simplicio-loop/*`, `/.simplicio-loop/**` and the like). It never creates a `.gitignore`, so the directory
 never shows up as untracked; never commit it.
 
+### Hybrid mode
+
+`simplicio-loop "<task>" [--verify V]` picks the host from the env markers a tool subprocess of that host sees (OpenCode
+sets `OPENCODE=1` and `OPENCODE_PID`, Claude Code `CLAUDECODE=1`), with the parent-process names as the fallback; the hosts, their
+detection and the exact headless command of each are the catalog `simplicio_loop/_catalog/harnesses.json`, listed in
+[HARNESSES.md](HARNESSES.md). Every model call of the engine is then one tool-less, one-shot run of that host's CLI (the
+prompt on stdin, stdin closed, the host's own model, account and configuration, nothing written to its config), so the
+whole flow is one host tool call. The result is `simplicio.turbo-run/v1` with `mode: "hybrid"`, `llm` (the host),
+`status`, `applied`, `failed`, `verify`, `verify_retry`, `model_calls`, `tokens` (as the host reports them), `cost_usd`
+(`cost_basis: "host-reported"`, an estimate, not a bill), `calls`, `wall_s` and `budget_s`. A `failed` result carries the
+`apply` command and the current `files`, so the host can fix it once in host mode.
+
+Allow the one command once so the host never prompts: OpenCode, a `permission.bash` rule in `opencode.json`
+(`{"permission": {"bash": {"simplicio-loop *": "allow"}}}`); Claude Code, `Bash(simplicio-loop:*)` in the allow list of
+`settings.json`. Everything the engine runs inside that command (the survey, dev-cli, the tests and the nested host CLI) is
+covered by that one approval.
+
+When the hybrid backend cannot be used, the same invocation prints the two-command host-mode request with
+`mode: "host"` and `reason: "hybrid_unavailable: <cause>"` (`detail` adds the message), so the invoking agent carries on
+with no user action. Causes: `no_host_detected`, `host_mode_only` (the host has no headless one-shot mode),
+`host_cli_missing`, `network` (a fast connect probe of about 2 s found no route, or the host's own sandbox says so),
+`host_auth`, `host_http`, `host_timeout`, `host_error`, `budget`, `plan_rejected` (dev-cli refused the plan twice),
+`nested` and `forced_host`. A failure in the middle of a run keeps what was applied: the request then lists `applied` (task
+numbers) and asks for the remaining tasks only.
+
+| Environment | Effect |
+|---|---|
+| `SIMPLICIO_TURBO_LLM` | `<harness id or alias>` forces that host (even without its markers, and without the network probe); `host` forces the two-command host mode; `provider` is the OpenRouter provider client; `auto` (default) detects. An unknown value is `blocked` (`turbo_llm_unknown`). |
+| `SIMPLICIO_TURBO_BUDGET_S` | Time budget of one run, default 240 s. Past it no new lane starts, what finished stays and the rest is handed to the host as a request (`budget`). Keep it under your host's tool timeout. |
+| `SIMPLICIO_TURBO_CALL_TIMEOUT_S` | Timeout of one host CLI call, default 90 s. The process group is killed on a timeout (`host_timeout`). |
+| `SIMPLICIO_TURBO_HOST_MODEL` | Model passed to the host CLI (`-m` and the like); default the host's own model. |
+| `SIMPLICIO_TURBO_HOST_PARALLEL` | Host CLI processes at once when tasks fan out, default 4. |
+| `SIMPLICIO_TURBO_PROBE` | `0` skips the connect probe (a proxy in the environment is probed instead of the API host). |
+| `SIMPLICIO_TURBO_NESTED` | Set to `1` by the engine on the host CLI it starts: a nested `simplicio-loop` refuses to start the hybrid backend again (`nested`). |
+
 For a goal over a queue ("all open issues", "drain the board"), list the items (GitHub:
-`gh issue list --state open --json number,title,body`) and run the two commands per item, in order:
-`simplicio-loop turbo --repo <path> --task "<title>: <body>" --verify "<tests>"`, then the printed apply
-command with your plan as its heredoc body; one CLAIMED issue and one PR per item.
+`gh issue list --state open --json number,title,body`) and run per item, in order:
+`simplicio-loop turbo --repo <path> --task "<title>: <body>" --verify "<tests>"` (and, on `needs_plan`, the printed
+apply command with your plan as its heredoc body); one CLAIMED issue and one PR per item.
 
 > **Nota de Descontinuação**: O comando `simplicio-loop run` foi descontinuado. Qualquer invocação a `simplicio-loop run --task task.md` ou `simplicio-loop run <run_id>` é interceptada e automaticamente redirecionada para o fluxo governado padrão `wave`.
 

@@ -23,17 +23,25 @@ opencode run "/simplicio-loop finish all the open issues"
 ## The actual flow: `simplicio-loop turbo` — no Runtime, no MCP, no API key required
 
 `simplicio-loop` does not survey or edit with the host LLM, and does not require Runtime/MCP to run
-at all. Invoking the skill runs exactly two commands: Mapper surveys the repo once and prints a request that
-holds the text of the files it names, then the host model runs the printed `apply` command once with its
-find/replace plan as the heredoc body, and Dev CLI applies and verifies it.
+at all. Invoking the skill runs ONE command, `simplicio-loop "<task>" --verify "<tests>"`: Mapper surveys the repo
+once, the engine calls OpenCode itself for the plan (`opencode run --pure --agent simplicio-planner`, prompt on stdin;
+your own provider, credentials and default model, with one planner agent that has no tools merged in through
+`OPENCODE_CONFIG`, nothing written to your OpenCode config), Dev CLI applies and verifies it, and the command prints
+the result (`mode: "hybrid"`, `llm: "opencode"`). Only when it cannot (no network, an auth or HTTP error, a timeout,
+`opencode` missing) does it print a `needs_plan` request (`reason: "hybrid_unavailable: <cause>"`), and the host model
+runs the printed `apply` command once with its find/replace plan as the heredoc body:
 
 ```bash
-simplicio-loop "<task>" --verify "<tests>"      # prints a needs_plan request (tasks, map, files, format, rules, apply)
+simplicio-loop "<task>" --verify "<tests>"      # the whole flow; needs_plan (tasks, map, files, format, rules, apply) only on a fallback
 simplicio-loop turbo --repo . --apply - --verify "<tests>" <<'PLAN'
 {"operations":[{"path":"<file>","find":"<text copied from files, once>","replace":"<new text>"}]}
 PLAN
 # status ok + verify.passed: done. failed: fix the plan once from the reason and excerpt, run it again.
 ```
+
+Allow the one command once so OpenCode never prompts, in `opencode.json`:
+`{"permission": {"bash": {"simplicio-loop *": "allow"}}}`. Everything the engine runs inside that command
+(including the nested `opencode run`) is covered by that one approval.
 
 No exploring, no listing or reading files, no running the tests yourself (`--verify` does): every extra tool
 call re-sends the whole conversation.

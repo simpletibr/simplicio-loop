@@ -13,8 +13,14 @@ below is the full elaboration, read only when the task needs it).
 
 ## The turbo flow — full detail
 
-- Host mode is the default (`simplicio_loop/turbo_cli.py`): no provider call and no key. The invoking
-  model plans and `simplicio-dev-cli` edits, in exactly two commands. `simplicio-loop "<task>"` is the
+- Hybrid mode is the default when the invoking host has a headless CLI (`simplicio_loop/turbo_host_llm.py`, the hosts are
+  `simplicio_loop/_catalog/harnesses.json`): ONE command runs the whole flow, and every model call of the engine is a one-shot,
+  tool-less run of the host's own CLI (same model, account and configuration, no key). It prints `simplicio.turbo-run/v1` with
+  `mode: "hybrid"` and `llm`. When it cannot (no host, CLI missing, no network, auth or HTTP error, timeout, budget spent, a
+  nested call) it prints the request of host mode below with `reason: "hybrid_unavailable: <cause>"`, and a failure mid-run
+  keeps what was applied (`applied`) and asks only for the remaining tasks. See `docs/CLI_COMMANDS.md`.
+- Host mode (no host CLI to call): no provider call and no key. The invoking
+  model plans and `simplicio-dev-cli` edits, in two commands. `simplicio-loop "<task>"` is the
   short form of `simplicio-loop turbo --repo . --task "<task>" [--verify "<cmd>"]`: a first argument that is
   not a subcommand is a task, unless it asks for all issues/tickets/tarefas (that request goes to the GitHub
   drain intake). Files named in the task text become the target and the context the request carries. Or
@@ -36,7 +42,7 @@ below is the full elaboration, read only when the task needs it).
   empty stdin, a terminal on stdin, or a missing plan file is `failed` with `turbo_plan_missing`; a plan that
   is not UTF-8, not JSON or not `{"operations":[{"path","find","replace"}]}` is `failed` with
   `turbo_plan_malformed`. Exit codes: 0 ok or needs_plan, 1 failed, 2 blocked.
-- Why two commands and nothing between them: every extra tool call re-sends the whole conversation. The
+- Why one command, or two and nothing between them: every extra tool call re-sends the whole conversation. The
   3.45.1 sessions that took 9-20 turns spent them on a turn-header script that did not exist, listing and
   reading the tree and the tests, `--help`, a hand-written scratchpad and journal, the plan written to a
   file as a separate tool call, the model's own test run and a re-read of the result.

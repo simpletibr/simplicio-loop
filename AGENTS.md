@@ -132,13 +132,15 @@ confirm scope in one line only if ambiguous.
 ## LLM quick flow
 
 The compact current sequence is canonical in [`llms.txt`](llms.txt): run
-`simplicio-loop "<task>" [--verify "<tests>"]` (short for `simplicio-loop turbo --repo . --task "<task>"`;
-Mapper reads the repo once and it prints a `needs_plan` request), then run the printed `apply` command once
-with your JSON plan as its heredoc body (`simplicio-loop turbo --repo . --apply - --verify "<tests>" <<'PLAN'`;
-Dev CLI applies it and runs `--verify`; on `failed` fix the plan once and run it again). Exactly two commands:
-do not explore, list or read files, and do not run the tests yourself. Then run the focused gates and the live
-PR re-query. No provider and no API key. Never hand-edit; Dev CLI makes every edit.
-Execution is always standalone; there is no Runtime/MCP backend.
+`simplicio-loop "<task>" [--verify "<tests>"]` (short for `simplicio-loop turbo --repo . --task "<task>"`) once.
+With a host CLI (OpenCode, Claude Code, ...: [docs/HARNESSES.md](docs/HARNESSES.md)) that one command runs Mapper, the
+model through your own CLI, Dev CLI apply, `--verify` and one repair, and prints the result: `status` ok or failed is
+final. Only when it prints a `needs_plan` request (`reason: "hybrid_unavailable: <cause>"`), run the printed `apply`
+command once with your JSON plan as its heredoc body (`simplicio-loop turbo --repo . --apply - --verify "<tests>"
+<<'PLAN'`; Dev CLI applies it and runs `--verify`; on `failed` fix the plan once and run it again). Do not explore,
+list or read files, and do not run the tests yourself. Then run the focused gates and the live PR re-query. No
+provider and no API key. Never hand-edit; Dev CLI makes every edit.
+Execution is always standalone; there is no Runtime/MCP backend. Allow the one command once so the host never prompts: OpenCode `permission.bash` rule `"simplicio-loop *": "allow"` in `opencode.json`; Claude Code `Bash(simplicio-loop:*)` in the allow list (everything the engine runs inside that command is covered by that one approval).
 
 ## Extension points (bind native when available)
 
@@ -314,7 +316,7 @@ rebase, and release rules in [ADR 0008](docs/adr/0008-bounded-delivery-policy.md
 The complete installed-entry-point and `simplicio-loop` command map is
 [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md). Run the most specific
 `--help` before invoking a command (not `simplicio-loop turbo` for a task run: the skill and the quick flow
-above give its two commands in full). Every new public command must have
+above give its command in full). Every new public command must have
 meaningful `help=` text, documentation in that file, and a help regression
 check. Current release: Loop 3.46.0 (Mapper 0.26.34 and Dev CLI 0.18.16 are bundled).
 

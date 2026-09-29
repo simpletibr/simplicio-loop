@@ -23,7 +23,7 @@
 |------|----|--------|
 | Control plane | `/simplicio-loop` starts the loop directly | Wait on a Runtime/MCP activation decision — none exists |
 | Tokens | mapper handoff | Full-tree LLM Read/Grep walks |
-| Mutate | `simplicio-loop "<task>"`, then its printed `apply` once with your plan as the heredoc body (Mapper survey, your plan, dev-cli apply): exactly two commands | Host Write/Edit on source files, exploring, running the tests yourself |
+| Mutate | `simplicio-loop "<task>"`: ONE command (Mapper survey, the model through your own CLI, dev-cli apply, `--verify`); only when it prints `needs_plan`, its printed `apply` once with your plan as the heredoc body | Host Write/Edit on source files, exploring, running the tests yourself |
 | Parallel | 1–3 tasks direct; >3 Prism + worktrees + leases + reducer | 64 processes on one dirty tree |
 | Gates | focused test / doctor / `git diff --check` | Full-repo fmt/test for residual noise |
 | Review | 0–1 self-check on small diffs | 3-reviewer panels per metadata PR |
@@ -80,17 +80,23 @@ Prism routing (Loop): **1–3 tasks → direct parallelism**; **>3 → Prism**. 
 2. `simplicio-loop preflight --strict --json`
 3. `simplicio-loop "<task>" [--verify "<tests>"]`, short for
    `simplicio-loop turbo --repo . --task "<task>" [--task "<task 2>" ...] --verify "<tests>"`.
-   Mapper reads the repo once and the command prints a `needs_plan` request (task, map slice, the current
-   text of the files it names, the plan format, the exact `apply` command). No provider and no API key.
-   Name every file to change in the task text. Do not run `simplicio-mapper scan`/`inspect`/`handoff`
-   yourself.
-4. You are the model: run the request's `apply` command once, your JSON plan as its heredoc body
-   (`simplicio-loop turbo --repo . --apply - --verify "<tests>" <<'PLAN'`, then
-   `{"operations":[{"path","find","replace"}]}` with each `find` copied from the printed text and unique in
-   the file, then `PLAN`); `simplicio-dev-cli` applies it and runs `--verify`. That is all: exactly two
-   commands. Never hand-edit source, explore, list or read files, or run the tests yourself. Read its JSON
-   (`status`, `applied`, `failed`, `verify`). Done = `status: "ok"` and `verify.passed: true`. On `failed`,
-   fix the plan once from the reported reason and excerpt and run the same `apply` command again.
+   Hybrid mode: when the host has a headless CLI (OpenCode, Claude Code, ...), the command runs the whole flow
+   itself, Mapper survey, model calls answered by the host's own CLI (same model, account and configuration, no
+   key), dev-cli apply, `--verify` and one repair, and prints the result (`mode: "hybrid"`, `llm: <host>`).
+   No provider and no API key. Name every file to change in the task text. Do not run `simplicio-mapper
+   scan`/`inspect`/`handoff` yourself. Allow the one command once so the host never prompts: OpenCode
+   `permission.bash` rule `"simplicio-loop *": "allow"` in `opencode.json`; Claude Code `Bash(simplicio-loop:*)`
+   in the allow list; everything the engine runs inside it is covered by that approval.
+4. `status: "ok"` or `"failed"` is final: read the JSON (`status`, `applied`, `failed`, `verify`); done =
+   `status: "ok"` and `verify.passed: true`. Only when it prints `status: "needs_plan"` (`mode: "host"`,
+   `reason: "hybrid_unavailable: <cause>"`: no host CLI, CLI missing, no network, an auth or HTTP error, a
+   timeout, the `SIMPLICIO_TURBO_BUDGET_S` budget spent) you are the model: run the request's `apply` command once,
+   your JSON plan as its heredoc body (`simplicio-loop turbo --repo . --apply - --verify "<tests>" <<'PLAN'`,
+   then `{"operations":[{"path","find","replace"}]}` with each `find` copied from the printed text and unique in
+   the file, then `PLAN`); `simplicio-dev-cli` applies it and runs `--verify`. The request lists only the tasks
+   still to do (`applied` names the ones the engine already applied). Never hand-edit source, explore, list or
+   read files, or run the tests yourself. On `failed`, fix the plan once from the reported reason and excerpt
+   and run the same `apply` command again.
 5. Smallest gate proving AC.
 6. Drain waves: `python3 scripts/arm_drain_prism.py --repo . --slots 0 --batch-size N --json`
 7. Claim → implement → PR `Closes #N` → merge → **reconcile** → next wave
@@ -109,14 +115,14 @@ Per wave:
 1. Live re-query open issues (never invent `open=0`).
 2. Admit ≤ `batch-size` **independent** issues (prefer non-overlapping paths).
 3. Lease + isolated worktree per issue.
-4. Hot path per issue: the two `simplicio-loop turbo` commands (see above).
+4. Hot path per issue: the one `simplicio-loop turbo` command, plus the printed `apply` on `needs_plan` (see above).
 5. **Reconcile** leases/results before the next wave.
 6. Wave receipt: `attempted / merged / blocked / open_left`.
 
 Per-issue worker micro-prompt:
 
 ```text
-Issue #N only. STRICT. `simplicio-loop turbo` (request, then apply with your plan as the heredoc).
+Issue #N only. STRICT. `simplicio-loop turbo` (one command; on `needs_plan`, apply with your plan as the heredoc).
 Lease + worktree only. No hand-edit. Smallest gate for AC.
 Done = evidence (+ PR Closes #N when required). BLOCKED = one reason code.
 ```

@@ -293,10 +293,12 @@ This repository holds three packages, each with one responsibility:
 Dev setup (editable-installs all three into one venv): `bash scripts/dev_install.sh`. Local
 gate: `python3 scripts/check.py --package all` (or `--package mapper|dev-cli|loop`, or
 `--changed` to run only what a diff touches). There is no GitHub Actions gate here — the
-local gate is authoritative. The delivery flow for any task count is two commands:
-**`simplicio-loop "<task>"`** (short for `simplicio-loop turbo`) — Mapper surveys once and prints the one apply
-command; the invoking model runs it with its plan in the heredoc, Dev CLI applies it and `--verify` runs the
-tests; no provider and no API key (see [Zero-config execution](#zero-config-execution)).
+local gate is authoritative. The delivery flow for any task count is ONE command:
+**`simplicio-loop "<task>"`** (short for `simplicio-loop turbo`) — when the invoking host has a headless CLI
+([docs/HARNESSES.md](docs/HARNESSES.md): OpenCode, Claude Code, Codex, ...) the engine runs the whole flow itself
+(Mapper survey, the model through that CLI, Dev CLI apply, `--verify`) and prints the result; when it cannot, it
+prints the one apply command and the invoking model runs it with its plan in the heredoc. No provider and no API
+key (see [Zero-config execution](#zero-config-execution)).
 
 ---
 
@@ -851,17 +853,29 @@ The main `simplicio-loop` entry point is the user-facing control surface for pla
 ### Zero-config execution
 
 The default entry point is `simplicio-loop "<task>"` (short for `simplicio-loop turbo --repo . --task "<task>"`):
-one entry point for one task or many. It needs no provider and no API key: the model that invoked the skill
-plans and `simplicio-dev-cli` edits, in exactly two commands. Command 1 surveys with Mapper and prints a
-`needs_plan` request (the task, the map slice, the current text of the files it names, the plan format and the
-exact apply command). Command 2 is that apply command: the model puts its JSON find/replace plan in the
-heredoc body, `simplicio-dev-cli` applies it and `--verify` runs your tests (`status`, `applied`, `failed` with
+one entry point for one task or many. It needs no provider and no API key.
+
+**Hybrid mode (ONE command).** When the host that invoked the skill has a headless CLI, the engine runs the whole flow
+behind the command: Mapper survey, fan-out, `simplicio-dev-cli` apply, `--verify` and one repair, and every model call
+it needs goes through that host's own CLI, so it uses the same model, account and configuration with no key of its own.
+The result says `mode: "hybrid"` and `llm: <host>`. Which hosts, and how each is called, is data in
+[docs/HARNESSES.md](docs/HARNESSES.md). Allow the one command once so the host never prompts (OpenCode
+`permission.bash` rule `"simplicio-loop *": "allow"`, Claude Code `Bash(simplicio-loop:*)`).
+
+**Host mode (two commands).** When no host CLI can be used (none detected, its CLI missing, no network, an auth or
+HTTP error, a timeout, the `SIMPLICIO_TURBO_BUDGET_S` time budget spent) the same invocation prints a request with
+`reason: "hybrid_unavailable: <cause>"`, and a failure mid-run keeps what was applied and asks only for the remaining
+tasks. The model that invoked the skill plans and `simplicio-dev-cli` edits, in two commands. Command 1 surveys with
+Mapper and prints a `needs_plan` request (the task, the map slice, the current text of the files it names, the plan
+format and the exact apply command). Command 2 is that apply command: the model puts its JSON find/replace plan in
+the heredoc body, `simplicio-dev-cli` applies it and `--verify` runs your tests (`status`, `applied`, `failed` with
 the dev-cli reason and a file excerpt, `verify`). Headless automation can ask OpenRouter for the plan instead;
 see [docs/CLI_COMMANDS.md](docs/CLI_COMMANDS.md).
 
 ```bash
 simplicio-loop "Create pricing.py with order_total and fix the two bugs in inventory.py" --verify "python -m pytest -q"
-# then run the printed command once, with the plan as its heredoc body (the plan can also come from a file: --apply plan.json):
+# on a host with a headless CLI that is the whole flow. Only when it prints a needs_plan request, run the printed command once,
+# with the plan as its heredoc body (the plan can also come from a file: --apply plan.json):
 simplicio-loop turbo --repo . --apply - --verify "python -m pytest -q" <<'PLAN'
 {"operations":[{"path":"pricing.py","find":"","replace":"..."}]}
 PLAN

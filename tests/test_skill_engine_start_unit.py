@@ -1,4 +1,4 @@
-"""Invoking the skill runs exactly two commands: the model plans in a heredoc, dev-cli applies. No provider, no key."""
+"""Invoking the skill runs ONE command (3.47.0 hybrid mode); only on `needs_plan` the model plans in a heredoc and dev-cli applies. No provider, no key."""
 from __future__ import annotations
 
 import re
@@ -57,12 +57,22 @@ def _body_head(text: str) -> str:
     return text.split("# /simplicio-loop\n", 1)[1].split("\n## ", 1)[0]
 
 
-def test_skill_runs_exactly_two_commands_with_the_plan_on_stdin() -> None:
+def test_skill_runs_one_command_and_the_plan_command_only_on_needs_plan() -> None:
     head = _flat(_body_head(SKILL.read_text(encoding="utf-8")))
-    missing = [needle for needle in (*TWO_COMMANDS, "exactly two commands", "needs_plan", "`apply` command",
-                                     "There is no provider call and no API key.") if needle not in head]
+    missing = [needle for needle in (*TWO_COMMANDS, "A task is ONE command", 'mode: "hybrid"', "it is finished",
+                                     'status: "needs_plan"', "`apply` command", "There is no provider call and no API key.")
+               if needle not in head]
     assert not missing, missing
-    assert head.index('simplicio-loop "<task>"') < head.index("--apply -")  # the request first, then the apply
+    assert head.index('simplicio-loop "<task>"') < head.index("--apply -")  # the one command first, then the apply
+    assert head.index("it is finished") < head.index('status: "needs_plan"')  # a finished result is reported, not planned
+
+
+def test_skill_says_how_to_allow_the_one_command_once() -> None:
+    body = _flat(_body_head(SKILL.read_text(encoding="utf-8")))
+    for needle in ("Allow the one command once so the host never prompts", "OpenCode `permission.bash` rule",
+                   '"simplicio-loop *": "allow"', "`opencode.json`", "Claude Code `Bash(simplicio-loop:*)`",
+                   "covered by that one approval"):
+        assert needle in body, needle
 
 
 def test_skill_says_what_not_to_do() -> None:
@@ -110,7 +120,7 @@ def test_skill_description_says_invoking_it_runs_turbo() -> None:
 def test_skill_orientation_block_is_the_two_command_contract() -> None:
     block = _flat(_orientation_block(SKILL.read_text(encoding="utf-8")))
     for needle in ('simplicio-loop "<task>"', 'simplicio-loop turbo --repo <path> --task "<task>"', "needs_plan",
-                   "exactly two commands", "<<'PLAN'", "`apply` command", "Do not explore, list or read files",
+                   "ONE command", "<<'PLAN'", "`apply` command", "Do not explore, list or read files",
                    "do not run tests yourself", "status ok", "verify", "End: DONE | NEXT | BLOCKED"):
         assert needle in block, needle
     for gone in ("OPENROUTER_API_KEY", "turbo_provider_key_missing", "--provider", "plan_path", "plan.json"):
@@ -119,7 +129,7 @@ def test_skill_orientation_block_is_the_two_command_contract() -> None:
         assert old not in block, old
 
 
-def test_skill_says_how_to_drain_a_queue_with_two_commands_per_item() -> None:
+def test_skill_says_how_to_drain_a_queue_with_one_command_per_item() -> None:
     text = SKILL.read_text(encoding="utf-8")
     block = _orientation_block(text)
     queue = 'gh issue list --state open --json number,title,body'
@@ -130,7 +140,7 @@ def test_skill_says_how_to_drain_a_queue_with_two_commands_per_item() -> None:
     assert "in order" in block and "the printed `apply`" in block
     body = _flat(text.split(BEGIN, 1)[0])
     assert "name the files when the item names them" in body and "plus a passing verify" in body
-    assert "then the printed `apply`" in body
+    assert "on `needs_plan`, the printed `apply`" in body
 
 
 def test_skill_short_form_is_documented_next_to_the_long_form() -> None:
@@ -167,7 +177,8 @@ def test_skill_does_not_hand_the_host_a_mapper_scan() -> None:
 def test_full_flow_describes_the_compact_request_and_the_stdin_apply() -> None:
     text = _flat(FULL_FLOW.read_text(encoding="utf-8"))
     for needle in ("`tasks`, `map`, `files`, `format`, `rules` and `apply`", "--apply -", "<<'PLAN'",
-                   "turbo_plan_missing", "turbo_plan_malformed", "exactly two commands"):
+                   "turbo_plan_missing", "turbo_plan_malformed", "in two commands", 'mode: "hybrid"',
+                   "hybrid_unavailable: <cause>"):
         assert needle in text, needle
 
 

@@ -75,15 +75,16 @@ Expected: preflight green, or explicit degraded labels — never a silent fake O
 
 1. **Run turbo:** `simplicio-loop "<task>" [--verify "<tests>"]`, short for
    `simplicio-loop turbo --repo <path> --task "<task>" [--task "<task 2>" ...] [--verify "<tests>"]`.
-   Mapper reads the repo once and the command prints a `needs_plan` request with the text of the files it
-   names. No provider and no API key. Name every file to change in the task text.
-2. **Apply the plan, in the same command you write it:** you are the model. Run the request's `apply`
-   command once, your JSON plan as its heredoc body (`simplicio-loop turbo --repo <path> --apply -
+   With a host CLI ([HARNESSES.md](HARNESSES.md)) it is the whole flow: Mapper reads the repo once, the model plans
+   through your own CLI, dev-cli edits, `--verify` runs, and it prints the result (`mode: "hybrid"`). No provider
+   and no API key. Name every file to change in the task text.
+2. **Only on `needs_plan`, apply the plan in the same command you write it:** you are the model. Run the
+   request's `apply` command once, your JSON plan as its heredoc body (`simplicio-loop turbo --repo <path> --apply -
    --verify "<tests>" <<'PLAN'`, then `{"operations":[{"path","find","replace"}]}` with `find` copied from
-   the printed text, then `PLAN`): `simplicio-dev-cli` applies it and runs `--verify`. Those are the only two
-   commands: do not explore, list or read files, and do not run the tests yourself. Read its JSON: `status`
-   (ok/failed), `applied`, `failed` (dev-cli reason plus a file excerpt), `verify`. On `failed`, fix the plan
-   once and run the same command again. No edits by hand.
+   the printed text, then `PLAN`): `simplicio-dev-cli` applies it and runs `--verify`. Do not explore, list or
+   read files, and do not run the tests yourself. Read the JSON: `status` (ok/failed), `applied`, `failed`
+   (dev-cli reason plus a file excerpt), `verify`. On `failed`, fix the plan once and run the same command
+   again. No edits by hand.
 3. **Record metrics per task/issue:**
    ```text
    python -m simplicio_loop.execution_report record-task --task-id t1 --issue 42 --title "…" \
