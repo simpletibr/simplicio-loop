@@ -59,19 +59,19 @@ def _body_head(text: str) -> str:
 
 def test_skill_runs_one_command_and_the_plan_command_only_on_needs_plan() -> None:
     head = _flat(_body_head(SKILL.read_text(encoding="utf-8")))
-    missing = [needle for needle in (*TWO_COMMANDS, "A task is ONE command", 'mode: "hybrid"', "it is finished",
+    missing = [needle for needle in (*TWO_COMMANDS, "A task is ONE command", 'mode: "hybrid"', "is final: report it as printed",
                                      'status: "needs_plan"', "`apply` command", "There is no provider call and no API key.")
                if needle not in head]
     assert not missing, missing
     assert head.index('simplicio-loop "<task>"') < head.index("--apply -")  # the one command first, then the apply
-    assert head.index("it is finished") < head.index('status: "needs_plan"')  # a finished result is reported, not planned
+    assert head.index("is final: report it as printed") < head.index('status: "needs_plan"')  # a finished result is reported, not planned
 
 
 def test_skill_says_how_to_allow_the_one_command_once() -> None:
     body = _flat(_body_head(SKILL.read_text(encoding="utf-8")))
     for needle in ("Allow the one command once so the host never prompts", "OpenCode `permission.bash` rule",
                    '"simplicio-loop *": "allow"', "`opencode.json`", "Claude Code `Bash(simplicio-loop:*)`",
-                   "covered by that one approval"):
+                   "That one approval covers everything the engine runs inside it"):
         assert needle in body, needle
 
 
@@ -134,13 +134,11 @@ def test_skill_says_how_to_drain_a_queue_with_one_command_per_item() -> None:
     block = _orientation_block(text)
     queue = 'gh issue list --state open --json number,title,body'
     per_item = 'simplicio-loop turbo --repo <path> --task "<title>: <body>" --verify "<tests>"'
-    for surface in (text, block):
-        assert queue in surface and per_item in surface
-        assert "one CLAIMED issue" in surface and "one PR" in surface
-    assert "in order" in block and "the printed `apply`" in block
-    body = _flat(text.split(BEGIN, 1)[0])
-    assert "name the files when the item names them" in body and "plus a passing verify" in body
-    assert "on `needs_plan`, the printed `apply`" in body
+    assert queue in block and per_item in block and "one CLAIMED issue" in block and "one PR" in block  # the recipe, re-fed each turn
+    assert "in order" in block and "the printed `apply` on `needs_plan`" in block and "name the files when the item names them" in block
+    body = _flat(text.split(BEGIN, 1)[0])  # the body points at it: one command per item, done on ok plus a passing verify
+    assert "one such command per item, in order" in body and "the orientation block below has the recipe" in body
+    assert "plus a passing verify" in body
 
 
 def test_skill_short_form_is_documented_next_to_the_long_form() -> None:
