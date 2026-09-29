@@ -50,7 +50,7 @@ def _solution_ops(repo: Path, rels):
 
 
 @pytest.fixture
-def host(monkeypatch):
+def host(monkeypatch, hermetic_hybrid_detection):
     """Host mode never touches the provider, even when a key is present in the environment."""
     def boom(*args, **kwargs):
         raise AssertionError("host mode called the provider")

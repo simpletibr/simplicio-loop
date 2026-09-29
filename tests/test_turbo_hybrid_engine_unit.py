@@ -14,6 +14,7 @@ import pytest
 from simplicio_loop import turbo
 from simplicio_loop.turbo import repair_with_test_output, run_turbo
 
+pytestmark = pytest.mark.usefixtures("hermetic_hybrid_detection")
 FATAL = {"ok": False, "fatal": True, "reason_code": "host_timeout", "error": "opencode did not answer within 90s"}
 
 

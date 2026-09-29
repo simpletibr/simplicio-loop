@@ -22,6 +22,7 @@ from simplicio_loop import turbo_host_llm as hl  # noqa: E402
 from simplicio_loop import turbo_provider  # noqa: E402
 from simplicio_loop.cli_impl import main as cli_main  # noqa: E402
 
+pytestmark = pytest.mark.usefixtures("hermetic_hybrid_detection")
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "bench" / "llm_ab" / "fixture_hard"
 SOLUTION = ROOT / "tests" / "fixtures" / "llm_ab_hard_solution"

@@ -19,6 +19,7 @@ import _host_cli_fakes as fakes  # noqa: E402
 from simplicio_loop import turbo  # noqa: E402
 from simplicio_loop import turbo_host_llm as hl  # noqa: E402
 
+pytestmark = pytest.mark.usefixtures("hermetic_hybrid_detection")
 PLAN = json.dumps({"operations": [{"path": "inventory.py", "find": "self._stock[sku] = qty",
                                    "replace": "self._stock[sku] = self._stock.get(sku, 0) + qty"}]})
 TASKS = [{"index": 1, "text": "Fix the two bugs in inventory.py.", "target": "inventory.py", "context": []}]

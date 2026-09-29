@@ -23,6 +23,8 @@ COVERING = [
 ]
 
 
+pytestmark = pytest.mark.usefixtures("hermetic_hybrid_detection")
+
 def _git(path: Path, *args: str) -> str:
     return subprocess.run(["git", *args], cwd=path, capture_output=True, text=True, check=True).stdout
 
