@@ -37,6 +37,7 @@ Usage:
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -330,8 +331,44 @@ def _runtime_gate_escalation(cmd):
     return None
 
 
+_HEREDOC_INTRO = re.compile(r"<<[ \t]*'(?P<tag>[A-Za-z_]\w*)'[ \t]*$")
+
+
+def strip_plan_heredoc(cmd):
+    """Drop the body of `simplicio-loop turbo --apply - <<'PLAN' ... PLAN`: it is the JSON plan for dev-cli.
+
+    The gate reads the whole command, so a plan that merely CONTAINS a destructive statement (a migration, a
+    runbook) would be blocked for what it says. No shell executes that body, but only in one exact shape:
+    the first line is one plain `simplicio-loop turbo ... --apply -` command (no unquoted operator, so no other
+    command can read the heredoc) that ends in a QUOTED delimiter (the shell expands nothing in the body), the
+    delimiter is the last line, and no earlier line equals it (bash ends a heredoc at the first such line and runs
+    the rest). Anything else comes back unchanged and is classified in full.
+    """
+    lines = (cmd or "").rstrip("\n").split("\n")
+    if len(lines) < 3:
+        return cmd
+    intro = _HEREDOC_INTRO.search(lines[0])
+    if not intro or lines[-1] != intro.group("tag") or intro.group("tag") in lines[1:-1]:
+        return cmd
+    try:
+        lexer = shlex.shlex(lines[0], posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+    except ValueError:
+        return cmd
+    words = tokens[:-2]
+    if tokens[-2:] != ["<<", intro.group("tag")] or words[:2] != ["simplicio-loop", "turbo"]:
+        return cmd
+    if not any(a == "--apply" and b == "-" for a, b in zip(words, words[1:])):
+        return cmd
+    if any(set(word) <= set("();<>|&") for word in words):  # an unquoted operator or substitution
+        return cmd
+    return lines[0]
+
+
 def gate_command(cmd, staged=False):
     """The core decision. Secret scans use the command's effective repository."""
+    cmd = strip_plan_heredoc(cmd)
     reason = classify_command(cmd)
     if reason:
         return _verdict(False, "irreversible op: " + reason)
@@ -582,6 +619,11 @@ def cmd_selftest(_opts):
     chk("normal-push.allow", act("git push -u origin feature"), "allow")
     chk("rm-file.allow", act("rm -f build/tmp.o"), "allow")
     chk("ls.allow", act("ls -la && grep -rn foo src/"), "allow")
+    # a plan piped to `simplicio-loop turbo --apply -` is data, not shell; any other reader of the heredoc is not
+    ddl = "DROP" + " TABLE t"
+    plan = "simplicio-loop turbo --repo /r --apply - <<'PLAN'\n{\"replace\":\"%s\"}\nPLAN"
+    chk("plan-heredoc.allow", act(strip_plan_heredoc(plan % ddl)), "allow")
+    chk("other-heredoc.block", act(strip_plan_heredoc("sh <<'PLAN'\n%s\nPLAN" % ddl)), "block")
     # secret-scan (text mode, placeholder-aware). Fixtures built so this source file stays clean.
     fake_aws = "AKIA" + "QRSTUVWX01234567"          # matches AKIA[0-9A-Z]{16}, no placeholder word
     chk("secret.detected", len(scan_secret_text('+k = "%s"' % fake_aws)) >= 1, True)

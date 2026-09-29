@@ -131,10 +131,11 @@ confirm scope in one line only if ambiguous.
 
 The compact current sequence is canonical in [`llms.txt`](llms.txt): run
 `simplicio-loop "<task>" [--verify "<tests>"]` (short for `simplicio-loop turbo --repo . --task "<task>"`;
-Mapper reads the repo once and it prints a `needs_plan` request), write the JSON plan it asks for to
-`plan_path`, run the printed `apply` command (Dev CLI applies it and runs `--verify`; on `failed` fix the
-plan once and re-apply), run the focused gates, then live PR re-query. No provider and no API key: the key
-is only for the explicit headless mode `--provider openrouter`. Never hand-edit; Dev CLI makes every edit.
+Mapper reads the repo once and it prints a `needs_plan` request), then run the printed `apply` command once
+with your JSON plan as its heredoc body (`simplicio-loop turbo --repo . --apply - --verify "<tests>" <<'PLAN'`;
+Dev CLI applies it and runs `--verify`; on `failed` fix the plan once and run it again). Exactly two commands:
+do not explore, list or read files, and do not run the tests yourself. Then run the focused gates and the live
+PR re-query. No provider and no API key. Never hand-edit; Dev CLI makes every edit.
 Execution is always standalone; there is no Runtime/MCP backend.
 
 ## Extension points (bind native when available)
@@ -312,9 +313,10 @@ rebase, and release rules in [ADR 0008](docs/adr/0008-bounded-delivery-policy.md
 
 The complete installed-entry-point and `simplicio-loop` command map is
 [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md). Run the most specific
-`--help` before invoking a command. Every new public command must have
+`--help` before invoking a command (not `simplicio-loop turbo` for a task run: the skill and the quick flow
+above give its two commands in full). Every new public command must have
 meaningful `help=` text, documentation in that file, and a help regression
-check. Current release: Loop 3.45.1 (Mapper 0.26.34 and Dev CLI 0.18.16 are bundled).
+check. Current release: Loop 3.45.2 (Mapper 0.26.34 and Dev CLI 0.18.16 are bundled).
 
 For GitHub work items, keep the body focused on objective, implementation,
 deployment, and tests. Do not add an Acceptance Criteria section to new or

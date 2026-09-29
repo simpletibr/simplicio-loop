@@ -118,10 +118,34 @@ dev-cli applies it; the command itself needs no key).
 Each turbo call record carries `hedged` (the answer came from the hedged duplicate request) and `hedge_winner`,
 plus `warm` on the 1-token call that writes the header into the provider's cache before an independent wave
 fans out; a warm call is not counted as a retry. When a call outlives `SIMPLICIO_TURBO_HEDGE_AFTER` seconds
-(default 2.5, `0` disables) a duplicate goes out on the session `<id>-hedge`, and the losing side is billed and
-added to the arm's tokens and cost, so a hedge never hides spend. `SIMPLICIO_TURBO_SLICE=0` sends a single task
+(default 10, `0` disables) a duplicate goes out on the session `<id>-hedge`, and the losing side is billed and
+added to the arm's tokens and cost, so a hedge never hides spend. The default was 2.5 s in 3.45.1 and is 10 s
+since 3.45.2: 2.5 s came from a simulation with Together only, and on the real provider mix it hedged 5 of 12 CLI
+calls and billed a duplicate for calls that were fine (4-task sets cost 45-57% more than in 3.45.0). Measured on
+those calls, normal calls took 1.6-8.0 s (Relace, the slowest provider, about 8 s) and the one real tail took
+19.6 s, so 10 s sits above the ~8 s slowest normal call and still cuts the tails. `SIMPLICIO_TURBO_SLICE=0` sends a single task
 the whole Mapper map instead of only its slice (measured on `fixture_hard`: 3,294 map tokens down to about 340).
 These apply to the provider engine (`--provider openrouter`) and to the benchmark arm, which runs the same code.
+
+### The provider engine
+
+`simplicio-loop turbo --provider openrouter` is headless automation only; an agent invoking the skill must not
+use it (the skill and the orientation do not name it). It is the code the benchmark's turbo arm runs. It needs
+`OPENROUTER_API_KEY`; without it the command prints `status: blocked` (`turbo_provider_key_missing`) and exits 2.
+The model client is `simplicio_loop/turbo_provider.py`: OpenRouter, `deepseek/deepseek-v4.1-flash`
+(`SIMPLICIO_TURBO_MODEL` overrides), temperature 0, reasoning off, a session pinned per repository
+(`x-session-id`), one kept-alive connection and a hedged duplicate request. The Mapper map is the header and stays
+byte-identical on every call; the task text and the current target file are the suffix (`simplicio_loop/turbo.py`).
+The model returns a find/replace plan and dev-cli compiles and applies it. A plan dev-cli rejects
+(`plan_path_not_found`, `plan_path_not_authorized`, `plan_find_not_found`, `plan_find_not_unique`) is sent back
+once; a second rejection ends that lane as `failed` with the dev-cli reason. After a failed `--verify` one repair
+call gets the test output, and says the listed files already exist: on that path an empty `find` for a file that now
+exists is sent to dev-cli as a whole-file replacement (`find` = the file's current text), because a repeated create
+is refused as `create_target_exists` (5 of 15 repair attempts in the benchmark). Up to three tasks share one
+model call. Above three, the first call runs alone (a
+1-token warm-up) so the rest read the header from prompt cache, then the remaining lanes fan out. The JSON document
+has `status`, `applied`, `failed`, `model_calls`, `retries`, `tokens`, `cache_hit_pct`, `cost_usd`, `calls`,
+`verify`, `wall_s`.
 
 ## Hard set: does switching reasoning off cost quality?
 

@@ -23,18 +23,20 @@ opencode run "/simplicio-loop finish all the open issues"
 ## The actual flow: `simplicio-loop turbo` — no Runtime, no MCP, no API key required
 
 `simplicio-loop` does not survey or edit with the host LLM, and does not require Runtime/MCP to run
-at all. Invoking the skill runs two commands: Mapper surveys the repo once and prints a request, the
-host model writes the find/replace plan, and Dev CLI applies and verifies it.
+at all. Invoking the skill runs exactly two commands: Mapper surveys the repo once and prints a request that
+holds the text of the files it names, then the host model runs the printed `apply` command once with its
+find/replace plan as the heredoc body, and Dev CLI applies and verifies it.
 
 ```bash
-simplicio-loop "<task>" --verify "<tests>"      # prints a needs_plan request (plan_path, apply, prompt)
-# write {"operations":[{"path","find","replace"}]} to plan_path, then run the printed apply command:
-simplicio-loop turbo --repo . --apply .simplicio-loop/turbo/plan.json --verify "<tests>"
-# status ok + verify.passed: done. failed: fix the plan once from the reason and excerpt, apply again.
+simplicio-loop "<task>" --verify "<tests>"      # prints a needs_plan request (tasks, map, files, format, rules, apply)
+simplicio-loop turbo --repo . --apply - --verify "<tests>" <<'PLAN'
+{"operations":[{"path":"<file>","find":"<text copied from files, once>","replace":"<new text>"}]}
+PLAN
+# status ok + verify.passed: done. failed: fix the plan once from the reason and excerpt, run it again.
 ```
 
-`--provider openrouter` is the explicit headless mode: it asks OpenRouter for the plan and is the only
-mode that needs `OPENROUTER_API_KEY`.
+No exploring, no listing or reading files, no running the tests yourself (`--verify` does): every extra tool
+call re-sends the whole conversation.
 
 The two REQUIRED operators are `simplicio-mapper` (survey) and `simplicio-dev-cli` (apply +
 verify), both built into the `simplicio-loop` wheel. `simplicio-loop` BLOCKS if either binary is

@@ -14,39 +14,32 @@ below is the full elaboration, read only when the task needs it).
 ## The turbo flow — full detail
 
 - Host mode is the default (`simplicio_loop/turbo_cli.py`): no provider call and no key. The invoking
-  model plans and `simplicio-dev-cli` edits. `simplicio-loop "<task>"` is the short form of
-  `simplicio-loop turbo --repo . --task "<task>" [--verify "<cmd>"]`: a first argument that is not a
-  subcommand is a task, unless it asks for all issues/tickets/tarefas (that request goes to the GitHub
+  model plans and `simplicio-dev-cli` edits, in exactly two commands. `simplicio-loop "<task>"` is the
+  short form of `simplicio-loop turbo --repo . --task "<task>" [--verify "<cmd>"]`: a first argument that is
+  not a subcommand is a task, unless it asks for all issues/tickets/tarefas (that request goes to the GitHub
   drain intake). Files named in the task text become the target and the context the request carries. Or
   pass `--target`/`--context` with one `--task`, or `--tasks-file` with `{text, target?, context?,
   depends_on?}` items.
-- Step 1 prints `simplicio.turbo-request/v1` (also saved as `.simplicio-loop/turbo/request.json`):
-  `status: "needs_plan"`, `mode: "host"`, `plan_path`, `apply` (the exact next command, with the same
-  `--verify`), `format`, `tasks` and `prompt`. The prompt is what a model must read: the Mapper project
-  map (one task gets only its slice of it), the task text and the current text of the target files.
-  Mapper builds the map once per invocation.
-- Step 2, `simplicio-loop turbo --repo <path> --apply <plan>`, reads the plan the model wrote,
-  `simplicio-dev-cli` compiles and applies it, and `--verify` runs. It prints `simplicio.turbo-run/v1`
-  with `mode: "host"`, `status` (`ok` or `failed`), `applied`, `failed` (each entry has the dev-cli
-  reason and an excerpt of the file around a `find` that did not match) and `verify`. A missing or
-  malformed plan is `failed` with `turbo_plan_missing` or `turbo_plan_malformed`. Exit codes: 0 ok or
-  needs_plan, 1 failed, 2 blocked.
-- Provider mode is an explicit opt-in: `--provider openrouter`. It needs `OPENROUTER_API_KEY`; without it
-  the command prints `status: blocked` (`turbo_provider_key_missing`) and exits 2. The model client is
-  `simplicio_loop/turbo_provider.py`: OpenRouter, `deepseek/deepseek-v4.1-flash`
-  (`SIMPLICIO_TURBO_MODEL` overrides), temperature 0, reasoning off, a session pinned per repository
-  (`x-session-id`), one kept-alive connection, and a hedged duplicate request after
-  `SIMPLICIO_TURBO_HEDGE_AFTER` seconds (default 2.5, 0 disables). The benchmark's turbo arm calls the
-  same client.
-- In provider mode the map is the header and stays byte-identical on every call; the task text and the
-  current target file are the suffix (`simplicio_loop/turbo.py`). The model returns a find/replace plan
-  and dev-cli compiles and applies it. A plan dev-cli rejects (`plan_path_not_found`,
-  `plan_path_not_authorized`, `plan_find_not_found`, `plan_find_not_unique`) is sent back once; a second
-  rejection ends that lane as `failed` with the dev-cli reason. After a failed `--verify` one repair call
-  gets the test output. Up to three tasks share one model call. Above three, the first call runs alone
-  (a 1-token warm-up) so the rest read the header from prompt cache, then the remaining lanes fan out.
-  The JSON document has `status`, `applied`, `failed`, `model_calls`, `retries`, `tokens`,
-  `cache_hit_pct`, `cost_usd`, `calls`, `verify`, `wall_s`.
+- Command 1 prints `simplicio.turbo-request/v1` and writes nothing into the repository: `status:
+  "needs_plan"`, `mode: "host"`, then `tasks`, `map`, `files`, `format`, `rules` and `apply`. The task text
+  appears once, in `tasks`. `map` is the Mapper project map cut to the entries of the named files
+  (`SIMPLICIO_TURBO_SLICE=0` sends all of it). `files` holds the current text of every existing target and
+  context file, each once; a file past 6000 characters is cut and its last line says how much is missing.
+  `rules` is one line: write the plan from the file contents above, do not open, list or read other files,
+  do not run tests yourself, run the command below once. `apply` is the one next command, with the same
+  `--verify`: `simplicio-loop turbo --repo <path> --apply - [--verify <cmd>] <<'PLAN'`, then `<JSON plan>`,
+  then `PLAN`. The heredoc delimiter is quoted, so the plan reaches stdin byte for byte.
+- Command 2 is that `apply` command. It reads the plan from stdin as UTF-8 (`--apply <file>` reads a file
+  instead: the same code path), `simplicio-dev-cli` compiles and applies it, and `--verify` runs. It prints
+  `simplicio.turbo-run/v1` with `mode: "host"`, `status` (`ok` or `failed`), `applied`, `failed` (each entry
+  has the dev-cli reason and an excerpt of the file around a `find` that did not match) and `verify`. An
+  empty stdin, a terminal on stdin, or a missing plan file is `failed` with `turbo_plan_missing`; a plan that
+  is not UTF-8, not JSON or not `{"operations":[{"path","find","replace"}]}` is `failed` with
+  `turbo_plan_malformed`. Exit codes: 0 ok or needs_plan, 1 failed, 2 blocked.
+- Why two commands and nothing between them: every extra tool call re-sends the whole conversation. The
+  3.45.1 sessions that took 9-20 turns spent them on a turn-header script that did not exist, listing and
+  reading the tree and the tests, `--help`, a hand-written scratchpad and journal, the plan written to a
+  file as a separate tool call, the model's own test run and a re-read of the result.
 - `orient --json` still answers with a `commands` card and a `route` whose next step is that turbo
   command, and `targets` (bounded, grounded file contents).
 - The rest of this file describes governed runs from a `tasks.md` (`prepare`, `wave`, `tick`,
@@ -204,8 +197,8 @@ Full rationale + extra flags: `references/triage-verify-detail.md` and
 ### 2. Work
 
 1. Decide the ONE AC-scoped change (the model's own step — no worker for this).
-2. Run `simplicio-loop "<task>"`, write the plan it asks for, then its printed `apply` command (§ The
-   turbo flow above) — the model plans, the `simplicio-dev-cli` operator applies and verifies it;
+2. Run `simplicio-loop "<task>"`, then its printed `apply` command once with your plan as the heredoc body
+   (§ The turbo flow above) — the model plans, the `simplicio-dev-cli` operator applies and verifies it;
    never hand-edit.
 3. `fast-path` only: `python3 scripts/diff_escalation.py --root . --mode fast-path --anchor <anchor.json>`
    re-measures the REAL diff against safe limits (default ≤2 files, ≤80

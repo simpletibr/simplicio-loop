@@ -170,6 +170,6 @@ def test_preflight_operator_fails_closed_with_no_legacy_fallback(tmp_path, monke
         runner_mod._preflight_operator(repo, run_root)
 
     assert excinfo.value.reason_code == "devcli_capabilities_unavailable"
-    assert "simplicio-loop>=3.45.1" in str(excinfo.value)
+    assert "simplicio-loop>=3.45.2" in str(excinfo.value)
     # Exactly one subprocess call (`capabilities --json`), never the legacy triple.
     assert len(calls) == 1

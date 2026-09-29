@@ -11,9 +11,13 @@ Two latency guards, both measured or simulated on the benchmark calls:
 - **Kept-alive connection.** One pooled HTTPS client is reused for every call, which saves the
   TCP+TLS handshake (~50 ms per call measured against openrouter.ai).
 - **Hedged request.** A call still running after `SIMPLICIO_TURBO_HEDGE_AFTER` seconds (default
-  2.5, above every normal call measured; 0 disables it) gets a duplicate on another session, and
-  the first good answer wins. The losing request is billed too: `drain_hedges()` waits for it so
-  callers can count its tokens.
+  10; 0 disables it) gets a duplicate on another session, and the first good answer wins. The
+  losing request is billed too: `drain_hedges()` waits for it so callers can count its tokens.
+  Why 10 s: the hedge only pays on a real tail. Measured over 12 CLI calls per release, normal calls
+  took 1.6-8.0 s depending on the provider that answered (the slowest, Relace, about 8 s) and the one
+  tail took 19.6 s. The 2.5 s of 3.45.1 came from a simulation with Together only; on the real mix it
+  hedged 5 of 12 calls and billed a duplicate for calls that were fine (4-task sets cost 45-57% more).
+  10 s is above the ~8 s slowest normal call and below the tails it exists to cut.
 
 Without `OPENROUTER_API_KEY` it fails closed with `turbo_provider_key_missing`.
 """
@@ -34,7 +38,7 @@ DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash"
 KEY_ENV = "OPENROUTER_API_KEY"
 MODEL_ENV = "SIMPLICIO_TURBO_MODEL"
 HEDGE_ENV = "SIMPLICIO_TURBO_HEDGE_AFTER"
-DEFAULT_HEDGE_AFTER = 2.5
+DEFAULT_HEDGE_AFTER = 10.0
 DEFAULT_TIMEOUT = 300
 
 _lock = threading.Lock()

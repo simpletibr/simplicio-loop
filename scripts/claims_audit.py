@@ -637,8 +637,10 @@ def check_skill_pair_parity():
     """Compare ONLY the shared `references/` files between simplicio-loop and simplicio-tasks.
 
     `SKILL.md` is intentionally excluded: `simplicio-tasks` is a compatibility alias and differs
-    from `simplicio-loop` by design. Missing dirs pass so fixture repos can exercise the check in
-    isolation without mirroring the full skill tree.
+    from `simplicio-loop` by design. Each reference's immutable contract header names its own skill
+    (`contract: simplicio-loop/x` vs `contract: simplicio-tasks/x`, #1342), so that one line is
+    normalized and every other byte must match. Missing dirs pass so fixture repos can exercise the
+    check in isolation without mirroring the full skill tree.
     """
     loop_refs = os.path.join(REPO, ".claude", "skills", "simplicio-loop", "references")
     tasks_refs = os.path.join(REPO, ".claude", "skills", "simplicio-tasks", "references")
@@ -669,6 +671,7 @@ def check_skill_pair_parity():
         except OSError as e:
             drift.append("%s: read failed (%s)" % (rel, e))
             continue
+        tbytes = re.sub(rb"(?m)^contract: simplicio-tasks/", b"contract: simplicio-loop/", tbytes, count=1)
         if lbytes != tbytes:
             drift.append(rel)
     ok = not drift

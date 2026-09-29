@@ -736,13 +736,14 @@ def _orient_provider_provenance(payload: Mapping[str, Any]) -> dict[str, Any]:
 COMMAND_CARD_SCHEMA = "simplicio.loop-command-card/v1"
 COMMAND_CARD_MAX_BYTES = 1_500
 TURBO_EXECUTE_RULE = (
-    "simplicio-loop turbo prints a needs_plan request: write the JSON plan to plan_path, then run the "
-    "printed apply command; dev-cli makes every edit"
+    "simplicio-loop turbo prints a needs_plan request with the text of the files and one apply command: run "
+    "that command once with your JSON plan as its heredoc body; dev-cli makes every edit; do not explore, "
+    "list or read files, and do not run tests yourself"
 )
 
 
 def turbo_command(root: Path, tasks: Sequence[str] = ()) -> str:
-    """The first of the two commands every host runs: it prints the plan request (`--apply` is the second)."""
+    """The first of the two commands every host runs: it prints the plan request (`--apply -` is the second)."""
     import shlex
 
     parts = [f"simplicio-loop turbo --repo {shlex.quote(str(root))}"]
@@ -760,14 +761,15 @@ def delivery_flow_commands(root: Path, tasks: Sequence[str] = ()) -> list[str]:
 def _orient_command_card(root: Path) -> dict[str, Any]:
     """The exact next command for this repo: the benchmarked turbo engine, in host mode.
 
-    The host runs it, writes the plan it asks for, runs the printed apply command and reports its JSON.
+    The host runs it, then runs the one printed apply command with its plan as the heredoc body, and reports
+    the JSON that prints.
     """
     return {
         "schema": COMMAND_CARD_SCHEMA,
         "turbo": turbo_command(root),
-        "flow": ["turbo", "plan_path", "apply"],
+        "flow": ["turbo", "apply"],
         "execute_rule": TURBO_EXECUTE_RULE,
-        "requires": "no provider and no key; only --provider openrouter needs OPENROUTER_API_KEY",
+        "requires": "no provider and no key",
         "done": "status ok, and verify.passed when --verify was given",
     }
 
@@ -2707,19 +2709,22 @@ def main(argv=None) -> int:
 
     p_turbo = sub.add_parser(
         "turbo",
-        help="run a task: Mapper survey, you write the plan, dev-cli applies it (no key needed)",
+        help="run a task in two commands: Mapper survey, you write the plan, dev-cli applies it (no key needed)",
         description=(
-            "Default way to run a task; `simplicio-loop \"<task>\"` is the shortest form. Host mode needs no "
-            "provider and no key: the invoking model plans and simplicio-dev-cli edits. Step 1, "
-            "`turbo --task T [--verify V]`: Mapper surveys the repo and the command prints a request "
-            "(status needs_plan): the map slice, the task and the current file text, plus the exact apply "
-            "command. Write the find/replace JSON plan it describes to plan_path. Step 2, `turbo --apply PLAN`: "
-            "dev-cli applies the plan and --verify runs the tests; status ok or failed, with dev-cli's reason "
-            "and an excerpt of the file when a find did not match. `--provider openrouter` is the explicit "
-            "headless mode: one model call per lane to OpenRouter (deepseek/deepseek-v4.1-flash, override with "
-            "SIMPLICIO_TURBO_MODEL) on a pinned session with reasoning off; it needs OPENROUTER_API_KEY and "
-            "stops with turbo_provider_key_missing without it. Prints one JSON document; exit 0 ok or "
-            "needs_plan, 1 failed, 2 blocked."
+            "Default way to run a task, in exactly two commands; `simplicio-loop \"<task>\"` is the shortest form "
+            "of the first. Host mode needs no provider and no key: the invoking model plans and "
+            "simplicio-dev-cli edits. Command 1, `turbo --task T [--verify V]`: Mapper surveys the repo and "
+            "the command prints a request (status needs_plan): the task, the map slice, the current text of "
+            "the files it names, the plan format and the ONE next command, with a heredoc for the plan. "
+            "Command 2, `turbo --apply - [--verify V] <<'PLAN'` followed by the find/replace JSON plan and "
+            "`PLAN`: the plan is read from stdin (`--apply FILE` reads a file), dev-cli applies it and "
+            "--verify runs the tests; status ok or failed, with dev-cli's reason and an excerpt of the file "
+            "when a find did not match. Do not explore, list or read files, or run the tests yourself, "
+            "between the two. `--provider openrouter` is headless automation only; agents invoking the "
+            "skill must not use it: one model call per lane to OpenRouter (deepseek/deepseek-v4.1-flash, "
+            "override with SIMPLICIO_TURBO_MODEL) on a pinned session with reasoning off; it needs "
+            "OPENROUTER_API_KEY and stops with turbo_provider_key_missing without it. Prints one JSON "
+            "document; exit 0 ok or needs_plan, 1 failed, 2 blocked."
         ),
     )
     p_turbo.add_argument("--repo", default=".", help="repository to change (default: .)")
@@ -2731,9 +2736,11 @@ def main(argv=None) -> int:
     p_turbo.add_argument("--tasks-file", help="JSON list of {text, target?, context?, depends_on?}")
     p_turbo.add_argument("--verify", help="shell command run in the repo after the plan is applied, e.g. tests")
     p_turbo.add_argument("--apply", metavar="PLAN",
-                         help="apply this JSON find/replace plan through dev-cli, then run --verify (step 2)")
+                         help="command 2: apply this JSON find/replace plan through dev-cli, then run --verify; "
+                              "`-` reads the plan from stdin (a heredoc), anything else is a file")
     p_turbo.add_argument("--provider", choices=["openrouter"],
-                         help="explicit headless mode: ask this provider for the plan (needs OPENROUTER_API_KEY)")
+                         help="headless automation only; agents invoking the skill must not use it "
+                              "(asks this provider for the plan, needs OPENROUTER_API_KEY)")
 
     p_update = sub.add_parser("update", help="install the latest GitHub release of simpletibr/simplicio-loop")
     p_update.add_argument("--check", action="store_true", help="only report installed vs latest; change nothing")

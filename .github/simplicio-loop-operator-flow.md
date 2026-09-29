@@ -38,12 +38,14 @@ Installers copy this file into each host's always-on surface via
 3. **Survey:** `simplicio-mapper` (scan / inspect / handoff) — not ad-hoc full-tree LLM walks.
 
 4. **Hot path:** `simplicio-loop "<task>" [--verify "<tests>"]` (short for `simplicio-loop turbo --repo .
-   --task "<task>"`). Mapper surveys and the command prints a `needs_plan` request; no key, no provider.
-   You are the model: write the JSON plan to `plan_path`, run the printed `apply` command (Dev CLI
-   applies it and runs `--verify`), and on `failed` fix the plan once from the reported reason. Queue
+   --task "<task>"`). Mapper surveys and the command prints a `needs_plan` request holding the text of the
+   files it names; no key, no provider. You are the model: run the printed `apply` command once with your
+   JSON plan as its heredoc body (`simplicio-loop turbo --repo . --apply - --verify "<tests>" <<'PLAN'`, the
+   plan, `PLAN`; Dev CLI applies it and runs `--verify`), and on `failed` fix the plan once from the reported
+   reason. Exactly two commands: do not explore, list or read files, and do not run the tests yourself. Queue
    goals: the same two commands per item, in order.
 
-5. **Mutate:** through `simplicio-loop turbo --apply` under STRICT (Dev CLI makes every edit).  
+5. **Mutate:** through `simplicio-loop turbo --apply -` under STRICT (Dev CLI makes every edit).  
    Host Write / Edit / StrReplace / ApplyPatch are **forbidden** as the primary mutation path
    when STRICT is on (`hooks/action_gate.py` PreToolUse on Claude/Cursor; instruction law on
    self-paced hosts).

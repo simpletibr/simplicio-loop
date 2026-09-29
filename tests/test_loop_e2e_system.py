@@ -282,7 +282,8 @@ def test_refeed_injects_canonical_startup_orientation_once(tmp_path):
     assert "No Runtime" in followup
     assert 'simplicio-loop turbo --repo <path> --task "<task>"' in followup
     # Host mode: the invoking model plans and dev-cli applies; the re-fed orientation names no provider key.
-    assert "needs_plan" in followup and "plan_path" in followup and "printed `apply` command" in followup
+    assert "needs_plan" in followup and "exactly two commands" in followup and "<<'PLAN'" in followup
+    assert "plan_path" not in followup and "--provider" not in followup
     assert "OPENROUTER_API_KEY" not in followup
     assert "edit-plan" not in followup
     assert followup.count("[simplicio-loop startup orientation]") == 1

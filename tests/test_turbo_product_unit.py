@@ -153,19 +153,20 @@ def test_cli_turbo_surveys_again_on_every_invocation(tmp_path, monkeypatch, caps
 def test_cli_turbo_help_names_the_key_and_the_model(capsys):
     with pytest.raises(SystemExit):
         cli_main(["turbo", "--help"])
-    text = capsys.readouterr().out
+    text = "".join(capsys.readouterr().out.split())  # the help wraps lines, also inside hyphenated names
     assert "OPENROUTER_API_KEY" in text and "deepseek/deepseek-v4.1-flash" in text
-    assert "--provider openrouter" in text and "no key" in text
+    assert "--provideropenrouter" in text and "nokey" in text
 
 
 def test_skill_orients_every_host_to_the_turbo_command():
-    """Host mode: the model plans and dev-cli applies. No key requirement, and the apply step is there."""
+    """Host mode: the model plans and dev-cli applies, in two commands. No key requirement."""
     text = SKILL.read_text(encoding="utf-8")
+    flat = " ".join(text.split())
     assert 'simplicio-loop turbo --repo <path> --task "<task>"' in text and 'simplicio-loop "<task>"' in text
-    assert "--apply" in text and "the printed `apply` command" in text.split("SIMPLICIO-LLM-ORIENTATION:BEGIN", 1)[1]
+    assert "--apply -" in text and "<<'PLAN'" in text and "`apply` command" in text.split("SIMPLICIO-LLM-ORIENTATION:BEGIN", 1)[1]
     block = text.split("<!-- SIMPLICIO-LLM-ORIENTATION:BEGIN -->", 1)[1].split("<!-- SIMPLICIO-LLM-ORIENTATION:END -->", 1)[0]
     assert "simplicio-loop turbo" in block and "OPENROUTER_API_KEY" not in block
-    assert "needs no API key" not in text and "There is no\nprovider call and no API key." in text
+    assert "needs no API key" not in text and "There is no provider call and no API key." in flat
     assert "The host LLM writes find/replace text" not in text
     assert "edit-plan-<N>.json" not in text
 
