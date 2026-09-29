@@ -7,7 +7,6 @@ from simplicio_loop.agent_contract import (
     validate_context_pack,
     validate_identity,
 )
-from simplicio_loop.remote_queue import QueueConflict, SQLiteRemoteQueue
 
 
 IDENTITY = {"agent_id": "codex-a", "runtime": "codex", "device_id": "laptop-a", "session_id": "s1",
@@ -76,16 +75,3 @@ def test_stage_identity_fields_round_trip_and_legacy_receipt_is_unbound():
     assert receipt["legacy_unbound"] is True
     with pytest.raises(AgentContractError, match="fence"):
         bind_receipt({"status": "VERIFIED", "fence": "other"}, identity, context_pack=pack)
-
-
-def test_queue_persists_identity_and_rejects_replayed_identity(tmp_path):
-    q = SQLiteRemoteQueue(str(tmp_path / "queue.db"))
-    q.enqueue("T1")
-    lease = q.claim("T1", "codex-a", idempotency_key="run:T1", identity=IDENTITY)
-    assert lease.identity == validate_identity(IDENTITY)
-    result = q.complete(lease, receipt_ref="receipts/T1.json")
-    assert result["agent"]["device_id"] == "laptop-a"
-
-    q.enqueue("T2")
-    with pytest.raises(QueueConflict, match="agent_id does not match"):
-        q.claim("T2", "claude-b", idempotency_key="run:T2", identity=IDENTITY)

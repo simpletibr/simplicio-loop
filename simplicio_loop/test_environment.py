@@ -19,7 +19,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional
 
-from .hub_governor import ResourceGovernor, ResourceLease as GovernorLease, ResourceRequest, ResourceThrottled
 from .process_supervisor import ProcessLease, ProcessSpec
 
 REQUEST_SCHEMA = "simplicio.test-environment-request/v1"
@@ -52,7 +51,6 @@ class _Allocation:
     sockets: list[socket.socket]
     leases: list[ProcessLease]
     handles: list[Any]
-    governor_lease: Optional[GovernorLease] = None
 
 
 def extension_capability() -> Dict[str, Any]:
@@ -72,13 +70,11 @@ class TestEnvironmentHub:
     __test__ = False
 
     def __init__(self, root: str | Path, *, services: Mapping[str, ServiceDefinition],
-                 governor: Optional[ResourceGovernor] = None,
                  launcher: Optional[Callable[[ProcessSpec, ProcessLease], Any]] = None,
                  max_services: int = 8, max_disk_bytes: int = 1 << 30) -> None:
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.services = dict(services)
-        self.governor = governor
         self.launcher = launcher or self._launch
         self.max_services = max_services
         self.max_disk_bytes = max_disk_bytes
@@ -147,16 +143,8 @@ class TestEnvironmentHub:
         roots: list[Path] = []
         sockets: list[socket.socket] = []
         leases: list[ProcessLease] = []
-        governor_lease = None
         handles: list[Any] = []
         try:
-            if self.governor:
-                admitted = self.governor.admit(
-                    client_id=identity["run_id"], task_id=identity["task_id"],
-                    request=ResourceRequest(processes=len(services), connections=len(services),
-                                            disk_bytes=requested_disk),
-                )
-                governor_lease = admitted
             resources, connections, secret_refs = [], {}, []
             for index, item in enumerate(services):
                 if cancel_event is not None and cancel_event.is_set():
@@ -194,17 +182,14 @@ class TestEnvironmentHub:
                        "resources": resources, "connections": connections, "secret_refs": secret_refs,
                        "fingerprint": fingerprint, "cleanup": {"status": "pending", "leaks": None},
                        "created_at": time.time()}
-            self._active[allocation_id] = _Allocation(receipt, roots, sockets, leases, handles, governor_lease)
+            self._active[allocation_id] = _Allocation(receipt, roots, sockets, leases, handles)
             self._persist(receipt)
             return receipt
-        except ResourceThrottled as exc:
-            self._rollback(roots, sockets, leases, handles, governor_lease)
-            return self._blocked(request, "QUOTA_EXHAUSTED", str(exc))
         except EnvironmentContractError as exc:
-            self._rollback(roots, sockets, leases, handles, governor_lease)
+            self._rollback(roots, sockets, leases, handles)
             return self._blocked(request, exc.reason_code, str(exc))
         except OSError as exc:
-            self._rollback(roots, sockets, leases, handles, governor_lease)
+            self._rollback(roots, sockets, leases, handles)
             return self._blocked(request, "PORT_UNAVAILABLE", str(exc))
 
     def _persist(self, receipt: Mapping[str, Any]) -> None:
@@ -212,7 +197,7 @@ class TestEnvironmentHub:
         target.write_text(json.dumps(receipt, sort_keys=True), encoding="utf-8")
 
     def _rollback(self, roots: list[Path], sockets: list[socket.socket], leases: list[ProcessLease],
-                  handles: list[Any], governor_lease: Optional[GovernorLease]) -> None:
+                  handles: list[Any]) -> None:
         for handle in handles:
             terminate = getattr(handle, "terminate", None)
             if callable(terminate):
@@ -223,15 +208,12 @@ class TestEnvironmentHub:
             sock.close()
         for root in roots:
             shutil.rmtree(root, ignore_errors=True)
-        if self.governor and governor_lease:
-            self.governor.release(governor_lease)
 
     def cleanup(self, allocation_id: str, *, cause: str = "success") -> Dict[str, Any]:
         allocation = self._active.pop(allocation_id, None)
         if allocation is None:
             return {"status": "CLEAN", "cause": cause, "leaks": [], "idempotent": True}
-        self._rollback(allocation.roots, allocation.sockets, allocation.leases,
-                       allocation.handles, allocation.governor_lease)
+        self._rollback(allocation.roots, allocation.sockets, allocation.leases, allocation.handles)
         leaks = [str(root) for root in allocation.roots if root.exists()]
         result = {"status": "CLEAN" if not leaks else "LEAKED", "cause": cause, "leaks": leaks, "idempotent": False}
         allocation.receipt["cleanup"] = result

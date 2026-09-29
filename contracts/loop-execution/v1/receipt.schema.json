@@ -6,7 +6,7 @@
   "required": [
     "schema", "contract_version", "origin", "run_id", "workspace", "run_dir",
     "chain", "fallback_used", "fallback_declared", "artifacts", "mapper", "dev_cli",
-    "runtime", "result"
+    "result"
   ],
   "properties": {
     "schema": {"const": "simplicio.loop-execution/v1"},
@@ -24,14 +24,13 @@
     "workspace": {"type": "string", "minLength": 1},
     "run_dir": {"type": "string", "minLength": 1},
     "chain": {
-      "const": ["simplicio-loop", "simplicio-mapper", "simplicio-dev-cli", "simplicio-runtime"]
+      "const": ["simplicio-loop", "simplicio-mapper", "simplicio-dev-cli"]
     },
     "fallback_used": {"const": false},
     "fallback_declared": {"const": false},
     "artifacts": {"type": "object", "minProperties": 5},
     "mapper": {"$ref": "#/$defs/component"},
     "dev_cli": {"$ref": "#/$defs/component"},
-    "runtime": {"$ref": "#/$defs/component"},
     "result": {
       "type": "object",
       "required": ["run_id", "status", "verified"],

@@ -15,7 +15,7 @@ from simplicio_loop.extension_handshake import (
 )
 from simplicio_loop.extension_registry import ExtensionRegistry
 
-CAPABILITIES = ["hub_bridge", "process_supervision", "stage_composition",
+CAPABILITIES = ["process_supervision", "stage_composition",
                 "receipt_invalidation", "run_outcome", "oracle_delegation"]
 
 def manifest(**changes):
@@ -53,7 +53,7 @@ def test_fully_capable_provider_dry_run_is_operational_and_read_only(tmp_path, m
     assert result["composition"]["worker_execution"] is False
     assert result["authorities"] == {"completion_oracle": "simplicio-loop", "exclusive": True,
                                       "provider_may_complete": False}
-    assert result["contracts"]["hub"] == "simplicio.hub-ipc/v1"
+    assert "hub" not in result["contracts"]
     assert result["contracts"]["process_spec"] == "simplicio.process-spec/v1"
     assert result["contracts"]["invalidation"] == "simplicio.receipt-invalidation/v1"
     assert result["contracts"]["run_outcome"] == "simplicio.run-outcome/v1"

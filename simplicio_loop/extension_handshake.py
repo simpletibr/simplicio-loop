@@ -12,7 +12,6 @@ from . import __version__
 from .extension_manifest import SCHEMA_ID as EXTENSION_SCHEMA, compose_stage_graph
 from .extension_registry import ExtensionRegistry
 from .feedback_recovery_agent import FEEDBACK_RECOVERY_RECEIPT_SCHEMA
-from .hub_daemon import IPC_SCHEMA
 from .ops_ledger import SCHEMA as LEDGER_SCHEMA
 from .oracle import COMPLETION_SCHEMA, ORACLE_MATRIX_SCHEMA
 from .process_supervisor import PROCESS_RESULT_SCHEMA, PROCESS_SPEC_SCHEMA
@@ -24,7 +23,7 @@ RUNTIME_FINGERPRINT_SCHEMA = "simplicio.extension-runtime-fingerprint/v1"
 RUN_OUTCOME_SCHEMA = "simplicio.run-outcome/v1"
 INVALIDATION_SCHEMA = "simplicio.receipt-invalidation/v1"
 REQUIRED_CAPABILITIES = frozenset({
-    "hub_bridge", "process_supervision", "stage_composition", "receipt_invalidation",
+    "process_supervision", "stage_composition", "receipt_invalidation",
     "run_outcome", "oracle_delegation",
 })
 CORE_STAGES = (
@@ -179,7 +178,7 @@ def extension_handshake(provider_id: str, policy: str, *, requested_schema: str 
         "runtime": {**identity, "fingerprint_schema": RUNTIME_FINGERPRINT_SCHEMA, "fingerprint": fingerprint},
         "composition": {"dry_run": True, "worker_execution": False, "stages": composed["stages"]},
         "contracts": {
-            "hub": IPC_SCHEMA, "process_spec": PROCESS_SPEC_SCHEMA, "process_result": PROCESS_RESULT_SCHEMA,
+            "process_spec": PROCESS_SPEC_SCHEMA, "process_result": PROCESS_RESULT_SCHEMA,
             "ledger": LEDGER_SCHEMA, "run_manifest": RUNNER_SCHEMA, "run_state": STATE_SCHEMA,
             "run_outcome": RUN_OUTCOME_SCHEMA, "invalidation": INVALIDATION_SCHEMA,
             "feedback_recovery": FEEDBACK_RECOVERY_RECEIPT_SCHEMA,
@@ -187,5 +186,5 @@ def extension_handshake(provider_id: str, policy: str, *, requested_schema: str 
             "provider_receipts": sorted(schemas),
         },
         "authorities": {"completion_oracle": "simplicio-loop", "exclusive": True, "provider_may_complete": False},
-        "capabilities": {"receipt_invalidation": True, "run_outcome": True, "hub_bridge": True},
+        "capabilities": {"receipt_invalidation": True, "run_outcome": True},
     }

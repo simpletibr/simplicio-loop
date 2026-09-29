@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from simplicio_loop import ecosystem_doctor as doctor
 
 
@@ -149,7 +151,7 @@ def test_build_report_persists_preplanning_handshake_and_no_secrets(monkeypatch,
     assert "API_KEY" not in line and "TOKEN" not in line
 
 
-def test_full_stack_profile_fails_closed_on_required_component(monkeypatch, tmp_path):
+def test_standalone_profile_fails_closed_on_required_component(monkeypatch, tmp_path):
     def probe(name, spec, root, policy, **kwargs):
         return {"name": name, "status": doctor.STATUS_INCOMPATIBLE if name == "simplicio-dev-cli" else doctor.STATUS_AVAILABLE,
                 "required": policy["required"], "version": "0.0.0", "minimum_version": policy["min_version"],
@@ -157,17 +159,16 @@ def test_full_stack_profile_fails_closed_on_required_component(monkeypatch, tmp_
                 "git_sha": None, "submodule_shas": {}, "supported_schemas": [], "entrypoints": [],
                 "remediation": "upgrade simplicio-cli"}
     monkeypatch.setattr(doctor, "_probe_component", probe)
-    report = doctor.build_report(tmp_path, profile="full-stack", persist=False)
+    report = doctor.build_report(tmp_path, profile="standalone", persist=False)
     assert report["ready"] is False
     assert report["status"] == "BLOCKED"
     assert report["blockers"] == ["simplicio-dev-cli"]
     assert report["handshake"]["written"] is False
 
 
-def test_standalone_declares_only_real_optional_fallbacks(monkeypatch, tmp_path):
+def test_standalone_stack_has_no_runtime_component_and_no_other_profile(monkeypatch, tmp_path):
     def probe(name, spec, root, policy, **kwargs):
-        status = doctor.STATUS_MISSING if name in {"simplicio-runtime"} else doctor.STATUS_AVAILABLE
-        return {"name": name, "status": status, "required": policy["required"],
+        return {"name": name, "status": doctor.STATUS_AVAILABLE, "required": policy["required"],
                 "version": policy["min_version"], "minimum_version": policy["min_version"],
                 "capabilities": list(policy["capabilities"]), "missing_capabilities": [],
                 "git_sha": None, "submodule_shas": {}, "supported_schemas": [], "entrypoints": [],
@@ -175,9 +176,13 @@ def test_standalone_declares_only_real_optional_fallbacks(monkeypatch, tmp_path)
     monkeypatch.setattr(doctor, "_probe_component", probe)
     report = doctor.build_report(tmp_path, profile="standalone", persist=False)
     assert report["ready"] is True
-    assert {item["feature"] for item in report["policy"]["fallbacks"]} == {
-        "runtime_integration"
-    }
+    assert [item["name"] for item in report["components"]] == [
+        "simplicio-loop", "simplicio-mapper", "simplicio-dev-cli",
+    ]
+    assert report["policy"]["optional_components"] == []
+    assert "fallbacks" not in report["policy"]
+    with pytest.raises(ValueError, match="unknown profile"):
+        doctor.build_report(tmp_path, profile="full-stack", persist=False)
 
 
 def test_secret_like_probe_errors_are_redacted():

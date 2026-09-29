@@ -7,7 +7,7 @@ every job passes through *before* an LLM/agent is ever invoked, plus a receipt s
 foundation for that contract -- not the cross-repo integration the epic describes (that
 spans simplicio-runtime/mapper/dev-cli/agent/code, none of which are reachable from this
 repo). It follows this codebase's existing receipt conventions
-(``simplicio_loop/runtime_execution_receipt.py``, ``simplicio_loop/receipt_verifier.py``):
+(``simplicio_loop/receipt_verifier.py``):
 a frozen dataclass, a stable content hash, and an append-only JSONL journal
 (``scripts/loop_journal.py``'s ``record`` pattern) rather than inventing a parallel shape.
 

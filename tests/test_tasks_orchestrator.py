@@ -1,13 +1,12 @@
 import json
 import pytest
-from simplicio_loop.hub_governor import ResourceGovernor, ResourceLimits
 from simplicio_loop.tasks_orchestrator import TasksOrchestrator
 
 class Intake:
     def run(self, request):
         return {"run_identity": {"request": request}, "outcome": {"status": "PLANNED_NOT_EXECUTED"}}
 
-def build(*, evidence=None, governor=None, item_count=1, journal_dir=None):
+def build(*, evidence=None, item_count=1, journal_dir=None):
     calls = []
     def dispatch(items, **kwargs):
         calls.append((items, kwargs))
@@ -16,7 +15,7 @@ def build(*, evidence=None, governor=None, item_count=1, journal_dir=None):
         Intake(),
         lambda plan: [{"task_id": str(index)} for index in range(item_count)],
         lambda dispatched: {"passed": True, "evidence": evidence or [{"pr": "#1", "verification": "passed"}]},
-        dispatch=dispatch, governor=governor, max_workers=2, retry_budget=3, journal_dir=journal_dir,
+        dispatch=dispatch, max_workers=2, retry_budget=3, journal_dir=journal_dir,
     )
     return bridge, calls
 
@@ -49,12 +48,11 @@ def test_cancel_persists_without_intake_availability():
     assert result["cancelled"] == ["active-worker"]
     assert coordinate.reasons == ["cancel_requested"]
 
-def test_authorized_pipeline_binds_governor_dispatch_and_evidence(tmp_path):
+def test_authorized_pipeline_binds_dispatch_and_evidence(tmp_path):
     bridge, calls = build(journal_dir=str(tmp_path / "journals"))
     first = bridge.run("all issues", action_gate=True)
     second = bridge.run("all issues", action_gate=True)
     assert first["state"] == "completed"
-    assert first["governor_release"]["released"] is True
     assert first == second
     assert len(calls) == 1
     assert calls[0][1]["retry_budget"] == 3
@@ -93,10 +91,3 @@ def test_missing_verification_stays_partial():
     bridge, _ = build(evidence=[{"pr": "#1", "verification": None}])
     result = bridge.run("all issues", action_gate=True)
     assert (result["state"], result["reason"]) == ("partial", "evidence_incomplete")
-
-def test_governor_throttle_stops_before_dispatch():
-    governor = ResourceGovernor(ResourceLimits(processes=1))
-    bridge, calls = build(governor=governor, item_count=2)
-    result = bridge.run("all issues", action_gate=True)
-    assert (result["state"], result["reason"]) == ("blocked", "governor_throttled")
-    assert calls == []

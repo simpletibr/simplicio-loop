@@ -37,20 +37,13 @@ def _stack_registry():
                 "name": "simplicio-loop",
                 "version_range": ">=1.0.0,<2.0.0",
                 "required_capabilities": ["orchestrator"],
-                "routes": ["standalone", "runtime-backed"],
+                "routes": ["standalone"],
             },
             {
                 "name": "simplicio-mapper",
                 "version_range": ">=1.0.0,<2.0.0",
                 "required_capabilities": ["map"],
-                "routes": ["standalone", "runtime-backed"],
-            },
-            {
-                "name": "simplicio-runtime",
-                "version_range": ">=1.0.0,<2.0.0",
-                "required_capabilities": ["runtime"],
-                "routes": ["runtime-backed"],
-                "required": False,
+                "routes": ["standalone"],
             },
         ],
         "compatibility": [{
@@ -67,109 +60,32 @@ def _stack_registry():
     })
 
 
-def test_runtime_discovery_probes_binary_version(monkeypatch, tmp_path):
-    runtime_binary = tmp_path / "simplicio-runtime"
-    runtime_binary.write_bytes(b"runtime")
-    monkeypatch.delenv("SIMPLICIO_RUNTIME_VERSION", raising=False)
-    monkeypatch.delenv("SIMPLICIO_RUNTIME_BIN", raising=False)
-    monkeypatch.setattr(
-        stack_lock_mod.shutil,
-        "which",
-        lambda name: str(runtime_binary) if name == "simplicio-runtime" else "",
-    )
-    calls = []
-
-    class Completed:
-        returncode = 0
-        stdout = "Simplicio Runtime 3.6.0\n"
-        stderr = ""
-
-    def fake_run(command, **kwargs):
-        calls.append((command, kwargs))
-        return Completed()
-
-    monkeypatch.setattr(stack_lock_mod.subprocess, "run", fake_run)
-    runtime = next(
-        item for item in stack_lock_mod.discover_installed_components()
-        if item.name == "simplicio-runtime"
-    )
-
-    assert runtime.version == "3.6.0"
-    assert runtime.available is True
-    assert calls == [(
-        [str(runtime_binary), "--version"],
-        {
-            "capture_output": True,
-            "text": True,
-            "timeout": 5.0,
-            "check": False,
-        },
-    )]
-
-
-def test_runtime_version_override_must_match_probed_binary(monkeypatch, tmp_path):
-    runtime_binary = tmp_path / "simplicio-runtime"
-    runtime_binary.write_bytes(b"runtime")
-    monkeypatch.setenv("SIMPLICIO_RUNTIME_VERSION", "9.9.9")
-    monkeypatch.setenv("SIMPLICIO_RUNTIME_BIN", str(runtime_binary))
-
-    class Completed:
-        returncode = 0
-        stdout = "Simplicio Runtime 3.6.1\\n"
-        stderr = ""
-
-    monkeypatch.setattr(stack_lock_mod.subprocess, "run", lambda *_a, **_k: Completed())
-    runtime = next(
-        item for item in stack_lock_mod.discover_installed_components()
-        if item.name == "simplicio-runtime"
-    )
-
-    assert runtime.version == "unknown"
-    assert runtime.available is True
-    with pytest.raises(StackLockError, match="verified simplicio-runtime version"):
-        StackLock.create([runtime], "runtime-backed")
-
+def test_lock_hash_is_order_independent_and_only_the_standalone_route_exists(tmp_path):
     mapper = _component(tmp_path)
-    fast = _component(tmp_path, "simplicio-cli", b"cli")
-    runtime = _component(tmp_path, "simplicio-runtime", b"runtime")
-    first = StackLock.create([fast, mapper, runtime], "standalone", run_id="run-1")
-    second = StackLock.create([runtime, mapper, fast], "standalone", run_id="run-1")
+    cli = _component(tmp_path, "simplicio-cli", b"cli")
+    first = StackLock.create([cli, mapper], "standalone", run_id="run-1")
+    second = StackLock.create([mapper, cli], "standalone", run_id="run-1")
     assert first.lock_hash == second.lock_hash
     assert first.to_dict()["schema"] == STACK_LOCK_SCHEMA
-    first.verify_unchanged([mapper, fast, runtime], "standalone")
-    with pytest.raises(StackLockError, match="stack drift"):
-        first.verify_unchanged([mapper, fast, runtime], "runtime-backed")
-
-
-def test_runtime_backed_rejects_unknown_version(tmp_path):
-    runtime_binary = tmp_path / "simplicio-runtime"
-    runtime_binary.write_bytes(b"runtime")
-    runtime = observe_component(
-        "simplicio-runtime",
-        "unknown",
-        runtime_binary,
-        build_sha="build",
-        capabilities=("runtime", "mcp"),
-    )
-
-    with pytest.raises(StackLockError, match="verified simplicio-runtime version"):
-        StackLock.create([runtime], "runtime-backed")
-
-
-def test_runtime_backed_requires_runtime_and_artifact_drift_blocks(tmp_path):
-    mapper = _component(tmp_path)
-    with pytest.raises(StackLockError, match="requires an available"):
+    first.verify_unchanged([mapper, cli], "standalone")
+    with pytest.raises(StackLockError, match="invalid route"):
+        first.verify_unchanged([mapper, cli], "runtime-backed")
+    with pytest.raises(StackLockError, match="invalid route"):
         StackLock.create([mapper], "runtime-backed")
-    runtime = _component(tmp_path, "simplicio-runtime", b"runtime")
-    lock = StackLock.create([mapper, runtime], "runtime-backed")
-    runtime_binary = tmp_path / "simplicio-runtime"
-    runtime_binary.write_bytes(b"runtime-upgraded")
-    changed = observe_component("simplicio-runtime", "1.0.0", runtime_binary, build_sha="build", capabilities=("map",))
+
+
+def test_artifact_drift_blocks_a_frozen_lock(tmp_path):
+    mapper = _component(tmp_path)
+    lock = StackLock.create([mapper], "standalone")
+    (tmp_path / "simplicio-mapper").write_bytes(b"mapper-upgraded")
+    changed = observe_component(
+        "simplicio-mapper", "1.0.0", tmp_path / "simplicio-mapper", build_sha="build", capabilities=("map",),
+    )
     with pytest.raises(StackLockError, match="stack drift"):
-        lock.verify_unchanged([mapper, changed], "runtime-backed")
+        lock.verify_unchanged([changed], "standalone")
 
 
-def test_missing_optional_runtime_is_valid_standalone_and_serialized_lock_is_checked(tmp_path):
+def test_serialized_lock_is_checked(tmp_path):
     mapper = _component(tmp_path)
     lock = StackLock.create([mapper], "standalone")
     payload = lock.to_dict()
@@ -291,7 +207,7 @@ def test_stack_registry_roundtrip_is_deterministic():
     assert StackCompatibilityRegistry.from_dict(payload) == registry
     assert len(registry.registry_hash) == 64
     assert [entry.name for entry in registry.components] == [
-        "simplicio-loop", "simplicio-mapper", "simplicio-runtime",
+        "simplicio-loop", "simplicio-mapper",
     ]
 
 
@@ -354,7 +270,7 @@ def test_stack_diagnosis_reports_partial_upgrade_against_frozen_lock(tmp_path):
 
 
 
-def test_stack_cli_registry_allows_standalone_without_runtime(tmp_path, capsys):
+def test_stack_cli_registry_allows_standalone(tmp_path, capsys):
     loop_binary = tmp_path / "simplicio-loop"
     mapper_binary = tmp_path / "simplicio-mapper"
     loop_binary.write_bytes(b"loop")
@@ -442,8 +358,9 @@ def test_stack_cli_registry_blocks_duplicate_before_writing_lock(tmp_path, capsy
     assert not lock_path.exists()
 
 
-def test_discovered_stack_has_no_fast_component(monkeypatch):
+def test_discovered_stack_has_only_loop_mapper_and_cli(monkeypatch):
     monkeypatch.delenv("SIMPLICIO_STACK_COMPONENTS_FILE", raising=False)
     names = [item.name for item in stack_lock_mod.discover_installed_components()]
     assert "simplicio-fast" not in names
+    assert "simplicio-runtime" not in names
     assert {"simplicio-loop", "simplicio-mapper", "simplicio-cli"} <= set(names)

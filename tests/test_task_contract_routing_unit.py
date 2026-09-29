@@ -5,8 +5,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
-from simplicio_loop.model_router import ROLES as ROUTER_ROLES
-from simplicio_loop.task_contract import compile_task, routing_requirements, validate_contract
+from simplicio_loop.task_contract import ROUTING_ROLES, compile_task, validate_contract
 
 MINIMAL_BASE = """Sistema: PLANES
 Funcionalidade: Tela de Modelagem
@@ -64,7 +63,7 @@ def test_routing_section_is_parsed():
     routing = contract["routing"]
     assert routing["state"] == "declared"
     assert routing["role"] == "reviewer"
-    assert routing["role"] in ROUTER_ROLES  # stays compatible with model_router.ROLES
+    assert routing["role"] in ROUTING_ROLES
     assert routing["required_capabilities"] == ["coding", "patch"]
     assert routing["preferred_capabilities"] == ["tests", "review"]
     assert routing["allowed_providers"] == ["anthropic"]
@@ -85,27 +84,6 @@ def test_routing_section_is_excluded_from_raw_sections_dump():
     contract = compile_task(MINIMAL_BASE + ROUTING_SECTION)
     names = {section["name"] for section in contract["raw_sections"]}
     assert "routing" not in names
-
-
-def test_routing_requirements_projects_router_shape():
-    contract = compile_task(MINIMAL_BASE + ROUTING_SECTION)
-    req = routing_requirements(contract)
-    assert req == {
-        "role": "reviewer",
-        "required_capabilities": ["coding", "patch"],
-        "preferred_capabilities": ["tests", "review"],
-        "allowed_providers": ["anthropic"],
-        "denied_providers": ["local-devcli"],
-        "independent_review": True,
-    }
-
-
-def test_routing_requirements_defaults_without_section():
-    contract = compile_task(MINIMAL_BASE)
-    req = routing_requirements(contract)
-    assert req["role"] == "executor"
-    assert req["required_capabilities"] == []
-    assert req["independent_review"] is False
 
 
 def test_routing_hash_changes_when_routing_section_changes():

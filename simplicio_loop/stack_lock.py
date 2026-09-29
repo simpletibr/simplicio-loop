@@ -15,7 +15,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -24,37 +23,8 @@ from typing import Any
 STACK_LOCK_SCHEMA = "simplicio.stack-lock/v1"
 STACK_REGISTRY_SCHEMA = "simplicio.stack-registry/v1"
 STACK_DIAGNOSTICS_SCHEMA = "simplicio.stack-diagnostics/v1"
-ROUTES = frozenset({"standalone", "runtime-backed"})
+ROUTES = frozenset({"standalone"})
 _SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$")
-_RUNTIME_VERSION_RE = re.compile(r"(?<!\d)(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)(?!\d)")
-_RUNTIME_VERSION_TIMEOUT_S = 5.0
-
-
-def _runtime_version(executable: str) -> str:
-    """Probe the exact binary and accept an override only when it agrees."""
-    override = os.environ.get("SIMPLICIO_RUNTIME_VERSION", "").strip()
-    try:
-        completed = subprocess.run(
-            [executable, "--version"],
-            capture_output=True,
-            text=True,
-            timeout=_RUNTIME_VERSION_TIMEOUT_S,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return "unknown"
-    if completed.returncode != 0:
-        return "unknown"
-    match = _RUNTIME_VERSION_RE.search(f"{completed.stdout}\n{completed.stderr}")
-    observed = match.group(1) if match else "unknown"
-    if not override:
-        return observed
-    # An environment value is only an assertion about the same executable; it
-    # must never replace an unverified banner or mask a version mismatch.
-    override_match = _RUNTIME_VERSION_RE.search(override)
-    normalized_override = override_match.group(1) if override_match else "unknown"
-    return observed if observed != "unknown" and normalized_override == observed else "unknown"
-
 
 
 class StackLockError(ValueError):
@@ -466,7 +436,7 @@ def _executable_or_module(executables: Iterable[str], module_name: str) -> str:
 
 
 def discover_installed_components() -> tuple[StackComponent, ...]:
-    """Observe the installed Python stack and optional Runtime binary read-only."""
+    """Observe the installed Python stack read-only."""
     override = os.environ.get("SIMPLICIO_STACK_COMPONENTS_FILE", "").strip()
     if override:
         return load_component_observations(override)
@@ -489,30 +459,12 @@ def discover_installed_components() -> tuple[StackComponent, ...]:
             capabilities=capabilities,
         ))
 
-    runtime_executable = os.environ.get("SIMPLICIO_RUNTIME_BIN", "").strip()
-    runtime_executable = runtime_executable or (shutil.which("simplicio-runtime") or "")
-    runtime_version = _runtime_version(runtime_executable) if runtime_executable else ""
-    components.append(observe_component(
-        "simplicio-runtime",
-        runtime_version,
-        runtime_executable,
-        build_sha=os.environ.get("SIMPLICIO_RUNTIME_BUILD_SHA", ""),
-        capabilities=("runtime", "mcp"),
-    ))
     return tuple(components)
 
 
-def _validate_route(route: str, components: tuple[StackComponent, ...]) -> None:
+def _validate_route(route: str) -> None:
     if route not in ROUTES:
         raise StackLockError(f"invalid route: {route}")
-    if route == "runtime-backed":
-        runtime = next((item for item in components if item.name == "simplicio-runtime"), None)
-        if runtime is None or not runtime.available:
-            raise StackLockError("runtime-backed route requires an available simplicio-runtime")
-        if runtime.version.strip().lower() == "unknown":
-            raise StackLockError(
-                "runtime-backed route requires a verified simplicio-runtime version"
-            )
 
 
 @dataclass(frozen=True)
@@ -534,7 +486,7 @@ class StackLock:
         names = [item.name for item in normalized]
         if len(names) != len(set(names)):
             raise StackLockError("duplicate stack component")
-        _validate_route(route, normalized)
+        _validate_route(route)
         digest = _lock_hash(_lock_payload(route, str(run_id), normalized))
         return cls(route=route, components=normalized, lock_hash=digest, run_id=str(run_id))
 
@@ -545,7 +497,7 @@ class StackLock:
         if errors:
             raise StackLockError("invalid stack lock: " + ", ".join(errors))
         components = tuple(_component_from_dict(item) for item in payload["components"])
-        _validate_route(str(payload["route"]), components)
+        _validate_route(str(payload["route"]))
         return cls(
             route=str(payload["route"]),
             components=components,
@@ -695,7 +647,7 @@ def diagnose_stack(
         issues.append(_diagnostic(
             "route_invalid",
             f"route {route!r} is not supported by the Stack Lock",
-            "select standalone or runtime-backed before creating the lock",
+            "select standalone before creating the lock",
         ))
 
     registry_names = {entry.name for entry in registry.components}

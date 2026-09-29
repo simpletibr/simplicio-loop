@@ -7,7 +7,6 @@ import hashlib
 import json
 from typing import Any, Callable, Mapping
 
-from .hub_governor import ResourceGovernor, ResourceLimits, ResourceRequest, ResourceThrottled
 from .runner import dispatch_operator_batch
 from .drain import _receipt_lock
 
@@ -36,7 +35,6 @@ class TasksOrchestrator:
         coordinate: Callable[[Mapping[str, Any]], Mapping[str, Any]],
         *,
         dispatch: Callable[..., Mapping[str, Any]] = dispatch_operator_batch,
-        governor: ResourceGovernor | None = None,
         worktree_queue: Any = None,
         max_workers: int = 1,
         retry_budget: int = 1,
@@ -50,7 +48,6 @@ class TasksOrchestrator:
         self.retry_budget = max(0, int(retry_budget))
         self.journal_dir = journal_dir
         self.worktree_queue = worktree_queue
-        self.governor = governor or ResourceGovernor(ResourceLimits(processes=self.max_workers))
         self.idempotency_dir = Path(journal_dir).resolve().parent / "idempotency" if journal_dir else None
 
     def run(self, request: str, *, action_gate: bool = False, cancel: bool = False) -> dict[str, Any]:
@@ -94,11 +91,6 @@ class TasksOrchestrator:
                     receipt.update(state="blocked", reason="dispatch_receipt_invalid", evidence=[])
                     return receipt
                 takeover = int(durable.get("admission_fence") or 1)
-            try:
-                lease = self.governor.admit("simplicio-tasks", key, ResourceRequest(processes=requested), lease_id=key)
-            except ResourceThrottled as exc:
-                receipt.update(state="blocked", reason="governor_throttled", governor=exc.receipt, evidence=[])
-                return receipt
             if idempotency_path:
                 admitted = dict(receipt)
                 admitted.update(
@@ -111,24 +103,21 @@ class TasksOrchestrator:
             admission_fence = takeover + 1
             fenced_items = [dict(item, admission_fence=admission_fence) for item in items]
             try:
-                try:
-                    dispatched = self.dispatch(fenced_items, max_workers=requested, retry_budget=self.retry_budget, journal_dir=self.journal_dir, worktree_queue=self.worktree_queue)
-                    coordinated = self.coordinate(dispatched)
-                except Exception as exc:
-                    if idempotency_path:
-                        interrupted = dict(receipt)
-                        interrupted.update(
-                            state="dispatching", reason="dispatch_interrupted",
-                            admission_fence=admission_fence,
-                            error=f"{type(exc).__name__}: {exc}", evidence=[],
-                        )
-                        _write_receipt(idempotency_path, interrupted)
-                    raise
-            finally:
-                release = self.governor.release(lease)
+                dispatched = self.dispatch(fenced_items, max_workers=requested, retry_budget=self.retry_budget, journal_dir=self.journal_dir, worktree_queue=self.worktree_queue)
+                coordinated = self.coordinate(dispatched)
+            except Exception as exc:
+                if idempotency_path:
+                    interrupted = dict(receipt)
+                    interrupted.update(
+                        state="dispatching", reason="dispatch_interrupted",
+                        admission_fence=admission_fence,
+                        error=f"{type(exc).__name__}: {exc}", evidence=[],
+                    )
+                    _write_receipt(idempotency_path, interrupted)
+                raise
             evidence = coordinated.get("evidence", [])
             passed = bool(coordinated.get("passed")) and _evidence_complete(evidence)
-            receipt.update(state="completed" if passed else "partial", reason="verified" if passed else "evidence_incomplete", dispatch=dispatched, evidence=evidence, review=coordinated, governor_release=release, admission_fence=takeover + 1)
+            receipt.update(state="completed" if passed else "partial", reason="verified" if passed else "evidence_incomplete", dispatch=dispatched, evidence=evidence, review=coordinated, admission_fence=takeover + 1)
             if idempotency_path:
                 _write_receipt(idempotency_path, receipt)
             return receipt

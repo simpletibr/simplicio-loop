@@ -657,54 +657,19 @@ def test_cli_status_top_queue_cancel_drain_reports(tmp_path) -> None:
     assert "cancel" in kinds
 
 
-def test_cli_queue_merges_real_hub_status_when_hub_socket_given(
-    tmp_path, require_default_hub_transport,
-) -> None:
-    """Real HubDaemon, real default IPC, real subprocess CLI call - proves --hub-socket
-    actually reaches a live Hub, not just that the flag is accepted."""
-    from simplicio_loop.hub_daemon import (
-        HubDaemon,
-        HubSocketServer,
-        default_endpoint,
-        default_transport,
-    )
-
+def test_cli_queue_reports_only_in_flight_leases_and_rejects_hub_socket(tmp_path) -> None:
     registry_path = tmp_path / "registry.json"
-    daemon = HubDaemon(str(tmp_path / "hub.lock"))
-    daemon.start()
-    endpoint = default_endpoint(str(tmp_path))
-    server = HubSocketServer(daemon, endpoint, default_transport())
-    server.start()
-    try:
-        daemon.service.submit(
-            {"kind": "queued-work"}, idempotency_key="q1", client_id="cli-test",
-        )
-        completed = subprocess.run(
-            [sys.executable, "-m", "simplicio_loop.process_enforcement_cli",
-             "--registry", str(registry_path), "queue", "--hub-socket", endpoint],
-            capture_output=True, text=True, timeout=15, check=True,
-        )
-        report = json.loads(completed.stdout)
-        assert report["in_flight"] == 0  # no supervised OS process, just a queued Hub job
-        assert report["hub"]["reachable"] is True
-        assert report["hub"]["status"]["schema"] == "simplicio.hub-service/v1"
-        assert report["hub"]["status"]["scheduler"]["global_total"] == 1
-    finally:
-        server.shutdown()
-        daemon.stop()
-
-
-def test_cli_queue_reports_unreachable_hub_honestly_not_silently(tmp_path) -> None:
-    registry_path = tmp_path / "registry.json"
-    completed = subprocess.run(
-        [sys.executable, "-m", "simplicio_loop.process_enforcement_cli",
-         "--registry", str(registry_path), "queue",
-         "--hub-socket", str(tmp_path / "no-such-hub.sock")],
-        capture_output=True, text=True, timeout=15, check=True,
-    )
+    base = [sys.executable, "-m", "simplicio_loop.process_enforcement_cli", "--registry", str(registry_path)]
+    completed = subprocess.run(base + ["queue"], capture_output=True, text=True, timeout=15, check=True)
     report = json.loads(completed.stdout)
-    assert report["hub"]["reachable"] is False
-    assert report["hub"]["error"]
+    assert report["schema"] == "simplicio.supervisor-queue/v1"
+    assert report["in_flight"] == 0
+    assert "hub" not in report
+    rejected = subprocess.run(
+        base + ["queue", "--hub-socket", str(tmp_path / "hub.sock")],
+        capture_output=True, text=True, timeout=15, check=False,
+    )
+    assert rejected.returncode == 2
 
 
 @pytest.mark.skipif(sys.platform == "darwin", reason="process-group termination is Linux-specific")

@@ -9,7 +9,7 @@
     "schema": {"const": "simplicio.ecosystem-doctor/v1"},
     "checked_at": {"type": "string", "format": "date-time"},
     "repo": {"type": "string"},
-    "profile": {"enum": ["standalone", "full-stack"]},
+    "profile": {"enum": ["standalone"]},
     "status": {"enum": ["READY", "DEGRADED", "BLOCKED"]},
     "ready": {"type": "boolean"},
     "blockers": {"type": "array", "items": {"type": "string"}},
@@ -43,7 +43,7 @@
         "additionalProperties": true
       }
     },
-    "policy": {"type": "object", "required": ["automatic_upgrade", "required_components", "optional_components", "fallbacks"], "additionalProperties": true},
+    "policy": {"type": "object", "required": ["automatic_upgrade", "required_components", "optional_components"], "additionalProperties": true},
     "handshake": {
       "type": "object",
       "required": ["written", "path"],

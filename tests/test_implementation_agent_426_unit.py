@@ -31,7 +31,6 @@ from simplicio_loop.implementation_agent import (
     assert_receipt_schema_allowed,
     build_assignment,
     build_implementation_stage_receipt,
-    build_routing_receipt,
     cancel,
     check_path_allowlist,
     classify_failure,
@@ -285,37 +284,6 @@ def test_requires_impact_reaudit_on_dependency_delta_issues():
 
 def test_requires_impact_reaudit_false_when_clean():
     assert not requires_impact_reaudit(allowed_paths=["a/"], changed_paths=["a/x.py"])
-
-
-# --------------------------------------------------------------------------- #
-# Routing/driver identity receipt (#287 pattern)
-# --------------------------------------------------------------------------- #
-def test_build_routing_receipt_identity():
-    receipt = build_routing_receipt(
-        route_id="route-1",
-        requested={"runtime": "claude", "provider": "anthropic", "model_id": "claude-x"},
-        resolved={"runtime": "claude", "provider": "anthropic", "model_id": "claude-x", "verified": True},
-        driver={"name": "simplicio-dev-cli", "binary": "simplicio-dev-cli", "version": "1.0", "identity_verified": True},
-        session={"worker_id": "w1", "device_id": "d1", "attempt_id": "att-1", "lease_id": "l1", "fence_token": "f1"},
-        argv_redacted=["simplicio-dev-cli", "task"],
-        env_allowlist=["PATH"],
-        tree={"base_sha": "b1", "head_sha": "h1", "changed_paths": ["a.py"]},
-        exit_status=0, duration_seconds=1.2, stop_reason="completed",
-    )
-    assert receipt["driver"]["name"] == "simplicio-dev-cli"
-    assert receipt["resolved"]["model_id"] == "claude-x"
-    assert receipt["receipt_sha"]
-
-
-def test_build_routing_receipt_unmeasured_resolved_is_unavailable():
-    receipt = build_routing_receipt(
-        route_id="route-2", requested={"runtime": "codex"}, resolved=None,
-        driver={"name": "fake-driver"}, session={},
-        argv_redacted=[], env_allowlist=[], tree={},
-        exit_status=None, duration_seconds=None, stop_reason="error",
-    )
-    assert receipt["resolved"]["model_id"] == "UNAVAILABLE"
-    assert receipt["resolved"]["verified"] is False
 
 
 # --------------------------------------------------------------------------- #

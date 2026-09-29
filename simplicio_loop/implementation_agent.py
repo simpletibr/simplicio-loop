@@ -8,8 +8,7 @@ stages.json` already registers the `implementation_agent` role and its
 generic instances/adapters through it. What #426 actually adds, and what this
 module implements, is the role's *own* invariant machinery: an AC+path scoped
 assignment, mutation-capability enforcement at every write boundary, base/plan/
-fence drift detection, a routing/driver-identity receipt (the #287 pattern --
-see `runtime_execution_receipt.py`), failure classification, a retry budget
+fence drift detection, failure classification, a retry budget
 that never relaxes AC/tests, and a typed
 `simplicio.implementation-stage-receipt/v1` that can never itself claim
 delivery/completion.
@@ -357,37 +356,6 @@ def requires_impact_reaudit(*, allowed_paths: Sequence[str], changed_paths: Sequ
 
 
 # --------------------------------------------------------------------------- #
-# 8. Routing/driver-identity receipt -- negotiate the real driver/model per
-#    #287 and record it (plan step 4). Thin wrapper: delegates the actual
-#    shape to `runtime_execution_receipt.build_runtime_execution_receipt` so
-#    both roles share one receipt discipline instead of inventing a second.
-# --------------------------------------------------------------------------- #
-def build_routing_receipt(
-    *,
-    route_id: str,
-    requested: Mapping[str, Any],
-    resolved: Optional[Mapping[str, Any]],
-    driver: Mapping[str, Any],
-    session: Mapping[str, Any],
-    argv_redacted: Sequence[str],
-    env_allowlist: Sequence[str],
-    tree: Mapping[str, Any],
-    exit_status: Optional[int],
-    duration_seconds: Optional[float],
-    stop_reason: str,
-    **kwargs: Any,
-) -> Dict[str, Any]:
-    from . import runtime_execution_receipt as _rer
-
-    return _rer.build_runtime_execution_receipt(
-        route_id=route_id, requested=requested, resolved=resolved, driver=driver,
-        session=session, argv_redacted=argv_redacted, env_allowlist=env_allowlist,
-        tree=tree, exit_status=exit_status, duration_seconds=duration_seconds,
-        stop_reason=stop_reason, **kwargs,
-    )
-
-
-# --------------------------------------------------------------------------- #
 # 9. Failure classification (plan step 9).
 # --------------------------------------------------------------------------- #
 def classify_failure(*, reason_code: str, detail: str = "") -> str:
@@ -729,7 +697,6 @@ __all__ = [
     "no_change_ok",
     "surface_expanded",
     "requires_impact_reaudit",
-    "build_routing_receipt",
     "classify_failure",
     "next_attempt",
     "reconcile_worktree",

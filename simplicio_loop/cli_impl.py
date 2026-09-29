@@ -2640,9 +2640,6 @@ def _prose_as_turbo(argv: Sequence[str]) -> list[str]:
 
 def main(argv=None) -> int:
     argv_list = list(argv) if argv is not None else list(sys.argv[1:])
-    if argv_list[:1] == ["hub-drain-admit"]:
-        from .hub_drain_admission_cli import main as drain_admission_main
-        return drain_admission_main(argv_list[1:])
     if argv_list[:1] == ["hub-drain-plan"]:
         from .github_drain_intake_cli import main as drain_intake_main
         forwarded = argv_list[1:]
@@ -3137,10 +3134,6 @@ def main(argv=None) -> int:
     sub.add_parser(
         "hub-drain-plan",
         help="read-only PT-BR/EN GitHub drain intake; never executes the plan",
-    )
-    sub.add_parser(
-        "hub-drain-admit",
-        help="admit a final #627 checkpoint as held; never dispatches or executes it",
     )
     p_ledger = sub.add_parser("ledger", help="validate/replay the operational event ledger")
     p_findings = sub.add_parser("findings", help="WI-466: inspect and reconcile continuous findings")

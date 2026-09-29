@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop.hub_governor import ResourceGovernor, ResourceLimits
 from simplicio_loop.test_environment import (
     CAPABILITY, REQUEST_SCHEMA, ServiceDefinition, TestEnvironmentHub,
     extension_capability,
@@ -99,14 +98,13 @@ def test_unsupported_unavailable_and_network_service(tmp_path):
     assert hub.provision(request({"name": "online", "version": "1"}))["reason_code"] == "NETWORK_POLICY"
 
 
-def test_quota_exhaustion_and_governor_release(tmp_path):
-    governor = ResourceGovernor(ResourceLimits(processes=1, connections=1, disk_bytes=10))
-    hub = TestEnvironmentHub(tmp_path, services={"database": ServiceDefinition("database", ("1",), command)}, governor=governor)
-    assert hub.provision(request({"name": "database", "version": "1", "volumes": [{"max_bytes": 11}]}))["reason_code"] == "QUOTA_EXHAUSTED"
-    ready = hub.provision(request())
-    assert governor.status()["active_leases"] == 1
-    hub.cleanup(ready["allocation_id"])
-    assert governor.status()["active_leases"] == 0
+def test_disk_quota_exhaustion_blocks_the_allocation(tmp_path):
+    hub = TestEnvironmentHub(
+        tmp_path, services={"database": ServiceDefinition("database", ("1",), command)}, max_disk_bytes=10,
+    )
+    blocked = hub.provision(request({"name": "database", "version": "1", "volumes": [{"max_bytes": 11}]}))
+    assert blocked["reason_code"] == "QUOTA_EXHAUSTED"
+    assert blocked["resources"] == []
 
 
 def test_port_collision_is_central_and_machine_readable(hub, monkeypatch):

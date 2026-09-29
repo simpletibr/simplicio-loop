@@ -109,7 +109,7 @@ Each fixture directory contains the raw input files (an `.simplicio-loop/orchest
 cwd, or a bare JSON/text file for the pure-function fixtures) plus an `expected.json` describing
 what `scripts/check_loop_contract.py` asserts and why.
 
-## How `simplicio-runtime` (or any consumer) should reuse this
+## How a consumer should reuse this
 
 1. **Read, don't guess:** `schema.json` is the field-level contract; this file is the narrative.
    Both are versioned together under `v1`.
@@ -120,7 +120,7 @@ what `scripts/check_loop_contract.py` asserts and why.
    point of a shared, testable contract instead of two independent readings of the same prose.
 3. **For `drain`:** there is no reference *code* to diff against yet (see the status note above) —
    implement the rule (`schema.json`'s `drain_queue_state` shape + the round/streak invariants) and
-   validate against `fixtures/drain-empty-after-k-rounds/expected.json`. If `simplicio-runtime`
+   validate against `fixtures/drain-empty-after-k-rounds/expected.json`. If a consumer
    lands a real drain executor, the honest next step is to promote that fixture from "reference
    only" to "executes the real producer" the same way the converge fixtures do today (a `v1`
    addition, not a `v2` break).
@@ -132,20 +132,20 @@ what `scripts/check_loop_contract.py` asserts and why.
 5. **Never invent a second promise/evidence/anchor/watcher gate.** Reuse the four-condition rule
    above verbatim; it is what `fixtures/evidence-gated-done/` exists to pin down byte-for-byte.
 
-## Published Runtime handoff receipt
+## Published execution receipt
 
 When a real run reaches `done`, `simplicio_loop.runner.verify_run` publishes the envelope described
 by [`receipt.schema.json`](receipt.schema.json) at `.simplicio-loop/loop-execution.json`. The envelope is
 written only after the watcher, delivery, quality-matrix, and completion-oracle gates pass.
 
-The envelope points to a run-owned `runtime-loop-execution/` bundle containing copies of the five
+The envelope points to a run-owned `loop-execution/` bundle containing copies of the five
 state artifacts plus the final Mapper and Dev CLI receipts. Each copied artifact carries a SHA-256
 digest and a bundle-relative path only; source paths are intentionally omitted so the receipt is
 portable and cannot direct the consumer outside the run. The bundle is complete before the root
-envelope is atomically replaced, so `simplicio-runtime` can validate one coherent snapshot without
+envelope is atomically replaced, so a consumer can validate one coherent snapshot without
 following parent-directory paths or reading files that are still changing.
 
-The stable Runtime chain is `simplicio-loop → simplicio-mapper → simplicio-dev-cli → simplicio-runtime`.
+The stable chain is `simplicio-loop → simplicio-mapper → simplicio-dev-cli`.
 
 All public execution flows (`run`, `tick`, `batch`, `wave`, and `prism`) use
 this same publisher boundary. A flow may report `BLOCKED`, `PARTIAL`, or `ERROR` as an additive
@@ -156,8 +156,6 @@ are present and valid. A completed dispatch result without that v1 publication i
 ## Out of scope (see issue #115)
 
 - Migrating the loop to Rust.
-- Changing the Runtime consumer's implementation — the Loop publishes the v1 handoff, while
-  `simplicio-runtime` remains responsible for its independent read-only validation.
 - A `drain` executor implementation — only its target shape/rule is published here (see status
   note above).
 

@@ -333,50 +333,6 @@ def _importable(mod):
         return False
 
 
-def chk_remote_worker():
-    """LOCAL_ONLY / REMOTE_READY / REMOTE_MEASURED tri-state for the remote-worker
-    capability (#286). See simplicio_loop/remote_worker_measurement.py for the full
-    contract: doctor never infers REMOTE_MEASURED from source code existing, only
-    from a receipt a genuinely-passing cross-process proof recorded."""
-    try:
-        from simplicio_loop.remote_worker_measurement import remote_worker_status
-        result = remote_worker_status(str(REPO))
-    except Exception as exc:  # never let this check crash doctor
-        return dict(name="remote worker (#286)", tier="OPTIONAL", status=WARN,
-                     msg="could not evaluate: %s" % exc, repair=None)
-
-    status = result["status"]
-    if status == "REMOTE_MEASURED":
-        m = result["measurement"] or {}
-        msg = "REMOTE_MEASURED -- proven by %s at %s" % (m.get("proof", "?"), m.get("measured_at", "?"))
-        dstatus = OK
-    elif status == "REMOTE_READY":
-        msg = ("REMOTE_READY -- remote queue configured but never proven cross-process on this "
-               "checkout; `python3 scripts/remote_worker_measurement.py record` to prove it")
-        dstatus = WARN
-    else:
-        msg = "LOCAL_ONLY -- no remote queue configured (SIMPLICIO_REMOTE_QUEUE_URL/SIMPLICIO_REMOTE_ENVIRONMENT_ID unset); this is the default, not a failure"
-        dstatus = OK
-
-    def repair():
-        # Only meaningful when REMOTE_READY: actually re-run the strongest local proof and
-        # record it for real. LOCAL_ONLY has nothing to fix (no config to fabricate);
-        # REMOTE_MEASURED is already the best state.
-        if status != "REMOTE_READY":
-            return status in ("LOCAL_ONLY", "REMOTE_MEASURED")
-        try:
-            from simplicio_loop.remote_worker_measurement import DEFAULT_PROOF, record_measurement, run_proof
-            proc = run_proof(str(REPO), DEFAULT_PROOF, timeout=300)
-            if proc.returncode != 0:
-                return False
-            record_measurement(str(REPO), proof=DEFAULT_PROOF)
-            return True
-        except Exception:
-            return False
-
-    return dict(name="remote worker (#286)", tier="OPTIONAL", status=dstatus, msg=msg, repair=repair)
-
-
 def check_vscode_global():
     """#415: detect drift in a user-level VS Code/Copilot global install.
 
@@ -470,11 +426,11 @@ def chk_release_version():
 
 
 def chk_map_service():
-    """Report whether a live map receipt exists; missing Hub state uses standalone fallback."""
+    """Report whether a live map receipt exists; a missing one uses the standalone fallback."""
     path = REPO / ".simplicio-loop/orchestrator" / "map" / "build.json"
     if not path.exists():
         return {"status": WARN, "tier": "OPTIONAL", "name": "map_service",
-                "msg": "no Hub map receipt; standalone map fallback is available"}
+                "msg": "no map receipt; standalone map fallback is available"}
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:
@@ -489,7 +445,7 @@ def chk_map_service():
 
 CHECKS = [chk_python, chk_operators, chk_mapper_capabilities, chk_skills,
           chk_hooks, chk_git_precommit_hook, chk_git_prepush_hook, chk_proxy, chk_wire,
-          chk_tray_dep, chk_remote_worker, check_vscode_global, chk_map_service, chk_release_version]
+          chk_tray_dep, check_vscode_global, chk_map_service, chk_release_version]
 
 
 def main(argv=None):

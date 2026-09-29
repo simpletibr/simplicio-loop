@@ -58,12 +58,6 @@ simplicio-loop = "simplicio_loop.cli:main"
 issue-factory = "simplicio_loop.issue_factory_cli:main"
 simplicio-ecosystem-doctor = "simplicio_loop.ecosystem_doctor:main"
 simplicio-loop-tools = "simplicio_loop.consumer_cli:main"
-simplicio-hub = "simplicio_loop.hub_daemon:main"
-# issue #286 step 11: the multi-device remote-worker protocol's server + worker + supervisor
-# are genuinely installable binaries, not source that only runs from a git checkout.
-simplicio-remote-queue-server = "simplicio_loop.remote_queue_server_cli:main"
-simplicio-remote-worker = "simplicio_loop.remote_worker_cli:main"
-simplicio-remote-worker-supervisor = "simplicio_loop.remote_worker_supervisor_cli:main"
 # issue #516: observability/enforcement CLI for the #498 process-supervisor contract
 # (status/top/queue/cancel/drain/reports over the #514 ProcessSpec/Lease/Result adapter).
 simplicio-process-supervisor = "simplicio_loop.process_enforcement_cli:main"

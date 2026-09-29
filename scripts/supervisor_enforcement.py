@@ -18,10 +18,6 @@ State: .simplicio-loop/orchestrator/supervisor_enforcement.json (override with $
 
 Verbs:
   status   Print (and --json emit) whether enforcement is enabled and the current rollout mode.
-           Also folds in the Hub's ResourceGovernor circuit breaker (#506) when a governor status
-           snapshot is available (--governor-state-file FILE, or $SIMPLICIO_GOVERNOR_STATE_FILE):
-           a real integration surfacing "breaker open" (sustained resource pressure) as a fact
-           about enforcement's environment, never a second/duplicate breaker of its own.
   detect   Read a JSON list of process command-lines from stdin (or --input FILE) and flag which
            ones look like Simplicio-ecosystem processes (argv[0] matches a known operator binary
            pattern) that carry no supervision marker (env var SIMPLICIO_SUPERVISED=1 or a
@@ -51,7 +47,6 @@ Verbs:
 
 Usage:
     python3 scripts/supervisor_enforcement.py status
-    python3 scripts/supervisor_enforcement.py status --governor-state-file governor.json
     echo '["mapper --survey", "python3 unrelated.py"]' | \\
         python3 scripts/supervisor_enforcement.py detect
     python3 scripts/supervisor_enforcement.py detect --scan-os
@@ -108,26 +103,6 @@ def emit_rollout_event(mode, percent, allow, path=None):
         os.makedirs(parent, exist_ok=True)
     locked_append_line(events_path, json.dumps(rec, sort_keys=True))
     return rec
-
-
-def governor_circuit_open(governor_status):
-    if not isinstance(governor_status, dict):
-        return False
-    circuit = governor_status.get("circuit")
-    if not isinstance(circuit, dict):
-        return False
-    return circuit.get("state") == "open"
-
-
-def load_governor_status(path):
-    if not path or not os.path.isfile(path):
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as handle:
-            raw = json.load(handle)
-    except (OSError, ValueError):
-        return None
-    return raw if isinstance(raw, dict) else None
 
 
 def default_state():
@@ -224,16 +199,6 @@ def detect_unsupervised(processes):
 
 def cmd_status(opts):
     state = load_state(_state_file())
-    governor_path = getattr(opts, "governor_state_file", None) or os.environ.get(
-        "SIMPLICIO_GOVERNOR_STATE_FILE"
-    )
-    governor_status = load_governor_status(governor_path)
-    breaker_open = governor_circuit_open(governor_status)
-    state["governor"] = {
-        "available": governor_status is not None,
-        "circuit_open": breaker_open,
-        "circuit": (governor_status or {}).get("circuit"),
-    }
     if opts.json:
         print(json.dumps(state, indent=2, sort_keys=True))
     else:
@@ -242,10 +207,6 @@ def cmd_status(opts):
         if state["rollout"]["mode"] == "canary":
             print("canary_percent: %d" % state["rollout"]["canary_percent"])
             print("canary_allowlist: %s" % ",".join(state["rollout"]["canary_allowlist"]) or "-")
-        if state["governor"]["available"]:
-            print("governor_circuit: %s" % ("OPEN (pressure sustained)" if breaker_open else "closed"))
-        else:
-            print("governor_circuit: unavailable (no --governor-state-file)")
     return 0
 
 
@@ -513,11 +474,6 @@ def main():
 
     status_p = sub.add_parser("status")
     status_p.add_argument("--json", action="store_true")
-    status_p.add_argument(
-        "--governor-state-file",
-        default=None,
-        help="path to a ResourceGovernor.status() JSON snapshot (#506 circuit breaker)",
-    )
 
     detect_p = sub.add_parser("detect")
     detect_p.add_argument("--input", default=None, help="read process list JSON from FILE instead of stdin")

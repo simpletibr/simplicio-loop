@@ -16,6 +16,7 @@ import sys
 from threading import Thread
 from collections import deque
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, ThreadPoolExecutor, wait
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Collection, Dict, Iterable, List, Literal, Mapping, Optional, Sequence, Set, Tuple, TypedDict
 
@@ -42,8 +43,7 @@ from .ecc_guidance import (
     extract_guidance_reference,
     inspect_ecc,
 )
-from .remote_queue import HTTPRemoteQueue, QueueConflict, QueueUnavailable, build_completion_receipt
-from .agent_contract import bind_receipt, build_context_pack
+from .remote_queue import QueueUnavailable
 from .receipt_verifier import (EVIDENCE_RECEIPT_SCHEMA as _EVIDENCE_RECEIPT_CONTENT_SCHEMA,
                                OPERATOR_RECEIPT_SCHEMA as _OPERATOR_RECEIPT_CONTENT_SCHEMA,
                                ReceiptStatus, verify_receipt)
@@ -52,21 +52,13 @@ from .planning_gate import evaluate_mutation_authority, mutation_authority_requi
 from .planning_gate import auto_planning_receipt_enabled
 from .planning_gate import build_planning_receipt as _build_planning_receipt
 from .planning_gate import publish_planning_receipt as _publish_planning_receipt
-from .work_item_claims import AttemptCoordinator, LeaseLostDuringExecution
 from .merge_executor import MergeExecutor, MergeExecutorError
 from . import local_capacity
 from . import wave_worktree
-from .model_registry import ModelCapabilityRegistry, ModelRegistryError
-from .model_router import ModelRouterError, route as _model_route
-from .runtime_drivers import CLI_PROBE_HOOKS, driver_for_runtime
-from .runtime_context import ContextAuthorizationError, ContextBudgetError, RuntimeContextRequest
-from .runtime_execution_receipt import RuntimeExecutionReceiptError
 from .loop_execution_receipt import (
     LoopExecutionReceiptError,
     publish_loop_execution_receipt,
 )
-from .runtime_adapter import LoopRuntimeAdapter, RuntimeAdapterError
-from .runtime_effect_adapter import EffectRequest, RuntimeEffectAdapter, RuntimeEffectError
 from .provider_worker import (
     OPENROUTER_MODEL,
     OpenRouterWorker,
@@ -82,10 +74,7 @@ from .hookwall_gate import (
 
 )
 from .hookwall_persistence import HookwallEffectLedger
-from .canonical_plan import CanonicalPlan, load_canonical_plan
 from .authority_boundary import prepare_authorization_handoff
-from .verified_delivery import VerifiedAgentDelivery, VerifiedDeliveryError
-from .execution_board import ExecutionBoard
 from .run_journal import RunJournal
 from .mapper_run_journal import MapperRunJournal
 from .mapper_hookwall import MapperHookwallEffectLedger
@@ -114,21 +103,6 @@ try:
 except ImportError:  # pragma: no cover - installed package without scripts namespace
     ensure_identity = None
 
-try:
-    from scripts.distributed_trust_policy import (
-        TrustPolicyError,
-        authorize as _trust_authorize,
-        load_policy as _load_trust_policy,
-        resolve_environment as _resolve_trust_environment,
-    )
-except ImportError:  # pragma: no cover - installed package without scripts namespace
-    TrustPolicyError = RuntimeError  # type: ignore[assignment,misc]
-
-
-    _trust_authorize = None
-    _load_trust_policy = None
-    _resolve_trust_environment = None
-
 
 _PROVIDER_SECRET_ENV = (
     "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
@@ -141,11 +115,6 @@ def _subprocess_env(base: Optional[Mapping[str, str]] = None) -> Dict[str, str]:
     for key in _PROVIDER_SECRET_ENV:
         env.pop(key, None)
     return env
-
-try:
-    from scripts.security_audit_log import append_event as _audit_append
-except ImportError:  # pragma: no cover - installed package without scripts namespace
-    _audit_append = None
 
 RUNNER_SCHEMA = "simplicio.run-manifest/v1"
 STATE_SCHEMA = "simplicio.run-state/v1"
@@ -300,8 +269,6 @@ class OperatorDispatchItem(TypedDict, total=False):
     task_spec: Mapping[str, Any]
     isolation: str
     operator_context: Mapping[str, Any]
-    distributed_queue: Any
-    agent_identity: Mapping[str, Any]
     context_pack: Mapping[str, Any]
     provider_worker: str
 
@@ -336,189 +303,6 @@ def _now() -> str:
 def _rand_token(n: int = 10) -> str:
     chars = string.ascii_lowercase + string.digits
     return "".join(random.choice(chars) for _ in range(n))
-
-
-def _resolve_trusted_queue_context(url: str) -> tuple[str, Optional[str], Optional[Dict[str, Any]]]:
-    """Resolve the distributed-queue destination via the #289 trust policy.
-
-    ``.github/workflows/distributed-183-proof.yml`` -- the workflow this issue's
-    exploit scenario named -- was removed repo-wide in #311, but the same
-    exfiltration/confused-deputy risk applies to this call site: it is the real,
-    currently-used way to hand a bearer token (``SIMPLICIO_REMOTE_QUEUE_TOKEN``)
-    to a network destination. Setting ``SIMPLICIO_REMOTE_ENVIRONMENT_ID`` opts
-    into fail-closed resolution: the destination comes from the versioned,
-    CODEOWNERS-reviewed ``.github/security/distributed-trust-policy.json``, not
-    from ``SIMPLICIO_REMOTE_QUEUE_URL``. A freeform ``SIMPLICIO_REMOTE_QUEUE_URL``
-    may still be set for local corroboration, but it must match the policy's
-    origin exactly -- an attacker-chosen destination is rejected before any
-    identity/queue object (and therefore any token) is created.
-
-    Environments without ``SIMPLICIO_REMOTE_ENVIRONMENT_ID`` set fall back to the
-    legacy unmanaged path (whatever ``SIMPLICIO_REMOTE_QUEUE_URL`` names) for
-    local/dev use; production/CI callers should set the environment id so the
-    destination is policy-resolved.
-
-    Returns ``(url, environment_id, policy)``; ``environment_id``/``policy`` are
-    ``None`` on the legacy unmanaged path so callers can tell whether
-    connect-time enforcement (:mod:`simplicio_loop.secure_transport`) applies.
-    """
-    environment_id = os.environ.get("SIMPLICIO_REMOTE_ENVIRONMENT_ID", "").strip()
-    if not environment_id:
-        return url, None, None
-    if _resolve_trust_environment is None or _load_trust_policy is None or _trust_authorize is None:
-        raise RuntimeError("distributed trust policy module unavailable")
-    policy_path = os.environ.get("SIMPLICIO_DISTRIBUTED_TRUST_POLICY", "").strip()
-    policy = _load_trust_policy(Path(policy_path)) if policy_path else _load_trust_policy()
-    env = _resolve_trust_environment(policy, environment_id)
-    repo_slug = os.environ.get("SIMPLICIO_REMOTE_REPO") or os.environ.get("GITHUB_REPOSITORY", "")
-    ref = os.environ.get("SIMPLICIO_REMOTE_REF") or os.environ.get("GITHUB_REF", "")
-    actor = os.environ.get("SIMPLICIO_REMOTE_ACTOR") or os.environ.get("GITHUB_ACTOR", "")
-    ok, reason = _trust_authorize(policy, environment_id, repo_slug.strip(), ref.strip(), actor.strip())
-    if not ok:
-        raise RuntimeError("distributed trust policy denied: %s" % reason)
-    origin = env["origin"]
-    trusted_url = "%s://%s:%s%s" % (
-        origin["scheme"], origin["hostname"], origin["port"], origin.get("base_path", "/"),
-    )
-    if url and url.rstrip("/") != trusted_url.rstrip("/"):
-        # This is the literal #289 exploit replayed against the real call site:
-        # a caller-supplied destination must never override the reviewed
-        # policy, or an attacker who controls SIMPLICIO_REMOTE_QUEUE_URL could
-        # redirect the bearer token to infrastructure they control.
-        raise RuntimeError(
-            "distributed trust policy denied: SIMPLICIO_REMOTE_QUEUE_URL does not match the "
-            "resolved origin for environment_id '%s'" % environment_id
-        )
-    return trusted_url, environment_id, policy
-
-
-def _resolve_trusted_queue_url(url: str) -> str:
-    """Backward-compatible wrapper returning only the resolved URL."""
-    resolved, _environment_id, _policy = _resolve_trusted_queue_context(url)
-    return resolved
-
-
-def _distributed_configuration(repo: str) -> tuple[Any, Optional[Dict[str, Any]]]:
-    """Return the opt-in network coordinator and stable worker identity.
-
-    Local fan-out is the default and remains the fallback when the optional
-    distributed environment is not usable.  Trust-policy violations still fail
-    closed; a missing identity adapter is an infrastructure absence, not a
-    reason to stop independent local work.
-    """
-    url = os.environ.get("SIMPLICIO_REMOTE_QUEUE_URL", "").strip()
-    if not url and not os.environ.get("SIMPLICIO_REMOTE_ENVIRONMENT_ID", "").strip():
-        return None, None
-    url, environment_id, policy = _resolve_trusted_queue_context(url)
-    if ensure_identity is None:
-        if _local_fallback_enabled():
-            return None, None
-        raise RuntimeError("distributed identity adapter unavailable")
-    identity = ensure_identity(
-        path=os.environ.get("SIMPLICIO_IDENTITY_FILE") or str(Path(repo) / ".simplicio-loop/orchestrator" / "agent-identity.json"),
-        runtime=os.environ.get("SIMPLICIO_RUNTIME", "unknown-runtime"),
-        capabilities=["claim", "heartbeat", "fencing", "receipts", "events", "evidence", "completion"],
-    )
-    token = _resolve_queue_token(environment_id, policy, identity)
-    queue = HTTPRemoteQueue(
-        url,
-        token=token,
-        timeout=float(os.environ.get("SIMPLICIO_REMOTE_QUEUE_TIMEOUT", "5")),
-        environment_id=environment_id,
-        policy=policy,
-    )
-    return queue, identity
-
-
-def _local_fallback_enabled() -> bool:
-    """Allow local execution when optional cloud coordination is absent.
-
-    This is deliberately enabled by default: the cloud queue is an accelerator
-    and claim transport, not a prerequisite for the Loop's local worktree
-    scheduler. Set ``SIMPLICIO_LOOP_LOCAL_FALLBACK=0`` only when a deployment
-    explicitly requires remote claims.
-    """
-    raw = os.environ.get("SIMPLICIO_LOOP_LOCAL_FALLBACK", "1").strip().lower()
-    return raw not in {"0", "false", "no", "off", "disabled"}
-
-
-STATIC_QUEUE_TOKEN_OPT_IN_VAR = "SIMPLICIO_ALLOW_STATIC_QUEUE_TOKEN"
-
-# #289: the queue operations a worker's short-lived credential is scoped to.
-# `enqueue` is deliberately excluded -- workers claim/heartbeat/complete/cancel
-# existing tasks, they do not create new ones, so a stolen worker credential
-# cannot be used to inject work into the queue.
-WORKER_QUEUE_OPERATIONS = (
-    "pull", "claim", "heartbeat", "complete", "assert-active", "cancel", "release", "events", "task",
-)
-
-
-def _resolve_queue_token(environment_id: Optional[str], policy: Optional[Dict[str, Any]],
-                          identity: Optional[Dict[str, Any]]) -> Optional[str]:
-    """Resolve the bearer credential for the distributed queue (#289).
-
-    Preferred path: ``SIMPLICIO_REMOTE_QUEUE_TOKEN_SECRET`` is a long-lived
-    HMAC *signing* secret (never sent on the wire); a fresh short-lived token
-    (:mod:`scripts.short_lived_credentials`) is minted for this process, bound
-    to the worker's agent identity as subject and the environment_id as scope,
-    with a TTL taken from the policy's ``max_ttl_seconds`` (capped by
-    ``SIMPLICIO_REMOTE_QUEUE_TOKEN_TTL_SECONDS`` if set lower), and restricted
-    to :data:`WORKER_QUEUE_OPERATIONS` (operation-level scoping, so a leaked
-    token cannot be replayed against an operation this worker never needed).
-    This is not the OIDC broker exchange #289 describes -- there is no CI
-    identity provider to issue the initial trust, and that gap stays
-    permanently blocked absent one -- but it replaces an indefinitely-lived
-    static secret with one that expires on its own and carries a revocable
-    ``jti``.
-
-    The legacy static ``SIMPLICIO_REMOTE_QUEUE_TOKEN`` is no longer a silent
-    fallback: it is only honored when the caller has *also* set
-    ``SIMPLICIO_ALLOW_STATIC_QUEUE_TOKEN=1`` (explicit opt-in), and every use
-    of it appends a ``reject``-adjacent warning line to the #289 audit log
-    (:mod:`scripts.security_audit_log`) so an indefinitely-lived credential in
-    use is discoverable, not invisible. Without the opt-in flag, a missing
-    signing secret fails closed with ``RuntimeError`` rather than silently
-    downgrading to the weaker auth mode.
-    """
-    secret = os.environ.get("SIMPLICIO_REMOTE_QUEUE_TOKEN_SECRET", "").strip()
-    if not secret:
-        static_token = os.environ.get("SIMPLICIO_REMOTE_QUEUE_TOKEN", "").strip() or None
-        opted_in = os.environ.get(STATIC_QUEUE_TOKEN_OPT_IN_VAR, "").strip().lower() in ("1", "true", "yes")
-        if static_token and not opted_in:
-            if _audit_append is not None:
-                _audit_append(
-                    None, event="runner.resolve_queue_token", decision="reject",
-                    operation=environment_id or "queue",
-                    reason="static SIMPLICIO_REMOTE_QUEUE_TOKEN present without "
-                           f"{STATIC_QUEUE_TOKEN_OPT_IN_VAR}=1 opt-in",
-                )
-            raise RuntimeError(
-                "SIMPLICIO_REMOTE_QUEUE_TOKEN_SECRET is not set and the legacy static "
-                "SIMPLICIO_REMOTE_QUEUE_TOKEN fallback is no longer silent (#289). Set "
-                f"{STATIC_QUEUE_TOKEN_OPT_IN_VAR}=1 to explicitly opt into the deprecated "
-                "static-token auth mode for local/dev use, or configure "
-                "SIMPLICIO_REMOTE_QUEUE_TOKEN_SECRET to use short-lived credentials instead."
-            )
-        if static_token and _audit_append is not None:
-            _audit_append(
-                None, event="runner.resolve_queue_token", decision="accept",
-                operation=environment_id or "queue",
-                reason="deprecated static-token auth mode explicitly opted into via "
-                       f"{STATIC_QUEUE_TOKEN_OPT_IN_VAR}=1",
-            )
-        return static_token
-    try:
-        from scripts.short_lived_credentials import issue_token
-    except ImportError as exc:  # pragma: no cover - installed package without scripts namespace
-        raise RuntimeError("short-lived credential module unavailable") from exc
-    max_ttl = float((policy or {}).get("environments", {}).get(environment_id, {}).get("max_ttl_seconds", 900)) \
-        if policy and environment_id else 900.0
-    override_ttl = os.environ.get("SIMPLICIO_REMOTE_QUEUE_TOKEN_TTL_SECONDS", "").strip()
-    ttl_seconds = min(float(override_ttl), max_ttl) if override_ttl else max_ttl
-    subject = (identity or {}).get("agent_id", "unknown-agent")
-    scope = environment_id or "queue"
-    return issue_token(secret, subject=subject, scope=scope, ttl_seconds=ttl_seconds,
-                       operations=WORKER_QUEUE_OPERATIONS)
 
 
 def _run_id() -> str:
@@ -736,10 +520,9 @@ def _dispatch_identity_fields(repo_path: Optional[Path]) -> Dict[str, str]:
     """Best-effort local agent identity for the #285 lifecycle comment's
     Agente/Runtime/Device fields.
 
-    Reuses the same stable per-repo identity file ``_distributed_configuration()``
-    creates for the real distributed dispatch path, so a sequential
-    (non-distributed) run projects the same genuine ``agent_id``/``runtime``/
-    ``device_id`` instead of leaving those fields blank. Never raises -- an
+    Uses one stable per-repo identity file so every run projects the same genuine
+    ``agent_id``/``runtime``/``device_id`` instead of leaving those fields blank.
+    Never raises -- an
     unavailable ``scripts.agent_identity`` module (installed package without the
     scripts namespace), a missing repo path, or any I/O failure just yields an
     empty projection rather than fabricated identity.
@@ -851,12 +634,10 @@ def _mapper_inspection_reports_stale(result: subprocess.CompletedProcess[str]) -
 
 def _degraded_mapper_fallback_enabled() -> bool:
     """Allow explicit-target local work to continue when deep mapping is unavailable."""
-    if _execution_profile() != "standalone":
-        return False
     raw = os.environ.get("SIMPLICIO_LOOP_ALLOW_DEGRADED_MAPPER", "").strip().lower()
     if raw:
         return raw not in {"0", "false", "no", "off", "disabled"}
-    return _local_fallback_enabled()
+    return True
 
 
 def _degraded_mapper_payload(
@@ -965,10 +746,9 @@ def _devcli_env(repo_path: Path, base_env: Dict[str, str] | None = None) -> Dict
     env["SIMPLICIO_LOCAL_LLM_DISABLED"] = "1"
     if _degraded_mapper_fallback_enabled():
         env["SIMPLICIO_ALLOW_DEGRADED_MAPPER"] = "1"
-    if _execution_profile() == "standalone":
-        # The Loop's standalone operator preflight is a context/target gate;
-        # it must not invoke the deterministic Dev CLI provider.
-        env["SIMPLICIO_STANDALONE_PREFLIGHT"] = "1"
+    # The Loop's standalone operator preflight is a context/target gate;
+    # it must not invoke the deterministic Dev CLI provider.
+    env["SIMPLICIO_STANDALONE_PREFLIGHT"] = "1"
     model = env.get("SIMPLICIO_MODEL", "").strip().casefold()
     if model.startswith(("local/", "llama", "ollama")):
         env.pop("SIMPLICIO_MODEL", None)
@@ -1014,8 +794,6 @@ def _devcli_cmd(repo_path: Path, *args: str) -> List[str]:
         base = [sys.executable, "-m", "simplicio.cli", *args]
     else:
         base = ["simplicio-dev-cli", *args]
-    # Runtime-backed execution is optional; local model execution is not an
-    # allowed fallback. The command remains usable in standalone mode.
     return base
 
 def _execution_profile() -> str:
@@ -1026,15 +804,28 @@ def _execution_profile() -> str:
     raw = os.environ.get("SIMPLICIO_EXECUTION_PROFILE", "").strip().lower()
     if raw in {"", "standalone", "auto"}:
         return "standalone"
-    raise RuntimeEffectError("SIMPLICIO_EXECUTION_PROFILE must be standalone")
+    raise RuntimeError("SIMPLICIO_EXECUTION_PROFILE must be standalone")
+
+
+@dataclass(frozen=True)
+class _EffectRequest:
+    """The identity of one mutable operator effect, sealed into its Hookwall envelope."""
+
+    workspace: str
+    idempotency_key: str
+    write_set: tuple[str, ...]
+    lease_id: str
+    fencing_token: int | str
+    attempt_id: str
+    gate_id: str
+    transaction_id: str
 
 
 def _build_effect_request(repo_path: Path, run_id: str, task_index: int,
                           task: Mapping[str, Any], attempt: int,
                           targets: Sequence[str], route_record: Mapping[str, Any],
                           guarded_attempt: Any,
-                          canonical_plan: Optional[CanonicalPlan] = None,
-                          storage_route: StorageRoute | str | None = None) -> EffectRequest:
+                          storage_route: StorageRoute | str | None = None) -> _EffectRequest:
     lease = getattr(guarded_attempt, "lease", None)
     lease_id = str(getattr(lease, "lease_id", "") or f"loop-run:{run_id}")
     raw_fence = getattr(lease, "fencing_token", 1)
@@ -1046,22 +837,15 @@ def _build_effect_request(repo_path: Path, run_id: str, task_index: int,
         except (TypeError, ValueError):
             fencing_token = 1
     transaction_id = f"{run_id}:{task.get('id') or task_index}:{attempt}"
-    return EffectRequest(
+    return _EffectRequest(
         workspace=str(repo_path),
         idempotency_key=transaction_id,
         write_set=tuple(f"repo:{target}" for target in (targets or ["repo"])),
         lease_id=lease_id,
         fencing_token=fencing_token,
-        cwd=".",
-        timeout_ms=_operator_timeout("execute") * 1000,
-        attempt=attempt,
-        deadline=int(time.time() * 1000) + _operator_timeout("execute") * 1000,
-        cancellation_boundary="safe_boundary_only",
-        gate_id=str(route_record.get("receipt_sha") or "execution-route"),
-        runtime_generation=os.environ.get("SIMPLICIO_RUNTIME_GENERATION") or None,
-        transaction_id=transaction_id,
-        canonical_plan=canonical_plan,
         attempt_id=str(getattr(guarded_attempt, "attempt_id", "") or lease_id),
+        gate_id=str(route_record.get("receipt_sha") or "execution-route"),
+        transaction_id=transaction_id,
     )
 
 
@@ -1268,15 +1052,10 @@ def _terminate_owned_process(registry: Any, task_id: str) -> Dict[str, Any] | No
         return {"cancelled": False, "reason": f"owned_process_termination_failed:{type(exc).__name__}"}
 
 
-def _execute_operator_effect_unchecked(*, profile: str, adapter: RuntimeEffectAdapter,
-                             request: EffectRequest, argv: List[str],
+def _execute_operator_effect_unchecked(*, argv: List[str],
                              env: Mapping[str, str], repo_path: Path,
-                             attempt_coordinator: Optional[AttemptCoordinator],
-                             guarded_attempt: Any,
                              owned_process_registry: Any = None,
                              owned_task_id: str = "") -> Dict[str, Any]:
-    del adapter, request  # standalone-only: no Runtime backend to dispatch through
-
     fake = os.environ.get("SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON", "").strip()
     if fake:
         payload = json.loads(fake)
@@ -1289,17 +1068,11 @@ def _execute_operator_effect_unchecked(*, profile: str, adapter: RuntimeEffectAd
             "stdout": payload.get("stdout", {}),
             "stderr": redact_sensitive_text(str(payload.get("stderr", ""))),
             "source": "env_override",
-            "effect_receipt": None,
             "uncertain": False,
         }
 
     try:
-        if attempt_coordinator is not None and guarded_attempt is not None:
-            result = attempt_coordinator.run_guarded(
-                guarded_attempt, argv, cwd=repo_path,
-                timeout=_operator_timeout("execute"), env=env,
-            )
-        elif owned_process_registry is None:
+        if owned_process_registry is None:
             result = subprocess.run(
                 argv, cwd=str(repo_path), capture_output=True, text=True,
                 timeout=_operator_timeout("execute"), env=env,
@@ -1353,7 +1126,6 @@ def _execute_operator_effect_unchecked(*, profile: str, adapter: RuntimeEffectAd
             "stdout": _parse_effect_stdout((result.stdout or "").strip()),
             "stderr": redact_sensitive_text((result.stderr or "").strip()),
             "source": "live_cli",
-            "effect_receipt": None,
             "uncertain": False,
         }
     except subprocess.TimeoutExpired as exc:
@@ -1362,7 +1134,6 @@ def _execute_operator_effect_unchecked(*, profile: str, adapter: RuntimeEffectAd
             "stdout": {},
             "stderr": f"timed out after {exc.timeout}s",
             "source": "live_cli",
-            "effect_receipt": None,
             # A timeout does not prove that the child stopped before writing.
             # Keep the Mapper effect unknown until an explicit reconciliation
             # can establish what happened.
@@ -2096,11 +1867,8 @@ def _hookwall_ledger(
     )
 
 
-def _execute_operator_effect(*, profile: str, adapter: RuntimeEffectAdapter,
-                             request: EffectRequest, argv: List[str],
+def _execute_operator_effect(*, request: _EffectRequest, argv: List[str],
                              env: Mapping[str, str], repo_path: Path,
-                             attempt_coordinator: Optional[AttemptCoordinator],
-                             guarded_attempt: Any,
                              source_hash: Optional[str] = None,
                              storage_route: StorageRoute | str | None = None,
                              owned_process_registry: Any = None,
@@ -2109,9 +1877,7 @@ def _execute_operator_effect(*, profile: str, adapter: RuntimeEffectAdapter,
     source_hash = source_hash or str(_repo_fingerprint(repo_path).get("tree_hash") or "")
     plan_id = request.gate_id or request.transaction_id or request.idempotency_key
     policy_hash = _hookwall_digest({
-        "profile": profile,
         "gate_id": request.gate_id or "",
-        "runtime_generation": request.runtime_generation or "",
         "write_set": list(request.write_set),
     })
     envelope = validate_envelope({
@@ -2146,7 +1912,7 @@ def _execute_operator_effect(*, profile: str, adapter: RuntimeEffectAdapter,
     if reservation["action"] == "REPLAY_VERIFIED":
         return {
             "returncode": 0, "stdout": {}, "stderr": "",
-            "source": "hookwall_verified_replay", "effect_receipt": None,
+            "source": "hookwall_verified_replay",
             "uncertain": False, "hookwall_envelope": envelope,
             "hookwall_pre_decision": pre_decision,
             "hookwall_evidence": reservation["evidence"],
@@ -2154,14 +1920,9 @@ def _execute_operator_effect(*, profile: str, adapter: RuntimeEffectAdapter,
         }
 
     outcome = _execute_operator_effect_unchecked(
-        profile=profile,
-        adapter=adapter,
-        request=request,
         argv=argv,
         env=env,
         repo_path=repo_path,
-        attempt_coordinator=attempt_coordinator,
-        guarded_attempt=guarded_attempt,
         owned_process_registry=owned_process_registry,
         owned_task_id=owned_task_id,
     )
@@ -2771,20 +2532,6 @@ def _auto_fan_out_enabled() -> bool:
     return raw not in {"0", "false", "no", "off", "disabled"}
 
 
-def _guarded_dispatch_enabled() -> bool:
-    """Opt-in gate (issue #288) for threading ``AttemptCoordinator.run_guarded`` through the
-    real operator dispatch path instead of a raw, unguarded ``subprocess.run``.
-
-    Off by default -- following the same pattern as ``SIMPLICIO_REQUIRE_MUTATION_AUTHORITY``
-    in #284's ``planning_gate.py`` wiring -- so existing callers/fixtures that pass a
-    distributed queue without the fuller identity/heartbeat contract are unaffected. Set
-    ``SIMPLICIO_GUARDED_DISPATCH=1`` to require a heartbeat-guarded, lease-fenced attempt for
-    every distributed-queue dispatch (a real worker whose lease is stolen mid-mutation is
-    killed and reported as ``lease_lost_during_execution`` instead of finishing unguarded).
-    """
-    return str(os.environ.get("SIMPLICIO_GUARDED_DISPATCH") or "").strip().lower() in ("1", "true", "yes")
-
-
 def _auto_merge_enabled() -> bool:
     """Opt-in gate (issue #288) for calling ``MergeExecutor`` for real once a dispatch
     attempt's receipt pair is ``VERIFIED``.
@@ -2835,263 +2582,6 @@ def _dispatch_merge_pr(item: Mapping[str, Any], *, receipt: str, run_id: str) ->
     except MergeExecutorError as exc:
         return {"attempted": True, "merged": False, "reconciled": False,
                 "reason_code": exc.reason_code, "detail": str(exc)}
-
-
-def _model_routed_dispatch_enabled() -> bool:
-    """Opt-in gate (issue #287) for threading ``model_router.route()``'s selection
-    through the real dispatch path instead of a hardcoded runtime.
-
-    Off by default -- following the same pattern as ``SIMPLICIO_GUARDED_DISPATCH``
-    (#288) and ``SIMPLICIO_AUTO_MERGE_PR`` (#288) above -- so existing callers/fixtures
-    that dispatch without a model registry configured are unaffected. Set
-    ``SIMPLICIO_MODEL_ROUTED_DISPATCH=1`` to compute a real routing-decision-receipt
-    for every dispatch attempt and, when a real ``CodexRuntimeDriver``/
-    ``ClaudeRuntimeDriver`` is wired for the selected runtime, genuinely invoke it and
-    persist a ``runtime-execution-receipt`` alongside the operator's own receipts. A
-    routing block or driver failure never blocks the underlying dev-cli operator
-    mutation this repo already performs -- this is additional, real audit evidence
-    layered on top of it, not a replacement for the operator contract.
-    """
-    return str(os.environ.get("SIMPLICIO_MODEL_ROUTED_DISPATCH") or "").strip().lower() in ("1", "true", "yes")
-
-
-def _verified_delivery_gate_enabled() -> bool:
-    """Opt-in gate (issue #288) for routing a dispatch attempt's completion decision through
-    the real ``LoopRuntimeAdapter``/``VerifiedAgentDelivery``/``ExecutionBoard`` evidence +
-    watcher + delivery contract instead of the bare ``execution_state == "applied"`` check.
-
-    ``LoopRuntimeAdapter`` and ``VerifiedAgentDelivery`` are real, fully tested classes
-    (``simplicio_loop/runtime_adapter.py``, ``verified_delivery.py``) but had zero references
-    in the dispatch path -- the #288 audit named this the highest-value remaining gap: an
-    attempt could be reported ``succeeded`` on ``execution_state == "applied"`` alone, with no
-    fresh COMPLETE evidence receipt, no measured watcher pass, and no recorded delivery
-    convergence actually required. Off by default -- following the same pattern as
-    ``SIMPLICIO_GUARDED_DISPATCH``/``SIMPLICIO_AUTO_MERGE_PR`` above -- so existing
-    callers/fixtures that dispatch without a watcher run are unaffected. Set
-    ``SIMPLICIO_VERIFIED_DELIVERY_GATE=1`` to demote a dispatch attempt whose evidence pair,
-    watcher, or delivery gate is not genuinely satisfied from ``succeeded`` to ``failed``,
-    even when the underlying dev-cli operator itself applied cleanly.
-    """
-    return str(os.environ.get("SIMPLICIO_VERIFIED_DELIVERY_GATE") or "").strip().lower() in ("1", "true", "yes")
-
-
-def _run_verified_delivery_gate(
-    *, run_id: str, task_id: str, actor: str, attempt_id: str,
-    receipt_verdict: Mapping[str, Any], evidence_receipt: str, watcher_receipt: str,
-    merge: Optional[Mapping[str, Any]], worktree_context: Mapping[str, Any],
-) -> Dict[str, Any]:
-    """Drive the real evidence+watcher+delivery gated completion check (issue #288) for one
-    dispatch attempt.
-
-    Never raises: a failed gate comes back as ``verified: False`` with a ``reason`` so the
-    caller can demote ``succeeded`` to ``failed`` without crashing the scheduler. This is a
-    strict superset of the pre-existing ``execution_state == "applied"`` check -- it can only
-    turn a would-be success into a failure, never the reverse.
-    """
-    schema = "simplicio.verified-delivery-gate/v1"
-    try:
-        watcher_state: Dict[str, Any] = {}
-        if watcher_receipt and Path(watcher_receipt).exists():
-            try:
-                watcher_state = json.loads(Path(watcher_receipt).read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                watcher_state = {}
-        watcher_detail = str(watcher_state.get("reported") or "").strip()
-        if receipt_verdict.get("status") != ReceiptStatus.VERIFIED:
-            return {"schema": schema, "verified": False, "status": "UNVERIFIED",
-                    "reason": watcher_detail or "operator/evidence receipt pair is not VERIFIED"}
-        if watcher_state.get("status") != "MEASURED" or not watcher_state.get("match"):
-            return {"schema": schema, "verified": False, "status": "UNVERIFIED",
-                    "reason": watcher_detail or "no measured watcher pass recorded for this attempt"}
-        runtime = LoopRuntimeAdapter(run_id=run_id, work_item_id=task_id, actor=actor or "loop",
-                                     standalone=True)
-        runtime.negotiate()
-        board = ExecutionBoard(run_id=run_id)
-        delivery = VerifiedAgentDelivery(runtime=runtime, board=board, attempt_id=attempt_id)
-        for phase in ("intake", "mapping", "planning", "executing", "validating", "watching", "delivering"):
-            delivery.transition(phase)
-        evidence_payload = {"schema": "simplicio.ac-evidence/v1", "status": "PASS", "ready": True,
-                            "verdict": "COMPLETE", "receipt_id": evidence_receipt or attempt_id}
-        delivery.record_evidence(evidence_payload)
-        challenge = str(watcher_state.get("challenge") or watcher_receipt)
-        delivery.record_watcher(match=True, challenge=challenge)
-        merge_info = dict(merge or {})
-        if merge_info.get("merged"):
-            delivery_payload = {
-                "target": "merge-queue", "satisfied": True,
-                "merge_queue": {
-                    "receipt_sha": str(merge_info.get("merge_commit_sha") or ""),
-                    "status": "accepted",
-                    "branch": str(worktree_context.get("branch") or ""),
-                    "worktree_path": str(worktree_context.get("worktree_path")
-                                        or worktree_context.get("path") or ""),
-                },
-            }
-        else:
-            delivery_payload = {"target": "local-fixture", "satisfied": True}
-        delivery.record_delivery(delivery_payload)
-        result = delivery.complete(evidence_payload)
-        projection = board.replay()
-        return {"schema": schema, "verified": True, "status": "VERIFIED",
-                "board_status": projection.get("status"), "delivery": result.get("delivery")}
-    except (VerifiedDeliveryError, RuntimeAdapterError) as exc:
-        return {"schema": schema, "verified": False, "status": "UNVERIFIED", "reason": str(exc)}
-
-
-_DEFAULT_MODEL_REGISTRY_ENTRIES: Tuple[Dict[str, Any], ...] = (
-    {
-        "runtime": "codex", "provider": "openai", "model_id": "codex-cli/gpt-5.6-luna",
-        "aliases": ["codex-cli"], "capabilities": ["execute", "review"],
-        "probe": {"kind": "codex-cli", "target": "codex"},
-    },
-    {
-        "runtime": "claude", "provider": "anthropic", "model_id": "claude-code/sonnet-5",
-        "aliases": ["claude-code"], "capabilities": ["execute", "review"],
-        "probe": {"kind": "claude-cli", "target": "claude"},
-    },
-)
-
-
-def _default_model_registry() -> ModelCapabilityRegistry:
-    """Build the standard two-runtime (Codex + Claude) registry, wired to the real
-    ``--version`` probes in ``runtime_drivers.py`` -- never a fabricated availability
-    check. A caller that needs a different registry shape (e.g. a config file) can
-    still build/pass its own ``ModelCapabilityRegistry``; this is only the default
-    used by the opt-in dispatch wiring below.
-    """
-    return ModelCapabilityRegistry(_DEFAULT_MODEL_REGISTRY_ENTRIES, probe_hooks=CLI_PROBE_HOOKS)
-
-
-def _route_runtime_for_item(item: Mapping[str, Any], *, role: str = "executor",
-                             registry: Optional[ModelCapabilityRegistry] = None) -> Dict[str, Any]:
-    """Compute one real ``routing-decision-receipt`` for a dispatch attempt.
-
-    Never raises for an ordinary routing block (no eligible candidate, e.g. neither
-    CLI installed) -- that comes back as a receipt with ``blocked=True`` and an
-    explicit ``block_reason`` so a caller can record/report it; only malformed input
-    surfaces as ``ModelRouterError``/``ModelRegistryError``.
-    """
-    registry = registry or _default_model_registry()
-    requirements = {"role": role, "required_capabilities": ["execute"]}
-    return _model_route(requirements, registry)
-
-
-def _execute_routed_runtime(item: Mapping[str, Any], run_dir: Path, *,
-                             registry: Optional[ModelCapabilityRegistry] = None) -> Dict[str, Any]:
-    """Route + (when a real driver is wired for the selection) genuinely execute one
-    LLM-runtime attempt for this dispatch, persisting both receipts under
-    ``run_dir/loop/`` for audit.
-
-    This never fabricates execution: when routing is blocked (no eligible
-    candidate) or no real driver exists for the selected runtime, the returned
-    summary says so explicitly (``executed: False``) rather than skipping silently
-    or pretending a result. A driver invocation failure (missing binary, auth/policy
-    block, timeout) is itself a genuine, honestly-reported outcome -- captured in the
-    persisted ``runtime-execution-receipt`` exactly as observed.
-    """
-    summary: Dict[str, Any] = {
-        "routed": False, "executed": False,
-        "routing_decision_receipt": "", "runtime_execution_receipt": "",
-    }
-    try:
-        routing_receipt = _route_runtime_for_item(item, registry=registry)
-    except (ModelRouterError, ModelRegistryError) as exc:
-        summary["error"] = f"{type(exc).__name__}: {exc}"
-        return summary
-    summary["routed"] = True
-    loop_dir = run_dir / "loop"
-    loop_dir.mkdir(parents=True, exist_ok=True)
-    routing_path = loop_dir / "routing-decision-receipt.json"
-    _write_json(routing_path, routing_receipt)
-    summary["routing_decision_receipt"] = str(routing_path)
-    summary["selected"] = routing_receipt.get("selected")
-    summary["blocked"] = bool(routing_receipt.get("blocked"))
-    if routing_receipt.get("blocked") or not routing_receipt.get("selected"):
-        summary["block_reason"] = str(routing_receipt.get("block_reason") or "")
-        return summary
-    selected = routing_receipt["selected"]
-    driver = driver_for_runtime(selected.get("runtime"))
-    if driver is None:
-        summary["reason"] = f"no real driver wired for runtime {selected.get('runtime')!r}"
-        return summary
-    context_pack = item.get("context_pack") if isinstance(item.get("context_pack"), Mapping) else {}
-    goal = str(context_pack.get("goal") or item.get("task_id") or "").strip()
-    if not goal:
-        summary["reason"] = "no task goal text available to prompt the runtime"
-        return summary
-    repo_path = Path(str(item.get("repo") or "."))
-    context_request: Optional[RuntimeContextRequest] = None
-    if all(context_pack.get(key) for key in (
-        "mapper_envelope_hash", "plan_hash", "authorized_targets", "target",
-    )):
-        try:
-            context_request = RuntimeContextRequest(
-                goal=goal,
-                acceptance_criteria=tuple(context_pack.get("acs") or context_pack.get("acceptance_criteria") or ()),
-                source_spans=tuple(context_pack.get("source_spans") or ()),
-                source_refs=tuple(context_pack.get("source_refs") or ()),
-                verification_routes=tuple(context_pack.get("verification_routes") or ()),
-                graph_evidence=tuple(context_pack.get("graph_evidence") or ()),
-                omissions=tuple(context_pack.get("omissions") or ()),
-                trusted_constraints=tuple(context_pack.get("trusted_constraints") or ()),
-                untrusted_evidence=tuple(context_pack.get("untrusted_evidence") or ()),
-                authorized_targets=tuple(context_pack.get("authorized_targets") or ()),
-                target=str(context_pack.get("target") or ""),
-                remaining_budget_tokens=int(context_pack.get("remaining_budget_tokens") or 0),
-                mapper_envelope_hash=str(context_pack.get("mapper_envelope_hash") or ""),
-                plan_hash=str(context_pack.get("plan_hash") or ""),
-            )
-            result = driver.execute_context(
-                context_request, cwd=repo_path if repo_path.exists() else None,
-                expected_mapper_envelope_hash=str(context_pack.get("mapper_envelope_hash")),
-                expected_plan_hash=str(context_pack.get("plan_hash")),
-            )
-        except (ContextAuthorizationError, ContextBudgetError, TypeError, ValueError) as exc:
-            summary["error"] = f"RuntimeContextError: {exc}"
-            return summary
-    else:
-        result = driver.execute(goal, cwd=repo_path if repo_path.exists() else None)
-    base_sha = ""
-    head_sha = ""
-    changed: List[str] = []
-    if repo_path.exists():
-        fingerprint = _repo_fingerprint(repo_path)
-        base_sha = head_sha = str(fingerprint.get("head") or "")
-        try:
-            changed = _changed_paths(repo_path)
-        except Exception:
-            changed = []
-    try:
-        execution_receipt = driver.build_receipt(
-            route_id=hashlib.sha256(json.dumps(routing_receipt, sort_keys=True).encode("utf-8")).hexdigest()[:16],
-            requested={"runtime": selected.get("runtime"), "provider": selected.get("provider"),
-                       "model_id": selected.get("model_id"), "verified": True},
-            session={
-                "worker_id": str(item.get("worker_id") or ""),
-                "device_id": os.environ.get("SIMPLICIO_DEVICE_ID", ""),
-                "attempt_id": str(item.get("task_index") or ""),
-                "lease_id": "", "fence_token": "",
-            },
-            result=result,
-            tree={"base_sha": base_sha, "head_sha": head_sha, "changed_paths": changed},
-            evidence_refs=(
-                ["runtime-context:" + context_request.request_hash,
-                 "mapper-envelope:" + context_request.mapper_envelope_hash,
-                 "plan:" + context_request.plan_hash]
-                if context_request is not None else None
-            ),
-        )
-    except RuntimeExecutionReceiptError as exc:
-        summary["error"] = f"{type(exc).__name__}: {exc}"
-        return summary
-    execution_path = loop_dir / "runtime-execution-receipt.json"
-    _write_json(execution_path, execution_receipt)
-    summary["executed"] = True
-    summary["runtime_execution_receipt"] = str(execution_path)
-    summary["execution_ok"] = bool(result.ok)
-    summary["execution_stop_reason"] = result.stop_reason
-    summary["execution_error"] = result.error
-    return summary
 
 
 # One task stays on the shared checkout and is executed with ``tick``.
@@ -3246,7 +2736,7 @@ def _ensure_verified_loop_journal(run_dir: Path) -> str:
     """Persist the append-only loop journal required by the published receipt.
 
     Mapper-backed runs keep their durable lifecycle journal in MapperStore, while
-    the runtime handoff contract still carries the loop's JSONL attempt-memory
+    the loop-execution receipt still carries the loop's JSONL attempt-memory
     artifact. The normal agent hook is not involved in an external mechanical
     coordinator run, so materialize one honest, post-gate verification record at
     the boundary. An existing journal is preserved byte-for-byte; a missing or
@@ -5593,7 +5083,6 @@ def conclude_run(repo: str, run_id: str, *, force: bool = False) -> Dict[str, An
 
 
 def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
-                      attempt_coordinator: Optional[AttemptCoordinator] = None,
                       guarded_attempt: Any = None,
                       authority_receipt: Optional[Mapping[str, Any]] = None,
                       authority_attempt: Optional[int] = None,
@@ -5607,16 +5096,9 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     `run` intentionally arms and dry-runs only.  This explicit tick is the mutation boundary;
     it cannot run without the mapper/plan/operator preflight artifacts created by `arm_run`.
 
-    When both ``attempt_coordinator`` and ``guarded_attempt`` (a ``WorkItemAttempt``) are
-    supplied (issue #288's guarded dispatch path, gated by ``SIMPLICIO_GUARDED_DISPATCH`` in
-    ``_operator_dispatch_attempt``), the mutating dev-cli invocation runs through
-    ``AttemptCoordinator.run_guarded`` instead of a raw ``subprocess.run`` -- a background
-    thread heartbeats the lease for the life of the subprocess and kills it the instant the
-    lease is no longer current, instead of letting a worker that lost its fence keep mutating
-    the checkout (the #183 gap). ``LeaseLostDuringExecution`` propagates to the caller, which
-    already treats any exception here as a receipted (not scheduler-crashing) failure.
-    ``guarded_attempt`` is deliberately named apart from this function's own ``attempt``
-    local (the per-task retry counter) so the two can never collide.
+    ``guarded_attempt`` (a Mapper OperationsStore attempt) supplies the lease and fence the
+    Hookwall envelope is sealed with. It is deliberately named apart from this function's own
+    ``attempt`` local (the per-task retry counter) so the two can never collide.
     """
     status = read_status(repo, run_id)
     _raise_if_maintenance_deferred(repo, run_id, status)
@@ -5700,7 +5182,7 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
                                      "admission_fence": max(1, int(admission_fence))})
     # #694: every production item gets an authoritative route receipt before
     # mutation authority or an execution backend is selected.  The route is a
-    # deterministic gate; Runtime remains the physical/policy owner.
+    # deterministic gate.
     task_text = _task_goal(task)
     worker_capabilities = task.get("worker_capabilities") or task.get("capabilities") or ()
     worker_available = bool(worker_capabilities) or os.environ.get("SIMPLICIO_DETERMINISTIC_WORKER", "1").lower() not in {"0", "false", "no", "off"}
@@ -6057,24 +5539,15 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         "mechanical_plan": str(mechanical_path) if mechanical_path else "",
         "provider_usage": dict((provider_receipt or {}).get("usage") or {}),
     }
-    effect_adapter = RuntimeEffectAdapter(profile=profile)
     effect_request = _build_effect_request(
         repo_path, run_id, task_index, task, attempt, targets, route_record, guarded_attempt,
         storage_route=storage_route.get("selected"),
-        canonical_plan=(
-            load_canonical_plan(plan["canonical_plan"], expected_digest=str(plan.get("canonical_plan_digest") or ""))
-            if isinstance(plan.get("canonical_plan"), Mapping) else None
-        ),
     )
     effect_outcome = _execute_operator_effect(
-        profile=profile,
-        adapter=effect_adapter,
         request=effect_request,
         argv=argv,
         env=op_env,
         repo_path=repo_path,
-        attempt_coordinator=attempt_coordinator,
-        guarded_attempt=guarded_attempt,
         source_hash=str(before.get("tree_hash") or ""),
         storage_route=storage_route.get("selected"),
         owned_process_registry=owned_process_registry,
@@ -6084,7 +5557,6 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     stdout = effect_outcome["stdout"]
     stderr = effect_outcome["stderr"]
     source = effect_outcome["source"]
-    effect_receipt = effect_outcome.get("effect_receipt")
     uncertain = bool(effect_outcome.get("uncertain"))
     hookwall_evidence = effect_outcome.get("hookwall_evidence")
     hookwall_verified, hookwall_gate_reason = gate_completion(hookwall_evidence)
@@ -6167,10 +5639,6 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         "provider_reasoning_tokens": provider_receipt.get("reasoning_tokens") if provider_receipt else None,
         "provider_cost": provider_receipt.get("cost") if provider_receipt else None,
         "execution_profile": profile,
-        "executor_profile": (effect_receipt or {}).get("executor_profile", profile),
-        "effect_receipt": effect_receipt,
-        "effect_transaction_id": (effect_receipt or {}).get("transaction_id", ""),
-        "effect_correlation_id": (effect_receipt or {}).get("correlation_id", ""),
         "hookwall_envelope": effect_outcome.get("hookwall_envelope"),
         "hookwall_pre_decision": effect_outcome.get("hookwall_pre_decision"),
         "hookwall_mutation_receipt": effect_outcome.get("hookwall_mutation_receipt"),
@@ -6289,7 +5757,6 @@ def _raise_if_maintenance_deferred(repo: str, run_id: str,
 
 
 def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
-                     attempt_coordinator: Optional[AttemptCoordinator] = None,
                      guarded_attempt: Any = None,
                      authority_receipt: Optional[Mapping[str, Any]] = None,
                      authority_attempt: Optional[int] = None,
@@ -6309,7 +5776,6 @@ def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
     if guarded_attempt is not None:
         return _execute_operator_unleased(
             repo, run_id, task_index=task_index,
-            attempt_coordinator=attempt_coordinator,
             guarded_attempt=guarded_attempt,
             authority_receipt=authority_receipt,
             authority_attempt=authority_attempt,
@@ -6327,7 +5793,6 @@ def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
     if storage_route.get("selected") != StorageRoute.MAPPER.value:
         return _execute_operator_unleased(
             repo, run_id, task_index=task_index,
-            attempt_coordinator=attempt_coordinator,
             guarded_attempt=None,
             authority_receipt=authority_receipt,
             authority_attempt=authority_attempt,
@@ -6372,7 +5837,6 @@ def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
     try:
         result = _execute_operator_unleased(
             repo, run_id, task_index=task_index,
-            attempt_coordinator=attempt_coordinator,
             guarded_attempt=mapper_attempt,
             authority_receipt=authority_receipt,
             authority_attempt=authority_attempt,
@@ -6598,7 +6062,7 @@ def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
         loop_execution = publish_loop_execution_receipt(**publication_args)
         if loop_execution.get("status") != "VERIFIED":
             raise LoopExecutionReceiptError(
-                "runtime handoff receipt did not reach VERIFIED status"
+                "loop-execution receipt did not reach VERIFIED status"
             )
     except LoopExecutionReceiptError as exc:
         state = read_status(repo, run_id)["state"]
@@ -6615,7 +6079,7 @@ def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
             run_dir,
             state,
             "blocked",
-            "runtime handoff receipt could not be published",
+            "loop-execution receipt could not be published",
             receipt=str(run_dir / "state.json"),
         )
         return read_status(repo, run_id)
@@ -7489,10 +6953,6 @@ def _operator_dispatch_item(item: Mapping[str, Any]) -> Dict[str, Any]:
         normalized["authority_receipt"] = authority
     if isinstance(item.get("operator_context"), Mapping):
         normalized["operator_context"] = dict(item["operator_context"])
-    if item.get("distributed_queue") is not None:
-        normalized["distributed_queue"] = item["distributed_queue"]
-    if isinstance(item.get("agent_identity"), Mapping):
-        normalized["agent_identity"] = dict(item["agent_identity"])
     if isinstance(item.get("context_pack"), Mapping):
         normalized["context_pack"] = dict(item["context_pack"])
     if item.get("source_repo"):
@@ -7548,146 +7008,6 @@ def _verify_worker_receipt_pair(operator_receipt_path: str, evidence_receipt_pat
     return {
         "status": ReceiptStatus.VERIFIED,
         "reason": "operator and evidence receipts passed content/schema/hash/freshness/provenance checks",
-    }
-
-
-def _test_only_stall_before_dispatch(task_id: str) -> None:
-    """Test-only hook (issue #288 cross-process recovery test): block one named task for a
-    controlled number of real wall-clock seconds before it claims/executes.
-
-    This exists solely so a test can start a real orchestrator OS process, let it durably
-    journal an earlier task, and then kill the process (a genuine crash, not a simulated
-    exception) while it is deterministically stalled mid-batch on a *different* task --
-    proving a restarted orchestrator resumes/reconciles cleanly. It is a no-op unless both
-    ``SIMPLICIO_LOOP_TEST_SLOW_TASK_ID`` matches this exact task and
-    ``SIMPLICIO_LOOP_TEST_SLOW_TASK_SECONDS`` is set, mirroring the project's existing
-    ``SIMPLICIO_LOOP_FAKE_*`` opt-in test hooks -- never active in a normal run.
-    """
-    target = os.environ.get("SIMPLICIO_LOOP_TEST_SLOW_TASK_ID", "").strip()
-    if not target or target != str(task_id).strip():
-        return
-    try:
-        seconds = float(os.environ.get("SIMPLICIO_LOOP_TEST_SLOW_TASK_SECONDS", "0") or "0")
-    except ValueError:
-        seconds = 0.0
-    if seconds > 0:
-        time.sleep(seconds)
-
-
-def _remote_worker_dispatch_enabled() -> bool:
-    """#286: once the queue is a genuine network ``HTTPRemoteQueue``, the coordinator must
-    not execute the operator in its own process -- it enqueues the task envelope and waits
-    for an independent ``RemoteWorkerDaemon`` (a different device/process, reachable only
-    over the wire) to pull, claim, run, and complete it. This is the fix for the exact gap
-    issue #286 named: "execute_operator_batch() cria HTTPRemoteQueue, mas continua
-    submetendo _operator_dispatch_attempt() a um ThreadPoolExecutor local; o proprio
-    coordenador chama execute_operator()."
-
-    ``SQLiteRemoteQueue`` (issue #288's co-located, same-process guarded-dispatch path) is
-    deliberately unaffected -- that queue backend models a single-host attempt coordinator,
-    not a remote worker, so every existing #288 test using it keeps its current behavior.
-    Opt out with ``SIMPLICIO_REMOTE_WORKER_ONLY=0`` only for a deliberate same-host smoke
-    test that wants the old in-process shortcut against a real HTTP queue.
-    """
-    return str(os.environ.get("SIMPLICIO_REMOTE_WORKER_ONLY") or "1").strip().lower() not in (
-        "0", "false", "no", "off", "disabled",
-    )
-
-
-def _operator_dispatch_attempt_remote_worker(
-    item: Mapping[str, Any], common: Dict[str, Any], queue: HTTPRemoteQueue, started: float,
-) -> Dict[str, Any]:
-    """Enqueue-and-wait dispatch for a genuine remote (``HTTPRemoteQueue``) worker (#286).
-
-    The coordinator itself never claims and never calls ``execute_operator()`` here -- it
-    publishes the immutable task envelope once (idempotent: ``enqueue`` is a no-op if the
-    task_id already exists) and polls ``queue.task()`` (the same authority a remote
-    ``RemoteWorkerDaemon`` mutates) until the task reaches a terminal ``completed`` status or
-    the dispatch timeout elapses. A timeout is reported as a specific, non-fabricated failure
-    (``remote_worker_timeout``) rather than silently falling back to local execution.
-    """
-    task_id = common["task_id"]
-    context_pack = dict(item.get("context_pack") or {})
-    payload = {
-        "run_id": common["run_id"], "worker_id": common["worker_id"],
-        "task_index": common["task_index"], "goal": context_pack.get("goal", ""),
-        "acs": list(context_pack.get("acs") or ()),
-        "depends_on": list(context_pack.get("depends_on") or ()),
-        "allowed_paths": list(context_pack.get("allowed_paths") or ()),
-        "issue_ref": context_pack.get("issue_ref", ""), "issue_url": context_pack.get("issue_url", ""),
-        "context_pack": context_pack,
-        "worktree_context": dict(item.get("worktree_context") or {}),
-    }
-    common["dispatch_mode"] = "remote_worker_pull"
-    try:
-        queue.enqueue(task_id, payload)
-    except (QueueConflict, QueueUnavailable, ValueError) as exc:
-        return {**common, "status": "failed", "phase": "blocked", "execution_state": "error",
-                "receipt": "", "operator_receipt": "", "evidence_receipt": "",
-                "receipt_status": "UNVERIFIED", "attempt": 0,
-                "reason_code": "remote_enqueue_failed", "remote_error_class": type(exc).__name__,
-                "error": str(exc), "dead_letter": True,
-                "started_at": started, "finished_at": _now()}
-
-    timeout = float(os.environ.get("SIMPLICIO_REMOTE_DISPATCH_TIMEOUT_SECONDS", "3600"))
-    poll_interval = float(os.environ.get("SIMPLICIO_REMOTE_DISPATCH_POLL_INTERVAL_SECONDS", "2"))
-    deadline = time.monotonic() + max(0.0, timeout)
-    task_state: Dict[str, Any] = {}
-    while True:
-        try:
-            task_state = queue.task(task_id)
-        except (QueueUnavailable, KeyError) as exc:
-            return {**common, "status": "failed", "phase": "blocked", "execution_state": "paused",
-                    "receipt": "", "operator_receipt": "", "evidence_receipt": "",
-                    "receipt_status": "UNVERIFIED", "attempt": 0,
-                    "reason_code": "network_paused", "error": str(exc), "dead_letter": True,
-                    "started_at": started, "finished_at": _now()}
-        if str(task_state.get("status") or "") == "completed":
-            break
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            break
-        time.sleep(min(poll_interval, remaining))
-
-    if str(task_state.get("status") or "") != "completed":
-        return {**common, "status": "failed", "phase": "blocked", "execution_state": "timeout",
-                "receipt": "", "operator_receipt": "", "evidence_receipt": "",
-                "receipt_status": "UNVERIFIED", "attempt": 0,
-                "reason_code": "remote_worker_timeout",
-                "error": "no remote worker completed task %s within %.0fs" % (task_id, timeout),
-                "dead_letter": True, "started_at": started, "finished_at": _now()}
-
-    lease_info = dict(task_state.get("lease") or {})
-    receipt = str(lease_info.get("receipt_ref") or "")
-    # The remote worker's evidence receipt lives on its own device; the coordinator only
-    # treats it as readable when both files genuinely exist on this filesystem (true, for
-    # instance, of the same-host loopback proxy this repo's E2E uses). A cross-device
-    # deployment without a receipt-fetch endpoint honestly reports UNVERIFIED here rather
-    # than fabricating a VERIFIED pair it cannot see.
-    evidence_receipt = str(Path(receipt).parent / "evidence-receipt.json") if receipt else ""
-    if not (evidence_receipt and Path(evidence_receipt).is_file()):
-        evidence_receipt = ""
-    receipt_verdict = _verify_worker_receipt_pair(receipt, evidence_receipt)
-    merge: Optional[Dict[str, Any]] = None
-    if receipt_verdict["status"] == ReceiptStatus.VERIFIED and _auto_merge_enabled():
-        merge = _dispatch_merge_pr(item, receipt=receipt, run_id=common["run_id"])
-    return {
-        **common,
-        "status": "succeeded",
-        "phase": "delivered",
-        "execution_state": "applied",
-        "receipt": receipt,
-        "operator_receipt": receipt,
-        "evidence_receipt": evidence_receipt,
-        "watcher_receipt": "",
-        "receipt_status": receipt_verdict["status"],
-        "receipt_verdict_reason": receipt_verdict["reason"],
-        "attempt": 1,
-        "failure_fingerprint": "",
-        "merge": merge,
-        "remote_task": {"task_id": task_id, "lease": lease_info},
-        "started_at": started,
-        "finished_at": _now(),
     }
 
 
@@ -7786,8 +7106,6 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
         "operator_receipt": "",
         "evidence_receipt": "",
         "receipt_status": "UNVERIFIED",
-        "agent": dict(item.get("agent_identity") or {}),
-        "context_pack": dict(item.get("context_pack") or {}),
         "authority_receipt": dict(item.get("authority_receipt") or {}),
         "admission_fence": int(item.get("admission_fence") or 1),
         "authority_attempt": int(item.get("authority_attempt") or 1),
@@ -7798,120 +7116,9 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
     execution_route = _fanout_execution_route(item, run_dir)
     common["execution_route"] = execution_route
     common["route_receipt_sha"] = execution_route["receipt_sha"]
-    if _model_routed_dispatch_enabled():
-        # #287: route this dispatch attempt through the real model registry/router
-        # instead of a hardcoded runtime, and -- when a real driver is wired for the
-        # selection -- genuinely invoke it. Additive audit evidence only: a routing
-        # block or driver failure here never blocks the dev-cli operator mutation
-        # below, which remains this repo's actual apply/verify contract.
-        try:
-            if execution_route["route"] == "worker":
-                common["model_routing"] = {
-                    "routed": False, "executed": False,
-                    "reason": "deterministic_worker_route_no_llm",
-                    "execution_route_sha": execution_route["receipt_sha"],
-                }
-            else:
-                common["model_routing"] = _execute_routed_runtime(item, run_dir)
-        except Exception as exc:  # routing/execution evidence must never crash dispatch
-            common["model_routing"] = {"routed": False, "executed": False, "error": f"{type(exc).__name__}: {exc}"}
-    queue = item.get("distributed_queue")
-    if queue is not None and isinstance(queue, HTTPRemoteQueue) and _remote_worker_dispatch_enabled():
-        # #286: a genuine network queue means genuine remote workers -- the coordinator
-        # enqueues and waits, it never claims/executes the operator itself. See
-        # `_remote_worker_dispatch_enabled` for the opt-out and rationale.
-        remote_record = _operator_dispatch_attempt_remote_worker(item, common, queue, started)
-        # Enqueue failure means the remote task was not accepted and is safe to
-        # continue locally.  A poll timeout is deliberately not downgraded: the
-        # remote task may still be executing and a local retry could duplicate an
-        # effect.
-        if not (
-            _local_fallback_enabled()
-            and remote_record.get("reason_code") == "remote_enqueue_failed"
-            and remote_record.get("remote_error_class") in {"QueueUnavailable", "OSError"}
-        ):
-            return remote_record
-        common["distributed_fallback"] = {
-            "schema": "simplicio.loop.distributed-fallback/v1",
-            "requested": "remote",
-            "selected": "local",
-            "reason_code": "remote_unavailable",
-            "error": str(remote_record.get("error") or "remote enqueue unavailable")[:512],
-        }
-        queue = None
-    lease = None
     mapper_operations = None
     mapper_attempt = None
-    guarded = _guarded_dispatch_enabled()
-    attempt_coordinator: Optional[AttemptCoordinator] = None
     attempt_obj: Any = None
-    if queue is not None:
-        identity = item.get("agent_identity")
-        try:
-            if guarded and identity:
-                # #288/#183: real dispatch attempts get a heartbeat-guarded, fenced attempt
-                # object instead of a bare lease -- the same lease/fencing contract, plus the
-                # ability to run the mutating subprocess through ``run_guarded`` below.
-                attempt_coordinator = AttemptCoordinator(queue, run_id=common["run_id"])
-                context_pack = item.get("context_pack") if isinstance(item.get("context_pack"), Mapping) else {}
-                attempt_obj = attempt_coordinator.claim(
-                    work_item_id=common["task_id"],
-                    identity=identity,
-                    goal=str(context_pack.get("goal") or common["task_id"]),
-                    acs=tuple(context_pack.get("acs") or ()),
-                    depends_on=tuple(context_pack.get("depends_on") or ()),
-                    source_refs=tuple(context_pack.get("source_refs") or ()),
-                    allowed_paths=tuple(context_pack.get("allowed_paths") or ()),
-                    issue_ref=str(context_pack.get("issue_ref") or ""),
-                    issue_url=str(context_pack.get("issue_url") or ""),
-                    ttl=float(os.environ.get("SIMPLICIO_REMOTE_QUEUE_TTL", "3600")),
-                )
-                lease = attempt_obj.lease
-            else:
-                lease = queue.claim(
-                    common["task_id"], common["worker_id"],
-                    idempotency_key=f"{common['run_id']}:{common['task_id']}:{common['worker_id']}",
-                    ttl=float(os.environ.get("SIMPLICIO_REMOTE_QUEUE_TTL", "3600")),
-                    identity=identity,
-                    capabilities=(identity or {}).get("capabilities", ()),
-                )
-            common["lease"] = {
-                "lease_id": lease.lease_id,
-                "fencing_token": lease.fencing_token,
-                "expires_at": lease.expires_at,
-            }
-            common["guarded_dispatch"] = attempt_obj is not None
-        except QueueConflict as exc:
-            return {**common, "status": "failed", "phase": "blocked", "execution_state": "paused",
-                    "reason_code": "claim_conflict", "error": str(exc), "dead_letter": True,
-                    "started_at": started, "finished_at": _now()}
-        except (QueueUnavailable, OSError) as exc:
-            # The remote queue is an optional accelerator.  If it is genuinely
-            # unavailable, release the unclaimed item into the isolated local
-            # lane instead of dead-lettering the whole batch.  Keep conflicts
-            # and malformed/trust-invalid configuration fail-closed below.
-            if _local_fallback_enabled() and isinstance(queue, HTTPRemoteQueue):
-                common["distributed_fallback"] = {
-                    "schema": "simplicio.loop.distributed-fallback/v1",
-                    "requested": "remote",
-                    "selected": "local",
-                    "reason_code": "remote_unavailable",
-                    "error": str(exc)[:512],
-                }
-                queue = None
-            else:
-                return {**common, "status": "failed", "phase": "blocked", "execution_state": "paused",
-                        "reason_code": "network_paused", "error": str(exc), "dead_letter": True,
-                        "started_at": started, "finished_at": _now()}
-        except ValueError as exc:
-            return {**common, "status": "failed", "phase": "blocked", "execution_state": "paused",
-                    "reason_code": "network_paused", "error": str(exc), "dead_letter": True,
-                    "started_at": started, "finished_at": _now()}
-    if lease is not None:
-        # Only stall a task that is genuinely claimed/leased -- this is what lets the
-        # cross-process recovery test kill the orchestrator mid-attempt with a real,
-        # in-flight (not merely queued) lease abandoned behind it.
-        _test_only_stall_before_dispatch(str(common.get("task_id") or ""))
     if item.get("worktree_error"):
         return {
             **common,
@@ -7980,7 +7187,7 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
     try:
         payload = execute_operator(
             item["repo"], item["run_id"], task_index=item["task_index"],
-            attempt_coordinator=attempt_coordinator, guarded_attempt=attempt_obj,
+            guarded_attempt=attempt_obj,
             authority_receipt=item.get("authority_receipt"),
             authority_attempt=int(item.get("authority_attempt") or 1),
             admission_fence=int(item.get("admission_fence") or 1),
@@ -8015,24 +7222,6 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
                 # The worker result remains useful even when a crashed operator did not leave
                 # a readable receipt; the scheduler will use the bounded exception path.
                 failure_fingerprint = ""
-        if lease is not None and success:
-            receipt_ref_value = receipt or f"{run_dir}/operator-receipt.json"
-            if attempt_coordinator is not None and attempt_obj is not None:
-                attempt_coordinator.complete(attempt_obj, receipt_ref=receipt_ref_value)
-            else:
-                # #286 step 9: present a wire receipt the queue server itself independently
-                # verifies (schema/hash/task-agent-fence binding), not just an opaque
-                # ``receipt_ref`` path it has no way to open or trust.
-                queue.complete(lease, receipt_ref=receipt_ref_value, receipt=build_completion_receipt(
-                    task_id=lease.task_id, agent_id=lease.agent_id, fencing_token=lease.fencing_token,
-                    receipt_ref=receipt_ref_value,
-                ))
-        if item.get("agent_identity") and receipt:
-            # Keep the worker result itself immutable and independently attributable.
-            common["receipt_binding"] = bind_receipt(
-                {"receipt_ref": receipt}, item["agent_identity"],
-                context_pack=item.get("context_pack"),
-            )
         receipt_verdict = _verify_worker_receipt_pair(receipt, evidence_receipt)
         mapper_completion = None
         mapper_completion_error = ""
@@ -8066,21 +7255,6 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
             # as done -- replaces the ad-hoc, hand-run "gh pr create / gh pr merge" pattern
             # this project's own delivery process previously left as prose only.
             merge = _dispatch_merge_pr(item, receipt=receipt, run_id=common["run_id"])
-        verified_delivery: Optional[Dict[str, Any]] = None
-        if success and _verified_delivery_gate_enabled():
-            # #288: route the completion decision through the real LoopRuntimeAdapter ->
-            # VerifiedAgentDelivery -> ExecutionBoard chain instead of trusting
-            # execution_state == "applied" alone -- see `_verified_delivery_gate_enabled`.
-            identity = dict(item.get("agent_identity") or {})
-            verified_delivery = _run_verified_delivery_gate(
-                run_id=common["run_id"], task_id=common["task_id"],
-                actor=str(identity.get("actor") or identity.get("agent_id") or "loop"),
-                attempt_id="%s-attempt-%d" % (common["worker_id"], int(state.get("attempts") or 0) or 1),
-                receipt_verdict=receipt_verdict, evidence_receipt=evidence_receipt,
-                watcher_receipt=watcher_receipt, merge=merge, worktree_context=context,
-            )
-            if not verified_delivery.get("verified"):
-                success = False
         return {
             **common,
             "status": "succeeded" if success else "failed",
@@ -8096,35 +7270,8 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
             "reason_code": reason_code,
             "failure_fingerprint": failure_fingerprint,
             "merge": merge,
-            "verified_delivery": verified_delivery,
             "mapper_operation_completion": mapper_completion,
             "mapper_operation_completion_error": mapper_completion_error,
-            "started_at": started,
-            "finished_at": _now(),
-        }
-    except LeaseLostDuringExecution as exc:
-        if mapper_operations is not None and mapper_attempt is not None:
-            try:
-                mapper_operations.release(mapper_attempt.lease)
-            except Exception:
-                pass
-        # #183/#288: the guarded subprocess was killed the instant the lease was no longer
-        # current -- report this distinctly from a generic operator exception so a scheduler
-        # can tell "lost the fence mid-mutation" apart from an ordinary tool crash.
-        return {
-            **common,
-            "status": "failed",
-            "phase": "blocked",
-            "execution_state": "error",
-            "receipt": "",
-            "operator_receipt": "",
-            "evidence_receipt": "",
-            "receipt_status": "UNVERIFIED",
-            "attempt": 0,
-            "error": str(exc),
-            "reason_code": "lease_lost_during_execution",
-            "dead_letter": True,
-            "failure_fingerprint": hashlib.sha256(str(exc).encode("utf-8", "replace")).hexdigest()[:16],
             "started_at": started,
             "finished_at": _now(),
         }
@@ -8154,15 +7301,6 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
         }
 
 
-def _independent_verification_feedback(record: Mapping[str, Any]) -> str:
-    """Return only the existing independent-verifier detail eligible for a retry."""
-    verification = record.get("verified_delivery")
-    if not isinstance(verification, Mapping) or verification.get("verified") is not False:
-        return ""
-    detail = verification.get("reason")
-    return detail.strip() if isinstance(detail, str) else ""
-
-
 def _run_operator_item_process(item: Mapping[str, Any], retry_budget: int, owned_process_registry: Any = None) -> List[Dict[str, Any]]:
     """Run one complete operator lane in a supervised child process.
 
@@ -8172,14 +7310,9 @@ def _run_operator_item_process(item: Mapping[str, Any], retry_budget: int, owned
     """
     attempts: List[Dict[str, Any]] = []
     previous_fingerprint = ""
-    repair_feedback = item.get("repair_feedback")
     for attempt_no in range(1, max(0, int(retry_budget)) + 2):
         dispatch_item = dict(item)
         dispatch_item["owned_process_registry"] = owned_process_registry
-        if repair_feedback:
-            dispatch_item["repair_feedback"] = repair_feedback
-        elif attempt_no > 1:
-            dispatch_item.pop("repair_feedback", None)
         record = _operator_dispatch_attempt(dispatch_item)
         record["dispatch_attempt"] = attempt_no
         if previous_fingerprint and record.get("failure_fingerprint") == previous_fingerprint:
@@ -8197,7 +7330,6 @@ def _run_operator_item_process(item: Mapping[str, Any], retry_budget: int, owned
             # budget on a guaranteed repeat.
             record["retry_skipped_reason"] = "deterministic_failure_no_retry"
             break
-        repair_feedback = _independent_verification_feedback(record)
         previous_fingerprint = str(record.get("failure_fingerprint") or "")
     final = attempts[-1]
     final["dead_letter"] = final.get("status") != "succeeded"
@@ -8356,24 +7488,12 @@ def dispatch_operator_batch(
             durable_journal_path = journal_path.parent / "run-journal.sqlite"
     recovery_pending_by_run: Dict[str, set[int]] = {}
     if durable_journal_path is not None:
-        # A dispatch backed by a real distributed queue already has its own,
-        # independently-tested crash-recovery contract: the abandoned item's lease
-        # expires and a fresh claim carries a strictly higher fencing token (see
-        # `tests/test_work_item_claims_chaos_system.py` / `test_system_276_e2e_system.py`).
-        # The durable-journal "unknown effect" reconciliation below exists for the
-        # opposite case -- no queue/lease at all to tell "still in flight" apart from
-        # "crashed mid-effect" -- so it must not also swallow a queue-backed item and
-        # block it from ever being re-claimed.
-        queueless_indices_by_run: Dict[str, set[int]] = {}
-        for item in normalized:
-            if item.get("distributed_queue") is None:
-                queueless_indices_by_run.setdefault(str(item["run_id"]), set()).add(item["task_index"])
         for run_id in {item["run_id"] for item in normalized}:
             pending_indices = set(_dispatch_journal_recovery(
                 durable_journal_path,
                 run_id,
                 repo_root=repo_root_by_run.get(str(run_id)),
-            )) & queueless_indices_by_run.get(str(run_id), set())
+            ))
             if pending_indices:
                 recovery_pending_by_run[run_id] = pending_indices
     prior = _load_prior_dispatch_records(journal_path) if journal_path else {}
@@ -8635,16 +7755,11 @@ def dispatch_operator_batch(
     def _run_item(item: Dict[str, Any], owned_process_registry: Any = None) -> List[Dict[str, Any]]:
         attempts: List[Dict[str, Any]] = []
         previous_fingerprint = ""
-        repair_feedback = item.get("repair_feedback")
         _ensure_deferred_worktree_context(item, worktree_queue)
         try:
             for attempt_no in range(1, retry_budget + 2):
                 dispatch_item = dict(item)
                 dispatch_item["owned_process_registry"] = owned_process_registry
-                if repair_feedback:
-                    dispatch_item["repair_feedback"] = repair_feedback
-                elif attempt_no > 1:
-                    dispatch_item.pop("repair_feedback", None)
                 record = _operator_dispatch_attempt(dispatch_item)
                 record["dispatch_attempt"] = attempt_no
                 if previous_fingerprint and record.get("failure_fingerprint") == previous_fingerprint:
@@ -8661,7 +7776,6 @@ def dispatch_operator_batch(
                     # deterministic failure is recorded once, never retried.
                     record["retry_skipped_reason"] = "deterministic_failure_no_retry"
                     break
-                repair_feedback = _independent_verification_feedback(record)
                 previous_fingerprint = str(record.get("failure_fingerprint") or "")
         finally:
             _release_shared_context(item, worktree_queue)
@@ -9591,10 +8705,6 @@ def execute_operator_batch(
     if any(index < 1 or index > task_count for index in indices):
         raise ValueError("task index out of range")
     contexts = dict(isolated_contexts or {})
-    distributed_queue = None
-    agent_identity = None
-    if not isolated_contexts:
-        distributed_queue, agent_identity = _distributed_configuration(repo)
     auto_reason = "explicit_contexts" if isolated_contexts else ""
     contract_tasks = list(contract.get("tasks") or [])
     contract_steps = list(plan.get("steps") or [])
@@ -9661,18 +8771,6 @@ def execute_operator_batch(
         }
         if provider_worker is not None:
             item["provider_worker"] = provider_worker
-        if distributed_queue is not None:
-            item["distributed_queue"] = distributed_queue
-            item["agent_identity"] = agent_identity
-            issue_ref = task.get("issue_ref") or contract.get("issue_ref") or ""
-            issue_url = task.get("issue_url") or contract.get("issue_url") or ""
-            item["context_pack"] = build_context_pack(
-                task_id=item["task_id"], goal=_task_goal(task), identity=agent_identity,
-                acs=[*[(s.get("title") or s.get("id") or "") for s in (task.get("scenarios") or [])]],
-                depends_on=list(task_spec.get("depends_on") or []),
-                allowed_paths=target_paths, source_refs=target_paths,
-                issue_ref=issue_ref, issue_url=issue_url,
-            )
         items.append(item)
     for index in indices:
         step = contract_steps[index - 1] if index <= len(contract_steps) and isinstance(contract_steps[index - 1], Mapping) else None
@@ -9693,10 +8791,10 @@ def execute_operator_batch(
     result = None
     # Lane-parallel wave dispatch: only where the caller has not already asked for
     # something more specific (explicit isolated contexts, an existing worktree
-    # queue, a distributed queue, or shared-run-forcing task dependencies) -- those
-    # keep their own, unchanged path below.
+    # queue, or shared-run-forcing task dependencies) -- those keep their own,
+    # unchanged path below.
     if (
-        not isolated_contexts and worktree_queue is None and distributed_queue is None
+        not isolated_contexts and worktree_queue is None
         and not has_task_dependencies and len(items) > WAVE_INLINE_MAX_TASKS
     ):
         result = _wave_worktree_dispatch(
@@ -9797,12 +8895,6 @@ def execute_operator_batch(
             message="automatic fan-out was not available; continuing with the safe serial lane",
             next_action="install/configure the worktree adapter or split overlapping targets",
         ))
-    result["distributed"] = {
-        "enabled": distributed_queue is not None,
-        "queue": os.environ.get("SIMPLICIO_REMOTE_QUEUE_URL", "") if distributed_queue is not None else "",
-        "agent": agent_identity or {},
-        "fail_closed": distributed_queue is not None,
-    }
     if not contexts and len(items) > 1:
         # dispatch_operator_batch derives this from the shared isolation key; retain a clear
         # contract-level marker for callers inspecting the convenience API.

@@ -31,9 +31,8 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path]:
         (
             StackComponent("simplicio-mapper", "0.26.11", "mapper", "b" * 64, "a" * 64),
             StackComponent("simplicio-cli", "0.18.6", "dev-cli", "b" * 64, "a" * 64),
-            StackComponent("simplicio-runtime", "3.5.7", "runtime", "b" * 64, "a" * 64),
         ),
-        "runtime-backed",
+        "standalone",
         run_id="run-1",
     )
     _write_json(run / "stack-lock.json", lock.to_dict())
@@ -106,7 +105,7 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path]:
     return repo, run
 
 
-def test_publish_creates_runtime_bound_snapshot(tmp_path, monkeypatch):
+def test_publish_creates_run_bound_snapshot(tmp_path, monkeypatch):
     repo, run = _fixture(tmp_path)
     monkeypatch.setattr(receipt_mod, "_git_commit", lambda _repo: "a" * 40)
 
@@ -119,7 +118,8 @@ def test_publish_creates_runtime_bound_snapshot(tmp_path, monkeypatch):
     assert envelope["chain"] == receipt_mod.CHAIN
     assert envelope["result"] == {"run_id": "run-1", "status": "VERIFIED", "verified": True}
     assert "fast" not in envelope
-    bundle = run / "runtime-loop-execution"
+    assert "runtime" not in envelope
+    bundle = run / "loop-execution"
     for entry in envelope["artifacts"].values():
         copied = bundle / entry["path"]
         assert copied.is_file()
@@ -212,48 +212,17 @@ def test_publish_rejects_fallback_component(tmp_path, monkeypatch):
         )
 
 
-def test_publish_allows_missing_optional_runtime_in_standalone_profile(tmp_path, monkeypatch):
-    repo, run = _fixture(tmp_path)
-    stack_lock = StackLock.create(
-        (
-            StackComponent("simplicio-mapper", "0.26.11", "mapper", "b" * 64, "a" * 64),
-            StackComponent("simplicio-cli", "0.18.6", "dev-cli", "b" * 64, "a" * 64),
-            StackComponent("simplicio-runtime", "", "", "", "", available=False),
-        ),
-        "standalone",
-        run_id="run-1",
-    ).to_dict()
-    _write_json(run / "stack-lock.json", stack_lock)
-    monkeypatch.setattr(receipt_mod, "_git_commit", lambda _repo: "a" * 40)
-
-    result = receipt_mod.publish_loop_execution_receipt(
-        repo=repo, run_dir=run, manifest={"run_id": "run-1"}
-    )
-
-    assert result["status"] == "VERIFIED"
-    envelope = json.loads((repo / ".simplicio-loop" / "loop-execution.json").read_text(encoding="utf-8"))
-    assert envelope["runtime"] == {
-        "version": "unavailable",
-        "origin": "installed",
-        "fallback": False,
-        "build_sha": "",
-        "available": False,
-        "required": False,
-        "optional": True,
-    }
-
-
 def test_publish_rejects_existing_bundle_without_overwrite(tmp_path, monkeypatch):
     repo, run = _fixture(tmp_path)
-    (run / "runtime-loop-execution").mkdir()
-    (run / "runtime-loop-execution" / "sentinel").write_text("keep", encoding="utf-8")
+    (run / "loop-execution").mkdir()
+    (run / "loop-execution" / "sentinel").write_text("keep", encoding="utf-8")
     monkeypatch.setattr(receipt_mod, "_git_commit", lambda _repo: "a" * 40)
 
     with pytest.raises(receipt_mod.LoopExecutionReceiptError, match="already exists"):
         receipt_mod.publish_loop_execution_receipt(
             repo=repo, run_dir=run, manifest={"run_id": "run-1"}
         )
-    assert (run / "runtime-loop-execution" / "sentinel").read_text(encoding="utf-8") == "keep"
+    assert (run / "loop-execution" / "sentinel").read_text(encoding="utf-8") == "keep"
 
 
 def test_publish_removes_partial_bundle_when_root_write_fails(tmp_path, monkeypatch):
@@ -271,14 +240,15 @@ def test_publish_removes_partial_bundle_when_root_write_fails(tmp_path, monkeypa
         receipt_mod.publish_loop_execution_receipt(
             repo=repo, run_dir=run, manifest={"run_id": "run-1"}
         )
-    assert not (run / "runtime-loop-execution").exists()
+    assert not (run / "loop-execution").exists()
 
 
-def test_receipt_schema_declares_stable_runtime_chain():
+def test_receipt_schema_declares_stable_chain():
     schema_path = Path(__file__).parents[1] / "contracts" / "loop-execution" / "v1" / "receipt.schema.json"
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     assert schema["properties"]["schema"]["const"] == receipt_mod.SCHEMA
     assert schema["properties"]["chain"]["const"] == receipt_mod.CHAIN
+    assert receipt_mod.CHAIN == ["simplicio-loop", "simplicio-mapper", "simplicio-dev-cli"]
 
 
 def test_publish_rejects_unverified_durable_evidence(tmp_path, monkeypatch):

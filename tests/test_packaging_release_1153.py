@@ -18,8 +18,8 @@ ROOT = Path(__file__).resolve().parents[1]
 PYPROJECT = ROOT / "pyproject.toml"
 CONTRACTS = ROOT / "simplicio_loop" / "_contracts"
 
-# Floor observed on main (~48 JSON contracts); fail if packaging tree shrinks badly.
-MIN_CONTRACT_JSON = 40
+# Floor observed on main (39 JSON contracts); fail if packaging tree shrinks badly.
+MIN_CONTRACT_JSON = 35
 
 REQUIRED_PACKAGE_MARKERS = (
     "simplicio_loop",
@@ -75,7 +75,6 @@ def test_required_contracts_json_files_present() -> None:
         f"expected >= {MIN_CONTRACT_JSON} _contracts JSON files, found {len(files)}"
     )
     relative = {f.relative_to(CONTRACTS).as_posix() for f in files}
-    assert "capability-lease-v1.schema.json" in relative
     assert "registry/v1/registry.json" in relative
 
 

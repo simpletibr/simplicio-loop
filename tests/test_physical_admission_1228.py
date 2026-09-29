@@ -452,10 +452,9 @@ def test_production_owned_child_is_terminated_without_cancel_injection(monkeypat
 
     def production_worker(item):
         outcome = runner._execute_operator_effect_unchecked(
-            profile="standalone", adapter=None, request=None, argv=[
-                sys.executable, "-c", "import time; time.sleep(5)"
-            ], env=dict(os.environ), repo_path=tmp_path, attempt_coordinator=None,
-            guarded_attempt=None, owned_process_registry=item.get("owned_process_registry"),
+            argv=[sys.executable, "-c", "import time; time.sleep(5)"],
+            env=dict(os.environ), repo_path=tmp_path,
+            owned_process_registry=item.get("owned_process_registry"),
             owned_task_id="owned-production",
         )
         (tmp_path / "child-returncode").write_text(str(outcome["returncode"]), encoding="utf-8")

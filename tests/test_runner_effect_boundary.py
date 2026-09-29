@@ -1,4 +1,4 @@
-"""Focused production-runner coverage for the standalone RuntimeEffectAdapter dispatch."""
+"""Focused production-runner coverage for the standalone effect boundary (Hookwall-sealed dispatch)."""
 
 from __future__ import annotations
 
@@ -19,19 +19,17 @@ def _contract_only_hookwall(monkeypatch):
         lambda *_args, **_kwargs: ContractOnlyHookwallLedger(),
     )
 from simplicio_loop.hookwall_gate import HookwallBlocked, gate_completion
-from simplicio_loop.runtime_effect_adapter import EffectRequest, RuntimeEffectAdapter, RuntimeEffectError
 
 
 def _request(tmp_path):
-    return EffectRequest(
+    return runner._EffectRequest(
         workspace=str(tmp_path),
         idempotency_key="run-695:task-1:1",
         write_set=("repo:simplicio_loop/runner.py",),
         lease_id="lease-695",
         fencing_token=7,
-        attempt=1,
+        attempt_id="attempt-695",
         gate_id="gate-695",
-        runtime_generation="runtime-gen-7",
         transaction_id="tx-695",
     )
 
@@ -41,24 +39,10 @@ def test_execution_profile_is_always_standalone_and_rejects_unknown(monkeypatch)
     assert runner._execution_profile() == "standalone"
     monkeypatch.setenv("SIMPLICIO_EXECUTION_PROFILE", "unexpected")
     with pytest.raises(
-        RuntimeEffectError,
+        RuntimeError,
         match="SIMPLICIO_EXECUTION_PROFILE must be standalone",
     ):
         runner._execution_profile()
-
-
-def test_standalone_receipt_correlates_transaction_identity(tmp_path):
-    receipt = RuntimeEffectAdapter().execute(
-        _request(tmp_path), ["simplicio-dev-cli", "task", "compile"], env={},
-    )
-    assert receipt["profile"] == "standalone"
-    assert receipt["executor_profile"] == "standalone"
-    assert receipt["executor"] == "standalone"
-    assert receipt["transaction_id"] == "tx-695"
-    assert receipt["correlation_id"] == "tx-695"
-    assert receipt["transaction"]["lease"] == {"id": "lease-695", "fence": 7}
-    assert receipt["transaction"]["gate"]["id"] == "gate-695"
-    assert receipt["transaction"]["runtime_generation"] == "runtime-gen-7"
 
 
 def test_standalone_fake_path_remains_functional(tmp_path, monkeypatch):
@@ -67,14 +51,10 @@ def test_standalone_fake_path_remains_functional(tmp_path, monkeypatch):
         json.dumps({"write_files": {"standalone.txt": "preserved"}, "stdout": {"ok": True}}),
     )
     outcome = runner._execute_operator_effect(
-        profile="standalone",
-        adapter=RuntimeEffectAdapter(profile="standalone"),
         request=_request(tmp_path),
         argv=["simplicio-dev-cli", "task", "compile"],
         env={},
         repo_path=tmp_path,
-        attempt_coordinator=None,
-        guarded_attempt=None,
     )
     assert outcome["source"] == "env_override"
     assert (tmp_path / "standalone.txt").read_text(encoding="utf-8") == "preserved"
@@ -118,14 +98,10 @@ def test_blocked_operator_with_explicit_no_mutation_proof_reconciles_mapper_effe
     before = runner._repo_fingerprint(tmp_path)
 
     outcome = runner._execute_operator_effect(
-        profile="standalone",
-        adapter=RuntimeEffectAdapter(profile="standalone"),
         request=_request(tmp_path),
         argv=["simplicio-dev-cli", "task"],
         env={},
         repo_path=tmp_path,
-        attempt_coordinator=None,
-        guarded_attempt=None,
         source_hash=before["tree_hash"],
     )
 
@@ -158,14 +134,10 @@ def test_ambiguous_failed_operator_keeps_mapper_effect_unknown(tmp_path, monkeyp
     before = runner._repo_fingerprint(tmp_path)
 
     outcome = runner._execute_operator_effect(
-        profile="standalone",
-        adapter=RuntimeEffectAdapter(profile="standalone"),
         request=_request(tmp_path),
         argv=["simplicio-dev-cli", "task"],
         env={},
         repo_path=tmp_path,
-        attempt_coordinator=None,
-        guarded_attempt=None,
         source_hash=before["tree_hash"],
     )
 
@@ -186,14 +158,10 @@ def test_operator_timeout_is_uncertain_and_is_not_reconciled(tmp_path, monkeypat
     before = runner._repo_fingerprint(tmp_path)
 
     outcome = runner._execute_operator_effect(
-        profile="standalone",
-        adapter=RuntimeEffectAdapter(profile="standalone"),
         request=_request(tmp_path),
         argv=["simplicio-dev-cli", "task"],
         env={},
         repo_path=tmp_path,
-        attempt_coordinator=None,
-        guarded_attempt=None,
         source_hash=before["tree_hash"],
     )
 
@@ -218,14 +186,10 @@ def test_hookwall_pre_blocks_before_any_operator_effect(tmp_path, monkeypatch):
     )
     with pytest.raises(HookwallBlocked, match="hookwall_pre_blocked"):
         runner._execute_operator_effect(
-            profile="standalone",
-            adapter=RuntimeEffectAdapter(profile="standalone"),
             request=_request(tmp_path),
             argv=["simplicio-dev-cli", "task", "compile"],
             env={},
             repo_path=tmp_path,
-            attempt_coordinator=None,
-            guarded_attempt=None,
         )
     assert called == []
 
