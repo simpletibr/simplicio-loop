@@ -79,7 +79,7 @@ def test_run_turbo_reports_whether_each_task_plan_applied(tmp_path, monkeypatch)
         return {"ok": True, "content": json.dumps({"operations": ops})}
 
     tasks = [{"index": 1, "text": "pricing.py task", "target": "pricing.py", "depends_on": []},
-             {"index": 2, "text": "inventory.py task", "target": "inventory.py", "depends_on": []}]
+             {"index": 2, "text": "inventory.py task", "target": "inventory.py", "depends_on": [1]}]
     result = run_turbo(repo, tasks, complete)
     assert result["applied_all"] is False
     assert [o["applied"] for o in result["outcomes"]] == [False]
@@ -101,9 +101,10 @@ def test_cli_turbo_runs_the_engine_end_to_end_and_verifies(tmp_path, monkeypatch
 
     def fake_complete(arm, messages, **kwargs):
         seen.append(([dict(m) for m in messages], dict(kwargs)))  # a copy: the engine appends later
+        rels = ["inventory.py"] if "Fix the two bugs in inventory.py." in messages[-1]["content"] else ["pricing.py"]
         return {"ok": True, "latency_s": 0.1, "provider": "Together", "prompt_tokens": 100,
                 "cached_tokens": 0, "completion_tokens": 50, "reasoning_tokens": 0, "cost": 0.0002,
-                "content": json.dumps({"operations": _solution_ops(repo, ["pricing.py", "inventory.py"])})}
+                "content": json.dumps({"operations": _solution_ops(repo, rels)})}
 
     monkeypatch.setattr(turbo_provider, "complete", fake_complete)
     verify = f'"{sys.executable}" "{HIDDEN}" --stage 1 && "{sys.executable}" "{HIDDEN}" --stage 2'
@@ -114,9 +115,9 @@ def test_cli_turbo_runs_the_engine_end_to_end_and_verifies(tmp_path, monkeypatch
     out = json.loads(capsys.readouterr().out)
     assert rc == 0, out
     assert out["status"] == "ok" and out["verify"]["passed"] is True
-    assert out["tasks"] == 2 and out["model_calls"] == 1 and out["reasoning"] == "off"
-    messages, kwargs = seen[0]
-    assert kwargs["session_id"] == turbo_provider.session_id_for(repo)
+    assert out["tasks"] == 2 and out["model_calls"] == 2 and out["reasoning"] == "off"  # independent tasks: one call each
+    assert all(kwargs["session_id"] == turbo_provider.session_id_for(repo) for _, kwargs in seen)
+    messages = next(m for m, _ in seen if "Fix the two bugs" in m[-1]["content"])
     assert "Current inventory.py:" in messages[-1]["content"]  # named file reached the model
 
 

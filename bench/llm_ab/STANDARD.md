@@ -115,9 +115,8 @@ dev-cli applies it; the command itself needs no key).
 
 ### Turbo telemetry (3.45.1)
 
-Each turbo call record carries `hedged` (the answer came from the hedged duplicate request) and `hedge_winner`,
-plus `warm` on the 1-token call that writes the header into the provider's cache before an independent wave
-fans out; a warm call is not counted as a retry. When a call outlives `SIMPLICIO_TURBO_HEDGE_AFTER` seconds
+Each turbo call record carries `hedged` (the answer came from the hedged duplicate request) and `hedge_winner`
+(3.45.1 also marked a `warm` 1-token call; it is gone in 3.47.0). When a call outlives `SIMPLICIO_TURBO_HEDGE_AFTER` seconds
 (default 10, `0` disables) a duplicate goes out on the session `<id>-hedge`, and the losing side is billed and
 added to the arm's tokens and cost, so a hedge never hides spend. The default was 2.5 s in 3.45.1 and is 10 s
 since 3.45.2: 2.5 s came from a simulation with Together only, and on the real provider mix it hedged 5 of 12 CLI
@@ -141,9 +140,8 @@ The model returns a find/replace plan and dev-cli compiles and applies it. A pla
 once; a second rejection ends that lane as `failed` with the dev-cli reason. After a failed `--verify` one repair
 call gets the test output, and says the listed files already exist: on that path an empty `find` for a file that now
 exists is sent to dev-cli as a whole-file replacement (`find` = the file's current text), because a repeated create
-is refused as `create_target_exists` (5 of 15 repair attempts in the benchmark). Up to three tasks share one
-model call. Above three, the first call runs alone (a
-1-token warm-up) so the rest read the header from prompt cache, then the remaining lanes fan out. The JSON document
+is refused as `create_target_exists` (5 of 15 repair attempts in the benchmark). Since 3.47.0 tasks that depend on each other (a shared file or `depends_on`) are ONE
+model call and independent groups are asked at the same time (asyncio), with no warm-up call. The JSON document
 has `status`, `applied`, `failed`, `model_calls`, `retries`, `tokens`, `cache_hit_pct`, `cost_usd`, `calls`,
 `verify`, `wall_s`.
 

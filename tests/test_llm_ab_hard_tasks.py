@@ -119,8 +119,6 @@ def test_turbo_applies_reference_plans_on_the_hard_fixture_and_the_hidden_tests_
     by_text = {task["text"]: task for task in bench_tasks.hard_task_set()}
 
     def complete(arm, messages, **kwargs):
-        if kwargs.get("max_tokens") == 1:  # warm-up call
-            return {"ok": True, "content": "OK"}
         body = messages[-1]["content"]
         task = next(t for text, t in by_text.items() if text in body)
         return plan(task)

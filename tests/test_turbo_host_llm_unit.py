@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -319,6 +320,34 @@ def test_complete_limits_how_many_host_processes_run_at_once(tmp_path, repo, mon
         replies = list(pool.map(lambda _: hl.complete("simplicio", _messages(repo), backend=_backend("opencode"), root=repo), range(6)))
     assert all(r["ok"] for r in replies)
     assert time.monotonic() - started >= 0.9  # 6 calls of 0.3 s, two at a time: at least 3 rounds
+
+
+def test_the_default_number_of_host_processes_is_the_cpu_count_capped_at_eight(monkeypatch):
+    assert hl.DEFAULT_PARALLEL == min(8, os.cpu_count() or 4)
+    monkeypatch.delenv(hl.PARALLEL_ENV, raising=False)
+    monkeypatch.setattr(hl, "_slots", None)
+    assert hl._semaphore()._value == hl.DEFAULT_PARALLEL
+    monkeypatch.setenv(hl.PARALLEL_ENV, "3")
+    monkeypatch.setattr(hl, "_slots", None)
+    assert hl._semaphore()._value == 3
+
+
+def test_a_call_that_waited_for_a_slot_past_the_deadline_never_starts_the_cli(tmp_path, repo, monkeypatch):
+    bin_dir = fakes.install(tmp_path, "opencode", mode="opencode", reply=PLAN)
+    monkeypatch.setenv("PATH", fakes.path_with(bin_dir))
+    monkeypatch.setenv(hl.PARALLEL_ENV, "1")
+    monkeypatch.setattr(hl, "_slots", None)
+    slot = hl._semaphore()
+    slot.acquire()  # the only slot is taken: the call below has to wait for it
+    result: dict = {}
+    call = threading.Thread(target=lambda: result.update(hl.complete(
+        "simplicio", _messages(repo), backend=_backend("opencode"), root=repo, deadline=time.monotonic() + 1.5)))
+    call.start()
+    time.sleep(0.8)  # the budget runs down while it waits: less than the 1 s a call needs is left
+    slot.release()
+    call.join(10)
+    assert result["ok"] is False and result["fatal"] is True and result["reason_code"] == "budget"
+    assert fakes.log(bin_dir, "opencode") == []  # nothing was spawned
 
 
 # --- which host is this, and can it be used ---------------------------------------------------------------------------

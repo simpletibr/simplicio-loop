@@ -200,6 +200,6 @@ def test_full_flow_describes_the_compact_request_and_the_stdin_apply() -> None:
 
 def test_the_provider_engine_facts_live_with_the_benchmark_not_the_skill() -> None:
     text = _flat((ROOT / "bench" / "llm_ab" / "STANDARD.md").read_text(encoding="utf-8"))
-    for needle in ("header and stays byte-identical", "sent back once", "call runs alone", "turbo_provider_key_missing",
+    for needle in ("header and stays byte-identical", "sent back once", "no warm-up call", "turbo_provider_key_missing",
                    "--provider openrouter", "headless automation only"):
         assert needle in text, needle

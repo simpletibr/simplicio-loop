@@ -78,13 +78,10 @@ _PLANNER_SYSTEM = (
 )
 
 
-# Wave turbo starts above three tasks: each lane is the same read -> AI -> dev-cli path.
-WAVE_TURBO_ABOVE = 3
 _MAPPER_READING_LIMIT = 12000
 
 
 SLICE_ENV = "SIMPLICIO_TURBO_SLICE"
-_WARM_MESSAGE = {"role": "user", "content": "Reply with OK."}
 
 
 def slice_enabled() -> bool:
@@ -290,9 +287,10 @@ def apply_plan(root: Path, operations: list[dict], label: str = "host-1", dev_cl
     return {"applied": reason is None, "reason": reason, "commands": commands}
 
 
-def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str, turn: int, base: list[dict] | None = None) -> tuple[list[dict], list[dict], str, list[dict]]:
-    """Ask once. If dev-cli rejects the plan, send that error back one time."""
-    messages = [*(base if base is not None else [header_message(reading)]), task_message(tasks, root)]
+def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, binary: str, turn: int
+              ) -> tuple[list[dict], list[dict], str, dict]:
+    """One component, one model call. If dev-cli rejects the plan, send that error back one time."""
+    messages = [header_message(reading), task_message(tasks, root)]
     calls: list[dict] = []
     commands: list[dict] = []
     content = ""
@@ -300,7 +298,7 @@ def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
     for attempt in (1, 2):
         reply = complete("simplicio", messages)
         content = reply.get("content") or ""
-        calls.append(_call_record(reply, len(calls) + 1 if turn == 1 else turn))
+        calls.append(_call_record(reply, len(calls) + 1))
         if reply.get("fatal"):
             fatal = _fatal_of(reply)
             reason = fatal["detail"] or fatal["reason_code"]
@@ -330,168 +328,72 @@ def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
             {"role": "assistant", "content": content},
             {"role": "user", "content": f"dev-cli rejected the plan:\n{detail}\nReturn a corrected JSON plan."},
         ]
-    messages.append({"role": "assistant", "content": content})
     outcome = {"tasks": [int(t.get("index") or 0) for t in tasks], "applied": applied_ok, "reason": reason}
     if fatal:
         outcome["fatal"] = fatal
-    return calls, commands, content, messages, outcome
+    return calls, commands, content, outcome
 
 
-def _ready(pending: list[Mapping[str, Any]], done: set[int]) -> list[Mapping[str, Any]]:
-    ready = []
-    for task in pending:
-        deps = task.get("depends_on") or []
-        if all(dep in done for dep in deps):
-            ready.append(task)
-    return ready
+def _components(tasks: Sequence[Mapping[str, Any]]) -> list[list[Mapping[str, Any]]]:
+    """Tasks that depend on each other (``depends_on``, which ``build_tasks`` also sets for a shared file) are one component."""
+    parent = {int(task.get("index") or 0): int(task.get("index") or 0) for task in tasks}
+
+    def root_of(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    for task in tasks:
+        for dep in task.get("depends_on") or []:
+            if int(dep) in parent:
+                parent[root_of(int(dep))] = root_of(int(task.get("index") or 0))
+    groups: dict[int, list[Mapping[str, Any]]] = {}
+    for task in tasks:
+        groups.setdefault(root_of(int(task.get("index") or 0)), []).append(task)
+    return list(groups.values())
 
 
-def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str,
-              deadline: float | None = None, warm: bool = True
-              ) -> tuple[list[dict], list[dict], str, list[dict], dict[str, str] | None]:
-    """First call runs alone so the header is cached. Later calls append or fan out after it.
+def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None,
+              deadline: float | None = None) -> dict[str, Any]:
+    """Mapper reads once. Each dependency component is ONE model call; components that do not depend on each other run together.
 
-    ``warm=False`` (a host CLI has no prompt cache to warm) fans independent tasks out at once. A fatal reply, or a spent
-    ``deadline``, stops the dispatch: what was applied stays, the tasks not asked are reported as not attempted.
+    The model calls overlap (asyncio); dev-cli applies one plan at a time. ``stopped`` is None for a run that asked every
+    component, else ``{"reason_code", "detail"}``: a reply marked ``fatal`` (a host failure, not a bad plan) or a
+    ``deadline`` (a ``time.monotonic()`` value) already spent when the run starts. What the other components applied stays.
     """
     import asyncio
-    pending = [task for task in tasks]
-    done: set[int] = set()
+    survey = survey_tasks(root, tasks)
+    task_list = list(tasks)
+    reading = mapper_reading(root, focus=focus_paths(tasks) if len(task_list) == 1 and slice_enabled() else None)
+    binary = dev_cli or _dev_cli_bin()
     calls: list[dict] = []
     commands: list[dict] = []
     contents: list[str] = []
     outcomes: list[dict] = []
-    stopped: dict[str, str] | None = None
-    stack = [header_message(reading)]
-    while pending:
-        if deadline is not None and _clock() >= deadline:
-            stopped = {"reason_code": "budget", "detail": "the time budget is spent"}
-            break
-        ready = _ready(pending, done)
-        if not ready:
-            raise RuntimeError("turbo tasks have a dependency cycle")
-        if warm and not calls and len(ready) > 1:
-            # Independent tasks: a 1-token call writes the header into the provider's cache,
-            # then every ready task fans out at once instead of waiting for a whole first task.
-            warm_reply = complete("simplicio", [header_message(reading), _WARM_MESSAGE], max_tokens=1)
-            calls.append({**_call_record(warm_reply, 0), "warm": True})
-            if warm_reply.get("fatal"):
-                stopped = _fatal_of(warm_reply)
-                break
-        elif len(ready) == 1:
-            task = ready[0]
-            lane_calls, lane_commands, content, stack, outcome = _one_lane(
-                root, [task], complete, reading, generation, binary, len(calls) + 1, base=stack,
-            )
-            outcomes.append(outcome)
+    if deadline is not None and _clock() >= deadline:
+        stopped: dict[str, str] | None = {"reason_code": "budget", "detail": "the time budget is spent"}
+        outcomes = [_skipped(task, stopped) for task in task_list]
+    else:
+        async def _fan_out():
+            return await asyncio.gather(*(
+                asyncio.to_thread(_one_lane, root, group, complete, reading, binary, turn)
+                for turn, group in enumerate(_components(task_list), 1)
+            ))
+
+        for lane_calls, lane_commands, content, outcome in asyncio.run(_fan_out()):
             calls.extend(lane_calls)
             commands.extend(lane_commands)
             contents.append(content)
-            done.add(int(task.get("index") or 0))
-            pending.remove(task)
-            if outcome.get("fatal"):
-                stopped = outcome["fatal"]
-                break
-            continue
-        base = list(stack)
-
-        def _ask(task: Mapping[str, Any]) -> tuple[Mapping[str, Any], list[dict], dict]:
-            messages = [*base, task_message([task], root)]
-            reply = complete("simplicio", messages)
-            return task, messages, reply
-
-        async def _gather(ready_now=ready):
-            return await asyncio.gather(*(asyncio.to_thread(_ask, task) for task in ready_now))
-
-        # The model calls share the warmed header and run together.
-        # dev-cli applies afterwards, one plan at a time.
-        asked = asyncio.run(_gather())
-        for task, messages, reply in asked:
-            content = reply.get("content") or ""
-            calls.append(_call_record(reply, len(calls) + 1))
-            if reply.get("fatal"):
-                fatal = _fatal_of(reply)
-                outcomes.append({"tasks": [int(task.get("index") or 0)], "applied": False,
-                                 "reason": fatal["detail"] or fatal["reason_code"], "fatal": fatal})
-                contents.append("")
-                done.add(int(task.get("index") or 0))
-                pending.remove(task)
-                stopped = stopped or fatal
-                continue
-            try:
-                operations = _parse_operations(content) if reply.get("ok", True) else []
-                reason = None
-            except (ValueError, json.JSONDecodeError) as exc:
-                operations = []
-                reason = str(exc)
-            applied = _apply_operations(root, operations, binary, f"wave-{task.get('index')}-1") if operations else []
-            commands.extend(applied)
-            rejected = _rejection(applied)
-            outcome = {"tasks": [int(task.get("index") or 0)], "applied": bool(operations) and rejected is None,
-                       "reason": None if operations and rejected is None else
-                       (rejected or reason or str(reply.get("error") or "the model returned no plan"))}
-            if not operations or rejected is not None:
-                detail = rejected or reason or "dev-cli did not apply a plan"
-                retry_messages = [
-                    *messages,
-                    {"role": "assistant", "content": content},
-                    {"role": "user", "content": "dev-cli rejected the plan:\n" + detail + "\nReturn a corrected JSON plan."},
-                ]
-                retry = complete("simplicio", retry_messages)
-                calls.append(_call_record(retry, len(calls) + 1))
-                retry_content = retry.get("content") or ""
-                retry_fatal = _fatal_of(retry) if retry.get("fatal") else None
-                stopped = stopped or retry_fatal
-                try:
-                    operations = _parse_operations(retry_content) if retry.get("ok", True) else []
-                except (ValueError, json.JSONDecodeError):
-                    operations = []
-                applied = _apply_operations(root, operations, binary, f"wave-{task.get('index')}-2") if operations else []
-                commands.extend(applied)
-                content = retry_content
-                retry_rejected = _rejection(applied)
-                outcome = {"tasks": outcome["tasks"], "applied": bool(operations) and retry_rejected is None,
-                           "reason": None if operations and retry_rejected is None else
-                           (retry_rejected or str(retry.get("error") or "the model returned no plan"))}
-                if retry_fatal:
-                    outcome["fatal"] = retry_fatal
             outcomes.append(outcome)
-            contents.append(content)
-            done.add(int(task.get("index") or 0))
-            pending.remove(task)
-        if stopped:
-            break
-    for task in pending:  # never asked: the run stopped first
-        outcomes.append(_skipped(task, stopped or {"reason_code": "stopped"}))
-    return calls, commands, "\n".join(contents), outcomes, stopped
-
-
-def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None,
-              deadline: float | None = None, warm: bool = True) -> dict[str, Any]:
-    """Mapper reads once. Up to 3 tasks share one model call. Above that, the first call warms the header and the rest follow.
-
-    ``stopped`` is None for a run that asked every lane, else ``{"reason_code", "detail"}``: a reply marked ``fatal`` (a host
-    failure, not a bad plan) or the ``deadline`` (a ``time.monotonic()`` value) ended it. ``warm=False`` skips the warm-up call.
-    """
-    survey = survey_tasks(root, tasks)
-    single = len(list(tasks)) == 1
-    reading = mapper_reading(root, focus=focus_paths(tasks) if single and slice_enabled() else None)
-    binary = dev_cli or _dev_cli_bin()
-    task_list = list(tasks)
-    if len(task_list) <= WAVE_TURBO_ABOVE:
-        calls, commands, content, _stack, outcome = _one_lane(
-            root, task_list, complete, reading, survey["generation"], binary, 1,
-        )
-        outcomes, stopped = [outcome], outcome.get("fatal")
-    else:
-        calls, commands, content, outcomes, stopped = _run_wave(
-            root, task_list, complete, reading, survey["generation"], binary, deadline=deadline, warm=warm,
-        )
+        for number, call in enumerate(calls, 1):
+            call["turn"] = number
+        stopped = next((outcome["fatal"] for outcome in outcomes if outcome.get("fatal")), None)
     return {
         "turns": len(calls),
         "llm_calls": calls,
         "commands": commands,
-        "final_text": content,
+        "final_text": "\n".join(contents),
         "totals": {
             "prompt_tokens": sum(call["prompt_tokens"] for call in calls),
             "completion_tokens": sum(call["completion_tokens"] for call in calls),
@@ -501,7 +403,6 @@ def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli:
             "n_simplicio_commands": len(commands),
         },
         "survey": survey,
-        "wave": len(task_list) > WAVE_TURBO_ABOVE,
         "outcomes": outcomes,
         "stopped": stopped,
         "applied_all": all(outcome["applied"] for outcome in outcomes),

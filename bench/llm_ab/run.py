@@ -540,7 +540,7 @@ def main(argv=None) -> int:
         # Turbo keeps the no-skill arm sequential (one cold session per task)
         # and folds the simplicio arm into one session after a single survey.
         # Turbo is the default simplicio arm: one Mapper read, then the model,
-        # then dev-cli. Above three tasks that runs as an asyncio wave.
+        # then dev-cli. Dependent tasks share one call; independent ones run together (asyncio).
         arm_fn = run_arm_batch if arm == "simplicio" or args.batch else run_fn
         arms_results[arm] = arm_fn(
             arm, fixture_dir, repo_dir, args.python_bin, args.task_timeout,

@@ -1,4 +1,4 @@
-"""3.45.1: kept-alive connection, hedged request, warm-up fan-out, one-task map slice, repair with test output."""
+"""3.45.1: kept-alive connection, hedged request, one-task map slice, repair with test output (the warm-up call is gone in 3.47.0)."""
 from __future__ import annotations
 
 import json
@@ -142,7 +142,7 @@ def test_a_single_task_sends_only_its_slice_of_the_map(tmp_path):
     assert focus_paths([{"target": "shop/money.py", "context": ["shop/report.py"]}]) == ["shop/money.py", "shop/report.py"]
 
 
-def test_independent_wave_warms_the_header_then_fans_out_every_task(tmp_path, monkeypatch):
+def test_independent_tasks_fan_out_at_once_with_no_warm_up_call(tmp_path, monkeypatch):
     repo = _seed(tmp_path)
     monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
     _map(repo)
@@ -151,18 +151,14 @@ def test_independent_wave_warms_the_header_then_fans_out_every_task(tmp_path, mo
     def complete(arm, messages, **kwargs):
         with lock:
             seen.append(([dict(m) for m in messages], dict(kwargs)))
-        if kwargs.get("max_tokens") == 1:
-            return {"ok": True, "content": "OK"}
         name = messages[-1]["content"].split("Tasks:", 1)[1].strip().split(".", 1)[0].strip()
         return {"ok": True, "content": json.dumps({"operations": [{"path": f"p{name}.txt", "find": "", "replace": name}]})}
 
     tasks = [{"index": i, "text": f"Create p{i}.txt", "target": f"p{i}.txt", "depends_on": []} for i in range(1, 5)]
     result = run_turbo(repo, tasks, complete)
-    warm = [s for s in seen if s[1].get("max_tokens") == 1]
-    assert len(warm) == 1 and warm[0][0][0]["role"] == "system"
-    task_calls = [s for s in seen if s[1].get("max_tokens") != 1]
-    assert len(task_calls) == 4 and all(len(msgs) == 2 for msgs, _ in task_calls)  # header + task: no first-task prefix
-    assert result["applied_all"] is True and result["llm_calls"][0]["warm"] is True
+    assert len(seen) == 4 and all(kwargs == {} for _, kwargs in seen)  # no 1-token warm-up
+    assert all(len(msgs) == 2 and msgs[0]["role"] == "system" for msgs, _ in seen)  # header + task: no first-task prefix
+    assert result["applied_all"] is True and not any("warm" in call for call in result["llm_calls"])
     assert all((repo / f"p{i}.txt").read_text() == str(i) for i in range(1, 5))
 
 

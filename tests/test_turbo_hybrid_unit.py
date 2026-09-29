@@ -279,64 +279,76 @@ def test_explicit_provider_stays_headless_only_even_on_a_host(tmp_path, monkeypa
     assert fakes.log(bin_dir, "opencode") == []
 
 
-# --- a failure in the middle of a run: keep what was applied, hand over the rest --------------------------------------
+# --- components: a chain is one call, independent tasks are asked at the same time --------------------------------------
 
-def _chain(repo: Path, count: int) -> str:
-    tasks = [{"text": f"Create page{i}.html.", "target": f"page{i}.html", "depends_on": [i - 1] if i > 1 else []}
+def _tasks_file(repo: Path, count: int, chained: bool) -> str:
+    tasks = [{"text": f"Create page{i}.html.", "target": f"page{i}.html", "depends_on": [i - 1] if chained and i > 1 else []}
              for i in range(1, count + 1)]
     path = repo / "tasks.json"
     path.write_text(json.dumps(tasks), encoding="utf-8")
     return str(path)
 
 
-def _page(number: int) -> dict:
-    return {"mode": "opencode", "reply": json.dumps({"operations": [{"path": f"page{number}.html", "find": "", "replace": f"page {number}\n"}]})}
+def _page(number: int, **call) -> dict:
+    """The reply for the invocation that was asked for page ``number``: lanes run together, so it is picked by its stdin."""
+    return {"mode": "opencode", "when": f"{number}. Create page{number}.html.", **call,
+            "reply": json.dumps({"operations": [{"path": f"page{number}.html", "find": "", "replace": f"page {number}\n"}]})}
 
 
-def test_a_failure_mid_run_keeps_the_applied_tasks_and_hands_over_only_the_remaining_ones(tmp_path, monkeypatch, capsys):
+def test_a_chain_of_tasks_is_one_host_call(tmp_path, monkeypatch, capsys):
     repo = _seed(tmp_path)
-    bin_dir = fakes.install(tmp_path, "opencode", calls=[_page(1), _page(2), _dead("opencode_error_auth.jsonl")])
+    plan = json.dumps({"operations": [{"path": f"page{i}.html", "find": "", "replace": f"page {i}\n"} for i in range(1, 5)]})
+    bin_dir = fakes.install(tmp_path, "opencode", mode="opencode", reply=plan)
     _on_opencode(monkeypatch, bin_dir)
-    rc, out = _run(repo, capsys, "--tasks-file", _chain(repo, 4), "--verify", VERIFY)
+    rc, out = _run(repo, capsys, "--tasks-file", _tasks_file(repo, 4, chained=True))
+    (seen,) = fakes.log(bin_dir, "opencode")  # ONE spawn for the four tasks
+    assert all(f"{i}. Create page{i}.html." in seen["stdin"] for i in range(1, 5))
+    assert rc == 0 and out["status"] == "ok" and out["model_calls"] == 1 and out["applied"] == [1, 2, 3, 4]
+    assert all((repo / f"page{i}.html").is_file() for i in range(1, 5))
+
+
+def test_independent_tasks_are_one_host_call_each_and_none_is_a_warm_up(tmp_path, monkeypatch, capsys):
+    repo = _seed(tmp_path)
+    bin_dir = fakes.install(tmp_path, "opencode", calls=[_page(i) for i in range(1, 5)])
+    _on_opencode(monkeypatch, bin_dir)
+    rc, out = _run(repo, capsys, "--tasks-file", _tasks_file(repo, 4, chained=False))
+    seen = fakes.log(bin_dir, "opencode")
+    assert len(seen) == 4 and not any("Reply with OK." in s["stdin"] for s in seen)  # a host CLI has no cache to warm
+    assert rc == 0 and out["mode"] == "hybrid" and out["model_calls"] == 4 and out["applied"] == [1, 2, 3, 4]
+
+
+def test_a_failure_in_one_component_keeps_the_others_and_hands_over_only_that_one(tmp_path, monkeypatch, capsys):
+    repo = _seed(tmp_path)
+    dead = {"when": "3. Create page3.html.", **_dead("opencode_error_auth.jsonl")}
+    bin_dir = fakes.install(tmp_path, "opencode", calls=[_page(1), _page(2), dead, _page(4)])
+    _on_opencode(monkeypatch, bin_dir)
+    rc, out = _run(repo, capsys, "--tasks-file", _tasks_file(repo, 4, chained=False), "--verify", VERIFY)
     assert rc == 0
-    _assert_host_request(out, "host_auth", ["Create page3.html.", "Create page4.html."])
-    assert out["applied"] == [1, 2] and out["detail"]
+    _assert_host_request(out, "host_auth", ["Create page3.html."])
+    assert out["applied"] == [1, 2, 4] and out["detail"]
     assert list(out)[:5] == ["schema", "status", "mode", "reason", "detail"] and list(out).index("applied") == 5
-    assert (repo / "page1.html").read_text(encoding="utf-8") == "page 1\n" and (repo / "page2.html").is_file()
+    assert all((repo / f"page{i}.html").read_text(encoding="utf-8") == f"page {i}\n" for i in (1, 2, 4))
     assert not (repo / "page3.html").exists()
     assert f"--verify {shlex.quote(VERIFY)}" in out["apply"]  # the host's apply command verifies the whole result
 
 
-def test_the_time_budget_stops_new_lanes_and_hands_the_rest_over(tmp_path, monkeypatch, capsys):
+def test_the_time_budget_stops_calls_still_waiting_for_a_slot_and_hands_the_rest_over(tmp_path, monkeypatch, capsys):
     repo = _seed(tmp_path)
-    slow = [{**_page(i), "sleep": 1.5} for i in (1, 2, 3, 4, 5)]
-    bin_dir = fakes.install(tmp_path, "opencode", calls=slow)
+    bin_dir = fakes.install(tmp_path, "opencode", calls=[_page(i, sleep=2.3) for i in (1, 2, 3)])
     _on_opencode(monkeypatch, bin_dir)
-    monkeypatch.setenv(hl.BUDGET_ENV, "2")
-    rc, out = _run(repo, capsys, "--tasks-file", _chain(repo, 5))  # more than three tasks: one lane each
-    assert rc == 0
-    _assert_host_request(out, "budget", [f"Create page{i}.html." for i in (2, 3, 4, 5)])
-    assert out["applied"] == [1] and len(fakes.log(bin_dir, "opencode")) == 1  # lane 2 was never started
-    assert (repo / "page1.html").is_file()
+    monkeypatch.setenv(hl.BUDGET_ENV, "3")
+    monkeypatch.setenv(hl.PARALLEL_ENV, "1")  # one CLI at a time: the second call waits for the first, and its budget runs down
+    monkeypatch.setattr(hl, "_slots", None)
+    rc, out = _run(repo, capsys, "--tasks-file", _tasks_file(repo, 3, chained=False))
+    assert rc == 0 and out["reason"] == "hybrid_unavailable: budget"
+    assert len(out["applied"]) == 1 and len(out["tasks"]) == 2 and len(fakes.log(bin_dir, "opencode")) == 1  # the others never started
+    assert sum((repo / f"page{i}.html").is_file() for i in (1, 2, 3)) == 1
 
 
 def test_the_budget_is_100_seconds_unless_the_environment_says_otherwise(monkeypatch):
     assert hl.budget_s({}) == 100.0  # under the 120 s tool timeout of Claude Code and OpenCode
     assert hl.budget_s({hl.BUDGET_ENV: "90"}) == 90.0
     assert hl.budget_s({hl.BUDGET_ENV: "0"}) == 100.0 and hl.budget_s({hl.BUDGET_ENV: "soon"}) == 100.0
-
-
-def test_independent_tasks_fan_out_without_a_warm_up_call(tmp_path, monkeypatch, capsys):
-    repo = _seed(tmp_path)
-    (repo / "tasks.json").write_text(json.dumps([{"text": f"Create page{i}.html.", "target": f"page{i}.html"} for i in range(1, 5)]),
-                                     encoding="utf-8")
-    # The lanes run at the same time, so which task gets which invocation is not fixed; each invocation creates its own page.
-    bin_dir = fakes.install(tmp_path, "opencode", calls=[_page(1), _page(2), _page(3), _page(4)])
-    _on_opencode(monkeypatch, bin_dir)
-    rc, out = _run(repo, capsys, "--tasks-file", str(repo / "tasks.json"))
-    seen = fakes.log(bin_dir, "opencode")
-    assert len(seen) == 4 and not any("Reply with OK." in s["stdin"] for s in seen)  # no warm-up: a host CLI has no cache to warm
-    assert out["mode"] == "hybrid" and out["model_calls"] == 4
 
 
 def test_the_hybrid_result_survives_a_host_that_reports_no_usage(tmp_path, monkeypatch, capsys):

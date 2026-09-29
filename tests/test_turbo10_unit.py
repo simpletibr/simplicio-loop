@@ -209,7 +209,7 @@ def test_turbo_read_ai_devcli_writes_what_the_model_returns(tmp_path, monkeypatc
     assert any("simplicio-dev-cli" in cmd["command"] and "--apply" in cmd["command"] for cmd in result["commands"])
 
 
-def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monkeypatch):
+def test_independent_tasks_fan_out_with_the_mapper_reading(tmp_path, monkeypatch):
     import subprocess
     from simplicio_loop.turbo import run_turbo
 
@@ -226,8 +226,6 @@ def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monke
     seen = []
 
     def complete(arm, messages, **kwargs):
-        if kwargs.get("max_tokens") == 1:  # the warm-up call writes the header into the cache
-            return {"ok": True, "content": "OK"}
         header = messages[0]["content"]
         task = messages[-1]["content"]
         seen.append(messages)
@@ -246,8 +244,8 @@ def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monke
 
     tasks = [{"index": index, "text": "Create %s" % index} for index in range(1, 5)]
     result = run_turbo(tmp_path, tasks, complete)
-    assert result["wave"] is True
-    assert len(seen) == 4
+    assert "wave" not in result
+    assert len(seen) == 4  # one call per independent task, no warm-up
     assert (tmp_path / "page1.html").is_file()
     assert (tmp_path / "page4.html").read_text(encoding="utf-8") == "<p>page4</p>"
 

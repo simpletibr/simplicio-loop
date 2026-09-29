@@ -8,7 +8,9 @@
   repeats, so one entry describes every call.
 
 An entry is `{"mode": "opencode"|"claude"|"pi"|"json"|"text", "reply": "<model text>", "exit": 0, "stderr": "", "sleep": 0,
-"stdout": <exact bytes to print instead of a synthesized reply>, "stdout_file": <path of a recorded output>}`.
+"stdout": <exact bytes to print instead of a synthesized reply>, "stdout_file": <path of a recorded output>,
+"when": "<text>"}`. An entry with `when` answers the call whose stdin contains that text (lanes run at the same time, so
+their order is not fixed); the other entries answer by call number.
 """
 from __future__ import annotations
 
@@ -34,8 +36,14 @@ while True:
         break
     except FileExistsError:
         number += 1
-call = spec["calls"][min(number, len(spec["calls"]) - 1)]
-stdin = "" if call.get("stdin") == "ignore" else sys.stdin.read()
+stdin, picked = None, None
+if any("when" in c for c in spec["calls"]):  # parallel lanes: pick the reply by what this call was asked, not by its number
+    stdin = sys.stdin.read()
+    picked = next((c for c in spec["calls"] if c.get("when") and c["when"] in stdin), None)
+plain = [c for c in spec["calls"] if "when" not in c]
+call = picked or plain[min(number, len(plain) - 1)]
+if stdin is None:
+    stdin = "" if call.get("stdin") == "ignore" else sys.stdin.read()
 seen = {{k: v for k, v in os.environ.items() if k.startswith(("SIMPLICIO_", "OPENCODE", "CLAUDE", "PI_", "AGENT"))}}
 with open(os.path.join(here, name + ".log"), "a") as log:
     log.write(json.dumps({{"n": number, "pid": os.getpid(), "argv": sys.argv[1:], "stdin": stdin, "cwd": os.getcwd(), "env": seen,

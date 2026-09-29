@@ -2,7 +2,7 @@
 
 Hybrid mode (the default when the invoking host has a headless CLI, see ``turbo_host_llm``): ONE command. The turbo engine runs the
 whole flow (Mapper survey, fan-out, dev-cli apply, ``--verify``, one repair) and every model call it needs goes through the
-host's own CLI, so it uses the same model, account and configuration with no key of its own. The result has ``mode: "hybrid"``
+host's own CLI (a chain of dependent tasks is ONE call, independent tasks are asked at the same time), so it uses the same model, account and configuration with no key of its own. The result has ``mode: "hybrid"``
 and ``llm: <host>``. When the hybrid backend cannot be used (no host detected, its CLI missing, no network, an auth or HTTP
 error, a timeout, the ``SIMPLICIO_TURBO_BUDGET_S`` time budget spent) the same invocation prints the host-mode request below with
 ``reason: "hybrid_unavailable: <cause>"``; a failure mid-run keeps what was applied and hands over the remaining tasks only.
@@ -17,7 +17,7 @@ exactly two commands:
    file instead: the same code path.
 
 Provider mode (``--provider openrouter``, headless automation only): the benchmarked engine. One model call per
-lane (``turbo_provider``: OpenRouter, pinned session, reasoning off), then dev-cli applies each plan.
+group of dependent tasks, the groups at the same time (``turbo_provider``: OpenRouter, pinned session, reasoning off), then dev-cli applies each plan.
 
 The output is one compact JSON document. Exit code: 0 ok / needs_plan, 1 failed, 2 blocked.
 """
@@ -84,7 +84,7 @@ def build_tasks(root: Path, texts: Sequence[str], target: str | None = None,
         task = {"index": index, "text": str(spec["text"]), "target": task_target,
                 "context": list(dict.fromkeys(extra))}
         files = {task_target, *task["context"]} - {None}
-        # Tasks that touch the same file stay in order; the rest can fan out.
+        # Tasks that touch the same file depend on each other (one model call); the rest are asked at the same time.
         task["depends_on"] = spec.get("depends_on") or [
             earlier["index"] for earlier in tasks
             if files & ({earlier["target"], *earlier["context"]} - {None})
@@ -344,7 +344,7 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
         "status": "ok" if result["applied_all"] else "failed",
         "tasks": len(tasks),
         "model_calls": len(calls),
-        "retries": max(0, len([c for c in calls if not c.get("warm")]) - len(result["outcomes"])),
+        "retries": max(0, len(calls) - len(result["outcomes"])),
         "applied": [i for o in result["outcomes"] if o["applied"] for i in o["tasks"]],
         "failed": [o for o in result["outcomes"] if not o["applied"]],
         "verify": None,
@@ -362,7 +362,7 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
         "cache_hit_pct": round(100 * tokens["cached_tokens"] / tokens["prompt_tokens"], 1) if tokens["prompt_tokens"] else 0.0,
         "cost_usd": round(sum(c.get("cost_usd") or 0 for c in billed), 6),
         "calls": [{k: c.get(k) for k in ("latency_s", "provider", "prompt_tokens", "cached_tokens",
-                                         "completion_tokens", "hedged", "warm")} for c in calls],
+                                         "completion_tokens", "hedged")} for c in calls],
     })
     document["wall_s"] = round(time.time() - started, 2)
     _emit(document)
@@ -405,7 +405,7 @@ def _run_hybrid(repo: str, texts: Sequence[str], target: str | None, context: Se
 
     (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
     try:
-        result = run_turbo(root, tasks, complete, deadline=deadline, warm=False)
+        result = run_turbo(root, tasks, complete, deadline=deadline)
     except RuntimeError as exc:
         _emit({**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
         return 2

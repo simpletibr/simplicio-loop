@@ -1,13 +1,19 @@
-"""3.47.0 hybrid mode, the engine: a model call that fails for a host reason stops the run cleanly.
+"""3.47.0 hybrid mode, the engine: dependency components, one model call each, all at the same time.
+
+Tasks that depend on each other (a file they share, ``depends_on``) are ONE component and ONE model call. Components that
+do not depend on each other are asked at the same time (asyncio), so a run costs about one call's wall time, not the sum.
+There is no warm-up call and no wave.
 
 A reply marked ``fatal`` (the host CLI is missing, not logged in, timed out, the budget is spent) is not a bad plan, so
-the engine does not send it back to the model as a dev-cli rejection. It stops dispatching lanes, keeps what it applied
-and reports the cause, so the caller can hand the rest to the host.
+the engine does not send it back to the model as a dev-cli rejection. It keeps what the other components applied and
+reports the cause, so the caller can hand the rest to the host.
 """
 from __future__ import annotations
 
 import json
+import re
 import subprocess
+import threading
 
 import pytest
 
@@ -37,10 +43,15 @@ def _tasks(count: int, chained: bool = False, start: int = 1) -> list[dict]:
 
 
 def _plan_for(messages) -> str:
-    """The plan a model would write: the task number in the latest task message names the page."""
+    """The plan a model would write: one page for every "N. Create pageN" line of the latest task message."""
     text = next(m["content"] for m in reversed(messages) if m["role"] == "user" and "Tasks:" in m["content"])
-    number = text.split("Tasks:", 1)[1].strip().split(".", 1)[0].strip()
-    return json.dumps({"operations": [{"path": f"page{number}.html", "find": "", "replace": f"page {number}\n"}]})
+    numbers = re.findall(r"^(\d+)\. Create page", text, flags=re.M)
+    return json.dumps({"operations": [{"path": f"page{n}.html", "find": "", "replace": f"page {n}\n"} for n in numbers]})
+
+
+def _asked(messages) -> list[int]:
+    text = next(m["content"] for m in reversed(messages) if m["role"] == "user" and "Tasks:" in m["content"])
+    return [int(n) for n in re.findall(r"^(\d+)\. Create page", text, flags=re.M)]
 
 
 def test_a_fatal_reply_is_not_retried_and_the_run_reports_the_cause(repo):
@@ -62,76 +73,115 @@ def test_a_finished_run_reports_no_stop(repo):
     assert result["stopped"] is None and result["applied_all"] is True
 
 
-def test_a_fatal_reply_in_a_chain_keeps_the_applied_lanes_and_skips_the_rest(repo):
+def test_a_chain_of_ten_tasks_is_one_model_call(repo):
     seen = []
 
     def complete(arm, messages, **kwargs):
-        seen.append(1)
-        if len(seen) == 3:
-            return dict(FATAL)
+        seen.append(_asked(messages))
         return {"ok": True, "content": _plan_for(messages)}
 
-    result = run_turbo(repo, _tasks(5, chained=True), complete)
-    assert len(seen) == 3  # lanes 4 and 5 were never asked
-    by_task = {o["tasks"][0]: o for o in result["outcomes"]}
-    assert [by_task[i]["applied"] for i in (1, 2, 3, 4, 5)] == [True, True, False, False, False]
-    assert by_task[4]["skipped"] is True and "not attempted" in by_task[4]["reason"] and "host_timeout" in by_task[4]["reason"]
-    assert result["stopped"]["reason_code"] == "host_timeout"
-    assert (repo / "page1.html").is_file() and (repo / "page2.html").is_file() and not (repo / "page3.html").exists()
+    result = run_turbo(repo, _tasks(10, chained=True), complete)
+    assert seen == [list(range(1, 11))]  # every task of the chain in the one message
+    assert result["turns"] == 1 and result["applied_all"] is True and result["outcomes"][0]["tasks"] == list(range(1, 11))
+    assert all((repo / f"page{i}.html").is_file() for i in range(1, 11))
 
 
-def test_a_fatal_reply_in_a_fan_out_keeps_the_lanes_that_answered(repo):
+def test_tasks_joined_by_depends_on_are_one_component_and_the_rest_stand_alone(repo):
+    seen = []
+    tasks = [{"index": 1, "text": "Create page1", "target": "page1.html", "depends_on": []},
+             {"index": 2, "text": "Create page2", "target": "page2.html", "depends_on": []},
+             {"index": 3, "text": "Create page3", "target": "page3.html", "depends_on": [1]}]
+
     def complete(arm, messages, **kwargs):
-        if "Tasks:\n3." in messages[-1]["content"]:
+        seen.append(_asked(messages))
+        return {"ok": True, "content": _plan_for(messages)}
+
+    run_turbo(repo, tasks, complete)
+    assert sorted(seen) == [[1, 3], [2]]  # 3 depends on 1, so they go together; 2 is on its own
+
+
+def test_independent_tasks_are_asked_at_the_same_time(repo):
+    barrier = threading.Barrier(3, timeout=10)  # all three calls must be in flight together, or the barrier breaks
+
+    def complete(arm, messages, **kwargs):
+        try:
+            barrier.wait()
+        except threading.BrokenBarrierError:
+            return {"ok": False, "error": "the calls did not overlap"}
+        return {"ok": True, "content": _plan_for(messages)}
+
+    result = run_turbo(repo, _tasks(3), complete)
+    assert result["turns"] == 3 and result["applied_all"] is True and result["stopped"] is None
+    assert [o["tasks"] for o in result["outcomes"]] == [[1], [2], [3]]  # component order, not completion order
+
+
+def test_a_chain_of_two_and_two_independent_tasks_are_three_calls(repo):
+    seen, lock = [], threading.Lock()
+    tasks = [*_tasks(2, chained=True), *_tasks(2, start=3)]
+
+    def complete(arm, messages, **kwargs):
+        with lock:
+            seen.append(_asked(messages))
+        return {"ok": True, "content": _plan_for(messages)}
+
+    result = run_turbo(repo, tasks, complete)
+    assert sorted(seen) == [[1, 2], [3], [4]] and result["turns"] == 3 and result["applied_all"] is True
+    assert [c["turn"] for c in result["llm_calls"]] == [1, 2, 3]
+
+
+def test_there_is_no_warm_up_call_and_no_wave(repo):
+    seen, lock = [], threading.Lock()
+
+    def complete(arm, messages, **kwargs):
+        with lock:
+            seen.append((kwargs, len(messages)))
+        return {"ok": True, "content": _plan_for(messages)}
+
+    result = run_turbo(repo, _tasks(6), complete)
+    assert len(seen) == 6 and all(kw == {} and count == 2 for kw, count in seen)  # header + tasks; no 1-token call
+    assert "wave" not in result and not any("warm" in call for call in result["llm_calls"])
+    assert not hasattr(turbo, "WAVE_TURBO_ABOVE")
+
+
+def test_a_fatal_reply_in_one_component_keeps_the_others_that_answered(repo):
+    def complete(arm, messages, **kwargs):
+        if _asked(messages) == [3]:
             return dict(FATAL)
         return {"ok": True, "content": _plan_for(messages)}
 
-    result = run_turbo(repo, _tasks(4), complete, warm=False)
+    result = run_turbo(repo, [*_tasks(2, chained=True), *_tasks(2, start=3)], complete)
     by_task = {o["tasks"][0]: o for o in result["outcomes"]}
-    assert [by_task[i]["applied"] for i in (1, 2, 3, 4)] == [True, True, False, True]
+    assert [by_task[i]["applied"] for i in (1, 3, 4)] == [True, False, True]
     assert by_task[3]["fatal"]["reason_code"] == "host_timeout" and result["stopped"]["reason_code"] == "host_timeout"
+    assert result["applied_all"] is False and result["turns"] == 3  # nothing was retried
+    assert all((repo / f"page{i}.html").is_file() for i in (1, 2, 4)) and not (repo / "page3.html").exists()
 
 
-def test_the_warm_up_call_is_skipped_for_a_host_backend(repo):
-    seen = []
-
+def test_a_component_dev_cli_refuses_does_not_stop_the_others(repo):
     def complete(arm, messages, **kwargs):
-        seen.append(kwargs)
-        if kwargs.get("max_tokens") == 1:  # the warm-up call
-            return {"ok": True, "content": "OK"}
+        if _asked(messages) == [2]:
+            return {"ok": True, "content": json.dumps({"operations": [{"path": "README.md", "find": "NOPE", "replace": "x"}]})}
         return {"ok": True, "content": _plan_for(messages)}
 
-    run_turbo(repo, _tasks(4), complete, warm=False)
-    assert len(seen) == 4 and all("max_tokens" not in kw for kw in seen)
-    seen.clear()
-    run_turbo(repo, _tasks(4, start=5), complete)  # the provider default is unchanged: one warm call, then the lanes
-    assert len(seen) == 5 and seen[0].get("max_tokens") == 1
+    result = run_turbo(repo, _tasks(3), complete)
+    assert [o["applied"] for o in result["outcomes"]] == [True, False, True]
+    assert result["stopped"] is None and result["turns"] == 4  # component 2 asked twice: the one retry with dev-cli's error
+    assert (repo / "page1.html").is_file() and (repo / "page3.html").is_file() and not (repo / "page2.html").exists()
 
 
-def test_a_fatal_warm_up_stops_before_any_lane(repo):
+def test_a_deadline_already_spent_asks_nothing_and_names_the_budget(repo, monkeypatch):
+    monkeypatch.setattr(turbo, "_clock", lambda: 1000.0)
     calls = []
 
     def complete(arm, messages, **kwargs):
-        calls.append(kwargs)
-        return dict(FATAL)
-
-    result = run_turbo(repo, _tasks(4), complete)
-    assert len(calls) == 1 and result["applied_all"] is False
-    assert [o["applied"] for o in result["outcomes"]] == [False] * 4 and result["stopped"]["reason_code"] == "host_timeout"
-
-
-def test_the_deadline_stops_new_lanes_and_names_the_budget(repo, monkeypatch):
-    now = [1000.0]
-    monkeypatch.setattr(turbo, "_clock", lambda: now[0])
-
-    def complete(arm, messages, **kwargs):
-        now[0] += 60  # every call takes a minute
+        calls.append(1)
         return {"ok": True, "content": _plan_for(messages)}
 
-    result = run_turbo(repo, _tasks(4, chained=True), complete, deadline=1000.0 + 100)
-    assert [o["applied"] for o in sorted(result["outcomes"], key=lambda o: o["tasks"][0])] == [True, True, False, False]
+    result = run_turbo(repo, _tasks(4), complete, deadline=1000.0)
+    assert calls == [] and result["turns"] == 0 and result["applied_all"] is False
     assert result["stopped"]["reason_code"] == "budget"
-    assert all("not attempted" in o["reason"] for o in result["outcomes"] if not o["applied"])
+    assert [o["tasks"] for o in result["outcomes"]] == [[1], [2], [3], [4]]
+    assert all(o["skipped"] and "not attempted" in o["reason"] and "budget" in o["reason"] for o in result["outcomes"])
 
 
 def test_a_bad_plan_is_still_retried_once_with_the_dev_cli_error(repo):

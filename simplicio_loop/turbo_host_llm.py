@@ -46,7 +46,7 @@ PARALLEL_ENV = "SIMPLICIO_TURBO_HOST_PARALLEL"
 PROBE_ENV = "SIMPLICIO_TURBO_PROBE"
 DEFAULT_BUDGET_S = 100.0  # the Claude Code and OpenCode bash tools time out at 120 s
 DEFAULT_CALL_TIMEOUT_S = 90.0
-DEFAULT_PARALLEL = 4
+DEFAULT_PARALLEL = min(8, os.cpu_count() or 4)  # host CLI processes at once
 MIN_CALL_S = 1.0
 PROBE_BUDGET_S = 2.0
 DEFAULT_PROBES = ("api.openai.com:443", "api.anthropic.com:443", "openrouter.ai:443", "generativelanguage.googleapis.com:443")
@@ -698,6 +698,12 @@ def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, backend: Backen
     if binary is None:
         return _fatal("host_cli_missing", f"{call.argv[0]} is not on PATH", started, backend.id)
     with _semaphore():
+        started = time.monotonic()  # the latency of the call, not the wait for a slot
+        if deadline is not None:  # ...which spent part of the budget
+            left = deadline - started
+            if left < MIN_CALL_S:
+                return _fatal("budget", f"the {BUDGET_ENV} time budget is spent", started, backend.id)
+            limit = min(limit, left)
         try:
             proc = subprocess.Popen(
                 [binary, *call.argv[1:]], stdin=subprocess.PIPE if call.stdin is not None else subprocess.DEVNULL,

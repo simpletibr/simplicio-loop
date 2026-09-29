@@ -23,14 +23,12 @@ def _repo(tmp_path, monkeypatch):
     (tmp_path / ".simplicio-loop" / "project-map.json").write_text('{"mark":"MAP"}', encoding="utf-8")
 
 
-def test_wave_does_not_sleep_after_the_first_call(tmp_path, monkeypatch):
+def test_the_fan_out_never_sleeps_between_calls(tmp_path, monkeypatch):
     _repo(tmp_path, monkeypatch)
     slept = []
     monkeypatch.setattr("time.sleep", lambda seconds: slept.append(seconds))
 
     def complete(arm, messages, **kwargs):
-        if kwargs.get("max_tokens") == 1:  # warm-up call
-            return {"ok": True, "content": "OK"}
         name = "page" + messages[-1]["content"].split("Tasks:", 1)[1].strip().split(".", 1)[0].strip()
         return {"ok": True, "content": '{"operations":[{"path":"%s.html","find":"","replace":"x"}]}' % name}
 
