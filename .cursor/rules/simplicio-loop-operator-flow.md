@@ -37,11 +37,13 @@ Installers copy this file into each host's always-on surface via
 
 3. **Survey:** `simplicio-mapper` (scan / inspect / handoff) — not ad-hoc full-tree LLM walks.
 
-4. **Hot path:** `simplicio-loop turbo --repo . --task "<task>" [--verify "<tests>"]` (Mapper survey,
-   model plan, Dev CLI apply). It needs `OPENROUTER_API_KEY`; without it the command blocks
-   (`turbo_provider_key_missing`): tell the user and stop. Do not write plans yourself.
+4. **Hot path:** `simplicio-loop "<task>" [--verify "<tests>"]` (short for `simplicio-loop turbo --repo .
+   --task "<task>"`). Mapper surveys and the command prints a `needs_plan` request; no key, no provider.
+   You are the model: write the JSON plan to `plan_path`, run the printed `apply` command (Dev CLI
+   applies it and runs `--verify`), and on `failed` fix the plan once from the reported reason. Queue
+   goals: the same two commands per item, in order.
 
-5. **Mutate:** through `simplicio-loop turbo` under STRICT.  
+5. **Mutate:** through `simplicio-loop turbo --apply` under STRICT (Dev CLI makes every edit).  
    Host Write / Edit / StrReplace / ApplyPatch are **forbidden** as the primary mutation path
    when STRICT is on (`hooks/action_gate.py` PreToolUse on Claude/Cursor; instruction law on
    self-paced hosts).

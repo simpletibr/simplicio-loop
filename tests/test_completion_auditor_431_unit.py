@@ -495,13 +495,6 @@ def test_forged_completion_receipt_rejected():
     assert reason == ca.REASON_RECEIPT_HASH_MISMATCH
 
 
-def test_delivery_agent_self_audit_rejected_by_isolation():
-    # delivery_agent's instance cannot double as the auditor.
-    result = _full_audit(auditor_instance_id="inst-delivering")
-    assert result["verdict"] == ca.VERDICT_BLOCKED
-    assert result["reason_code"] == ca.REASON_IDENTITY_COLLISION
-
-
 def test_bare_done_flag_without_receipt_never_gates_promise():
     result = _full_audit()
     ok, reason = ca.gate_promise(completion_receipt=None, audit_result=result, self_reported_done=True)

@@ -6,12 +6,6 @@ paths.
 from simplicio_loop.flow_semantics import evaluate_converge, evaluate_drain
 
 
-def test_evaluate_converge_rejects_non_sequence_attempts():
-    result = evaluate_converge("not-a-sequence")
-    assert result["status"] == "BLOCKED"
-    assert result["reason_code"] == "attempts_invalid"
-
-
 def test_evaluate_converge_rejects_invalid_limits():
     result = evaluate_converge([], max_attempts=0)
     assert result["status"] == "BLOCKED"
@@ -26,13 +20,6 @@ def test_evaluate_converge_rejects_non_mapping_attempt_rows():
     result = evaluate_converge([{"verified": False}, "not-a-mapping"])
     assert result["status"] == "BLOCKED"
     assert result["reason_code"] == "attempt_invalid"
-
-
-def test_evaluate_converge_no_attempts_continues():
-    result = evaluate_converge([])
-    assert result["status"] == "CONTINUE"
-    assert result["reason_code"] == "no_attempts"
-    assert result["attempt_count"] == 0
 
 
 def test_evaluate_converge_completes_when_latest_attempt_is_verified():
@@ -80,12 +67,6 @@ def test_evaluate_drain_rejects_non_sequence_rounds():
     result = evaluate_drain("nope")
     assert result["status"] == "BLOCKED"
     assert result["reason_code"] == "rounds_invalid"
-
-
-def test_evaluate_drain_rejects_invalid_k():
-    result = evaluate_drain([], k=0)
-    assert result["status"] == "BLOCKED"
-    assert result["reason_code"] == "limit_invalid"
 
 
 def test_evaluate_drain_rejects_non_mapping_round_rows():

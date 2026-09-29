@@ -73,12 +73,16 @@ Expected: preflight green, or explicit degraded labels — never a silent fake O
 
 ## 4. Step-by-step — every non-trivial task
 
-1. **Run turbo:** `simplicio-loop turbo --repo <path> --task "<task>" [--task "<task 2>" ...] [--verify "<tests>"]`.
-   Mapper reads the repo once, the model returns the plan, `simplicio-dev-cli` applies it. Name every
-   file to change in the task text. It needs `OPENROUTER_API_KEY`; without it the command prints
-   `status: blocked` (`turbo_provider_key_missing`) and you stop: no plans and no edits by hand.
-2. **Read its JSON:** `status` (ok/failed/blocked), `applied`, `failed`, `model_calls`,
-   `cache_hit_pct`, `cost_usd`, `verify`. On `failed`, re-run once with a sharper `--task`.
+1. **Run turbo:** `simplicio-loop "<task>" [--verify "<tests>"]`, short for
+   `simplicio-loop turbo --repo <path> --task "<task>" [--task "<task 2>" ...] [--verify "<tests>"]`.
+   Mapper reads the repo once and the command prints a `needs_plan` request. No provider and no API key.
+   Name every file to change in the task text.
+2. **Write the plan and apply it:** you are the model. Write the JSON plan to `plan_path`
+   (`{"operations":[{"path","find","replace"}]}`, `find` copied from the printed text), then run the printed
+   `apply` command: `simplicio-dev-cli` applies it and runs `--verify`. Read its JSON: `status` (ok/failed),
+   `applied`, `failed` (dev-cli reason plus a file excerpt), `verify`. On `failed`, fix the plan once and
+   apply again. No edits by hand. `--provider openrouter` is the explicit headless mode and the only one
+   that needs `OPENROUTER_API_KEY`.
 3. **Record metrics per task/issue:**
    ```text
    python -m simplicio_loop.execution_report record-task --task-id t1 --issue 42 --title "…" \
@@ -95,7 +99,7 @@ Expected: preflight green, or explicit degraded labels — never a silent fake O
 |--------|---------|
 | Preflight (blocking) | `simplicio-loop preflight --strict --json` |
 | Orient + route | `simplicio-loop orient --task "…" --json` |
-| Run a task (default) | `simplicio-loop turbo --repo . --task "…" --verify "<tests>"` |
+| Run a task (default) | `simplicio-loop "…" --verify "<tests>"`, then the printed `apply` |
 | Governed run from a tasks.md | `simplicio-loop prepare --task tasks.md` → `wave` → `verify` |
 | Drain a queue | `python3 scripts/arm_drain_prism.py --repo . --slots 0 --batch-size N --json` |
 | Start metrics report | `python -m simplicio_loop.execution_report start --json` |

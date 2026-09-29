@@ -13,26 +13,40 @@ below is the full elaboration, read only when the task needs it).
 
 ## The turbo flow — full detail
 
-- `simplicio-loop turbo --repo <path> --task "<task>" [--task ...] [--verify "<cmd>"]` is the
-  default path on every host (`simplicio_loop/turbo_cli.py`). Files named in the task text become
-  the target and the context the model sees. Or pass `--target`/`--context` with one `--task`, or
-  `--tasks-file` with `{text, target?, context?, depends_on?}` items. Tasks that touch the same file
-  stay in order.
-- Mapper builds the project map once per invocation. It is the byte-identical header of every model
-  call; the task text and the current target file are the suffix (`simplicio_loop/turbo.py`). The
-  model client is `simplicio_loop/turbo_provider.py`: OpenRouter, `deepseek/deepseek-v4.1-flash`
-  (`SIMPLICIO_TURBO_MODEL` overrides), temperature 0, reasoning off, a session pinned per
-  repository (`x-session-id`). The benchmark's turbo arm calls the same client.
-- The model returns a find/replace plan and `simplicio-dev-cli` compiles and applies it. A plan
-  dev-cli rejects (`plan_path_not_found`, `plan_path_not_authorized`, `plan_find_not_found`,
-  `plan_find_not_unique`) is sent back to the model once; a second rejection ends that lane as
-  `failed` with the dev-cli reason.
-- Up to three tasks share one model call. Above three, the first call runs alone so the rest read
-  the header from prompt cache, then the remaining lanes fan out.
-- Without `OPENROUTER_API_KEY` it prints `status: blocked` (`turbo_provider_key_missing`) and exits
-  2. Exit codes: 0 ok, 1 failed, 2 blocked. The one JSON document is `simplicio.turbo-run/v1`:
-  `status`, `applied`, `failed`, `model_calls`, `retries`, `tokens`, `cache_hit_pct`, `cost_usd`,
-  `calls`, `verify`, `wall_s`.
+- Host mode is the default (`simplicio_loop/turbo_cli.py`): no provider call and no key. The invoking
+  model plans and `simplicio-dev-cli` edits. `simplicio-loop "<task>"` is the short form of
+  `simplicio-loop turbo --repo . --task "<task>" [--verify "<cmd>"]`: a first argument that is not a
+  subcommand is a task, unless it asks for all issues/tickets/tarefas (that request goes to the GitHub
+  drain intake). Files named in the task text become the target and the context the request carries. Or
+  pass `--target`/`--context` with one `--task`, or `--tasks-file` with `{text, target?, context?,
+  depends_on?}` items.
+- Step 1 prints `simplicio.turbo-request/v1` (also saved as `.simplicio-loop/turbo/request.json`):
+  `status: "needs_plan"`, `mode: "host"`, `plan_path`, `apply` (the exact next command, with the same
+  `--verify`), `format`, `tasks` and `prompt`. The prompt is what a model must read: the Mapper project
+  map (one task gets only its slice of it), the task text and the current text of the target files.
+  Mapper builds the map once per invocation.
+- Step 2, `simplicio-loop turbo --repo <path> --apply <plan>`, reads the plan the model wrote,
+  `simplicio-dev-cli` compiles and applies it, and `--verify` runs. It prints `simplicio.turbo-run/v1`
+  with `mode: "host"`, `status` (`ok` or `failed`), `applied`, `failed` (each entry has the dev-cli
+  reason and an excerpt of the file around a `find` that did not match) and `verify`. A missing or
+  malformed plan is `failed` with `turbo_plan_missing` or `turbo_plan_malformed`. Exit codes: 0 ok or
+  needs_plan, 1 failed, 2 blocked.
+- Provider mode is an explicit opt-in: `--provider openrouter`. It needs `OPENROUTER_API_KEY`; without it
+  the command prints `status: blocked` (`turbo_provider_key_missing`) and exits 2. The model client is
+  `simplicio_loop/turbo_provider.py`: OpenRouter, `deepseek/deepseek-v4.1-flash`
+  (`SIMPLICIO_TURBO_MODEL` overrides), temperature 0, reasoning off, a session pinned per repository
+  (`x-session-id`), one kept-alive connection, and a hedged duplicate request after
+  `SIMPLICIO_TURBO_HEDGE_AFTER` seconds (default 2.5, 0 disables). The benchmark's turbo arm calls the
+  same client.
+- In provider mode the map is the header and stays byte-identical on every call; the task text and the
+  current target file are the suffix (`simplicio_loop/turbo.py`). The model returns a find/replace plan
+  and dev-cli compiles and applies it. A plan dev-cli rejects (`plan_path_not_found`,
+  `plan_path_not_authorized`, `plan_find_not_found`, `plan_find_not_unique`) is sent back once; a second
+  rejection ends that lane as `failed` with the dev-cli reason. After a failed `--verify` one repair call
+  gets the test output. Up to three tasks share one model call. Above three, the first call runs alone
+  (a 1-token warm-up) so the rest read the header from prompt cache, then the remaining lanes fan out.
+  The JSON document has `status`, `applied`, `failed`, `model_calls`, `retries`, `tokens`,
+  `cache_hit_pct`, `cost_usd`, `calls`, `verify`, `wall_s`.
 - `orient --json` still answers with a `commands` card and a `route` whose next step is that turbo
   command, and `targets` (bounded, grounded file contents).
 - The rest of this file describes governed runs from a `tasks.md` (`prepare`, `wave`, `tick`,
@@ -190,8 +204,9 @@ Full rationale + extra flags: `references/triage-verify-detail.md` and
 ### 2. Work
 
 1. Decide the ONE AC-scoped change (the model's own step — no worker for this).
-2. Run `simplicio-loop turbo` (§ The turbo flow above) — the model plans, the
-   `simplicio-dev-cli` operator applies and verifies it; never hand-edit.
+2. Run `simplicio-loop "<task>"`, write the plan it asks for, then its printed `apply` command (§ The
+   turbo flow above) — the model plans, the `simplicio-dev-cli` operator applies and verifies it;
+   never hand-edit.
 3. `fast-path` only: `python3 scripts/diff_escalation.py --root . --mode fast-path --anchor <anchor.json>`
    re-measures the REAL diff against safe limits (default ≤2 files, ≤80
    lines, 0 new files) and **promotes** to `converge` on overshoot —

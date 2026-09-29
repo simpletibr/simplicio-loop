@@ -81,12 +81,50 @@ WAVE_TURBO_ABOVE = 3
 _MAPPER_READING_LIMIT = 12000
 
 
-def mapper_reading(root: Path) -> str:
-    """The Mapper project map. This is the only repo reading sent to the model."""
+SLICE_ENV = "SIMPLICIO_TURBO_SLICE"
+_WARM_MESSAGE = {"role": "user", "content": "Reply with OK."}
+
+
+def slice_enabled() -> bool:
+    import os
+
+    return os.environ.get(SLICE_ENV, "1").strip() != "0"
+
+
+def focus_paths(tasks: Sequence[Mapping[str, Any]]) -> list[str]:
+    paths: list[str] = []
+    for task in tasks:
+        for name in [task.get("target"), *(task.get("context") or [])]:
+            if name and str(name) not in paths:
+                paths.append(str(name))
+    return paths
+
+
+def mapper_reading(root: Path, focus: Sequence[str] | None = None) -> str:
+    """The Mapper project map. This is the only repo reading sent to the model.
+
+    With ``focus`` (a single task) only the map entries for those files are kept, plus the
+    small top-level fields: one call cannot reuse a cached header, so the full map would be
+    paid uncached for nothing (measured on the benchmark fixture: 3,294 map tokens -> ~340).
+    """
     path = root / ".simplicio-loop" / "project-map.json"
-    if path.is_file() and path.stat().st_size:
-        return path.read_text(encoding="utf-8")[:_MAPPER_READING_LIMIT]
-    raise RuntimeError(f"mapper survey produced no project-map under {root}")
+    if not (path.is_file() and path.stat().st_size):
+        raise RuntimeError(f"mapper survey produced no project-map under {root}")
+    text = path.read_text(encoding="utf-8")
+    if focus:
+        try:
+            project = json.loads(text)
+        except ValueError:
+            project = None
+        if isinstance(project, dict):
+            wanted = [str(p) for p in focus if p]
+            sliced = {k: v for k, v in project.items() if k != "files" and len(json.dumps(v)) <= 400}
+            sliced["files"] = [
+                entry for entry in project.get("files") or []
+                if any(name in json.dumps(entry) for name in wanted)
+            ]
+            return json.dumps(sliced, separators=(",", ":"))[:_MAPPER_READING_LIMIT]
+    return text[:_MAPPER_READING_LIMIT]
 
 
 def _parse_operations(content: str) -> list[dict]:
@@ -103,7 +141,25 @@ def _parse_operations(content: str) -> list[dict]:
     payload = json.loads(text)
     operations = payload.get("operations") if isinstance(payload, dict) else None
     if not isinstance(operations, list) or not operations:
-        raise ValueError("the model did not return operations")
+        raise ValueError("the plan has no operations")
+    return operations
+
+
+def load_operations(text: str) -> list[dict]:
+    """Parse the plan a host model wrote: ``{"operations":[{"path","find","replace"}]}``.
+
+    ``find`` may be absent or empty (create the file). Anything else that is not a string is refused here,
+    so a malformed plan is reported before dev-cli is called.
+    """
+    operations = _parse_operations(text)
+    for number, operation in enumerate(operations, start=1):
+        if not isinstance(operation, dict):
+            raise ValueError(f"operation {number} is not an object")
+        path = operation.get("path")
+        if not isinstance(path, str) or not path.strip():
+            raise ValueError(f"operation {number} needs a string path")
+        if not isinstance(operation.get("find", ""), str) or not isinstance(operation.get("replace"), str):
+            raise ValueError(f"operation {number} needs a string find and a string replace")
     return operations
 
 
@@ -133,7 +189,7 @@ def header_message(reading: str) -> dict[str, str]:
     }
 
 
-def _task_message(tasks: Sequence[Mapping[str, Any]], root: Path | None = None) -> dict[str, str]:
+def task_message(tasks: Sequence[Mapping[str, Any]], root: Path | None = None) -> dict[str, str]:
     """Task text plus the current target bytes. This is the suffix, not the header."""
     parts = []
     for task in tasks:
@@ -159,6 +215,8 @@ def _call_record(reply: Mapping[str, Any], turn: int) -> dict[str, Any]:
         "cost_usd": reply.get("cost"),
         "latency_s": reply.get("latency_s"),
         "provider": reply.get("provider"),
+        "hedged": bool(reply.get("hedged")),
+        "hedge_winner": reply.get("hedge_winner"),
     }
 
 
@@ -193,9 +251,16 @@ def _rejection(commands: list[dict]) -> str | None:
     return None
 
 
+def apply_plan(root: Path, operations: list[dict], label: str = "host-1", dev_cli: str | None = None) -> dict[str, Any]:
+    """Apply one find/replace plan through simplicio-dev-cli. ``reason`` is dev-cli's own message on refusal."""
+    commands = _apply_operations(root, operations, dev_cli or _dev_cli_bin(), label)
+    reason = _rejection(commands)
+    return {"applied": reason is None, "reason": reason, "commands": commands}
+
+
 def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str, turn: int, base: list[dict] | None = None) -> tuple[list[dict], list[dict], str, list[dict]]:
     """Ask once. If dev-cli rejects the plan, send that error back one time."""
-    messages = [*(base if base is not None else [header_message(reading)]), _task_message(tasks, root)]
+    messages = [*(base if base is not None else [header_message(reading)]), task_message(tasks, root)]
     calls: list[dict] = []
     commands: list[dict] = []
     content = ""
@@ -257,7 +322,12 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
         ready = _ready(pending, done)
         if not ready:
             raise RuntimeError("turbo tasks have a dependency cycle")
-        if not calls or len(ready) == 1:
+        if not calls and len(ready) > 1:
+            # Independent tasks: a 1-token call writes the header into the provider's cache,
+            # then every ready task fans out at once instead of waiting for a whole first task.
+            warm = complete("simplicio", [header_message(reading), _WARM_MESSAGE], max_tokens=1)
+            calls.append({**_call_record(warm, 0), "warm": True})
+        elif not calls or len(ready) == 1:
             task = ready[0]
             lane_calls, lane_commands, content, stack, outcome = _one_lane(
                 root, [task], complete, reading, generation, binary, len(calls) + 1, base=stack,
@@ -272,7 +342,7 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
         base = list(stack)
 
         def _ask(task: Mapping[str, Any]) -> tuple[Mapping[str, Any], list[dict], dict]:
-            messages = [*base, _task_message([task], root)]
+            messages = [*base, task_message([task], root)]
             reply = complete("simplicio", messages)
             return task, messages, reply
 
@@ -328,7 +398,8 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
 def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None) -> dict[str, Any]:
     """Mapper reads once. Up to 3 tasks share one model call. Above that, the first call warms the header and the rest follow."""
     survey = survey_tasks(root, tasks)
-    reading = mapper_reading(root)
+    single = len(list(tasks)) == 1
+    reading = mapper_reading(root, focus=focus_paths(tasks) if single and slice_enabled() else None)
     binary = dev_cli or _dev_cli_bin()
     task_list = list(tasks)
     if len(task_list) <= WAVE_TURBO_ABOVE:
@@ -357,6 +428,38 @@ def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli:
         "wave": len(task_list) > WAVE_TURBO_ABOVE,
         "outcomes": outcomes,
         "applied_all": all(outcome["applied"] for outcome in outcomes),
+    }
+
+
+def repair_with_test_output(root: Path, tasks: Sequence[Mapping[str, Any]], complete, test_output: str,
+                            dev_cli: str | None = None) -> dict[str, Any]:
+    """One more call after the tests failed: the same header, the current files and the test output.
+
+    The header is byte-identical to the run's, so the provider serves it from cache.
+    """
+    task_list = list(tasks)
+    single = len(task_list) == 1
+    reading = mapper_reading(root, focus=focus_paths(task_list) if single and slice_enabled() else None)
+    binary = dev_cli or _dev_cli_bin()
+    messages = [
+        header_message(reading),
+        task_message(task_list, root),
+        {"role": "user", "content": "The tests failed after your plan was applied:\n"
+         + test_output[-4000:] + "\nReturn a JSON plan that makes them pass."},
+    ]
+    reply = complete("simplicio", messages)
+    try:
+        operations = _parse_operations(reply.get("content") or "") if reply.get("ok", True) else []
+        reason = None
+    except (ValueError, json.JSONDecodeError) as exc:
+        operations, reason = [], str(exc)
+    applied = _apply_operations(root, operations, binary, "repair-1") if operations else []
+    rejected = _rejection(applied)
+    return {
+        "llm_calls": [_call_record(reply, 1)],
+        "commands": applied,
+        "applied": bool(operations) and rejected is None,
+        "reason": None if operations and rejected is None else (rejected or reason or "the model returned no plan"),
     }
 
 

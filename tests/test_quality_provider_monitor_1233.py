@@ -157,3 +157,18 @@ def test_quality_provider_honours_stop_before_spawn(monkeypatch, tmp_path):
     result = provider.run(run_id="r", tasks=[], attempt=1, repo=str(tmp_path), worktree=str(tmp_path), head="h", diff_hash="d", policy="strict-default", cancel_token=stop)
     assert result["status"] == "BLOCKED"
     assert result["findings"][0]["reason_code"] == "QUALITY_CANCELLED_BEFORE_ADMISSION"
+
+
+def test_the_quality_monitor_honors_the_documented_pressure_profile(tmp_path, monkeypatch):
+    """SIMPLICIO_LOOP_*_PRESSURE_PERCENT is the one physical-admission profile: dispatch and the quality gate share it."""
+    monkeypatch.setenv("SIMPLICIO_LOOP_TARGET_PRESSURE_PERCENT", "99.1")
+    monkeypatch.setenv("SIMPLICIO_LOOP_NO_NEW_PRESSURE_PERCENT", "99.3")
+    monkeypatch.setenv("SIMPLICIO_LOOP_CHECKPOINT_PRESSURE_PERCENT", "99.5")
+    monkeypatch.setenv("SIMPLICIO_LOOP_TERMINATE_PRESSURE_PERCENT", "99.9")
+    monitor = provider._build_monitor(tmp_path)
+    assert (monitor.target_pressure_percent, monitor.terminate_pressure_percent) == (99.1, 99.9)
+    monkeypatch.delenv("SIMPLICIO_LOOP_TERMINATE_PRESSURE_PERCENT")
+    monkeypatch.delenv("SIMPLICIO_LOOP_TARGET_PRESSURE_PERCENT")
+    monkeypatch.delenv("SIMPLICIO_LOOP_NO_NEW_PRESSURE_PERCENT")
+    monkeypatch.delenv("SIMPLICIO_LOOP_CHECKPOINT_PRESSURE_PERCENT")
+    assert provider._build_monitor(tmp_path).terminate_pressure_percent == 88.0

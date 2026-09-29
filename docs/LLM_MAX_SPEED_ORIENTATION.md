@@ -23,7 +23,7 @@
 |------|----|--------|
 | Control plane | `/simplicio-loop` starts the loop directly | Wait on a Runtime/MCP activation decision — none exists |
 | Tokens | mapper handoff | Full-tree LLM Read/Grep walks |
-| Mutate | `simplicio-loop turbo` (Mapper survey, model plan, dev-cli apply) | Host Write/Edit, or writing edit plans yourself |
+| Mutate | `simplicio-loop "<task>"`, write the plan it asks for, run its `apply` (Mapper survey, your plan, dev-cli apply) | Host Write/Edit on source files |
 | Parallel | 1–3 tasks direct; >3 Prism + worktrees + leases + reducer | 64 processes on one dirty tree |
 | Gates | focused test / doctor / `git diff --check` | Full-repo fmt/test for residual noise |
 | Review | 0–1 self-check on small diffs | 3-reviewer panels per metadata PR |
@@ -78,15 +78,18 @@ Prism routing (Loop): **1–3 tasks → direct parallelism**; **>3 → Prism**. 
 
 1. `simplicio-loop economy apply --json` (if not aligned)
 2. `simplicio-loop preflight --strict --json`
-3. `simplicio-loop turbo --repo . --task "<task>" [--task "<task 2>" ...] --verify "<tests>"`.
-   Mapper reads the repo once, the model returns the plan, `simplicio-dev-cli` applies it.
-   Name every file to change in the task text. Do not write plans, edit files, or run
-   `simplicio-mapper scan`/`inspect`/`handoff` yourself. It needs `OPENROUTER_API_KEY`; without
-   it the command prints `status: blocked` (`turbo_provider_key_missing`): tell the user and
-   stop. Never fall back to hand edits.
-4. Read its JSON (`status`, `applied`, `failed`, `verify`). Done = `status: "ok"` and
-   `verify.passed: true`. On `failed`, re-run once with a sharper `--task` that names the file
-   and the exact change.
+3. `simplicio-loop "<task>" [--verify "<tests>"]`, short for
+   `simplicio-loop turbo --repo . --task "<task>" [--task "<task 2>" ...] --verify "<tests>"`.
+   Mapper reads the repo once and the command prints a `needs_plan` request (map slice, task,
+   current file text, the exact `apply` command). No provider and no API key. Name every file to
+   change in the task text. Do not run `simplicio-mapper scan`/`inspect`/`handoff` yourself.
+4. You are the model: write the JSON plan to `plan_path`
+   (`{"operations":[{"path","find","replace"}]}`, `find` copied from the printed text and unique in
+   the file), then run the printed `apply` command; `simplicio-dev-cli` applies it and runs `--verify`.
+   Never hand-edit source. Read its JSON (`status`, `applied`, `failed`, `verify`). Done = `status: "ok"`
+   and `verify.passed: true`. On `failed`, fix the plan once from the reported reason and excerpt and
+   apply again. The key `OPENROUTER_API_KEY` is only for the explicit headless mode
+   `--provider openrouter`.
 5. Smallest gate proving AC.
 6. Drain waves: `python3 scripts/arm_drain_prism.py --repo . --slots 0 --batch-size N --json`
 7. Claim → implement → PR `Closes #N` → merge → **reconcile** → next wave
@@ -105,14 +108,14 @@ Per wave:
 1. Live re-query open issues (never invent `open=0`).
 2. Admit ≤ `batch-size` **independent** issues (prefer non-overlapping paths).
 3. Lease + isolated worktree per issue.
-4. Hot path per issue: `simplicio-loop turbo` (see above).
+4. Hot path per issue: the two `simplicio-loop turbo` commands (see above).
 5. **Reconcile** leases/results before the next wave.
 6. Wave receipt: `attempted / merged / blocked / open_left`.
 
 Per-issue worker micro-prompt:
 
 ```text
-Issue #N only. STRICT. `simplicio-loop turbo`.
+Issue #N only. STRICT. `simplicio-loop turbo` (plan, then apply).
 Lease + worktree only. No hand-edit. Smallest gate for AC.
 Done = evidence (+ PR Closes #N when required). BLOCKED = one reason code.
 ```
@@ -141,8 +144,8 @@ Pasteable **FAST CLOSE** header for a session:
 ```text
 [STANDALONE · PRISM · FAST CLOSE]
 economy apply + preflight --strict
-simplicio-loop turbo --repo . --task "…" --verify "<tests>" (needs OPENROUTER_API_KEY)
-Mapper→dev-cli through turbo; no hand-edit, no edit plans
+simplicio-loop "…" --verify "<tests>", write the plan it asks for, run its apply (no API key)
+Mapper→dev-cli through turbo; no hand-edit of source
 Prism --slots 0 --batch-size <N>; reconcile each wave
 REVIEW=0 metadata; FULL_CI=0 unless AC requires
 End: DONE | NEXT | BLOCKED

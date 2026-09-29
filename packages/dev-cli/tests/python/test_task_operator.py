@@ -16,8 +16,6 @@ LLM calls, deterministic.
 from __future__ import annotations
 
 import json
-import os
-import stat
 import subprocess
 import sys
 import threading
@@ -26,7 +24,6 @@ from pathlib import Path
 
 import pytest
 
-from simplicio import providers
 from simplicio.task_operator import (
     PHASE_CANCELLED,
     PHASE_COMPLETED,
@@ -537,39 +534,6 @@ time.sleep(30)
     assert size_later == size_after_kill, (
         "grandchild kept writing heartbeats after the parent was killed — orphan process left behind"
     )
-
-
-@pytest.mark.skip(reason="provider CLI execution was removed from simplicio-py")
-def test_shell_out_codex_success_path_unchanged_under_bounded_timeout(monkeypatch, tmp_path):
-    # A tiny Python "CLI" launched via a one-line shell/.cmd shim is more
-    # portable across POSIX/Windows than hand-writing the --output-last-
-    # message argv parsing in shell script, and it is what the real
-    # `codex exec --output-last-message <path>` contract cares about anyway
-    # (writing the completion to that file).
-    fake_codex = tmp_path / "fake_codex_cli.py"
-    fake_codex.write_text(
-        "import sys\n"
-        "args = sys.argv[1:]\n"
-        "out_path = args[args.index('--output-last-message') + 1]\n"
-        "with open(out_path, 'w', encoding='utf-8') as fh:\n"
-        "    fh.write('fake codex output')\n",
-        encoding="utf-8",
-    )
-    bin_dir = tmp_path / "fakebin"
-    bin_dir.mkdir()
-    if os.name == "nt":
-        launcher = bin_dir / "codex.cmd"
-        launcher.write_text(f'@echo off\r\n"{sys.executable}" "{fake_codex}" %*\r\n', encoding="utf-8")
-    else:
-        launcher = bin_dir / "codex"
-        launcher.write_text(f'#!/bin/sh\n"{sys.executable}" "{fake_codex}" "$@"\n', encoding="utf-8")
-        launcher.chmod(launcher.stat().st_mode | stat.S_IEXEC)
-    monkeypatch.setenv("PATH", str(bin_dir) + os.pathsep + os.environ.get("PATH", ""))
-    monkeypatch.setenv("SIMPLICIO_PROVIDER_STARTUP_TIMEOUT_S", "10")
-    monkeypatch.setenv("SIMPLICIO_PROVIDER_TOTAL_TIMEOUT_S", "10")
-
-    out = providers._shell_out_codex("refactor x", "gpt-5")
-    assert out == "fake codex output"
 
 
 # --------------------------------------------------------------------------- #

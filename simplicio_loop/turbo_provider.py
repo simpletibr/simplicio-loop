@@ -7,24 +7,40 @@ benchmark measures this code. The request is the one the benchmark measured:
 - `"reasoning": {"enabled": false}`
 - a stable `x-session-id` per repository, so every call reads the same provider's prompt cache
 
+Two latency guards, both measured or simulated on the benchmark calls:
+- **Kept-alive connection.** One pooled HTTPS client is reused for every call, which saves the
+  TCP+TLS handshake (~50 ms per call measured against openrouter.ai).
+- **Hedged request.** A call still running after `SIMPLICIO_TURBO_HEDGE_AFTER` seconds (default
+  2.5, above every normal call measured; 0 disables it) gets a duplicate on another session, and
+  the first good answer wins. The losing request is billed too: `drain_hedges()` waits for it so
+  callers can count its tokens.
+
 Without `OPENROUTER_API_KEY` it fails closed with `turbo_provider_key_missing`.
 """
 from __future__ import annotations
 
+import concurrent.futures
 import hashlib
-import json
 import os
+import threading
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import Any, Mapping, Sequence
+
+import httpx
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash"
 KEY_ENV = "OPENROUTER_API_KEY"
 MODEL_ENV = "SIMPLICIO_TURBO_MODEL"
+HEDGE_ENV = "SIMPLICIO_TURBO_HEDGE_AFTER"
+DEFAULT_HEDGE_AFTER = 2.5
 DEFAULT_TIMEOUT = 300
+
+_lock = threading.Lock()
+_client: httpx.Client | None = None
+_pool = concurrent.futures.ThreadPoolExecutor(max_workers=32, thread_name_prefix="simplicio-turbo")
+_hedge_losers: list[concurrent.futures.Future] = []
 
 
 class TurboProviderError(RuntimeError):
@@ -35,6 +51,14 @@ class TurboProviderError(RuntimeError):
 
 def model_name() -> str:
     return os.environ.get(MODEL_ENV, "").strip() or DEFAULT_MODEL
+
+
+def hedge_after() -> float:
+    raw = os.environ.get(HEDGE_ENV, "").strip()
+    try:
+        return float(raw) if raw else DEFAULT_HEDGE_AFTER
+    except ValueError:
+        return DEFAULT_HEDGE_AFTER
 
 
 def require_key(api_key: str | None = None) -> str:
@@ -52,10 +76,65 @@ def session_id_for(root: str | os.PathLike[str]) -> str:
     return f"simplicio-turbo-{digest}"
 
 
+def _http_client() -> httpx.Client:
+    """One pooled client for the process: every call reuses a kept-alive connection."""
+    global _client
+    with _lock:
+        if _client is None:
+            _client = httpx.Client(
+                timeout=DEFAULT_TIMEOUT,
+                limits=httpx.Limits(max_connections=32, max_keepalive_connections=32),
+            )
+        return _client
+
+
+def _post(body: Mapping[str, Any], key: str, session_id: str, timeout: float) -> dict[str, Any]:
+    started = time.time()
+    try:
+        response = _http_client().post(
+            API_URL,
+            json=dict(body),
+            timeout=timeout,
+            headers={
+                "Authorization": f"Bearer {key}",
+                "x-session-id": session_id,
+                "X-Title": "simplicio-loop turbo",
+            },
+        )
+    except httpx.HTTPError as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}", "latency_s": time.time() - started}
+    latency = time.time() - started
+    if response.status_code != 200:
+        return {"ok": False, "error": f"HTTP {response.status_code}: {response.text[:500]}", "latency_s": latency}
+    try:
+        parsed = response.json()
+    except ValueError as exc:
+        return {"ok": False, "error": f"bad JSON: {exc}", "latency_s": latency}
+    if "error" in parsed:
+        return {"ok": False, "error": str(parsed["error"])[:500], "latency_s": latency}
+    usage = parsed.get("usage") or {}
+    choice = (parsed.get("choices") or [{}])[0]
+    return {
+        "ok": True,
+        "content": (choice.get("message") or {}).get("content") or "",
+        "finish_reason": choice.get("finish_reason"),
+        "provider": parsed.get("provider"),
+        "model": parsed.get("model", body["model"]),
+        "session_id": session_id,
+        "latency_s": latency,
+        "prompt_tokens": usage.get("prompt_tokens", 0) or 0,
+        "completion_tokens": usage.get("completion_tokens", 0) or 0,
+        "reasoning_tokens": (usage.get("completion_tokens_details") or {}).get("reasoning_tokens", 0) or 0,
+        "cached_tokens": (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0) or 0,
+        "cost": usage.get("cost"),
+        "cost_usd": usage.get("cost"),
+    }
+
+
 def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_id: str,
-             api_key: str | None = None, reasoning_off: bool = True,
-             timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
-    """One chat completion. Returns the fields the turbo engine records; never the key."""
+             api_key: str | None = None, reasoning_off: bool = True, max_tokens: int | None = None,
+             hedge: float | None = None, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
+    """One chat completion, hedged after `hedge` seconds. Never returns the key."""
     del arm  # the provider call is the same for every caller
     key = require_key(api_key)
     body: dict[str, Any] = {
@@ -66,41 +145,43 @@ def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_id: str
     }
     if reasoning_off:
         body["reasoning"] = {"enabled": False}
-    request = urllib.request.Request(
-        API_URL,
-        data=json.dumps(body).encode("utf-8"),
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json",
-            "x-session-id": session_id,
-            "X-Title": "simplicio-loop turbo",
-        },
-    )
+    if max_tokens:
+        body["max_tokens"] = max_tokens
+    wait = hedge_after() if hedge is None else hedge
     started = time.time()
+    primary = _pool.submit(_post, body, key, session_id, timeout)
+    if wait <= 0:
+        return {**primary.result(), "hedged": False}
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 - fixed https URL
-            parsed = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:500]
-        return {"ok": False, "error": f"HTTP {exc.code}: {detail}", "latency_s": time.time() - started}
-    except (OSError, ValueError) as exc:
-        return {"ok": False, "error": f"{type(exc).__name__}: {exc}", "latency_s": time.time() - started}
-    if "error" in parsed:
-        return {"ok": False, "error": str(parsed["error"])[:500], "latency_s": time.time() - started}
-    usage = parsed.get("usage") or {}
-    choice = (parsed.get("choices") or [{}])[0]
-    return {
-        "ok": True,
-        "content": (choice.get("message") or {}).get("content") or "",
-        "finish_reason": choice.get("finish_reason"),
-        "provider": parsed.get("provider"),
-        "model": parsed.get("model", body["model"]),
-        "latency_s": time.time() - started,
-        "prompt_tokens": usage.get("prompt_tokens", 0) or 0,
-        "completion_tokens": usage.get("completion_tokens", 0) or 0,
-        "reasoning_tokens": (usage.get("completion_tokens_details") or {}).get("reasoning_tokens", 0) or 0,
-        "cached_tokens": (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0) or 0,
-        "cost": usage.get("cost"),
-        "cost_usd": usage.get("cost"),
-    }
+        return {**primary.result(timeout=wait), "hedged": False}
+    except concurrent.futures.TimeoutError:
+        pass
+    duplicate = _pool.submit(_post, body, key, f"{session_id}-hedge", timeout)
+    done, _ = concurrent.futures.wait([primary, duplicate], return_when=concurrent.futures.FIRST_COMPLETED)
+    first = primary if primary in done else duplicate
+    winner, loser = (first, duplicate if first is primary else primary)
+    result = winner.result()
+    if not result.get("ok"):  # the faster one failed: the other is the answer
+        winner, loser = loser, winner
+        result = winner.result()
+    else:
+        with _lock:
+            _hedge_losers.append(loser)
+    return {**result, "hedged": True, "hedge_winner": "primary" if winner is primary else "duplicate",
+            "latency_s": time.time() - started}
+
+
+def drain_hedges(timeout: float = 120.0) -> list[dict[str, Any]]:
+    """Wait for the losing side of every hedged call; its tokens are billed too."""
+    with _lock:
+        pending = list(_hedge_losers)
+        _hedge_losers.clear()
+    records = []
+    for future in pending:
+        try:
+            reply = future.result(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            continue
+        if reply.get("ok"):
+            records.append({**reply, "hedge_loser": True})
+    return records

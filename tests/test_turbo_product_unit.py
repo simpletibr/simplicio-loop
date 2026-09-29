@@ -46,40 +46,6 @@ def _fake_urlopen(seen):
     return urlopen
 
 
-def test_provider_sends_exactly_the_benchmarked_request(monkeypatch):
-    seen = {}
-    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
-    monkeypatch.delenv("SIMPLICIO_TURBO_MODEL", raising=False)
-    monkeypatch.setattr(turbo_provider.urllib.request, "urlopen", _fake_urlopen(seen))
-    reply = turbo_provider.complete("simplicio", [{"role": "user", "content": "x"}], session_id="s-1")
-    assert seen["url"] == "https://openrouter.ai/api/v1/chat/completions"
-    assert seen["headers"]["authorization"] == "Bearer sk-test"
-    assert seen["headers"]["x-session-id"] == "s-1"
-    assert seen["body"]["model"] == "deepseek/deepseek-v4.1-flash"
-    assert seen["body"]["reasoning"] == {"enabled": False}
-    assert seen["body"]["temperature"] == 0 and seen["body"]["usage"] == {"include": True}
-    assert reply["ok"] and reply["provider"] == "Together" and reply["cached_tokens"] == 8
-    assert reply["cost"] == 0.0001
-
-
-def test_provider_model_override_and_reasoning_toggle(monkeypatch):
-    seen = {}
-    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
-    monkeypatch.setenv("SIMPLICIO_TURBO_MODEL", "other/model")
-    monkeypatch.setattr(turbo_provider.urllib.request, "urlopen", _fake_urlopen(seen))
-    turbo_provider.complete("simplicio", [], session_id="s", reasoning_off=False)
-    assert seen["body"]["model"] == "other/model" and "reasoning" not in seen["body"]
-
-
-def test_provider_fails_closed_without_a_key(monkeypatch):
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    monkeypatch.setattr(turbo_provider.urllib.request, "urlopen",
-                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("no network without a key")))
-    with pytest.raises(turbo_provider.TurboProviderError) as err:
-        turbo_provider.complete("simplicio", [], session_id="s")
-    assert err.value.reason_code == "turbo_provider_key_missing"
-
-
 def test_session_id_is_stable_per_repository(tmp_path):
     assert turbo_provider.session_id_for(tmp_path) == turbo_provider.session_id_for(tmp_path)
     assert turbo_provider.session_id_for(tmp_path) != turbo_provider.session_id_for(tmp_path / "other")
@@ -122,9 +88,9 @@ def test_run_turbo_reports_whether_each_task_plan_applied(tmp_path, monkeypatch)
 
 def test_cli_turbo_without_a_key_blocks_with_a_typed_reason(tmp_path, monkeypatch, capsys):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    rc = cli_main(["turbo", "--repo", str(_seed(tmp_path)), "--task", "fix inventory.py"])
+    rc = cli_main(["turbo", "--provider", "openrouter", "--repo", str(_seed(tmp_path)), "--task", "fix inventory.py"])
     out = json.loads(capsys.readouterr().out)
-    assert rc == 2 and out["status"] == "blocked"
+    assert rc == 2 and out["status"] == "blocked" and out["mode"] == "provider"
     assert out["reason_code"] == "turbo_provider_key_missing" and "OPENROUTER_API_KEY" in out["fix"]
 
 
@@ -141,7 +107,7 @@ def test_cli_turbo_runs_the_engine_end_to_end_and_verifies(tmp_path, monkeypatch
 
     monkeypatch.setattr(turbo_provider, "complete", fake_complete)
     verify = f'"{sys.executable}" "{HIDDEN}" --stage 1 && "{sys.executable}" "{HIDDEN}" --stage 2'
-    rc = cli_main(["turbo", "--repo", str(repo),
+    rc = cli_main(["turbo", "--provider", "openrouter", "--repo", str(repo),
                    "--task", "Create pricing.py with order_total as specified.",
                    "--task", "Fix the two bugs in inventory.py.",
                    "--verify", verify])
@@ -159,6 +125,7 @@ def test_cli_turbo_surveys_again_on_every_invocation(tmp_path, monkeypatch, caps
     tree-state cache makes an unchanged tree free), so a repo that changed does not keep the first map."""
     repo = _seed(tmp_path)
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+    monkeypatch.setenv("SIMPLICIO_TURBO_SLICE", "0")  # this test reads the whole map in the header
     surveys, headers = [], []
 
     def fake_ensure(root, **kwargs):
@@ -175,9 +142,9 @@ def test_cli_turbo_surveys_again_on_every_invocation(tmp_path, monkeypatch, caps
 
     monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", fake_ensure)
     monkeypatch.setattr(turbo_provider, "complete", fake_complete)
-    assert cli_main(["turbo", "--repo", str(repo), "--task", "Create note1.txt"]) == 0
+    assert cli_main(["turbo", "--provider", "openrouter", "--repo", str(repo), "--task", "Create note1.txt"]) == 0
     (repo / "extra.py").write_text("X = 1\n", encoding="utf-8")
-    assert cli_main(["turbo", "--repo", str(repo), "--task", "Create note2.txt"]) == 0
+    assert cli_main(["turbo", "--provider", "openrouter", "--repo", str(repo), "--task", "Create note2.txt"]) == 0
     capsys.readouterr()
     assert len(surveys) == 2
     assert "extra.py" not in headers[0] and "extra.py" in headers[1]
@@ -188,13 +155,17 @@ def test_cli_turbo_help_names_the_key_and_the_model(capsys):
         cli_main(["turbo", "--help"])
     text = capsys.readouterr().out
     assert "OPENROUTER_API_KEY" in text and "deepseek/deepseek-v4.1-flash" in text
+    assert "--provider openrouter" in text and "no key" in text
 
 
 def test_skill_orients_every_host_to_the_turbo_command():
+    """Host mode: the model plans and dev-cli applies. No key requirement, and the apply step is there."""
     text = SKILL.read_text(encoding="utf-8")
-    assert 'simplicio-loop turbo --repo <path> --task "<task>"' in text
+    assert 'simplicio-loop turbo --repo <path> --task "<task>"' in text and 'simplicio-loop "<task>"' in text
+    assert "--apply" in text and "the printed `apply` command" in text.split("SIMPLICIO-LLM-ORIENTATION:BEGIN", 1)[1]
     block = text.split("<!-- SIMPLICIO-LLM-ORIENTATION:BEGIN -->", 1)[1].split("<!-- SIMPLICIO-LLM-ORIENTATION:END -->", 1)[0]
-    assert "simplicio-loop turbo" in block
+    assert "simplicio-loop turbo" in block and "OPENROUTER_API_KEY" not in block
+    assert "needs no API key" not in text and "There is no\nprovider call and no API key." in text
     assert "The host LLM writes find/replace text" not in text
     assert "edit-plan-<N>.json" not in text
 

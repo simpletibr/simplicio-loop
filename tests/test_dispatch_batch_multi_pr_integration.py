@@ -17,10 +17,14 @@ import subprocess
 import threading
 from collections import deque
 
+import pytest
+
 from simplicio_loop import runner as runner_mod
 from simplicio_loop.agent_contract import build_context_pack
 from simplicio_loop.remote_queue import SQLiteRemoteQueue
 from simplicio_loop.work_item_claims import AttemptCoordinator
+
+pytestmark = pytest.mark.usefixtures("admitting_capacity")  # host pressure must not decide this dispatch test
 
 TASK = """Sistema: PLANES
 Funcionalidade: Tela de Modelagem — Ordenacao de linhas

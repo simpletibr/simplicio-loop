@@ -12,37 +12,36 @@ rules: Follow this skill end-to-end; mutable data (versions, dates, counts) live
 
 # /simplicio-loop
 
-On invocation, run the turbo engine. It is the path the benchmark measures,
-and every host runs the same command:
+On invocation, run the turbo engine. It is the path the benchmark measures, and every host runs the
+same commands. You are the model that plans; `simplicio-dev-cli` makes every edit. There is no
+provider call and no API key.
 
-```bash
-simplicio-loop turbo --repo <path> --task "<task>" [--task "<task 2>" ...] [--verify "<test command>"]
-```
+1. Run `simplicio-loop "<task>" [--verify "<test command>"]`. It is the short form of
+   `simplicio-loop turbo --repo <path> --task "<task>" [--task "<task 2>" ...] [--verify "<test command>"]`.
+   Mapper surveys the repo once and the command prints one JSON request, `status: "needs_plan"`:
+   `prompt` (the map slice, the task and the current text of the files it names), `format`,
+   `plan_path` and the exact `apply` command.
+2. Write the plan to `plan_path` as `{"operations":[{"path","find","replace"}]}`. Copy `find` from the
+   printed file text; it must occur once. An empty `find` creates the file.
+3. Run the printed `apply` command. `simplicio-dev-cli` applies the plan, then `--verify` runs the tests.
+4. On `status: "failed"`, fix the plan once from the reported `reason` and `excerpt` (or the `verify`
+   output), run the same `apply` command again, then report.
 
-- Put the whole request in `--task` and name every file to create or change
-  in the text (or pass `--target`/`--context` with a single `--task`), so the
-  model sees its current content. Several requests: one `--task` each, in one
-  command.
-- Do not explore the tree, write plans, or edit files yourself, and do not
-  call `simplicio-mapper scan`, `inspect`, or `handoff` by hand.
-- Turbo is the default. Mapper reads the repo once. That project map is the
-  header and stays byte-identical on every call; the task text and the current
-  target file are the suffix. The model (`deepseek/deepseek-v4.1-flash` on
-  OpenRouter, pinned session, reasoning off) returns a find/replace plan and
-  `simplicio-dev-cli` applies it. A rejected plan is sent back once, then turbo
-  stops. Up to three tasks share one model call. Above three tasks the first
-  call runs alone, then the rest fan out and read the header from prompt cache.
-  Tasks on the same file stay in order.
-- It needs `OPENROUTER_API_KEY`. Without it the command prints
-  `status: blocked` with `reason_code: turbo_provider_key_missing`: tell the
-  user to export the key, and stop. Never fall back to hand edits.
-- It prints one JSON document: `status` (ok, failed or blocked), `applied`,
-  `failed` with the dev-cli reason, `model_calls`, `retries`, tokens,
-  `cache_hit_pct`, `cost_usd`, `wall_s`, and `verify`. Report those numbers as
-  printed.
-- On `failed`, re-run once with a sharper `--task` that names the file and the
-  exact change, then report.
+- Put the whole request in `--task` and name every file to create or change in the text (or pass
+  `--target`/`--context` with a single `--task`), so the request carries their current content.
+  Several requests: one `--task` each, one plan for all.
+- Never edit files by hand: dev-cli performs every edit. Do not explore the tree, and do not call
+  `simplicio-mapper scan`, `inspect`, or `handoff` by hand.
+- Goal over a queue ("all open issues", "drain the board"): list the items (GitHub:
+  `gh issue list --state open --json number,title,body`). For each item, in order, run the two
+  commands: `simplicio-loop turbo --repo <path> --task "<title>: <body>" --verify "<tests>"` (name the
+  files when the item names them), then the printed `apply`. Follow Bounded delivery: one CLAIMED
+  issue, one PR per item, done only on `status: "ok"` plus a passing verify.
+- The apply step prints `status` (ok or failed), `applied`, `failed` with the dev-cli reason and a file
+  excerpt, and `verify`. Report those as printed.
 - Pass the project's tests as `--verify` whenever the repository has them.
+- Only when the user asks for headless mode: `--provider openrouter` asks OpenRouter for the plan
+  instead of you and needs `OPENROUTER_API_KEY` (`turbo_provider_key_missing` without it).
 
 One monorepo. `packages/mapper` surveys and `packages/dev-cli` applies.
 Do not install those as external projects. No Runtime. No Fast package.
@@ -96,9 +95,11 @@ End every message: `DONE | NEXT | BLOCKED`.
 
 <!-- SIMPLICIO-LLM-ORIENTATION:BEGIN -->
 Loop orientation:
-- On invocation, run `simplicio-loop turbo --repo <path> --task "<task>" [--verify "<tests>"]`. One command for one task and for many: one `--task` each.
-- It needs `OPENROUTER_API_KEY`. Without it the command prints status blocked (`turbo_provider_key_missing`): tell the user, stop. No fallback to hand edits.
-- Do not write plans or edit files yourself. Do not explore the tree.
+- On invocation, run `simplicio-loop "<task>" [--verify "<tests>"]`, short for `simplicio-loop turbo --repo <path> --task "<task>"`. No key, no provider: it prints a `needs_plan` request.
+- You are the model: write the JSON plan to `plan_path` (`{"operations":[{"path","find","replace"}]}`, `find` copied from the printed text), then run the printed `apply` command. dev-cli makes every edit; never hand-edit.
+- On `failed`, fix the plan once from the reported reason and apply again.
+- Queue goal (all open issues, drain the board): list the items (`gh issue list --state open --json number,title,body`), run `simplicio-loop turbo --repo <path> --task "<title>: <body>" --verify "<tests>"` and the printed `apply` per item, in order; one CLAIMED issue and one PR per item.
+- Do not explore the tree.
 - Done = status ok and, when `--verify` was given, verify passed. Promise only after that.
 - Monorepo: packages/mapper, packages/dev-cli, loop at the root. Do not install them as external projects. No Runtime. No Fast package.
 - GitHub is SoT for issues/PRs when the remote is GitHub.
@@ -114,7 +115,7 @@ One implementation issue and one delivery PR per worker. Freeze the goal before 
 
 - Do not invent MEASURED numbers.
 - Do not close issues without a live GitHub re-query.
-- Do not hand-edit source. Run simplicio-loop turbo.
+- Do not hand-edit source: write the plan, `simplicio-loop turbo --apply` lets dev-cli edit.
 
 Full per-turn protocol: `references/full-flow.md` — read it only when the task needs it.
 

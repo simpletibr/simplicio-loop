@@ -3812,7 +3812,7 @@ def _devcli_capability_probe(repo_path: Path) -> Dict[str, Any]:
         raise DevCliCapabilitiesUnavailableError(
             "simplicio-dev-cli capabilities are unavailable: neither the in-process "
             "simplicio.capabilities manifest nor `simplicio-dev-cli capabilities --json` "
-            "resolved. Install simplicio-loop>=3.45.0."
+            "resolved. Install simplicio-loop>=3.45.1."
         )
     commands = manifest.get("commands") or {}
     edit_spec = commands.get("edit") or {}
@@ -6819,36 +6819,6 @@ def _operator_worker_limit(requested: Optional[int], item_count: int) -> int:
     return max(1, min(int(requested), item_count))
 
 
-_PHYSICAL_MONITOR_ENV = (
-    ("SIMPLICIO_LOOP_TARGET_PRESSURE_PERCENT", "target_pressure_percent", float),
-    ("SIMPLICIO_LOOP_NO_NEW_PRESSURE_PERCENT", "no_new_pressure_percent", float),
-    ("SIMPLICIO_LOOP_CHECKPOINT_PRESSURE_PERCENT", "checkpoint_pressure_percent", float),
-    ("SIMPLICIO_LOOP_TERMINATE_PRESSURE_PERCENT", "terminate_pressure_percent", float),
-    ("SIMPLICIO_LOOP_DISK_SUSPEND_PERCENT", "disk_suspend_percent", float),
-    ("SIMPLICIO_LOOP_DISK_SUSPEND_FLOOR_BYTES", "disk_suspend_floor_bytes", int),
-    ("SIMPLICIO_LOOP_RECOVERY_WINDOW_NS", "recovery_window_ns", int),
-)
-_PHYSICAL_MONITOR_KEYS = frozenset(key for _env, key, _converter in _PHYSICAL_MONITOR_ENV)
-
-
-def _physical_monitor_kwargs(overrides: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
-    """Resolve safe monitor profile values at the production dispatch boundary."""
-    values: Dict[str, Any] = {}
-    for env_name, key, converter in _PHYSICAL_MONITOR_ENV:
-        raw = os.environ.get(env_name, "").strip()
-        if not raw:
-            continue
-        try:
-            values[key] = converter(raw)
-        except (TypeError, ValueError) as exc:
-            raise ValueError(f"invalid {env_name} physical admission setting") from exc
-    if overrides is not None:
-        unknown = set(overrides).difference(_PHYSICAL_MONITOR_KEYS)
-        if unknown:
-            raise ValueError("unsupported physical admission setting: " + ", ".join(sorted(unknown)))
-        values.update(dict(overrides))
-    return values
-
 def _build_native_prism_scheduler(
     items: Sequence[Mapping[str, Any]],
     worker_limit: int,
@@ -6882,7 +6852,7 @@ def _build_native_prism_scheduler(
     # that normal pre-launch state as an unavailable disk signal.
     while not capacity_root.exists() and capacity_root != capacity_root.parent:
         capacity_root = capacity_root.parent
-    monitor_kwargs = _physical_monitor_kwargs(physical_monitor_kwargs)
+    monitor_kwargs = local_capacity.physical_monitor_kwargs(physical_monitor_kwargs)
     if monitor_kwargs:
         capacity_monitor = PhysicalAdmissionMonitor(
             str(capacity_root), worker_limit, **monitor_kwargs,
@@ -8467,7 +8437,7 @@ def dispatch_operator_batch(
         serial_fallback_reason = "dependency_order"
     retry_budget = max(0, int(retry_budget))
     from .local_capacity import PhysicalAdmissionMonitor
-    monitor_kwargs = _physical_monitor_kwargs(physical_monitor_kwargs)
+    monitor_kwargs = local_capacity.physical_monitor_kwargs(physical_monitor_kwargs)
     if prism_enabled:
         prism_scheduler, prism_id, capacity_sample = _build_native_prism_scheduler(
             normalized, effective_workers, physical_monitor_kwargs=monitor_kwargs,
@@ -9155,7 +9125,7 @@ def _wave_capacity_admission(
     capacity_root = Path(repo_path).resolve()
     while not capacity_root.exists() and capacity_root != capacity_root.parent:
         capacity_root = capacity_root.parent
-    monitor_kwargs = _physical_monitor_kwargs(physical_monitor_kwargs)
+    monitor_kwargs = local_capacity.physical_monitor_kwargs(physical_monitor_kwargs)
     monitor = local_capacity.PhysicalAdmissionMonitor(
         str(capacity_root), effective_workers, **monitor_kwargs,
     )

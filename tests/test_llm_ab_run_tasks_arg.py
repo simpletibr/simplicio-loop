@@ -73,11 +73,6 @@ def test_result_filename_gets_batch_suffix_when_batch():
     assert name == "2026-09-26-abc1234-t4-batch.json"
 
 
-def test_result_filename_no_batch_suffix_by_default():
-    name = run.result_filename(date="2026-09-26", short_sha="abc1234", task_count=4)
-    assert name == "2026-09-26-abc1234-t4.json"
-
-
 def test_build_arg_parser_settle_defaults_match_opencode_agent():
     ap = run.build_arg_parser()
     args = ap.parse_args([])

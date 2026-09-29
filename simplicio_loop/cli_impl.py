@@ -5,6 +5,7 @@ import argparse
 import contextlib
 import hashlib
 import io
+import itertools
 import json
 import os
 import re
@@ -735,13 +736,13 @@ def _orient_provider_provenance(payload: Mapping[str, Any]) -> dict[str, Any]:
 COMMAND_CARD_SCHEMA = "simplicio.loop-command-card/v1"
 COMMAND_CARD_MAX_BYTES = 1_500
 TURBO_EXECUTE_RULE = (
-    "simplicio-loop turbo: up to 3 tasks share one model call; more fan out after the first; "
-    "tasks on the same file stay in order"
+    "simplicio-loop turbo prints a needs_plan request: write the JSON plan to plan_path, then run the "
+    "printed apply command; dev-cli makes every edit"
 )
 
 
 def turbo_command(root: Path, tasks: Sequence[str] = ()) -> str:
-    """The one command every host runs: the benchmarked turbo engine."""
+    """The first of the two commands every host runs: it prints the plan request (`--apply` is the second)."""
     import shlex
 
     parts = [f"simplicio-loop turbo --repo {shlex.quote(str(root))}"]
@@ -757,19 +758,16 @@ def delivery_flow_commands(root: Path, tasks: Sequence[str] = ()) -> list[str]:
 
 
 def _orient_command_card(root: Path) -> dict[str, Any]:
-    """The exact next command for this repo: the benchmarked turbo engine.
+    """The exact next command for this repo: the benchmarked turbo engine, in host mode.
 
-    The host runs it and reports its JSON; it does not write edit plans itself.
+    The host runs it, writes the plan it asks for, runs the printed apply command and reports its JSON.
     """
-    from .turbo_provider import DEFAULT_MODEL, KEY_ENV, MODEL_ENV
-
     return {
         "schema": COMMAND_CARD_SCHEMA,
         "turbo": turbo_command(root),
-        "flow": ["turbo"],
+        "flow": ["turbo", "plan_path", "apply"],
         "execute_rule": TURBO_EXECUTE_RULE,
-        "requires": KEY_ENV,
-        "model": f"{DEFAULT_MODEL} ({MODEL_ENV} overrides)",
+        "requires": "no provider and no key; only --provider openrouter needs OPENROUTER_API_KEY",
         "done": "status ok, and verify.passed when --verify was given",
     }
 
@@ -786,7 +784,7 @@ def _orient_route(root: Path, task: str) -> dict[str, Any]:
         "justification": (
             "turbo"
             + (f" for {goal[:80]}" if goal else "")
-            + ": Mapper once, one model plan per lane, dev-cli applies, --verify runs the tests"
+            + ": Mapper once, you write the plan, dev-cli applies it, --verify runs the tests"
         ),
         "resolved_files": [],
         "execute_rule": TURBO_EXECUTE_RULE,
@@ -2661,6 +2659,12 @@ def _redirect_run_to_wave(argv: Sequence[str]) -> int:
     return int(outcome["exit_code"]) if int(outcome.get("exit_code") or 0) != 0 else 2
 
 
+def _prose_as_turbo(argv: Sequence[str]) -> list[str]:
+    """`simplicio-loop "<task>" [flags]` runs `simplicio-loop turbo --repo . --task "<task>" [flags]`."""
+    words = list(itertools.takewhile(lambda item: not item.startswith("-"), argv))
+    return ["turbo", "--repo", ".", "--task", " ".join(words), *argv[len(words):]]
+
+
 def main(argv=None) -> int:
     argv_list = list(argv) if argv is not None else list(sys.argv[1:])
     if argv_list[:1] == ["hub-drain-admit"]:
@@ -2703,15 +2707,19 @@ def main(argv=None) -> int:
 
     p_turbo = sub.add_parser(
         "turbo",
-        help="run tasks through the benchmarked engine: Mapper once, model plan, dev-cli apply",
+        help="run a task: Mapper survey, you write the plan, dev-cli applies it (no key needed)",
         description=(
-            "Default way to run a task. Mapper surveys the repo once and its map becomes a fixed header. "
-            "Each lane gets one model call to OpenRouter (model deepseek/deepseek-v4.1-flash, override "
-            "with SIMPLICIO_TURBO_MODEL) on a pinned session with reasoning off, and simplicio-dev-cli "
-            "applies the returned find/replace plan. Up to three tasks share one call; more fan out after "
-            "the first. A rejected plan goes back to the model once. Requires OPENROUTER_API_KEY; without "
-            "it the command stops with reason turbo_provider_key_missing. Prints one JSON document; "
-            "exit 0 ok, 1 failed, 2 blocked."
+            "Default way to run a task; `simplicio-loop \"<task>\"` is the shortest form. Host mode needs no "
+            "provider and no key: the invoking model plans and simplicio-dev-cli edits. Step 1, "
+            "`turbo --task T [--verify V]`: Mapper surveys the repo and the command prints a request "
+            "(status needs_plan): the map slice, the task and the current file text, plus the exact apply "
+            "command. Write the find/replace JSON plan it describes to plan_path. Step 2, `turbo --apply PLAN`: "
+            "dev-cli applies the plan and --verify runs the tests; status ok or failed, with dev-cli's reason "
+            "and an excerpt of the file when a find did not match. `--provider openrouter` is the explicit "
+            "headless mode: one model call per lane to OpenRouter (deepseek/deepseek-v4.1-flash, override with "
+            "SIMPLICIO_TURBO_MODEL) on a pinned session with reasoning off; it needs OPENROUTER_API_KEY and "
+            "stops with turbo_provider_key_missing without it. Prints one JSON document; exit 0 ok or "
+            "needs_plan, 1 failed, 2 blocked."
         ),
     )
     p_turbo.add_argument("--repo", default=".", help="repository to change (default: .)")
@@ -2721,7 +2729,11 @@ def main(argv=None) -> int:
     p_turbo.add_argument("--context", action="append", default=[],
                          help="with one --task: another file the model must see; repeatable")
     p_turbo.add_argument("--tasks-file", help="JSON list of {text, target?, context?, depends_on?}")
-    p_turbo.add_argument("--verify", help="shell command run in the repo after every plan applied, e.g. tests")
+    p_turbo.add_argument("--verify", help="shell command run in the repo after the plan is applied, e.g. tests")
+    p_turbo.add_argument("--apply", metavar="PLAN",
+                         help="apply this JSON find/replace plan through dev-cli, then run --verify (step 2)")
+    p_turbo.add_argument("--provider", choices=["openrouter"],
+                         help="explicit headless mode: ask this provider for the plan (needs OPENROUTER_API_KEY)")
 
     p_update = sub.add_parser("update", help="install the latest GitHub release of simpletibr/simplicio-loop")
     p_update.add_argument("--check", action="store_true", help="only report installed vs latest; change nothing")
@@ -3218,12 +3230,15 @@ def main(argv=None) -> int:
             argv_list[0] not in sub.choices or argv_list[0].lower() == "drain"
         ):
             return drain_intake_main(argv_list)
+        if not argv_list[0].startswith("-") and argv_list[0] not in sub.choices:
+            argv_list = _prose_as_turbo(argv_list)
     args = parser.parse_args(argv_list)
     command = args.command or "install"
     if command == "turbo":
         from .turbo_cli import run as run_turbo_cli
         return run_turbo_cli(args.repo, args.task, target=args.target, context=args.context,
-                             tasks_file=args.tasks_file, verify=args.verify)
+                             tasks_file=args.tasks_file, verify=args.verify, apply=args.apply,
+                             provider=args.provider)
     if command == "update":
         from .self_update import run_update
         return run_update(check=args.check, force=args.force)

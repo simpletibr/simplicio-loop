@@ -26,9 +26,9 @@ instead of a real agent):
   scans a repo's `.claude/skills` by default, alongside its own native
   `.opencode/skills` — see `STANDARD.md` § OpenCode for how that was
   confirmed) and its user prompt prefixed with `/simplicio-loop `. The skill
-  tells it to run `simplicio-loop turbo --repo . --task ...` — this harness
-  never scripts that command; the skill does, through the model. OpenCode
-  already receives `OPENROUTER_API_KEY`, which turbo needs.
+  tells it to run `simplicio-loop "<task>"`, write the plan the printed request
+  asks for and run the printed `apply` command (host mode: the command needs no
+  key) — this harness never scripts those commands; the skill does, through the model.
 
 The only difference between the two arms is whether the skill directory is
 present and the prompt prefix. Everything else — the OpenCode binary, its

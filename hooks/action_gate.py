@@ -515,6 +515,16 @@ _HAND_EDIT_TOOLS = frozenset({
 })
 
 
+_TURBO_PLAN = ".simplicio-loop/turbo/plan.json"
+
+
+def _writes_turbo_plan(data):
+    """The turbo plan is loop state the invoking model must write; it is not source."""
+    tool_input = data.get("tool_input") or {}
+    target = os.path.normpath(str(tool_input.get("file_path") or tool_input.get("path") or "")).replace("\\", "/")
+    return target == _TURBO_PLAN or target.endswith("/" + _TURBO_PLAN)
+
+
 def from_pretooluse():
     """Claude PreToolUse mode: gate Bash and, under strict mode, block hand-edit tools."""
     try:
@@ -531,7 +541,8 @@ def from_pretooluse():
     tool_name = str(data.get("tool_name") or data.get("name") or "").strip().lower()
     # Normalize names like "Write", "Edit"
     tool_tail = tool_name.rsplit("__", 1)[-1].rsplit(".", 1)[-1]
-    if _hand_edit_forbidden() and (tool_name in _HAND_EDIT_TOOLS or tool_tail in _HAND_EDIT_TOOLS):
+    if _hand_edit_forbidden() and (tool_name in _HAND_EDIT_TOOLS or tool_tail in _HAND_EDIT_TOOLS) \
+            and not _writes_turbo_plan(data):
         reason = (
             "SIMPLICIO_LOOP_STRICT forbids host hand-edit tools (%s); "
             "use simplicio-dev-cli edit --plan for mutations"
