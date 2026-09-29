@@ -139,7 +139,7 @@ start together (measured: 3 of 4 lanes on a fresh database). So each concurrency
 | `SIMPLICIO_TURBO_BUDGET_S` | Time budget of one run, default 100 s: under the 120 s that the Claude Code and OpenCode bash tools allow by default. Past it no new call starts, what finished stays and the rest is handed to the host as a request (`budget`). Raise it only together with your host's tool timeout. |
 | `SIMPLICIO_TURBO_CALL_TIMEOUT_S` | Timeout of one host CLI call, default 90 s. The process group is killed on a timeout (`host_timeout`). |
 | `SIMPLICIO_TURBO_HOST_MODEL` | Model passed to the host CLI (`-m` and the like); default the host's own model. |
-| `SIMPLICIO_TURBO_HOST_PARALLEL` | Host CLI processes at once when independent tasks are asked together, default the CPU count capped at 8. |
+| `SIMPLICIO_TURBO_HOST_PARALLEL` | Host CLI processes at once when independent tasks are asked together, default 4 (8 `opencode run` processes at once were slower than 4 on an 8 GB machine: 20.9 s against 11.3 s for 8 tasks). |
 | `SIMPLICIO_TURBO_PROBE` | `0` skips the connect probe (a proxy in the environment is probed instead of the API host). |
 | `SIMPLICIO_TURBO_NESTED` | Set to `1` by the engine on the host CLI it starts: a nested `simplicio-loop` refuses to start the hybrid backend again (`nested`). |
 

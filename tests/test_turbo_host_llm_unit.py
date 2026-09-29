@@ -328,8 +328,8 @@ def test_complete_limits_how_many_host_processes_run_at_once(tmp_path, repo, mon
     assert time.monotonic() - started >= 0.9  # 6 calls of 0.3 s, two at a time: at least 3 rounds
 
 
-def test_the_default_number_of_host_processes_is_the_cpu_count_capped_at_eight(monkeypatch):
-    assert hl.DEFAULT_PARALLEL == min(8, os.cpu_count() or 4)
+def test_the_default_number_of_host_processes_is_four_and_the_environment_overrides_it(monkeypatch):
+    assert hl.DEFAULT_PARALLEL == 4  # 8 opencode runs at once were slower than 4 on an 8 GB machine
     monkeypatch.delenv(hl.PARALLEL_ENV, raising=False)
     monkeypatch.setattr(hl, "_slots", None)
     assert hl._slot_pool().qsize() == hl.DEFAULT_PARALLEL
