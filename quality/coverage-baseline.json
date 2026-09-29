@@ -1,14 +1,14 @@
 {
   "schema": "simplicio.coverage-baseline/v1",
   "note": "Issue #283, Fase B baseline, re-measured for 3.46.0 (#1379). The numbers below are REAL, measured by scripts/coverage_gate.py over a DEFINED SUBSET (47 fast, subprocess-free unit/integration files), not the full tree. 3.46.0 removed the Runtime/MCP, Hub and remote-worker subsystems and 16 uncalled modules together with their tests, so the scope shrank from 65 to 47 files and the percentages are not comparable with previous_baseline (the Fase B numbers, which in turn keeps the Fase A ones). See 'scope_rationale'.",
-  "commit": "b3aa7df7623eb619530159a1f8478ed1710532eb",
-  "commit_note": "Measured on the 3.46.0 working tree (issue #1379) whose base is origin/main b3aa7df7; the anchor is that base commit because the 3.46.0 commit does not exist yet. The scope excludes the files listed in scope_rationale; nothing else was adjusted.",
-  "generated_at": "2026-09-29T16:31:17Z",
+  "commit": "e68d6094292bea32f2f3bfb15cb1db626afa3c22",
+  "commit_note": "Measured on the 3.46.0 working tree (issue #1379) whose base is origin/main e68d6094 (3.45.2); the anchor is that base commit because the 3.46.0 commit does not exist yet. The scope excludes the files listed in scope_rationale; nothing else was adjusted.",
+  "generated_at": "2026-09-29T17:03:50Z",
   "measured_with": "scripts/coverage_gate.py --tests-path <47 files listed below> --diagnostics-dir .simplicio-loop/quality-gate/coverage-baseline --emit-json",
   "coverage_py_version": "7.16.2",
   "python_version": "3.14.6",
   "instrumented_source": "simplicio_loop,engine,scripts",
-  "global_pct": 16.7638,
+  "global_pct": 16.7501,
   "critical_pct": 25.1273,
   "critical_threshold": 90.0,
   "global_threshold": 85.0,
@@ -96,7 +96,7 @@
     },
     "B": {
       "status": "in progress",
-      "description": "Raise coverage module-by-module: widen tests_scope in this file (and the corresponding tests/*_<category>.py convention) to cover more of the ~165 (now 0) uncategorized test files, add tests for modules with clear gaps, remove any temporary exclusions. This PR: the categorization convention is now 100% complete (0 uncategorized of 189), and the measured scope grew 21 -> 65 files / 16.60% -> 28.45% global, 9.40% -> 24.02% critical. Still open: the remaining 124 categorized-but-not-yet-in-scope files (mostly 'system'/live-e2e/multi-process, plus a handful of 'integration' files with real local servers) still need to be folded into a measured scope, and modules with clear line-coverage gaps still need new tests -- both genuinely follow-on work, not claimed done here. 3.46.0 (#1379) re-measured the scope after removing subsystems and 16 uncalled modules: 47 files, 16.76% global, 25.13% critical; the previous numbers are in previous_baseline."
+      "description": "Raise coverage module-by-module: widen tests_scope in this file (and the corresponding tests/*_<category>.py convention) to cover more of the ~165 (now 0) uncategorized test files, add tests for modules with clear gaps, remove any temporary exclusions. This PR: the categorization convention is now 100% complete (0 uncategorized of 189), and the measured scope grew 21 -> 65 files / 16.60% -> 28.45% global, 9.40% -> 24.02% critical. Still open: the remaining 124 categorized-but-not-yet-in-scope files (mostly 'system'/live-e2e/multi-process, plus a handful of 'integration' files with real local servers) still need to be folded into a measured scope, and modules with clear line-coverage gaps still need new tests -- both genuinely follow-on work, not claimed done here. 3.46.0 (#1379) re-measured the scope after removing subsystems and 16 uncalled modules: 47 files, 16.75% global, 25.13% critical; the previous numbers are in previous_baseline."
     },
     "C": {
       "status": "blocked (environment, not policy)",

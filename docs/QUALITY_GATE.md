@@ -119,7 +119,7 @@ automatically (no `--baseline-file` flag); wiring that comparison remains Fase B
 subsystems and 16 uncalled modules together with their tests, so the scope shrank from 65 to **47**
 files (the 17 whose modules or tests were removed, plus `tests/test_cli_dispatch_unit.py`, whose 6
 failures are an `OSError` on a read-only `/r` in this macOS environment and identical on a pristine
-`origin/main`). Re-measured with the same `scripts/coverage_gate.py`: **global 16.76%, critical
+`origin/main`). Re-measured with the same `scripts/coverage_gate.py`: **global 16.75%, critical
 25.13%**, all 522 tests in the scope pass. Those percentages are not comparable with the Fase B
 ones above (the removed modules were the best-tested code); the Fase B numbers stay in the baseline
 file under `previous_baseline`.
