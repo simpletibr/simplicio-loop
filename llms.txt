@@ -17,8 +17,7 @@ Current operator flow:
 - `simplicio-dev-cli --help` — governed edit/verify operator; turbo drives it.
 - Both operators are built into the one `simplicio-loop` wheel (`pip install simplicio-loop`); update with `simplicio-loop update`.
 - Run focused tests and `git diff --check`; re-query live PR/check/merge state before publishing.
-- Default profile is standalone: `SIMPLICIO_LOOP_REQUIRE_RUNTIME=off` and `SIMPLICIO_EXECUTION_PROFILE=standalone`.
-- Runtime/MCP is opt-in only; it is not part of the default flow and never replaces the two operators above.
+- `SIMPLICIO_EXECUTION_PROFILE=standalone` is the only execution profile; there is no Runtime/MCP backend in this stack.
 - The survey every flow requires is Mapper-only.
 
 Non-negotiables:
@@ -26,7 +25,7 @@ Non-negotiables:
 - Never mark work done without green gates + evidence.
 - Verify claims locally before push with `python3 scripts/check.py`.
 - Keep `_bundle` and source in parity; `scripts/check.py` audits this.
-- Do not use `simplicio-runtime`, `simplicio`, or Runtime MCP by default; record missing-operator residuals honestly.
+- Do not use `simplicio-runtime`, `simplicio`, or Runtime MCP; record missing-operator residuals honestly.
 
 Key loop artifacts:
 - `.simplicio-loop/orchestrator/loop/scratchpad.md` — single source of truth for loop state
@@ -43,7 +42,7 @@ Key commands:
 
 Complete command/feature map: `docs/CLI_COMMANDS.md`. Before using any
 entrypoint, run its most specific `--help`; public commands must explain their
-purpose there. Current release: Loop 3.45.2 (Mapper 0.26.34 and Dev CLI
+purpose there. Current release: Loop 3.46.0 (Mapper 0.26.34 and Dev CLI
 0.18.16 are bundled). Issue work uses objective, implementation/deployment, and
 tests; do not add Acceptance Criteria sections.
 

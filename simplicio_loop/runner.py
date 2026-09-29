@@ -2369,7 +2369,6 @@ def _context_handoff_args(
     attempt_id: str = "",
     lease_id: str = "",
     fencing_token: str = "",
-    require_authorization: bool = False,
 ) -> Tuple[List[str], Dict[str, Any]]:
     """Project canonical Mapper context artifacts into the Dev CLI argv.
 
@@ -2379,9 +2378,7 @@ def _context_handoff_args(
     recorded as a diagnostic; the integrated Dev CLI remains the fail-closed
     owner of the final context gate.
     """
-    authorization_args, authorization_handoff = prepare_authorization_handoff(
-        run_root, required=require_authorization,
-    )
+    authorization_args, authorization_handoff = prepare_authorization_handoff(run_root)
     mapper_path = run_root / "mapper-context.json"
     if not mapper_path.exists():
         return list(authorization_args), {
@@ -2485,7 +2482,7 @@ def _context_handoff_args(
             "context_handle": bool(context_handle),
             "authorization": authorization_handoff,
         }
-    if not all((snapshot_path, pack_path, execution_path)) or (require_authorization and identity_present and not context_handle):
+    if not all((snapshot_path, pack_path, execution_path)):
         return list(authorization_args), {
             "status": "missing",
             "reason_code": "CONTEXT_ARTIFACTS_INCOMPLETE",
@@ -3302,7 +3299,7 @@ def _devcli_capability_probe(repo_path: Path) -> Dict[str, Any]:
         raise DevCliCapabilitiesUnavailableError(
             "simplicio-dev-cli capabilities are unavailable: neither the in-process "
             "simplicio.capabilities manifest nor `simplicio-dev-cli capabilities --json` "
-            "resolved. Install simplicio-loop>=3.45.2."
+            "resolved. Install simplicio-loop>=3.46.0."
         )
     commands = manifest.get("commands") or {}
     edit_spec = commands.get("edit") or {}
@@ -5325,7 +5322,6 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         attempt_id=f"{run_id}:attempt:{attempt}",
         lease_id=lease,
         fencing_token=fence,
-        require_authorization=False,
     )
     operator_mode = "standalone"
     task_input = (

@@ -30,7 +30,6 @@ closed on a major-version mismatch.
 | `simplicio.context-snapshot/v1` | mapper | mapper | dev-cli, loop |
 | `simplicio.context-delta/v1` | mapper | mapper | dev-cli, loop |
 | `simplicio.capability-request/v1` | loop | loop, dev-cli | runtime, loop |
-| `simplicio.plan-dag/v1` | dev-cli | dev-cli, loop | loop |
 | `simplicio.change-set/v1` | dev-cli | dev-cli | loop, runtime |
 | `simplicio.verification-plan/v1` | loop | loop, dev-cli | loop, runtime |
 | `simplicio.effect-receipt/v1` | runtime | runtime, dev-cli | loop, dev-cli |

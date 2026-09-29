@@ -64,8 +64,8 @@ def test_mapper_survey_runs_once_and_is_reused_for_the_other_nine(tmp_path, monk
 
 
 def test_prefix_cache_rule_matches_the_deepseek_harness():
-    """The gate flags a later call with no cache read, and the skill-loaded
-    OpenRouter run on 2400cedd satisfies it with the recorded tokens."""
+    """The gate flags a later call with no cache read, and the recorded
+    independent OpenRouter run on 790061e2 satisfies it with the recorded tokens."""
     cold = [
         {"ok": True, "turn": 1, "cached_tokens": 0, "prompt_tokens": 400},
         {"ok": True, "turn": 2, "cached_tokens": 256, "prompt_tokens": 420},
@@ -75,9 +75,9 @@ def test_prefix_cache_rule_matches_the_deepseek_harness():
     assert miss is not None
     assert miss["turn"] == 3
     result = json.loads(Path(
-        "bench/llm_ab/results/2026-09-28-4a0a7bb6-t10.json"
+        "bench/llm_ab/results/2026-09-29-790061e2-t10-ind.json"
     ).read_text(encoding="utf-8"))
-    assert result["meta"]["main_commit"] == "4a0a7bb6"
+    assert result["meta"]["main_commit"] == "790061e2"
     calls = []
     for task in result["arms"]["simplicio"]["tasks"]:
         calls.extend(task.get("llm_calls") or [])

@@ -3,17 +3,17 @@
 - **Status:** accepted
 - **Date:** 2026-07-19
 - **Relates to:** issue #495 (async Python core epic), issue #508 (bounded queues /
-  backpressure / event-driven polling), PR #583 (`AsyncBoundedQueue` wired into
-  `remote_worker_cli.py serve-async`).
+  backpressure / event-driven polling), PR #583 (`AsyncBoundedQueue` wired into the remote
+  worker's `serve-async`; that worker was removed in 3.46.0, see the amendment below).
 
 ## Context
 
 Multiple verification passes on #508 flagged the same real, unresolved gap: the codebase had
 already effectively chosen stdlib `asyncio` over an AnyIO-based abstraction layer for every
 async module it ships (`async_bounded_queue.py`, `async_io_supervisor.py`, `event_loop.py`,
-`hub_daemon.py`, `loop_runtime.py`, `map_service_single_flight.py`, `process_supervisor.py`,
-`process_supervisor_rust.py`, `remote_queue.py`, `remote_worker_cli.py`) — but that choice had
-never been written down anywhere as a closed decision. `anyio` does not appear in the dependency
+`map_service_single_flight.py`, `process_supervisor.py`; the original list also named the removed
+`hub_daemon.py`, `loop_runtime.py`, `remote_queue.py` transport and `remote_worker_cli.py`) —
+but that choice had never been written down anywhere as a closed decision. `anyio` does not appear in the dependency
 manifests or in any module's imports.
 
 AnyIO would have bought trio/curio interoperability and a slightly friendlier structured-
@@ -32,10 +32,11 @@ dependency. This is a ratification of the status quo, not a migration:
 
 - `AsyncBoundedQueue` (`async_bounded_queue.py`) is built directly on `asyncio.Condition`/
   `asyncio.Event`, not an AnyIO memory-object-stream.
-- `remote_worker_cli.py serve-async` (#583) composes three plain `asyncio.create_task()` workers
-  connected by two `AsyncBoundedQueue` instances — no AnyIO task group.
-- `process_supervisor.py` / `process_supervisor_rust.py` use `asyncio.create_subprocess_exec` and
-  `asyncio.wait_for` for kill-tree/timeout handling.
+- The former remote worker's `serve-async` (#583, removed in 3.46.0) composed three plain
+  `asyncio.create_task()` workers connected by two `AsyncBoundedQueue` instances — no AnyIO task
+  group.
+- `process_supervisor.py` uses `asyncio.create_subprocess_exec` and `asyncio.wait_for` for
+  kill-tree/timeout handling.
 
 ## Rationale
 
@@ -45,8 +46,8 @@ dependency. This is a ratification of the status quo, not a migration:
 - **One fewer dependency.** `simplicio-loop` already keeps its dependency footprint deliberately
   thin (see ADR-0001); adding AnyIO for an abstraction this project would use in only one way is
   net-negative.
-- **Team familiarity and existing test surface.** 26+ tests across `test_async_bounded_queue*.py`,
-  `test_remote_worker_cli_serve_async.py`, and the remote-worker system suites already assert
+- **Team familiarity and existing test surface.** The `test_async_bounded_queue*.py` suites (and,
+  when this was written, the remote-worker suites) already assert
   against `asyncio` primitives directly (`asyncio.CancelledError`, `asyncio.Event`, task
   cancellation semantics). Introducing AnyIO now would mean rewriting working, well-covered tests
   for no behavioral gain.
@@ -58,7 +59,14 @@ dependency. This is a ratification of the status quo, not a migration:
 - If a concrete need for trio interoperability or structured task-group semantics AnyIO provides
   ever arises, it should be raised as its own ADR superseding this one — not mixed in ad hoc.
 - This ADR does not, by itself, address the other real gaps named alongside it on #508: the
-  repo-wide sweep of remaining synchronous blocking call sites (`cli.py`, `hub_daemon.py`,
-  `github_lifecycle.py`, `secure_transport.py`) and cross-platform (Windows/macOS) verification of
+  repo-wide sweep of remaining synchronous blocking call sites (`cli.py`,
+  `github_lifecycle.py`; `hub_daemon.py` and `secure_transport.py` were removed in 3.46.0) and cross-platform (Windows/macOS) verification of
   the async/kill-tree paths. Those remain open, tracked on #508/#509, and are unaffected by this
   decision either way since they do not currently use AnyIO.
+
+## Amendment 2026-09-29
+
+Issue #1379 (loop 3.46.0) removed the Hub daemon, the remote queue transport and remote
+workers, `loop_runtime.py` and the Runtime/MCP integration. The decision above (stdlib
+`asyncio`, no AnyIO) is unchanged and applies to the async modules that remain; the
+Runtime/Tokio authority paragraph in the Decision section describes the removed integration.

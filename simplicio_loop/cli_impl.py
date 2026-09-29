@@ -383,7 +383,7 @@ def _mapper_index_timeout_seconds() -> float:
 
     issue #1331: the hardcoded 60s timeout this used to carry was too short
     for a real ~3,900-file monorepo (measured at ~280s in
-    docs/evidence/1328-wave.md), so it silently timed out and retried a full
+    the #1328 wave; evidence removed in 3.46.0, see git history), so it silently timed out and retried a full
     reindex from scratch on every subsequent ``orient``/``prepare``/``wave``
     call -- the exact "full re-index every call" symptom. Configurable via
     ``SIMPLICIO_LOOP_MAPPER_INDEX_TIMEOUT_S`` for a still-larger repo.

@@ -66,7 +66,7 @@ like a Simplicio process and get flagged, or an actual Simplicio process could o
 its argv to *evade* detection — the signature match is a heuristic, not a
 cryptographic attestation); resource-limit enforcement (cgroups/Job Objects); whole-tree
 cancellation from the standalone enforcement CLI (that path still signals only
-the direct pid; the registry-backed Hub path is described below); any
+the direct pid); any
 authentication/authorization on who may run `cancel`/`drain`/`--enforce` (this is a
 local, single-operator CLI today, same trust boundary as running `kill` yourself).
 
@@ -93,13 +93,8 @@ pass. Deferred, with reasons:
   (`simplicio_loop/process_enforcement.py`, backing `kill_process_tree()`) signals a
   Linux process **group** only when its registry record explicitly proves the supervisor
   created a dedicated group. Unsupervised Linux enforcement signals only the pinned pidfd;
-  macOS/BSD fails closed; Windows uses `taskkill /T /F`. `HubDaemon.handle(method="cancel")`
-  calls this path when the request
-  carries a `lease_id` — closing the specific gap called out after the wave-1 pass: an
-  `execute` blocked in flight on one connection thread previously had no way to be killed
-  by a `cancel` arriving on another thread (the old `cancel` only flipped a *queue job*'s
-  state, never touched a real OS process). See
-  `tests/test_hub_supervisor_epic_e2e.py::test_hub_cancel_kills_an_in_flight_execute_for_real`.
+  macOS/BSD fails closed; Windows uses `taskkill /T /F`. Its only production caller, the
+  Hub's `cancel` IPC method, was removed in 3.46.0, so today it is exercised by tests only.
   The standalone `simplicio_loop/process_enforcement_cli.py` `cancel`/`drain --force`/
   `enforce` verbs still `os.kill()` the single registered pid only — they do not yet call
   `ProcessRegistry.terminate()`/`kill_process_tree()`, so that path keeps the descendants
@@ -107,18 +102,14 @@ pass. Deferred, with reasons:
 - **Quotas / fairness / admission control.** Untouched by this slice; those are #498
   items 5–10, owned by other sub-issues.
 - **`queue` command depth.** Reports only the registry's *active* (in-flight)
-  supervised leases — there is no separate pending-priority queue wired into this
-  slice. A real multi-class pending queue is `hub_scheduler.py`/`hub_queue_retry.py`
-  territory; wiring `queue` to that is the natural next step (see below).
+  supervised leases — there is no pending-priority queue behind it (the Hub scheduler that
+  was the natural candidate was removed in 3.46.0).
 
 ## Recommended next slice
 
-Wire `SupervisedProcessAdapter`/`ProcessRegistry` into `hub_scheduler.py` (the existing
-fair client scheduler) so `queue` reports real pending-vs-active depth per class. Also
-switch `process_enforcement_cli.py`'s `cancel`/`drain --force`/`enforce` verbs from a bare
-`os.kill(pid, SIGTERM)` to `ProcessRegistry.terminate()`/`kill_process_tree()` (already used
-by the Hub's `cancel` IPC method, see above), carrying explicit dedicated-group evidence
-where the supervisor owns it. Unsupported macOS/BSD enforcement must remain fail-closed.
+Switch `process_enforcement_cli.py`'s `cancel`/`drain --force`/`enforce` verbs from a bare
+`os.kill(pid, SIGTERM)` to `ProcessRegistry.terminate()`/`kill_process_tree()`, carrying
+explicit dedicated-group evidence where the supervisor owns it. Unsupported macOS/BSD enforcement must remain fail-closed.
 
 ## Second implementation: `scripts/supervisor_enforcement.py` — threat model + rollback
 
@@ -147,12 +138,6 @@ the module and its test returns nothing). Concretely, today:
   and exits **3** (not an empty "all clear" result) when `psutil` is not installed —
   confirmed in this environment, where `psutil` is absent and `--scan-os` reliably
   exits 3.
-- `status --governor-state-file FILE` only *reads* a `ResourceGovernor.status()`
-  snapshot (`simplicio_loop/hub_governor.py`, #506) if one is written to that path.
-  Nothing in production currently writes that snapshot from a live Hub — the
-  integration is read-side only. A missing/stale file reports
-  `governor.available: false`, which an operator could misread as "no pressure"
-  rather than "not wired up."
 
 **Failure modes (given the current code) and how to detect them:**
 
@@ -160,7 +145,6 @@ the module and its test returns nothing). Concretely, today:
 |---|---|---|
 | State file is corrupt or truncated (disk full mid-write, killed process) | `status` silently reports `enabled: false` even though it was enabled before | `load_state()` catches `(OSError, ValueError)` on JSON parse and returns `default_state()` — fails safe (disabled), never crashes, but also never surfaces *that* it fell back. Inspect `.simplicio-loop/orchestrator/supervisor_enforcement.json` by hand (`cat` + `python3 -m json.tool`) if `status` shows unexpectedly-disabled state. |
 | `--scan-os` reports exit code 3 with no output | operator ran `detect --scan-os` expecting a real scan | `psutil` is not installed in the environment; `scan_os_processes()` returns `None` on `ImportError` and `cmd_detect` propagates that as exit 3, on purpose (never a fake empty list). Fix: `pip install psutil`. |
-| `status --governor-state-file` always shows `governor.available: false` | operator expects breaker-open visibility during a real incident | No writer in this repo currently produces a `ResourceGovernor.status()` JSON snapshot at that path in production — only tests write one manually. This is a real, open integration gap, not a bug to "fix" by editing this worker. |
 | `rollout --mode canary --percent 10` "isn't working" (still enforcing/not-enforcing everywhere) | `rollout` command exits 0 and persists the state, but behavior across workspaces is unchanged | there is no consumer of `canary_percent`/`canary_allowlist` yet — see bullet above. This is expected with the current code, not a defect. |
 
 **Rollback (how to turn this off):**
@@ -212,9 +196,9 @@ required, tested), that a corrupt/missing state file never crashes `status`/`det
 including a monkeypatched `os.kill` spy that asserts it is never called).
 
 **Out of scope / explicitly not yet true:** any real enforcement action gated on
-`enabled`; any real canary-percentage evaluation; any production writer of the governor
-snapshot this worker reads. Treat `enable`/`rollout` as recording operator *intent* for
-a future consumer, not as live safety controls, until one of those gaps above is closed.
+`enabled`; any real canary-percentage evaluation. Treat `enable`/`rollout` as recording
+operator *intent* for a future consumer, not as live safety controls, until one of those
+gaps above is closed.
 
 ## Windows scanner migration and rollback
 

@@ -11,7 +11,7 @@
   <a href="#-die-7-skills--5-beschleuniger"><img src="https://img.shields.io/badge/skills-7-7C3AED" alt="7 skills"></a>
   <a href="#-quelladapter"><img src="https://img.shields.io/badge/source%20adapters-5-00E08A" alt="5 source adapters"></a>
   <a href="#-15-laufzeiten-ein-protokoll"><img src="https://img.shields.io/badge/runtimes-15-2563EB" alt="15 runtimes"></a>
-  <a href="#-die-49-erweiterungspunkte"><img src="https://img.shields.io/badge/extension%20points-50-00E08A" alt="50 extension points"></a>
+  <a href="#-die-49-erweiterungspunkte"><img src="https://img.shields.io/badge/extension%20points-48-00E08A" alt="48 extension points"></a>
   <a href="#-token-ökonomie"><img src="https://img.shields.io/badge/tokens-up%20to%2096%25%20fewer-green" alt="Up to 96% fewer tokens"></a>
   <a href="../LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
 </p>

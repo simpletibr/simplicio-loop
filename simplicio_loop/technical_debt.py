@@ -48,7 +48,6 @@ HARD_BLOCKER_REASON_CODES = frozenset({
     "safety_violation",
     "mandatory_quality_failed",
     "network_paused",
-    "remote_worker_timeout",
 })
 
 

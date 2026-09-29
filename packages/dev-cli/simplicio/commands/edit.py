@@ -59,7 +59,7 @@ def _verification_payload(
     issue #1331: this used to default to an unbounded, repo-wide `pytest -q`
     (`_configured_test_command`'s "infer pytest -q for any repo with a tests
     dir" fallback) regardless of what the plan/caller actually changed --
-    measured at 22+ CPU-minutes as an orphan in docs/evidence/1327-wave.md.
+    measured at 22+ CPU-minutes as an orphan in the #1327 wave (evidence removed in 3.46.0, see git history).
     Precedence now is: an explicit ``check`` (the task's own declared
     verifier) > an explicit ``SIMPLICIO_TEST_CMD`` override (still honored
     for a caller that deliberately set one) > a scoped default limited to

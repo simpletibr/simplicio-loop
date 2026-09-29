@@ -32,16 +32,6 @@ def _expand_dependencies(requested: list[str], known: dict[str, dict[str, Any]])
 def route(task: str) -> dict[str, Any]:
     text = task.casefold()
     headline = text.splitlines()[0] if text.splitlines() else text
-    # Evidence and checkpoints are often outputs of ordinary Loop work. Only an explicit
-    # governance request should switch the route to Runtime; a mention of Runtime as an
-    # integration target must not steal an orchestration/mutation/validation route.
-    governance = any(
-        x in text
-        for x in (
-            "govern", "governed", "authorize", "authorization", "policy gate",
-            "runtime gate", "mcp server", "mcp tool", "reconcile execution",
-        )
-    )
     orchestration = any(
         x in text
         for x in (
@@ -82,12 +72,7 @@ def route(task: str) -> dict[str, Any]:
         validation = False
         mutation = True
 
-    if governance:
-        intent = "govern"
-        requested = ["runtime.gate", "runtime.checkpoint", "runtime.receipt", "runtime.reconcile"]
-        pre = ["external Runtime is installed"]
-        fallback = ["use Loop without Runtime when governance is not required"]
-    elif orchestration:
+    if orchestration:
         intent = "orchestrate"
         requested = ["mapper.snapshot-create", "mapper.context-select", "loop.plan", "loop.slot-dispatch", "loop.retry", "loop.complete"]
         if validation:
@@ -126,8 +111,6 @@ def route(task: str) -> dict[str, Any]:
         adapters.append({"component": "dev-cli", "surface": "simplicio-cli test/edit"})
     if any(capability.startswith("loop.") for capability in selected):
         adapters.append({"component": "loop", "surface": "scripts/route_mode.py"})
-    if any(capability.startswith("runtime.") for capability in selected):
-        adapters.append({"component": "runtime", "surface": "simplicio doctor --json"})
     digest = hashlib.sha256(task.encode()).hexdigest()[:16]
     return {
         "schema": "simplicio.route/v1",

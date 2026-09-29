@@ -49,8 +49,8 @@ For **each** of these repositories:
 - [ ] **Outbound links from this monorepo already point at the new home.**
       Issue #1298 item 1 repointed the ~6 doc/README references that named
       the old repos to `https://github.com/simpletibr/simplicio-loop/tree/main/packages/<pkg>`
-      (`packages/mapper/README.md`, the three
-      `packages/dev-cli/bench/*.md` evidence docs, `docs/evidence/issue-302-loop-installed-e2e.md`).
+      (`packages/mapper/README.md` and the three
+      `packages/dev-cli/bench/*.md` evidence docs).
       Re-run this check before archiving to catch anything added since:
 
       ```bash

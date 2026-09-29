@@ -144,8 +144,8 @@ def run_bounded_subprocess(
     issue #1331: a plain ``subprocess.run(..., timeout=...)`` only kills the
     direct child; a shell-invoked test command (``pytest -q``, ``npm test``,
     ...) spawns grandchildren that survive as orphans once the parent is
-    reaped -- the exact failure mode measured in docs/evidence/1327-wave.md
-    and docs/evidence/1328-wave.md (a 22+ CPU-minute orphaned `pytest`).
+    reaped -- the exact failure mode measured in the #1327/#1328 waves
+    (a 22+ CPU-minute orphaned `pytest`; evidence removed in 3.46.0, see git history).
     Returns ``(returncode, stdout, stderr, timed_out)``; a timeout reports
     ``returncode == 124`` (the conventional shell timeout exit code).
     """

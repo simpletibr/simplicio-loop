@@ -9,9 +9,11 @@ def test_catalog_exposes_stable_skills_and_schema() -> None:
     assert catalog["schema"] == "simplicio.capability-catalog/v1"
     assert catalog["language"] == "en"
     assert catalog["instruction_language"] == "en"
-    assert len(catalog["capabilities"]) == 16
+    assert len(catalog["capabilities"]) == 12
     assert not any(item["component"] == "fast" for item in catalog["capabilities"])
+    assert not any(item["component"] == "runtime" for item in catalog["capabilities"])
     assert "simplicio-fast" not in catalog["skills"]
+    assert "simplicio-runtime" not in catalog["skills"]
     assert catalog["skills"] == sorted(catalog["skills"])
     assert catalog["load_policy"] == "index-first, skill-on-demand"
 
@@ -41,3 +43,12 @@ def test_prism_closes_dependency_gaps_for_validation() -> None:
     selected = result["selected_capabilities"]
     assert selected.index("dev-cli.preflight") < selected.index("dev-cli.tests")
     assert selected.index("dev-cli.tests") < selected.index("dev-cli.evidence")
+
+
+def test_governance_wording_never_routes_to_a_runtime_capability() -> None:
+    result = route("authorize the policy gate and reconcile execution through the runtime gate")
+    assert result["intent"] != "govern"
+    assert not any(item.startswith("runtime.") for item in result["selected_capabilities"])
+    assert "runtime" not in {adapter["component"] for adapter in result["existing_adapters"]}
+    assert result["unresolved"] == []
+

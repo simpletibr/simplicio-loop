@@ -60,3 +60,19 @@ def test_main_rejects_negative_slots(tmp_path):
         arm_drain_prism.main(["--repo", str(repo), "--slots", "-1"])
 
     assert exc_info.value.code == 2
+
+
+def test_arm_env_fallback_is_standalone_and_names_no_runtime(tmp_path, monkeypatch):
+    repo = _repo(tmp_path)
+    monkeypatch.setattr(arm_drain_prism, "_open_issue_count", lambda _repo: None)
+
+    def unavailable(**_kwargs):
+        raise RuntimeError("economy profile unavailable")
+
+    monkeypatch.setattr("simplicio_loop.economy_profile.economy_parallel_env", unavailable)
+
+    env = arm_drain_prism.arm(repo, slots=2, max_iterations=5)["recommended_env"]
+
+    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "standalone"
+    assert "SIMPLICIO_LOOP_REQUIRE_RUNTIME" not in env
+    assert env["SIMPLICIO_PRISM_SLOTS"] == "2"

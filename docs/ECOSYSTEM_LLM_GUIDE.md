@@ -127,7 +127,6 @@ Self-paced: re-read `.simplicio-loop/orchestrator/loop/scratchpad.md` each turn.
 
 - Loop: `docs/adr/0009-loop-inside-runtime-operators-standalone.md`
 - Loop: `docs/adr/0010-execution-metrics-report-standard.md`
-- Rejected Runtime routing design (kept for history): `docs/adr/0011-runtime-operator-routing.md`
 
 ---
 

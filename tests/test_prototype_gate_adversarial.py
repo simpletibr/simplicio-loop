@@ -26,7 +26,6 @@ And from the chaos-style "Testes obrigatórios" list, scoped to what this module
 from __future__ import annotations
 
 import json
-import os
 
 import pytest
 
@@ -40,9 +39,7 @@ from simplicio_loop.prototype_gate import (
     init_state,
     load_state,
     save_state,
-    state_path,
     validate_candidate,
-    validate_decision,
     validate_plan,
 )
 

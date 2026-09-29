@@ -25,7 +25,6 @@ PAYLOADS = {
     "context_snapshot": {"snapshot_id": "snap-1", "source": "git", "files": ["README.md"]},
     "context_delta": {"base_hash": "sha256:" + "a" * 64, "operations": [{"op": "add", "path": "a.py"}]},
     "capability_request": {"capability": "apply", "constraints": {"network": False}},
-    "plan_dag": {"plan_id": "plan-1", "nodes": [{"id": "n1"}], "edges": []},
     "change_set": {"base_hash": "sha256:" + "c" * 64, "files": [{"path": "a.py", "action": "modify"}]},
     "verification_plan": {"checks": [{"name": "unit", "command": "pytest"}]},
     "effect_receipt": {"effect_id": "effect-1", "status": "applied"},
@@ -50,8 +49,8 @@ def _envelope(registry, contract_id="context_snapshot"):
 def test_registry_publishes_all_canonical_contracts_with_unique_ids():
     registry = load_registry()
     descriptors = registry.all()
-    assert len(descriptors) == 9
-    assert len({item.schema_id for item in descriptors}) == 9
+    assert len(descriptors) == 8
+    assert len({item.schema_id for item in descriptors}) == 8
     assert {item.owner for item in descriptors} >= {"simplicio-mapper", "simplicio-dev-cli", "simplicio-loop"}
     assert all(item.owner != "simplicio-fast" for item in descriptors)
     assert all("simplicio-fast" not in item.consumers for item in descriptors)
@@ -173,6 +172,6 @@ def test_portable_cli_emits_a_reproducible_cross_repo_receipt():
     receipt = json.loads(result.stdout)
     assert receipt["schema"] == "simplicio.contract-registry/v1"
     assert receipt["verdict"] == "PASS"
-    assert receipt["contracts"] == 9
+    assert receipt["contracts"] == 8
     assert len(receipt["valid_fixtures"]) == 1
     assert len(receipt["invalid_fixtures"]) == 2

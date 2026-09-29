@@ -34,14 +34,6 @@
       "consumers": ["simplicio-runtime", "simplicio-loop"],
       "schema_path": "schemas/capability-request.schema.json"
     },
-    "plan_dag": {
-      "schema_id": "simplicio.plan-dag/v1",
-      "version": "1.0.0",
-      "owner": "simplicio-dev-cli",
-      "producers": ["simplicio-dev-cli", "simplicio-loop"],
-      "consumers": ["simplicio-loop"],
-      "schema_path": "schemas/plan-dag.schema.json"
-    },
     "change_set": {
       "schema_id": "simplicio.change-set/v1",
       "version": "1.0.0",

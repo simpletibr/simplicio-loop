@@ -11,7 +11,7 @@
   <a href="#-12-स्किल्स-और-एक्सेलेरेटर्स"><img src="https://img.shields.io/badge/skills-12-7C3AED" alt="12 skills"></a>
   <a href="#-स्रोत-एडाप्टर्स"><img src="https://img.shields.io/badge/source%20adapters-5-00E08A" alt="5 source adapters"></a>
   <a href="#-15-रनटाइम-एक-प्रोटोकॉल"><img src="https://img.shields.io/badge/runtimes-15-2563EB" alt="15 runtimes"></a>
-  <a href="#-पूरा-प्रवाह--माँग-से-वितरण-तक"><img src="https://img.shields.io/badge/extension%20points-50-00E08A" alt="50 extension points"></a>
+  <a href="#-पूरा-प्रवाह--माँग-से-वितरण-तक"><img src="https://img.shields.io/badge/extension%20points-48-00E08A" alt="48 extension points"></a>
   <a href="#-टोकन-अर्थव्यवस्था"><img src="https://img.shields.io/badge/tokens-up%20to%2096%25%20fewer-green" alt="Up to 96% fewer tokens"></a>
   <a href="../LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
 </p>

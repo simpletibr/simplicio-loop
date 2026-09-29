@@ -115,6 +115,15 @@ measured numbers are still an honest under-estimate, not a claim about the whole
 chose its 21. `coverage_gate.py` still does not compare a fresh run against this baseline file
 automatically (no `--baseline-file` flag); wiring that comparison remains Fase B/C follow-up.
 
+**Re-measured for 3.46.0 (#1379):** the release removed the Runtime/MCP, Hub and remote-worker
+subsystems and 16 uncalled modules together with their tests, so the scope shrank from 65 to **47**
+files (the 17 whose modules or tests were removed, plus `tests/test_cli_dispatch_unit.py`, whose 6
+failures are an `OSError` on a read-only `/r` in this macOS environment and identical on a pristine
+`origin/main`). Re-measured with the same `scripts/coverage_gate.py`: **global 16.76%, critical
+25.13%**, all 522 tests in the scope pass. Those percentages are not comparable with the Fase B
+ones above (the removed modules were the best-tested code); the Fase B numbers stay in the baseline
+file under `previous_baseline`.
+
 Genuinely still open for Fase B: the remaining 124 categorized-but-out-of-scope files (mostly
 `system`) still need a safe way to be folded into a measured scope (or an explicit, separate
 "system coverage" measurement), and modules with clear line-coverage gaps still need new tests —

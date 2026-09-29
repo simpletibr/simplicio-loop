@@ -1,6 +1,6 @@
 """Standalone Map Service CLI with explicit fallback receipts.
 
-The commands are usable before a Hub is available. A future Hub adapter can provide a
+The commands are standalone. A future adapter can provide a
 store object; the command surface and receipt schema remain unchanged.
 """
 
@@ -115,7 +115,7 @@ def run(command: str, *, repo: str = ".", mode: str = "canonical", tree_hash: st
             ok = False
         return _emit({"schema": "simplicio.map-service-cli/v1", "command": command, "status": "READY" if ok else "INVALID", "fallback": True, "path": str(target)}, as_json)
     if command == "gc":
-        # Without a Hub-owned snapshot store, standalone GC is deliberately a no-op and
+        # Without a snapshot store, standalone GC is deliberately a no-op and
         # reports that fact instead of deleting unknown files.
         return _emit({"schema": "simplicio.map-service-cli/v1", "command": command, "status": "READY", "removed": [], "fallback": True, "reason_code": "standalone_no_store"}, as_json)
     if command == "doctor":

@@ -242,8 +242,8 @@ def find_existing_progress_comment(issue, runner=None):
 # ponta a ponta: repetir claim, comentário, receipt, merge ou reconciliação não duplica efeitos").
 #
 # The GitHub call is injected as a `runner` (defaults to subprocess.run) so this is unit-testable
-# without ever touching the network or a real repo — same pattern as
-# `scripts/live_issue_183_identity.py`.
+# without ever touching the network or a real repo — the same injected-`runner` pattern as
+# `simplicio_loop/github_lifecycle.py`.
 #
 # `publish_comment`/`find_existing_comment`/`PR_EVIDENCE_COMMENT_MARKER` remain the general
 # idempotent create-or-update PRIMITIVE (no shell interpolation, JSON payload on stdin,

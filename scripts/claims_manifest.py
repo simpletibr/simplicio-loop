@@ -151,7 +151,9 @@ CLAIMS = [
             "Claim: '#283 measured coverage raised from 16.6% / 9.4% to 28.45% / 24.02% "
             "(global / critical) on the widened scope.' Real numbers from "
             "scripts/coverage_gate.py, receipt at quality/coverage-baseline.json "
-            "(global_pct/critical_pct + previous_baseline.global_pct/critical_pct), bound to "
+            "(previous_baseline.global_pct/critical_pct for 28.45% / 24.02% and "
+            "previous_baseline.previous_baseline for 16.6% / 9.4%; the top-level numbers were "
+            "re-measured for 3.46.0 on a smaller scope), bound to "
             "commit d37b28d2b1f67b776dcc06a5acd7348369abe150 (PR #407)."
         ),
     },

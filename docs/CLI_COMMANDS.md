@@ -15,10 +15,6 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `simplicio-capabilities` | Inspect the capability catalog; use installed `--help` for selectors. |
 | `simplicio-loop-stack` | Standalone stack command entry point. |
 | `simplicio-route` | Standalone routing command entry point. |
-| `simplicio-hub` | Start or inspect the local Hub daemon (`serve`, `doctor`). |
-| `simplicio-remote-queue-server` | Serve the remote task queue. |
-| `simplicio-remote-worker` | Claim, enqueue, cancel, or serve remote work. |
-| `simplicio-remote-worker-supervisor` | Supervise bounded remote worker processes. |
 | `simplicio-process-supervisor` | Inspect and control supervised processes (`status`, `top`, `queue`, `cancel`, `drain`, `reports`). |
 
 ## `simplicio-loop` commands
@@ -41,10 +37,10 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `oracle` | Evaluate completion and cross-runtime parity. |
 | `status` | Inspect the latest or a selected run. |
 | `stack lock/verify` | Create or verify an installed-stack lock. |
-| `doctor` | Inspect stack identity, source adapters, resources, or storage routing. |
+| `doctor` | Inspect stack identity, source adapters, or storage routing. |
 | `inspect` | Inspect MapperStore capabilities and storage routing. |
 | `map` | Inspect or build map-service receipts. |
-| `preflight` | Verify Mapper, Dev CLI, and Runtime operators. |
+| `preflight` | Verify the Mapper and Dev CLI operators. |
 | `economy` | Inspect, print, or apply the environment profile; inspect before applying, especially in CLI-only mode. |
 | `ecc doctor` | Diagnose the optional ECC integration. |
 | `deploy` | Plan a gated deployment; `--apply` is explicit. |
@@ -69,7 +65,6 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `findings` | List, report, reconcile, diagnose, or import routed findings. |
 | `learn retrospective` | Derive durable lessons from completed runs. |
 | `hub-drain-plan` | Read-only GitHub drain intake. |
-| `hub-drain-admit` | Admit a held final checkpoint without dispatching it. |
 | `intake` | Normalize any tracker export (JSON/CSV/Markdown, or an http(s) URL returning JSON) into `tasks.md`, auto-detecting GitHub/Jira/Linear/ClickUp/GitLab/Azure DevOps field shapes. |
 
 ### Zero-config start
@@ -211,7 +206,6 @@ A wave is a batch followed by lease/result reconciliation before the next batch.
 `simplicio_loop.prism_scheduler.PrismScheduler.execute` dispatches admitted
 workers in task groups with a barrier between batches. It does not perform
 source edits itself: workers and independent validation must be bound.
-See [the benchmark report](QUEUE_BENCHMARK_PROTOCOL.md) for measured coverage.
 
 ## Offline journal replay
 
@@ -220,21 +214,6 @@ See [the benchmark report](QUEUE_BENCHMARK_PROTOCOL.md) for measured coverage.
 modules without network access. It emits a canonical
 `simplicio.journal-replay-receipt/v1` JSON receipt and exits non-zero when an observed
 outcome differs from `expected_outcome`.
-
-## Convergence parity protocol
-
-Run one versioned fixture through the Runtime-backed and standalone semantic
-controllers with:
-
-```text
-python -m simplicio_loop.convergence_parity FIXTURE.json [--runtime-decision DECISION.json]
-```
-
-The command emits `simplicio.convergence-parity/v1`. Exit `0` means both paths
-reached equivalent verified acceptance and evidence receipts. Exit `2` means an
-invalid fixture or an unsupported environment; the receipt names the unsupported
-path and reason, and no path may silently substitute standalone behavior for a
-missing, incompatible, or non-activating Runtime decision.
 
 ## Operator order for LLMs
 
@@ -248,7 +227,6 @@ missing, incompatible, or non-activating Runtime decision.
 
 The survey every flow requires is Mapper-only.
 
-The benchmark verified installed Loop `3.43.10` on 2026-09-11. Other component
-versions must be read from their installed release receipts, not inferred from
-an older coordinated-train list. When a command is added, add a meaningful
+Component versions must be read from their installed release receipts, not inferred
+from an older coordinated-train list. When a command is added, add a meaningful
 `help=` string, document it here, and add a `--help` regression check.
