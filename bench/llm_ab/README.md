@@ -13,7 +13,14 @@ instead of a real agent):
 
 - **normal** — OpenCode as installed, no skill available in the repo it is
   pointed at. It decides for itself which shell commands to run.
-- **simplicio** — the SAME OpenCode CLI, but with
+> **Turbo (the default, `SIMPLICIO_BENCH_TURBO=1`) replaces this arm.** With turbo the
+> `simplicio` arm does not open OpenCode: it is the loop engine (`simplicio_loop.turbo`)
+> calling OpenRouter directly — one Mapper survey, one model call per task on the arm's
+> pinned `x-session-id` session with reasoning switched off, then `simplicio-dev-cli`
+> applies and verifies the plan. Only `normal` runs in OpenCode. Set
+> `SIMPLICIO_BENCH_TURBO=0` to measure the OpenCode + skill arm described below.
+
+- **simplicio** (`SIMPLICIO_BENCH_TURBO=0`) — the SAME OpenCode CLI, but with
   `.claude/skills/simplicio-loop/` copied into that arm's repo (OpenCode
   scans a repo's `.claude/skills` by default, alongside its own native
   `.opencode/skills` — see `STANDARD.md` § OpenCode for how that was

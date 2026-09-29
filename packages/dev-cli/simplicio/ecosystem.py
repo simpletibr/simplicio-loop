@@ -33,7 +33,9 @@ from pathlib import Path
 
 from .observability import info, warn
 
-ECOSYSTEM = ("simplicio-mapper", "simplicio-sprint")
+ECOSYSTEM = ("simplicio-loop", "simplicio-sprint")
+# Built into the simplicio-loop wheel: never upgraded (or reinstalled) on their own.
+BUNDLED = frozenset({"simplicio-mapper", "simplicio-cli"})
 PYPI_TTL_SECONDS = 86400  # 24h
 
 
@@ -204,7 +206,7 @@ def tracked_packages() -> tuple[str, ...]:
     triplet first, then every declared pyproject dependency (deduped)."""
     names = list(ECOSYSTEM)
     for n in _pyproject_dep_names():
-        if n not in names:
+        if n not in names and n not in BUNDLED:
             names.append(n)
     return tuple(names)
 

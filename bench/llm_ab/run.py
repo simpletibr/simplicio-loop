@@ -263,7 +263,7 @@ def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
     total_wall_t0 = time.time()
     if arm == "simplicio" and arm_spec is None and os.environ.get("SIMPLICIO_BENCH_TURBO", "1") != "0":
         from simplicio_loop.turbo import run_turbo
-        agent_result = run_turbo(Path(repo_dir), task_list, lc.chat)
+        agent_result = run_turbo(Path(repo_dir), task_list, turbo_complete)
     elif arm_spec is not None:
         oc.install_skills(repo_dir, arm_spec["skills"])
         isolated_path = oc.build_arm_path(arm_spec["bins"])
@@ -337,7 +337,16 @@ def default_work_dir() -> str:
     return path
 
 
-def result_filename(date: str, short_sha: str, task_count: int, batch: bool = False) -> str:
+def turbo_complete(arm: str, messages: list[dict], **kwargs) -> dict:
+    """The turbo arm's model call: the arm's pinned OpenRouter session (the same
+    ``x-session-id`` the OpenCode arms get) and reasoning switched off, since the
+    call only writes an edit plan that dev-cli verifies."""
+    return lc.chat(arm, messages, session_id=oc.session_id_for_arm(arm),
+                   reasoning={"enabled": False}, **kwargs)
+
+
+def result_filename(date: str, short_sha: str, task_count: int, batch: bool = False,
+                    independent: bool = False) -> str:
     """``<date>-<short_sha>-t<task_count>[-batch].json`` -- the task count is
     part of the filename so ``aggregate.load_history``/report history
     diffing never mixes runs with a different task set (a 2-task run and a
@@ -345,7 +354,7 @@ def result_filename(date: str, short_sha: str, task_count: int, batch: bool = Fa
     ``--batch`` run's history separate from a sequential run's, for the same
     reason -- one LLM session for all tasks measures something different
     from one session per task."""
-    suffix = "-batch" if batch else ""
+    suffix = ("-batch" if batch else "") + ("-ind" if independent else "")
     return f"{date}-{short_sha}-t{task_count}{suffix}.json"
 
 
@@ -433,6 +442,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     ap.add_argument(
+        "--independent", action="store_true",
+        help=(
+            "--tasks 10 only: the ten pages without the standard dependency chain, "
+            "so the wave can fan them out; written as <date>-<sha>-t10-ind.json"
+        ),
+    )
+    ap.add_argument(
         "--random", action="store_true",
         help="Draw 2 tasks at run time and compare them with --turbo.",
     )
@@ -473,7 +489,9 @@ def main(argv=None) -> int:
             ap.error("--turbo compares exactly 10 tasks")
         if args.turbo:
             os.environ["SIMPLICIO_BENCH_TURBO"] = "1"
-        task_list = bench_tasks.task_set(args.tasks)
+        if args.independent and args.tasks != 10:
+            ap.error("--independent applies to --tasks 10")
+        task_list = bench_tasks.task_set(args.tasks, independent=args.independent)
 
     fixture_dir = os.path.join(HERE, "fixture")
     work_dir = args.work_dir or default_work_dir()
@@ -526,7 +544,9 @@ def main(argv=None) -> int:
     }
 
     short_sha = _short_sha(REPO_ROOT)
-    out_path = os.path.join(args.out, result_filename(meta["date"], short_sha, args.tasks, batch=args.batch))
+    out_path = os.path.join(args.out, result_filename(
+        meta["date"], short_sha, args.tasks, batch=args.batch, independent=args.independent,
+    ))
     with open(out_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"wrote {out_path}", file=sys.stderr)

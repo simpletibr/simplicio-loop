@@ -82,7 +82,8 @@ def get_key(arm: str) -> str:
 
 def chat(arm: str, messages: list[dict], temperature: float = 0,
          max_tokens: int | None = None, timeout: int = DEFAULT_TIMEOUT,
-         tools: list[dict] | None = None, reasoning_effort: str | None = None) -> dict:
+         tools: list[dict] | None = None, reasoning_effort: str | None = None,
+         session_id: str | None = None, reasoning: dict | None = None) -> dict:
     """Call OpenRouter chat completions. Returns a dict with content + metrics.
 
     ``max_tokens=None`` (the default) omits the field entirely from the
@@ -100,6 +101,12 @@ def chat(arm: str, messages: list[dict], temperature: float = 0,
     at its own default effort -- exactly what the normal arm gets, since it
     never sees a hint to pass.
 
+    ``session_id`` sends OpenRouter's ``x-session-id`` header so every call of
+    one arm lands on the same upstream provider and reads its prompt cache
+    (the OpenCode arms already pin theirs in their provider config).
+    ``reasoning`` is sent verbatim as the ``reasoning`` block, e.g.
+    ``{"enabled": False}``; it wins over ``reasoning_effort``.
+
     Never raises the API key into the return value or an exception message.
     """
     key = get_key(arm)
@@ -113,7 +120,9 @@ def chat(arm: str, messages: list[dict], temperature: float = 0,
         body["max_tokens"] = max_tokens
     if tools:
         body["tools"] = tools
-    if reasoning_effort:
+    if reasoning is not None:
+        body["reasoning"] = reasoning
+    elif reasoning_effort:
         body["reasoning"] = {"effort": reasoning_effort}
     data = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(
@@ -125,6 +134,7 @@ def chat(arm: str, messages: list[dict], temperature: float = 0,
             "Content-Type": "application/json",
             "HTTP-Referer": "https://example.com/simplicio-llm-ab",
             "X-Title": "simplicio-llm-ab",
+            **({"x-session-id": session_id} if session_id else {}),
         },
     )
     t0 = time.time()
@@ -189,6 +199,7 @@ def chat(arm: str, messages: list[dict], temperature: float = 0,
         "cached_tokens": cached_tokens,
         "cost_usd": cost,
         "finish_reason": choice.get("finish_reason"),
+        "provider": parsed.get("provider"),
         "key_masked": mask(key),
     }
 

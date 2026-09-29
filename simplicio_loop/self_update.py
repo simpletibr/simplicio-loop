@@ -74,7 +74,17 @@ def run_update(
     label = ".".join(map(str, latest))
     if latest <= current and not force:
         print(f"simplicio-loop {installed} is up to date (latest release {label})")
-        return 0
+        stale = list(installed_legacy_distributions() if legacy is None else legacy)
+        if not stale or check or (_editable_install() if editable is None else editable):
+            return 0
+        # `pip install -U` from 3.43.x leaves the standalone distributions on top of the
+        # wheel's files; remove them and restore the wheel's copies of those files.
+        print("update: removing standalone " + ", ".join(stale) + " (now bundled in simplicio-loop)")
+        rc = runner([sys.executable, "-m", "pip", "uninstall", "-y", *stale])
+        if rc != 0:
+            return rc
+        return runner([sys.executable, "-m", "pip", "install", "--force-reinstall", "--no-deps",
+                       f"simplicio-loop @ git+https://github.com/{REPO}@{tag}"])
     print(f"simplicio-loop {installed} -> {label}")
     if check:
         return 0

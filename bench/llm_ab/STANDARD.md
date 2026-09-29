@@ -97,6 +97,18 @@ Run it from the venv you want measured (it runs on whatever `python3`/venv is
 on `PATH`, exactly like `run.py`). It never reads, prints, or hardcodes a raw
 API key — see "Keys" below.
 
+## The simplicio arm in turbo mode
+
+Turbo is the default. The `simplicio` arm is then the loop engine calling OpenRouter
+directly (`run.turbo_complete`), not OpenCode: every call uses the arm's pinned
+`x-session-id` (the same session pin the OpenCode arms get) and
+`"reasoning": {"enabled": false}`, because the call only writes an edit plan that
+dev-cli verifies. `"effort": "low"`/`"minimal"` was measured not to reduce reasoning
+tokens on this model. Each call records `latency_s` and `provider`. The standard task
+sets are dependency chains, so the wave runs them serially; `--tasks 10 --independent`
+runs the same ten pages without the chain (results `...-t10-ind.json`) to measure the
+fan-out. `SIMPLICIO_BENCH_TURBO=0` measures the OpenCode + skill arm instead.
+
 ## OpenCode (issue #1325)
 
 Both arms run the real [OpenCode](https://github.com/sst/opencode) agent

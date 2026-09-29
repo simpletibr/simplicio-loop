@@ -74,8 +74,13 @@ LOGIN_TASKS = [
     },
 ]
 
-def page_tasks(n: int = 10) -> list[dict]:
-    """``n`` independent HTML pages, ``p01.html`` .. ``pNN.html``.
+def page_tasks(n: int = 10, independent: bool = False) -> list[dict]:
+    """``n`` HTML pages, ``p01.html`` .. ``pNN.html``.
+
+    The standard set chains each page to the previous one (``depends_on``),
+    so every release is compared on the same serial shape. ``independent``
+    drops that chain: the pages touch different files, so the wave can fan
+    them out; it is measured under its own results filename.
 
     Each page is one harness task. ``--stage`` on ``check_page.py`` is the
     page number. Used by the 10-task turbo comparison; the 1/2/4 cadastro
@@ -87,7 +92,7 @@ def page_tasks(n: int = 10) -> list[dict]:
         tasks.append({
             "index": index,
             "kind": "create",
-            "depends_on": [index - 1] if index > 1 else [],
+            "depends_on": [index - 1] if index > 1 and not independent else [],
             "target": f"{pid}.html",
             "checker": "check_page.py",
             "text": (
@@ -104,7 +109,7 @@ def page_tasks(n: int = 10) -> list[dict]:
 TASK_SET_CHOICES = (1, 2, 4, 10)
 
 
-def task_set(n: int) -> list[dict]:
+def task_set(n: int, independent: bool = False) -> list[dict]:
     """The task list for ``--tasks n`` (1, 2, or 4). Returns fresh dict
     references from ``TASKS``/``LOGIN_TASKS`` (a new list each call, though
     the task dicts themselves are shared and never mutated by callers)."""
@@ -115,7 +120,7 @@ def task_set(n: int) -> list[dict]:
     if n == 4:
         return list(TASKS) + list(LOGIN_TASKS)
     if n == 10:
-        return page_tasks(10)
+        return page_tasks(10, independent=independent)
     raise ValueError(f"unsupported task count {n!r}; choose from {TASK_SET_CHOICES}")
 
 

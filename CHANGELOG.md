@@ -3,6 +3,16 @@ Total output lines: 1972
 
 # Changelog
 
+## [3.44.1] - 2026-09-29
+
+- Turbo calls in the benchmark pin the arm's OpenRouter session (`x-session-id`, as the OpenCode arms already did) and switch reasoning off (`"reasoning": {"enabled": false}`). Measured before the change: an unpinned call switched provider and lost the prompt cache in 1 of 2 trials, while pinned calls read it 4 of 4 times. `effort: low/minimal` did not reduce reasoning tokens, and `enabled: false` removed them.
+- The turbo wave no longer sleeps 3 s after the first call; with a pinned session the next call reads the cache without waiting.
+- Every turbo call records `latency_s` and `provider`.
+- `bench/llm_ab/run.py --tasks 10 --independent` runs the ten pages without the standard dependency chain (results `...-t10-ind.json`), so the wave's fan-out is measured; the standard sets are unchanged.
+- The bench docs state that in turbo mode the `simplicio` arm is the loop engine calling OpenRouter directly, not OpenCode.
+- `simplicio-loop update` also repairs an up-to-date install that still has the standalone `simplicio-cli` / `simplicio-mapper` distributions (left by `pip install -U` from 3.43.x).
+- `simplicio-py doctor --upgrade` no longer reinstalls `simplicio-mapper` from PyPI on top of the wheel; it tracks `simplicio-loop`.
+
 ## [3.44.0] - 2026-09-28
 
 - Single wheel: `pip install simplicio-loop` now ships mapper and dev-cli inside the package (`simplicio-mapper`, `simplicio-dev-cli`, `simplicio-cli`, `simplicio-py`, `simplicio-codex-wrapper`, `llm-project-mapper`) and the loop no longer depends on the external `simplicio-cli` / `simplicio-mapper` PyPI distributions; the stack manifest, operator bootstrap, clean-env contract and installer all treat `simplicio-loop` as the only package. New `simplicio-loop update` installs the latest GitHub release of `simpletibr/simplicio-loop` (`--check` only reports, `--force` reinstalls) and removes the retired standalone `simplicio-cli` / `simplicio-mapper` distributions first.
