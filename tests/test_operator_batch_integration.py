@@ -6,6 +6,8 @@ import pytest
 
 from simplicio_loop import runner
 
+pytestmark = pytest.mark.usefixtures("admitting_capacity")  # host pressure must not decide these dispatch tests
+
 
 @pytest.fixture(autouse=True)
 def _use_thread_dispatch_for_in_process_fakes(monkeypatch):

@@ -45,10 +45,13 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-pytestmark = pytest.mark.skipif(
-    shutil.which("simplicio-dev-cli") is None or shutil.which("simplicio-mapper") is None,
-    reason="simplicio-dev-cli/simplicio-mapper (bound operators) not installed",
-)
+pytestmark = [
+    pytest.mark.skipif(
+        shutil.which("simplicio-dev-cli") is None or shutil.which("simplicio-mapper") is None,
+        reason="simplicio-dev-cli/simplicio-mapper (bound operators) not installed",
+    ),
+    pytest.mark.usefixtures("admitting_capacity"),  # host pressure must not decide these dispatch tests
+]
 
 TASKS_MD = """System: calc
 Feature: add mul(a, b)

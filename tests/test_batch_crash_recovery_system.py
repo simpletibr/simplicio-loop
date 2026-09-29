@@ -33,8 +33,11 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ORCHESTRATOR = Path(__file__).resolve().parent / "_batch_orchestrator_process.py"
+pytestmark = pytest.mark.usefixtures("admitting_capacity")  # host pressure must not decide these dispatch tests
 
 TASK = """Sistema: PLANES
 Funcionalidade: Tela de Modelagem — Ordenacao de linhas

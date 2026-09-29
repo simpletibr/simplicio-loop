@@ -20,17 +20,21 @@ binary is found on `PATH` (best-effort; the loop never requires it — see "Nati
 opencode run "/simplicio-loop finish all the open issues"
 ```
 
-## The actual flow: `simplicio-loop turbo` — no Runtime, no MCP required
+## The actual flow: `simplicio-loop turbo` — no Runtime, no MCP, no API key required
 
 `simplicio-loop` does not survey or edit with the host LLM, and does not require Runtime/MCP to run
-at all. Invoking the skill runs one command: Mapper surveys the repo once, the model returns the
-find/replace plan, and Dev CLI applies and verifies it.
+at all. Invoking the skill runs two commands: Mapper surveys the repo once and prints a request, the
+host model writes the find/replace plan, and Dev CLI applies and verifies it.
 
 ```bash
-export OPENROUTER_API_KEY=...   # required; without it the command blocks and you stop
-simplicio-loop turbo --repo . --task "<task 1>" [--task "<task 2>" ...] --verify "<tests>"
-# status ok + verify.passed: done. failed: re-run once with a sharper --task that names the file.
+simplicio-loop "<task>" --verify "<tests>"      # prints a needs_plan request (plan_path, apply, prompt)
+# write {"operations":[{"path","find","replace"}]} to plan_path, then run the printed apply command:
+simplicio-loop turbo --repo . --apply .simplicio-loop/turbo/plan.json --verify "<tests>"
+# status ok + verify.passed: done. failed: fix the plan once from the reason and excerpt, apply again.
 ```
+
+`--provider openrouter` is the explicit headless mode: it asks OpenRouter for the plan and is the only
+mode that needs `OPENROUTER_API_KEY`.
 
 The two REQUIRED operators are `simplicio-mapper` (survey) and `simplicio-dev-cli` (apply +
 verify), both built into the `simplicio-loop` wheel. `simplicio-loop` BLOCKS if either binary is

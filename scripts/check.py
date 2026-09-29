@@ -195,7 +195,23 @@ def _deselected_test_count(output):
     return pytest_summary_count(output, "deselected")
 
 
-def run_tests(only_core=False):
+_IMPACT_CACHE = {}
+
+
+def _impacted_test_files(base):
+    """Repo-relative test files the change vs ``base`` can affect (scripts/impact_tests.py).
+
+    Computed once per run: the root gate and both package gates ask for the same answer.
+    """
+    if base not in _IMPACT_CACHE:
+        sys.path.insert(0, HERE)
+        import impact_tests
+
+        _IMPACT_CACHE[base] = impact_tests.impacted_tests(base)[0]
+    return _IMPACT_CACHE[base]
+
+
+def run_tests(only_core=False, impact=False, base_ref="origin/main"):
     tests_dir = os.path.join(REPO, "tests")
     if not os.path.isdir(tests_dir):
         print("tests/ not found")
@@ -206,6 +222,14 @@ def run_tests(only_core=False):
     if only_core:
         test_files = _core_test_files(tests_dir)
         label = "tests/ (core-gate — satellite tests skipped)"
+    elif impact:
+        test_files = [os.path.join(REPO, t) for t in _impacted_test_files(base_ref)
+                      if t.startswith("tests/") and os.path.isfile(os.path.join(REPO, t))]
+        label = "tests/ (impact vs %s: %d files)" % (base_ref, len(test_files))
+        if not test_files:
+            _hr("tests (impact)")
+            print("impact: no test is affected by the change vs %s" % base_ref)
+            return GateResult(True, "no_impacted_tests")
     else:
         test_files = sorted(glob.glob(os.path.join(tests_dir, "test_*.py")))
         label = "tests/"
@@ -450,7 +474,19 @@ def _run_step(tool_argv, task_args, *, phase, cwd, missing_reason, fail_reason, 
     return None
 
 
-def run_package_gate(pkg):
+def _package_test_args(pkg, default, impact, base):
+    """Package pytest targets: the impacted test files under packages/<pkg>/, or ``default`` with --full.
+
+    Returns None when impact selection finds nothing to run for this package.
+    """
+    if not impact:
+        return list(default)
+    prefix = "packages/%s/" % pkg
+    selected = [t[len(prefix):] for t in _impacted_test_files(base) if t.startswith(prefix + "tests/")]
+    return (selected + ["-q"]) if selected else None
+
+
+def run_package_gate(pkg, impact=False, base="origin/main"):
     """Run one package's own fast local gate from its in-repo location.
 
     ``loop`` (the root package) is a no-op alias here: its gate is already
@@ -476,12 +512,14 @@ def run_package_gate(pkg):
         )
         if fail:
             return fail
-        fail = _run_step(
-            _pytest_command(), ["tests/python", "-q"], phase="package_gate_tests", cwd=root,
-            missing_reason="package_mapper_pytest_missing", fail_reason="package_mapper_pytest_failed",
-        )
-        if fail:
-            return fail
+        mapper_tests = _package_test_args("mapper", ["tests/python", "-q"], impact, base)
+        if mapper_tests is not None:
+            fail = _run_step(
+                _pytest_command(), mapper_tests, phase="package_gate_tests", cwd=root,
+                missing_reason="package_mapper_pytest_missing", fail_reason="package_mapper_pytest_failed",
+            )
+            if fail:
+                return fail
         node = shutil.which("node")
         if node is None:
             print("node not found on PATH -- mapper's node unit tests skipped "
@@ -518,12 +556,14 @@ def run_package_gate(pkg):
         )
         if fail:
             return fail
-        fail = _run_step(
-            _pytest_command(), ["tests/python", "tests/contracts", "-q"], phase="package_gate_tests", cwd=root,
-            missing_reason="package_devcli_pytest_missing", fail_reason="package_devcli_pytest_failed",
-        )
-        if fail:
-            return fail
+        devcli_tests = _package_test_args("dev-cli", ["tests/python", "tests/contracts", "-q"], impact, base)
+        if devcli_tests is not None:
+            fail = _run_step(
+                _pytest_command(), devcli_tests, phase="package_gate_tests", cwd=root,
+                missing_reason="package_devcli_pytest_missing", fail_reason="package_devcli_pytest_failed",
+            )
+            if fail:
+                return fail
         return GateResult(True, "ok")
 
     return GateResult(False, "package_unknown")
@@ -583,6 +623,17 @@ def main():
         args = args[:idx] + args[idx + 2:]
     changed_mode = "--changed" in args
     args = [a for a in args if a != "--changed"]
+    # Default: run only the tests the change can affect. `--full` runs every test file.
+    base = "origin/main"
+    if "--base" in args:
+        idx = args.index("--base")
+        if idx + 1 >= len(args):
+            print("check: FAIL (--base requires a git ref)", file=sys.stderr)
+            sys.exit(2)
+        base = args[idx + 1]
+        args = args[:idx] + args[idx + 2:]
+    full = "--full" in args
+    args = [a for a in args if a != "--full"]
     package_mode = package_arg is not None or changed_mode
 
     supported_flags = {
@@ -610,7 +661,7 @@ def main():
     if not any_only or "--mirror-parity-only" in args or core_gate:
         results["mirror_parity"] = run_mirror_parity()
     if not any_only or "--tests-only" in args or core_gate:
-        results["tests"] = run_tests(only_core=core_gate)
+        results["tests"] = run_tests(only_core=core_gate, impact=not (full or core_gate), base_ref=base)
     if not any_only or "--loop-contract-only" in args or core_gate:
         results["loop_contract"] = run_loop_contract()
     if not any_only or "--clean-env-only" in args or core_gate:
@@ -637,7 +688,7 @@ def main():
             selected = {package_arg}
         for name in PACKAGE_NAMES:
             if name in selected:
-                results["package_%s" % name.replace("-", "_")] = run_package_gate(name)
+                results["package_%s" % name.replace("-", "_")] = run_package_gate(name, impact=not full, base=base)
             else:
                 results["package_%s" % name.replace("-", "_")] = GateResult(True, "not_run")
 

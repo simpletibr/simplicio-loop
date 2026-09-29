@@ -8,7 +8,7 @@ from pathlib import Path
 
 from bench.llm_ab import run as bench_run
 from bench.llm_ab import tasks as bench_tasks
-from simplicio_loop.turbo import _task_message
+from simplicio_loop.turbo import task_message
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "bench" / "llm_ab" / "fixture_hard"
@@ -70,7 +70,7 @@ def test_run_check_accepts_an_absolute_checker_path(tmp_path):
 
 def test_turbo_task_message_carries_the_context_files(tmp_path):
     repo = _seed(tmp_path, False)
-    message = _task_message([bench_tasks.hard_task_set()[2]], repo)["content"]
+    message = task_message([bench_tasks.hard_task_set()[2]], repo)["content"]
     assert "Current shop/report.py:" in message and "def summary" in message
     assert "Current shop/invoice.py:" in message and "def invoice_total" in message
 
@@ -119,6 +119,8 @@ def test_turbo_applies_reference_plans_on_the_hard_fixture_and_the_hidden_tests_
     by_text = {task["text"]: task for task in bench_tasks.hard_task_set()}
 
     def complete(arm, messages, **kwargs):
+        if kwargs.get("max_tokens") == 1:  # warm-up call
+            return {"ok": True, "content": "OK"}
         body = messages[-1]["content"]
         task = next(t for text, t in by_text.items() if text in body)
         return plan(task)

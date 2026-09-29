@@ -12,9 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 
-import pytest
-
-from simplicio import cache_cli, provider_cache_receipt
+from simplicio import cache_cli
 from simplicio.commands import file as file_cmd
 from simplicio.commands import test as test_cmd
 from simplicio.utils import cache as utils_cache
@@ -175,60 +173,6 @@ def test_http_client_close_is_idempotent():
 # --------------------------------------------------------------------------- #
 # provider_cache_receipt.py
 # --------------------------------------------------------------------------- #
-
-
-@pytest.mark.skip(reason="provider cache receipts are obsolete in deterministic-only mode")
-def test_new_cache_receipt_has_pending_outcome_and_remembers_itself():
-    receipt = provider_cache_receipt._new_cache_receipt(
-        surface="generate", requested_provider_id="doer", requested_model="local-llama/x"
-    )
-    assert receipt["schema"] == "simplicio.providers.cache-receipt/v1"
-    assert receipt["outcome"] == "pending"
-    assert receipt["local_exact_lookup"]["status"] == "not_tried"
-    assert provider_cache_receipt.last_cache_receipt() == receipt
-
-
-@pytest.mark.skip(reason="provider cache receipts are obsolete in deterministic-only mode")
-def test_last_cache_receipt_is_a_deep_copy_not_a_live_reference():
-    receipt = provider_cache_receipt._new_cache_receipt(
-        surface="generate", requested_provider_id="doer", requested_model="m"
-    )
-    snapshot = provider_cache_receipt.last_cache_receipt()
-    snapshot["outcome"] = "mutated"
-    assert provider_cache_receipt.last_cache_receipt()["outcome"] == receipt["outcome"]
-
-
-@pytest.mark.skip(reason="provider cache receipts are obsolete in deterministic-only mode")
-def test_remember_cache_receipt_none_clears_last_receipt():
-    provider_cache_receipt._new_cache_receipt(
-        surface="generate", requested_provider_id="doer", requested_model="m"
-    )
-    provider_cache_receipt._remember_cache_receipt(None)
-    assert provider_cache_receipt.last_cache_receipt() is None
-
-
-@pytest.mark.skip(reason="provider cache receipts are obsolete in deterministic-only mode")
-def test_cache_bypass_reason_reflects_cache_state(monkeypatch):
-    class FakeCache:
-        enabled = False
-        bust = False
-
-    monkeypatch.setattr(provider_cache_receipt, "cache", lambda: FakeCache())
-    assert provider_cache_receipt._cache_bypass_reason() == "cache_disabled"
-
-    class BustCache:
-        enabled = True
-        bust = True
-
-    monkeypatch.setattr(provider_cache_receipt, "cache", lambda: BustCache())
-    assert provider_cache_receipt._cache_bypass_reason() == "cache_busted"
-
-    class LiveCache:
-        enabled = True
-        bust = False
-
-    monkeypatch.setattr(provider_cache_receipt, "cache", lambda: LiveCache())
-    assert provider_cache_receipt._cache_bypass_reason() is None
 
 
 # --------------------------------------------------------------------------- #

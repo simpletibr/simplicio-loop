@@ -47,10 +47,10 @@ def capability_negotiate() -> dict:
 
 def _build_monitor(repo_path: Path):
     """Construct the shared #1228 monitor; tests replace this with a deterministic probe."""
-    from simplicio_loop.local_capacity import PhysicalAdmissionMonitor
+    from simplicio_loop.local_capacity import PhysicalAdmissionMonitor, physical_monitor_kwargs
 
     return PhysicalAdmissionMonitor(
-        str(repo_path), 1, sample_interval_ns=QUALITY_SAMPLE_INTERVAL_NS,
+        str(repo_path), 1, sample_interval_ns=QUALITY_SAMPLE_INTERVAL_NS, **physical_monitor_kwargs(),
     )
 
 

@@ -23,8 +23,12 @@ import subprocess
 import sys
 import time
 
+import pytest
+
 from simplicio_loop.remote_queue import QueueConflict, SQLiteRemoteQueue
 from simplicio_loop.work_item_claims import AttemptCoordinator
+
+pytestmark = pytest.mark.usefixtures("admitting_capacity")  # host pressure must not decide these dispatch tests
 
 IDENTITY_A = {
     "agent_id": "codex@device-a", "runtime": "codex", "device_id": "device-a",

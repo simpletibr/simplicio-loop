@@ -305,7 +305,7 @@ def profile_status(
         },
         "hot_path": [
             "simplicio-loop preflight --strict --json",
-            'simplicio-loop turbo --repo . --task "<task>" --verify "<tests>" (Mapper survey, model plan, dev-cli apply)',
+            'simplicio-loop turbo --repo . --task "<task>" --verify "<tests>", write the plan it asks for, run its apply (Mapper survey, your plan, dev-cli apply)',
             "simplicio-loop batch (AUTO_FAN_OUT worktrees) or arm_drain_prism --slots 0 --batch-size N",
         ],
         # Always-on LLM orientation for hosts (max safe speed)

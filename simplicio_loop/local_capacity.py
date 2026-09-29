@@ -321,6 +321,37 @@ def _physical_pressure(root: str | os.PathLike[str]) -> dict[str, Any]:
     }
 
 
+PHYSICAL_MONITOR_ENV = (
+    ("SIMPLICIO_LOOP_TARGET_PRESSURE_PERCENT", "target_pressure_percent", float),
+    ("SIMPLICIO_LOOP_NO_NEW_PRESSURE_PERCENT", "no_new_pressure_percent", float),
+    ("SIMPLICIO_LOOP_CHECKPOINT_PRESSURE_PERCENT", "checkpoint_pressure_percent", float),
+    ("SIMPLICIO_LOOP_TERMINATE_PRESSURE_PERCENT", "terminate_pressure_percent", float),
+    ("SIMPLICIO_LOOP_DISK_SUSPEND_PERCENT", "disk_suspend_percent", float),
+    ("SIMPLICIO_LOOP_DISK_SUSPEND_FLOOR_BYTES", "disk_suspend_floor_bytes", int),
+    ("SIMPLICIO_LOOP_RECOVERY_WINDOW_NS", "recovery_window_ns", int),
+)
+PHYSICAL_MONITOR_KEYS = frozenset(key for _env, key, _converter in PHYSICAL_MONITOR_ENV)
+
+
+def physical_monitor_kwargs(overrides: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Resolve safe monitor profile values at the production dispatch boundary."""
+    values: dict[str, Any] = {}
+    for env_name, key, converter in PHYSICAL_MONITOR_ENV:
+        raw = os.environ.get(env_name, "").strip()
+        if not raw:
+            continue
+        try:
+            values[key] = converter(raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"invalid {env_name} physical admission setting") from exc
+    if overrides is not None:
+        unknown = set(overrides).difference(PHYSICAL_MONITOR_KEYS)
+        if unknown:
+            raise ValueError("unsupported physical admission setting: " + ", ".join(sorted(unknown)))
+        values.update(dict(overrides))
+    return values
+
+
 class PhysicalAdmissionMonitor:
     """Poll local physical capacity on a monotonic clock and fail closed."""
 

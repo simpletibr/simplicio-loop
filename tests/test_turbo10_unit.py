@@ -226,6 +226,8 @@ def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monke
     seen = []
 
     def complete(arm, messages, **kwargs):
+        if kwargs.get("max_tokens") == 1:  # the warm-up call writes the header into the cache
+            return {"ok": True, "content": "OK"}
         header = messages[0]["content"]
         task = messages[-1]["content"]
         seen.append(messages)

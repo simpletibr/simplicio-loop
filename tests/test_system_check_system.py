@@ -22,6 +22,12 @@ CHECK = os.path.join(REPO, "scripts", "check.py")
 NESTED_GUARD = "SIMPLICIO_SYSTEM_TEST_NESTED"
 
 
+# The gate runs only the tests a change can affect (scripts/impact_tests.py, against `--base`). Against
+# HEAD a clean tree selects none, so the runs below prove the gate's plumbing end to end without
+# re-running the whole suite inside one test; a dirty tree runs exactly the tests it can affect.
+IMPACT_BASE = ["--base", "HEAD"]
+
+
 def _run(args):
     env = dict(os.environ)
     env[NESTED_GUARD] = "1"
@@ -32,7 +38,7 @@ def _run(args):
 def test_tests_only_gate_is_green():
     if os.environ.get(NESTED_GUARD):
         return
-    r = _run(["--tests-only"])
+    r = _run(["--tests-only", *IMPACT_BASE])
     assert r.returncode == 0, "the test suite itself must always be green:\n%s%s" % (
         r.stdout, r.stderr)
     assert "check: PASS" in r.stdout, r.stdout
@@ -64,11 +70,11 @@ def test_clean_env_only_runs_as_distinct_gate():
 def test_check_with_no_flags_runs_both_audit_and_tests():
     if os.environ.get(NESTED_GUARD):
         return
-    r = _run([])
+    r = _run(IMPACT_BASE)
     assert "=== claims-audit ===" in r.stdout
     assert "=== mirror-parity ===" in r.stdout
     assert "=== clean-env-contract ===" in r.stdout
-    assert "pytest tests/" in r.stdout or "stdlib self-run" in r.stdout
+    assert "pytest tests/" in r.stdout or "stdlib self-run" in r.stdout or "no test is affected" in r.stdout
     assert "check: %s" % ("PASS" if r.returncode == 0 else "FAIL") in r.stdout
 
 

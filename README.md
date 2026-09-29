@@ -294,8 +294,9 @@ Dev setup (editable-installs all three into one venv): `bash scripts/dev_install
 gate: `python3 scripts/check.py --package all` (or `--package mapper|dev-cli|loop`, or
 `--changed` to run only what a diff touches). There is no GitHub Actions gate here — the
 local gate is authoritative. The delivery flow for any task count is one command:
-**`simplicio-loop turbo`** — Mapper surveys once, the model returns the plan, Dev CLI applies it and
-`--verify` runs the tests (needs `OPENROUTER_API_KEY`; see [Zero-config execution](#zero-config-execution)).
+**`simplicio-loop "<task>"`** (short for `simplicio-loop turbo`) — Mapper surveys once, the invoking model
+writes the plan, Dev CLI applies it and `--verify` runs the tests; no provider and no API key (see
+[Zero-config execution](#zero-config-execution)).
 
 ---
 
@@ -854,15 +855,19 @@ The main `simplicio-loop` entry point is the user-facing control surface for pla
 
 ### Zero-config execution
 
-The default entry point is `simplicio-loop turbo`: one command for one task or many. Mapper reads the
-repo once, the model (`deepseek/deepseek-v4.1-flash` on OpenRouter, pinned session, reasoning off)
-returns the find/replace plan, `simplicio-dev-cli` applies it, and `--verify` runs your tests. It
-needs `OPENROUTER_API_KEY`; without it the command stops with `turbo_provider_key_missing` and never
-falls back to hand edits. It prints one JSON document (`status`, `applied`, `failed`, `model_calls`,
-`cache_hit_pct`, `cost_usd`, `verify`).
+The default entry point is `simplicio-loop "<task>"` (short for `simplicio-loop turbo --repo . --task "<task>"`):
+one command for one task or many. It needs no provider and no API key: the model that invoked the skill
+plans and `simplicio-dev-cli` edits. Step 1 surveys with Mapper and prints a `needs_plan` request (the map
+slice, the task, the current file text, the exact apply command). Step 2: the model writes the JSON
+find/replace plan to `plan_path` and runs the printed apply command; `simplicio-dev-cli` applies it and
+`--verify` runs your tests (`status`, `applied`, `failed` with the dev-cli reason and a file excerpt,
+`verify`). The headless alternative `--provider openrouter` asks OpenRouter (`deepseek/deepseek-v4.1-flash`,
+pinned session, reasoning off) for the plan and is the only mode that needs `OPENROUTER_API_KEY`.
 
 ```bash
-simplicio-loop turbo --repo . --task "Create pricing.py with order_total" --task "Fix the two bugs in inventory.py" --verify "python -m pytest -q"
+simplicio-loop "Create pricing.py with order_total and fix the two bugs in inventory.py" --verify "python -m pytest -q"
+# write the plan the request asks for to .simplicio-loop/turbo/plan.json, then run the printed command:
+simplicio-loop turbo --repo . --apply .simplicio-loop/turbo/plan.json --verify "python -m pytest -q"
 ```
 
 Governed runs from a `tasks.md` (queues, batches, Prism) use the `wave` flow (with automatic reconciliation barriers):
@@ -900,7 +905,7 @@ Para garantir os melhores resultados de velocidade, economia e confiabilidade:
 
 | Cenário / Demanda | Fluxo Recomendado | Comando | Por que escolher? |
 |---|---|---|---|
-| **Qualquer tarefa (padrão)** | `turbo` | `simplicio-loop turbo --repo . --task "…" --verify "<testes>"` | **Padrão**: o motor medido no benchmark. O Mapper lê o repositório uma vez, o modelo devolve o plano e o Dev CLI aplica. Precisa de `OPENROUTER_API_KEY`. |
+| **Qualquer tarefa (padrão)** | `turbo` | `simplicio-loop "…" --verify "<testes>"` | **Padrão**: o motor medido no benchmark. O Mapper lê o repositório uma vez, o modelo que invocou a skill escreve o plano e o Dev CLI aplica. Sem provedor e sem chave de API. |
 | **1 tarefa em run governada (`tasks.md`)** | o mesmo fluxo de entrega | `simplicio-loop prepare` → `tick <run_id> --task-index 1` → `verify <run_id>` | Uma tarefa fica no checkout compartilhado. O fechamento continua sendo o `verify`. |
 | **Multi-tarefas Padrão (2 a 30+ tarefas)** | `wave` *(Padrão)* | `simplicio-loop wave <run_id>` | **Máxima Velocidade e Confiabilidade**: Despacha ondas concorrentes com barreiras de reconciliação de estado entre cada onda. Evita race conditions em arquivos compartilhados e aproveita 96%+ de cache hit. |
 | **Alta Concorrência em Árvores Isoladas** | `prism` | `simplicio-loop prism <run_id> --batch-size 10` | **Isolamento Total**: Worktrees Git isoladas para tarefas independentes que alteram partes distintas do código sem colisão. |
@@ -980,7 +985,7 @@ Important nested command surfaces:
 Typical single-task commands:
 
 ```bash
-simplicio-loop turbo --repo . --task "<task>" --verify "<tests>"   # default; needs OPENROUTER_API_KEY
+simplicio-loop "<task>" --verify "<tests>"   # default; you write the plan, Dev CLI applies it; no API key
 simplicio-loop preflight --repo . --json
 simplicio-loop orient --task "understand this repository" --repo .
 simplicio-loop plan --task task.md --out contract.json
@@ -1063,9 +1068,19 @@ human gate + secret-scan on, and ensure a reachable STOP/cancel path is configur
 Claims are verified, not just asserted — and the gate runs **locally**, with zero CI cost:
 
 ```bash
-python3 scripts/check.py             # complete local gate (core + satellite tests)
+python3 scripts/check.py             # complete local gate; runs only the tests the change can affect
+python3 scripts/check.py --full      # every test file (run before a release tag)
+python3 scripts/check.py --base REF  # diff against REF instead of origin/main
 python3 scripts/check.py --core-gate # mandatory offline/bounded core; external lanes excluded
+python3 scripts/impact_tests.py      # print the test files the change affects
 ```
+
+The default test selection is symbol-level (`scripts/impact_tests.py`): it diffs the working tree against
+`--base` (default `origin/main`), keeps the top-level functions, classes and assignments whose source
+changed, and selects the test files that name such a symbol and reach its module. Tests that name a
+changed non-Python file (for example `SKILL.md`) and changed test files are selected too; generated
+mirrors (`plugin/`, `simplicio_loop/_bundle/`) are covered by the parity gates. `--full` runs every
+test file; `--core-gate` keeps its fixed core selection.
 
 Monorepo (`packages/mapper`, `packages/dev-cli`): `bash scripts/dev_install.sh`
 sets up one venv with all three packages editable from their in-repo paths, and

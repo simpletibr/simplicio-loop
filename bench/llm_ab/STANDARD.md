@@ -110,7 +110,18 @@ tokens on this model. Each call records `latency_s` and `provider`. The standard
 sets are dependency chains, so the wave runs them serially; `--tasks 10 --independent`
 runs the same ten pages without the chain (results `...-t10-ind.json`) to measure the
 fan-out. `SIMPLICIO_BENCH_TURBO=0` measures the OpenCode + skill arm instead: the skill runs
-`simplicio-loop turbo` inside OpenCode, which already receives `OPENROUTER_API_KEY`.
+`simplicio-loop "<task>"` inside OpenCode in host mode (OpenCode's model writes the plan and
+dev-cli applies it; the command itself needs no key).
+
+### Turbo telemetry (3.45.1)
+
+Each turbo call record carries `hedged` (the answer came from the hedged duplicate request) and `hedge_winner`,
+plus `warm` on the 1-token call that writes the header into the provider's cache before an independent wave
+fans out; a warm call is not counted as a retry. When a call outlives `SIMPLICIO_TURBO_HEDGE_AFTER` seconds
+(default 2.5, `0` disables) a duplicate goes out on the session `<id>-hedge`, and the losing side is billed and
+added to the arm's tokens and cost, so a hedge never hides spend. `SIMPLICIO_TURBO_SLICE=0` sends a single task
+the whole Mapper map instead of only its slice (measured on `fixture_hard`: 3,294 map tokens down to about 340).
+These apply to the provider engine (`--provider openrouter`) and to the benchmark arm, which runs the same code.
 
 ## Hard set: does switching reasoning off cost quality?
 

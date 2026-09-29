@@ -23,6 +23,21 @@ def disable_operator_bootstrap_network_by_default(monkeypatch) -> None:
     monkeypatch.setenv("SIMPLICIO_LOOP_AUTO_BOOTSTRAP_OPERATORS", "0")
 
 
+@pytest.fixture
+def admitting_capacity(monkeypatch) -> None:
+    """Pin the documented physical-admission profile so host disk or memory pressure cannot block a dispatch test.
+
+    The thresholds stay ascending but sit just under 100 and the disk reserve is zero, so a host is refused
+    only at 99.9% pressure instead of the 88% default. Subprocesses inherit it through the environment.
+    """
+    for name, value in (
+        ("TARGET_PRESSURE_PERCENT", "99.1"), ("NO_NEW_PRESSURE_PERCENT", "99.3"),
+        ("CHECKPOINT_PRESSURE_PERCENT", "99.5"), ("TERMINATE_PRESSURE_PERCENT", "99.9"),
+        ("DISK_SUSPEND_PERCENT", "100"), ("DISK_SUSPEND_FLOOR_BYTES", "0"), ("DISK_RESERVE_BYTES", "0"),
+    ):
+        monkeypatch.setenv("SIMPLICIO_LOOP_" + name, value)
+
+
 def pytest_configure(config) -> None:
     """Make `check.py --core-gate` unable to reach the real network.
 

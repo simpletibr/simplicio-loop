@@ -19,7 +19,8 @@ provides `simplicio-mapper`, `simplicio-dev-cli` and every other console script 
 separate `simplicio-mapper` / `simplicio-cli` PyPI dependencies; update with `simplicio-loop update`).
 `packages/fast/` was removed entirely (issue #1343):
 the survey that every flow requires is now Mapper-only. Dev setup: `bash scripts/dev_install.sh`. Local gate:
-`python3 scripts/check.py --package all` (or `--package <name>` / `--changed`). No GitHub
+`python3 scripts/check.py` (by default it runs only the tests the change can affect; `--full` runs every
+test file; `--package all` / `--package <name>` / `--changed` scope the package gates). No GitHub
 Actions gate — the local gate is authoritative.
 
 ## Simplicio Ecosystem Contract (canonical)
@@ -69,7 +70,7 @@ The canonical default branch owns one centrally built binary/artifact set. Worke
 consolidated). Coordinators own cognition, not loop activation. See `docs/adr/0009` and
 `docs/adr/0010`. Providers are workers, never authorities.
 
-Delivery runs through `simplicio-loop turbo` (`simplicio-mapper` surveys, the model plans,
+Delivery runs through `simplicio-loop turbo` (`simplicio-mapper` surveys, the invoking model plans,
 `simplicio-dev-cli` applies), preserve `simplicio.io/v1`, and close only with real tests plus
 recorded evidence. Facts are `MEASURED|`
 only with receipts; otherwise `UNVERIFIED|`. Missing dependencies fail closed; never fabricate
@@ -129,10 +130,12 @@ confirm scope in one line only if ambiguous.
 ## LLM quick flow
 
 The compact current sequence is canonical in [`llms.txt`](llms.txt): run
-`simplicio-loop turbo --repo <path> --task "<task>" [--verify "<tests>"]` (Mapper reads the repo
-once, the model returns the plan, Dev CLI applies it), read its JSON, run the focused gates, then
-live PR re-query. It needs `OPENROUTER_API_KEY`; without it the command blocks and you stop, with
-no fallback to hand edits. Execution is always standalone; there is no Runtime/MCP backend.
+`simplicio-loop "<task>" [--verify "<tests>"]` (short for `simplicio-loop turbo --repo . --task "<task>"`;
+Mapper reads the repo once and it prints a `needs_plan` request), write the JSON plan it asks for to
+`plan_path`, run the printed `apply` command (Dev CLI applies it and runs `--verify`; on `failed` fix the
+plan once and re-apply), run the focused gates, then live PR re-query. No provider and no API key: the key
+is only for the explicit headless mode `--provider openrouter`. Never hand-edit; Dev CLI makes every edit.
+Execution is always standalone; there is no Runtime/MCP backend.
 
 ## Extension points (bind native when available)
 
@@ -208,7 +211,11 @@ talks to its in-repo siblings, never a stale PyPI release:
 ```bash
 bash scripts/dev_install.sh            # venv at .venv/ (default)
 source .venv/bin/activate
-python3 scripts/check.py --package mapper    # ruff + pytest tests/python -q
+python3 scripts/check.py                     # default: impact-based, only the tests the change can affect vs origin/main
+python3 scripts/check.py --full              # every test file (run before a release tag)
+python3 scripts/check.py --base REF          # diff against REF instead of origin/main
+python3 scripts/impact_tests.py --json       # the test files the change affects, and the symbols that selected them
+python3 scripts/check.py --package mapper    # ruff + pytest tests/python -q (impacted files only; --full for all)
 python3 scripts/check.py --package dev-cli   # ruff + mypy + pytest tests/python tests/contracts -q
 python3 scripts/check.py --package loop      # no-op alias: the loop's own gate is the rest of this script
 python3 scripts/check.py --package all       # all four
@@ -293,8 +300,9 @@ rebase, and release rules in [ADR 0008](docs/adr/0008-bounded-delivery-policy.md
 - Report token-savings ONLY when a measured receipt backs it (clamp / signatures-read / cache hit /
   `deterministic_edit` / `savings_ledger`); never fabricate a figure. No measured economy → no
   savings line. Credited only on a passing quality gate.
-- Verify claims locally before pushing: `python3 scripts/check.py` (test suite + claims-audit +
-  `_bundle ≡ source` parity + the token/context budget guard, `scripts/token_budget.py`, #121).
+- Verify claims locally before pushing: `python3 scripts/check.py` (the impacted tests — the default
+  selection is `scripts/impact_tests.py` against `origin/main`, `--full` runs every test file — plus
+  claims-audit + `_bundle ≡ source` parity + the token/context budget guard, `scripts/token_budget.py`, #121).
   It requires importable `pytest` from `pip install "simplicio-loop[dev]"`; missing pytest is a
   failing gate result, never a bare-Python fallback. Keep it green.
 - **Big refactors/doc rewrites:** run `python3 scripts/check.py --token-budget` and treat a FAIL
@@ -306,7 +314,7 @@ The complete installed-entry-point and `simplicio-loop` command map is
 [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md). Run the most specific
 `--help` before invoking a command. Every new public command must have
 meaningful `help=` text, documentation in that file, and a help regression
-check. Current release: Loop 3.45.0 (Mapper 0.26.34 and Dev CLI 0.18.16 are bundled).
+check. Current release: Loop 3.45.1 (Mapper 0.26.34 and Dev CLI 0.18.16 are bundled).
 
 For GitHub work items, keep the body focused on objective, implementation,
 deployment, and tests. Do not add an Acceptance Criteria section to new or

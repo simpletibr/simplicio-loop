@@ -263,7 +263,13 @@ def run_arm_batch(arm: str, fixture_dir: str, repo_dir: str, python_bin: str,
     total_wall_t0 = time.time()
     if arm == "simplicio" and arm_spec is None and os.environ.get("SIMPLICIO_BENCH_TURBO", "1") != "0":
         from simplicio_loop.turbo import run_turbo
+        from simplicio_loop import turbo_provider
+
         agent_result = run_turbo(Path(repo_dir), task_list, turbo_complete)
+        losers = turbo_provider.drain_hedges()  # the losing side of a hedged call is billed too
+        agent_result["llm_calls"] = list(agent_result["llm_calls"]) + losers
+        for key_name in ("prompt_tokens", "completion_tokens", "reasoning_tokens", "cached_tokens"):
+            agent_result["totals"][key_name] += sum(c.get(key_name) or 0 for c in losers)
     elif arm_spec is not None:
         oc.install_skills(repo_dir, arm_spec["skills"])
         isolated_path = oc.build_arm_path(arm_spec["bins"])
@@ -346,7 +352,7 @@ def turbo_complete(arm: str, messages: list[dict], **kwargs) -> dict:
 
     reasoning_on = os.environ.get("SIMPLICIO_BENCH_TURBO_REASONING", "").lower() == "on"
     return turbo_provider.complete(arm, messages, api_key=lc.get_key(arm),
-                                   session_id=oc.session_id_for_arm(arm), reasoning_off=not reasoning_on)
+                                   session_id=oc.session_id_for_arm(arm), reasoning_off=not reasoning_on, **kwargs)
 
 
 def result_filename(date: str, short_sha: str, task_count: int, batch: bool = False,

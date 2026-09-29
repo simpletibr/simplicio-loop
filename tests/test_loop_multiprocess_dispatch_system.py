@@ -38,10 +38,13 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-pytestmark = pytest.mark.skipif(
-    shutil.which("simplicio-dev-cli") is None or shutil.which("simplicio-mapper") is None,
-    reason="simplicio-dev-cli/simplicio-mapper (bound operators) not installed",
-)
+pytestmark = [
+    pytest.mark.skipif(
+        shutil.which("simplicio-dev-cli") is None or shutil.which("simplicio-mapper") is None,
+        reason="simplicio-dev-cli/simplicio-mapper (bound operators) not installed",
+    ),
+    pytest.mark.usefixtures("admitting_capacity"),  # host pressure must not decide these dispatch tests
+]
 
 TASKS_MD = """System: calc
 Feature: add mul(a, b)
@@ -162,6 +165,12 @@ def _env() -> dict:
     # pip-installed one (the bound operators simplicio-mapper/simplicio-dev-cli
     # remain the real, separately installed binaries on PATH).
     env["PYTHONPATH"] = str(REPO_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
+    # The verify lanes run a bare `python3 -m pytest`: make that the interpreter running this suite, so the
+    # result does not depend on which python3 (and which user site-packages) the host PATH finds first.
+    env["PATH"] = os.path.dirname(sys.executable) + os.pathsep + env.get("PATH", "")
+    # The declared `Coverage verifier: ... --cov` needs the pytest-cov plugin. The local gate disables plugin
+    # autoload for ITS pytest run; that must not leak into the product under test.
+    env.pop("PYTEST_DISABLE_PLUGIN_AUTOLOAD", None)
     return env
 
 
