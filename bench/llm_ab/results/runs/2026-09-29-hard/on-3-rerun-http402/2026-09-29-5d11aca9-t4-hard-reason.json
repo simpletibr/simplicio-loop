@@ -1,0 +1,276 @@
+{
+  "meta": {
+    "model": "openrouter/deepseek/deepseek-v4.1-flash",
+    "date": "2026-09-29",
+    "main_commit": "5d11aca9",
+    "pip_versions": {
+      "simplicio-loop": "3.44.1"
+    },
+    "task_count": 4,
+    "pricing": {
+      "model": "deepseek/deepseek-v4.1-flash",
+      "fetched_at": "2026-09-29T11:29:39.899841+00:00",
+      "available": true,
+      "prompt": 3e-07,
+      "completion": 1.2e-06,
+      "input_cache_read": 6e-09,
+      "input_cache_write": null,
+      "internal_reasoning": null
+    },
+    "batch": false,
+    "agent": "opencode",
+    "effort_policy": "opencode-managed (no per-call reasoning-effort control via the CLI)",
+    "task_set": "hard",
+    "turbo_reasoning": "on"
+  },
+  "arms": {
+    "simplicio": {
+      "arm": "simplicio",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "tasks": [
+        {
+          "index": 1,
+          "kind": "hard",
+          "task_text": "Create pricing.py with a function order_total(items, coupon=None) that returns the order total in integer cents. items is a list of dicts with integer keys price_cents and qty. Rules: qty must be at least 1 and price_cents must be at least 0, otherwise raise ValueError. subtotal = sum of price_cents * qty. coupon None means no discount. coupon \"PCT10\" takes 10% off the subtotal, rounded half up to the cent (so 100.5 becomes 101). coupon \"OFF500\" takes 500 cents off, but only when the subtotal is at least 2000; below that it gives no discount. Any other coupon raises ValueError. Shipping: free when the subtotal before discount is at least 10000 cents; otherwise add 799 cents after the discount. An empty order pays shipping.",
+          "success": false,
+          "turns": 8,
+          "llm_calls": [
+            {
+              "ok": false,
+              "turn": 1,
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "reasoning_tokens": 0,
+              "cached_tokens": 0,
+              "cost_usd": null,
+              "latency_s": 0.4508218765258789,
+              "provider": null
+            },
+            {
+              "ok": false,
+              "turn": 2,
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "reasoning_tokens": 0,
+              "cached_tokens": 0,
+              "cost_usd": null,
+              "latency_s": 0.24021196365356445,
+              "provider": null
+            },
+            {
+              "ok": false,
+              "turn": 3,
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "reasoning_tokens": 0,
+              "cached_tokens": 0,
+              "cost_usd": null,
+              "latency_s": 0.4711949825286865,
+              "provider": null
+            },
+            {
+              "ok": false,
+              "turn": 4,
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "reasoning_tokens": 0,
+              "cached_tokens": 0,
+              "cost_usd": null,
+              "latency_s": 0.29330992698669434,
+              "provider": null
+            },
+            {
+              "ok": false,
+              "turn": 5,
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "reasoning_tokens": 0,
+              "cached_tokens": 0,
+              "cost_usd": null,
+              "latency_s": 0.2626051902770996,
+              "provider": null
+            },
+            {
+              "ok": false,
+              "turn": 6,
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "reasoning_tokens": 0,
+              "cached_tokens": 0,
+              "cost_usd": null,
+              "latency_s": 0.2759978771209717,
+              "provider": null
+            },
+            {
+              "ok": false,
+              "turn": 7,
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "reasoning_tokens": 0,
+              "cached_tokens": 0,
+              "cost_usd": null,
+              "latency_s": 0.4044480323791504,
+              "provider": null
+            },
+            {
+              "ok": false,
+              "turn": 8,
+              "prompt_tokens": 0,
+              "completion_tokens": 0,
+              "reasoning_tokens": 0,
+              "cached_tokens": 0,
+              "cost_usd": null,
+              "latency_s": 0.42133307456970215,
+              "provider": null
+            }
+          ],
+          "commands": [],
+          "totals": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_tokens": 0,
+            "n_commands": 0,
+            "n_simplicio_commands": 0,
+            "computed_cost_usd": 0.0,
+            "cost_usd": 0.0,
+            "cost_source": "computed-from-tokens",
+            "cost_divergence_pct": null,
+            "cost_flag": false
+          },
+          "final_text": "\n\n\n",
+          "wall_s": 2.727,
+          "check_output_tail": "FAIL: stage 1 crashed: ModuleNotFoundError: No module named 'pricing'"
+        },
+        {
+          "index": 2,
+          "kind": "hard",
+          "task_text": "inventory.py has two bugs reported by users: adding stock to a SKU that already exists loses the previous quantity, and reserving exactly the remaining quantity of a SKU fails. Fix both without changing the public API (Inventory.add, Inventory.reserve, Inventory.available). reserve(sku, qty) must still return False and change nothing when there is not enough stock (including an unknown SKU), and must now raise ValueError when qty is less than 1.",
+          "success": false,
+          "turns": 0,
+          "llm_calls": [],
+          "commands": [],
+          "totals": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_tokens": 0,
+            "cost_usd": 0.0,
+            "cost_usd_opencode_reported": 0.0,
+            "cost_source": "computed-from-tokens",
+            "billed_cost_usd": null,
+            "llm_latency_s": 0.0,
+            "cmd_wall_s": 0.0,
+            "cmd_cpu_s": 0.0,
+            "n_commands": 0,
+            "n_simplicio_commands": 0,
+            "computed_cost_usd": 0.0,
+            "cost_divergence_pct": null,
+            "cost_flag": false
+          },
+          "final_text": null,
+          "wall_s": 0.0,
+          "check_output_tail": "FAIL: adding to an existing SKU must accumulate: expected 5, got 3\nFAIL: reserving exactly the remaining quantity must succeed and leave 0\nFAIL: reserve qty=0 must raise ValueError\nFAIL: reserve qty=-1 must raise ValueError\nFAIL: a rejected reservation must not change stock"
+        },
+        {
+          "index": 3,
+          "kind": "hard",
+          "task_text": "Refactor: shop/report.py (summary) and shop/invoice.py (invoice_total) duplicate the per-line total in cents: net = unit_cents * qty, plus tax = net * tax_pct / 100 rounded half up. Create shop/money.py with line_total(line) -> int holding that logic, and change both functions to call line_total instead of computing it themselves. Their results must not change.",
+          "success": false,
+          "turns": 0,
+          "llm_calls": [],
+          "commands": [],
+          "totals": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_tokens": 0,
+            "cost_usd": 0.0,
+            "cost_usd_opencode_reported": 0.0,
+            "cost_source": "computed-from-tokens",
+            "billed_cost_usd": null,
+            "llm_latency_s": 0.0,
+            "cmd_wall_s": 0.0,
+            "cmd_cpu_s": 0.0,
+            "n_commands": 0,
+            "n_simplicio_commands": 0,
+            "computed_cost_usd": 0.0,
+            "cost_divergence_pct": null,
+            "cost_flag": false
+          },
+          "final_text": null,
+          "wall_s": 0.0,
+          "check_output_tail": "FAIL: shop/money.py cannot be imported: ModuleNotFoundError"
+        },
+        {
+          "index": 4,
+          "kind": "hard",
+          "task_text": "Create duration.py with parse_duration(text) -> int that converts a duration like \"1h30m\", \"45s\", \"2h\" or \"1h2m3s\" to seconds. Format: one or more components, each a non-negative integer immediately followed by its unit h, m or s; units appear in that order (h before m before s) and each at most once; no spaces or other characters. \"0s\" is valid and returns 0. Anything else (empty string, missing unit, unknown unit, wrong order, repeated unit, sign, decimal, spaces) raises ValueError.",
+          "success": false,
+          "turns": 0,
+          "llm_calls": [],
+          "commands": [],
+          "totals": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_tokens": 0,
+            "cost_usd": 0.0,
+            "cost_usd_opencode_reported": 0.0,
+            "cost_source": "computed-from-tokens",
+            "billed_cost_usd": null,
+            "llm_latency_s": 0.0,
+            "cmd_wall_s": 0.0,
+            "cmd_cpu_s": 0.0,
+            "n_commands": 0,
+            "n_simplicio_commands": 0,
+            "computed_cost_usd": 0.0,
+            "cost_divergence_pct": null,
+            "cost_flag": false
+          },
+          "final_text": null,
+          "wall_s": 0.0,
+          "check_output_tail": "FAIL: stage 4 crashed: ModuleNotFoundError: No module named 'duration'"
+        }
+      ],
+      "batch": true,
+      "total_wall_s": 2.727,
+      "final": {
+        "check_passed": false,
+        "check_output_tail": "FAIL: stage 4 crashed: ModuleNotFoundError: No module named 'duration'"
+      }
+    }
+  },
+  "cost_report": {
+    "pricing_table": [
+      {
+        "model": "deepseek/deepseek-v4.1-flash",
+        "prompt": 3e-07,
+        "completion": 1.2e-06,
+        "input_cache_read": 6e-09,
+        "input_cache_write": null,
+        "internal_reasoning": null,
+        "fetched_at": "2026-09-29T11:29:39.899841+00:00"
+      }
+    ],
+    "cost_table": [
+      {
+        "arm": "simplicio",
+        "kind": "hard",
+        "uncached_input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "uncached_input_usd": 0.0,
+        "cached_input_usd": 0.0,
+        "output_usd": 0.0,
+        "computed_cost_usd": 0.0,
+        "cache_savings_usd": 0.0,
+        "cache_hit_pct": 0.0,
+        "reported_cost_usd": 0.0,
+        "diff_usd": 0.0,
+        "task_count": 4,
+        "cost_flag_count": 0
+      }
+    ]
+  }
+}

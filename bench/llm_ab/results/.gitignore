@@ -6,3 +6,5 @@ _work/
 !*-t4.json
 !*-t1-batch.json
 !*-t4-batch.json
+# Archived runs (non-standard, repeated or failed runs kept as evidence) live under runs/.
+!runs/**/*.json
