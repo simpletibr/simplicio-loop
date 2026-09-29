@@ -1,11 +1,15 @@
 """Single owner of the loop's `.simplicio-loop/` state directory.
 
 `ensure_state_dir(root)` is the one place that first creates the state
-directory for a repo. It also idempotently appends `.simplicio-loop/` to that
-repo's `<git-dir>/info/exclude` (never the user's tracked `.gitignore`), so a
-fresh clone never has to manually gitignore loop state. Call this from every
-entry point that may be the first to touch the state dir for a repo (today:
-`orient` and `prepare`).
+directory for a repo, and it keeps that directory out of `git status`, so a
+fresh clone never has to gitignore loop state by hand. It idempotently
+- appends `.simplicio-loop/` to the repo's `<git-dir>/info/exclude`, which covers a repo that has no `.gitignore`;
+- appends `.simplicio-loop/` to `<root>/.gitignore` when that file EXISTS and no line already covers the
+  directory (see `COVERING_LINES`), so the entry is there for every clone and every cloud worker. It never creates a
+  `.gitignore`, keeps the file's own line endings, and leaves a file it cannot read or write untouched.
+
+Call this from every entry point that may be the first to touch the state dir for a repo: `orient`, `prepare` and
+`turbo` (its request, its apply and its provider mode).
 """
 from __future__ import annotations
 
@@ -14,6 +18,11 @@ from pathlib import Path
 
 STATE_DIR_NAME = ".simplicio-loop"
 EXCLUDE_LINE = ".simplicio-loop/"
+# A stripped line of a .gitignore that already ignores the whole state directory.
+COVERING_LINES = frozenset({
+    ".simplicio-loop", ".simplicio-loop/", "/.simplicio-loop", "/.simplicio-loop/",
+    ".simplicio-loop/*", "/.simplicio-loop/*", ".simplicio-loop/**", "/.simplicio-loop/**",
+})
 
 
 def _git_info_exclude_path(root: Path) -> Path | None:
@@ -53,12 +62,32 @@ def _append_exclude_line_once(exclude_path: Path) -> None:
         handle.write(EXCLUDE_LINE + "\n")
 
 
-def ensure_state_dir(root: Path) -> Path:
-    """Create `<root>/.simplicio-loop/` and register it in git's local exclude.
+def _append_gitignore_line_once(gitignore: Path) -> None:
+    """Append the state directory to an EXISTING `.gitignore` unless a line already covers it.
 
-    Idempotent: calling it repeatedly never duplicates the exclude line and
-    never fails when `root` is not a git repository (it just creates the
-    directory and skips the exclude step).
+    Bytes in, bytes out: a CRLF file stays CRLF, a file without a final newline gets one first, and a file that is
+    not UTF-8 or cannot be written is left as it is. Losing the entry is better than damaging the user's file.
+    """
+    try:
+        if not gitignore.is_file():
+            return
+        raw = gitignore.read_bytes()
+        text = raw.decode("utf-8-sig")
+        if any(line.strip() in COVERING_LINES for line in text.splitlines()):
+            return
+        newline = "\r\n" if "\r\n" in text else "\n"
+        lead = "" if not raw or raw.endswith(b"\n") else newline
+        with gitignore.open("ab") as handle:
+            handle.write((lead + EXCLUDE_LINE + newline).encode("utf-8"))
+    except (OSError, UnicodeDecodeError):
+        return
+
+
+def ensure_state_dir(root: Path) -> Path:
+    """Create `<root>/.simplicio-loop/` and keep it out of `git status`.
+
+    Idempotent: calling it repeatedly never duplicates a line, and it never fails when `root` is not a git
+    repository (it creates the directory, skips the info/exclude step and still edits an existing `.gitignore`).
     """
     root = Path(root)
     state_dir = root / STATE_DIR_NAME
@@ -67,5 +96,6 @@ def ensure_state_dir(root: Path) -> Path:
     exclude_path = _git_info_exclude_path(root)
     if exclude_path is not None:
         _append_exclude_line_once(exclude_path)
+    _append_gitignore_line_once(root / ".gitignore")
 
     return state_dir

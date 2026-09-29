@@ -120,7 +120,7 @@ plus `warm` on the 1-token call that writes the header into the provider's cache
 fans out; a warm call is not counted as a retry. When a call outlives `SIMPLICIO_TURBO_HEDGE_AFTER` seconds
 (default 10, `0` disables) a duplicate goes out on the session `<id>-hedge`, and the losing side is billed and
 added to the arm's tokens and cost, so a hedge never hides spend. The default was 2.5 s in 3.45.1 and is 10 s
-since 3.46.1: 2.5 s came from a simulation with Together only, and on the real provider mix it hedged 5 of 12 CLI
+since 3.45.2: 2.5 s came from a simulation with Together only, and on the real provider mix it hedged 5 of 12 CLI
 calls and billed a duplicate for calls that were fine (4-task sets cost 45-57% more than in 3.45.0). Measured on
 those calls, normal calls took 1.6-8.0 s (Relace, the slowest provider, about 8 s) and the one real tail took
 19.6 s, so 10 s sits above the ~8 s slowest normal call and still cuts the tails. `SIMPLICIO_TURBO_SLICE=0` sends a single task

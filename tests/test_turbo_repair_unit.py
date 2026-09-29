@@ -1,4 +1,4 @@
-"""3.46.1: the repair after a failed --verify may repeat `find: ""` for a file the first plan created.
+"""3.45.2: the repair after a failed --verify may repeat `find: ""` for a file the first plan created.
 
 dev-cli refuses that as `create_target_exists`, so on a create task the repair never got a chance (5 of 15 repair
 attempts in the benchmark). The repair path turns such an operation into a whole-file replacement: `find` is the

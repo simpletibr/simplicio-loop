@@ -1,4 +1,4 @@
-"""3.46.1 host mode: two commands. The invoking model plans and dev-cli applies. No provider call and no key."""
+"""3.45.2 host mode: two commands. The invoking model plans and dev-cli applies. No provider call and no key."""
 from __future__ import annotations
 
 import io
@@ -221,6 +221,14 @@ def test_a_terminal_on_stdin_is_never_waited_on(tmp_path, host, capsys, monkeypa
     assert rc == 1 and out["status"] == "failed" and out["reason_code"] == "turbo_plan_missing"
     assert "terminal" in out["detail"] and "<<'PLAN'" in out["detail"]
     assert sys.stdin.buffer.tell() == 0  # nothing was read
+
+
+def test_a_closed_stdin_is_failed_with_a_typed_reason_too(tmp_path, host, capsys, monkeypatch):
+    monkeypatch.setattr(sys, "stdin", None)  # `simplicio-loop turbo --apply - <&-`
+    rc = cli_main(["turbo", "--repo", str(_seed(tmp_path)), "--apply", "-"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 1 and out["status"] == "failed" and out["reason_code"] == "turbo_plan_missing"
+    assert "closed" in out["detail"]
 
 
 def test_a_stdin_plan_that_is_not_utf8_is_malformed(tmp_path, host, capsys, monkeypatch):

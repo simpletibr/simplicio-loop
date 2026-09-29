@@ -103,6 +103,12 @@ document also carries `model_calls`, `retries`, `tokens`, `cache_hit_pct`, `cost
 Done is `status: "ok"` and, when `--verify` was given, `verify.passed: true`. Name every file to change
 in the task text.
 
+Every `turbo` call first registers `.simplicio-loop/` (the local run state) with git, through
+`state_dir.ensure_state_dir`: a line in `<git-dir>/info/exclude`, and `.simplicio-loop/` appended to the
+repository's `.gitignore` when that file exists and no line already covers the directory (`.simplicio-loop`,
+`.simplicio-loop/*`, `/.simplicio-loop/**` and the like). It never creates a `.gitignore`, so the directory
+never shows up as untracked; never commit it.
+
 For a goal over a queue ("all open issues", "drain the board"), list the items (GitHub:
 `gh issue list --state open --json number,title,body`) and run the two commands per item, in order:
 `simplicio-loop turbo --repo <path> --task "<title>: <body>" --verify "<tests>"`, then the printed apply

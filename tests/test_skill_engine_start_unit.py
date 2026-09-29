@@ -90,6 +90,16 @@ def test_model_facing_surfaces_name_no_provider_flag_key_or_plan_file(rel: str) 
     assert not re.search(r"plan_path(?!_)", text) and "turbo/plan.json" not in text, rel
 
 
+STATE_DIR_LINE = ("`.simplicio-loop/` is local run state: keep it in `.gitignore` (the engine adds it when the file "
+                  "exists) and never commit it.")
+
+
+def test_skill_and_orientation_say_the_state_directory_is_gitignored_and_never_committed() -> None:
+    text = SKILL.read_text(encoding="utf-8")
+    assert _flat(text.split(BEGIN, 1)[0]).count(STATE_DIR_LINE) == 1  # the body
+    assert _flat(_orientation_block(text)).count(STATE_DIR_LINE) == 1  # and the block the stop hook re-feeds
+
+
 def test_skill_description_says_invoking_it_runs_turbo() -> None:
     frontmatter = SKILL.read_text(encoding="utf-8").split("\n---\n", 1)[0]
     assert "Invoking it runs simplicio-loop turbo." in frontmatter

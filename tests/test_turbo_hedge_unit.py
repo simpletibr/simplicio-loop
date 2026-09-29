@@ -1,4 +1,4 @@
-"""3.46.1: the turbo hedge only fires on real tails, not on the 3-8 s calls providers normally take."""
+"""3.45.2: the turbo hedge only fires on real tails, not on the 3-8 s calls providers normally take."""
 from __future__ import annotations
 
 import concurrent.futures

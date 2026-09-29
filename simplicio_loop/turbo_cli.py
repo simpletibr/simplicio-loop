@@ -27,6 +27,8 @@ import time
 from pathlib import Path
 from typing import Any, Sequence
 
+from .state_dir import ensure_state_dir
+
 SCHEMA = "simplicio.turbo-run/v1"
 REQUEST_SCHEMA = "simplicio.turbo-request/v1"
 PLAN_FORMAT = {"operations": [{"path": "<repo-relative>",
@@ -113,6 +115,12 @@ def run(repo: str, texts: Sequence[str], target: str | None = None, context: Seq
     return _request_plan(repo, texts, target, context, tasks_file, verify)
 
 
+def _register_state_dir(root: Path) -> None:
+    """Mapper, the survey marker and dev-cli all write under `.simplicio-loop/`: register it with git first."""
+    if root.is_dir():
+        ensure_state_dir(root)
+
+
 def _map_slice(reading: str) -> Any:
     """The map slice as JSON, so the request does not carry it escaped inside a string."""
     try:
@@ -131,6 +139,7 @@ def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: 
     if not tasks:
         _emit({**head, "status": "blocked", "reason_code": "turbo_no_tasks", "detail": "pass --task or --tasks-file"})
         return 2
+    _register_state_dir(root)
     # The saved survey marker belongs to one run. Ask Mapper again on every invocation: its own
     # tree-state cache keeps an unchanged tree free and byte-identical, and a changed tree gets a new map.
     (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
@@ -189,7 +198,7 @@ def _plan_text(root: Path, plan: str) -> tuple[str | None, str]:
     """The plan text (stdin for ``-``, else a file) or None with the reason there is none. UTF-8 either way."""
     if plan == "-":
         if sys.stdin is None or sys.stdin.isatty():
-            return None, f"stdin is a terminal, not a plan: {STDIN_HINT}"
+            return None, f"stdin is a terminal or closed, not a plan: {STDIN_HINT}"
         stream = getattr(sys.stdin, "buffer", None)
         # Bytes, not the locale-decoded text stream: a plan in Portuguese must survive a cp1252 or C locale.
         text = stream.read().decode("utf-8-sig") if stream is not None else sys.stdin.read()
@@ -218,6 +227,7 @@ def _apply_plan(repo: str, plan: str, verify: str | None) -> int:
     if text is None:
         _emit({**head, "status": "failed", "reason_code": "turbo_plan_missing", "detail": missing})
         return 1
+    _register_state_dir(root)
     try:
         result = apply_plan(root, operations, "host-1")
     except RuntimeError as exc:
@@ -258,6 +268,7 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
     if not tasks:
         _emit({**head, "status": "blocked", "reason_code": "turbo_no_tasks", "detail": "pass --task or --tasks-file"})
         return 2
+    _register_state_dir(root)
     complete = functools.partial(turbo_provider.complete, session_id=turbo_provider.session_id_for(root))
     # The saved survey marker belongs to one run. Ask Mapper again on every invocation: its own
     # tree-state cache keeps an unchanged tree free and byte-identical, and a changed tree gets a new map.
