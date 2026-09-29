@@ -124,14 +124,19 @@ When the hybrid backend cannot be used, the same invocation prints the two-comma
 `mode: "host"` and `reason: "hybrid_unavailable: <cause>"` (`detail` adds the message), so the invoking agent carries on
 with no user action. Causes: `no_host_detected`, `host_mode_only` (the host has no headless one-shot mode),
 `host_cli_missing`, `network` (a fast connect probe of about 2 s found no route, or the host's own sandbox says so),
-`host_auth`, `host_http`, `host_timeout`, `host_error`, `budget`, `plan_rejected` (dev-cli refused the plan twice),
+`host_auth`, `host_http`, `host_timeout`, `host_state_busy` (the host's own state store was busy, or failed, twice: one retry after 0.5 s), `host_error`, `budget`, `plan_rejected` (dev-cli refused the plan twice),
 `opt_in` (a host whose headless run may keep its tools, named only by `SIMPLICIO_TURBO_LLM=<id>`; see [HARNESSES.md](HARNESSES.md)), `nested` and `forced_host`. A failure in the middle of a run keeps what was applied: the request then lists `applied` (task
 numbers) and asks for the remaining tasks only.
+
+OpenCode opens a SQLite session database on every `opencode run`, and lanes that share one fail with `database is locked` when they
+start together (measured: 3 of 4 lanes on a fresh database). So each concurrency slot has its own,
+`.simplicio-loop/host-llm/db/slot-<k>.db`, reused by the later calls that run in that slot, and no two live processes share one. An
+`OPENCODE_DB` you export is not used by the hybrid lanes.
 
 | Environment | Effect |
 |---|---|
 | `SIMPLICIO_TURBO_LLM` | `<harness id or alias>` forces that host (even without its markers, and without the network probe); `host` forces the two-command host mode; `provider` is the OpenRouter provider client; `auto` (default) detects. An unknown value is `blocked` (`turbo_llm_unknown`). |
-| `SIMPLICIO_TURBO_BUDGET_S` | Time budget of one run, default 100 s: under the 120 s that the Claude Code and OpenCode bash tools allow by default. Past it no new lane starts, what finished stays and the rest is handed to the host as a request (`budget`). Raise it only together with your host's tool timeout. |
+| `SIMPLICIO_TURBO_BUDGET_S` | Time budget of one run, default 100 s: under the 120 s that the Claude Code and OpenCode bash tools allow by default. Past it no new call starts, what finished stays and the rest is handed to the host as a request (`budget`). Raise it only together with your host's tool timeout. |
 | `SIMPLICIO_TURBO_CALL_TIMEOUT_S` | Timeout of one host CLI call, default 90 s. The process group is killed on a timeout (`host_timeout`). |
 | `SIMPLICIO_TURBO_HOST_MODEL` | Model passed to the host CLI (`-m` and the like); default the host's own model. |
 | `SIMPLICIO_TURBO_HOST_PARALLEL` | Host CLI processes at once when independent tasks are asked together, default the CPU count capped at 8. |

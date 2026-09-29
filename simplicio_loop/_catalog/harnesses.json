@@ -328,7 +328,7 @@
         "tools": "disabled",
         "cost": "catalog-estimate",
         "overhead_tokens": 220,
-        "notes": "Runs on the user's own OpenCode configuration, provider and default model; one planner agent (no tools, no model) is merged in through OPENCODE_CONFIG and nothing is written to the user's config. A missing agent falls back to the tool-enabled default agent, so tools are also denied through OPENCODE_PERMISSION, and the project's AGENTS.md is kept out of the call (OPENCODE_DISABLE_PROJECT_CONFIG). Sessions go to a scratch OPENCODE_DB under .simplicio-loop/host-llm/. Reasoning is switched off only for openrouter/deepseek/deepseek-v4.1-flash. A dead network makes opencode retry for about a minute before it fails; the connect probe catches that first."
+        "notes": "Runs on the user's own OpenCode configuration, provider and default model; one planner agent (no tools, no model) is merged in through OPENCODE_CONFIG and nothing is written to the user's config. A missing agent falls back to the tool-enabled default agent, so tools are also denied through OPENCODE_PERMISSION, and the project's AGENTS.md is kept out of the call (OPENCODE_DISABLE_PROJECT_CONFIG). Sessions go to one scratch OPENCODE_DB per concurrency slot (.simplicio-loop/host-llm/db/slot-<k>.db), never to the user's and never shared by two live lanes: they fail with \"database is locked\". Reasoning is switched off only for openrouter/deepseek/deepseek-v4.1-flash. A dead network makes opencode retry for about a minute before it fails; the connect probe catches that first."
       }
     },
     {

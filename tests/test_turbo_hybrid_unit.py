@@ -179,6 +179,8 @@ def _dead(name: str, **call):
     ("host_http", lambda tp, mp: fakes.install(tp, "opencode", stdout=json.dumps(
         {"type": "error", "error": {"name": "APIError", "data": {"message": "Service Unavailable", "statusCode": 503}}}), exit=1)),
     ("host_error", lambda tp, mp: fakes.install(tp, "opencode", stdout="", stderr="kaboom", exit=3)),
+    ("host_state_busy", lambda tp, mp: (mp.setattr(hl, "BUSY_BACKOFF_S", 0.0),
+                                        fakes.install(tp, "opencode", stdout="", stderr="Error: Unexpected error\n\ndatabase is locked", exit=1))[1]),
     ("host_timeout", lambda tp, mp: (mp.setenv(hl.CALL_TIMEOUT_ENV, "1"),
                                      fakes.install(tp, "opencode", mode="opencode", reply="{}", sleep=30))[1]),
 ])

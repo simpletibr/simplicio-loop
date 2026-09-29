@@ -22,9 +22,11 @@ timeout, budget spent) is a typed cause, and the caller falls back to the two-co
 from __future__ import annotations
 
 import atexit
+import contextlib
 import functools
 import json
 import os
+import queue
 import re
 import shutil
 import signal
@@ -48,6 +50,7 @@ DEFAULT_BUDGET_S = 100.0  # the Claude Code and OpenCode bash tools time out at 
 DEFAULT_CALL_TIMEOUT_S = 90.0
 DEFAULT_PARALLEL = min(8, os.cpu_count() or 4)  # host CLI processes at once
 MIN_CALL_S = 1.0
+BUSY_BACKOFF_S = 0.5  # a host whose own state store was busy is retried once after this pause
 PROBE_BUDGET_S = 2.0
 DEFAULT_PROBES = ("api.openai.com:443", "api.anthropic.com:443", "openrouter.ai:443", "generativelanguage.googleapis.com:443")
 STATE_SUBDIR = (".simplicio-loop", "host-llm")
@@ -241,11 +244,14 @@ _NETWORK = re.compile(
     r"fetch failed|failed to fetch|socket hang up|no route to host|tls handshake", re.I)
 _HTTP = re.compile(r"\b[45]\d\d\b|rate.?limit|quota|usage limit|overloaded|too many requests|bad gateway|service unavailable|"
                    r"gateway timeout|http error|api error", re.I)
+_BUSY = re.compile(r"failed query|sqlite_busy|database is locked|database table is locked|database schema is locked", re.I)
 
 
 def classify(message: str | None, status: int | None = None) -> str:
-    """The typed cause of a failed host call: host_auth, network, host_http or host_error."""
+    """The typed cause of a failed host call: host_state_busy, host_auth, network, host_http or host_error."""
     text = message or ""
+    if _BUSY.search(text):  # first: the SQL text of a failed query can contain any word, "credential" included
+        return "host_state_busy"
     if status in (401, 403) or _AUTH.search(text):
         return "host_auth"
     if _NETWORK.search(text):
@@ -516,11 +522,15 @@ def _write_if_changed(path: Path, text: str) -> None:
         os.replace(scratch, path)
 
 
-def _setup_opencode(backend: Backend, root: Path, env: dict[str, str]) -> dict[str, Any]:
+def _setup_opencode(backend: Backend, root: Path, env: dict[str, str], slot: int) -> dict[str, Any]:
     """The planner agent, merged into the user's own OpenCode configuration and written only under ``.simplicio-loop/``.
 
     No tools (``permission {"*": "deny"}``) and no ``model``, so OpenCode resolves the user's default model with the user's
     provider and credentials. Reasoning is switched off for the benchmarked model, and for an explicit openrouter model, only.
+
+    Every ``opencode run`` opens a SQLite session database. Lanes that share one fail with "database is locked" when they
+    start together (measured: 3 of 4 on a fresh database), so each concurrency slot has its own, reused by the calls that
+    run in that slot. An ``OPENCODE_DB`` the user already exports is not used: two lanes must never share it.
     """
     off = list(REASONING_OFF_MODELS)
     if backend.model and backend.model.startswith("openrouter/") and backend.model.count("/") >= 2:
@@ -541,11 +551,13 @@ def _setup_opencode(backend: Backend, root: Path, env: dict[str, str]) -> dict[s
         env["OPENCODE_CONFIG_CONTENT"] = json.dumps(config)
     else:
         env["OPENCODE_CONFIG"] = str(state / "opencode.json")
-    env.setdefault("OPENCODE_DB", str(state / "opencode.db"))
+    database = state / "db" / f"slot-{slot}.db"
+    database.parent.mkdir(parents=True, exist_ok=True)
+    env["OPENCODE_DB"] = str(database)
     return {"reasoning_off_for": [f"openrouter/{m}" for m in dict.fromkeys(off)]}
 
 
-SETUPS: dict[str, Callable[[Backend, Path, dict[str, str]], dict[str, Any]]] = {"opencode": _setup_opencode}
+SETUPS: dict[str, Callable[[Backend, Path, dict[str, str], int], dict[str, Any]]] = {"opencode": _setup_opencode}
 
 
 def _planner_rule() -> str:
@@ -554,8 +566,8 @@ def _planner_rule() -> str:
 
 
 def build_call(backend: Backend, root: Path, messages: Sequence[Mapping[str, Any]],
-               environ: Mapping[str, str] | None = None) -> Call:
-    """The argv, stdin, environment and directory of one host CLI run for these engine messages."""
+               environ: Mapping[str, str] | None = None, slot: int = 0) -> Call:
+    """The argv, stdin, environment and directory of one host CLI run for these engine messages, in concurrency ``slot``."""
     llm, root = backend.llm, Path(root).resolve()
     env = dict(os.environ if environ is None else environ)
     system, prompt = split_messages(messages)
@@ -571,7 +583,7 @@ def build_call(backend: Backend, root: Path, messages: Sequence[Mapping[str, Any
     argv = [re.sub(r"\{(system|prompt|model)\}", lambda found: values[found.group(1)], a) for a in args]
     env.update(llm.get("env") or {})
     env[NESTED_ENV] = "1"  # a nested simplicio-loop must not start the hybrid backend again
-    notes = SETUPS[llm["setup"]](backend, root, env) if llm.get("setup") else {}
+    notes = SETUPS[llm["setup"]](backend, root, env, slot) if llm.get("setup") else {}
     return Call(argv=argv, stdin=prompt if llm.get("prompt") == "stdin" else None, env=env, cwd=root, notes=notes)
 
 
@@ -579,10 +591,11 @@ def build_call(backend: Backend, root: Path, messages: Sequence[Mapping[str, Any
 
 _active: set[subprocess.Popen] = set()
 _active_lock = threading.Lock()
-_slots: threading.BoundedSemaphore | None = None
+_slots: queue.LifoQueue | None = None
 
 
-def _semaphore() -> threading.BoundedSemaphore:
+def _slot_pool() -> queue.LifoQueue:
+    """The free concurrency slots (0..width-1). Last in, first out: calls that follow each other reuse slot 0."""
     global _slots
     with _active_lock:
         if _slots is None:
@@ -590,8 +603,21 @@ def _semaphore() -> threading.BoundedSemaphore:
                 width = max(1, int(os.environ.get(PARALLEL_ENV, "") or DEFAULT_PARALLEL))
             except ValueError:
                 width = DEFAULT_PARALLEL
-            _slots = threading.BoundedSemaphore(width)
+            _slots = queue.LifoQueue()
+            for index in reversed(range(width)):
+                _slots.put(index)
         return _slots
+
+
+@contextlib.contextmanager
+def _slot():
+    """Wait for a free slot and hold it: at most ``width`` host processes run, and none shares its slot with another."""
+    pool = _slot_pool()
+    index = pool.get()
+    try:
+        yield index
+    finally:
+        pool.put(index)
 
 
 def _terminate(proc: subprocess.Popen) -> None:
@@ -683,9 +709,19 @@ def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, backend: Backen
     """One model call through the host CLI, shaped like ``turbo_provider.complete``'s reply.
 
     Never raises for a host problem: a failure is ``{"ok": False, "fatal": True, "reason_code": <cause>, "error": ...}`` so the
-    engine can stop, keep what it applied and hand the rest to the host.
+    engine can stop, keep what it applied and hand the rest to the host. A call that failed because the host's own state
+    store was busy (``host_state_busy``) is made once more after a short pause before that failure is reported.
     """
     del arm
+    reply = _complete_once(messages, backend, root, deadline, timeout, environ)
+    if reply.get("reason_code") == "host_state_busy":
+        time.sleep(BUSY_BACKOFF_S)
+        reply = _complete_once(messages, backend, root, deadline, timeout, environ)
+    return reply
+
+
+def _complete_once(messages: Sequence[Mapping[str, Any]], backend: Backend, root: Path, deadline: float | None,
+                   timeout: float | None, environ: Mapping[str, str] | None) -> dict[str, Any]:
     started, env = time.monotonic(), (os.environ if environ is None else environ)
     limit = timeout or _call_timeout(env)
     if deadline is not None:
@@ -693,17 +729,17 @@ def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, backend: Backen
         if left < MIN_CALL_S:
             return _fatal("budget", f"the {BUDGET_ENV} time budget is spent", started, backend.id)
         limit = min(limit, left)
-    call = build_call(backend, root, messages, environ=env)
-    binary = shutil.which(call.argv[0], path=call.env.get("PATH"))
-    if binary is None:
-        return _fatal("host_cli_missing", f"{call.argv[0]} is not on PATH", started, backend.id)
-    with _semaphore():
+    with _slot() as slot:
         started = time.monotonic()  # the latency of the call, not the wait for a slot
         if deadline is not None:  # ...which spent part of the budget
             left = deadline - started
             if left < MIN_CALL_S:
                 return _fatal("budget", f"the {BUDGET_ENV} time budget is spent", started, backend.id)
             limit = min(limit, left)
+        call = build_call(backend, root, messages, environ=env, slot=slot)
+        binary = shutil.which(call.argv[0], path=call.env.get("PATH"))
+        if binary is None:
+            return _fatal("host_cli_missing", f"{call.argv[0]} is not on PATH", started, backend.id)
         try:
             proc = subprocess.Popen(
                 [binary, *call.argv[1:]], stdin=subprocess.PIPE if call.stdin is not None else subprocess.DEVNULL,

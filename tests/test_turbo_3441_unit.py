@@ -26,7 +26,8 @@ def _repo(tmp_path, monkeypatch):
 def test_the_fan_out_never_sleeps_between_calls(tmp_path, monkeypatch):
     _repo(tmp_path, monkeypatch)
     slept = []
-    monkeypatch.setattr("time.sleep", lambda seconds: slept.append(seconds))
+    # subprocess polls a child that is slow to exit with sleeps of at most 50 ms; the engine must add none of its own
+    monkeypatch.setattr("time.sleep", lambda seconds: slept.append(seconds) if seconds > 0.05 else None)
 
     def complete(arm, messages, **kwargs):
         name = "page" + messages[-1]["content"].split("Tasks:", 1)[1].strip().split(".", 1)[0].strip()

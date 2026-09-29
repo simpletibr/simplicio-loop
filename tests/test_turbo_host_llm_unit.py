@@ -140,6 +140,9 @@ def test_an_empty_reply_and_a_silent_failure_are_errors():
     ("The usage limit has been reached", None, "host_http"),
     ("HTTP 503 Service Unavailable", 503, "host_http"),
     ("Unexpected server error. Check server logs for details.", None, "host_error"),
+    ("Error: Unexpected error\n\ndatabase is locked", None, "host_state_busy"),  # opencode lanes sharing one session database
+    ("SQLITE_BUSY: database is locked", None, "host_state_busy"),
+    ('Failed query: select "credential" from "account" where "id" = ? params: acc_1', None, "host_state_busy"),  # not host_auth
 ])
 def test_classify_names_the_cause(message, status, cause):
     assert hl.classify(message, status) == cause
@@ -154,7 +157,8 @@ def test_opencode_call_uses_the_users_config_plus_one_injected_planner_agent(tmp
     assert call.stdin.startswith("Mapper project map:\n{\"files\":[]}\n\nTasks:\n1. Fix the two bugs in inventory.py.")
     assert turbo._PLANNER_SYSTEM not in call.stdin
     state = tmp_path / ".simplicio-loop" / "host-llm"
-    assert call.env["OPENCODE_CONFIG"] == str(state / "opencode.json") and call.env["OPENCODE_DB"] == str(state / "opencode.db")
+    assert call.env["OPENCODE_CONFIG"] == str(state / "opencode.json")
+    assert call.env["OPENCODE_DB"] == str(state / "db" / "slot-0.db")  # one session database per concurrency slot
     assert call.env["OPENCODE_DISABLE_PROJECT_CONFIG"] == "1" and call.env["OPENCODE_PERMISSION"] == '{"*":"deny"}'
     assert call.env["SIMPLICIO_TURBO_NESTED"] == "1" and call.env["HOME"] == "/home/u"  # the user's environment, untouched
     assert call.cwd == tmp_path
@@ -173,7 +177,7 @@ def test_opencode_call_never_writes_outside_the_repo_state_dir(tmp_path):
     users.write_text('{"model": "anthropic/claude-x"}', encoding="utf-8")
     hl.build_call(_backend("opencode"), tmp_path / "repo", _messages(), environ={"HOME": str(home)})
     assert users.read_text(encoding="utf-8") == '{"model": "anthropic/claude-x"}'
-    assert sorted(p.name for p in (tmp_path / "repo" / ".simplicio-loop" / "host-llm").iterdir()) == ["opencode.json"]
+    assert sorted(p.name for p in (tmp_path / "repo" / ".simplicio-loop" / "host-llm").iterdir()) == ["db", "opencode.json"]
 
 
 def test_a_model_override_is_passed_to_the_host_and_reasoning_off_follows_an_openrouter_model(tmp_path):
@@ -187,10 +191,12 @@ def test_a_model_override_is_passed_to_the_host_and_reasoning_off_follows_an_ope
     assert set(config["provider"]["openrouter"]["models"]) == {"deepseek/deepseek-v4.1-flash"}  # nothing added for another provider
 
 
-def test_an_opencode_config_or_database_the_user_already_names_is_kept(tmp_path):
+def test_an_opencode_config_the_user_already_names_is_kept_but_never_their_database(tmp_path):
     call = hl.build_call(_backend("opencode"), tmp_path, _messages(),
-                         environ={"OPENCODE_CONFIG": "/home/u/mine.json", "OPENCODE_DB": "/home/u/mine.db"})
-    assert call.env["OPENCODE_CONFIG"] == "/home/u/mine.json" and call.env["OPENCODE_DB"] == "/home/u/mine.db"
+                         environ={"OPENCODE_CONFIG": "/home/u/mine.json", "OPENCODE_DB": "/home/u/mine.db"}, slot=2)
+    assert call.env["OPENCODE_CONFIG"] == "/home/u/mine.json"
+    # Lanes that share one OpenCode database fail with "database is locked": each slot has its own, whatever the user exports.
+    assert call.env["OPENCODE_DB"] == str(tmp_path / ".simplicio-loop" / "host-llm" / "db" / "slot-2.db")
     merged = json.loads(call.env["OPENCODE_CONFIG_CONTENT"])  # the planner agent rides on top, as inline content
     assert merged["agent"]["simplicio-planner"]["permission"] == {"*": "deny"}
 
@@ -326,10 +332,10 @@ def test_the_default_number_of_host_processes_is_the_cpu_count_capped_at_eight(m
     assert hl.DEFAULT_PARALLEL == min(8, os.cpu_count() or 4)
     monkeypatch.delenv(hl.PARALLEL_ENV, raising=False)
     monkeypatch.setattr(hl, "_slots", None)
-    assert hl._semaphore()._value == hl.DEFAULT_PARALLEL
+    assert hl._slot_pool().qsize() == hl.DEFAULT_PARALLEL
     monkeypatch.setenv(hl.PARALLEL_ENV, "3")
     monkeypatch.setattr(hl, "_slots", None)
-    assert hl._semaphore()._value == 3
+    assert hl._slot_pool().qsize() == 3
 
 
 def test_a_call_that_waited_for_a_slot_past_the_deadline_never_starts_the_cli(tmp_path, repo, monkeypatch):
@@ -337,17 +343,68 @@ def test_a_call_that_waited_for_a_slot_past_the_deadline_never_starts_the_cli(tm
     monkeypatch.setenv("PATH", fakes.path_with(bin_dir))
     monkeypatch.setenv(hl.PARALLEL_ENV, "1")
     monkeypatch.setattr(hl, "_slots", None)
-    slot = hl._semaphore()
-    slot.acquire()  # the only slot is taken: the call below has to wait for it
+    pool = hl._slot_pool()
+    taken = pool.get()  # the only slot is taken: the call below has to wait for it
     result: dict = {}
     call = threading.Thread(target=lambda: result.update(hl.complete(
         "simplicio", _messages(repo), backend=_backend("opencode"), root=repo, deadline=time.monotonic() + 1.5)))
     call.start()
     time.sleep(0.8)  # the budget runs down while it waits: less than the 1 s a call needs is left
-    slot.release()
+    pool.put(taken)
     call.join(10)
     assert result["ok"] is False and result["fatal"] is True and result["reason_code"] == "budget"
     assert fakes.log(bin_dir, "opencode") == []  # nothing was spawned
+
+
+def test_concurrent_lanes_never_share_an_opencode_database_and_slots_reuse_theirs(tmp_path, repo, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    bin_dir = fakes.install(tmp_path, "opencode", mode="opencode", reply=PLAN, sleep=0.4)
+    monkeypatch.setenv("PATH", fakes.path_with(bin_dir))
+    monkeypatch.setenv(hl.PARALLEL_ENV, "3")
+    monkeypatch.setenv("OPENCODE_DB", str(tmp_path / "the-users.db"))  # exported by the user: not used by any lane
+    monkeypatch.setattr(hl, "_slots", None)
+    with ThreadPoolExecutor(6) as pool:
+        replies = list(pool.map(lambda _: hl.complete("simplicio", _messages(repo), backend=_backend("opencode"), root=repo), range(6)))
+    assert all(r["ok"] for r in replies)
+    runs = [(r["env"]["OPENCODE_DB"], r["start"], r["start"] + r["sleep"]) for r in fakes.log(bin_dir, "opencode")]
+    assert len(runs) == 6
+    databases = {db for db, _, _ in runs}
+    state = repo / ".simplicio-loop" / "host-llm" / "db"
+    assert databases == {str(state / f"slot-{k}.db") for k in range(3)}  # 6 calls, 3 slots: each database reused
+    for db, start, end in runs:  # no two live processes share a database
+        assert not [1 for other, s2, e2 in runs if other == db and (other, s2, e2) != (db, start, end) and s2 < end and start < e2]
+
+
+def test_calls_that_follow_each_other_reuse_the_first_slots_database(tmp_path, repo, monkeypatch):
+    bin_dir = fakes.install(tmp_path, "opencode", mode="opencode", reply=PLAN)
+    monkeypatch.setenv("PATH", fakes.path_with(bin_dir))
+    monkeypatch.setenv(hl.PARALLEL_ENV, "4")
+    monkeypatch.setattr(hl, "_slots", None)
+    for _ in range(3):
+        assert hl.complete("simplicio", _messages(repo), backend=_backend("opencode"), root=repo)["ok"]
+    assert {r["env"]["OPENCODE_DB"] for r in fakes.log(bin_dir, "opencode")} == {str(repo / ".simplicio-loop" / "host-llm" / "db" / "slot-0.db")}
+
+
+BUSY = {"exit": 1, "stderr": "\x1b[91m\x1b[1mError: \x1b[0mUnexpected error\n\ndatabase is locked\n"}
+
+
+def test_a_lane_whose_host_state_was_busy_is_retried_once_after_a_pause(tmp_path, repo, monkeypatch):
+    bin_dir = fakes.install(tmp_path, "opencode", calls=[BUSY, {"mode": "opencode", "reply": PLAN}])
+    monkeypatch.setenv("PATH", fakes.path_with(bin_dir))
+    monkeypatch.setattr(hl, "BUSY_BACKOFF_S", 0.3)
+    started = time.monotonic()
+    reply = hl.complete("simplicio", _messages(repo), backend=_backend("opencode"), root=repo)
+    assert reply["ok"] and reply["content"] == PLAN and len(fakes.log(bin_dir, "opencode")) == 2
+    assert time.monotonic() - started >= 0.3  # it waited before the second run
+
+
+def test_a_host_state_that_stays_busy_is_typed_after_the_one_retry(tmp_path, repo, monkeypatch):
+    bin_dir = fakes.install(tmp_path, "opencode", **BUSY)
+    monkeypatch.setenv("PATH", fakes.path_with(bin_dir))
+    monkeypatch.setattr(hl, "BUSY_BACKOFF_S", 0.0)
+    reply = hl.complete("simplicio", _messages(repo), backend=_backend("opencode"), root=repo)
+    assert reply["ok"] is False and reply["fatal"] is True and reply["reason_code"] == "host_state_busy"
+    assert len(fakes.log(bin_dir, "opencode")) == 2  # once more, not forever
 
 
 # --- which host is this, and can it be used ---------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 `install(tmp_path, "opencode", calls=[...])` writes `<tmp_path>/bin/opencode`, a Python script that
 
 * counts its own invocations atomically (parallel lanes are safe),
-* logs argv, stdin, cwd and the environment variables the engine sets to `<name>.log` (one JSON per line),
+* logs argv, stdin, cwd, its start time and the environment variables the engine sets to `<name>.log` (one JSON per line),
 * sleeps, writes stderr and stdout, and exits with the status the matching entry of `calls` asks for. The last entry
   repeats, so one entry describes every call.
 
@@ -46,7 +46,7 @@ if stdin is None:
     stdin = "" if call.get("stdin") == "ignore" else sys.stdin.read()
 seen = {{k: v for k, v in os.environ.items() if k.startswith(("SIMPLICIO_", "OPENCODE", "CLAUDE", "PI_", "AGENT"))}}
 with open(os.path.join(here, name + ".log"), "a") as log:
-    log.write(json.dumps({{"n": number, "pid": os.getpid(), "argv": sys.argv[1:], "stdin": stdin, "cwd": os.getcwd(), "env": seen,
+    log.write(json.dumps({{"n": number, "pid": os.getpid(), "start": time.time(), "sleep": call.get("sleep", 0), "argv": sys.argv[1:], "stdin": stdin, "cwd": os.getcwd(), "env": seen,
                           "agent_file": open(seen["OPENCODE_CONFIG"]).read() if seen.get("OPENCODE_CONFIG") and os.path.isfile(seen["OPENCODE_CONFIG"]) else None}}) + "\n")
 time.sleep(call.get("sleep", 0))
 sys.stderr.write(call.get("stderr", ""))
