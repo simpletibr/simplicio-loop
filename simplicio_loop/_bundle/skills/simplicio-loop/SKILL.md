@@ -13,7 +13,7 @@ rules: Follow this skill end-to-end; mutable data (versions, dates, counts) live
 # /simplicio-loop
 
 A task is ONE command: `simplicio-loop "<task>" [--verify "<test command>"]`, the short form of
-`simplicio-loop turbo --repo <path> --task "<task>"`. It runs Mapper,
+`simplicio-loop turbo --repo <path> --task "<task>"`. It runs the Mapper survey,
 the model through your own CLI, `simplicio-dev-cli` and `--verify`, and prints one JSON result. There is no provider call and
 no API key. `status: "ok"` or `"failed"` (`mode: "hybrid"`) is final: report it as printed.
 
