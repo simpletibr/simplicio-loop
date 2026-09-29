@@ -1,0 +1,205 @@
+{
+  "meta": {
+    "model": "openrouter/deepseek/deepseek-v4.1-flash",
+    "date": "2026-09-29",
+    "main_commit": "790061e2",
+    "pip_versions": {
+      "simplicio-loop": "3.44.1"
+    },
+    "task_count": 1,
+    "pricing": {
+      "model": "deepseek/deepseek-v4.1-flash",
+      "fetched_at": "2026-09-29T09:51:43.823034+00:00",
+      "available": true,
+      "prompt": 3e-07,
+      "completion": 1.2e-06,
+      "input_cache_read": 6e-09,
+      "input_cache_write": null,
+      "internal_reasoning": null
+    },
+    "batch": false,
+    "agent": "opencode",
+    "effort_policy": "opencode-managed (no per-call reasoning-effort control via the CLI)"
+  },
+  "arms": {
+    "normal": {
+      "arm": "normal",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "tasks": [
+        {
+          "index": 1,
+          "kind": "create",
+          "task_text": "Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a <form id=\"cadastro\"> containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button.",
+          "success": true,
+          "turns": 2,
+          "llm_calls": [
+            {
+              "turn": 1,
+              "ok": true,
+              "id": "msg_0ec93f933001LAWp3jQvfrQoBS",
+              "latency_s": 1.168,
+              "prompt_tokens": 7513,
+              "completion_tokens": 326,
+              "reasoning_tokens": 18,
+              "cached_tokens": 1792,
+              "cost_usd": 0.002118252,
+              "finish_reason": "tool-calls",
+              "error": null,
+              "reasoning_effort": null
+            },
+            {
+              "turn": 2,
+              "ok": true,
+              "id": "msg_0ec9406e9001xAfnTz6T92I0SO",
+              "latency_s": 0.045,
+              "prompt_tokens": 7855,
+              "completion_tokens": 7,
+              "reasoning_tokens": 0,
+              "cached_tokens": 7424,
+              "cost_usd": 0.000182244,
+              "finish_reason": "stop",
+              "error": null,
+              "reasoning_effort": null
+            }
+          ],
+          "commands": [],
+          "totals": {
+            "prompt_tokens": 15368,
+            "completion_tokens": 333,
+            "reasoning_tokens": 18,
+            "cached_tokens": 9216,
+            "cost_usd": 0.0023005,
+            "cost_usd_opencode_reported": 0.0023,
+            "cost_source": "computed-from-tokens",
+            "billed_cost_usd": 0.0,
+            "llm_latency_s": 1.213,
+            "cmd_wall_s": 0.0,
+            "cmd_cpu_s": 0.0,
+            "n_commands": 0,
+            "n_simplicio_commands": 0,
+            "computed_cost_usd": 0.0023005,
+            "cost_divergence_pct": 100.0,
+            "cost_flag": true
+          },
+          "final_text": "Created `cadastro.html`.",
+          "wall_s": 17.518,
+          "check_output_tail": "PASS: stage 1 ok"
+        }
+      ],
+      "total_wall_s": 17.623,
+      "final": {
+        "check_passed": true,
+        "check_output_tail": "PASS: stage 1 ok"
+      }
+    },
+    "simplicio": {
+      "arm": "simplicio",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "tasks": [
+        {
+          "index": 1,
+          "kind": "create",
+          "task_text": "Create cadastro.html: a pure HTML (no JS framework, no external CSS/JS) user registration page with a <form id=\"cadastro\"> containing labeled inputs name (text, required), email (type=email, required), password (type=password, required, minlength=8) and a submit button.",
+          "success": true,
+          "turns": 1,
+          "llm_calls": [
+            {
+              "ok": true,
+              "turn": 1,
+              "prompt_tokens": 3563,
+              "completion_tokens": 295,
+              "reasoning_tokens": 0,
+              "cached_tokens": 0,
+              "cost_usd": null,
+              "latency_s": 1.3856160640716553,
+              "provider": "Together"
+            }
+          ],
+          "commands": [
+            {
+              "command": "/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.venv/bin/simplicio-dev-cli edit --root /var/folders/4w/3kxdvh6s4ts7rw5h21rk3xr40000gn/T/llm-ab/simplicio-repo --plan /var/folders/4w/3kxdvh6s4ts7rw5h21rk3xr40000gn/T/llm-ab/simplicio-repo/.simplicio-loop/turbo-ops-1-1.json --compile /var/folders/4w/3kxdvh6s4ts7rw5h21rk3xr40000gn/T/llm-ab/simplicio-repo/.simplicio-loop/turbo-plan-1-1.json --json --no-runtime",
+              "returncode": 0,
+              "stdout": "{\"schema\": \"simplicio.dev-cli.edit-compile/v1\", \"status\": \"ok\", \"plan\": \"/var/folders/4w/3kxdvh6s4ts7rw5h21rk3xr40000gn/T/llm-ab/simplicio-repo/.simplicio-loop/turbo-plan-1-1.json\", \"touched_files\": [\"cadastro.html\"]}\n"
+            },
+            {
+              "command": "/Users/wesleysimplicio/Projetos/ai/simplicio-loop/.venv/bin/simplicio-dev-cli edit --root /var/folders/4w/3kxdvh6s4ts7rw5h21rk3xr40000gn/T/llm-ab/simplicio-repo --plan /var/folders/4w/3kxdvh6s4ts7rw5h21rk3xr40000gn/T/llm-ab/simplicio-repo/.simplicio-loop/turbo-plan-1-1.json --apply --json --no-runtime",
+              "returncode": 0,
+              "stdout": "required minlength=\\\"8\\\">\\n+  </p>\\n+  <p>\\n+    <button type=\\\"submit\\\">Cadastrar</button>\\n+  </p>\\n+</form>\\n+</body>\\n+</html>\\n+\\n\", \"receipt_digest\": \"19e1e540d62bfcdba90ac77aa4c1a4a9ec95f003e2a25bed3e7aa846b9b9a454\", \"root\": \"/var/folders/4w/3kxdvh6s4ts7rw5h21rk3xr40000gn/T/llm-ab/simplicio-repo\", \"schema\": \"simplicio.dev-cli.edit-receipt/v1\", \"status\": \"ok\", \"validation\": [], \"verify\": {\"commands\": [], \"reason_code\": \"verify_skipped_no_scoped_tests\", \"results\": [], \"status\": \"skipped\"}}\n[native_delegation] {\"verb\":\"edit\",\"route\":\"python-forced\",\"reason\":\"canonical-dev-cli-plan\"}\n[mutation_route_selected] {\"schema\":\"simplicio.dev-cli.mutation-route/v1\",\"entrypoint\":\"edit\",\"route\":\"standalone\",\"reason_code\":\"LEGACY_STANDALONE_SHADOW\",\"migration_phase\":\"shadow\",\"legacy_opt_in\":false}\n"
+            }
+          ],
+          "totals": {
+            "prompt_tokens": 3563,
+            "completion_tokens": 295,
+            "reasoning_tokens": 0,
+            "cached_tokens": 0,
+            "n_commands": 2,
+            "n_simplicio_commands": 2,
+            "computed_cost_usd": 0.0014229,
+            "cost_usd": 0.0014229,
+            "cost_source": "computed-from-tokens",
+            "cost_divergence_pct": null,
+            "cost_flag": false
+          },
+          "final_text": "{\"operations\":[{\"path\":\"cadastro.html\",\"find\":\"<!-- SIMPLICIO-PLACEHOLDER: cadastro.html not implemented yet. -->\",\"replace\":\"<!DOCTYPE html>\\n<html lang=\\\"pt-BR\\\">\\n<head>\\n<meta charset=\\\"utf-8\\\">\\n<meta name=\\\"viewport\\\" content=\\\"width=device-width, initial-scale=1\\\">\\n<title>Cadastro</title>\\n</head>\\n<body>\\n<h1>Cadastro</h1>\\n<form id=\\\"cadastro\\\" method=\\\"post\\\" action=\\\"#\\\">\\n  <p>\\n    <label for=\\\"name\\\">Nome</label>\\n    <input type=\\\"text\\\" id=\\\"name\\\" name=\\\"name\\\" required>\\n  </p>\\n  <p>\\n    <label for=\\\"email\\\">E-mail</label>\\n    <input type=\\\"email\\\" id=\\\"email\\\" name=\\\"email\\\" required>\\n  </p>\\n  <p>\\n    <label for=\\\"password\\\">Senha</label>\\n    <input type=\\\"password\\\" id=\\\"password\\\" name=\\\"password\\\" required minlength=\\\"8\\\">\\n  </p>\\n  <p>\\n    <button type=\\\"submit\\\">Cadastrar</button>\\n  </p>\\n</form>\\n</body>\\n</html>\\n\"}]}",
+          "wall_s": 2.281,
+          "check_output_tail": "PASS: stage 1 ok"
+        }
+      ],
+      "batch": true,
+      "total_wall_s": 2.281,
+      "final": {
+        "check_passed": true,
+        "check_output_tail": "PASS: stage 1 ok"
+      }
+    }
+  },
+  "cost_report": {
+    "pricing_table": [
+      {
+        "model": "deepseek/deepseek-v4.1-flash",
+        "prompt": 3e-07,
+        "completion": 1.2e-06,
+        "input_cache_read": 6e-09,
+        "input_cache_write": null,
+        "internal_reasoning": null,
+        "fetched_at": "2026-09-29T09:51:43.823034+00:00"
+      }
+    ],
+    "cost_table": [
+      {
+        "arm": "normal",
+        "kind": "create",
+        "uncached_input_tokens": 6152,
+        "cached_input_tokens": 9216,
+        "output_tokens": 333,
+        "uncached_input_usd": 0.0018456,
+        "cached_input_usd": 5.53e-05,
+        "output_usd": 0.0003996,
+        "computed_cost_usd": 0.0023005,
+        "cache_savings_usd": 0.0027095,
+        "cache_hit_pct": 59.9688,
+        "reported_cost_usd": 0.0,
+        "diff_usd": -0.0023005,
+        "task_count": 1,
+        "cost_flag_count": 1
+      },
+      {
+        "arm": "simplicio",
+        "kind": "create",
+        "uncached_input_tokens": 3563,
+        "cached_input_tokens": 0,
+        "output_tokens": 295,
+        "uncached_input_usd": 0.0010689,
+        "cached_input_usd": 0.0,
+        "output_usd": 0.000354,
+        "computed_cost_usd": 0.0014229,
+        "cache_savings_usd": 0.0,
+        "cache_hit_pct": 0.0,
+        "reported_cost_usd": 0.0014229,
+        "diff_usd": 0.0,
+        "task_count": 1,
+        "cost_flag_count": 0
+      }
+    ]
+  }
+}
