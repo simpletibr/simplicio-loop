@@ -1,0 +1,23 @@
+{
+  "name": "@simplicio/live-components",
+  "version": "0.1.0",
+  "description": "Simplicio Live: native Web Components (no build, no runtime dependencies) shared by the simplicio-loop and simplicio-loop-marketing dashboards.",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/simpletibr/simplicio-loop.git",
+    "directory": "simplicio_loop/dashboard/static/components"
+  },
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./simplicio-live.css": "./simplicio-live.css",
+    "./*.js": "./*.js",
+    "./fonts/*": "./fonts/*"
+  },
+  "files": ["*.js", "simplicio-live.css", "fonts/"],
+  "sideEffects": true,
+  "dependencies": {}
+}
