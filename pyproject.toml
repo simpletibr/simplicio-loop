@@ -85,6 +85,8 @@ simplicio_loop = ["_bundle/**/*", "_contracts/**/*.json", "_catalog/*.json"]
 "simplicio_loop._bundle" = ["**/*"]
 "simplicio_loop._contracts" = ["**/*.json", "*.json"]
 "simplicio_loop._catalog" = ["*.json"]
+# Simplicio Live web components + catalog (issue #1399): static files served as-is, no build step.
+"simplicio_loop.dashboard" = ["static/**/*"]
 # every non-Python file of the merged packages (contracts, schemas, templates, fixtures) ships
 simplicio = ["**/*", "**/.*"]
 simplicio_mapper = ["**/*", "**/.*"]

@@ -16,7 +16,7 @@ circle { fill: none; stroke-width: 14; }
 .bg { stroke: var(--sl-line-soft); }
 .seg { stroke: var(--sl-c); }
 .center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center;
-  font-size: var(--sl-step-3); font-weight: var(--sl-weight-strong); line-height: 1; }
+  font-size: var(--sl-step-2); font-weight: var(--sl-weight-strong); line-height: 1; }
 .center small { display: block; font-size: var(--sl-step--2); color: var(--sl-ink-muted); font-weight: var(--sl-weight-body); margin-block-start: 0.3em; }
 ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sl-space-2); min-inline-size: 12em; }
 li { display: grid; grid-template-columns: auto 1fr auto; gap: var(--sl-space-2); align-items: center; }

@@ -8,14 +8,14 @@ import "./sl-sparkline.js";
 export class SlKpiCard extends SlElement {
   static observedAttributes = ["label", "value", "unit", "delta", "good", "state", "trend", "detail"];
   static styles = `
-:host { display: block; }
+:host { display: block; container-type: inline-size; }
 .plate { display: grid; gap: var(--sl-space-2); padding: var(--sl-space-4) var(--sl-space-4) var(--sl-space-4) var(--sl-space-5);
   background: var(--sl-panel); border-radius: var(--sl-radius-plate); position: relative; overflow: hidden;
   box-shadow: var(--sl-shadow), inset 0 0 0 1px var(--sl-line-soft); }
 .plate::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: 6px; background: var(--sl-c); }
 .plate[data-state="PENDING"]::before { background: var(--sl-line-soft); }
 .label { margin: 0; font-size: var(--sl-step--1); font-weight: var(--sl-weight-body); color: var(--sl-ink-muted); }
-.value { margin: 0; font-size: var(--sl-step-5); font-weight: var(--sl-weight-strong); line-height: 1; letter-spacing: -0.01em; }
+.value { margin: 0; white-space: nowrap; font-size: clamp(var(--sl-step-3), 17cqi, var(--sl-step-5)); font-weight: var(--sl-weight-strong); line-height: 1; letter-spacing: -0.01em; }
 .value small { font-size: 0.4em; font-weight: var(--sl-weight-body); color: var(--sl-ink-muted); margin-inline-start: 0.2em; letter-spacing: 0; }
 .row { display: flex; align-items: center; gap: var(--sl-space-3); flex-wrap: wrap; }
 .delta { font-weight: var(--sl-weight-strong); font-size: var(--sl-step--1); }

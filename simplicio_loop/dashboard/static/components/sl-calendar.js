@@ -22,7 +22,7 @@ export class SlCalendar extends SlElement {
 .cal { background: var(--sl-panel); border-radius: var(--sl-radius-panel); padding: var(--sl-space-4);
   box-shadow: var(--sl-shadow), inset 0 0 0 1px var(--sl-line-soft); }
 .head { display: flex; align-items: center; gap: var(--sl-space-3); margin-block-end: var(--sl-space-3); }
-.month { margin: 0 auto 0 0; font-size: var(--sl-step-2); font-weight: var(--sl-weight-strong); text-transform: capitalize; }
+.month { margin: 0 auto 0 0; font-size: var(--sl-step-2); font-weight: var(--sl-weight-strong); }
 .nav { inline-size: 2.5em; block-size: 2.5em; border: 1px solid var(--sl-line); border-radius: var(--sl-radius-plate);
   background: var(--sl-raised); cursor: pointer; display: grid; place-items: center; }
 .nav svg { inline-size: 1em; block-size: 1em; }
@@ -84,7 +84,8 @@ li span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: now
     const focusDay = this._focusDay && this._focusDay.startsWith(iso(view).slice(0, 7)) ? this._focusDay
       : selected && selected.startsWith(iso(view).slice(0, 7)) ? selected
       : today.startsWith(iso(view).slice(0, 7)) ? today : iso(view);
-    const title = new Intl.DateTimeFormat(loc, { month: "long", year: "numeric" }).format(view);
+    const rawTitle = new Intl.DateTimeFormat(loc, { month: "long", year: "numeric" }).format(view);
+    const title = rawTitle.charAt(0).toLocaleUpperCase(loc) + rawTitle.slice(1);
     const long = new Intl.DateTimeFormat(loc, { weekday: "long" });
     const short = new Intl.DateTimeFormat(loc, { weekday: "short" });
     const dayLabel = new Intl.DateTimeFormat(loc, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
