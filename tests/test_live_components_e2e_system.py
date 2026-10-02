@@ -379,16 +379,19 @@ def test_diff_parser_keeps_sql_comments_and_counts_lines(open_catalog):
 
 def test_properties_set_before_upgrade_are_kept(open_catalog):
     page = open_catalog("dark")
-    count = page.evaluate("""() => {
-      const el = document.createElement('sl-swimlane-probe');
-      const lane = document.createElement('div');
-      lane.innerHTML = '<sl-lane-swimlane></sl-lane-swimlane>';
-      const sw = lane.firstElementChild;
-      document.body.append(lane);
-      sw.lanes = [{label: 'x', stages: {intake: 'PASS'}}];
-      return sw.shadowRoot.querySelectorAll('tbody tr').length;
+    result = page.evaluate("""() => {
+      // Elements inside <template> content are not upgraded: properties land on the plain element.
+      const t = document.createElement('template');
+      t.innerHTML = '<sl-lane-swimlane></sl-lane-swimlane><sl-diff-view></sl-diff-view>';
+      const [lanes, diff] = t.content.children;
+      lanes.lanes = [{label: 'x', stages: {intake: 'PASS'}}];
+      diff.diff = '--- a/f\\n+++ b/f\\n@@ -1 +1 @@\\n-a\\n+b\\n';
+      document.body.append(lanes, diff);
+      return { rows: lanes.shadowRoot.querySelectorAll('tbody tr').length,
+               upgraded: Object.hasOwn(lanes, 'lanes'),
+               diffRows: diff.shadowRoot.querySelectorAll('tr.r-add, tr.r-del').length };
     }""")
-    assert count == 1
+    assert result == {"rows": 1, "upgraded": False, "diffRows": 2}
 
 
 def test_narrow_viewport_keeps_the_rail_readable(open_catalog):

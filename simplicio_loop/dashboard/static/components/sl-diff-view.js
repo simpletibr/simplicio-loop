@@ -66,6 +66,15 @@ tr.r-hunk td, tr.r-meta td { color: var(--sl-ink-muted); background: color-mix(i
 .empty { color: var(--sl-ink-muted); margin: 0; }
 `;
 
+  connectedCallback() {
+    if (Object.hasOwn(this, "diff")) {
+      const value = this.diff;
+      delete this.diff;
+      this._diff = value;
+    }
+    super.connectedCallback();
+  }
+
   get diff() {
     return this._diff ?? this.getAttribute("diff") ?? this.textContent;
   }
