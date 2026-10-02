@@ -1,0 +1,8 @@
+{
+  "trace": "duplicate_effect",
+  "description": "Acceptance criteria close but an effect stays unverified; the policy must never claim STOP_SUCCESS while effects_unverified > 0.",
+  "ticks": [
+    {"acs_open": 1, "verifiers_failed": 0, "effects_unverified": 1, "backlog": 0, "retry_amplification": 0.0, "state_signature": "dup1"},
+    {"acs_open": 0, "verifiers_failed": 0, "effects_unverified": 1, "backlog": 0, "retry_amplification": 0.0, "state_signature": "dup2"}
+  ]
+}

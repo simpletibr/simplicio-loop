@@ -7,6 +7,7 @@
 # Legacy Simplicio state roots are quarantined; all new state belongs under .simplicio-loop/.
 .orchestrator/
 .simplicio-fast/
+.simplicio/
 *.egg-info/
 __pycache__/
 dist/

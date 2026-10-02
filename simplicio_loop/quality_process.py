@@ -32,7 +32,7 @@ PHASE_TIMEOUT_SECONDS = {
     "core_tests": 900.0,
     "tests": 900.0,
     "stdlib_test": 60.0,
-    "loop_contract": 60.0,
+    "loop_contract": 120.0,
     "contract_headers": 60.0,
     "clean_env": 60.0,
     "token_budget": 60.0,

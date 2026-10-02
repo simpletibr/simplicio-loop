@@ -1604,7 +1604,10 @@ def _orient_brief_impl(root: Path, tasks: list[str], *,
     payload["generations"] = generations
     payload["repo_state_chain"] = repo_state_chain
     payload["apply"] = _brief_apply_command(root, repo_state_chain, generations)
-    execute_steps = [step.get("step") for step in overall_route.get("next") or [] if step.get("phase") == "execute"]
+    execute_steps = [
+        step.get("step") for step in overall_route.get("next") or []
+        if isinstance(step, Mapping) and step.get("phase") == "execute"
+    ]
     if execute_steps:
         payload["apply"]["command"] = execute_steps[0]
     payload["effort"] = dict(PHASE_EFFORT)

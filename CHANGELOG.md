@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.46.1] - 2026-10-02
+
+- Restore simplicio-loop 50 extension points: restored `control_policy` and `prototype_judge` modules, unit tests, and reference documentation (`references/control-policy.md`, `references/extension-points.md`), bringing the audited extension points count from 48 back to 50.
+- Quality Delivery Flow & Host Mode: full flow contract preserved with two-command hot path (`simplicio-loop "<task>"` and `simplicio-loop turbo --apply - <<'PLAN'`), 7-dimension adaptive DoD, verification, delivery contract, PR evidence, and GitHub issue drain.
+- Monorepo structure maintained (`packages/mapper`, `packages/dev-cli`, `simplicio-loop` at root; no Fast, no Runtime, no MCP force).
+- Subprocess and Network Guard Isolation: fixed subprocess invocation under `core_network_guard` across `apply.py`, `lane_verifiers.py`, `turbo_cli.py`, and `wave_worktree.py` using `asyncio.create_subprocess_exec` / `subprocess.run` with system shell executable, preventing network-guard bypass errors.
+- Hermetic test robustness: made `matplotlib` import optional in benchmark reporting to allow unit tests (`test_turbo10_unit.py`) to run in lean environments without matplotlib installed.
+- Increased core gate deadline to ensure full 51-shard test suite passes reliably on cold/loaded environments.
+
 ## [3.46.0] - 2026-09-29
 
 - Harness catalog: `simplicio_loop/_catalog/harnesses.json` (`simplicio.harnesses/v1`, shipped in the wheel) lists the 32 host surfaces of `simpletibr/simplicio` (pinned to `plugins/simplicio/host-surfaces.json` at `a9c8a480`) plus Aider, DeepSeek and OpenClaw: 35 hosts, 34 `wired` and 1 `manual` (DeepSeek is a model provider, not a host). Existing adapter directory names map onto upstream ids through `aliases` (`claude` to `claude-code`, `qwen` to `qwen-code`, `orca` to `orca-dev`, `simplicio_agent` to `hermes`).

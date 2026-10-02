@@ -1,0 +1,13 @@
+{
+  "trace": "overload",
+  "description": "Same conflict-free candidates before and after a capacity signal rises; recommended_concurrency must shrink (multiplicative decrease), not stay fixed.",
+  "candidates": [
+    {"id": "task-a", "reads": ["fileA"], "writes": ["fileA"]},
+    {"id": "task-b", "reads": ["fileB"], "writes": ["fileB"]},
+    {"id": "task-c", "reads": ["fileC"], "writes": ["fileC"]}
+  ],
+  "ticks": [
+    {"acs_open": 1, "verifiers_failed": 0, "effects_unverified": 0, "backlog": 0, "retry_amplification": 0.0, "state_signature": "calm", "capacity_signal": {"errors_rising": false, "queue_rising": false, "memory_rising": false, "io_rising": false}},
+    {"acs_open": 1, "verifiers_failed": 0, "effects_unverified": 0, "backlog": 0, "retry_amplification": 0.0, "state_signature": "calm", "capacity_signal": {"errors_rising": true, "queue_rising": false, "memory_rising": false, "io_rising": false}}
+  ]
+}

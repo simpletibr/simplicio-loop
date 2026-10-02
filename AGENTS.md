@@ -142,7 +142,7 @@ Execution is always standalone; there is no Runtime/MCP backend.
 
 ## Extension points (bind native when available)
 
-The skill defines **48 named extension points** (see the Step 1b table in `SKILL.md`).
+The skill defines **50 named extension points** (see the Step 1b table in `SKILL.md`).
 For each point, if this runtime exposes a faster native capability, **bind it** —
 the step becomes deterministic and near-zero-token. The skill never requires a specific
 runtime; the binding lives here in the host, not in the skill.

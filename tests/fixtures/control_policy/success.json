@@ -1,0 +1,9 @@
+{
+  "trace": "success",
+  "description": "A solvable run: ACs close and verifiers/effects clear monotonically.",
+  "ticks": [
+    {"acs_open": 3, "verifiers_failed": 1, "effects_unverified": 1, "backlog": 2, "retry_amplification": 1.0, "state_signature": "s1"},
+    {"acs_open": 1, "verifiers_failed": 0, "effects_unverified": 0, "backlog": 1, "retry_amplification": 1.0, "state_signature": "s2"},
+    {"acs_open": 0, "verifiers_failed": 0, "effects_unverified": 0, "backlog": 0, "retry_amplification": 0.0, "state_signature": "s3"}
+  ]
+}

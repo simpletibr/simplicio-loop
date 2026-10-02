@@ -172,6 +172,9 @@ def _dev_cli_bin() -> str:
         return candidate
     found = shutil.which("simplicio-dev-cli")
     if not found:
+        for fallback in ("/usr/local/bin/simplicio-dev-cli", os.path.expanduser("~/.local/bin/simplicio-dev-cli")):
+            if os.path.isfile(fallback):
+                return fallback
         raise RuntimeError("simplicio-dev-cli is not installed")
     return found
 
