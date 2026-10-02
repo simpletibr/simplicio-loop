@@ -79,7 +79,7 @@
   /* State lamps: every state also has its own shape (see base.js), never colour alone. */
   --sl-state-running: light-dark(#0a6a92, #6ccff6);
   --sl-state-pass: light-dark(#1b7a44, #57d68d);
-  --sl-state-fail: light-dark(#b62828, #ff6b6b);
+  --sl-state-fail: light-dark(#b62828, #ff8080);
   --sl-state-unverified: light-dark(#835b00, #f4c55b);
   --sl-state-stalled: light-dark(#6b3fb8, #c3a1ff);
   --sl-state-blocked: light-dark(#a64200, #ff9254);

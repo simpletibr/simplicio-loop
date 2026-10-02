@@ -104,10 +104,10 @@ export class SlStageRail extends SlElement {
     const note = m.doneWithoutReceipt
       ? `<p class="note">Sem recibo de conclusão com ready: true, então o progresso fica abaixo de 100%.</p>`
       : !m.offRail && reason ? `<p class="note">${esc(reason)}</p>` : "";
-    return `<section class="rail" part="rail" aria-label="${esc(this.getAttribute("label") || "Fases do run")}">
+    return `<div class="rail" part="rail" role="group" aria-label="${esc(this.getAttribute("label") || "Fases do run")}">
 <p class="now" data-state="${m.current}"><span class="emoji" aria-hidden="true">${meta.icon}</span>` +
       `<span class="label">${esc(meta.label)}</span><span class="state-text">${STATES[m.current]}</span>${pct}</p>
-<ol class="track" data-css="--n:${m.stations.length}">${stations}</ol>${siding}${note}</section>`;
+<ol class="track" data-css="--n:${m.stations.length}">${stations}</ol>${siding}${note}</div>`;
   }
 }
 

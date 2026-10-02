@@ -29,16 +29,16 @@ input[type="search"] { font: inherit; color: var(--sl-ink); background: var(--sl
 .seg button[aria-pressed="true"] { background: var(--sl-ink); color: var(--sl-panel); }
 .follow { margin-inline-start: auto; }
 .count { font-size: var(--sl-step--2); color: var(--sl-ink-muted); }
-ol { list-style: none; margin: 0; padding: var(--sl-space-2) 0; max-block-size: var(--sl-log-height, 22em); overflow: auto;
+.lines { margin: 0; padding: var(--sl-space-2) 0; max-block-size: var(--sl-log-height, 22em); overflow: auto;
   font-family: var(--sl-font-mono); font-size: var(--sl-step--1); line-height: 1.5; }
-li { display: grid; grid-template-columns: 6.5em 4.5em minmax(0, 1fr); gap: var(--sl-space-3); padding: 1px var(--sl-space-4); }
-li[data-level="error"] { background: color-mix(in srgb, var(--sl-state-fail) 12%, transparent); }
-li[data-level="warn"] { background: color-mix(in srgb, var(--sl-state-unverified) 10%, transparent); }
+.line { display: grid; grid-template-columns: 6.5em 4.5em minmax(0, 1fr); gap: var(--sl-space-3); padding: 1px var(--sl-space-4); }
+.line[data-level="error"] { background: color-mix(in srgb, var(--sl-state-fail) 12%, transparent); }
+.line[data-level="warn"] { background: color-mix(in srgb, var(--sl-state-unverified) 10%, transparent); }
 .ts { color: var(--sl-ink-muted); }
 .lvl { font-weight: var(--sl-weight-strong); }
-li[data-level="error"] .lvl { color: var(--sl-state-fail); }
-li[data-level="warn"] .lvl { color: var(--sl-state-unverified); }
-li[data-level="debug"] .lvl, li[data-level="info"] .lvl { color: var(--sl-ink-muted); }
+.line[data-level="error"] .lvl { color: var(--sl-state-fail); }
+.line[data-level="warn"] .lvl { color: var(--sl-state-unverified); }
+.line[data-level="debug"] .lvl, .line[data-level="info"] .lvl { color: var(--sl-ink-muted); }
 .msg { white-space: pre-wrap; overflow-wrap: anywhere; }
 .src { color: var(--sl-ink-muted); }
 mark { background: var(--sl-state-unverified); color: var(--sl-on-lamp); border-radius: 2px; }
@@ -65,7 +65,7 @@ mark { background: var(--sl-state-unverified); color: var(--sl-on-lamp); border-
 <label>Filtrar <input type="search" placeholder="texto ou fonte"></label>
 <div class="seg" role="group" aria-label="Nível">${FILTERS.map(([k, t]) => `<button type="button" data-filter="${k}" aria-pressed="${k === this._filter}">${t}</button>`).join("")}</div>
 <label class="follow"><input type="checkbox" class="follow-box"> Seguir o fim</label><span class="count" aria-live="polite"></span></div>
-<ol tabindex="0" role="log" aria-label="${label}"></ol></div>`;
+<div class="lines" tabindex="0" role="log" aria-label="${label}"></div></div>`;
       const root = this.shadowRoot;
       root.querySelector("input[type=search]").addEventListener("input", (e) => { this._query = e.target.value; this._renderLines(); });
       root.querySelector(".seg").addEventListener("click", (e) => {
@@ -78,7 +78,7 @@ mark { background: var(--sl-state-unverified); color: var(--sl-on-lamp); border-
       root.querySelector(".follow-box").addEventListener("change", (e) => this.toggleAttribute("follow", e.target.checked));
     }
     this.shadowRoot.querySelector(".follow-box").checked = this.hasAttribute("follow");
-    this.shadowRoot.querySelector("ol").setAttribute("aria-label", this.getAttribute("label") || "Log");
+    this.shadowRoot.querySelector(".lines").setAttribute("aria-label", this.getAttribute("label") || "Log");
     this._renderLines();
   }
 
@@ -91,7 +91,7 @@ mark { background: var(--sl-state-unverified); color: var(--sl-on-lamp); border-
   }
 
   _renderLines() {
-    const ol = this.shadowRoot.querySelector("ol");
+    const ol = this.shadowRoot.querySelector(".lines");
     if (!ol) return;
     const q = this._query.trim();
     const hi = (text) => {
@@ -106,9 +106,9 @@ mark { background: var(--sl-state-unverified); color: var(--sl-on-lamp); border-
     };
     const lines = this.visibleLines;
     ol.innerHTML = lines.length
-      ? lines.map((l) => `<li data-level="${l.level}"><span class="ts">${esc(l.ts)}</span><span class="lvl">${LEVELS[l.level]}</span>` +
-        `<span class="msg">${l.source ? `<span class="src">${esc(l.source)} </span>` : ""}${hi(l.text)}</span></li>`).join("")
-      : `<li class="empty">Nenhuma linha corresponde ao filtro. Limpe a busca ou escolha "Tudo".</li>`;
+      ? lines.map((l) => `<div class="line" data-level="${l.level}"><span class="ts">${esc(l.ts)}</span><span class="lvl">${LEVELS[l.level]}</span>` +
+        `<span class="msg">${l.source ? `<span class="src">${hi(l.source)} </span>` : ""}${hi(l.text)}</span></div>`).join("")
+      : `<p class="empty">Nenhuma linha corresponde ao filtro. Limpe a busca ou escolha "Tudo".</p>`;
     this.shadowRoot.querySelector(".count").textContent = `${lines.length} linhas`;
     if (this.hasAttribute("follow")) ol.scrollTop = ol.scrollHeight;
   }

@@ -79,14 +79,14 @@ tr.r-hunk td, tr.r-meta td { color: var(--sl-ink-muted); background: color-mix(i
     const files = parseUnifiedDiff(this.diff);
     if (!files.length) return `<p class="empty">Sem alterações neste passo.</p>`;
     const label = this.getAttribute("label") || "Diff";
-    return files.map((f) => `<section class="file" aria-label="${esc(f.name)}"><p class="head"><span class="name">${esc(f.name)}</span>` +
+    return files.map((f) => `<div class="file" role="group" aria-label="${esc(f.name)}"><p class="head"><span class="name">${esc(f.name)}</span>` +
       `<span class="add">+${f.add}<span class="sr-only"> linhas adicionadas</span></span><span class="del">−${f.del}<span class="sr-only"> linhas removidas</span></span></p>` +
       `<div class="scroll" tabindex="0" role="region" aria-label="${esc(label)}: ${esc(f.name)}"><table><tbody>${f.rows.map((r) =>
         r.kind === "hunk" || r.kind === "meta"
           ? `<tr class="r-${r.kind}"><td colspan="4">${esc(r.text)}</td></tr>`
           : `<tr class="r-${r.kind}"><td class="no">${r.oldNo ?? ""}</td><td class="no">${r.newNo ?? ""}</td>` +
             `<td class="mk" aria-hidden="true">${MARK[r.kind]}</td><td class="code">${SR[r.kind] ? `<span class="sr-only">${SR[r.kind]}: </span>` : ""}${esc(r.text)}</td></tr>`
-      ).join("")}</tbody></table></div></section>`).join("");
+      ).join("")}</tbody></table></div></div>`).join("");
   }
 }
 
