@@ -24,6 +24,8 @@ any skill/doc invoker), **legacy** (superseded, kept for compatibility/history).
 | `claims_audit.py` | `check.py` | active |
 | `claims_manifest.py` | imported by `claims_audit.py` (quantitative-claims registry) | active |
 | `check_loop_contract.py` | `check.py` | active |
+| `check_dashboard_event_contract.py` | `check.py` — `simplicio.dashboard-event/v1` schema + producer-fixture drift gate (#1398) | active |
+| `dashboard_events.py` | runner, hooks and workers — `simplicio.dashboard-event/v1` emitter, reader and retroactive adapter (#1398); `docs/DASHBOARD_EVENTS.md` | active |
 | `mirror_parity.py` | `check.py` — source/bundle/plugin parity is a distinct fail-closed phase | active |
 | `clean_env_contract.py` | `check.py` — installed package metadata/entrypoint/bundle contract | active |
 | `conformance_suite.py` | `check.py` — portable graph/receipt validation only; never claims an external runtime executed | active |
