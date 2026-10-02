@@ -287,6 +287,9 @@ def _parse(args):
 
 def main():
     argv = sys.argv[1:]
+    if argv and argv[0] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0)
     if not argv or argv[0] not in VERBS:
         print(__doc__)
         sys.exit(2)

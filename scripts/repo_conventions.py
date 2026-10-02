@@ -638,6 +638,9 @@ def main():
     if not argv:
         print(__doc__)
         sys.exit(2)
+    if argv[0] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0)
     sub, opts = argv[0], _parse(argv[1:])
     {"learn": cmd_learn, "show": cmd_show, "branch": cmd_branch,
      "commit": cmd_commit, "selftest": cmd_selftest}.get(

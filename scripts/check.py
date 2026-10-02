@@ -636,6 +636,10 @@ def main():
     args = [a for a in args if a != "--full"]
     package_mode = package_arg is not None or changed_mode
 
+    if "-h" in args or "--help" in args:
+        print(__doc__)
+        sys.exit(0)
+
     supported_flags = {
         "--core-gate", "--audit-only", "--tests-only", "--mirror-parity-only",
         "--loop-contract-only", "--clean-env-only", "--token-budget", "--repo-budget",

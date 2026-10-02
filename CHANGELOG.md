@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.47.0] - 2026-10-02
+
+- Restore full loop protocol (pre-monorepo way of working) on the monorepo (#1392): the full loop protocol is back as the skill's entry point; turbo is a tool the operate step may use, not the skill's entry. It starts the task, describes it (goal and acceptance criteria frozen in the task anchor), decomposes it (task backlog), iterates turn by turn (triage, decide, operate, verify, journal), gates done on evidence, and delivers with PR evidence.
+- Restored v3.43 `SKILL.md` body adapted to the monorepo stack: bound operators are `packages/mapper` (`simplicio-mapper` survey) and `packages/dev-cli` (`simplicio-dev-cli` mutation) from the one wheel; state dir is `.simplicio-loop/`; all dead instructions depending on Runtime, Hub, remote workers or Fast are removed.
+- Frontmatter description stops saying "Invoking it runs simplicio-loop turbo". Pinned headers updated with `header-change: .claude/skills/simplicio-loop/SKILL.md`. The `.simplicio-loop/` gitignore line and single `SIMPLICIO-LLM-ORIENTATION` block are preserved.
+- Extension points: audited 50 named binding points restored, verified, and consistent across documentation and table count.
+- All 29 protocol scripts and commands answer `--help` with exit code 0 (`coordinator.py`, `cross_agent_wiki.py`, `hierarchical_planner.py`, `video_evidence.py`, `web_verify.py`, `worktree_cleanup.py`, `az_boards_adapter.py`, `check.py`, `repo_conventions.py`, `pr_evidence.py`, etc.).
+- Regenerated mirrors via `sync_plugin.py`, `sync_bundle.py`, and `refresh_orientation_pins.py`.
+- Updated token-budget baseline for `SKILL.md` (14,210 tokens, 7,983 words).
+- header-change: .claude/skills/simplicio-loop/SKILL.md (frontmatter description stops saying "Invoking it runs simplicio-loop turbo.")
+
 ## [3.46.1] - 2026-10-02
 
 - Restore simplicio-loop 50 extension points: restored `control_policy` and `prototype_judge` modules, unit tests, and reference documentation (`references/control-policy.md`, `references/extension-points.md`), bringing the audited extension points count from 48 back to 50.

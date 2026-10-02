@@ -594,6 +594,9 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python3 scripts/cross_agent_wiki.py capture|summary|handoff|status|selftest")
         sys.exit(1)
+    if sys.argv[1] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0)
 
     cmd = sys.argv[1]
     if cmd == "capture":

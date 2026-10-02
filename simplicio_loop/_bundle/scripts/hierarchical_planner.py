@@ -373,6 +373,9 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python3 scripts/hierarchical_planner.py plan|status|clear|phase-info|selftest")
         sys.exit(1)
+    if sys.argv[1] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0)
 
     command = sys.argv[1]
     if command == "plan":

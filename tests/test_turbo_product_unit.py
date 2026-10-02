@@ -15,6 +15,8 @@ from simplicio_loop.cli_impl import main as cli_main
 from simplicio_loop.turbo import run_turbo
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 FIXTURE = ROOT / "bench" / "llm_ab" / "fixture_hard"
 SOLUTION = ROOT / "tests" / "fixtures" / "llm_ab_hard_solution"
 HIDDEN = ROOT / "bench" / "llm_ab" / "hidden" / "check_hard.py"
@@ -158,15 +160,13 @@ def test_cli_turbo_help_names_the_key_and_the_model(capsys):
     assert "--provideropenrouter" in text and "nokey" in text
 
 
-def test_skill_orients_every_host_to_the_turbo_command():
-    """Host mode: the model plans and dev-cli applies, in two commands. No key requirement."""
+def test_skill_names_turbo_as_operate_tool():
+    """Turbo and short form stay as tools the operate step may use; no longer the skill's entry."""
     text = SKILL.read_text(encoding="utf-8")
-    flat = " ".join(text.split())
     assert 'simplicio-loop turbo --repo <path> --task "<task>"' in text and 'simplicio-loop "<task>"' in text
-    assert "--apply -" in text and "<<'PLAN'" in text and "`apply` command" in text.split("SIMPLICIO-LLM-ORIENTATION:BEGIN", 1)[1]
     block = text.split("<!-- SIMPLICIO-LLM-ORIENTATION:BEGIN -->", 1)[1].split("<!-- SIMPLICIO-LLM-ORIENTATION:END -->", 1)[0]
     assert "simplicio-loop turbo" in block and "OPENROUTER_API_KEY" not in block
-    assert "needs no API key" not in text and "There is no provider call and no API key." in flat
+    assert "Invoking it runs simplicio-loop turbo" not in text
     assert "The host LLM writes find/replace text" not in text
     assert "edit-plan-<N>.json" not in text
 

@@ -424,6 +424,9 @@ def main():
     if not argv:
         print(__doc__)
         sys.exit(2)
+    if argv[0] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0)
     if argv[0] == "--describe-cli":
         print(json.dumps({
             "verbs": ["decide", "survey", "selftest"],

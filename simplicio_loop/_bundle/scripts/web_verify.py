@@ -270,6 +270,9 @@ def main():
     if not argv:
         print(__doc__)
         sys.exit(2)
+    if argv[0] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0)
     sub, opts = argv[0], _parse(argv[1:])
     {"detect": cmd_detect, "run": cmd_run, "verify": cmd_verify}.get(
         sub, lambda _o: (print("unknown command '%s'. choices: detect run verify" % sub),
