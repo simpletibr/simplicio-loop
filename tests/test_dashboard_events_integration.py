@@ -272,6 +272,27 @@ def test_loop_stop_refeed_emits_iteration_events(tmp_path):
     assert kinds[-2:] == [("iteration_finished", 2), ("iteration_started", 3)]
 
 
+def test_loop_stop_emits_stall_detected_on_a_three_turn_failure_streak(tmp_path):
+    run_dir = tmp_path / "run-hook"
+    run_dir.mkdir()
+    loop_dir = tmp_path / ".simplicio-loop" / "orchestrator" / "loop"
+    loop_dir.mkdir(parents=True)
+    (loop_dir / "scratchpad.md").write_text(
+        "---\niteration: 4\nmax_iterations: 10\ncompletion_promise: null\n---\nDo the task.\n",
+        encoding="utf-8")
+    (loop_dir / "journal.jsonl").write_text("".join(
+        json.dumps({"iteration": n, "gate": "fail", "fingerprint": "pytest:test_x"}) + "\n"
+        for n in (2, 3, 4)), encoding="utf-8")
+    result = subprocess.run([sys.executable, str(HOOKS / "loop_stop.py")], input="{}",
+                            cwd=str(tmp_path), env=_hook_env(run_dir), capture_output=True, text=True,
+                            timeout=120)
+    assert result.returncode == 0, result.stderr
+    stalls = [e for e in de.read_live_events(run_dir) if e["kind"] == "stall_detected"]
+    assert len(stalls) == 1
+    assert stalls[0]["payload"] == {"fingerprint": "pytest:test_x", "streak": 3}
+    assert stalls[0]["severity"] == "warning" and stalls[0]["iteration"] == 4
+
+
 def test_loop_stop_cap_emits_a_blocked_iteration_finished(tmp_path):
     run_dir = tmp_path / "run-hook"
     run_dir.mkdir()
