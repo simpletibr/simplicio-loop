@@ -101,3 +101,15 @@ def test_check_py_runs_the_dashboard_events_phase():
     assert "def run_dashboard_events_contract" in source
     assert "check_dashboard_event_contract.py" in source
     assert "dashboard-events=" in source
+
+
+def test_drift_gate_write_regenerates_fixtures_that_then_pass(tmp_path):
+    out = tmp_path / "regenerated"
+    written = _run(GATE, "--write", "--fixtures", out)
+    assert written.returncode == 0, written.stdout + written.stderr
+    shutil.copy(FIXTURES / "invalid.jsonl", out / "invalid.jsonl")
+    for name in ("runner-lifecycle.jsonl", "hook-events.jsonl", "derived-legacy-run.jsonl"):
+        assert len((out / name).read_text(encoding="utf-8").splitlines()) == \
+            len((FIXTURES / name).read_text(encoding="utf-8").splitlines())
+    result = _run(GATE, "--fixtures", out)
+    assert result.returncode == 0, result.stdout + result.stderr
