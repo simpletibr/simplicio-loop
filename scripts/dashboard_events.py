@@ -641,8 +641,9 @@ def specs_from_runner_event(event, state=None, run_dir=None):
         "severity": severity, "payload": payload,
         "refs": _refs([event.get("receipt"), worktree.get("lock_receipt")], run_dir),
     }
-    if state.get("run_id"):
-        spec["run_id"] = state["run_id"]
+    run_id = state.get("run_id") or event.get("run_id")
+    if run_id:
+        spec["run_id"] = str(run_id)
     if event.get("ts"):
         spec["ts"] = event["ts"]
     return [spec]
@@ -914,37 +915,50 @@ def bench(events=2000, run_dir=None, warmup=50):
 def selftest():
     checks = []
     with tempfile.TemporaryDirectory() as tmp:
-        run_dir = os.path.join(tmp, "run-selftest")
-        os.makedirs(run_dir)
-        first = emit(run_dir, "run_started", source="runner", phase="intake", strict=True)
-        second = emit(run_dir, "phase_entered", source="runner", phase="intake", strict=True)
-        checks.append(("seq is contiguous", first["seq"] == 1 and second["seq"] == 2))
-        checks.append(("envelopes validate", all(not validate_envelope(e) for e in read_events(run_dir))))
-        previous = os.environ.get(ENV_SWITCH)
-        os.environ[ENV_SWITCH] = "0"
+        previous_diag = os.environ.get(ENV_DIAGNOSTICS)
+        os.environ[ENV_DIAGNOSTICS] = os.path.join(tmp, "diagnostics.jsonl")
         try:
-            checks.append(("kill switch writes nothing",
-                           emit(run_dir, "run_finished", source="runner") is None))
+            _selftest_checks(tmp, checks)
         finally:
-            if previous is None:
-                os.environ.pop(ENV_SWITCH, None)
+            if previous_diag is None:
+                os.environ.pop(ENV_DIAGNOSTICS, None)
             else:
-                os.environ[ENV_SWITCH] = previous
-        blocked = os.path.join(run_dir, "blocked")
-        os.makedirs(os.path.join(blocked, EVENTS_FILE))  # a directory: the sink cannot be opened
-        checks.append(("unwritable sink fails open",
-                       emit(blocked, "run_started", source="runner") is None))
-        legacy = os.path.join(tmp, "run-legacy")
-        os.makedirs(legacy)
-        with open(os.path.join(legacy, "transitions.jsonl"), "w", encoding="utf-8") as fh:
-            fh.write(json.dumps({"ts": "2026-01-01T00:00:00Z", "from": None, "to": "intake"}) + "\n")
-        derived = read_events(legacy)
-        checks.append(("legacy run is derived", bool(derived) and all(e.get("derived") for e in derived)))
+                os.environ[ENV_DIAGNOSTICS] = previous_diag
     ok = all(passed for _, passed in checks)
     for name, passed in checks:
         print("[%s] %s" % ("ok" if passed else "XX", name))
     print("selftest: %s" % ("pass" if ok else "FAILED"))
     return 0 if ok else 1
+
+
+def _selftest_checks(tmp, checks):
+    run_dir = os.path.join(tmp, "run-selftest")
+    os.makedirs(run_dir)
+    first = emit(run_dir, "run_started", source="runner", phase="intake", strict=True)
+    second = emit(run_dir, "phase_entered", source="runner", phase="intake", strict=True)
+    checks.append(("seq is contiguous", first["seq"] == 1 and second["seq"] == 2))
+    checks.append(("envelopes validate", all(not validate_envelope(e) for e in read_events(run_dir))))
+    previous = os.environ.get(ENV_SWITCH)
+    os.environ[ENV_SWITCH] = "0"
+    try:
+        checks.append(("kill switch writes nothing",
+                       emit(run_dir, "run_finished", source="runner") is None))
+    finally:
+        if previous is None:
+            os.environ.pop(ENV_SWITCH, None)
+        else:
+            os.environ[ENV_SWITCH] = previous
+    blocked = os.path.join(run_dir, "blocked")
+    os.makedirs(os.path.join(blocked, EVENTS_FILE))  # a directory: the sink cannot be opened
+    checks.append(("unwritable sink fails open",
+                   emit(blocked, "run_started", source="runner") is None))
+    legacy = os.path.join(tmp, "run-legacy")
+    os.makedirs(legacy)
+    with open(os.path.join(legacy, "transitions.jsonl"), "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"ts": "2026-01-01T00:00:00Z", "from": None, "to": "intake"}) + "\n")
+    derived = read_events(legacy)
+    checks.append(("legacy run is derived", bool(derived) and all(e.get("derived") for e in derived)))
+    checks.append(("failure recorded a diagnostic", os.path.isfile(os.environ[ENV_DIAGNOSTICS])))
 
 
 def _parser():

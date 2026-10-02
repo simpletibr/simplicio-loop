@@ -7,7 +7,9 @@ under each run as:
 
 - `.simplicio-loop/.../technical-debt.jsonl` — append-only observations;
 - `.simplicio-loop/.../technical-debt.json` — deduplicated current index;
-- `state.json` and `events.jsonl` — progress/status projection.
+- `state.json` — progress/status projection, and one `lane_progress` event (`payload.step:
+  technical_debt`) in the run's `simplicio.dashboard-event/v1` stream `events.jsonl`
+  ([DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md)).
 
 A repeated observation keeps one fingerprinted notice and increments `occurrences`. The notice
 contains its reason, severity, current status, and the next action required to remove the debt.
