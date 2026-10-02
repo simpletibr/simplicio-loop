@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.48.0] - 2026-10-02
+
+- Sync `packages/mapper` with simplicio-mapper v0.26.35 and the Fast unification (#1395): native SFAST v2 mmap binary snapshot engine (`store/snapshot.py`, `store/segments.py`), TurboQuant 4-bit, FWHT and Pareto scoring (`store/neural/`), PlanDAG decomposition with `understand` and `plan` (`processor.py`), strict changeset validation with `expected_sha256` (`changeset.py`).
+- New mapper CLI commands: `understand`, `plan` and `changeset`; the index engine can emit an SFAST v2 snapshot; `store/fast_link.py` supports the native Fast with no external dependencies.
+- Fix: `mapper/parse.py` handles `previous_map` whose files are a dict.
+- Tests: 62 passed, 15 subtests across the mapper suite plus the unified Fast E2E flow.
+
 ## [3.47.0] - 2026-10-02
 
 - Restore full loop protocol (pre-monorepo way of working) on the monorepo (#1392): the full loop protocol is back as the skill's entry point; turbo is a tool the operate step may use, not the skill's entry. It starts the task, describes it (goal and acceptance criteria frozen in the task anchor), decomposes it (task backlog), iterates turn by turn (triage, decide, operate, verify, journal), gates done on evidence, and delivers with PR evidence.

@@ -10,7 +10,7 @@ from typing import Any, Mapping, Sequence
 
 SCHEMA = "simplicio.host-adapter/v1"
 HOST = "grok"
-ADAPTER_VERSION = "3.47.0"
+ADAPTER_VERSION = "3.48.0"
 ALLOWED_TOOLS = frozenset({
     "simplicio_map",
     "simplicio_search",
