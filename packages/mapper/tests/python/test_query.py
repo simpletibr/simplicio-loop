@@ -19,7 +19,12 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper.cli import main  # noqa: E402
-from simplicio_mapper.query import ASK_SCHEMA, _query_cacheable_paths, run_query  # noqa: E402
+from simplicio_mapper.query import (  # noqa: E402
+    ASK_SCHEMA,
+    _cached_runtime_validation,
+    _query_cacheable_paths,
+    run_query,
+)
 
 
 def _write(base: Path, rel: str, content: str) -> None:
@@ -124,6 +129,7 @@ class PrecedentVerbTest(unittest.TestCase):
     over the in-memory precedent-index when the runtime is unavailable."""
 
     def setUp(self) -> None:
+        _cached_runtime_validation.cache_clear()
         self._tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self._tmp.name)
         _write(self.dir, "package.json", json.dumps({"name": "precedent-app"}))
@@ -133,6 +139,7 @@ class PrecedentVerbTest(unittest.TestCase):
         _write(self.dir, "src/api/routes.py", "router.get('/x')\ndef handler():\n    return 1\n")
 
     def tearDown(self) -> None:
+        _cached_runtime_validation.cache_clear()
         self._tmp.cleanup()
 
     def test_native_runtime_used_when_binary_on_path(self) -> None:

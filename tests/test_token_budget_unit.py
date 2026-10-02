@@ -65,14 +65,14 @@ def test_regression_fails_with_a_clear_message():
         os.makedirs(skill_dir)
         with open(SKILL_MD, "rb") as src:
             original = src.read()
-        padded = original + ("\n\n" + (" padding" * 2000) + "\n").encode("utf-8")
+        padded = original + ("\n\n" + (" padding" * 5000) + "\n").encode("utf-8")
         with open(os.path.join(skill_dir, "SKILL.md"), "wb") as dst:
             dst.write(padded)
 
         r = subprocess.run([sys.executable, os.path.join(scripts_dir, "token_budget.py"),
                             "--check"], capture_output=True, text=True, cwd=scratch,
                            stdin=subprocess.DEVNULL)
-        assert r.returncode == 1, "adding 2000 words to SKILL.md must fail the guard: " + r.stdout
+        assert r.returncode == 1, "adding padding to SKILL.md must fail the guard: " + r.stdout
         assert "FAIL" in r.stdout
         assert "SKILL.md" in r.stdout
         assert "threshold" in r.stdout

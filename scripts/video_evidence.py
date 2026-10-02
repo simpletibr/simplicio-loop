@@ -454,6 +454,9 @@ def main():
     if not argv:
         print(__doc__)
         sys.exit(2)
+    if argv[0] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0)
     sub, opts = argv[0], _parse(argv[1:])
     {"detect": cmd_detect, "scaffold": cmd_scaffold, "render": cmd_render,
      "lint": cmd_lint, "record": cmd_record, "verify": cmd_verify}.get(

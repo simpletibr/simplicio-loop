@@ -835,6 +835,9 @@ def main():
     if not argv:
         print(__doc__)
         sys.exit(2)
+    if argv[0] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0)
     # --describe-cli: emit JSON spec of accepted verbs + flags
     if argv[0] == "--describe-cli":
         import json
