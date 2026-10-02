@@ -443,9 +443,22 @@ def _hbp_append_gate_blocked(reason, cmd=""):
         pass
 
 
+def _dashboard_gate_blocked(reason):
+    """#1398: record the BLOCK as a `gate_evaluated` dashboard event (gate=action). Fail-open and
+    after the decision: the command text is never recorded, only the reason."""
+    try:
+        import _dashboard_emit
+        _dashboard_emit.emit("gate_evaluated", severity="warning",
+                             payload={"gate": "action", "verdict": "blocked",
+                                      "reason": (reason or "")[:300]})
+    except Exception:
+        pass
+
+
 def _emit_and_exit(verdict, pretooluse=False, cmd=""):
     if verdict["action"] == "block":
         _hbp_append_gate_blocked(verdict.get("reason", ""), cmd)
+        _dashboard_gate_blocked(verdict.get("reason", ""))
         if pretooluse:
             # Claude PreToolUse: exit 2 blocks the call; reason on stderr is fed back to the model.
             sys.stderr.write("action_gate BLOCK — " + verdict["reason"] + "\n")

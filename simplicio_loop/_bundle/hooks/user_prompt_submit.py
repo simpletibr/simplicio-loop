@@ -22,6 +22,23 @@ if str(ROOT) not in sys.path:
 from adapters.claude.adapter import decide  # noqa: E402
 
 
+def _dashboard_prompt_event(event: dict, decision: dict) -> None:
+    """#1398: an operator prompt starts a new turn -> `iteration_started` (source=operator).
+    The prompt text is never recorded, only its size. Fail-open."""
+    try:
+        import _dashboard_emit
+
+        prompt = str(event.get("prompt") or event.get("user_prompt") or "")
+        blocked = decision.get("decision") == "block"
+        _dashboard_emit.emit(
+            "iteration_started", source="operator", severity="warning" if blocked else "info",
+            payload={"trigger": "user_prompt", "decision": str(decision.get("decision") or ""),
+                     "reason": str(decision.get("reason") or ""), "prompt_chars": len(prompt)},
+        )
+    except Exception:
+        pass
+
+
 def main() -> int:
     try:
         event = json.loads(sys.stdin.read() or "{}")
@@ -29,6 +46,7 @@ def main() -> int:
         event = {}
     event.setdefault("hook_event_name", "UserPromptSubmit")
     decision = decide(event)
+    _dashboard_prompt_event(event, decision)
     print(json.dumps(decision, ensure_ascii=False))
     return 0 if decision.get("decision") != "block" else 2
 

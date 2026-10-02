@@ -14,7 +14,8 @@ No behavior of its own — pure data, imported by `sync_plugin.py` and `claims_a
 # loop_stop (Stop) · action_gate/orient_rewrite (PreToolUse) · orient_clamp (orient_rewrite shells
 # out to it) · hooks.claude.json (the wiring) · pre-commit.py (auto-sync, #98).
 LEAN_HOOKS = ["loop_stop.py", "action_gate.py", "orient_rewrite.py", "user_prompt_submit.py",
-              "orient_clamp.py", "hooks.claude.json", "pre-commit.py"]
+              "orient_clamp.py", "hooks.claude.json", "pre-commit.py",
+              "_dashboard_emit.py"]
 
 # Every scripts/<name>.py the simplicio-loop SKILL.md normative protocol actually shells out to,
 # plus their same-directory transitive imports (_locked_append/toon_codec/agent_identity) — the
@@ -27,6 +28,7 @@ LEAN_SCRIPTS = [
     "pr_dod_review.py", "route_mode.py", "task_anchor.py", "task_backlog.py",
     "test_infra_probe.py", "video_evidence.py", "watcher_verify.py", "web_verify.py",
     "worktree_cleanup.py", "_locked_append.py", "toon_codec.py", "agent_identity.py",
+    "dashboard_events.py",
 ]
 
 # Minimal parity coverage for the shipped loop/runtime helpers — mirrored into both
