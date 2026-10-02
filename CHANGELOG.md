@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- Dashboard telemetry contract `simplicio.dashboard-event/v1` (#1398, epic #1397): `contracts/dashboard-event/v1/schema.json` + `SCHEMA.md` pin one envelope (`schema, event_id (ULID), seq, ts, run_id, task_id, scope, source, kind, phase, lane, iteration, severity, payload, refs, producer_version`) and the kind catalog. `scripts/dashboard_events.py` (stdlib, Python 3.8+) appends to `<run_dir>/events.jsonl` under an exclusive lock with a gap-free per-run `seq`, redacts secret-like payload keys/values, truncates payloads over 32 KiB, rotates by size and never raises into a producer (diagnostics on stderr and in a JSONL file). The runner (`_transition`, `_emit_event`, `arm_run`), `technical_debt`, and the `action_gate`, `user_prompt_submit` and `loop_stop` hooks emit through it; runs without the stream are rebuilt from `transitions.jsonl` and `state.json` as `derived: true` events. Measured overhead p95 0.16 ms per event (no fsync; `SIMPLICIO_DASHBOARD_EVENTS_FSYNC=1` for durable appends). New gate `scripts/check_dashboard_event_contract.py` (schema + fixture drift + kind catalog) runs in `scripts/check.py`. `scripts/_locked_append.py` exposes `exclusive_lock()`. Docs: `docs/DASHBOARD_EVENTS.md`.
+
 ## [3.47.0] - 2026-10-02
 
 - Restore full loop protocol (pre-monorepo way of working) on the monorepo (#1392): the full loop protocol is back as the skill's entry point; turbo is a tool the operate step may use, not the skill's entry. It starts the task, describes it (goal and acceptance criteria frozen in the task anchor), decomposes it (task backlog), iterates turn by turn (triage, decide, operate, verify, journal), gates done on evidence, and delivers with PR evidence.

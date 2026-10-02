@@ -861,8 +861,13 @@ def derive_events(run_dir):
         ordered.append((stamp if stamp is not None else 0.0, index, spec))
     ordered.sort(key=lambda item: (item[0], item[1]))
     events = []
+    current_phase = None
     for stamp, index, spec in ordered:
         spec = dict(spec)
+        if spec["kind"] in ("run_started", "phase_entered"):
+            current_phase = spec.get("phase")
+        elif spec["kind"] not in ("phase_exited", "decision_requested", "run_finished") and current_phase:
+            spec["phase"] = current_phase  # the phase the run was in when this receipt was written
         spec["run_id"] = run_id
         spec["ts"] = format_ts(stamp)
         digest = hashlib.sha256(("%s|%d|%s" % (run_id, index, json.dumps(spec, sort_keys=True, default=str)))
