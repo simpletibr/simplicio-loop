@@ -546,7 +546,11 @@ def _group_modules(files: list[ProjectFile]) -> list[dict]:
     return result
 
 def _detect_changed_files(files: list[ProjectFile], previous_map: dict, status_map: dict, incremental: bool) -> list[str]:
-    previous = {f["path"]: f for f in previous_map.get("files", [])}
+    raw_files = previous_map.get("files", [])
+    if isinstance(raw_files, list):
+        previous = {f["path"]: f for f in raw_files if isinstance(f, dict) and "path" in f}
+    else:
+        previous = {}
     changed = {file for file, status in status_map.items() if status != "clean"}
     if incremental:
         for file in files:

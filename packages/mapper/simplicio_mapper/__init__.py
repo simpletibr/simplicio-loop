@@ -3,6 +3,6 @@
 from __future__ import annotations
 
 # Single source of the mapper component version (built into the simplicio-loop wheel).
-__version__ = "0.26.34"
+__version__ = "0.26.35"
 
 __all__ = ["__version__"]

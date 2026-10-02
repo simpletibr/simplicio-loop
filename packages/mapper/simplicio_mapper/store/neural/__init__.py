@@ -3,6 +3,8 @@
 Assets (seeds, migrations, schema) were absorbed from simplicio-runtime so
 Mapper is the SoT for offline neural SQLite. Runtime/CLI clients should point
 at the Mapper data root (SIMPLICIO_DATA_DIR) rather than a private Runtime DB.
+Now also hosts TurboQuant 4-bit, FWHT, vector contracts, semantic scoring,
+and Pareto representation policies.
 """
 
 from .bank import (
@@ -16,15 +18,111 @@ from .bank import (
     neural_status,
     seed_neural,
 )
+from .fwht import fwht
+from .fwht_turboquant import (
+    FwhtQuantizedVector,
+    dequantize_fwht,
+    quantize_fwht,
+)
+from .pareto_policy import (
+    DECISION_OWNER,
+    EXECUTION_OWNER,
+    ParetoDecision,
+    ParetoPolicy,
+    ParetoPolicyError,
+    PolicyContext,
+    Profile,
+    RepresentationCandidate,
+    RepresentationKind,
+    UserProfile,
+    decide_pareto,
+    select_representation,
+)
+from .semantic_scoring import (
+    DerivedVectorStore,
+    EmbeddingProvider,
+    InferenceBackend,
+    ModelIdentity,
+    Reranker,
+    RuntimeEmbeddingProvider,
+    SemanticBudgets,
+    SemanticScorer,
+    SemanticScoringError,
+    SourceDocument,
+    lexical_score,
+    semantic_capabilities,
+)
+from .turboquant import (
+    QuantizationError,
+    QuantizedVector,
+    RerankedCandidate,
+    approximate_candidates,
+    dequantize,
+    exact_rerank,
+    pack_nibbles,
+    quantize,
+    rotate,
+    unpack_nibbles,
+)
+from .vector_contracts import (
+    VECTOR_INDEX_SCHEMA,
+    VECTOR_QUERY_RECEIPT_SCHEMA,
+    VectorContractError,
+    validate_vector_index_manifest,
+    validate_vector_query_receipt,
+)
 
 __all__ = [
+    "DECISION_OWNER",
+    "DerivedVectorStore",
+    "EXECUTION_OWNER",
+    "EmbeddingProvider",
+    "FwhtQuantizedVector",
+    "InferenceBackend",
+    "ModelIdentity",
     "NEURAL_API_SCHEMA",
     "NEURAL_DB_NAME",
     "NeuralBankError",
+    "ParetoDecision",
+    "ParetoPolicy",
+    "ParetoPolicyError",
+    "PolicyContext",
+    "Profile",
+    "QuantizationError",
+    "QuantizedVector",
+    "RepresentationCandidate",
+    "RepresentationKind",
+    "RerankedCandidate",
+    "Reranker",
+    "RuntimeEmbeddingProvider",
+    "SemanticBudgets",
+    "SemanticScorer",
+    "SemanticScoringError",
+    "SourceDocument",
+    "UserProfile",
+    "VECTOR_INDEX_SCHEMA",
+    "VECTOR_QUERY_RECEIPT_SCHEMA",
+    "VectorContractError",
     "absorb_runtime_neural",
     "apply_migrations",
+    "approximate_candidates",
     "bootstrap_neural",
+    "decide_pareto",
+    "dequantize",
+    "dequantize_fwht",
+    "exact_rerank",
+    "fwht",
+    "lexical_score",
     "neural_database_path",
     "neural_status",
+    "pack_nibbles",
+    "quantize",
+    "quantize_fwht",
+    "rotate",
     "seed_neural",
+    "select_representation",
+    "semantic_capabilities",
+    "unpack_nibbles",
+    "validate_vector_index_manifest",
+    "validate_vector_query_receipt",
 ]

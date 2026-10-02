@@ -22,6 +22,11 @@ from .connection import (
     StoreMissingError,
     WriterIdentity,
 )
+from .fast_link import (
+    FAST_LINK_SCHEMA,
+    ensure_repo_fast_artifacts,
+    mapper_fast_status,
+)
 from .health import (
     CAPACITY_SCHEMA,
     DOCTOR_SCHEMA,
@@ -110,6 +115,20 @@ from .semantic import (
     SEMANTIC_SCHEMA,
     SemanticStore,
     SemanticStoreError,
+)
+from .snapshot import (
+    BuildMetrics,
+    ContextSpan,
+    CorruptSnapshotError,
+    Relation,
+    Snapshot,
+    SnapshotError,
+    Symbol,
+    build_snapshot,
+    build_snapshot_from_artifacts,
+    compile_mapper_artifacts,
+    is_snapshot_valid,
+    load_snapshot_safe,
 )
 from .status import inspect_store
 from .transactions import (
@@ -270,4 +289,19 @@ __all__ = [
     "resolve_project_slug",
     "resolve_scoped_layout",
     "sanitize_project_slug",
+    "FAST_LINK_SCHEMA",
+    "ensure_repo_fast_artifacts",
+    "mapper_fast_status",
+    "BuildMetrics",
+    "ContextSpan",
+    "CorruptSnapshotError",
+    "Relation",
+    "Snapshot",
+    "SnapshotError",
+    "Symbol",
+    "build_snapshot",
+    "build_snapshot_from_artifacts",
+    "compile_mapper_artifacts",
+    "is_snapshot_valid",
+    "load_snapshot_safe",
 ]

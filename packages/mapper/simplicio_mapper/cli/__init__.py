@@ -127,6 +127,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ._snapshot import run_snapshot_cli
 
         return run_snapshot_cli(argv[1:])
+    if argv and argv[0] == "understand":
+        from ..processor import run_understand_cli
+
+        return run_understand_cli(argv[1:])
+    if argv and argv[0] == "plan":
+        from ..processor import run_plan_cli
+
+        return run_plan_cli(argv[1:])
+    if argv and argv[0] == "changeset":
+        from ..changeset import run_changeset_cli
+
+        return run_changeset_cli(argv[1:])
     if argv and argv[0] == "contracts":
         from ..contract_registry import run_contracts_cli
 
