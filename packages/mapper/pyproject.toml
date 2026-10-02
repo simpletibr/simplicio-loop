@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 # Component identity only: shipped inside the single simplicio-loop wheel, never published on its own.
 [project]
 name = "simplicio-mapper"
-version = "0.26.34"
+version = "0.26.35"
 description = "Python-first project mapper that emits .simplicio-loop/project-map.json and precedent-index.json for the Simplicio ecosystem."
 readme = "PYPI.md"
 requires-python = ">=3.10"

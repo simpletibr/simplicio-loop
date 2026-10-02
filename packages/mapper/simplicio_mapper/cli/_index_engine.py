@@ -142,6 +142,22 @@ def _run_once(opts: dict) -> dict:
         root=root,
     )
     write_retrieval_index(root, opts["out"], retrieval_index)
+    # Generate SFAST v2 binary snapshot from canonical AST artifacts (Issue #652)
+    try:
+        from ..store.snapshot import build_snapshot_from_artifacts
+
+        sfast_path = os.path.join(artifact_root, "project.sfast")
+        build_snapshot_from_artifacts(
+            root,
+            artifacts={
+                "project_map": project_map,
+                "symbol_index": symbol_index,
+                "call_graph": call_graph,
+            },
+            output=sfast_path,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log(f"-> fast snapshot generation failed (degraded): {exc}")
     # History snapshots (.simplicio-loop/history/*.json) are always cheap JSON and
     # never create a docs/ directory on their own. The changelog markdown is
     # only appended when docs are actually being rendered for this run, so
@@ -418,6 +434,9 @@ def _index_result(
         candidate_path = os.path.join(os.path.abspath(os.path.join(root, out)), "execution-plan.json")
         if os.path.exists(candidate_path):
             payload["paths"]["execution_plan"] = candidate_path.replace(os.sep, "/")
+    sfast_candidate = os.path.join(os.path.abspath(os.path.join(root, out)), "project.sfast")
+    if os.path.exists(sfast_candidate):
+        payload["paths"]["fast_snapshot"] = sfast_candidate.replace(os.sep, "/")
     return payload
 
 
