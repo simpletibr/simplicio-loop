@@ -1,7 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [3.48.0] - 2026-10-02
 
+- Sync `packages/mapper` with simplicio-mapper v0.26.35 and the Fast unification (#1395): native SFAST v2 mmap binary snapshot engine (`store/snapshot.py`, `store/segments.py`), TurboQuant 4-bit, FWHT and Pareto scoring (`store/neural/`), PlanDAG decomposition with `understand` and `plan` (`processor.py`), strict changeset validation with `expected_sha256` (`changeset.py`).
+- New mapper CLI commands: `understand`, `plan` and `changeset`; the index engine can emit an SFAST v2 snapshot; `store/fast_link.py` supports the native Fast with no external dependencies.
+- Fix: `mapper/parse.py` handles `previous_map` whose files are a dict.
+- Tests: 62 passed, 15 subtests across the mapper suite plus the unified Fast E2E flow.
 - Dashboard telemetry contract `simplicio.dashboard-event/v1` (#1398, epic #1397): `contracts/dashboard-event/v1/schema.json` + `SCHEMA.md` pin one envelope (`schema, event_id (ULID), seq, ts, run_id, task_id, scope, source, kind, phase, lane, iteration, severity, payload, refs, producer_version`) and the kind catalog. `scripts/dashboard_events.py` (stdlib, Python 3.8+) appends to `<run_dir>/events.jsonl` under an exclusive lock with a gap-free per-run `seq`, redacts secret-like payload keys/values, truncates payloads over 32 KiB, rotates by size and never raises into a producer (diagnostics on stderr and in a JSONL file). The runner (`_transition`, `_emit_event`, `arm_run`), `technical_debt`, and the `action_gate`, `user_prompt_submit` and `loop_stop` hooks emit through it; runs without the stream are rebuilt from `transitions.jsonl` and `state.json` as `derived: true` events. Measured overhead p95 0.16 ms per event (no fsync; `SIMPLICIO_DASHBOARD_EVENTS_FSYNC=1` for durable appends). New gate `scripts/check_dashboard_event_contract.py` (schema + fixture drift + kind catalog) runs in `scripts/check.py`. `scripts/_locked_append.py` exposes `exclusive_lock()`. Docs: `docs/DASHBOARD_EVENTS.md`.
 
 ## [3.47.0] - 2026-10-02
