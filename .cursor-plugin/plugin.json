@@ -1,7 +1,7 @@
 {
   "name": "simplicio-loop",
   "displayName": "simplicio-loop \u2014 Universal Looping AI Orchestrator",
-  "version": "3.46.0",
+  "version": "3.46.1",
   "description": "Super-plugin: /simplicio-loop is the unified public entrypoint for core + hardened loop, draining any queue of work end-to-end on any runtime \u2014 discover\u2192implement\u2192verify\u2192merge\u2192close\u2192watch 24/7 \u2014 with evidence-gated completion, bounded iterations, token economy, and adversarial review.",
   "author": {
     "name": "Wesley Simplicio",

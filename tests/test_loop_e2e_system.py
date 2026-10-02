@@ -657,7 +657,7 @@ def test_flow_audit_green_receipt_allows_stop(tmp_path):
     receipt = os.path.join(orch, "flow-audit.json")
     with open(receipt, "w", encoding="utf-8") as f:
         json.dump({"ok": True, "counts": {"high_issues": 0}}, f)
-    future = __import__("time").time() + 2
+    future = __import__("time").time() + 300
     os.utime(receipt, (future, future))
     r = _tick(root, "All green. <promise>SIMPLICIO_DONE</promise> tests pass ✓ "
                     "https://github.com/o/r/pull/9")

@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Dict, Iterable, Mapping
@@ -78,8 +79,9 @@ def _missing(lane: str) -> Dict[str, str]:
 
 
 def _run(command: str, repo: Path, log: Path) -> tuple[bool, str]:
+    sh_bin = shutil.which("sh") or "/bin/sh"
     try:
-        done = subprocess.run(command, shell=True, cwd=str(repo), capture_output=True, text=True,
+        done = subprocess.run([sh_bin, "-c", command], cwd=str(repo), capture_output=True, text=True,
                               timeout=LANE_TIMEOUT_SECONDS, stdin=subprocess.DEVNULL)
         output, ok = (done.stdout or "") + (done.stderr or ""), done.returncode == 0
         header = f"$ {command}\nexit={done.returncode}\n"

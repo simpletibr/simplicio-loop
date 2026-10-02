@@ -17,10 +17,13 @@ import aggregate as agg  # noqa: E402
 import cost as bench_cost  # noqa: E402
 import verdict as bench_verdict  # noqa: E402
 
-import matplotlib  # noqa: E402
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+try:
+    import matplotlib  # noqa: E402
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt  # noqa: E402
+except ImportError:
+    matplotlib = None
+    plt = None
 
 ARM_COLORS = {
     "normal": "#4C72B0",
@@ -32,6 +35,8 @@ COLOR_REASONING = "#C44E52"
 
 
 def fig_to_base64(fig, dpi=110) -> str:
+    if plt is None:
+        raise RuntimeError("matplotlib is required to render charts in REPORT.html")
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)
@@ -50,6 +55,8 @@ def fmt(n, decimals=4) -> str:
 
 
 def build_charts(arms: dict) -> dict:
+    if plt is None:
+        return {}
     charts = {}
     plt.rcParams.update({"font.size": 8})
     arm_names = list(arms)

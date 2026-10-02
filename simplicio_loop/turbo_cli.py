@@ -21,6 +21,7 @@ import functools
 import json
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -92,8 +93,9 @@ def _emit(document: dict[str, Any]) -> None:
 
 def _run_verify(root: Path, command: str) -> tuple[dict[str, Any], str]:
     """Run the verify command in the repo. Returns the report and the full output."""
+    sh_bin = shutil.which("sh") or "/bin/sh"
     try:
-        proc = subprocess.run(command, shell=True, cwd=root, capture_output=True, text=True, timeout=900)  # noqa: S602
+        proc = subprocess.run([sh_bin, "-c", command], cwd=root, capture_output=True, text=True, timeout=900)  # noqa: S602
     except subprocess.TimeoutExpired:
         return {"command": command, "passed": False, "returncode": None, "output_tail": "verify timed out after 900s"}, ""
     output = (proc.stdout + proc.stderr).strip()

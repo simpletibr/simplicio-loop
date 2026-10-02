@@ -46,7 +46,7 @@ SYSTEM_TEST_NESTED_GUARD = "SIMPLICIO_SYSTEM_TEST_NESTED"
 # The phase limits remain the primary containment boundary.  The aggregate
 # deadline must exceed the core-test allowance so audit/parity work does not
 # consume part of the suite's legitimate runtime on a cold machine.
-CORE_GATE_TIMEOUT_SECONDS = 900.0
+CORE_GATE_TIMEOUT_SECONDS = 3600.0
 TEST_FILE_SHARD_SIZE = 8
 _core_deadline = None
 

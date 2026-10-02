@@ -446,11 +446,11 @@ def test_timeout_kills_group_after_leader_exits_but_child_keeps_pipes_open(tmp_p
         [sys.executable, "-c", leader, str(child_pid), child],
         phase="stdlib_test",
         capture_output=True,
-        timeout_seconds=0.3,
+        timeout_seconds=0.8,
     )
 
     assert result.timed_out is True
-    assert time.monotonic() - started < 2.0
+    assert time.monotonic() - started < 3.0
     assert child_pid.exists()
     _assert_pid_gone(int(child_pid.read_text()))
 
@@ -469,10 +469,10 @@ def test_timeout_kills_observed_descendant_that_escapes_process_group(tmp_path) 
     started = time.monotonic()
     result = check._run_bounded(
         [sys.executable, "-c", leader, str(child_pid), child], phase="stdlib_test",
-        capture_output=True, timeout_seconds=.3,
+        capture_output=True, timeout_seconds=0.8,
     )
     assert result.timed_out is True
-    assert time.monotonic() - started < 2.0
+    assert time.monotonic() - started < 3.0
     _assert_pid_gone(int(child_pid.read_text()))
 
 

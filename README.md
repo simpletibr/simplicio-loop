@@ -10,7 +10,7 @@
   <a href="#-the-7-skills--5-accelerators"><img src="https://img.shields.io/badge/skills-7-7C3AED" alt="7 skills"></a>
   <a href="#-source-adapters"><img src="https://img.shields.io/badge/source%20adapters-5-00E08A" alt="5 source adapters"></a>
   <a href="#-35-runtimes-one-protocol"><img src="https://img.shields.io/badge/runtimes-35%20(3%20guaranteed%2B32%20best--effort)-2563EB" alt="35 runtimes (3 guaranteed + 32 best-effort)"></a>
-  <a href="#-the-48-extension-points"><img src="https://img.shields.io/badge/extension%20points-48-00E08A" alt="48 extension points"></a>
+  <a href="#-the-50-extension-points"><img src="https://img.shields.io/badge/extension%20points-50-00E08A" alt="50 extension points"></a>
   <a href="#measured-benchmark-issue-17"><img src="https://img.shields.io/badge/bench%20%2317-90%25%20fewer%20est.%20tokens-00E08A" alt="Issue #17 bench: ~90% fewer estimated tokens with loop"></a>
   <a href="#-token-economy"><img src="https://img.shields.io/badge/savings-mixed%20(see%20bench)-2563EB" alt="Savings — see measured bench + evidence-gated monitor"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
@@ -480,7 +480,7 @@ are mandatory by default — see `.claude/skills/simplicio-loop/references/plann
 ---
 
 
-## 🔌 The 48 extension points
+## 🔌 The 50 extension points
 
 These are the named places a host can bind a native capability. The full contract,
 including the two required bindings (Mapper on `orient`, Dev CLI on `deterministic_edit`),

@@ -1,0 +1,9 @@
+{
+  "trace": "flaky_test",
+  "description": "A verifier fails once, repeats under the stall threshold, then the retry recovers.",
+  "ticks": [
+    {"acs_open": 2, "verifiers_failed": 1, "effects_unverified": 0, "backlog": 0, "retry_amplification": 1.0, "state_signature": "flaky_a"},
+    {"acs_open": 2, "verifiers_failed": 1, "effects_unverified": 0, "backlog": 0, "retry_amplification": 1.0, "state_signature": "flaky_a"},
+    {"acs_open": 0, "verifiers_failed": 0, "effects_unverified": 0, "backlog": 0, "retry_amplification": 0.0, "state_signature": "flaky_b"}
+  ]
+}

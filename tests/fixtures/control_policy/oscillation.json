@@ -1,0 +1,12 @@
+{
+  "trace": "oscillation",
+  "description": "V(t) whipsaws between two states (period-2 cycle) instead of converging — the amplified-retry pattern the plain flat-repeat stall check cannot see.",
+  "ticks": [
+    {"acs_open": 3, "verifiers_failed": 0, "effects_unverified": 0, "backlog": 0, "retry_amplification": 0.0, "state_signature": "A"},
+    {"acs_open": 1, "verifiers_failed": 0, "effects_unverified": 0, "backlog": 0, "retry_amplification": 0.0, "state_signature": "B"},
+    {"acs_open": 3, "verifiers_failed": 0, "effects_unverified": 0, "backlog": 0, "retry_amplification": 0.0, "state_signature": "A"},
+    {"acs_open": 1, "verifiers_failed": 0, "effects_unverified": 0, "backlog": 0, "retry_amplification": 0.0, "state_signature": "B"},
+    {"acs_open": 3, "verifiers_failed": 0, "effects_unverified": 0, "backlog": 0, "retry_amplification": 0.0, "state_signature": "A"},
+    {"acs_open": 1, "verifiers_failed": 0, "effects_unverified": 0, "backlog": 0, "retry_amplification": 0.0, "state_signature": "B"}
+  ]
+}

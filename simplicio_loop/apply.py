@@ -270,9 +270,10 @@ def _apply_task_devcli(root: Path, task: Mapping[str, Any], run_dir: Path) -> di
 async def _run_check(root: Path, check: str, *, run_id: str, task_id: str) -> dict[str, Any]:
     env = _isolated_check_env(base_env=os.environ, run_id=run_id, task_id=task_id)
     started = time.monotonic()
+    sh_bin = shutil.which("sh") or "/bin/sh"
     try:
-        proc = await asyncio.create_subprocess_shell(
-            check, cwd=str(root), env=env,
+        proc = await asyncio.create_subprocess_exec(
+            sh_bin, "-c", check, cwd=str(root), env=env,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
         )
         try:

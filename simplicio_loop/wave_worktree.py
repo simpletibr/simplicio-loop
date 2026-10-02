@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -293,8 +294,9 @@ async def run_worktree_lane(
 
 
 async def _run_verifier(command: str, cwd: Path) -> tuple[int, str, str]:
-    process = await asyncio.create_subprocess_shell(
-        command, cwd=str(cwd), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+    sh_bin = shutil.which("sh") or "/bin/sh"
+    process = await asyncio.create_subprocess_exec(
+        sh_bin, "-c", command, cwd=str(cwd), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
     )
     stdout, stderr = await process.communicate()
     return process.returncode or 0, stdout.decode("utf-8", "replace"), stderr.decode("utf-8", "replace")

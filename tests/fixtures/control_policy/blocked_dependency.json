@@ -1,0 +1,8 @@
+{
+  "trace": "blocked_dependency",
+  "description": "An external dependency blocks progress; the run must reach an explicit blocked state, never a silent hang.",
+  "ticks": [
+    {"acs_open": 2, "verifiers_failed": 0, "effects_unverified": 0, "backlog": 1, "retry_amplification": 0.0, "state_signature": "wait1"},
+    {"acs_open": 2, "verifiers_failed": 0, "effects_unverified": 0, "backlog": 1, "retry_amplification": 0.0, "state_signature": "wait1", "blocked": true, "blocked_reason": "upstream_service_unavailable"}
+  ]
+}

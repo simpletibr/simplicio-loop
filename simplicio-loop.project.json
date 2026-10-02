@@ -35,7 +35,7 @@
     "satellite_skills": 5,
     "accelerators_integrations": 5,
     "extension_points": 50,
-    "extension_points_note": "Reconciliado de 44→48 no Unreleased; alguns trechos antigos de docs ainda citam 44.",
+    "extension_points_note": "Reconciliado a 50 pontos de extensão.",
     "runtimes": 11,
     "source_adapters": 5,
     "languages_readme": 15,
@@ -85,7 +85,7 @@
       "absorbs": "—",
       "path": ".claude/skills/simplicio-tasks/SKILL.md",
       "token_impact": "Core",
-      "key_mechanics": ["48 extension points", "dual-path router (fast/heavy)", "self-audit convergence", "auto-arma o loop na invocação (sem /loop separado)"],
+      "key_mechanics": ["50 extension points", "dual-path router (fast/heavy)", "self-audit convergence", "auto-arma o loop na invocação (sem /loop separado)"],
       "steps": [
         "Step 0 — Auto-arm the loop (escreve .simplicio-loop/orchestrator/loop/scratchpad.md)",
         "Step 1 — Identity + environment",
@@ -511,7 +511,7 @@
     "git_pre_push": "printf '#!/bin/sh\\npython3 hooks/action_gate.py check --staged\\n' > .git/hooks/pre-push && chmod +x .git/hooks/pre-push"
   },
 
-  "extension_points_48": {
+  "extension_points_50": {
     "rule": "Em cada ponto: se o host expõe capacidade nativa, BIND (determinístico, near-zero token); senão o LLM faz o fallback. O skill depende da ABSTRAÇÃO, nunca do runtime. Regra core: toda mudança DECIDIDA passa por deterministic_edit.",
     "points": [
       { "name": "orient", "what": "Mapa comprimido do repo/trabalho", "fallback": "rg/git grep/git log + ler poucos arquivos; ou .understand-anything/knowledge-graph.json" },
@@ -537,6 +537,7 @@
       { "name": "human_gate", "what": "Canal de aprovação humana assíncrono", "fallback": "perguntar inline" },
       { "name": "shell_exec", "what": "Execução shell clampada (saída estruturada, tamanho limitado)", "fallback": "Bash com | head -N" },
       { "name": "retry", "what": "Retry+backoff classificado por classe de falha", "fallback": "loop de retry manual" },
+      { "name": "convergence_policy", "what": "Política de controle pura RunProjection -> LoopDecision (Lyapunov-style drift candidate)", "fallback": "LLM raciocina sobre retry/paralelismo à mão" },
       { "name": "status", "what": "Dashboard de observabilidade ao vivo", "fallback": "queries gh" },
       { "name": "security", "what": "Scan de supply-chain / segredo", "fallback": "rg por segredos" },
       { "name": "intake", "what": "Ingere trabalho de sprint/board link", "fallback": "gh issue list" },
@@ -561,7 +562,8 @@
       { "name": "web_verify", "what": "Dirige browser real (navigate/click/console) p/ provar mudança de UI; screenshot+trace como evidência", "fallback": "Playwright via playwright-mcp ou npx headless / pytest-playwright" },
       { "name": "video_evidence", "what": "Renderiza MP4 demo determinístico de uma tela como evidência (e cumpre pedidos 'faça um vídeo demo')", "fallback": "hyperframes (npx hyperframes render); fallback stitch PNGs com ffmpeg" },
       { "name": "web_research", "what": "Busca conhecimento externo atual (docs/CVE/version/SDK error), gated atrás de local-memory-miss, com proveniência", "fallback": "LLM usa web search/fetch só após miss local; grava URL fonte" },
-      { "name": "transform_guard", "what": "Verifica que uma compactação preservou todo token de code/URL/path/version (fail-closed ao original)", "fallback": "LLM extrai os dois conjuntos e compara à mão" }
+      { "name": "transform_guard", "what": "Verifica que uma compactação preservou todo token de code/URL/path/version (fail-closed ao original)", "fallback": "LLM extrai os dois conjuntos e compara à mão" },
+      { "name": "judge", "what": "Adjudicação independente ACCEPT/REVISE/REJECT no Prototype-First Gate", "fallback": "LLM avalia candidato por critérios de aceitação e evidências" }
     ]
   },
 
