@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Simplicio Live: catálogo de componentes</title>
+  <link rel="stylesheet" href="components/simplicio-live.css">
+  <link rel="stylesheet" href="catalog.css">
+  <script type="module" src="catalog.js"></script>
+</head>
+<body class="sl-page">
+  <a class="skip" href="#main">Pular para os componentes</a>
+  <header class="top">
+    <p class="mark"><span class="mark-lamps" aria-hidden="true"><i></i><i></i><i></i></span>Simplicio Live</p>
+    <p class="lede">Kit de componentes do painel ao vivo: cada componente em todos os estados, para o loop de codificação e o painel de marketing.</p>
+    <form class="controls" aria-label="Aparência do catálogo">
+      <fieldset>
+        <legend>Tema</legend>
+        <label><input type="radio" name="theme" value="dark"> Escuro</label>
+        <label><input type="radio" name="theme" value="light"> Claro</label>
+        <label><input type="radio" name="theme" value="contrast"> Alto contraste</label>
+      </fieldset>
+      <label class="compare"><input type="checkbox" name="compare"> Mostrar os três temas lado a lado</label>
+      <sl-command-palette hotkey label="Ir para um componente"></sl-command-palette>
+    </form>
+  </header>
+  <div class="layout">
+    <nav class="toc" aria-label="Componentes"><ol id="toc"></ol></nav>
+    <main id="main" tabindex="-1"></main>
+  </div>
+</body>
+</html>

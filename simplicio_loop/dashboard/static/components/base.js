@@ -92,7 +92,7 @@ export const BASE_CSS = `
   background: var(--sl-c); color: var(--sl-on-lamp); font-size: calc(var(--size) * 0.62);
   box-shadow: 0 0 0 2px var(--sl-panel), 0 0 0 3px color-mix(in srgb, var(--sl-c) 55%, transparent); }
 .lamp .icon { inline-size: 1em; block-size: 1em; }
-.lamp[data-state="PENDING"] { background: transparent; color: var(--sl-c);
+.lamp[data-state="PENDING"] { background: var(--sl-panel); color: var(--sl-c);
   box-shadow: inset 0 0 0 2px var(--sl-c); }
 .lamp[data-state="BLOCKED"] { background: repeating-linear-gradient(135deg, var(--sl-c) 0 4px,
   color-mix(in srgb, var(--sl-c) 70%, var(--sl-panel)) 4px 7px); }
