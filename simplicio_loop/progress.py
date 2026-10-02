@@ -30,6 +30,7 @@ PHASE_META = {
     "done": ("✅", "Concluído pelo oracle"),
     "blocked": ("⛔", "Bloqueado"),
     "cancelled": ("🛑", "Cancelado"),
+    "awaiting_decision": ("⏸️", "Aguardando decisão"),
 }
 SPINNER = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 EVENT_KINDS = frozenset((
@@ -44,7 +45,7 @@ def _ascii(value: Any) -> str:
     for glyph, replacement in (("📥", "[in]"), ("🗺️", "[map]"), ("🧭", "[plan]"),
                                ("⚙️", "[run]"), ("🧪", "[test]"), ("👁️", "[watch]"),
                                ("📦", "[ship]"), ("✅", "[ok]"), ("⛔", "[blocked]"),
-                               ("🛑", "[stop]"), ("█", "#"), ("░", "."),
+                               ("🛑", "[stop]"), ("⏸️", "[wait]"), ("█", "#"), ("░", "."),
                                ("⠋", "|"), ("⠙", "/"), ("⠹", "-"), ("⠸", "\\"),
                                ("▫️", "[ ]")):
         text = text.replace(glyph, replacement)
