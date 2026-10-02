@@ -89,10 +89,26 @@ def _loop_progress_module():
         return None
 
 
+_DASHBOARD_ITERATION = []  # the turn's iteration once parsed (#1398)
+
+
+def _dashboard(kind, **spec):
+    """#1398: fail-open `simplicio.dashboard-event/v1` emission into the active run."""
+    try:
+        import _dashboard_emit
+        if _DASHBOARD_ITERATION and "iteration" not in spec:
+            spec["iteration"] = _DASHBOARD_ITERATION[0]
+        _dashboard_emit.emit(kind, **spec)
+    except Exception:
+        pass
+
+
 def _emit_final_progress(reason, outcome):
     """Fail-open final progress event (#301 § 4) — the F3/`refeed_exit` event that closes out
     `progress.json`'s `run_state` (running -> done|capped|handoff|stopped) so it never stays
     "in progress" forever after the run actually ended."""
+    _dashboard("iteration_finished", severity="info" if outcome == "pass" else "warning",
+               payload={"outcome": str(outcome or ""), "reason": str(reason or "")[:300]})
     try:
         lp = _loop_progress_module()
         if lp is None:
@@ -1176,6 +1192,7 @@ def main():
             max_iter = int(meta.get("max_iterations", "0"))
         except ValueError:
             cleanup_and_stop("corrupt loop state (bad iteration/max_iterations)", "blocked")
+        _DASHBOARD_ITERATION[:] = [iteration] if iteration >= 0 else []
         promise = meta.get("completion_promise", "null")
         promise = None if promise in (None, "null", "") else promise
         evidence_required = str(meta.get("evidence_required", "true")).lower() != "false"
@@ -1227,6 +1244,8 @@ def main():
             _call_simplicio_hbp_append_topic("loop-stall-detected", {
                 "fingerprint": stall_fp, "attempt": iteration, "streak": stall_streak,
             })
+            _dashboard("stall_detected", severity="warning",
+                       payload={"fingerprint": str(stall_fp or ""), "streak": stall_streak})
 
         # HRM-style hierarchical planner: re-assess phase on stall or every N iterations.
         # Runs BEFORE the promise gate so the phase context is available.
@@ -1236,6 +1255,11 @@ def main():
         # Per Asolaria N-Nest Corrective Gate: each agent PID has a watcher PID that
         # independently re-computes the truth. Gate: reported == watcher.recomputed_truth.
         watcher_pass, watcher_tag = watcher_verify()
+        watcher_verdict = "pass" if watcher_pass else (
+            "fail" if os.path.exists(WATCHER_STATE) else "pending")
+        _dashboard("gate_evaluated", severity="warning" if watcher_verdict == "fail" else "info",
+                   payload={"gate": "watcher", "verdict": watcher_verdict,
+                            "status": str(watcher_tag or "")})
 
         # Pre-promise: front→back flow-audit gate (#80) — mechanical, not prose-only.
         flow_gap = flow_audit_gap()
@@ -1333,6 +1357,8 @@ def main():
         # echo it.
         write_watcher_challenge(nxt)
         refresh_cross_agent_wiki(include_handoff=False)
+        _dashboard("iteration_finished", payload={"outcome": "refeed", "has_evidence": has_evidence})
+        _dashboard("iteration_started", iteration=nxt, payload={"trigger": "refeed"})
         emit_refeed(_refeed_message(header, body))
     except Exception:
         allow_stop()  # fail-open, always

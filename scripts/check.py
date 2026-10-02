@@ -352,6 +352,18 @@ def run_contract_headers():
     )
 
 
+def run_dashboard_events_contract():
+    _hr("dashboard-event contract (simplicio.dashboard-event/v1 schema + fixture drift, #1398)")
+    path = os.path.join(HERE, "check_dashboard_event_contract.py")
+    if not os.path.isfile(path):
+        print("scripts/check_dashboard_event_contract.py not found")
+        return GateResult(False, "dashboard_events_missing")
+    return _gate_result(
+        "dashboard_events",
+        _run_bounded([sys.executable, path], phase="dashboard_events"),
+    )
+
+
 def run_clean_env_contract():
     _hr("clean-env-contract")
     path = os.path.join(HERE, "clean_env_contract.py")
@@ -658,6 +670,7 @@ def main():
     results = {name: GateResult(True, "not_run") for name in (
         "audit", "mirror_parity", "tests", "loop_contract", "clean_env",
         "token_budget", "repo_budget", "conformance", "package_content", "contract_headers",
+        "dashboard_events",
     )}
     if not any_only or "--audit-only" in args or core_gate:
         results["audit"] = run_audit()
@@ -668,6 +681,7 @@ def main():
         results["tests"] = run_tests(only_core=core_gate, impact=not (full or core_gate), base_ref=base)
     if not any_only or "--loop-contract-only" in args or core_gate:
         results["loop_contract"] = run_loop_contract()
+        results["dashboard_events"] = run_dashboard_events_contract()
     if not any_only or "--clean-env-only" in args or core_gate:
         results["clean_env"] = run_clean_env_contract()
     if not any_only or "--token-budget" in args or core_gate:
@@ -702,13 +716,13 @@ def main():
         for name, result in results.items()
     }
     if core_gate:
-        print("\ncore-gate: %s  (audit=%s · mirror-parity=%s · core-tests=%s · loop-contract=%s · clean-env=%s · token-budget=%s · repo-budget=%s · conformance=%s)" % (
+        print("\ncore-gate: %s  (audit=%s · mirror-parity=%s · core-tests=%s · loop-contract=%s · dashboard-events=%s · clean-env=%s · token-budget=%s · repo-budget=%s · conformance=%s)" % (
             "PASS" if ok else "FAIL", status["audit"], status["mirror_parity"],
-            status["tests"], status["loop_contract"], status["clean_env"],
+            status["tests"], status["loop_contract"], status["dashboard_events"], status["clean_env"],
             status["token_budget"], status["repo_budget"], status["conformance"]))
-    print("\ncheck: %s  (audit=%s · mirror-parity=%s · tests=%s · loop-contract=%s · clean-env=%s · token-budget=%s · repo-budget=%s · conformance=%s · package-content=%s)" % (
+    print("\ncheck: %s  (audit=%s · mirror-parity=%s · tests=%s · loop-contract=%s · dashboard-events=%s · clean-env=%s · token-budget=%s · repo-budget=%s · conformance=%s · package-content=%s)" % (
         "PASS" if ok else "FAIL", status["audit"], status["mirror_parity"], status["tests"],
-        status["loop_contract"], status["clean_env"], status["token_budget"],
+        status["loop_contract"], status["dashboard_events"], status["clean_env"], status["token_budget"],
         status["repo_budget"], status["conformance"], status["package_content"]))
     if package_mode:
         print("package-gate: %s" % " · ".join(

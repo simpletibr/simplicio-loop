@@ -15,6 +15,7 @@ not a pass. It still lets every benign command through, so it never bricks norma
 | `action_gate.py` | safety: **fail-closed** — block irreversible ops + secret-laden commits/pushes BEFORE they run; `pre-push` also requires a green `scripts/check.py --core-gate` (#291) | `PreToolUse` (Bash) / git pre-push / pre-commit |
 | `orient_clamp.py` | simplicio-orient: **wrapper** — run a command, return reduced output + tee-on-failure | called directly, any runtime |
 | `orient_rewrite.py` | simplicio-orient: auto-route heavy read-only commands through the clamp (opt-in) | `PreToolUse` |
+| `_dashboard_emit.py` | telemetry: fail-open bridge the three hooks above use to append `simplicio.dashboard-event/v1` events to the active run (`docs/DASHBOARD_EVENTS.md`, #1398); not a hook itself | imported by `loop_stop.py`, `action_gate.py`, `user_prompt_submit.py` |
 | `pre-commit.py` | packaging: auto-sync `plugin/` + `simplicio_loop/_bundle/` from source when a watched path is staged (#98) | git pre-commit |
 
 ## Mirror auto-sync (`pre-commit.py`, #98)

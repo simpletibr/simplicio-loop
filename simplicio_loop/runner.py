@@ -25,6 +25,7 @@ from .delivery import (build_delivery_receipt, normalize_delivery_target,
 from .evidence import build_evidence_receipt, redact_sensitive_text
 from .source_state import github_delivery_payload, infer_github_delivery_state
 from . import github_lifecycle as _github_lifecycle
+from . import dashboard_events as _dashboard_events
 from .client_integrations import integration_enabled
 from .orca_lifecycle import sync_orca_status
 from .source_adapter import GitHubSourceAdapter
@@ -2845,7 +2846,8 @@ def _record_event(run_dir: Path, state: Dict[str, Any], event: Dict[str, Any],
     events.append(event)
     state["updated_at"] = event["ts"]
     _write_json(run_dir / "state.json", state)
-    _append_jsonl(run_dir / "events.jsonl", event)
+    # #1398: events.jsonl is the simplicio.dashboard-event/v1 stream (fail-open, locked seq).
+    _dashboard_events.emit_runner_event(run_dir, state, event)
     _sync_github_lifecycle(run_dir, state, event)
     # Host integrations (Orca cards, boards, chat) are NEVER default — only when
     # the client explicitly requested them via SIMPLICIO_LOOP_CLIENT_INTEGRATIONS
@@ -4613,20 +4615,19 @@ def arm_run(repo: str, task_path: str, delivery: str, max_iterations: int) -> Di
         "ac_ids": [ac_id for task in tasks for ac_id in _task_ac_ids(task)],
     }
     _write_json(run_root / "state.json", state)
+    armed = {
+        "ts": _now(),
+        "from": None,
+        "to": "intake",
+        "reason": "run armed from raw task",
+        "receipt": str(run_root / "task-contract.json"),
+    }
+    _append_jsonl(run_root / "transitions.jsonl", armed)
+    _dashboard_events.emit_transition(run_root, armed, run_id=run_id)
     _emit_event(run_root, state, "contract_frozen", receipt=str(run_root / "task-contract.json"),
                 message="task contract compiled and frozen")
     _emit_event(run_root, state, "watcher_challenge", receipt=str(loop_dir / "watcher_challenge.json"),
                 message="watcher challenge created")
-    _append_jsonl(
-        run_root / "transitions.jsonl",
-        {
-            "ts": _now(),
-            "from": None,
-            "to": "intake",
-            "reason": "run armed from raw task",
-            "receipt": str(run_root / "task-contract.json"),
-        },
-    )
     try:
         stack_lock = _freeze_stack_lock(run_root, run_id)
         manifest.update({

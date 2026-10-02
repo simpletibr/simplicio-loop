@@ -15,6 +15,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
+from . import dashboard_events
+
 SCHEMA = "simplicio.technical-debt/v1"
 STATUSES = ("OPEN", "ACKNOWLEDGED", "RESOLVED")
 SEVERITIES = ("low", "medium", "high")
@@ -214,8 +216,8 @@ def record_notice(run_dir: str | Path, *, run_id: str, reason_code: str, stage: 
             "receipt": str(receipt or ""),
             "ts": _now(),
         }
-        with (root / "events.jsonl").open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
+        # #1398: the run's events.jsonl is the dashboard-event/v1 stream (fail-open).
+        dashboard_events.emit_runner_event(root, state, event)
     return notice
 
 

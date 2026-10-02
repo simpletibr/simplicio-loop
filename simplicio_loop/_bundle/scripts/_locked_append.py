@@ -38,6 +38,7 @@ import json
 import os
 import sys
 import time
+from contextlib import contextmanager
 
 try:
     import fcntl
@@ -137,6 +138,51 @@ def _append_locked_body(path, text):
         os.fsync(f.fileno())
 
 
+@contextmanager
+def exclusive_lock(path, timeout_ms=DEFAULT_TIMEOUT_MS):
+    """Hold the cross-process sidecar lock of *path* (``<path>.lock``) for the ``with`` body.
+
+    Yields ``None`` while the lock is held, or a short reason string when it could not be taken
+    (timed out, the lock file could not be opened, no locking primitive). It never raises for a
+    lock problem, so the caller decides how to degrade; exceptions raised by the body propagate
+    after the lock is released. ``locked_append_line`` is built on it, and so is any writer that
+    must read-then-append atomically (``dashboard_events.py`` allocates its per-run ``seq`` under
+    this lock).
+    """
+    lock_path = _lock_path(path)
+    _ensure_lock_file(lock_path)
+    if fcntl is not None:
+        try:
+            lockf = open(lock_path, "a+b")
+        except OSError as e:
+            yield "posix lock error: %s" % e
+            return
+        with lockf:
+            if not _acquire_posix(lockf, timeout_ms):
+                yield "lock acquisition timed out after %dms" % timeout_ms
+                return
+            try:
+                yield None
+            finally:
+                _release_posix(lockf)
+    elif msvcrt is not None:
+        try:
+            lockf = open(lock_path, "r+b")
+        except OSError as e:
+            yield "windows lock error: %s" % e
+            return
+        with lockf:
+            if not _acquire_windows(lockf, timeout_ms):
+                yield "lock acquisition timed out after %dms" % timeout_ms
+                return
+            try:
+                yield None
+            finally:
+                _release_windows(lockf)
+    else:  # pragma: no cover — no locking primitive on this platform at all
+        yield "no locking primitive available (fcntl/msvcrt missing) — write skipped"
+
+
 def locked_append_line(path, line, timeout_ms=DEFAULT_TIMEOUT_MS):
     """Append one line + trailing newline to *path* under an exclusive cross-process lock.
 
@@ -144,40 +190,16 @@ def locked_append_line(path, line, timeout_ms=DEFAULT_TIMEOUT_MS):
     is SKIPPED — never attempted partially, never attempted without the lock — a degrade note is
     written to stderr, and False is returned so the caller can decide whether to retry/report.
     """
-    lock_path = _lock_path(path)
-    _ensure_lock_file(lock_path)
     text = line if line.endswith("\n") else line + "\n"
-
-    if fcntl is not None:
-        try:
-            with open(lock_path, "a+b") as lockf:
-                if not _acquire_posix(lockf, timeout_ms):
-                    _degrade(path, "lock acquisition timed out after %dms" % timeout_ms)
-                    return False
-                try:
-                    _append_locked_body(path, text)
-                    return True
-                finally:
-                    _release_posix(lockf)
-        except OSError as e:
-            _degrade(path, "posix lock error: %s" % e)
-            return False
-    elif msvcrt is not None:
-        try:
-            with open(lock_path, "r+b") as lockf:
-                if not _acquire_windows(lockf, timeout_ms):
-                    _degrade(path, "lock acquisition timed out after %dms" % timeout_ms)
-                    return False
-                try:
-                    _append_locked_body(path, text)
-                    return True
-                finally:
-                    _release_windows(lockf)
-        except OSError as e:
-            _degrade(path, "windows lock error: %s" % e)
-            return False
-    else:  # pragma: no cover — no locking primitive on this platform at all
-        _degrade(path, "no locking primitive available (fcntl/msvcrt missing) — write skipped")
+    try:
+        with exclusive_lock(path, timeout_ms) as problem:
+            if problem:
+                _degrade(path, problem)
+                return False
+            _append_locked_body(path, text)
+            return True
+    except OSError as e:
+        _degrade(path, "%s lock error: %s" % ("posix" if fcntl is not None else "windows", e))
         return False
 
 

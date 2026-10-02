@@ -172,6 +172,7 @@ SELFTEST_SCRIPTS = [
     "scripts/operator_check.py",
     "scripts/supervisor_enforcement.py",
     "scripts/deep_correctness_gate.py",
+    "scripts/dashboard_events.py",
 ]
 SATELLITE_SCRIPT_PATHS = frozenset({
     "scripts/agentsview_adapter.py",
