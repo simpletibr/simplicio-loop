@@ -9,6 +9,7 @@ python3 scripts/check.py   # audit + mirror-parity + tests + loop-contract + cle
 ```
 
 This runs the full `tests/` suite, `scripts/check_loop_contract.py` (fixture contract),
+`scripts/check_dashboard_event_contract.py` (`simplicio.dashboard-event/v1` schema + fixture drift),
 `scripts/claims_audit.py`, `scripts/clean_env_contract.py`, and `scripts/token_budget.py`. A
 non-zero exit means the PR is not ready.
 

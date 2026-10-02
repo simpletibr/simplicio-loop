@@ -922,6 +922,29 @@ def test_build_plan_promotes_explicit_task_file_hints(tmp_path):
     ]
 
 
+def test_arm_run_writes_a_valid_dashboard_event_stream(tmp_path, monkeypatch):
+    """#1398: a real armed run emits schema-valid dashboard events with gap-free seq."""
+    from simplicio_loop import dashboard_events
+
+    repo, task = _setup_deterministic_preflight_fixture(monkeypatch, tmp_path)
+    payload = runner_mod.arm_run(str(repo), str(task), "verified", 9)
+    run_dir = Path(payload["run_dir"])
+    module = dashboard_events.load()
+    assert module is not None
+    events = [json.loads(line) for line in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()
+              if line.strip()]
+    events = [evt for evt in events if evt.get("schema") == "simplicio.dashboard-event/v1"]
+    assert events, "arm_run emitted no dashboard events"
+    assert [evt["seq"] for evt in events] == list(range(1, len(events) + 1))
+    assert all(module.validate_envelope(evt) == [] for evt in events)
+    assert {evt["run_id"] for evt in events} == {payload["manifest"]["run_id"]}
+    kinds = [evt["kind"] for evt in events]
+    assert kinds[0] == "run_started"
+    assert "phase_entered" in kinds
+    assert "decision_requested" in kinds
+    assert payload["state"]["phase"] == "awaiting_decision"
+
+
 def test_arm_run_persists_state_for_status_resume_cancel(tmp_path, monkeypatch):
     repo, task = _setup_deterministic_preflight_fixture(monkeypatch, tmp_path)
     payload = runner_mod.arm_run(str(repo), str(task), "verified", 9)
