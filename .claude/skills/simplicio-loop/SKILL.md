@@ -181,6 +181,13 @@ external harness → `waived:no-infra` — never the old vague "skip … and say
    / `pending` *(gate implementation itself: #526 Etapa 3)*. READY requires zero `pending`; every
    `waived:no-infra` MUST appear in the final report — a silent waiver is a contract violation.
 
+## Agent-facing text — ASD-STE100
+
+PR bodies, release notes, error messages and inter-agent instructions are read by agents and by
+non-native readers. Write them with the `asd-ste100` skill (strict mode; install:
+`npx skills add danyuchn/asd-ste100-skill`). Check with `.claude/skills/asd-ste100/scripts/ste-lint.py`.
+Not for creative or marketing copy.
+
 ## Delivery contract — client delivery constraints, enforced mechanically (issue #526 Etapa 4)
 
 `task_anchor.py set --delivery`, the schema validator (`scripts/delivery_contract.py`), the
