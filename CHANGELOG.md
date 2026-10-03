@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [3.48.1] - 2026-10-02
 
 - Vendor `danyuchn/asd-ste100-skill` as `.claude/skills/asd-ste100` and require it for agent-facing text (PR bodies, release notes, errors) in the loop delivery step. Install: `npx skills add danyuchn/asd-ste100-skill`.
 - header-change: .claude/skills/simplicio-loop/SKILL.md (new "Agent-facing text" section), .claude/skills/asd-ste100/SKILL.md and .claude/skills/asd-ste100/references/writing-rules.md (new contract headers)
