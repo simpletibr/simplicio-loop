@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- Vendor `danyuchn/asd-ste100-skill` as `.claude/skills/asd-ste100` and require it for agent-facing text (PR bodies, release notes, errors) in the loop delivery step. Install: `npx skills add danyuchn/asd-ste100-skill`.
+- header-change: .claude/skills/simplicio-loop/SKILL.md (new "Agent-facing text" section), .claude/skills/asd-ste100/SKILL.md and .claude/skills/asd-ste100/references/writing-rules.md (new contract headers)
+
 ## [3.48.0] - 2026-10-02
 
 - Sync `packages/mapper` with simplicio-mapper v0.26.35 and the Fast unification (#1395): native SFAST v2 mmap binary snapshot engine (`store/snapshot.py`, `store/segments.py`), TurboQuant 4-bit, FWHT and Pareto scoring (`store/neural/`), PlanDAG decomposition with `understand` and `plan` (`processor.py`), strict changeset validation with `expected_sha256` (`changeset.py`).
