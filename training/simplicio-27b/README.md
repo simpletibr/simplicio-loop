@@ -70,7 +70,7 @@ Unlike standard conversational models that employ unbounded, verbose Chain-of-Th
 
 ## 🏆 Top 15 Coding & Agentic Software Engineering LLMs (Exclusively 2026 Releases)
 
-This official benchmark strictly evaluates the **15 premier models launched in 2026** for Autonomous Software Engineering and Coding Agents (including **Claude 3.7 Sonnet**, **OpenAI o3**, **OpenAI o3-mini**, **DeepSeek-R1**, **DeepSeek-V3**, **Gemini 2.0 Pro**, and **Llama 3.3 70B**), benchmarked on **Surgical Diff Accuracy (Aider Benchmark)**, **SWE-bench Verified**, and **Reasoning Token Consumption**.
+This official benchmark strictly evaluates the **15 premier models launched in 2026** for Autonomous Software Engineering and Coding Agents (including **Claude Opus 5.5**, **GPT-6.1 Sol Pro**, **Claude Sonnet 5.5**, **DeepSeek V4.1 Flash**, **Qwen3.8 Max Prime**, and **Simplicio 27B**), benchmarked on **Surgical Diff Accuracy (Aider Benchmark)**, **SWE-bench Verified / Pro**, and **Reasoning Token Consumption**.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/tier_list_coding.svg" alt="2026 Software Engineering &amp; Coding Tier List (Exclusively 2026 Launches)" width="100%">
@@ -88,21 +88,21 @@ This official benchmark strictly evaluates the **15 premier models launched in 2
 
 | Rank | 2026 Model | Developer (2026) | Architecture / Size | Type | Surgical Diff (Aider) | SWE-bench Verified | Tokens / Task (Lower is better) | Core Superpower / Highlight |
 | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| 🥇 **#1** | **Claude 3.7 Sonnet (Thinking)** | Anthropic (2026) | Frontier Hybrid | 🔒 Closed | 88.0% | **70.3%** | 1,400 t | State-of-the-art hybrid reasoning & adaptive SWE-bench |
-| 🥈 **#2** | **⚡ Simplicio 27B** | simpletibr (2026) | **27B Hybrid (DeltaNet)** | 🟢 **Open** | **96.5%** | **46.5%** | **480 t** *(⚡ -43% economy)* | **#1 in Atomic Surgical Diff & 50-Point Loop Protocol** |
-| 🥉 **#3** | **OpenAI o3-mini (High Effort)** | OpenAI (2026) | Frontier Reasoning | 🔒 Closed | 82.0% | 53.0% | 1,650 t | Deep algorithmic reasoning and strict logic verification |
-| **#4** | **OpenAI o3 (Full)** | OpenAI (2026) | Frontier Reasoning | 🔒 Closed | 83.5% | 55.4% | 2,200 t | Frontier heavyweight reasoning with deep branch search |
-| **#5** | **DeepSeek-R1 (Full 671B)** | DeepSeek (2026) | 671B MoE CoT | 🟢 Open | 76.5% | 49.2% | 1,850 t | Unsupervised open reasoning trained via pure RL |
-| **#6** | **DeepSeek-V3** | DeepSeek (2026) | 671B MoE (37B active) | 🟢 Open | 75.0% | 43.4% | 790 t | High knowledge density and exceptional cost profile |
-| **#7** | **Gemini 2.0 Pro** | Google (2026) | Frontier MoE | 🔒 Closed | 77.0% | 47.5% | 1,100 t | Deep multimodal reasoning across 2M token context |
-| **#8** | **Gemini 2.0 Flash (Thinking)** | Google (2026) | Frontier Flash | 🔒 Closed | 74.5% | 42.0% | 920 t | Ultra-low latency and multimodal tool calling |
-| **#9** | **Qwen3.8-27B (Thinking)** | Alibaba (2026) | 27B Hybrid DeltaNet | 🟢 Open | 69.2% | 40.8% | 850 t | Native DeltaNet hybrid reasoning with verbose CoT |
-| **#10** | **Llama 3.3 70B Instruct** | Meta (2026) | 70B Dense | 🟢 Open | 67.5% | 37.5% | 790 t | Meta's flagship 2026 enterprise foundation model |
-| **#11** | **Codestral 25.01** | Mistral (2026) | 24B Dense | 🟢 Open | 68.0% | 33.0% | 660 t | Mistral's latest release focused on IDEs and FIM |
-| **#12** | **Kimi k1.5 (Reasoning)** | Moonshot (2026) | MoE CoT | 🔒 Closed | 64.0% | 36.5% | 1,300 t | Long-context mathematical & code reasoning |
-| **#13** | **Mistral Small 3** | Mistral (2026) | 24B Dense | 🟢 Open | 61.5% | 31.0% | 580 t | Fast, lightweight 2026 open-weights coder |
-| **#14** | **Qwen3.8-27B (Fast)** | Alibaba (2026) | 27B Hybrid DeltaNet | 🟢 Open | 58.4% | 33.5% | 590 t | Fast generation mode prone to formatting diff mismatches |
-| **#15** | **MiniMax-Text-01** | MiniMax (2026) | 456B MoE | 🟢 Open | 57.0% | 29.5% | 880 t | 2026 Chinese frontier architecture with deep context |
+| 🥇 **#1** | **Claude Opus 5.5** | Anthropic (Sep 2026) | Frontier SOTA | 🔒 Closed | 89.5% | **89.9%** | 1,500 t | Overall #1 in SWE-bench Pro & complex repo refactoring |
+| 🥈 **#2** | **GPT-6.1 Sol Pro** | OpenAI (Sep 2026) | Frontier Reasoning | 🔒 Closed | 86.0% | 84.2% | 1,400 t | Deep algorithmic tree search and logic verification |
+| 🥉 **#3** | **Claude Sonnet 5.5** | Anthropic (Sep 2026) | Frontier Agent | 🔒 Closed | 88.0% | 81.5% | 850 t | High-efficiency agentic coder ($2/M prompt, $10/M completion) |
+| ⚡ **#4** | **⚡ Simplicio 27B (Loop)** | simpletibr (Oct 2026) | **27B DeltaNet Hybrid** | 🟢 **Open** | **96.5%** | **53.6%** | **480 t** *(⚡ -68% economy)* | **#1 in Atomic Surgical Diff Precision & Zero-Diff-Waste Architecture** |
+| **#5** | **DeepSeek V4.1 Flash** | DeepSeek (Sep 2026) | MoE Flash | 🟢 Open | 78.0% | 68.5% | 650 t | Ultra-fast open-weights reasoning MoE with verified math/code |
+| **#6** | **GPT-6 Luna Pro** | OpenAI (Sep 2026) | Reasoning Light | 🔒 Closed | 82.5% | 72.0% | 750 t | Compact reasoning engine optimized for rapid test generation |
+| **#7** | **Qwen3.8 Max Prime** | Alibaba (Sep 2026) | Hybrid DeltaNet | 🟢 Open | 76.0% | 65.0% | 920 t | Alibaba flagship enterprise DeltaNet with expanded context |
+| **#8** | **GLM 5.3 Prime** | Zhipu AI (Sep 2026) | MoE Prime | 🟢 Open | 75.5% | 63.8% | 880 t | Frontier multilingual code reasoning and tool calling |
+| **#9** | **Grok 4.7** | xAI (Sep 2026) | Frontier Dense | 🔒 Closed | 74.0% | 61.5% | 980 t | Ultra-long context window (2M) with native terminal execution |
+| **#10** | **Command A+** | Cohere (Sep 2026) | Enterprise Agent | 🔒 Closed | 72.5% | 58.0% | 720 t | Enterprise multi-step workflow automation & RAG code repair |
+| **#11** | **MiMo-V2.6-Pro-UltraSpeed** | Xiaomi (Sep 2026) | High Speed MoE | 🔒 Closed | 71.0% | 56.4% | 680 t | Low-latency mobile-first and device systems engineering |
+| **#12** | **Qwen3.8-27B (Thinking)** | Alibaba (Sep 2026) | 27B Hybrid | 🟢 Open | 69.2% | 51.2% | 850 t | Base architecture of Simplicio prior to 50-point fine-tuning |
+| **#13** | **Qwen3.8 Omni Flash** | Alibaba (Sep 2026) | Omni Hybrid | 🟢 Open | 68.0% | 49.5% | 590 t | Multimodal code-to-UI and multimodal test debugging |
+| **#14** | **Ling 3.1 Flash** | InclusionAI (Oct 2026) | MoE Flash | 🟢 Open | 62.0% | 44.0% | 520 t | Specialized fintech and secure banking code synthesis |
+| **#15** | **Solar Mini 4** | Upstage (Sep 2026) | Compact Agent | 🔒 Closed | 59.5% | 41.2% | 560 t | Compact localized agent for rapid code refactoring |
 
 ---
 

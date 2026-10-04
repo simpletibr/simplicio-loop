@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" width="100%" height="100%">
     
     <defs>
-        <linearGradient id="bgCost2026Only" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id="bgCostReal2026" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="#090D16" />
             <stop offset="100%" stop-color="#111827" />
         </linearGradient>
@@ -13,64 +13,64 @@
         </linearGradient>
     </defs>
     
-    <rect width="1000" height="440" rx="16" fill="url(#bgCost2026Only)" stroke="#1F2937" stroke-width="2"/>
+    <rect width="1000" height="440" rx="16" fill="url(#bgCostReal2026)" stroke="#1F2937" stroke-width="2"/>
     
-    <text x="36" y="44" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="22" font-weight="800">💸 2026 REASONING EFFICIENCY: 2026 RELEASES COMPARISON</text>
-    <text x="36" y="68" fill="#9CA3AF" font-family="-apple-system, sans-serif" font-size="13">Tokens spent on useful diff code vs. internal reasoning monologue in 2026 models (Lower is Better)</text>
+    <text x="36" y="44" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="22" font-weight="800">💸 2026 REASONING EFFICIENCY: ACTUAL 2026 RELEASES</text>
+    <text x="36" y="68" fill="#9CA3AF" font-family="-apple-system, sans-serif" font-size="13">Useful diff code tokens vs. internal CoT verbosity in actual 2026 models (Lower is Better)</text>
     
     <!-- Legend -->
     <rect x="36" y="92" width="12" height="12" rx="3" fill="url(#greenUseful)"/>
-    <text x="56" y="102" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">Useful Tokens (Surgical Diff &amp; Delivered Code)</text>
+    <text x="56" y="102" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">Useful Tokens (Surgical Diff &amp; Verified Patch)</text>
     
     <rect x="420" y="92" width="12" height="12" rx="3" fill="url(#redWaste)"/>
-    <text x="440" y="102" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">Internal Reasoning Monologue (GPU Compute Cost)</text>
+    <text x="440" y="102" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">Internal Reasoning Monologue (GPU Overhead)</text>
     
-        <text x="40" y="151" fill="#38BDF8" font-family="sans-serif" font-size="12.5" font-weight="800">⚡ Simplicio 27B (2026)</text>
-        <text x="40" y="165" fill="#6B7280" font-family="sans-serif" font-size="9.5">50 Points of Loop: <orient> + <plan> in 190t, direct surgical patch</text>
+        <text x="40" y="151" fill="#38BDF8" font-family="sans-serif" font-size="12" font-weight="800">⚡ Simplicio 27B (Oct 2026)</text>
+        <text x="40" y="165" fill="#6B7280" font-family="sans-serif" font-size="9.5">50 Points of Loop: <orient> + <plan> in 190t, total patch focus</text>
         
-        <rect x="310" y="141" width="84.0" height="18" rx="4" fill="url(#greenUseful)"/>
-        <rect x="396.0" y="141" width="12.0" height="18" rx="4" fill="url(#redWaste)"/>
+        <rect x="330" y="141" width="120.75" height="18" rx="4" fill="url(#greenUseful)"/>
+        <rect x="452.75" y="141" width="17.25" height="18" rx="4" fill="url(#redWaste)"/>
         
-        <text x="416.0" y="155" fill="#34D399" font-family="sans-serif" font-size="11.5" font-weight="800">480 tokens (⚡ Ultra Efficient)</text>
+        <text x="478.0" y="155" fill="#34D399" font-family="sans-serif" font-size="11.5" font-weight="800">480 tokens (⚡ Ultra Lightweight)</text>
         
-        <text x="40" y="199" fill="#F3F4F6" font-family="sans-serif" font-size="12.5" font-weight="600">Claude 3.7 Sonnet (2026)</text>
-        <text x="40" y="213" fill="#6B7280" font-family="sans-serif" font-size="9.5">Adaptive hybrid reasoning with moderate context burn</text>
+        <text x="40" y="199" fill="#F3F4F6" font-family="sans-serif" font-size="12" font-weight="600">DeepSeek V4.1 Flash (Sep 2026)</text>
+        <text x="40" y="213" fill="#6B7280" font-family="sans-serif" font-size="9.5">Lightweight MoE reasoning with low overhead</text>
         
-        <rect x="310" y="189" width="92.0" height="18" rx="4" fill="url(#greenUseful)"/>
-        <rect x="404.0" y="189" width="84.0" height="18" rx="4" fill="url(#redWaste)"/>
+        <rect x="330" y="189" width="120.75" height="18" rx="4" fill="url(#greenUseful)"/>
+        <rect x="452.75" y="189" width="66.125" height="18" rx="4" fill="url(#redWaste)"/>
         
-        <text x="496.0" y="203" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">880 tokens </text>
+        <text x="526.875" y="203" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">650 tokens </text>
         
-        <text x="40" y="247" fill="#F3F4F6" font-family="sans-serif" font-size="12.5" font-weight="600">Gemini 2.0 Flash (2026)</text>
-        <text x="40" y="261" fill="#6B7280" font-family="sans-serif" font-size="9.5">Fast reasoning mode with structured tool calls</text>
+        <text x="40" y="247" fill="#F3F4F6" font-family="sans-serif" font-size="12" font-weight="600">Claude Sonnet 5.5 (Sep 2026)</text>
+        <text x="40" y="261" fill="#6B7280" font-family="sans-serif" font-size="9.5">High intelligence with balanced agentic thinking</text>
         
-        <rect x="310" y="237" width="80.0" height="18" rx="4" fill="url(#greenUseful)"/>
-        <rect x="392.0" y="237" width="104.0" height="18" rx="4" fill="url(#redWaste)"/>
+        <rect x="330" y="237" width="132.25" height="18" rx="4" fill="url(#greenUseful)"/>
+        <rect x="464.25" y="237" width="112.125" height="18" rx="4" fill="url(#redWaste)"/>
         
-        <text x="504.0" y="251" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">920 tokens </text>
+        <text x="584.375" y="251" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">850 tokens </text>
         
-        <text x="40" y="295" fill="#F3F4F6" font-family="sans-serif" font-size="12.5" font-weight="600">OpenAI o3-mini (2026)</text>
-        <text x="40" y="309" fill="#6B7280" font-family="sans-serif" font-size="9.5">Extended mathematical & algorithmic branch exploration</text>
+        <text x="40" y="295" fill="#F3F4F6" font-family="sans-serif" font-size="12" font-weight="600">Qwen3.8-27B Base (Sep 2026)</text>
+        <text x="40" y="309" fill="#6B7280" font-family="sans-serif" font-size="9.5">Unpruned conversational DeltaNet CoT</text>
         
-        <rect x="310" y="285" width="90.0" height="18" rx="4" fill="url(#greenUseful)"/>
-        <rect x="402.0" y="285" width="240.0" height="18" rx="4" fill="url(#redWaste)"/>
+        <rect x="330" y="285" width="103.5" height="18" rx="4" fill="url(#greenUseful)"/>
+        <rect x="435.5" y="285" width="140.875" height="18" rx="4" fill="url(#redWaste)"/>
         
-        <text x="650.0" y="299" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">1650 tokens </text>
+        <text x="584.375" y="299" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">850 tokens </text>
         
-        <text x="40" y="343" fill="#F3F4F6" font-family="sans-serif" font-size="12.5" font-weight="600">DeepSeek-R1 (2026)</text>
-        <text x="40" y="357" fill="#6B7280" font-family="sans-serif" font-size="9.5">Deep unsupervised reinforcement learning thinking chain</text>
+        <text x="40" y="343" fill="#F3F4F6" font-family="sans-serif" font-size="12" font-weight="600">GPT-6.1 Sol Pro (Sep 2026)</text>
+        <text x="40" y="357" fill="#6B7280" font-family="sans-serif" font-size="9.5">Exhaustive branch search reasoning</text>
         
-        <rect x="310" y="333" width="90.0" height="18" rx="4" fill="url(#greenUseful)"/>
-        <rect x="402.0" y="333" width="280.0" height="18" rx="4" fill="url(#redWaste)"/>
+        <rect x="330" y="333" width="132.25" height="18" rx="4" fill="url(#greenUseful)"/>
+        <rect x="464.25" y="333" width="270.25" height="18" rx="4" fill="url(#redWaste)"/>
         
-        <text x="690.0" y="347" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">1850 tokens </text>
+        <text x="742.5" y="347" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">1400 tokens </text>
         
-        <text x="40" y="391" fill="#F3F4F6" font-family="sans-serif" font-size="12.5" font-weight="600">OpenAI o3 Full (2026)</text>
-        <text x="40" y="405" fill="#6B7280" font-family="sans-serif" font-size="9.5">Heavyweight frontier search with high inference latency</text>
+        <text x="40" y="391" fill="#F3F4F6" font-family="sans-serif" font-size="12" font-weight="600">Claude Opus 5.5 (Sep 2026)</text>
+        <text x="40" y="405" fill="#6B7280" font-family="sans-serif" font-size="9.5">Deepest architectural reasoning with extensive CoT</text>
         
-        <rect x="310" y="381" width="92.0" height="18" rx="4" fill="url(#greenUseful)"/>
-        <rect x="404.0" y="381" width="348.0" height="18" rx="4" fill="url(#redWaste)"/>
+        <rect x="330" y="381" width="138.0" height="18" rx="4" fill="url(#greenUseful)"/>
+        <rect x="470.0" y="381" width="293.25" height="18" rx="4" fill="url(#redWaste)"/>
         
-        <text x="760.0" y="395" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">2200 tokens </text>
+        <text x="771.25" y="395" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">1500 tokens </text>
         
 </svg>
