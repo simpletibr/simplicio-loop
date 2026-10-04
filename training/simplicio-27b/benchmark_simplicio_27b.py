@@ -93,11 +93,7 @@ def parse_simplicio_trajectory(output: str) -> Dict[str, str]:
 
 def parse_surgical_diff(patch_content: str) -> List[Tuple[str, str]]:
     """Extracts SEARCH and REPLACE chunks."""
-    pattern = r"<<<< SEARCH\s*
-(.*?)
-====\s*
-(.*?)
->>>> REPLACE"
+    pattern = r"<<<< SEARCH\s*\n(.*?)\n====\s*\n(.*?)\n>>>> REPLACE"
     matches = re.findall(pattern, patch_content, re.DOTALL)
     return matches
 
