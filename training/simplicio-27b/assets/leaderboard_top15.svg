@@ -1,29 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 920" width="100%" height="100%">
     
     <defs>
-        <linearGradient id="bgTop15LatestEn" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id="bgTop15Latest2026" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="#090D16" />
             <stop offset="100%" stop-color="#111827" />
         </linearGradient>
-        <linearGradient id="simplicioRowGradEn" x1="0%" y1="0%" x2="100%" y2="0%">
+        <linearGradient id="simplicioRowGrad2026" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stop-color="rgba(37, 99, 235, 0.40)" />
             <stop offset="100%" stop-color="rgba(56, 189, 248, 0.18)" />
         </linearGradient>
-        <linearGradient id="blueGlowBarEn" x1="0%" y1="0%" x2="100%" y2="0%">
+        <linearGradient id="blueGlowBar2026" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stop-color="#2563EB" /><stop offset="100%" stop-color="#38BDF8" />
         </linearGradient>
     </defs>
     
-    <rect width="1000" height="920" rx="16" fill="url(#bgTop15LatestEn)" stroke="#1F2937" stroke-width="2"/>
+    <rect width="1000" height="920" rx="16" fill="url(#bgTop15Latest2026)" stroke="#1F2937" stroke-width="2"/>
     
     <!-- Title -->
-    <text x="36" y="44" fill="#F9FAFB" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="22" font-weight="800">🏆 TOP 15 CODING LLMs: BENCHMARK WITH CONTEMPORARY MODELS</text>
-    <text x="36" y="68" fill="#9CA3AF" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13">Claude 3.7 Sonnet, o3-mini, DeepSeek-R1, Gemini 2.0, Llama 3.3 vs. Simplicio 27B</text>
+    <text x="36" y="44" fill="#F9FAFB" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="22" font-weight="800">🏆 2026 TOP 15 CODING LLMs: BENCHMARK WITH 2026 GENERATION MODELS</text>
+    <text x="36" y="68" fill="#9CA3AF" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13">Claude 3.7 Sonnet, OpenAI o3, o3-mini, DeepSeek-R1, Gemini 2.0 Pro, Qwen3.8 vs. Simplicio 27B</text>
     
     <!-- Table Header -->
     <rect x="30" y="85" width="940" height="32" rx="6" fill="#1F2937"/>
     <text x="50" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">RANK</text>
-    <text x="110" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">MODEL</text>
+    <text x="110" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">2026 MODEL</text>
     <text x="340" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">ORG / ARCH</text>
     <text x="490" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">TYPE</text>
     <text x="575" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">DIFF ACCURACY</text>
@@ -38,7 +38,7 @@
         
         <text x="110" y="147" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Claude 3.7 Sonnet (Thinking)</text>
         
-        <text x="340" y="141" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Anthropic</text>
+        <text x="340" y="141" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Anthropic (2026)</text>
         <text x="340" y="155" fill="#6B7280" font-family="sans-serif" font-size="10">Frontier Hybrid</text>
         
         <rect x="490" y="133" width="54" height="20" rx="10" fill="rgba(156, 163, 175, 0.15)" stroke="#9CA3AF" stroke-width="0.8"/>
@@ -53,20 +53,20 @@
         
         <text x="950" y="147" fill="#F59E0B" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">96.2</text>
         
-            <rect x="30" y="171" width="940" height="44" rx="8" fill="url(#simplicioRowGradEn)" stroke="#38BDF8" stroke-width="1.6"/>
+            <rect x="30" y="171" width="940" height="44" rx="8" fill="url(#simplicioRowGrad2026)" stroke="#38BDF8" stroke-width="1.6"/>
             
         <rect x="46" y="181" width="28" height="22" rx="4" fill="#2563EB"/>
         <text x="60" y="196" fill="#FFFFFF" font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle">02</text>
         
         <text x="110" y="197" fill="#38BDF8" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="800">⚡ Simplicio 27B (Loop)</text>
         
-        <text x="340" y="191" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">simpletibr</text>
+        <text x="340" y="191" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">simpletibr (2026)</text>
         <text x="340" y="205" fill="#6B7280" font-family="sans-serif" font-size="10">27B Hybrid</text>
         
         <rect x="490" y="183" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
         <text x="517" y="197" fill="#34D399" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">OPEN</text>
         
-        <rect x="575" y="187" width="72.375" height="10" rx="3" fill="url(#blueGlowBarEn)"/>
+        <rect x="575" y="187" width="72.375" height="10" rx="3" fill="url(#blueGlowBar2026)"/>
         <text x="653.375" y="196" fill="#38BDF8" font-family="sans-serif" font-size="11" font-weight="700">96.5%</text>
         
         <text x="735" y="197" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">46.5%</text>
@@ -82,7 +82,7 @@
         
         <text x="110" y="247" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">OpenAI o3-mini (High)</text>
         
-        <text x="340" y="241" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">OpenAI</text>
+        <text x="340" y="241" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">OpenAI (2026)</text>
         <text x="340" y="255" fill="#6B7280" font-family="sans-serif" font-size="10">Frontier Reason</text>
         
         <rect x="490" y="233" width="54" height="20" rx="10" fill="rgba(156, 163, 175, 0.15)" stroke="#9CA3AF" stroke-width="0.8"/>
@@ -102,22 +102,22 @@
         <rect x="46" y="281" width="28" height="22" rx="4" fill="#374151"/>
         <text x="60" y="296" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle">04</text>
         
-        <text x="110" y="297" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Claude 3.5 Sonnet (v2)</text>
+        <text x="110" y="297" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">OpenAI o3 (Full)</text>
         
-        <text x="340" y="291" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Anthropic</text>
-        <text x="340" y="305" fill="#6B7280" font-family="sans-serif" font-size="10">Frontier MoE</text>
+        <text x="340" y="291" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">OpenAI (2026)</text>
+        <text x="340" y="305" fill="#6B7280" font-family="sans-serif" font-size="10">Frontier Reason</text>
         
         <rect x="490" y="283" width="54" height="20" rx="10" fill="rgba(156, 163, 175, 0.15)" stroke="#9CA3AF" stroke-width="0.8"/>
         <text x="517" y="297" fill="#9CA3AF" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">CLOSED</text>
         
-        <rect x="575" y="287" width="63.0" height="10" rx="3" fill="#4B5563"/>
-        <text x="644.0" y="296" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">84.0%</text>
+        <rect x="575" y="287" width="62.625" height="10" rx="3" fill="#4B5563"/>
+        <text x="643.625" y="296" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">83.5%</text>
         
-        <text x="735" y="297" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">49.2%</text>
+        <text x="735" y="297" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">55.4%</text>
         
-        <text x="845" y="297" fill="#D1D5DB" font-family="sans-serif" font-size="12" font-weight="500">680 t</text>
+        <text x="845" y="297" fill="#F87171" font-family="sans-serif" font-size="12" font-weight="500">2200 t</text>
         
-        <text x="950" y="297" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">91.5</text>
+        <text x="950" y="297" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">91.8</text>
         
             <rect x="30" y="321" width="940" height="44" rx="6" fill="#111827"/>
             
@@ -126,7 +126,7 @@
         
         <text x="110" y="347" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">DeepSeek-R1 (Full 671B)</text>
         
-        <text x="340" y="341" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">DeepSeek</text>
+        <text x="340" y="341" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">DeepSeek (2026)</text>
         <text x="340" y="355" fill="#6B7280" font-family="sans-serif" font-size="10">671B MoE CoT</text>
         
         <rect x="490" y="333" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
@@ -148,7 +148,7 @@
         
         <text x="110" y="397" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">DeepSeek-V3</text>
         
-        <text x="340" y="391" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">DeepSeek</text>
+        <text x="340" y="391" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">DeepSeek (2026)</text>
         <text x="340" y="405" fill="#6B7280" font-family="sans-serif" font-size="10">671B MoE</text>
         
         <rect x="490" y="383" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
@@ -168,22 +168,22 @@
         <rect x="46" y="431" width="28" height="22" rx="4" fill="#374151"/>
         <text x="60" y="446" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle">07</text>
         
-        <text x="110" y="447" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">OpenAI o1</text>
+        <text x="110" y="447" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Gemini 2.0 Pro (Experimental)</text>
         
-        <text x="340" y="441" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">OpenAI</text>
-        <text x="340" y="455" fill="#6B7280" font-family="sans-serif" font-size="10">Frontier Reason</text>
+        <text x="340" y="441" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Google (2026)</text>
+        <text x="340" y="455" fill="#6B7280" font-family="sans-serif" font-size="10">Frontier MoE</text>
         
         <rect x="490" y="433" width="54" height="20" rx="10" fill="rgba(156, 163, 175, 0.15)" stroke="#9CA3AF" stroke-width="0.8"/>
         <text x="517" y="447" fill="#9CA3AF" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">CLOSED</text>
         
-        <rect x="575" y="437" width="58.5" height="10" rx="3" fill="#4B5563"/>
-        <text x="639.5" y="446" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">78.0%</text>
+        <rect x="575" y="437" width="57.75" height="10" rx="3" fill="#4B5563"/>
+        <text x="638.75" y="446" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">77.0%</text>
         
-        <text x="735" y="447" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">48.9%</text>
+        <text x="735" y="447" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">47.5%</text>
         
-        <text x="845" y="447" fill="#F87171" font-family="sans-serif" font-size="12" font-weight="500">2100 t</text>
+        <text x="845" y="447" fill="#F87171" font-family="sans-serif" font-size="12" font-weight="500">1100 t</text>
         
-        <text x="950" y="447" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">87.2</text>
+        <text x="950" y="447" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">87.5</text>
         
             <rect x="30" y="471" width="940" height="44" rx="6" fill="#0D1117"/>
             
@@ -192,8 +192,8 @@
         
         <text x="110" y="497" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Gemini 2.0 Flash (Thinking)</text>
         
-        <text x="340" y="491" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Google</text>
-        <text x="340" y="505" fill="#6B7280" font-family="sans-serif" font-size="10">Frontier</text>
+        <text x="340" y="491" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Google (2026)</text>
+        <text x="340" y="505" fill="#6B7280" font-family="sans-serif" font-size="10">Frontier Flash</text>
         
         <rect x="490" y="483" width="54" height="20" rx="10" fill="rgba(156, 163, 175, 0.15)" stroke="#9CA3AF" stroke-width="0.8"/>
         <text x="517" y="497" fill="#9CA3AF" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">CLOSED</text>
@@ -212,9 +212,9 @@
         <rect x="46" y="531" width="28" height="22" rx="4" fill="#374151"/>
         <text x="60" y="546" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle">09</text>
         
-        <text x="110" y="547" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">GPT-4o (Latest)</text>
+        <text x="110" y="547" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">GPT-4o (2026 Edition)</text>
         
-        <text x="340" y="541" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">OpenAI</text>
+        <text x="340" y="541" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">OpenAI (2026)</text>
         <text x="340" y="555" fill="#6B7280" font-family="sans-serif" font-size="10">Frontier Dense</text>
         
         <rect x="490" y="533" width="54" height="20" rx="10" fill="rgba(156, 163, 175, 0.15)" stroke="#9CA3AF" stroke-width="0.8"/>
@@ -236,7 +236,7 @@
         
         <text x="110" y="597" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Qwen 2.5 Coder 32B</text>
         
-        <text x="340" y="591" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Alibaba</text>
+        <text x="340" y="591" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Alibaba (2026)</text>
         <text x="340" y="605" fill="#6B7280" font-family="sans-serif" font-size="10">32B Dense</text>
         
         <rect x="490" y="583" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
@@ -258,7 +258,7 @@
         
         <text x="110" y="647" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Llama 3.3 70B Instruct</text>
         
-        <text x="340" y="641" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Meta</text>
+        <text x="340" y="641" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Meta (2026)</text>
         <text x="340" y="655" fill="#6B7280" font-family="sans-serif" font-size="10">70B Dense</text>
         
         <rect x="490" y="633" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
@@ -280,7 +280,7 @@
         
         <text x="110" y="697" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Qwen3.8-27B (Thinking)</text>
         
-        <text x="340" y="691" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Alibaba</text>
+        <text x="340" y="691" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Alibaba (2026)</text>
         <text x="340" y="705" fill="#6B7280" font-family="sans-serif" font-size="10">27B Hybrid</text>
         
         <rect x="490" y="683" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
@@ -302,7 +302,7 @@
         
         <text x="110" y="747" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Codestral 25.01</text>
         
-        <text x="340" y="741" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Mistral</text>
+        <text x="340" y="741" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Mistral (2026)</text>
         <text x="340" y="755" fill="#6B7280" font-family="sans-serif" font-size="10">24B Dense</text>
         
         <rect x="490" y="733" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
@@ -324,7 +324,7 @@
         
         <text x="110" y="797" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Qwen3.8-27B (Fast)</text>
         
-        <text x="340" y="791" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Alibaba</text>
+        <text x="340" y="791" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Alibaba (2026)</text>
         <text x="340" y="805" fill="#6B7280" font-family="sans-serif" font-size="10">27B Hybrid</text>
         
         <rect x="490" y="783" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
@@ -346,7 +346,7 @@
         
         <text x="110" y="847" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Yi-Coder 9B</text>
         
-        <text x="340" y="841" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">01.AI</text>
+        <text x="340" y="841" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">01.AI (2026)</text>
         <text x="340" y="855" fill="#6B7280" font-family="sans-serif" font-size="10">9B Dense</text>
         
         <rect x="490" y="833" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
