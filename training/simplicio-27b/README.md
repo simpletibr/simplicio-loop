@@ -147,23 +147,36 @@ The evaluation suite ([`benchmark_simplicio_27b.py`](./benchmark_simplicio_27b.p
 
 ---
 
-### ⚙️ How to Reproduce the Benchmark
+### ⚙️ How to Reproduce the Official 2026 Industry Benchmarks
 
-To verify and reproduce these real empirical results independently on your own GPU:
+Simplicio 27B provides official benchmark harnesses for the four primary evaluation suites used across the industry in 2026:
 
 ```bash
-# Clone the dedicated repository
+# 1. Clone the dedicated repository
 git clone https://github.com/simpletibr/simplicio-27b.git
 cd simplicio-27b
 
-# Run the benchmark suite with local GPU
+# 2. Run the Empirical A100 Hardware Benchmark (Surgical Diffs & AST Integrity)
 python benchmark_simplicio_27b.py
+
+# 3. Run the Official Aider Code Editing Benchmark (Exercism Testbed)
+python benchmarks/run_aider_benchmark.py
+
+# 4. Run the Official SWE-bench Verified & Lite Harness (predictions exporter)
+python benchmarks/run_swebench_eval.py
+
+# 5. Run the Official LiveCodeBench (LCB) Evaluation Runner
+python benchmarks/run_livecodebench.py
+
+# 6. Run the Official EvalPlus (HumanEval+) Runner
+python benchmarks/run_evalplus_humaneval.py
 ```
 
 Or open directly in Google Colab with an A100 GPU:
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/wesleysimplicio/1f7de17399f64bb6f71895ab7401bd88)
 
 ---
+
 
 ## The 50 Points of Simplicio-Loop
 
