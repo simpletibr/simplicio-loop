@@ -71,6 +71,14 @@ Unlike standard conversational models that employ unbounded, verbose Chain-of-Th
 
 ## Benchmark Comparison: Qwen3.8-27B vs. Simplicio 27B
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/benchmark_comparison.svg" alt="Simplicio 27B Benchmark Comparison" width="100%">
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/token_efficiency.svg" alt="Reasoning Token Economy &amp; Hallucination Prevention" width="100%">
+</p>
+
 Below is a direct performance comparison between the base **Qwen3.8-27B** (in both Fast and native Thinking modes) and **Simplicio 27B (Qwen3.8 + Simplicio-Loop)** across code resolution, surgical diff accuracy, and token economy.
 
 <style>
@@ -192,6 +200,10 @@ The following empirical results were measured directly on the fine-tuned **Simpl
 ---
 
 ## The 50 Points of Simplicio-Loop
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/simplicio_loop_pipeline.svg" alt="The 50 Points of Simplicio-Loop Protocol Execution" width="100%">
+</p>
 
 Simplicio 27B internalizes the full 50-point specification codified across 5 strict execution stages:
 
