@@ -1,31 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 920" width="100%" height="100%">
     
     <defs>
-        <linearGradient id="bgTop15Latest" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id="bgTop15LatestEn" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="#090D16" />
             <stop offset="100%" stop-color="#111827" />
         </linearGradient>
-        <linearGradient id="simplicioRowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <linearGradient id="simplicioRowGradEn" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stop-color="rgba(37, 99, 235, 0.40)" />
             <stop offset="100%" stop-color="rgba(56, 189, 248, 0.18)" />
         </linearGradient>
-        <linearGradient id="blueGlowBar" x1="0%" y1="0%" x2="100%" y2="0%">
+        <linearGradient id="blueGlowBarEn" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stop-color="#2563EB" /><stop offset="100%" stop-color="#38BDF8" />
         </linearGradient>
     </defs>
     
-    <rect width="1000" height="920" rx="16" fill="url(#bgTop15Latest)" stroke="#1F2937" stroke-width="2"/>
+    <rect width="1000" height="920" rx="16" fill="url(#bgTop15LatestEn)" stroke="#1F2937" stroke-width="2"/>
     
     <!-- Title -->
-    <text x="36" y="44" fill="#F9FAFB" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="22" font-weight="800">🏆 TOP 15 CODING LLMs: COMPARAÇÃO COM MODELOS ATUAIS</text>
+    <text x="36" y="44" fill="#F9FAFB" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="22" font-weight="800">🏆 TOP 15 CODING LLMs: BENCHMARK WITH CONTEMPORARY MODELS</text>
     <text x="36" y="68" fill="#9CA3AF" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13">Claude 3.7 Sonnet, o3-mini, DeepSeek-R1, Gemini 2.0, Llama 3.3 vs. Simplicio 27B</text>
     
     <!-- Table Header -->
     <rect x="30" y="85" width="940" height="32" rx="6" fill="#1F2937"/>
     <text x="50" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">RANK</text>
-    <text x="110" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">MODELO ATUAL</text>
-    <text x="340" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">ORIGEM / ARQ</text>
-    <text x="490" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">TIPO</text>
+    <text x="110" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">MODEL</text>
+    <text x="340" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">ORG / ARCH</text>
+    <text x="490" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">TYPE</text>
     <text x="575" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">DIFF ACCURACY</text>
     <text x="715" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">SWE-BENCH</text>
     <text x="825" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">TOKENS/ISSUE</text>
@@ -53,7 +53,7 @@
         
         <text x="950" y="147" fill="#F59E0B" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">96.2</text>
         
-            <rect x="30" y="171" width="940" height="44" rx="8" fill="url(#simplicioRowGrad)" stroke="#38BDF8" stroke-width="1.6"/>
+            <rect x="30" y="171" width="940" height="44" rx="8" fill="url(#simplicioRowGradEn)" stroke="#38BDF8" stroke-width="1.6"/>
             
         <rect x="46" y="181" width="28" height="22" rx="4" fill="#2563EB"/>
         <text x="60" y="196" fill="#FFFFFF" font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle">02</text>
@@ -66,7 +66,7 @@
         <rect x="490" y="183" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
         <text x="517" y="197" fill="#34D399" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">OPEN</text>
         
-        <rect x="575" y="187" width="72.375" height="10" rx="3" fill="url(#blueGlowBar)"/>
+        <rect x="575" y="187" width="72.375" height="10" rx="3" fill="url(#blueGlowBarEn)"/>
         <text x="653.375" y="196" fill="#38BDF8" font-family="sans-serif" font-size="11" font-weight="700">96.5%</text>
         
         <text x="735" y="197" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">46.5%</text>

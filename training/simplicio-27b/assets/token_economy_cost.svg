@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" width="100%" height="100%">
     
     <defs>
-        <linearGradient id="bgCostLatest" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id="bgCostLatestEn" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="#090D16" />
             <stop offset="100%" stop-color="#111827" />
         </linearGradient>
@@ -13,28 +13,28 @@
         </linearGradient>
     </defs>
     
-    <rect width="1000" height="440" rx="16" fill="url(#bgCostLatest)" stroke="#1F2937" stroke-width="2"/>
+    <rect width="1000" height="440" rx="16" fill="url(#bgCostLatestEn)" stroke="#1F2937" stroke-width="2"/>
     
-    <text x="36" y="44" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="22" font-weight="800">💸 EFICIÊNCIA DE REASONING: CÓDIGO ÚTIL VS. TOKENS DE RACIOCÍNIO</text>
-    <text x="36" y="68" fill="#9CA3AF" font-family="-apple-system, sans-serif" font-size="13">Comparando Simplicio 27B com os novos modelos de raciocínio profundo (DeepSeek-R1, o3-mini, Claude 3.7)</text>
+    <text x="36" y="44" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="22" font-weight="800">💸 REASONING EFFICIENCY: USEFUL CODE VS. WASTED CHAIN-OF-THOUGHT</text>
+    <text x="36" y="68" fill="#9CA3AF" font-family="-apple-system, sans-serif" font-size="13">Comparing Simplicio 27B against deep thinking models (DeepSeek-R1, o3-mini, Claude 3.7)</text>
     
     <!-- Legend -->
     <rect x="36" y="92" width="12" height="12" rx="3" fill="url(#greenUseful)"/>
-    <text x="56" y="102" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">Tokens Úteis (Diff Cirúrgico &amp; Código Entregue)</text>
+    <text x="56" y="102" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">Useful Tokens (Surgical Diff &amp; Delivered Code)</text>
     
     <rect x="420" y="92" width="12" height="12" rx="3" fill="url(#redWaste)"/>
-    <text x="440" y="102" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">Tokens de Raciocínio Interno / Thinking CoT (Custo de GPU)</text>
+    <text x="440" y="102" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">Internal Thinking / CoT Overhead (GPU Compute Cost)</text>
     
         <text x="40" y="153" fill="#38BDF8" font-family="sans-serif" font-size="13" font-weight="800">⚡ Simplicio 27B</text>
-        <text x="40" y="167" fill="#6B7280" font-family="sans-serif" font-size="10">50 Pontos: <orient> + <plan> em 190t, foco total no patch</text>
+        <text x="40" y="167" fill="#6B7280" font-family="sans-serif" font-size="10">50 Points: <orient> + <plan> in 190t, total focus on patch</text>
         
         <rect x="300" y="143" width="96.6" height="20" rx="4" fill="url(#greenUseful)"/>
         <rect x="398.6" y="143" width="13.799999999999999" height="20" rx="4" fill="url(#redWaste)"/>
         
-        <text x="422.40000000000003" y="158" fill="#34D399" font-family="sans-serif" font-size="12" font-weight="800">480 tokens (⚡ Ultra Leve)</text>
+        <text x="422.40000000000003" y="158" fill="#34D399" font-family="sans-serif" font-size="12" font-weight="800">480 tokens (⚡ Ultra Lightweight)</text>
         
         <text x="40" y="209" fill="#F3F4F6" font-family="sans-serif" font-size="13" font-weight="600">GPT-4o (Latest)</text>
-        <text x="40" y="223" fill="#6B7280" font-family="sans-serif" font-size="10">Conversação e texto explicativo antes do código</text>
+        <text x="40" y="223" fill="#6B7280" font-family="sans-serif" font-size="10">Conversational prose prior to emitting code diff</text>
         
         <rect x="300" y="199" width="96.6" height="20" rx="4" fill="url(#greenUseful)"/>
         <rect x="398.6" y="199" width="69.0" height="20" rx="4" fill="url(#redWaste)"/>
@@ -42,7 +42,7 @@
         <text x="477.6" y="214" fill="#9CA3AF" font-family="sans-serif" font-size="12" font-weight="600">720 tokens </text>
         
         <text x="40" y="265" fill="#F3F4F6" font-family="sans-serif" font-size="13" font-weight="600">Claude 3.7 Sonnet (Normal)</text>
-        <text x="40" y="279" fill="#6B7280" font-family="sans-serif" font-size="10">Alta inteligência com overhead moderado</text>
+        <text x="40" y="279" fill="#6B7280" font-family="sans-serif" font-size="10">High intelligence with moderate reasoning overhead</text>
         
         <rect x="300" y="255" width="105.80000000000001" height="20" rx="4" fill="url(#greenUseful)"/>
         <rect x="407.8" y="255" width="96.6" height="20" rx="4" fill="url(#redWaste)"/>
@@ -50,7 +50,7 @@
         <text x="514.4" y="270" fill="#9CA3AF" font-family="sans-serif" font-size="12" font-weight="600">880 tokens </text>
         
         <text x="40" y="321" fill="#F3F4F6" font-family="sans-serif" font-size="13" font-weight="600">OpenAI o3-mini (High)</text>
-        <text x="40" y="335" fill="#6B7280" font-family="sans-serif" font-size="10">Cadeia de pensamento longa para explorar hipóteses</text>
+        <text x="40" y="335" fill="#6B7280" font-family="sans-serif" font-size="10">Extended chain-of-thought exploring search branches</text>
         
         <rect x="300" y="311" width="103.5" height="20" rx="4" fill="url(#greenUseful)"/>
         <rect x="405.5" y="311" width="276.0" height="20" rx="4" fill="url(#redWaste)"/>
@@ -58,7 +58,7 @@
         <text x="691.5" y="326" fill="#9CA3AF" font-family="sans-serif" font-size="12" font-weight="600">1650 tokens </text>
         
         <text x="40" y="377" fill="#F3F4F6" font-family="sans-serif" font-size="13" font-weight="600">DeepSeek-R1 (671B)</text>
-        <text x="40" y="391" fill="#6B7280" font-family="sans-serif" font-size="10">Thinking profundo não supervisionado (custo elevado de contexto)</text>
+        <text x="40" y="391" fill="#6B7280" font-family="sans-serif" font-size="10">Deep unsupervised thinking (high context window burn)</text>
         
         <rect x="300" y="367" width="103.5" height="20" rx="4" fill="url(#greenUseful)"/>
         <rect x="405.5" y="367" width="322.0" height="20" rx="4" fill="url(#redWaste)"/>
