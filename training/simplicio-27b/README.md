@@ -172,8 +172,9 @@ python benchmarks/run_livecodebench.py
 python benchmarks/run_evalplus_humaneval.py
 ```
 
-Or open directly in Google Colab with an A100 GPU:
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/wesleysimplicio/1f7de17399f64bb6f71895ab7401bd88)
+Or run the full 2026 Coding Benchmark suite directly in Google Colab on an A100 GPU:
+- 🚀 **Dedicated 2026 Benchmarks Notebook**: [`Simplicio_27B_2026_Benchmarks_Colab.ipynb`](./Simplicio_27B_2026_Benchmarks_Colab.ipynb)
+- 🧪 **Interactive Colab Session**: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/wesleysimplicio/1f7de17399f64bb6f71895ab7401bd88)
 
 ---
 
