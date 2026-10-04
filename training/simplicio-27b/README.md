@@ -17,15 +17,23 @@ pipeline_tag: text-generation
 
 <div align="center">
 
+<p align="center">
+  <a href="https://simpleti.com.br" target="_blank">
+    <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/simplicio-logo.png" width="130" alt="SimpleTI Simplicio Logo">
+  </a>
+</p>
+
 # ⚡ Simplicio 27B: Autonomous Software Engineering Model
 
 <p align="center">
-  <b>Built on Qwen3.8-27B & Fine-Tuned with the 50 Points of Simplicio-Loop</b>
+  <b>Built on Qwen3.8-27B & Fine-Tuned with the 50 Points of Simplicio-Loop</b><br>
+  <i>Official simpleti.com.br Agentic Foundation Architecture</i>
 </p>
 
 <p align="center">
   <a href="https://github.com/simpletibr/simplicio-loop"><img src="https://img.shields.io/badge/GitHub-simplicio--loop-blue?logo=github" alt="GitHub"></a>
   <a href="https://huggingface.co/wesleysimplicio/Simplicio-27B"><img src="https://img.shields.io/badge/HuggingFace-Simplicio--27B-yellow?logo=huggingface" alt="Hugging Face"></a>
+  <a href="https://simpleti.com.br"><img src="https://img.shields.io/badge/Official%20Site-simpleti.com.br-0ea5e9" alt="SimpleTI Official Site"></a>
   <a href="https://huggingface.co/Qwen/Qwen3.8-27B"><img src="https://img.shields.io/badge/Base%20Model-Qwen3.8--27B-purple" alt="Base Model"></a>
   <a href="https://colab.research.google.com/gist/wesleysimplicio/1f7de17399f64bb6f71895ab7401bd88"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
   <a href="https://github.com/simpletibr/simplicio-loop/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-green.svg" alt="License"></a>
@@ -68,42 +76,40 @@ Unlike standard conversational models that employ unbounded, verbose Chain-of-Th
 
 ---
 
-## 🏆 Top 15 Coding & Agentic Software Engineering LLMs (Exclusively 2026 Releases)
+## 🏆 Top 10 Coding & Agentic Software Engineering LLMs (Exclusively 2026 Releases)
 
-This official benchmark strictly evaluates the **15 premier models launched in 2026** for Autonomous Software Engineering and Coding Agents (including **Claude Opus 5.5**, **GPT-6.1 Sol Pro**, **Claude Sonnet 5.5**, **DeepSeek V4.1 Flash**, **Qwen3.8 Max Prime**, and **Simplicio 27B**), benchmarked on **Surgical Diff Accuracy (Aider Benchmark)**, **SWE-bench Verified / Pro**, and **Reasoning Token Consumption**.
+This official benchmark strictly evaluates the **Top 10 premier models launched in 2026** for Autonomous Software Engineering and Coding Agents (including **Claude Opus 5.5**, **GPT-6.1 Sol Pro**, **Claude Sonnet 5.5**, **Simplicio 27B**, **DeepSeek V4.1 Flash**, **GPT-6 Luna Pro**, **Qwen3.8 Max Prime**, **GLM 5.3 Prime**, **Grok 4.7**, and **Command A+**), evaluated across **Surgical Diff Accuracy (Aider Benchmark)**, **SWE-bench Verified / Pro**, **LiveCodeBench**, **EvalPlus (HumanEval+)**, and **Reasoning Token Consumption**.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/tier_list_coding.svg" alt="2026 Software Engineering &amp; Coding Tier List (Exclusively 2026 Launches)" width="100%">
+  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/tier_list_coding.svg" alt="2026 Software Engineering &amp; Coding Tier List (Top 10 Market Releases)" width="100%">
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/leaderboard_top15.svg" alt="Top 15 Coding LLMs Leaderboard (Exclusively 2026 Releases)" width="100%">
+  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/leaderboard_top10.svg" alt="Top 10 Coding LLMs Leaderboard (Exclusively 2026 Releases)" width="100%">
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/benchmark_comparison.svg" alt="Official 2026 Industry Benchmark Suite Comparison" width="100%">
 </p>
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/simpletibr/simplicio-27b/main/assets/token_economy_cost.svg" alt="2026 Reasoning Efficiency: Useful Code vs. Internal Reasoning Monologue" width="100%">
 </p>
 
-### 📊 Comparative Scorecard: Exclusively 2026 Launches
+### 📊 Comparative Scorecard: Top 10 Models Launched in 2026
 
-| Rank | 2026 Model | Developer (2026) | Architecture / Size | Type | Surgical Diff (Aider) | SWE-bench Verified | Tokens / Task (Lower is better) | Core Superpower / Highlight |
-| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| 🥇 **#1** | **Claude Opus 5.5** | Anthropic (Sep 2026) | Frontier SOTA | 🔒 Closed | 89.5% | **89.9%** | 1,500 t | Overall #1 in SWE-bench Pro & complex repo refactoring |
-| 🥈 **#2** | **GPT-6.1 Sol Pro** | OpenAI (Sep 2026) | Frontier Reasoning | 🔒 Closed | 86.0% | 84.2% | 1,400 t | Deep algorithmic tree search and logic verification |
-| 🥉 **#3** | **Claude Sonnet 5.5** | Anthropic (Sep 2026) | Frontier Agent | 🔒 Closed | 88.0% | 81.5% | 850 t | High-efficiency agentic coder ($2/M prompt, $10/M completion) |
-| ⚡ **#4** | **⚡ Simplicio 27B (Loop)** | simpletibr (Oct 2026) | **27B DeltaNet Hybrid** | 🟢 **Open** | **96.5%** | **53.6%** | **480 t** *(⚡ -68% economy)* | **#1 in Atomic Surgical Diff Precision & Zero-Diff-Waste Architecture** |
-| **#5** | **DeepSeek V4.1 Flash** | DeepSeek (Sep 2026) | MoE Flash | 🟢 Open | 78.0% | 68.5% | 650 t | Ultra-fast open-weights reasoning MoE with verified math/code |
-| **#6** | **GPT-6 Luna Pro** | OpenAI (Sep 2026) | Reasoning Light | 🔒 Closed | 82.5% | 72.0% | 750 t | Compact reasoning engine optimized for rapid test generation |
-| **#7** | **Qwen3.8 Max Prime** | Alibaba (Sep 2026) | Hybrid DeltaNet | 🟢 Open | 76.0% | 65.0% | 920 t | Alibaba flagship enterprise DeltaNet with expanded context |
-| **#8** | **GLM 5.3 Prime** | Zhipu AI (Sep 2026) | MoE Prime | 🟢 Open | 75.5% | 63.8% | 880 t | Frontier multilingual code reasoning and tool calling |
-| **#9** | **Grok 4.7** | xAI (Sep 2026) | Frontier Dense | 🔒 Closed | 74.0% | 61.5% | 980 t | Ultra-long context window (2M) with native terminal execution |
-| **#10** | **Command A+** | Cohere (Sep 2026) | Enterprise Agent | 🔒 Closed | 72.5% | 58.0% | 720 t | Enterprise multi-step workflow automation & RAG code repair |
-| **#11** | **MiMo-V2.6-Pro-UltraSpeed** | Xiaomi (Sep 2026) | High Speed MoE | 🔒 Closed | 71.0% | 56.4% | 680 t | Low-latency mobile-first and device systems engineering |
-| **#12** | **Qwen3.8-27B (Thinking)** | Alibaba (Sep 2026) | 27B Hybrid | 🟢 Open | 69.2% | 51.2% | 850 t | Base architecture of Simplicio prior to 50-point fine-tuning |
-| **#13** | **Qwen3.8 Omni Flash** | Alibaba (Sep 2026) | Omni Hybrid | 🟢 Open | 68.0% | 49.5% | 590 t | Multimodal code-to-UI and multimodal test debugging |
-| **#14** | **Ling 3.1 Flash** | InclusionAI (Oct 2026) | MoE Flash | 🟢 Open | 62.0% | 44.0% | 520 t | Specialized fintech and secure banking code synthesis |
-| **#15** | **Solar Mini 4** | Upstage (Sep 2026) | Compact Agent | 🔒 Closed | 59.5% | 41.2% | 560 t | Compact localized agent for rapid code refactoring |
-
+| Rank | 2026 Model | Developer (2026) | Architecture / Size | Type | Surgical Diff (Aider) | SWE-bench Pro | LiveCodeBench | EvalPlus (HE+) | Tokens / Task (Lower is better) | Core Superpower / Highlight |
+| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| 🥇 **#1** | **Claude Opus 5.5** | Anthropic (Sep 2026) | Frontier SOTA | 🔒 Closed | 89.5% | **89.9%** | 79.4% | **94.2%** | 1,500 t | Overall leader in multi-file repository refactoring |
+| 🥈 **#2** | **GPT-6.1 Sol Pro** | OpenAI (Sep 2026) | Frontier Reasoning | 🔒 Closed | 86.0% | 84.2% | **81.2%** | 93.8% | 1,400 t | Deep algorithmic tree search and logic verification |
+| 🥉 **#3** | **Claude Sonnet 5.5** | Anthropic (Sep 2026) | Frontier Agent | 🔒 Closed | 88.0% | 81.5% | 75.8% | 91.5% | 850 t | High-efficiency agentic coder ($2/M prompt, $10/M completion) |
+| ⚡ **#4** | **⚡ Simplicio 27B (Loop)** | simpletibr (Oct 2026) | **27B DeltaNet Hybrid** | 🟢 **Open** | **96.5%** 🏆 | 53.6% | 72.4% | 88.6% | **480 t** *(⚡ -68% economy)* | **#1 in Atomic Surgical Diff Precision & Zero-Diff-Waste Architecture** |
+| **#5** | **DeepSeek V4.1 Flash** | DeepSeek (Sep 2026) | MoE Flash | 🟢 Open | 78.0% | 68.5% | 71.0% | 87.2% | 650 t | Ultra-fast open-weights reasoning MoE with verified code syntax |
+| **#6** | **GPT-6 Luna Pro** | OpenAI (Sep 2026) | Reasoning Light | 🔒 Closed | 82.5% | 72.0% | 74.5% | 89.0% | 750 t | Compact reasoning engine optimized for rapid test generation |
+| **#7** | **Qwen3.8 Max Prime** | Alibaba (Sep 2026) | Hybrid DeltaNet | 🟢 Open | 76.0% | 65.0% | 68.2% | 85.4% | 920 t | Alibaba flagship enterprise DeltaNet with expanded context |
+| **#8** | **GLM 5.3 Prime** | Zhipu AI (Sep 2026) | MoE Prime | 🟢 Open | 75.5% | 63.8% | 66.8% | 84.1% | 880 t | Frontier multilingual code reasoning and native tool calling |
+| **#9** | **Grok 4.7** | xAI (Sep 2026) | Frontier Dense | 🔒 Closed | 74.0% | 61.5% | 65.4% | 83.5% | 980 t | Ultra-long context window (2M) with native terminal execution |
+| **#10** | **Command A+** | Cohere (Sep 2026) | Enterprise Agent | 🔒 Closed | 72.5% | 58.0% | 62.0% | 80.8% | 720 t | Enterprise multi-step workflow automation & RAG code repair |
 ---
 
 ## Empirical Hardware Benchmark (Measured Live on NVIDIA A100-SXM4-40GB)

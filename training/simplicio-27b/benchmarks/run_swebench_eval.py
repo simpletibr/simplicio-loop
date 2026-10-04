@@ -63,5 +63,13 @@ def main():
         print(f"  - [{inst['instance_id']}] Repo: {inst['repo']}")
     print("\nReady to run swebench evaluation via swebench.harness.run_evaluation.")
 
+
+    if '--compare' in sys.argv:
+        sys.path.append(os.path.dirname(__file__))
+
 if __name__ == "__main__":
     main()
+    if "--compare" in sys.argv:
+        sys.path.append(os.path.dirname(__file__))
+        from compare_top10_2026 import print_top10_comparison
+        print_top10_comparison()

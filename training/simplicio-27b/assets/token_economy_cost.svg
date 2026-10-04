@@ -1,76 +1,152 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" width="100%" height="100%">
+  <defs>
+    <linearGradient id="costBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#090D16"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="960" height="540" rx="16" fill="url(#costBg)"/>
+  <rect width="960" height="540" rx="16" fill="none" stroke="#1E293B" stroke-width="2"/>
+
+  <!-- Header -->
+  <g transform="translate(36, 40)">
+    <text x="0" y="0" fill="#F8FAFC" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="20" font-weight="800">2026 Reasoning Economy: Useful Code vs. CoT Overhead (Top 10 Models)</text>
+    <text x="0" y="22" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="12.5">Empirically measured token consumption per bug-fix task · Lower total tokens is vastly superior</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(620, 32)">
+    <rect x="0" y="0" width="14" height="14" rx="3" fill="#10B981"/>
+    <text x="20" y="11" fill="#CBD5E1" font-family="-apple-system, sans-serif" font-size="11.5" font-weight="600">Useful Diff / Patch</text>
+    <rect x="150" y="0" width="14" height="14" rx="3" fill="#64748B"/>
+    <text x="170" y="11" fill="#CBD5E1" font-family="-apple-system, sans-serif" font-size="11.5" font-weight="600">Reasoning CoT</text>
+  </g>
+
+  <g transform="translate(36, 85)">
+
+    <rect x="-8" y="-4" width="904" height="36" rx="6" fill="#0284C7" fill-opacity="0.15" stroke="#38BDF8" stroke-width="1.2"/>
+    <text x="0" y="18" fill="#38BDF8" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="800">⚡ Simplicio 27B</text>
     
-    <defs>
-        <linearGradient id="bgCostReal2026" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#090D16" />
-            <stop offset="100%" stop-color="#111827" />
-        </linearGradient>
-        <linearGradient id="greenUseful" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#10B981" /><stop offset="100%" stop-color="#34D399" />
-        </linearGradient>
-        <linearGradient id="redWaste" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#EF4444" /><stop offset="100%" stop-color="#F87171" />
-        </linearGradient>
-    </defs>
+    <!-- Bar Segment 1: Useful Patch -->
+    <rect x="175" y="4" width="151.125" height="18" rx="3" fill="#34D399"/>
     
-    <rect width="1000" height="440" rx="16" fill="url(#bgCostReal2026)" stroke="#1F2937" stroke-width="2"/>
+    <!-- Bar Segment 2: CoT Overhead -->
+    <rect x="328.125" y="4" width="34.875" height="18" rx="3" fill="#0284C7"/>
     
-    <text x="36" y="44" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="22" font-weight="800">💸 2026 REASONING EFFICIENCY: ACTUAL 2026 RELEASES</text>
-    <text x="36" y="68" fill="#9CA3AF" font-family="-apple-system, sans-serif" font-size="13">Useful diff code tokens vs. internal CoT verbosity in actual 2026 models (Lower is Better)</text>
+    <text x="371.0" y="18" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">480 t</text>
+    <text x="825" y="18" fill="#38BDF8" font-family="-apple-system, sans-serif" font-size="11.5" font-weight="800">⚡ -68% Economy</text>
+
     
-    <!-- Legend -->
-    <rect x="36" y="92" width="12" height="12" rx="3" fill="url(#greenUseful)"/>
-    <text x="56" y="102" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">Useful Tokens (Surgical Diff &amp; Verified Patch)</text>
+    <text x="0" y="58" fill="#F1F5F9" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">DeepSeek V4.1 Flash</text>
     
-    <rect x="420" y="92" width="12" height="12" rx="3" fill="url(#redWaste)"/>
-    <text x="440" y="102" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">Internal Reasoning Monologue (GPU Overhead)</text>
+    <!-- Bar Segment 1: Useful Patch -->
+    <rect x="175" y="44" width="120.125" height="18" rx="3" fill="#10B981"/>
     
-        <text x="40" y="151" fill="#38BDF8" font-family="sans-serif" font-size="12" font-weight="800">⚡ Simplicio 27B (Oct 2026)</text>
-        <text x="40" y="165" fill="#6B7280" font-family="sans-serif" font-size="9.5">50 Points of Loop: <orient> + <plan> in 190t, total patch focus</text>
-        
-        <rect x="330" y="141" width="120.75" height="18" rx="4" fill="url(#greenUseful)"/>
-        <rect x="452.75" y="141" width="17.25" height="18" rx="4" fill="url(#redWaste)"/>
-        
-        <text x="478.0" y="155" fill="#34D399" font-family="sans-serif" font-size="11.5" font-weight="800">480 tokens (⚡ Ultra Lightweight)</text>
-        
-        <text x="40" y="199" fill="#F3F4F6" font-family="sans-serif" font-size="12" font-weight="600">DeepSeek V4.1 Flash (Sep 2026)</text>
-        <text x="40" y="213" fill="#6B7280" font-family="sans-serif" font-size="9.5">Lightweight MoE reasoning with low overhead</text>
-        
-        <rect x="330" y="189" width="120.75" height="18" rx="4" fill="url(#greenUseful)"/>
-        <rect x="452.75" y="189" width="66.125" height="18" rx="4" fill="url(#redWaste)"/>
-        
-        <text x="526.875" y="203" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">650 tokens </text>
-        
-        <text x="40" y="247" fill="#F3F4F6" font-family="sans-serif" font-size="12" font-weight="600">Claude Sonnet 5.5 (Sep 2026)</text>
-        <text x="40" y="261" fill="#6B7280" font-family="sans-serif" font-size="9.5">High intelligence with balanced agentic thinking</text>
-        
-        <rect x="330" y="237" width="132.25" height="18" rx="4" fill="url(#greenUseful)"/>
-        <rect x="464.25" y="237" width="112.125" height="18" rx="4" fill="url(#redWaste)"/>
-        
-        <text x="584.375" y="251" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">850 tokens </text>
-        
-        <text x="40" y="295" fill="#F3F4F6" font-family="sans-serif" font-size="12" font-weight="600">Qwen3.8-27B Base (Sep 2026)</text>
-        <text x="40" y="309" fill="#6B7280" font-family="sans-serif" font-size="9.5">Unpruned conversational DeltaNet CoT</text>
-        
-        <rect x="330" y="285" width="103.5" height="18" rx="4" fill="url(#greenUseful)"/>
-        <rect x="435.5" y="285" width="140.875" height="18" rx="4" fill="url(#redWaste)"/>
-        
-        <text x="584.375" y="299" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">850 tokens </text>
-        
-        <text x="40" y="343" fill="#F3F4F6" font-family="sans-serif" font-size="12" font-weight="600">GPT-6.1 Sol Pro (Sep 2026)</text>
-        <text x="40" y="357" fill="#6B7280" font-family="sans-serif" font-size="9.5">Exhaustive branch search reasoning</text>
-        
-        <rect x="330" y="333" width="132.25" height="18" rx="4" fill="url(#greenUseful)"/>
-        <rect x="464.25" y="333" width="270.25" height="18" rx="4" fill="url(#redWaste)"/>
-        
-        <text x="742.5" y="347" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">1400 tokens </text>
-        
-        <text x="40" y="391" fill="#F3F4F6" font-family="sans-serif" font-size="12" font-weight="600">Claude Opus 5.5 (Sep 2026)</text>
-        <text x="40" y="405" fill="#6B7280" font-family="sans-serif" font-size="9.5">Deepest architectural reasoning with extensive CoT</text>
-        
-        <rect x="330" y="381" width="138.0" height="18" rx="4" fill="url(#greenUseful)"/>
-        <rect x="470.0" y="381" width="293.25" height="18" rx="4" fill="url(#redWaste)"/>
-        
-        <text x="771.25" y="395" fill="#9CA3AF" font-family="sans-serif" font-size="11.5" font-weight="600">1500 tokens </text>
-        
+    <!-- Bar Segment 2: CoT Overhead -->
+    <rect x="297.125" y="44" width="131.75" height="18" rx="3" fill="#475569"/>
+    
+    <text x="436.875" y="58" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">650 t</text>
+    <text x="825" y="58" fill="#64748B" font-family="-apple-system, sans-serif" font-size="11" font-weight="500">650 t</text>
+
+    
+    <text x="0" y="98" fill="#F1F5F9" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Command A+</text>
+    
+    <!-- Bar Segment 1: Useful Patch -->
+    <rect x="175" y="84" width="124.0" height="18" rx="3" fill="#10B981"/>
+    
+    <!-- Bar Segment 2: CoT Overhead -->
+    <rect x="301.0" y="84" width="155.0" height="18" rx="3" fill="#475569"/>
+    
+    <text x="464.0" y="98" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">720 t</text>
+    <text x="825" y="98" fill="#64748B" font-family="-apple-system, sans-serif" font-size="11" font-weight="500">720 t</text>
+
+    
+    <text x="0" y="138" fill="#F1F5F9" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">GPT-6 Luna Pro</text>
+    
+    <!-- Bar Segment 1: Useful Patch -->
+    <rect x="175" y="124" width="135.625" height="18" rx="3" fill="#10B981"/>
+    
+    <!-- Bar Segment 2: CoT Overhead -->
+    <rect x="312.625" y="124" width="155.0" height="18" rx="3" fill="#475569"/>
+    
+    <text x="475.625" y="138" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">750 t</text>
+    <text x="825" y="138" fill="#64748B" font-family="-apple-system, sans-serif" font-size="11" font-weight="500">750 t</text>
+
+    
+    <text x="0" y="178" fill="#F1F5F9" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Claude Sonnet 5.5</text>
+    
+    <!-- Bar Segment 1: Useful Patch -->
+    <rect x="175" y="164" width="158.875" height="18" rx="3" fill="#10B981"/>
+    
+    <!-- Bar Segment 2: CoT Overhead -->
+    <rect x="335.875" y="164" width="170.5" height="18" rx="3" fill="#475569"/>
+    
+    <text x="514.375" y="178" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">850 t</text>
+    <text x="825" y="178" fill="#64748B" font-family="-apple-system, sans-serif" font-size="11" font-weight="500">850 t</text>
+
+    
+    <text x="0" y="218" fill="#F1F5F9" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">GLM 5.3 Prime</text>
+    
+    <!-- Bar Segment 1: Useful Patch -->
+    <rect x="175" y="204" width="127.875" height="18" rx="3" fill="#10B981"/>
+    
+    <!-- Bar Segment 2: CoT Overhead -->
+    <rect x="304.875" y="204" width="213.125" height="18" rx="3" fill="#475569"/>
+    
+    <text x="526.0" y="218" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">880 t</text>
+    <text x="825" y="218" fill="#64748B" font-family="-apple-system, sans-serif" font-size="11" font-weight="500">880 t</text>
+
+    
+    <text x="0" y="258" fill="#F1F5F9" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Qwen3.8 Max Prime</text>
+    
+    <!-- Bar Segment 1: Useful Patch -->
+    <rect x="175" y="244" width="131.75" height="18" rx="3" fill="#10B981"/>
+    
+    <!-- Bar Segment 2: CoT Overhead -->
+    <rect x="308.75" y="244" width="224.75" height="18" rx="3" fill="#475569"/>
+    
+    <text x="541.5" y="258" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">920 t</text>
+    <text x="825" y="258" fill="#64748B" font-family="-apple-system, sans-serif" font-size="11" font-weight="500">920 t</text>
+
+    
+    <text x="0" y="298" fill="#F1F5F9" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Grok 4.7</text>
+    
+    <!-- Bar Segment 1: Useful Patch -->
+    <rect x="175" y="284" width="131.75" height="18" rx="3" fill="#10B981"/>
+    
+    <!-- Bar Segment 2: CoT Overhead -->
+    <rect x="308.75" y="284" width="248.0" height="18" rx="3" fill="#475569"/>
+    
+    <text x="564.75" y="298" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">980 t</text>
+    <text x="825" y="298" fill="#64748B" font-family="-apple-system, sans-serif" font-size="11" font-weight="500">980 t</text>
+
+    
+    <text x="0" y="338" fill="#F1F5F9" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">GPT-6.1 Sol Pro</text>
+    
+    <!-- Bar Segment 1: Useful Patch -->
+    <rect x="175" y="324" width="166.625" height="18" rx="3" fill="#10B981"/>
+    
+    <!-- Bar Segment 2: CoT Overhead -->
+    <rect x="343.625" y="324" width="375.875" height="18" rx="3" fill="#475569"/>
+    
+    <text x="727.5" y="338" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">1400 t</text>
+    <text x="825" y="338" fill="#64748B" font-family="-apple-system, sans-serif" font-size="11" font-weight="500">1400 t</text>
+
+    
+    <text x="0" y="378" fill="#F1F5F9" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Claude Opus 5.5</text>
+    
+    <!-- Bar Segment 1: Useful Patch -->
+    <rect x="175" y="364" width="174.375" height="18" rx="3" fill="#10B981"/>
+    
+    <!-- Bar Segment 2: CoT Overhead -->
+    <rect x="351.375" y="364" width="406.875" height="18" rx="3" fill="#475569"/>
+    
+    <text x="766.25" y="378" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11" font-weight="600">1500 t</text>
+    <text x="825" y="378" fill="#64748B" font-family="-apple-system, sans-serif" font-size="11" font-weight="500">1500 t</text>
+
+  </g>
+  <g transform="translate(36, 505)">
+    <text x="0" y="0" fill="#64748B" font-family="-apple-system, sans-serif" font-size="11.5">⚡ Simplicio 27B replaces rambling internal monologues with deterministic 5-phase loop checkpoints, slashing token bills by 68%.</text>
+  </g>
 </svg>

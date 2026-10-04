@@ -39,5 +39,13 @@ def main():
         print(f"  - [{t['task_id']}] Entry: {t['entry_point']}")
     print("\nReady for model evaluation via evalplus.evaluate.")
 
+
+    if '--compare' in sys.argv:
+        sys.path.append(os.path.dirname(__file__))
+
 if __name__ == "__main__":
     main()
+    if "--compare" in sys.argv:
+        sys.path.append(os.path.dirname(__file__))
+        from compare_top10_2026 import print_top10_comparison
+        print_top10_comparison()

@@ -1,114 +1,107 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 540" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" width="100%" height="100%">
+  <defs>
+    <linearGradient id="tierBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#090D16"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="960" height="540" rx="16" fill="url(#tierBg)"/>
+  <rect width="960" height="540" rx="16" fill="none" stroke="#1E293B" stroke-width="2"/>
+
+  <!-- Header -->
+  <g transform="translate(32, 36)">
+    <text x="0" y="0" fill="#F8FAFC" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="20" font-weight="800">2026 Autonomous Coding &amp; Software Engineering Tier List</text>
+    <text x="0" y="22" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="12.5">Strictly evaluating the Top 10 models launched in 2026 on Real-World Coding &amp; Diff Precision</text>
+  </g>
+
+  <!-- S+ TIER -->
+  <g transform="translate(32, 85)">
+    <rect width="90" height="88" rx="8" fill="#EF4444"/>
+    <text x="45" y="52" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="28" font-weight="900" text-anchor="middle">S+</text>
+    <rect x="98" y="0" width="798" height="88" rx="8" fill="#1E293B" fill-opacity="0.6"/>
     
-    <defs>
-        <linearGradient id="bgTier2026Real" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#090D16" />
-            <stop offset="100%" stop-color="#111827" />
-        </linearGradient>
-        <linearGradient id="tierSGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#DC2626" /><stop offset="100%" stop-color="#EF4444" />
-        </linearGradient>
-        <linearGradient id="tierAGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#D97706" /><stop offset="100%" stop-color="#F59E0B" />
-        </linearGradient>
-        <linearGradient id="tierBGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#2563EB" /><stop offset="100%" stop-color="#3B82F6" />
-        </linearGradient>
-        <linearGradient id="tierCGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#4B5563" /><stop offset="100%" stop-color="#6B7280" />
-        </linearGradient>
-        <linearGradient id="simpBadgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#1D4ED8" /><stop offset="100%" stop-color="#0284C7" />
-        </linearGradient>
-    </defs>
-    
-    <rect width="1000" height="540" rx="16" fill="url(#bgTier2026Real)" stroke="#1F2937" stroke-width="2"/>
-    
-    <text x="36" y="44" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="22" font-weight="800">🥋 2026 CODING TIER LIST (OPENROUTER &amp; ARTIFICIAL ANALYSIS)</text>
-    <text x="36" y="68" fill="#9CA3AF" font-family="-apple-system, sans-serif" font-size="13">Classifying actual late-2026 releases: Claude 5.5, GPT-6.1, DeepSeek V4.1 vs Simplicio 27B</text>
-    
-        <rect x="30" y="95" width="80" height="100" rx="8" fill="url(#tierSGrad)"/>
-        <text x="70" y="155" fill="#FFFFFF" font-family="sans-serif" font-size="34" font-weight="900" text-anchor="middle">S+</text>
-        
-        <rect x="118" y="95" width="852" height="100" rx="8" fill="#131C2E" stroke="#1E293B" stroke-width="1"/>
-        <text x="136" y="117" fill="#94A3B8" font-family="sans-serif" font-size="11" font-weight="700">2026 AUTONOMOUS FRONTIER CODING & SURGICAL MASTERY</text>
-        
-            <rect x="136" y="131" width="188" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="148" y="151" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">Claude Opus 5.5</text>
-            <text x="148" y="165" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">Anthropic (Sep 2026)</text>
-            
-            <rect x="336" y="131" width="188" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="348" y="151" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">GPT-6.1 Sol Pro</text>
-            <text x="348" y="165" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">OpenAI (Sep 2026)</text>
-            
-            <rect x="536" y="131" width="188" height="44" rx="6" fill="url(#simpBadgeGrad)" stroke="#38BDF8" stroke-width="1.6"/>
-            <text x="548" y="151" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="12" font-weight="800">⚡ Simplicio 27B</text>
-            <text x="548" y="165" fill="#BAE6FD" font-family="sans-serif" font-size="9" font-weight="500">simpletibr (Oct 2026)</text>
-            
-        <rect x="30" y="203" width="80" height="100" rx="8" fill="url(#tierAGrad)"/>
-        <text x="70" y="263" fill="#FFFFFF" font-family="sans-serif" font-size="34" font-weight="900" text-anchor="middle">A</text>
-        
-        <rect x="118" y="203" width="852" height="100" rx="8" fill="#131C2E" stroke="#1E293B" stroke-width="1"/>
-        <text x="136" y="225" fill="#94A3B8" font-family="sans-serif" font-size="11" font-weight="700">2026 HIGH-TIER AGENTIC & FAST REASONING LEADERS</text>
-        
-            <rect x="136" y="239" width="204" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="148" y="259" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">Claude Sonnet 5.5</text>
-            <text x="148" y="273" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">Anthropic (Sep 2026)</text>
-            
-            <rect x="352" y="239" width="220" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="364" y="259" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">DeepSeek V4.1 Flash</text>
-            <text x="364" y="273" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">DeepSeek (Sep 2026)</text>
-            
-            <rect x="584" y="239" width="180" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="596" y="259" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">GPT-6 Luna Pro</text>
-            <text x="596" y="273" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">OpenAI (Sep 2026)</text>
-            
-            <rect x="776" y="239" width="204" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="788" y="259" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">Qwen3.8 Max Prime</text>
-            <text x="788" y="273" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">Alibaba (Sep 2026)</text>
-            
-        <rect x="30" y="311" width="80" height="100" rx="8" fill="url(#tierBGrad)"/>
-        <text x="70" y="371" fill="#FFFFFF" font-family="sans-serif" font-size="34" font-weight="900" text-anchor="middle">B</text>
-        
-        <rect x="118" y="311" width="852" height="100" rx="8" fill="#131C2E" stroke="#1E293B" stroke-width="1"/>
-        <text x="136" y="333" fill="#94A3B8" font-family="sans-serif" font-size="11" font-weight="700">2026 ENTERPRISE & REGIONAL HEAVYWEIGHTS</text>
-        
-            <rect x="136" y="347" width="172" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="148" y="367" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">GLM 5.3 Prime</text>
-            <text x="148" y="381" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">Zhipu AI (Sep 2026)</text>
-            
-            <rect x="320" y="347" width="132" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="332" y="367" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">Grok 4.7</text>
-            <text x="332" y="381" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">xAI (Sep 2026)</text>
-            
-            <rect x="464" y="347" width="148" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="476" y="367" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">Command A+</text>
-            <text x="476" y="381" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">Cohere (Sep 2026)</text>
-            
-            <rect x="624" y="347" width="172" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="636" y="367" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">MiMo-V2.6-Pro</text>
-            <text x="636" y="381" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">Xiaomi (Sep 2026)</text>
-            
-        <rect x="30" y="419" width="80" height="100" rx="8" fill="url(#tierCGrad)"/>
-        <text x="70" y="479" fill="#FFFFFF" font-family="sans-serif" font-size="34" font-weight="900" text-anchor="middle">C</text>
-        
-        <rect x="118" y="419" width="852" height="100" rx="8" fill="#131C2E" stroke="#1E293B" stroke-width="1"/>
-        <text x="136" y="441" fill="#94A3B8" font-family="sans-serif" font-size="11" font-weight="700">2026 LIGHTWEIGHT BASELINES & SUB-MODELS</text>
-        
-            <rect x="136" y="455" width="244" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="148" y="475" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">Qwen3.8-27B (Thinking)</text>
-            <text x="148" y="489" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">Alibaba (Sep 2026)</text>
-            
-            <rect x="392" y="455" width="212" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="404" y="475" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">Qwen3.8 Omni Flash</text>
-            <text x="404" y="489" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">Alibaba (Sep 2026)</text>
-            
-            <rect x="616" y="455" width="180" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="628" y="475" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">Ling 3.1 Flash</text>
-            <text x="628" y="489" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">InclusionAI (Oct 2026)</text>
-            
-            <rect x="808" y="455" width="164" height="44" rx="6" fill="#1F2937" stroke="#374151" stroke-width="1"/>
-            <text x="820" y="475" fill="#E5E7EB" font-family="-apple-system, sans-serif" font-size="12" font-weight="600">Solar Mini 4</text>
-            <text x="820" y="489" fill="#9CA3AF" font-family="sans-serif" font-size="9" font-weight="500">Upstage (Sep 2026)</text>
-            
+    <!-- Model Cards -->
+    <rect x="110" y="10" width="370" height="68" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+    <text x="125" y="34" fill="#F8FAFC" font-family="-apple-system, sans-serif" font-size="14" font-weight="700">Claude Opus 5.5 (Anthropic · Sep 2026)</text>
+    <text x="125" y="54" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11.5">SWE-bench: 89.9% · Aider Diff: 89.5% · Frontier SOTA Reasoning</text>
+    <rect x="390" y="24" width="75" height="22" rx="4" fill="#374151"/><text x="427" y="39" fill="#CBD5E1" font-family="-apple-system, sans-serif" font-size="10.5" font-weight="600" text-anchor="middle">Frontier #1</text>
+
+    <rect x="495" y="10" width="385" height="68" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+    <text x="510" y="34" fill="#F8FAFC" font-family="-apple-system, sans-serif" font-size="14" font-weight="700">GPT-6.1 Sol Pro (OpenAI · Sep 2026)</text>
+    <text x="510" y="54" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11.5">SWE-bench: 84.2% · Aider Diff: 86.0% · Algorithmic Tree Search</text>
+    <rect x="800" y="24" width="65" height="22" rx="4" fill="#374151"/><text x="832" y="39" fill="#CBD5E1" font-family="-apple-system, sans-serif" font-size="10.5" font-weight="600" text-anchor="middle">Reason SOTA</text>
+  </g>
+
+  <!-- S TIER -->
+  <g transform="translate(32, 185)">
+    <rect width="90" height="88" rx="8" fill="#F97316"/>
+    <text x="45" y="52" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="28" font-weight="900" text-anchor="middle">S</text>
+    <rect x="98" y="0" width="798" height="88" rx="8" fill="#1E293B" fill-opacity="0.6"/>
+
+    <!-- Simplicio 27B Highlighted -->
+    <rect x="110" y="10" width="370" height="68" rx="8" fill="#082F49" stroke="#38BDF8" stroke-width="1.5"/>
+    <text x="125" y="34" fill="#38BDF8" font-family="-apple-system, sans-serif" font-size="14" font-weight="800">⚡ Simplicio 27B (simpletibr · Oct 2026)</text>
+    <text x="125" y="54" fill="#7DD3FC" font-family="-apple-system, sans-serif" font-size="11.5">Aider Diff: 96.5% (#1 SOTA) · 480 Tokens · 50-Pt Protocol</text>
+    <rect x="400" y="24" width="65" height="22" rx="4" fill="#0284C7"/><text x="432" y="39" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="10.5" font-weight="800" text-anchor="middle">Open SOTA</text>
+
+    <!-- Claude Sonnet 5.5 -->
+    <rect x="495" y="10" width="385" height="68" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+    <text x="510" y="34" fill="#F8FAFC" font-family="-apple-system, sans-serif" font-size="14" font-weight="700">Claude Sonnet 5.5 (Anthropic · Sep 2026)</text>
+    <text x="510" y="54" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11.5">SWE-bench: 81.5% · Aider Diff: 88.0% · Efficient Agentic Coder</text>
+    <rect x="800" y="24" width="65" height="22" rx="4" fill="#374151"/><text x="832" y="39" fill="#CBD5E1" font-family="-apple-system, sans-serif" font-size="10.5" font-weight="600" text-anchor="middle">Agent SOTA</text>
+  </g>
+
+  <!-- A TIER -->
+  <g transform="translate(32, 285)">
+    <rect width="90" height="88" rx="8" fill="#EAB308"/>
+    <text x="45" y="52" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="28" font-weight="900" text-anchor="middle">A</text>
+    <rect x="98" y="0" width="798" height="88" rx="8" fill="#1E293B" fill-opacity="0.6"/>
+
+    <!-- DeepSeek V4.1 Flash -->
+    <rect x="110" y="10" width="245" height="68" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+    <text x="120" y="34" fill="#F8FAFC" font-family="-apple-system, sans-serif" font-size="13" font-weight="700">DeepSeek V4.1 Flash</text>
+    <text x="120" y="52" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11">SWE: 68.5% · Diff: 78.0%</text>
+    <text x="120" y="66" fill="#34D399" font-family="-apple-system, sans-serif" font-size="10.5">Open MoE Flash (Sep 2026)</text>
+
+    <!-- GPT-6 Luna Pro -->
+    <rect x="365" y="10" width="245" height="68" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+    <text x="375" y="34" fill="#F8FAFC" font-family="-apple-system, sans-serif" font-size="13" font-weight="700">GPT-6 Luna Pro</text>
+    <text x="375" y="52" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11">SWE: 72.0% · Diff: 82.5%</text>
+    <text x="375" y="66" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="10.5">Reasoning Light (Sep 2026)</text>
+
+    <!-- Qwen3.8 Max Prime -->
+    <rect x="620" y="10" width="260" height="68" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+    <text x="630" y="34" fill="#F8FAFC" font-family="-apple-system, sans-serif" font-size="13" font-weight="700">Qwen3.8 Max Prime</text>
+    <text x="630" y="52" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11">SWE: 65.0% · Diff: 76.0%</text>
+    <text x="630" y="66" fill="#38BDF8" font-family="-apple-system, sans-serif" font-size="10.5">Enterprise DeltaNet (Sep 2026)</text>
+  </g>
+
+  <!-- B TIER -->
+  <g transform="translate(32, 385)">
+    <rect width="90" height="88" rx="8" fill="#3B82F6"/>
+    <text x="45" y="52" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="28" font-weight="900" text-anchor="middle">B</text>
+    <rect x="98" y="0" width="798" height="88" rx="8" fill="#1E293B" fill-opacity="0.6"/>
+
+    <!-- GLM 5.3 Prime -->
+    <rect x="110" y="10" width="245" height="68" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+    <text x="120" y="34" fill="#F8FAFC" font-family="-apple-system, sans-serif" font-size="13" font-weight="700">GLM 5.3 Prime</text>
+    <text x="120" y="52" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11">SWE: 63.8% · Diff: 75.5%</text>
+    <text x="120" y="66" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="10.5">Zhipu AI MoE (Sep 2026)</text>
+
+    <!-- Grok 4.7 -->
+    <rect x="365" y="10" width="245" height="68" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+    <text x="375" y="34" fill="#F8FAFC" font-family="-apple-system, sans-serif" font-size="13" font-weight="700">Grok 4.7</text>
+    <text x="375" y="52" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11">SWE: 61.5% · Diff: 74.0%</text>
+    <text x="375" y="66" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="10.5">xAI Dense 2M Context (Sep 2026)</text>
+
+    <!-- Command A+ -->
+    <rect x="620" y="10" width="260" height="68" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+    <text x="630" y="34" fill="#F8FAFC" font-family="-apple-system, sans-serif" font-size="13" font-weight="700">Command A+</text>
+    <text x="630" y="52" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11">SWE: 58.0% · Diff: 72.5%</text>
+    <text x="630" y="66" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="10.5">Cohere Enterprise (Sep 2026)</text>
+  </g>
+
+  <!-- Footer note -->
+  <text x="32" y="505" fill="#64748B" font-family="-apple-system, sans-serif" font-size="11.5">Evaluated against the official 2026 model release catalog on OpenRouter &amp; Artificial Analysis.</text>
 </svg>
