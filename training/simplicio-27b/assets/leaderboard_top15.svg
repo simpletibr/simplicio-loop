@@ -17,14 +17,14 @@
     <rect width="1000" height="920" rx="16" fill="url(#bgTop15Latest2026)" stroke="#1F2937" stroke-width="2"/>
     
     <!-- Title -->
-    <text x="36" y="44" fill="#F9FAFB" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="22" font-weight="800">🏆 2026 TOP 15 CODING LLMs: BENCHMARK WITH 2026 GENERATION MODELS</text>
-    <text x="36" y="68" fill="#9CA3AF" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13">Claude 3.7 Sonnet, OpenAI o3, o3-mini, DeepSeek-R1, Gemini 2.0 Pro, Qwen3.8 vs. Simplicio 27B</text>
+    <text x="36" y="44" fill="#F9FAFB" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="22" font-weight="800">🏆 TOP 15 CODING LLMs: EXCLUSIVELY 2026 RELEASES</text>
+    <text x="36" y="68" fill="#9CA3AF" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13">Strictly comparing models launched in 2026: Claude 3.7, o3, o3-mini, DeepSeek-R1, Gemini 2.0 vs Simplicio 27B</text>
     
     <!-- Table Header -->
     <rect x="30" y="85" width="940" height="32" rx="6" fill="#1F2937"/>
     <text x="50" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">RANK</text>
     <text x="110" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">2026 MODEL</text>
-    <text x="340" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">ORG / ARCH</text>
+    <text x="340" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">DEVELOPER (2026)</text>
     <text x="490" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">TYPE</text>
     <text x="575" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">DIFF ACCURACY</text>
     <text x="715" y="106" fill="#9CA3AF" font-family="sans-serif" font-size="11" font-weight="700">SWE-BENCH</text>
@@ -168,7 +168,7 @@
         <rect x="46" y="431" width="28" height="22" rx="4" fill="#374151"/>
         <text x="60" y="446" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle">07</text>
         
-        <text x="110" y="447" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Gemini 2.0 Pro (Experimental)</text>
+        <text x="110" y="447" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Gemini 2.0 Pro</text>
         
         <text x="340" y="441" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Google (2026)</text>
         <text x="340" y="455" fill="#6B7280" font-family="sans-serif" font-size="10">Frontier MoE</text>
@@ -212,95 +212,95 @@
         <rect x="46" y="531" width="28" height="22" rx="4" fill="#374151"/>
         <text x="60" y="546" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle">09</text>
         
-        <text x="110" y="547" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">GPT-4o (2026 Edition)</text>
+        <text x="110" y="547" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Qwen3.8-27B (Thinking)</text>
         
-        <text x="340" y="541" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">OpenAI (2026)</text>
-        <text x="340" y="555" fill="#6B7280" font-family="sans-serif" font-size="10">Frontier Dense</text>
+        <text x="340" y="541" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Alibaba (2026)</text>
+        <text x="340" y="555" fill="#6B7280" font-family="sans-serif" font-size="10">27B Hybrid</text>
         
-        <rect x="490" y="533" width="54" height="20" rx="10" fill="rgba(156, 163, 175, 0.15)" stroke="#9CA3AF" stroke-width="0.8"/>
-        <text x="517" y="547" fill="#9CA3AF" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">CLOSED</text>
+        <rect x="490" y="533" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
+        <text x="517" y="547" fill="#34D399" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">OPEN</text>
         
-        <rect x="575" y="537" width="55.125" height="10" rx="3" fill="#4B5563"/>
-        <text x="636.125" y="546" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">73.5%</text>
+        <rect x="575" y="537" width="51.900000000000006" height="10" rx="3" fill="#4B5563"/>
+        <text x="632.9" y="546" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">69.2%</text>
         
-        <text x="735" y="547" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">38.8%</text>
+        <text x="735" y="547" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">40.8%</text>
         
-        <text x="845" y="547" fill="#D1D5DB" font-family="sans-serif" font-size="12" font-weight="500">720 t</text>
+        <text x="845" y="547" fill="#D1D5DB" font-family="sans-serif" font-size="12" font-weight="500">850 t</text>
         
-        <text x="950" y="547" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">85.0</text>
+        <text x="950" y="547" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">82.5</text>
         
             <rect x="30" y="571" width="940" height="44" rx="6" fill="#0D1117"/>
             
         <rect x="46" y="581" width="28" height="22" rx="4" fill="#374151"/>
         <text x="60" y="596" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle">10</text>
         
-        <text x="110" y="597" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Qwen 2.5 Coder 32B</text>
+        <text x="110" y="597" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Llama 3.3 70B Instruct</text>
         
-        <text x="340" y="591" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Alibaba (2026)</text>
-        <text x="340" y="605" fill="#6B7280" font-family="sans-serif" font-size="10">32B Dense</text>
+        <text x="340" y="591" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Meta (2026)</text>
+        <text x="340" y="605" fill="#6B7280" font-family="sans-serif" font-size="10">70B Dense</text>
         
         <rect x="490" y="583" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
         <text x="517" y="597" fill="#34D399" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">OPEN</text>
         
-        <rect x="575" y="587" width="54.75" height="10" rx="3" fill="#4B5563"/>
-        <text x="635.75" y="596" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">73.0%</text>
+        <rect x="575" y="587" width="50.625" height="10" rx="3" fill="#4B5563"/>
+        <text x="631.625" y="596" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">67.5%</text>
         
-        <text x="735" y="597" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">39.8%</text>
+        <text x="735" y="597" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">37.5%</text>
         
-        <text x="845" y="597" fill="#D1D5DB" font-family="sans-serif" font-size="12" font-weight="500">740 t</text>
+        <text x="845" y="597" fill="#D1D5DB" font-family="sans-serif" font-size="12" font-weight="500">790 t</text>
         
-        <text x="950" y="597" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">84.4</text>
+        <text x="950" y="597" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">81.2</text>
         
             <rect x="30" y="621" width="940" height="44" rx="6" fill="#111827"/>
             
         <rect x="46" y="631" width="28" height="22" rx="4" fill="#374151"/>
         <text x="60" y="646" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle">11</text>
         
-        <text x="110" y="647" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Llama 3.3 70B Instruct</text>
+        <text x="110" y="647" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Codestral 25.01</text>
         
-        <text x="340" y="641" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Meta (2026)</text>
-        <text x="340" y="655" fill="#6B7280" font-family="sans-serif" font-size="10">70B Dense</text>
+        <text x="340" y="641" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Mistral (2026)</text>
+        <text x="340" y="655" fill="#6B7280" font-family="sans-serif" font-size="10">24B Dense</text>
         
         <rect x="490" y="633" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
         <text x="517" y="647" fill="#34D399" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">OPEN</text>
         
-        <rect x="575" y="637" width="50.625" height="10" rx="3" fill="#4B5563"/>
-        <text x="631.625" y="646" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">67.5%</text>
+        <rect x="575" y="637" width="51.00000000000001" height="10" rx="3" fill="#4B5563"/>
+        <text x="632.0" y="646" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">68.0%</text>
         
-        <text x="735" y="647" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">37.5%</text>
+        <text x="735" y="647" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">33.0%</text>
         
-        <text x="845" y="647" fill="#D1D5DB" font-family="sans-serif" font-size="12" font-weight="500">790 t</text>
+        <text x="845" y="647" fill="#D1D5DB" font-family="sans-serif" font-size="12" font-weight="500">660 t</text>
         
-        <text x="950" y="647" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">81.2</text>
+        <text x="950" y="647" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">77.0</text>
         
             <rect x="30" y="671" width="940" height="44" rx="6" fill="#0D1117"/>
             
         <rect x="46" y="681" width="28" height="22" rx="4" fill="#374151"/>
         <text x="60" y="696" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle">12</text>
         
-        <text x="110" y="697" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Qwen3.8-27B (Thinking)</text>
+        <text x="110" y="697" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Kimi k1.5 (Reasoning)</text>
         
-        <text x="340" y="691" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Alibaba (2026)</text>
-        <text x="340" y="705" fill="#6B7280" font-family="sans-serif" font-size="10">27B Hybrid</text>
+        <text x="340" y="691" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Moonshot (2026)</text>
+        <text x="340" y="705" fill="#6B7280" font-family="sans-serif" font-size="10">MoE CoT</text>
         
-        <rect x="490" y="683" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
-        <text x="517" y="697" fill="#34D399" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">OPEN</text>
+        <rect x="490" y="683" width="54" height="20" rx="10" fill="rgba(156, 163, 175, 0.15)" stroke="#9CA3AF" stroke-width="0.8"/>
+        <text x="517" y="697" fill="#9CA3AF" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">CLOSED</text>
         
-        <rect x="575" y="687" width="51.900000000000006" height="10" rx="3" fill="#4B5563"/>
-        <text x="632.9" y="696" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">69.2%</text>
+        <rect x="575" y="687" width="48.0" height="10" rx="3" fill="#4B5563"/>
+        <text x="629.0" y="696" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">64.0%</text>
         
-        <text x="735" y="697" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">40.8%</text>
+        <text x="735" y="697" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">36.5%</text>
         
-        <text x="845" y="697" fill="#D1D5DB" font-family="sans-serif" font-size="12" font-weight="500">850 t</text>
+        <text x="845" y="697" fill="#F87171" font-family="sans-serif" font-size="12" font-weight="500">1300 t</text>
         
-        <text x="950" y="697" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">82.5</text>
+        <text x="950" y="697" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">76.5</text>
         
             <rect x="30" y="721" width="940" height="44" rx="6" fill="#111827"/>
             
         <rect x="46" y="731" width="28" height="22" rx="4" fill="#374151"/>
         <text x="60" y="746" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle">13</text>
         
-        <text x="110" y="747" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Codestral 25.01</text>
+        <text x="110" y="747" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Mistral Small 3</text>
         
         <text x="340" y="741" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">Mistral (2026)</text>
         <text x="340" y="755" fill="#6B7280" font-family="sans-serif" font-size="10">24B Dense</text>
@@ -308,14 +308,14 @@
         <rect x="490" y="733" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
         <text x="517" y="747" fill="#34D399" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">OPEN</text>
         
-        <rect x="575" y="737" width="51.00000000000001" height="10" rx="3" fill="#4B5563"/>
-        <text x="632.0" y="746" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">68.0%</text>
+        <rect x="575" y="737" width="46.125" height="10" rx="3" fill="#4B5563"/>
+        <text x="627.125" y="746" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">61.5%</text>
         
-        <text x="735" y="747" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">33.0%</text>
+        <text x="735" y="747" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">31.0%</text>
         
-        <text x="845" y="747" fill="#D1D5DB" font-family="sans-serif" font-size="12" font-weight="500">660 t</text>
+        <text x="845" y="747" fill="#D1D5DB" font-family="sans-serif" font-size="12" font-weight="500">580 t</text>
         
-        <text x="950" y="747" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">77.0</text>
+        <text x="950" y="747" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">74.2</text>
         
             <rect x="30" y="771" width="940" height="44" rx="6" fill="#0D1117"/>
             
@@ -344,21 +344,21 @@
         <rect x="46" y="831" width="28" height="22" rx="4" fill="#374151"/>
         <text x="60" y="846" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle">15</text>
         
-        <text x="110" y="847" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">Yi-Coder 9B</text>
+        <text x="110" y="847" fill="#F9FAFB" font-family="-apple-system, sans-serif" font-size="12.5" font-weight="600">MiniMax-Text-01</text>
         
-        <text x="340" y="841" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">01.AI (2026)</text>
-        <text x="340" y="855" fill="#6B7280" font-family="sans-serif" font-size="10">9B Dense</text>
+        <text x="340" y="841" fill="#E5E7EB" font-family="sans-serif" font-size="11" font-weight="500">MiniMax (2026)</text>
+        <text x="340" y="855" fill="#6B7280" font-family="sans-serif" font-size="10">456B MoE</text>
         
         <rect x="490" y="833" width="54" height="20" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="#34D399" stroke-width="0.8"/>
         <text x="517" y="847" fill="#34D399" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">OPEN</text>
         
-        <rect x="575" y="837" width="39.0" height="10" rx="3" fill="#4B5563"/>
-        <text x="620.0" y="846" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">52.0%</text>
+        <rect x="575" y="837" width="42.74999999999999" height="10" rx="3" fill="#4B5563"/>
+        <text x="623.75" y="846" fill="#D1D5DB" font-family="sans-serif" font-size="11" font-weight="500">57.0%</text>
         
-        <text x="735" y="847" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">23.5%</text>
+        <text x="735" y="847" fill="#E5E7EB" font-family="sans-serif" font-size="12" font-weight="600">29.5%</text>
         
-        <text x="845" y="847" fill="#D1D5DB" font-family="sans-serif" font-size="12" font-weight="500">650 t</text>
+        <text x="845" y="847" fill="#D1D5DB" font-family="sans-serif" font-size="12" font-weight="500">880 t</text>
         
-        <text x="950" y="847" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">64.0</text>
+        <text x="950" y="847" fill="#E5E7EB" font-family="sans-serif" font-size="13" font-weight="800" text-anchor="middle">71.5</text>
         
 </svg>
