@@ -7,19 +7,29 @@ import sys
 from pathlib import Path
 
 
-def _repo_root() -> Path:
+def _adapter_root() -> Path | None:
+    """The tree holding adapters/claude/adapter.py: the source checkout, else the installed wheel."""
     current = Path(__file__).resolve()
     for candidate in (current, *current.parents):
         if (candidate / "adapters" / "claude" / "adapter.py").is_file():
             return candidate
-    return current.parents[1]
+    try:
+        import simplicio_loop
+    except ImportError:
+        return None
+    bundle = Path(simplicio_loop.__file__).resolve().parent / "_bundle"
+    return bundle if (bundle / "adapters" / "claude" / "adapter.py").is_file() else None
 
 
-ROOT = _repo_root()
-if str(ROOT) not in sys.path:
+ROOT = _adapter_root()
+if ROOT is not None and str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from adapters.claude.adapter import decide  # noqa: E402
+try:
+    from adapters.claude.adapter import decide
+except ImportError as exc:
+    decide = None
+    _IMPORT_ERROR = exc
 
 
 def _dashboard_prompt_event(event: dict, decision: dict) -> None:
@@ -44,6 +54,10 @@ def main() -> int:
         event = json.loads(sys.stdin.read() or "{}")
     except json.JSONDecodeError:
         event = {}
+    if decide is None:
+        print("simplicio-loop: UserPromptSubmit adapter unavailable (%s) - degraded mode, "
+              "prompt passed through unrouted." % _IMPORT_ERROR, file=sys.stderr)
+        return 0
     event.setdefault("hook_event_name", "UserPromptSubmit")
     decision = decide(event)
     _dashboard_prompt_event(event, decision)

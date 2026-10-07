@@ -12,54 +12,32 @@ not a pass. It still lets every benign command through, so it never bricks norma
 |---|---|---|
 | `loop_stop.py` | simplicio-loop: re-feed the goal or exit (evidence-gated promise + cap + STOP) | `stop` / Claude `Stop` |
 | `loop_capture.py` | simplicio-loop: raise the `done` flag when an evidence-backed `<promise>` is seen | Cursor `afterAgentResponse` |
-| `action_gate.py` | safety: **fail-closed** — block irreversible ops + secret-laden commits/pushes BEFORE they run; `pre-push` also requires a green `scripts/check.py --core-gate` (#291) | `PreToolUse` (Bash) / git pre-push / pre-commit |
+| `action_gate.py` | safety: **fail-closed** — block irreversible ops + secret-laden commits/pushes BEFORE they run; `pre-push` also requires a green local gate: `SIMPLICIO_PREPUSH_GATE`, else `scripts/check.py --core-gate` when the project ships it, else it blocks (#291, #1410) | `PreToolUse` (Bash) / git pre-push / pre-commit |
+| `user_prompt_submit.py` | host adapter: pass the prompt through the packaged Claude adapter; if the adapter cannot be imported it degrades explicitly (warning on stderr, exit 0, no traceback) | Claude `UserPromptSubmit` |
 | `orient_clamp.py` | simplicio-orient: **wrapper** — run a command, return reduced output + tee-on-failure | called directly, any runtime |
 | `orient_rewrite.py` | simplicio-orient: auto-route heavy read-only commands through the clamp (opt-in) | `PreToolUse` |
-| `_dashboard_emit.py` | telemetry: fail-open bridge the three hooks above use to append `simplicio.dashboard-event/v1` events to the active run (`docs/DASHBOARD_EVENTS.md`, #1398); not a hook itself | imported by `loop_stop.py`, `action_gate.py`, `user_prompt_submit.py` |
-| `pre-commit.py` | packaging: auto-sync `plugin/` + `simplicio_loop/_bundle/` from source when a watched path is staged (#98) | git pre-commit |
+| `_dashboard_emit.py` | telemetry: fail-open bridge the three hooks above use to append `simplicio.dashboard-event/v1` events to the active run (#1398); not a hook itself | imported by `loop_stop.py`, `action_gate.py`, `user_prompt_submit.py` |
+| `pre-commit.py` | packaging, simplicio-loop source repo only: auto-sync its mirrors when a watched path is staged (#98); does nothing in a project that lacks the sync scripts | git pre-commit |
 
 ## Mirror auto-sync (`pre-commit.py`, #98)
 
-`plugin/` (the lean marketplace plugin tree) and `simplicio_loop/_bundle/` (the pip package
-bundle) must both stay byte-identical mirrors of source (`.claude/skills/`, the lean `hooks/`/
-`scripts/`/`tests/` subsets — see `scripts/mirror_manifest.py`). Previously this was **detected**
-(`scripts/claims_audit.py` checks 4/5) but synced **by hand** — editing a skill meant remembering
-to run `scripts/sync_plugin.py` yourself, or the drift only surfaced later at `check.py` time.
-
-`hooks/pre-commit.py` closes that gap: installed as the repo's `git` pre-commit hook, it inspects
-`git diff --cached --name-only` against the watched directories declared in
-`scripts/mirror_manifest.py`'s `WATCHED_SOURCE_DIRS` (the single source of truth for that list —
-the hook imports it rather than hard-coding its own copy). A staged change under any of them runs
-BOTH syncers — `scripts/sync_plugin.py` (writes `plugin/`) and `scripts/sync_bundle.py` (writes
-`simplicio_loop/_bundle/`) — and `git add`s whatever they regenerate into the SAME commit.
-
-**Fail-open, per syncer:** either script erroring (missing `python3`, a bug, anything) only logs
-a warning — the commit proceeds either way, and a failure in one syncer does not skip the other.
-`scripts/claims_audit.py` (run by `python3 scripts/check.py`) remains the fail-closed backstop
-that catches any resulting drift on the next local check or CI run, for commits made without the
-hook installed (or where it failed open).
-
-Install: `bash scripts/install.sh <runtime>` wires it automatically for a project-local install
-(a no-op for `--global`, since git hooks are per-repo); `python3 scripts/doctor.py` reports it
-under the `RECOMMENDED` tier (missing it never fails the gate — `claims_audit.py` still catches
-drift). Manual install:
-
-```bash
-cp hooks/pre-commit.py .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
-```
+Only the simplicio-loop source repository keeps mirrored copies that need regenerating. In any other
+project `pre-commit.py` finds no sync scripts and lets the commit proceed (fail-open); you can leave
+it unwired.
 
 ## The safety gate (`action_gate.py`)
 
 Enforces `simplicio-tasks` Step 5 mechanically instead of trusting the model to remember it.
 Wire it as a Claude `PreToolUse` Bash hook (the installer does this) AND a git pre-push hook
-(the installer does this too — `install_git_prepush_hook` in `scripts/install_lib.py`, project-
-local only, same as the pre-commit mirror-sync hook):
+(the installer does this too, project-local only):
 
 ```bash
 # git pre-push: secret-scan the REAL push range (HEAD vs. upstream, not the staged diff) AND
-# require a green `scripts/check.py --core-gate` — the local, mandatory-and-impossible-to-bypass
-# equivalent of CI now that GitHub Actions was removed from this repo (#311, #291).
+# run the project's local gate. Name it with SIMPLICIO_PREPUSH_GATE (any shell command, run from
+# the project root). A project that ships scripts/check.py uses `scripts/check.py --core-gate`
+# when the variable is unset. With neither, the push is BLOCKED and says why (#1410): a gate
+# that was skipped is not a pass.
+export SIMPLICIO_PREPUSH_GATE='pytest -q'
 printf '#!/bin/sh\npython3 hooks/action_gate.py pre-push\n' > .git/hooks/pre-push
 chmod +x .git/hooks/pre-push
 ```
@@ -67,8 +45,11 @@ chmod +x .git/hooks/pre-push
 It blocks (exit 2): force-push / history rewrite (`filter-branch`), remote-ref deletion,
 mass-delete (`rm -rf /`), destructive DDL (`DROP DATABASE`), infra teardown (`terraform destroy`),
 any commit/push whose diff contains a secret (AWS/GitHub/Slack/OpenAI keys, private keys,
-hardcoded credentials — placeholder-aware), and — for `pre-push` specifically — a failing local
-gate. There is no bypass flag: fix the gate, don't skip it. `python3 hooks/action_gate.py
+hardcoded credentials — placeholder-aware), and — for `pre-push` specifically — a failing or
+missing local gate. When the frozen task anchor carries a delivery contract but the
+`simplicio_loop` package is not importable, the contract cannot be enforced: `action_gate.py`
+blocks the commit/push and `loop_stop.py` refuses to end the turn, instead of silently passing.
+There is no bypass flag: fix the gate, don't skip it. `python3 hooks/action_gate.py
 selftest` proves the ruleset. `action_gate.py check --staged` (the pre-commit-flavored,
 secret-scan-only mode) remains available for a lighter pre-commit wiring.
 
@@ -120,6 +101,11 @@ Add (paths relative to the repo root, or absolute):
           { "type": "command", "command": "python3 ./hooks/action_gate.py" },
           { "type": "command", "command": "python3 ./hooks/orient_rewrite.py" }
         ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [
+        { "type": "command", "command": "python3 ./hooks/user_prompt_submit.py" }
+      ] }
     ]
   }
 }
@@ -132,11 +118,12 @@ reading the transcript, so `loop_capture.py` isn't needed there.
 ### Other runtimes (Codex, Gemini, Aider, OpenCode, Kiro, Antigravity, Simplicio Agent, OpenClaw)
 Most don't expose a stop hook. Use the **no-hook fallback**: the `simplicio-loop` skill
 self-paces via the host scheduler (`/loop`, OS cron, or the runtime's task scheduler), and
-`orient_clamp.py` is invoked directly. See `adapters/<runtime>/` for the per-runtime entry.
+`orient_clamp.py` is invoked directly. The per-runtime entries live in the simplicio-loop source repository.
 
 ## Safety
 
-- Fail-open everywhere: errors → stop allowed / command unchanged.
+- Fail-open for errors in the hooks themselves: stop allowed / command unchanged. The exceptions
+  are the fail-closed `action_gate.py` and an unenforceable delivery contract (see above).
 - `orient_rewrite.py` never rewrites writes, excluded, or compound commands (`&& | ; > $()`).
 - The loop never exits on a self-reported "done" — only on an evidence-backed `<promise>`,
   the `max_iterations` cap, spindle handoff, or an explicit `.simplicio-loop/orchestrator/STOP`.

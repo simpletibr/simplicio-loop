@@ -15,10 +15,10 @@ Runs four ways:
   • Claude PreToolUse (Bash matcher) — reads `{tool_name, tool_input:{command}}` on stdin; a block
     exits 2 (Claude blocks the tool call and feeds `reason` back to the model).
   • git pre-push hook — `action_gate.py pre-push` secret-scans the REAL push range (HEAD vs.
-    upstream, not the staged diff — see `_push_diff`) AND requires a green
-    `scripts/check.py --core-gate` (#291: the local, mandatory-and-impossible-to-bypass
-    equivalent of CI now that GitHub Actions was removed in #311). `--full` runs the complete
-    gate instead of the fast core one.
+    upstream, not the staged diff — see `_push_diff`) AND requires the local gate to pass
+    (#291: the mandatory-and-impossible-to-bypass equivalent of CI): the command in
+    `SIMPLICIO_PREPUSH_GATE`, else `scripts/check.py --core-gate`; with neither, the push is
+    blocked (#1410). `--full` runs the complete `scripts/check.py` instead of the fast core one.
   • git pre-commit hook — `action_gate.py check --staged` secret-scans the staged diff.
   • CLI / tests — `check --command "<cmd>"`, `scan-diff --diff FILE`, `selftest`.
 
@@ -212,6 +212,8 @@ def _delivery_contract(cwd):
         return normalize_contract(contract), None
     except FileNotFoundError:
         return None, None
+    except ImportError as exc:
+        return None, "delivery contract cannot be enforced (simplicio_loop is not importable): %s" % exc
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
         return None, "invalid frozen delivery contract: %s" % exc
 
@@ -486,12 +488,12 @@ def cmd_pre_push(opts):
 
       1. secret-scan of `_push_diff()` (the actual commits about to be pushed, not the staged
          diff — see `_push_diff` for why `--staged` was the wrong range for this hook);
-      2. `python3 scripts/check.py --core-gate` (audit + mirror-parity + loop-contract +
+      2. the local gate: the shell command in `SIMPLICIO_PREPUSH_GATE` when set (any project),
+         else `python3 scripts/check.py --core-gate` (audit + mirror-parity + loop-contract +
          clean-env + token-budget + repo-budget + the core/mandatory test set, skipping only the
          satellite-only tests `--core-gate` already excludes — see `scripts/check.py`'s
-         docstring and `docs/SCRIPTS_INVENTORY.md`). A repo without `scripts/check.py` (this
-         hook copied into a project that doesn't ship it) skips step 2 rather than blocking a
-         push it cannot verify against a script that doesn't exist.
+         docstring and `docs/SCRIPTS_INVENTORY.md`). With neither, the push is BLOCKED and the
+         message says how to configure a gate (#1410): an unverifiable push is not a pass.
 
     `--full` runs the complete gate (no `--core-gate`) instead, for a deliberate slower/thorough
     push (e.g. right before a release). Exit 2 on ANY failure — never partial-pass.
@@ -512,16 +514,27 @@ def cmd_pre_push(opts):
         _hbp_append_gate_blocked("secret in push diff (%s)" % labels, "pre-push")
         sys.exit(2)
     check_py = os.path.join(REPO, "scripts", "check.py")
-    if os.path.exists(check_py):
+    configured = (os.environ.get("SIMPLICIO_PREPUSH_GATE") or "").strip()
+    if configured:
+        gate_args, use_shell, gate_name = configured, True, "SIMPLICIO_PREPUSH_GATE"
+    elif os.path.exists(check_py):
         gate_args = [sys.executable, check_py] + ([] if opts.get("full") else ["--core-gate"])
-        r = subprocess.run(gate_args, cwd=REPO)
-        if r.returncode != 0:
-            gate_name = "scripts/check.py" if opts.get("full") else "scripts/check.py --core-gate"
-            print("block")
-            print("  local gate failed (%s) — fix before pushing. Re-run it directly to see "
-                  "the failures; there is no bypass flag by design (#291)." % gate_name)
-            _hbp_append_gate_blocked("local gate failed (%s)" % gate_name, "pre-push")
-            sys.exit(2)
+        use_shell = False
+        gate_name = "scripts/check.py" if opts.get("full") else "scripts/check.py --core-gate"
+    else:
+        print("block")
+        print("  no pre-push gate configured: scripts/check.py is missing and SIMPLICIO_PREPUSH_GATE "
+              "is not set. Set SIMPLICIO_PREPUSH_GATE to the command that verifies this project "
+              "(e.g. 'pytest -q'); a push that cannot be verified is not allowed (#1410).")
+        _hbp_append_gate_blocked("no pre-push gate configured", "pre-push")
+        sys.exit(2)
+    r = subprocess.run(gate_args, cwd=REPO, shell=use_shell)
+    if r.returncode != 0:
+        print("block")
+        print("  local gate failed (%s) — fix before pushing. Re-run it directly to see "
+              "the failures; there is no bypass flag by design (#291)." % gate_name)
+        _hbp_append_gate_blocked("local gate failed (%s)" % gate_name, "pre-push")
+        sys.exit(2)
     print("allow")
     sys.exit(0)
 

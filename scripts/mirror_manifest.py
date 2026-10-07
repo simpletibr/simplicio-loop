@@ -44,7 +44,7 @@ LEAN_TESTS = ["_selfrun.py", "test_loop_e2e.py", "test_cross_agent_wiki.py"]
 # watching the whole `scripts/`/`tests/` directories (rather than enumerating just the LEAN_*
 # filenames again here) is the conservative choice — it can only over-trigger a redundant sync,
 # never under-trigger and miss a real drift.
-WATCHED_SOURCE_DIRS = [".claude/skills", "hooks", "scripts", "tests"]
+WATCHED_SOURCE_DIRS = [".claude/skills", "hooks", "scripts", "tests", "adapters/claude"]
 
 
 def selftest():

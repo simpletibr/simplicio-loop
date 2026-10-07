@@ -409,6 +409,8 @@ def _delivery_stop_guard(cwd, iteration):
             json.dump({"head": current_head, "paths": sorted(current_paths), "iteration": int(iteration)}, handle)
         os.replace(baseline_path + ".tmp", baseline_path)
         return None
+    except ImportError as exc:
+        return "delivery contract cannot be enforced at stop (simplicio_loop is not importable): %s" % exc
     except Exception:
         return None
 
