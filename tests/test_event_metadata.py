@@ -78,7 +78,9 @@ def test_runner_receipts_are_versioned_and_collection_explicit(tmp_path):
     run_dir.mkdir()
     _emit_event(run_dir, state, "contract_frozen", receipt="contract.json", message="frozen")
     persisted = json.loads((run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()[0])
-    assert persisted["schema"] == "simplicio.event-metadata/v1"
+    assert persisted["schema"] == "simplicio.dashboard-event/v1"
+    assert state["events"][0]["schema"] == "simplicio.event-metadata/v1"
+    assert json.loads((run_dir / "state.json").read_text(encoding="utf-8"))["events"][0]["schema"] == "simplicio.event-metadata/v1"
     assert persisted["scope"] == "collection"
     assert persisted["task_id"] is None
     assert persisted["event_id"] and persisted["run_id"] == "run-918"
