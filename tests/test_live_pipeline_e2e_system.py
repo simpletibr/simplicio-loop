@@ -73,7 +73,8 @@ def browser():
     with sync_api.sync_playwright() as pw:
         launched = None
         errors = []
-        for options in ({}, {'channel': 'chrome'}, {'channel': 'msedge'}):
+        candidates = ({'executable_path': os.environ['SL_CHROMIUM_PATH']},) if os.environ.get('SL_CHROMIUM_PATH') else ()
+        for options in candidates + ({}, {'channel': 'chrome'}, {'channel': 'msedge'}):
             try:
                 launched = pw.chromium.launch(**options)
                 break
