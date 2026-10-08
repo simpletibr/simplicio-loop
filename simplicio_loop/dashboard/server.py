@@ -201,6 +201,8 @@ def _history(server: Any, path: str, query: Mapping[str, str]) -> Any:
             return {'bucket': query.get('bucket', 'week'), 'trends': trends.trends(rows, query.get('bucket', 'week'))}
         except ValueError as exc:
             raise HttpError(400, str(exc)) from None
+    if path == '/api/history/lessons':
+        return {'lessons': history.read_lessons(server.repos, limit=50)}
     if path == '/api/history/heatmap':
         return {'heatmap': trends.heatmap(rows)}
     if path == '/api/history':

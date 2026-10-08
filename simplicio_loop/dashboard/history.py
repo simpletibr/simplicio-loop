@@ -147,3 +147,32 @@ def read_history(repos: str | os.PathLike | Iterable[str | os.PathLike], *, verd
         rows.append(rec)
     rows.sort(key=lambda r: (runs._parse_ts(r['started_at']) or runs._EPOCH, r['run_id']), reverse=True)
     return rows[:limit] if limit is not None else rows
+
+
+LESSONS_PATH = '.simplicio-loop/orchestrator/lessons.jsonl'
+LESSON_SCHEMA = 'simplicio.lesson/v1'
+
+
+def read_lessons(repos: str | os.PathLike | Iterable[str | os.PathLike], limit: int | None = None) -> list[dict[str, Any]]:
+    '''Lessons ``simplicio-loop learn retrospective`` derived, most repeated first; text is redacted.
+
+    Reads each repo's ``lessons.jsonl``. Rows that are not ``simplicio.lesson/v1`` objects are skipped.
+    '''
+    if isinstance(repos, (str, os.PathLike)):
+        repos = [repos]
+    found: list[dict[str, Any]] = []
+    for repo in repos:
+        try:
+            lines = (Path(repo) / LESSONS_PATH).read_text(encoding='utf-8', errors='replace').splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(row, dict) and row.get('schema') == LESSON_SCHEMA and isinstance(row.get('lesson'), str):
+                found.append({'fingerprint': str(row.get('fingerprint') or ''), 'lesson': runs.redact_text(row['lesson']),
+                              'hit_count': int(_num(row.get('hit_count')) or 1), 'last_seen': row.get('last_seen')})
+    found.sort(key=lambda r: (-r['hit_count'], str(r['last_seen'] or ''), r['fingerprint']))
+    return found[:limit] if limit is not None else found

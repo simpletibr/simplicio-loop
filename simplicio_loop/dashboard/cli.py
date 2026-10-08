@@ -23,7 +23,7 @@ from typing import Any
 
 from simplicio_loop import __version__, progress
 from simplicio_loop.dashboard import runs, server
-from simplicio_loop.dashboard.snapshot import SnapshotError, ranked_runs, write_snapshot
+from simplicio_loop.dashboard.snapshot import SnapshotError, ranked_runs, write_history_snapshot, write_snapshot
 
 DEFAULT_PORT = 8765
 TOKEN_MONITOR_PORT = 9090
@@ -281,9 +281,9 @@ def _status() -> int:
     return 0
 
 
-def _snapshot(out: str, repos: list[str], run_id: str | None) -> int:
+def _snapshot(out: str, repos: list[str], run_id: str | None, history: bool = False) -> int:
     try:
-        path = write_snapshot(out, repos, run_id)
+        path = write_history_snapshot(out, repos) if history else write_snapshot(out, repos, run_id)
     except SnapshotError as exc:
         print('error: %s' % exc, file=sys.stderr)
         return 2
@@ -398,6 +398,8 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     modes.add_argument('--status', action='store_true', help='print the dashboard status as JSON (never the token)')
     modes.add_argument('--snapshot', metavar='OUT',
                        help='write a static HTML snapshot of a run to OUT, without starting a server')
+    parser.add_argument('--history', action='store_true',
+                        help='with --snapshot: write the run history, trends and heatmap page instead of one run')
     modes.add_argument('--tui', action='store_true', help='stream a run in the terminal')
     parser.add_argument('--tokens', action='store_true',
                         help='open the legacy token monitor on port 9090; goes only with --port, --no-browser, --stop')
@@ -409,13 +411,16 @@ def run(args: argparse.Namespace) -> int:
             print('error: --tokens goes only with --port, --no-browser and --stop', file=sys.stderr)
             return 2
         return _tokens(args.port, not args.no_browser, args.stop)
+    if args.history and args.snapshot is None:
+        print('error: --history requires --snapshot', file=sys.stderr)
+        return 2
     repos = [os.path.abspath(repo) for repo in (args.repo or [os.getcwd()])]
     if args.stop:
         return _stop()
     if args.status:
         return _status()
     if args.snapshot is not None:
-        return _snapshot(args.snapshot, repos, args.run)
+        return _snapshot(args.snapshot, repos, args.run, args.history)
     if args.tui:
         return _tui(repos, args.run)
     return _serve(args.port, repos, args.run, not args.no_browser)
