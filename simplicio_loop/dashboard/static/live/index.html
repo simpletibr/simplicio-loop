@@ -14,6 +14,7 @@
 <p id="run-id" class="run-id"></p>
 <div class="live-tools">
 <button id="follow" type="button" aria-pressed="true">Seguir o run</button>
+<button id="alerts-toggle" type="button" aria-expanded="false" aria-controls="alerts-panel">Alertas (0)</button>
 <sl-command-palette id="palette" hotkey="ctrl+k" label="Buscar comandos" placeholder="Fase, tarefa ou arquivo"></sl-command-palette>
 </div>
 </header>
@@ -80,6 +81,11 @@
 <section class="panel agents-panel" aria-labelledby="agents-title">
 <h2 id="agents-title">Agentes, modelos e custo</h2>
 <ul id="agents-cost" class="checks" aria-label="Agentes, modelos e custo"></ul>
+</section>
+<section id="alerts-panel" class="panel alerts-panel" aria-labelledby="alerts-title" hidden>
+<h2 id="alerts-title">Alertas do run</h2>
+<p id="alerts-status" role="status"></p>
+<ul id="alerts-list" class="checks" aria-label="Alertas ativos"></ul>
 </section>
 <p id="empty" role="status">Aguardando eventos…</p>
 </main>
