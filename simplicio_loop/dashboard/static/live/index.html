@@ -49,6 +49,23 @@
 <sl-kpi-card id="kpi-heartbeat" label="Último heartbeat" value="–" unit="s"></sl-kpi-card>
 <sl-kpi-card id="kpi-stall" label="Stall" value="Não" state="PASS"></sl-kpi-card>
 </section>
+<section class="panel iterations-panel" aria-labelledby="iterations-title">
+<h2 id="iterations-title">Iterações</h2>
+<sl-timeline id="iterations" label="Iterações do run"></sl-timeline>
+</section>
+<section class="panel convergence-panel" aria-labelledby="convergence-title">
+<h2 id="convergence-title">Convergência</h2>
+<sl-sparkline id="convergence" label="Gates pendentes por iteração"></sl-sparkline>
+<p id="convergence-note" class="note"></p>
+</section>
+<section class="panel dod-panel" aria-labelledby="dod-title">
+<h2 id="dod-title">Definição de pronto</h2>
+<ul id="dod" class="checks" aria-label="Definição de pronto"></ul>
+</section>
+<section class="panel quality-panel" aria-labelledby="quality-title">
+<h2 id="quality-title">Qualidade</h2>
+<ul id="quality" class="checks" aria-label="Qualidade"></ul>
+</section>
 <p id="empty" role="status">Aguardando eventos…</p>
 </main>
 <aside id="drill" class="drill" aria-labelledby="drill-title" hidden>

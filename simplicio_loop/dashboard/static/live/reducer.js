@@ -1,5 +1,7 @@
 // Simplicio Live pipeline reducer (issue #1402). Pure: no DOM, no network, no clock.
 // Time enters only through selectView(state, nowMs) and the timestamps carried by actions.
+import { applyIteration, initialIterations, selectConvergence, selectIterations } from './iterations.js';
+
 export const GATES = ['evidence', 'watcher', 'oracle', 'dod', 'quality', 'action'];
 export const READY_VERDICTS = ['COMPLETE', 'DRAINED', 'VERIFIED'];
 export const STALE_AFTER_MS = 45000;
@@ -83,6 +85,8 @@ export function initialState(runId) {
     taskLane: {},
     log: [],
     alerts: [],
+    iterations: initialIterations(),
+    quality: null,
   };
 }
 function enterPhase(state, event, stamp, payload) {
@@ -119,6 +123,10 @@ function evaluateGate(state, event, stamp, payload) {
   return { ...state, gates: { ...state.gates, [gate]: entry } };
 }
 
+function countIteration(state, event, stamp, payload) {
+  return { ...state, iterations: applyIteration(state.iterations, event, stamp, payload, state.gates) };
+}
+
 function applyEvent(state, event) {
   if (!event || typeof event !== 'object') return state;
   if (typeof event.seq !== 'number' || event.seq <= state.lastSeq) return state;
@@ -138,7 +146,7 @@ function applyEvent(state, event) {
     last: { text: String(payload.message || event.kind || ''), phase: event.phase || null, at: stamp },
   };
   const logged = appendLog(next, event, stamp, payload);
-  const laned = applyLane(logged, event, stamp, payload);
+  const laned = countIteration(applyLane(logged, event, stamp, payload), event, stamp, payload);
   if (event.kind === 'phase_entered') return enterPhase(laned, event, stamp, payload);
   if (event.kind === 'phase_exited') return exitPhase(laned, event, stamp);
   if (event.kind === 'stall_detected') return recordStall(laned, event, stamp, payload);
@@ -257,6 +265,7 @@ export function reduce(state, action) {
   if (!action || typeof action !== 'object') return state;
   if (action.type === 'event') return applyEvent(state, action.event);
   if (action.type === 'summary') return { ...state, summary: action.summary || null };
+  if (action.type === 'quality') return { ...state, quality: action.receipt && typeof action.receipt === 'object' ? action.receipt : null };
   if (action.type === 'connection') {
     const at = numberOrNull(action.at);
     return { ...state, connection: String(action.status || 'connecting'), lastActivity: at === null ? state.lastActivity : at };
@@ -271,6 +280,120 @@ function nextPhase(railPhase) {
   const index = RAIL.indexOf(railPhase);
   if (index < 0) return RAIL[0];
   return index + 1 < RAIL.length ? RAIL[index + 1] : '';
+}
+
+const PILLARS = [
+  ['implementation', 'Implementação'],
+  ['unit', 'Testes unitários'],
+  ['integration', 'Testes de integração'],
+  ['system', 'Testes de sistema'],
+  ['regression', 'Regressão'],
+  ['benchmark', 'Benchmark'],
+  ['coverage', 'Cobertura'],
+];
+const TEST_PILLARS = ['unit', 'integration', 'system', 'regression'];
+const PILLAR_STATUS = { pass: 'PASS', fail: 'FAIL', not_applicable: 'PENDING' };
+const RECEIPT_MISSING = 'quality-matrix.json ainda nao gerado';
+const REQUIREMENT_MISSING = 'sem registro no quality-matrix.json';
+const NO_PRODUCER = 'sem produtor no fluxo atual';
+
+function textOrNull(value) {
+  return typeof value === 'string' && value !== '' ? value : null;
+}
+
+// The proof path after the run segment (evidence/unit.json), or null when the run is not in the path.
+function refOf(proofRef, runId) {
+  const text = textOrNull(proofRef);
+  if (text === null || !runId) return null;
+  const marker = '/' + runId + '/';
+  const at = text.indexOf(marker);
+  return at < 0 ? null : textOrNull(text.slice(at + marker.length));
+}
+
+function coverageOf(receipt) {
+  if (receipt === null) return { measured: null, threshold: null, status: null, proofRef: null };
+  const coverage = receipt.coverage && typeof receipt.coverage === 'object' ? receipt.coverage : {};
+  return {
+    measured: numberOrNull(coverage.measured),
+    threshold: numberOrNull(receipt.coverage_threshold),
+    status: typeof coverage.status === 'string' ? coverage.status : null,
+    proofRef: coverage.proof_ref,
+  };
+}
+
+function coverageStateOf(measured, threshold, status) {
+  if (measured !== null && threshold !== null) return measured >= threshold ? 'PASS' : 'FAIL';
+  if (measured === null && status === 'not_applicable') return 'PENDING';
+  return 'UNVERIFIED';
+}
+
+function coveragePillar(coverage, runId, label) {
+  let detail = 'cobertura não medida';
+  if (coverage.measured !== null) {
+    detail = 'cobertura ' + coverage.measured + '%' + (coverage.threshold === null ? '' : ' (limite ' + coverage.threshold + '%)');
+  }
+  return {
+    pillar: 'coverage',
+    label,
+    state: coverageStateOf(coverage.measured, coverage.threshold, coverage.status),
+    detail,
+    ref: refOf(coverage.proofRef, runId),
+  };
+}
+
+function requirementPillar(receipt, key, label, runId) {
+  const requirements = receipt.requirements && typeof receipt.requirements === 'object' ? receipt.requirements : {};
+  const entry = Object.hasOwn(requirements, key) && requirements[key] && typeof requirements[key] === 'object' ? requirements[key] : null;
+  if (entry === null) return { pillar: key, label, state: 'UNVERIFIED', detail: REQUIREMENT_MISSING, ref: null };
+  return {
+    pillar: key,
+    label,
+    state: mapped(PILLAR_STATUS, entry.status) || 'UNVERIFIED',
+    detail: textOrNull(entry.detail) || 'sem detalhe registrado',
+    ref: refOf(entry.proof_ref, runId),
+  };
+}
+
+function pillarsOf(receipt, runId) {
+  const coverage = coverageOf(receipt);
+  return PILLARS.map(([key, label]) => {
+    if (receipt === null) return { pillar: key, label, state: 'UNVERIFIED', detail: RECEIPT_MISSING, ref: null };
+    if (key === 'coverage') return coveragePillar(coverage, runId, label);
+    return requirementPillar(receipt, key, label, runId);
+  });
+}
+
+// Definition of done: FAIL if any pillar fails; PASS only when all seven pillars pass; otherwise UNVERIFIED (PENDING is not proven).
+function dodView(receipt, runId) {
+  const pillars = pillarsOf(receipt, runId);
+  const coverage = coverageOf(receipt);
+  let state = 'UNVERIFIED';
+  if (pillars.some((item) => item.state === 'FAIL')) state = 'FAIL';
+  else if (pillars.every((item) => item.state === 'PASS')) state = 'PASS';
+  const coverageItem = pillars.find((item) => item.pillar === 'coverage');
+  return {
+    state,
+    pillars,
+    coverage: { measured: coverage.measured, threshold: coverage.threshold, state: coverageItem.state },
+  };
+}
+
+function testsOf(receipt, dod) {
+  if (receipt === null) return { state: 'UNVERIFIED', reason: RECEIPT_MISSING };
+  const states = dod.pillars.filter((item) => TEST_PILLARS.includes(item.pillar)).map((item) => item.state);
+  if (states.includes('FAIL')) return { state: 'FAIL', reason: 'teste de nível falhou' };
+  if (states.every((item) => item === 'PASS')) return { state: 'PASS', reason: 'testes de unidade, integração, sistema e regressão aprovados' };
+  return { state: 'UNVERIFIED', reason: 'testes sem aprovação completa no quality-matrix' };
+}
+
+function qualityView(receipt, dod) {
+  return {
+    tests: testsOf(receipt, dod),
+    lint: { state: 'UNVERIFIED', reason: NO_PRODUCER },
+    coverageTrend: { state: 'UNVERIFIED', reason: NO_PRODUCER },
+    flaky: { state: 'UNVERIFIED', reason: NO_PRODUCER },
+    diff: { state: 'UNVERIFIED', reason: NO_PRODUCER },
+  };
 }
 
 export function selectView(state, nowMs) {
@@ -331,6 +454,9 @@ export function selectView(state, nowMs) {
     connection = 'stale';
   }
   const lanes = state.laneOrder.map((id) => laneView(state.lanes[id], now));
+  const iterations = selectIterations(state.iterations, now, state.gates);
+  const dod = dodView(state.quality, state.runId);
+  const quality = qualityView(state.quality, dod);
   return {
     runId: state.runId,
     lastSeq: state.lastSeq,
@@ -344,6 +470,10 @@ export function selectView(state, nowMs) {
     health,
     lanes,
     alerts: state.alerts,
+    iterations,
+    convergence: selectConvergence(iterations),
+    dod,
+    quality,
   };
 }
 

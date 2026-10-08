@@ -218,12 +218,15 @@ def run_detail(ref: RunRef | Path) -> dict[str, Any]:
 
 
 def _index_receipts(run_dir: Path) -> list[dict[str, Any]]:
-    '''Files under ``receipts/`` plus top-level ``*receipt*.json``, as run-relative name and size.'''
+    '''Files under ``receipts/``, top-level ``*receipt*.json`` and ``quality-matrix.json``, as run-relative name and size.'''
     candidates: list[Path] = []
     receipts_dir = run_dir / 'receipts'
     if receipts_dir.is_dir():
         candidates.extend(sorted(receipts_dir.iterdir()))
     candidates.extend(sorted(run_dir.glob('*receipt*.json')))
+    quality = run_dir / 'quality-matrix.json'
+    if quality.is_file():
+        candidates.append(quality)
     index: list[dict[str, Any]] = []
     for path in candidates:
         if path.is_file() and not path.is_symlink():
