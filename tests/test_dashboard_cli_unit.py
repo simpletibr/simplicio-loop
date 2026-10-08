@@ -371,7 +371,7 @@ def test_tui_live_falls_back_to_ascii_on_a_legacy_console(tmp_path, monkeypatch)
     (run / 'state.json').write_text('{"status": "COMPLETE", "phase": "verify", "percent": 100}', encoding='utf-8')
     monkeypatch.setattr(cli.sys, 'stdout', console)
     monkeypatch.setattr(cli, '_Keys', type('K', (), {'__enter__': lambda s: s, '__exit__': lambda s, *a: None,
-                                                    'wait': lambda s, t: ''}))
+                                                    'wait': lambda s, t: 'q'}))
     cli._tui_live(run)
     console.flush()
     assert b'quit' in raw.getvalue()
