@@ -7,7 +7,8 @@ from pathlib import Path
 
 import pytest
 
-CSP = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; "
+       "frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'")
 TOKEN = 'correct-horse-battery-staple'
 LOCAL = {'Host': '127.0.0.1:8765', 'Origin': 'http://127.0.0.1:8765'}
 
@@ -107,10 +108,15 @@ def test_absent_origin_and_loopback_origin_are_allowed():
 def test_security_headers_are_exact():
     server = _server()
     headers = server.security_headers()
-    assert headers['Content-Security-Policy'] == CSP
-    assert headers['X-Content-Type-Options'] == 'nosniff'
-    assert headers['Referrer-Policy'] == 'no-referrer'
-    assert headers['Cache-Control'] == 'no-store'
+    assert headers == {
+        'Content-Security-Policy': CSP,
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'no-referrer',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Resource-Policy': 'same-origin',
+        'Cache-Control': 'no-store',
+    }
 
 
 def test_no_cors_allow_origin_header_anywhere():
