@@ -121,3 +121,17 @@ def test_thirty_run_directories_feed_trends_end_to_end(tmp_path):
     [month] = trends.trends(records, 'month')
     assert month['runs'] == 30 and month['complete_rate'] == pytest.approx(18 / 30)
     assert sum(map(sum, trends.heatmap(records))) == 30
+
+
+def test_read_lessons_ranks_by_hits_redacts_and_skips_bad_rows(tmp_path):
+    base = tmp_path / '.simplicio-loop' / 'orchestrator'
+    base.mkdir(parents=True)
+    rows = [{'schema': 'simplicio.lesson/v1', 'fingerprint': 'a', 'lesson': 'use the cache', 'hit_count': 1, 'last_seen': '2026-10-01T00:00:00Z'},
+            {'schema': 'simplicio.lesson/v1', 'fingerprint': 'b', 'lesson': 'ask dev@example.com first', 'hit_count': 4, 'last_seen': '2026-10-02T00:00:00Z'},
+            {'fingerprint': 'c'}]
+    (base / 'lessons.jsonl').write_text('\n'.join(json.dumps(r) for r in rows) + '\nnot json\n', encoding='utf-8')
+    lessons = _history().read_lessons(tmp_path)
+    assert [x['fingerprint'] for x in lessons] == ['b', 'a']
+    assert 'dev@example.com' not in lessons[0]['lesson']
+    assert _history().read_lessons(tmp_path, limit=1)[0]['fingerprint'] == 'b'
+    assert _history().read_lessons(tmp_path / 'empty') == []

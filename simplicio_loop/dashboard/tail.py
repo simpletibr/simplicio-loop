@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -31,8 +32,10 @@ class EventTail:
         '''Read complete new lines and return the events not yet seen, in file order.'''
         self._had_events = False
         try:
-            st = os.stat(self.path)
+            st = os.lstat(self.path)
         except OSError:
+            return []
+        if not stat.S_ISREG(st.st_mode):  # a symlink is never followed out of the run directory
             return []
         if self._inode is not None and st.st_ino != self._inode:
             self._offset = 0

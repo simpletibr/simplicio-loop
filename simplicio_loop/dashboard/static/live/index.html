@@ -6,6 +6,8 @@
 <title>Simplicio Live · Pipeline vivo</title>
 <link rel="stylesheet" href="/static/components/simplicio-live.css">
 <link rel="stylesheet" href="/static/live/live.css">
+<link rel="stylesheet" href="/static/history/history.css">
+<link rel="stylesheet" href="/static/coordination/coordination.css">
 </head>
 <body class="sl-page">
 <header class="live-head">
@@ -15,7 +17,7 @@
 <div class="live-tools">
 <button id="follow" type="button" aria-pressed="true">Seguir o run</button>
 <button id="alerts-toggle" type="button" aria-expanded="false" aria-controls="alerts-panel">Alertas (0)</button>
-<sl-command-palette id="palette" hotkey="ctrl+k" label="Buscar comandos" placeholder="Fase, tarefa ou arquivo"></sl-command-palette>
+<sl-command-palette id="palette" hotkey="ctrl+k" label="Buscar comandos" placeholder="Fase, tarefa, run ou arquivo"></sl-command-palette>
 </div>
 </header>
 <main class="live-main">
@@ -24,6 +26,7 @@
 <section class="panel rail-panel" aria-labelledby="rail-title">
 <h2 id="rail-title">Fases</h2>
 <sl-stage-rail id="rail" phase="intake" status="RUNNING" label="Fases do run"></sl-stage-rail>
+<p id="phase-status" class="sr-only" role="status"></p>
 <ul id="phase-stats" class="phase-stats"></ul>
 </section>
 <section class="panel lanes-panel" aria-labelledby="lanes-title">
@@ -80,6 +83,7 @@
 <sl-sparkline id="economy-series" label="Economia acumulada" state="UNVERIFIED"></sl-sparkline>
 <p id="economy-note" class="note"></p>
 </section>
+<section class="panel history-panel" aria-labelledby="history-title"><h2 id="history-title">Histórico e tendências</h2><p id="history-status" role="status"></p><div id="history-root"></div></section>
 <section class="panel agents-panel" aria-labelledby="agents-title">
 <h2 id="agents-title">Agentes, modelos e custo</h2>
 <ul id="agents-cost" class="checks" aria-label="Agentes, modelos e custo"></ul>
@@ -87,6 +91,7 @@
 <section id="alerts-panel" class="panel alerts-panel" aria-labelledby="alerts-title" hidden>
 <h2 id="alerts-title">Alertas do run</h2>
 <p id="alerts-status" role="status"></p>
+<button id="alerts-notify" type="button" hidden>Ativar notificações do navegador</button>
 <ul id="alerts-list" class="checks" aria-label="Alertas ativos"></ul>
 </section>
 <p id="empty" role="status">Aguardando eventos…</p>

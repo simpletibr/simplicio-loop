@@ -493,9 +493,9 @@ def test_index_html_adds_one_coordination_panel_right_after_the_board():
 
 
 def _coordination_css():
-    css = (LIVE / 'live.css').read_text(encoding='utf-8')
+    css = (VIEW.parent / 'coordination.css').read_text(encoding='utf-8')
     marker = css.find('/* Coordination view')
-    assert marker != -1, 'live.css has no marked coordination section'
+    assert marker != -1, 'coordination.css has no marked coordination section'
     return css[marker:]
 
 

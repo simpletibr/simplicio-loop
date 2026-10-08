@@ -20,10 +20,12 @@ Neither module writes to a run. The only file the dashboard writes is its state 
 | GET | `/api/history` | `{"history": [...]}` one `simplicio.dashboard-history/v1` record per past run (verdict from `run-outcome.json`, `duration_s`, `iterations`, `stalls`, `tokens`, `cost_usd`, `phase_durations_s`), newest `started_at` first; filters `verdict`, `repo`, `since`, `until`, `min_/max_duration_s`, `min_/max_iterations`, `min_/max_cost_usd`, `limit`; a bad value is 400. Unmeasured fields are `null`, and a filter on one excludes the run |
 | GET | `/api/history/compare` | `?a=<run>&b=<run>`: phases (union, `null` where a run never reached one), iterations, stalls, tests, tokens, cost and duration with `delta` (b minus a); `comparable` is false when the runs reached different phases (for example blocked against done); 404 for an unknown run |
 | GET | `/api/history/trends` | `?bucket=week\|month` (UTC; weeks start Monday): per bucket `complete_rate` and `not_complete_rate`, `avg_phase_s`, `iterations_per_task`, `cost_per_task_usd`, `top_stall_causes`; same filters as `/api/history` |
+| GET | `/api/history/lessons` | `{"lessons": [...]}` the lessons `simplicio-loop learn retrospective` wrote (`lessons.jsonl`), most repeated first, text redacted |
 | GET | `/api/history/heatmap` | `{"heatmap": [7][24]}` run starts, weekday (Monday = 0) by hour, UTC |
 | GET | `/api/history?format=csv` | the history records as CSV (formula-leading text is quoted); JSON is the default |
 | GET | `/api/runs/{id}` | summary, `state.json`, `manifest.json`, `plan.json`, and a receipt index (name and size only) |
 | GET | `/api/runs/{id}/events` | SSE stream of the run's events (see SSE contract) |
+| GET | `/api/runs/{id}/config` | opt-in flags from `dashboard.toml` (`browser_notifications`, `webhook`); never the URL |
 | GET | `/api/runs/{id}/artifacts/{path}` | bytes of one artifact with secrets masked; 403, 404 or 413 on refusal |
 | GET | `/api/queue` | queued work items (UNVERIFIED data source) |
 | GET | `/api/coordination` | backlog as kanban columns, dependency edges, drain progress and worker slots (see below) |
@@ -94,7 +96,8 @@ Summary fields come from `build_progress` (`phase`, `percent`, `tasks`, `gates`,
 | `--stop` | Stop the running panel. |
 | `--status` | Print the status as JSON, with no token. Schema `simplicio.dashboard-status/v1` at `contracts/dashboard-status/v1/schema.json`. |
 | `--snapshot <out.html>` | Write a self-contained offline HTML file of a run. No server. |
-| `--tui` | Show a run in the terminal. |
+| `--snapshot <out.html> --history` | Write the offline history page: run list, weekly trends, day-by-hour heatmap and learn lessons. No server, no script. |
+| `--tui` | Show a run in the terminal. On a TTY it redraws in place; `q` or Ctrl-C quits and restores the cursor. Off a TTY it prints once. |
 | `--tokens` | Open the legacy Token Monitor on port 9090. Goes only with `--port`, `--no-browser` and `--stop`. |
 
 State file: `~/.simplicio-loop/dashboard/state.json`. Override it with `SIMPLICIO_DASHBOARD_STATE`. Mode 0600. It holds the pid, port, token and repos.
@@ -181,7 +184,7 @@ The keys are ignored while the focus is in an input or textarea.
 
 ### Command palette
 
-`Ctrl+K` opens the phase, task and file commands. A task command opens the lane drill-down. A file command opens the artifact in a new window, with no `opener`.
+`Ctrl+K` opens the phase, task, run and file commands. A run command ("Run <id>", from `GET /api/runs`, never the open run) moves the page to that run and keeps the token and the other URL parameters. A task command opens the lane drill-down. A file command opens the artifact in a new window, with no `opener`.
 
 ### Follow and pause
 
@@ -189,7 +192,7 @@ The "Seguir o run" button (`#follow`, `aria-pressed`) follows the run. While pau
 
 ### TV mode
 
-Add `tv=1` to the URL. It sets `html[data-tv="1"]`: larger type and blocks, the same layout. TV run rotation is deferred (see Unverified).
+Add `tv=1` to the URL. It sets `html[data-tv="1"]`: larger type and blocks, the same layout. With `tv=1` the page moves to the next run every 20 s, wrapping around (`rotate=<seconds>` sets the interval, 1 to 3600). It does not rotate under `prefers-reduced-motion: reduce`, or with fewer than two runs; the palette still jumps by hand.
 
 ### Stall toast
 
@@ -247,19 +250,19 @@ The cost row (slice 1404b) estimates the input cost of the tokens sent through t
 
 The `simplicio-loop economy` command is not the source of token numbers. It shows the environment and parallelism profile. The real sources are `get_status()` of the Token Monitor and the savings ledger at `.simplicio-loop/ledger/savings-events.jsonl`.
 
-Only the cost row can show a value, and it shows "Estimado". Every other row is UNVERIFIED with a reason. None of them ever shows PASS:
+The cost row shows "Estimado". The budget row shows "Estimado" for a projection and FAIL only for a use already past the limit. Tokens por fase shows PASS only when `token_usage` events exist (measured). Every other row is UNVERIFIED with a reason:
 
 | Row | State | Reason or source |
 |---|---|---|
 | Mapa de agentes | UNVERIFIED | lists the roles and stages of `contracts/stage-agents/v1/stages.json`; no instance is measured |
-| Tokens por fase | UNVERIFIED | no producer |
+| Tokens por fase | PASS or UNVERIFIED | sums of the measured `token_usage` events by phase and model (`/api/runs/<id>/budget`); UNVERIFIED while no producer writes them |
 | Custo | ESTIMADO or UNVERIFIED | estimate of the active model's input cost; see above |
-| Orcamento | UNVERIFIED | the run budget lives in the Mapper journal; reading it is a separate slice |
-| Comparacao com os ultimos 10 runs | UNVERIFIED | the run history comes with #1408 |
+| Orcamento | ESTIMADO, FAIL or UNVERIFIED | limits from the run's `task-contract.json` (`routing.budget`, summed over tasks); use from `token_usage`/`cost_sample` events and the event clock; the projection extrapolates by phase progress (use / phase fraction) and is labelled `estimado` |
+| Comparacao com os ultimos 10 runs | ESTIMADO or UNVERIFIED | `budget.compare` over the `/api/history` reader (#1408): duration, tokens, cost and iterations against the average of the last 10 finished runs, the current run skipped; a field no run measured is UNVERIFIED |
 
 `token_usage` and `cost_sample` stay reserved kinds with no producer (see [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md)). Page data: `/api/tokens` carries the price table as `pricing`, and `/api/agents` carries the contract roles.
 
-Still deferred to issue #1404: tokens per phase, lane and model, cost per run, task and iteration, the budget with projection and alert, the last-10 comparison, and the token producer. The decisions were: the price table lives in the repo; no token producer in this round; agent roles come from the stage contract.
+Budget slice (#1404): `simplicio_loop/dashboard/budget.py` reads the declared limits, sums the usage events and projects. The alert rules `budget-projected:<tokens|usd|seconds>` (warning, the projection passes the limit) and `budget-exceeded:<...>` (critical, measured use passed it) run in the alert watch. A dimension with no declared limit, no measured use or no phase progress is UNVERIFIED. Still deferred to issue #1404: the token producer (no `token_usage` writer exists, so tokens and USD stay UNVERIFIED on a real run), cost per run, task and iteration. The last-10 comparison is done on top of the #1408 reader. The decisions were: the price table lives in the repo; no token producer in this round; agent roles come from the stage contract.
 
 ## Coordination (`/api/coordination`)
 
@@ -280,13 +283,13 @@ Read-only, token-gated like `/api/queue`. The source is the backlog JSONL: `$SIM
 - Events in rotated files (`events.jsonl.1` and similar) are not read, so `last_seq` covers only the current file.
 - A truncation that refills the file past the saved offset is not detected, because the size check only sees a shrink.
 - Real browser opening on Windows and macOS.
-- The live `tui` animation on a real TTY.
+- The live `tui` on Windows and macOS terminals (verified on a Linux pseudo-terminal by `tests/test_dashboard_cli_system.py`; the Windows path reads keys with `msvcrt` and is not run here).
 - Agent and cost data (issue #1404).
 - The rich queue (issue #1407).
 - Deferred from #1403 (see [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md#quality-producers)): the test matrix by unit, integration, system and regression level, red and green transitions per test id, the flaky rule (needs per-test ids), and the diff virtualisation with the 5,000-line benchmark (no measurement exists).
 - The running command has no producer.
 - Agent and model names need #1404. The lease heartbeat needs #1403 and #1404.
-- Palette "jump to run" and TV run rotation: deferred to slice 4b-3, because they need a run list fetch.
+- Reference image: `tests/fixtures/live_pipeline/pipeline-dark-1280x900.png` is a Chromium screenshot (dark, 1280x900, board hidden). The diff tolerates 16 of 255 per channel on up to 2% of the pixels. Other browsers or font stacks may need a new reference (`SL_UPDATE_REFERENCE=1`).
 - The contract title of a task: needs a fetch of `task-contract.json`.
 - Reference-image diff: the baseline is font and platform fragile, so the PR carries screenshots instead.
 - Agent and model names, the lease heartbeat, and the running command: no producer yet, so they show UNVERIFIED (#1404).
@@ -301,6 +304,8 @@ The server evaluates the run alert rules over the event stream (`simplicio_loop/
 | `run-stalled` | critical | the journal reports a stall (`stall_detected`), until a different phase starts | server |
 | `gate-failing:<gate>` | warning | a gate's latest verdict is FAIL | server |
 | `phase-silent:<phase>` | warning | no event for more than 5 minutes | server |
+| `budget-projected:<dim>` | warning | the usage projected to the end of the run passes the declared limit (estimate) | server |
+| `budget-exceeded:<dim>` | critical | measured usage is past the declared limit | server |
 | `oracle-unverified` | warning | the run is done and its receipt is ready, but the oracle gave no verdict | server |
 | `stream-lost` | warning | the stream is stale, offline or closed | page (it is the page's own connection) |
 
@@ -308,10 +313,46 @@ The server evaluates the run alert rules over the event stream (`simplicio_loop/
 
 **Silence.** **Silenciar 1 h** hides an alert for an hour in this page. Nothing is stored outside the page. The first snapshot after connecting sets a baseline, so alerts that were already active do not notify.
 
-**Not in slice 1406b, with reasons.** The thresholds are fixed in the server module, not read from `.simplicio-loop/dashboard.toml`. Browser and desktop notifications, and the optional webhook, are not written. Budget alerts wait on the budget reading (see #1404), and the lease rule waits on the lease heartbeat. **Latency (measured on a loopback server, 16 cycles per case).** From the event being written to its alert appearing: on a running run, median 0.10 s on the stream and 0.10 s in the page (worst 0.25 s and 0.15 s). On a finished run, median 0.50 s on the stream. The finished-run poll is 0.5 s, so the 2-second target holds with margin. The end-to-end page latency on a finished run was not measured.
+**Settings (`.simplicio-loop/dashboard.toml`, opt-in).** The file is optional; without it every default holds. A bad value keeps its default and the server keeps running. The file is read per run, from the run's repo.
+
+```toml
+[alerts]
+phase_silence_minutes = 5      # default 5; a number above 0
+
+[notifications]
+browser = false                # default false; true shows the "Ativar notificações do navegador" button
+
+[webhook]
+# url = "https://hooks.example.test/simplicio"   # off unless set; http or https only
+```
+
+**Browser notifications.** Off by default. With `browser = true` the alert center offers a button; the browser asks for permission only after you press it. A new alert then raises a browser notification (the same text as the toast). Silenced alerts and alerts already active when the page connected do not notify. The page learns the flags from `GET /api/runs/{id}/config`, which returns `{"browser_notifications": bool, "webhook": bool}` and never the URL.
+
+**Webhook.** Off by default; nothing is sent unless `[webhook] url` is set. Each raised alert is posted once (JSON, `simplicio.dashboard-alert/v1`: `run_id` and `alert`) while it stays active, however many pages watch the run. A failed post is dropped and never affects the stream. Only the dashboard process posts, from this machine.
+
+**Not done, with reasons.** The budget alerts are in (see the Orcamento row above); the lease rule waits on the lease heartbeat (#1407); neither is on main, so no substitute was written. Desktop (OS) notifications beyond the browser's own Notification API are not written. **Latency (measured on a loopback server, 16 cycles per case).** From the event being written to its alert appearing: on a running run, median 0.10 s on the stream and 0.10 s in the page (worst 0.25 s and 0.15 s). On a finished run, median 0.50 s on the stream. The finished-run poll is 0.5 s, so the 2-second target holds with margin. The end-to-end page latency on a finished run was not measured.
 
 ## Idle CPU measurement (#1400)
 
 `python -m simplicio_loop.dashboard.bench --runs 50 --events 10000 --idle-seconds 30 --json` serves 50 fixture runs of 10,000 events, drains one SSE stream, then samples this process (server included) for `--idle-seconds` with that stream open and nothing written. `idle_cpu.cpu_percent` is utime + stime over wall time, as a share of one core.
 
 MEASURED on Linux (4 cores, `/proc`), one 30 s sample: 0.06 CPU s over 30.0 s wall = 0.2 % (limit 2 %); RSS 47,000 KiB after the full run (limit 80 MB). One sample, not a distribution. Windows and macOS: UNVERIFIED (no `/proc`, no machine to run on).
+
+## Quality gate (issue #1409)
+
+**Accessibility.** `tests/test_live_a11y_e2e_system.py` runs axe 4.12.1 (tags wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa, best-practice) in a real Chromium on the pipeline page (dark, light, contrast themes, populated by the lifecycle fixture), the board, the drill-down with each of its six tabs, and TV mode. Result: 0 violations of any impact. It also checks keyboard reach, a visible focus indicator, Escape returning focus to the opener, `lang="pt-BR"`, and accessible names. One real gap was found and fixed: a phase change was not announced, so a visually hidden `role="status"` line (`#phase-status`) now carries "Fase atual: <fase>". Alerts were already announced (`role="alert"` for STALLED).
+
+**Performance** (`tests/test_live_perf_e2e_system.py`, loopback, one run on this container; set `SL_PERF_REPORT=<file>` to write the numbers as JSON).
+
+| Check | Measured | Budget |
+|---|---|---|
+| LCP, 5 cold loads, median | 180 ms (160 to 240) | under 1500 ms |
+| Burst of 1000 events, time to last seq | 0.43 s | under 15 s |
+| Long tasks during that burst | 1 task, 282 ms | total under 1000 ms, max 500 ms |
+| Heap after GC, 3000 events | 2.79 MB at 500, 3.05 MB at 3000 (growth 173 KB) | under 10 MB |
+| DOM nodes / listeners | 1261 / 56, flat | within 10% |
+| Read routes p50 / p95 (20 runs, 1000 events) | health 1.5 / 2.0 ms, runs 10.1 / 14.9 ms, run detail 2.3 / 2.8 ms, artifact 1.6 / 2.0 ms | p95 under 100 ms |
+
+The 8 h session is not run for real: it is a compressed 3000-event session, so the 8 h claim is UNVERIFIED beyond that proxy.
+
+**Security** (`tests/test_dashboard_security_review_integration.py`). Fixed: secrets leaked on SSE events and alert frames; redaction gaps (private key blocks, Anthropic and project-style keys, GitHub fine-grained tokens, short `password=`/`token=` pairs, secret-shaped JSON keys); unmasked run summaries, receipt reasons and `/api/tokens`; symlinks followed out of the run directory (state, manifest, plan, events, receipts); HEAD sending a body; TRACE/CONNECT answering 501; error pages without security headers. CSP now also sets `base-uri`, `form-action` and `object-src` to `'none'`, with `X-Frame-Options`, COOP and CORP. Checked and clean: token never echoed, traversal variants, Host/Origin rebinding, wrong or oversize token, GET-only. Residual: `simplicio_loop/progress.py` follows symlinks for four sidecar receipts (outside the Live server, not changed here).

@@ -140,3 +140,25 @@ def test_a_healthy_six_minute_stream_raises_no_alert_at_any_step():
 def _offset(event):
     moment = datetime.strptime(event['ts'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc)
     return int((moment - BASE).total_seconds())
+
+
+def _usage_event(seq, offset_s, phase, tokens):
+    return _event(seq, offset_s, 'token_usage', phase=phase, payload={'model': 'm', 'input_tokens': tokens, 'output_tokens': 0})
+
+
+def test_budget_projection_over_the_limit_raises_a_warning_and_exceeded_a_critical():
+    watch = alerts.AlertWatch(budget={'tokens': 600, 'usd': None, 'seconds': None})
+    raised, _ = watch.update([_event(1, 0, 'phase_entered', phase='executing'), _usage_event(2, 1, 'executing', 300)], _ms(2))
+    assert [(a['id'], a['severity']) for a in raised] == [('budget-projected:tokens', 'warning')]
+    raised, cleared = watch.update([_usage_event(3, 2, 'executing', 400)], _ms(3))
+    assert [(a['id'], a['severity']) for a in raised] == [('budget-exceeded:tokens', 'critical')]
+    assert cleared == ['budget-projected:tokens']
+
+
+def test_budget_alert_stays_silent_when_the_forecast_fits_or_nothing_is_declared():
+    fits = alerts.AlertWatch(budget={'tokens': 5000, 'usd': None, 'seconds': None})
+    fits.update([_event(1, 0, 'phase_entered', phase='executing'), _usage_event(2, 1, 'executing', 300)], _ms(2))
+    assert _ids(fits) == []
+    none = alerts.AlertWatch()
+    none.update([_event(1, 0, 'phase_entered', phase='executing'), _usage_event(2, 1, 'executing', 300)], _ms(2))
+    assert _ids(none) == []

@@ -48,6 +48,7 @@ export function createView() {
   const field = (name) => agora.querySelector('[data-field=' + name + ']');
   const els = {
     rail: byId('rail'),
+    phaseStatus: byId('phase-status'),
     ring: byId('ring'),
     phaseStats: byId('phase-stats'),
     gates: byId('gates'),
@@ -80,9 +81,15 @@ export function createView() {
     agentsCost: byId('agents-cost'),
   });
   let ringPercent = null;
+  let announcedPhase = null;
   function renderRail(model) {
     const rail = model.rail;
-    setAttr(els.rail, 'phase', rail.phase || 'intake');
+    const phase = rail.phase || 'intake';
+    setAttr(els.rail, 'phase', phase);
+    if (phase !== announcedPhase) {
+      announcedPhase = phase;
+      setText(els.phaseStatus, 'Fase atual: ' + labelOf(phase));
+    }
     setAttr(els.rail, 'status', rail.status);
     setAttr(els.rail, 'at', rail.at === null ? null : formatClock(rail.at));
     setAttr(els.rail, 'reason', rail.reason);

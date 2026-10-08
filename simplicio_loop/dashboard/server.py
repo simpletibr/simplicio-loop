@@ -30,8 +30,8 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Mapping
 
-from simplicio_loop import __version__, stage_agents
-from simplicio_loop.dashboard import STATIC_DIR, alerts, history, runs, trends
+from simplicio_loop import __version__, dashboard_events, stage_agents
+from simplicio_loop.dashboard import STATIC_DIR, alerts, budget, config, history, runs, trends, webhook
 from simplicio_loop.dashboard.tail import EventTail
 
 HOST = '127.0.0.1'
@@ -40,10 +40,14 @@ HEARTBEAT_SECONDS = 15.0
 RETRY_MS = 1000
 EXEMPT_PATHS = frozenset({'/api/health'})
 TERMINAL_STATUSES = frozenset({'done', 'failed', 'cancelled'})
-CSP = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; "
+       "frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'")
+ACTIVE_TYPES = frozenset({'text/html', 'application/xhtml+xml', 'image/svg+xml', 'text/xml', 'application/xml'})
 _CURSOR_RE = re.compile(r'[0-9]{1,18}')
 _EVENTS_RE = re.compile(r'/api/runs/([^/]+)/events')
+_CONFIG_RE = re.compile(r'/api/runs/([^/]+)/config')
 _ARTIFACT_RE = re.compile(r'/api/runs/([^/]+)/artifacts/(.+)')
+_BUDGET_RE = re.compile(r'/api/runs/([^/]+)/budget')
 _DETAIL_RE = re.compile(r'/api/runs/([^/]+)')
 STATIC_TYPES = {
     '.js': 'text/javascript; charset=utf-8',
@@ -56,11 +60,14 @@ STATIC_TYPES = {
 
 
 def security_headers() -> dict[str, str]:
-    '''Headers on every response: a locked-down CSP, no sniffing, no referrer, no caching.'''
+    '''Headers on every response: a locked-down CSP, no framing, no sniffing, no referrer, no caching.'''
     return {
         'Content-Security-Policy': CSP,
+        'X-Frame-Options': 'DENY',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'no-referrer',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Resource-Policy': 'same-origin',
         'Cache-Control': 'no-store',
     }
 
@@ -199,6 +206,8 @@ def _history(server: Any, path: str, query: Mapping[str, str]) -> Any:
             return {'bucket': query.get('bucket', 'week'), 'trends': trends.trends(rows, query.get('bucket', 'week'))}
         except ValueError as exc:
             raise HttpError(400, str(exc)) from None
+    if path == '/api/history/lessons':
+        return {'lessons': history.read_lessons(server.repos, limit=50)}
     if path == '/api/history/heatmap':
         return {'heatmap': trends.heatmap(rows)}
     if path == '/api/history':
@@ -217,6 +226,11 @@ def _cursor(query: Mapping[str, str], headers: Any) -> int:
             raise HttpError(400, 'cursor must be a non-negative integer')
         cursor = max(cursor, int(text))
     return cursor
+
+
+def _new_events(tail: EventTail) -> list[dict[str, Any]]:
+    '''New events from the tail with secrets masked, before they reach a frame or the alert rules.'''
+    return [runs.redact_json(event) for event in tail.poll()]
 
 
 def _is_terminal(ref: dict[str, Any]) -> bool:
@@ -265,14 +279,14 @@ def price_table() -> dict[str, Any]:
 
 
 def _tokens() -> dict[str, Any]:
-    '''Token monitor status read through the legacy hook; any failure is UNVERIFIED, never a 500.'''
+    '''Token monitor status read through the legacy hook, secrets masked; any failure is UNVERIFIED, never a 500.'''
     try:
         status = _load_hook().get_status()
     except Exception as exc:  # fail open: the dashboard keeps serving
         return {'status': 'UNVERIFIED', 'reason': 'token monitor unavailable: %s' % exc.__class__.__name__,
                 'cost_usd': 'UNVERIFIED'}
-    return {'status': 'MEASURED', 'source': 'hooks/simplicio_dashboard.py get_status',
-            'cost_usd': 'UNVERIFIED', 'data': status, 'pricing': price_table()}
+    return runs.redact_json({'status': 'MEASURED', 'source': 'hooks/simplicio_dashboard.py get_status',
+                             'cost_usd': 'UNVERIFIED', 'data': status, 'pricing': price_table()})
 
 
 def _agents() -> dict[str, Any]:
@@ -316,6 +330,13 @@ def _coordination(server: Any) -> dict[str, Any]:
     return coordination.build_coordination(_backlog_path(server))
 
 
+def _budget(server: Any, ref: dict[str, Any]) -> dict[str, Any]:
+    '''Budget and usage of one run, plus its comparison with the previous runs from the history reader.'''
+    payload = budget.report(ref['run_dir'], dashboard_events.read_events(ref['run_dir']))
+    payload['comparison'] = budget.compare(history.history_record(ref), history.read_history(server.repos))
+    return payload
+
+
 def _health(server: Any) -> dict[str, Any]:
     return {'status': 'ok', 'version': __version__, 'pid': os.getpid(),
             'uptime_s': round(time.monotonic() - server.started_at, 1),
@@ -338,6 +359,10 @@ def _api(server: Any, path: str, query: Mapping[str, str]) -> Any:
         return _agents()
     if path == '/api/tokens':
         return _tokens()
+    settings = _CONFIG_RE.fullmatch(path)
+    if settings:
+        ref = _find_run(server, urllib.parse.unquote(settings.group(1)))
+        return config.load(ref['repo']).public()
     detail = _DETAIL_RE.fullmatch(path)
     if detail:
         ref = _find_run(server, urllib.parse.unquote(detail.group(1)))
@@ -369,7 +394,12 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         self._dispatch()
 
-    do_HEAD = do_POST = do_PUT = do_DELETE = do_PATCH = do_OPTIONS = do_GET
+    do_HEAD = do_POST = do_PUT = do_DELETE = do_PATCH = do_OPTIONS = do_TRACE = do_CONNECT = do_GET
+
+    def send_error(self, code: int, message: str | None = None, explain: str | None = None) -> None:
+        '''Protocol errors (bad request line, oversize headers, unknown verb) keep the headers and a JSON body.'''
+        self.close_connection = True
+        self._send_json(code, {'error': HTTPStatus(code).phrase})
 
     def _dispatch(self) -> None:
         raw_path, _, raw_query = self.path.partition('?')
@@ -395,6 +425,11 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         events = _EVENTS_RE.fullmatch(raw_path)
         if events:
             self._stream(urllib.parse.unquote(events.group(1)), query)
+            return
+        budget_route = _BUDGET_RE.fullmatch(raw_path)
+        if budget_route:
+            ref = _find_run(self.server, urllib.parse.unquote(budget_route.group(1)))
+            self._send_json(200, _budget(self.server, ref))
             return
         artifact = _ARTIFACT_RE.fullmatch(raw_path)
         if artifact:
@@ -425,7 +460,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         ref = _find_run(self.server, run_id)
         data = runs.read_artifact(ref['run_dir'], rel)  # rel stays encoded: read_artifact decodes it once
         ctype = mimetypes.guess_type(urllib.parse.unquote(rel))[0] or 'application/octet-stream'
-        if ctype in ('text/html', 'image/svg+xml'):  # served as text, never as an active document
+        if ctype in ACTIVE_TYPES:  # served as text, never as an active document
             ctype = 'text/plain'
         if ctype.startswith('text/'):
             ctype += '; charset=utf-8'
@@ -435,7 +470,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         cursor = _cursor(query, self.headers)
         ref = _find_run(self.server, run_id)
         tail = EventTail(Path(ref['run_dir']) / EVENTS_FILE, terminal=_is_terminal(ref))
-        watch = alerts.AlertWatch()
+        settings = config.load(ref['repo'])
+        watch = alerts.AlertWatch(settings.silence_ms, budget=budget.declared(ref['run_dir']))
 
         def receipt_ready() -> bool:
             return _receipt_ready(ref)
@@ -445,19 +481,21 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         try:
             self.wfile.write(('retry: %d\n\n' % RETRY_MS).encode('utf-8'))
             # The watch reads the stream from its first event, so the snapshot covers history the client already has.
-            history = tail.poll()
+            history = _new_events(tail)
             self._write_events(history, cursor)
             watch.update(history, _now_ms(), receipt_ready)
             self._write_frame('alert_snapshot', {'alerts': watch.snapshot()})
             last_write = time.monotonic()
             while not self.server.stop_event.is_set():
-                new = tail.poll()
+                new = _new_events(tail)
                 self._write_events(new, cursor)
                 raised, cleared = watch.update(new, _now_ms(), receipt_ready)
                 for alert in raised:
                     self._write_frame('alert_raised', alert)
+                    self.server.webhook(settings.webhook_url).send(ref['run_id'], alert)
                 for alert_id in cleared:
                     self._write_frame('alert_cleared', {'id': alert_id})
+                    self.server.webhook(settings.webhook_url).clear(ref['run_id'], alert_id)
                 if new or raised or cleared:
                     last_write = time.monotonic()
                 if time.monotonic() - last_write >= heartbeat:
@@ -489,7 +527,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
     def _send(self, status: int, body: bytes, ctype: str) -> None:
         self._start(status, ctype, len(body))
-        self.wfile.write(body)
+        if self.command != 'HEAD':  # HEAD carries the headers only, never the body
+            self.wfile.write(body)
 
     def _send_json(self, status: int, payload: Any) -> None:
         self._send(status, json.dumps(payload, default=str).encode('utf-8'), 'application/json; charset=utf-8')
@@ -513,6 +552,19 @@ class ServerHandle:
         self._thread.join(5.0)
 
 
+def _webhook_for(server: Any) -> Any:
+    '''One sender per webhook URL, shared by every stream, so an alert is posted once however many pages watch.'''
+    senders: dict[str | None, webhook.Sender] = {}
+    lock = threading.Lock()
+
+    def get(url: str | None) -> webhook.Sender:
+        with lock:
+            if url not in senders:
+                senders[url] = webhook.Sender(url)
+            return senders[url]
+    return get
+
+
 def start(repo_root: Any, host: str = HOST, port: int = 0, token: str = '',
           heartbeat_seconds: float = HEARTBEAT_SECONDS) -> ServerHandle:
     '''Serve one repo root or several on 127.0.0.1:``port`` (0 picks a free port) in a daemon thread.
@@ -530,6 +582,7 @@ def start(repo_root: Any, host: str = HOST, port: int = 0, token: str = '',
     server.started_at = time.monotonic()
     server.stop_event = threading.Event()
     server.heartbeat_seconds = heartbeat_seconds
+    server.webhook = _webhook_for(server)
     thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': 0.1}, daemon=True)
     thread.start()
     return ServerHandle(server, thread)
