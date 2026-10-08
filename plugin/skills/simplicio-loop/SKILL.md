@@ -635,6 +635,15 @@ publishes ONE idempotent, rate-limited, fail-open progress comment on the issue.
 emits the final `refeed_exit` event on every stop path, so `progress.json`'s `run_state`
 (`running|done|capped|handoff|stopped`) never stays stuck mid-run.
 
+### Open the live panel
+Triggers: "abre o painel do loop", "open the loop dashboard", "mostra o progresso ao vivo".
+Run `simplicio-loop dashboard`. It starts the Simplicio Live panel on 127.0.0.1, port 8765.
+It prints a tokenised URL and opens the browser. Use `--no-browser` to skip the browser.
+Useful flags: `--run <id>`, `--repo <path>` (repeatable), `--port <n>`, `--stop`, `--status`.
+`--snapshot <out.html>` writes an offline page. `--tui` streams a run in the terminal.
+`--tokens` opens the Token Monitor on port 9090 instead.
+Never paste the tokenised URL into an issue, PR or chat channel.
+
 ## The promise is evidence-gated (the simplicio hardening) + watcher-gate (pre-promise)
 
 The classic Ralph loop trusts the model to be honest. We do not. A `<promise>` is accepted

@@ -23,7 +23,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 |---|---|
 | `install` | Install bundled skills and hooks into a supported runtime. |
 | `update` | Install the latest GitHub release of `simpletibr/simplicio-loop` (`--check` only reports, `--force` reinstalls) and refresh the global skills. |
-| `dashboard` | Open or stop the token-monitor dashboard. |
+| `dashboard` | Open the Simplicio Live run panel on 127.0.0.1:8765 (prints a tokenised URL); `--run`, `--repo`, `--port`, `--no-browser`, `--stop`, `--status`, `--snapshot`, `--tui`; `--tokens` opens the legacy Token Monitor on port 9090. |
 | `task` | Compile, validate, or preview a Markdown task contract. |
 | `prototype` | Route prototype planning and validation commands. |
 | `plan` | Compile a raw task into a frozen contract. |
