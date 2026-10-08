@@ -125,6 +125,49 @@ The page shows:
 
 The kit is served under `/static/components/` and the page assets under `/static/live/`, both without a token (see Security model).
 
+### Swimlanes
+
+One lane per worktree or lane id, shown under the phase rail. Each lane holds blocks, one per iteration. A block is coloured by its state (`RUNNING`, `PASS`, `FAIL`, `BLOCKED`, `STALLED`, `UNVERIFIED`) and carries a glyph, so the state is never shown by colour alone.
+
+- A block is closed by gate results (evidence and quality), by `apply_result` `blocked`, and by `iteration_finished`.
+- A stall marks the block `STALLED` until the next non-stall event.
+
+### Drill-down
+
+Click a phase, a block or a lane to open the side panel (`#drill`). It shows the facts for that target and its log lines, rendered with `sl-log-viewer`. `Escape` closes it and restores focus.
+
+### Keys
+
+- `j` and `k` move between lanes.
+- `g` opens the gates. `l` opens the logs.
+- `Escape` closes the drill-down. `Ctrl+K` opens the command palette.
+
+The keys are ignored while the focus is in an input or textarea.
+
+### Command palette
+
+`Ctrl+K` opens the phase, task and file commands. A task command opens the lane drill-down. A file command opens the artifact in a new window, with no `opener`.
+
+### Follow and pause
+
+The "Seguir o run" button (`#follow`, `aria-pressed`) follows the run. While paused, events still reduce into state, but the view does not update until you resume.
+
+### TV mode
+
+Add `tv=1` to the URL. It sets `html[data-tv="1"]`: larger type and blocks, the same layout. TV run rotation is deferred (see Unverified).
+
+### Stall toast
+
+A `stall_detected` alert shows once, with `role="alert"`, if its time is within 60 seconds of now. Alerts are deduplicated by alert id.
+
+### Hover timings
+
+Each block's `data-tip` attribute carries the plain-text timings. CSS shows them on hover only.
+
+### Frame time
+
+The e2e test measures the median animation frame in headless software Chromium: 16.7 ms over 60 frames (MEASURED). This is software rendering, not a GPU measurement, so 60 fps on a real GPU is UNVERIFIED.
+
 ## Unverified (UNVERIFIED)
 
 - Agent, model, token and cost data. `cost_usd` is always null, and no receipt backs token counts yet.
@@ -139,4 +182,8 @@ The kit is served under `/static/components/` and the page assets under `/static
 - DoD 7 pillars and the quality gate have no producer yet. They show UNVERIFIED.
 - The running command has no producer.
 - Agent and model names need #1404. The lease heartbeat needs #1403 and #1404.
-- Deferred to slice 4b-2 (#1402, not in this change): swimlanes with iteration blocks, drill-down, tooltips, the Cmd-K palette, the j/k/g/l keys, follow and pause, TV mode with rotation, 60 fps with 8 lanes, dark, light and TV screenshots with a reference-image diff, and the alert toast.
+- Palette "jump to run" and TV run rotation: deferred to slice 4b-3, because they need a run list fetch.
+- The contract title of a task: needs a fetch of `task-contract.json`.
+- Reference-image diff: the baseline is font and platform fragile, so the PR carries screenshots instead.
+- Agent and model names, the lease heartbeat, the running command, the DoD seven pillars and the quality gate: no producer yet, so they show UNVERIFIED (#1403 and #1404).
+- Real-GPU 60 fps: UNVERIFIED. Only the software Chromium measurement exists.

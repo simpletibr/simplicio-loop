@@ -709,7 +709,7 @@ capture runs **without invoking the loop** — see `references/token-capture.md`
 - `--run <id>` picks a run; `--repo <path>` (repeatable) picks the repos to watch; `--port <n>` sets the port.
 - `--no-browser` skips the browser; `--stop` stops the panel; `--status` prints tokenless JSON.
 - `--snapshot <out.html>` writes an offline page; `--tui` streams a run in the terminal.
-- The Pipeline vivo page is served at `/` with the token, and the kit is at `/static/components/`.
+- The Pipeline vivo page is served at `/` with the token, and the kit is at `/static/components/`. It shows swimlanes with a click-to-open drill-down panel, and `tv=1` in the URL gives the larger TV mode (see [`docs/DASHBOARD.md`](docs/DASHBOARD.md)).
 
 ### 🧪 e2e savings demo — one task, four hops, a receipt at every one
 
