@@ -1,0 +1,33 @@
+{
+  "schema": "simplicio.flow/v1",
+  "id": "simplicio-loop",
+  "title": "simplicio-loop: entry to steps to outputs",
+  "nodes": [
+    {"id": "in_goal", "kind": "input", "label": "/simplicio-loop <goal>", "source": "AGENTS.md"},
+    {"id": "preflight", "kind": "step", "label": "Preflight (operators present)", "source": "scripts/operator_preflight.py"},
+    {"id": "survey", "kind": "step", "label": "Survey (simplicio-mapper scan/inspect/handoff)", "source": "packages/mapper/simplicio_mapper/cli/__init__.py"},
+    {"id": "backlog", "kind": "step", "label": "Phase 0: frozen backlog + task anchor ACs", "source": "scripts/task_backlog.py"},
+    {"id": "anchor", "kind": "step", "label": "Task anchor: freeze ACs, block drift", "source": "scripts/task_anchor.py"},
+    {"id": "turbo", "kind": "step", "label": "turbo: needs_plan request", "source": "simplicio_loop/turbo_cli.py"},
+    {"id": "apply", "kind": "step", "label": "turbo --apply: Dev CLI mutation + --verify", "source": "packages/dev-cli/simplicio/effect_router.py"},
+    {"id": "strict", "kind": "gate", "label": "STRICT mode gate", "source": ".claude/skills/simplicio-loop/SKILL.md"},
+    {"id": "human", "kind": "gate", "label": "Human gate: irreversible operation", "source": "hooks/action_gate.py"},
+    {"id": "claim", "kind": "step", "label": "Drain: claim issue (CLAIMED comment)", "source": "simplicio_loop/github_lifecycle.py"},
+    {"id": "journal", "kind": "step", "label": "Run journal + stall detector", "source": "scripts/loop_journal.py"},
+    {"id": "pr", "kind": "step", "label": "PR with Closes #N + AC checklist + prints", "source": "scripts/pr_evidence.py"},
+    {"id": "merge", "kind": "step", "label": "Merge", "source": "simplicio_loop/github_lifecycle.py"},
+    {"id": "promise", "kind": "gate", "label": "Evidence-gated promise (DoD)", "source": "hooks/loop_stop.py"},
+    {"id": "stop", "kind": "gate", "label": "STOP / cancel / max_iterations", "source": "hooks/loop_stop.py"},
+    {"id": "out_pr", "kind": "output", "label": "Merged PR", "source": "scripts/pr_evidence.py"},
+    {"id": "out_report", "kind": "output", "label": "simplicio.execution-report/v1", "source": "simplicio_loop/execution_report.py"},
+    {"id": "out_journal", "kind": "output", "label": "Journal + scratchpad", "source": "scripts/loop_journal.py"}
+  ],
+  "edges": [
+    ["in_goal", "preflight"], ["preflight", "survey"], ["survey", "backlog"], ["backlog", "anchor"],
+    ["anchor", "turbo"], ["turbo", "apply"], ["apply", "strict"], ["strict", "human"],
+    ["human", "claim", "approved"], ["claim", "journal"], ["journal", "pr"], ["pr", "merge"],
+    ["merge", "promise"], ["promise", "out_pr", "all ACs verified"], ["promise", "turbo", "re-feed"],
+    ["promise", "stop", "cap or cancel"], ["stop", "out_journal"],
+    ["promise", "out_report"], ["journal", "out_journal"]
+  ]
+}

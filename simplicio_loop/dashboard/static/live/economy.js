@@ -10,8 +10,8 @@ const NO_PRICE_TABLE = 'tabela de preços indisponível';
 const NOT_PRICED = 'modelo ativo sem preço na tabela';
 const NO_CONTRACT = 'contrato de agentes não recebido';
 const TOKENS_BY_PHASE = 'sem produtor de tokens por fase no fluxo atual';
-const BUDGET = 'orçamento do run fica no journal do Mapper; a leitura entra em fatia própria';
-const COMPARISON = 'o histórico de runs entra com a issue #1408';
+const BUDGET = 'orçamento do run indisponível: o contrato da tarefa não declara limite ou a leitura falhou';
+const COMPARISON = 'histórico de runs indisponível para este run';
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -165,17 +165,83 @@ function rolesOf(contract) {
   }));
 }
 
+const BUDGET_LABELS = { tokens: 'tokens', usd: 'USD', seconds: 'segundos' };
+
+function num(value) {
+  return numberOrNull(value) === null ? '–' : String(Math.round(value * 10000) / 10000);
+}
+
+// Budget row from GET /api/runs/<id>/budget. A projection is an estimate; only a use already past the limit is measured.
+function budgetRowOf(budget) {
+  const base = { key: 'budget', label: 'Orcamento' };
+  const rows = isObject(budget) && isObject(budget.rows) ? budget.rows : null;
+  if (rows === null) return { ...base, state: 'UNVERIFIED', reason: BUDGET };
+  const parts = [];
+  let state = 'UNVERIFIED';
+  for (const key of Object.keys(BUDGET_LABELS)) {
+    const row = rows[key];
+    if (!isObject(row) || row.state === 'UNVERIFIED') continue;
+    const unit = BUDGET_LABELS[key];
+    if (row.state === 'EXCEEDED') {
+      state = 'FAIL';
+      parts.push(unit + ': uso medido ' + num(row.used) + ' passou do limite ' + num(row.limit));
+    } else {
+      if (state !== 'FAIL') state = 'ESTIMADO';
+      const over = row.state === 'PROJECTED_OVER' ? ' e passa do limite' : '';
+      parts.push(unit + ': estimado ' + num(row.projected) + ' ao fim do run' + over + ' (limite ' + num(row.limit) + ', uso ' + num(row.used) + ')');
+    }
+  }
+  if (parts.length === 0) {
+    const why = Object.values(rows).map((row) => (isObject(row) ? stringOrNull(row.reason) : null)).find(Boolean);
+    return { ...base, state: 'UNVERIFIED', reason: why || BUDGET };
+  }
+  return { ...base, state, reason: parts.join('; ') };
+}
+
+function groupText(group) {
+  return Object.entries(group).map(([name, tokens]) => name + ' ' + tokens).join(', ');
+}
+
+// Tokens per phase and model come from the measured token_usage events; with no producer the row stays UNVERIFIED.
+function tokensByPhaseRowOf(budget) {
+  const usage = isObject(budget) && isObject(budget.usage) ? budget.usage : null;
+  const byPhase = usage && isObject(usage.by_phase) ? usage.by_phase : {};
+  if (Object.keys(byPhase).length === 0) return { key: 'tokensByPhase', label: 'Tokens por fase', state: 'UNVERIFIED', reason: TOKENS_BY_PHASE };
+  const byModel = isObject(usage.by_model) ? usage.by_model : {};
+  const reason = 'medido por fase: ' + groupText(byPhase) + (Object.keys(byModel).length ? '. Por modelo: ' + groupText(byModel) + '.' : '.');
+  return { key: 'tokensByPhase', label: 'Tokens por fase', state: 'PASS', reason };
+}
+
+const COMPARE_LABELS = { duration_s: 'duração', tokens: 'tokens', cost_usd: 'custo', iterations: 'iterações' };
+const NO_BASELINE = 'nenhum run anterior com valor medido para comparar';
+
+// This run against the average of the last ten finished runs. The averages are derived figures, so they show ESTIMADO.
+function comparisonRowOf(budget) {
+  const base = { key: 'comparison', label: 'Comparacao com os ultimos 10 runs' };
+  const comparison = isObject(budget) && isObject(budget.comparison) ? budget.comparison : null;
+  if (comparison === null || !isObject(comparison.fields)) return { ...base, state: 'UNVERIFIED', reason: COMPARISON };
+  const parts = [];
+  for (const key of Object.keys(COMPARE_LABELS)) {
+    const field = comparison.fields[key];
+    if (!isObject(field) || field.state !== 'ESTIMADO' || numberOrNull(field.delta_pct) === null) continue;
+    const signed = (field.delta_pct > 0 ? '+' : '') + field.delta_pct + '%';
+    parts.push(COMPARE_LABELS[key] + ' ' + signed + ' (média ' + num(field.average) + ' em ' + field.samples + ' runs)');
+  }
+  if (parts.length === 0) return { ...base, state: 'UNVERIFIED', reason: NO_BASELINE };
+  return { ...base, state: 'ESTIMADO', reason: 'estimado sobre ' + comparison.runs + ' runs: ' + parts.join('; ') };
+}
+
 // The agent-level rows: the map lists the contract roles, and no instance is measured, so no row is ever PASS.
-export function agentsCostView(economy, agents) {
+export function agentsCostView(economy, agents, budget) {
   const contract = isObject(agents) ? agents : null;
   return [
     {
       key: 'agentMap', label: 'Mapa de agentes', state: 'UNVERIFIED', roles: rolesOf(contract),
       reason: contract && stringOrNull(contract.reason) ? contract.reason : NO_CONTRACT,
     },
-    { key: 'tokensByPhase', label: 'Tokens por fase', state: 'UNVERIFIED', reason: TOKENS_BY_PHASE },
+    tokensByPhaseRowOf(budget),
     costRowOf(economy.cost),
-    { key: 'budget', label: 'Orcamento', state: 'UNVERIFIED', reason: BUDGET },
-    { key: 'comparison', label: 'Comparacao com os ultimos 10 runs', state: 'UNVERIFIED', reason: COMPARISON },
+    budgetRowOf(budget),
+    comparisonRowOf(budget),
   ];
 }
