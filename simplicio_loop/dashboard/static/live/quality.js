@@ -54,6 +54,8 @@ function testRecord(payload) {
     skipped: countOrNull(payload.skipped),
     total: countOrNull(payload.total),
     durationS: durationOrNull(payload.duration_s),
+    failedIds: Array.isArray(payload.failed_ids) && payload.failed_ids.every((id) => typeof id === 'string')
+      ? payload.failed_ids.slice(0, 100) : null,
   };
 }
 

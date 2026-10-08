@@ -73,7 +73,7 @@ namespaced kind; each namespace owns its own catalog.
 | lanes and tasks | `iteration_started` | hook (`loop_stop` re-feed, `trigger: refeed`), operator (`user_prompt_submit`, `trigger: user_prompt`, `decision`, `prompt_chars`) | as listed |
 | lanes and tasks | `iteration_finished` | hook (`loop_stop`) | `outcome` (`refeed`, `pass`, `blocked`), `reason`, `has_evidence` |
 | lanes and tasks | `apply_result` | worker (operator receipt; the diff is `step: diff`) | `step`, `execution_state`; `step: diff` adds `files` (max 200), `files_total`, `added`, `deleted` |
-| quality | `test_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `passed`, `failed`, `skipped`, `errors`, `total`, `duration_s`, `status` |
+| quality | `test_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `passed`, `failed`, `skipped`, `errors`, `total`, `duration_s`, `status`, `failed_ids` (pytest only, max 100, optional: node ids from the short summary, de-duplicated in order; `[]` on a clean run; omitted when failures exist but no id lines were found) |
 | quality | `lint_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `errors`, `warnings`, `by_rule` (top 20), `status` |
 | quality | `coverage_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `percent`, `scope` (`total`), `files` (max 50, optional) |
 | quality | `gate_evaluated` | runner, oracle, hooks | `gate` (`evidence`, `watcher`, `oracle`, `dod`, `quality`, `action`), `verdict` (`pass`, `fail`, `pending`, `blocked`), `status`, `verdict_detail` |

@@ -3,6 +3,7 @@
 import { applyIteration, initialIterations, selectConvergence, selectIterations } from './iterations.js';
 import { agentsCostView, economyView } from './economy.js';
 import { initialQuality, reduceQuality, selectQuality } from './quality.js';
+import { selectFlaky } from '../quality-flaky.js';
 
 export const GATES = ['evidence', 'watcher', 'oracle', 'dod', 'quality', 'action'];
 export const READY_VERDICTS = ['COMPLETE', 'DRAINED', 'VERIFIED'];
@@ -309,7 +310,6 @@ const TEST_PILLARS = ['unit', 'integration', 'system', 'regression'];
 const PILLAR_STATUS = { pass: 'PASS', fail: 'FAIL', not_applicable: 'PENDING' };
 const RECEIPT_MISSING = 'quality-matrix.json ainda nao gerado';
 const REQUIREMENT_MISSING = 'sem registro no quality-matrix.json';
-const NO_FLAKY_IDS = 'sem ids por teste: o produtor emite contagens, não identidade de teste';
 const RECEIPT_STATES = ['VALID', 'INVALID', 'UNVERIFIED'];
 const NO_VERDICT = 'validação não informada';
 const RUN_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
@@ -412,7 +412,7 @@ function qualityView(receipt, dod, events) {
     tests,
     lint: fed.lint,
     coverageTrend: fed.coverageTrend,
-    flaky: { state: 'UNVERIFIED', reason: NO_FLAKY_IDS },
+    flaky: selectFlaky(events),
     diff: fed.diff,
   };
 }
