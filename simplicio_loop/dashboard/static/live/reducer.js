@@ -1,6 +1,7 @@
 // Simplicio Live pipeline reducer (issue #1402). Pure: no DOM, no network, no clock.
 // Time enters only through selectView(state, nowMs) and the timestamps carried by actions.
 import { applyIteration, initialIterations, selectConvergence, selectIterations } from './iterations.js';
+import { agentsCostView, economyView } from './economy.js';
 
 export const GATES = ['evidence', 'watcher', 'oracle', 'dod', 'quality', 'action'];
 export const READY_VERDICTS = ['COMPLETE', 'DRAINED', 'VERIFIED'];
@@ -87,6 +88,7 @@ export function initialState(runId) {
     alerts: [],
     iterations: initialIterations(),
     quality: null,
+    tokens: null,
   };
 }
 function enterPhase(state, event, stamp, payload) {
@@ -270,6 +272,7 @@ export function reduce(state, action) {
     const at = numberOrNull(action.at);
     return { ...state, connection: String(action.status || 'connecting'), lastActivity: at === null ? state.lastActivity : at };
   }
+  if (action.type === 'tokens') return { ...state, tokens: action.response === undefined ? null : action.response };
   if (action.type === 'heartbeat') {
     const at = numberOrNull(action.at);
     return { ...state, heartbeatAt: at, lastActivity: at === null ? state.lastActivity : at };
@@ -474,6 +477,8 @@ export function selectView(state, nowMs) {
     convergence: selectConvergence(iterations),
     dod,
     quality,
+    economy: economyView(state.tokens),
+    agentsCost: agentsCostView(),
   };
 }
 

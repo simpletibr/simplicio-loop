@@ -66,6 +66,21 @@
 <h2 id="quality-title">Qualidade</h2>
 <ul id="quality" class="checks" aria-label="Qualidade"></ul>
 </section>
+<section id="economy" class="panel economy-panel" aria-labelledby="economy-title">
+<h2 id="economy-title">Economia de tokens</h2>
+<sl-donut id="economy-gauge" label="Economia de tokens" center="–"></sl-donut>
+<div class="kpis">
+<sl-kpi-card id="kpi-saved" label="Tokens economizados" value="–" state="UNVERIFIED"></sl-kpi-card>
+<sl-kpi-card id="kpi-requests" label="Requisições capturadas" value="–" state="UNVERIFIED"></sl-kpi-card>
+<sl-kpi-card id="kpi-intercept" label="Providers interceptáveis" value="–" state="UNVERIFIED"></sl-kpi-card>
+</div>
+<sl-sparkline id="economy-series" label="Economia acumulada" state="UNVERIFIED"></sl-sparkline>
+<p id="economy-note" class="note"></p>
+</section>
+<section class="panel agents-panel" aria-labelledby="agents-title">
+<h2 id="agents-title">Agentes, modelos e custo</h2>
+<ul id="agents-cost" class="checks" aria-label="Agentes, modelos e custo"></ul>
+</section>
 <p id="empty" role="status">Aguardando eventos…</p>
 </main>
 <aside id="drill" class="drill" aria-labelledby="drill-title" hidden>

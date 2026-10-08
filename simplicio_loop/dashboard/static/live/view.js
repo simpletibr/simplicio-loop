@@ -69,6 +69,15 @@ export function createView() {
     note: byId('convergence-note'),
     dod: byId('dod'),
     quality: byId('quality'),
+    economy: {
+      gauge: byId('economy-gauge'),
+      saved: byId('kpi-saved'),
+      requests: byId('kpi-requests'),
+      intercept: byId('kpi-intercept'),
+      series: byId('economy-series'),
+      note: byId('economy-note'),
+    },
+    agentsCost: byId('agents-cost'),
   });
   let ringPercent = null;
   function renderRail(model) {

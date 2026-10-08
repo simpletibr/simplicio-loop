@@ -8,6 +8,7 @@ import { createView } from '/static/live/view.js';
 const SUMMARY_DEBOUNCE_MS = 250;
 const TICK_MS = 1000;
 const SUMMARY_POLL_MS = 500;
+const TOKENS_POLL_MS = 30000;
 const THEMES = ['dark', 'light', 'contrast'];
 
 const params = new URLSearchParams(window.location.search);
@@ -253,6 +254,21 @@ function scheduleSummary() {
   summaryTimer = setTimeout(refreshRun, SUMMARY_DEBOUNCE_MS);
 }
 
+// A failed read of the token panel reports no response, and the economy view shows that as UNVERIFIED.
+async function loadTokens() {
+  let response = null;
+  try {
+    const reply = await fetch('/api/tokens', {
+      headers: { Accept: 'application/json', Authorization: 'Bearer ' + token },
+      cache: 'no-store',
+    });
+    if (reply.ok) response = await reply.json();
+  } catch (error) {
+    response = null;
+  }
+  dispatch({ type: 'tokens', response });
+}
+
 function start() {
   if (!token || !runId) {
     view.showMessage(token ? 'Informe o run na URL (parâmetro run).' : 'Abra o painel com o token na URL (parâmetro t).');
@@ -264,6 +280,8 @@ function start() {
   setInterval(render, TICK_MS);
   setInterval(pollSummary, SUMMARY_POLL_MS);
   loadSummary();
+  loadTokens();
+  setInterval(loadTokens, TOKENS_POLL_MS);
   connectStream({
     url: runPath() + '/events',
     token,
