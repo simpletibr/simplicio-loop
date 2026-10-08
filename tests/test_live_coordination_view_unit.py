@@ -102,7 +102,8 @@ const dag = new Element('div');
 const drain = new Element('div');
 const slots = new Element('div');
 const status = new Element('p');
-const coord = createCoordination({ kanban, dag, drain, slots, status });
+const worktrees = input.withWorktrees ? new Element('div') : undefined;
+const coord = createCoordination({ kanban, dag, drain, slots, status, worktrees });
 const out = input.steps.map((step) => {
   coord.render(step.model);
   if (step.click !== null && step.click !== undefined) {
@@ -112,6 +113,7 @@ const out = input.steps.map((step) => {
   }
   return {
     kanban: snap(kanban), dag: snap(dag), drain: snap(drain), slots: snap(slots),
+    worktrees: worktrees === undefined ? null : snap(worktrees),
     status: status.textContent, writes,
   };
 });
@@ -119,9 +121,10 @@ process.stdout.write(JSON.stringify(out));
 '''
 
 
-def _render(steps):
+def _render(steps, with_worktrees=True):
     script = SCRIPT.replace('__VIEW__', json.dumps(VIEW.as_uri()))
-    proc = subprocess.run([_node(), '--input-type=module', '-e', script], input=json.dumps({'steps': steps}),
+    payload = {'steps': steps, 'withWorktrees': with_worktrees}
+    proc = subprocess.run([_node(), '--input-type=module', '-e', script], input=json.dumps(payload),
                           capture_output=True, text=True, timeout=60, check=False)
     assert proc.returncode == 0, proc.stderr
     return json.loads(proc.stdout)
@@ -167,7 +170,7 @@ def _hidden(node, name):
 
 def _card(card_id, column='claimed', **extra):
     row = {'id': card_id, 'goal': 'Objetivo ' + card_id, 'column': column, 'blockedBy': [], 'worker': 'w-1',
-           'leaseState': 'live', 'remainingS': 540}
+           'leaseState': 'live', 'remainingS': 540, 'issue': None, 'pr': None}
     row.update(extra)
     return row
 
@@ -461,6 +464,215 @@ def test_identical_model_does_no_dom_work():
     assert second['dag'] == first['dag']
 
 
+# GitHub chips ---------------------------------------------------------------------------------------------------------
+
+GH_ISSUE = 'https://github.com/wesleysimplicio/simplicio-loop/issues/12'
+GH_PR = 'https://github.com/wesleysimplicio/simplicio-loop/pull/34'
+
+
+def _chips(card):
+    return _all(card, lambda n: 'chip' in _attrs(n).get('class', '').split())
+
+
+def _visible_chips(card):
+    return [chip for chip in _chips(card) if 'hidden' not in _attrs(chip)]
+
+
+def test_issue_and_pr_chips_link_to_github_in_a_new_tab_when_there_is_a_url():
+    cards = {'claimed': [_card('T-1', issue={'number': 12, 'url': GH_ISSUE}, pr={'number': 34, 'url': GH_PR})]}
+    [step] = _render([_step(_model(cards))])
+    issue, pr = _visible_chips(_cards_by_id(step)['T-1'])
+    assert issue['tag'] == 'a' and pr['tag'] == 'a'
+    assert _text(issue) == 'Issue #12' and _text(pr) == 'PR #34'
+    assert _attrs(issue)['href'] == GH_ISSUE and _attrs(pr)['href'] == GH_PR
+    for chip in (issue, pr):
+        assert _attrs(chip)['target'] == '_blank'
+        assert _attrs(chip)['rel'] == 'noopener noreferrer'
+
+
+def test_a_chip_without_a_url_is_plain_text_with_no_link():
+    cards = {'claimed': [_card('T-1', issue={'number': 12, 'url': None})]}
+    [step] = _render([_step(_model(cards))])
+    [chip] = _visible_chips(_cards_by_id(step)['T-1'])
+    assert chip['tag'] == 'span'
+    assert _text(chip) == 'Issue #12'
+    assert 'href' not in _attrs(chip)
+
+
+def test_a_missing_issue_and_pr_show_no_chip():
+    [step] = _render([_step(_model({'claimed': [_card('T-1')]}))])
+    card = _cards_by_id(step)['T-1']
+    assert _visible_chips(card) == []
+    assert _hidden(card, 'card-links')
+
+
+def test_a_chip_moves_from_link_to_text_in_place_when_its_url_goes_away():
+    linked = {'claimed': [_card('T-1', issue={'number': 12, 'url': GH_ISSUE})]}
+    plain = {'claimed': [_card('T-1', issue={'number': 12, 'url': None})]}
+    before, after = _render([_step(_model(linked)), _step(_model(plain))])
+    assert _cards_by_id(after)['T-1']['uid'] == _cards_by_id(before)['T-1']['uid']
+    [chip] = _visible_chips(_cards_by_id(after)['T-1'])
+    assert chip['tag'] == 'span' and 'href' not in _attrs(chip)
+
+
+def test_chip_text_is_written_as_text_never_as_markup():
+    [step] = _render([_step(_model({'claimed': [_card('T-1', pr={'number': 7, 'url': GH_PR})]}))])
+    [chip] = _visible_chips(_cards_by_id(step)['T-1'])
+    assert _elements(chip) == []
+    assert _text(chip) == 'PR #7'
+
+
+# Worktree map ---------------------------------------------------------------------------------------------------------
+
+WORKTREE_LAMP = {'clean': ('PASS', '\u2713'), 'dirty': ('UNVERIFIED', '\u25c7'), 'conflict': ('FAIL', '\u2715'),
+                 'prunable': ('STALLED', '\u275a\u275a'), 'locked': ('BLOCKED', '\u2298'),
+                 'unknown': ('PENDING', '\u25cb')}
+WORKTREE_STATE_TEXT = {'clean': 'Limpo', 'dirty': 'Alterações não commitadas', 'conflict': 'Conflito',
+                       'prunable': 'Pode ser podado', 'locked': 'Bloqueado', 'unknown': 'Estado sem registro'}
+CLEANUP_TEXT = {'none': 'Sem pendência', 'pending': 'Limpeza pendente', 'locked': 'Travado'}
+NO_WORKTREES = 'Nenhum worktree para mostrar.'
+
+
+def _row(path, **extra):
+    row = {'path': path, 'branch': 'feat/' + path.rsplit('/', 1)[-1], 'head': '0123456789abcdef',
+           'itemId': 'T-1', 'state': 'clean', 'cleanup': 'none', 'main': False}
+    row.update(extra)
+    return row
+
+
+def _wt(rows=None, status='MEASURED', reason=None):
+    return {'status': status, 'reason': reason, 'rows': rows or []}
+
+
+def _with_wt(worktrees, cards=None):
+    model = _model(cards)
+    model['worktrees'] = worktrees
+    return model
+
+
+def _wt_rows(tree):
+    return _all(tree['worktrees'], lambda n: n.get('tag') == 'li' and 'data-worktree' in _attrs(n))
+
+
+def _wt_row(tree, path):
+    [row] = [row for row in _wt_rows(tree) if _attrs(row)['data-worktree'] == path]
+    return row
+
+
+def test_each_worktree_row_shows_branch_short_head_linked_item_and_state():
+    rows = [_row('/w/a', branch='feat/a', head='0123456789abcdef', itemId='T-7', state='dirty',
+                            cleanup='pending')]
+    [step] = _render([_step(_with_wt(_wt(rows)))])
+    row = _wt_row(step, '/w/a')
+    assert _text(_by_class(row, 'worktree-branch')) == 'feat/a'
+    assert _text(_by_class(row, 'worktree-head')) == '0123456'
+    assert _text(_by_class(row, 'worktree-item')) == 'Item: T-7'
+    assert _text(_by_class(row, 'worktree-state')) == WORKTREE_STATE_TEXT['dirty']
+    assert _text(_by_class(row, 'worktree-cleanup')) == CLEANUP_TEXT['pending']
+
+
+def test_a_detached_row_says_sem_branch_and_a_row_without_a_head_or_item_hides_them():
+    rows = [_row('/w/a', branch=None, head=None, itemId=None)]
+    [step] = _render([_step(_with_wt(_wt(rows)))])
+    row = _wt_row(step, '/w/a')
+    assert _text(_by_class(row, 'worktree-branch')) == 'sem branch'
+    assert _hidden(row, 'worktree-head')
+    assert _text(_by_class(row, 'worktree-item')) == 'Sem item vinculado'
+
+
+@pytest.mark.parametrize('state', list(WORKTREE_LAMP))
+def test_each_worktree_state_has_its_lamp_disc_glyph_and_text(state):
+    [step] = _render([_step(_with_wt(_wt([_row('/w/a', state=state)])))])
+    row = _wt_row(step, '/w/a')
+    assert _attrs(row)['data-state'] == state
+    lamp_state, glyph = WORKTREE_LAMP[state]
+    lamp_el = _by_class(row, 'lamp')
+    assert _attrs(lamp_el)['data-state'] == lamp_state
+    assert _text(lamp_el) == glyph
+    assert _attrs(lamp_el)['aria-hidden'] == 'true'
+    assert _text(_by_class(row, 'worktree-state')) == WORKTREE_STATE_TEXT[state]
+
+
+@pytest.mark.parametrize('cleanup', ['none', 'pending', 'locked'])
+def test_each_cleanup_has_its_text(cleanup):
+    [step] = _render([_step(_with_wt(_wt([_row('/w/a', cleanup=cleanup)])))])
+    assert _text(_by_class(_wt_row(step, '/w/a'), 'worktree-cleanup')) == CLEANUP_TEXT[cleanup]
+
+
+def test_the_main_worktree_is_marked_and_the_others_are_not():
+    rows = [_row('/repo', main=True, branch='main'), _row('/w/a')]
+    [step] = _render([_step(_with_wt(_wt(rows)))])
+    assert _text(_by_class(_wt_row(step, '/repo'), 'worktree-main')) == 'Principal'
+    assert not _hidden(_wt_row(step, '/repo'), 'worktree-main')
+    assert _hidden(_wt_row(step, '/w/a'), 'worktree-main')
+
+
+def test_worktree_rows_keep_the_model_order_and_the_count_is_in_the_heading():
+    rows = [_row('/w/b'), _row('/w/a')]
+    [step] = _render([_step(_with_wt(_wt(rows)))])
+    assert [_attrs(row)['data-worktree'] for row in _wt_rows(step)] == ['/w/b', '/w/a']
+    assert _text(_by_class(step['worktrees'], 'worktree-heading')) == 'Worktrees (2)'
+
+
+def test_an_empty_measured_map_says_there_are_no_worktrees():
+    [step] = _render([_step(_with_wt(_wt([])))])
+    assert _text(_by_class(step['worktrees'], 'worktree-note')) == NO_WORKTREES
+    assert not _hidden(step['worktrees'], 'worktree-note')
+    assert _wt_rows(step) == []
+    assert _hidden(step['worktrees'], 'worktree-reason')
+
+
+def test_an_unverified_map_shows_its_reason_and_not_the_empty_note():
+    [step] = _render([_step(_with_wt(_wt([], status='UNVERIFIED', reason='git worktree list failed')))])
+    assert _text(_by_class(step['worktrees'], 'worktree-reason')) == 'Não verificado: git worktree list failed'
+    assert not _hidden(step['worktrees'], 'worktree-reason')
+    assert _hidden(step['worktrees'], 'worktree-note')
+    assert _text(_by_class(step['worktrees'], 'worktree-heading')) == 'Worktrees'
+
+
+def test_an_unverified_map_without_a_reason_still_says_it_is_unverified():
+    [step] = _render([_step(_with_wt(_wt([], status='UNVERIFIED')))])
+    assert _text(_by_class(step['worktrees'], 'worktree-reason')) == 'Não verificado'
+
+
+def test_a_poll_keeps_a_worktree_row_and_updates_its_state_in_place():
+    first = _render([_step(_with_wt(_wt([_row('/w/a', state='clean')])))])[0]
+    second = _render([_step(_with_wt(_wt([_row('/w/a', state='clean')]))),
+                      _step(_with_wt(_wt([_row('/w/a', state='conflict')])))])[1]
+    assert _wt_row(second, '/w/a')['uid'] == _wt_row(first, '/w/a')['uid']
+    assert _attrs(_wt_row(second, '/w/a'))['data-state'] == 'conflict'
+    assert _attrs(_by_class(_wt_row(second, '/w/a'), 'lamp'))['data-state'] == 'FAIL'
+
+
+def test_a_removed_worktree_row_leaves_the_map():
+    before, after = _render([_step(_with_wt(_wt([_row('/w/a'), _row('/w/b')]))),
+                             _step(_with_wt(_wt([_row('/w/b')])))])
+    assert [_attrs(row)['data-worktree'] for row in _wt_rows(before)] == ['/w/a', '/w/b']
+    assert [_attrs(row)['data-worktree'] for row in _wt_rows(after)] == ['/w/b']
+
+
+def test_a_model_without_worktrees_renders_an_unverified_map():
+    [step] = _render([_step(_model())])
+    assert _wt_rows(step) == []
+    assert _hidden(step['worktrees'], 'worktree-note')
+    assert _text(_by_class(step['worktrees'], 'worktree-reason')) == 'Não verificado'
+    assert _text(_by_class(step['worktrees'], 'worktree-heading')) == 'Worktrees'
+
+
+def test_the_view_still_renders_when_the_page_has_no_worktree_container():
+    [step] = _render([_step(_with_wt(_wt([_row('/w/a')]), cards={'claimed': [_card('T-1')]}))],
+                     with_worktrees=False)
+    assert step['worktrees'] is None
+    assert _cards_by_id(step)['T-1'] is not None
+    assert step['status'] == 'Em execução'
+
+
+def test_worktree_text_is_written_as_text_never_as_markup():
+    [step] = _render([_step(_with_wt(_wt([_row('/w/<img src=x>', branch='<b>x</b>')])))])
+    assert _elements(_by_class(_wt_row(step, '/w/<img src=x>'), 'worktree-branch')) == []
+    assert _text(_by_class(_wt_row(step, '/w/<img src=x>'), 'worktree-branch')) == '<b>x</b>'
+
+
 # Static checks on the sources -----------------------------------------------------------------------------------------
 
 def test_view_source_avoids_innerhtml_inline_style_and_css_text():
@@ -523,6 +735,25 @@ def test_dag_buttons_have_the_focus_ring_and_selected_edges_are_marked():
     assert re.search(r'\.dag-node-button:focus-visible\s*\{[^}]*var\(--sl-focus-width\)[^}]*var\(--sl-focus\)', section)
     assert re.search(r'\.dag-edge\[data-highlight="true"\]\s*\{', section)
     assert re.search(r'\.dag-node-button\[aria-pressed="true"\]\s*\{', section)
+
+
+def test_boot_hands_the_worktree_container_to_the_view():
+    boot = (VIEW.parent / 'boot.js').read_text(encoding='utf-8')
+    assert 'worktrees: worktreesEl()' in boot and "createElement('div')" in boot
+
+
+def test_worktree_rows_mark_each_state_with_an_edge_token():
+    section = _coordination_css()
+    for state, token in [('clean', 'pass'), ('dirty', 'unverified'), ('conflict', 'fail'), ('prunable', 'stalled'),
+                         ('locked', 'blocked'), ('unknown', 'pending')]:
+        pattern = r'\.worktree-row\[data-state="%s"\][^{]*\{[^}]*var\(--sl-state-%s\)' % (state, token)
+        assert re.search(pattern, section), state
+
+
+def test_chip_links_have_the_focus_ring_and_hidden_parts_stay_hidden_in_the_panel():
+    section = _coordination_css()
+    assert re.search(r'a\.chip:focus-visible\s*\{[^}]*var\(--sl-focus-width\)[^}]*var\(--sl-focus\)', section)
+    assert re.search(r'\.coord-panel \[hidden\]\s*\{[^}]*display:\s*none', section)
 
 
 def test_coordination_panel_spans_the_full_row_on_desktop():

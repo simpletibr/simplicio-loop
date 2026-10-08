@@ -14,6 +14,10 @@ export const COORD_LABELS = {
 
 const LEASE_STATES = ['live', 'stale', 'expired'];
 const PAYLOAD_STATUSES = ['MEASURED', 'UNVERIFIED'];
+const WORKTREE_STATES = ['clean', 'dirty', 'conflict', 'prunable', 'locked', 'unknown'];
+const WORKTREE_CLEANUPS = ['none', 'pending', 'locked'];
+const GITHUB_URL = /^https:\/\/github\.com\//;
+const MISSING_WORKTREES = 'worktree payload missing or invalid';
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -53,6 +57,17 @@ function leaseOf(lease, nowMs) {
   return { leaseState: state, remainingS: Number.isFinite(lease.remaining_s) ? lease.remaining_s : null };
 }
 
+function textOf(value) {
+  return typeof value === 'string' && value !== '' ? value : null;
+}
+
+// An issue or PR reference: a positive integer number, and a url only when it is a github.com link.
+function refOf(ref) {
+  if (!isObject(ref) || !Number.isInteger(ref.number) || ref.number < 1) return null;
+  const url = typeof ref.url === 'string' && GITHUB_URL.test(ref.url) ? ref.url : null;
+  return { number: ref.number, url };
+}
+
 function cardOf(item, nowMs) {
   const { leaseState, remainingS } = leaseOf(item.lease, nowMs);
   return {
@@ -63,6 +78,8 @@ function cardOf(item, nowMs) {
     worker: item.worker ?? null,
     leaseState,
     remainingS,
+    issue: refOf(item.issue),
+    pr: refOf(item.pr),
   };
 }
 
@@ -126,6 +143,37 @@ function slotsOf(payload) {
   }));
 }
 
+// Keeps the first row of each path, skips anything that is not an object with a non-empty string path.
+function worktreeRowsOf(rows) {
+  const seen = new Set();
+  const out = [];
+  for (const row of rows) {
+    if (!isObject(row) || typeof row.path !== 'string' || row.path === '' || seen.has(row.path)) continue;
+    seen.add(row.path);
+    out.push({
+      path: row.path,
+      branch: textOf(row.branch),
+      head: textOf(row.head),
+      itemId: textOf(row.item_id),
+      state: WORKTREE_STATES.includes(row.state) ? row.state : 'unknown',
+      cleanup: WORKTREE_CLEANUPS.includes(row.cleanup) ? row.cleanup : 'pending',
+      main: row.main === true,
+    });
+  }
+  return out;
+}
+
+// A payload without a valid status and a rows array is not a worktree map: it is UNVERIFIED with no rows.
+function worktreesOf(source) {
+  const worktrees = source.worktrees;
+  if (!isObject(worktrees) || !PAYLOAD_STATUSES.includes(worktrees.status) || !Array.isArray(worktrees.rows)) {
+    return { status: 'UNVERIFIED', reason: MISSING_WORKTREES, rows: [] };
+  }
+  const status = worktrees.status;
+  const reason = textOf(worktrees.reason) ?? (status === 'UNVERIFIED' ? MISSING_WORKTREES : null);
+  return { status, reason, rows: worktreeRowsOf(worktrees.rows) };
+}
+
 export function coordinationOf(payload, nowMs) {
   const source = isObject(payload) ? payload : {};
   const status = PAYLOAD_STATUSES.includes(source.status) ? source.status : 'UNVERIFIED';
@@ -151,6 +199,7 @@ export function coordinationOf(payload, nowMs) {
     dag: { layers: layersOf(items, ids), edges: edgesOf(items, ids, columnById) },
     drain: drainOf(source.drain),
     slots: slotsOf(source),
+    worktrees: worktreesOf(source),
   };
 }
 

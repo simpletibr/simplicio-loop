@@ -10,7 +10,18 @@ export function startCoordination(readApi) {
     if (!coord) {
       const [model, view] = await Promise.all([import('/static/coordination/model.js'), import('/static/coordination/view.js')]);
       const el = (id) => document.getElementById(id);
-      coord = { of: model.coordinationOf, view: view.createCoordination({ kanban: el('coord-kanban'), dag: el('coord-dag'), drain: el('coord-drain'), slots: el('coord-slots'), status: el('coord-status') }) };
+      // The container is created here: static/live/ is at its size cap, so it cannot carry the markup.
+      const worktreesEl = () => {
+        let node = el('coord-worktrees');
+        if (!node && el('coord-slots')) {
+          node = document.createElement('div');
+          node.id = 'coord-worktrees';
+          node.className = 'coord-worktrees';
+          el('coord-slots').after(node);
+        }
+        return node;
+      };
+      coord = { of: model.coordinationOf, view: view.createCoordination({ kanban: el('coord-kanban'), dag: el('coord-dag'), drain: el('coord-drain'), slots: el('coord-slots'), status: el('coord-status'), worktrees: worktreesEl() }) };
     }
     coord.view.render(coord.of(reply, Date.now()));
   };

@@ -202,3 +202,7 @@ The stream also carries named frames for run alerts. They are not dashboard even
 
 A client that treats every `data:` line as an event must skip frames with an `event:` name, as `EventSource` does for named events.
 
+## Coordination is not an event
+
+`/api/coordination` reads the backlog JSONL, not `events.jsonl`, and writes no event kind. See [DASHBOARD.md](DASHBOARD.md#coordination-apicoordination).
+

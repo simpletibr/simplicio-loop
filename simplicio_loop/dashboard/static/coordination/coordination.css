@@ -128,7 +128,8 @@
 }
 .coord-dag,
 .coord-drain,
-.coord-slots {
+.coord-slots,
+.coord-worktrees {
   display: grid;
   gap: var(--sl-space-2);
   margin-block-start: var(--sl-space-3);
@@ -228,5 +229,93 @@
   padding: 0 var(--sl-space-2);
   border-radius: var(--sl-radius-pill);
   box-shadow: inset 0 0 0 1px var(--sl-state-stalled);
+  color: var(--sl-ink);
+}
+
+/* GitHub chips: a link when the item has a github url, plain text otherwise. */
+.coord-panel [hidden] { display: none; }
+.card-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sl-space-1);
+  margin: 0;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--sl-space-2);
+  border-radius: var(--sl-radius-pill);
+  box-shadow: inset 0 0 0 1px var(--sl-line);
+  background: var(--sl-raised);
+  font-size: var(--sl-step--1);
+  font-variant-numeric: tabular-nums;
+  color: var(--sl-ink);
+  text-decoration: none;
+}
+a.chip {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+a.chip:focus-visible {
+  outline: var(--sl-focus-width) solid var(--sl-focus);
+  outline-offset: 2px;
+}
+
+/* Worktree map: one row per worktree, lamp edge per state, cleanup as text. */
+.coord-worktrees h3 {
+  margin: 0;
+  font-size: var(--sl-step--1);
+  font-weight: var(--sl-weight-strong);
+  color: var(--sl-ink);
+}
+.coord-worktrees p {
+  margin: 0;
+  font-size: var(--sl-step--1);
+  color: var(--sl-ink-muted);
+  overflow-wrap: anywhere;
+}
+.worktree-map {
+  display: grid;
+  gap: var(--sl-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.worktree-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sl-space-1) var(--sl-space-2);
+  padding: var(--sl-space-2);
+  border: 1px solid var(--sl-line-soft);
+  border-inline-start: 4px solid var(--sl-line);
+  border-radius: var(--sl-radius-plate);
+  background: var(--sl-raised);
+  font-size: var(--sl-step--1);
+  color: var(--sl-ink-muted);
+  overflow-wrap: anywhere;
+}
+.worktree-row[data-state="clean"] { border-inline-start-color: var(--sl-state-pass); }
+.worktree-row[data-state="dirty"] { border-inline-start-color: var(--sl-state-unverified); }
+.worktree-row[data-state="conflict"] { border-inline-start-color: var(--sl-state-fail); }
+.worktree-row[data-state="prunable"] { border-inline-start-color: var(--sl-state-stalled); }
+.worktree-row[data-state="locked"] { border-inline-start-color: var(--sl-state-blocked); }
+.worktree-row[data-state="unknown"] { border-inline-start-color: var(--sl-state-pending); }
+.worktree-branch {
+  color: var(--sl-ink);
+  font-weight: var(--sl-weight-strong);
+  overflow-wrap: anywhere;
+}
+.worktree-head {
+  font-family: var(--sl-font-mono);
+  color: var(--sl-ink);
+}
+.worktree-state {
+  color: var(--sl-ink);
+}
+.worktree-main {
+  padding: 0 var(--sl-space-2);
+  border-radius: var(--sl-radius-pill);
+  box-shadow: inset 0 0 0 1px var(--sl-line);
   color: var(--sl-ink);
 }

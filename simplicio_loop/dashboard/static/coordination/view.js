@@ -29,10 +29,22 @@ const LEASE = {
   expired: { state: 'STALLED', label: 'Lease expirado' },
   unknown: { state: 'PENDING', label: 'Lease sem registro' },
 };
+const WORKTREE = {
+  clean: { state: 'PASS', label: 'Limpo' },
+  dirty: { state: 'UNVERIFIED', label: 'Alterações não commitadas' },
+  conflict: { state: 'FAIL', label: 'Conflito' },
+  prunable: { state: 'STALLED', label: 'Pode ser podado' },
+  locked: { state: 'BLOCKED', label: 'Bloqueado' },
+  unknown: { state: 'PENDING', label: 'Estado sem registro' },
+};
+const CLEANUP = { none: 'Sem pendência', pending: 'Limpeza pendente', locked: 'Travado' };
+const CHIP_PREFIX = { issue: 'Issue #', pr: 'PR #' };
+const SHORT_HEAD = 7;
 const EMPTY = 'Nenhum item na fila deste repositório.';
 const NO_DRAIN = 'Sem métrica de drenagem para mostrar.';
 const NO_DAG = 'Nenhuma dependência entre os itens.';
 const NO_SLOTS = 'Nenhum worker com lease.';
+const NO_WORKTREES = 'Nenhum worktree para mostrar.';
 
 function element(tag, cls) {
   const el = document.createElement(tag);
@@ -99,10 +111,34 @@ function columnView(key) {
   return { section, heading, list };
 }
 
+// A GitHub reference is a link when the model gives it a url, and plain text otherwise. Both nodes exist from the
+// start; the one that does not apply is hidden, so a poll changes the chip in place.
+function chipPair(kind) {
+  const link = element('a', 'chip');
+  link.setAttribute('target', '_blank');
+  link.setAttribute('rel', 'noopener noreferrer');
+  const plain = element('span', 'chip');
+  link.setAttribute('data-kind', kind);
+  plain.setAttribute('data-kind', kind);
+  return { link, plain };
+}
+
+function fillChip(pair, kind, ref) {
+  const text = ref ? CHIP_PREFIX[kind] + ref.number : null;
+  const url = ref && ref.url ? ref.url : null;
+  setAttr(pair.link, 'href', url);
+  show(pair.link, url === null ? null : text);
+  show(pair.plain, url === null ? text : null);
+}
+
 function cardView() {
   const item = element('li', 'coord-card');
   const id = element('strong', 'card-id');
   const goal = element('p', 'card-goal');
+  const links = element('p', 'card-links');
+  const issue = chipPair('issue');
+  const pr = chipPair('pr');
+  links.append(issue.link, issue.plain, pr.link, pr.plain);
   const meta = element('p', 'card-meta');
   const worker = element('span', 'card-worker');
   const lease = leaseBadge();
@@ -113,8 +149,8 @@ function cardView() {
   const blockedText = element('span', 'card-blocked-text');
   blocked.append(blockedLampEl, blockedText);
   fillLamp(blockedLampEl, 'BLOCKED');
-  item.append(id, goal, meta, blocked);
-  return { item, id, goal, worker, lease, remaining, blocked, blockedText };
+  item.append(id, goal, links, meta, blocked);
+  return { item, id, goal, links, issue, pr, worker, lease, remaining, blocked, blockedText };
 }
 
 function fillCard(view, card) {
@@ -123,6 +159,9 @@ function fillCard(view, card) {
   setAttr(view.item, 'data-blocked', text === null ? null : 'true');
   setText(view.id, card.id);
   show(view.goal, card.goal);
+  setAttr(view.links, 'hidden', (card.issue || card.pr) ? null : true);
+  fillChip(view.issue, 'issue', card.issue ?? null);
+  fillChip(view.pr, 'pr', card.pr ?? null);
   show(view.worker, card.worker ? 'Worker: ' + card.worker : null);
   fillLease(view.lease, card.leaseState);
   show(view.remaining, Number.isFinite(card.remainingS) ? 'restam ' + durationText(card.remainingS) : null);
@@ -214,6 +253,38 @@ function itemsText(items) {
   return items === null || items === undefined ? null : 'Itens: ' + items;
 }
 
+function worktreeKey(state) {
+  return Object.hasOwn(WORKTREE, state) ? state : 'unknown';
+}
+
+function worktreeRowView(path) {
+  const item = element('li', 'worktree-row');
+  item.setAttribute('data-worktree', path);
+  const lampEl = lamp();
+  const branch = element('strong', 'worktree-branch');
+  const head = element('span', 'worktree-head');
+  const linked = element('span', 'worktree-item');
+  const state = element('span', 'worktree-state');
+  const cleanup = element('span', 'worktree-cleanup');
+  const main = element('span', 'worktree-main');
+  item.append(lampEl, branch, head, linked, state, cleanup, main);
+  return { item, lampEl, branch, head, linked, state, cleanup, main };
+}
+
+function fillWorktree(view, row) {
+  const key = worktreeKey(row.state);
+  const cleanupKey = Object.hasOwn(CLEANUP, row.cleanup) ? row.cleanup : 'pending';
+  setAttr(view.item, 'data-state', key);
+  setAttr(view.item, 'data-cleanup', cleanupKey);
+  fillLamp(view.lampEl, WORKTREE[key].state);
+  show(view.branch, row.branch || 'sem branch');
+  show(view.head, row.head ? row.head.slice(0, SHORT_HEAD) : null);
+  show(view.linked, row.itemId ? 'Item: ' + row.itemId : 'Sem item vinculado');
+  show(view.state, WORKTREE[key].label);
+  show(view.cleanup, CLEANUP[cleanupKey]);
+  show(view.main, row.main ? 'Principal' : null);
+}
+
 function statusText(model) {
   const head = [model.status ? (STATE_LABEL[model.status] ?? model.status) : null, model.reason]
     .filter(Boolean)
@@ -222,7 +293,7 @@ function statusText(model) {
   return (head ? head + '. ' : '') + EMPTY;
 }
 
-export function createCoordination({ kanban, dag, drain, slots, status }) {
+export function createCoordination({ kanban, dag, drain, slots, status, worktrees = null }) {
   const columns = new Map();
   const cards = new Map();
   const layers = new Map();
@@ -249,6 +320,14 @@ export function createCoordination({ kanban, dag, drain, slots, status }) {
   const slotNote = element('p', 'coord-none');
   const slotList = element('ol', 'coord-slot-list');
   slots.append(slotNote, slotList);
+
+  // The worktree map is optional: a page without the container still gets the rest of the panel.
+  const worktreeHeading = element('h3', 'worktree-heading');
+  const worktreeReason = element('p', 'worktree-reason');
+  const worktreeNote = element('p', 'coord-none worktree-note');
+  const worktreeList = element('ol', 'worktree-map');
+  const worktreeViews = new Map();
+  if (worktrees !== null) worktrees.append(worktreeHeading, worktreeReason, worktreeNote, worktreeList);
 
   function select(id) {
     selected = selected === id ? null : id;
@@ -359,6 +438,23 @@ export function createCoordination({ kanban, dag, drain, slots, status }) {
     setAttr(slotList, 'hidden', rows.length > 0 ? null : true);
   }
 
+  function renderWorktrees(model) {
+    const map = model.worktrees ?? { status: 'UNVERIFIED', reason: null, rows: [] };
+    const measured = map.status === 'MEASURED';
+    const rows = map.rows ?? [];
+    setText(worktreeHeading, measured ? 'Worktrees (' + rows.length + ')' : 'Worktrees');
+    show(worktreeReason, measured ? null : STATE_LABEL.UNVERIFIED + (map.reason ? ': ' + map.reason : ''));
+    show(worktreeNote, measured && rows.length === 0 ? NO_WORKTREES : null);
+    prune(worktreeViews, new Set(rows.map((row) => row.path)), (view) => view.item);
+    const items = rows.map((row) => {
+      const view = ensure(worktreeViews, row.path, worktreeRowView);
+      fillWorktree(view, row);
+      return view.item;
+    });
+    placeCards(worktreeList, items);
+    setAttr(worktreeList, 'hidden', items.length > 0 ? null : true);
+  }
+
   return {
     render(model) {
       const key = JSON.stringify(model);
@@ -368,6 +464,7 @@ export function createCoordination({ kanban, dag, drain, slots, status }) {
       renderDag(model);
       renderDrain(model);
       renderSlots(model);
+      if (worktrees !== null) renderWorktrees(model);
       applySelection();
       setText(status, statusText(model));
     },
