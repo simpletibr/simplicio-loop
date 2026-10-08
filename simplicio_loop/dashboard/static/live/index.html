@@ -15,7 +15,7 @@
 <div class="live-tools">
 <button id="follow" type="button" aria-pressed="true">Seguir o run</button>
 <button id="alerts-toggle" type="button" aria-expanded="false" aria-controls="alerts-panel">Alertas (0)</button>
-<sl-command-palette id="palette" hotkey="ctrl+k" label="Buscar comandos" placeholder="Fase, tarefa ou arquivo"></sl-command-palette>
+<sl-command-palette id="palette" hotkey="ctrl+k" label="Buscar comandos" placeholder="Fase, tarefa, run ou arquivo"></sl-command-palette>
 </div>
 </header>
 <main class="live-main">
@@ -86,6 +86,7 @@
 <section id="alerts-panel" class="panel alerts-panel" aria-labelledby="alerts-title" hidden>
 <h2 id="alerts-title">Alertas do run</h2>
 <p id="alerts-status" role="status"></p>
+<button id="alerts-notify" type="button" hidden>Ativar notificações do navegador</button>
 <ul id="alerts-list" class="checks" aria-label="Alertas ativos"></ul>
 </section>
 <p id="empty" role="status">Aguardando eventos…</p>

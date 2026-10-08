@@ -153,3 +153,78 @@ def test_an_alert_frame_arrives_within_two_seconds_after_the_event(tmp_path, sta
     finally:
         handle.stop()
     assert max(latencies) < LATENCY_LIMIT_S, ('status=%s latencies=%s' % (status, [round(v, 3) for v in latencies]))
+
+
+def _toml(root, text):
+    path = root / '.simplicio-loop' / 'dashboard.toml'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding='utf-8')
+
+
+def test_configured_silence_threshold_raises_the_silent_phase_alert(tmp_path):
+    root, run_dir, _ = _latency_run(tmp_path, 'running')
+    _toml(root, '[alerts]\nphase_silence_minutes = 0.01\n')
+    handle = server.start(repo_root=str(root), host='127.0.0.1', port=0, token=TOKEN)
+    try:
+        conn, resp = _open(handle.port)
+        try:
+            assert _alert_frame(resp)[0] == 'alert_snapshot'
+            name, alert = _alert_frame(resp)
+            assert name == 'alert_raised' and alert['rule'] == 'phase-silent'
+        finally:
+            conn.close()
+    finally:
+        handle.stop()
+
+
+def test_api_config_reports_flags_without_the_webhook_url(tmp_path):
+    root, _, _ = _latency_run(tmp_path, 'running')
+    _toml(root, '[notifications]\nbrowser = true\n\n[webhook]\nurl = "http://127.0.0.1:1/secret-path"\n')
+    handle = server.start(repo_root=str(root), host='127.0.0.1', port=0, token=TOKEN)
+    try:
+        conn = http.client.HTTPConnection('127.0.0.1', handle.port, timeout=5)
+        conn.request('GET', '/api/runs/%s/config' % RUN, headers={'Authorization': 'Bearer ' + TOKEN})
+        resp = conn.getresponse()
+        raw = resp.read()
+        assert resp.status == 200
+        assert json.loads(raw) == {'browser_notifications': True, 'webhook': True}
+        assert b'secret-path' not in raw
+    finally:
+        handle.stop()
+
+
+def test_webhook_receives_a_raised_alert_once(tmp_path):
+    import http.server
+    import threading
+    got = []
+
+    class Sink(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            got.append(json.loads(self.rfile.read(int(self.headers['Content-Length']))))
+            self.send_response(204)
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    sink = http.server.HTTPServer(('127.0.0.1', 0), Sink)
+    threading.Thread(target=sink.serve_forever, daemon=True).start()
+    root, run_dir, emitter = _latency_run(tmp_path, 'running')
+    _toml(root, '[webhook]\nurl = "http://127.0.0.1:%d/h"\n' % sink.server_port)
+    handle = server.start(repo_root=str(root), host='127.0.0.1', port=0, token=TOKEN)
+    try:
+        conn, resp = _open(handle.port)
+        try:
+            assert _alert_frame(resp)[0] == 'alert_snapshot'
+            _gate(emitter, run_dir, 'evidence', 'fail', 'teste falhou')
+            assert _alert_frame(resp)[0] == 'alert_raised'
+            import time
+            deadline = time.monotonic() + 3
+            while not got and time.monotonic() < deadline:
+                time.sleep(0.05)
+        finally:
+            conn.close()
+    finally:
+        handle.stop()
+        sink.shutdown()
+    assert len(got) == 1 and got[0]['alert']['id'] == 'gate-failing:evidence' and got[0]['run_id'] == RUN

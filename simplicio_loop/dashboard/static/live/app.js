@@ -4,12 +4,13 @@ import { initialState, reduce, selectCommands, selectDrill, selectView } from '/
 import { artifactHref, renderDrill, setText } from '/static/live/lanes.js';
 import { bindTabs, createDrillLists } from '/static/live/drill-tabs.js';
 import { deepLinkOf, parseDeepLink } from '/static/live/deeplink.js';
-import { activeAlerts, applyAlertFrame, diffAlerts, mergeAlerts } from '/static/live/alerts.js';
+import { activeAlerts, applyAlertFrame, browserNotice, diffAlerts, mergeAlerts } from '/static/live/alerts.js';
 import { createAlertList } from '/static/live/alerts-view.js';
 import { SlAlertToast } from '/static/components/index.js';
 import { createView } from '/static/live/view.js';
 import { boardOf } from '/static/live/board.js';
 import { createBoard } from '/static/live/board-view.js';
+import { nextRunId, rotationMs, runCommands, runUrl } from '/static/live/runs-nav.js';
 
 const SUMMARY_DEBOUNCE_MS = 250;
 const TICK_MS = 1000;
@@ -63,6 +64,8 @@ const silencedAlerts = {};
 let alertIds = null;
 // The run alerts the server sent, by id: the snapshot replaces them, raised and cleared frames change them.
 let serverAlerts = {};
+// The opt-in settings from dashboard.toml (/config); null until read, and the page then keeps every extra off.
+let alertSettings = null;
 const alertList = createAlertList({
   toggle: document.getElementById('alerts-toggle'),
   list: document.getElementById('alerts-list'),
@@ -87,6 +90,9 @@ let selectedLane = null;
 let drillTarget = null;
 let drillOpener = null;
 let commandsSignature = '';
+// The runs of the last GET /api/runs: the palette jumps to them and the TV mode rotates through them.
+let knownRuns = [];
+let rotationTimer = null;
 // The on-demand artifacts the run has written, from the last run detail; null until the first detail arrives.
 let drillArtifactNames = null;
 
@@ -105,6 +111,7 @@ function render() {
   for (const alert of alerts) {
     if (change.raised.includes(alert.id)) {
       SlAlertToast.notify({ state: alert.severity === 'critical' ? 'STALLED' : 'UNVERIFIED', heading: alert.heading, message: alert.why });
+      notifyBrowser(alert, now);
     }
   }
   alertIds = ids;
@@ -130,7 +137,7 @@ function dispatch(action) {
 }
 
 function syncPalette() {
-  const commands = selectCommands(shown);
+  const commands = selectCommands(shown).concat(runCommands(knownRuns, runId));
   const signature = JSON.stringify(commands);
   if (signature === commandsSignature) return;
   commandsSignature = signature;
@@ -231,6 +238,21 @@ function onKey(event) {
   else if (event.key === 'l') openDrill({ type: 'logs' });
 }
 
+function goToRun(id) {
+  window.location.assign(runUrl(window.location.pathname, window.location.search, id));
+}
+
+// TV mode: every interval the page moves to the next run. Reduced motion turns the rotation off.
+function startRotation() {
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const interval = rotationMs(window.location.search, reduced);
+  if (interval === null || rotationTimer !== null) return;
+  rotationTimer = setInterval(() => {
+    const next = nextRunId(knownRuns, runId);
+    if (next !== null) goToRun(next);
+  }, interval);
+}
+
 function runCommand(id) {
   const separator = id.indexOf(':');
   const kind = separator < 0 ? '' : id.slice(0, separator);
@@ -243,6 +265,8 @@ function runCommand(id) {
       selectedLane = laneId;
       openDrill({ type: 'lane', lane: laneId });
     }
+  } else if (kind === 'run') {
+    goToRun(value);
   } else if (kind === 'file') {
     const href = artifactHref(runId, value, token);
     if (href) window.open(href, '_blank', 'noopener');
@@ -365,7 +389,37 @@ async function loadTokens() {
   dispatch({ type: 'tokens', response: await readApi('/api/tokens') });
 }
 
+// The run budget and token usage are derived from the event stream, so they refresh on the tokens cadence.
+async function loadBudget() {
+  if (!runId) return;
+  dispatch({ type: 'budget', response: await readApi('/api/runs/' + encodeURIComponent(runId) + '/budget') });
+}
+
 // The stage-agents roles come from the contract, which does not change while the page is open: one read per page.
+// Browser notifications are opt-in twice: dashboard.toml turns them on, then the user grants the permission.
+function notifyBrowser(alert, now) {
+  if (typeof Notification === 'undefined') return;
+  const notice = browserNotice(alert, alertSettings, Notification.permission, silencedAlerts, now);
+  if (notice === null) return;
+  try {
+    new Notification(notice.title, { body: notice.body, tag: notice.tag });
+  } catch (error) {
+    // A browser that refuses the constructor keeps the toast and the alert center.
+  }
+}
+
+async function loadAlertSettings() {
+  alertSettings = await readApi(runPath() + '/config');
+  const button = document.getElementById('alerts-notify');
+  const ask = alertSettings !== null && alertSettings.browser_notifications === true
+    && typeof Notification !== 'undefined' && Notification.permission === 'default';
+  button.hidden = !ask;
+  button.addEventListener('click', async () => {
+    await Notification.requestPermission();
+    button.hidden = true;
+  }, { once: true });
+}
+
 async function loadAgents() {
   dispatch({ type: 'agents', response: await readApi('/api/agents') });
 }
@@ -378,6 +432,8 @@ async function loadBoard() {
     return;
   }
   const runs = Array.isArray(reply.runs) ? reply.runs : [];
+  knownRuns = runs;
+  syncPalette();
   boardView.render(boardOf(runs, Date.now()), { runId, token, pathname: window.location.pathname });
 }
 
@@ -385,6 +441,7 @@ function start() {
   if (token) {
     loadBoard();
     setInterval(loadBoard, BOARD_POLL_MS);
+    startRotation();
   }
   if (!token || !runId) {
     view.showMessage(token ? 'Informe o run na URL (parâmetro run).' : 'Abra o painel com o token na URL (parâmetro t).');
@@ -398,7 +455,10 @@ function start() {
   loadSummary();
   loadTokens();
   setInterval(loadTokens, TOKENS_POLL_MS);
+  loadBudget();
+  setInterval(loadBudget, TOKENS_POLL_MS);
   loadAgents();
+  loadAlertSettings();
   applyHash();
   window.addEventListener('hashchange', applyHash);
   connectStream({
