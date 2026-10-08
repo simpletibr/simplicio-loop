@@ -86,6 +86,7 @@ def test_secrets_in_run_state_are_masked(tmp_path):
     _make_run(root, 'secret-run', goal='rotate sk-ABCDEFGHIJKLMNOPQRST and api_key=SUPERSECRETVALUE123')
     page = _snapshot().render_snapshot([str(root)], run_id='secret-run')
     assert 'secret-run' in page
+    assert 'rotate' in page
     for secret in SECRETS:
         assert secret not in page, secret
 
