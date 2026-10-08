@@ -697,7 +697,7 @@ def test_index_html_adds_one_coordination_panel_right_after_the_board():
     coord = ('<section class="panel coord-panel" aria-labelledby="coord-title"><h2 id="coord-title">Fila e coordenação</h2>'
              '<p id="coord-status" role="status"></p><div id="coord-kanban" class="coord-kanban"></div>'
              '<div id="coord-dag" class="coord-dag"></div><div id="coord-drain" class="coord-drain"></div>'
-             '<div id="coord-slots" class="coord-slots"></div><div id="coord-worktrees" class="coord-worktrees"></div></section>')
+             '<div id="coord-slots" class="coord-slots"></div></section>')
     assert re.search(re.escape(board) + r'\s*' + re.escape(coord) + r'\s*<section class="panel rail-panel"', html)
     assert html.count('class="panel coord-panel"') == 1
     for dom_id in ('coord-status', 'coord-kanban', 'coord-dag', 'coord-drain', 'coord-slots'):
@@ -739,7 +739,7 @@ def test_dag_buttons_have_the_focus_ring_and_selected_edges_are_marked():
 
 def test_boot_hands_the_worktree_container_to_the_view():
     boot = (VIEW.parent / 'boot.js').read_text(encoding='utf-8')
-    assert "worktrees: el('coord-worktrees')" in boot
+    assert 'worktrees: worktreesEl()' in boot and "createElement('div')" in boot
 
 
 def test_worktree_rows_mark_each_state_with_an_edge_token():
