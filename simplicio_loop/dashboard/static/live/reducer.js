@@ -90,6 +90,8 @@ export function initialState(runId) {
     quality: null,
     tokens: null,
     agents: null,
+    receipts: [],
+    repo: null,
   };
 }
 function enterPhase(state, event, stamp, payload) {
@@ -275,6 +277,8 @@ export function reduce(state, action) {
   }
   if (action.type === 'tokens') return { ...state, tokens: action.response === undefined ? null : action.response };
   if (action.type === 'agents') return { ...state, agents: action.response === undefined ? null : action.response };
+  if (action.type === 'receipts') return { ...state, receipts: receiptRowsOf(action.receipts) };
+  if (action.type === 'repo') return { ...state, repo: typeof action.repo === 'string' && action.repo !== '' ? action.repo : null };
   if (action.type === 'heartbeat') {
     const at = numberOrNull(action.at);
     return { ...state, heartbeatAt: at, lastActivity: at === null ? state.lastActivity : at };
@@ -301,6 +305,9 @@ const PILLAR_STATUS = { pass: 'PASS', fail: 'FAIL', not_applicable: 'PENDING' };
 const RECEIPT_MISSING = 'quality-matrix.json ainda nao gerado';
 const REQUIREMENT_MISSING = 'sem registro no quality-matrix.json';
 const NO_PRODUCER = 'sem produtor no fluxo atual';
+const NO_RECEIPT_VALIDATOR = 'o dashboard ainda não valida recibos (validação de schema: fatia 1405b)';
+const RUN_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
+const PLAIN_WORD = /^[A-Za-z0-9_./:@%+=,-]+$/;
 
 function textOrNull(value) {
   return typeof value === 'string' && value !== '' ? value : null;
@@ -482,7 +489,35 @@ export function selectView(state, nowMs) {
     quality,
     economy,
     agentsCost: agentsCostView(economy, state.agents),
+    receipts: state.receipts.map((row) => ({
+      name: row.name, size: row.size, validation: { state: 'UNVERIFIED', reason: NO_RECEIPT_VALIDATOR },
+    })),
+    runCommands: runCommandsOf(state.runId, state.repo),
   };
+}
+
+// Keeps only entries the drawer can show: a non-empty name and a finite size. Anything else is dropped.
+function receiptRowsOf(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => item && typeof item === 'object' && typeof item.name === 'string' && item.name !== ''
+      && typeof item.size === 'number' && Number.isFinite(item.size))
+    .map((item) => ({ name: item.name, size: item.size }));
+}
+
+// A word goes to the shell as it is when it has no special character; anything else is single-quoted.
+function shellWord(text) {
+  return PLAIN_WORD.test(text) ? text : "'" + text.replace(/'/g, "'\\''") + "'";
+}
+
+// The exact CLI lines that reproduce the run's state. Empty until the run id and the repo path are both known.
+function runCommandsOf(runId, repo) {
+  if (!runId || !RUN_ID_PATTERN.test(runId) || !repo) return [];
+  const base = 'simplicio-loop progress ' + runId + ' --repo ' + shellWord(repo);
+  return [
+    { id: 'progress', label: 'Estado do run', command: base },
+    { id: 'progress-json', label: 'Estado em JSON, uma leitura', command: base + ' --format json --once' },
+  ];
 }
 
 function laneView(lane, now) {

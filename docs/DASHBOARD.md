@@ -134,7 +134,14 @@ One lane per worktree or lane id, shown under the phase rail. Each lane holds bl
 
 ### Drill-down
 
-Click a phase, a block or a lane to open the side panel (`#drill`). It shows the facts for that target and its log lines, rendered with `sl-log-viewer`. `Escape` closes it and restores focus.
+Click a phase, a block or a lane to open the side panel (`#drill`). It has four tabs (issue #1405, slice 1405a):
+
+- **Resumo**: the facts for the target.
+- **Logs**: the target's log lines in `sl-log-viewer`, with its level filter, search and follow.
+- **Recibos**: the run's indexed receipts, each linked to its raw artifact. Every row says "Não validado" with the reason: the dashboard has no receipt validator yet (schema validation is slice 1405b). No receipt is shown as valid.
+- **Comandos**: the exact `simplicio-loop progress <run> --repo <repo>` lines (state, and state as one JSON read), with a copy button. Nothing is executed. The repo path is single-quoted when it has special characters. The tab is empty until the run reports its repo path.
+
+Arrow keys, Home and End move between tabs. `Escape` closes the panel and restores focus. The contract and context tabs, deep links and the virtualised 100-thousand-line log benchmark are slice 1405b.
 
 ### Keys
 
