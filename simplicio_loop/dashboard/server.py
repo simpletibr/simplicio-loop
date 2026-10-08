@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from simplicio_loop import __version__, stage_agents
-from simplicio_loop.dashboard import STATIC_DIR, runs
+from simplicio_loop.dashboard import STATIC_DIR, alerts, runs
 from simplicio_loop.dashboard.tail import EventTail
 
 HOST = '127.0.0.1'
@@ -178,6 +178,19 @@ def _cursor(query: Mapping[str, str], headers: Any) -> int:
 
 def _is_terminal(ref: dict[str, Any]) -> bool:
     return runs.run_summary(ref)['status'] in TERMINAL_STATUSES
+
+
+RECEIPT_READY_VERDICTS = ('COMPLETE', 'DRAINED', 'VERIFIED')
+
+
+def _now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def _receipt_ready(ref: Mapping[str, Any]) -> bool:
+    '''Whether the run has a ready completion receipt. Read only when the alert rules ask, once the run is done.'''
+    completion = runs.run_summary(ref).get('completion') or {}
+    return completion.get('ready') is True and str(completion.get('verdict') or '').upper() in RECEIPT_READY_VERDICTS
 
 
 def _load_hook() -> Any:
@@ -353,16 +366,30 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         cursor = _cursor(query, self.headers)
         ref = _find_run(self.server, run_id)
         tail = EventTail(Path(ref['run_dir']) / EVENTS_FILE, terminal=_is_terminal(ref))
-        tail.last_seq = cursor
+        watch = alerts.AlertWatch()
+
+        def receipt_ready() -> bool:
+            return _receipt_ready(ref)
+
         self._start(200, 'text/event-stream; charset=utf-8')
         heartbeat = self.server.heartbeat_seconds
         try:
             self.wfile.write(('retry: %d\n\n' % RETRY_MS).encode('utf-8'))
+            # The watch reads the stream from its first event, so the snapshot covers history the client already has.
+            history = tail.poll()
+            self._write_events(history, cursor)
+            watch.update(history, _now_ms(), receipt_ready)
+            self._write_frame('alert_snapshot', {'alerts': watch.snapshot()})
             last_write = time.monotonic()
             while not self.server.stop_event.is_set():
-                for event in tail.poll():
-                    data = json.dumps(event, separators=(',', ':'), default=str)
-                    self.wfile.write(('id: %d\ndata: %s\n\n' % (event['seq'], data)).encode('utf-8'))
+                new = tail.poll()
+                self._write_events(new, cursor)
+                raised, cleared = watch.update(new, _now_ms(), receipt_ready)
+                for alert in raised:
+                    self._write_frame('alert_raised', alert)
+                for alert_id in cleared:
+                    self._write_frame('alert_cleared', {'id': alert_id})
+                if new or raised or cleared:
                     last_write = time.monotonic()
                 if time.monotonic() - last_write >= heartbeat:
                     self.wfile.write(b': heartbeat\n\n')
@@ -370,6 +397,17 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 time.sleep(min(tail.next_delay(), heartbeat))
         except OSError:
             return  # the client went away
+
+    def _write_events(self, events: list[dict[str, Any]], cursor: int) -> None:
+        for event in events:
+            if event['seq'] <= cursor:
+                continue
+            data = json.dumps(event, separators=(',', ':'), default=str)
+            self.wfile.write(('id: %d\ndata: %s\n\n' % (event['seq'], data)).encode('utf-8'))
+
+    def _write_frame(self, name: str, payload: Any) -> None:
+        data = json.dumps(payload, separators=(',', ':'), default=str)
+        self.wfile.write(('event: %s\ndata: %s\n\n' % (name, data)).encode('utf-8'))
 
     def _start(self, status: int, ctype: str, length: int | None = None) -> None:
         self.send_response(status)

@@ -92,11 +92,16 @@ def _collect_seqs(port, path, headers, want, timeout=10):
         resp = conn.getresponse()
         assert resp.status == 200, resp.status
         deadline = time.monotonic() + timeout
+        named = False
         while len(seqs) < want and time.monotonic() < deadline:
             line = resp.readline()
             if not line:
                 break
-            if line.startswith(b'data:'):
+            if line.startswith(b'event:'):
+                named = True  # a named frame (alert_*) is not a dashboard event, as in EventSource
+            elif line in (b'\n', b'\r\n'):
+                named = False
+            elif line.startswith(b'data:') and not named:
                 seqs.append(json.loads(line[5:])['seq'])
         return seqs
     finally:
@@ -109,12 +114,17 @@ def test_sse_p95_latency_under_500ms_after_quiet_gap(server_handle, repo_root):
     received = {}
 
     def reader(resp):
+        named = False
         try:
             while True:
                 line = resp.readline()
                 if not line:
                     return
-                if line.startswith(b'data:'):
+                if line.startswith(b'event:'):
+                    named = True  # a named frame (alert_*) is not a dashboard event, as in EventSource
+                elif line in (b'\n', b'\r\n'):
+                    named = False
+                elif line.startswith(b'data:') and not named:
                     received.setdefault(json.loads(line[5:])['seq'], time.monotonic())
         except Exception:
             return  # the test closes the socket during teardown

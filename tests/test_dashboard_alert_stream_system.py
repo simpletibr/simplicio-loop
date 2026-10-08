@@ -1,0 +1,113 @@
+'''System tests for the alert frames of the Simplicio Live stream (issue #1406, slice 1406b, TDD red).
+
+A real dashboard server runs on loopback. The client reads the raw SSE frames of /api/runs/<run>/events. Each connection
+starts with an alert_snapshot of the alerts active at that moment. A later change arrives as alert_raised or
+alert_cleared, once per alert, and a reconnect replays the alerts that are still active.
+'''
+import http.client
+import json
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from simplicio_loop.dashboard import server
+from simplicio_loop.dashboard_events import load
+
+TOKEN = 'tok'
+RUN = 'run-s1'
+ALERT_FRAMES = ('alert_snapshot', 'alert_raised', 'alert_cleared')
+
+
+@pytest.fixture
+def running(tmp_path):
+    root = Path(tempfile.mkdtemp(dir=tmp_path)) / 'repo'
+    run_dir = root / '.simplicio-loop' / 'loop-runs' / RUN
+    run_dir.mkdir(parents=True)
+    (run_dir / 'state.json').write_text(json.dumps({'run_id': RUN, 'status': 'running', 'phase': 'executing',
+                                                   'repo': str(root)}), encoding='utf-8')
+    emitter = load()
+    emitter.emit(run_dir, 'phase_entered', source='runner', phase='executing', strict=True)
+    handle = server.start(repo_root=str(root), host='127.0.0.1', port=0, token=TOKEN)
+    try:
+        yield handle, run_dir, emitter
+    finally:
+        handle.stop()
+
+
+def _open(port, cursor=None):
+    headers = {'Authorization': 'Bearer ' + TOKEN}
+    if cursor is not None:
+        headers['Last-Event-ID'] = str(cursor)
+    conn = http.client.HTTPConnection('127.0.0.1', port, timeout=10)
+    conn.request('GET', '/api/runs/%s/events' % RUN, headers=headers)
+    resp = conn.getresponse()
+    assert resp.status == 200, resp.status
+    return conn, resp
+
+
+def _alert_frame(resp):
+    '''The next alert frame on the stream: (event name, decoded data).'''
+    while True:
+        name, data = None, []
+        while True:
+            raw = resp.readline()
+            assert raw, 'the stream closed before an alert frame arrived'
+            line = raw.rstrip(b'\r\n').decode('utf-8')
+            if line == '':
+                break
+            if line.startswith(':') or line.startswith('retry:') or line.startswith('id:'):
+                continue
+            if line.startswith('event: '):
+                name = line[len('event: '):]
+            elif line.startswith('data: '):
+                data.append(line[len('data: '):])
+        if name in ALERT_FRAMES:
+            return name, json.loads('\n'.join(data))
+
+
+def _gate(emitter, run_dir, gate, verdict, message=''):
+    emitter.emit(run_dir, 'gate_evaluated', source='hook', phase='executing', iteration=1,
+                 payload={'gate': gate, 'verdict': verdict, 'message': message}, strict=True)
+
+
+def test_a_new_connection_starts_with_the_active_alerts_and_none_when_healthy(running):
+    handle, _, _ = running
+    conn, resp = _open(handle.port)
+    try:
+        name, payload = _alert_frame(resp)
+    finally:
+        conn.close()
+    assert name == 'alert_snapshot'
+    assert payload == {'alerts': []}
+
+
+def test_a_failing_gate_is_raised_once_and_cleared_by_a_pass(running):
+    handle, run_dir, emitter = running
+    conn, resp = _open(handle.port)
+    try:
+        assert _alert_frame(resp)[0] == 'alert_snapshot'
+        _gate(emitter, run_dir, 'evidence', 'fail', 'teste falhou')
+        name, payload = _alert_frame(resp)
+        assert name == 'alert_raised'
+        assert payload['id'] == 'gate-failing:evidence'
+        assert payload['severity'] == 'warning'
+        assert payload['why'] == 'teste falhou'
+        _gate(emitter, run_dir, 'evidence', 'fail', 'teste falhou de novo')
+        _gate(emitter, run_dir, 'evidence', 'pass')
+        name, payload = _alert_frame(resp)
+        assert (name, payload) == ('alert_cleared', {'id': 'gate-failing:evidence'}), 'the repeat must not raise twice'
+    finally:
+        conn.close()
+
+
+def test_a_reconnect_replays_the_alerts_that_are_still_active(running):
+    handle, run_dir, emitter = running
+    _gate(emitter, run_dir, 'evidence', 'fail', 'teste falhou')
+    conn, resp = _open(handle.port)
+    try:
+        name, payload = _alert_frame(resp)
+    finally:
+        conn.close()
+    assert name == 'alert_snapshot'
+    assert [alert['id'] for alert in payload['alerts']] == ['gate-failing:evidence']

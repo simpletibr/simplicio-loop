@@ -174,3 +174,14 @@ after a warm-up. On the development box (Linux 6.12, overlay filesystem, 8 vCPU,
 
 `tests/test_dashboard_events_system.py` fails if the default-mode p95 reaches 1 ms (best of three
 runs). Re-run the command on the target machine for its own number.
+
+## Alert frames (#1406, slice 1406b)
+
+The stream also carries named frames for run alerts. They are not dashboard events and are not written to `events.jsonl`, so they do not take a `seq`:
+
+- `event: alert_snapshot` with `data: {"alerts": [...]}`: the alerts active when the connection opened. It is sent after the history, so a reconnect gets the alerts that are still active.
+- `event: alert_raised` with `data:` one alert: `{"id", "rule", "severity", "heading", "why", "ref"}`.
+- `event: alert_cleared` with `data: {"id": "<alert id>"}`.
+
+A client that treats every `data:` line as an event must skip frames with an `event:` name, as `EventSource` does for named events.
+
