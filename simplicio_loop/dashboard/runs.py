@@ -25,6 +25,11 @@ MAX_ARTIFACT_BYTES = 1_000_000
 STATE_ENV = 'SIMPLICIO_DASHBOARD_STATE'
 _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 _BEARER_RE = re.compile(r'(?i)Bearer +[A-Za-z0-9._~+/=-]{1,512}')
+_PRIVATE_KEY_RE = re.compile(r'(?s)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?(?:-----END [A-Z0-9 ]*PRIVATE KEY-----|\Z)')
+_OPENAI_STYLE_RE = re.compile(r'\bsk-[A-Za-z0-9_-]{16,}')
+_GITHUB_PAT_RE = re.compile(r'\bgithub_pat_[A-Za-z0-9_]{20,}')
+_PAIR_RE = re.compile(r'(?i)\b([A-Za-z0-9_-]*(?:passw(?:or)?d|passwd|pwd|secret|token|api[_-]?key|access[_-]?key)'
+                      r'[A-Za-z0-9_-]*)(["\']?\s*[:=]\s*["\']?)([^\s"\',;&]{4,})')
 _EMAIL_RE = re.compile(r'[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:[.][A-Za-z0-9-]{1,63}){1,8}')
 _SENSITIVE_KEY_RE = re.compile(r'(?i)secret|passw|api[_-]?key|authoriz|cookie|credential|private[_-]?key|token')
 
@@ -115,7 +120,9 @@ def _parse_ts(value: object) -> datetime | None:
 
 
 def _read_json(path: Path) -> Any:
-    '''Parse a JSON file with secrets masked; None when missing, oversize or malformed.'''
+    '''Parse a JSON file with secrets masked; None when missing, a symlink, oversize or malformed.'''
+    if path.is_symlink():
+        return None
     try:
         if path.stat().st_size > MAX_ARTIFACT_BYTES:
             return None
@@ -141,6 +148,8 @@ def _duration_s(state: dict[str, Any]) -> int | None:
 def _last_seq(run_dir: Path) -> int:
     '''Highest ``seq`` in events.jsonl, streamed line by line so the file is never held in memory.'''
     last = 0
+    if (run_dir / 'events.jsonl').is_symlink():
+        return 0
     try:
         with (run_dir / 'events.jsonl').open('r', encoding='utf-8', errors='replace') as fh:
             for line in fh:
@@ -177,7 +186,7 @@ def run_summary(ref: RunRef | Path) -> dict[str, Any]:
         'last_seq': _last_seq(run_dir),
         'cost_usd': None,
     })
-    return summary
+    return redact_json(summary)
 
 
 def list_runs(root: str | os.PathLike, status: str | None = None, repo: str | None = None,
@@ -237,7 +246,7 @@ def _index_receipts(run_dir: Path) -> list[dict[str, Any]]:
     '''Files under ``receipts/``, top-level ``*receipt*.json`` and ``quality-matrix.json``: run-relative name, size and schema verdict.'''
     candidates: list[Path] = []
     receipts_dir = run_dir / 'receipts'
-    if receipts_dir.is_dir():
+    if receipts_dir.is_dir() and not receipts_dir.is_symlink():
         candidates.extend(sorted(receipts_dir.iterdir()))
     candidates.extend(sorted(run_dir.glob('*receipt*.json')))
     quality = run_dir / 'quality-matrix.json'
@@ -247,7 +256,7 @@ def _index_receipts(run_dir: Path) -> list[dict[str, Any]]:
     for path in candidates:
         if path.is_file() and not path.is_symlink():
             index.append({'name': path.relative_to(run_dir).as_posix(), 'size': path.stat().st_size,
-                          'validation': receipt_check.check_receipt(path)})
+                          'validation': redact_json(receipt_check.check_receipt(path))})
     return index
 
 
@@ -287,9 +296,16 @@ def read_artifact(run_dir: str | os.PathLike, rel: str, max_bytes: int = MAX_ART
 
 
 def redact_text(text: str) -> str:
-    '''Mask bearer tokens and email addresses, plus the secret shapes evidence.py already knows.'''
-    masked = redact_sensitive_text(text)
+    '''Mask private key blocks, bearer tokens, API keys, password/token pairs and email addresses.
+
+    Covers the secret shapes evidence.py already knows, plus Anthropic-style and project keys, GitHub
+    fine-grained tokens, key blocks and any password=, token= or *_secret= pair of four or more characters.
+    '''
+    masked = _PRIVATE_KEY_RE.sub('[REDACTED_PRIVATE_KEY]', redact_sensitive_text(text))
     masked = _BEARER_RE.sub('Bearer [REDACTED_SECRET]', masked)
+    masked = _OPENAI_STYLE_RE.sub('[REDACTED_SECRET]', masked)
+    masked = _GITHUB_PAT_RE.sub('[REDACTED_SECRET]', masked)
+    masked = _PAIR_RE.sub(r'\1\2[REDACTED]', masked)
     return _EMAIL_RE.sub('[REDACTED_EMAIL]', masked)
 
 
@@ -298,10 +314,15 @@ def _redact_bytes(data: bytes) -> bytes:
     return redact_text(data.decode('utf-8', 'surrogateescape')).encode('utf-8', 'surrogateescape')
 
 
+def redact_json(value: Any) -> Any:
+    '''Public entry for any JSON-shaped value: secret-shaped keys and strings are masked.'''
+    return _redact_json(value)
+
+
 def _redact_json(value: Any, sensitive: bool = False) -> Any:
-    '''Recursively mask strings; every string under a secret-looking key is masked whole.'''
+    '''Recursively mask strings and keys; every string under a secret-looking key is masked whole.'''
     if isinstance(value, dict):
-        return {str(k): _redact_json(v, sensitive or bool(_SENSITIVE_KEY_RE.search(str(k))))
+        return {redact_text(str(k)): _redact_json(v, sensitive or bool(_SENSITIVE_KEY_RE.search(str(k))))
                 for k, v in value.items()}
     if isinstance(value, list):
         return [_redact_json(item, sensitive) for item in value]

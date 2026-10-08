@@ -110,19 +110,20 @@ function section(prefix, id, title) {
   return { node, headingId };
 }
 
-function scrollRegion(labelledBy) {
+// The wrapping section already names a landmark from its heading, so the scroll region gets its own name.
+function scrollRegion(label) {
   const region = element('div', 'hist-scroll');
   region.setAttribute('role', 'region');
   region.setAttribute('tabindex', '0');
-  region.setAttribute('aria-labelledby', labelledBy);
+  region.setAttribute('aria-label', label);
   return region;
 }
 
 // ---- Runs -------------------------------------------------------------------------------------------------------
 
 function buildRuns(prefix) {
-  const { node, headingId } = section(prefix, 'runs', 'Histórico de runs');
-  const region = scrollRegion(headingId);
+  const { node } = section(prefix, 'runs', 'Histórico de runs');
+  const region = scrollRegion('Tabela de runs, rolável');
   const table = element('table', 'hist-table');
   const thead = element('thead');
   const head = element('tr');
@@ -405,13 +406,17 @@ function renderTrends(view, trends) {
 // ---- Activity ---------------------------------------------------------------------------------------------------
 
 function buildActivity(prefix) {
-  const { node, headingId } = section(prefix, 'activity', 'Atividade');
+  const { node } = section(prefix, 'activity', 'Atividade');
   const note = element('p', 'hist-empty');
-  const region = scrollRegion(headingId);
+  const region = scrollRegion('Tabela de atividade, rolável');
   const table = element('table', 'hist-heat');
   const thead = element('thead');
   const head = element('tr');
-  head.append(element('th'));
+  const corner = element('th');
+  const cornerText = element('span', 'sr-only');
+  setText(cornerText, 'Dia da semana');
+  corner.append(cornerText);
+  head.append(corner);
   for (const hour of HOURS) head.append(headerCell(hour));
   thead.append(head);
   const tbody = element('tbody');

@@ -9,7 +9,7 @@ import pytest
 
 TOKEN = 'system-token-9876'
 AUTH = {'Authorization': 'Bearer ' + TOKEN}
-CSP = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+CSP = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'"
 
 
 @pytest.fixture
