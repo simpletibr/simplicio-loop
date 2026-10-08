@@ -419,8 +419,8 @@ async def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, de
     reading = mapper_reading(root, focus=focus_paths(tasks) if single and slice_enabled() else None)
     binary = dev_cli or _dev_cli_bin()
     task_list = list(tasks)
-    
-    semaphore = asyncio.Semaphore(8)
+    from . import turbo_provider
+    semaphore = asyncio.Semaphore(turbo_provider.concurrency())
     apply_lock = asyncio.Lock()
     
     calls, commands, contents, outcomes = await _run_concurrent(

@@ -40,6 +40,8 @@ MODEL_ENV = "SIMPLICIO_TURBO_MODEL"
 HEDGE_ENV = "SIMPLICIO_TURBO_HEDGE_AFTER"
 DEFAULT_HEDGE_AFTER = 10.0
 DEFAULT_TIMEOUT = 300
+CONCURRENCY_ENV = "SIMPLICIO_TURBO_CONCURRENCY"
+DEFAULT_CONCURRENCY = 8
 
 _client: httpx.AsyncClient | None = None
 
@@ -60,6 +62,15 @@ def hedge_after() -> float:
         return float(raw) if raw else DEFAULT_HEDGE_AFTER
     except ValueError:
         return DEFAULT_HEDGE_AFTER
+
+
+def concurrency() -> int:
+    """Max concurrent model calls (default 8; set SIMPLICIO_TURBO_CONCURRENCY)."""
+    raw = os.environ.get(CONCURRENCY_ENV, "").strip()
+    try:
+        return int(raw) if raw else DEFAULT_CONCURRENCY
+    except ValueError:
+        return DEFAULT_CONCURRENCY
 
 
 def require_key(api_key: str | None = None) -> str:
@@ -138,6 +149,7 @@ async def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_i
                    hedge: float | None = None, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
     """One chat completion, hedged after `hedge` seconds. Never returns the key."""
     import time
+    import asyncio
     del arm
     key = require_key(api_key)
     body: dict[str, Any] = {

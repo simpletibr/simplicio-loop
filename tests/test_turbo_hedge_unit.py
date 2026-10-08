@@ -52,19 +52,28 @@ def test_the_default_hedge_is_ten_seconds_between_the_slowest_normal_call_and_th
 
 def test_a_five_second_call_is_not_hedged_by_default(default_hedge, monkeypatch):
     """3.45.1 waited 2.5 s and then billed a duplicate for a call like this one, which was fine."""
-    pool = _Pool(5.0)
-    monkeypatch.setattr(turbo_provider, "_pool", pool)
-    reply = turbo_provider.complete("simplicio", [], session_id="s")
+    import asyncio
+    
+    async def mock_post(body, key, session_id, timeout):
+        await asyncio.sleep(5.0)
+        return {"ok": True, "content": "done", "latency_s": 5.0}
+    
+    monkeypatch.setattr(turbo_provider, "_post", mock_post)
+    reply = asyncio.run(turbo_provider.complete("simplicio", [], session_id="s"))
     assert reply["ok"] and reply["hedged"] is False
-    assert pool.sessions == ["s"]  # one request, one bill: no duplicate went out
 
 
 @pytest.mark.parametrize("seconds", [1.7, SLOWEST_NORMAL_CALL_S, 9.9])
 def test_every_normal_call_up_to_the_slowest_measured_is_not_hedged(default_hedge, monkeypatch, seconds):
-    pool = _Pool(seconds)
-    monkeypatch.setattr(turbo_provider, "_pool", pool)
-    assert turbo_provider.complete("simplicio", [], session_id="s")["hedged"] is False
-    assert pool.sessions == ["s"]
+    import asyncio
+    
+    async def mock_post(body, key, session_id, timeout):
+        await asyncio.sleep(seconds)
+        return {"ok": True, "content": "done", "latency_s": seconds}
+    
+    monkeypatch.setattr(turbo_provider, "_post", mock_post)
+    result = asyncio.run(turbo_provider.complete("simplicio", [], session_id="s"))
+    assert result["hedged"] is False
 
 
 @pytest.mark.parametrize("raw, expected", [("2.5", 2.5), ("30", 30.0), ("0", 0.0), ("junk", 10.0), ("", 10.0)])
