@@ -338,3 +338,15 @@ html[data-tv="1"] .lane-meta { font-size: calc(var(--sl-step-0) * 1.2); }
 .checks li:first-child { border-block-start: 0; }
 .checks sl-gate-badge { max-inline-size: 100%; }
 html[data-tv="1"] .checks { font-size: var(--sl-step-0); }
+
+/* Economy and agents cost panels (issue #1404): a full row on desktop; plates and checks come from the kit. */
+@media (min-width: 900px) {
+  .economy-panel { grid-column: 1 / -1; }
+}
+.economy-panel .kpis { margin-block: var(--sl-space-3); }
+#economy-series {
+  display: block;
+  inline-size: 100%;
+  block-size: 4.5rem;
+}
+html[data-tv="1"] .economy-panel .note { font-size: var(--sl-step-0); }

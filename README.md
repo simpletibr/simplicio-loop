@@ -711,6 +711,7 @@ capture runs **without invoking the loop** — see `references/token-capture.md`
 - `--snapshot <out.html>` writes an offline page; `--tui` streams a run in the terminal.
 - The Pipeline vivo page is served at `/` with the token, and the kit is at `/static/components/`. It shows swimlanes with a click-to-open drill-down panel, and `tv=1` in the URL gives the larger TV mode (see [`docs/DASHBOARD.md`](docs/DASHBOARD.md)).
 - Timeline of iterations, verdicts and DoD pillars: see [Iteracoes e qualidade (#1403)](docs/DASHBOARD.md#iteracoes-e-qualidade-1403).
+- Agents, tokens and cost: every token and USD figure is an estimate, the savings series is cumulative, and five rows stay UNVERIFIED. See [Agentes, tokens e custo (#1404)](docs/DASHBOARD.md#agentes-tokens-e-custo-1404).
 
 ### 🧪 e2e savings demo — one task, four hops, a receipt at every one
 
