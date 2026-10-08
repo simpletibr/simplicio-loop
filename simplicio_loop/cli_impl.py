@@ -535,7 +535,9 @@ def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
         try:
             from .map_service_mapper import run_mapper_index, MapperUnavailableError, materialize_project_map
             envelope = run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
-            materialize_project_map(str(root), envelope)
+            # Only materialize if root exists (mapper succeeded implies it exists)
+            if root.exists():
+                materialize_project_map(str(root), envelope)
             
             if current_state is not None:
                 state_file.parent.mkdir(parents=True, exist_ok=True)
