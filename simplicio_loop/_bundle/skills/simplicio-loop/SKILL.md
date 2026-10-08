@@ -248,6 +248,16 @@ gates upgrades by TTL.
   backlog table above the per-item anchor checklist, not just the current item.
 - NOT for a one-shot edit — use the host's normal flow.
 
+## Models per role (default)
+
+When you spawn a subagent for a loop step, choose its model from the model-roles table, not from the host default. The table is `simplicio_loop/_catalog/model_roles.json`, read through `simplicio_loop.model_roles.resolve(family, role)`.
+
+- `planning`: hard decisions, plans, reflection. Claude: opus (`claude-opus-5-5`, effort high).
+- `coordination`: coordinate, review, track progress. Claude: sonnet (`claude-sonnet-5-5`, effort high).
+- `execution`: run the work, tests, merges and workers. Claude: haiku (`claude-haiku-5-5`, effort high).
+
+In Claude Code, the Agent tool takes `model: opus | sonnet | haiku`. Never use xhigh or max effort for Opus. Codex, Grok and Gemini follow the same three roles; see `docs/MODEL_ROLES.md`.
+
 ## Bound operators (REQUIRED): survey + operate
 
 This loop does NOT survey the repo with the LLM, and it does NOT hand-edit files with the LLM.
