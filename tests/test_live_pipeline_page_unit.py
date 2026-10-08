@@ -14,10 +14,10 @@ from pathlib import Path
 import pytest
 
 LIVE = Path(__file__).resolve().parents[1] / 'simplicio_loop' / 'dashboard' / 'static' / 'live'
-PAGE_FILES = ['index.html', 'live.css', 'app.js', 'view.js', 'reducer.js', 'sse.js']
+PAGE_FILES = ['index.html', 'live.css', 'app.js', 'view.js', 'reducer.js', 'sse.js', 'lanes.js']
 FORBIDDEN = [r'innerHTML', r'\beval\s*\(', r'https?://']
 PURE_FORBIDDEN = re.compile(r'\bdocument\b|\bwindow\b|\bfetch\s*\(|\bDate\.now\b|\bnew\s+Date\s*\(|\bMath\.random\b')
-REDUCER_EXPORTS = ['GATES', 'READY_VERDICTS', 'STALE_AFTER_MS', 'initialState', 'reduce', 'selectView']
+REDUCER_EXPORTS = ['GATES', 'READY_VERDICTS', 'STALE_AFTER_MS', 'initialState', 'reduce', 'selectView', 'selectDrill', 'selectCommands']
 DOM_TAGS = {
     'rail': 'sl-stage-rail',
     'ring': 'sl-donut',
@@ -26,7 +26,7 @@ DOM_TAGS = {
     'kpi-heartbeat': 'sl-kpi-card',
     'kpi-stall': 'sl-kpi-card',
 }
-DOM_IDS = ['rail', 'ring', 'phase-stats', 'agora', 'gates', 'conn', 'kpi-epm', 'kpi-heartbeat', 'kpi-stall', 'empty']
+DOM_IDS = ['rail', 'ring', 'phase-stats', 'agora', 'gates', 'conn', 'kpi-epm', 'kpi-heartbeat', 'kpi-stall', 'empty', 'lanes', 'drill', 'drill-title', 'drill-close', 'drill-logs', 'palette', 'follow']
 MEDIA_NO_PREFERENCE = re.compile(r'@media\s*\(\s*prefers-reduced-motion:\s*no-preference\s*\)\s*\{')
 ANIMATION_DECL = re.compile(r'(?<![\w-])animation(?:-[a-z-]+)?\s*:')
 
@@ -142,3 +142,77 @@ def test_live_directory_gzips_under_40_kib():
     with tarfile.open(fileobj=buffer, mode='w:gz') as archive:
         archive.add(str(LIVE), arcname='live')
     assert buffer.getbuffer().nbytes < 40 * 1024, buffer.getbuffer().nbytes
+
+
+NEW_DOM_TAGS = {'lanes': 'ol', 'drill': 'aside', 'drill-logs': 'sl-log-viewer', 'palette': 'sl-command-palette', 'follow': 'button'}
+TV_RULE = re.compile(r'\[data-tv=.?1.?\]')
+TRANSITION_DECL = re.compile(r'(?<![\w-])transition(?:-[a-z-]+)?\s*:')
+KEYFRAMES = re.compile(r'@keyframes\s+[\w-]+\s*\{')
+PROPERTY_NAME = re.compile(r'([a-zA-Z-]+)\s*:')
+SETS_INLINE_STYLE = re.compile(r'setAttribute\(\s*.style.')
+CSS_TEXT = re.compile(r'\bcssText\b')
+
+
+def test_contract_c4_ids_carry_their_elements():
+    by_id = _index().by_id
+    for dom_id, tag in NEW_DOM_TAGS.items():
+        assert dom_id in by_id and by_id[dom_id][0] == tag, (dom_id, by_id.get(dom_id))
+
+
+def test_drill_panel_starts_hidden():
+    by_id = _index().by_id
+    assert 'drill' in by_id, 'missing #drill'
+    assert 'hidden' in by_id['drill'][1], by_id['drill'][1]
+
+
+def test_follow_button_declares_aria_pressed():
+    by_id = _index().by_id
+    assert 'follow' in by_id, 'missing #follow'
+    assert 'aria-pressed' in by_id['follow'][1], by_id['follow'][1]
+
+
+def test_command_palette_declares_a_hotkey():
+    by_id = _index().by_id
+    assert 'palette' in by_id, 'missing #palette'
+    assert by_id['palette'][1].get('hotkey'), by_id['palette'][1]
+
+
+def test_live_css_has_a_tv_mode_rule():
+    assert TV_RULE.search(_read('live.css')) is not None, 'no [data-tv="1"] rule in live.css'
+
+
+def test_css_transitions_sit_only_inside_reduced_motion_no_preference():
+    css = _read('live.css')
+    spans = [(match.end(), _block_end(css, match.end())) for match in MEDIA_NO_PREFERENCE.finditer(css)]
+    for decl in TRANSITION_DECL.finditer(css):
+        inside = any(start <= decl.start() < end for start, end in spans)
+        assert inside, css[max(0, decl.start() - 60):decl.start() + 60]
+
+
+def test_css_has_a_motion_rule_under_no_preference():
+    css = _read('live.css')
+    spans = [(match.end(), _block_end(css, match.end())) for match in MEDIA_NO_PREFERENCE.finditer(css)]
+    motion = list(ANIMATION_DECL.finditer(css)) + list(TRANSITION_DECL.finditer(css))
+    assert any(start <= decl.start() < end for decl in motion for start, end in spans), 'no motion rule under no-preference'
+
+
+def test_keyframes_touch_only_opacity_and_transform():
+    css = _read('live.css')
+    starts = list(KEYFRAMES.finditer(css))
+    assert starts, 'live.css declares no @keyframes'
+    for match in starts:
+        body = css[match.end():_block_end(css, match.end())]
+        props = set(PROPERTY_NAME.findall(body))
+        assert props <= {'opacity', 'transform'}, (match.group(0), props)
+
+
+@pytest.mark.parametrize('name', [name for name in PAGE_FILES if name.endswith('.js')])
+def test_live_scripts_never_set_inline_style_or_use_csstext(name):
+    text = _read(name)
+    assert SETS_INLINE_STYLE.search(text) is None, name
+    assert CSS_TEXT.search(text) is None, name
+
+
+def test_lanes_module_exists_and_exports_a_renderer():
+    text = _read('lanes.js')
+    assert re.search(r'export\s+(?:const|let|function|class)\s', text), 'lanes.js exports nothing'

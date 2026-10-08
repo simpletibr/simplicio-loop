@@ -1,23 +1,9 @@
 // DOM rendering for the Simplicio Live pipeline page. Writes only what changed; payload text goes through textContent.
 import { PHASE_META, STATES } from '/static/components/index.js';
 import { GATES } from '/static/live/reducer.js';
+import { artifactHref, formatClock, formatDuration, renderLanes, setAttr, setText } from '/static/live/lanes.js';
 
 const CONNECTION = { live: 'live', stale: 'stale', connecting: 'connecting', reconnecting: 'connecting' };
-
-const pad = (value) => String(value).padStart(2, '0');
-
-export function formatClock(ms) {
-  if (ms === null || ms === undefined) return '—';
-  const date = new Date(ms);
-  return pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
-}
-
-export function formatDuration(ms) {
-  const total = Math.floor(Math.max(0, ms) / 1000);
-  const hours = Math.floor(total / 3600);
-  const clock = pad(Math.floor((total % 3600) / 60)) + ':' + pad(total % 60);
-  return hours > 0 ? pad(hours) + ':' + clock : clock;
-}
 
 function labelOf(phase) {
   return (PHASE_META[phase] || {}).label || phase;
@@ -25,25 +11,6 @@ function labelOf(phase) {
 
 function stateLabel(state) {
   return STATES[state] || state;
-}
-
-function setAttr(el, name, value) {
-  if (value === null || value === undefined || value === false) {
-    if (el.hasAttribute(name)) el.removeAttribute(name);
-    return;
-  }
-  const text = value === true ? '' : String(value);
-  if (el.getAttribute(name) !== text) el.setAttribute(name, text);
-}
-
-function setText(el, text) {
-  if (el.textContent !== text) el.textContent = text;
-}
-
-function artifactHref(runId, ref, token) {
-  if (!ref || !runId || !token) return null;
-  return '/api/runs/' + encodeURIComponent(runId) + '/artifacts/' + encodeURIComponent(ref)
-    + '?t=' + encodeURIComponent(token);
 }
 
 function connectionStatus(value) {
@@ -55,6 +22,9 @@ function ensurePhaseItems(list, phases) {
   list.replaceChildren(...phases.map((item) => {
     const li = document.createElement('li');
     li.dataset.phase = item.phase;
+    const button = document.createElement('button');
+    button.type = 'button';
+    li.append(button);
     return li;
   }));
 }
@@ -84,6 +54,7 @@ export function createView() {
     kpiEpm: byId('kpi-epm'),
     kpiHeartbeat: byId('kpi-heartbeat'),
     kpiStall: byId('kpi-stall'),
+    lanes: byId('lanes'),
     empty: byId('empty'),
     runId: byId('run-id'),
     current: field('current'),
@@ -118,7 +89,7 @@ export function createView() {
       setAttr(li, 'data-phase', item.phase);
       setAttr(li, 'data-entries', item.entries);
       setAttr(li, 'data-state', item.state);
-      setText(li, labelOf(item.phase) + ': ' + entries + ' · ' + formatDuration(item.elapsedMs));
+      setText(li.firstElementChild, labelOf(item.phase) + ', ' + entries + ', ' + formatDuration(item.elapsedMs));
     });
   }
 
@@ -166,6 +137,7 @@ export function createView() {
       renderPhases(model);
       renderAgora(model);
       renderGates(model, options);
+      renderLanes(els.lanes, model.lanes, options.selectedLane);
       renderHealth(model);
     },
   };
