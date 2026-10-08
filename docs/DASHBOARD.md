@@ -168,6 +168,31 @@ Each block's `data-tip` attribute carries the plain-text timings. CSS shows them
 
 The e2e test measures the median animation frame in headless software Chromium: 16.7 ms over 60 frames (MEASURED). This is software rendering, not a GPU measurement, so 60 fps on a real GPU is UNVERIFIED.
 
+## Iteracoes e qualidade (#1403)
+
+The timeline has one row per iteration, oldest first. Iterations come only from the Stop-hook hosts, which emit `iteration_started` and `iteration_finished` (`hooks/loop_stop.py`). Runner and turbo events carry no iteration, so a turbo run shows no iterations.
+
+Verdicts:
+
+- `PROGRESS`: a finished iteration with no `stall_detected`.
+- `STALLED`: a `stall_detected` in that iteration. The stall fingerprint and streak are shown when present.
+- No verdict: the iteration is still open.
+
+Convergence is a proxy, labelled "gates reprovados x iteracao". For each finished iteration it counts the gates failing and the gates unverified at finish. It is not a test count.
+
+Definition of done: seven pillars (implementation, unit, integration, system, regression, benchmark, coverage) read from `quality-matrix.json` in the run directory. Each pillar shows one state:
+
+- `PASS`: the receipt measures it as passing. Coverage passes when measured coverage is at least 85.
+- `FAIL`: the receipt measures it as failing.
+- `PENDING`: `not_applicable`. A pending pillar never shows PASS.
+- `UNVERIFIED`: the receipt is missing. With no receipt, every pillar is UNVERIFIED with the reason "quality-matrix.json ainda nao gerado".
+
+The page fetches `quality-matrix.json` only when the run receipts list includes it.
+
+Qualidade panel: tests, lint, coverage trend, flaky tests and diff stay UNVERIFIED with the reason "sem produtor no fluxo atual" until a producer exists.
+
+Rule: the page never shows PASS for a pending or unverified item.
+
 ## Unverified (UNVERIFIED)
 
 - Agent, model, token and cost data. `cost_usd` is always null, and no receipt backs token counts yet.
@@ -179,11 +204,11 @@ The e2e test measures the median animation frame in headless software Chromium: 
 - The live `tui` animation on a real TTY.
 - Agent and cost data (issue #1404).
 - The rich queue (issue #1407).
-- DoD 7 pillars and the quality gate have no producer yet. They show UNVERIFIED.
+- Deferred to the producer slice of #1403: test matrix counts and red and green transitions, lint per rule, coverage lines and branches with a sparkline, the flaky rule (needs per-test ids), the per-iteration diff with the virtualised 5,000-line benchmark, and files touched.
 - The running command has no producer.
 - Agent and model names need #1404. The lease heartbeat needs #1403 and #1404.
 - Palette "jump to run" and TV run rotation: deferred to slice 4b-3, because they need a run list fetch.
 - The contract title of a task: needs a fetch of `task-contract.json`.
 - Reference-image diff: the baseline is font and platform fragile, so the PR carries screenshots instead.
-- Agent and model names, the lease heartbeat, the running command, the DoD seven pillars and the quality gate: no producer yet, so they show UNVERIFIED (#1403 and #1404).
+- Agent and model names, the lease heartbeat, the running command and the quality gate: no producer yet, so they show UNVERIFIED (#1403 and #1404).
 - Real-GPU 60 fps: UNVERIFIED. Only the software Chromium measurement exists.

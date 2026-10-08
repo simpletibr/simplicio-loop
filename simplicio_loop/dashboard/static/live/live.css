@@ -305,3 +305,36 @@ html[data-tv="1"] .block {
 html[data-tv="1"] .lane-open { font-size: calc(var(--sl-step-1) * 1.5); }
 html[data-tv="1"] .lane-state,
 html[data-tv="1"] .lane-meta { font-size: calc(var(--sl-step-0) * 1.2); }
+
+/* Iterations, convergence, DoD and quality panels (issue #1403): enamel plates and a hairline track; lamps come from the components. */
+@media (min-width: 900px) {
+  .iterations-panel { grid-column: 1 / -1; }
+}
+#convergence {
+  display: block;
+  inline-size: 100%;
+  block-size: 4.5rem;
+}
+.note {
+  margin: var(--sl-space-2) 0 0;
+  color: var(--sl-ink-muted);
+  font-size: var(--sl-step--1);
+  max-inline-size: 70ch;
+}
+.checks {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.checks li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sl-space-2);
+  padding-block: var(--sl-space-2);
+  border-block-start: 1px solid var(--sl-line-soft);
+}
+.checks li:first-child { border-block-start: 0; }
+.checks sl-gate-badge { max-inline-size: 100%; }
+html[data-tv="1"] .checks { font-size: var(--sl-step-0); }

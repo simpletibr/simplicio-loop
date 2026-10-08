@@ -90,6 +90,8 @@ namespaced kind; each namespace owns its own catalog.
 that need them (#1403 quality, #1404 agents and cost). Their payload fields above are the expected
 shape, not yet emitted.
 
+The quality kinds (`test_result`, `lint_result`, `coverage_result`) stay reserved until their producer exists (issue #1403 follow-up). Until then the Qualidade panel shows its items as UNVERIFIED, and no producer emits these kinds.
+
 ## Producers
 
 - **Runner** (`simplicio_loop/runner.py`): `_record_event` keeps writing the progress event into

@@ -2,6 +2,7 @@
 import { PHASE_META, STATES } from '/static/components/index.js';
 import { GATES } from '/static/live/reducer.js';
 import { artifactHref, formatClock, formatDuration, renderLanes, setAttr, setText } from '/static/live/lanes.js';
+import { createPanels } from '/static/live/panels.js';
 
 const CONNECTION = { live: 'live', stale: 'stale', connecting: 'connecting', reconnecting: 'connecting' };
 
@@ -62,6 +63,13 @@ export function createView() {
     command: field('command'),
     timer: field('timer'),
   };
+  const panels = createPanels({
+    timeline: byId('iterations'),
+    convergence: byId('convergence'),
+    note: byId('convergence-note'),
+    dod: byId('dod'),
+    quality: byId('quality'),
+  });
   let ringPercent = null;
   function renderRail(model) {
     const rail = model.rail;
@@ -139,6 +147,7 @@ export function createView() {
       renderGates(model, options);
       renderLanes(els.lanes, model.lanes, options.selectedLane);
       renderHealth(model);
+      panels.render(model, options);
     },
   };
 }

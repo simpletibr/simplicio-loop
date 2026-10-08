@@ -199,6 +199,25 @@ function needsSummary(event) {
   return event.kind === 'gate_evaluated' && Boolean(event.payload) && event.payload.gate === 'oracle';
 }
 
+// quality-matrix.json is a run artifact: a missing, unreadable or unparsable file reports no receipt (receipt null).
+async function loadQuality(receipts) {
+  if (!(receipts || []).some((item) => item.name === 'quality-matrix.json')) {
+    dispatch({ type: 'quality', receipt: null });
+    return;
+  }
+  let receipt = null;
+  try {
+    const response = await fetch(runPath() + '/artifacts/quality-matrix.json', {
+      headers: { Accept: 'application/json', Authorization: 'Bearer ' + token },
+      cache: 'no-store',
+    });
+    if (response.ok) receipt = await response.json();
+  } catch (error) {
+    receipt = null;
+  }
+  dispatch({ type: 'quality', receipt });
+}
+
 async function loadSummary() {
   try {
     const response = await fetch(runPath(), {
@@ -212,6 +231,7 @@ async function loadSummary() {
       type: 'summary',
       summary: { completion: { ready: completion.ready === true }, verdict: completion.verdict || null },
     });
+    loadQuality(detail.receipts);
   } catch (error) {
     // keep the last summary read; the next phase or oracle event asks again
   }
@@ -223,9 +243,14 @@ function pollSummary() {
   if (model.rail.phase === 'done' && !model.rail.receiptReady) loadSummary();
 }
 
+// The summary and the quality receipt are written to disk without an event, so both are read after each phase, gate or end event.
+function refreshRun() {
+  loadSummary();
+}
+
 function scheduleSummary() {
   clearTimeout(summaryTimer);
-  summaryTimer = setTimeout(loadSummary, SUMMARY_DEBOUNCE_MS);
+  summaryTimer = setTimeout(refreshRun, SUMMARY_DEBOUNCE_MS);
 }
 
 function start() {
