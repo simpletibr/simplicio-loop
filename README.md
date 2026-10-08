@@ -1055,7 +1055,7 @@ human gate + secret-scan on, and ensure a reachable STOP/cancel path is configur
 
 ![simplicio-loop flow](docs/flow/simplicio-loop.svg)
 
-Source `docs/flow/simplicio-loop.flow.json`; regenerate Mermaid/SVG/PNG/Langflow with `python3 scripts/flow_gen.py generate` (`check` fails on stale output; SVG/PNG need the mermaid CLI `mmdc`, otherwise the run reports `blocked`). Mechanics: [full-flow](.claude/skills/simplicio-loop/references/full-flow.md).
+Source `docs/flow/simplicio-loop.flow.json`; regenerate Mermaid/SVG/PNG/Langflow with `python3 scripts/flow_gen.py generate` (`check` fails on stale output; SVG/PNG need the mermaid CLI `mmdc`, otherwise the run reports `blocked`). Per-run diagram (steps colored done/running/pending from the real `loop_progress` snapshot; no snapshot → `blocked`, exit 4): `python3 scripts/flow_gen.py run --progress .simplicio-loop/orchestrator/loop/progress.json --out run.mmd`. Mechanics: [full-flow](.claude/skills/simplicio-loop/references/full-flow.md).
 
 ## ✅ Tests & local checks (no paid CI)
 
