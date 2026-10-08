@@ -30,13 +30,8 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Mapping
 
-<<<<<<< HEAD
 from simplicio_loop import __version__, dashboard_events, stage_agents
-from simplicio_loop.dashboard import STATIC_DIR, alerts, budget, history, runs
-=======
-from simplicio_loop import __version__, stage_agents
-from simplicio_loop.dashboard import STATIC_DIR, alerts, history, runs, trends
->>>>>>> origin/main
+from simplicio_loop.dashboard import STATIC_DIR, alerts, budget, history, runs, trends
 from simplicio_loop.dashboard.tail import EventTail
 
 HOST = '127.0.0.1'
