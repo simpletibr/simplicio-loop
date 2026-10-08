@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from simplicio_loop import __version__, stage_agents
-from simplicio_loop.dashboard import STATIC_DIR, alerts, runs
+from simplicio_loop.dashboard import STATIC_DIR, alerts, history, runs
 from simplicio_loop.dashboard.tail import EventTail
 
 HOST = '127.0.0.1'
@@ -163,6 +163,28 @@ def _list_runs(server: Any, query: Mapping[str, str]) -> list[dict[str, Any]]:
     return rows
 
 
+_HISTORY_NUMBERS = {'min_duration_s': float, 'max_duration_s': float, 'min_iterations': float,
+                    'max_iterations': float, 'min_cost_usd': float, 'max_cost_usd': float, 'limit': int}
+
+
+def _history(server: Any, query: Mapping[str, str]) -> dict[str, Any]:
+    '''Past-run records from every watched repo (#1408); HttpError 400 for a bad filter value.'''
+    filters: dict[str, Any] = {k: query[k] for k in ('verdict', 'repo', 'since', 'until') if k in query}
+    for key, cast in _HISTORY_NUMBERS.items():
+        if key in query:
+            try:
+                filters[key] = cast(query[key])
+            except ValueError:
+                raise HttpError(400, '%s must be a number' % key) from None
+    limit = filters.pop('limit', None)
+    try:
+        rows = history.read_history(server.repos, **filters)
+    except ValueError as exc:
+        raise HttpError(400, str(exc)) from None
+    rows.sort(key=lambda row: (_ts(row.get('started_at')), row['run_id']), reverse=True)
+    return {'history': rows[:limit] if limit is not None else rows}
+
+
 def _cursor(query: Mapping[str, str], headers: Any) -> int:
     '''Resume seq: the larger of the Last-Event-ID header and the since_seq query; 400 on garbage.'''
     cursor = 0
@@ -285,6 +307,8 @@ def _api(server: Any, path: str, query: Mapping[str, str]) -> Any:
         return _health(server)
     if path == '/api/runs':
         return {'runs': _list_runs(server, query)}
+    if path == '/api/history':
+        return _history(server, query)
     if path == '/api/queue':
         return _queue(server)
     if path == '/api/coordination':
