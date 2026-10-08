@@ -8,11 +8,14 @@ import { activeAlerts, applyAlertFrame, diffAlerts, mergeAlerts } from '/static/
 import { createAlertList } from '/static/live/alerts-view.js';
 import { SlAlertToast } from '/static/components/index.js';
 import { createView } from '/static/live/view.js';
+import { boardOf } from '/static/live/board.js';
+import { createBoard } from '/static/live/board-view.js';
 
 const SUMMARY_DEBOUNCE_MS = 250;
 const TICK_MS = 1000;
 const SUMMARY_POLL_MS = 500;
 const TOKENS_POLL_MS = 30000;
+const BOARD_POLL_MS = 3000;
 const ALERT_HOUR_MS = 60 * 60 * 1000;
 const THEMES = ['dark', 'light', 'contrast'];
 
@@ -24,6 +27,7 @@ if (THEMES.includes(theme)) document.documentElement.setAttribute('data-sl-theme
 if (params.get('tv') === '1') document.documentElement.dataset.tv = '1';
 
 const view = createView();
+const boardView = createBoard(document.getElementById('board'), document.getElementById('board-status'));
 const controller = new AbortController();
 let state = initialState(runId);
 let summaryTimer = null;
@@ -366,7 +370,22 @@ async function loadAgents() {
   dispatch({ type: 'agents', response: await readApi('/api/agents') });
 }
 
+// The board lists every run, so it loads with or without a run in the URL; a failed read keeps the last render.
+async function loadBoard() {
+  const reply = await readApi('/api/runs');
+  if (reply === null) {
+    setText(document.getElementById('board-status'), 'Não foi possível atualizar o quadro.');
+    return;
+  }
+  const runs = Array.isArray(reply.runs) ? reply.runs : [];
+  boardView.render(boardOf(runs, Date.now()), { runId, token, pathname: window.location.pathname });
+}
+
 function start() {
+  if (token) {
+    loadBoard();
+    setInterval(loadBoard, BOARD_POLL_MS);
+  }
   if (!token || !runId) {
     view.showMessage(token ? 'Informe o run na URL (parâmetro run).' : 'Abra o painel com o token na URL (parâmetro t).');
     render();

@@ -384,3 +384,84 @@ html[data-tv="1"] .checks { font-size: var(--sl-step-0); }
   block-size: 4.5rem;
 }
 html[data-tv="1"] .economy-panel .note { font-size: var(--sl-step-0); }
+
+/* Board section (kanban): one column per phase and a dashed siding for off-track runs. The row scrolls sideways inside
+   the board box, so the page never scrolls horizontally. Lamps and surfaces come from the simplicio-live.css tokens. */
+@media (min-width: 900px) {
+  .board-panel { grid-column: 1 / -1; }
+}
+.board {
+  display: flex;
+  gap: var(--sl-space-3);
+  overflow-x: auto;
+  padding-block-end: var(--sl-space-2);
+}
+.board > section {
+  flex: 0 0 14rem;
+  min-width: 14rem;
+  padding: var(--sl-space-2);
+  border: 1px solid var(--sl-line-soft);
+  border-radius: var(--sl-radius-plate);
+  background: var(--sl-raised);
+}
+.board > section[data-column="off"] { border-style: dashed; }
+.board h3 {
+  margin: 0 0 var(--sl-space-2);
+  font-size: var(--sl-step--1);
+  font-weight: var(--sl-weight-strong);
+  color: var(--sl-ink);
+  overflow-wrap: anywhere;
+}
+.board ol {
+  display: grid;
+  gap: var(--sl-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.board ol > li {
+  padding: var(--sl-space-2);
+  border-inline-start: 4px solid var(--sl-line);
+  border-radius: var(--sl-radius-plate);
+  background: var(--sl-panel);
+}
+.board ol > li[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--sl-ink); }
+.board ol > li[data-state="RUNNING"] { border-inline-start-color: var(--sl-state-running); }
+.board ol > li[data-state="PASS"] { border-inline-start-color: var(--sl-state-pass); }
+.board ol > li[data-state="FAIL"] { border-inline-start-color: var(--sl-state-fail); }
+.board ol > li[data-state="UNVERIFIED"] { border-inline-start-color: var(--sl-state-unverified); }
+.board ol > li[data-state="STALLED"] { border-inline-start-color: var(--sl-state-stalled); }
+.board ol > li[data-state="BLOCKED"] { border-inline-start-color: var(--sl-state-blocked); }
+.board ol > li[data-state="PENDING"] { border-inline-start-color: var(--sl-state-pending); }
+.card-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sl-space-1) var(--sl-space-2);
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.card-body:hover .card-run { text-decoration: underline; }
+.card-body:focus-visible {
+  outline: var(--sl-focus-width) solid var(--sl-focus);
+  outline-offset: 2px;
+}
+.card-state {
+  font-size: var(--sl-step--1);
+  font-weight: var(--sl-weight-strong);
+  color: var(--sl-ink);
+}
+.card-run { font-family: var(--sl-font-mono); font-size: var(--sl-step--1); }
+.card-action {
+  flex-basis: 100%;
+  font-size: var(--sl-step--1);
+  color: var(--sl-ink-muted);
+}
+.card-percent,
+.card-age {
+  font-size: var(--sl-step--1);
+  color: var(--sl-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.card-age { margin-inline-start: auto; }
