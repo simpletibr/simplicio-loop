@@ -72,10 +72,10 @@ namespaced kind; each namespace owns its own catalog.
 | lanes and tasks | `lane_progress` | worker / runner / operator | `step` = the runner step that has no dedicated kind (`worktree_created`, `stack_lock_frozen`, `storage_route_frozen`, `handoff`, `technical_debt` with `debt_*` fields, or any future step) |
 | lanes and tasks | `iteration_started` | hook (`loop_stop` re-feed, `trigger: refeed`), operator (`user_prompt_submit`, `trigger: user_prompt`, `decision`, `prompt_chars`) | as listed |
 | lanes and tasks | `iteration_finished` | hook (`loop_stop`) | `outcome` (`refeed`, `pass`, `blocked`), `reason`, `has_evidence` |
-| lanes and tasks | `apply_result` | worker (operator receipt) | `step`, `execution_state` |
-| quality | `test_result` | reserved for test runners | `passed`, `failed`, `skipped`, `command` |
-| quality | `lint_result` | reserved for lint runners | `errors`, `warnings`, `tool` |
-| quality | `coverage_result` | reserved for coverage runners | `percent`, `scope` |
+| lanes and tasks | `apply_result` | worker (operator receipt; the diff is `step: diff`) | `step`, `execution_state`; `step: diff` adds `files` (max 200), `files_total`, `added`, `deleted` |
+| quality | `test_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `passed`, `failed`, `skipped`, `errors`, `total`, `duration_s`, `status` |
+| quality | `lint_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `errors`, `warnings`, `by_rule` (top 20), `status` |
+| quality | `coverage_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `percent`, `scope` (`total`), `files` (max 50, optional) |
 | quality | `gate_evaluated` | runner, oracle, hooks | `gate` (`evidence`, `watcher`, `oracle`, `dod`, `quality`, `action`), `verdict` (`pass`, `fail`, `pending`, `blocked`), `status`, `verdict_detail` |
 | recovery | `retry_scheduled` | runner (`operator_bootstrap`, `rollback`) | `step`, `blocker` |
 | recovery | `stall_detected` | runner (`blocked`), hook (`loop_stop` stall streak) | `blocker` or `fingerprint`, `streak` |
@@ -87,12 +87,10 @@ namespaced kind; each namespace owns its own catalog.
 | end | `run_finished` | runner (entering `done`, `partial` or `cancelled`) | `outcome`, `reason` |
 
 "Reserved" kinds are part of the stable catalog; their producers land with the dashboard issues
-that need them (#1403 quality, #1404 agents and cost). Their payload fields above are the expected
+that need them (#1404 agents and cost). Their payload fields above are the expected
 shape, not yet emitted.
 
 `token_usage` and `cost_sample` stay reserved until a producer exists (issue #1404). The reader exists: `dashboard/budget.py` sums them (`input_tokens`, `output_tokens`, optional `lane`, `model`; `usd`) for the budget panel and the budget alerts.
-
-The quality kinds (`test_result`, `lint_result`, `coverage_result`) stay reserved until their producer exists (issue #1403 follow-up). Until then the Qualidade panel shows its items as UNVERIFIED, and no producer emits these kinds.
 
 ## Producers
 
@@ -107,6 +105,25 @@ The quality kinds (`test_result`, `lint_result`, `coverage_result`) stay reserve
   updated in the last 24 hours. With no run, or several active runs, it emits nothing.
 - **Workers and shell hosts**:
   `python3 scripts/dashboard_events.py emit RUN_DIR --kind lane_progress --source worker --payload '{"step": "lint"}'`.
+
+### Quality producers
+
+- **Quality events** (`simplicio_loop/quality_events.py`, called by `simplicio_loop/apply.py` after each
+  task's `check` command): source `worker`, scope `task` with the task's `task_id`. `iteration` comes from
+  the `SIMPLICIO_ITERATION` environment variable when it is set; otherwise it is `null` and the Live
+  reducer attributes the event to the current iteration.
+- **Parsers** read real tool output only: pytest, unittest, jest, vitest and go test; ruff, mypy and
+  flake8; coverage.py, pytest-cov and jest coverage. Output that is not recognised emits nothing.
+- **Diff**: each iteration's measured git diff goes in an `apply_result` event with payload `step: "diff"`.
+  No new kind is added.
+
+**UNVERIFIED:**
+
+- Flaky tests: the events carry counts, not per-test ids, so the flaky rule cannot run.
+- The matrix by unit, integration, system and regression level, and red to green transitions per test id.
+- The diff virtualisation benchmark: no measured benchmark exists.
+- The producer module and its tests are not in this tree yet, so the payloads above are the specified
+  shape, not yet emitted.
 
 ## Reading
 

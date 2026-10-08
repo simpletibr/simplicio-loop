@@ -2,6 +2,7 @@
 // Time enters only through selectView(state, nowMs) and the timestamps carried by actions.
 import { applyIteration, initialIterations, selectConvergence, selectIterations } from './iterations.js';
 import { agentsCostView, economyView } from './economy.js';
+import { initialQuality, reduceQuality, selectQuality } from './quality.js';
 
 export const GATES = ['evidence', 'watcher', 'oracle', 'dod', 'quality', 'action'];
 export const READY_VERDICTS = ['COMPLETE', 'DRAINED', 'VERIFIED'];
@@ -88,6 +89,7 @@ export function initialState(runId) {
     alerts: [],
     iterations: initialIterations(),
     quality: null,
+    qualityEvents: initialQuality(),
     tokens: null,
     agents: null,
     budget: null,
@@ -152,7 +154,8 @@ function applyEvent(state, event) {
     last: { text: String(payload.message || event.kind || ''), phase: event.phase || null, at: stamp },
   };
   const logged = appendLog(next, event, stamp, payload);
-  const laned = countIteration(applyLane(logged, event, stamp, payload), event, stamp, payload);
+  const counted = countIteration(applyLane(logged, event, stamp, payload), event, stamp, payload);
+  const laned = { ...counted, qualityEvents: reduceQuality(counted.qualityEvents, event, counted.iterations.current) };
   if (event.kind === 'phase_entered') return enterPhase(laned, event, stamp, payload);
   if (event.kind === 'phase_exited') return exitPhase(laned, event, stamp);
   if (event.kind === 'stall_detected') return recordStall(laned, event, stamp, payload);
@@ -306,7 +309,7 @@ const TEST_PILLARS = ['unit', 'integration', 'system', 'regression'];
 const PILLAR_STATUS = { pass: 'PASS', fail: 'FAIL', not_applicable: 'PENDING' };
 const RECEIPT_MISSING = 'quality-matrix.json ainda nao gerado';
 const REQUIREMENT_MISSING = 'sem registro no quality-matrix.json';
-const NO_PRODUCER = 'sem produtor no fluxo atual';
+const NO_FLAKY_IDS = 'sem ids por teste: o produtor emite contagens, não identidade de teste';
 const RECEIPT_STATES = ['VALID', 'INVALID', 'UNVERIFIED'];
 const NO_VERDICT = 'validação não informada';
 const RUN_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
@@ -401,13 +404,16 @@ function testsOf(receipt, dod) {
   return { state: 'UNVERIFIED', reason: 'testes sem aprovação completa no quality-matrix' };
 }
 
-function qualityView(receipt, dod) {
+// Producer events (test_result, lint_result, coverage_result, apply_result step diff) win over the receipt-only fallback.
+function qualityView(receipt, dod, events) {
+  const fed = selectQuality(events);
+  const tests = fed.tests.state === 'UNVERIFIED' ? testsOf(receipt, dod) : fed.tests;
   return {
-    tests: testsOf(receipt, dod),
-    lint: { state: 'UNVERIFIED', reason: NO_PRODUCER },
-    coverageTrend: { state: 'UNVERIFIED', reason: NO_PRODUCER },
-    flaky: { state: 'UNVERIFIED', reason: NO_PRODUCER },
-    diff: { state: 'UNVERIFIED', reason: NO_PRODUCER },
+    tests,
+    lint: fed.lint,
+    coverageTrend: fed.coverageTrend,
+    flaky: { state: 'UNVERIFIED', reason: NO_FLAKY_IDS },
+    diff: fed.diff,
   };
 }
 
@@ -471,7 +477,7 @@ export function selectView(state, nowMs) {
   const lanes = state.laneOrder.map((id) => laneView(state.lanes[id], now));
   const iterations = selectIterations(state.iterations, now, state.gates);
   const dod = dodView(state.quality, state.runId);
-  const quality = qualityView(state.quality, dod);
+  const quality = qualityView(state.quality, dod, state.qualityEvents);
   const economy = economyView(state.tokens);
   return {
     runId: state.runId,
