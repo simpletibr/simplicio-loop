@@ -238,6 +238,39 @@
   text-align: start;
   cursor: pointer;
 }
+.drill-tabs {
+  display: flex;
+  gap: var(--sl-space-2);
+  margin-block: var(--sl-space-3);
+  border-block-end: 1px solid var(--sl-line-soft);
+}
+.drill-tab {
+  padding: var(--sl-space-2) var(--sl-space-3);
+  border: 0;
+  border-block-end: 3px solid transparent;
+  background: none;
+  color: var(--sl-ink-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.drill-tab[aria-selected="true"] {
+  color: var(--sl-ink);
+  border-block-end-color: var(--sl-state-running);
+}
+.drill-tab:focus-visible {
+  outline: var(--sl-focus-width) solid var(--sl-focus);
+  outline-offset: 2px;
+}
+.drill-panel .checks li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sl-space-2);
+  align-items: baseline;
+}
+.drill-panel code {
+  overflow-wrap: anywhere;
+  font-size: var(--sl-step--1);
+}
 .drill {
   position: fixed;
   inset-block: 0;

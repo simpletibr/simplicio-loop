@@ -88,8 +88,25 @@
 <h2 id="drill-title" tabindex="-1">Detalhe</h2>
 <button id="drill-close" type="button">Fechar</button>
 </div>
+<div id="drill-tabs" class="drill-tabs" role="tablist" aria-label="Seções do detalhe">
+<button id="drill-tab-summary" class="drill-tab" type="button" role="tab" aria-selected="true" aria-controls="drill-panel-summary" tabindex="0">Resumo</button>
+<button id="drill-tab-logs" class="drill-tab" type="button" role="tab" aria-selected="false" aria-controls="drill-panel-logs" tabindex="-1">Logs</button>
+<button id="drill-tab-receipts" class="drill-tab" type="button" role="tab" aria-selected="false" aria-controls="drill-panel-receipts" tabindex="-1">Recibos</button>
+<button id="drill-tab-commands" class="drill-tab" type="button" role="tab" aria-selected="false" aria-controls="drill-panel-commands" tabindex="-1">Comandos</button>
+</div>
+<section id="drill-panel-summary" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-summary">
 <dl id="drill-facts" class="drill-facts"></dl>
+</section>
+<section id="drill-panel-logs" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-logs" hidden>
 <sl-log-viewer id="drill-logs" label="Registro do detalhe"></sl-log-viewer>
+</section>
+<section id="drill-panel-receipts" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-receipts" hidden>
+<ul id="drill-receipts" class="checks" aria-label="Recibos do run"></ul>
+</section>
+<section id="drill-panel-commands" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-commands" hidden>
+<ul id="drill-commands" class="checks" aria-label="Comandos para reproduzir o run"></ul>
+<p id="drill-copy-status" role="status"></p>
+</section>
 </aside>
 <script type="module" src="/static/live/app.js"></script>
 </body>

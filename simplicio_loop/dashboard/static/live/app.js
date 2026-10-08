@@ -2,6 +2,7 @@
 import { connectStream } from '/static/live/sse.js';
 import { initialState, reduce, selectCommands, selectDrill, selectView } from '/static/live/reducer.js';
 import { artifactHref, renderDrill } from '/static/live/lanes.js';
+import { bindTabs, createDrillLists } from '/static/live/drill-tabs.js';
 import { SlAlertToast } from '/static/components/index.js';
 import { createView } from '/static/live/view.js';
 
@@ -32,7 +33,16 @@ const drillEls = {
   title: document.getElementById('drill-title'),
   facts: document.getElementById('drill-facts'),
   logs: document.getElementById('drill-logs'),
+  receipts: document.getElementById('drill-receipts'),
+  commands: document.getElementById('drill-commands'),
+  copyStatus: document.getElementById('drill-copy-status'),
 };
+const drillTabs = bindTabs(
+  document.getElementById('drill-tabs'),
+  ['summary', 'logs', 'receipts', 'commands'].map((name) => document.getElementById('drill-tab-' + name)),
+  ['summary', 'logs', 'receipts', 'commands'].map((name) => document.getElementById('drill-panel-' + name)),
+);
+const drillLists = createDrillLists(drillEls);
 const palette = document.getElementById('palette');
 const follow = document.getElementById('follow');
 const lanesList = document.getElementById('lanes');
@@ -55,7 +65,10 @@ function render() {
   const now = Date.now();
   const model = selectView(shown, now);
   view.render(model, { token, runId, selectedLane });
-  if (drillTarget !== null) renderDrill(drillEls, selectDrill(shown, drillTarget, now), link());
+  if (drillTarget !== null) {
+    renderDrill(drillEls, selectDrill(shown, drillTarget, now), link());
+    drillLists.render(model, link());
+  }
   syncPalette();
   showAlerts(model.alerts, now);
   if (document.documentElement.dataset.ready !== '1') document.documentElement.dataset.ready = '1';
@@ -93,6 +106,7 @@ function showAlerts(alerts, now) {
 function openDrill(target) {
   if (drillTarget === null) drillOpener = document.activeElement;
   drillTarget = target;
+  drillTabs.select(target.type === 'logs' ? 1 : 0);
   drillPanel.hidden = false;
   render();
   drillEls.title.focus();
@@ -232,6 +246,8 @@ async function loadSummary() {
       type: 'summary',
       summary: { completion: { ready: completion.ready === true }, verdict: completion.verdict || null },
     });
+    dispatch({ type: 'receipts', receipts: detail.receipts });
+    dispatch({ type: 'repo', repo: detail.state && typeof detail.state.repo === 'string' ? detail.state.repo : null });
     loadQuality(detail.receipts);
   } catch (error) {
     // keep the last summary read; the next phase or oracle event asks again
