@@ -10,6 +10,24 @@ const RATE_WINDOW_MS = 60000;
 const NO_EVENT = 'nenhum evento recebido';
 const OUTCOME_PENDING = 'aguardando recibo de conclusão';
 const COMMAND_REASON = 'nenhum comando medido nesta visão';
+const AGENT_REASON = 'sinal do agente não medido nesta visão';
+const HEARTBEAT_REASON = 'batimento da lane não medido nesta visão';
+const LANE_BLOCK_CAP = 50;
+const LOG_CAP = 200;
+const FILE_COMMAND_CAP = 50;
+const LANE_GATES = ['evidence', 'quality'];
+const GATE_CLOSE = { pass: 'PASS', fail: 'FAIL', blocked: 'BLOCKED' };
+const OUTCOME_CLOSE = { pass: 'PASS', blocked: 'BLOCKED', refeed: 'UNVERIFIED' };
+const PHASE_LABEL = {
+  intake: 'Contrato recebido',
+  mapping: 'Contexto mapeado',
+  planning: 'Plano congelado',
+  executing: 'Execução em andamento',
+  validating: 'Validação e evidências',
+  watching: 'Watcher verificando',
+  delivering: 'Entrega reconciliada',
+  done: 'Concluído pelo oracle',
+};
 
 function emptyPhase() {
   return { entries: 0, openSince: null, closedMs: 0 };
@@ -60,6 +78,11 @@ export function initialState(runId) {
     connection: 'connecting',
     lastActivity: null,
     heartbeatAt: null,
+    lanes: {},
+    laneOrder: [],
+    taskLane: {},
+    log: [],
+    alerts: [],
   };
 }
 function enterPhase(state, event, stamp, payload) {
@@ -114,13 +137,120 @@ function applyEvent(state, event) {
     lastEventAt: stamp === null ? state.lastEventAt : stamp,
     last: { text: String(payload.message || event.kind || ''), phase: event.phase || null, at: stamp },
   };
-  if (event.kind === 'phase_entered') return enterPhase(next, event, stamp, payload);
-  if (event.kind === 'phase_exited') return exitPhase(next, event, stamp);
-  if (event.kind === 'stall_detected') {
-    return { ...next, stall: { phase: event.phase || null, streak: Number(payload.streak) || 1, at: stamp } };
+  const logged = appendLog(next, event, stamp, payload);
+  const laned = applyLane(logged, event, stamp, payload);
+  if (event.kind === 'phase_entered') return enterPhase(laned, event, stamp, payload);
+  if (event.kind === 'phase_exited') return exitPhase(laned, event, stamp);
+  if (event.kind === 'stall_detected') return recordStall(laned, event, stamp, payload);
+  if (event.kind === 'gate_evaluated') return evaluateGate(laned, event, stamp, payload);
+  return laned;
+}
+
+function lineOf(event, stamp, payload) {
+  return {
+    at: stamp,
+    level: typeof event.severity === 'string' ? event.severity : 'info',
+    source: typeof event.source === 'string' ? event.source : '',
+    text: String(payload.message || event.kind || ''),
+    phase: event.phase || null,
+    refs: Array.isArray(event.refs) ? event.refs.map(String) : [],
+  };
+}
+
+function appendLog(state, event, stamp, payload) {
+  return { ...state, log: state.log.concat([lineOf(event, stamp, payload)]).slice(-LOG_CAP) };
+}
+
+function mapped(table, key) {
+  return typeof key === 'string' && Object.hasOwn(table, key) ? table[key] : null;
+}
+
+function resolveLane(taskLane, event) {
+  if (typeof event.lane === 'string' && event.lane) return event.lane;
+  const taskId = typeof event.task_id === 'string' ? event.task_id : '';
+  return taskId && Object.hasOwn(taskLane, taskId) ? taskLane[taskId] : null;
+}
+
+// The verdict an event sets on an open block, or null when the event does not close a block.
+function closingOf(event, payload) {
+  let state = null;
+  if (event.kind === 'apply_result' && payload.execution_state === 'blocked') state = 'BLOCKED';
+  if (event.kind === 'gate_evaluated' && LANE_GATES.includes(payload.gate)) {
+    state = mapped(GATE_CLOSE, typeof payload.verdict === 'string' ? payload.verdict.toLowerCase() : '');
   }
-  if (event.kind === 'gate_evaluated') return evaluateGate(next, event, stamp, payload);
-  return next;
+  if (event.kind === 'iteration_finished') state = mapped(OUTCOME_CLOSE, payload.outcome);
+  if (state === null) return null;
+  return {
+    state,
+    reason: typeof payload.message === 'string' ? payload.message : '',
+    ref: Array.isArray(event.refs) && event.refs.length > 0 ? String(event.refs[0]) : null,
+  };
+}
+
+function advanceBlock(block, event, stamp, payload) {
+  let next = { ...block, lastAt: stamp, lines: block.lines.concat([lineOf(event, stamp, payload)]) };
+  if (event.kind === 'stall_detected') {
+    if (next.state === 'RUNNING') next = { ...next, state: 'STALLED' };
+    return next;
+  }
+  if (next.state === 'STALLED') next = { ...next, state: 'RUNNING' };
+  const closing = next.state === 'RUNNING' ? closingOf(event, payload) : null;
+  if (closing === null) return next;
+  return { ...next, ...closing, endedAt: stamp === null ? next.startedAt : stamp };
+}
+
+function applyLane(state, event, stamp, payload) {
+  const explicit = typeof event.lane === 'string' && event.lane ? event.lane : null;
+  const taskId = typeof event.task_id === 'string' && event.task_id ? event.task_id : null;
+  const taskLane = explicit && taskId ? { ...state.taskLane, [taskId]: explicit } : state.taskLane;
+  const laneId = resolveLane(taskLane, event);
+  if (laneId === null) return state;
+  const known = Object.hasOwn(state.lanes, laneId)
+    ? state.lanes[laneId]
+    : { id: laneId, taskId: null, leaseId: null, nextIndex: 0, blocks: [] };
+  const iteration = Number.isInteger(event.iteration) ? event.iteration : null;
+  const last = known.blocks.length > 0 ? known.blocks[known.blocks.length - 1] : null;
+  const opens = last === null || event.kind === 'worker_claimed'
+    || (iteration !== null && last.iteration !== null && last.iteration !== iteration);
+  let block;
+  if (opens) {
+    block = { index: known.nextIndex, iteration, state: 'RUNNING', startedAt: stamp, endedAt: null, lastAt: stamp, lines: [], reason: null, ref: null };
+  } else {
+    block = last.iteration === null && iteration !== null ? { ...last, iteration } : last;
+  }
+  const kept = opens ? known.blocks : known.blocks.slice(0, -1);
+  const lane = {
+    id: laneId,
+    taskId: taskId || known.taskId,
+    leaseId: event.kind === 'worker_claimed' ? (typeof payload.lease_id === 'string' ? payload.lease_id : null) : known.leaseId,
+    nextIndex: opens ? known.nextIndex + 1 : known.nextIndex,
+    blocks: kept.concat([advanceBlock(block, event, stamp, payload)]).slice(-LANE_BLOCK_CAP),
+  };
+  return {
+    ...state,
+    taskLane,
+    lanes: { ...state.lanes, [laneId]: lane },
+    laneOrder: Object.hasOwn(state.lanes, laneId) ? state.laneOrder : state.laneOrder.concat([laneId]),
+  };
+}
+
+function recordStall(state, event, stamp, payload) {
+  const streak = Number(payload.streak) || 1;
+  const laneId = resolveLane(state.taskLane, event);
+  const alert = {
+    id: 'stall-' + event.seq,
+    state: 'STALLED',
+    heading: laneId === null ? 'Run sem avanço' : 'Lane sem avanço',
+    message: laneId === null
+      ? 'O run ficou sem avanço (sequência ' + streak + ').'
+      : 'A lane ' + laneId + ' ficou sem avanço (sequência ' + streak + ').',
+    at: stamp,
+  };
+  return {
+    ...state,
+    stall: { phase: event.phase || null, streak, at: stamp, seq: event.seq },
+    alerts: state.alerts.concat([alert]),
+  };
 }
 
 export function reduce(state, action) {
@@ -200,6 +330,159 @@ export function selectView(state, nowMs) {
   if (connection === 'live' && state.lastActivity !== null && now - state.lastActivity > STALE_AFTER_MS) {
     connection = 'stale';
   }
-  return { runId: state.runId, lastSeq: state.lastSeq, connection, phase, rail, percent, phases, gates, agora, health };
+  const lanes = state.laneOrder.map((id) => laneView(state.lanes[id], now));
+  return {
+    runId: state.runId,
+    lastSeq: state.lastSeq,
+    connection,
+    phase,
+    rail,
+    percent,
+    phases,
+    gates,
+    agora,
+    health,
+    lanes,
+    alerts: state.alerts,
+  };
+}
+
+function laneView(lane, now) {
+  const blocks = lane.blocks.map((block) => {
+    const end = block.endedAt === null ? now : block.endedAt;
+    return {
+      index: block.index,
+      iteration: block.iteration,
+      state: block.state,
+      startedAt: block.startedAt,
+      endedAt: block.endedAt,
+      elapsedMs: block.startedAt === null ? 0 : Math.max(0, end - block.startedAt),
+      events: block.lines.length,
+      reason: block.reason,
+      ref: block.ref,
+    };
+  });
+  return {
+    id: lane.id,
+    state: blocks[blocks.length - 1].state,
+    taskId: lane.taskId,
+    leaseId: lane.leaseId,
+    agent: { state: 'UNVERIFIED', reason: AGENT_REASON },
+    heartbeat: { state: 'UNVERIFIED', reason: HEARTBEAT_REASON },
+    blocks,
+  };
+}
+
+function lineView(line) {
+  return { at: line.at, level: line.level, source: line.source, text: line.text };
+}
+
+function formatMs(ms) {
+  return Math.round(Math.max(0, ms) / 1000) + ' s';
+}
+
+function emptyDrill() {
+  return { title: 'Sem dados disponíveis', facts: [], lines: [] };
+}
+
+function phaseDrill(state, phase, now) {
+  if (!RAIL.includes(phase)) return emptyDrill();
+  const item = state.phases[phase];
+  const open = item.openSince !== null;
+  const elapsed = item.closedMs + (open ? Math.max(0, now - item.openSince) : 0);
+  let status = 'Pendente';
+  if (open) status = 'Em andamento';
+  else if (item.entries > 0) status = 'Concluída';
+  return {
+    title: PHASE_LABEL[phase],
+    facts: [
+      { label: 'Situação', value: status },
+      { label: 'Entradas', value: String(item.entries) },
+      { label: 'Tempo acumulado', value: formatMs(elapsed) },
+    ],
+    lines: state.log.filter((line) => line.phase === phase).map(lineView),
+  };
+}
+
+function laneOwned(state, laneId) {
+  return typeof laneId === 'string' && Object.hasOwn(state.lanes, laneId) ? state.lanes[laneId] : null;
+}
+
+function blockDrill(state, laneId, index, now) {
+  const lane = laneOwned(state, laneId);
+  const block = lane ? lane.blocks.find((item) => item.index === index) : undefined;
+  if (!block) return emptyDrill();
+  const end = block.endedAt === null ? now : block.endedAt;
+  const facts = [
+    { label: 'Estado', value: block.state },
+    { label: 'Iteração', value: block.iteration === null ? 'não informada' : String(block.iteration) },
+    { label: 'Duração', value: formatMs(block.startedAt === null ? 0 : Math.max(0, end - block.startedAt)) },
+    { label: 'Motivo', value: block.reason || 'sem motivo registrado' },
+  ];
+  if (block.ref) facts.push({ label: 'Recibo', value: block.ref, ref: block.ref });
+  return { title: 'Bloco ' + (block.index + 1) + ' de ' + laneId, facts, lines: block.lines.map(lineView) };
+}
+
+function laneDrill(state, laneId) {
+  const lane = laneOwned(state, laneId);
+  if (!lane) return emptyDrill();
+  return {
+    title: 'Lane ' + laneId,
+    facts: [
+      { label: 'Tarefa', value: lane.taskId || 'sem tarefa' },
+      { label: 'Lease', value: lane.leaseId || 'não registrado' },
+      { label: 'Blocos', value: String(lane.blocks.length) },
+      { label: 'Estado atual', value: lane.blocks[lane.blocks.length - 1].state },
+    ],
+    lines: lane.blocks.flatMap((block) => block.lines).map(lineView),
+  };
+}
+
+function logsDrill(state) {
+  return {
+    title: 'Registro do run',
+    facts: [
+      { label: 'Eventos no registro', value: String(state.log.length) },
+      { label: 'Último evento', value: String(state.lastSeq) },
+    ],
+    lines: state.log.map(lineView),
+  };
+}
+
+export function selectDrill(state, target, nowMs) {
+  const now = Number.isFinite(nowMs) ? nowMs : 0;
+  const kind = target && typeof target === 'object' ? target.type : null;
+  if (kind === 'phase') return phaseDrill(state, target.phase, now);
+  if (kind === 'block') return blockDrill(state, target.lane, target.index, now);
+  if (kind === 'lane') return laneDrill(state, target.lane);
+  if (kind === 'logs') return logsDrill(state);
+  return emptyDrill();
+}
+
+export function selectCommands(state) {
+  const commands = RAIL.map((phase) => ({
+    id: 'phase:' + phase,
+    label: PHASE_LABEL[phase],
+    group: 'Fases',
+    hint: 'Abrir detalhe da fase',
+  }));
+  const taskIds = [];
+  for (const laneId of state.laneOrder) {
+    const taskId = state.lanes[laneId].taskId;
+    if (taskId && !taskIds.includes(taskId)) {
+      taskIds.push(taskId);
+      commands.push({ id: 'task:' + taskId, label: 'Tarefa ' + taskId, group: 'Tarefas', hint: 'Abrir a lane ' + laneId });
+    }
+  }
+  const refs = [];
+  for (let index = state.log.length - 1; index >= 0 && refs.length < FILE_COMMAND_CAP; index -= 1) {
+    for (const ref of state.log[index].refs) {
+      if (refs.length < FILE_COMMAND_CAP && !refs.includes(ref)) refs.push(ref);
+    }
+  }
+  for (const ref of refs) {
+    commands.push({ id: 'file:' + ref, label: ref, group: 'Arquivos', hint: 'Abrir o recibo' });
+  }
+  return commands;
 }
 

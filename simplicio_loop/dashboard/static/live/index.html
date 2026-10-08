@@ -12,12 +12,20 @@
 <h1>Pipeline vivo</h1>
 <sl-connection-dot id="conn" status="connecting"></sl-connection-dot>
 <p id="run-id" class="run-id"></p>
+<div class="live-tools">
+<button id="follow" type="button" aria-pressed="true">Seguir o run</button>
+<sl-command-palette id="palette" hotkey="ctrl+k" label="Buscar comandos" placeholder="Fase, tarefa ou arquivo"></sl-command-palette>
+</div>
 </header>
 <main class="live-main">
 <section class="panel rail-panel" aria-labelledby="rail-title">
 <h2 id="rail-title">Fases</h2>
 <sl-stage-rail id="rail" phase="intake" status="RUNNING" label="Fases do run"></sl-stage-rail>
 <ul id="phase-stats" class="phase-stats"></ul>
+</section>
+<section class="panel lanes-panel" aria-labelledby="lanes-title">
+<h2 id="lanes-title">Lanes</h2>
+<ol id="lanes" class="lanes" aria-label="Lanes do run"></ol>
 </section>
 <section class="panel">
 <h2>Progresso</h2>
@@ -43,6 +51,14 @@
 </section>
 <p id="empty" role="status">Aguardando eventos…</p>
 </main>
+<aside id="drill" class="drill" aria-labelledby="drill-title" hidden>
+<div class="drill-head">
+<h2 id="drill-title" tabindex="-1">Detalhe</h2>
+<button id="drill-close" type="button">Fechar</button>
+</div>
+<dl id="drill-facts" class="drill-facts"></dl>
+<sl-log-viewer id="drill-logs" label="Registro do detalhe"></sl-log-viewer>
+</aside>
 <script type="module" src="/static/live/app.js"></script>
 </body>
 </html>

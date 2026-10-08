@@ -148,7 +148,7 @@ def _replay(run_dir, events, gap=0.05):
 
 
 def _wait_seq(page, seq):
-    page.wait_for_function("(seq) => document.body.getAttribute('data-last-seq') === String(seq)", arg=seq, timeout=TIMEOUT_MS)
+    page.wait_for_function("(seq) => Number(document.body.getAttribute('data-last-seq')) >= seq", arg=seq, timeout=TIMEOUT_MS)
 
 
 def test_pipeline_replays_in_order_and_the_ring_waits_for_the_receipt(open_page, repo):
