@@ -332,7 +332,7 @@ def _coordination(server: Any) -> dict[str, Any]:
 
 def _budget(server: Any, ref: dict[str, Any]) -> dict[str, Any]:
     '''Budget and usage of one run, plus its comparison with the previous runs from the history reader.'''
-    payload = budget.report(ref['run_dir'], dashboard_events.read_events(ref['run_dir']))
+    payload = budget.report(ref['run_dir'], dashboard_events.read_events(ref['run_dir']), price_table())
     payload['comparison'] = budget.compare(history.history_record(ref), history.read_history(server.repos))
     return payload
 

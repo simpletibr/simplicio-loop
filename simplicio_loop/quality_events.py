@@ -23,6 +23,7 @@ COMMAND_MAX = 500
 RULES_MAX = 20
 COVERAGE_FILES_MAX = 50
 DIFF_FILES_MAX = 200
+FAILED_IDS_MAX = 100
 
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
 _COUNT = re.compile(r"(\d+) ([a-z]+)")
@@ -36,6 +37,9 @@ _PYTEST_SUMMARY = re.compile(
     r"[ \t]*(?:=+[ \t]*)?$",
     re.MULTILINE,
 )
+# pytest short summary: "FAILED path::test_name - message", "ERROR path::test_name - message".
+# The id is everything up to the first " - "; lines without "::" name no test and are skipped.
+_PYTEST_ID_LINE = re.compile(r"^(?:FAILED|ERROR) (?P<id>\S+::.*?)(?: - .*)?[ \t]*$", re.MULTILINE)
 
 # unittest: "Ran 5 tests in 0.010s" then "OK (skipped=1)" or "FAILED (failures=1, errors=2)".
 _UT_RAN = re.compile(r"^Ran (\d+) tests? in (\d+(?:\.\d+)?)s[ \t]*$", re.MULTILINE)
@@ -196,11 +200,19 @@ def _go(text: str) -> dict[str, Any] | None:
             "total": passed + failed + errors, "duration": None}
 
 
+def _pytest_failed_ids(text: str) -> list[str]:
+    ids = [m.group("id") for m in _PYTEST_ID_LINE.finditer(text)]
+    return list(dict.fromkeys(ids))[:FAILED_IDS_MAX]
+
+
 def parse_tests(command: Any, text: Any, returncode: Any, duration_s: Any) -> dict[str, Any] | None:
     """Payload for a recognised pytest / unittest / jest / vitest / go test summary, else None.
 
     ``duration_s`` is the tool's own reported duration when the output states one, otherwise the
     caller's measured duration. ``status`` is ``fail`` on any failure, error or non-zero exit.
+    pytest only: ``failed_ids`` names the failing node ids (see ``_pytest_failed_ids``). It is
+    ``[]`` on a run with no failures or errors, and absent when failures exist but the output
+    has no short-summary id lines, because the identity is then unknown.
     """
     body = _text(text)
     found = _pytest(body) or _unittest(body) or _jest_like(body) or _go(body)
@@ -210,7 +222,7 @@ def parse_tests(command: Any, text: Any, returncode: Any, duration_s: Any) -> di
     reported = found.get("duration")
     duration = round(float(reported), 3) if reported is not None else _seconds(duration_s)
     failed, errors = found["failed"], found["errors"]
-    return {
+    payload: dict[str, Any] = {
         "tool": found["tool"],
         "command": _command(command),
         "passed": found["passed"],
@@ -221,6 +233,14 @@ def parse_tests(command: Any, text: Any, returncode: Any, duration_s: Any) -> di
         "duration_s": duration,
         "status": "fail" if _failing(rc, failed, errors) else "pass",
     }
+    if found["tool"] == "pytest":
+        if failed + errors == 0:
+            payload["failed_ids"] = []
+        else:
+            ids = _pytest_failed_ids(body)
+            if ids:
+                payload["failed_ids"] = ids
+    return payload
 
 
 # ---------------------------------------------------------------- lint_result

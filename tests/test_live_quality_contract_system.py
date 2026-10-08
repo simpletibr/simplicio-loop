@@ -19,6 +19,7 @@ DRIVER = REPO / 'tests' / 'fixtures' / 'live_pipeline' / 'driver.mjs'
 RUN_ID = 'run-quality-contract'
 BASE_MS = int(datetime(2026, 10, 8, 12, 0, 0, tzinfo=UTC).timestamp() * 1000)
 NO_PRODUCER = 'sem produtor no fluxo atual'
+NO_IDS = 'sem ids por teste: o produtor emite contagens, não identidade de teste'
 COVERAGE_TARGET = 85
 ITERATIONS = (1, 2, 3, 4, 5)
 LINT_WITHOUT_ITERATION = 3
@@ -41,11 +42,14 @@ COVERAGE = {1: 78.0, 2: 80.5, 3: 83.0, 4: 86.2, 5: 90.1}
 DIFFS = {
     1: [{'files': ['a.py', 'b.py', 'c.py'], 'files_total': 3, 'added': 40, 'deleted': 5}],
     2: [{'files': ['b.py', 'd.py'], 'files_total': 2, 'added': 25, 'deleted': 10}],
-    3: [{'files': ['e.py'], 'files_total': 1, 'added': 12, 'deleted': 0},
-        {'files': ['f.py', 'e.py'], 'files_total': 2, 'added': 3, 'deleted': 4}],
+    3: [{'files': [], 'files_total': 0, 'added': 0, 'deleted': 0}],
     4: [{'files': ['a.py'], 'files_total': 1, 'added': 7, 'deleted': 30}],
     5: [{'files': ['g.py', 'h.py', 'a.py'], 'files_total': 3, 'added': 9, 'deleted': 2}],
 }
+# Failing test ids per iteration. FLIP fails in 2 and 4 and passes in 1, 3 and 5. Only iteration 3 has no code
+# change, so only the 2->3 flip is flaky. The 3->4 and 4->5 flips land on iterations that changed code.
+FLIP = 'tests/test_flow.py::test_flip'
+FAILED_IDS = {1: [], 2: [FLIP], 3: [], 4: [FLIP], 5: []}
 # An apply_result that is not a diff: it must not reach quality.diff.
 NOT_A_DIFF = {'step': 'edit', 'files': ['zz.py'], 'files_total': 99, 'added': 1000, 'deleted': 1000}
 
@@ -98,7 +102,7 @@ def _run_events():
 
     for n in ITERATIONS:
         add('iteration_started', n, {'trigger': 'refeed'})
-        add('test_result', n, dict(TESTS[n]))
+        add('test_result', n, dict(TESTS[n], failed_ids=FAILED_IDS[n]))
         add('lint_result', None if n == LINT_WITHOUT_ITERATION else n, dict(LINT[n]))
         add('coverage_result', n, {'percent': COVERAGE[n], 'scope': 'dashboard'})
         for diff in DIFFS[n]:
@@ -212,12 +216,50 @@ def test_diff_accumulates_per_iteration_and_compares_with_the_previous(run, n):
                                       'deleted': current['deleted'] - before['deleted']}
 
 
-def test_flaky_stays_unverified_with_its_own_reason_in_every_view(run):
-    for view in run['views']:
-        flaky = view['quality']['flaky']
-        assert flaky['state'] == 'UNVERIFIED'
-        assert isinstance(flaky['reason'], str) and flaky['reason'] != ''
-        assert flaky['reason'] != NO_PRODUCER
+# ---- flaky: a flip between two iterations that reported ids, with no code change in the later one
+
+def _quiet(n):
+    diff = _diff_of(n)
+    return diff['added'] == 0 and diff['deleted'] == 0
+
+
+def _flips_through(n):
+    counts = {}
+    for before, after in zip(range(1, n), range(2, n + 1)):
+        if not _quiet(after):
+            continue
+        for test in set(FAILED_IDS[before]) ^ set(FAILED_IDS[after]):
+            counts[test] = counts.get(test, 0) + 1
+    return counts
+
+
+def _expected_flaky(n):
+    if n < 2:
+        return {'state': 'UNVERIFIED', 'reason': NO_IDS}
+    counts = _flips_through(n)
+    if not counts:
+        return {'state': 'PASS', 'reason': f'nenhum teste instável (ids observados em {n} iterações)', 'ids': []}
+    ids = [{'id': test, 'flips': flips} for test, flips in counts.items()]
+    names = ', '.join(f"{item['id']} ({item['flips']} {'virada' if item['flips'] == 1 else 'viradas'})"
+                      for item in ids)
+    label = '1 teste instável' if len(ids) == 1 else f'{len(ids)} testes instáveis'
+    return {'state': 'FAIL', 'reason': f'{label}: {names}', 'ids': ids}
+
+
+@pytest.mark.parametrize('n', ITERATIONS)
+def test_flaky_follows_the_flip_rule_at_every_finish(run, n):
+    flaky = _quality_at(run, n)['flaky']
+    expected = _expected_flaky(n)
+    assert flaky['state'] == expected['state']
+    assert flaky['reason'] == expected['reason']
+    if 'ids' in expected:
+        assert flaky['ids'] == expected['ids']
+
+
+def test_the_flip_is_flagged_from_the_quiet_iteration_three_on(run):
+    assert [_quality_at(run, n)['flaky']['state'] for n in ITERATIONS] == [
+        'UNVERIFIED', 'PASS', 'FAIL', 'FAIL', 'FAIL']
+    assert _quality_at(run, 5)['flaky']['ids'] == [{'id': FLIP, 'flips': 1}]
 
 
 def test_without_quality_events_the_panel_stays_unverified():
