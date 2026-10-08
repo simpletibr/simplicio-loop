@@ -1,0 +1,38 @@
+flowchart TD
+    in_goal(["/simplicio-loop <goal>"])
+    preflight["Preflight (operators present)"]
+    survey["Survey (simplicio-mapper scan/inspect/handoff)"]
+    backlog["Phase 0: frozen backlog + task anchor ACs"]
+    anchor["Task anchor: freeze ACs, block drift"]
+    turbo["turbo: needs_plan request"]
+    apply["turbo --apply: Dev CLI mutation + --verify"]
+    strict{"STRICT mode gate"}
+    human{"Human gate: irreversible operation"}
+    claim["Drain: claim issue (CLAIMED comment)"]
+    journal["Run journal + stall detector"]
+    pr["PR with Closes #N + AC checklist + prints"]
+    merge["Merge"]
+    promise{"Evidence-gated promise (DoD)"}
+    stop{"STOP / cancel / max_iterations"}
+    out_pr[["Merged PR"]]
+    out_report[["simplicio.execution-report/v1"]]
+    out_journal[["Journal + scratchpad"]]
+    in_goal --> preflight
+    preflight --> survey
+    survey --> backlog
+    backlog --> anchor
+    anchor --> turbo
+    turbo --> apply
+    apply --> strict
+    strict --> human
+    human -->|approved| claim
+    claim --> journal
+    journal --> pr
+    pr --> merge
+    merge --> promise
+    promise -->|all ACs verified| out_pr
+    promise -->|re-feed| turbo
+    promise -->|cap or cancel| stop
+    stop --> out_journal
+    promise --> out_report
+    journal --> out_journal

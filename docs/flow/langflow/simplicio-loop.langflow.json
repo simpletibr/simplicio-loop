@@ -1,0 +1,435 @@
+{
+  "data": {
+    "edges": [
+      {
+        "id": "e_in_goal_preflight",
+        "label": "",
+        "source": "in_goal",
+        "target": "preflight"
+      },
+      {
+        "id": "e_preflight_survey",
+        "label": "",
+        "source": "preflight",
+        "target": "survey"
+      },
+      {
+        "id": "e_survey_backlog",
+        "label": "",
+        "source": "survey",
+        "target": "backlog"
+      },
+      {
+        "id": "e_backlog_anchor",
+        "label": "",
+        "source": "backlog",
+        "target": "anchor"
+      },
+      {
+        "id": "e_anchor_turbo",
+        "label": "",
+        "source": "anchor",
+        "target": "turbo"
+      },
+      {
+        "id": "e_turbo_apply",
+        "label": "",
+        "source": "turbo",
+        "target": "apply"
+      },
+      {
+        "id": "e_apply_strict",
+        "label": "",
+        "source": "apply",
+        "target": "strict"
+      },
+      {
+        "id": "e_strict_human",
+        "label": "",
+        "source": "strict",
+        "target": "human"
+      },
+      {
+        "id": "e_human_claim",
+        "label": "approved",
+        "source": "human",
+        "target": "claim"
+      },
+      {
+        "id": "e_claim_journal",
+        "label": "",
+        "source": "claim",
+        "target": "journal"
+      },
+      {
+        "id": "e_journal_pr",
+        "label": "",
+        "source": "journal",
+        "target": "pr"
+      },
+      {
+        "id": "e_pr_merge",
+        "label": "",
+        "source": "pr",
+        "target": "merge"
+      },
+      {
+        "id": "e_merge_promise",
+        "label": "",
+        "source": "merge",
+        "target": "promise"
+      },
+      {
+        "id": "e_promise_out_pr",
+        "label": "all ACs verified",
+        "source": "promise",
+        "target": "out_pr"
+      },
+      {
+        "id": "e_promise_turbo",
+        "label": "re-feed",
+        "source": "promise",
+        "target": "turbo"
+      },
+      {
+        "id": "e_promise_stop",
+        "label": "cap or cancel",
+        "source": "promise",
+        "target": "stop"
+      },
+      {
+        "id": "e_stop_out_journal",
+        "label": "",
+        "source": "stop",
+        "target": "out_journal"
+      },
+      {
+        "id": "e_promise_out_report",
+        "label": "",
+        "source": "promise",
+        "target": "out_report"
+      },
+      {
+        "id": "e_journal_out_journal",
+        "label": "",
+        "source": "journal",
+        "target": "out_journal"
+      }
+    ],
+    "nodes": [
+      {
+        "data": {
+          "id": "in_goal",
+          "node": {
+            "description": "input \u00b7 AGENTS.md",
+            "display_name": "/simplicio-loop <goal>",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "in_goal",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "preflight",
+          "node": {
+            "description": "step \u00b7 scripts/operator_preflight.py",
+            "display_name": "Preflight (operators present)",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "preflight",
+        "position": {
+          "x": 260,
+          "y": 0
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "survey",
+          "node": {
+            "description": "step \u00b7 packages/mapper/simplicio_mapper/cli/__init__.py",
+            "display_name": "Survey (simplicio-mapper scan/inspect/handoff)",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "survey",
+        "position": {
+          "x": 520,
+          "y": 0
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "backlog",
+          "node": {
+            "description": "step \u00b7 scripts/task_backlog.py",
+            "display_name": "Phase 0: frozen backlog + task anchor ACs",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "backlog",
+        "position": {
+          "x": 780,
+          "y": 0
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "anchor",
+          "node": {
+            "description": "step \u00b7 scripts/task_anchor.py",
+            "display_name": "Task anchor: freeze ACs, block drift",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "anchor",
+        "position": {
+          "x": 1040,
+          "y": 0
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "turbo",
+          "node": {
+            "description": "step \u00b7 simplicio_loop/turbo_cli.py",
+            "display_name": "turbo: needs_plan request",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "turbo",
+        "position": {
+          "x": 1300,
+          "y": 0
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "apply",
+          "node": {
+            "description": "step \u00b7 packages/dev-cli/simplicio/effect_router.py",
+            "display_name": "turbo --apply: Dev CLI mutation + --verify",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "apply",
+        "position": {
+          "x": 0,
+          "y": 160
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "strict",
+          "node": {
+            "description": "gate \u00b7 .claude/skills/simplicio-loop/SKILL.md",
+            "display_name": "STRICT mode gate",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "strict",
+        "position": {
+          "x": 260,
+          "y": 160
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "human",
+          "node": {
+            "description": "gate \u00b7 hooks/action_gate.py",
+            "display_name": "Human gate: irreversible operation",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "human",
+        "position": {
+          "x": 520,
+          "y": 160
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "claim",
+          "node": {
+            "description": "step \u00b7 simplicio_loop/github_lifecycle.py",
+            "display_name": "Drain: claim issue (CLAIMED comment)",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "claim",
+        "position": {
+          "x": 780,
+          "y": 160
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "journal",
+          "node": {
+            "description": "step \u00b7 scripts/loop_journal.py",
+            "display_name": "Run journal + stall detector",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "journal",
+        "position": {
+          "x": 1040,
+          "y": 160
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "pr",
+          "node": {
+            "description": "step \u00b7 scripts/pr_evidence.py",
+            "display_name": "PR with Closes #N + AC checklist + prints",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "pr",
+        "position": {
+          "x": 1300,
+          "y": 160
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "merge",
+          "node": {
+            "description": "step \u00b7 simplicio_loop/github_lifecycle.py",
+            "display_name": "Merge",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "merge",
+        "position": {
+          "x": 0,
+          "y": 320
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "promise",
+          "node": {
+            "description": "gate \u00b7 hooks/loop_stop.py",
+            "display_name": "Evidence-gated promise (DoD)",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "promise",
+        "position": {
+          "x": 260,
+          "y": 320
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "stop",
+          "node": {
+            "description": "gate \u00b7 hooks/loop_stop.py",
+            "display_name": "STOP / cancel / max_iterations",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "stop",
+        "position": {
+          "x": 520,
+          "y": 320
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "out_pr",
+          "node": {
+            "description": "output \u00b7 scripts/pr_evidence.py",
+            "display_name": "Merged PR",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "out_pr",
+        "position": {
+          "x": 780,
+          "y": 320
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "out_report",
+          "node": {
+            "description": "output \u00b7 simplicio_loop/execution_report.py",
+            "display_name": "simplicio.execution-report/v1",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "out_report",
+        "position": {
+          "x": 1040,
+          "y": 320
+        },
+        "type": "genericNode"
+      },
+      {
+        "data": {
+          "id": "out_journal",
+          "node": {
+            "description": "output \u00b7 scripts/loop_journal.py",
+            "display_name": "Journal + scratchpad",
+            "template": {}
+          },
+          "type": "Note"
+        },
+        "id": "out_journal",
+        "position": {
+          "x": 1300,
+          "y": 320
+        },
+        "type": "genericNode"
+      }
+    ],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 0.6
+    }
+  },
+  "description": "Generated from simplicio-loop.flow.json (simplicio.flow/v1)",
+  "name": "simplicio-loop: entry to steps to outputs"
+}
