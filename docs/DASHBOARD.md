@@ -18,6 +18,10 @@ Neither module writes to a run. The only file the dashboard writes is its state 
 | GET | `/api/health` | liveness and version |
 | GET | `/api/runs` | `{"runs": [...]}` summaries, newest `updated_at` first; filters `status`, `repo`, `since` |
 | GET | `/api/history` | `{"history": [...]}` one `simplicio.dashboard-history/v1` record per past run (verdict from `run-outcome.json`, `duration_s`, `iterations`, `stalls`, `tokens`, `cost_usd`, `phase_durations_s`), newest `started_at` first; filters `verdict`, `repo`, `since`, `until`, `min_/max_duration_s`, `min_/max_iterations`, `min_/max_cost_usd`, `limit`; a bad value is 400. Unmeasured fields are `null`, and a filter on one excludes the run |
+| GET | `/api/history/compare` | `?a=<run>&b=<run>`: phases (union, `null` where a run never reached one), iterations, stalls, tests, tokens, cost and duration with `delta` (b minus a); `comparable` is false when the runs reached different phases (for example blocked against done); 404 for an unknown run |
+| GET | `/api/history/trends` | `?bucket=week\|month` (UTC; weeks start Monday): per bucket `complete_rate` and `not_complete_rate`, `avg_phase_s`, `iterations_per_task`, `cost_per_task_usd`, `top_stall_causes`; same filters as `/api/history` |
+| GET | `/api/history/heatmap` | `{"heatmap": [7][24]}` run starts, weekday (Monday = 0) by hour, UTC |
+| GET | `/api/history?format=csv` | the history records as CSV (formula-leading text is quoted); JSON is the default |
 | GET | `/api/runs/{id}` | summary, `state.json`, `manifest.json`, `plan.json`, and a receipt index (name and size only) |
 | GET | `/api/runs/{id}/events` | SSE stream of the run's events (see SSE contract) |
 | GET | `/api/runs/{id}/artifacts/{path}` | bytes of one artifact with secrets masked; 403, 404 or 413 on refusal |
@@ -229,7 +233,7 @@ Definition of done: seven pillars (implementation, unit, integration, system, re
 
 The page fetches `quality-matrix.json` only when the run receipts list includes it.
 
-Qualidade panel: tests, lint, coverage trend, flaky tests and diff stay UNVERIFIED with the reason "sem produtor no fluxo atual" until a producer exists.
+Qualidade panel: tests, lint, coverage trend and diff read from the quality events (`test_result`, `lint_result`, `coverage_result`, and `apply_result` with `step: diff`) when present; otherwise they stay UNVERIFIED with the reason "sem produtor no fluxo atual". Flaky tests stay UNVERIFIED: the events carry counts, not per-test ids.
 
 Rule: the page never shows PASS for a pending or unverified item.
 
@@ -239,7 +243,7 @@ The economy panel is global, not per run. It reads `~/.simplicio-loop/proxy_savi
 
 Every token and USD number is estimated, and the labels say "estimado". The estimator counts about 4 characters per token. The savings series is cumulative (labelled "acumulado").
 
-The cost row (slice 1404b) estimates the input cost of the tokens sent through the proxy. It multiplies the measured `tokens_after` and `tokens_saved` by the input price of the active model. The prices come from `simplicio_loop/dashboard/prices.json`, which names its `as_of` date and the official `source_url`. Update that file by PR when the source changes. The engine's per-family `usd_saved` figure is a rough estimate of its own and is not replaced. If the active model has no entry, the cost row stays UNVERIFIED with that reason. Haiku 5.5 is priced for prompts up to 100 thousand tokens only.
+The cost row (slice 1404b) estimates the input cost of the tokens sent through the proxy. It multiplies the measured `tokens_after` and `tokens_saved` by the input price of the active model. The prices come from `simplicio_loop/dashboard/prices.json`, which names its `as_of` date and the official `source_url`. Update that file by PR when the source changes. The engine's per-family `usd_saved` figure is a rough estimate of its own and is not replaced. If the active model has no entry, the cost row stays UNVERIFIED with that reason. A price entry can apply only up to a stated prompt size; the entry's `note` in `prices.json` gives the rate above it.
 
 The `simplicio-loop economy` command is not the source of token numbers. It shows the environment and parallelism profile. The real sources are `get_status()` of the Token Monitor and the savings ledger at `.simplicio-loop/ledger/savings-events.jsonl`.
 
@@ -279,13 +283,13 @@ Read-only, token-gated like `/api/queue`. The source is the backlog JSONL: `$SIM
 - The live `tui` animation on a real TTY.
 - Agent and cost data (issue #1404).
 - The rich queue (issue #1407).
-- Deferred to the producer slice of #1403: test matrix counts and red and green transitions, lint per rule, coverage lines and branches with a sparkline, the flaky rule (needs per-test ids), the per-iteration diff with the virtualised 5,000-line benchmark, and files touched.
+- Deferred from #1403 (see [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md#quality-producers)): the test matrix by unit, integration, system and regression level, red and green transitions per test id, the flaky rule (needs per-test ids), and the diff virtualisation with the 5,000-line benchmark (no measurement exists).
 - The running command has no producer.
 - Agent and model names need #1404. The lease heartbeat needs #1403 and #1404.
 - Palette "jump to run" and TV run rotation: deferred to slice 4b-3, because they need a run list fetch.
 - The contract title of a task: needs a fetch of `task-contract.json`.
 - Reference-image diff: the baseline is font and platform fragile, so the PR carries screenshots instead.
-- Agent and model names, the lease heartbeat, the running command and the quality gate: no producer yet, so they show UNVERIFIED (#1403 and #1404).
+- Agent and model names, the lease heartbeat, and the running command: no producer yet, so they show UNVERIFIED (#1404).
 - Real-GPU 60 fps: UNVERIFIED. Only the software Chromium measurement exists.
 
 ## Alerts (#1406, slices 1406a and 1406b)
