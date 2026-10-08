@@ -303,11 +303,70 @@ def _tui(repos: list[str], run_id: str | None) -> int:
     if ref is None:
         print('error: no runs found under %s' % ', '.join(repos), file=sys.stderr)
         return 2
+    if not (sys.stdout.isatty() and sys.stdin.isatty()):
+        progress.stream(ref['run_dir'], fmt='ansi', once=True)
+        return 0
     try:
-        progress.stream(ref['run_dir'], fmt='ansi', once=not sys.stdout.isatty())
+        _tui_live(Path(ref['run_dir']))
     except KeyboardInterrupt:
         pass
     return 0
+
+
+class _Keys:
+    '''Non-blocking single-key reads from a terminal; Ctrl-C keeps raising KeyboardInterrupt.'''
+
+    def __enter__(self) -> '_Keys':
+        self._saved = None
+        if os.name == 'posix':
+            import termios
+            import tty
+            fd = sys.stdin.fileno()
+            self._saved = termios.tcgetattr(fd)
+            tty.setcbreak(fd)  # cbreak, not raw: ISIG stays on, so Ctrl-C still interrupts
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        if self._saved is not None:
+            import termios
+            termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self._saved)
+
+    def wait(self, seconds: float) -> str:
+        '''The key pressed within ``seconds`` (lowercased), or '' on timeout.'''
+        if os.name == 'posix':
+            import select
+            ready, _, _ = select.select([sys.stdin], [], [], seconds)
+            return os.read(sys.stdin.fileno(), 1).decode('latin-1').lower() if ready else ''
+        import msvcrt
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            if msvcrt.kbhit():
+                return msvcrt.getwch().lower()
+            time.sleep(0.05)
+        return ''
+
+
+def _tui_live(run_dir: Path, interval: float = 0.25) -> None:
+    '''Redraw the run in place until it ends or the user presses q.'''
+    out, frame = sys.stdout, 0
+    out.write('\x1b[?25l')  # hide cursor; restored below
+    try:
+        with _Keys() as keys:
+            while True:
+                event = progress.build_progress(progress.load_state(run_dir), run_dir=run_dir, frame=frame)
+                body = progress.render_text(event)
+                try:  # a legacy console (Windows cp1252) cannot print the box glyphs
+                    body.encode(getattr(out, 'encoding', None) or 'ascii')
+                except (LookupError, UnicodeEncodeError):
+                    body = progress.render_text(event, ascii_only=True).encode('ascii', 'replace').decode('ascii')
+                out.write('\x1b[H\x1b[J' + body + '\n\nq: quit\n')
+                out.flush()
+                if event['status'] in ('COMPLETE', 'BLOCKED', 'CANCELLED') or keys.wait(interval) == 'q':
+                    return
+                frame += 1
+    finally:
+        out.write('\x1b[?25h')
+        out.flush()
 
 
 def _tokens(port: int | None, open_browser: bool, stop: bool) -> int:

@@ -354,3 +354,24 @@ def test_open_once_marker_present_means_no_reopen(tmp_path, monkeypatch):
     install_lib._open_dashboard_first_run()
     assert opened == []
     assert marker.exists()
+
+
+def test_tui_live_falls_back_to_ascii_on_a_legacy_console(tmp_path, monkeypatch):
+    import io
+
+    from simplicio_loop.dashboard import cli
+
+    class Console(io.TextIOWrapper):
+        pass
+
+    raw = io.BytesIO()
+    console = Console(raw, encoding='cp1252', errors='strict')
+    run = tmp_path / 'run'
+    run.mkdir()
+    (run / 'state.json').write_text('{"status": "COMPLETE", "phase": "verify", "percent": 100}', encoding='utf-8')
+    monkeypatch.setattr(cli.sys, 'stdout', console)
+    monkeypatch.setattr(cli, '_Keys', type('K', (), {'__enter__': lambda s: s, '__exit__': lambda s, *a: None,
+                                                    'wait': lambda s, t: ''}))
+    cli._tui_live(run)
+    console.flush()
+    assert b'quit' in raw.getvalue()
