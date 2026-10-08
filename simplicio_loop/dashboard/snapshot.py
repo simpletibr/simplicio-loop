@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from simplicio_loop.dashboard import runs
+from simplicio_loop.dashboard import history, runs, trends
 from simplicio_loop.dashboard_events import read_events
 
 EVENT_LIMIT = 25
@@ -121,6 +121,58 @@ def render_snapshot(repos: Any, run_id: str | None = None) -> str:
 def write_snapshot(out: Any, repos: Any, run_id: str | None = None) -> Path:
     '''Write the snapshot page to ``out`` and return its path; nothing is written when rendering fails.'''
     page = render_snapshot(repos, run_id)
+    target = Path(out)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(page, encoding='utf-8')
+    return target
+
+
+_DAYS = ('Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom')
+
+
+def _pct(value: Any) -> str:
+    return '-' if value is None else '%.0f%%' % (100 * value)
+
+
+def _num_text(value: Any) -> str:
+    return '-' if value is None else ('%.2f' % value).rstrip('0').rstrip('.')
+
+
+def render_history_snapshot(repos: Any) -> str:
+    '''The HTML page of the run history: list, weekly trends, activity heatmap and learn lessons.'''
+    records = history.read_history(repos)
+    if not records:
+        raise SnapshotError('no runs found under the watched repos')
+    generated = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+    listing = ''.join(_row([r['run_id'], r['verdict'], r['duration_s'], r['iterations'], r['cost_usd'], r['started_at']])
+                      for r in records)
+    weekly = ''.join(_row([t['bucket'], t['runs'], _pct(t['complete_rate']), _pct(t['not_complete_rate']),
+                           _num_text(t['iterations_per_task']), _num_text(t['cost_per_task_usd']),
+                           ', '.join('%s x%d' % (c, n) for c, n in t['top_stall_causes']) or '-'])
+                     for t in trends.trends(records, 'week'))
+    grid = trends.heatmap(records)
+    heat = ''.join(_row([_DAYS[d]] + grid[d]) for d in range(7))
+    lessons = history.read_lessons(repos, limit=20)
+    lesson_rows = ''.join(_row([x['lesson'], x['hit_count']]) for x in lessons)
+    body = ('<main><h1>Simplicio Live: histórico</h1>'
+            '<p class="meta">Generated %s. Read-only, no script.</p>'
+            '<h2>Histórico de runs</h2>%s<h2>Tendências (semana)</h2>%s<h2>Atividade (dia × hora, UTC)</h2>%s'
+            '<h2>Lições do learn</h2>%s</main>') % (
+        _esc(generated),
+        _table(['Run', 'Veredito', 'Duração (s)', 'Iterações', 'Custo (USD)', 'Início'], listing),
+        _table(['Semana', 'Runs', 'COMPLETE', 'Demais', 'Iterações/tarefa', 'Custo/tarefa (USD)', 'Causas de stall'],
+               weekly or '<tr><td colspan="7">-</td></tr>'),
+        _table([''] + ['%02d' % h for h in range(24)], heat),
+        _table(['Lição', 'Repetições'], lesson_rows or '<tr><td colspan="2">Nenhuma lição registrada.</td></tr>'))
+    return ('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            '<title>Simplicio Live: histórico</title><style>' + _CSS + '</style></head>'
+            '<body>' + body + '</body></html>\n')
+
+
+def write_history_snapshot(out: Any, repos: Any) -> Path:
+    '''Write the history page to ``out``; nothing is written when rendering fails.'''
+    page = render_history_snapshot(repos)
     target = Path(out)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(page, encoding='utf-8')

@@ -341,3 +341,12 @@ def test_history_compare_trends_heatmap_and_csv_routes(server_handle, repo_root)
     lines = body.decode('utf-8').splitlines()
     assert lines[0].startswith('run_id,repo,verdict') and len(lines) == 4
     assert get('/api/history/other')[0] == 404
+
+
+def test_history_lessons_route(server_handle, repo_root):
+    base = repo_root / '.simplicio-loop' / 'orchestrator'
+    base.mkdir(parents=True, exist_ok=True)
+    (base / 'lessons.jsonl').write_text(json.dumps({'schema': 'simplicio.lesson/v1', 'fingerprint': 'f', 'lesson': 'keep gates small',
+                                                    'hit_count': 2, 'last_seen': '2026-10-01T00:00:00Z'}) + '\n', encoding='utf-8')
+    status, _, body = _get(server_handle.port, '/api/history/lessons', AUTH)
+    assert status == 200 and json.loads(body)['lessons'][0]['lesson'] == 'keep gates small'
