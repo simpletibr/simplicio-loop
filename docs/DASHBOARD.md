@@ -180,7 +180,7 @@ The keys are ignored while the focus is in an input or textarea.
 
 ### Command palette
 
-`Ctrl+K` opens the phase, task and file commands. A task command opens the lane drill-down. A file command opens the artifact in a new window, with no `opener`.
+`Ctrl+K` opens the phase, task, run and file commands. A run command ("Run <id>", from `GET /api/runs`, never the open run) moves the page to that run and keeps the token and the other URL parameters. A task command opens the lane drill-down. A file command opens the artifact in a new window, with no `opener`.
 
 ### Follow and pause
 
@@ -188,7 +188,7 @@ The "Seguir o run" button (`#follow`, `aria-pressed`) follows the run. While pau
 
 ### TV mode
 
-Add `tv=1` to the URL. It sets `html[data-tv="1"]`: larger type and blocks, the same layout. TV run rotation is deferred (see Unverified).
+Add `tv=1` to the URL. It sets `html[data-tv="1"]`: larger type and blocks, the same layout. With `tv=1` the page moves to the next run every 20 s, wrapping around (`rotate=<seconds>` sets the interval, 1 to 3600). It does not rotate under `prefers-reduced-motion: reduce`, or with fewer than two runs; the palette still jumps by hand.
 
 ### Stall toast
 
@@ -276,7 +276,7 @@ Still deferred to issue #1404: tokens per phase, lane and model, cost per run, t
 - Deferred from #1403 (see [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md#quality-producers)): the test matrix by unit, integration, system and regression level, red and green transitions per test id, the flaky rule (needs per-test ids), and the diff virtualisation with the 5,000-line benchmark (no measurement exists).
 - The running command has no producer.
 - Agent and model names need #1404. The lease heartbeat needs #1403 and #1404.
-- Palette "jump to run" and TV run rotation: deferred to slice 4b-3, because they need a run list fetch.
+- Reference image: `tests/fixtures/live_pipeline/pipeline-dark-1280x900.png` is a Chromium screenshot (dark, 1280x900, board hidden). The diff tolerates 16 of 255 per channel on up to 2% of the pixels. Other browsers or font stacks may need a new reference (`SL_UPDATE_REFERENCE=1`).
 - The contract title of a task: needs a fetch of `task-contract.json`.
 - Reference-image diff: the baseline is font and platform fragile, so the PR carries screenshots instead.
 - Agent and model names, the lease heartbeat, and the running command: no producer yet, so they show UNVERIFIED (#1404).
