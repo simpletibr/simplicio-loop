@@ -10,6 +10,7 @@ import { SlAlertToast } from '/static/components/index.js';
 import { createView } from '/static/live/view.js';
 import { boardOf } from '/static/live/board.js';
 import { createBoard } from '/static/live/board-view.js';
+import { nextRunId, rotationMs, runCommands, runUrl } from '/static/live/runs-nav.js';
 
 const SUMMARY_DEBOUNCE_MS = 250;
 const TICK_MS = 1000;
@@ -87,6 +88,9 @@ let selectedLane = null;
 let drillTarget = null;
 let drillOpener = null;
 let commandsSignature = '';
+// The runs of the last GET /api/runs: the palette jumps to them and the TV mode rotates through them.
+let knownRuns = [];
+let rotationTimer = null;
 // The on-demand artifacts the run has written, from the last run detail; null until the first detail arrives.
 let drillArtifactNames = null;
 
@@ -130,7 +134,7 @@ function dispatch(action) {
 }
 
 function syncPalette() {
-  const commands = selectCommands(shown);
+  const commands = selectCommands(shown).concat(runCommands(knownRuns, runId));
   const signature = JSON.stringify(commands);
   if (signature === commandsSignature) return;
   commandsSignature = signature;
@@ -231,6 +235,21 @@ function onKey(event) {
   else if (event.key === 'l') openDrill({ type: 'logs' });
 }
 
+function goToRun(id) {
+  window.location.assign(runUrl(window.location.pathname, window.location.search, id));
+}
+
+// TV mode: every interval the page moves to the next run. Reduced motion turns the rotation off.
+function startRotation() {
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const interval = rotationMs(window.location.search, reduced);
+  if (interval === null || rotationTimer !== null) return;
+  rotationTimer = setInterval(() => {
+    const next = nextRunId(knownRuns, runId);
+    if (next !== null) goToRun(next);
+  }, interval);
+}
+
 function runCommand(id) {
   const separator = id.indexOf(':');
   const kind = separator < 0 ? '' : id.slice(0, separator);
@@ -243,6 +262,8 @@ function runCommand(id) {
       selectedLane = laneId;
       openDrill({ type: 'lane', lane: laneId });
     }
+  } else if (kind === 'run') {
+    goToRun(value);
   } else if (kind === 'file') {
     const href = artifactHref(runId, value, token);
     if (href) window.open(href, '_blank', 'noopener');
@@ -384,6 +405,8 @@ async function loadBoard() {
     return;
   }
   const runs = Array.isArray(reply.runs) ? reply.runs : [];
+  knownRuns = runs;
+  syncPalette();
   boardView.render(boardOf(runs, Date.now()), { runId, token, pathname: window.location.pathname });
 }
 
@@ -391,6 +414,7 @@ function start() {
   if (token) {
     loadBoard();
     setInterval(loadBoard, BOARD_POLL_MS);
+    startRotation();
   }
   if (!token || !runId) {
     view.showMessage(token ? 'Informe o run na URL (parâmetro run).' : 'Abra o painel com o token na URL (parâmetro t).');
