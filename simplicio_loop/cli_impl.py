@@ -533,14 +533,17 @@ def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
             return
     if budget is None:
         try:
-            from .map_service_mapper import run_mapper_index
-            run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
+            from .map_service_mapper import run_mapper_index, MapperUnavailableError, materialize_project_map
+            envelope = run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
+            materialize_project_map(str(root), envelope)
+            
             if current_state is not None:
                 state_file.parent.mkdir(parents=True, exist_ok=True)
                 state_file.write_text(
                     json.dumps({"tree_state": current_state}, ensure_ascii=False), encoding="utf-8"
                 )
-        except Exception:
+        except (MapperUnavailableError, FileNotFoundError, OSError):
+            # Binary missing or path doesn't exist: swallowed, same policy as before
             pass
         return
     _ensure_project_map_bounded(root, project_map, state_file, current_state, budget)
