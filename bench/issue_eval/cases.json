@@ -1,0 +1,266 @@
+{
+  "schema": "simplicio.issue-eval/v1",
+  "description": "Fixed test cases for measuring PR success rate. Real resolved issues from simpletibr/simplicio-loop with base commits and diff stats.",
+  "cases": [
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1460,
+      "issue_title": "feat(dashboard): último comando, contrato por tarefa e modelo por lane (#1402)",
+      "base_commit": "12fee1a^",
+      "reference_pr": 1460,
+      "diff_stat": {
+        "additions": 627,
+        "deletions": 2,
+        "total_lines": 629
+      },
+      "size": "medium"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1459,
+      "issue_title": "fix(dashboard): axe regression on the queue panel, EN locale, README print (#1409)",
+      "base_commit": "4c87017^",
+      "reference_pr": 1459,
+      "diff_stat": {
+        "additions": 194,
+        "deletions": 13,
+        "total_lines": 207
+      },
+      "size": "small"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1458,
+      "issue_title": "feat(dashboard): mapa de worktrees e vínculo issue/PR na coordenação (#1407)",
+      "base_commit": "861a05c^",
+      "reference_pr": 1458,
+      "diff_stat": {
+        "additions": 1389,
+        "deletions": 20,
+        "total_lines": 1409
+      },
+      "size": "large"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1457,
+      "issue_title": "feat(flow): per-run flow diagram + Langflow 1.12.0 render fix (#1416)",
+      "base_commit": "617bca4^",
+      "reference_pr": 1457,
+      "diff_stat": {
+        "additions": 205,
+        "deletions": 175,
+        "total_lines": 380
+      },
+      "size": "small"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1456,
+      "issue_title": "feat(dashboard): testes instáveis por id e diff virtualizado (#1403)",
+      "base_commit": "62a0695^",
+      "reference_pr": 1456,
+      "diff_stat": {
+        "additions": 736,
+        "deletions": 19,
+        "total_lines": 755
+      },
+      "size": "medium"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1455,
+      "issue_title": "feat(dashboard): lease-expired and remaining stall alert rules (#1406)",
+      "base_commit": "268c2e8^",
+      "reference_pr": 1455,
+      "diff_stat": {
+        "additions": 331,
+        "deletions": 9,
+        "total_lines": 340
+      },
+      "size": "small"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1454,
+      "issue_title": "feat(dashboard): produtor de token_usage e custo estimado por run (#1404)",
+      "base_commit": "a2b3451^",
+      "reference_pr": 1454,
+      "diff_stat": {
+        "additions": 304,
+        "deletions": 5,
+        "total_lines": 309
+      },
+      "size": "small"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1453,
+      "issue_title": "fix(dashboard): --stop tolera pid ausente e --tui liga VT no Windows (#1401)",
+      "base_commit": "5c9cf2b^",
+      "reference_pr": 1453,
+      "diff_stat": {
+        "additions": 66,
+        "deletions": 1,
+        "total_lines": 67
+      },
+      "size": "small"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1452,
+      "issue_title": "test(live): cobertura de artefatos do inspetor (#1405)",
+      "base_commit": "fcb594a^",
+      "reference_pr": 1452,
+      "diff_stat": {
+        "additions": 60,
+        "deletions": 0,
+        "total_lines": 60
+      },
+      "size": "small"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1451,
+      "issue_title": "feat(dashboard): --tui em TTY real sai com q ou Ctrl-C (#1401)",
+      "base_commit": "00b5252^",
+      "reference_pr": 1451,
+      "diff_stat": {
+        "additions": 134,
+        "deletions": 3,
+        "total_lines": 137
+      },
+      "size": "small"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1450,
+      "issue_title": "test(live): e2e axe, performance budget and security review of the Live panel (#1409)",
+      "base_commit": "b0443ab^",
+      "reference_pr": 1450,
+      "diff_stat": {
+        "additions": 1570,
+        "deletions": 35,
+        "total_lines": 1605
+      },
+      "size": "large"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1449,
+      "issue_title": "feat(dashboard): painel de histórico, lições e snapshot de histórico (#1408, fatia 3)",
+      "base_commit": "dbecf4c^",
+      "reference_pr": 1449,
+      "diff_stat": {
+        "additions": 2217,
+        "deletions": 6,
+        "total_lines": 2223
+      },
+      "size": "large"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1448,
+      "issue_title": "docs(flow): Mermaid + Langflow diagram of the simplicio-loop flow",
+      "base_commit": "577c5c4^",
+      "reference_pr": 1448,
+      "diff_stat": {
+        "additions": 746,
+        "deletions": 0,
+        "total_lines": 746
+      },
+      "size": "medium"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1447,
+      "issue_title": "feat(dashboard): produtores de teste, lint, cobertura e diff por iteração (#1403)",
+      "base_commit": "98b40e1^",
+      "reference_pr": 1447,
+      "diff_stat": {
+        "additions": 2208,
+        "deletions": 25,
+        "total_lines": 2233
+      },
+      "size": "large"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1446,
+      "issue_title": "feat(dashboard): comparação de runs, tendências, heatmap e CSV (#1408, fatia 2)",
+      "base_commit": "56264d5^",
+      "reference_pr": 1446,
+      "diff_stat": {
+        "additions": 363,
+        "deletions": 6,
+        "total_lines": 369
+      },
+      "size": "small"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1445,
+      "issue_title": "feat(dashboard): orçamento com projeção e alerta, tokens por fase e modelo (#1404)",
+      "base_commit": "3e70acb^",
+      "reference_pr": 1445,
+      "diff_stat": {
+        "additions": 592,
+        "deletions": 18,
+        "total_lines": 610
+      },
+      "size": "medium"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1444,
+      "issue_title": "feat(dashboard): paleta pula para o run, rotação TV e diff de imagem de referência (#1402 4b-3)",
+      "base_commit": "b9ba41e^",
+      "reference_pr": 1444,
+      "diff_stat": {
+        "additions": 360,
+        "deletions": 5,
+        "total_lines": 365
+      },
+      "size": "small"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1443,
+      "issue_title": "feat(dashboard): fila, backlog e coordenação multiagente no Simplicio Live (#1407)",
+      "base_commit": "25d49d6^",
+      "reference_pr": 1443,
+      "diff_stat": {
+        "additions": 2426,
+        "deletions": 0,
+        "total_lines": 2426
+      },
+      "size": "large"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1442,
+      "issue_title": "feat(live): log virtualizado a 100 mil linhas e deep link de iteração (#1405)",
+      "base_commit": "64aa767^",
+      "reference_pr": 1442,
+      "diff_stat": {
+        "additions": 512,
+        "deletions": 23,
+        "total_lines": 535
+      },
+      "size": "medium"
+    },
+    {
+      "repo": "simpletibr/simplicio-loop",
+      "issue_number": 1441,
+      "issue_title": "feat(dashboard): dashboard.toml, notificação do navegador e webhook opt-in (#1406)",
+      "base_commit": "14ebc5f^",
+      "reference_pr": 1441,
+      "diff_stat": {
+        "additions": 428,
+        "deletions": 7,
+        "total_lines": 435
+      },
+      "size": "small"
+    }
+  ]
+}
