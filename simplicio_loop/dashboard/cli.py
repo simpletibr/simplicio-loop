@@ -326,10 +326,8 @@ def _port(value: str) -> int:
     return port
 
 
-def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog='simplicio-loop dashboard',
-        description='Simplicio Live: the run dashboard on 127.0.0.1, read-only and token-gated.')
+def add_arguments(parser: argparse.ArgumentParser) -> None:
+    '''Define every dashboard flag on ``parser``. cli_impl mounts these on its own dashboard subparser.'''
     parser.add_argument('--run', metavar='RUN_ID', help='run to show (default: the newest active run)')
     parser.add_argument('--repo', action='append', metavar='PATH',
                         help='repository root to watch; repeatable (default: the current directory)')
@@ -344,11 +342,9 @@ def _parser() -> argparse.ArgumentParser:
     modes.add_argument('--tui', action='store_true', help='stream a run in the terminal')
     parser.add_argument('--tokens', action='store_true',
                         help='open the legacy token monitor on port 9090; goes only with --port, --no-browser, --stop')
-    return parser
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+def run(args: argparse.Namespace) -> int:
     if args.tokens:
         if args.status or args.snapshot is not None or args.tui or args.run or args.repo:
             print('error: --tokens goes only with --port, --no-browser and --stop', file=sys.stderr)
@@ -364,6 +360,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.tui:
         return _tui(repos, args.run)
     return _serve(args.port, repos, args.run, not args.no_browser)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog='simplicio-loop dashboard',
+        description='Simplicio Live: the run dashboard on 127.0.0.1, read-only and token-gated.')
+    add_arguments(parser)
+    return run(parser.parse_args(argv))
 
 
 if __name__ == '__main__':
