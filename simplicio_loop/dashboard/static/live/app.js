@@ -10,6 +10,8 @@ import { SlAlertToast } from '/static/components/index.js';
 import { createView } from '/static/live/view.js';
 import { boardOf } from '/static/live/board.js';
 import { createBoard } from '/static/live/board-view.js';
+import { coordinationOf } from '/static/live/coordination.js';
+import { createCoordination } from '/static/live/coordination-view.js';
 
 const SUMMARY_DEBOUNCE_MS = 250;
 const TICK_MS = 1000;
@@ -28,6 +30,8 @@ if (params.get('tv') === '1') document.documentElement.dataset.tv = '1';
 
 const view = createView();
 const boardView = createBoard(document.getElementById('board'), document.getElementById('board-status'));
+const byId = (id) => document.getElementById(id);
+const coordView = createCoordination({ kanban: byId('coord-kanban'), dag: byId('coord-dag'), drain: byId('coord-drain'), slots: byId('coord-slots'), status: byId('coord-status') });
 const controller = new AbortController();
 let state = initialState(runId);
 let summaryTimer = null;
@@ -381,10 +385,18 @@ async function loadBoard() {
   boardView.render(boardOf(runs, Date.now()), { runId, token, pathname: window.location.pathname });
 }
 
+// Queue, DAG, drain and slots come from the frozen backlog; a failed read keeps the last render.
+async function loadCoordination() {
+  const reply = await readApi('/api/coordination');
+  if (reply !== null) coordView.render(coordinationOf(reply, Date.now()));
+}
+
 function start() {
   if (token) {
     loadBoard();
     setInterval(loadBoard, BOARD_POLL_MS);
+    loadCoordination();
+    setInterval(loadCoordination, BOARD_POLL_MS);
   }
   if (!token || !runId) {
     view.showMessage(token ? 'Informe o run na URL (parâmetro run).' : 'Abra o painel com o token na URL (parâmetro t).');
