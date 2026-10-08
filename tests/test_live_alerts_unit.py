@@ -27,7 +27,7 @@ def _node():
 
 SCRIPT = '''
 import fs from 'node:fs';
-import { activeAlerts, applyAlertFrame, connectionAlertsOf, diffAlerts, mergeAlerts } from %s;
+import { activeAlerts, applyAlertFrame, browserNotice, connectionAlertsOf, diffAlerts, mergeAlerts } from %s;
 import { createSseParser } from %s;
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 let out;
@@ -35,6 +35,7 @@ if (input.op === 'frame') out = applyAlertFrame(input.current, input.name, input
 else if (input.op === 'connection') out = connectionAlertsOf(input.connection);
 else if (input.op === 'merge') out = mergeAlerts(input.server, input.connection);
 else if (input.op === 'diff') out = diffAlerts(input.previous, input.current);
+else if (input.op === 'notice') out = browserNotice(input.alert, input.settings, input.permission, input.silenced, input.now);
 else if (input.op === 'active') out = activeAlerts(input.alerts, input.silenced, input.now);
 else out = createSseParser().push(input.text);
 process.stdout.write(JSON.stringify(out));
@@ -125,3 +126,23 @@ def test_the_app_wires_the_server_alert_frames_and_the_merge():
     text = (LIVE / 'app.js').read_text(encoding='utf-8')
     for needle in ('applyAlertFrame', 'mergeAlerts', 'onAlert', 'alert_snapshot'):
         assert needle in text, needle
+
+
+def _notice(settings, permission='granted', silenced=None, now=1000):
+    return _call({'op': 'notice', 'alert': GATE, 'settings': settings, 'permission': permission,
+                  'silenced': silenced or {}, 'now': now})
+
+
+def test_browser_notice_needs_the_config_flag_and_the_permission():
+    on = {'browser_notifications': True, 'webhook': False}
+    assert _notice(on) == {'title': GATE['heading'], 'body': GATE['why'], 'tag': GATE['id']}
+    assert _notice({'browser_notifications': False}) is None
+    assert _notice(None) is None
+    assert _notice(on, permission='default') is None
+    assert _notice(on, permission='denied') is None
+
+
+def test_browser_notice_skips_a_silenced_alert():
+    on = {'browser_notifications': True}
+    assert _notice(on, silenced={GATE['id']: 2000}) is None
+    assert _notice(on, silenced={GATE['id']: 500}) is not None

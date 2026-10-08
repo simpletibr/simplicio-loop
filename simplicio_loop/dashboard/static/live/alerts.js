@@ -68,3 +68,11 @@ export function diffAlerts(previous, current) {
 export function activeAlerts(alerts, silenced, now) {
   return alerts.filter((alert) => !(Object.hasOwn(silenced, alert.id) && silenced[alert.id] > now));
 }
+
+// The browser notification for a newly raised alert, or null. Opt-in twice: dashboard.toml turns it on and the
+// user grants the permission. A silenced alert never notifies. The tag makes a repeat replace the earlier one.
+export function browserNotice(alert, settings, permission, silenced, now) {
+  if (!settings || settings.browser_notifications !== true || permission !== 'granted') return null;
+  if (Object.hasOwn(silenced, alert.id) && silenced[alert.id] > now) return null;
+  return { title: alert.heading, body: alert.why, tag: alert.id };
+}
