@@ -28,6 +28,7 @@ Neither module writes to a run. The only file the dashboard writes is its state 
 | GET | `/api/runs/{id}/config` | opt-in flags from `dashboard.toml` (`browser_notifications`, `webhook`); never the URL |
 | GET | `/api/runs/{id}/artifacts/{path}` | bytes of one artifact with secrets masked; 403, 404 or 413 on refusal |
 | GET | `/api/queue` | queued work items (UNVERIFIED data source) |
+| GET | `/api/coordination` | backlog as kanban columns, dependency edges, drain progress and worker slots (see below) |
 | GET | `/api/agents` | agents and models (UNVERIFIED) |
 | GET | `/api/tokens` | token usage (UNVERIFIED) |
 | GET | `/` | Simplicio Live Pipeline vivo page (HTML); needs the token `t`, else 401 |
@@ -262,6 +263,15 @@ The cost row shows "Estimado". The budget row shows "Estimado" for a projection 
 `token_usage` and `cost_sample` stay reserved kinds with no producer (see [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md)). Page data: `/api/tokens` carries the price table as `pricing`, and `/api/agents` carries the contract roles.
 
 Budget slice (#1404): `simplicio_loop/dashboard/budget.py` reads the declared limits, sums the usage events and projects. The alert rules `budget-projected:<tokens|usd|seconds>` (warning, the projection passes the limit) and `budget-exceeded:<...>` (critical, measured use passed it) run in the alert watch. A dimension with no declared limit, no measured use or no phase progress is UNVERIFIED. Still deferred to issue #1404: the token producer (no `token_usage` writer exists, so tokens and USD stay UNVERIFIED on a real run), cost per run, task and iteration. The last-10 comparison is done on top of the #1408 reader. The decisions were: the price table lives in the repo; no token producer in this round; agent roles come from the stage contract.
+
+## Coordination (`/api/coordination`)
+
+Read-only, token-gated like `/api/queue`. The source is the backlog JSONL: `$SIMPLICIO_BACKLOG_FILE` when set, else `<repo>/.simplicio-loop/orchestrator/backlog/backlog.jsonl` for the first watched repo. The builder is `simplicio_loop/dashboard/coordination.py` (`build_coordination`).
+
+- `status` is `MEASURED` when the backlog is read. It is `UNVERIFIED` when the file is missing or unreadable, with a `reason`, six zero-count columns, and empty `items`, `edges` and `slots`. The route still returns 200.
+- `columns` always lists `ready`, `claimed`, `running`, `verifying`, `done` and `blocked`, in that order. A `ready` item whose dependencies are not done is shown in `blocked`, with `blocked_by` naming those dependencies.
+- `items` carry `column`, `blocked_by` and `lease` (`null`, or `state` `live`, `stale` or `expired`). `edges` link a dependency to its dependent, with `satisfied`.
+- `drain` shows `total`, `done`, `remaining`, `blocked` and `percent`. `eta_s` is set only from at least two done items with timestamps. Otherwise it is `null` with `eta_label` `UNVERIFIED`.
 
 ## Unverified (UNVERIFIED)
 

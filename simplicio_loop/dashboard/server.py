@@ -311,6 +311,25 @@ def _queue(server: Any) -> dict[str, Any]:
     return {'queue': active}
 
 
+BACKLOG_PARTS = ('.simplicio-loop', 'orchestrator', 'backlog', 'backlog.jsonl')
+
+
+def _backlog_path(server: Any) -> str:
+    '''The backlog JSONL: $SIMPLICIO_BACKLOG_FILE, else the first watched repo's default; '' when no repo is watched.'''
+    override = os.environ.get('SIMPLICIO_BACKLOG_FILE')
+    if override:
+        return override
+    if not server.repos:
+        return ''
+    return str(Path(server.repos[0]).joinpath(*BACKLOG_PARTS))
+
+
+def _coordination(server: Any) -> dict[str, Any]:
+    '''Read-only work-coordination view of the backlog; the builder is imported lazily.'''
+    from simplicio_loop.dashboard import coordination
+    return coordination.build_coordination(_backlog_path(server))
+
+
 def _budget(server: Any, ref: dict[str, Any]) -> dict[str, Any]:
     '''Budget and usage of one run, plus its comparison with the previous runs from the history reader.'''
     payload = budget.report(ref['run_dir'], dashboard_events.read_events(ref['run_dir']))
@@ -334,6 +353,8 @@ def _api(server: Any, path: str, query: Mapping[str, str]) -> Any:
         return _history(server, path, query)
     if path == '/api/queue':
         return _queue(server)
+    if path == '/api/coordination':
+        return _coordination(server)
     if path == '/api/agents':
         return _agents()
     if path == '/api/tokens':

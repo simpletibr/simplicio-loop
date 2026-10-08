@@ -10,6 +10,7 @@ import { SlAlertToast } from '/static/components/index.js';
 import { createView } from '/static/live/view.js';
 import { boardOf } from '/static/live/board.js';
 import { createBoard } from '/static/live/board-view.js';
+import { startCoordination } from '/static/coordination/boot.js';
 import { startHistory } from '/static/history/history-page.js';
 import { nextRunId, rotationMs, runCommands, runUrl } from '/static/live/runs-nav.js';
 
@@ -442,6 +443,7 @@ function start() {
   if (token) {
     loadBoard();
     setInterval(loadBoard, BOARD_POLL_MS);
+    startCoordination(readApi);
     startHistory(readApi, setText);
     startRotation();
   }
