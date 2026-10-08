@@ -17,6 +17,7 @@ Neither module writes to a run. The only file the dashboard writes is its state 
 |---|---|---|
 | GET | `/api/health` | liveness and version |
 | GET | `/api/runs` | `{"runs": [...]}` summaries, newest `updated_at` first; filters `status`, `repo`, `since` |
+| GET | `/api/history` | `{"history": [...]}` one `simplicio.dashboard-history/v1` record per past run (verdict from `run-outcome.json`, `duration_s`, `iterations`, `stalls`, `tokens`, `cost_usd`, `phase_durations_s`), newest `started_at` first; filters `verdict`, `repo`, `since`, `until`, `min_/max_duration_s`, `min_/max_iterations`, `min_/max_cost_usd`, `limit`; a bad value is 400. Unmeasured fields are `null`, and a filter on one excludes the run |
 | GET | `/api/runs/{id}` | summary, `state.json`, `manifest.json`, `plan.json`, and a receipt index (name and size only) |
 | GET | `/api/runs/{id}/events` | SSE stream of the run's events (see SSE contract) |
 | GET | `/api/runs/{id}/artifacts/{path}` | bytes of one artifact with secrets masked; 403, 404 or 413 on refusal |
