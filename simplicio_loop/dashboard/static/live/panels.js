@@ -118,8 +118,15 @@ function economyNote(economy) {
   return ECONOMY_ESTIMATE + ' Modelo ativo: ' + [active.provider, active.model].filter(Boolean).join(' ') + '.';
 }
 
+// The agent map names the roles the contract declares, so the reader sees who is expected before any instance exists.
+function agentDetail(row) {
+  if (!Array.isArray(row.roles) || row.roles.length === 0) return row.reason;
+  const titles = row.roles.map((role) => role.title || role.role_id).join(', ');
+  return row.reason + ' Papéis declarados (' + row.roles.length + '): ' + titles + '.';
+}
+
 function agentRows(rows) {
-  return rows.map((row) => ({ key: row.key, label: row.label, state: row.state, detail: row.reason, ref: null }));
+  return rows.map((row) => ({ key: row.key, label: row.label, state: row.state, detail: agentDetail(row), ref: null }));
 }
 
 // Writes the economy panel through attributes and text only. The gauge segments property is set by the caller.
