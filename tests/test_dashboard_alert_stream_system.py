@@ -111,3 +111,45 @@ def test_a_reconnect_replays_the_alerts_that_are_still_active(running):
         conn.close()
     assert name == 'alert_snapshot'
     assert [alert['id'] for alert in payload['alerts']] == ['gate-failing:evidence']
+
+
+# Latency (issue #1406, the 2-second target): the time from the event being written to its alert frame arriving.
+LATENCY_LIMIT_S = 2.0
+CYCLES = 5
+
+
+def _latency_run(tmp_path, status):
+    root = Path(tempfile.mkdtemp(dir=tmp_path)) / 'repo'
+    run_dir = root / '.simplicio-loop' / 'loop-runs' / RUN
+    run_dir.mkdir(parents=True)
+    (run_dir / 'state.json').write_text(json.dumps({'run_id': RUN, 'status': status, 'phase': 'executing',
+                                                   'repo': str(root)}), encoding='utf-8')
+    emitter = load()
+    emitter.emit(run_dir, 'phase_entered', source='runner', phase='executing', strict=True)
+    return root, run_dir, emitter
+
+
+@pytest.mark.parametrize('status', ['running', 'done'])
+def test_an_alert_frame_arrives_within_two_seconds_after_the_event(tmp_path, status):
+    import time
+    _, run_dir, emitter = _latency_run(tmp_path, status)
+    handle = server.start(repo_root=str(run_dir.parents[2]), host='127.0.0.1', port=0, token=TOKEN)
+    latencies = []
+    try:
+        conn, resp = _open(handle.port)
+        try:
+            assert _alert_frame(resp)[0] == 'alert_snapshot'
+            for _ in range(CYCLES):
+                started = time.monotonic()
+                _gate(emitter, run_dir, 'evidence', 'fail', 'teste falhou')
+                assert _alert_frame(resp)[0] == 'alert_raised'
+                latencies.append(time.monotonic() - started)
+                started = time.monotonic()
+                _gate(emitter, run_dir, 'evidence', 'pass')
+                assert _alert_frame(resp)[0] == 'alert_cleared'
+                latencies.append(time.monotonic() - started)
+        finally:
+            conn.close()
+    finally:
+        handle.stop()
+    assert max(latencies) < LATENCY_LIMIT_S, ('status=%s latencies=%s' % (status, [round(v, 3) for v in latencies]))
