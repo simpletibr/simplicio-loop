@@ -1,0 +1,105 @@
+/* Simplicio Live pipeline page: layout only; colours and type come from the simplicio-live.css tokens. */
+.live-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sl-space-2);
+  padding: var(--sl-space-3) 16px 0;
+}
+.live-head h1 {
+  margin: 0;
+  font-size: var(--sl-step-2);
+  line-height: var(--sl-leading-tight);
+}
+.run-id {
+  margin: 0;
+  min-width: 0;
+  color: var(--sl-ink-muted);
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-step--1);
+  overflow-wrap: anywhere;
+}
+.live-main {
+  display: grid;
+  gap: var(--sl-space-3);
+  padding: var(--sl-space-3) 16px var(--sl-space-6);
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 900px) {
+  .live-main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rail-panel { grid-column: 1 / -1; }
+}
+.panel {
+  min-width: 0;
+  padding: var(--sl-space-3);
+  border: 1px solid var(--sl-line);
+  border-radius: var(--sl-radius-panel);
+  background: var(--sl-panel);
+}
+.panel h2 {
+  margin: 0 0 var(--sl-space-2);
+  font-size: var(--sl-step-0);
+}
+#ring {
+  display: block;
+  max-width: 100%;
+}
+.phase-stats {
+  display: grid;
+  gap: var(--sl-space-1);
+  margin: var(--sl-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--sl-step--1);
+}
+.phase-stats li {
+  overflow-wrap: anywhere;
+  color: var(--sl-ink-muted);
+}
+.phase-stats li[data-state=current] {
+  color: var(--sl-ink);
+  font-weight: var(--sl-weight-strong);
+}
+.agora p {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 var(--sl-space-2);
+}
+.agora span {
+  color: var(--sl-ink-muted);
+  font-size: var(--sl-step--1);
+}
+.agora strong {
+  font-weight: var(--sl-weight-strong);
+  overflow-wrap: anywhere;
+}
+.gates {
+  display: grid;
+  gap: var(--sl-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gates li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sl-space-2);
+}
+.gates time {
+  color: var(--sl-ink-muted);
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-step--1);
+}
+.kpis {
+  display: grid;
+  gap: var(--sl-space-3);
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 600px) {
+  .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+#empty {
+  margin: 0;
+  color: var(--sl-ink-muted);
+}

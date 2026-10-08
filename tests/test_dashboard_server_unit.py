@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+CSP = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
 TOKEN = 'correct-horse-battery-staple'
 LOCAL = {'Host': '127.0.0.1:8765', 'Origin': 'http://127.0.0.1:8765'}
 

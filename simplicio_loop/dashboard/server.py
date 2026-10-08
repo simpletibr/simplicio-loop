@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from simplicio_loop import __version__
-from simplicio_loop.dashboard import runs
+from simplicio_loop.dashboard import STATIC_DIR, runs
 from simplicio_loop.dashboard.tail import EventTail
 
 HOST = '127.0.0.1'
@@ -40,11 +40,19 @@ HEARTBEAT_SECONDS = 15.0
 RETRY_MS = 1000
 EXEMPT_PATHS = frozenset({'/api/health'})
 TERMINAL_STATUSES = frozenset({'done', 'failed', 'cancelled'})
-CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+CSP = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
 _CURSOR_RE = re.compile(r'[0-9]{1,18}')
 _EVENTS_RE = re.compile(r'/api/runs/([^/]+)/events')
 _ARTIFACT_RE = re.compile(r'/api/runs/([^/]+)/artifacts/(.+)')
 _DETAIL_RE = re.compile(r'/api/runs/([^/]+)')
+STATIC_TYPES = {
+    '.js': 'text/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.html': 'text/html; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.txt': 'text/plain; charset=utf-8',
+    '.woff2': 'font/woff2',
+}
 
 
 def security_headers() -> dict[str, str]:
@@ -96,6 +104,11 @@ def _host_allowed(host: str, port: int | None) -> bool:
     return given == str(port)
 
 
+def _is_public(path: str) -> bool:
+    '''Paths served without the token: the health probe and the static kit, which holds no run data.'''
+    return path in EXEMPT_PATHS or path.startswith('/static/')
+
+
 def guard(method: str, path: str, headers: Any, query: Mapping[str, str], token: str,
           port: int | None = None) -> int:
     '''Gate for one request: 403 (Host, Origin), 401 (token), 405 (not GET), else 200.'''
@@ -105,7 +118,7 @@ def guard(method: str, path: str, headers: Any, query: Mapping[str, str], token:
     origin = _header(headers, 'Origin')
     if origin is not None and origin != 'http://' + host:
         return 403
-    if path not in EXEMPT_PATHS and not token_matches(extract_token(query, headers), token):
+    if not _is_public(path) and not token_matches(extract_token(query, headers), token):
         return 401
     return 200 if method == 'GET' else 405
 
@@ -242,20 +255,6 @@ class _Server(http.server.ThreadingHTTPServer):
         self.server_port = int(self.server_address[1])
 
 
-SHELL_HTML = '''<!doctype html>
-<html lang=en>
-<head>
-<meta charset=utf-8>
-<title>Simplicio Live</title>
-</head>
-<body>
-<h1>Simplicio Live</h1>
-<p>Local run monitor. The read API lives under /api/.</p>
-</body>
-</html>
-'''
-
-
 class _Handler(http.server.BaseHTTPRequestHandler):
     '''One request: guard, then route. Every response carries security_headers().'''
 
@@ -285,8 +284,11 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._send_json(exc.status, {'error': exc.__class__.__name__})
 
     def _route(self, raw_path: str, query: dict[str, str]) -> None:
+        if raw_path.startswith('/static/'):
+            self._static(raw_path[len('/static/'):])
+            return
         if raw_path == '/':
-            self._send(200, SHELL_HTML.encode('utf-8'), 'text/html; charset=utf-8')
+            self._send(200, (STATIC_DIR / 'live' / 'index.html').read_bytes(), 'text/html; charset=utf-8')
             return
         events = _EVENTS_RE.fullmatch(raw_path)
         if events:
@@ -297,6 +299,22 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._artifact(urllib.parse.unquote(artifact.group(1)), artifact.group(2))
             return
         self._send_json(200, _api(self.server, raw_path, query))
+
+    def _static(self, encoded: str) -> None:
+        rel = urllib.parse.unquote(encoded)
+        if any(part in ('', '.', '..') for part in rel.split('/')) or '\\' in rel or '\x00' in rel:
+            raise HttpError(403, 'forbidden path')
+        ctype = STATIC_TYPES.get(os.path.splitext(rel)[1].lower())
+        if ctype is None:
+            raise HttpError(404, 'no such file')
+        root = STATIC_DIR.resolve()
+        try:
+            target = (root / rel).resolve(strict=True)
+        except (OSError, RuntimeError):
+            raise HttpError(404, 'no such file') from None
+        if root not in target.parents or not target.is_file():
+            raise HttpError(404, 'no such file')
+        self._send(200, target.read_bytes(), ctype)
 
     def _artifact(self, run_id: str, rel: str) -> None:
         ref = _find_run(self.server, run_id)
