@@ -47,7 +47,8 @@ def _alert(alert_id: str, rule: str, severity: str, heading: str, why: str, ref:
 class AlertWatch:
     '''The alerts active for one event stream. Feed it events in order with update().'''
 
-    def __init__(self, budget: dict[str, Any] | None = None) -> None:
+    def __init__(self, silence_ms: int = SILENCE_MS, budget: dict[str, Any] | None = None) -> None:
+        self.silence_ms = silence_ms
         self.budget = budget or {}
         self.used: dict[str, float | None] = {'tokens': None, 'usd': None, 'seconds': None}
         self.first_ms: int | None = None
@@ -129,7 +130,7 @@ class AlertWatch:
             if verdict == 'fail':
                 found.append(_alert('gate-failing:' + gate, 'gate-failing', 'warning', 'Gate falhando: ' + gate,
                                     message or NO_REASON, {'type': 'logs'}))
-        if self.last_ms is not None and now_ms - self.last_ms > SILENCE_MS:
+        if self.last_ms is not None and now_ms - self.last_ms > self.silence_ms:
             minutes = round((now_ms - self.last_ms) / 60000)
             label = self.phase or 'sem fase'
             ref = {'type': 'phase', 'phase': self.phase} if self.phase else {'type': 'logs'}

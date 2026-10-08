@@ -4,7 +4,7 @@ import { initialState, reduce, selectCommands, selectDrill, selectView } from '/
 import { artifactHref, renderDrill, setText } from '/static/live/lanes.js';
 import { bindTabs, createDrillLists } from '/static/live/drill-tabs.js';
 import { deepLinkOf, parseDeepLink } from '/static/live/deeplink.js';
-import { activeAlerts, applyAlertFrame, diffAlerts, mergeAlerts } from '/static/live/alerts.js';
+import { activeAlerts, applyAlertFrame, browserNotice, diffAlerts, mergeAlerts } from '/static/live/alerts.js';
 import { createAlertList } from '/static/live/alerts-view.js';
 import { SlAlertToast } from '/static/components/index.js';
 import { createView } from '/static/live/view.js';
@@ -64,6 +64,8 @@ const silencedAlerts = {};
 let alertIds = null;
 // The run alerts the server sent, by id: the snapshot replaces them, raised and cleared frames change them.
 let serverAlerts = {};
+// The opt-in settings from dashboard.toml (/config); null until read, and the page then keeps every extra off.
+let alertSettings = null;
 const alertList = createAlertList({
   toggle: document.getElementById('alerts-toggle'),
   list: document.getElementById('alerts-list'),
@@ -109,6 +111,7 @@ function render() {
   for (const alert of alerts) {
     if (change.raised.includes(alert.id)) {
       SlAlertToast.notify({ state: alert.severity === 'critical' ? 'STALLED' : 'UNVERIFIED', heading: alert.heading, message: alert.why });
+      notifyBrowser(alert, now);
     }
   }
   alertIds = ids;
@@ -393,6 +396,30 @@ async function loadBudget() {
 }
 
 // The stage-agents roles come from the contract, which does not change while the page is open: one read per page.
+// Browser notifications are opt-in twice: dashboard.toml turns them on, then the user grants the permission.
+function notifyBrowser(alert, now) {
+  if (typeof Notification === 'undefined') return;
+  const notice = browserNotice(alert, alertSettings, Notification.permission, silencedAlerts, now);
+  if (notice === null) return;
+  try {
+    new Notification(notice.title, { body: notice.body, tag: notice.tag });
+  } catch (error) {
+    // A browser that refuses the constructor keeps the toast and the alert center.
+  }
+}
+
+async function loadAlertSettings() {
+  alertSettings = await readApi(runPath() + '/config');
+  const button = document.getElementById('alerts-notify');
+  const ask = alertSettings !== null && alertSettings.browser_notifications === true
+    && typeof Notification !== 'undefined' && Notification.permission === 'default';
+  button.hidden = !ask;
+  button.addEventListener('click', async () => {
+    await Notification.requestPermission();
+    button.hidden = true;
+  }, { once: true });
+}
+
 async function loadAgents() {
   dispatch({ type: 'agents', response: await readApi('/api/agents') });
 }
@@ -431,6 +458,7 @@ function start() {
   loadBudget();
   setInterval(loadBudget, TOKENS_POLL_MS);
   loadAgents();
+  loadAlertSettings();
   applyHash();
   window.addEventListener('hashchange', applyHash);
   connectStream({
