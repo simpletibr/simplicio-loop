@@ -38,15 +38,17 @@ def to_mermaid(flow: dict) -> str:
 def to_langflow(flow: dict) -> str:
     nodes = []
     for i, n in enumerate(flow["nodes"]):
+        nxt = ", ".join(e[1] for e in flow["edges"] if e[0] == n["id"])
         nodes.append({
-            "id": n["id"], "type": "genericNode",
+            "id": n["id"], "type": "noteNode", "width": 240, "height": 110,
             "position": {"x": 260 * (i % 6), "y": 160 * (i // 6)},
-            "data": {"id": n["id"], "type": "Note",
-                     "node": {"display_name": n["label"], "description": f'{n["kind"]} · {n["source"]}',
-                              "template": {}}},
+            "data": {"id": n["id"], "type": "note",
+                     "node": {"display_name": n["label"], "description": f'{n["kind"]} · {n["source"]}' + (f" · next: {nxt}" if nxt else ""),
+                              "documentation": "", "template": {}}},
         })
-    edges = [{"id": f"e_{e[0]}_{e[1]}", "source": e[0], "target": e[1], "label": e[2] if len(e) > 2 else ""}
-             for e in flow["edges"]]
+    # note nodes have no handles: handle-less edges make the Langflow canvas render nothing,
+    # so the edge order is carried in each note's description ("next: ...") instead.
+    edges: list = []
     doc = {"name": flow["title"], "description": f'Generated from {FLOW.name} ({flow["schema"]})',
            "data": {"nodes": nodes, "edges": edges, "viewport": {"x": 0, "y": 0, "zoom": 0.6}}}
     return json.dumps(doc, indent=2, sort_keys=True) + "\n"

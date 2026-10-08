@@ -60,3 +60,16 @@ def test_run_cli_writes_diagram_next_to_report(tmp_path):
                               "--progress", str(tmp_path / "nope.json"), "--out", str(out)],
                              capture_output=True, text=True)
     assert missing.returncode == 4 and json.loads(missing.stdout)["status"] == "blocked"
+
+
+def test_langflow_nodes_use_the_note_node_type_the_langflow_canvas_renders():
+    doc = json.loads(flow_gen.to_langflow(flow_gen.load()))
+    assert {n["type"] for n in doc["data"]["nodes"]} == {"noteNode"}
+    assert all(n["data"]["type"] == "note" for n in doc["data"]["nodes"])
+
+
+def test_langflow_carries_edge_order_in_descriptions_not_handleless_edges():
+    doc = json.loads(flow_gen.to_langflow(flow_gen.load()))
+    assert doc["data"]["edges"] == []
+    pre = next(n for n in doc["data"]["nodes"] if n["id"] == "preflight")
+    assert "next: survey" in pre["data"]["node"]["description"]
