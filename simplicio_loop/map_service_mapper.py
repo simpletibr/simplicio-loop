@@ -73,14 +73,14 @@ def materialize_project_map(root: str, envelope: dict) -> Path:
     git exclude. Returns final path. Raises MapperIndexError if file missing anywhere.
     """
     resolved = str(Path(root).expanduser().resolve(strict=True))
-    project_map_path_str = envelope.get("paths", {}).get("project_map")
-    if not project_map_path_str:
-        raise MapperIndexError("simplicio-mapper index envelope missing paths.project_map")
-    
-    project_map_path = Path(project_map_path_str)
     expected_path = Path(resolved) / ".simplicio-loop" / "project-map.json"
     
-    # Check if file exists at envelope path or expected path
+    project_map_path_str = envelope.get("paths", {}).get("project_map")
+    if project_map_path_str:
+        project_map_path = Path(project_map_path_str)
+    else:
+        project_map_path = expected_path
+    
     if not project_map_path.is_file() and not expected_path.is_file():
         raise MapperIndexError(
             "simplicio-mapper index reported success but %s does not exist" % project_map_path
