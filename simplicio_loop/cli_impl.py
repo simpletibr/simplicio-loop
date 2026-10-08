@@ -533,14 +533,31 @@ def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
             return
     if budget is None:
         try:
-            from .map_service_mapper import run_mapper_index
-            run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
+            from .map_service_mapper import run_mapper_index, MapperUnavailableError
+            envelope = run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
+            
+            # Get the actual path from the mapper envelope
+            mapper_output_path_str = envelope.get("paths", {}).get("project_map")
+            if mapper_output_path_str:
+                mapper_output_path = Path(mapper_output_path_str)
+                # If mapper wrote to a different location, copy it to the expected location
+                if mapper_output_path != project_map:
+                    project_map.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(str(mapper_output_path), str(project_map))
+                    # Clean up the original directory if it's outside .simplicio-loop/
+                    original_dir = mapper_output_path.parent
+                    try:
+                        shutil.rmtree(str(original_dir))
+                    except (OSError, FileNotFoundError):
+                        pass
+            
             if current_state is not None:
                 state_file.parent.mkdir(parents=True, exist_ok=True)
                 state_file.write_text(
                     json.dumps({"tree_state": current_state}, ensure_ascii=False), encoding="utf-8"
                 )
-        except Exception:
+        except MapperUnavailableError:
+            # Binary missing: swallowed, same policy as before
             pass
         return
     _ensure_project_map_bounded(root, project_map, state_file, current_state, budget)
