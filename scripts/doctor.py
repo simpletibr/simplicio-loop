@@ -443,7 +443,82 @@ def chk_map_service():
             "msg": "map receipt valid (fallback=%s)" % payload.get("fallback", False)}
 
 
+
+def chk_installed_skills_freshness():
+    """Check if installed skills match the package version (issue #1472).
+    
+    This is OPTIONAL: missing or stale skills don't block the loop.
+    `--repair` syncs installed skills from the package.
+    """
+    try:
+        import sys
+        sys.path.insert(0, str(REPO / "scripts"))
+        from install_lib import compute_skill_digest, get_installed_skill_hosts
+    except Exception as exc:
+        return dict(name="installed skills freshness", tier="OPTIONAL",
+                    status=WARN, msg="check unavailable: %s" % exc, repair=None)
+    
+    hosts = get_installed_skill_hosts()
+    if not hosts:
+        return dict(name="installed skills freshness", tier="OPTIONAL",
+                    status=OK, msg="no hosts with installed skills",
+                    repair=None)
+    
+    stale_skills = []
+    for host, target_base in sorted(hosts.items()):
+        try:
+            pkg_digest = compute_skill_digest("simplicio-loop", skill_root=str(REPO))
+            
+            if host == "vscode":
+                installed_path = Path(target_base) / "simplicio-loop"
+            elif host in ("grok", "agents"):
+                installed_path = Path(target_base) / ("." + host) / "skills" / "simplicio-loop"
+            elif host == "kiro":
+                installed_path = Path(target_base) / ".kiro" / "steering" / "simplicio-loop"
+            elif host in ("simplicio_agent", "hermes"):
+                installed_path = Path(target_base) / ".simplicio-loop" / "skills" / "simplicio-loop"
+            elif host == "opencode":
+                installed_path = Path(target_base) / ".config" / "opencode" / "skills" / "simplicio-loop"
+            elif host == "amp":
+                installed_path = Path(target_base) / ".config" / "amp" / "skills" / "simplicio-loop"
+            else:
+                installed_path = Path(target_base) / ("." + host) / "skills" / "simplicio-loop"
+            
+            if not installed_path.is_dir():
+                stale_skills.append((host, "not installed"))
+                continue
+            
+            import sys
+            sys.path.insert(0, str(REPO / "scripts"))
+            from install_lib import compute_skill_digest as csd
+            inst_digest = csd("simplicio-loop", skill_root=str(installed_path.parent.parent.parent))
+            
+            if pkg_digest and inst_digest and pkg_digest != inst_digest:
+                stale_skills.append((host, "stale"))
+        except Exception as e:
+            stale_skills.append((host, str(e)[:30]))
+    
+    def repair():
+        try:
+            import sys
+            sys.path.insert(0, str(REPO / "scripts"))
+            from install_lib import resync_installed_skills
+            report = resync_installed_skills(verbose=False)
+            return len(report.get("errors", [])) == 0
+        except Exception as e:
+            return False
+    
+    if not stale_skills:
+        return dict(name="installed skills freshness", tier="OPTIONAL",
+                    status=OK, msg="all installed skills up-to-date",
+                    repair=None)
+    else:
+        msg = "stale in: " + ", ".join(h for h, _ in stale_skills)
+        return dict(name="installed skills freshness", tier="OPTIONAL",
+                    status=WARN, msg=msg, repair=repair)
+
 CHECKS = [chk_python, chk_operators, chk_mapper_capabilities, chk_skills,
+          chk_installed_skills_freshness,
           chk_hooks, chk_git_precommit_hook, chk_git_prepush_hook, chk_proxy, chk_wire,
           chk_tray_dep, check_vscode_global, chk_map_service, chk_release_version]
 

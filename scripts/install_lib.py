@@ -182,6 +182,101 @@ def vscode_user_level_dirs(home):
     return {"skills": skills, "mcp": mcp, "settings": settings, "user_dir": user_dir}
 
 
+
+def compute_skill_digest(skill_name: str, skill_root: str = None) -> str:
+    """Compute SHA256 digest of a skill directory to detect changes."""
+    import hashlib
+    root = skill_root if skill_root else SOURCE
+    skill_path = os.path.join(root, ".claude", "skills", skill_name)
+    
+    if not os.path.isdir(skill_path):
+        return ""
+    
+    h = hashlib.sha256()
+    for dirpath, dirnames, filenames in os.walk(skill_path):
+        dirnames.sort()
+        for fname in sorted(filenames):
+            fpath = os.path.join(dirpath, fname)
+            try:
+                with open(fpath, "rb") as f:
+                    h.update(f.read())
+            except OSError:
+                pass
+    return h.hexdigest()
+
+
+def get_installed_skill_hosts() -> dict:
+    """Detect which hosts already have skills installed."""
+    from pathlib import Path
+    home = Path(HOME)
+    hosts = {}
+    
+    if (home / ".claude" / "skills" / "simplicio-loop").is_dir():
+        hosts["claude"] = str(home)
+    if (home / ".cursor" / "skills" / "simplicio-loop").is_dir():
+        hosts["cursor"] = str(home)
+    if (home / ".codex" / "skills" / "simplicio-loop").is_dir():
+        hosts["codex"] = str(home)
+    if (home / ".grok" / "skills" / "simplicio-loop").is_dir():
+        hosts["grok"] = str(home)
+    if (home / ".vscode" / "simplicio-skills" / "simplicio-loop").is_dir():
+        hosts["vscode"] = str(home / ".vscode" / "simplicio-skills")
+    if (home / ".agents" / "skills" / "simplicio-loop").is_dir():
+        hosts["agents"] = str(home)
+    if (home / ".copilot" / "skills" / "simplicio-loop").is_dir():
+        hosts["copilot"] = str(home)
+    if (home / ".antigravity" / "skills" / "simplicio-loop").is_dir():
+        hosts["antigravity"] = str(home)
+    if (home / ".kiro" / "steering" / "simplicio-loop").is_dir():
+        hosts["kiro"] = str(home)
+    if (home / ".hermes" / "skills" / "simplicio-loop").is_dir():
+        hosts["hermes"] = str(home)
+    if (home / ".simplicio-loop" / "skills" / "simplicio-loop").is_dir():
+        hosts["simplicio_agent"] = str(home)
+    if (home / ".config" / "opencode" / "skills" / "simplicio-loop").is_dir():
+        hosts["opencode"] = str(home)
+    if (home / ".config" / "amp" / "skills" / "simplicio-loop").is_dir():
+        hosts["amp"] = str(home)
+    
+    return hosts
+
+
+def resync_installed_skills(verbose: bool = False) -> dict:
+    """Resync installed skills from the package source after an upgrade."""
+    hosts = get_installed_skill_hosts()
+    report = {"synced": [], "errors": []}
+    
+    for host, target_base in hosts.items():
+        try:
+            if host == "vscode":
+                skills_dst = target_base
+            elif host == "grok":
+                skills_dst = os.path.join(target_base, ".grok", "skills")
+            elif host == "agents":
+                skills_dst = os.path.join(target_base, ".agents", "skills")
+            elif host == "kiro":
+                skills_dst = os.path.join(target_base, ".kiro", "steering")
+            elif host in ("simplicio_agent", "hermes"):
+                skills_dst = os.path.join(target_base, ".simplicio-loop", "skills")
+            elif host == "opencode":
+                skills_dst = os.path.join(target_base, ".config", "opencode", "skills")
+            elif host == "amp":
+                skills_dst = os.path.join(target_base, ".config", "amp", "skills")
+            else:
+                skills_dst = os.path.join(target_base, "." + host, "skills")
+            
+            copy_skills(target_base, skills_dst=skills_dst)
+            report["synced"].append(host)
+            if verbose:
+                log("resynced skills for %s -> %s" % (host, skills_dst))
+        except Exception as exc:
+            report["errors"].append({"host": host, "error": str(exc)})
+            if verbose:
+                log("! error resyncing %s: %s" % (host, exc))
+    
+    return report
+
+
 def copy_skills(target, skills_dst=None):
     dst_root = skills_dst if skills_dst else os.path.join(target, ".claude", "skills")
     os.makedirs(dst_root, exist_ok=True)
