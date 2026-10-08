@@ -82,7 +82,7 @@ namespaced kind; each namespace owns its own catalog.
 | recovery | `decision_requested` | runner (entering `awaiting_decision`) | `reason` |
 | delivery and cost | `delivery_reconciled` | runner | `current_state`, `blocker` |
 | delivery and cost | `pr_opened` | reserved for the delivery step | `url`, `number` |
-| delivery and cost | `token_usage` | reserved for agent/model producers | `model`, `input_tokens`, `output_tokens` |
+| delivery and cost | `token_usage` | runner (`execution-route*.json` of the run) | `input_tokens`, `output_tokens`, optional `model`, `reason`; `lane` = route |
 | delivery and cost | `cost_sample` | reserved for agent/model producers | `model`, `usd` |
 | end | `run_finished` | runner (entering `done`, `partial` or `cancelled`) | `outcome`, `reason` |
 
@@ -90,7 +90,7 @@ namespaced kind; each namespace owns its own catalog.
 that need them (#1404 agents and cost). Their payload fields above are the expected
 shape, not yet emitted.
 
-`token_usage` and `cost_sample` stay reserved until a producer exists (issue #1404). The reader exists: `dashboard/budget.py` sums them (`input_tokens`, `output_tokens`, optional `lane`, `model`; `usd`) for the budget panel and the budget alerts.
+`token_usage` is produced from the run's own `execution-route*.json` records: only integer counts the run recorded become events (the live emit happens when the fan-out route is written; runs without a live stream get the same events in `derive_events`). A deterministic-worker route records 0 tokens (`deterministic_worker_no_llm`); a route decided before any provider call records null counts and produces no event. The run records carry NO provider token counts today, so a real provider run stays UNVERIFIED for tokens and cost until a provider flow records them. Counts are never invented. `cost_sample` stays reserved. `dashboard/budget.py` sums the events for the budget panel and alerts, and `cost_estimate` prices measured tokens with `dashboard/prices.json`: `GET /api/runs/<id>/budget` returns `cost` with `state: ESTIMADO`, `proof_kind: estimado`, `as_of` and `source_url` of the table, or UNVERIFIED with the reason (no measured tokens, no table, model without price).
 
 ## Producers
 

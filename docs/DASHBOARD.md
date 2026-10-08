@@ -361,3 +361,9 @@ MEASURED on Linux (4 cores, `/proc`), one 30 s sample: 0.06 CPU s over 30.0 s wa
 The 8 h session is not run for real: it is a compressed 3000-event session, so the 8 h claim is UNVERIFIED beyond that proxy.
 
 **Security** (`tests/test_dashboard_security_review_integration.py`). Fixed: secrets leaked on SSE events and alert frames; redaction gaps (private key blocks, Anthropic and project-style keys, GitHub fine-grained tokens, short `password=`/`token=` pairs, secret-shaped JSON keys); unmasked run summaries, receipt reasons and `/api/tokens`; symlinks followed out of the run directory (state, manifest, plan, events, receipts); HEAD sending a body; TRACE/CONNECT answering 501; error pages without security headers. CSP now also sets `base-uri`, `form-action` and `object-src` to `'none'`, with `X-Frame-Options`, COOP and CORP. Checked and clean: token never echoed, traversal variants, Host/Origin rebinding, wrong or oversize token, GET-only. Residual: `simplicio_loop/progress.py` follows symlinks for four sidecar receipts (outside the Live server, not changed here).
+
+## Platform notes for the CLI
+
+- `--stop` ends the recorded pid with `SIGTERM` (on Windows, `TerminateProcess`). A pid that is already gone is not an error; any other OS refusal exits 1 with the reason.
+- `--tui` on Windows enables virtual-terminal processing on the console before it redraws, and falls back to ASCII glyphs on legacy code pages.
+- UNVERIFIED: Windows and macOS runs (key reading, console modes, real browser opening). Only Linux is exercised by the tests.

@@ -7062,6 +7062,7 @@ def _fanout_execution_route(item: Mapping[str, Any], run_dir: Path) -> Dict[str,
         raise RuntimeError("fan-out execution-route receipt failed hash verification")
     route_path = run_dir / f"execution-route-{record['task_index']}.json"
     _write_json(route_path, record)
+    _dashboard_events.emit_token_usage(run_dir, only=route_path.name)
     return record
 
 

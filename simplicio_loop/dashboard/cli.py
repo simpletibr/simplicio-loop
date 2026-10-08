@@ -269,7 +269,13 @@ def _stop() -> int:
         print('error: port %s answers as pid %s, not the recorded pid %s; nothing was stopped'
               % (port, health.get('pid'), pid), file=sys.stderr)
         return 1
-    os.kill(pid, signal.SIGTERM)
+    try:
+        os.kill(pid, signal.SIGTERM)  # Windows maps this to TerminateProcess
+    except ProcessLookupError:
+        pass  # it exited between the health check and the kill
+    except OSError as exc:
+        print('error: could not stop pid %s: %s' % (pid, exc), file=sys.stderr)
+        return 1
     _wait_gone(port)
     _forget_state()
     print('dashboard stopped (pid %d)' % pid)
@@ -346,9 +352,28 @@ class _Keys:
         return ''
 
 
+def _enable_windows_vt() -> None:
+    '''Turn on ANSI escape processing for the Windows console; fail-open (a redraw glitch beats a crash).'''
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+        mode = ctypes.c_uint32()
+        if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            kernel32.SetConsoleMode(handle, mode.value | 0x0004)  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+    except (AttributeError, OSError, ImportError):
+        pass
+
+
+def _prepare_console() -> None:
+    if sys.platform == 'win32':
+        _enable_windows_vt()
+
+
 def _tui_live(run_dir: Path, interval: float = 0.25) -> None:
     '''Redraw the run in place until it ends or the user presses q.'''
     out, frame = sys.stdout, 0
+    _prepare_console()
     out.write('\x1b[?25l')  # hide cursor; restored below
     try:
         with _Keys() as keys:

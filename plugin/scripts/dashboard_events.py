@@ -823,6 +823,57 @@ def _receipt_event(run_dir, name, step):
     return event
 
 
+def token_usage_specs(run_dir, only=None):
+    """``token_usage`` specs from the run's own ``execution-route*.json`` records.
+
+    Only integer counts the run recorded become events. A record with null counts (route decided before
+    any provider call) or without a ``token_usage`` block yields nothing: counts are never invented.
+    """
+    run_dir = os.fspath(run_dir)
+    try:
+        names = sorted(n for n in os.listdir(run_dir)
+                       if n.startswith("execution-route") and n.endswith(".json")
+                       and (only is None or n == only))
+    except OSError:
+        return []
+    specs = []
+    for name in names:
+        path = os.path.join(run_dir, name)
+        record = _load_json(path)
+        usage = record.get("token_usage") if isinstance(record, dict) else None
+        if not isinstance(usage, dict):
+            continue
+        counts = {k: usage.get(k) for k in ("input_tokens", "output_tokens")}
+        if not all(_is_int(v) and v >= 0 for v in counts.values()):
+            continue
+        payload = dict(counts)
+        for key in ("model",):
+            if isinstance(record.get(key), str) and record[key]:
+                payload[key] = record[key]
+        if isinstance(usage.get("reason"), str):
+            payload["reason"] = usage["reason"]
+        spec = {"kind": "token_usage", "source": "runner", "payload": payload, "refs": [path]}
+        if isinstance(record.get("task_id"), str) and record["task_id"]:
+            spec["task_id"] = record["task_id"]
+        if isinstance(record.get("route"), str) and record["route"]:
+            spec["lane"] = record["route"]
+        try:
+            spec["ts"] = format_ts(os.path.getmtime(path))
+        except OSError:
+            pass
+        specs.append(spec)
+    return specs
+
+
+def emit_token_usage(run_dir, only=None):
+    """Emit recorded token usage (one route file when ``only`` is set) to the live stream, fail-open."""
+    try:
+        specs = token_usage_specs(run_dir, only=only)
+        return emit_batch(run_dir, specs) if specs else []
+    except Exception:  # telemetry never blocks the loop
+        return []
+
+
 def derive_events(run_dir):
     """Rebuild a run's stream from ``transitions.jsonl`` + ``state.json`` events + receipts.
 
@@ -855,6 +906,7 @@ def derive_events(run_dir):
             event = _receipt_event(run_dir, name, step)
             if event:
                 specs.extend(specs_from_runner_event(event, state, run_dir=run_dir))
+    specs.extend(token_usage_specs(run_dir))
     ordered = []
     for index, spec in enumerate(specs):
         stamp = parse_ts(spec.get("ts")) if spec.get("ts") else None
