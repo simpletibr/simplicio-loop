@@ -375,3 +375,37 @@ def test_tui_live_falls_back_to_ascii_on_a_legacy_console(tmp_path, monkeypatch)
     cli._tui_live(run)
     console.flush()
     assert b'quit' in raw.getvalue()
+
+
+def test_stop_survives_a_pid_that_vanished_between_health_and_kill(tmp_path, monkeypatch):
+    '''os.kill can raise (process already gone; access denied on Windows): --stop must still clean up.'''
+    cli = _cli()
+    state = {'pid': 4242, 'port': 8765, 'token': TOKEN, 'repos': [str(tmp_path)]}
+    monkeypatch.setattr(cli.runs, 'read_state_file', lambda *a, **k: state)
+    monkeypatch.setattr(cli, '_health', lambda port: {'pid': 4242})
+    forgot = []
+    monkeypatch.setattr(cli, '_forget_state', lambda: forgot.append(True))
+    monkeypatch.setattr(cli, '_wait_gone', lambda port: None)
+
+    def boom(pid, sig):
+        raise ProcessLookupError(pid)
+    monkeypatch.setattr(os, 'kill', boom)
+    assert cli._stop() == 0
+    assert forgot
+
+
+def test_windows_console_ansi_is_enabled_only_on_windows(monkeypatch):
+    cli = _cli()
+    calls = []
+    monkeypatch.setattr(cli, '_enable_windows_vt', lambda: calls.append('vt'))
+    monkeypatch.setattr(sys, 'platform', 'linux')
+    cli._prepare_console()
+    assert calls == []
+    monkeypatch.setattr(sys, 'platform', 'win32')
+    cli._prepare_console()
+    assert calls == ['vt']
+
+
+def test_enable_windows_vt_is_fail_open_without_ctypes_windll(monkeypatch):
+    cli = _cli()
+    cli._enable_windows_vt()  # no ctypes.windll on Linux: must return quietly
