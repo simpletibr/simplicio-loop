@@ -10,6 +10,7 @@ import { SlAlertToast } from '/static/components/index.js';
 import { createView } from '/static/live/view.js';
 import { boardOf } from '/static/live/board.js';
 import { createBoard } from '/static/live/board-view.js';
+import { startHistory } from '/static/history/history-page.js';
 import { nextRunId, rotationMs, runCommands, runUrl } from '/static/live/runs-nav.js';
 
 const SUMMARY_DEBOUNCE_MS = 250;
@@ -441,6 +442,7 @@ function start() {
   if (token) {
     loadBoard();
     setInterval(loadBoard, BOARD_POLL_MS);
+    startHistory(readApi, setText);
     startRotation();
   }
   if (!token || !runId) {
