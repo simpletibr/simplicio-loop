@@ -254,6 +254,13 @@ def _apply_plan(repo: str, plan: str, verify: str | None) -> int:
 
 def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
                   tasks_file: str | None, verify: str | None) -> int:
+    """Wrapper to call async _run_provider_async with asyncio.run."""
+    import asyncio
+    return asyncio.run(_run_provider_async(repo, texts, target, context, tasks_file, verify))
+
+
+async def _run_provider_async(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
+                               tasks_file: str | None, verify: str | None) -> int:
     from . import turbo_provider
     from .turbo import repair_with_test_output, run_turbo
 
@@ -272,12 +279,10 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
         return 2
     _register_state_dir(root)
     complete = functools.partial(turbo_provider.complete, session_id=turbo_provider.session_id_for(root))
-    # The saved survey marker belongs to one run. Ask Mapper again on every invocation: its own
-    # tree-state cache keeps an unchanged tree free and byte-identical, and a changed tree gets a new map.
     (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
     started = time.time()
     try:
-        result = run_turbo(root, tasks, complete)
+        result = await run_turbo(root, tasks, complete)
     except RuntimeError as exc:
         _emit({**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
         return 2
@@ -295,8 +300,7 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
     if verify and result["applied_all"]:
         document["verify"], output = _run_verify(root, verify)
         if not document["verify"]["passed"]:
-            # One repair call with the test output, then the tests run again.
-            repair = repair_with_test_output(root, tasks, complete, output)
+            repair = await repair_with_test_output(root, tasks, complete, output)
             calls.extend(repair["llm_calls"])
             retry = {"attempted": True, "applied": repair["applied"], "reason": repair["reason"], "passed": False}
             if repair["applied"]:
@@ -305,7 +309,9 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
             document["verify_retry"] = retry
             if not retry["passed"]:
                 document["status"] = "failed"
-    losers = turbo_provider.drain_hedges()
+    await turbo_provider.close()
+    # Note: drain_hedges was removed as hedge losers are now cancelled asynchronously
+    losers = []
     billed = calls + losers
     tokens = {k: sum(c.get(k) or 0 for c in billed)
               for k in ("prompt_tokens", "cached_tokens", "completion_tokens", "reasoning_tokens")}

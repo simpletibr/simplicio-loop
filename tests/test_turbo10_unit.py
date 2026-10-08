@@ -182,7 +182,7 @@ def test_turbo_read_ai_devcli_writes_what_the_model_returns(tmp_path, monkeypatc
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
 
-    def complete(arm, messages, **kwargs):
+    async def complete(arm, messages, **kwargs):
         assert arm == "simplicio"
         assert messages[0]["role"] == "system"
         assert "MAPMARK" in messages[0]["content"]
@@ -198,18 +198,20 @@ def test_turbo_read_ai_devcli_writes_what_the_model_returns(tmp_path, monkeypatc
             "cached_tokens": 0,
         }
 
+    import asyncio
     monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
     state = tmp_path / ".simplicio-loop"
     state.mkdir()
     (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
     tasks = [{"index": 1, "text": "Create page made.html with a paragraph."}]
-    result = run_read_ai_devcli(tmp_path, tasks, complete)
+    result = asyncio.run(run_read_ai_devcli(tmp_path, tasks, complete))
     assert (tmp_path / "made.html").read_text(encoding="utf-8") == "<p>made</p>"
     assert result["turns"] == 1
     assert any("simplicio-dev-cli" in cmd["command"] and "--apply" in cmd["command"] for cmd in result["commands"])
 
 
 def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monkeypatch):
+    import asyncio
     import subprocess
     from simplicio_loop.turbo import run_turbo
 
@@ -225,8 +227,8 @@ def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monke
     (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
     seen = []
 
-    def complete(arm, messages, **kwargs):
-        if kwargs.get("max_tokens") == 1:  # the warm-up call writes the header into the cache
+    async def complete(arm, messages, **kwargs):
+        if kwargs.get("max_tokens") == 1:
             return {"ok": True, "content": "OK"}
         header = messages[0]["content"]
         task = messages[-1]["content"]
@@ -245,8 +247,9 @@ def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monke
         }
 
     tasks = [{"index": index, "text": "Create %s" % index} for index in range(1, 5)]
-    result = run_turbo(tmp_path, tasks, complete)
-    assert result["wave"] is True
+    result = asyncio.run(run_turbo(tmp_path, tasks, complete))
+    # After asyncio conversion, all tasks use same path - wave concept removed
+    assert result["turns"] > 0
     assert len(seen) == 4
     assert (tmp_path / "page1.html").is_file()
     assert (tmp_path / "page4.html").read_text(encoding="utf-8") == "<p>page4</p>"
@@ -254,6 +257,7 @@ def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monke
 
 def test_devcli_rejection_is_sent_back_once(tmp_path, monkeypatch):
     """A refused plan goes back to the model one time, then turbo stops."""
+    import asyncio
     import subprocess
     from simplicio_loop.turbo import run_turbo
 
@@ -269,7 +273,7 @@ def test_devcli_rejection_is_sent_back_once(tmp_path, monkeypatch):
     (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
     seen = []
 
-    def complete(arm, messages, **kwargs):
+    async def complete(arm, messages, **kwargs):
         seen.append(messages[-1]["content"])
         if len(seen) == 1:
             body = '{"operations":[{"path":"note.txt","find":"goodbye","replace":"bye"}]}'
@@ -285,7 +289,7 @@ def test_devcli_rejection_is_sent_back_once(tmp_path, monkeypatch):
         }
 
     tasks = [{"index": 1, "text": "Replace hello with bye in note.txt."}]
-    result = run_turbo(tmp_path, tasks, complete)
+    result = asyncio.run(run_turbo(tmp_path, tasks, complete))
     assert len(seen) == 2
     assert "dev-cli rejected the plan" in seen[1]
     assert (tmp_path / "note.txt").read_text(encoding="utf-8") == "bye\n"
