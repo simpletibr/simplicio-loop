@@ -270,3 +270,45 @@ def test_selftest_exits_zero():
         [sys.executable, '-m', 'simplicio_loop.dashboard.server', '--selftest'],
         capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_history_endpoint_returns_records_filters_and_rejects_bad_values(server_handle, repo_root):
+    def get(query):
+        status, _, body = _get(server_handle.port, '/api/history' + query, AUTH)
+        return status, json.loads(body)
+
+    status, payload = get('')
+    assert status == 200
+    assert [r['run_id'] for r in payload['history']] == ['orch-1', 'live-1', 'legacy-1']  # same started_at: run_id desc
+    assert all(r['schema'] == 'simplicio.dashboard-history/v1' for r in payload['history'])
+    assert [r['run_id'] for r in get('?verdict=RUNNING')[1]['history']] == ['live-1']
+    assert len(get('?limit=1')[1]['history']) == 1
+    assert get('?verdict=NOPE')[0] == 400
+    assert get('?since=yesterday')[0] == 400
+    assert get('?min_cost_usd=abc')[0] == 400
+    status, _, _ = _get(server_handle.port, '/api/history', {})
+    assert status == 401
+
+
+def test_history_compare_trends_heatmap_and_csv_routes(server_handle, repo_root):
+    def get(path):
+        status, headers, body = _get(server_handle.port, path, AUTH)
+        return status, headers, body
+
+    status, _, body = get('/api/history/compare?a=orch-1&b=live-1')
+    assert status == 200
+    cmp = json.loads(body)
+    assert (cmp['a'], cmp['b']) == ('orch-1', 'live-1') and 'metrics' in cmp
+    assert get('/api/history/compare?a=orch-1&b=nope')[0] == 404
+    assert get('/api/history/compare?a=orch-1')[0] == 404
+    status, _, body = get('/api/history/trends?bucket=month')
+    assert status == 200 and json.loads(body)['trends'][0]['bucket'] == '2026-10'
+    assert get('/api/history/trends?bucket=year')[0] == 400
+    status, _, body = get('/api/history/heatmap')
+    grid = json.loads(body)['heatmap']
+    assert status == 200 and len(grid) == 7 and sum(map(sum, grid)) == 3
+    status, headers, body = get('/api/history?format=csv')
+    assert status == 200 and headers['content-type'].startswith('text/csv')
+    lines = body.decode('utf-8').splitlines()
+    assert lines[0].startswith('run_id,repo,verdict') and len(lines) == 4
+    assert get('/api/history/other')[0] == 404
