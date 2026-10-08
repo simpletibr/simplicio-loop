@@ -227,19 +227,19 @@ The cost row (slice 1404b) estimates the input cost of the tokens sent through t
 
 The `simplicio-loop economy` command is not the source of token numbers. It shows the environment and parallelism profile. The real sources are `get_status()` of the Token Monitor and the savings ledger at `.simplicio-loop/ledger/savings-events.jsonl`.
 
-Only the cost row can show a value, and it shows "Estimado". Every other row is UNVERIFIED with a reason. None of them ever shows PASS:
+The cost row shows "Estimado". The budget row shows "Estimado" for a projection and FAIL only for a use already past the limit. Tokens por fase shows PASS only when `token_usage` events exist (measured). Every other row is UNVERIFIED with a reason:
 
 | Row | State | Reason or source |
 |---|---|---|
 | Mapa de agentes | UNVERIFIED | lists the roles and stages of `contracts/stage-agents/v1/stages.json`; no instance is measured |
-| Tokens por fase | UNVERIFIED | no producer |
+| Tokens por fase | PASS or UNVERIFIED | sums of the measured `token_usage` events by phase and model (`/api/runs/<id>/budget`); UNVERIFIED while no producer writes them |
 | Custo | ESTIMADO or UNVERIFIED | estimate of the active model's input cost; see above |
-| Orcamento | UNVERIFIED | the run budget lives in the Mapper journal; reading it is a separate slice |
+| Orcamento | ESTIMADO, FAIL or UNVERIFIED | limits from the run's `task-contract.json` (`routing.budget`, summed over tasks); use from `token_usage`/`cost_sample` events and the event clock; the projection extrapolates by phase progress (use / phase fraction) and is labelled `estimado` |
 | Comparacao com os ultimos 10 runs | UNVERIFIED | the run history comes with #1408 |
 
 `token_usage` and `cost_sample` stay reserved kinds with no producer (see [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md)). Page data: `/api/tokens` carries the price table as `pricing`, and `/api/agents` carries the contract roles.
 
-Still deferred to issue #1404: tokens per phase, lane and model, cost per run, task and iteration, the budget with projection and alert, the last-10 comparison, and the token producer. The decisions were: the price table lives in the repo; no token producer in this round; agent roles come from the stage contract.
+Budget slice (#1404): `simplicio_loop/dashboard/budget.py` reads the declared limits, sums the usage events and projects. The alert rules `budget-projected:<tokens|usd|seconds>` (warning, the projection passes the limit) and `budget-exceeded:<...>` (critical, measured use passed it) run in the alert watch. A dimension with no declared limit, no measured use or no phase progress is UNVERIFIED. Still deferred to issue #1404: the token producer (no `token_usage` writer exists, so tokens and USD stay UNVERIFIED on a real run), cost per run, task and iteration, and the last-10 comparison, which needs the run history reader of #1408. The decisions were: the price table lives in the repo; no token producer in this round; agent roles come from the stage contract.
 
 ## Unverified (UNVERIFIED)
 
@@ -272,6 +272,8 @@ The server evaluates the run alert rules over the event stream (`simplicio_loop/
 | `run-stalled` | critical | the journal reports a stall (`stall_detected`), until a different phase starts | server |
 | `gate-failing:<gate>` | warning | a gate's latest verdict is FAIL | server |
 | `phase-silent:<phase>` | warning | no event for more than 5 minutes | server |
+| `budget-projected:<dim>` | warning | the usage projected to the end of the run passes the declared limit (estimate) | server |
+| `budget-exceeded:<dim>` | critical | measured usage is past the declared limit | server |
 | `oracle-unverified` | warning | the run is done and its receipt is ready, but the oracle gave no verdict | server |
 | `stream-lost` | warning | the stream is stale, offline or closed | page (it is the page's own connection) |
 
@@ -279,4 +281,4 @@ The server evaluates the run alert rules over the event stream (`simplicio_loop/
 
 **Silence.** **Silenciar 1 h** hides an alert for an hour in this page. Nothing is stored outside the page. The first snapshot after connecting sets a baseline, so alerts that were already active do not notify.
 
-**Not in slice 1406b, with reasons.** The thresholds are fixed in the server module, not read from `.simplicio-loop/dashboard.toml`. Browser and desktop notifications, and the optional webhook, are not written. Budget alerts wait on the budget reading (see #1404), and the lease rule waits on the lease heartbeat. **Latency (measured on a loopback server, 16 cycles per case).** From the event being written to its alert appearing: on a running run, median 0.10 s on the stream and 0.10 s in the page (worst 0.25 s and 0.15 s). On a finished run, median 0.50 s on the stream. The finished-run poll is 0.5 s, so the 2-second target holds with margin. The end-to-end page latency on a finished run was not measured.
+**Not in slice 1406b, with reasons.** The thresholds are fixed in the server module, not read from `.simplicio-loop/dashboard.toml`. Browser and desktop notifications, and the optional webhook, are not written. The lease rule waits on the lease heartbeat. **Latency (measured on a loopback server, 16 cycles per case).** From the event being written to its alert appearing: on a running run, median 0.10 s on the stream and 0.10 s in the page (worst 0.25 s and 0.15 s). On a finished run, median 0.50 s on the stream. The finished-run poll is 0.5 s, so the 2-second target holds with margin. The end-to-end page latency on a finished run was not measured.

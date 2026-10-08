@@ -90,6 +90,7 @@ export function initialState(runId) {
     quality: null,
     tokens: null,
     agents: null,
+    budget: null,
     receipts: [],
     repo: null,
   };
@@ -276,6 +277,7 @@ export function reduce(state, action) {
     return { ...state, connection: String(action.status || 'connecting'), lastActivity: at === null ? state.lastActivity : at };
   }
   if (action.type === 'tokens') return { ...state, tokens: action.response === undefined ? null : action.response };
+  if (action.type === 'budget') return { ...state, budget: action.response && typeof action.response === 'object' && !Array.isArray(action.response) ? action.response : null };
   if (action.type === 'agents') return { ...state, agents: action.response === undefined ? null : action.response };
   if (action.type === 'receipts') return { ...state, receipts: receiptRowsOf(action.receipts) };
   if (action.type === 'repo') return { ...state, repo: typeof action.repo === 'string' && action.repo !== '' ? action.repo : null };
@@ -489,7 +491,7 @@ export function selectView(state, nowMs) {
     dod,
     quality,
     economy,
-    agentsCost: agentsCostView(economy, state.agents),
+    agentsCost: agentsCostView(economy, state.agents, state.budget),
     receipts: state.receipts,
     runCommands: runCommandsOf(state.runId, state.repo),
   };

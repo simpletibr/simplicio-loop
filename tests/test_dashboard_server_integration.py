@@ -270,3 +270,25 @@ def test_selftest_exits_zero():
         [sys.executable, '-m', 'simplicio_loop.dashboard.server', '--selftest'],
         capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_budget_route_reports_limits_usage_and_a_labelled_projection(repo_root, server_handle):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    (run_dir / 'task-contract.json').write_text(json.dumps(
+        {'tasks': [{'routing': {'budget': {'tokens': 600, 'usd': None, 'seconds': None}}}]}), encoding='utf-8')
+    emitter = _emitter()
+    emitter.emit(run_dir, 'phase_entered', source='runner', phase='executing', strict=True)
+    emitter.emit(run_dir, 'token_usage', source='worker', phase='executing',
+                 payload={'model': 'm', 'input_tokens': 300, 'output_tokens': 0}, strict=True)
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/budget', AUTH)
+    assert status == 200
+    data = json.loads(body)
+    assert data['rows']['tokens']['state'] == 'PROJECTED_OVER'
+    assert data['rows']['tokens']['proof_kind'] == 'estimado'
+    assert data['usage']['by_phase'] == {'executing': 300}
+    assert data['rows']['usd']['state'] == 'UNVERIFIED'
+
+
+def test_budget_route_for_an_unknown_run_is_404(server_handle):
+    status, _, _ = _get(server_handle.port, '/api/runs/nope/budget', AUTH)
+    assert status == 404

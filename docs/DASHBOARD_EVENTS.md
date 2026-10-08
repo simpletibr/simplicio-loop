@@ -90,7 +90,7 @@ namespaced kind; each namespace owns its own catalog.
 that need them (#1403 quality, #1404 agents and cost). Their payload fields above are the expected
 shape, not yet emitted.
 
-`token_usage` and `cost_sample` stay reserved until a producer exists (issue #1404).
+`token_usage` and `cost_sample` stay reserved until a producer exists (issue #1404). The reader exists: `dashboard/budget.py` sums them (`input_tokens`, `output_tokens`, optional `lane`, `model`; `usd`) for the budget panel and the budget alerts.
 
 The quality kinds (`test_result`, `lint_result`, `coverage_result`) stay reserved until their producer exists (issue #1403 follow-up). Until then the Qualidade panel shows its items as UNVERIFIED, and no producer emits these kinds.
 

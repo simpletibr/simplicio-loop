@@ -30,8 +30,8 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Mapping
 
-from simplicio_loop import __version__, stage_agents
-from simplicio_loop.dashboard import STATIC_DIR, alerts, runs
+from simplicio_loop import __version__, dashboard_events, stage_agents
+from simplicio_loop.dashboard import STATIC_DIR, alerts, budget, runs
 from simplicio_loop.dashboard.tail import EventTail
 
 HOST = '127.0.0.1'
@@ -44,6 +44,7 @@ CSP = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self';
 _CURSOR_RE = re.compile(r'[0-9]{1,18}')
 _EVENTS_RE = re.compile(r'/api/runs/([^/]+)/events')
 _ARTIFACT_RE = re.compile(r'/api/runs/([^/]+)/artifacts/(.+)')
+_BUDGET_RE = re.compile(r'/api/runs/([^/]+)/budget')
 _DETAIL_RE = re.compile(r'/api/runs/([^/]+)')
 STATIC_TYPES = {
     '.js': 'text/javascript; charset=utf-8',
@@ -330,6 +331,11 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         if events:
             self._stream(urllib.parse.unquote(events.group(1)), query)
             return
+        budget_route = _BUDGET_RE.fullmatch(raw_path)
+        if budget_route:
+            ref = _find_run(self.server, urllib.parse.unquote(budget_route.group(1)))
+            self._send_json(200, budget.report(ref['run_dir'], dashboard_events.read_events(ref['run_dir'])))
+            return
         artifact = _ARTIFACT_RE.fullmatch(raw_path)
         if artifact:
             self._artifact(urllib.parse.unquote(artifact.group(1)), artifact.group(2))
@@ -366,7 +372,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         cursor = _cursor(query, self.headers)
         ref = _find_run(self.server, run_id)
         tail = EventTail(Path(ref['run_dir']) / EVENTS_FILE, terminal=_is_terminal(ref))
-        watch = alerts.AlertWatch()
+        watch = alerts.AlertWatch(budget=budget.declared(ref['run_dir']))
 
         def receipt_ready() -> bool:
             return _receipt_ready(ref)
