@@ -4,7 +4,9 @@ AlertWatch applies new events and the clock, then reports the alerts it raised a
 update. One id is raised once while it stays active, so repeated updates never duplicate an alert. The rules mirror the
 page reducer: a stall lasts until a different phase starts, a gate is failing while its latest verdict is fail, a silent
 phase is one with no event for SILENCE_MS, and the oracle is unverified once the run is done, its receipt is ready and
-the oracle gave no verdict. The receipt is read only when the run is done.
+the oracle gave no verdict. The receipt is read only when the run is done. Four more rules: an expired lease (read
+through the `leases` callable), the same stall fingerprint STALL_REPEATS times, a gate that fails again after a pass,
+and a decision that waits longer than DECISION_WAIT_MS.
 '''
 from __future__ import annotations
 
@@ -14,6 +16,8 @@ from typing import Any, Callable, Iterable
 from simplicio_loop.dashboard import budget as budget_mod
 
 SILENCE_MS = 5 * 60 * 1000
+DECISION_WAIT_MS = 15 * 60 * 1000
+STALL_REPEATS = 3
 SCHEMA = 'simplicio.dashboard-event/v1'
 SEVERITY_ORDER = {'critical': 0, 'warning': 1}
 NO_REASON = 'sem motivo registrado'
@@ -47,8 +51,20 @@ def _alert(alert_id: str, rule: str, severity: str, heading: str, why: str, ref:
 class AlertWatch:
     '''The alerts active for one event stream. Feed it events in order with update().'''
 
-    def __init__(self, silence_ms: int = SILENCE_MS, budget: dict[str, Any] | None = None) -> None:
+    def __init__(self, silence_ms: int = SILENCE_MS, budget: dict[str, Any] | None = None, *,
+                 phase_silence_ms: dict[str, int] | None = None, stall_repeats: int = STALL_REPEATS,
+                 decision_wait_ms: int = DECISION_WAIT_MS,
+                 leases: Callable[[], list[dict[str, Any]]] | None = None) -> None:
         self.silence_ms = silence_ms
+        self.phase_silence_ms = phase_silence_ms or {}
+        self.stall_repeats = stall_repeats
+        self.decision_wait_ms = decision_wait_ms
+        self.leases = leases
+        self.fingerprints: dict[str, int] = {}
+        self.refailed: set[str] = set()
+        self.failed_once: set[str] = set()
+        self.fixed: set[str] = set()
+        self.phase_since_ms: int | None = None
         self.budget = budget or {}
         self.used: dict[str, float | None] = {'tokens': None, 'usd': None, 'seconds': None}
         self.first_ms: int | None = None
@@ -97,13 +113,40 @@ class AlertWatch:
         if kind == 'phase_entered' and phase:
             if self.stall is not None and self.stall['phase'] != phase:
                 self.stall = None
+                self.fingerprints = {}
+            if phase != self.phase:
+                self.phase_since_ms = stamp
             self.phase = phase
         elif kind == 'stall_detected':
             self.stall = {'phase': phase, 'streak': _streak(payload)}
+            fingerprint = payload.get('fingerprint') or payload.get('blocker')
+            if isinstance(fingerprint, str) and fingerprint:
+                self.fingerprints[fingerprint] = self.fingerprints.get(fingerprint, 0) + 1
         elif kind == 'gate_evaluated' and isinstance(payload.get('gate'), str):
             verdict = payload.get('verdict')
             message = payload.get('message') if isinstance(payload.get('message'), str) else ''
-            self.gates[payload['gate']] = (verdict.lower() if isinstance(verdict, str) else '', message)
+            gate = payload['gate']
+            verdict = verdict.lower() if isinstance(verdict, str) else ''
+            if verdict == 'pass' and gate in self.failed_once:
+                self.fixed.add(gate)
+                self.refailed.discard(gate)
+            elif verdict == 'fail':
+                if gate in self.fixed:
+                    self.refailed.add(gate)
+                self.failed_once.add(gate)
+            self.gates[gate] = (verdict, message)
+
+    def _lease_alerts(self) -> list[dict[str, Any]]:
+        if self.leases is None:
+            return []
+        try:
+            rows = self.leases()
+        except Exception:  # noqa: BLE001 - an unreadable backlog never breaks the stream
+            return []
+        return [_alert('lease-expired:' + str(row['item']), 'lease-expired', 'critical', 'Lease expirada: ' + str(row['item']),
+                       'O worker %s parou de renovar o lease de %s; o item pode ser retomado.' % (row.get('worker'), row['item']),
+                       {'type': 'logs'})
+                for row in rows if isinstance(row, dict) and row.get('state') == 'expired' and row.get('item')]
 
     def _budget_alerts(self) -> list[dict[str, Any]]:
         found = []
@@ -130,7 +173,22 @@ class AlertWatch:
             if verdict == 'fail':
                 found.append(_alert('gate-failing:' + gate, 'gate-failing', 'warning', 'Gate falhando: ' + gate,
                                     message or NO_REASON, {'type': 'logs'}))
-        if self.last_ms is not None and now_ms - self.last_ms > self.silence_ms:
+        for gate in self.refailed:
+            if self.gates.get(gate, ('', ''))[0] == 'fail':
+                found.append(_alert('gate-refailed:' + gate, 'gate-refailed', 'warning', 'Gate falhou de novo após um fix: ' + gate,
+                                    'O gate voltou a falhar depois de ter passado.', {'type': 'logs'}))
+        for fingerprint, count in self.fingerprints.items():
+            if count >= self.stall_repeats:
+                found.append(_alert('stall-repeated:' + fingerprint, 'stall-repeated', 'critical', 'Mesma falha repetida',
+                                    'A falha %s se repetiu %d vezes na fase.' % (fingerprint, count), {'type': 'logs'}))
+        if (self.phase == 'awaiting_decision' and self.phase_since_ms is not None
+                and now_ms - self.phase_since_ms > self.decision_wait_ms):
+            found.append(_alert('decision-waiting', 'decision-waiting', 'warning', 'Decisão aguardando há %d min' % round(
+                (now_ms - self.phase_since_ms) / 60000), 'O run espera uma decisão humana há mais de %d min.' % round(
+                self.decision_wait_ms / 60000), {'type': 'logs'}))
+        found.extend(self._lease_alerts())
+        silence_ms = self.phase_silence_ms.get(self.phase or '', self.silence_ms)
+        if self.last_ms is not None and now_ms - self.last_ms > silence_ms:
             minutes = round((now_ms - self.last_ms) / 60000)
             label = self.phase or 'sem fase'
             ref = {'type': 'phase', 'phase': self.phase} if self.phase else {'type': 'logs'}
