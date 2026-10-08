@@ -2894,6 +2894,13 @@ def main(argv=None) -> int:
     p_doctor_source.add_argument("--json", dest="doctor_json", action="store_true",
                                  help="emit machine-readable JSON")
 
+    p_doctor_mapper = doctor_sub.add_parser(
+        "mapper", help="check that the installed simplicio_mapper is the expected build"
+    )
+    p_doctor_mapper.add_argument("--repo", default=".", help="monorepo checkout to compare the commit with")
+    p_doctor_mapper.add_argument("--json", dest="mapper_json", action="store_true",
+                                 help="emit machine-readable JSON")
+
     p_inspect = sub.add_parser("inspect", help="inspect storage routing and MapperStore capabilities")
     p_inspect.add_argument("--storage", action="store_true", required=True,
                            help="inspect the Loop storage adapter boundary")
@@ -3264,6 +3271,12 @@ def main(argv=None) -> int:
         return stack_doctor_command(args)
     if command == "doctor" and getattr(args, "doctor_command", None) == "source":
         return source_doctor_command(args)
+    if command == "doctor" and getattr(args, "doctor_command", None) == "mapper":
+        from .mapper_doctor import main as mapper_doctor_main
+        forwarded = ["--repo", args.repo]
+        if args.mapper_json:
+            forwarded.append("--json")
+        return mapper_doctor_main(forwarded)
     if command in {"doctor", "inspect"}:
         if command == "doctor" and not args.storage:
             parser.error("doctor requires --storage or the stack subcommand")
