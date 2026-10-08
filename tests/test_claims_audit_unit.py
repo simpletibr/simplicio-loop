@@ -139,6 +139,8 @@ def _bundle_pairs_fixture(tmp):
     _write(os.path.join(bun_scripts, "cross_agent_wiki.py"), "x = 1\n")
     _write(os.path.join(src_tests, "test_loop_e2e.py"), "y = 1\n")
     _write(os.path.join(bun_tests, "test_loop_e2e.py"), "y = 1\n")
+    _write(os.path.join(tmp, "adapters", "claude", "adapter.py"), "z = 1\n")
+    _write(os.path.join(tmp, "simplicio_loop", "_bundle", "adapters", "claude", "adapter.py"), "z = 1\n")
     return src_scripts, bun_scripts, src_tests, bun_tests
 
 
@@ -164,6 +166,20 @@ def test_bundle_parity_catches_orphan_in_bundle():
             ok, detail = claims_audit.check_bundle_parity()
             assert not ok, "an orphan file left in _bundle/ with no source must be caught"
             assert "orphan" in detail
+        finally:
+            restore()
+
+
+def test_bundle_parity_catches_unshipped_adapter():
+    # #1410: the Claude adapter `hooks/user_prompt_submit.py` imports must ship in the bundle.
+    with tempfile.TemporaryDirectory() as tmp:
+        _bundle_pairs_fixture(tmp)
+        os.remove(os.path.join(tmp, "simplicio_loop", "_bundle", "adapters", "claude", "adapter.py"))
+        restore = _patched(tmp)
+        try:
+            ok, detail = claims_audit.check_bundle_parity()
+            assert not ok
+            assert "adapters/claude: missing in bundle: adapter.py" in detail
         finally:
             restore()
 

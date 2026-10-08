@@ -128,7 +128,7 @@ Loop orientation:
 - `.simplicio-loop/` is local run state: keep it in `.gitignore` (the engine adds it when the file exists) and never commit it.
 - Protocol: intake (task anchor & frozen ACs) → backlog decomposition → per-turn loop (triage → decide → operate → verify → journal) → evidence-gated promise → PR evidence.
 - Survey: `simplicio-mapper scan . --json` (or `simplicio-loop orient`).
-- Operate: `simplicio-dev-cli task "<change>" --target <file>` or `simplicio-loop turbo --repo <path> --task "<task>"`. Never hand-edit.
+- Operate: `simplicio-loop turbo --repo <path> --task "<task>" [--verify "<tests>"]` (short form `simplicio-loop "<task>"`) or `simplicio-dev-cli task "<change>" --target <file>`. No provider, no key: the Mapper survey prints a `needs_plan` request; run its printed `apply` command once, your JSON plan as the heredoc body (`<<'PLAN'`): exactly two commands. On `failed`, fix the plan once and run the same `apply` again. Never hand-edit.
 - Turn-header: `python3 scripts/loop_progress.py render --turn-header` is the FIRST line of every turn.
 - Verification & Watcher: run tests in-turn; verify with `python3 scripts/watcher_verify.py verify` before promise.
 - Journal: `python3 scripts/loop_journal.py record --iteration N --action "<change>" --hypothesis "<why>" --gate pass|fail`.
@@ -185,7 +185,7 @@ external harness → `waived:no-infra` — never the old vague "skip … and say
 
 PR bodies, release notes, error messages and inter-agent instructions are read by agents and by
 non-native readers. Write them with the `asd-ste100` skill (strict mode; install:
-`npx skills add danyuchn/asd-ste100-skill`). Check with `.claude/skills/asd-ste100/scripts/ste-lint.py`.
+`npx skills add danyuchn/asd-ste100-skill`). Check with the `ste-lint.py` script in `.claude/skills/asd-ste100/`.
 Not for creative or marketing copy.
 
 ## Delivery contract — client delivery constraints, enforced mechanically (issue #526 Etapa 4)

@@ -38,6 +38,9 @@ SRC_SCRIPTS = os.path.join(REPO, "scripts")
 DST_SCRIPTS = os.path.join(REPO, "simplicio_loop", "_bundle", "scripts")
 SRC_TESTS = os.path.join(REPO, "tests")
 DST_TESTS = os.path.join(REPO, "simplicio_loop", "_bundle", "tests")
+# #1410: the Claude adapter `hooks/user_prompt_submit.py` imports ships with the wheel too.
+SRC_ADAPTER = os.path.join(REPO, "adapters", "claude")
+DST_ADAPTER = os.path.join(REPO, "simplicio_loop", "_bundle", "adapters", "claude")
 
 # (tag, src root, dst root, include filter or None for a full mirror) — mirrors the same pairs
 # `claims_audit.check_bundle_parity` validates, so the two never drift apart in what they cover.
@@ -46,6 +49,7 @@ _PAIRS = [
     ("hooks", SRC_HOOKS, DST_HOOKS, None),
     ("scripts", SRC_SCRIPTS, DST_SCRIPTS, LEAN_SCRIPTS),
     ("tests", SRC_TESTS, DST_TESTS, LEAN_TESTS),
+    ("adapters", SRC_ADAPTER, DST_ADAPTER, None),
 ]
 
 
@@ -91,7 +95,8 @@ def sync():
                     shutil.copy2(src, os.path.join(dst_root, name))
         counts[tag] = len(_walk_rel(dst_root))
     print("synced simplicio_loop/_bundle/: %d skill files, %d hook files, %d script files, "
-          "%d test files" % (counts["skills"], counts["hooks"], counts["scripts"], counts["tests"]))
+          "%d test files, %d adapter files" % (counts["skills"], counts["hooks"], counts["scripts"],
+                                               counts["tests"], counts["adapters"]))
 
 
 def check():

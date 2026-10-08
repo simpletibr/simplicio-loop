@@ -357,6 +357,8 @@ def check_bundle_parity():
         (os.path.join(REPO, "tests"),
          os.path.join(REPO, "simplicio_loop", "_bundle", "tests"),
          set(LEAN_TESTS)),
+        (os.path.join(REPO, "adapters", "claude"),
+         os.path.join(REPO, "simplicio_loop", "_bundle", "adapters", "claude")),
     ]
     drift = []
 
@@ -379,7 +381,7 @@ def check_bundle_parity():
             include = None
         else:
             src_root, bun_root, include = pair
-        tag = os.path.basename(bun_root)
+        tag = os.path.relpath(bun_root, os.path.join(REPO, "simplicio_loop", "_bundle")).replace(os.sep, "/")
         if not os.path.isdir(bun_root):
             drift.append("bundle dir missing: _bundle/%s" % tag)
             continue

@@ -1,0 +1,22 @@
+{
+  "schema": "simplicio.plugin-descriptor/v1",
+  "name": "simplicio-loop",
+  "host": "claude",
+  "version": "3.48.1",
+  "entrypoint": "simplicio-loop=simplicio_loop.cli:main",
+  "lifecycle": [
+    "SessionStart",
+    "UserPromptSubmit",
+    "PreToolUse",
+    "PostToolUse",
+    "Stop"
+  ],
+  "hooks": {
+    "SessionStart": "hooks/session_start.py",
+    "UserPromptSubmit": "hooks/user_prompt_submit.py",
+    "PreToolUse": "hooks/pre_tool_use.py",
+    "PostToolUse": "hooks/post_tool_use.py",
+    "Stop": "hooks/stop.py"
+  },
+  "digest": "sha256:25cc167ed856a6831c1584fe204992b841aedea10992a103682ef4b46229dd15"
+}
