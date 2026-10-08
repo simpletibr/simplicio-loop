@@ -44,7 +44,7 @@ dependencies = [
 # meaning retrieval. `pip install "simplicio-loop[ml]"`.
 [project.optional-dependencies]
 # Dev/test dependencies used by the local quality gate and secure-transport fixtures.
-dev = ["setuptools>=77", "pytest>=7", "pytest-cov>=4", "cryptography>=42,<50", "jsonschema>=4,<5"]
+dev = ["setuptools>=77", "pytest>=7", "pytest-cov>=4", "cryptography>=42,<50", "jsonschema>=4,<5", "pyyaml"]
 ml = ["model2vec>=0.3", "numpy>=1.21"]
 uvloop = ["uvloop>=0.19; platform_system != 'Windows'"]
 # Browser e2e + axe-core for the Simplicio Live components (tests/test_live_components_e2e_system.py).
