@@ -6,6 +6,7 @@ file's current text. Only that path does; the first plan and host mode keep dev-
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import shutil
 import subprocess
@@ -73,7 +74,7 @@ def test_the_repair_prompt_tells_the_model_the_listed_files_already_exist(tmp_pa
         seen.append(messages)
         return _reply([{"path": "notes.txt", "find": "", "replace": "x\n"}])
 
-    result = repair_with_test_output(repo, tasks, complete, "FAIL: nope")
+    result = asyncio.run(repair_with_test_output(repo, tasks, complete, "FAIL: nope"))
     last = seen[0][-1]["content"]
     assert last.startswith("The tests failed after your plan was applied:\nFAIL: nope")
     assert EXISTS_LINE in last and last.rstrip().endswith("Return a JSON plan that makes them pass.")
