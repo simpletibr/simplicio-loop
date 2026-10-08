@@ -298,6 +298,7 @@ def test_devcli_rejection_is_sent_back_once(tmp_path, monkeypatch):
 
 
 def test_devcli_rejection_stops_after_one_correction(tmp_path, monkeypatch):
+    import asyncio
     import subprocess
     from simplicio_loop.turbo import run_turbo
 
@@ -313,7 +314,7 @@ def test_devcli_rejection_stops_after_one_correction(tmp_path, monkeypatch):
     (state / "project-map.json").write_text("{}", encoding="utf-8")
     seen = []
 
-    def complete(arm, messages, **kwargs):
+    async def complete(arm, messages, **kwargs):
         seen.append(messages[-1]["content"])
         return {
             "ok": True,
@@ -324,13 +325,14 @@ def test_devcli_rejection_stops_after_one_correction(tmp_path, monkeypatch):
             "cached_tokens": 0,
         }
 
-    run_turbo(tmp_path, [{"index": 1, "text": "Replace hello."}], complete)
+    asyncio.run(run_turbo(tmp_path, [{"index": 1, "text": "Replace hello."}], complete))
     assert len(seen) == 2
     assert (tmp_path / "note.txt").read_text(encoding="utf-8") == "hello\n"
 
 
 def test_reader_prefix_stays_fixed_when_a_call_is_appended(tmp_path, monkeypatch):
     """The Mapper reader is byte-identical on the retry; only the tail grows."""
+    import asyncio
     import subprocess
     from simplicio_loop.turbo import run_turbo
 
@@ -346,7 +348,7 @@ def test_reader_prefix_stays_fixed_when_a_call_is_appended(tmp_path, monkeypatch
     (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
     snapshots = []
 
-    def complete(arm, messages, **kwargs):
+    async def complete(arm, messages, **kwargs):
         snapshots.append([dict(message) for message in messages])
         if len(snapshots) == 1:
             body = '{"operations":[{"path":"note.txt","find":"goodbye","replace":"bye"}]}'
@@ -358,7 +360,7 @@ def test_reader_prefix_stays_fixed_when_a_call_is_appended(tmp_path, monkeypatch
             "reasoning_tokens": 0, "cached_tokens": 0 if len(snapshots) == 1 else 60,
         }
 
-    run_turbo(tmp_path, [{"index": 1, "text": "Replace hello with bye in note.txt."}], complete)
+    asyncio.run(run_turbo(tmp_path, [{"index": 1, "text": "Replace hello with bye in note.txt."}], complete))
     first, second = snapshots
     assert first[0] == second[0]
     assert first[0]["role"] == "system"

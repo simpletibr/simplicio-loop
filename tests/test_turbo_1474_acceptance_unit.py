@@ -7,33 +7,30 @@ from simplicio_loop import turbo_provider
 
 
 class FakeTransport:
-    """Tracks requests and supports cancellation."""
+    """Tracks requests and supports cancellation with events."""
     def __init__(self):
         self.requests = []
         self.cancelled = set()
+        self.start_event = asyncio.Event()
     
     async def handle(self, session_id):
-        """Record request, await cancellation."""
+        """Record request, wait for cancellation event."""
         self.requests.append(session_id)
         try:
-            await asyncio.sleep(100)
+            await self.start_event.wait()
         except asyncio.CancelledError:
             self.cancelled.add(session_id)
             raise
 
 
-def test_hedge_cancels_losing_request(monkeypatch):
+def test_hedge_cancels_losing_request():
     """Hedge cancels losing request, not billed."""
     transport = FakeTransport()
-    call_count = [0]
     
     async def mock_post(body, key, session_id, timeout):
-        call_count[0] += 1
         if "hedge" in session_id:
-            # Hedge request - will be cancelled
             await transport.handle(session_id)
         else:
-            # Primary request completes after hedge timeout
             await asyncio.sleep(0.05)
             return {"ok": True, "content": "slow", "latency_s": 0.05}
     
@@ -56,9 +53,14 @@ def test_hedge_cancels_losing_request(monkeypatch):
 
 def test_no_extra_threads_during_hedge():
     """No extra threads created during hedged call."""
+    transport = FakeTransport()
+    
     async def slow_post(body, key, session_id, timeout):
-        await asyncio.sleep(0.05)
-        return {"ok": True, "content": "ok", "latency_s": 0.05}
+        if "hedge" in session_id:
+            await transport.handle(session_id)
+        else:
+            await asyncio.sleep(0.05)
+            return {"ok": True, "content": "ok", "latency_s": 0.05}
     
     async def run_test():
         thread_count_before = threading.active_count()
