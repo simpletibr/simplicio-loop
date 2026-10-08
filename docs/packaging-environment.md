@@ -29,6 +29,36 @@ simplicio-loop-stack --check
 simplicio-loop preflight --repo . --strict --json
 ```
 
+### Single source of the Mapper
+
+The Mapper the loop uses is **only** `packages/mapper` in this monorepo, built into the
+single wheel. The standalone `simplicio-mapper` repository is not a source for the loop:
+its builds use the same version number (`0.26.35`) and write to `.simplicio/`, while this
+monorepo writes to `.simplicio-loop/`. Installing that build next to the loop breaks it (#1475).
+
+Every wheel build stamps its origin and source commit into `simplicio_mapper/_build_stamp.json`
+(`packages/mapper/hatch_build.py` for the Mapper wheel, `setup.py` for the Loop wheel). The
+identity is readable at runtime with `simplicio_mapper.build_identity.build_identity()`.
+Check it with:
+
+```bash
+simplicio-loop doctor mapper --json
+```
+
+It reports `status` and a `reason_code`: `verified`, `mapper_identity_missing` (a build that
+predates the identity), `origin_mismatch`, `state_dir_mismatch` (not `.simplicio-loop`),
+`build_unstamped`, `commit_mismatch` (inside a checkout, the installed commit differs from
+`HEAD`), or `mapper_not_importable`. Every blocker carries a `fix` command. Exit `0` when verified,
+`2` otherwise.
+
+To replace a foreign build on a host (for example, a VPS that installed the standalone one):
+
+```bash
+python3 -m pip uninstall -y simplicio-mapper
+python3 -m pip install --force-reinstall simplicio-loop
+simplicio-loop doctor mapper
+```
+
 The check is expected to fail for `pip install --no-deps`, a manually removed
 operator, an install whose operator entrypoints belong to the retired standalone
 `simplicio-cli` / `simplicio-mapper` distributions (`simplicio-loop update` replaces
