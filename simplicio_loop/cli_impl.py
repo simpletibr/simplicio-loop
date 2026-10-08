@@ -542,8 +542,8 @@ def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
                 state_file.write_text(
                     json.dumps({"tree_state": current_state}, ensure_ascii=False), encoding="utf-8"
                 )
-        except MapperUnavailableError:
-            # Binary missing: swallowed, same policy as before
+        except (MapperUnavailableError, FileNotFoundError, OSError):
+            # Binary missing or path doesn't exist: swallowed, same policy as before
             pass
         return
     _ensure_project_map_bounded(root, project_map, state_file, current_state, budget)
