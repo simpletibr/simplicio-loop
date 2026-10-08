@@ -254,22 +254,20 @@ Still deferred to issue #1404: tokens per phase, lane and model, cost per run, t
 - Agent and model names, the lease heartbeat, the running command and the quality gate: no producer yet, so they show UNVERIFIED (#1403 and #1404).
 - Real-GPU 60 fps: UNVERIFIED. Only the software Chromium measurement exists.
 
-## Alerts (#1406, slice 1406a)
+## Alerts (#1406, slices 1406a and 1406b)
 
-The page evaluates alert rules on every tick (`static/live/alerts.js`, pure). The alert center is the **Alertas (N)** button in the header; it counts only the alerts you can see. Each alert names its severity in text, its reason, and a **Ver** action when it points to a drill target.
+The server evaluates the run alert rules over the event stream (`simplicio_loop/dashboard/alerts.py`). Each stream connection gets its own watch, and the server sends only changes, so one alert is raised once while it stays active. The alert center is the **Alertas (N)** button in the header. It counts only the alerts you can see. Each alert names its severity in text, its reason, and a **Ver** action when it points to a drill target.
 
-Rules in this slice:
+| Rule | Severity | Raised when | Evaluated by |
+|---|---|---|---|
+| `run-stalled` | critical | the journal reports a stall (`stall_detected`), until a different phase starts | server |
+| `gate-failing:<gate>` | warning | a gate's latest verdict is FAIL | server |
+| `phase-silent:<phase>` | warning | no event for more than 5 minutes | server |
+| `oracle-unverified` | warning | the run is done and its receipt is ready, but the oracle gave no verdict | server |
+| `stream-lost` | warning | the stream is stale, offline or closed | page (it is the page's own connection) |
 
-| Rule | Severity | Raised when |
-|---|---|---|
-| `run-stalled` | critical | the journal reports a stall (`stall_detected`) |
-| `gate-failing:<gate>` | warning | a gate's latest verdict is FAIL |
-| `phase-silent:<phase>` | warning | no event for more than 5 minutes |
-| `stream-lost` | warning | the stream is stale, offline or closed |
-| `oracle-unverified` | warning | the run is done with a receipt, and the oracle has no verdict |
+**Frames.** Each connection starts with `event: alert_snapshot`, which lists the alerts active now. Later changes arrive as `event: alert_raised` and `event: alert_cleared`. These frames are not stored in `events.jsonl`, and the page does not treat them as dashboard events. See [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md).
 
-**Silence.** **Silenciar 1 h** hides an alert for an hour in this page. Nothing is stored outside the page.
+**Silence.** **Silenciar 1 h** hides an alert for an hour in this page. Nothing is stored outside the page. The first snapshot after connecting sets a baseline, so alerts that were already active do not notify.
 
-**Notifications.** A newly raised alert shows a toast once. The first tick after page load raises nothing, so a page opened on a bad run does not flood the reader.
-
-**Not in slice 1406a, with reasons.** The backend does not evaluate the rules and does not emit `alert_raised` or `alert_cleared`: that changes the telemetry contract and is slice 1406b. Thresholds are fixed in the module, not read from `.simplicio-loop/dashboard.toml`. Browser and desktop notifications, and the optional webhook, are not written. Budget alerts wait on the budget reading (see #1404). The 2-second latency target is not measured, so it stays unverified.
+**Not in slice 1406b, with reasons.** The thresholds are fixed in the server module, not read from `.simplicio-loop/dashboard.toml`. Browser and desktop notifications, and the optional webhook, are not written. Budget alerts wait on the budget reading (see #1404), and the lease rule waits on the lease heartbeat. The 2-second latency target is not measured, so it stays unverified.

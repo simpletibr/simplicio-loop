@@ -16,11 +16,17 @@ export function createSseParser() {
   let buffer = '';
   let data = [];
   let lastId = null;
+  let eventName = null;
 
   function handleLine(line, out) {
     if (line === '') {
-      if (data.length > 0) out.push({ type: 'event', id: lastId, data: data.join(LF) });
+      if (data.length > 0) {
+        const item = { type: 'event', id: lastId, data: data.join(LF) };
+        if (eventName !== null) item.name = eventName;
+        out.push(item);
+      }
       data = [];
+      eventName = null;
       return;
     }
     if (line.charAt(0) === ':') {
@@ -33,6 +39,7 @@ export function createSseParser() {
     if (value.charAt(0) === ' ') value = value.slice(1);
     if (name === 'data') data.push(value);
     if (name === 'id') lastId = value;
+    if (name === 'event') eventName = value;
   }
 
   return {
@@ -71,7 +78,10 @@ async function readStream(body, handlers) {
         handlers.onHeartbeat();
       } else {
         const payload = parseJson(item.data);
-        if (payload !== null) handlers.onEvent(payload);
+        if (payload === null) continue;
+        // Named alert frames are not dashboard events; every other frame is one, as before.
+        if (item.name && item.name.startsWith('alert_')) handlers.onAlert(item.name, payload);
+        else handlers.onEvent(payload);
       }
     }
   }
@@ -89,7 +99,7 @@ function pause(ms, signal) {
   });
 }
 
-export async function connectStream({ url, token, getLastSeq, onEvent, onHeartbeat, onStatus, signal }) {
+export async function connectStream({ url, token, getLastSeq, onEvent, onAlert, onHeartbeat, onStatus, signal }) {
   let backoff = FIRST_BACKOFF_MS;
   while (!(signal && signal.aborted)) {
     const headers = { Accept: 'text/event-stream', Authorization: 'Bearer ' + token };
@@ -109,7 +119,7 @@ export async function connectStream({ url, token, getLastSeq, onEvent, onHeartbe
       onStatus('live');
       backoff = FIRST_BACKOFF_MS;
       try {
-        await readStream(response.body, { onEvent, onHeartbeat });
+        await readStream(response.body, { onEvent, onAlert: onAlert || (() => {}), onHeartbeat });
       } catch (error) {
         // the stream broke; reconnect below
       }
