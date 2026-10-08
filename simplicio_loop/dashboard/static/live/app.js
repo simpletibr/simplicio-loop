@@ -1,8 +1,9 @@
 // Simplicio Live pipeline page: reads the run from the URL, streams its events and renders the reducer view.
 import { connectStream } from '/static/live/sse.js';
 import { initialState, reduce, selectCommands, selectDrill, selectView } from '/static/live/reducer.js';
-import { artifactHref, renderDrill } from '/static/live/lanes.js';
+import { artifactHref, renderDrill, setText } from '/static/live/lanes.js';
 import { bindTabs, createDrillLists } from '/static/live/drill-tabs.js';
+import { deepLinkOf, parseDeepLink } from '/static/live/deeplink.js';
 import { SlAlertToast } from '/static/components/index.js';
 import { createView } from '/static/live/view.js';
 
@@ -37,10 +38,17 @@ const drillEls = {
   commands: document.getElementById('drill-commands'),
   copyStatus: document.getElementById('drill-copy-status'),
 };
+const DRILL_TAB_NAMES = ['summary', 'logs', 'receipts', 'commands', 'contract', 'context'];
+// The contract and the mapper context are raw run artifacts, read when their tab opens and shown as they are.
+const DRILL_ARTIFACTS = {
+  contract: { file: 'task-contract.json', tree: document.getElementById('drill-contract'), note: document.getElementById('drill-contract-note') },
+  context: { file: 'mapper-context.json', tree: document.getElementById('drill-context'), note: document.getElementById('drill-context-note') },
+};
 const drillTabs = bindTabs(
   document.getElementById('drill-tabs'),
-  ['summary', 'logs', 'receipts', 'commands'].map((name) => document.getElementById('drill-tab-' + name)),
-  ['summary', 'logs', 'receipts', 'commands'].map((name) => document.getElementById('drill-panel-' + name)),
+  DRILL_TAB_NAMES.map((name) => document.getElementById('drill-tab-' + name)),
+  DRILL_TAB_NAMES.map((name) => document.getElementById('drill-panel-' + name)),
+  (index) => loadDrillArtifact(DRILL_TAB_NAMES[index]),
 );
 const drillLists = createDrillLists(drillEls);
 const palette = document.getElementById('palette');
@@ -56,6 +64,8 @@ let selectedLane = null;
 let drillTarget = null;
 let drillOpener = null;
 let commandsSignature = '';
+// The on-demand artifacts the run has written, from the last run detail; null until the first detail arrives.
+let drillArtifactNames = null;
 
 function link() {
   return { runId, token };
@@ -108,6 +118,8 @@ function openDrill(target) {
   drillTarget = target;
   drillTabs.select(target.type === 'logs' ? 1 : 0);
   drillPanel.hidden = false;
+  const link = deepLinkOf(runId, target);
+  if (link !== null) window.history.replaceState(null, '', link);
   render();
   drillEls.title.focus();
 }
@@ -117,7 +129,32 @@ function closeDrill() {
   drillTarget = null;
   drillOpener = null;
   drillPanel.hidden = true;
+  window.history.replaceState(null, '', window.location.pathname + window.location.search);
   if (opener && opener.isConnected) opener.focus();
+}
+
+// A link to a drill target opens the drawer on it. replaceState does not fire hashchange, so opening and closing cannot loop.
+function applyHash() {
+  const target = parseDeepLink(window.location.hash, runId);
+  if (target !== null) openDrill(target);
+}
+
+async function loadDrillArtifact(name) {
+  const artifact = DRILL_ARTIFACTS[name];
+  if (!artifact) return;
+  if (drillArtifactNames !== null && !drillArtifactNames.includes(artifact.file)) {
+    setText(artifact.note, 'Arquivo ainda não gerado neste run.');
+    artifact.tree.data = null;
+    return;
+  }
+  const data = await readApi('/api/runs/' + encodeURIComponent(runId) + '/artifacts/' + encodeURIComponent(artifact.file));
+  if (data === null) {
+    setText(artifact.note, 'Não foi possível ler o arquivo.');
+    artifact.tree.data = null;
+    return;
+  }
+  setText(artifact.note, '');
+  artifact.tree.data = data;
 }
 
 function selectLane(laneId) {
@@ -248,6 +285,7 @@ async function loadSummary() {
     });
     dispatch({ type: 'receipts', receipts: detail.receipts });
     dispatch({ type: 'repo', repo: detail.state && typeof detail.state.repo === 'string' ? detail.state.repo : null });
+    drillArtifactNames = Array.isArray(detail.artifacts) ? detail.artifacts : null;
     loadQuality(detail.receipts);
   } catch (error) {
     // keep the last summary read; the next phase or oracle event asks again
@@ -306,6 +344,8 @@ function start() {
   loadTokens();
   setInterval(loadTokens, TOKENS_POLL_MS);
   loadAgents();
+  applyHash();
+  window.addEventListener('hashchange', applyHash);
   connectStream({
     url: runPath() + '/events',
     token,

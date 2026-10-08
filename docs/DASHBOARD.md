@@ -134,14 +134,20 @@ One lane per worktree or lane id, shown under the phase rail. Each lane holds bl
 
 ### Drill-down
 
-Click a phase, a block or a lane to open the side panel (`#drill`). It has four tabs (issue #1405, slice 1405a):
+Click a phase, a block or a lane to open the side panel (`#drill`). It has six tabs (issue #1405, slices 1405a and 1405b):
 
 - **Resumo**: the facts for the target.
 - **Logs**: the target's log lines in `sl-log-viewer`, with its level filter, search and follow.
 - **Recibos**: the run's indexed receipts, each linked to its raw artifact. Every row says "Não validado" with the reason: the dashboard has no receipt validator yet (schema validation is slice 1405b). No receipt is shown as valid.
 - **Comandos**: the exact `simplicio-loop progress <run> --repo <repo>` lines (state, and state as one JSON read), with a copy button. Nothing is executed. The repo path is single-quoted when it has special characters. The tab is empty until the run reports its repo path.
+- **Contrato**: the run's `task-contract.json`, shown as it is in a JSON tree. The page reads it when the tab opens, and only when the run detail lists it. The contract has no per-criterion status field, so the tab shows the contract and no status.
+- **Contexto**: the run's `mapper-context.json`, the same way.
 
-Arrow keys, Home and End move between tabs. `Escape` closes the panel and restores focus. The contract and context tabs, deep links and the virtualised 100-thousand-line log benchmark are slice 1405b.
+Arrow keys, Home and End move between tabs. `Escape` closes the panel and restores focus.
+
+**Deep links.** Opening a phase, lane, block or the logs writes its fragment into the address bar: `#/run/<run>/phase/<phase>`, `#/run/<run>/lane/<lane>`, `#/run/<run>/lane/<lane>/block/<index>`, `#/run/<run>/logs`. Loading a page with one of these opens the drawer on that target. A fragment for another run is ignored. Closing the drawer clears the fragment.
+
+Not in slice 1405b, with reasons: receipt schema validation (`jsonschema` is a development dependency, not a runtime one, so the dashboard cannot validate without a dependency decision; receipts stay "Não validado"), and the virtualised 100-thousand-line log benchmark (no benchmark yet, so the claim stays unverified). The iteration deep link `…/iteration/<n>` is not written yet either.
 
 ### Keys
 

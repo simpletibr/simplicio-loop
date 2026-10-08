@@ -214,7 +214,22 @@ def run_detail(ref: RunRef | Path) -> dict[str, Any]:
         'manifest': _read_json(run_dir / 'manifest.json'),
         'plan': _read_json(run_dir / 'plan.json'),
         'receipts': _index_receipts(run_dir),
+        'artifacts': _index_artifacts(run_dir),
     }
+
+
+# The on-demand artifacts the drill-down reads; a name is listed only when the run wrote a regular file for it.
+ON_DEMAND_ARTIFACTS = ('task-contract.json', 'mapper-context.json')
+
+
+def _index_artifacts(run_dir: Path) -> list[str]:
+    '''Names of the on-demand artifacts present as regular files. Their contents are never read here.'''
+    names = []
+    for name in ON_DEMAND_ARTIFACTS:
+        path = run_dir / name
+        if path.is_file() and not path.is_symlink():
+            names.append(name)
+    return names
 
 
 def _index_receipts(run_dir: Path) -> list[dict[str, Any]]:

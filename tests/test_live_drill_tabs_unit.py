@@ -19,7 +19,7 @@ LIVE = REPO / 'simplicio_loop' / 'dashboard' / 'static' / 'live'
 TABS = LIVE / 'drill-tabs.js'
 RUN_ID = 'run-q1'
 NO_VALIDATOR = 'o dashboard ainda não valida recibos (validação de schema: fatia 1405b)'
-TAB_IDS = ['summary', 'logs', 'receipts', 'commands']
+TAB_IDS = ['summary', 'logs', 'receipts', 'commands', 'contract', 'context']
 
 
 def _node():
@@ -95,7 +95,7 @@ def test_a_run_id_outside_the_safe_set_gets_no_commands():
 
 # Tabs and renderer: the page carries the four tabs with ARIA wiring; drill-tabs.js avoids innerHTML and eval.
 
-def test_the_drawer_has_four_tabs_wired_to_their_panels():
+def test_the_drawer_tabs_are_wired_to_their_panels():
     html = _read(LIVE / 'index.html')
     assert 'role="tablist"' in html
     for name in TAB_IDS:
@@ -131,3 +131,37 @@ def test_copy_handles_a_missing_clipboard_without_throwing():
     text = _read(TABS)
     assert 'navigator.clipboard' in text
     assert 'catch' in text
+
+
+# Slice 1405b: the Contrato and Contexto tabs show the raw task contract and mapper context, and deep links drive the drawer.
+
+def test_the_contract_and_context_tabs_have_a_json_tree_each():
+    html = _read(LIVE / 'index.html')
+    for name, tree in (('contract', 'drill-contract'), ('context', 'drill-context')):
+        assert 'id="drill-tab-%s"' % name in html, name
+        assert 'id="drill-panel-%s"' % name in html, name
+        assert 'id="%s"' % tree in html and 'sl-json-tree' in html, tree
+        assert 'id="drill-%s-note"' % name in html, name
+
+
+def test_the_app_reads_the_contract_and_context_artifacts_and_the_deep_link_routes():
+    text = _read(LIVE / 'app.js')
+    for needle in ("'task-contract.json'", "'mapper-context.json'", 'parseDeepLink', 'deepLinkOf', "'hashchange'", 'replaceState'):
+        assert needle in text, needle
+
+
+def test_the_tab_binder_reports_the_selected_index_to_its_caller():
+    assert 'onSelect' in _read(TABS)
+
+
+def test_the_deep_link_module_passes_the_page_source_guards():
+    text = _read(LIVE / 'deeplink.js')
+    for pattern in (r'\binnerHTML\b', r'\beval\s*\(', r'https?://'):
+        assert re.search(pattern, text) is None, pattern
+
+
+def test_the_artifact_tabs_ask_only_for_the_files_the_run_lists():
+    text = _read(LIVE / 'app.js')
+    assert 'drillArtifactNames' in text
+    assert 'detail.artifacts' in text
+    assert 'Arquivo ainda não gerado neste run.' in text

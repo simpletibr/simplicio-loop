@@ -8,7 +8,7 @@ const COPIED = 'Comando copiado.';
 const COPY_FAILED = 'Não foi possível copiar. Selecione o texto e copie manualmente.';
 
 // Roving tabindex (WAI-ARIA tabs): only the selected tab is in the tab order. Arrows, Home and End move the selection.
-export function bindTabs(tablist, tabs, panels) {
+export function bindTabs(tablist, tabs, panels, onSelect) {
   let selected = Math.max(0, tabs.findIndex((tab) => tab.getAttribute('aria-selected') === 'true'));
   const select = (index, focus) => {
     selected = index;
@@ -19,6 +19,7 @@ export function bindTabs(tablist, tabs, panels) {
       panels[position].hidden = !on;
     });
     if (focus) tabs[index].focus();
+    if (onSelect) onSelect(index);
   };
   tabs.forEach((tab, index) => tab.addEventListener('click', () => select(index, false)));
   tablist.addEventListener('keydown', (event) => {

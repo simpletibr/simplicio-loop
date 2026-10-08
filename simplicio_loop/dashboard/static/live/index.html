@@ -93,6 +93,8 @@
 <button id="drill-tab-logs" class="drill-tab" type="button" role="tab" aria-selected="false" aria-controls="drill-panel-logs" tabindex="-1">Logs</button>
 <button id="drill-tab-receipts" class="drill-tab" type="button" role="tab" aria-selected="false" aria-controls="drill-panel-receipts" tabindex="-1">Recibos</button>
 <button id="drill-tab-commands" class="drill-tab" type="button" role="tab" aria-selected="false" aria-controls="drill-panel-commands" tabindex="-1">Comandos</button>
+<button id="drill-tab-contract" class="drill-tab" type="button" role="tab" aria-selected="false" aria-controls="drill-panel-contract" tabindex="-1">Contrato</button>
+<button id="drill-tab-context" class="drill-tab" type="button" role="tab" aria-selected="false" aria-controls="drill-panel-context" tabindex="-1">Contexto</button>
 </div>
 <section id="drill-panel-summary" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-summary">
 <dl id="drill-facts" class="drill-facts"></dl>
@@ -106,6 +108,14 @@
 <section id="drill-panel-commands" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-commands" hidden>
 <ul id="drill-commands" class="checks" aria-label="Comandos para reproduzir o run"></ul>
 <p id="drill-copy-status" role="status"></p>
+</section>
+<section id="drill-panel-contract" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-contract" hidden>
+<p id="drill-contract-note" role="status"></p>
+<sl-json-tree id="drill-contract" label="Contrato da tarefa"></sl-json-tree>
+</section>
+<section id="drill-panel-context" class="drill-panel" role="tabpanel" aria-labelledby="drill-tab-context" hidden>
+<p id="drill-context-note" role="status"></p>
+<sl-json-tree id="drill-context" label="Contexto do mapeamento"></sl-json-tree>
 </section>
 </aside>
 <script type="module" src="/static/live/app.js"></script>

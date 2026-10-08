@@ -240,6 +240,7 @@
 }
 .drill-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--sl-space-2);
   margin-block: var(--sl-space-3);
   border-block-end: 1px solid var(--sl-line-soft);
