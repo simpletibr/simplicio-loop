@@ -10,6 +10,8 @@ from __future__ import annotations
 import gzip
 import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -182,3 +184,56 @@ def test_design_direction_is_documented():
     assert "frontend-design" in doc
     for tag in TAGS:
         assert f"`<{tag}>`" in doc, tag
+
+
+DIFF_VIEW = COMPONENTS_DIR / "sl-diff-view.js"
+
+
+def _node_diff_view(body: str):
+    """Run JS against the real sl-diff-view.js under node, with the DOM globals base.js needs at load time stubbed."""
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node not installed: the diff windowing helpers are checked under node")
+    script = ("globalThis.HTMLElement = class {};\n"
+              "globalThis.customElements = { get() {}, define() {} };\n"
+              f"const m = await import({json.dumps(DIFF_VIEW.as_uri())});\n" + body)
+    proc = subprocess.run([node, "--input-type=module", "-"], input=script, capture_output=True, text=True, timeout=60)
+    assert proc.returncode == 0, proc.stderr
+    return json.loads(proc.stdout)
+
+
+def test_diff_windowing_helper_returns_only_the_rows_in_view_plus_overscan():
+    got = _node_diff_view("""
+const r = m.windowRange;
+console.log(JSON.stringify({
+  top: r(0, 440, 22, 50000, 30), mid: r(22 * 25000, 440, 22, 50000, 30),
+  short: r(0, 440, 22, 10, 30), empty: r(0, 440, 22, 0, 30), past: r(22 * 99999, 440, 22, 50000, 30),
+}));""")
+    assert got["top"] == {"first": 0, "last": 50}
+    assert got["mid"] == {"first": 24970, "last": 25050}
+    assert got["short"] == {"first": 0, "last": 10}
+    assert got["empty"] == {"first": 0, "last": 0}
+    assert got["past"] == {"first": 50000, "last": 50000}
+
+
+def test_small_diff_keeps_the_table_render_and_large_diff_switches_to_the_window():
+    got = _node_diff_view(r"""
+const mk = (n) => {
+  const lines = ["diff --git a/f b/f", "--- a/f", "+++ b/f", `@@ -1,${n} +1,${n} @@`];
+  for (let i = 0; i < n; i++) lines.push(i % 2 ? "+a" + i : " c" + i);
+  return lines.join("\n");
+};
+const small = m.flattenDiff(m.parseUnifiedDiff(mk(3)));
+const big = m.flattenDiff(m.parseUnifiedDiff(mk(6000)));
+const view = Object.assign(Object.create(m.SlDiffView.prototype), { _diff: mk(3), getAttribute: () => null });
+const html = view.render();
+const window = m.windowRange(0, 480, m.ROW_HEIGHT, big.items.length, 30);
+console.log(JSON.stringify({
+  smallVirtual: small.virtual, bigVirtual: big.virtual, bigRows: big.rows, bigItems: big.items.length,
+  window, windowRows: window.last - window.first,
+  smallTable: html.includes("<tr class=\"r-add\">") && !html.includes("vrow"),
+}));""")
+    assert got["smallVirtual"] is False and got["smallTable"] is True
+    assert got["bigVirtual"] is True and got["bigRows"] == 6001 and got["bigItems"] == 6002
+    assert got["windowRows"] < 200, got
+    assert got["window"]["first"] == 0
