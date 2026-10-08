@@ -88,6 +88,7 @@ def _repo_with_run(tmp_path):
     body = {'run_id': 'live-1', 'status': 'running', 'phase': 'verify', 'percent': 42,
             'repo': str(root), 'started_at': '2026-10-03T10:00:00Z', 'updated_at': '2026-10-03T10:00:00Z'}
     (run_dir / 'state.json').write_text(json.dumps(body), encoding='utf-8')
+    (run_dir / 'manifest.json').write_text(json.dumps({'schema': 'simplicio.run-manifest/v1', 'run_id': 'live-1', 'repo': str(root)}), encoding='utf-8')
     emitter.emit(run_dir, 'phase_entered', source='runner', phase='intake', strict=True)
     return root
 
@@ -232,7 +233,7 @@ def test_progress_writes_the_panel_link_to_stderr_while_a_server_is_up(tmp_path)
     try:
         start = _start(env, repo)
         assert start.returncode == 0, _show(start)
-        proc = _run(env, 'progress', 'live-1', '--repo', str(repo))
+        proc = _run(env, 'progress', 'live-1', '--repo', str(repo), '--once')
     finally:
         _stop(env)
     assert proc.returncode == 0, _show(proc)
@@ -245,7 +246,7 @@ def test_progress_json_stays_parseable_with_empty_stderr(tmp_path):
     try:
         start = _start(env, repo)
         assert start.returncode == 0, _show(start)
-        proc = _run(env, 'progress', 'live-1', '--repo', str(repo), '--format', 'json')
+        proc = _run(env, 'progress', 'live-1', '--repo', str(repo), '--format', 'json', '--once')
     finally:
         _stop(env)
     assert proc.returncode == 0, _show(proc)
@@ -257,7 +258,7 @@ def test_progress_prints_no_panel_link_when_no_server_is_up(tmp_path):
     env = _env(tmp_path)
     repo = _repo_with_run(tmp_path)
     try:
-        proc = _run(env, 'progress', 'live-1', '--repo', str(repo))
+        proc = _run(env, 'progress', 'live-1', '--repo', str(repo), '--once')
     finally:
         _stop(env)
     assert proc.returncode == 0, _show(proc)
