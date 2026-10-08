@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simplicio Live · Pipeline vivo</title>
+<link rel="stylesheet" href="/static/components/simplicio-live.css">
+<link rel="stylesheet" href="/static/live/live.css">
+</head>
+<body class="sl-page">
+<header class="live-head">
+<h1>Pipeline vivo</h1>
+<sl-connection-dot id="conn" status="connecting"></sl-connection-dot>
+<p id="run-id" class="run-id"></p>
+</header>
+<main class="live-main">
+<section class="panel rail-panel" aria-labelledby="rail-title">
+<h2 id="rail-title">Fases</h2>
+<sl-stage-rail id="rail" phase="intake" status="RUNNING" label="Fases do run"></sl-stage-rail>
+<ul id="phase-stats" class="phase-stats"></ul>
+</section>
+<section class="panel">
+<h2>Progresso</h2>
+<sl-donut id="ring" label="Progresso do run" center="0%" data-percent="0"></sl-donut>
+</section>
+<section class="panel">
+<h2>Agora</h2>
+<div id="agora" class="agora">
+<p><span>Atual</span><strong data-field="current"></strong></p>
+<p><span>Próximo</span><strong data-field="next"></strong></p>
+<p><span>Comando</span><strong data-field="command"></strong></p>
+<p><span>Tempo na fase</span><strong data-field="timer">00:00</strong></p>
+</div>
+</section>
+<section class="panel">
+<h2>Gates</h2>
+<ul id="gates" class="gates"></ul>
+</section>
+<section class="kpis" aria-label="Indicadores">
+<sl-kpi-card id="kpi-epm" label="Eventos por minuto" value="0"></sl-kpi-card>
+<sl-kpi-card id="kpi-heartbeat" label="Último heartbeat" value="–" unit="s"></sl-kpi-card>
+<sl-kpi-card id="kpi-stall" label="Stall" value="Não" state="PASS"></sl-kpi-card>
+</section>
+<p id="empty" role="status">Aguardando eventos…</p>
+</main>
+<script type="module" src="/static/live/app.js"></script>
+</body>
+</html>
