@@ -264,3 +264,54 @@ def test_progress_prints_no_panel_link_when_no_server_is_up(tmp_path):
     assert proc.returncode == 0, _show(proc)
     assert '?t=' not in proc.stdout + proc.stderr, _show(proc)
     assert 'http://127.0.0.1:' not in proc.stdout + proc.stderr, _show(proc)
+
+
+def _pty_session(env, repo, key):
+    '''Run `dashboard --tui` on a pseudo-terminal, send ``key`` once it drew, return (rc, output).'''
+    import pty
+    import select
+    import signal as sig
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.chdir(str(REPO))
+        os.execve(sys.executable, [sys.executable, '-m', ENTRY, 'dashboard', '--tui', '--repo', str(repo)], env)
+    out, sent, deadline = b'', False, time.monotonic() + 30
+    try:
+        while time.monotonic() < deadline:
+            ready, _, _ = select.select([fd], [], [], 0.2)
+            if ready:
+                try:
+                    chunk = os.read(fd, 4096)
+                except OSError:
+                    break
+                if not chunk:
+                    break
+                out += chunk
+            if not sent and b'quit' in out:
+                os.write(fd, key)
+                sent = True
+            done, status = os.waitpid(pid, os.WNOHANG)
+            if done:
+                return os.waitstatus_to_exitcode(status), out.decode('utf-8', 'replace')
+        for _ in range(50):  # the pty closed (the child exited): collect it
+            done, status = os.waitpid(pid, os.WNOHANG)
+            if done:
+                return os.waitstatus_to_exitcode(status), out.decode('utf-8', 'replace')
+            time.sleep(0.1)
+        os.kill(pid, sig.SIGKILL)
+        os.waitpid(pid, 0)
+        raise AssertionError('tui did not exit after %r; output:\n%s' % (key, out.decode('utf-8', 'replace')))
+    finally:
+        os.close(fd)
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='pty is POSIX only')
+@pytest.mark.parametrize('key', [b'q', b'\x03'], ids=['q', 'ctrl-c'])
+def test_tui_on_a_real_tty_starts_shows_status_and_exits_cleanly(tmp_path, key):
+    env = _env(tmp_path)
+    env['TERM'] = 'xterm'
+    repo = _repo_with_run(tmp_path)
+    rc, out = _pty_session(env, repo, key)
+    assert rc == 0, out
+    assert 'quit' in out
+    assert '\x1b[?25h' in out, 'the cursor was not restored'

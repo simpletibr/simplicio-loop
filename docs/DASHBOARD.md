@@ -96,7 +96,7 @@ Summary fields come from `build_progress` (`phase`, `percent`, `tasks`, `gates`,
 | `--status` | Print the status as JSON, with no token. Schema `simplicio.dashboard-status/v1` at `contracts/dashboard-status/v1/schema.json`. |
 | `--snapshot <out.html>` | Write a self-contained offline HTML file of a run. No server. |
 | `--snapshot <out.html> --history` | Write the offline history page: run list, weekly trends, day-by-hour heatmap and learn lessons. No server, no script. |
-| `--tui` | Show a run in the terminal. |
+| `--tui` | Show a run in the terminal. On a TTY it redraws in place; `q` or Ctrl-C quits and restores the cursor. Off a TTY it prints once. |
 | `--tokens` | Open the legacy Token Monitor on port 9090. Goes only with `--port`, `--no-browser` and `--stop`. |
 
 State file: `~/.simplicio-loop/dashboard/state.json`. Override it with `SIMPLICIO_DASHBOARD_STATE`. Mode 0600. It holds the pid, port, token and repos.
@@ -273,7 +273,7 @@ Budget slice (#1404): `simplicio_loop/dashboard/budget.py` reads the declared li
 - Events in rotated files (`events.jsonl.1` and similar) are not read, so `last_seq` covers only the current file.
 - A truncation that refills the file past the saved offset is not detected, because the size check only sees a shrink.
 - Real browser opening on Windows and macOS.
-- The live `tui` animation on a real TTY.
+- The live `tui` on Windows and macOS terminals (verified on a Linux pseudo-terminal by `tests/test_dashboard_cli_system.py`; the Windows path reads keys with `msvcrt` and is not run here).
 - Agent and cost data (issue #1404).
 - The rich queue (issue #1407).
 - Deferred from #1403 (see [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md#quality-producers)): the test matrix by unit, integration, system and regression level, red and green transitions per test id, the flaky rule (needs per-test ids), and the diff virtualisation with the 5,000-line benchmark (no measurement exists).
