@@ -66,6 +66,15 @@ def emit_transition(run_dir: Any, entry: Mapping[str, Any], run_id: str = "") ->
         return []
 
 
+def emit_token_usage(run_dir: Any, only: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Append the token usage a run recorded in its execution-route files. Never raises (fail-open)."""
+    try:
+        module = load()
+        return module.emit_token_usage(run_dir, only=only) if module else []
+    except Exception:
+        return []
+
+
 def read_events(run_dir: Any, since_seq: int = 0) -> List[Dict[str, Any]]:
     """A run's events: the live stream, or the ``derived: true`` reconstruction for older runs."""
     module = load()

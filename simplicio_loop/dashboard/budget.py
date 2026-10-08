@@ -85,6 +85,52 @@ def usage(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
             'by_phase': by_phase, 'by_lane': by_lane, 'by_model': by_model}
 
 
+def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | None) -> dict[str, Any]:
+    '''USD for the run: measured input/output tokens per model times the price table. Always an estimate.
+
+    UNVERIFIED (with the reason) when no tokens were measured, the table is missing, or a model has no price.
+    '''
+    row: dict[str, Any] = {'usd': None, 'state': 'UNVERIFIED', 'proof_kind': 'estimado', 'reason': None,
+                           'as_of': None, 'source_url': None, 'by_model': {}}
+    per_model: dict[str, list[float]] = {}
+    for event in events:
+        if not isinstance(event, dict) or event.get('schema') != SCHEMA or event.get('kind') != 'token_usage':
+            continue
+        payload = event.get('payload') if isinstance(event.get('payload'), dict) else {}
+        tokens_in, tokens_out = _number(payload.get('input_tokens')), _number(payload.get('output_tokens'))
+        if not (tokens_in or 0) + (tokens_out or 0):
+            continue
+        model = payload.get('model') if isinstance(payload.get('model'), str) and payload.get('model') else ''
+        totals = per_model.setdefault(model, [0, 0])
+        totals[0] += tokens_in or 0
+        totals[1] += tokens_out or 0
+    table = prices.get('models') if isinstance(prices, dict) and isinstance(prices.get('models'), dict) else None
+    if isinstance(prices, dict):
+        row['as_of'], row['source_url'] = prices.get('as_of'), prices.get('source_url')
+    if not per_model:
+        row['reason'] = 'tokens não medidos: nenhum token_usage com contagem registrada pelo run'
+        return row
+    if table is None:
+        row['reason'] = 'tabela de preços indisponível'
+        return row
+    total = 0.0
+    for model, (tokens_in, tokens_out) in sorted(per_model.items()):
+        price = table.get(model)
+        in_rate = _number(price.get('input_per_mtok')) if isinstance(price, dict) else None
+        out_rate = _number(price.get('output_per_mtok')) if isinstance(price, dict) else None
+        if in_rate is None or out_rate is None:
+            row['reason'] = 'sem preço na tabela para o modelo %r' % (model or 'desconhecido')
+            row['usd'] = None
+            row['by_model'] = {}
+            return row
+        usd = (tokens_in * in_rate + tokens_out * out_rate) / 1_000_000
+        row['by_model'][model] = round(usd, 6)
+        total += usd
+    row['usd'] = round(total, 6)
+    row['state'] = 'ESTIMADO'
+    return row
+
+
 def _fraction(phase: str | None) -> float:
     if phase not in PHASES:
         return 0.0
@@ -138,13 +184,13 @@ def current_phase(events: Iterable[dict[str, Any]]) -> str | None:
     return phase
 
 
-def report(run_dir: str | Path, events: list[dict[str, Any]]) -> dict[str, Any]:
+def report(run_dir: str | Path, events: list[dict[str, Any]], prices: dict[str, Any] | None = None) -> dict[str, Any]:
     '''The budget panel payload for one run: limits, usage and one projection per dimension.'''
     limits = declared(run_dir)
     used = usage(events)
     phase = current_phase(events)
     measured = {'tokens': used['tokens'], 'usd': used['usd'], 'seconds': elapsed_s(events)}
-    return {'phase': phase, 'limits': limits, 'usage': used,
+    return {'phase': phase, 'limits': limits, 'usage': used, 'cost': cost_estimate(events, prices),
             'rows': {key: project(limits[key], measured[key], phase) for key in KEYS}}
 
 
