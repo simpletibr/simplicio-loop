@@ -270,3 +270,74 @@ def test_selftest_exits_zero():
         [sys.executable, '-m', 'simplicio_loop.dashboard.server', '--selftest'],
         capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_budget_route_reports_limits_usage_and_a_labelled_projection(repo_root, server_handle):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    (run_dir / 'task-contract.json').write_text(json.dumps(
+        {'tasks': [{'routing': {'budget': {'tokens': 600, 'usd': None, 'seconds': None}}}]}), encoding='utf-8')
+    emitter = _emitter()
+    emitter.emit(run_dir, 'phase_entered', source='runner', phase='executing', strict=True)
+    emitter.emit(run_dir, 'token_usage', source='worker', phase='executing',
+                 payload={'model': 'm', 'input_tokens': 300, 'output_tokens': 0}, strict=True)
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/budget', AUTH)
+    assert status == 200
+    data = json.loads(body)
+    assert data['rows']['tokens']['state'] == 'PROJECTED_OVER'
+    assert data['rows']['tokens']['proof_kind'] == 'estimado'
+    assert data['usage']['by_phase'] == {'executing': 300}
+    assert data['rows']['usd']['state'] == 'UNVERIFIED'
+
+
+def test_budget_route_for_an_unknown_run_is_404(server_handle):
+    status, _, _ = _get(server_handle.port, '/api/runs/nope/budget', AUTH)
+    assert status == 404
+
+def test_history_endpoint_returns_records_filters_and_rejects_bad_values(server_handle, repo_root):
+    def get(query):
+        status, _, body = _get(server_handle.port, '/api/history' + query, AUTH)
+        return status, json.loads(body)
+
+    status, payload = get('')
+    assert status == 200
+    assert [r['run_id'] for r in payload['history']] == ['orch-1', 'live-1', 'legacy-1']  # same started_at: run_id desc
+    assert all(r['schema'] == 'simplicio.dashboard-history/v1' for r in payload['history'])
+    assert [r['run_id'] for r in get('?verdict=RUNNING')[1]['history']] == ['live-1']
+    assert len(get('?limit=1')[1]['history']) == 1
+    assert get('?verdict=NOPE')[0] == 400
+    assert get('?since=yesterday')[0] == 400
+    assert get('?min_cost_usd=abc')[0] == 400
+    status, _, _ = _get(server_handle.port, '/api/history', {})
+    assert status == 401
+
+
+def test_budget_route_carries_the_comparison_with_the_previous_runs(repo_root, server_handle):
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/budget', AUTH)
+    assert status == 200
+    comparison = json.loads(body)['comparison']
+    assert comparison['runs'] == 2  # orch-1 and legacy-1; the current run is skipped
+    assert set(comparison['fields']) == {'duration_s', 'tokens', 'cost_usd', 'iterations'}
+    assert comparison['fields']['tokens']['state'] == 'UNVERIFIED'
+
+def test_history_compare_trends_heatmap_and_csv_routes(server_handle, repo_root):
+    def get(path):
+        status, headers, body = _get(server_handle.port, path, AUTH)
+        return status, headers, body
+
+    status, _, body = get('/api/history/compare?a=orch-1&b=live-1')
+    assert status == 200
+    cmp = json.loads(body)
+    assert (cmp['a'], cmp['b']) == ('orch-1', 'live-1') and 'metrics' in cmp
+    assert get('/api/history/compare?a=orch-1&b=nope')[0] == 404
+    assert get('/api/history/compare?a=orch-1')[0] == 404
+    status, _, body = get('/api/history/trends?bucket=month')
+    assert status == 200 and json.loads(body)['trends'][0]['bucket'] == '2026-10'
+    assert get('/api/history/trends?bucket=year')[0] == 400
+    status, _, body = get('/api/history/heatmap')
+    grid = json.loads(body)['heatmap']
+    assert status == 200 and len(grid) == 7 and sum(map(sum, grid)) == 3
+    status, headers, body = get('/api/history?format=csv')
+    assert status == 200 and headers['content-type'].startswith('text/csv')
+    lines = body.decode('utf-8').splitlines()
+    assert lines[0].startswith('run_id,repo,verdict') and len(lines) == 4
+    assert get('/api/history/other')[0] == 404

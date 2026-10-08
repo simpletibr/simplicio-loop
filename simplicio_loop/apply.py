@@ -31,11 +31,12 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from . import quality_events
+from .effort import next_effort_for_status
+from .runner import _repo_fingerprint, _repo_state_equivalent
 from .survey import MISSING_HINT as SURVEY_MISSING_HINT
 from .survey import MISSING_REASON as SURVEY_MISSING_REASON
 from .survey import provenance as survey_provenance
-from .effort import next_effort_for_status
-from .runner import _repo_fingerprint, _repo_state_equivalent
 
 APPLY_SCHEMA = "simplicio.loop-apply/v1"
 APPLY_RECEIPT_SCHEMA = "simplicio.loop-apply-receipt/v1"
@@ -283,11 +284,15 @@ async def _run_check(root: Path, check: str, *, run_id: str, task_id: str) -> di
             await proc.communicate()
             return {"ok": False, "reason_code": "check_timeout", "duration_s": time.monotonic() - started}
         ok = proc.returncode == 0
+        stdout_text = stdout.decode("utf-8", "replace")
+        stderr_text = stderr.decode("utf-8", "replace")
+        duration_s = time.monotonic() - started
+        quality_events.emit_check(task_id, check, stdout_text, stderr_text, proc.returncode, duration_s)
         return {
             "ok": ok, "returncode": proc.returncode,
-            "stdout_tail": stdout.decode("utf-8", "replace")[-2000:],
-            "stderr_tail": stderr.decode("utf-8", "replace")[-2000:],
-            "duration_s": time.monotonic() - started,
+            "stdout_tail": stdout_text[-2000:],
+            "stderr_tail": stderr_text[-2000:],
+            "duration_s": duration_s,
         }
     except OSError as exc:
         return {"ok": False, "reason_code": "check_spawn_failed", "error": str(exc),
@@ -445,6 +450,7 @@ def run(ops: Mapping[str, Any], *, repo: str | Path = ".", ops_path: str | Path 
 
     after_state = _repo_fingerprint(root, ignore_paths=ignore_paths)
     diff = _measure_diff(root, before_state)
+    quality_events.emit_diff("apply", diff)
 
     # Key order (issue #1336): content that is the SAME across two runs of
     # the same ops.json on an unchanged tree (schema/ops_sha/chains/tasks/

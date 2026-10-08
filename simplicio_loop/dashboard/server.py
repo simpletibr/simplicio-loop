@@ -30,8 +30,8 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Mapping
 
-from simplicio_loop import __version__, stage_agents
-from simplicio_loop.dashboard import STATIC_DIR, alerts, runs
+from simplicio_loop import __version__, dashboard_events, stage_agents
+from simplicio_loop.dashboard import STATIC_DIR, alerts, budget, config, history, runs, trends, webhook
 from simplicio_loop.dashboard.tail import EventTail
 
 HOST = '127.0.0.1'
@@ -45,7 +45,9 @@ CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'
 ACTIVE_TYPES = frozenset({'text/html', 'application/xhtml+xml', 'image/svg+xml', 'text/xml', 'application/xml'})
 _CURSOR_RE = re.compile(r'[0-9]{1,18}')
 _EVENTS_RE = re.compile(r'/api/runs/([^/]+)/events')
+_CONFIG_RE = re.compile(r'/api/runs/([^/]+)/config')
 _ARTIFACT_RE = re.compile(r'/api/runs/([^/]+)/artifacts/(.+)')
+_BUDGET_RE = re.compile(r'/api/runs/([^/]+)/budget')
 _DETAIL_RE = re.compile(r'/api/runs/([^/]+)')
 STATIC_TYPES = {
     '.js': 'text/javascript; charset=utf-8',
@@ -168,6 +170,49 @@ def _list_runs(server: Any, query: Mapping[str, str]) -> list[dict[str, Any]]:
     return rows
 
 
+_HISTORY_NUMBERS = {'min_duration_s': float, 'max_duration_s': float, 'min_iterations': float,
+                    'max_iterations': float, 'min_cost_usd': float, 'max_cost_usd': float, 'limit': int}
+
+
+def _history_rows(server: Any, query: Mapping[str, str]) -> list[dict[str, Any]]:
+    '''Past-run records from every watched repo (#1408); HttpError 400 for a bad filter value.'''
+    filters: dict[str, Any] = {k: query[k] for k in ('verdict', 'repo', 'since', 'until') if k in query}
+    for key, cast in _HISTORY_NUMBERS.items():
+        if key in query:
+            try:
+                filters[key] = cast(query[key])
+            except ValueError:
+                raise HttpError(400, '%s must be a number' % key) from None
+    limit = filters.pop('limit', None)
+    try:
+        rows = history.read_history(server.repos, **filters)
+    except ValueError as exc:
+        raise HttpError(400, str(exc)) from None
+    rows.sort(key=lambda row: (_ts(row.get('started_at')), row['run_id']), reverse=True)
+    return rows[:limit] if limit is not None else rows
+
+
+def _history(server: Any, path: str, query: Mapping[str, str]) -> Any:
+    '''The /api/history family: list, compare, trends and heatmap over the same filters.'''
+    if path == '/api/history/compare':
+        rows = {r['run_id']: r for r in _history_rows(server, {})}
+        missing = [query.get(k) for k in ('a', 'b') if query.get(k) not in rows]
+        if missing:
+            raise HttpError(404, 'run not found')
+        return trends.compare(rows[query['a']], rows[query['b']])
+    rows = _history_rows(server, query)
+    if path == '/api/history/trends':
+        try:
+            return {'bucket': query.get('bucket', 'week'), 'trends': trends.trends(rows, query.get('bucket', 'week'))}
+        except ValueError as exc:
+            raise HttpError(400, str(exc)) from None
+    if path == '/api/history/heatmap':
+        return {'heatmap': trends.heatmap(rows)}
+    if path == '/api/history':
+        return {'history': rows}
+    raise HttpError(404, 'no such route')
+
+
 def _cursor(query: Mapping[str, str], headers: Any) -> int:
     '''Resume seq: the larger of the Last-Event-ID header and the since_seq query; 400 on garbage.'''
     cursor = 0
@@ -264,6 +309,13 @@ def _queue(server: Any) -> dict[str, Any]:
     return {'queue': active}
 
 
+def _budget(server: Any, ref: dict[str, Any]) -> dict[str, Any]:
+    '''Budget and usage of one run, plus its comparison with the previous runs from the history reader.'''
+    payload = budget.report(ref['run_dir'], dashboard_events.read_events(ref['run_dir']))
+    payload['comparison'] = budget.compare(history.history_record(ref), history.read_history(server.repos))
+    return payload
+
+
 def _health(server: Any) -> dict[str, Any]:
     return {'status': 'ok', 'version': __version__, 'pid': os.getpid(),
             'uptime_s': round(time.monotonic() - server.started_at, 1),
@@ -276,12 +328,18 @@ def _api(server: Any, path: str, query: Mapping[str, str]) -> Any:
         return _health(server)
     if path == '/api/runs':
         return {'runs': _list_runs(server, query)}
+    if path == '/api/history' or path.startswith('/api/history/'):
+        return _history(server, path, query)
     if path == '/api/queue':
         return _queue(server)
     if path == '/api/agents':
         return _agents()
     if path == '/api/tokens':
         return _tokens()
+    settings = _CONFIG_RE.fullmatch(path)
+    if settings:
+        ref = _find_run(server, urllib.parse.unquote(settings.group(1)))
+        return config.load(ref['repo']).public()
     detail = _DETAIL_RE.fullmatch(path)
     if detail:
         ref = _find_run(server, urllib.parse.unquote(detail.group(1)))
@@ -345,9 +403,17 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         if events:
             self._stream(urllib.parse.unquote(events.group(1)), query)
             return
+        budget_route = _BUDGET_RE.fullmatch(raw_path)
+        if budget_route:
+            ref = _find_run(self.server, urllib.parse.unquote(budget_route.group(1)))
+            self._send_json(200, _budget(self.server, ref))
+            return
         artifact = _ARTIFACT_RE.fullmatch(raw_path)
         if artifact:
             self._artifact(urllib.parse.unquote(artifact.group(1)), artifact.group(2))
+            return
+        if raw_path == '/api/history' and query.get('format') == 'csv':
+            self._send(200, trends.to_csv(_history_rows(self.server, query)).encode('utf-8'), 'text/csv; charset=utf-8')
             return
         self._send_json(200, _api(self.server, raw_path, query))
 
@@ -381,7 +447,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         cursor = _cursor(query, self.headers)
         ref = _find_run(self.server, run_id)
         tail = EventTail(Path(ref['run_dir']) / EVENTS_FILE, terminal=_is_terminal(ref))
-        watch = alerts.AlertWatch()
+        settings = config.load(ref['repo'])
+        watch = alerts.AlertWatch(settings.silence_ms, budget=budget.declared(ref['run_dir']))
 
         def receipt_ready() -> bool:
             return _receipt_ready(ref)
@@ -402,8 +469,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 raised, cleared = watch.update(new, _now_ms(), receipt_ready)
                 for alert in raised:
                     self._write_frame('alert_raised', alert)
+                    self.server.webhook(settings.webhook_url).send(ref['run_id'], alert)
                 for alert_id in cleared:
                     self._write_frame('alert_cleared', {'id': alert_id})
+                    self.server.webhook(settings.webhook_url).clear(ref['run_id'], alert_id)
                 if new or raised or cleared:
                     last_write = time.monotonic()
                 if time.monotonic() - last_write >= heartbeat:
@@ -460,6 +529,19 @@ class ServerHandle:
         self._thread.join(5.0)
 
 
+def _webhook_for(server: Any) -> Any:
+    '''One sender per webhook URL, shared by every stream, so an alert is posted once however many pages watch.'''
+    senders: dict[str | None, webhook.Sender] = {}
+    lock = threading.Lock()
+
+    def get(url: str | None) -> webhook.Sender:
+        with lock:
+            if url not in senders:
+                senders[url] = webhook.Sender(url)
+            return senders[url]
+    return get
+
+
 def start(repo_root: Any, host: str = HOST, port: int = 0, token: str = '',
           heartbeat_seconds: float = HEARTBEAT_SECONDS) -> ServerHandle:
     '''Serve one repo root or several on 127.0.0.1:``port`` (0 picks a free port) in a daemon thread.
@@ -477,6 +559,7 @@ def start(repo_root: Any, host: str = HOST, port: int = 0, token: str = '',
     server.started_at = time.monotonic()
     server.stop_event = threading.Event()
     server.heartbeat_seconds = heartbeat_seconds
+    server.webhook = _webhook_for(server)
     thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': 0.1}, daemon=True)
     thread.start()
     return ServerHandle(server, thread)

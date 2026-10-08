@@ -17,8 +17,14 @@ Neither module writes to a run. The only file the dashboard writes is its state 
 |---|---|---|
 | GET | `/api/health` | liveness and version |
 | GET | `/api/runs` | `{"runs": [...]}` summaries, newest `updated_at` first; filters `status`, `repo`, `since` |
+| GET | `/api/history` | `{"history": [...]}` one `simplicio.dashboard-history/v1` record per past run (verdict from `run-outcome.json`, `duration_s`, `iterations`, `stalls`, `tokens`, `cost_usd`, `phase_durations_s`), newest `started_at` first; filters `verdict`, `repo`, `since`, `until`, `min_/max_duration_s`, `min_/max_iterations`, `min_/max_cost_usd`, `limit`; a bad value is 400. Unmeasured fields are `null`, and a filter on one excludes the run |
+| GET | `/api/history/compare` | `?a=<run>&b=<run>`: phases (union, `null` where a run never reached one), iterations, stalls, tests, tokens, cost and duration with `delta` (b minus a); `comparable` is false when the runs reached different phases (for example blocked against done); 404 for an unknown run |
+| GET | `/api/history/trends` | `?bucket=week\|month` (UTC; weeks start Monday): per bucket `complete_rate` and `not_complete_rate`, `avg_phase_s`, `iterations_per_task`, `cost_per_task_usd`, `top_stall_causes`; same filters as `/api/history` |
+| GET | `/api/history/heatmap` | `{"heatmap": [7][24]}` run starts, weekday (Monday = 0) by hour, UTC |
+| GET | `/api/history?format=csv` | the history records as CSV (formula-leading text is quoted); JSON is the default |
 | GET | `/api/runs/{id}` | summary, `state.json`, `manifest.json`, `plan.json`, and a receipt index (name and size only) |
 | GET | `/api/runs/{id}/events` | SSE stream of the run's events (see SSE contract) |
+| GET | `/api/runs/{id}/config` | opt-in flags from `dashboard.toml` (`browser_notifications`, `webhook`); never the URL |
 | GET | `/api/runs/{id}/artifacts/{path}` | bytes of one artifact with secrets masked; 403, 404 or 413 on refusal |
 | GET | `/api/queue` | queued work items (UNVERIFIED data source) |
 | GET | `/api/agents` | agents and models (UNVERIFIED) |
@@ -145,11 +151,25 @@ Click a phase, a block or a lane to open the side panel (`#drill`). It has six t
 
 Arrow keys, Home and End move between tabs. `Escape` closes the panel and restores focus.
 
-**Deep links.** Opening a phase, lane, block or the logs writes its fragment into the address bar: `#/run/<run>/phase/<phase>`, `#/run/<run>/lane/<lane>`, `#/run/<run>/lane/<lane>/block/<index>`, `#/run/<run>/logs`. Loading a page with one of these opens the drawer on that target. A fragment for another run is ignored. Closing the drawer clears the fragment.
+**Deep links.** Opening a phase, lane, block or the logs writes its fragment into the address bar: `#/run/<run>/phase/<phase>`, `#/run/<run>/lane/<lane>`, `#/run/<run>/lane/<lane>/block/<index>`, `#/run/<run>/logs`, `#/run/<run>/iteration/<n>` and `#/run/<run>/phase/<phase>/iteration/<n>` (the iteration's situation, duration, gate counts, stall and the lane lines of that iteration). Loading a page with one of these opens the drawer on that target. A fragment for another run is ignored. Closing the drawer clears the fragment.
 
 Receipt verdicts: the run detail checks each receipt against the schemas the package ships (`receipt_check.py`), with `jsonschema` as a runtime dependency. The check is structural: it does not recompute hashes, so a VALID stage receipt is schema-compliant, not proven authentic. Adding a schema is one row in `SHIPPED_SCHEMAS`.
 
-Not written yet, with reasons: the 100-thousand-line benchmark (no benchmark, so the claim stays unverified), and the iteration deep link `…/iteration/<n>`.
+**Log viewer at 100 000 lines.** `sl-log-viewer` is virtualized: only the rows in view plus an overscan are in the DOM, each row has one fixed height, and a long message is cut with an ellipsis (its full text is the row title). Benchmark, in a real Chromium 141 on the cloud container (wall clock, so it varies by machine):
+
+```
+.venv/bin/python scripts/benchmark_log_viewer.py --lines 100000 --json
+```
+
+| Measure | Before (every line in the DOM) | After (virtualized) |
+|---|---|---|
+| Render 100 000 lines | 20 036 ms | 42 ms |
+| DOM rows | 100 000 | 45 |
+| Follow (jump to the end) | 23 327 ms | 35 ms |
+| Level filter (1 031 lines match) | 543 ms | 29 ms |
+| Text search | 507 ms | 34 ms |
+
+`tests/test_live_log_virtualization_e2e_system.py` runs the same benchmark with loose limits (rows < 200, each step < 2 s) and skips when no Chromium is available.
 
 ### Keys
 
@@ -161,7 +181,7 @@ The keys are ignored while the focus is in an input or textarea.
 
 ### Command palette
 
-`Ctrl+K` opens the phase, task and file commands. A task command opens the lane drill-down. A file command opens the artifact in a new window, with no `opener`.
+`Ctrl+K` opens the phase, task, run and file commands. A run command ("Run <id>", from `GET /api/runs`, never the open run) moves the page to that run and keeps the token and the other URL parameters. A task command opens the lane drill-down. A file command opens the artifact in a new window, with no `opener`.
 
 ### Follow and pause
 
@@ -169,7 +189,7 @@ The "Seguir o run" button (`#follow`, `aria-pressed`) follows the run. While pau
 
 ### TV mode
 
-Add `tv=1` to the URL. It sets `html[data-tv="1"]`: larger type and blocks, the same layout. TV run rotation is deferred (see Unverified).
+Add `tv=1` to the URL. It sets `html[data-tv="1"]`: larger type and blocks, the same layout. With `tv=1` the page moves to the next run every 20 s, wrapping around (`rotate=<seconds>` sets the interval, 1 to 3600). It does not rotate under `prefers-reduced-motion: reduce`, or with fewer than two runs; the palette still jumps by hand.
 
 ### Stall toast
 
@@ -213,7 +233,7 @@ Definition of done: seven pillars (implementation, unit, integration, system, re
 
 The page fetches `quality-matrix.json` only when the run receipts list includes it.
 
-Qualidade panel: tests, lint, coverage trend, flaky tests and diff stay UNVERIFIED with the reason "sem produtor no fluxo atual" until a producer exists.
+Qualidade panel: tests, lint, coverage trend and diff read from the quality events (`test_result`, `lint_result`, `coverage_result`, and `apply_result` with `step: diff`) when present; otherwise they stay UNVERIFIED with the reason "sem produtor no fluxo atual". Flaky tests stay UNVERIFIED: the events carry counts, not per-test ids.
 
 Rule: the page never shows PASS for a pending or unverified item.
 
@@ -223,23 +243,23 @@ The economy panel is global, not per run. It reads `~/.simplicio-loop/proxy_savi
 
 Every token and USD number is estimated, and the labels say "estimado". The estimator counts about 4 characters per token. The savings series is cumulative (labelled "acumulado").
 
-The cost row (slice 1404b) estimates the input cost of the tokens sent through the proxy. It multiplies the measured `tokens_after` and `tokens_saved` by the input price of the active model. The prices come from `simplicio_loop/dashboard/prices.json`, which names its `as_of` date and the official `source_url`. Update that file by PR when the source changes. The engine's per-family `usd_saved` figure is a rough estimate of its own and is not replaced. If the active model has no entry, the cost row stays UNVERIFIED with that reason. Haiku 5.5 is priced for prompts up to 100 thousand tokens only.
+The cost row (slice 1404b) estimates the input cost of the tokens sent through the proxy. It multiplies the measured `tokens_after` and `tokens_saved` by the input price of the active model. The prices come from `simplicio_loop/dashboard/prices.json`, which names its `as_of` date and the official `source_url`. Update that file by PR when the source changes. The engine's per-family `usd_saved` figure is a rough estimate of its own and is not replaced. If the active model has no entry, the cost row stays UNVERIFIED with that reason. A price entry can apply only up to a stated prompt size; the entry's `note` in `prices.json` gives the rate above it.
 
 The `simplicio-loop economy` command is not the source of token numbers. It shows the environment and parallelism profile. The real sources are `get_status()` of the Token Monitor and the savings ledger at `.simplicio-loop/ledger/savings-events.jsonl`.
 
-Only the cost row can show a value, and it shows "Estimado". Every other row is UNVERIFIED with a reason. None of them ever shows PASS:
+The cost row shows "Estimado". The budget row shows "Estimado" for a projection and FAIL only for a use already past the limit. Tokens por fase shows PASS only when `token_usage` events exist (measured). Every other row is UNVERIFIED with a reason:
 
 | Row | State | Reason or source |
 |---|---|---|
 | Mapa de agentes | UNVERIFIED | lists the roles and stages of `contracts/stage-agents/v1/stages.json`; no instance is measured |
-| Tokens por fase | UNVERIFIED | no producer |
+| Tokens por fase | PASS or UNVERIFIED | sums of the measured `token_usage` events by phase and model (`/api/runs/<id>/budget`); UNVERIFIED while no producer writes them |
 | Custo | ESTIMADO or UNVERIFIED | estimate of the active model's input cost; see above |
-| Orcamento | UNVERIFIED | the run budget lives in the Mapper journal; reading it is a separate slice |
-| Comparacao com os ultimos 10 runs | UNVERIFIED | the run history comes with #1408 |
+| Orcamento | ESTIMADO, FAIL or UNVERIFIED | limits from the run's `task-contract.json` (`routing.budget`, summed over tasks); use from `token_usage`/`cost_sample` events and the event clock; the projection extrapolates by phase progress (use / phase fraction) and is labelled `estimado` |
+| Comparacao com os ultimos 10 runs | ESTIMADO or UNVERIFIED | `budget.compare` over the `/api/history` reader (#1408): duration, tokens, cost and iterations against the average of the last 10 finished runs, the current run skipped; a field no run measured is UNVERIFIED |
 
 `token_usage` and `cost_sample` stay reserved kinds with no producer (see [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md)). Page data: `/api/tokens` carries the price table as `pricing`, and `/api/agents` carries the contract roles.
 
-Still deferred to issue #1404: tokens per phase, lane and model, cost per run, task and iteration, the budget with projection and alert, the last-10 comparison, and the token producer. The decisions were: the price table lives in the repo; no token producer in this round; agent roles come from the stage contract.
+Budget slice (#1404): `simplicio_loop/dashboard/budget.py` reads the declared limits, sums the usage events and projects. The alert rules `budget-projected:<tokens|usd|seconds>` (warning, the projection passes the limit) and `budget-exceeded:<...>` (critical, measured use passed it) run in the alert watch. A dimension with no declared limit, no measured use or no phase progress is UNVERIFIED. Still deferred to issue #1404: the token producer (no `token_usage` writer exists, so tokens and USD stay UNVERIFIED on a real run), cost per run, task and iteration. The last-10 comparison is done on top of the #1408 reader. The decisions were: the price table lives in the repo; no token producer in this round; agent roles come from the stage contract.
 
 ## Unverified (UNVERIFIED)
 
@@ -254,13 +274,13 @@ Still deferred to issue #1404: tokens per phase, lane and model, cost per run, t
 - The live `tui` animation on a real TTY.
 - Agent and cost data (issue #1404).
 - The rich queue (issue #1407).
-- Deferred to the producer slice of #1403: test matrix counts and red and green transitions, lint per rule, coverage lines and branches with a sparkline, the flaky rule (needs per-test ids), the per-iteration diff with the virtualised 5,000-line benchmark, and files touched.
+- Deferred from #1403 (see [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md#quality-producers)): the test matrix by unit, integration, system and regression level, red and green transitions per test id, the flaky rule (needs per-test ids), and the diff virtualisation with the 5,000-line benchmark (no measurement exists).
 - The running command has no producer.
 - Agent and model names need #1404. The lease heartbeat needs #1403 and #1404.
-- Palette "jump to run" and TV run rotation: deferred to slice 4b-3, because they need a run list fetch.
+- Reference image: `tests/fixtures/live_pipeline/pipeline-dark-1280x900.png` is a Chromium screenshot (dark, 1280x900, board hidden). The diff tolerates 16 of 255 per channel on up to 2% of the pixels. Other browsers or font stacks may need a new reference (`SL_UPDATE_REFERENCE=1`).
 - The contract title of a task: needs a fetch of `task-contract.json`.
 - Reference-image diff: the baseline is font and platform fragile, so the PR carries screenshots instead.
-- Agent and model names, the lease heartbeat, the running command and the quality gate: no producer yet, so they show UNVERIFIED (#1403 and #1404).
+- Agent and model names, the lease heartbeat, and the running command: no producer yet, so they show UNVERIFIED (#1404).
 - Real-GPU 60 fps: UNVERIFIED. Only the software Chromium measurement exists.
 
 ## Alerts (#1406, slices 1406a and 1406b)
@@ -272,6 +292,8 @@ The server evaluates the run alert rules over the event stream (`simplicio_loop/
 | `run-stalled` | critical | the journal reports a stall (`stall_detected`), until a different phase starts | server |
 | `gate-failing:<gate>` | warning | a gate's latest verdict is FAIL | server |
 | `phase-silent:<phase>` | warning | no event for more than 5 minutes | server |
+| `budget-projected:<dim>` | warning | the usage projected to the end of the run passes the declared limit (estimate) | server |
+| `budget-exceeded:<dim>` | critical | measured usage is past the declared limit | server |
 | `oracle-unverified` | warning | the run is done and its receipt is ready, but the oracle gave no verdict | server |
 | `stream-lost` | warning | the stream is stale, offline or closed | page (it is the page's own connection) |
 
@@ -279,7 +301,30 @@ The server evaluates the run alert rules over the event stream (`simplicio_loop/
 
 **Silence.** **Silenciar 1 h** hides an alert for an hour in this page. Nothing is stored outside the page. The first snapshot after connecting sets a baseline, so alerts that were already active do not notify.
 
-**Not in slice 1406b, with reasons.** The thresholds are fixed in the server module, not read from `.simplicio-loop/dashboard.toml`. Browser and desktop notifications, and the optional webhook, are not written. Budget alerts wait on the budget reading (see #1404), and the lease rule waits on the lease heartbeat. **Latency (measured on a loopback server, 16 cycles per case).** From the event being written to its alert appearing: on a running run, median 0.10 s on the stream and 0.10 s in the page (worst 0.25 s and 0.15 s). On a finished run, median 0.50 s on the stream. The finished-run poll is 0.5 s, so the 2-second target holds with margin. The end-to-end page latency on a finished run was not measured.
+**Settings (`.simplicio-loop/dashboard.toml`, opt-in).** The file is optional; without it every default holds. A bad value keeps its default and the server keeps running. The file is read per run, from the run's repo.
+
+```toml
+[alerts]
+phase_silence_minutes = 5      # default 5; a number above 0
+
+[notifications]
+browser = false                # default false; true shows the "Ativar notificações do navegador" button
+
+[webhook]
+# url = "https://hooks.example.test/simplicio"   # off unless set; http or https only
+```
+
+**Browser notifications.** Off by default. With `browser = true` the alert center offers a button; the browser asks for permission only after you press it. A new alert then raises a browser notification (the same text as the toast). Silenced alerts and alerts already active when the page connected do not notify. The page learns the flags from `GET /api/runs/{id}/config`, which returns `{"browser_notifications": bool, "webhook": bool}` and never the URL.
+
+**Webhook.** Off by default; nothing is sent unless `[webhook] url` is set. Each raised alert is posted once (JSON, `simplicio.dashboard-alert/v1`: `run_id` and `alert`) while it stays active, however many pages watch the run. A failed post is dropped and never affects the stream. Only the dashboard process posts, from this machine.
+
+**Not done, with reasons.** The budget alerts are in (see the Orcamento row above); the lease rule waits on the lease heartbeat (#1407); neither is on main, so no substitute was written. Desktop (OS) notifications beyond the browser's own Notification API are not written. **Latency (measured on a loopback server, 16 cycles per case).** From the event being written to its alert appearing: on a running run, median 0.10 s on the stream and 0.10 s in the page (worst 0.25 s and 0.15 s). On a finished run, median 0.50 s on the stream. The finished-run poll is 0.5 s, so the 2-second target holds with margin. The end-to-end page latency on a finished run was not measured.
+
+## Idle CPU measurement (#1400)
+
+`python -m simplicio_loop.dashboard.bench --runs 50 --events 10000 --idle-seconds 30 --json` serves 50 fixture runs of 10,000 events, drains one SSE stream, then samples this process (server included) for `--idle-seconds` with that stream open and nothing written. `idle_cpu.cpu_percent` is utime + stime over wall time, as a share of one core.
+
+MEASURED on Linux (4 cores, `/proc`), one 30 s sample: 0.06 CPU s over 30.0 s wall = 0.2 % (limit 2 %); RSS 47,000 KiB after the full run (limit 80 MB). One sample, not a distribution. Windows and macOS: UNVERIFIED (no `/proc`, no machine to run on).
 
 ## Quality gate (issue #1409)
 
