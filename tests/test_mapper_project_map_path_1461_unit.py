@@ -62,7 +62,24 @@ def test_mapper_error_propagates_in_turbo_blocked(tmp_path, monkeypatch):
     
     assert outputs
     assert outputs[0]["status"] == "blocked"
-    assert "too many files" in outputs[0]["detail"] or "mapper" in outputs[0]["detail"].lower()
+    assert "too many files" in outputs[0]["detail"]
+
+
+def test_mapper_failure_carries_exit_code_and_truncated_stderr(tmp_path, monkeypatch):
+    """The raised error names the exit code and keeps only the tail of a long stderr."""
+    import subprocess
+
+    from simplicio_loop import map_service_mapper as msm
+
+    monkeypatch.setattr(msm, "mapper_binary_path", lambda: "/bin/simplicio-mapper")
+    monkeypatch.setattr(
+        msm.subprocess, "run",
+        lambda *a, **k: subprocess.CompletedProcess(a, 3, stdout="", stderr="x" * 5000 + "BOOM"),
+    )
+    with pytest.raises(MapperIndexError) as info:
+        msm.run_mapper_index(str(tmp_path))
+    message = str(info.value)
+    assert "exit 3" in message and message.endswith("BOOM") and len(message) < 600
 
 
 def test_missing_binary_still_tolerated(tmp_path, monkeypatch):

@@ -55,7 +55,7 @@ def run_mapper_index(path: str, *, timeout: float = 60.0) -> dict:
     )
     if result.returncode != 0:
         raise MapperIndexError(
-            "simplicio-mapper index failed (exit %d): %s" % (result.returncode, result.stderr.strip())
+            "simplicio-mapper index failed (exit %d): %s" % (result.returncode, result.stderr.strip()[-500:])
         )
     try:
         envelope = json.loads(result.stdout)
