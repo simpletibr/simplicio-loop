@@ -17,6 +17,7 @@ Neither module writes to a run. The only file the dashboard writes is its state 
 |---|---|---|
 | GET | `/api/health` | liveness and version |
 | GET | `/api/runs` | `{"runs": [...]}` summaries, newest `updated_at` first; filters `status`, `repo`, `since` |
+| GET | `/api/history` | `{"history": [...]}` one `simplicio.dashboard-history/v1` record per past run (verdict from `run-outcome.json`, `duration_s`, `iterations`, `stalls`, `tokens`, `cost_usd`, `phase_durations_s`), newest `started_at` first; filters `verdict`, `repo`, `since`, `until`, `min_/max_duration_s`, `min_/max_iterations`, `min_/max_cost_usd`, `limit`; a bad value is 400. Unmeasured fields are `null`, and a filter on one excludes the run |
 | GET | `/api/runs/{id}` | summary, `state.json`, `manifest.json`, `plan.json`, and a receipt index (name and size only) |
 | GET | `/api/runs/{id}/events` | SSE stream of the run's events (see SSE contract) |
 | GET | `/api/runs/{id}/artifacts/{path}` | bytes of one artifact with secrets masked; 403, 404 or 413 on refusal |
@@ -145,11 +146,25 @@ Click a phase, a block or a lane to open the side panel (`#drill`). It has six t
 
 Arrow keys, Home and End move between tabs. `Escape` closes the panel and restores focus.
 
-**Deep links.** Opening a phase, lane, block or the logs writes its fragment into the address bar: `#/run/<run>/phase/<phase>`, `#/run/<run>/lane/<lane>`, `#/run/<run>/lane/<lane>/block/<index>`, `#/run/<run>/logs`. Loading a page with one of these opens the drawer on that target. A fragment for another run is ignored. Closing the drawer clears the fragment.
+**Deep links.** Opening a phase, lane, block or the logs writes its fragment into the address bar: `#/run/<run>/phase/<phase>`, `#/run/<run>/lane/<lane>`, `#/run/<run>/lane/<lane>/block/<index>`, `#/run/<run>/logs`, `#/run/<run>/iteration/<n>` and `#/run/<run>/phase/<phase>/iteration/<n>` (the iteration's situation, duration, gate counts, stall and the lane lines of that iteration). Loading a page with one of these opens the drawer on that target. A fragment for another run is ignored. Closing the drawer clears the fragment.
 
 Receipt verdicts: the run detail checks each receipt against the schemas the package ships (`receipt_check.py`), with `jsonschema` as a runtime dependency. The check is structural: it does not recompute hashes, so a VALID stage receipt is schema-compliant, not proven authentic. Adding a schema is one row in `SHIPPED_SCHEMAS`.
 
-Not written yet, with reasons: the 100-thousand-line benchmark (no benchmark, so the claim stays unverified), and the iteration deep link `…/iteration/<n>`.
+**Log viewer at 100 000 lines.** `sl-log-viewer` is virtualized: only the rows in view plus an overscan are in the DOM, each row has one fixed height, and a long message is cut with an ellipsis (its full text is the row title). Benchmark, in a real Chromium 141 on the cloud container (wall clock, so it varies by machine):
+
+```
+.venv/bin/python scripts/benchmark_log_viewer.py --lines 100000 --json
+```
+
+| Measure | Before (every line in the DOM) | After (virtualized) |
+|---|---|---|
+| Render 100 000 lines | 20 036 ms | 42 ms |
+| DOM rows | 100 000 | 45 |
+| Follow (jump to the end) | 23 327 ms | 35 ms |
+| Level filter (1 031 lines match) | 543 ms | 29 ms |
+| Text search | 507 ms | 34 ms |
+
+`tests/test_live_log_virtualization_e2e_system.py` runs the same benchmark with loose limits (rows < 200, each step < 2 s) and skips when no Chromium is available.
 
 ### Keys
 
@@ -280,3 +295,9 @@ The server evaluates the run alert rules over the event stream (`simplicio_loop/
 **Silence.** **Silenciar 1 h** hides an alert for an hour in this page. Nothing is stored outside the page. The first snapshot after connecting sets a baseline, so alerts that were already active do not notify.
 
 **Not in slice 1406b, with reasons.** The thresholds are fixed in the server module, not read from `.simplicio-loop/dashboard.toml`. Browser and desktop notifications, and the optional webhook, are not written. Budget alerts wait on the budget reading (see #1404), and the lease rule waits on the lease heartbeat. **Latency (measured on a loopback server, 16 cycles per case).** From the event being written to its alert appearing: on a running run, median 0.10 s on the stream and 0.10 s in the page (worst 0.25 s and 0.15 s). On a finished run, median 0.50 s on the stream. The finished-run poll is 0.5 s, so the 2-second target holds with margin. The end-to-end page latency on a finished run was not measured.
+
+## Idle CPU measurement (#1400)
+
+`python -m simplicio_loop.dashboard.bench --runs 50 --events 10000 --idle-seconds 30 --json` serves 50 fixture runs of 10,000 events, drains one SSE stream, then samples this process (server included) for `--idle-seconds` with that stream open and nothing written. `idle_cpu.cpu_percent` is utime + stime over wall time, as a share of one core.
+
+MEASURED on Linux (4 cores, `/proc`), one 30 s sample: 0.06 CPU s over 30.0 s wall = 0.2 % (limit 2 %); RSS 47,000 KiB after the full run (limit 80 MB). One sample, not a distribution. Windows and macOS: UNVERIFIED (no `/proc`, no machine to run on).

@@ -635,12 +635,31 @@ function logsDrill(state) {
   };
 }
 
+function iterationDrill(state, n, now) {
+  if (!Number.isInteger(n) || n < 0) return emptyDrill();
+  const row = selectIterations(state.iterations, now, state.gates).find((item) => item.iteration === n);
+  if (!row) return emptyDrill();
+  const blocks = state.laneOrder.flatMap((laneId) => state.lanes[laneId].blocks.filter((block) => block.iteration === n));
+  return {
+    title: 'Iteração ' + n,
+    facts: [
+      { label: 'Situação', value: row.state },
+      { label: 'Duração', value: row.durationMs === null ? 'não informada' : formatMs(row.durationMs) },
+      { label: 'Gates falhando', value: String(row.gatesFailing.length) },
+      { label: 'Gates não verificados', value: String(row.gatesUnverified.length) },
+      { label: 'Parada', value: row.verdict === 'STALLED' ? 'sim, repetição ' + row.streak : 'não' },
+    ],
+    lines: blocks.flatMap((block) => block.lines).map(lineView),
+  };
+}
+
 export function selectDrill(state, target, nowMs) {
   const now = Number.isFinite(nowMs) ? nowMs : 0;
   const kind = target && typeof target === 'object' ? target.type : null;
   if (kind === 'phase') return phaseDrill(state, target.phase, now);
   if (kind === 'block') return blockDrill(state, target.lane, target.index, now);
   if (kind === 'lane') return laneDrill(state, target.lane);
+  if (kind === 'iteration') return iterationDrill(state, target.iteration, now);
   if (kind === 'logs') return logsDrill(state);
   return emptyDrill();
 }

@@ -1,7 +1,8 @@
 '''Unit tests for the drill-down deep links of the Simplicio Live page (issue #1405, slice 1405b, TDD red).
 
 deeplink.js is pure: it parses and writes the URL fragment for one run. The routes are
-#/run/<run>/phase/<phase>, #/run/<run>/lane/<lane>, #/run/<run>/lane/<lane>/block/<index> and #/run/<run>/logs.
+#/run/<run>/phase/<phase>, #/run/<run>/lane/<lane>, #/run/<run>/lane/<lane>/block/<index>, #/run/<run>/logs,
+#/run/<run>/iteration/<n> and #/run/<run>/phase/<phase>/iteration/<n>.
 Anything else, including another run id, parses to null. The module runs in node.
 '''
 import json
@@ -59,6 +60,9 @@ def test_the_module_exists():
     ('#/run/run-q1/logs', {'type': 'logs'}),
     ('#/run/run-q1/lane/lane-1', {'type': 'lane', 'lane': 'lane-1'}),
     ('#/run/run-q1/lane/lane-1/block/3', {'type': 'block', 'lane': 'lane-1', 'index': 3}),
+    ('#/run/run-q1/iteration/0', {'type': 'iteration', 'iteration': 0}),
+    ('#/run/run-q1/iteration/12', {'type': 'iteration', 'iteration': 12}),
+    ('#/run/run-q1/phase/executing/iteration/3', {'type': 'iteration', 'iteration': 3, 'phase': 'executing'}),
 ])
 def test_each_route_parses_to_its_drill_target(hash_text, expected):
     assert _parse(hash_text) == expected
@@ -70,6 +74,7 @@ def test_each_route_parses_to_its_drill_target(hash_text, expected):
     None,
     42,
     '#/run/other-run/logs',
+    '#/run/other-run/iteration/3',
     '#/run/run-q1',
     '#/run/run-q1/phase',
     '#/run/run-q1/phase/Executing!',
@@ -78,6 +83,17 @@ def test_each_route_parses_to_its_drill_target(hash_text, expected):
     '#/run/run-q1/lane/lane-1/block/-1',
     '#/run/run-q1/lane/lane-1/block/x',
     '#/run/run-q1/lane/lane-1/block',
+    '#/run/run-q1/iteration',
+    '#/run/run-q1/iteration/-1',
+    '#/run/run-q1/iteration/1.5',
+    '#/run/run-q1/iteration/x',
+    '#/run/run-q1/iteration/9007199254740993',
+    '#/run/run-q1/iteration/3/extra',
+    '#/run/run-q1/phase/Executing!/iteration/3',
+    '#/run/run-q1/phase/executing/iteration',
+    '#/run/run-q1/phase/executing/iteration/-2',
+    '#/run/run-q1/phase/executing/iteration/x',
+    '#/run/run-q1/lane/lane-1/iteration/3',
     '#/elsewhere/run-q1/logs',
 ])
 def test_anything_else_parses_to_null(hash_text):
@@ -93,6 +109,8 @@ def test_a_run_id_outside_the_safe_set_parses_to_null():
     ({'type': 'phase', 'phase': 'validating'}, '#/run/run-q1/phase/validating'),
     ({'type': 'lane', 'lane': 'lane-1'}, '#/run/run-q1/lane/lane-1'),
     ({'type': 'block', 'lane': 'lane-1', 'index': 0}, '#/run/run-q1/lane/lane-1/block/0'),
+    ({'type': 'iteration', 'iteration': 0}, '#/run/run-q1/iteration/0'),
+    ({'type': 'iteration', 'iteration': 5, 'phase': 'validating'}, '#/run/run-q1/phase/validating/iteration/5'),
 ])
 def test_each_target_writes_its_route(target, expected):
     assert _write(target) == expected
@@ -102,6 +120,14 @@ def test_each_target_writes_its_route(target, expected):
     {'type': 'phase', 'phase': 'bad phase'},
     {'type': 'block', 'lane': 'lane-1', 'index': -1},
     {'type': 'block', 'lane': 'lane/1', 'index': 0},
+    {'type': 'iteration', 'iteration': -1},
+    {'type': 'iteration', 'iteration': 1.5},
+    {'type': 'iteration', 'iteration': '3'},
+    {'type': 'iteration', 'iteration': 9007199254740993},
+    {'type': 'iteration', 'iteration': 3, 'phase': 'Bad Phase'},
+    {'type': 'iteration', 'iteration': 3, 'phase': None},
+    {'type': 'iteration', 'iteration': 3, 'phase': 7},
+    {'type': 'iteration'},
     {'type': 'unknown'},
     None,
 ])
@@ -118,6 +144,9 @@ def test_an_unsafe_run_id_writes_null():
     {'type': 'phase', 'phase': 'executing'},
     {'type': 'lane', 'lane': 'lane-1'},
     {'type': 'block', 'lane': 'lane-1', 'index': 7},
+    {'type': 'iteration', 'iteration': 0},
+    {'type': 'iteration', 'iteration': 42},
+    {'type': 'iteration', 'iteration': 4, 'phase': 'executing'},
 ])
 def test_writing_then_parsing_gives_the_same_target(target):
     link = _write(target)
