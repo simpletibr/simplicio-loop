@@ -40,7 +40,9 @@ HEARTBEAT_SECONDS = 15.0
 RETRY_MS = 1000
 EXEMPT_PATHS = frozenset({'/api/health'})
 TERMINAL_STATUSES = frozenset({'done', 'failed', 'cancelled'})
-CSP = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; "
+       "frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'")
+ACTIVE_TYPES = frozenset({'text/html', 'application/xhtml+xml', 'image/svg+xml', 'text/xml', 'application/xml'})
 _CURSOR_RE = re.compile(r'[0-9]{1,18}')
 _EVENTS_RE = re.compile(r'/api/runs/([^/]+)/events')
 _ARTIFACT_RE = re.compile(r'/api/runs/([^/]+)/artifacts/(.+)')
@@ -56,11 +58,14 @@ STATIC_TYPES = {
 
 
 def security_headers() -> dict[str, str]:
-    '''Headers on every response: a locked-down CSP, no sniffing, no referrer, no caching.'''
+    '''Headers on every response: a locked-down CSP, no framing, no sniffing, no referrer, no caching.'''
     return {
         'Content-Security-Policy': CSP,
+        'X-Frame-Options': 'DENY',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'no-referrer',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Resource-Policy': 'same-origin',
         'Cache-Control': 'no-store',
     }
 
@@ -176,6 +181,11 @@ def _cursor(query: Mapping[str, str], headers: Any) -> int:
     return cursor
 
 
+def _new_events(tail: EventTail) -> list[dict[str, Any]]:
+    '''New events from the tail with secrets masked, before they reach a frame or the alert rules.'''
+    return [runs.redact_json(event) for event in tail.poll()]
+
+
 def _is_terminal(ref: dict[str, Any]) -> bool:
     return runs.run_summary(ref)['status'] in TERMINAL_STATUSES
 
@@ -222,14 +232,14 @@ def price_table() -> dict[str, Any]:
 
 
 def _tokens() -> dict[str, Any]:
-    '''Token monitor status read through the legacy hook; any failure is UNVERIFIED, never a 500.'''
+    '''Token monitor status read through the legacy hook, secrets masked; any failure is UNVERIFIED, never a 500.'''
     try:
         status = _load_hook().get_status()
     except Exception as exc:  # fail open: the dashboard keeps serving
         return {'status': 'UNVERIFIED', 'reason': 'token monitor unavailable: %s' % exc.__class__.__name__,
                 'cost_usd': 'UNVERIFIED'}
-    return {'status': 'MEASURED', 'source': 'hooks/simplicio_dashboard.py get_status',
-            'cost_usd': 'UNVERIFIED', 'data': status, 'pricing': price_table()}
+    return runs.redact_json({'status': 'MEASURED', 'source': 'hooks/simplicio_dashboard.py get_status',
+                             'cost_usd': 'UNVERIFIED', 'data': status, 'pricing': price_table()})
 
 
 def _agents() -> dict[str, Any]:
@@ -303,7 +313,12 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         self._dispatch()
 
-    do_HEAD = do_POST = do_PUT = do_DELETE = do_PATCH = do_OPTIONS = do_GET
+    do_HEAD = do_POST = do_PUT = do_DELETE = do_PATCH = do_OPTIONS = do_TRACE = do_CONNECT = do_GET
+
+    def send_error(self, code: int, message: str | None = None, explain: str | None = None) -> None:
+        '''Protocol errors (bad request line, oversize headers, unknown verb) keep the headers and a JSON body.'''
+        self.close_connection = True
+        self._send_json(code, {'error': HTTPStatus(code).phrase})
 
     def _dispatch(self) -> None:
         raw_path, _, raw_query = self.path.partition('?')
@@ -356,7 +371,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         ref = _find_run(self.server, run_id)
         data = runs.read_artifact(ref['run_dir'], rel)  # rel stays encoded: read_artifact decodes it once
         ctype = mimetypes.guess_type(urllib.parse.unquote(rel))[0] or 'application/octet-stream'
-        if ctype in ('text/html', 'image/svg+xml'):  # served as text, never as an active document
+        if ctype in ACTIVE_TYPES:  # served as text, never as an active document
             ctype = 'text/plain'
         if ctype.startswith('text/'):
             ctype += '; charset=utf-8'
@@ -376,13 +391,13 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         try:
             self.wfile.write(('retry: %d\n\n' % RETRY_MS).encode('utf-8'))
             # The watch reads the stream from its first event, so the snapshot covers history the client already has.
-            history = tail.poll()
+            history = _new_events(tail)
             self._write_events(history, cursor)
             watch.update(history, _now_ms(), receipt_ready)
             self._write_frame('alert_snapshot', {'alerts': watch.snapshot()})
             last_write = time.monotonic()
             while not self.server.stop_event.is_set():
-                new = tail.poll()
+                new = _new_events(tail)
                 self._write_events(new, cursor)
                 raised, cleared = watch.update(new, _now_ms(), receipt_ready)
                 for alert in raised:
@@ -420,7 +435,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
     def _send(self, status: int, body: bytes, ctype: str) -> None:
         self._start(status, ctype, len(body))
-        self.wfile.write(body)
+        if self.command != 'HEAD':  # HEAD carries the headers only, never the body
+            self.wfile.write(body)
 
     def _send_json(self, status: int, payload: Any) -> None:
         self._send(status, json.dumps(payload, default=str).encode('utf-8'), 'application/json; charset=utf-8')

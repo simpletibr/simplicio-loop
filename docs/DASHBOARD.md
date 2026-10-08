@@ -280,3 +280,22 @@ The server evaluates the run alert rules over the event stream (`simplicio_loop/
 **Silence.** **Silenciar 1 h** hides an alert for an hour in this page. Nothing is stored outside the page. The first snapshot after connecting sets a baseline, so alerts that were already active do not notify.
 
 **Not in slice 1406b, with reasons.** The thresholds are fixed in the server module, not read from `.simplicio-loop/dashboard.toml`. Browser and desktop notifications, and the optional webhook, are not written. Budget alerts wait on the budget reading (see #1404), and the lease rule waits on the lease heartbeat. **Latency (measured on a loopback server, 16 cycles per case).** From the event being written to its alert appearing: on a running run, median 0.10 s on the stream and 0.10 s in the page (worst 0.25 s and 0.15 s). On a finished run, median 0.50 s on the stream. The finished-run poll is 0.5 s, so the 2-second target holds with margin. The end-to-end page latency on a finished run was not measured.
+
+## Quality gate (issue #1409)
+
+**Accessibility.** `tests/test_live_a11y_e2e_system.py` runs axe 4.12.1 (tags wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa, best-practice) in a real Chromium on the pipeline page (dark, light, contrast themes, populated by the lifecycle fixture), the board, the drill-down with each of its six tabs, and TV mode. Result: 0 violations of any impact. It also checks keyboard reach, a visible focus indicator, Escape returning focus to the opener, `lang="pt-BR"`, and accessible names. One real gap was found and fixed: a phase change was not announced, so a visually hidden `role="status"` line (`#phase-status`) now carries "Fase atual: <fase>". Alerts were already announced (`role="alert"` for STALLED).
+
+**Performance** (`tests/test_live_perf_e2e_system.py`, loopback, one run on this container; set `SL_PERF_REPORT=<file>` to write the numbers as JSON).
+
+| Check | Measured | Budget |
+|---|---|---|
+| LCP, 5 cold loads, median | 180 ms (160 to 240) | under 1500 ms |
+| Burst of 1000 events, time to last seq | 0.43 s | under 15 s |
+| Long tasks during that burst | 1 task, 282 ms | total under 1000 ms, max 500 ms |
+| Heap after GC, 3000 events | 2.79 MB at 500, 3.05 MB at 3000 (growth 173 KB) | under 10 MB |
+| DOM nodes / listeners | 1261 / 56, flat | within 10% |
+| Read routes p50 / p95 (20 runs, 1000 events) | health 1.5 / 2.0 ms, runs 10.1 / 14.9 ms, run detail 2.3 / 2.8 ms, artifact 1.6 / 2.0 ms | p95 under 100 ms |
+
+The 8 h session is not run for real: it is a compressed 3000-event session, so the 8 h claim is UNVERIFIED beyond that proxy.
+
+**Security** (`tests/test_dashboard_security_review_integration.py`). Fixed: secrets leaked on SSE events and alert frames; redaction gaps (private key blocks, Anthropic and project-style keys, GitHub fine-grained tokens, short `password=`/`token=` pairs, secret-shaped JSON keys); unmasked run summaries, receipt reasons and `/api/tokens`; symlinks followed out of the run directory (state, manifest, plan, events, receipts); HEAD sending a body; TRACE/CONNECT answering 501; error pages without security headers. CSP now also sets `base-uri`, `form-action` and `object-src` to `'none'`, with `X-Frame-Options`, COOP and CORP. Checked and clean: token never echoed, traversal variants, Host/Origin rebinding, wrong or oversize token, GET-only. Residual: `simplicio_loop/progress.py` follows symlinks for four sidecar receipts (outside the Live server, not changed here).
