@@ -270,3 +270,21 @@ def test_selftest_exits_zero():
         [sys.executable, '-m', 'simplicio_loop.dashboard.server', '--selftest'],
         capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_history_endpoint_returns_records_filters_and_rejects_bad_values(server_handle, repo_root):
+    def get(query):
+        status, _, body = _get(server_handle.port, '/api/history' + query, AUTH)
+        return status, json.loads(body)
+
+    status, payload = get('')
+    assert status == 200
+    assert [r['run_id'] for r in payload['history']] == ['orch-1', 'live-1', 'legacy-1']  # same started_at: run_id desc
+    assert all(r['schema'] == 'simplicio.dashboard-history/v1' for r in payload['history'])
+    assert [r['run_id'] for r in get('?verdict=RUNNING')[1]['history']] == ['live-1']
+    assert len(get('?limit=1')[1]['history']) == 1
+    assert get('?verdict=NOPE')[0] == 400
+    assert get('?since=yesterday')[0] == 400
+    assert get('?min_cost_usd=abc')[0] == 400
+    status, _, _ = _get(server_handle.port, '/api/history', {})
+    assert status == 401
