@@ -13,7 +13,7 @@ from typing import Any
 
 ACTIVE_DELAY = 0.1
 IDLE_CEILING = 0.25
-TERMINAL_DELAY = 2.0
+TERMINAL_DELAY = 0.5  # finished runs: one stat per 0.5 s keeps alert frames under the 2 s target
 
 
 class EventTail:
@@ -63,7 +63,7 @@ class EventTail:
         return events
 
     def next_delay(self, idle_max: float = TERMINAL_DELAY) -> float:
-        '''Seconds to wait before the next poll: 0.1 after events, 0.25 while idle, 2.0 when terminal.
+        '''Seconds to wait before the next poll: 0.1 after events, 0.25 while idle, 0.5 when terminal.
 
         ``idle_max`` caps the result so a caller can ask for a shorter wait.
         '''
