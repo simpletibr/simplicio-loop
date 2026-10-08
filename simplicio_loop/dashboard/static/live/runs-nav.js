@@ -9,14 +9,12 @@ function idsOf(runs) {
   return rows.map((row) => row && row.run_id).filter((id) => typeof id === 'string' && RUN_ID.test(id));
 }
 
-// One palette command per run other than the open one.
 export function runCommands(runs, currentId) {
   return idsOf(runs)
     .filter((id) => id !== currentId)
     .map((id) => ({ id: 'run:' + id, label: 'Run ' + id, group: 'Runs', hint: 'Ir para o run' }));
 }
 
-// The run after the open one, wrapping around; null when there is nothing to rotate to.
 export function nextRunId(runs, currentId) {
   const ids = idsOf(runs);
   if (ids.length < 2) return null;
@@ -24,14 +22,12 @@ export function nextRunId(runs, currentId) {
   return ids[(index + 1) % ids.length];
 }
 
-// The URL of a run: every other query parameter (token, theme, tv, rotate) is kept.
 export function runUrl(pathname, search, runId) {
   const params = new URLSearchParams(search);
   params.set('run', runId);
   return pathname + '?' + params.toString();
 }
 
-// The rotation interval in ms: only in TV mode, never under reduced motion, 20 s unless ?rotate=<seconds> says otherwise.
 export function rotationMs(search, reducedMotion) {
   const params = new URLSearchParams(search);
   if (params.get('tv') !== '1' || reducedMotion) return null;

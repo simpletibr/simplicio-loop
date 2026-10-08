@@ -79,7 +79,6 @@ async function readStream(body, handlers) {
       } else {
         const payload = parseJson(item.data);
         if (payload === null) continue;
-        // Named alert frames are not dashboard events; every other frame is one, as before.
         if (item.name && item.name.startsWith('alert_')) handlers.onAlert(item.name, payload);
         else handlers.onEvent(payload);
       }
@@ -121,7 +120,6 @@ export async function connectStream({ url, token, getLastSeq, onEvent, onAlert, 
       try {
         await readStream(response.body, { onEvent, onAlert: onAlert || (() => {}), onHeartbeat });
       } catch (error) {
-        // the stream broke; reconnect below
       }
     }
     if (signal && signal.aborted) return;
