@@ -73,6 +73,28 @@ Summary fields come from `build_progress` (`phase`, `percent`, `tasks`, `gates`,
 - `runs.read_artifact(run_dir, rel, max_bytes=MAX_ARTIFACT_BYTES)` raises `ArtifactForbidden`, `ArtifactNotFound` or `ArtifactTooLarge`.
 - `tail.EventTail(path, terminal=False)` has `poll()`, `last_seq` and `next_delay(idle_max)`.
 
+## CLI
+
+`simplicio-loop dashboard` starts the panel on 127.0.0.1. The default port is 8765. It prints `http://127.0.0.1:<port>/?t=<token>` on stdout and opens a browser unless `--no-browser` is set.
+
+| Flag | Effect |
+|---|---|
+| `--run <id>` | Select a run. Default: the newest active run. |
+| `--repo <path>` | Watch a repo root. Repeatable. Default: the current directory. |
+| `--port <n>` | Loopback port. `0` picks a free port. |
+| `--no-browser` | Do not open a browser. |
+| `--stop` | Stop the running panel. |
+| `--status` | Print the status as JSON, with no token. Schema `simplicio.dashboard-status/v1` at `contracts/dashboard-status/v1/schema.json`. |
+| `--snapshot <out.html>` | Write a self-contained offline HTML file of a run. No server. |
+| `--tui` | Show a run in the terminal. |
+| `--tokens` | Open the legacy Token Monitor on port 9090. Goes only with `--port`, `--no-browser` and `--stop`. |
+
+State file: `~/.simplicio-loop/dashboard/state.json`. Override it with `SIMPLICIO_DASHBOARD_STATE`. Mode 0600. It holds the pid, port, token and repos.
+
+Exit codes: 0 ok. 1 start failure. 2 usage error, unknown run, repo mismatch, or no runs. 3 port in use; the holder pid is named.
+
+`simplicio-loop progress <run>` prints `panel: <url>` on stderr while the panel runs. It never does this with `--format json`.
+
 ## Unverified (UNVERIFIED)
 
 - Agent, model, token and cost data. `cost_usd` is always null, and no receipt backs token counts yet.
@@ -80,3 +102,8 @@ Summary fields come from `build_progress` (`phase`, `percent`, `tasks`, `gates`,
 - Windows and macOS have not been tested.
 - Events in rotated files (`events.jsonl.1` and similar) are not read, so `last_seq` covers only the current file.
 - A truncation that refills the file past the saved offset is not detected, because the size check only sees a shrink.
+- Real browser opening on Windows and macOS.
+- The live `tui` animation on a real TTY.
+- The panel page is a stub until issue #1402 lands.
+- Agent and cost data (issue #1404).
+- The rich queue (issue #1407).

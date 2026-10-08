@@ -690,8 +690,8 @@ A view of the savings you open when you want — only the capture is always-on:
 - **Web dashboard** — `http://127.0.0.1:9090` — real-time token chart, savings gauge, the LLMs/runtimes
   and providers we intercept, a live proxy log. **Opens once on the first install**
   so you see it works, then it's **on-demand** — re-open it any of these ways:
-  - `simplicio-loop dashboard` — works from anywhere after the pip install (no repo path needed);
-    `simplicio-loop dashboard --stop` to close, `--no-browser` to just start the server.
+  - `simplicio-loop dashboard --tokens` — opens this Token Monitor (no repo path needed);
+    add `--stop` to close, `--no-browser` to just start the server. The bare `simplicio-loop dashboard` opens Simplicio Live instead.
   - `bash scripts/simplicio-economy.sh monitor` (repo checkout) · `… monitor stop` to close.
   - just **ask the agent** — "open the token dashboard".
 - **Menu-bar / tray widget** — live tokens saved in the system tray (macOS rumps · Windows/Linux pystray).
@@ -702,6 +702,14 @@ dashboard opens **once** on a fresh install (marker-guarded — a re-install/upd
 out with `SIMPLICIO_NO_DASHBOARD=1`), and the tray never opens by itself — nothing is forced to stay
 open. Manage the stack: `scripts/simplicio-economy.sh {status|up|monitor|tray|wire}`. After install,
 capture runs **without invoking the loop** — see `references/token-capture.md`.
+
+#### Simplicio Live (run panel)
+
+`simplicio-loop dashboard` starts the Simplicio Live panel on `127.0.0.1:8765` and prints a tokenised URL.
+- `--run <id>` picks a run; `--repo <path>` (repeatable) picks the repos to watch; `--port <n>` sets the port.
+- `--no-browser` skips the browser; `--stop` stops the panel; `--status` prints tokenless JSON.
+- `--snapshot <out.html>` writes an offline page; `--tui` streams a run in the terminal.
+- The panel page is a stub until issue #1402 lands.
 
 ### 🧪 e2e savings demo — one task, four hops, a receipt at every one
 
@@ -797,7 +805,7 @@ wheel and installed with it, auto-handling PEP 668 / externally-managed Python a
 the binaries onto `PATH`), the **full Python stack** (the package itself),
 the **7 skills + hooks** with the loop's Stop hook wired, and the **always-on capture proxy**
 with Claude + Codex + Simplicio Agent **routed and measured** in the background. The **dashboard opens once** on a
-fresh install, then it's on-demand (`simplicio-loop dashboard` / `simplicio-economy.sh monitor`); the
+fresh install, then it's on-demand (`simplicio-loop dashboard --tokens` / `simplicio-economy.sh monitor`); the
 **menu-bar tray never opens by itself** — nothing is forced to stay open.
 Pass **`--minimal`** only for headless/CI to skip the heavy deps + the machine services. Verify any time:
 `bash scripts/simplicio-economy.sh status`.
@@ -887,7 +895,7 @@ simplicio-loop verify <run_id> --repo .
 
 | Area | Commands | What they do |
 |---|---|---|
-| Install and utilities | `install`, `dashboard`, `learn` | Install the bundled skills/hooks; open or stop the token-monitor dashboard; derive and persist a retrospective from completed runs. |
+| Install and utilities | `install`, `dashboard`, `learn` | Install the bundled skills/hooks; open or stop the Simplicio Live panel (`--tokens` opens the Token Monitor); derive and persist a retrospective from completed runs. |
 | Intake and planning | `task`, `prototype`, `plan`, `orient` | Validate/preview task contracts; route prototype planning; compile Markdown into a frozen contract; build bounded Mapper context and an orientation receipt. |
 | Execution | `turbo`, `wave`, `prism`, `batch`, `tick` | Run tasks through the default engine (`turbo`: Mapper survey, model plan, Dev CLI apply, `--verify`); dispatch ready tasks through governed wave barriers (`wave`, default flow); execute through isolated worktrees (`prism`); continuous background dispatch (`batch`); step-by-step single-task execution (`tick`). Exactly one prepared task executes with `tick`; two or more execute with `wave`. Both close with `verify`. *(Nota: `run` foi descontinuado e redireciona para `wave`)*. |
 | Run lifecycle | `status`, `progress`, `resume`, `cancel`, `verify`, `oracle`, `checkpoint` | Inspect a run; render progress as text/JSON/Markdown/ANSI; resume or cancel non-terminal work; run independent watcher/delivery gates; evaluate completion/parity; manage candidate checkpoints. |

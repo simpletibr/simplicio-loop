@@ -2292,6 +2292,14 @@ def progress(repo: str, run_id: str, fmt: str, once: bool, interval: float,
         print(json.dumps({"schema": "simplicio.progress/v1", "status": "UNVERIFIED",
                           "reason_code": "run_missing"}, ensure_ascii=False))
         return 2
+    if fmt != "json":
+        try:
+            from .dashboard import cli as dashboard_cli
+            hint = dashboard_cli.panel_hint()
+            if hint is not None:
+                print(hint, file=sys.stderr)
+        except Exception:
+            pass
     stream_progress(status["run_dir"], fmt=fmt, once=once, interval=interval,
                     no_animation=no_animation, ascii_only=ascii_only)
     return 0
@@ -2717,12 +2725,9 @@ def main(argv=None) -> int:
     p_update.add_argument("--check", action="store_true", help="only report installed vs latest; change nothing")
     p_update.add_argument("--force", action="store_true", help="reinstall even when already on the latest release")
 
-    p_dashboard = sub.add_parser("dashboard", help="open or stop the Token Monitor dashboard")
-    p_dashboard.add_argument("--port", type=int, default=DEFAULT_DASH_PORT,
-                             help="dashboard port (default: %(default)s)")
-    p_dashboard.add_argument("--no-browser", dest="no_browser", action="store_true",
-                             help="start the server but do not open a browser")
-    p_dashboard.add_argument("--stop", action="store_true", help="stop a running Token Monitor")
+    p_dashboard = sub.add_parser("dashboard", help="open the Simplicio Live panel; --tokens opens the Token Monitor")
+    from .dashboard import cli as dashboard_cli
+    dashboard_cli.add_arguments(p_dashboard)
 
     p_task = sub.add_parser("task", help="compile, validate, or preview markdown task contracts")
     p_task.add_argument("task_args", nargs=argparse.REMAINDER,
@@ -3208,7 +3213,8 @@ def main(argv=None) -> int:
         from .self_update import run_update
         return run_update(check=args.check, force=args.force)
     if command == "dashboard":
-        return dashboard(args.port, not args.no_browser, args.stop)
+        from .dashboard import cli as dashboard_cli
+        return dashboard_cli.run(args)
     if command == "task":
         forwarded = list(args.task_args or [])
         if forwarded and forwarded[0] == "--":
