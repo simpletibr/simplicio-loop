@@ -23,6 +23,8 @@ Neither module writes to a run. The only file the dashboard writes is its state 
 | GET | `/api/queue` | queued work items (UNVERIFIED data source) |
 | GET | `/api/agents` | agents and models (UNVERIFIED) |
 | GET | `/api/tokens` | token usage (UNVERIFIED) |
+| GET | `/` | Simplicio Live Pipeline vivo page (HTML); needs the token `t`, else 401 |
+| GET | `/static/{path}` | kit and page assets (js, css, html, json, woff2, txt); no token; 403 or 404 on refusal |
 
 Summary fields come from `build_progress` (`phase`, `percent`, `tasks`, `gates`, `completion`, and so on) plus:
 
@@ -47,10 +49,10 @@ Summary fields come from `build_progress` (`phase`, `percent`, `tasks`, `gates`,
 ## Security model
 
 - Binds to 127.0.0.1 only.
-- Every request needs the per-session token.
+- Every request needs the per-session token, except `/static/{path}`, which serves the kit and page assets with no token. Host and Origin are still checked there.
 - The `Host` and `Origin` headers are checked against the loopback address.
 - GET only. Every other method is refused.
-- Every response carries a strict Content-Security-Policy.
+- Every response carries a strict Content-Security-Policy. It includes `font-src 'self'`, so the Atkinson font loads from the same origin.
 - No writes to repos or runs.
 - Run ids must match `[A-Za-z0-9][A-Za-z0-9._-]{0,127}`. Symlinked run directories are skipped.
 - Artifact paths are percent-decoded once. Absolute paths, backslashes, NUL bytes, and empty, `.` or `..` segments are refused (403). So is any real path that leaves the run directory, which blocks symlink escapes.
@@ -95,6 +97,34 @@ Exit codes: 0 ok. 1 start failure. 2 usage error, unknown run, repo mismatch, or
 
 `simplicio-loop progress <run>` prints `panel: <url>` on stderr while the panel runs. It never does this with `--format json`.
 
+## Page
+
+`GET /` serves the Simplicio Live Pipeline vivo page (`static/live/index.html`). It needs the token.
+
+Query parameters:
+
+- `t`: the per-session token. Without it the response is 401.
+- `run`: the run id to show.
+- `theme`: `dark`, `light` or `contrast`.
+
+Honesty rules:
+
+- The ring stops at 99%. It reaches 100% only after a completion receipt with `ready` true and a verdict in `COMPLETE`, `DRAINED` or `VERIFIED`, read from `/api/runs/{id}`.
+- The page polls `/api/runs/{id}` every 500 ms only while the run is done and the receipt is not ready yet, because the receipt file has no event.
+- The connection goes stale after 45 s without activity.
+
+The page is a fetch-stream client, not `EventSource`, so the heartbeat is visible. It reads `/api/runs/{id}/events` with the token in the `Authorization` header.
+
+The page shows:
+
+- The phase rail: 8 phases, with time in phase and the number of entries.
+- The 99% ring.
+- The Agora card: current action and next action. The running command is UNVERIFIED because no producer exists.
+- Six gates: evidence, watcher, oracle, dod, quality, action.
+- Health indicators: connection, events per minute, last heartbeat, stall.
+
+The kit is served under `/static/components/` and the page assets under `/static/live/`, both without a token (see Security model).
+
 ## Unverified (UNVERIFIED)
 
 - Agent, model, token and cost data. `cost_usd` is always null, and no receipt backs token counts yet.
@@ -104,6 +134,9 @@ Exit codes: 0 ok. 1 start failure. 2 usage error, unknown run, repo mismatch, or
 - A truncation that refills the file past the saved offset is not detected, because the size check only sees a shrink.
 - Real browser opening on Windows and macOS.
 - The live `tui` animation on a real TTY.
-- The panel page is a stub until issue #1402 lands.
 - Agent and cost data (issue #1404).
 - The rich queue (issue #1407).
+- DoD 7 pillars and the quality gate have no producer yet. They show UNVERIFIED.
+- The running command has no producer.
+- Agent and model names need #1404. The lease heartbeat needs #1403 and #1404.
+- Deferred to slice 4b-2 (#1402, not in this change): swimlanes with iteration blocks, drill-down, tooltips, the Cmd-K palette, the j/k/g/l keys, follow and pause, TV mode with rotation, 60 fps with 8 lanes, dark, light and TV screenshots with a reference-image diff, and the alert toast.
