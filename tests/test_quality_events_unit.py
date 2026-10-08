@@ -128,6 +128,78 @@ def test_pytest_nonzero_exit_with_no_failures_is_still_fail():
     assert p["passed"] == 5 and p["status"] == "fail"
 
 
+# ---------------------------------------------------------------- parse_tests: failed_ids (pytest)
+
+PYTEST_IDS = (
+    "=== short test summary info ===\n"
+    "FAILED tests/test_a.py::test_one - AssertionError: 1 != 2\n"
+    "FAILED tests/test_a.py::test_p[1-2] - assert 1 == 2\n"
+    "ERROR tests/test_b.py::test_setup - RuntimeError: boom\n"
+    "=== 2 failed, 1 error, 4 passed in 0.9s ===\n"
+)
+
+
+def test_pytest_failed_ids_are_the_node_ids_from_the_short_summary():
+    p = qe.parse_tests("pytest", PYTEST_IDS, 1, None)
+    assert p["failed"] == 2 and p["errors"] == 1
+    assert p["failed_ids"] == [
+        "tests/test_a.py::test_one", "tests/test_a.py::test_p[1-2]", "tests/test_b.py::test_setup",
+    ]
+
+
+def test_pytest_failed_ids_are_deduplicated_before_the_100_cap():
+    # Every id appears twice, interleaved; 105 distinct ids in total.
+    lines = []
+    for i in range(105):
+        lines.append(f"FAILED tests/t.py::test_{i:03d} - boom")
+        lines.append(f"FAILED tests/t.py::test_{i:03d} - boom")
+    text = "=== short test summary info ===\n" + "\n".join(lines) + "\n=== 210 failed in 1.0s ===\n"
+    p = qe.parse_tests("pytest", text, 1, None)
+    assert p["failed_ids"] == [f"tests/t.py::test_{i:03d}" for i in range(100)]
+    assert len(p["failed_ids"]) == 100
+
+
+def test_pytest_failed_ids_keep_first_occurrence_order():
+    text = (
+        "FAILED b.py::test_z - x\n"
+        "FAILED a.py::test_y - x\n"
+        "FAILED b.py::test_z - x\n"
+        "=== 3 failed in 0.1s ===\n"
+    )
+    p = qe.parse_tests("pytest", text, 1, None)
+    assert p["failed_ids"] == ["b.py::test_z", "a.py::test_y"]
+
+
+def test_pytest_clean_run_emits_an_empty_failed_ids_list():
+    p = qe.parse_tests("pytest", "==== 12 passed in 0.5s ====", 0, None)
+    assert p["failed_ids"] == []
+
+
+def test_pytest_failures_without_summary_id_lines_omit_failed_ids():
+    p = qe.parse_tests("pytest", PYTEST_FAIL, 1, None)
+    assert p["failed"] == 3 and p["errors"] == 1
+    assert "failed_ids" not in p
+
+
+def test_pytest_collection_error_without_a_node_id_is_not_an_identity():
+    text = "ERROR tests/test_c.py - ImportError: no module\n==== 1 error in 0.1s ====\n"
+    p = qe.parse_tests("pytest", text, 2, None)
+    assert p["errors"] == 1 and "failed_ids" not in p
+
+
+@pytest.mark.parametrize("command,text,returncode", [
+    ("python -m unittest", UNITTEST_FAILED, 1),
+    ("npx jest", JEST_FAIL, 1),
+    ("npx jest", "Tests:       5 passed, 5 total\n", 0),
+    ("npx vitest run", VITEST_FAIL, 1),
+    ("go test ./...", GO_MIXED, 1),
+    ("python -m unittest", "FAILED tests/a.py::test_x - msg\n" + UNITTEST_FAILED, 1),
+])
+def test_non_pytest_tools_never_carry_failed_ids(command, text, returncode):
+    p = qe.parse_tests(command, text, returncode, None)
+    assert p is not None and "failed_ids" not in p
+
+
 # ---------------------------------------------------------------- parse_tests: unittest
 
 def test_unittest_failed_counts_failures_and_errors_separately():

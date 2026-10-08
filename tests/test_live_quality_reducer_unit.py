@@ -23,6 +23,7 @@ NEG_INF = '__-Inf__'
 ABSENT = object()
 MINUS = '−'
 NO_PRODUCER = 'sem produtor no fluxo atual'
+NO_IDS = 'sem ids por teste: o produtor emite contagens, não identidade de teste'
 UNVERIFIED = {'state': 'UNVERIFIED', 'reason': NO_PRODUCER}
 KEYS = ['tests', 'lint', 'coverageTrend', 'diff']
 DRIVER = '''
@@ -36,7 +37,9 @@ const revive = (key, value) => {
 };
 const input = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}', revive);
 const quality = await import(input.moduleUrl);
-const { initialQuality, reduceQuality, selectQuality } = quality;
+const { initialQuality, reduceQuality } = quality;
+const { selectFlaky } = await import(input.flakyUrl);
+const selectQuality = (state) => ({ ...quality.selectQuality(state), flaky: selectFlaky(state) });
 
 function deepFreeze(value) {
   if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
@@ -97,7 +100,7 @@ def _run_node(args, stdin_text=''):
 
 
 def _drive(mode, **fields):
-    payload = dict(fields, mode=mode, moduleUrl=MODULE_URL)
+    payload = dict(fields, mode=mode, moduleUrl=MODULE_URL, flakyUrl=MODULE_URL.replace('live/quality.js', 'quality-flaky.js'))
     return _run_node(['--input-type=module', '-e', DRIVER], json.dumps(payload))
 
 
@@ -169,7 +172,11 @@ def test_initial_quality_is_an_empty_by_iteration_map_and_order(exports):
 
 
 def test_no_data_selects_unverified_with_the_exact_reason_for_every_key(exports):
-    assert exports['empty'] == {key: UNVERIFIED for key in KEYS}
+    assert {key: exports['empty'][key] for key in KEYS} == {key: UNVERIFIED for key in KEYS}
+
+
+def test_no_data_selects_flaky_unverified_for_lack_of_test_ids(exports):
+    assert exports['empty']['flaky'] == {'state': 'UNVERIFIED', 'reason': NO_IDS}
 
 
 # Tests.
@@ -446,7 +453,8 @@ def test_an_event_with_no_usable_iteration_is_ignored(current):
 def test_an_unknown_kind_is_ignored():
     result = _steps([_step('gate_evaluated', _tests(), iteration=1)])
     assert result['steps'][0]['same'] is True
-    assert result['selection'] == {key: UNVERIFIED for key in KEYS}
+    assert {key: result['selection'][key] for key in KEYS} == {key: UNVERIFIED for key in KEYS}
+    assert result['selection']['flaky'] == {'state': 'UNVERIFIED', 'reason': NO_IDS}
 
 
 def test_a_null_event_or_a_null_payload_is_ignored():
@@ -496,6 +504,110 @@ def test_the_same_input_gives_the_same_output_and_leaves_the_input_unchanged():
     result = _drive('purity', steps=[_step('test_result', _tests(), iteration=1),
                                      _step('lint_result', _lint(), iteration=1)])
     assert result == {'unchanged': True, 'repeatable': True, 'changed': True}
+
+
+# Flaky: a test id that flips between iterations while the iteration it flips in has no code change.
+
+TEST_A = 'tests/test_a.py::test_one'
+TEST_B = 'tests/test_a.py::test_two'
+
+
+def _ids_step(iteration, failed_ids, current=None):
+    return _step('test_result', _tests(failed_ids=failed_ids), iteration=iteration, current=current)
+
+
+def _diff_step(iteration, **changes):
+    return _step('apply_result', _diff(**changes), iteration=iteration)
+
+
+@pytest.mark.parametrize('diff_steps', [[], [_diff_step(3, files=[], files_total=0, added=0, deleted=0)]],
+                         ids=['no-diff-record', 'empty-diff-record'])
+def test_a_test_that_fails_then_passes_with_no_code_change_is_flaky(diff_steps):
+    steps = [_ids_step(2, [TEST_A]), _ids_step(3, [])] + diff_steps
+    flaky = _selection(steps)['flaky']
+    assert flaky['state'] == 'FAIL'
+    assert flaky['ids'] == [{'id': TEST_A, 'flips': 1}]
+    assert flaky['reason'] == '1 teste instável: ' + TEST_A + ' (1 virada)'
+
+
+def test_the_same_flip_with_a_code_change_in_the_next_iteration_is_not_flaky():
+    steps = [_ids_step(2, [TEST_A]), _ids_step(3, []), _diff_step(3, files=['a.py'], files_total=1, added=5,
+                                                                 deleted=0)]
+    flaky = _selection(steps)['flaky']
+    assert (flaky['state'], flaky['ids']) == ('PASS', [])
+
+
+def test_a_code_change_only_in_the_previous_iteration_does_not_excuse_the_flip():
+    steps = [_ids_step(2, [TEST_A]), _diff_step(2, files=['a.py'], files_total=1, added=5, deleted=0),
+             _ids_step(3, [])]
+    flaky = _selection(steps)['flaky']
+    assert flaky['ids'] == [{'id': TEST_A, 'flips': 1}]
+
+
+def test_an_alternation_fail_pass_fail_with_no_diff_counts_two_flips():
+    steps = [_ids_step(1, [TEST_A]), _ids_step(2, []), _ids_step(3, [TEST_A])]
+    flaky = _selection(steps)['flaky']
+    assert flaky['state'] == 'FAIL'
+    assert flaky['ids'] == [{'id': TEST_A, 'flips': 2}]
+    assert flaky['reason'] == '1 teste instável: ' + TEST_A + ' (2 viradas)'
+
+
+def test_ids_are_ordered_by_flip_count_and_the_reason_lists_them_in_that_order():
+    steps = [_ids_step(1, [TEST_B]), _ids_step(2, []), _ids_step(3, [TEST_A]), _ids_step(4, [])]
+    flaky = _selection(steps)['flaky']
+    assert flaky['ids'] == [{'id': TEST_A, 'flips': 2}, {'id': TEST_B, 'flips': 1}]
+    assert flaky['reason'] == ('2 testes instáveis: ' + TEST_A + ' (2 viradas), ' + TEST_B + ' (1 virada)')
+
+
+def test_ids_that_stay_failing_or_stay_passing_are_not_flaky():
+    steps = [_ids_step(1, [TEST_A]), _ids_step(2, [TEST_A]), _ids_step(3, [TEST_A])]
+    flaky = _selection(steps)['flaky']
+    assert (flaky['state'], flaky['ids']) == ('PASS', [])
+    assert flaky['reason'] == 'nenhum teste instável (ids observados em 3 iterações)'
+
+
+def test_a_single_iteration_with_ids_has_nothing_to_compare_and_is_unverified():
+    flaky = _selection([_ids_step(1, [TEST_A])])['flaky']
+    assert flaky == {'state': 'UNVERIFIED', 'reason': NO_IDS}
+
+
+def test_a_test_result_without_failed_ids_is_unverified_for_flakiness():
+    flaky = _selection([_step('test_result', _tests(failed_ids=ABSENT), iteration=1)])['flaky']
+    assert flaky == {'state': 'UNVERIFIED', 'reason': NO_IDS}
+
+
+def test_an_empty_failed_ids_list_is_an_identity_that_nothing_failed():
+    steps = [_ids_step(1, []), _ids_step(2, [TEST_A]), _ids_step(3, [])]
+    flaky = _selection(steps)['flaky']
+    assert flaky['ids'] == [{'id': TEST_A, 'flips': 2}]
+
+
+@pytest.mark.parametrize('value', ['tests/a.py::t', 5, None, {'x': 1}, ['a', 3], [None], [['a']]])
+def test_bad_failed_ids_are_ignored_and_the_test_counts_still_count(value):
+    steps = [_ids_step(1, [TEST_A]), _step('test_result', _tests(failed_ids=value, failed=2), iteration=2),
+             _ids_step(3, [])]
+    result = _steps(steps)
+    assert result['selection']['tests']['iteration'] == 3
+    assert result['selection']['flaky']['ids'] == [{'id': TEST_A, 'flips': 1}]
+
+
+def test_bad_failed_ids_alone_leave_flaky_unverified():
+    flaky = _selection([_step('test_result', _tests(failed_ids='a'), iteration=1)])['flaky']
+    assert flaky == {'state': 'UNVERIFIED', 'reason': NO_IDS}
+
+
+def test_failed_ids_keep_at_most_100_entries():
+    first = ['t%d' % n for n in range(150)]
+    steps = [_ids_step(1, first), _ids_step(2, [])]
+    flaky = _selection(steps)['flaky']
+    assert flaky['reason'].startswith('100 testes instáveis: ')
+
+
+def test_the_flaky_ids_list_is_capped_at_20_in_first_flip_order_on_ties():
+    first = ['t%d' % n for n in range(40)]
+    flaky = _selection([_ids_step(1, first), _ids_step(2, [])])['flaky']
+    assert len(flaky['ids']) == 20
+    assert flaky['ids'][:2] == [{'id': 't0', 'flips': 1}, {'id': 't1', 'flips': 1}]
 
 
 # Module shape.
