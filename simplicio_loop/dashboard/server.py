@@ -330,6 +330,22 @@ def _coordination(server: Any) -> dict[str, Any]:
     return coordination.build_coordination(_backlog_path(server))
 
 
+def _lease_reader(server: Any) -> Any:
+    '''Expired leases of the backlog, re-read at most once a second per stream so a tick stays cheap.'''
+    from simplicio_loop.dashboard import coordination
+    cache: dict[str, Any] = {'at': 0.0, 'rows': []}
+
+    def read() -> list[dict[str, Any]]:
+        if time.monotonic() - cache['at'] >= 1.0:
+            view = coordination.build_coordination(_backlog_path(server))
+            cache['rows'] = [{'item': item['id'], 'worker': item['worker'], 'state': item['lease']['state']}
+                             for item in view['items'] if item['lease'] and item['column'] != 'done']
+            cache['at'] = time.monotonic()
+        return cache['rows']
+
+    return read
+
+
 def _budget(server: Any, ref: dict[str, Any]) -> dict[str, Any]:
     '''Budget and usage of one run, plus its comparison with the previous runs from the history reader.'''
     payload = budget.report(ref['run_dir'], dashboard_events.read_events(ref['run_dir']))
@@ -471,7 +487,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         ref = _find_run(self.server, run_id)
         tail = EventTail(Path(ref['run_dir']) / EVENTS_FILE, terminal=_is_terminal(ref))
         settings = config.load(ref['repo'])
-        watch = alerts.AlertWatch(settings.silence_ms, budget=budget.declared(ref['run_dir']))
+        watch = alerts.AlertWatch(settings.silence_ms, budget=budget.declared(ref['run_dir']),
+                                  phase_silence_ms=settings.phase_silence_ms, stall_repeats=settings.stall_repeats,
+                                  decision_wait_ms=settings.decision_wait_ms, leases=_lease_reader(self.server))
 
         def receipt_ready() -> bool:
             return _receipt_ready(ref)

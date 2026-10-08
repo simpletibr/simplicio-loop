@@ -318,6 +318,11 @@ The server evaluates the run alert rules over the event stream (`simplicio_loop/
 ```toml
 [alerts]
 phase_silence_minutes = 5      # default 5; a number above 0
+stall_fingerprint_repeats = 3  # default 3; integer of 2 or more
+decision_wait_minutes = 15     # default 15; awaiting_decision longer than this raises an alert
+
+[alerts.phase_silence]         # optional per-phase override of phase_silence_minutes
+# executing = 30
 
 [notifications]
 browser = false                # default false; true shows the "Ativar notificações do navegador" button
@@ -326,11 +331,13 @@ browser = false                # default false; true shows the "Ativar notifica�
 # url = "https://hooks.example.test/simplicio"   # off unless set; http or https only
 ```
 
+**More rules.** `lease-expired:<item>` (critical): a backlog item whose lease heartbeat expired, read from the same view as `GET /api/coordination` (at most once a second per stream; an unreadable backlog raises nothing). `stall-repeated:<fingerprint>` (critical): the same `stall_detected` fingerprint K times in one phase. `gate-refailed:<gate>` (warning): a gate failed again after a pass. `decision-waiting` (warning): `awaiting_decision` longer than `decision_wait_minutes`.
+
 **Browser notifications.** Off by default. With `browser = true` the alert center offers a button; the browser asks for permission only after you press it. A new alert then raises a browser notification (the same text as the toast). Silenced alerts and alerts already active when the page connected do not notify. The page learns the flags from `GET /api/runs/{id}/config`, which returns `{"browser_notifications": bool, "webhook": bool}` and never the URL.
 
 **Webhook.** Off by default; nothing is sent unless `[webhook] url` is set. Each raised alert is posted once (JSON, `simplicio.dashboard-alert/v1`: `run_id` and `alert`) while it stays active, however many pages watch the run. A failed post is dropped and never affects the stream. Only the dashboard process posts, from this machine.
 
-**Not done, with reasons.** The budget alerts are in (see the Orcamento row above); the lease rule waits on the lease heartbeat (#1407); neither is on main, so no substitute was written. Desktop (OS) notifications beyond the browser's own Notification API are not written. **Latency (measured on a loopback server, 16 cycles per case).** From the event being written to its alert appearing: on a running run, median 0.10 s on the stream and 0.10 s in the page (worst 0.25 s and 0.15 s). On a finished run, median 0.50 s on the stream. The finished-run poll is 0.5 s, so the 2-second target holds with margin. The end-to-end page latency on a finished run was not measured.
+**Not done, with reasons.** The budget alerts are in (see the Orcamento row above); the lease rule is in too (below). Desktop (OS) notifications beyond the browser's own Notification API are not written. **Latency (measured on a loopback server, 16 cycles per case).** From the event being written to its alert appearing: on a running run, median 0.10 s on the stream and 0.10 s in the page (worst 0.25 s and 0.15 s). On a finished run, median 0.50 s on the stream. The finished-run poll is 0.5 s, so the 2-second target holds with margin. The end-to-end page latency on a finished run was not measured.
 
 ## Idle CPU measurement (#1400)
 
