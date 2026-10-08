@@ -24,6 +24,7 @@ Neither module writes to a run. The only file the dashboard writes is its state 
 | GET | `/api/history?format=csv` | the history records as CSV (formula-leading text is quoted); JSON is the default |
 | GET | `/api/runs/{id}` | summary, `state.json`, `manifest.json`, `plan.json`, and a receipt index (name and size only) |
 | GET | `/api/runs/{id}/events` | SSE stream of the run's events (see SSE contract) |
+| GET | `/api/runs/{id}/config` | opt-in flags from `dashboard.toml` (`browser_notifications`, `webhook`); never the URL |
 | GET | `/api/runs/{id}/artifacts/{path}` | bytes of one artifact with secrets masked; 403, 404 or 413 on refusal |
 | GET | `/api/queue` | queued work items (UNVERIFIED data source) |
 | GET | `/api/agents` | agents and models (UNVERIFIED) |
@@ -298,7 +299,24 @@ The server evaluates the run alert rules over the event stream (`simplicio_loop/
 
 **Silence.** **Silenciar 1 h** hides an alert for an hour in this page. Nothing is stored outside the page. The first snapshot after connecting sets a baseline, so alerts that were already active do not notify.
 
-**Not in slice 1406b, with reasons.** The thresholds are fixed in the server module, not read from `.simplicio-loop/dashboard.toml`. Browser and desktop notifications, and the optional webhook, are not written. Budget alerts wait on the budget reading (see #1404), and the lease rule waits on the lease heartbeat. **Latency (measured on a loopback server, 16 cycles per case).** From the event being written to its alert appearing: on a running run, median 0.10 s on the stream and 0.10 s in the page (worst 0.25 s and 0.15 s). On a finished run, median 0.50 s on the stream. The finished-run poll is 0.5 s, so the 2-second target holds with margin. The end-to-end page latency on a finished run was not measured.
+**Settings (`.simplicio-loop/dashboard.toml`, opt-in).** The file is optional; without it every default holds. A bad value keeps its default and the server keeps running. The file is read per run, from the run's repo.
+
+```toml
+[alerts]
+phase_silence_minutes = 5      # default 5; a number above 0
+
+[notifications]
+browser = false                # default false; true shows the "Ativar notificações do navegador" button
+
+[webhook]
+# url = "https://hooks.example.test/simplicio"   # off unless set; http or https only
+```
+
+**Browser notifications.** Off by default. With `browser = true` the alert center offers a button; the browser asks for permission only after you press it. A new alert then raises a browser notification (the same text as the toast). Silenced alerts and alerts already active when the page connected do not notify. The page learns the flags from `GET /api/runs/{id}/config`, which returns `{"browser_notifications": bool, "webhook": bool}` and never the URL.
+
+**Webhook.** Off by default; nothing is sent unless `[webhook] url` is set. Each raised alert is posted once (JSON, `simplicio.dashboard-alert/v1`: `run_id` and `alert`) while it stays active, however many pages watch the run. A failed post is dropped and never affects the stream. Only the dashboard process posts, from this machine.
+
+**Not done, with reasons.** Budget alerts wait on the budget reading (#1404) and the lease rule waits on the lease heartbeat (#1407); neither is on main, so no substitute was written. Desktop (OS) notifications beyond the browser's own Notification API are not written. **Latency (measured on a loopback server, 16 cycles per case).** From the event being written to its alert appearing: on a running run, median 0.10 s on the stream and 0.10 s in the page (worst 0.25 s and 0.15 s). On a finished run, median 0.50 s on the stream. The finished-run poll is 0.5 s, so the 2-second target holds with margin. The end-to-end page latency on a finished run was not measured.
 
 ## Idle CPU measurement (#1400)
 

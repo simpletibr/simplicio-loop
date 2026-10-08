@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from simplicio_loop import __version__, stage_agents
-from simplicio_loop.dashboard import STATIC_DIR, alerts, history, runs, trends
+from simplicio_loop.dashboard import STATIC_DIR, alerts, config, history, runs, trends, webhook
 from simplicio_loop.dashboard.tail import EventTail
 
 HOST = '127.0.0.1'
@@ -43,6 +43,7 @@ TERMINAL_STATUSES = frozenset({'done', 'failed', 'cancelled'})
 CSP = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
 _CURSOR_RE = re.compile(r'[0-9]{1,18}')
 _EVENTS_RE = re.compile(r'/api/runs/([^/]+)/events')
+_CONFIG_RE = re.compile(r'/api/runs/([^/]+)/config')
 _ARTIFACT_RE = re.compile(r'/api/runs/([^/]+)/artifacts/(.+)')
 _DETAIL_RE = re.compile(r'/api/runs/([^/]+)')
 STATIC_TYPES = {
@@ -317,6 +318,10 @@ def _api(server: Any, path: str, query: Mapping[str, str]) -> Any:
         return _agents()
     if path == '/api/tokens':
         return _tokens()
+    settings = _CONFIG_RE.fullmatch(path)
+    if settings:
+        ref = _find_run(server, urllib.parse.unquote(settings.group(1)))
+        return config.load(ref['repo']).public()
     detail = _DETAIL_RE.fullmatch(path)
     if detail:
         ref = _find_run(server, urllib.parse.unquote(detail.group(1)))
@@ -414,7 +419,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         cursor = _cursor(query, self.headers)
         ref = _find_run(self.server, run_id)
         tail = EventTail(Path(ref['run_dir']) / EVENTS_FILE, terminal=_is_terminal(ref))
-        watch = alerts.AlertWatch()
+        settings = config.load(ref['repo'])
+        watch = alerts.AlertWatch(settings.silence_ms)
 
         def receipt_ready() -> bool:
             return _receipt_ready(ref)
@@ -435,8 +441,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 raised, cleared = watch.update(new, _now_ms(), receipt_ready)
                 for alert in raised:
                     self._write_frame('alert_raised', alert)
+                    self.server.webhook(settings.webhook_url).send(ref['run_id'], alert)
                 for alert_id in cleared:
                     self._write_frame('alert_cleared', {'id': alert_id})
+                    self.server.webhook(settings.webhook_url).clear(ref['run_id'], alert_id)
                 if new or raised or cleared:
                     last_write = time.monotonic()
                 if time.monotonic() - last_write >= heartbeat:
@@ -492,6 +500,19 @@ class ServerHandle:
         self._thread.join(5.0)
 
 
+def _webhook_for(server: Any) -> Any:
+    '''One sender per webhook URL, shared by every stream, so an alert is posted once however many pages watch.'''
+    senders: dict[str | None, webhook.Sender] = {}
+    lock = threading.Lock()
+
+    def get(url: str | None) -> webhook.Sender:
+        with lock:
+            if url not in senders:
+                senders[url] = webhook.Sender(url)
+            return senders[url]
+    return get
+
+
 def start(repo_root: Any, host: str = HOST, port: int = 0, token: str = '',
           heartbeat_seconds: float = HEARTBEAT_SECONDS) -> ServerHandle:
     '''Serve one repo root or several on 127.0.0.1:``port`` (0 picks a free port) in a daemon thread.
@@ -509,6 +530,7 @@ def start(repo_root: Any, host: str = HOST, port: int = 0, token: str = '',
     server.started_at = time.monotonic()
     server.stop_event = threading.Event()
     server.heartbeat_seconds = heartbeat_seconds
+    server.webhook = _webhook_for(server)
     thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': 0.1}, daemon=True)
     thread.start()
     return ServerHandle(server, thread)
