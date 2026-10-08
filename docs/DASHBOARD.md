@@ -17,6 +17,7 @@ Neither module writes to a run. The only file the dashboard writes is its state 
 |---|---|---|
 | GET | `/api/health` | liveness and version |
 | GET | `/api/runs` | `{"runs": [...]}` summaries, newest `updated_at` first; filters `status`, `repo`, `since` |
+| GET | `/api/history` | `{"history": [...]}` one `simplicio.dashboard-history/v1` record per past run (verdict from `run-outcome.json`, `duration_s`, `iterations`, `stalls`, `tokens`, `cost_usd`, `phase_durations_s`), newest `started_at` first; filters `verdict`, `repo`, `since`, `until`, `min_/max_duration_s`, `min_/max_iterations`, `min_/max_cost_usd`, `limit`; a bad value is 400. Unmeasured fields are `null`, and a filter on one excludes the run |
 | GET | `/api/runs/{id}` | summary, `state.json`, `manifest.json`, `plan.json`, and a receipt index (name and size only) |
 | GET | `/api/runs/{id}/events` | SSE stream of the run's events (see SSE contract) |
 | GET | `/api/runs/{id}/artifacts/{path}` | bytes of one artifact with secrets masked; 403, 404 or 413 on refusal |
@@ -280,3 +281,9 @@ The server evaluates the run alert rules over the event stream (`simplicio_loop/
 **Silence.** **Silenciar 1 h** hides an alert for an hour in this page. Nothing is stored outside the page. The first snapshot after connecting sets a baseline, so alerts that were already active do not notify.
 
 **Not in slice 1406b, with reasons.** The thresholds are fixed in the server module, not read from `.simplicio-loop/dashboard.toml`. Browser and desktop notifications, and the optional webhook, are not written. Budget alerts wait on the budget reading (see #1404), and the lease rule waits on the lease heartbeat. **Latency (measured on a loopback server, 16 cycles per case).** From the event being written to its alert appearing: on a running run, median 0.10 s on the stream and 0.10 s in the page (worst 0.25 s and 0.15 s). On a finished run, median 0.50 s on the stream. The finished-run poll is 0.5 s, so the 2-second target holds with margin. The end-to-end page latency on a finished run was not measured.
+
+## Idle CPU measurement (#1400)
+
+`python -m simplicio_loop.dashboard.bench --runs 50 --events 10000 --idle-seconds 30 --json` serves 50 fixture runs of 10,000 events, drains one SSE stream, then samples this process (server included) for `--idle-seconds` with that stream open and nothing written. `idle_cpu.cpu_percent` is utime + stime over wall time, as a share of one core.
+
+MEASURED on Linux (4 cores, `/proc`), one 30 s sample: 0.06 CPU s over 30.0 s wall = 0.2 % (limit 2 %); RSS 47,000 KiB after the full run (limit 80 MB). One sample, not a distribution. Windows and macOS: UNVERIFIED (no `/proc`, no machine to run on).
