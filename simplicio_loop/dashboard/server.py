@@ -30,8 +30,13 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Mapping
 
+<<<<<<< HEAD
 from simplicio_loop import __version__, dashboard_events, stage_agents
 from simplicio_loop.dashboard import STATIC_DIR, alerts, budget, history, runs
+=======
+from simplicio_loop import __version__, stage_agents
+from simplicio_loop.dashboard import STATIC_DIR, alerts, history, runs, trends
+>>>>>>> origin/main
 from simplicio_loop.dashboard.tail import EventTail
 
 HOST = '127.0.0.1'
@@ -168,7 +173,7 @@ _HISTORY_NUMBERS = {'min_duration_s': float, 'max_duration_s': float, 'min_itera
                     'max_iterations': float, 'min_cost_usd': float, 'max_cost_usd': float, 'limit': int}
 
 
-def _history(server: Any, query: Mapping[str, str]) -> dict[str, Any]:
+def _history_rows(server: Any, query: Mapping[str, str]) -> list[dict[str, Any]]:
     '''Past-run records from every watched repo (#1408); HttpError 400 for a bad filter value.'''
     filters: dict[str, Any] = {k: query[k] for k in ('verdict', 'repo', 'since', 'until') if k in query}
     for key, cast in _HISTORY_NUMBERS.items():
@@ -183,7 +188,28 @@ def _history(server: Any, query: Mapping[str, str]) -> dict[str, Any]:
     except ValueError as exc:
         raise HttpError(400, str(exc)) from None
     rows.sort(key=lambda row: (_ts(row.get('started_at')), row['run_id']), reverse=True)
-    return {'history': rows[:limit] if limit is not None else rows}
+    return rows[:limit] if limit is not None else rows
+
+
+def _history(server: Any, path: str, query: Mapping[str, str]) -> Any:
+    '''The /api/history family: list, compare, trends and heatmap over the same filters.'''
+    if path == '/api/history/compare':
+        rows = {r['run_id']: r for r in _history_rows(server, {})}
+        missing = [query.get(k) for k in ('a', 'b') if query.get(k) not in rows]
+        if missing:
+            raise HttpError(404, 'run not found')
+        return trends.compare(rows[query['a']], rows[query['b']])
+    rows = _history_rows(server, query)
+    if path == '/api/history/trends':
+        try:
+            return {'bucket': query.get('bucket', 'week'), 'trends': trends.trends(rows, query.get('bucket', 'week'))}
+        except ValueError as exc:
+            raise HttpError(400, str(exc)) from None
+    if path == '/api/history/heatmap':
+        return {'heatmap': trends.heatmap(rows)}
+    if path == '/api/history':
+        return {'history': rows}
+    raise HttpError(404, 'no such route')
 
 
 def _cursor(query: Mapping[str, str], headers: Any) -> int:
@@ -296,8 +322,8 @@ def _api(server: Any, path: str, query: Mapping[str, str]) -> Any:
         return _health(server)
     if path == '/api/runs':
         return {'runs': _list_runs(server, query)}
-    if path == '/api/history':
-        return _history(server, query)
+    if path == '/api/history' or path.startswith('/api/history/'):
+        return _history(server, path, query)
     if path == '/api/queue':
         return _queue(server)
     if path == '/api/agents':
@@ -370,6 +396,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         artifact = _ARTIFACT_RE.fullmatch(raw_path)
         if artifact:
             self._artifact(urllib.parse.unquote(artifact.group(1)), artifact.group(2))
+            return
+        if raw_path == '/api/history' and query.get('format') == 'csv':
+            self._send(200, trends.to_csv(_history_rows(self.server, query)).encode('utf-8'), 'text/csv; charset=utf-8')
             return
         self._send_json(200, _api(self.server, raw_path, query))
 

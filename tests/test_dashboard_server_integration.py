@@ -318,3 +318,26 @@ def test_budget_route_carries_the_comparison_with_the_previous_runs(repo_root, s
     assert comparison['runs'] == 2  # orch-1 and legacy-1; the current run is skipped
     assert set(comparison['fields']) == {'duration_s', 'tokens', 'cost_usd', 'iterations'}
     assert comparison['fields']['tokens']['state'] == 'UNVERIFIED'
+
+def test_history_compare_trends_heatmap_and_csv_routes(server_handle, repo_root):
+    def get(path):
+        status, headers, body = _get(server_handle.port, path, AUTH)
+        return status, headers, body
+
+    status, _, body = get('/api/history/compare?a=orch-1&b=live-1')
+    assert status == 200
+    cmp = json.loads(body)
+    assert (cmp['a'], cmp['b']) == ('orch-1', 'live-1') and 'metrics' in cmp
+    assert get('/api/history/compare?a=orch-1&b=nope')[0] == 404
+    assert get('/api/history/compare?a=orch-1')[0] == 404
+    status, _, body = get('/api/history/trends?bucket=month')
+    assert status == 200 and json.loads(body)['trends'][0]['bucket'] == '2026-10'
+    assert get('/api/history/trends?bucket=year')[0] == 400
+    status, _, body = get('/api/history/heatmap')
+    grid = json.loads(body)['heatmap']
+    assert status == 200 and len(grid) == 7 and sum(map(sum, grid)) == 3
+    status, headers, body = get('/api/history?format=csv')
+    assert status == 200 and headers['content-type'].startswith('text/csv')
+    lines = body.decode('utf-8').splitlines()
+    assert lines[0].startswith('run_id,repo,verdict') and len(lines) == 4
+    assert get('/api/history/other')[0] == 404
