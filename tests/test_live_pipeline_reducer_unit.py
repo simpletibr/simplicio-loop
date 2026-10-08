@@ -100,6 +100,19 @@ def test_watcher_then_evidence_then_oracle_gates_follow_the_events():
     assert _gate(views[24], 'oracle')['state'] == 'UNVERIFIED'
 
 
+def test_gates_change_at_their_own_events_and_in_event_order():
+    views = _drive(_event_steps(_fixture()))
+    changes = []
+    seen = {}
+    for index, view in enumerate(views):
+        for gate in view['gates']:
+            key = (gate['state'], gate['reason'])
+            if gate['gate'] in seen and seen[gate['gate']] != key:
+                changes.append((index, gate['gate'], gate['state']))
+            seen[gate['gate']] = key
+    assert changes == [(3, 'watcher', 'UNVERIFIED'), (17, 'evidence', 'PASS'), (24, 'oracle', 'UNVERIFIED')]
+
+
 def test_gate_without_an_event_is_unverified_with_a_reason():
     views = _drive(_event_steps(_fixture()[:1]))
     dod = _gate(views[0], 'dod')
