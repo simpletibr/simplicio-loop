@@ -18,7 +18,7 @@ import pytest
 TOKEN = 'integration-token-0123'
 AUTH = {'Authorization': 'Bearer ' + TOKEN}
 SSE = {**AUTH, 'Accept': 'text/event-stream'}
-CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+CSP = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
 TIMEOUT = 5
 
 
