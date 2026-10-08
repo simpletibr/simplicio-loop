@@ -119,7 +119,8 @@ def test_root_with_the_token_serves_the_live_page_shell(server_port):
     assert 'id="rail"' in html
     tags = re.findall(r'<script\b[^>]*>', html, flags=re.IGNORECASE)
     module_tags = [tag for tag in tags if 'type="module"' in tag.lower()]
-    assert len(module_tags) == 1, tags
+    assert any('/static/live/app.js' in tag for tag in module_tags), tags
+    assert all('src="/static/' in tag for tag in module_tags), tags
     assert [tag for tag in tags if 'src=' not in tag.lower()] == [], 'inline script'
     assert re.search(r'\sstyle\s*=', html) is None, 'inline style attribute'
     assert re.search(r'\son[a-z]+\s*=', html, flags=re.IGNORECASE) is None, 'inline event handler'

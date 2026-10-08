@@ -483,7 +483,7 @@ def test_index_html_adds_one_coordination_panel_right_after_the_board():
     board = ('<section class="panel board-panel" aria-labelledby="board-title"><h2 id="board-title">Quadro por etapa</h2>'
              '<p id="board-status" role="status"></p><div id="board" class="board"></div></section>')
     coord = ('<section class="panel coord-panel" aria-labelledby="coord-title"><h2 id="coord-title">Fila e coordenação</h2>'
-             '<p id="coord-status" role="status"></p><div id="coord-kanban" class="coord-kanban"></div>'
+             '<p id="coord-status" role="status"></p><div id="coord-kanban" class="coord-kanban" tabindex="0" role="region" aria-label="Fila por estado"></div>'
              '<div id="coord-dag" class="coord-dag"></div><div id="coord-drain" class="coord-drain"></div>'
              '<div id="coord-slots" class="coord-slots"></div></section>')
     assert re.search(re.escape(board) + r'\s*' + re.escape(coord) + r'\s*<section class="panel rail-panel"', html)

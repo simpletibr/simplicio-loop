@@ -111,11 +111,10 @@ def test_contract_ids_carry_their_contract_elements():
     assert 'empty' in by_id and by_id['empty'][1].get('role') == 'status'
 
 
-def test_index_html_has_exactly_one_module_script_for_the_live_app():
+def test_index_html_has_the_live_app_module_after_the_i18n_module():
     page = _index()
-    assert len(page.scripts) == 1, page.scripts
-    assert page.scripts[0].get('type') == 'module'
-    assert page.scripts[0].get('src') == '/static/live/app.js'
+    assert [s.get('src') for s in page.scripts] == ['/static/i18n/i18n.js', '/static/live/app.js'], page.scripts
+    assert all(s.get('type') == 'module' for s in page.scripts)
 
 
 def test_index_html_sets_language_body_class_and_both_stylesheets():

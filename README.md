@@ -697,6 +697,10 @@ A view of the savings you open when you want — only the capture is always-on:
 - **Menu-bar / tray widget** — live tokens saved in the system tray (macOS rumps · Windows/Linux pystray).
   **On-demand:** `bash scripts/simplicio-economy.sh tray` · `… tray stop`.
 
+**Simplicio Live** (`simplicio-loop dashboard`): the live pipeline, board, queue and drill-down. pt-BR by default, English with `&lang=en`. See [docs/DASHBOARD.md](docs/DASHBOARD.md).
+
+![Simplicio Live, dark theme](docs/assets/dashboard/simplicio-live-pipeline.png)
+
 Install auto-starts **only the capture proxy** (macOS launchd · Linux systemd · Windows Startup). The
 dashboard opens **once** on a fresh install (marker-guarded — a re-install/update never reopens it; opt
 out with `SIMPLICIO_NO_DASHBOARD=1`), and the tray never opens by itself — nothing is forced to stay
