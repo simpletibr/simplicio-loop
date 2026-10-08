@@ -20,6 +20,7 @@ Neither module writes to a run. The only file the dashboard writes is its state 
 | GET | `/api/history` | `{"history": [...]}` one `simplicio.dashboard-history/v1` record per past run (verdict from `run-outcome.json`, `duration_s`, `iterations`, `stalls`, `tokens`, `cost_usd`, `phase_durations_s`), newest `started_at` first; filters `verdict`, `repo`, `since`, `until`, `min_/max_duration_s`, `min_/max_iterations`, `min_/max_cost_usd`, `limit`; a bad value is 400. Unmeasured fields are `null`, and a filter on one excludes the run |
 | GET | `/api/history/compare` | `?a=<run>&b=<run>`: phases (union, `null` where a run never reached one), iterations, stalls, tests, tokens, cost and duration with `delta` (b minus a); `comparable` is false when the runs reached different phases (for example blocked against done); 404 for an unknown run |
 | GET | `/api/history/trends` | `?bucket=week\|month` (UTC; weeks start Monday): per bucket `complete_rate` and `not_complete_rate`, `avg_phase_s`, `iterations_per_task`, `cost_per_task_usd`, `top_stall_causes`; same filters as `/api/history` |
+| GET | `/api/history/lessons` | `{"lessons": [...]}` the lessons `simplicio-loop learn retrospective` wrote (`lessons.jsonl`), most repeated first, text redacted |
 | GET | `/api/history/heatmap` | `{"heatmap": [7][24]}` run starts, weekday (Monday = 0) by hour, UTC |
 | GET | `/api/history?format=csv` | the history records as CSV (formula-leading text is quoted); JSON is the default |
 | GET | `/api/runs/{id}` | summary, `state.json`, `manifest.json`, `plan.json`, and a receipt index (name and size only) |
@@ -93,6 +94,7 @@ Summary fields come from `build_progress` (`phase`, `percent`, `tasks`, `gates`,
 | `--stop` | Stop the running panel. |
 | `--status` | Print the status as JSON, with no token. Schema `simplicio.dashboard-status/v1` at `contracts/dashboard-status/v1/schema.json`. |
 | `--snapshot <out.html>` | Write a self-contained offline HTML file of a run. No server. |
+| `--snapshot <out.html> --history` | Write the offline history page: run list, weekly trends, day-by-hour heatmap and learn lessons. No server, no script. |
 | `--tui` | Show a run in the terminal. |
 | `--tokens` | Open the legacy Token Monitor on port 9090. Goes only with `--port`, `--no-browser` and `--stop`. |
 
