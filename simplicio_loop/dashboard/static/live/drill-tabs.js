@@ -3,6 +3,7 @@
 import { artifactHref, setAttr, setText } from '/static/live/lanes.js';
 
 const NO_RECEIPTS = 'Nenhum recibo indexado neste run.';
+const VERDICT_LABEL = { VALID: 'Válido', INVALID: 'Inválido', UNVERIFIED: 'Não validado' };
 const NO_COMMANDS = 'Sem comandos: o run ainda não informou o caminho do repo.';
 const COPIED = 'Comando copiado.';
 const COPY_FAILED = 'Não foi possível copiar. Selecione o texto e copie manualmente.';
@@ -60,7 +61,7 @@ function receiptItem(row, runId, token) {
   setText(size, row.size + ' bytes');
   const validation = document.createElement('span');
   setAttr(validation, 'data-state', row.validation.state);
-  setText(validation, 'Não validado: ' + row.validation.reason);
+  setText(validation, VERDICT_LABEL[row.validation.state] + ': ' + row.validation.reason);
   item.append(link, size, validation);
   return item;
 }

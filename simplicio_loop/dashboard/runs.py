@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TypedDict
 
+from simplicio_loop.dashboard import receipt_check
 from simplicio_loop.evidence import redact_sensitive_text
 from simplicio_loop.progress import build_progress
 
@@ -233,7 +234,7 @@ def _index_artifacts(run_dir: Path) -> list[str]:
 
 
 def _index_receipts(run_dir: Path) -> list[dict[str, Any]]:
-    '''Files under ``receipts/``, top-level ``*receipt*.json`` and ``quality-matrix.json``, as run-relative name and size.'''
+    '''Files under ``receipts/``, top-level ``*receipt*.json`` and ``quality-matrix.json``: run-relative name, size and schema verdict.'''
     candidates: list[Path] = []
     receipts_dir = run_dir / 'receipts'
     if receipts_dir.is_dir():
@@ -245,7 +246,8 @@ def _index_receipts(run_dir: Path) -> list[dict[str, Any]]:
     index: list[dict[str, Any]] = []
     for path in candidates:
         if path.is_file() and not path.is_symlink():
-            index.append({'name': path.relative_to(run_dir).as_posix(), 'size': path.stat().st_size})
+            index.append({'name': path.relative_to(run_dir).as_posix(), 'size': path.stat().st_size,
+                          'validation': receipt_check.check_receipt(path)})
     return index
 
 

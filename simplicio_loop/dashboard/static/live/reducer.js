@@ -305,7 +305,8 @@ const PILLAR_STATUS = { pass: 'PASS', fail: 'FAIL', not_applicable: 'PENDING' };
 const RECEIPT_MISSING = 'quality-matrix.json ainda nao gerado';
 const REQUIREMENT_MISSING = 'sem registro no quality-matrix.json';
 const NO_PRODUCER = 'sem produtor no fluxo atual';
-const NO_RECEIPT_VALIDATOR = 'o dashboard ainda não valida recibos (validação de schema: fatia 1405b)';
+const RECEIPT_STATES = ['VALID', 'INVALID', 'UNVERIFIED'];
+const NO_VERDICT = 'validação não informada';
 const RUN_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 const PLAIN_WORD = /^[A-Za-z0-9_./:@%+=,-]+$/;
 
@@ -489,11 +490,17 @@ export function selectView(state, nowMs) {
     quality,
     economy,
     agentsCost: agentsCostView(economy, state.agents),
-    receipts: state.receipts.map((row) => ({
-      name: row.name, size: row.size, validation: { state: 'UNVERIFIED', reason: NO_RECEIPT_VALIDATOR },
-    })),
+    receipts: state.receipts,
     runCommands: runCommandsOf(state.runId, state.repo),
   };
+}
+
+// A verdict is VALID or INVALID only when the server validated the receipt; anything else is UNVERIFIED with no claim.
+function verdictOf(value) {
+  if (value && typeof value === 'object' && RECEIPT_STATES.includes(value.state) && typeof value.reason === 'string') {
+    return { state: value.state, reason: value.reason };
+  }
+  return { state: 'UNVERIFIED', reason: NO_VERDICT };
 }
 
 // Keeps only entries the drawer can show: a non-empty name and a finite size. Anything else is dropped.
@@ -502,7 +509,7 @@ function receiptRowsOf(value) {
   return value
     .filter((item) => item && typeof item === 'object' && typeof item.name === 'string' && item.name !== ''
       && typeof item.size === 'number' && Number.isFinite(item.size))
-    .map((item) => ({ name: item.name, size: item.size }));
+    .map((item) => ({ name: item.name, size: item.size, validation: verdictOf(item.validation) }));
 }
 
 // A word goes to the shell as it is when it has no special character; anything else is single-quoted.

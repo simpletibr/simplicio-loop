@@ -138,7 +138,7 @@ Click a phase, a block or a lane to open the side panel (`#drill`). It has six t
 
 - **Resumo**: the facts for the target.
 - **Logs**: the target's log lines in `sl-log-viewer`, with its level filter, search and follow.
-- **Recibos**: the run's indexed receipts, each linked to its raw artifact. Every row says "Não validado" with the reason: the dashboard has no receipt validator yet (schema validation is slice 1405b). No receipt is shown as valid.
+- **Recibos**: the run's indexed receipts, each linked to its raw artifact, with its schema verdict. A receipt is **VALID** or **INVALID** only when it has a schema the package ships (today: `simplicio.stage-receipt/v1`). A receipt with any other schema id says "Não validado" with the reason. No receipt is shown as valid without that check.
 - **Comandos**: the exact `simplicio-loop progress <run> --repo <repo>` lines (state, and state as one JSON read), with a copy button. Nothing is executed. The repo path is single-quoted when it has special characters. The tab is empty until the run reports its repo path.
 - **Contrato**: the run's `task-contract.json`, shown as it is in a JSON tree. The page reads it when the tab opens, and only when the run detail lists it. The contract has no per-criterion status field, so the tab shows the contract and no status.
 - **Contexto**: the run's `mapper-context.json`, the same way.
@@ -147,7 +147,9 @@ Arrow keys, Home and End move between tabs. `Escape` closes the panel and restor
 
 **Deep links.** Opening a phase, lane, block or the logs writes its fragment into the address bar: `#/run/<run>/phase/<phase>`, `#/run/<run>/lane/<lane>`, `#/run/<run>/lane/<lane>/block/<index>`, `#/run/<run>/logs`. Loading a page with one of these opens the drawer on that target. A fragment for another run is ignored. Closing the drawer clears the fragment.
 
-Not in slice 1405b, with reasons: receipt schema validation (`jsonschema` is a development dependency, not a runtime one, so the dashboard cannot validate without a dependency decision; receipts stay "Não validado"), and the virtualised 100-thousand-line log benchmark (no benchmark yet, so the claim stays unverified). The iteration deep link `…/iteration/<n>` is not written yet either.
+Receipt verdicts: the run detail checks each receipt against the schemas the package ships (`receipt_check.py`), with `jsonschema` as a runtime dependency. The check is structural: it does not recompute hashes, so a VALID stage receipt is schema-compliant, not proven authentic. Adding a schema is one row in `SHIPPED_SCHEMAS`.
+
+Not written yet, with reasons: the 100-thousand-line benchmark (no benchmark, so the claim stays unverified), and the iteration deep link `…/iteration/<n>`.
 
 ### Keys
 

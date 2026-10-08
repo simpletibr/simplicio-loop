@@ -18,7 +18,6 @@ DRIVER = REPO / 'tests' / 'fixtures' / 'live_pipeline' / 'driver.mjs'
 LIVE = REPO / 'simplicio_loop' / 'dashboard' / 'static' / 'live'
 TABS = LIVE / 'drill-tabs.js'
 RUN_ID = 'run-q1'
-NO_VALIDATOR = 'o dashboard ainda não valida recibos (validação de schema: fatia 1405b)'
 TAB_IDS = ['summary', 'logs', 'receipts', 'commands', 'contract', 'context']
 
 
@@ -54,15 +53,22 @@ def test_receipts_are_empty_before_the_run_detail_arrives():
     assert _last([_action(None)])['receipts'] == []
 
 
-def test_each_receipt_row_keeps_its_name_and_size_and_is_unverified_with_the_reason():
-    view = _last([_action({'type': 'receipts', 'receipts': [{'name': 'completion-receipt.json', 'size': 120}]})])
-    assert view['receipts'] == [{'name': 'completion-receipt.json', 'size': 120,
-                                 'validation': {'state': 'UNVERIFIED', 'reason': NO_VALIDATOR}}]
+def test_each_receipt_row_keeps_its_name_size_and_the_verdict_the_server_gave():
+    verdict = {'state': 'INVALID', 'reason': '(raiz): \'run_id\' is a required property'}
+    view = _last([_action({'type': 'receipts', 'receipts': [{'name': 'completion-receipt.json', 'size': 120, 'validation': verdict}]})])
+    assert view['receipts'] == [{'name': 'completion-receipt.json', 'size': 120, 'validation': verdict}]
 
 
-def test_no_receipt_row_is_ever_valid_or_pass():
+def test_a_row_without_a_verdict_is_unverified_and_never_valid():
     rows = _last([_action({'type': 'receipts', 'receipts': [{'name': 'a.json', 'size': 1}, {'name': 'b.json', 'size': 2}]})])['receipts']
-    assert {row['validation']['state'] for row in rows} == {'UNVERIFIED'}
+    assert [row['validation'] for row in rows] == [{'state': 'UNVERIFIED', 'reason': 'validação não informada'}] * 2
+
+
+@pytest.mark.parametrize('verdict', [{'state': 'PASS', 'reason': 'ok'}, {'state': 'VALID'}, 'VALID', None])
+def test_a_verdict_outside_the_three_states_or_without_a_reason_is_unverified(verdict):
+    row = {'name': 'a.json', 'size': 1, 'validation': verdict}
+    rows = _last([_action({'type': 'receipts', 'receipts': [row]})])['receipts']
+    assert rows[0]['validation'] == {'state': 'UNVERIFIED', 'reason': 'validação não informada'}
 
 
 @pytest.mark.parametrize('bad', ['not-a-list', None, [{'size': 1}], [{'name': '', 'size': 1}], [{'name': 'x.json', 'size': 'big'}]])
