@@ -277,6 +277,13 @@ def _queue(server: Any) -> dict[str, Any]:
     return {'queue': active}
 
 
+def _budget(server: Any, ref: dict[str, Any]) -> dict[str, Any]:
+    '''Budget and usage of one run, plus its comparison with the previous runs from the history reader.'''
+    payload = budget.report(ref['run_dir'], dashboard_events.read_events(ref['run_dir']))
+    payload['comparison'] = budget.compare(history.history_record(ref), history.read_history(server.repos))
+    return payload
+
+
 def _health(server: Any) -> dict[str, Any]:
     return {'status': 'ok', 'version': __version__, 'pid': os.getpid(),
             'uptime_s': round(time.monotonic() - server.started_at, 1),
@@ -358,7 +365,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         budget_route = _BUDGET_RE.fullmatch(raw_path)
         if budget_route:
             ref = _find_run(self.server, urllib.parse.unquote(budget_route.group(1)))
-            self._send_json(200, budget.report(ref['run_dir'], dashboard_events.read_events(ref['run_dir'])))
+            self._send_json(200, _budget(self.server, ref))
             return
         artifact = _ARTIFACT_RE.fullmatch(raw_path)
         if artifact:

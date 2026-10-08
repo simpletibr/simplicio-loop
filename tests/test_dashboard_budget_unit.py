@@ -90,3 +90,35 @@ def test_projection_unverified_without_limit_or_usage_or_progress():
 def test_projection_at_done_is_the_measured_figure():
     row = budget.project(limit=100, used=90, phase='done')
     assert row['state'] == 'OK' and row['projected'] == 90
+
+
+def _record(run_id, verdict='COMPLETE', **fields):
+    base = {'run_id': run_id, 'verdict': verdict, 'duration_s': None, 'tokens': None, 'cost_usd': None, 'iterations': None}
+    base.update(fields)
+    return base
+
+
+def test_comparison_averages_the_measured_values_of_the_previous_runs():
+    current = _record('now', duration_s=120, tokens=1500, iterations=3)
+    previous = [_record('a', duration_s=100, tokens=1000, iterations=2),
+                _record('b', duration_s=60, tokens=500, iterations=4),
+                _record('c', duration_s=None, tokens=None)]
+    got = budget.compare(current, previous)
+    assert got['runs'] == 3
+    assert got['fields']['duration_s'] == {'current': 120, 'average': 80.0, 'samples': 2, 'delta_pct': 50.0, 'state': 'ESTIMADO'}
+    assert got['fields']['tokens']['average'] == 750.0 and got['fields']['tokens']['delta_pct'] == 100.0
+    assert got['fields']['cost_usd']['state'] == 'UNVERIFIED'
+
+
+def test_comparison_skips_the_current_run_and_unfinished_runs_and_keeps_only_ten():
+    previous = [_record('now', duration_s=999), _record('live', verdict='RUNNING', duration_s=999)]
+    previous += [_record('r%d' % i, duration_s=10) for i in range(12)]
+    got = budget.compare(_record('now', duration_s=20), previous)
+    assert got['runs'] == 10
+    assert got['fields']['duration_s']['average'] == 10.0 and got['fields']['duration_s']['delta_pct'] == 100.0
+
+
+def test_comparison_with_no_previous_run_is_unverified():
+    got = budget.compare(_record('now', duration_s=20), [])
+    assert got['runs'] == 0
+    assert {row['state'] for row in got['fields'].values()} == {'UNVERIFIED'}

@@ -309,3 +309,12 @@ def test_history_endpoint_returns_records_filters_and_rejects_bad_values(server_
     assert get('?min_cost_usd=abc')[0] == 400
     status, _, _ = _get(server_handle.port, '/api/history', {})
     assert status == 401
+
+
+def test_budget_route_carries_the_comparison_with_the_previous_runs(repo_root, server_handle):
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/budget', AUTH)
+    assert status == 200
+    comparison = json.loads(body)['comparison']
+    assert comparison['runs'] == 2  # orch-1 and legacy-1; the current run is skipped
+    assert set(comparison['fields']) == {'duration_s', 'tokens', 'cost_usd', 'iterations'}
+    assert comparison['fields']['tokens']['state'] == 'UNVERIFIED'

@@ -11,7 +11,7 @@ const NOT_PRICED = 'modelo ativo sem preço na tabela';
 const NO_CONTRACT = 'contrato de agentes não recebido';
 const TOKENS_BY_PHASE = 'sem produtor de tokens por fase no fluxo atual';
 const BUDGET = 'orçamento do run indisponível: o contrato da tarefa não declara limite ou a leitura falhou';
-const COMPARISON = 'o histórico de runs entra com a issue #1408';
+const COMPARISON = 'histórico de runs indisponível para este run';
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -212,6 +212,25 @@ function tokensByPhaseRowOf(budget) {
   return { key: 'tokensByPhase', label: 'Tokens por fase', state: 'PASS', reason };
 }
 
+const COMPARE_LABELS = { duration_s: 'duração', tokens: 'tokens', cost_usd: 'custo', iterations: 'iterações' };
+const NO_BASELINE = 'nenhum run anterior com valor medido para comparar';
+
+// This run against the average of the last ten finished runs. The averages are derived figures, so they show ESTIMADO.
+function comparisonRowOf(budget) {
+  const base = { key: 'comparison', label: 'Comparacao com os ultimos 10 runs' };
+  const comparison = isObject(budget) && isObject(budget.comparison) ? budget.comparison : null;
+  if (comparison === null || !isObject(comparison.fields)) return { ...base, state: 'UNVERIFIED', reason: COMPARISON };
+  const parts = [];
+  for (const key of Object.keys(COMPARE_LABELS)) {
+    const field = comparison.fields[key];
+    if (!isObject(field) || field.state !== 'ESTIMADO' || numberOrNull(field.delta_pct) === null) continue;
+    const signed = (field.delta_pct > 0 ? '+' : '') + field.delta_pct + '%';
+    parts.push(COMPARE_LABELS[key] + ' ' + signed + ' (média ' + num(field.average) + ' em ' + field.samples + ' runs)');
+  }
+  if (parts.length === 0) return { ...base, state: 'UNVERIFIED', reason: NO_BASELINE };
+  return { ...base, state: 'ESTIMADO', reason: 'estimado sobre ' + comparison.runs + ' runs: ' + parts.join('; ') };
+}
+
 // The agent-level rows: the map lists the contract roles, and no instance is measured, so no row is ever PASS.
 export function agentsCostView(economy, agents, budget) {
   const contract = isObject(agents) ? agents : null;
@@ -223,6 +242,6 @@ export function agentsCostView(economy, agents, budget) {
     tokensByPhaseRowOf(budget),
     costRowOf(economy.cost),
     budgetRowOf(budget),
-    { key: 'comparison', label: 'Comparacao com os ultimos 10 runs', state: 'UNVERIFIED', reason: COMPARISON },
+    comparisonRowOf(budget),
   ];
 }

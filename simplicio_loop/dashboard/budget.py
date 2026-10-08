@@ -146,3 +146,28 @@ def report(run_dir: str | Path, events: list[dict[str, Any]]) -> dict[str, Any]:
     measured = {'tokens': used['tokens'], 'usd': used['usd'], 'seconds': elapsed_s(events)}
     return {'phase': phase, 'limits': limits, 'usage': used,
             'rows': {key: project(limits[key], measured[key], phase) for key in KEYS}}
+
+
+COMPARE_FIELDS = ('duration_s', 'tokens', 'cost_usd', 'iterations')
+COMPARE_WINDOW = 10
+
+
+def compare(current: dict[str, Any], previous: list[dict[str, Any]]) -> dict[str, Any]:
+    '''This run against the average of the last ten finished runs (history records, newest first).
+
+    The current run and runs still running are skipped. A value no run measured is UNVERIFIED, never zero.
+    '''
+    window = [r for r in previous if r.get('run_id') != current.get('run_id') and r.get('verdict') != 'RUNNING'][:COMPARE_WINDOW]
+    fields: dict[str, Any] = {}
+    for key in COMPARE_FIELDS:
+        values = [v for v in (_number(r.get(key)) for r in window) if v is not None]
+        now = _number(current.get(key))
+        row: dict[str, Any] = {'current': now, 'average': None, 'samples': len(values), 'delta_pct': None, 'state': 'UNVERIFIED'}
+        if values and now is not None:
+            average = sum(values) / len(values)
+            row['average'] = average
+            row['state'] = 'ESTIMADO'
+            if average > 0:
+                row['delta_pct'] = round((now - average) / average * 100, 1)
+        fields[key] = row
+    return {'runs': len(window), 'fields': fields}

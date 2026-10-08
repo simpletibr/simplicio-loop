@@ -77,3 +77,31 @@ def test_tokens_by_phase_list_the_measured_events_and_are_measured_not_estimated
 
 def test_tokens_by_phase_without_a_producer_stays_unverified():
     assert _rows(_report(_row('OK')))['tokensByPhase']['state'] == 'UNVERIFIED'
+
+
+def _compared(**fields):
+    base = {'current': None, 'average': None, 'samples': 0, 'delta_pct': None, 'state': 'UNVERIFIED'}
+    out = {key: dict(base) for key in ('duration_s', 'tokens', 'cost_usd', 'iterations')}
+    for key, value in fields.items():
+        out[key] = {**base, **value}
+    return {'runs': 4, 'fields': out}
+
+
+def test_comparison_row_lists_each_measured_delta_as_an_estimate():
+    report = _report(_row('OK'))
+    report['comparison'] = _compared(duration_s={'current': 120, 'average': 80.0, 'samples': 3, 'delta_pct': 50.0, 'state': 'ESTIMADO'})
+    row = _rows(report)['comparison']
+    assert row['state'] == 'ESTIMADO'
+    assert '+50' in row['reason'] and 'duração' in row['reason'] and '4 runs' in row['reason']
+
+
+def test_comparison_row_stays_unverified_when_no_field_has_a_baseline():
+    report = _report(_row('OK'))
+    report['comparison'] = _compared()
+    row = _rows(report)['comparison']
+    assert row['state'] == 'UNVERIFIED' and row['reason']
+
+
+def test_comparison_row_without_a_response_keeps_the_history_reason():
+    row = _rows(None)['comparison']
+    assert row['state'] == 'UNVERIFIED' and row['reason']
