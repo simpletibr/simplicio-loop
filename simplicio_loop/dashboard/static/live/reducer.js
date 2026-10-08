@@ -89,6 +89,7 @@ export function initialState(runId) {
     iterations: initialIterations(),
     quality: null,
     tokens: null,
+    agents: null,
   };
 }
 function enterPhase(state, event, stamp, payload) {
@@ -273,6 +274,7 @@ export function reduce(state, action) {
     return { ...state, connection: String(action.status || 'connecting'), lastActivity: at === null ? state.lastActivity : at };
   }
   if (action.type === 'tokens') return { ...state, tokens: action.response === undefined ? null : action.response };
+  if (action.type === 'agents') return { ...state, agents: action.response === undefined ? null : action.response };
   if (action.type === 'heartbeat') {
     const at = numberOrNull(action.at);
     return { ...state, heartbeatAt: at, lastActivity: at === null ? state.lastActivity : at };
@@ -460,6 +462,7 @@ export function selectView(state, nowMs) {
   const iterations = selectIterations(state.iterations, now, state.gates);
   const dod = dodView(state.quality, state.runId);
   const quality = qualityView(state.quality, dod);
+  const economy = economyView(state.tokens);
   return {
     runId: state.runId,
     lastSeq: state.lastSeq,
@@ -477,8 +480,8 @@ export function selectView(state, nowMs) {
     convergence: selectConvergence(iterations),
     dod,
     quality,
-    economy: economyView(state.tokens),
-    agentsCost: agentsCostView(),
+    economy,
+    agentsCost: agentsCostView(economy, state.agents),
   };
 }
 

@@ -5,13 +5,13 @@ const NO_PANEL = 'painel de tokens indisponivel';
 const NO_DATA = 'nenhum dado de tokens recebido';
 const NO_TRAFFIC = 'proxy de captura sem trafego medido';
 const NOT_MEASURED = 'tokens nao medidos';
-const AGENT_ROWS = [
-  ['agentMap', 'Mapa de agentes', 'sem produtor de mapa de agentes no fluxo atual'],
-  ['tokensByPhase', 'Tokens por fase', 'sem produtor de tokens por fase no fluxo atual'],
-  ['cost', 'Custo', 'sem produtor de custo por agente no fluxo atual'],
-  ['budget', 'Orcamento', 'sem produtor de orcamento no fluxo atual'],
-  ['comparison', 'Comparacao com os ultimos 10 runs', 'sem produtor de comparacao entre runs no fluxo atual'],
-];
+const NO_COST_MODEL = 'modelo ativo não identificado';
+const NO_PRICE_TABLE = 'tabela de preços indisponível';
+const NOT_PRICED = 'modelo ativo sem preço na tabela';
+const NO_CONTRACT = 'contrato de agentes não recebido';
+const TOKENS_BY_PHASE = 'sem produtor de tokens por fase no fluxo atual';
+const BUDGET = 'orçamento do run fica no journal do Mapper; a leitura entra em fatia própria';
+const COMPARISON = 'o histórico de runs entra com a issue #1408';
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -78,8 +78,13 @@ function seriesOf(value) {
   return value.filter(isObject).map((entry) => numberOrNull(entry.saved)).filter((saved) => saved !== null);
 }
 
-// The global economy of the token proxy, from the GET /api/tokens body. Unmeasured readings are UNVERIFIED with a reason.
+// The global economy of the token proxy, from the GET /api/tokens body, with its cost estimate.
 export function economyView(response) {
+  const economy = economyBase(response);
+  return { ...economy, cost: costOf(response, economy) };
+}
+
+function economyBase(response) {
   if (!isObject(response)) return economyOf('UNVERIFIED', NO_PANEL, null);
   if (response.status !== 'MEASURED') return economyOf('UNVERIFIED', stringOrNull(response.reason) || NOT_MEASURED, null);
   const data = response.data;
@@ -103,7 +108,74 @@ export function economyView(response) {
   };
 }
 
-// The five agent-level cost rows. No producer exists yet for any of them, so none is ever PASS.
-export function agentsCostView() {
-  return AGENT_ROWS.map(([key, label, reason]) => ({ key, label, state: 'UNVERIFIED', reason }));
+function unpricedOf(reason) {
+  return {
+    state: 'UNVERIFIED', reason, model: null, inputPerMtok: null, inputUsd: null, savedUsd: null,
+    asOf: null, sourceUrl: null, note: null, proof: 'estimado',
+  };
+}
+
+// The longest table key that prefixes the model id, so a dated id takes its family's price.
+function priceFor(models, model) {
+  let best = null;
+  for (const key of Object.keys(models)) {
+    if (model.startsWith(key) && (best === null || key.length > best.length)) best = key;
+  }
+  return best === null ? null : models[best];
+}
+
+// Measured tokens times the active model's input price from the table. Each missing piece stays UNVERIFIED with its reason.
+function costOf(response, economy) {
+  if (economy.status !== 'MEASURED') return unpricedOf(economy.reason);
+  const table = isObject(response.pricing) ? response.pricing : null;
+  if (table === null || !isObject(table.models)) return unpricedOf(NO_PRICE_TABLE);
+  const active = economy.activeModel;
+  if (active === null || !active.model) return unpricedOf(NO_COST_MODEL);
+  const price = priceFor(table.models, active.model);
+  if (!isObject(price)) return unpricedOf(NOT_PRICED);
+  const rate = numberOrNull(price.input_per_mtok);
+  if (rate === null || economy.tokensAfter === null || economy.tokensSaved === null) return unpricedOf(NOT_MEASURED);
+  return {
+    state: 'ESTIMADO',
+    reason: null,
+    model: active.model,
+    inputPerMtok: rate,
+    inputUsd: economy.tokensAfter * rate / 1000000,
+    savedUsd: economy.tokensSaved * rate / 1000000,
+    asOf: stringOrNull(table.as_of),
+    sourceUrl: stringOrNull(table.source_url),
+    note: stringOrNull(price.note),
+    proof: 'estimado',
+  };
+}
+
+function costRowOf(cost) {
+  if (cost.state !== 'ESTIMADO') return { key: 'cost', label: 'Custo', state: 'UNVERIFIED', reason: cost.reason };
+  const text = 'USD ' + cost.inputUsd.toFixed(4) + ' de entrada estimados com ' + cost.model
+    + ' (US$ ' + cost.inputPerMtok + ' por milhão de tokens, tabela de ' + cost.asOf + ').';
+  return { key: 'cost', label: 'Custo', state: 'ESTIMADO', reason: text };
+}
+
+function rolesOf(contract) {
+  if (!contract || !Array.isArray(contract.roles)) return [];
+  return contract.roles.filter(isObject).map((role) => ({
+    role_id: stringOrNull(role.role_id),
+    title: stringOrNull(role.title),
+    stages: Array.isArray(role.stages) ? role.stages.map(String) : [],
+  }));
+}
+
+// The agent-level rows: the map lists the contract roles, and no instance is measured, so no row is ever PASS.
+export function agentsCostView(economy, agents) {
+  const contract = isObject(agents) ? agents : null;
+  return [
+    {
+      key: 'agentMap', label: 'Mapa de agentes', state: 'UNVERIFIED', roles: rolesOf(contract),
+      reason: contract && stringOrNull(contract.reason) ? contract.reason : NO_CONTRACT,
+    },
+    { key: 'tokensByPhase', label: 'Tokens por fase', state: 'UNVERIFIED', reason: TOKENS_BY_PHASE },
+    costRowOf(economy.cost),
+    { key: 'budget', label: 'Orcamento', state: 'UNVERIFIED', reason: BUDGET },
+    { key: 'comparison', label: 'Comparacao com os ultimos 10 runs', state: 'UNVERIFIED', reason: COMPARISON },
+  ];
 }

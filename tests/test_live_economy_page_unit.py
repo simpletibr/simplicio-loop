@@ -123,3 +123,13 @@ def test_app_polls_the_tokens_endpoint_every_15_seconds_or_more():
     delays = _token_delays(_read('app.js'))
     assert delays, 'app.js has no setInterval for the tokens poll'
     assert all(delay is not None and delay >= MIN_TOKEN_POLL_MS for delay in delays), delays
+
+
+def test_app_reads_the_contract_roles_from_the_agents_endpoint():
+    assert "'/api/agents'" in _read('app.js')
+
+
+def test_panels_show_the_contract_roles_in_the_agent_map():
+    text = _read('panels.js')
+    assert 'Papéis declarados' in text, 'the agent map must name the contract roles'
+    assert 'row.roles' in text

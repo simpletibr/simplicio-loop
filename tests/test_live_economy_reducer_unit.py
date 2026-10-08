@@ -22,7 +22,7 @@ RUN_ID = 'run-economy-fixture'
 BASE_MS = int(datetime(2026, 10, 8, 10, 0, 0, tzinfo=timezone.utc).timestamp() * 1000)
 ECONOMY_KEYS = ['status', 'reason', 'scope', 'proof', 'requests', 'tokensBefore', 'tokensAfter', 'tokensSaved',
                 'savingsPct', 'usdSaved', 'providers', 'proxyRunning', 'ledgerEvents', 'activeModel', 'modelsSeen',
-                'series', 'seriesKind']
+                'series', 'seriesKind', 'cost']
 AGENT_KEYS = ['agentMap', 'tokensByPhase', 'cost', 'budget', 'comparison']
 AGENT_ROW_KEYS = ['key', 'label', 'state', 'reason']
 VIEW_KEYS = ['runId', 'lastSeq', 'connection', 'phase', 'rail', 'percent', 'phases', 'gates', 'agora', 'health',
@@ -173,10 +173,12 @@ def test_agents_cost_lists_five_rows_in_contract_order():
     assert [row['key'] for row in _agents(_measured())] == AGENT_KEYS
 
 
-def test_each_agents_cost_row_is_unverified_with_a_label_and_a_reason():
+def test_each_agents_cost_row_has_a_label_and_a_reason_and_only_the_cost_row_is_estimated():
     for row in _agents(_measured()):
-        assert sorted(row) == sorted(AGENT_ROW_KEYS), row
-        assert row['state'] == 'UNVERIFIED', row
+        extra = {'roles'} if row['key'] == 'agentMap' else set()
+        assert set(row) == set(AGENT_ROW_KEYS) | extra, row
+        assert row['state'] in ('UNVERIFIED', 'ESTIMADO'), row
+        assert row['state'] != 'ESTIMADO' or row['key'] == 'cost', row
         assert row['label'] and row['reason'], row
 
 

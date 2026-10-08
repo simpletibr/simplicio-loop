@@ -30,7 +30,7 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Mapping
 
-from simplicio_loop import __version__
+from simplicio_loop import __version__, stage_agents
 from simplicio_loop.dashboard import STATIC_DIR, runs
 from simplicio_loop.dashboard.tail import EventTail
 
@@ -196,6 +196,18 @@ def _load_hook() -> Any:
     raise ImportError('simplicio_dashboard.py not found')
 
 
+PRICES_FILE = Path(__file__).resolve().with_name('prices.json')
+STAGES_FILE = stage_agents.STAGES_FILE
+
+
+def price_table() -> dict[str, Any]:
+    '''The price source the cost estimate reads: prices.json, or UNVERIFIED when it cannot be read.'''
+    try:
+        return json.loads(PRICES_FILE.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {'status': 'UNVERIFIED', 'reason': 'tabela de preços indisponível'}
+
+
 def _tokens() -> dict[str, Any]:
     '''Token monitor status read through the legacy hook; any failure is UNVERIFIED, never a 500.'''
     try:
@@ -204,12 +216,23 @@ def _tokens() -> dict[str, Any]:
         return {'status': 'UNVERIFIED', 'reason': 'token monitor unavailable: %s' % exc.__class__.__name__,
                 'cost_usd': 'UNVERIFIED'}
     return {'status': 'MEASURED', 'source': 'hooks/simplicio_dashboard.py get_status',
-            'cost_usd': 'UNVERIFIED', 'data': status}
+            'cost_usd': 'UNVERIFIED', 'data': status, 'pricing': price_table()}
 
 
 def _agents() -> dict[str, Any]:
-    '''No agent producer writes state yet, so the panel says UNVERIFIED instead of inventing rows.'''
-    return {'status': 'UNVERIFIED', 'agents': [], 'reason': 'no agent producer is wired to the dashboard'}
+    '''The roles the stage-agents contract declares, with the stages each one runs. No instance is measured yet.'''
+    try:
+        graph = stage_agents.load_graph(STAGES_FILE)
+    except Exception as exc:  # fail open: the panel keeps serving
+        return {'status': 'UNVERIFIED', 'roles': [],
+                'reason': 'contrato de agentes ilegível: %s' % exc.__class__.__name__}
+    stages: dict[str, list[str]] = {}
+    for stage in graph['stages']:
+        stages.setdefault(stage['role_id'], []).append(stage['stage_id'])
+    roles = [{'role_id': role['role_id'], 'title': role['title'], 'stages': stages.get(role['role_id'], [])}
+             for role in graph['roles']]
+    return {'status': 'UNVERIFIED', 'roles': roles,
+            'reason': 'instâncias ativas não medidas: nenhum produtor de agentes escreve estado ainda'}
 
 
 def _queue(server: Any) -> dict[str, Any]:

@@ -254,19 +254,26 @@ function scheduleSummary() {
   summaryTimer = setTimeout(refreshRun, SUMMARY_DEBOUNCE_MS);
 }
 
-// A failed read of the token panel reports no response, and the economy view shows that as UNVERIFIED.
-async function loadTokens() {
-  let response = null;
+// A failed read reports no response, and the views show that as UNVERIFIED.
+async function readApi(path) {
   try {
-    const reply = await fetch('/api/tokens', {
+    const reply = await fetch(path, {
       headers: { Accept: 'application/json', Authorization: 'Bearer ' + token },
       cache: 'no-store',
     });
-    if (reply.ok) response = await reply.json();
+    return reply.ok ? await reply.json() : null;
   } catch (error) {
-    response = null;
+    return null;
   }
-  dispatch({ type: 'tokens', response });
+}
+
+async function loadTokens() {
+  dispatch({ type: 'tokens', response: await readApi('/api/tokens') });
+}
+
+// The stage-agents roles come from the contract, which does not change while the page is open: one read per page.
+async function loadAgents() {
+  dispatch({ type: 'agents', response: await readApi('/api/agents') });
 }
 
 function start() {
@@ -282,6 +289,7 @@ function start() {
   loadSummary();
   loadTokens();
   setInterval(loadTokens, TOKENS_POLL_MS);
+  loadAgents();
   connectStream({
     url: runPath() + '/events',
     token,

@@ -197,23 +197,25 @@ Rule: the page never shows PASS for a pending or unverified item.
 
 The economy panel is global, not per run. It reads `~/.simplicio-loop/proxy_savings.json` and the provider catalog through `/api/tokens`. No field is tied to a `run_id`.
 
-Every token and USD number is estimated, and the labels say "estimado". The estimator counts about 4 characters per token. The USD figure is an input-only estimate from the engine price table. The savings series is cumulative (labelled "acumulado").
+Every token and USD number is estimated, and the labels say "estimado". The estimator counts about 4 characters per token. The savings series is cumulative (labelled "acumulado").
+
+The cost row (slice 1404b) estimates the input cost of the tokens sent through the proxy. It multiplies the measured `tokens_after` and `tokens_saved` by the input price of the active model. The prices come from `simplicio_loop/dashboard/prices.json`, which names its `as_of` date and the official `source_url`. Update that file by PR when the source changes. The engine's per-family `usd_saved` figure is a rough estimate of its own and is not replaced. If the active model has no entry, the cost row stays UNVERIFIED with that reason. Haiku 5.5 is priced for prompts up to 100 thousand tokens only.
 
 The `simplicio-loop economy` command is not the source of token numbers. It shows the environment and parallelism profile. The real sources are `get_status()` of the Token Monitor and the savings ledger at `.simplicio-loop/ledger/savings-events.jsonl`.
 
-Five rows are always UNVERIFIED with a reason. None of them ever shows PASS:
+Only the cost row can show a value, and it shows "Estimado". Every other row is UNVERIFIED with a reason. None of them ever shows PASS:
 
-| Row | Reason |
-|---|---|
-| Mapa de agentes | no run-dir producer yet; only the static stage graph exists |
-| Tokens por fase | no producer |
-| Custo | no price table or per-run usage yet |
-| Orcamento | no consumption recorded |
-| Comparacao com os ultimos 10 runs | no per-run tokens yet |
+| Row | State | Reason or source |
+|---|---|---|
+| Mapa de agentes | UNVERIFIED | lists the roles and stages of `contracts/stage-agents/v1/stages.json`; no instance is measured |
+| Tokens por fase | UNVERIFIED | no producer |
+| Custo | ESTIMADO or UNVERIFIED | estimate of the active model's input cost; see above |
+| Orcamento | UNVERIFIED | the run budget lives in the Mapper journal; reading it is a separate slice |
+| Comparacao com os ultimos 10 runs | UNVERIFIED | the run history comes with #1408 |
 
-`token_usage` and `cost_sample` stay reserved kinds with no producer (see [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md)).
+`token_usage` and `cost_sample` stay reserved kinds with no producer (see [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md)). Page data: `/api/tokens` carries the price table as `pricing`, and `/api/agents` carries the contract roles.
 
-Still deferred to issue #1404 slice 1404b: the agent map observed in run directories, tokens per phase, lane and model, cost per run, task and iteration with a price table, the budget with projection and alert, the last-10 comparison, and the token producer.
+Still deferred to issue #1404: tokens per phase, lane and model, cost per run, task and iteration, the budget with projection and alert, the last-10 comparison, and the token producer. The decisions were: the price table lives in the repo; no token producer in this round; agent roles come from the stage contract.
 
 ## Unverified (UNVERIFIED)
 
