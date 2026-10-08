@@ -10,8 +10,6 @@ import { SlAlertToast } from '/static/components/index.js';
 import { createView } from '/static/live/view.js';
 import { boardOf } from '/static/live/board.js';
 import { createBoard } from '/static/live/board-view.js';
-import { coordinationOf } from '/static/live/coordination.js';
-import { createCoordination } from '/static/live/coordination-view.js';
 
 const SUMMARY_DEBOUNCE_MS = 250;
 const TICK_MS = 1000;
@@ -30,8 +28,6 @@ if (params.get('tv') === '1') document.documentElement.dataset.tv = '1';
 
 const view = createView();
 const boardView = createBoard(document.getElementById('board'), document.getElementById('board-status'));
-const byId = (id) => document.getElementById(id);
-const coordView = createCoordination({ kanban: byId('coord-kanban'), dag: byId('coord-dag'), drain: byId('coord-drain'), slots: byId('coord-slots'), status: byId('coord-status') });
 const controller = new AbortController();
 let state = initialState(runId);
 let summaryTimer = null;
@@ -385,10 +381,18 @@ async function loadBoard() {
   boardView.render(boardOf(runs, Date.now()), { runId, token, pathname: window.location.pathname });
 }
 
-// Queue, DAG, drain and slots come from the frozen backlog; a failed read keeps the last render.
+// Queue, DAG, drain and slots come from the frozen backlog. The code sits outside the live/ bundle and loads on the first
+// poll; a failed read keeps the last render.
+let coordination = null;
 async function loadCoordination() {
   const reply = await readApi('/api/coordination');
-  if (reply !== null) coordView.render(coordinationOf(reply, Date.now()));
+  if (reply === null) return;
+  if (!coordination) {
+    const [model, panel] = await Promise.all([import('/static/coordination/model.js'), import('/static/coordination/view.js')]);
+    const byId = (id) => document.getElementById(id);
+    coordination = { of: model.coordinationOf, view: panel.createCoordination({ kanban: byId('coord-kanban'), dag: byId('coord-dag'), drain: byId('coord-drain'), slots: byId('coord-slots'), status: byId('coord-status') }) };
+  }
+  coordination.view.render(coordination.of(reply, Date.now()));
 }
 
 function start() {

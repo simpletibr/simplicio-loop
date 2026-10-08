@@ -14,7 +14,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 LIVE = REPO / 'simplicio_loop' / 'dashboard' / 'static' / 'live'
-VIEW = LIVE / 'coordination-view.js'
+VIEW = LIVE.parent / 'coordination' / 'view.js'
 EMPTY = 'Nenhum item na fila deste repositório.'
 NO_DRAIN = 'Sem métrica de drenagem para mostrar.'
 COLUMNS = [('backlog', 'Backlog'), ('ready', 'Prontos'), ('claimed', 'Em execução'),

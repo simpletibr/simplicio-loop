@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[1]
-MODULE = REPO / 'simplicio_loop' / 'dashboard' / 'static' / 'live' / 'coordination.js'
+MODULE = REPO / 'simplicio_loop' / 'dashboard' / 'static' / 'coordination' / 'model.js'
 
 COLUMN_KEYS = ['ready', 'claimed', 'running', 'verifying', 'done', 'blocked']
 LABELS = {'ready': 'Pronto', 'claimed': 'Reservado', 'running': 'Em execução', 'verifying': 'Verificando',
