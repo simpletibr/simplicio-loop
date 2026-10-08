@@ -214,6 +214,12 @@ def _plan_text(root: Path, plan: str) -> tuple[str | None, str]:
 
 
 def _apply_plan(repo: str, plan: str, verify: str | None) -> int:
+    """Wrapper to call async _apply_plan_async with asyncio.run."""
+    import asyncio
+    return asyncio.run(_apply_plan_async(repo, plan, verify))
+
+
+async def _apply_plan_async(repo: str, plan: str, verify: str | None) -> int:
     from .turbo import apply_plan, load_operations
 
     started = time.time()
@@ -231,7 +237,7 @@ def _apply_plan(repo: str, plan: str, verify: str | None) -> int:
         return 1
     _register_state_dir(root)
     try:
-        result = apply_plan(root, operations, "host-1")
+        result = await apply_plan(root, operations, "host-1")
     except RuntimeError as exc:
         _emit({**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
         return 2
