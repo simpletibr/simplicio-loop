@@ -146,11 +146,25 @@ Click a phase, a block or a lane to open the side panel (`#drill`). It has six t
 
 Arrow keys, Home and End move between tabs. `Escape` closes the panel and restores focus.
 
-**Deep links.** Opening a phase, lane, block or the logs writes its fragment into the address bar: `#/run/<run>/phase/<phase>`, `#/run/<run>/lane/<lane>`, `#/run/<run>/lane/<lane>/block/<index>`, `#/run/<run>/logs`. Loading a page with one of these opens the drawer on that target. A fragment for another run is ignored. Closing the drawer clears the fragment.
+**Deep links.** Opening a phase, lane, block or the logs writes its fragment into the address bar: `#/run/<run>/phase/<phase>`, `#/run/<run>/lane/<lane>`, `#/run/<run>/lane/<lane>/block/<index>`, `#/run/<run>/logs`, `#/run/<run>/iteration/<n>` and `#/run/<run>/phase/<phase>/iteration/<n>` (the iteration's situation, duration, gate counts, stall and the lane lines of that iteration). Loading a page with one of these opens the drawer on that target. A fragment for another run is ignored. Closing the drawer clears the fragment.
 
 Receipt verdicts: the run detail checks each receipt against the schemas the package ships (`receipt_check.py`), with `jsonschema` as a runtime dependency. The check is structural: it does not recompute hashes, so a VALID stage receipt is schema-compliant, not proven authentic. Adding a schema is one row in `SHIPPED_SCHEMAS`.
 
-Not written yet, with reasons: the 100-thousand-line benchmark (no benchmark, so the claim stays unverified), and the iteration deep link `…/iteration/<n>`.
+**Log viewer at 100 000 lines.** `sl-log-viewer` is virtualized: only the rows in view plus an overscan are in the DOM, each row has one fixed height, and a long message is cut with an ellipsis (its full text is the row title). Benchmark, in a real Chromium 141 on the cloud container (wall clock, so it varies by machine):
+
+```
+.venv/bin/python scripts/benchmark_log_viewer.py --lines 100000 --json
+```
+
+| Measure | Before (every line in the DOM) | After (virtualized) |
+|---|---|---|
+| Render 100 000 lines | 20 036 ms | 42 ms |
+| DOM rows | 100 000 | 45 |
+| Follow (jump to the end) | 23 327 ms | 35 ms |
+| Level filter (1 031 lines match) | 543 ms | 29 ms |
+| Text search | 507 ms | 34 ms |
+
+`tests/test_live_log_virtualization_e2e_system.py` runs the same benchmark with loose limits (rows < 200, each step < 2 s) and skips when no Chromium is available.
 
 ### Keys
 
