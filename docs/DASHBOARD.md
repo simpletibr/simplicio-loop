@@ -183,6 +183,15 @@ Each block's `data-tip` attribute carries the plain-text timings. CSS shows them
 
 The e2e test measures the median animation frame in headless software Chromium: 16.7 ms over 60 frames (MEASURED). This is software rendering, not a GPU measurement, so 60 fps on a real GPU is UNVERIFIED.
 
+### Quadro por etapa (kanban)
+
+O quadro mostra cada run dos repositórios observados como um cartão, na coluna da fase atual: Contrato (`intake`), Mapeamento (`mapping`), Plano (`planning`), Execução (`executing`), Validação (`validating`), Watcher (`watching`), Entrega (`delivering`) e Concluído (`done`). As fases `blocked`, `awaiting_decision`, `cancelled` e as desconhecidas ficam na coluna **Fora do trilho**.
+
+- A fonte é `GET /api/runs`. O campo `phase` de cada resumo vem do `state.json` do run. Um run novo aparece no quadro na consulta seguinte.
+- A página consulta a cada 3 s enquanto houver token. O quadro funciona sem o parâmetro `run`.
+- Clicar em um cartão abre o run na página do pipeline (`?run=<id>`).
+- Colunas por tarefa (itens do backlog em cada coluna) não estão nesta fatia. Ficam com a issue #1407.
+
 ## Iteracoes e qualidade (#1403)
 
 The timeline has one row per iteration, oldest first. Iterations come only from the Stop-hook hosts, which emit `iteration_started` and `iteration_finished` (`hooks/loop_stop.py`). Runner and turbo events carry no iteration, so a turbo run shows no iterations.
