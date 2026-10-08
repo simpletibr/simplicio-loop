@@ -12,6 +12,7 @@ import pytest
 
 from simplicio_loop import turbo_provider
 from simplicio_loop.cli_impl import main as cli_main
+    import asyncio
 from simplicio_loop.turbo import run_turbo
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,7 +83,7 @@ def test_run_turbo_reports_whether_each_task_plan_applied(tmp_path, monkeypatch)
 
     tasks = [{"index": 1, "text": "pricing.py task", "target": "pricing.py", "depends_on": []},
              {"index": 2, "text": "inventory.py task", "target": "inventory.py", "depends_on": []}]
-    result = run_turbo(repo, tasks, complete)
+    result = asyncio.run(run_turbo(repo, tasks, complete)
     assert result["applied_all"] is False
     assert [o["applied"] for o in result["outcomes"]] == [False]
     assert result["outcomes"][0]["tasks"] == [1, 2] and result["outcomes"][0]["reason"]
