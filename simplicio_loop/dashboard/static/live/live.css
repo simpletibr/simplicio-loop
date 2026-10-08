@@ -466,9 +466,7 @@ html[data-tv="1"] .economy-panel .note { font-size: var(--sl-step-0); }
 }
 .card-age { margin-inline-start: auto; }
 
-/* Coordination view (fila e coordenação): the work queue as a kanban, the dependency DAG, the drain metric and the
-   worker slots. Lamps are a disc with its own glyph; surfaces, edges and focus come from the simplicio-live.css tokens.
-   A blocked item sits on a dashed siding, the same way the off-track column does on the board. Static only. */
+/* Coordination view: kanban, DAG, drain, slots. Lamps are a disc plus a glyph; tokens only. */
 @media (min-width: 900px) {
   .coord-panel { grid-column: 1 / -1; }
 }

@@ -1,7 +1,17 @@
-// The coordination view of the Simplicio Live page: the work queue as a kanban, the dependency DAG, the drain metric and
-// the worker slots, rendered from the model of coordinationOf(). Everything updates in place, so a focused DAG button
-// keeps its focus and a selected node keeps its highlight between polls. Text goes in through textContent and attributes
-// only. Lamps are a coloured disc plus its own glyph, so colour is never the only signal.
+// Coordination view of the Simplicio Live page: kanban, DAG, drain and slots from coordinationOf(). In-place updates,
+// textContent only; every lamp is a disc plus a glyph, so colour is never the only signal.
+function setAttr(el, name, value) {
+  if (value === null || value === undefined || value === false) {
+    if (el.hasAttribute(name)) el.removeAttribute(name);
+    return;
+  }
+  const text = value === true ? '' : String(value);
+  if (el.getAttribute(name) !== text) el.setAttribute(name, text);
+}
+
+function setText(el, text) {
+  if (el.textContent !== text) el.textContent = text;
+}
 
 const STATE_LABEL = {
   RUNNING: 'Em execução',
@@ -24,33 +34,18 @@ const NO_DRAIN = 'Sem métrica de drenagem para mostrar.';
 const NO_DAG = 'Nenhuma dependência entre os itens.';
 const NO_SLOTS = 'Nenhum worker com lease.';
 
-function setAttr(el, name, value) {
-  if (value === null || value === undefined || value === false) {
-    if (el.hasAttribute(name)) el.removeAttribute(name);
-    return;
-  }
-  const text = value === true ? '' : String(value);
-  if (el.getAttribute(name) !== text) el.setAttribute(name, text);
-}
-
-function setText(el, text) {
-  if (el.textContent !== text) el.textContent = text;
-}
-
 function element(tag, cls) {
   const el = document.createElement(tag);
   if (cls) el.setAttribute('class', cls);
   return el;
 }
 
-// A part without a value is emptied and hidden, so it takes no room and says nothing.
 function show(el, text) {
   const shown = text !== null && text !== undefined && text !== '';
   setText(el, shown ? text : '');
   setAttr(el, 'hidden', shown ? null : true);
 }
 
-// A duration in words ("45 s", "12 min", "2 h 5 min"). Every number on this page is printed with its unit or label.
 function durationText(seconds) {
   const total = Math.max(0, Math.round(seconds));
   if (total < 60) return total + ' s';
@@ -90,7 +85,6 @@ function fillLease(view, leaseState) {
   setText(view.label, LEASE[key].label);
 }
 
-// The line that names what a card waits for. Same wording as blockedText() in coordination.js.
 function blockedLine(card) {
   const by = Array.isArray(card.blockedBy) ? card.blockedBy : [];
   return by.length > 0 ? 'Bloqueado por: ' + by.join(', ') : null;
