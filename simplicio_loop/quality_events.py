@@ -113,7 +113,7 @@ def _failing(returncode: int | None, *counts: int) -> bool:
 
 
 def _kv(inner: str, key: str) -> int:
-    match = re.search(r"(?:^|, )%s=(\d+)" % key, inner)
+    match = re.search(rf"(?:^|, ){key}=(\d+)", inner)
     return int(match.group(1)) if match else 0
 
 
@@ -406,7 +406,7 @@ def emit_check(task_id: Any, command: Any, stdout: Any, stderr: Any, returncode:
             return []
         specs = [(kind, payload, _severity(payload)) for kind, payload in found]
         return _emit(task_id, specs, iteration, env)
-    except Exception:
+    except Exception:  # noqa: BLE001 - fail-open: telemetry must never break the caller
         return []
 
 
@@ -418,5 +418,5 @@ def emit_diff(task_id: Any, measurement: Any, iteration: Any = None,
         if payload is None:
             return []
         return _emit(task_id, [("apply_result", payload, "info")], iteration, env)
-    except Exception:
+    except Exception:  # noqa: BLE001 - fail-open: telemetry must never break the caller
         return []

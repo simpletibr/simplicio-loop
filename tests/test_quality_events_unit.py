@@ -256,11 +256,11 @@ def test_mypy_summary_alone_is_recognised():
 
 
 def test_by_rule_keeps_the_20_most_frequent_rules():
-    lines = ["a.py:%d:1: E%03d msg" % (i, i) for i in range(1, 26)]
-    lines += ["b.py:%d:1: E999 msg" % i for i in range(1, 6)]
+    lines = [f"a.py:{i}:1: E{i:03d} msg" for i in range(1, 26)]
+    lines += [f"b.py:{i}:1: E999 msg" for i in range(1, 6)]
     p = qe.parse_lint("ruff check .", "\n".join(lines) + "\nFound 30 errors.\n", 1)
     assert len(p["by_rule"]) == 20
-    assert list(p["by_rule"])[0] == "E999" and p["by_rule"]["E999"] == 5
+    assert next(iter(p["by_rule"])) == "E999" and p["by_rule"]["E999"] == 5
     assert "E025" not in p["by_rule"]
 
 
@@ -289,7 +289,7 @@ def test_coverage_term_missing_table_adds_per_file_rows():
 
 
 def test_coverage_files_are_capped_at_50_rows():
-    rows = "\n".join("src/m%02d.py      10      0   100%%" % i for i in range(60))
+    rows = "\n".join(f"src/m{i:02d}.py      10      0   100%" for i in range(60))
     p = qe.parse_coverage("pytest --cov", rows + "\nTOTAL  600  0  100%\n")
     assert len(p["files"]) == 50 and p["files"][0]["path"] == "src/m00.py"
 
@@ -350,7 +350,7 @@ def test_diff_payload_converge_mode_is_measured_too():
 
 
 def test_diff_payload_caps_files_at_200_but_keeps_the_total():
-    files = ["f%03d.py" % i for i in range(250)]
+    files = [f"f{i:03d}.py" for i in range(250)]
     p = qe.diff_payload(_measurement(files))
     assert len(p["files"]) == 200 and p["files_total"] == 250
 
@@ -438,7 +438,7 @@ def test_emit_check_respects_the_kill_switch(run_env):
 
 
 def test_emit_check_never_raises_when_the_emitter_fails(run_env, monkeypatch):
-    run, env = run_env
+    _run, env = run_env
 
     def boom():
         raise RuntimeError("loader broke")
@@ -448,7 +448,7 @@ def test_emit_check_never_raises_when_the_emitter_fails(run_env, monkeypatch):
 
 
 def test_emit_check_returns_empty_when_the_emitter_is_missing(run_env, monkeypatch):
-    run, env = run_env
+    _run, env = run_env
     monkeypatch.setattr(package_events, "load", lambda: None)
     assert qe.emit_check("T1", "pytest", PYTEST_Q, "", 1, 1.2, env=env) == []
 
