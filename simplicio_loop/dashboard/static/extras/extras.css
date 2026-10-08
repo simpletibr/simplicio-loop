@@ -1,0 +1,37 @@
+/* Extras panel: one bordered row per signal. The state word carries the meaning; the border colour only repeats it. */
+.extras-list {
+  display: grid;
+  gap: var(--sl-space-2);
+  margin: 0;
+}
+.extras-list > div {
+  display: grid;
+  gap: var(--sl-space-1);
+  padding: var(--sl-space-2);
+  border: 1px solid var(--sl-line-soft);
+  border-inline-start: 4px solid var(--sl-line);
+  border-radius: var(--sl-radius-plate);
+  background: var(--sl-raised);
+}
+.extras-list > div[data-state="PASS"] { border-inline-start-color: var(--sl-state-pass); }
+.extras-list > div[data-state="UNVERIFIED"] { border-inline-start-color: var(--sl-state-unverified); }
+.extras-list dt {
+  font-size: var(--sl-step--1);
+  font-weight: var(--sl-weight-strong);
+  color: var(--sl-ink);
+}
+.extras-list dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sl-space-2);
+  margin: 0;
+  font-size: var(--sl-step--1);
+  color: var(--sl-ink-muted);
+  overflow-wrap: anywhere;
+}
+.extras-state {
+  font-family: var(--sl-font-mono);
+  font-weight: var(--sl-weight-strong);
+}
+.extras-list > div[data-state="PASS"] .extras-state { color: var(--sl-state-pass); }
+.extras-list > div[data-state="UNVERIFIED"] .extras-state { color: var(--sl-state-unverified); }

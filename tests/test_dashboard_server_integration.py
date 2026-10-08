@@ -293,6 +293,27 @@ def test_budget_route_for_an_unknown_run_is_404(server_handle):
     status, _, _ = _get(server_handle.port, '/api/runs/nope/budget', AUTH)
     assert status == 404
 
+
+def test_extras_route_reports_the_run_extras_and_404s_an_unknown_run(repo_root, server_handle):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    (run_dir / 'task-contract.json').write_text(json.dumps(
+        {'tasks': [{'id': 't1', 'title': 'Budget panel'}]}), encoding='utf-8')
+    emitter = _emitter()
+    emitter.emit(run_dir, 'test_result', source='worker', payload={'command': 'pytest -q', 'tool': 'pytest'},
+                 strict=True)
+    emitter.emit(run_dir, 'token_usage', source='worker', lane='lane-a',
+                 payload={'model': 'model-a', 'input_tokens': 300, 'output_tokens': 4}, strict=True)
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/extras', AUTH)
+    assert status == 200
+    data = json.loads(body)
+    assert data['schema'] == 'simplicio.dashboard-extras/v1'
+    assert data['last_command']['command'] == 'pytest -q' and data['last_command']['kind'] == 'test_result'
+    assert data['tasks'] == [{'task_id': 't1', 'title': 'Budget panel'}]
+    assert data['models'] == [{'lane': 'lane-a', 'model': 'model-a', 'input_tokens': 300, 'output_tokens': 4}]
+    assert data['heartbeat'] == {'state': 'UNVERIFIED', 'reason': 'no lease heartbeat producer'}
+    status, _, _ = _get(server_handle.port, '/api/runs/nope/extras', AUTH)
+    assert status == 404
+
 def test_history_endpoint_returns_records_filters_and_rejects_bad_values(server_handle, repo_root):
     def get(query):
         status, _, body = _get(server_handle.port, '/api/history' + query, AUTH)

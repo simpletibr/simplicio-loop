@@ -143,7 +143,7 @@ def test_live_directory_gzips_under_40_kib():
     assert buffer.getbuffer().nbytes < 40 * 1024, buffer.getbuffer().nbytes
 
 
-NEW_DOM_TAGS = {'lanes': 'ol', 'drill': 'aside', 'drill-logs': 'sl-log-viewer', 'palette': 'sl-command-palette', 'follow': 'button'}
+NEW_DOM_TAGS = {'lanes': 'ol', 'drill': 'aside', 'drill-logs': 'sl-log-viewer', 'palette': 'sl-command-palette', 'follow': 'button', 'live-extras': 'section'}
 TV_RULE = re.compile(r'\[data-tv=.?1.?\]')
 TRANSITION_DECL = re.compile(r'(?<![\w-])transition(?:-[a-z-]+)?\s*:')
 KEYFRAMES = re.compile(r'@keyframes\s+[\w-]+\s*\{')

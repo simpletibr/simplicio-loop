@@ -11,6 +11,7 @@ export const EN = {
   'Ativar notificações do navegador': 'Enable browser notifications',
   'Buscar comandos': 'Search commands',
   'Comando': 'Command',
+  'Sinais do worker': 'Worker signals',
   'Comandos': 'Commands',
   'Comandos para reproduzir o run': 'Commands to reproduce the run',
   'Contexto': 'Context',
