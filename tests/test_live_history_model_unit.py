@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[1]
-MODULE = REPO / 'simplicio_loop' / 'dashboard' / 'static' / 'live' / 'history-model.js'
+MODULE = REPO / 'simplicio_loop' / 'dashboard' / 'static' / 'history' / 'history-model.js'
 
 EXPORTS = ['deltaText', 'heatLevels', 'historyQuery', 'phaseBars', 'rowsOf', 'trendSeries']
 TREND_KEYS = ['complete_rate', 'iterations_per_task', 'cost_per_task_usd']

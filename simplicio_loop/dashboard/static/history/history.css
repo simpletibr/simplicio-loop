@@ -1,0 +1,306 @@
+/* Simplicio Live history view: layout and the lamp, bar and heat rules of history-view.js.
+   Colours and type come from the simplicio-live.css tokens; the only own colours are the single-hue heat ramp and
+   the run A / run B bar colours, each with a light, a dark and a high-contrast value. */
+
+:root {
+  --hist-level-0: #e3ebe9;
+  --hist-level-1: #b9d9e4;
+  --hist-level-2: #7fb8cc;
+  --hist-level-3: #3f8fab;
+  --hist-level-4: #0a5a7a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-sl-theme="light"]) {
+    --hist-level-0: #1e3d44;
+    --hist-level-1: #1f4f5e;
+    --hist-level-2: #2b6f82;
+    --hist-level-3: #3f94ab;
+    --hist-level-4: #7fd3e6;
+  }
+}
+:root[data-sl-theme="dark"] {
+  --hist-level-0: #1e3d44;
+  --hist-level-1: #1f4f5e;
+  --hist-level-2: #2b6f82;
+  --hist-level-3: #3f94ab;
+  --hist-level-4: #7fd3e6;
+}
+:root[data-sl-theme="contrast"] {
+  --hist-level-0: #000000;
+  --hist-level-1: #004d5c;
+  --hist-level-2: #00798f;
+  --hist-level-3: #00b3d1;
+  --hist-level-4: #00e5ff;
+}
+
+.hist-section {
+  min-width: 0;
+  padding: var(--sl-space-3);
+  border: 1px solid var(--sl-line);
+  border-radius: var(--sl-radius-panel);
+  background: var(--sl-panel);
+  color: var(--sl-ink);
+}
+.hist-section h3 {
+  margin: 0 0 var(--sl-space-2);
+  font-size: var(--sl-step-0);
+  line-height: var(--sl-leading-tight);
+}
+.hist-section h4 {
+  margin: var(--sl-space-3) 0 var(--sl-space-1);
+  font-size: var(--sl-step--1);
+}
+.hist-empty,
+.hist-hint {
+  margin: var(--sl-space-1) 0;
+  color: var(--sl-ink-muted);
+}
+.hist-note {
+  margin: 0 0 var(--sl-space-2);
+  font-weight: 600;
+}
+
+/* Wide tables scroll inside their own region, so the page itself never scrolls sideways. */
+.hist-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.hist-scroll:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: var(--sl-focus-width) solid var(--sl-focus);
+  outline-offset: 2px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+th,
+td {
+  padding: var(--sl-space-1) var(--sl-space-2);
+  border-bottom: 1px solid var(--sl-line);
+  text-align: left;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+th {
+  font-weight: 600;
+  color: var(--sl-ink-muted);
+}
+.hist-run {
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-step--1);
+}
+.hist-pick input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: var(--sl-ink);
+}
+
+/* Lamps: a coloured disc with its own shape, and the verdict as text beside it. */
+.lamp {
+  --lamp: var(--sl-state-pending);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sl-space-1);
+}
+.lamp-running { --lamp: var(--sl-state-running); }
+.lamp-pass { --lamp: var(--sl-state-pass); }
+.lamp-fail { --lamp: var(--sl-state-fail); }
+.lamp-unverified { --lamp: var(--sl-state-unverified); }
+.lamp-stalled { --lamp: var(--sl-state-stalled); }
+.lamp-blocked { --lamp: var(--sl-state-blocked); }
+.lamp-pending { --lamp: var(--sl-state-pending); }
+.lamp-glyph {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
+  border-radius: 50%;
+  background: var(--lamp);
+  color: var(--sl-panel);
+  font-size: 0.7em;
+  font-weight: 700;
+  line-height: 1;
+}
+.lamp-text {
+  color: var(--sl-ink);
+}
+.lamp[data-shape="play"] > .lamp-glyph::before { content: "\25B6"; }
+.lamp[data-shape="check"] > .lamp-glyph::before { content: "\2713"; }
+.lamp[data-shape="cross"] > .lamp-glyph::before { content: "\2715"; }
+.lamp[data-shape="diamond"] > .lamp-glyph::before { content: "\25C7"; }
+.lamp[data-shape="pause"] > .lamp-glyph::before { content: "\2016"; }
+.lamp[data-shape="barred"] > .lamp-glyph::before { content: "\2298"; }
+.lamp[data-shape="ring"] > .lamp-glyph {
+  background: transparent;
+  border: 2px solid var(--lamp);
+}
+.lamp[data-shape="ring"] > .lamp-glyph::before { content: ""; }
+
+.hist-compare {
+  margin-top: var(--sl-space-2);
+  padding: var(--sl-space-1) var(--sl-space-3);
+  border: 1px solid var(--sl-ink-muted);
+  border-radius: 3px;
+  background: var(--sl-raised);
+  color: var(--sl-ink);
+  font: inherit;
+  cursor: pointer;
+}
+.hist-compare:disabled {
+  border-style: dashed;
+  color: var(--sl-ink-muted);
+  cursor: not-allowed;
+}
+
+/* Comparison bars: run A and run B are two thin tracks per phase, told apart by their letter as well as colour. */
+.hist-phases {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--sl-space-2);
+}
+.hist-phase-name {
+  display: block;
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-step--1);
+}
+.hist-bars {
+  display: grid;
+  gap: 3px;
+}
+.hist-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sl-space-2);
+  font-size: var(--sl-step--1);
+}
+.hist-track {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--sl-line);
+  overflow: hidden;
+}
+.hist-fill {
+  display: block;
+  width: var(--fill, 0%);
+  height: 100%;
+}
+.hist-bar-a .hist-fill { background: var(--sl-state-running); }
+.hist-bar-b .hist-fill { background: var(--sl-ink-muted); }
+.hist-bar-empty .hist-track {
+  background: none;
+  border: 1px dashed var(--sl-line);
+}
+.hist-bar-label {
+  color: var(--sl-ink-muted);
+  white-space: nowrap;
+}
+
+/* Trends: one thin line per measure, drawn in the running hue, with a text list beside it. */
+.hist-trends {
+  display: grid;
+  gap: var(--sl-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+.hist-trend figcaption {
+  margin-bottom: var(--sl-space-1);
+  font-size: var(--sl-step--1);
+  color: var(--sl-ink-muted);
+}
+.hist-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.hist-trend-line {
+  fill: none;
+  stroke: var(--sl-state-running);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.hist-trend-dot {
+  fill: var(--sl-state-running);
+}
+.hist-trend-values {
+  margin: var(--sl-space-1) 0 0;
+  padding-left: 1.2em;
+  font-size: var(--sl-step--1);
+  color: var(--sl-ink-muted);
+}
+
+/* Activity heatmap: seven days by twenty-four hours, one hue from light (few runs) to dark (many runs). */
+.hist-heat {
+  min-width: 42rem;
+  table-layout: fixed;
+}
+.hist-heat th,
+.hist-heat td {
+  padding: 2px;
+  text-align: center;
+  font-size: 0.7rem;
+}
+.hist-heat th[scope="row"] {
+  width: 3rem;
+  text-align: left;
+}
+.hist-cell {
+  height: 1.3rem;
+  border: 1px solid var(--sl-line);
+  border-radius: 2px;
+}
+.hist-cell:hover {
+  outline: 2px solid var(--sl-focus);
+  outline-offset: -2px;
+}
+.hist-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--sl-space-1);
+  margin: var(--sl-space-2) 0 0;
+  font-size: var(--sl-step--1);
+  color: var(--sl-ink-muted);
+}
+.hist-swatch {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid var(--sl-line);
+  border-radius: 2px;
+}
+[data-level="0"] { background: var(--hist-level-0); }
+[data-level="1"] { background: var(--hist-level-1); }
+[data-level="2"] { background: var(--hist-level-2); }
+[data-level="3"] { background: var(--hist-level-3); }
+[data-level="4"] { background: var(--hist-level-4); }
+
+/* Lessons */
+.hist-lessons {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hist-lesson {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sl-space-2);
+  padding: var(--sl-space-1) 0;
+  border-bottom: 1px solid var(--sl-line);
+}
+.lesson-hits {
+  color: var(--sl-ink-muted);
+  white-space: nowrap;
+}
+
+@media (min-width: 900px) {
+  .hist-section { padding: var(--sl-space-3) var(--sl-space-4, 1.5rem); }
+}
