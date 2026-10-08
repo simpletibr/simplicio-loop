@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import statistics
 import time
 from pathlib import Path
 
@@ -292,6 +293,44 @@ def test_fixture_lane_logs_running_then_pass_within_one_second(open_page, repo):
     _wait_seq(page, 18)
     page.wait_for_function("() => window.__laneLog.includes('PASS')", timeout=1000)
     assert page.evaluate('() => window.__laneLog') == ['RUNNING', 'PASS']
+
+
+LANE_SEL = '#lanes li[data-lane="feat/fixture"]'
+ARM_LANE_JS = '''(sel) => {
+  if (window.__laneObs) window.__laneObs.disconnect();
+  window.__laneAt = null;
+  window.__laneObs = new MutationObserver(() => { if (window.__laneAt === null) window.__laneAt = Date.now(); });
+  window.__laneObs.observe(document.querySelector(sel), { subtree: true, childList: true, attributes: true, attributeFilter: ['data-state'] });
+}'''
+
+
+def test_event_to_dom_latency_is_under_one_second_measured(open_page, repo):
+    page = open_page('dark')
+    run_dir = _run_dir(repo)
+    _replay_lane(run_dir)
+    _wait_seq(page, 28)
+    page.wait_for_selector(LANE_SEL, timeout=TIMEOUT_MS)
+    claim = _fixture_events()[CLAIM_SEQ - 1]
+    samples = []
+    for _ in range(5):
+        # Observe only the lane: a document-wide observer would also catch the one-second tick and heartbeat renders.
+        before = page.locator(LANE_SEL + ' button.block').count()
+        page.evaluate(ARM_LANE_JS, LANE_SEL)
+        host_ms = time.time() * 1000
+        _emit(run_dir, claim)
+        page.wait_for_function('() => window.__laneAt !== null', timeout=TIMEOUT_MS)
+        samples.append(page.evaluate('() => window.__laneAt') - host_ms)
+        assert page.locator(LANE_SEL + ' button.block').count() == before + 1
+    if os.environ.get('SL_SCREENSHOT_DIR'):
+        target = Path(os.environ['SL_SCREENSHOT_DIR'])
+        target.mkdir(parents=True, exist_ok=True)
+        (target / 'latency.json').write_text(json.dumps({
+            'samples_ms': [round(s, 1) for s in samples],
+            'median_ms': round(statistics.median(samples), 1),
+            'max_ms': round(max(samples), 1),
+            'method': 'host Date/ time.time() vs in-page Date.now() MutationObserver, same machine clock',
+        }), encoding='utf-8')
+    assert all(0 <= s < 1000 for s in samples), samples
 
 
 def test_block_node_keeps_its_identity_across_a_tick(open_page, repo):
