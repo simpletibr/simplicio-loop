@@ -10,7 +10,7 @@ import { SlAlertToast } from '/static/components/index.js';
 import { createView } from '/static/live/view.js';
 import { boardOf } from '/static/live/board.js';
 import { createBoard } from '/static/live/board-view.js';
-import { createHistory } from '/static/history/history-view.js';
+import { startHistory } from '/static/history/history-page.js';
 import { nextRunId, rotationMs, runCommands, runUrl } from '/static/live/runs-nav.js';
 
 const SUMMARY_DEBOUNCE_MS = 250;
@@ -438,46 +438,11 @@ async function loadBoard() {
   boardView.render(boardOf(runs, Date.now()), { runId, token, pathname: window.location.pathname });
 }
 
-// History, trends, heatmap and learn lessons load together; the comparison reads two runs when the viewer picks them.
-const historyView = createHistory(document.getElementById('history-root'), document.getElementById('history-status'));
-let historyData = { records: [], trends: null, heatmap: null, compare: null, lessons: [] };
-const HISTORY_POLL_MS = 30000;
-
-function renderHistory() {
-  historyView.render(historyData, { onCompare: loadCompare });
-}
-
-async function loadCompare(a, b) {
-  const reply = await readApi('/api/history/compare?a=' + encodeURIComponent(a) + '&b=' + encodeURIComponent(b));
-  historyData = { ...historyData, compare: reply };
-  renderHistory();
-}
-
-async function loadHistory() {
-  const [list, trendReply, heat, lessons] = await Promise.all([
-    readApi('/api/history'), readApi('/api/history/trends?bucket=week'),
-    readApi('/api/history/heatmap'), readApi('/api/history/lessons'),
-  ]);
-  if (list === null) {
-    setText(document.getElementById('history-status'), 'Não foi possível ler o histórico.');
-    return;
-  }
-  historyData = {
-    ...historyData,
-    records: Array.isArray(list.history) ? list.history : [],
-    trends: trendReply && Array.isArray(trendReply.trends) ? trendReply.trends : null,
-    heatmap: heat && Array.isArray(heat.heatmap) ? heat.heatmap : null,
-    lessons: lessons && Array.isArray(lessons.lessons) ? lessons.lessons : [],
-  };
-  renderHistory();
-}
-
 function start() {
   if (token) {
     loadBoard();
     setInterval(loadBoard, BOARD_POLL_MS);
-    loadHistory();
-    setInterval(loadHistory, HISTORY_POLL_MS);
+    startHistory(readApi, setText);
     startRotation();
   }
   if (!token || !runId) {
