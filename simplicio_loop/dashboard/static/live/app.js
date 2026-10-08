@@ -4,6 +4,8 @@ import { initialState, reduce, selectCommands, selectDrill, selectView } from '/
 import { artifactHref, renderDrill, setText } from '/static/live/lanes.js';
 import { bindTabs, createDrillLists } from '/static/live/drill-tabs.js';
 import { deepLinkOf, parseDeepLink } from '/static/live/deeplink.js';
+import { activeAlerts, alertsOf, diffAlerts } from '/static/live/alerts.js';
+import { createAlertList } from '/static/live/alerts-view.js';
 import { SlAlertToast } from '/static/components/index.js';
 import { createView } from '/static/live/view.js';
 
@@ -11,6 +13,8 @@ const SUMMARY_DEBOUNCE_MS = 250;
 const TICK_MS = 1000;
 const SUMMARY_POLL_MS = 500;
 const TOKENS_POLL_MS = 30000;
+const ALERT_SILENCE_MS = 5 * 60 * 1000;
+const ALERT_HOUR_MS = 60 * 60 * 1000;
 const THEMES = ['dark', 'light', 'contrast'];
 
 const params = new URLSearchParams(window.location.search);
@@ -51,6 +55,20 @@ const drillTabs = bindTabs(
   (index) => loadDrillArtifact(DRILL_TAB_NAMES[index]),
 );
 const drillLists = createDrillLists(drillEls);
+// The alert center: the rules run on every tick; a silenced alert stays hidden for an hour, for this page only.
+const silencedAlerts = {};
+let alertIds = null;
+const alertList = createAlertList({
+  toggle: document.getElementById('alerts-toggle'),
+  list: document.getElementById('alerts-list'),
+  status: document.getElementById('alerts-status'),
+}, {
+  view: (alert) => openDrill(alert.ref),
+  silence: (alert) => {
+    silencedAlerts[alert.id] = Date.now() + ALERT_HOUR_MS;
+    render();
+  },
+});
 const palette = document.getElementById('palette');
 const follow = document.getElementById('follow');
 const lanesList = document.getElementById('lanes');
@@ -75,6 +93,17 @@ function render() {
   const now = Date.now();
   const model = selectView(shown, now);
   view.render(model, { token, runId, selectedLane });
+  const alerts = alertsOf(model, { silenceMs: ALERT_SILENCE_MS });
+  const ids = alerts.map((alert) => alert.id);
+  const previous = alertIds;
+  const change = previous === null ? { raised: [], cleared: [] } : diffAlerts(previous, ids);
+  for (const alert of alerts) {
+    if (change.raised.includes(alert.id)) {
+      SlAlertToast.notify({ state: alert.severity === 'critical' ? 'STALLED' : 'UNVERIFIED', heading: alert.heading, message: alert.why });
+    }
+  }
+  alertIds = ids;
+  alertList.render(activeAlerts(alerts, silencedAlerts, now), change);
   if (drillTarget !== null) {
     renderDrill(drillEls, selectDrill(shown, drillTarget, now), link());
     drillLists.render(model, link());
@@ -242,6 +271,12 @@ function bindControls() {
     }
   });
   document.getElementById('drill-close').addEventListener('click', closeDrill);
+  document.getElementById('alerts-toggle').addEventListener('click', () => {
+    const panel = document.getElementById('alerts-panel');
+    const open = panel.hidden;
+    panel.hidden = !open;
+    document.getElementById('alerts-toggle').setAttribute('aria-expanded', String(open));
+  });
   palette.addEventListener('sl-command', (event) => runCommand(event.detail.id));
   document.addEventListener('keydown', onKey);
 }
