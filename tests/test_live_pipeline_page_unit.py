@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 LIVE = Path(__file__).resolve().parents[1] / 'simplicio_loop' / 'dashboard' / 'static' / 'live'
-PAGE_FILES = ['index.html', 'live.css', 'app.js', 'view.js', 'reducer.js', 'sse.js', 'lanes.js', 'drill-tabs.js']
+PAGE_FILES = ['index.html', 'live.css', 'app.js', 'view.js', 'reducer.js', 'sse.js', 'lanes.js', 'drill-tabs.js', 'deeplink.js']
 FORBIDDEN = [r'innerHTML', r'\beval\s*\(', r'https?://']
 PURE_FORBIDDEN = re.compile(r'\bdocument\b|\bwindow\b|\bfetch\s*\(|\bDate\.now\b|\bnew\s+Date\s*\(|\bMath\.random\b')
 REDUCER_EXPORTS = ['GATES', 'READY_VERDICTS', 'STALE_AFTER_MS', 'initialState', 'reduce', 'selectView', 'selectDrill', 'selectCommands']
