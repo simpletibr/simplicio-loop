@@ -357,6 +357,12 @@ The 8 h session is not run for real: it is a compressed 3000-event session, so t
 
 **Security** (`tests/test_dashboard_security_review_integration.py`). Fixed: secrets leaked on SSE events and alert frames; redaction gaps (private key blocks, Anthropic and project-style keys, GitHub fine-grained tokens, short `password=`/`token=` pairs, secret-shaped JSON keys); unmasked run summaries, receipt reasons and `/api/tokens`; symlinks followed out of the run directory (state, manifest, plan, events, receipts); HEAD sending a body; TRACE/CONNECT answering 501; error pages without security headers. CSP now also sets `base-uri`, `form-action` and `object-src` to `'none'`, with `X-Frame-Options`, COOP and CORP. Checked and clean: token never echoed, traversal variants, Host/Origin rebinding, wrong or oversize token, GET-only. Residual: `simplicio_loop/progress.py` follows symlinks for four sidecar receipts (outside the Live server, not changed here).
 
+## Language (EN) and browser coverage (#1409)
+
+- pt-BR is the default. `?lang=en` switches the page chrome and the aria labels to English (`static/i18n/i18n.js`, an exact-match dictionary kept in sync with a `MutationObserver`). A string with no entry stays in pt-BR. Dynamic strings the page renders in JavaScript are translated only where they match an entry exactly; the rest is UNVERIFIED for EN.
+- The real-browser suites (board, TV mode, axe, performance, pipeline replay, EN) need `pip install -e '.[e2e]'` with a Playwright that matches the installed Chromium; they skip when no browser is found. The axe suite found `#coord-kanban` (scrollable, not focusable) after the coordination panel merged; it now has `tabindex="0"` and a region label.
+- The reference image of the dark pipeline was refreshed after the coordination panel changed the layout (`SL_UPDATE_REFERENCE=1`).
+
 ## Platform notes for the CLI
 
 - `--stop` ends the recorded pid with `SIGTERM` (on Windows, `TerminateProcess`). A pid that is already gone is not an error; any other OS refusal exits 1 with the reason.
