@@ -151,19 +151,9 @@ def test_a_turbo_call_on_a_missing_directory_creates_nothing(tmp_path, no_provid
 
 
 def test_a_turbo_request_and_apply_leave_no_simplicio_loop_path_in_git_status(tmp_path, no_provider, capsys, monkeypatch):
-    """Tests that turbo doesn't add .simplicio-loop to git status and doesn't modify .gitignore.
-    
-    Note: This test currently fails due to #1461 (mapper output directory mismatch).
-    It will pass when #1461 is fixed.
-    """
+    """Tests that turbo doesn't add .simplicio-loop to git status and doesn't modify .gitignore."""
     repo = _repo(tmp_path, b"*.log\n")
-    try:
-        assert cli_main(["turbo", "--repo", str(repo), "--task", "Change x to 2 in app.py."]) == 0
-    except AssertionError:
-        # Expected to fail due to #1461
-        capsys.readouterr()
-        pytest.skip("Skipped: fails due to #1461 (mapper output directory)")
-    
+    assert cli_main(["turbo", "--repo", str(repo), "--task", "Change x to 2 in app.py."]) == 0
     request = json.loads(capsys.readouterr().out)
     assert request["status"] == "needs_plan"
     assert (repo / ".simplicio-loop").is_dir() and (repo / ".simplicio-loop" / "project-map.json").is_file()
@@ -188,11 +178,7 @@ def test_a_turbo_request_and_apply_leave_no_simplicio_loop_path_in_git_status(tm
 
 
 def test_a_provider_run_registers_the_state_directory_too(tmp_path, monkeypatch, capsys):
-    """Tests that provider mode excludes the state dir and doesn't modify .gitignore.
-    
-    Note: This test currently fails due to #1461 (mapper output directory mismatch).
-    It will pass when #1461 is fixed.
-    """
+    """Tests that provider mode excludes the state dir and doesn't modify .gitignore."""
     repo = _repo(tmp_path, b"*.log\n")
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
 
@@ -201,13 +187,7 @@ def test_a_provider_run_registers_the_state_directory_too(tmp_path, monkeypatch,
         return {"ok": True, "content": json.dumps(plan), "prompt_tokens": 10, "completion_tokens": 5}
 
     monkeypatch.setattr(turbo_provider, "complete", fake_complete)
-    try:
-        assert cli_main(["turbo", "--provider", "openrouter", "--repo", str(repo), "--task", "Change x to 2 in app.py."]) == 0
-    except AssertionError:
-        # Expected to fail due to #1461
-        capsys.readouterr()
-        pytest.skip("Skipped: fails due to #1461 (mapper output directory)")
-    
+    assert cli_main(["turbo", "--provider", "openrouter", "--repo", str(repo), "--task", "Change x to 2 in app.py."]) == 0
     assert json.loads(capsys.readouterr().out)["status"] == "ok"
     # Only app.py should show as modified, not .gitignore
     assert sorted(_status(repo)) == [" M app.py"]
