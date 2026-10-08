@@ -193,9 +193,33 @@ Qualidade panel: tests, lint, coverage trend, flaky tests and diff stay UNVERIFI
 
 Rule: the page never shows PASS for a pending or unverified item.
 
+## Agentes, tokens e custo (#1404)
+
+The economy panel is global, not per run. It reads `~/.simplicio-loop/proxy_savings.json` and the provider catalog through `/api/tokens`. No field is tied to a `run_id`.
+
+Every token and USD number is estimated, and the labels say "estimado". The estimator counts about 4 characters per token. The USD figure is an input-only estimate from the engine price table. The savings series is cumulative (labelled "acumulado").
+
+The `simplicio-loop economy` command is not the source of token numbers. It shows the environment and parallelism profile. The real sources are `get_status()` of the Token Monitor and the savings ledger at `.simplicio-loop/ledger/savings-events.jsonl`.
+
+Five rows are always UNVERIFIED with a reason. None of them ever shows PASS:
+
+| Row | Reason |
+|---|---|
+| Mapa de agentes | no run-dir producer yet; only the static stage graph exists |
+| Tokens por fase | no producer |
+| Custo | no price table or per-run usage yet |
+| Orcamento | no consumption recorded |
+| Comparacao com os ultimos 10 runs | no per-run tokens yet |
+
+`token_usage` and `cost_sample` stay reserved kinds with no producer (see [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md)).
+
+Still deferred to issue #1404 slice 1404b: the agent map observed in run directories, tokens per phase, lane and model, cost per run, task and iteration with a price table, the budget with projection and alert, the last-10 comparison, and the token producer.
+
 ## Unverified (UNVERIFIED)
 
-- Agent, model, token and cost data. `cost_usd` is always null, and no receipt backs token counts yet.
+- Agent and model data: UNVERIFIED. The agent map has no run-dir producer yet, and `/api/agents` depends on a source that has not been measured.
+- Token data: UNVERIFIED. The token figures are estimates ("estimado"), and no receipt backs token counts yet. `token_usage` has no producer.
+- Cost data: UNVERIFIED. `cost_usd` is always null, and the USD figure is an input-only estimate with no per-run usage.
 - `/api/queue`, `/api/agents` and `/api/tokens` depend on sources that have not been measured.
 - Windows and macOS have not been tested.
 - Events in rotated files (`events.jsonl.1` and similar) are not read, so `last_seq` covers only the current file.

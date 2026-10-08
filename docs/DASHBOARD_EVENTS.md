@@ -90,6 +90,8 @@ namespaced kind; each namespace owns its own catalog.
 that need them (#1403 quality, #1404 agents and cost). Their payload fields above are the expected
 shape, not yet emitted.
 
+`token_usage` and `cost_sample` stay reserved until a producer exists (issue #1404).
+
 The quality kinds (`test_result`, `lint_result`, `coverage_result`) stay reserved until their producer exists (issue #1403 follow-up). Until then the Qualidade panel shows its items as UNVERIFIED, and no producer emits these kinds.
 
 ## Producers
