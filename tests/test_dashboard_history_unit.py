@@ -90,3 +90,34 @@ def test_bad_filter_values_raise(tmp_path):
         h.read_history(tmp_path, since='yesterday')
     with pytest.raises(ValueError):
         h.read_history(tmp_path, verdict='NOPE')
+
+
+def test_record_carries_tests_stall_causes_and_verified_tasks(tmp_path):
+    run_dir = _run(tmp_path, 'r2', outcome='COMPLETE', events=[
+        _ev(1, 'test_result', '2026-10-01T10:01:00.000Z', passed=8, failed=1, skipped=0, command='pytest'),
+        _ev(2, 'test_result', '2026-10-01T10:02:00.000Z', passed=9, failed=0, skipped=0, command='pytest'),
+        _ev(3, 'stall_detected', '2026-10-01T10:03:00.000Z', blocker='gate-fail', streak=1),
+        _ev(4, 'stall_detected', '2026-10-01T10:04:00.000Z', fingerprint='abc', streak=2),
+        _ev(5, 'stall_detected', '2026-10-01T10:05:00.000Z', streak=3),
+    ])
+    [rec] = _history().read_history(tmp_path)
+    assert rec['tests'] == {'passed': 17, 'failed': 1}
+    assert rec['stall_causes'] == ['gate-fail', 'abc', 'unknown'] and rec['stalls'] == 3
+    assert rec['tasks_verified'] == 0
+    bare = _run(tmp_path, 'r3')
+    assert next(r for r in _history().read_history(tmp_path) if r['run_id'] == 'r3')['tests'] is None
+
+
+def test_thirty_run_directories_feed_trends_end_to_end(tmp_path):
+    from simplicio_loop.dashboard import trends
+    verdicts = ['COMPLETE', 'BLOCKED', 'COMPLETE', 'PARTIAL', 'COMPLETE']
+    for i in range(30):
+        day = 1 + i
+        _run(tmp_path, 'r%02d' % i, outcome=verdicts[i % 5], started='2026-09-%02dT10:00:00Z' % day,
+             finished='2026-09-%02dT10:30:00Z' % day,
+             events=[_ev(1, 'iteration_started', '2026-09-%02dT10:00:01.000Z' % day, iteration=1)])
+    records = _history().read_history(tmp_path)
+    assert len(records) == 30
+    [month] = trends.trends(records, 'month')
+    assert month['runs'] == 30 and month['complete_rate'] == pytest.approx(18 / 30)
+    assert sum(map(sum, trends.heatmap(records))) == 30

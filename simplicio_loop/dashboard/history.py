@@ -37,6 +37,8 @@ def _scan_events(run_dir: Path, end: Any) -> dict[str, Any]:
     '''Aggregates from events.jsonl, streamed line by line. ``end`` closes the last open phase.'''
     iterations: set[int] = set()
     stalls = 0
+    causes: list[str] = []
+    tests: dict[str, int] | None = None
     tokens: int | None = None
     cost: float | None = None
     spans: list[tuple[str, Any]] = []
@@ -56,6 +58,11 @@ def _scan_events(run_dir: Path, end: Any) -> dict[str, Any]:
                     iterations.add(n)
                 elif kind == 'stall_detected':
                     stalls += 1
+                    causes.append(str(payload.get('blocker') or payload.get('fingerprint') or 'unknown'))
+                elif kind == 'test_result':
+                    tests = tests or {'passed': 0, 'failed': 0}
+                    for key in ('passed', 'failed'):
+                        tests[key] += int(_num(payload.get(key)) or 0)
                 elif kind == 'token_usage':
                     parts = [_num(payload.get('input_tokens')), _num(payload.get('output_tokens'))]
                     tokens = (tokens or 0) + int(sum(p for p in parts if p is not None))
@@ -73,7 +80,8 @@ def _scan_events(run_dir: Path, end: Any) -> dict[str, Any]:
         stop = spans[i + 1][1] if i + 1 < len(spans) else closing
         if stop is not None and stop >= start:
             durations[phase] = durations.get(phase, 0) + int((stop - start).total_seconds())
-    return {'iterations': len(iterations) or None, 'stalls': stalls, 'tokens': tokens,
+    return {'iterations': len(iterations) or None, 'stalls': stalls, 'stall_causes': causes,
+            'tests': tests, 'tokens': tokens,
             'cost_usd': cost, 'phase_durations_s': durations}
 
 
@@ -87,6 +95,7 @@ def history_record(ref: runs.RunRef) -> dict[str, Any]:
         'verdict': _verdict(run_dir, summary['status']), 'status': summary['status'],
         'phase': summary.get('phase'), 'started_at': summary.get('started_at'),
         'finished_at': summary.get('finished_at'), 'duration_s': summary.get('duration_s'),
+        'tasks_verified': (summary.get('tasks') or {}).get('verified', 0),
         **scanned,
     }
 
