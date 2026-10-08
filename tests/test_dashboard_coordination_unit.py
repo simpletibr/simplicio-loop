@@ -16,8 +16,8 @@ from simplicio_loop.dashboard import coordination
 FIXTURE = Path(__file__).resolve().parent / 'fixtures' / 'coordination' / 'drain12.jsonl'
 NOW = datetime(2026, 10, 8, 12, 0, 0, tzinfo=UTC).timestamp()
 COLUMN_KEYS = ['ready', 'claimed', 'running', 'verifying', 'done', 'blocked']
-TOP_KEYS = {'status', 'revision', 'columns', 'items', 'edges', 'drain', 'slots'}
-ITEM_KEYS = {'id', 'goal', 'status', 'column', 'priority', 'depends_on', 'blocked_by', 'worker', 'lease'}
+TOP_KEYS = {'status', 'revision', 'columns', 'items', 'edges', 'drain', 'slots', 'worktrees'}
+ITEM_KEYS = {'id', 'goal', 'status', 'column', 'priority', 'depends_on', 'blocked_by', 'worker', 'lease', 'issue', 'pr'}
 
 
 def _stamp(epoch):
@@ -309,7 +309,7 @@ def test_build_uses_the_wall_clock_when_now_is_omitted():
 
 def test_a_missing_file_fails_open_to_an_unverified_empty_view(tmp_path):
     payload = coordination.build_coordination(tmp_path / 'absent.jsonl', now=NOW)
-    assert set(payload) == {'status', 'reason', 'columns', 'items', 'edges', 'drain', 'slots'}
+    assert set(payload) == {'status', 'reason', 'columns', 'items', 'edges', 'drain', 'slots', 'worktrees'}
     assert payload['status'] == 'UNVERIFIED'
     assert payload['reason']
     assert _columns(payload) == {key: 0 for key in COLUMN_KEYS}

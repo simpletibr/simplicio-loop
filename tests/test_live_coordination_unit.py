@@ -146,7 +146,7 @@ def test_a_card_has_exactly_the_coordination_fields():
     item = _item('t1', 'running', blocked_by=[], worker='w2', lease=_lease('live', 600, 'w2'), goal='Fazer X')
     card = _card(_coord(_payload([item])), 't1')
     assert card == {'id': 't1', 'goal': 'Fazer X', 'column': 'running', 'blockedBy': [], 'worker': 'w2',
-                    'leaseState': 'live', 'remainingS': 600}
+                    'leaseState': 'live', 'remainingS': 600, 'issue': None, 'pr': None}
 
 
 def test_blocked_by_comes_from_the_payload_and_defaults_to_empty():
@@ -353,6 +353,136 @@ def test_the_twelve_item_drain_with_three_workers_matches_the_backlog():
         {'worker': 'w1', 'items': ['t01', 't04'], 'state': 'live', 'reclaimable': False},
         {'worker': 'w2', 'items': ['t02', 't05'], 'state': 'live', 'reclaimable': False},
         {'worker': 'w3', 'items': ['t03', 't11'], 'state': 'expired', 'reclaimable': True}]
+
+
+GH_ISSUE = 'https://github.com/wesleysimplicio/simplicio-loop/issues/12'
+GH_PR = 'https://github.com/wesleysimplicio/simplicio-loop/pull/34'
+
+
+# GitHub references -----------------------------------------------------------------------------------------------------
+
+def test_an_issue_and_a_pr_keep_their_number_and_github_url():
+    item = _item('a', 'running')
+    item['issue'] = {'number': 12, 'url': GH_ISSUE}
+    item['pr'] = {'number': 34, 'url': GH_PR}
+    card = _card(_coord(_payload([item])), 'a')
+    assert card['issue'] == {'number': 12, 'url': GH_ISSUE}
+    assert card['pr'] == {'number': 34, 'url': GH_PR}
+
+
+@pytest.mark.parametrize('url', [
+    'http://github.com/o/r/issues/12', 'https://github.com.evil.example/o/r', 'https://example.com/o/r/issues/12',
+    'javascript:alert(1)', 'github.com/o/r/issues/12', '', None, 12,
+])
+def test_a_url_outside_github_is_dropped_and_the_number_is_kept(url):
+    item = _item('a', 'running')
+    item['issue'] = {'number': 12, 'url': url}
+    assert _card(_coord(_payload([item])), 'a')['issue'] == {'number': 12, 'url': None}
+
+
+@pytest.mark.parametrize('ref', [
+    None, 'PR 12', 12, [], {}, {'url': GH_ISSUE}, {'number': '12', 'url': GH_ISSUE}, {'number': 1.5, 'url': GH_ISSUE},
+    {'number': True, 'url': GH_ISSUE}, {'number': 0, 'url': GH_ISSUE}, {'number': -3, 'url': GH_ISSUE},
+])
+def test_a_missing_or_malformed_issue_or_pr_is_null(ref):
+    item = _item('a', 'running')
+    item['issue'] = ref
+    item['pr'] = ref
+    card = _card(_coord(_payload([item])), 'a')
+    assert card['issue'] is None
+    assert card['pr'] is None
+
+
+def test_an_item_without_issue_or_pr_fields_has_null_references():
+    card = _card(_coord(_payload([_item('a', 'ready')])), 'a')
+    assert card['issue'] is None
+    assert card['pr'] is None
+
+
+# Worktrees -------------------------------------------------------------------------------------------------------------
+
+MISSING_WORKTREES = 'worktree payload missing or invalid'
+WORKTREE_STATES = ['clean', 'dirty', 'conflict', 'prunable', 'locked', 'unknown']
+
+
+def _worktree_row(path, **changes):
+    row = {'path': path, 'branch': 'feat/' + path.rsplit('/', 1)[-1], 'head': 'abcdef1234567890',
+           'item_id': 'T-1', 'state': 'clean', 'cleanup': 'none', 'main': False}
+    row.update(changes)
+    return row
+
+
+def _worktrees_of(rows=None, status='MEASURED', reason=None):
+    return _coord(_payload([], worktrees={'status': status, 'reason': reason, 'rows': rows or []}))['worktrees']
+
+
+def test_a_payload_without_worktrees_is_unverified_with_no_rows():
+    assert _coord(_payload([]))['worktrees'] == {'status': 'UNVERIFIED', 'reason': MISSING_WORKTREES, 'rows': []}
+
+
+@pytest.mark.parametrize('worktrees', [
+    None, 'abc', [1], {}, {'status': 'weird', 'rows': []}, {'status': 'MEASURED'},
+    {'status': 'MEASURED', 'rows': 'nope'}, {'status': 'MEASURED', 'rows': None},
+])
+def test_an_invalid_worktrees_payload_is_unverified_with_no_rows(worktrees):
+    out = _coord(_payload([], worktrees=worktrees))
+    assert out['worktrees'] == {'status': 'UNVERIFIED', 'reason': MISSING_WORKTREES, 'rows': []}
+
+
+def test_an_unverified_worktrees_payload_keeps_its_reason():
+    assert _worktrees_of(status='UNVERIFIED', reason='git worktree list failed') == {
+        'status': 'UNVERIFIED', 'reason': 'git worktree list failed', 'rows': []}
+
+
+def test_an_unverified_worktrees_payload_without_a_reason_gets_the_default():
+    assert _worktrees_of(status='UNVERIFIED')['reason'] == MISSING_WORKTREES
+
+
+def test_a_measured_worktrees_payload_has_no_reason_when_none_is_given():
+    assert _worktrees_of()['reason'] is None
+
+
+def test_worktree_rows_map_to_camel_case_and_keep_their_order():
+    rows = [_worktree_row('/w/a', state='dirty', cleanup='pending', item_id='T-7', head='0123456789'),
+            _worktree_row('/repo', branch='main', item_id=None, state='clean', cleanup='none', main=True)]
+    assert _worktrees_of(rows) == {'status': 'MEASURED', 'reason': None, 'rows': [
+        {'path': '/w/a', 'branch': 'feat/a', 'head': '0123456789', 'itemId': 'T-7', 'state': 'dirty',
+         'cleanup': 'pending', 'main': False},
+        {'path': '/repo', 'branch': 'main', 'head': 'abcdef1234567890', 'itemId': None, 'state': 'clean',
+         'cleanup': 'none', 'main': True}]}
+
+
+@pytest.mark.parametrize('state', WORKTREE_STATES)
+def test_every_contract_worktree_state_is_kept(state):
+    assert _worktrees_of([_worktree_row('/w/a', state=state)])['rows'][0]['state'] == state
+
+
+@pytest.mark.parametrize('cleanup', ['none', 'pending', 'locked'])
+def test_every_contract_cleanup_is_kept(cleanup):
+    assert _worktrees_of([_worktree_row('/w/a', cleanup=cleanup)])['rows'][0]['cleanup'] == cleanup
+
+
+def test_an_unknown_worktree_state_is_unknown_and_an_unknown_cleanup_is_pending():
+    row = _worktrees_of([_worktree_row('/w/a', state='weird', cleanup='weird', main='yes')])['rows'][0]
+    assert (row['state'], row['cleanup'], row['main']) == ('unknown', 'pending', False)
+
+
+def test_missing_branch_and_head_are_null():
+    row = _worktrees_of([_worktree_row('/w/a', branch=None, head=None, item_id=None)])['rows'][0]
+    assert (row['branch'], row['head'], row['itemId']) == (None, None, None)
+
+
+def test_worktree_rows_without_a_path_are_skipped_and_a_repeated_path_counts_once():
+    rows = [None, 'x', {'branch': 'b', 'state': 'clean'}, _worktree_row('/w/a', state='clean'),
+            _worktree_row('/w/a', state='dirty')]
+    out = _worktrees_of(rows)
+    assert [(row['path'], row['state']) for row in out['rows']] == [('/w/a', 'clean')]
+
+
+def test_the_model_does_not_add_worktrees_to_the_columns_or_the_counts():
+    out = _coord(_payload([_item('a', 'ready')], worktrees={'status': 'MEASURED', 'rows': [_worktree_row('/w/a')]}))
+    assert out['total'] == 1
+    assert _column(out, 'ready')['count'] == 1
 
 
 def test_the_coordination_module_reads_no_dom_and_no_clock():

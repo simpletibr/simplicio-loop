@@ -327,7 +327,8 @@ def _backlog_path(server: Any) -> str:
 def _coordination(server: Any) -> dict[str, Any]:
     '''Read-only work-coordination view of the backlog; the builder is imported lazily.'''
     from simplicio_loop.dashboard import coordination
-    return coordination.build_coordination(_backlog_path(server))
+    repo = server.repos[0] if server.repos else None
+    return coordination.build_coordination(_backlog_path(server), repo=repo)
 
 
 def _budget(server: Any, ref: dict[str, Any]) -> dict[str, Any]:

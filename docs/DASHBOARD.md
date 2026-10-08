@@ -272,6 +272,11 @@ Read-only, token-gated like `/api/queue`. The source is the backlog JSONL: `$SIM
 - `columns` always lists `ready`, `claimed`, `running`, `verifying`, `done` and `blocked`, in that order. A `ready` item whose dependencies are not done is shown in `blocked`, with `blocked_by` naming those dependencies.
 - `items` carry `column`, `blocked_by` and `lease` (`null`, or `state` `live`, `stale` or `expired`). `edges` link a dependency to its dependent, with `satisfied`.
 - `drain` shows `total`, `done`, `remaining`, `blocked` and `percent`. `eta_s` is set only from at least two done items with timestamps. Otherwise it is `null` with `eta_label` `UNVERIFIED`.
+- `slots` has one entry per worker that holds a lease: `worker`, `items`, `state` (the worst lease state) and `reclaimable` (true only when every lease the worker holds has expired).
+- Each item carries `issue` and `pr`, each `null` or `{number, url}`. They come from the item's `github` object (`github.issue`, `github.pr`, `github.repo`) or from the flat fields `issue`, `pr`, `issue_url` and `pr_url`. A link is kept only when its URL starts with `https://github.com/`; any other value gives `null`.
+- Top-level `worktrees` is `{status, reason, rows}`. Each row is `{path, branch, head, item_id, state, cleanup, main}`. The rows come from `git worktree list --porcelain` in the repo, read only. `state` is `clean`, `dirty`, `conflict`, `prunable`, `locked` or `unknown`. `cleanup` is `none`, `pending` or `locked`. `main` is true for the primary worktree.
+- Not emitted yet: at this revision `build_coordination` does not return `issue`, `pr` or `worktrees`. The fields above are the contract for the change that adds them; until then they are absent, so treat them as UNVERIFIED.
+- The acceptance fixture is `tests/test_dashboard_coordination_drain_fixture.py`: a 12-item drain with 3 workers, a diamond, a chain, two done items and one blocked item, checked against the builder and over the route.
 
 ## Unverified (UNVERIFIED)
 

@@ -10,7 +10,7 @@ export function startCoordination(readApi) {
     if (!coord) {
       const [model, view] = await Promise.all([import('/static/coordination/model.js'), import('/static/coordination/view.js')]);
       const el = (id) => document.getElementById(id);
-      coord = { of: model.coordinationOf, view: view.createCoordination({ kanban: el('coord-kanban'), dag: el('coord-dag'), drain: el('coord-drain'), slots: el('coord-slots'), status: el('coord-status') }) };
+      coord = { of: model.coordinationOf, view: view.createCoordination({ kanban: el('coord-kanban'), dag: el('coord-dag'), drain: el('coord-drain'), slots: el('coord-slots'), status: el('coord-status'), worktrees: el('coord-worktrees') }) };
     }
     coord.view.render(coord.of(reply, Date.now()));
   };
