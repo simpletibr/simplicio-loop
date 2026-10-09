@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from simplicio_loop.dashboard import runs
+from simplicio_loop.dashboard import budget, runs
 
 SCHEMA = 'simplicio.dashboard-history/v1'
 VERDICTS = frozenset({'COMPLETE', 'BLOCKED', 'CANCELLED', 'PARTIAL', 'INVALID_RECEIPT',
@@ -22,7 +22,9 @@ _TERMINAL = frozenset({'done', 'partial', 'blocked', 'cancelled', 'failed'})
 
 
 def _num(value: Any) -> float | None:
-    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+    '''A finite, non-negative number up to budget.MAX_NUMBER as a float; None for anything else (NaN, Infinity, 1e308, text).'''
+    number = budget._number(value)
+    return float(number) if number is not None else None
 
 
 def _verdict(run_dir: Path, status: str) -> str:

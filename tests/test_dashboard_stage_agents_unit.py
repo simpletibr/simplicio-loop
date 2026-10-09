@@ -738,3 +738,327 @@ def test_two_run_dirs_with_the_same_name_under_different_parents_never_share_an_
     assert stage_agents.run_view(second, PRICES, read=b)['breakdown']['by_task'][0]['key'] == 'B'
     assert stage_agents.run_view(first, PRICES, read=a)['breakdown']['by_task'][0]['key'] == 'A' and (a.calls, b.calls) == (1, 1)
     stage_agents.clear_cache()
+
+
+# --- #1565 item 1: cost.by_model is capped like every other dimension -------------------------------------------------------
+def _models(count, **fields):
+    '''One token_usage event per model id ``<haiku>-v<i>``: every id is priced by its prefix, tokens 100 + i in, 10 out.'''
+    return [_tok(i + 1, '%s-v%d' % (HAIKU, i), 100 + i, 10, **fields) for i in range(count)]
+
+
+def _closes(cost):
+    '''The kept models plus the others row add up to the total: exactly when rows were folded (the others row is the rest of the
+    total), within the rounding of each listed model (6 decimals) when nothing was.'''
+    if 'others' in cost:
+        return round(sum(cost['by_model'].values()) + cost['others']['usd'], 6) == cost['usd']
+    return abs(sum(cost['by_model'].values()) - cost['usd']) <= 0.5e-6 * len(cost['by_model']) + 1e-9
+
+
+def test_cost_by_model_keeps_20_models_plus_an_others_row_and_the_parts_close_the_total():
+    count = 5000
+    cost = stage_agents.view(_models(count), PRICES)['cost']
+    assert cost['state'] == 'ESTIMADO' and len(cost['by_model']) == TOP
+    others = cost['others']
+    assert others['models'] == count - TOP and others['state'] == 'ESTIMADO' and others['reason'] is None
+    assert others['tokens_in'] == sum(100 + i for i in range(count - TOP)) and others['tokens_out'] == 10 * (count - TOP)
+    assert others['tokens'] == others['tokens_in'] + others['tokens_out'] and others['usd'] > 0
+    assert _closes(cost)
+    assert len(json.dumps(cost)) < 4000
+    # the kept models are the 20 with the highest cost, here the highest indexes
+    assert sorted(cost['by_model']) == sorted('%s-v%d' % (HAIKU, i) for i in range(count - TOP, count))
+
+
+def test_cost_by_model_total_is_the_same_as_without_the_cap():
+    events = _models(60)
+    cost = stage_agents.view(events, PRICES)['cost']
+    price = budget.price_for(PRICES['models'], HAIKU)
+    expected = sum((100 + i) * price['input_per_mtok'] + 10 * price['output_per_mtok'] for i in range(60)) / 1_000_000
+    assert cost['usd'] == round(expected, 6) and _closes(cost)
+
+
+@pytest.mark.parametrize('count, folded', [(TOP - 1, None), (TOP, None), (TOP + 1, 1), (TOP + 2, 2)])
+def test_cost_by_model_has_no_others_row_up_to_20_models_and_folds_the_rest_after(count, folded):
+    cost = stage_agents.view(_models(count), PRICES)['cost']
+    assert len(cost['by_model']) == min(count, TOP) and _closes(cost)
+    assert (cost['others']['models'] if 'others' in cost else None) == folded
+
+
+def test_cost_by_model_up_to_20_models_is_listed_by_name_as_before():
+    cost = stage_agents.view(_models(TOP), PRICES)['cost']
+    assert list(cost['by_model']) == sorted(cost['by_model']) and 'others' not in cost
+
+
+def test_cost_by_model_keeps_the_most_expensive_models_not_the_first_seen():
+    events = [_tok(1, HAIKU + '-cheap-%d' % i, 1, 0) for i in range(30)] + [_tok(2, OPUS + '-dear-%d' % i, 1_000_000, 0) for i in range(5)]
+    cost = stage_agents.view(events, PRICES)['cost']
+    assert sum(1 for name in cost['by_model'] if name.startswith(OPUS)) == 5 and len(cost['by_model']) == TOP
+    assert cost['others']['models'] == 15 and _closes(cost)
+
+
+def test_cost_by_model_is_capped_on_the_budget_route_too():
+    cost = budget.cost_estimate(_models(500), PRICES)
+    assert len(cost['by_model']) == TOP and cost['others']['models'] == 500 - TOP and _closes(cost)
+
+
+def test_cost_by_model_with_an_unpriced_model_among_many_is_unverified_with_the_reason_and_lists_nothing():
+    events = _models(100) + [_tok(200, 'modelo-sem-preco', 10, 10)]
+    cost = stage_agents.view(events, PRICES)['cost']
+    assert cost['state'] == 'UNVERIFIED' and cost['usd'] is None and cost['by_model'] == {} and 'others' not in cost
+    assert 'sem preço' in cost['reason'] and 'modelo-sem-preco' in cost['reason']
+
+
+def test_a_hundred_thousand_distinct_models_keep_the_cost_small():
+    cost = stage_agents.view(_models(100_000), PRICES)['cost']
+    assert len(json.dumps(cost)) < 4000 and cost['others']['models'] == 100_000 - TOP and _closes(cost)
+
+
+# --- #1565 item 2: a non-finite or absurd count never reaches the JSON -----------------------------------------------------
+STRICT = dict(allow_nan=False)
+
+
+def test_two_events_of_1e308_tokens_do_not_overflow_to_infinity():
+    events = [_tok(1, HAIKU, 1e308, 0, task_id='T1'), _tok(2, HAIKU, 1e308, 0, task_id='T1')]
+    view = stage_agents.view(events, PRICES)
+    json.dumps(view, **STRICT)
+    tokens = view['breakdown']['tokens']
+    assert tokens['state'] == 'UNVERIFIED' and tokens['total'] is None and tokens['ignored'] == 2
+    assert 'ignorad' in tokens['reason'] and view['cost']['state'] == 'UNVERIFIED' and view['cost']['reason']
+    assert all(r['tokens_in'] == 0 and r['tokens_out'] == 0 and r['cost_usd'] is None and r['reason'] for r in view['rows'])
+
+
+def test_a_valid_count_next_to_an_absurd_one_is_kept_and_the_absurd_one_is_counted_as_ignored():
+    events = [_tok(1, HAIKU, 1e308, 0, task_id='T1'), _tok(2, HAIKU, 7, 3, task_id='T1')]
+    view = stage_agents.view(events, PRICES)
+    json.dumps(view, **STRICT)
+    tokens = view['breakdown']['tokens']
+    assert tokens['total'] == 10 and tokens['state'] == 'PASS' and tokens['ignored'] == 1 and tokens['ignored_reason']
+    assert 'ignored' not in stage_agents.view([_tok(1, HAIKU, 7, 3)], PRICES)['breakdown']['tokens']
+
+
+@pytest.mark.parametrize('line', [
+    '{"schema":"simplicio.dashboard-event/v1","seq":%d,"kind":"token_usage","payload":{"model":"claude-haiku-5-5","input_tokens":1e999,"output_tokens":5}}',
+    '{"schema":"simplicio.dashboard-event/v1","seq":%d,"kind":"token_usage","payload":{"model":"claude-haiku-5-5","input_tokens":NaN,"output_tokens":5}}',
+    '{"schema":"simplicio.dashboard-event/v1","seq":%d,"kind":"token_usage","payload":{"model":"claude-haiku-5-5","input_tokens":-Infinity,"output_tokens":5}}',
+    '{"schema":"simplicio.dashboard-event/v1","seq":%d,"kind":"token_usage","payload":{"model":"claude-haiku-5-5","input_tokens":1e308,"output_tokens":1e308}}',
+])
+def test_raw_event_json_with_literal_nan_infinity_or_1e999_gives_strict_json(line):
+    events = [json.loads(line % i) for i in (1, 2)]
+    view = stage_agents.view(events, PRICES)
+    body = json.dumps(view, **STRICT)
+    assert 'NaN' not in body and 'Infinity' not in body
+    tokens = view['breakdown']['tokens']
+    assert tokens['ignored'] == 2 and tokens['total'] in (None, 10)
+    assert (tokens['reason'] if tokens['total'] is None else tokens['ignored_reason'])
+    assert view['cost']['reason'] if tokens['total'] is None else view['cost']['state'] == 'ESTIMADO'
+
+
+def test_the_budget_report_stays_finite_for_absurd_tokens_and_costs():
+    events = [_tok(1, HAIKU, 1e308, 1e308), _tok(2, HAIKU, 1e308, 1e308),
+              _ev(3, 'cost_sample', {'usd': 1e308}), _ev(4, 'cost_sample', {'usd': 1e308})]
+    json.dumps(budget.report('/nonexistent-run-dir', events, PRICES), **STRICT)
+    assert budget.usage(events)['tokens'] is None and budget.usage(events)['usd'] is None
+
+
+def test_budget_number_rejects_a_count_above_the_sanity_limit_and_keeps_the_limit_itself():
+    assert budget._number(budget.MAX_NUMBER) == budget.MAX_NUMBER
+    assert budget._number(budget.MAX_NUMBER + 1) is None and budget._number(1e308) is None and budget._number(10 ** 400) is None
+    assert budget.MAX_NUMBER == 10 ** 15
+
+
+# --- #1565 item 3: waiters of one run coalesce on one newer computation, and a stuck computation cannot hang them ------------
+def _append(run_dir, text='{"seq": 2}\n'):
+    with (run_dir / 'events.jsonl').open('a', encoding='utf-8') as fh:
+        fh.write(text)
+
+
+def _task_keys(view):
+    return [row['key'] for row in view['breakdown']['by_task']]
+
+
+class _Calls:
+    '''A reader that records its calls; ``hold`` maps a call number to a gate it waits on, ``on_call`` runs inside the call.'''
+
+    def __init__(self, hold=None, on_call=None, fail=()):
+        self.calls, self.hold, self.on_call, self.fail = [], hold or {}, on_call or {}, set(fail)
+        self.started = {n: threading.Event() for n in range(1, 9)}
+        self.lock = threading.Lock()
+
+    def __call__(self, path):
+        with self.lock:
+            self.calls.append(1)
+            n = len(self.calls)
+        self.started[n].set()
+        if n in self.on_call:
+            self.on_call[n]()
+        if n in self.hold:
+            assert self.hold[n].wait(10), 'gate %d never opened' % n
+        if n in self.fail:
+            raise RuntimeError('boom %d' % n)
+        return [_tok(1, HAIKU, 100 * n, 0, task_id='T%d' % n)]
+
+
+def _spawn(run_dir, reader, results, count=1):
+    threads = [threading.Thread(target=lambda: results.append(stage_agents.run_view(run_dir, PRICES, read=reader))) for _ in range(count)]
+    for thread in threads:
+        thread.start()
+    return threads
+
+
+def _join(threads):
+    for thread in threads:
+        thread.join(15)
+        assert not thread.is_alive()
+
+
+def test_pollers_that_arrive_during_a_computation_share_one_newer_computation_not_one_each(run_dir):
+    release = threading.Event()
+    reader = _Calls(hold={1: release})
+    first, later = [], []
+    [leader] = _spawn(run_dir, reader, first)
+    assert reader.started[1].wait(5)
+    _append(run_dir)  # the writer is hot: the stamp the first computation took is already old
+    waiters = _spawn(run_dir, reader, later, count=7)
+    time.sleep(0.3)
+    release.set()
+    _join([leader, *waiters])
+    assert len(reader.calls) == 2  # one computation for the leader, ONE for the seven waiters (not seven)
+    assert _task_keys(first[0]) == ['T1'] and all(_task_keys(v) == ['T2'] for v in later) and len(later) == 7
+    assert all(v is later[0] for v in later)
+
+
+def test_a_poller_that_starts_after_an_append_never_gets_a_result_computed_before_it(run_dir):
+    release = threading.Event()
+    reader = _Calls(hold={1: release})
+    first, late = [], []
+    [leader] = _spawn(run_dir, reader, first)
+    assert reader.started[1].wait(5)
+    _append(run_dir)
+    [poller] = _spawn(run_dir, reader, late)
+    time.sleep(0.2)
+    release.set()
+    _join([leader, poller])
+    assert _task_keys(first[0]) == ['T1'] and _task_keys(late[0]) == ['T2']
+
+
+def test_waiters_that_arrived_before_the_new_computation_took_its_stamp_reuse_it_even_if_the_writer_keeps_appending(run_dir):
+    release1, release2 = threading.Event(), threading.Event()
+    reader = _Calls(hold={1: release1, 2: release2}, on_call={2: lambda: _append(run_dir, '{"seq": 3}\n')})
+    first, parked = [], []
+    [leader] = _spawn(run_dir, reader, first)
+    assert reader.started[1].wait(5)
+    _append(run_dir)
+    waiters = _spawn(run_dir, reader, parked, count=5)
+    time.sleep(0.2)
+    release1.set()
+    assert reader.started[2].wait(5)
+    release2.set()
+    _join([leader, *waiters])
+    assert len(reader.calls) == 2 and all(_task_keys(v) == ['T2'] for v in parked)
+
+
+def test_a_poller_that_arrives_after_the_new_computation_took_its_stamp_waits_for_a_still_newer_one(run_dir):
+    release1, release2 = threading.Event(), threading.Event()
+    reader = _Calls(hold={1: release1, 2: release2})
+    first, parked, late = [], [], []
+    [leader] = _spawn(run_dir, reader, first)
+    assert reader.started[1].wait(5)
+    _append(run_dir)
+    waiters = _spawn(run_dir, reader, parked, count=2)
+    time.sleep(0.2)
+    release1.set()
+    assert reader.started[2].wait(5)  # the second computation has taken its stamp
+    _append(run_dir, '{"seq": 3}\n')  # an append it cannot have seen
+    [straggler] = _spawn(run_dir, reader, late)
+    time.sleep(0.2)
+    release2.set()
+    _join([leader, *waiters, straggler])
+    assert len(reader.calls) == 3
+    assert all(_task_keys(v) == ['T2'] for v in parked) and _task_keys(late[0]) == ['T3']
+
+
+def test_many_pollers_and_a_hot_writer_cost_a_few_computations_not_one_per_poller(run_dir):
+    stop = threading.Event()
+
+    def writer():
+        while not stop.is_set():
+            _append(run_dir)
+            time.sleep(0.003)
+
+    def slow_reader_factory():
+        calls = []
+
+        def read(path):
+            calls.append(1)
+            time.sleep(0.1)
+            return [_tok(1, HAIKU, 1, 0)]
+        return read, calls
+
+    read, calls = slow_reader_factory()
+    hot = threading.Thread(target=writer)
+    hot.start()
+    try:
+        results = []
+        _join(_spawn(run_dir, read, results, count=12))
+    finally:
+        stop.set()
+        hot.join(5)
+    assert len(results) == 12 and len(calls) <= 3
+
+
+def test_a_stuck_computation_serves_the_last_good_view_flagged_stale_with_its_age(run_dir, monkeypatch):
+    monkeypatch.setattr(stage_agents, 'WAIT_TIMEOUT_S', 0.3)
+    good = stage_agents.run_view(run_dir, PRICES, read=_Reader())
+    assert 'stale' not in good
+    _append(run_dir)
+    stuck_gate = threading.Event()
+    reader = _Calls(hold={1: stuck_gate})
+    sink = []
+    [stuck] = _spawn(run_dir, reader, sink)
+    assert reader.started[1].wait(5)
+    begun = time.monotonic()
+    served = stage_agents.run_view(run_dir, PRICES, read=_Reader())
+    assert time.monotonic() - begun < 5
+    assert served['stale'] is True and isinstance(served['age_s'], float) and served['age_s'] >= 0
+    assert served['breakdown'] == good['breakdown'] and 'stale' not in good  # the cached view itself is never marked
+    stuck_gate.set()
+    _join([stuck])
+    fresh = stage_agents.run_view(run_dir, PRICES, read=_Reader())
+    assert 'stale' not in fresh and 'age_s' not in fresh
+
+
+def test_a_stuck_computation_with_nothing_cached_is_a_busy_error_with_a_retry_after(run_dir, monkeypatch):
+    monkeypatch.setattr(stage_agents, 'WAIT_TIMEOUT_S', 0.3)
+    stuck_gate = threading.Event()
+    reader = _Calls(hold={1: stuck_gate})
+    [stuck] = _spawn(run_dir, reader, [])
+    assert reader.started[1].wait(5)
+    _append(run_dir)
+    begun = time.monotonic()
+    with pytest.raises(stage_agents.ViewBusy) as busy:
+        stage_agents.run_view(run_dir, PRICES, read=_Reader())
+    assert time.monotonic() - begun < 5 and busy.value.retry_after >= 1
+    stuck_gate.set()
+    _join([stuck])
+
+
+def test_a_failing_computation_does_not_strand_the_pollers_behind_it(run_dir):
+    release = threading.Event()
+    reader = _Calls(hold={1: release}, fail={1})
+    failed, later, errors = [], [], []
+
+    def lead():
+        try:
+            failed.append(stage_agents.run_view(run_dir, PRICES, read=reader))
+        except RuntimeError as exc:
+            errors.append(str(exc))
+
+    leader = threading.Thread(target=lead)
+    leader.start()
+    assert reader.started[1].wait(5)
+    _append(run_dir)
+    waiters = _spawn(run_dir, reader, later, count=3)
+    time.sleep(0.2)
+    release.set()
+    _join([leader, *waiters])
+    assert errors == ['boom 1'] and failed == [] and len(later) == 3 and all(_task_keys(v) == ['T2'] for v in later)
+    assert len(reader.calls) == 2
