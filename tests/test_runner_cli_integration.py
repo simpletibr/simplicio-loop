@@ -24,6 +24,7 @@ from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLI = [sys.executable, "-m", "simplicio_loop.cli"]
@@ -2158,8 +2159,7 @@ def test_direct_dispatch_cannot_bypass_run_global_preflight(tmp_path, monkeypatc
     operator["plan_hash"] = "tampered"
     operator_path.write_text(json.dumps(operator), encoding="utf-8")
     prepared = []
-    monkeypatch.setattr(
-        runner_mod, "_prepare_worktree_contexts",
+    patch_runner(monkeypatch, "_prepare_worktree_contexts",
         lambda *args, **kwargs: prepared.append((args, kwargs)),
     )
 

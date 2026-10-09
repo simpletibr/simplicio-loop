@@ -15,6 +15,7 @@ from simplicio_loop import (
     runner_lifecycle,
     runner_plan,
     runner_preflight,
+    runner_wave,
 )
 
 RUNNER_MODULES = (
@@ -25,6 +26,7 @@ RUNNER_MODULES = (
     runner_preflight,
     runner_execute,
     runner_lane,
+    runner_wave,
 )
 
 
