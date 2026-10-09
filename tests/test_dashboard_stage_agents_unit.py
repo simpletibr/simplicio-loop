@@ -4,8 +4,15 @@ Each row is one stage (phase) of the run: the role and effort come from the mode
 come from the token_usage events, and the cost comes from the same price path as the budget panel. Every cost is an
 estimate and carries proof_kind "estimado". A model the table does not list is UNVERIFIED for role and effort, never a guess.
 '''
+import copy
 import json
+import os
+import random
+import threading
+import time
 from pathlib import Path
+
+import pytest
 
 from simplicio_loop.dashboard import budget, stage_agents
 
@@ -198,14 +205,6 @@ def test_hostile_names_pass_through_as_plain_data():
 
 
 # --- post-merge audit of #1556 (D1-D7): row cap, single pass, memoized view, finite numbers, short names -----------------
-import copy
-import json as _json
-import random
-import threading
-import time
-
-import pytest
-
 TOP = stage_agents.TOP_N
 DIMS = ('by_phase', 'by_lane', 'by_model', 'by_task', 'by_iteration')
 
@@ -439,7 +438,7 @@ def test_a_million_event_names_cannot_inflate_the_view_names_are_cut_to_120_char
     events = [_tok(1, huge, 10, 10, phase=huge, lane=huge, task_id=huge),
               _ev(2, 'worker_claimed', {'lease_id': huge, 'branch': huge}, lane=huge, task_id=huge)]
     view = stage_agents.view(events, PRICES)
-    assert len(_json.dumps(view)) < 12_000
+    assert len(json.dumps(view)) < 12_000
     cut = 'x' * 119 + '…'
     breakdown = view['breakdown']
     assert (breakdown['by_phase'][0]['key'], breakdown['by_lane'][0]['key'], breakdown['by_task'][0]['key'],
@@ -469,7 +468,7 @@ def test_budget_number_still_accepts_finite_numbers():
 def test_a_nan_or_infinite_token_count_stays_unverified_and_the_json_has_no_nan():
     events = [_tok(1, HAIKU, float('nan'), float('inf'), task_id='T1'), _tok(2, HAIKU, float('nan'), 5, task_id='T1')]
     view = stage_agents.view(events, PRICES)
-    body = _json.dumps(view, allow_nan=False)
+    body = json.dumps(view, allow_nan=False)
     assert 'NaN' not in body and 'Infinity' not in body
     assert view['breakdown']['tokens']['total'] == 5 and view['breakdown']['tokens']['state'] == 'PASS'
     only_nan = stage_agents.view([_tok(1, HAIKU, float('nan'), float('nan'))], PRICES)['breakdown']['tokens']
@@ -516,13 +515,12 @@ def test_a_grown_rewritten_touched_or_rotated_events_file_invalidates_the_cache(
     stage_agents.run_view(run_dir, PRICES, read=reader)
     assert reader.calls == 2
     stat = stream.stat()
-    os_utime = __import__('os').utime
-    os_utime(stream, ns=(stat.st_atime_ns, stat.st_mtime_ns + 5_000_000_000))
+    os.utime(stream, ns=(stat.st_atime_ns, stat.st_mtime_ns + 5_000_000_000))
     stage_agents.run_view(run_dir, PRICES, read=reader)
     assert reader.calls == 3
     replacement = run_dir / 'events.jsonl.new'
     replacement.write_bytes(stream.read_bytes())
-    os_utime(replacement, ns=(stat.st_atime_ns, stream.stat().st_mtime_ns))
+    os.utime(replacement, ns=(stat.st_atime_ns, stream.stat().st_mtime_ns))
     replacement.replace(stream)
     stage_agents.run_view(run_dir, PRICES, read=reader)
     assert reader.calls == 4
