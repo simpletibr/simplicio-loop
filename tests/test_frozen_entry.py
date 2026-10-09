@@ -607,3 +607,18 @@ def test_a_path_swapped_for_a_symlink_after_the_check_is_not_chmodded_through(tm
         frozen._private_directory(link, leaf=True)
 
     assert stat.S_IMODE(target.stat().st_mode) == 0o777
+
+
+@posix_only
+def test_the_mode_is_changed_through_the_descriptor_not_through_the_path(tmp_path, monkeypatch):
+    """A chmod by path would follow a link that an attacker puts there after the directory was opened."""
+    leaf = tmp_path / "leaf"
+    leaf.mkdir()
+    leaf.chmod(0o777)
+
+    def by_path(*args, **kwargs):
+        raise AssertionError("os.chmod(path) follows symbolic links")
+
+    monkeypatch.setattr(frozen.os, "chmod", by_path)
+    frozen._private_directory(leaf, leaf=True)
+    assert stat.S_IMODE(leaf.stat().st_mode) == 0o700
