@@ -2,13 +2,14 @@
 
 ## [3.49.0] - 2026-10-09
 
-- The 24/7 watcher is now in the package (`simplicio_loop.watcher247`). It runs as a non-root user in a bwrap sandbox. It has a daily cap, a secret scan before each push and a verify gate before each PR.
+- The 24/7 watcher is now in the package (`simplicio_loop.watcher247`). It runs as a non-root user in a bwrap sandbox. It has a daily cap, a secret scan before each push and a verify gate before each PR. The sandbox uses `--unshare-pid`, so a sandboxed step cannot read the environment of the watcher. The unit no longer sets `ProtectKernelTunables`, because it stops bwrap from mounting `/proc` in the new namespace.
+- First run: `simplicio-loop watch247 setup` asks for the account e-mail and a GitHub token. The token has a hidden prompt and never goes in argv. The command writes it to the env file with mode 600. Without a token or a login the watcher stays idle and reports `setup_required`.
 - Host mode is the default. An exec CLI (claude, codex, grok, gemini, agy or opencode) only plans. The Dev CLI applies the plan with `simplicio-loop turbo --apply -`. Login detection fails closed. It now covers `agy` and `opencode`.
 - Model roles and an escalation ladder: two failures climb one role. Cost comes from measured tokens.
-- Squads: `plan_squads`, `squad_gate`, routing by complexity, a merge train (one cumulative test per batch, bisection on red) and contracts for cross-squad edges. The watcher runs in squads. Auto-merge is off unless `SIMPLICIO_247_AUTO_MERGE=1`. `squad_gate` accepts an approval only from an authorized author, and fails closed with no approver list.
+- Squads: `plan_squads`, `squad_gate`, routing by complexity, a merge train (one cumulative test per batch, bisection on red) and contracts for cross-squad edges. The watcher runs in squads and records the escalation and the dependency wait of each task (`simplicio-loop squads metrics`). Auto-merge is off unless `SIMPLICIO_247_AUTO_MERGE=1`. `squad_gate` accepts an approval only from an authorized author, and fails closed with no approver list.
 - 50 extension points: a registry with six stages. The service path wires 19 points and wires 29 in part. 2 points are absent (`docs/EXTENSION_POINTS_SERVICE.md`).
 - Turbo is asyncio-native. The watcher makes no blocking call in the event loop, and a guard test enforces this.
-- Dashboard: Pipeline view and a per-stage agent and cost panel. The lane lease heartbeat comes from the Mapper OperationsStore. Protocol error pages carry security headers. The bench runs on Windows and macOS.
+- Dashboard: Pipeline view and a per-stage agent and cost panel with token bars and a cap of 20 rows per dimension. The server caches the view of a run, so a poll of an idle run takes milliseconds. Lanes show the command that is running now (`command_started` and `command_finished` events, with secrets masked). The lane lease heartbeat comes from the Mapper OperationsStore. Protocol error pages carry security headers. The bench runs on Windows and macOS.
 - Mapper: one source in `packages/mapper`. `doctor mapper` shows the build identity.
 - README: short, with diagrams and animated images. The full guide is `docs/GUIDE.md`.
 - UNVERIFIED: the dashboard bench on Windows and macOS, 60 fps on a real GPU and real provider token counts. The escalation rate and dependency wait of a real drain are also UNVERIFIED.
