@@ -3,6 +3,63 @@
 O servico `simplicio-loop-247` (unit em `packaging/systemd/`) observa issues novas dos repos `simpletibr/simplicio-*` que
 habilitaram o loop (`.simplicio/loop.toml`) e abre PRs. Estado, claims e logs ficam em `SIMPLICIO_247_STATE_DIR`.
 
+## Primeira execução (credenciais)
+
+O watcher não traz credenciais embutidas. Na primeira execução, `simplicio-loop watch247 setup` coleta duas informações
+do operador: o e-mail da conta Simplicio (visível) e um token de API do GitHub (entrada oculta, nunca ecoada).
+
+- **Modo interativo** (terminal disponível, padrão):
+  ```
+  simplicio-loop watch247 setup
+  ```
+  Pede o e-mail e depois o token sem eco.
+
+- **Modo não-interativo** (automação, sem terminal):
+  ```
+  read -rs -p 'GitHub token: ' GHT; echo
+  printf '%s' "$GHT" | simplicio-loop watch247 setup --email user@example.com --github-token-stdin
+  unset GHT
+  ```
+  O token entra via stdin, nunca em argv (visível em `ps`); `--github-token <valor>` é recusado com exit 2 e o valor
+  não é repetido na mensagem. Sem terminal e sem `--github-token-stdin`, setup recusa com exit 2.
+- **Só a conta** (depois do login, sem pedir o token de novo): `simplicio-loop watch247 setup --check`. Usa o e-mail
+  gravado em `account.json` (ou `--email`).
+
+Como root, com o arquivo de env do serviço, aponte `SIMPLICIO_247_LOGIN` para o `login.json` do usuário do serviço
+(`/home/simplicio-loop/.simplicio/login.json`); o setup mantém o dono desse arquivo se um refresh o reescrever.
+
+**Armazenamento e validação do token:**
+- Gravado como `GH_TOKEN=...` em `SIMPLICIO_247_ENV_FILE` (padrão `/etc/simplicio-loop-247.env`), modo 600, escrita atômica.
+- Recusa se o arquivo existe com modo 640 ou mais permissivo (imprime `chmod 600 <path>`); recusa symlink.
+- Valida o token com `gh api user` (token passado apenas na env do child). Imprime o login e os escopos.
+- Avisa (WARN, não falha) se os escopos incluem `admin:*`, `delete_repo`, `workflow`, `write:packages`, `delete:packages` ou `codespace`; recomenda token fine-grained limitado aos repos de interesse (Contents, Issues, Pull requests: read and write).
+
+**Conta Simplicio:**
+- Setup grava o e-mail (não é segredo) em `<state_dir>/account.json` (modo 600).
+- Sem `~/.simplicio/login.json` o tick fica ocioso com `phase=setup_required`, `reason_code=login_missing`. Setup imprime:
+  ```
+  sudo -u simplicio-loop -H simplicio login google
+  ```
+  E verifica a assinatura. Reason codes: `ok`, `login_missing`, `subscription_required`, `refresh_failed`, `entitlement_required`, `validate_unreachable`, `account_mismatch`.
+  Com `account_mismatch`, o login.json pertence a outra conta: `sudo -u simplicio-loop -H simplicio logout` e faça login novamente.
+
+**Saída do setup:**
+- Exit 0: tudo pronto (reason `ok`).
+- Exit 1: passo ainda aberto (token rejeitado, login pendente, assinatura inativa).
+- Exit 2: recusado (entrada ruim, arquivo inseguro; nada foi alterado).
+
+Após gravação bem-sucedida do token, reinicie o serviço: `systemctl restart simplicio-loop-247`.
+
+**Idle durante setup:**
+Sem `GH_TOKEN` (ou `GITHUB_TOKEN`) ou sem `login.json`, o tick não chama o GitHub nem processa nada, e o processo não
+cai (sem loop de crash com `Restart=always`). O `status.json` mostra o motivo e o comando exato:
+- Sem token: `phase=setup_required`, `reason_code=github_token_missing`, `command="simplicio-loop watch247 setup"`.
+- Sem login: `phase=setup_required`, `reason_code=login_missing`, o mesmo `command`.
+- Outras falhas da assinatura continuam em `phase=subscription_required`.
+
+O login do `gh` guardado em `~/.config/gh` não vale mais para o serviço: o token precisa estar no ambiente.
+`watch247 --once --dry-run` sem token só registra `setup required` no log e não grava nada.
+
 ## Motor único
 
 O watcher é o turbo do simplicio-loop (#1469) com o registro de extensões (`simplicio_loop/watcher247/points/`).
