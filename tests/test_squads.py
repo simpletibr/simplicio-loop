@@ -233,6 +233,9 @@ def test_commit_after_approval_invalidates_it():
     "Merge remote-tracking branch 'origin/main' into feat/x",
     "Merge branch 'main' into feat/x",
     "Merge branch 'origin/main' of github.com:o/r into feat/x",
+    "Merge branch 'origin/main' into feat/x",
+    "Merge origin/main into feat/x",
+    "Merge main into feat/x",
 ])
 def test_clean_merge_of_main_does_not_invalidate(headline):
     pr = {
@@ -257,6 +260,42 @@ def test_merge_with_conflict_resolution_counts_as_a_change():
         "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
     }
     assert squads.squad_gate(pr)["approved"] is False
+
+
+@pytest.mark.parametrize("headline", [
+    "Merge origin/main into feat/x",
+    "Merge main into feat/x",
+    "Merge remote-tracking branch 'origin/main' into feat/x",
+])
+def test_every_clean_merge_form_with_conflicts_still_invalidates(headline):
+    pr = {
+        "commits": [
+            _commit("a", "feat: x", "2026-10-09T01:00:00Z"),
+            _commit("m", headline, "2026-10-09T02:00:00Z", body="Conflicts:\n\ta.py"),
+        ],
+        "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
+    }
+    assert squad_gate_approved(pr) is False
+
+
+def squad_gate_approved(pr):
+    return squads.squad_gate(pr)["approved"]
+
+
+@pytest.mark.parametrize("headline", [
+    "Merge main-feature into feat/x",
+    "Merge origin/mainline into feat/x",
+    "Merge pull request #5 from o/main",
+])
+def test_lookalike_merge_titles_count_as_a_change(headline):
+    pr = {
+        "commits": [
+            _commit("a", "feat: x", "2026-10-09T01:00:00Z"),
+            _commit("m", headline, "2026-10-09T02:00:00Z"),
+        ],
+        "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
+    }
+    assert squad_gate_approved(pr) is False
 
 
 def test_merge_of_another_branch_counts_as_a_change():

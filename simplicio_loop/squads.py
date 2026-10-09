@@ -53,7 +53,8 @@ _DEP_RE = re.compile(
     re.IGNORECASE,
 )
 _LABEL_PREFIXES = ("area:", "squad:", "area/", "squad/")
-_CLEAN_BASE_MERGE = re.compile(r"^Merge (?:remote-tracking )?branch '(?:origin/)?main'")
+# Merge branch 'main' | Merge remote-tracking branch 'origin/main' | Merge branch 'origin/main' | Merge origin/main into | Merge main into
+_CLEAN_BASE_MERGE = re.compile(r"^Merge (?:(?:remote-tracking )?branch '(?:origin/)?main'|(?:origin/)?main(?=\s|$))")
 _CONFLICTS = re.compile(r"^#?\s*Conflicts:", re.MULTILINE)
 _APPROVAL_LINE = re.compile(r"^[ \t*_#]*" + re.escape(APPROVAL_PHRASE) + r"\b", re.MULTILINE)
 
@@ -342,7 +343,12 @@ def squad_gate(pr_view_json: Any) -> Dict[str, Any]:
 
     `pr_view_json` is the dict (or JSON text) of `gh pr view --json commits,comments`. A merge commit whose headline
     is "Merge remote-tracking branch 'origin/main'..." or "Merge branch 'main'..." and whose body lists no
-    conflicts does not invalidate the approval. Anything unparseable fails closed.
+    conflicts does not invalidate the approval; the same holds for "Merge origin/main into ..." and "Merge main
+    into ...". Anything unparseable fails closed.
+
+    Limits: `gh pr view --json commits` does not expose commit parents, so a merge is recognised by its title only.
+    The gate also cannot verify who wrote the approval, because all agents share one gh account; it checks the
+    phrase and the timestamps, not the reviewer's identity.
     """
     data = json.loads(pr_view_json) if isinstance(pr_view_json, (str, bytes)) else pr_view_json
     if not isinstance(data, Mapping):
