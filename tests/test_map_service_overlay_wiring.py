@@ -164,3 +164,37 @@ def test_the_detached_helper_never_runs_code_from_the_mapped_repository(tmp_path
     result = subprocess.run(argv, cwd=str(repo), capture_output=True, text=True, timeout=60)
     assert "REPO CODE RAN" not in result.stderr + result.stdout
     assert result.returncode == 0, result.stderr
+
+
+def test_the_budgeted_orient_path_runs_the_startup_gc_too(monkeypatch, tmp_path, repo):
+    """`orient` takes the budgeted path; the stale-scratch GC must run there as well."""
+    from simplicio_loop import cli_impl
+
+    scratch = repo / ".git" / "simplicio" / "map" / "baseline-build-stale1"
+    (scratch / "tree").mkdir(parents=True)
+    (scratch / "tree" / "f.py").write_text("x = 1\n", encoding="utf-8")
+    old = os.path.getmtime(scratch) - 6 * 3600
+    for path in (scratch / "tree" / "f.py", scratch / "tree", scratch):
+        os.utime(path, (old, old))
+
+    class FakeProc:
+        pid = 1
+        returncode = 0
+
+        def poll(self):
+            return 0
+
+    binary = _fake_mapper(tmp_path / "bin", overlay_exit=0)
+    monkeypatch.setattr(msm, "mapper_binary_path", lambda: str(binary))
+    real_popen = subprocess.Popen
+
+    def popen(argv, *args, **kwargs):  # fake only the detached helper; git (used by the GC) stays real
+        if "simplicio_loop.map_service_mapper" in " ".join(map(str, argv)):
+            return FakeProc()
+        return real_popen(argv, *args, **kwargs)
+
+    monkeypatch.setattr(cli_impl.subprocess, "Popen", popen)
+    asyncio.run(cli_impl._ensure_project_map_bounded(
+        repo, repo / ".simplicio-loop" / "project-map.json", repo / ".simplicio-loop" / "state.json", None, 5.0,
+    ))
+    assert not scratch.exists()

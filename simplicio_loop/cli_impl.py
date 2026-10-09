@@ -666,10 +666,12 @@ async def _ensure_project_map_bounded(root: Path, project_map: Path, state_file:
     if _mapper_index_reconcile_finished(log_path, project_map, state_file, current_state):
         return
     try:
+        from .map_service_gc import startup_gc
         from .map_service_mapper import index_argv, mapper_binary_path
         binary = mapper_binary_path()
     except Exception:
         return  # binary missing: swallowed, same policy as the unbounded path above
+    startup_gc(str(root))  # stale build scratch and orphan locks (never a base); never raises
     map_dir.mkdir(parents=True, exist_ok=True)
     resolved = str(root.resolve())
     popen_kwargs: dict[str, Any] = {}
