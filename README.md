@@ -29,13 +29,16 @@
 **simplicio-loop turns GitHub issues into tested PRs: it maps the repo, an AI plans, a deterministic editor applies, tests verify, squads review.**
 
 <p align="center">
-  <img src="docs/assets/readme/how-it-works.gif" alt="Animated flow in 8 steps: issues, intake, general coordinator, squads, sandboxed workers, squad review, merge train, main and the Simplicio Live kanban" width="920" />
+  <img src="docs/assets/readme/how-it-works.gif" alt="Animated flow in 8 steps: issues, intake, general coordinator, squads, workers (mapper, plan, dev-cli), squad review, merge train, main and the Simplicio Live kanban" width="920" />
 </p>
 
 ## What it does
 
+Three operators: `simplicio-mapper` (map), the planner model (plan), `simplicio-dev-cli` (deterministic apply).
+
+- **Maps first:** `simplicio-mapper` maps the repo (files, symbols, tests) into a project map, and the planner only gets the slice it needs.
 - **Plans, never writes:** an AI (an exec CLI such as claude, codex, grok or gemini) plans each change inside a sandbox; only the deterministic `dev-cli` edits files.
-- **Proves before it opens a PR:** `turbo --apply - --verify` runs your tests, and a secret scan runs before the push.
+- **Proves before it opens a PR:** `simplicio-loop turbo --apply - --verify` runs your tests, and a secret scan runs before the push.
 - **Squads review and merge in batches** (in progress: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504), [#1505](https://github.com/simpletibr/simplicio-loop/issues/1505)). Today the watcher stops at an open PR.
 
 ## Install
@@ -58,7 +61,7 @@ simplicio-loop doctor             # check the installed stack
 
 ```mermaid
 flowchart LR
-  A["1. You write /simplicio-loop and the goal"] --> B["2. Map, plan, dev-cli applies, tests verify"]
+  A["1. You write /simplicio-loop and the goal"] --> B["2. Mapper maps, planner plans, dev-cli applies, tests verify"]
   B --> C["3. PR with evidence"]
 ```
 
@@ -81,10 +84,10 @@ Details: [docs/WATCHER_247.md](docs/WATCHER_247.md).
 
 ## How it works
 
-**The worker loop** (on `main` today): plan in the sandbox, `turbo --apply - --verify`, two failures escalate the model role, secret scan, PR. Squad review is in progress ([#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)).
+**The worker loop** (on `main` today): `simplicio-mapper` maps the repo → the planner (an exec CLI, in the sandbox) gets the map slice and writes a plan → `simplicio-dev-cli` applies it (`simplicio-loop turbo --apply - --verify`) → tests verify (two failures escalate the model role) → secret scan → PR. Squad review and the merge train are in progress ([#1502](https://github.com/simpletibr/simplicio-loop/issues/1502), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)).
 
 <p align="center">
-  <img src="docs/assets/readme/worker-loop.gif" alt="Worker loop: plan in the sandbox, apply and verify, a failure, escalation to the next model role, secret scan, PR, squad review" width="920" />
+  <img src="docs/assets/readme/worker-loop.gif" alt="Worker loop: simplicio-mapper maps the repo, plan in the sandbox with the map slice, apply and verify, a failure, escalation to the next model role, secret scan, PR, squad review" width="920" />
 </p>
 
 **The merge train** (in progress: [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)): approved PRs are tested once as a batch; on red it bisects to the bad PR and merges the rest.
