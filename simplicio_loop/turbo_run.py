@@ -27,7 +27,8 @@ from .state_dir import ensure_state_dir
 
 RUNS_DIR = (".simplicio-loop", "orchestrator", "runs")
 # Stage -> the progress phase the kanban shows (``simplicio_loop.progress.PHASES``).
-PROGRESS_PHASE = {"orient": "mapping", "plan": "planning", "apply": "executing", "verify": "validating", "done": "done"}
+PROGRESS_PHASE = {"intake": "intake", "orient": "mapping", "plan": "planning", "apply": "executing", "verify": "validating", "pr": "delivering", "done": "done"}
+CLOSED = ("done", "failed", "blocked")  # the run states close() leaves
 OPERATORS = ("simplicio-mapper", "simplicio-dev-cli")
 
 
@@ -77,15 +78,18 @@ class TurboRun:
 
     # --- dashboard: state and stage events -------------------------------------------------
 
-    def enter(self, stage: str) -> None:
-        """Move to ``stage``: the events the kanban draws, then the state the run reader lists."""
+    def enter(self, stage: str, **payload: Any) -> None:
+        """Move to ``stage``: the events the kanban draws, then the state the run reader lists.
+
+        ``payload`` joins the phase_entered event (ids, numbers and statuses only: never issue text or secrets).
+        """
         if stage == self.stage:
             return
         if self.stage is None:
             specs = [{"kind": "run_started", "phase": stage, "severity": "info", "payload": {"mode": self.mode}}]
         else:
             specs = [{"kind": "phase_exited", "phase": self.stage, "payload": {"to": stage}}]
-        specs.append({"kind": "phase_entered", "phase": stage, "payload": {"from": self.stage}})
+        specs.append({"kind": "phase_entered", "phase": stage, "payload": {"from": self.stage, **payload}})
         self._emit(specs)
         self.stage = stage
         self._save("running", PROGRESS_PHASE.get(stage, stage))
@@ -135,21 +139,29 @@ class TurboRun:
 
     # --- end of run: stage done, execution report -------------------------------------------
 
-    def finish(self, status: str, *, tasks: int, calls: Sequence[Mapping[str, Any]] | None = None) -> str:
-        """Close the run. ``status`` is ``ok``, ``failed`` or ``blocked``. Returns the report path, run-relative to the repo.
+    def finish(self, status: str, *, tasks: int, calls: Sequence[Mapping[str, Any]] | None = None,
+               leave_open: bool = False) -> str:
+        """Close the run and write its report. Returns the report path, run-relative to the repo.
 
-        ``calls`` is None in host mode: the host model's calls are not made by turbo, so model calls, hedges and
-        tokens are null there (UNVERIFIED), not zero.
+        ``status`` is ``ok``, ``failed`` or ``blocked``. ``calls`` is None in host mode: the host model's calls are
+        not made by turbo, so model calls, hedges and tokens are null there (UNVERIFIED), not zero.
+        ``leave_open`` (an ``ok`` run only) leaves the run at its last stage for the caller to ``close``: the 24/7
+        watcher still has the ``pr`` stage to write before ``done``.
         """
+        if not (leave_open and status == "ok"):
+            self.close(status)
+        return self._write_report(status, tasks=tasks, calls=calls, finished=_now())
+
+    def close(self, status: str) -> None:
+        """The closing events (stage done, run_finished) and the final state. A run that is already closed is left as is."""
+        if _read_state(self.run_dir).get("status") in CLOSED:
+            return
         if self.stage != "done":
             self.enter("done")
         self._emit([{"kind": "run_finished", "phase": "done", "severity": "info" if status == "ok" else "error",
                      "payload": {"outcome": status}}])
-        final_phase = "done" if status == "ok" else "blocked"
-        final_status = {"ok": "done", "failed": "failed", "blocked": "blocked"}[status]
-        finished = _now()
-        self._save(final_status, final_phase, finished_at=finished)
-        return self._write_report(status, tasks=tasks, calls=calls, finished=finished)
+        self._save({"ok": "done", "failed": "failed", "blocked": "blocked"}[status],
+                   "done" if status == "ok" else "blocked", finished_at=_now())
 
     def _write_report(self, status: str, *, tasks: int, calls: Sequence[Mapping[str, Any]] | None,
                       finished: str) -> str:

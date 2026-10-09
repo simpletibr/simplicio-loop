@@ -1,87 +1,41 @@
-"""Event emission for the 24/7 watcher intake and PR stages.
+"""The watcher's stages in the run turbo writes: ``intake`` first, ``pr`` after verify, ``done`` last.
 
-Writes watcher stage events (intake, pr) to the same events.jsonl that turbo writes its stages
-(orient, plan, apply, verify, done). The kanban dashboard reads both sources from one stream.
-
-Schema: simplicio.dashboard-event/v1 (same as turbo).
+One service run is one turbo run directory (``.simplicio-loop/orchestrator/runs/<run_id>/``, the kanban's card).
+The watcher opens it at ``intake``, turbo continues it (orient, plan, apply, verify; ``--run-id``, ``--leave-open``)
+and the watcher closes it with ``pr`` and ``done``. Payloads carry ids, numbers and statuses only: no issue text,
+no secret. Fail-open: telemetry never breaks a tick.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
-from typing import Any, Dict, Optional
 
-from .. import dashboard_events
+from ..turbo_run import TurboRun
+from . import state
 
-# Track the current phase per run_dir so we can emit phase_exited
-_CURRENT_PHASE: Dict[str, str] = {}
+_PR_NUMBER = re.compile(r"/pull/(\d+)")
 
 
-def emit_stage(
-    run_dir: Any,
-    stage: str,
-    status: str,
-    **fields: Any
-) -> Optional[Dict[str, Any]]:
-    """Append a watcher stage event (intake, pr) to events.jsonl.
-
-    Returns the written event envelope, or None on failure (fail-open).
-    Uses the same schema and format as turbo's emit_batch.
-
-    Args:
-        run_dir: The run directory (e.g., .simplicio-loop/orchestrator/runs/<id>).
-        stage: The stage name ("intake", "pr", etc.).
-        status: Status ("ok", "error", etc.) — becomes the severity if error.
-        **fields: Additional fields (pr_number, etc.) for the payload.
-
-    Example:
-        emit_stage(run_dir, "intake", "ok")
-        emit_stage(run_dir, "pr", "ok", pr_number=123)
-    """
+def open_run(dest: Path, repo: str, number: int, *, fix: bool = False) -> str | None:
+    """Start the run at ``intake`` and return its id, or None when the run could not be written."""
     try:
-        run_dir_path = Path(run_dir)
-        run_dir_key = str(run_dir_path.resolve())
-
-        # Map status to severity
-        if status == "error":
-            severity = "error"
-        else:
-            severity = "info"
-
-        specs = []
-        current_phase = _CURRENT_PHASE.get(run_dir_key)
-
-        # Emit phase_exited for the previous phase if transitioning
-        if current_phase is not None and current_phase != stage:
-            specs.append({
-                "kind": "phase_exited",
-                "source": "operator",
-                "phase": current_phase,
-                "severity": severity,
-                "scope": "collection",
-                "payload": {"to": stage, "status": status, **fields},
-            })
-
-        # Emit phase_entered for the new stage
-        specs.append({
-            "kind": "phase_entered",
-            "source": "operator",
-            "phase": stage,
-            "severity": severity,
-            "scope": "collection",
-            "payload": {"from": current_phase, "status": status, **fields},
-        })
-
-        # Load the dashboard_events module and call emit_batch directly
-        module = dashboard_events.load()
-        if module is None:
-            return None
-
-        written = module.emit_batch(run_dir_path, specs)
-        if written:
-            _CURRENT_PHASE[run_dir_key] = stage
-            return written[-1]
+        run = TurboRun(dest, "host")
+        run.enter("intake", repo=repo, issue=number, kind="fix" if fix else "issue")
+        return run.run_id
+    except Exception as exc:
+        state.log(f"events: intake not written {repo}#{number}: {exc}")
         return None
 
-    except Exception:
-        # Fail-open: never raise into the watcher
-        return None
+
+def close_run(dest: Path, run_id: str | None, status: str, *, pr_url: str | None = None) -> None:
+    """Write ``pr`` (when a PR was opened or updated) and close the run: ``ok``, ``failed`` or ``blocked``."""
+    if run_id is None:
+        return
+    try:
+        run = TurboRun(dest, "host", run_id)
+        if pr_url and status == "ok":
+            found = _PR_NUMBER.search(pr_url)
+            run.enter("pr", pr_number=int(found.group(1)) if found else None)
+        run.close(status)
+    except Exception as exc:
+        state.log(f"events: run {run_id} not closed: {exc}")

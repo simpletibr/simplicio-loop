@@ -54,6 +54,8 @@ def test_turbo_ok_commits_opens_pr_and_comments_url(env):
     assert argv[argv.index("--provider") + 1] == "openrouter"
     task = argv[argv.index("--task") + 1]
     assert "Issue #7: Add x" in task and "Protocolo Simplicio-Loop, nesta ordem" in task and "50 pontos" not in task
+    assert "assinatura" not in task and "MCP" not in task, "the prompt no longer claims an MCP subscription"
+    assert "dev-cli aplica" in task and "CLI de execucao planeja" in task, "it states what actually runs"
     assert fake.turbo_timeouts == [900]
     commit = fake.ran("git", "commit")[0]
     assert commit[3] == "loop: Add x\n\nCloses #7\n"

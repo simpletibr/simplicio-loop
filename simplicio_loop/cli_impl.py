@@ -2738,6 +2738,9 @@ def main(argv=None) -> int:
                               "`-` reads the plan from stdin (a heredoc), anything else is a file")
     p_turbo.add_argument("--run-id", metavar="ID",
                          help="continue the run the request printed: its stage events and receipts join that run")
+    p_turbo.add_argument("--leave-open", action="store_true",
+                         help="with --apply and --run-id: an ok run stays open after verify, for the caller to close "
+                              "(the 24/7 watcher writes its pr stage, then done)")
     p_turbo.add_argument("--provider", choices=["openrouter"],
                          help="headless automation only; agents invoking the skill must not use it "
                               "(asks this provider for the plan, needs OPENROUTER_API_KEY)")
@@ -3245,7 +3248,8 @@ def main(argv=None) -> int:
         from .turbo_cli import run as run_turbo_cli
         return run_turbo_cli(args.repo, args.task, target=args.target, context=args.context,
                              tasks_file=args.tasks_file, verify=args.verify, apply=args.apply,
-                             provider=args.provider, run_id=args.run_id)
+                             provider=args.provider, run_id=args.run_id,
+                             leave_open=args.leave_open)
     if command == "update":
         from .self_update import run_update
         return run_update(check=args.check, force=args.force)

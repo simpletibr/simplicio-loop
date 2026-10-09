@@ -6,7 +6,7 @@ The default executor is ``exec``. For each work item:
    effort of the current role (``model_roles.resolve``), prompted with turbo's request. The CLI never edits a file.
 2. The watcher pipes the plan to ``simplicio-loop turbo --apply - --run-id ID [--verify V]`` inside ``sandbox.wrap``,
    continuing the run of step 1 (``turbo --task T``: Mapper orient, the request the planner gets, the run id). One
-   run_id then covers the map, plan, apply, verify and done events and the execution-report. dev-cli is the only writer.
+   run_id then covers the intake, map, plan, apply, verify, pr and done events and the execution-report. dev-cli is the only writer.
 3. On a failed apply or verify, the escalation ladder (execution -> coordination -> planning) picks the next role and the
    planner retries with the failure output, until the attempt or token ceilings stop it.
 
@@ -128,9 +128,10 @@ async def _reset_tree(dest: Path) -> None:
     await proc.run(["git", "clean", "-fdq", "-e", ".simplicio-loop", "-e", ".simplicio"], cwd=dest, timeout=60)
 
 
-async def _request(dest: Path, task: str) -> tuple[str, str]:
-    """Step 1, ``turbo --task T`` in the sandbox: the compact request for the planner and the run id turbo started."""
-    argv = sandbox.wrap(verify.turbo_request_argv(dest, task), clone=dest, state_dir=config.ROOT)
+async def _request(dest: Path, task: str, run_id: str | None = None) -> tuple[str, str]:
+    """Step 1, ``turbo --task T`` in the sandbox: the compact request for the planner and the run id turbo continued
+    (``run_id``: the run the watcher opened at intake) or started."""
+    argv = sandbox.wrap(verify.turbo_request_argv(dest, task, run_id), clone=dest, state_dir=config.ROOT)
     env = sandbox.scrubbed_env(os.environ, home=Path.home())
     result = await proc.run(argv, timeout=config.TURBO_TIMEOUT_S, cwd=dest, env=env)
     document = verify.parse_turbo(result.stdout or "")
@@ -142,9 +143,9 @@ async def _request(dest: Path, task: str) -> tuple[str, str]:
 
 
 async def _apply(dest: Path, plan: dict, test_cmd: str | None, run_id: str, attempts: int,
-                 log_path: Path) -> tuple[proc.Result, dict, str, verify.Decision]:
+                 log_path: Path, leave_open: bool = False) -> tuple[proc.Result, dict, str, verify.Decision]:
     """Step 2, ``turbo --apply - --run-id`` with the plan on stdin, in the sandbox; no provider key is in the env."""
-    argv = sandbox.wrap(verify.turbo_apply_argv(dest, test_cmd, run_id), clone=dest, state_dir=config.ROOT)
+    argv = sandbox.wrap(verify.turbo_apply_argv(dest, test_cmd, run_id, leave_open), clone=dest, state_dir=config.ROOT)
     env = sandbox.scrubbed_env(os.environ, home=Path.home())
     result = await proc.run(argv, timeout=config.TURBO_TIMEOUT_S, cwd=dest, env=env, stdin=json.dumps(plan))
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -186,8 +187,12 @@ def _note_step(report: dict[str, Any], *, repo: str, issue: dict, step: int, pla
 
 
 async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str | None, executor: Executor,
-                   attempts: int, fix: bool = False, role: str = "") -> dict[str, Any]:
-    """Plan with the exec CLI, apply with turbo, escalate on failure. Returns the claim fields; raises when it failed."""
+                   attempts: int, fix: bool = False, role: str = "", run_id: str | None = None) -> dict[str, Any]:
+    """Plan with the exec CLI, apply with turbo, escalate on failure. Returns the claim fields; raises when it failed.
+
+    ``run_id``: the run the watcher opened at intake. Turbo continues it and leaves it open after a good apply, so the
+    watcher writes the pr stage and closes it (``events.close_run``).
+    """
     number = int(issue["number"])
     ladder = escalation.load_escalation_state(dest, number, executor.families[0], **ceilings())
     ladder.current_step = escalation.ESCALATION_LADDER.index(role or (FIX_ROLE if fix else PLAN_ROLE))
@@ -196,7 +201,8 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
     steps: list[dict[str, str]] = []
     failure = ""
     try:
-        request, run_id = await _request(dest, task)  # step 1, once: every retry reuses this request and run
+        leave_open = run_id is not None  # the watcher opened the run: it closes it after the pr stage
+        request, run_id = await _request(dest, task, run_id)  # step 1, once: every retry reuses this request and run
         report["run_id"] = run_id  # the watcher's role receipt lands in the report turbo writes for this run
         for step in range(1, config.MAX_STEPS + 1):
             if not ladder.can_escalate():
@@ -212,7 +218,7 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
             ok, failure, tokens_report, label, result, status = False, "", None, "", None, "failed"
             if planned.is_ok():
                 log_path = config.LOGS / f"{repo}-{number}-{attempts}-s{step}.log"
-                result, document, status, decision = await _apply(dest, planned.plan, test_cmd, run_id, attempts, log_path)
+                result, document, status, decision = await _apply(dest, planned.plan, test_cmd, run_id, attempts, log_path, leave_open)
                 tokens_report = _turbo_report(dest, document)
                 if tokens_report:
                     _merge_turbo_tasks(report, tokens_report)
