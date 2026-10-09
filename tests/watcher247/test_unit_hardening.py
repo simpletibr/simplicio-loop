@@ -7,7 +7,7 @@ UNIT = Path(__file__).resolve().parents[2] / "packaging" / "systemd" / "simplici
 
 HARDENING = {
     "NoNewPrivileges=yes", "PrivateTmp=yes", "ProtectSystem=strict", "ProtectHome=read-only",
-    "SystemCallFilter=@system-service", "CapabilityBoundingSet=", "RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX",
+    "SystemCallFilter=@system-service @mount", "CapabilityBoundingSet=", "RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX",
     "ProtectKernelTunables=yes", "ProtectKernelModules=yes", "ProtectControlGroups=yes",
     "RestrictSUIDSGID=yes", "LockPersonality=yes", "RestrictRealtime=yes", "UMask=0077",
 }
@@ -27,6 +27,14 @@ def test_unit_never_runs_as_root():
 def test_unit_has_every_hardening_directive():
     present = {line.strip() for line in lines()}
     assert HARDENING <= present, sorted(HARDENING - present)
+
+
+def test_syscall_filter_admits_the_mount_group_bwrap_needs():
+    # bwrap builds the sandbox with mount, pivot_root and umount2; @system-service leaves them out,
+    # so turbo would die with SIGSYS under a bare @system-service filter.
+    present = {line.strip() for line in lines()}
+    assert "SystemCallFilter=@system-service @mount" in present
+    assert "SystemCallFilter=@system-service" not in present
 
 
 def test_every_hardening_directive_is_documented_above_it():

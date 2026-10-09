@@ -23,8 +23,9 @@ ProtectSystem=strict
 # /home is read-only; the service writes only into the paths listed in ReadWritePaths.
 ProtectHome=read-only
 ReadWritePaths=/var/lib/simplicio-loop-247 /home/simplicio-loop/.simplicio
-# Allow only the system-service syscall group; privileged and raw-I/O syscalls are refused.
-SystemCallFilter=@system-service
+# Allow the system-service syscall group plus @mount: bwrap (the turbo sandbox) needs mount, pivot_root and
+# umount2, which @system-service leaves out. Privileged and raw-I/O syscalls are still refused.
+SystemCallFilter=@system-service @mount
 # Empty set: the process holds no Linux capabilities at all (no CAP_NET_RAW, CAP_SYS_ADMIN, ...).
 CapabilityBoundingSet=
 # Only IPv4, IPv6 and local unix sockets: the watcher talks to GitHub and the Simplicio API over TCP.
