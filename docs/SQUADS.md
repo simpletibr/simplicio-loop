@@ -147,6 +147,8 @@ Set `SIMPLICIO_PRISM_SLOTS` or `SIMPLICIO_LOOP_OPERATOR_WORKERS` to a value abov
 
 In the watcher, `SIMPLICIO_247_CONCURRENCY` is the override. The daily budget always caps an override. Use a whole number from 1 to 999999 in ASCII digits. An empty value means that the variable is not set. Any other value is invalid, for example `0`, `-1`, `2.0` or `lots`. An invalid value is not an override and does not stop the tick. The automatic sizing decides. The plan gets a `WARN:` reason that names the invalid value.
 
+To run fewer workers than the machine allows, pass `--squads N` with `--max-workers M`. The loop then runs at most N times M workers. For example, `--squads 1 --max-workers 2` runs two workers. The option `--squads 2` alone allows eight workers, because each squad has up to four. A low `SIMPLICIO_PRISM_SLOTS` does not lower the count, as the paragraph above says. In the watcher, set `SIMPLICIO_247_CONCURRENCY=2` to run two workers.
+
 An override can start more workers than the machine allows. The plan then starts its first reason with `WARN:`. The `warnings` list of the `capacity` block has the same warning. `squads plan` prints it to stderr, and the watcher writes it once to the log of each tick. The plan keeps its `limited_by` and `proof_kind` fields. `proof_kind` only tells if the probe measured every value.
 
 ### Between waves
