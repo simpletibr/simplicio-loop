@@ -223,6 +223,11 @@ teto diario (`budget.py`). Os itens de um mesmo repo rodam ao mesmo tempo, cada 
    Com a variavel exatamente `1`, o `gh pr create` recebe `--draft` e o PR fica rascunho ate alguem executar `gh pr ready`.
    Um rascunho nao entra em merge: com `SIMPLICIO_247_AUTO_MERGE=1` tambem ligado, o status mostra `merge: draft`,
    o watcher nao roda o trem nem o `gh pr merge`, e o merge fica com o operador depois do `gh pr ready`.
+4b. **Texto do PR sem palavra de fechamento (#1644).** O titulo (`loop: #N titulo`, ate 70 caracteres, corte em palavra com
+   reticencias, `#N` sempre inteiro), a mensagem de commit e o corpo do PR usam `Parte de #N`. A funcao `closing_words.sanitize`
+   reescreve qualquer `Closes`/`Fixes`/`Resolves` (qualquer caixa, `#N`, `owner/repo#N`, URL) e recusa publicar se sobrar um.
+   Fechar a issue e decisao humana. O texto cru do planejador de cada passo fica em `logs/<repo>-<N>-<tentativa>-s<passo>.raw.log`
+   (segredos redigidos antes, limite de 20000 caracteres).
 5. **Recibo.** Um `simplicio.execution-report/v1` por tick em
    `<state_dir>/squads/.simplicio-loop/runtime/execution-reports/latest.json`: uma task por agente (coordenador geral,
    coordenador de cada squad, cada worker) com `agent.role`, `agent.model` e `agent.effort`; o worker mostra o ultimo

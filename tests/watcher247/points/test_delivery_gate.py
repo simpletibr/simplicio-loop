@@ -1,4 +1,4 @@
-"""delivery_gate (pr, blocking): verify green + judge ACCEPT + secret-scan clean + Closes #N, from the ctx."""
+"""delivery_gate (pr, blocking): verify green + judge ACCEPT + secret-scan clean + Parte de #N, from the ctx."""
 import asyncio
 import json
 

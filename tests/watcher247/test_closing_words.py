@@ -4,7 +4,10 @@ import random
 import pytest
 
 from simplicio_loop.watcher247 import closing_words
-from simplicio_loop.watcher247.closing_words import KEYWORDS, has_closing, rewrite, sanitize
+from simplicio_loop.watcher247.closing_words import has_closing, rewrite, sanitize
+
+# the nine words GitHub documents, written out here on purpose: a word dropped from the module must fail a test
+GITHUB_WORDS = ("close", "closes", "closed", "fix", "fixes", "fixed", "resolve", "resolves", "resolved")
 
 URL = "https://github.com/o/r/issues/1"
 
@@ -29,14 +32,14 @@ def test_rewrites_every_closing_shape(text, expected):
 
 @pytest.mark.parametrize("text", [
     "prefixes #3", "closest #3", "fixture #3", "close the door #3", "Closes", "Fixes the bug", "Parte de #1",
-    "refs #1", "resolution #2", "unfixed #4", "Closes #", "Fixes #abc",
+    "refs #1", "resolution #2", "unfixed #4", "Closes #", "Fixes #abc", "fixtures/x#3", "closest o/r#3", "prefixes o/r#3",
 ])
 def test_leaves_alone_what_github_does_not_treat_as_closing(text):
     assert not has_closing(text)
     assert rewrite(text) == text
 
 
-@pytest.mark.parametrize("word", KEYWORDS)
+@pytest.mark.parametrize("word", GITHUB_WORDS)
 def test_every_keyword_in_every_case(word):
     for variant in (word, word.upper(), word.title(), word.swapcase()):
         assert rewrite(f"{variant} #9") == "Parte de #9"
@@ -50,7 +53,7 @@ def test_sanitize_returns_the_rewrite_and_names_what_it_refuses(monkeypatch):
 
 
 def _closing(rng: random.Random) -> tuple[str, str]:
-    word = rng.choice(KEYWORDS)
+    word = rng.choice(GITHUB_WORDS)
     word = "".join(c.upper() if rng.random() < 0.5 else c.lower() for c in word)
     sep = rng.choice(["", ":", "=", ":", "="]) if rng.random() < 0.4 else ""
     gap = rng.choice([" ", "  ", "\t", "\n", "   "])

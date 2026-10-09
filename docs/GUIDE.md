@@ -127,7 +127,7 @@ sequenceDiagram
   T-->>W: apply and verify result
   W->>S: scan the staged diff
   S-->>W: clean, or BLOCKED and dead on a secret
-  W->>GH: push loop/issue-N and open the PR with Closes N
+  W->>GH: push loop/issue-N and open the PR with Parte de N (never a closing word)
   W->>GH: status comment VERIFYING, PR_OPEN
   W->>D: events.jsonl, state.json and execution-report
   W->>L: release lease
