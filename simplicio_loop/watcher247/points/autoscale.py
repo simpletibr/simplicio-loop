@@ -1,7 +1,7 @@
-"""autoscale (intake): record safe concurrency estimate.
+"""autoscale (intake): record economy_profile's operator-worker recommendation.
 
-Uses economy_profile.recommend_operator_workers to estimate workers.
-Records the recommendation as evidence (evidence-only, no wiring to config yet).
+Evidence only: the recommendation does not use the capacity probe, and nothing reads it, so it never changes
+`config.concurrency` (the registry table keeps this point `parcial`, not `ligado`).
 """
 from ... import economy_profile
 
@@ -10,21 +10,9 @@ from .registry import PointContext, PointResult, register
 NAME = "autoscale"
 
 
-
-
-
 async def scale(ctx: PointContext) -> PointResult:
-    """Record recommended concurrency based on CPU count."""
-    evidence = {}
-
-    try:
-        safe_concurrency = economy_profile.recommend_operator_workers()
-        evidence["safe_concurrency"] = safe_concurrency
-    except (OSError, TypeError, ValueError) as e:
-        evidence["safe_concurrency"] = 1
-        evidence["error"] = str(e)
-
-    return PointResult(NAME, "ok", evidence)
+    """Record economy_profile.recommend_operator_workers() as evidence; a failure is an error result."""
+    return PointResult(NAME, "ok", {"recommended_operator_workers": economy_profile.recommend_operator_workers()})
 
 
 register(NAME, "intake", scale)

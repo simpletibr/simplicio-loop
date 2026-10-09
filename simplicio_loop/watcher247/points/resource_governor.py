@@ -1,10 +1,9 @@
 """resource_governor (intake): probe local capacity; defer when disk/memory low.
 
-Reuses local_capacity.probe_local_capacity to measure CPU, RAM, disk.
-Returns deferred (transient condition) when disk or memory fall below minimum.
+The decision is local_capacity.probe_local_capacity's own verdict: `safe_workers < 1` defers, with
+`null_reasons["workers"]` as the reason_code. The point is blocking, so a deferred stops the intake stage
+(PointDeferred) and the tick gives the attempt back.
 """
-import os
-
 from ... import local_capacity
 
 from .registry import PointContext, PointResult, register
@@ -12,36 +11,24 @@ from .registry import PointContext, PointResult, register
 NAME = "resource_governor"
 
 
-
-
-
 async def govern(ctx: PointContext) -> PointResult:
-    """Probe local capacity; defer if disk or memory is low."""
-    evidence = {}
-
-    min_free_gb = int(os.environ.get("SIMPLICIO_247_MIN_FREE_GB", 5))
-    min_free_bytes = min_free_gb * (1 << 30)
-
+    """Probe the disk the work is written to; defer when the probe finds no safe worker."""
     sample = local_capacity.probe_local_capacity(
-        ".",
+        ctx.state_dir,
         requested_workers=1,
-        disk_floor_bytes=min_free_bytes,
-        memory_floor_bytes=local_capacity.DEFAULT_MEMORY_FLOOR_BYTES,
+        reserve_workers=0,  # one attempt at a time: only disk/memory pressure or a missing signal says no
     )
-
-    evidence["cpu_count"] = sample.cpu_count
-    evidence["disk_free_gb"] = round((sample.disk_free_bytes or 0) / (1 << 30), 2) if sample.disk_free_bytes is not None else None
-    evidence["memory_available_bytes"] = sample.memory_available_bytes
-    evidence["measured"] = list(sample.measured)
-    evidence["unavailable"] = list(sample.unavailable)
-
-    if sample.disk_free_bytes is not None and sample.disk_free_bytes < min_free_bytes:
-        return PointResult(NAME, "deferred", evidence, "low_disk")
-
-    if sample.memory_available_bytes is not None and sample.memory_available_bytes < local_capacity.DEFAULT_MEMORY_FLOOR_BYTES:
-        return PointResult(NAME, "deferred", evidence, "low_memory")
-
+    evidence = {
+        "cpu_count": sample.cpu_count,
+        "disk_free_bytes": sample.disk_free_bytes,
+        "memory_available_bytes": sample.memory_available_bytes,
+        "measured": list(sample.measured),
+        "unavailable": list(sample.unavailable),
+        "safe_workers": sample.safe_workers,
+    }
+    if sample.safe_workers < 1:
+        return PointResult(NAME, "deferred", evidence, sample.null_reasons.get("workers", "no_safe_workers"))
     return PointResult(NAME, "ok", evidence)
 
 
-register(NAME, "intake", govern)
+register(NAME, "intake", govern, applies=lambda ctx: ctx.state_dir is not None, blocking=True)  # no state dir, nothing to measure
