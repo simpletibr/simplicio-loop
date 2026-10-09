@@ -50,7 +50,7 @@ def test_unified_fast_lifecycle_in_mapper(tmp_path: Path) -> None:
     proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
     assert proc.returncode == 0
 
-    simplicio_dir = repo / ".simplicio-loop" if (repo / ".simplicio-loop").is_dir() else repo / ".simplicio"
+    simplicio_dir = repo / ".simplicio-loop"
     assert (simplicio_dir / "project-map.json").is_file()
     assert (simplicio_dir / "symbol-index.json").is_file()
 

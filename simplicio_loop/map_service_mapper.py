@@ -87,8 +87,7 @@ async def run_mapper_index(path: str, *, timeout: float = 60.0) -> dict:
 def materialize_project_map(root: str, envelope: dict) -> Path:
     """Ensure project-map.json is at .simplicio-loop/ from envelope.paths.project_map.
     
-    If mapper wrote elsewhere, copy to .simplicio-loop/. Register .simplicio/ in
-    git exclude. Returns final path. Raises MapperIndexError if file missing anywhere.
+    If mapper wrote elsewhere, copy to .simplicio-loop/. Returns final path. Raises MapperIndexError if file missing anywhere.
     """
     resolved = str(Path(root).expanduser().resolve(strict=True))
     expected_path = Path(resolved) / ".simplicio-loop" / "project-map.json"
@@ -104,23 +103,10 @@ def materialize_project_map(root: str, envelope: dict) -> Path:
             "simplicio-mapper index reported success but %s does not exist" % project_map_path
         )
     
-    # Only copy and register if path differs and source file exists
+    # Only copy if path differs and source file exists
     if project_map_path != expected_path and project_map_path.is_file():
         expected_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(str(project_map_path), str(expected_path))
-        # Only register in git exclude if .git directory exists
-        if project_map_path.parent.name == ".simplicio":
-            git_dir = Path(resolved) / ".git"
-            if git_dir.is_dir():
-                try:
-                    git_exclude = git_dir / "info" / "exclude"
-                    if git_exclude.is_file():
-                        content = git_exclude.read_text()
-                        if ".simplicio/" not in content:
-                            with open(git_exclude, "a") as f:
-                                f.write(".simplicio/\n")
-                except (OSError, FileNotFoundError):
-                    pass
     return expected_path
 
 

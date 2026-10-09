@@ -40,7 +40,7 @@ class PlanDAGTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp_dir.name).resolve()
-        self.snapshot_path = self.root / ".simplicio" / "fast" / "project.sfast"
+        self.snapshot_path = self.root / ".simplicio-loop" / "fast" / "project.sfast"
 
         # Create a sample project structure
         _write_file(
