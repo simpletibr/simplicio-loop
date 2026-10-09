@@ -1,6 +1,6 @@
 """`simplicio-loop doctor` (no subcommand) and `doctor all|login`: the overview (#1575).
 
-Six checks, each `ok`, `warn` or `fail` with the command that fixes it:
+Seven checks, each `ok`, `warn` or `fail` with the command that fixes it:
 
 * login          the shared login file: present, expired, entitlement, Runtime version, same file as the Runtime
 * update         offline by default (the cached answer of the last `update --check`, with its time); --online asks GitHub
@@ -8,6 +8,7 @@ Six checks, each `ok`, `warn` or `fail` with the command that fixes it:
 * runtime        coexistence with the Simplicio Runtime (optional)
 * operators      a `simplicio-mapper` / `simplicio-dev-cli` on PATH that is not the bundled one (path_operators)
 * disk           free space of the state folders against the floor `squad_capacity` uses
+* setup          `simplicio-loop setup` ran, and its summary shows no open item (tools, GitHub login, default agent CLI)
 
 Exit 0 unless a check is `fail` (a login file that exists but cannot be used safely). Nothing here prints a token.
 The older forms (`doctor stack|source|mapper|--storage`) are separate and unchanged.
@@ -22,10 +23,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from . import __version__, auth, distribution, path_operators, self_update, squad_capacity
+from . import __version__, auth, distribution, path_operators, self_update, setup_cli, squad_capacity
 
 SCHEMA = "simplicio.doctor/v1"
-SECTIONS = ("login", "update", "distribution", "runtime", "operators", "disk")
+SECTIONS = ("login", "update", "distribution", "runtime", "operators", "disk", "setup")
 _RANK = {"ok": 0, "warn": 1, "fail": 2}
 GIB = 1 << 30
 
@@ -174,6 +175,7 @@ def collect(*, online: bool = False, environ: Optional[dict] = None, now: Option
         "runtime": lambda: _runtime(environ),
         "operators": lambda: _operators(kind, operators or path_operators.check),
         "disk": lambda: _disk(_state_dirs(Path(repo), state_dir), usage or shutil.disk_usage),
+        "setup": lambda: setup_cli.doctor_row(state_dir),
     }
     checks = [makers[name]() for name in wanted]
     worst = max((check["status"] for check in checks), key=_RANK.__getitem__, default="ok")

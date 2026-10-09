@@ -1,4 +1,4 @@
-"""`simplicio-loop doctor` overview (#1575): login, update, distribution, Runtime, PATH operators, disk.
+"""`simplicio-loop doctor` overview (#1575): login, update, distribution, Runtime, PATH operators, disk, setup.
 
 Everything is injected or under tmp_path: no network, no real HOME, no real Runtime, no real /usr/local/bin.
 The existing `doctor stack|source|mapper|--storage` outputs are pinned by their own tests, which are not touched.
@@ -88,6 +88,14 @@ def collect(box, **kw):
     kw.setdefault("fetch", lambda: pytest.fail("the overview must not query the network offline"))
     kw.setdefault("repo", box.tmp / "no-repo")
     return dov.collect(**kw)
+
+
+def put_setup(box):
+    """A summary that `simplicio-loop setup` would leave on a healthy machine."""
+    box.state.mkdir(parents=True, exist_ok=True)
+    (box.state / "setup.json").write_text(json.dumps({
+        "schema": "simplicio.setup/v1", "updated_at": "2026-10-09T00:00:00Z", "prereqs": [],
+        "github": {"status": "ok", "source": "gh", "login": "octocat", "missing_scopes": []}, "default_host": "codex"}))
 
 
 def check(doc, name):
@@ -267,10 +275,12 @@ def test_disk_looks_at_the_nearest_existing_folder_of_each_state_dir(box, tmp_pa
 def test_the_document_has_every_section_and_the_worst_status(box):
     doc = collect(box)
     assert doc["schema"] == "simplicio.doctor/v1"
-    assert [c["name"] for c in doc["checks"]] == ["login", "update", "distribution", "runtime", "operators", "disk"]
+    assert [c["name"] for c in doc["checks"]] == ["login", "update", "distribution", "runtime", "operators", "disk", "setup"]
     assert doc["status"] == "warn"  # no login in the box
     put_login(box.login)
-    assert collect(box)["status"] == "ok"
+    assert collect(box)["status"] == "warn" and check(collect(box), "setup")["fix"] == "simplicio-loop setup"  # setup did not run
+    put_setup(box)
+    assert collect(box)["status"] == "ok" and "octocat" in check(collect(box), "setup")["summary"]
 
 
 def test_run_prints_one_line_per_check_with_the_fix_and_returns_0_for_warnings(box, capsys):
@@ -278,7 +288,7 @@ def test_run_prints_one_line_per_check_with_the_fix_and_returns_0_for_warnings(b
                  kind=distribution.PIP, fetch=lambda: "v3.48.1", repo=box.tmp)
     out = capsys.readouterr().out
     assert rc == 0
-    for name in ("login", "update", "distribution", "runtime", "operators", "disk"):
+    for name in ("login", "update", "distribution", "runtime", "operators", "disk", "setup"):
         assert name in out
     assert "warn" in out and "fix:" in out and "pip install --force-reinstall simplicio-loop" in out
 
@@ -293,6 +303,7 @@ def test_run_returns_1_when_a_check_fails(box, capsys):
 
 def test_run_json_is_one_document_without_secrets(box, capsys):
     put_login(box.login)
+    put_setup(box)
     rc = dov.run(as_json=True, operators=ok_operators, usage=lambda p: Usage(1, 1, 90 * GIB), installed="3.48.1",
                  kind=distribution.PIP, fetch=lambda: "v3.48.1", repo=box.tmp)
     out = capsys.readouterr().out
@@ -314,9 +325,9 @@ def test_the_commands_are_wired(box, capsys, monkeypatch):
     assert cli.main(["doctor", "login", "--json"]) == 0
     assert [c["name"] for c in json.loads(capsys.readouterr().out)["checks"]] == ["login"]
     assert cli.main(["doctor", "all", "--json"]) == 0
-    assert len(json.loads(capsys.readouterr().out)["checks"]) == 6
+    assert len(json.loads(capsys.readouterr().out)["checks"]) == 7
     assert cli.main(["doctor", "--json"]) == 0  # a bare `doctor` is the overview
-    assert len(json.loads(capsys.readouterr().out)["checks"]) == 6
+    assert len(json.loads(capsys.readouterr().out)["checks"]) == 7
 
 
 def test_the_old_doctor_forms_still_exist():
