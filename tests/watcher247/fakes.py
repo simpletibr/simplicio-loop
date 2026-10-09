@@ -106,7 +106,7 @@ class FakeRun:
         if head == ["gh", "pr", "list"]:
             return proc.Result(0, json.dumps(self.prs))
         if argv[:2] == ["gh", "pr"] and argv[2] == "view":
-            return proc.Result(0, json.dumps(self.pr_views[int(argv[3])]))
+            return proc.Result(0, json.dumps(self.pr_views.get(int(argv[3]), {})))
         if argv[:2] == ["gh", "api"]:
             return self._api(argv, stdin)
         if argv[0] == "simplicio-loop" and argv[1] == "turbo":

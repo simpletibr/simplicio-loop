@@ -178,7 +178,7 @@ def test_execution_report_written(tick_run):
     steps = [t for t in report["tasks"] if "role" in t]
     assert len(steps) == 1 and len(report["tasks"]) == 2
     step = steps[0]
-    assert (step["step"], step["role"], step["family"], step["planner"]) == (1, "planning", "claude", "ok")
+    assert (step["step"], step["role"], step["family"], step["planner"]) == (1, "execution", "claude", "ok")
     assert step["outcome"] == "COMPLETE"
     assert step["model"] and step["effort"], "the receipt names the model and effort the step ran with"
     tokens = step["tokens"]

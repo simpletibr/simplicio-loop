@@ -19,7 +19,7 @@ def _view(number, *, approved_after_commit=True):
     if not approved_after_commit:
         commit, approval = approval, commit
     return {
-        "files": [{"path": "app.py"}], "headRefOid": f"oid{number}",
+        "files": [{"path": f"src/m{number}/app.py"}], "headRefOid": f"oid{number}",
         "commits": [{"oid": f"oid{number}", "committedDate": commit, "messageHeadline": "loop: x"}],
         "comments": [{"id": number, "createdAt": approval, "body": "APROVADO PELO SQUAD\n"}],
     }
@@ -35,7 +35,8 @@ def six(env, monkeypatch):
     (clone / "pytest.ini").write_text("[pytest]\n")
 
     def make(**kwargs):
-        rows = [issue(n, f"Task {n}", **({"labels": ("loop:auto", "security")} if n == 3 else {})) for n in NUMBERS]
+        rows = [issue(n, f"Task {n}", body=f"Ajustar `src/m{n}/app.py` para o fluxo do watcher seguir o contrato descrito abaixo.",
+                      **({"labels": ("loop:auto", "security")} if n == 3 else {})) for n in NUMBERS]
         fake = env(FakeRun({REPO: rows}, verify_pass=True, distinct_prs=True,
                            pr_views={100 + n: _view(n) for n in NUMBERS}, **kwargs))
         baseline()
@@ -107,3 +108,10 @@ def test_execution_report_carries_role_model_and_effort_of_each_agent(six):
     by_issue = {t["issue"]: t["agent"]["role"] for t in report["tasks"] if t.get("agent") and t["issue"]}
     assert by_issue[f"{REPO}#3"] == "coordination"  # the security issue is routed to coordination
     assert all(by_issue[f"{REPO}#{n}"] == "execution" for n in (1, 2, 4, 5, 6))
+
+
+def test_review_rejects_a_pr_that_touches_a_shared_file(six):
+    fake = six()
+    fake.pr_views[102]["files"].append({"path": "pyproject.toml"})
+    run_tick()
+    assert 102 not in _squads()["approved"] and "pyproject.toml" in _squads()["rejected"]["102"][0]

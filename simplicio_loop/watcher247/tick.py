@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .. import escalation, intake_gate, watcher_github
 from ..claim_lease import ClaimStore
-from . import budget, config, github, host_mode, points, proc, prompt_guard, sandbox, secret_scan, state, subscription, verify
+from . import budget, config, github, host_mode, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify
 
 _STATE_DIRS = (".simplicio-loop/", ".simplicio/")
 
@@ -36,6 +36,7 @@ class Work:
     issue: dict
     fix: str = ""
     pr: int = 0
+    role: str = ""  # the role a squad worker starts at (squad_routing.route); "" keeps the host-mode default
 
 
 async def _intake_run(*args: str) -> tuple[int, bytes, bytes]:
@@ -160,7 +161,7 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
 
 
 async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str,
-                     executor: host_mode.Executor, task: str | None = None) -> dict:
+                     executor: host_mode.Executor, task: str | None = None, role: str = "") -> dict:
     """Run the item with the selected executor; return the claim fields, raise when it did not finish ok.
 
     exec (the default): an exec CLI plans, turbo --apply - applies (host_mode). openrouter: the opt-in headless turbo.
@@ -169,7 +170,7 @@ async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str
     task = task or task_text(repo, issue, fix)
     if executor.mode == "exec":
         return await host_mode.run_exec(dest, repo, issue, task, test_cmd, executor,
-                                        attempts, fix=bool(fix))
+                                        attempts, fix=bool(fix), role=role)
     await budget.record("model_calls")
     argv = sandbox.wrap(verify.turbo_argv(dest, task, test_cmd),
                         clone=dest, state_dir=config.ROOT)
@@ -233,7 +234,7 @@ def _note_failed_attempt(ctx: points.PointContext, number: int, reasons: str) ->
 
 
 async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: float,
-                  executor: host_mode.Executor) -> None:
+                  executor: host_mode.Executor) -> squad_flow.Outcome | None:
     name = work.repo
     number = int(work.issue["number"])
     ident = state.key_of(name, number)
@@ -273,7 +274,7 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                 await points.run("intake", ctx)
                 ctx = replace(ctx, task_text=task_text(name, work.issue, work.fix, retry))
                 task = ctx.task_text + plan_hints(await points.run("plan", ctx))  # one text: retry reasons + hints
-                turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, task=task)
+                turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, task=task, role=work.role)
                 ctx = replace(ctx, turbo_json=turbo, verify=turbo["verify"])
                 await points.run("apply", ctx)
                 await _phase(runner, name, number, "VERIFYING", detail="turbo ok; publicando o diff")
@@ -295,6 +296,7 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
             await store.release(ident, token, "done_no_diff", now=clock, pr=None, **turbo)
         await points.run("done", replace(ctx, pr_url=url))
         state.log(f"done {ident} pr={url}")
+        return squad_flow.Outcome(url, turbo["verify"], turbo.get("steps") or []) if url else None
     except points.PointDeferred as exc:  # transient: the attempt is given back and the issue is due on the next tick
         attempts = (await store.get_claim(ident)).attempts
         await _phase(runner, name, number, "BLOCKED", detail=f"deferred: {exc.reason_code}")
@@ -455,10 +457,12 @@ async def tick(dry_run: bool = False) -> None:
                 state.log(f"[dry-run] would process {ident}")
             return
         gate = Gate()
-        await asyncio.gather(*(process(store, runner, gate, w, clock, executor) for w in batch))
+        plans = squad_flow.form(batch, (executor.families or ("claude",))[0])  # the general coordinator
+        outcomes = await asyncio.gather(*(process(store, runner, gate, w, clock, executor) for w in batch))
+        squad_status = await squad_flow.finish(plans, batch, outcomes, runner, gate)
         await status(phase="processed", last=idents[-1], processed=idents,
                      repos=len(found), open_seen=len(seen), subscription=sub,
-                     skipped_repos=skipped_repos, skipped_issues=skipped_issues)
+                     skipped_repos=skipped_repos, skipped_issues=skipped_issues, squads=squad_status)
         return
     if baseline is None:
         if persist:
