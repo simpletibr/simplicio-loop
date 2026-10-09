@@ -27,7 +27,9 @@ LABELS = ['Último comando medido', 'Comando em execução', 'Contrato por taref
 FORBIDDEN = [r'\binnerHTML\b', r'\bouterHTML\b', r'\binsertAdjacentHTML\b', r'\bdocument\s*\.\s*write', r'\beval\s*\(',
              r'https?://', r'setAttribute\(\s*.style', r'\.style\s*=', r'\.style\s*\.(?!setProperty\()', r'\.style\s*\[',
              r'\.style\s*\?\.', r'\bstyle\s*\[', r'Object\s*\.\s*assign\s*\([^)]*style', r"setProperty\(\s*(?!'width',)",
-             r'\bcssText\b', r'\b(?:claude|haiku|sonnet|opus)\b']
+             r'\bcssText\b', r'\b(?:claude|haiku|sonnet|opus)\b', r"\[\s*['\"]style['\"]\s*\]",
+             r'\{[^}]*\bstyle\b[^}]*\}\s*=', r'\bsetAttributeNS\b', r'\binsertAdjacentElement\b',
+             r'\bcreateContextualFragment\b', r'\bDOMParser\b', r'\bsrcdoc\b', r'\b(?:setHTML|setHTMLUnsafe|parseHTMLUnsafe)\b']
 MOTION = re.compile(r'(?<![\w-])(?:animation|transition)(?:-[a-z-]+)?\s*:', re.IGNORECASE)
 VALID = {
     'schema': 'simplicio.dashboard-extras/v1',
@@ -734,6 +736,10 @@ GUARD_PROBES = [
     "el.style.setProperty( 'height', '5%')", "el.insertAdjacentHTML('beforeend', x)", 'el.outerHTML = x',
     'document.write(x)', 'document . write(x)', 'el.innerHTML = x', "el.setAttribute('style', 'x')", "el.style = 'x'",
     "el.style.removeProperty('x')", 'el.style?.width', 'eval(x)', "fetch('https://x')", "fetch('http://x')",
+    "el['style'].width = '5%'", 'el["style"].width = x', "const {style} = el", "const { style } = el",
+    "let {style: s} = el", "el.setAttributeNS(null, 'style', 'x')", "el.insertAdjacentElement('beforeend', x)",
+    "range.createContextualFragment(x)", "new DOMParser()", "iframe.srcdoc = x", "el.srcdoc",
+    "el.setHTMLUnsafe(x)", "el.setHTML(x)", "Document.parseHTMLUnsafe(x)",
 ]
 GUARD_ALLOWED = ["part.style.setProperty('width', Math.round(pct * 100) / 100 + '%');"]
 
@@ -746,6 +752,14 @@ def test_the_guard_catches_each_hostile_construction(snippet):
 @pytest.mark.parametrize('snippet', GUARD_ALLOWED)
 def test_the_guard_lets_the_clamped_width_through(snippet):
     assert [p for p in FORBIDDEN if re.search(p, snippet, flags=re.IGNORECASE)] == []
+
+
+@pytest.mark.parametrize('snippet', GUARD_PROBES)
+def test_each_probe_appended_to_a_copy_of_extras_js_trips_the_guard_and_the_real_file_does_not(snippet):
+    real = MODULE.read_text(encoding='utf-8')
+    assert [p for p in FORBIDDEN if re.search(p, real, flags=re.IGNORECASE)] == []
+    probed = real + '\n' + snippet + '\n'
+    assert any(re.search(pattern, probed, flags=re.IGNORECASE) for pattern in FORBIDDEN), snippet
 
 
 def test_the_only_style_write_in_extras_js_is_the_literal_width():

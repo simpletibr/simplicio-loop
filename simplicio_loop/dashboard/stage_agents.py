@@ -21,6 +21,7 @@ import json
 import os
 import re
 import threading
+import time
 from collections import OrderedDict
 from typing import Any, Iterable
 
@@ -29,7 +30,7 @@ from simplicio_loop.dashboard import budget
 
 SCHEMA = 'simplicio.dashboard-event/v1'
 VIEW_SCHEMA = 'simplicio.dashboard-stage-agents/v1'
-TOP_N = 20
+TOP_N = budget.TOP_N
 NAME_MAX = 120
 CACHE_MAX = 16
 DIMENSIONS = ('by_phase', 'by_lane', 'by_model', 'by_task', 'by_iteration')
@@ -64,14 +65,18 @@ def _iteration(value: Any) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
 
 
-def _leaves(events: list[dict[str, Any]]) -> dict[tuple, list]:
+def _leaves(events: list[dict[str, Any]]) -> tuple[dict[tuple, list], int]:
     '''The token_usage events summed per (phase, lane, model, task, iteration, source): the only pass over the events.
+
+    Also the number of events that carried a count the budget reading refuses (NaN, Infinity, negative, a string, above
+    budget.MAX_NUMBER): that count is not summed, and the event is reported as ignored.
 
     The iteration is the event's own, else the last one seen on an earlier event of the stream (``ordem dos eventos``),
     else None: an event with no iteration known is never assigned one. Leaves keep first-seen order.
     '''
     leaves: dict[tuple, list] = {}
     current = None
+    ignored = 0
     for event in events:
         if not (isinstance(event, dict) and event.get('schema') == SCHEMA):
             continue
@@ -84,8 +89,11 @@ def _leaves(events: list[dict[str, Any]]) -> dict[tuple, list]:
                 iteration, source = current, ('ordem dos eventos' if current is not None else None)
             key = (_text(event.get('phase')), _text(event.get('lane')), _text(payload.get('model')), _text(event.get('task_id')),
                    iteration, source)
-            tokens_in = budget._number(payload.get('input_tokens')) or 0
-            tokens_out = budget._number(payload.get('output_tokens')) or 0
+            raw_in, raw_out = payload.get('input_tokens'), payload.get('output_tokens')
+            tokens_in, tokens_out = budget._number(raw_in), budget._number(raw_out)
+            if (tokens_in is None and raw_in is not None) or (tokens_out is None and raw_out is not None):
+                ignored += 1
+            tokens_in, tokens_out = tokens_in or 0, tokens_out or 0
             leaf = leaves.get(key)
             if leaf is None:
                 leaves[key] = [tokens_in, tokens_out]
@@ -94,7 +102,7 @@ def _leaves(events: list[dict[str, Any]]) -> dict[tuple, list]:
                 leaf[1] += tokens_out
         if own is not None:
             current = own
-    return leaves
+    return leaves, ignored
 
 
 _SOURCE_BITS = {None: 1, 'ordem dos eventos': 2, 'evento': 4}
@@ -120,7 +128,7 @@ def _add(groups: dict[Any, list], key: Any, model: str, tokens_in: Any, tokens_o
 
 def _tally(events: list[dict[str, Any]]) -> dict[str, Any]:
     '''Fold the leaves into one accumulator per group of every dimension and per (phase, model) stage.'''
-    leaves = _leaves(events)
+    leaves, ignored = _leaves(events)
     dims: dict[str, dict[Any, list]] = {name: {} for name in DIMENSIONS}
     stages: dict[Any, list] = {}
     by_phase, by_lane, by_model, by_task, by_iteration = (dims[name] for name in DIMENSIONS)
@@ -134,7 +142,8 @@ def _tally(events: list[dict[str, Any]]) -> dict[str, Any]:
         _add(by_task, task, name, tokens_in, tokens_out)
         _add(by_iteration, iteration, name, tokens_in, tokens_out, _SOURCE_BITS[source])
         _add(stages, (phase, model), name, tokens_in, tokens_out)
-    return {'dims': dims, 'stages': stages, 'run': _merge(by_model, list(by_model))[2], 'total': total, 'seen': bool(leaves)}
+    return {'dims': dims, 'stages': stages, 'run': _merge(by_model, list(by_model))[2], 'total': total, 'seen': bool(leaves),
+            'ignored': ignored}
 
 
 def _cost(models: dict[str, list], prices: dict[str, Any] | None) -> dict[str, Any]:
@@ -185,12 +194,20 @@ def _merge(groups: dict[Any, list], keys: list) -> list:
     return merged
 
 
-def _tokens_summary(total: int, seen: bool) -> dict[str, Any]:
+def _tokens_summary(total: int, seen: bool, ignored: int = 0) -> dict[str, Any]:
     row: dict[str, Any] = {'total': total or None, 'state': 'PASS' if total else 'UNVERIFIED', 'proof_kind': 'medido',
                            'reason': None}
+    note = ('%d evento(s) com contagem de tokens n\u00e3o finita, negativa ou acima de %.0e ignorado(s)'
+            % (ignored, budget.MAX_NUMBER)) if ignored else None
     if not total:
         row['reason'] = ('tokens do provedor n\u00e3o medidos: o registro do worker traz 0 ou null (sem contagem do provedor)'
                          if seen else 'tokens do provedor n\u00e3o medidos: nenhum token_usage no run')
+        if note:
+            row['reason'] += '; ' + note
+    if note:
+        row['ignored'] = ignored
+        if total:
+            row['ignored_reason'] = note
     return row
 
 
@@ -205,7 +222,7 @@ def _breakdown(tally: dict[str, Any], prices: dict[str, Any] | None) -> dict[str
         if rest:
             found.append(_row(None, _merge(groups, rest), prices, None, others=len(rest)))
         out[name] = found
-    out['tokens'] = _tokens_summary(tally['total'], tally['seen'])
+    out['tokens'] = _tokens_summary(tally['total'], tally['seen'], tally['ignored'])
     return out
 
 
@@ -296,16 +313,39 @@ def rows(events: Iterable[dict[str, Any]], prices: dict[str, Any] | None) -> lis
 
 # --- the memoized view of one run -----------------------------------------------------------------------------------------
 _STREAM_FILE = re.compile(r'events\.jsonl(?:\.\d+)?')
+WAIT_TIMEOUT_S = 10.0  # how long a poller waits for a computation of its run before it serves the last view or gives up
+RETRY_AFTER_S = 1
+
+
+class ViewBusy(Exception):
+    '''A computation of this run did not finish within WAIT_TIMEOUT_S and there is no earlier view to serve.'''
+
+    def __init__(self, retry_after: int = RETRY_AFTER_S) -> None:
+        super().__init__('stage-agents view busy; retry after %d s' % retry_after)
+        self.retry_after = retry_after
+
+
+class _Flight:
+    '''One computation. ``began`` (monotonic) is taken before ``stamp``, so every request that arrived before ``began`` is older
+    than the stamp: whatever it could have seen on disk, the stamp, and the events read after it, include. ``live`` marks a view
+    whose input is fully described by the stamp (a live stream, not rebuilt from other files).'''
+    __slots__ = ('began', 'stamp', 'prices', 'done', 'view', 'live', 'finished')
+
+    def __init__(self, prices: str, stamp: Any, began: float) -> None:
+        self.began, self.stamp, self.prices = began, stamp, prices
+        self.done = threading.Event()
+        self.view: dict[str, Any] | None = None
+        self.live = False
+        self.finished = 0.0  # monotonic time the view was ready
 
 
 class _Entry:
-    __slots__ = ('lock', 'stamp', 'prices', 'view')
+    __slots__ = ('mutex', 'last', 'flight')
 
     def __init__(self) -> None:
-        self.lock = threading.Lock()
-        self.stamp: Any = None
-        self.prices: str | None = None
-        self.view: dict[str, Any] | None = None
+        self.mutex = threading.Lock()  # held for bookkeeping only, never while the events are read
+        self.last: _Flight | None = None  # the latest computation that finished with a view
+        self.flight: _Flight | None = None  # the computation in progress
 
 
 _CACHE: OrderedDict[str, _Entry] = OrderedDict()
@@ -325,13 +365,40 @@ def _stamp(run_dir: Any) -> tuple | None:
     return tuple(files) if any(name == 'events.jsonl' for name, *_ in files) else None
 
 
+def _stale(entry: _Entry) -> dict[str, Any]:
+    '''The last good view as a copy flagged ``stale`` with its age in seconds, or ViewBusy when the run has none.'''
+    with entry.mutex:
+        last = entry.last
+    if last is None or last.view is None:
+        raise ViewBusy()
+    return {**last.view, 'stale': True, 'age_s': round(time.monotonic() - last.finished, 3)}
+
+
+def _reusable(flight: _Flight, fingerprint: str, arrived: float, seen: tuple | None) -> bool:
+    '''May a request that arrived at ``arrived`` and then saw the files as ``seen`` take this computation's view?
+
+    Yes when the computation took its stamp after the request arrived (it holds all the request could have seen), or when the
+    stamp is the request's own and describes the whole input (the files did not change since).'''
+    return flight.prices == fingerprint and (flight.began >= arrived or (flight.live and seen is not None and flight.stamp == seen))
+
+
 def run_view(run_dir: Any, prices: dict[str, Any] | None, read: Any = None) -> dict[str, Any]:
     '''view() of a run's events, memoized per run directory while the live event files are unchanged.
 
     The key is the run dir plus the stat of its events files (name, inode, size, mtime, ctime) and the price table, taken before
-    the events are read, so a file that grows during the read is read again on the next poll. Concurrent polls of one run
-    share one computation. A run with no live stream, or one rebuilt from other files (``derived``), is never cached.
-    The cache holds CACHE_MAX runs; the returned dict is shared, so callers must not mutate it.'''
+    the events are read, so a file that grows during the read is read again on the next poll. A run with no live stream, or one
+    rebuilt from other files (``derived``), is never reused by its stamp. The cache holds CACHE_MAX runs; the returned dict is
+    shared, so callers must not mutate it.
+
+    One computation per run runs at a time and the pollers coalesce on it (no lock is held while the events are read). A poller
+    may take a computation's result when the computation took its file stamp after the poller arrived, or when the stamp is the
+    poller's own and the files did not change since; a poller that arrives later, with the files changed since, waits for the
+    computation in flight and then starts or joins a newer one. Freshness is therefore never weaker than "an append finished
+    before the request began is in the reply", while N pollers of a hot run cost two computations, not N.
+
+    A poller waits at most WAIT_TIMEOUT_S for a computation. After that it gets the last good view as a copy with ``stale: true``
+    and ``age_s``, or ViewBusy (the route answers 503 with Retry-After) when the run has none.'''
+    arrived = time.monotonic()
     read = read or dashboard_events.read_events
     key = os.fspath(run_dir)
     with _CACHE_LOCK:
@@ -340,15 +407,40 @@ def run_view(run_dir: Any, prices: dict[str, Any] | None, read: Any = None) -> d
         while len(_CACHE) > CACHE_MAX:
             _CACHE.popitem(last=False)
     fingerprint = json.dumps(prices, sort_keys=True, default=str)
-    with entry.lock:
-        stamp = _stamp(run_dir)
-        if stamp is not None and entry.view is not None and entry.stamp == stamp and entry.prices == fingerprint:
-            return entry.view
+    deadline = arrived + WAIT_TIMEOUT_S
+    while True:
+        seen = _stamp(run_dir)  # this request's own look at the files, after it arrived
+        with entry.mutex:
+            last = entry.last
+            if last is not None and _reusable(last, fingerprint, arrived, seen):
+                return last.view
+            flight = entry.flight
+            if flight is None:
+                began = time.monotonic()
+                flight = entry.flight = _Flight(fingerprint, _stamp(run_dir), began)
+                lead = True
+            else:
+                lead = False
+        if lead:
+            return _compute(entry, flight, run_dir, prices, read)
+        if not flight.done.wait(max(0.0, deadline - time.monotonic())):
+            return _stale(entry)
+        # the computation ended: the next pass takes its view if it is reusable (see _reusable), else leads a newer one
+
+
+def _compute(entry: _Entry, flight: _Flight, run_dir: Any, prices: dict[str, Any] | None, read: Any) -> dict[str, Any]:
+    try:
         events = read(run_dir)
         result = view(events, prices)
-        live = stamp is not None and bool(events) and not events[0].get('derived')
-        entry.stamp, entry.prices, entry.view = (stamp, fingerprint, result) if live else (None, None, None)
+        flight.live = flight.stamp is not None and bool(events) and not events[0].get('derived')
+        flight.view, flight.finished = result, time.monotonic()
+        with entry.mutex:
+            entry.last = flight
         return result
+    finally:
+        with entry.mutex:
+            entry.flight = None
+        flight.done.set()
 
 
 def clear_cache() -> None:
