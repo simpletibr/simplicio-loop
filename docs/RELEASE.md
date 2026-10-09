@@ -119,10 +119,10 @@ The program reads `argv[0]` and starts the matching entry point. The code is in 
 
 - At start, the binary makes the links `~/.simplicio-loop/bin/<key>/<name>` and puts that directory first in
   `PATH`. The loop starts its operators by name, so they find the links.
-- Because that directory is first in `PATH`, the binary checks each level before it uses it. Each level
+- Because that directory is first in `PATH`, the binary inspects each level before it uses it. Each level
   must be a real directory of the current user. Group and others must not write it. The last level must
-  have mode 0700, and the binary removes every file in it that is not one of its links. If a level fails the
-  check, the binary prints the reason and uses a new directory from `mkdtemp`. The binary removes that
+  have mode 0700, and the binary removes every file in it that is not one of its links. If a level breaks one
+  of these rules, the binary prints the reason and uses a new directory from `mkdtemp`. The binary removes that
   directory when it ends.
 - A child that the binary starts as `sys.executable` (for example the dashboard server) gets its own unpacked
   copy of the files and the mark `SIMPLICIO_LOOP_SELF_SPAWN`. Only a process with that mark runs `-m MODULE`,
@@ -141,7 +141,7 @@ The times are wall-clock times, so they scale with the load.
 | Option | Build time | Size | `--version` first run / median of 9 more | Peak memory | Result |
 |--------|-----------|------|-------------------------------------------|-------------|--------|
 | Wheel install (baseline) | 15 s to build the wheel | 5.3 MB wheel, 102 MB with its dependencies | 1.2 s / 1.2 s | 38 MiB | Needs Python on the target |
-| PyInstaller one-file | 173 to 190 s with a new venv and downloads (five builds). PyInstaller alone: 117 to 141 s | 43.5 MB | 2.6 s / 2.8 s | 42 MiB | Chosen. All smoke checks pass |
+| PyInstaller one-file | 173 to 190 s with a new venv and downloads (five builds). PyInstaller alone: 117 to 141 s | 43.5 MB | 2.6 s / 2.8 s | 42 MiB | Chosen. All smoke steps pass |
 | PyInstaller one-dir | 94 s (PyInstaller alone) | 104 MB directory | 1.4 s / 1.5 s (see note) | 45 MiB | Not one file. Faster start |
 | Nuitka 4.2.2 | Not measured | Not measured | Not measured | Not measured | Stopped at the 15-minute limit |
 | zipapp, shiv, pex | Not tried | Not tried | Not tried | Not tried | Not native binaries: they need Python on the target |
@@ -225,7 +225,7 @@ Python packages of each build too, because the SBOM does not list them all (see 
 python3 scripts/build_binary.py --checksums-only dist/binary --version <version>
 python3 scripts/sbom_generate.py generate --artifact dist/binary/simplicio-loop-v<version>-linux-x86_64 \
     --output dist/binary/sbom-linux-x86_64.json
-build/binary/venv/bin/python -m pip freeze > dist/binary/requirements-linux-x86_64.txt
+build/binary/venv/bin/python -m pip freeze --exclude simplicio-loop > dist/binary/requirements-linux-x86_64.txt
 gh release create v<version> --repo simpletibr/simplicio-loop --title "v<version>" --notes-file <notes> \
     dist/binary/simplicio-loop-v<version>-linux-x86_64 dist/binary/simplicio-loop-v<version>-darwin-aarch64 \
     dist/binary/SHA256SUMS      # one path for each asset, never a directory
@@ -236,7 +236,7 @@ Then write `SHA256SUMS` again and upload it with `--clobber`.
 By the contract of issue #1575, the `update` command downloads the asset for its system, compares it with `SHA256SUMS`, and replaces the executable.
 
 The optional `--binary` flag of `scripts/release_rehearsal.py run` runs `scripts/build_binary.py` on the
-rehearsal copy, checks `SHA256SUMS` and `--version`, and writes `sbom-binary.json`. It needs network
+rehearsal copy, reads `SHA256SUMS`, runs `--version`, and writes `sbom-binary.json`. It needs network
 and takes minutes. It is off by default.
 
 ### Limits
@@ -250,7 +250,7 @@ and takes minutes. It is off by default.
   quarantine attribute (`xattr -d com.apple.quarantine <file>`). UNVERIFIED.
 - Windows: no code signature. SmartScreen warns about an unknown publisher, and some antivirus programs flag
   one-file PyInstaller programs. The operator links are hard links or copies, not symbolic links, and the
-  owner and mode checks of the link directory do not run. UNVERIFIED.
+  owner and mode rules of the link directory do not run. UNVERIFIED.
 - The executable cannot run `pip`. The `-m pip` commands of the old `update` and operator bootstrap fail
   in the binary. The binary must update itself by replacing the file.
 - The executable cannot run `python -m pytest` or any module that the build did not bundle.
@@ -260,7 +260,9 @@ and takes minutes. It is off by default.
 - The SBOM lists the Python dependencies of `pyproject.toml`. It does not list the transitive Python packages
   that the executable holds (for example `anyio`, `attrs`, `certifi`, `h11`, `httpcore`, `idna`, `requests`,
   and `urllib3`), and it does not list the native libraries that PyInstaller bundles, such as `libssl` and
-  `libstdc++`. The `pip freeze` file above lists the Python packages. Nothing lists the native libraries.
+  `libstdc++`. The `pip freeze` file above lists the Python packages, but not `simplicio-loop` itself: its line
+  would hold the path of the build machine. The version and the commit of `simplicio-loop` are in the file name
+  of the executable and in `simplicio_mapper/_build_stamp.json`. Nothing lists the native libraries.
 - The module `_sysconfigdata` of the build Python is in the executable. It holds the install prefix of
   that Python. `simplicio_loop/operator_bootstrap.py` calls `sysconfig.get_path`, which reads that module, so it stays.
 - The build downloads the dependencies at build time, and `pyproject.toml` sets only lower limits. Two builds on
