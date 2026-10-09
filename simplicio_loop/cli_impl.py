@@ -75,12 +75,13 @@ from .economy_profile import (
     resolve_prism_batch_size,
 )
 from .auth_cli import configure_commands as configure_auth_commands, dispatch as dispatch_auth
+from .distribution import bundle_root
 from .map_service_cli import configure_commands as configure_map_commands, dispatch as dispatch_map
 from .squads import configure_commands as configure_squads_commands, dispatch as dispatch_squads
 from .serverless_deploy import build_plan as build_serverless_plan, execute_plan as execute_serverless_plan
 from .json_order import stable_first
 
-BUNDLE = Path(__file__).resolve().parent / "_bundle"
+BUNDLE = bundle_root()  # importlib.resources, not a source-tree path: the same call works from a frozen binary
 DASHBOARD = BUNDLE / "hooks" / "simplicio_dashboard.py"
 # Cross-platform temp dir (Windows has no /tmp) — must match hooks/simplicio_dashboard.py.
 PID_FILE = Path(tempfile.gettempdir()) / "simplicio-token-monitor.pid"
@@ -108,8 +109,42 @@ def _copy_tree(src: Path, dst: Path) -> int:
     return count
 
 
+def _resync_hosts(root: Path, apply: bool) -> dict:
+    """Skills and host rules of every host that ALREADY has them (#1480): refresh them, or only list what is stale."""
+    from .host_rules import resync_installed_rules, stale_rules
+    from .skill_sync import resync_installed_skills, stale_skills
+    if apply:  # skills first: the rule sync rewrites the rule ref inside the installed loop skill
+        skills, rules = resync_installed_skills(root), resync_installed_rules(root)
+        return {"skills": skills["synced"], "rules": rules["synced"], "errors": skills["errors"] + rules["errors"],
+                "pending": 0}
+    skills, rules = stale_skills(root), stale_rules(root)
+    return {"skills": sorted({entry["host"] for entry in skills}), "rules": [entry["surface"] for entry in rules],
+            "errors": [], "pending": len(skills) + len(rules)}
+
+
+def _install_lines(result: dict, host: str, head: str, resync: Optional[dict]) -> list:
+    changes = result["changes"]
+    lines = [f"simplicio-loop {__version__} {head}:", f"  host   -> {host}", f"  owned  -> {', '.join(result['owned'])}",
+             f"  changed -> {len(changes['created'])} created, {len(changes['updated'])} updated, "
+             f"{changes['unchanged']} unchanged"]
+    for label in ("created", "updated"):
+        lines += [f"    {label}: {path}" for path in changes[label][:8]]
+        if len(changes[label]) > 8:
+            lines.append(f"    {label}: ... and {len(changes[label]) - 8} more")
+    if changes["left_alone"]:
+        shown = ", ".join(changes["left_alone"][:5])
+        more = len(changes["left_alone"]) - 5
+        lines.append(f"  left alone -> {len(changes['left_alone'])} not owned by Loop: {shown}" + (f" (+{more} more)" if more > 0 else ""))
+    if resync is not None and (resync["skills"] or resync["rules"] or resync["errors"]):
+        verb = "stale" if head.startswith(("check", "dry_run")) else "resynced"
+        lines.append(f"  {verb} -> skills: {', '.join(resync['skills']) or '-'}; rules: {', '.join(resync['rules']) or '-'}")
+        lines += [f"  resync error: {err['host']}: {err['error']}" for err in resync["errors"]]
+    return lines
+
+
 def install(target: Path, globally: bool, host: str = "claude",
-            dry_run: bool = False, uninstall: bool = False, verify: bool = False) -> int:
+            dry_run: bool = False, uninstall: bool = False, verify: bool = False,
+            check: bool = False, as_json: bool = False) -> int:
     from .install.planner import InstallError, apply_plan, plan_install
     from .install.planner import uninstall as remove_owned
     from .install.planner import verify_plan
@@ -129,19 +164,28 @@ def install(target: Path, globally: bool, host: str = "claude",
             verify_plan(plan)
             print(f"simplicio-loop install plan ok host={host} digest={plan['digest']}")
             return 0
-        result = apply_plan(plan, dry_run=dry_run, bundle=BUNDLE)
+        result = apply_plan(plan, dry_run=dry_run or check, bundle=BUNDLE)
     except InstallError as exc:
         print(f"error: {exc}", flush=True)
         return 1
-    status = "installed" if result["status"] == "applied" else result["status"]
-    print(f"simplicio-loop {__version__} {status}:")
-    print(f"  host   -> {host}")
-    print(f"  owned  -> {', '.join(result['owned'])}")
-    print(f"  files  -> {result['written']}")
-    print("")
-    print("Use it in your agent runtime (Claude Code, Cursor, ...):")
-    print("  /simplicio-loop finish all the open issues")
-    return 0
+    resync = _resync_hosts(root, apply=not (dry_run or check)) if globally else None
+    pending = not result["up_to_date"] or bool(resync and resync["pending"])
+    if as_json:
+        print(json.dumps({**result, "host": host, "version": __version__, "resynced": resync},
+                         ensure_ascii=False, sort_keys=True))
+        return 10 if check and pending else 0
+    if check:
+        head = "check: changes pending" if pending else "check: up to date"
+    elif dry_run:
+        head = "dry_run (nothing written)"
+    else:
+        head = "already up to date" if result["up_to_date"] else "installed"
+    print("\n".join(_install_lines(result, host, head, resync)))
+    if not (dry_run or check):
+        print("")
+        print("Use it in your agent runtime (Claude Code, Cursor, ...):")
+        print("  /simplicio-loop finish all the open issues")
+    return 10 if check and pending else 0
 
 
 def _port_up(port: int) -> bool:
@@ -2729,6 +2773,9 @@ def main(argv=None) -> int:
                            help="install into ~/.claude instead of the project")
     p_install.add_argument("--host", default="claude", help="host id or 'all'")
     p_install.add_argument("--dry-run", action="store_true", help="plan only; write nothing")
+    p_install.add_argument("--check", action="store_true",
+                           help="write nothing; exit 0 when the install is up to date, 10 when changes are pending")
+    p_install.add_argument("--json", action="store_true", help="emit one machine-readable JSON document")
     p_install.add_argument("--verify", action="store_true", help="validate plan version/digest")
     p_install.add_argument("--uninstall", action="store_true", help="remove Loop-owned files only")
 
@@ -3492,6 +3539,8 @@ def main(argv=None) -> int:
         getattr(args, "dry_run", False),
         getattr(args, "uninstall", False),
         getattr(args, "verify", False),
+        getattr(args, "check", False),
+        getattr(args, "json", False),
     )
 
 

@@ -10,9 +10,9 @@ import hashlib
 import json
 import shutil
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterator, Mapping
 
-from .. import __version__
+from .. import __version__, distribution
 
 SCHEMA = "simplicio.loop-install-plan/v1"
 OWNERSHIP_SCHEMA = "simplicio.loop-install-ownership/v1"
@@ -39,8 +39,34 @@ def _digest(value: Any) -> str:
     return "sha256:" + hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
-def _bundle_root() -> Path:
-    return Path(__file__).resolve().parents[1] / "_bundle"
+def _bundle_root():
+    return distribution.bundle_root()  # importlib.resources: the same call works from a wheel, a checkout and a binary
+
+
+def _files(node, prefix: tuple = ()) -> Iterator[tuple]:
+    """(path parts, Traversable) of every file under `node`, sorted; compiled caches are never shipped."""
+    for child in sorted(node.iterdir(), key=lambda item: item.name):
+        if child.name == "__pycache__" or child.name.endswith(".pyc"):
+            continue
+        if child.is_dir():
+            yield from _files(child, prefix + (child.name,))
+        else:
+            yield prefix + (child.name,), child
+
+
+def _put(path: Path, data: bytes, source, changes: dict, root: Path, dry_run: bool) -> None:
+    """Classify one file (created, updated or unchanged) and write it only when it differs."""
+    rel = path.relative_to(root).as_posix()
+    if path.is_file() and path.read_bytes() == data:
+        changes["unchanged"] += 1
+        return
+    changes["updated" if path.is_file() else "created"].append(rel)
+    if dry_run:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+    if isinstance(source, Path):  # keep the executable bit of a hook
+        shutil.copymode(source, path)
 
 
 def plan_install(
@@ -83,41 +109,40 @@ def apply_plan(
     plan: Mapping[str, Any],
     *,
     dry_run: bool = False,
-    bundle: str | Path | None = None,
+    bundle: Any = None,  # a path, or any importlib.resources Traversable; None = the bundle of this package
 ) -> dict[str, Any]:
+    """Copy the bundled skills and hooks into the plan's target. Idempotent: a file that is already identical is not
+    rewritten. `changes` says what was created, what was updated, how many were unchanged and what was left alone
+    (files in the target that Loop does not own, and entry files that already exist).
+    """
     root = Path(plan["target"])
     owned: list[str] = []
-    written = 0
-    source = Path(bundle) if bundle else _bundle_root()
-    skills_src = source / "skills"
-    hooks_src = source / "hooks"
+    changes: dict[str, Any] = {"created": [], "updated": [], "unchanged": 0, "left_alone": []}
+    source = Path(bundle) if isinstance(bundle, str) else bundle if bundle is not None else _bundle_root()
+    skills_src = source.joinpath("skills")
+    hooks_src = source.joinpath("hooks")
     if not skills_src.is_dir():
         raise InstallError("bundled skills not found in the installed package.")
     for action in plan.get("actions") or []:
         dest = root / action["destination"]
         kind = action["kind"]
         src = skills_src if kind == "skills" else hooks_src if kind == "hooks" else None
-        if src is None:
-            if not dry_run:
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                if not dest.exists():
-                    dest.write_text(
-                        f"# simplicio-loop {plan['version']} ({action['host']})\n"
-                        "Load `.claude/skills/simplicio-loop/SKILL.md`.\n",
-                        encoding="utf-8",
-                    )
-                    written += 1
-            owned.append(action["destination"])
-            continue
-        if not dry_run:
-            dest.mkdir(parents=True, exist_ok=True)
-            for item in src.rglob("*"):
-                if item.is_file():
-                    out = dest / item.relative_to(src)
-                    out.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(item, out)
-                    written += 1
         owned.append(action["destination"])
+        if src is None:  # an entry file (AGENTS.md ...): written once, never overwritten
+            if dest.exists():
+                changes["left_alone"].append(dest.relative_to(root).as_posix())
+            else:
+                body = (f"# simplicio-loop {plan['version']} ({action['host']})\n"
+                        "Load `.claude/skills/simplicio-loop/SKILL.md`.\n")
+                _put(dest, body.encode("utf-8"), None, changes, root, dry_run)
+            continue
+        top = set()
+        for parts, node in _files(src):
+            top.add(parts[0])
+            _put(dest.joinpath(*parts), node.read_bytes(), node, changes, root, dry_run)
+        if dest.is_dir():
+            changes["left_alone"] += [child.relative_to(root).as_posix() for child in sorted(dest.iterdir())
+                                      if child.name not in top and child.name != "__pycache__"]
     ownership = {
         "schema": OWNERSHIP_SCHEMA,
         "owner": "simplicio-loop",
@@ -126,13 +151,15 @@ def apply_plan(
         "paths": owned,
     }
     marker = root / ".simplicio-loop" / "install-ownership.json"
-    if not dry_run:
-        marker.parent.mkdir(parents=True, exist_ok=True)
-        marker.write_text(json.dumps(ownership, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    body = (json.dumps(ownership, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    _put(marker, body, None, changes, root, dry_run)
+    pending = len(changes["created"]) + len(changes["updated"])
     return {
         "schema": SCHEMA,
         "status": "dry_run" if dry_run else "applied",
-        "written": 0 if dry_run else written,
+        "written": 0 if dry_run else pending,
+        "up_to_date": pending == 0,
+        "changes": changes,
         "owned": owned,
         "ownership": ownership,
         "digest": plan["digest"],
