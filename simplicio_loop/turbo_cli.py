@@ -97,28 +97,32 @@ def _emit(document: dict[str, Any]) -> None:
 VERIFY_TIMEOUT_S = 900
 
 
-async def _run_verify(root: Path, command: str) -> tuple[dict[str, Any], str]:
+async def _run_verify(root: Path, command: str, run_: TurboRun) -> tuple[dict[str, Any], str]:
     """Run the verify command in the repo. Returns the report and the full output.
 
     The shell runs in its own process group under ``asyncio.wait_for``: the event loop stays free while it
-    runs, and on timeout the whole group (the shell and what it started) is killed.
+    runs, and on timeout the whole group (the shell and what it started) is killed. The run's dashboard events
+    bracket the command (``command_started`` / ``command_finished``) so the panel can show it while it runs.
     """
     from .exec_planner import _kill_process_tree
 
     sh_bin = shutil.which("sh") or "/bin/sh"
-    proc = await asyncio.create_subprocess_exec(
-        sh_bin, "-c", command, cwd=root, stdin=asyncio.subprocess.DEVNULL,
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, start_new_session=True,
-    )
-    try:
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=VERIFY_TIMEOUT_S)
-    except asyncio.TimeoutError:
-        await _kill_process_tree(proc)
-        return {"command": command, "passed": False, "returncode": None,
-                "output_tail": f"verify timed out after {VERIFY_TIMEOUT_S:g}s"}, ""
-    except BaseException:
-        await _kill_process_tree(proc)
-        raise
+    with run_.command(command) as span:
+        proc = await asyncio.create_subprocess_exec(
+            sh_bin, "-c", command, cwd=root, stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, start_new_session=True,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=VERIFY_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            await _kill_process_tree(proc)
+            span.reason = "timeout"
+            return {"command": command, "passed": False, "returncode": None,
+                    "output_tail": f"verify timed out after {VERIFY_TIMEOUT_S:g}s"}, ""
+        except BaseException:
+            await _kill_process_tree(proc)
+            raise
+        span.exit_code = proc.returncode
     output = (stdout.decode("utf-8", errors="replace") + stderr.decode("utf-8", errors="replace")).strip()
     return {"command": command, "passed": proc.returncode == 0, "returncode": proc.returncode,
             "output_tail": output[-1500:]}, output
@@ -319,7 +323,7 @@ async def _apply_plan_async(repo: str, plan: str, verify: str | None, run_id: st
     }
     if verify and result["applied"]:
         run_.enter("verify")
-        document["verify"], _output = await _run_verify(root, verify)
+        document["verify"], _output = await _run_verify(root, verify, run_)
         if not document["verify"]["passed"]:
             document["status"] = "failed"
     document["wall_s"] = round(time.time() - started, 2)
@@ -400,7 +404,7 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
         document["reason_code"] = NO_RECEIPT
     if verify and result["applied_all"]:
         run_.enter("verify")
-        document["verify"], output = await _run_verify(root, verify)
+        document["verify"], output = await _run_verify(root, verify, run_)
         if not document["verify"]["passed"]:
             # One repair call with the test output, then the tests run again.
             repair = await repair_with_test_output(root, tasks, complete, output)
@@ -408,7 +412,7 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
             receipts.extend(run_.persist_receipts(repair["commands"]))
             retry = {"attempted": True, "applied": repair["applied"], "reason": repair["reason"], "passed": False}
             if repair["applied"]:
-                document["verify"], _output = await _run_verify(root, verify)
+                document["verify"], _output = await _run_verify(root, verify, run_)
                 retry["passed"] = document["verify"]["passed"]
             document["verify_retry"] = retry
             if not retry["passed"]:
