@@ -37,9 +37,9 @@ def _schema_error(doc: Any) -> str | None:
 
 def _bad_path(path: str) -> bool:
     """True unless ``path`` is a clean POSIX path relative to the repository and outside ``.simplicio/``."""
-    if "\x00" in path or "\\" in path or path.startswith("/") or re.match(r"[A-Za-z]:", path):
+    if "\x00" in path or "\\" in path or re.match(r"[A-Za-z]:", path):
         return True
-    parts = path.split("/")
+    parts = path.split("/")  # an absolute path or a double slash gives an empty part
     if any(part in ("", ".", "..") for part in parts):
         return True
     return parts[0].casefold() == ".simplicio"
