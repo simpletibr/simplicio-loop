@@ -2668,6 +2668,31 @@ def _prose_as_turbo(argv: Sequence[str]) -> list[str]:
     return ["turbo", "--repo", ".", "--task", " ".join(words), *argv[len(words):]]
 
 
+_WATCH247_QUIET = ("The GitHub token is never an argument: pipe it to --github-token-stdin (with --email), "
+                   "or run `watch247 setup` in a terminal for a hidden prompt. See --help.")
+
+
+class _Parser(argparse.ArgumentParser):
+    """``ArgumentParser`` whose ``quiet`` instances never repeat what the user typed.
+
+    argparse puts the offending value into its own errors (``ignored explicit argument 'ghp_...'``, ``invalid
+    choice: 'ghp_...'``, ``unrecognized arguments: ...``, ``ambiguous option: --x=ghp_... could match``). For a command
+    that is asked for a secret, a slip of the keys would print that secret in the user's terminal. A quiet parser prints
+    its usage and a fixed message. The parent reports the arguments a subcommand left unrecognized, so it is quiet too
+    whenever the command line names that subcommand.
+    """
+
+    def __init__(self, *args: Any, quiet: str = "", **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._quiet = quiet
+
+    def error(self, message: str):  # type: ignore[override]
+        if not self._quiet:
+            super().error(message)
+        self.print_usage(sys.stderr)
+        self.exit(2, f"{self.prog}: error: invalid arguments; what you typed is not repeated. {self._quiet}\n")
+
+
 def main(argv=None) -> int:
     argv_list = list(argv) if argv is not None else list(sys.argv[1:])
     if argv_list[:1] == ["hub-drain-plan"]:
@@ -2682,19 +2707,20 @@ def main(argv=None) -> int:
         return intake_main(argv_list[1:])
     if argv_list[:1] == ["run"]:
         return _redirect_run_to_wave(argv_list[1:])
-    parser = argparse.ArgumentParser(
+    parser = _Parser(
         prog="simplicio-loop",
         description=(
             "Install the simplicio-loop super-plugin, open the Token Monitor dashboard, "
             "or compile task markdown into a canonical task contract."
         ),
+        quiet=_WATCH247_QUIET if "watch247" in argv_list else "",  # a flag typed before the subcommand is echoed by this parser
     )
     parser.add_argument("-V", "--version", action="version", version=f"simplicio-loop {__version__}")
     # Bare `simplicio-loop` (no subcommand at all) falls through to `install` below with these
     # defaults — mirror p_install's own defaults here so that fallback doesn't crash with
     # AttributeError when no subparser ever ran to populate args.target/args.globally.
     parser.set_defaults(target=".", globally=False)
-    sub = parser.add_subparsers(dest="command")
+    sub = parser.add_subparsers(dest="command", parser_class=_Parser)
 
     p_install = sub.add_parser("install", help="install bundled skills + hooks into a runtime")
     p_install.add_argument("--target", default=".", help="project directory to install into")
@@ -3002,7 +3028,9 @@ def main(argv=None) -> int:
     p_verify.add_argument("--repo", default=".", help="repository root")
     p_verify.add_argument("run_id", help="run id to verify")
 
-    p_watch247 = sub.add_parser("watch247", help="run the 24/7 watcher for simplicio-* repos")
+    p_watch247 = sub.add_parser(
+        "watch247", help="run the 24/7 watcher for simplicio-* repos", allow_abbrev=False,
+        quiet=_WATCH247_QUIET)
     p_watch247.add_argument("action", nargs="?", choices=["login-check", "setup"],
                             help="login-check: exec CLI logins (#1467); setup: first-run credentials")
     p_watch247.add_argument("--email", help="setup: the Simplicio account e-mail")
@@ -3010,7 +3038,6 @@ def main(argv=None) -> int:
                             help="setup: read the GitHub token from stdin (never an argument: argv shows in ps)")
     p_watch247.add_argument("--check", action="store_true",
                             help="setup: only check the Simplicio account step (after the login); no token is asked")
-    p_watch247.add_argument("--github-token", help=argparse.SUPPRESS)  # refused by setup, so the value is never echoed
     p_watch247.add_argument("--once", action="store_true", help="run one tick and exit")
     p_watch247.add_argument("--dry-run", action="store_true", help="simulate without mutations")
     p_watch247.add_argument("--state-dir", help="override state directory")
@@ -3365,7 +3392,7 @@ def main(argv=None) -> int:
     if command == "watch247" and args.action == "setup":
         from .watcher247.onboarding import main as setup_main
         return setup_main(email=args.email, token_stdin=args.github_token_stdin,
-                          github_token=args.github_token, state_dir=args.state_dir, check_only=args.check)
+                          state_dir=args.state_dir, check_only=args.check)
     if command == "watch247":
         import asyncio
         from .watcher247 import config as watcher247_config

@@ -31,7 +31,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from . import command_events, quality_events
+from . import command_events, plan_paths, quality_events
 from .effort import next_effort_for_status
 from .runner import _repo_fingerprint, _repo_state_equivalent
 from .survey import MISSING_HINT as SURVEY_MISSING_HINT
@@ -81,6 +81,8 @@ def _normalize_tasks(ops: Mapping[str, Any]) -> list[dict[str, Any]]:
         for op in operations:
             if not isinstance(op, Mapping) or not all(k in op for k in ("path", "find", "replace")):
                 raise ApplyValidationError(f"task {task_id!r} has a malformed operation")
+            if reason := plan_paths.refusal(str(op["path"])):
+                raise ApplyValidationError(f"task {task_id!r}: {reason}")
             normalized_ops.append({"path": str(op["path"]), "find": str(op["find"]), "replace": str(op["replace"])})
         out.append({
             "id": task_id,
