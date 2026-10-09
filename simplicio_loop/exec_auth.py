@@ -75,6 +75,7 @@ _STATUS_ARGS = {
 }
 _COUNT_FAMILIES = frozenset({"opencode"})  # exit code alone is not the answer; stdout is reduced to a count
 _CREDENTIAL_COUNT = re.compile(r"^\W*(\d+) credentials?\s*$", re.MULTILINE)
+_STATUS_TIMEOUT = 5.0  # seconds; a hung status command fails closed
 
 
 async def check(family: ExecFamily) -> AuthCheckResult:
@@ -149,7 +150,7 @@ async def _run_status_check(family: ExecFamily, binary: str) -> bool:
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
-        returncode = await asyncio.wait_for(proc.wait(), timeout=5.0)
+        returncode = await asyncio.wait_for(proc.wait(), timeout=_STATUS_TIMEOUT)
         return returncode == 0
     except (FileNotFoundError, asyncio.TimeoutError, OSError):
         if proc is not None and proc.returncode is None:
@@ -169,10 +170,11 @@ async def _run_count_check(binary: str, args: list[str]) -> bool:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
         )
-        out, _ = await asyncio.wait_for(proc.communicate(), timeout=5.0)
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout=_STATUS_TIMEOUT)
     except (FileNotFoundError, asyncio.TimeoutError, OSError):
         if proc is not None and proc.returncode is None:
             proc.kill()
+            await proc.wait()  # reap the killed child
         return False
     if proc.returncode != 0:
         return False

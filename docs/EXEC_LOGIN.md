@@ -208,8 +208,8 @@ print(result)  # "ok" ou "login_missing:claude" ou "cli_missing:claude"
 ## Nenhum Segredo em Logs
 
 A verificação **nunca**:
-- Imprime ou captura stdout/stderr dos comandos de auth
-- Lê o conteúdo dos arquivos de credenciais (apenas verifica existência)
+- Imprime ou registra stdout/stderr dos comandos de auth (stderr nunca é capturado; só o `opencode auth list` tem o stdout lido em memória, reduzido ao número `N credentials` e descartado)
+- Lê o conteúdo dos arquivos de credenciais (só `stat`: precisa ser arquivo regular e **não vazio**; um arquivo de 0 bytes ou um diretório não conta como login para nenhuma família, claude/codex/grok/gemini/agy)
 - Armazena tokens em logs ou comentários
 - Expõe variáveis de ambiente
 

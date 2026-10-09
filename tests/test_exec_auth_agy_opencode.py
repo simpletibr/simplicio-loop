@@ -158,3 +158,51 @@ def test_credential_files_are_never_opened(env, monkeypatch):
     for name in ("open", "read_text", "read_bytes"):
         monkeypatch.setattr(exec_auth.Path, name, forbidden)
     assert run("agy").status == "ok"
+
+
+# ---- timeout: a hung `opencode auth list` fails closed and the child is killed ----
+
+def test_opencode_hang_times_out_fails_closed_and_kills_child(env, monkeypatch):
+    import os
+    import shutil
+    import time
+
+    home, bindir = env
+    pidfile = home / "pid"
+    monkeypatch.setattr(exec_auth, "_STATUS_TIMEOUT", 0.3)
+    sleep = shutil.which("sleep", path=os.defpath + ":/usr/bin:/bin")  # PATH is only the fake bin dir in this fixture
+    assert sleep
+    fake_cli(bindir, "opencode", f"echo $$ > {pidfile}; exec {sleep} 8")
+    started = time.monotonic()
+    result = run("opencode")
+    assert time.monotonic() - started < 4
+    assert result.status == "login_missing"
+    assert pidfile.exists()  # the fake CLI really started and hung
+    with pytest.raises(ProcessLookupError):
+        os.kill(int(pidfile.read_text()), 0)
+
+
+# ---- behaviour change: an empty (or non-regular) credential file is not a login, for every family ----
+
+@pytest.mark.parametrize(
+    "family,rel",
+    [
+        ("claude", ".config/claude/auth.json"),
+        ("codex", ".config/codex/auth.json"),
+        ("grok", ".grok/auth.json"),
+        ("gemini", ".gemini/credentials"),
+    ],
+)
+def test_empty_or_directory_credential_file_is_not_logged_in(env, family, rel):
+    home, bindir = env
+    fake_cli(bindir, family, "exit 1")  # status command (if any) fails, so only the file can say ok
+    cred = home / rel
+    cred.parent.mkdir(parents=True)
+    cred.write_text("")
+    assert run(family).status == "login_missing"
+    cred.unlink()
+    cred.mkdir()
+    assert run(family).status == "login_missing"
+    cred.rmdir()
+    cred.write_text("{}")
+    assert run(family).status == "ok"
