@@ -103,21 +103,24 @@ def runtime_never_targets_the_real_repo(monkeypatch):
     roots = _protected_checkout_roots()
     violations: list[str] = []
 
-    def inside(value) -> bool:
+    def inside(value, base) -> bool:
         try:
-            resolved = os.path.realpath(os.fspath(value))
+            raw = os.fspath(value)
+            if not os.path.isabs(raw):
+                raw = os.path.join(base, raw)  # a relative path means "relative to the CHILD's cwd"
+            resolved = os.path.realpath(raw)
         except (TypeError, ValueError):
             return False
         return any(resolved == root or resolved.startswith(root + os.sep) for root in roots)
 
-    def target_of(argv, cwd):
+    def target_of(argv):
         """The repository a Runtime call acts on: its ``--repo`` value, else the cwd and path arguments."""
         for index, item in enumerate(argv):
             if item == "--repo" and index + 1 < len(argv):
                 return [argv[index + 1]]
             if item.startswith("--repo="):
                 return [item.split("=", 1)[1]]
-        return [cwd or os.getcwd(), *[item for item in argv[1:] if os.sep in item]]
+        return [".", *[item for item in argv[1:] if os.sep in item]]
 
     def vet(argv, cwd) -> None:
         if isinstance(argv, (str, bytes, os.PathLike)):
@@ -127,7 +130,8 @@ def runtime_never_targets_the_real_repo(monkeypatch):
             return
         if len(argv) < 2 or argv[1] not in MAPPING_SUBCOMMANDS:
             return  # hbp/gate/checkpoint/... never build a baseline map
-        if any(inside(target) for target in target_of(argv, cwd)):
+        base = os.path.realpath(os.fspath(cwd) if cwd else os.getcwd())
+        if any(inside(target, base) for target in target_of(argv)):
             violations.append(" ".join(argv))
             raise AssertionError(
                 "a test ran the Simplicio Runtime against the real repository "

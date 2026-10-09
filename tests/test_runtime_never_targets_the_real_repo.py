@@ -106,3 +106,21 @@ def _simplicio_state(root: Path) -> set[str]:
         capture_output=True, text=True, check=True,
     ).stdout.strip()) / "simplicio" / "map"
     return {entry.name for entry in common.iterdir()} if common.is_dir() else set()
+
+
+def test_a_relative_argument_is_resolved_against_the_childs_cwd_not_pytests(tmp_path):
+    """`--task "see docs/x.md"` with cwd in a temp repo is fine even though pytest runs inside ROOT."""
+    runtime = _fake_runtime(tmp_path / "bin")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    result = subprocess.run(
+        [str(runtime), "plan", "--task", "see docs/x.md", "--repo", "."], cwd=str(repo), capture_output=True, text=True,
+    )
+    assert result.returncode == 0
+
+
+def test_a_relative_repo_that_resolves_into_this_checkout_is_still_refused(tmp_path, runtime_never_targets_the_real_repo):
+    runtime = _fake_runtime(tmp_path / "bin")
+    with pytest.raises(AssertionError, match="real repository"):
+        subprocess.run([str(runtime), "map", "--repo", "tests"], cwd=str(ROOT), check=False)
+    runtime_never_targets_the_real_repo.clear()
