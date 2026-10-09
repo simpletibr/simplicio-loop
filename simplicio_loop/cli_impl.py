@@ -75,6 +75,7 @@ from .economy_profile import (
     resolve_prism_batch_size,
 )
 from .auth_cli import configure_commands as configure_auth_commands, dispatch as dispatch_auth
+from . import setup_cli
 from .distribution import bundle_root
 from .map_service_cli import configure_commands as configure_map_commands, dispatch as dispatch_map
 from .squads import configure_commands as configure_squads_commands, dispatch as dispatch_squads
@@ -185,6 +186,7 @@ def install(target: Path, globally: bool, host: str = "claude",
         print("")
         print("Use it in your agent runtime (Claude Code, Cursor, ...):")
         print("  /simplicio-loop finish all the open issues")
+        setup_cli.after_install()
     return 10 if check and pending else 0
 
 
@@ -2772,7 +2774,7 @@ def main(argv=None) -> int:
             "Install the simplicio-loop super-plugin, open the Token Monitor dashboard, "
             "or compile task markdown into a canonical task contract."
         ),
-        quiet=_WATCH247_QUIET if "watch247" in argv_list else "",  # a flag typed before the subcommand is echoed by this parser
+        quiet=_WATCH247_QUIET if "watch247" in argv_list else setup_cli.QUIET if "setup" in argv_list else "",  # a flag typed before the subcommand is echoed by this parser
     )
     parser.add_argument("-V", "--version", action="version", version=f"simplicio-loop {__version__}")
     # Bare `simplicio-loop` (no subcommand at all) falls through to `install` below with these
@@ -2841,6 +2843,7 @@ def main(argv=None) -> int:
                           help="reinstall even when already on the latest release; allows a downgrade")
 
     configure_auth_commands(sub)  # login, logout, auth status: one login shared with the Simplicio Runtime
+    setup_cli.configure(sub)  # setup: prerequisites, agent CLIs and the GitHub login, after install
 
     p_dashboard = sub.add_parser("dashboard", help="open the Simplicio Live panel; --tokens opens the Token Monitor")
     from .dashboard import cli as dashboard_cli
@@ -3368,6 +3371,8 @@ def main(argv=None) -> int:
         return run_update(check=args.check, force=args.force, dry_run=args.dry_run, record=write_check)
     if command in {"login", "logout", "auth"}:
         return dispatch_auth(args)
+    if command == "setup":
+        return setup_cli.main(args)
     if command == "dashboard":
         from .dashboard import cli as dashboard_cli
         return dashboard_cli.run(args)

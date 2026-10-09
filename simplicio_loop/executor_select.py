@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 
-from . import exec_planner
+from . import exec_planner, setup_cli
 
 MODES = ("host", "exec", "openrouter")
 DEFAULT_MODE = "exec"
@@ -48,9 +48,16 @@ def select_mode(env=None):
 
 
 def exec_families(env=None):
-    """The exec family order from SIMPLICIO_EXEC_FAMILIES, or the planner defaults when it is unset."""
+    """The exec family order from SIMPLICIO_EXEC_FAMILIES, or the planner defaults when it is unset.
+
+    The defaults put first the family of the default host that `simplicio-loop setup` chose, when it has one."""
     raw = _env(env).get("SIMPLICIO_EXEC_FAMILIES", "")
-    families = [f.strip() for f in raw.split(",") if f.strip()] or list(exec_planner.DEFAULT_FAMILIES)
+    families = [f.strip() for f in raw.split(",") if f.strip()]
+    if not families:
+        first = setup_cli.default_family(_env(env))
+        families = list(exec_planner.DEFAULT_FAMILIES)
+        if first in exec_planner.SUPPORTED_FAMILIES:
+            families = [first, *(f for f in families if f != first)]
     for family in families:
         if family == "openrouter":
             raise ExecutorSelectError("openrouter is an executor mode (SIMPLICIO_EXECUTOR), not an exec family")
