@@ -9,7 +9,11 @@ from __future__ import annotations
 import json
 import os
 import re
+import stat
+import threading
+import time
 import urllib.parse
+from collections import OrderedDict
 from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,25 +32,37 @@ _BEARER_RE = re.compile(r'(?i)Bearer +[A-Za-z0-9._~+/=-]{1,512}')
 _PRIVATE_KEY_RE = re.compile(r'(?s)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?(?:-----END [A-Z0-9 ]*PRIVATE KEY-----|\Z)')
 _OPENAI_STYLE_RE = re.compile(r'\bsk-[A-Za-z0-9_-]{16,}')
 _GITHUB_PAT_RE = re.compile(r'\bgithub_pat_[A-Za-z0-9_]{20,}')
-_PAIR_RE = re.compile(r'(?i)\b([A-Za-z0-9_-]{0,64}(?:passw(?:or)?d|passwd|pwd|secret|token|api[_-]?key|access[_-]?key)'
-                      r'[A-Za-z0-9_-]{0,64})(["\']?\s*[:=]\s*["\']?)([^\s"\',;&]{4,})')
+# keyword, up to 64 more key characters, separator, value. The text before the keyword stays outside the match (the old
+# 64-character prefix was retried at every word start) and the suffix is possessive: nothing in it can be given back.
+_PAIR_RE = re.compile(
+    r'(?i)((?:passw(?:or)?d|passwd|pwd|secret|token|api[_-]?key|access[_-]?key)'
+    r'[A-Za-z0-9_-]{0,64}+)(["\']?\s*[:=]\s*["\']?)([^\s"\',;&]{4,})')
 _EMAIL_RE = re.compile(r'[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:[.][A-Za-z0-9-]{1,63}){1,8}')
 COMMAND_SCAN_MAX = 4096
 _Q = r'(?:"[^"]*"|\'[^\']*\'|\S+)'
 _URL_USERINFO_RE = re.compile(r'(?i)\b([a-z][a-z0-9+.-]{0,15}://)[^\s/?#@]*@')
 _HEADER_RE = re.compile(r'(?i)\b((?:proxy-)?authorization|(?:set-)?cookie)(\s{0,8}[:=]\s{0,8})[^\'"\n]+')
 _SECRET_FLAG_RE = re.compile(
-    r'(?i)(--?(?:pass(?:word|wd|phrase)?|pwd|token|secret|api[-_]?key|access[-_]?key|auth(?:orization)?|pat)\s+)' + _Q)
+    r'(?i)(--?(?:pass(?:word|wd|phrase)?|pwd|token(?:[-_]code)?|secret|api[-_]?key|access[-_]?key|auth(?:orization)?|pat)\s+)'
+    r'(?!--)' + _Q)  # a value never starts a flag: the "-token" of `print-identity-token --access-token X` swallowed it
 _USER_ARG_RE = re.compile(  # user:pass of curl; a numeric uid:gid (docker -u 1000:1000) is not one
     r'(?<![\w-])(-u\s+|--(?:proxy-)?user[\s=]+)(?!\d+:\d*(?:\s|\Z))'
     r'(?:"[^"\s:]+:[^"]*"|\'[^\'\s:]+:[^\']*\'|[^\s:\'"]+:\S+)')
 _COOKIE_ARG_RE = re.compile(r'(?<![\w-])(-b\s+|--cookie[\s=]+)(?:"[^"]*=[^"]*"|\'[^\']*=[^\']*\'|\S*=\S*)')
 _SHORT_PASS_RE = re.compile(  # -p is a password only for these programs (it is a port, a path or a plugin for most others)
-    r'((?i:\b(?:mysql\w*|sshpass|twine|mongo\w*|(?:docker|podman)\s+login)\b)[^;&|\n]{0,200}?\s-p\s*)(?:"[^"]*"|\'[^\']*\'|[^\s-]\S*)')
+    r'((?i:\b(?:mysql\w*|sshpass|twine|mongo\w*|(?:docker|podman|az)\s+login)\b)[^;&|\n]{0,200}?\s-p\s*)(?:"[^"]*"|\'[^\']*\'|[^\s-]\S*)')
+_PROGRAM_PASS_RE = re.compile(  # the password flag of programs where it is not -p: redis-cli -a, sqlcmd -P
+    r'((?i:\bredis-cli\b)[^;&|\n]{0,200}?\s-a\s*|(?i:\bsqlcmd\b)[^;&|\n]{0,200}?\s-P\s*)(?:"[^"]*"|\'[^\']*\'|[^\s-]\S*)')
+_SMB_USER_RE = re.compile(  # smbclient -U user%password
+    r'((?i:\b(?:smbclient|rpcclient)\b)[^;&|\n]{0,200}?\s(?:-U\s*|--user[=\s]\s*)[^\s%]{1,64}%)\S+')
+# vault login TOKEN: the token is the argument without an =, the method arguments (username=me) hold one
+_VAULT_LOGIN_RE = re.compile(r'(\bvault\s+login\s+(?:-\S+\s+){0,8})[^\s=-][^\s=]*(?=\s|\Z)')
+# header.payload.signature, whatever the signature's length (the long-token rule needs 32 characters)
+_JWT_RE = re.compile(r'(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{4,4096}+\.[A-Za-z0-9_-]{4,4096}+\.[A-Za-z0-9_-]{0,4096}+')
 _LONG_TOKEN_RE = re.compile(  # a base64/random blob: 32+ characters mixing upper case, lower case and digits
     r'(?<![A-Za-z0-9+/_-])(?=[A-Za-z0-9+/_-]*[A-Z])(?=[A-Za-z0-9+/_-]*[a-z])(?=[A-Za-z0-9+/_-]*\d)[A-Za-z0-9+/_-]{32,}')
 _TOKEN_PREFIX_RE = re.compile(  # tokens with a well-known prefix, whatever their length or alphabet
-    r'\b(?:xox[abeprs]-|npm_|glpat-|pypi-|hf_|sk_(?:live|test)_|rk_live_|AIza|ya29[.])[A-Za-z0-9_.-]{10,}')
+    r'\b(?:xox[abeprs]-|npm_|glpat-|pypi-|hf_|sk_(?:live|test)_|rk_live_|AIza|ya29[.]|hv[sbr][.])[A-Za-z0-9_.-]{10,}')
 _CUT_WORD_RE = re.compile(r'\s\S*\Z')
 _SENSITIVE_KEY_RE = re.compile(r'(?i)secret|passw|api[_-]?key|authoriz|cookie|credential|private[_-]?key|token')
 
@@ -181,16 +197,133 @@ def _last_seq(run_dir: Path) -> int:
     return last
 
 
+# --- the memoized summary of one run (#1569) -------------------------------------------------------------------------------
+# The files a summary is made of, relative to the run directory. A change in any of them changes the stamp.
+SUMMARY_INPUTS = ('state.json', 'events.jsonl', 'completion-receipt.json', 'execution-route.json',
+                  'evidence-receipt.json', 'loop/watcher_state.json')
+# Memory bound: at most SUMMARY_CACHE_MAX runs and SUMMARY_BYTES_MAX bytes of JSON in all (a summary is about 10 KB; a state.json
+# of 850 KB is copied into it almost whole), and the least recently used run leaves first. A listing of more runs than the memo
+# holds gets no hit, because the scan is in order. A summary larger than the whole budget is never remembered.
+SUMMARY_CACHE_MAX = 4096
+SUMMARY_BYTES_MAX = 64 * 1024 * 1024
+# A file touched less than this long before the stamp was taken could still be rewritten inside the same timestamp tick with the
+# same size, so the stamp cannot tell the rewrite apart: such a run is recomputed, not remembered. Disks that stamp whole seconds
+# (ext3, HFS+, FAT at two seconds) get the coarse window.
+RACY_NS = 100_000_000
+RACY_COARSE_NS = 2_000_000_000
+_NS = 1_000_000_000
+_lstat = os.lstat
+_now_ns = time.time_ns
+
+
+class _Memo:
+    __slots__ = ('lock', 'stamp', 'blob')
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()  # one computation per run at a time: the pollers of a changed run wait for it, then reuse it
+        self.stamp: tuple | None = None
+        self.blob: str | None = None  # the summary as JSON, so no caller ever holds the memoized object
+
+
+_SUMMARIES: OrderedDict[str, _Memo] = OrderedDict()
+_SUMMARIES_BYTES = 0  # the length of the blobs of the memos in _SUMMARIES; both are guarded by _SUMMARIES_LOCK
+_SUMMARIES_LOCK = threading.Lock()
+
+
+def _stamp(run_dir: str, fallback_repo: str, began: int) -> tuple[tuple, bool]:
+    '''(stamp, settled) of the files a summary reads: inode, size, mtime and ctime of each (None when absent).
+
+    ``settled`` is False when any file changed less than the racy window before ``began`` (the clock read before the stat), or
+    when any of them is a symlink: build_progress follows a link to a receipt, and the stat of the link cannot see its target
+    change. The ctime cannot be set from user space, so a rewrite that restores size and mtime still changes the stamp.'''
+    files: list[tuple | None] = []
+    settled = True
+    for name in SUMMARY_INPUTS:
+        try:
+            st = _lstat(run_dir + '/' + name)
+        except OSError:
+            files.append(None)
+            continue
+        files.append((st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns))
+        if stat.S_ISLNK(st.st_mode):
+            settled = False
+        coarse = st.st_mtime_ns % _NS == 0 and st.st_ctime_ns % _NS == 0
+        if max(st.st_mtime_ns, st.st_ctime_ns) > began - (RACY_COARSE_NS if coarse else RACY_NS):
+            settled = False
+    return (fallback_repo, tuple(files)), settled
+
+
+def _trim() -> None:
+    '''Drop the least recently used runs until the memo is inside both limits. The caller holds _SUMMARIES_LOCK.'''
+    global _SUMMARIES_BYTES
+    while len(_SUMMARIES) > SUMMARY_CACHE_MAX or _SUMMARIES_BYTES > SUMMARY_BYTES_MAX:
+        _SUMMARIES_BYTES -= len(_SUMMARIES.popitem(last=False)[1].blob or '')
+
+
+def _memo_for(key: str) -> _Memo:
+    with _SUMMARIES_LOCK:
+        memo = _SUMMARIES.pop(key, None) or _Memo()
+        _SUMMARIES[key] = memo
+        _trim()
+    return memo
+
+
+def _remember(key: str, memo: _Memo, stamp: tuple | None, blob: str | None) -> None:
+    '''Set what the memo holds for a run. The bytes count only while the memo is still in _SUMMARIES (it may have left meanwhile).'''
+    global _SUMMARIES_BYTES
+    with _SUMMARIES_LOCK:
+        if _SUMMARIES.get(key) is memo:
+            _SUMMARIES_BYTES += len(blob or '') - len(memo.blob or '')
+        memo.stamp, memo.blob = stamp, blob
+        _trim()
+
+
+def clear_summary_cache() -> None:
+    global _SUMMARIES_BYTES
+    with _SUMMARIES_LOCK:
+        _SUMMARIES.clear()
+        _SUMMARIES_BYTES = 0
+
+
+def summary_cache_size() -> int:
+    with _SUMMARIES_LOCK:
+        return len(_SUMMARIES)
+
+
+def summary_cache_bytes() -> int:
+    with _SUMMARIES_LOCK:
+        return _SUMMARIES_BYTES
+
+
 def run_summary(ref: RunRef | Path) -> dict[str, Any]:
     '''Progress fields from ``build_progress`` plus identity, timing, last event seq and cost.
 
     ``status`` is the raw state status (for example ``running`` or ``done``); the progress verdict
     is kept under ``progress_status``. ``cost_usd`` is always None: no measured receipt exists yet.
+
+    Memoized per run directory while the stamp of the files it reads (SUMMARY_INPUTS: inode, size, mtime, ctime) is unchanged and
+    settled (see RACY_NS); the stamp is taken before the files are read, so a file that changes during the read is read again on
+    the next call. A run with a symlinked input is never remembered. The memo holds SUMMARY_CACHE_MAX runs and SUMMARY_BYTES_MAX
+    bytes at most, and every caller gets its own copy.
     '''
     run_dir = Path(ref['run_dir'] if isinstance(ref, dict) else ref)
+    fallback_repo = ref['repo'] if isinstance(ref, dict) else ''
+    key = os.fspath(run_dir)
+    memo = _memo_for(key)
+    with memo.lock:
+        stamp, settled = _stamp(key, fallback_repo, _now_ns())
+        if settled and memo.stamp == stamp and memo.blob is not None:
+            return json.loads(memo.blob)
+        summary = _summarize(run_dir, fallback_repo)
+        blob = json.dumps(summary) if settled else ''
+        keep = settled and len(blob) <= SUMMARY_BYTES_MAX
+        _remember(key, memo, stamp if keep else None, blob if keep else None)
+        return summary
+
+
+def _summarize(run_dir: Path, fallback_repo: str) -> dict[str, Any]:
     state = _load_state(run_dir)
     summary = dict(build_progress(state, run_dir=run_dir))
-    fallback_repo = ref['repo'] if isinstance(ref, dict) else ''
     summary.update({
         'run_id': run_dir.name,
         'status': str(state.get('status') or summary['status']),
@@ -336,8 +469,9 @@ def redact_command(text: str, limit: int = COMMAND_SCAN_MAX) -> str:
     cut = len(text) > limit
     masked = _URL_USERINFO_RE.sub(r'\1[REDACTED]@', text[:limit])
     masked = _HEADER_RE.sub(r'\1\2[REDACTED]', masked)
-    for rx in (_SECRET_FLAG_RE, _USER_ARG_RE, _COOKIE_ARG_RE, _SHORT_PASS_RE):
+    for rx in (_SECRET_FLAG_RE, _USER_ARG_RE, _COOKIE_ARG_RE, _SHORT_PASS_RE, _PROGRAM_PASS_RE, _SMB_USER_RE, _VAULT_LOGIN_RE):
         masked = rx.sub(r'\1[REDACTED]', masked)
+    masked = _JWT_RE.sub('[REDACTED]', masked)  # before the long-token rule masks its middle and leaves the rest
     masked = _LONG_TOKEN_RE.sub('[REDACTED]', _TOKEN_PREFIX_RE.sub('[REDACTED]', redact_text(masked)))
     if cut:
         tail = _CUT_WORD_RE.search(masked)

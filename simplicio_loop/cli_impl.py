@@ -74,12 +74,14 @@ from .economy_profile import (
     prism_is_eligible,
     resolve_prism_batch_size,
 )
+from .auth_cli import configure_commands as configure_auth_commands, dispatch as dispatch_auth
+from .distribution import bundle_root
 from .map_service_cli import configure_commands as configure_map_commands, dispatch as dispatch_map
 from .squads import configure_commands as configure_squads_commands, dispatch as dispatch_squads
 from .serverless_deploy import build_plan as build_serverless_plan, execute_plan as execute_serverless_plan
 from .json_order import stable_first
 
-BUNDLE = Path(__file__).resolve().parent / "_bundle"
+BUNDLE = bundle_root()  # importlib.resources, not a source-tree path: the same call works from a frozen binary
 DASHBOARD = BUNDLE / "hooks" / "simplicio_dashboard.py"
 # Cross-platform temp dir (Windows has no /tmp) — must match hooks/simplicio_dashboard.py.
 PID_FILE = Path(tempfile.gettempdir()) / "simplicio-token-monitor.pid"
@@ -107,8 +109,42 @@ def _copy_tree(src: Path, dst: Path) -> int:
     return count
 
 
+def _resync_hosts(root: Path, apply: bool) -> dict:
+    """Skills and host rules of every host that ALREADY has them (#1480): refresh them, or only list what is stale."""
+    from .host_rules import resync_installed_rules, stale_rules
+    from .skill_sync import resync_installed_skills, stale_skills
+    if apply:  # skills first: the rule sync rewrites the rule ref inside the installed loop skill
+        skills, rules = resync_installed_skills(root), resync_installed_rules(root)
+        return {"skills": skills["synced"], "rules": rules["synced"], "errors": skills["errors"] + rules["errors"],
+                "pending": 0}
+    skills, rules = stale_skills(root), stale_rules(root)
+    return {"skills": sorted({entry["host"] for entry in skills}), "rules": [entry["surface"] for entry in rules],
+            "errors": [], "pending": len(skills) + len(rules)}
+
+
+def _install_lines(result: dict, host: str, head: str, resync: Optional[dict]) -> list:
+    changes = result["changes"]
+    lines = [f"simplicio-loop {__version__} {head}:", f"  host   -> {host}", f"  owned  -> {', '.join(result['owned'])}",
+             f"  changed -> {len(changes['created'])} created, {len(changes['updated'])} updated, "
+             f"{changes['unchanged']} unchanged"]
+    for label in ("created", "updated"):
+        lines += [f"    {label}: {path}" for path in changes[label][:8]]
+        if len(changes[label]) > 8:
+            lines.append(f"    {label}: ... and {len(changes[label]) - 8} more")
+    if changes["left_alone"]:
+        shown = ", ".join(changes["left_alone"][:5])
+        more = len(changes["left_alone"]) - 5
+        lines.append(f"  left alone -> {len(changes['left_alone'])} not owned by Loop: {shown}" + (f" (+{more} more)" if more > 0 else ""))
+    if resync is not None and (resync["skills"] or resync["rules"] or resync["errors"]):
+        verb = "stale" if head.startswith(("check", "dry_run")) else "resynced"
+        lines.append(f"  {verb} -> skills: {', '.join(resync['skills']) or '-'}; rules: {', '.join(resync['rules']) or '-'}")
+        lines += [f"  resync error: {err['host']}: {err['error']}" for err in resync["errors"]]
+    return lines
+
+
 def install(target: Path, globally: bool, host: str = "claude",
-            dry_run: bool = False, uninstall: bool = False, verify: bool = False) -> int:
+            dry_run: bool = False, uninstall: bool = False, verify: bool = False,
+            check: bool = False, as_json: bool = False) -> int:
     from .install.planner import InstallError, apply_plan, plan_install
     from .install.planner import uninstall as remove_owned
     from .install.planner import verify_plan
@@ -128,19 +164,28 @@ def install(target: Path, globally: bool, host: str = "claude",
             verify_plan(plan)
             print(f"simplicio-loop install plan ok host={host} digest={plan['digest']}")
             return 0
-        result = apply_plan(plan, dry_run=dry_run, bundle=BUNDLE)
+        result = apply_plan(plan, dry_run=dry_run or check, bundle=BUNDLE)
     except InstallError as exc:
         print(f"error: {exc}", flush=True)
         return 1
-    status = "installed" if result["status"] == "applied" else result["status"]
-    print(f"simplicio-loop {__version__} {status}:")
-    print(f"  host   -> {host}")
-    print(f"  owned  -> {', '.join(result['owned'])}")
-    print(f"  files  -> {result['written']}")
-    print("")
-    print("Use it in your agent runtime (Claude Code, Cursor, ...):")
-    print("  /simplicio-loop finish all the open issues")
-    return 0
+    resync = _resync_hosts(root, apply=not (dry_run or check)) if globally else None
+    pending = not result["up_to_date"] or bool(resync and resync["pending"])
+    if as_json:
+        print(json.dumps({**result, "host": host, "version": __version__, "resynced": resync},
+                         ensure_ascii=False, sort_keys=True))
+        return 10 if check and pending else 0
+    if check:
+        head = "check: changes pending" if pending else "check: up to date"
+    elif dry_run:
+        head = "dry_run (nothing written)"
+    else:
+        head = "already up to date" if result["up_to_date"] else "installed"
+    print("\n".join(_install_lines(result, host, head, resync)))
+    if not (dry_run or check):
+        print("")
+        print("Use it in your agent runtime (Claude Code, Cursor, ...):")
+        print("  /simplicio-loop finish all the open issues")
+    return 10 if check and pending else 0
 
 
 def _port_up(port: int) -> bool:
@@ -535,8 +580,8 @@ async def _ensure_project_map(root: Path, *, budget: float | None = None) -> Non
             return
     if budget is None:
         try:
-            from .map_service_mapper import run_mapper_index, MapperUnavailableError, materialize_project_map
-            envelope = await run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
+            from .map_service_mapper import run_mapper_map, MapperUnavailableError, materialize_project_map
+            envelope = await run_mapper_map(str(root), timeout=_mapper_index_timeout_seconds())
             materialize_project_map(str(root), envelope)
             
             if current_state is not None:
@@ -666,10 +711,12 @@ async def _ensure_project_map_bounded(root: Path, project_map: Path, state_file:
     if _mapper_index_reconcile_finished(log_path, project_map, state_file, current_state):
         return
     try:
-        from .map_service_mapper import mapper_binary_path
+        from .map_service_gc import startup_gc
+        from .map_service_mapper import index_argv, mapper_binary_path
         binary = mapper_binary_path()
     except Exception:
         return  # binary missing: swallowed, same policy as the unbounded path above
+    startup_gc(str(root))  # stale build scratch and orphan locks (never a base); never raises
     map_dir.mkdir(parents=True, exist_ok=True)
     resolved = str(root.resolve())
     popen_kwargs: dict[str, Any] = {}
@@ -680,7 +727,7 @@ async def _ensure_project_map_bounded(root: Path, project_map: Path, state_file:
     # this index has to outlive the call: that is the detached mode of #1339.
     with open(log_path, "wb") as log_handle:
         proc = subprocess.Popen(
-            [binary, "index", resolved, "--json"],
+            index_argv(binary, resolved),
             stdout=log_handle, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
             close_fds=True, **popen_kwargs,
         )
@@ -2668,8 +2715,45 @@ def _prose_as_turbo(argv: Sequence[str]) -> list[str]:
     return ["turbo", "--repo", ".", "--task", " ".join(words), *argv[len(words):]]
 
 
+_WATCH247_QUIET = ("The GitHub token is never an argument: pipe it to --github-token-stdin (with --email), "
+                   "or run `watch247 setup` in a terminal for a hidden prompt. See --help.")
+
+
+class _Parser(argparse.ArgumentParser):
+    """``ArgumentParser`` whose ``quiet`` instances never repeat what the user typed.
+
+    argparse puts the offending value into its own errors (``ignored explicit argument 'ghp_...'``, ``invalid
+    choice: 'ghp_...'``, ``unrecognized arguments: ...``, ``ambiguous option: --x=ghp_... could match``). For a command
+    that is asked for a secret, a slip of the keys would print that secret in the user's terminal. A quiet parser prints
+    its usage and a fixed message. The parent reports the arguments a subcommand left unrecognized, so it is quiet too
+    whenever the command line names that subcommand.
+    """
+
+    def __init__(self, *args: Any, quiet: str = "", **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._quiet = quiet
+
+    def error(self, message: str):  # type: ignore[override]
+        if not self._quiet:
+            super().error(message)
+        self.print_usage(sys.stderr)
+        self.exit(2, f"{self.prog}: error: invalid arguments; what you typed is not repeated. {self._quiet}\n")
+
+
+def _finish_pending_update() -> None:
+    """Windows binary: a verified file that `update` staged replaces the running one at the next start."""
+    from .self_update import apply_pending
+    try:
+        if apply_pending():
+            print("simplicio-loop: the staged update is in place. Run: simplicio-loop install --global", file=sys.stderr)
+    except OSError as exc:
+        print(f"simplicio-loop: could not apply the staged update: {exc}", file=sys.stderr)
+
+
 def main(argv=None) -> int:
     argv_list = list(argv) if argv is not None else list(sys.argv[1:])
+    if os.name == "nt" and getattr(sys, "frozen", False):
+        _finish_pending_update()
     if argv_list[:1] == ["hub-drain-plan"]:
         from .github_drain_intake_cli import main as drain_intake_main
         forwarded = argv_list[1:]
@@ -2682,19 +2766,20 @@ def main(argv=None) -> int:
         return intake_main(argv_list[1:])
     if argv_list[:1] == ["run"]:
         return _redirect_run_to_wave(argv_list[1:])
-    parser = argparse.ArgumentParser(
+    parser = _Parser(
         prog="simplicio-loop",
         description=(
             "Install the simplicio-loop super-plugin, open the Token Monitor dashboard, "
             "or compile task markdown into a canonical task contract."
         ),
+        quiet=_WATCH247_QUIET if "watch247" in argv_list else "",  # a flag typed before the subcommand is echoed by this parser
     )
     parser.add_argument("-V", "--version", action="version", version=f"simplicio-loop {__version__}")
     # Bare `simplicio-loop` (no subcommand at all) falls through to `install` below with these
     # defaults — mirror p_install's own defaults here so that fallback doesn't crash with
     # AttributeError when no subparser ever ran to populate args.target/args.globally.
     parser.set_defaults(target=".", globally=False)
-    sub = parser.add_subparsers(dest="command")
+    sub = parser.add_subparsers(dest="command", parser_class=_Parser)
 
     p_install = sub.add_parser("install", help="install bundled skills + hooks into a runtime")
     p_install.add_argument("--target", default=".", help="project directory to install into")
@@ -2702,6 +2787,9 @@ def main(argv=None) -> int:
                            help="install into ~/.claude instead of the project")
     p_install.add_argument("--host", default="claude", help="host id or 'all'")
     p_install.add_argument("--dry-run", action="store_true", help="plan only; write nothing")
+    p_install.add_argument("--check", action="store_true",
+                           help="write nothing; exit 0 when the install is up to date, 10 when changes are pending")
+    p_install.add_argument("--json", action="store_true", help="emit one machine-readable JSON document")
     p_install.add_argument("--verify", action="store_true", help="validate plan version/digest")
     p_install.add_argument("--uninstall", action="store_true", help="remove Loop-owned files only")
 
@@ -2746,8 +2834,13 @@ def main(argv=None) -> int:
                               "(asks this provider for the plan, needs OPENROUTER_API_KEY)")
 
     p_update = sub.add_parser("update", help="install the latest GitHub release of simpletibr/simplicio-loop")
-    p_update.add_argument("--check", action="store_true", help="only report installed vs latest; change nothing")
-    p_update.add_argument("--force", action="store_true", help="reinstall even when already on the latest release")
+    p_update.add_argument("--check", action="store_true",
+                          help="change nothing; exit 0 when up to date, 10 when an update is available, 2 on error")
+    p_update.add_argument("--dry-run", action="store_true", help="print what would run; change nothing")
+    p_update.add_argument("--force", action="store_true",
+                          help="reinstall even when already on the latest release; allows a downgrade")
+
+    configure_auth_commands(sub)  # login, logout, auth status: one login shared with the Simplicio Runtime
 
     p_dashboard = sub.add_parser("dashboard", help="open the Simplicio Live panel; --tokens opens the Token Monitor")
     from .dashboard import cli as dashboard_cli
@@ -2889,7 +2982,10 @@ def main(argv=None) -> int:
     p_stack_verify.add_argument("--route", choices=("standalone",), default=None)
 
     p_doctor = sub.add_parser("doctor", help="inspect the installed stack or storage routing")
-    p_doctor.set_defaults(doctor_command=None, stack_json=False, doctor_json=False)
+    p_doctor.set_defaults(doctor_command=None, stack_json=False, doctor_json=False, all_json=False, all_online=False,
+                          login_json=False, online=False)
+    p_doctor.add_argument("--online", action="store_true",
+                          help="overview: ask GitHub for the latest release (offline by default)")
     p_doctor.add_argument("--storage", action="store_true",
                           help="inspect the Loop storage adapter boundary")
     p_doctor.add_argument("--route", choices=("legacy", "shadow", "mapper"), default="mapper")
@@ -2914,6 +3010,15 @@ def main(argv=None) -> int:
     )
     p_doctor_source.add_argument("--json", dest="doctor_json", action="store_true",
                                  help="emit machine-readable JSON")
+
+    p_doctor_all = doctor_sub.add_parser(
+        "all", help="overview: login, update, distribution, Runtime, PATH operators, disk (same as bare `doctor`)"
+    )
+    p_doctor_all.add_argument("--json", dest="all_json", action="store_true", help="emit machine-readable JSON")
+    p_doctor_all.add_argument("--online", dest="all_online", action="store_true",
+                              help="ask GitHub for the latest release (offline by default)")
+    p_doctor_login = doctor_sub.add_parser("login", help="only the login check (shared with the Runtime)")
+    p_doctor_login.add_argument("--json", dest="login_json", action="store_true", help="emit machine-readable JSON")
 
     p_doctor_mapper = doctor_sub.add_parser(
         "mapper", help="check that the installed simplicio_mapper is the expected build"
@@ -3002,7 +3107,9 @@ def main(argv=None) -> int:
     p_verify.add_argument("--repo", default=".", help="repository root")
     p_verify.add_argument("run_id", help="run id to verify")
 
-    p_watch247 = sub.add_parser("watch247", help="run the 24/7 watcher for simplicio-* repos")
+    p_watch247 = sub.add_parser(
+        "watch247", help="run the 24/7 watcher for simplicio-* repos", allow_abbrev=False,
+        quiet=_WATCH247_QUIET)
     p_watch247.add_argument("action", nargs="?", choices=["login-check", "setup"],
                             help="login-check: exec CLI logins (#1467); setup: first-run credentials")
     p_watch247.add_argument("--email", help="setup: the Simplicio account e-mail")
@@ -3010,7 +3117,6 @@ def main(argv=None) -> int:
                             help="setup: read the GitHub token from stdin (never an argument: argv shows in ps)")
     p_watch247.add_argument("--check", action="store_true",
                             help="setup: only check the Simplicio account step (after the login); no token is asked")
-    p_watch247.add_argument("--github-token", help=argparse.SUPPRESS)  # refused by setup, so the value is never echoed
     p_watch247.add_argument("--once", action="store_true", help="run one tick and exit")
     p_watch247.add_argument("--dry-run", action="store_true", help="simulate without mutations")
     p_watch247.add_argument("--state-dir", help="override state directory")
@@ -3258,8 +3364,10 @@ def main(argv=None) -> int:
                              provider=args.provider, run_id=args.run_id,
                              leave_open=args.leave_open)
     if command == "update":
-        from .self_update import run_update
-        return run_update(check=args.check, force=args.force)
+        from .self_update import run_update, write_check
+        return run_update(check=args.check, force=args.force, dry_run=args.dry_run, record=write_check)
+    if command in {"login", "logout", "auth"}:
+        return dispatch_auth(args)
     if command == "dashboard":
         from .dashboard import cli as dashboard_cli
         return dashboard_cli.run(args)
@@ -3315,9 +3423,15 @@ def main(argv=None) -> int:
         if args.mapper_json:
             forwarded.append("--json")
         return mapper_doctor_main(forwarded)
+    if command == "doctor" and getattr(args, "doctor_command", None) in {"all", "login"}:
+        from .doctor_overview import run as doctor_overview
+        if args.doctor_command == "login":
+            return doctor_overview(as_json=args.login_json, only="login")
+        return doctor_overview(as_json=args.all_json, online=args.all_online)
+    if command == "doctor" and not args.storage:  # a bare `doctor` is the overview
+        from .doctor_overview import run as doctor_overview
+        return doctor_overview(as_json=args.json, online=args.online)
     if command in {"doctor", "inspect"}:
-        if command == "doctor" and not args.storage:
-            parser.error("doctor requires --storage or the stack subcommand")
         from .store_adapter import storage_cli
         forwarded = ["--route", args.route]
         if args.data_dir:
@@ -3365,7 +3479,7 @@ def main(argv=None) -> int:
     if command == "watch247" and args.action == "setup":
         from .watcher247.onboarding import main as setup_main
         return setup_main(email=args.email, token_stdin=args.github_token_stdin,
-                          github_token=args.github_token, state_dir=args.state_dir, check_only=args.check)
+                          state_dir=args.state_dir, check_only=args.check)
     if command == "watch247":
         import asyncio
         from .watcher247 import config as watcher247_config
@@ -3460,6 +3574,8 @@ def main(argv=None) -> int:
         getattr(args, "dry_run", False),
         getattr(args, "uninstall", False),
         getattr(args, "verify", False),
+        getattr(args, "check", False),
+        getattr(args, "json", False),
     )
 
 

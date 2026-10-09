@@ -6,8 +6,9 @@ The watcher ships with no credentials and assumes none. The user gives two thing
   visible in `ps`), checked with a real `gh api user` call, then written as GH_TOKEN to the service env file
   (mode 600, atomic replace);
 * the Simplicio account e-mail: recorded in the state dir (not a secret) and compared with the account of login.json.
-  The login itself is the Runtime flow `simplicio login google`: this repo has no login flow, so setup prints the
-  exact command for the service user and then reports the reason code of the existing subscription check.
+  The login itself is `simplicio-loop login` (it runs the Runtime flow `simplicio login google` and checks the shared
+  login file, see simplicio_loop.auth): setup prints the exact command for the service user and then reports the reason
+  code of the existing subscription check.
 
 Without the credentials the tick stays idle and `status.json` says which one is missing and what to run
 (idle_status), so a service with Restart=always never crash-loops on them.
@@ -31,11 +32,12 @@ import warnings
 from collections.abc import Mapping
 from pathlib import Path
 
+from .. import auth
 from . import config, env_guard, login_check, proc, state, subscription
 
 COMMAND = "simplicio-loop watch247 setup"
-LOGIN_COMMAND = f"sudo -u {login_check.SERVICE_USER} -H simplicio login google"  # `simplicio --help`: login google
-LOGOUT_COMMAND = f"sudo -u {login_check.SERVICE_USER} -H simplicio logout"
+LOGIN_COMMAND = f"sudo -u {login_check.SERVICE_USER} -H simplicio-loop login"
+LOGOUT_COMMAND = f"sudo -u {login_check.SERVICE_USER} -H simplicio-loop logout --yes"
 RESTART_COMMAND = "systemctl restart simplicio-loop-247"
 KEY = "GH_TOKEN"
 TOKEN_ENV = ("GH_TOKEN", "GITHUB_TOKEN")  # the variables gh reads
@@ -51,6 +53,9 @@ _BROAD = frozenset({"delete_repo", "workflow", "write:packages", "delete:package
 
 _HINTS = {
     "login_missing": f"no Simplicio login for the service user yet. Run: {LOGIN_COMMAND}  then run `{COMMAND} --check`",
+    "login_insecure": ("the login file is not safe to use (a symlink, a file group or others can read, or a folder they "
+                       f"can write). Run: chmod 600 {{login}}  (a folder they can write: chmod 700 on the folder; a symlink: remove it) "
+                       f"then run `{COMMAND} --check`"),
     "account_mismatch": ("login.json belongs to another Simplicio account than the e-mail you gave. "
                          f"Run: {LOGOUT_COMMAND}  then {LOGIN_COMMAND}"),
     "refresh_failed": f"the login expired. Run: {LOGIN_COMMAND}",
@@ -116,10 +121,7 @@ def _hidden(prompt: str) -> str:
             raise Refused("this terminal cannot hide the input; use --github-token-stdin") from None
 
 
-def collect(email: str | None, token_stdin: bool, github_token: str | None) -> tuple[str, str]:
-    if github_token is not None:
-        raise Refused("never pass the token as an argument: it shows in `ps` and in the shell history. "
-                      "Use --github-token-stdin, or run setup in a terminal for a hidden prompt")
+def collect(email: str | None, token_stdin: bool) -> tuple[str, str]:
     tty = sys.stdin.isatty()
     if not tty and not token_stdin:
         raise Refused("stdin is not a terminal: pass --github-token-stdin and pipe the token, with --email")
@@ -271,16 +273,19 @@ def _report_token(login: str, scopes: list[str] | None) -> None:
 
 
 def _login_state() -> tuple[tuple[int, int] | None, str]:
-    """(owner of login.json or None when it is absent, the account e-mail it holds or '')."""
+    """(owner of login.json or None when it is absent, the account e-mail it holds or '').
+
+    The file is read through `simplicio_loop.auth`, the one reader of the shared login: a symlink or a file the store
+    refuses holds no e-mail for the comparison."""
     try:
-        info = config.LOGIN.stat()
+        info = config.LOGIN.lstat()
     except OSError:
         return None, ""
     try:
-        found = json.loads(config.LOGIN.read_text())["verification"]["validated"]["user"]["email"]
-    except (OSError, ValueError, KeyError, TypeError):
+        found = auth.account_email(auth.read_login(config.LOGIN))
+    except auth.LoginError:
         found = ""
-    return (info.st_uid, info.st_gid), found if isinstance(found, str) else ""
+    return (info.st_uid, info.st_gid), found
 
 
 async def account_reason(email: str) -> str:
@@ -326,7 +331,7 @@ async def _account(email: str) -> int:
     reason = await account_reason(email)
     print(f"Simplicio subscription: {reason}")
     if reason != "ok":
-        print(f"  {_HINTS.get(reason, 'run this command again later')}")
+        print(f"  {_HINTS.get(reason, 'run this command again later').replace('{login}', str(config.LOGIN))}")
     return 0 if reason == "ok" else 1
 
 
@@ -345,14 +350,14 @@ def check(email: str | None) -> int:
     return asyncio.run(_account(email))
 
 
-def main(email: str | None = None, token_stdin: bool = False, github_token: str | None = None,
+def main(email: str | None = None, token_stdin: bool = False,
          state_dir: str | None = None, check_only: bool = False) -> int:
     if state_dir:
         config.set_state_dir(state_dir)
     try:
         if check_only:
             return check(email)
-        email, token = collect(email, token_stdin, github_token)
+        email, token = collect(email, token_stdin)
         target = env_guard.env_file()
         check_target(target)
         return asyncio.run(_run(email, token, target))

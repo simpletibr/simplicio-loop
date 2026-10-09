@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+import os
 import urllib.error
 from datetime import timedelta
 from pathlib import Path
@@ -59,7 +60,7 @@ def test_turbo_ok_commits_opens_pr_and_comments_url(env):
     assert fake.turbo_timeouts == [900]
     commit = fake.ran("git", "commit")[0]
     assert commit[3] == "loop: Add x\n\nCloses #7\n"
-    assert fake.ran("git", "add", "-A") and fake.ran("git", "reset", "-q", "--", ".simplicio-loop", ".simplicio")
+    assert fake.ran("git", "add", "-A") and fake.ran("git", "reset", "-q", "--", ".simplicio-loop")
     assert fake.ran("git", "push", "-u", "origin", "loop/issue-7")
     pr = fake.ran("gh", "pr", "create")[0]
     assert pr[pr.index("--base") + 1] == "main" and pr[pr.index("--head") + 1] == "loop/issue-7"
@@ -198,10 +199,10 @@ def test_tick_error_is_recorded_in_status(env, monkeypatch):
 
 @pytest.mark.parametrize("porcelain,expected", [
     ("", False),
-    ("?? .simplicio-loop/state.json\n?? .simplicio/x\n", False),
+    ("?? .simplicio-loop/state.json\n?? .simplicio-loop/x\n", False),
     (" M .gitignore\n", False),
     (" M src/app.py\n", True),
-    ("?? .simplicio/x\n M src/app.py\n", True),
+    ("?? .simplicio-loop/x\n M src/app.py\n", True),
 ])
 def test_dirty(env, porcelain, expected):
     async def fake(argv, timeout=120, cwd=None):
@@ -264,6 +265,39 @@ def test_subscription_login_missing(login):
 
 def test_subscription_login_without_tokens(login):
     write_json(login, {})
+    assert reason()["reason"] == "login_missing"
+
+
+def test_subscription_login_insecure_when_others_can_read_the_file(login, monkeypatch):
+    write_json(login, {"access_token": "a", "access_expires_at": 4102444800})
+    login.chmod(0o644)
+    set_http(monkeypatch, lambda *a: pytest.fail("no request may be made with an unsafe login file"))
+    result = reason()
+    assert result["reason"] == "login_insecure" and result["active"] is False
+    assert f"chmod 600 {login}" in result["detail"]
+
+
+def test_subscription_login_insecure_for_a_symlink_and_a_loose_folder(login, tmp_path, monkeypatch):
+    set_http(monkeypatch, lambda *a: pytest.fail("no request may be made with an unsafe login file"))
+    real = tmp_path / "real.json"
+    write_json(real, {"access_token": "a", "access_expires_at": 4102444800})
+    login.symlink_to(real)
+    assert reason()["reason"] == "login_insecure"
+    login.unlink()
+    write_json(login, {"access_token": "a", "access_expires_at": 4102444800})
+    login.parent.chmod(0o777)
+    try:
+        result = reason()
+    finally:
+        login.parent.chmod(0o700)
+    assert result["reason"] == "login_insecure" and "chmod 700" in result["detail"]
+
+
+def test_subscription_directory_or_fifo_as_login_is_login_missing_not_a_traceback(login):
+    login.mkdir()
+    assert reason()["reason"] == "login_missing"
+    login.rmdir()
+    os.mkfifo(login, 0o600)
     assert reason()["reason"] == "login_missing"
 
 

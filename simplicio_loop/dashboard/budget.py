@@ -7,6 +7,7 @@ measured usage or no progress to extrapolate from is UNVERIFIED, never a pass.
 '''
 from __future__ import annotations
 
+import heapq
 import json
 import math
 from datetime import datetime, timezone
@@ -18,12 +19,17 @@ from simplicio_loop.progress import PHASES
 KEYS = ('tokens', 'usd', 'seconds')
 SCHEMA = 'simplicio.dashboard-event/v1'
 MAX_CONTRACT_BYTES = 1_000_000
+TOP_N = 20
+# A count (tokens, USD, seconds) above this is not a measurement: no run spends 10**15 of anything, and the cap keeps every
+# sum finite (two events of 1e308 would add up to Infinity, which is not JSON).
+MAX_NUMBER = 10 ** 15
 
 
 def _number(value: Any) -> float | int | None:
+    '''The value when it is a finite, non-negative number up to MAX_NUMBER, else None (a bool, a string, NaN, Infinity, too big).'''
     if isinstance(value, bool) or not isinstance(value, (int, float)) or (isinstance(value, float) and not math.isfinite(value)) or value < 0:
         return None
-    return value
+    return value if value <= MAX_NUMBER else None
 
 
 def declared(run_dir: str | Path) -> dict[str, float | int | None]:
@@ -101,7 +107,8 @@ def price_for(models: dict[str, Any], model: str) -> dict[str, Any] | None:
 def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | None) -> dict[str, Any]:
     '''USD for the run: measured input/output tokens per model times the price table. Always an estimate.
 
-    UNVERIFIED (with the reason) when no tokens were measured, the table is missing, or a model has no price.
+    UNVERIFIED (with the reason) when no tokens were measured, the table is missing, or a model has no price. ``by_model`` lists
+    at most TOP_N models; with more, ``others`` carries the model count, tokens and cost of the rest, and the parts add up to ``usd``.
     '''
     row: dict[str, Any] = {'usd': None, 'state': 'UNVERIFIED', 'proof_kind': 'estimado', 'reason': None,
                            'as_of': None, 'source_url': None, 'by_model': {}}
@@ -127,6 +134,7 @@ def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | Non
         row['reason'] = 'tabela de preços indisponível'
         return row
     total = 0.0
+    priced: list[tuple[str, float, float, float]] = []
     for model, (tokens_in, tokens_out) in sorted(per_model.items()):
         price = price_for(table, model)
         in_rate = _number(price.get('input_per_mtok')) if isinstance(price, dict) else None
@@ -137,10 +145,21 @@ def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | Non
             row['by_model'] = {}
             return row
         usd = (tokens_in * in_rate + tokens_out * out_rate) / 1_000_000
-        row['by_model'][model] = round(usd, 6)
+        priced.append((model, usd, tokens_in, tokens_out))
         total += usd
     row['usd'] = round(total, 6)
     row['state'] = 'ESTIMADO'
+    # The reply stays small however many model ids the run used: the TOP_N most expensive models by name, and one ``others``
+    # row with the tokens and cost of the rest, so that the listed parts add up to ``usd``.
+    kept = priced if len(priced) <= TOP_N else sorted(heapq.nlargest(TOP_N, priced, key=lambda item: item[1]))
+    row['by_model'] = {model: round(usd, 6) for model, usd, _, _ in kept}
+    if len(kept) < len(priced):
+        listed = {model for model, *_ in kept}
+        rest = [item for item in priced if item[0] not in listed]
+        tokens_in, tokens_out = sum(item[2] for item in rest), sum(item[3] for item in rest)
+        row['others'] = {'models': len(rest), 'tokens_in': tokens_in, 'tokens_out': tokens_out, 'tokens': tokens_in + tokens_out,
+                         'usd': round(row['usd'] - sum(row['by_model'].values()), 6), 'state': 'ESTIMADO',
+                         'proof_kind': 'estimado', 'reason': None}
     return row
 
 

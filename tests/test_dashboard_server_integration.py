@@ -473,3 +473,96 @@ def test_history_lessons_route(server_handle, repo_root):
                                                     'hit_count': 2, 'last_seen': '2026-10-01T00:00:00Z'}) + '\n', encoding='utf-8')
     status, _, body = _get(server_handle.port, '/api/history/lessons', AUTH)
     assert status == 200 and json.loads(body)['lessons'][0]['lesson'] == 'keep gates small'
+
+
+# --- #1565 item 2: the replies are strict JSON whatever the events carry ---------------------------------------------------
+def _strict(body):
+    def refuse(constant):
+        raise AssertionError('non-finite %s in the body' % constant)
+
+    return json.loads(body, parse_constant=refuse)
+
+
+def _append_raw_usage(run_dir, seq, input_tokens, output_tokens, kind='token_usage'):
+    '''Append one event whose numbers are written as literals (1e999, NaN, 1e308), the way a hostile or broken producer would.'''
+    payload = ('{"model":"claude-haiku-5-5","input_tokens":%s,"output_tokens":%s}' % (input_tokens, output_tokens)
+               if kind == 'token_usage' else '{"usd":%s}' % input_tokens)
+    line = ('{"schema":"simplicio.dashboard-event/v1","event_id":"01M4G3ABHS215DDBX363VWPSA%d","seq":%d,"ts":"2026-10-09T10:00:00.000Z",'
+            '"run_id":"live-1","task_id":"T1","scope":"task","source":"worker","kind":"%s","phase":"executing","lane":"coder",'
+            '"iteration":1,"severity":"info","payload":%s,"refs":[],"producer_version":"simplicio-loop@3.0.0"}' % (seq % 10, seq, kind, payload))
+    with (run_dir / 'events.jsonl').open('a', encoding='utf-8') as fh:
+        fh.write(line + '\n')
+
+
+@pytest.mark.parametrize('first, second', [('1e308', '1e308'), ('1e999', 'NaN'), ('-Infinity', '1e999'), ('NaN', '5')])
+def test_stage_agents_and_budget_routes_stay_strict_json_with_absurd_token_counts(repo_root, server_handle, first, second):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    last = max(json.loads(line)['seq'] for line in (run_dir / 'events.jsonl').read_text(encoding='utf-8').splitlines())
+    _append_raw_usage(run_dir, last + 1, first, second)
+    _append_raw_usage(run_dir, last + 2, first, second)
+    _append_raw_usage(run_dir, last + 3, '1e308', '0', kind='cost_sample')
+    _append_raw_usage(run_dir, last + 4, '1e308', '0', kind='cost_sample')
+    for route in ('stage-agents', 'budget', 'extras'):
+        status, headers, body = _get(server_handle.port, '/api/runs/live-1/%s' % route, AUTH)
+        assert status == 200 and headers['content-type'].startswith('application/json'), route
+        data = _strict(body)
+        if route == 'stage-agents':
+            assert data['breakdown']['tokens']['ignored'] >= 2
+
+
+def test_a_reply_that_cannot_be_strict_json_is_a_json_500_never_infinity_on_the_wire(server_handle, monkeypatch):
+    from simplicio_loop.dashboard import stage_agents
+    monkeypatch.setattr(stage_agents, 'run_view', lambda *args, **kwargs: {'schema': 'x', 'n': float('inf')})
+    status, headers, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+    assert status == 500 and headers['content-type'].startswith('application/json') and 'Infinity' not in body.decode('utf-8')
+    assert _strict(body) == {'error': 'Internal Server Error'}
+    assert _get(server_handle.port, '/api/runs/live-1/budget', AUTH)[0] == 200  # the server is still serving
+
+
+# --- #1565 item 3: a stuck computation is a stale 200 or a 503 with Retry-After, never a hung poller ----------------------
+def test_a_busy_run_with_nothing_to_serve_is_a_503_with_retry_after(server_handle, monkeypatch):
+    from simplicio_loop.dashboard import stage_agents
+
+    def busy(*args, **kwargs):
+        raise stage_agents.ViewBusy(3)
+
+    monkeypatch.setattr(stage_agents, 'run_view', busy)
+    status, headers, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+    assert status == 503 and headers['retry-after'] == '3' and _strict(body) == {'error': 'Service Unavailable'}
+    assert 'content-security-policy' in headers and headers['cache-control'] == 'no-store'
+
+
+def test_a_stuck_read_serves_the_last_good_reply_flagged_stale_then_recovers(repo_root, server_handle, monkeypatch):
+    from simplicio_loop import dashboard_events
+    from simplicio_loop.dashboard import stage_agents
+    stage_agents.clear_cache()
+    monkeypatch.setattr(stage_agents, 'WAIT_TIMEOUT_S', 0.4)
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    emitter = _emitter()
+    emitter.emit(run_dir, 'token_usage', source='worker', task_id='T1',
+                 payload={'model': 'claude-haiku-5-5', 'input_tokens': 1000, 'output_tokens': 0}, strict=True)
+    good = _strict(_get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)[2])
+    assert 'stale' not in good
+    emitter.emit(run_dir, 'token_usage', source='worker', task_id='T2',
+                 payload={'model': 'claude-haiku-5-5', 'input_tokens': 500, 'output_tokens': 0}, strict=True)
+    gate, entered, real = threading.Event(), threading.Event(), dashboard_events.read_events
+
+    def stuck(*args, **kwargs):
+        entered.set()
+        gate.wait(15)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(dashboard_events, 'read_events', stuck)
+    first = threading.Thread(target=lambda: _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH), daemon=True)
+    first.start()
+    assert entered.wait(5)
+    begun = time.monotonic()
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+    assert time.monotonic() - begun < 4 and status == 200
+    served = _strict(body)
+    assert served['stale'] is True and served['age_s'] >= 0 and served['breakdown'] == good['breakdown']
+    gate.set()
+    first.join(10)
+    recovered = _strict(_get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)[2])
+    assert 'stale' not in recovered and [row['key'] for row in recovered['breakdown']['by_task']] == ['T1', 'T2']
+    stage_agents.clear_cache()

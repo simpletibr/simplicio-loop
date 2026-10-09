@@ -13,6 +13,8 @@ import json
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Mapping, Sequence
 
+from . import plan_paths
+
 IndexFn = Callable[[Path], Awaitable[str]]
 
 
@@ -175,6 +177,10 @@ def _parse_operations(content: str) -> list[dict]:
     operations = payload.get("operations") if isinstance(payload, dict) else None
     if not isinstance(operations, list) or not operations:
         raise ValueError("the plan has no operations")
+    for number, operation in enumerate(operations, start=1):
+        path = operation.get("path") if isinstance(operation, dict) else None
+        if isinstance(path, str) and (reason := plan_paths.refusal(path)):
+            raise ValueError(f"operation {number}: {reason}")
     return operations
 
 
@@ -280,6 +286,8 @@ def _call_record(reply: Mapping[str, Any], turn: int) -> dict[str, Any]:
 async def _apply_operations(root: Path, operations: list[dict], binary: str, label: str, apply_lock: asyncio.Lock) -> list[dict]:
     import json
     import asyncio
+    if reason := plan_paths.operations_refusal(operations, root):  # followed through symlinks: an old dev-cli does not
+        return [{"command": "plan_paths", "returncode": 1, "stdout": reason, "label": label}]
     state = root / ".simplicio-loop"
     state.mkdir(parents=True, exist_ok=True)
     ops_path = state / f"turbo-ops-{label}.json"

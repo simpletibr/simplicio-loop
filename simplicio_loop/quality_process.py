@@ -52,6 +52,7 @@ PHASE_TIMEOUT_SECONDS = {
 CORE_GATE_TIMEOUT_SECONDS = PHASE_TIMEOUT_SECONDS["core_tests"]
 MAX_CAPTURE_BYTES = 1024 * 1024
 POST_KILL_DRAIN_SECONDS = 1.0
+LEAK_COMMAND_LIMIT = 300
 # Bounded grace period given to a descendant that is already known to be
 # alive right after the phase leader exits.  Some perfectly ordinary
 # multiprocessing shutdown paths (e.g. ``multiprocessing.resource_tracker``,
@@ -618,8 +619,24 @@ def _pid_is_running(pid: int) -> Optional[bool]:
     return None
 
 
+def _clip_command(cmd: str, limit: int = LEAK_COMMAND_LIMIT) -> str:
+    """Clip a long command line to ``limit`` characters, keeping its head and its tail.
+
+    The head is the interpreter path (long and generic in a venv); the tail holds the
+    last arguments (script and file names), which are what identify a leaked process.
+    The tail therefore gets two thirds of the room.
+    """
+    if len(cmd) <= limit:
+        return cmd
+    marker = " ... "
+    room = limit - len(marker)
+    head = room // 3
+    return cmd[:head] + marker + cmd[len(cmd) - (room - head):]
+
+
 def _describe_leaked(pids: Set[int]) -> str:
-    """One ``descendant_leak pid=<pid> cmd=<argv>`` line per leaked process."""
+    """One ``descendant_leak pid=<pid> cmd=<argv>`` line per leaked process, its secrets masked (first, then clipped)."""
+    from .dashboard.runs import redact_command
     lines = []
     for pid in sorted(pids):
         try:
@@ -627,7 +644,7 @@ def _describe_leaked(pids: Set[int]) -> str:
                 cmd = handle.read().replace(b"\0", b" ").decode("utf-8", "replace").strip()
         except OSError:
             cmd = "?"
-        lines.append("descendant_leak pid=%d cmd=%s\n" % (pid, cmd[:300]))
+        lines.append("descendant_leak pid=%d cmd=%s\n" % (pid, _clip_command(redact_command(cmd))))
     return "".join(lines)
 
 

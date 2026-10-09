@@ -34,6 +34,10 @@ script works in isolation. Nothing under the real repo checkout is mutated:
   8. Run the clean-room install-smoke (`scripts.install_smoke.run_smoke`) against the scratch
      copy: fresh venv, `--no-deps --no-index`, `PYTHONPATH` cleared, isolation + version asserted,
      `--help` actually executed.
+  9. (optional, --binary) Build the standalone executable for the current host using PyInstaller,
+     verify its version output, and generate an SBOM for the binary. Runs scripts/build_binary.py
+     from the scratch copy; that script builds its own wheel in a private venv and runs PyInstaller.
+     Requires network; takes minutes. macOS and Windows executables must be built on those systems.
 
 Governance gate (#294 scope item 6: "Integrar ao CI/release")
 ----------------------------------------------------------------
@@ -65,6 +69,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -81,6 +86,7 @@ from release_verify import generate_checksums, sign_manifest, verify_checksums  
 from sbom_generate import build_sbom  # noqa: E402
 from version_sync import VersionSyncError, apply_version  # noqa: E402
 from provenance_generate import build_provenance  # noqa: E402
+from build_binary import BuildError, build_environment, parse_asset_name, parse_sha256sums, sha256_file  # noqa: E402
 
 SCHEMA = "simplicio.release-rehearsal/v1"
 
@@ -173,6 +179,7 @@ def run_rehearsal(
     version: Optional[str] = None,
     require_signing: bool = False,
     keep: bool = False,
+    binary: bool = False,
 ) -> Dict[str, Any]:
     repo = repo.resolve()
     workdir = Path(tempfile.mkdtemp(prefix="simplicio-release-rehearsal-"))
@@ -319,6 +326,14 @@ def run_rehearsal(
             return receipt
         receipt["state"] = "smoke-verified"
 
+        # Step: (optional) build standalone binary using PyInstaller.
+        if binary:
+            if not run_binary_step(repo, scratch, workdir, receipt, source_sha, rehearsal_version):
+                receipt["ok"] = False
+                receipt["reason_code"] = "binary_failed"
+                return receipt
+            receipt["state"] = "binary-verified"
+
         receipt["ok"] = True
         return receipt
     finally:
@@ -327,6 +342,96 @@ def run_rehearsal(
         else:
             shutil.rmtree(workdir, ignore_errors=True)
             receipt.pop("workdir", None)
+
+
+
+def binary_step_commands(
+    scratch: Path, out_dir: Path, work_dir: Path, version: str
+) -> list[list[str]]:
+    """Return one argv list: the build_binary command which builds its own wheel and private venv."""
+    return [
+        [sys.executable, str(scratch / "scripts" / "build_binary.py"), "--allow-dirty", "--version", version,
+         "--out", str(out_dir), "--work", str(work_dir), "--python", sys.executable],
+    ]
+
+
+def verify_binary_assets(out_dir: Path, version: str) -> Dict[str, Any]:
+    """Check that SHA256SUMS lists exactly the one executable of this version and its digest is right."""
+    result: Dict[str, Any] = {"ok": False, "asset": None, "sha256": None, "reason": ""}
+    sums = out_dir / "SHA256SUMS"
+    if not sums.is_file():
+        result["reason"] = f"SHA256SUMS not found in {out_dir}"
+        return result
+    try:
+        digests = parse_sha256sums(sums.read_text(encoding="utf-8"))
+    except BuildError as error:
+        result["reason"] = str(error)
+        return result
+    if len(digests) != 1:
+        result["reason"] = f"SHA256SUMS must list exactly one executable, it lists {len(digests)}"
+        return result
+    (name, listed), = digests.items()
+    parsed = parse_asset_name(name)
+    if parsed is None or parsed[0] != version:
+        result["reason"] = f"{name} is not an executable of version {version}"
+        return result
+    result["asset"] = name
+    if not (out_dir / name).is_file():
+        result["reason"] = f"{name} is not in {out_dir}"
+        return result
+    result["sha256"] = sha256_file(out_dir / name)
+    if result["sha256"] != listed:
+        result["reason"] = f"digest of {name} is {result['sha256']}, SHA256SUMS lists {listed}"
+        return result
+    result["ok"] = True
+    return result
+
+
+def run_binary_step(
+    repo: Path, scratch: Path, workdir: Path, receipt: Dict[str, Any], source_sha: str, version: str
+) -> bool:
+    """Build the standalone executable for this host and check it. Fills steps.binary.
+
+    build_binary.py builds the wheel of the scratch copy, installs it in a private venv with PyInstaller and
+    packs it. This function runs it with a deterministic environment, verifies the assets, checks the
+    executable version, and writes an SBOM.
+    """
+    out_dir = workdir / "binary"
+    step: Dict[str, Any] = {"ok": False, "asset": None, "sha256": None, "reason": "", "commands": [],
+                            "returncodes": [], "stderr_tail": []}
+    receipt["steps"]["binary"] = step
+    try:  # the scratch copy has no .git, so the commit time of the real repo is the build time
+        epoch = int(_git(repo, "log", "-1", "--format=%ct"))
+    except (RuntimeError, ValueError) as error:
+        step["reason"] = f"no SOURCE_DATE_EPOCH: {error}"
+        return False
+    commands = binary_step_commands(scratch, out_dir, workdir / "binary-work", version)
+    step["commands"] = [" ".join(command) for command in commands]
+    for index, command in enumerate(commands):
+        done = subprocess.run(command, cwd=scratch, env=build_environment(os.environ, epoch), stdin=subprocess.DEVNULL, capture_output=True,
+                              text=True, timeout=3600)
+        step["returncodes"].append(done.returncode)
+        if done.returncode != 0:
+            step["reason"] = f"command {index} exited with {done.returncode}"
+            step["stderr_tail"] = done.stderr.strip().splitlines()[-10:]
+            return False
+    verified = verify_binary_assets(out_dir, version)
+    step.update(asset=verified["asset"], sha256=verified["sha256"])
+    if not verified["ok"]:
+        step["reason"] = verified["reason"]
+        return False
+    executable = out_dir / verified["asset"]
+    shown = subprocess.run([str(executable), "--version"], stdin=subprocess.DEVNULL, capture_output=True,
+                           text=True, timeout=120)
+    if shown.returncode != 0 or shown.stdout.strip() != f"simplicio-loop {version}":
+        step["reason"] = f"--version printed {shown.stdout.strip()!r}, expected 'simplicio-loop {version}'"
+        return False
+    sbom = build_sbom(scratch, artifact=executable, source_sha=source_sha)
+    (out_dir / "sbom-binary.json").write_text(
+        json.dumps(sbom, ensure_ascii=False, sort_keys=True, indent=2), encoding="utf-8")
+    step["ok"] = bool(sbom["ok"])
+    step["reason"] = "" if step["ok"] else "the SBOM of the executable failed"
+    return step["ok"]
 
 
 def _rehearsal_version(scratch: Path) -> str:
@@ -341,6 +446,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         version=args.version,
         require_signing=args.require_signing,
         keep=args.keep,
+        binary=args.binary,
     )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=None if args.json else 2))
     if args.output:
@@ -348,7 +454,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0 if result.get("ok") else 1
 
 
-def main(argv=None) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """Build and return the argument parser."""
     parser = argparse.ArgumentParser(prog="release_rehearsal", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -357,10 +464,16 @@ def main(argv=None) -> int:
     p_run.add_argument("--version", default=None, help="explicit version to rehearse a real bump (default: safe +rehearsal<ts> label)")
     p_run.add_argument("--require-signing", action="store_true", help="fail the rehearsal if no gpg key is available (default: sign is best-effort)")
     p_run.add_argument("--keep", action="store_true", help="keep the scratch workdir for inspection")
+    p_run.add_argument("--binary", action="store_true", default=False, help="build the standalone executable too (uses scripts/build_binary.py with its own wheel and PyInstaller; requires network; takes minutes)")
     p_run.add_argument("--output", default=None, help="also write the receipt JSON to this path")
     p_run.add_argument("--json", action="store_true", help="emit compact single-line JSON")
     p_run.set_defaults(func=_cmd_run)
 
+    return parser
+
+
+def main(argv=None) -> int:
+    parser = build_parser()
     args = parser.parse_args(argv)
     return args.func(args)
 

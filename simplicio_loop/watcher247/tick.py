@@ -11,15 +11,15 @@ import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from .. import escalation, intake_gate, watcher_github
+from .. import escalation, intake_gate, squad_capacity, watcher_github
 from ..claim_lease import ClaimStore
 from . import budget, config, events, github, host_mode, onboarding, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify
 
-_STATE_DIRS = (".simplicio-loop/", ".simplicio/")
+_STATE_DIRS = (".simplicio-loop/",)
 
 
 class Gate:
-    """One lock per repo; the tick itself caps the batch at SIMPLICIO_247_CONCURRENCY issues."""
+    """One lock per repo; the tick itself caps the batch at the capacity plan (SIMPLICIO_247_CONCURRENCY overrides it)."""
 
     def __init__(self) -> None:
         self._locks: dict[str, asyncio.Lock] = {}
@@ -129,7 +129,7 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
     if not await dirty(dest):
         return None
     await proc.run(["git", "add", "-A"], cwd=dest)
-    await proc.run(["git", "reset", "-q", "--", ".simplicio-loop", ".simplicio"], cwd=dest)  # unstage loop state
+    await proc.run(["git", "reset", "-q", "--", ".simplicio-loop"], cwd=dest)  # unstage loop state
     staged = await proc.run(["git", "diff", "--cached", "--name-only"], cwd=dest)
     if not staged.stdout.strip():
         return None
@@ -236,8 +236,13 @@ def _note_failed_attempt(ctx: points.PointContext, number: int, reasons: str) ->
         state.log(f"escalation note failed {ctx.repo}#{number}: {exc}")
 
 
+def _without_pr(steps: list[dict[str, str]], failed: bool) -> squad_flow.Outcome | None:
+    """What a worker that opened no PR hands the squad metrics (#1565): its steps and how it ended. None when no step ran."""
+    return squad_flow.Outcome("", "", steps, "failed" if failed else "no_pr") if steps else None
+
+
 async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: float,
-                  executor: host_mode.Executor) -> squad_flow.Outcome | None:
+                  executor: host_mode.Executor, probe: squad_capacity.Probe | None = None) -> squad_flow.Outcome | None:
     name = work.repo
     number = int(work.issue["number"])
     ident = state.key_of(name, number)
@@ -249,6 +254,8 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
     await budget.record("issues")
     verdict = None if work.fix else intake_gate.triage(work.issue)
     ctx = None
+    steps: list[dict[str, str]] = []  # the steps run_exec ran, also when it failed: a failed task counts in the metrics (#1565)
+    run_failed = False
     try:
         claim = await watcher_github.claim_on_github(repo=full, issue=str(number), owner=config.OWNER, runner=runner)
         if not claim.verified:
@@ -274,6 +281,7 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                 head = await reset_branch(dest, work.branch, number, fix=bool(work.fix))
                 ctx = points.PointContext(
                     repo=name, issue=work.issue, clone=dest, state_dir=config.ROOT, family=(executor.families or (None,))[0],
+                    capacity=probe,
                     run_dir=dest / ".simplicio-loop" / "orchestrator" / "points" / f"{name}-{number}")
                 await points.run("intake", ctx)
                 if executor.mode == "exec":
@@ -282,6 +290,7 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                 task = ctx.task_text + plan_hints(await points.run("plan", ctx))  # one text: retry reasons + hints
                 turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, task=task, role=work.role,
                                           run_id=run_id)
+                steps = turbo.get("steps") or []
                 ctx = replace(ctx, turbo_json=turbo, verify=turbo["verify"])
                 await points.run("apply", ctx)
                 await _phase(runner, name, number, "VERIFYING", detail="turbo ok; publicando o diff")
@@ -294,6 +303,9 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                 # no diff means no PR: the run closes blocked, never done (the item is BLOCKED / done_no_diff below)
                 await asyncio.to_thread(events.close_run, dest, run_id, "ok" if url else "blocked", pr_url=url)
         except BaseException as exc:  # a run that stopped before the pr stage still closes on the kanban
+            if not steps:
+                steps = host_mode.steps_of(exc)
+                run_failed = bool(steps)
             blocked = isinstance(exc, (points.PointBlocked, points.PointDeferred))
             await asyncio.to_thread(events.close_run, dest, run_id, "blocked" if blocked else "failed")
             raise
@@ -309,12 +321,13 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
             await store.release(ident, token, "done_no_diff", now=clock, pr=None, **turbo)
         await points.run("done", replace(ctx, pr_url=url))
         state.log(f"done {ident} pr={url}")
-        return squad_flow.Outcome(url, turbo["verify"], turbo.get("steps") or []) if url else None
+        return squad_flow.Outcome(url, turbo["verify"], steps) if url else _without_pr(steps, failed=False)
     except points.PointDeferred as exc:  # transient: the attempt is given back and the issue is due on the next tick
         attempts = (await store.get_claim(ident)).attempts
         await _phase(runner, name, number, "BLOCKED", detail=f"deferred: {exc.reason_code}")
         await store.release(ident, token, "retry", now=clock, attempts=max(attempts - 1, 0), reason_code=exc.reason_code)
         state.log(f"point deferred {ident}: {exc}")
+        return _without_pr(steps, run_failed)
     except points.PointBlocked as exc:  # a failed attempt, like a verify failure: retry with the reasons, dead at the limit
         attempts = (await store.get_claim(ident)).attempts
         final = verify.retry_or_dead(attempts, config.MAX_ATTEMPTS)
@@ -328,11 +341,13 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
         await store.release(ident, token, final, now=clock, reason_code=exc.reason_code, error=str(exc)[:500],
                             blocked_by=reasons, next_try_at=state.iso(state.now() + config.RETRY_AFTER))
         state.log(f"point blocked {ident} {final}: {exc}")
+        return _without_pr(steps, run_failed)
     except secret_scan.SecretDetected as exc:  # the secret itself is never echoed, only the file names
         await _phase(runner, name, number, "BLOCKED",
                      detail=f"push bloqueado ({exc.reason_code}): segredo detectado em " + ", ".join(exc.files))
         await store.release(ident, token, "dead", now=clock, reason_code=exc.reason_code, error=str(exc)[:500])
         state.log(f"secret blocked {ident}: {', '.join(exc.files)}")
+        return _without_pr(steps, run_failed)
     except Exception as exc:
         attempts = (await store.get_claim(ident)).attempts
         final = verify.retry_or_dead(attempts, config.MAX_ATTEMPTS)
@@ -343,6 +358,7 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
         await store.release(ident, token, final, now=clock, reason_code="turbo_failed", error=error, blocked_by="",
                             next_try_at=state.iso(state.now() + config.RETRY_AFTER))
         state.log(f"fail {ident} {final}: {error}")
+        return _without_pr(steps, run_failed)
 
 
 async def _enqueue_fixes(runner, name: str, fixes: dict) -> None:
@@ -420,7 +436,12 @@ async def tick(dry_run: bool = False) -> None:
     found = await github.repos()
     baseline = await state.load(config.BASELINE, None)
     fixes = await state.load(config.FIXES, {"queued": {}, "seen": []})
-    limit = min(config.concurrency(), await budget.issues_left())
+    probe = await asyncio.to_thread(squad_capacity.measure, config.ROOT)  # ONE probe per tick: sizing, planning and resource_governor share it
+    limits = squad_capacity.Limits.from_env(extra_worker_envs=(config.CONCURRENCY_ENV,), budget_left=await budget.slots_left())
+    sizing = squad_capacity.supply(probe, limits)
+    limit = min(sizing.workers, await budget.issues_left())  # automatic unless the operator pinned it
+    for warning in limits.warnings:  # an invalid setting was ignored: say so once per tick, never fail the tick
+        state.log(warning)
     gate_cache: dict = {}
     seen: list[str] = []
     batch: list[Work] = []
@@ -471,15 +492,20 @@ async def tick(dry_run: bool = False) -> None:
     if persist and baseline is not None:
         await state.save(config.FIXES, fixes)
     if batch:
+        overload = squad_capacity.overload_warning(limits, sizing.caps, len({w.repo for w in batch}))  # a repo's issues run one at a time
+        if overload:
+            state.log(overload)
         idents = [state.key_of(w.repo, int(w.issue["number"])) for w in batch]
         if dry_run:
             for ident in idents:
                 state.log(f"[dry-run] would process {ident}")
             return
         gate = Gate()
-        plans = squad_flow.form(batch, (executor.families or ("claude",))[0])  # the general coordinator
-        outcomes = await asyncio.gather(*(process(store, runner, gate, w, clock, executor) for w in batch))
+        plans = squad_flow.form(batch, (executor.families or ("claude",))[0], probe, limits)  # the general coordinator
+        outcomes = await asyncio.gather(*(process(store, runner, gate, w, clock, executor, probe) for w in batch))
         squad_status = await squad_flow.finish(plans, batch, outcomes, runner, gate)
+        for repo_plan in plans:
+            squad_status[repo_plan.repo]["capacity"] = repo_plan.capacity  # why this many run at once (sizing only, never what merges)
         await status(phase="processed", last=idents[-1], processed=idents,
                      repos=len(found), open_seen=len(seen), subscription=sub,
                      skipped_repos=skipped_repos, skipped_issues=skipped_issues, squads=squad_status)

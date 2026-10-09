@@ -134,6 +134,12 @@ def _failure_reason(planned: exec_planner.PlannerResult, label: str, status: str
     return f"apply_{status if isinstance(status, str) and _STATUS_CODE.fullmatch(status) else 'unknown'}"
 
 
+def steps_of(exc: BaseException) -> list[dict[str, str]]:
+    """The steps ``run_exec`` had run when it raised ``exc`` (the last one is the step that failed); empty when none ran."""
+    steps = getattr(exc, "exec_steps", None)
+    return list(steps) if isinstance(steps, list) else []
+
+
 def next_role(ladder: escalation.EscalationState) -> None:
     """execution repeats once, then the ladder climbs; at planning it stays and retries with the failure output."""
     if ladder.current_role() == "execution" and ladder.attempts_in_step < 2:
@@ -144,7 +150,7 @@ def next_role(ladder: escalation.EscalationState) -> None:
 async def _reset_tree(dest: Path) -> None:
     """Drop the edits of a failed apply, so the next plan is written against the branch head."""
     await proc.run(["git", "reset", "-q", "--hard", "HEAD"], cwd=dest, timeout=60)
-    await proc.run(["git", "clean", "-fdq", "-e", ".simplicio-loop", "-e", ".simplicio"], cwd=dest, timeout=60)
+    await proc.run(["git", "clean", "-fdq", "-e", ".simplicio-loop"], cwd=dest, timeout=60)
 
 
 async def _request(dest: Path, task: str, run_id: str | None = None) -> tuple[str, str]:
@@ -209,6 +215,8 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
                    attempts: int, fix: bool = False, role: str = "", run_id: str | None = None) -> dict[str, Any]:
     """Plan with the exec CLI, apply with turbo, escalate on failure. Returns the claim fields; raises when it failed.
 
+    A failed run raises with the steps it ran in ``exc.exec_steps`` (read them with ``steps_of``).
+
     ``run_id``: the run the watcher opened at intake. Turbo continues it and leaves it open after a good apply, so the
     watcher writes the pr stage and closes it (``events.close_run``).
     """
@@ -267,8 +275,9 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
             else:
                 next_role(ladder)
         raise RuntimeError(f"no verified plan after {config.MAX_STEPS} steps: {failure}"[:500])
-    except BaseException:
+    except BaseException as exc:
         report["status"] = "FAILED"
+        exc.exec_steps = list(steps)  # a failed task keeps its steps: the squad metrics count it (#1565), not only the ones that finished
         raise
     finally:
         report["finished_at_unix"] = int(time.time())

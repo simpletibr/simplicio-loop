@@ -188,7 +188,7 @@ class FakeRun:
         if sub == "status":
             if not self.diff:
                 self.repo_active[repo] -= 1
-            return proc.Result(0, " M app.py\n?? .simplicio/x\n" if self.diff else "")
+            return proc.Result(0, " M app.py\n?? .simplicio-loop/x\n" if self.diff else "")
         if sub == "diff":
             return proc.Result(0, "app.py\n")
         return proc.Result(0)  # config, fetch, add, reset, commit, push
@@ -207,6 +207,8 @@ def run_tick(**kwargs):
 def write_json(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data))
+    path.chmod(0o600)  # the login store refuses a file that group or others can read
+    path.parent.chmod(0o700)  # ... and a folder that group or others can write
 
 
 def read_json(path):

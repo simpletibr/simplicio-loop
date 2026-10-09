@@ -404,6 +404,16 @@ def _assert_pid_gone(pid: int) -> None:
     raise AssertionError("timed-out process %d was not reaped" % pid)
 
 
+# Time a phase gets for a Python leader AND its Python child to start and write
+# their pid files before the timeout under test fires.  A loaded host starts an
+# interpreter in seconds, not milliseconds; with a sub-second budget these tests
+# measured interpreter start-up speed instead of process-group reaping.
+START_BUDGET_SECONDS = 4.0
+# Upper bound for "the timeout killed the whole tree": the children sleep 30 s,
+# so an unreaped tree would take far longer than the budget plus this margin.
+REAP_MARGIN_SECONDS = 10.0
+
+
 def test_bounded_phase_reports_timeout_and_reaps_process_group(tmp_path) -> None:
     leader_pid = tmp_path / "leader.pid"
     child_pid = tmp_path / "child.pid"
@@ -421,7 +431,7 @@ def test_bounded_phase_reports_timeout_and_reaps_process_group(tmp_path) -> None
         [sys.executable, "-c", leader, str(leader_pid), str(child_pid), grandchild],
         phase="stdlib_test",
         capture_output=True,
-        timeout_seconds=0.3,
+        timeout_seconds=START_BUDGET_SECONDS,
     )
 
     assert result.timed_out is True
@@ -446,11 +456,11 @@ def test_timeout_kills_group_after_leader_exits_but_child_keeps_pipes_open(tmp_p
         [sys.executable, "-c", leader, str(child_pid), child],
         phase="stdlib_test",
         capture_output=True,
-        timeout_seconds=0.8,
+        timeout_seconds=START_BUDGET_SECONDS,
     )
 
     assert result.timed_out is True
-    assert time.monotonic() - started < 3.0
+    assert time.monotonic() - started < START_BUDGET_SECONDS + REAP_MARGIN_SECONDS
     assert child_pid.exists()
     _assert_pid_gone(int(child_pid.read_text()))
 
@@ -469,10 +479,11 @@ def test_timeout_kills_observed_descendant_that_escapes_process_group(tmp_path) 
     started = time.monotonic()
     result = check._run_bounded(
         [sys.executable, "-c", leader, str(child_pid), child], phase="stdlib_test",
-        capture_output=True, timeout_seconds=0.8,
+        capture_output=True, timeout_seconds=START_BUDGET_SECONDS,
     )
     assert result.timed_out is True
-    assert time.monotonic() - started < 3.0
+    assert time.monotonic() - started < START_BUDGET_SECONDS + REAP_MARGIN_SECONDS
+    assert child_pid.exists()
     _assert_pid_gone(int(child_pid.read_text()))
 
 
@@ -501,7 +512,8 @@ os._exit(0)
 """
     result = check._run_bounded(
         [sys.executable, "-c", leader, str(child_pid), grandchild],
-        phase="stdlib_test", capture_output=True, timeout_seconds=0.5,
+        phase="stdlib_test", capture_output=True,
+        timeout_seconds=START_BUDGET_SECONDS * 4,  # this test needs NO timeout
     )
     assert result.reason is check_runtime.CommandReason.DESCENDANT_LEAK
     assert result.timed_out is False
@@ -527,7 +539,7 @@ def test_bounded_capture_keeps_tail_pytest_summary_after_large_prefix() -> None:
     ) % (2 * 1024 * 1024)
     result = check._run_bounded(
         [sys.executable, "-c", payload], phase="stdlib_test",
-        capture_output=True, timeout_seconds=5,
+        capture_output=True, timeout_seconds=60,
     )
     assert result.returncode == 0
     assert "OUTPUT_TRUNCATED[stdout total_bytes=" in result.stdout
@@ -583,7 +595,7 @@ def test_windows_thread_capture_timeout_is_bounded_when_taskkill_fails(monkeypat
     _stdout, _stderr, timed_out, leaked = check_runtime._bounded_capture(
         proc, 0.1, set(), discover=False,
     )
-    assert time.monotonic() - started < 2.0
+    assert time.monotonic() - started < 10.0  # the child sleeps 30 s; a hang would pass 10 s
     assert timed_out is True
     assert leaked is False
     assert proc.poll() is not None
@@ -826,7 +838,7 @@ def test_capture_containment_failure_cleans_previously_observed_descendant(monke
 
     result = check_runtime.run_bounded(
         [sys.executable, "-c", "import time; time.sleep(10)"],
-        phase="stdlib_test", capture_output=True, timeout_seconds=2,
+        phase="stdlib_test", capture_output=True, timeout_seconds=30,
     )
 
     assert result.reason is check_runtime.CommandReason.CONTAINMENT_UNAVAILABLE
@@ -861,7 +873,7 @@ def test_adopted_scan_failure_preserves_child_seen_in_same_iteration(monkeypatch
     monkeypatch.setattr(check_runtime, "_terminate_and_reap", terminate)
     result = check_runtime.run_bounded(
         [sys.executable, "-c", "import time; time.sleep(30)"],
-        phase="stdlib_test", capture_output=True, timeout_seconds=2,
+        phase="stdlib_test", capture_output=True, timeout_seconds=30,
     )
     assert result.reason is check_runtime.CommandReason.CONTAINMENT_UNAVAILABLE
     assert cleanup_calls[-1] == ({child_pid}, {baseline_pid}, False)
@@ -891,7 +903,7 @@ def test_partial_descendant_error_is_cleaned_by_capture_caller(monkeypatch) -> N
     monkeypatch.setattr(check_runtime, "_terminate_and_reap", terminate)
     result = check_runtime.run_bounded(
         [sys.executable, "-c", "import time; time.sleep(30)"],
-        phase="stdlib_test", capture_output=True, timeout_seconds=2,
+        phase="stdlib_test", capture_output=True, timeout_seconds=30,
     )
     assert result.reason is check_runtime.CommandReason.CONTAINMENT_UNAVAILABLE
     assert cleanup_calls == [({safe_child_pids[0]}, {baseline_pid}, False)]
@@ -924,7 +936,7 @@ def test_partial_leader_scan_still_combines_safe_adopted_scan(monkeypatch) -> No
     monkeypatch.setattr(check_runtime, "_terminate_and_reap", terminate)
     result = check_runtime.run_bounded(
         [sys.executable, "-c", "import time; time.sleep(30)"],
-        phase="stdlib_test", capture_output=True, timeout_seconds=2,
+        phase="stdlib_test", capture_output=True, timeout_seconds=30,
     )
     assert result.reason is check_runtime.CommandReason.CONTAINMENT_UNAVAILABLE
     assert cleanup_calls == [({partial_pid, adopted_pid}, {baseline_pid}, False)]
@@ -965,7 +977,7 @@ def test_finished_leader_still_runs_known_cleanup_when_final_discovery_fails(mon
     monkeypatch.setattr(check_runtime, "_terminate_and_reap", terminate)
 
     result = check_runtime.run_bounded(
-        [sys.executable, "-c", "pass"], phase="stdlib_test", timeout_seconds=2,
+        [sys.executable, "-c", "pass"], phase="stdlib_test", timeout_seconds=30,
     )
 
     assert result.reason is check_runtime.CommandReason.CONTAINMENT_UNAVAILABLE

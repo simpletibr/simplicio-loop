@@ -262,6 +262,9 @@ In Claude Code, the Agent tool takes `model: opus | sonnet | haiku`. Never use x
 
 For more than 3 issues, run squads. One general coordinator plans. Each squad has 1 coordinator and up to 4 workers.
 
+The loop sizes the squads itself (`--squads auto`, the default), from the demand of the issues (dependency levels, shared files) and the measured machine (cores, load, free memory, free disk, daily budget). The plan's `capacity` block gives `squads`, `workers_per_squad`, `total_workers` and the `reasons`: run at most that many workers at once, and start the next when one ends.
+Override with `--squads N` (or `SIMPLICIO_SQUADS=N`). Under load it shrinks (run `squads plan` again between waves). Below the free-disk floor it runs 1 worker and reports the disk as the limit. An override above what the machine allows prints a `WARN:` line (`warnings` in the JSON). It never changes what may merge.
+
 1. Run `simplicio-loop squads plan --issues <json|-> --family <family> --json`. The plan lists the agents (role, model, effort), the squads, the owner of each file, the shared files and the merge order.
 2. Spawn each agent from the plan with its `model` and `effort`. Claude Code: Agent tool with `model` and `effort: high`. Codex, Grok and Gemini: the model of that role in the plan. Record each agent with `execution_report record-task --role R --model M --effort E`.
 3. Workers (`execution`) edit only their own files. A worker that fails twice moves up one role (`escalation.py`).

@@ -678,7 +678,14 @@ def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list
     import hashlib
 
     from ..mapper_binding import build_mapper_binding, canonical_mapper_binding, mapper_binding_digest
-    from ..mechanical_edit import EDIT_PLAN_SCHEMA, TextEdit, _canonical_digest, build_edit_plan
+    from ..mechanical_edit import (
+        EDIT_PLAN_SCHEMA,
+        MechanicalEditError,
+        TextEdit,
+        _canonical_digest,
+        _safe_path,
+        build_edit_plan,
+    )
 
     operations = plan.get("operations") if isinstance(plan, dict) else None
     if not isinstance(operations, list) or not operations:
@@ -699,6 +706,11 @@ def compile_host_plan(root: str, plan: Any) -> tuple[dict[str, Any] | None, list
             )
             continue
         path = op["path"]
+        try:
+            _safe_path(Path(root), path)  # refuse before reading: absolute, "..", .git and links into it
+        except MechanicalEditError as exc:
+            errors.append({**exc.to_dict(), "index": index})
+            continue
         target = Path(root) / path
         if op["find"] == "":
             if target.is_file() and target.read_bytes():

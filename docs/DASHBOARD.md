@@ -67,6 +67,25 @@ Summary fields come from `build_progress` (`phase`, `percent`, `tasks`, `gates`,
 - Artifacts larger than 1,000,000 bytes are refused (413).
 - Returned text is masked by `redact_text`: bearer tokens, `sk-` and `ghp_` tokens, `AKIA` keys, email addresses, and `api_key=`-style values. Keys named like secrets, tokens or passwords are masked whole.
 
+### Source guard for extras.js (tripwire)
+
+The barriers that actually stop a style or markup injection in the extras panel are in the platform, not in a test:
+
+- CSP `style-src 'self'`: the browser refuses an inline `style` attribute and any `<style>` block. The only style the panel writes is a bar width through the CSSOM (`style.setProperty('width', ...)`), which that CSP allows.
+- `textContent`: every string that comes from an event is set as text. No markup is parsed from event data.
+
+`FORBIDDEN` in `tests/test_live_extras_unit.py` is a regex tripwire over the source of `extras.js` and `extras.css`. It exists to fail loudly when someone reaches for the usual ways to write a style or parse markup (`innerHTML`, `outerHTML`, `insertAdjacentHTML`, `insertAdjacentElement`, `createContextualFragment`, `DOMParser`, `setHTML`, `setHTMLUnsafe`, `parseHTMLUnsafe`, `srcdoc`, `document.write`, `eval(`, `setAttribute('style'...)`, `setAttributeNS`, `.style = ...`, `.style.<property>`, `el['style']`, `const {style} = el`, `cssText`, `Object.assign(el.style, ...)`, any `setProperty` other than `'width'`, absolute URLs). Each pattern has a probe in `GUARD_PROBES`, and a second test appends every probe to a copy of `extras.js` to prove that the guard fires on it. A separate test requires exactly one `.style` in `extras.js`. None of this is a security boundary.
+
+What it does not catch (each checked against the patterns above):
+
+- Names built at run time: `el[name]`, `el['sty' + 'le']`, `el['inner' + 'HTML']`, `Reflect.set(el, 'style', x)`.
+- Code from strings or other modules: `new Function(body)`, `setTimeout('code')`, `import('./x.js')`, `createElement('script')`.
+- Unicode escapes in an identifier: `el.\u0069nnerHTML`.
+- `with (el) { style = x }` (a bare `style`, no dot) and an alias of the style object (`const s = el.style; s.width = x`; only the `.style` count test catches the second one).
+- Other ways to carry a style or active content: `setAttributeNode` with a `style` attribute node, `cloneNode` of an inline-styled node, `createElement('style')`, `el.attributes.style`, `setAttribute('onclick', ...)`, `el.href = 'javascript:...'`, `el.setAttribute('src', ...)`.
+- Network or navigation calls with a computed URL: `navigator.sendBeacon(x)`, `location = x` (an absolute `http(s)://` literal is caught).
+- Any file other than `extras.js` and `extras.css`.
+
 ## Environment
 
 | Variable | Effect |
@@ -276,6 +295,15 @@ The cost row shows "Estimado". The budget row shows "Estimado" for a projection 
 
 Budget slice (#1404): `simplicio_loop/dashboard/budget.py` reads the declared limits, sums the usage events and projects. The alert rules `budget-projected:<tokens|usd|seconds>` (warning, the projection passes the limit) and `budget-exceeded:<...>` (critical, measured use passed it) run in the alert watch. A dimension with no declared limit, no measured use or no phase progress is UNVERIFIED. Still deferred to issue #1404: the token producer (no `token_usage` writer exists, so tokens and USD stay UNVERIFIED on a real run), cost per run, task and iteration. The last-10 comparison is done on top of the #1408 reader. The decisions were: the price table lives in the repo; no token producer in this round; agent roles come from the stage contract.
 
+### Stage-agents reply under load (#1565)
+
+`GET /api/runs/{id}/stage-agents` is polled every 3 s, so it stays small and cheap whatever the run holds:
+
+- `cost.by_model` lists the 20 most expensive models. With more, `cost.others` carries `models`, `tokens_in`, `tokens_out`, `tokens` and `usd` of the rest, and the listed parts add up to `cost.usd`. A model with no price makes the whole cost UNVERIFIED with the reason, so nothing is folded in that case.
+- A token or USD count that is not finite, is negative, is not a number or is above 10^15 is not a measurement: it is ignored, and `breakdown.tokens.ignored` counts the events (with `ignored_reason`, or the reason when no other count was measured). Every reply is strict JSON; a reply that still held NaN or Infinity would be a JSON 500, never invalid JSON.
+- One computation per run is in flight at a time. A poll that arrived before the computation took its file stamp takes its result; a poll that arrives later, with the files changed since, waits for a newer one. N pollers of a hot run cost about two computations, and an append that finished before a request began is always in its reply.
+- A poll waits at most 10 s for a computation. After that it gets the last good reply with `stale: true` and `age_s`, or, when the run has none, `503` with `Retry-After: 1`.
+
 ## Coordination (`/api/coordination`)
 
 Read-only, token-gated like `/api/queue`. The source is the backlog JSONL: `$SIMPLICIO_BACKLOG_FILE` when set, else `<repo>/.simplicio-loop/orchestrator/backlog/backlog.jsonl` for the first watched repo. The builder is `simplicio_loop/dashboard/coordination.py` (`build_coordination`).
@@ -364,6 +392,43 @@ browser = false                # default false; true shows the "Ativar notifica√
 `python -m simplicio_loop.dashboard.bench --runs 50 --events 10000 --idle-seconds 30 --json` serves 50 fixture runs of 10,000 events, drains one SSE stream, then samples this process (server included) for `--idle-seconds` with that stream open and nothing written. `idle_cpu.cpu_percent` is utime + stime over wall time, as a share of one core.
 
 MEASURED on Linux (4 cores, `/proc`), one 30 s sample: 0.06 CPU s over 30.0 s wall = 0.2 % (limit 2 %); RSS 47,000 KiB after the full run (limit 80 MB). One sample, not a distribution. Windows and macOS: UNVERIFIED (no `/proc`, no machine to run on).
+
+## Cost of GET /api/runs (#1569)
+
+The list needs the summary of every run. `runs.run_summary` keeps that summary in memory for each run directory. The key is the stamp of the six files that the summary reads: `state.json`, `events.jsonl`, `completion-receipt.json`, `execution-route.json`, `evidence-receipt.json` and `loop/watcher_state.json`. The stamp holds the inode, size, mtime and ctime of each file, or nothing when the file is absent. User space cannot set the ctime. A rewrite that restores the size and the mtime therefore still changes the key. The code takes the stamp before it reads the files. A run that grows during the read gets a new read on the next call.
+
+A symlink among those files makes the run uncacheable. `build_progress` follows a link to a receipt, and a stat of the link does not show a change of its target. The code computes such a run on each call.
+
+The code does not trust a file that changed less than 100 ms before the stamp. On a disk with whole-second timestamps (ext3, HFS+, FAT) the window is 2 s. A writer could rewrite such a file inside the same timestamp tick with the same size. The code computes this kind of run again on each call and does not store it. It does not trust a timestamp in the future either. The window assumes that the disk clock and the process clock agree. I did not test a network disk with a skewed clock (UNVERIFIED).
+
+Only one computation per run runs at a time. The pollers of a changed run wait for it and take its result. Each caller gets its own copy of the summary.
+
+**Memory limits.** The memory holds 4096 runs and 64 MiB of JSON at most. The run that you used least recently leaves first. A summary larger than the whole budget is never stored, and it does not push other runs out. A summary is about 10 KB (9.6 KB measured for a run with 12 events). So 4096 typical runs use about 40 MB. A `state.json` of 850 KB gives a summary of 1.3 MB. A listing scans the runs in order. A listing of more runs than the memory holds therefore gets no hit, because each run leaves before its turn comes. Then the cost is the same as before the memory existed. Measured in process (the values include the first call, which fills the memory):
+
+| Runs | JSON in the memory | RSS after (from the start of the listing) |
+|---|---|---|
+| 600 runs, 50 events each | 5.8 MB, 600 entries | +27.0 MiB (peak 66 MiB) |
+| 41 runs with a 850 KB `state.json` | 51.4 MB, 41 entries | +238 MiB (peak 439 MiB) |
+| 80 runs with a 850 KB `state.json` | 66.4 MB, 53 entries (the budget is 67.1 MB) | +669 MiB (peak 854 MiB) |
+
+Most of the RSS of the two large cases comes from the computation, not from the stored JSON. With the memory switched off, the same 41 large runs still raise the RSS by 183 MiB (peak 216 MiB). That part is the cost of computing them. It is the same before the memory existed. The other 55 MiB of the 238 MiB are the stored JSON. With 80 large runs the listing does not fit in the budget. Each pass then computes all 80 runs again. The second pass took 166 s of CPU, 2.1 s for each run, as before the memory existed.
+
+**CPU budget per request.** A request on runs that did not change reads no file and parses no JSON event. It makes six `lstat` calls per run and one small `json.loads`. A run that changed costs one full summary: parse `state.json`, scan `events.jsonl` and mask secrets. `tests/test_dashboard_runs_memo_unit.py` counts these reads. It fails when the second listing of 20 runs reads one file. `tests/test_dashboard_runs_memo_oracle_unit.py` changes the files at random: appends, rewrites that keep the mtime, rotation and receipts that are symlinks. After every change it compares the listing with the listing made with no memory.
+
+MEASURED on a 10-core Linux host with load 6 to 8 (loopback, 50 samples per round, 3 rounds):
+
+| Case | Before | After |
+|---|---|---|
+| 20 runs, 50 events each (the budget test): `list_runs` CPU, in process | p50 72.1 ms, p95 147.9 ms | p50 4.4 ms, p95 8.9 ms |
+| same, `GET /api/runs` | p50 91 to 99 ms, p95 150 to 193 ms, CPU 95 to 106 ms per request | p50 24 to 25 ms, p95 44 to 52 ms, CPU 24 to 30 ms per request |
+| 20 runs, 1000 events each, `GET /api/runs` | p50 366 to 375 ms, p95 524 to 577 ms, CPU 377 to 398 ms | p50 17 to 21 ms, p95 46 to 65 ms, CPU 21 to 26 ms |
+| 50 runs, 10 000 events each, `list_runs` CPU, in process | 7.3 to 9.0 s | p50 13.8 ms, p95 24.3 ms (the first call, 8.3 s, fills the memory) |
+
+On the same host and load, `GET /api/health` took p50 8 to 14 ms and p95 26 to 48 ms. The HTTP round trip makes up most of the remaining time in the route.
+
+**What the budget test shows, and what it does not.** With the memory in place, the test `test_read_routes_p95_under_budget_with_twenty_runs_and_a_thousand_events` passed 8 times in 8 rounds. Each pass needed only the first attempt (load 6.3 to 8.2). The `/api/runs` p95 was 29.4, 39.0, 46.6, 63.9, 41.0, 47.7, 36.2 and 26.6 ms against the 100 ms budget. Before the change it failed with a best of three of 137.4, 150.9 and 161.5 ms. Issue #1569 also asks for a p95 under 40 ms with margin. It says to measure on a machine with moderate load. The p95 was under 40 ms in 4 of those 8 rounds. The audit of the first change measured 5 of 5 rounds under 40 ms (32.2 to 39.7 ms at load 10.4 to 11.4). After the audit fixes, 5 rounds at load 11 to 12 gave 40.4, 53.5, 99.3, 34.1 and 26.1 ms. The test passed each time, and one round came close to the budget. That criterion is not proven stable, and the issue stays open for it.
+
+A run that still receives events costs one scan of its `events.jsonl` on each poll: 160 to 350 ms for 10 000 events (measured). An incremental scan of the tail would remove that cost. This change does not include it.
 
 ## Quality gate (issue #1409)
 

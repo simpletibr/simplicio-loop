@@ -18,6 +18,8 @@ from typing import Any, Iterable, Mapping, Optional
 MAX_FILE_BYTES = 8 * 1024 * 1024  # a report or summary bigger than this is skipped, never read whole
 MAX_SECONDS = 10 ** 9  # a wait above ~31 years is not a measurement of one tick: UNVERIFIED, not a number in the percentiles
 MAX_COUNT = 10 ** 9
+OUTCOMES = ("ok", "failed", "no_pr")  # how a worker task ended: PR opened, the ladder failed, or finished with no PR (#1565)
+MODES = ("baseline", "v2")  # the rules a drain ran with: SIMPLICIO_247_SQUADS_BASELINE=1 is baseline (#1565)
 
 
 def escalation_part(steps: list[dict[str, Any]] | None) -> dict[str, Any]:
@@ -129,10 +131,16 @@ def task_record(
     depends_on: Iterable[int],
     ready_at: Optional[float],
     merged_at: Mapping[int, float],
+    final_outcome: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Merge escalation and dependency parts into one record."""
+    """Merge escalation and dependency parts into one record.
+
+    `final_outcome` is how the task ended (OUTCOMES), as the flow observed it. Anything else (None, an odd value) is
+    UNVERIFIED `outcome_not_observed`: a task is never assumed to have succeeded.
+    """
     esc = escalation_part(steps)
     dep = dependency_part(depends_on, ready_at, merged_at)
+    outcome = final_outcome if isinstance(final_outcome, str) and final_outcome in OUTCOMES else None
 
     # Merge the two parts
     record = {
@@ -141,11 +149,13 @@ def task_record(
         "escalations": esc["escalations"],
         "depends_on": dep["depends_on"],
         "dependency_wait_s": dep["dependency_wait_s"],
+        "final_outcome": outcome,
         "proof_kind": {
             "escalations": esc["proof_kind"]["escalations"],
             "dependency_wait": dep["proof_kind"]["dependency_wait"],
+            "final_outcome": "measured" if outcome else "UNVERIFIED",
         },
-        "unverified": {**esc["unverified"], **dep["unverified"]},
+        "unverified": {**esc["unverified"], **dep["unverified"], **({} if outcome else {"final_outcome": "outcome_not_observed"})},
     }
     return record
 
@@ -158,8 +168,9 @@ def unverified_record(reason: str) -> dict[str, Any]:
         "escalations": None,
         "depends_on": [],
         "dependency_wait_s": None,
-        "proof_kind": {"escalations": "UNVERIFIED", "dependency_wait": "UNVERIFIED"},
-        "unverified": {"escalations": reason, "dependency_wait_s": reason},
+        "final_outcome": None,
+        "proof_kind": {"escalations": "UNVERIFIED", "dependency_wait": "UNVERIFIED", "final_outcome": "UNVERIFIED"},
+        "unverified": {"escalations": reason, "dependency_wait_s": reason, "final_outcome": reason},
     }
 
 
@@ -212,6 +223,12 @@ def _measured_escalation(record: dict[str, Any]) -> bool:
                     for e in escalations))
 
 
+def _outcome(record: dict[str, Any]) -> str:
+    """How the task ended, or `unknown` when the record does not say (an old record, a hand-edited one, not observed)."""
+    value = record.get("final_outcome")
+    return value if _proof(record, "final_outcome") == "measured" and isinstance(value, str) and value in OUTCOMES else "unknown"
+
+
 def _plausible(value: Any, upper: float) -> bool:
     """A real, finite number in [0, upper]; NaN, infinities, negatives, booleans and strings are not measurements."""
     return isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= upper
@@ -247,6 +264,15 @@ def summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         row["escalated"] += 1 if record["escalations"] else 0
     for row in by_initial_role.values():
         row["escalation_rate"] = round(row["escalated"] / row["n"], 4)
+    by_final_outcome: dict[str, dict[str, Any]] = {name: {"n": 0, "escalated": 0} for name in OUTCOMES}
+    for record in escalation_measured:
+        row = by_final_outcome.setdefault(_outcome(record), {"n": 0, "escalated": 0})
+        row["n"] += 1
+        row["escalated"] += 1 if record["escalations"] else 0
+    if not by_final_outcome.get("unknown", {}).get("n"):
+        by_final_outcome.pop("unknown", None)
+    for row in by_final_outcome.values():
+        row["escalation_rate"] = round(row["escalated"] / row["n"], 4) if row["n"] else None
 
     waits = sorted(r["dependency_wait_s"] for r in dependency_with_deps)
     return {
@@ -260,6 +286,7 @@ def summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         "escalation_rate": round(escalated / escalation_n, 4) if escalation_n else None,
         "escalations_by_transition": dict(sorted(escalations_by_transition.items())),
         "by_initial_role": dict(sorted(by_initial_role.items())),
+        "by_final_outcome": by_final_outcome,
         "dependency_wait_n": len(waits),
         "no_dependency_tasks": no_dependency_tasks,
         "dependency_wait_unverified": len(records) - len(waits_measured),
@@ -275,6 +302,14 @@ def summarize(reports: Iterable[dict[str, Any]]) -> dict[str, Any]:
     records = collect(reports_list)
     summary = summarize_records(records)
     summary["reports"] = len(reports_list)
+    modes: dict[str, int] = {}
+    for item in reports_list:
+        if collect([item]):  # only a report with squad tasks says which rules the drain ran with
+            mode = item.get("mode")
+            key = mode if isinstance(mode, str) and mode in MODES else "unknown"
+            modes[key] = modes.get(key, 0) + 1
+    summary["modes"] = dict(sorted(modes.items()))
+    summary["mode"] = "mixed" if len(modes) > 1 else (next(iter(modes)) if modes and "unknown" not in modes else None)
     return summary
 
 
@@ -363,16 +398,34 @@ def load_reports(paths: list[str]) -> tuple[list[dict[str, Any]], list[dict[str,
     return all_reports, skipped
 
 
+def _check_modes(before: Optional[str], after: Optional[str]) -> list[str]:
+    """Refuse two runs of the same mode or a side that mixes modes; warn about a side whose mode was not recorded or the order."""
+    for side, mode in (("before", before), ("after", after)):
+        if mode == "mixed":
+            raise ValueError(f"the {side} side mixes reports of different modes (mixed): summarize one run at a time")
+    if before is not None and before == after:
+        raise ValueError(f"both sides ran in mode {before}: compare a baseline run (SIMPLICIO_247_SQUADS_BASELINE=1) with a v2 run")
+    warnings = [f"{side}: mode not recorded (UNVERIFIED): cannot tell whether this run used the baseline or the v2 rules"
+                for side, mode in (("before", before), ("after", after)) if mode is None]
+    if before == "v2" and after == "baseline":
+        warnings.append("before ran in v2 and after ran in baseline: the comparison is baseline (before) then v2 (after); check the order")
+    return warnings
+
+
 def compare(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
     """Compare two summaries.
 
-    Returns dict with schema, rows (metric comparisons), and warnings.
+    Returns dict with schema, the mode of each side, rows (metric comparisons), and warnings.
+    Raises ValueError when both sides ran in the same mode (or one side mixes modes): that is not a before/after.
     Warnings explain small n, different issue sets, and UNVERIFIED counts.
     """
+    before_mode, after_mode = before.get("mode"), after.get("mode")
     result = {
         "schema": "simplicio.squad-metrics-compare/v1",
+        "before_mode": before_mode,
+        "after_mode": after_mode,
         "rows": [],
-        "warnings": [],
+        "warnings": _check_modes(before_mode, after_mode),
     }
 
     # Metrics to compare
@@ -459,6 +512,7 @@ def render_summary(summary: dict[str, Any]) -> str:
     lines.append("Squad Metrics Summary")
     lines.append("=" * 50)
     lines.append(f"Reports: {summary.get('reports')}")
+    lines.append(f"Mode: {summary.get('mode') or 'unknown'}")
     lines.append(f"Tasks: {summary.get('tasks')}")
     lines.append(f"Issues: {', '.join(summary.get('issues', []))}")
     lines.append("")
@@ -471,6 +525,9 @@ def render_summary(summary: dict[str, Any]) -> str:
         lines.append(f"  Rate: {rate:.4f}")
     else:
         lines.append(f"  Rate: n/a")
+    for name, row in (summary.get("by_final_outcome") or {}).items():
+        rate = row.get("escalation_rate")
+        lines.append(f"  {name}: n={row.get('n')} escalated={row.get('escalated')} rate={'n/a' if rate is None else f'{rate:.4f}'}")
     lines.append("")
     lines.append("Dependencies:")
     lines.append(f"  With deps (n): {summary.get('dependency_wait_n')}")
@@ -489,9 +546,11 @@ def render_compare(result: dict[str, Any]) -> str:
     """Render compare result as plain-text table."""
     lines = []
     lines.append("Squad Metrics Comparison")
-    lines.append("=" * 70)
-    lines.append(f"{'Metric':<30} {'Before':<20} {'After':<20}")
-    lines.append("-" * 70)
+    lines.append("=" * 80)
+    before_label = f"Before [{result.get('before_mode') or 'mode unknown'}]"
+    after_label = f"After [{result.get('after_mode') or 'mode unknown'}]"
+    lines.append(f"{'Metric':<30} {before_label:<24} {after_label:<24}")
+    lines.append("-" * 80)
 
     for row in result.get("rows", []):
         metric = row.get("metric", "")
@@ -503,7 +562,7 @@ def render_compare(result: dict[str, Any]) -> str:
         before_str = f"{before_val:.4f} (n={before_n})" if before_val is not None else f"n/a (n={before_n})"
         after_str = f"{after_val:.4f} (n={after_n})" if after_val is not None else f"n/a (n={after_n})"
 
-        lines.append(f"{metric:<30} {before_str:<20} {after_str:<20}")
+        lines.append(f"{metric:<30} {before_str:<24} {after_str:<24}")
 
     lines.append("")
     if result.get("warnings"):
@@ -529,6 +588,9 @@ def _check_summary(data: dict[str, Any], path: str) -> None:
         value = data.get(field, 0)
         if not (isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= MAX_COUNT):
             raise ValueError(f"{path}: {field} is not a count: {_short(value)}")
+    mode = data.get("mode")
+    if mode is not None and not (isinstance(mode, str) and mode in (*MODES, "mixed")):
+        raise ValueError(f"{path}: mode is not one of baseline, v2, mixed: {_short(mode)}")
     issues = data.get("issues", [])
     if not isinstance(issues, list) or not all(isinstance(i, str) for i in issues):
         raise ValueError(f"{path}: issues is not a list of strings")

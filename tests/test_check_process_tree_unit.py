@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from io import StringIO
 import os
+import subprocess
 import sys
 import time
 
@@ -25,6 +26,37 @@ def _assert_pid_gone(pid: int) -> None:
         time.sleep(0.02)
     raise AssertionError("timed-out process %d was not reaped" % pid)
 
+
+def _long_interpreter(tmp_path, length: int = 150) -> str:
+    """A symlink to this interpreter whose path is at least ``length`` characters.
+
+    A venv path of about 100 characters plus a long TMPDIR gives the same shape in a
+    release-gate run.  The link keeps the base interpreter working (``-c`` code only).
+    """
+    directory = tmp_path / ("v" * 60) / ("e" * 60) / "bin"
+    directory.mkdir(parents=True)
+    link = directory / "python"
+    link.symlink_to(os.path.realpath(sys.executable))
+    assert len(str(link)) >= length
+    return str(link)
+
+
+# Time a phase gets for its Python leader (and a forked child) to start and write
+# its pid file before the timeout under test fires.  A loaded host starts an
+# interpreter in seconds, not milliseconds; with a sub-second budget these tests
+# measured interpreter start-up speed instead of process-tree reaping.
+START_BUDGET_SECONDS = 4.0
+
+# Leader that starts a detached (setsid) child and exits only after the child has
+# written its pid file, so the assertions never depend on how fast an interpreter
+# starts.  argv: pid file, child code, child interpreter.
+DETACHED_CHILD_LEADER = """import pathlib, subprocess, sys, time
+subprocess.Popen([sys.argv[3], '-c', sys.argv[2], sys.argv[1]], start_new_session=True,
+                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+while not pathlib.Path(sys.argv[1]).exists():
+    time.sleep(.01)
+time.sleep(.15)
+"""
 
 def test_descendant_scanner_uses_callers_namespace_level() -> None:
     assert _visible_namespace_pid(42000, [42000, 37, 1], 1) == 37
@@ -309,9 +341,9 @@ if __name__ == '__main__':
     queue = context.Queue()
     child = context.Process(target=attempt, args=(queue,))
     child.start()
-    child.join(3)
+    child.join(60)
     assert child.exitcode == 0
-    assert queue.get(timeout=1) == errno.ENETUNREACH
+    assert queue.get(timeout=30) == errno.ENETUNREACH
     print('blocked')
 """)
     result = check._run_bounded(
@@ -330,15 +362,11 @@ def test_successful_leader_with_closed_pipes_and_setsid_child_fails_and_reaps(tm
         "import pathlib,sys,time,os; "
         "pathlib.Path(sys.argv[1]).write_text(str(os.getpid())); time.sleep(30)"
     )
-    leader = (
-        "import os,subprocess,sys,time; "
-        "subprocess.Popen([sys.executable, '-c', sys.argv[2], sys.argv[1]], "
-        "start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); "
-        "time.sleep(.15)"
-    )
+    leader = DETACHED_CHILD_LEADER
     result = check._run_bounded(
-        [sys.executable, "-c", leader, str(child_pid), child], phase="stdlib_test",
-        capture_output=True, timeout_seconds=2.0,
+        [sys.executable, "-c", leader, str(child_pid), child, sys.executable],
+        phase="stdlib_test",
+        capture_output=True, timeout_seconds=30.0,
     )
 
     assert result.returncode != 0
@@ -364,7 +392,7 @@ time.sleep(30)
 """
     result = check._run_bounded(
         [sys.executable, "-c", program, str(child_pid)], phase="stdlib_test",
-        timeout_seconds=0.3,
+        timeout_seconds=START_BUDGET_SECONDS,
     )
 
     assert result.timed_out is True
@@ -388,7 +416,7 @@ time.sleep(30)
 """
     result = check._run_bounded(
         [sys.executable, "-c", program, str(child_pid)], phase="stdlib_test",
-        timeout_seconds=0.3,
+        timeout_seconds=START_BUDGET_SECONDS,
     )
     assert result.timed_out is True
     assert child_pid.exists()
@@ -407,15 +435,11 @@ def test_descendant_exiting_within_grace_period_is_not_a_leak(tmp_path) -> None:
         "import pathlib,sys,time,os; "
         "pathlib.Path(sys.argv[1]).write_text(str(os.getpid())); time.sleep(0.5)"
     )
-    leader = (
-        "import os,subprocess,sys,time; "
-        "subprocess.Popen([sys.executable, '-c', sys.argv[2], sys.argv[1]], "
-        "start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); "
-        "time.sleep(.15)"
-    )
+    leader = DETACHED_CHILD_LEADER
     result = check._run_bounded(
-        [sys.executable, "-c", leader, str(child_pid), child], phase="stdlib_test",
-        capture_output=True, timeout_seconds=5.0,
+        [sys.executable, "-c", leader, str(child_pid), child, sys.executable],
+        phase="stdlib_test",
+        capture_output=True, timeout_seconds=30.0,
     )
 
     assert result.returncode == 0
@@ -426,27 +450,28 @@ def test_descendant_exiting_within_grace_period_is_not_a_leak(tmp_path) -> None:
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX setsid process-tree contract")
-def test_descendant_still_alive_past_grace_period_is_reported_as_leak(tmp_path) -> None:
+@pytest.mark.parametrize("long_interpreter", [False, True], ids=["short-path", "path-150-chars"])
+def test_descendant_still_alive_past_grace_period_is_reported_as_leak(
+    tmp_path, long_interpreter
+) -> None:
     """A descendant that is genuinely still running once the whole bounded
     grace window has elapsed is a real leak, not just a slow shutdown --
     ``run_bounded`` must wait out the full grace period (proving it is not
     short-circuited back to the old near-instant check) before reporting it,
-    and must still terminate and reap it afterwards."""
+    and must still terminate and reap it afterwards.  The diagnostic must name
+    the leaked process even when the interpreter path is very long (a venv path
+    plus the gate TMPDIR), so the command line is clipped without losing its tail."""
+    interpreter = _long_interpreter(tmp_path) if long_interpreter else sys.executable
     child_pid = tmp_path / "truly-leaked-child.pid"
     child = (
         "import pathlib,sys,time,os; "
         "pathlib.Path(sys.argv[1]).write_text(str(os.getpid())); time.sleep(30)"
     )
-    leader = (
-        "import os,subprocess,sys,time; "
-        "subprocess.Popen([sys.executable, '-c', sys.argv[2], sys.argv[1]], "
-        "start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); "
-        "time.sleep(.15)"
-    )
+    leader = DETACHED_CHILD_LEADER
     started = time.monotonic()
     result = check._run_bounded(
-        [sys.executable, "-c", leader, str(child_pid), child], phase="stdlib_test",
-        capture_output=True, timeout_seconds=10.0,
+        [interpreter, "-c", leader, str(child_pid), child, interpreter],
+        phase="stdlib_test", capture_output=True, timeout_seconds=10.0,
     )
     elapsed = time.monotonic() - started
 
@@ -462,6 +487,101 @@ def test_descendant_still_alive_past_grace_period_is_reported_as_leak(tmp_path) 
     # actually have been honored, not skipped.
     assert elapsed >= 1.5
     _assert_pid_gone(int(child_pid.read_text()))
+
+
+def _proc_state(pid: int) -> "str | None":
+    """Linux state letter of ``pid`` (``Z`` = zombie), or ``None`` once its /proc entry is gone."""
+    try:
+        with open("/proc/%d/stat" % pid) as handle:
+            return handle.read().rsplit(") ", 1)[1].split()[0]
+    except FileNotFoundError:
+        return None
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX process-group contract")
+def test_group_signal_reaches_a_child_that_no_scan_has_seen(tmp_path) -> None:
+    """With discovery off and no PID known, only the group signal can reach a child of the leader.
+
+    The /proc scan normally finds that child too, so every timeout test would still pass if
+    ``_terminate_and_reap`` signalled the leader alone.  This test removes the scan.  The child
+    ignores SIGTERM, so the group SIGKILL is pinned as well."""
+    child_pid = tmp_path / "unseen-child.pid"
+    child = (
+        "import os,pathlib,signal,sys,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+        "pathlib.Path(sys.argv[1]).write_text(str(os.getpid())); time.sleep(60)"
+    )
+    leader = (
+        "import subprocess,sys,time; "
+        "subprocess.Popen([sys.executable, '-c', sys.argv[2], sys.argv[1]]); time.sleep(60)"
+    )
+    proc = subprocess.Popen(
+        [sys.executable, "-c", leader, str(child_pid), child], start_new_session=True,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    try:
+        pid = 0
+        deadline = time.monotonic() + 30.0
+        while not pid and time.monotonic() < deadline:
+            time.sleep(0.02)
+            text = child_pid.read_text() if child_pid.exists() else ""
+            pid = int(text) if text.isdigit() else 0
+        assert pid, "the child never wrote its pid"
+        # Positive control: the child is alive and visible in /proc now, so "entry gone" below
+        # means it died.  Without /proc this fails here instead of passing with no check.
+        assert _proc_state(pid) not in (None, "Z"), "the child is not visible in /proc before the signal"
+        assert check_runtime._terminate_and_reap(proc, set(), discover=False) is True
+        assert proc.returncode is not None, "the leader was not reaped"
+        deadline = time.monotonic() + 5.0
+        state = _proc_state(pid)
+        while state not in (None, "Z") and time.monotonic() < deadline:
+            time.sleep(0.02)
+            state = _proc_state(pid)
+        assert state in (None, "Z"), "the child of the leader survived the group signal"
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX /proc command-line contract")
+def test_leak_diagnostic_clips_a_long_command_line_but_keeps_both_ends(tmp_path) -> None:
+    """``descendant_leak`` lines stay bounded, and the clipped text keeps the
+    interpreter (start) and the last arguments (end), where the name that
+    identifies the leaked process usually is."""
+    interpreter = _long_interpreter(tmp_path)
+    tail = str(tmp_path / "unique-tail-marker.pid")
+    proc = subprocess.Popen(
+        [interpreter, "-c", "import time; time.sleep(30)  # " + "x" * 200, tail],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    try:
+        deadline = time.monotonic() + 10.0
+        while time.monotonic() < deadline:
+            with open("/proc/%d/cmdline" % proc.pid, "rb") as handle:
+                if tail.encode() in handle.read():  # exec has happened
+                    break
+            time.sleep(0.02)
+        line = check_runtime._describe_leaked({proc.pid})
+    finally:
+        proc.kill()
+        proc.wait()
+
+    assert line.startswith("descendant_leak pid=%d cmd=" % proc.pid)
+    assert line.endswith("\n") and line.count("\n") == 1
+    command = line.split("cmd=", 1)[1].rstrip("\n")
+    assert len(command) <= check_runtime.LEAK_COMMAND_LIMIT
+    head, _, end = command.partition(" ... ")
+    assert interpreter[:20] in head, command  # the start of the interpreter path survives
+    assert end.endswith("unique-tail-marker.pid"), command  # and so does the last argument
+
+
+def test_leak_diagnostic_keeps_a_short_command_line_whole() -> None:
+    assert check_runtime._clip_command("python -c pass /x/y.pid") == "python -c pass /x/y.pid"
+    exact = "a" * check_runtime.LEAK_COMMAND_LIMIT
+    assert check_runtime._clip_command(exact) == exact
+    clipped = check_runtime._clip_command(exact + "b")
+    assert len(clipped) == check_runtime.LEAK_COMMAND_LIMIT
+    assert clipped.endswith("b")
 
 
 def test_package_gate_step_reports_descendant_leak_reason(tmp_path) -> None:

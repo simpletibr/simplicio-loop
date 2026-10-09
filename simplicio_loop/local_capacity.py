@@ -195,6 +195,20 @@ def _memory_available() -> int | None:
     return min(host_available, cgroup_available)
 
 
+def _allowed_cpu_count() -> int | None:
+    """Logical CPUs this process may run on: the CPU affinity set (taskset, cpuset) when the OS has one, else os.cpu_count()."""
+    try:
+        allowed = len(os.sched_getaffinity(0))  # absent on macOS and Windows
+    except (AttributeError, OSError):
+        allowed = 0
+    try:
+        total = int(os.cpu_count() or 0)
+    except (OSError, TypeError, ValueError):
+        total = 0
+    counts = [n for n in (allowed, total) if n > 0]
+    return min(counts) if counts else None
+
+
 def probe_local_capacity(
     root: str | os.PathLike[str] = ".",
     *,
@@ -210,10 +224,7 @@ def probe_local_capacity(
     unavailable: list[str] = []
     null_reasons: dict[str, str] = {}
     measured: list[str] = []
-    try:
-        host_cpu_count = int(os.cpu_count() or 0) or None
-    except (OSError, TypeError, ValueError):
-        host_cpu_count = None
+    host_cpu_count = _allowed_cpu_count()
     quota_cpu_count = _cgroup_cpu_capacity() if host_cpu_count is not None else None
     cpu_count = (
         min(host_cpu_count, quota_cpu_count)

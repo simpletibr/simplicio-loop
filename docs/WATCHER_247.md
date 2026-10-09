@@ -38,10 +38,11 @@ Como root, com o arquivo de env do serviço, aponte `SIMPLICIO_247_LOGIN` para o
 - Setup grava o e-mail (não é segredo) em `<state_dir>/account.json` (modo 600).
 - Sem `~/.simplicio/login.json` o tick fica ocioso com `phase=setup_required`, `reason_code=login_missing`. Setup imprime:
   ```
-  sudo -u simplicio-loop -H simplicio login google
+  sudo -u simplicio-loop -H simplicio-loop login
   ```
-  E verifica a assinatura. Reason codes: `ok`, `login_missing`, `subscription_required`, `refresh_failed`, `entitlement_required`, `validate_unreachable`, `account_mismatch`.
-  Com `account_mismatch`, o login.json pertence a outra conta: `sudo -u simplicio-loop -H simplicio logout` e faça login novamente.
+  E verifica a assinatura. Reason codes: `ok`, `login_missing`, `login_insecure`, `subscription_required`, `refresh_failed`, `entitlement_required`, `validate_unreachable`, `account_mismatch`.
+  Com `login_insecure`, o `login.json` é um symlink. Ou grupo e outros o leem. Ou ele fica numa pasta que eles gravam. Rode `chmod 600` no arquivo (ou `chmod 700` na pasta) e rode `--check`. Remova um symlink.
+  Com `account_mismatch`, o login.json pertence a outra conta: `sudo -u simplicio-loop -H simplicio-loop logout --yes` e faça login novamente.
 
 **Saída do setup:**
 - Exit 0: tudo pronto (reason `ok`).
@@ -190,4 +191,14 @@ abertos) e `..`, absolutos e `~` sao descartados. Um ciclo de `depende de #N` en
 ordem declarada.
 
 `status.json` ganha `squads.<repo>`: `squads` (id, coordenador, workers, issues), `approved`, `rejected`, `merge`
-(`disabled` ou `enabled`) e, com merge ligado, `merged`, `failed` e `gate_blocked` (numeros de PR).
+(`disabled` ou `enabled`), `mode` (`v2` ou `baseline`), `task_metrics` e `metrics` e, com merge ligado, `merged`, `failed` e
+`gate_blocked` (numeros de PR). `task_metrics` e uma lista com um registro por tarefa de worker (`issue` mais escalacao,
+espera por dependencia e `final_outcome`: `ok`, `failed` ou `no_pr`) e `metrics` e o resumo do repo no tick, com `n` em cada
+taxa. O mesmo registro vai em `squad_metrics` na task do worker do execution-report do tick, que tambem traz `mode` no topo.
+Os campos e os limites estao em `docs/SQUADS.md`, secao 5. Uma tarefa que escalou e falhou, ou ficou sem PR, tambem entra.
+
+**Modo baseline (#1565).** `SIMPLICIO_247_SQUADS_BASELINE=1` (exatamente `1`) e a rodada "antes" da comparacao da #1549.
+Desliga tres regras da v2: o roteamento por complexidade (todo worker comeca em `execution`), o lote de merge (1 PR por
+trem, pelo mesmo `merge_train`) e os contratos entre squads. Nao muda a revisao do squad, o `squad_gate`, o
+`SIMPLICIO_247_AUTO_MERGE=1`, o lock do repo nem o `--match-head-commit`. Nunca liga o merge e nunca afrouxa uma aprovacao. O padrao
+e `v2`. Uso e limites: `docs/SQUADS.md`, secao 5.

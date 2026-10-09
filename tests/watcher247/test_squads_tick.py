@@ -200,3 +200,188 @@ def test_own_login_is_empty_when_gh_hangs_or_is_missing(monkeypatch, failure):
         raise failure
     monkeypatch.setattr(squad_flow.proc, "run", boom)
     assert asyncio.run(squad_flow.own_login()) == ""
+
+
+# --- #1565: SIMPLICIO_247_SQUADS_BASELINE=1 turns the squads-v2 rules off, for the "before" run of the #1549 comparison ---
+
+BASELINE = squad_flow.BASELINE_ENV
+
+
+def _report():
+    path = config.ROOT / "squads" / ".simplicio-loop" / "runtime" / "execution-reports" / "latest.json"
+    return json.loads(path.read_text())
+
+
+def _starting_roles():
+    return {t["issue"]: t["agent"]["role"] for t in _report()["tasks"] if t.get("agent") and t.get("issue")}
+
+
+def _cross_squad_rows():
+    return [{"number": 1, "title": "a", "body": "`src/a/x.py`", "labels": [{"name": "area:a"}]},
+            {"number": 2, "title": "b", "body": "depende de #1 `src/b/x.py`", "labels": [{"name": "area:b"}]}]
+
+
+@pytest.mark.parametrize("value", [None, "", "0", "true", "yes", "1 ", " 1", "garbage", "2", "on"])
+def test_baseline_is_off_unless_exactly_one(value):
+    assert squad_flow.baseline_enabled({} if value is None else {BASELINE: value}) is False
+    assert squad_flow.baseline_enabled({BASELINE: "1"}) is True
+
+
+def test_the_default_mode_is_v2_in_the_plan_the_status_and_the_report(six):
+    six()
+    run_tick()
+    assert _squads()["mode"] == "v2" and _report()["mode"] == "v2"
+    assert squad_flow.plan_repo(REPO, [{"number": 1, "title": "a", "body": ""}], "claude").mode == "v2"
+
+
+def test_baseline_mode_is_recorded_in_the_status_and_in_the_report(six, monkeypatch):
+    monkeypatch.setenv(BASELINE, "1")
+    six()
+    run_tick()
+    assert _squads()["mode"] == "baseline" and _report()["mode"] == "baseline"
+
+
+def test_a_value_other_than_exactly_one_stays_v2(six, monkeypatch):
+    monkeypatch.setenv(BASELINE, "true")
+    six()
+    run_tick()
+    assert _squads()["mode"] == "v2" and _starting_roles()[f"{REPO}#3"] == "coordination"
+
+
+def test_baseline_turns_routing_off_every_worker_starts_at_execution(six, monkeypatch):
+    monkeypatch.setenv(BASELINE, "1")
+    six()
+    run_tick()
+    assert _starting_roles() == {f"{REPO}#{n}": "execution" for n in NUMBERS}  # #3 is a security issue: v2 would start it at coordination
+
+
+def test_baseline_routing_off_in_the_plan_itself_and_on_by_default():
+    rows = [{"number": 3, "title": "sec", "body": "`src/m3/app.py`", "labels": [{"name": "security"}]}]
+    assert squad_flow.plan_repo(REPO, rows, "claude").routed == {3: "coordination"}
+    assert squad_flow.plan_repo(REPO, rows, "claude", mode="baseline").routed == {3: "execution"}
+
+
+def test_baseline_turns_the_merge_batch_off_one_pr_per_train_through_the_same_code_path(six, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    monkeypatch.setenv(BASELINE, "1")
+    seen = []
+    real = squad_flow.merge_train.plan_train
+    monkeypatch.setattr(squad_flow.merge_train, "plan_train", lambda *a, **k: seen.append(k.get("max_batch")) or real(*a, **k))
+    fake = six()
+    run_tick()
+    assert fake.merges == [101, 102, 103, 104, 105, 106]  # the same PRs in the same order as v2
+    assert fake.tests_run == 6  # v2: 2 (one per batch of up to four); baseline: one cumulative test per PR
+    assert seen == [1] and _squads()["merged"] == [101, 102, 103, 104, 105, 106]
+
+
+def test_v2_keeps_the_batch_of_four(six, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    seen = []
+    real = squad_flow.merge_train.plan_train
+    monkeypatch.setattr(squad_flow.merge_train, "plan_train", lambda *a, **k: seen.append(k.get("max_batch")) or real(*a, **k))
+    fake = six()
+    run_tick()
+    assert fake.tests_run == 2 and seen == [squad_flow.merge_train.DEFAULT_MAX_BATCH]
+
+
+def test_baseline_turns_the_cross_squad_contracts_off():
+    v2 = squad_flow.plan_repo(REPO, _cross_squad_rows(), "claude")
+    assert len(v2.plan.squads) == 2 and len(v2.plan.contracts) == 1  # the edge between two squads has a contract
+    base = squad_flow.plan_repo(REPO, _cross_squad_rows(), "claude", mode="baseline")
+    assert len(base.plan.squads) == 2 and base.plan.contracts == ()
+    assert [step.issue for step in base.plan.merge_order] == [1, 2] and base.deps == {1: (), 2: (1,)}  # the declared order stays
+
+
+def test_baseline_keeps_the_squads_the_ownership_and_the_dependency_order():
+    v2 = squad_flow.plan_repo(REPO, _cross_squad_rows(), "claude")
+    base = squad_flow.plan_repo(REPO, _cross_squad_rows(), "claude", mode="baseline")
+    assert [(s.id, s.issues, s.owned_paths) for s in base.plan.squads] == [(s.id, s.issues, s.owned_paths) for s in v2.plan.squads]
+    assert base.plan.shared_files == v2.plan.shared_files and base.plan.merge_order == v2.plan.merge_order
+
+
+# The switch can only turn v2 rules off. It never enables a merge and never loosens an approval rule.
+
+
+@pytest.mark.parametrize("auto_merge", [None, "", "0", "true", "yes", "garbage"])
+def test_baseline_never_merges_without_exactly_one_in_auto_merge(six, monkeypatch, auto_merge):
+    monkeypatch.setenv(BASELINE, "1")
+    if auto_merge is None:
+        monkeypatch.delenv("SIMPLICIO_247_AUTO_MERGE", raising=False)
+    else:
+        monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", auto_merge)
+    fake = six()
+    run_tick()
+    assert fake.merges == [] and fake.tests_run == 0 and fake.ran("git", "merge") == []
+    assert _squads()["merge"] == "disabled" and _squads()["mode"] == "baseline" and fake.ran("gh", "api", "user") == []
+
+
+def test_the_baseline_switch_does_not_turn_auto_merge_on():
+    assert squad_flow.auto_merge_enabled({BASELINE: "1"}) is False
+    assert squad_flow.auto_merge_enabled({BASELINE: "1", squad_flow.AUTO_MERGE_ENV: "true"}) is False
+    assert squad_flow.auto_merge_enabled({squad_flow.AUTO_MERGE_ENV: "1"}) is True
+
+
+def test_baseline_merges_an_approval_only_from_the_watcher_own_login(six, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    monkeypatch.setenv(BASELINE, "1")
+    fake = six()
+    fake.pr_views = {pr: _view(pr - 100, author="outsider") for pr in fake.pr_views}
+    run_tick()
+    assert fake.merges == [] and fake.tests_run == 0
+    assert _squads()["gate_blocked"] == [101, 102, 103, 104, 105, 106] and _squads()["merged"] == []
+
+
+def test_baseline_with_an_unknown_login_fails_closed(six, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    monkeypatch.setenv(BASELINE, "1")
+    fake = six(login=None)
+    run_tick()
+    assert fake.merges == [] and _squads()["gate_blocked"] == [101, 102, 103, 104, 105, 106]
+
+
+def test_baseline_keeps_the_gate_the_review_and_the_head_pin(six, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    monkeypatch.setenv(BASELINE, "1")
+    fake = six()
+    fake.pr_views[103] = _view(3, approved_after_commit=False)  # the approval is older than the last commit
+    fake.pr_views[102]["files"].append({"path": "pyproject.toml"})  # a shared file
+    run_tick()
+    assert fake.merges == [101, 104, 105, 106]
+    assert _squads()["gate_blocked"] == [103] and 102 not in _squads()["approved"] and "102" in _squads()["rejected"]
+    for argv in fake.ran("gh", "pr", "merge"):
+        assert argv[argv.index("--match-head-commit") + 1] == f"oid{int(argv[3]) - 100}"
+
+
+def test_baseline_without_measured_tests_approves_nothing(env, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    monkeypatch.setenv(BASELINE, "1")
+    fake = env(FakeRun({REPO: [issue(1)]}, distinct_prs=True, pr_views={101: _view(1)}))  # no verified tests
+    baseline()
+    run_tick()
+    assert fake.merges == [] and _squads()["approved"] == [] and _squads()["merge"] == "disabled"
+
+
+@pytest.mark.parametrize("mode", ["v2", "baseline"])
+def test_baseline_merges_exactly_the_prs_v2_merges_for_the_same_approvals(six, monkeypatch, mode):
+    """Only the grouping into trains differs: both modes give the same merged and blocked PRs (the same literal, so equal)."""
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    if mode == "baseline":
+        monkeypatch.setenv(BASELINE, "1")
+    else:
+        monkeypatch.delenv(BASELINE, raising=False)
+    fake = six()
+    fake.pr_views[103] = _view(3, approved_after_commit=False)
+    fake.pr_views[105] = _view(5, author="outsider")
+    run_tick()
+    assert _squads()["mode"] == mode
+    assert (fake.merges, _squads()["approved"], _squads()["gate_blocked"], _squads()["rejected"]) == (
+        [101, 102, 104, 106], [101, 102, 103, 104, 105, 106], [103, 105], {})
+
+
+def test_no_merge_or_approval_function_reads_the_baseline_switch():
+    """A tripwire, beside the behavior tests above: the approval, the gate and the merge rule do not mention the mode."""
+    import inspect
+    import re
+    mode = re.compile(r"baseline|\.mode\b|current_mode", re.IGNORECASE)
+    for fn in (squad_flow._review, squad_flow.auto_merge_enabled, squad_flow.own_login, squad_flow._train_test, squad_flow._merge):
+        assert not mode.search(inspect.getsource(fn)), fn.__name__  # `_merge` only takes the batch size, from the plan

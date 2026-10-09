@@ -31,7 +31,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from . import command_events, quality_events
+from . import command_events, plan_paths, quality_events
 from .effort import next_effort_for_status
 from .runner import _repo_fingerprint, _repo_state_equivalent
 from .survey import MISSING_HINT as SURVEY_MISSING_HINT
@@ -81,6 +81,8 @@ def _normalize_tasks(ops: Mapping[str, Any]) -> list[dict[str, Any]]:
         for op in operations:
             if not isinstance(op, Mapping) or not all(k in op for k in ("path", "find", "replace")):
                 raise ApplyValidationError(f"task {task_id!r} has a malformed operation")
+            if reason := plan_paths.refusal(str(op["path"])):
+                raise ApplyValidationError(f"task {task_id!r}: {reason}")
             normalized_ops.append({"path": str(op["path"]), "find": str(op["find"]), "replace": str(op["replace"])})
         out.append({
             "id": task_id,
@@ -192,6 +194,9 @@ def validate_ops(root: Path, tasks: Sequence[Mapping[str, Any]], chains: Sequenc
             for idx, op in enumerate(task["operations"]):
                 path = op["path"]
                 find_text = op["find"]
+                if plan_paths.refusal(path, root):  # nothing is read for it: no count, no existence
+                    problems.append({"task": task_id, "path": path, "op_index": idx, "reason": "unsafe_path"})
+                    continue
                 current = read(path)
                 if find_text == "":
                     if (root / path).exists() and current:
@@ -236,6 +241,8 @@ def _resolve_dev_cli() -> str:
 def _apply_task_devcli(root: Path, task: Mapping[str, Any], run_dir: Path) -> dict[str, Any]:
     """Apply one task's operations through simplicio-dev-cli's 2-step
     contract (compile pins hashes without mutating; apply mutates)."""
+    if reason := plan_paths.operations_refusal(task["operations"], root):
+        return {"ok": False, "steps": [{"step": "guard", "ok": False, "error": reason}], "reason_code": "unsafe_path"}
     dev_cli = _resolve_dev_cli()
     minimal_path = run_dir / f"{task['id']}.ops.json"
     compiled_path = run_dir / f"{task['id']}.plan.json"
