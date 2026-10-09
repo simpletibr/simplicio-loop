@@ -39,7 +39,7 @@ class ExecPlannerError(Exception):
 class PlannerResult:
     """Result of running a planner via CLI exec."""
 
-    def __init__(self, reason_code, family, role, model, effort, plan=None, error=None, execution_ms=0.0):
+    def __init__(self, reason_code, family, role, model, effort, plan=None, error=None, execution_ms=0.0, raw=None):
         self.reason_code = reason_code
         self.family = family
         self.role = role
@@ -48,6 +48,7 @@ class PlannerResult:
         self.plan = plan
         self.error = error
         self.execution_ms = execution_ms
+        self.raw = raw  # the CLI's own text, before the plan is cut out of it (None: the CLI never answered)
 
     def is_ok(self):
         return self.reason_code == "ok"
@@ -62,6 +63,7 @@ class PlannerResult:
             "plan": self.plan,
             "error": self.error,
             "execution_ms": self.execution_ms,
+            "raw": self.raw,
         }
 
 
@@ -277,8 +279,9 @@ def _extract_plan_json(output):
     return plan
 
 
-def _result(code, family, role, model, effort, started, plan=None, error=None):
-    return PlannerResult(code, family, role, model, effort, plan=plan, error=error, execution_ms=(time.monotonic() - started) * 1000)
+def _result(code, family, role, model, effort, started, plan=None, error=None, raw=None):
+    return PlannerResult(code, family, role, model, effort, plan=plan, error=error, execution_ms=(time.monotonic() - started) * 1000,
+                         raw=raw)
 
 
 async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_sec=KILL_GRACE_SEC, wrap=None, env=None,
@@ -332,14 +335,16 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
 
     failure = classify_failure(returncode, stderr, stdout)
     if failure:
-        return _result(failure, family, role, model, effort, started, error=f"exit {returncode}: {failure}")
+        return _result(failure, family, role, model, effort, started, error=f"exit {returncode}: {failure}",
+                       raw=f"{stdout}\n--- stderr ---\n{stderr}")
     if returncode != 0:
-        return _result("process_error", family, role, model, effort, started, error=f"exit {returncode}")
+        return _result("process_error", family, role, model, effort, started, error=f"exit {returncode}",
+                       raw=f"{stdout}\n--- stderr ---\n{stderr}")
     try:
         plan = _extract_plan_json(stdout)
     except ValueError as e:
-        return _result("bad_plan", family, role, model, effort, started, error=str(e))
-    return _result("ok", family, role, model, effort, started, plan=plan)
+        return _result("bad_plan", family, role, model, effort, started, error=str(e), raw=stdout)
+    return _result("ok", family, role, model, effort, started, plan=plan, raw=stdout)
 
 
 async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, families=None, grace_sec=KILL_GRACE_SEC,

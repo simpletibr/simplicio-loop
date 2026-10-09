@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import escalation, exec_auth, exec_planner, execution_report, executor_select
-from . import budget, config, proc, sandbox, verify
+from . import budget, config, proc, raw_log, sandbox, verify
 from . import convergence  # the failed-verify path asks it: retry, escalate or stop (a module, not a point)
 
 PLAN_ROLE = "planning"
@@ -243,8 +243,9 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
                 config_dir=config.ROOT / "opencode")  # inside the bound state dir: /tmp is a tmpfs in the sandbox
             ladder.family = planned.family or ladder.family
             ok, failure, tokens_report, label, result, status = False, "", None, "", None, "failed"
+            log_path = config.LOGS / f"{repo}-{number}-{attempts}-s{step}.log"
+            raw_log.write(log_path.with_suffix(".raw.log"), planned.raw, planned.reason_code)  # the model's own text, before the apply
             if planned.is_ok():
-                log_path = config.LOGS / f"{repo}-{number}-{attempts}-s{step}.log"
                 result, document, status, decision = await _apply(dest, planned.plan, test_cmd, run_id, attempts, log_path, leave_open)
                 tokens_report = _turbo_report(dest, document)
                 if tokens_report:
