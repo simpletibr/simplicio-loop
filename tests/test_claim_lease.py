@@ -135,8 +135,8 @@ def test_reap_expired_moves_to_dead_at_max_attempts():
             store = ClaimStore(temp_file)
             token1 = await store.acquire("repo#123", "worker1", ttl_s=60, now=1000)
             await store.reap_expired(now=1061)
-            token2 = await store.acquire("repo#123", "worker2", ttl_s=60, now=1070)
-            reaped = await store.reap_expired(now=1131)
+            token2 = await store.acquire("repo#123", "worker2", ttl_s=60, now=1362)
+            reaped = await store.reap_expired(now=1423)
             assert "repo#123" in reaped
             claim = await store.get_claim("repo#123")
             assert claim.status == "dead"
@@ -211,11 +211,11 @@ def test_claim_properties():
     assert claim.is_lease_expired(now=1060) is True
 
 
-def test_concurrent_acquire_heartbeat_release():
-    """Test 20+ concurrent asyncio tasks on acquire, heartbeat, release.
+def test_concurrent_acquire_heartbeat_release_smoke():
+    """Smoke test only; exclusivity under real interleaving is proven in
+    test_claim_lease_exclusivity.py. 25 asyncio tasks on acquire, heartbeat, release.
     
     Validates:
-    - Exactly one owner wins each key
     - JSON file stays valid after every operation
     - No update is lost (final state contains every key)
     """
@@ -293,10 +293,10 @@ def test_concurrent_acquire_heartbeat_release():
     asyncio.run(run())
 
 
-def test_cross_process_safety():
+def test_two_instances_same_file():
     """Test cross-process safety with two ClaimStore instances on same file.
     
-    This is a single-process simulation: open two store handles to same file
+    Single-process only (real subprocesses: test_claim_lease_exclusivity.py): two handles on one file
     and verify no corruption or lost updates.
     """
     async def run():
@@ -336,7 +336,7 @@ def test_cross_process_safety():
             assert claim2_final.owner_token is None
             
             # Now store2 can acquire the same key
-            token2_new = await store2.acquire("shared_key", "worker2", ttl_s=60, now=1060)
+            token2_new = await store2.acquire("shared_key", "worker2", ttl_s=60, now=1060, reopen=True)
             assert token2_new is not None
             
             # Verify file consistency

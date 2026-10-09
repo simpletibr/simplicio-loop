@@ -1,15 +1,44 @@
-"""Lease-based claim storage for simplicio-loop watcher247."""
+"""Lease-based claim storage for simplicio-loop watcher247.
+
+Concurrency model: every read-modify-write runs under an in-process
+``asyncio.Lock`` (tasks of one event loop) and an OS file lock on the sidecar
+``<claims>.lock`` (``fcntl.flock``; ``msvcrt.locking`` on Windows), so the
+watcher and an operator CLI in different processes can share one claims.json.
+
+Corruption: an unreadable claims.json is never treated as empty. It is moved to
+``claims.json.corrupt-<ms>``, ``ClaimsCorruptError`` (reason_code
+``claims_corrupt``) is raised, and saves are refused until ``resolve_corrupt()``.
+"""
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, AsyncIterator, Dict, Optional
+
+try:
+    import fcntl
+except ImportError:  # Windows
+    fcntl = None
+    import msvcrt
+
+FINAL_STATUSES = frozenset({"done", "done_no_diff", "dead", "preexisting"})
+
+
+class ClaimsCorruptError(Exception):
+    """claims.json is unreadable; the file was moved aside and saves are refused."""
+
+    reason_code = "claims_corrupt"
+
+    def __init__(self, message: str, corrupt_path: Optional[Path] = None) -> None:
+        super().__init__(message)
+        self.corrupt_path = corrupt_path
 
 
 class Claim:
@@ -66,41 +95,157 @@ class ClaimStore:
 
     def __init__(self, claims_path: str | Path) -> None:
         self.claims_path = Path(claims_path)
+        self.lock_path = self.claims_path.with_name(self.claims_path.name + ".lock")
         self._lock = asyncio.Lock()
         self._max_attempts = 2
+        self._corrupt_path: Optional[Path] = None
+
+    def _corrupt_error(self) -> ClaimsCorruptError:
+        return ClaimsCorruptError(
+            f"claims file corrupt, moved to {self._corrupt_path}; "
+            "resolve_corrupt() to continue",
+            self._corrupt_path,
+        )
+
+    def resolve_corrupt(self) -> None:
+        """Acknowledge a corrupt claims file (kept aside) and allow saves again."""
+        self._corrupt_path = None
 
     def _load_claims(self) -> Dict[str, Dict[str, Any]]:
-        """Load claims from JSON file."""
-        if not self.claims_path.exists():
-            return {}
+        """Load claims; corrupt content is moved aside and raised, never dropped."""
+        if self._corrupt_path is not None:
+            raise self._corrupt_error()
         try:
-            return json.loads(self.claims_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
+            text = self.claims_path.read_text(encoding="utf-8")
+        except FileNotFoundError:
             return {}
+        except UnicodeDecodeError:
+            text = None
+        if text is not None and not text.strip():
+            return {}
+        data = None
+        if text is not None:
+            try:
+                data = json.loads(text)
+            except ValueError:
+                data = None
+        if not isinstance(data, dict):
+            aside = self.claims_path.with_name(
+                f"{self.claims_path.name}.corrupt-{int(time.time() * 1000)}"
+            )
+            os.replace(self.claims_path, aside)
+            self._corrupt_path = aside
+            raise self._corrupt_error()
+        return data
+
+    async def _persist(self, claims: Dict[str, Dict[str, Any]]) -> None:
+        """Write claims off the event loop (the awaitable I/O point of the critical section)."""
+        await asyncio.to_thread(self._save_claims, claims)
+
+    def _flock_acquire(self) -> int:
+        self.lock_path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(self.lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            if fcntl is not None:
+                fcntl.flock(fd, fcntl.LOCK_EX)
+            else:
+                while True:
+                    try:
+                        msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+                        break
+                    except OSError:
+                        continue
+        except BaseException:
+            os.close(fd)
+            raise
+        return fd
+
+    @staticmethod
+    def _flock_release(fd: int) -> None:
+        try:
+            if fcntl is not None:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+            else:
+                os.lseek(fd, 0, os.SEEK_SET)
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        finally:
+            os.close(fd)
+
+    @contextlib.asynccontextmanager
+    async def _guard(self) -> AsyncIterator[None]:
+        """Serialize read-modify-write across tasks (asyncio.Lock) and processes (file lock)."""
+        async with self._lock:
+            fut = asyncio.ensure_future(asyncio.to_thread(self._flock_acquire))
+            try:
+                fd = await asyncio.shield(fut)
+            except asyncio.CancelledError:
+                # the thread may still win the lock; release it when it does
+                fut.add_done_callback(
+                    lambda f: None
+                    if f.cancelled() or f.exception()
+                    else self._flock_release(f.result())
+                )
+                raise
+            try:
+                yield
+            finally:
+                self._flock_release(fd)
 
     def _save_claims(self, claims: Dict[str, Dict[str, Any]]) -> None:
         """Atomically save claims using temp file + os.replace."""
+        if self._corrupt_path is not None:
+            raise self._corrupt_error()
         self.claims_path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = self.claims_path.with_suffix(self.claims_path.suffix + ".tmp")
         tmp_path.write_text(json.dumps(claims, ensure_ascii=False, indent=2) + "\n")
         tmp_path.chmod(0o600)
         os.replace(tmp_path, self.claims_path)
 
+    @staticmethod
+    def _is_acquirable(claim_data: Dict[str, Any], now: float, reopen: bool) -> bool:
+        """New key, expired running lease, retry that is due, or a reopened final claim."""
+        if not claim_data:
+            return True
+        claim = Claim(claim_data)
+        if claim.status in FINAL_STATUSES:
+            return reopen
+        if claim.status == "running":
+            return claim.is_lease_expired(now)
+        if claim.status == "retry":
+            next_try = claim.next_try_at
+            if not next_try:
+                return True
+            try:
+                due = datetime.fromisoformat(next_try.replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                return False
+            return due <= now
+        return False
+
     async def acquire(
-        self, key: str, owner: str, ttl_s: float, now: Optional[float] = None
+        self,
+        key: str,
+        owner: str,
+        ttl_s: float,
+        now: Optional[float] = None,
+        reopen: bool = False,
     ) -> Optional[str]:
-        """Acquire or reclaim a lease for a claim."""
+        """Acquire a lease; None unless the claim is new, expired, retry-due or reopened."""
         current_time = time.time() if now is None else float(now)
         token = uuid.uuid4().hex
 
-        async with self._lock:
+        async with self._guard():
             claims = self._load_claims()
             claim_data = claims.get(key, {})
-            claim = Claim(claim_data)
 
-            if claim.has_heartbeat() and not claim.is_lease_expired(current_time):
+            if not self._is_acquirable(claim_data, current_time, reopen):
                 return None
 
+            claim_data = {
+                k: v
+                for k, v in claim_data.items()
+                if k not in ("next_try_at", "finished_at", "reason_code")
+            }
             updated = {
                 **claim_data,
                 "key": key,
@@ -112,7 +257,7 @@ class ClaimStore:
                 "started_at": self._iso_now(current_time),
             }
             claims[key] = updated
-            self._save_claims(claims)
+            await self._persist(claims)
             return token
 
     async def heartbeat(
@@ -121,7 +266,7 @@ class ClaimStore:
         """Extend the lease TTL for a claim."""
         current_time = time.time() if now is None else float(now)
 
-        async with self._lock:
+        async with self._guard():
             claims = self._load_claims()
             claim_data = claims.get(key, {})
 
@@ -132,7 +277,7 @@ class ClaimStore:
 
             claim_data["lease_expires_at"] = current_time + ttl_s
             claims[key] = claim_data
-            self._save_claims(claims)
+            await self._persist(claims)
             return True
 
     async def release(
@@ -142,7 +287,7 @@ class ClaimStore:
         """Release a claim and set its final status."""
         current_time = time.time() if now is None else float(now)
 
-        async with self._lock:
+        async with self._guard():
             claims = self._load_claims()
             claim_data = claims.get(key, {})
 
@@ -160,7 +305,7 @@ class ClaimStore:
             }
             updated.update(extra_fields)
             claims[key] = updated
-            self._save_claims(claims)
+            await self._persist(claims)
             return True
 
     async def reap_expired(
@@ -171,7 +316,7 @@ class ClaimStore:
         max_att = max_attempts if max_attempts is not None else self._max_attempts
         reaped = {}
 
-        async with self._lock:
+        async with self._guard():
             claims = self._load_claims()
 
             for key, claim_data in claims.items():
@@ -200,7 +345,7 @@ class ClaimStore:
                 reaped[key] = updated
 
             if reaped:
-                self._save_claims(claims)
+                await self._persist(claims)
 
         return reaped
 
@@ -212,7 +357,7 @@ class ClaimStore:
         max_att = max_attempts if max_attempts is not None else self._max_attempts
         migrated = {}
 
-        async with self._lock:
+        async with self._guard():
             claims = self._load_claims()
 
             for key, claim_data in claims.items():
@@ -252,20 +397,20 @@ class ClaimStore:
                 migrated[key] = updated
 
             if migrated:
-                self._save_claims(claims)
+                await self._persist(claims)
 
         return migrated
 
     async def get_claim(self, key: str) -> Optional[Claim]:
         """Get a claim by key."""
-        async with self._lock:
+        async with self._guard():
             claims = self._load_claims()
             data = claims.get(key)
             return Claim(data) if data else None
 
     async def list_claims(self) -> Dict[str, Claim]:
         """List all claims."""
-        async with self._lock:
+        async with self._guard():
             claims = self._load_claims()
             return {key: Claim(data) for key, data in claims.items()}
 
