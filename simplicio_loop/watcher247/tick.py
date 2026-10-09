@@ -291,7 +291,8 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                                           label=turbo["verify"], executor=executor.mode)
                 if url:
                     await budget.record("prs")
-                await asyncio.to_thread(events.close_run, dest, run_id, "ok", pr_url=url)
+                # no diff means no PR: the run closes blocked, never done (the item is BLOCKED / done_no_diff below)
+                await asyncio.to_thread(events.close_run, dest, run_id, "ok" if url else "blocked", pr_url=url)
         except BaseException as exc:  # a run that stopped before the pr stage still closes on the kanban
             blocked = isinstance(exc, (points.PointBlocked, points.PointDeferred))
             await asyncio.to_thread(events.close_run, dest, run_id, "blocked" if blocked else "failed")

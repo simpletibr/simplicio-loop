@@ -4,6 +4,7 @@ No real model CLI runs: `claude` is a stub script on PATH, and proc.run is the F
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import stat
@@ -399,3 +400,91 @@ def test_blocked_request_stops_before_any_planner_call(env, cli_dir):
     assert planner_calls(cli_dir) == [] and fake.turbo_argv == []
     claim = read_json(config.CLAIMS)[f"{REPO}#1"]
     assert claim["status"] == "retry" and "mapper unavailable" in claim["error"]
+
+
+# --- the kanban run the watcher opened at intake is always closed (#1469) --------------------------------------
+
+def _closed_runs(monkeypatch):
+    from simplicio_loop.watcher247 import events
+    seen, real = [], events.close_run
+
+    def record(dest, run_id, status, pr_url=None):
+        seen.append((status, pr_url))
+        return real(dest, run_id, status, pr_url=pr_url)
+
+    monkeypatch.setattr(events, "close_run", record)
+    return seen
+
+
+def _executor_raises(monkeypatch, exc):
+    async def boom(*args, **kwargs):
+        raise exc
+
+    monkeypatch.setattr(host_mode, "run_exec", boom)
+
+
+def test_a_pr_closes_the_run_ok_with_the_pr_url(env, cli_dir, monkeypatch):
+    seen = _closed_runs(monkeypatch)
+    env(HostRun({REPO: [issue(3)]}))
+    baseline()
+    checkout()
+    run_tick()
+    assert seen == [("ok", "https://github.com/simpletibr/simplicio-a/pull/9")]
+
+
+def test_no_diff_closes_the_run_blocked_never_done(env, cli_dir, monkeypatch):
+    seen = _closed_runs(monkeypatch)
+    env(HostRun({REPO: [issue(3)]}, diff=False))
+    baseline()
+    checkout()
+    run_tick()
+    assert seen == [("blocked", None)], "no PR was opened: the run must not claim done"
+
+
+def test_a_failed_attempt_closes_the_run_failed(env, cli_dir, monkeypatch):
+    seen = _closed_runs(monkeypatch)
+    _executor_raises(monkeypatch, RuntimeError("boom"))
+    env(HostRun({REPO: [issue(3)]}))
+    baseline()
+    checkout()
+    run_tick()
+    assert seen == [("failed", None)]
+
+
+def test_a_blocked_point_closes_the_run_blocked(env, cli_dir, monkeypatch):
+    from simplicio_loop.watcher247.points import registry
+    seen = _closed_runs(monkeypatch)
+    _executor_raises(monkeypatch, registry.PointBlocked("pr", "gate", "why", []))
+    env(HostRun({REPO: [issue(3)]}))
+    baseline()
+    checkout()
+    run_tick()
+    assert seen == [("blocked", None)]
+
+
+@pytest.mark.parametrize("exc", [KeyboardInterrupt, SystemExit, asyncio.CancelledError])
+def test_the_run_is_closed_and_the_interrupt_is_not_swallowed(env, cli_dir, monkeypatch, exc):
+    seen = _closed_runs(monkeypatch)
+    _executor_raises(monkeypatch, exc())
+    env(HostRun({REPO: [issue(3)]}))
+    baseline()
+    checkout()
+    with pytest.raises(exc):
+        run_tick()
+    assert seen == [("failed", None)]
+
+
+def test_a_writer_that_raises_never_breaks_the_tick(env, cli_dir, monkeypatch):
+    from simplicio_loop.watcher247 import events
+
+    class Broken:
+        def __init__(self, *args, **kwargs):
+            raise OSError("disk full")
+
+    monkeypatch.setattr(events, "TurboRun", Broken)
+    fake = env(HostRun({REPO: [issue(3)]}))
+    baseline()
+    checkout()
+    run_tick()
+    assert read_json(config.CLAIMS)[f"{REPO}#3"]["status"] == "done"
+    assert fake.ran("gh", "pr", "create")
