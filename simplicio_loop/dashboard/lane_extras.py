@@ -1,17 +1,22 @@
 '''Per-run extras for the Simplicio Live dashboard: last measured command, declared tasks, model per lane, heartbeat.
 
 A pure reader over the run directory and its events. Every figure is what the run recorded; a figure with no record
-is absent (None or an empty list), never invented. The heartbeat stays UNVERIFIED until a lease heartbeat producer
-exists.
+is absent (None or an empty list), never invented. The heartbeat of each lane comes from the backlog lease that
+scripts/task_backlog.py writes, read through the coordination reader, matched on the lease's own lease_id only; a lane
+whose lease cannot be found stays UNVERIFIED with the reason. Today the runner's worker_claimed lease_id is a Mapper
+OperationsStore id and task_backlog.py writes no lease_id, so in a real run every lane stays UNVERIFIED until a
+producer records that id on the backlog lease.
 '''
 from __future__ import annotations
 
 import json
+import os
+import time
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from simplicio_loop.dashboard import budget
+from simplicio_loop.dashboard import budget, coordination
 from simplicio_loop.dashboard.runs import redact_text
 
 SCHEMA = 'simplicio.dashboard-extras/v1'
@@ -20,7 +25,8 @@ MAX_ITEMS = 50
 COMMAND_MAX = 300
 TITLE_MAX = 160
 COMMAND_KINDS = frozenset({'test_result', 'lint_result'})
-HEARTBEAT = {'state': 'UNVERIFIED', 'reason': 'no lease heartbeat producer'}
+BACKLOG_PARTS = ('orchestrator', 'backlog', 'backlog.jsonl')
+NO_LANE_REASON = 'nenhuma lane com lease_id registrado'
 
 
 def _text(value: Any) -> str | None:
@@ -84,11 +90,85 @@ def _models(ordered: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [rows[lane] for lane in sorted(rows)][:MAX_ITEMS]
 
 
-def extras(run_dir: str | Path, events: Iterable[Any]) -> dict[str, Any]:
-    '''The run's extras: last measured command, declared tasks, model per lane and the heartbeat state.
+def _lane_claims(ordered: list[dict[str, Any]]) -> dict[str, str]:
+    '''Lease id of the latest worker_claimed of each lane ('' when it carried none), lane by event or by its task.'''
+    task_lane = {task: lane for e in ordered if (task := _text(e.get('task_id'))) and (lane := _text(e.get('lane')))}
+    claims: dict[str, str] = {}
+    for event in ordered:
+        lane = _text(event.get('lane')) or task_lane.get(_text(event.get('task_id')) or '')
+        if event.get('kind') == 'worker_claimed' and lane:
+            claims[lane] = _text(_payload(event).get('lease_id')) or ''
+    return claims
 
-    Only dashboard events are read, in ascending seq order, so the latest record wins.
+
+def _backlog_file(run_dir: str | Path, backlog_path: str | Path | None) -> Path:
+    '''The given backlog, else $SIMPLICIO_BACKLOG_FILE, else the orchestrator backlog of the run's .simplicio-loop.'''
+    if backlog_path:
+        return Path(backlog_path)
+    override = os.environ.get('SIMPLICIO_BACKLOG_FILE')
+    return Path(override) if override else Path(run_dir).parent.parent.joinpath(*BACKLOG_PARTS)
+
+
+def _leases(backlog: Path) -> tuple[list[dict[str, Any]], str | None]:
+    '''Every lease object of the backlog items, or the reason the backlog could not be read.'''
+    try:
+        _, items = coordination._read_backlog(backlog)
+    except coordination._Unreadable as exc:
+        return [], f'backlog não lido: {exc}'
+    return [item['lease'] for item in items if isinstance(item.get('lease'), dict)], None
+
+
+def _lane_row(lane: str, lease_id: str, leases: list[dict[str, Any]], failure: str | None, now: float) -> dict[str, Any]:
+    row: dict[str, Any] = {'lane': lane, 'lease_id': lease_id or None, 'state': 'UNVERIFIED', 'heartbeat_at': None,
+                           'age_s': None, 'stale': None, 'reason': None}
+    if not lease_id:
+        row['reason'] = 'lane sem lease_id registrado'
+        return row
+    found = [raw for raw in leases if raw.get('lease_id') == lease_id]
+    if len(found) > 1:
+        row['reason'] = f'lease {lease_id} aparece em mais de um item do backlog'
+        return row
+    view = coordination._lease_view(found[0], now) if found else None
+    if failure or not found:
+        row['reason'] = failure or f'lease {lease_id} não está no backlog'
+    elif view is None:
+        row['reason'] = f'lease {lease_id} sem worker no backlog'
+    elif view['age_s'] is None:
+        row['reason'] = 'lease sem heartbeat_at medido'
+    elif view['age_s'] < 0:
+        row['reason'] = 'heartbeat_at no futuro do relógio'
+    else:
+        row.update(state='MEASURED', heartbeat_at=view['heartbeat_at'], age_s=view['age_s'],
+                   stale=view['state'] != 'live')
+    return row
+
+
+def _row_text(row: dict[str, Any]) -> str:
+    if row['state'] != 'MEASURED':
+        return f"{row['lane']}: {row['reason']}"
+    return f"{row['lane']}: batimento há {row['age_s']} s" + (' (obsoleto)' if row['stale'] else '')
+
+
+def _heartbeat(claims: dict[str, str], run_dir: str | Path, backlog_path: str | Path | None, now: float) -> dict[str, Any]:
+    '''Heartbeat of every claimed lane lease; PASS when at least one is measured, else UNVERIFIED with the reasons.'''
+    if not claims:
+        return {'state': 'UNVERIFIED', 'reason': NO_LANE_REASON, 'lanes': []}
+    leases, failure = _leases(_backlog_file(run_dir, backlog_path))
+    rows = [_lane_row(lane, claims[lane], leases, failure, now) for lane in sorted(claims)][:MAX_ITEMS]
+    measured = any(row['state'] == 'MEASURED' for row in rows)
+    return {'state': 'PASS' if measured else 'UNVERIFIED', 'reason': '; '.join(_row_text(row) for row in rows),
+            'lanes': rows}
+
+
+def extras(run_dir: str | Path, events: Iterable[Any], backlog_path: str | Path | None = None,
+           now: float | None = None) -> dict[str, Any]:
+    '''The run's extras: last measured command, declared tasks, model per lane and the heartbeat of each lane lease.
+
+    Only dashboard events are read, in ascending seq order, so the latest record wins. ``now`` (epoch seconds, default
+    the wall clock) is the clock the heartbeat age is measured against; ``backlog_path`` overrides the backlog file.
     '''
     ordered = sorted((e for e in events if isinstance(e, dict) and e.get('schema') == EVENT_SCHEMA), key=_seq)
+    current = time.time() if now is None else float(now)
     return {'schema': SCHEMA, 'last_command': _last_command(ordered), 'tasks': _tasks(run_dir),
-            'models': _models(ordered), 'heartbeat': dict(HEARTBEAT)}
+            'models': _models(ordered),
+            'heartbeat': _heartbeat(_lane_claims(ordered), run_dir, backlog_path, current)}
