@@ -61,12 +61,12 @@ class TriageResult:
         )
 
 
-async def repo_opted_in(
+async def repo_config(
     repo: str,
     *,
     cache: Optional[dict[str, Any]] = None,
-) -> bool:
-    """Check if repo has `.simplicio/loop.toml` with enabled=true.
+) -> Optional[dict[str, Any]]:
+    """Return the parsed `.simplicio/loop.toml` of repo, or None when absent.
 
     Reads via `gh api repos/{owner}/{repo}/contents/.simplicio/loop.toml`
     to avoid cloning. Uses optional per-tick cache (dict keyed by repo).
@@ -76,7 +76,7 @@ async def repo_opted_in(
         cache: Optional dict to cache results across calls in one tick
 
     Returns:
-        True if repo is opted in, False otherwise
+        The parsed TOML table, or None if the file does not exist
 
     Raises:
         IntakeGateError: If repo format is invalid or gh api call fails
@@ -95,12 +95,12 @@ async def repo_opted_in(
         raise IntakeGateError(f"Invalid repo format: {repo!r}", "invalid_repo")
 
     try:
-        result = await asyncio.wait_for(
-            _fetch_toml_via_gh(owner, name),
+        config = await asyncio.wait_for(
+            _fetch_config(owner, name),
             timeout=REPO_OPTED_IN_TIMEOUT,
         )
-        cache[repo] = result
-        return result
+        cache[repo] = config
+        return config
     except asyncio.TimeoutError as exc:
         raise IntakeGateError(
             f"Timeout fetching .simplicio/loop.toml for {repo}",
@@ -115,64 +115,58 @@ async def repo_opted_in(
         ) from exc
 
 
-async def _fetch_toml_via_gh(owner: str, name: str) -> bool:
-    """Fetch .simplicio/loop.toml via gh api and check if enabled=true.
-
-    Returns False if file doesn't exist, True if enabled, False otherwise.
-    Raises IntakeGateError on malformed TOML or other errors.
-    """
-    cmd = [
+async def _run_gh(*args: str) -> tuple[int, bytes, bytes]:
+    """Run `gh <args>` and return (returncode, stdout, stderr)."""
+    proc = await asyncio.create_subprocess_exec(
         "gh",
+        *args,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+    return proc.returncode, stdout, stderr
+
+
+async def _fetch_config(owner: str, name: str) -> Optional[dict[str, Any]]:
+    """Fetch and parse .simplicio/loop.toml via gh api.
+
+    Returns None if the file does not exist.
+    Raises IntakeGateError on malformed TOML or gh failures.
+    """
+    returncode, stdout, stderr = await _run_gh(
         "api",
         f"repos/{owner}/{name}/contents/.simplicio/loop.toml",
         "--jq",
         ".content",
-    ]
+    )
+    err = stderr.decode("utf-8", errors="replace")
+    if returncode != 0:
+        if "404" in err or "Not Found" in err:
+            return None
+        raise IntakeGateError(f"gh api call exited with {returncode}: {err}", "gh_api_error")
+
+    content_b64 = stdout.decode("utf-8", errors="replace").strip()
+    if not content_b64 or content_b64 == "null":
+        return None
+
     try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
+        return tomllib.loads(base64.b64decode(content_b64).decode("utf-8"))
+    except Exception as exc:
+        raise IntakeGateError(f"Malformed .simplicio/loop.toml: {exc}", "invalid_toml") from exc
 
-        # Exit code 1 means file not found (404)
-        if proc.returncode == 1:
-            if b"404" in stderr or b"Not Found" in stderr:
-                return False
-            raise IntakeGateError(
-                f"gh api call failed: {stderr.decode('utf-8', errors='replace')}",
-                "gh_api_error",
-            )
 
-        if proc.returncode != 0:
-            raise IntakeGateError(
-                f"gh api call exited with {proc.returncode}: {stderr.decode('utf-8', errors='replace')}",
-                "gh_api_error",
-            )
+async def repo_opted_in(
+    repo: str,
+    *,
+    cache: Optional[dict[str, Any]] = None,
+) -> bool:
+    """True only if `.simplicio/loop.toml` exists with a literal `enabled = true`.
 
-        # Content is base64-encoded JSON value; decode it
-        content_b64 = stdout.decode("utf-8", errors="replace").strip()
-        if not content_b64 or content_b64 == "null":
-            return False
-
-        # Decode base64
-        content_str = base64.b64decode(content_b64).decode("utf-8")
-
-        # Parse TOML
-        try:
-            config = tomllib.loads(content_str)
-        except Exception as exc:
-            raise IntakeGateError(
-                f"Malformed .simplicio/loop.toml: {exc}",
-                "invalid_toml",
-            ) from exc
-
-        # Check enabled field
-        return config.get("enabled", False)
-
-    except IntakeGateError:
-        raise
+    Raises IntakeGateError (see repo_config) on invalid repo, timeout, gh
+    failure or malformed TOML.
+    """
+    config = await repo_config(repo, cache=cache)
+    return config is not None and config.get("enabled") is True
 
 
 def issue_admitted(
@@ -190,24 +184,38 @@ def issue_admitted(
     Returns:
         True if issue is admitted, False otherwise
     """
+    return admission_reason(issue, config) == "admitted"
+
+
+def admission_reason(
+    issue: Mapping[str, Any],
+    config: Optional[Mapping[str, Any]] = None,
+) -> str:
+    """Machine-stable reason code for the issue admission decision.
+
+    Returns "admitted", "missing_label", "author_unknown" or "author_not_allowed".
+    A login listed in `config["allowed_authors"]` (loop.toml) is trusted even
+    without a trusted association.
+    """
     config = config or {}
 
-    # Check loop:auto label
     labels = issue.get("labels") or []
     label_names = [label.get("name") if isinstance(label, dict) else label for label in labels]
     if "loop:auto" not in label_names:
-        return False
+        return "missing_label"
 
-    # Check author association
-    author_assoc = issue.get("author_association")
-    if author_assoc is None:
-        return False
-    author_assoc = author_assoc.upper()
+    user = issue.get("user")
+    login = (user.get("login") if isinstance(user, Mapping) else None) or ""
+    allowed = {str(a).lower() for a in (config.get("allowed_authors") or [])}
+    if login and login.lower() in allowed:
+        return "admitted"
+
+    author_assoc = (issue.get("author_association") or "").upper()
+    if not author_assoc:
+        return "author_unknown"
     if author_assoc in ("OWNER", "MEMBER", "COLLABORATOR"):
-        return True
-
-    # Anything else (NONE, CONTRIBUTOR, etc.) is not trusted
-    return False
+        return "admitted"
+    return "author_not_allowed"
 
 
 def _normalize_text(text: str) -> str:
@@ -255,9 +263,9 @@ def triage(issue: Mapping[str, Any]) -> TriageResult:
             verdict="needs_human",
             reason_code="epic",
             clarifying_question=(
-                "Esta eh uma epica ou um item de muito alto nivel. "
+                "Esta é uma épica ou um item de nível muito alto. "
                 "Por favor, divida-a em tarefas menores e concretas, "
-                "cada uma com criterios de aceite especificos e arquivos/comportamentos concretos."
+                "cada uma com critérios de aceite específicos e arquivos/comportamentos concretos."
             ),
         )
 
@@ -267,10 +275,10 @@ def triage(issue: Mapping[str, Any]) -> TriageResult:
             verdict="needs_human",
             reason_code="empty_body",
             clarifying_question=(
-                "A descricao da issue esta muito vaga ou incompleta. "
-                "Por favor, forneca: 1. O que precisa ser feito (objetivo); "
-                "2. Por que (contexto); 3. Criterios de aceite especificos; "
-                "4. Arquivos ou funcoes que serao alteradas."
+                "A descrição da issue está muito vaga ou incompleta. "
+                "Por favor, forneça: 1. O que precisa ser feito (objetivo); "
+                "2. Por quê (contexto); 3. Critérios de aceite específicos; "
+                "4. Arquivos ou funções que serão alterados."
             ),
         )
 
@@ -293,9 +301,9 @@ def triage(issue: Mapping[str, Any]) -> TriageResult:
                 verdict="needs_human",
                 reason_code="vague_body",
                 clarifying_question=(
-                    "A issue precisa de detalhes concretos para ser executavel. "
-                    "Por favor, inclua: 1. Criterios de aceite especificos (Dado/Quando/Entao); "
-                    "2. Quais arquivos serao afetados; 3. Comportamento esperado ou exemplo de entrada/saida."
+                    "A issue precisa de detalhes concretos para ser executável. "
+                    "Por favor, inclua: 1. Critérios de aceite específicos (Dado/Quando/Então); "
+                    "2. Quais arquivos serão afetados; 3. Comportamento esperado ou exemplo de entrada/saída."
                 ),
             )
 
@@ -309,7 +317,9 @@ def triage(issue: Mapping[str, Any]) -> TriageResult:
 __all__ = [
     "IntakeGateError",
     "TriageResult",
+    "repo_config",
     "repo_opted_in",
+    "admission_reason",
     "issue_admitted",
     "triage",
 ]
