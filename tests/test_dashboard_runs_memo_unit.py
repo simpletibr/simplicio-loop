@@ -616,6 +616,24 @@ def test_the_byte_count_follows_a_summary_that_changes_size_and_a_clear(tmp_path
     assert runs.summary_cache_bytes() == 0
 
 
+def test_a_run_evicted_while_it_is_computed_leaves_no_bytes_behind(tmp_path, aged, monkeypatch):
+    first = _make_run(tmp_path, 'a', events=2)
+    second = _make_run(tmp_path, 'b', events=2)
+    monkeypatch.setattr(runs, 'SUMMARY_CACHE_MAX', 1)
+    real = runs._summarize
+
+    def let_the_other_run_take_the_slot(run_dir, repo):
+        out = real(run_dir, repo)
+        if run_dir.name == 'a':
+            runs.run_summary(_ref(second))
+        return out
+
+    monkeypatch.setattr(runs, '_summarize', let_the_other_run_take_the_slot)
+    runs.run_summary(_ref(first))
+    assert [os.path.basename(key) for key in runs._SUMMARIES] == ['b']
+    assert runs.summary_cache_bytes() == _resident_bytes() > 0
+
+
 def test_the_byte_count_holds_under_concurrent_pollers_and_evictions(tmp_path, aged, monkeypatch):
     dirs = [_make_run(tmp_path, 'c%02d' % index, events=2) for index in range(30)]
     monkeypatch.setattr(runs, 'SUMMARY_BYTES_MAX', _blob_size(dirs[0]) * 7)
