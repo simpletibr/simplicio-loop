@@ -55,7 +55,7 @@ def run_mapper_index(path: str, *, timeout: float = 60.0) -> dict:
     )
     if result.returncode != 0:
         raise MapperIndexError(
-            "simplicio-mapper index failed (exit %d): %s" % (result.returncode, result.stderr.strip())
+            "simplicio-mapper index failed (exit %d): %s" % (result.returncode, result.stderr.strip()[-500:])
         )
     try:
         envelope = json.loads(result.stdout)
@@ -66,18 +66,56 @@ def run_mapper_index(path: str, *, timeout: float = 60.0) -> dict:
     return envelope
 
 
-def mapper_tree_snapshot(path: str, *, timeout: float = 60.0) -> Tuple[str, List[str]]:
-    """A REAL tree_hash + file list for `build_canonical`/`build_overlay`, derived from
-    the actual `simplicio-mapper` binary's own per-file content hashes (read from the
-    real `.simplicio-loop/project-map.json` it writes) — the bound orient operator's own
-    signal, not a git-only shortcut."""
-    resolved = str(Path(path).expanduser().resolve(strict=True))
-    run_mapper_index(resolved, timeout=timeout)
-    project_map_path = Path(resolved) / ".simplicio-loop" / "project-map.json"
-    if not project_map_path.is_file():
+def materialize_project_map(root: str, envelope: dict) -> Path:
+    """Ensure project-map.json is at .simplicio-loop/ from envelope.paths.project_map.
+    
+    If mapper wrote elsewhere, copy to .simplicio-loop/. Register .simplicio/ in
+    git exclude. Returns final path. Raises MapperIndexError if file missing anywhere.
+    """
+    resolved = str(Path(root).expanduser().resolve(strict=True))
+    expected_path = Path(resolved) / ".simplicio-loop" / "project-map.json"
+    
+    project_map_path_str = envelope.get("paths", {}).get("project_map")
+    if project_map_path_str:
+        project_map_path = Path(project_map_path_str)
+    else:
+        project_map_path = expected_path
+    
+    if not project_map_path.is_file() and not expected_path.is_file():
         raise MapperIndexError(
             "simplicio-mapper index reported success but %s does not exist" % project_map_path
         )
+    
+    # Only copy and register if path differs and source file exists
+    if project_map_path != expected_path and project_map_path.is_file():
+        expected_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(project_map_path), str(expected_path))
+        # Only register in git exclude if .git directory exists
+        if project_map_path.parent.name == ".simplicio":
+            git_dir = Path(resolved) / ".git"
+            if git_dir.is_dir():
+                try:
+                    git_exclude = git_dir / "info" / "exclude"
+                    if git_exclude.is_file():
+                        content = git_exclude.read_text()
+                        if ".simplicio/" not in content:
+                            with open(git_exclude, "a") as f:
+                                f.write(".simplicio/\n")
+                except (OSError, FileNotFoundError):
+                    pass
+    return expected_path
+
+
+def mapper_tree_snapshot(path: str, *, timeout: float = 60.0) -> Tuple[str, List[str]]:
+    """A REAL tree_hash + file list for `build_canonical`/`build_overlay`, derived from
+    the actual `simplicio-mapper` binary's own per-file content hashes (read from the
+    real project-map.json it writes) — the bound orient operator's own
+    signal, not a git-only shortcut."""
+    resolved = str(Path(path).expanduser().resolve(strict=True))
+    envelope = run_mapper_index(resolved, timeout=timeout)
+    
+    # Use the helper to materialize project-map at the expected location
+    project_map_path = materialize_project_map(resolved, envelope)
     project_map = json.loads(project_map_path.read_text(encoding="utf-8"))
     files = project_map.get("files") or []
     if not files:
