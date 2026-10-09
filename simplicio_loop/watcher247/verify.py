@@ -73,9 +73,14 @@ def turbo_argv(dest: Path, task: str, test_cmd: str | None) -> list[str]:
     return argv
 
 
-def turbo_apply_argv(dest: Path, test_cmd: str | None) -> list[str]:
-    """Host mode: dev-cli applies the plan the caller pipes on stdin (`turbo --apply -`)."""
-    argv = ["simplicio-loop", "turbo", "--repo", str(dest), "--apply", "-"]
+def turbo_request_argv(dest: Path, task: str) -> list[str]:
+    """Host mode step 1: Mapper orients and turbo prints the request (task, map slice, files, format, rules)."""
+    return ["simplicio-loop", "turbo", "--repo", str(dest), "--task", task]
+
+
+def turbo_apply_argv(dest: Path, test_cmd: str | None, run_id: str) -> list[str]:
+    """Host mode step 2: dev-cli applies the plan piped on stdin, continuing the run step 1 started."""
+    argv = ["simplicio-loop", "turbo", "--repo", str(dest), "--apply", "-", "--run-id", run_id]
     if test_cmd is not None:
         argv += ["--verify", test_cmd]
     return argv
