@@ -27,17 +27,18 @@ def _kill_group(proc: asyncio.subprocess.Process) -> None:
         proc.kill()
 
 
-async def run(argv: list[str], timeout: float = 120, cwd: Path | None = None) -> Result:
+async def run(argv: list[str], timeout: float = 120, cwd: Path | None = None, stdin: str | None = None) -> Result:
     """Run argv, return its output. On timeout (or cancellation) kill the whole process group."""
     proc = await asyncio.create_subprocess_exec(
         *argv,
         cwd=str(cwd) if cwd else None,
+        stdin=asyncio.subprocess.PIPE if stdin is not None else None,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         start_new_session=True,
     )
     try:
-        out, err = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        out, err = await asyncio.wait_for(proc.communicate(None if stdin is None else stdin.encode()), timeout=timeout)
     except asyncio.TimeoutError as exc:
         _kill_group(proc)
         await proc.wait()
