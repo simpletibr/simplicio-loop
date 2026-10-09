@@ -105,6 +105,27 @@ class TestCasesSchema:
             assert "total_lines" in ds
 
 
+class TestVerifyCommands:
+    """verify_command must be targeted (full suite is release-only)."""
+
+    def _cases(self):
+        return json.loads(CASES.read_text())["cases"]
+
+    def test_no_full_suite_verify(self):
+        for case in self._cases():
+            cmd = case["verify_command"]
+            if cmd is None:
+                assert case["verify_source"] == "none"
+                continue
+            assert case["verify_source"] == "reference_pr_tests"
+            parts = cmd.split()
+            assert parts[:4] == ["python3", "-m", "pytest", "-q"], cmd
+            paths = parts[4:]
+            assert paths, f"bare pytest (full suite): {cmd}"
+            for p in paths:
+                assert p.startswith("tests/test_") and p.endswith(".py"), cmd
+
+
 class TestDryRun:
     """Tests for --dry-run functionality."""
 
