@@ -7,7 +7,7 @@ Ensaiado em isolamento em 2026-10-09 sobre `origin/main` 5478fdc2 (nada foi inst
 - A versão **publicada** 3.48.1 (PyPI e GitHub Release) **não contém** `simplicio_loop/watcher247`, `exec_auth`, `sandbox`, `host_mode`, `squad_flow`: a main está 123 commits à frente. Os critérios 1 e 2 do #1476 pedem uma versão nova (ou um wheel intermediário gerado da main, que não é uma versão publicada).
 - O wheel gerado da main (`simplicio_loop-3.48.1`, 5,06 MiB, 1395 arquivos) traz o `watcher247` (42 arquivos), o mapper da fonte única (`simplicio_mapper` 0.26.35, carimbado com o commit de origem) e o dev-cli (`simplicio` 0.18.16). Instalou em um venv limpo com as dependências do PyPI.
 - No venv: `simplicio-loop --version`, `simplicio-mapper --version` e `simplicio-dev-cli --version` saem com 0. `doctor stack`, `doctor mapper`, `doctor source` e `doctor --storage` saem com 0 e READY. **`doctor` sozinho sai com 2**: exige um subcomando.
-- `watch247 --once --dry-run` sem tokens não grava nada. Um tick real com o arquivo de env em modo 640 recusa iniciar (`env_file_permissions`); com 600 e sem `login.json` fica em `subscription_required`.
+- `watch247 --once --dry-run` sem tokens não grava nada. Um tick real com o arquivo de env em modo 640 recusa iniciar (`env_file_permissions`); com 600 e sem `login.json` fica ocioso em `setup_required` / `login_missing`, ou sem `GH_TOKEN` em `github_token_missing`.
 - `systemd-analyze verify` na unit empacotada: sem erro.
 - O sandbox funciona para um usuário não-root sem capacidades (`setpriv --reuid=65534 --bounding-set=-all --no-new-privs bwrap ...` sai com 0). Como root com o conjunto de capacidades vazio, o bwrap falha: por isso a unit precisa manter `User=simplicio-loop`.
 - O estado vivo em `/var/lib/simplicio-loop-247` (baseline, claims) carrega no watcher novo (testado em uma cópia); um claim `running` órfão vira `retry`. Contém um arquivo `STOP`: o watcher fica ocioso até ele ser removido.
@@ -102,7 +102,7 @@ Do NOT reuse /opt/simplicio-loop: it exists (uv dev venv, editable simplicio_loo
     #   PATH=/opt/simplicio-loop-247/venv/bin:/usr/local/bin:/usr/bin:/bin   # bare `simplicio-loop`, `gh`, `git` are resolved from PATH,
     #                                                                          # and the sandbox passes PATH on
     #   SIMPLICIO_EXEC_FAMILIES=codex,opencode      # claude/grok live in /root/.local/bin, unreachable for the service user
-    #   GH_TOKEN=...                                # [CRED] gh auth for the service user (legacy used root's ~/.config/gh)
+    #   (GitHub token is written by watch247 setup in step 8; do not edit by hand)
     #   optional first-day caps: SIMPLICIO_247_MAX_ISSUES_PER_DAY=1 SIMPLICIO_247_MAX_PRS_PER_DAY=1
     # env file MUST stay 600: the watcher refuses to start with env_file_permissions otherwise.
     chmod 600 /etc/simplicio-loop-247.env
@@ -110,11 +110,33 @@ Do NOT reuse /opt/simplicio-loop: it exists (uv dev venv, editable simplicio_loo
     systemd-analyze verify /etc/systemd/system/simplicio-loop-247.service   # expect no output about this unit
 
 ## 8. Credentials for the service user [CRED]
-- Subscription login: the tick stops at `subscription_required / login_missing` without `~simplicio-loop/.simplicio/login.json`.
-  Either create it by the owner's normal login, or (owner decision) `install -m 600 -o simplicio-loop -g simplicio-loop /root/.simplicio/login.json /home/simplicio-loop/.simplicio/login.json`.
-- CLI logins as the service user: `sudo -u simplicio-loop -H codex login` ; `sudo -u simplicio-loop -H opencode auth login`
-  (and claude/grok only after installing them system-wide).
-- Check (prints no secret): see step 9.
+The owner gives two things here; nobody edits the env file by hand. `watch247 setup` asks for the Simplicio account
+e-mail and the GitHub token (hidden input), checks the token with `gh api user`, writes `GH_TOKEN` to the env file
+(mode 600, atomic) and reports the subscription reason code. It never prints the token.
+
+    # a) as root, in a terminal: the prompts ask for the e-mail and the token (the token is not echoed)
+    export SIMPLICIO_247_ENV_FILE=/etc/simplicio-loop-247.env
+    export SIMPLICIO_247_LOGIN=/home/simplicio-loop/.simplicio/login.json
+    /opt/simplicio-loop-247/venv/bin/simplicio-loop watch247 setup
+    # exit 1 with `login_missing` is expected at this point: the token is stored, the login comes next.
+    # exit 2 = refused, nothing changed (bad input, or an env file readable by group/others: use the printed chmod 600).
+    # Without a terminal: read -rs GHT; printf '%s' "$GHT" | <same command> --email <account e-mail> --github-token-stdin; unset GHT
+    # (the token is never an argument: argv shows in ps)
+
+    # b) the Simplicio login belongs to the service user (the Runtime command; this repo has no login flow of its own)
+    sudo -u simplicio-loop -H simplicio login google
+
+    # c) check the account step, no token asked; expect exit 0 and `Simplicio subscription: ok`
+    /opt/simplicio-loop-247/venv/bin/simplicio-loop watch247 setup --check
+
+    # d) CLI logins as the service user
+    sudo -u simplicio-loop -H codex login
+    sudo -u simplicio-loop -H opencode auth login
+    # (claude and grok only after installing them system-wide)
+
+The service loads `GH_TOKEN` at start, so the restart in step 11 picks it up. Do not start the service here.
+Until both credentials exist, the unit stays idle and `status.json` shows `phase=setup_required` with the reason
+(`github_token_missing` or `login_missing`) and the command `simplicio-loop watch247 setup`.
 
 ## 9. Dry run as the service user (non-root)
     # root shell sources the env file, then drops to the service user (the file is 600 root, the user cannot read it)
@@ -143,7 +165,7 @@ Do NOT reuse /opt/simplicio-loop: it exists (uv dev venv, editable simplicio_loo
     # (legacy baseline.json is kept, so issues opened since 2026-10-05 will be processed; to avoid that,
     #  `mv /var/lib/simplicio-loop-247/baseline.json{,.old}` first: the first tick re-baselines and processes nothing)
     journalctl -u simplicio-loop-247 -n 50 --no-pager
-    cat /var/lib/simplicio-loop-247/status.json    # expect phase processed/idle, not blocked/subscription_required
+    cat /var/lib/simplicio-loop-247/status.json    # expect phase processed/idle, not blocked/setup_required
     ps -o user= -C python | sort -u                # expect simplicio-loop, never root
     # Attach /root/doctor-1476.txt to issue #1476.
 

@@ -265,6 +265,7 @@ def flow_env(fake_gh_env, flow_base: Path):
     with pytest.MonkeyPatch.context() as patch:
         for key, value in fake_gh_env.items():
             patch.setenv(key, value)
+        patch.setenv("GH_TOKEN", "ghp_FAKEflow0000000000000000000000000")  # the tick idles without a GitHub token
         # bwrap mounts a tmpfs over /tmp and would hide the shims; the sandbox has its own tests (#1494).
         patch.setattr(sandbox, "engine", lambda *_args, **_kwargs: None)
         yield fake_gh_env
