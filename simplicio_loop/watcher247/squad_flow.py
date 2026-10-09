@@ -51,16 +51,25 @@ class RepoPlan:
     routed: dict[int, str]  # issue number -> the role the worker starts at
 
 
+def _safe_path(path: str) -> bool:
+    """A path named in an issue body is only an ownership pattern, but it must still be repo-relative and stay inside the clone."""
+    return not path.startswith(("/", "~")) and ".." not in path.split("/")
+
+
 def _issue_row(issue: dict) -> dict[str, Any]:
     body = issue.get("body") or ""
     return {"number": issue["number"], "title": issue.get("title") or "", "body": body, "labels": issue.get("labels") or [],
-            "paths": sorted(set(_PATH.findall(body)))}
+            "paths": sorted({p for p in _PATH.findall(body) if _safe_path(p)})}
 
 
 def plan_repo(repo: str, issues: list[dict], family: str) -> RepoPlan:
     """The general coordinator: squads for the issues, and the starting role of each worker (squad_routing.route)."""
     rows = [_issue_row(i) for i in issues]
-    plan = squads.plan_squads(rows, family=family)
+    try:
+        plan = squads.plan_squads(rows, family=family)
+    except squads.SquadCycleError as exc:  # a declared "depende de" cycle must not wedge the tick: plan without the declared order
+        state.log(f"squad plan {repo}: {exc}; planning without declared dependencies")
+        plan = squads.plan_squads([{**row, "body": ""} for row in rows], family=family)
     workers = {w.issues[0]: w for s in plan.squads for w in s.workers}
     routed = {}
     for row in rows:
@@ -102,7 +111,13 @@ async def _review(repo: str, repo_plan: RepoPlan, squad: squads.Squad, issue: in
     view = await proc.run(["gh", "pr", "view", str(number), "--repo", full, "--json", "files,headRefOid,commits,comments"])
     if view.returncode != 0:
         return {"pr": number, "issue": issue, "approved": False, "reasons": ["pr view failed"]}
-    data = json.loads(view.stdout)
+    try:
+        data = json.loads(view.stdout)
+    except ValueError:
+        return {"pr": number, "issue": issue, "approved": False, "reasons": ["pr view returned invalid json"]}
+    head = data.get("headRefOid")
+    if not head:
+        return {"pr": number, "issue": issue, "approved": False, "reasons": ["pr head unknown"]}
     foreign = [p for p in (f["path"] for f in data.get("files") or [])
                if any(fnmatch.fnmatchcase(p, g) for g in repo_plan.plan.shared_files)
                or any(fnmatch.fnmatchcase(p, g) for other in repo_plan.plan.squads if other.id != squad.id
@@ -113,9 +128,12 @@ async def _review(repo: str, repo_plan: RepoPlan, squad: squads.Squad, issue: in
         return {"pr": number, "issue": issue, "approved": False, "reasons": reasons}
     body = (f"{squads.APPROVAL_PHRASE}\n\nSquad {squad.id} ({squad.coordinator.role}, {squad.coordinator.model}, "
             f"{squad.coordinator.effort}) revisou o PR da issue #{issue}.\n- testes: {outcome.verify}\n- posse de arquivos: ok")
-    await asyncio.to_thread(pr_evidence.publish_comment, config.ORG, repo, number, body,
-                            marker=APPROVAL_MARKER.format(oid=data.get("headRefOid") or "head"), runner=runner)
-    return {"pr": number, "issue": issue, "approved": True, "reasons": []}
+    try:
+        await asyncio.to_thread(pr_evidence.publish_comment, config.ORG, repo, number, body,
+                                marker=APPROVAL_MARKER.format(oid=head), runner=runner)
+    except pr_evidence.PublishError:  # an approval that was not posted is not an approval
+        return {"pr": number, "issue": issue, "approved": False, "reasons": ["approval comment not posted"]}
+    return {"pr": number, "issue": issue, "approved": True, "reasons": [], "head": head}
 
 
 async def _train_test(dest: Path, test_cmd: str | None, issues: list[int]) -> bool:
@@ -137,18 +155,22 @@ async def _train_test(dest: Path, test_cmd: str | None, issues: list[int]) -> bo
     return (await proc.run(argv, timeout=config.TURBO_TIMEOUT_S, cwd=dest, env=env)).returncode == 0
 
 
-async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], runner, gate) -> dict:
+async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads: dict[int, str], runner, gate) -> dict:
     """Gate each approved PR with squads.squad_gate, then merge the rest in squad order through merge_train."""
     full = f"{config.ORG}/{repo}"
     passed, blocked = [], []
     for issue, pr in approved.items():
-        verdict = await squads.squad_gate_for_pr(full, pr, runner=runner)
+        try:
+            verdict = await squads.squad_gate_for_pr(full, pr, runner=runner)
+        except squads.SquadGateError:  # fail closed: no gate verdict, no merge
+            verdict = {"approved": False}
         (passed if verdict["approved"] else blocked).append(issue)
     result = {"merged": [], "failed": [], "gate_blocked": sorted(approved[i] for i in blocked)}
     merged_prs: list[int] = []
 
     async def merge_one(issue: int) -> None:
-        done = await proc.run(["gh", "pr", "merge", str(approved[issue]), "--repo", full, "--squash"], timeout=120)
+        done = await proc.run(["gh", "pr", "merge", str(approved[issue]), "--repo", full, "--squash",
+                                "--match-head-commit", heads[approved[issue]]], timeout=120)  # only the head that was reviewed and tested
         if done.returncode == 0:
             merged_prs.append(approved[issue])
         else:
@@ -172,6 +194,7 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
     reviews: dict[tuple[str, int], dict] = {}
     for repo_plan in plans:
         approved: dict[int, int] = {}
+        heads: dict[int, str] = {}
         rejected: dict[str, list[str]] = {}
         for squad in repo_plan.plan.squads:
             for issue in squad.issues:
@@ -182,6 +205,7 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
                 reviews[(repo_plan.repo, issue)] = review
                 if review["approved"]:
                     approved[issue] = review["pr"]
+                    heads[review["pr"]] = review["head"]
                 else:
                     rejected[str(review["pr"])] = review["reasons"]
         entry: dict[str, Any] = {
@@ -190,7 +214,7 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
             "approved": sorted(approved.values()), "rejected": rejected, "merge": "disabled"}
         if approved and auto_merge_enabled():
             entry["merge"] = "enabled"
-            entry.update(await _merge(repo_plan.repo, repo_plan, approved, runner, gate))
+            entry.update(await _merge(repo_plan.repo, repo_plan, approved, heads, runner, gate))
         summary[repo_plan.repo] = entry
     await asyncio.to_thread(write_report, plans, done, reviews)
     return summary
