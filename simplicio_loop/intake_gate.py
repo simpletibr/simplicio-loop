@@ -1,7 +1,7 @@
 """Intake triage and repo/issue opt-in gates (issues #1465, #1434).
 
 This module gates which repos and issues enter the Loop at intake time:
-- Repo opt-in: `.simplicio/loop.toml` must exist and have `enabled = true`
+- Repo opt-in: `.simplicio-loop/loop.toml` must exist and have `enabled = true`
 - Issue opt-in: `loop:auto` label required (issue #1465)
 - Author filter: Author must be OWNER/MEMBER/COLLABORATOR (part of #1434)
 - Triage: Classify as "actionable" or "needs_human" (needs clarification)
@@ -18,6 +18,7 @@ import tomllib
 import unicodedata
 from typing import Any, Mapping, Optional
 
+CONFIG_PATH = ".simplicio-loop/loop.toml"  # the loop keeps all its files under .simplicio-loop/
 REPO_OPTED_IN_TIMEOUT = 5.0  # seconds for gh api calls
 TRIAGE_REASON_CODES = ("actionable", "needs_human")
 
@@ -67,9 +68,9 @@ async def repo_config(
     cache: Optional[dict[str, Any]] = None,
     run: Optional[Any] = None,
 ) -> Optional[dict[str, Any]]:
-    """Return the parsed `.simplicio/loop.toml` of repo, or None when absent.
+    """Return the parsed `.simplicio-loop/loop.toml` of repo, or None when absent.
 
-    Reads via `gh api repos/{owner}/{repo}/contents/.simplicio/loop.toml`
+    Reads via `gh api repos/{owner}/{repo}/contents/.simplicio-loop/loop.toml`
     to avoid cloning. Uses optional per-tick cache (dict keyed by repo).
 
     Args:
@@ -106,7 +107,7 @@ async def repo_config(
         return config
     except asyncio.TimeoutError as exc:
         raise IntakeGateError(
-            f"Timeout fetching .simplicio/loop.toml for {repo}",
+            f"Timeout fetching {CONFIG_PATH} for {repo}",
             "repo_check_timeout",
         ) from exc
     except IntakeGateError:
@@ -131,7 +132,7 @@ async def _run_gh(*args: str) -> tuple[int, bytes, bytes]:
 
 
 async def _fetch_config(owner: str, name: str, run: Optional[Any] = None) -> Optional[dict[str, Any]]:
-    """Fetch and parse .simplicio/loop.toml via gh api.
+    """Fetch and parse .simplicio-loop/loop.toml via gh api.
 
     Returns None if the file does not exist.
     Raises IntakeGateError on malformed TOML or gh failures.
@@ -139,7 +140,7 @@ async def _fetch_config(owner: str, name: str, run: Optional[Any] = None) -> Opt
     runner = run or _run_gh
     returncode, stdout, stderr = await runner(
         "api",
-        f"repos/{owner}/{name}/contents/.simplicio/loop.toml",
+        f"repos/{owner}/{name}/contents/{CONFIG_PATH}",
         "--jq",
         ".content",
     )
@@ -156,7 +157,7 @@ async def _fetch_config(owner: str, name: str, run: Optional[Any] = None) -> Opt
     try:
         return tomllib.loads(base64.b64decode(content_b64).decode("utf-8"))
     except Exception as exc:
-        raise IntakeGateError(f"Malformed .simplicio/loop.toml: {exc}", "invalid_toml") from exc
+        raise IntakeGateError(f"Malformed {CONFIG_PATH}: {exc}", "invalid_toml") from exc
 
 
 async def repo_opted_in(
@@ -165,7 +166,7 @@ async def repo_opted_in(
     cache: Optional[dict[str, Any]] = None,
     run: Optional[Any] = None,
 ) -> bool:
-    """True only if `.simplicio/loop.toml` exists with a literal `enabled = true`.
+    """True only if `.simplicio-loop/loop.toml` exists with a literal `enabled = true`.
 
     Raises IntakeGateError (see repo_config) on invalid repo, timeout, gh
     failure or malformed TOML.

@@ -60,7 +60,7 @@ class TestRepoOptedIn:
         fake = fake_gh(stdout=_gh_content("enabled = true\n"))
         assert asyncio.run(repo_opted_in("org/repo")) is True
         assert len(fake.calls) == 1
-        assert "repos/org/repo/contents/.simplicio/loop.toml" in fake.calls[0]
+        assert "repos/org/repo/contents/.simplicio-loop/loop.toml" in fake.calls[0]
 
     def test_enabled_false(self, fake_gh):
         fake_gh(stdout=_gh_content("enabled = false\n"))
@@ -500,7 +500,7 @@ class TestTriage:
             "title": "[247][P1] Opt-in por repo e por issue",
             "body": (
                 "Parte do epic #1429.\n\n## Contexto\nO watcher pega todo repo.\n\n"
-                "## Critérios\n- [ ] Repo só entra com `.simplicio/loop.toml`.\n"
+                "## Critérios\n- [ ] Repo só entra com `.simplicio-loop/loop.toml`.\n"
             ),
             "labels": [{"name": "loop:auto"}],
         }

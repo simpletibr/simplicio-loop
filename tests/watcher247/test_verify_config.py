@@ -1,4 +1,4 @@
-"""The watcher's verify command comes from ONE place: `verify` in `.simplicio/loop.toml` of the default branch.
+"""The watcher's verify command comes from ONE place: `verify` in `.simplicio-loop/loop.toml` of the default branch.
 
 No detection, no fallback to the whole suite. A repo without `verify` has all its issues skipped as `verify_not_configured`.
 """
@@ -89,7 +89,7 @@ def test_the_configured_command_is_what_turbo_verifies(env):
 def test_the_verify_comes_from_the_default_branch_not_from_the_clone(env):
     fake = env(FakeRun({REPO: [issue(1)]}, loop_toml={REPO: WITH_VERIFY}))
     baseline()
-    local = config.WORK / REPO / ".simplicio"  # a plan on loop/issue-N may edit this file (#1567)
+    local = config.WORK / REPO / ".simplicio-loop"  # a plan on loop/issue-N may edit this file (#1567)
     local.mkdir(parents=True)
     (config.WORK / REPO / ".git").mkdir()
     (local / "loop.toml").write_text('enabled = true\nverify = "true"\n')
@@ -101,7 +101,7 @@ def test_the_verify_comes_from_the_default_branch_not_from_the_clone(env):
 def test_a_verify_only_in_the_clone_does_not_enable_the_repo(env):
     fake = env(FakeRun({REPO: [issue(1)]}, loop_toml={REPO: WITHOUT_VERIFY}))
     baseline()
-    local = config.WORK / REPO / ".simplicio"
+    local = config.WORK / REPO / ".simplicio-loop"
     local.mkdir(parents=True)
     (config.WORK / REPO / ".git").mkdir()
     (local / "loop.toml").write_text(WITH_VERIFY)

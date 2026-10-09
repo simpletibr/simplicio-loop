@@ -463,11 +463,12 @@ async def tick(dry_run: bool = False) -> None:
             continue
         if not opted:
             skipped_repos[name] = "not_opted_in"
+            state.log(f"not opted in {name}: add {intake_gate.CONFIG_PATH} with `enabled = true` to its default branch")
             continue
         # The one source of the verify command: loop.toml of the default branch (cached above), never the clone, which a plan can edit (#1567).
         cmd = verify.configured_command(await intake_gate.repo_config(f"{config.ORG}/{name}", cache=gate_cache, run=_intake_run))
         if cmd is None:
-            state.log(f"verify not configured {name}: add `verify = \"<targeted test command>\"` to the loop.toml of its default branch; its issues are skipped")
+            state.log(f"verify not configured {name}: add `verify = \"<targeted test command>\"` to {intake_gate.CONFIG_PATH} on its default branch; its issues are skipped")
         if baseline is not None and persist:
             await _enqueue_fixes(runner, name, fixes)
         try:

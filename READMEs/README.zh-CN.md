@@ -81,7 +81,7 @@ sudo systemctl enable --now simplicio-loop-247
 
 ```mermaid
 flowchart LR
-  R["repo opts in<br/>.simplicio/loop.toml<br/>enabled = true"] --> L["issue opts in<br/>label loop:auto<br/>owner / member / collaborator"]
+  R["repo opts in<br/>.simplicio-loop/loop.toml<br/>enabled = true"] --> L["issue opts in<br/>label loop:auto<br/>owner / member / collaborator"]
   L --> W["worker loop"] --> PR["PR opened"]
   PR -.->|"auto-merge off by default"| H["squad / human merges"]
 ```
