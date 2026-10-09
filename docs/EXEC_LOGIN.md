@@ -80,7 +80,7 @@ sudo -u simplicio-loop -H claude auth status
 ### Codex CLI
 
 ```bash
-sudo -u simplicio-loop -H codex auth login
+sudo -u simplicio-loop -H codex login
 # ou (GitHub CLI)
 sudo -u simplicio-loop -H gh auth login
 ```
@@ -91,15 +91,15 @@ sudo -u simplicio-loop -H gh auth login
 
 **Verificar status:**
 ```bash
-sudo -u simplicio-loop -H codex auth status
+sudo -u simplicio-loop -H codex login status   # `codex auth` nao existe
 ```
 
 ### Grok CLI
 
 ```bash
-sudo -u simplicio-loop -H grok auth login
+sudo -u simplicio-loop -H grok login
 # ou com variável de ambiente
-sudo -u simplicio-loop -H bash -c "GROK_API_KEY=<sua-chave> grok auth login"
+sudo -u simplicio-loop -H bash -c "GROK_API_KEY=<sua-chave> grok login"
 ```
 
 **Credenciais armazenadas em:**
@@ -108,7 +108,9 @@ sudo -u simplicio-loop -H bash -c "GROK_API_KEY=<sua-chave> grok auth login"
 
 **Verificar status:**
 ```bash
-sudo -u simplicio-loop -H grok auth status
+# grok nao tem subcomando de status (apenas login/logout); o check usa o arquivo ~/.grok/auth.json.
+# NAO rode `grok auth status`: seria interpretado como prompt interativo.
+ls -l ~simplicio-loop/.grok/auth.json
 ```
 
 ### Gemini CLI
@@ -126,7 +128,9 @@ sudo -u simplicio-loop -H bash -c "GOOGLE_API_KEY=<sua-chave> gemini auth login"
 
 **Verificar status:**
 ```bash
-sudo -u simplicio-loop -H gemini auth status
+# gemini: subcomando de status nao verificado (CLI nao instalada no host de referencia);
+# o check usa apenas os arquivos de credencial.
+ls -l ~simplicio-loop/.gemini/credentials
 ```
 
 ## Variáveis de Ambiente (Alternativa)

@@ -42,6 +42,7 @@ _CREDENTIAL_PATHS = {
     ],
     "grok": [
         ".config/grok/auth.json",
+        ".grok/auth.json",
         ".grok/credentials",
         ".cache/grok/token",
     ],
@@ -52,12 +53,15 @@ _CREDENTIAL_PATHS = {
     ],
 }
 
-# Status command per CLI (prefers --help verification on this machine)
-_STATUS_COMMANDS = {
-    "claude": ["claude", "auth", "status"],
-    "codex": ["codex", "auth", "status"],
-    "grok": ["grok", "auth", "status"],
-    "gemini": ["gemini", "auth", "status"],
+# Status subcommand args per CLI, verified against each CLI's --help:
+#   claude: `claude auth status`   (auth login|logout|status)
+#   codex:  `codex login status`   (`codex auth` does not exist)
+#   grok:   no status subcommand (only login/logout); `grok auth status` would be
+#           parsed as an interactive prompt, so it is never spawned -> credential files.
+#   gemini: not verifiable (CLI not installed on the reference host) -> credential files.
+_STATUS_ARGS = {
+    "claude": ["auth", "status"],
+    "codex": ["login", "status"],
 }
 
 
@@ -74,7 +78,7 @@ async def check(family: ExecFamily) -> AuthCheckResult:
 
     # Try status command first (preferred: no secrets stored/printed)
     try:
-        result = await _run_status_check(family)
+        result = await _run_status_check(family, binary)
         if result:
             return AuthCheckResult(family, "ok")
     except Exception:
@@ -87,7 +91,7 @@ async def check(family: ExecFamily) -> AuthCheckResult:
         if cred_file.exists():
             return AuthCheckResult(family, "ok")
 
-    return AuthCheckResult(family, "login_missing", f"no_credentials_found")
+    return AuthCheckResult(family, "login_missing", "no_credentials_found")
 
 
 async def check_all(families: list[ExecFamily]) -> list[AuthCheckResult]:
@@ -103,26 +107,30 @@ async def check_all(families: list[ExecFamily]) -> list[AuthCheckResult]:
     return await asyncio.gather(*tasks)
 
 
-async def _run_status_check(family: ExecFamily) -> bool:
-    """Try running <cli> auth status and check exit code.
+async def _run_status_check(family: ExecFamily, binary: str) -> bool:
+    """Run the CLI's verified status subcommand (resolved `binary` path), check exit code.
 
-    Returns True if status check succeeded (exit code 0), False otherwise.
-    Never captures/logs stderr or stdout (avoids secrets).
+    Returns True if the status check exited 0; False if the family has no verified
+    status subcommand, or on failure/timeout. Never captures stdout/stderr (avoids secrets).
     """
-    cmd = _STATUS_COMMANDS.get(family)
-    if not cmd:
+    args = _STATUS_ARGS.get(family)
+    if not args:
         return False
 
+    proc = None
     try:
-        # Run with both stdout and stderr suppressed
         proc = await asyncio.create_subprocess_exec(
-            *cmd,
+            binary,
+            *args,
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
         returncode = await asyncio.wait_for(proc.wait(), timeout=5.0)
         return returncode == 0
     except (FileNotFoundError, asyncio.TimeoutError, OSError):
+        if proc is not None and proc.returncode is None:
+            proc.kill()
         return False
 
 

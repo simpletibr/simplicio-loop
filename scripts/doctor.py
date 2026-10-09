@@ -443,7 +443,7 @@ def chk_map_service():
             "msg": "map receipt valid (fallback=%s)" % payload.get("fallback", False)}
 
 
-def chk_exec_clls():
+def chk_exec_clis():
     """Check authentication state of exec CLIs (claude, codex, grok, gemini).
 
     OPTIONAL: missing or unauthenticated CLIs don't block the loop, but provide
@@ -485,7 +485,7 @@ def chk_exec_clls():
 
 CHECKS = [chk_python, chk_operators, chk_mapper_capabilities, chk_skills,
           chk_hooks, chk_git_precommit_hook, chk_git_prepush_hook, chk_proxy, chk_wire,
-          chk_tray_dep, check_vscode_global, chk_map_service, chk_exec_clls, chk_release_version]
+          chk_tray_dep, check_vscode_global, chk_map_service, chk_exec_clis, chk_release_version]
 
 
 def main(argv=None):
