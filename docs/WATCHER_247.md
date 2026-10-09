@@ -3,6 +3,29 @@
 O servico `simplicio-loop-247` (unit em `packaging/systemd/`) observa issues novas dos repos `simpletibr/simplicio-*` que
 habilitaram o loop (`.simplicio/loop.toml`) e abre PRs. Estado, claims e logs ficam em `SIMPLICIO_247_STATE_DIR`.
 
+## loop.toml do repo (`.simplicio/loop.toml`)
+
+O watcher lê o arquivo da **branch padrão** do repo (`gh api .../contents/.simplicio/loop.toml`, uma vez por tick), nunca
+do clone: um plano pode editar o arquivo na branch `loop/issue-N` (#1567) e afrouxar o próprio gate.
+
+```toml
+enabled = true
+allowed_authors = ["fulano"]
+verify = "python3 -m pytest -q tests/test_x.py tests/test_y.py"
+```
+
+| chave | obrigatória | o que faz |
+|---|---|---|
+| `enabled` | sim | literal `true`; sem ela o repo não entra (`skipped_repos`: `not_opted_in`) |
+| `allowed_authors` | não | logins confiáveis além de OWNER, MEMBER e COLLABORATOR |
+| `verify` | sim, para o watcher | comando de teste **direcionado**, uma string; é o `--verify` do turbo e o teste do merge train |
+
+Não há detecção do comando de teste e não há fallback: sem `verify` (ausente, vazio ou que não seja string) nenhuma issue
+do repo vira trabalho, nem issue nova nem fix de review. Cada uma aparece em `status.json` como
+`skipped_issues["repo#N"] = "verify_not_configured"` e o log diz o repo. Um fix de review continua na fila até o
+`verify` existir. A suíte completa não é o padrão: o comando cobre o que a issue toca, e a suíte inteira roda só em
+release.
+
 ## Primeira execução (credenciais)
 
 O watcher não traz credenciais embutidas. Na primeira execução, `simplicio-loop watch247 setup` coleta duas informações
@@ -38,10 +61,11 @@ Como root, com o arquivo de env do serviço, aponte `SIMPLICIO_247_LOGIN` para o
 - Setup grava o e-mail (não é segredo) em `<state_dir>/account.json` (modo 600).
 - Sem `~/.simplicio/login.json` o tick fica ocioso com `phase=setup_required`, `reason_code=login_missing`. Setup imprime:
   ```
-  sudo -u simplicio-loop -H simplicio login google
+  sudo -u simplicio-loop -H simplicio-loop login
   ```
-  E verifica a assinatura. Reason codes: `ok`, `login_missing`, `subscription_required`, `refresh_failed`, `entitlement_required`, `validate_unreachable`, `account_mismatch`.
-  Com `account_mismatch`, o login.json pertence a outra conta: `sudo -u simplicio-loop -H simplicio logout` e faça login novamente.
+  E verifica a assinatura. Reason codes: `ok`, `login_missing`, `login_insecure`, `subscription_required`, `refresh_failed`, `entitlement_required`, `validate_unreachable`, `account_mismatch`.
+  Com `login_insecure`, o `login.json` é um symlink. Ou grupo e outros o leem. Ou ele fica numa pasta que eles gravam. Rode `chmod 600` no arquivo (ou `chmod 700` na pasta) e rode `--check`. Remova um symlink.
+  Com `account_mismatch`, o login.json pertence a outra conta: `sudo -u simplicio-loop -H simplicio-loop logout --yes` e faça login novamente.
 
 **Saída do setup:**
 - Exit 0: tudo pronto (reason `ok`).
@@ -83,7 +107,7 @@ Fluxo de cada tick (implementado em `watcher247/tick.py` e `watcher247/host_mode
 2. **Plano.** `exec_planner.run_planner_with_fallback` roda o CLI em modo somente-plano (sem escrita) com o texto da
    task e o modelo/esforco de `model_roles.resolve(familia, papel)`. Issue nova usa o papel que `squad_routing.route` indica para o worker (`execution`, ou `coordination` se tocar varios
    modulos, arquivo compartilhado ou seguranca; ver "Squads"); `planning` e o topo da escada.
-3. **Aplicacao.** O plano JSON entra no stdin de `simplicio-loop turbo --repo <clone> --apply - --verify <testes>`,
+3. **Aplicacao.** O plano JSON entra no stdin de `simplicio-loop turbo --repo <clone> --apply - --verify <verify do loop.toml>`,
    dentro de `sandbox.wrap` e com env filtrado (sem `OPENROUTER_API_KEY`). A abertura do PR depende do verify
    (`verify.decide`), como antes.
 4. **Escalada.** Se o apply ou o verify falhar, a escada de `escalation.py` (execution, depois coordination, depois
@@ -173,8 +197,12 @@ O tick usa o mesmo padrao da skill `/simplicio-loop` (#1505). Nada disso muda a 
 4. **Merge: desligado por padrao.** Sem `SIMPLICIO_247_AUTO_MERGE=1` o watcher para em "aprovado" e nunca faz merge
    (#1434). Com a variavel, cada PR aprovado passa por `squads.squad_gate` (aprovacao mais nova que o ultimo commit) e os
    que passam entram em `merge_train` em lotes de ate 4, na ordem do plano: uma branch temporaria `loop/merge-train`
-   integra os PRs sobre `main`, roda os testes do repo uma vez (no sandbox) e, se ficar vermelho, faz a bisseccao; so o que
+   integra os PRs sobre `main`, roda o `verify` do repo uma vez (no sandbox) e, se ficar vermelho, faz a bisseccao; so o que
    ficou verde recebe `gh pr merge --squash`. Sem force-push.
+4a. **PR como draft (#1589).** Sem `SIMPLICIO_247_PR_DRAFT=1` o watcher abre o PR pronto (padrao).
+   Com a variavel exatamente `1`, o `gh pr create` recebe `--draft` e o PR fica rascunho ate alguem executar `gh pr ready`.
+   Um rascunho nao entra em merge: com `SIMPLICIO_247_AUTO_MERGE=1` tambem ligado, o status mostra `merge: draft`,
+   o watcher nao roda o trem nem o `gh pr merge`, e o merge fica com o operador depois do `gh pr ready`.
 5. **Recibo.** Um `simplicio.execution-report/v1` por tick em
    `<state_dir>/squads/.simplicio-loop/runtime/execution-reports/latest.json`: uma task por agente (coordenador geral,
    coordenador de cada squad, cada worker) com `agent.role`, `agent.model` e `agent.effort`; o worker mostra o ultimo

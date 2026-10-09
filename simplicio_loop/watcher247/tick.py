@@ -37,6 +37,7 @@ class Work:
     fix: str = ""
     pr: int = 0
     role: str = ""  # the role a squad worker starts at (squad_routing.route); "" keeps the host-mode default
+    verify: str = ""  # the repo's `verify` command from loop.toml of its default branch; the tick makes no Work without one
 
 
 async def _intake_run(*args: str) -> tuple[int, bytes, bytes]:
@@ -148,11 +149,14 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
         f"{label}\n\n"
         f"Closes #{issue['number']}\n"
     )
-    created = await proc.run([
+    pr_cmd = [
         "gh", "pr", "create", "--repo", f"{config.ORG}/{repo}",
         "--base", branch, "--head", head,
         "--title", title[:70], "--body", body,
-    ], cwd=dest, timeout=60)
+    ]
+    if squad_flow.pr_draft_enabled():
+        pr_cmd.append("--draft")
+    created = await proc.run(pr_cmd, cwd=dest, timeout=60)
     if created.returncode != 0:
         if "already exists" not in (created.stderr or "").lower():  # the PR may already exist
             raise _fail(created, "pr create failed")
@@ -162,14 +166,13 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
 
 
 async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str,
-                     executor: host_mode.Executor, task: str | None = None, role: str = "",
+                     executor: host_mode.Executor, test_cmd: str, task: str | None = None, role: str = "",
                      run_id: str | None = None) -> dict:
     """Run the item with the selected executor; return the claim fields, raise when it did not finish ok.
 
     exec (the default): an exec CLI plans, turbo --apply - applies (host_mode) inside the run ``run_id`` that the caller
     opened at intake. openrouter: the opt-in headless turbo, which has its own run.
     """
-    test_cmd = await asyncio.to_thread(verify.detect_test_command, dest)
     task = task or task_text(repo, issue, fix)
     if executor.mode == "exec":
         return await host_mode.run_exec(dest, repo, issue, task, test_cmd, executor,
@@ -281,15 +284,15 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                 head = await reset_branch(dest, work.branch, number, fix=bool(work.fix))
                 ctx = points.PointContext(
                     repo=name, issue=work.issue, clone=dest, state_dir=config.ROOT, family=(executor.families or (None,))[0],
-                    capacity=probe,
+                    capacity=probe, test_command=work.verify,
                     run_dir=dest / ".simplicio-loop" / "orchestrator" / "points" / f"{name}-{number}")
                 await points.run("intake", ctx)
                 if executor.mode == "exec":
                     run_id = await asyncio.to_thread(events.open_run, dest, name, number, fix=bool(work.fix))
                 ctx = replace(ctx, task_text=task_text(name, work.issue, work.fix, retry))
                 task = ctx.task_text + plan_hints(await points.run("plan", ctx))  # one text: retry reasons + hints
-                turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, task=task, role=work.role,
-                                          run_id=run_id)
+                turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, work.verify, task=task,
+                                          role=work.role, run_id=run_id)
                 steps = turbo.get("steps") or []
                 ctx = replace(ctx, turbo_json=turbo, verify=turbo["verify"])
                 await points.run("apply", ctx)
@@ -461,6 +464,10 @@ async def tick(dry_run: bool = False) -> None:
         if not opted:
             skipped_repos[name] = "not_opted_in"
             continue
+        # The one source of the verify command: loop.toml of the default branch (cached above), never the clone, which a plan can edit (#1567).
+        cmd = verify.configured_command(await intake_gate.repo_config(f"{config.ORG}/{name}", cache=gate_cache, run=_intake_run))
+        if cmd is None:
+            state.log(f"verify not configured {name}: add `verify = \"<targeted test command>\"` to the loop.toml of its default branch; its issues are skipped")
         if baseline is not None and persist:
             await _enqueue_fixes(runner, name, fixes)
         try:
@@ -474,9 +481,12 @@ async def tick(dry_run: bool = False) -> None:
             seen.append(ident)
             if baseline is None:
                 continue
+            if cmd is None and (ident in fixes["queued"] or ident not in baselined):  # no verify: no new issue, no review fix
+                skipped_issues[ident] = "verify_not_configured"
+                continue
             if ident in fixes["queued"]:
                 entry = fixes["queued"].pop(ident)
-                batch.append(Work(name, repo["branch"], issue, fix="\n".join(entry["texts"]), pr=entry["pr"]))
+                batch.append(Work(name, repo["branch"], issue, fix="\n".join(entry["texts"]), pr=entry["pr"], verify=cmd))
             elif ident in baselined:
                 continue
             elif github.skipped(issue):
@@ -486,7 +496,7 @@ async def tick(dry_run: bool = False) -> None:
                 skipped_issues[ident] = intake_gate.admission_reason(issue)
                 continue
             else:
-                batch.append(Work(name, repo["branch"], issue))
+                batch.append(Work(name, repo["branch"], issue, verify=cmd))
             if len(batch) >= limit:
                 break
     if persist and baseline is not None:

@@ -181,7 +181,7 @@ flowchart LR
 | Started by | A person, inside an agent session | `systemd` unit `simplicio-loop-247`, polling every 120 s |
 | Work source | The goal or backlog the person gives | Issues of opted-in repos: `.simplicio/loop.toml`, label `loop:auto`, trusted author |
 | Planner | The host model | An exec CLI (claude, codex, grok, gemini) in plan-only mode; dev-cli is the only writer |
-| Gate | Evidence-gated promise | `turbo --verify`: the PR opens only with green tests, otherwise it is labelled `UNVERIFIED\|no_test_command` |
+| Gate | Evidence-gated promise | `turbo --verify` with the repo's `verify` from `.simplicio/loop.toml`: the PR opens only with green tests; a repo without `verify` is not worked on (`verify_not_configured`) |
 | Merge | PR with `Closes #N`, merged after the evidence gate | **Off by default.** On `main` the watcher never merges; auto-merge turns on only with `SIMPLICIO_247_AUTO_MERGE=1`, after the squad approval and `squad_gate` (see `docs/WATCHER_247.md`, #1505) |
 | Safety | STRICT mode, `action_gate`, human gate for irreversible operations | Non-root user, bwrap sandbox with a scrubbed env, daily cap, secret scan, env file kept at mode 0600 |
 | Squads | In progress: #1502 | In progress: #1505 |
@@ -1021,6 +1021,8 @@ is enough — **no native runtime dependency is required**:
 pip install simplicio-loop
 simplicio-loop install            # current project
 simplicio-loop install --global   # user-wide
+simplicio-loop install --check    # write nothing; exit 0 = up to date, 10 = changes pending
+simplicio-loop login              # sign in; the login is shared with the Simplicio Runtime
 ```
 
 That installs the skills + hooks only. If your runtime can bind native helpers, they are an
@@ -1059,11 +1061,15 @@ Pass **`--minimal`** only for headless/CI to skip the heavy deps + the machine s
 ```bash
 python3 scripts/release_check.py check   # is a newer release published? — never auto-updates
 bash scripts/update.sh [<runtime>]       # git pull → reinstall skills/hooks/operators → restart services
-simplicio-loop update                    # pip-installed: latest GitHub release (--check: report only, --force: reinstall)
+simplicio-loop update                    # pip-installed: latest GitHub release (--check: report only, --dry-run: preview, --force: reinstall)
 ```
 
 `simplicio-loop update` installs the latest GitHub release of `simpletibr/simplicio-loop` and
-refreshes the global skills. Because mapper and dev-cli are bundled in the wheel, it first removes
+refreshes the global skills. It acts by how Loop was installed (`simplicio-loop doctor` shows it): pip, source or binary.
+`--check` changes nothing: exit 0 = up to date, 10 = update available, 2 = error. `--dry-run` prints what would run.
+`--force` reinstalls even when up to date and allows a downgrade. A binary compares the SHA256 of the downloaded file
+before it changes anything, swaps the file by one rename, and keeps the old file as `<name>.bak`.
+Because mapper and dev-cli are bundled in the wheel, it first removes
 any pre-monorepo standalone `simplicio-cli` / `simplicio-mapper` distributions (they own the same
 files); an editable checkout install is told to `git pull` and re-run `scripts/dev_install.sh`.
 
@@ -1240,11 +1246,21 @@ The complete command reference is [`docs/CLI_COMMANDS.md`](CLI_COMMANDS.md). The
 ### Doctor — verify + repair
 
 ```bash
+simplicio-loop doctor           # report stack, login, update availability, and integrations
+simplicio-loop doctor all       # full overview with all checks (--online: query GitHub for updates)
+simplicio-loop doctor login     # print login state only
 python3 scripts/doctor.py            # report the whole stack (REQUIRED vs OPTIONAL)
 python3 scripts/doctor.py --repair   # install/wire what's fixable; make everything operational
 python3 scripts/preflight.py --json   # fail-closed mapper + dev-cli
 # also: bash scripts/simplicio-economy.sh doctor [--repair]
 ```
+
+`simplicio-loop doctor` prints an overview of your installation. It shows your login and whether Loop and the
+Simplicio Runtime share it. It shows whether a newer release is available. It reads that answer offline from the
+last `update --check`. Use `--online` to ask GitHub. It shows which distribution you installed (pip / source /
+binary) and whether the optional Runtime is installed. It warns about a `simplicio-mapper` or `simplicio-dev-cli`
+on PATH that is not the bundled one, and it prints the fix command. It also shows the free disk of the state
+folders. The exit code is 1 only when a check is FAIL, for example a login file that others can read.
 
 `doctor` separates **REQUIRED** (python3, the loop package and its bundled mapper/dev-cli bins,
 the 7 skills, the loop hooks, the capture proxy — `--repair` installs/wires them) from
