@@ -1,8 +1,10 @@
 """Hermetic 10-task turbo comparison: no OpenRouter, one Mapper survey, cache prefix."""
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -24,7 +26,7 @@ def test_hermetic_comparison_is_ten_tasks_and_does_not_call_openrouter(tmp_path,
         raise AssertionError("OpenRouter was called")
 
     monkeypatch.setattr("urllib.request.urlopen", refuse)
-    def write_map(root):
+    async def write_map(root):
         state = Path(root) / ".simplicio-loop"
         state.mkdir(parents=True, exist_ok=True)
         (state / "project-map.json").write_text('{"files": 6}', encoding="utf-8")
@@ -44,7 +46,7 @@ def test_hermetic_comparison_is_ten_tasks_and_does_not_call_openrouter(tmp_path,
 def test_mapper_survey_runs_once_and_is_reused_for_the_other_nine(tmp_path, monkeypatch):
     calls = []
 
-    def fake_index(root):
+    async def fake_index(root):
         calls.append(root)
         state = root / ".simplicio-loop"
         state.mkdir(parents=True, exist_ok=True)
@@ -52,8 +54,8 @@ def test_mapper_survey_runs_once_and_is_reused_for_the_other_nine(tmp_path, monk
 
     monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", fake_index)
     tasks = bench_tasks.task_set(10)
-    first = survey_tasks(tmp_path, tasks)
-    second = survey_tasks(tmp_path, tasks)
+    first = asyncio.run(survey_tasks(tmp_path, tasks))
+    second = asyncio.run(survey_tasks(tmp_path, tasks))
     assert len(calls) == 1
     generations = {row["generation"] for row in first["tasks"]}
     assert generations == {second["generation"]}
@@ -199,7 +201,7 @@ def test_turbo_read_ai_devcli_writes_what_the_model_returns(tmp_path, monkeypatc
         }
 
     import asyncio
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     state = tmp_path / ".simplicio-loop"
     state.mkdir()
     (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
@@ -221,7 +223,7 @@ def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monke
     (tmp_path / "README.md").write_text("fixture\n", encoding="utf-8")
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     state = tmp_path / ".simplicio-loop"
     state.mkdir()
     (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
@@ -266,7 +268,7 @@ def test_devcli_rejection_is_sent_back_once(tmp_path, monkeypatch):
     (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     state = tmp_path / ".simplicio-loop"
     state.mkdir()
     (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")
@@ -307,7 +309,7 @@ def test_devcli_rejection_stops_after_one_correction(tmp_path, monkeypatch):
     (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     state = tmp_path / ".simplicio-loop"
     state.mkdir()
     (state / "project-map.json").write_text("{}", encoding="utf-8")
@@ -341,7 +343,7 @@ def test_reader_prefix_stays_fixed_when_a_call_is_appended(tmp_path, monkeypatch
     (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     state = tmp_path / ".simplicio-loop"
     state.mkdir()
     (state / "project-map.json").write_text('{"mark":"MAPMARK"}', encoding="utf-8")

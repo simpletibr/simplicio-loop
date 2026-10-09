@@ -13,6 +13,7 @@ binary on PATH (no mocking of the subprocess boundary itself).
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import stat
@@ -79,19 +80,19 @@ def test_ensure_project_map_bounded_raises_timed_out_then_running(tmp_path, fake
     repo = _git_repo(tmp_path)
     started = time.monotonic()
     with pytest.raises(cli_impl.MapperIndexTimedOut):
-        cli_impl._ensure_project_map(repo, budget=cli_impl._orient_budget_seconds())
+        asyncio.run(cli_impl._ensure_project_map(repo, budget=cli_impl._orient_budget_seconds()))
     elapsed = time.monotonic() - started
     assert elapsed < 1.5, elapsed  # budget (0.3s) + a small margin, never the full 2s sleep
 
     # A second call while the backgrounded index is still running is a
     # distinct typed reason -- never a silent re-run, never another full block.
     with pytest.raises(cli_impl.MapperIndexRunning):
-        cli_impl._ensure_project_map(repo, budget=cli_impl._orient_budget_seconds())
+        asyncio.run(cli_impl._ensure_project_map(repo, budget=cli_impl._orient_budget_seconds()))
 
     # Once the background process actually finishes, the next call reuses it
     # (issue #1331 tree-state reuse) instead of raising or reindexing.
     time.sleep(2.5)
-    cli_impl._ensure_project_map(repo, budget=cli_impl._orient_budget_seconds())
+    asyncio.run(cli_impl._ensure_project_map(repo, budget=cli_impl._orient_budget_seconds()))
     assert (repo / ".simplicio-loop" / "project-map.json").is_file()
     assert (repo / ".simplicio-loop" / "mapper-index-state.json").is_file()
 

@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 from bench.llm_ab import run as bench_run
 from bench.llm_ab import tasks as bench_tasks
@@ -110,7 +111,7 @@ def test_turbo_applies_reference_plans_on_the_hard_fixture_and_the_hidden_tests_
     for args in (["init", "-q"], ["config", "user.email", "a@b.c"], ["config", "user.name", "a"],
                  ["add", "-A"], ["commit", "-qm", "seed"]):
         subprocess.run(["git", *args], cwd=repo, check=True)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     (repo / ".simplicio-loop").mkdir()
     (repo / ".simplicio-loop" / "project-map.json").write_text('{"files":[]}', encoding="utf-8")
 

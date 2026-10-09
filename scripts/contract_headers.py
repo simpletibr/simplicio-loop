@@ -42,7 +42,7 @@ CONTRACT_GLOBS = (
     "bench/llm_ab/STANDARD.md",
     "contracts/**/*.md",
 )
-MODEL_SEES_FILES = ("README.md", "packages/mapper/README.md", "packages/dev-cli/README.md")
+MODEL_SEES_FILES = ("docs/GUIDE.md", "packages/mapper/README.md", "packages/dev-cli/README.md")
 MODEL_SEES_GLOBS = (".claude/skills/*/SKILL.md",)
 MODEL_SEES_HEADINGS = ("What the model sees", "Token effect", "KV cache effect")
 

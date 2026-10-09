@@ -5,6 +5,7 @@ import asyncio
 import json
 import threading
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -62,7 +63,7 @@ def test_a_hedged_call_starts_no_thread(monkeypatch):
 @pytest.fixture
 def engine(tmp_path, monkeypatch):
     """A repo with a Mapper map, a fake dev-cli subprocess, and gauges for what runs at the same time."""
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root, **kwargs: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     state = tmp_path / ".simplicio-loop"
     state.mkdir()
     (state / "project-map.json").write_text('{"mark":"MAP"}', encoding="utf-8")

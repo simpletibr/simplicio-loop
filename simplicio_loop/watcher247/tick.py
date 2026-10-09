@@ -10,7 +10,7 @@ import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from .. import intake_gate, watcher_github
+from .. import escalation, intake_gate, watcher_github
 from ..claim_lease import ClaimStore
 from . import budget, config, github, host_mode, points, proc, prompt_guard, sandbox, secret_scan, state, subscription, verify
 
@@ -90,7 +90,7 @@ async def reset_branch(dest: Path, branch: str, number: int, fix: bool = False) 
     return head
 
 
-def task_text(repo: str, issue: dict, fix: str = "") -> str:
+def task_text(repo: str, issue: dict, fix: str = "", retry: str = "") -> str:
     body = (issue.get("body") or "").strip()
     if len(body) > config.BODY_CAP:
         body = body[:config.BODY_CAP] + "\n..."
@@ -104,6 +104,8 @@ def task_text(repo: str, issue: dict, fix: str = "") -> str:
     )
     if fix:
         text += "\nFeedback de review a corrigir no PR existente (mesma branch):\n" + prompt_guard.untrusted(fix)
+    if retry:
+        text += "\nA tentativa anterior foi bloqueada por um ponto de extensao; corrija estes motivos:\n" + prompt_guard.untrusted(retry)
     return text
 
 
@@ -157,17 +159,17 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
 
 
 async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str,
-                     executor: host_mode.Executor) -> dict:
+                     executor: host_mode.Executor, retry: str = "") -> dict:
     """Run the item with the selected executor; return the claim fields, raise when it did not finish ok.
 
     exec (the default): an exec CLI plans, turbo --apply - applies (host_mode). openrouter: the opt-in headless turbo.
     """
     test_cmd = await asyncio.to_thread(verify.detect_test_command, dest)
     if executor.mode == "exec":
-        return await host_mode.run_exec(dest, repo, issue, task_text(repo, issue, fix), test_cmd, executor,
+        return await host_mode.run_exec(dest, repo, issue, task_text(repo, issue, fix, retry), test_cmd, executor,
                                         attempts, fix=bool(fix))
     await budget.record("model_calls")
-    argv = sandbox.wrap(verify.turbo_argv(dest, task_text(repo, issue, fix), test_cmd),
+    argv = sandbox.wrap(verify.turbo_argv(dest, task_text(repo, issue, fix, retry), test_cmd),
                         clone=dest, state_dir=config.ROOT)
     env = sandbox.scrubbed_env(os.environ, home=Path.home(), keep=("OPENROUTER_API_KEY",))
     result = await proc.run(argv, timeout=config.TURBO_TIMEOUT_S, cwd=dest, env=env)
@@ -205,6 +207,15 @@ async def _phase(runner, repo: str, number: int, phase: str, detail: str = "", r
         state.log(f"status {phase} not verified {repo}#{number}: {receipt.get('reason_code') or 'unverified'}")
 
 
+def _note_failed_attempt(ctx: points.PointContext, number: int, reasons: str) -> None:
+    """The escalation ladder counts a blocked attempt as a failed one (its ceilings). Fail-open."""
+    try:
+        ladder = escalation.load_escalation_state(ctx.clone, number, ctx.family, **host_mode.ceilings())
+        ladder.record_attempt("failed", error=reasons)
+    except Exception as exc:
+        state.log(f"escalation note failed {ctx.repo}#{number}: {exc}")
+
+
 async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: float,
                   executor: host_mode.Executor) -> None:
     name = work.repo
@@ -217,6 +228,7 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
         return
     await budget.record("issues")
     verdict = None if work.fix else intake_gate.triage(work.issue)
+    ctx = None
     try:
         claim = await watcher_github.claim_on_github(repo=full, issue=str(number), owner=config.OWNER, runner=runner)
         if not claim.verified:
@@ -231,7 +243,8 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
         await _phase(runner, name, number, "PLANNED", reason_code="REVIEW_REOPENED" if work.fix else "",
                      detail="fix de review na branch do PR" if work.fix else "task montada para o turbo")
         await _phase(runner, name, number, "IN_PROGRESS", detail=f"turbo em execucao (executor {executor.mode})")
-        attempts = (await store.get_claim(ident)).attempts
+        claim_row = await store.get_claim(ident)
+        attempts, retry = claim_row.attempts, claim_row.data.get("blocked_by") or ""
         state.log(f"start {ident} attempt {attempts}")
         beat = asyncio.ensure_future(_heartbeat(store, ident, token))
         try:
@@ -242,9 +255,9 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                     repo=name, issue=work.issue, clone=dest, state_dir=config.ROOT, family=(executor.families or (None,))[0],
                     run_dir=dest / ".simplicio-loop" / "orchestrator" / "points" / f"{name}-{number}")
                 await points.run("intake", ctx)
-                ctx = replace(ctx, task_text=task_text(name, work.issue, work.fix))
+                ctx = replace(ctx, task_text=task_text(name, work.issue, work.fix, retry))
                 await points.run("plan", ctx)
-                turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor)
+                turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, retry)
                 ctx = replace(ctx, turbo_json=turbo, verify=turbo["verify"])
                 await points.run("apply", ctx)
                 await _phase(runner, name, number, "VERIFYING", detail="turbo ok; publicando o diff")
@@ -266,11 +279,24 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
             await store.release(ident, token, "done_no_diff", now=clock, pr=None, **turbo)
         await points.run("done", replace(ctx, pr_url=url))
         state.log(f"done {ident} pr={url}")
-    except points.PointBlocked as exc:
-        await _phase(runner, name, number, "BLOCKED",
-                     detail=f"etapa {exc.stage} bloqueada por {exc.name} ({exc.reason_code})")
-        await store.release(ident, token, "dead", now=clock, reason_code=exc.reason_code, error=str(exc)[:500])
-        state.log(f"point blocked {ident}: {exc}")
+    except points.PointDeferred as exc:  # transient: the attempt is given back and the issue is due on the next tick
+        attempts = (await store.get_claim(ident)).attempts
+        await _phase(runner, name, number, "BLOCKED", detail=f"deferred: {exc.reason_code}")
+        await store.release(ident, token, "retry", now=clock, attempts=max(attempts - 1, 0), reason_code=exc.reason_code)
+        state.log(f"point deferred {ident}: {exc}")
+    except points.PointBlocked as exc:  # a failed attempt, like a verify failure: retry with the reasons, dead at the limit
+        attempts = (await store.get_claim(ident)).attempts
+        final = verify.retry_or_dead(attempts, config.MAX_ATTEMPTS)
+        reasons = exc.reasons()
+        if ctx is not None and executor.mode == "exec":
+            _note_failed_attempt(ctx, number, reasons)
+        detail = (f"etapa {exc.stage} bloqueada ({reasons}); parou depois de {config.MAX_ATTEMPTS} tentativas; "
+                  "fica na fila morta ate reabrir" if final == "dead"
+                  else f"tentativa {attempts}: etapa {exc.stage} bloqueada ({reasons})")
+        await _phase(runner, name, number, "BLOCKED", detail=detail)
+        await store.release(ident, token, final, now=clock, reason_code=exc.reason_code, error=str(exc)[:500],
+                            blocked_by=reasons, next_try_at=state.iso(state.now() + config.RETRY_AFTER))
+        state.log(f"point blocked {ident} {final}: {exc}")
     except secret_scan.SecretDetected as exc:  # the secret itself is never echoed, only the file names
         await _phase(runner, name, number, "BLOCKED",
                      detail=f"push bloqueado ({exc.reason_code}): segredo detectado em " + ", ".join(exc.files))
@@ -283,7 +309,7 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
         detail = (f"parou depois de {config.MAX_ATTEMPTS} tentativas; fica na fila morta ate reabrir"
                   if final == "dead" else f"tentativa {attempts} falhou: {error}")
         await _phase(runner, name, number, "BLOCKED", detail=detail)
-        await store.release(ident, token, final, now=clock, reason_code="turbo_failed", error=error,
+        await store.release(ident, token, final, now=clock, reason_code="turbo_failed", error=error, blocked_by="",
                             next_try_at=state.iso(state.now() + config.RETRY_AFTER))
         state.log(f"fail {ident} {final}: {error}")
 

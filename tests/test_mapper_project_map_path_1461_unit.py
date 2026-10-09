@@ -1,6 +1,7 @@
 """Issue #1461: Mapper envelope paths, .git/info/exclude, error propagation."""
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -50,7 +51,7 @@ def test_materialize_registers_simplicio_in_git_exclude(tmp_path):
 
 def test_mapper_error_propagates_in_turbo_blocked(tmp_path, monkeypatch):
     """MapperIndexError propagates to turbo blocked JSON detail."""
-    def fail_mapper(path, **kwargs):
+    async def fail_mapper(path, **kwargs):
         raise MapperIndexError("simplicio-mapper index failed (exit 1): too many files")
     
     monkeypatch.setattr("simplicio_loop.map_service_mapper.run_mapper_index", fail_mapper)
@@ -67,17 +68,21 @@ def test_mapper_error_propagates_in_turbo_blocked(tmp_path, monkeypatch):
 
 def test_mapper_failure_carries_exit_code_and_truncated_stderr(tmp_path, monkeypatch):
     """The raised error names the exit code and keeps only the tail of a long stderr."""
-    import subprocess
-
     from simplicio_loop import map_service_mapper as msm
 
+    class _Proc:
+        returncode = 3
+
+        async def communicate(self):
+            return b"", ("x" * 5000 + "BOOM").encode()
+
+    async def fake_exec(*_argv, **_kwargs):
+        return _Proc()
+
     monkeypatch.setattr(msm, "mapper_binary_path", lambda: "/bin/simplicio-mapper")
-    monkeypatch.setattr(
-        msm.subprocess, "run",
-        lambda *a, **k: subprocess.CompletedProcess(a, 3, stdout="", stderr="x" * 5000 + "BOOM"),
-    )
+    monkeypatch.setattr(msm.asyncio, "create_subprocess_exec", fake_exec)
     with pytest.raises(MapperIndexError) as info:
-        msm.run_mapper_index(str(tmp_path))
+        asyncio.run(msm.run_mapper_index(str(tmp_path)))
     message = str(info.value)
     assert "exit 3" in message and message.endswith("BOOM") and len(message) < 600
 
@@ -87,10 +92,10 @@ def test_missing_binary_still_tolerated(tmp_path, monkeypatch):
     from simplicio_loop.cli_impl import _ensure_project_map
     from simplicio_loop.map_service_mapper import MapperUnavailableError
     
-    def fail_unavailable(path, **kwargs):
+    async def fail_unavailable(path, **kwargs):
         raise MapperUnavailableError("binary not found")
     
     monkeypatch.setattr("simplicio_loop.map_service_mapper.run_mapper_index", fail_unavailable)
     
     # Should not raise, binary missing is tolerated
-    _ensure_project_map(tmp_path, budget=None)
+    asyncio.run(_ensure_project_map(tmp_path, budget=None))
