@@ -1,50 +1,23 @@
 """repo_conventions (intake): read target repo's conventions for branch rules, commit style, test command.
 
-Reads CONTRIBUTING.md, AGENTS.md, and .github/ conventions to extract branch rules, commit scope
-style, and test commands. Returns a compact summary in evidence.
+The summary is the one `scripts/repo_conventions.py learn` prints: branch scheme, commit style, ticket
+pattern, PR sections, docs and the test/lint command, mined from the clone's git history and files by
+`simplicio_loop.repo_conventions` (no second implementation here).
 """
-from pathlib import Path
+import asyncio
 
+from ... import repo_conventions as mined
 from .registry import PointContext, PointResult, register
 
 NAME = "repo_conventions"
 
 
-def _read_file_excerpt(path: Path, max_lines: int = 10) -> str | None:
-    """Read file and return first few lines, or None if not found."""
-    try:
-        text = path.read_text(encoding="utf-8")
-        lines = text.split("\n")
-        return "\n".join(lines[:max_lines])
-    except (OSError, UnicodeDecodeError):
-        return None
-
-
 async def read_conventions(ctx: PointContext) -> PointResult:
+    # Not conditional on the issue on purpose: the conventions belong to the clone, so it runs for every task.
     if ctx.clone is None:
         return PointResult(NAME, "skipped", {}, "no_clone")
-
-    clone_path = Path(ctx.clone)
-    summary_parts = []
-
-    # Read CONTRIBUTING.md if exists
-    contrib = _read_file_excerpt(clone_path / "CONTRIBUTING.md")
-    if contrib:
-        summary_parts.append(f"CONTRIBUTING.md: {contrib[:100]}...")
-
-    # Read AGENTS.md if exists
-    agents = _read_file_excerpt(clone_path / "AGENTS.md")
-    if agents:
-        summary_parts.append(f"AGENTS.md: {agents[:100]}...")
-
-    # Read .github/CONTRIBUTING.md if exists
-    github_contrib = _read_file_excerpt(clone_path / ".github" / "CONTRIBUTING.md")
-    if github_contrib:
-        summary_parts.append(f".github/CONTRIBUTING.md: {github_contrib[:100]}...")
-
-    summary = " | ".join(summary_parts) if summary_parts else "No conventions found"
-    
-    return PointResult(NAME, "ok", {"summary": summary})
+    profile = await asyncio.to_thread(mined.profile_for_repo, str(ctx.clone))
+    return PointResult(NAME, "ok", {"summary": " | ".join(mined.summary_lines(profile))})
 
 
 register(NAME, "intake", read_conventions)
