@@ -78,6 +78,7 @@ def test_verify_emits_started_then_finished_from_the_runner(repo, tmp_path, monk
     assert started["source"] == "runner" and finished["source"] == "runner"
     assert started["scope"] == "collection" and started["task_id"] is None
     assert started["payload"]["command"] == "exit 0"
+    assert started["phase"] == "verify" and finished["phase"] == "verify"
     assert finished["payload"]["command_id"] == started["payload"]["command_id"]
     assert finished["payload"]["exit_code"] == 0
     assert finished["payload"]["status"] == "pass"

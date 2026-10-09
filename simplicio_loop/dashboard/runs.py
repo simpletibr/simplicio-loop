@@ -229,15 +229,21 @@ class _Tail:
         self.digest = _EMPTY_DIGEST
 
 
-def _fingerprint(fh, offset: int) -> bytes:
-    '''Digest of the first and the last TAIL_WINDOW_BYTES before ``offset`` of the open binary file ``fh``. A rewrite that keeps the
-    size and both ends of the read part cannot pass for an append: the head catches a line replaced under the same inode.'''
-    digest = hashlib.blake2b(digest_size=16)
+def _ends_before(fh, offset: int) -> tuple[bytes, bytes]:
+    '''The first and the last TAIL_WINDOW_BYTES before ``offset`` of the open binary file ``fh`` (they overlap in a short file).'''
     fh.seek(0)
-    digest.update(fh.read(min(TAIL_WINDOW_BYTES, offset)))
+    head = fh.read(min(TAIL_WINDOW_BYTES, offset))
     start = max(0, offset - TAIL_WINDOW_BYTES)
     fh.seek(start)
-    digest.update(fh.read(offset - start))
+    return head, fh.read(offset - start)
+
+
+def _fingerprint(head: bytes, window: bytes) -> bytes:
+    '''Digest of the two ends of the read part of the file. A rewrite that keeps the size and both ends cannot pass for an append: the
+    head catches a line replaced under the same inode.'''
+    digest = hashlib.blake2b(digest_size=16)
+    digest.update(head)
+    digest.update(window)
     return digest.digest()
 
 
@@ -247,7 +253,8 @@ def _tail_seq(run_dir: Path, tail: _Tail) -> int:
     The state belongs to one file. A different device or inode (rotation, replacement), a file shorter than the offset (truncation)
     or a changed fingerprint (a rewrite that kept the size) starts again from byte 0. Only complete lines move the offset: a last line
     without its line end is counted in this answer and read again next time, so a half-written event is neither counted twice nor
-    lost. The events file is only appended to and rotated, never edited in place, so a rewrite that keeps the size and changes neither
+    lost. The fingerprint that guards the next read is made from the bytes this read consumed, never from a second read of the file, so
+    a rewrite between the two reads cannot be certified as the content that was counted. The events file is only appended to and rotated, never edited in place, so a rewrite that keeps the size and changes neither
     the first nor the last TAIL_WINDOW_BYTES before the offset is not seen; a full scan (``_last_seq`` with no tail) sees it.
     '''
     path = run_dir / 'events.jsonl'
@@ -258,18 +265,21 @@ def _tail_seq(run_dir: Path, tail: _Tail) -> int:
         with path.open('rb') as fh:
             st = os.fstat(fh.fileno())
             ident = (st.st_dev, st.st_ino)
-            if ident != tail.ident or st.st_size < tail.offset or _fingerprint(fh, tail.offset) != tail.digest:
-                offset, seq = 0, 0
+            ends = _ends_before(fh, tail.offset) if ident == tail.ident and st.st_size >= tail.offset else None
+            if ends is None or _fingerprint(*ends) != tail.digest:
+                (head, window), offset, seq = (b'', b''), 0, 0
             else:
-                offset, seq = tail.offset, tail.seq
+                (head, window), offset, seq = ends, tail.offset, tail.seq
             answer = committed = seq
             committed_offset = offset
             for line, end in _read_lines(fh, offset):
                 answer = max(answer, _line_seq(line))
                 if end is not None:
                     committed_offset, committed = end, answer
+                    head = (head + line)[:TAIL_WINDOW_BYTES]
+                    window = (window + line)[-TAIL_WINDOW_BYTES:]
             tail.ident, tail.offset, tail.seq = ident, committed_offset, committed
-            tail.digest = _fingerprint(fh, committed_offset)
+            tail.digest = _fingerprint(head, window)
             return answer
     except OSError:
         tail.reset()
