@@ -49,12 +49,15 @@ Criterion (2) cannot be met from it. Pick one:
     ls -l /var/lib/simplicio-loop-247/STOP        # exists: the watcher stays idle until it is removed
 
 ## 2. Backup (legacy script, unit, env, small state)
-    BK=/root/backup-247-$(date +%Y%m%d-%H%M%S); install -d -m 700 $BK
+    # The backup directory is written to a file so the ROLLBACK works from a NEW shell (it does not rely on $BK surviving).
+    BK="/root/backup-247-$(date +%Y%m%d-%H%M%S)"
+    install -d -m 700 "${BK:?}" && echo "$BK" > /root/.vps247-backup-dir
     cp -a /usr/local/sbin/simplicio-loop-247.py /etc/systemd/system/simplicio-loop-247.service \
-          /etc/simplicio-loop-247.env $BK/
-    cp -a /var/lib/simplicio-loop-247/{baseline.json,claims.json,issues-disabled.json,status.json} $BK/
-    python3 -m pip list --format=freeze > $BK/system-pip-freeze.txt
-    (cd $BK && sha256sum * > SHA256SUMS) ; echo $BK
+          /etc/simplicio-loop-247.env "${BK:?}"/
+    cp -a /var/lib/simplicio-loop-247/{baseline.json,claims.json,issues-disabled.json,status.json} "${BK:?}"/
+    python3 -m pip list --format=freeze > "${BK:?}"/system-pip-freeze.txt
+    (cd "${BK:?}" && sha256sum * > SHA256SUMS) ; echo "$BK"
+    # STOP HERE if any cp above failed: do not continue to step 3 without a complete backup.
 
 ## 3. Service user (the unit and env.example use /home/simplicio-loop, NOT /var/lib/simplicio-loop)
     useradd --system --user-group --create-home --home-dir /home/simplicio-loop \
@@ -115,14 +118,16 @@ Do NOT reuse /opt/simplicio-loop: it exists (uv dev venv, editable simplicio_loo
 
 ## 9. Dry run as the service user (non-root)
     # root shell sources the env file, then drops to the service user (the file is 600 root, the user cannot read it)
-    DRY=/run/simplicio-247-dry; install -d -o simplicio-loop -g simplicio-loop -m 700 $DRY
-    cp -a /var/lib/simplicio-loop-247/{baseline.json,claims.json,issues-disabled.json} $DRY/; chown simplicio-loop: $DRY/*
+    # Literal path (no variable) on every command that can delete or change ownership.
+    install -d -o simplicio-loop -g simplicio-loop -m 700 /run/simplicio-247-dry
+    cp -a /var/lib/simplicio-loop-247/{baseline.json,claims.json,issues-disabled.json} /run/simplicio-247-dry/
+    chown -R simplicio-loop:simplicio-loop /run/simplicio-247-dry
     run_as() { env -i bash -c 'set -a; . /etc/simplicio-loop-247.env; set +a; export SIMPLICIO_247_ENV_FILE=/etc/simplicio-loop-247.env
                exec setpriv --reuid=simplicio-loop --regid=simplicio-loop --init-groups "$@"' _ "$@"; }
     run_as /opt/simplicio-loop-247/venv/bin/simplicio-loop watch247 login-check   # rc 0 when all enabled CLIs are logged in
-    run_as /opt/simplicio-loop-247/venv/bin/simplicio-loop watch247 --once --dry-run --state-dir $DRY
-    # (dry-run ignores a STOP file only if absent: the real dir has STOP, hence the copy in $DRY)
-    rm -rf $DRY
+    run_as /opt/simplicio-loop-247/venv/bin/simplicio-loop watch247 --once --dry-run --state-dir /run/simplicio-247-dry
+    # (dry-run ignores a STOP file only if absent: the real dir has STOP, hence the copy in /run/simplicio-247-dry)
+    rm -rf -- /run/simplicio-247-dry
 
 ## 10. Sandbox smoke under the unit's filters (the documented check in packaging/systemd/README.md; transient unit, root)
     systemd-run --pipe --wait --quiet -p User=simplicio-loop -p Group=simplicio-loop \
@@ -143,12 +148,15 @@ Do NOT reuse /opt/simplicio-loop: it exists (uv dev venv, editable simplicio_loo
     # Attach /root/doctor-1476.txt to issue #1476.
 
 ## ROLLBACK
+    # Works from a new shell: the backup directory was recorded in step 2.
+    BK="$(cat /root/.vps247-backup-dir)"; test -d "${BK:?}" && test -f "${BK:?}"/SHA256SUMS || { echo "backup dir missing: stop"; exit 1; }
+    (cd "${BK:?}" && sha256sum -c SHA256SUMS)                              # the backup is intact before anything is overwritten
     systemctl disable --now simplicio-loop-247
-    cp -a $BK/simplicio-loop-247.service /etc/systemd/system/simplicio-loop-247.service
-    cp -a $BK/simplicio-loop-247.env     /etc/simplicio-loop-247.env      # restores the 600 root file
-    cp -a $BK/simplicio-loop-247.py      /usr/local/sbin/simplicio-loop-247.py
+    cp -a "${BK:?}"/simplicio-loop-247.service /etc/systemd/system/simplicio-loop-247.service
+    cp -a "${BK:?}"/simplicio-loop-247.env     /etc/simplicio-loop-247.env      # restores the 600 root file
+    cp -a "${BK:?}"/simplicio-loop-247.py      /usr/local/sbin/simplicio-loop-247.py
     systemctl daemon-reload
-    chown -R root:root /var/lib/simplicio-loop-247                        # then cp -a $BK/{baseline,claims,...}.json back if needed
+    chown -R root:root /var/lib/simplicio-loop-247                        # then cp -a "${BK:?}"/{baseline,claims,...}.json back if needed
     systemctl is-enabled simplicio-loop-247 ; systemctl is-active simplicio-loop-247   # original state: disabled / inactive
     # Version pin: the system python (3.46.1) was never touched, so nothing to repin. Do not `pip install simplicio-loop==3.46.1`:
     # it is not on PyPI (only 3.46.0 and 3.48.1 are) and the local wheel dist/simplicio_loop-3.46.1 is gone.
