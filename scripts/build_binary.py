@@ -271,7 +271,8 @@ def build(args: argparse.Namespace, run=subprocess.run) -> dict:
                        "<the wheel>", f"pyinstaller=={PYINSTALLER_VERSION}"]
     pyinstaller_cmd = pyinstaller_command(python=python, mode=args.mode, dist=dist, work=scratch)
     if args.dry_run:
-        return {"commands": [[args.python, "-m", "venv", venv], wheel_command, install_command, pyinstaller_cmd],
+        plan = [[args.python, "-m", "venv", venv], wheel_command, install_command, pyinstaller_cmd]
+        return {"commands": [[str(part) for part in command] for command in plan],
                 "asset": asset, "source_date_epoch": epoch}
 
     claim_work_directory(work)

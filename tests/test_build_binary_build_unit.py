@@ -8,6 +8,7 @@ scripts/smoke_binary.py.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import stat
@@ -196,6 +197,7 @@ def test_a_dirty_tree_stops_the_build_before_any_command(harness, monkeypatch):
 
 def test_dry_run_plans_the_commands_and_runs_none(harness):
     plan = harness.run(dry_run=True)
+    json.dumps(plan)  # main() prints it
     assert harness.pipeline.calls == []
     assert plan["asset"] == ASSET and [c[0] for c in plan["commands"]] == [
         "/base/python", str(harness.work / "venv" / "bin" / "python"), str(harness.work / "venv" / "bin" / "python"),
