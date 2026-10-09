@@ -26,10 +26,10 @@ from ... import dashboard_events, execution_report
 from .. import state
 
 STAGES = ("intake", "plan", "apply", "verify", "pr", "done")
-STATUSES = ("ok", "skipped", "error", "blocked")
+STATUSES = ("ok", "skipped", "error", "deferred", "blocked")
 EVENT_KIND = "watcher.point"
 _EVIDENCE_CAP = 300
-_OUTCOME = {"ok": "COMPLETE", "skipped": "SKIPPED", "error": "FAIL", "blocked": "BLOCKED"}
+_OUTCOME = {"ok": "COMPLETE", "skipped": "SKIPPED", "error": "FAIL", "deferred": "DEFERRED", "blocked": "BLOCKED"}
 
 
 @dataclass(frozen=True)

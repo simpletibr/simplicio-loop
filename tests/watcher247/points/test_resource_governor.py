@@ -1,43 +1,73 @@
 """Tests for resource_governor extension point (intake stage).
 
-Tests the contract: probe local capacity, return blocked when thresholds are crossed.
+Tests the contract: probe local capacity, defer when thresholds are crossed.
+All probes are monkeypatched to be host-independent.
 """
-import os
-import shutil
-from pathlib import Path
 from unittest import mock
 
 import pytest
 
+from simplicio_loop import local_capacity
 from simplicio_loop.watcher247.points import resource_governor
 
 
 class TestResourceGovernor:
-    """resource_governor probes CPU, RAM, disk and blocks when low."""
+    """resource_governor defers when disk or memory is low."""
 
     def test_ok_when_resources_available(self, point_contract, make_ctx, tmp_path, monkeypatch):
-        """When load and disk are healthy, return ok with evidence."""
-        usage = mock.MagicMock()
-        usage.free = 10 * (1 << 30)
-        usage.total = 100 * (1 << 30)
-        monkeypatch.setattr(shutil, "disk_usage", lambda path: usage)
+        """When disk and memory are sufficient, return ok with evidence."""
+        sample = local_capacity.CapacitySample(
+            requested_workers=1,
+            safe_workers=1,
+            cpu_count=4,
+            memory_available_bytes=4 * (1 << 30),
+            disk_free_bytes=20 * (1 << 30),
+            measured=("cpu_count", "disk_free_bytes", "memory_available_bytes"),
+            unavailable=(),
+            null_reasons={},
+            observed_at_ns=0,
+        )
+        monkeypatch.setattr(
+            local_capacity, "probe_local_capacity", lambda *a, **kw: sample
+        )
         result = point_contract("resource_governor", make_ctx(state_dir=tmp_path), expect="ok")
         assert result.reason_code is None
-        assert "cpu_load" in result.evidence
         assert "disk_free_gb" in result.evidence
 
-    def test_blocked_on_high_load(self, point_contract, make_ctx, tmp_path, monkeypatch):
-        """When CPU load exceeds max, return blocked."""
-        cpu_count = os.cpu_count() or 4
-        monkeypatch.setattr(os, "getloadavg", lambda: (cpu_count + 5.0, 0, 0))
-        result = point_contract("resource_governor", make_ctx(state_dir=tmp_path), expect="blocked")
-        assert result.reason_code == "high_load"
-
-    def test_blocked_on_low_disk(self, point_contract, make_ctx, tmp_path, monkeypatch):
-        """When disk free is below minimum, return blocked."""
-        usage = mock.MagicMock()
-        usage.free = 1 * (1 << 30)  # 1 GB
-        usage.total = 100 * (1 << 30)
-        monkeypatch.setattr(shutil, "disk_usage", lambda path: usage)
-        result = point_contract("resource_governor", make_ctx(state_dir=tmp_path), expect="blocked")
+    def test_deferred_on_low_disk(self, point_contract, make_ctx, tmp_path, monkeypatch):
+        """When disk free is below minimum, return deferred."""
+        sample = local_capacity.CapacitySample(
+            requested_workers=1,
+            safe_workers=0,
+            cpu_count=4,
+            memory_available_bytes=4 * (1 << 30),
+            disk_free_bytes=1 * (1 << 30),
+            measured=("cpu_count", "disk_free_bytes", "memory_available_bytes"),
+            unavailable=(),
+            null_reasons={},
+            observed_at_ns=0,
+        )
+        monkeypatch.setattr(
+            local_capacity, "probe_local_capacity", lambda *a, **kw: sample
+        )
+        result = point_contract("resource_governor", make_ctx(state_dir=tmp_path), expect="deferred")
         assert result.reason_code == "low_disk"
+
+    def test_deferred_on_low_memory(self, point_contract, make_ctx, tmp_path, monkeypatch):
+        """When memory available is below minimum, return deferred."""
+        sample = local_capacity.CapacitySample(
+            requested_workers=1,
+            safe_workers=0,
+            cpu_count=4,
+            memory_available_bytes=100 * (1 << 20),
+            disk_free_bytes=20 * (1 << 30),
+            measured=("cpu_count", "disk_free_bytes", "memory_available_bytes"),
+            unavailable=(),
+            null_reasons={},
+            observed_at_ns=0,
+        )
+        monkeypatch.setattr(
+            local_capacity, "probe_local_capacity", lambda *a, **kw: sample
+        )
+        result = point_contract("resource_governor", make_ctx(state_dir=tmp_path), expect="deferred")
+        assert result.reason_code == "low_memory"
