@@ -83,9 +83,11 @@ def normalize_doctor(report: dict[str, Any]) -> dict[str, Any]:
 
 
 def tree_digest(root: Path, skip: Sequence[str] = ()) -> dict[str, str]:
+    """SHA-256 of every file under ``root``, except the named files and the bytecode caches."""
     return {
         str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
-        for path in sorted(root.rglob("*")) if path.is_file() and path.name not in skip
+        for path in sorted(root.rglob("*"))
+        if path.is_file() and path.name not in skip and "__pycache__" not in path.parts
     }
 
 
@@ -210,6 +212,11 @@ class Smoke:
                               capture_output=True, text=True, timeout=timeout,
                               stdin=None if stdin is not None else subprocess.DEVNULL)
 
+    def code(self, source: str, *args: str) -> subprocess.CompletedProcess:
+        """Run ``<exe> -c SOURCE``. The binary accepts -c only in a child that the bundle started itself, so
+        this sets the mark that the bundle sets for such a child."""
+        return self.run([str(self.exe), "-c", source, *args], env={**self.env, "SIMPLICIO_LOOP_SELF_SPAWN": "1"})
+
     def reference(self, *args: str, cwd: Optional[Path] = None, stdin: Optional[str] = None) -> subprocess.CompletedProcess:
         env = dict(self.env, PATH=os.pathsep.join([str(self.reference_bin), self.env["PATH"]]))
         return self.run([str(self.reference_bin / "simplicio-loop"), *args], cwd=cwd, stdin=stdin, env=env)
@@ -310,7 +317,7 @@ class Smoke:
         expected = expected_from_wheel(self.wheel)
         spec = self.work / "expected.json"
         spec.write_text(json.dumps(expected))
-        done = self.run([str(self.exe), "-c", INSIDE_CHECK, str(spec)])
+        done = self.code(INSIDE_CHECK, str(spec))
         assert done.returncode == 0, done.stderr[-400:]
         report = json.loads(done.stdout)
         assert not report["missing_files"] and not report["missing_modules"], (
@@ -378,7 +385,7 @@ class Smoke:
         names = {"simplicio-mapper": "simplicio-mapper", "simplicio-dev-cli": "simplicio-cli"}
         out = []
         for command in names:
-            done = self.run([str(self.exe), "-c", f"import shutil, subprocess, sys; sys.exit(subprocess.call([shutil.which('{command}'), '--version']))"])
+            done = self.code(f"import shutil, subprocess, sys; sys.exit(subprocess.call([shutil.which('{command}'), '--version']))")
             assert done.returncode == 0 and done.stdout.strip(), f"{command}: exit {done.returncode} {done.stderr[-200:]}"
             out.append(f"{command}: {done.stdout.strip().splitlines()[0]}")
         return "; ".join(out)
@@ -389,7 +396,7 @@ class Smoke:
             return "skipped (Windows)"
 
         code = "import subprocess, os; r = subprocess.run(['/usr/bin/env'], capture_output=True, text=True); print(r.stdout)"
-        result = self.run([str(self.exe), "-c", code], env={**self.env, "SIMPLICIO_LOOP_SELF_SPAWN": "1"})
+        result = self.code(code)
         assert result.returncode == 0, result.stderr[-300:]
 
         for line in result.stdout.splitlines():

@@ -141,8 +141,7 @@ def _private_directory(path: Path, *, leaf: bool) -> None:
     made with a 002 umask, so it only loses the write bits of the group and others.
     """
     try:
-        os.mkdir(path, 0o700)
-        os.chmod(path, 0o700)  # the umask may have opened it
+        os.mkdir(path, 0o700)  # the umask can only close it further
     except FileExistsError:
         pass
     info = os.lstat(path)

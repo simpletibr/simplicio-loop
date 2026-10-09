@@ -66,6 +66,8 @@ def test_tree_digest_hashes_files_and_skips_named_ones(tmp_path):
     (tmp_path / "a").mkdir()
     (tmp_path / "a" / "x.txt").write_text("1")
     (tmp_path / "skip.json").write_text("2")
+    (tmp_path / "a" / "__pycache__").mkdir()
+    (tmp_path / "a" / "__pycache__" / "x.cpython-313.pyc").write_text("a cache that the wheel side writes")
     digest = sb.tree_digest(tmp_path, skip=("skip.json",))
     assert digest == {str(Path("a") / "x.txt"): hashlib.sha256(b"1").hexdigest()}
 
