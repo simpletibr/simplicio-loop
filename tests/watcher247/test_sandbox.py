@@ -59,16 +59,49 @@ def test_scrubbed_env_supplies_a_default_path(tmp_path):
     assert env["PATH"] == sandbox.DEFAULT_PATH
 
 
-def test_wrap_with_bwrap_is_read_only_except_clone_and_state(monkeypatch):
+def test_wrap_with_bwrap_is_read_only_except_clone_and_state(monkeypatch, tmp_path):
     monkeypatch.setattr(sandbox.shutil, "which", only({"bwrap"}))
-    argv = sandbox.wrap(TURBO, clone=CLONE, state_dir=STATE, platform="linux", environ={})
+    state = tmp_path / "state"  # not the host's real state dir: wrap looks for the watcher's control files in it
+    argv = sandbox.wrap(TURBO, clone=CLONE, state_dir=state, platform="linux", environ={})
     assert argv[0] == "bwrap"
     assert argv[argv.index("--ro-bind") + 1:argv.index("--ro-bind") + 3] == ["/", "/"]
     binds = [argv[i + 1] for i, a in enumerate(argv) if a == "--bind"]
-    assert binds == [str(CLONE), str(STATE)]
+    assert binds == [str(state), str(CLONE)]  # the clone last: nothing read-only may cover it
     assert argv[argv.index("--chdir") + 1] == str(CLONE)
     assert "--die-with-parent" in argv and "--new-session" in argv
     assert argv[argv.index("--") + 1:] == TURBO
+
+
+def test_wrap_of_an_items_worktree_binds_exactly_in_this_order(monkeypatch, tmp_path):
+    """state dir rw, then the whole work dir ro (the other items' worktrees and the base clones), then the item's own clone rw."""
+    monkeypatch.setattr(sandbox.shutil, "which", only({"bwrap"}))
+    state = tmp_path / "state"
+    clone = state / "work" / "demo.wt" / "31"
+    common = state / "work" / "demo" / ".git"
+    for folder in (clone, common / "worktrees" / "31", common / "objects", common / "simplicio"):
+        folder.mkdir(parents=True)
+    for name in ("claims.json", "budget.json", "STOP"):
+        (state / name).write_text("{}")
+    argv = sandbox.wrap(TURBO, clone=clone, state_dir=state, platform="linux", environ={})
+    assert argv == [
+        "bwrap", "--ro-bind", "/", "/", "--unshare-pid", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp",
+        "--bind", str(state), str(state),
+        "--ro-bind", str(state / "claims.json"), str(state / "claims.json"),
+        "--ro-bind", str(state / "budget.json"), str(state / "budget.json"),
+        "--ro-bind", str(state / "STOP"), str(state / "STOP"),
+        "--ro-bind", str(state / "work"), str(state / "work"),
+        "--bind", str(clone), str(clone),
+        "--bind", str(common / "worktrees" / "31"), str(common / "worktrees" / "31"),
+        "--bind", str(common / "objects"), str(common / "objects"),
+        "--bind", str(common / "simplicio"), str(common / "simplicio"),
+        "--chdir", str(clone), "--die-with-parent", "--new-session", "--", *TURBO,
+    ]
+
+
+def test_wrap_of_a_plain_clone_makes_nothing_read_only_but_the_root(monkeypatch, tmp_path):
+    monkeypatch.setattr(sandbox.shutil, "which", only({"bwrap"}))
+    argv = sandbox.wrap(TURBO, clone=CLONE, state_dir=tmp_path, platform="linux", environ={})
+    assert [argv[i + 1] for i, a in enumerate(argv) if a == "--ro-bind"] == ["/"]
 
 
 def test_wrap_uses_bwrap_when_present(monkeypatch):

@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import os
+import re
 import shutil
 import signal
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
@@ -68,16 +69,26 @@ class Item:
         return base_path(self.repo)
 
 
+_REPO_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+
+
+def _repo_dir(repo: str) -> str:
+    """The repo name as one directory under config.WORK: a GitHub name, never a path, never `<x>.wt` / `<x>.state` (those are ours)."""
+    if not _REPO_NAME.fullmatch(repo) or repo.endswith((".wt", ".state")):
+        raise ValueError(f"not a usable repo name: {repo!r}")
+    return repo
+
+
 def base_path(repo: str) -> Path:
-    return config.WORK / repo
+    return config.WORK / _repo_dir(repo)
 
 
 def item_path(repo: str, number: int) -> Path:
-    return config.WORK / f"{repo}.wt" / str(number)
+    return config.WORK / f"{_repo_dir(repo)}.wt" / str(number)
 
 
 def state_home(repo: str, number: int) -> Path:
-    return config.WORK / f"{repo}.state" / str(number)
+    return config.WORK / f"{_repo_dir(repo)}.state" / str(number)
 
 
 def _owned(repo: str, number: int, path: Path) -> None:
@@ -137,6 +148,8 @@ async def _drop(repo: str, number: int, path: Path) -> None:
     """Remove the worktree at `path` and only it; a leftover of a killed run goes the same way."""
     _owned(repo, number, path)
     base = base_path(repo)
+    if path.is_symlink():  # a planted link: git resolves it and would remove the worktree it points at (another item's)
+        path.unlink()
     if (path / ".git").exists():
         await proc.run(["git", "worktree", "remove", "--force", str(path)], cwd=base, timeout=120)
     await asyncio.to_thread(_forget, base / ".git", path)
