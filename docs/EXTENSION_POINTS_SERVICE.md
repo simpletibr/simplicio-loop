@@ -79,6 +79,29 @@ Evidência: `arquivo:função` (ou `arquivo:linha`), relativo à raiz do reposit
 | 49 | `transform_guard` | ausente | sem ocorrências de `transform` ou `preserv` com verificação no caminho | Nenhuma checagem de preservação de tokens, URLs ou paths |
 | 50 | `judge` | ausente | sem ocorrências de `judge`, `ACCEPT` ou `REJECT` no caminho; `ACCEPT`/`REJECT` só em `packages/dev-cli/simplicio/commands/prototype.py`; `turbo.py:_verdict` decide a recusa do apply e não julga qualidade | O turbo chama só `edit` do Dev CLI; `prototype` não é invocado |
 
+## Como adicionar um ponto
+
+Um ponto é um módulo novo em `simplicio_loop/watcher247/points/<nome>.py`; ninguém edita `tick.py` (#1509). O pacote importa todos os módulos e cada um se registra ao ser importado. O contrato está em `points/registry.py`.
+
+```python
+from .registry import PointContext, PointResult, register
+
+async def run(ctx: PointContext) -> PointResult:
+    return PointResult("meu_ponto", "ok", {"chave": "valor"})
+
+register("meu_ponto", "verify", run)                      # etapa: intake, plan, apply, verify, pr ou done
+# register(..., applies=lambda ctx: ctx.role == "ui")    # condicional: sem o gatilho vira `skipped`
+# register(..., blocking=True)                           # erro ou `blocked` interrompe a etapa (PointBlocked)
+```
+
+- `fn` é `async (ctx) -> PointResult`. `status` é `ok`, `skipped`, `error` ou `blocked`; `evidence` é um dict serializável em JSON; `reason_code` nomeia o motivo quando não é `ok`.
+- `ctx` é um `PointContext` imutável (`repo`, `issue`, `clone`, `state_dir`, `run_dir`, `task_text`, `plan`, `turbo_json`, `verify`, `pr_url`, `role`, `family`). O que a etapa ainda não sabe vem `None`: `plan` é `None` em `intake` e `plan`, `pr_url` só existe em `done`.
+- O `tick.py` chama `points.run(etapa, ctx)` uma vez por etapa: `intake` (clone pronto, issue admitida), `plan` (antes do planner), `apply` (depois do apply do turbo), `verify` (depois do verify), `pr` (antes do commit e do PR) e `done` (ao fim, com `pr_url`). Os pontos de uma etapa rodam na ordem de registro.
+- Uma exceção do ponto vira `PointResult(status="error", reason_code="point_exception")` e o tick segue. Um resultado `blocked` na etapa `pr` impede o PR (a issue fica `dead` com o `reason_code`). `blocking=True` não vale para `done`.
+- Cada resultado vai para o `events.jsonl` (`watcher.point`, em `.simplicio-loop/orchestrator/points/<repo>-<issue>/`) e para o relatório de execução do watcher (`<estado>/.simplicio-loop/runtime/execution-reports/`), uma tarefa por ponto.
+- Teste: `tests/watcher247/points/test_<nome>.py`, usando a fixture `point_contract` de `tests/watcher247/points/conftest.py` (confere registro único, etapa válida, resultado tipado, evidência serializável) e `make_ctx`. Exemplo: `points/toolchain_detect.py` (etapa `intake`, envolve `verify.detect_test_command`).
+- Depois de ligar o ponto, atualize a linha dele na tabela acima e a contagem do resumo.
+
 ## Como os testes de fluxo se relacionam com esta tabela
 
 - `tests/flow/test_service_flow_e2e.py` e `tests/flow/test_skill_flow_e2e.py` exercitam o caminho ponta a ponta com um tick real do watcher e um modo host real. Só `gh` e o modelo são falsos; o Mapper, o Dev CLI e o turbo são os do checkout.
