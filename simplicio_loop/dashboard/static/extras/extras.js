@@ -1,12 +1,15 @@
-// Extras panel: maps the run extras reply to four labelled rows and renders them into #live-extras.
+// Extras panel: maps the run extras reply and the stage-agents reply to six labelled rows and renders them into #live-extras.
 // Only a measured value earns PASS; anything else is UNVERIFIED with the reason it could not be measured.
 const SCHEMA = 'simplicio.dashboard-extras/v1';
+const STAGE_SCHEMA = 'simplicio.dashboard-stage-agents/v1';
 const POLL_MS = 3000;
-const LABELS = ['Último comando medido', 'Contrato por tarefa', 'Modelo por lane', 'Batimento do lease'];
+const LABELS = ['Último comando medido', 'Contrato por tarefa', 'Modelo por lane', 'Batimento do lease', 'Agentes por etapa', 'Custo do run'];
 const NO_COMMAND = 'nenhum teste ou lint medido';
 const NO_TASKS = 'task-contract.json sem tarefas';
 const NO_TOKENS = 'sem token_usage medido';
 const NO_HEARTBEAT = 'sem batimento do lease medido';
+const NO_STAGES = 'sem token_usage por etapa medido';
+const NO_COST = 'custo do run não estimado';
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isText = (value) => typeof value === 'string' && value.trim() !== '';
@@ -44,10 +47,35 @@ function heartbeatOf(value) {
   return { state: live ? 'PASS' : 'UNVERIFIED', text: reason };
 }
 
+// Model and tokens are measured; role and effort are the model-roles table default and say so; the cost of a stage is always an estimate.
+function stageText(row) {
+  const who = isText(row.role) ? row.role + (isText(row.effort) ? '/' + row.effort : '') + ' (padrão da tabela)' : 'sem papel';
+  const usd = Number.isFinite(row.cost_usd)
+    ? 'US$ ' + row.cost_usd.toFixed(4) + ' estimado'
+    : 'custo UNVERIFIED (' + (isText(row.reason) ? row.reason : NO_COST) + ')';
+  return (isText(row.phase) ? row.phase : 'sem fase') + ': ' + who + ' ' + (isText(row.model) ? row.model : 'sem modelo')
+    + ', entrada ' + (isCount(row.tokens_in) ? row.tokens_in : 0) + ', saída ' + (isCount(row.tokens_out) ? row.tokens_out : 0)
+    + ', ' + usd;
+}
+
+function stagesOf(stages) {
+  const rows = isObject(stages) && stages.schema === STAGE_SCHEMA && Array.isArray(stages.rows)
+    ? stages.rows.filter(isObject) : [];
+  if (rows.length === 0) return { state: 'UNVERIFIED', text: NO_STAGES };
+  return { state: rows.some((row) => Number.isFinite(row.cost_usd)) ? 'ESTIMADO' : 'UNVERIFIED', text: rows.map(stageText).join('; ') };
+}
+
+function runCostOf(stages) {
+  const cost = isObject(stages) && stages.schema === STAGE_SCHEMA && isObject(stages.cost) ? stages.cost : {};
+  if (Number.isFinite(cost.usd)) return { state: 'ESTIMADO', text: 'US$ ' + cost.usd.toFixed(4) + ' estimado' };
+  return { state: 'UNVERIFIED', text: isText(cost.reason) ? cost.reason : NO_COST };
+}
+
 // A null or foreign reply reads as empty sources, so every row comes back UNVERIFIED with its reason.
-export function extrasOf(reply) {
+export function extrasOf(reply, stages) {
   const source = isObject(reply) && reply.schema === SCHEMA ? reply : {};
-  const parts = [commandOf(source.last_command), tasksOf(source.tasks), modelsOf(source.models), heartbeatOf(source.heartbeat)];
+  const parts = [commandOf(source.last_command), tasksOf(source.tasks), modelsOf(source.models), heartbeatOf(source.heartbeat),
+    stagesOf(stages), runCostOf(stages)];
   return LABELS.map((label, index) => ({ label, state: parts[index].state, text: parts[index].text }));
 }
 
@@ -76,15 +104,20 @@ function render(section, rows) {
   section.replaceChildren(title, list);
 }
 
-// Polls the run extras every 3000 ms. The panel starts with every row UNVERIFIED, and a failed read keeps the last render.
+// Polls the run extras and the stage agents every 3000 ms. The panel starts with every row UNVERIFIED, and a failed read keeps that reply's last value.
 export function startExtras(readApi, runId) {
   if (!runId) return;
   const section = document.getElementById('live-extras');
-  render(section, extrasOf(null));
+  render(section, extrasOf(null, null));
+  const base = '/api/runs/' + encodeURIComponent(runId);
+  let extras = null;
+  let stages = null;
   const load = async () => {
-    const reply = await readApi('/api/runs/' + encodeURIComponent(runId) + '/extras');
-    if (reply === null) return;
-    render(section, extrasOf(reply));
+    const [reply, stageReply] = await Promise.all([readApi(base + '/extras'), readApi(base + '/stage-agents')]);
+    if (reply === null && stageReply === null) return;
+    extras = reply === null ? extras : reply;
+    stages = stageReply === null ? stages : stageReply;
+    render(section, extrasOf(extras, stages));
   };
   load();
   setInterval(load, POLL_MS);

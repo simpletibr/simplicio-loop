@@ -64,3 +64,13 @@ def test_unknown_model_has_no_role_and_an_unverified_cost_with_a_reason():
 
 def test_no_token_usage_means_no_stage_rows():
     assert stage_agents.rows([{'schema': 'simplicio.dashboard-event/v1', 'kind': 'phase_entered', 'phase': 'planning'}], PRICES) == []
+
+
+def test_view_carries_the_rows_and_the_run_cost_under_the_stage_agents_schema():
+    events = [_usage(1, 'executing', {'model': 'claude-haiku-5-5', 'input_tokens': 1000, 'output_tokens': 200})]
+    view = stage_agents.view(events, PRICES)
+    assert view['schema'] == 'simplicio.dashboard-stage-agents/v1'
+    assert view['rows'] == stage_agents.rows(events, PRICES)
+    assert view['cost'] == budget.cost_estimate(events, PRICES)
+    assert stage_agents.view([], PRICES)['rows'] == []
+    assert stage_agents.view([], PRICES)['cost']['state'] == 'UNVERIFIED'

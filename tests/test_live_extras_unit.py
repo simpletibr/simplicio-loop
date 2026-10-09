@@ -20,7 +20,8 @@ LIVE = STATIC / 'live'
 EXTRAS_DIR = STATIC / 'extras'
 MODULE = EXTRAS_DIR / 'extras.js'
 STYLE = EXTRAS_DIR / 'extras.css'
-LABELS = ['Último comando medido', 'Contrato por tarefa', 'Modelo por lane', 'Batimento do lease']
+LABELS = ['Último comando medido', 'Contrato por tarefa', 'Modelo por lane', 'Batimento do lease', 'Agentes por etapa',
+          'Custo do run']
 FORBIDDEN = [r'\binnerHTML\b', r'\beval\s*\(', r'https?://', r'setAttribute\(\s*.style', r'\.style\s*[.=]',
              r'\bcssText\b', r'\b(?:claude|haiku|sonnet|opus)\b']
 MOTION = re.compile(r'(?<![\w-])(?:animation|transition)(?:-[a-z-]+)?\s*:', re.IGNORECASE)
@@ -31,6 +32,18 @@ VALID = {
     'models': [{'lane': 'coder', 'model': 'm-1', 'input_tokens': 1200, 'output_tokens': 300}],
     'heartbeat': {'state': 'UNVERIFIED', 'reason': 'lease sem batimento medido'},
 }
+STAGES = {
+    'schema': 'simplicio.dashboard-stage-agents/v1',
+    'rows': [
+        {'phase': 'planning', 'role': 'planning', 'effort': 'high', 'model': 'm-a', 'tokens_in': 1000, 'tokens_out': 200,
+         'cost_usd': 0.0123, 'cost_state': 'ESTIMADO', 'proof_kind': 'estimado', 'reason': None},
+        {'phase': 'executing', 'role': None, 'effort': None, 'model': 'm-b', 'tokens_in': 50, 'tokens_out': 5,
+         'cost_usd': None, 'cost_state': 'UNVERIFIED', 'proof_kind': 'estimado', 'reason': 'modelo sem preço'},
+    ],
+    'cost': {'usd': 0.0123, 'state': 'ESTIMADO', 'proof_kind': 'estimado', 'reason': None},
+}
+NO_STAGES = {'schema': 'simplicio.dashboard-stage-agents/v1', 'rows': [],
+             'cost': {'usd': None, 'state': 'UNVERIFIED', 'proof_kind': 'estimado', 'reason': 'tokens não medidos'}}
 NO_DATA = {'schema': 'simplicio.dashboard-extras/v1', 'last_command': None, 'tasks': [], 'models': [], 'heartbeat': None}
 
 
@@ -52,7 +65,7 @@ EXTRAS_SCRIPT = '''
 import fs from 'node:fs';
 import { extrasOf } from %s;
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
-process.stdout.write(JSON.stringify(extrasOf(input.reply)));
+process.stdout.write(JSON.stringify(extrasOf(input.reply, input.stages)));
 '''
 
 START_SCRIPT = '''
@@ -90,8 +103,8 @@ process.stdout.write(JSON.stringify({ paths: calls.paths, intervals: calls.inter
 '''
 
 
-def _extras_of(reply):
-    return _run(EXTRAS_SCRIPT % json.dumps(MODULE.as_uri()), {'reply': reply})
+def _extras_of(reply, stages=None):
+    return _run(EXTRAS_SCRIPT % json.dumps(MODULE.as_uri()), {'reply': reply, 'stages': stages})
 
 
 def _start(run_id, replies, ticks=0):
@@ -99,7 +112,7 @@ def _start(run_id, replies, ticks=0):
 
 
 def _all_unverified(rows):
-    return [row['state'] for row in rows] == ['UNVERIFIED'] * 4 and [row['label'] for row in rows] == LABELS
+    return [row['state'] for row in rows] == ['UNVERIFIED'] * 6 and [row['label'] for row in rows] == LABELS
 
 
 def test_the_extras_module_exports_the_contract():
@@ -114,6 +127,8 @@ def test_a_missing_reply_leaves_every_row_unverified_with_its_reason():
         {'label': LABELS[1], 'state': 'UNVERIFIED', 'text': 'task-contract.json sem tarefas'},
         {'label': LABELS[2], 'state': 'UNVERIFIED', 'text': 'sem token_usage medido'},
         {'label': LABELS[3], 'state': 'UNVERIFIED', 'text': 'sem batimento do lease medido'},
+        {'label': LABELS[4], 'state': 'UNVERIFIED', 'text': 'sem token_usage por etapa medido'},
+        {'label': LABELS[5], 'state': 'UNVERIFIED', 'text': 'custo do run não estimado'},
     ]
 
 
@@ -123,12 +138,31 @@ def test_a_foreign_or_malformed_reply_is_all_unverified(reply):
 
 
 def test_a_valid_reply_shows_the_measured_rows():
-    assert _extras_of(VALID) == [
+    assert _extras_of(VALID)[:4] == [
         {'label': LABELS[0], 'state': 'PASS', 'text': 'pytest tests/x.py -q (test)'},
         {'label': LABELS[1], 'state': 'PASS', 'text': 'T1: Primeira tarefa; T2: Segunda'},
         {'label': LABELS[2], 'state': 'PASS', 'text': 'coder: m-1, entrada 1200, saída 300'},
         {'label': LABELS[3], 'state': 'UNVERIFIED', 'text': 'lease sem batimento medido'},
     ]
+
+
+def test_the_stage_rows_list_role_model_tokens_and_cost_as_estimates_and_the_run_cost_is_visible():
+    rows = _extras_of(VALID, STAGES)
+    assert rows[4] == {'label': LABELS[4], 'state': 'ESTIMADO', 'text': (
+        'planning: planning/high (padrão da tabela) m-a, entrada 1000, saída 200, US$ 0.0123 estimado; '
+        'executing: sem papel m-b, entrada 50, saída 5, custo UNVERIFIED (modelo sem preço)')}
+    assert rows[5] == {'label': LABELS[5], 'state': 'ESTIMADO', 'text': 'US$ 0.0123 estimado'}
+
+
+def test_a_stage_reply_without_rows_stays_unverified_with_the_cost_reason():
+    rows = _extras_of(VALID, NO_STAGES)
+    assert (rows[4]['state'], rows[4]['text']) == ('UNVERIFIED', 'sem token_usage por etapa medido')
+    assert (rows[5]['state'], rows[5]['text']) == ('UNVERIFIED', 'tokens não medidos')
+
+
+@pytest.mark.parametrize('stages', ['x', 7, [], dict(STAGES, schema='simplicio.other/v1')])
+def test_a_foreign_stage_reply_is_unverified(stages):
+    assert [row['state'] for row in _extras_of(VALID, stages)[4:]] == ['UNVERIFIED', 'UNVERIFIED']
 
 
 @pytest.mark.parametrize('changes, index, state, text', [
@@ -152,14 +186,15 @@ def test_each_row_turns_pass_only_on_a_measured_value(changes, index, state, tex
     assert (row['state'], row['text']) == (state, text)
 
 
-def test_start_polls_the_run_extras_every_3000_ms():
-    out = _start('run-1', [VALID])
-    assert out['paths'] == ['/api/runs/run-1/extras']
+def test_start_polls_the_run_extras_and_stage_agents_every_3000_ms():
+    out = _start('run-1', [VALID, STAGES])
+    assert out['paths'] == ['/api/runs/run-1/extras', '/api/runs/run-1/stage-agents']
+    assert 'planning: planning/high (padrão da tabela) m-a' in out['renders'][1] and 'US$ 0.0123 estimado' in out['renders'][1]
     assert out['intervals'] == [3000]
 
 
 def test_the_run_id_is_encoded_in_the_path():
-    assert _start('a b/c', [None])['paths'][0] == '/api/runs/a%20b%2Fc/extras'
+    assert _start('a b/c', [None, None])['paths'] == ['/api/runs/a%20b%2Fc/extras', '/api/runs/a%20b%2Fc/stage-agents']
 
 
 def test_without_a_run_id_nothing_is_requested_or_polled():
@@ -182,13 +217,14 @@ def test_a_reply_renders_its_state_words_and_texts():
 
 
 def test_a_failed_read_keeps_the_last_render():
-    out = _start('run-1', [VALID, None], ticks=1)
+    out = _start('run-1', [VALID, STAGES, None, None], ticks=1)
     assert out['renders'][2] == out['renders'][1]
 
 
 def test_a_later_reply_replaces_the_render():
-    out = _start('run-1', [VALID, NO_DATA], ticks=1)
+    out = _start('run-1', [VALID, STAGES, NO_DATA, NO_STAGES], ticks=1)
     assert 'pytest tests/x.py' not in out['renders'][2] and 'nenhum teste ou lint medido' in out['renders'][2]
+    assert 'US$ 0.0123' not in out['renders'][2] and 'tokens não medidos' in out['renders'][2]
 
 
 @pytest.mark.parametrize('path', [MODULE, STYLE])

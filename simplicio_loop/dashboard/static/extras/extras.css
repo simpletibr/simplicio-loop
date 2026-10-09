@@ -15,6 +15,7 @@
 }
 .extras-list > div[data-state="PASS"] { border-inline-start-color: var(--sl-state-pass); }
 .extras-list > div[data-state="UNVERIFIED"] { border-inline-start-color: var(--sl-state-unverified); }
+.extras-list > div[data-state="ESTIMADO"] { border-inline-start-color: var(--sl-state-estimated); }
 .extras-list dt {
   font-size: var(--sl-step--1);
   font-weight: var(--sl-weight-strong);
@@ -35,3 +36,4 @@
 }
 .extras-list > div[data-state="PASS"] .extras-state { color: var(--sl-state-pass); }
 .extras-list > div[data-state="UNVERIFIED"] .extras-state { color: var(--sl-state-unverified); }
+.extras-list > div[data-state="ESTIMADO"] .extras-state { color: var(--sl-state-estimated); }

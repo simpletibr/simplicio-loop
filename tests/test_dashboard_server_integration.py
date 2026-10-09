@@ -314,6 +314,35 @@ def test_extras_route_reports_the_run_extras_and_404s_an_unknown_run(repo_root, 
     status, _, _ = _get(server_handle.port, '/api/runs/nope/extras', AUTH)
     assert status == 404
 
+def test_stage_agents_route_reports_one_estimated_row_per_stage_and_the_run_cost(repo_root, server_handle):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    emitter = _emitter()
+    emitter.emit(run_dir, 'token_usage', source='worker', phase='executing',
+                 payload={'model': 'claude-haiku-5-5', 'input_tokens': 1000, 'output_tokens': 200}, strict=True)
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+    assert status == 200
+    data = json.loads(body)
+    assert data['schema'] == 'simplicio.dashboard-stage-agents/v1'
+    [row] = data['rows']
+    assert (row['phase'], row['role'], row['model']) == ('executing', 'execution', 'claude-haiku-5-5')
+    assert (row['tokens_in'], row['tokens_out'], row['proof_kind']) == (1000, 200, 'estimado')
+    assert data['cost']['proof_kind'] == 'estimado' and data['cost']['usd'] == row['cost_usd']
+
+
+def test_stage_agents_route_without_token_usage_is_empty_and_unverified(server_handle):
+    status, _, body = _get(server_handle.port, '/api/runs/orch-1/stage-agents', AUTH)
+    data = json.loads(body)
+    assert status == 200 and data['rows'] == []
+    assert data['cost']['state'] == 'UNVERIFIED' and data['cost']['reason']
+
+
+def test_stage_agents_route_keeps_the_auth_origin_and_run_id_guards(server_handle):
+    assert _get(server_handle.port, '/api/runs/nope/stage-agents', AUTH)[0] == 404
+    assert _get(server_handle.port, '/api/runs/live-1/stage-agents', {})[0] == 401
+    assert _get(server_handle.port, '/api/runs/..%2F..%2Fx/stage-agents', AUTH)[0] == 404
+    assert _get(server_handle.port, '/api/runs/live-1/stage-agents', {**AUTH, 'Origin': 'http://evil.example'})[0] == 403
+
+
 def test_history_endpoint_returns_records_filters_and_rejects_bad_values(server_handle, repo_root):
     def get(query):
         status, _, body = _get(server_handle.port, '/api/history' + query, AUTH)
