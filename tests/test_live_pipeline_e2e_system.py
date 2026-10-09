@@ -409,6 +409,24 @@ def test_ctrl_k_then_t1_selects_the_lane(open_page, repo):
     page.wait_for_selector('#lanes li[data-lane="feat/fixture"][aria-current="true"]', timeout=TIMEOUT_MS)
 
 
+def test_nine_board_columns_fit_at_1920_without_horizontal_scroll(open_page, repo):
+    page = open_page('dark', viewport=(1920, 1080))
+    _replay_lane(_run_dir(repo))
+    _wait_seq(page, 18)
+    page.wait_for_selector('#board > section', timeout=TIMEOUT_MS)
+    fit = page.evaluate('''() => {
+      const board = document.getElementById('board');
+      const last = board.lastElementChild.getBoundingClientRect();
+      return { sections: board.querySelectorAll(':scope > section').length,
+               scrollWidth: board.scrollWidth, clientWidth: board.clientWidth,
+               lastRight: last.right, boardRight: board.getBoundingClientRect().right };
+    }''')
+    # Eight phases on the rail plus the off-rail column.
+    assert fit['sections'] == 9, fit
+    assert fit['scrollWidth'] <= fit['clientWidth'], fit
+    assert fit['lastRight'] <= fit['boardRight'], fit
+
+
 def test_pause_holds_the_view_while_events_still_reduce_and_resume_shows_them(open_page, repo):
     page = open_page('dark')
     run_dir = _run_dir(repo)
