@@ -29,6 +29,7 @@ def scrubbed_env(environ: Mapping[str, str], *, home: Path, keep: Iterable[str] 
     env = {name: environ[name] for name in ALLOWED_ENV if name in environ}
     env.setdefault("PATH", DEFAULT_PATH)
     env["HOME"] = str(home)
+    env["SIMPLICIO_LOOP_DAEMON"] = "0"  # a sandboxed command neither starts nor reaches a daemon outside the sandbox
     for name in keep:
         if name in environ:
             env[name] = environ[name]

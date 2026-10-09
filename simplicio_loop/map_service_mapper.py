@@ -27,6 +27,8 @@ import time
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from . import operator_exec
+
 
 class MapperUnavailableError(RuntimeError):
     """Raised when the `simplicio-mapper` binary is not installed/reachable."""
@@ -50,26 +52,9 @@ async def _run_mapper(argv: list, timeout: float) -> tuple:
     """Run one mapper command in its own process group; kill the whole group on timeout/cancel.
 
     The child runs under ``asyncio.wait_for``: the event loop stays free while it works, and on
-    ``timeout`` the group is killed and ``subprocess.TimeoutExpired`` is raised."""
-    from .exec_planner import _kill_process_tree
-
-    proc = await asyncio.create_subprocess_exec(
-        *argv, stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE, start_new_session=True,
-    )
-    try:
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-    except asyncio.TimeoutError:
-        await _kill_process_tree(proc)
-        raise subprocess.TimeoutExpired(argv, timeout) from None
-    except BaseException:
-        await _kill_process_tree(proc)
-        raise
-    return (
-        proc.returncode,
-        stdout_bytes.decode("utf-8", errors="replace"),
-        stderr_bytes.decode("utf-8", errors="replace"),
-    )
+    ``timeout`` the group is killed and ``subprocess.TimeoutExpired`` is raised. Inside a command the
+    daemon runs, the mapper is forked from the daemon's imported modules (``operator_exec``)."""
+    return await operator_exec.run(argv, timeout=timeout)
 
 
 async def run_mapper_index(path: str, *, timeout: float = 60.0) -> dict:

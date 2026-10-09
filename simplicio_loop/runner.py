@@ -226,7 +226,12 @@ def _is_deterministic_operator_failure(record: Mapping[str, Any]) -> bool:
 # Real content/schema/hash/freshness/provenance validation, gating `receipt_status` in
 # `_operator_dispatch_attempt()` below (issue #288: presence of a file must not imply
 # VERIFIED).
-RECEIPT_MAX_AGE_SECONDS = float(os.environ.get("SIMPLICIO_RECEIPT_MAX_AGE_SECONDS", "86400"))
+
+
+def _receipt_max_age_seconds() -> float:
+    return float(os.environ.get("SIMPLICIO_RECEIPT_MAX_AGE_SECONDS", "86400"))
+
+
 MAINTENANCE_RECEIPT_SCHEMA = "simplicio.maintenance-receipt/v1"
 PHASES = [
     "intake",
@@ -6994,13 +6999,13 @@ def _verify_worker_receipt_pair(operator_receipt_path: str, evidence_receipt_pat
     now = time.time()
     operator_verdict = verify_receipt(
         operator_payload, schema=_OPERATOR_RECEIPT_CONTENT_SCHEMA,
-        max_age_seconds=RECEIPT_MAX_AGE_SECONDS, now=now,
+        max_age_seconds=_receipt_max_age_seconds(), now=now,
     )
     if not operator_verdict.verified:
         return {"status": operator_verdict.status, "reason": f"operator receipt: {operator_verdict.reason}"}
     evidence_verdict = verify_receipt(
         evidence_payload, schema=_EVIDENCE_RECEIPT_CONTENT_SCHEMA,
-        max_age_seconds=RECEIPT_MAX_AGE_SECONDS, now=now,
+        max_age_seconds=_receipt_max_age_seconds(), now=now,
     )
     if not evidence_verdict.verified:
         return {"status": evidence_verdict.status, "reason": f"evidence receipt: {evidence_verdict.reason}"}

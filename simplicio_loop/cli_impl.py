@@ -84,9 +84,11 @@ from .json_order import stable_first
 
 BUNDLE = bundle_root()  # importlib.resources, not a source-tree path: the same call works from a frozen binary
 DASHBOARD = BUNDLE / "hooks" / "simplicio_dashboard.py"
-# Cross-platform temp dir (Windows has no /tmp) — must match hooks/simplicio_dashboard.py.
-PID_FILE = Path(tempfile.gettempdir()) / "simplicio-token-monitor.pid"
-DEFAULT_DASH_PORT = int(os.environ.get("SIMPLICIO_MONITOR_PORT", "9090"))
+
+
+def _pid_file() -> Path:
+    """Cross-platform temp dir (Windows has no /tmp) — must match hooks/simplicio_dashboard.py. Read at call time."""
+    return Path(tempfile.gettempdir()) / "simplicio-token-monitor.pid"
 
 
 def _gui_available() -> bool:
@@ -202,7 +204,7 @@ def _stop_dashboard() -> int:
     """Best-effort stop: kill the PID the dashboard recorded, then any stray server."""
     killed = False
     try:
-        pid = int(PID_FILE.read_text().strip())
+        pid = int(_pid_file().read_text().strip())
         os.kill(pid, 15)
         killed = True
     except (OSError, ValueError):
@@ -214,7 +216,7 @@ def _stop_dashboard() -> int:
         except OSError:
             pass
     try:
-        PID_FILE.unlink()
+        _pid_file().unlink()
     except OSError:
         pass
     print("⬡ Token Monitor stopped." if killed else "⬡ dashboard was not running.")
