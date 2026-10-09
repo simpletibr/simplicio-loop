@@ -349,21 +349,138 @@ def test_the_stdin_flag_without_a_tty_needs_the_email_flag(svc, monkeypatch, cap
     assert not svc.env_file.exists()
 
 
+def refused_by_the_parser(svc, capsys, caplog, argv):
+    """Run the CLI with ``argv``: it must exit 2 before any call or write, printing nothing of what was typed."""
+    def must_not_run(*args, **kwargs):
+        raise AssertionError("an action ran with a token slip in argv")
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(onboarding, "main", must_not_run)
+        patch.setattr("simplicio_loop.watcher247.login_check.main", must_not_run)
+        patch.setattr("simplicio_loop.watcher247.__main__.main", must_not_run)
+        with pytest.raises(SystemExit) as exit_info:
+            cli_impl.main(argv)
+    out, err = capsys.readouterr()
+    assert exit_info.value.code == 2
+    shown = out + err + caplog.text
+    for secret in (TOKEN, TOKEN_2, "ghp_FAKE"):
+        assert secret not in shown
+    assert not svc.env_file.exists() and svc.gh_calls() == []
+    return shown
+
+
 def test_the_token_is_never_accepted_as_a_command_line_value(svc, monkeypatch, capsys, caplog):
-    rc = cli_impl.main(["watch247", "setup", "--email", EMAIL, "--github-token", TOKEN])
-    out, err = capsys.readouterr()
-    assert rc == 2
-    assert "--github-token-stdin" in out + err
-    assert TOKEN not in out + err + caplog.text
-    assert not svc.env_file.exists() and svc.gh_calls() == []
+    shown = refused_by_the_parser(svc, capsys, caplog, ["watch247", "setup", "--email", EMAIL, "--github-token", TOKEN])
+    assert "--github-token-stdin" in shown
 
 
-def test_the_token_argument_is_refused_even_when_a_token_is_piped_too(svc, monkeypatch, capsys):
+def test_the_token_argument_is_refused_even_when_a_token_is_piped_too(svc, monkeypatch, capsys, caplog):
     stdin(monkeypatch, TOKEN_2 + "\n")
-    rc = cli_impl.main(["watch247", "setup", "--email", EMAIL, "--github-token-stdin", "--github-token", TOKEN])
-    out, err = capsys.readouterr()
-    assert rc == 2 and TOKEN not in out + err and TOKEN_2 not in out + err
-    assert not svc.env_file.exists() and svc.gh_calls() == []
+    argv = ["watch247", "setup", "--email", EMAIL, "--github-token-stdin", "--github-token", TOKEN]
+    refused_by_the_parser(svc, capsys, caplog, argv)
+
+
+# Every way a token can land in argv by a slip of the keys. argparse repeats the offending value in its own error
+# ("ignored explicit argument", "invalid choice", "unrecognized arguments", "ambiguous option"): none may reach the terminal.
+TOKEN_SLIPS = [
+    pytest.param([f"--github-token-stdin={TOKEN}"], id="stdin-equals-value"),
+    pytest.param(["--github-token-stdin="], id="stdin-equals-empty"),
+    pytest.param(["--github-token-stdin", TOKEN], id="stdin-then-value"),
+    pytest.param([TOKEN, "--github-token-stdin"], id="value-then-stdin"),
+    pytest.param(["--github-token-stdin", f"--github-token-stdin={TOKEN}"], id="stdin-twice"),
+    pytest.param(["--github-token-s", TOKEN], id="abbrev-s"),
+    pytest.param(["--github-token-st", TOKEN], id="abbrev-st"),
+    pytest.param(["--github-token-std", TOKEN], id="abbrev-std"),
+    pytest.param([f"--github-token-s={TOKEN}"], id="abbrev-s-equals"),
+    pytest.param([f"--github-token-stdi={TOKEN}"], id="abbrev-stdi-equals"),
+    pytest.param(["--github-token", TOKEN], id="token"),
+    pytest.param([f"--github-token={TOKEN}"], id="token-equals"),
+    pytest.param(["--github-tok", TOKEN], id="abbrev-tok"),
+    pytest.param(["--github-t", TOKEN], id="abbrev-t"),
+    pytest.param(["--github", TOKEN], id="abbrev-github"),
+    pytest.param([f"--git={TOKEN}"], id="abbrev-git-equals"),
+    pytest.param([f"--g={TOKEN}"], id="abbrev-g-equals"),
+    pytest.param(["--github-tokens", TOKEN], id="extra-letter"),
+    pytest.param([f"--github-tokenstdin={TOKEN}"], id="missing-dash"),
+    pytest.param(["--github-token-stdin-x", TOKEN], id="suffix"),
+    pytest.param([f"--github-token{TOKEN}"], id="glued"),
+    pytest.param([f"--GITHUB-TOKEN={TOKEN}"], id="upper-case"),
+    pytest.param([f"--github_token={TOKEN}"], id="underscore"),
+    pytest.param([f"--ghp-token={TOKEN}"], id="other-name"),
+    pytest.param([f"-github-token={TOKEN}"], id="single-dash"),
+    pytest.param(["--token", TOKEN], id="token-flag"),
+    pytest.param(["--github-token-s"], id="abbrev-s-alone"),
+    pytest.param(["--github-token-std"], id="abbrev-std-alone"),
+    pytest.param(["--git"], id="abbrev-git-alone"),
+    pytest.param(["--em", EMAIL], id="abbrev-email"),
+    pytest.param([TOKEN], id="bare-value"),
+    pytest.param(["--", TOKEN], id="after-double-dash"),
+    pytest.param(["--email", EMAIL, TOKEN], id="after-email"),
+    pytest.param(["--state-dir", TOKEN, f"--github-token-stdin={TOKEN}"], id="state-dir-and-slip"),
+]
+
+
+@pytest.mark.parametrize("slip", TOKEN_SLIPS)
+def test_a_token_typed_into_a_mistyped_flag_is_refused_without_being_echoed(svc, monkeypatch, capsys, caplog, slip):
+    stdin(monkeypatch, TOKEN_2 + "\n")
+    shown = refused_by_the_parser(svc, capsys, caplog, ["watch247", "setup", "--email", EMAIL, *slip])
+    assert "--github-token-stdin" in shown  # the way out is named
+
+
+@pytest.mark.parametrize("slip", TOKEN_SLIPS)
+def test_the_slip_is_refused_when_it_comes_before_the_email_and_without_the_setup_word(svc, monkeypatch, capsys, caplog, slip):
+    refused_by_the_parser(svc, capsys, caplog, ["watch247", *slip, "setup", "--email", EMAIL])
+    refused_by_the_parser(svc, capsys, caplog, ["watch247", *slip])
+
+
+@pytest.mark.parametrize("slip", [
+    pytest.param(["watch247", TOKEN], id="token-as-action"),
+    pytest.param(["watch247", "setup", TOKEN], id="token-after-setup"),
+    pytest.param(["watch247", "login-check", f"--github-token-stdin={TOKEN}"], id="login-check"),
+    pytest.param(["watch247", "--once", f"--github-token={TOKEN}"], id="watcher-loop"),
+    pytest.param(["watch247", "--dry-run", "--github-token", TOKEN], id="watcher-dry-run"),
+])
+def test_no_watch247_action_runs_after_a_token_slip(svc, monkeypatch, capsys, caplog, slip):
+    refused_by_the_parser(svc, capsys, caplog, slip)
+
+
+@pytest.mark.parametrize("slip", [
+    pytest.param([f"--github-token-stdin={TOKEN}"], id="stdin-equals-value"),
+    pytest.param(["--github-token", TOKEN], id="token"),
+    pytest.param([f"--github-token-s={TOKEN}"], id="abbrev"),
+])
+def test_a_slip_typed_before_the_subcommand_is_not_echoed_either(svc, monkeypatch, capsys, caplog, slip):
+    refused_by_the_parser(svc, capsys, caplog, [*slip, "watch247", "setup", "--email", EMAIL])
+
+
+def test_the_slip_never_reaches_the_terminal_of_the_real_command(svc, tmp_path):
+    """End to end, as the user runs it: a subprocess, so the real stdout/stderr and the real exit code."""
+    import subprocess
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    for slip in ([f"--github-token-stdin={TOKEN}"], ["--github-token-s", TOKEN], ["--github-token-stdin", TOKEN]):
+        done = subprocess.run(
+            [sys.executable, "-c", "import sys; from simplicio_loop.cli_impl import main; sys.exit(main(sys.argv[1:]))",
+             "watch247", "setup", "--email", EMAIL, *slip],
+            input=TOKEN_2 + "\n", capture_output=True, text=True, cwd=tmp_path,
+            env={**os.environ, "PYTHONPATH": root, "SIMPLICIO_247_ENV_FILE": str(svc.env_file)})
+        assert done.returncode == 2, slip
+        assert "ghp_FAKE" not in done.stdout + done.stderr, slip
+        assert "--github-token-stdin" in done.stdout + done.stderr, slip
+    assert not svc.env_file.exists()
+
+
+def test_the_exact_stdin_flag_and_the_other_options_are_still_accepted(svc, monkeypatch):
+    stdin(monkeypatch, TOKEN + "\n")
+    argv = ["watch247", "setup", "--email", EMAIL, "--github-token-stdin", "--state-dir", str(svc.state)]
+    assert cli_impl.main(argv) == 1
+    assert svc.env_file.read_text() == f"GH_TOKEN={TOKEN}\n"
+
+
+def test_the_other_commands_keep_the_standard_argparse_errors(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        cli_impl.main(["status", "--repo"])
+    assert exit_info.value.code == 2
+    assert "expected one argument" in capsys.readouterr().err
 
 
 def test_interactive_mode_asks_for_a_visible_email_and_a_hidden_token(svc, monkeypatch, capsys, caplog):

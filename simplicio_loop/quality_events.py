@@ -18,6 +18,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from . import dashboard_events as _dashboard_events
+from .dashboard.runs import redact_command
 
 COMMAND_MAX = 500
 RULES_MAX = 20
@@ -91,7 +92,16 @@ def _text(value: Any) -> str:
 
 
 def _command(command: Any) -> str:
-    return ("" if command is None else str(command))[:COMMAND_MAX]
+    """The command text as it may be written to an event: secrets masked by ``redact_command`` first, then cut.
+
+    Fail-open: a command that cannot be read or scrubbed yields ``""``, never the raw text and never an exception.
+    """
+    try:
+        if isinstance(command, bytes):
+            command = command.decode("utf-8", "replace")
+        return redact_command("" if command is None else str(command))[:COMMAND_MAX]
+    except Exception:  # noqa: BLE001 - fail-open: telemetry must never break the caller nor leak the raw command
+        return ""
 
 
 def _returncode(value: Any) -> int | None:
