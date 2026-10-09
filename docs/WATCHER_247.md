@@ -34,5 +34,13 @@ Fluxo de cada tick (implementado em `watcher247/tick.py` e `watcher247/host_mode
    review, check vermelho ou conflito viram task de correcao no PR existente, com o papel `coordination`
    (e `planning` se falhar). O fix faz push na mesma branch, sem force; o loop nunca faz merge nem fecha PR.
 
-Limites conhecidos: o planner roda como processo filho do servico, sem bwrap (o apply roda no sandbox); ele recebe
-apenas flags de somente-plano de cada CLI (ver `exec_planner.py`).
+O planner roda por `sandbox.wrap` (o mesmo bwrap do apply) e com `sandbox.scrubbed_env`: so a allowlist do sandbox, `HOME`
+e a chave do proprio CLI (`host_mode.FAMILY_ENV`); `OPENROUTER_API_KEY` e outros segredos do servico nunca chegam a ele.
+Cada CLI recebe apenas flags de somente-plano (ver `exec_planner.py`). Limite: o `opencode` grava a config de deny em
+`/tmp`, que o bwrap esconde; use outro wrapper ou outra familia para ele.
+
+### Login dos CLIs (`watch247 login-check`)
+
+`simplicio-loop watch247 login-check` roda `exec_auth.check_all` nas familias habilitadas e imprime, por CLI, `ok` ou o
+comando exato que corrige, por exemplo `sudo -u simplicio-loop -H codex login`. Exit 0 quando todos estao ok, 1 caso
+contrario. Nao le nem imprime token. O mesmo estado derruba o tick com `login_missing:<cli>`.

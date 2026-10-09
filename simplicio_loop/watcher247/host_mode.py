@@ -61,6 +61,20 @@ async def choose(environ: dict[str, str] | None = None) -> Executor:
     return Executor("exec", blocked=f"{first.status}:{first.family}", detail="; ".join(str(r) for r in results))
 
 
+# The only variables besides the sandbox allowlist that a planner CLI may see: its own provider key (OAuth logins live in
+# HOME). OPENROUTER_API_KEY and every other secret of the service env never reach a planner.
+FAMILY_ENV = {
+    "claude": ("ANTHROPIC_API_KEY",),
+    "codex": ("OPENAI_API_KEY",),
+    "grok": ("XAI_API_KEY",),
+    "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+}
+
+
+def _planner_env(family: str) -> dict[str, str]:
+    return sandbox.scrubbed_env(os.environ, home=Path.home(), keep=FAMILY_ENV.get(family, ()))
+
+
 def plan_prompt(task: str, failure: str = "") -> str:
     text = f"{task}\n\nPlan format (one JSON object, nothing else):\n{json.dumps(turbo_cli.PLAN_FORMAT)}"
     if failure:
@@ -154,7 +168,8 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
             started = time.monotonic()
             planned = await exec_planner.run_planner_with_fallback(
                 ladder.current_role(), plan_prompt(task, failure), cwd=str(dest),
-                timeout_sec=config.PLAN_TIMEOUT_S, families=list(executor.families))
+                timeout_sec=config.PLAN_TIMEOUT_S, families=list(executor.families),
+                wrap=lambda argv: sandbox.wrap(argv, clone=dest, state_dir=config.ROOT), env_for=_planner_env)
             ladder.family = planned.family or ladder.family
             ok, failure, tokens_report, label, result, status = False, "", None, "", None, "failed"
             if planned.is_ok():

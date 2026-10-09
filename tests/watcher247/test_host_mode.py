@@ -26,11 +26,13 @@ REPORTS = ".simplicio-loop/runtime/execution-reports/latest.json"
 STUB = textwrap.dedent('''\
     #!/usr/bin/env python3
     import json, os, sys
-    d = os.environ["FAKE_CLI_DIR"]
+    d = os.path.dirname(os.path.abspath(__file__))
     if sys.argv[1:2] == ["auth"]:
         sys.exit(1 if os.environ.get("FAKE_CLI_LOGGED_OUT") else 0)
     with open(d + "/calls.jsonl", "a") as handle:
         handle.write(json.dumps(sys.argv[1:]) + "\\n")
+    with open(d + "/env.jsonl", "a") as handle:
+        handle.write(json.dumps(sorted(os.environ)) + "\\n")
     print(json.dumps({"result": json.dumps(%s)}))
 ''') % repr(PLAN)
 
@@ -137,6 +139,48 @@ def test_openrouter_only_when_explicitly_selected_with_a_key(env, cli_dir, monke
     run_tick()
     assert fake.turbo_argv[0][fake.turbo_argv[0].index("--provider") + 1] == "openrouter"
     assert planner_calls(cli_dir) == []
+
+
+def test_planner_runs_through_the_sandbox_wrapper(env, cli_dir, monkeypatch):
+    wrapped = []
+
+    def fake_wrap(argv, *, clone, state_dir, **_):
+        wrapped.append((list(argv), clone, state_dir))
+        return ["/usr/bin/env", "SANDBOXED=1", *argv] if argv[0] == "claude" else list(argv)
+
+    monkeypatch.setattr(sandbox, "wrap", fake_wrap)
+    fake = env(HostRun({REPO: [issue(1)]}))
+    baseline()
+    dest = checkout()
+    run_tick()
+    planner = [w for w in wrapped if w[0][0] == "claude"]
+    assert len(planner) == 1 and planner[0][1] == dest and planner[0][2] == config.ROOT
+    assert env_values_has_sandboxed(cli_dir)  # the CLI really ran under the wrapper
+    assert [w[0][0] for w in wrapped] == ["claude", "simplicio-loop"]  # planner, then the apply
+    assert fake.turbo_argv
+
+
+def env_keys(cli_dir):
+    path = cli_dir / "env.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+
+def env_values_has_sandboxed(cli_dir):
+    return any("SANDBOXED" in keys for keys in env_keys(cli_dir))
+
+
+def test_planner_env_is_scrubbed(env, cli_dir, monkeypatch):
+    for name in ("AWS_SECRET_ACCESS_KEY", "GITHUB_TOKEN", "DATABASE_URL"):
+        monkeypatch.setenv(name, "secret")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "claude-needs-this")
+    env(HostRun({REPO: [issue(1)]}))
+    baseline()
+    checkout()
+    run_tick()
+    (keys,) = env_keys(cli_dir)
+    for name in ("OPENROUTER_API_KEY", "AWS_SECRET_ACCESS_KEY", "GITHUB_TOKEN", "DATABASE_URL", "FAKE_CLI_DIR"):
+        assert name not in keys
+    assert "ANTHROPIC_API_KEY" in keys and "HOME" in keys and "PATH" in keys  # what that CLI needs
 
 
 def test_plan_goes_to_turbo_stdin_and_dev_cli_applies(env, cli_dir):
