@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.49.0] - 2026-10-09
+
+- The 24/7 watcher is now in the package (`simplicio_loop.watcher247`). It runs as a non-root user in a bwrap sandbox. It has a daily cap, a secret scan before each push and a verify gate before each PR.
+- Host mode is the default. An exec CLI (claude, codex, grok, gemini, agy or opencode) only plans. The Dev CLI applies the plan with `simplicio-loop turbo --apply -`. Login detection fails closed. It now covers `agy` and `opencode`.
+- Model roles and an escalation ladder: two failures climb one role. Cost comes from measured tokens.
+- Squads: `plan_squads`, `squad_gate`, routing by complexity, a merge train (one cumulative test per batch, bisection on red) and contracts for cross-squad edges. The watcher runs in squads. Auto-merge is off unless `SIMPLICIO_247_AUTO_MERGE=1`. `squad_gate` accepts an approval only from an authorized author, and fails closed with no approver list.
+- 50 extension points: a registry with six stages. The service path wires 19 points and wires 29 in part. 2 points are absent (`docs/EXTENSION_POINTS_SERVICE.md`).
+- Turbo is asyncio-native. The watcher makes no blocking call in the event loop, and a guard test enforces this.
+- Dashboard: Pipeline view and a per-stage agent and cost panel. The lane lease heartbeat comes from the Mapper OperationsStore. Protocol error pages carry security headers. The bench runs on Windows and macOS.
+- Mapper: one source in `packages/mapper`. `doctor mapper` shows the build identity.
+- README: short, with diagrams and animated images. The full guide is `docs/GUIDE.md`.
+- UNVERIFIED: the dashboard bench on Windows and macOS, 60 fps on a real GPU and real provider token counts. The escalation rate and dependency wait of a real drain are also UNVERIFIED.
+- To deploy the watcher, follow `docs/VPS_REDEPLOY_RUNBOOK.md`.
+
 ## [3.48.1] - 2026-10-02
 
 - Vendor `danyuchn/asd-ste100-skill` as `.claude/skills/asd-ste100` and require it for agent-facing text (PR bodies, release notes, errors) in the loop delivery step. Install: `npx skills add danyuchn/asd-ste100-skill`.
