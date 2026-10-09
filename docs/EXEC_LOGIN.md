@@ -11,6 +11,8 @@ O watcher do simplicio-loop executa como usuário não-root (`simplicio-loop`) e
 - `codex` — Codex (GitHub Copilot)
 - `grok` — Grok (xAI)
 - `gemini` — Gemini (Google)
+- `agy` — Antigravity CLI
+- `opencode` — opencode
 
 Para cada uma, o preflight verifica se a CLI está instalada e autenticada sem expor segredos em logs ou comentários. O módulo `simplicio_loop/exec_auth.py` fornece essas verificações.
 
@@ -57,7 +59,17 @@ npm install -g @google/gemini-cli
 
 ## Login no Usuário do Serviço
 
-Após instalar a CLI globalmente, faça login como o usuário `simplicio-loop`:
+Após instalar a CLI globalmente, faça login como o usuário `simplicio-loop`. O comando `simplicio-loop watch247 login-check`
+imprime, por família, exatamente o comando abaixo (mapa em `simplicio_loop/watcher247/login_check.py`, um teste por família):
+
+| Família | Comando de login | Origem |
+|---------|------------------|--------|
+| claude | `sudo -u simplicio-loop -H claude auth login` | VERIFICADO (`claude auth --help`); `claude login` não existe |
+| codex | `sudo -u simplicio-loop -H codex login` | VERIFICADO (`codex login --help`) |
+| grok | `sudo -u simplicio-loop -H grok login` | VERIFICADO (`grok login --help`) |
+| agy | `sudo -u simplicio-loop -H agy` | VERIFICADO: `agy --help` não tem subcomando de login; o sign-in roda ao iniciar a CLI interativa |
+| opencode | `sudo -u simplicio-loop -H opencode auth login` | VERIFICADO (`opencode auth --help`) |
+| gemini | `sudo -u simplicio-loop -H gemini` | BASEADO EM DOC: CLI não instalada no host de referência; não verificado |
 
 ### Claude CLI
 
@@ -116,9 +128,10 @@ ls -l ~simplicio-loop/.grok/auth.json
 ### Gemini CLI
 
 ```bash
-sudo -u simplicio-loop -H gemini auth login
+# BASEADO EM DOC, não verificado (CLI não instalada no host de referência): iniciar a CLI abre o sign-in interativo.
+sudo -u simplicio-loop -H gemini
 # ou com variável de ambiente
-sudo -u simplicio-loop -H bash -c "GOOGLE_API_KEY=<sua-chave> gemini auth login"
+sudo -u simplicio-loop -H bash -c "GOOGLE_API_KEY=<sua-chave> gemini"
 ```
 
 **Credenciais armazenadas em:**
@@ -131,6 +144,25 @@ sudo -u simplicio-loop -H bash -c "GOOGLE_API_KEY=<sua-chave> gemini auth login"
 # gemini: subcomando de status nao verificado (CLI nao instalada no host de referencia);
 # o check usa apenas os arquivos de credencial.
 ls -l ~simplicio-loop/.gemini/credentials
+```
+
+### agy (Antigravity CLI)
+
+```bash
+# VERIFICADO: `agy --help` não lista subcomando de login; o sign-in OAuth roda na primeira execução interativa.
+sudo -u simplicio-loop -H agy
+```
+
+Sem subcomando de status: o preflight (`exec_auth`) não tem verificação específica para `agy`.
+
+### opencode
+
+```bash
+# VERIFICADO: `opencode auth --help` (alias: `opencode providers login`)
+sudo -u simplicio-loop -H opencode auth login
+
+# Listar provedores/credenciais configurados
+sudo -u simplicio-loop -H opencode auth list
 ```
 
 ## Variáveis de Ambiente (Alternativa)
