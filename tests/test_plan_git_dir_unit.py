@@ -177,6 +177,21 @@ def test_turbo_apply_stdin_with_the_installed_dev_cli_writes_nothing_into_git(re
     assert _snapshot(repo) == before
 
 
+@pytest.mark.parametrize("path", ["hooks-link/post-commit", "cfg-link"])
+def test_turbo_apply_stdin_with_the_installed_dev_cli_writes_nothing_through_a_symlink_to_git(repo, capsys, monkeypatch, path):
+    """The audit of #1571 (D1): a committed ``hooks-link -> .git/hooks`` reached ``.git`` through the 0.18.16 dev-cli."""
+    (repo / "cfg-link").symlink_to(".git/config")
+    before = _snapshot(repo)
+    for find in ("", "zzz-not-in-the-file"):
+        monkeypatch.setattr(sys, "stdin", _Stdin(json.dumps({"operations": [{"path": path, "find": find, "replace": "planted\n"}]})))
+        rc = cli_main(["turbo", "--repo", str(repo), "--apply", "-"])
+        out = json.loads(capsys.readouterr().out)
+        assert rc == 1 and out["status"] == "failed", (path, find, out)
+        assert "[core]" not in json.dumps(out["failed"]), "a refused path must not echo the file it leads to"
+    assert not (repo / ".git" / "hooks" / "post-commit").exists()
+    assert _snapshot(repo) == before
+
+
 def test_turbo_apply_stdin_still_applies_an_ordinary_plan(repo, capsys, monkeypatch):
     monkeypatch.setattr(sys, "stdin", _Stdin(_plan(".gitignore")))
     rc = cli_main(["turbo", "--repo", str(repo), "--apply", "-"])
