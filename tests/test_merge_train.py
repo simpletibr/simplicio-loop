@@ -116,6 +116,48 @@ def test_no_merge_happens_before_isolation_finishes():
     assert [e[1] for e in events if e[0] == "merge"] == [1, 2, 4]
 
 
+def _run_predicate(batch, red):
+    """red(frozenset) -> True when that integrated set fails. Returns (report, tested, merged_calls)."""
+    tested, merged = [], []
+
+    def test(prs):
+        tested.append((tuple(prs), not red(frozenset(prs))))
+        return not red(frozenset(prs))
+
+    async def merge(pr):
+        merged.append(pr)
+
+    return asyncio.run(run_train(batch, test, merge)), tested, merged
+
+
+def test_merged_set_was_tested_green_as_a_whole_with_pair_interaction():
+    # 3 fails alone; {1, 5} fail together; every other set is green.
+    def red(s):
+        return 3 in s or {1, 5} <= s
+
+    r, tested, merged = _run_predicate([1, 2, 3, 4, 5], red)
+    assert not red(frozenset(merged))
+    assert r.failed == [3, 5] and r.merged == [1, 2, 4] == merged
+    assert (tuple(merged), True) in tested
+
+
+def test_two_prs_green_alone_red_together_merge_only_a_tested_set():
+    def red(s):
+        return {2, 4} <= s
+
+    r, tested, merged = _run_predicate([1, 2, 3, 4], red)
+    assert not red(frozenset(merged))
+    assert r.merged == merged == [1, 2, 3] and r.failed == [4]
+    assert (tuple(merged), True) in tested
+
+
+def test_suffix_is_tested_on_top_of_the_good_prefix():
+    r, tested, _ = _run_predicate([1, 2, 3, 4], lambda s: 2 in s)
+    assert r.merged == [1, 3, 4]
+    assert all(t[0][: len(t[0])] == tuple(sorted(t[0])) for t in tested)
+    assert ((1, 3, 4), True) in tested
+
+
 def test_empty_batch():
     r = run([], Fakes())
     assert r.merged == [] and r.failed == [] and r.bisect_steps == 0

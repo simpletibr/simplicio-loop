@@ -7,9 +7,10 @@ Pure orchestration over injected callables, so it is testable without git or gh:
 * ``merge_fn(pr) -> None | Awaitable[None]``: merge one PR into main.
 
 Green batch: merge all, in order, with no further smoke. Red batch: find the first PR whose
-prefix turns the batch red (binary search, log2(n) tests), mark it failed, then test the untested
-suffix once and repeat if it is red. Nothing is merged until isolation finishes; then only the
-good PRs are merged, in order.
+prefix turns the batch red (binary search, log2(n) tests), mark it failed, then test the rest ON TOP
+OF the good prefix and repeat if it is red. Every test is cumulative (good so far + candidate chunk),
+so the final merged set was itself tested green as one integration. Nothing is merged until isolation
+finishes; then only the good PRs are merged, in order.
 """
 
 from __future__ import annotations
@@ -51,19 +52,19 @@ async def run_train(batch: Sequence[Hashable], test_fn: Callable[..., Any], merg
     start = time.monotonic()
     report = TrainReport()
     prs = list(batch)
-    good: list = []
+    good: list = []  # invariant: always tested green as one integration (or empty)
     if prs:
         pending, known_red = prs, not await _call(test_fn, prs)
         while pending:
             if not known_red:
                 good.extend(pending)
                 break
-            # Smallest k such that pending[:k] is red; pending[:k-1] is green or empty.
+            # Smallest k such that good + pending[:k] is red; good + pending[:k-1] is green (tested) or == good.
             lo, hi = 1, len(pending)
             while lo < hi:
                 mid = (lo + hi) // 2
                 report.bisect_steps += 1
-                if await _call(test_fn, pending[:mid]):
+                if await _call(test_fn, good + pending[:mid]):
                     lo = mid + 1
                 else:
                     hi = mid
@@ -72,7 +73,7 @@ async def run_train(batch: Sequence[Hashable], test_fn: Callable[..., Any], merg
             pending = pending[lo:]
             if pending:
                 report.bisect_steps += 1
-                known_red = not await _call(test_fn, pending)
+                known_red = not await _call(test_fn, good + pending)
     for pr in good:
         await _call(merge_fn, pr)
         report.merged.append(pr)

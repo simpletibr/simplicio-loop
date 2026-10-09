@@ -17,14 +17,14 @@ Qualquer outro caso é `coordination` (Sonnet ou equivalente). Dois módulos já
 
 - `plan_train(approved_prs, order, max_batch=4)` monta lotes na ordem de merge definida pelo coordenador geral.
 - `run_train(batch, test_fn, merge_fn)` integra o lote numa branch temporária e testa **uma vez**. Se passa, faz merge de todos em ordem, sem novo smoke.
-- Se falha, faz bisseção: acha o primeiro PR que deixa o lote vermelho em log2(n) testes, marca como culpado, testa o restante uma vez e repete. Nada entra no main antes de isolar os culpados; depois entram só os PRs bons, em ordem.
+- Se falha, faz bisseção: acha o primeiro PR que deixa o lote vermelho em log2(n) testes, marca como culpado, testa o restante **em cima do prefixo bom** e repete; todo teste é cumulativo (bons até aqui + trecho candidato), então o conjunto final foi testado verde como um todo. Nada entra no main antes de isolar os culpados; depois entram só os PRs bons, em ordem.
 - O relatório traz `merged`, `failed`, `bisect_steps` e `wall_ms`. Nunca há force-push.
 
 ## 3. Interfaces primeiro (`simplicio_loop/squad_contracts.py`)
 
 Antes de os squads começarem, o coordenador geral chama `contracts_for(edges)`. Para cada dependência entre squads (produtor, consumidor) sai um contrato: caminho do módulo, assinatura da função e um teste de contrato.
 
-`write_contracts(repo, contracts)` cria o stub em `simplicio_loop/squad_iface/` (a função levanta `NotImplementedError("contract: <squad>")`) e o teste em `tests/contracts/`. Arquivos existentes nunca são sobrescritos. O squad consumidor codifica contra a assinatura; o produtor troca o corpo; o teste de contrato fica `xfail` até a implementação existir. A ligação final é uma chamada.
+`write_contracts(repo, contracts)` cria, no repositório alvo, o stub (a função levanta `NotImplementedError("contract: <squad>")`) e o teste ao lado dele, em `dest` (padrão `.simplicio-loop/contracts/`, configurável em `contracts_for(edges, dest=...)`; nunca dentro do pacote distribuído). Arquivos existentes nunca são sobrescritos. O squad consumidor codifica contra a assinatura; o produtor troca o corpo; o teste de contrato fica `xfail` até a implementação existir. A ligação final é uma chamada.
 
 ## Uso no `/simplicio-loop`
 
