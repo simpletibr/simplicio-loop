@@ -3,9 +3,10 @@
 The default executor is ``exec``. For each work item:
 
 1. ``exec_planner.run_planner_with_fallback`` runs a plan-only CLI (claude, codex, grok, gemini, ...) with the model and
-   effort of the current role (``model_roles.resolve``). The CLI never edits a file.
-2. The watcher pipes the plan to ``simplicio-loop turbo --apply - [--verify V]`` inside ``sandbox.wrap``. dev-cli is the
-   only writer.
+   effort of the current role (``model_roles.resolve``), prompted with turbo's request. The CLI never edits a file.
+2. The watcher pipes the plan to ``simplicio-loop turbo --apply - --run-id ID [--verify V]`` inside ``sandbox.wrap``,
+   continuing the run of step 1 (``turbo --task T``: Mapper orient, the request the planner gets, the run id). One
+   run_id then covers the map, plan, apply, verify and done events and the execution-report. dev-cli is the only writer.
 3. On a failed apply or verify, the escalation ladder (execution -> coordination -> planning) picks the next role and the
    planner retries with the failure output, until the attempt or token ceilings stop it.
 
@@ -22,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .. import escalation, exec_auth, exec_planner, execution_report, executor_select, turbo_cli
+from .. import escalation, exec_auth, exec_planner, execution_report, executor_select
 from . import budget, config, proc, sandbox, verify
 
 PLAN_ROLE = "planning"
@@ -75,8 +76,10 @@ def _planner_env(family: str) -> dict[str, str]:
     return sandbox.scrubbed_env(os.environ, home=Path.home(), keep=FAMILY_ENV.get(family, ()))
 
 
-def plan_prompt(task: str, failure: str = "") -> str:
-    text = f"{task}\n\nPlan format (one JSON object, nothing else):\n{json.dumps(turbo_cli.PLAN_FORMAT)}"
+def plan_prompt(request: str, failure: str = "") -> str:
+    """The planner prompt: turbo's request (it already holds the task, map slice, files and format) plus the failure."""
+    text = (f"{request}\n\nReply with the plan only: one JSON object in the `format` above, nothing else. "
+            "The watcher applies it with dev-cli; do not run the `apply` command.")
     if failure:
         text += ("\n\nThe previous plan was applied and failed. Write a corrected plan for the original task. "
                  f"Failure output:\n{failure[-FAILURE_CAP:]}")
@@ -115,9 +118,23 @@ async def _reset_tree(dest: Path) -> None:
     await proc.run(["git", "clean", "-fdq", "-e", ".simplicio-loop", "-e", ".simplicio"], cwd=dest, timeout=60)
 
 
-async def _apply(dest: Path, plan: dict, test_cmd: str | None, attempts: int, log_path: Path) -> tuple[proc.Result, dict, str, verify.Decision]:
-    """turbo --apply - with the plan on stdin, in the sandbox; no provider key is passed in the env."""
-    argv = sandbox.wrap(verify.turbo_apply_argv(dest, test_cmd), clone=dest, state_dir=config.ROOT)
+async def _request(dest: Path, task: str) -> tuple[str, str]:
+    """Step 1, ``turbo --task T`` in the sandbox: the compact request for the planner and the run id turbo started."""
+    argv = sandbox.wrap(verify.turbo_request_argv(dest, task), clone=dest, state_dir=config.ROOT)
+    env = sandbox.scrubbed_env(os.environ, home=Path.home())
+    result = await proc.run(argv, timeout=config.TURBO_TIMEOUT_S, cwd=dest, env=env)
+    document = verify.parse_turbo(result.stdout or "")
+    run_id = document.get("run_id")
+    if document.get("status") != "needs_plan" or not isinstance(run_id, str):
+        reason = document.get("detail") or document.get("reason_code") or (result.stderr or "")[-300:] or "no request"
+        raise RuntimeError(f"turbo request {document.get('status') or 'failed'}: {reason}"[:500])
+    return json.dumps(document, ensure_ascii=False, separators=(",", ":")), run_id
+
+
+async def _apply(dest: Path, plan: dict, test_cmd: str | None, run_id: str, attempts: int,
+                 log_path: Path) -> tuple[proc.Result, dict, str, verify.Decision]:
+    """Step 2, ``turbo --apply - --run-id`` with the plan on stdin, in the sandbox; no provider key is in the env."""
+    argv = sandbox.wrap(verify.turbo_apply_argv(dest, test_cmd, run_id), clone=dest, state_dir=config.ROOT)
     env = sandbox.scrubbed_env(os.environ, home=Path.home())
     result = await proc.run(argv, timeout=config.TURBO_TIMEOUT_S, cwd=dest, env=env, stdin=json.dumps(plan))
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -137,6 +154,14 @@ def _turbo_report(dest: Path, document: dict) -> dict | None:
         return json.loads((dest / relative).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+
+
+def _merge_turbo_tasks(report: dict[str, Any], turbo_report: dict) -> None:
+    """Turbo's own task for the apply joins the watcher's report: one report, one run_id, the role steps beside it."""
+    report["tasks"].extend(turbo_report.get("tasks") or [])
+    for operator in turbo_report.get("operators_used") or []:
+        if operator not in report["operators_used"]:
+            report["operators_used"].append(operator)
 
 
 def _note_step(report: dict[str, Any], *, repo: str, issue: dict, step: int, planned: exec_planner.PlannerResult,
@@ -161,21 +186,25 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
     steps: list[dict[str, str]] = []
     failure = ""
     try:
+        request, run_id = await _request(dest, task)  # step 1, once: every retry reuses this request and run
+        report["run_id"] = run_id  # the watcher's role receipt lands in the report turbo writes for this run
         for step in range(1, config.MAX_STEPS + 1):
             if not ladder.can_escalate():
                 raise RuntimeError(f"escalation ceiling reached: {failure or 'no budget left'}"[:500])
             await budget.record("model_calls")
             started = time.monotonic()
             planned = await exec_planner.run_planner_with_fallback(
-                ladder.current_role(), plan_prompt(task, failure), cwd=str(dest),
+                ladder.current_role(), plan_prompt(request, failure), cwd=str(dest),
                 timeout_sec=config.PLAN_TIMEOUT_S, families=list(executor.families),
                 wrap=lambda argv: sandbox.wrap(argv, clone=dest, state_dir=config.ROOT), env_for=_planner_env)
             ladder.family = planned.family or ladder.family
             ok, failure, tokens_report, label, result, status = False, "", None, "", None, "failed"
             if planned.is_ok():
                 log_path = config.LOGS / f"{repo}-{number}-{attempts}-s{step}.log"
-                result, document, status, decision = await _apply(dest, planned.plan, test_cmd, attempts, log_path)
+                result, document, status, decision = await _apply(dest, planned.plan, test_cmd, run_id, attempts, log_path)
                 tokens_report = _turbo_report(dest, document)
+                if tokens_report:
+                    _merge_turbo_tasks(report, tokens_report)
                 ok, label, failure = decision.action == "pr", decision.label, decision.reason
             else:
                 failure = f"planner {planned.reason_code}: {planned.error or ''}"
