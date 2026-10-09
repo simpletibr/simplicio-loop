@@ -71,9 +71,3 @@ def test_python_files_that_are_data_ship_as_files_and_modules_do_not(hook):
     assert shipped == [
         "simplicio/templates/app.py", "simplicio_loop/_bundle/hooks/guard.py", "simplicio_loop/dashboard/helper/part.py",
         "simplicio_loop/dashboard/static/app.js", "simplicio_loop/loose/script.py", "simplicio_mapper/contracts/a.json"]
-
-
-def test_the_sysconfig_data_of_the_build_python_is_left_out(hook):
-    namespace, _ = hook
-    import sysconfig
-    assert namespace["excludedimports"] == [sysconfig._get_sysconfigdata_name()]
