@@ -6,6 +6,7 @@ dashboard state file.
 '''
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -178,20 +179,91 @@ def _duration_s(state: dict[str, Any]) -> int | None:
     return int((end - start).total_seconds())
 
 
-def _last_seq(run_dir: Path) -> int:
-    '''Highest ``seq`` in events.jsonl, streamed line by line so the file is never held in memory.'''
+TAIL_WINDOW_BYTES = 4096  # the bytes just before a read's offset: their digest tells a rewrite that grew the file back apart
+_EMPTY_DIGEST = hashlib.blake2b(b'', digest_size=16).digest()
+
+
+def _line_seq(line: bytes) -> int:
+    '''The ``seq`` of one events.jsonl line; 0 when the line is not a JSON object with a positive integer ``seq``.'''
+    try:
+        seq = json.loads(line.decode('utf-8', 'replace')).get('seq')
+    except (ValueError, AttributeError):
+        return 0
+    return seq if isinstance(seq, int) and seq > 0 else 0
+
+
+class _Tail:
+    '''Where the last read of events.jsonl stopped: the file it read (device and inode), the byte offset just past its last newline,
+    the highest seq before that offset, and the digest of the TAIL_WINDOW_BYTES before it.'''
+
+    __slots__ = ('digest', 'ident', 'offset', 'seq')
+
+    def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        self.ident = None
+        self.offset = 0
+        self.seq = 0
+        self.digest = _EMPTY_DIGEST
+
+
+def _window_digest(fh, offset: int) -> bytes:
+    '''Digest of the TAIL_WINDOW_BYTES bytes that end at ``offset`` (of the open binary file ``fh``).'''
+    start = max(0, offset - TAIL_WINDOW_BYTES)
+    fh.seek(start)
+    return hashlib.blake2b(fh.read(offset - start), digest_size=16).digest()
+
+
+def _tail_seq(run_dir: Path, tail: _Tail) -> int:
+    '''Highest seq of events.jsonl, reading only the bytes after ``tail.offset``; the offset and the seq before it are kept in ``tail``.
+
+    The state belongs to one file. A different device or inode (rotation, replacement), a file shorter than the offset (truncation)
+    or other bytes before the offset (a rewrite that grew the file back past it) starts again from byte 0. Only complete lines move
+    the offset: a last line without its newline is counted in this answer and read again next time, so a half-written event is
+    neither counted twice nor lost. The events file is only appended to and rotated, never edited in place, so an edit that changes
+    nothing in the last TAIL_WINDOW_BYTES before the offset is not seen; a full scan (``_last_seq`` with no tail) sees it.
+    '''
+    path = run_dir / 'events.jsonl'
+    try:
+        if stat.S_ISLNK(os.lstat(path).st_mode):
+            tail.reset()
+            return 0
+        with path.open('rb') as fh:
+            st = os.fstat(fh.fileno())
+            ident = (st.st_dev, st.st_ino)
+            if ident != tail.ident or st.st_size < tail.offset or _window_digest(fh, tail.offset) != tail.digest:
+                offset, seq = 0, 0
+            else:
+                offset, seq = tail.offset, tail.seq
+            fh.seek(offset)
+            answer = committed = seq
+            committed_offset = pos = offset
+            for line in fh:
+                pos += len(line)
+                answer = max(answer, _line_seq(line))
+                if line.endswith(b'\n'):
+                    committed_offset, committed = pos, answer
+            tail.ident, tail.offset, tail.seq = ident, committed_offset, committed
+            tail.digest = _window_digest(fh, committed_offset)
+            return answer
+    except OSError:
+        tail.reset()
+        return 0
+
+
+def _last_seq(run_dir: Path, tail: _Tail | None = None) -> int:
+    '''Highest ``seq`` in events.jsonl. With no ``tail`` the whole file is streamed line by line (the reference answer, never held
+    in memory); with one, only the bytes after its offset are read (see _tail_seq).'''
+    if tail is not None:
+        return _tail_seq(run_dir, tail)
     last = 0
     if (run_dir / 'events.jsonl').is_symlink():
         return 0
     try:
-        with (run_dir / 'events.jsonl').open('r', encoding='utf-8', errors='replace') as fh:
+        with (run_dir / 'events.jsonl').open('rb') as fh:
             for line in fh:
-                try:
-                    seq = json.loads(line).get('seq')
-                except (ValueError, AttributeError):
-                    continue
-                if isinstance(seq, int) and seq > last:
-                    last = seq
+                last = max(last, _line_seq(line))
     except OSError:
         return 0
     return last
@@ -217,12 +289,13 @@ _now_ns = time.time_ns
 
 
 class _Memo:
-    __slots__ = ('lock', 'stamp', 'blob')
+    __slots__ = ('blob', 'lock', 'stamp', 'tail')
 
     def __init__(self) -> None:
         self.lock = threading.Lock()  # one computation per run at a time: the pollers of a changed run wait for it, then reuse it
         self.stamp: tuple | None = None
         self.blob: str | None = None  # the summary as JSON, so no caller ever holds the memoized object
+        self.tail = _Tail()  # where the last settled read of events.jsonl stopped; it lives and leaves with the memo
 
 
 _SUMMARIES: OrderedDict[str, _Memo] = OrderedDict()
@@ -304,7 +377,9 @@ def run_summary(ref: RunRef | Path) -> dict[str, Any]:
     Memoized per run directory while the stamp of the files it reads (SUMMARY_INPUTS: inode, size, mtime, ctime) is unchanged and
     settled (see RACY_NS); the stamp is taken before the files are read, so a file that changes during the read is read again on
     the next call. A run with a symlinked input is never remembered. The memo holds SUMMARY_CACHE_MAX runs and SUMMARY_BYTES_MAX
-    bytes at most, and every caller gets its own copy.
+    bytes at most, and every caller gets its own copy. Every recomputation reads only the bytes of events.jsonl written since the
+    last one (see _tail_seq), settled or not: the tail is checked by file identity, size and content, not by timestamps. Only what
+    the memo keeps needs a settled stamp.
     '''
     run_dir = Path(ref['run_dir'] if isinstance(ref, dict) else ref)
     fallback_repo = ref['repo'] if isinstance(ref, dict) else ''
@@ -314,14 +389,15 @@ def run_summary(ref: RunRef | Path) -> dict[str, Any]:
         stamp, settled = _stamp(key, fallback_repo, _now_ns())
         if settled and memo.stamp == stamp and memo.blob is not None:
             return json.loads(memo.blob)
-        summary = _summarize(run_dir, fallback_repo)
+        summary = _summarize(run_dir, fallback_repo, memo.tail)
         blob = json.dumps(summary) if settled else ''
         keep = settled and len(blob) <= SUMMARY_BYTES_MAX
         _remember(key, memo, stamp if keep else None, blob if keep else None)
         return summary
 
 
-def _summarize(run_dir: Path, fallback_repo: str) -> dict[str, Any]:
+def _summarize(run_dir: Path, fallback_repo: str, tail: _Tail | None = None) -> dict[str, Any]:
+    '''The summary of one run, computed from the files (no memo). ``tail`` is passed only by the memo; None reads events.jsonl whole.'''
     state = _load_state(run_dir)
     summary = dict(build_progress(state, run_dir=run_dir))
     summary.update({
@@ -333,7 +409,7 @@ def _summarize(run_dir: Path, fallback_repo: str) -> dict[str, Any]:
         'finished_at': state.get('finished_at'),
         'updated_at': state.get('updated_at'),
         'duration_s': _duration_s(state),
-        'last_seq': _last_seq(run_dir),
+        'last_seq': _last_seq(run_dir, tail),
         'cost_usd': None,
     })
     return redact_json(summary)
