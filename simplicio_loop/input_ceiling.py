@@ -41,7 +41,7 @@ TOML_KEY = "agent_input_token_ceiling"
 SOFT_PERCENT = 90
 # An estimate is multiplied by this before the comparison: tokenizers differ (UNVERIFIED for Claude).
 SAFETY_PERCENT = 120
-ESTIMATOR_LABEL = "conservative-v1"
+ESTIMATOR_LABEL = "conservative-v2"
 
 MEASURED = "MEASURED"
 ESTIMATED = "ESTIMATED"
@@ -96,8 +96,27 @@ def resolve_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = N
 
 # Pieces: ASCII letter/digit runs, whitespace runs, runs of one repeated ASCII punctuation mark, any other character.
 _PIECE = re.compile(r"[A-Za-z0-9]+|\s+|(?P<p>[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e])(?P=p)*|.", re.S)
-# Cost in quarter tokens of one non-ASCII character, by UTF-8 length (emoji and joiners are the dearest).
+# Cost in quarter tokens of one non-ASCII character, by UTF-8 length (emoji and joiners are the dearest). Two-byte
+# characters from U+0370 up (Greek, Cyrillic, Hebrew, Arabic) cost one whole token: cl100k_base spends about that on Greek.
 _NON_ASCII_QUARTERS = {2: 3, 3: 5, 4: 12}
+_VOWELS = frozenset("aeiouyAEIOUY")
+
+
+def _wordlike(piece: str) -> bool:
+    """A letters-only run that reads like a word: a quarter vowels at least, no four consonants in a row, and no capital
+    inside it unless it is all capitals of five letters or fewer. Random strings fail this about four times in five; real words pass it."""
+    if not (piece[1:].islower() or (piece.isupper() and len(piece) <= 5)):
+        return False
+    vowels = run = 0
+    for ch in piece:
+        if ch in _VOWELS:
+            vowels += 1
+            run = 0
+        else:
+            run += 1
+            if run > 3:
+                return False
+    return vowels * 4 >= len(piece)
 
 
 def estimate_tokens(text: str) -> int:
@@ -113,8 +132,16 @@ def estimate_tokens(text: str) -> int:
             if piece.isdigit():
                 quarters += 4 * ((size + 1) // 2)
             elif piece.isalpha():
-                # Long letter-only runs may be random strings, which tokenize near 0.5 token per character.
-                quarters += 4 * ((size + 2) // 3) if size <= 8 else 4 * ((7 * size + 9) // 10)
+                if size <= 2:
+                    quarters += 4
+                elif size <= 8 and _wordlike(piece):
+                    quarters += 4 + max(0, size - 6)   # a word: one token, a quarter more per letter past six
+                elif size <= 8:
+                    quarters += (28 * size + 9) // 10  # random letters tokenize near 0.55 token per character
+                elif _wordlike(piece):
+                    quarters += 4 + 2 * (size - 6)
+                else:
+                    quarters += (28 * size + 9) // 10
             else:
                 quarters += 4 * ((9 * size + 9) // 10)  # letters mixed with digits: hashes, ids, base64
         elif first.isspace():
@@ -124,7 +151,8 @@ def estimate_tokens(text: str) -> int:
         elif first.isascii():
             quarters += 4
         else:
-            quarters += _NON_ASCII_QUARTERS.get(len(first.encode("utf-8", "surrogatepass")), 12)
+            nbytes = len(first.encode("utf-8", "surrogatepass"))
+            quarters += 4 if nbytes == 2 and ord(first) >= 0x370 else _NON_ASCII_QUARTERS.get(nbytes, 12)
     return (quarters + 3) // 4
 
 
