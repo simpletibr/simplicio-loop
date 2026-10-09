@@ -130,9 +130,9 @@ flowchart TD
 
 ```mermaid
 pie showData title Extension points in the 24/7 path (of 50)
-  "Wired" : 11
-  "Partial" : 24
-  "Absent" : 15
+  "Wired" : 19
+  "Partial" : 29
+  "Absent" : 2
 ```
 
 [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)

@@ -707,21 +707,21 @@ task, `tick` for one task or `wave` for two or more, then verify.
 
 The 50 are the named binding points. How many the 24/7 service path actually wires today is a smaller number,
 measured point by point in [`docs/EXTENSION_POINTS_SERVICE.md`](EXTENSION_POINTS_SERVICE.md)
-(each row cites the file and function as evidence). **Only 11 are on.** The optimization plan to wire what already
+(each row cites the file and function as evidence). **Only 19 are on.** The optimization plan to wire what already
 exists in the repo is issue [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509).
 
 ```mermaid
 pie showData title 50 extension points on the 24/7 service path
-  "ligado (on)" : 11
-  "parcial (partial)" : 24
-  "ausente (absent)" : 15
+  "ligado (on)" : 19
+  "parcial (partial)" : 29
+  "ausente (absent)" : 2
 ```
 
 | State | Points |
 |---|---|
-| **ligado** (11) | `orient` · `deterministic_edit` · `issue_factory` · `claim` · `validate` · `watcher` · `shell_exec` · `status` · `security` · `intake` · `toolchain_detect` |
-| **parcial** (24) | `normalize` · `autoscale` · `plan` · `execute` · `worktree` · `diagnostics` · `pr` · `savings_ledger` · `compress` · `trajectory` · `human_gate` · `retry` · `dependency_graph` · `durable_workflow` · `work_queue` · `resource_governor` · `delivery_gate` · `action_gate` · `source_adapter` · `prompt_budget` · `model_route` · `model_preflight` · `checkpoint_restore` · `notify` |
-| **ausente** (15) | `pattern_match` · `recall` · `capability_rank` · `learn` · `convergence_policy` · `repo_conventions` · `pr_template` · `reuse_precedent` · `sibling_search` · `endpoint_compare` · `web_verify` · `video_evidence` · `web_research` · `transform_guard` · `judge` |
+| **ligado** (19) | `orient` · `recall` · `deterministic_edit` · `issue_factory` · `claim` · `validate` · `watcher` · `trajectory` · `learn` · `shell_exec` · `convergence_policy` · `status` · `security` · `intake` · `resource_governor` · `delivery_gate` · `reuse_precedent` · `toolchain_detect` · `judge` |
+| **parcial** (29) | `pattern_match` · `normalize` · `autoscale` · `plan` · `execute` · `worktree` · `diagnostics` · `pr` · `savings_ledger` · `capability_rank` · `compress` · `human_gate` · `retry` · `dependency_graph` · `durable_workflow` · `work_queue` · `action_gate` · `repo_conventions` · `pr_template` · `sibling_search` · `source_adapter` · `prompt_budget` · `model_route` · `model_preflight` · `checkpoint_restore` · `notify` · `endpoint_compare` · `web_verify` · `video_evidence` |
+| **ausente** (2) | `web_research` · `transform_guard` |
 
 ## 🔁 The loop
 
