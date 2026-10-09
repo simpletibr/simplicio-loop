@@ -88,7 +88,7 @@ def _gc(repo: str, *, dry_run: bool, keep: int, max_age: float, as_json: bool) -
     schema = "simplicio.map-gc/v1"
     try:
         plan = plan_gc(repo, keep=keep, max_age=max_age)
-    except (GitIdentityError, OSError):
+    except (GitIdentityError, OSError, subprocess.SubprocessError):
         return _emit({
             "schema": "simplicio.map-service-cli/v1", "command": "gc", "status": "READY",
             "removed": [], "fallback": True, "reason_code": "standalone_no_store",

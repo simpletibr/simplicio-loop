@@ -46,13 +46,8 @@ from .canonical_overlay import compute_worktree_overlay
 from .canonical_reuse import compute_config_fingerprint
 from .canonical_storage import resolve_canonical_cache_root
 from .emit import _build_agent_tree, _write_json_stable
-from .graph import (
-    _build_symbol_index,
-    _collect_architecture_signals,
-    _symbol_definitions_for_file,
-)
+from .graph import _build_symbol_index, _collect_architecture_signals
 from .parse import (
-    _JSON_WRITE_OPTIONS,
     ARTIFACT_SCHEMA,
     ARTIFACT_VERSION,
     LLM_DIRECTIVES,
@@ -62,7 +57,6 @@ from .parse import (
     _build_precedent_items,
     _collect_entities,
     _collect_text_files,
-    _content_for,
     _detect_changed_files,
     _git_status_map,
     _group_modules,
@@ -179,7 +173,6 @@ def compute_overlay(
     *,
     out: str = ".simplicio-loop",
     meta: dict | None = None,
-    ensure_base: bool = True,
 ) -> OverlayOutcome:
     """Compute ``base + overlay`` for ``root`` without writing anything into ``root``.
 
@@ -193,13 +186,13 @@ def compute_overlay(
         "files_total": 0, "files_reused": 0, "files_remapped": 0,
     }
     try:
-        return _compute(os.path.abspath(root), out, meta, ensure_base, receipt, started)
+        return _compute(os.path.abspath(root), out, meta, receipt, started)
     except Exception as error:  # noqa: BLE001 - the overlay must fail closed, never serve partial data
         return _fallback(receipt, f"unexpected_error:{type(error).__name__}", started)
 
 
 def _compute(
-    abs_root: str, out: str, meta: dict | None, ensure_base: bool, receipt: dict, started: float
+    abs_root: str, out: str, meta: dict | None, receipt: dict, started: float
 ) -> OverlayOutcome:
     meta = meta or {}
     identity = resolve_repo_identity_bundle(abs_root)
@@ -207,8 +200,6 @@ def _compute(
         return _fallback(receipt, "identity_unresolved", started)
     fingerprint = compute_config_fingerprint(meta, out)
     cache_root = resolve_canonical_cache_root(identity.common_git_dir)
-    if not ensure_base:
-        return _fallback(receipt, "base_not_requested", started)
     build = build_canonical_manifest_with_diagnostics(abs_root, cache_root, fingerprint)
     manifest = build.manifest
     if manifest is None:
@@ -262,11 +253,7 @@ def _compute(
         return _fallback(receipt, "semantic_languages_present", started)
 
     generated_at = _now_iso()
-    symbols_by_file = dict(base_symbols)
-    for file in files:
-        if file.path not in reused:
-            symbols_by_file.pop(file.path, None)
-    symbol_index = _symbol_index(abs_root, files, generated_at, symbols_by_file, reused, contents)
+    symbol_index = _symbol_index(abs_root, files, generated_at, base_symbols, reused, contents)
     project_map = _project_map(abs_root, meta, pkg, files, status_map, degraded, generated_at)
     project_map["capability_coverage"] = build_capability_coverage(
         files, semantic_resolution=_SEMANTIC_NOT_REQUIRED
@@ -394,14 +381,13 @@ def apply_overlay(
     *,
     out: str = ".simplicio-loop",
     meta: dict | None = None,
-    ensure_base: bool = True,
 ) -> OverlayOutcome:
     """:func:`compute_overlay`, then persist the worktree's own state (never the base).
 
     Writes only inside ``<root>/<out>``; removes the heavy derived artifacts of an older
     generation. On a fallback nothing is written or removed.
     """
-    outcome = compute_overlay(root, out=out, meta=meta, ensure_base=ensure_base)
+    outcome = compute_overlay(root, out=out, meta=meta)
     if outcome.artifacts is None or outcome.state is None:
         return outcome
     state_dir = os.path.join(os.path.abspath(root), out)
