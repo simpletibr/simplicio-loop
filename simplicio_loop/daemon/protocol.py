@@ -116,17 +116,14 @@ def daemon_key(environ: Optional[Mapping[str, str]] = None, exe: str | None = No
 
 def paths(directory: os.PathLike[str] | str, key: str) -> Paths:
     """Socket, lock and log of the daemon of ``key``. A unix socket path holds about 100 bytes: when
-    ``<directory>/<key>.sock`` is longer, the socket is named by a hash of that path in a private directory
-    of the temporary directory (the lock and the log stay in ``directory``). Both sides derive the same path."""
+    ``<directory>/<key>.sock`` is longer, the socket is named by a hash of that path in the private directory
+    ``/tmp/simplicio-loop-<uid>``, never in ``$TMPDIR``, so every caller derives the same path (the lock and the
+    log stay in ``directory``)."""
     base = os.path.join(os.fspath(directory), key)
     sock = base + ".sock"
     if len(os.fsencode(sock)) > MAX_SOCKET_PATH:
-        import tempfile
-
-        short = secure_dir(os.path.join(tempfile.gettempdir(), f"simplicio-loop-{os.geteuid()}"))
+        short = secure_dir(f"/tmp/simplicio-loop-{os.geteuid()}")  # not $TMPDIR: every caller must derive the same path
         sock = os.path.join(short, hashlib.sha256(os.fsencode(base)).hexdigest()[:16] + ".sock")
-        if len(os.fsencode(sock)) > MAX_SOCKET_PATH:
-            raise DaemonError("dir_long", f"{sock} is too long for a unix socket; set TMPDIR to a shorter directory")
     return Paths(sock, base + ".pid", base + ".log")
 
 

@@ -6,7 +6,7 @@
 
 The first command to run starts the daemon. The daemon listens on a unix socket in the run directory. Each request forks a child process. The child inherits the caller's environment, current working directory, and file descriptors 0, 1 and 2 (stdin, stdout, stderr). The child runs the command and exits. The parent reports the exit code and never blocks on the child.
 
-When the caller closes the connection (for example, pressing Ctrl-C), the child's process group gets SIGTERM, then SIGKILL after 5 seconds. The command receives SIGTERM as a KeyboardInterrupt, as Ctrl-C does in a process. Its `finally` blocks and `atexit` functions run, and it exits with code 130. A command that ignores SIGTERM gets SIGKILL.
+When the caller closes the connection (for example, pressing Ctrl-C), the child's process group gets SIGTERM, then SIGKILL after 5 seconds. The command receives SIGTERM as a KeyboardInterrupt, as Ctrl-C does in a process. Its `finally` blocks and `atexit` functions run, and it exits with code 130. A hang-up that comes while the command starts stops it the same way, before the program runs. A command that ignores SIGTERM gets SIGKILL.
 
 On Linux the kernel also kills a command when the daemon dies (for example, the out-of-memory killer). No command outlives its daemon, so a retry with `SIMPLICIO_LOOP_DAEMON=0` meets no second writer. This does not cover the processes that the command started. Nobody tested this on macOS (UNVERIFIED).
 
@@ -14,7 +14,7 @@ If the caller sets `PYTHONUNBUFFERED`, the command writes its output without a b
 
 ## Run directory
 
-The daemon stores its socket, lock file and log in `$SIMPLICIO_LOOP_DAEMON_DIR`, else `$XDG_RUNTIME_DIR/simplicio-loop`, else `~/.simplicio-loop/run`. The user must own the directory (mode 0700). The parent directory must belong to the user or to root. Other users must not write to it, unless it is sticky. The socket name is `<key>.sock`, where the key is a hash of the Python interpreter, package path, PYTHONPATH, PYTHONHOME and the network guard setting. A unix socket path holds about 100 bytes. If `<run directory>/<key>.sock` is longer, the socket takes a short name, a hash of that path, in the private directory `simplicio-loop-<uid>` of the temporary directory. The client and the daemon derive the same path. The lock file and the log stay in the run directory.
+The daemon stores its socket, lock file and log in `$SIMPLICIO_LOOP_DAEMON_DIR`, else `$XDG_RUNTIME_DIR/simplicio-loop`, else `~/.simplicio-loop/run`. The user must own the directory (mode 0700). The parent directory must belong to the user or to root. Other users must not write to it, unless it is sticky. The socket name is `<key>.sock`, where the key is a hash of the Python interpreter, package path, PYTHONPATH, PYTHONHOME and the network guard setting. A unix socket path holds about 100 bytes. If `<run directory>/<key>.sock` is longer, the socket takes a short name, a hash of that path, in the private directory `/tmp/simplicio-loop-<uid>`. The path does not depend on `TMPDIR`. Each caller derives the same path and shares the same daemon. This directory follows the same rules as the run directory: a real directory, owned by the user, mode 0700. The lock file and the log stay in the run directory.
 
 ## Operator shortcut
 
@@ -30,7 +30,7 @@ Each request has a protocol version number. If the daemon's code changes (instal
 
 ## Limits and lifecycle
 
-At most N commands run at once. N is the measured safe number of workers for the machine. N is at least 1 and at most 16. More commands wait in a queue of 256. The daemon refuses a request if the queue is full. After 5 seconds in the queue, a command prints a line on its standard error that says it waits for a free slot. After `SIMPLICIO_LOOP_DAEMON_WAIT_S` seconds (600 by default), the daemon refuses it with `busy` and the time it waited. A request that a running command makes, such as a Mapper or dev-cli call, takes no slot, so the pool cannot block itself.
+At most N commands run at once. N is the measured safe number of workers for the machine. N is at least 1 and at most 16. More commands wait in a queue of 256. The daemon refuses a request if the queue is full. After 5 seconds in the queue, a command prints a line on its standard error that says it waits for a free slot. If the caller closes the connection while the command waits (for example, with Ctrl-C), the command does not start when a slot becomes free. After `SIMPLICIO_LOOP_DAEMON_WAIT_S` seconds (600 by default), the daemon refuses it with `busy` and the time it waited. A request that a running command makes, such as a Mapper or dev-cli call, takes no slot, so the pool cannot block itself.
 
 The daemon exits after 900 seconds of idle time (no running commands). The setting `SIMPLICIO_LOOP_DAEMON_IDLE_S` overrides this. A running command keeps the daemon alive.
 
