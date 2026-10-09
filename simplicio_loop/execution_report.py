@@ -15,6 +15,8 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
+from . import model_roles
+
 SCHEMA = "simplicio.execution-report/v1"
 OWNER = "simplicio-loop"
 
@@ -140,8 +142,14 @@ def consolidate(report: dict[str, Any]) -> dict[str, Any]:
     wall_run = int((time.monotonic() - started) * 1000) if started else int(report.get("wall_ms") or 0)
     hours = wall_run / 3_600_000.0 if wall_run else 0.0
     speed = (len(tasks) / hours) if hours > 0 and tasks else None
+    tasks_by_role: dict[str, int] = {}
+    for t in tasks:
+        role = (t.get("agent") or {}).get("role")
+        if role:
+            tasks_by_role[role] = tasks_by_role.get(role, 0) + 1
     return {
         "task_count": len(tasks),
+        "tasks_by_role": dict(sorted(tasks_by_role.items())),
         "issues": issues,
         "outcomes": {
             "complete": complete,
@@ -213,8 +221,17 @@ def record_task(
     tokens_out: Optional[int] = None,
     outcome: str = "IN_PROGRESS",
     operators: Optional[list[str]] = None,
+    agent: Optional[dict[str, str]] = None,
 ) -> None:
     operators = operators or []
+    if agent is not None:
+        if agent.get("role") not in model_roles.ROLES:
+            raise ValueError("agent role must be one of %s" % (model_roles.ROLES,))
+        if agent.get("effort") not in model_roles.EFFORTS:
+            raise ValueError("agent effort must be one of %s" % (model_roles.EFFORTS,))
+        if not agent.get("model"):
+            raise ValueError("agent model is required")
+        agent = {"role": agent["role"], "model": agent["model"], "effort": agent["effort"]}
     for op in operators:
         if op not in report["operators_used"]:
             report["operators_used"].append(op)
@@ -251,6 +268,7 @@ def record_task(
             },
             "outcome": outcome,
             "operators_used": operators,
+            "agent": agent,
             "notes": (
                 ["UNVERIFIED|cpu_percent: sampler unavailable"]
                 if True
@@ -274,6 +292,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--tokens-in", type=int)
     p.add_argument("--tokens-out", type=int)
     p.add_argument("--operator", action="append", default=[])
+    p.add_argument("--role", choices=model_roles.ROLES, help="agent role (with --model and --effort)")
+    p.add_argument("--model")
+    p.add_argument("--effort", choices=model_roles.EFFORTS)
     p.add_argument("--status", default="COMPLETE")
     args = p.parse_args(argv)
     repo = Path(args.repo).resolve()
@@ -304,6 +325,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         if not args.task_id or not args.title:
             print("record-task requires --task-id and --title", flush=True)
             return 2
+        agent_flags = (args.role, args.model, args.effort)
+        if any(agent_flags) and not all(agent_flags):
+            print("--role, --model and --effort go together", flush=True)
+            return 2
         report = load_latest(repo) or new_report(repo, execution_profile=args.profile)
         record_task(
             report,
@@ -315,6 +340,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             tokens_out=args.tokens_out,
             outcome=args.outcome,
             operators=args.operator,
+            agent={"role": args.role, "model": args.model, "effort": args.effort} if args.role else None,
         )
         write_report(repo, report)
         print(json.dumps({k: v for k, v in report.items() if not k.startswith("_")}, indent=2))

@@ -17,6 +17,7 @@ closed, never a fake/simulated result.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import shutil
@@ -43,22 +44,39 @@ def mapper_binary_path() -> str:
     return path
 
 
-def run_mapper_index(path: str, *, timeout: float = 60.0) -> dict:
+async def run_mapper_index(path: str, *, timeout: float = 60.0) -> dict:
     """Run the REAL `simplicio-mapper index <path> --json` command and return its
     parsed envelope (schema simplicio.mapper-index/v1) - a real subprocess call, no
-    mocking, no fixture-canned JSON."""
+    mocking, no fixture-canned JSON.
+
+    The child runs in its own process group under ``asyncio.wait_for``: the event loop stays
+    free while it indexes, and on ``timeout`` the whole group is killed and
+    ``subprocess.TimeoutExpired`` is raised."""
+    from .exec_planner import _kill_process_tree
+
     binary = mapper_binary_path()
     resolved = str(Path(path).expanduser().resolve(strict=True))
-    result = subprocess.run(
-        [binary, "index", resolved, "--json"],
-        capture_output=True, text=True, timeout=timeout,
+    argv = [binary, "index", resolved, "--json"]
+    proc = await asyncio.create_subprocess_exec(
+        *argv, stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE, start_new_session=True,
     )
-    if result.returncode != 0:
+    try:
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        await _kill_process_tree(proc)
+        raise subprocess.TimeoutExpired(argv, timeout) from None
+    except BaseException:
+        await _kill_process_tree(proc)
+        raise
+    stdout = stdout_bytes.decode("utf-8", errors="replace")
+    stderr = stderr_bytes.decode("utf-8", errors="replace")
+    if proc.returncode != 0:
         raise MapperIndexError(
-            "simplicio-mapper index failed (exit %d): %s" % (result.returncode, result.stderr.strip()[-500:])
+            "simplicio-mapper index failed (exit %d): %s" % (proc.returncode, stderr.strip()[-500:])
         )
     try:
-        envelope = json.loads(result.stdout)
+        envelope = json.loads(stdout)
     except json.JSONDecodeError as exc:
         raise MapperIndexError("simplicio-mapper index did not emit valid JSON: %s" % exc) from exc
     if envelope.get("error"):
@@ -106,13 +124,13 @@ def materialize_project_map(root: str, envelope: dict) -> Path:
     return expected_path
 
 
-def mapper_tree_snapshot(path: str, *, timeout: float = 60.0) -> Tuple[str, List[str]]:
+async def mapper_tree_snapshot(path: str, *, timeout: float = 60.0) -> Tuple[str, List[str]]:
     """A REAL tree_hash + file list for `build_canonical`/`build_overlay`, derived from
     the actual `simplicio-mapper` binary's own per-file content hashes (read from the
     real project-map.json it writes) — the bound orient operator's own
     signal, not a git-only shortcut."""
     resolved = str(Path(path).expanduser().resolve(strict=True))
-    envelope = run_mapper_index(resolved, timeout=timeout)
+    envelope = await run_mapper_index(resolved, timeout=timeout)
     
     # Use the helper to materialize project-map at the expected location
     project_map_path = materialize_project_map(resolved, envelope)

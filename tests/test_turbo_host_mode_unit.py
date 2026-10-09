@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -59,7 +60,7 @@ def host(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-must-be-ignored")
     monkeypatch.setattr(turbo_provider, "complete", boom)
     monkeypatch.setattr(turbo_provider, "require_key", boom)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root, **kwargs: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
 
 
 class _Stdin:

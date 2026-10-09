@@ -258,6 +258,17 @@ When you spawn a subagent for a loop step, choose its model from the model-roles
 
 In Claude Code, the Agent tool takes `model: opus | sonnet | haiku`. Never use xhigh or max effort for Opus. Codex, Grok and Gemini follow the same three roles; see `docs/MODEL_ROLES.md`.
 
+## Squads (default for >3 issues)
+
+For more than 3 issues, run squads. One general coordinator plans. Each squad has 1 coordinator and up to 4 workers.
+
+1. Run `simplicio-loop squads plan --issues <json|-> --family <family> --json`. The plan lists the agents (role, model, effort), the squads, the owner of each file, the shared files and the merge order.
+2. Spawn each agent from the plan with its `model` and `effort`. Claude Code: Agent tool with `model` and `effort: high`. Codex, Grok and Gemini: the model of that role in the plan. Record each agent with `execution_report record-task --role R --model M --effort E`.
+3. Workers (`execution`) edit only their own files. A worker that fails twice moves up one role (`escalation.py`).
+4. The squad coordinator (`coordination`) reviews the squad PRs: tests on the branch against main, mutation check, file ownership. When it approves, it comments `APROVADO PELO SQUAD` with the evidence and the squash lines.
+5. Only the general coordinator (`planning`) merges, one PR at a time, in the plan's merge order. Before each merge, run `simplicio-loop squads gate --pr N --repo R --json`. Merge only on exit 0: the approval is newer than the last commit that is not a clean merge of `origin/main`.
+6. Shared files (SKILL.md mirrors, pins, conftest, version, CHANGELOG, `cli_impl.py`) are edited only by the general coordinator. Stacked PRs run `git merge origin/main`. Never force-push.
+
 ## Bound operators (REQUIRED): survey + operate
 
 This loop does NOT survey the repo with the LLM, and it does NOT hand-edit files with the LLM.
