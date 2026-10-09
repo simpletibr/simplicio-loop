@@ -25,9 +25,9 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, NamedTuple, Optional, Sequence, Tuple
 
-from . import model_roles, squad_metrics
+from . import model_roles, squad_capacity, squad_metrics
 from .escalation import ESCALATION_LADDER
 from .squad_contracts import Contract, contracts_for
 
@@ -333,6 +333,32 @@ def plan_squads(
     )
 
 
+class AutoPlan(NamedTuple):
+    plan: SquadPlan
+    capacity: squad_capacity.CapacityPlan
+
+
+def plan_squads_auto(
+    issues: Sequence[Mapping[str, Any]],
+    ownership: Optional[Mapping[str, Sequence[str]]] = None,
+    family: str = "claude",
+    probe: Optional[squad_capacity.Probe] = None,
+    limits: Optional[squad_capacity.Limits] = None,
+    root: str = ".",
+) -> AutoPlan:
+    """`plan_squads` plus the automatic sizing (DEFAULT): how many squads and workers may run at the same time.
+
+    The plan is the one `plan_squads` makes (squads of at most `limits.max_workers_per_squad`, ownership, merge order,
+    contracts); the capacity says how many of them to run at once, from the demand of `issues` and the MEASURED machine
+    (`squad_capacity.recommend`). Sizing never changes the plan or what may merge. `probe=None` measures `root` once;
+    pass the tick's sample to avoid a second measurement. `limits=None` reads SIMPLICIO_SQUADS and the worker env knobs.
+    Raises what `plan_squads` raises, and ValueError for SIMPLICIO_SQUADS=0 or any other bad value.
+    """
+    limits = limits or squad_capacity.Limits.from_env()
+    plan = plan_squads(issues, ownership, family, limits.max_workers_per_squad)  # validates first: family, numbers, cycles
+    return AutoPlan(plan, squad_capacity.recommend(issues, probe or squad_capacity.measure(root), limits))
+
+
 # ---------------------------------------------------------------------------------------------- gate
 
 
@@ -493,7 +519,11 @@ def configure_commands(subparsers: argparse._SubParsersAction) -> None:
     plan = subparsers.add_parser("plan", help="plan squads, file ownership and merge order for a set of issues")
     plan.add_argument("--issues", required=True, help="JSON list of issues, or - for stdin")
     plan.add_argument("--family", default="claude", help="runtime family of model_roles (default: claude)")
-    plan.add_argument("--max-workers", type=int, default=DEFAULT_MAX_WORKERS)
+    plan.add_argument("--squads", default=None, metavar="auto|N",
+                      help="how many squads run at once: auto (default) sizes them from the demand of the issues and the "
+                           "measured machine, N >= 1 forces N squads (also SIMPLICIO_SQUADS=N; the flag wins)")
+    plan.add_argument("--max-workers", type=int, default=None,
+                      help="workers per squad, at most (default: %d)" % DEFAULT_MAX_WORKERS)
     plan.add_argument("--ownership", default="", help='JSON {"owner": ["path/glob", ...]}')
     plan.add_argument("--json", action="store_true", help="machine-readable output (always JSON)")
     gate = subparsers.add_parser(
@@ -523,8 +553,10 @@ def dispatch(args: argparse.Namespace) -> int:
     try:
         if args.squads_command == "plan":
             ownership = json.loads(args.ownership) if args.ownership else None
-            plan = plan_squads(_load_issues(args.issues), ownership, args.family, args.max_workers)
-            _emit(plan.to_dict())
+            limits = squad_capacity.Limits.from_env(
+                squads_option=args.squads, max_workers_per_squad=DEFAULT_MAX_WORKERS if args.max_workers is None else args.max_workers)
+            auto = plan_squads_auto(_load_issues(args.issues), ownership, args.family, limits=limits)
+            _emit({**auto.plan.to_dict(), "capacity": auto.capacity.to_dict()})
             return 0
         result = asyncio.run(squad_gate_for_pr(
             args.repo or None, args.pr, approvers=args.approver, trusted_associations=args.trusted_association))
