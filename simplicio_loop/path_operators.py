@@ -1,7 +1,9 @@
-"""Detect stale operators on PATH: simplicio-mapper and simplicio-dev-cli.
+"""Stale operators on PATH: a `simplicio-mapper` or `simplicio-dev-cli` that is not the one bundled with this loop (#1575).
 
-This module checks if the operators found on PATH match the bundled versions
-by examining their build identity, version numbers, and commit hashes.
+An old standalone mapper can share the version number of the bundled one (0.26.35) and still lack the build identity the
+loop needs, so a mapper is compared by identity (version, origin, source commit), read by the interpreter of its own
+shebang. A dev-cli is compared by version. Read-only: the only things run are `<interpreter> -I -c <probe>` and
+`<operator> --version`, each with a timeout. `doctor` shows the findings and the fix command.
 """
 from __future__ import annotations
 
@@ -10,468 +12,141 @@ import os
 import re
 import shutil
 import subprocess
-from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
-from simplicio_loop import mapper_doctor
+from . import mapper_doctor
 
 OPERATORS = ("simplicio-mapper", "simplicio-dev-cli")
+Run = Callable[[list], tuple]
 
-_PROBE = """import json, sys
-try:
-    import simplicio_mapper
-    from simplicio_mapper.build_identity import build_identity
-    print(json.dumps(dict(build_identity())))
-except ImportError as e:
-    if 'build_identity' in str(e):
-        import simplicio_mapper as _sm
-        v = getattr(_sm, '__version__', None)
-        print(json.dumps({'version': v, 'error': 'no_build_identity'}))
-    else:
-        print(json.dumps({'error': 'not_importable'}))
-except Exception as e:
-    print(json.dumps({'error': 'not_importable'}))
-"""
-
-_VERSION_RE = re.compile(r"(\d+\.\d+\.\d+)")
+_PROBE = (
+    "import json\n"
+    "try:\n import simplicio_mapper as m\n"
+    "except Exception:\n print(json.dumps({'error': 'not_importable'})); raise SystemExit\n"
+    "try:\n from simplicio_mapper.build_identity import build_identity as b\n"
+    "except ImportError:\n print(json.dumps({'version': getattr(m, '__version__', None), 'error': 'no_build_identity'}))\n"
+    "else:\n print(json.dumps(dict(b())))\n"
+)
+_VERSION = re.compile(r"(\d+\.\d+\.\d+)")
+_SHA = re.compile(r"[0-9a-f]{40}")
 
 
-def _run(argv: list[str]) -> tuple[int, str]:
-    """Default _run: execute argv with 20s timeout, return (rc, stdout)."""
+def _run(argv: list) -> tuple:
     try:
-        result = subprocess.run(
-            argv,
-            capture_output=True,
-            text=True,
-            timeout=20,
-        )
-        return (result.returncode, result.stdout)
-    except (OSError, subprocess.TimeoutExpired):
-        return (127, "")
+        done = subprocess.run(argv, capture_output=True, text=True, timeout=20, stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError):
+        return 127, ""
+    return done.returncode, done.stdout
 
 
-def check(
-    *,
-    which: Callable[[str], str | None] | None = None,
-    run: Callable[[list[str]], tuple[int, str]] | None = None,
-    bundled: dict[str, Any] | None = None,
-    frozen_exe: str | None = None,
-) -> list[dict[str, Any]]:
-    """Check if operators on PATH match the bundled versions.
-
-    Args:
-        which: function to find a command on PATH (default: shutil.which).
-        run: function to run a command (default: _run with 20s timeout).
-        bundled: dict with 'mapper' and 'dev_cli_version' keys (default: auto-detect).
-        frozen_exe: path to a multi-call binary; if a PATH entry resolves to this, it's ok.
-
-    Returns:
-        List of dicts, one per operator: {name, path, status, reason_code, found, bundled, fix}.
-    """
-    if which is None:
-        which = shutil.which
-    if run is None:
-        run = _run
-
-    if bundled is None:
-        bundled = _compute_bundled()
-
-    frozen_exe_real = None
-    if frozen_exe:
-        try:
-            frozen_exe_real = os.path.realpath(frozen_exe)
-        except (OSError, ValueError):
-            pass
-
-    findings = []
-    for op_name in OPERATORS:
-        path = which(op_name)
-        if path is None:
-            findings.append({
-                "name": op_name,
-                "path": None,
-                "status": "absent",
-                "reason_code": None,
-                "found": None,
-                "bundled": bundled.get("mapper" if op_name == "simplicio-mapper" else "dev_cli_version"),
-                "fix": None,
-            })
-            continue
-
-        # Check if this is the frozen_exe
-        if frozen_exe_real:
-            try:
-                if os.path.realpath(path) == frozen_exe_real:
-                    findings.append({
-                        "name": op_name,
-                        "path": path,
-                        "status": "ok",
-                        "reason_code": None,
-                        "found": {"path": path},
-                        "bundled": bundled.get("mapper" if op_name == "simplicio-mapper" else "dev_cli_version"),
-                        "fix": None,
-                    })
-                    continue
-            except (OSError, ValueError):
-                pass
-
-        if op_name == "simplicio-mapper":
-            finding = _check_mapper(path, bundled["mapper"], which, run)
-        else:
-            finding = _check_devcli(path, bundled["dev_cli_version"], which, run)
-
-        finding["bundled"] = bundled.get(
-            "mapper" if op_name == "simplicio-mapper" else "dev_cli_version"
-        )
-        findings.append(finding)
-
-    return findings
-
-
-def _compute_bundled() -> dict[str, Any]:
-    """Compute the bundled operator versions and identities."""
-    mapper_identity = {}
+def _bundled() -> dict:
+    """Identity of the operators this loop ships: the importable mapper and dev-cli."""
+    mapper: dict = {}
     try:
-        from simplicio_mapper import build_identity
-        mapper_identity = dict(build_identity())
-    except (ImportError, Exception):
-        # Fall back to trying to import simplicio_mapper and get version
-        try:
-            import simplicio_mapper
-            mapper_identity = {"version": getattr(simplicio_mapper, "__version__", "unknown")}
-        except ImportError:
-            mapper_identity = {"version": "unknown"}
-
-    dev_cli_version = "unknown"
-    try:
-        import simplicio
-        dev_cli_version = getattr(simplicio, "__version__", "unknown")
+        from simplicio_mapper.build_identity import build_identity
+        mapper = dict(build_identity())
     except ImportError:
         pass
-
-    return {
-        "mapper": mapper_identity,
-        "dev_cli_version": dev_cli_version,
-    }
-
-
-def _check_mapper(
-    path: str,
-    bundled_mapper: dict[str, Any],
-    which: Callable[[str], str | None],
-    run: Callable[[list[str]], tuple[int, str]],
-) -> dict[str, Any]:
-    """Check a mapper on PATH."""
-    # Check if it's a native binary or a script
+    dev_cli = ""
     try:
-        with open(path, "rb") as f:
-            header = f.read(200)
-    except (OSError, IOError):
-        return {
-            "name": "simplicio-mapper",
-            "path": path,
-            "status": "stale",
-            "reason_code": "mapper_not_importable",
-            "found": None,
-            "fix": _fix_mapper(path, which),
-        }
-
-    # Check if it's a shebang script or native binary
-    if header.startswith(b"#!"):
-        # Script with shebang
-        try:
-            shebang_line = header.decode("utf-8", errors="ignore").split("\n")[0]
-        except Exception:
-            shebang_line = ""
-
-        # Parse shebang to find interpreter
-        interp = _parse_shebang(shebang_line, which)
-        if not interp:
-            return {
-                "name": "simplicio-mapper",
-                "path": path,
-                "status": "stale",
-                "reason_code": "mapper_not_importable",
-                "found": None,
-                "fix": _fix_mapper(path, which),
-            }
-
-        # Run the probe
-        rc, stdout = run([interp, "-I", "-c", _PROBE])
-        return _evaluate_mapper_probe(path, rc, stdout, bundled_mapper, interp, which)
-    else:
-        # Native binary: just check version
-        rc, stdout = run([path, "--version"])
-        if rc != 0:
-            return {
-                "name": "simplicio-mapper",
-                "path": path,
-                "status": "stale",
-                "reason_code": "mapper_not_importable",
-                "found": {"path": path},
-                "fix": _fix_mapper(path, which),
-            }
-
-        # Extract version from output
-        match = _VERSION_RE.search(stdout)
-        if not match:
-            return {
-                "name": "simplicio-mapper",
-                "path": path,
-                "status": "stale",
-                "reason_code": "mapper_not_importable",
-                "found": {"path": path},
-                "fix": _fix_mapper(path, which),
-            }
-
-        found_version = match.group(1)
-        bundled_version = bundled_mapper.get("version", "unknown")
-
-        if found_version != bundled_version:
-            return {
-                "name": "simplicio-mapper",
-                "path": path,
-                "status": "stale",
-                "reason_code": "version_mismatch",
-                "found": {"version": found_version, "path": path},
-                "fix": _fix_mapper(path, which),
-            }
-
-        return {
-            "name": "simplicio-mapper",
-            "path": path,
-            "status": "ok",
-            "reason_code": None,
-            "found": {"version": found_version, "path": path},
-            "fix": None,
-        }
+        import simplicio
+        dev_cli = str(getattr(simplicio, "__version__", ""))
+    except ImportError:
+        pass
+    return {"mapper": mapper, "dev_cli_version": dev_cli}
 
 
-def _check_devcli(
-    path: str,
-    bundled_version: str,
-    which: Callable[[str], str | None],
-    run: Callable[[list[str]], tuple[int, str]],
-) -> dict[str, Any]:
-    """Check a dev-cli on PATH."""
-    rc, stdout = run([path, "--version"])
-    if rc != 0:
-        return {
-            "name": "simplicio-dev-cli",
-            "path": path,
-            "status": "stale",
-            "reason_code": "dev_cli_version_unreadable",
-            "found": None,
-            "fix": _fix_devcli(path, which),
-        }
-
-    # Extract version from output (e.g. "simplicio-py 0.26.35")
-    match = _VERSION_RE.search(stdout)
-    if not match:
-        return {
-            "name": "simplicio-dev-cli",
-            "path": path,
-            "status": "stale",
-            "reason_code": "dev_cli_version_unreadable",
-            "found": {"path": path},
-            "fix": _fix_devcli(path, which),
-        }
-
-    found_version = match.group(1)
-    if found_version != bundled_version:
-        return {
-            "name": "simplicio-dev-cli",
-            "path": path,
-            "status": "stale",
-            "reason_code": "version_mismatch",
-            "found": {"version": found_version, "path": path},
-            "fix": _fix_devcli(path, which),
-        }
-
-    return {
-        "name": "simplicio-dev-cli",
-        "path": path,
-        "status": "ok",
-        "reason_code": None,
-        "found": {"version": found_version, "path": path},
-        "fix": None,
-    }
-
-
-def _evaluate_mapper_probe(
-    path: str,
-    rc: int,
-    stdout: str,
-    bundled_mapper: dict[str, Any],
-    interp: str,
-    which: Callable[[str], str | None],
-) -> dict[str, Any]:
-    """Evaluate the mapper probe result."""
-    if rc != 0:
-        return {
-            "name": "simplicio-mapper",
-            "path": path,
-            "status": "stale",
-            "reason_code": "mapper_not_importable",
-            "found": None,
-            "fix": _fix_mapper(path, which),
-        }
-
-    # Parse the JSON output
+def _interpreter(path: str, which: Callable[[str], Optional[str]]) -> Optional[str]:
+    """The interpreter named by the `#!` line of `path`, or None for a native binary."""
     try:
-        data = json.loads(stdout.strip())
-    except json.JSONDecodeError:
-        return {
-            "name": "simplicio-mapper",
-            "path": path,
-            "status": "stale",
-            "reason_code": "mapper_not_importable",
-            "found": None,
-            "fix": _fix_mapper(path, which),
-        }
-
-    # Check for errors
-    if "error" in data:
-        if data["error"] == "no_build_identity":
-            return {
-                "name": "simplicio-mapper",
-                "path": path,
-                "status": "stale",
-                "reason_code": "mapper_identity_missing",
-                "found": data,
-                "fix": _fix_mapper(path, which),
-            }
-        else:
-            return {
-                "name": "simplicio-mapper",
-                "path": path,
-                "status": "stale",
-                "reason_code": "mapper_not_importable",
-                "found": data,
-                "fix": _fix_mapper(path, which),
-            }
-
-    # Compare with bundled
-    found_version = data.get("version")
-    bundled_version = bundled_mapper.get("version")
-
-    if found_version != bundled_version:
-        return {
-            "name": "simplicio-mapper",
-            "path": path,
-            "status": "stale",
-            "reason_code": "version_mismatch",
-            "found": data,
-            "fix": _fix_mapper(path, which),
-        }
-
-    found_origin = data.get("origin")
-    bundled_origin = bundled_mapper.get("origin")
-
-    if found_origin != bundled_origin:
-        return {
-            "name": "simplicio-mapper",
-            "path": path,
-            "status": "stale",
-            "reason_code": "origin_mismatch",
-            "found": data,
-            "fix": _fix_mapper(path, which),
-        }
-
-    # Check commit
-    found_commit = data.get("source_commit")
-    bundled_commit = bundled_mapper.get("source_commit")
-
-    if _is_sha(found_commit) and _is_sha(bundled_commit) and found_commit != bundled_commit:
-        return {
-            "name": "simplicio-mapper",
-            "path": path,
-            "status": "stale",
-            "reason_code": "commit_mismatch",
-            "found": data,
-            "fix": _fix_mapper(path, which),
-        }
-
-    return {
-        "name": "simplicio-mapper",
-        "path": path,
-        "status": "ok",
-        "reason_code": None,
-        "found": data,
-        "fix": None,
-    }
-
-
-def _parse_shebang(shebang_line: str, which: Callable[[str], str | None]) -> str | None:
-    """Extract interpreter path from shebang."""
-    if not shebang_line.startswith("#!"):
+        with open(path, "rb") as handle:
+            head = handle.read(200)
+    except OSError:
         return None
-
-    shebang = shebang_line[2:].strip()
-    parts = shebang.split()
+    if not head.startswith(b"#!"):
+        return None
+    parts = head.decode("utf-8", errors="ignore").splitlines()[0][2:].split()
     if not parts:
         return None
-
-    # Handle /usr/bin/env case
-    if "env" in parts[0]:
-        if len(parts) > 1:
-            return which(parts[1])
-        return None
-
-    # Direct path
-    return parts[0] if parts[0] else None
+    if os.path.basename(parts[0]) == "env":
+        return which(parts[1]) if len(parts) > 1 else None
+    return parts[0]
 
 
-def _is_sha(value: str | Any) -> bool:
-    """Check if a value is a valid 40-char hex SHA."""
-    if not isinstance(value, str):
-        return False
-    return len(value) == 40 and all(c in "0123456789abcdef" for c in value)
-
-
-def _fix_mapper(path: str, which: Callable[[str], str | None]) -> str:
-    """Generate the fix command for a stale mapper."""
-    # Try to extract the interpreter from the shebang
+def _mapper(path: str, interpreter: Optional[str], bundled: dict, run: Run) -> tuple:
+    """(reason_code or None, what was found)."""
+    if interpreter is None:  # a native build: the version is all it tells
+        rc, out = run([path, "--version"])
+        found = _VERSION.search(out)
+        if rc != 0 or not found:
+            return "mapper_not_importable", None
+        version = found.group(1)
+        return (None if version == bundled.get("version") else "version_mismatch"), {"version": version, "path": path}
+    rc, out = run([interpreter, "-I", "-c", _PROBE])
     try:
-        with open(path, "rb") as f:
-            header = f.read(200)
-        if header.startswith(b"#!"):
-            try:
-                shebang_line = header.decode("utf-8", errors="ignore").split("\n")[0]
-                interp = _parse_shebang(shebang_line, which)
-                if interp:
-                    return f"{interp} -m pip uninstall -y simplicio-mapper simplicio-cli && {interp} -m pip install --force-reinstall simplicio-loop"
-            except Exception:
-                pass
-    except (OSError, IOError):
-        pass
+        data = json.loads(out.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        data = None
+    if rc != 0 or not isinstance(data, dict) or data.get("error") == "not_importable":
+        return "mapper_not_importable", data if isinstance(data, dict) else None
+    if data.get("error") == "no_build_identity":
+        return "mapper_identity_missing", data
+    if data.get("version") != bundled.get("version"):
+        return "version_mismatch", data
+    if data.get("origin") != (bundled.get("origin") or mapper_doctor.EXPECTED_ORIGIN):
+        return "origin_mismatch", data
+    found, want = data.get("source_commit"), bundled.get("source_commit")
+    if all(isinstance(sha, str) and _SHA.fullmatch(sha) for sha in (found, want)) and found != want:
+        return "commit_mismatch", data
+    return None, data
 
+
+def _dev_cli(path: str, want: str, run: Run) -> tuple:
+    rc, out = run([path, "--version"])
+    found = _VERSION.search(out)
+    if rc != 0 or not found:
+        return "dev_cli_version_unreadable", None
+    return (None if found.group(1) == want else "version_mismatch"), {"version": found.group(1), "path": path}
+
+
+def _fix(path: str, interpreter: Optional[str]) -> str:
+    if interpreter:
+        return (f"{interpreter} -m pip uninstall -y simplicio-mapper simplicio-cli && "
+                f"{interpreter} -m pip install --force-reinstall simplicio-loop  (as the user that owns {path})")
     return f"remove {path}, then run: python3 -m pip install --force-reinstall simplicio-loop"
 
 
-def _fix_devcli(path: str, which: Callable[[str], str | None]) -> str:
-    """Generate the fix command for a stale dev-cli."""
-    # Try to extract the interpreter from the shebang
-    try:
-        with open(path, "rb") as f:
-            header = f.read(200)
-        if header.startswith(b"#!"):
-            try:
-                shebang_line = header.decode("utf-8", errors="ignore").split("\n")[0]
-                interp = _parse_shebang(shebang_line, which)
-                if interp:
-                    return f"{interp} -m pip uninstall -y simplicio-mapper simplicio-cli && {interp} -m pip install --force-reinstall simplicio-loop"
-            except Exception:
-                pass
-    except (OSError, IOError):
-        pass
+def check(*, which: Optional[Callable[[str], Optional[str]]] = None, run: Optional[Run] = None,
+          bundled: Optional[dict] = None, frozen_exe: Optional[str] = None) -> list:
+    """One row per operator: name, path, status (absent|ok|stale), reason_code, found, bundled, fix.
 
-    return f"remove {path}, then run: python3 -m pip install --force-reinstall simplicio-loop"
+    `frozen_exe`: a PATH entry that resolves to this file is the multi-call binary itself and is ok.
+    """
+    which, run = which or shutil.which, run or _run
+    bundled = bundled if bundled is not None else _bundled()
+    own = os.path.realpath(frozen_exe) if frozen_exe else None
+    rows = []
+    for name in OPERATORS:
+        want = bundled["mapper"] if name == "simplicio-mapper" else bundled["dev_cli_version"]
+        path = which(name)
+        row: dict[str, Any] = {"name": name, "path": path, "status": "absent", "reason_code": None,
+                               "found": None, "bundled": want, "fix": None}
+        if path is not None:
+            interpreter = _interpreter(path, which)
+            if own and os.path.realpath(path) == own:
+                reason, found = None, {"path": path}
+            elif name == "simplicio-mapper":
+                reason, found = _mapper(path, interpreter, want, run)
+            else:
+                reason, found = _dev_cli(path, want, run)
+            row.update(status="ok" if reason is None else "stale", reason_code=reason, found=found,
+                       fix=None if reason is None else _fix(path, interpreter))
+        rows.append(row)
+    return rows
 
 
-def stale(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Filter findings to return only stale operators."""
-    return [f for f in findings if f.get("status") == "stale"]
+def stale(findings: list) -> list:
+    return [row for row in findings if row["status"] == "stale"]
 
 
 __all__ = ["OPERATORS", "check", "stale"]

@@ -513,3 +513,15 @@ class TestStale:
         assert len(result) == 2
         assert all(f["status"] == "stale" for f in result)
         assert {f["name"] for f in result} == {"op2", "op4"}
+
+
+class TestBundled:
+    def test_bundled_identity_carries_origin_and_commit(self):
+        """The identity the PATH copies are compared with must hold origin and commit, not only the version."""
+        pytest.importorskip("simplicio_mapper.build_identity")
+        from simplicio_loop import mapper_doctor
+
+        bundled = path_operators._bundled()
+        assert bundled["mapper"]["origin"] == mapper_doctor.EXPECTED_ORIGIN
+        assert bundled["mapper"]["version"] and bundled["dev_cli_version"]
+
