@@ -140,16 +140,20 @@ def price_for(models: dict[str, Any], model: str) -> dict[str, Any] | None:
 
 
 def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | None) -> dict[str, Any]:
-    '''USD for the run: measured input/output tokens per model times the price table. Always an estimate.
+    '''USD for the run. A provider-reported cost wins when every token event carries one (``proof_kind`` ``medido``);
+    otherwise measured input/output tokens per model times the price table (``estimado``).
 
-    UNVERIFIED (with the reason) when no tokens were measured, the table is missing, or a model has no price. ``by_model``
-    and ``by_task`` list at most TOP_N of the most expensive; with more models, ``others`` carries the model count, tokens and
-    cost of the rest, and ``tasks`` counts every priced task. ``by_iteration`` lists the TOP_N most expensive iterations.
-    ``unattributed_usd`` is the USD of the tokens whose event has no task or no iteration, so each split adds up to ``usd``.
+    UNVERIFIED (with the reason) when no tokens were measured, the table is missing, or a model has no price. Cached,
+    cache-write and reasoning tokens are never priced from the table; their counts are in ``unpriced_tokens``.
+    ``by_model`` and ``by_task`` list at most TOP_N of the most expensive; with more models, ``others`` carries the model
+    count, tokens and cost of the rest, and ``tasks`` counts every priced task. ``by_iteration`` lists the TOP_N most
+    expensive iterations. ``unattributed_usd`` is the USD of the tokens whose event has no task or no iteration, so each
+    split adds up to ``usd``.
     '''
     row: dict[str, Any] = {'usd': None, 'state': 'UNVERIFIED', 'proof_kind': 'estimado', 'reason': None,
                            'as_of': None, 'source_url': None, 'by_model': {}, 'by_task': {}, 'tasks': 0,
-                           'by_iteration': {}, 'iterations': 0, 'unattributed_usd': {'task': None, 'iteration': None}}
+                           'by_iteration': {}, 'iterations': 0, 'unattributed_usd': {'task': None, 'iteration': None},
+                           'unpriced_tokens': {'cached_tokens': 0, 'cache_write_tokens': 0, 'reasoning_tokens': 0}}
     priced_events = list(_token_events(events))
     table = prices.get('models') if isinstance(prices, dict) and isinstance(prices.get('models'), dict) else None
     if isinstance(prices, dict):
@@ -157,33 +161,44 @@ def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | Non
     if not priced_events:
         row['reason'] = 'tokens não medidos: nenhum token_usage com contagem registrada pelo run'
         return row
-    if table is None:
-        row['reason'] = 'tabela de preços indisponível'
-        return row
-    per_model: dict[str, list[float]] = {}
-    for _, model, tokens_in, tokens_out, _, _, _ in priced_events:
+    for event, *_ in priced_events:
+        for key in row['unpriced_tokens']:
+            row['unpriced_tokens'][key] += _number(event['payload'].get(key)) or 0
+    per_model: dict[str, list[float]] = {}  # model -> [tokens_in, tokens_out]
+    for _, model, tokens_in, tokens_out, *_ in priced_events:
         totals = per_model.setdefault(model, [0, 0])
         totals[0] += tokens_in
         totals[1] += tokens_out
-    rates: dict[str, tuple[float, float]] = {}
-    for model in sorted(per_model):
-        price = price_for(table, model)
-        in_rate = _number(price.get('input_per_mtok')) if isinstance(price, dict) else None
-        out_rate = _number(price.get('output_per_mtok')) if isinstance(price, dict) else None
-        if in_rate is None or out_rate is None:
-            row['reason'] = 'sem preço na tabela para o modelo %r' % (model or 'desconhecido')
+    reported = [_number(event['payload'].get('cost')) for event, *_ in priced_events]
+    if all(cost is not None for cost in reported):
+        row['proof_kind'] = 'medido'
+        event_usd = reported
+        model_usd: dict[str, float] = {}
+        for (_, model, *_), usd in zip(priced_events, reported):
+            model_usd[model] = model_usd.get(model, 0.0) + usd
+    else:
+        if table is None:
+            row['reason'] = 'tabela de preços indisponível'
             return row
-        rates[model] = (in_rate, out_rate)
-
-    def usd_of(model: str, tokens_in: float, tokens_out: float) -> float:
-        return (tokens_in * rates[model][0] + tokens_out * rates[model][1]) / 1_000_000
-
-    priced = [(model, usd_of(model, *per_model[model]), per_model[model][0], per_model[model][1]) for model in sorted(per_model)]
+        rates: dict[str, tuple[float, float]] = {}
+        for model in sorted(per_model):
+            price = price_for(table, model)
+            in_rate = _number(price.get('input_per_mtok')) if isinstance(price, dict) else None
+            out_rate = _number(price.get('output_per_mtok')) if isinstance(price, dict) else None
+            if in_rate is None or out_rate is None:
+                row['reason'] = 'sem preço na tabela para o modelo %r' % (model or 'desconhecido')
+                return row
+            rates[model] = (in_rate, out_rate)
+        model_usd = {model: (per_model[model][0] * rates[model][0] + per_model[model][1] * rates[model][1]) / 1_000_000
+                     for model in sorted(per_model)}
+        event_usd = [(tokens_in * rates[model][0] + tokens_out * rates[model][1]) / 1_000_000
+                     for _, model, tokens_in, tokens_out, *_ in priced_events]
     total = 0.0
-    for _, usd, _, _ in priced:
-        total += usd
+    for model in sorted(model_usd):
+        total += model_usd[model]
     row['usd'] = round(total, 6)
     row['state'] = 'ESTIMADO'
+    priced = [(model, model_usd[model], per_model[model][0], per_model[model][1]) for model in sorted(per_model)]
     # The reply stays small however many model ids the run used: the TOP_N most expensive models by name, and one ``others``
     # row with the tokens and cost of the rest, so that the listed parts add up to ``usd``.
     kept = priced if len(priced) <= TOP_N else sorted(heapq.nlargest(TOP_N, priced, key=lambda item: item[1]))
@@ -194,12 +209,11 @@ def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | Non
         tokens_in, tokens_out = sum(item[2] for item in rest), sum(item[3] for item in rest)
         row['others'] = {'models': len(rest), 'tokens_in': tokens_in, 'tokens_out': tokens_out, 'tokens': tokens_in + tokens_out,
                          'usd': round(row['usd'] - sum(row['by_model'].values()), 6), 'state': 'ESTIMADO',
-                         'proof_kind': 'estimado', 'reason': None}
+                         'proof_kind': row['proof_kind'], 'reason': None}
     task_usd: dict[str, float] = {}
     iteration_usd: dict[str, float] = {}
     unattributed = {'task': 0.0, 'iteration': 0.0}
-    for _, model, tokens_in, tokens_out, task, iteration, _ in priced_events:
-        usd = usd_of(model, tokens_in, tokens_out)
+    for (_, _, _, _, task, iteration, _), usd in zip(priced_events, event_usd):
         if task is None:
             unattributed['task'] += usd
         else:
