@@ -35,9 +35,9 @@ script works in isolation. Nothing under the real repo checkout is mutated:
      copy: fresh venv, `--no-deps --no-index`, `PYTHONPATH` cleared, isolation + version asserted,
      `--help` actually executed.
   9. (optional, --binary) Build the standalone executable for the current host using PyInstaller,
-     verify its version output, and generate an SBOM for the binary. Requires network for pip
-     install and PyInstaller; takes minutes. macOS and Windows executables must be built on those
-     systems.
+     verify its version output, and generate an SBOM for the binary. Runs scripts/build_binary.py
+     from the scratch copy; that script builds its own wheel in a private venv and runs PyInstaller.
+     Requires network; takes minutes. macOS and Windows executables must be built on those systems.
 
 Governance gate (#294 scope item 6: "Integrar ao CI/release")
 ----------------------------------------------------------------
@@ -346,15 +346,12 @@ def run_rehearsal(
 
 
 def binary_step_commands(
-    scratch: Path, venv: Path, wheel: Path, out_dir: Path, work_dir: Path, version: str
+    scratch: Path, out_dir: Path, work_dir: Path, version: str
 ) -> list[list[str]]:
-    """Return three argv lists: venv creation, pip install of wheel and PyInstaller, and the build."""
-    python = venv / ("Scripts" if os.name == "nt" else "bin") / ("python.exe" if os.name == "nt" else "python")
+    """Return one argv list: the build_binary command which builds its own wheel and private venv."""
     return [
-        [sys.executable, "-m", "venv", str(venv)],
-        [str(python), "-m", "pip", "install", "--disable-pip-version-check", str(wheel), "pyinstaller"],
-        [str(python), str(scratch / "scripts" / "build_binary.py"), "--allow-dirty", "--version", version,
-         "--out", str(out_dir), "--work", str(work_dir)],
+        [sys.executable, str(scratch / "scripts" / "build_binary.py"), "--allow-dirty", "--version", version,
+         "--out", str(out_dir), "--work", str(work_dir), "--python", sys.executable],
     ]
 
 
@@ -393,7 +390,12 @@ def verify_binary_assets(out_dir: Path, version: str) -> Dict[str, Any]:
 def run_binary_step(
     repo: Path, scratch: Path, workdir: Path, receipt: Dict[str, Any], wheel: Path, source_sha: str, version: str
 ) -> bool:
-    """Build the standalone executable for this host from the wheel and check it. Fills steps.binary."""
+    """Build the standalone executable for this host and check it. Fills steps.binary.
+    
+    The new build_binary.py builds its own wheel in a private venv with PyInstaller.
+    This function runs the single build command with a deterministic environment,
+    verifies the assets, checks the executable version, and generates an SBOM.
+    """
     out_dir = workdir / "binary"
     step: Dict[str, Any] = {"ok": False, "asset": None, "sha256": None, "reason": "", "commands": [],
                             "returncodes": [], "stderr_tail": []}
@@ -403,10 +405,11 @@ def run_binary_step(
     except (RuntimeError, ValueError) as error:
         step["reason"] = f"no SOURCE_DATE_EPOCH: {error}"
         return False
-    commands = binary_step_commands(scratch, workdir / "binary-venv", wheel, out_dir, workdir / "binary-work", version)
+    commands = binary_step_commands(scratch, out_dir, workdir / "binary-work", version)
     step["commands"] = [" ".join(command) for command in commands]
     for index, command in enumerate(commands):
-        env = build_environment(os.environ, epoch) if index == 2 else None
+        # Run the build_binary command with the deterministic environment
+        env = build_environment(os.environ, epoch)
         done = subprocess.run(command, cwd=scratch, env=env, stdin=subprocess.DEVNULL, capture_output=True,
                               text=True, timeout=3600)
         step["returncodes"].append(done.returncode)
@@ -463,7 +466,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--version", default=None, help="explicit version to rehearse a real bump (default: safe +rehearsal<ts> label)")
     p_run.add_argument("--require-signing", action="store_true", help="fail the rehearsal if no gpg key is available (default: sign is best-effort)")
     p_run.add_argument("--keep", action="store_true", help="keep the scratch workdir for inspection")
-    p_run.add_argument("--binary", action="store_true", default=False, help="build the standalone executable too; needs network for pip install of the wheel dependencies and PyInstaller; takes minutes")
+    p_run.add_argument("--binary", action="store_true", default=False, help="build the standalone executable too (uses scripts/build_binary.py with its own wheel and PyInstaller; requires network; takes minutes)")
     p_run.add_argument("--output", default=None, help="also write the receipt JSON to this path")
     p_run.add_argument("--json", action="store_true", help="emit compact single-line JSON")
     p_run.set_defaults(func=_cmd_run)

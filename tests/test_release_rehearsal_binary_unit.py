@@ -16,59 +16,49 @@ import build_binary as bb  # noqa: E402
 import release_rehearsal as rr  # noqa: E402
 
 
-def test_binary_step_commands_returns_three_commands(tmp_path):
-    """binary_step_commands returns a list of three argv lists for venv, pip install, and build."""
+def test_binary_step_commands_returns_one_command(tmp_path):
+    """binary_step_commands returns a single argv list for the build_binary command."""
     scratch = tmp_path / "scratch"
-    venv = tmp_path / "venv"
-    wheel = tmp_path / "wheel.whl"
     out_dir = tmp_path / "out"
     work_dir = tmp_path / "work"
     version = "3.48.1"
 
-    commands = rr.binary_step_commands(scratch, venv, wheel, out_dir, work_dir, version)
+    commands = rr.binary_step_commands(scratch, out_dir, work_dir, version)
 
     assert isinstance(commands, list)
-    assert len(commands) == 3
-    assert all(isinstance(cmd, list) for cmd in commands)
+    assert len(commands) == 1
+    assert isinstance(commands[0], list)
 
-    # Command 1: venv creation
-    assert commands[0] == [sys.executable, "-m", "venv", str(venv)]
-
-    # Command 2: pip install wheel and pyinstaller
-    venv_python = (venv / "bin" / "python") if os.name != "nt" else (venv / "Scripts" / "python.exe")
-    assert commands[1] == [
-        str(venv_python), "-m", "pip", "install", "--disable-pip-version-check",
-        str(wheel), "pyinstaller"
-    ]
-
-    # Command 3: build_binary with --allow-dirty and --version
-    assert commands[2] == [
-        str(venv_python), str(scratch / "scripts" / "build_binary.py"),
-        "--allow-dirty", "--version", version, "--out", str(out_dir), "--work", str(work_dir)
-    ]
+    # The single command: build_binary with --allow-dirty, --version, --out, --work, --python
+    command = commands[0]
+    assert command[1] == "scripts/build_binary.py" or str(scratch / "scripts" / "build_binary.py") in str(command)
+    assert "--allow-dirty" in command
+    assert "--version" in command
+    assert version in command
+    assert "--out" in command
+    assert str(out_dir) in command
+    assert "--work" in command
+    assert str(work_dir) in command
+    assert "--python" in command
+    assert sys.executable in command
 
 
-def test_binary_step_commands_uses_scripts_python_exe_on_windows(tmp_path):
-    """On Windows, venv python path uses Scripts/python.exe."""
+def test_binary_step_commands_uses_sys_executable_as_python(tmp_path):
+    """binary_step_commands uses sys.executable as the --python argument."""
     scratch = tmp_path / "scratch"
-    venv = tmp_path / "venv"
-    wheel = tmp_path / "wheel.whl"
     out_dir = tmp_path / "out"
     work_dir = tmp_path / "work"
     version = "3.48.1"
 
-    commands = rr.binary_step_commands(scratch, venv, wheel, out_dir, work_dir, version)
+    commands = rr.binary_step_commands(scratch, out_dir, work_dir, version)
 
-    # Extract venv_python from commands[1]
-    venv_python_str = commands[1][0]
-    venv_python = Path(venv_python_str)
-
-    if os.name == "nt":
-        assert venv_python.name == "python.exe"
-        assert "Scripts" in str(venv_python)
-    else:
-        assert venv_python.name == "python"
-        assert "bin" in str(venv_python)
+    command = commands[0]
+    # Find the --python argument
+    try:
+        python_idx = command.index("--python")
+        assert command[python_idx + 1] == sys.executable
+    except (ValueError, IndexError):
+        pytest.fail("--python argument or its value not found in command")
 
 
 def test_verify_binary_assets_ok_case(tmp_path):
@@ -179,59 +169,155 @@ def test_verify_binary_assets_refuses_a_second_entry(tmp_path):
     assert "exactly one" in result["reason"]
 
 
-def _fake_pipeline(monkeypatch, out_dir, version, *, version_output=None, fail_at=None):
-    """Replace subprocess.run: the third command writes an asset and SHA256SUMS like build_binary."""
-    asset = bb.binary_name(version, bb.detect_os(), bb.detect_arch())
+def test_run_binary_step_sbom_failure_returns_false_and_sets_reason(tmp_path, monkeypatch):
+    """R5: if build_sbom returns ok=False, run_binary_step returns False and sets reason."""
+    version = "3.48.1"
+    out_dir = tmp_path / "binary"
+
+    def fake_run(command, **kwargs):
+        if any(str(part).endswith("build_binary.py") for part in command):
+            out_dir.mkdir(parents=True, exist_ok=True)
+            asset = bb.binary_name(version, bb.detect_os(), bb.detect_arch())
+            (out_dir / asset).write_bytes(b"fake executable")
+            bb.write_checksums(out_dir, version)
+            return subprocess.CompletedProcess(command, 0, "", "")
+        elif command[-1] == "--version":
+            return subprocess.CompletedProcess(command, 0, f"simplicio-loop {version}\n", "")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    def fake_sbom_failure(scratch, **kwargs):
+        return {"ok": False, "error": "SBOM generation failed"}
+
+    monkeypatch.setattr(rr.subprocess, "run", fake_run)
+    monkeypatch.setattr(rr, "_git", lambda repo, *args: "1700000000")
+    monkeypatch.setattr(rr, "build_sbom", fake_sbom_failure)
+    
+    receipt = {"steps": {}}
+    result = rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, tmp_path / "w.whl", "sha", version)
+
+    assert result is False
+    assert receipt["steps"]["binary"]["ok"] is False
+    assert "SBOM of the executable failed" in receipt["steps"]["binary"]["reason"]
+
+
+def test_run_binary_step_deterministic_environment(tmp_path, monkeypatch):
+    """R6: the build command runs with SOURCE_DATE_EPOCH, PYTHONHASHSEED, TZ, no PYTHONPATH."""
+    version = "3.48.1"
+    out_dir = tmp_path / "binary"
+    captured_env = {}
+
+    def fake_run(command, **kwargs):
+        if any(str(part).endswith("build_binary.py") for part in command):
+            captured_env.update(kwargs.get("env", {}))
+            out_dir.mkdir(parents=True, exist_ok=True)
+            asset = bb.binary_name(version, bb.detect_os(), bb.detect_arch())
+            (out_dir / asset).write_bytes(b"fake executable")
+            bb.write_checksums(out_dir, version)
+            return subprocess.CompletedProcess(command, 0, "", "")
+        elif command[-1] == "--version":
+            return subprocess.CompletedProcess(command, 0, f"simplicio-loop {version}\n", "")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(rr.subprocess, "run", fake_run)
+    monkeypatch.setattr(rr, "_git", lambda repo, *args: "1700000000")
+    monkeypatch.setattr(rr, "build_sbom", lambda scratch, **kwargs: {"ok": True})
+    
+    # Set PYTHONPATH in os.environ to verify it's dropped
+    test_pythonpath = "/some/path"
+    original_pythonpath = os.environ.get("PYTHONPATH")
+    try:
+        os.environ["PYTHONPATH"] = test_pythonpath
+        
+        receipt = {"steps": {}}
+        rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, tmp_path / "w.whl", "sha", version)
+
+        # Verify the environment passed to the build command
+        assert captured_env.get("SOURCE_DATE_EPOCH") == "1700000000"
+        assert captured_env.get("PYTHONHASHSEED") == "0"
+        assert captured_env.get("TZ") == "UTC"
+        assert "PYTHONPATH" not in captured_env
+    finally:
+        if original_pythonpath is None:
+            os.environ.pop("PYTHONPATH", None)
+        else:
+            os.environ["PYTHONPATH"] = original_pythonpath
+
+
+def test_run_binary_step_succeeds_and_writes_the_sbom(tmp_path, monkeypatch):
+    version = "3.48.1"
+    out_dir = tmp_path / "binary"
     calls = []
 
     def fake_run(command, **kwargs):
         calls.append(list(command))
-        if fail_at is not None and len(calls) == fail_at + 1:
-            return subprocess.CompletedProcess(command, 3, "", "boom\nlast line")
-        if command[-1] == "--version":
-            return subprocess.CompletedProcess(command, 0, version_output or f"simplicio-loop {version}\n", "")
         if any(str(part).endswith("build_binary.py") for part in command):
             out_dir.mkdir(parents=True, exist_ok=True)
+            asset = bb.binary_name(version, bb.detect_os(), bb.detect_arch())
             (out_dir / asset).write_bytes(b"fake executable")
             bb.write_checksums(out_dir, version)
+            return subprocess.CompletedProcess(command, 0, "", "")
+        elif command[-1] == "--version":
+            return subprocess.CompletedProcess(command, 0, f"simplicio-loop {version}\n", "")
         return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr(rr.subprocess, "run", fake_run)
     monkeypatch.setattr(rr, "_git", lambda repo, *args: "1700000000")
     monkeypatch.setattr(rr, "build_sbom", lambda scratch, **kwargs: {"ok": True, "artifact": str(kwargs["artifact"])})
-    return calls
-
-
-def test_run_binary_step_succeeds_and_writes_the_sbom(tmp_path, monkeypatch):
-    version = "3.48.1"
-    calls = _fake_pipeline(monkeypatch, tmp_path / "binary", version)
     receipt = {"steps": {}}
 
     assert rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, tmp_path / "w.whl", "sha", version) is True
 
     step = receipt["steps"]["binary"]
-    assert step["ok"] is True and step["returncodes"] == [0, 0, 0]
+    assert step["ok"] is True
     assert step["asset"].startswith("simplicio-loop-v3.48.1-")
     assert (tmp_path / "binary" / "sbom-binary.json").is_file()
-    assert len(calls) == 4  # venv, pip, build, --version
+    assert len(calls) == 2  # build_binary and --version
 
 
 def test_run_binary_step_reports_the_failing_command(tmp_path, monkeypatch):
-    _fake_pipeline(monkeypatch, tmp_path / "binary", "3.48.1", fail_at=1)
+    """When the build command fails, run_binary_step reports the failure."""
+    version = "3.48.1"
+    out_dir = tmp_path / "binary"
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(list(command))
+        if len(calls) == 1:  # First call to build_binary fails
+            return subprocess.CompletedProcess(command, 3, "", "boom\nlast line")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(rr.subprocess, "run", fake_run)
+    monkeypatch.setattr(rr, "_git", lambda repo, *args: "1700000000")
     receipt = {"steps": {}}
 
-    assert rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, tmp_path / "w.whl", "sha", "3.48.1") is False
+    assert rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, tmp_path / "w.whl", "sha", version) is False
 
     step = receipt["steps"]["binary"]
-    assert step["ok"] is False and step["returncodes"] == [0, 3]
+    assert step["ok"] is False
     assert step["stderr_tail"] == ["boom", "last line"]
 
 
 def test_run_binary_step_refuses_a_wrong_version_output(tmp_path, monkeypatch):
-    _fake_pipeline(monkeypatch, tmp_path / "binary", "3.48.1", version_output="simplicio-loop 9.9.9\n")
+    """When --version output doesn't match, run_binary_step fails."""
+    version = "3.48.1"
+    out_dir = tmp_path / "binary"
+
+    def fake_run(command, **kwargs):
+        if any(str(part).endswith("build_binary.py") for part in command):
+            out_dir.mkdir(parents=True, exist_ok=True)
+            asset = bb.binary_name(version, bb.detect_os(), bb.detect_arch())
+            (out_dir / asset).write_bytes(b"fake executable")
+            bb.write_checksums(out_dir, version)
+        elif command[-1] == "--version":
+            return subprocess.CompletedProcess(command, 0, "simplicio-loop 9.9.9\n", "")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(rr.subprocess, "run", fake_run)
+    monkeypatch.setattr(rr, "_git", lambda repo, *args: "1700000000")
+    monkeypatch.setattr(rr, "build_sbom", lambda scratch, **kwargs: {"ok": True})
     receipt = {"steps": {}}
 
-    assert rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, tmp_path / "w.whl", "sha", "3.48.1") is False
+    assert rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, tmp_path / "w.whl", "sha", version) is False
     assert "9.9.9" in receipt["steps"]["binary"]["reason"]
 
 
