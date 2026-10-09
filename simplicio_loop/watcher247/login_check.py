@@ -18,6 +18,7 @@ SERVICE_USER = "simplicio-loop"  # User= of packaging/systemd/simplicio-loop-247
 #   grok     `grok login --help`      -> `grok login` (--oauth / --device-auth select the flow)
 #   opencode `opencode auth --help`   -> auth login|logout|list
 #   agy      `agy --help`             -> no login subcommand; sign-in happens when the interactive CLI starts
+# Status (#1513): see exec_auth._STATUS_ARGS / _CREDENTIAL_PATHS (opencode: `auth list` count; agy: token file stat).
 _LOGIN = {
     "claude": "claude auth login",
     "codex": "codex login",

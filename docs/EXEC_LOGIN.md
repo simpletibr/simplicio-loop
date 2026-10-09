@@ -153,7 +153,7 @@ ls -l ~simplicio-loop/.gemini/credentials
 sudo -u simplicio-loop -H agy
 ```
 
-Sem subcomando de status: o preflight (`exec_auth`) não tem verificação específica para `agy`.
+Sem subcomando de status: o preflight (`exec_auth`) confere por `stat` (existe, arquivo regular, não vazio, conteúdo nunca lido) o arquivo `~/.gemini/antigravity-cli/antigravity-oauth-token`. VERIFICADO neste host (o arquivo existe após o sign-in); a ausência do arquivo dá `login_missing`.
 
 ### opencode
 
@@ -164,6 +164,8 @@ sudo -u simplicio-loop -H opencode auth login
 # Listar provedores/credenciais configurados
 sudo -u simplicio-loop -H opencode auth list
 ```
+
+O preflight roda `opencode auth list` (sai com 0 mesmo sem credenciais) e usa só o número da linha final `N credentials`; N > 0 é login ok. O resto da saída (nomes de provedores) é descartado e o `auth.json` nunca é lido. VERIFICADO neste host, inclusive com `auth.json` vazio/`{}` (0 credentials).
 
 ## Variáveis de Ambiente (Alternativa)
 
