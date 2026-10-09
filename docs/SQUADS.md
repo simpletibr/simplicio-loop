@@ -111,7 +111,7 @@ simplicio-loop squads metrics --compare before.json after.json --json   # o mesm
 
 The loop selects the number of squads itself. It runs fast without overloading the machine. Call `simplicio-loop squads plan` with option `--squads auto` (the default). The 24/7 watcher probes once each tick. The JSON from `squads plan` has a `capacity` block. The block lists numbers and `reasons`.
 
-The plan still lists all squads. The `capacity` block tells how many squads and workers run at the same time. When a worker ends, start the next one. In the watcher, the same number is the batch size of the tick, so one issue is no longer the default limit.
+The plan still lists all squads. The `capacity` block tells how many squads and workers run at the same time. When a worker ends, start the next one. In the watcher, each tick sizes its batch from the supply only. Demand does not limit it. If five issues are in one repo, the tick claims all five. They run one at a time behind the repo lock.
 
 ### Demand
 
@@ -143,9 +143,11 @@ If the probe cannot measure a value, the loop uses one worker. Set `proof_kind` 
 
 Pass `--squads N` or set `SIMPLICIO_SQUADS=N`. This overrides machine limits. N must be one or more. Zero is not valid. The flag wins over the variable. The loop never makes more squads than issues that can run together.
 
-Set `SIMPLICIO_PRISM_SLOTS` or `SIMPLICIO_LOOP_OPERATOR_WORKERS` to a value that the economy profile did not set. This fixes the worker count. The economy profile exports its own value to every session. That value is not an override, and the machine limits still decide.
+Set `SIMPLICIO_PRISM_SLOTS` or `SIMPLICIO_LOOP_OPERATOR_WORKERS` to a value above the static figure of the economy profile. This fixes the worker count. The static figure depends on the cores and the total memory only. The economy profile exports its own value to every session. It lowers that value when free memory is low. A value at or below the static figure is the profile's own value. It is not an override, and the machine limits still decide.
 
-In the watcher, `SIMPLICIO_247_CONCURRENCY` is the override. The daily budget always caps an override.
+In the watcher, `SIMPLICIO_247_CONCURRENCY` is the override. The daily budget always caps an override. Use a whole number from 1 to 999999 in ASCII digits. An empty value means that the variable is not set. Any other value is invalid, for example `0`, `-1`, `2.0` or `lots`. An invalid value is not an override and does not stop the tick. The automatic sizing decides. The plan gets a `WARN:` reason that names the invalid value.
+
+An override can start more workers than the machine allows. The plan then starts its first reason with `WARN:`. The `warnings` list of the `capacity` block has the same warning. `squads plan` prints it to stderr, and the watcher writes it once to the log of each tick. The plan keeps its `limited_by` and `proof_kind` fields. `proof_kind` only tells if the probe measured every value.
 
 ### Between waves
 

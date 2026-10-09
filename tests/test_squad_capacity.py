@@ -221,15 +221,18 @@ def test_limits_from_env_reads_the_squads_override():
             Limits.from_env({"SIMPLICIO_SQUADS": bad}, economy=ECONOMY)
 
 
-def test_a_worker_env_that_differs_from_the_economy_profile_is_a_user_override():
+def test_a_worker_env_above_the_economy_profile_is_a_user_override():
     assert Limits.from_env({"SIMPLICIO_PRISM_SLOTS": "20"}, economy=ECONOMY).workers == 20
-    both = {"SIMPLICIO_PRISM_SLOTS": "20", "SIMPLICIO_LOOP_OPERATOR_WORKERS": "6"}
-    assert Limits.from_env(both, economy=ECONOMY).workers == 6, "when both are explicit the smaller one is used"
+    both = {"SIMPLICIO_PRISM_SLOTS": "20", "SIMPLICIO_LOOP_OPERATOR_WORKERS": "12"}
+    assert Limits.from_env(both, economy=ECONOMY).workers == 12, "when both are explicit the smaller one is used"
+    assert Limits.from_env({"SIMPLICIO_PRISM_SLOTS": "10"}, economy=ECONOMY).workers == 10, "one above the static figure"
 
 
 def test_the_economy_profiles_own_values_are_not_an_override():
     # `simplicio-loop economy apply` exports these two for every session; they must not switch the load check off.
     assert Limits.from_env(dict(ECONOMY), economy=ECONOMY).workers is None
+    # ...nor does a value at or below the static figure: the profile tightens its value when free RAM is low.
+    assert Limits.from_env({"SIMPLICIO_PRISM_SLOTS": "2", "SIMPLICIO_LOOP_OPERATOR_WORKERS": "3"}, economy=ECONOMY).workers is None
 
 
 def test_garbage_worker_envs_are_ignored():
@@ -244,10 +247,149 @@ def test_extra_worker_envs_are_always_explicit():
 
 
 def test_limits_from_env_computes_the_economy_profile_when_not_injected(monkeypatch):
-    monkeypatch.setattr(economy_profile, "economy_parallel_env",
-                        lambda **kw: {"SIMPLICIO_PRISM_SLOTS": "7", "SIMPLICIO_LOOP_OPERATOR_WORKERS": "7"})
+    monkeypatch.setattr(economy_profile, "recommend_prism_slots_static", lambda *a, **kw: 7)
+    monkeypatch.setattr(economy_profile, "recommend_operator_workers", lambda *a, **kw: 7)
     assert Limits.from_env({"SIMPLICIO_PRISM_SLOTS": "7"}).workers is None
     assert Limits.from_env({"SIMPLICIO_PRISM_SLOTS": "8"}).workers == 8
+    assert Limits.from_env({"SIMPLICIO_LOOP_OPERATOR_WORKERS": "8"}).workers == 8
+
+
+def _host_with_free_ram(monkeypatch, avail_gb):
+    """A 10-core host with 32 GiB in total and `avail_gb` free: the profile exports 9 on an idle host."""
+    monkeypatch.setattr(economy_profile, "_cpu_count", lambda: 10)
+    monkeypatch.setattr(economy_profile, "_ram_gb", lambda: (32.0, avail_gb))
+
+
+def test_a_profile_value_exported_on_an_idle_host_is_not_an_override_when_the_ram_is_low_later(monkeypatch):
+    # Audit of #1572, defect 1. `economy apply` exported PRISM_SLOTS=9; now only 2.0 GiB are free, so the profile would
+    # recompute 2. The old code saw 9 != 2, took it for a user override and switched ALL machine limits off.
+    _host_with_free_ram(monkeypatch, 20.0)
+    exported = economy_profile.economy_parallel_env()
+    assert exported["SIMPLICIO_PRISM_SLOTS"] == "9"
+    _host_with_free_ram(monkeypatch, 2.0)
+    assert economy_profile.economy_parallel_env()["SIMPLICIO_PRISM_SLOTS"] == "2"
+    env = {k: exported[k] for k in ("SIMPLICIO_PRISM_SLOTS", "SIMPLICIO_LOOP_OPERATOR_WORKERS")}
+    limits = Limits.from_env(env)
+    assert limits.workers is None and limits.override_source == ""
+    plan = squad_capacity.recommend(independent(10), probe(cpu=10, mem_gib=2.0), limits)
+    assert plan.limited_by == "memory" and plan.total_workers == 1, "the machine decides, not an override"
+    assert plan.warnings == () and not any(r.startswith(("override", "WARN")) for r in plan.reasons)
+
+
+def test_a_deliberate_value_above_the_profile_still_overrides_when_the_ram_is_low(monkeypatch):
+    _host_with_free_ram(monkeypatch, 2.0)
+    for value in ("10", "20", "64"):
+        limits = Limits.from_env({"SIMPLICIO_PRISM_SLOTS": value})
+        assert limits.workers == int(value) and limits.override_source == "SIMPLICIO_PRISM_SLOTS"
+    assert Limits.from_env({"SIMPLICIO_PRISM_SLOTS": "9"}).workers is None, "the static figure itself is the profile's"
+    assert Limits.from_env({"SIMPLICIO_LOOP_OPERATOR_WORKERS": "10"}).workers is None
+    assert Limits.from_env({"SIMPLICIO_LOOP_OPERATOR_WORKERS": "11"}).workers == 11
+    plan = squad_capacity.recommend(independent(12), probe(cpu=10, mem_gib=2.0), Limits.from_env({"SIMPLICIO_PRISM_SLOTS": "10"}))
+    assert plan.total_workers == 10 and plan.limited_by == "override"
+
+
+# ---------------------------------------------------------------------------------------------- invalid SIMPLICIO_247_CONCURRENCY
+
+CONCURRENCY = "SIMPLICIO_247_CONCURRENCY"
+
+
+def _concurrency(value):
+    return Limits.from_env({CONCURRENCY: value}, economy=ECONOMY, extra_worker_envs=(CONCURRENCY,))
+
+
+@pytest.mark.parametrize("bad", ["0", "-1", "2.0", "lots", "\u00b2", "\u0663", "9" * 5000, "1234567", "+3", "1e2"],
+                         ids=["zero", "negative", "float", "text", "superscript", "arabic-indic", "5000-digits", "7-digits", "plus", "exp"])
+def test_an_invalid_concurrency_never_raises_and_falls_back_to_the_automatic_sizing_with_a_warning(bad):
+    limits = _concurrency(bad)  # must not raise, whatever the text
+    assert limits.workers is None and limits.override_source == ""
+    assert len(limits.warnings) == 1 and limits.warnings[0].startswith("WARN: ")
+    assert CONCURRENCY in limits.warnings[0] and "automatic" in limits.warnings[0]
+    assert len(limits.warnings[0]) < 300, "a huge value is clipped in the message"
+    if len(bad) < 40:
+        assert repr(bad) in limits.warnings[0], "the message names the invalid value"
+    plan = squad_capacity.recommend(independent(4), probe(cpu=10), limits)
+    assert plan.total_workers == 4 and plan.warnings == limits.warnings
+    assert limits.warnings[0] in plan.reasons and json.loads(json.dumps(plan.to_dict()))["warnings"] == list(limits.warnings)
+
+
+@pytest.mark.parametrize("good,expected", [("3", 3), (" 3", 3), ("08", 8), ("3 ", 3), ("999999", 999999), ("1", 1)])
+def test_a_valid_concurrency_is_the_override(good, expected):
+    limits = _concurrency(good)
+    assert limits.workers == expected and limits.override_source == CONCURRENCY and limits.warnings == ()
+
+
+@pytest.mark.parametrize("unset", ["", "   "])
+def test_an_unset_concurrency_is_automatic_without_a_warning(unset):
+    limits = _concurrency(unset)
+    assert limits.workers is None and limits.warnings == ()
+    assert Limits.from_env({}, economy=ECONOMY, extra_worker_envs=(CONCURRENCY,)).warnings == ()
+
+
+def test_parse_squads_never_raises_anything_but_value_error():
+    for bad in ("\u00b2", "9" * 5000, "\u0663", "1" * 7):
+        with pytest.raises(ValueError, match="squads must be"):
+            squad_capacity.parse_squads(bad)
+    assert squad_capacity.parse_squads("999999") == 999999
+
+
+# ---------------------------------------------------------------------------------------------- override above the machine
+
+LOADED = (9.6, 9.7, 9.9)  # a busy 10-core host: the machine allows 1 worker (limited by load)
+
+
+def test_an_override_above_the_machine_warns_in_the_plan():
+    plan = rec(independent(10), probe(cpu=10, load=LOADED), workers=64, override_source="SIMPLICIO_PRISM_SLOTS")
+    assert plan.total_workers == 10, "the override still wins: it is the user's decision"
+    assert len(plan.warnings) == 1 and plan.warnings[0].startswith("WARN: ")
+    for part in ("SIMPLICIO_PRISM_SLOTS", "10 worker(s)", "allows 1", "load"):
+        assert part in plan.warnings[0], part
+    assert plan.reasons[0].startswith("WARN: ") and "limited by demand" not in plan.reasons[0], "the headline says it"
+    override_line = next(r for r in plan.reasons if "wins over the machine limits" in r)
+    assert override_line.startswith("WARN: override: 64 worker(s) set by SIMPLICIO_PRISM_SLOTS")
+    assert json.loads(json.dumps(plan.to_dict()))["warnings"] == list(plan.warnings)
+
+
+def test_a_squads_override_above_the_machine_warns_too():
+    plan = rec(independent(8), probe(cpu=10, load=LOADED), squads=3, override_source="--squads")
+    assert plan.total_workers == 8 and plan.warnings and "--squads" in plan.warnings[0]
+    assert plan.reasons[0].startswith("WARN: ")
+
+
+def test_a_budget_cap_does_not_hide_the_warning():
+    plan = rec(independent(10), probe(cpu=10, load=LOADED), workers=64, budget_left=3, override_source="X")
+    assert plan.total_workers == 3 and plan.limited_by == "budget" and plan.warnings
+
+
+def test_the_warning_does_not_change_proof_kind():
+    assert rec(independent(10), probe(cpu=10, load=LOADED), workers=64).proof_kind == "MEASURED"
+    partial = Probe(cpu_count=10, load_average=LOADED, memory_available_bytes=None, disk_free_bytes=500 * GIB)
+    plan = rec(independent(10), partial, workers=64)
+    assert plan.warnings and plan.proof_kind == "UNVERIFIED", "a missing value stays UNVERIFIED next to the warning"
+
+
+@pytest.mark.parametrize("limits", [dict(), dict(workers=2), dict(squads=1), dict(workers=64), dict(workers=8)])
+def test_no_warning_when_nothing_runs_above_what_the_machine_allows(limits):
+    # idle 10 cores allow 8; an override that stays within it, or demand that keeps the run within it, is silent
+    issues = independent(1) if limits.get("workers") == 64 else independent(10)
+    plan = rec(issues, probe(cpu=10), **limits)
+    assert plan.total_workers <= 8 and plan.warnings == ()
+    assert not plan.reasons[0].startswith("WARN") and not any(r.startswith("WARN") for r in plan.reasons)
+
+
+def test_one_worker_above_the_machine_is_already_a_warning():
+    plan = rec(independent(10), probe(cpu=10), workers=9)  # an idle 10-core host allows 8
+    assert plan.total_workers == 9 and len(plan.warnings) == 1 and "allows 8" in plan.warnings[0]
+
+
+def test_an_override_that_demand_keeps_within_the_machine_is_not_a_warning():
+    plan = rec(independent(1), probe(cpu=10, load=LOADED), workers=64)
+    assert plan.total_workers == 1 and plan.warnings == ()
+
+
+def test_resize_keeps_the_warning_of_an_override():
+    plan = rec(independent(10), probe(cpu=10, load=LOADED), workers=64)
+    again = squad_capacity.resize(plan, probe(cpu=10, load=LOADED))
+    assert again.warnings == plan.warnings
 
 
 # ---------------------------------------------------------------------------------------------- properties

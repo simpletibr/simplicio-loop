@@ -423,7 +423,10 @@ async def tick(dry_run: bool = False) -> None:
     fixes = await state.load(config.FIXES, {"queued": {}, "seen": []})
     probe = await asyncio.to_thread(squad_capacity.measure, config.ROOT)  # ONE probe per tick: sizing, planning and resource_governor share it
     limits = squad_capacity.Limits.from_env(extra_worker_envs=(config.CONCURRENCY_ENV,), budget_left=await budget.slots_left())
-    limit = min(squad_capacity.supply(probe, limits).workers, await budget.issues_left())  # automatic unless the operator pinned it
+    sizing = squad_capacity.supply(probe, limits)
+    limit = min(sizing.workers, await budget.issues_left())  # automatic unless the operator pinned it
+    for warning in limits.warnings:  # an invalid setting was ignored: say so once per tick, never fail the tick
+        state.log(warning)
     gate_cache: dict = {}
     seen: list[str] = []
     batch: list[Work] = []
@@ -474,6 +477,9 @@ async def tick(dry_run: bool = False) -> None:
     if persist and baseline is not None:
         await state.save(config.FIXES, fixes)
     if batch:
+        overload = squad_capacity.overload_warning(limits, sizing.caps, len({w.repo for w in batch}))  # a repo's issues run one at a time
+        if overload:
+            state.log(overload)
         idents = [state.key_of(w.repo, int(w.issue["number"])) for w in batch]
         if dry_run:
             for ident in idents:
