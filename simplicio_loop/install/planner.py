@@ -241,8 +241,6 @@ def uninstall(target: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
     root = Path(target).resolve()
     receipt = _read_receipt(root)
     files = sorted({RECEIPT.as_posix(), *_listed(receipt, "paths")})
-    for rel in (*files, *_listed(receipt, "dirs")):  # validate everything before deleting anything
-        _receipt_path(root, rel)
     gone: set[str] = set()
     removed: list[str] = []
     skipped: list[str] = []
