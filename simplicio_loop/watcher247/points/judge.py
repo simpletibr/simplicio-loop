@@ -12,6 +12,7 @@ from ... import review_panel
 from .. import proc, secret_scan, state
 from . import _plan
 from .registry import PointContext, PointResult, register
+from ...error_truncation import truncate_error_with_cause
 
 NAME = "judge"
 VERDICT_FILE = "judge.json"
@@ -101,7 +102,7 @@ async def judge(ctx: PointContext) -> PointResult:
     tracked = await proc.run(["git", "diff", "HEAD", "--unified=0", "--no-color"], cwd=ctx.clone)
     for done in (status, tracked):  # a diff that cannot be read is not an empty diff: fail closed
         if done.returncode != 0:
-            return PointResult(NAME, "error", {"error": (done.stderr or "")[-300:]}, "git_failed")
+            return PointResult(NAME, "error", {"error": truncate_error_with_cause(done.stderr or "", head_chars=200, tail_chars=200, total_limit=500)}, "git_failed")
     files, deleted, untracked = _changes(status.stdout)
     if not files:  # nothing changed is a legitimate result (done_no_diff in the tick): nothing to judge, no PR
         _save(ctx, {"verdict": NO_DIFF, "reasons": [], "files": [], "secret_files": []})

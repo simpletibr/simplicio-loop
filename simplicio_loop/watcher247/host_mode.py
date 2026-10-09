@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import escalation, exec_auth, exec_planner, execution_report, executor_select
+from ..error_truncation import truncate_error_with_cause
 from . import budget, config, proc, sandbox, verify
 from . import convergence  # the failed-verify path asks it: retry, escalate or stop (a module, not a point)
 
@@ -162,8 +163,10 @@ async def _request(dest: Path, task: str, run_id: str | None = None) -> tuple[st
     document = verify.parse_turbo(result.stdout or "")
     run_id = document.get("run_id")
     if document.get("status") != "needs_plan" or not isinstance(run_id, str):
-        reason = document.get("detail") or document.get("reason_code") or (result.stderr or "")[-300:] or "no request"
-        raise RuntimeError(f"turbo request {document.get('status') or 'failed'}: {reason}"[:500])
+        stderr = result.stderr or ""
+        truncated_stderr = truncate_error_with_cause(stderr, head_chars=200, tail_chars=200, total_limit=600) if stderr else "no stderr"
+        reason = document.get("detail") or document.get("reason_code") or truncated_stderr or "no request"
+        raise RuntimeError(f"turbo request {document.get('status') or 'failed'}: {reason}")
     return json.dumps(document, ensure_ascii=False, separators=(",", ":")), run_id
 
 

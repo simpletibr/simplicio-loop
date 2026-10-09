@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from ..error_truncation import truncate_error_with_cause
 
 UNVERIFIED = "UNVERIFIED|no_test_command"
 
@@ -66,11 +67,11 @@ def parse_turbo(stdout: str) -> dict:
         if start < 0:
             start = text.rfind("{")
         if start < 0:
-            return {"status": "failed", "detail": text[-400:]}
+            return {"status": "failed", "detail": truncate_error_with_cause(text, head_chars=200, tail_chars=200, total_limit=600)}
         try:
             return json.loads(text[start:])
         except json.JSONDecodeError:
-            return {"status": "failed", "detail": text[-400:]}
+            return {"status": "failed", "detail": truncate_error_with_cause(text, head_chars=200, tail_chars=200, total_limit=600)}
 
 
 def retry_or_dead(attempts: int, max_attempts: int) -> str:
@@ -89,7 +90,8 @@ def decide(document: dict, test_cmd: str | None, attempts: int, max_attempts: in
     status = document.get("status") or "failed"
     report = document.get("verify") if isinstance(document.get("verify"), dict) else None
     if test_cmd is not None and report is not None and not report.get("passed"):
-        tail = (report.get("output_tail") or "verify failed without output")[-_REASON_CAP:]
+        output = report.get("output_tail") or "verify failed without output"
+        tail = truncate_error_with_cause(output, head_chars=150, tail_chars=150, total_limit=_REASON_CAP + 100)
         return Decision(retry_or_dead(attempts, max_attempts), f"MEASURED|verify_failed: `{test_cmd}`",
                         f"verify failed: {tail}")
     if status != "ok":
