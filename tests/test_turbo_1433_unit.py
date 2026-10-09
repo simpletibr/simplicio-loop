@@ -9,6 +9,7 @@ import hashlib
 import json
 import subprocess
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -43,7 +44,7 @@ def repo(tmp_path, monkeypatch):
         json.dumps({"schema": "simplicio.project-map/v1", "files": [{"path": "hello.txt", "symbols": []}]}),
         encoding="utf-8",
     )
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root, **kwargs: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     return root
 
 

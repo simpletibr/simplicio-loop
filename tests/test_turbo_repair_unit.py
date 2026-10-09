@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 from simplicio_loop import turbo_provider
 from simplicio_loop.cli_impl import main as cli_main
@@ -66,7 +67,7 @@ def test_the_repair_prompt_tells_the_model_the_listed_files_already_exist(tmp_pa
     repo = _seed(tmp_path)
     (repo / ".simplicio-loop").mkdir()
     (repo / ".simplicio-loop" / "project-map.json").write_text('{"files":[]}', encoding="utf-8")
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root, **kwargs: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     seen = []
     tasks = [{"index": 1, "text": "Fix inventory.py", "target": "inventory.py", "context": [], "depends_on": []}]
 
