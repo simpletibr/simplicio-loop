@@ -1,282 +1,294 @@
-"""Tests for simplicio_loop.watcher_github (#1470, #1471)."""
+"""Tests for simplicio_loop.watcher_github (#1470, #1471).
+
+The real github_lifecycle, pr_patrol and scripts.pr_evidence code runs. Only the `gh`
+subprocess boundary is faked: FakeGh keeps issues, comments and PRs in memory, records every
+argv and refuses every PR write.
+"""
 import asyncio
 import json
+import re
 import subprocess
-from unittest.mock import MagicMock, patch
 
 import pytest
 
+from simplicio_loop.github_lifecycle import LIFECYCLE_COMMENT_MARKER, GitHubTransportError
 from simplicio_loop.watcher_github import (
-    post_status,
+    ClaimReceipt,
+    FixTask,
     claim_on_github,
     patrol_open_prs,
-    FixTask,
-    ClaimReceipt,
+    post_status,
 )
+
+REPO = "acme/widgets"
+PR_WRITE_SUBCOMMANDS = {"close", "merge", "edit", "ready", "reopen", "review", "comment"}
 
 
 class FakeGh:
-    """Fake gh runner for tests."""
+    """In-memory `gh`: the injected runner for every primitive under test."""
 
-    def __init__(self):
-        self.calls = []  # Track all gh calls
-        self.comments = {}  # Fake comments storage
-        self.pr_state = {}  # Fake PR state storage
+    def __init__(self, prs=(), pr_views=None, pr_inline=None):
+        self.calls = []
+        self.comments = {}  # issue number -> [comment dict]
+        self.next_id = 1001
+        self.prs = list(prs)
+        self.pr_views = pr_views or {}
+        self.pr_inline = pr_inline or {}
+        self.pr_writes = []  # attempted PR writes (each one also raises)
+        self.api_writes = []  # (method, path) of every non-GET api call
+        self.fail = False
 
-    def __call__(self, cmd, **kwargs):
-        """Mock subprocess.run for gh commands."""
-        self.calls.append({"cmd": cmd, "kwargs": kwargs})
+    def issue_comments(self, issue):
+        return self.comments.setdefault(int(issue), [])
 
-        # Ensure we never write to close/merge PRs
-        if "pr" in cmd and ("close" in cmd or "merge" in cmd or "edit" in cmd):
-            raise RuntimeError("Attempted to write to PR (close/merge/edit not allowed)")
+    def marker_comments(self, issue):
+        return [c for c in self.issue_comments(issue) if LIFECYCLE_COMMENT_MARKER in c["body"]]
 
-        # Simulate comment API responses
-        if "api" in cmd and "comments" in cmd:
-            if "-X" in cmd and "POST" in cmd:
-                # Create comment
-                body = kwargs.get("input", "")
-                if body:
-                    try:
-                        data = json.loads(body)
-                        comment_id = len(self.comments) + 1
-                        self.comments[comment_id] = data
-                        return subprocess.CompletedProcess(
-                            cmd, 0,
-                            stdout=json.dumps({"id": comment_id, **data}),
-                            stderr=""
-                        )
-                    except Exception:
-                        pass
-            elif "-X" in cmd and "PATCH" in cmd:
-                # Update comment
-                body = kwargs.get("input", "")
-                if body:
-                    try:
-                        data = json.loads(body)
-                        # Simulate updating first comment
-                        cid = 1
-                        self.comments[cid] = data
-                        return subprocess.CompletedProcess(
-                            cmd, 0,
-                            stdout=json.dumps({"id": cid, **data}),
-                            stderr=""
-                        )
-                    except Exception:
-                        pass
+    def __call__(self, argv, **kwargs):
+        self.calls.append(list(argv))
+        assert argv[0] == "gh", argv
+        if argv[1] == "pr":
+            return self._pr(argv)
+        assert argv[1] == "api", argv
+        return self._api(argv, kwargs.get("input"))
 
-        # Return empty PR list by default
-        if "pr" in cmd and "list" in cmd:
-            return subprocess.CompletedProcess(
-                cmd, 0, stdout=json.dumps([]), stderr=""
-            )
+    @staticmethod
+    def _ok(argv, payload):
+        return subprocess.CompletedProcess(argv, 0, json.dumps(payload), "")
 
-        # Return empty for unknown commands
-        return subprocess.CompletedProcess(cmd, 0, stdout="{}", stderr="")
+    def _pr(self, argv):
+        sub = argv[2]
+        if sub in PR_WRITE_SUBCOMMANDS:
+            self.pr_writes.append(list(argv))
+            raise RuntimeError("PR write blocked: %s" % " ".join(argv))
+        if sub == "list":
+            return self._ok(argv, self.prs)
+        if sub == "view":
+            return self._ok(argv, self.pr_views[int(argv[3])])
+        raise AssertionError("unexpected gh call: %r" % (argv,))
 
-
-def test_post_status_creates_comment():
-    """Test: Single status comment created."""
-    fake_gh = FakeGh()
-    
-    async def run_test():
-        # Mock the github_lifecycle functions
-        with patch("simplicio_loop.watcher_github._github_lifecycle") as mock_gl:
-            mock_gl.validate_transition.return_value = {"ok": True}
-            mock_gl.publish_lifecycle_state.return_value = {
-                "verified": True,
-                "outcome": "created",
-                "state": "CLAIMED",
-                "comment_id": 1
-            }
-            mock_gl.get_details.return_value = {"lifecycle_state": "DISCOVERED"}
-            
-            result = await post_status(
-                repo="owner/repo",
-                issue="42",
-                state="CLAIMED",
-                runner=fake_gh,
-            )
-            
-            assert result["verified"]
-            assert result["state"] == "CLAIMED"
-    
-    asyncio.run(run_test())
+    def _api(self, argv, payload):
+        args = argv[2:]
+        method = args[args.index("-X") + 1] if "-X" in args else "GET"
+        path = next(a for a in args if a.startswith("repos/"))
+        route, _, query = path.partition("?")
+        if self.fail:
+            return subprocess.CompletedProcess(argv, 1, "", "boom")
+        if method != "GET":
+            self.api_writes.append((method, path))
+            if "/pulls/" in route:
+                self.pr_writes.append(list(argv))
+                raise RuntimeError("PR write blocked: %s" % " ".join(argv))
+        found = re.fullmatch(r"repos/[^/]+/[^/]+/issues/(\d+)/comments", route)
+        if found:
+            comments = self.issue_comments(found.group(1))
+            if method == "POST":
+                comment = {"id": self.next_id, "body": json.loads(payload)["body"]}
+                self.next_id += 1
+                comments.append(comment)
+                return self._ok(argv, comment)
+            if "page=" in query and "page=1" not in query:
+                return self._ok(argv, [])
+            return self._ok(argv, comments)
+        found = re.fullmatch(r"repos/[^/]+/[^/]+/issues/comments/(\d+)", route)
+        if found:
+            wanted = int(found.group(1))
+            comment = next(c for cs in self.comments.values() for c in cs if c["id"] == wanted)
+            if method == "PATCH":
+                comment["body"] = json.loads(payload)["body"]
+            return self._ok(argv, comment)
+        found = re.fullmatch(r"repos/[^/]+/[^/]+/issues/(\d+)", route)
+        if found:
+            return self._ok(argv, {
+                "number": int(found.group(1)), "title": "an issue", "body": "body", "state": "open",
+                "html_url": "https://github.com/%s/issues/%s" % (REPO, found.group(1)),
+                "labels": [], "assignees": [], "user": {"login": "author"},
+                "created_at": "2026-10-01T00:00:00Z", "updated_at": "2026-10-01T00:00:00Z",
+            })
+        found = re.fullmatch(r"repos/[^/]+/[^/]+/pulls/(\d+)/comments", route)
+        if found:
+            return self._ok(argv, self.pr_inline.get(int(found.group(1)), []))
+        raise AssertionError("unexpected gh call: %r" % (argv,))
 
 
-def test_post_status_rejects_invalid_transition():
-    """Test: Invalid transitions are rejected."""
-    fake_gh = FakeGh()
-    
-    async def run_test():
-        with patch("simplicio_loop.watcher_github._github_lifecycle") as mock_gl:
-            # MERGED -> DISCOVERED is invalid
-            mock_gl.validate_transition.return_value = {
-                "ok": False,
-                "reason_code": "transition_invalid",
-                "reason": "MERGED -> DISCOVERED is not valid"
-            }
-            mock_gl.get_details.return_value = {"lifecycle_state": "MERGED"}
-            
-            result = await post_status(
-                repo="owner/repo",
-                issue="42",
-                state="DISCOVERED",
-                runner=fake_gh,
-            )
-            
-            assert not result["verified"]
-            assert result["reason_code"] == "transition_invalid"
-    
-    asyncio.run(run_test())
+def run(coro):
+    return asyncio.run(coro)
 
 
-def test_claim_on_github_marks_visible():
-    """Test: Claim visible on GitHub."""
-    fake_gh = FakeGh()
-    
-    async def run_test():
-        with patch("simplicio_loop.watcher_github._github_lifecycle") as mock_gl:
-            mock_gl.validate_transition.return_value = {"ok": True}
-            mock_gl.publish_lifecycle_state.return_value = {
-                "verified": True,
-                "outcome": "created",
-                "state": "CLAIMED",
-            }
-            mock_gl.get_details.return_value = {"lifecycle_state": "DISCOVERED"}
-            
-            receipt = await claim_on_github(
-                repo="owner/repo",
-                issue="42",
-                runner=fake_gh,
-            )
-            
-            assert receipt.verified
-            assert receipt.state == "CLAIMED"
-            assert "owner/repo" in receipt.repo
-    
-    asyncio.run(run_test())
+def status(gh, **kwargs):
+    kwargs.setdefault("issue", "42")
+    return run(post_status(repo=REPO, runner=gh, **kwargs))
 
 
-def test_patrol_open_prs_detects_conflict():
-    """Test: Conflict detected in patrol."""
-    fake_gh = FakeGh()
-    
-    async def run_test():
-        with patch("simplicio_loop.watcher_github._pr_patrol") as mock_patrol:
-            mock_patrol.PrPatrol.return_value.inspect.return_value = {
-                "open_prs": [
-                    {
-                        "number": 10,
-                        "head": "loop/issue-123",
-                        "signals": ["CONFLICTING"],
-                        "action_required": True,
-                    }
-                ]
-            }
-            
-            tasks = await patrol_open_prs(
-                repo="owner/repo",
-                runner=fake_gh,
-            )
-            
-            assert len(tasks) == 1
-            assert tasks[0].kind == "conflict"
-            assert tasks[0].pr == 10
-    
-    asyncio.run(run_test())
+def claim(gh, owner, issue="42"):
+    return run(claim_on_github(repo=REPO, issue=issue, owner=owner, runner=gh))
 
 
-def test_patrol_open_prs_detects_check_failure():
-    """Test: Check failure produces fix task."""
-    fake_gh = FakeGh()
-    
-    async def run_test():
-        with patch("simplicio_loop.watcher_github._pr_patrol") as mock_patrol:
-            mock_patrol.PrPatrol.return_value.inspect.return_value = {
-                "open_prs": [
-                    {
-                        "number": 11,
-                        "head": "loop/issue-456",
-                        "signals": ["CHECKS_FAILED"],
-                        "action_required": True,
-                    }
-                ]
-            }
-            
-            tasks = await patrol_open_prs(
-                repo="owner/repo",
-                runner=fake_gh,
-            )
-            
-            assert len(tasks) == 1
-            assert tasks[0].kind == "checks_failed"
-    
-    asyncio.run(run_test())
+def pr_row(number, head, *, mergeable="MERGEABLE", merge_state="BLOCKED", review="", checks=()):
+    """One row shaped like `gh pr list --json number,url,headRefName,...` output."""
+    return {
+        "number": number, "url": "https://github.com/%s/pull/%s" % (REPO, number),
+        "headRefName": head, "baseRefName": "main", "isDraft": False, "mergeable": mergeable,
+        "mergeStateStatus": merge_state, "reviewDecision": review, "statusCheckRollup": list(checks),
+    }
 
 
-def test_patrol_open_prs_filters_author():
-    """Test: Author filter works."""
-    fake_gh = FakeGh()
-    
-    async def run_test():
-        with patch("simplicio_loop.watcher_github._pr_patrol") as mock_patrol:
-            mock_patrol.PrPatrol.return_value.inspect.return_value = {
-                "open_prs": [
-                    {"number": 10, "head": "loop/issue-1", "signals": [], "action_required": False},
-                    {"number": 11, "head": "hotfix/issue-2", "signals": [], "action_required": False},
-                ]
-            }
-            
-            tasks = await patrol_open_prs(
-                repo="owner/repo",
-                author_filter="loop",
-                runner=fake_gh,
-            )
-            
-            # Should only find the PR with "loop" in head
-            assert all(t.pr == 10 for t in tasks)
-    
-    asyncio.run(run_test())
+def check(name, conclusion):
+    return {"__typename": "CheckRun", "name": name, "status": "COMPLETED", "conclusion": conclusion,
+            "detailsUrl": "https://github.com/%s/actions/runs/1" % REPO}
 
 
-def test_fake_gh_never_allows_pr_writes():
-    """Test: Fake gh rejects any PR write operations."""
-    fake_gh = FakeGh()
-    
-    # These should raise
-    with pytest.raises(RuntimeError):
-        fake_gh(["gh", "pr", "close", "10"])
-    
-    with pytest.raises(RuntimeError):
-        fake_gh(["gh", "pr", "merge", "10"])
-    
-    with pytest.raises(RuntimeError):
-        fake_gh(["gh", "pr", "edit", "10"])
-
-
-def test_fix_task_dataclass():
-    """Test: FixTask dataclass."""
-    task = FixTask(pr=10, kind="conflict", text="Resolve conflict")
-    
-    assert task.pr == 10
-    assert task.kind == "conflict"
-    assert task.files == []
-
-
-def test_claim_receipt_dataclass():
-    """Test: ClaimReceipt dataclass."""
-    receipt = ClaimReceipt(
-        repo="owner/repo",
-        issue="42",
-        claimed_by="watcher",
-        state="CLAIMED",
-        verified=True,
+def patrol_gh():
+    return FakeGh(
+        prs=[
+            pr_row(10, "loop/issue-1470", review="CHANGES_REQUESTED"),
+            pr_row(11, "loop/issue-1471", merge_state="UNSTABLE",
+                   checks=[check("unit", "FAILURE"), check("lint", "SUCCESS")]),
+            pr_row(12, "loop/issue-9", mergeable="CONFLICTING", merge_state="DIRTY"),
+            pr_row(13, "loop/issue-5", merge_state="CLEAN", review="APPROVED",
+                   checks=[check("unit", "SUCCESS")]),
+            pr_row(14, "hotfix/typo", review="CHANGES_REQUESTED"),
+        ],
+        pr_views={
+            10: {"reviews": [
+                    {"author": {"login": "alice"}, "state": "CHANGES_REQUESTED",
+                     "body": "Handle the empty list case"},
+                    {"author": {"login": "bob"}, "state": "APPROVED", "body": ""}],
+                 "files": [{"path": "simplicio_loop/x.py"}, {"path": "tests/test_x.py"}],
+                 "statusCheckRollup": []},
+            11: {"reviews": [], "files": [{"path": "simplicio_loop/y.py"}],
+                 "statusCheckRollup": [check("unit", "FAILURE"), check("lint", "SUCCESS")]},
+            12: {"reviews": [], "files": [{"path": "simplicio_loop/z.py"}], "statusCheckRollup": []},
+            14: {"reviews": [{"author": {"login": "carol"}, "state": "CHANGES_REQUESTED", "body": "typo"}],
+                 "files": [{"path": "README.md"}], "statusCheckRollup": []},
+        },
+        pr_inline={10: [{"path": "simplicio_loop/x.py", "line": 42, "body": "This raises on []"}]},
     )
-    
-    assert receipt.verified
-    assert receipt.state == "CLAIMED"
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+def patrol(gh, **kwargs):
+    return run(patrol_open_prs(repo=REPO, runner=gh, **kwargs))
+
+
+def task_for(tasks, pr, kind):
+    return next(t for t in tasks if t.pr == pr and t.kind == kind)
+
+
+def test_second_post_status_updates_the_same_comment_in_place():
+    gh = FakeGh()
+    first = status(gh, state="CLAIMED", agent_id="session-a")
+    assert first["verified"] and first["action"] == "created"
+    assert len(gh.issue_comments(42)) == 1 and len(gh.marker_comments(42)) == 1
+    assert "| Estado | CLAIMED |" in gh.marker_comments(42)[0]["body"]
+
+    second = status(gh, state="PLANNED", detail="plan ready")
+    assert second["verified"] and second["action"] == "updated"
+    assert second["comment_id"] == first["comment_id"]
+    assert len(gh.issue_comments(42)) == 1
+    body = gh.marker_comments(42)[0]["body"]
+    assert "| Estado | PLANNED |" in body and "plan ready" in body
+    assert "| Agente | session-a |" in body  # owner survives an update that omits agent_id
+    assert [w[0] for w in gh.api_writes] == ["POST", "PATCH"]
+
+
+def test_invalid_transition_is_rejected_with_reason_code():
+    gh = FakeGh()
+    status(gh, state="CLAIMED", agent_id="session-a")
+    writes_before = list(gh.api_writes)
+
+    refused = status(gh, state="MERGED")
+    assert refused["verified"] is False and refused["outcome"] == "blocked"
+    assert refused["reason_code"] == "transition_invalid"
+    assert refused["previous_state"] == "CLAIMED" and "CLAIMED -> MERGED" in refused["reason"]
+    assert gh.api_writes == writes_before  # nothing was written
+    assert "| Estado | CLAIMED |" in gh.marker_comments(42)[0]["body"]
+
+    # an explicit regression reason code is the only way back
+    status(gh, state="PLANNED")
+    status(gh, state="IN_PROGRESS")
+    assert status(gh, state="CLAIMED")["reason_code"] == "transition_invalid"
+    assert status(gh, state="CLAIMED", reason_code="LEASE_REASSIGNED")["verified"] is True
+
+
+def test_transport_failure_propagates_instead_of_reading_as_discovered():
+    gh = FakeGh()
+    gh.fail = True
+    with pytest.raises(GitHubTransportError):
+        status(gh, state="CLAIMED", agent_id="session-a")
+    assert gh.api_writes == []
+
+
+def test_claim_is_visible_on_the_issue_and_a_second_owner_skips():
+    gh = FakeGh()
+    mine = claim(gh, "session-a")
+    assert isinstance(mine, ClaimReceipt)
+    assert (mine.verified, mine.claimed_by, mine.state, mine.reason) == (True, "session-a", "CLAIMED", "claimed")
+    body = gh.marker_comments(42)[0]["body"]
+    assert "| Estado | CLAIMED |" in body and "| Agente | session-a |" in body
+    writes_after_claim = list(gh.api_writes)
+
+    other = claim(gh, "session-b")
+    assert (other.verified, other.claimed_by, other.reason) == (False, "session-a", "claimed_by_other")
+    again = claim(gh, "session-a")
+    assert (again.verified, again.reason) == (True, "already_claimed")
+    assert gh.api_writes == writes_after_claim  # the skip and the repeat wrote nothing
+    assert len(gh.issue_comments(42)) == 1
+    assert "| Agente | session-a |" in gh.marker_comments(42)[0]["body"]
+
+
+def test_requested_changes_become_a_review_comment_task():
+    gh = patrol_gh()
+    task = task_for(patrol(gh), 10, "review_comment")
+    assert isinstance(task, FixTask)
+    assert "alice: Handle the empty list case" in task.text
+    assert "simplicio_loop/x.py:42 This raises on []" in task.text
+    assert "bob" not in task.text  # an approving review is not feedback to fix
+    assert task.files == ["simplicio_loop/x.py"]
+    assert any(call[1:3] == ["pr", "list"] for call in gh.calls)  # final=True opened the cadence gate
+
+
+def test_failing_check_becomes_a_checks_failed_task():
+    task = task_for(patrol(patrol_gh()), 11, "checks_failed")
+    assert "unit" in task.text and "lint" not in task.text
+    assert task.files == ["simplicio_loop/y.py"]
+
+
+def test_conflicting_pr_becomes_a_conflict_task():
+    task = task_for(patrol(patrol_gh()), 12, "conflict")
+    assert "conflicts with main" in task.text and "merge the base" in task.text
+    assert task.files == ["simplicio_loop/z.py"]
+
+
+def test_patrol_skips_clean_and_non_loop_prs():
+    tasks = patrol(patrol_gh())
+    assert sorted((t.pr, t.kind) for t in tasks) == [
+        (10, "review_comment"), (11, "checks_failed"), (12, "conflict")]
+    assert {t.pr for t in patrol(patrol_gh(), branch_filter="")} == {10, 11, 12, 14}
+
+
+def test_fake_gh_blocks_and_records_pr_writes():
+    gh = FakeGh()
+    for sub in ("close", "merge", "edit"):
+        with pytest.raises(RuntimeError):
+            gh(["gh", "pr", sub, "10"])
+    assert len(gh.pr_writes) == 3
+
+
+def test_watcher_makes_zero_pr_write_calls():
+    gh = patrol_gh()
+    patrol(gh)
+    status(gh, state="CLAIMED", agent_id="session-a")
+    status(gh, state="PLANNED")
+    claim(gh, "session-b", issue="43")
+    assert gh.pr_writes == []
+    assert all(call[1] == "api" or call[1:3] in (["pr", "list"], ["pr", "view"]) for call in gh.calls)
+    # the patrol alone is pure reads: no api write of any kind
+    reader = patrol_gh()
+    patrol(reader)
+    assert reader.api_writes == [] and reader.pr_writes == []
+
+
+def test_fix_tasks_do_not_share_a_files_list():
+    first, second = FixTask(1, "conflict", "a"), FixTask(2, "conflict", "b")
+    first.files.append("x.py")
+    assert second.files == []
