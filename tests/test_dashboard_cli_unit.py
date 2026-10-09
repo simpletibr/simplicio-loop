@@ -409,3 +409,11 @@ def test_windows_console_ansi_is_enabled_only_on_windows(monkeypatch):
 def test_enable_windows_vt_is_fail_open_without_ctypes_windll(monkeypatch):
     cli = _cli()
     cli._enable_windows_vt()  # no ctypes.windll on Linux: must return quietly
+
+
+def test_repo_flag_is_repeatable_and_keeps_every_value():
+    import argparse
+    parser = argparse.ArgumentParser()
+    _cli().add_arguments(parser)
+    args = parser.parse_args(['--repo', '/a', '--repo', '/b'])
+    assert args.repo == ['/a', '/b']

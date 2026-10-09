@@ -125,7 +125,7 @@ the focused hook tests when changing it.
 <!-- SIMPLICIO-LLM-ORIENTATION:BEGIN -->
 Loop orientation:
 - One monorepo: `packages/mapper` surveys, `packages/dev-cli` applies. Do not install those as external projects. No Runtime. No Fast package.
-- `.simplicio-loop/` is local run state: keep it in `.gitignore` (the engine adds it when the file exists) and never commit it.
+- `.simplicio-loop/` is local run state: the engine excludes it via `.git/info/exclude` and never edits the repo's `.gitignore`. Never commit this directory.
 - Protocol: intake (task anchor & frozen ACs) → backlog decomposition → per-turn loop (triage → decide → operate → verify → journal) → evidence-gated promise → PR evidence.
 - Survey: `simplicio-mapper scan . --json` (or `simplicio-loop orient`).
 - Operate: `simplicio-loop turbo --repo <path> --task "<task>" [--verify "<tests>"]` (short form `simplicio-loop "<task>"`) or `simplicio-dev-cli task "<change>" --target <file>`. No provider, no key: the Mapper survey prints a `needs_plan` request; run its printed `apply` command once, your JSON plan as the heredoc body (`<<'PLAN'`): exactly two commands. On `failed`, fix the plan once and run the same `apply` again. Never hand-edit.

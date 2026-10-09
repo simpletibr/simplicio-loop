@@ -24,6 +24,7 @@ def _default_index(root: Path) -> str:
     import hashlib
     from .cli_impl import _ensure_project_map
 
+    # Let MapperIndexError propagate up, don't swallow it
     _ensure_project_map(root)
     path = root / ".simplicio-loop" / "project-map.json"
     payload = path.read_bytes() if path.is_file() else b""
