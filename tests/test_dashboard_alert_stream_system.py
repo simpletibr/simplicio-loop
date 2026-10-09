@@ -139,13 +139,17 @@ def test_an_alert_frame_arrives_within_two_seconds_after_the_event(tmp_path, sta
         conn, resp = _open(handle.port)
         try:
             assert _alert_frame(resp)[0] == 'alert_snapshot'
-            for _ in range(CYCLES):
+            for cycle in range(CYCLES):
+                # Use different gate names per cycle to avoid gate-refailed cross-cycle behavior.
+                # The gate-refailed rule (issue #1406) raises an alert when a gate fails again after
+                # being fixed, which interferes with the 2-second latency test if we reuse the same gate.
+                gate_name = f'evidence_{cycle}'
                 started = time.monotonic()
-                _gate(emitter, run_dir, 'evidence', 'fail', 'teste falhou')
+                _gate(emitter, run_dir, gate_name, 'fail', 'teste falhou')
                 assert _alert_frame(resp)[0] == 'alert_raised'
                 latencies.append(time.monotonic() - started)
                 started = time.monotonic()
-                _gate(emitter, run_dir, 'evidence', 'pass')
+                _gate(emitter, run_dir, gate_name, 'pass')
                 assert _alert_frame(resp)[0] == 'alert_cleared'
                 latencies.append(time.monotonic() - started)
         finally:
