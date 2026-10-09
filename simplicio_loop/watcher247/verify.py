@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Sequence
 
 UNVERIFIED = "UNVERIFIED|no_test_command"
 
@@ -31,7 +32,7 @@ def turbo_argv(dest: Path, task: str, test_cmd: str | None) -> list[str]:
     return argv
 
 
-def turbo_request_argv(dest: Path, task: str, run_id: str | None = None) -> list[str]:
+def turbo_request_argv(dest: Path, task: str, run_id: str | None = None, windows: Sequence[dict] = ()) -> list[str]:
     """Host mode step 1: Mapper orients and turbo prints the request (task, map slice, files, format, rules).
 
     With a ``run_id`` turbo continues the run the watcher opened at intake instead of starting its own.
@@ -39,6 +40,8 @@ def turbo_request_argv(dest: Path, task: str, run_id: str | None = None) -> list
     argv = ["simplicio-loop", "turbo", "--repo", str(dest), "--task", task]
     if run_id is not None:
         argv += ["--run-id", run_id]
+    for window in windows:  # lines the planner asked for (`need`): the request shows them too
+        argv += ["--window", f"{window['path']}:{window['start']}-{window['end']}"]
     return argv
 
 

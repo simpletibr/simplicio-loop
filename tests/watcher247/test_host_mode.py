@@ -514,3 +514,78 @@ def test_a_writer_that_raises_never_breaks_the_tick(env, cli_dir, monkeypatch):
     run_tick()
     assert read_json(config.CLAIMS)[f"{REPO}#3"]["status"] == "done"
     assert fake.ran("gh", "pr", "create")
+
+
+# --- the plan asks for more lines (`need`) or was cut blind (#1643) -----------------------------------------------
+
+CUT_FILES = {"big.py": {"total_lines": 900, "total_chars": 30000, "windows": [{"start": 1, "end": 12, "text": "x\n"}],
+                        "omitted": [{"start": 13, "end": 900}], "more": "need"}}
+NEED = {"operations": [], "need": [{"path": "big.py", "start": 700, "end": 720}]}
+
+
+def _scripted_planner(monkeypatch, plans):
+    from simplicio_loop import exec_planner
+    seen = []
+
+    async def planner(role, prompt, **kwargs):
+        seen.append((role, prompt))
+        return exec_planner.PlannerResult("ok", "claude", role, "m", "high", plan=plans[min(len(seen), len(plans)) - 1])
+
+    monkeypatch.setattr(host_mode.exec_planner, "run_planner_with_fallback", planner)
+    return seen
+
+
+def _run_exec(fake):
+    dest = checkout()
+    executor = host_mode.Executor("exec", ("claude",))
+    return asyncio.run(host_mode.run_exec(dest, REPO, issue(1), "fix big.py", None, executor, attempts=1))
+
+
+def _cut_request(files=None):
+    return {"schema": "simplicio.turbo-request/v1", "status": "needs_plan", "mode": "host", "run_id": RUN_ID,
+            "tasks": ["t"], "files": CUT_FILES if files is None else files, "apply": "x"}
+
+
+def test_a_need_prints_the_request_again_with_the_lines_and_spends_one_step(env, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK], request=_cut_request()))
+    baseline()
+    seen = _scripted_planner(monkeypatch, [NEED, PLAN])
+    resets = []
+
+    async def no_reset(dest):
+        resets.append(dest)
+
+    monkeypatch.setattr(host_mode, "_reset_tree", no_reset)
+    out = _run_exec(fake)
+    assert [s.get("reason") for s in out["steps"]] == ["need_lines", None]
+    assert [s["outcome"] for s in out["steps"]] == ["failed", "ok"] and len(seen) == 2
+    assert resets == []  # no git reset: nothing was applied
+    first, second = (argv for argv, _env, _n in fake.requests)
+    assert "--window" not in first and second[second.index("--window") + 1] == "big.py:700-720"
+    assert second[second.index("--run-id") + 1] == RUN_ID
+    assert len(fake.turbo_stdin) == 1  # only the real plan reached `turbo --apply`
+    assert seen[0][0] == seen[1][0] == "planning"  # same role: no escalation
+
+
+def test_an_empty_plan_with_a_cut_request_stops_with_turbo_context_truncated(env, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK], request=_cut_request()))
+    baseline()
+    seen = _scripted_planner(monkeypatch, [{"operations": []}, PLAN])
+    with pytest.raises(RuntimeError, match="turbo_context_truncated.*big.py") as raised:
+        _run_exec(fake)
+    assert len(seen) == 1 and fake.turbo_stdin == []  # one planner call, no ladder, nothing applied
+    assert host_mode.steps_of(raised.value)[-1]["reason"] == "turbo_context_truncated"
+    assert "operations" in (config.LOGS / f"{REPO}-1-1-s1.log").read_text()  # the answer stays in the step log
+
+
+def test_an_empty_plan_with_nothing_omitted_keeps_the_old_path(env, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [BAD], request=_cut_request({"big.py": "x\n"})))
+    baseline()
+    _scripted_planner(monkeypatch, [{"operations": []}])
+    with pytest.raises(RuntimeError) as raised:
+        _run_exec(fake)
+    assert "turbo_context_truncated" not in str(raised.value) and fake.turbo_stdin  # applied as before
+
+
+def test_the_planner_prompt_tells_it_may_ask_for_lines():
+    assert '"need"' in host_mode.plan_prompt("{}")
