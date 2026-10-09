@@ -59,7 +59,7 @@ def test_turbo_ok_commits_opens_pr_and_comments_url(env):
     assert fake.turbo_timeouts == [900]
     commit = fake.ran("git", "commit")[0]
     assert commit[3] == "loop: Add x\n\nCloses #7\n"
-    assert fake.ran("git", "add", "-A") and fake.ran("git", "reset", "-q", "--", ".simplicio-loop", ".simplicio")
+    assert fake.ran("git", "add", "-A") and fake.ran("git", "reset", "-q", "--", ".simplicio-loop")
     assert fake.ran("git", "push", "-u", "origin", "loop/issue-7")
     pr = fake.ran("gh", "pr", "create")[0]
     assert pr[pr.index("--base") + 1] == "main" and pr[pr.index("--head") + 1] == "loop/issue-7"
@@ -198,10 +198,10 @@ def test_tick_error_is_recorded_in_status(env, monkeypatch):
 
 @pytest.mark.parametrize("porcelain,expected", [
     ("", False),
-    ("?? .simplicio-loop/state.json\n?? .simplicio/x\n", False),
+    ("?? .simplicio-loop/state.json\n?? .simplicio-loop/x\n", False),
     (" M .gitignore\n", False),
     (" M src/app.py\n", True),
-    ("?? .simplicio/x\n M src/app.py\n", True),
+    ("?? .simplicio-loop/x\n M src/app.py\n", True),
 ])
 def test_dirty(env, porcelain, expected):
     async def fake(argv, timeout=120, cwd=None):

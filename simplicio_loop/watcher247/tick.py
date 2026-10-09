@@ -15,7 +15,7 @@ from .. import escalation, intake_gate, squad_capacity, watcher_github
 from ..claim_lease import ClaimStore
 from . import budget, config, events, github, host_mode, onboarding, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify
 
-_STATE_DIRS = (".simplicio-loop/", ".simplicio/")
+_STATE_DIRS = (".simplicio-loop/",)
 
 
 class Gate:
@@ -129,7 +129,7 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
     if not await dirty(dest):
         return None
     await proc.run(["git", "add", "-A"], cwd=dest)
-    await proc.run(["git", "reset", "-q", "--", ".simplicio-loop", ".simplicio"], cwd=dest)  # unstage loop state
+    await proc.run(["git", "reset", "-q", "--", ".simplicio-loop"], cwd=dest)  # unstage loop state
     staged = await proc.run(["git", "diff", "--cached", "--name-only"], cwd=dest)
     if not staged.stdout.strip():
         return None

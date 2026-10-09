@@ -32,13 +32,13 @@ from simplicio_mapper.store.snapshot import (
 class FastSnapshotMmapTest(unittest.TestCase):
     """Test suite for SFAST v2 binary snapshot mmap indexing in Mapper."""
 
-    def test_create_binary_snapshot_in_simplicio_dir(self) -> None:
-        """Test the creation of a binary snapshot in .simplicio/project.sfast."""
+    def test_create_binary_snapshot_in_state_dir(self) -> None:
+        """Test the creation of a binary snapshot in .simplicio-loop/project.sfast."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            simplicio_dir = root / ".simplicio"
-            simplicio_dir.mkdir(parents=True, exist_ok=True)
-            output = simplicio_dir / "project.sfast"
+            state_dir = root / ".simplicio-loop"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            output = state_dir / "project.sfast"
 
             # Create sample python source files
             (root / "calculator.py").write_text(
@@ -73,7 +73,7 @@ class FastSnapshotMmapTest(unittest.TestCase):
         """Test validation of SFAST v2 header: MAGIC, VERSION 2, ENDIAN_MARKER."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            output = root / ".simplicio" / "project.sfast"
+            output = root / ".simplicio-loop" / "project.sfast"
             (root / "module.py").write_text("def ping():\n    return 'pong'\n", encoding="utf-8")
             build_snapshot(root, output)
 
@@ -133,7 +133,7 @@ class FastSnapshotMmapTest(unittest.TestCase):
         """Test reading files, symbols, relations, indexes, strings using mmap."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            output = root / ".simplicio" / "project.sfast"
+            output = root / ".simplicio-loop" / "project.sfast"
 
             (root / "app.py").write_text(
                 "import utils\n"
@@ -204,7 +204,7 @@ class FastSnapshotMmapTest(unittest.TestCase):
         """Test atomic write with whole-file SHA-256 checksum."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            output = root / ".simplicio" / "project.sfast"
+            output = root / ".simplicio-loop" / "project.sfast"
             (root / "code.py").write_text("def answer(): return 42\n", encoding="utf-8")
 
             total_size, checksum = build_snapshot(root, output)
@@ -232,7 +232,7 @@ class FastSnapshotMmapTest(unittest.TestCase):
             self.assertEqual(checksum, expected_checksum.hex())
 
             # Test atomic publish: ensure no temporary files linger
-            tmp_files = list((root / ".simplicio").glob("*.tmp"))
+            tmp_files = list((root / ".simplicio-loop").glob("*.tmp"))
             self.assertEqual(tmp_files, [], "No temporary files should be left after publication")
 
             # Verify with Snapshot property
@@ -244,7 +244,7 @@ class FastSnapshotMmapTest(unittest.TestCase):
         """Test resilience: if the snapshot is corrupted, degrade safely without crash."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            output = root / ".simplicio" / "project.sfast"
+            output = root / ".simplicio-loop" / "project.sfast"
             (root / "module.py").write_text("def work(): pass\n", encoding="utf-8")
             build_snapshot(root, output)
             original = output.read_bytes()
@@ -349,7 +349,7 @@ class FastSnapshotMmapTest(unittest.TestCase):
                 "call_graph": call_graph,
             }
 
-            sfast_dest = root / ".simplicio" / "project.sfast"
+            sfast_dest = root / ".simplicio-loop" / "project.sfast"
             total_size, checksum = build_snapshot_from_artifacts(
                 root,
                 artifacts=artifacts,
@@ -391,7 +391,7 @@ class FastSnapshotMmapTest(unittest.TestCase):
                 self.assertEqual(rels[0].confidence, 0.9)
 
     def test_indexing_creates_fast_snapshot(self) -> None:
-        """Test that running mapper index generates .simplicio/project.sfast."""
+        """Test that running mapper index generates .simplicio-loop/project.sfast."""
         from simplicio_mapper.cli import main
 
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -401,8 +401,6 @@ class FastSnapshotMmapTest(unittest.TestCase):
             self.assertEqual(exit_code, 0)
 
             sfast_file = root / ".simplicio-loop" / "project.sfast"
-            if not sfast_file.is_file():
-                sfast_file = root / ".simplicio" / "project.sfast"
             self.assertTrue(sfast_file.is_file(), "project.sfast must exist after index")
             self.assertTrue(is_snapshot_valid(sfast_file))
 
@@ -422,10 +420,10 @@ class FastSnapshotMmapTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             (root / "app.py").write_text("def run():\n    return 42\n", encoding="utf-8")
-            sfast_file = root / ".simplicio" / "project.sfast"
+            sfast_file = root / ".simplicio-loop" / "project.sfast"
             build_snapshot(root, sfast_file)
 
-            seg_dir = root / ".simplicio" / "segments"
+            seg_dir = root / ".simplicio-loop" / "segments"
             store = SegmentStore(seg_dir)
             manifest = store.publish(sfast_file)
 

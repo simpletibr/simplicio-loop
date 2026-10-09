@@ -144,7 +144,7 @@ def next_role(ladder: escalation.EscalationState) -> None:
 async def _reset_tree(dest: Path) -> None:
     """Drop the edits of a failed apply, so the next plan is written against the branch head."""
     await proc.run(["git", "reset", "-q", "--hard", "HEAD"], cwd=dest, timeout=60)
-    await proc.run(["git", "clean", "-fdq", "-e", ".simplicio-loop", "-e", ".simplicio"], cwd=dest, timeout=60)
+    await proc.run(["git", "clean", "-fdq", "-e", ".simplicio-loop"], cwd=dest, timeout=60)
 
 
 async def _request(dest: Path, task: str, run_id: str | None = None) -> tuple[str, str]:

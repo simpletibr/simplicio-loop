@@ -188,7 +188,7 @@ class FakeRun:
         if sub == "status":
             if not self.diff:
                 self.repo_active[repo] -= 1
-            return proc.Result(0, " M app.py\n?? .simplicio/x\n" if self.diff else "")
+            return proc.Result(0, " M app.py\n?? .simplicio-loop/x\n" if self.diff else "")
         if sub == "diff":
             return proc.Result(0, "app.py\n")
         return proc.Result(0)  # config, fetch, add, reset, commit, push

@@ -14,7 +14,7 @@ from .registry import PointContext, PointResult, register
 NAME = "sibling_search"
 MAX_SITES = 30
 MAX_SYMBOLS = 10
-_STATE_DIRS = (".simplicio-loop/", ".simplicio/")
+_STATE_DIRS = (".simplicio-loop/",)
 _DEF = re.compile(r"\b(?:def|function|fn|func|class)\s+([A-Za-z_]\w*)")
 _TICKED = re.compile(r"`([A-Za-z_]\w*)(?:\(\))?`")
 _PATH = re.compile(r"(?<![\w./-])(\w[\w./-]*\.[A-Za-z0-9]{1,5})(?!\w)")

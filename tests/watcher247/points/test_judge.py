@@ -66,7 +66,7 @@ def test_a_stale_accept_does_not_survive_an_empty_diff(point_contract, make_ctx,
 
 
 def test_state_dirs_do_not_count_as_a_diff(point_contract, make_ctx, repo, tmp_path):
-    write(repo, {".simplicio-loop/x.json": "{}", ".simplicio/y": "y"})
+    write(repo, {".simplicio-loop/x.json": "{}"})
     result = point_contract("judge", ctx_for(make_ctx, repo, tmp_path), expect="skipped")
     assert result.reason_code == "no_diff"
 
