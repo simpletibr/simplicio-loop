@@ -369,6 +369,14 @@ def _classify_manifest_dir(
             False,
         )
 
+    if key_raw.get("repo_identity") != identity.repo_identity:
+        # SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR may be shared by several repositories (issue #1574):
+        # a base that belongs to another repository is never this repository's to reclaim.
+        return (
+            GcCandidate(rel, "manifest_dir", "other_repository", {}),
+            False,
+        )
+
     is_current = (
         key_raw.get("repo_identity") == identity.repo_identity
         and key_raw.get("default_branch") == identity.default_branch
@@ -520,6 +528,8 @@ def scan_canonical_gc(
             raw = _read_json(os.path.join(entry_path, _MANIFEST_FILE_NAME)) if os.path.isdir(entry_path) else None
             if raw is None:
                 continue
+            if identity is not None and (raw.get("key") or {}).get("repo_identity") != identity.repo_identity:
+                continue  # another repository's base does not count toward this repository's newest N
             created = raw.get("created_at")
             age = _age_from_iso(created, now) if created else None
             stamp = (now - age) if age is not None else _dir_last_activity(entry_path)

@@ -46,7 +46,9 @@ class KeepLastTests(unittest.TestCase):
         assert self.identity is not None
         self.now = time.time()
 
-    def _manifest(self, name: str, *, age_hours: float, commit: str | None = None) -> Path:
+    def _manifest(
+        self, name: str, *, age_hours: float, commit: str | None = None, repo_identity: str | None = None
+    ) -> Path:
         directory = self.cache_root / "canonical" / name
         directory.mkdir()
         (directory / "project-map.json").write_text("{}" * 50, encoding="utf-8")
@@ -55,7 +57,7 @@ class KeepLastTests(unittest.TestCase):
             "schema": "simplicio.canonical-map/v1",
             "created_at": _iso(created),
             "key": {
-                "repo_identity": self.identity.repo_identity,
+                "repo_identity": repo_identity or self.identity.repo_identity,
                 "default_branch": self.identity.default_branch,
                 "commit_sha": commit or ("f" * 40),
             },
@@ -103,6 +105,25 @@ class KeepLastTests(unittest.TestCase):
         self.assertEqual(len(report.removed), 2)
         self.assertTrue(dirs[0].exists() and dirs[1].exists())
         self.assertFalse(dirs[2].exists() or dirs[3].exists())
+
+    def test_another_repositorys_base_in_a_shared_cache_dir_is_never_touched(self) -> None:
+        """SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR may be shared: `--keep 0` must not eat a neighbour's base."""
+        ours = [self._manifest("o%d" % i, age_hours=5 + i) for i in range(3)]
+        theirs = [self._manifest("x%d" % i, age_hours=500 + i, repo_identity="other-repo") for i in range(3)]
+        report = self._scan(keep_last=0, apply=True)
+        self.assertEqual(len(report.removed), 3, [c.relative_path for c in report.removed])
+        self.assertTrue(all(path.exists() for path in theirs))
+        self.assertFalse(any(path.exists() for path in ours))
+        reasons = {c.relative_path: c.reason for c in report.preserved}
+        self.assertEqual(reasons["canonical/x0"], "other_repository")
+
+    def test_the_newest_n_are_counted_per_repository(self) -> None:
+        for i in range(3):
+            self._manifest("o%d" % i, age_hours=50 + i)
+        for i in range(3):
+            self._manifest("x%d" % i, age_hours=1 + i, repo_identity="other-repo")  # newer, but not ours
+        report = self._scan(keep_last=1)
+        self.assertEqual(sorted(c.relative_path for c in report.candidates), ["canonical/o1", "canonical/o2"])
 
     def test_without_keep_last_the_ttl_policy_is_unchanged(self) -> None:
         for index in range(5):
