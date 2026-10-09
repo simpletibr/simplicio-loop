@@ -68,6 +68,81 @@ def exec_auth_spawn_guard(request, monkeypatch):
     assert not violations, f"real binaries spawned: {violations}"
 
 
+def _protected_checkout_roots() -> tuple[str, ...]:
+    """This checkout and the main worktree of its repository: both share one `<git-common-dir>/simplicio`."""
+    roots = {os.path.realpath(str(_REPO_ROOT))}
+    git_entry = _REPO_ROOT / ".git"
+    try:
+        if git_entry.is_file():  # a linked worktree: ".git" is "gitdir: <common>/worktrees/<name>"
+            gitdir = git_entry.read_text(encoding="utf-8").split("gitdir:", 1)[1].strip()
+            roots.add(os.path.realpath(os.path.dirname(os.path.dirname(os.path.dirname(gitdir)))))
+    except (OSError, IndexError):
+        pass
+    return tuple(sorted(roots))
+
+
+@pytest.fixture(autouse=True)
+def runtime_never_targets_the_real_repo(monkeypatch):
+    """No test may run the Simplicio Runtime against this repository (#1574).
+
+    The Runtime keeps its baseline map and a full-tree `baseline-build-*` scratch under
+    `<git-common-dir>/simplicio/map`, shared by every worktree; a run cut short by a timeout leaves
+    them behind (102 directories, 6.8 GB measured). A spawn of the `simplicio` binary whose cwd or
+    an argument is inside this checkout is refused, even if the code under test swallows the error.
+    """
+    import asyncio
+    import subprocess
+
+    roots = _protected_checkout_roots()
+    violations: list[str] = []
+
+    def inside(value) -> bool:
+        try:
+            resolved = os.path.realpath(os.fspath(value))
+        except (TypeError, ValueError):
+            return False
+        return any(resolved == root or resolved.startswith(root + os.sep) for root in roots)
+
+    def target_of(argv, cwd):
+        """The repository a Runtime call acts on: its ``--repo`` value, else the cwd and path arguments."""
+        for index, item in enumerate(argv):
+            if item == "--repo" and index + 1 < len(argv):
+                return [argv[index + 1]]
+            if item.startswith("--repo="):
+                return [item.split("=", 1)[1]]
+        return [cwd or os.getcwd(), *[item for item in argv[1:] if os.sep in item]]
+
+    def vet(argv, cwd) -> None:
+        if isinstance(argv, (str, bytes, os.PathLike)):
+            argv = [argv]
+        argv = [os.fsdecode(item) for item in argv]
+        if not argv or os.path.basename(argv[0]) not in ("simplicio", "simplicio.exe"):
+            return
+        if any(inside(target) for target in target_of(argv, cwd)):
+            violations.append(" ".join(argv))
+            raise AssertionError(
+                "a test ran the Simplicio Runtime against the real repository "
+                f"(it writes into the shared .git/simplicio): {' '.join(argv)}"
+            )
+
+    real_exec = asyncio.create_subprocess_exec
+    real_popen = subprocess.Popen
+
+    async def guarded_exec(program, *args, **kwargs):
+        vet([program, *args], kwargs.get("cwd"))
+        return await real_exec(program, *args, **kwargs)
+
+    class GuardedPopen(real_popen):
+        def __init__(self, args, *a, **kw):
+            vet(args, kw.get("cwd"))
+            super().__init__(args, *a, **kw)
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", guarded_exec)
+    monkeypatch.setattr(subprocess, "Popen", GuardedPopen)
+    yield violations  # the guard's own tests clear it after asserting the refusal
+    assert not violations, f"Runtime spawned against the real repository: {violations}"
+
+
 @pytest.fixture
 def admitting_capacity(monkeypatch) -> None:
     """Pin the documented physical-admission profile so host disk or memory pressure cannot block a dispatch test.
