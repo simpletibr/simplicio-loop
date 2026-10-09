@@ -13,19 +13,9 @@ from pathlib import Path
 
 from .. import escalation, intake_gate, squad_capacity, watcher_github
 from ..claim_lease import ClaimStore
-from . import budget, config, events, github, host_mode, onboarding, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify
+from . import budget, config, events, github, host_mode, onboarding, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify, worktrees
 
 _STATE_DIRS = (".simplicio-loop/",)
-
-
-class Gate:
-    """One lock per repo; the tick itself caps the batch at the capacity plan (SIMPLICIO_247_CONCURRENCY overrides it)."""
-
-    def __init__(self) -> None:
-        self._locks: dict[str, asyncio.Lock] = {}
-
-    def repo_lock(self, repo: str) -> asyncio.Lock:
-        return self._locks.setdefault(repo, asyncio.Lock())
 
 
 @dataclass
@@ -60,39 +50,6 @@ def gh_runner(loop: asyncio.AbstractEventLoop):
     return runner
 
 
-async def ensure_clone(repo: str, branch: str) -> Path:
-    dest = config.WORK / repo
-    if not (dest / ".git").exists():
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        result = await proc.run(
-            ["gh", "repo", "clone", f"{config.ORG}/{repo}", str(dest), "--", "--depth", "1"], timeout=300)
-        if result.returncode != 0:
-            raise _fail(result, "clone failed")
-    await proc.run(["git", "config", "user.name", "simplicio-loop"], cwd=dest)
-    email = await proc.run(["git", "config", "user.email"], cwd=dest)
-    if email.returncode != 0 or not email.stdout.strip():
-        await proc.run(["git", "config", "user.email", "wesleysimplicio@users.noreply.github.com"], cwd=dest)
-    fetch = await proc.run(["git", "fetch", "--depth", "1", "origin", branch], cwd=dest, timeout=180)
-    if fetch.returncode != 0:
-        raise RuntimeError((fetch.stderr or "fetch failed")[:500])
-    return dest
-
-
-async def reset_branch(dest: Path, branch: str, number: int, fix: bool = False) -> str:
-    """Check out loop/issue-N from the base branch, or from its open PR head when fixing it."""
-    head = f"loop/issue-{number}"
-    base = branch
-    if fix:
-        base = head
-        fetch = await proc.run(["git", "fetch", "--depth", "1", "origin", head], cwd=dest, timeout=180)
-        if fetch.returncode != 0:
-            raise _fail(fetch, "fetch of the PR head failed")
-    result = await proc.run(["git", "checkout", "-B", head, f"origin/{base}"], cwd=dest, timeout=60)
-    if result.returncode != 0:
-        raise _fail(result, "checkout failed")
-    return head
-
-
 def task_text(repo: str, issue: dict, fix: str = "", retry: str = "") -> str:
     body = (issue.get("body") or "").strip()
     if len(body) > config.BODY_CAP:
@@ -124,7 +81,7 @@ async def dirty(dest: Path) -> bool:
     return False
 
 
-async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: dict, pr: int = 0, label: str = "",
+async def commit_and_pr(gate: worktrees.Gate, dest: Path, repo: str, branch: str, head: str, issue: dict, pr: int = 0, label: str = "",
                         executor: str = "exec") -> str | None:
     """Commit the turbo result and push. A fix pushes to its open PR; otherwise a PR is opened. None when there is no diff."""
     if not await dirty(dest):
@@ -139,7 +96,7 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
     commit = await proc.run(["git", "commit", "-m", f"{title}\n\nCloses #{issue['number']}\n"], cwd=dest, timeout=60)
     if commit.returncode != 0:
         raise _fail(commit, "commit failed")
-    push = await proc.run(["git", "push", "-u", "origin", head], cwd=dest, timeout=180)
+    push = await worktrees.push(gate, repo, dest, head)
     if push.returncode != 0:
         raise _fail(push, "push failed")
     if pr:
@@ -244,7 +201,7 @@ def _without_pr(steps: list[dict[str, str]], failed: bool) -> squad_flow.Outcome
     return squad_flow.Outcome("", "", steps, "failed" if failed else "no_pr") if steps else None
 
 
-async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: float,
+async def process(store: ClaimStore, runner, gate: worktrees.Gate, work: Work, clock: float,
                   executor: host_mode.Executor, probe: squad_capacity.Probe | None = None) -> squad_flow.Outcome | None:
     name = work.repo
     number = int(work.issue["number"])
@@ -277,41 +234,42 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
         attempts, retry = claim_row.attempts, claim_row.data.get("blocked_by") or ""
         state.log(f"start {ident} attempt {attempts}")
         beat = asyncio.ensure_future(_heartbeat(store, ident, token))
-        dest, run_id = None, None  # run_id: the kanban run opened at intake; turbo continues it, close_run ends it
+        run_id = None  # run_id: the kanban run opened at intake; turbo continues it, close_run ends it
         try:
-            async with gate.repo_lock(name):  # one working tree per repo: clone to push is exclusive
-                dest = await ensure_clone(name, work.branch)
-                head = await reset_branch(dest, work.branch, number, fix=bool(work.fix))
-                ctx = points.PointContext(
-                    repo=name, issue=work.issue, clone=dest, state_dir=config.ROOT, family=(executor.families or (None,))[0],
-                    capacity=probe, test_command=work.verify,
-                    run_dir=dest / ".simplicio-loop" / "orchestrator" / "points" / f"{name}-{number}")
-                await points.run("intake", ctx)
-                if executor.mode == "exec":
-                    run_id = await asyncio.to_thread(events.open_run, dest, name, number, fix=bool(work.fix))
-                ctx = replace(ctx, task_text=task_text(name, work.issue, work.fix, retry))
-                task = ctx.task_text + plan_hints(await points.run("plan", ctx))  # one text: retry reasons + hints
-                turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, work.verify, task=task,
-                                          role=work.role, run_id=run_id)
-                steps = turbo.get("steps") or []
-                ctx = replace(ctx, turbo_json=turbo, verify=turbo["verify"])
-                await points.run("apply", ctx)
-                await _phase(runner, name, number, "VERIFYING", detail="turbo ok; publicando o diff")
-                await points.run("verify", ctx)
-                points.raise_if_blocked("pr", await points.run("pr", ctx))  # a blocked result stops the PR
-                url = await commit_and_pr(dest, name, work.branch, head, work.issue, pr=work.pr,
-                                          label=turbo["verify"], executor=executor.mode)
-                if url:
-                    await budget.record("prs")
-                # no diff means no PR: the run closes blocked, never done (the item is BLOCKED / done_no_diff below)
-                await asyncio.to_thread(events.close_run, dest, run_id, "ok" if url else "blocked", pr_url=url)
-        except BaseException as exc:  # a run that stopped before the pr stage still closes on the kanban
-            if not steps:
-                steps = host_mode.steps_of(exc)
-                run_failed = bool(steps)
-            blocked = isinstance(exc, (points.PointBlocked, points.PointDeferred))
-            await asyncio.to_thread(events.close_run, dest, run_id, "blocked" if blocked else "failed")
-            raise
+            async with worktrees.checkout(gate, name, work.branch, number, fix=bool(work.fix)) as item:  # the lock is held only inside
+                dest, head = item.path, item.head
+                try:
+                    ctx = points.PointContext(
+                        repo=name, issue=work.issue, clone=dest, state_dir=config.ROOT, family=(executor.families or (None,))[0],
+                        capacity=probe, test_command=work.verify,
+                        run_dir=dest / ".simplicio-loop" / "orchestrator" / "points" / f"{name}-{number}")
+                    await points.run("intake", ctx)
+                    if executor.mode == "exec":
+                        run_id = await asyncio.to_thread(events.open_run, dest, name, number, fix=bool(work.fix))
+                    ctx = replace(ctx, task_text=task_text(name, work.issue, work.fix, retry))
+                    task = ctx.task_text + plan_hints(await points.run("plan", ctx))  # one text: retry reasons + hints
+                    turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, work.verify, task=task,
+                                              role=work.role, run_id=run_id)
+                    steps = turbo.get("steps") or []
+                    ctx = replace(ctx, turbo_json=turbo, verify=turbo["verify"])
+                    await points.run("apply", ctx)
+                    await _phase(runner, name, number, "VERIFYING", detail="turbo ok; publicando o diff")
+                    await points.run("verify", ctx)
+                    points.raise_if_blocked("pr", await points.run("pr", ctx))  # a blocked result stops the PR
+                    url = await commit_and_pr(gate, dest, name, work.branch, head, work.issue, pr=work.pr,
+                                              label=turbo["verify"], executor=executor.mode)
+                    item.published = bool(url)
+                    if url:
+                        await budget.record("prs")
+                    # no diff means no PR: the run closes blocked, never done (the item is BLOCKED / done_no_diff below)
+                    await asyncio.to_thread(events.close_run, dest, run_id, "ok" if url else "blocked", pr_url=url)
+                except BaseException as exc:  # a run that stopped before the pr stage still closes on the kanban, in its own worktree
+                    if not steps:
+                        steps = host_mode.steps_of(exc)
+                        run_failed = bool(steps)
+                    blocked = isinstance(exc, (points.PointBlocked, points.PointDeferred))
+                    await asyncio.to_thread(events.close_run, dest, run_id, "blocked" if blocked else "failed")
+                    raise
         finally:
             beat.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -511,7 +469,7 @@ async def tick(dry_run: bool = False) -> None:
     if persist and baseline is not None:
         await state.save(config.FIXES, fixes)
     if batch:
-        overload = squad_capacity.overload_warning(limits, sizing.caps, len({w.repo for w in batch}))  # a repo's issues run one at a time
+        overload = squad_capacity.overload_warning(limits, sizing.caps, len(batch))  # the items of a repo run at once, each in its own worktree
         if overload:
             state.log(overload)
         idents = [state.key_of(w.repo, int(w.issue["number"])) for w in batch]
@@ -519,9 +477,10 @@ async def tick(dry_run: bool = False) -> None:
             for ident in idents:
                 state.log(f"[dry-run] would process {ident}")
             return
-        gate = Gate()
+        gate = worktrees.Gate(limit)
         plans = squad_flow.form(batch, (executor.families or ("claude",))[0], probe, limits)  # the general coordinator
-        outcomes = await asyncio.gather(*(process(store, runner, gate, w, clock, executor, probe) for w in batch))
+        outcomes = await worktrees.run_batch(batch, lambda w: squad_flow.target_paths(w.issue),
+                                             lambda w: process(store, runner, gate, w, clock, executor, probe))
         squad_status = await squad_flow.finish(plans, batch, outcomes, runner, gate)
         for repo_plan in plans:
             squad_status[repo_plan.repo]["capacity"] = repo_plan.capacity  # why this many run at once (sizing only, never what merges)

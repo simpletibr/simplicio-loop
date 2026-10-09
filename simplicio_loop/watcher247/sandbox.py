@@ -52,6 +52,21 @@ def refusal(environ: Mapping[str, str] | None = None, platform: str | None = Non
     return None
 
 
+def worktree_binds(clone: str) -> list[str]:
+    """bwrap binds for a LINKED git worktree (#1601): its own admin dir, the shared object store and the shared map base.
+
+    The rest of the base clone's .git (config, hooks, refs) stays read-only inside the sandbox, so one item cannot touch another's
+    branch or plant a hook. [] when `clone` is a plain clone.
+    """
+    dotgit = Path(clone) / ".git"
+    if not dotgit.is_file():
+        return []
+    admin = Path(dotgit.read_text(encoding="utf-8").strip().removeprefix("gitdir:").strip())
+    common = admin.parent.parent
+    writable = [admin, common / "objects", common / "simplicio"]  # simplicio/: the mapper's central base, shared by every worktree
+    return [arg for path in writable if path.is_dir() for arg in ("--bind", str(path), str(path))]
+
+
 def wrap(argv: list[str], *, clone: Path, state_dir: Path, platform: str | None = None,
          environ: Mapping[str, str] | None = None, which: Callable[[str], str | None] | None = None) -> list[str]:
     """Return argv run inside the sandbox; raise SandboxUnavailable when none is possible."""
@@ -74,6 +89,7 @@ def wrap(argv: list[str], *, clone: Path, state_dir: Path, platform: str | None 
             "--tmpfs", "/tmp",
             "--bind", clone, clone,          # ...except the clone and the state dir
             "--bind", state_dir, state_dir,
+            *worktree_binds(clone),
             "--chdir", clone,
             "--die-with-parent", "--new-session",
             "--", *argv,

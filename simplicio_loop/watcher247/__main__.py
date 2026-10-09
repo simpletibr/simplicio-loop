@@ -5,10 +5,19 @@ import argparse
 import asyncio
 
 from ..claim_lease import ClaimStore
-from . import config, env_guard, state, tick
+from . import config, env_guard, state, tick, worktrees
 
 
 async def main(once: bool = False, dry_run: bool = False) -> int:
+    worktrees.cancel_on_sigterm()  # a stop cancels the tick, and every live item removes its own worktree first
+    try:
+        return await _serve(once, dry_run)
+    except asyncio.CancelledError:
+        state.log("SIGTERM: stopped")
+        return worktrees.SIGTERM_EXIT
+
+
+async def _serve(once: bool, dry_run: bool) -> int:
     if not dry_run:
         await asyncio.to_thread(config.WORK.mkdir, parents=True, exist_ok=True)
         if refused := env_guard.refusal():

@@ -30,6 +30,7 @@ import dataclasses
 import fnmatch
 import json
 import os
+import posixpath
 import re
 import shlex
 import time
@@ -114,6 +115,11 @@ def _issue_row(issue: dict) -> dict[str, Any]:
     body = issue.get("body") or ""
     return {"number": issue["number"], "title": issue.get("title") or "", "body": body, "labels": issue.get("labels") or [],
             "paths": sorted({p for p in _PATH.findall(body) if _safe_path(p)})}
+
+
+def target_paths(issue: dict) -> frozenset[str]:
+    """The files an issue names as its targets (`path.ext` in backticks): two items of a batch that share one do not run together."""
+    return frozenset(posixpath.normpath(p) for p in _issue_row(issue)["paths"])
 
 
 def plan_repo(repo: str, issues: list[dict], family: str, probe: squad_capacity.Probe | None = None,
