@@ -28,6 +28,19 @@ from simplicio_loop.watcher247 import proc, sandbox
 pytestmark = pytest.mark.skipif(
     sys.platform != "linux" or shutil.which("bwrap") is None, reason="needs Linux with bwrap")
 
+
+
+def _interpreter_under_tmp() -> bool:
+    """True when this Python (or its venv) lives under /tmp, which `sandbox.wrap` hides behind a tmpfs."""
+    candidates = (sys.executable, os.path.realpath(sys.executable), sys.prefix, os.path.realpath(sys.prefix))
+    return any(Path(path).is_relative_to("/tmp") for path in candidates)
+
+
+needs_visible_interpreter = pytest.mark.skipif(
+    _interpreter_under_tmp(),
+    reason="sandbox.wrap mounts a tmpfs on /tmp, which hides a Python interpreter or venv located under /tmp "
+           "(test-environment limit, not a product bug; run the gate from a venv outside /tmp)")
+
 BARE = ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp", "true"]
 
 
@@ -161,6 +174,7 @@ def test_stdin_reaches_the_sandboxed_command(rig):
     assert (done.returncode, done.stdout) == (0, "the plan\n")
 
 
+@needs_visible_interpreter
 def test_git_and_python_work_in_the_clone(rig):
     clone, _ = rig
     script = ("git init -q . && git -c user.email=a@b -c user.name=n commit -q --allow-empty -m x "
@@ -171,6 +185,7 @@ def test_git_and_python_work_in_the_clone(rig):
     assert (clone / ".git").is_dir()
 
 
+@needs_visible_interpreter
 def test_pytest_runs_in_the_clone(rig):
     clone, _ = rig
     (clone / "test_ok.py").write_text("def test_ok():\n    assert 1 + 1 == 2\n")
