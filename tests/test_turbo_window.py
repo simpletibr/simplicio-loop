@@ -71,7 +71,7 @@ def _with_function(body_lines: int) -> tuple[str, int]:
     head = _py(900)
     at = head.count("\n") + 1
     body = "".join(f"    step_{i} = {i}\n" for i in range(body_lines))
-    return head + "def long_target_fn(a):\n" + body + "    return a\n\n\ndef after_fn():\n    return 1\n", at
+    return head + "def long_target_fn(a):\n" + body + "    return a\n\n\n" + "".join(f"tail_{i} = {i}\n" for i in range(40)), at
 
 
 def test_a_long_function_is_shown_with_its_whole_body_and_not_beyond(tmp_path):
@@ -162,10 +162,10 @@ def test_the_explicit_window_adds_exactly_those_lines(tmp_path):
 def test_an_explicit_window_on_a_file_no_task_names_adds_that_file(tmp_path):
     _write(tmp_path, "a.py", "a = 1\n")
     _write(tmp_path, "other.py", "".join(f"v{i} = {i}\n" for i in range(5000)))
-    spec = {"path": "other.py", "start": 10, "end": 12}
+    spec = {"path": "other.py", "start": 3000, "end": 3002}
     files = turbo_window.build_files(tmp_path, [_task("Edit a.py", "a.py")], [spec])
     assert list(files) == ["a.py", "other.py"]
-    assert any(w["text"] == "v9 = 9\nv10 = 10\nv11 = 11\n" for w in files["other.py"]["windows"])
+    assert any(w["text"] == "v2999 = 2999\nv3000 = 3000\nv3001 = 3001\n" for w in files["other.py"]["windows"])
 
 
 @pytest.mark.parametrize("bad", ["x.py", "x.py:0-3", "x.py:9-3", "x.py:a-b", ":3-4", "../x.py:1-2", ".git/config:1-2"])
@@ -206,15 +206,28 @@ def test_a_smaller_ceiling_makes_a_smaller_request(tmp_path, monkeypatch):
     assert len(json.dumps(small)) < wide
 
 
-def test_many_files_beyond_the_budget_become_header_only_in_task_order(tmp_path, monkeypatch):
-    monkeypatch.setenv(input_ceiling.ENV_NAME, "2000")
+def test_many_files_beyond_the_budget_degrade_in_task_order(tmp_path, monkeypatch):
+    monkeypatch.setenv(input_ceiling.ENV_NAME, "8000")  # a budget of 3200 tokens for 40 files
     names = []
     for i in range(40):
         names.append(f"f{i}.py")
         _write(tmp_path, names[-1], _py(400))
     files = turbo_window.build_files(tmp_path, [_task("Edit " + " ".join(names), names[0], names[1:])])
-    assert input_ceiling.estimate_tokens(json.dumps(files)) <= 800
+    assert input_ceiling.estimate_tokens(json.dumps(files)) <= 3200
     assert list(files) == names and files[names[0]]["windows"]
+    assert files[names[-1]]["windows"] == [] and files[names[-1]]["omitted"] == [{"start": 1, "end": 2003}]  # an outline
+    assert "more" in files[names[0]] and "more" not in files[names[-1]]
+
+
+def test_files_that_do_not_fit_even_as_outlines_are_refused_not_dropped(tmp_path, monkeypatch):
+    monkeypatch.setenv(input_ceiling.ENV_NAME, "1000")
+    names = []
+    for i in range(40):
+        names.append(f"f{i}.py")
+        _write(tmp_path, names[-1], _py(400))
+    with pytest.raises(turbo_window.TooManyFilesError) as raised:
+        turbo_window.build_files(tmp_path, [_task("Edit " + " ".join(names), names[0], names[1:])])
+    assert raised.value.reason_code == "turbo_files_over_budget"
 
 
 def test_truncated_lists_files_with_omitted_lines(tmp_path):
@@ -305,6 +318,8 @@ def repo(tmp_path, monkeypatch):
     monkeypatch.delenv(input_ceiling.ENV_NAME, raising=False)
     _write(tmp_path, "big.py", _py(900, target_at=5))
     _write(tmp_path, "small.py", "a = 1\n")
+    _write(tmp_path, ".simplicio-loop/project-map.json", json.dumps({
+        "schema": "simplicio.project-map/v1", "product": "p", "files": [{"path": "big.py"}, {"path": "small.py"}]}))
     return tmp_path
 
 

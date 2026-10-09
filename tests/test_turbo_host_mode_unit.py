@@ -155,7 +155,7 @@ def test_a_file_past_the_cap_is_shown_in_windows_and_says_what_is_omitted(tmp_pa
     entry = out["files"]["big.py"]
     assert rc == 0 and entry["windows"][0]["start"] == 1 and entry["windows"][0]["text"].startswith("x = 1\n")
     assert entry["total_lines"] == 3000 and entry["omitted"][-1]["end"] == 3000 and "need" in entry["more"]
-    assert len(json.dumps(entry)) < 17_000
+    assert sum(len(w["text"]) for w in entry["windows"]) <= 16_000  # the per-file ceiling (turbo_window.FILE_CHARS_MAX)
 
 
 def test_the_request_without_a_task_is_blocked(tmp_path, host, capsys):

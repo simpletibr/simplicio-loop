@@ -43,6 +43,12 @@ _SPECIFIC = re.compile(r"_|\d|[a-z][A-Z]|^[A-Z]{4,}$")
 _HEADER_PRIORITY = 10_000
 
 
+class TooManyFilesError(ValueError):
+    """The files of the request do not fit the budget even without any text."""
+
+    reason_code = "turbo_files_over_budget"
+
+
 def parse_window_spec(spec: str) -> dict[str, Any]:
     """``path:START-END`` (or ``path:LINE``) as ``{"path", "start", "end"}``; a bad one raises ValueError."""
     match = _SPEC.fullmatch(spec.strip())
@@ -187,9 +193,12 @@ class _Source:
             next_line = end + 1
         if next_line <= len(self.lines):
             omitted.append({"start": next_line, "end": len(self.lines)})
-        return {"total_lines": len(self.lines), "total_chars": len(self.body),
-                "windows": [{"start": a, "end": b, "text": "".join(self.lines[a - 1:b])} for a, b in runs],
-                "omitted": omitted, "more": MORE}
+        entry = {"total_lines": len(self.lines), "total_chars": len(self.body),
+                 "windows": [{"start": a, "end": b, "text": "".join(self.lines[a - 1:b])} for a, b in runs],
+                 "omitted": omitted}
+        if limit:  # an outline (limit 0) is the cheapest form: the request rules say how to ask for lines
+            entry["more"] = MORE
+        return entry
 
 
 def _tokens(files: Mapping[str, Any]) -> int:
@@ -239,6 +248,8 @@ def build_files(root: Path, tasks: Sequence[Mapping[str, Any]], windows: Sequenc
             low = middle + 1
     if used > budget:
         files = best if best is not None else {s.name: s.render(0) for s in sources}
+        if _tokens(files) > budget:
+            raise TooManyFilesError(f"{len(sources)} files do not fit {budget} tokens even as outlines: name fewer files")
     return files
 
 
