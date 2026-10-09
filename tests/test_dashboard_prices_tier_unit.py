@@ -31,3 +31,18 @@ def test_cache_read_is_a_tenth_of_the_input_and_flagged_as_derived():
     assert price['cache_read_per_mtok'] == 0.01 and price['tier']['cache_read_per_mtok'] == 0.05
     assert 'DERIVADA' in price['note'] and 'UNVERIFIED' in price['note']
     assert 'até 100 mil' not in price['note']
+
+
+def _event(payload):
+    return {'schema': 'simplicio.dashboard-event/v1', 'kind': 'token_usage', 'payload': payload}
+
+
+def test_haiku_55_above_the_tier_costs_the_tier_rate_with_requests_1_and_a_floor_without_it():
+    from simplicio_loop.dashboard import budget
+    usage = {'model': 'claude-haiku-5-5', 'input_tokens': 150_000, 'output_tokens': 2_000}
+    exact = budget.cost_estimate([_event(dict(usage, requests=1))], PRICES)
+    assert exact['usd'] == 0.08 and exact['floor'] is False and exact['floor_reason'] is None
+    floor = budget.cost_estimate([_event(usage)], PRICES)
+    assert floor['usd'] == 0.016 and floor['floor'] is True and floor['floor_reason']
+    at_limit = budget.cost_estimate([_event(dict(usage, input_tokens=100_000))], PRICES)
+    assert at_limit['floor'] is False
