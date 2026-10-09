@@ -9,6 +9,7 @@ PLANES installed e2e runs against a throwaway repository instead of ROOT.
 
 from __future__ import annotations
 
+import inspect
 import os
 import stat
 import subprocess
@@ -124,3 +125,14 @@ def test_a_relative_repo_that_resolves_into_this_checkout_is_still_refused(tmp_p
     with pytest.raises(AssertionError, match="real repository"):
         subprocess.run([str(runtime), "map", "--repo", "tests"], cwd=str(ROOT), check=False)
     runtime_never_targets_the_real_repo.clear()
+
+
+def test_the_guard_keeps_the_signature_of_the_popen_it_wraps(runtime_never_targets_the_real_repo):
+    """``core_network_guard`` binds a positional ``Popen(args, bufsize, executable, ...)`` call against the
+    signature of the class it wraps. A guard that shows ``(args, *a, **kw)`` hides ``executable``, so a
+    positional ``-S`` interpreter child slipped past the core gate (test_check_reason_summary_unit)."""
+    guarded = subprocess.Popen
+    wrapped = guarded.__mro__[1]
+    assert guarded is not wrapped
+    assert inspect.signature(guarded) == inspect.signature(wrapped)
+    assert inspect.signature(guarded.__init__) == inspect.signature(wrapped.__init__)
