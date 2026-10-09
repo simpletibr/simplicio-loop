@@ -179,6 +179,23 @@ def _random_lines(rng):
     return ''.join(parts)
 
 
+def _text_mode_scan(run_dir):
+    '''The full scan as it was before the byte-level reader: text mode, universal newlines. The reference of the oracle.'''
+    path = run_dir / 'events.jsonl'
+    if not path.exists() or path.is_symlink():
+        return 0
+    last = 0
+    with path.open('r', encoding='utf-8', errors='replace') as fh:
+        for line in fh:
+            try:
+                seq = json.loads(line).get('seq')
+            except (ValueError, AttributeError):
+                continue
+            if isinstance(seq, int) and seq > last:
+                last = seq
+    return last
+
+
 def _regular(path):
     return path.is_file() and not path.is_symlink()
 
@@ -241,6 +258,7 @@ def test_the_tail_and_the_summary_equal_a_full_scan_after_every_change(tmp_path,
     for step in range(STEPS):
         _change(rng, run_dir, pending)
         want = runs._last_seq(run_dir)
+        assert want == _text_mode_scan(run_dir), f'seed {seed} step {step}: the full scan drifted from universal newlines'
         assert runs._last_seq(run_dir, tail) == want, f'seed {seed} step {step}'
         truth = runs._summarize(run_dir, repo)
         assert truth['last_seq'] == want
@@ -261,3 +279,34 @@ def test_a_run_written_inside_the_racy_window_still_parses_only_the_new_lines(tm
         _append(run_dir, _line(seq))
         assert runs.run_summary(_ref(run_dir))['last_seq'] == seq
     assert len(parsed) == 3
+
+
+def test_a_line_rewritten_in_place_at_the_same_size_is_read_again(tmp_path):
+    # the seq sits in the first bytes of a line longer than the window, so only the head of the file shows the rewrite
+    run_dir = _run(tmp_path)
+    path = run_dir / 'events.jsonl'
+    path.write_text(json.dumps({'seq': 50, 'pad': 'p' * 5000}) + '\n', encoding='utf-8')
+    tail = runs._Tail()
+    assert runs._last_seq(run_dir, tail) == 50
+    path.write_text(json.dumps({'seq': 40, 'pad': 'p' * 5000}) + '\n', encoding='utf-8')
+    assert runs._last_seq(run_dir, tail) == 40 == runs._last_seq(run_dir)
+
+
+def test_a_lone_carriage_return_ends_a_line_as_it_did_before_the_byte_reader(tmp_path):
+    # universal newlines (the reader before this change) split on a lone CR too
+    run_dir = _run(tmp_path)
+    _append(run_dir, '{"seq": 1}\r{"seq": 2}\n')
+    tail = runs._Tail()
+    assert runs._last_seq(run_dir) == 2
+    assert runs._last_seq(run_dir, tail) == 2
+
+
+@pytest.mark.parametrize('seed', range(40))
+def test_line_ends_split_across_read_chunks_give_the_same_answer(tmp_path, monkeypatch, seed):
+    monkeypatch.setattr(runs, '_READ_CHUNK', 3)  # a CR at a chunk's end, a line longer than a chunk, a CRLF cut in two
+    rng = random.Random(seed)
+    run_dir = _run(tmp_path, run_id=f'chunks{seed}')
+    tail = runs._Tail()
+    for _ in range(12):
+        _append(run_dir, _random_lines(rng))
+        assert runs._last_seq(run_dir, tail) == _text_mode_scan(run_dir), f'seed {seed}'
