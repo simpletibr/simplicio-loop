@@ -24,6 +24,7 @@ from typing import Any
 
 from .. import escalation, exec_auth, exec_planner, execution_report, executor_select, turbo_cli
 from . import budget, config, proc, sandbox, verify
+from .points import convergence_policy  # the failed-verify path asks it: retry, escalate or stop
 
 PLAN_ROLE = "planning"
 FIX_ROLE = "coordination"
@@ -41,6 +42,14 @@ class Executor:
     detail: str = ""
 
 
+_LAST_AUTH: list[exec_auth.AuthCheckResult] = []  # auth results of the last choose() in exec mode
+
+
+def last_auth() -> list[exec_auth.AuthCheckResult]:
+    """What choose() probed this tick, for the model_preflight point; empty before the first choose()."""
+    return list(_LAST_AUTH)
+
+
 async def choose(environ: dict[str, str] | None = None) -> Executor:
     """SIMPLICIO_EXECUTOR picks the mode (default exec). In exec mode a preflight checks every enabled family."""
     environ = os.environ if environ is None else environ
@@ -54,6 +63,7 @@ async def choose(environ: dict[str, str] | None = None) -> Executor:
     if resolved["mode"] != "exec":
         return Executor(resolved["mode"])
     results = await exec_auth.check_all(resolved["families"])
+    _LAST_AUTH[:] = results  # read by the model_preflight point, so it never probes again
     usable = tuple(r.family for r in results if r.status == "ok")
     if usable:
         return Executor("exec", usable)
@@ -193,8 +203,14 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
                         "executor": "exec", "steps": steps}
             if not planned.is_ok() and planned.reason_code != RETRYABLE:
                 raise RuntimeError(failure[:500])  # cli missing, quota, timeout: a better role does not help
+            verdict = convergence_policy.assess(ladder, failed=True)  # the failed attempt is already in the ladder
+            if verdict["action"] == "stop":
+                raise RuntimeError(f"convergence stop ({verdict['reason']}): {failure}"[:500])
             await _reset_tree(dest)
-            next_role(ladder)
+            if verdict["action"] == "escalate":
+                ladder.next_step()
+            else:
+                next_role(ladder)
         raise RuntimeError(f"no verified plan after {config.MAX_STEPS} steps: {failure}"[:500])
     except BaseException:
         report["status"] = "FAILED"

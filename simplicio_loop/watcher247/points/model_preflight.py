@@ -1,26 +1,21 @@
-"""model_preflight (intake): the usable executor families, from exec_auth.check_all. It never blocks.
+"""model_preflight (intake): the usable executor families, read from the result of host_mode.choose. It never blocks.
 
-The tick preflight (host_mode.choose) already blocks when no family is usable; this only records which are.
+The tick preflight (choose, once per tick) already probes every family and blocks when none is usable; this only
+records which are, so the per-issue point never spawns a status subprocess.
 """
-import os
-
-from ... import exec_auth, executor_select
+from .. import host_mode
 from .registry import PointContext, PointResult, register
 
 NAME = "model_preflight"
 
 
 async def preflight(ctx: PointContext) -> PointResult:
-    try:
-        families = executor_select.resolve(os.environ)["families"]
-    except executor_select.ExecutorSelectError as exc:
-        return PointResult(NAME, "error", {"error": str(exc)[:300]}, "executor_invalid")
-    if not families:
-        return PointResult(NAME, "skipped", {}, "no_exec_families")
-    results = await exec_auth.check_all(families)
+    results = host_mode.last_auth()  # the probe of this tick's choose(); nothing is probed here
+    if not results:
+        return PointResult(NAME, "skipped", {}, "no_auth_result")
     usable = [r.family for r in results if r.status == "ok"]
     unusable = {r.family: r.status for r in results if r.status != "ok"}
-    evidence = {"usable": usable, "unusable": unusable}
+    evidence = {"usable": usable, "unusable": unusable, "selected": ctx.family}
     return PointResult(NAME, "ok" if usable else "error", evidence, None if usable else "no_usable_family")
 
 

@@ -81,3 +81,15 @@ def test_every_loop_decision_maps_to_an_action(decision, action):
 
 def test_a_failed_verifier_never_continues():
     assert convergence_policy.action_for("CONTINUE_SERIAL", verifier_failed=True) == "retry"
+
+
+def test_assess_is_what_the_failed_verify_path_consumes(tmp_path):
+    """host_mode.run_exec calls assess on its own ladder after a failed attempt: same decision, no point run."""
+    ladder = escalation.load_escalation_state(tmp_path, 7, "claude")
+    ladder.record_attempt("failed")
+    verdict = convergence_policy.assess(ladder, failed=True)
+    assert (verdict["action"], verdict["attempts"], verdict["failed_attempts"]) == ("retry", 1, 1)
+    for _ in range(escalation.ATTEMPT_CEILING_PER_ISSUE):
+        ladder.record_attempt("failed")
+    verdict = convergence_policy.assess(ladder, failed=True)
+    assert (verdict["action"], verdict["reason"]) == ("stop", "budget_exhausted")

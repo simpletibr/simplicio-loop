@@ -17,7 +17,11 @@ _IMPORT_FAILURES: list[tuple[str, BaseException]] = []
 
 
 def _failed_import_point(module: str, exc: BaseException, stage: str) -> None:
-    """Register a point that reports, at `stage`, that `module` failed to import; the watcher keeps running."""
+    """Register a point that reports, at `stage`, that `module` failed to import; the watcher keeps running.
+
+    These pseudo-points (`import_failed:<module>:<stage>`, one per stage) exist only when an import failed: they show
+    up in `registered()` and in any count of points, which must ignore the `import_failed:` prefix.
+    """
     name = f"import_failed:{module}:{stage}"
 
     async def report(ctx: PointContext) -> PointResult:

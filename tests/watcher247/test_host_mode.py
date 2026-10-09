@@ -246,7 +246,7 @@ def test_ceiling_stops_the_escalation(env, cli_dir, monkeypatch):
     run_tick()
     assert len(planner_calls(cli_dir)) == 2 and len(fake.turbo_argv) == 2
     claim = read_json(config.CLAIMS)[f"{REPO}#1"]
-    assert claim["status"] == "retry" and "escalation ceiling" in claim["error"]
+    assert claim["status"] == "retry" and "convergence stop" in claim["error"]  # the policy stops it at the ceiling
     assert fake.ran("gh", "pr", "create") == []
 
 

@@ -49,5 +49,7 @@ def test_good_points_keep_running(broken_package, make_ctx):
     assert [r.status for r in results if r.name == "good"] == ["ok"]
 
 
-def test_the_real_package_has_no_import_failures():
+def test_the_real_package_has_no_import_failures(monkeypatch):
+    monkeypatch.setattr(points, "_IMPORT_FAILURES", [])  # a fresh list: no other test's failures leak in
+    points._load_submodules()  # the real submodules are already imported: nothing registers twice
     assert points._IMPORT_FAILURES == []
