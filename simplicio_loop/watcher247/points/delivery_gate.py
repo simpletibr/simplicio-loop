@@ -6,11 +6,12 @@ It combines what the earlier stages already decided, and runs none of it again:
 * judge ACCEPT and a clean secret scan: the verdict ``judge`` saved in ``<run_dir>/judge.json``;
 * a non-empty ``Closes #N``: the closing line the PR body carries, which needs the issue number.
 Every failure is listed; the first is the reason_code.
+An empty diff (judge saved NO_DIFF) is skipped: the tick ends it as done_no_diff and opens no PR.
 """
 import json
 
 from .. import verify
-from .judge import ACCEPT, VERDICT_FILE
+from .judge import ACCEPT, NO_DIFF, VERDICT_FILE
 from .registry import PointContext, PointResult, register
 
 NAME = "delivery_gate"
@@ -33,6 +34,9 @@ def _closes(ctx: PointContext) -> str | None:
 
 
 async def gate(ctx: PointContext) -> PointResult:
+    saved = _verdict(ctx)
+    if saved is not None and saved.get("verdict") == NO_DIFF:  # done_no_diff: no PR is opened, nothing to gate
+        return PointResult(NAME, "skipped", {}, "no_diff")
     evidence: dict = {}
     failures: list[str] = []
     label = (ctx.verify or "").strip()
@@ -43,7 +47,6 @@ async def gate(ctx: PointContext) -> PointResult:
     else:
         evidence["verify"] = label[:80] or None
         failures.append("verify_failed" if label.startswith(_FAILED) or label else "verify_missing")
-    saved = _verdict(ctx)
     if saved is None:
         failures.append("judge_missing")
     else:

@@ -50,18 +50,25 @@ def test_clean_diff_is_accepted(point_contract, make_ctx, repo, tmp_path):
     assert saved["verdict"] == "ACCEPT" and saved["secret_files"] == []
 
 
-def test_empty_diff_rejects_and_blocks(make_ctx, repo, tmp_path):
-    with pytest.raises(points.PointBlocked) as blocked:
-        asyncio.run(points.run("verify", ctx_for(make_ctx, repo, tmp_path)))
-    assert (blocked.value.name, blocked.value.reason_code) == ("judge", "empty_diff")
-    assert blocked.value.results[-1].evidence["verdict"] == "REJECT"
-    assert verdict_file(tmp_path)["verdict"] == "REJECT"
+def test_empty_diff_is_skipped_not_rejected(point_contract, make_ctx, repo, tmp_path):
+    # an empty diff is a legitimate result (done_no_diff in the tick): nothing to judge, the stage goes on
+    result = point_contract("judge", ctx_for(make_ctx, repo, tmp_path), expect="skipped")
+    assert result.reason_code == "no_diff"
+    assert verdict_file(tmp_path)["verdict"] == "NO_DIFF"
+
+
+def test_a_stale_accept_does_not_survive_an_empty_diff(point_contract, make_ctx, repo, tmp_path):
+    write(repo, {"app.py": "def f():\n    return 2\n"})
+    point_contract("judge", ctx_for(make_ctx, repo, tmp_path), expect="ok")
+    (repo / "app.py").write_text(BASE["app.py"])
+    point_contract("judge", ctx_for(make_ctx, repo, tmp_path), expect="skipped")
+    assert verdict_file(tmp_path)["verdict"] == "NO_DIFF"
 
 
 def test_state_dirs_do_not_count_as_a_diff(point_contract, make_ctx, repo, tmp_path):
     write(repo, {".simplicio-loop/x.json": "{}", ".simplicio/y": "y"})
-    result = point_contract("judge", ctx_for(make_ctx, repo, tmp_path), expect="blocked")
-    assert result.reason_code == "empty_diff"
+    result = point_contract("judge", ctx_for(make_ctx, repo, tmp_path), expect="skipped")
+    assert result.reason_code == "no_diff"
 
 
 def test_file_outside_the_plan_rejects(point_contract, make_ctx, repo, tmp_path):

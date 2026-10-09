@@ -39,6 +39,12 @@ def test_unverified_label_is_what_verify_decide_lets_through_and_is_flagged(poin
     assert result.evidence["verify"] == "unverified"
 
 
+def test_no_diff_verdict_skips_the_gate_because_no_pr_is_opened(point_contract, make_ctx, tmp_path):
+    no_diff = {"verdict": "NO_DIFF", "reasons": [], "files": [], "secret_files": []}
+    ctx = ctx_for(make_ctx, tmp_path, judge=no_diff, verify=None, issue=None)
+    assert point_contract("delivery_gate", ctx, expect="skipped").reason_code == "no_diff"
+
+
 def test_missing_verify_blocks(make_ctx, tmp_path):
     with pytest.raises(points.PointBlocked) as blocked:
         asyncio.run(points.run("pr", ctx_for(make_ctx, tmp_path, verify=None)))

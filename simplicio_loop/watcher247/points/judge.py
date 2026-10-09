@@ -15,7 +15,7 @@ from .registry import PointContext, PointResult, register
 
 NAME = "judge"
 VERDICT_FILE = "judge.json"
-ACCEPT, REJECT = "ACCEPT", "REJECT"
+ACCEPT, REJECT, NO_DIFF = "ACCEPT", "REJECT", "NO_DIFF"
 ROLE = "blast_radius_reviewer"
 _VERDICT = {review_panel.VERDICT_PASS: ACCEPT, review_panel.VERDICT_FIX_REQUIRED: REJECT}
 _STATE_DIRS = (".simplicio-loop/", ".simplicio/")  # the loop's own files are never part of the change
@@ -83,7 +83,7 @@ def _review(files: list[str], deleted: list[str], segments: dict[str, str], plan
     return found
 
 
-_CLASS = {"empty_diff": "correctness", "outside_plan": "blast_radius", "test_removed": "correctness",
+_CLASS = {"outside_plan": "blast_radius", "test_removed": "correctness",
           "test_skipped": "correctness", "secret_detected": "security"}
 
 
@@ -103,17 +103,20 @@ async def judge(ctx: PointContext) -> PointResult:
         if done.returncode != 0:
             return PointResult(NAME, "error", {"error": (done.stderr or "")[-300:]}, "git_failed")
     files, deleted, untracked = _changes(status.stdout)
+    if not files:  # nothing changed is a legitimate result (done_no_diff in the tick): nothing to judge, no PR
+        _save(ctx, {"verdict": NO_DIFF, "reasons": [], "files": [], "secret_files": []})
+        return PointResult(NAME, "skipped", {}, NO_DIFF.lower())
     segments = _segments(tracked.stdout + _untracked(ctx, untracked))
     found = _review(files, deleted, segments, _plan.plan_paths(ctx.plan, ctx.turbo_json))
     secrets = secret_scan.scan_diff("".join(segments.values())) if segments else []
-    found = {"empty_diff": [] if files else ["(diff)"], **found, "secret_detected": secrets}
+    found = {**found, "secret_detected": secrets}
     found = {reason: values for reason, values in found.items() if values}
     reasons = list(found)
     verdict = _VERDICT[review_panel.VERDICT_FIX_REQUIRED if reasons else review_panel.VERDICT_PASS]
     files = sorted(files)
     saved = {"verdict": verdict, "reasons": reasons, "files": files, "secret_files": secrets}
     _save(ctx, saved)
-    evidence = {**saved, **{k: v for k, v in found.items() if k not in ("empty_diff", "secret_detected")},
+    evidence = {**saved, **{k: v for k, v in found.items() if k != "secret_detected"},
                 "findings": _findings(found)}
     if reasons:
         return PointResult(NAME, "blocked", evidence, reasons[0])
