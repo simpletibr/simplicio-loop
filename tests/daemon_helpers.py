@@ -98,12 +98,74 @@ def nested() -> int:
     return code
 
 
+def limits() -> int:
+    """What this command runs with: priority, open-files limit and allowed cpus."""
+    import resource
+
+    print(json.dumps({"nice": os.getpriority(os.PRIO_PROCESS, 0), "nofile": list(resource.getrlimit(resource.RLIMIT_NOFILE)),
+                      "cpus": sorted(os.sched_getaffinity(0))}))
+    return 0
+
+
+def cleanup() -> int:
+    """argv: <marker file>. Says ``ready``, then waits; ``finally`` and ``atexit`` each leave a line in the file."""
+    import atexit
+
+    path = sys.argv[1]
+
+    def mark(word: str) -> None:
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(word + "\n")
+
+    atexit.register(mark, "atexit")
+    try:
+        mark("ready")
+        time.sleep(60)
+    finally:
+        mark("finally")
+    return 0
+
+
+def unbuffered() -> int:
+    """argv: <release file>. Prints LINE1, waits until the file exists, prints LINE2."""
+    print("LINE1")
+    deadline = time.monotonic() + 30
+    while not os.path.exists(sys.argv[1]) and time.monotonic() < deadline:
+        time.sleep(0.02)
+    print("LINE2")
+    return 0
+
+
+def ignore_term() -> int:
+    """argv: <pid file>. Ignores SIGTERM, so only SIGKILL stops it."""
+    import signal
+
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    with open(sys.argv[1], "w", encoding="utf-8") as handle:
+        handle.write(str(os.getpid()))
+    time.sleep(60)
+    return 0
+
+
+def grandchild() -> int:
+    """argv: <pid file>. Starts a process of its own, writes both pids, and waits."""
+    import subprocess
+
+    other = subprocess.Popen(["sleep", "60"])
+    with open(sys.argv[1], "w", encoding="utf-8") as handle:
+        handle.write(json.dumps({"child": os.getpid(), "grandchild": other.pid}))
+    time.sleep(60)
+    return 0
+
+
 PROGRAMS = {
     "nested": "daemon_helpers:nested",
     "state": "daemon_helpers:state", "exit-with": "daemon_helpers:exit_with", "exit-text": "daemon_helpers:exit_text",
     "boom": "daemon_helpers:boom", "sleeper": "daemon_helpers:sleeper", "upper": "daemon_helpers:upper",
     "no-read": "daemon_helpers:no_read", "aio": "daemon_helpers:aio", "killed": "daemon_helpers:killed_by_signal",
-    "tty-info": "daemon_helpers:tty_info",
+    "tty-info": "daemon_helpers:tty_info", "limits": "daemon_helpers:limits", "cleanup": "daemon_helpers:cleanup",
+    "unbuffered": "daemon_helpers:unbuffered", "ignore-term": "daemon_helpers:ignore_term",
+    "grandchild": "daemon_helpers:grandchild",
 }
 
 
@@ -119,6 +181,8 @@ def serve(run_dir: str) -> int:
         roots=roots, idle_s=float(env.get("DAEMON_TEST_IDLE", "60")),
         max_children=int(env.get("DAEMON_TEST_MAX_CHILDREN", "4")),
         max_waiting=int(env.get("DAEMON_TEST_MAX_WAITING", "16")),
+        kill_grace_s=float(env.get("DAEMON_TEST_KILL_GRACE", "5")),
+        wait_notice_s=float(env.get("DAEMON_TEST_WAIT_NOTICE", "5")), max_wait_s=float(env.get("DAEMON_TEST_MAX_WAIT", "600")),
         allowed_uid=allowed_uid, preload=(),
     )
     return asyncio.run(daemon.serve())

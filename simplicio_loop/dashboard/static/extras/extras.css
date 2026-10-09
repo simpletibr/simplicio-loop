@@ -64,3 +64,24 @@
   margin: 0;
   padding-inline-start: var(--sl-space-3);
 }
+
+/* Cost widgets (issue #1404, loaded on demand with cost-widgets.js): token bars and the cost per task and per iteration. One column at every width, so long model
+   and task ids wrap instead of pushing the page sideways. Bars are native progress elements with a token-coloured fill. */
+.cost-widgets { display: grid; gap: var(--sl-space-4); margin-block-start: var(--sl-space-4); }
+.cost-widgets > * { min-inline-size: 0; }
+.cost-block h3 { margin: 0; font-size: var(--sl-step-0); font-weight: var(--sl-weight-strong); }
+.cost-block .note { margin-block-start: var(--sl-space-1); }
+.bars-caption { margin: var(--sl-space-3) 0 var(--sl-space-1); font-size: var(--sl-step--1); color: var(--sl-ink-muted); }
+.bars { display: grid; gap: var(--sl-space-2); margin: 0; padding: 0; list-style: none; }
+.bars li { display: grid; gap: var(--sl-space-1); min-inline-size: 0; }
+.bar-label { font-size: var(--sl-step--1); font-weight: var(--sl-weight-strong); overflow-wrap: anywhere; }
+.bar-value { font-size: var(--sl-step--2); color: var(--sl-ink-muted); overflow-wrap: anywhere; }
+.bars progress {
+  appearance: none; -webkit-appearance: none; inline-size: 100%; block-size: 0.7rem; margin: 0; border: 0;
+  border-radius: var(--sl-radius-pill); background-color: var(--sl-line-soft); overflow: hidden;
+}
+.bars progress::-webkit-progress-bar { background-color: var(--sl-line-soft); border-radius: var(--sl-radius-pill); }
+.bars progress::-webkit-progress-value { background-color: var(--sl-state-running); border-radius: var(--sl-radius-pill); }
+.bars progress::-moz-progress-bar { background-color: var(--sl-state-running); border-radius: var(--sl-radius-pill); }
+html[data-tv="1"] .cost-block h3 { font-size: var(--sl-step-1); }
+.cost-block li, .cost-block sl-gate-badge { min-inline-size: 0; max-inline-size: 100%; overflow-wrap: anywhere; }

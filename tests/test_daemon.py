@@ -61,9 +61,10 @@ def daemons():
                 proc.wait()
 
 
-def serve(daemons, run_dir: Path, wait: bool = True, **env: str) -> subprocess.Popen:
+def serve(daemons, run_dir: Path, wait: bool = True, preexec=None, **env: str) -> subprocess.Popen:
+    """Start a test daemon; ``preexec`` runs in it before exec (to be born under a nice value or a limit)."""
     full = {**os.environ, "SIMPLICIO_LOOP_DAEMON": "1", "PYTHONDONTWRITEBYTECODE": "1", **env}
-    proc = subprocess.Popen([sys.executable, str(HELPERS), "serve", str(run_dir)], env=full,
+    proc = subprocess.Popen([sys.executable, str(HELPERS), "serve", str(run_dir)], env=full, preexec_fn=preexec,
                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     daemons.append(proc)
     if wait:

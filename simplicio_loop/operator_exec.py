@@ -38,10 +38,17 @@ async def run(argv: Sequence[str], *, timeout: float, cwd: Optional[str] = None)
         from .daemon import client
 
         current = protocol.CURRENT
-        code, out, err = await asyncio.to_thread(
-            client.run_captured, name, list(argv[1:]), run_dir=current.run_dir, key=current.key, cwd=cwd or os.getcwd(),
-            env=dict(os.environ), timeout=timeout)
-        return code, out.decode("utf-8", errors="replace"), err.decode("utf-8", errors="replace")
+        try:
+            code, out, err = await asyncio.to_thread(
+                client.run_captured, name, list(argv[1:]), run_dir=current.run_dir, key=current.key,
+                cwd=cwd or os.getcwd(), env=dict(os.environ), timeout=timeout)
+        except protocol.DaemonError as error:
+            # The code under the daemon changed while this command runs (an update, a checkout): the daemon of the
+            # command left. Failing the whole command for that would be worse than the process this call always was.
+            if error.code not in ("stale", "not_running"):
+                raise
+        else:
+            return code, out.decode("utf-8", errors="replace"), err.decode("utf-8", errors="replace")
     from .exec_planner import _kill_process_tree
 
     proc = await asyncio.create_subprocess_exec(

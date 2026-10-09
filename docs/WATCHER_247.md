@@ -148,7 +148,7 @@ coberto pelo namespace de pid.
   inteira. Antes, o comando ficava em outra sessão/grupo que o `killpg` do watcher não alcança (`--die-with-parent` não o
   derrubava) e os netos sobreviviam como órfãos; como o `Process.wait()` do Python 3.14 só retorna quando os pipes fecham (medido), o
   `proc.run` com timeout ficava preso enquanto um neto vivo segurasse o pipe.
-- Filesystem somente leitura (exceto o worktree do item e o state dir), `/tmp` privado, `--die-with-parent`, `--new-session`.
+- Filesystem somente leitura (exceto o worktree do item, o admin dir dele e o state dir), `/tmp` privado, `--die-with-parent`, `--new-session`. Dentro do state dir, `work/` e os arquivos de controle voltam a somente leitura.
 
 **Continua visível (decisão e limites conhecidos)**
 
@@ -197,8 +197,13 @@ teto diario (`budget.py`). Os itens de um mesmo repo rodam ao mesmo tempo, cada 
 - **Arquivo em comum.** Itens do lote que citam o mesmo arquivo-alvo (`squad_flow.target_paths`) rodam em serie, na ordem do lote.
   Os outros rodam em paralelo. Um arquivo que o corpo da issue nao cita so aparece no review ou no merge train.
 - **Disco e limite.** No maximo o tamanho do lote em worktrees vivos (o plano de capacidade, ou `SIMPLICIO_247_CONCURRENCY` quando fixado). Com menos de 2 GiB livres o item e adiado sem gastar tentativa.
-- **Sandbox.** O bwrap liga como gravavel so o admin dir do worktree, `<git-dir>/objects` e `<git-dir>/simplicio` (base central do
-  mapper). Os caminhos vem do layout fixo, nao do arquivo `.git` do worktree. Config, hooks e refs da base ficam somente leitura.
+- **Sandbox.** O bwrap liga o state dir como gravavel e, por cima, deixa somente leitura o diretorio `work/` inteiro (os worktrees dos
+  outros itens, os admin dirs deles e os clones base, com `config`, `hooks` e `refs`) e os arquivos de controle do watcher que
+  existem (`claims.json`, `budget.json`, `STOP`). Depois liga como gravavel so o worktree do proprio item, o admin dir dele,
+  `<git-dir>/objects` e `<git-dir>/simplicio` (base central do mapper). Os caminhos vem do layout fixo, nao do arquivo `.git` do
+  worktree. O `git` do host (status, commit, push do tick) roda no item com `GIT_DIR`, `GIT_COMMON_DIR` e `GIT_WORK_TREE` do layout fixo:
+  reescrever o `.git` ou o `commondir` do proprio item nao leva o git do host ao admin dir de outro. Limites que ficam: `STOP` ainda
+  pode ser criado quando nao existe, e `objects/` e compartilhado entre os itens do repo (gravavel por todos).
 
 1. **Coordenador geral** (`planning`). As issues novas admitidas de cada repo viram `squads.plan_squads`: squads de ate 4
    workers e 1 coordenador (`coordination`) cada, dono de arquivo por caminho citado na issue, ordem de merge por
