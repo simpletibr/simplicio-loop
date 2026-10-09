@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 from pathlib import Path
 
-from . import config, github, proc, state, subscription
+from . import budget, config, github, proc, sandbox, state, subscription
 
 _STATE_DIRS = (".simplicio-loop/", ".simplicio/")
 
@@ -130,12 +131,11 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
 
 async def _run_turbo(dest: Path, repo: str, issue: dict, claim: dict, ident: str) -> str:
     """Run headless turbo; return its status, raise when it did not finish ok."""
-    result = await proc.run([
-        "simplicio-loop", "turbo",
-        "--repo", str(dest),
-        "--provider", "openrouter",
-        "--task", task_text(repo, issue),
-    ], timeout=config.TURBO_TIMEOUT_S)
+    await budget.record("model_calls")
+    argv = sandbox.wrap(["simplicio-loop", "turbo", "--repo", str(dest), "--provider", "openrouter",
+                         "--task", task_text(repo, issue)], clone=dest, state_dir=config.ROOT)
+    env = sandbox.scrubbed_env(os.environ, home=Path.home(), keep=("OPENROUTER_API_KEY",))
+    result = await proc.run(argv, timeout=config.TURBO_TIMEOUT_S, cwd=dest, env=env)
     log_path = config.LOGS / f"{repo}-{issue['number']}-{claim['attempts']}.log"
     await asyncio.to_thread(log_path.parent.mkdir, parents=True, exist_ok=True)
     await asyncio.to_thread(
@@ -154,6 +154,7 @@ async def process(repo: dict, issue: dict, claims: dict, gate: Gate) -> None:
     number = int(issue["number"])
     ident = state.key_of(name, number)
     claim = claims.get(ident) or {"attempts": 0}
+    await budget.record("issues")
     claim["attempts"] = int(claim.get("attempts") or 0) + 1
     claim["status"] = "running"
     claim["started_at"] = state.iso(state.now())
@@ -170,6 +171,8 @@ async def process(repo: dict, issue: dict, claims: dict, gate: Gate) -> None:
             head = await reset_branch(dest, repo["branch"], number)
             await _run_turbo(dest, name, issue, claim, ident)
             url = await commit_and_pr(dest, name, repo["branch"], head, issue)
+        if url:
+            await budget.record("prs")
         claim["status"] = "done" if url else "done_no_diff"
         claim["pr"] = url
         claim["finished_at"] = state.iso(state.now())
@@ -205,6 +208,15 @@ async def tick(dry_run: bool = False) -> None:
         await status(phase="stopped")
         state.log("STOP present")
         return
+    if blocked := sandbox.refusal():
+        await status(phase="blocked", reason_code=blocked)
+        state.log(f"blocked: {blocked}")
+        return
+    if capped := await budget.reached():
+        await status(phase="daily_cap_reached", reason_code="daily_cap_reached", cap=capped,
+                     budget=await budget.snapshot())
+        state.log(f"daily cap reached: {capped}")
+        return
     sub = None
     if dry_run:
         state.log("[dry-run] subscription check skipped")
@@ -217,7 +229,7 @@ async def tick(dry_run: bool = False) -> None:
     found = await github.repos()
     claims = await state.load(config.CLAIMS, {})
     baseline = await state.load(config.BASELINE, None)
-    limit = config.concurrency()
+    limit = min(config.concurrency(), await budget.issues_left())
     seen: list[str] = []
     batch: list[tuple[dict, dict]] = []
     for repo in found:

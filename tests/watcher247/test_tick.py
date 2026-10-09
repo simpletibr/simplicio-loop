@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop.watcher247 import config, proc, state, subscription, tick
+from simplicio_loop.watcher247 import config, proc, sandbox, state, subscription, tick
 from simplicio_loop.watcher247.__main__ import main as watcher_main
 
 FIXED = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -41,7 +41,7 @@ class FakeRun:
         self.repo_active[repo] = self.repo_active.get(repo, 0) + 1
         self.max_repo_active = max(self.max_repo_active, self.repo_active[repo])
 
-    async def __call__(self, argv, timeout=120, cwd=None):
+    async def __call__(self, argv, timeout=120, cwd=None, env=None):
         argv = list(argv)
         self.calls.append(argv)
         repo = Path(cwd).name if cwd else ""
@@ -101,6 +101,8 @@ def env(tmp_path, monkeypatch):
     config.set_state_dir(tmp_path)
     monkeypatch.setattr(state, "now", lambda: FIXED)
     monkeypatch.delenv("SIMPLICIO_247_CONCURRENCY", raising=False)
+    monkeypatch.setenv("SIMPLICIO_247_ALLOW_UNSANDBOXED", "1")  # sandbox has its own tests
+    monkeypatch.setattr(sandbox.shutil, "which", lambda binary: None)  # same argv on every host
 
     async def active():
         return {"active": True, "reason": "ok"}

@@ -1,0 +1,121 @@
+"""Sandbox: scrubbed env, argv wrapping (bwrap / systemd-run), and the refusal with no sandbox."""
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from simplicio_loop.watcher247 import sandbox
+
+CLONE = Path("/var/lib/simplicio-loop-247/work/simplicio-a")
+STATE = Path("/var/lib/simplicio-loop-247")
+TURBO = ["simplicio-loop", "turbo", "--repo", str(CLONE), "--provider", "openrouter", "--task", "t"]
+ENV = {
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "HOME": "/home/simplicio-loop",
+    "GH_TOKEN": "gh-secret",
+    "GITHUB_TOKEN": "gh-secret-2",
+    "OPENAI_API_KEY": "openai-secret",
+    "AWS_SECRET_ACCESS_KEY": "aws-secret",
+    "OPENROUTER_API_KEY": "or-secret",
+    "SIMPLICIO_247_STATE_DIR": "/var/lib/simplicio-loop-247",
+}
+
+
+def only(names):
+    def which(binary):
+        return f"/usr/bin/{binary}" if binary in names else None
+    return which
+
+
+def test_scrubbed_env_keeps_only_the_allowlist(tmp_path):
+    env = sandbox.scrubbed_env(ENV, home=tmp_path)
+    assert set(env) <= set(sandbox.ALLOWED_ENV) | {"HOME"}
+    assert env["PATH"] == "/usr/bin:/bin" and env["LANG"] == "C.UTF-8"
+    assert env["HOME"] == str(tmp_path)
+
+
+def test_scrubbed_env_drops_every_token(tmp_path):
+    env = sandbox.scrubbed_env(ENV, home=tmp_path)
+    blob = " ".join(env.values())
+    for secret in ("gh-secret", "openai-secret", "aws-secret", "or-secret"):
+        assert secret not in blob
+    assert "GH_TOKEN" not in env and "GITHUB_TOKEN" not in env
+
+
+def test_scrubbed_env_passes_only_explicitly_needed_keys(tmp_path):
+    env = sandbox.scrubbed_env(ENV, home=tmp_path, keep=("OPENROUTER_API_KEY",))
+    assert env["OPENROUTER_API_KEY"] == "or-secret"
+    assert "GH_TOKEN" not in env
+
+
+def test_scrubbed_env_supplies_a_default_path(tmp_path):
+    env = sandbox.scrubbed_env({}, home=tmp_path)
+    assert env["PATH"] == sandbox.DEFAULT_PATH
+
+
+def test_wrap_with_bwrap_is_read_only_except_clone_and_state(monkeypatch):
+    monkeypatch.setattr(sandbox.shutil, "which", only({"bwrap"}))
+    argv = sandbox.wrap(TURBO, clone=CLONE, state_dir=STATE, platform="linux", environ={})
+    assert argv[0] == "bwrap"
+    assert argv[argv.index("--ro-bind") + 1:argv.index("--ro-bind") + 3] == ["/", "/"]
+    binds = [argv[i + 1] for i, a in enumerate(argv) if a == "--bind"]
+    assert binds == [str(CLONE), str(STATE)]
+    assert argv[argv.index("--chdir") + 1] == str(CLONE)
+    assert "--die-with-parent" in argv and "--new-session" in argv
+    assert argv[argv.index("--") + 1:] == TURBO
+
+
+def test_wrap_prefers_bwrap_over_systemd_run(monkeypatch):
+    monkeypatch.setattr(sandbox.shutil, "which", only({"bwrap", "systemd-run"}))
+    argv = sandbox.wrap(TURBO, clone=CLONE, state_dir=STATE, platform="linux", environ={})
+    assert argv[0] == "bwrap"
+
+
+def test_wrap_with_systemd_run_sets_scope_properties(monkeypatch):
+    monkeypatch.setattr(sandbox.shutil, "which", only({"systemd-run"}))
+    argv = sandbox.wrap(TURBO, clone=CLONE, state_dir=STATE, platform="linux", environ={})
+    assert argv[:4] == ["systemd-run", "--user", "--scope", "--quiet"]
+    props = [argv[i + 1] for i, a in enumerate(argv) if a == "-p"]
+    assert "ProtectSystem=strict" in props and "NoNewPrivileges=yes" in props
+    assert f"ReadWritePaths={CLONE}" in props and f"ReadWritePaths={STATE}" in props
+    assert argv[argv.index("--") + 1:] == TURBO
+
+
+def test_refuses_without_any_sandbox(monkeypatch):
+    monkeypatch.setattr(sandbox.shutil, "which", only(set()))
+    with pytest.raises(sandbox.SandboxUnavailable) as caught:
+        sandbox.wrap(TURBO, clone=CLONE, state_dir=STATE, platform="linux", environ={})
+    assert caught.value.reason_code == "sandbox_unavailable"
+
+
+def test_refuses_off_linux_even_if_bwrap_exists(monkeypatch):
+    monkeypatch.setattr(sandbox.shutil, "which", only({"bwrap"}))
+    with pytest.raises(sandbox.SandboxUnavailable):
+        sandbox.wrap(TURBO, clone=CLONE, state_dir=STATE, platform="darwin", environ={})
+
+
+def test_unsandboxed_only_with_explicit_opt_in(monkeypatch):
+    monkeypatch.setattr(sandbox.shutil, "which", only(set()))
+    argv = sandbox.wrap(TURBO, clone=CLONE, state_dir=STATE, platform="linux",
+                        environ={"SIMPLICIO_247_ALLOW_UNSANDBOXED": "1"})
+    assert argv == TURBO
+
+
+def test_opt_in_must_be_exactly_one(monkeypatch):
+    monkeypatch.setattr(sandbox.shutil, "which", only(set()))
+    with pytest.raises(sandbox.SandboxUnavailable):
+        sandbox.wrap(TURBO, clone=CLONE, state_dir=STATE, platform="linux",
+                     environ={"SIMPLICIO_247_ALLOW_UNSANDBOXED": "yes"})
+
+
+def test_refusal_reason_is_none_when_a_sandbox_exists(monkeypatch):
+    monkeypatch.setattr(sandbox.shutil, "which", only({"bwrap"}))
+    assert sandbox.refusal(platform="linux", environ={}) is None
+
+
+def test_refusal_reason_names_the_missing_sandbox(monkeypatch):
+    monkeypatch.setattr(sandbox.shutil, "which", only(set()))
+    assert sandbox.refusal(platform="linux", environ={}) == "sandbox_unavailable"
+    assert sandbox.refusal(platform="linux", environ={"SIMPLICIO_247_ALLOW_UNSANDBOXED": "1"}) is None

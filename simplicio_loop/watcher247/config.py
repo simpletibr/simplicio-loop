@@ -41,7 +41,7 @@ def concurrency() -> int:
 
 def set_state_dir(path: str | Path) -> None:
     """Point every state path at `path`."""
-    global STATE_DIR, ROOT, WORK, LOGS, BASELINE, CLAIMS, STATUS, STOP, DISABLED
+    global STATE_DIR, ROOT, WORK, LOGS, BASELINE, CLAIMS, STATUS, STOP, DISABLED, BUDGET
     STATE_DIR = ROOT = Path(path)
     WORK = ROOT / "work"
     LOGS = ROOT / "logs"
@@ -50,6 +50,7 @@ def set_state_dir(path: str | Path) -> None:
     STATUS = ROOT / "status.json"
     STOP = ROOT / "STOP"
     DISABLED = ROOT / "issues-disabled.json"
+    BUDGET = ROOT / "budget.json"
 
 
 set_state_dir(os.environ.get("SIMPLICIO_247_STATE_DIR", "/var/lib/simplicio-loop-247"))
