@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="8단계 애니메이션 흐름: 이슈, 인테이크, 총괄 코디네이터, 스팩, 워커(매퍼, 계획, dev-cli), 스팩 리뷰, 머지 트레인, main, Simplicio Live 칸반" width="100%" />
+  <img src="../docs/assets/readme/how-it-works.webp" alt="8단계 애니메이션 흐름: 이슈, 인테이크, 총괄 코디네이터, 스팩, 워커(매퍼, 계획, dev-cli), 스팩 리뷰, 머지 트레인, main, Simplicio Live 칸반" width="100%" />
 </p>
 
 ## 기능
@@ -89,7 +89,7 @@ flowchart LR
 ## 동작 방식
 
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="워커 루프: 매퍼가 저장소 매핑, 샌드박스에서 계획, 적용과 검증, 한 번의 실패, 다음 모델 역할로 상향, 시크릿 스캔, PR, 스팩 리뷰" width="100%" />
+  <img src="../docs/assets/readme/worker-loop.webp" alt="워커 루프: 매퍼가 저장소 매핑, 샌드박스에서 계획, 적용과 검증, 한 번의 실패, 다음 모델 역할로 상향, 시크릿 스캔, PR, 스팩 리뷰" width="100%" />
 </p>
 
 ```mermaid
@@ -98,7 +98,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="머지 트레인: PR 4개를 한 번 테스트, 빨간불, 이분 탐색으로 C 분리, 이후 A, B, D 머지" width="100%" />
+  <img src="../docs/assets/readme/merge-train.webp" alt="머지 트레인: PR 4개를 한 번 테스트, 빨간불, 이분 탐색으로 C 분리, 이후 A, B, D 머지" width="100%" />
 </p>
 
 ```mermaid
@@ -110,7 +110,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="스팩 조직도: 총괄 코디네이터, 스팩별 코디네이터, 각 최대 4명의 워커" width="100%" />
+  <img src="../docs/assets/readme/squads.webp" alt="스팩 조직도: 총괄 코디네이터, 스팩별 코디네이터, 각 최대 4명의 워커" width="100%" />
 </p>
 
 ```mermaid

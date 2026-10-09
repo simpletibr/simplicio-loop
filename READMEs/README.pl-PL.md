@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="Animowany przepływ w 8 krokach: issues, intake, główny koordynator, squady, workery (mapper, plan, dev-cli), review squadu, merge train, main i kanban Simplicio Live" width="100%" />
+  <img src="../docs/assets/readme/how-it-works.webp" alt="Animowany przepływ w 8 krokach: issues, intake, główny koordynator, squady, workery (mapper, plan, dev-cli), review squadu, merge train, main i kanban Simplicio Live" width="100%" />
 </p>
 
 ## Co robi
@@ -89,7 +89,7 @@ flowchart LR
 ## Jak to działa
 
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="Pętla workera: mapper mapuje repo, planowanie w sandboxie, zastosowanie i weryfikacja, porażka, eskalacja do kolejnej roli modelu, skan sekretów, PR, review squadu" width="100%" />
+  <img src="../docs/assets/readme/worker-loop.webp" alt="Pętla workera: mapper mapuje repo, planowanie w sandboxie, zastosowanie i weryfikacja, porażka, eskalacja do kolejnej roli modelu, skan sekretów, PR, review squadu" width="100%" />
 </p>
 
 ```mermaid
@@ -98,7 +98,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 PR-y przetestowane raz, czerwono, bisekcja izoluje C, potem A, B i D są mergowane" width="100%" />
+  <img src="../docs/assets/readme/merge-train.webp" alt="Merge train: 4 PR-y przetestowane raz, czerwono, bisekcja izoluje C, potem A, B i D są mergowane" width="100%" />
 </p>
 
 ```mermaid
@@ -110,7 +110,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="Schemat organizacyjny squadów: główny koordynator, koordynator na squad i do 4 workerów w każdym" width="100%" />
+  <img src="../docs/assets/readme/squads.webp" alt="Schemat organizacyjny squadów: główny koordynator, koordynator na squad i do 4 workerów w każdym" width="100%" />
 </p>
 
 ```mermaid

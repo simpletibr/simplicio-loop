@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="8 चरणों का एनिमेटेड फ्लो: issues, intake, जनरल कोऑर्डिनेटर, squads, workers (mapper, plan, dev-cli), squad review, merge train, main और Simplicio Live kanban" width="100%" />
+  <img src="../docs/assets/readme/how-it-works.webp" alt="8 चरणों का एनिमेटेड फ्लो: issues, intake, जनरल कोऑर्डिनेटर, squads, workers (mapper, plan, dev-cli), squad review, merge train, main और Simplicio Live kanban" width="100%" />
 </p>
 
 ## यह क्या करता है
@@ -89,7 +89,7 @@ flowchart LR
 ## यह कैसे काम करता है
 
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="Worker loop: mapper repo को map करता है, sandbox में plan, apply और verify, एक विफलता, अगले model role पर escalation, secret scan, PR, squad review" width="100%" />
+  <img src="../docs/assets/readme/worker-loop.webp" alt="Worker loop: mapper repo को map करता है, sandbox में plan, apply और verify, एक विफलता, अगले model role पर escalation, secret scan, PR, squad review" width="100%" />
 </p>
 
 ```mermaid
@@ -98,7 +98,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 PR एक बार टेस्ट, लाल, bisect ने C को अलग किया, फिर A, B और D merge हुए" width="100%" />
+  <img src="../docs/assets/readme/merge-train.webp" alt="Merge train: 4 PR एक बार टेस्ट, लाल, bisect ने C को अलग किया, फिर A, B और D merge हुए" width="100%" />
 </p>
 
 ```mermaid
@@ -110,7 +110,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="Squads का संगठन चार्ट: एक जनरल कोऑर्डिनेटर, हर squad का कोऑर्डिनेटर और हर squad में 4 workers तक" width="100%" />
+  <img src="../docs/assets/readme/squads.webp" alt="Squads का संगठन चार्ट: एक जनरल कोऑर्डिनेटर, हर squad का कोऑर्डिनेटर और हर squad में 4 workers तक" width="100%" />
 </p>
 
 ```mermaid

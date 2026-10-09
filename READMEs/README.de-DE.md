@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="Animierter Ablauf in 8 Schritten: Issues, Intake, Generalkoordinator, Squads, Worker in der Sandbox, Squad-Review, Merge-Train, main und das Kanban Simplicio Live" width="100%" />
+  <img src="../docs/assets/readme/how-it-works.webp" alt="Animierter Ablauf in 8 Schritten: Issues, Intake, Generalkoordinator, Squads, Worker in der Sandbox, Squad-Review, Merge-Train, main und das Kanban Simplicio Live" width="100%" />
 </p>
 
 ## Was es tut
@@ -89,7 +89,7 @@ Details: [docs/WATCHER_247.md](../docs/WATCHER_247.md).
 ## So funktioniert es
 
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="Worker-Schleife: Planen in der Sandbox, Anwenden und Prüfen, ein Fehlschlag, Eskalation zur nächsten Modellrolle, Secret-Scan, PR, Squad-Review" width="100%" />
+  <img src="../docs/assets/readme/worker-loop.webp" alt="Worker-Schleife: Planen in der Sandbox, Anwenden und Prüfen, ein Fehlschlag, Eskalation zur nächsten Modellrolle, Secret-Scan, PR, Squad-Review" width="100%" />
 </p>
 
 ```mermaid
@@ -98,7 +98,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="Merge-Train: 4 PRs einmal getestet, rot, die Bisektion isoliert C, dann werden A, B und D gemergt" width="100%" />
+  <img src="../docs/assets/readme/merge-train.webp" alt="Merge-Train: 4 PRs einmal getestet, rot, die Bisektion isoliert C, dann werden A, B und D gemergt" width="100%" />
 </p>
 
 ```mermaid
@@ -110,7 +110,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="Organigramm der Squads: ein Generalkoordinator, ein Koordinator pro Squad und bis zu 4 Worker je Squad" width="100%" />
+  <img src="../docs/assets/readme/squads.webp" alt="Organigramm der Squads: ein Generalkoordinator, ein Koordinator pro Squad und bis zu 4 Worker je Squad" width="100%" />
 </p>
 
 ```mermaid
