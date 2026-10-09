@@ -1,0 +1,89 @@
+"""Who wrote, who approved, and at which level: the roles are recorded, and the author never approves their own PR.
+
+Every agent of the loop comments with the same GitHub account, so the account proves nothing. The proof is the
+agent id and role, recorded in the approval comment, and for T2 a marker of an independent reviewer bound to the head.
+"""
+from __future__ import annotations
+
+import re
+import unicodedata
+from dataclasses import dataclass
+from pathlib import PurePosixPath
+from typing import Mapping, Sequence
+
+from .diffs import FileChange
+from .model import ERROR, FAIL, PASS, CheckResult, Level
+
+NAME = "identity"
+T0_MAX_ADDED_LINES = 200
+# Words of a path (split on anything that is not a letter or digit) that make a change security-sensitive.
+SECURITY_WORDS = frozenset({"sandbox", "daemon", "token", "tokens", "uninstall", "mapper", "login", "secret", "secrets",
+                            "credential", "credentials", "auth", "permission", "permissions"})
+INDEPENDENT_PHRASE = "REVISAO INDEPENDENTE: APROVADA"
+INDEPENDENT_ROLE = "independent-reviewer"
+_FIELDS = {"revisor": "agent_id", "papel": "role", "modelo": "model", "host": "host"}
+
+
+@dataclass(frozen=True)
+class Agent:
+    agent_id: str
+    role: str
+    model: str
+    host: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {"agent_id": self.agent_id, "role": self.role, "model": self.model, "host": self.host}
+
+
+AUTO_REVIEWER = Agent("review-gate/auto", "automatic-reviewer", "deterministic", "loop")
+
+
+def _fold(text: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+
+
+def classify_level(changes: Sequence[FileChange]) -> Level:
+    production = [c for c in changes if c.kind in ("code", "other") and c.status != "D"]
+    if any(SECURITY_WORDS.intersection(re.split(r"[^a-z0-9]+", str(PurePosixPath(c.path)).lower())) for c in production):
+        return Level.T2
+    if not production and sum(len(c.added) for c in changes) <= T0_MAX_ADDED_LINES:
+        return Level.T0
+    return Level.T1
+
+
+def check_identity(author: Agent, reviewer: Agent, level: Level, independent: Agent | None) -> CheckResult:
+    if not author.agent_id or not author.role:
+        return CheckResult(NAME, ERROR, ("autor do PR desconhecido: sem identidade nao ha como provar independencia",))
+    measured = {"level": level.value, "author": author.to_dict(), "reviewer": reviewer.to_dict(),
+                "independent": independent.agent_id if independent else None}
+    reasons: list[str] = []
+    if reviewer.agent_id == author.agent_id:
+        reasons.append(f"auto-aprovacao: o autor ({author.agent_id}) nao pode aprovar o proprio PR")
+    elif reviewer.role == author.role:
+        reasons.append(f"o revisor ({reviewer.agent_id}) tem o mesmo papel do autor ({author.role}): a aprovacao exige papel diferente")
+    if level is Level.T2:
+        if independent is None:
+            reasons.append("nivel T2 (seguranca) exige revisor independente: nenhum marcador "
+                           f"'{INDEPENDENT_PHRASE}' com o head atual; o portao automatico sozinho nao aprova")
+        elif independent.agent_id in (author.agent_id, reviewer.agent_id) or independent.role in (author.role, reviewer.role):
+            reasons.append(f"revisor independente ({independent.agent_id}, {independent.role}) nao e independente "
+                           "do autor nem do portao automatico")
+    return CheckResult(NAME, FAIL if reasons else PASS, tuple(reasons), measured)
+
+
+def parse_independent_marker(comments: Sequence[Mapping], head: str) -> Agent | None:
+    """The independent reviewer who approved exactly `head`: a comment line `REVISÃO INDEPENDENTE: APROVADA`
+    (not quoted) with `revisor:`, `papel:`, `modelo:`, `host:` and `head:` lines."""
+    for comment in comments:
+        lines = [_fold(raw.strip()) for raw in str(comment.get("body") or "").splitlines()]
+        if INDEPENDENT_PHRASE not in [ln.upper() for ln in lines]:
+            continue
+        found: dict[str, str] = {}
+        for line in lines:
+            key, sep, value = line.partition(":")
+            if sep and key.strip().lower() in (*_FIELDS, "head"):
+                found[key.strip().lower()] = value.strip()
+        marked = found.get("head", "")
+        if len(marked) >= 7 and head.startswith(marked) and all(found.get(k) for k in _FIELDS):
+            return Agent(**{attr: found[key] for key, attr in _FIELDS.items()})
+    return None
