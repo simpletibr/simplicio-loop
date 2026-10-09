@@ -9,11 +9,13 @@ import json
 import pytest
 
 from simplicio_loop.watcher247 import points
+from simplicio_loop.watcher247.points import registry
 
 
 @pytest.fixture
-def point_contract():
+def point_contract(monkeypatch):
     def check(name, ctx, expect=None):
+        monkeypatch.setattr(registry, "_POINTS", [p for p in registry._POINTS if p.name == name])  # this point alone
         [info] = [i for i in points.registered() if i.name == name]
         assert info.blocking and info.stage in points.STAGES
         assert info.module.startswith("simplicio_loop.watcher247.points."), "a point lives in points/<name>.py"

@@ -32,13 +32,16 @@ def empty_registry(monkeypatch):
 
 
 @pytest.fixture
-def point_contract():
+def point_contract(monkeypatch):
     """check(name, ctx, expect=...) runs the registered point through the registry and asserts the contract.
+
+    Only that point runs: a blocking point earlier in the same stage (judge, delivery_gate) would stop it.
 
     The point is registered once, at a valid stage, as an async function in points/<name>.py; it returns a
     PointResult named after itself with a known status and JSON-serializable evidence; and it never raises.
     """
     def check(name, ctx, expect=None):
+        monkeypatch.setattr(registry, "_POINTS", [p for p in registry._POINTS if p.name == name])  # this point alone
         matches = [info for info in points.registered() if info.name == name]
         assert len(matches) == 1, f"point {name!r} must be registered exactly once"
         info = matches[0]
