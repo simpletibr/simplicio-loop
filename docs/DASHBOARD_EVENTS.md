@@ -153,6 +153,24 @@ events = read_events(run_dir, since_seq=0)  # ordered by seq; rotated files incl
 `python3 scripts/dashboard_events.py read RUN_DIR [--since N]` prints the same as JSONL and
 `python3 scripts/dashboard_events.py validate FILE` checks a file.
 
+### Incremental reading (#1565)
+
+The dashboard polls a live run every few seconds, and a run can hold ~100k events, so `read_events` does not re-parse the
+stream on each call. Each events file (`events.jsonl`, `events.jsonl.N`) is cached after it is parsed, keyed by
+`(st_dev, st_ino)`, with the byte offset consumed (always the end of a newline-terminated line) and the first and last 4 KiB of
+the consumed bytes. The next read parses only the bytes appended since. A last line without its newline is not consumed: it is
+returned if it already parses, and read again once more bytes arrive.
+
+A file is read again in full when it shrank below the offset, when its size is unchanged but its mtime or ctime moved (an
+in-place rewrite, a rename such as a rotation), or when the consumed head or tail no longer matches (a different file under a
+reused inode). The result is always what a fresh full read returns. One thing it cannot see: a rewrite of the middle of a file
+that also grows it and leaves the first and last 4 KiB of the consumed part alone. The emitter only appends and rotates.
+
+Memory is bounded: at most `READ_CACHE_MAX_FILES` (8) files and `READ_CACHE_MAX_EVENTS` (200,000) parsed events, least recently
+used file first (about 0.9 KB per event: keys and short values are shared). A file that left its run dir (a segment rotated out, a run deleted) is dropped at the next read of that dir. The default rotation (16 MiB, 3 rotated files plus the
+live one) holds about 160k events. A file above the cap is not kept and is parsed in full on every read, as before. The events
+returned are shared with the cache: callers must not mutate them (the list itself is new on every call).
+
 ### Older runs (retroactive adapter)
 
 A run without live events (no `events.jsonl`, or one that holds only the older progress records) is

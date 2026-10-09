@@ -496,10 +496,10 @@ class TestColdReadMultiThreaded:
         results = []
         
         def reader():
-            de.clear_read_cache()
             result = de.read_live_events(tmp_path)
             results.append(result)
         
+        de.clear_read_cache()
         threads = [threading.Thread(target=reader) for _ in range(20)]
         for t in threads:
             t.start()
@@ -515,80 +515,98 @@ class TestColdReadMultiThreaded:
         assert cache_info["files"] == 1
 
 
+PRICES = json.loads((Path(__file__).resolve().parents[1] / "simplicio_loop" / "dashboard" / "prices.json").read_text(encoding="utf-8"))
+
+
+def _summary(events):
+    """The stage-agents view of the events, as the bytes the route would serialise."""
+    from simplicio_loop.dashboard import stage_agents
+    return json.dumps(stage_agents.view(events, PRICES), sort_keys=True, default=str)
+
+
+def _usage_line(rnd, seq):
+    """One serialised token_usage envelope; ``seq`` is sometimes out of order on purpose."""
+    seq = seq if rnd.random() < 0.9 else rnd.randint(1, 50)
+    event = {"schema": de.SCHEMA, "event_id": "E%d" % rnd.randint(0, 10 ** 9), "seq": seq, "kind": rnd.choice(["token_usage", "worker_claimed", "phase_entered"]),
+             "phase": rnd.choice(["planning", "executing", None]), "lane": rnd.choice(["coder", "tester", None]), "task_id": "T%d" % rnd.randint(1, 6),
+             "iteration": rnd.choice([None, 0, 1, 2]),
+             "payload": {"model": "claude-%s-5-5" % rnd.choice(["haiku", "sonnet", "opus"]), "input_tokens": rnd.randint(0, 5000),
+                         "output_tokens": rnd.randint(0, 500), "lease_id": "L%d" % rnd.randint(1, 5)}}
+    return json.dumps(event)
+
+
 class TestRandomStreamOracle:
-    """Test 11: random-stream oracle.
-    
-    For seeds 0..59 do a sequence of ~25 random operations,
-    comparing read_live_events to oracle after EACH op.
-    Also check byte-identical summaries from stage_agents.view.
-    """
-    
-    def test_random_stream_oracle(self, tmp_path, monkeypatch):
-        """Execute random operations and verify oracle match."""
-        rnd = Random(42)  # Single seed for this test
-        
-        # 25 random operations
-        for op_num in range(25):
-            choice = rnd.randint(0, 10)
-            
-            if choice == 0:
-                # Append valid events
-                count = rnd.randint(1, 20)
-                _emit(tmp_path, rnd, count)
-            elif choice == 1:
-                # Append garbage line
-                _append_raw(tmp_path, b'this is garbage\n')
-            elif choice == 2:
-                # Append blank line
-                _append_raw(tmp_path, b'\n')
-            elif choice == 3:
-                # Append foreign-schema JSON
-                obj = {"no_schema": True, "data": "test"}
-                _append_raw(tmp_path, json.dumps(obj).encode() + b'\n')
-            elif choice == 4:
-                # Append CRLF-terminated valid line
-                if (Path(tmp_path) / "events.jsonl").exists():
-                    _append_raw(tmp_path, b'\n')
-            elif choice == 5:
-                # Append half line then complete it
-                half = b'{"schema": "simplicio'
-                _append_raw(tmp_path, half)
-                rest = b'.dashboard-event/v1", "seq": 999, "run_id": "test", "event_id": "' + de.new_ulid().encode() + b'", "ts": "2026-01-01T00:00:00.000Z", "task_id": null, "scope": "collection", "source": "oracle", "kind": "run_finished", "phase": null, "lane": null, "iteration": null, "severity": "info", "payload": {}, "refs": [], "producer_version": "simplicio-loop@test"}\n'
-                _append_raw(tmp_path, rest)
-            elif choice == 6:
-                # Truncate to random shorter length
-                path = Path(tmp_path) / "events.jsonl"
-                if path.exists():
-                    content = path.read_bytes()
-                    new_len = max(0, rnd.randint(0, len(content) - 1))
-                    path.write_bytes(content[:new_len])
-            elif choice == 7:
-                # Rotate (manually move file)
-                path = Path(tmp_path) / "events.jsonl"
-                if path.exists():
-                    rotated = Path(tmp_path) / "events.jsonl.1"
-                    if rotated.exists():
-                        rotated2 = Path(tmp_path) / "events.jsonl.2"
-                        rotated2.write_bytes(rotated.read_bytes())
-                    rotated.write_bytes(path.read_bytes())
-                    path.unlink()
-            elif choice == 8:
-                # Replace file with different content
-                _emit(tmp_path, rnd, rnd.randint(1, 5))
-            elif choice == 9:
-                # Invalid UTF-8 bytes (replace with garbage bytes in middle)
-                path = Path(tmp_path) / "events.jsonl"
-                if path.exists() and path.stat().st_size > 10:
-                    content = bytearray(path.read_bytes())
-                    pos = rnd.randint(5, len(content) - 5)
-                    content[pos:pos+2] = b'\xff\xfe'
-                    path.write_bytes(bytes(content))
-            # else: do nothing
-            
-            # After each op, verify
-            result = de.read_live_events(tmp_path)
-            oracle = _reference(tmp_path)
-            assert result == oracle, f"Mismatch at op {op_num}"
+    """Test 11: random operations on one run dir; the incremental read equals the oracle after the operation, and the stage-agents
+    summary built from it is byte-identical to the one built from a fresh full read."""
+
+    OPS = ["append", "append", "append", "garbage", "blank", "foreign", "crlf", "partial", "finish", "truncate", "rotate", "replace",
+           "inplace", "nothing", "badutf8", "no_newline", "bare_cr"]
+
+    @pytest.mark.parametrize("seed", range(60))
+    def test_random_operations_match_the_oracle(self, tmp_path, seed):
+        rnd = Random(seed)
+        run = tmp_path / "run"
+        run.mkdir()
+        path = run / "events.jsonl"
+        counter = [0]
+
+        def line():
+            counter[0] += 1
+            return _usage_line(rnd, counter[0])
+
+        for step in range(25):
+            op = rnd.choice(self.OPS)
+            if op == "inplace":
+                de.read_live_events(run)  # a poll happened before the edit
+            with open(path, "ab") as fh:
+                if op == "append":
+                    for _ in range(rnd.randint(1, 20)):
+                        fh.write((line() + "\n").encode())
+                elif op == "garbage":
+                    fh.write(b"{not json\n")
+                elif op == "blank":
+                    fh.write(b"\n  \n")
+                elif op == "foreign":
+                    fh.write(b'{"event":"old","seq":3}\n')
+                elif op == "crlf":
+                    fh.write((line() + "\r\n").encode())
+                elif op == "partial":
+                    text = line()
+                    fh.write(text[:rnd.randint(1, len(text) - 1)].encode())
+                elif op == "finish":
+                    fh.write(b"}\n" if rnd.random() < 0.5 else (line() + "\n").encode())
+                elif op == "badutf8":
+                    fh.write(b'{"schema":"' + de.SCHEMA.encode() + b'","seq":999,"x":"\xff\xfe"}\n')
+                elif op == "no_newline":
+                    fh.write(line().encode())
+                elif op == "bare_cr":  # the old text reader treated a lone \r as a line end
+                    fh.write((line() + "\r" + line() + "\n").encode())
+            if op == "truncate" and path.stat().st_size:
+                os.truncate(path, rnd.randint(0, path.stat().st_size))
+            elif op == "rotate":
+                numbers = sorted((int(n.rsplit(".", 1)[1]) for n in os.listdir(run) if re.match(r"^events\.jsonl\.\d+$", n)), reverse=True)
+                for number in numbers:
+                    os.replace("%s.%d" % (path, number), "%s.%d" % (path, number + 1))
+                os.replace(path, "%s.1" % path)
+            elif op == "replace":
+                temp = run / "events.tmp"
+                temp.write_bytes(b"".join((line() + "\n").encode() for _ in range(rnd.randint(0, 30))))
+                os.replace(temp, path)
+            elif op == "inplace" and path.stat().st_size > 20:
+                before = path.stat()
+                with open(path, "r+b") as fh:
+                    fh.seek(rnd.randint(0, before.st_size - 5))
+                    fh.write(b"ZZ" if rnd.random() < 0.5 else b"12")
+                if rnd.random() < 0.5:
+                    os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+            if rnd.random() < 0.7 or op == "inplace":
+                assert de.read_live_events(run) == _reference(run), "seed %d step %d op %s" % (seed, step, op)
+        incremental, fresh = de.read_events(run), _reference(run)
+        if fresh:
+            assert incremental == fresh
+            assert _summary(incremental) == _summary(fresh)
+            de.clear_read_cache()
+            assert _summary(de.read_events(run)) == _summary(fresh)  # cold equals warm
 
 
 class TestBoundedMemory:
@@ -650,7 +668,7 @@ class TestSinceSeq:
         oracle = _reference(tmp_path)
         oracle_filtered = [e for e in oracle if e["seq"] > 50]
         assert result_cold == oracle_filtered
-        assert len(result_cold) == 49
+        assert len(result_cold) == 50
         
         # Append more
         _emit(tmp_path, rnd, 50)
@@ -751,3 +769,64 @@ class TestLargeFile:
         assert append_loads <= 3, f"Warm read after append parsed {append_loads} lines, expected <= 3"
         assert append_loads < cold_loads * 0.1, f"Warm read {append_loads} should be < 10% of cold {cold_loads}"
         assert result3 == _reference(tmp_path)
+
+
+class TestRacyTimestamps:
+    """A rewrite inside one clock tick leaves size, mtime and ctime as they were: while the file is recent the fingerprint decides."""
+
+    def _rewrite_with_unchanged_stat(self, tmp_path, monkeypatch):
+        from types import SimpleNamespace
+        rnd = Random(7)
+        _emit(tmp_path, rnd, 20)
+        path = tmp_path / "events.jsonl"
+        assert de.read_live_events(tmp_path) == _reference(tmp_path)
+        before = os.stat(path)
+        with open(path, "r+b") as fh:  # same size, new bytes at the very start
+            fh.write(b'{"schema":"other-schema-x"')
+        real = os.fstat
+
+        def frozen(fd):
+            now = real(fd)
+            return SimpleNamespace(st_size=now.st_size, st_mtime_ns=before.st_mtime_ns, st_ctime_ns=before.st_ctime_ns,
+                                   st_dev=now.st_dev, st_ino=now.st_ino)
+
+        monkeypatch.setattr(de.os, "fstat", frozen)
+
+    def test_a_recent_file_with_an_unchanged_stat_but_other_bytes_is_read_again(self, tmp_path, monkeypatch):
+        self._rewrite_with_unchanged_stat(tmp_path, monkeypatch)
+        assert de.read_live_events(tmp_path) == _reference(tmp_path)
+
+    def test_the_fingerprint_is_only_checked_for_recent_files(self, tmp_path, monkeypatch):
+        """An old file with an unchanged stat is served as is: nothing but the stat can tell, and the check costs two small reads."""
+        self._rewrite_with_unchanged_stat(tmp_path, monkeypatch)
+        monkeypatch.setattr(de, "_RACY_SECONDS", -1.0)  # no file counts as recent
+        assert len(de.read_live_events(tmp_path)) == 20
+
+
+class TestGoneFiles:
+    """A segment that rotated out (or a run dir that was emptied) must not stay in the cache holding its events."""
+
+    def test_rotated_out_segments_leave_the_cache(self, tmp_path):
+        rnd = Random(3)
+        _emit(tmp_path, rnd, 30)
+        assert len(de.read_live_events(tmp_path)) == 30
+        os.replace(tmp_path / "events.jsonl", tmp_path / "events.jsonl.1")
+        _emit(tmp_path, rnd, 5)
+        de.read_live_events(tmp_path)
+        assert de.read_cache_info() == {"files": 2, "events": 35}
+        os.remove(tmp_path / "events.jsonl.1")  # KEEP exceeded: the oldest segment is deleted
+        assert de.read_live_events(tmp_path) == _reference(tmp_path)
+        assert de.read_cache_info() == {"files": 1, "events": 5}
+
+    def test_another_runs_cache_is_left_alone(self, tmp_path):
+        rnd = Random(4)
+        first, second = tmp_path / "a", tmp_path / "b"
+        first.mkdir()
+        second.mkdir()
+        _emit(first, rnd, 10)
+        _emit(second, rnd, 20)
+        de.read_live_events(first)
+        de.read_live_events(second)
+        os.remove(first / "events.jsonl")
+        de.read_live_events(first)
+        assert de.read_cache_info() == {"files": 1, "events": 20}

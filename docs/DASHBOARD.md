@@ -295,6 +295,15 @@ The cost row shows "Estimado". The budget row shows "Estimado" for a projection 
 
 Budget slice (#1404): `simplicio_loop/dashboard/budget.py` reads the declared limits, sums the usage events and projects. The alert rules `budget-projected:<tokens|usd|seconds>` (warning, the projection passes the limit) and `budget-exceeded:<...>` (critical, measured use passed it) run in the alert watch. A dimension with no declared limit, no measured use or no phase progress is UNVERIFIED. Still deferred to issue #1404: the token producer (no `token_usage` writer exists, so tokens and USD stay UNVERIFIED on a real run), cost per run, task and iteration. The last-10 comparison is done on top of the #1408 reader. The decisions were: the price table lives in the repo; no token producer in this round; agent roles come from the stage contract.
 
+### Stage-agents reply under load (#1565)
+
+`GET /api/runs/{id}/stage-agents` is polled every 3 s, so it stays small and cheap whatever the run holds:
+
+- `cost.by_model` lists the 20 most expensive models. With more, `cost.others` carries `models`, `tokens_in`, `tokens_out`, `tokens` and `usd` of the rest, and the listed parts add up to `cost.usd`. A model with no price makes the whole cost UNVERIFIED with the reason, so nothing is folded in that case.
+- A token or USD count that is not finite, is negative, is not a number or is above 10^15 is not a measurement: it is ignored, and `breakdown.tokens.ignored` counts the events (with `ignored_reason`, or the reason when no other count was measured). Every reply is strict JSON; a reply that still held NaN or Infinity would be a JSON 500, never invalid JSON.
+- One computation per run is in flight at a time. A poll that arrived before the computation took its file stamp takes its result; a poll that arrives later, with the files changed since, waits for a newer one. N pollers of a hot run cost about two computations, and an append that finished before a request began is always in its reply.
+- A poll waits at most 10 s for a computation. After that it gets the last good reply with `stale: true` and `age_s`, or, when the run has none, `503` with `Retry-After: 1`.
+
 ## Coordination (`/api/coordination`)
 
 Read-only, token-gated like `/api/queue`. The source is the backlog JSONL: `$SIMPLICIO_BACKLOG_FILE` when set, else `<repo>/.simplicio-loop/orchestrator/backlog/backlog.jsonl` for the first watched repo. The builder is `simplicio_loop/dashboard/coordination.py` (`build_coordination`).
