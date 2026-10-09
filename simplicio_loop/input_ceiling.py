@@ -149,7 +149,8 @@ def estimate_tokens(text: str) -> int:
         elif match.lastgroup == "p":
             quarters += 4 * (1 + size // 16)
         elif first.isascii():
-            quarters += 4
+            # Control characters (0x00-0x1f) are costlier; other ASCII punctuation/symbols are 1 token.
+            quarters += 6 if ord(first) < 0x20 else 4
         else:
             nbytes = len(first.encode("utf-8", "surrogatepass"))
             quarters += 4 if nbytes == 2 and ord(first) >= 0x370 else _NON_ASCII_QUARTERS.get(nbytes, 12)

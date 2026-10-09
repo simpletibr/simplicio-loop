@@ -39,7 +39,7 @@ def test_constants():
     assert ic.TOML_KEY == "agent_input_token_ceiling"
     assert ic.SOFT_PERCENT == 90
     assert ic.SAFETY_PERCENT == 120
-    assert ic.ESTIMATOR_LABEL == "conservative-v1"
+    assert ic.ESTIMATOR_LABEL == "conservative-v2"
 
 
 def test_default_when_nothing_is_configured(tmp_path):
