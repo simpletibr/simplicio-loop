@@ -24,6 +24,7 @@ from simplicio_loop import local_capacity, openrouter_operator, runner as runner
 from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 
 @pytest.fixture(autouse=True)
@@ -689,7 +690,7 @@ def test_dispatch_operator_batch_propagates_provider_worker_to_attempt(tmp_path,
             "receipt_status": "VERIFIED",
         }
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_attempt)
 
     result = runner_mod.dispatch_operator_batch(
         [_fake_item(repo)], provider_worker="OpenRouter", retry_budget=0,
@@ -714,7 +715,7 @@ def test_dispatch_operator_batch_retries_until_success_within_budget(tmp_path, m
             "receipt_status": "VERIFIED" if status == "succeeded" else "UNVERIFIED",
         }
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_attempt)
 
     result = runner_mod.dispatch_operator_batch([_fake_item(repo)], retry_budget=3)
 
@@ -739,7 +740,7 @@ def test_dispatch_operator_batch_exhausts_retry_budget_and_dead_letters(tmp_path
             "receipt_status": "UNVERIFIED",
         }
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_attempt)
 
     result = runner_mod.dispatch_operator_batch([_fake_item(repo)], retry_budget=2)
 
@@ -775,7 +776,7 @@ def test_dispatch_operator_batch_resume_skips_already_succeeded_tasks(tmp_path, 
         return {"status": "succeeded", "repo": item["repo"], "run_id": item["run_id"],
                 "task_index": item["task_index"], "worker_id": item["worker_id"]}
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_attempt)
 
     result = runner_mod.dispatch_operator_batch(
         [_fake_item(repo)], retry_budget=1, journal_dir=str(journal_dir),
@@ -797,7 +798,7 @@ def test_dispatch_operator_batch_converges_multiple_independent_tasks(tmp_path, 
         return {"status": "succeeded", "repo": item["repo"], "run_id": item["run_id"],
                 "task_index": item["task_index"], "worker_id": item["worker_id"]}
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_attempt)
 
     items = [
         _fake_item(repo, task_index=1, worker_id="w1"),
@@ -822,7 +823,7 @@ def test_dispatch_operator_batch_forces_serial_fallback_for_shared_run_state(tmp
         return {"status": "succeeded", "repo": item["repo"], "run_id": item["run_id"],
                 "task_index": item["task_index"], "worker_id": item["worker_id"]}
 
-    monkeypatch.setattr(runner_mod, "_operator_dispatch_attempt", fake_attempt)
+    patch_runner(monkeypatch, "_operator_dispatch_attempt", fake_attempt)
 
     # Two items sharing one isolation_key (the default: the resolved repo path) cannot run
     # in parallel without corrupting one shared state.json/working tree.
