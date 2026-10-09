@@ -13,12 +13,11 @@ from tests._contract_only_hookwall import ContractOnlyHookwallLedger
 
 @pytest.fixture(autouse=True)
 def _contract_only_hookwall(monkeypatch):
-    monkeypatch.setattr(
-        runner,
-        "_hookwall_ledger",
+    patch_runner(monkeypatch, "_hookwall_ledger",
         lambda *_args, **_kwargs: ContractOnlyHookwallLedger(),
     )
 from simplicio_loop.hookwall_gate import HookwallBlocked, gate_completion
+from tests.runner_patch import patch_runner
 
 
 def _request(tmp_path):
@@ -81,7 +80,7 @@ def test_blocked_operator_with_explicit_no_mutation_proof_reconciles_mapper_effe
     tmp_path, monkeypatch
 ):
     ledger = _RecordingHookwall()
-    monkeypatch.setattr(runner, "_hookwall_ledger", lambda *_args, **_kwargs: ledger)
+    patch_runner(monkeypatch, "_hookwall_ledger", lambda *_args, **_kwargs: ledger)
     monkeypatch.setenv(
         "SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON",
         json.dumps({
@@ -117,7 +116,7 @@ def test_blocked_operator_with_explicit_no_mutation_proof_reconciles_mapper_effe
 
 def test_ambiguous_failed_operator_keeps_mapper_effect_unknown(tmp_path, monkeypatch):
     ledger = _RecordingHookwall()
-    monkeypatch.setattr(runner, "_hookwall_ledger", lambda *_args, **_kwargs: ledger)
+    patch_runner(monkeypatch, "_hookwall_ledger", lambda *_args, **_kwargs: ledger)
     monkeypatch.setenv(
         "SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON",
         json.dumps({
@@ -148,7 +147,7 @@ def test_ambiguous_failed_operator_keeps_mapper_effect_unknown(tmp_path, monkeyp
 
 def test_operator_timeout_is_uncertain_and_is_not_reconciled(tmp_path, monkeypatch):
     ledger = _RecordingHookwall()
-    monkeypatch.setattr(runner, "_hookwall_ledger", lambda *_args, **_kwargs: ledger)
+    patch_runner(monkeypatch, "_hookwall_ledger", lambda *_args, **_kwargs: ledger)
     monkeypatch.delenv("SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON", raising=False)
 
     def timeout(*_args, **_kwargs):

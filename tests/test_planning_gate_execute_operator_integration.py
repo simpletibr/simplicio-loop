@@ -22,9 +22,7 @@ from tests._contract_only_hookwall import ContractOnlyHookwallLedger
 
 @pytest.fixture(autouse=True)
 def _contract_only_hookwall(monkeypatch):
-    monkeypatch.setattr(
-        runner_mod,
-        "_hookwall_ledger",
+    patch_runner(monkeypatch, "_hookwall_ledger",
         lambda *_args, **_kwargs: ContractOnlyHookwallLedger(),
     )
 from simplicio_loop.plan_contract import validate_plan
@@ -32,6 +30,7 @@ from simplicio_loop.planning_gate import build_planning_receipt, content_hash, r
 
 from tests.test_runner_cli_integration import _arm_deterministic_preflight_fixture
 from tests.planning_gate_fixtures import stage_valid_planning_receipt
+from tests.runner_patch import patch_runner
 
 ENV_FLAG = "SIMPLICIO_REQUIRE_MUTATION_AUTHORITY"
 

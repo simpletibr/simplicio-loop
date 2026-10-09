@@ -5,6 +5,7 @@ from pathlib import Path
 
 from simplicio_loop import runner as runner_mod
 from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 
 def test_conduct_run_uses_adaptive_dispatch_and_stops_before_watcher_on_blocked_worker(
@@ -74,9 +75,7 @@ def test_mapper_store_bootstraps_on_normal_mapper_route(monkeypatch, tmp_path):
             return {"status": "ready"}
 
     monkeypatch.setattr(mapper_operations, "MapperOperationsAdapter", FakeAdapter)
-    monkeypatch.setattr(
-        runner_mod,
-        "_mapper_operations_database",
+    patch_runner(monkeypatch, "_mapper_operations_database",
         lambda repo: str(tmp_path / "operations.sqlite"),
     )
     patch_runner(monkeypatch, "_storage_route_requested",
@@ -102,9 +101,7 @@ def test_mapper_journal_uses_task_repo_root(monkeypatch, tmp_path):
 
     monkeypatch.chdir(process_root)
     patch_runner(monkeypatch, "_mapper_journal_enabled", lambda: True)
-    monkeypatch.setattr(
-        runner_mod,
-        "_mapper_operations_database",
+    patch_runner(monkeypatch, "_mapper_operations_database",
         lambda repo: str(Path(repo) / ".simplicio-loop" / "operations.sqlite"),
     )
     monkeypatch.setattr(runner_mod, "MapperRunJournal", FakeJournal)

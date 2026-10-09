@@ -14,13 +14,12 @@ from tests._contract_only_hookwall import ContractOnlyHookwallLedger
 
 @pytest.fixture(autouse=True)
 def _contract_only_hookwall(monkeypatch):
-    monkeypatch.setattr(
-        runner_mod,
-        "_hookwall_ledger",
+    patch_runner(monkeypatch, "_hookwall_ledger",
         lambda *_args, **_kwargs: ContractOnlyHookwallLedger(),
     )
 from simplicio_loop.oracle import persist_completion_receipt
 from tests.planning_gate_fixtures import stage_valid_planning_receipt
+from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
 
@@ -1175,9 +1174,7 @@ def test_direct_tick_reuses_run_authority_attempt_after_prior_task(tmp_path, mon
 
     fake_mapper(monkeypatch)
     monkeypatch.setenv("SIMPLICIO_STORAGE_ROUTE", "mapper")
-    monkeypatch.setattr(
-        runner_mod,
-        "_ensure_mapper_operations_store",
+    patch_runner(monkeypatch, "_ensure_mapper_operations_store",
         lambda *args, **kwargs: {"status": "ok", "route": "mapper"},
     )
     repo, _, armed_payload, run_dir = _arm_deterministic_preflight_fixture(monkeypatch, tmp_path)
@@ -1197,9 +1194,7 @@ def test_direct_tick_reuses_run_authority_attempt_after_prior_task(tmp_path, mon
         def complete(self, lease, *, status, receipt):
             return {"status": status, "receipt": receipt}
 
-    monkeypatch.setattr(
-        runner_mod,
-        "_claim_mapper_operation_attempt",
+    patch_runner(monkeypatch, "_claim_mapper_operation_attempt",
         lambda *args, **kwargs: (FakeOperations(), SimpleNamespace(lease=FakeLease())),
     )
 
@@ -1799,7 +1794,7 @@ def _setup_deterministic_preflight_fixture(
             "version_returncode": 0,
         }))
     if not targets:
-        monkeypatch.setattr(runner_mod, "_fallback_targets", lambda path: [])
+        patch_runner(monkeypatch, "_fallback_targets", lambda path: [])
     monkeypatch.setenv("SIMPLICIO_LOOP_FAKE_OPERATOR_JSON", json.dumps(operator or {
         "execution_state": "dry_run", "returncode": 0,
         "stdout": {"kind": "operator-proposal", "ok": True}, "stderr": "",

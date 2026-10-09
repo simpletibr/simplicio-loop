@@ -11,12 +11,14 @@ from simplicio_loop import (
     runner,
     runner_core,
     runner_lifecycle,
+    runner_plan,
 )
 
 RUNNER_MODULES = (
     runner,
     runner_core,
     runner_lifecycle,
+    runner_plan,
 )
 
 
