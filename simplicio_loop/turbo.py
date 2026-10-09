@@ -8,6 +8,7 @@ later task.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
@@ -76,6 +77,36 @@ _PLANNER_SYSTEM = (
     "An empty find creates the file. A non-empty find must match once. "
     "Do not mention tools or steps."
 )
+# Bump the version whenever _PLANNER_SYSTEM changes; the digest pins the exact template text a run used.
+PLAN_PROMPT_VERSION = "turbo-plan/v1"
+NO_RECEIPT = "no_apply_receipt"
+RECEIPT_SCHEMAS = ("simplicio.dev-cli.edit-receipt/v1", "simplicio.mechanical-edit-result/v1")
+
+
+def plan_prompt() -> dict[str, str]:
+    """The plan prompt's version and the sha256 of its template text."""
+    return {
+        "prompt_version": PLAN_PROMPT_VERSION,
+        "prompt_sha256": hashlib.sha256(_PLANNER_SYSTEM.encode("utf-8")).hexdigest(),
+    }
+
+
+def parse_apply_receipt(stdout: str) -> dict | None:
+    """The dev-cli receipt in ``edit --apply`` output: the JSON object with ``applied: true`` and a receipt schema.
+
+    dev-cli may print human text before its JSON, so every ``{`` is tried, outermost object first.
+    """
+    decoder = json.JSONDecoder()
+    for start, char in enumerate(stdout):
+        if char != "{":
+            continue
+        try:
+            obj, _end = decoder.raw_decode(stdout, start)
+        except ValueError:
+            continue
+        if isinstance(obj, dict) and obj.get("applied") is True and obj.get("schema") in RECEIPT_SCHEMAS:
+            return obj
+    return None
 
 
 # Wave turbo starts above three tasks: each lane is the same read -> AI -> dev-cli path.
@@ -238,6 +269,7 @@ def _call_record(reply: Mapping[str, Any], turn: int) -> dict[str, Any]:
         "reasoning_tokens": reply.get("reasoning_tokens") or 0,
         "cached_tokens": reply.get("cached_tokens") or 0,
         "cost_usd": reply.get("cost"),
+        "usage_reported": bool(reply.get("usage_reported")),
         "latency_s": reply.get("latency_s"),
         "provider": reply.get("provider"),
         "hedged": bool(reply.get("hedged")),
@@ -269,12 +301,15 @@ async def _apply_operations(root: Path, operations: list[dict], binary: str, lab
                 proc.kill()
                 await proc.wait()
                 detail = "dev-cli timed out after 120s"
-                commands.append({"command": " ".join(cmd), "returncode": -1, "stdout": detail})
+                commands.append({"command": " ".join(cmd), "returncode": -1, "stdout": detail, "label": label})
                 break
             stdout_str = stdout.decode("utf-8", errors="replace") if stdout else ""
             stderr_str = stderr.decode("utf-8", errors="replace") if stderr else ""
             detail = ((stdout_str or "") + (stderr_str or ""))[-800:]
-            commands.append({"command": " ".join(cmd), "returncode": proc.returncode, "stdout": detail})
+            entry = {"command": " ".join(cmd), "returncode": proc.returncode, "stdout": detail, "label": label}
+            if cmd is apply_cmd:
+                entry["receipt"] = parse_apply_receipt(stdout_str) if proc.returncode == 0 else None
+            commands.append(entry)
             if proc.returncode != 0:
                 break
     return commands
@@ -287,13 +322,28 @@ def _rejection(commands: list[dict]) -> str | None:
     return None
 
 
+def _verdict(operations: list[dict], commands: list[dict]) -> tuple[bool, str | None]:
+    """(applied, reason). A plan counts as applied only when dev-cli refused nothing AND its apply left a receipt.
+
+    The agent's text never decides success: without the dev-cli receipt the answer is ``NO_RECEIPT``.
+    """
+    if not operations:
+        return False, None
+    refusal = _rejection(commands)
+    if refusal is not None:
+        return False, refusal
+    if not commands or commands[-1].get("receipt") is None:
+        return False, NO_RECEIPT
+    return True, None
+
+
 async def apply_plan(root: Path, operations: list[dict], label: str = "host-1", dev_cli: str | None = None, apply_lock: asyncio.Lock | None = None) -> dict[str, Any]:
     """Apply one find/replace plan through simplicio-dev-cli. ``reason`` is dev-cli's own message on refusal."""
     if apply_lock is None:
         apply_lock = asyncio.Lock()
     commands = await _apply_operations(root, operations, dev_cli or _dev_cli_bin(), label, apply_lock)
-    reason = _rejection(commands)
-    return {"applied": reason is None, "reason": reason, "commands": commands}
+    applied, reason = _verdict(operations, commands)
+    return {"applied": applied, "reason": reason, "commands": commands}
 
 
 async def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str, turn: int, base: list[dict] | None = None, apply_lock: asyncio.Lock | None = None) -> tuple[list[dict], list[dict], str, list[dict], dict]:
@@ -318,17 +368,16 @@ async def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, re
             reason = None
         applied = await _apply_operations(root, operations, binary, f"{turn}-{attempt}", apply_lock) if operations else []
         commands.extend(applied)
-        rejected = _rejection(applied)
-        applied_ok = bool(operations) and rejected is None
+        applied_ok, refusal = _verdict(operations, applied)
         if not applied_ok:
-            reason = rejected or reason or (str(reply.get("error")) if not reply.get("ok", True) else None) \
+            reason = refusal or reason or (str(reply.get("error")) if not reply.get("ok", True) else None) \
                 or "the model returned no plan"
         if applied_ok:
             reason = None
             break
         if attempt == 2:
             break
-        detail = rejected or reason or "dev-cli did not apply a plan"
+        detail = refusal or reason or "dev-cli did not apply a plan"
         messages = [
             *messages,
             {"role": "assistant", "content": content},
@@ -365,12 +414,11 @@ async def _wave_task(root: Path, task: Mapping[str, Any], messages: list[dict], 
             operations, reason = [], str(exc)
         applied = await _apply_operations(root, operations, binary, f"wave-{task.get('index')}-{attempt}", apply_lock) if operations else []
         commands.extend(applied)
-        rejected = _rejection(applied)
-        applied_ok = bool(operations) and rejected is None
+        applied_ok, refusal = _verdict(operations, applied)
         if applied_ok:
             reason = None
             break
-        reason = rejected or reason or str(reply.get("error") or "the model returned no plan")
+        reason = refusal or reason or str(reply.get("error") or "the model returned no plan")
         if attempt == 1:
             messages = [
                 *messages,
@@ -530,12 +578,12 @@ async def repair_with_test_output(root: Path, tasks: Sequence[Mapping[str, Any]]
         operations, reason = [], str(exc)
     operations = _rewrite_existing_creates(root, operations)
     applied = await _apply_operations(root, operations, binary, "repair-1", apply_lock) if operations else []
-    rejected = _rejection(applied)
+    ok, refusal = _verdict(operations, applied)
     return {
         "llm_calls": [_call_record(reply, 1)],
         "commands": applied,
-        "applied": bool(operations) and rejected is None,
-        "reason": None if operations and rejected is None else (rejected or reason or "the model returned no plan"),
+        "applied": ok,
+        "reason": None if ok else (refusal or reason or "the model returned no plan"),
     }
 
 
