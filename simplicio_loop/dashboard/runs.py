@@ -28,9 +28,26 @@ _BEARER_RE = re.compile(r'(?i)Bearer +[A-Za-z0-9._~+/=-]{1,512}')
 _PRIVATE_KEY_RE = re.compile(r'(?s)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?(?:-----END [A-Z0-9 ]*PRIVATE KEY-----|\Z)')
 _OPENAI_STYLE_RE = re.compile(r'\bsk-[A-Za-z0-9_-]{16,}')
 _GITHUB_PAT_RE = re.compile(r'\bgithub_pat_[A-Za-z0-9_]{20,}')
-_PAIR_RE = re.compile(r'(?i)\b([A-Za-z0-9_-]*(?:passw(?:or)?d|passwd|pwd|secret|token|api[_-]?key|access[_-]?key)'
-                      r'[A-Za-z0-9_-]*)(["\']?\s*[:=]\s*["\']?)([^\s"\',;&]{4,})')
+_PAIR_RE = re.compile(r'(?i)\b([A-Za-z0-9_-]{0,64}(?:passw(?:or)?d|passwd|pwd|secret|token|api[_-]?key|access[_-]?key)'
+                      r'[A-Za-z0-9_-]{0,64})(["\']?\s*[:=]\s*["\']?)([^\s"\',;&]{4,})')
 _EMAIL_RE = re.compile(r'[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:[.][A-Za-z0-9-]{1,63}){1,8}')
+COMMAND_SCAN_MAX = 4096
+_Q = r'(?:"[^"]*"|\'[^\']*\'|\S+)'
+_URL_USERINFO_RE = re.compile(r'(?i)\b([a-z][a-z0-9+.-]{0,15}://)[^\s/?#@]*@')
+_HEADER_RE = re.compile(r'(?i)\b((?:proxy-)?authorization|(?:set-)?cookie)(\s{0,8}[:=]\s{0,8})[^\'"\n]+')
+_SECRET_FLAG_RE = re.compile(
+    r'(?i)(--?(?:pass(?:word|wd|phrase)?|pwd|token|secret|api[-_]?key|access[-_]?key|auth(?:orization)?|pat)\s+)' + _Q)
+_USER_ARG_RE = re.compile(  # user:pass of curl; a numeric uid:gid (docker -u 1000:1000) is not one
+    r'(?<![\w-])(-u\s+|--(?:proxy-)?user[\s=]+)(?!\d+:\d*(?:\s|\Z))'
+    r'(?:"[^"\s:]+:[^"]*"|\'[^\'\s:]+:[^\']*\'|[^\s:\'"]+:\S+)')
+_COOKIE_ARG_RE = re.compile(r'(?<![\w-])(-b\s+|--cookie[\s=]+)(?:"[^"]*=[^"]*"|\'[^\']*=[^\']*\'|\S*=\S*)')
+_SHORT_PASS_RE = re.compile(  # -p is a password only for these programs (it is a port, a path or a plugin for most others)
+    r'((?i:\b(?:mysql\w*|sshpass|twine|mongo\w*|(?:docker|podman)\s+login)\b)[^;&|\n]{0,200}?\s-p\s*)(?:"[^"]*"|\'[^\']*\'|[^\s-]\S*)')
+_LONG_TOKEN_RE = re.compile(  # a base64/random blob: 32+ characters mixing upper case, lower case and digits
+    r'(?<![A-Za-z0-9+/_-])(?=[A-Za-z0-9+/_-]*[A-Z])(?=[A-Za-z0-9+/_-]*[a-z])(?=[A-Za-z0-9+/_-]*\d)[A-Za-z0-9+/_-]{32,}')
+_TOKEN_PREFIX_RE = re.compile(  # tokens with a well-known prefix, whatever their length or alphabet
+    r'\b(?:xox[abeprs]-|npm_|glpat-|pypi-|hf_|sk_(?:live|test)_|rk_live_|AIza|ya29[.])[A-Za-z0-9_.-]{10,}')
+_CUT_WORD_RE = re.compile(r'\s\S*\Z')
 _SENSITIVE_KEY_RE = re.compile(r'(?i)secret|passw|api[_-]?key|authoriz|cookie|credential|private[_-]?key|token')
 
 
@@ -307,6 +324,25 @@ def redact_text(text: str) -> str:
     masked = _GITHUB_PAT_RE.sub('[REDACTED_SECRET]', masked)
     masked = _PAIR_RE.sub(r'\1\2[REDACTED]', masked)
     return _EMAIL_RE.sub('[REDACTED_EMAIL]', masked)
+
+
+def redact_command(text: str, limit: int = COMMAND_SCAN_MAX) -> str:
+    '''Mask secrets in one shell command line: ``redact_text`` plus URL credentials, auth headers, the value after a
+    secret flag (``--token abc``, ``-p`` of mysql/sshpass/twine/docker login, ``-u user:pass``) and base64-looking blobs.
+
+    Only the first ``limit`` characters are scanned, and the word the cut may have split is dropped after the masking, so
+    the cut can never leave the head of a secret behind.
+    '''
+    cut = len(text) > limit
+    masked = _URL_USERINFO_RE.sub(r'\1[REDACTED]@', text[:limit])
+    masked = _HEADER_RE.sub(r'\1\2[REDACTED]', masked)
+    for rx in (_SECRET_FLAG_RE, _USER_ARG_RE, _COOKIE_ARG_RE, _SHORT_PASS_RE):
+        masked = rx.sub(r'\1[REDACTED]', masked)
+    masked = _LONG_TOKEN_RE.sub('[REDACTED]', _TOKEN_PREFIX_RE.sub('[REDACTED]', redact_text(masked)))
+    if cut:
+        tail = _CUT_WORD_RE.search(masked)
+        masked = masked[:tail.start()] if tail else ''
+    return masked
 
 
 def _redact_bytes(data: bytes) -> bytes:

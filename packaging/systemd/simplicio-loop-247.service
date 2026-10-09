@@ -32,8 +32,9 @@ SystemCallFilter=@system-service @mount
 CapabilityBoundingSet=
 # Only IPv4, IPv6 and local unix sockets: the watcher talks to GitHub and the Simplicio API over TCP.
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
-# /proc/sys and /sys/kernel tunables stay read-only for the service.
-ProtectKernelTunables=yes
+# ProtectKernelTunables=yes is deliberately absent: it read-only-binds parts of /proc, and then a non-root bwrap cannot
+# mount the fresh procfs that --unshare-pid needs ("Can't mount proc"), which would stop every sandboxed turbo run. The
+# service is non-root with an empty CapabilityBoundingSet, so it cannot write /proc/sys anyway. See README.md.
 # Kernel modules cannot be loaded from inside the unit.
 ProtectKernelModules=yes
 # /sys/fs/cgroup stays read-only for the service.

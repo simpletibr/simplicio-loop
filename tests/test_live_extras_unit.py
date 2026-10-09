@@ -20,16 +20,19 @@ LIVE = STATIC / 'live'
 EXTRAS_DIR = STATIC / 'extras'
 MODULE = EXTRAS_DIR / 'extras.js'
 STYLE = EXTRAS_DIR / 'extras.css'
-LABELS = ['Último comando medido', 'Contrato por tarefa', 'Modelo por lane', 'Batimento do lease', 'Agentes por etapa',
+LABELS = ['Último comando medido', 'Comando em execução', 'Contrato por tarefa', 'Modelo por lane', 'Batimento do lease', 'Agentes por etapa',
           'Custo do run']
-# A bar width goes through the CSSOM (style.setProperty), which the CSP style-src 'self' allows; a style attribute, an
-# assignment to .style and cssText stay forbidden.
-FORBIDDEN = [r'\binnerHTML\b', r'\beval\s*\(', r'https?://', r'setAttribute\(\s*.style', r'\.style\s*=',
-             r'\.style\.(?!setProperty\()', r'\bcssText\b', r'\b(?:claude|haiku|sonnet|opus)\b']
+# A bar width goes through the CSSOM (style.setProperty('width', ...)), which the CSP style-src 'self' allows. Nothing else
+# may touch a style (attribute, assignment, index, cssText, Object.assign, another property), and no markup is parsed.
+FORBIDDEN = [r'\binnerHTML\b', r'\bouterHTML\b', r'\binsertAdjacentHTML\b', r'\bdocument\s*\.\s*write', r'\beval\s*\(',
+             r'https?://', r'setAttribute\(\s*.style', r'\.style\s*=', r'\.style\s*\.(?!setProperty\()', r'\.style\s*\[',
+             r'\.style\s*\?\.', r'\bstyle\s*\[', r'Object\s*\.\s*assign\s*\([^)]*style', r"setProperty\(\s*(?!'width',)",
+             r'\bcssText\b', r'\b(?:claude|haiku|sonnet|opus)\b']
 MOTION = re.compile(r'(?<![\w-])(?:animation|transition)(?:-[a-z-]+)?\s*:', re.IGNORECASE)
 VALID = {
     'schema': 'simplicio.dashboard-extras/v1',
     'last_command': {'command': 'pytest tests/x.py -q', 'kind': 'test', 'at': '2026-10-08T10:00:00Z'},
+    'running_command': {'state': 'PASS', 'reason': 'lane-a: em execução há 12 s: pytest -q', 'lanes': []},
     'tasks': [{'task_id': 'T1', 'title': 'Primeira tarefa'}, {'task_id': 'T2', 'title': 'Segunda'}],
     'models': [{'lane': 'coder', 'model': 'm-1', 'input_tokens': 1200, 'output_tokens': 300}],
     'heartbeat': {'state': 'UNVERIFIED', 'reason': 'lease sem batimento medido'},
@@ -46,7 +49,7 @@ STAGES = {
 }
 NO_STAGES = {'schema': 'simplicio.dashboard-stage-agents/v1', 'rows': [],
              'cost': {'usd': None, 'state': 'UNVERIFIED', 'proof_kind': 'estimado', 'reason': 'tokens não medidos'}}
-NO_DATA = {'schema': 'simplicio.dashboard-extras/v1', 'last_command': None, 'tasks': [], 'models': [], 'heartbeat': None}
+NO_DATA = {'schema': 'simplicio.dashboard-extras/v1', 'last_command': None, 'running_command': None, 'tasks': [], 'models': [], 'heartbeat': None}
 
 
 def _node():
@@ -114,7 +117,7 @@ def _start(run_id, replies, ticks=0):
 
 
 def _all_unverified(rows):
-    return [row['state'] for row in rows] == ['UNVERIFIED'] * 6 and [row['label'] for row in rows] == LABELS
+    return [row['state'] for row in rows] == ['UNVERIFIED'] * 7 and [row['label'] for row in rows] == LABELS
 
 
 def test_the_extras_module_exports_the_contract():
@@ -126,11 +129,12 @@ def test_the_extras_module_exports_the_contract():
 def test_a_missing_reply_leaves_every_row_unverified_with_its_reason():
     assert _extras_of(None) == [
         {'label': LABELS[0], 'state': 'UNVERIFIED', 'text': 'nenhum teste ou lint medido'},
-        {'label': LABELS[1], 'state': 'UNVERIFIED', 'text': 'task-contract.json sem tarefas'},
-        {'label': LABELS[2], 'state': 'UNVERIFIED', 'text': 'sem token_usage medido'},
-        {'label': LABELS[3], 'state': 'UNVERIFIED', 'text': 'sem batimento do lease medido'},
-        {'label': LABELS[4], 'state': 'UNVERIFIED', 'text': 'sem token_usage por etapa medido'},
-        {'label': LABELS[5], 'state': 'UNVERIFIED', 'text': 'custo do run não estimado'},
+        {'label': LABELS[1], 'state': 'UNVERIFIED', 'text': 'nenhum command_started medido'},
+        {'label': LABELS[2], 'state': 'UNVERIFIED', 'text': 'task-contract.json sem tarefas'},
+        {'label': LABELS[3], 'state': 'UNVERIFIED', 'text': 'sem token_usage medido'},
+        {'label': LABELS[4], 'state': 'UNVERIFIED', 'text': 'sem batimento do lease medido'},
+        {'label': LABELS[5], 'state': 'UNVERIFIED', 'text': 'sem token_usage por etapa medido'},
+        {'label': LABELS[6], 'state': 'UNVERIFIED', 'text': 'custo do run não estimado'},
     ]
 
 
@@ -140,48 +144,54 @@ def test_a_foreign_or_malformed_reply_is_all_unverified(reply):
 
 
 def test_a_valid_reply_shows_the_measured_rows():
-    assert _extras_of(VALID)[:4] == [
+    assert _extras_of(VALID)[:5] == [
         {'label': LABELS[0], 'state': 'PASS', 'text': 'pytest tests/x.py -q (test)'},
-        {'label': LABELS[1], 'state': 'PASS', 'text': 'T1: Primeira tarefa; T2: Segunda'},
-        {'label': LABELS[2], 'state': 'PASS', 'text': 'coder: m-1, entrada 1200, saída 300'},
-        {'label': LABELS[3], 'state': 'UNVERIFIED', 'text': 'lease sem batimento medido'},
+        {'label': LABELS[1], 'state': 'PASS', 'text': 'lane-a: em execução há 12 s: pytest -q'},
+        {'label': LABELS[2], 'state': 'PASS', 'text': 'T1: Primeira tarefa; T2: Segunda'},
+        {'label': LABELS[3], 'state': 'PASS', 'text': 'coder: m-1, entrada 1200, saída 300'},
+        {'label': LABELS[4], 'state': 'UNVERIFIED', 'text': 'lease sem batimento medido'},
     ]
 
 
 def test_the_stage_rows_list_role_model_tokens_and_cost_as_estimates_and_the_run_cost_is_visible():
     rows = _extras_of(VALID, STAGES)
-    assert rows[4] == {'label': LABELS[4], 'state': 'ESTIMADO', 'text': (
+    assert rows[5] == {'label': LABELS[5], 'state': 'ESTIMADO', 'text': (
         'planning: planning/high (padrão da tabela) m-a, entrada 1000, saída 200, US$ 0.0123 estimado; '
         'executing: sem papel m-b, entrada 50, saída 5, custo UNVERIFIED (modelo sem preço)')}
-    assert rows[5] == {'label': LABELS[5], 'state': 'ESTIMADO', 'text': 'US$ 0.0123 estimado'}
+    assert rows[6] == {'label': LABELS[6], 'state': 'ESTIMADO', 'text': 'US$ 0.0123 estimado'}
 
 
 def test_a_stage_reply_without_rows_stays_unverified_with_the_cost_reason():
     rows = _extras_of(VALID, NO_STAGES)
-    assert (rows[4]['state'], rows[4]['text']) == ('UNVERIFIED', 'sem token_usage por etapa medido')
-    assert (rows[5]['state'], rows[5]['text']) == ('UNVERIFIED', 'tokens não medidos')
+    assert (rows[5]['state'], rows[5]['text']) == ('UNVERIFIED', 'sem token_usage por etapa medido')
+    assert (rows[6]['state'], rows[6]['text']) == ('UNVERIFIED', 'tokens não medidos')
 
 
 @pytest.mark.parametrize('stages', ['x', 7, [], dict(STAGES, schema='simplicio.other/v1')])
 def test_a_foreign_stage_reply_is_unverified(stages):
-    assert [row['state'] for row in _extras_of(VALID, stages)[4:]] == ['UNVERIFIED', 'UNVERIFIED']
+    assert [row['state'] for row in _extras_of(VALID, stages)[5:]] == ['UNVERIFIED', 'UNVERIFIED']
 
 
 @pytest.mark.parametrize('changes, index, state, text', [
     ({'last_command': None}, 0, 'UNVERIFIED', 'nenhum teste ou lint medido'),
     ({'last_command': {'command': '', 'kind': 'lint'}}, 0, 'UNVERIFIED', 'nenhum teste ou lint medido'),
     ({'last_command': {'command': 'ruff check .'}}, 0, 'PASS', 'ruff check .'),
-    ({'tasks': []}, 1, 'UNVERIFIED', 'task-contract.json sem tarefas'),
-    ({'tasks': 'T1'}, 1, 'UNVERIFIED', 'task-contract.json sem tarefas'),
-    ({'tasks': [{'title': 'sem id'}, 'x']}, 1, 'UNVERIFIED', 'task-contract.json sem tarefas'),
-    ({'tasks': [{'task_id': 'T1', 'title': 'A'}, {'title': 'sem id'}]}, 1, 'PASS', 'T1: A'),
-    ({'models': []}, 2, 'UNVERIFIED', 'sem token_usage medido'),
-    ({'models': [{'lane': 'coder', 'model': 'm-1', 'input_tokens': 1}]}, 2, 'UNVERIFIED', 'sem token_usage medido'),
-    ({'models': [{'lane': 'coder', 'model': 'm-1', 'input_tokens': '1', 'output_tokens': 2}]}, 2, 'UNVERIFIED',
+    ({'running_command': None}, 1, 'UNVERIFIED', 'nenhum command_started medido'),
+    ({'running_command': {'state': 'PASS', 'reason': ''}}, 1, 'UNVERIFIED', 'nenhum command_started medido'),
+    ({'running_command': {'state': 'UNVERIFIED', 'reason': 'nenhum command_started no run'}}, 1, 'UNVERIFIED', 'nenhum command_started no run'),
+    ({'running_command': {'state': 'STALLED', 'reason': 'x'}}, 1, 'UNVERIFIED', 'x'),
+    ({'running_command': {'state': 'PASS', 'reason': 'nenhum comando em execução segundo os eventos'}}, 1, 'PASS', 'nenhum comando em execução segundo os eventos'),
+    ({'tasks': []}, 2, 'UNVERIFIED', 'task-contract.json sem tarefas'),
+    ({'tasks': 'T1'}, 2, 'UNVERIFIED', 'task-contract.json sem tarefas'),
+    ({'tasks': [{'title': 'sem id'}, 'x']}, 2, 'UNVERIFIED', 'task-contract.json sem tarefas'),
+    ({'tasks': [{'task_id': 'T1', 'title': 'A'}, {'title': 'sem id'}]}, 2, 'PASS', 'T1: A'),
+    ({'models': []}, 3, 'UNVERIFIED', 'sem token_usage medido'),
+    ({'models': [{'lane': 'coder', 'model': 'm-1', 'input_tokens': 1}]}, 3, 'UNVERIFIED', 'sem token_usage medido'),
+    ({'models': [{'lane': 'coder', 'model': 'm-1', 'input_tokens': '1', 'output_tokens': 2}]}, 3, 'UNVERIFIED',
      'sem token_usage medido'),
-    ({'heartbeat': None}, 3, 'UNVERIFIED', 'sem batimento do lease medido'),
-    ({'heartbeat': {'state': 'PASS', 'reason': 'batimento há 3 s'}}, 3, 'PASS', 'batimento há 3 s'),
-    ({'heartbeat': {'state': 'STALLED', 'reason': 'sem batimento'}}, 3, 'UNVERIFIED', 'sem batimento'),
+    ({'heartbeat': None}, 4, 'UNVERIFIED', 'sem batimento do lease medido'),
+    ({'heartbeat': {'state': 'PASS', 'reason': 'batimento há 3 s'}}, 4, 'PASS', 'batimento há 3 s'),
+    ({'heartbeat': {'state': 'STALLED', 'reason': 'sem batimento'}}, 4, 'UNVERIFIED', 'sem batimento'),
 ])
 def test_each_row_turns_pass_only_on_a_measured_value(changes, index, state, text):
     row = _extras_of(dict(VALID, **changes))[index]
@@ -291,10 +301,13 @@ def test_the_app_imports_startextras_and_starts_it_inside_the_token_block():
 HOSTILE = '<img src=x onerror=alert(1)>'
 
 
-def _bd_row(key, tokens=None, cost=None, state='ESTIMADO', reason=None, source=None, tokens_in=0, tokens_out=0):
-    return {'key': key, 'tokens_in': tokens_in, 'tokens_out': tokens_out, 'tokens': tokens, 'tokens_proof_kind': 'medido',
+def _bd_row(key, tokens=None, cost=None, state='ESTIMADO', reason=None, source=None, tokens_in=0, tokens_out=0, others=None):
+    row = {'key': key, 'tokens_in': tokens_in, 'tokens_out': tokens_out, 'tokens': tokens, 'tokens_proof_kind': 'medido',
             'cost_usd': cost, 'cost_state': state if cost is not None else 'UNVERIFIED', 'proof_kind': 'estimado',
             'reason': reason, 'source': source}
+    if others is not None:
+        row['others'] = others
+    return row
 
 
 def _stages(total=300, **breakdown):
@@ -486,3 +499,255 @@ def test_hostile_model_phase_lane_and_task_names_stay_inert_text():
     for node in nodes:
         assert node['children'] == [] or node['text'] == '', node['tag']
         assert 'onerror' not in json.dumps(node['attrs']) and 'onerror' not in json.dumps(node['props'])
+
+
+def test_hostile_running_command_text_stays_inert():
+    reply = dict(VALID, running_command={'state': 'PASS', 'reason': 'lane-a: em execucao ha 3 s: ' + HOSTILE + ' <script>alert(2)</script> javascript:alert(3) " onmouseover="x'})
+    tree = _dom([reply, None])
+    nodes = list(_walk(tree))
+    assert {n['tag'] for n in nodes} <= {'section', 'h2', 'dl', 'div', 'dt', 'dd', 'span', 'ul', 'li', 'sl-sparkline'}
+    assert any(HOSTILE in n['text'] for n in nodes), 'the hostile running_command reason must be visible as text'
+    for node in nodes:
+        assert node['children'] == [] or node['text'] == '', node['tag']
+        assert 'onerror' not in json.dumps(node['attrs']) and 'onerror' not in json.dumps(node['props'])
+        assert 'onmouseover' not in json.dumps(node['attrs']) and 'onmouseover' not in json.dumps(node['props'])
+
+
+# --- D4: aggregate rows (top 20 + outros) and partial cost ---------------------------------------------------------------
+def test_aggregate_rows_with_others_field_render_as_outros():
+    """Server caps at 20 rows + 1 aggregate; client must recognize and format them."""
+    stages = _stages(
+        by_lane=[_bd_row('coder', 250), _bd_row('runner', 100), _bd_row(None, 50, others=7)]
+    )
+    widget = _widget(stages, 'Tokens por lane')
+    # others=7 means 7 groups were folded; the aggregate row should render as "outros (7): 50"
+    assert any('outros (7)' in seg['text'] for seg in widget['segments']), widget['segments']
+
+
+def test_aggregate_row_in_cost_by_task():
+    """Cost by task with aggregate row."""
+    stages = _stages(
+        by_task=[
+            _bd_row('T1', 100, 0.25), _bd_row('T2', 200, 0.75),
+            _bd_row(None, 5, cost=0.05, others=3)  # others=3, folded 3 tasks
+        ]
+    )
+    widget = _widget(stages, 'Custo por tarefa')
+    assert any('outros (3)' in seg['text'] for seg in widget['segments']), widget['segments']
+
+
+def test_aggregate_row_in_agent_map_lanes():
+    """Agent map with aggregate row."""
+    stages = _stages()
+    stages['agent_map'] = {
+        'state': 'PASS', 'reason': None,
+        'slots': {'state': 'PASS', 'reason': None},
+        'lanes': [
+            {'key': 'coder', 'claims': 2, 'tasks': ['T1', 'T2'], 'lease_ids': ['L1'], 'branches': [],
+             'state': 'PASS', 'proof_kind': 'medido', 'lease_reason': None},
+            {'key': None, 'claims': 9, 'others': 4, 'tasks': [], 'lease_ids': [], 'branches': [],
+             'state': 'PASS', 'proof_kind': 'medido', 'lease_reason': None}
+        ]
+    }
+    widget = _widget(stages, 'Mapa de agentes')
+    # Should show "outros (4): 9 claims"
+    assert any('outros (4)' in item['text'] and '9 claims' in item['text'] for item in widget['legend']), widget['legend']
+
+
+def test_tasks_total_and_lease_ids_total_suffix():
+    """When tasks_total > len(tasks), show (+K) suffix; same for lease_ids."""
+    stages = _stages()
+    stages['agent_map'] = {
+        'state': 'PASS', 'reason': None,
+        'slots': {'state': 'PASS', 'reason': None},
+        'lanes': [
+            {'key': 'coder', 'claims': 5, 'tasks': ['T1', 'T2'], 'tasks_total': 5,
+             'lease_ids': ['L1'], 'lease_ids_total': 4, 'branches': [],
+             'state': 'PASS', 'proof_kind': 'medido', 'lease_reason': None},
+        ]
+    }
+    widget = _widget(stages, 'Mapa de agentes')
+    assert widget['legend'][0]['text'] == 'coder: 5 claims, tarefas T1, T2 (+3), leases L1 (+3)'
+
+
+def test_partial_cost_headline_one_unpriced():
+    """When at least one row is unpriced, show (parcial: N sem preço)."""
+    stages = _stages(
+        by_task=[
+            _bd_row('T1', 100, 0.5),
+            _bd_row('T2', 100, None, reason='sem preço na tabela'),
+        ]
+    )
+    widget = _widget(stages, 'Custo por tarefa')
+    # Should include "parcial: 1 sem preço"
+    assert '(parcial: 1 sem preço)' in widget['text'], widget['text']
+
+
+def test_partial_cost_headline_multiple_unpriced():
+    """Multiple unpriced rows count in the partial text."""
+    stages = _stages(
+        by_task=[
+            _bd_row('T1', 100, 0.5),
+            _bd_row('T2', 100, None, reason='sem preço'),
+            _bd_row('T3', 50, None, reason='sem preço'),
+        ]
+    )
+    widget = _widget(stages, 'Custo por tarefa')
+    assert '(parcial: 2 sem preço)' in widget['text'], widget['text']
+
+
+def test_partial_cost_all_priced_no_partial_text():
+    """When all rows are priced, no parcial text."""
+    stages = _stages(
+        by_task=[
+            _bd_row('T1', 100, 0.5),
+            _bd_row('T2', 100, 0.5),
+        ]
+    )
+    widget = _widget(stages, 'Custo por tarefa')
+    assert '(parcial:' not in widget['text'] and widget['text'] == 'US$ 1.0000 estimado', widget['text']
+
+
+def test_partial_cost_with_aggregate_row():
+    """Aggregate rows may be priced or unpriced; count them in the partial text."""
+    stages = _stages(
+        by_task=[
+            _bd_row('T1', 100, 0.5),
+            _bd_row('T2', 100, None, reason='sem preço'),
+            _bd_row(None, 10, 0.05, others=2),  # aggregate: priced
+        ]
+    )
+    widget = _widget(stages, 'Custo por tarefa')
+    # One unpriced row (T2)
+    assert '(parcial: 1 sem preço)' in widget['text'], widget['text']
+
+
+def test_1000_rows_limited_to_max_rows_plus_aggregate():
+    """1,000 rows must be folded to at most 21 (20 + 1 aggregate)."""
+    many_rows = [_bd_row(f'phase_{i}', i) for i in range(1000)]
+    stages = _stages(by_phase=many_rows)
+    widget = _widget(stages, 'Tokens por fase')
+    # Should have <= 21 segments (20 normal + 1 aggregate) + legend items
+    assert len(widget['segments']) <= 21, f"expected <= 21 segments, got {len(widget['segments'])}"
+    assert len(widget['legend']) <= 21, f"expected <= 21 legend items, got {len(widget['legend'])}"
+    # Percentages should sum to ~100
+    pct_sum = sum(seg['pct'] for seg in widget['segments'])
+    assert 99 < pct_sum < 101, f"segments pct sum {pct_sum} not ~100"
+    # Should have an "outros" entry
+    assert any('outros' in seg['text'] for seg in widget['segments']), widget['segments']
+
+
+HUGE_SCRIPT = '''
+import fs from 'node:fs';
+import { startExtras } from %s;
+const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+let made = 0;
+globalThis.setInterval = () => 1;
+function element(tag) {
+  made += 1;
+  return { tag, children: [], dataset: {}, textContent: '', className: '', style: { setProperty() {} }, setAttribute() {},
+    append(...items) { for (const item of items) this.children.push(item); },
+    replaceChildren(...items) { this.children = items; } };
+}
+const section = element('section');
+globalThis.document = { getElementById: () => section, createElement: element };
+const n = input.count;
+const row = (key) => ({ key, tokens_in: 1, tokens_out: 1, tokens: 2, tokens_proof_kind: 'medido', cost_usd: 0.001,
+  cost_state: 'ESTIMADO', proof_kind: 'estimado', reason: null, source: null });
+const many = (prefix) => Array.from({ length: n }, (_, i) => row(prefix + i));
+const stages = {
+  schema: 'simplicio.dashboard-stage-agents/v1',
+  rows: Array.from({ length: n }, (_, i) => ({ phase: 'p' + i, role: 'execution', effort: 'high', model: 'm', tokens_in: 1,
+    tokens_out: 1, cost_usd: 0.001, cost_state: 'ESTIMADO', proof_kind: 'estimado', reason: null })),
+  cost: { usd: 1, state: 'ESTIMADO', proof_kind: 'estimado', reason: null },
+  breakdown: { by_phase: many('p'), by_lane: many('l'), by_model: many('m'), by_task: many('t'),
+    by_iteration: Array.from({ length: n }, (_, i) => row(i)),
+    tokens: { total: 2 * n, state: 'PASS', proof_kind: 'medido', reason: null } },
+  agent_map: { state: 'PASS', reason: null, slots: { state: 'UNVERIFIED', reason: 'slots não medidos' },
+    lanes: Array.from({ length: n }, (_, i) => ({ key: 'l' + i, claims: 2, tasks: ['t' + i], lease_ids: [], branches: [],
+      lease_reason: 'sem lease' })) },
+};
+const replies = [{ schema: 'simplicio.dashboard-extras/v1' }, stages];
+const started = performance.now();
+startExtras(async () => (replies.shift() ?? null), 'run-1');
+await new Promise((resolve) => setImmediate(resolve));
+const elapsed = performance.now() - started;
+const flat = (node) => (node.children.length ? node.children.map(flat).join('\\n') : node.textContent);
+process.stdout.write(JSON.stringify({ made, elapsed, text: flat(section) }));
+'''
+
+
+def test_a_reply_with_150000_rows_per_dimension_renders_20_rows_plus_one_others_row_without_throwing():
+    out = _run(HUGE_SCRIPT % json.dumps(MODULE.as_uri()), {'count': 150_000})
+    assert out['made'] < 600, out['made']
+    assert out['elapsed'] < 3000, out['elapsed']
+    text = out['text']
+    assert '300000 tokens medidos' in text and 'outros (149980): 299960\n' in text
+    assert 'outros (149980): US$ 149.9800 estimado' in text and 'US$ 150.0000 estimado' in text
+    assert '150000 lanes, 300000 claims (worker_claimed)' in text and 'outros (149980): 299960 claims' in text
+    assert 'outros (149980): entrada 149980, saída 149980' in text
+
+
+def test_the_rows_beyond_the_cap_are_folded_with_their_tokens_cost_and_claims_summed():
+    rows = [_bd_row('r%d' % i, 10, 0.5, tokens_in=6, tokens_out=4) for i in range(30)]
+    stages = _stages(by_task=rows, by_lane=rows)
+    widget = _widget(stages, 'Custo por tarefa')
+    assert widget['text'] == 'US$ 15.0000 estimado'
+    assert widget['legend'][-1]['text'] == 'outros (10): US$ 5.0000 estimado'
+    assert len(widget['segments']) == len(widget['legend']) == 21
+    tokens = _widget(stages, 'Tokens por lane')
+    assert tokens['text'] == '300 tokens medidos' and tokens['segments'][-1]['text'] == 'outros (10): 100'
+    assert round(tokens['segments'][-1]['pct'], 2) == 33.33
+    lanes = [{'key': 'l%d' % i, 'claims': 3, 'tasks': [], 'lease_ids': ['L'], 'branches': [], 'state': 'PASS',
+              'proof_kind': 'medido', 'lease_reason': None} for i in range(30)]
+    stages['agent_map'] = {'state': 'PASS', 'reason': None, 'lanes': lanes, 'slots': {'state': 'UNVERIFIED', 'reason': 'r'}}
+    agents = _widget(stages, 'Mapa de agentes')
+    assert agents['text'] == '30 lanes, 90 claims (worker_claimed)' and agents['legend'][20]['text'] == 'outros (10): 30 claims'
+
+
+def test_a_folded_tail_with_an_unpriced_row_is_unpriced_and_the_headline_is_partial():
+    rows = [_bd_row('r%d' % i, 10, 0.5) for i in range(29)] + [_bd_row('last', 10, None, reason='sem preço na tabela')]
+    widget = _widget(_stages(by_task=rows), 'Custo por tarefa')
+    assert widget['text'] == 'US$ 10.0000 estimado (parcial: 10 sem preço)'
+    assert widget['legend'][-1]['text'] == 'outros (10): custo UNVERIFIED (sem preço na tabela)'
+
+
+def test_stage_rows_with_aggregate():
+    """Stage rows with aggregate (others field) should format as 'outros (N): entrada X, saída Y, ...'"""
+    stages = _stages()
+    stages['rows'] = [
+        {'phase': 'planning', 'role': 'role', 'effort': 'high', 'model': 'm-a', 'tokens_in': 1000, 'tokens_out': 200,
+         'cost_usd': 0.01, 'cost_state': 'ESTIMADO', 'proof_kind': 'estimado', 'reason': None},
+        {'phase': None, 'role': 'role', 'effort': None, 'model': 'm-b', 'tokens_in': 50, 'tokens_out': 5,
+         'cost_usd': 0.001, 'cost_state': 'ESTIMADO', 'proof_kind': 'estimado', 'reason': None, 'others': 3},
+    ]
+    row = _extras_of(VALID, stages)[5]  # row[5] is the stages row (row[1] is the #1560 running command)
+    # Should contain "outros (3): entrada 50, saída 5"
+    assert 'outros (3)' in row['text'] and 'entrada 50' in row['text'], row['text']
+
+
+# --- D5: the source guard catches every way to write a style or parse markup --------------------------------------------
+GUARD_PROBES = [
+    "el.style .width = '5%'", "el.style\n.width = '5%'", "el.style.width = '5%'", "el.style['width'] = '5%'",
+    "style['width']='5%'", "el.style.cssText = 'x'", "Object.assign(el.style, {width: '5%'})",
+    "el.style.setProperty('background', 'url(//x)')", 'el.style.setProperty(name, value)',
+    "el.style.setProperty( 'height', '5%')", "el.insertAdjacentHTML('beforeend', x)", 'el.outerHTML = x',
+    'document.write(x)', 'document . write(x)', 'el.innerHTML = x', "el.setAttribute('style', 'x')", "el.style = 'x'",
+    "el.style.removeProperty('x')", 'el.style?.width', 'eval(x)', "fetch('https://x')", "fetch('http://x')",
+]
+GUARD_ALLOWED = ["part.style.setProperty('width', Math.round(pct * 100) / 100 + '%');"]
+
+
+@pytest.mark.parametrize('snippet', GUARD_PROBES)
+def test_the_guard_catches_each_hostile_construction(snippet):
+    assert any(re.search(pattern, snippet, flags=re.IGNORECASE) for pattern in FORBIDDEN), snippet
+
+
+@pytest.mark.parametrize('snippet', GUARD_ALLOWED)
+def test_the_guard_lets_the_clamped_width_through(snippet):
+    assert [p for p in FORBIDDEN if re.search(p, snippet, flags=re.IGNORECASE)] == []
+
+
+def test_the_only_style_write_in_extras_js_is_the_literal_width():
+    text = MODULE.read_text(encoding='utf-8')
+    assert len(re.findall(r'\.style\b', text)) == 1 and len(re.findall(r"\.style\.setProperty\('width', ", text)) == 1

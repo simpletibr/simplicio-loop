@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
-from . import model_roles
+from . import model_roles, squad_metrics
 from .escalation import ESCALATION_LADDER
 from .squad_contracts import Contract, contracts_for
 
@@ -179,6 +179,17 @@ def _declared_deps(issue: Mapping[str, Any]) -> List[int]:
     return deps
 
 
+def _dependency_map(by_number: Mapping[int, Mapping[str, Any]]) -> Dict[int, set]:
+    """Declared dependencies of each issue, limited to the issues being planned (no self-dependency)."""
+    return {n: {d for d in _declared_deps(i) if d in by_number and d != n} for n, i in by_number.items()}
+
+
+def dependencies(issues: Sequence[Mapping[str, Any]]) -> Dict[int, Tuple[int, ...]]:
+    """issue number -> the issues of this batch it depends on (sorted); the same edges `plan_squads` orders the merge by."""
+    deps = _dependency_map({_number(i.get("number")): i for i in issues})
+    return {n: tuple(sorted(d)) for n, d in deps.items()}
+
+
 def _matches_any(path: str, patterns: Sequence[str]) -> bool:
     return any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
 
@@ -258,7 +269,7 @@ def plan_squads(
         if number in by_number:
             raise SquadPlanError("duplicate issue number: #%d" % number)
         by_number[number] = issue
-    deps = {n: {d for d in _declared_deps(i) if d in by_number and d != n} for n, i in by_number.items()}
+    deps = _dependency_map(by_number)
     order = _merge_order(deps)
 
     paths = {n: sorted({_clean_path(p) for p in (i.get("paths") or []) if str(p).strip()}) for n, i in by_number.items()}
@@ -496,10 +507,19 @@ def configure_commands(subparsers: argparse._SubParsersAction) -> None:
                       metavar="ASSOC", help="also accept comments whose authorAssociation is this (repeatable): "
                                             + ", ".join(TRUSTABLE_ASSOCIATIONS))
     gate.add_argument("--json", action="store_true", help="machine-readable output (always JSON)")
+    metrics = subparsers.add_parser(
+        "metrics", help="escalation rate and dependency wait from squad execution-reports (measured values only)")
+    metrics.add_argument("--reports", nargs="+", metavar="PATH",
+                         help="execution-report/v1 files, or directories searched for *.json (latest.json is skipped)")
+    metrics.add_argument("--compare", nargs=2, metavar=("BEFORE", "AFTER"),
+                         help="two `metrics --json` outputs (or report files): numbers side by side, with n and warnings")
+    metrics.add_argument("--json", action="store_true", help="machine-readable output")
 
 
 def dispatch(args: argparse.Namespace) -> int:
-    """plan: 0 ok, 2 blocked. gate: 0 approved, 1 not approved, 2 error."""
+    """plan: 0 ok, 2 blocked. gate: 0 approved, 1 not approved, 2 error. metrics: 0 ok, 2 error."""
+    if args.squads_command == "metrics":
+        return squad_metrics.dispatch(args)
     try:
         if args.squads_command == "plan":
             ownership = json.loads(args.ownership) if args.ownership else None

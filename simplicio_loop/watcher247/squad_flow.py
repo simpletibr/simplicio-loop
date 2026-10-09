@@ -7,6 +7,11 @@
 * merge: only with SIMPLICIO_247_AUTO_MERGE=1 (#1434): `squads.squad_gate` (the approval must be written by the watcher's own
   gh login, #1534), then `merge_train` (cumulative test, bisect).
 
+Metrics (#1549, `squad_metrics`): each worker task of the execution-report carries `squad_metrics` (initial and final role, the
+escalations with reason and attempt, the dependency wait), and the status block of the repo carries `task_metrics` and `metrics`.
+The escalation is read from the worker's steps; the wait is the gap between two instants this flow observes (`clock()` when the squad
+approves the PR, and when the dependency's merge succeeds). What was not observed is UNVERIFIED with a reason, never an estimate.
+
 Concurrency is the tick's (daily budget, SIMPLICIO_247_CONCURRENCY) and the repo lock; the merge train holds that lock.
 """
 from __future__ import annotations
@@ -22,7 +27,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .. import execution_report, merge_train, model_roles, pr_evidence, squad_routing, squads
+from .. import execution_report, merge_train, model_roles, pr_evidence, squad_metrics, squad_routing, squads
 from . import config, proc, sandbox, state, verify
 
 AUTO_MERGE_ENV = "SIMPLICIO_247_AUTO_MERGE"
@@ -30,6 +35,7 @@ APPROVAL_MARKER = "<!-- simplicio-loop:squad-approval:{oid} -->"  # one comment 
 _PATH = re.compile(r"`([\w./-]+\.\w{1,6})`")
 _PR_NUMBER = re.compile(r"/pull/(\d+)")
 TRAIN_FETCH_DEPTH = "100"  # the clone is shallow: enough history for the train's merges
+clock = time.monotonic  # the instants of the dependency wait (#1549); a test replaces it with a fake clock
 
 
 def auto_merge_enabled(environ: dict[str, str] | None = None) -> bool:
@@ -59,6 +65,9 @@ class RepoPlan:
     repo: str
     plan: squads.SquadPlan
     routed: dict[int, str]  # issue number -> the role the worker starts at
+    deps: dict[int, tuple[int, ...]] = field(default_factory=dict)  # issue -> the issues of this batch it depends on
+    ready_at: dict[int, float] = field(default_factory=dict)  # issue -> clock() when the squad approved its PR
+    merged_at: dict[int, float] = field(default_factory=dict)  # issue -> clock() when its merge was observed
 
 
 def _safe_path(path: str) -> bool:
@@ -79,7 +88,8 @@ def plan_repo(repo: str, issues: list[dict], family: str) -> RepoPlan:
         plan = squads.plan_squads(rows, family=family)
     except squads.SquadCycleError as exc:  # a declared "depende de" cycle must not wedge the tick: plan without the declared order
         state.log(f"squad plan {repo}: {exc}; planning without declared dependencies")
-        plan = squads.plan_squads([{**row, "body": ""} for row in rows], family=family)
+        rows = [{**row, "body": ""} for row in rows]
+        plan = squads.plan_squads(rows, family=family)
     workers = {w.issues[0]: w for s in plan.squads for w in s.workers}
     routed = {}
     for row in rows:
@@ -88,7 +98,7 @@ def plan_repo(repo: str, issues: list[dict], family: str) -> RepoPlan:
         routed[row["number"]] = squad_routing.route(
             {"files": row["paths"], "touches_shared": shared, "labels": [l.get("name") if isinstance(l, dict) else l
                                                                          for l in row["labels"]]}).role
-    return RepoPlan(repo, plan, routed)
+    return RepoPlan(repo, plan, routed, squads.dependencies(rows))
 
 
 def form(batch: list, family: str) -> list[RepoPlan]:
@@ -184,6 +194,7 @@ async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads
                                 "--match-head-commit", heads[approved[issue]]], timeout=120)  # only the head that was reviewed and tested
         if done.returncode == 0:
             merged_prs.append(approved[issue])
+            _stamp(repo_plan.merged_at, issue)  # the instant the merge is observed: the end of a dependent's wait
         else:
             result["failed"].append(approved[issue])
 
@@ -218,6 +229,7 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
                 if review["approved"]:
                     approved[issue] = review["pr"]
                     heads[review["pr"]] = review["head"]
+                    _stamp(repo_plan.ready_at, issue)  # ready to merge: from here a dependent PR waits for its dependencies
                 else:
                     rejected[str(review["pr"])] = review["reasons"]
         entry: dict[str, Any] = {
@@ -229,6 +241,7 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
             if login is None:
                 login = await own_login()
             entry.update(await _merge(repo_plan.repo, repo_plan, approved, heads, runner, gate, login))
+        entry["task_metrics"], entry["metrics"] = _repo_metrics(repo_plan, done)
         summary[repo_plan.repo] = entry
     await asyncio.to_thread(write_report, plans, done, reviews)
     return summary
@@ -239,6 +252,38 @@ def _agent(agent: squads.Agent, family: str, role: str | None = None) -> dict[st
     if role is None or role == agent.role:
         return {"role": agent.role, "model": agent.model, "effort": agent.effort}
     return {"role": role, **model_roles.resolve(family, role)}
+
+
+def _stamp(table: dict[int, float], issue: int) -> None:
+    """Record the instant of an event for the metrics. Fail-open: no failure here may touch what is approved or merged."""
+    try:
+        table[issue] = clock()
+    except Exception as exc:  # noqa: BLE001  the wait of the dependents stays UNVERIFIED
+        state.log(f"squad metrics: no instant for #{issue}: {type(exc).__name__}")
+
+
+def _task_metrics(repo_plan: RepoPlan, issue: int, result: Outcome | None) -> dict:
+    """Escalation and dependency wait of one worker task (#1549): the worker's steps and the instants the flow observed.
+
+    Fail-open: if the record cannot be built, nothing was measured (UNVERIFIED `metrics_error`), and the tick goes on.
+    """
+    try:
+        return squad_metrics.task_record(result.steps if result else [], repo_plan.deps.get(issue, ()),
+                                         repo_plan.ready_at.get(issue), repo_plan.merged_at)
+    except Exception as exc:  # noqa: BLE001
+        state.log(f"squad metrics: task #{issue} not recorded: {type(exc).__name__}")
+        return squad_metrics.unverified_record("metrics_error")
+
+
+def _repo_metrics(repo_plan: RepoPlan, done: dict) -> tuple[list[dict], dict]:
+    """The task records of a repo and their summary, for the status block. Fail-open like `_task_metrics`."""
+    records = [{**_task_metrics(repo_plan, i, done.get((repo_plan.repo, i))), "issue": f"{repo_plan.repo}#{i}"}
+               for squad in repo_plan.plan.squads for i in squad.issues]
+    try:
+        return records, squad_metrics.summarize_records(records)
+    except Exception as exc:  # noqa: BLE001
+        state.log(f"squad metrics: {repo_plan.repo} not summarized: {type(exc).__name__}")
+        return records, {"schema": "simplicio.squad-metrics/v1", "unverified": "metrics_error"}
 
 
 def write_report(plans: list[RepoPlan], done: dict, reviews: dict) -> Path:
@@ -268,6 +313,7 @@ def write_report(plans: list[RepoPlan], done: dict, reviews: dict) -> Path:
                     report, task_id=f"{repo_plan.repo}/{worker.id}", title=f"squad worker issue #{issue}",
                     issue=f"{repo_plan.repo}#{issue}", outcome="COMPLETE" if result else "FAIL",
                     operators=["dev-cli"], agent=agent)
+                report["tasks"][-1]["squad_metrics"] = _task_metrics(repo_plan, issue, result)
     report["status"] = "COMPLETE"
     report["_started_monotonic"] = started
     return execution_report.write_report(config.ROOT / "squads", report)
