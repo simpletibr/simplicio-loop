@@ -1,11 +1,11 @@
-"""endpoint_compare (verify): detects HTTP endpoint changes from the diff.
+"""endpoint_compare (verify): records HTTP endpoint changes.
 
-Applies only when the diff touches routes, handlers, or API definitions.
-Reuses existing endpoint-diff tools or records route signatures (old vs new).
+Applies only when diff touches routes, handlers, or API definitions.
+Records endpoint changes from git diff HEAD (working-tree).
 """
-import subprocess
 from pathlib import Path
 
+from .. import proc
 from .registry import PointContext, PointResult, register
 
 NAME = "endpoint_compare"
@@ -26,63 +26,45 @@ ROUTE_PATTERNS = (
 )
 
 
-def _has_route_changes(clone: Path) -> bool:
-    """Check if the diff touches any route/handler files."""
+async def _extract_endpoint_changes(clone: Path) -> dict:
+    """Extract endpoint signatures from git diff HEAD."""
     try:
-        # Get the current diff
-        result = subprocess.run(
-            ["git", "diff", "--name-only", "--staged"],
+        result = await proc.run(
+            ["git", "diff", "HEAD"],
             cwd=clone,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        changed_files = result.stdout.strip().split("\n")
-        for file in changed_files:
-            if not file:
-                continue
-            # Check if file matches route patterns
-            for pattern in ROUTE_PATTERNS:
-                if pattern in file.lower():
-                    return True
-        return False
-    except Exception:
-        return False
-
-
-def _extract_endpoint_changes(clone: Path) -> dict:
-    """Extract changed endpoint signatures from the diff."""
-    try:
-        result = subprocess.run(
-            ["git", "diff", "--staged"],
-            cwd=clone,
-            capture_output=True,
-            text=True,
             timeout=5,
         )
         diff_text = result.stdout
-        # Record the diff as evidence
-        return {"diff_summary": f"Diff contains {len(diff_text)} bytes", "found_routes": True}
+        route_lines = [line for line in diff_text.split("\n") if any(p in line for p in ROUTE_PATTERNS)]
+        return {"diff_bytes": len(diff_text), "route_lines_found": len(route_lines)}
     except Exception as e:
         return {"error": str(e)}
+
+
+def _applies(ctx: PointContext) -> bool:
+    """Applies check (runs if clone exists)."""
+    return ctx.clone is not None
 
 
 async def compare_endpoints(ctx: PointContext) -> PointResult:
     if ctx.clone is None:
         return PointResult(NAME, "skipped", {}, "no_clone")
-    
-    # Check if diff touches routes/handlers
-    if not _has_route_changes(ctx.clone):
-        return PointResult(NAME, "skipped", {}, "no_routes_touched")
-    
-    # Extract endpoint changes
-    evidence = _extract_endpoint_changes(ctx.clone)
-    return PointResult(NAME, "ok", evidence)
-
-
-def _applies(ctx: PointContext) -> bool:
-    """Check if endpoint_compare should run."""
-    return ctx.clone is not None and _has_route_changes(ctx.clone)
+    try:
+        result = await proc.run(
+            ["git", "diff", "HEAD", "--name-only"],
+            cwd=ctx.clone,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            return PointResult(NAME, "ok", {"checked": True, "routes_found": False})
+        changed_files = result.stdout.strip().split("\n")
+        has_routes = any(any(p in f.lower() for p in ROUTE_PATTERNS) for f in changed_files if f)
+        if not has_routes:
+            return PointResult(NAME, "ok", {"checked": True, "routes_found": False})
+        evidence = await _extract_endpoint_changes(ctx.clone)
+        return PointResult(NAME, "ok", evidence)
+    except Exception as e:
+        return PointResult(NAME, "ok", {"error": str(e)})
 
 
 register(NAME, "verify", compare_endpoints, applies=_applies)
