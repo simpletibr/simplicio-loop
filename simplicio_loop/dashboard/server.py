@@ -496,7 +496,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         settings = config.load(ref['repo'])
         watch = alerts.AlertWatch(settings.silence_ms, budget=budget.declared(ref['run_dir']),
                                   phase_silence_ms=settings.phase_silence_ms, stall_repeats=settings.stall_repeats,
-                                  decision_wait_ms=settings.decision_wait_ms, leases=_lease_reader(self.server))
+                                  decision_wait_ms=settings.decision_wait_ms, leases=_lease_reader(self.server),
+                                  prices=price_table())
 
         def receipt_ready() -> bool:
             return _receipt_ready(ref)
