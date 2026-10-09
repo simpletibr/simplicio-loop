@@ -468,7 +468,7 @@ def test_clearing_a_directory_is_refused_without_a_traceback(login):
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX modes")
-@pytest.mark.parametrize("mode", [0o777, 0o770, 0o707, 0o722])
+@pytest.mark.parametrize("mode", [0o777, 0o775, 0o770, 0o707, 0o722])  # 0775 is what umask 002 gives mkdir
 def test_a_folder_that_group_or_others_can_write_is_refused_for_read_and_write(login, mode):
     put(login, sample())
     login.parent.chmod(mode)
@@ -523,6 +523,25 @@ def test_a_lock_file_owned_by_another_user_is_refused_unless_we_are_root(tmp_pat
     monkeypatch.setattr(os, "geteuid", lambda: 0)
     with auth.file_lock(path, wait_s=0.1):  # root may use a service user's lock (watch247 setup)
         pass
+
+
+@pytest.mark.skipif(os.name == "nt" or not hasattr(os, "geteuid") or os.geteuid() != 0,
+                    reason="needs a process running as root, to hand files to another uid")
+def test_a_root_process_may_use_files_owned_by_the_service_user_and_keeps_their_owner(login):
+    """Any process with euid 0 is exempt from the owner check (not only `watch247 setup`), with REAL foreign owners."""
+    put(login, sample())
+    lock = auth.lock_path(login)
+    lock.write_text("")
+    lock.chmod(0o600)
+    for path in (login, lock, login.parent):
+        os.chown(path, 4242, 4242)
+    assert auth.read_login(login)["access_token"] == FAKE_ACCESS
+    with auth.file_lock(login, wait_s=0.2):
+        pass
+    auth.refresh_if_due(login, lambda p: new_tokens(), now=1000)
+    after = login.stat()
+    assert (after.st_uid, after.st_gid) == (4242, 4242), "a root refresh must not hand the user's file to root"
+    assert json.loads(login.read_text())["access_token"] == "fresh-access"
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX modes")

@@ -358,6 +358,43 @@ def test_two_updates_at_once_the_second_is_refused_and_the_staged_names_are_uniq
 
 
 @posix
+def test_a_staged_file_left_by_a_killed_update_is_removed_at_the_next_update(exe, tmp_path, capsys):
+    left = exe.parent / "simplicio-loop.k3j9x2ab.new"  # what mkstemp named it before kill -9
+    left.write_bytes(b"half of a download")
+    not_ours = [exe.parent / "simplicio-loop.new", exe.parent / "simplicio-loop.exe.new",
+                exe.parent / "other-tool.k3j9x2ab.new", exe.parent / "simplicio-loop.k3j9x2ab.new.sha256",
+                exe.parent / "simplicio-loop.short.new"]
+    for item in not_ours:
+        item.write_bytes(b"someone else's")
+    net, name, content = release()
+    # a check and a dry run change nothing, so they leave it alone
+    assert update(exe, net, Calls(), check=True) == 10
+    assert update(exe, net, Calls(), dry_run=True) == 0
+    assert left.exists()
+    assert update(exe, net, Calls()) == 0
+    assert "removed 1 staged file" in capsys.readouterr().out
+    assert not left.exists() and all(item.exists() for item in not_ours)
+    assert exe.read_bytes() == content
+
+
+@posix
+def test_an_update_that_is_refused_by_the_lock_leaves_the_staged_file_of_the_live_one(exe, tmp_path):
+    net, name, content = release()
+    entered, go = threading.Event(), threading.Event()
+    worker = threading.Thread(target=lambda: update(exe, BlockedAsset(net.files, name, entered, go), Calls()))
+    worker.start()
+    try:
+        assert entered.wait(15)
+        live = [p for p in exe.parent.iterdir() if p.name.endswith(".new")]
+        assert len(live) == 1
+        assert update(exe, FakeNet(dict(net.files)), Calls()) == 2  # refused by the lock, BEFORE any cleanup
+        assert live[0].exists(), "the second update deleted the staged file of the update that is still running"
+    finally:
+        go.set()
+        worker.join(30)
+
+
+@posix
 def test_the_sha256_is_taken_from_the_file_on_disk_not_from_the_stream(exe, tmp_path, monkeypatch, capsys):
     net, name, _ = release()
     real = su._download

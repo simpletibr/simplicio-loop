@@ -182,6 +182,15 @@ def _update_lock(state_dir: Optional[Path]) -> Iterator[None]:
         lock.__exit__(None, None, None)
 
 
+def _stale_staged(exe: Path) -> list:
+    """Files `<exe>.<8 random characters>.new` that an update killed with SIGKILL left behind.
+
+    Only called while the update lock is held, so no live update owns one. `<exe>.new` (the Windows staging) and any other
+    name are never touched."""
+    ours = re.compile(re.escape(exe.name) + r"\.[A-Za-z0-9_]{8}\.new")
+    return [item for item in exe.parent.iterdir() if ours.fullmatch(item.name) and item.is_file() and not item.is_symlink()]
+
+
 def _checksum(sums: str, name: str) -> str:
     """The SHA256 that SHA256SUMS (lines `<64 hex>  <file name>`) lists for `name`."""
     found = {m.group(1).lower() for line in sums.splitlines() if (m := _SUMS_LINE.fullmatch(line)) and m.group(2) == name}
@@ -308,6 +317,11 @@ def _update_binary(*, installed: str, force: bool, check: bool, dry_run: bool, h
         if not os.access(exe.parent, os.W_OK):
             raise Refused(f"{exe.parent} is not writable; run the update with the rights that installed the binary")
         with _update_lock(state_dir):
+            left = _stale_staged(exe)
+            for item in left:
+                _remove(item)
+            if left:
+                print(f"update: removed {len(left)} staged file(s) left by an interrupted update")
             fd, temp = tempfile.mkstemp(dir=exe.parent, prefix=exe.name + ".", suffix=".new")  # a unique name per run
             os.close(fd)
             staged = Path(temp)

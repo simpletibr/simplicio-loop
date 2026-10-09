@@ -105,7 +105,10 @@ def _symlink_error(path: Path) -> LoginError:
 
 
 def _foreign_owner(info: os.stat_result) -> bool:
-    """A file of another user, seen by a user who is not root (root runs `watch247 setup` for the service user)."""
+    """A file of another user, seen by a user who is not root.
+
+    Any process with euid 0 is exempt, not only `watch247 setup` (which runs as root for the service user): root can read
+    and replace every file anyway, so the owner check protects nobody from root."""
     return hasattr(os, "geteuid") and os.geteuid() != 0 and info.st_uid != os.geteuid()
 
 

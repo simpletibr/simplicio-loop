@@ -72,6 +72,7 @@ Without the Runtime, a standalone sign-in is UNVERIFIED. The command then prints
 Before a token refresh, Loop takes a lock on `login.lock` next to the file and reads the file again.
 This prevents two programs from refreshing the same rotating token.
 Loop refuses a login file that group or others can read, a symlink, and a folder that group or others can write.
+If another program creates `~/.simplicio` with mode 0775 (for example under `umask 002`), Loop refuses it and prints the exact command, for example `chmod 700 /home/you/.simplicio`.
 
 `simplicio-loop update` acts by how you installed Loop. A pip install receives the release wheel.
 A git checkout must use `git pull` and `bash scripts/dev_install.sh`.
