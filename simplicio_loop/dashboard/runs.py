@@ -225,7 +225,7 @@ _SUMMARIES_LOCK = threading.Lock()
 
 
 def _stamp(run_dir: str, fallback_repo: str, began: int) -> tuple[tuple, bool]:
-    '''(stamp, settled) of the files a summary reads: mode, inode, size, mtime and ctime of each (None when absent).
+    '''(stamp, settled) of the files a summary reads: inode, size, mtime and ctime of each (None when absent).
 
     ``settled`` is False when any file changed less than the racy window before ``began`` (the clock read before the stat).
     The ctime cannot be set from user space, so a rewrite that restores size and mtime still changes the stamp.'''
@@ -237,7 +237,7 @@ def _stamp(run_dir: str, fallback_repo: str, began: int) -> tuple[tuple, bool]:
         except OSError:
             files.append(None)
             continue
-        files.append((st.st_mode, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns))
+        files.append((st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns))
         coarse = st.st_mtime_ns % _NS == 0 and st.st_ctime_ns % _NS == 0
         if max(st.st_mtime_ns, st.st_ctime_ns) > began - (RACY_COARSE_NS if coarse else RACY_NS):
             settled = False

@@ -51,7 +51,7 @@ def _stamps(monkeypatch, mtime_ns, now_ns, ctime_ns=None):
 
     def fake(path):
         st = real(path)
-        return types.SimpleNamespace(st_mode=st.st_mode, st_ino=st.st_ino, st_size=st.st_size,
+        return types.SimpleNamespace(st_ino=st.st_ino, st_size=st.st_size,
                                      st_mtime_ns=holder['mtime'], st_ctime_ns=holder['ctime'])
 
     monkeypatch.setattr(runs, '_lstat', fake)
@@ -203,6 +203,35 @@ def test_a_same_size_rewrite_inside_the_timestamp_tick_shows(tmp_path, monkeypat
     path = run_dir / 'state.json'
     path.write_text(path.read_text(encoding='utf-8').replace('"done"', '"fail"'), encoding='utf-8')
     assert runs.run_summary(_ref(run_dir))['status'] == 'fail'
+
+
+def test_a_replaced_file_of_the_same_size_shows_on_a_disk_with_coarse_timestamps(tmp_path, monkeypatch):
+    run_dir = _make_run(tmp_path, 'replaced', status='done')
+    _stamps(monkeypatch, mtime_ns=1_000 * NS, now_ns=1_000 * NS + 60 * NS)
+    assert runs.run_summary(_ref(run_dir))['status'] == 'done'
+    path = run_dir / 'state.json'
+    other = run_dir / 'state.json.tmp'
+    other.write_text(path.read_text(encoding='utf-8').replace('"done"', '"fail"'), encoding='utf-8')
+    assert other.stat().st_size == path.stat().st_size
+    os.replace(other, path)
+    assert runs.run_summary(_ref(run_dir))['status'] == 'fail'
+
+
+def test_an_event_appended_while_the_summary_is_read_shows_in_the_next_answer(tmp_path, aged, monkeypatch):
+    run_dir = _make_run(tmp_path, 'during', events=10)
+    real = runs._summarize
+    late = []
+
+    def append_after_reading(*args, **kwargs):
+        summary = real(*args, **kwargs)
+        if not late:
+            late.append(1)
+            _append(run_dir, [11])
+        return summary
+
+    monkeypatch.setattr(runs, '_summarize', append_after_reading)
+    assert runs.run_summary(_ref(run_dir))['last_seq'] == 10
+    assert runs.run_summary(_ref(run_dir))['last_seq'] == 11
 
 
 def _route_receipt():
