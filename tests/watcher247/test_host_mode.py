@@ -546,7 +546,7 @@ def _cut_request(files=None):
             "tasks": ["t"], "files": CUT_FILES if files is None else files, "apply": "x"}
 
 
-def test_a_need_prints_the_request_again_with_the_lines_and_spends_one_step(env, monkeypatch):
+def test_a_need_prints_the_request_again_with_the_lines_and_spends_one_step(env, cli_dir, monkeypatch):
     fake = env(HostRun({REPO: [issue(1)]}, [OK], request=_cut_request()))
     baseline()
     seen = _scripted_planner(monkeypatch, [NEED, PLAN])
@@ -567,7 +567,7 @@ def test_a_need_prints_the_request_again_with_the_lines_and_spends_one_step(env,
     assert seen[0][0] == seen[1][0] == "planning"  # same role: no escalation
 
 
-def test_an_empty_plan_with_a_cut_request_stops_with_turbo_context_truncated(env, monkeypatch):
+def test_an_empty_plan_with_a_cut_request_stops_with_turbo_context_truncated(env, cli_dir, monkeypatch):
     fake = env(HostRun({REPO: [issue(1)]}, [OK], request=_cut_request()))
     baseline()
     seen = _scripted_planner(monkeypatch, [{"operations": []}, PLAN])
@@ -578,7 +578,7 @@ def test_an_empty_plan_with_a_cut_request_stops_with_turbo_context_truncated(env
     assert "operations" in (config.LOGS / f"{REPO}-1-1-s1.log").read_text()  # the answer stays in the step log
 
 
-def test_an_empty_plan_with_nothing_omitted_keeps_the_old_path(env, monkeypatch):
+def test_an_empty_plan_with_nothing_omitted_keeps_the_old_path(env, cli_dir, monkeypatch):
     fake = env(HostRun({REPO: [issue(1)]}, [BAD], request=_cut_request({"big.py": "x\n"})))
     baseline()
     _scripted_planner(monkeypatch, [{"operations": []}])

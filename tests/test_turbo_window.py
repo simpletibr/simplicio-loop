@@ -91,7 +91,7 @@ def test_path_line_and_range_anchor(tmp_path):
 
 def test_windows_merge_when_they_overlap_touch_or_are_one_line_apart(tmp_path):
     lines = [f"line_{i} = {i}\n" for i in range(1, 2001)]
-    at = (500, 520, 538, 700, 1000, 1010, 1100, 1117, 1300, 1319)
+    at = (500, 520, 538, 700, 1000, 1010, 1100, 1117)  # MAX_ANCHORS = 8
     for number in at:
         lines[number - 1] = f"def anchor_{number}():\n"
     _write(tmp_path, "m.py", "".join(lines))
@@ -101,8 +101,16 @@ def test_windows_merge_when_they_overlap_touch_or_are_one_line_apart(tmp_path):
                      (512, 546),  # 520 and 538: one line apart (529) -> one window
                      (692, 708),  # 700 alone
                      (992, 1018),  # 1000 and 1010 overlap
-                     (1092, 1125),  # 1100 and 1117 touch
-                     (1292, 1308), (1311, 1327)]  # 1300 and 1319: two lines apart -> two windows
+                     (1092, 1125)]  # 1100 and 1117 touch
+
+
+def test_windows_two_lines_apart_stay_two_windows(tmp_path):
+    lines = [f"line_{i} = {i}\n" for i in range(1, 2001)]
+    for number in (1300, 1319):
+        lines[number - 1] = f"def anchor_{number}():\n"
+    _write(tmp_path, "m.py", "".join(lines))
+    entry = turbo_window.build_files(tmp_path, [_task("touch anchor_1300 anchor_1319 in m.py", "m.py")])["m.py"]
+    assert [(w["start"], w["end"]) for w in entry["windows"] if w["start"] > 20] == [(1292, 1308), (1311, 1327)]
 
 
 def test_the_explicit_window_adds_exactly_those_lines(tmp_path):
