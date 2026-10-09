@@ -10,8 +10,8 @@ import json
 
 import pytest
 
-from simplicio_loop import cli_impl
-from simplicio_loop.watcher247 import config, squad_flow
+from simplicio_loop import cli_impl, squad_metrics
+from simplicio_loop.watcher247 import config, host_mode, squad_flow
 
 from .fakes import FakeRun, baseline, issue, read_json, run_tick
 from .test_host_mode import BAD, OK, HostRun, checkout, cli_dir  # noqa: F401  (cli_dir is a fixture)
@@ -192,3 +192,86 @@ def test_the_cli_aggregates_the_report_the_tick_wrote_to_the_same_numbers_as_the
     for key in ("tasks", "issues", "escalation_n", "escalation_unverified", "dependency_wait_n", "no_dependency_tasks",
                 "dependency_wait_p50_s", "dependency_wait_p95_s", "dependency_wait_max_s"):
         assert summary[key] == status[key], key
+
+
+# --- the recorder is fail-open: whatever goes wrong in it never changes which PR merges, or whether the tick finishes ---
+
+
+def _boom(*_args, **_kwargs):
+    raise RuntimeError("metrics broke")
+
+
+def test_a_clock_that_raises_does_not_stop_the_merge_and_leaves_the_wait_unverified(dependent, monkeypatch):
+    fake = dependent(auto_merge=True)
+    monkeypatch.setattr(squad_flow, "clock", _boom)
+    run_tick()
+    assert fake.merges == [101, 102]  # both approved, both merged, in order
+    waiting = _worker_metrics(2)
+    assert waiting["dependency_wait_s"] is None and waiting["proof_kind"]["dependency_wait"] == "UNVERIFIED"
+    entry = read_json(config.STATUS)["squads"][REPO]
+    assert entry["merged"] == [101, 102] and entry["approved"] == [101, 102]
+
+
+def test_a_clock_that_raises_only_at_the_merge_still_records_the_merge(dependent, monkeypatch):
+    fake = dependent(auto_merge=True)
+    ticks = iter([100.0, 100.0])  # the two approvals read the clock; every later read (the merges) raises
+
+    def clock():
+        try:
+            return next(ticks)
+        except StopIteration:
+            raise RuntimeError("clock gone") from None
+    monkeypatch.setattr(squad_flow, "clock", clock)
+    run_tick()
+    assert fake.merges == [101, 102]
+    assert read_json(config.STATUS)["squads"][REPO]["merged"] == [101, 102]  # the merge was not lost for want of an instant
+    assert _worker_metrics(2)["unverified"]["dependency_wait_s"] == "dependency_merge_not_observed: #1"
+
+
+def test_a_task_record_that_raises_is_unverified_and_the_tick_still_finishes_every_repo(dependent, monkeypatch):
+    fake = dependent(auto_merge=True)
+    monkeypatch.setattr(squad_metrics, "task_record", _boom)
+    run_tick()
+    assert fake.merges == [101, 102]
+    for number in (1, 2):
+        record = _worker_metrics(number)
+        assert record["proof_kind"] == {"escalations": "UNVERIFIED", "dependency_wait": "UNVERIFIED"}
+        assert record["unverified"] == {"escalations": "metrics_error", "dependency_wait_s": "metrics_error"}
+    metrics = read_json(config.STATUS)["squads"][REPO]["metrics"]
+    assert (metrics["tasks"], metrics["escalation_n"], metrics["escalation_unverified"]) == (2, 0, 2)
+
+
+def test_a_summary_that_raises_leaves_a_marked_block_and_the_status_is_still_written(dependent, monkeypatch):
+    fake = dependent(auto_merge=True)
+    monkeypatch.setattr(squad_metrics, "summarize_records", _boom)
+    run_tick()
+    assert fake.merges == [101, 102]
+    entry = read_json(config.STATUS)["squads"][REPO]
+    assert entry["metrics"]["unverified"] == "metrics_error" and len(entry["task_metrics"]) == 2
+
+
+# --- the reason of a failed step is a short code, whatever turbo printed ---
+
+
+class _Planned:
+    def __init__(self, ok=True, reason_code="ok"):
+        self._ok, self.reason_code = ok, reason_code
+
+    def is_ok(self):
+        return self._ok
+
+
+@pytest.mark.parametrize("planned,label,status,expected", [
+    (_Planned(False, "bad_plan"), "", "failed", "bad_plan"),
+    (_Planned(False, "quota_exhausted"), "", "failed", "quota_exhausted"),
+    (_Planned(), "MEASURED|verify_failed: `pytest`", "failed", "verify_failed"),
+    (_Planned(), "UNVERIFIED", "blocked", "apply_blocked"),
+    (_Planned(), "UNVERIFIED", "failed", "apply_failed"),
+    (_Planned(), "UNVERIFIED", "ok", "verify_not_reported"),  # turbo applied, but no passing verify came back
+    (_Planned(), "UNVERIFIED", "/home/me/secret token=abc", "apply_unknown"),
+    (_Planned(), "UNVERIFIED", "x" * 500, "apply_unknown"),
+    (_Planned(), "UNVERIFIED", ["failed"], "apply_unknown"),
+    (_Planned(), "UNVERIFIED", None, "apply_unknown"),
+])
+def test_the_failure_reason_is_an_enum_like_code(planned, label, status, expected):
+    assert host_mode._failure_reason(planned, label, status) == expected

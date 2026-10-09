@@ -49,7 +49,7 @@ Cada task de worker do `simplicio.execution-report/v1` do squad (`<state_dir>/sq
 | Campo | Significado |
 |-------|-------------|
 | `initial_role`, `final_role` | papel do primeiro e do último passo que rodou de fato (os passos do worker, não a previsão do roteador) |
-| `escalations` | uma entrada por subida de papel: `from`, `to`, `reason` (por que o passo anterior falhou: `verify_failed`, `bad_plan`, `apply_<status>`...) e `attempt` (o passo, a partir de 1, em que o novo papel rodou). Repetir o mesmo papel não é escalada. |
+| `escalations` | uma entrada por subida de papel: `from`, `to`, `reason` (por que o passo anterior falhou, sempre um código curto: o `reason_code` do planejador como `bad_plan`, `verify_failed`, `verify_not_reported` quando o turbo aplicou mas nenhum verify verde voltou, ou `apply_<status>` com o status do turbo, `apply_unknown` se não for uma palavra curta) e `attempt` (o passo, a partir de 1, em que o novo papel rodou). Repetir o mesmo papel não é escalada. |
 | `depends_on` | issues do mesmo lote de que esta depende (as mesmas arestas da ordem de merge) |
 | `dependency_wait_s` | segundos entre o PR da tarefa ficar **pronto** (o squad postou `APROVADO PELO SQUAD`) e o merge da **última** dependência ser **observado** (`gh pr merge` com sucesso), no relógio monotônico. `0.0` medido quando não há dependência, ou quando a dependência já tinha entrado. |
 | `proof_kind` | `{"escalations": ..., "dependency_wait": ...}`, cada um `measured` ou `UNVERIFIED` |
@@ -60,12 +60,13 @@ Quando é `UNVERIFIED` (e por isso fica fora de todo denominador):
 - `no_steps_recorded`: o worker não devolveu passos. É o caso do executor `openrouter` (não tem escada), de uma tarefa que falhou no tick ou que terminou sem PR. Não vira zero escalada.
 - `task_never_ready`: a tarefa tem dependência, mas o squad não aprovou o PR dela.
 - `dependency_merge_not_observed: #N`: a dependência não teve merge observado neste tick (por exemplo, sem `SIMPLICIO_247_AUTO_MERGE=1`, `gate_blocked` ou `failed`).
+- `metrics_error`: o próprio registro falhou. É fail-open: nenhum erro do registro muda quais PRs são aprovados ou mergeados, nem impede o tick de terminar; a tarefa só fica sem medida.
 
 Limites conhecidos: a dependência só conta se está no mesmo lote do tick (a mesma regra do `plan_squads`); um merge feito em outro tick ou à mão não é observado e a espera fica `UNVERIFIED`. O relógio é `time.monotonic()` do processo do watcher.
 
 ### Resumo e CLI
 
-`squad_metrics.summarize(reports)` (puro) e `simplicio-loop squads metrics --reports <diretório|arquivos...> --json` agregam muitos reports. Um diretório é varrido por `*.json`, `latest.json` é ignorado (é cópia do último) e a mesma `run_id` conta uma vez; arquivo que não é `execution-report/v1` vai em `skipped` com o motivo. Sem nenhum report, sai com código 2 e `status: BLOCKED`.
+`squad_metrics.summarize(reports)` (puro) e `simplicio-loop squads metrics --reports <diretório|arquivos...> --json` agregam muitos reports. Um diretório é varrido por `*.json`, `latest.json` é ignorado (é cópia do último) e a mesma `run_id` conta uma vez; arquivo que não é `execution-report/v1` vai em `skipped` com o motivo (também: mais de 8 MiB, não é arquivo comum como FIFO ou dispositivo, link simbólico achado na varredura, JSON aninhado demais, `run_id` que não é texto); um arquivo ruim nunca derruba os outros. Espera negativa, infinita, `NaN` ou absurda (mais de 10^9 s) não é medida: a tarefa vira `UNVERIFIED`. Sem nenhum report, sai com código 2 e `status: BLOCKED` (com o `skipped`). `--compare` recusa (código 2) um resumo editado à mão com campo que não seja `null` ou número plausível.
 
 | Campo do JSON | Significado |
 |---------------|-------------|

@@ -193,8 +193,8 @@ async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads
         done = await proc.run(["gh", "pr", "merge", str(approved[issue]), "--repo", full, "--squash",
                                 "--match-head-commit", heads[approved[issue]]], timeout=120)  # only the head that was reviewed and tested
         if done.returncode == 0:
-            repo_plan.merged_at[issue] = clock()  # the instant the merge is observed: the end of a dependent's wait
             merged_prs.append(approved[issue])
+            _stamp(repo_plan.merged_at, issue)  # the instant the merge is observed: the end of a dependent's wait
         else:
             result["failed"].append(approved[issue])
 
@@ -227,9 +227,9 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
                 review = await _review(repo_plan.repo, repo_plan, squad, issue, outcome, runner)
                 reviews[(repo_plan.repo, issue)] = review
                 if review["approved"]:
-                    repo_plan.ready_at[issue] = clock()  # ready to merge: from here a dependent PR waits for its dependencies
                     approved[issue] = review["pr"]
                     heads[review["pr"]] = review["head"]
+                    _stamp(repo_plan.ready_at, issue)  # ready to merge: from here a dependent PR waits for its dependencies
                 else:
                     rejected[str(review["pr"])] = review["reasons"]
         entry: dict[str, Any] = {
@@ -241,9 +241,7 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
             if login is None:
                 login = await own_login()
             entry.update(await _merge(repo_plan.repo, repo_plan, approved, heads, runner, gate, login))
-        records = [{**_task_metrics(repo_plan, i, done.get((repo_plan.repo, i))), "issue": f"{repo_plan.repo}#{i}"}
-                   for squad in repo_plan.plan.squads for i in squad.issues]
-        entry["task_metrics"], entry["metrics"] = records, squad_metrics.summarize_records(records)
+        entry["task_metrics"], entry["metrics"] = _repo_metrics(repo_plan, done)
         summary[repo_plan.repo] = entry
     await asyncio.to_thread(write_report, plans, done, reviews)
     return summary
@@ -256,10 +254,36 @@ def _agent(agent: squads.Agent, family: str, role: str | None = None) -> dict[st
     return {"role": role, **model_roles.resolve(family, role)}
 
 
+def _stamp(table: dict[int, float], issue: int) -> None:
+    """Record the instant of an event for the metrics. Fail-open: no failure here may touch what is approved or merged."""
+    try:
+        table[issue] = clock()
+    except Exception as exc:  # noqa: BLE001  the wait of the dependents stays UNVERIFIED
+        state.log(f"squad metrics: no instant for #{issue}: {type(exc).__name__}")
+
+
 def _task_metrics(repo_plan: RepoPlan, issue: int, result: Outcome | None) -> dict:
-    """Escalation and dependency wait of one worker task (#1549): the worker's steps and the instants the flow observed."""
-    return squad_metrics.task_record(result.steps if result else [], repo_plan.deps.get(issue, ()),
-                                     repo_plan.ready_at.get(issue), repo_plan.merged_at)
+    """Escalation and dependency wait of one worker task (#1549): the worker's steps and the instants the flow observed.
+
+    Fail-open: if the record cannot be built, nothing was measured (UNVERIFIED `metrics_error`), and the tick goes on.
+    """
+    try:
+        return squad_metrics.task_record(result.steps if result else [], repo_plan.deps.get(issue, ()),
+                                         repo_plan.ready_at.get(issue), repo_plan.merged_at)
+    except Exception as exc:  # noqa: BLE001
+        state.log(f"squad metrics: task #{issue} not recorded: {type(exc).__name__}")
+        return squad_metrics.unverified_record("metrics_error")
+
+
+def _repo_metrics(repo_plan: RepoPlan, done: dict) -> tuple[list[dict], dict]:
+    """The task records of a repo and their summary, for the status block. Fail-open like `_task_metrics`."""
+    records = [{**_task_metrics(repo_plan, i, done.get((repo_plan.repo, i))), "issue": f"{repo_plan.repo}#{i}"}
+               for squad in repo_plan.plan.squads for i in squad.issues]
+    try:
+        return records, squad_metrics.summarize_records(records)
+    except Exception as exc:  # noqa: BLE001
+        state.log(f"squad metrics: {repo_plan.repo} not summarized: {type(exc).__name__}")
+        return records, {"schema": "simplicio.squad-metrics/v1", "unverified": "metrics_error"}
 
 
 def write_report(plans: list[RepoPlan], done: dict, reviews: dict) -> Path:

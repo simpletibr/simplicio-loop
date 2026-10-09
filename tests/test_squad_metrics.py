@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 from pathlib import Path
 
@@ -853,3 +854,150 @@ def test_squads_metrics_cli_integration(capsys):
         summary = json.loads(out)
         assert summary["schema"] == "simplicio.squad-metrics/v1"
         assert summary["tasks"] == 2
+
+
+# --- hostile input (reviewer pass): nothing raises, nothing unbounded is read, nothing odd counts as measured ---
+
+
+def _good_report(run_id="ok"):
+    return report(run_id=run_id, tasks=[task(1, "repo#1", steps=[step("execution", "ok")])])
+
+
+def _skipped_reason(skipped, name):
+    (row,) = [s for s in skipped if s["path"].endswith(name)]
+    return row["reason"]
+
+
+class TestHostileFiles:
+    def test_a_symlink_found_in_a_directory_is_not_followed(self, tmp_path):
+        """/dev/zero would be an unbounded read; a link to a good file outside the directory is still not followed."""
+        outside = tmp_path / "outside.json"
+        outside.write_text(json.dumps(_good_report("outside")))
+        scan = tmp_path / "scan"
+        scan.mkdir()
+        (scan / "ok.json").write_text(json.dumps(_good_report("ok")))
+        (scan / "zero.json").symlink_to("/dev/zero")
+        (scan / "out.json").symlink_to(outside)
+        reports, skipped = squad_metrics.load_reports([str(scan)])
+        assert [r["run_id"] for r in reports] == ["ok"]
+        assert {Path(s["path"]).name for s in skipped} == {"zero.json", "out.json"}
+        assert "symlink" in _skipped_reason(skipped, "zero.json")
+
+    def test_a_fifo_named_json_is_skipped_and_never_opened(self, tmp_path):
+        os.mkfifo(tmp_path / "pipe.json")  # open() on it would block forever
+        (tmp_path / "ok.json").write_text(json.dumps(_good_report()))
+        reports, skipped = squad_metrics.load_reports([str(tmp_path)])
+        assert len(reports) == 1 and "regular file" in _skipped_reason(skipped, "pipe.json")
+
+    def test_a_device_named_as_a_report_is_skipped(self):
+        reports, skipped = squad_metrics.load_reports(["/dev/zero"])
+        assert reports == [] and len(skipped) == 1
+
+    def test_a_file_over_the_size_cap_is_skipped_without_being_parsed(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(squad_metrics, "MAX_FILE_BYTES", 200)
+        (tmp_path / "big.json").write_text(json.dumps(_good_report()) + " " * 300)
+        (tmp_path / "ok.json").write_text(json.dumps(report(run_id="s")))
+        reports, skipped = squad_metrics.load_reports([str(tmp_path)])
+        assert [r["run_id"] for r in reports] == ["s"] and "larger than 200 bytes" in _skipped_reason(skipped, "big.json")
+
+    def test_deeply_nested_json_is_skipped_not_a_recursion_error(self, tmp_path):
+        (tmp_path / "deep.json").write_text("[" * 200000 + "]" * 200000)
+        (tmp_path / "ok.json").write_text(json.dumps(_good_report()))
+        reports, skipped = squad_metrics.load_reports([str(tmp_path)])
+        assert len(reports) == 1 and "deep.json" in skipped[0]["path"]
+
+    def test_one_bad_file_never_aborts_the_others(self, tmp_path):
+        bad = {
+            "list_run_id.json": {"schema": "simplicio.execution-report/v1", "run_id": ["a"], "tasks": []},
+            "int_run_id.json": {"schema": "simplicio.execution-report/v1", "run_id": 5, "tasks": []},
+            "dict_schema.json": {"schema": {"a": 1}},
+        }
+        for name, body in bad.items():
+            (tmp_path / name).write_text(json.dumps(body))
+        (tmp_path / "bigint.json").write_text('{"schema":"simplicio.execution-report/v1","run_id":"b","x":' + "9" * 5000 + "}")
+        (tmp_path / "ok.json").write_text(json.dumps(_good_report()))
+        reports, skipped = squad_metrics.load_reports([str(tmp_path)])
+        assert [r["run_id"] for r in reports] == ["ok"]
+        assert {Path(s["path"]).name for s in skipped} == set(bad) | {"bigint.json"}
+
+    def test_a_report_without_run_id_still_counts_and_sorts_with_the_others(self, tmp_path):
+        (tmp_path / "a.json").write_text(json.dumps({"schema": "simplicio.execution-report/v1", "tasks": []}))
+        (tmp_path / "b.json").write_text(json.dumps({"schema": "simplicio.execution-report/v1", "run_id": None, "tasks": []}))
+        (tmp_path / "c.json").write_text(json.dumps(_good_report("z")))
+        reports, skipped = squad_metrics.load_reports([str(tmp_path)])
+        assert len(reports) == 3 and skipped == []
+
+    def test_the_skipped_reason_is_short_even_for_a_huge_schema_string(self, tmp_path):
+        (tmp_path / "s.json").write_text(json.dumps({"schema": "x" * 100000}))
+        _, skipped = squad_metrics.load_reports([str(tmp_path)])
+        assert len(skipped[0]["reason"]) < 200
+
+    def test_a_path_that_does_not_exist_is_reported_as_skipped(self, tmp_path):
+        reports, skipped = squad_metrics.load_reports([str(tmp_path / "nope")])
+        assert reports == [] and "nope" in skipped[0]["path"] and "not a file or directory" in skipped[0]["reason"]
+
+    def test_blocked_output_says_why_each_file_was_skipped(self, tmp_path, capsys):
+        (tmp_path / "bad.json").write_text("not json")
+        assert cli_impl.main(["squads", "metrics", "--reports", str(tmp_path), "--json"]) == 2
+        out = json.loads(capsys.readouterr().out)
+        assert out["status"] == "BLOCKED" and "bad.json" in out["skipped"][0]["path"]
+
+
+class TestOddNumbersAreNeverMeasured:
+    @pytest.mark.parametrize("wait", [float("nan"), float("inf"), float("-inf"), -5, -0.001, True, False, "3", None, [1], 10 ** 12])
+    def test_a_wait_that_is_not_a_plausible_duration_is_unverified_and_in_no_sample(self, wait):
+        good = squad_metrics.task_record([step("execution")], [1], 1.0, {1: 4.0})
+        odd = {**good, "dependency_wait_s": wait}
+        summary = squad_metrics.summarize_records([good, odd])
+        assert summary["dependency_wait_n"] == 1 and summary["dependency_wait_unverified"] == 1
+        assert summary["dependency_wait_p50_s"] == summary["dependency_wait_p95_s"] == summary["dependency_wait_max_s"] == 3.0
+
+    def test_a_report_with_nan_and_infinity_waits_prints_strict_json(self, tmp_path, capsys):
+        rows = [{"issue": f"r#{i}", "squad_metrics": {
+            "initial_role": "execution", "final_role": "execution", "escalations": [], "depends_on": [1],
+            "dependency_wait_s": value, "proof_kind": {"escalations": "measured", "dependency_wait": "measured"}}}
+            for i, value in enumerate([float("nan"), float("inf"), -5])]
+        (tmp_path / "r.json").write_text(json.dumps({"schema": "simplicio.execution-report/v1", "run_id": "n", "tasks": rows}))
+        assert cli_impl.main(["squads", "metrics", "--reports", str(tmp_path), "--json"]) == 0
+
+        def refuse(constant):
+            raise AssertionError(f"not strict JSON: {constant}")
+        summary = json.loads(capsys.readouterr().out, parse_constant=refuse)
+        assert summary["dependency_wait_n"] == 0 and summary["dependency_wait_p50_s"] is None
+
+
+class TestHostileSummaries:
+    def _summary(self, **override):
+        base = {"schema": "simplicio.squad-metrics/v1", "escalation_n": 12, "dependency_wait_n": 12, "escalation_rate": 0.25,
+                "dependency_wait_p50_s": 1.5, "dependency_wait_p95_s": 3.0, "dependency_wait_max_s": 4.0, "issues": ["a#1"],
+                "escalation_unverified": 0, "dependency_wait_unverified": 0}
+        return {**base, **override}
+
+    @pytest.mark.parametrize("field,value", [
+        ("escalation_rate", "abc"), ("escalation_rate", 7), ("escalation_rate", float("nan")), ("escalation_rate", True),
+        ("dependency_wait_p50_s", 10 ** 400), ("dependency_wait_p50_s", [1]), ("dependency_wait_p50_s", {"a": 1}),
+        ("dependency_wait_p95_s", float("inf")), ("dependency_wait_max_s", -1),
+        ("escalation_n", "many"), ("escalation_n", None), ("escalation_n", True), ("escalation_n", -1), ("dependency_wait_n", [1]),
+        ("escalation_unverified", "x"), ("dependency_wait_unverified", [1]), ("escalation_n", 10 ** 400),
+        ("issues", 5), ("issues", [["a"]]), ("issues", [{"a": 1}]), ("issues", "abc"),
+    ])
+    def test_a_hand_edited_field_is_blocked_in_json_and_in_text_mode(self, tmp_path, capsys, field, value):
+        good, odd = tmp_path / "good.json", tmp_path / "odd.json"
+        good.write_text(json.dumps(self._summary()))
+        odd.write_text(json.dumps(self._summary(**{field: value})))  # json.dumps writes NaN/Infinity, which json.loads reads back
+        for extra in (["--json"], []):
+            assert cli_impl.main(["squads", "metrics", "--compare", str(good), str(odd), *extra]) == 2
+            assert "BLOCKED" in capsys.readouterr().out
+
+    def test_a_summary_with_none_and_plain_numbers_still_compares(self, tmp_path, capsys):
+        good = tmp_path / "good.json"
+        good.write_text(json.dumps(self._summary(dependency_wait_p50_s=None, escalation_rate=None, escalation_n=0)))
+        assert cli_impl.main(["squads", "metrics", "--compare", str(good), str(good)]) == 0
+
+    def test_deep_json_and_a_device_as_compare_input_are_blocked(self, tmp_path, capsys):
+        good, deep = tmp_path / "good.json", tmp_path / "deep.json"
+        good.write_text(json.dumps(self._summary()))
+        deep.write_text("[" * 200000 + "]" * 200000)
+        for odd in (deep, Path("/dev/zero"), tmp_path):
+            assert cli_impl.main(["squads", "metrics", "--compare", str(good), str(odd), "--json"]) == 2
+            assert json.loads(capsys.readouterr().out)["status"] == "BLOCKED"

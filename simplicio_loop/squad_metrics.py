@@ -10,8 +10,14 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import stat
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
+
+MAX_FILE_BYTES = 8 * 1024 * 1024  # a report or summary bigger than this is skipped, never read whole
+MAX_SECONDS = 10 ** 9  # a wait above ~31 years is not a measurement of one tick: UNVERIFIED, not a number in the percentiles
+MAX_COUNT = 10 ** 9
 
 
 def escalation_part(steps: list[dict[str, Any]] | None) -> dict[str, Any]:
@@ -144,6 +150,19 @@ def task_record(
     return record
 
 
+def unverified_record(reason: str) -> dict[str, Any]:
+    """A record where nothing was measured (the recorder itself failed): both parts UNVERIFIED with the same reason."""
+    return {
+        "initial_role": None,
+        "final_role": None,
+        "escalations": None,
+        "depends_on": [],
+        "dependency_wait_s": None,
+        "proof_kind": {"escalations": "UNVERIFIED", "dependency_wait": "UNVERIFIED"},
+        "unverified": {"escalations": reason, "dependency_wait_s": reason},
+    }
+
+
 def collect(reports: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Collect tasks with a `squad_metrics` object from reports; anything else (no key, not an object) is ignored."""
     result = []
@@ -193,10 +212,14 @@ def _measured_escalation(record: dict[str, Any]) -> bool:
                     for e in escalations))
 
 
+def _plausible(value: Any, upper: float) -> bool:
+    """A real, finite number in [0, upper]; NaN, infinities, negatives, booleans and strings are not measurements."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= upper
+
+
 def _measured_wait(record: dict[str, Any]) -> bool:
-    wait = record.get("dependency_wait_s")
     return (_proof(record, "dependency_wait") == "measured" and isinstance(record.get("depends_on"), list)
-            and isinstance(wait, (int, float)) and not isinstance(wait, bool))
+            and _plausible(record.get("dependency_wait_s"), MAX_SECONDS))
 
 
 def summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
@@ -255,50 +278,88 @@ def summarize(reports: Iterable[dict[str, Any]]) -> dict[str, Any]:
     return summary
 
 
+def _short(value: Any) -> str:
+    """A value echoed in a reason: bounded, whatever the file held."""
+    text = str(value)
+    return text if len(text) <= 80 else text[:77] + "..."
+
+
+def _read_json(path: Path) -> Any:
+    """Parse one JSON file. ValueError (short reason) for anything that is not a bounded regular file with valid JSON.
+
+    The descriptor is opened non-blocking and checked with fstat, so a FIFO or a device never blocks or streams; at most
+    MAX_FILE_BYTES + 1 bytes are ever read, so a file that grows after the check is capped too.
+    """
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+    except OSError as exc:
+        raise ValueError(f"cannot open: {exc.strerror or type(exc).__name__}") from None
+    with os.fdopen(fd, "rb") as handle:
+        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            raise ValueError("not a regular file")
+        raw = handle.read(MAX_FILE_BYTES + 1)
+    if len(raw) > MAX_FILE_BYTES:
+        raise ValueError(f"larger than {MAX_FILE_BYTES} bytes")
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except RecursionError:
+        raise ValueError("JSON nested too deeply") from None
+    except ValueError as exc:  # JSONDecodeError, UnicodeDecodeError, an integer with too many digits
+        raise ValueError(_short(exc)) from None
+
+
 def load_reports(paths: list[str]) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     """Load execution-report/v1 files from paths (files or directories).
 
-    Directories are searched recursively for *.json, excluding latest.json.
-    Duplicates by run_id are deduplicated.
-    Returns (reports sorted by path, skipped list).
+    Directories are searched recursively for *.json, excluding latest.json; a symlink found there is not followed.
+    Duplicates by run_id are deduplicated. A file that cannot be used goes to `skipped` with a short reason; it never
+    stops the others. Returns (reports sorted by run_id, skipped list).
     """
-    all_reports = []
-    skipped = []
-    seen_run_ids = set()
+    all_reports: list[dict[str, Any]] = []
+    skipped: list[dict[str, str]] = []
+    seen_run_ids: set[str] = set()
+
+    def skip(path: Path, reason: str) -> None:
+        skipped.append({"path": str(path), "reason": reason})
 
     for path_str in paths:
         path = Path(path_str)
-        json_files = []
-
-        if path.is_file():
-            json_files = [path]
-        elif path.is_dir():
-            json_files = sorted([p for p in path.rglob("*.json") if p.name != "latest.json"])
+        try:
+            if path.is_dir():
+                json_files = sorted(p for p in path.rglob("*.json") if p.name != "latest.json")
+            elif path.exists():
+                json_files = [path]
+            else:
+                json_files = []
+        except OSError as exc:
+            skip(path, f"cannot list: {exc.strerror or type(exc).__name__}")
+            continue
+        if not json_files and not path.is_dir():
+            skip(path, "not a file or directory")
 
         for json_file in json_files:
+            if json_file != path and json_file.is_symlink():
+                skip(json_file, "symlink not followed")
+                continue
             try:
-                content = json_file.read_text(encoding="utf-8")
-                data = json.loads(content)
-                if not isinstance(data, dict) or data.get("schema") != "simplicio.execution-report/v1":
-                    skipped.append({
-                        "path": str(json_file),
-                        "reason": f"wrong schema: {data.get('schema') if isinstance(data, dict) else type(data).__name__}",
-                    })
+                data = _read_json(json_file)
+            except ValueError as exc:
+                skip(json_file, str(exc))
+                continue
+            if not isinstance(data, dict) or data.get("schema") != "simplicio.execution-report/v1":
+                skip(json_file, "wrong schema: " + _short(data.get("schema") if isinstance(data, dict) else type(data).__name__))
+                continue
+            run_id = data.get("run_id")
+            if run_id is not None and not isinstance(run_id, str):
+                skip(json_file, "run_id is not a string")
+                continue
+            if run_id:
+                if run_id in seen_run_ids:
                     continue
-                run_id = data.get("run_id")
-                if run_id and run_id in seen_run_ids:
-                    continue
-                if run_id:
-                    seen_run_ids.add(run_id)
-                all_reports.append(data)
-            except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
-                skipped.append({
-                    "path": str(json_file),
-                    "reason": str(e),
-                })
+                seen_run_ids.add(run_id)
+            all_reports.append(data)
 
-    # Sort by path for determinism
-    all_reports.sort(key=lambda r: r.get("run_id", ""))
+    all_reports.sort(key=lambda r: r.get("run_id") or "")
     return all_reports, skipped
 
 
@@ -453,28 +514,48 @@ def render_compare(result: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+_SUMMARY_NUMBERS = (  # field -> upper bound; None is allowed (UNVERIFIED or no sample), anything else must be a plausible number
+    ("escalation_rate", 1), ("dependency_wait_p50_s", MAX_SECONDS), ("dependency_wait_p95_s", MAX_SECONDS),
+    ("dependency_wait_max_s", MAX_SECONDS))
+_SUMMARY_COUNTS = ("escalation_n", "dependency_wait_n", "escalation_unverified", "dependency_wait_unverified")
+
+
+def _check_summary(data: dict[str, Any], path: str) -> None:
+    """A hand-edited summary: what `compare` reads must be None or a plausible number, a count or a list of strings."""
+    for field, upper in _SUMMARY_NUMBERS:
+        if data.get(field) is not None and not _plausible(data[field], upper):
+            raise ValueError(f"{path}: {field} is not a plausible number: {_short(data[field])}")
+    for field in _SUMMARY_COUNTS:
+        value = data.get(field, 0)
+        if not (isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= MAX_COUNT):
+            raise ValueError(f"{path}: {field} is not a count: {_short(value)}")
+    issues = data.get("issues", [])
+    if not isinstance(issues, list) or not all(isinstance(i, str) for i in issues):
+        raise ValueError(f"{path}: issues is not a list of strings")
+
+
 def load_summary(path: str) -> dict[str, Any]:
     """Load a summary file (squad-metrics/v1 or execution-report/v1).
 
     If it is an execution-report/v1, summarize it.
-    If it is a squad-metrics/v1, return as-is.
+    If it is a squad-metrics/v1, validate it and return it as-is.
     Otherwise, raise ValueError.
     """
     try:
-        content = Path(path).read_text(encoding="utf-8")
-        data = json.loads(content)
-    except (OSError, json.JSONDecodeError) as e:
-        raise ValueError(f"Could not load {path}: {e}")
+        data = _read_json(Path(path))
+    except ValueError as e:
+        raise ValueError(f"Could not load {path}: {e}") from None
 
     if not isinstance(data, dict):
         raise ValueError(f"Unknown schema in {path}: not a JSON object")
     schema = data.get("schema")
     if schema == "simplicio.squad-metrics/v1":
+        _check_summary(data, path)
         return data
     elif schema == "simplicio.execution-report/v1":
         return summarize([data])
     else:
-        raise ValueError(f"Unknown schema {schema} in {path}")
+        raise ValueError(f"Unknown schema {_short(schema)} in {path}")
 
 
 def dispatch(args: Any) -> int:
@@ -483,12 +564,14 @@ def dispatch(args: Any) -> int:
     Returns 0 on success, 2 on BLOCKED (error).
     Prints JSON or text output.
     """
-    def emit_blocked(reason: str) -> int:
-        output = {
+    def emit_blocked(reason: str, skipped: Optional[list[dict[str, str]]] = None) -> int:
+        output: dict[str, Any] = {
             "status": "BLOCKED",
             "error": "BlockedError",
             "reason": reason,
         }
+        if skipped:
+            output["skipped"] = skipped
         print(json.dumps(output, ensure_ascii=False, indent=2, sort_keys=True))
         return 2
 
@@ -507,7 +590,7 @@ def dispatch(args: Any) -> int:
             else:
                 print(render_compare(result))
             return 0
-        except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:  # a hand-edited file: BLOCKED, not a traceback
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, ArithmeticError, RecursionError) as e:  # a hand-edited file: BLOCKED, not a traceback
             return emit_blocked(f"{type(e).__name__}: {e}")
 
     elif args.reports:
@@ -515,7 +598,7 @@ def dispatch(args: Any) -> int:
         try:
             reports, skipped = load_reports(args.reports)
             if not reports:
-                return emit_blocked(f"no execution-report/v1 found in {args.reports}")
+                return emit_blocked(f"no execution-report/v1 found in {args.reports}", skipped)
             summary = summarize(reports)
             summary["skipped"] = skipped
             if args.json:
@@ -523,7 +606,7 @@ def dispatch(args: Any) -> int:
             else:
                 print(render_summary(summary))
             return 0
-        except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:  # a hand-edited file: BLOCKED, not a traceback
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, ArithmeticError, RecursionError) as e:  # a hand-edited file: BLOCKED, not a traceback
             return emit_blocked(f"{type(e).__name__}: {e}")
 
     else:

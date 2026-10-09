@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -115,11 +116,22 @@ def ceilings() -> dict[str, int]:
     return {key: value for key, value in found.items() if value is not None}
 
 
+_STATUS_CODE = re.compile(r"[a-z_]{1,32}")
+
+
 def _failure_reason(planned: exec_planner.PlannerResult, label: str, status: str) -> str:
-    """Why a step failed, as a code: the planner's own reason_code, a red verify, or turbo's apply status."""
+    """Why a step failed, as a short code: the planner's reason_code, a red verify, or turbo's apply status.
+
+    The status is turbo's output, so only a short lowercase word is kept; anything else (text, a path, a list) is `unknown`.
+    Turbo said `ok` but no passing verify came back: that is not an apply failure.
+    """
     if not planned.is_ok():
         return planned.reason_code
-    return "verify_failed" if label.startswith("MEASURED|verify_failed") else f"apply_{status}"
+    if label.startswith("MEASURED|verify_failed"):
+        return "verify_failed"
+    if status == "ok":
+        return "verify_not_reported"
+    return f"apply_{status if isinstance(status, str) and _STATUS_CODE.fullmatch(status) else 'unknown'}"
 
 
 def next_role(ladder: escalation.EscalationState) -> None:
