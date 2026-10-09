@@ -154,6 +154,8 @@ def test_any_single_missing_value_falls_back_to_one_worker(missing):
     full = probe(cpu=64)
     plan = rec(independent(10), dataclasses.replace(full, **{missing: None}))
     assert plan.total_workers == 1 and plan.proof_kind == "UNVERIFIED" and list(plan.unverified) == [missing]
+    limit = {"cpu_count": "cpu", "load_average": "load", "memory_available_bytes": "memory", "disk_free_bytes": "disk"}[missing]
+    assert plan.supply[limit] == 1, "the unknown limit itself is the conservative minimum, never unlimited"
 
 
 def test_the_probes_own_reason_is_kept():
