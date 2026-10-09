@@ -1,6 +1,7 @@
 """One watcher tick on a real target repo: admit, map, plan, apply, verify, PR, status, events, report.
 
-The watcher, turbo, Mapper and Dev CLI are real. GitHub (`gh`) and the model are fakes (see conftest).
+The watcher, turbo, Mapper and Dev CLI are real. GitHub (`gh`) and the planner CLI (`claude`) are fakes (see conftest).
+The run uses the DEFAULT executor (host mode, `exec`): the planner CLI only plans, `turbo --apply -` applies and verifies.
 What the service path still lacks is a strict xfail naming its open issue: it turns into a failure
 the day the capability lands, and the marker must then be removed.
 """
@@ -17,13 +18,14 @@ import pytest
 from simplicio_loop import execution_report
 from simplicio_loop.dashboard import runs as dashboard_runs
 from simplicio_loop.dashboard_events import read_events
-from simplicio_loop.watcher247 import config, subscription, tick
-from tests.flow.conftest import ISSUE_NUMBER, REPO_NAME
+from simplicio_loop.watcher247 import config, subscription, tick, verify
+from tests.flow.conftest import ISSUE_NUMBER, ISSUE_TITLE, REPO_NAME
 
 IDENT = f"{REPO_NAME}#{ISSUE_NUMBER}"
 HEAD = f"loop/issue-{ISSUE_NUMBER}"
-# The stages turbo writes to events.jsonl today (turbo_run.PROGRESS_PHASE): map -> orient, report -> done.
-TURBO_STAGES = ["orient", "plan", "apply", "verify", "done"]
+# The stages the host-mode service writes to events.jsonl today: the planner CLI runs outside turbo, so the run
+# that `turbo --apply -` opens starts at apply (turbo_run.PROGRESS_PHASE: report -> done).
+HOST_STAGES = ["apply", "verify", "done"]
 # The pipeline of #1469: the watcher's own stages wrap the turbo ones.
 PIPELINE_STAGES = ["intake", "orient", "plan", "apply", "verify", "pr", "done"]
 STATE_ROW = re.compile(r"\| Estado \| (\w+) \|")
@@ -59,8 +61,8 @@ def _claims(run) -> dict:
 
 
 def _turbo_document(run) -> dict:
-    log = run["state"] / "logs" / f"{REPO_NAME}-{ISSUE_NUMBER}-1.log"
-    return tick.parse_turbo(log.read_text().split("\n--- stderr ---")[0])
+    log = run["state"] / "logs" / f"{REPO_NAME}-{ISSUE_NUMBER}-1-s1.log"  # attempt 1, planner step 1
+    return verify.parse_turbo(log.read_text().split("\n--- stderr ---")[0])
 
 
 def _canonical_calls(run) -> list[dict]:
@@ -86,6 +88,16 @@ def test_lease_acquired_and_released(tick_run):
     assert claim.get("lease_expires_at") is None, "lease not released"
 
 
+def test_default_executor_planned_with_the_exec_cli_read_only(tick_run, planner_log):
+    calls = [json.loads(line) for line in planner_log.read_text().splitlines()]
+    assert len(calls) == 1, "the default executor must ask the exec CLI for exactly one plan"
+    argv = calls[0]
+    assert argv[0] == "-p" and ISSUE_TITLE in argv[1], "the planner gets the issue as its prompt"
+    assert argv[argv.index("--permission-mode") + 1] == "plan", "the planner CLI must be plan-only"
+    assert argv[argv.index("--output-format") + 1] == "json"
+
+
+@pytest.mark.xfail(strict=True, reason="awaits #1469: the host-mode watcher has no map stage; the planner CLI explores the clone itself")
 def test_mapper_produced_project_map(tick_run):
     project_map = tick_run["clone"] / ".simplicio-loop" / "project-map.json"
     assert project_map.is_file(), "mapper did not write project-map.json"
@@ -143,7 +155,7 @@ def _entered_phases(run) -> list[str]:
 
 
 def test_events_jsonl_stages_in_order(tick_run):
-    assert _entered_phases(tick_run) == TURBO_STAGES
+    assert _entered_phases(tick_run) == HOST_STAGES
 
 
 @pytest.mark.xfail(strict=True, reason="awaits #1469: the watcher must write its intake and pr stages into the run's events.jsonl")
@@ -154,7 +166,7 @@ def test_events_jsonl_covers_the_whole_pipeline(tick_run):
 def test_events_parseable_by_dashboard_runs(tick_run):
     runs = dashboard_runs.list_runs(tick_run["clone"])
     assert len(runs) == 1, f"dashboard sees {len(runs)} runs"
-    assert runs[0]["last_seq"] >= len(TURBO_STAGES)
+    assert runs[0]["last_seq"] >= len(HOST_STAGES)
     assert runs[0]["status"] == "done"
 
 
@@ -163,7 +175,29 @@ def test_execution_report_written(tick_run):
     assert report is not None, "no execution report was written"
     assert report["schema"] == "simplicio.execution-report/v1"
     assert report["status"] == "COMPLETE"
+    # Host mode: the latest report is the watcher's role receipt, one task per planner step.
+    assert len(report["tasks"]) == 1
+    step = report["tasks"][0]
+    assert (step["step"], step["role"], step["family"], step["planner"]) == (1, "planning", "claude", "ok")
+    assert step["outcome"] == "COMPLETE"
+    assert step["model"] and step["effort"], "the receipt names the model and effort the step ran with"
+    tokens = step["tokens"]
+    assert (tokens["tokens_in"], tokens["tokens_out"]) == (None, None), "an exec CLI reports no usage: UNVERIFIED, never invented"
+    assert "tokens_*" in report["unverified_fields"]
+
+
+def test_kanban_run_has_its_own_complete_report(tick_run):
+    """The `turbo --apply -` run the kanban shows keeps the execution report turbo wrote for it."""
+    run = _run_dirs(tick_run)[0]
+    path = tick_run["clone"] / _turbo_document(tick_run)["execution_report"]
+    report = json.loads(path.read_text())
+    assert report["schema"] == "simplicio.execution-report/v1"
+    assert report["run_id"] == run["run_id"]
+    assert report["status"] == "COMPLETE"
+
+
+@pytest.mark.xfail(strict=True, reason="awaits #1469: one pipeline, one report per run; the watcher's role receipt has its own run_id")
+def test_execution_report_belongs_to_the_kanban_run(tick_run):
+    report = execution_report.load_latest(tick_run["clone"])
     assert report["run_id"] == _run_dirs(tick_run)[0]["run_id"], "the report belongs to the run the kanban shows"
-    tokens = report["tasks"][0]["tokens"]
-    assert (tokens["tokens_in"], tokens["tokens_out"]) == (10, 5), "tokens are what the fake model reported"
 
