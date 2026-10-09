@@ -65,6 +65,7 @@ async def repo_config(
     repo: str,
     *,
     cache: Optional[dict[str, Any]] = None,
+    run: Optional[Any] = None,
 ) -> Optional[dict[str, Any]]:
     """Return the parsed `.simplicio/loop.toml` of repo, or None when absent.
 
@@ -74,6 +75,8 @@ async def repo_config(
     Args:
         repo: GitHub repo in "owner/name" format
         cache: Optional dict to cache results across calls in one tick
+        run: Optional `async (*gh_args) -> (returncode, stdout, stderr)` replacing the
+            default `gh` subprocess (the watcher routes it through its own process boundary)
 
     Returns:
         The parsed TOML table, or None if the file does not exist
@@ -96,7 +99,7 @@ async def repo_config(
 
     try:
         config = await asyncio.wait_for(
-            _fetch_config(owner, name),
+            _fetch_config(owner, name, run),
             timeout=REPO_OPTED_IN_TIMEOUT,
         )
         cache[repo] = config
@@ -127,13 +130,14 @@ async def _run_gh(*args: str) -> tuple[int, bytes, bytes]:
     return proc.returncode, stdout, stderr
 
 
-async def _fetch_config(owner: str, name: str) -> Optional[dict[str, Any]]:
+async def _fetch_config(owner: str, name: str, run: Optional[Any] = None) -> Optional[dict[str, Any]]:
     """Fetch and parse .simplicio/loop.toml via gh api.
 
     Returns None if the file does not exist.
     Raises IntakeGateError on malformed TOML or gh failures.
     """
-    returncode, stdout, stderr = await _run_gh(
+    runner = run or _run_gh
+    returncode, stdout, stderr = await runner(
         "api",
         f"repos/{owner}/{name}/contents/.simplicio/loop.toml",
         "--jq",
@@ -159,13 +163,14 @@ async def repo_opted_in(
     repo: str,
     *,
     cache: Optional[dict[str, Any]] = None,
+    run: Optional[Any] = None,
 ) -> bool:
     """True only if `.simplicio/loop.toml` exists with a literal `enabled = true`.
 
     Raises IntakeGateError (see repo_config) on invalid repo, timeout, gh
     failure or malformed TOML.
     """
-    config = await repo_config(repo, cache=cache)
+    config = await repo_config(repo, cache=cache, run=run)
     return config is not None and config.get("enabled") is True
 
 
