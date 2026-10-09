@@ -8,14 +8,13 @@ from __future__ import annotations
 
 import asyncio
 import shutil
-from pathlib import Path
 
 import pytest
 
 from simplicio_loop.watcher247 import config, proc, worktrees
 
 from .fakes import FakeRun, baseline, issue, run_tick
-from .test_worktrees import REPO, git, real_repo, state_file  # noqa: F401  (real_repo is a fixture)
+from .test_worktrees import REPO, real_repo, state_file  # noqa: F401  (real_repo is a fixture)
 
 TICK_REPO = "simplicio-a"
 
