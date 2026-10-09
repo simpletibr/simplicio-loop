@@ -2985,6 +2985,7 @@ def main(argv=None) -> int:
     p_verify.add_argument("run_id", help="run id to verify")
 
     p_watch247 = sub.add_parser("watch247", help="run the 24/7 watcher for simplicio-* repos")
+    p_watch247.add_argument("action", nargs="?", choices=["login-check"], help="login-check: exec CLI logins (#1467)")
     p_watch247.add_argument("--once", action="store_true", help="run one tick and exit")
     p_watch247.add_argument("--dry-run", action="store_true", help="simulate without mutations")
     p_watch247.add_argument("--state-dir", help="override state directory")
@@ -3332,6 +3333,9 @@ def main(argv=None) -> int:
         return economy_command(args)
     if command == "verify":
         return verify(args.repo, args.run_id)
+    if command == "watch247" and args.action == "login-check":
+        from .watcher247.login_check import main as login_check_main
+        return login_check_main()
     if command == "watch247":
         import asyncio
         from .watcher247 import config as watcher247_config

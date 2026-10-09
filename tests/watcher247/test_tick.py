@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop.watcher247 import config, proc, state, subscription, tick
+from simplicio_loop.watcher247 import config, proc, state, subscription, tick, verify
 from simplicio_loop.watcher247.__main__ import main as watcher_main
 
 from .fakes import FIXED, PR_URL, FakeRun, baseline, issue, read_json, run_tick, write_json
@@ -210,10 +210,10 @@ def test_dirty(env, porcelain, expected):
 
 
 def test_parse_turbo_variants():
-    assert tick.parse_turbo("") == {}
-    assert tick.parse_turbo('{"status": "ok"}') == {"status": "ok"}
-    assert tick.parse_turbo('noise\n{"schema": "s", "status": "ok"}') == {"schema": "s", "status": "ok"}
-    assert tick.parse_turbo("plain failure")["status"] == "failed"
+    assert verify.parse_turbo("") == {}
+    assert verify.parse_turbo('{"status": "ok"}') == {"status": "ok"}
+    assert verify.parse_turbo('noise\n{"schema": "s", "status": "ok"}') == {"schema": "s", "status": "ok"}
+    assert verify.parse_turbo("plain failure")["status"] == "failed"
 
 
 def test_run_kills_process_on_timeout():
