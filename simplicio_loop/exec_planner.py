@@ -1,9 +1,9 @@
-"""CLI exec planners for claude, codex, grok and gemini, run as plan-only planners (issue 1431).
+"""CLI exec planners for claude, codex, grok, gemini, agy and opencode, run as plan-only planners (issues 1431, 1432).
 
 The planner never mutates the repo. It returns a plan JSON (``{"operations": [...]}``) that the dev-cli applies
 (``simplicio-loop turbo --apply -``). Every argv therefore uses the CLI's most restrictive non-interactive mode.
-Flags marked VERIFIED were checked against ``<cli> --help`` on the host; gemini is not installed, so its flags are
-DOC-BASED (Gemini CLI docs) and unverified.
+Flags marked VERIFIED were checked against ``<cli> --help`` on the host (agy 1.3.2, opencode 1.18.30). gemini is not
+installed here, so its flags are DOC-BASED (vendor docs) and unverified.
 """
 
 from __future__ import annotations
@@ -13,12 +13,17 @@ import json
 import os
 import shutil
 import signal
+import tempfile
 import time
 
 from . import model_roles
 
 DEFAULT_FAMILIES = ["claude", "codex", "grok", "gemini"]
 KILL_GRACE_SEC = 3.0
+
+# opencode's built-in `plan` agent denies edits but allows bash and webfetch. This config is written to a temp file and
+# passed through OPENCODE_CONFIG so the planner cannot run commands or fetch URLs.
+OPENCODE_DENY_CONFIG = {"permission": {"bash": "deny", "webfetch": "deny", "edit": "deny"}}
 
 PLAN_ONLY_PREAMBLE = (
     "You are a planner only. Do NOT edit files and do NOT run commands. Reply with exactly one JSON object "
@@ -119,12 +124,58 @@ def _build_argv_gemini(prompt, role, model, effort, cwd):
     return argv
 
 
+def _build_argv_agy(prompt, role, model, effort, cwd):
+    # VERIFIED with `agy --help` (agy 1.3.2): -p/--print, --mode (accept-edits, plan), --sandbox,
+    # --output-format (text, json, stream-json), --model, --effort (low|medium|high|xhigh|max).
+    argv = ["agy", "-p", prompt, "--mode", "plan", "--sandbox", "--output-format", "json"]
+    if _real_model(model):
+        argv.extend(["--model", model])
+    if effort:
+        argv.extend(["--effort", effort])
+    return argv
+
+
+def _build_argv_opencode(prompt, role, model, effort, cwd):
+    # VERIFIED with `opencode run --help` (opencode 1.18.30): the message argument, --format json,
+    # -m provider/model, --variant (provider-specific reasoning effort), --agent. `opencode agent list` shows `plan`.
+    # VERIFIED with `opencode debug agent plan`: the built-in `plan` agent allows bash and webfetch, so run_planner
+    # also sets OPENCODE_CONFIG to OPENCODE_DENY_CONFIG (bash, webfetch and edit deny); the resolved plan agent then
+    # lists those denies. DOC-BASED: OPENCODE_CONFIG as an env var is not listed by --help; it comes from the opencode
+    # config docs, and the debug output above is what confirms it takes effect.
+    argv = ["opencode", "run", prompt, "--format", "json", "--agent", "plan"]
+    if _real_model(model):
+        argv.extend(["-m", model])
+    if effort:
+        argv.extend(["--variant", effort])
+    return argv
+
+
 _ARGV_BUILDERS = {
     "claude": _build_argv_claude,
     "codex": _build_argv_codex,
     "grok": _build_argv_grok,
     "gemini": _build_argv_gemini,
+    "agy": _build_argv_agy,
+    "opencode": _build_argv_opencode,
 }
+SUPPORTED_FAMILIES = tuple(_ARGV_BUILDERS)
+
+# Quota, rate-limit and auth terms, matched case-insensitively in stderr and stdout. The quota list follows the
+# capacity terms in packages/dev-cli/simplicio/providers.py. None of these strings is verified against CLI output.
+_QUOTA_TERMS = ("quota", "insufficient_quota", "credit balance", "billing", "usage limit")
+_RATE_TERMS = ("rate limit", "rate_limit", "too many requests")
+_AUTH_TERMS = ("auth", "unauthorized", "not logged in", "log in", "login", "api key")
+
+
+def classify_failure(returncode, stderr, stdout):
+    """Map a failed CLI run to quota_exhausted, rate_limited or auth_error; None when it is a generic failure."""
+    if returncode == 0:
+        return None
+    text = f"{stderr}\n{stdout}".lower()
+    for code, terms in (("quota_exhausted", _QUOTA_TERMS), ("rate_limited", _RATE_TERMS), ("auth_error", _AUTH_TERMS)):
+        if any(term in text for term in terms):
+            return code
+    return None
 
 
 def build_argv(family, role, prompt, model, cwd, effort=""):
@@ -168,7 +219,7 @@ async def _kill_process_tree(proc, grace_sec=KILL_GRACE_SEC):
     await proc.wait()
 
 
-async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None, grace_sec=KILL_GRACE_SEC):
+async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None, grace_sec=KILL_GRACE_SEC, env=None):
     """Run a subprocess in its own session and return (stdout, stderr, returncode); kill the tree on timeout."""
     proc = await asyncio.create_subprocess_exec(
         *argv,
@@ -176,6 +227,7 @@ async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None, gra
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=cwd,
+        env=env,
         start_new_session=True,
     )
     try:
@@ -248,15 +300,29 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
         return _result("bad_argv", family, role, model, effort, started, error=str(e))
 
     stdin_text = full_prompt if family == "codex" else None
+    env = None
+    config_path = None
+    if family == "opencode":
+        fd, config_path = tempfile.mkstemp(prefix="simplicio-opencode-", suffix=".json")
+        with os.fdopen(fd, "w") as handle:
+            json.dump(OPENCODE_DENY_CONFIG, handle)
+        env = {**os.environ, "OPENCODE_CONFIG": config_path}
     try:
         stdout, stderr, returncode = await _run_subprocess(
-            argv, stdin_text=stdin_text, timeout_sec=timeout_sec, cwd=cwd, grace_sec=grace_sec
+            argv, stdin_text=stdin_text, timeout_sec=timeout_sec, cwd=cwd, grace_sec=grace_sec, env=env
         )
     except asyncio.TimeoutError:
         return _result("timeout", family, role, model, effort, started, error="timeout")
+    finally:
+        if config_path:
+            try:
+                os.unlink(config_path)
+            except OSError:
+                pass
 
-    if returncode != 0 and "auth" in stderr.lower():
-        return _result("auth_error", family, role, model, effort, started, error="auth error")
+    failure = classify_failure(returncode, stderr, stdout)
+    if failure:
+        return _result(failure, family, role, model, effort, started, error=f"exit {returncode}: {failure}")
     if returncode != 0:
         return _result("process_error", family, role, model, effort, started, error=f"exit {returncode}")
     try:
