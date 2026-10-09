@@ -2,10 +2,13 @@
 """Build the standalone ``simplicio-loop`` executable with PyInstaller (issue #1576).
 
 One executable holds the loop, the mapper and the dev-cli. It runs with no Python installed.
-Build it with an interpreter that has the wheel installed (not an editable install) and PyInstaller::
+The build makes the wheel of THIS tree itself, so the executable holds that wheel by construction::
 
-    python3 -m venv /tmp/slb && /tmp/slb/bin/python -m pip install . pyinstaller
-    /tmp/slb/bin/python scripts/build_binary.py
+    python3 scripts/build_binary.py            # needs network: pip downloads the dependencies
+
+The steps, all under ``--work``: export the sources of the tree (``HEAD`` of a git checkout, a copy
+otherwise), build a wheel from that export, make a new venv from ``--python``, install exactly that
+wheel and a pinned PyInstaller in it, run PyInstaller from that venv, and check ``--version`` of the result.
 
 Output, per the release contract of issue #1575::
 
@@ -19,7 +22,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.util
 import json
 import os
 import platform
@@ -29,7 +31,6 @@ import subprocess
 import sys
 import time
 import tomllib
-from importlib import metadata
 from pathlib import Path
 from typing import Mapping, Optional, Sequence
 
@@ -37,6 +38,10 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGING = ROOT / "packaging" / "binary"
 ENTRY = PACKAGING / "entry.py"
 HOOKS_DIR = PACKAGING / "hooks"
+RUNNER = PACKAGING / "pyinstaller_run.py"
+# The runner patches an internal of PyInstaller (the order of base_library.zip), so the version is pinned.
+PYINSTALLER_VERSION = "6.22.3"
+WORK_MARK = ".simplicio-build-binary"
 
 PROGRAM = "simplicio-loop"
 SUMS_NAME = "SHA256SUMS"
@@ -146,7 +151,7 @@ def pyinstaller_command(
     if mode not in MODES:
         raise BuildError(f"mode {mode!r} is not one of {', '.join(MODES)}")
     command = [
-        python, "-m", "PyInstaller", "--noconfirm", "--clean", "--noupx", f"--{mode}",
+        python, str(RUNNER), "--noconfirm", "--clean", "--noupx", f"--{mode}",
         "--name", PROGRAM, "--distpath", str(dist), "--workpath", str(work),
         "--specpath", str(spec or work), "--additional-hooks-dir", str(HOOKS_DIR),
     ]
@@ -192,31 +197,75 @@ def source_date_epoch(root: Path) -> int:
     return int(_git(root, "log", "-1", "--format=%ct").strip())
 
 
-def check_installed_package(version: str, root: Path) -> None:
-    """The executable must contain the installed wheel of THIS tree, not another copy."""
+def export_source(root: Path, dest: Path) -> str:
+    """Put a clean copy of the sources in ``dest``. Return where it comes from.
+
+    A git checkout gives ``HEAD`` as a detached worktree: no build output of earlier builds, no local
+    changes, and a ``.git`` so the build stamp of the mapper can record the commit. A tree without git (the
+    copy of the release rehearsal) is copied without build output.
+    """
+    if (root / ".git").exists():
+        _git(root, "worktree", "add", "--detach", str(dest), "HEAD")
+        return "HEAD " + _git(dest, "rev-parse", "HEAD").strip()
+    skip = shutil.ignore_patterns(".git", "build", "dist", "__pycache__", "*.egg-info")
+    shutil.copytree(root, dest, ignore=skip)
+    return "copy"
+
+
+def release_source(root: Path, dest: Path) -> None:
+    """Remove what ``export_source`` made, and only the git entry of ``dest``.
+
+    Never ``git worktree prune``: it forgets every worktree of the repository whose directory is missing
+    at that moment (a disk that is not mounted), and those worktrees are not ours.
+    """
     try:
-        installed = metadata.version(PROGRAM)
-    except metadata.PackageNotFoundError as error:
-        raise BuildError("simplicio-loop is not installed here; run: python -m pip install . pyinstaller") from error
-    if installed != version:
-        raise BuildError(
-            f"the installed simplicio-loop is {installed} but this tree is {version}; "
-            "run: python -m pip install --force-reinstall --no-deps ."
-        )
-    spec = importlib.util.find_spec("simplicio_loop")
-    origin = Path(spec.origin).resolve() if spec and spec.origin else None
-    if origin is None or root.resolve() in origin.parents:
-        raise BuildError("simplicio_loop is imported from the source tree; install the wheel: python -m pip install .")
+        common = Path(_git(root, "rev-parse", "--git-common-dir").strip())
+        common = common if common.is_absolute() else root / common
+    except BuildError:  # not a git tree: export_source copied it
+        common = None
+    if (dest / ".git").exists():
+        try:
+            _git(root, "worktree", "remove", "--force", str(dest))
+        except BuildError:
+            pass
+    shutil.rmtree(dest, ignore_errors=True)
+    if common is not None:  # an entry that a killed build left: its gitdir file names dest/.git
+        for entry in (common / "worktrees").glob("*"):
+            try:
+                if Path((entry / "gitdir").read_text(encoding="utf-8").strip()) == dest / ".git":
+                    shutil.rmtree(entry, ignore_errors=True)
+            except OSError:
+                continue
 
 
-def _pyinstaller_version() -> str:
-    try:
-        return metadata.version("pyinstaller")
-    except metadata.PackageNotFoundError as error:
-        raise BuildError("PyInstaller is not installed here; run: python -m pip install pyinstaller") from error
+def claim_work_directory(work: Path) -> None:
+    """Use ``work`` only when it is new, empty, or made by this tool. The build removes some names in it."""
+    work.mkdir(parents=True, exist_ok=True)
+    mark = work / WORK_MARK
+    if not mark.exists():
+        if any(work.iterdir()):
+            raise BuildError(f"{work} is not a build directory (it has files and no {WORK_MARK}); "
+                             "use an empty directory for --work")
+        mark.write_text("made by scripts/build_binary.py; the build removes venv, wheel, src, dist and pyinstaller here\n")
 
 
-def build(args: argparse.Namespace) -> dict:
+def _venv_python(venv: Path, os_name: str) -> str:
+    return str(venv / ("Scripts" if os_name == "windows" else "bin") / ("python.exe" if os_name == "windows" else "python"))
+
+
+def _run(run, command, *, env: Mapping[str, str], cwd: Path, log: Path, label: str) -> subprocess.CompletedProcess:
+    """Run one build command. Its output goes to the log; a failure shows the end of the log."""
+    result = run([str(part) for part in command], cwd=cwd, env=dict(env), stdin=subprocess.DEVNULL,
+                 capture_output=True, text=True)
+    with log.open("a", encoding="utf-8") as handle:
+        handle.write(f"$ {' '.join(map(str, command))}\n{result.stdout}{result.stderr}\n")
+    if result.returncode != 0:
+        tail = "\n".join((result.stdout + result.stderr).strip().splitlines()[-15:])
+        raise BuildError(f"{label} failed with exit code {result.returncode}; log {log}:\n{tail}")
+    return result
+
+
+def build(args: argparse.Namespace, run=subprocess.run) -> dict:
     root = ROOT
     tree_version = project_version(root)
     if args.version not in (None, tree_version):
@@ -225,46 +274,64 @@ def build(args: argparse.Namespace) -> dict:
     os_name, arch = detect_os(), detect_arch()
     asset = binary_name(tree_version, os_name, arch)
     check_clean_tree(root, args.allow_dirty)
-    check_installed_package(tree_version, root)
-    pyinstaller = _pyinstaller_version()
     epoch = source_date_epoch(root)
-    work_run = work / "pyinstaller"
-    dist = work / "dist"
-    command = pyinstaller_command(python=args.python, mode=args.mode, dist=dist, work=work_run)
+    source, wheels, venv, dist, scratch = (work / name for name in ("src", "wheel", "venv", "dist", "pyinstaller"))
+    python = _venv_python(venv, os_name)
+    wheel_command = [python, "-m", "pip", "wheel", "--no-deps", "--disable-pip-version-check", "-w", wheels, source]
+    install_command = [python, "-m", "pip", "install", "--disable-pip-version-check", "--no-input",
+                       "<the wheel>", f"pyinstaller=={PYINSTALLER_VERSION}"]
+    pyinstaller_cmd = pyinstaller_command(python=python, mode=args.mode, dist=dist, work=scratch)
     if args.dry_run:
-        return {"command": command, "asset": asset, "source_date_epoch": epoch}
+        plan = [[args.python, "-m", "venv", venv], wheel_command, install_command, pyinstaller_cmd]
+        return {"commands": [[str(part) for part in command] for command in plan],
+                "asset": asset, "source_date_epoch": epoch}
 
-    for path in (work_run, dist):
-        shutil.rmtree(path, ignore_errors=True)
-    work.mkdir(parents=True, exist_ok=True)
+    claim_work_directory(work)
     out_dir.mkdir(parents=True, exist_ok=True)
-    log = work / "pyinstaller.log"
+    release_source(root, source)  # what a failed earlier build left
+    for path in (wheels, venv, dist, scratch):
+        shutil.rmtree(path, ignore_errors=True)
+    log = work / "build.log"
+    log.write_text("", encoding="utf-8")
+    env = build_environment(os.environ, epoch)
     started = time.monotonic()
-    # cwd is the work directory, so the source tree is never on sys.path by accident.
-    with log.open("w", encoding="utf-8") as handle:
-        result = subprocess.run(command, cwd=work, env=build_environment(os.environ, epoch), stdin=subprocess.DEVNULL,
-                                stdout=handle, stderr=subprocess.STDOUT)
+    origin = export_source(root, source)
+    try:
+        _run(run, [args.python, "-m", "venv", venv], env=env, cwd=work, log=log, label="making the venv")
+        _run(run, wheel_command, env=env, cwd=work, log=log, label="building the wheel of this tree")
+        built_wheels = list(wheels.glob("*.whl"))
+        if len(built_wheels) != 1:
+            raise BuildError(f"expected one wheel in {wheels}, found {len(built_wheels)}")
+        wheel = built_wheels[0]
+        install_command[install_command.index("<the wheel>")] = str(wheel)
+        _run(run, install_command, env=env, cwd=work, log=log, label="installing the wheel and PyInstaller")
+        _run(run, pyinstaller_cmd, env=env, cwd=work, log=log, label="PyInstaller")
+    finally:
+        release_source(root, source)
     seconds = round(time.monotonic() - started, 1)
-    if result.returncode != 0:
-        tail = "\n".join(log.read_text(encoding="utf-8", errors="replace").splitlines()[-15:])
-        raise BuildError(f"PyInstaller failed with exit code {result.returncode}; log {log}:\n{tail}")
 
-    built = dist / (PROGRAM + (".exe" if os_name == "windows" else ""))
     if args.mode == "onedir":
         target = out_dir / (asset.removesuffix(".exe") + ".onedir")
         shutil.rmtree(target, ignore_errors=True)
         shutil.move(str(dist / PROGRAM), target)
-        return {"asset": target.name, "mode": args.mode, "seconds": seconds, "pyinstaller": pyinstaller,
+        return {"asset": target.name, "mode": args.mode, "seconds": seconds, "source": origin,
                 "source_date_epoch": epoch, "log": str(log)}
+    built = dist / (PROGRAM + (".exe" if os_name == "windows" else ""))
+    built.chmod(0o755)
+    shown = run([str(built), "--version"], cwd=work, env=env, capture_output=True, text=True, timeout=300,
+                stdin=subprocess.DEVNULL)
+    if shown.returncode != 0 or shown.stdout.strip() != f"{PROGRAM} {tree_version}":
+        raise BuildError(f"the executable printed {shown.stdout.strip()!r} for --version, expected "
+                         f"'{PROGRAM} {tree_version}'; nothing was published")
+    partial = out_dir / f".{asset}.partial"
+    shutil.move(str(built), partial)
+    os.replace(partial, out_dir / asset)  # the asset appears whole or not at all
     target = out_dir / asset
-    target.unlink(missing_ok=True)
-    shutil.move(str(built), target)
-    target.chmod(0o755)
     sums = write_checksums(out_dir, tree_version)
     return {
         "asset": asset, "mode": args.mode, "path": str(target), "bytes": target.stat().st_size,
         "sha256": sha256_file(target), "sha256sums": str(sums), "seconds": seconds,
-        "pyinstaller": pyinstaller, "source_date_epoch": epoch, "log": str(log),
+        "pyinstaller": PYINSTALLER_VERSION, "source": origin, "source_date_epoch": epoch, "log": str(log),
     }
 
 
@@ -279,10 +346,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                        help="a directory with the executable and its libraries; starts faster, is not a release asset")
     parser.add_argument("--version", help="assert the version to package; default: the version in pyproject.toml")
     parser.add_argument("--out", default=str(ROOT / "dist" / "binary"), help="output directory")
-    parser.add_argument("--work", default=str(ROOT / "build" / "binary"), help="PyInstaller work directory")
-    parser.add_argument("--python", default=sys.executable, help="interpreter with the wheel and PyInstaller installed")
-    parser.add_argument("--allow-dirty", action="store_true", help="build although tracked files have changes")
-    parser.add_argument("--dry-run", action="store_true", help="print the PyInstaller command and stop")
+    parser.add_argument("--work", default=str(ROOT / "build" / "binary"),
+                        help="work directory: the export, the wheel, the new venv and the PyInstaller files")
+    parser.add_argument("--python", default=sys.executable, help="interpreter that makes the build venv")
+    parser.add_argument("--allow-dirty", action="store_true",
+                        help="build although tracked files have changes (the build uses HEAD, not the changes)")
+    parser.add_argument("--dry-run", action="store_true", help="print the build commands and stop")
     parser.add_argument("--checksums-only", metavar="DIR",
                         help="write SHA256SUMS for the release assets already in DIR, then stop")
     parser.set_defaults(mode="onefile")
