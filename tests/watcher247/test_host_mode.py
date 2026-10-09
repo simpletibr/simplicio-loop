@@ -246,7 +246,7 @@ def test_plan_goes_to_turbo_stdin_and_dev_cli_applies(env, cli_dir):
                                   "--run-id", RUN_ID, "--verify", "python3 -m pytest -q"]
     assert json.loads(fake.turbo_stdin[0]) == PLAN
     (call,) = planner_calls(cli_dir)
-    assert flag(call, "--model") == resolved("planning")["model"]
+    assert flag(call, "--model") == resolved("execution")["model"]
     assert flag(call, "--permission-mode") == "plan"  # the planner cannot write
     assert "Issue #3: Add x" in call[1]
     assert "MEASURED|verify_passed" in fake.ran("gh", "pr", "create")[0][-1]
@@ -263,7 +263,7 @@ def test_verify_failure_replans_with_the_failure_output(env, cli_dir):
     assert len(fake.turbo_argv) == 2
     assert fake.ran("git", "reset", "-q", "--hard", "HEAD")  # the failed edits are dropped before the replan
     assert read_json(config.CLAIMS)[f"{REPO}#1"]["status"] == "done"
-    assert [r for r, _, _ in step_roles(dest)] == ["planning", "planning"]  # planning is the top of the ladder
+    assert [r for r, _, _ in step_roles(dest)] == ["execution", "execution"]  # a squad worker starts at execution (#1505)
 
 
 def test_next_role_order_is_execution_twice_then_up(tmp_path):

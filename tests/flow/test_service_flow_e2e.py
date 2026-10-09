@@ -67,7 +67,8 @@ def _turbo_document(run) -> dict:
 
 def _canonical_calls(run) -> list[dict]:
     """Writes to the issue's status comments: the POST that creates it and every PATCH that updates it."""
-    return [c for c in run["calls"] if c.get("method") in ("POST", "PATCH") and "/comments" in c.get("path", "")]
+    return [c for c in run["calls"] if c.get("method") in ("POST", "PATCH") and "/comments" in c.get("path", "")
+            and "APROVADO PELO SQUAD" not in c.get("body", "")]  # the squad approval is on the PR
 
 
 def _run_dirs(run) -> list[dict]:
@@ -178,7 +179,7 @@ def test_execution_report_written(tick_run):
     steps = [t for t in report["tasks"] if "role" in t]
     assert len(steps) == 1 and len(report["tasks"]) == 2
     step = steps[0]
-    assert (step["step"], step["role"], step["family"], step["planner"]) == (1, "planning", "claude", "ok")
+    assert (step["step"], step["role"], step["family"], step["planner"]) == (1, "execution", "claude", "ok")
     assert step["outcome"] == "COMPLETE"
     assert step["model"] and step["effort"], "the receipt names the model and effort the step ran with"
     tokens = step["tokens"]

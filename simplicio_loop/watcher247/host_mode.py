@@ -10,7 +10,7 @@ The default executor is ``exec``. For each work item:
 3. On a failed apply or verify, the escalation ladder (execution -> coordination -> planning) picks the next role and the
    planner retries with the failure output, until the attempt or token ceilings stop it.
 
-A new issue starts at ``planning``; a PR review fix starts at ``coordination`` and pushes to the PR branch. Every step is
+A new issue starts at ``planning`` (a squad worker starts at the role squad_routing picks); a PR review fix starts at ``coordination`` and pushes to the PR branch. Every step is
 written to a ``simplicio.execution-report/v1`` with its role, model and effort. ``openrouter`` is used only when
 ``SIMPLICIO_EXECUTOR=openrouter`` is set and ``OPENROUTER_API_KEY`` exists (executor_select).
 """
@@ -186,11 +186,11 @@ def _note_step(report: dict[str, Any], *, repo: str, issue: dict, step: int, pla
 
 
 async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str | None, executor: Executor,
-                   attempts: int, fix: bool = False) -> dict[str, Any]:
+                   attempts: int, fix: bool = False, role: str = "") -> dict[str, Any]:
     """Plan with the exec CLI, apply with turbo, escalate on failure. Returns the claim fields; raises when it failed."""
     number = int(issue["number"])
     ladder = escalation.load_escalation_state(dest, number, executor.families[0], **ceilings())
-    ladder.current_step = escalation.ESCALATION_LADDER.index(FIX_ROLE if fix else PLAN_ROLE)
+    ladder.current_step = escalation.ESCALATION_LADDER.index(role or (FIX_ROLE if fix else PLAN_ROLE))
     ladder.attempts_in_step = 0  # the records (the ceilings) persist across ticks; the starting role does not
     report = execution_report.new_report(dest)
     steps: list[dict[str, str]] = []
