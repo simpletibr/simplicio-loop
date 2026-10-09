@@ -89,19 +89,20 @@ def test_path_line_and_range_anchor(tmp_path):
     assert any(w["start"] <= 2000 - N and w["end"] >= 2010 + N for w in rng["windows"])
 
 
-def test_windows_merge_when_they_overlap_or_are_one_line_apart(tmp_path):
+def test_windows_merge_when_they_overlap_touch_or_are_one_line_apart(tmp_path):
     lines = [f"line_{i} = {i}\n" for i in range(1, 2001)]
-    for at in (500, 520, 538, 700):  # 500 and 520 overlap with N=8 (492-508, 512-528): gap of 3 lines; 520/538
-        lines[at - 1] = f"def anchor_{at}():\n"
+    at = (500, 520, 538, 700, 1000, 1010, 1100, 1117, 1300, 1319)
+    for number in at:
+        lines[number - 1] = f"def anchor_{number}():\n"
     _write(tmp_path, "m.py", "".join(lines))
-    text = "touch anchor_500 anchor_520 anchor_538 anchor_700 in m.py"
-    entry = turbo_window.build_files(tmp_path, [_task(text, "m.py")])["m.py"]
+    entry = turbo_window.build_files(tmp_path, [_task("touch " + " ".join(f"anchor_{n}" for n in at) + " in m.py", "m.py")])["m.py"]
     spans = [(w["start"], w["end"]) for w in entry["windows"] if w["start"] > 20]
-    assert (492, 508) not in spans  # not alone
-    flat = [s for s in spans]
-    assert any(s <= 492 and e >= 546 for s, e in flat) or len(spans) <= 3
-    for (s1, e1), (s2, e2) in zip(spans, spans[1:]):
-        assert s2 > e1 + 2  # two windows are never overlapping, adjacent or one line apart
+    assert spans == [(492, 508),  # 500 alone
+                     (512, 546),  # 520 and 538: one line apart (529) -> one window
+                     (692, 708),  # 700 alone
+                     (992, 1018),  # 1000 and 1010 overlap
+                     (1092, 1125),  # 1100 and 1117 touch
+                     (1292, 1308), (1311, 1327)]  # 1300 and 1319: two lines apart -> two windows
 
 
 def test_the_explicit_window_adds_exactly_those_lines(tmp_path):
