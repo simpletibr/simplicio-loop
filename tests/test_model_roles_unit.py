@@ -12,7 +12,7 @@ import pytest
 from simplicio_loop import model_roles
 
 ROLES = ('planning', 'coordination', 'execution')
-FAMILIES = ('claude', 'codex', 'grok', 'gemini')
+FAMILIES = ('claude', 'codex', 'grok', 'gemini', 'agy', 'opencode')
 EXPECTED = {
     ('claude', 'planning'): ('claude-opus-5-5', 'high'),
     ('claude', 'coordination'): ('claude-sonnet-5-5', 'high'),
@@ -26,6 +26,13 @@ EXPECTED = {
     ('gemini', 'planning'): ('gemini-3.8-flash', 'high'),
     ('gemini', 'coordination'): ('gemini-3.7-flash', 'high'),
     ('gemini', 'execution'): ('gemini-3.6-flash', 'high'),
+    # No verified model ID for agy or opencode: the flag-free default, per the catalog note.
+    ('agy', 'planning'): ('default', 'high'),
+    ('agy', 'coordination'): ('default', 'high'),
+    ('agy', 'execution'): ('default', 'high'),
+    ('opencode', 'planning'): ('default', 'high'),
+    ('opencode', 'coordination'): ('default', 'high'),
+    ('opencode', 'execution'): ('default', 'high'),
 }
 CATALOG = Path(model_roles.__file__).with_name('_catalog') / 'model_roles.json'
 

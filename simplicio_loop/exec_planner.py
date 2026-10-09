@@ -1,9 +1,9 @@
-"""CLI exec planners for claude, codex, grok and gemini, run as plan-only planners (issue 1431).
+"""CLI exec planners for claude, codex, grok, gemini, agy and opencode, run as plan-only planners (issues 1431, 1432).
 
 The planner never mutates the repo. It returns a plan JSON (``{"operations": [...]}``) that the dev-cli applies
 (``simplicio-loop turbo --apply -``). Every argv therefore uses the CLI's most restrictive non-interactive mode.
-Flags marked VERIFIED were checked against ``<cli> --help`` on the host; gemini is not installed, so its flags are
-DOC-BASED (Gemini CLI docs) and unverified.
+Flags marked VERIFIED were checked against ``<cli> --help`` on the host. gemini, agy and opencode are not installed
+here, so their flags are DOC-BASED (vendor docs) and unverified.
 """
 
 from __future__ import annotations
@@ -119,12 +119,50 @@ def _build_argv_gemini(prompt, role, model, effort, cwd):
     return argv
 
 
+def _build_argv_agy(prompt, role, model, effort, cwd):
+    # DOC-BASED (agy not installed on this host; Antigravity CLI headless docs): -p, --output-format json,
+    # --mode plan, --sandbox. No verified model flag, so a real model ID is refused instead of silently dropped.
+    if _real_model(model):
+        raise ExecPlannerError("agy has no verified model flag; use the flag-free default model")
+    return ["agy", "-p", prompt, "--mode", "plan", "--sandbox", "--output-format", "json"]
+
+
+def _build_argv_opencode(prompt, role, model, effort, cwd):
+    # DOC-BASED (opencode not installed on this host): `opencode run MESSAGE --format json` and `-m provider/model`
+    # come from the opencode CLI docs; `--agent plan` (the read-only built-in agent) comes from a third-party
+    # reference and is unverified. Effort is only recorded, since no effort flag is documented.
+    argv = ["opencode", "run", prompt, "--format", "json", "--agent", "plan"]
+    if _real_model(model):
+        argv.extend(["-m", model])
+    return argv
+
+
 _ARGV_BUILDERS = {
     "claude": _build_argv_claude,
     "codex": _build_argv_codex,
     "grok": _build_argv_grok,
     "gemini": _build_argv_gemini,
+    "agy": _build_argv_agy,
+    "opencode": _build_argv_opencode,
 }
+SUPPORTED_FAMILIES = tuple(_ARGV_BUILDERS)
+
+# Quota, rate-limit and auth terms, matched case-insensitively in stderr and stdout. The quota list follows the
+# capacity terms in packages/dev-cli/simplicio/providers.py. None of these strings is verified against CLI output.
+_QUOTA_TERMS = ("quota", "insufficient_quota", "credit balance", "billing", "usage limit")
+_RATE_TERMS = ("rate limit", "rate_limit", "too many requests")
+_AUTH_TERMS = ("auth", "unauthorized", "not logged in", "log in", "login", "api key")
+
+
+def classify_failure(returncode, stderr, stdout):
+    """Map a failed CLI run to quota_exhausted, rate_limited or auth_error; None when it is a generic failure."""
+    if returncode == 0:
+        return None
+    text = f"{stderr}\n{stdout}".lower()
+    for code, terms in (("quota_exhausted", _QUOTA_TERMS), ("rate_limited", _RATE_TERMS), ("auth_error", _AUTH_TERMS)):
+        if any(term in text for term in terms):
+            return code
+    return None
 
 
 def build_argv(family, role, prompt, model, cwd, effort=""):
@@ -255,8 +293,9 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
     except asyncio.TimeoutError:
         return _result("timeout", family, role, model, effort, started, error="timeout")
 
-    if returncode != 0 and "auth" in stderr.lower():
-        return _result("auth_error", family, role, model, effort, started, error="auth error")
+    failure = classify_failure(returncode, stderr, stdout)
+    if failure:
+        return _result(failure, family, role, model, effort, started, error=f"exit {returncode}: {failure}")
     if returncode != 0:
         return _result("process_error", family, role, model, effort, started, error=f"exit {returncode}")
     try:
