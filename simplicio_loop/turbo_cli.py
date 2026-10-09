@@ -214,6 +214,12 @@ def _plan_text(root: Path, plan: str) -> tuple[str | None, str]:
 
 
 def _apply_plan(repo: str, plan: str, verify: str | None) -> int:
+    """Wrapper to call async _apply_plan_async with asyncio.run."""
+    import asyncio
+    return asyncio.run(_apply_plan_async(repo, plan, verify))
+
+
+async def _apply_plan_async(repo: str, plan: str, verify: str | None) -> int:
     from .turbo import apply_plan, load_operations
 
     started = time.time()
@@ -231,7 +237,7 @@ def _apply_plan(repo: str, plan: str, verify: str | None) -> int:
         return 1
     _register_state_dir(root)
     try:
-        result = apply_plan(root, operations, "host-1")
+        result = await apply_plan(root, operations, "host-1")
     except RuntimeError as exc:
         _emit({**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
         return 2
@@ -254,6 +260,21 @@ def _apply_plan(repo: str, plan: str, verify: str | None) -> int:
 
 def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
                   tasks_file: str | None, verify: str | None) -> int:
+    """The one place the event loop starts: everything below it is awaited, and the shared client is closed."""
+    import asyncio
+    from . import turbo_provider
+
+    async def main() -> int:
+        try:
+            return await _run_provider_async(repo, texts, target, context, tasks_file, verify)
+        finally:
+            await turbo_provider.close()
+
+    return asyncio.run(main())
+
+
+async def _run_provider_async(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
+                               tasks_file: str | None, verify: str | None) -> int:
     from . import turbo_provider
     from .turbo import repair_with_test_output, run_turbo
 
@@ -277,7 +298,7 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
     (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
     started = time.time()
     try:
-        result = run_turbo(root, tasks, complete)
+        result = await run_turbo(root, tasks, complete)
     except RuntimeError as exc:
         _emit({**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
         return 2
@@ -296,7 +317,7 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
         document["verify"], output = _run_verify(root, verify)
         if not document["verify"]["passed"]:
             # One repair call with the test output, then the tests run again.
-            repair = repair_with_test_output(root, tasks, complete, output)
+            repair = await repair_with_test_output(root, tasks, complete, output)
             calls.extend(repair["llm_calls"])
             retry = {"attempted": True, "applied": repair["applied"], "reason": repair["reason"], "passed": False}
             if repair["applied"]:
@@ -305,8 +326,7 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
             document["verify_retry"] = retry
             if not retry["passed"]:
                 document["status"] = "failed"
-    losers = turbo_provider.drain_hedges()
-    billed = calls + losers
+    billed = calls  # a hedge loser is cancelled and reports no usage
     tokens = {k: sum(c.get(k) or 0 for c in billed)
               for k in ("prompt_tokens", "cached_tokens", "completion_tokens", "reasoning_tokens")}
     document.update({
