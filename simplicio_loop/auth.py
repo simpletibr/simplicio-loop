@@ -6,8 +6,12 @@ with the other program. The 24/7 watcher, `simplicio-loop login|logout|auth stat
 * PATH: env `SIMPLICIO_247_LOGIN` (the watcher), then env `SIMPLICIO_AUTH_FILE` (the name the Runtime reads), then
   ~/.simplicio/login.json. Same schema as the Runtime: `access_token`, `refresh_token`, `access_expires_at`,
   `refresh_token_expires_at`, `verification.validated`. Keys this module does not know (the Runtime adds some) are kept.
-* SAFETY: a file that group or others can read, or that is a symlink, is refused (read and write). A write goes to a
-  temp file in the same folder, mode 0600 before any content, fsync, then rename: a reader never sees half a file.
+* SAFETY: a login file that group or others can read, that is a symlink, a FIFO or a directory, or that belongs to
+  another user, is refused (read and write), and so is a folder that group or others can write (unless it is sticky
+  and ours) and a `login.lock` that is another user's or that others can open. A write goes to a temp file in the same
+  folder, mode 0600 before any content, fsync, then rename: a reader never sees half a file. Only a complete
+  `verification` block of the Runtime is ever updated; a partial one is removed, because the Runtime rejects the whole
+  file when one is missing a key.
 * REFRESH: the refresh token rotates, so two programs that refresh at once can invalidate it. Before a refresh this
   module takes an exclusive lock on the sidecar `login.lock`, reads the file AGAIN and refreshes only if the access
   token still expires within 60 s. EVIDENCE that the Runtime takes the same lock: its source (runtime_auth.rs

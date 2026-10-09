@@ -24,6 +24,14 @@ GIB = 1 << 30
 posix = pytest.mark.skipif(os.name == "nt", reason="shell script Runtime")
 
 
+@pytest.fixture(autouse=True)
+def normal_umask():
+    """The login store refuses a folder that group or others can write: assume the usual umask."""
+    old = os.umask(0o022)
+    yield
+    os.umask(old)
+
+
 @pytest.fixture
 def box(tmp_path, monkeypatch):
     home = tmp_path / "home"

@@ -60,6 +60,14 @@ def sample(**over) -> dict:
     return data
 
 
+@pytest.fixture(autouse=True)
+def normal_umask():
+    """The store refuses a folder that group or others can write: these tests assume the usual umask, not a group one."""
+    old = os.umask(0o022)
+    yield
+    os.umask(old)
+
+
 @pytest.fixture
 def login(tmp_path):
     return tmp_path / "home" / ".simplicio" / "login.json"
