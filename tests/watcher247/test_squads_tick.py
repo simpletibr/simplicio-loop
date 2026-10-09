@@ -14,14 +14,15 @@ REPO = "simplicio-a"
 NUMBERS = range(1, 7)
 
 
-def _view(number, *, approved_after_commit=True):
+def _view(number, *, approved_after_commit=True, author="squad-bot"):
     commit, approval = "2026-10-01T00:00:00Z", "2026-10-02T00:00:00Z"
     if not approved_after_commit:
         commit, approval = approval, commit
     return {
         "files": [{"path": f"src/m{number}/app.py"}], "headRefOid": f"oid{number}",
         "commits": [{"oid": f"oid{number}", "committedDate": commit, "messageHeadline": "loop: x"}],
-        "comments": [{"id": number, "createdAt": approval, "body": "APROVADO PELO SQUAD\n"}],
+        "comments": [{"id": number, "createdAt": approval, "body": "APROVADO PELO SQUAD\n", "author": {"login": author},
+                      "authorAssociation": "MEMBER"}],
     }
 
 
@@ -152,3 +153,40 @@ def test_a_forged_approval_comment_cannot_merge_a_pr_the_squad_did_not_review_gr
     baseline()
     run_tick()
     assert fake.merges == [] and _squads()["approved"] == [] and _squads()["merge"] == "disabled"
+
+
+def test_auto_merge_never_merges_an_approval_written_by_an_outsider(six, monkeypatch):
+    """#1534: the gate checks who wrote the approval; the outsider's phrase is not the squad coordinator's."""
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    fake = six()
+    fake.pr_views[103] = _view(3, author="outsider")
+    run_tick()
+    assert 103 not in fake.merges and fake.merges == [101, 102, 104, 105, 106]
+    assert _squads()["gate_blocked"] == [103]
+
+
+def test_auto_merge_with_every_approval_from_an_outsider_merges_nothing(six, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    fake = six()
+    fake.pr_views = {pr: _view(pr - 100, author="outsider") for pr in fake.pr_views}
+    run_tick()
+    assert fake.merges == [] and fake.tests_run == 0
+    assert _squads()["gate_blocked"] == [101, 102, 103, 104, 105, 106]
+
+
+def test_auto_merge_fails_closed_when_the_watcher_login_is_unknown(six, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    fake = six(login=None)
+    run_tick()
+    assert fake.merges == [] and _squads()["gate_blocked"] == [101, 102, 103, 104, 105, 106]
+
+
+def test_the_watcher_login_is_looked_up_once_per_tick_and_only_when_merging(six, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    fake = six()
+    run_tick()
+    assert len(fake.ran("gh", "api", "user")) == 1
+    monkeypatch.delenv("SIMPLICIO_247_AUTO_MERGE")
+    fake = six()
+    run_tick()
+    assert fake.ran("gh", "api", "user") == []

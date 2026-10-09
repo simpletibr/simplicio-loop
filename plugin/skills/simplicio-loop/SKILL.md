@@ -266,7 +266,7 @@ For more than 3 issues, run squads. One general coordinator plans. Each squad ha
 2. Spawn each agent from the plan with its `model` and `effort`. Claude Code: Agent tool with `model` and `effort: high`. Codex, Grok and Gemini: the model of that role in the plan. Record each agent with `execution_report record-task --role R --model M --effort E`.
 3. Workers (`execution`) edit only their own files. A worker that fails twice moves up one role (`escalation.py`).
 4. The squad coordinator (`coordination`) reviews the squad PRs: tests on the branch against main, mutation check, file ownership. When it approves, it comments `APROVADO PELO SQUAD` with the evidence and the squash lines.
-5. Only the general coordinator (`planning`) merges, one PR at a time, in the plan's merge order. Before each merge, run `simplicio-loop squads gate --pr N --repo R --json`. Merge only on exit 0: the approval is newer than the last commit that is not a clean merge of `origin/main`.
+5. Only the general coordinator (`planning`) merges, one PR at a time, in the plan's merge order. Before each merge, run `simplicio-loop squads gate --pr N --repo R --approver "$(gh api user --jq .login)" --json`. Merge only on exit 0: the approval was written by an `--approver` login (or a `--trusted-association` OWNER/MEMBER/COLLABORATOR) and is newer than the last commit that is not a clean merge of `origin/main`. Without `--approver` the gate rejects every approval.
 6. Shared files (SKILL.md mirrors, pins, conftest, version, CHANGELOG, `cli_impl.py`) are edited only by the general coordinator. Stacked PRs run `git merge origin/main`. Never force-push.
 
 Three rules make squads cheaper and faster (details in `docs/SQUADS.md`):

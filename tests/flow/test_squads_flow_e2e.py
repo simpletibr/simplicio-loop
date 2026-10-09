@@ -26,12 +26,12 @@ def _issue(number: int) -> dict:
             "author": {"login": "wesleysimplicio"}, "authorAssociation": "MEMBER"}
 
 
-def _run(flow_env, flow_base: Path, name: str, auto_merge: bool) -> dict:
+def _run(flow_env, flow_base: Path, name: str, auto_merge: bool, approval_author: str = "") -> dict:
     """One tick on a fresh remote and state dir; the fake gh fixtures point at that remote."""
     remote = make_remote(flow_base / name)
     fixtures_path = Path(flow_env["FAKE_GH_FIXTURES"])
     fixtures = json.loads(fixtures_path.read_text())
-    fixtures.update(remotes={REPO_NAME: str(remote)}, distinct_prs=True)
+    fixtures.update(remotes={REPO_NAME: str(remote)}, distinct_prs=True, approval_author=approval_author)  # approval_author: who the fake PR shows as the approval's author
     fixtures["issues"] = {f"simpletibr/{REPO_NAME}": [_issue(n) for n in NUMBERS]}
     fixtures_path.write_text(json.dumps(fixtures))
     log = Path(flow_env["FAKE_GH_LOG"])
@@ -70,6 +70,11 @@ def merged(flow_env, flow_base):
 @pytest.fixture(scope="module")
 def unmerged(flow_env, flow_base):
     return _run(flow_env, flow_base, "unmerged", auto_merge=False)
+
+
+@pytest.fixture(scope="module")
+def outsider(flow_env, flow_base):
+    return _run(flow_env, flow_base, "outsider", auto_merge=True, approval_author="outsider")
 
 
 def _approvals(run) -> list[dict]:
@@ -114,3 +119,10 @@ def test_role_model_and_effort_of_every_agent_are_in_the_execution_report(merged
         agent = task["agent"]
         assert agent["model"] == model_roles.resolve("claude", agent["role"])["model"]
         assert agent["effort"] == model_roles.resolve("claude", agent["role"])["effort"]
+
+
+def test_an_approval_written_by_an_outsider_never_merges_even_with_auto_merge(outsider):
+    """#1534: the real gate rejects the approval phrase when its author is not the watcher's gh login."""
+    entry = outsider["status"]["squads"][REPO_NAME]
+    assert entry["merge"] == "enabled" and entry["merged"] == [] and entry["gate_blocked"] == [107, 108]
+    assert _merges(outsider) == []

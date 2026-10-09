@@ -28,6 +28,16 @@ O plano só **descreve** os contratos; ele não escreve nada em disco. Ainda nã
 
 `write_contracts(repo, contracts)` cria, no repositório alvo, o stub (a função levanta `NotImplementedError("contract: <squad>")`) e o teste ao lado dele, em `dest` (padrão `.simplicio-loop/contracts/`, configurável em `contracts_for(edges, dest=...)`; nunca dentro do pacote distribuído). Arquivos existentes nunca são sobrescritos. O squad consumidor codifica contra a assinatura; o produtor troca o corpo; o teste de contrato fica `xfail` até a implementação existir.
 
+## 4. Quem aprova (`squads.squad_gate`, #1534)
+
+O gate aceita `APROVADO PELO SQUAD` só se o **autor** do comentário for autorizado, além de o comentário ser mais novo que o último commit que não seja merge limpo da base. A autorização vem de quem chama; o padrão é **fail closed**:
+
+- `squad_gate(pr, approvers=None, trusted_associations=())`: `approvers` é o conjunto de logins (sem diferenciar maiúsculas de minúsculas) que podem aprovar. `None` ou vazio, sem `trusted_associations`, rejeita toda aprovação (`reason: unauthorized_approval`).
+- `trusted_associations` aceita `OWNER`, `MEMBER` e `COLLABORATOR` (o `authorAssociation` do comentário). Qualquer outro valor levanta `ValueError`. É opt-in: sem ele a associação não conta.
+- Comentário sem autor, de autor não autorizado ou que só cita a frase (`> APROVADO PELO SQUAD`) é ignorado; ele não aprova e também não esconde a aprovação de um autor autorizado.
+- Watcher 24/7: usa só o próprio login `gh` (`gh api user --jq .login`, uma vez por tick e só com `SIMPLICIO_247_AUTO_MERGE=1`); se o login não vier, nada é aprovado.
+- CLI: `simplicio-loop squads gate --pr N --repo R --approver LOGIN [--approver ...] [--trusted-association MEMBER] --json`. Sem `--approver` nem `--trusted-association` sai com código 1 e `unauthorized_approval`.
+
 ## Uso no `/simplicio-loop`
 
 1. O coordenador geral (planning) chama `plan_squads`: squads, ordem de merge e contratos das arestas de dependência.

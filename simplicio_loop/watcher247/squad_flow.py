@@ -4,7 +4,8 @@
 * workers: `process()` per issue, started at the role `squad_routing.route` picks (the escalation ladder is unchanged);
 * squad coordinator (coordination): reviews the squad's PRs (measured tests, file ownership) and posts APROVADO PELO SQUAD
   with `pr_evidence.publish_comment`;
-* merge: only with SIMPLICIO_247_AUTO_MERGE=1 (#1434): `squads.squad_gate`, then `merge_train` (cumulative test, bisect).
+* merge: only with SIMPLICIO_247_AUTO_MERGE=1 (#1434): `squads.squad_gate` (the approval must be written by the watcher's own
+  gh login, #1534), then `merge_train` (cumulative test, bisect).
 
 Concurrency is the tick's (daily budget, SIMPLICIO_247_CONCURRENCY) and the repo lock; the merge train holds that lock.
 """
@@ -34,6 +35,12 @@ TRAIN_FETCH_DEPTH = "100"  # the clone is shallow: enough history for the train'
 def auto_merge_enabled(environ: dict[str, str] | None = None) -> bool:
     """Off unless the operator sets SIMPLICIO_247_AUTO_MERGE=1 (#1434): the watcher never merges on its own."""
     return (os.environ if environ is None else environ).get(AUTO_MERGE_ENV) == "1"
+
+
+async def own_login() -> str:
+    """The gh account the watcher posts approvals and merges as (`gh api user`); "" when unknown, which fails the gate closed."""
+    result = await proc.run(["gh", "api", "user", "--jq", ".login"], timeout=30)
+    return result.stdout.strip() if result.returncode == 0 else ""
 
 
 @dataclass
@@ -155,13 +162,14 @@ async def _train_test(dest: Path, test_cmd: str | None, issues: list[int]) -> bo
     return (await proc.run(argv, timeout=config.TURBO_TIMEOUT_S, cwd=dest, env=env)).returncode == 0
 
 
-async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads: dict[int, str], runner, gate) -> dict:
-    """Gate each approved PR with squads.squad_gate, then merge the rest in squad order through merge_train."""
+async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads: dict[int, str], runner, gate,
+                 login: str) -> dict:
+    """Gate each approved PR with squads.squad_gate (approval written by `login`), then merge the rest in squad order through merge_train."""
     full = f"{config.ORG}/{repo}"
     passed, blocked = [], []
     for issue, pr in approved.items():
         try:
-            verdict = await squads.squad_gate_for_pr(full, pr, runner=runner)
+            verdict = await squads.squad_gate_for_pr(full, pr, approvers=[login], runner=runner)
         except squads.SquadGateError:  # fail closed: no gate verdict, no merge
             verdict = {"approved": False}
         (passed if verdict["approved"] else blocked).append(issue)
@@ -192,6 +200,7 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
     done = {(w.repo, int(w.issue["number"])): o for w, o in zip(batch, outcomes) if isinstance(o, Outcome)}
     summary: dict[str, Any] = {}
     reviews: dict[tuple[str, int], dict] = {}
+    login: str | None = None  # looked up once per tick, and only when a merge is about to happen
     for repo_plan in plans:
         approved: dict[int, int] = {}
         heads: dict[int, str] = {}
@@ -214,7 +223,9 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
             "approved": sorted(approved.values()), "rejected": rejected, "merge": "disabled"}
         if approved and auto_merge_enabled():
             entry["merge"] = "enabled"
-            entry.update(await _merge(repo_plan.repo, repo_plan, approved, heads, runner, gate))
+            if login is None:
+                login = await own_login()
+            entry.update(await _merge(repo_plan.repo, repo_plan, approved, heads, runner, gate, login))
         summary[repo_plan.repo] = entry
     await asyncio.to_thread(write_report, plans, done, reviews)
     return summary

@@ -45,7 +45,7 @@ class FakeRun:
 
     def __init__(self, issues, *, turbo_ok=True, diff=True, delay=0.0, opted_in=None,
                  broken_gate=(), prs=(), pr_views=None, claimed_by=None, verify_pass=False, distinct_prs=False,
-                 train_ok=True):
+                 train_ok=True, login="squad-bot"):
         self.issues = issues  # repo name -> list of issue rows
         self.turbo_ok = turbo_ok
         self.diff = diff
@@ -58,6 +58,7 @@ class FakeRun:
         self.verify_pass = verify_pass  # turbo reports a passed verify (the squad review needs MEASURED tests)
         self.distinct_prs = distinct_prs  # `gh pr create` answers pull/<100+issue> instead of one fixed url
         self.train_ok = train_ok  # the merge train's cumulative test run
+        self.login = login  # `gh api user`: the account the watcher posts and merges as (None = the lookup fails)
         self.merges = []  # PR numbers of every `gh pr merge`
         self.tests_run = 0
         self.calls = []
@@ -107,6 +108,8 @@ class FakeRun:
             return proc.Result(0, json.dumps(self.prs))
         if argv[:2] == ["gh", "pr"] and argv[2] == "view":
             return proc.Result(0, json.dumps(self.pr_views.get(int(argv[3]), {})))
+        if argv[:3] == ["gh", "api", "user"]:
+            return proc.Result(0, self.login + "\n") if self.login else proc.Result(1, "", "gh: HTTP 401")
         if argv[:2] == ["gh", "api"]:
             return self._api(argv, stdin)
         if argv[0] == "simplicio-loop" and argv[1] == "turbo":
