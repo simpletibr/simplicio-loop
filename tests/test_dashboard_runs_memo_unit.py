@@ -51,7 +51,7 @@ def _stamps(monkeypatch, mtime_ns, now_ns, ctime_ns=None):
 
     def fake(path):
         st = real(path)
-        return types.SimpleNamespace(st_ino=st.st_ino, st_size=st.st_size,
+        return types.SimpleNamespace(st_mode=st.st_mode, st_ino=st.st_ino, st_size=st.st_size,
                                      st_mtime_ns=holder['mtime'], st_ctime_ns=holder['ctime'])
 
     monkeypatch.setattr(runs, '_lstat', fake)
@@ -158,7 +158,7 @@ def test_an_appended_event_shows_in_the_next_answer(tmp_path, aged):
     assert _same_as_truth(run_dir)['last_seq'] == 11
 
 
-def test_appends_are_seen_one_after_another_with_the_real_clock(tmp_path):
+def test_appends_are_seen_one_after_another_on_a_settled_clock(tmp_path, aged):
     run_dir = _make_run(tmp_path, 'live', events=1)
     for seq in range(2, 40):
         _append(run_dir, [seq])
@@ -372,7 +372,7 @@ def test_concurrent_requests_for_a_cold_run_compute_it_once(tmp_path, aged, monk
     assert len(computed) == 1, 'eight pollers of one cold run computed it %d times' % len(computed)
 
 
-def test_the_route_serves_fresh_data_after_an_append_and_no_stale_data(tmp_path):
+def test_the_route_serves_fresh_data_after_an_append_and_no_stale_data(tmp_path, aged):
     import urllib.request
     from simplicio_loop.dashboard import server
     run_dir = _make_run(tmp_path, 'http', events=4)
@@ -389,3 +389,179 @@ def test_the_route_serves_fresh_data_after_an_append_and_no_stale_data(tmp_path)
             assert [row['last_seq'] for row in get()] == [seq]
     finally:
         handle.stop()
+
+
+# ---------------------------------------------------------------- audit of #1586: symlinked receipts, ordering, limits
+
+@pytest.mark.parametrize('name', sorted(INPUT_FILES))
+def test_edit_of_the_target_of_a_symlinked_receipt_shows(tmp_path, aged, name):
+    '''build_progress follows a link; a stat of the link alone cannot see the target change.'''
+    body, seen = INPUT_FILES[name]
+    run_dir = _make_run(tmp_path, 'linked', events=3)
+    target = tmp_path / 'shared.json'
+    target.write_text(json.dumps({'ready': False, 'verdict': 'NO', 'status': 'x', 'match': False}), encoding='utf-8')
+    link = run_dir / name
+    link.parent.mkdir(exist_ok=True)
+    os.symlink(target, link)
+    assert not seen(_same_as_truth(run_dir))
+    target.write_text(json.dumps(body), encoding='utf-8')
+    assert seen(_same_as_truth(run_dir)), 'the target of the symlinked ' + name + ' changed and the summary did not'
+    target.write_text(json.dumps({'ready': False}), encoding='utf-8')
+    assert not seen(_same_as_truth(run_dir))
+
+
+@pytest.mark.parametrize('name', sorted(INPUT_FILES))
+def test_a_receipt_link_that_points_nowhere_shows_its_target_once_it_exists(tmp_path, aged, name):
+    body, seen = INPUT_FILES[name]
+    run_dir = _make_run(tmp_path, 'dangling', events=3)
+    target = tmp_path / 'later.json'
+    link = run_dir / name
+    link.parent.mkdir(exist_ok=True)
+    os.symlink(target, link)
+    assert not seen(_same_as_truth(run_dir))
+    target.write_text(json.dumps(body), encoding='utf-8')
+    assert seen(_same_as_truth(run_dir))
+
+
+def test_a_run_with_a_linked_input_is_computed_on_every_call(tmp_path, aged, counted):
+    run_dir = _make_run(tmp_path, 'linked-cost', events=3)
+    target = tmp_path / 'shared.json'
+    target.write_text('{"ready": false}', encoding='utf-8')
+    os.symlink(target, run_dir / 'completion-receipt.json')
+    for _ in range(3):
+        runs.run_summary(_ref(run_dir))
+    assert counted['progress'] == 3
+
+
+@pytest.mark.parametrize('where', ['_load_state', 'build_progress', '_last_seq'])
+def test_a_write_in_the_middle_of_the_computation_shows_in_the_next_answer(tmp_path, aged, monkeypatch, where):
+    run_dir = _make_run(tmp_path, 'mid', events=5)
+    real = getattr(runs, where)
+    fired = []
+
+    def inject(*args, **kwargs):
+        out = real(*args, **kwargs)
+        if not fired:
+            fired.append(1)
+            _append(run_dir, [6])
+            (run_dir / 'completion-receipt.json').write_text(json.dumps({'ready': True, 'verdict': 'COMPLETE'}), encoding='utf-8')
+        return out
+
+    monkeypatch.setattr(runs, where, inject)
+    runs.run_summary(_ref(run_dir))
+    assert fired
+    monkeypatch.setattr(runs, where, real)
+    got = _same_as_truth(run_dir)
+    assert got['last_seq'] == 6 and got['completion']['ready'] is True
+
+
+def test_a_same_size_rewrite_that_restores_the_mtime_in_the_middle_of_the_computation_shows(tmp_path, aged, monkeypatch):
+    run_dir = _make_run(tmp_path, 'mid-same', events=5, status='done')
+    path = run_dir / 'state.json'
+    before = path.stat()
+    real = runs._last_seq
+    fired = []
+
+    def rewrite(*args, **kwargs):
+        out = real(*args, **kwargs)
+        if not fired:
+            fired.append(1)
+            path.write_text(path.read_text(encoding='utf-8').replace('"done"', '"fail"'), encoding='utf-8')
+            os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+        return out
+
+    monkeypatch.setattr(runs, '_last_seq', rewrite)
+    runs.run_summary(_ref(run_dir))
+    monkeypatch.setattr(runs, '_last_seq', real)
+    assert runs.run_summary(_ref(run_dir))['status'] == 'fail'
+
+
+def test_an_old_mtime_with_a_recent_ctime_is_not_remembered(tmp_path, monkeypatch, counted):
+    '''tar -p, rsync -t and cp -p restore the mtime; the ctime then is the time of the copy.'''
+    run_dir = _make_run(tmp_path, 'restored', events=3)
+    _stamps(monkeypatch, mtime_ns=1_000 * NS + 123_000_000, ctime_ns=5_000 * NS + 50_000_000, now_ns=5_000 * NS + 51_000_000)
+    runs.run_summary(_ref(run_dir))
+    runs.run_summary(_ref(run_dir))
+    assert counted['seq'] == 2
+
+
+def test_the_window_edge_is_inclusive_and_one_nanosecond_less_is_not_trusted(tmp_path, monkeypatch, counted):
+    run_dir = _make_run(tmp_path, 'edge', events=3)
+    holder = _stamps(monkeypatch, mtime_ns=1_000 * NS + 123_000_000, now_ns=1_000 * NS + 123_000_000 + runs.RACY_NS)
+    runs.run_summary(_ref(run_dir))
+    runs.run_summary(_ref(run_dir))
+    assert counted['seq'] == 1, 'a file exactly one window old is settled'
+    runs.clear_summary_cache()
+    holder['now'] -= 1
+    runs.run_summary(_ref(run_dir))
+    runs.run_summary(_ref(run_dir))
+    assert counted['seq'] == 3, 'a file one nanosecond younger than the window is not'
+
+
+def test_the_coarse_window_needs_both_timestamps_to_be_whole_seconds(tmp_path, monkeypatch, counted):
+    run_dir = _make_run(tmp_path, 'fine-ctime', events=3)
+    _stamps(monkeypatch, mtime_ns=1_000 * NS, ctime_ns=1_000 * NS + 5_000_000, now_ns=1_000 * NS + 5_000_000 + 150_000_000)
+    runs.run_summary(_ref(run_dir))
+    runs.run_summary(_ref(run_dir))
+    assert counted['seq'] == 1, 'a sub-second ctime shows a disk that stamps finely: the 100 ms window applies'
+
+
+def test_an_exception_while_recomputing_never_serves_the_previous_summary(tmp_path, aged):
+    run_dir = _make_run(tmp_path, 'raises', events=3)
+    assert runs.run_summary(_ref(run_dir))['last_seq'] == 3
+    (run_dir / 'state.json').write_text(json.dumps({'run_id': 'raises', 'task_count': 'not-a-number'}), encoding='utf-8')
+    for _ in range(3):
+        with pytest.raises(ValueError):
+            runs.run_summary(_ref(run_dir))
+        with pytest.raises(ValueError):
+            _truth(run_dir)
+
+
+def test_the_least_recently_used_run_is_the_one_that_leaves(tmp_path, aged, monkeypatch):
+    monkeypatch.setattr(runs, 'SUMMARY_CACHE_MAX', 3)
+    dirs = [_make_run(tmp_path, 'e%d' % index, events=2) for index in range(5)]
+    for run_dir in dirs[:3]:
+        runs.run_summary(_ref(run_dir))
+    runs.run_summary(_ref(dirs[0]))  # e0 is now the most recently used
+    runs.run_summary(_ref(dirs[3]))  # e1, the least recently used, leaves
+    kept = list(runs._SUMMARIES)
+    assert os.fspath(dirs[1]) not in kept
+    assert os.fspath(dirs[0]) in kept and os.fspath(dirs[3]) in kept and len(kept) == 3
+
+
+def test_six_hundred_runs_are_all_served_from_memory_on_the_second_listing(tmp_path, aged, counted):
+    for index in range(600):
+        _make_run(tmp_path, 'run-%04d' % index, events=2)
+    assert len(runs.list_runs(tmp_path)) == 600
+    assert counted['seq'] == 600
+    assert len(runs.list_runs(tmp_path)) == 600
+    assert counted == {'state': 600, 'seq': 600, 'progress': 600}, 'a listing longer than the memo evicts every run before its turn'
+
+
+def test_a_summary_over_the_byte_limit_is_not_remembered(tmp_path, aged, counted):
+    run_dir = _make_run(tmp_path, 'big', events=3, technical_debts=[{'id': index, 'note': 'd' * 40} for index in range(13000)])
+    assert (run_dir / 'state.json').stat().st_size > 800_000
+    first = runs.run_summary(_ref(run_dir))
+    assert first['technical_debt_count'] == 13000
+    runs.run_summary(_ref(run_dir))
+    assert counted['progress'] == 2
+    assert runs._SUMMARIES[os.fspath(run_dir)].blob is None, 'a megabyte summary sits in memory'
+
+
+def test_the_byte_limit_is_inclusive(tmp_path, aged, monkeypatch, counted):
+    run_dir = _make_run(tmp_path, 'edge-size', events=3)
+    size = len(json.dumps(_truth(run_dir)))
+    monkeypatch.setattr(runs, 'SUMMARY_BLOB_MAX', size)
+    runs.run_summary(_ref(run_dir))
+    runs.run_summary(_ref(run_dir))
+    assert counted['seq'] == 1, 'a summary of exactly the limit is remembered'
+    runs.clear_summary_cache()
+    monkeypatch.setattr(runs, 'SUMMARY_BLOB_MAX', size - 1)
+    runs.run_summary(_ref(run_dir))
+    runs.run_summary(_ref(run_dir))
+    assert counted['seq'] == 3, 'a summary one byte over the limit is not'
+
+
+def test_the_limits_are_the_documented_ones():
+    assert runs.SUMMARY_CACHE_MAX == 4096
+    assert runs.SUMMARY_BLOB_MAX == 32 * 1024
