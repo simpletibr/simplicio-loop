@@ -36,12 +36,8 @@ PAID_STATUS = {"active", "trialing"}
 PAID_SOURCES = {"subscription", "stripe", "admin"}
 
 
-def concurrency() -> int:
-    """Max issues processed at once (SIMPLICIO_247_CONCURRENCY, default 1)."""
-    try:
-        return max(1, int(os.environ.get("SIMPLICIO_247_CONCURRENCY", "1")))
-    except ValueError:
-        return 1
+# Max issues processed at once. Unset = automatic (squad_capacity: demand against the measured machine); a number pins it.
+CONCURRENCY_ENV = "SIMPLICIO_247_CONCURRENCY"
 
 
 def set_state_dir(path: str | Path) -> None:

@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .. import execution_report, merge_train, model_roles, pr_evidence, squad_metrics, squad_routing, squads
+from .. import execution_report, merge_train, model_roles, pr_evidence, squad_capacity, squad_metrics, squad_routing, squads
 from . import config, proc, sandbox, state, verify
 
 AUTO_MERGE_ENV = "SIMPLICIO_247_AUTO_MERGE"
@@ -68,6 +68,7 @@ class RepoPlan:
     deps: dict[int, tuple[int, ...]] = field(default_factory=dict)  # issue -> the issues of this batch it depends on
     ready_at: dict[int, float] = field(default_factory=dict)  # issue -> clock() when the squad approved its PR
     merged_at: dict[int, float] = field(default_factory=dict)  # issue -> clock() when its merge was observed
+    capacity: dict[str, Any] = field(default_factory=dict)  # squad_capacity plan of this repo: how many run at once, and why
 
 
 def _safe_path(path: str) -> bool:
@@ -81,15 +82,20 @@ def _issue_row(issue: dict) -> dict[str, Any]:
             "paths": sorted({p for p in _PATH.findall(body) if _safe_path(p)})}
 
 
-def plan_repo(repo: str, issues: list[dict], family: str) -> RepoPlan:
-    """The general coordinator: squads for the issues, and the starting role of each worker (squad_routing.route)."""
+def plan_repo(repo: str, issues: list[dict], family: str, probe: squad_capacity.Probe | None = None,
+              limits: squad_capacity.Limits | None = None) -> RepoPlan:
+    """The general coordinator: squads for the issues, and the starting role of each worker (squad_routing.route).
+
+    The capacity (how many squads run at once, DEFAULT automatic) comes from the tick's `probe` and `limits`."""
     rows = [_issue_row(i) for i in issues]
     try:
-        plan = squads.plan_squads(rows, family=family)
+        auto = squads.plan_squads_auto(rows, family=family, probe=probe, limits=limits)
     except squads.SquadCycleError as exc:  # a declared "depende de" cycle must not wedge the tick: plan without the declared order
         state.log(f"squad plan {repo}: {exc}; planning without declared dependencies")
         rows = [{**row, "body": ""} for row in rows]
-        plan = squads.plan_squads(rows, family=family)
+        auto = squads.plan_squads_auto(rows, family=family, probe=probe, limits=limits)
+    plan = auto.plan
+    state.log(f"squad capacity {repo}: {auto.capacity.reasons[0]} ({auto.capacity.proof_kind})")
     workers = {w.issues[0]: w for s in plan.squads for w in s.workers}
     routed = {}
     for row in rows:
@@ -98,10 +104,11 @@ def plan_repo(repo: str, issues: list[dict], family: str) -> RepoPlan:
         routed[row["number"]] = squad_routing.route(
             {"files": row["paths"], "touches_shared": shared, "labels": [l.get("name") if isinstance(l, dict) else l
                                                                          for l in row["labels"]]}).role
-    return RepoPlan(repo, plan, routed, squads.dependencies(rows))
+    return RepoPlan(repo, plan, routed, squads.dependencies(rows), capacity=auto.capacity.to_dict())
 
 
-def form(batch: list, family: str) -> list[RepoPlan]:
+def form(batch: list, family: str, probe: squad_capacity.Probe | None = None,
+         limits: squad_capacity.Limits | None = None) -> list[RepoPlan]:
     """Plan the squads of the new issues in `batch` (review fixes stay outside) and set each Work's starting role."""
     by_repo: dict[str, list] = {}
     for work in batch:
@@ -109,7 +116,7 @@ def form(batch: list, family: str) -> list[RepoPlan]:
             by_repo.setdefault(work.repo, []).append(work)
     out = []
     for repo, works in by_repo.items():
-        repo_plan = plan_repo(repo, [w.issue for w in works], family)
+        repo_plan = plan_repo(repo, [w.issue for w in works], family, probe, limits)
         for work in works:
             work.role = repo_plan.routed[int(work.issue["number"])]
         out.append(repo_plan)

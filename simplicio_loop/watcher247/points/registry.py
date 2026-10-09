@@ -53,6 +53,7 @@ class PointContext:
     pr_url: str | None = None
     role: str | None = None
     family: str | None = None
+    capacity: Any = None  # the tick's squad_capacity.Probe; resource_governor reuses its sample instead of probing again
 
 
 @dataclass(frozen=True)

@@ -106,3 +106,51 @@ simplicio-loop squads metrics --compare before.json after.json --json   # o mesm
 2. `write_contracts(repo, plan.contracts)` grava os stubs (passo manual hoje); eles entram no main antes dos squads.
 3. Para cada tarefa, `route` escolhe o papel do primeiro worker.
 4. Os PRs aprovados pelos squads vão para `plan_train`; `run_train` faz o merge em lotes.
+
+## Sizing (automatic squad count)
+
+The loop selects the number of squads itself. It runs fast without overloading the machine. Call `simplicio-loop squads plan` with option `--squads auto` (the default). The 24/7 watcher probes once each tick. The JSON from `squads plan` has a `capacity` block. The block lists numbers and `reasons`.
+
+The plan still lists all squads. The `capacity` block tells how many squads and workers run at the same time. When a worker ends, start the next one. In the watcher, the same number is the batch size of the tick, so one issue is no longer the default limit.
+
+### Demand
+
+Demand is the widest dependency level of the issues. Issues that share a file path do not run together. Count only one of them. A chain of six dependent issues gives width one.
+
+### Supply
+
+The machine probe collects cores, load average (one, five and fifteen minutes), free memory and free disk. Each limit gives a worker count. The minimum is one worker.
+
+- **cpu**: floor(0.8 × cores)
+- **load**: floor(0.8 × cores - max(load 1 min, load 5 min))
+- **memory**: floor((available memory - 512 MiB) ÷ 1.25 GiB). Use 1.25 GiB per worker as an estimate.
+- **disk**: floor((free disk - 2 GiB) ÷ 1 GiB). Use 1 GiB per worker as an estimate. If free disk falls below the 2 GiB floor, the result is one. The reason names the disk limit.
+- **budget**: what remains of the watcher daily cap (issues and PRs). It may be zero.
+
+### Result
+
+Total workers equals the smallest of demand and the supply limits. The `limited_by` field names the smallest one. Choose from: demand, cpu, load, memory, disk, budget, or override.
+
+Calculate `workers_per_squad` as min(4, total workers). Calculate `squads` as ceil(total workers ÷ workers_per_squad).
+
+Example: three independent issues on an idle 64-core host yield one squad of three workers. Demand limits the result.
+
+### Unknown value
+
+If the probe cannot measure a value, the loop uses one worker. Set `proof_kind` to UNVERIFIED with the reason. The loop never assumes unlimited capacity. Measured values set `proof_kind` to MEASURED.
+
+### Override
+
+Pass `--squads N` or set `SIMPLICIO_SQUADS=N`. This overrides machine limits. N must be one or more. Zero is not valid. The flag wins over the variable. The loop never makes more squads than issues that can run together.
+
+Set `SIMPLICIO_PRISM_SLOTS` or `SIMPLICIO_LOOP_OPERATOR_WORKERS` to a value that the economy profile did not set. This fixes the worker count. The economy profile exports its own value to every session. That value is not an override, and the machine limits still decide.
+
+In the watcher, `SIMPLICIO_247_CONCURRENCY` is the override. The daily budget always caps an override.
+
+### Between waves
+
+`resize` shrinks the plan at once when the load rises. It grows the plan only after the load remains low for one full wave. One full wave is two samples in a row. The `recheck_after_s` field tells when to measure again.
+
+### Merge rules
+
+Sizing decides only how many squads and workers run at the same time. It never decides what may merge. The squad gate, `SIMPLICIO_247_AUTO_MERGE` setting, merge train and repo lock remain unchanged.
