@@ -16,8 +16,8 @@ TimeoutStopSec=20
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
-ProtectHome=yes
-ReadWritePaths=/var/lib/simplicio-loop-247
+ProtectHome=read-only
+ReadWritePaths=/var/lib/simplicio-loop-247 /home/simplicio-loop/.simplicio
 
 [Install]
 WantedBy=multi-user.target

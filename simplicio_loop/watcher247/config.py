@@ -16,8 +16,14 @@ MAX_ATTEMPTS = 2
 RETRY_AFTER = timedelta(hours=6)
 BODY_CAP = 6000
 
+
+def default_login() -> Path:
+    """SIMPLICIO_247_LOGIN, else ~/.simplicio/login.json of the service user."""
+    return Path(os.environ.get("SIMPLICIO_247_LOGIN") or Path.home() / ".simplicio" / "login.json")
+
+
 # Login (shared with the Simplicio CLI)
-LOGIN = Path("/root/.simplicio/login.json")
+LOGIN = default_login()
 VALIDATE_URL = "https://simpleti.com.br/api/simplicio/validate.php"
 TOKEN_URL = "https://simpleti.com.br/api/simplicio/token"
 MCP_CLIENT_ID = "simplicio-cli"

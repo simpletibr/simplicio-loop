@@ -170,7 +170,7 @@ def test_turbo_ok_commits_opens_pr_and_comments_url(env):
     assert argv[argv.index("--repo") + 1] == str(config.WORK / "simplicio-a")
     assert argv[argv.index("--provider") + 1] == "openrouter"
     task = argv[argv.index("--task") + 1]
-    assert "Issue #7: Add x" in task and "50 pontos" not in task
+    assert "Issue #7: Add x" in task and "Protocolo Simplicio-Loop, nesta ordem" in task and "50 pontos" not in task
     assert fake.turbo_timeouts == [900]
     commit = fake.ran("git", "commit")[0]
     assert commit[3] == "loop: Add x\n\nCloses #7\n"
@@ -406,6 +406,15 @@ def test_subscription_required(login, monkeypatch, over):
 
 def test_paid_sources():
     assert config.PAID_SOURCES == {"subscription", "stripe", "admin"}
+
+
+def test_login_path_follows_env_then_home(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "svc"))
+    monkeypatch.delenv("SIMPLICIO_247_LOGIN", raising=False)
+    assert config.default_login() == tmp_path / "svc" / ".simplicio" / "login.json"
+    monkeypatch.setenv("SIMPLICIO_247_LOGIN", str(tmp_path / "custom.json"))
+    assert config.default_login() == tmp_path / "custom.json"
+    assert "/root" not in str(config.default_login())
 
 
 def test_subscription_entitlement_required_on_http_error(login, monkeypatch):

@@ -12,10 +12,9 @@ _STATE_DIRS = (".simplicio-loop/", ".simplicio/")
 
 
 class Gate:
-    """Concurrency limits of one tick: N issues at once, one at a time per repo."""
+    """One lock per repo; the tick itself caps the batch at SIMPLICIO_247_CONCURRENCY issues."""
 
-    def __init__(self, limit: int) -> None:
-        self.sem = asyncio.Semaphore(limit)
+    def __init__(self) -> None:
         self._locks: dict[str, asyncio.Lock] = {}
 
     def repo_lock(self, repo: str) -> asyncio.Lock:
@@ -57,10 +56,10 @@ def task_text(repo: str, issue: dict) -> str:
     if len(body) > config.BODY_CAP:
         body = body[:config.BODY_CAP] + "\n..."
     return (
-        "Simplicio-Loop 24h (requer a assinatura do Simplicio MCP ativa). "
-        "Resolva a issue abaixo na branch de trabalho: orientar o repositorio, "
-        "aplicar um patch cirurgico (nao reescrever arquivo inteiro), validar e "
-        "entregar so o que o teste sustenta.\n"
+        "Para ter o Simplicio-Loop a assinatura do Simplicio MCP precisa estar ativa. "
+        "Protocolo Simplicio-Loop, nesta ordem: orientar o repositorio, "
+        "planejar uma mudanca atomica, aplicar patch cirurgico "
+        "(nao reescrever arquivo inteiro), validar, entregar so o que o teste sustenta.\n"
         f"Repositorio: {config.ORG}/{repo}\n"
         f"Issue #{issue['number']}: {issue.get('title') or ''}\n"
         f"{body}"
@@ -194,11 +193,6 @@ async def process(repo: dict, issue: dict, claims: dict, gate: Gate) -> None:
     await state.save(config.CLAIMS, claims)
 
 
-async def _process_limited(repo: dict, issue: dict, claims: dict, gate: Gate) -> None:
-    async with gate.sem:
-        await process(repo, issue, claims, gate)
-
-
 async def tick(dry_run: bool = False) -> None:
     """One pass. dry_run reads GitHub and logs what it would do; it writes no baseline, claims or status (only the issues-disabled cache) and skips the subscription refresh."""
     persist = not dry_run
@@ -255,8 +249,8 @@ async def tick(dry_run: bool = False) -> None:
                 state.log(f"[dry-run] would process {ident}")
             return
         await state.save(config.CLAIMS, claims)
-        gate = Gate(limit)
-        await asyncio.gather(*(_process_limited(r, i, claims, gate) for r, i in batch))
+        gate = Gate()
+        await asyncio.gather(*(process(r, i, claims, gate) for r, i in batch))
         await status(phase="processed", last=idents[-1], processed=idents,
                      repos=len(found), open_seen=len(seen), subscription=sub)
         return
