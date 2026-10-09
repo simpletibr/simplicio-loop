@@ -489,6 +489,50 @@ def test_descendant_still_alive_past_grace_period_is_reported_as_leak(
     _assert_pid_gone(int(child_pid.read_text()))
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX process-group contract")
+def test_group_signal_reaches_a_child_that_no_scan_has_seen(tmp_path) -> None:
+    """With discovery off and no PID known, only the group signal can reach a child of the leader.
+
+    The /proc scan normally finds that child too, so every timeout test would still pass if
+    ``_terminate_and_reap`` signalled the leader alone.  This test removes the scan."""
+    child_pid = tmp_path / "unseen-child.pid"
+    child = (
+        "import os,pathlib,sys,time; "
+        "pathlib.Path(sys.argv[1]).write_text(str(os.getpid())); time.sleep(60)"
+    )
+    leader = (
+        "import subprocess,sys,time; "
+        "subprocess.Popen([sys.executable, '-c', sys.argv[2], sys.argv[1]]); time.sleep(60)"
+    )
+    proc = subprocess.Popen(
+        [sys.executable, "-c", leader, str(child_pid), child], start_new_session=True,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    try:
+        pid = 0
+        deadline = time.monotonic() + 30.0
+        while not pid and time.monotonic() < deadline:
+            time.sleep(0.02)
+            text = child_pid.read_text() if child_pid.exists() else ""
+            pid = int(text) if text.isdigit() else 0
+        assert pid, "the child never wrote its pid"
+        assert check_runtime._terminate_and_reap(proc, set(), discover=False) is True
+        deadline = time.monotonic() + 5.0
+        state = "S"
+        while state != "Z" and time.monotonic() < deadline:
+            try:
+                with open("/proc/%d/stat" % pid) as handle:
+                    state = handle.read().rsplit(") ", 1)[1].split()[0]
+            except FileNotFoundError:
+                state = "Z"  # reaped by its new parent: gone
+            time.sleep(0.02)
+        assert state == "Z", "the child of the leader survived the group signal"
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+
+
 @pytest.mark.skipif(os.name == "nt", reason="POSIX /proc command-line contract")
 def test_leak_diagnostic_clips_a_long_command_line_but_keeps_both_ends(tmp_path) -> None:
     """``descendant_leak`` lines stay bounded, and the clipped text keeps the

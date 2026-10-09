@@ -64,7 +64,7 @@ blocked. It exists so nobody has to reconstruct that history from the issue thre
 
 ## Running the full gate
 
-The full gate is `python3 scripts/check.py --full`. It runs every test file. It must pass before a release.
+The full gate is `python3 scripts/check.py --full`. It runs test files matching `tests/test_*.py` (non-recursive: 535 files in `tests/` root only). Test files in subdirectories like `tests/watcher247/`, `tests/flow/`, and `tests/host_*/` are not run by the gate. Only the full `pytest tests ...` command runs them. It must pass before a release.
 
 Prepare the machine:
 
@@ -83,11 +83,9 @@ Prepare the machine:
    `/usr/local/bin/simplicio-mapper` makes `tests/test_apply_system.py` fail with
    `mapper_provenance_missing`.
 
-The machine does not have to be idle. The timing tests use wide margins. A short burst of other
-load does not fail them. The route performance test keeps the 100 ms budget and uses the best of
-three measurements. A machine that stays saturated (load average above the number of cores) can
-still fail that test, because every measurement is then slow. Run the gate on a machine that is
-not saturated.
+The machine does not have to be idle. The timing tests use wide margins. The route performance test keeps the 100 ms budget and uses the best of three measurements.
+
+High concurrent load (above the number of cores) can cause this test to exceed budget and fail. Run the gate on a machine with available CPU capacity.
 
 Tests marked `external_integration` are NOT part of the gate.
 
@@ -95,7 +93,7 @@ The gate stops at the first failing shard. To see all failures, run the whole su
 command. It takes about 40 minutes:
 
 ```bash
-pytest tests -q -p no:cacheprovider --maxfail=1000 -rf
+pytest tests -q -p no:cacheprovider -m "not external_integration" --maxfail=1000 -rf
 ```
 
 ## What remains blocked, and why
