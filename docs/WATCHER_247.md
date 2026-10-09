@@ -148,7 +148,7 @@ coberto pelo namespace de pid.
   inteira. Antes, o comando ficava em outra sessão/grupo que o `killpg` do watcher não alcança (`--die-with-parent` não o
   derrubava) e os netos sobreviviam como órfãos; como o `Process.wait()` do Python 3.14 só retorna quando os pipes fecham (medido), o
   `proc.run` com timeout ficava preso enquanto um neto vivo segurasse o pipe.
-- Filesystem somente leitura (exceto o worktree do item, o admin dir dele e o state dir; `work/` e os arquivos de controle do state dir voltam a somente leitura), `/tmp` privado, `--die-with-parent`, `--new-session`.
+- Filesystem somente leitura (exceto o worktree do item, o admin dir dele e o state dir), `/tmp` privado, `--die-with-parent`, `--new-session`. Dentro do state dir, `work/` e os arquivos de controle voltam a somente leitura.
 
 **Continua visível (decisão e limites conhecidos)**
 
