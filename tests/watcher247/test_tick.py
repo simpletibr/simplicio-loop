@@ -59,11 +59,12 @@ def test_turbo_ok_commits_opens_pr_and_comments_url(env):
     assert "dev-cli aplica" in task and "CLI de execucao planeja" in task, "it states what actually runs"
     assert fake.turbo_timeouts == [900]
     commit = fake.ran("git", "commit")[0]
-    assert commit[3] == "loop: Add x\n\nCloses #7\n"
+    assert commit[3] == "loop: #7 Add x\n\nParte de #7\n"
     assert fake.ran("git", "add", "-A") and fake.ran("git", "reset", "-q", "--", ".simplicio-loop")
     assert fake.ran("git", "push", "-u", "origin", "loop/issue-7")
     pr = fake.ran("gh", "pr", "create")[0]
     assert pr[pr.index("--base") + 1] == "main" and pr[pr.index("--head") + 1] == "loop/issue-7"
+    assert pr[pr.index("--title") + 1] == "loop: #7 Add x" and pr[pr.index("--body") + 1].endswith("Parte de #7\n")
     assert PR_URL in fake.marker_comments(7)[-1]["body"]
     claim = read_json(config.CLAIMS)["simplicio-a#7"]
     assert claim["status"] == "done" and claim["pr"] == PR_URL and claim["turbo_status"] == "ok"

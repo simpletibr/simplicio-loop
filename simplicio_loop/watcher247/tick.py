@@ -14,6 +14,8 @@ from pathlib import Path
 from .. import escalation, intake_gate, squad_capacity, watcher_github
 from ..claim_lease import ClaimStore
 from . import budget, config, events, github, host_mode, onboarding, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify, worktrees
+from .closing_words import sanitize
+from .pr_text import pr_title
 
 _STATE_DIRS = (".simplicio-loop/",)
 
@@ -92,8 +94,10 @@ async def commit_and_pr(gate: worktrees.Gate, dest: Path, repo: str, branch: str
     if not staged.stdout.strip():
         return None
     await secret_scan.check_staged(dest)  # raises SecretDetected: nothing is committed or pushed
-    title = f"loop: {issue.get('title') or issue['number']}"
-    commit = await proc.run(["git", "commit", "-m", f"{title}\n\nCloses #{issue['number']}\n"], cwd=dest, timeout=60)
+    number = issue["number"]
+    title = pr_title(number, issue.get("title") or "")  # one title for the PR and the commit; no closing word, "#N" whole
+    message = sanitize(f"{title}\n\nParte de #{number}\n", "commit message")
+    commit = await proc.run(["git", "commit", "-m", message], cwd=dest, timeout=60)
     if commit.returncode != 0:
         raise _fail(commit, "commit failed")
     push = await worktrees.push(gate, repo, dest, head)
@@ -101,15 +105,14 @@ async def commit_and_pr(gate: worktrees.Gate, dest: Path, repo: str, branch: str
         raise _fail(push, "push failed")
     if pr:
         return f"https://github.com/{config.ORG}/{repo}/pull/{pr}"
-    body = (
-        f"Processamento automatico do Simplicio-Loop 24h (executor {executor}) da issue #{issue['number']}.\n\n"
+    body = sanitize(
+        f"Processamento automatico do Simplicio-Loop 24h (executor {executor}) da issue #{number}.\n\n"
         f"{label}\n\n"
-        f"Closes #{issue['number']}\n"
-    )
+        f"Parte de #{number}\n", "PR body")  # the label comes from the model
     pr_cmd = [
         "gh", "pr", "create", "--repo", f"{config.ORG}/{repo}",
         "--base", branch, "--head", head,
-        "--title", title[:70], "--body", body,
+        "--title", title, "--body", body,
     ]
     if squad_flow.pr_draft_enabled():
         pr_cmd.append("--draft")

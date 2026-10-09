@@ -257,6 +257,35 @@ class TestRunPlanner:
         assert res.reason_code == "timeout"
 
 
+class TestRaw:
+    """The planner's own text rides on the result (#1644): the plan is cut out of it, the text is not lost."""
+
+    def test_ok_keeps_the_whole_cli_text(self, bindir):
+        text = "thinking...\n" + json.dumps(PLAN) + "\ndone\n"
+        fake_cli(bindir, "claude", stdout=text)
+        res = run(exec_planner.run_planner("claude", "planning", "x"))
+        assert res.is_ok() and res.raw == text and res.to_dict()["raw"] == text
+
+    def test_bad_plan_keeps_the_text(self, bindir):
+        fake_cli(bindir, "claude", stdout="no json here")
+        res = run(exec_planner.run_planner("claude", "planning", "x"))
+        assert res.reason_code == "bad_plan" and res.raw == "no json here"
+
+    def test_a_failed_cli_keeps_stdout_and_stderr(self, bindir):
+        fake_cli(bindir, "claude", body="sys.stdout.write('half'); sys.stdout.flush(); sys.stderr.write('boom'); sys.exit(3)")
+        res = run(exec_planner.run_planner("claude", "planning", "x"))
+        assert res.reason_code == "process_error" and "half" in res.raw and "boom" in res.raw
+
+    def test_auth_failure_keeps_the_text(self, bindir):
+        fake_cli(bindir, "claude", body="sys.stderr.write('Authentication failed: please login'); sys.exit(1)")
+        assert "Authentication failed" in run(exec_planner.run_planner("claude", "planning", "x")).raw
+
+    def test_no_answer_means_no_raw(self, bindir):
+        assert run(exec_planner.run_planner("claude", "planning", "x")).raw is None  # cli_missing
+        fake_cli(bindir, "claude", body="time.sleep(60)")
+        assert run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=0.5, grace_sec=1.0)).raw is None
+
+
 class TestTreeKill:
     def test_timeout_kills_hung_child(self, bindir):
         pidfile = bindir / "child.pid"

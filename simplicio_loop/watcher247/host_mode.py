@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import escalation, exec_auth, exec_planner, execution_report, executor_select, turbo_window
-from . import budget, config, proc, sandbox, verify
+from . import budget, config, proc, raw_log, sandbox, verify
 from . import convergence  # the failed-verify path asks it: retry, escalate or stop (a module, not a point)
 
 PLAN_ROLE = "planning"
@@ -265,6 +265,7 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
             ladder.family = planned.family or ladder.family
             ok, failure, tokens_report, label, result, status, reason = False, "", None, "", None, "failed", ""
             log_path = config.LOGS / f"{repo}-{number}-{attempts}-s{step}.log"
+            raw_log.write(log_path.with_suffix(".raw.log"), planned.raw, planned.reason_code)  # the model's own text, before the apply
             if planned.is_ok() and (need := _plan_need(planned.plan)):
                 # Nothing was applied: the request is printed again with these lines (same run), the tree stays as it is.
                 windows = [*windows, *need][-MAX_WINDOWS:]
