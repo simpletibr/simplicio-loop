@@ -247,6 +247,20 @@ class EquivalenceTests(OverlayCase):
         for name in self.EXOTIC:
             self.assertEqual(status.get("pkg/" + name), "M", name)
 
+    def test_assume_unchanged_and_skip_worktree_edits_are_not_trusted_to_the_base(self) -> None:
+        """git hides these from status/diff, so a same-size edit would be served from the base."""
+        wt = self.worktree()
+        compute_overlay(str(wt))
+        hidden = {self.rels[1]: "--assume-unchanged", self.rels[2]: "--skip-worktree"}
+        for rel, flag in hidden.items():
+            _git(["update-index", flag, rel], wt)
+            path = wt / rel
+            text = path.read_text(encoding="utf-8")
+            marker = "return" if "return" in text else text[:6]
+            path.write_text(text.replace(marker, marker.upper(), 1), encoding="utf-8")  # same size
+        receipt = self.assert_equivalent(wt)
+        self.assertEqual(receipt["files_remapped"], len(hidden))
+
     def test_csharp_and_razor_sources_still_match_a_fresh_mapping(self) -> None:
         """Semantic resolution is global: such files are parsed fresh and the call graph decides the status."""
         (self.main / "src").mkdir()

@@ -14,9 +14,9 @@ How it stays exact. The inventory is the mapper's own (``parse._build_file_inven
 comes from the same walk, roles/importance/Brown-Hilbert addresses from the same functions. The only
 difference is the per-file parse (language, hash, imports, exports): for a file the worktree did not
 change relative to the base those facts come from the base's ``file-manifest.jsonl`` instead of being
-recomputed. A file counts as unchanged only when git reports no delta for it AND its size still
-matches the base entry; everything else -- modified, added, renamed, untracked, ignored-but-walked,
-HEAD behind or ahead of the base -- is parsed from disk. Symbols follow the same rule. The assembly
+recomputed. A file counts as unchanged only when git reports no delta for it, git is not told to ignore it (assume-unchanged,
+skip-worktree) AND its size still matches the base entry; everything else -- modified, added, renamed,
+untracked, ignored-but-walked, HEAD behind or ahead of the base -- is parsed from disk. Symbols follow the same rule. The assembly
 below mirrors ``emit._build_artifacts_sync``; ``tests/python/test_central_overlay.py`` compares the
 result with ``build_artifacts`` on random repositories so any drift fails a test.
 
@@ -30,6 +30,7 @@ pass (global), so such trees stay exact, just not cheap.
 from __future__ import annotations
 
 import os
+import subprocess
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -160,6 +161,29 @@ def _touched_paths(overlay) -> set[str]:
     return touched
 
 
+def _hidden_from_git(abs_root: str) -> set[str] | None:
+    """Tracked paths whose changes git is told not to look at (assume-unchanged, skip-worktree).
+
+    ``git status`` and ``git diff`` never report an edit of these, so the delta cannot be trusted
+    for them: they are re-parsed from disk. ``None`` when the index cannot be read.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "-v", "-z"], cwd=abs_root, capture_output=True, text=True,
+            timeout=30, stdin=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    hidden: set[str] = set()
+    for record in result.stdout.split("\0"):
+        # "<tag> <path>": a lowercase tag is assume-unchanged, "S" is skip-worktree.
+        if len(record) > 2 and (record[0].islower() or record[0] == "S"):
+            hidden.add(record[2:])
+    return hidden
+
+
 def _fallback(receipt: dict, reason: str, started: float) -> OverlayOutcome:
     receipt = dict(receipt)
     receipt["status"] = "fallback"
@@ -219,6 +243,10 @@ def _compute(
         return _fallback(receipt, "base_artifacts_unreadable", started)
 
     touched = _touched_paths(overlay)
+    hidden = _hidden_from_git(abs_root)
+    if hidden is None:
+        return _fallback(receipt, "git_index_unreadable", started)
+    touched |= hidden
     preview_paths = {
         os.path.relpath(path, abs_root).replace(os.sep, "/")
         for path in _collect_text_files(abs_root)[:_PREVIEW_FILES]
