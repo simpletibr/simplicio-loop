@@ -193,7 +193,7 @@ def test_run_binary_step_sbom_failure_returns_false_and_sets_reason(tmp_path, mo
     monkeypatch.setattr(rr, "build_sbom", fake_sbom_failure)
     
     receipt = {"steps": {}}
-    result = rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, tmp_path / "w.whl", "sha", version)
+    result = rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, "sha", version)
 
     assert result is False
     assert receipt["steps"]["binary"]["ok"] is False
@@ -229,7 +229,7 @@ def test_run_binary_step_deterministic_environment(tmp_path, monkeypatch):
         os.environ["PYTHONPATH"] = test_pythonpath
         
         receipt = {"steps": {}}
-        rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, tmp_path / "w.whl", "sha", version)
+        rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, "sha", version)
 
         # Verify the environment passed to the build command
         assert captured_env.get("SOURCE_DATE_EPOCH") == "1700000000"
@@ -265,7 +265,7 @@ def test_run_binary_step_succeeds_and_writes_the_sbom(tmp_path, monkeypatch):
     monkeypatch.setattr(rr, "build_sbom", lambda scratch, **kwargs: {"ok": True, "artifact": str(kwargs["artifact"])})
     receipt = {"steps": {}}
 
-    assert rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, tmp_path / "w.whl", "sha", version) is True
+    assert rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, "sha", version) is True
 
     step = receipt["steps"]["binary"]
     assert step["ok"] is True
@@ -290,7 +290,7 @@ def test_run_binary_step_reports_the_failing_command(tmp_path, monkeypatch):
     monkeypatch.setattr(rr, "_git", lambda repo, *args: "1700000000")
     receipt = {"steps": {}}
 
-    assert rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, tmp_path / "w.whl", "sha", version) is False
+    assert rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, "sha", version) is False
 
     step = receipt["steps"]["binary"]
     assert step["ok"] is False
@@ -317,7 +317,7 @@ def test_run_binary_step_refuses_a_wrong_version_output(tmp_path, monkeypatch):
     monkeypatch.setattr(rr, "build_sbom", lambda scratch, **kwargs: {"ok": True})
     receipt = {"steps": {}}
 
-    assert rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, tmp_path / "w.whl", "sha", version) is False
+    assert rr.run_binary_step(tmp_path, tmp_path / "scratch", tmp_path, receipt, "sha", version) is False
     assert "9.9.9" in receipt["steps"]["binary"]["reason"]
 
 
@@ -332,3 +332,57 @@ def test_argparse_accepts_binary_flag():
     # Test without --binary (default)
     args_without_binary = parser.parse_args(["run"])
     assert args_without_binary.binary is False
+
+
+# --- run_rehearsal wiring (R7): the result of the binary step decides the receipt ----------------
+
+
+@pytest.fixture
+def rehearsal(monkeypatch, tmp_path):
+    """run_rehearsal with every heavy step replaced. `binary_calls` records the calls of run_binary_step."""
+    state = {"binary_calls": 0, "binary_result": True}
+
+    def fake_run(command, **kwargs):  # the wheel build: leave a wheel in --outdir
+        outdir = Path(command[command.index("--outdir") + 1])
+        (outdir / "simplicio_loop-1.2.3-py3-none-any.whl").write_bytes(b"wheel")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    def fake_binary_step(repo, scratch, workdir, receipt, source_sha, version):
+        state["binary_calls"] += 1
+        receipt["steps"]["binary"] = {"ok": state["binary_result"]}
+        return state["binary_result"]
+
+    monkeypatch.setattr(rr, "run_governance_gate", lambda repo: {"ok": True})
+    monkeypatch.setattr(rr, "_export_tracked_tree", lambda repo, dest: (dest.mkdir(parents=True), "abc123")[1])
+    monkeypatch.setattr(rr, "_rehearsal_version", lambda scratch: "1.2.3+rehearsal1")
+    monkeypatch.setattr(rr, "apply_version", lambda scratch, version: {"ok": True, "changed_files": []})
+    monkeypatch.setattr(rr.subprocess, "run", fake_run)
+    monkeypatch.setattr(rr, "generate_checksums", lambda directory: {"ok": True})
+    monkeypatch.setattr(rr, "verify_checksums", lambda directory, manifest: {"ok": True})
+    monkeypatch.setattr(rr, "sign_manifest", lambda *a, **k: {"ok": False, "blocked": True})
+    monkeypatch.setattr(rr, "build_sbom", lambda *a, **k: {"ok": True})
+    monkeypatch.setattr(rr, "build_provenance", lambda *a, **k: {"ok": True})
+    monkeypatch.setattr(rr, "run_smoke", lambda *a, **k: {"ok": True})
+    monkeypatch.setattr(rr, "run_binary_step", fake_binary_step)
+    state["run"] = lambda **kwargs: rr.run_rehearsal(tmp_path, **kwargs)
+    return state
+
+
+def test_the_binary_step_does_not_run_by_default(rehearsal):
+    receipt = rehearsal["run"]()
+    assert receipt["ok"] is True and receipt["state"] == "smoke-verified"
+    assert rehearsal["binary_calls"] == 0 and "binary" not in receipt["steps"]
+
+
+def test_a_good_binary_step_ends_the_rehearsal_in_binary_verified(rehearsal):
+    receipt = rehearsal["run"](binary=True)
+    assert rehearsal["binary_calls"] == 1
+    assert receipt["ok"] is True and receipt["state"] == "binary-verified"
+
+
+def test_a_failed_binary_step_fails_the_rehearsal(rehearsal):
+    rehearsal["binary_result"] = False
+    receipt = rehearsal["run"](binary=True)
+    assert rehearsal["binary_calls"] == 1
+    assert receipt["ok"] is False and receipt["reason_code"] == "binary_failed"
+    assert receipt["state"] != "binary-verified"

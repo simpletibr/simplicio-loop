@@ -21,6 +21,7 @@ import json
 import os
 import shutil
 import re
+import socket
 import statistics
 import subprocess
 import sys
@@ -114,7 +115,7 @@ def measure_startup(command: Sequence[str], env: dict[str, str], runs: int = 10)
 
 def parse_live_url(stdout: str) -> tuple[str, str, int]:
     """Parse 'simplicio-live: <url>' from stdout. Returns (base_url, query, port).
-    
+
     Raises ValueError if the line is missing.
     """
     for line in stdout.splitlines():
@@ -132,13 +133,13 @@ def parse_live_url(stdout: str) -> tuple[str, str, int]:
 
 def server_processes(proc_root: str = '/proc', needle: str = 'simplicio_loop.dashboard.server') -> list[int]:
     """Find process IDs matching needle in /proc/<pid>/cmdline.
-    
+
     Returns list of matching PIDs. Safe on missing proc_root or unreadable cmdlines.
     """
     proc_path = Path(proc_root)
     if not proc_path.exists():
         return []
-    
+
     result = []
     for pid_dir in sorted(proc_path.iterdir()):
         if not pid_dir.is_dir():
@@ -147,43 +148,45 @@ def server_processes(proc_root: str = '/proc', needle: str = 'simplicio_loop.das
             pid = int(pid_dir.name)
         except ValueError:
             continue
-        
+
         cmdline_file = pid_dir / "cmdline"
         if not cmdline_file.exists():
             continue
-        
+
         try:
             cmdline = cmdline_file.read_bytes().decode('utf-8', errors='replace')
             if needle in cmdline:
                 result.append(pid)
         except (OSError, ValueError):
             continue
-    
+
     return result
 
 
 def port_is_closed(port: int, timeout: float = 5.0) -> bool:
-    """Check if a port is closed (connection refused).
-    
-    Retries for up to `timeout` seconds to handle timing issues.
-    Returns True if port is closed, False if open.
-    """
-    import socket
-    import time
-    
-    start = time.time()
-    while time.time() - start < timeout:
+    """True when nothing accepts connections on 127.0.0.1:``port``. A server needs a moment to exit, so retry."""
+    deadline = time.monotonic() + timeout
+    while True:
         try:
-            sock = socket.create_connection(("127.0.0.1", port), timeout=0.5)
-            sock.close()
-            # Connection succeeded = port is open
+            socket.create_connection(("127.0.0.1", port), timeout=0.5).close()
+        except OSError:
+            return True
+        if time.monotonic() >= deadline:
             return False
-        except (socket.error, OSError):
-            # Connection refused or timed out
-            time.sleep(0.1)
-    
-    # After timeout, assume it's closed
-    return True
+        time.sleep(0.1)
+
+
+def servers_of(binary: Path, proc_root: str = "/proc") -> list[int]:
+    """Pids of dashboard servers that run ``binary``: other servers on this machine do not count."""
+    found = []
+    for pid in server_processes(proc_root):
+        try:
+            if Path(proc_root, str(pid), "exe").resolve() == binary.resolve():
+                found.append(pid)
+        except OSError:
+            continue
+    return found
+
 
 class Smoke:
     def __init__(self, binary: Path, work: Path, reference_bin: Optional[Path], wheel: Optional[Path],
@@ -321,12 +324,12 @@ class Smoke:
         errors = []
         started = self.run([str(self.exe), "dashboard", "--port", "0", "--no-browser"])
         assert started.returncode == 0, started.stdout[-300:] + started.stderr[-300:]
-        
+
         refs = []
         try:
             base, query, port = parse_live_url(started.stdout)
             url = f"{base}?{query}" if query else base
-            
+
             # Fetch the page and its assets
             with urllib.request.urlopen(url, timeout=30) as page:
                 html = page.read().decode()
@@ -335,7 +338,7 @@ class Smoke:
             for ref in refs:
                 with urllib.request.urlopen(f"{base.rstrip('/')}{ref}?{query}", timeout=30) as asset:
                     assert asset.status == 200 and asset.read(), ref
-            
+
             # Start a second server to verify reuse
             second = self.run([str(self.exe), "dashboard", "--port", "0", "--no-browser"])
             assert second.returncode == 0, second.stderr[-300:]
@@ -349,7 +352,7 @@ class Smoke:
             stopped = self.run([str(self.exe), "dashboard", "--stop"])
             if stopped.returncode != 0 or "dashboard stopped" not in stopped.stdout.lower():
                 errors.append(f"dashboard --stop failed: rc={stopped.returncode}, stdout={stopped.stdout[-200:]}")
-            
+
             # Verify port is closed
             try:
                 base, query, port = parse_live_url(started.stdout)
@@ -357,19 +360,16 @@ class Smoke:
                     errors.append(f"port {port} still open after stop")
             except ValueError:
                 pass
-            
-            # Verify no processes (Linux only)
+
+            # No server of this binary may stay up (Linux only: it reads /proc).
             if sys.platform.startswith("linux"):
-                bin_dir = str(self.home / "bin")
-                pids = server_processes(needle="simplicio_loop.dashboard.server")
-                for pid in pids:
-                    try:
-                        exe_path = Path(f"/proc/{pid}/exe").resolve()
-                        if bin_dir in str(exe_path):
-                            errors.append(f"process {pid} still running with binary from {bin_dir}")
-                    except OSError:
-                        pass
-        
+                deadline = time.monotonic() + 5
+                while servers_of(self.exe) and time.monotonic() < deadline:
+                    time.sleep(0.1)
+                left = servers_of(self.exe)
+                if left:
+                    errors.append(f"dashboard server processes {left} are still running after --stop")
+
         if errors:
             raise AssertionError("; ".join(errors))
         return f"page and {len(refs)} static files served"
@@ -387,17 +387,17 @@ class Smoke:
         """Verify that child processes inherit a clean environment without _MEI paths."""
         if sys.platform == "win32":
             return "skipped (Windows)"
-        
+
         code = "import subprocess, os; r = subprocess.run(['/usr/bin/env'], capture_output=True, text=True); print(r.stdout)"
         result = self.run([str(self.exe), "-c", code], env={**self.env, "SIMPLICIO_LOOP_SELF_SPAWN": "1"})
         assert result.returncode == 0, result.stderr[-300:]
-        
+
         for line in result.stdout.splitlines():
             if line.startswith("LD_LIBRARY_PATH="):
                 assert "_MEI" not in line, f"Found _MEI in LD_LIBRARY_PATH: {line}"
             if line.startswith("DYLD_LIBRARY_PATH="):
                 assert "_MEI" not in line, f"Found _MEI in DYLD_LIBRARY_PATH: {line}"
-        
+
         return "environment clean"
 
     def task_is_not_a_file(self) -> str:
@@ -406,21 +406,21 @@ class Smoke:
         task_dir.mkdir()
         fix_py = task_dir / "fix.py"
         fix_py.write_text("import pathlib; pathlib.Path('RAN').touch()")
-        
+
         result = self.run([str(self.exe), str(fix_py)], cwd=task_dir)
         # Don't assert on exit code; just check RAN was not created
         ran_file = task_dir / "RAN"
         assert not ran_file.exists(), "task was executed as code; RAN file exists"
-        
+
         return "task treated as loop task, not executed"
 
 
     def run_all(self) -> list[dict[str, Any]]:
         self.check("version", self.version)
-        for name, function in (("help", self.help), 
+        for name, function in (("help", self.help),
                                ("task is not a file", self.task_is_not_a_file),
                                ("doctor stack", self.doctor), ("preflight", self.preflight),
-                               ("operators by name", self.operators), 
+                               ("operators by name", self.operators),
                                ("children environment", self.children_environment),
                                ("hot path (turbo orient + apply)", self.hot_path),
                                ("dashboard", self.dashboard),

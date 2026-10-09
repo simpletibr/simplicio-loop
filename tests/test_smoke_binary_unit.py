@@ -4,13 +4,15 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import socket
+import sys
 import tempfile
+import threading
 import zipfile
 from pathlib import Path
 
 import pytest
 
-import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import smoke_binary as sb
@@ -109,7 +111,7 @@ class TestServerProcesses:
             (proc / str(pid) / "cmdline").write_bytes(b"python3\0/path/simplicio_loop.dashboard.server\0--port\09999")
         (proc / "9999").mkdir()
         (proc / "9999" / "cmdline").write_bytes(b"some_other_process")
-        
+
         pids = sb.server_processes(proc_root=str(proc), needle="simplicio_loop.dashboard.server")
         assert sorted(pids) == [1234, 5678]
 
@@ -118,7 +120,7 @@ class TestServerProcesses:
         proc.mkdir()
         (proc / "1234").mkdir()
         (proc / "1234" / "cmdline").write_bytes(b"some_process")
-        
+
         pids = sb.server_processes(proc_root=str(proc), needle="simplicio_loop.dashboard.server")
         assert pids == []
 
@@ -131,32 +133,54 @@ class TestServerProcesses:
         proc.mkdir()
         (proc / "1234").mkdir()
         # Don't create cmdline file
-        
+
         pids = sb.server_processes(proc_root=str(proc), needle="needle")
         assert pids == []
 
 
 class TestPortIsClosed:
-    def test_port_is_closed_on_refused_connection(self):
-        # Use a high port that's unlikely to be open
-        result = sb.port_is_closed(59999, timeout=0.5)
-        assert result is True
+    def test_a_refused_port_is_closed(self):
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        assert sb.port_is_closed(port, timeout=0.5) is True
 
-    def test_port_is_closed_false_on_open_port(self, tmp_path):
-        import socket
-        sock = socket.socket()
-        try:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(("127.0.0.1", 0))
-            port = sock.getsockname()[1]
-            # This port is now open
-            result = sb.port_is_closed(port, timeout=0.5)
-            # Could be True or False depending on timing, but mainly checking it doesn't crash
-            assert isinstance(result, bool)
-        finally:
-            sock.close()
+    def test_a_listening_port_is_open(self):
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            listener.listen()
+            assert sb.port_is_closed(listener.getsockname()[1], timeout=0.3) is False
 
-    def test_retries_for_timeout(self):
-        # Should not raise, should retry
-        result = sb.port_is_closed(59999, timeout=0.1)
-        assert isinstance(result, bool)
+    def test_it_waits_for_a_server_that_is_stopping(self):
+        listener = socket.socket()
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        port = listener.getsockname()[1]
+        threading.Timer(0.3, listener.close).start()
+        assert sb.port_is_closed(port, timeout=5.0) is True
+
+
+class TestServersOf:
+    def _proc(self, root, pid, cmdline, exe):
+        (root / str(pid)).mkdir()
+        (root / str(pid) / "cmdline").write_bytes(cmdline.replace(" ", "\0").encode())
+        (root / str(pid) / "exe").symlink_to(exe)
+
+    def test_only_servers_that_run_this_binary_count(self, tmp_path):
+        mine, other = tmp_path / "mine", tmp_path / "other"
+        mine.write_text("x")
+        other.write_text("y")
+        root = tmp_path / "proc"
+        root.mkdir()
+        self._proc(root, 10, "mine -m simplicio_loop.dashboard.server --port 1", mine)
+        self._proc(root, 11, "other -m simplicio_loop.dashboard.server --port 2", other)
+        self._proc(root, 12, "mine -c pass", mine)
+        assert sb.servers_of(mine, str(root)) == [10]
+
+    def test_a_process_that_vanished_is_skipped(self, tmp_path):
+        mine = tmp_path / "mine"
+        mine.write_text("x")
+        root = tmp_path / "proc"
+        root.mkdir()
+        self._proc(root, 10, "mine -m simplicio_loop.dashboard.server", tmp_path / "gone")  # exe link is dangling
+        assert sb.servers_of(mine, str(root)) == []

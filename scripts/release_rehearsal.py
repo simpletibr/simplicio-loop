@@ -328,7 +328,7 @@ def run_rehearsal(
 
         # Step: (optional) build standalone binary using PyInstaller.
         if binary:
-            if not run_binary_step(repo, scratch, workdir, receipt, wheel_path, source_sha, rehearsal_version):
+            if not run_binary_step(repo, scratch, workdir, receipt, source_sha, rehearsal_version):
                 receipt["ok"] = False
                 receipt["reason_code"] = "binary_failed"
                 return receipt
@@ -388,13 +388,13 @@ def verify_binary_assets(out_dir: Path, version: str) -> Dict[str, Any]:
 
 
 def run_binary_step(
-    repo: Path, scratch: Path, workdir: Path, receipt: Dict[str, Any], wheel: Path, source_sha: str, version: str
+    repo: Path, scratch: Path, workdir: Path, receipt: Dict[str, Any], source_sha: str, version: str
 ) -> bool:
     """Build the standalone executable for this host and check it. Fills steps.binary.
-    
-    The new build_binary.py builds its own wheel in a private venv with PyInstaller.
-    This function runs the single build command with a deterministic environment,
-    verifies the assets, checks the executable version, and generates an SBOM.
+
+    build_binary.py builds the wheel of the scratch copy, installs it in a private venv with PyInstaller and
+    packs it. This function runs it with a deterministic environment, verifies the assets, checks the
+    executable version, and writes an SBOM.
     """
     out_dir = workdir / "binary"
     step: Dict[str, Any] = {"ok": False, "asset": None, "sha256": None, "reason": "", "commands": [],
@@ -408,9 +408,7 @@ def run_binary_step(
     commands = binary_step_commands(scratch, out_dir, workdir / "binary-work", version)
     step["commands"] = [" ".join(command) for command in commands]
     for index, command in enumerate(commands):
-        # Run the build_binary command with the deterministic environment
-        env = build_environment(os.environ, epoch)
-        done = subprocess.run(command, cwd=scratch, env=env, stdin=subprocess.DEVNULL, capture_output=True,
+        done = subprocess.run(command, cwd=scratch, env=build_environment(os.environ, epoch), stdin=subprocess.DEVNULL, capture_output=True,
                               text=True, timeout=3600)
         step["returncodes"].append(done.returncode)
         if done.returncode != 0:
