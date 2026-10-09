@@ -52,20 +52,30 @@ effects require an explicit flag), see [`docs/INSTALL_MUTATIONS.md`](docs/INSTAL
 
 (or `codex exec`, `gemini -p`, `aider --message`, etc. — see your runtime's adapter.)
 
-## 3.1. Login, update, and check the install
-
-Sign in to share your login with the optional Simplicio Runtime:
+## 3.1. Login, update, install check and doctor
 
 ```bash
-simplicio-loop login            # Google sign-in; shares the login with simplicio-runtime
-simplicio-loop auth status      # check who is logged in
-simplicio-loop logout           # sign out (requires --yes)
-simplicio-loop doctor           # inspect stack and integration status
-simplicio-loop update           # install the latest release (--check: report only)
+simplicio-loop login            # sign in; the login is shared with the Simplicio Runtime
+simplicio-loop auth status      # who is logged in (it never prints a token)
+simplicio-loop logout --yes     # delete the shared login (this logs the Runtime out too)
+simplicio-loop update --check   # exit 0 = up to date, 10 = update available, 2 = error
+simplicio-loop update           # install the latest release
+simplicio-loop install --check  # exit 0 = install is up to date, 10 = changes are pending
+simplicio-loop doctor           # login, update, distribution, Runtime, PATH operators, disk
 ```
 
-For pip installs, `update` downloads the latest GitHub release and runs the install step.
-For source (git) checkouts, use `git pull` then `bash scripts/dev_install.sh`.
+Simplicio Loop and the Simplicio Runtime use one login. Both programs read and write the file
+`~/.simplicio/login.json`. If both are installed, you sign in one time.
+`simplicio-loop login` runs the Runtime sign-in and then checks the file.
+Without the Runtime, a standalone sign-in is UNVERIFIED. The command then prints how to install the Runtime.
+Before a token refresh, Loop takes a lock on `login.lock` next to the file and reads the file again.
+This prevents two programs from refreshing the same rotating token.
+
+`simplicio-loop update` acts by how you installed Loop. A pip install gets the release wheel.
+A git checkout must use `git pull` and `bash scripts/dev_install.sh`.
+A binary downloads the release file for your system and `SHA256SUMS`, checks the SHA256 before it changes anything,
+and keeps the old file as `<name>.bak`. The release file is named
+`simplicio-loop-v<version>-<os>-<arch>` (`.exe` on Windows). `simplicio-loop doctor` shows how you installed Loop.
 
 ## 4. Token economy (no wiring needed)
 
