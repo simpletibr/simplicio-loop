@@ -141,8 +141,11 @@ def index_argv(binary: str, resolved: str) -> list:
     """One command line that maps ``resolved`` overlay-first and indexes only as a fallback.
 
     The detached orient path (`cli_impl._ensure_project_map_bounded`) needs a single process it can
-    poll and kill as a group, so the fallback lives here instead of in the caller.
+    poll and kill as a group, so the fallback lives in a tiny module run with ``python -m``. A frozen
+    or compiled build cannot ``-m`` itself: there the detached path keeps the plain full index.
     """
+    if getattr(sys, "frozen", False) or "__compiled__" in globals():
+        return [binary, "index", resolved, "--json"]
     return [sys.executable, "-m", "simplicio_loop.map_service_mapper", binary, resolved]
 
 

@@ -147,3 +147,8 @@ def test_an_overlay_that_answers_ok_but_wrote_nothing_does_not_replace_the_index
     assert envelope["schema"] == "simplicio.mapper-index/v1"
     result = subprocess.run(msm.index_argv(str(script), str(repo.resolve())), capture_output=True, text=True)
     assert json.loads(result.stdout)["schema"] == "simplicio.mapper-index/v1"
+
+
+def test_a_frozen_build_keeps_the_plain_index_for_the_detached_path(monkeypatch):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    assert msm.index_argv("/bin/simplicio-mapper", "/repo") == ["/bin/simplicio-mapper", "index", "/repo", "--json"]
