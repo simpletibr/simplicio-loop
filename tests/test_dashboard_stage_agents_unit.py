@@ -583,3 +583,158 @@ def test_concurrent_polls_of_one_run_read_the_events_once_and_get_the_same_view(
     for thread in threads:
         thread.join(10)
     assert reader.calls == 1 and len(results) == 8 and all(r == results[0] for r in results)
+
+
+# --- review of #1562: gaps the mutation run found in the cache and the others row -----------------------------------------
+def test_the_others_row_sums_the_output_tokens_of_the_folded_groups_too():
+    events = [_tok(i + 1, HAIKU, 100 + i, 7 + i, phase='p%d' % i, lane='l%d' % i, task_id='t%d' % i, iteration=i)
+              for i in range(TOP + 5)]
+    breakdown = stage_agents.view(events, PRICES)['breakdown']
+    for dim in DIMS:
+        assert sum(row['tokens_out'] for row in breakdown[dim]) == sum(7 + i for i in range(TOP + 5)), dim
+        assert breakdown[dim][-1]['tokens_out'] > 0 and breakdown[dim][-1]['tokens'] == (
+            breakdown[dim][-1]['tokens_in'] + breakdown[dim][-1]['tokens_out']), dim
+
+
+def test_an_append_that_restores_the_mtime_still_invalidates_by_size(run_dir):
+    reader = _Reader()
+    stage_agents.run_view(run_dir, PRICES, read=reader)
+    stream = run_dir / 'events.jsonl'
+    before = stream.stat()
+    with stream.open('a', encoding='utf-8') as fh:
+        fh.write('{"seq": 2}\n')
+    os.utime(stream, ns=(before.st_atime_ns, before.st_mtime_ns))
+    stage_agents.run_view(run_dir, PRICES, read=reader)
+    assert reader.calls == 2
+
+
+def test_a_same_size_rewrite_in_place_that_restores_the_mtime_still_invalidates(run_dir):
+    reader = _Reader()
+    stage_agents.run_view(run_dir, PRICES, read=reader)
+    stream = run_dir / 'events.jsonl'
+    before = stream.stat()
+    with stream.open('r+b') as fh:
+        fh.write(b'{"seq": 9}\n')
+    after = stream.stat()
+    assert after.st_size == before.st_size and after.st_ino == before.st_ino
+    os.utime(stream, ns=(before.st_atime_ns, before.st_mtime_ns))
+    stage_agents.run_view(run_dir, PRICES, read=reader)
+    assert reader.calls == 2
+
+
+def test_two_run_dirs_with_identical_events_never_share_an_entry(tmp_path):
+    stage_agents.clear_cache()
+    first, second = tmp_path / 'run-a', tmp_path / 'run-b'
+    for run in (first, second):
+        run.mkdir()
+        (run / 'events.jsonl').write_text('{"seq": 1}\n', encoding='utf-8')
+    stat = (first / 'events.jsonl').stat()
+    os.utime(second / 'events.jsonl', ns=(stat.st_atime_ns, stat.st_mtime_ns))
+    a = _Reader([_tok(1, HAIKU, 111, 0, task_id='A')])
+    b = _Reader([_tok(1, HAIKU, 222, 0, task_id='B')])
+    view_a = stage_agents.run_view(first, PRICES, read=a)
+    view_b = stage_agents.run_view(second, PRICES, read=b)
+    assert [r['key'] for r in view_a['breakdown']['by_task']] == ['A'] and [r['key'] for r in view_b['breakdown']['by_task']] == ['B']
+    assert stage_agents.run_view(first, PRICES, read=a) is view_a and stage_agents.run_view(second, PRICES, read=b) is view_b
+    assert (a.calls, b.calls) == (1, 1)
+    stage_agents.clear_cache()
+
+
+def test_a_failing_read_is_not_cached_and_does_not_hold_the_lock(run_dir):
+    class Boom(Exception):
+        pass
+
+    def failing(path):
+        raise Boom()
+
+    with pytest.raises(Boom):
+        stage_agents.run_view(run_dir, PRICES, read=failing)
+    with pytest.raises(Boom):
+        stage_agents.run_view(run_dir, PRICES, read=failing)
+    reader, results = _Reader(), []
+    thread = threading.Thread(target=lambda: results.append(stage_agents.run_view(run_dir, PRICES, read=reader)))
+    thread.start()
+    thread.join(5)
+    assert not thread.is_alive() and reader.calls == 1 and results[0]['breakdown']['by_task'][0]['key'] == 'T1'
+    good = stage_agents.run_view(run_dir, PRICES, read=reader)
+    with run_dir.joinpath('events.jsonl').open('a', encoding='utf-8') as fh:
+        fh.write('{"seq": 2}\n')
+    with pytest.raises(Boom):
+        stage_agents.run_view(run_dir, PRICES, read=failing)
+    assert stage_agents.run_view(run_dir, PRICES, read=reader) is not good and reader.calls == 2
+
+
+def test_a_slow_run_does_not_block_another_run(tmp_path):
+    stage_agents.clear_cache()
+    slow, fast = tmp_path / 'slow', tmp_path / 'fast'
+    for run in (slow, fast):
+        run.mkdir()
+        (run / 'events.jsonl').write_text('{"seq": 1}\n', encoding='utf-8')
+    gate, started = threading.Event(), threading.Event()
+
+    def blocked(path):
+        started.set()
+        gate.wait(10)
+        return [_tok(1, HAIKU, 1, 0)]
+
+    worker = threading.Thread(target=lambda: stage_agents.run_view(slow, PRICES, read=blocked))
+    worker.start()
+    assert started.wait(5)
+    done = []
+    other = threading.Thread(target=lambda: done.append(stage_agents.run_view(fast, PRICES, read=_Reader())))
+    other.start()
+    other.join(3)
+    finished = not other.is_alive()
+    gate.set()
+    worker.join(10)
+    stage_agents.clear_cache()
+    assert finished and len(done) == 1
+
+
+def test_a_stream_that_grows_while_it_is_read_is_read_again_on_the_next_poll(run_dir):
+    class Growing(_Reader):
+        def __call__(self, path):
+            events = super().__call__(path)
+            if self.calls == 1:
+                with (run_dir / 'events.jsonl').open('a', encoding='utf-8') as fh:
+                    fh.write('{"seq": 2}\n')
+            return events
+
+    reader = Growing()
+    stage_agents.run_view(run_dir, PRICES, read=reader)
+    stage_agents.run_view(run_dir, PRICES, read=reader)
+    assert reader.calls == 2
+    stage_agents.run_view(run_dir, PRICES, read=reader)
+    assert reader.calls == 2
+
+
+def test_the_cache_evicts_the_least_recently_used_run_first(tmp_path):
+    stage_agents.clear_cache()
+    runs = []
+    for i in range(stage_agents.CACHE_MAX + 1):
+        run = tmp_path / ('run-%d' % i)
+        run.mkdir()
+        (run / 'events.jsonl').write_text('{"seq": 1}\n', encoding='utf-8')
+        runs.append(run)
+    reader = _Reader()
+    for run in runs[:stage_agents.CACHE_MAX]:
+        stage_agents.run_view(run, PRICES, read=reader)
+    stage_agents.run_view(runs[0], PRICES, read=reader)
+    stage_agents.run_view(runs[-1], PRICES, read=reader)
+    calls = reader.calls
+    stage_agents.run_view(runs[0], PRICES, read=reader)
+    assert reader.calls == calls
+    stage_agents.run_view(runs[1], PRICES, read=reader)
+    assert reader.calls == calls + 1
+    stage_agents.clear_cache()
+
+
+def test_two_run_dirs_with_the_same_name_under_different_parents_never_share_an_entry(tmp_path, monkeypatch):
+    stage_agents.clear_cache()
+    monkeypatch.setattr(stage_agents, '_stamp', lambda run_dir: (('events.jsonl', 1, 11, 1, 1),))  # the same stat everywhere
+    first, second = tmp_path / 'repo-a' / 'loop-runs' / 'big-1', tmp_path / 'repo-b' / 'loop-runs' / 'big-1'
+    a, b = _Reader([_tok(1, HAIKU, 111, 0, task_id='A')]), _Reader([_tok(1, HAIKU, 222, 0, task_id='B')])
+    assert stage_agents.run_view(first, PRICES, read=a)['breakdown']['by_task'][0]['key'] == 'A'
+    assert stage_agents.run_view(second, PRICES, read=b)['breakdown']['by_task'][0]['key'] == 'B'
+    assert stage_agents.run_view(first, PRICES, read=a)['breakdown']['by_task'][0]['key'] == 'A' and (a.calls, b.calls) == (1, 1)
+    stage_agents.clear_cache()

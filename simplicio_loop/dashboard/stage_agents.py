@@ -313,11 +313,13 @@ _CACHE_LOCK = threading.Lock()
 
 
 def _stamp(run_dir: Any) -> tuple | None:
-    '''(name, inode, size, mtime) of the run's live event files, or None when it has no live stream (nothing to key on).'''
+    '''(name, inode, size, mtime, ctime) of the run's live event files, or None when it has no live stream (nothing to key on).
+
+    The ctime cannot be set from user space, so a same-size rewrite that restores the mtime still changes the key.'''
     try:
         with os.scandir(run_dir) as entries:
             stats = [(e.name, e.stat()) for e in entries if _STREAM_FILE.fullmatch(e.name) and e.is_file()]
-        files = sorted((name, st.st_ino, st.st_size, st.st_mtime_ns) for name, st in stats)
+        files = sorted((name, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns) for name, st in stats)
     except OSError:
         return None
     return tuple(files) if any(name == 'events.jsonl' for name, *_ in files) else None
@@ -326,7 +328,7 @@ def _stamp(run_dir: Any) -> tuple | None:
 def run_view(run_dir: Any, prices: dict[str, Any] | None, read: Any = None) -> dict[str, Any]:
     '''view() of a run's events, memoized per run directory while the live event files are unchanged.
 
-    The key is the run dir plus the stat of its events files (name, inode, size, mtime) and the price table, taken before
+    The key is the run dir plus the stat of its events files (name, inode, size, mtime, ctime) and the price table, taken before
     the events are read, so a file that grows during the read is read again on the next poll. Concurrent polls of one run
     share one computation. A run with no live stream, or one rebuilt from other files (``derived``), is never cached.
     The cache holds CACHE_MAX runs; the returned dict is shared, so callers must not mutate it.'''
