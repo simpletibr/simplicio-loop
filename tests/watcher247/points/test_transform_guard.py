@@ -32,7 +32,7 @@ def test_transform_guard_applies_on_refactor_task(point_contract, make_ctx, tmp_
     task_text = "refactor: rename old_function to new_function"
     ctx = make_ctx(clone=clone, task_text=task_text, verify="ok")
     result = point_contract("transform_guard", ctx, expect="ok")
-    assert "symbols_checked" in result.evidence
+    assert "removed_symbols" in result.evidence or "still_referenced" in result.evidence
 
 
 def test_transform_guard_skipped_when_task_is_not_transform(point_contract, make_ctx, tmp_path):

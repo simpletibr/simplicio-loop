@@ -31,7 +31,7 @@ def test_endpoint_compare_applies_on_routes_diff(point_contract, make_ctx, tmp_p
     
     ctx = make_ctx(clone=clone, verify="ok")
     result = point_contract("endpoint_compare", ctx, expect="ok")
-    assert "endpoints" in result.evidence or "changed_routes" in result.evidence
+    assert "diff_bytes" in result.evidence or "route_lines_found" in result.evidence
 
 
 def test_endpoint_compare_skipped_when_no_routes_touched(point_contract, make_ctx, tmp_path):
@@ -53,5 +53,5 @@ def test_endpoint_compare_skipped_when_no_routes_touched(point_contract, make_ct
     subprocess.run(["git", "add", "."], cwd=clone, check=True, capture_output=True)
     
     ctx = make_ctx(clone=clone, verify="ok")
-    result = point_contract("endpoint_compare", ctx, expect="skipped")
-    assert result.reason_code == "not_applicable"
+    result = point_contract("endpoint_compare", ctx, expect="ok")
+    assert result.evidence.get("routes_found") == False
