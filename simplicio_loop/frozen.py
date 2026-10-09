@@ -28,10 +28,12 @@ import os
 import re
 import runpy
 import shutil
+import signal
 import stat
 import subprocess
 import sys
 import tempfile
+import threading
 from importlib import metadata
 from pathlib import Path
 from typing import Mapping, MutableMapping, Optional, Sequence
@@ -139,23 +141,35 @@ def _private_directory(path: Path, *, leaf: bool) -> None:
 
     The leaf must be exactly 0700. A parent can be the state directory that other code of the loop
     made with a 002 umask, so it only loses the write bits of the group and others.
+    On POSIX the directory is opened once with O_NOFOLLOW and checked and changed through that
+    descriptor, so a swap of the path for a symbolic link cannot redirect the chmod.
     """
     try:
         os.mkdir(path, 0o700)  # the umask can only close it further
     except FileExistsError:
         pass
-    info = os.lstat(path)
-    if stat.S_ISLNK(info.st_mode):
-        raise UnsafeDirectory(f"{path} is a symbolic link")
-    if not stat.S_ISDIR(info.st_mode):
-        raise UnsafeDirectory(f"{path} is not a directory")
-    if os.name == "nt":
+    if os.name == "nt":  # no owner or mode checks there
+        info = os.lstat(path)
+        if stat.S_ISLNK(info.st_mode):
+            raise UnsafeDirectory(f"{path} is a symbolic link")
+        if not stat.S_ISDIR(info.st_mode):
+            raise UnsafeDirectory(f"{path} is not a directory")
         return
-    if info.st_uid != os.geteuid():
-        raise UnsafeDirectory(f"{path} belongs to another user")
-    wanted = 0o700 if leaf else stat.S_IMODE(info.st_mode) & ~0o022
-    if stat.S_IMODE(info.st_mode) != wanted:
-        os.chmod(path, wanted)
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError as error:
+        if os.path.islink(path):
+            raise UnsafeDirectory(f"{path} is a symbolic link") from error
+        raise UnsafeDirectory(f"{path} is not a directory: {error.strerror}") from error
+    try:
+        info = os.fstat(descriptor)
+        if info.st_uid != os.geteuid():
+            raise UnsafeDirectory(f"{path} belongs to another user")
+        wanted = 0o700 if leaf else stat.S_IMODE(info.st_mode) & ~0o022
+        if stat.S_IMODE(info.st_mode) != wanted:
+            os.fchmod(descriptor, wanted)
+    finally:
+        os.close(descriptor)
 
 
 def _purge(directory: Path, keep: set[str]) -> None:
@@ -195,10 +209,35 @@ def ensure_operator_dir(executable: os.PathLike[str] | str, home: Path) -> Path:
     return directory
 
 
+def _remove_on_signal(directory: Path, signals: Sequence[int]) -> None:
+    """Remove ``directory`` when one of ``signals`` ends the program, then let the signal act as before.
+
+    A signal that kills the process (SIGTERM, which ``dashboard --stop`` sends) does not run atexit.
+    A signal that was ignored stays ignored. Only the main thread can set a handler.
+    """
+    if threading.current_thread() is not threading.main_thread():
+        return
+    for number in signals:
+        previous = signal.getsignal(number)
+        if previous == signal.SIG_IGN:
+            continue
+
+        def handler(received, frame, previous=previous):
+            shutil.rmtree(directory, ignore_errors=True)
+            signal.signal(received, previous if previous is not None else signal.SIG_DFL)
+            if callable(previous):
+                previous(received, frame)  # SIGINT: KeyboardInterrupt, as without this handler
+            else:
+                os.kill(os.getpid(), received)  # SIG_DFL: the process dies from the signal
+
+        signal.signal(number, handler)
+
+
 def _temporary_operator_dir(executable: os.PathLike[str] | str) -> Path:
-    """A new private directory with the links, removed when the program ends."""
+    """A new private directory with the links, removed when the program ends or a signal stops it."""
     directory = Path(tempfile.mkdtemp(prefix="simplicio-loop-bin-"))  # random name, mode 0700
     atexit.register(shutil.rmtree, directory, True)
+    _remove_on_signal(directory, (signal.SIGTERM, signal.SIGINT))
     path = Path(os.path.abspath(executable))
     for name in _link_names():
         _link(directory / name, path)

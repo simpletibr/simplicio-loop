@@ -4,10 +4,12 @@ from __future__ import annotations
 import importlib
 import os
 import shutil
+import signal
 import stat
 import subprocess
 import sys
 import tempfile
+import time
 import tomllib
 import types
 from importlib import metadata
@@ -524,3 +526,84 @@ def test_an_environment_given_as_a_positional_argument_is_left_alone(monkeypatch
     env = {"LD_LIBRARY_PATH": BUNDLE}
     subprocess.Popen(["/opt/simplicio-loop"], -1, None, None, None, None, None, True, False, None, env)
     assert seen == [env]
+
+
+# --- the temporary link directory goes away when the program is stopped by a signal ---------------
+
+CHILD = """
+import signal, sys, time
+sys.path.insert(0, {root!r})
+from simplicio_loop import frozen
+{pre}
+print(frozen._temporary_operator_dir({exe!r}), flush=True)
+print("ready", flush=True)
+time.sleep(60)
+"""
+
+
+def _run_until_ready(tmp_path, fake_exe, pre=""):
+    process = subprocess.Popen(
+        [sys.executable, "-c", CHILD.format(root=str(ROOT), exe=str(fake_exe), pre=pre)],
+        stdout=subprocess.PIPE, text=True, env={**os.environ, "TMPDIR": str(tmp_path)})
+    directory = Path(process.stdout.readline().strip())
+    assert process.stdout.readline().strip() == "ready"
+    assert directory.is_dir()
+    return process, directory
+
+
+@posix_only
+@pytest.mark.parametrize("signum", [signal.SIGTERM, signal.SIGINT])
+def test_a_signal_removes_the_temporary_directory(tmp_path, fake_exe, signum):
+    """`dashboard --stop` sends SIGTERM. atexit does not run for a signal that kills the process."""
+    process, directory = _run_until_ready(tmp_path, fake_exe)
+    process.send_signal(signum)
+    process.wait(timeout=30)
+    assert not directory.exists()
+    if signum == signal.SIGTERM:
+        assert process.returncode == -signal.SIGTERM  # the program still dies from the signal
+
+
+@posix_only
+def test_a_signal_that_was_ignored_stays_ignored(tmp_path, fake_exe):
+    process, directory = _run_until_ready(tmp_path, fake_exe, pre="signal.signal(signal.SIGTERM, signal.SIG_IGN)")
+    process.send_signal(signal.SIGTERM)
+    time.sleep(0.5)
+    assert process.poll() is None and directory.is_dir()  # still running: the signal is ignored
+    process.kill()
+    process.wait(timeout=30)
+    shutil.rmtree(directory, ignore_errors=True)
+
+
+@pytest.fixture(autouse=True)
+def _keep_signal_handlers(monkeypatch):
+    """_temporary_operator_dir sets SIGTERM and SIGINT handlers in the test process: put them back."""
+    saved = {number: signal.getsignal(number) for number in (signal.SIGTERM, signal.SIGINT)}
+    yield
+    for number, handler in saved.items():
+        signal.signal(number, handler)
+
+
+# --- the check and the chmod must act on the same directory ---------------------------------------
+
+
+@posix_only
+def test_a_path_swapped_for_a_symlink_after_the_check_is_not_chmodded_through(tmp_path, monkeypatch):
+    """lstat(path) and then chmod(path) are two lookups: a swap between them makes chmod follow the link.
+
+    The test makes lstat answer as it did before the swap. The directory behind the link must keep its mode.
+    """
+    target = tmp_path / "victim"
+    target.mkdir()
+    target.chmod(0o777)
+    decoy = tmp_path / "decoy"
+    decoy.mkdir()
+    decoy.chmod(0o777)
+    link = tmp_path / "leaf"
+    link.symlink_to(target)
+    real_lstat = os.lstat
+    monkeypatch.setattr(frozen.os, "lstat", lambda path, **kw: real_lstat(decoy if Path(path) == link else path, **kw))
+
+    with pytest.raises(frozen.UnsafeDirectory):
+        frozen._private_directory(link, leaf=True)
+
+    assert stat.S_IMODE(target.stat().st_mode) == 0o777

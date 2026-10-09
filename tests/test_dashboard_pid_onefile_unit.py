@@ -73,9 +73,14 @@ def test_without_a_health_answer_the_spawned_pid_is_kept(tmp_path, monkeypatch):
     assert runs.read_state_file()['pid'] == BOOTLOADER_PID
 
 
+@pytest.mark.parametrize('platform', ['linux', 'darwin', 'win32'])
 @pytest.mark.parametrize('reported', [True, 1, 0, -5, '222', 222.0, None])
-def test_a_pid_that_cannot_be_the_server_is_never_recorded(tmp_path, monkeypatch, reported):
-    """--stop sends SIGTERM to the recorded pid. True is 1 for os.kill, and pid 1 is init."""
+def test_a_pid_that_cannot_be_the_server_is_never_recorded(tmp_path, monkeypatch, reported, platform):
+    """--stop sends SIGTERM to the recorded pid. True is 1 for os.kill, and pid 1 is init.
+
+    The parent check reads /proc and runs on Linux only, so the other systems rely on this rule alone.
+    """
+    monkeypatch.setattr(cli.sys, 'platform', platform)
     monkeypatch.setattr(cli, '_health', lambda port: {'pid': reported})
 
     cli.main(['--port', '0', '--no-browser', '--repo', str(tmp_path)])
