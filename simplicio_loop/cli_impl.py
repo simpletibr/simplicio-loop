@@ -2978,6 +2978,11 @@ def main(argv=None) -> int:
     p_verify.add_argument("--repo", default=".", help="repository root")
     p_verify.add_argument("run_id", help="run id to verify")
 
+    p_watch247 = sub.add_parser("watch247", help="run the 24/7 watcher for simplicio-* repos")
+    p_watch247.add_argument("--once", action="store_true", help="run one tick and exit")
+    p_watch247.add_argument("--dry-run", action="store_true", help="simulate without mutations")
+    p_watch247.add_argument("--state-dir", help="override state directory")
+
     p_progress = sub.add_parser("progress", help="render visual progress for a run")
     p_progress.add_argument("--repo", default=".", help="repository root")
     p_progress.add_argument("run_id", nargs="?", help="run id to render (legacy positional form)")
@@ -3319,6 +3324,13 @@ def main(argv=None) -> int:
         return economy_command(args)
     if command == "verify":
         return verify(args.repo, args.run_id)
+    if command == "watch247":
+        import asyncio
+        from .watcher247 import config as watcher247_config
+        from .watcher247.__main__ import main as watcher247_main
+        if args.state_dir:
+            watcher247_config.set_state_dir(args.state_dir)
+        return asyncio.run(watcher247_main(once=args.once, dry_run=args.dry_run))
     if command == "progress":
         run_id = args.run_id or args.run_flag
         # An omitted run id means the latest run in --repo, matching the

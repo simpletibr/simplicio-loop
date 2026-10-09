@@ -8,15 +8,39 @@ FAIL rather than depending on whatever happens to be installed on the box runnin
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCTOR = os.path.join(REPO, "scripts", "doctor.py")
+_EXEC_CLIS = ("claude", "codex", "grok", "gemini")
+
+
+def _fake_cli_path(tmp_path):
+    """Build a PATH where the exec CLIs (chk_exec_clis) are fakes that write a marker file.
+
+    The real CLIs (e.g. /root/.local/bin/claude) are never on this PATH: it holds the fake dir,
+    the interpreter's dir, git's dir and the minimal system dirs.
+    """
+    fake_bin = tmp_path / "fake-cli-bin"
+    markers = tmp_path / "fake-cli-markers"
+    fake_bin.mkdir(exist_ok=True)
+    markers.mkdir(exist_ok=True)
+    for name in _EXEC_CLIS:
+        script = fake_bin / name
+        script.write_text(f'#!/bin/sh\n: > "{markers}/{name}"\nexit 1\n')
+        script.chmod(0o755)
+    git = shutil.which("git")
+    dirs = [str(fake_bin), os.path.dirname(sys.executable), "/usr/bin", "/bin"]
+    if git:
+        dirs.insert(2, os.path.dirname(git))
+    return os.pathsep.join(dict.fromkeys(dirs)), fake_bin, markers
 
 
 def _run_doctor(args, tmp_path, extra_env=None):
     env = dict(os.environ)
+    env["PATH"] = _fake_cli_path(tmp_path)[0]
     env["HOME"] = str(tmp_path)
     # pathlib.Path.home() on Windows follows USERPROFILE/HOMEDRIVE/HOMEPATH,
     # not only HOME. Override all home selectors so the fresh-home fixture is
@@ -52,6 +76,22 @@ def test_doctor_json_mode_is_well_formed_and_never_crashes(tmp_path):
         assert it["tier"] in ("REQUIRED", "RECOMMENDED", "OPTIONAL"), it
         assert it["status"] in ("ok", "warn", "fail"), it
         assert "repair" not in it, "the fixer callable must never leak into --json output"
+
+
+def test_doctor_never_executes_real_exec_clis(tmp_path):
+    # chk_exec_clis spawns `claude auth status` / `codex login status`. Under the smoke test's
+    # PATH those resolve to the fakes (which drop a marker), never to the real binaries.
+    path, fake_bin, markers = _fake_cli_path(tmp_path)
+    for name in _EXEC_CLIS:
+        assert shutil.which(name, path=path) == str(fake_bin / name)
+    r = _run_doctor(["--json"], tmp_path)
+    items = json.loads(r.stdout)
+    cli_item = next(it for it in items if it["name"] == "exec CLIs auth")
+    assert cli_item["msg"] == (
+        "4 unauthenticated: login_missing:claude, login_missing:codex,"
+        " login_missing:grok, login_missing:gemini"
+    ), cli_item
+    assert sorted(p.name for p in markers.iterdir()) == ["claude", "codex"]
 
 
 def test_doctor_python_check_always_ok(tmp_path):

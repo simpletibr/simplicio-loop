@@ -182,7 +182,7 @@ def test_a_provider_run_registers_the_state_directory_too(tmp_path, monkeypatch,
     repo = _repo(tmp_path, b"*.log\n")
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
 
-    def fake_complete(arm, messages, **kwargs):
+    async def fake_complete(arm, messages, **kwargs):
         plan = {"operations": [{"path": "app.py", "find": "x = 1", "replace": "x = 2"}]}
         return {"ok": True, "content": json.dumps(plan), "prompt_tokens": 10, "completion_tokens": 5}
 
