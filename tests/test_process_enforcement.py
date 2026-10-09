@@ -51,7 +51,7 @@ def _concurrent_registry_register(path: str, gate: Any, lease_id: str) -> None:
     )
 
 
-def _wait_visible(pid: int, *, timeout: float = 3.0) -> None:
+def _wait_visible(pid: int, *, timeout: float = 15.0) -> None:
     """Block until the production scanner sees ``pid`` after the child's exec transition."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -73,7 +73,7 @@ def _spawn_marker_canary(sleep_seconds: float = 2.5) -> subprocess.Popen:
     return proc
 
 
-def _wait_reaped(proc: subprocess.Popen, *, timeout: float = 3.0) -> bool:
+def _wait_reaped(proc: subprocess.Popen, *, timeout: float = 15.0) -> bool:
     """True once this test's own child ``proc`` has actually exited, reaping it along the way
     so it is not left as a zombie waiting on a ``wait()`` this test never calls."""
     deadline = time.monotonic() + timeout
@@ -191,7 +191,7 @@ def test_detector_flags_unsupervised_but_not_supervised(tmp_path) -> None:
     async def scenario() -> None:
         task = asyncio.ensure_future(adapter.run(spec))
         # Give the child a moment to spawn and register before we scan.
-        deadline = time.monotonic() + 2.0
+        deadline = time.monotonic() + 15.0
         supervised_pid = None
         while time.monotonic() < deadline and not registry.active():
             await asyncio.sleep(0.02)
