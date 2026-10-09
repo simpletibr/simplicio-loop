@@ -38,6 +38,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `status` | Inspect the latest or a selected run. |
 | `stack lock/verify` | Create or verify an installed-stack lock. |
 | `doctor` | Inspect stack identity, source adapters, or storage routing. |
+| `doctor mapper` | Check that the installed `simplicio_mapper` is the expected build (origin, state dir, source commit); each blocker names a `reason_code` and a `fix`. |
 | `inspect` | Inspect MapperStore capabilities and storage routing. |
 | `map` | Inspect or build map-service receipts. |
 | `preflight` | Verify the Mapper and Dev CLI operators. |

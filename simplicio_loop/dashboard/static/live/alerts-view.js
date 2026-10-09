@@ -4,6 +4,7 @@
 import { setAttr, setText } from '/static/live/lanes.js';
 
 const SEVERITY_LABEL = { critical: 'Crítico', warning: 'Aviso' };
+const PROOF_LABEL = { estimado: 'Estimado', medido: 'Medido' };
 const NONE = 'Nenhum alerta ativo.';
 
 function row(alert, handlers) {
@@ -12,6 +13,9 @@ function row(alert, handlers) {
   const severity = document.createElement('span');
   setAttr(severity, 'data-severity', alert.severity);
   setText(severity, SEVERITY_LABEL[alert.severity] || alert.severity);
+  const proof = document.createElement('span');
+  setAttr(proof, 'data-proof', alert.proof_kind || '');
+  setText(proof, PROOF_LABEL[alert.proof_kind] || '');
   const heading = document.createElement('strong');
   setText(heading, alert.heading);
   const why = document.createElement('p');
@@ -31,7 +35,7 @@ function row(alert, handlers) {
   setAttr(silence, 'aria-label', 'Silenciar 1 hora: ' + alert.heading);
   silence.addEventListener('click', () => handlers.silence(alert));
   actions.append(silence);
-  item.append(severity, heading, why, actions);
+  item.append(severity, proof, heading, why, actions);
   return item;
 }
 

@@ -31,3 +31,13 @@ def resolve(family: str, role: str) -> dict[str, str]:
         raise ModelRoleError('unknown role: %s' % role)
     entry = families[family][role]
     return {'model': entry['model'], 'effort': entry['effort']}
+
+
+def role_of(model: str) -> dict[str, str] | None:
+    '''The {"role", "effort"} the table gives a model ID in any family, or None when no family lists it.'''
+    for family in _table()['families'].values():
+        for role in ROLES:
+            entry = family[role]
+            if entry['model'] == model:
+                return {'role': role, 'effort': entry['effort']}
+    return None
