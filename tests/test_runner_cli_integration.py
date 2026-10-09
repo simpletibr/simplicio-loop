@@ -23,6 +23,7 @@ from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLI = [sys.executable, "-m", "simplicio_loop.cli"]
@@ -86,9 +87,7 @@ def test_repo_state_equivalent_ignores_dirty_status_noise_when_tree_is_stable():
 
 
 def test_plan_relevant_changed_paths_ignores_loop_owned_storage(monkeypatch, tmp_path):
-    monkeypatch.setattr(
-        runner_mod,
-        "_changed_paths",
+    patch_runner(monkeypatch, "_changed_paths",
         lambda _repo: [
             ".simplicio-loop/events.jsonl",
             ".simplicio-loop/loop-runs/run-1/state.json",
@@ -1208,7 +1207,7 @@ def test_direct_tick_reuses_run_authority_attempt_after_prior_task(tmp_path, mon
             }
         }
 
-    monkeypatch.setattr(runner_mod, "_execute_operator_unleased", fake_unleased)
+    patch_runner(monkeypatch, "_execute_operator_unleased", fake_unleased)
     runner_mod.execute_operator(str(repo), run_id, task_index=1)
 
     assert captured["authority_attempt"] == 1
@@ -1734,9 +1733,7 @@ def _setup_deterministic_preflight_fixture(
     monkeypatch.setattr(runner_mod, "_run_id", lambda: "run-fixed")
     patch_runner(monkeypatch, "_rand_token", lambda size: "token-fixed")
     patch_runner(monkeypatch, "_repo_fingerprint", lambda path: dict(fingerprint))
-    monkeypatch.setattr(
-        runner_mod,
-        "_changed_paths",
+    patch_runner(monkeypatch, "_changed_paths",
         lambda path: (
             ["src/app.py"]
             if (Path(path) / "src" / "app.py").read_text(encoding="utf-8")

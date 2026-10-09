@@ -5,13 +5,14 @@ from __future__ import annotations
 from simplicio_loop import runner
 from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 
 def test_verify_rebuilds_evidence_before_watching(tmp_path, monkeypatch):
     calls = []
     patch_runner(monkeypatch, "read_status", lambda repo, run_id: {
         "run_dir": str(tmp_path), "manifest": {"repo": str(tmp_path)}, "state": {"phase": "validating"}})
-    monkeypatch.setattr(runner, "build_evidence_receipt", lambda run_dir: calls.append("evidence") or {"run": {}})
+    patch_runner(monkeypatch, "build_evidence_receipt", lambda run_dir: calls.append("evidence") or {"run": {}})
     patch_runner(monkeypatch, "_transition", lambda *a, **k: calls.append("watching"))
 
     class Stop(Exception):
