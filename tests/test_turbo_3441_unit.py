@@ -5,6 +5,7 @@ import asyncio
 import io
 import json
 import subprocess
+from unittest.mock import AsyncMock
 
 from bench.llm_ab import llm_client as lc
 from bench.llm_ab import run as bench_run
@@ -19,7 +20,7 @@ def _repo(tmp_path, monkeypatch):
     (tmp_path / "README.md").write_text("fixture\n", encoding="utf-8")
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-qm", "seed"], cwd=tmp_path, check=True)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     (tmp_path / ".simplicio-loop").mkdir()
     (tmp_path / ".simplicio-loop" / "project-map.json").write_text('{"mark":"MAP"}', encoding="utf-8")
 
