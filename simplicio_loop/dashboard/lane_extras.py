@@ -2,8 +2,10 @@
 
 A pure reader over the run directory and its events. Every figure is what the run recorded; a figure with no record
 is absent (None or an empty list), never invented. The heartbeat of each lane comes from the backlog lease that
-scripts/task_backlog.py writes, read through the coordination reader; a lane whose lease cannot be found stays
-UNVERIFIED with the reason.
+scripts/task_backlog.py writes, read through the coordination reader, matched on the lease's own lease_id only; a lane
+whose lease cannot be found stays UNVERIFIED with the reason. Today the runner's worker_claimed lease_id is a Mapper
+OperationsStore id and task_backlog.py writes no lease_id, so in a real run every lane stays UNVERIFIED until a
+producer records that id on the backlog lease.
 '''
 from __future__ import annotations
 
@@ -24,7 +26,6 @@ COMMAND_MAX = 300
 TITLE_MAX = 160
 COMMAND_KINDS = frozenset({'test_result', 'lint_result'})
 BACKLOG_PARTS = ('orchestrator', 'backlog', 'backlog.jsonl')
-LEASE_ID_KEYS = ('lease_id', 'attempt_id', 'fencing_token', 'fence')
 NO_LANE_REASON = 'nenhuma lane com lease_id registrado'
 
 
@@ -123,14 +124,21 @@ def _lane_row(lane: str, lease_id: str, leases: list[dict[str, Any]], failure: s
     if not lease_id:
         row['reason'] = 'lane sem lease_id registrado'
         return row
-    lease = next((raw for raw in leases if lease_id in {raw.get(key) for key in LEASE_ID_KEYS}), None)
-    view = coordination._lease_view(lease, now) if lease else None
-    if failure or view is None:
+    found = [raw for raw in leases if raw.get('lease_id') == lease_id]
+    if len(found) > 1:
+        row['reason'] = f'lease {lease_id} aparece em mais de um item do backlog'
+        return row
+    view = coordination._lease_view(found[0], now) if found else None
+    if failure or not found:
         row['reason'] = failure or f'lease {lease_id} não está no backlog'
+    elif view is None:
+        row['reason'] = f'lease {lease_id} sem worker no backlog'
     elif view['age_s'] is None:
         row['reason'] = 'lease sem heartbeat_at medido'
+    elif view['age_s'] < 0:
+        row['reason'] = 'heartbeat_at no futuro do relógio'
     else:
-        row.update(state='MEASURED', heartbeat_at=view['heartbeat_at'], age_s=max(0, view['age_s']),
+        row.update(state='MEASURED', heartbeat_at=view['heartbeat_at'], age_s=view['age_s'],
                    stale=view['state'] != 'live')
     return row
 

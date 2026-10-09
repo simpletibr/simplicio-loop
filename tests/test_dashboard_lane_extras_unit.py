@@ -151,24 +151,48 @@ def _heartbeat(tmp_path, events, backlog):
 
 
 def test_a_lane_lease_maps_to_the_backlog_heartbeat_with_its_age(tmp_path):
-    backlog = _backlog(tmp_path, {'T1': _lease(30, attempt_id='attempt-abc')})
-    got = _heartbeat(tmp_path, [_claim(1, 'lane-a', 'attempt-abc')], backlog)
+    backlog = _backlog(tmp_path, {'T1': _lease(30, lease_id='lease-abc')})
+    got = _heartbeat(tmp_path, [_claim(1, 'lane-a', 'lease-abc')], backlog)
     assert got['state'] == 'PASS'
-    assert got['lanes'] == [{'lane': 'lane-a', 'lease_id': 'attempt-abc', 'state': 'MEASURED',
+    assert got['lanes'] == [{'lane': 'lane-a', 'lease_id': 'lease-abc', 'state': 'MEASURED',
                              'heartbeat_at': _utc(-30), 'age_s': 30, 'stale': False, 'reason': None}]
     assert 'lane-a' in got['reason'] and '30 s' in got['reason']
 
 
-def test_a_lease_matches_by_attempt_fence_or_lease_id(tmp_path):
-    backlog = _backlog(tmp_path, {'T1': _lease(5, attempt_id='att-1'), 'T2': _lease(70, fencing_token='fence-9-x'),
-                                  'T3': _lease(200, lease_id='lease-3')})
-    events = [_claim(1, 'lane-1', 'att-1'), _claim(2, 'lane-2', 'fence-9-x'), _claim(3, 'lane-3', 'lease-3')]
-    ages = {row['lane']: row['age_s'] for row in _heartbeat(tmp_path, events, backlog)['lanes']}
-    assert ages == {'lane-1': 5, 'lane-2': 70, 'lane-3': 200}
+def test_a_lease_matches_only_by_its_lease_id_never_by_attempt_or_fence(tmp_path):
+    """attempt_id and fence live in other namespaces (task_backlog: fence-N-uuid, attempt-uuid): never a match."""
+    backlog = _backlog(tmp_path, {'T1': _lease(10, fence='7'), 'T2': _lease(500, attempt_id='7'),
+                                  'T3': _lease(20, fencing_token='7'), 'T4': _lease(30, lease_id='lease-4')})
+    got = _heartbeat(tmp_path, [_claim(1, 'lane-a', '7'), _claim(2, 'lane-b', 'lease-4')], backlog)
+    by_lane = {row['lane']: row for row in got['lanes']}
+    assert by_lane['lane-a']['state'] == 'UNVERIFIED' and by_lane['lane-a']['age_s'] is None
+    assert by_lane['lane-a']['reason'] == 'lease 7 não está no backlog'
+    assert (by_lane['lane-b']['state'], by_lane['lane-b']['age_s']) == ('MEASURED', 30)
+
+
+def test_a_lease_id_held_by_two_items_is_ambiguous_and_unverified(tmp_path):
+    backlog = _backlog(tmp_path, {'T1': _lease(5, lease_id='dup'), 'T2': _lease(90, lease_id='dup')})
+    row = _heartbeat(tmp_path, [_claim(1, 'lane-a', 'dup')], backlog)['lanes'][0]
+    assert (row['state'], row['age_s'], row['reason']) == ('UNVERIFIED', None, 'lease dup aparece em mais de um item do backlog')
+
+
+def test_malformed_lease_values_never_crash_the_reader(tmp_path):
+    backlog = _backlog(tmp_path, {'T1': dict(_lease(5, lease_id='a1'), attempt_id=['x'], fence={'k': 1})})
+    assert _heartbeat(tmp_path, [_claim(1, 'lane-a', 'a1')], backlog)['lanes'][0]['state'] == 'MEASURED'
+    assert _heartbeat(tmp_path, [_claim(1, 'lane-a', 'zz')], backlog)['state'] == 'UNVERIFIED'
+
+
+def test_a_lease_without_a_worker_or_with_a_future_heartbeat_is_unverified_with_its_reason(tmp_path):
+    no_worker = {k: v for k, v in _lease(5, lease_id='a1').items() if k != 'worker'}
+    row = _heartbeat(tmp_path, [_claim(1, 'lane-a', 'a1')], _backlog(tmp_path, {'T1': no_worker}))['lanes'][0]
+    assert (row['state'], row['reason']) == ('UNVERIFIED', 'lease a1 sem worker no backlog')
+    future = _backlog(tmp_path, {'T1': _lease(-100, lease_id='a1')})
+    row = _heartbeat(tmp_path, [_claim(1, 'lane-a', 'a1')], future)['lanes'][0]
+    assert (row['state'], row['age_s'], row['reason']) == ('UNVERIFIED', None, 'heartbeat_at no futuro do relógio')
 
 
 def test_an_old_heartbeat_is_flagged_stale_with_the_coordination_rule(tmp_path):
-    backlog = _backlog(tmp_path, {'T1': _lease(500, ttl=900, attempt_id='a1'), 'T2': _lease(2000, ttl=900, attempt_id='a2')})
+    backlog = _backlog(tmp_path, {'T1': _lease(500, ttl=900, lease_id='a1'), 'T2': _lease(2000, ttl=900, lease_id='a2')})
     got = _heartbeat(tmp_path, [_claim(1, 'lane-a', 'a1'), _claim(2, 'lane-b', 'a2')], backlog)
     assert [(row['lane'], row['age_s'], row['stale']) for row in got['lanes']] == [
         ('lane-a', 500, True), ('lane-b', 2000, True)]
@@ -176,7 +200,7 @@ def test_an_old_heartbeat_is_flagged_stale_with_the_coordination_rule(tmp_path):
 
 
 def test_the_age_is_measured_against_the_clock_passed_in(tmp_path):
-    backlog = _backlog(tmp_path, {'T1': _lease(0, attempt_id='a1')})
+    backlog = _backlog(tmp_path, {'T1': _lease(0, lease_id='a1')})
     events = [_claim(1, 'lane-a', 'a1')]
     first = lane_extras.extras(tmp_path, events, backlog_path=backlog, now=NOW + 10)['heartbeat']['lanes'][0]
     later = lane_extras.extras(tmp_path, events, backlog_path=backlog, now=NOW + 60)['heartbeat']['lanes'][0]
@@ -184,7 +208,7 @@ def test_the_age_is_measured_against_the_clock_passed_in(tmp_path):
 
 
 def test_a_lane_without_a_lease_id_is_unverified_with_the_reason(tmp_path):
-    backlog = _backlog(tmp_path, {'T1': _lease(5, attempt_id='a1')})
+    backlog = _backlog(tmp_path, {'T1': _lease(5, lease_id='a1')})
     got = _heartbeat(tmp_path, [_claim(1, 'lane-a', '')], backlog)
     assert got['state'] == 'UNVERIFIED'
     assert got['lanes'] == [{'lane': 'lane-a', 'lease_id': None, 'state': 'UNVERIFIED', 'heartbeat_at': None,
@@ -192,7 +216,7 @@ def test_a_lane_without_a_lease_id_is_unverified_with_the_reason(tmp_path):
 
 
 def test_a_lease_missing_from_the_backlog_is_unverified_not_invented(tmp_path):
-    backlog = _backlog(tmp_path, {'T1': _lease(5, attempt_id='a1'), 'T2': {}})
+    backlog = _backlog(tmp_path, {'T1': _lease(5, lease_id='a1'), 'T2': {}})
     got = _heartbeat(tmp_path, [_claim(1, 'lane-a', 'ghost')], backlog)
     assert got['state'] == 'UNVERIFIED'
     row = got['lanes'][0]
@@ -210,13 +234,13 @@ def test_a_missing_or_broken_backlog_leaves_every_lane_unverified(tmp_path):
 
 
 def test_a_lease_without_a_parsable_heartbeat_is_unverified(tmp_path):
-    lease = dict(_lease(5, attempt_id='a1'), heartbeat_at='not a time')
+    lease = dict(_lease(5, lease_id='a1'), heartbeat_at='not a time')
     got = _heartbeat(tmp_path, [_claim(1, 'lane-a', 'a1')], _backlog(tmp_path, {'T1': lease}))
     assert got['lanes'][0]['state'] == 'UNVERIFIED' and got['lanes'][0]['reason'] == 'lease sem heartbeat_at medido'
 
 
 def test_the_latest_claim_of_a_lane_wins_by_seq_and_a_lane_is_found_through_its_task(tmp_path):
-    backlog = _backlog(tmp_path, {'T1': _lease(5, attempt_id='new'), 'T2': _lease(9, attempt_id='old')})
+    backlog = _backlog(tmp_path, {'T1': _lease(5, lease_id='new'), 'T2': _lease(9, lease_id='old')})
     unlaned = dict(_claim(9, None, 'new', task_id='T1'), lane=None)
     events = [_claim(2, 'lane-a', 'old'), dict(_event(3, 'lane_progress', {}, lane='lane-a'), task_id='T1'), unlaned]
     rows = _heartbeat(tmp_path, events, backlog)['lanes']
@@ -231,6 +255,6 @@ def test_the_backlog_defaults_to_the_orchestrator_file_next_to_loop_runs(tmp_pat
     run_dir.mkdir(parents=True)
     _backlog(root / 'orchestrator' / 'backlog', {})
     (root / 'orchestrator' / 'backlog' / 'backlog.jsonl').write_text(
-        json.dumps({'kind': 'item', 'id': 'T1', 'lease': _lease(12, attempt_id='a1')}) + '\n', encoding='utf-8')
+        json.dumps({'kind': 'item', 'id': 'T1', 'lease': _lease(12, lease_id='a1')}) + '\n', encoding='utf-8')
     got = lane_extras.extras(run_dir, [_claim(1, 'lane-a', 'a1')], now=NOW)['heartbeat']
     assert got['lanes'][0]['age_s'] == 12
