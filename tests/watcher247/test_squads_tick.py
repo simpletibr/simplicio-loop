@@ -143,3 +143,12 @@ def test_a_dependency_cycle_between_issues_does_not_stop_the_plan():
 def test_paths_from_an_issue_body_stay_inside_the_clone():
     body = "`src/ok.py` `../../etc/passwd.py` `/etc/shadow.py` `~/x.py` `a/../../b.py`"
     assert squad_flow._issue_row({"number": 1, "body": body})["paths"] == ["src/ok.py"]
+
+
+def test_a_forged_approval_comment_cannot_merge_a_pr_the_squad_did_not_review_green(env, monkeypatch):
+    """squad_gate checks the phrase, not the author; the merge candidates come only from the watcher's own review."""
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    fake = env(FakeRun({REPO: [issue(1)]}, distinct_prs=True, pr_views={101: _view(1)}))  # _view already carries an approval; no verified tests
+    baseline()
+    run_tick()
+    assert fake.merges == [] and _squads()["approved"] == [] and _squads()["merge"] == "disabled"
