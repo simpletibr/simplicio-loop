@@ -98,7 +98,8 @@ def test_a_mapper_index_timeout_kills_the_whole_process_group(tmp_path, monkeypa
 
     async def scenario():
         with pytest.raises(subprocess.TimeoutExpired):
-            await msm.run_mapper_index(str(tmp_path), timeout=0.5)
+            # Wide enough for the shell script to start and record its child on a loaded host.
+            await msm.run_mapper_index(str(tmp_path), timeout=4.0)
         return int(pidfile.read_text())
 
     child = asyncio.run(scenario())
@@ -115,12 +116,14 @@ def test_the_bounded_index_keeps_the_event_loop_running(tmp_path, monkeypatch):
 
 
 def test_a_bounded_index_over_budget_times_out_without_blocking_the_loop(tmp_path, monkeypatch):
-    _slow_index_mapper(tmp_path, monkeypatch, 1.5)
+    # A 1 s budget against a 6 s index: the loop gets many turns inside the budget even on a
+    # loaded host, and the detached index is still running when the assertions look at it.
+    _slow_index_mapper(tmp_path, monkeypatch, 6)
     repo = _git_repo(tmp_path)
 
     async def scenario():
         with pytest.raises(cli_impl.MapperIndexTimedOut):
-            await cli_impl._ensure_project_map(repo, budget=0.3)
+            await cli_impl._ensure_project_map(repo, budget=1.0)
 
     _none, ticks = asyncio.run(_ticks_during(scenario()))
     assert ticks >= 5, ticks

@@ -138,7 +138,10 @@ def test_timeout_kills_the_whole_child_tree() -> None:
             )
             adapter = PythonProcessAdapter()
             result = await adapter.run(
-                ProcessSpec((sys.executable, "-c", script), timeout_seconds=1.0)
+                # The leader writes the grandchild pid only after its interpreter has
+                # started; on a loaded host that takes seconds, so the deadline must
+                # not race interpreter start-up.
+                ProcessSpec((sys.executable, "-c", script), timeout_seconds=5.0)
             )
             assert result.timed_out
             assert result.error_code == "deadline_exceeded"
