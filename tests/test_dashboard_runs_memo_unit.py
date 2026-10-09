@@ -622,8 +622,8 @@ def test_a_run_evicted_while_it_is_computed_leaves_no_bytes_behind(tmp_path, age
     monkeypatch.setattr(runs, 'SUMMARY_CACHE_MAX', 1)
     real = runs._summarize
 
-    def let_the_other_run_take_the_slot(run_dir, repo):
-        out = real(run_dir, repo)
+    def let_the_other_run_take_the_slot(run_dir, repo, tail=None):
+        out = real(run_dir, repo, tail)
         if run_dir.name == 'a':
             runs.run_summary(_ref(second))
         return out
