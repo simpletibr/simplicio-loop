@@ -66,10 +66,37 @@ def detect_test_command(dest: Path) -> str | None:
 
 
 def turbo_argv(dest: Path, task: str, test_cmd: str | None) -> list[str]:
+    """The headless openrouter run: opt-in only (SIMPLICIO_EXECUTOR=openrouter), see host_mode."""
     argv = ["simplicio-loop", "turbo", "--repo", str(dest), "--provider", "openrouter", "--task", task]
     if test_cmd is not None:
         argv += ["--verify", test_cmd]
     return argv
+
+
+def turbo_apply_argv(dest: Path, test_cmd: str | None) -> list[str]:
+    """Host mode: dev-cli applies the plan the caller pipes on stdin (`turbo --apply -`)."""
+    argv = ["simplicio-loop", "turbo", "--repo", str(dest), "--apply", "-"]
+    if test_cmd is not None:
+        argv += ["--verify", test_cmd]
+    return argv
+
+
+def parse_turbo(stdout: str) -> dict:
+    text = (stdout or "").strip()
+    if not text:
+        return {}
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        start = text.rfind('{"schema"')
+        if start < 0:
+            start = text.rfind("{")
+        if start < 0:
+            return {"status": "failed", "detail": text[-400:]}
+        try:
+            return json.loads(text[start:])
+        except json.JSONDecodeError:
+            return {"status": "failed", "detail": text[-400:]}
 
 
 def retry_or_dead(attempts: int, max_attempts: int) -> str:

@@ -281,8 +281,12 @@ def _result(code, family, role, model, effort, started, plan=None, error=None):
     return PlannerResult(code, family, role, model, effort, plan=plan, error=error, execution_ms=(time.monotonic() - started) * 1000)
 
 
-async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_sec=KILL_GRACE_SEC):
-    """Run the planner CLI for a specific family and role."""
+async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_sec=KILL_GRACE_SEC, wrap=None, env=None):
+    """Run the planner CLI for a specific family and role.
+
+    ``wrap`` maps the argv to the argv actually spawned (the watcher passes its sandbox); the default is the identity.
+    ``env`` is the whole environment of the subprocess; the default inherits the caller's.
+    """
     started = time.monotonic()
     try:
         resolved = model_roles.resolve(family, role)
@@ -300,13 +304,15 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
         return _result("bad_argv", family, role, model, effort, started, error=str(e))
 
     stdin_text = full_prompt if family == "codex" else None
-    env = None
     config_path = None
     if family == "opencode":
+        # The config file lives in /tmp, which a bwrap wrapper hides behind a tmpfs: opencode needs a wrapper without it.
         fd, config_path = tempfile.mkstemp(prefix="simplicio-opencode-", suffix=".json")
         with os.fdopen(fd, "w") as handle:
             json.dump(OPENCODE_DENY_CONFIG, handle)
-        env = {**os.environ, "OPENCODE_CONFIG": config_path}
+        env = {**(os.environ if env is None else env), "OPENCODE_CONFIG": config_path}
+    if wrap is not None:
+        argv = wrap(argv)
     try:
         stdout, stderr, returncode = await _run_subprocess(
             argv, stdin_text=stdin_text, timeout_sec=timeout_sec, cwd=cwd, grace_sec=grace_sec, env=env
@@ -332,11 +338,16 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
     return _result("ok", family, role, model, effort, started, plan=plan)
 
 
-async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, families=None, grace_sec=KILL_GRACE_SEC):
-    """Try to run planner with each family in order, falling back on non-fatal errors."""
+async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, families=None, grace_sec=KILL_GRACE_SEC,
+                                    wrap=None, env_for=None):
+    """Try to run planner with each family in order, falling back on non-fatal errors.
+
+    ``wrap`` and ``env_for(family)`` are passed to run_planner (the argv wrapper and the per-family environment).
+    """
     last_result = None
     for family in families or _get_families():
-        result = await run_planner(family, role, prompt, cwd, timeout_sec, grace_sec)
+        result = await run_planner(family, role, prompt, cwd, timeout_sec, grace_sec, wrap=wrap,
+                                   env=env_for(family) if env_for else None)
         if result.reason_code in ("bad_role", "bad_argv") or result.is_ok():
             return result
         last_result = result
