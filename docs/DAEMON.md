@@ -36,7 +36,7 @@ There is no silent fallback. If the daemon cannot start or the socket is unsafe,
 
 ## Known limits
 
-A command that opens `/dev/tty` itself, such as the hidden password prompt of the 24/7 watcher setup, has no controlling terminal in the daemon. Run it with `SIMPLICIO_LOOP_DAEMON=0`. Ctrl-C stops the command with SIGTERM, not SIGINT.
+A command that opens `/dev/tty` itself, such as the hidden password prompt of the 24/7 watcher setup, has no controlling terminal in the daemon. Run it with `SIMPLICIO_LOOP_DAEMON=0`. Ctrl-C stops the command with SIGTERM, not SIGINT. The 24/7 watcher runs its commands in a sandbox with `SIMPLICIO_LOOP_DAEMON=0`, so a sandboxed command never starts or reaches a daemon.
 
 ## Security
 

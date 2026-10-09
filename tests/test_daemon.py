@@ -147,11 +147,21 @@ def test_socket_and_pid_file_are_private(daemons, run_dir):
 
 
 def test_client_refuses_a_socket_other_users_can_write(run_dir):
-    sock_path = paths_of(run_dir, KEY).sock
+    sock_path = protocol.paths(run_dir, KEY).sock
     loose = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    loose.bind(str(sock_path))
+    loose.bind(sock_path)
     loose.listen(1)
-    sock_path.chmod(0o666)
+    os.chmod(sock_path, 0o666)
+
+    def answer() -> None:  # a server that would run anything it is sent, so only the client check can stop it
+        try:
+            connection, _ = loose.accept()
+        except OSError:
+            return
+        with connection:
+            connection.sendall(b'{"ok":true}\n{"exit":0}\n')
+
+    threading.Thread(target=answer, daemon=True).start()
     try:
         with pytest.raises(protocol.DaemonError) as caught:
             call(run_dir, "state")
