@@ -380,3 +380,33 @@ The 8 h session is not run for real: it is a compressed 3000-event session, so t
 - `--stop` ends the recorded pid with `SIGTERM` (on Windows, `TerminateProcess`). A pid that is already gone is not an error; any other OS refusal exits 1 with the reason.
 - `--tui` on Windows enables virtual-terminal processing on the console before it redraws, and falls back to ASCII glyphs on legacy code pages.
 - UNVERIFIED: Windows and macOS runs (key reading, console modes, real browser opening). Only Linux is exercised by the tests.
+
+## Acceptance criteria for #1400 and #1401
+
+Evidence per row. MEASURED means the test or command ran in this environment (Linux). UNVERIFIED means it did not run here.
+
+| Criterion | Status | Evidence |
+|---|---|---|
+| #1400 SSE p95 under 500 ms on a fixture run | MEASURED | `tests/test_dashboard_server_integration.py::test_sse_p95_latency_under_500ms_after_quiet_gap` (5 appends, each after a 3 s quiet gap) |
+| #1400 Reconnect with `Last-Event-ID` loses and duplicates nothing | MEASURED | `test_reconnect_with_last_event_id_loses_and_duplicates_nothing`, `test_last_event_id_header_beats_since_seq_query` |
+| #1400 Path traversal and a foreign `Origin` get 403 | MEASURED | `test_artifact_path_traversal_is_403`, `test_foreign_origin_is_403`, `test_foreign_host_is_403` |
+| #1400 50 runs × 10k events: idle CPU under 2%, RAM under 80 MB | MEASURED (Linux, `/proc`) | `python -m simplicio_loop.dashboard.bench --runs 50 --events 10000 --json`, three runs: idle CPU 0.23%, RSS 58 MiB, replay 10000/10000 frames each time |
+| #1400 Cross-platform smoke (Windows, macOS, Linux) | Linux MEASURED; Windows and macOS UNVERIFIED | The suite ran on Linux only. The console and key code is unit-tested with mocks, which is not a Windows or macOS run. |
+| #1401 CLI tests for each flag | MEASURED | `test_help_lists_all_nine_flags`, `test_repo_flag_is_repeatable_and_keeps_every_value`, `test_run_with_an_unknown_id_exits_2`, `test_a_bad_port_value_exits_2`, `test_no_browser_flag_keeps_the_browser_closed`, `test_stop_*`, `test_tokens_*`, `test_snapshot_writes_a_file_and_starts_no_server`, `test_tui_prints_something_when_stdout_is_a_pipe` |
+| #1401 `--status` validates against a schema | MEASURED | `test_status_matches_the_schema_and_never_prints_a_token`, `test_status_schema_rejects_*` (`contracts/dashboard-status/v1/schema.json`) |
+| #1401 `--snapshot` writes a self-contained HTML that opens offline | MEASURED (Linux, Chromium) | `test_snapshot_renders_offline_in_headless_chromium` renders the file in headless Chromium with every request sent to a closed port and checks the run id in the DOM; `test_clean_snapshot_has_no_external_or_active_content` |
+| #1401 No regression in `test_dashboard_hook_integration.py` | MEASURED | the file passes in the targeted run (see the PR table) |
+| #1401 README 📈 and this page updated | MEASURED | README § 📈 and this file |
+
+### Benchmark method
+
+`simplicio_loop/dashboard/bench.py` builds the fixture, serves it in-process, and times the list, the detail, and the SSE replay. It then samples this process's CPU from `/proc/self/stat` over 30 s with one open stream and no writes.
+
+The idle sample starts 3 s after the replay drain (`--settle-seconds`, default 3). Without that settle window the sample counted the server's one-off alert pass over the 10k replayed events (about 0.1 s CPU) and read 2% to 6%. With it, the reading is stable at about 0.2%. The settle is recorded as `settle_s` in the output.
+
+### Decisions and open items
+
+- The tail's idle poll stays at 0.25 s, not the 2 s ceiling the epic text names. A 2 s ceiling would make the first append after a quiet gap take up to 2 s, which breaks the p95 under 500 ms criterion. Measured idle CPU is already under 0.3% at 0.25 s, so the ceiling buys no measurable CPU.
+- The server runs on `ThreadingHTTPServer`, as the issue specifies. It is not an asyncio rewrite. The SSE handler is one thread per open stream.
+- Open, not in these criteria: the epic asks that the default port be 9090, shared with the Token Monitor, with the new routes in the same process. The code still defaults to 8765 in a separate process. Changing that means changing `hooks/simplicio_dashboard.py`, so it is left for its own issue.
+- Open, not a criterion: `/api/runs` takes about 1.3 s on the 50-run fixture. That is a list-building cost, not an idle cost, and it is not in the criteria.

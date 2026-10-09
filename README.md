@@ -699,6 +699,11 @@ A view of the savings you open when you want — only the capture is always-on:
 
 **Simplicio Live** (`simplicio-loop dashboard`): the live pipeline, board, queue and drill-down. pt-BR by default, English with `&lang=en`. See [docs/DASHBOARD.md](docs/DASHBOARD.md).
 
+  - `simplicio-loop dashboard --status` — JSON status, no token (schema `contracts/dashboard-status/v1`).
+  - `simplicio-loop dashboard --snapshot run.html` — a self-contained HTML of one run, opens offline (no server).
+  - `simplicio-loop dashboard --tui` — the run in the terminal; off a TTY it prints once.
+  - `--repo PATH` repeats for several repositories; `--run ID` picks a run; `--stop` ends the server.
+
 ![Simplicio Live, dark theme](docs/assets/dashboard/simplicio-live-pipeline.png)
 
 Install auto-starts **only the capture proxy** (macOS launchd · Linux systemd · Windows Startup). The
