@@ -3,6 +3,11 @@
 O servico `simplicio-loop-247` (unit em `packaging/systemd/`) observa issues novas dos repos `simpletibr/simplicio-*` que
 habilitaram o loop (`.simplicio/loop.toml`) e abre PRs. Estado, claims e logs ficam em `SIMPLICIO_247_STATE_DIR`.
 
+## Motor único
+
+O watcher é o turbo do simplicio-loop (#1469) com o registro de extensões (`simplicio_loop/watcher247/points/`).
+Não há um `runner.py` embutido: o turbo + points é o motor único. Ver `docs/EXTENSION_POINTS_SERVICE.md`.
+
 ## Modo host 24/7
 
 O executor padrao e `exec` (`SIMPLICIO_EXECUTOR`, ver `simplicio_loop/executor_select.py`). Um CLI agentico em modo
