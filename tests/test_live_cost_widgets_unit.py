@@ -1,12 +1,13 @@
-'''Reducer tests for the cost widgets of the Simplicio Live cost panel (issue #1404, cost widgets, TDD red).
+'''View tests for the cost widgets of the Simplicio Live cost panel (issue #1404, cost widgets, TDD red).
 
 The widgets read the GET /api/runs/<id>/budget body (budget.report). Token bars list the measured tokens by phase and by
 model: they show numbers only when token_usage was measured, else they stay UNVERIFIED with a reason and draw no bar.
 Cost per task and per iteration joins the measured tokens with the ESTIMADO USD of the price table. A row with no price
 keeps its measured tokens and shows USD UNVERIFIED with the reason. Tokens with no task or no iteration go to a labelled
-unattributed row, so no figure is invented. The reducer runs in node through tests/fixtures/live_pipeline/driver.mjs.
+unattributed row, so no figure is invented. The view (static/extras/cost-widgets.js) runs in node through tests/fixtures/live_pipeline/cost_driver.mjs.
 '''
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -14,8 +15,9 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[1]
-DRIVER = REPO / 'tests' / 'fixtures' / 'live_pipeline' / 'driver.mjs'
-NOW = 1791453600000
+STATIC = REPO / 'simplicio_loop' / 'dashboard' / 'static'
+WIDGETS = STATIC / 'extras' / 'cost-widgets.js'
+DRIVER = REPO / 'tests' / 'fixtures' / 'live_pipeline' / 'cost_driver.mjs'
 
 
 def _node():
@@ -26,10 +28,9 @@ def _node():
 
 
 def _view(budget):
-    steps = [{'action': {'type': 'budget', 'response': budget}, 'now': NOW}]
-    proc = subprocess.run([_node(), str(DRIVER)], input=json.dumps({'steps': steps}), capture_output=True, text=True, timeout=120)
+    proc = subprocess.run([_node(), str(DRIVER)], input=json.dumps({'budget': budget}).replace('"__INF__"', '1e999'), capture_output=True, text=True, timeout=120)
     assert proc.returncode == 0, proc.stderr
-    return json.loads(proc.stdout)[-1]['costWidgets']
+    return json.loads(proc.stdout)
 
 
 def _unverified(reason):
@@ -163,3 +164,26 @@ def test_a_zero_measured_total_draws_no_bar_so_no_share_is_ever_a_division_by_ze
     bars = _view(_budget(usage=usage))['tokenBars']
     assert bars['state'] == 'UNVERIFIED'
     assert bars['phases'] == [] and bars['models'] == []
+
+
+def test_the_cost_widgets_load_on_demand_so_static_live_keeps_its_gzip_budget():
+    static_import = re.compile(r"^\s*(?:import|export)\b[^;]*\bfrom\s+['\"][^'\"]*cost-widgets\.js['\"]", re.M)
+    for path in sorted(STATIC.rglob('*.js')):
+        assert not static_import.search(path.read_text(encoding='utf-8')), '%s imports cost-widgets.js statically' % path.name
+    extras = (STATIC / 'extras' / 'extras.js').read_text(encoding='utf-8')
+    assert re.search(r"import\(\s*['\"]\./cost-widgets\.js['\"]\s*\)", extras), 'extras.js does not import cost-widgets.js on demand'
+    live = ''.join(path.read_text(encoding='utf-8') for path in (STATIC / 'live').iterdir() if path.suffix in ('.js', '.html'))
+    assert 'cost-widgets' not in live and 'costWidgets' not in live, 'static/live still carries the cost widgets'
+
+
+def test_the_cost_widgets_never_write_markup_from_event_names():
+    text = WIDGETS.read_text(encoding='utf-8')
+    for banned in ('innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'createContextualFragment', 'DOMParser'):
+        assert banned not in text, banned
+
+
+def test_counts_that_are_not_finite_numbers_never_become_a_bar():
+    usage = {'tokens': 1000, 'usd': None, 'samples': 1, 'by_phase': {'executing': 1000, 'text': '5', 'nothing': None, 'huge': '__INF__', 'flag': True},
+             'by_lane': {}, 'by_model': {}, 'by_task': {}, 'by_iteration': {}, 'unattributed_tokens': {'task': 0, 'iteration': 0}}
+    bars = _view(_budget(usage=usage))['tokenBars']
+    assert [item['label'] for item in bars['phases']] == ['executing']
