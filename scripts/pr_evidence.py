@@ -261,48 +261,11 @@ def find_existing_progress_comment(issue, runner=None):
 # underlying primitive's default marker (used directly by `github_lifecycle.py`'s own CLI and by
 # `cmd_progress_comment`'s separate progress-comment, which is intentionally its own lightweight,
 # rate-limited, fail-open comment and out of scope for the #285 lifecycle machinery).
-PR_EVIDENCE_COMMENT_MARKER = "<!-- simplicio-loop:pr-evidence-comment -->"
-
-
-class PublishError(RuntimeError):
-    """Raised when the GitHub comment publish could not be completed or verified."""
-
-
-def _run_gh(args, runner, timeout, input_text=None):
-    # `text=True` without an explicit encoding falls back to the platform's default
-    # locale encoding (cp1252 on Windows), which raises `UnicodeDecodeError` on any
-    # issue title/body/comment containing non-Latin1 characters (emoji, non-ASCII
-    # names, ...) -- a real failure observed live against wesleysimplicio/simplicio-loop
-    # issue #347 during the #285 lifecycle-adapter E2E. `gh` always emits UTF-8.
-    completed = runner(["gh"] + args, capture_output=True, text=True, timeout=timeout,
-                        check=False, input=input_text, encoding="utf-8", errors="replace")
-    if completed.returncode != 0:
-        stderr = (completed.stderr or completed.stdout or "").strip()
-        raise PublishError("gh %s failed: %s" % (" ".join(args), stderr or "unknown error"))
-    return completed.stdout
-
-
-def find_existing_comment(owner, repo, issue, marker=PR_EVIDENCE_COMMENT_MARKER,
-                           runner=subprocess.run, timeout=20):
-    """Return the numeric id of a prior comment on `issue` whose body carries `marker`, or None.
-
-    Paginates through `gh api repos/{owner}/{repo}/issues/{issue}/comments` and returns the FIRST
-    match (there should only ever be one, since publish always reuses it) so a re-run edits rather
-    than appends.
-    """
-    stdout = _run_gh(
-        ["api", "repos/%s/%s/issues/%s/comments" % (owner, repo, issue), "--paginate"],
-        runner, timeout)
-    try:
-        comments = json.loads(stdout)
-    except ValueError:
-        raise PublishError("gh api returned non-JSON comment list")
-    if not isinstance(comments, list):
-        comments = []
-    for c in comments:
-        if marker in (c.get("body") or ""):
-            return c.get("id")
-    return None
+# The primitives (`publish_comment`, `find_existing_comment`, `PublishError`, the marker) live in
+# `simplicio_loop.pr_evidence` (#1476): the package ships in the wheel, `scripts/` does not.
+from simplicio_loop.pr_evidence import (  # noqa: E402
+    PR_EVIDENCE_COMMENT_MARKER, PublishError, find_existing_comment, publish_comment,
+)
 
 
 def _resolve_now(opts):
@@ -362,41 +325,6 @@ def cmd_progress_comment(opts):
     _record_post(now=now, state_path=state_path)
     tag = "MEASURED" if ok else "UNVERIFIED"
     print("%s|progress-comment %s" % (tag, "updated" if ok else "attempted (see stderr for gh output)"))
-
-
-def publish_comment(owner, repo, issue, body, marker=PR_EVIDENCE_COMMENT_MARKER,
-                     runner=subprocess.run, timeout=20):
-    """Publish `body` to `issue` idempotently. Returns {"action": "created"|"updated", "id": int}.
-
-    Tags the body with the hidden marker (added once, not duplicated if already present), then
-    either PATCHes the existing tagged comment or POSTs a new one. Raises `PublishError` on any
-    `gh` failure -- callers must treat that as BLOCKED, never as a silent success, per the
-    "no silent fallback" invariant (#295): a comment that failed to post must never be reported as
-    posted.
-
-    The request body is sent as a JSON payload on stdin (`gh api ... --input -`), never via
-    `-f body=@path`/shell interpolation of the rendered markdown -- this avoids any quoting/shell
-    injection surface from untrusted acceptance-criteria text or file paths ending up in the
-    argument vector.
-    """
-    tagged_body = body if marker in body else (body.rstrip("\n") + "\n\n" + marker + "\n")
-    existing_id = find_existing_comment(owner, repo, issue, marker=marker, runner=runner,
-                                        timeout=timeout)
-    payload = json.dumps({"body": tagged_body})
-    if existing_id is not None:
-        _run_gh(["api", "-X", "PATCH",
-                 "repos/%s/%s/issues/comments/%s" % (owner, repo, existing_id),
-                 "--input", "-"], runner, timeout, input_text=payload)
-        return {"action": "updated", "id": existing_id}
-    stdout = _run_gh(["api", "-X", "POST",
-                      "repos/%s/%s/issues/%s/comments" % (owner, repo, issue),
-                      "--input", "-"], runner, timeout, input_text=payload)
-    try:
-        created = json.loads(stdout)
-        new_id = created.get("id")
-    except ValueError:
-        new_id = None
-    return {"action": "created", "id": new_id}
 
 
 def publish_evidence_via_lifecycle(owner, repo, issue, body, *, pr=None, run_id="", attempt_id="",
