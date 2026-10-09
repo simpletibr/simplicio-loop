@@ -11,7 +11,7 @@ from .registry import PointContext, PointResult, register
 NAME = "web_research"
 
 
-def _is_enabled() -> bool:
+def _is_enabled(ctx: PointContext) -> bool:
     """Check if web research is enabled via env var."""
     return os.getenv("SIMPLICIO_247_WEB_RESEARCH") == "1"
 
@@ -22,7 +22,7 @@ async def research_web(ctx: PointContext) -> PointResult:
     Currently documents the intent and returns skipped by default.
     When enabled, this point will support optional web searches during planning.
     """
-    if not _is_enabled():
+    if not _is_enabled(ctx):
         return PointResult(
             NAME,
             "skipped",

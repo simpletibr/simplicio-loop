@@ -80,4 +80,9 @@ async def compare_endpoints(ctx: PointContext) -> PointResult:
     return PointResult(NAME, "ok", evidence)
 
 
-register(NAME, "verify", compare_endpoints, applies=lambda ctx: ctx.clone is not None and _has_route_changes(ctx.clone))
+def _applies(ctx: PointContext) -> bool:
+    """Check if endpoint_compare should run."""
+    return ctx.clone is not None and _has_route_changes(ctx.clone)
+
+
+register(NAME, "verify", compare_endpoints, applies=_applies)

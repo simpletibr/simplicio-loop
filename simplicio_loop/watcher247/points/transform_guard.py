@@ -74,6 +74,11 @@ def _check_references(clone: Path, symbols: list[str]) -> dict:
         return {"error": str(e)}
 
 
+def _applies(ctx: PointContext) -> bool:
+    """Check if this is a transform task."""
+    return _is_transform_task(ctx.task_text)
+
+
 async def guard_transform(ctx: PointContext) -> PointResult:
     if ctx.clone is None:
         return PointResult(NAME, "skipped", {}, "no_clone")
@@ -93,4 +98,4 @@ async def guard_transform(ctx: PointContext) -> PointResult:
     return PointResult(NAME, "ok", {"symbols_checked": len(removed_symbols), "all_safe": True})
 
 
-register(NAME, "verify", guard_transform, applies=_is_transform_task, blocking=True)
+register(NAME, "verify", guard_transform, applies=_applies, blocking=True)
