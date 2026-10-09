@@ -173,8 +173,16 @@ def relation_coverage(
     observed_edges: int | None = None,
     edge_limit: int | None = None,
     invalid_edges: int = 0,
+    name_candidate_limit: int | None = None,
+    name_capped_call_sites: int = 0,
+    name_edges_discarded: int = 0,
 ) -> dict[str, Any]:
-    """Describe emitted, omitted and degraded relation evidence."""
+    """Describe emitted, omitted and degraded relation evidence.
+
+    ``name_*`` measure the per-call-site cap on name-lookup candidates: how many call sites hit it and how
+    many candidate edges it dropped (never silent: any drop marks the coverage ``degraded``).
+    """
+    discarded = max(0, int(name_edges_discarded))
     emitted = len(relations)
     observed = emitted if observed_edges is None else max(emitted, int(observed_edges))
     limit = None if edge_limit is None else max(0, int(edge_limit))
@@ -190,13 +198,16 @@ def relation_coverage(
         if not relation.get("target_file") or relation.get("resolution_status") == "unknown":
             unknown += 1
     return {
-        "status": "degraded" if truncated or invalid_edges or unknown or ambiguous else "complete",
+        "status": "degraded" if truncated or invalid_edges or unknown or ambiguous or discarded else "complete",
         "edge_limit": limit,
         "observed_edges": observed,
         "emitted_edges": emitted,
         "omitted_edges": omitted,
         "truncated": truncated,
         "invalid_edges": max(0, int(invalid_edges)),
+        "name_candidate_limit": None if name_candidate_limit is None else max(1, int(name_candidate_limit)),
+        "name_capped_call_sites": max(0, int(name_capped_call_sites)),
+        "name_edges_discarded": discarded,
         "unknown_relations": unknown,
         "ambiguous_relations": ambiguous,
         "evidence_classes": {key: by_evidence[key] for key in sorted(by_evidence)},

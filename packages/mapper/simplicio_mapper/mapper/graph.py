@@ -7,6 +7,8 @@ monolithic ``mapper.py`` (issue #159) -- pure move, no behavior change.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import keyword
 import os
 import posixpath
@@ -16,7 +18,13 @@ from bisect import bisect_right
 
 from ..models import ProjectFile
 from ..relations import relation_coverage, relation_id
-from ..semantic_resolution import RoslynSemanticAdapter, resolution_key, resolve_semantic_calls
+from ..semantic_resolution import (
+    COMMAND_ENV,
+    TIMEOUT_ENV,
+    RoslynSemanticAdapter,
+    resolution_key,
+    resolve_semantic_calls,
+)
 from .parse import (
     _RE_CONFIG,
     _RE_DOMAIN,
@@ -467,6 +475,185 @@ def _nearest_symbol(
     index = bisect_right(lines, line) - 1
     return candidates[index] if index >= 0 else None
 
+#: Languages whose symbols get their identities from the semantic service, resolved in this order.
+SEMANTIC_LANGUAGES = ("csharp", "razor")
+#: Name-lookup candidates kept per call site (``SIMPLICIO_MAPPER_CALL_NAME_CANDIDATE_LIMIT`` overrides it).
+CALL_NAME_CANDIDATE_LIMIT = 32
+
+
+def _call_name_candidate_limit(limit: int | None = None) -> int:
+    """Per-call-site cap on name-lookup candidates (>= 1); what it drops is counted in the coverage."""
+    if limit is not None:
+        return max(1, int(limit))
+    raw = os.environ.get("SIMPLICIO_MAPPER_CALL_NAME_CANDIDATE_LIMIT", "")
+    try:
+        return max(1, int(raw)) if raw else CALL_NAME_CANDIDATE_LIMIT
+    except ValueError:
+        return CALL_NAME_CANDIDATE_LIMIT
+
+
+def _name_candidate_order(symbol: dict) -> tuple[str, int, str]:
+    return (
+        str(symbol.get("defined_in") or ""),
+        int(symbol.get("line") or 0),
+        str(symbol.get("qualified_name") or symbol.get("name") or ""),
+    )
+
+
+def _candidate_identities(targets: list[dict]) -> list[str]:
+    return sorted(
+        str(item.get("symbol_id") or item.get("qualified_name") or item.get("name") or "")
+        for item in targets
+    )
+
+
+def semantic_not_required(input_key: str | None = None) -> dict:
+    """The ``semantic_resolution`` of a tree whose C#/Razor files make no call."""
+    document = {
+        "schema": "simplicio.mapper-semantic-resolution/v1",
+        "protocol": "v1",
+        "status": "not_required",
+        "languages": [],
+        "providers": [],
+        "provider_versions": [],
+        "resolved_calls": 0,
+        "symbols": 0,
+        "reasons": ["no_csharp_or_razor_call_sites"],
+    }
+    if input_key is not None:
+        document["input_key"] = input_key
+    return document
+
+
+def semantic_input_key(files: list[ProjectFile], semantic_adapter: RoslynSemanticAdapter | None = None) -> str | None:
+    """Digest of everything the C#/Razor semantic pass depends on, or ``None`` when it cannot be proven.
+
+    The pass reads only C#/Razor sources and the symbols defined in them, so their paths, languages and
+    content hashes plus the service configuration identify its result. A file without a content hash
+    makes the key unprovable (``None``): the caller must then recompute, never reuse.
+    """
+    sources = sorted((file.path, file.language, file.file_hash) for file in files if file.language in SEMANTIC_LANGUAGES)
+    if not sources or any(not entry[2] for entry in sources):
+        return None
+    command = semantic_adapter.command if semantic_adapter is not None and semantic_adapter.command is not None else None
+    if command is None:
+        command = os.environ.get(COMMAND_ENV, "").strip()
+    payload = {
+        "sources": sources,
+        "command": command if isinstance(command, str) else list(command),
+        "timeout": os.environ.get(TIMEOUT_ENV, "").strip(),
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    return hashlib.blake2b(raw, digest_size=24).hexdigest()
+
+
+def resolve_csharp_razor_semantics(
+    cwd: str,
+    files: list[ProjectFile],
+    symbols: list[dict],
+    contents: dict[str, str] | None = None,
+    *,
+    semantic_adapter: RoslynSemanticAdapter | None = None,
+) -> tuple[dict, dict[tuple[str, int, str], dict]]:
+    """Run the semantic service over the C#/Razor files only and fold its answer into their symbols.
+
+    Returns ``(semantic_resolution, resolutions_by_call_site)``. The C#/Razor symbols in ``symbols`` are
+    updated in place; every other symbol is neither sent to the service nor touched, so the result is a
+    function of the C#/Razor sources alone (``semantic_input_key``).
+    """
+    semantic_files = [file for file in files if file.language in SEMANTIC_LANGUAGES]
+    semantic_by_site: dict[tuple[str, int, str], dict] = {}
+    if not semantic_files:
+        return semantic_not_required(), semantic_by_site
+    input_key = semantic_input_key(semantic_files, semantic_adapter)
+    paths = {file.path for file in semantic_files}
+    semantic_symbols = [item for item in symbols if item.get("defined_in") in paths]
+    definition_sites = {
+        (str(item.get("defined_in") or ""), int(item.get("line") or 0), str(item.get("name") or ""))
+        for item in semantic_symbols
+    }
+    by_definition = {
+        (str(item.get("defined_in") or ""), int(item.get("line") or 0), str(item.get("name") or "")): item
+        for item in semantic_symbols
+    }
+    sites: dict[str, list[dict]] = {language: [] for language in SEMANTIC_LANGUAGES}
+    sources: dict[str, list[dict]] = {language: [] for language in SEMANTIC_LANGUAGES}
+    for file in semantic_files:
+        text = _content_for(cwd, file.path, contents)
+        sources[file.language].append({"path": file.path, "content": text})
+        for name, line in _call_expressions(text):
+            if (file.path, line, name) not in definition_sites:
+                sites[file.language].append({"source_file": file.path, "name": name, "line": line})
+
+    semantic_receipts: list[dict] = []
+    for language in SEMANTIC_LANGUAGES:
+        if not sites[language]:
+            continue
+        result, receipt = resolve_semantic_calls(
+            cwd,
+            language,
+            sources[language],
+            semantic_symbols,
+            sites[language],
+            adapter=semantic_adapter,
+        )
+        semantic_receipts.append(receipt)
+        if not isinstance(result, dict):
+            continue
+        for item in result.get("resolutions", []):
+            if not isinstance(item, dict):
+                continue
+            key = resolution_key(item)
+            if key is not None:
+                semantic_by_site[key] = item
+        for item in result.get("symbols", []):
+            if not isinstance(item, dict):
+                continue
+            line = _semantic_line(item)
+            if line is None:
+                continue
+            key = (
+                str(item.get("defined_in") or item.get("source_file") or ""),
+                line,
+                str(item.get("name") or ""),
+            )
+            symbol = by_definition.get(key)
+            if symbol is None:
+                continue
+            resolved_name = item.get("symbol_id") or item.get("qualified_name")
+            if isinstance(resolved_name, str) and resolved_name:
+                symbol["qualified_name"] = resolved_name
+                symbol["symbol_id"] = resolved_name
+            if isinstance(item.get("signature"), str) and item["signature"]:
+                symbol["signature"] = item["signature"]
+            evidence = symbol.setdefault("evidence", {})
+            evidence["resolution"] = "semantic"
+            evidence["semantic_provider"] = receipt.get("provider")
+
+    if not semantic_receipts:
+        return semantic_not_required(input_key), semantic_by_site
+    status_set = {str(item.get("status")) for item in semantic_receipts}
+    if status_set == {"available"}:
+        semantic_status = "available"
+    elif "available" in status_set:
+        semantic_status = "degraded"
+    else:
+        semantic_status = "unavailable"
+    semantic_resolution = {
+        "schema": "simplicio.mapper-semantic-resolution/v1",
+        "protocol": "v1",
+        "status": semantic_status,
+        "languages": sorted({language for item in semantic_receipts for language in item.get("languages", [])}),
+        "providers": sorted({item["provider"] for item in semantic_receipts if item.get("provider")}),
+        "provider_versions": sorted({item["provider_version"] for item in semantic_receipts if item.get("provider_version")}),
+        "resolved_calls": sum(int(item.get("resolved_calls") or 0) for item in semantic_receipts),
+        "symbols": sum(int(item.get("symbols") or 0) for item in semantic_receipts),
+        "reasons": sorted({item["reason"] for item in semantic_receipts if item.get("reason")}),
+        "input_key": input_key,
+    }
+    return semantic_resolution, semantic_by_site
+
+
 def _build_call_graph(
     cwd: str,
     files: list[ProjectFile],
@@ -475,6 +662,7 @@ def _build_call_graph(
     contents: dict[str, str] | None = None,
     *,
     edge_limit: int | None = None,
+    name_candidate_limit: int | None = None,
     semantic_adapter: RoslynSemanticAdapter | None = None,
 ) -> dict:
     """Build the canonical Mapper v1 relation envelope.
@@ -517,94 +705,9 @@ def _build_call_graph(
                 continue
             call_sites.append({"source_file": file.path, "name": name, "line": line})
 
-    semantic_by_site: dict[tuple[str, int, str], dict] = {}
-    semantic_receipts: list[dict] = []
-    for language in ("csharp", "razor"):
-        language_sites = [item for item in call_sites if next(
-            (file.language for file in files if file.path == item["source_file"]), ""
-        ) == language]
-        if not language_sites:
-            continue
-        source_generation = [
-            {"path": file.path, "content": _content_for(cwd, file.path, contents)}
-            for file in files
-            if file.language == language
-        ]
-        result, receipt = resolve_semantic_calls(
-            cwd,
-            language,
-            source_generation,
-            symbols,
-            language_sites,
-            adapter=semantic_adapter,
-        )
-        semantic_receipts.append(receipt)
-        if isinstance(result, dict):
-            for item in result.get("resolutions", []):
-                if not isinstance(item, dict):
-                    continue
-                key = resolution_key(item)
-                if key is not None:
-                    semantic_by_site[key] = item
-            by_definition = {
-                (str(item.get("defined_in") or ""), int(item.get("line") or 0), str(item.get("name") or "")): item
-                for item in symbols
-            }
-            for item in result.get("symbols", []):
-                if not isinstance(item, dict):
-                    continue
-                line = _semantic_line(item)
-                if line is None:
-                    continue
-                key = (
-                    str(item.get("defined_in") or item.get("source_file") or ""),
-                    line,
-                    str(item.get("name") or ""),
-                )
-                symbol = by_definition.get(key)
-                if symbol is None:
-                    continue
-                resolved_name = item.get("symbol_id") or item.get("qualified_name")
-                if isinstance(resolved_name, str) and resolved_name:
-                    symbol["qualified_name"] = resolved_name
-                    symbol["symbol_id"] = resolved_name
-                if isinstance(item.get("signature"), str) and item["signature"]:
-                    symbol["signature"] = item["signature"]
-                evidence = symbol.setdefault("evidence", {})
-                evidence["resolution"] = "semantic"
-                evidence["semantic_provider"] = receipt.get("provider")
-
-    if semantic_receipts:
-        status_set = {str(item.get("status")) for item in semantic_receipts}
-        if status_set == {"available"}:
-            semantic_status = "available"
-        elif "available" in status_set:
-            semantic_status = "degraded"
-        else:
-            semantic_status = "unavailable"
-        semantic_resolution = {
-            "schema": "simplicio.mapper-semantic-resolution/v1",
-            "protocol": "v1",
-            "status": semantic_status,
-            "languages": sorted({language for item in semantic_receipts for language in item.get("languages", [])}),
-            "providers": sorted({item["provider"] for item in semantic_receipts if item.get("provider")}),
-            "provider_versions": sorted({item["provider_version"] for item in semantic_receipts if item.get("provider_version")}),
-            "resolved_calls": sum(int(item.get("resolved_calls") or 0) for item in semantic_receipts),
-            "symbols": sum(int(item.get("symbols") or 0) for item in semantic_receipts),
-            "reasons": sorted({item["reason"] for item in semantic_receipts if item.get("reason")}),
-        }
-    else:
-        semantic_resolution = {
-            "schema": "simplicio.mapper-semantic-resolution/v1",
-            "protocol": "v1",
-            "status": "not_required",
-            "languages": [],
-            "providers": [],
-            "provider_versions": [],
-            "resolved_calls": 0,
-            "symbols": 0,
-            "reasons": ["no_csharp_or_razor_call_sites"],
-        }
+    semantic_resolution, semantic_by_site = resolve_csharp_razor_semantics(
+        cwd, files, symbols, contents, semantic_adapter=semantic_adapter,
+    )
 
     # Rebuild indexes after semantic services have supplied unique symbol
     # identities for overloaded methods.
@@ -645,6 +748,10 @@ def _build_call_graph(
     edges: list[dict] = []
     unresolved: list[dict] = []
     seen: set[str] = set()
+    name_limit = _call_name_candidate_limit(name_candidate_limit)
+    capped_by_name: dict[str, tuple[list[dict], int, list[str]]] = {}
+    name_capped_sites = 0
+    name_edges_discarded = 0
 
     def add_edge(edge: dict) -> None:
         if not edge.get("target_file") or edge.get("resolution_status") in {None, "unknown"}:
@@ -696,12 +803,20 @@ def _build_call_graph(
             continue
         resolution = semantic_by_site.get((file.path, line, name))
         target = semantic_target(resolution) if resolution is not None else None
-        targets = [target] if target is not None else list(symbols_by_name.get(name, []))
-        targets = [item for item in targets if item.get("defined_in")]
-        target_candidates = sorted(
-            str(item.get("symbol_id") or item.get("qualified_name") or item.get("name") or "")
-            for item in targets
-        )
+        if target is not None:
+            targets, observed = [target], 1
+            target_candidates = _candidate_identities(targets)
+        else:
+            if name not in capped_by_name:
+                found = [item for item in symbols_by_name.get(name, []) if item.get("defined_in")]
+                if len(found) > name_limit:
+                    found.sort(key=_name_candidate_order)
+                kept = found[:name_limit]
+                capped_by_name[name] = (kept, len(found), _candidate_identities(kept))
+            targets, observed, target_candidates = capped_by_name[name]
+        if observed > len(targets):
+            name_capped_sites += 1
+            name_edges_discarded += observed - len(targets)
         is_semantic = target is not None and resolution is not None
         is_csharp = file.language in {"csharp", "razor"}
         if not targets:
@@ -711,26 +826,26 @@ def _build_call_graph(
                 "queried_symbol": name,
             })
             continue
+        caller = _nearest_symbol(
+            symbols,
+            file.path,
+            line,
+            symbols_by_file=symbols_by_file,
+            symbol_lines_by_file=symbol_lines_by_file,
+        )
         for candidate in targets:
             if candidate["defined_in"] == file.path and candidate["line"] == line:
                 continue
-            caller = _nearest_symbol(
-                symbols,
-                file.path,
-                line,
-                symbols_by_file=symbols_by_file,
-                symbol_lines_by_file=symbol_lines_by_file,
-            )
             evidence_class = "semantic_resolved" if is_semantic else (
-                "heuristic" if is_csharp else "lexical_unique" if len(targets) == 1 else "lexical_ambiguous"
+                "heuristic" if is_csharp else "lexical_unique" if observed == 1 else "lexical_ambiguous"
             )
             resolution_status = "resolved" if is_semantic else (
-                "inferred" if is_csharp and len(targets) == 1 else "resolved" if len(targets) == 1 else "ambiguous"
+                "inferred" if is_csharp and observed == 1 else "resolved" if observed == 1 else "ambiguous"
             )
             provenance = {
                 "method": "roslyn-semantic-service" if is_semantic else "semantic-service-fallback" if is_csharp else "symbol-name-lookup",
                 "queried_symbol": name,
-                "candidate_count": len(targets),
+                "candidate_count": observed,
                 "candidates": target_candidates,
                 "caller_resolution": "lexical_nearest" if caller else "unknown",
             }
@@ -789,6 +904,9 @@ def _build_call_graph(
             emitted_edges,
             observed_edges=len(ordered_edges),
             edge_limit=limit,
+            name_candidate_limit=name_limit,
+            name_capped_call_sites=name_capped_sites,
+            name_edges_discarded=name_edges_discarded,
         ),
         "semantic_resolution": semantic_resolution,
     }
