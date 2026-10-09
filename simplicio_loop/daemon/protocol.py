@@ -28,6 +28,8 @@ MAX_REQUEST_BYTES = 8 << 20
 MAX_SOCKET_PATH = 100  # sun_path holds 108 bytes on Linux and 104 on macOS
 OPT_OUT_ENV = "SIMPLICIO_LOOP_DAEMON"
 DIR_ENV = "SIMPLICIO_LOOP_DAEMON_DIR"
+# Set by the daemon in every command it runs: a request made from inside a command is nested and takes no slot.
+NESTED_ENV = "SIMPLICIO_LOOP_DAEMON_NESTED"
 OPT_OUT_HINT = "run in-process with SIMPLICIO_LOOP_DAEMON=0"
 
 

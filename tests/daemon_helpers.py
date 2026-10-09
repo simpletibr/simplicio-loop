@@ -88,7 +88,18 @@ def tty_info() -> int:
     return 0
 
 
+def nested() -> int:
+    """Ask the daemon for another program from inside this command, as the loop does for Mapper and dev-cli."""
+    from simplicio_loop.daemon import client, protocol
+
+    here = protocol.CURRENT
+    code, out, _err = client.run_captured("no-read", [], run_dir=here.run_dir, key=here.key, timeout=20)
+    sys.stdout.write(out.decode())
+    return code
+
+
 PROGRAMS = {
+    "nested": "daemon_helpers:nested",
     "state": "daemon_helpers:state", "exit-with": "daemon_helpers:exit_with", "exit-text": "daemon_helpers:exit_text",
     "boom": "daemon_helpers:boom", "sleeper": "daemon_helpers:sleeper", "upper": "daemon_helpers:upper",
     "no-read": "daemon_helpers:no_read", "aio": "daemon_helpers:aio", "killed": "daemon_helpers:killed_by_signal",

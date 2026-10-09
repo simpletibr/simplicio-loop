@@ -107,6 +107,7 @@ def serve_request(request: Mapping[str, Any], fds: Sequence[int], entry: Any, ru
         os.closerange(3, 1 << 16)
         os.environ.clear()
         os.environ.update(request["env"])
+        os.environ[protocol.NESTED_ENV] = "1"
         time.tzset()
         os.umask(int(request.get("umask", 0o022)))
         _attach_stdio(request.get("enc") or {})

@@ -409,6 +409,16 @@ def test_concurrent_commands_are_capped_and_the_rest_wait(daemons, run_dir, tmp_
     assert len(events) == 6 and peak == 1
 
 
+def test_a_request_from_inside_a_command_takes_no_slot_so_the_pool_cannot_deadlock(daemons, run_dir):
+    serve(daemons, run_dir, DAEMON_TEST_MAX_CHILDREN="1")  # the one slot is held by the command that asks
+    outcome: list[Result] = []
+    thread = threading.Thread(target=lambda: outcome.append(call(run_dir, "nested")), daemon=True)
+    thread.start()
+    thread.join(30)
+    assert not thread.is_alive(), "the nested request waited for a slot its own parent holds"
+    assert outcome[0].rc == 0 and outcome[0].out.strip() == "did not read stdin"
+
+
 def test_a_full_queue_is_refused_instead_of_growing_without_bound(daemons, run_dir, tmp_path):
     serve(daemons, run_dir, DAEMON_TEST_MAX_CHILDREN="1", DAEMON_TEST_MAX_WAITING="1")
     marks = tmp_path / "marks"

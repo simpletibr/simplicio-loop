@@ -132,6 +132,7 @@ def open_exec(program: str, args: Sequence[str], *, run_dir: os.PathLike[str] | 
         os.umask(previous)
         request = {
             "op": "exec", "proto": protocol.PROTOCOL, "program": program, "argv": list(args),
+            "nested": environ.get(protocol.NESTED_ENV) == "1",
             "cwd": cwd if cwd is not None else os.getcwd(), "env": environ, "umask": previous,
             "enc": {"stdin": _encoding(sys.stdin), "stdout": _encoding(sys.stdout), "stderr": _encoding(sys.stderr)},
         }

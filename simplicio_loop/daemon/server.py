@@ -27,6 +27,7 @@ from . import protocol, runner
 READ_TIMEOUT_S = 10.0
 KILL_GRACE_S = 5.0
 MAX_CHILDREN_CAP = 16
+NESTED_FACTOR = 4  # nested requests may run up to this many times the slots, never more
 CODE_SUFFIXES = (".py", ".so", ".pyd")
 SKIPPED_DIRS = ("__pycache__", "_bundle")
 
@@ -109,7 +110,7 @@ def acquire_lock(pid_path: str) -> Optional[int]:
 class Daemon:
     def __init__(self, run_dir: os.PathLike[str] | str, *, key: str, programs: Optional[Mapping[str, str]] = None,
                  roots: Optional[Iterable[str]] = None, idle_s: float = 900.0, max_children: Optional[int] = None,
-                 max_waiting: int = 64, allowed_uid: Optional[int] = None,
+                 max_waiting: int = 256, allowed_uid: Optional[int] = None,
                  preload: Iterable[str] = runner.PRELOAD) -> None:
         self.run_dir = os.fspath(run_dir)
         self.key = key
@@ -395,13 +396,21 @@ class Daemon:
             self._release()  # free the key now: the client starts the daemon of the new code
             self.shutdown("stale")
             raise protocol.DaemonError("stale", "the installed code changed since the daemon started; it is restarting")
-        if self._slots.locked() and self.waiting >= self.max_waiting:
-            raise protocol.DaemonError("busy", f"{self.active} running and {self.waiting} waiting; try again")
-        self.waiting += 1
-        try:
-            await self._slots.acquire()
-        finally:
-            self.waiting -= 1
+        # A command that waits for its own operator or a nested loop call while holding a slot would deadlock the
+        # pool when every slot is held by such a command. A request from inside a command takes no slot; it is
+        # counted against a hard ceiling instead.
+        nested = request.get("nested") is True
+        if nested:
+            if self.active >= NESTED_FACTOR * self.max_children:
+                raise protocol.DaemonError("busy", f"{self.active} commands are running; try again")
+        else:
+            if self._slots.locked() and self.waiting >= self.max_waiting:
+                raise protocol.DaemonError("busy", f"{self.active} running and {self.waiting} waiting; try again")
+            self.waiting += 1
+            try:
+                await self._slots.acquire()
+            finally:
+                self.waiting -= 1
         started = time.monotonic()
         self.active += 1
         try:
@@ -428,7 +437,8 @@ class Daemon:
         finally:
             self.active -= 1
             self.served += 1
-            self._slots.release()
+            if not nested:
+                self._slots.release()
             self._last = time.monotonic()
 
     async def _hangup(self, connection: socket.socket) -> None:

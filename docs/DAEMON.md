@@ -24,7 +24,7 @@ Each request has a protocol version number. If the daemon's code changes (instal
 
 ## Limits and lifecycle
 
-At most N commands run at once. N is the measured safe number of workers for the machine. N is at least 1 and at most 16. More commands wait in a queue of 64. The daemon refuses a request if the queue is full.
+At most N commands run at once. N is the measured safe number of workers for the machine. N is at least 1 and at most 16. More commands wait in a queue of 256. The daemon refuses a request if the queue is full. A request that a running command makes, such as a Mapper or dev-cli call, takes no slot, so the pool cannot block itself.
 
 The daemon exits after 900 seconds of idle time (no running commands). The setting `SIMPLICIO_LOOP_DAEMON_IDLE_S` overrides this. A running command keeps the daemon alive.
 
