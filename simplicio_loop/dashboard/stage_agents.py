@@ -326,27 +326,26 @@ class ViewBusy(Exception):
 
 
 class _Flight:
-    '''One computation in progress. ``began`` (monotonic) is taken before ``stamp``, so every request that arrived before ``began``
-    is older than the stamp: whatever it could see on disk, the stamp, and the events read after it, include.'''
-    __slots__ = ('began', 'stamp', 'prices', 'done', 'view', 'error')
+    '''One computation. ``began`` (monotonic) is taken before ``stamp``, so every request that arrived before ``began`` is older
+    than the stamp: whatever it could have seen on disk, the stamp, and the events read after it, include. ``live`` marks a view
+    whose input is fully described by the stamp (a live stream, not rebuilt from other files).'''
+    __slots__ = ('began', 'stamp', 'prices', 'done', 'view', 'live', 'finished')
 
     def __init__(self, prices: str, stamp: Any, began: float) -> None:
         self.began, self.stamp, self.prices = began, stamp, prices
         self.done = threading.Event()
         self.view: dict[str, Any] | None = None
-        self.error: BaseException | None = None
+        self.live = False
+        self.finished = 0.0  # monotonic time the view was ready
 
 
 class _Entry:
-    __slots__ = ('mutex', 'stamp', 'prices', 'view', 'computed', 'flight')
+    __slots__ = ('mutex', 'last', 'flight')
 
     def __init__(self) -> None:
         self.mutex = threading.Lock()  # held for bookkeeping only, never while the events are read
-        self.stamp: Any = None
-        self.prices: str | None = None
-        self.view: dict[str, Any] | None = None
-        self.computed = 0.0  # monotonic time the cached view was finished
-        self.flight: _Flight | None = None
+        self.last: _Flight | None = None  # the latest computation that finished with a view
+        self.flight: _Flight | None = None  # the computation in progress
 
 
 _CACHE: OrderedDict[str, _Entry] = OrderedDict()
@@ -369,10 +368,18 @@ def _stamp(run_dir: Any) -> tuple | None:
 def _stale(entry: _Entry) -> dict[str, Any]:
     '''The last good view as a copy flagged ``stale`` with its age in seconds, or ViewBusy when the run has none.'''
     with entry.mutex:
-        cached, computed = entry.view, entry.computed
-    if cached is None:
+        last = entry.last
+    if last is None or last.view is None:
         raise ViewBusy()
-    return {**cached, 'stale': True, 'age_s': round(time.monotonic() - computed, 3)}
+    return {**last.view, 'stale': True, 'age_s': round(time.monotonic() - last.finished, 3)}
+
+
+def _reusable(flight: _Flight, fingerprint: str, arrived: float, seen: tuple | None) -> bool:
+    '''May a request that arrived at ``arrived`` and then saw the files as ``seen`` take this computation's view?
+
+    Yes when the computation took its stamp after the request arrived (it holds all the request could have seen), or when the
+    stamp is the request's own and describes the whole input (the files did not change since).'''
+    return flight.prices == fingerprint and (flight.began >= arrived or (flight.live and seen is not None and flight.stamp == seen))
 
 
 def run_view(run_dir: Any, prices: dict[str, Any] | None, read: Any = None) -> dict[str, Any]:
@@ -380,14 +387,14 @@ def run_view(run_dir: Any, prices: dict[str, Any] | None, read: Any = None) -> d
 
     The key is the run dir plus the stat of its events files (name, inode, size, mtime, ctime) and the price table, taken before
     the events are read, so a file that grows during the read is read again on the next poll. A run with no live stream, or one
-    rebuilt from other files (``derived``), is never cached. The cache holds CACHE_MAX runs; the returned dict is shared, so
-    callers must not mutate it.
+    rebuilt from other files (``derived``), is never reused by its stamp. The cache holds CACHE_MAX runs; the returned dict is
+    shared, so callers must not mutate it.
 
     One computation per run runs at a time and the pollers coalesce on it (no lock is held while the events are read). A poller
-    may take a computation's result when its stamp is the poller's own, or when the computation took its stamp after the
-    poller arrived (it then holds everything the poller could have seen); a poller that arrives later, with the files changed
-    since, waits for the computation in flight and then starts or joins a newer one. Freshness is therefore never weaker than
-    "an append finished before the request began is in the reply", while N pollers of a hot run cost two computations, not N.
+    may take a computation's result when the computation took its file stamp after the poller arrived, or when the stamp is the
+    poller's own and the files did not change since; a poller that arrives later, with the files changed since, waits for the
+    computation in flight and then starts or joins a newer one. Freshness is therefore never weaker than "an append finished
+    before the request began is in the reply", while N pollers of a hot run cost two computations, not N.
 
     A poller waits at most WAIT_TIMEOUT_S for a computation. After that it gets the last good view as a copy with ``stale: true``
     and ``age_s``, or ViewBusy (the route answers 503 with Retry-After) when the run has none.'''
@@ -404,8 +411,9 @@ def run_view(run_dir: Any, prices: dict[str, Any] | None, read: Any = None) -> d
     while True:
         seen = _stamp(run_dir)  # this request's own look at the files, after it arrived
         with entry.mutex:
-            if seen is not None and entry.view is not None and entry.stamp == seen and entry.prices == fingerprint:
-                return entry.view
+            last = entry.last
+            if last is not None and _reusable(last, fingerprint, arrived, seen):
+                return last.view
             flight = entry.flight
             if flight is None:
                 began = time.monotonic()
@@ -415,31 +423,20 @@ def run_view(run_dir: Any, prices: dict[str, Any] | None, read: Any = None) -> d
                 lead = False
         if lead:
             return _compute(entry, flight, run_dir, prices, read)
-        entitled = flight.prices == fingerprint and (flight.began >= arrived or (seen is not None and flight.stamp == seen))
         if not flight.done.wait(max(0.0, deadline - time.monotonic())):
             return _stale(entry)
-        if entitled:
-            if flight.error is not None:
-                raise flight.error
-            if flight.view is not None:
-                return flight.view
+        # the computation ended: the next pass takes its view if it is reusable (see _reusable), else leads a newer one
 
 
 def _compute(entry: _Entry, flight: _Flight, run_dir: Any, prices: dict[str, Any] | None, read: Any) -> dict[str, Any]:
     try:
         events = read(run_dir)
         result = view(events, prices)
-        live = flight.stamp is not None and bool(events) and not events[0].get('derived')
+        flight.live = flight.stamp is not None and bool(events) and not events[0].get('derived')
+        flight.view, flight.finished = result, time.monotonic()
         with entry.mutex:
-            if live:
-                entry.stamp, entry.prices, entry.view, entry.computed = flight.stamp, flight.prices, result, time.monotonic()
-            else:
-                entry.stamp, entry.prices, entry.view = None, None, None
-        flight.view = result
+            entry.last = flight
         return result
-    except BaseException as exc:
-        flight.error = exc
-        raise
     finally:
         with entry.mutex:
             entry.flight = None

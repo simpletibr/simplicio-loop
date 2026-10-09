@@ -897,6 +897,35 @@ class _Calls:
         return [dict(_tok(1, HAIKU, 100 * n, 0, task_id='T%d' % n), **({'derived': True} if self.derived else {}))]
 
 
+class _Arrivals:
+    '''Counts the distinct threads that looked at the run's files (every run_view does, right after it arrived), so a test knows
+    that all its pollers are inside run_view instead of hoping a sleep was long enough on a loaded machine.'''
+
+    def __init__(self, monkeypatch):
+        self.threads, self.lock, real = set(), threading.Lock(), stage_agents._stamp
+
+        def watching(run_dir):
+            with self.lock:
+                self.threads.add(threading.get_ident())
+            return real(run_dir)
+
+        monkeypatch.setattr(stage_agents, '_stamp', watching)
+
+    def wait_for(self, count, timeout=10):
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
+            with self.lock:
+                if len(self.threads) >= count:
+                    return
+            time.sleep(0.005)
+        raise AssertionError('only %d of %d pollers arrived' % (len(self.threads), count))
+
+
+@pytest.fixture
+def arrivals(monkeypatch):
+    return _Arrivals(monkeypatch)
+
+
 def _spawn(run_dir, reader, results, count=1):
     threads = [threading.Thread(target=lambda: results.append(stage_agents.run_view(run_dir, PRICES, read=reader))) for _ in range(count)]
     for thread in threads:
@@ -910,7 +939,7 @@ def _join(threads):
         assert not thread.is_alive()
 
 
-def test_pollers_that_arrive_during_a_computation_share_one_newer_computation_not_one_each(run_dir):
+def test_pollers_that_arrive_during_a_computation_share_one_newer_computation_not_one_each(run_dir, arrivals):
     release = threading.Event()
     reader = _Calls(hold={1: release})
     first, later = [], []
@@ -918,7 +947,7 @@ def test_pollers_that_arrive_during_a_computation_share_one_newer_computation_no
     assert reader.started[1].wait(5)
     _append(run_dir)  # the writer is hot: the stamp the first computation took is already old
     waiters = _spawn(run_dir, reader, later, count=7)
-    time.sleep(0.3)
+    arrivals.wait_for(8)
     release.set()
     _join([leader, *waiters])
     assert len(reader.calls) == 2  # one computation for the leader, ONE for the seven waiters (not seven)
@@ -926,21 +955,34 @@ def test_pollers_that_arrive_during_a_computation_share_one_newer_computation_no
     assert all(v is later[0] for v in later)
 
 
-@pytest.mark.parametrize('derived', [False, True])
-def test_a_poller_that_arrives_after_the_stamp_but_sees_unchanged_files_reuses_the_computation_in_flight(run_dir, derived):
+def test_a_poller_that_arrives_after_the_stamp_but_sees_unchanged_files_reuses_the_computation_in_flight(run_dir, arrivals):
     release = threading.Event()
-    reader = _Calls(hold={1: release}, derived=derived)  # a derived view is never cached: only the stamp lets the waiters share it
+    reader = _Calls(hold={1: release})
     first, later = [], []
     [leader] = _spawn(run_dir, reader, first)
     assert reader.started[1].wait(5)  # the computation has taken its stamp; nothing is appended after it
     waiters = _spawn(run_dir, reader, later, count=6)
-    time.sleep(0.3)
+    arrivals.wait_for(7)
     release.set()
     _join([leader, *waiters])
     assert len(reader.calls) == 1 and all(v is first[0] for v in later) and len(later) == 6
 
 
-def test_a_poller_that_starts_after_an_append_never_gets_a_result_computed_before_it(run_dir):
+def test_a_view_rebuilt_from_other_files_is_never_reused_by_its_stamp(run_dir, arrivals):
+    """A derived view depends on files the stamp does not cover: only a poller that arrived before the computation began may share it."""
+    release = threading.Event()
+    reader = _Calls(hold={1: release}, derived=True)
+    first, later = [], []
+    [leader] = _spawn(run_dir, reader, first)
+    assert reader.started[1].wait(5)
+    waiters = _spawn(run_dir, reader, later, count=4)
+    arrivals.wait_for(5)
+    release.set()
+    _join([leader, *waiters])
+    assert len(reader.calls) == 2 and len({id(v) for v in later}) == 1 and later[0] is not first[0]  # one newer computation, shared
+
+
+def test_a_poller_that_starts_after_an_append_never_gets_a_result_computed_before_it(run_dir, arrivals):
     release = threading.Event()
     reader = _Calls(hold={1: release})
     first, late = [], []
@@ -948,13 +990,13 @@ def test_a_poller_that_starts_after_an_append_never_gets_a_result_computed_befor
     assert reader.started[1].wait(5)
     _append(run_dir)
     [poller] = _spawn(run_dir, reader, late)
-    time.sleep(0.2)
+    arrivals.wait_for(2)
     release.set()
     _join([leader, poller])
     assert _task_keys(first[0]) == ['T1'] and _task_keys(late[0]) == ['T2']
 
 
-def test_waiters_that_arrived_before_the_new_computation_took_its_stamp_reuse_it_even_if_the_writer_keeps_appending(run_dir):
+def test_waiters_that_arrived_before_the_new_computation_took_its_stamp_reuse_it_even_if_the_writer_keeps_appending(run_dir, arrivals):
     release1, release2 = threading.Event(), threading.Event()
     reader = _Calls(hold={1: release1, 2: release2}, on_call={2: lambda: _append(run_dir, '{"seq": 3}\n')})
     first, parked = [], []
@@ -962,7 +1004,7 @@ def test_waiters_that_arrived_before_the_new_computation_took_its_stamp_reuse_it
     assert reader.started[1].wait(5)
     _append(run_dir)
     waiters = _spawn(run_dir, reader, parked, count=5)
-    time.sleep(0.2)
+    arrivals.wait_for(6)
     release1.set()
     assert reader.started[2].wait(5)
     release2.set()
@@ -970,7 +1012,7 @@ def test_waiters_that_arrived_before_the_new_computation_took_its_stamp_reuse_it
     assert len(reader.calls) == 2 and all(_task_keys(v) == ['T2'] for v in parked)
 
 
-def test_a_poller_that_arrives_after_the_new_computation_took_its_stamp_waits_for_a_still_newer_one(run_dir):
+def test_a_poller_that_arrives_after_the_new_computation_took_its_stamp_waits_for_a_still_newer_one(run_dir, arrivals):
     release1, release2 = threading.Event(), threading.Event()
     reader = _Calls(hold={1: release1, 2: release2})
     first, parked, late = [], [], []
@@ -978,45 +1020,56 @@ def test_a_poller_that_arrives_after_the_new_computation_took_its_stamp_waits_fo
     assert reader.started[1].wait(5)
     _append(run_dir)
     waiters = _spawn(run_dir, reader, parked, count=2)
-    time.sleep(0.2)
+    arrivals.wait_for(3)
     release1.set()
     assert reader.started[2].wait(5)  # the second computation has taken its stamp
     _append(run_dir, '{"seq": 3}\n')  # an append it cannot have seen
     [straggler] = _spawn(run_dir, reader, late)
-    time.sleep(0.2)
+    arrivals.wait_for(4)
     release2.set()
     _join([leader, *waiters, straggler])
     assert len(reader.calls) == 3
-    assert all(_task_keys(v) == ['T2'] for v in parked) and _task_keys(late[0]) == ['T3']
+    # a parked waiter that wakes late may find the third computation already done: it is newer, so it is fair to take it
+    assert all(_task_keys(v) in (['T2'], ['T3']) for v in parked) and _task_keys(late[0]) == ['T3']
 
 
-def test_many_pollers_and_a_hot_writer_cost_a_few_computations_not_one_per_poller(run_dir):
-    stop = threading.Event()
+def test_a_view_computed_with_another_price_table_is_never_shared():
+    flight = stage_agents._Flight('table-A', (('events.jsonl', 1, 1, 1, 1),), began=10.0)
+    assert stage_agents._reusable(flight, 'table-A', arrived=5.0, seen=None)  # it began after the request arrived
+    assert not stage_agents._reusable(flight, 'table-B', arrived=5.0, seen=None)
+    assert not stage_agents._reusable(flight, 'table-A', arrived=11.0, seen=None)  # the request arrived later, files unknown
+    flight.live = True
+    assert stage_agents._reusable(flight, 'table-A', arrived=11.0, seen=flight.stamp)  # later, but the files did not change
+    assert not stage_agents._reusable(flight, 'table-B', arrived=11.0, seen=flight.stamp)
+
+
+def test_many_pollers_and_a_hot_writer_cost_a_few_computations_not_one_per_poller(run_dir, arrivals):
+    stop, release = threading.Event(), threading.Event()
+    calls = []
 
     def writer():
         while not stop.is_set():
             _append(run_dir)
             time.sleep(0.003)
 
-    def slow_reader_factory():
-        calls = []
+    def read(path):
+        calls.append(1)
+        release.wait(10)  # held until every poller is inside run_view, however slowly the machine starts the threads
+        return [_tok(1, HAIKU, 1, 0)]
 
-        def read(path):
-            calls.append(1)
-            time.sleep(0.1)
-            return [_tok(1, HAIKU, 1, 0)]
-        return read, calls
-
-    read, calls = slow_reader_factory()
     hot = threading.Thread(target=writer)
     hot.start()
     try:
         results = []
-        _join(_spawn(run_dir, read, results, count=12))
+        threads = _spawn(run_dir, read, results, count=12)
+        arrivals.wait_for(12)
+        release.set()
+        _join(threads)
     finally:
         stop.set()
         hot.join(5)
-    assert len(results) == 12 and len(calls) <= 3
+    # the stamp never stops moving, yet 12 pollers cost the first computation and at most ONE newer one shared by the others
+    assert len(results) == 12 and 1 <= len(calls) <= 2
 
 
 def test_a_stuck_computation_serves_the_last_good_view_flagged_stale_with_its_age(run_dir, monkeypatch):
@@ -1055,7 +1108,7 @@ def test_a_stuck_computation_with_nothing_cached_is_a_busy_error_with_a_retry_af
     _join([stuck])
 
 
-def test_a_failing_computation_does_not_strand_the_pollers_behind_it(run_dir):
+def test_a_failing_computation_does_not_strand_the_pollers_behind_it(run_dir, arrivals):
     release = threading.Event()
     reader = _Calls(hold={1: release}, fail={1})
     failed, later, errors = [], [], []
@@ -1071,7 +1124,7 @@ def test_a_failing_computation_does_not_strand_the_pollers_behind_it(run_dir):
     assert reader.started[1].wait(5)
     _append(run_dir)
     waiters = _spawn(run_dir, reader, later, count=3)
-    time.sleep(0.2)
+    arrivals.wait_for(4)
     release.set()
     _join([leader, *waiters])
     assert errors == ['boom 1'] and failed == [] and len(later) == 3 and all(_task_keys(v) == ['T2'] for v in later)
