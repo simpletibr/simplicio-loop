@@ -38,7 +38,6 @@ Usage:
     python3 scripts/repo_conventions.py show [--json]
     python3 scripts/repo_conventions.py selftest
 """
-import hashlib
 import json
 import os
 import re
@@ -55,48 +54,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 DEFAULT_OUT = os.path.join(REPO, ".simplicio-loop/orchestrator", "conventions.json")
 
-# The conventional-commit type vocabulary (Angular convention + common extras).
-CC_TYPES = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor",
-            "revert", "style", "test"]
-CC_RE = re.compile(
-    r"^(?P<type>%s)(?P<scope>\([^)]*\))?(?P<bang>!)?:\s" % "|".join(CC_TYPES), re.I)
-# A ticket id like JIRA-123 / ABC-9 (project key + number).
-TICKET_RE = re.compile(r"\b([A-Z][A-Z0-9]+-\d+)\b")
-# Branch prefixes that map onto a commit/work type.
-BRANCH_PREFIX_ALIASES = {
-    "feature": "feat", "feat": "feat", "feats": "feat",
-    "fix": "fix", "bugfix": "fix", "hotfix": "fix", "bug": "fix",
-    "chore": "chore", "docs": "docs", "doc": "docs", "refactor": "refactor",
-    "test": "test", "tests": "test", "ci": "ci", "build": "build",
-    "perf": "perf", "style": "style", "release": "chore",
-}
-# Item-type (issue/card label) -> branch/commit type. Used by `branch` when given an alias.
-DEFAULT_ITEM_MAP = {
-    "bug": "fix", "defect": "fix", "regression": "fix", "security": "fix",
-    "feature": "feat", "enhancement": "feat", "story": "feat", "epic": "feat",
-    "task": "chore", "chore": "chore", "maintenance": "chore",
-    "docs": "docs", "documentation": "docs",
-    "refactor": "refactor", "test": "test", "ci": "ci", "build": "build",
-    "performance": "perf", "perf": "perf",
-}
-# Branch names that carry no convention signal — exclude from prefix inference.
-TRUNK_BRANCHES = {"main", "master", "develop", "development", "trunk", "release",
-                  "staging", "production", "prod", "head", "gh-pages"}
-MIN_BRANCH_SAMPLES = 3
-MIN_COMMIT_SAMPLES = 8
+# The inference lives in the package (the wheel ships it, `scripts/` does not); this file is the CLI.
+if REPO not in sys.path:
+    sys.path.insert(0, REPO)
+from simplicio_loop.repo_conventions import (  # noqa: E402
+    CC_TYPES, build_profile, discover_architecture, profile_for_repo, summary_lines,
+)
 
 
 def log(msg):
     print("  " + msg)
-
-
-def _git(args):
-    try:
-        r = subprocess.run(["git"] + args, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", cwd=REPO)
-        return r.stdout if r.returncode == 0 else None
-    except FileNotFoundError:
-        return None
 
 
 def _gh_merged_prs(limit):
@@ -116,268 +83,10 @@ def _gh_merged_prs(limit):
         return []
 
 
-# ---- pure inference (no I/O — the selftest exercises THESE) ---------------------------------
-
-def _dominant_sep(texts, seps=("-", "_")):
-    """Which separator dominates inside slugs (kebab vs snake)."""
-    counts = {s: sum(t.count(s) for t in texts) for s in seps}
-    return max(counts, key=counts.get) if any(counts.values()) else "-"
-
-
-def infer_branch(branch_names):
-    """Branch short-names -> scheme profile. Pure."""
-    considered, prefixed, types, tails = 0, 0, {}, []
-    has_ticket = 0
-    for raw in branch_names:
-        name = raw.strip().split("/", 1)
-        if len(name) == 2 and name[0] in ("origin", "remotes"):
-            raw = name[1] if name[0] == "origin" else raw.split("/", 1)[1]
-        raw = raw.strip()
-        if not raw or raw.lower() in TRUNK_BRANCHES:
-            continue
-        considered += 1
-        if TICKET_RE.search(raw):
-            has_ticket += 1
-        if "/" in raw:
-            prefix, tail = raw.split("/", 1)
-            t = BRANCH_PREFIX_ALIASES.get(prefix.lower())
-            if t:
-                prefixed += 1
-                types[t] = types.get(t, 0) + 1
-                tails.append(tail)
-    conf = (prefixed / considered) if considered else 0.0
-    slug_sep = _dominant_sep(tails) if tails else "-"
-    return {
-        "prefix_sep": "/",
-        "slug_sep": slug_sep,
-        "types": sorted(types, key=lambda k: -types[k]),
-        "type_counts": types,
-        "has_ticket": considered > 0 and has_ticket >= max(1, considered // 2),
-        "ticket_pattern": TICKET_RE.pattern if has_ticket else None,
-        "confidence": round(conf, 3),
-        "samples": considered,
-    }
-
-
-def _percentile(values, q):
-    if not values:
-        return 0
-    s = sorted(values)
-    idx = min(len(s) - 1, int(round((q / 100.0) * (len(s) - 1))))
-    return s[idx]
-
-
-def infer_commit(subjects):
-    """Commit subjects -> convention profile. Pure."""
-    total, conv, types, scopes, ticketed, lengths = 0, 0, {}, {}, 0, []
-    for s in subjects:
-        s = s.strip()
-        if not s:
-            continue
-        total += 1
-        lengths.append(len(s))
-        if TICKET_RE.search(s):
-            ticketed += 1
-        m = CC_RE.match(s)
-        if m:
-            conv += 1
-            t = m.group("type").lower()
-            types[t] = types.get(t, 0) + 1
-            sc = m.group("scope")
-            if sc:
-                name = sc.strip("()").strip()
-                if name:
-                    scopes[name] = scopes.get(name, 0) + 1
-    conf = (conv / total) if total else 0.0
-    subject_max = max(50, min(72, _percentile(lengths, 90))) if lengths else 72
-    return {
-        "convention": "conventional" if conf >= 0.6 else "plain",
-        "types": types,
-        "scopes": dict(sorted(scopes.items(), key=lambda kv: -kv[1])),
-        "ticket_in_subject": total > 0 and ticketed >= max(1, total // 2),
-        "subject_max": int(subject_max),
-        "confidence": round(conf, 3),
-        "samples": total,
-    }
-
-
-def _md_headings(text):
-    """Ordered markdown H1-H3 heading texts (PR-body / template section STRUCTURE only)."""
-    out = []
-    for line in (text or "").splitlines():
-        hm = re.match(r"^#{1,3}\s+(.+?)\s*$", line)
-        if hm:
-            out.append(hm.group(1).strip())
-    return out
-
-
-ARCHITECTURE_DOC_CANDIDATES = [
-    "ARCHITECTURE.md", "DESIGN.md", os.path.join("docs", "ARCHITECTURE.md"),
-    os.path.join("docs", "DESIGN.md"), os.path.join(".specs", "architecture", "DESIGN.md"),
-    os.path.join(".specs", "architecture", "PATTERNS.md"), os.path.join(".specs", "README.md"),
-    "CONTRIBUTING.md", "AGENTS.md",
-]
-ARCHITECTURE_DOC_GLOBS = [
-    os.path.join(".specs", "architecture", "ADR-*.md"),
-    os.path.join("docs", "adr", "*.md"),
-    os.path.join("docs", "architecture", "*.md"),
-]
-# Makefile/package.json/pyproject.toml targets that name the project's OWN test/lint/typecheck
-# command — so generated code is checked with the tool the maintainers actually use, not a guess.
-TEST_RUNNER_CANDIDATES = [
-    (os.path.join("scripts", "check.py"), "python3 scripts/check.py"),
-    (os.path.join("scripts", "run_tests.sh"), "bash scripts/run_tests.sh"),
-    ("Makefile", None),  # parsed for a `test:` target below
-    ("package.json", None),  # parsed for scripts.test below
-    ("pyproject.toml", "pytest"),
-]
-LINT_CANDIDATES = [
-    ("Makefile", None),  # parsed for a `lint:` target below
-    ("package.json", None),  # parsed for scripts.lint below
-    (".eslintrc.json", "eslint ."), (".eslintrc.js", "eslint ."), (".eslintrc", "eslint ."),
-    ("ruff.toml", "ruff check ."), (".ruff.toml", "ruff check ."),
-    ("setup.cfg", "flake8"),
-]
-
-
-def _makefile_target(repo_root, target):
-    mk = os.path.join(repo_root, "Makefile")
-    if not os.path.exists(mk):
-        return None
-    try:
-        with open(mk, encoding="utf-8", errors="replace") as f:
-            text = f.read()
-    except OSError:
-        return None
-    if re.search(r"^%s:" % re.escape(target), text, re.M):
-        return "make %s" % target
-    return None
-
-
-def _package_json_script(repo_root, script):
-    pj = os.path.join(repo_root, "package.json")
-    if not os.path.exists(pj):
-        return None
-    try:
-        with open(pj, encoding="utf-8", errors="replace") as f:
-            data = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return None
-    if isinstance(data, dict) and script in (data.get("scripts") or {}):
-        return "npm run %s" % script
-    return None
-
-
-def discover_architecture(repo_root=REPO):
-    """Find the repo's OWN architecture docs + test/lint command — mined, not guessed.
-
-    Pure I/O-only (no git needed), so it degrades honestly to empty lists/None on a repo with
-    none of these — never fabricates a doc or command that isn't actually there.
-    """
-    import glob as _glob
-
-    docs = []
-    for rel in ARCHITECTURE_DOC_CANDIDATES:
-        if os.path.isfile(os.path.join(repo_root, rel)):
-            docs.append(rel.replace(os.sep, "/"))
-    for pattern in ARCHITECTURE_DOC_GLOBS:
-        for hit in sorted(_glob.glob(os.path.join(repo_root, pattern))):
-            docs.append(os.path.relpath(hit, repo_root).replace(os.sep, "/"))
-
-    test_runner = _makefile_target(repo_root, "test") or _package_json_script(repo_root, "test")
-    if not test_runner:
-        for rel, cmd in TEST_RUNNER_CANDIDATES:
-            if cmd and os.path.isfile(os.path.join(repo_root, rel)):
-                test_runner = cmd
-                break
-
-    lint_cmd = _makefile_target(repo_root, "lint") or _package_json_script(repo_root, "lint")
-    if not lint_cmd:
-        for rel, cmd in LINT_CANDIDATES:
-            if cmd and os.path.isfile(os.path.join(repo_root, rel)):
-                lint_cmd = cmd
-                break
-
-    return {"docs": docs, "test_runner": test_runner, "lint_cmd": lint_cmd}
-
-
-def infer_pr(prs):
-    """Merged-PR records -> title convention + label vocab + body section structure. Pure."""
-    titles = [(p.get("title") or "") for p in prs]
-    conv = sum(1 for t in titles if CC_RE.match(t.strip()))
-    labels, sections = {}, {}
-    for p in prs:
-        for lb in p.get("labels", []) or []:
-            nm = lb.get("name") if isinstance(lb, dict) else str(lb)
-            if nm:
-                labels[nm] = labels.get(nm, 0) + 1
-        for sec in _md_headings(p.get("body", "")):
-            sections[sec] = sections.get(sec, 0) + 1
-    return {
-        "convention": "conventional" if (titles and conv >= len(titles) * 0.6) else "plain",
-        "labels": [k for k, _ in sorted(labels.items(), key=lambda kv: -kv[1])][:20],
-        "body_sections": [k for k, _ in sorted(sections.items(), key=lambda kv: -kv[1])][:10],
-        "samples": len(prs),
-    }
-
-
-def build_profile(branch_names, subjects, prs, config_hint=False, pr_template_sections=None,
-                  architecture=None):
-    """Aggregate the three signals into one profile + decide source/confidence. Pure."""
-    b = infer_branch(branch_names)
-    c = infer_commit(subjects)
-    p = infer_pr(prs)
-    # No merged-PR history to learn sections from? Fall back to the repo's PR TEMPLATE structure.
-    if not p["body_sections"] and pr_template_sections:
-        p["body_sections"] = list(pr_template_sections)[:10]
-    samples_ok = b["samples"] >= MIN_BRANCH_SAMPLES or c["samples"] >= MIN_COMMIT_SAMPLES
-    if samples_ok:
-        overall = max(b["confidence"], c["confidence"])
-    else:
-        overall = round(min(b["confidence"], c["confidence"]) * 0.5, 3)
-
-    if overall >= 0.5 and samples_ok:
-        source = "history"
-    elif config_hint:
-        source = "config"
-    else:
-        source = "default"
-
-    if source != "history":
-        # Honest fallback: a clean Conventional-Commits default, not an over-fit guess.
-        b = {"prefix_sep": "/", "slug_sep": "-",
-             "types": list(CC_TYPES),
-             "type_counts": {}, "has_ticket": False, "ticket_pattern": None,
-             "confidence": b["confidence"], "samples": b["samples"]}
-        c = {"convention": "conventional", "types": c["types"], "scopes": c["scopes"],
-             "ticket_in_subject": False, "subject_max": c["subject_max"],
-             "confidence": c["confidence"], "samples": c["samples"]}
-
-    item_map = dict(DEFAULT_ITEM_MAP)
-    vocab = set(b["types"]) | set(c["types"])
-    if vocab:  # only map onto types the repo actually uses; else keep the safe default map
-        for k, v in list(item_map.items()):
-            if v not in vocab:
-                item_map[k] = "fix" if "fix" in vocab else (b["types"][0] if b["types"] else v)
-
-    blob = "\n".join(sorted(branch_names) + sorted(subjects) +
-                     [(pr.get("title") or "") for pr in prs]).encode("utf-8")
-    return {
-        "version": 1,
-        "source": source,
-        "confidence": overall,
-        "branch": b,
-        "commit": c,
-        "pr": p,
-        "item_type_to_branch": item_map,
-        "samples": {"branches": b["samples"], "commits": c["samples"], "prs": p["samples"]},
-        "architecture": architecture or {"docs": [], "test_runner": None, "lint_cmd": None},
-        "inputs_sha256": hashlib.sha256(blob).hexdigest(),
-    }
-
+# ---- default profile (inference: simplicio_loop.repo_conventions) ---------------------------------
 
 def default_profile():
-    return build_profile([], [], [], architecture=discover_architecture())
+    return build_profile([], [], [], architecture=discover_architecture(REPO))
 
 
 # ---- formatters (deterministic apply — Steps 4-6 call these, never an LLM) ------------------
@@ -438,70 +147,17 @@ def _load_profile(out):
 def cmd_learn(opts):
     out = opts.get("out", DEFAULT_OUT)
     limit = int(opts.get("limit", 400))
-    branches_raw = _git(["for-each-ref", "--format=%(refname:short)",
-                         "refs/remotes", "refs/heads"])
-    if branches_raw is None:
-        log("! no git history available — emitting an honest default Conventional-Commits profile")
-        branches, subjects, prs = [], [], []
-    else:
-        branches = [b for b in branches_raw.splitlines() if b.strip()]
-        subjects_raw = _git(["log", "--no-merges", "--pretty=%s", "-n", str(limit)]) or ""
-        subjects = [s for s in subjects_raw.splitlines() if s.strip()]
-        prs = _gh_merged_prs(min(limit, 100))
-
-    # Static config (a hint only): does the repo DOCUMENT Conventional Commits / commitizen?
-    config_hint = False
-    for rel in ("CONTRIBUTING.md", "AGENTS.md", os.path.join(".github", "CONTRIBUTING.md"),
-                "pyproject.toml"):
-        cp = os.path.join(REPO, rel)
-        if not os.path.exists(cp):
-            continue
-        try:
-            with open(cp, encoding="utf-8", errors="replace") as f:
-                if re.search(r"conventional[ -]?commit|commitizen|\[tool\.commitizen\]",
-                             f.read(), re.I):
-                    config_hint = True
-                    break
-        except OSError:
-            pass
-
-    # PR template: its section headings seed the PR-body structure when there is no merged-PR
-    # history to learn from (so a freshly-mined repo still fills PRs in the maintainer's format).
-    tmpl_sections = []
-    for rel in (os.path.join(".github", "PULL_REQUEST_TEMPLATE.md"),
-                os.path.join(".github", "pull_request_template.md"),
-                "PULL_REQUEST_TEMPLATE.md"):
-        tp = os.path.join(REPO, rel)
-        if os.path.exists(tp):
-            try:
-                with open(tp, encoding="utf-8", errors="replace") as f:
-                    tmpl_sections = _md_headings(f.read())
-            except OSError:
-                tmpl_sections = []
-            if tmpl_sections:
-                break
-
-    architecture = discover_architecture()
-    profile = build_profile(branches, subjects, prs, config_hint=config_hint,
-                            pr_template_sections=tmpl_sections, architecture=architecture)
+    profile = profile_for_repo(REPO, limit, fetch_prs=_gh_merged_prs)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         json.dump(profile, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
-    b, c, p = profile["branch"], profile["commit"], profile["pr"]
-    scopes = ",".join(list(c["scopes"])[:4]) or "-"
-    ticket = b["ticket_pattern"] or "-"
+    header, scheme, architecture = summary_lines(profile)
     print("learned")
-    log("conventions: source=%s conf=%.2f -> %s" % (
-        profile["source"], profile["confidence"], out))
-    log("branch=%s%s{slug} commit=%s(scopes:%s) ticket=%s pr-sections=%d  [b=%d c=%d pr=%d]" % (
-        "{type}", b["prefix_sep"], c["convention"], scopes, ticket,
-        len(p["body_sections"]), profile["samples"]["branches"],
-        profile["samples"]["commits"], profile["samples"]["prs"]))
-    log("architecture: docs=%d test=%s lint=%s" % (
-        len(architecture["docs"]), architecture["test_runner"] or "-",
-        architecture["lint_cmd"] or "-"))
+    log("%s -> %s" % (header, out))
+    log(scheme)
+    log(architecture)
 
 
 def cmd_show(opts):
