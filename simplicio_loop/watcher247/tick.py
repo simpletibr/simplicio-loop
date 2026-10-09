@@ -18,6 +18,11 @@ from . import budget, config, events, github, host_mode, onboarding, points, pro
 _STATE_DIRS = (".simplicio-loop/",)
 
 
+def pr_draft_enabled(environ: dict[str, str] | None = None) -> bool:
+    """Off unless the operator sets SIMPLICIO_247_PR_DRAFT=1: the PR opens as draft for independent review."""
+    return (os.environ if environ is None else environ).get("SIMPLICIO_247_PR_DRAFT") == "1"
+
+
 class Gate:
     """One lock per repo; the tick itself caps the batch at the capacity plan (SIMPLICIO_247_CONCURRENCY overrides it)."""
 
@@ -148,11 +153,14 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
         f"{label}\n\n"
         f"Closes #{issue['number']}\n"
     )
-    created = await proc.run([
+    pr_cmd = [
         "gh", "pr", "create", "--repo", f"{config.ORG}/{repo}",
         "--base", branch, "--head", head,
         "--title", title[:70], "--body", body,
-    ], cwd=dest, timeout=60)
+    ]
+    if pr_draft_enabled():
+        pr_cmd.insert(3, "--draft")
+    created = await proc.run(pr_cmd, cwd=dest, timeout=60)
     if created.returncode != 0:
         if "already exists" not in (created.stderr or "").lower():  # the PR may already exist
             raise _fail(created, "pr create failed")
