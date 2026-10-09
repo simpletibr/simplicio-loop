@@ -15,6 +15,7 @@ SCHEMA = 'simplicio.dashboard-extras/v1'
 EVENT_SCHEMA = 'simplicio.dashboard-event/v1'
 NOW = 1_790_000_000.0
 NO_LANE = {'state': 'UNVERIFIED', 'reason': 'nenhuma lane com lease_id registrado', 'lanes': []}
+NO_COMMAND_EVENT = {'state': 'UNVERIFIED', 'reason': 'nenhum command_started no run', 'lanes': []}
 
 
 def _utc(offset=0.0):
@@ -51,8 +52,8 @@ def _contract(tmp_path, tasks):
 
 
 def test_an_empty_run_reports_no_extras_and_an_unverified_heartbeat(tmp_path):
-    assert lane_extras.extras(tmp_path, []) == {'schema': SCHEMA, 'last_command': None, 'tasks': [],
-                                                'models': [], 'heartbeat': NO_LANE}
+    assert lane_extras.extras(tmp_path, []) == {'schema': SCHEMA, 'last_command': None, 'running_command': NO_COMMAND_EVENT,
+                                                'tasks': [], 'models': [], 'heartbeat': NO_LANE}
 
 
 def test_last_command_is_the_latest_test_or_lint_result_by_seq(tmp_path):
@@ -258,3 +259,125 @@ def test_the_backlog_defaults_to_the_orchestrator_file_next_to_loop_runs(tmp_pat
         json.dumps({'kind': 'item', 'id': 'T1', 'lease': _lease(12, lease_id='a1')}) + '\n', encoding='utf-8')
     got = lane_extras.extras(run_dir, [_claim(1, 'lane-a', 'a1')], now=NOW)['heartbeat']
     assert got['lanes'][0]['age_s'] == 12
+
+
+# --- issue #1551: the command running right now (command_started without a command_finished) -----------------------------
+def _started(seq, command_id, ago, command='pytest -q', lane='lane-a', task_id='T1'):
+    payload = {'command_id': command_id, 'command': command}
+    return dict(_event(seq, 'command_started', payload, lane=lane, ts=_utc(-ago)), task_id=task_id)
+
+
+def _finished(seq, command_id, ago=0, lane='lane-a', task_id='T1'):
+    payload = {'command_id': command_id, 'exit_code': 0, 'duration_s': 1.5, 'status': 'pass'}
+    return dict(_event(seq, 'command_finished', payload, lane=lane, ts=_utc(-ago)), task_id=task_id)
+
+
+def _running(tmp_path, events, now=NOW):
+    return lane_extras.extras(tmp_path, events, now=now)['running_command']
+
+
+def test_a_started_command_without_a_finish_is_running_with_its_measured_age(tmp_path):
+    got = _running(tmp_path, [_started(1, 'c1', 12, command='pytest -q tests/x.py')])
+    assert got['state'] == 'PASS'
+    assert got['lanes'] == [{'lane': 'lane-a', 'task_id': 'T1', 'command_id': 'c1', 'command': 'pytest -q tests/x.py',
+                             'started_at': _utc(-12), 'age_s': 12, 'stuck': False, 'state': 'MEASURED', 'reason': None}]
+    assert got['reason'] == 'lane-a: em execução há 12 s: pytest -q tests/x.py'
+
+
+def test_a_finished_command_is_not_shown_as_running(tmp_path):
+    got = _running(tmp_path, [_started(1, 'c1', 12), _finished(2, 'c1')])
+    assert got == {'state': 'PASS', 'reason': 'nenhum comando em execução segundo os eventos', 'lanes': []}
+
+
+def test_a_run_without_command_events_is_unverified_with_the_reason(tmp_path):
+    assert _running(tmp_path, []) == NO_COMMAND_EVENT
+    assert _running(tmp_path, [_event(1, 'test_result', {'command': 'pytest -q'})]) == NO_COMMAND_EVENT
+
+
+def test_a_finish_alone_does_not_invent_a_running_command(tmp_path):
+    assert _running(tmp_path, [_finished(2, 'c1')]) == NO_COMMAND_EVENT
+
+
+def test_interleaved_events_of_two_lanes_are_paired_by_command_id_and_read_in_seq_order(tmp_path):
+    events = [_started(1, 'a1', 50, command='pytest a1', lane='lane-a', task_id='TA'),
+              _started(2, 'b1', 40, command='ruff b1', lane='lane-b', task_id='TB'),
+              _finished(3, 'a1', 30, lane='lane-a', task_id='TA'),
+              _started(4, 'a2', 20, command='pytest a2', lane='lane-a', task_id='TA'),
+              _finished(5, 'b1', 10, lane='lane-b', task_id='TB')]
+    for order in (events, events[::-1], [events[i] for i in (3, 0, 4, 2, 1)]):
+        got = _running(tmp_path, order)
+        assert [(row['lane'], row['command'], row['age_s']) for row in got['lanes']] == [('lane-a', 'pytest a2', 20)]
+    still = _running(tmp_path, events[:2])
+    assert [(row['lane'], row['command']) for row in still['lanes']] == [('lane-a', 'pytest a1'), ('lane-b', 'ruff b1')]
+    assert still['reason'] == 'lane-a: em execução há 50 s: pytest a1; lane-b: em execução há 40 s: ruff b1'
+
+
+def test_the_latest_unfinished_command_of_a_lane_wins_by_seq(tmp_path):
+    got = _running(tmp_path, [_started(7, 'c2', 5, command='second'), _started(3, 'c1', 90, command='first')])
+    assert [(row['command_id'], row['command']) for row in got['lanes']] == [('c2', 'second')]
+
+
+def test_a_lane_is_found_through_its_task_when_the_event_carries_none(tmp_path):
+    events = [_claim(1, 'lane-a', 'lease-1', task_id='T1'), _started(2, 'c1', 4, lane=None, task_id='T1')]
+    assert [(row['lane'], row['task_id']) for row in _running(tmp_path, events)['lanes']] == [('lane-a', 'T1')]
+    nameless = _running(tmp_path, [_started(2, 'c1', 4, lane=None, task_id='T9')])
+    assert [(row['lane'], row['task_id']) for row in nameless['lanes']] == [(None, 'T9')]
+    assert nameless['reason'] == 'T9: em execução há 4 s: pytest -q'
+
+
+def test_the_age_is_measured_against_the_clock_passed_in_for_a_running_command(tmp_path):
+    events = [_started(1, 'c1', 0)]
+    ages = [_running(tmp_path, events, now=NOW + delta)['lanes'][0]['age_s'] for delta in (10, 60)]
+    assert ages == [10, 60]
+
+
+def test_a_command_running_longer_than_the_threshold_is_flagged_with_its_age_not_hidden(tmp_path):
+    limit = lane_extras.STUCK_AFTER_S
+    at_limit = _running(tmp_path, [_started(1, 'c1', limit)])['lanes'][0]
+    stuck = _running(tmp_path, [_started(1, 'c1', limit + 100, command='pytest -q')])
+    assert at_limit['stuck'] is False
+    assert stuck['state'] == 'PASS' and stuck['lanes'][0]['stuck'] is True and stuck['lanes'][0]['age_s'] == limit + 100
+    assert stuck['reason'] == (f'lane-a: em execução há {limit + 100} s, sem fim registrado '
+                               f'(limite {limit} s): pytest -q')
+
+
+def test_a_command_started_before_the_run_finished_is_not_shown_as_running(tmp_path):
+    events = [_started(1, 'c1', 30), _event(2, 'run_finished', {'outcome': 'done'})]
+    assert _running(tmp_path, events) == {'state': 'PASS', 'reason': 'nenhum comando em execução segundo os eventos',
+                                          'lanes': []}
+    assert _running(tmp_path, events + [_started(3, 'c2', 3)])['lanes'][0]['command_id'] == 'c2'
+
+
+def test_a_start_without_a_readable_time_or_in_the_future_is_unverified_never_invented(tmp_path):
+    no_ts = dict(_started(1, 'c1', 5), ts='not a time')
+    future = _started(2, 'c2', -100, lane='lane-b')
+    got = _running(tmp_path, [no_ts, future])
+    assert got['state'] == 'UNVERIFIED'
+    assert [(row['state'], row['age_s'], row['started_at']) for row in got['lanes']] == [
+        ('UNVERIFIED', None, None), ('UNVERIFIED', None, None)]
+    assert [row['reason'] for row in got['lanes']] == ['command_started sem ts medido',
+                                                      'command_started no futuro do relógio']
+    assert 'lane-a: command_started sem ts medido' in got['reason']
+
+
+def test_a_start_without_a_command_id_or_a_command_is_ignored(tmp_path):
+    no_id = _event(1, 'command_started', {'command': 'pytest -q'}, lane='lane-a', ts=_utc(-5))
+    no_command = _event(2, 'command_started', {'command_id': 'c2', 'command': ''}, lane='lane-b', ts=_utc(-5))
+    assert _running(tmp_path, [no_id, no_command]) == NO_COMMAND_EVENT
+
+
+def test_events_of_another_schema_never_start_a_command(tmp_path):
+    foreign = dict(_started(1, 'c1', 5), schema='other/v1')
+    assert _running(tmp_path, [foreign, 'not an event']) == NO_COMMAND_EVENT
+
+
+def test_the_running_command_is_redacted_again_on_read_and_cut_to_200_characters(tmp_path):
+    command = 'pytest --token=hunter2hunter2 ' + 'x' * 400
+    got = _running(tmp_path, [_started(1, 'c1', 3, command=command)])
+    assert 'hunter2hunter2' not in got['lanes'][0]['command'] and len(got['lanes'][0]['command']) == 200
+    assert 'hunter2hunter2' not in got['reason']
+
+
+def test_running_commands_are_capped_at_fifty_lanes(tmp_path):
+    events = [_started(i + 1, f'c{i}', 5, lane=f'lane-{i:02d}', task_id=f'T{i}') for i in range(60)]
+    assert len(_running(tmp_path, events)['lanes']) == 50

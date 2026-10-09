@@ -24,6 +24,7 @@
           "run_started", "phase_entered", "phase_exited", "contract_frozen", "map_ready", "plan_frozen",
           "worker_claimed", "lane_progress", "iteration_started", "iteration_finished", "apply_result",
           "test_result", "lint_result", "coverage_result", "gate_evaluated",
+          "command_started", "command_finished",
           "retry_scheduled", "stall_detected", "decision_requested",
           "delivery_reconciled", "pr_opened", "token_usage", "cost_sample",
           "run_finished"

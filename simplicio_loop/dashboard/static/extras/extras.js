@@ -1,6 +1,6 @@
 // Extras panel: maps the run extras reply and the stage-agents reply to seven labelled rows and renders them into #live-extras.
 // Only a measured value earns PASS; anything else is UNVERIFIED with the reason it could not be measured.
-// The stage-agents breakdown (issue #1550) adds widgets under the six rows: tokens by phase/lane/model as stacked bars,
+// The stage-agents breakdown (issue #1550) adds widgets under the seven rows: tokens by phase/lane/model as stacked bars,
 // cost per task and per iteration, the agent map and a sparkline of the polled token total. Every name is shown with
 // textContent; a bar width is a clamped percent set through the CSSOM, never a style attribute.
 const SCHEMA = 'simplicio.dashboard-extras/v1';

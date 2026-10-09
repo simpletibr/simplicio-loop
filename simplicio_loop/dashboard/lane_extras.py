@@ -1,4 +1,4 @@
-'''Per-run extras for the Simplicio Live dashboard: last measured command, declared tasks, model per lane, heartbeat.
+'''Per-run extras for the Simplicio Live dashboard: last measured command, command running now, declared tasks, model per lane, heartbeat.
 
 A pure reader over the run directory and its events. Every figure is what the run recorded; a figure with no record
 is absent (None or an empty list), never invented. The heartbeat of each lane is matched on the lane's lease_id only
@@ -8,6 +8,10 @@ is a Mapper OperationsStore id, so it is read from the ``ops_leases`` table of t
 opened read-only with stdlib sqlite3 and never created or written. A backlog lease that carries the same lease_id is read
 through the coordination reader first. A lane whose lease cannot be found, or whose store is missing, locked or corrupt,
 stays UNVERIFIED with the reason.
+
+The command running now is the latest ``command_started`` of a lane (paired by ``command_id``) that has no ``command_finished`` and
+is not older than the last ``run_finished``; its age is the ``ts`` of the start against the clock passed in. A start with no finish
+after ``STUCK_AFTER_S`` is flagged with its age, never hidden or presumed dead; a start with no readable ``ts`` is UNVERIFIED.
 '''
 from __future__ import annotations
 
@@ -27,6 +31,10 @@ SCHEMA = 'simplicio.dashboard-extras/v1'
 EVENT_SCHEMA = 'simplicio.dashboard-event/v1'
 MAX_ITEMS = 50
 COMMAND_MAX = 300
+RUNNING_MAX = 200
+STUCK_AFTER_S = 600
+NO_COMMAND_REASON = 'nenhum command_started no run'
+IDLE_REASON = 'nenhum comando em execução segundo os eventos'
 TITLE_MAX = 160
 COMMAND_KINDS = frozenset({'test_result', 'lint_result'})
 BACKLOG_PARTS = ('orchestrator', 'backlog', 'backlog.jsonl')
@@ -97,9 +105,14 @@ def _models(ordered: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [rows[lane] for lane in sorted(rows)][:MAX_ITEMS]
 
 
+def _task_lanes(ordered: list[dict[str, Any]]) -> dict[str, str]:
+    '''The lane each task was last seen on: an event that names both.'''
+    return {task: lane for e in ordered if (task := _text(e.get('task_id'))) and (lane := _text(e.get('lane')))}
+
+
 def _lane_claims(ordered: list[dict[str, Any]]) -> dict[str, str]:
     '''Lease id of the latest worker_claimed of each lane ('' when it carried none), lane by event or by its task.'''
-    task_lane = {task: lane for e in ordered if (task := _text(e.get('task_id'))) and (lane := _text(e.get('lane')))}
+    task_lane = _task_lanes(ordered)
     claims: dict[str, str] = {}
     for event in ordered:
         lane = _text(event.get('lane')) or task_lane.get(_text(event.get('task_id')) or '')
@@ -266,15 +279,61 @@ def _heartbeat(claims: dict[str, str], run_dir: str | Path, backlog_path: str | 
             'lanes': rows}
 
 
+def _running_row(event: dict[str, Any], lane: str | None, now: float) -> dict[str, Any]:
+    payload = _payload(event)
+    row: dict[str, Any] = {'lane': lane, 'task_id': _text(event.get('task_id')), 'command_id': payload['command_id'],
+                           'command': redact_text(payload['command'])[:RUNNING_MAX], 'started_at': None, 'age_s': None,
+                           'stuck': None, 'state': 'UNVERIFIED', 'reason': None}
+    started = budget._parse(event.get('ts'))
+    if started is None:
+        row['reason'] = 'command_started sem ts medido'
+    elif now - started.timestamp() < 0:
+        row['reason'] = 'command_started no futuro do relógio'
+    else:
+        age = int(now - started.timestamp())
+        row.update(state='MEASURED', started_at=str(event['ts']), age_s=age, stuck=age > STUCK_AFTER_S)
+    return row
+
+
+def _running_text(row: dict[str, Any]) -> str:
+    name = row['lane'] or row['task_id'] or 'run'
+    if row['state'] != 'MEASURED':
+        return f"{name}: {row['reason']}"
+    flag = f", sem fim registrado (limite {STUCK_AFTER_S} s)" if row['stuck'] else ''
+    return f"{name}: em execução há {row['age_s']} s{flag}: {row['command']}"
+
+
+def _running_command(ordered: list[dict[str, Any]], now: float) -> dict[str, Any]:
+    '''The command each lane is running: its latest command_started with no command_finished of the same command_id.'''
+    starts = [e for e in ordered if e.get('kind') == 'command_started'
+              and _text(_payload(e).get('command_id')) and _text(_payload(e).get('command'))]
+    if not starts:
+        return {'state': 'UNVERIFIED', 'reason': NO_COMMAND_REASON, 'lanes': []}
+    done = {cid for e in ordered if e.get('kind') == 'command_finished' and (cid := _text(_payload(e).get('command_id')))}
+    ended = max((_seq(e) for e in ordered if e.get('kind') == 'run_finished'), default=-1)
+    task_lane = _task_lanes(ordered)
+    latest: dict[str, tuple[dict[str, Any], str | None]] = {}
+    for event in starts:
+        if _payload(event)['command_id'] in done or _seq(event) < ended:
+            continue
+        lane = _text(event.get('lane')) or task_lane.get(_text(event.get('task_id')) or '')
+        latest[lane or _text(event.get('task_id')) or ''] = (event, lane)
+    rows = [_running_row(event, lane, now) for _, (event, lane) in sorted(latest.items())][:MAX_ITEMS]
+    if not rows:
+        return {'state': 'PASS', 'reason': IDLE_REASON, 'lanes': []}
+    return {'state': 'PASS' if any(row['state'] == 'MEASURED' for row in rows) else 'UNVERIFIED',
+            'reason': '; '.join(_running_text(row) for row in rows), 'lanes': rows}
+
+
 def extras(run_dir: str | Path, events: Iterable[Any], backlog_path: str | Path | None = None,
            now: float | None = None) -> dict[str, Any]:
-    '''The run's extras: last measured command, declared tasks, model per lane and the heartbeat of each lane lease.
+    '''The run's extras: last measured command, the command running now, declared tasks, model per lane and lane lease heartbeats.
 
     Only dashboard events are read, in ascending seq order, so the latest record wins. ``now`` (epoch seconds, default
     the wall clock) is the clock the heartbeat age is measured against; ``backlog_path`` overrides the backlog file.
     '''
     ordered = sorted((e for e in events if isinstance(e, dict) and e.get('schema') == EVENT_SCHEMA), key=_seq)
     current = time.time() if now is None else float(now)
-    return {'schema': SCHEMA, 'last_command': _last_command(ordered), 'tasks': _tasks(run_dir),
-            'models': _models(ordered),
+    return {'schema': SCHEMA, 'last_command': _last_command(ordered), 'running_command': _running_command(ordered, current),
+            'tasks': _tasks(run_dir), 'models': _models(ordered),
             'heartbeat': _heartbeat(_lane_claims(ordered), run_dir, backlog_path, current)}
