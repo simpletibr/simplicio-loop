@@ -109,6 +109,40 @@ def test_non_blocking_blocked_result_is_returned_and_the_stage_goes_on(empty_reg
     points.raise_if_blocked("pr", results[1:])
 
 
+def test_blocking_deferred_stops_the_stage_with_point_deferred(empty_registry, make_ctx):
+    async def governor(ctx):
+        return points.PointResult("governor", "deferred", {"free_gb": 1}, "low_disk")
+    points.register("governor", "intake", governor, blocking=True)
+    points.register("never", "intake", ok("never"))
+    with pytest.raises(points.PointDeferred) as caught:
+        run("intake", make_ctx())
+    assert isinstance(caught.value, points.PointBlocked)
+    assert (caught.value.name, caught.value.reason_code) == ("governor", "low_disk")
+    assert [r.name for r in caught.value.results] == ["governor"]
+
+
+def test_non_blocking_deferred_is_returned_and_raise_if_blocked_types_it(empty_registry, make_ctx):
+    async def governor(ctx):
+        return points.PointResult("governor", "deferred", {}, "high_load")
+    points.register("governor", "pr", governor)
+    points.register("after", "pr", ok("after"))
+    results = run("pr", make_ctx())
+    assert [r.status for r in results] == ["deferred", "ok"]
+    with pytest.raises(points.PointDeferred) as caught:
+        points.raise_if_blocked("pr", results)
+    assert caught.value.reason_code == "high_load"
+
+
+def test_blocked_carries_the_reasons_of_the_blocking_result(empty_registry, make_ctx):
+    async def judge(ctx):
+        return points.PointResult("judge", "blocked", {"verdict": "REJECT", "why": "no tests"}, "judge_reject")
+    points.register("judge", "verify", judge, blocking=True)
+    with pytest.raises(points.PointBlocked) as caught:
+        run("verify", make_ctx())
+    assert not isinstance(caught.value, points.PointDeferred)
+    assert "judge_reject" in caught.value.reasons() and "no tests" in caught.value.reasons()
+
+
 def test_conditional_point_is_skipped_when_applies_is_false(empty_registry, make_ctx):
     called = []
 
