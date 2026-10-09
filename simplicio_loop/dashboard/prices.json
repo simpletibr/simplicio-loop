@@ -3,7 +3,7 @@
   "as_of": "2026-10-08",
   "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
   "unit": "USD per million tokens",
-  "note": "Copiado da tabela 'Model pricing' da fonte. Só o preço base de entrada e de saída; cache, lote e modo rápido ficam de fora. Atualizar por PR quando a fonte mudar.",
+  "note": "Copiado da tabela 'Model pricing' da fonte: preço base de entrada e de saída e, quando a fonte tem, o nível por tamanho de prompt (tier). A leitura de cache é guardada mas não entra no custo; lote e modo rápido ficam de fora. Atualizar por PR quando a fonte mudar.",
   "models": {
     "claude-fable-5-1": {"input_per_mtok": 10, "output_per_mtok": 50},
     "claude-fable-5": {"input_per_mtok": 10, "output_per_mtok": 50},
@@ -17,7 +17,7 @@
     "claude-sonnet-5": {"input_per_mtok": 2, "output_per_mtok": 10},
     "claude-sonnet-4-6": {"input_per_mtok": 3, "output_per_mtok": 15},
     "claude-sonnet-4-5": {"input_per_mtok": 3, "output_per_mtok": 15},
-    "claude-haiku-5-5": {"input_per_mtok": 0.10, "output_per_mtok": 0.50, "note": "Preço para prompts de até 100 mil tokens. Acima disso a fonte cobra US$ 0,50 de entrada e US$ 2,50 de saída."},
+    "claude-haiku-5-5": {"input_per_mtok": 0.10, "output_per_mtok": 0.50, "cache_read_per_mtok": 0.01, "tier": {"prompt_tokens_above": 100000, "input_per_mtok": 0.50, "output_per_mtok": 2.50, "cache_read_per_mtok": 0.05}, "note": "A leitura de cache é DERIVADA (0,1x a entrada), UNVERIFIED contra a fonte."},
     "claude-haiku-4-5": {"input_per_mtok": 1, "output_per_mtok": 5}
   }
 }
