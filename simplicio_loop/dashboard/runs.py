@@ -9,7 +9,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
+import time
 import urllib.parse
+from collections import OrderedDict
 from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
@@ -193,16 +196,99 @@ def _last_seq(run_dir: Path) -> int:
     return last
 
 
+# --- the memoized summary of one run (#1569) -------------------------------------------------------------------------------
+# The files a summary is made of, relative to the run directory. A change in any of them changes the stamp.
+SUMMARY_INPUTS = ('state.json', 'events.jsonl', 'completion-receipt.json', 'execution-route.json',
+                  'evidence-receipt.json', 'loop/watcher_state.json')
+SUMMARY_CACHE_MAX = 512
+# A file touched less than this long before the stamp was taken could still be rewritten inside the same timestamp tick with the
+# same size, so the stamp cannot tell the rewrite apart: such a run is recomputed, not remembered. Disks that stamp whole seconds
+# (ext3, HFS+, FAT at two seconds) get the coarse window.
+RACY_NS = 100_000_000
+RACY_COARSE_NS = 2_000_000_000
+_NS = 1_000_000_000
+_lstat = os.lstat
+_now_ns = time.time_ns
+
+
+class _Memo:
+    __slots__ = ('lock', 'stamp', 'blob')
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()  # one computation per run at a time: the pollers of a changed run wait for it, then reuse it
+        self.stamp: tuple | None = None
+        self.blob: str | None = None  # the summary as JSON, so no caller ever holds the memoized object
+
+
+_SUMMARIES: OrderedDict[str, _Memo] = OrderedDict()
+_SUMMARIES_LOCK = threading.Lock()
+
+
+def _stamp(run_dir: str, fallback_repo: str, began: int) -> tuple[tuple, bool]:
+    '''(stamp, settled) of the files a summary reads: mode, inode, size, mtime and ctime of each (None when absent).
+
+    ``settled`` is False when any file changed less than the racy window before ``began`` (the clock read before the stat).
+    The ctime cannot be set from user space, so a rewrite that restores size and mtime still changes the stamp.'''
+    files: list[tuple | None] = []
+    settled = True
+    for name in SUMMARY_INPUTS:
+        try:
+            st = _lstat(run_dir + '/' + name)
+        except OSError:
+            files.append(None)
+            continue
+        files.append((st.st_mode, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns))
+        coarse = st.st_mtime_ns % _NS == 0 and st.st_ctime_ns % _NS == 0
+        if max(st.st_mtime_ns, st.st_ctime_ns) > began - (RACY_COARSE_NS if coarse else RACY_NS):
+            settled = False
+    return (fallback_repo, tuple(files)), settled
+
+
+def _memo_for(key: str) -> _Memo:
+    with _SUMMARIES_LOCK:
+        memo = _SUMMARIES.pop(key, None) or _Memo()
+        _SUMMARIES[key] = memo
+        while len(_SUMMARIES) > SUMMARY_CACHE_MAX:
+            _SUMMARIES.popitem(last=False)
+    return memo
+
+
+def clear_summary_cache() -> None:
+    with _SUMMARIES_LOCK:
+        _SUMMARIES.clear()
+
+
+def summary_cache_size() -> int:
+    with _SUMMARIES_LOCK:
+        return len(_SUMMARIES)
+
+
 def run_summary(ref: RunRef | Path) -> dict[str, Any]:
     '''Progress fields from ``build_progress`` plus identity, timing, last event seq and cost.
 
     ``status`` is the raw state status (for example ``running`` or ``done``); the progress verdict
     is kept under ``progress_status``. ``cost_usd`` is always None: no measured receipt exists yet.
+
+    Memoized per run directory while the stamp of the files it reads (SUMMARY_INPUTS: inode, size, mtime, ctime) is unchanged and
+    settled (see RACY_NS); the stamp is taken before the files are read, so a file that changes during the read is read again on
+    the next call. The memo holds SUMMARY_CACHE_MAX runs and every caller gets its own copy.
     '''
     run_dir = Path(ref['run_dir'] if isinstance(ref, dict) else ref)
+    fallback_repo = ref['repo'] if isinstance(ref, dict) else ''
+    key = os.fspath(run_dir)
+    memo = _memo_for(key)
+    with memo.lock:
+        stamp, settled = _stamp(key, fallback_repo, _now_ns())
+        if settled and memo.stamp == stamp and memo.blob is not None:
+            return json.loads(memo.blob)
+        summary = _summarize(run_dir, fallback_repo)
+        memo.stamp, memo.blob = (stamp, json.dumps(summary)) if settled else (None, None)
+        return summary
+
+
+def _summarize(run_dir: Path, fallback_repo: str) -> dict[str, Any]:
     state = _load_state(run_dir)
     summary = dict(build_progress(state, run_dir=run_dir))
-    fallback_repo = ref['repo'] if isinstance(ref, dict) else ''
     summary.update({
         'run_id': run_dir.name,
         'status': str(state.get('status') or summary['status']),
