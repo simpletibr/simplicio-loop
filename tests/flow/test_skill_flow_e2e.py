@@ -95,7 +95,6 @@ def test_host_events_parseable_by_dashboard_runs(host_applied, host_repo: Path):
     assert runs[0]["last_seq"] >= len(STAGES)
 
 
-@pytest.mark.xfail(strict=True, reason=AWAIT_1469 + " (host run writes an execution report)")
 def test_host_execution_report_written(host_applied, host_repo: Path):
     report = execution_report.load_latest(host_repo)
     assert report is not None, "no execution report was written"

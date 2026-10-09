@@ -136,14 +136,12 @@ def test_events_jsonl_stages_in_order(tick_run):
     assert phases == STAGES
 
 
-@pytest.mark.xfail(strict=True, reason=AWAIT_1469 + " (events.jsonl must be parseable by dashboard/runs.py)")
 def test_events_parseable_by_dashboard_runs(tick_run):
     runs = dashboard_runs.list_runs(tick_run["clone"])
     assert len(runs) == 1, f"dashboard sees {len(runs)} runs"
     assert runs[0]["last_seq"] >= len(STAGES)
 
 
-@pytest.mark.xfail(strict=True, reason=AWAIT_1469 + " (execution report written for the service run)")
 def test_execution_report_written(tick_run):
     report = execution_report.load_latest(tick_run["clone"])
     assert report is not None, "no execution report was written"
