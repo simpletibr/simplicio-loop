@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- Per-user daemon (`simplicio-loop daemon serve/status/stop`) that imports the loop, Mapper and dev-cli once and forks one child per command. The client sends stdin, stdout, stderr and environment. The parent never runs command code. Inside a daemon command, Mapper and dev-cli calls fork from the daemon instead of starting a new process. Idle exit after 900 seconds. Explicit opt-out with `SIMPLICIO_LOOP_DAEMON=0`. Windows and frozen binaries run in-process. The `simplicio-loop` console script is now the thin client `simplicio_loop.daemon.client:main`.
+
 ## [3.48.1] - 2026-10-02
 
 - Vendor `danyuchn/asd-ste100-skill` as `.claude/skills/asd-ste100` and require it for agent-facing text (PR bodies, release notes, errors) in the loop delivery step. Install: `npx skills add danyuchn/asd-ste100-skill`.

@@ -22,6 +22,12 @@ def disable_operator_bootstrap_network_by_default(monkeypatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def no_daemon_unless_the_test_asks(monkeypatch) -> None:
+    """A test that runs the console script must not leave a daemon behind; the daemon tests start their own."""
+    monkeypatch.setenv("SIMPLICIO_LOOP_DAEMON", "0")
+
+
+@pytest.fixture(autouse=True)
 def exec_auth_spawn_guard(request, monkeypatch):
     """exec_auth tests must only ever spawn fake binaries living in a temp dir (#1467).
 
