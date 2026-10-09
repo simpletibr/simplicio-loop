@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -159,17 +160,18 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
 
 
 async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str,
-                     executor: host_mode.Executor, retry: str = "") -> dict:
+                     executor: host_mode.Executor, task: str | None = None) -> dict:
     """Run the item with the selected executor; return the claim fields, raise when it did not finish ok.
 
     exec (the default): an exec CLI plans, turbo --apply - applies (host_mode). openrouter: the opt-in headless turbo.
     """
     test_cmd = await asyncio.to_thread(verify.detect_test_command, dest)
+    task = task or task_text(repo, issue, fix)
     if executor.mode == "exec":
-        return await host_mode.run_exec(dest, repo, issue, task_text(repo, issue, fix, retry), test_cmd, executor,
+        return await host_mode.run_exec(dest, repo, issue, task, test_cmd, executor,
                                         attempts, fix=bool(fix))
     await budget.record("model_calls")
-    argv = sandbox.wrap(verify.turbo_argv(dest, task_text(repo, issue, fix, retry), test_cmd),
+    argv = sandbox.wrap(verify.turbo_argv(dest, task, test_cmd),
                         clone=dest, state_dir=config.ROOT)
     env = sandbox.scrubbed_env(os.environ, home=Path.home(), keep=("OPENROUTER_API_KEY",))
     result = await proc.run(argv, timeout=config.TURBO_TIMEOUT_S, cwd=dest, env=env)
@@ -205,6 +207,20 @@ async def _phase(runner, repo: str, number: int, phase: str, detail: str = "", r
         return
     if not receipt.get("verified"):
         state.log(f"status {phase} not verified {repo}#{number}: {receipt.get('reason_code') or 'unverified'}")
+
+
+_HINT_POINTS = {"recall": "matches", "reuse_precedent": "reuse"}  # point name -> the evidence key the planner reads
+_HINTS_CAP = 2000
+
+
+def plan_hints(results: list[points.PointResult]) -> str:
+    """The memory points' findings (recall, reuse_precedent) as an untrusted-data block for the planner; '' if none."""
+    found = {r.name: r.evidence[_HINT_POINTS[r.name]] for r in results
+             if r.status == "ok" and r.name in _HINT_POINTS and r.evidence.get(_HINT_POINTS[r.name])}
+    if not found:
+        return ""
+    return "\nPrecedentes anteriores do loop (memoria):\n" + prompt_guard.untrusted(
+        json.dumps(found, ensure_ascii=False)[:_HINTS_CAP])
 
 
 def _note_failed_attempt(ctx: points.PointContext, number: int, reasons: str) -> None:
@@ -256,8 +272,8 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                     run_dir=dest / ".simplicio-loop" / "orchestrator" / "points" / f"{name}-{number}")
                 await points.run("intake", ctx)
                 ctx = replace(ctx, task_text=task_text(name, work.issue, work.fix, retry))
-                await points.run("plan", ctx)
-                turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, retry)
+                task = ctx.task_text + plan_hints(await points.run("plan", ctx))  # one text: retry reasons + hints
+                turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, task=task)
                 ctx = replace(ctx, turbo_json=turbo, verify=turbo["verify"])
                 await points.run("apply", ctx)
                 await _phase(runner, name, number, "VERIFYING", detail="turbo ok; publicando o diff")
