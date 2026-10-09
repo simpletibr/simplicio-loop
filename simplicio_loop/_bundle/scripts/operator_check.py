@@ -38,6 +38,13 @@ import time
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+_ROOT = Path(__file__).resolve().parents[1]
+if (_ROOT / "simplicio_loop").is_dir():  # run from a checkout: use its package, not a stale installed one
+    sys.path.insert(0, str(_ROOT))
+
+from simplicio_loop.host_rules import resync_installed_rules  # noqa: E402
+from simplicio_loop.skill_sync import resync_installed_skills  # noqa: E402
+
 SCHEMA = "simplicio.operator-check/v1"
 # Explicit --ttl-days always wins. When omitted: always-latest (default) → 0;
 # SIMPLICIO_OPERATOR_ALWAYS_LATEST=0 restores the classic 7-day window.
@@ -212,14 +219,19 @@ def run_pip_upgrade(
 def maybe_upgrade(cache_path: str | Path, *, ttl_days: float | None = None,
                   binaries: Sequence[str] = DEFAULT_BINARIES,
                   versions: Mapping[str, str] | None = None,
-                  upgrade_fn=run_pip_upgrade, now: float | None = None) -> dict[str, Any]:
+                  upgrade_fn=run_pip_upgrade, now: float | None = None,
+                  resync_fn=resync_installed_skills,
+                  resync_rules_fn=resync_installed_rules) -> dict[str, Any]:
     """Fail-open, best-effort upgrade — but ONLY when ``should_upgrade`` says the TTL
     expired, always-latest is on, or a binary is absent. A within-TTL call is a pure
-    cache read: zero subprocess, zero network, by construction."""
+    cache read: zero subprocess, zero network, by construction. After a successful
+    upgrade the host-installed skills and rules are resynced from the package (#1472)."""
     decision = should_upgrade(cache_path, ttl_days=ttl_days, binaries=binaries, now=now)
     if not decision["should_upgrade"]:
         decision["upgraded"] = False
         decision["upgrade_error"] = None
+        decision["skills_resynced"] = []
+        decision["rules_resynced"] = []
         return decision
     try:
         result = upgrade_fn()
@@ -233,6 +245,20 @@ def maybe_upgrade(cache_path: str | Path, *, ttl_days: float | None = None,
     # "we looked"; it must not be retried on every single iteration until the TTL window
     # rolls forward again (best-effort, offline-safe, matching the old contract's fallback).
     record_check(cache_path, versions or {}, now=now)
+    decision["skills_resynced"] = []
+    decision["skills_sync_errors"] = []
+    decision["rules_resynced"] = []
+    decision["rules_sync_errors"] = []
+    if decision["upgraded"]:
+        # skills first: the rule sync rewrites the rule ref inside the installed loop skill
+        for fn, synced_key, errors_key in ((resync_fn, "skills_resynced", "skills_sync_errors"),
+                                           (resync_rules_fn, "rules_resynced", "rules_sync_errors")):
+            try:
+                report = fn()
+                decision[synced_key] = list(report["synced"])
+                decision[errors_key] = list(report["errors"])
+            except OSError as exc:
+                decision[errors_key] = [{"host": "*", "error": str(exc)}]
     return decision
 
 
