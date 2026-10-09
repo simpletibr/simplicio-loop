@@ -124,17 +124,19 @@ async def _run_verify(root: Path, command: str) -> tuple[dict[str, Any], str]:
 
 def run(repo: str, texts: Sequence[str], target: str | None = None, context: Sequence[str] = (),
         tasks_file: str | None = None, verify: str | None = None, apply: str | None = None,
-        provider: str | None = None, run_id: str | None = None) -> int:
+        provider: str | None = None, run_id: str | None = None, leave_open: bool = False) -> int:
     """Host mode by default: ``apply`` applies the plan the host wrote (``-``: from stdin), otherwise print the request.
 
     ``provider="openrouter"`` is the headless engine, for automation only; only then is a key needed.
-    ``run_id`` continues the run the request printed (host mode); without it an apply starts a new run.
+    ``run_id`` continues the run the request printed (host mode); without it an apply starts a new run. A request
+    given a ``run_id`` opens (or continues) that run, so a caller can write its own stages first.
+    ``leave_open`` leaves an ok apply's run open for the caller to close.
     """
     if provider == "openrouter":
         return _run_provider(repo, texts, target, context, tasks_file, verify, run_id)
     if apply:
-        return _apply_plan(repo, apply, verify, run_id)
-    return _request_plan(repo, texts, target, context, tasks_file, verify)
+        return _apply_plan(repo, apply, verify, run_id, leave_open)
+    return _request_plan(repo, texts, target, context, tasks_file, verify, run_id)
 
 
 def _map_slice(reading: str) -> Any:
@@ -154,16 +156,20 @@ def _repo_missing(root: Path, mode: str) -> bool:
     return True
 
 
-def _conclude(run_: TurboRun, document: dict[str, Any], calls: Any = None) -> int:
-    """Close the run, attach its execution report and print the one JSON document. 0 ok, 1 failed, 2 blocked."""
+def _conclude(run_: TurboRun, document: dict[str, Any], calls: Any = None, leave_open: bool = False) -> int:
+    """Close the run, attach its execution report and print the one JSON document. 0 ok, 1 failed, 2 blocked.
+
+    ``leave_open`` keeps an ok run open for its caller (the 24/7 watcher closes it after the pr stage).
+    """
     status = document["status"]
-    document["execution_report"] = run_.finish(status, tasks=document.get("tasks", 1), calls=calls)
+    document["execution_report"] = run_.finish(status, tasks=document.get("tasks", 1), calls=calls,
+                                               leave_open=leave_open)
     _emit(document)
     return {"ok": 0, "failed": 1}.get(status, 2)
 
 
 def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
-                  tasks_file: str | None, verify: str | None) -> int:
+                  tasks_file: str | None, verify: str | None, run_id: str | None = None) -> int:
     from .turbo import current_files, focus_paths, mapper_reading, plan_prompt, slice_enabled, survey_tasks
     from .turbo_run import TurboRun
 
@@ -175,7 +181,12 @@ def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: 
         _emit({"schema": SCHEMA, "repo": str(root), "mode": "host", "status": "blocked",
                "reason_code": "turbo_no_tasks", "detail": "pass --task or --tasks-file"})
         return 2
-    run_ = TurboRun(root, "host")
+    try:
+        run_ = TurboRun(root, "host", run_id)
+    except ValueError as exc:
+        _emit({"schema": SCHEMA, "repo": str(root), "mode": "host", "status": "blocked",
+               "reason_code": "turbo_run_id_invalid", "detail": str(exc)})
+        return 2
     head = {"schema": SCHEMA, "repo": str(root), "mode": "host", "run_id": run_.run_id, **plan_prompt()}
     run_.enter("orient")
     # The saved survey marker belongs to one run. Ask Mapper again on every invocation: its own
@@ -253,12 +264,13 @@ def _plan_text(root: Path, plan: str) -> tuple[str | None, str]:
     return path.read_text(encoding="utf-8"), ""
 
 
-def _apply_plan(repo: str, plan: str, verify: str | None, run_id: str | None = None) -> int:
+def _apply_plan(repo: str, plan: str, verify: str | None, run_id: str | None = None, leave_open: bool = False) -> int:
     """Wrapper to call async _apply_plan_async with asyncio.run."""
-    return asyncio.run(_apply_plan_async(repo, plan, verify, run_id))
+    return asyncio.run(_apply_plan_async(repo, plan, verify, run_id, leave_open))
 
 
-async def _apply_plan_async(repo: str, plan: str, verify: str | None, run_id: str | None = None) -> int:
+async def _apply_plan_async(repo: str, plan: str, verify: str | None, run_id: str | None = None,
+                            leave_open: bool = False) -> int:
     from .turbo import NO_RECEIPT, apply_plan, load_operations, plan_prompt
     from .turbo_run import TurboRun
 
@@ -306,7 +318,7 @@ async def _apply_plan_async(repo: str, plan: str, verify: str | None, run_id: st
         if not document["verify"]["passed"]:
             document["status"] = "failed"
     document["wall_s"] = round(time.time() - started, 2)
-    return _conclude(run_, document)
+    return _conclude(run_, document, leave_open=leave_open)
 
 
 def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],

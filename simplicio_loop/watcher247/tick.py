@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .. import escalation, intake_gate, watcher_github
 from ..claim_lease import ClaimStore
-from . import budget, config, github, host_mode, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify
+from . import budget, config, events, github, host_mode, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify
 
 _STATE_DIRS = (".simplicio-loop/", ".simplicio/")
 
@@ -97,7 +97,8 @@ def task_text(repo: str, issue: dict, fix: str = "", retry: str = "") -> str:
     if len(body) > config.BODY_CAP:
         body = body[:config.BODY_CAP] + "\n..."
     text = (
-        "Para ter o Simplicio-Loop a assinatura do Simplicio MCP precisa estar ativa. "
+        "O que roda aqui: o Mapper mapeia o repositorio, a CLI de execucao planeja (so o plano, sem editar), "
+        "o dev-cli aplica o plano pelo turbo, o teste verifica e o loop abre o PR. "
         "Protocolo Simplicio-Loop, nesta ordem: orientar o repositorio, "
         "planejar uma mudanca atomica, aplicar patch cirurgico "
         "(nao reescrever arquivo inteiro), validar, entregar so o que o teste sustenta.\n"
@@ -161,16 +162,18 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
 
 
 async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str,
-                     executor: host_mode.Executor, task: str | None = None, role: str = "") -> dict:
+                     executor: host_mode.Executor, task: str | None = None, role: str = "",
+                     run_id: str | None = None) -> dict:
     """Run the item with the selected executor; return the claim fields, raise when it did not finish ok.
 
-    exec (the default): an exec CLI plans, turbo --apply - applies (host_mode). openrouter: the opt-in headless turbo.
+    exec (the default): an exec CLI plans, turbo --apply - applies (host_mode) inside the run ``run_id`` that the caller
+    opened at intake. openrouter: the opt-in headless turbo, which has its own run.
     """
     test_cmd = await asyncio.to_thread(verify.detect_test_command, dest)
     task = task or task_text(repo, issue, fix)
     if executor.mode == "exec":
         return await host_mode.run_exec(dest, repo, issue, task, test_cmd, executor,
-                                        attempts, fix=bool(fix), role=role)
+                                        attempts, fix=bool(fix), role=role, run_id=run_id)
     await budget.record("model_calls")
     argv = sandbox.wrap(verify.turbo_argv(dest, task, test_cmd),
                         clone=dest, state_dir=config.ROOT)
@@ -264,6 +267,7 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
         attempts, retry = claim_row.attempts, claim_row.data.get("blocked_by") or ""
         state.log(f"start {ident} attempt {attempts}")
         beat = asyncio.ensure_future(_heartbeat(store, ident, token))
+        dest, run_id = None, None  # run_id: the kanban run opened at intake; turbo continues it, close_run ends it
         try:
             async with gate.repo_lock(name):  # one working tree per repo: clone to push is exclusive
                 dest = await ensure_clone(name, work.branch)
@@ -272,9 +276,12 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                     repo=name, issue=work.issue, clone=dest, state_dir=config.ROOT, family=(executor.families or (None,))[0],
                     run_dir=dest / ".simplicio-loop" / "orchestrator" / "points" / f"{name}-{number}")
                 await points.run("intake", ctx)
+                if executor.mode == "exec":
+                    run_id = await asyncio.to_thread(events.open_run, dest, name, number, fix=bool(work.fix))
                 ctx = replace(ctx, task_text=task_text(name, work.issue, work.fix, retry))
                 task = ctx.task_text + plan_hints(await points.run("plan", ctx))  # one text: retry reasons + hints
-                turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, task=task, role=work.role)
+                turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, task=task, role=work.role,
+                                          run_id=run_id)
                 ctx = replace(ctx, turbo_json=turbo, verify=turbo["verify"])
                 await points.run("apply", ctx)
                 await _phase(runner, name, number, "VERIFYING", detail="turbo ok; publicando o diff")
@@ -284,6 +291,11 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                                           label=turbo["verify"], executor=executor.mode)
                 if url:
                     await budget.record("prs")
+                await asyncio.to_thread(events.close_run, dest, run_id, "ok", pr_url=url)
+        except BaseException as exc:  # a run that stopped before the pr stage still closes on the kanban
+            blocked = isinstance(exc, (points.PointBlocked, points.PointDeferred))
+            await asyncio.to_thread(events.close_run, dest, run_id, "blocked" if blocked else "failed")
+            raise
         finally:
             beat.cancel()
             with contextlib.suppress(asyncio.CancelledError):

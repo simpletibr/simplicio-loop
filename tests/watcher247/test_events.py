@@ -1,135 +1,82 @@
-"""Tests for watcher247 event emission to the dashboard."""
+"""The watcher's intake and pr stages join the turbo run's events.jsonl (#1469)."""
 import json
 from pathlib import Path
 
-import pytest
-
-from simplicio_loop import dashboard_events
-from simplicio_loop.dashboard import history
+from simplicio_loop import dashboard_events, turbo, turbo_cli
+from simplicio_loop.dashboard import runs as dashboard_runs
 from simplicio_loop.watcher247 import events
+from tests.test_turbo_1433_unit import RECEIPT, _doc, _plan_file, _stub_dev_cli, repo  # noqa: F401 (repo is a fixture)
 
 
-def test_emit_intake_event(tmp_path: Path) -> None:
-    """An intake event emits phase_entered like turbo stages."""
-    run_dir = tmp_path / "test-run"
-    run_dir.mkdir()
-
-    result = events.emit_stage(run_dir, "intake", "ok")
-    assert result is not None
-    assert result["kind"] == "phase_entered"
-    assert result["phase"] == "intake"
-    assert result["severity"] == "info"
-    assert result["source"] == "operator"
-
-    # Verify it was written to events.jsonl
-    events_file = run_dir / "events.jsonl"
-    assert events_file.exists()
-
-    with open(events_file) as f:
-        lines = f.readlines()
-    assert len(lines) == 1
-
-    event = json.loads(lines[0])
-    assert event["kind"] == "phase_entered"
-    assert event["phase"] == "intake"
+def _read(repo_root: Path, run_id: str) -> list[dict]:
+    return dashboard_events.read_events(repo_root / ".simplicio-loop" / "orchestrator" / "runs" / run_id)
 
 
-def test_emit_pr_event(tmp_path: Path) -> None:
-    """A pr event after intake emits phase_exited and phase_entered."""
-    run_dir = tmp_path / "test-run"
-    run_dir.mkdir()
-
-    # Emit intake first
-    events.emit_stage(run_dir, "intake", "ok")
-
-    # Emit pr event
-    result = events.emit_stage(run_dir, "pr", "ok", pr_number=123)
-    assert result is not None
-    assert result["kind"] == "phase_entered"
-    assert result["phase"] == "pr"
-    assert result["payload"]["from"] == "intake"
-
-    # Verify both events are in the file
-    events_file = run_dir / "events.jsonl"
-    with open(events_file) as f:
-        lines = f.readlines()
-
-    assert len(lines) == 3
-    events_list = [json.loads(line) for line in lines]
-
-    # Check sequence numbers are contiguous
-    assert events_list[0]["seq"] == 1
-    assert events_list[1]["seq"] == 2
-    assert events_list[2]["seq"] == 3
-
-    # Check kinds and phases
-    assert events_list[0]["kind"] == "phase_entered"
-    assert events_list[0]["phase"] == "intake"
-    assert events_list[1]["kind"] == "phase_exited"
-    assert events_list[1]["phase"] == "intake"
-    assert events_list[2]["kind"] == "phase_entered"
-    assert events_list[2]["phase"] == "pr"
+def _entered(rows: list[dict]) -> list[str]:
+    return [e["phase"] for e in rows if e["kind"] == "phase_entered"]
 
 
-def test_events_readable_with_turbo(tmp_path: Path) -> None:
-    """Mixed watcher and turbo events appear in order: intake, orient, plan, apply, verify, pr, done."""
-    run_dir = tmp_path / "test-run-mixed"
-    run_dir.mkdir()
-
-    # Emit watcher intake event
-    events.emit_stage(run_dir, "intake", "ok")
-
-    # Emit turbo-style events manually
-    module = dashboard_events.load()
-    assert module is not None
-    turbo_specs = [
-        {"kind": "phase_entered", "source": "runner", "phase": "orient", "severity": "info", "payload": {"from": None}},
-        {"kind": "phase_exited", "source": "runner", "phase": "orient", "severity": "info", "payload": {"to": "plan"}},
-        {"kind": "phase_entered", "source": "runner", "phase": "plan", "severity": "info", "payload": {"from": "orient"}},
-        {"kind": "phase_exited", "source": "runner", "phase": "plan", "severity": "info", "payload": {"to": "apply"}},
-        {"kind": "phase_entered", "source": "runner", "phase": "apply", "severity": "info", "payload": {"from": "plan"}},
-        {"kind": "phase_exited", "source": "runner", "phase": "apply", "severity": "info", "payload": {"to": "verify"}},
-        {"kind": "phase_entered", "source": "runner", "phase": "verify", "severity": "info", "payload": {"from": "apply"}},
-    ]
-    module.emit_batch(run_dir, turbo_specs)
-
-    # Emit watcher pr event
-    events.emit_stage(run_dir, "pr", "ok", pr_number=789)
-
-    # Emit turbo done event
-    module.emit_batch(run_dir, [
-        {"kind": "phase_exited", "source": "runner", "phase": "verify", "severity": "info", "payload": {"to": "done"}},
-        {"kind": "phase_entered", "source": "runner", "phase": "done", "severity": "info", "payload": {"from": "verify"}},
-    ])
-
-    # Read through dashboard API
-    read_events = dashboard_events.read_events(run_dir)
-    phase_entered = [e for e in read_events if e.get("kind") == "phase_entered"]
-
-    # Check stages appear in order
-    phases = [e.get("phase") for e in phase_entered]
-    assert phases == ["intake", "orient", "plan", "apply", "verify", "pr", "done"]
+def test_open_run_writes_intake_with_ids_only_and_lists_the_run(repo):
+    run_id = events.open_run(repo, "demo", 7, fix=False)
+    assert run_id is not None
+    rows = _read(repo, run_id)
+    assert [e["kind"] for e in rows] == ["run_started", "phase_entered"]
+    assert rows[1]["phase"] == "intake"
+    assert rows[1]["payload"] == {"from": None, "repo": "demo", "issue": 7, "kind": "issue"}
+    assert [r["run_id"] for r in dashboard_runs.list_runs(repo)] == [run_id]
 
 
-def test_emit_stage_idempotent_in_reducer(tmp_path: Path) -> None:
-    """Repeating emit_stage for the same phase doesnt duplicate in reducer output."""
-    run_dir = tmp_path / "test-idempotent"
-    run_dir.mkdir()
+def test_close_run_writes_pr_with_number_then_done(repo):
+    run_id = events.open_run(repo, "demo", 7)
+    events.close_run(repo, run_id, "ok", pr_url="https://github.com/o/demo/pull/42")
+    rows = _read(repo, run_id)
+    assert _entered(rows) == ["intake", "pr", "done"]
+    assert next(e for e in rows if e.get("phase") == "pr" and e["kind"] == "phase_entered")["payload"]["pr_number"] == 42
+    assert rows[-1]["kind"] == "run_finished" and rows[-1]["payload"] == {"outcome": "ok"}
+    assert dashboard_runs.list_runs(repo)[0]["status"] == "done"
 
-    # Emit intake twice
-    result1 = events.emit_stage(run_dir, "intake", "ok")
-    result2 = events.emit_stage(run_dir, "intake", "ok")
 
-    # Both succeed but with different seq numbers
-    assert result1 is not None
-    assert result2 is not None
+def test_close_run_without_a_pr_skips_the_pr_stage_and_failure_closes_as_failed(repo):
+    no_diff = events.open_run(repo, "demo", 7)
+    events.close_run(repo, no_diff, "ok", pr_url=None)
+    assert _entered(_read(repo, no_diff)) == ["intake", "done"]
+    failed = events.open_run(repo, "demo", 8)
+    events.close_run(repo, failed, "failed", pr_url="https://github.com/o/demo/pull/9")
+    rows = _read(repo, failed)
+    assert _entered(rows) == ["intake", "done"], "a failed run never claims a pr stage"
+    assert rows[-1]["payload"] == {"outcome": "failed"}
 
-    # File has multiple lines
-    events_file = run_dir / "events.jsonl"
-    with open(events_file) as f:
-        file_events = [json.loads(line) for line in f]
-    assert len(file_events) == 2
 
-    # Both phase_entered for intake (no transition, so no phase_exited)
-    assert all(e["kind"] == "phase_entered" for e in file_events)
-    assert all(e["phase"] == "intake" for e in file_events)
+def test_close_run_is_idempotent_and_fail_open(repo, tmp_path):
+    run_id = events.open_run(repo, "demo", 7)
+    events.close_run(repo, run_id, "failed")
+    before = _read(repo, run_id)
+    events.close_run(repo, run_id, "failed")  # the except path after a close: nothing more is written
+    assert _read(repo, run_id) == before
+    events.close_run(repo, None, "ok")  # no run was opened
+    (tmp_path / "file").write_text("x")
+    assert events.open_run(tmp_path / "file", "demo", 7) is None  # telemetry never raises into the tick
+    events.close_run(tmp_path / "file", "turbo-x", "ok")
+
+
+def test_turbo_continues_the_run_the_watcher_opened_and_leaves_it_open(repo, tmp_path, monkeypatch, capsys):
+    run_id = events.open_run(repo, "demo", 7)
+    assert turbo_cli.run(str(repo), ["write hello.txt"], run_id=run_id) == 0
+    assert _doc(capsys)["run_id"] == run_id
+    monkeypatch.setattr(turbo, "_dev_cli_bin", lambda: str(_stub_dev_cli(tmp_path, json.dumps(RECEIPT))))
+    rc = turbo_cli.run(str(repo), [], apply=str(_plan_file(tmp_path)), run_id=run_id, verify="true", leave_open=True)
+    assert rc == 0 and _doc(capsys)["run_id"] == run_id
+    assert _entered(_read(repo, run_id)) == ["intake", "orient", "plan", "apply", "verify"]
+    assert dashboard_runs.list_runs(repo)[0]["status"] == "running", "turbo leaves an ok run open for the watcher"
+    events.close_run(repo, run_id, "ok", pr_url="https://github.com/o/demo/pull/5")
+    assert _entered(_read(repo, run_id)) == ["intake", "orient", "plan", "apply", "verify", "pr", "done"]
+    assert [r["run_id"] for r in dashboard_runs.list_runs(repo)] == [run_id]
+
+
+def test_leave_open_never_hides_a_failed_apply(repo, tmp_path, monkeypatch, capsys):
+    run_id = events.open_run(repo, "demo", 7)
+    monkeypatch.setattr(turbo, "_dev_cli_bin", lambda: str(_stub_dev_cli(tmp_path, json.dumps(RECEIPT))))
+    rc = turbo_cli.run(str(repo), [], apply=str(_plan_file(tmp_path)), run_id=run_id, verify="false", leave_open=True)
+    assert rc == 1
+    _doc(capsys)
+    assert dashboard_runs.list_runs(repo)[0]["status"] == "failed"

@@ -243,7 +243,7 @@ def test_plan_goes_to_turbo_stdin_and_dev_cli_applies(env, cli_dir):
     dest = checkout()
     run_tick()
     assert fake.turbo_argv[0] == ["simplicio-loop", "turbo", "--repo", str(dest), "--apply", "-",
-                                  "--run-id", RUN_ID, "--verify", "python3 -m pytest -q"]
+                                  "--run-id", RUN_ID, "--leave-open", "--verify", "python3 -m pytest -q"]
     assert json.loads(fake.turbo_stdin[0]) == PLAN
     (call,) = planner_calls(cli_dir)
     assert flag(call, "--model") == resolved("execution")["model"]
@@ -339,8 +339,9 @@ def test_step_1_runs_before_the_planner_in_the_sandbox_with_the_scrubbed_env(env
     dest = checkout()
     run_tick()
     ((argv, step_env, planner_calls_before),) = fake.requests
-    assert argv == ["simplicio-loop", "turbo", "--repo", str(dest), "--task", argv[-1]]
-    assert "Issue #3: Add x" in argv[-1]  # the guarded task, not a bare title
+    assert argv[:6] == ["simplicio-loop", "turbo", "--repo", str(dest), "--task", argv[5]] and len(argv) == 8
+    assert argv[6] == "--run-id" and argv[7].startswith("turbo-"), "turbo continues the run the watcher opened at intake"
+    assert "Issue #3: Add x" in argv[5]  # the guarded task, not a bare title
     assert planner_calls_before == 0, "turbo's request (mapper orient) must run before the planner"
     assert "OPENROUTER_API_KEY" not in step_env and "ANTHROPIC_API_KEY" not in step_env
     assert fake.calls.index(argv) < fake.calls.index(fake.turbo_argv[0])  # step 1 before step 2

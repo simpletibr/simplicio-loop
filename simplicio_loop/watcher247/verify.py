@@ -73,14 +73,25 @@ def turbo_argv(dest: Path, task: str, test_cmd: str | None) -> list[str]:
     return argv
 
 
-def turbo_request_argv(dest: Path, task: str) -> list[str]:
-    """Host mode step 1: Mapper orients and turbo prints the request (task, map slice, files, format, rules)."""
-    return ["simplicio-loop", "turbo", "--repo", str(dest), "--task", task]
+def turbo_request_argv(dest: Path, task: str, run_id: str | None = None) -> list[str]:
+    """Host mode step 1: Mapper orients and turbo prints the request (task, map slice, files, format, rules).
+
+    With a ``run_id`` turbo continues the run the watcher opened at intake instead of starting its own.
+    """
+    argv = ["simplicio-loop", "turbo", "--repo", str(dest), "--task", task]
+    if run_id is not None:
+        argv += ["--run-id", run_id]
+    return argv
 
 
-def turbo_apply_argv(dest: Path, test_cmd: str | None, run_id: str) -> list[str]:
-    """Host mode step 2: dev-cli applies the plan piped on stdin, continuing the run step 1 started."""
+def turbo_apply_argv(dest: Path, test_cmd: str | None, run_id: str, leave_open: bool = False) -> list[str]:
+    """Host mode step 2: dev-cli applies the plan piped on stdin, continuing the run step 1 started.
+
+    ``leave_open``: an ok run stays open after verify, for the watcher to write its pr stage and close it.
+    """
     argv = ["simplicio-loop", "turbo", "--repo", str(dest), "--apply", "-", "--run-id", run_id]
+    if leave_open:
+        argv.append("--leave-open")
     if test_cmd is not None:
         argv += ["--verify", test_cmd]
     return argv

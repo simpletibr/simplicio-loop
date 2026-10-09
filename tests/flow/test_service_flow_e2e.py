@@ -2,8 +2,7 @@
 
 The watcher, turbo, Mapper and Dev CLI are real. GitHub (`gh`) and the planner CLI (`claude`) are fakes (see conftest).
 The run uses the DEFAULT executor (host mode, `exec`): the planner CLI only plans, `turbo --apply -` applies and verifies.
-What the service path still lacks is a strict xfail naming its open issue: it turns into a failure
-the day the capability lands, and the marker must then be removed.
+One tick leaves one kanban run whose events.jsonl holds the whole pipeline (#1469).
 """
 from __future__ import annotations
 
@@ -23,9 +22,6 @@ from tests.flow.conftest import ISSUE_NUMBER, ISSUE_TITLE, REPO_NAME
 
 IDENT = f"{REPO_NAME}#{ISSUE_NUMBER}"
 HEAD = f"loop/issue-{ISSUE_NUMBER}"
-# The stages the host-mode service writes to events.jsonl today: the planner CLI runs outside turbo, so the run
-# that `turbo --apply -` opens starts at apply (turbo_run.PROGRESS_PHASE: report -> done).
-HOST_STAGES = ["orient", "plan", "apply", "verify", "done"]
 # The pipeline of #1469: the watcher's own stages wrap the turbo ones.
 PIPELINE_STAGES = ["intake", "orient", "plan", "apply", "verify", "pr", "done"]
 STATE_ROW = re.compile(r"\| Estado \| (\w+) \|")
@@ -154,19 +150,25 @@ def _entered_phases(run) -> list[str]:
     return [e["phase"] for e in events if e["kind"] == "phase_entered"]
 
 
-def test_events_jsonl_stages_in_order(tick_run):
-    assert _entered_phases(tick_run) == HOST_STAGES
-
-
-@pytest.mark.xfail(strict=True, reason="awaits #1469: the watcher must write its intake and pr stages into the run's events.jsonl")
 def test_events_jsonl_covers_the_whole_pipeline(tick_run):
     assert _entered_phases(tick_run) == PIPELINE_STAGES
+
+
+def test_pipeline_events_open_and_close_the_run_once_without_issue_text(tick_run):
+    events = read_events(_run_dirs(tick_run)[0]["run_dir"])
+    assert [e["kind"] for e in events].count("run_started") == 1
+    assert [e["kind"] for e in events][-1] == "run_finished" and [e["kind"] for e in events].count("run_finished") == 1
+    pr = next(e for e in events if e["kind"] == "phase_entered" and e["phase"] == "pr")
+    assert pr["payload"]["pr_number"] is not None and pr["payload"]["from"] == "verify"
+    intake = next(e for e in events if e["kind"] == "phase_entered" and e["phase"] == "intake")
+    assert intake["payload"]["repo"] == REPO_NAME and intake["payload"]["issue"] == ISSUE_NUMBER
+    assert ISSUE_TITLE not in json.dumps(events), "event payloads carry ids and numbers, never the issue text"
 
 
 def test_events_parseable_by_dashboard_runs(tick_run):
     runs = dashboard_runs.list_runs(tick_run["clone"])
     assert len(runs) == 1, f"dashboard sees {len(runs)} runs"
-    assert runs[0]["last_seq"] >= len(HOST_STAGES)
+    assert runs[0]["last_seq"] >= len(PIPELINE_STAGES)
     assert runs[0]["status"] == "done"
 
 
