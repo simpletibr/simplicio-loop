@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -25,7 +25,7 @@ class EscalationRecord:
         self.outcome = outcome
         self.error = error
         self.execution_ms = execution_ms
-        self.timestamp = datetime.utcnow().isoformat()
+        self.timestamp = datetime.now(timezone.utc).isoformat()
 
     def to_dict(self):
         return {
@@ -98,7 +98,7 @@ class EscalationState:
         self._state_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def _get_cost_used_today(self):
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         cost = 0
         for record in self.records:
             try:

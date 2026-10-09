@@ -1,4 +1,10 @@
-"""CLI exec planner launcher: invokes claude, codex, grok, gemini CLIs."""
+"""CLI exec planners for claude, codex, grok and gemini, run as plan-only planners (issue 1431).
+
+The planner never mutates the repo. It returns a plan JSON (``{"operations": [...]}``) that the dev-cli applies
+(``simplicio-loop turbo --apply -``). Every argv therefore uses the CLI's most restrictive non-interactive mode.
+Flags marked VERIFIED were checked against ``<cli> --help`` on the host; gemini is not installed, so its flags are
+DOC-BASED (Gemini CLI docs) and unverified.
+"""
 
 from __future__ import annotations
 
@@ -7,12 +13,18 @@ import json
 import os
 import shutil
 import signal
-from pathlib import Path
-from typing import Any, Optional
+import time
 
 from . import model_roles
 
 DEFAULT_FAMILIES = ["claude", "codex", "grok", "gemini"]
+KILL_GRACE_SEC = 3.0
+
+PLAN_ONLY_PREAMBLE = (
+    "You are a planner only. Do NOT edit files and do NOT run commands. Reply with exactly one JSON object "
+    '{"operations": [...]} describing the edits. The dev-cli applies it afterwards '
+    "(`simplicio-loop turbo --apply -`). Task:\n\n"
+)
 
 
 class ExecPlannerError(Exception):
@@ -59,35 +71,51 @@ def _get_families():
     return DEFAULT_FAMILIES
 
 
-def _build_argv_claude(prompt, role, model, cwd):
+def _real_model(model):
+    return bool(model) and model not in ("default", "auto")
+
+
+def _build_argv_claude(prompt, role, model, effort, cwd):
+    # VERIFIED via `claude --help`: -p, --model, --effort, --permission-mode plan, --tools, --output-format.
     argv = ["claude", "-p", prompt]
-    if model and model not in ("default", "auto"):
+    if _real_model(model):
         argv.extend(["--model", model])
-    argv.extend(["--output-format", "json"])
+    if effort:
+        argv.extend(["--effort", effort])
+    argv.extend(["--permission-mode", "plan", "--tools", "Read", "--output-format", "json"])
     return argv
 
 
-def _build_argv_codex(prompt, role, model, cwd):
-    argv = ["codex", "exec", "--cd", cwd]
-    if model and model not in ("default", "auto"):
-        argv.extend(["--model", model])
+def _build_argv_codex(prompt, role, model, effort, cwd):
+    # VERIFIED via `codex exec --help`: -s read-only, --ephemeral, -C/--cd, -m, -c key=value.
+    # DOC-BASED: the config key `model_reasoning_effort` (--help only says -c takes key=value).
+    argv = ["codex", "exec", "-s", "read-only", "--ephemeral", "--cd", cwd]
+    if _real_model(model):
+        argv.extend(["-m", model])
+    if effort:
+        argv.extend(["-c", 'model_reasoning_effort="%s"' % effort])
     argv.append("-")
     return argv
 
 
-def _build_argv_grok(prompt, role, model, cwd):
+def _build_argv_grok(prompt, role, model, effort, cwd):
+    # VERIFIED via `grok --help`: -p, -m, --reasoning-effort, --permission-mode plan, --cwd, --output-format json.
     argv = ["grok", "-p", prompt]
-    if model and model not in ("default", "auto"):
-        argv.extend(["--model", model])
-    argv.extend(["--output-format", "json"])
+    if _real_model(model):
+        argv.extend(["-m", model])
+    if effort:
+        argv.extend(["--reasoning-effort", effort])
+    argv.extend(["--permission-mode", "plan", "--cwd", cwd, "--output-format", "json"])
     return argv
 
 
-def _build_argv_gemini(prompt, role, model, cwd):
+def _build_argv_gemini(prompt, role, model, effort, cwd):
+    # DOC-BASED (gemini not installed on this host): -p, -m, --approval-mode plan, --output-format json.
+    # Gemini CLI has no effort flag, so effort is only recorded in the result.
     argv = ["gemini", "-p", prompt]
-    if model and model not in ("default", "auto"):
-        argv.extend(["--model", model])
-    argv.extend(["--output-format", "json"])
+    if _real_model(model):
+        argv.extend(["-m", model])
+    argv.extend(["--approval-mode", "plan", "--output-format", "json"])
     return argv
 
 
@@ -99,31 +127,49 @@ _ARGV_BUILDERS = {
 }
 
 
-def _kill_process_tree(pid):
-    """Kill a process and all its children.
-    
-    On POSIX, sends SIGTERM to the process group.
-    On Windows, terminates the process.
-    """
-    try:
-        if os.name == "posix":
-            os.killpg(os.getpgid(pid), signal.SIGTERM)
-        else:
-            os.kill(pid, signal.SIGTERM)
-    except (ProcessLookupError, OSError):
-        pass
-
-
-def build_argv(family, role, prompt, model, cwd):
-    """Build the command-line argv for a specific family's CLI exec."""
+def build_argv(family, role, prompt, model, cwd, effort=""):
+    """Build the plan-only command-line argv for a specific family's CLI exec."""
     builder = _ARGV_BUILDERS.get(family)
     if not builder:
         raise ExecPlannerError(f"unsupported family: {family}")
-    return builder(prompt, role, model, cwd)
+    return builder(prompt, role, model, effort, cwd)
 
 
-async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None):
-    """Run a subprocess and return (stdout, stderr, returncode)."""
+def _group_alive(pgid):
+    try:
+        os.killpg(pgid, 0)
+    except (ProcessLookupError, PermissionError):
+        return False
+    return True
+
+
+async def _kill_process_tree(proc, grace_sec=KILL_GRACE_SEC):
+    """SIGTERM the whole process group, then SIGKILL whatever survives the grace period."""
+    try:
+        pgid = os.getpgid(proc.pid)
+    except (ProcessLookupError, OSError):
+        pgid = proc.pid
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        pass
+    deadline = time.monotonic() + grace_sec
+    while time.monotonic() < deadline:
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=0.05)
+        except asyncio.TimeoutError:
+            pass
+        if proc.returncode is not None and not _group_alive(pgid):
+            return
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+    await proc.wait()
+
+
+async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None, grace_sec=KILL_GRACE_SEC):
+    """Run a subprocess in its own session and return (stdout, stderr, returncode); kill the tree on timeout."""
     proc = await asyncio.create_subprocess_exec(
         *argv,
         stdin=asyncio.subprocess.PIPE if stdin_text else asyncio.subprocess.DEVNULL,
@@ -132,113 +178,100 @@ async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None):
         cwd=cwd,
         start_new_session=True,
     )
-
     try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
             proc.communicate(input=stdin_text.encode("utf-8") if stdin_text else None),
             timeout=timeout_sec,
         )
     except asyncio.TimeoutError:
-        _kill_process_tree(proc.pid)
-        try:
-            await asyncio.wait_for(proc.wait(), timeout=5.0)
-        except asyncio.TimeoutError:
-            pass
+        await _kill_process_tree(proc, grace_sec)
         raise
+    return stdout_bytes.decode("utf-8", errors="replace"), stderr_bytes.decode("utf-8", errors="replace"), proc.returncode
 
-    stdout = stdout_bytes.decode("utf-8", errors="replace")
-    stderr = stderr_bytes.decode("utf-8", errors="replace")
-    return stdout, stderr, proc.returncode
+
+def _plan_from(obj):
+    if isinstance(obj, dict):
+        if "operations" in obj:
+            return obj
+        # claude/grok `--output-format json` wrap the model text in an envelope: {"result": "<text>"}
+        inner = obj.get("result")
+        if isinstance(inner, str):
+            return _find_plan(inner)
+    return None
+
+
+def _find_plan(text):
+    try:
+        plan = _plan_from(json.loads(text))
+        if plan:
+            return plan
+    except (json.JSONDecodeError, ValueError):
+        pass
+    start = text.find("{")
+    end = text.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            return _plan_from(json.loads(text[start : end + 1]))
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return None
 
 
 def _extract_plan_json(output):
     """Extract and validate plan JSON from CLI output."""
-    import re
-
-    try:
-        obj = json.loads(output)
-        if isinstance(obj, dict) and "operations" in obj:
-            return obj
-    except (json.JSONDecodeError, ValueError):
-        pass
-
-    start = output.find("{")
-    end = output.rfind("}")
-    if start >= 0 and end > start:
-        try:
-            obj = json.loads(output[start : end + 1])
-            if isinstance(obj, dict) and "operations" in obj:
-                return obj
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    raise ValueError("plan JSON not found or invalid")
+    plan = _find_plan(output)
+    if plan is None:
+        raise ValueError("plan JSON not found or invalid")
+    return plan
 
 
-async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0):
+def _result(code, family, role, model, effort, started, plan=None, error=None):
+    return PlannerResult(code, family, role, model, effort, plan=plan, error=error, execution_ms=(time.monotonic() - started) * 1000)
+
+
+async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_sec=KILL_GRACE_SEC):
     """Run the planner CLI for a specific family and role."""
-    import time
-
-    start_ms = time.monotonic()
-
+    started = time.monotonic()
     try:
         resolved = model_roles.resolve(family, role)
-        model = resolved["model"]
-        effort = resolved["effort"]
     except model_roles.ModelRoleError as e:
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult("bad_role", family, role, "", "", error=str(e), execution_ms=elapsed_ms)
+        return _result("bad_role", family, role, "", "", started, error=str(e))
+    model, effort = resolved["model"], resolved["effort"]
 
-    cli_bin = _find_cli(family)
-    if not cli_bin:
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult("cli_missing", family, role, model, effort, error=f"CLI '{family}' not found", execution_ms=elapsed_ms)
+    if not _find_cli(family):
+        return _result("cli_missing", family, role, model, effort, started, error=f"CLI '{family}' not found")
 
+    full_prompt = PLAN_ONLY_PREAMBLE + prompt
     try:
-        argv = build_argv(family, role, prompt, model, cwd or ".")
+        argv = build_argv(family, role, full_prompt, model, cwd or ".", effort)
     except ExecPlannerError as e:
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult("bad_argv", family, role, model, effort, error=str(e), execution_ms=elapsed_ms)
+        return _result("bad_argv", family, role, model, effort, started, error=str(e))
 
-    stdin_text = prompt if family == "codex" else None
+    stdin_text = full_prompt if family == "codex" else None
     try:
-        stdout, stderr, returncode = await _run_subprocess(argv, stdin_text=stdin_text, timeout_sec=timeout_sec, cwd=cwd)
+        stdout, stderr, returncode = await _run_subprocess(
+            argv, stdin_text=stdin_text, timeout_sec=timeout_sec, cwd=cwd, grace_sec=grace_sec
+        )
     except asyncio.TimeoutError:
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult("timeout", family, role, model, effort, error=f"timeout", execution_ms=elapsed_ms)
+        return _result("timeout", family, role, model, effort, started, error="timeout")
 
-    if "auth" in stderr.lower():
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult("auth_error", family, role, model, effort, error=f"auth error", execution_ms=elapsed_ms)
-
+    if returncode != 0 and "auth" in stderr.lower():
+        return _result("auth_error", family, role, model, effort, started, error="auth error")
     if returncode != 0:
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult("process_error", family, role, model, effort, error=f"exit {returncode}", execution_ms=elapsed_ms)
-
+        return _result("process_error", family, role, model, effort, started, error=f"exit {returncode}")
     try:
         plan = _extract_plan_json(stdout)
     except ValueError as e:
-        elapsed_ms = (time.monotonic() - start_ms) * 1000
-        return PlannerResult("bad_plan", family, role, model, effort, error=str(e), execution_ms=elapsed_ms)
-
-    elapsed_ms = (time.monotonic() - start_ms) * 1000
-    return PlannerResult("ok", family, role, model, effort, plan=plan, execution_ms=elapsed_ms)
+        return _result("bad_plan", family, role, model, effort, started, error=str(e))
+    return _result("ok", family, role, model, effort, started, plan=plan)
 
 
-async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, families=None):
+async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, families=None, grace_sec=KILL_GRACE_SEC):
     """Try to run planner with each family in order, falling back on non-fatal errors."""
-    try_families = families or _get_families()
     last_result = None
-
-    for family in try_families:
-        result = await run_planner(family, role, prompt, cwd, timeout_sec)
-
-        if result.reason_code in ("bad_role", "bad_argv"):
+    for family in families or _get_families():
+        result = await run_planner(family, role, prompt, cwd, timeout_sec, grace_sec)
+        if result.reason_code in ("bad_role", "bad_argv") or result.is_ok():
             return result
-
-        if result.is_ok():
-            return result
-
         last_result = result
-
     return last_result or PlannerResult("no_families", "", role, "", "", error="no families")

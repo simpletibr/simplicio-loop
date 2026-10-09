@@ -7,8 +7,6 @@ from pathlib import Path
 import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-# Ensure the repo root is first so local modules are imported
-sys.path.insert(0, str(_REPO_ROOT))
 for _local_module_root in (_REPO_ROOT / "scripts", _REPO_ROOT / "hooks"):
     _local_module_root = str(_local_module_root)
     if _local_module_root not in sys.path:
