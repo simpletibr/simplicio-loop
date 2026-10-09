@@ -551,6 +551,7 @@ def test_a_summary_over_the_byte_limit_is_not_remembered(tmp_path, aged, counted
 def test_the_byte_limit_is_inclusive(tmp_path, aged, monkeypatch, counted):
     run_dir = _make_run(tmp_path, 'edge-size', events=3)
     size = len(json.dumps(_truth(run_dir)))
+    counted['seq'] = 0
     monkeypatch.setattr(runs, 'SUMMARY_BLOB_MAX', size)
     runs.run_summary(_ref(run_dir))
     runs.run_summary(_ref(run_dir))

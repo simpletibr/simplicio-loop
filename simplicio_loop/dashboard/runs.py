@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import stat
 import threading
 import time
 import urllib.parse
@@ -200,7 +201,11 @@ def _last_seq(run_dir: Path) -> int:
 # The files a summary is made of, relative to the run directory. A change in any of them changes the stamp.
 SUMMARY_INPUTS = ('state.json', 'events.jsonl', 'completion-receipt.json', 'execution-route.json',
                   'evidence-receipt.json', 'loop/watcher_state.json')
-SUMMARY_CACHE_MAX = 512
+# Memory bound: SUMMARY_CACHE_MAX runs, each at most SUMMARY_BLOB_MAX bytes of JSON (128 MiB at the limits; about 10 KB per run
+# in practice). A longer listing than SUMMARY_CACHE_MAX gets no hits, because the scan is in order. A summary over the byte limit
+# (a state.json of 850 KB is copied into it almost whole) is computed again on each call, as it was before the memo.
+SUMMARY_CACHE_MAX = 4096
+SUMMARY_BLOB_MAX = 32 * 1024
 # A file touched less than this long before the stamp was taken could still be rewritten inside the same timestamp tick with the
 # same size, so the stamp cannot tell the rewrite apart: such a run is recomputed, not remembered. Disks that stamp whole seconds
 # (ext3, HFS+, FAT at two seconds) get the coarse window.
@@ -227,8 +232,9 @@ _SUMMARIES_LOCK = threading.Lock()
 def _stamp(run_dir: str, fallback_repo: str, began: int) -> tuple[tuple, bool]:
     '''(stamp, settled) of the files a summary reads: inode, size, mtime and ctime of each (None when absent).
 
-    ``settled`` is False when any file changed less than the racy window before ``began`` (the clock read before the stat).
-    The ctime cannot be set from user space, so a rewrite that restores size and mtime still changes the stamp.'''
+    ``settled`` is False when any file changed less than the racy window before ``began`` (the clock read before the stat), or
+    when any of them is a symlink: build_progress follows a link to a receipt, and the stat of the link cannot see its target
+    change. The ctime cannot be set from user space, so a rewrite that restores size and mtime still changes the stamp.'''
     files: list[tuple | None] = []
     settled = True
     for name in SUMMARY_INPUTS:
@@ -238,6 +244,8 @@ def _stamp(run_dir: str, fallback_repo: str, began: int) -> tuple[tuple, bool]:
             files.append(None)
             continue
         files.append((st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns))
+        if stat.S_ISLNK(st.st_mode):
+            settled = False
         coarse = st.st_mtime_ns % _NS == 0 and st.st_ctime_ns % _NS == 0
         if max(st.st_mtime_ns, st.st_ctime_ns) > began - (RACY_COARSE_NS if coarse else RACY_NS):
             settled = False
@@ -271,7 +279,8 @@ def run_summary(ref: RunRef | Path) -> dict[str, Any]:
 
     Memoized per run directory while the stamp of the files it reads (SUMMARY_INPUTS: inode, size, mtime, ctime) is unchanged and
     settled (see RACY_NS); the stamp is taken before the files are read, so a file that changes during the read is read again on
-    the next call. The memo holds SUMMARY_CACHE_MAX runs and every caller gets its own copy.
+    the next call. A run with a symlinked input is never remembered. The memo holds SUMMARY_CACHE_MAX runs of SUMMARY_BLOB_MAX
+    bytes at most, and every caller gets its own copy.
     '''
     run_dir = Path(ref['run_dir'] if isinstance(ref, dict) else ref)
     fallback_repo = ref['repo'] if isinstance(ref, dict) else ''
@@ -282,7 +291,8 @@ def run_summary(ref: RunRef | Path) -> dict[str, Any]:
         if settled and memo.stamp == stamp and memo.blob is not None:
             return json.loads(memo.blob)
         summary = _summarize(run_dir, fallback_repo)
-        memo.stamp, memo.blob = (stamp, json.dumps(summary)) if settled else (None, None)
+        blob = json.dumps(summary) if settled else ''
+        memo.stamp, memo.blob = (stamp, blob) if settled and len(blob) <= SUMMARY_BLOB_MAX else (None, None)
         return summary
 
 
