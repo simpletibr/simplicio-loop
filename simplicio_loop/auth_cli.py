@@ -120,6 +120,8 @@ def login(*, as_json: bool = False, no_browser: bool = False, environ: Optional[
         lines = ["login: Simplicio Runtime not found", STANDALONE_UNVERIFIED, ""]
         lines += [f"  {name}: {command}" for name, command in RUNTIME_INSTALL.items()]
         lines += [f"  (documented in {RUNTIME_INSTALL_DOC}; not run by this command)"]
+        if doc["logged_in"]:
+            lines += ["", f"A usable login already exists in {doc['path']}. Run: simplicio-loop auth status"]
         _print(doc, as_json, lines)
         return 1
     path, runtime_path = auth.login_path(env), auth.runtime_login_path(env)

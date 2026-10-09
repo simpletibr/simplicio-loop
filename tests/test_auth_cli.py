@@ -193,6 +193,16 @@ def test_without_the_runtime_standalone_login_is_unverified_and_says_how_to_inst
     assert doc["runtime"]["found"] is False and doc["install"]
 
 
+def test_without_the_runtime_an_existing_login_is_still_reported(box, capfd):
+    put_login(box.login)
+    assert auth_cli.login() == 1
+    out, err = output(capfd)
+    assert "UNVERIFIED" in out and "A usable login already exists" in out and "auth status" in out
+    assert_no_secret(out, err)
+    assert auth_cli.login(as_json=True) == 1
+    assert json.loads(output(capfd)[0])["logged_in"] is True
+
+
 # --- logout ----------------------------------------------------------------------------------------------------------
 
 
