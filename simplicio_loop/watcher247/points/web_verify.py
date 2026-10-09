@@ -1,13 +1,14 @@
 """web_verify (verify stage): conditional wrapper of scripts/web_verify.py.
 
-Fires only when the plan or diff touches UI files (html, css, js, tsx, vue, svelte).
+Fires only when the diff touches UI files (html, css, js, tsx, vue, svelte).
 Captures screenshots and records them in the evidence for the PR.
 """
 import os
 import re
+import subprocess
 from pathlib import Path
 
-from .. import proc
+from .. import proc, sandbox
 from .registry import PointContext, PointResult, register
 
 NAME = "web_verify"
@@ -20,11 +21,22 @@ UI_RE = re.compile(
 
 
 def applies(ctx: PointContext) -> bool:
-    """True when plan or diff touches UI files; False otherwise."""
-    if ctx.plan is None:
+    """True when diff touches UI files; False otherwise."""
+    if ctx.clone is None:
         return False
-    files_changed = ctx.plan.get("files_changed", [])
-    return any(UI_RE.search(f) for f in files_changed)
+    # Check actual git diff
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", "origin/main...HEAD"],
+            cwd=str(ctx.clone),
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        files = result.stdout.strip().split("\n") if result.stdout else []
+        return any(UI_RE.search(f) for f in files if f)
+    except Exception:
+        return False
 
 
 async def run(ctx: PointContext) -> PointResult:
