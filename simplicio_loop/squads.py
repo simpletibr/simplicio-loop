@@ -556,6 +556,8 @@ def dispatch(args: argparse.Namespace) -> int:
             limits = squad_capacity.Limits.from_env(
                 squads_option=args.squads, max_workers_per_squad=DEFAULT_MAX_WORKERS if args.max_workers is None else args.max_workers)
             auto = plan_squads_auto(_load_issues(args.issues), ownership, args.family, limits=limits)
+            for warning in auto.capacity.warnings:  # stdout stays the JSON; a human reading a terminal sees the warning
+                print(warning, file=sys.stderr)
             _emit({**auto.plan.to_dict(), "capacity": auto.capacity.to_dict()})
             return 0
         result = asyncio.run(squad_gate_for_pr(

@@ -28,7 +28,8 @@ def sample(n):
 def clean_env(monkeypatch):
     for name in ("SIMPLICIO_SQUADS", "SIMPLICIO_PRISM_SLOTS", "SIMPLICIO_LOOP_OPERATOR_WORKERS"):
         monkeypatch.delenv(name, raising=False)
-    monkeypatch.setattr(economy_profile, "economy_parallel_env", lambda **kw: dict(ECONOMY))
+    monkeypatch.setattr(economy_profile, "recommend_prism_slots_static", lambda *a, **kw: int(ECONOMY["SIMPLICIO_PRISM_SLOTS"]))
+    monkeypatch.setattr(economy_profile, "recommend_operator_workers", lambda *a, **kw: int(ECONOMY["SIMPLICIO_LOOP_OPERATOR_WORKERS"]))
 
 
 @pytest.fixture
@@ -155,9 +156,35 @@ def test_a_worker_env_the_user_set_is_an_override_but_the_economy_value_is_not(c
     monkeypatch.setenv("SIMPLICIO_PRISM_SLOTS", ECONOMY["SIMPLICIO_PRISM_SLOTS"])  # what `economy apply` exports
     _, out = run(capsys, "--issues", json.dumps(sample(8)))
     assert out["capacity"]["total_workers"] == 1 and out["capacity"]["limited_by"] == "load"
-    monkeypatch.setenv("SIMPLICIO_PRISM_SLOTS", "5")
-    _, out = run(capsys, "--issues", json.dumps(sample(8)))
-    assert out["capacity"]["total_workers"] == 5 and out["capacity"]["limited_by"] == "override"
+    monkeypatch.setenv("SIMPLICIO_PRISM_SLOTS", "10")  # above the profile's static figure (9)
+    _, out = run(capsys, "--issues", json.dumps(sample(12)))
+    assert out["capacity"]["total_workers"] == 10 and out["capacity"]["limited_by"] == "override"
+
+
+def _run_with_stderr(capsys, *argv):
+    code = cli_impl.main(["squads", "plan", *argv, "--json"])
+    captured = capsys.readouterr()
+    return code, json.loads(captured.out), captured.err
+
+
+def test_an_override_above_the_machine_prints_the_warning_on_stderr_and_keeps_stdout_json(capsys, host):
+    host.probe = fake(cpu=10, load=(12.0, 12.0, 12.0))
+    code, out, err = _run_with_stderr(capsys, "--issues", json.dumps(sample(8)), "--squads", "2")
+    cap = out["capacity"]
+    assert code == 0 and cap["warnings"] and all(w.startswith("WARN: ") for w in cap["warnings"])
+    assert err.splitlines() == cap["warnings"], "every warning of the plan, one per line, nothing else"
+    assert "--squads" in err and "machine allows 1" in err
+    assert cap["reasons"][0].startswith("WARN: ")
+
+
+def test_no_warning_and_a_silent_stderr_when_nothing_is_overridden(capsys, host):
+    code, out, err = _run_with_stderr(capsys, "--issues", json.dumps(sample(8)))
+    assert code == 0 and out["capacity"]["warnings"] == [] and err == ""
+
+
+def test_an_invalid_squads_value_stays_blocked_with_no_stderr_noise(capsys, host):
+    code, out, err = _run_with_stderr(capsys, "--issues", json.dumps(sample(2)), "--squads", "\u00b2")
+    assert code == 2 and out["status"] == "BLOCKED" and "squads" in out["reason"]
 
 
 def test_max_workers_flag_still_works(capsys, host):
