@@ -7,6 +7,7 @@ fake clock so the expected number is exact.
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 
@@ -83,6 +84,159 @@ def test_an_executor_that_records_no_steps_is_unverified_with_a_reason(env):
     assert record["proof_kind"]["escalations"] == "UNVERIFIED" and record["unverified"]["escalations"] == "no_steps_recorded"
     metrics = read_json(config.STATUS)["squads"][REPO]["metrics"]
     assert (metrics["escalation_n"], metrics["escalation_unverified"], metrics["escalation_rate"]) == (0, 1, None)
+
+
+# --- #1565: a task that climbed and then failed, or finished with no PR, is recorded too (no survivorship bias) ---
+
+
+def _worker_task(number: int) -> dict:
+    (task,) = [t for t in _squads_report()["tasks"] if t.get("issue") == f"{REPO}#{number}"]
+    return task
+
+
+def test_a_task_that_climbs_and_then_fails_is_a_measured_escalation_with_outcome_failed(env, cli_dir):
+    """Every apply fails: execution, execution, coordination, planning, then the step limit. Before #1565 this task was invisible."""
+    env(HostRun({REPO: [issue(1)]}, [BAD], distinct_prs=True, pr_views={101: _view(1)}))
+    baseline()
+    checkout()
+    run_tick()
+    assert read_json(config.CLAIMS)[f"{REPO}#1"]["status"] == "retry"  # the worker really failed
+    record = _worker_metrics(1)
+    assert (record["initial_role"], record["final_role"]) == ("execution", "planning")
+    assert record["escalations"] == [{"from": "execution", "to": "coordination", "reason": "verify_failed", "attempt": 3},
+                                     {"from": "coordination", "to": "planning", "reason": "verify_failed", "attempt": 4}]
+    assert record["final_outcome"] == "failed" and record["proof_kind"]["final_outcome"] == "measured"
+    assert record["proof_kind"]["escalations"] == "measured" and "escalations" not in record["unverified"]
+    task = _worker_task(1)
+    assert task["outcome"] == "FAIL" and task["agent"]["role"] == "planning"  # the report shows the failure and where it ended
+
+
+def test_a_failed_task_counts_in_the_escalation_rate_and_in_its_own_outcome_row(env, cli_dir):
+    env(HostRun({REPO: [issue(1)]}, [BAD], distinct_prs=True, pr_views={101: _view(1)}))
+    baseline()
+    checkout()
+    run_tick()
+    entry = read_json(config.STATUS)["squads"][REPO]
+    assert entry["approved"] == [] and entry["merge"] == "disabled"  # a failed worker has no PR to review or merge
+    metrics = entry["metrics"]
+    assert (metrics["tasks"], metrics["escalation_n"], metrics["escalated"], metrics["escalation_rate"]) == (1, 1, 1, 1.0)
+    assert metrics["by_final_outcome"]["failed"] == {"n": 1, "escalated": 1, "escalation_rate": 1.0}
+    assert metrics["by_final_outcome"]["ok"]["n"] == 0
+    (row,) = entry["task_metrics"]
+    assert row["final_outcome"] == "failed"
+
+
+def test_a_task_that_stops_at_the_ceiling_without_climbing_is_a_measured_zero_with_outcome_failed(env, cli_dir, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_ATTEMPT_CEILING_ISSUE", "2")
+    env(HostRun({REPO: [issue(1)]}, [BAD], distinct_prs=True, pr_views={101: _view(1)}))
+    baseline()
+    checkout()
+    run_tick()
+    record = _worker_metrics(1)
+    assert (record["initial_role"], record["final_role"], record["escalations"]) == ("execution", "execution", [])
+    assert record["final_outcome"] == "failed" and record["proof_kind"]["escalations"] == "measured"
+
+
+def test_a_task_that_climbs_and_finishes_with_no_diff_is_escalated_with_outcome_no_pr(env, cli_dir):
+    env(HostRun({REPO: [issue(1)]}, [BAD, BAD, OK], diff=False, distinct_prs=True, pr_views={101: _view(1)}))
+    baseline()
+    checkout()
+    run_tick()
+    assert read_json(config.CLAIMS)[f"{REPO}#1"]["status"] == "done_no_diff"
+    record = _worker_metrics(1)
+    assert record["escalations"] == [{"from": "execution", "to": "coordination", "reason": "verify_failed", "attempt": 3}]
+    assert record["final_outcome"] == "no_pr" and record["proof_kind"]["final_outcome"] == "measured"
+    assert _worker_task(1)["outcome"] == "FAIL"  # no PR: the worker did not deliver
+    by_outcome = read_json(config.STATUS)["squads"][REPO]["metrics"]["by_final_outcome"]
+    assert by_outcome["no_pr"] == {"n": 1, "escalated": 1, "escalation_rate": 1.0}
+
+
+def test_a_task_that_finishes_with_a_pr_is_outcome_ok(env, cli_dir):
+    env(HostRun({REPO: [issue(1)]}, [BAD, BAD, OK], distinct_prs=True, pr_views={101: _view(1)}))
+    baseline()
+    checkout()
+    run_tick()
+    assert _worker_metrics(1)["final_outcome"] == "ok" and _worker_task(1)["outcome"] == "COMPLETE"
+    by_outcome = read_json(config.STATUS)["squads"][REPO]["metrics"]["by_final_outcome"]
+    assert by_outcome["ok"] == {"n": 1, "escalated": 1, "escalation_rate": 1.0}
+
+
+def test_a_task_that_failed_before_any_step_keeps_the_no_steps_unverified_path(env, cli_dir):
+    """turbo cannot even build the request: no step ran, so nothing about escalation is claimed (not a zero)."""
+    env(HostRun({REPO: [issue(1)]}, request={"status": "failed", "detail": "no map"}, distinct_prs=True, pr_views={101: _view(1)}))
+    baseline()
+    checkout()
+    run_tick()
+    record = _worker_metrics(1)
+    assert record["escalations"] is None and record["unverified"]["escalations"] == "no_steps_recorded"
+    assert record["final_outcome"] is None and record["unverified"]["final_outcome"] == "outcome_not_observed"
+    metrics = read_json(config.STATUS)["squads"][REPO]["metrics"]
+    assert (metrics["escalation_n"], metrics["escalation_unverified"], metrics["escalation_rate"]) == (0, 1, None)
+
+
+def test_the_executor_without_a_ladder_knows_the_outcome_but_not_the_escalation(env):
+    env(FakeRun({REPO: [issue(1)]}, verify_pass=True, distinct_prs=True, pr_views={101: _view(1)}))
+    baseline()
+    run_tick()
+    record = _worker_metrics(1)
+    assert record["final_outcome"] == "ok" and record["proof_kind"]["final_outcome"] == "measured"
+    assert record["unverified"] == {"escalations": "no_steps_recorded"}
+
+
+class PerIssueRun(HostRun):
+    """HostRun whose applies fail for the given issues and pass for the others (the request step names the issue; the repo lock keeps
+    the request and its apply together)."""
+
+    def __init__(self, *args, failing=(), **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.failing, self.current = set(failing), None
+
+    async def __call__(self, argv, timeout=120, cwd=None, stdin=None, env=None):
+        argv = list(argv)
+        if argv[:2] == ["simplicio-loop", "turbo"] and "--apply" not in argv and "--provider" not in argv:
+            self.current = int(re.search(r"Issue #(\d+)", argv[argv.index("--task") + 1]).group(1))
+        if "--apply" in argv:
+            self.applies = [BAD] if self.current in self.failing else [OK]
+        return await super().__call__(argv, timeout, cwd, stdin, env)
+
+
+def test_a_failed_worker_does_not_change_which_other_pr_is_approved_and_merged_and_the_split_shows_both(env, cli_dir, monkeypatch):
+    """Issue 1 climbs all the way and fails; issue 2 passes at once. The completed-only rate would say 0.0, the overall says 0.5."""
+    monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
+    monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
+    rows = [issue(n, f"Task {n}", body=f"Ajustar `src/m{n}/app.py` para o fluxo do watcher seguir o contrato descrito abaixo.") for n in (1, 2)]
+    fake = env(PerIssueRun({REPO: rows}, [OK], failing={1}, distinct_prs=True, verify_pass=True,
+                           pr_views={101: _view(1), 102: _view(2)}))
+    baseline()
+    checkout()
+    run_tick()
+    entry = read_json(config.STATUS)["squads"][REPO]
+    claims = read_json(config.CLAIMS)
+    assert claims[f"{REPO}#1"]["status"] == "retry" and claims[f"{REPO}#2"]["status"] == "done"
+    assert fake.merges == [102] and entry["approved"] == [102] and entry["merged"] == [102]
+    assert (_worker_metrics(1)["final_outcome"], _worker_metrics(2)["final_outcome"]) == ("failed", "ok")
+    metrics = entry["metrics"]
+    assert (metrics["escalation_n"], metrics["escalated"], metrics["escalation_rate"]) == (2, 1, 0.5)
+    assert metrics["by_final_outcome"]["ok"] == {"n": 1, "escalated": 0, "escalation_rate": 0.0}
+    assert metrics["by_final_outcome"]["failed"] == {"n": 1, "escalated": 1, "escalation_rate": 1.0}
+
+
+@pytest.mark.parametrize("attached,expected", [
+    (None, []), ([], []), ("verify_failed", []), ({"role": "execution"}, []), (7, []),
+    ([{"role": "execution", "outcome": "failed"}], [{"role": "execution", "outcome": "failed"}])])
+def test_steps_of_an_exception_is_the_list_run_exec_attached_and_nothing_else(attached, expected):
+    exc = RuntimeError("no verified plan")
+    if attached is not None:
+        exc.exec_steps = attached
+    assert host_mode.steps_of(exc) == expected
+
+
+def test_steps_of_returns_a_copy_the_caller_can_keep():
+    exc = RuntimeError("x")
+    exc.exec_steps = [{"role": "execution"}]
+    got = host_mode.steps_of(exc)
+    got.append({"role": "planning"})
+    assert exc.exec_steps == [{"role": "execution"}]
 
 
 # --- dependency wait: squad B depends on A; the wait is the gap between two observed instants ---
@@ -235,8 +389,9 @@ def test_a_task_record_that_raises_is_unverified_and_the_tick_still_finishes_eve
     assert fake.merges == [101, 102]
     for number in (1, 2):
         record = _worker_metrics(number)
-        assert record["proof_kind"] == {"escalations": "UNVERIFIED", "dependency_wait": "UNVERIFIED"}
-        assert record["unverified"] == {"escalations": "metrics_error", "dependency_wait_s": "metrics_error"}
+        assert record["proof_kind"] == {"escalations": "UNVERIFIED", "dependency_wait": "UNVERIFIED", "final_outcome": "UNVERIFIED"}
+        assert record["unverified"] == {"escalations": "metrics_error", "dependency_wait_s": "metrics_error",
+                                        "final_outcome": "metrics_error"}
     metrics = read_json(config.STATUS)["squads"][REPO]["metrics"]
     assert (metrics["tasks"], metrics["escalation_n"], metrics["escalation_unverified"]) == (2, 0, 2)
 
