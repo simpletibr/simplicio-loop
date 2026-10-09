@@ -391,15 +391,9 @@ async def _enqueue_fixes(runner, name: str, fixes: dict) -> None:
 async def tick(dry_run: bool = False) -> None:
     """One pass. dry_run reads GitHub and logs what it would do; it writes no baseline, claims, fixes or status (only the issues-disabled cache) and skips the subscription refresh."""
     persist = not dry_run
-    dev_login = subscription.no_login_enabled()
-    if dev_login:  # loud on every tick: the dashboard and the log must never look like a normal subscribed run
-        state.log(f"DEV MODE: {subscription.NO_LOGIN_ENV}=1: login gate skipped, login file not read; "
-                  "everything else still gates; a release must not carry this switch")
 
     async def status(**extra) -> None:
         if persist:
-            if dev_login:  # every status of the tick, the early returns too
-                extra["subscription"] = subscription.dev_no_login()
             await state.write_status(**extra)
 
     if config.STOP.exists():
@@ -427,8 +421,6 @@ async def tick(dry_run: bool = False) -> None:
     sub = None
     if dry_run:
         state.log("[dry-run] subscription check skipped")
-    elif dev_login:
-        sub = subscription.dev_no_login()
     else:
         sub = await subscription.mcp_subscription()
         if not sub.get("active"):
