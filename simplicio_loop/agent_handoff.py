@@ -17,6 +17,8 @@ from .input_ceiling import estimate_tokens
 MAX_HANDOFF_TOKENS = 6000
 SCHEMA_PATH = Path(__file__).resolve().parent / "_contracts" / "agent-handoff" / "v1" / "schema.json"
 _RUN_ID = re.compile(r"[A-Za-z0-9._-]{1,128}")
+_SHA256 = re.compile(r"[0-9a-f]{64}")
+_TIMESTAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,6})?Z")
 
 
 class HandoffError(ValueError):
@@ -50,6 +52,13 @@ def validate_handoff(doc: Any) -> None:
     problem = _schema_error(doc)
     if problem:
         raise HandoffError("handoff_schema_invalid", problem)
+    # `$` in a JSON Schema pattern also matches before a trailing newline; these fields must match whole.
+    for value, rule in ((doc["run_id"], _RUN_ID), (doc["created_at"], _TIMESTAMP)):
+        if not rule.fullmatch(value) or value in (".", ".."):
+            raise HandoffError("handoff_schema_invalid", "%r does not match its pattern" % value)
+    for entry in doc["done"]["files"]:
+        if not _SHA256.fullmatch(entry["sha256"]):
+            raise HandoffError("handoff_schema_invalid", "sha256 %r does not match its pattern" % entry["sha256"])
     for entry in doc["done"]["files"]:
         if _bad_path(entry["path"]):
             raise HandoffError("handoff_path_invalid",

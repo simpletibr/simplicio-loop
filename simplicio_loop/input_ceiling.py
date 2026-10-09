@@ -85,7 +85,7 @@ def resolve_ceiling(repo_root: str | Path, environ: Mapping[str, str] | None = N
         return DEFAULT_CEILING
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8"))
-    except tomllib.TOMLDecodeError as exc:
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError, OSError) as exc:
         raise CeilingConfigError("%s: %s" % (path, exc)) from exc
     if TOML_KEY not in data:
         return DEFAULT_CEILING
@@ -147,6 +147,9 @@ class PromptUsage:
     def __post_init__(self) -> None:
         for name in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"):
             _count(getattr(self, name), name)
+        if self.total == 0:
+            # A request always carries a prompt. Zero means the host did not know: use Projection.estimated.
+            raise ValueError("usage reports an empty prompt (0 tokens); that is not a measurement")
 
     @property
     def total(self) -> int:
@@ -244,7 +247,7 @@ def check_budget(projection: Projection, ceiling: int, soft_percent: int = SOFT_
         status = HANDOFF
     else:
         status = OK
-    return BudgetVerdict(status, projection.basis, tokens, ceiling, ceiling * soft_percent // 100,
+    return BudgetVerdict(status, projection.basis, tokens, ceiling, -(-ceiling * soft_percent // 100),
                          ceiling - tokens, tokens / ceiling)
 
 
