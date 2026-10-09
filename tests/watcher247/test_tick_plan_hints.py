@@ -33,6 +33,21 @@ def test_nothing_found_adds_nothing():
                             points.PointResult("other", "ok", {"matches": [MATCH]})]) == ""
 
 
+def test_hints_are_capped_at_2000_characters():
+    hints = tick.plan_hints([ok("recall", matches=[{**MATCH, "summary": "x" * 5000}])])
+    assert "x" * 1900 in hints and "x" * 2000 not in hints
+    assert hints.rstrip().endswith(prompt_guard.CLOSE)  # the fence still closes
+
+
+def test_only_ok_results_are_injected():
+    for status in ("error", "skipped", "blocked"):
+        stale = points.PointResult("recall", status, {"matches": [MATCH]}, "why")
+        assert tick.plan_hints([stale]) == "", status
+    fresh = ok("reuse_precedent", reuse={"precedent_id": "p-new"})
+    hints = tick.plan_hints([points.PointResult("recall", "error", {"matches": [MATCH]}, "why"), fresh])
+    assert "p-new" in hints and "p-lease" not in hints
+
+
 def test_the_turbo_task_carries_the_hints(env, monkeypatch):
     env(FakeRun({"simplicio-a": [issue(7, "Add x")]}))
     baseline()
