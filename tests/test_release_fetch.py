@@ -284,8 +284,9 @@ def test_get_follows_a_redirect_to_each_release_asset_host_and_a_relative_one(mo
 
 
 @pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
-def test_get_refuses_a_3xx_without_location_as_a_fetch_error_not_a_key_error(monkeypatch, status):
-    seen = serve(monkeypatch, lambda request: httpx.Response(status))
+@pytest.mark.parametrize("headers", [{}, {"location": ""}])
+def test_get_refuses_a_3xx_without_location_as_a_fetch_error_not_a_key_error(monkeypatch, status, headers):
+    seen = serve(monkeypatch, lambda request: httpx.Response(status, headers=headers))
     with pytest.raises(FetchError) as caught:
         release_fetch.default_get(BASE + "x")
     assert caught.value.reason_code == "unsafe_url" and "Location" in str(caught.value) and len(seen) == 1
