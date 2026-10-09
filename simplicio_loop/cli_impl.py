@@ -533,14 +533,17 @@ def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
             return
     if budget is None:
         try:
-            from .map_service_mapper import run_mapper_index
-            run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
+            from .map_service_mapper import run_mapper_index, MapperUnavailableError, materialize_project_map
+            envelope = run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
+            materialize_project_map(str(root), envelope)
+            
             if current_state is not None:
                 state_file.parent.mkdir(parents=True, exist_ok=True)
                 state_file.write_text(
                     json.dumps({"tree_state": current_state}, ensure_ascii=False), encoding="utf-8"
                 )
-        except Exception:
+        except (MapperUnavailableError, FileNotFoundError, OSError):
+            # Binary missing or path doesn't exist: swallowed, same policy as before
             pass
         return
     _ensure_project_map_bounded(root, project_map, state_file, current_state, budget)
@@ -2891,6 +2894,13 @@ def main(argv=None) -> int:
     p_doctor_source.add_argument("--json", dest="doctor_json", action="store_true",
                                  help="emit machine-readable JSON")
 
+    p_doctor_mapper = doctor_sub.add_parser(
+        "mapper", help="check that the installed simplicio_mapper is the expected build"
+    )
+    p_doctor_mapper.add_argument("--repo", default=".", help="monorepo checkout to compare the commit with")
+    p_doctor_mapper.add_argument("--json", dest="mapper_json", action="store_true",
+                                 help="emit machine-readable JSON")
+
     p_inspect = sub.add_parser("inspect", help="inspect storage routing and MapperStore capabilities")
     p_inspect.add_argument("--storage", action="store_true", required=True,
                            help="inspect the Loop storage adapter boundary")
@@ -3261,6 +3271,12 @@ def main(argv=None) -> int:
         return stack_doctor_command(args)
     if command == "doctor" and getattr(args, "doctor_command", None) == "source":
         return source_doctor_command(args)
+    if command == "doctor" and getattr(args, "doctor_command", None) == "mapper":
+        from .mapper_doctor import main as mapper_doctor_main
+        forwarded = ["--repo", args.repo]
+        if args.mapper_json:
+            forwarded.append("--json")
+        return mapper_doctor_main(forwarded)
     if command in {"doctor", "inspect"}:
         if command == "doctor" and not args.storage:
             parser.error("doctor requires --storage or the stack subcommand")
