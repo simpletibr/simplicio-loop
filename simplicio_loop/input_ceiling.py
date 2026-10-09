@@ -19,8 +19,10 @@ Three things live here:
 Labels never mix. A projection is MEASURED when its base is the total the provider reported for the last request
 (``PromptUsage``); only the addition since then is estimated. It is ESTIMATED when nothing was measured.
 
-Known limit (UNVERIFIED): scripts with a sparse tokenizer vocabulary (for example Ethiopic or rare Han) cost more than
-the per-character weights below assume; the estimate can fall under the real count for text made only of them.
+Known limits (UNVERIFIED against Claude, whose token counts are not available offline): even with SAFETY_PERCENT the
+estimate falls under the tiktoken count for rare Han (0.78 x o200k_base, 0.64 x cl100k_base), Ethiopic (0.75, 0.50) and
+mathematical symbols (0.96 x cl100k_base). Text made only of such characters needs a measured count (``PromptUsage``).
+Prose and code come out at about 1.3 to 1.6 x the o200k_base count before SAFETY_PERCENT.
 """
 from __future__ import annotations
 
