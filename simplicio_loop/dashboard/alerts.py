@@ -44,8 +44,10 @@ def _streak(payload: dict[str, Any]) -> int:
     return value or 1
 
 
-def _alert(alert_id: str, rule: str, severity: str, heading: str, why: str, ref: dict[str, Any] | None) -> dict[str, Any]:
-    return {'id': alert_id, 'rule': rule, 'severity': severity, 'heading': heading, 'why': why, 'ref': ref}
+def _alert(alert_id: str, rule: str, severity: str, heading: str, why: str, ref: dict[str, Any] | None,
+           proof_kind: str = 'medido') -> dict[str, Any]:
+    return {'id': alert_id, 'rule': rule, 'severity': severity, 'heading': heading, 'why': why, 'ref': ref,
+            'proof_kind': proof_kind}
 
 
 class AlertWatch:
@@ -160,7 +162,8 @@ class AlertWatch:
                                     'Uso de %s passou do limite %s (medido).' % (row['used'], row['limit']), ref))
             elif row['state'] == 'PROJECTED_OVER':
                 found.append(_alert('budget-projected:' + key, 'budget-projected', 'warning', 'Projeção passa do orçamento: ' + label,
-                                    'Estimado: %s ao fim do run contra o limite %s (extrapolado pela fase).' % (row['projected'], row['limit']), ref))
+                                    'Estimado: %s ao fim do run contra o limite %s (extrapolado pela fase).' % (row['projected'], row['limit']), ref,
+                                    proof_kind='estimado'))
         return found
 
     def _evaluate(self, now_ms: int, receipt_ready: Callable[[], bool] | None) -> dict[str, dict[str, Any]]:

@@ -127,3 +127,6 @@ include = [
   "LICENSE",
   "pyproject.toml",
 ]
+
+# Every wheel build stamps its origin and source commit (see hatch_build.py and build_identity.py).
+[tool.hatch.build.hooks.custom]
