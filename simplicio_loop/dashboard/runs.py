@@ -179,8 +179,10 @@ def _duration_s(state: dict[str, Any]) -> int | None:
     return int((end - start).total_seconds())
 
 
-TAIL_WINDOW_BYTES = 4096  # the bytes just before a read's offset: their digest tells a rewrite that grew the file back apart
+TAIL_WINDOW_BYTES = 4096  # the first and the last bytes of a read's part of the file: their digest tells a rewrite apart from an append
 _EMPTY_DIGEST = hashlib.blake2b(b'', digest_size=16).digest()
+_LINE_END = re.compile(rb'[\r\n]')  # universal newlines: a line ends at a CR or an LF (CRLF is an empty line after the CR: no seq)
+_READ_CHUNK = 64 * 1024
 
 
 def _line_seq(line: bytes) -> int:
@@ -192,9 +194,28 @@ def _line_seq(line: bytes) -> int:
     return seq if isinstance(seq, int) and seq > 0 else 0
 
 
+def _read_lines(fh, start):
+    '''(line, end) for each line of the open binary file ``fh`` from byte ``start``, read in chunks: ``end`` is the offset just past the
+    line's terminator, or None for a last line that has none.'''
+    fh.seek(start)
+    pos = start  # the offset of data[0], the carry from the last chunk
+    carry = b''
+    while chunk := fh.read(_READ_CHUNK):
+        data = carry + chunk
+        begin = 0
+        for found in _LINE_END.finditer(data):
+            end = found.end()
+            yield data[begin:end], pos + end
+            begin = end
+        carry = data[begin:]
+        pos += begin
+    if carry:
+        yield carry, None
+
+
 class _Tail:
-    '''Where the last read of events.jsonl stopped: the file it read (device and inode), the byte offset just past its last newline,
-    the highest seq before that offset, and the digest of the TAIL_WINDOW_BYTES before it.'''
+    '''Where the last read of events.jsonl stopped: the file it read (device and inode), the byte offset just past its last line end,
+    the highest seq before that offset, and the fingerprint of the file before it.'''
 
     __slots__ = ('digest', 'ident', 'offset', 'seq')
 
@@ -208,21 +229,26 @@ class _Tail:
         self.digest = _EMPTY_DIGEST
 
 
-def _window_digest(fh, offset: int) -> bytes:
-    '''Digest of the TAIL_WINDOW_BYTES bytes that end at ``offset`` (of the open binary file ``fh``).'''
+def _fingerprint(fh, offset: int) -> bytes:
+    '''Digest of the first and the last TAIL_WINDOW_BYTES before ``offset`` of the open binary file ``fh``. A rewrite that keeps the
+    size and both ends of the read part cannot pass for an append: the head catches a line replaced under the same inode.'''
+    digest = hashlib.blake2b(digest_size=16)
+    fh.seek(0)
+    digest.update(fh.read(min(TAIL_WINDOW_BYTES, offset)))
     start = max(0, offset - TAIL_WINDOW_BYTES)
     fh.seek(start)
-    return hashlib.blake2b(fh.read(offset - start), digest_size=16).digest()
+    digest.update(fh.read(offset - start))
+    return digest.digest()
 
 
 def _tail_seq(run_dir: Path, tail: _Tail) -> int:
     '''Highest seq of events.jsonl, reading only the bytes after ``tail.offset``; the offset and the seq before it are kept in ``tail``.
 
     The state belongs to one file. A different device or inode (rotation, replacement), a file shorter than the offset (truncation)
-    or other bytes before the offset (a rewrite that grew the file back past it) starts again from byte 0. Only complete lines move
-    the offset: a last line without its newline is counted in this answer and read again next time, so a half-written event is
-    neither counted twice nor lost. The events file is only appended to and rotated, never edited in place, so an edit that changes
-    nothing in the last TAIL_WINDOW_BYTES before the offset is not seen; a full scan (``_last_seq`` with no tail) sees it.
+    or a changed fingerprint (a rewrite that kept the size) starts again from byte 0. Only complete lines move the offset: a last line
+    without its line end is counted in this answer and read again next time, so a half-written event is neither counted twice nor
+    lost. The events file is only appended to and rotated, never edited in place, so a rewrite that keeps the size and changes neither
+    the first nor the last TAIL_WINDOW_BYTES before the offset is not seen; a full scan (``_last_seq`` with no tail) sees it.
     '''
     path = run_dir / 'events.jsonl'
     try:
@@ -232,20 +258,18 @@ def _tail_seq(run_dir: Path, tail: _Tail) -> int:
         with path.open('rb') as fh:
             st = os.fstat(fh.fileno())
             ident = (st.st_dev, st.st_ino)
-            if ident != tail.ident or st.st_size < tail.offset or _window_digest(fh, tail.offset) != tail.digest:
+            if ident != tail.ident or st.st_size < tail.offset or _fingerprint(fh, tail.offset) != tail.digest:
                 offset, seq = 0, 0
             else:
                 offset, seq = tail.offset, tail.seq
-            fh.seek(offset)
             answer = committed = seq
-            committed_offset = pos = offset
-            for line in fh:
-                pos += len(line)
+            committed_offset = offset
+            for line, end in _read_lines(fh, offset):
                 answer = max(answer, _line_seq(line))
-                if line.endswith(b'\n'):
-                    committed_offset, committed = pos, answer
+                if end is not None:
+                    committed_offset, committed = end, answer
             tail.ident, tail.offset, tail.seq = ident, committed_offset, committed
-            tail.digest = _window_digest(fh, committed_offset)
+            tail.digest = _fingerprint(fh, committed_offset)
             return answer
     except OSError:
         tail.reset()
@@ -253,8 +277,8 @@ def _tail_seq(run_dir: Path, tail: _Tail) -> int:
 
 
 def _last_seq(run_dir: Path, tail: _Tail | None = None) -> int:
-    '''Highest ``seq`` in events.jsonl. With no ``tail`` the whole file is streamed line by line (the reference answer, never held
-    in memory); with one, only the bytes after its offset are read (see _tail_seq).'''
+    '''Highest ``seq`` in events.jsonl. With no ``tail`` the whole file is read in chunks (the reference answer, never held in
+    memory); with one, only the bytes after its offset are read (see _tail_seq).'''
     if tail is not None:
         return _tail_seq(run_dir, tail)
     last = 0
@@ -262,7 +286,7 @@ def _last_seq(run_dir: Path, tail: _Tail | None = None) -> int:
         return 0
     try:
         with (run_dir / 'events.jsonl').open('rb') as fh:
-            for line in fh:
+            for line, _end in _read_lines(fh, 0):
                 last = max(last, _line_seq(line))
     except OSError:
         return 0

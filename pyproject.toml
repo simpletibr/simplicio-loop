@@ -51,6 +51,9 @@ ml = ["model2vec>=0.3", "numpy>=1.21"]
 uvloop = ["uvloop>=0.19; platform_system != 'Windows'"]
 # Browser e2e + axe-core for the Simplicio Live components (tests/test_live_components_e2e_system.py).
 e2e = ["playwright>=1.40", "axe-playwright-python>=0.1.4"]
+# Langfuse exporter (issue #1595), opt-in via langfuse_enabled in loop.toml. It needs no third-party
+# package: it speaks OTLP/JSON and the scores API over stdlib HTTP. The extra is the install switch.
+langfuse = []
 
 [project.urls]
 Homepage = "https://github.com/simpletibr/simplicio-loop"

@@ -57,7 +57,7 @@ rehearsal fails on them before it does anything else.
    scratch copy, bumps the version in that scratch copy only (a safe `+rehearsalNNNN`
    local-version label by default — never the real repo's version files), builds a real wheel,
    generates+verifies checksums, best-effort gpg-signs them, generates an SBOM and a provenance
-   statement (see docs/SUPPLY_CHAIN.md), and clean-room install-smokes the result. The receipt's
+   statement (see docs/SUPPLY_CHAIN.md), and clean-room install-smokes the result (the smoke installs the wheel with its dependencies from the package index, so it needs network). The receipt's
    `governance` key snapshots the current measured repo size (`docs/repo_size_report.json`) and
    history-migration candidate set (`docs/history_migration_plan.json`), and
    `docs/REPO_SIZE_REPORT.md`/`docs/HISTORY_MIGRATION_PLAN.md` are copied into `dist/` alongside
