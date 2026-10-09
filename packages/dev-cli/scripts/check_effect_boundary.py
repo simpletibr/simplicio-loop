@@ -73,7 +73,11 @@ from pathlib import Path
 # inventory change is the deletion of `fast_contracts.py` (Fast engine
 # primitives) and of `commands/changeset.py::_mapper_refresh_producer` (the
 # binary-changeset Mapper refresh). No primitive was added.
-BASELINE_SHA256 = "352d2c24411154d3826303e374d3bcb29746ef8a5a97f160e7b773ae0269549d"
+# Reviewed (squad review of simpletibr/simplicio-loop#1495): removed the dead
+# `providers.py::_codex_supports_effort_flag` probe (its `subprocess.run` scope)
+# and its `_cli_command` helper, together with the `_shell_out_claude` and
+# `_shell_out_codex` helpers they only served. Nothing calls them any more.
+BASELINE_SHA256 = "a2eee5d3988d9d8ee396ddaae80f8178f8de4c0e57368e39581ed630af58d623"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",
