@@ -230,7 +230,11 @@ async def run_batch(items: Sequence[T], paths_of: Callable[[T], frozenset[str]],
         for index in indices:
             results[index] = await run_one(items[index])
 
-    await asyncio.gather(*(run_group(g) for g in conflict_groups([paths_of(i) for i in items])))
+    # return_exceptions: gather without it ends at the first item that stops, and then asyncio.run cancels the cleanup of the others
+    done = await asyncio.gather(*(run_group(g) for g in conflict_groups([paths_of(i) for i in items])), return_exceptions=True)
+    for outcome in done:
+        if isinstance(outcome, BaseException):
+            raise outcome
     return results
 
 

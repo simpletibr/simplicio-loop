@@ -30,7 +30,7 @@ def pinned(monkeypatch, n):
 
 def test_two_items_of_one_repo_take_the_max_not_the_sum(env, monkeypatch):
     pinned(monkeypatch, 3)
-    fake = env(FakeRun({REPO: [issue(i, body=body(f"f{i}.py")) for i in (1, 2, 3)]}, diff=False, delay=0.4))
+    fake = env(FakeRun({REPO: [issue(i, body=body(f"f{i}.py")) for i in (1, 2, 3)]}, diff=False, delay=0.4, meet=3))
     baseline()
     run_tick()
     assert fake.max_turbo == 3  # deterministic: all three were in the turbo at the same time
@@ -99,7 +99,7 @@ def test_worktree_is_removed_when_the_tick_is_cancelled(env, monkeypatch):
 
     async def scenario():
         task = asyncio.ensure_future(tick.tick())
-        for _ in range(500):
+        for _ in range(6000):  # waits for the condition; the bound (60 s) only keeps a broken run from hanging
             if len(fake.turbo_cwds) == 2:
                 break
             await asyncio.sleep(0.01)
@@ -109,12 +109,12 @@ def test_worktree_is_removed_when_the_tick_is_cancelled(env, monkeypatch):
             await task
 
     asyncio.run(scenario())
-    assert fake.worktrees == {} and sorted(p for k, p in fake.worktree_log if k == "remove") == [wt(1), wt(2)]
+    assert fake.worktrees == {} and sorted(p for k, p in fake.worktree_log if k == "remove") == [wt(1), wt(2)], fake.worktree_log
 
 
 def test_the_concurrency_limit_holds_for_live_worktrees(env, monkeypatch):
     pinned(monkeypatch, 2)
-    fake = env(FakeRun({REPO: [issue(i, body=body(f"f{i}.py")) for i in (1, 2, 3, 4)]}, diff=False, delay=0.05))
+    fake = env(FakeRun({REPO: [issue(i, body=body(f"f{i}.py")) for i in (1, 2, 3, 4)]}, diff=False, delay=0.05, meet=2))
     baseline()
     run_tick()
     assert fake.max_worktrees == 2 and len(fake.turbo_argv) == 2  # the rest waits for the next tick
@@ -137,7 +137,7 @@ def test_items_that_name_the_same_file_run_one_after_the_other(env, monkeypatch)
     pinned(monkeypatch, 4)
     issues = [issue(1, body=body("a.py", "b.py")), issue(2, body=body("b.py", "c.py")), issue(3, body=body("c.py")),
               issue(4, body=body("d.py"))]
-    fake = env(FakeRun({REPO: issues}, diff=False, delay=0.05))
+    fake = env(FakeRun({REPO: issues}, diff=False, delay=0.05, meet=2))
     baseline()
     run_tick()
     # 1-2-3 are one chain (b.py, c.py): never together. 4 shares nothing: it runs next to the chain.

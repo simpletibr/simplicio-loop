@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import json
 import re
 import shutil
@@ -47,11 +48,13 @@ class FakeRun:
 
     def __init__(self, issues, *, turbo_ok=True, diff=True, delay=0.0, opted_in=None,
                  broken_gate=(), prs=(), pr_views=None, claimed_by=None, distinct_prs=False,
-                 train_ok=True, login="squad-bot", loop_toml=None):
+                 train_ok=True, login="squad-bot", loop_toml=None, meet=0):
         self.issues = issues  # repo name -> list of issue rows
         self.turbo_ok = turbo_ok
         self.diff = diff
         self.delay = delay
+        self.meet = meet  # a turbo waits until `meet` turbos run together: overlap is proven by a rendezvous, not by a short sleep
+        self._met = asyncio.Event()
         self.opted_in = set(issues) if opted_in is None else set(opted_in)
         self.loop_toml = loop_toml or {}  # repo name -> the .simplicio-loop/loop.toml text of its default branch (default LOOP_TOML)
         self.broken_gate = set(broken_gate)
@@ -122,6 +125,11 @@ class FakeRun:
             self.turbo_timeouts.append(timeout)
             self.turbo_active += 1
             self.max_turbo = max(self.max_turbo, self.turbo_active)
+            if self.meet:
+                if self.turbo_active >= self.meet:
+                    self._met.set()
+                with contextlib.suppress(asyncio.TimeoutError):
+                    await asyncio.wait_for(self._met.wait(), 10)  # only a run that never overlaps waits this long, and its test fails
             began = time.monotonic()
             if self.on_turbo is not None:
                 await self.on_turbo(Path(cwd))

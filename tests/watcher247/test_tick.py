@@ -147,7 +147,7 @@ def test_skip_labels_are_never_processed(env):
 def test_in_flight_equals_concurrency(env, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
     names = ["simplicio-a", "simplicio-b", "simplicio-c", "simplicio-d"]
-    fake = env(FakeRun({n: [issue(i)] for i, n in enumerate(names, 1)}, diff=False, delay=0.05))
+    fake = env(FakeRun({n: [issue(i)] for i, n in enumerate(names, 1)}, diff=False, delay=0.05, meet=2))
     baseline()
     run_tick()
     assert fake.max_turbo == 2
@@ -157,7 +157,7 @@ def test_in_flight_equals_concurrency(env, monkeypatch):
 def test_same_repo_issues_overlap_each_in_its_own_worktree(env, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
     bodies = ["Ajustar `a.py` para o fluxo.", "Ajustar `b.py` para o fluxo."]
-    fake = env(FakeRun({"simplicio-a": [issue(1, body=bodies[0]), issue(2, body=bodies[1])]}, diff=False, delay=0.05))
+    fake = env(FakeRun({"simplicio-a": [issue(1, body=bodies[0]), issue(2, body=bodies[1])]}, diff=False, delay=0.05, meet=2))
     baseline()
     run_tick()
     assert len(fake.turbo_argv) == 2
@@ -169,7 +169,7 @@ def test_same_repo_issues_overlap_each_in_its_own_worktree(env, monkeypatch):
 
 def test_different_repos_do_overlap(env, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
-    fake = env(FakeRun({"simplicio-a": [issue(1)], "simplicio-b": [issue(2)]}, diff=False, delay=0.05))
+    fake = env(FakeRun({"simplicio-a": [issue(1)], "simplicio-b": [issue(2)]}, diff=False, delay=0.05, meet=2))
     baseline()
     run_tick()
     assert fake.max_turbo == 2
