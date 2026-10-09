@@ -40,7 +40,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `doctor` | Inspect stack identity, source adapters, or storage routing. |
 | `doctor mapper` | Check that the installed `simplicio_mapper` is the expected build (origin, state dir, source commit); each blocker names a `reason_code` and a `fix`. |
 | `inspect` | Inspect MapperStore capabilities and storage routing. |
-| `map` | Inspect or build map-service receipts. `map gc [--dry-run] [--keep N] [--max-age S] [--json]` lists (`--dry-run`) or removes stale `baseline-build-*` scratch, orphan locks and old bases from the central map under the git common dir, never one a lock, a process or a live worktree overlay still holds (see `docs/CENTRAL_MAP.md`). |
+| `map` | Inspect or build map-service receipts. `map gc [--dry-run] [--keep N] [--max-age S] [--json]` lists or removes stale `baseline-build-*` scratch, orphan locks and old bases. It keeps anything that a lock, a process or a live worktree overlay holds. See `docs/CENTRAL_MAP.md`. |
 | `preflight` | Verify the Mapper and Dev CLI operators. |
 | `economy` | Inspect, print, or apply the environment profile; inspect before applying, especially in CLI-only mode. |
 | `ecc doctor` | Diagnose the optional ECC integration. |
