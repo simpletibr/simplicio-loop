@@ -141,6 +141,8 @@ def _bundle_pairs_fixture(tmp):
     _write(os.path.join(bun_tests, "test_loop_e2e.py"), "y = 1\n")
     _write(os.path.join(tmp, "adapters", "claude", "adapter.py"), "z = 1\n")
     _write(os.path.join(tmp, "simplicio_loop", "_bundle", "adapters", "claude", "adapter.py"), "z = 1\n")
+    _write(os.path.join(tmp, "packaging", "host-rules", "simplicio-loop-operator-flow.md"), "rule\n")
+    _write(os.path.join(tmp, "simplicio_loop", "_bundle", "host-rules", "simplicio-loop-operator-flow.md"), "rule\n")
     return src_scripts, bun_scripts, src_tests, bun_tests
 
 
