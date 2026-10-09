@@ -7,12 +7,12 @@ import hashlib
 import os
 import re
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .. import intake_gate, watcher_github
 from ..claim_lease import ClaimStore
-from . import budget, config, github, host_mode, proc, prompt_guard, sandbox, secret_scan, state, subscription, verify
+from . import budget, config, github, host_mode, points, proc, prompt_guard, sandbox, secret_scan, state, subscription, verify
 
 _STATE_DIRS = (".simplicio-loop/", ".simplicio/")
 
@@ -238,8 +238,18 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
             async with gate.repo_lock(name):  # one working tree per repo: clone to push is exclusive
                 dest = await ensure_clone(name, work.branch)
                 head = await reset_branch(dest, work.branch, number, fix=bool(work.fix))
+                ctx = points.PointContext(
+                    repo=name, issue=work.issue, clone=dest, state_dir=config.ROOT, family=(executor.families or (None,))[0],
+                    run_dir=dest / ".simplicio-loop" / "orchestrator" / "points" / f"{name}-{number}")
+                await points.run("intake", ctx)
+                ctx = replace(ctx, task_text=task_text(name, work.issue, work.fix))
+                await points.run("plan", ctx)
                 turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor)
+                ctx = replace(ctx, turbo_json=turbo, verify=turbo["verify"])
+                await points.run("apply", ctx)
                 await _phase(runner, name, number, "VERIFYING", detail="turbo ok; publicando o diff")
+                await points.run("verify", ctx)
+                points.raise_if_blocked("pr", await points.run("pr", ctx))  # a blocked result stops the PR
                 url = await commit_and_pr(dest, name, work.branch, head, work.issue, pr=work.pr,
                                           label=turbo["verify"], executor=executor.mode)
                 if url:
@@ -254,7 +264,13 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
         else:
             await _phase(runner, name, number, "BLOCKED", detail="o loop terminou sem diff para abrir PR")
             await store.release(ident, token, "done_no_diff", now=clock, pr=None, **turbo)
+        await points.run("done", replace(ctx, pr_url=url))
         state.log(f"done {ident} pr={url}")
+    except points.PointBlocked as exc:
+        await _phase(runner, name, number, "BLOCKED",
+                     detail=f"etapa {exc.stage} bloqueada por {exc.name} ({exc.reason_code})")
+        await store.release(ident, token, "dead", now=clock, reason_code=exc.reason_code, error=str(exc)[:500])
+        state.log(f"point blocked {ident}: {exc}")
     except secret_scan.SecretDetected as exc:  # the secret itself is never echoed, only the file names
         await _phase(runner, name, number, "BLOCKED",
                      detail=f"push bloqueado ({exc.reason_code}): segredo detectado em " + ", ".join(exc.files))
