@@ -32,7 +32,7 @@ script works in isolation. Nothing under the real repo checkout is mutated:
   7. Generate a locally-verifiable provenance statement linked to the same digest + the scratch
      copy's source SHA (`scripts.provenance_generate`), signed the same way as step 5.
   8. Run the clean-room install-smoke (`scripts.install_smoke.run_smoke`) against the scratch
-     copy: fresh venv, `--no-deps --no-index`, `PYTHONPATH` cleared, isolation + version asserted,
+     copy: fresh venv, wheel plus its dependencies from the package index (needs network), `PYTHONPATH` cleared, isolation + version asserted,
      `--help` actually executed.
   9. (optional, --binary) Build the standalone executable for the current host using PyInstaller,
      verify its version output, and generate an SBOM for the binary. Runs scripts/build_binary.py
@@ -84,36 +84,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from install_smoke import run_smoke  # noqa: E402
 from release_verify import generate_checksums, sign_manifest, verify_checksums  # noqa: E402
 from sbom_generate import build_sbom  # noqa: E402
+from dev_switches import DEV_SWITCHES, find_dev_switches  # noqa: E402
 from version_sync import VersionSyncError, apply_version  # noqa: E402
 from provenance_generate import build_provenance  # noqa: E402
 from build_binary import BuildError, build_environment, parse_asset_name, parse_sha256sums, sha256_file  # noqa: E402
 
 SCHEMA = "simplicio.release-rehearsal/v1"
-
-
-# Dev-only switches: a release must not carry them. The first one skips the watcher's login gate for the self-host
-# phase (issue "Release blocker: remove the dev login switch and enforce login", docs/RELEASE.md "Release blockers").
-DEV_SWITCHES = ("SIMPLICIO_247_NO_LOGIN",)
-
-
-def find_dev_switches(repo: Path) -> Dict[str, list]:
-    """{switch: [repo-relative files under simplicio_loop/ that still contain it]}, only the switches found.
-
-    Bytecode caches are skipped: a stale .pyc is not source. Everything outside simplicio_loop/ (tests, scripts, docs)
-    may name the switch; the package that ships is what must not.
-    """
-    root = Path(repo) / "simplicio_loop"
-    found: Dict[str, list] = {}
-    if not root.is_dir():
-        return found
-    for path in sorted(root.rglob("*")):
-        if not path.is_file() or "__pycache__" in path.parts:
-            continue
-        data = path.read_bytes()
-        for switch in DEV_SWITCHES:
-            if switch.encode() in data:
-                found.setdefault(switch, []).append(path.relative_to(repo).as_posix())
-    return found
 
 
 def _load_json_text(text: str) -> Optional[Dict[str, Any]]:

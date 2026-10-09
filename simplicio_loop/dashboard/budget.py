@@ -12,7 +12,7 @@ import json
 import math
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 from simplicio_loop.progress import PHASES
 
@@ -55,13 +55,41 @@ def declared(run_dir: str | Path) -> dict[str, float | int | None]:
     return totals
 
 
+def _iteration(value: Any) -> int | None:
+    '''The iteration of an event (an integer >= 0), else None: a bool or a string is not an iteration.'''
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
+def _task(value: Any) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
 def _bump(group: dict[str, int], key: Any, amount: int) -> None:
     if isinstance(key, str) and key:
         group[key] = group.get(key, 0) + amount
 
 
+def _token_events(events: Iterable[dict[str, Any]]) -> Iterator[tuple[dict[str, Any], str, int, int, str | None, int | None, str | None]]:
+    '''Each token_usage event with a count as (event, model, input, output, task_id, iteration, lane); a count-less one is skipped.'''
+    for event in events:
+        if not isinstance(event, dict) or event.get('schema') != SCHEMA or event.get('kind') != 'token_usage':
+            continue
+        payload = event.get('payload') if isinstance(event.get('payload'), dict) else {}
+        tokens_in, tokens_out = _number(payload.get('input_tokens')), _number(payload.get('output_tokens'))
+        if not (tokens_in or 0) + (tokens_out or 0):
+            continue
+        model = payload.get('model') if isinstance(payload.get('model'), str) and payload.get('model') else ''
+        lane = event.get('lane') if isinstance(event.get('lane'), str) and event.get('lane') else None
+        yield event, model, tokens_in or 0, tokens_out or 0, _task(event.get('task_id')), _iteration(event.get('iteration')), lane
+
+
 def usage(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
-    '''Tokens and USD summed from the producer events, grouped by phase, lane and model.'''
+    '''Tokens and USD summed from the producer events, grouped by phase, lane, model, task and iteration.
+
+    The task and iteration groups come from the event envelope. Tokens whose event has no task (or no iteration) count in
+    ``unattributed_tokens``, so the parts of each split add up to ``tokens``.
+    '''
+    events = list(events)
     tokens = 0
     usd = 0.0
     samples = 0
@@ -69,27 +97,34 @@ def usage(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
     by_phase: dict[str, int] = {}
     by_lane: dict[str, int] = {}
     by_model: dict[str, int] = {}
+    by_task: dict[str, int] = {}
+    by_iteration: dict[str, int] = {}
+    unattributed = {'task': 0, 'iteration': 0}
     for event in events:
-        if not isinstance(event, dict) or event.get('schema') != SCHEMA:
-            continue
-        payload = event.get('payload') if isinstance(event.get('payload'), dict) else {}
-        if event.get('kind') == 'token_usage':
-            parts = [_number(payload.get('input_tokens')), _number(payload.get('output_tokens'))]
-            amount = int(sum(part for part in parts if part is not None))
-            if amount <= 0:
-                continue
-            tokens += amount
-            samples += 1
-            _bump(by_phase, event.get('phase'), amount)
-            _bump(by_lane, payload.get('lane'), amount)
-            _bump(by_model, payload.get('model'), amount)
-        elif event.get('kind') == 'cost_sample':
+        if isinstance(event, dict) and event.get('schema') == SCHEMA and event.get('kind') == 'cost_sample':
+            payload = event.get('payload') if isinstance(event.get('payload'), dict) else {}
             value = _number(payload.get('usd'))
             if value is not None:
                 usd += value
                 cost_seen = True
+    for event, model, tokens_in, tokens_out, task, iteration, lane in _token_events(events):
+        amount = int(tokens_in + tokens_out)
+        tokens += amount
+        samples += 1
+        _bump(by_phase, event.get('phase'), amount)
+        _bump(by_lane, lane, amount)
+        _bump(by_model, model, amount)
+        if task is None:
+            unattributed['task'] += amount
+        else:
+            _bump(by_task, task, amount)
+        if iteration is None:
+            unattributed['iteration'] += amount
+        else:
+            _bump(by_iteration, str(iteration), amount)
     return {'tokens': tokens if samples else None, 'usd': usd if cost_seen else None, 'samples': samples,
-            'by_phase': by_phase, 'by_lane': by_lane, 'by_model': by_model}
+            'by_phase': by_phase, 'by_lane': by_lane, 'by_model': by_model, 'by_task': by_task,
+            'by_iteration': by_iteration, 'unattributed_tokens': unattributed}
 
 
 def price_for(models: dict[str, Any], model: str) -> dict[str, Any] | None:
@@ -106,69 +141,64 @@ def price_for(models: dict[str, Any], model: str) -> dict[str, Any] | None:
 
 def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | None) -> dict[str, Any]:
     '''USD for the run. A provider-reported cost wins when every token event carries one (``proof_kind`` ``medido``);
-    otherwise measured input/output tokens per model times the price table (``estimado``). Always the same ``state``.
+    otherwise measured input/output tokens per model times the price table (``estimado``).
 
     UNVERIFIED (with the reason) when no tokens were measured, the table is missing, or a model has no price. Cached,
-    cache-write and reasoning tokens are never priced from the table; their counts are reported in ``unpriced_tokens``.
-    ``by_model`` lists at most TOP_N models; with more, ``others`` carries the model count, tokens and cost of the rest,
-    and the parts add up to ``usd``.
+    cache-write and reasoning tokens are never priced from the table; their counts are in ``unpriced_tokens``.
+    ``by_model`` and ``by_task`` list at most TOP_N of the most expensive; with more models, ``others`` carries the model
+    count, tokens and cost of the rest, and ``tasks`` counts every priced task. ``by_iteration`` lists the TOP_N most
+    expensive iterations. ``unattributed_usd`` is the USD of the tokens whose event has no task or no iteration, so each
+    split adds up to ``usd``.
     '''
     row: dict[str, Any] = {'usd': None, 'state': 'UNVERIFIED', 'proof_kind': 'estimado', 'reason': None,
-                           'as_of': None, 'source_url': None, 'by_model': {}}
-    per_model: dict[str, list[float]] = {}
-    reported: dict[str, float] = {}
-    reported_all = True
-    unpriced = {'cached_tokens': 0, 'cache_write_tokens': 0, 'reasoning_tokens': 0}
-    for event in events:
-        if not isinstance(event, dict) or event.get('schema') != SCHEMA or event.get('kind') != 'token_usage':
-            continue
-        payload = event.get('payload') if isinstance(event.get('payload'), dict) else {}
-        tokens_in, tokens_out = _number(payload.get('input_tokens')), _number(payload.get('output_tokens'))
-        if not (tokens_in or 0) + (tokens_out or 0):
-            continue
-        model = payload.get('model') if isinstance(payload.get('model'), str) and payload.get('model') else ''
-        totals = per_model.setdefault(model, [0, 0])
-        totals[0] += tokens_in or 0
-        totals[1] += tokens_out or 0
-        cost = _number(payload.get('cost'))
-        if cost is None:
-            reported_all = False
-        else:
-            reported[model] = reported.get(model, 0.0) + cost
-        for key in unpriced:
-            unpriced[key] += _number(payload.get(key)) or 0
+                           'as_of': None, 'source_url': None, 'by_model': {}, 'by_task': {}, 'tasks': 0,
+                           'by_iteration': {}, 'iterations': 0, 'unattributed_usd': {'task': None, 'iteration': None},
+                           'unpriced_tokens': {'cached_tokens': 0, 'cache_write_tokens': 0, 'reasoning_tokens': 0}}
+    priced_events = list(_token_events(events))
     table = prices.get('models') if isinstance(prices, dict) and isinstance(prices.get('models'), dict) else None
     if isinstance(prices, dict):
         row['as_of'], row['source_url'] = prices.get('as_of'), prices.get('source_url')
-    if not per_model:
+    if not priced_events:
         row['reason'] = 'tokens não medidos: nenhum token_usage com contagem registrada pelo run'
         return row
-    row['unpriced_tokens'] = unpriced
-    if reported_all:
-        priced = [(model, reported[model], tokens_in, tokens_out)
-                  for model, (tokens_in, tokens_out) in sorted(per_model.items())]
+    for event, *_ in priced_events:
+        for key in row['unpriced_tokens']:
+            row['unpriced_tokens'][key] += _number(event['payload'].get(key)) or 0
+    per_model: dict[str, list[float]] = {}  # model -> [tokens_in, tokens_out]
+    for _, model, tokens_in, tokens_out, *_ in priced_events:
+        totals = per_model.setdefault(model, [0, 0])
+        totals[0] += tokens_in
+        totals[1] += tokens_out
+    reported = [_number(event['payload'].get('cost')) for event, *_ in priced_events]
+    if all(cost is not None for cost in reported):
         row['proof_kind'] = 'medido'
-        total = sum(item[1] for item in priced)
+        event_usd = reported
+        model_usd: dict[str, float] = {}
+        for (_, model, *_), usd in zip(priced_events, reported):
+            model_usd[model] = model_usd.get(model, 0.0) + usd
     else:
         if table is None:
             row['reason'] = 'tabela de preços indisponível'
             return row
-        total = 0.0
-        priced = []
-        for model, (tokens_in, tokens_out) in sorted(per_model.items()):
+        rates: dict[str, tuple[float, float]] = {}
+        for model in sorted(per_model):
             price = price_for(table, model)
             in_rate = _number(price.get('input_per_mtok')) if isinstance(price, dict) else None
             out_rate = _number(price.get('output_per_mtok')) if isinstance(price, dict) else None
             if in_rate is None or out_rate is None:
                 row['reason'] = 'sem preço na tabela para o modelo %r' % (model or 'desconhecido')
-                row['usd'] = None
-                row['by_model'] = {}
                 return row
-            usd = (tokens_in * in_rate + tokens_out * out_rate) / 1_000_000
-            priced.append((model, usd, tokens_in, tokens_out))
-            total += usd
+            rates[model] = (in_rate, out_rate)
+        model_usd = {model: (per_model[model][0] * rates[model][0] + per_model[model][1] * rates[model][1]) / 1_000_000
+                     for model in sorted(per_model)}
+        event_usd = [(tokens_in * rates[model][0] + tokens_out * rates[model][1]) / 1_000_000
+                     for _, model, tokens_in, tokens_out, *_ in priced_events]
+    total = 0.0
+    for model in sorted(model_usd):
+        total += model_usd[model]
     row['usd'] = round(total, 6)
     row['state'] = 'ESTIMADO'
+    priced = [(model, model_usd[model], per_model[model][0], per_model[model][1]) for model in sorted(per_model)]
     # The reply stays small however many model ids the run used: the TOP_N most expensive models by name, and one ``others``
     # row with the tokens and cost of the rest, so that the listed parts add up to ``usd``.
     kept = priced if len(priced) <= TOP_N else sorted(heapq.nlargest(TOP_N, priced, key=lambda item: item[1]))
@@ -180,6 +210,23 @@ def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | Non
         row['others'] = {'models': len(rest), 'tokens_in': tokens_in, 'tokens_out': tokens_out, 'tokens': tokens_in + tokens_out,
                          'usd': round(row['usd'] - sum(row['by_model'].values()), 6), 'state': 'ESTIMADO',
                          'proof_kind': row['proof_kind'], 'reason': None}
+    task_usd: dict[str, float] = {}
+    iteration_usd: dict[str, float] = {}
+    unattributed = {'task': 0.0, 'iteration': 0.0}
+    for (_, _, _, _, task, iteration, _), usd in zip(priced_events, event_usd):
+        if task is None:
+            unattributed['task'] += usd
+        else:
+            task_usd[task] = task_usd.get(task, 0.0) + usd
+        if iteration is None:
+            unattributed['iteration'] += usd
+        else:
+            iteration_usd[str(iteration)] = iteration_usd.get(str(iteration), 0.0) + usd
+    row['tasks'] = len(task_usd)
+    row['by_task'] = {task: round(usd, 6) for task, usd in heapq.nlargest(TOP_N, task_usd.items(), key=lambda item: item[1])}
+    row['iterations'] = len(iteration_usd)
+    row['by_iteration'] = {it: round(usd, 6) for it, usd in heapq.nlargest(TOP_N, iteration_usd.items(), key=lambda item: item[1])}
+    row['unattributed_usd'] = {key: round(value, 6) for key, value in unattributed.items()}
     return row
 
 

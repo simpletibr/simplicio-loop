@@ -21,6 +21,11 @@ What it does:
     video") — pre-existing oversized files (e.g. the doc hero images already in the tree) are
     grandfathered by the baseline so this gate does not retroactively fail on history it did not
     create, but they may not grow past `THRESHOLD_GROWTH` themselves either;
+  - enforces a **line** budget on tracked TEXT files (`MAX_LINES`, owner rule: no file above 9000
+    lines): a new text file over the cap fails; a file already over it is recorded in the
+    baseline (`known_long_files`) and may only stay at its recorded size -- growth fails, and a
+    shrink fails until --update-baseline locks it in (so a regrowth cannot slip under a stale
+    record). Binary files (not valid UTF-8) have no line budget;
   - enforces a **total tracked tree** budget via a committed baseline
     (`scripts/repository_budget_baseline.json`), same pattern as `scripts/token_budget.py` (#121):
     growth past `THRESHOLD_GROWTH` over the last deliberately-reviewed baseline fails the gate.
@@ -55,6 +60,11 @@ MAX_SINGLE_FILE_BYTES = 2 * 1024 * 1024
 # Allowed growth of the TOTAL tracked tree size over the committed baseline before the guard
 # fails. Mirrors token_budget.py's THRESHOLD_GROWTH so both budget guards behave predictably.
 THRESHOLD_GROWTH = 0.25
+
+# Line ratchet (owner rule: no file above 9000 lines). A tracked TEXT file over this many lines
+# fails the gate unless the baseline records it. A recorded file may only stay at its recorded
+# size: growth fails, and so does a shrink until --update-baseline locks the reduction in.
+MAX_LINES = 9000
 
 DEFAULT_TOP_N = 20
 
@@ -203,6 +213,63 @@ def measure():
     return entries, total
 
 
+def _looks_text(data):
+    """True when the whole file decodes as UTF-8. Binary blobs (images, archives) almost never do,
+    while a stray NUL inside text does not exempt the file from the line budget."""
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
+def _count_lines_bytes(data):
+    """Line count with `wc -l` semantics, plus one for an unterminated final line."""
+    if not data:
+        return 0
+    return data.count(b"\n") + (0 if data.endswith(b"\n") else 1)
+
+
+def measure_text_lines(entries):
+    """{rel: line_count} for every tracked TEXT file; binary files are not measured."""
+    counts = {}
+    for rel, _ in entries:
+        try:
+            with open(os.path.join(REPO, rel), "rb") as f:
+                data = f.read()
+        except OSError:
+            continue  # tracked but missing on disk: same policy as list_tracked_files()
+        if not _looks_text(data):
+            continue
+        counts[rel] = _count_lines_bytes(data)
+    return counts
+
+
+def _line_budget_violations(line_counts, known):
+    """Text files that break the line rule. `known` maps rel -> the line count the baseline records.
+
+    - a file over MAX_LINES that the baseline does not record is `new`;
+    - a recorded file that now has more lines is `grew`;
+    - a recorded file that now has fewer lines is `shrank`: the reduction must be recorded with
+      --update-baseline, so a later regrowth cannot slip back under a stale, higher record;
+    - a recorded file that is no longer a tracked text file is `missing`.
+    """
+    flagged = []
+    for rel, lines in sorted(line_counts.items()):
+        base = known.get(rel)
+        if base is None:
+            if lines > MAX_LINES:
+                flagged.append((rel, lines, None, "new"))
+        elif lines > base:
+            flagged.append((rel, lines, base, "grew"))
+        elif lines < base:
+            flagged.append((rel, lines, base, "shrank"))
+    for rel, base in sorted(known.items()):
+        if rel not in line_counts:
+            flagged.append((rel, 0, base, "missing"))
+    return flagged
+
+
 def load_baseline():
     if not os.path.exists(BASELINE_PATH):
         return None
@@ -213,12 +280,14 @@ def load_baseline():
         return None
 
 
-def write_baseline(entries, total):
+def write_baseline(entries, total, line_counts):
     # Grandfather any file already over the per-file cap at the time the baseline is (re)written
     # -- the gate's job is to stop NEW growth, not to retroactively fail on assets that already
     # shipped. Re-running --update-baseline after adding a new oversized file bakes it in too,
-    # which is the deliberate/reviewed escape hatch the docstring calls out.
+    # which is the deliberate/reviewed escape hatch the docstring calls out. The line ratchet
+    # follows the same escape hatch: `known_long_files` records every text file over MAX_LINES.
     known_oversized = {rel: size for rel, size in entries if size > MAX_SINGLE_FILE_BYTES}
+    known_long = {rel: lines for rel, lines in line_counts.items() if lines > MAX_LINES}
     payload = {
         "$schema_note": "simplicio-loop repository size budget baseline (#294). Regenerate with "
                         "`python3 scripts/repository_budget.py --update-baseline` after a "
@@ -227,9 +296,11 @@ def write_baseline(entries, total):
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "threshold_growth": THRESHOLD_GROWTH,
         "max_single_file_bytes": MAX_SINGLE_FILE_BYTES,
+        "max_lines": MAX_LINES,
         "tracked_file_count": len(entries),
         "total_bytes": total,
         "known_oversized_files": known_oversized,
+        "known_long_files": known_long,
     }
     with open(BASELINE_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, sort_keys=True)
@@ -266,12 +337,27 @@ def _new_oversized_files(entries, baseline):
     return flagged
 
 
-def report(entries, total, baseline, top_n, quiet=False):
+def _describe_line_flag(rel, lines, base, kind):
+    if kind == "new":
+        return "  %6d lines  %s  (new: over %d lines)" % (lines, rel, MAX_LINES)
+    if kind == "grew":
+        return "  %6d lines  %s  (grew past baseline %d)" % (lines, rel, base)
+    if kind == "shrank":
+        return "  %6d lines  %s  (shrank below baseline %d: run --update-baseline to lock it in)" % (
+            lines, rel, base)
+    return "  %6s  %s  (baseline %d: no longer a tracked text file; run --update-baseline)" % (
+        "-", rel, base)
+
+
+def report(entries, total, baseline, line_counts, top_n, quiet=False):
     """Print the report and return True if everything is within budget."""
     ok = True
     oversized = _new_oversized_files(entries, baseline)
     forbidden = _new_forbidden_raw_media(entries)
-    if oversized or forbidden:
+    line_flags = []
+    if baseline is not None:
+        line_flags = _line_budget_violations(line_counts, baseline.get("known_long_files", {}) or {})
+    if oversized or forbidden or line_flags:
         ok = False
 
     lines = []
@@ -314,6 +400,17 @@ def report(entries, total, baseline, top_n, quiet=False):
             else:
                 lines.append("  %10s  %s  (baseline %s)" % (_fmt_bytes(size), rel, _fmt_bytes(base_size)))
 
+    if line_flags:
+        lines.append("[FAIL] %d text file(s) break the %d-line budget (new over the cap, or not at "
+                      "their recorded size):" % (len(line_flags), MAX_LINES))
+        for rel, n, base, kind in line_flags:
+            lines.append(_describe_line_flag(rel, n, base, kind))
+    elif baseline is not None and baseline.get("known_long_files"):
+        recorded = baseline["known_long_files"]
+        lines.append("[ok] %d text file(s) over %d lines, each at its recorded size (may only shrink): %s"
+                     % (len(recorded), MAX_LINES,
+                        ", ".join("%s=%d" % (rel, n) for rel, n in sorted(recorded.items()))))
+
     if not quiet or not ok:
         print("=== repository size budget ===")
         for line in lines:
@@ -336,11 +433,13 @@ def main():
                 pass
 
     entries, total = measure()
+    line_counts = measure_text_lines(entries)
 
     if update:
-        payload = write_baseline(entries, total)
-        print("wrote %s (%d tracked files, %s total)" % (
-            BASELINE_PATH, payload["tracked_file_count"], _fmt_bytes(payload["total_bytes"])))
+        payload = write_baseline(entries, total, line_counts)
+        print("wrote %s (%d tracked files, %s total, %d text files over %d lines)" % (
+            BASELINE_PATH, payload["tracked_file_count"], _fmt_bytes(payload["total_bytes"]),
+            len(payload["known_long_files"]), MAX_LINES))
         return 0
 
     baseline = load_baseline()
@@ -351,10 +450,10 @@ def main():
         # grandfathered, so any currently-oversized file is reported but does not fail this
         # first-ever run -- it will fail on the NEXT run once a baseline exists, unless
         # --update-baseline grandfathers it deliberately.
-        report(entries, total, None, top_n, quiet=False)
+        report(entries, total, None, line_counts, top_n, quiet=False)
         return 0
 
-    ok = report(entries, total, baseline, top_n, quiet=quiet)
+    ok = report(entries, total, baseline, line_counts, top_n, quiet=quiet)
     return 0 if ok else 1
 
 
@@ -369,6 +468,13 @@ def selftest():
         checks.append(("measure() raised: %s" % exc, False))
     checks.append(("MAX_SINGLE_FILE_BYTES is positive", MAX_SINGLE_FILE_BYTES > 0))
     checks.append(("THRESHOLD_GROWTH is between 0 and 1", 0 < THRESHOLD_GROWTH < 1))
+    checks.append(("MAX_LINES is the 9000-line owner cap", MAX_LINES == 9000))
+    checks.append(("unterminated last line counts as a line", _count_lines_bytes(b"a\nb") == 2))
+    checks.append(("invalid UTF-8 is binary", not _looks_text(b"\xff\xfe")))
+    checks.append(("a NUL inside valid UTF-8 is still text", _looks_text(b"a\0b")))
+    checks.append(("exactly MAX_LINES lines pass", _line_budget_violations({"a": MAX_LINES}, {}) == []))
+    checks.append(("MAX_LINES + 1 new lines are flagged",
+                   [f[3] for f in _line_budget_violations({"a": MAX_LINES + 1}, {})] == ["new"]))
     # Forbidden-path / LFS-exemption logic (P2 acceptance tests — no subprocess, pure checks).
     rel_entries = [("docs/REPO_SIZE_REPORT.md", 1024), ("assets/simplicio-loop-logo.png", 4924 * 1024)]
     checks.append(("no false-positive forbidden media on real tracked source",

@@ -1,7 +1,7 @@
 // Simplicio Live pipeline reducer (issue #1402). Pure: no DOM, no network, no clock.
 // Time enters only through selectView(state, nowMs) and the timestamps carried by actions.
 import { applyIteration, initialIterations, selectConvergence, selectIterations } from './iterations.js';
-import { agentsCostView, economyView } from './economy.js';
+import { agentsCostView, costWidgetsView, economyView } from './economy.js';
 import { initialQuality, reduceQuality, selectQuality } from './quality.js';
 import { selectFlaky } from '../quality-flaky.js';
 
@@ -498,6 +498,7 @@ export function selectView(state, nowMs) {
     quality,
     economy,
     agentsCost: agentsCostView(economy, state.agents, state.budget),
+    costWidgets: costWidgetsView(state.budget),
     receipts: state.receipts,
     runCommands: runCommandsOf(state.runId, state.repo),
   };
