@@ -68,6 +68,11 @@ def seen_calls():
     return [json.loads(line) for line in open(log)] if os.path.exists(log) else []
 
 
+def latest_comment_body(comment_id):
+    bodies = [c["body"] for c in seen_calls() if c.get("comment_id") == comment_id and c.get("method") in ("POST", "PATCH")]
+    return bodies[-1] if bodies else ""
+
+
 def record(**fields):
     with open(log, "a") as fh:
         fh.write(json.dumps({{"argv": args, **fields}}) + "\\n")
@@ -101,6 +106,10 @@ elif args[0] == "api":
     if method == "GET" and path.endswith("/contents/.simplicio/loop.toml"):
         record(path=path)
         print(base64.b64encode(fx["loop_toml"].encode()).decode())
+    elif method == "GET" and "/issues/comments/" in path:
+        comment_id = int(path.rsplit("/", 1)[1])
+        record(path=path)
+        print(json.dumps(dict(id=comment_id, body=latest_comment_body(comment_id))))
     elif method == "GET" and "/issues/" in path and path.rsplit("/", 1)[1].isdigit():
         number = int(path.rsplit("/", 1)[1])
         record(path=path)

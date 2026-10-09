@@ -59,8 +59,9 @@ def _turbo_document(run) -> dict:
     return tick.parse_turbo(log.read_text().split("\n--- stderr ---")[0])
 
 
-def _issue_comments(run) -> list[dict]:
-    return [c for c in run["calls"] if c["argv"][:2] == ["issue", "comment"]]
+def _canonical_calls(run) -> list[dict]:
+    """Writes to the issue's status comments: the POST that creates it and every PATCH that updates it."""
+    return [c for c in run["calls"] if c.get("method") in ("POST", "PATCH") and "/comments" in c.get("path", "")]
 
 
 def _run_dirs(run) -> list[dict]:
@@ -74,12 +75,11 @@ def test_issue_admitted(tick_run):
     assert claim["status"] == "done", claim
 
 
-@pytest.mark.xfail(strict=True, reason="awaits #1464: lease acquire/release recorded on the claim")
 def test_lease_acquired_and_released(tick_run):
     claim = _claims(tick_run)[IDENT]
-    lease = claim.get("lease") or {}
-    assert lease.get("acquired_at"), "no lease acquired"
-    assert lease.get("released_at") and lease["released_at"] >= lease["acquired_at"], "lease not released"
+    assert claim.get("owner") == "simplicio-loop-247", "lease was not acquired by the watcher"
+    assert not claim.get("owner_token"), "lease token still held after the tick"
+    assert claim.get("lease_expires_at") is None, "lease not released"
 
 
 def test_mapper_produced_project_map(tick_run):
@@ -119,11 +119,10 @@ def test_commit_and_pr_closes_issue(tick_run):
     assert f"Closes #{ISSUE_NUMBER}" in pr_calls[0]["body"]
 
 
-@pytest.mark.xfail(strict=True, reason="awaits #1470: one canonical status comment, edited per phase")
+@pytest.mark.xfail(strict=True, reason="awaits #1492: the status comment must be PATCHed through the verify phase")
 def test_one_canonical_status_comment_updated_across_phases(tick_run):
-    comments = _issue_comments(tick_run)
-    ids = {c["comment_id"] for c in comments}
-    updates = [c for c in tick_run["calls"] if c["argv"][:1] == ["api"] and c.get("method") == "PATCH"]
+    ids = {c["comment_id"] for c in _canonical_calls(tick_run)}
+    updates = [c for c in _canonical_calls(tick_run) if c["method"] == "PATCH"]
     assert len(ids) == 1, f"expected one status comment, got {len(ids)}"
     assert len(updates) >= 2, "the status comment was not updated across phases"
 
