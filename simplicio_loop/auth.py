@@ -65,9 +65,10 @@ Post = Callable[[dict], Mapping[str, Any]]
 class LoginError(Exception):
     """The login file cannot be used. `reason_code` is stable, the message says what to do and never holds a token."""
 
-    def __init__(self, reason_code: str, message: str = "") -> None:
+    def __init__(self, reason_code: str, message: str = "", fix: Optional[str] = None) -> None:
         super().__init__(message or reason_code)
         self.reason_code = reason_code
+        self.fix = fix  # the exact command that repairs it, when there is one
 
 
 # --- where ----------------------------------------------------------------------------------------------------------
@@ -118,7 +119,7 @@ def _check_parent(path: Path) -> None:
         return  # no folder yet: a read says login_missing, a write creates it with mode 0700
     if info.st_mode & 0o022 and not (info.st_mode & stat.S_ISVTX and info.st_uid == os.geteuid()):
         raise LoginError("login_permissions", f"{path.parent} can be written by group or others "
-                         f"(mode {info.st_mode & 0o777:03o}); run: chmod 700 {path.parent}")
+                         f"(mode {info.st_mode & 0o777:03o}); run: chmod 700 {path.parent}", f"chmod 700 {path.parent}")
 
 
 def read_login(path: Optional[Path] = None) -> dict:
@@ -145,10 +146,11 @@ def read_login(path: Optional[Path] = None) -> dict:
         if not stat.S_ISREG(info.st_mode):
             raise LoginError("login_invalid", f"{path} is not a regular file; remove it and run: simplicio-loop login")
         if os.name != "nt" and _foreign_owner(info):
-            raise LoginError("login_permissions", f"{path} is owned by another user; remove it and run: simplicio-loop login")
+            raise LoginError("login_permissions", f"{path} is owned by another user; remove it and run: simplicio-loop login",
+                             f"remove {path}, then run: simplicio-loop login")
         if os.name != "nt" and info.st_mode & 0o077:
             raise LoginError("login_permissions", f"{path} can be read by group or others "
-                             f"(mode {info.st_mode & 0o777:03o}); run: chmod 600 {path}")
+                             f"(mode {info.st_mode & 0o777:03o}); run: chmod 600 {path}", f"chmod 600 {path}")
     except BaseException:
         os.close(fd)
         raise
@@ -450,7 +452,7 @@ def describe(environ: Optional[Mapping[str, str]] = None, now: Optional[float] =
         login = read_login(path)
     except LoginError as exc:
         doc.update(reason_code=exc.reason_code, detail=str(exc),
-                   fix=f"chmod 600 {path}" if exc.reason_code == "login_permissions" else _FIXES.get(exc.reason_code))
+                   fix=exc.fix or _FIXES.get(exc.reason_code))
         return doc
     facts = summary(login, now)
     usable = not facts["access_expired"] or (facts["has_refresh_token"] and not facts["refresh_expired"])

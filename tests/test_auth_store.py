@@ -475,6 +475,9 @@ def test_a_folder_that_group_or_others_can_write_is_refused_for_read_and_write(l
     with pytest.raises(auth.LoginError) as err:
         auth.read_login(login)
     assert err.value.reason_code == "login_permissions" and "chmod 700" in str(err.value)
+    assert err.value.fix == f"chmod 700 {login.parent}"  # the fix names the folder, not the file
+    env = {"HOME": str(login.parent.parent), "SIMPLICIO_AUTH_FILE": str(login)}
+    assert auth.describe(env)["fix"] == f"chmod 700 {login.parent}"
     with pytest.raises(auth.LoginError) as err:
         auth.write_login(sample(access_token="new"), login)
     assert err.value.reason_code == "login_permissions"

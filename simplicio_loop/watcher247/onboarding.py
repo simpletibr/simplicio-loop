@@ -54,7 +54,8 @@ _BROAD = frozenset({"delete_repo", "workflow", "write:packages", "delete:package
 _HINTS = {
     "login_missing": f"no Simplicio login for the service user yet. Run: {LOGIN_COMMAND}  then run `{COMMAND} --check`",
     "login_insecure": ("the login file is not safe to use (a symlink, a file group or others can read, or a folder they "
-                       f"can write). Run: chmod 600 {{login}}  (a symlink: remove it) then run `{COMMAND} --check`"),
+                       f"can write). Run: chmod 600 {{login}}  (a folder they can write: chmod 700 on the folder; a symlink: remove it) "
+                       f"then run `{COMMAND} --check`"),
     "account_mismatch": ("login.json belongs to another Simplicio account than the e-mail you gave. "
                          f"Run: {LOGOUT_COMMAND}  then {LOGIN_COMMAND}"),
     "refresh_failed": f"the login expired. Run: {LOGIN_COMMAND}",
