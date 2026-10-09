@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="Geanimeerde flow in 8 stappen: issues, intake, algemeen coördinator, squads, workers (mapper, plan, dev-cli), squad-review, merge train, main en het Simplicio Live-kanban" width="100%" />
+  <img src="../docs/assets/readme/how-it-works.webp" alt="Geanimeerde flow in 8 stappen: issues, intake, algemeen coördinator, squads, workers (mapper, plan, dev-cli), squad-review, merge train, main en het Simplicio Live-kanban" width="100%" />
 </p>
 
 ## Wat het doet
@@ -89,7 +89,7 @@ Details: [docs/WATCHER_247.md](../docs/WATCHER_247.md).
 ## Hoe het werkt
 
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="Worker-loop: mapper brengt de repo in kaart, plannen in de sandbox, toepassen en verifiëren, een mislukking, escalatie naar de volgende modelrol, secret-scan, PR, squad-review" width="100%" />
+  <img src="../docs/assets/readme/worker-loop.webp" alt="Worker-loop: mapper brengt de repo in kaart, plannen in de sandbox, toepassen en verifiëren, een mislukking, escalatie naar de volgende modelrol, secret-scan, PR, squad-review" width="100%" />
 </p>
 
 ```mermaid
@@ -98,7 +98,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 PR's één keer getest, rood, bisectie isoleert C, daarna worden A, B en D gemerged" width="100%" />
+  <img src="../docs/assets/readme/merge-train.webp" alt="Merge train: 4 PR's één keer getest, rood, bisectie isoleert C, daarna worden A, B en D gemerged" width="100%" />
 </p>
 
 ```mermaid
@@ -110,7 +110,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="Organigram van de squads: een algemeen coördinator, een coördinator per squad en tot 4 workers per squad" width="100%" />
+  <img src="../docs/assets/readme/squads.webp" alt="Organigram van de squads: een algemeen coördinator, een coördinator per squad en tot 4 workers per squad" width="100%" />
 </p>
 
 ```mermaid

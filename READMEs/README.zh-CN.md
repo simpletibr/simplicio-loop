@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="8 步动画流程：issue、接收、总协调器、小队、worker（mapper、规划、dev-cli）、小队评审、merge train、main 以及 Simplicio Live 看板" width="100%" />
+  <img src="../docs/assets/readme/how-it-works.webp" alt="8 步动画流程：issue、接收、总协调器、小队、worker（mapper、规划、dev-cli）、小队评审、merge train、main 以及 Simplicio Live 看板" width="100%" />
 </p>
 
 ## 它能做什么
@@ -89,7 +89,7 @@ flowchart LR
 ## 工作原理
 
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="worker 循环：mapper 映射仓库、在沙箱中规划、应用并验证、一次失败、升级到下一个模型角色、密钥扫描、PR、小队评审" width="100%" />
+  <img src="../docs/assets/readme/worker-loop.webp" alt="worker 循环：mapper 映射仓库、在沙箱中规划、应用并验证、一次失败、升级到下一个模型角色、密钥扫描、PR、小队评审" width="100%" />
 </p>
 
 ```mermaid
@@ -98,7 +98,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="merge train：4 个 PR 只测试一次、变红、二分定位出 C，然后合并 A、B 和 D" width="100%" />
+  <img src="../docs/assets/readme/merge-train.webp" alt="merge train：4 个 PR 只测试一次、变红、二分定位出 C，然后合并 A、B 和 D" width="100%" />
 </p>
 
 ```mermaid
@@ -110,7 +110,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="小队组织图：一个总协调器、每个小队一个协调器、每队最多 4 个 worker" width="100%" />
+  <img src="../docs/assets/readme/squads.webp" alt="小队组织图：一个总协调器、每个小队一个协调器、每队最多 4 个 worker" width="100%" />
 </p>
 
 ```mermaid

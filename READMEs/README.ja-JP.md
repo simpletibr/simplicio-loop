@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="8ステップのアニメーション: issue、インテーク、総括コーディネータ、スカッド、サンドボックスのワーカー、スカッドのレビュー、マージトレイン、main、Simplicio Liveカンバン" width="100%" />
+  <img src="../docs/assets/readme/how-it-works.webp" alt="8ステップのアニメーション: issue、インテーク、総括コーディネータ、スカッド、サンドボックスのワーカー、スカッドのレビュー、マージトレイン、main、Simplicio Liveカンバン" width="100%" />
 </p>
 
 ## できること
@@ -89,7 +89,7 @@ flowchart LR
 ## 仕組み
 
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="ワーカーループ: サンドボックスで計画、適用と検証、1回の失敗、次のモデル役割へのエスカレーション、シークレットスキャン、PR、スカッドのレビュー" width="100%" />
+  <img src="../docs/assets/readme/worker-loop.webp" alt="ワーカーループ: サンドボックスで計画、適用と検証、1回の失敗、次のモデル役割へのエスカレーション、シークレットスキャン、PR、スカッドのレビュー" width="100%" />
 </p>
 
 ```mermaid
@@ -98,7 +98,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="マージトレイン: 4つのPRを1回テスト、赤、二分探索でCを特定、その後A、B、Dをマージ" width="100%" />
+  <img src="../docs/assets/readme/merge-train.webp" alt="マージトレイン: 4つのPRを1回テスト、赤、二分探索でCを特定、その後A、B、Dをマージ" width="100%" />
 </p>
 
 ```mermaid
@@ -110,7 +110,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="スカッドの組織図: 総括コーディネータ、スカッドごとのコーディネータ、各最大4人のワーカー" width="100%" />
+  <img src="../docs/assets/readme/squads.webp" alt="スカッドの組織図: 総括コーディネータ、スカッドごとのコーディネータ、各最大4人のワーカー" width="100%" />
 </p>
 
 ```mermaid

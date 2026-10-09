@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="Fluxo animado em 8 passos: issues, intake, coordenador geral, squads, workers em sandbox, revisão do squad, merge train, main e o kanban Simplicio Live" width="100%" />
+  <img src="../docs/assets/readme/how-it-works.webp" alt="Fluxo animado em 8 passos: issues, intake, coordenador geral, squads, workers em sandbox, revisão do squad, merge train, main e o kanban Simplicio Live" width="100%" />
 </p>
 
 ## O que ele faz
@@ -89,7 +89,7 @@ Detalhes: [docs/WATCHER_247.md](../docs/WATCHER_247.md).
 ## Como funciona
 
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="Loop do worker: planeja no sandbox, aplica e verifica, uma falha, escalonamento para o próximo papel do modelo, varredura de segredos, PR, revisão do squad" width="100%" />
+  <img src="../docs/assets/readme/worker-loop.webp" alt="Loop do worker: planeja no sandbox, aplica e verifica, uma falha, escalonamento para o próximo papel do modelo, varredura de segredos, PR, revisão do squad" width="100%" />
 </p>
 
 ```mermaid
@@ -98,7 +98,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 PRs testados uma vez, vermelho, a bisseção isola o C, depois A, B e D fazem merge" width="100%" />
+  <img src="../docs/assets/readme/merge-train.webp" alt="Merge train: 4 PRs testados uma vez, vermelho, a bisseção isola o C, depois A, B e D fazem merge" width="100%" />
 </p>
 
 ```mermaid
@@ -110,7 +110,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="Organograma dos squads: um coordenador geral, um coordenador por squad e até 4 workers cada" width="100%" />
+  <img src="../docs/assets/readme/squads.webp" alt="Organograma dos squads: um coordenador geral, um coordenador por squad e até 4 workers cada" width="100%" />
 </p>
 
 ```mermaid
