@@ -66,6 +66,9 @@ def wrap(argv: list[str], *, clone: Path, state_dir: Path, platform: str | None 
         return [
             "bwrap",
             "--ro-bind", "/", "/",          # whole filesystem read-only...
+            # Own pid namespace + a /proc mounted for it: the watcher's pid (and its environ, which holds the
+            # EnvironmentFile secrets, same uid) is neither listed nor readable. scrubbed_env cannot hide that.
+            "--unshare-pid",
             "--dev", "/dev", "--proc", "/proc",
             "--tmpfs", "/tmp",
             "--bind", clone, clone,          # ...except the clone and the state dir

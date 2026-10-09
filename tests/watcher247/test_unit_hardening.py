@@ -8,12 +8,14 @@ from pathlib import Path
 
 import pytest
 
+from simplicio_loop.watcher247 import sandbox
+
 UNIT = Path(__file__).resolve().parents[2] / "packaging" / "systemd" / "simplicio-loop-247.service"
 
 HARDENING = {
     "NoNewPrivileges=yes", "PrivateTmp=yes", "ProtectSystem=strict", "ProtectHome=read-only",
     "SystemCallFilter=@system-service @mount", "CapabilityBoundingSet=", "RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX",
-    "ProtectKernelTunables=yes", "ProtectKernelModules=yes", "ProtectControlGroups=yes",
+    "ProtectKernelModules=yes", "ProtectControlGroups=yes",
     "RestrictSUIDSGID=yes", "LockPersonality=yes", "RestrictRealtime=yes", "UMask=0077",
 }
 
@@ -93,6 +95,59 @@ def test_bwrap_starts_under_the_unit_filter_and_dies_under_the_bare_group():
         pytest.skip(f"no usable systemd user manager: {control.stderr.strip()[:120]}")
     assert control.returncode == 159  # SIGSYS: the negative control proves the check can fail
     assert run_bwrap_under_filter(unit_filter).returncode == 0
+
+
+# The sandbox runs bwrap --unshare-pid --proc /proc (issue #1563). As a non-root user, the kernel refuses to mount a fresh
+# procfs when the unit's /proc is partly overmounted: ProtectKernelTunables=yes read-only-binds /proc/sys, /proc/irq ...
+# and bwrap then dies with "Can't mount proc on /newroot/proc: Operation not permitted" (measured, systemd 259).
+# ProcSubset=pid refuses the procfs mount as well, even without --unshare-pid. (ProtectProc=invisible measured fine.)
+PROC_OVERMOUNTS = ("ProtectKernelTunables=yes", "ProcSubset=pid")
+
+
+def test_unit_leaves_proc_whole_so_the_sandbox_can_remount_it():
+    present = {line.strip() for line in lines()}
+    assert not present & set(PROC_OVERMOUNTS), sorted(present & set(PROC_OVERMOUNTS))
+    paths = [line for line in lines() if line.split("=", 1)[0] in ("ReadOnlyPaths", "InaccessiblePaths", "TemporaryFileSystem", "BindReadOnlyPaths")]
+    assert not [line for line in paths if "/proc" in line], paths
+
+
+# Not sandboxing: how the service is started and supervised. ReadWritePaths names directories that exist only on the host.
+NOT_SANDBOXING = {"Type", "User", "Group", "EnvironmentFile", "ExecStart", "Restart", "RestartSec", "KillMode",
+                  "TimeoutStopSec", "ReadWritePaths", "Description", "After", "Wants", "WantedBy"}
+
+
+def sandboxing_directives():
+    return [line.strip() for line in lines()
+            if "=" in line and not line.lstrip().startswith(("#", "[")) and line.split("=", 1)[0] not in NOT_SANDBOXING]
+
+
+def run_under_unit(argv):
+    """Run argv as a transient service carrying every sandboxing directive of the unit (as nobody when root)."""
+    cmd = ["systemd-run", "--pipe", "--wait", "--quiet", "--collect"]
+    env = dict(os.environ)
+    if os.getuid() == 0:
+        cmd += ["-p", "User=nobody"]  # stands in for User=simplicio-loop; root has CAP_SYS_ADMIN and would prove nothing
+    else:
+        cmd += ["--user"]
+        runtime = Path(f"/run/user/{os.getuid()}")
+        if "XDG_RUNTIME_DIR" not in env and runtime.is_dir():
+            env["XDG_RUNTIME_DIR"] = str(runtime)
+    for directive in sandboxing_directives():
+        cmd += ["-p", directive]
+    return subprocess.run(cmd + argv, capture_output=True, text=True, env=env, timeout=60)
+
+
+def test_sandbox_with_unshare_pid_starts_under_every_hardening_directive_of_the_unit():
+    if not (shutil.which("bwrap") and shutil.which("systemd-run")):
+        pytest.skip("bwrap and systemd-run are needed")
+    # any readable directories do for the two binds; the argv is the one the watcher builds
+    argv = sandbox.wrap(["true"], clone=Path("/usr/share"), state_dir=Path("/usr/lib"), platform="linux", environ={})
+    assert "--unshare-pid" in argv
+    baseline = run_under_unit([part for part in argv if part != "--unshare-pid"])
+    if baseline.returncode != 0:
+        pytest.skip(f"this systemd cannot run the sandbox under the unit's directives at all: {baseline.stderr.strip()[:160]}")
+    done = run_under_unit(argv)
+    assert done.returncode == 0, done.stderr.strip()
 
 
 def test_every_hardening_directive_is_documented_above_it():
