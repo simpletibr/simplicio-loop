@@ -10,10 +10,11 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Mapping, Sequence
 
-from . import plan_paths
+from . import operator_exec, plan_paths
 
 IndexFn = Callable[[Path], Awaitable[str]]
 
@@ -285,7 +286,6 @@ def _call_record(reply: Mapping[str, Any], turn: int) -> dict[str, Any]:
 
 async def _apply_operations(root: Path, operations: list[dict], binary: str, label: str, apply_lock: asyncio.Lock) -> list[dict]:
     import json
-    import asyncio
     if reason := plan_paths.operations_refusal(operations, root):  # followed through symlinks: an old dev-cli does not
         return [{"command": "plan_paths", "returncode": 1, "stdout": reason, "label": label}]
     state = root / ".simplicio-loop"
@@ -298,27 +298,18 @@ async def _apply_operations(root: Path, operations: list[dict], binary: str, lab
     commands = []
     async with apply_lock:
         for cmd in (compile_cmd, apply_cmd):
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
             try:
-                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
-            except asyncio.TimeoutError:
-                proc.kill()
-                await proc.wait()
+                returncode, stdout_str, stderr_str = await operator_exec.run(cmd, timeout=120)
+            except subprocess.TimeoutExpired:
                 detail = "dev-cli timed out after 120s"
                 commands.append({"command": " ".join(cmd), "returncode": -1, "stdout": detail, "label": label})
                 break
-            stdout_str = stdout.decode("utf-8", errors="replace") if stdout else ""
-            stderr_str = stderr.decode("utf-8", errors="replace") if stderr else ""
-            detail = ((stdout_str or "") + (stderr_str or ""))[-800:]
-            entry = {"command": " ".join(cmd), "returncode": proc.returncode, "stdout": detail, "label": label}
+            detail = (stdout_str + stderr_str)[-800:]
+            entry = {"command": " ".join(cmd), "returncode": returncode, "stdout": detail, "label": label}
             if cmd is apply_cmd:
-                entry["receipt"] = parse_apply_receipt(stdout_str) if proc.returncode == 0 else None
+                entry["receipt"] = parse_apply_receipt(stdout_str) if returncode == 0 else None
             commands.append(entry)
-            if proc.returncode != 0:
+            if returncode != 0:
                 break
     return commands
 

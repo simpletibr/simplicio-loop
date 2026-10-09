@@ -11,6 +11,15 @@ from scripts.release_rehearsal import run_governance_gate, run_rehearsal
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(autouse=True)
+def _dev_switch_not_this_file_s_business(monkeypatch):
+    """These tests cover the pipeline. While the dev login switch exists the real rehearsal stops at its first step
+    (reason `dev_switch_present`); that blocker has its own tests in test_release_rehearsal_dev_switch.py."""
+    import scripts.release_rehearsal as release_rehearsal
+
+    monkeypatch.setattr(release_rehearsal, "find_dev_switches", lambda repo: {})
+
+
 # Real, slow, end-to-end: exports the tracked tree, bumps a scratch-only version, builds a real
 # wheel, checksums/signs/SBOMs/provenance-statements it, and clean-room install-smokes it — no
 # mocking, per the #292 mandate against fabricated supply-chain proof. Never touches this repo's

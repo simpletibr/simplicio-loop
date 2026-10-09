@@ -1,0 +1,317 @@
+"""`simplicio-loop setup` flow (#1588): the steps are fakes, the summary file and the exit codes are real."""
+from __future__ import annotations
+
+import io
+import json
+import os
+import stat
+
+import pytest
+
+from simplicio_loop import github_cred, prereqs, setup_cli
+
+from .fakes import OTHER_TOKEN, TOKEN, Fakes, check, credential, host, run, summary_file
+
+pytestmark = pytest.mark.skipif(os.name == "nt", reason="POSIX modes and symlinks")
+
+
+def test_first_run_writes_a_private_summary_without_secrets(home):
+    fakes = Fakes()
+    code, text = run(fakes, home)
+    assert code == 0, text
+    path = summary_file(home)
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
+    doc = json.loads(path.read_text())
+    assert doc["schema"] == "simplicio.setup/v1" and doc["updated_at"]
+    assert doc["github"] == {"status": "ok", "source": "gh", "login": "octocat", "scopes": ["repo", "workflow"],
+                             "missing_scopes": []}
+    assert doc["default_host"] == "claude-code" and doc["default_login"] == "ok"
+    assert [h["id"] for h in doc["hosts"]] == ["claude-code", "codex"]
+    assert TOKEN not in path.read_text() and TOKEN not in text and "@" not in path.read_text()
+    assert "ghp_...0042" in text and "octocat" in text  # the screen shows the masked token and the login
+
+
+def test_second_run_is_unchanged_and_check_agrees(home):
+    fakes = Fakes()
+    run(fakes, home)
+    path = summary_file(home)
+    before = (path.stat().st_ino, path.stat().st_mtime_ns, path.read_text())
+    code, text = run(fakes, home)
+    assert code == 0 and "setup.json: unchanged" in text
+    assert (path.stat().st_ino, path.stat().st_mtime_ns, path.read_text()) == before
+    code, _ = run(fakes, home, check=True)
+    assert code == 0
+
+
+def test_check_changes_nothing_asks_nothing_and_exits_10_when_the_summary_is_missing(home):
+    fakes = Fakes()
+    fakes.tty = True
+    code, text = run(fakes, home, check=True)
+    assert code == setup_cli.PENDING and "summary" in text
+    assert not (home / ".simplicio-loop").exists()
+    resolve = [c for c in fakes.calls if c[0] == "resolve"][0][1]
+    assert resolve["ask"] is None and resolve["provided"] is None  # --check never prompts
+    assert [c for c in fakes.calls if c[0] == "ensure"][0][1]["dry_run"] is True
+    assert "save" not in fakes.names()
+
+
+def test_dry_run_writes_and_stores_nothing_even_with_a_new_token(home):
+    fakes = Fakes()
+    fakes.tty = False
+    fakes.stdin_text = OTHER_TOKEN
+    fakes.resolution = github_cred.Resolution(credential("provided", OTHER_TOKEN), (("provided", "ok"),))
+    code, text = run(fakes, home, dry_run=True, token_stdin=True)
+    assert code == 0, text
+    assert not (home / ".simplicio-loop").exists() and fakes.stored is None
+    assert OTHER_TOKEN not in text
+    assert [c for c in fakes.calls if c[0] == "ensure"][0][1]["dry_run"] is True
+
+
+def test_yes_reaches_ensure_and_the_default_is_no(home):
+    fakes = Fakes()
+    run(fakes, home)
+    assert [c for c in fakes.calls if c[0] == "ensure"][0][1]["yes"] is False
+    fakes.calls.clear()
+    run(fakes, home, yes=True)
+    assert [c for c in fakes.calls if c[0] == "ensure"][0][1]["yes"] is True
+
+
+def test_without_a_terminal_it_never_asks_and_names_the_way_out(home):
+    fakes = Fakes()
+    fakes.resolution = github_cred.Resolution(None, (("env:GH_TOKEN", "missing"), ("gh", "missing")))
+    code, text = run(fakes, home)
+    assert code == setup_cli.PENDING
+    assert [c for c in fakes.calls if c[0] == "resolve"][0][1]["ask"] is None
+    assert "--github-token-stdin" in text and "github" in text
+    assert json.loads(summary_file(home).read_text())["github"]["status"] == "missing"
+
+
+def test_a_typed_token_is_stored_once_and_the_summary_says_stored(home):
+    fakes = Fakes()
+    fakes.tty = True
+    fakes.resolution = github_cred.Resolution(credential("prompt"), (("prompt", "ok"),))
+    code, text = run(fakes, home)
+    assert code == 0 and fakes.stored == TOKEN
+    assert [c for c in fakes.calls if c[0] == "resolve"][0][1]["ask"] is not None
+    assert json.loads(summary_file(home).read_text())["github"]["source"] == "stored"
+    fakes.calls.clear()
+    run(fakes, home)  # the token is already stored: not written again
+    assert "save" not in fakes.names()
+    assert TOKEN not in text and TOKEN not in summary_file(home).read_text()
+
+
+def test_a_token_from_gh_or_the_environment_is_never_copied(home):
+    fakes = Fakes()
+    for source in ("gh", "env:GH_TOKEN", "git-credential"):
+        fakes.resolution = github_cred.Resolution(credential(source), ((source, "ok"),))
+        run(fakes, home)
+    assert "save" not in fakes.names() and fakes.stored is None
+    assert json.loads(summary_file(home).read_text())["github"]["source"] == "git-credential"
+
+
+def test_token_stdin_is_read_from_a_pipe_and_handed_over_as_provided(home):
+    fakes = Fakes()
+    fakes.stdin_text = f"  {OTHER_TOKEN}\n"
+    fakes.resolution = github_cred.Resolution(credential("provided", OTHER_TOKEN), (("provided", "ok"),))
+    code, text = run(fakes, home, token_stdin=True)
+    assert code == 0 and fakes.stored == OTHER_TOKEN
+    assert [c for c in fakes.calls if c[0] == "resolve"][0][1]["provided"] == OTHER_TOKEN
+    assert OTHER_TOKEN not in text and OTHER_TOKEN not in summary_file(home).read_text()
+
+
+def test_token_stdin_in_a_terminal_and_oversized_input_are_refused_with_nothing_changed(home, capsys):
+    fakes = Fakes()
+    fakes.tty = True
+    assert run(fakes, home, token_stdin=True)[0] == 2
+    fakes.tty = False
+    fakes.stdin_text = "x" * 5000
+    assert run(fakes, home, token_stdin=True)[0] == 2
+    assert not (home / ".simplicio-loop").exists() and fakes.stored is None
+    assert "setup refused" in capsys.readouterr().err
+
+
+def test_a_rejected_or_unreachable_credential_is_pending_not_ok(home):
+    fakes = Fakes()
+    fakes.resolution = github_cred.Resolution(None, (("gh", "rejected"),))
+    code, text = run(fakes, home)
+    assert code == setup_cli.PENDING and "rejected" in text
+    fakes.resolution = github_cred.Resolution(None, (("gh", "unreachable"),))
+    code, text = run(fakes, home)
+    assert code == setup_cli.PENDING and json.loads(summary_file(home).read_text())["github"]["status"] == "unverified"
+
+
+def test_missing_scopes_are_pending_with_the_names(home):
+    fakes = Fakes()
+    fakes.resolution = github_cred.Resolution(credential(scopes=("repo",), missing=("workflow",)), (("gh", "ok"),))
+    code, text = run(fakes, home)
+    assert code == setup_cli.PENDING and "workflow" in text
+
+
+def test_a_required_prerequisite_that_stays_missing_is_pending_with_its_fix(home):
+    fakes = Fakes()
+    fakes.checks = [check("python"), check("git", "missing", fix="sudo apt-get install -y git"), check("gh")]
+    fakes.actions = [prereqs.Action(name="git", result="skipped", detail="sudo apt-get install -y git")]
+    code, text = run(fakes, home)
+    assert code == setup_cli.PENDING
+    assert "git: missing. Fix: sudo apt-get install -y git" in text
+    assert "git: skipped sudo apt-get install -y git" in text
+
+
+def test_an_optional_missing_tool_is_not_pending(home):
+    fakes = Fakes()
+    fakes.checks = [check("python"), check("uv", "missing", required=False)]
+    assert run(fakes, home)[0] == 0
+
+
+def test_after_an_install_the_checks_run_again_with_the_user_bin_on_path(home):
+    fakes = Fakes()
+    fakes.actions = [prereqs.Action(name="gh", result="installed", detail="2.60.0")]
+    run(fakes, home)
+    paths = [c[2] for c in fakes.calls if c[0] == "check_all"]
+    assert len(paths) == 2 and paths[0] == "/usr/bin" and paths[1].startswith(str(home / ".local" / "bin"))
+
+
+def test_a_tool_in_the_user_bin_but_not_on_path_gets_the_path_fix(home):
+    (home / ".local" / "bin").mkdir(parents=True)
+    (home / ".local" / "bin" / "gh").write_text("x")
+    fakes = Fakes()
+    fakes.checks = [check("python"), check("gh", "missing", fix="download it")]
+    code, text = run(fakes, home)
+    assert code == setup_cli.PENDING and "export PATH=" in text and "download it" not in text
+
+
+def test_node_is_asked_only_for_installed_hosts_that_need_it(home):
+    fakes = Fakes()
+    fakes.hosts = [host("codex", needs_node=True), host("claude-code"), host("gemini", installed=False, needs_node=True)]
+    run(fakes, home)
+    assert [c for c in fakes.calls if c[0] == "check_all"][0][1]["node_for"] == ["codex"]
+
+
+def test_the_previous_default_is_kept_and_host_overrides_it(home):
+    fakes = Fakes()
+    fakes.hosts = [host("claude-code"), host("codex")]
+    run(fakes, home, host="codex")
+    assert json.loads(summary_file(home).read_text())["default_host"] == "codex"
+    run(fakes, home)  # no --host: codex is still installed and logged in, so it stays
+    assert json.loads(summary_file(home).read_text())["default_host"] == "codex"
+
+
+def test_host_that_is_not_installed_is_refused_before_anything_runs(home, capsys):
+    fakes = Fakes()
+    assert run(fakes, home, host="gemini")[0] == 2
+    assert not (home / ".simplicio-loop").exists() and "ensure" not in fakes.names()
+    assert "not installed" in capsys.readouterr().err
+
+
+def test_no_installed_host_is_pending_with_the_install_hint(home):
+    fakes = Fakes()
+    fakes.hosts = [host("claude-code", installed=False), host("codex", installed=False)]
+    code, text = run(fakes, home)
+    assert code == setup_cli.PENDING and "no_host_installed" in text
+    assert json.loads(summary_file(home).read_text())["default_host"] is None
+
+
+def test_json_output_is_one_document_with_the_masked_token_only(home):
+    fakes = Fakes()
+    code, text = run(fakes, home, json_out=True)
+    doc = json.loads(text)
+    assert code == 0 and doc["github"]["masked"] == "ghp_...0042" and doc["pending"] == []
+    assert doc["summary_file"] == "updated" and {"actions", "checks", "hosts_detected", "undetectable_hosts"} <= set(doc)
+    assert TOKEN not in text
+    assert "masked" not in summary_file(home).read_text()
+
+
+def test_a_loose_state_folder_or_a_symlinked_summary_is_refused(home, capsys):
+    directory = home / ".simplicio-loop"
+    directory.mkdir()
+    directory.chmod(0o777)
+    assert run(Fakes(), home)[0] == 2
+    assert "cannot write" in capsys.readouterr().err
+    directory.chmod(0o700)
+    victim = home / "victim.json"
+    victim.write_text("keep")
+    (directory / "setup.json").symlink_to(victim)
+    assert run(Fakes(), home)[0] == 2
+    assert victim.read_text() == "keep"
+
+
+def test_read_summary_rejects_other_schemas_and_big_files(home):
+    directory = home / ".simplicio-loop"
+    directory.mkdir()
+    path = directory / "setup.json"
+    assert setup_cli.read_summary(directory) is None
+    path.write_text(json.dumps({"schema": "other/v1"}))
+    assert setup_cli.read_summary(directory) is None
+    path.write_text("x" * (setup_cli.MAX_SUMMARY_BYTES + 1))
+    assert setup_cli.read_summary(directory) is None
+    path.write_text(json.dumps({"schema": setup_cli.SCHEMA, "default_host": "codex"}))
+    assert setup_cli.read_summary(directory)["default_host"] == "codex"
+
+
+def test_a_non_linux_platform_is_marked_unverified(home, monkeypatch):
+    monkeypatch.setattr(setup_cli.platform, "system", lambda: "Windows")
+    code, text = run(Fakes(), home)
+    assert "UNVERIFIED" in text
+    assert json.loads(summary_file(home).read_text())["platform"]["os_verified"] is False
+
+
+def test_after_install_runs_the_setup_in_a_terminal_and_only_hints_without_one(home, monkeypatch):
+    calls = []
+    monkeypatch.setattr(setup_cli, "run", lambda options, out=None: calls.append(options) or 0)
+    out = io.StringIO()
+    setup_cli.after_install(interactive=False, out=out)
+    assert calls == [] and "simplicio-loop setup" in out.getvalue()
+    setup_cli.after_install(interactive=True, out=io.StringIO())
+    assert calls == [setup_cli.Options()]
+
+
+def test_after_install_is_quiet_once_the_setup_has_run(home, monkeypatch):
+    run(Fakes(), home)
+    monkeypatch.setattr(setup_cli, "run", lambda *a, **k: pytest.fail("the setup must not start again"))
+    for interactive in (True, False):
+        out = io.StringIO()
+        setup_cli.after_install(interactive=interactive, out=out)
+        assert out.getvalue() == ""
+
+
+def test_the_real_parser_flags_match_the_options():
+    import argparse
+    parser = argparse.ArgumentParser()
+    setup_cli.add_arguments(parser)
+    args = parser.parse_args(["--check", "--json", "--yes", "--github-token-stdin", "--host", "codex"])
+    assert (args.check, args.json_out, args.yes, args.token_stdin, args.host) == (True, True, True, True, "codex")
+    assert parser.parse_args([]).host is None
+
+
+# --- what the watcher and doctor read ---------------------------------------------------------------------------------
+
+
+def test_the_summary_names_the_exec_family_of_the_default_host_for_the_watcher(home):
+    fakes = Fakes()
+    run(fakes, home)
+    assert json.loads(summary_file(home).read_text())["default_family"] == "claude"
+    assert setup_cli.default_family({"HOME": str(home)}) == "claude"
+    assert setup_cli.default_family({"SIMPLICIO_HOME": str(home), "HOME": "/nonexistent"}) == "claude"
+    assert setup_cli.default_family({}) is None and setup_cli.default_family({"HOME": str(home / "other")}) is None
+    fakes.hosts = [host("cursor")]  # a host the watcher cannot run has no family
+    run(fakes, home)
+    assert json.loads(summary_file(home).read_text())["default_family"] is None
+    assert setup_cli.default_family({"HOME": str(home)}) is None
+
+
+def test_doctor_row_reads_the_summary(home):
+    directory = home / ".simplicio-loop"
+    assert setup_cli.doctor_row(directory)["status"] == "warn" and "has not run" in setup_cli.doctor_row(directory)["summary"]
+    fakes = Fakes()
+    run(fakes, home)
+    row = setup_cli.doctor_row(directory)
+    assert (row["name"], row["status"], row["fix"]) == ("setup", "ok", None)
+    assert "octocat" in row["summary"] and "claude-code" in row["summary"] and TOKEN not in json.dumps(row)
+    fakes.resolution = github_cred.Resolution(None, ())
+    fakes.checks = [check("python"), check("git", "missing", fix="x")]
+    fakes.hosts = [host("claude-code", installed=False)]
+    run(fakes, home)
+    row = setup_cli.doctor_row(directory)
+    assert row["status"] == "warn" and row["fix"] == "simplicio-loop setup"
+    assert "git missing" in row["summary"] and "GitHub missing" in row["summary"] and "no default agent CLI" in row["summary"]

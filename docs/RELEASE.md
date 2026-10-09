@@ -3,6 +3,16 @@
 This document tracks what part of issue #292's release pipeline is real today, and what remains
 blocked. It exists so nobody has to reconstruct that history from the issue thread.
 
+## Release blockers
+
+A release (tag, publish, `release_rehearsal.py run`) must not go out while any of these holds. They are mechanical: the
+rehearsal fails on them before it does anything else.
+
+- **Dev login switch (#1604, part of #1589).** The string `SIMPLICIO_247_NO_LOGIN` must not exist anywhere under
+  `simplicio_loop/`. Check it with `python3 scripts/release_rehearsal.py dev-switches --repo .` (exit 0 = clean, exit 1
+  = files listed). `release_rehearsal.py run` stops with `reason_code=dev_switch_present`. Remove the switch and make the
+  login gate of the 24/7 tick the only path again before the release.
+
 ## Current, mechanical steps
 
 1. **Version bump — one command, one PR.**

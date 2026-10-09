@@ -31,9 +31,13 @@ def only(names):
 
 def test_scrubbed_env_keeps_only_the_allowlist(tmp_path):
     env = sandbox.scrubbed_env(ENV, home=tmp_path)
-    assert set(env) <= set(sandbox.ALLOWED_ENV) | {"HOME"}
+    assert set(env) <= set(sandbox.ALLOWED_ENV) | {"HOME", "SIMPLICIO_LOOP_DAEMON"}
     assert env["PATH"] == "/usr/bin:/bin" and env["LANG"] == "C.UTF-8"
     assert env["HOME"] == str(tmp_path)
+
+
+def test_scrubbed_env_keeps_the_sandboxed_command_away_from_the_daemon(tmp_path):
+    assert sandbox.scrubbed_env({"SIMPLICIO_LOOP_DAEMON": "1"}, home=tmp_path)["SIMPLICIO_LOOP_DAEMON"] == "0"
 
 
 def test_scrubbed_env_drops_every_token(tmp_path):

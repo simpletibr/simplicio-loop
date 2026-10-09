@@ -26,7 +26,7 @@ ORIGINAL_APP = 'def greet():\n    return "hello"\n'
 ISSUE_NUMBER = 7
 ISSUE_TITLE = "Trocar a saudacao para hi"
 ISSUE_BODY = 'Em src/app.py, greet() deve retornar "hi" em vez de "hello".'
-LOOP_TOML = "enabled = true\n"  # intake_gate.repo_opted_in needs this literal
+LOOP_TOML = 'enabled = true\nverify = "python3 -m pytest -q"\n'  # repo_opted_in needs the literal `enabled`; the watcher verifies with `verify`
 # The planner answer: one find/replace on an exact, unique span of the seed file.
 PLAN = {"operations": [{"path": "src/app.py", "find": 'return "hello"', "replace": 'return "hi"'}]}
 
@@ -47,13 +47,13 @@ def make_remote(base: Path) -> Path:
     (seed / "src").mkdir()
     (seed / "src" / "app.py").write_text(ORIGINAL_APP)
     (seed / "pyproject.toml").write_text('[project]\nname = "simplicio-demo"\nversion = "0.0.0"\n')
-    # Test evidence, so the watcher detects `python3 -m pytest -q` and runs verify before opening the PR.
+    # A real test suite, so `verify` in loop.toml (python3 -m pytest -q) passes before the PR is opened.
     (seed / "pytest.ini").write_text("[pytest]\npythonpath = src\n")
     (seed / ".gitignore").write_text("__pycache__/\n.pytest_cache/\n")
     (seed / "tests").mkdir()
     (seed / "tests" / "test_app.py").write_text("from app import greet\n\n\ndef test_greet_is_text():\n    assert isinstance(greet(), str)\n")
-    (seed / ".simplicio").mkdir()
-    (seed / ".simplicio" / "loop.toml").write_text(LOOP_TOML)
+    (seed / ".simplicio-loop").mkdir()
+    (seed / ".simplicio-loop" / "loop.toml").write_text(LOOP_TOML)
     git(seed, "add", "-A")
     git(seed, "commit", "-q", "-m", "seed")
     bare = base / "remotes" / f"{REPO_NAME}.git"
@@ -111,9 +111,13 @@ elif args[:2] == ["api", "user"]:  # the account the watcher posts and merges as
 elif args[0] == "api":
     path = next(a for a in args[1:] if a.startswith("repos/"))
     method = opt("-X") or "GET"
-    if method == "GET" and path.endswith("/contents/.simplicio/loop.toml"):
+    if method == "GET" and path.endswith("/contents/.simplicio-loop/loop.toml"):
         record(path=path)
         print(base64.b64encode(fx["loop_toml"].encode()).decode())
+    elif method == "GET" and path.endswith("/issues"):  # the REST list open_issues reads (#1592): `issue list` has no authorAssociation in gh 2.46
+        record(path=path)
+        slug = "/".join(path.split("/")[1:3])
+        print(json.dumps([dict(i, user=i["author"], author_association=i["authorAssociation"]) for i in fx["issues"].get(slug, [])]))
     elif method == "GET" and "/issues/comments/" in path:
         comment_id = int(path.rsplit("/", 1)[1])
         record(path=path)

@@ -58,7 +58,8 @@ Repository = "https://github.com/simpletibr/simplicio-loop"
 Issues = "https://github.com/simpletibr/simplicio-loop/issues"
 
 [project.scripts]
-simplicio-loop = "simplicio_loop.cli:main"
+# The thin client: it sends the command to the daemon (issue #1590). SIMPLICIO_LOOP_DAEMON=0 runs it in-process.
+simplicio-loop = "simplicio_loop.daemon.client:main"
 issue-factory = "simplicio_loop.issue_factory_cli:main"
 simplicio-ecosystem-doctor = "simplicio_loop.ecosystem_doctor:main"
 simplicio-loop-tools = "simplicio_loop.consumer_cli:main"

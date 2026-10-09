@@ -17,18 +17,18 @@ from simplicio_loop.github_lifecycle import LIFECYCLE_COMMENT_MARKER
 from simplicio_loop.watcher247 import config, proc, tick
 
 PR_URL = "https://github.com/simpletibr/simplicio-a/pull/9"
-LOOP_TOML = base64.b64encode(b"enabled = true\n").decode()
+LOOP_TOML = 'enabled = true\nverify = "python3 -m pytest -q"\n'  # the opt-in and the one verify command (the merge train argv)
 CONCRETE_BODY = "Ajustar `app.py` para o fluxo do watcher seguir o contrato descrito abaixo."
 MARKER = LIFECYCLE_COMMENT_MARKER
 
 
 def issue(number, title="Fix thing", labels=("loop:auto",), body=CONCRETE_BODY, author="owner",
           association="OWNER"):
-    """An issue row shaped like `gh issue list --json number,title,body,createdAt,labels,author,authorAssociation`."""
+    """An issue row shaped like `gh api repos/<org>/<repo>/issues` (REST)."""
     return {
-        "number": number, "title": title, "body": body, "createdAt": "2026-10-01T00:00:00Z",
+        "number": number, "title": title, "body": body, "created_at": "2026-10-01T00:00:00Z",
         "labels": [{"name": name} for name in labels],
-        "author": {"login": author}, "authorAssociation": association,
+        "user": {"login": author}, "author_association": association,
     }
 
 
@@ -44,18 +44,18 @@ class FakeRun:
     """Answers every proc.run call by argv and records what ran."""
 
     def __init__(self, issues, *, turbo_ok=True, diff=True, delay=0.0, opted_in=None,
-                 broken_gate=(), prs=(), pr_views=None, claimed_by=None, verify_pass=False, distinct_prs=False,
-                 train_ok=True, login="squad-bot"):
+                 broken_gate=(), prs=(), pr_views=None, claimed_by=None, distinct_prs=False,
+                 train_ok=True, login="squad-bot", loop_toml=None):
         self.issues = issues  # repo name -> list of issue rows
         self.turbo_ok = turbo_ok
         self.diff = diff
         self.delay = delay
         self.opted_in = set(issues) if opted_in is None else set(opted_in)
+        self.loop_toml = loop_toml or {}  # repo name -> the .simplicio-loop/loop.toml text of its default branch (default LOOP_TOML)
         self.broken_gate = set(broken_gate)
         self.prs = list(prs)
         self.pr_views = pr_views or {}
         self.claimed_by = claimed_by  # owner already named on the canonical comment
-        self.verify_pass = verify_pass  # turbo reports a passed verify (the squad review needs MEASURED tests)
         self.distinct_prs = distinct_prs  # `gh pr create` answers pull/<100+issue> instead of one fixed url
         self.train_ok = train_ok  # the merge train's cumulative test run
         self.login = login  # `gh api user`: the account the watcher posts and merges as (None = the lookup fails)
@@ -90,9 +90,6 @@ class FakeRun:
         if head == ["gh", "repo", "list"]:
             rows = [{"name": n, "isArchived": False, "defaultBranchRef": {"name": "main"}} for n in self.issues]
             return proc.Result(0, json.dumps(rows))
-        if head == ["gh", "issue", "list"]:
-            name = argv[argv.index("--repo") + 1].split("/")[1]
-            return proc.Result(0, json.dumps(self.issues[name]))
         if head == ["gh", "repo", "clone"]:
             (Path(argv[4]) / ".git").mkdir(parents=True)
             return proc.Result(0)
@@ -121,7 +118,7 @@ class FakeRun:
             self.turbo_active -= 1
             if self.turbo_ok:
                 document = {"schema": "simplicio.turbo/v1", "status": "ok"}
-                if self.verify_pass:
+                if "--verify" in argv:  # turbo reports the verify it was asked for (the squad review needs MEASURED tests)
                     document["verify"] = {"passed": True}
                 return proc.Result(0, json.dumps(document))
             return proc.Result(1, json.dumps({"status": "failed", "detail": "boom"}))
@@ -136,14 +133,15 @@ class FakeRun:
         args = argv[2:]
         route = next(a for a in args if a.startswith("repos/")).partition("?")[0]
         method = args[args.index("-X") + 1] if "-X" in args else "GET"
-        contents = re.fullmatch(r"repos/[^/]+/([^/]+)/contents/\.simplicio/loop\.toml", route)
+        contents = re.fullmatch(r"repos/[^/]+/([^/]+)/contents/\.simplicio-loop/loop\.toml", route)
         if contents:
             name = contents.group(1)
             if name in self.broken_gate:
                 return proc.Result(1, "", "gh: HTTP 500 (server error)")
             if name not in self.opted_in:
                 return proc.Result(1, "", "gh: Not Found (HTTP 404)")
-            return proc.Result(0, LOOP_TOML + "\n")
+            text = self.loop_toml.get(name, LOOP_TOML)
+            return proc.Result(0, base64.b64encode(text.encode()).decode() + "\n")
         if method != "GET":
             self.api_writes.append((method, route))
         found = re.fullmatch(r"repos/[^/]+/[^/]+/issues/(\d+)/comments", route)
@@ -175,6 +173,13 @@ class FakeRun:
             }))
         if re.fullmatch(r"repos/[^/]+/[^/]+/pulls/\d+/comments", route):
             return proc.Result(0, "[]")
+        # GET /repos/{org}/{repo}/issues (open_issues)
+        found = re.fullmatch(r"repos/([^/]+)/([^/]+)/issues(?:\?.*)?$", route)
+        if found and method == "GET":
+            org, name = found.groups()
+            if name in self.issues:
+                return proc.Result(0, json.dumps(self.issues[name]))
+            return proc.Result(0, json.dumps([]))
         raise AssertionError(f"unexpected gh api call {argv}")
 
     def _git(self, argv, repo):

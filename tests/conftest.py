@@ -22,6 +22,12 @@ def disable_operator_bootstrap_network_by_default(monkeypatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def no_daemon_unless_the_test_asks(monkeypatch) -> None:
+    """A test that runs the console script must not leave a daemon behind; the daemon tests start their own."""
+    monkeypatch.setenv("SIMPLICIO_LOOP_DAEMON", "0")
+
+
+@pytest.fixture(autouse=True)
 def exec_auth_spawn_guard(request, monkeypatch):
     """exec_auth tests must only ever spawn fake binaries living in a temp dir (#1467).
 
@@ -98,6 +104,7 @@ def runtime_never_targets_the_real_repo(monkeypatch):
     an argument is inside this checkout is refused, even if the code under test swallows the error.
     """
     import asyncio
+    import inspect
     import subprocess
 
     roots = _protected_checkout_roots()
@@ -150,6 +157,10 @@ def runtime_never_targets_the_real_repo(monkeypatch):
             vet(args, kw.get("cwd"))
             super().__init__(args, *a, **kw)
 
+    # Show the wrapped signature: core_network_guard binds positional Popen options (executable is the third)
+    # against the class it wraps, and `(args, *a, **kw)` would hide it.
+    GuardedPopen.__signature__ = inspect.signature(real_popen)
+    GuardedPopen.__init__.__signature__ = inspect.signature(real_popen.__init__)
     monkeypatch.setattr(asyncio, "create_subprocess_exec", guarded_exec)
     monkeypatch.setattr(subprocess, "Popen", GuardedPopen)
     yield violations  # the guard's own tests clear it after asserting the refusal
