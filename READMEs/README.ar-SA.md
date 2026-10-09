@@ -29,17 +29,24 @@
 **يحوّل simplicio-loop مشكلات GitHub إلى طلبات دمج (PR) مختبرة: يرسم خارطة للمستودع، ويخطط ذكاء اصطناعي، ويطبق محرر حتمي، وتتحقق الاختبارات، وتراجع الفرق (squads).**
 
 <p align="center">
+  <img src="../docs/assets/readme/overview-cartoon.webp" alt="مسار متحرك من 8 خطوات: المشكلات، الاستقبال، المنسق العام، الفرق، العمّال (mapper، خطة، dev-cli)، مراجعة الفريق، merge train، main ولوحة Simplicio Live" width="100%" />
+</p>
+
+<p align="center">
   <img src="../docs/assets/readme/how-it-works.gif" alt="مسار متحرك من 8 خطوات: المشكلات، الاستقبال، المنسق العام، الفرق، العمّال (mapper، خطة، dev-cli)، مراجعة الفريق، merge train، main ولوحة Simplicio Live" width="100%" />
 </p>
 
 ## ماذا يفعل
 
-ثلاثة مشغّلات: `simplicio-mapper` (الخريطة)، نموذج التخطيط (الخطة)، `simplicio-dev-cli` (التطبيق الحتمي).
-
-- **يرسم الخارطة أولاً:** يحوّل `simplicio-mapper` المستودع (الملفات والرموز والاختبارات) إلى خارطة مشروع، ولا يحصل المخطط إلا على الجزء الذي يحتاجه.
-- **يخطط ولا يكتب أبداً:** ذكاء اصطناعي (أداة exec CLI مثل claude أو codex أو grok أو gemini) يخطط كل تغيير داخل sandbox؛ ولا يعدّل الملفات إلا `dev-cli` الحتمي.
-- **يثبت قبل فتح الـ PR:** يشغّل `turbo --apply - --verify` اختباراتك، ويعمل فحص الأسرار قبل الدفع.
-- **الفرق تراجع وتدمج دفعات** (قيد العمل: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)، [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)، [#1505](https://github.com/simpletibr/simplicio-loop/issues/1505)). اليوم يتوقف الـ watcher عند PR مفتوح.
+```mermaid
+flowchart LR
+  I["GitHub issue"] --> M["simplicio-mapper<br/>maps files, symbols, tests"]
+  M -->|"map slice"| P["Planner in a sandbox<br/>claude / codex / grok / gemini<br/>plans, never writes"]
+  P -->|"JSON plan"| D["simplicio-dev-cli<br/>deterministic apply"]
+  D --> T["tests verify<br/>simplicio-loop turbo --apply - --verify"]
+  T -->|"green"| S["secret scan"] --> PR["PR with evidence"]
+  T -.->|"2 failures"| E["escalate the model role"] -.-> P
+```
 
 ## التثبيت
 
@@ -70,36 +77,65 @@ sudo cp packaging/systemd/simplicio-loop-247.env.example /etc/simplicio-loop-247
 sudo systemctl enable --now simplicio-loop-247
 ```
 
-- **الموافقة لكل مستودع (opt-in):** أضف `.simplicio/loop.toml` مع `enabled = true`.
-- **الموافقة لكل مشكلة (opt-in):** الوسم `loop:auto` من مؤلف موثوق (owner أو member أو collaborator).
-- **الدمج التلقائي معطّل.** الـ watcher يفتح طلبات PR فقط؛ `SIMPLICIO_247_AUTO_MERGE=1` قيد العمل ([#1505](https://github.com/simpletibr/simplicio-loop/issues/1505)).
-
 التفاصيل: [docs/WATCHER_247.md](../docs/WATCHER_247.md).
+
+```mermaid
+flowchart LR
+  R["repo opts in<br/>.simplicio/loop.toml<br/>enabled = true"] --> L["issue opts in<br/>label loop:auto<br/>owner / member / collaborator"]
+  L --> W["worker loop"] --> PR["PR opened"]
+  PR -.->|"auto-merge off by default"| H["squad / human merges"]
+```
 
 ## كيف يعمل
 
-**حلقة العامل** (على `main` اليوم): يرسم `simplicio-mapper` خارطة المستودع ← يحصل المخطط (exec CLI داخل sandbox) على جزء الخارطة ويكتب خطة ← يطبقها `simplicio-dev-cli` (`turbo --apply - --verify`) ← تتحقق الاختبارات (فشلان يرفعان دور النموذج) ← فحص الأسرار ← PR. مراجعة الفريق وـ merge train قيد العمل ([#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)، [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)).
-
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="حلقة العامل: mapper يرسم خارطة المستودع، تخطيط في sandbox، تطبيق وتحقق، فشل، تصعيد إلى دور النموذج التالي، فحص الأسرار، PR، مراجعة الفريق" width="920" />
+  <img src="../docs/assets/readme/worker-loop.gif" alt="حلقة العامل: mapper يرسم خارطة المستودع، تخطيط في sandbox، تطبيق وتحقق، فشل، تصعيد إلى دور النموذج التالي، فحص الأسرار، PR، مراجعة الفريق" width="100%" />
 </p>
 
-**الـ merge train** (قيد العمل: [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)): تُختبر طلبات PR المعتمدة مرة واحدة كدفعة؛ عند الفشل يجري بحثاً ثنائياً لإيجاد الـ PR المعيب ويدمج الباقي.
+```mermaid
+flowchart LR
+  H["Haiku<br/>mechanical, 1 module"] -->|"2 failures"| S["Sonnet<br/>integration, security"] -->|"2 failures"| O["Opus / Fable<br/>replan only, never executes"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 طلبات PR اختُبرت مرة واحدة، أحمر، البحث الثنائي يعزل C، ثم دُمجت A وB وD" width="920" />
+  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 طلبات PR اختُبرت مرة واحدة، أحمر، البحث الثنائي يعزل C، ثم دُمجت A وB وD" width="100%" />
 </p>
 
-**الفرق (squads)** (قيد العمل: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): منسق عام واحد، ومنسق لكل فريق، وحتى 4 عمّال في كل فريق. لماذا: [منسق واحد مقابل فرق](../docs/assets/readme/agents-before-after-cartoon.webp).
+```mermaid
+flowchart LR
+  A["PR A ✓"] & B["PR B ✓"] & C["PR C ✓"] & D["PR D ✓"] --> G{"test the batch once"}
+  G -->|"green"| M["merge all into main"]
+  G -->|"red"| X["bisect"] --> BAD["PR C out, back to its squad"]
+  X --> OK["A, B and D merge"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="الهيكل التنظيمي للفرق: منسق عام، ومنسق لكل فريق، وحتى 4 عمّال في كل فريق" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="الهيكل التنظيمي للفرق: منسق عام، ومنسق لكل فريق، وحتى 4 عمّال في كل فريق" width="100%" />
 </p>
 
+```mermaid
+flowchart TD
+  G["General coordinator<br/>Opus / Fable: plans, never executes"] --> S1["Squad 1<br/>Sonnet coordinator"] & S2["Squad 2<br/>Sonnet coordinator"] & S3["Squad 3<br/>Sonnet coordinator"]
+  S1 --> W1["up to 4 Haiku workers"]
+  S2 --> W2["up to 4 Haiku workers"]
+  S3 --> W3["up to 4 Haiku workers"]
+  S1 & S2 & S3 -.->|"APPROVED BY SQUAD"| MC["Merge coordinator<br/>Sonnet: merges in series"] --> MAIN["main"]
+```
+
+<p align="center">
+  <img src="../docs/assets/readme/agents-before-after-cartoon.webp" alt="1 coordinator and 29 workers versus squads: before and after" width="100%" />
+</p>
 
 ## نقاط التوسعة الخمسون
 
-مسار خدمة 24/7 يوصّل 11 من 50 (24 جزئياً و 15 غائبة): [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md). خطة توصيل الباقي هي [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509).
+```mermaid
+pie showData title Extension points in the 24/7 path (of 50)
+  "Wired" : 11
+  "Partial" : 24
+  "Absent" : 15
+```
+
+[docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
 
 ## المزيد
 

@@ -29,17 +29,24 @@
 **simplicio-loop 把 GitHub issue 变成经过测试的 PR：它映射仓库，AI 规划，确定性编辑器应用，测试验证，小队（squad）评审。**
 
 <p align="center">
+  <img src="../docs/assets/readme/overview-cartoon.webp" alt="8 步动画流程：issue、接收、总协调器、小队、worker（mapper、规划、dev-cli）、小队评审、merge train、main 以及 Simplicio Live 看板" width="100%" />
+</p>
+
+<p align="center">
   <img src="../docs/assets/readme/how-it-works.gif" alt="8 步动画流程：issue、接收、总协调器、小队、worker（mapper、规划、dev-cli）、小队评审、merge train、main 以及 Simplicio Live 看板" width="100%" />
 </p>
 
 ## 它能做什么
 
-三个算子：`simplicio-mapper`（映射）、规划模型（规划）、`simplicio-dev-cli`（确定性应用）。
-
-- **先映射：** `simplicio-mapper` 把仓库（文件、符号、测试）映射成项目地图，规划模型只拿到它需要的那一部分。
-- **只规划，不写入：** AI（claude、codex、grok 或 gemini 等 exec CLI）在沙箱内规划每个改动；只有确定性的 `dev-cli` 才会编辑文件。
-- **开 PR 前先证明：** `turbo --apply - --verify` 运行你的测试，推送前还会运行密钥扫描。
-- **小队评审并批量合并**（进行中：[#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)、[#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)、[#1505](https://github.com/simpletibr/simplicio-loop/issues/1505)）。目前 watcher 停在已打开的 PR。
+```mermaid
+flowchart LR
+  I["GitHub issue"] --> M["simplicio-mapper<br/>maps files, symbols, tests"]
+  M -->|"map slice"| P["Planner in a sandbox<br/>claude / codex / grok / gemini<br/>plans, never writes"]
+  P -->|"JSON plan"| D["simplicio-dev-cli<br/>deterministic apply"]
+  D --> T["tests verify<br/>simplicio-loop turbo --apply - --verify"]
+  T -->|"green"| S["secret scan"] --> PR["PR with evidence"]
+  T -.->|"2 failures"| E["escalate the model role"] -.-> P
+```
 
 ## 安装
 
@@ -70,36 +77,65 @@ sudo cp packaging/systemd/simplicio-loop-247.env.example /etc/simplicio-loop-247
 sudo systemctl enable --now simplicio-loop-247
 ```
 
-- **按仓库 opt-in：** 添加 `.simplicio/loop.toml` 并设置 `enabled = true`。
-- **按 issue opt-in：** 由可信作者（owner、member 或 collaborator）添加的 `loop:auto` 标签。
-- **自动合并已关闭。** watcher 只打开 PR；`SIMPLICIO_247_AUTO_MERGE=1` 进行中（[#1505](https://github.com/simpletibr/simplicio-loop/issues/1505)）。
-
 详情：[docs/WATCHER_247.md](../docs/WATCHER_247.md)。
+
+```mermaid
+flowchart LR
+  R["repo opts in<br/>.simplicio/loop.toml<br/>enabled = true"] --> L["issue opts in<br/>label loop:auto<br/>owner / member / collaborator"]
+  L --> W["worker loop"] --> PR["PR opened"]
+  PR -.->|"auto-merge off by default"| H["squad / human merges"]
+```
 
 ## 工作原理
 
-**worker 循环**（目前已在 `main`）：`simplicio-mapper` 映射仓库 → 规划模型（exec CLI，在沙箱内）拿到地图片段并写出计划 → `simplicio-dev-cli` 应用（`turbo --apply - --verify`） → 测试验证（失败两次就升级模型角色） → 密钥扫描 → PR。小队评审和 merge train 进行中（[#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)、[#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)）。
-
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="worker 循环：mapper 映射仓库、在沙箱中规划、应用并验证、一次失败、升级到下一个模型角色、密钥扫描、PR、小队评审" width="920" />
+  <img src="../docs/assets/readme/worker-loop.gif" alt="worker 循环：mapper 映射仓库、在沙箱中规划、应用并验证、一次失败、升级到下一个模型角色、密钥扫描、PR、小队评审" width="100%" />
 </p>
 
-**merge train**（进行中：[#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)）：已批准的 PR 作为一批只测试一次；变红时二分定位到有问题的 PR，并合并其余的。
+```mermaid
+flowchart LR
+  H["Haiku<br/>mechanical, 1 module"] -->|"2 failures"| S["Sonnet<br/>integration, security"] -->|"2 failures"| O["Opus / Fable<br/>replan only, never executes"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="merge train：4 个 PR 只测试一次、变红、二分定位出 C，然后合并 A、B 和 D" width="920" />
+  <img src="../docs/assets/readme/merge-train.gif" alt="merge train：4 个 PR 只测试一次、变红、二分定位出 C，然后合并 A、B 和 D" width="100%" />
 </p>
 
-**小队（squads）**（进行中：[#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)）：一个总协调器，每个小队一个协调器，每队最多 4 个 worker。原因：[单个协调器对比小队](../docs/assets/readme/agents-before-after-cartoon.webp)。
+```mermaid
+flowchart LR
+  A["PR A ✓"] & B["PR B ✓"] & C["PR C ✓"] & D["PR D ✓"] --> G{"test the batch once"}
+  G -->|"green"| M["merge all into main"]
+  G -->|"red"| X["bisect"] --> BAD["PR C out, back to its squad"]
+  X --> OK["A, B and D merge"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="小队组织图：一个总协调器、每个小队一个协调器、每队最多 4 个 worker" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="小队组织图：一个总协调器、每个小队一个协调器、每队最多 4 个 worker" width="100%" />
 </p>
 
+```mermaid
+flowchart TD
+  G["General coordinator<br/>Opus / Fable: plans, never executes"] --> S1["Squad 1<br/>Sonnet coordinator"] & S2["Squad 2<br/>Sonnet coordinator"] & S3["Squad 3<br/>Sonnet coordinator"]
+  S1 --> W1["up to 4 Haiku workers"]
+  S2 --> W2["up to 4 Haiku workers"]
+  S3 --> W3["up to 4 Haiku workers"]
+  S1 & S2 & S3 -.->|"APPROVED BY SQUAD"| MC["Merge coordinator<br/>Sonnet: merges in series"] --> MAIN["main"]
+```
+
+<p align="center">
+  <img src="../docs/assets/readme/agents-before-after-cartoon.webp" alt="1 coordinator and 29 workers versus squads: before and after" width="100%" />
+</p>
 
 ## 50 个扩展点
 
-24/7 服务路径接通了 50 个中的 11 个（24 个部分接通，15 个缺失）：[docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md)。接通其余部分的计划见 [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)。
+```mermaid
+pie showData title Extension points in the 24/7 path (of 50)
+  "Wired" : 11
+  "Partial" : 24
+  "Absent" : 15
+```
+
+[docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
 
 ## 了解更多
 
