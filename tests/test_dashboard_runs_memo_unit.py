@@ -305,12 +305,14 @@ def test_a_run_removed_and_created_again_under_the_same_id_shows_the_new_one(tmp
     assert (row['status'], row['last_seq']) == ('running', 9)
 
 
-def test_equal_run_ids_in_two_repos_do_not_share_a_summary(tmp_path, aged):
+def test_equal_run_ids_in_two_repos_do_not_share_a_summary(tmp_path, aged, counted):
     left = _make_run(tmp_path / 'left', 'same', events=2, status='done')
     right = _make_run(tmp_path / 'right', 'same', events=7, status='failed')
-    assert runs.run_summary(_ref(left))['last_seq'] == 2
-    assert runs.run_summary(_ref(right))['last_seq'] == 7
-    assert runs.run_summary(_ref(left))['status'] == 'done'
+    for _ in range(3):
+        assert runs.run_summary(_ref(left))['last_seq'] == 2
+        assert runs.run_summary(_ref(right))['last_seq'] == 7
+        assert runs.run_summary(_ref(left))['status'] == 'done'
+    assert counted['seq'] == 2, 'the two runs evict each other: each is read again on every turn'
 
 
 def test_the_fallback_repo_of_the_ref_is_part_of_the_answer(tmp_path, aged):
