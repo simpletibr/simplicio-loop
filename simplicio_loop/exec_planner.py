@@ -245,7 +245,7 @@ async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None, gra
 
 def _plan_from(obj):
     if isinstance(obj, dict):
-        if "operations" in obj:
+        if "operations" in obj or "need" in obj:  # `need`: lines the planner could not see (turbo_window)
             return obj
         # claude/grok `--output-format json` wrap the model text in an envelope: {"result": "<text>"}
         inner = obj.get("result")

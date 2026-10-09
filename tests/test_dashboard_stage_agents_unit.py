@@ -127,10 +127,9 @@ def test_cost_per_task_sums_to_the_run_cost_and_is_estimado():
         _tok(3, HAIKU, 2_000_000, 1_000_000, phase='executing', task_id='T2'),
     ]
     view = stage_agents.view(events, PRICES)
-    tasks = _by(view['breakdown']['by_task'], 'T2')
-    assert _by(view['breakdown']['by_task'], 'T1')['cost_usd'] == 6.0
-    assert tasks['cost_usd'] == 1.4 and tasks['cost_state'] == 'ESTIMADO' and tasks['proof_kind'] == 'estimado'
-    assert round(sum(row['cost_usd'] for row in view['breakdown']['by_task']), 6) == view['cost']['usd'] == 7.4
+    # the USD of a task lives in the run cost (budget.cost_estimate), never in a second price path
+    assert all('cost_usd' not in row for row in view['breakdown']['by_task'])
+    assert view['cost']['by_task'] == {'T1': 6.0, 'T2': 1.4} and view['cost']['usd'] == 7.4 and view['cost']['state'] == 'ESTIMADO'
 
 
 def test_cost_per_iteration_uses_the_event_iteration_then_the_last_one_seen_before_it():
@@ -142,7 +141,7 @@ def test_cost_per_iteration_uses_the_event_iteration_then_the_last_one_seen_befo
         _tok(5, HAIKU, 1_000_000, 0, task_id='T1', iteration=1),
     ]
     by_iteration = {row['key']: row for row in stage_agents.view(events, PRICES)['breakdown']['by_iteration']}
-    assert by_iteration[1]['tokens_in'] == 2_000_000 and by_iteration[1]['cost_usd'] == 0.2
+    assert by_iteration[1]['tokens_in'] == 2_000_000 and 'cost_usd' not in by_iteration[1]
     assert by_iteration[2]['tokens_in'] == 2_000_000 and by_iteration[2]['source'] == 'ordem dos eventos'
     assert by_iteration[1]['source'] == 'evento'
     assert [row['key'] for row in stage_agents.view(events, PRICES)['breakdown']['by_iteration']] == [1, 2]
@@ -160,7 +159,6 @@ def test_zero_token_worker_records_stay_unverified_with_the_reason_and_are_never
     assert breakdown['tokens']['state'] == 'UNVERIFIED' and breakdown['tokens']['total'] is None
     assert 'tokens do provedor não medidos' in breakdown['tokens']['reason']
     row = breakdown['by_task'][0]
-    assert row['cost_usd'] is None and row['cost_state'] == 'UNVERIFIED' and row['reason']
     assert row['tokens'] is None
 
 
@@ -172,9 +170,9 @@ def test_no_token_usage_gives_an_empty_unverified_breakdown_with_a_reason():
 
 
 def test_a_model_without_a_price_makes_its_task_cost_unverified_with_the_reason():
-    row = stage_agents.view([_tok(1, 'modelo-x', 5, 5, task_id='T9')], PRICES)['breakdown']['by_task'][0]
-    assert row['cost_usd'] is None and row['cost_state'] == 'UNVERIFIED' and 'modelo-x' in row['reason']
-    assert row['tokens'] == 10
+    view = stage_agents.view([_tok(1, 'modelo-x', 5, 5, task_id='T9')], PRICES)
+    assert view['cost']['usd'] is None and view['cost']['state'] == 'UNVERIFIED' and 'modelo-x' in view['cost']['reason']
+    assert view['breakdown']['by_task'][0]['tokens'] == 10
 
 
 def test_agent_map_comes_from_worker_claimed_events_and_slots_stay_unverified():
@@ -246,10 +244,8 @@ def _old_breakdown(events, prices):
             source = None if None in sources else ('ordem dos eventos' if 'ordem dos eventos' in sources else 'evento')
             tokens_in = sum(budget._number(_old_payload(e).get('input_tokens')) or 0 for e, _ in members)
             tokens_out = sum(budget._number(_old_payload(e).get('output_tokens')) or 0 for e, _ in members)
-            cost = budget.cost_estimate([e for e, _ in members], prices)
             found.append({'key': key, 'tokens_in': tokens_in, 'tokens_out': tokens_out, 'tokens': (tokens_in + tokens_out) or None,
-                          'tokens_proof_kind': 'medido', 'cost_usd': cost['usd'], 'cost_state': cost['state'],
-                          'proof_kind': 'estimado', 'reason': cost['reason'], 'source': source if name == 'by_iteration' else None})
+                          'tokens_proof_kind': 'medido', 'source': source if name == 'by_iteration' else None})
         if name == 'by_iteration':
             found.sort(key=lambda row: (row['key'] is None, row['key'] if row['key'] is not None else 0))
         out[name] = found
@@ -310,7 +306,7 @@ def _without_totals(lanes):
 def test_the_single_pass_output_equals_the_old_output_when_every_dimension_is_under_the_cap():
     for seed in (7, 8, 9):
         events = _small_fixture(seed)
-        new = stage_agents.breakdown(events, PRICES)
+        new = stage_agents.breakdown(events)
         old = _old_breakdown(events, PRICES)
         assert all(len(new[dim]) <= TOP for dim in DIMS)
         assert new == old
@@ -351,7 +347,6 @@ def test_every_breakdown_dimension_keeps_20_rows_plus_one_others_row_that_sums_t
         assert others['key'] is None and others['others'] == count - TOP, dim
         assert sum(r['tokens_in'] for r in rows) == sum(100 + i for i in range(count)), dim
         assert others['tokens_in'] == sum(100 + i for i in range(count - TOP)), dim
-        assert others['proof_kind'] == 'estimado' and others['cost_state'] == 'ESTIMADO' and others['cost_usd'] is not None
         assert all('others' not in r for r in kept)
     assert [r['tokens_in'] for r in breakdown['by_task'][:TOP]] == [100 + i for i in range(count - TOP, count)]
     assert [r['key'] for r in breakdown['by_iteration'][:TOP]] == list(range(count - TOP, count))
@@ -360,16 +355,9 @@ def test_every_breakdown_dimension_keeps_20_rows_plus_one_others_row_that_sums_t
 
 def test_a_breakdown_with_exactly_20_groups_has_no_others_row_and_21_groups_fold_one():
     for count, rows_expected, others in ((TOP, TOP, None), (TOP + 1, TOP + 1, 1)):
-        rows = stage_agents.breakdown(_distinct(count), PRICES)['by_task']
+        rows = stage_agents.breakdown(_distinct(count))['by_task']
         assert len(rows) == rows_expected
         assert rows[-1].get('others') == others
-
-
-def test_the_others_row_of_an_unpriced_model_is_unverified_with_the_reason_and_never_a_made_up_price():
-    events = [_tok(i + 1, 'modelo-%d' % i, 10 + i, 0, task_id='t%d' % i) for i in range(30)]
-    others = stage_agents.breakdown(events, PRICES)['by_task'][-1]
-    assert others['others'] == 10 and others['cost_usd'] is None and others['cost_state'] == 'UNVERIFIED'
-    assert 'sem preço' in others['reason'] and others['proof_kind'] == 'estimado'
 
 
 def test_the_stage_rows_are_capped_too_and_the_others_row_is_not_a_phase():
@@ -422,15 +410,15 @@ class _CountingList(list):
         return super().__iter__()
 
 
-def test_view_scans_the_events_at_most_twice_and_prices_a_bounded_number_of_buckets(monkeypatch):
+def test_view_scans_the_events_a_bounded_number_of_times_and_prices_each_event_once_per_stage_and_run(monkeypatch):
     events = _CountingList(_distinct(400, model=lambda i: '%s-v%d' % (HAIKU, i % 7)) + [
         _ev(500 + i, 'worker_claimed', {'lease_id': 'L%d' % i}, lane='l%d' % (i % 9), task_id='t%d' % i) for i in range(100)])
     priced, real = [], budget.cost_estimate
     monkeypatch.setattr(budget, 'cost_estimate', lambda evs, prices: (priced.append(len(evs)), real(evs, prices))[1])
     _CountingList.iterations = 0
     stage_agents.view(events, PRICES)
-    assert _CountingList.iterations <= 2
-    assert sum(priced) < 400 and max(priced) <= 7
+    assert _CountingList.iterations <= 3
+    assert max(priced) == 500 and sum(priced) == 900 and len(priced) == 1 + TOP + 1
 
 
 def test_a_million_event_names_cannot_inflate_the_view_names_are_cut_to_120_characters():
@@ -443,7 +431,7 @@ def test_a_million_event_names_cannot_inflate_the_view_names_are_cut_to_120_char
     breakdown = view['breakdown']
     assert (breakdown['by_phase'][0]['key'], breakdown['by_lane'][0]['key'], breakdown['by_task'][0]['key'],
             breakdown['by_model'][0]['key']) == (cut, cut, cut, cut)
-    assert breakdown['by_task'][0]['reason'] and len(breakdown['by_task'][0]['reason']) < 300
+    assert view['rows'][0]['reason'] and len(view['rows'][0]['reason']) < 300
     [lane] = view['agent_map']['lanes']
     assert lane['key'] == cut and lane['tasks'] == [cut] and lane['lease_ids'] == [cut] and lane['branches'] == [cut]
     assert view['rows'][0]['phase'] == cut and view['rows'][0]['model'] == cut
@@ -452,7 +440,7 @@ def test_a_million_event_names_cannot_inflate_the_view_names_are_cut_to_120_char
 
 def test_a_name_of_120_characters_or_less_is_kept_whole():
     name = 'n' * 120
-    assert stage_agents.breakdown([_tok(1, HAIKU, 1, 1, task_id=name)], PRICES)['by_task'][0]['key'] == name
+    assert stage_agents.breakdown([_tok(1, HAIKU, 1, 1, task_id=name)])['by_task'][0]['key'] == name
 
 
 # --- D6: a non-finite token count is rejected, never serialised as NaN -----------------------------------------------------
