@@ -46,11 +46,12 @@ def box(tmp_path, monkeypatch):
     for name in ("SIMPLICIO_247_LOGIN", "SIMPLICIO_AUTH_FILE", "BROWSER"):
         monkeypatch.delenv(name, raising=False)
     return type("Box", (), {"home": home, "bin": bindir, "login": home / ".simplicio" / "login.json",
-                            "log": tmp_path / "runtime.log", "tmp": tmp_path})
+                            "log": tmp_path / "runtime.log", "envlog": tmp_path / "runtime-env.log", "tmp": tmp_path})
 
 
 def put_login(path: Path, doc=None, mode=0o600):
     path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.chmod(0o700)  # the store refuses a folder that group or others can write, whatever the umask
     path.write_text(json.dumps(doc if doc is not None else login_doc()))
     path.chmod(mode)
     return path
@@ -61,6 +62,7 @@ def fake_runtime(box, *, writes=True, exit_code=0, version="3.10.0"):
 
     PATH holds only this folder (a real Runtime must never be found), so the script uses shell builtins only."""
     box.login.parent.mkdir(parents=True, exist_ok=True)
+    box.login.parent.chmod(0o700)
     doc = json.dumps(login_doc(access_expires_at=int(time.time()) + 900))
     script = box.bin / "simplicio"
     script.write_text(f"""#!/bin/sh
@@ -70,6 +72,7 @@ fi
 echo "argv: $*" >> '{box.log}'
 echo "auth_file: $SIMPLICIO_AUTH_FILE" >> '{box.log}'
 echo "browser: $BROWSER" >> '{box.log}'
+export -p > '{box.envlog}'
 echo "Open https://example.invalid/device to sign in"
 TARGET="${{SIMPLICIO_AUTH_FILE:-$HOME/.simplicio/login.json}}"
 [ "{int(writes)}" = "1" ] && {{ umask 077; printf '%s' '{doc}' > "$TARGET"; }}
@@ -122,13 +125,34 @@ def test_login_json_keeps_stdout_a_single_document(box, capfd):
 def test_login_points_the_runtime_at_the_file_the_loop_reads(box, capfd, monkeypatch):
     custom = box.tmp / "service" / "login.json"
     custom.parent.mkdir()
+    custom.parent.chmod(0o700)
     monkeypatch.setenv("SIMPLICIO_247_LOGIN", str(custom))
     fake_runtime(box)
     rc = auth_cli.login(as_json=True)
     out, _ = output(capfd)
     assert rc == 0 and custom.is_file() and not box.login.is_file()
     assert f"auth_file: {custom}" in box.log.read_text()
-    assert json.loads(out)["path"] == str(custom)
+    doc = json.loads(out)
+    assert doc["path"] == str(custom)
+    # the override lasts for this one run: the Runtime's own later runs read the default file, and the report says so
+    assert doc["shared_with_runtime"] is False and doc["runtime_path"] == str(box.login)
+
+
+@posix
+def test_the_runtime_child_gets_a_minimal_environment_without_other_programs_credentials(box, capfd, monkeypatch):
+    for name, value in {"GH_TOKEN": "fake-gh-1", "GITHUB_TOKEN": "fake-gh-2", "SIMPLICIO_LOGIN_TOKEN": "fake-lt-3",
+                        "OPENROUTER_API_KEY": "fake-or-4", "ANTHROPIC_API_KEY": "fake-an-5",
+                        "AWS_SECRET_ACCESS_KEY": "fake-aws-6"}.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.example.invalid:3128")
+    monkeypatch.setenv("LC_ALL", "C")
+    fake_runtime(box)
+    assert auth_cli.login() == 0
+    seen = box.envlog.read_text()
+    for secret in ("fake-gh-1", "fake-gh-2", "fake-lt-3", "fake-or-4", "fake-an-5", "fake-aws-6"):
+        assert secret not in seen, secret
+    for needed in ("PATH=", "HOME=", "HTTPS_PROXY=", "LC_ALL="):  # what a sign-in really needs is kept
+        assert needed in seen, needed
 
 
 @posix
@@ -213,6 +237,32 @@ def test_logout_without_yes_deletes_nothing_and_warns_about_the_runtime(box, cap
     assert rc == 2 and box.login.exists()
     assert "Runtime" in out + err and "--yes" in out + err and str(box.login) in out + err
     assert_no_secret(out, err)
+
+
+@posix
+def test_logout_only_claims_to_log_the_runtime_out_when_it_reads_the_same_file(box, capfd, monkeypatch):
+    custom = put_login(box.tmp / "service" / "login.json")
+    monkeypatch.setenv("SIMPLICIO_247_LOGIN", str(custom))
+    assert auth_cli.logout(as_json=True) == 2
+    refused = json.loads(output(capfd)[0])
+    assert refused["also_logs_out_runtime"] is False and refused["runtime_path"] == str(box.login)
+    assert auth_cli.logout() == 2
+    text = " ".join(output(capfd)[0].split())
+    assert "stays logged in" in text and "logs the Runtime out too" not in text
+    assert auth_cli.logout(yes=True) == 0
+    done = " ".join(output(capfd)[0].split())
+    assert "stays logged in" in done and "logged out too" not in done and not custom.exists()
+    put_login(box.login)
+    monkeypatch.delenv("SIMPLICIO_247_LOGIN")
+    assert auth_cli.logout(yes=True) == 0
+    assert "logged out too" in " ".join(output(capfd)[0].split()) and not box.login.exists()
+
+
+def test_logout_of_something_that_is_not_a_login_file_is_an_error_not_a_traceback(box, capfd):
+    box.login.mkdir(parents=True)
+    assert auth_cli.logout(yes=True) == 1
+    out, err = output(capfd)
+    assert "directory" in out and "Traceback" not in out + err and box.login.is_dir()
 
 
 def test_logout_with_yes_removes_the_shared_file(box, capfd):

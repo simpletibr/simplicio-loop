@@ -34,6 +34,22 @@ STANDALONE_UNVERIFIED = (
 )
 
 
+# What `simplicio login google` is given. Everything else is left out on purpose: the shell of a developer holds other
+# programs' credentials (GH_TOKEN, API keys, SIMPLICIO_LOGIN_TOKEN) and a sign-in needs none of them.
+_CHILD_ENV = frozenset({
+    "PATH", "HOME", "USERPROFILE", "USER", "LOGNAME", "SHELL", "TERM", "COLORTERM", "LANG", "LANGUAGE", "TZ", "TMPDIR",
+    "TEMP", "TMP", "DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "BROWSER", "SYSTEMROOT", "WINDIR", "COMSPEC",
+    "PATHEXT", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+    "http_proxy", "https_proxy", "all_proxy", "no_proxy", "SSL_CERT_FILE", "SSL_CERT_DIR", auth.RUNTIME_ENV,
+    "SIMPLICIO_AUTH_BASE_URL", "SIMPLICIO_HOME",
+})
+_CHILD_ENV_PREFIXES = ("LC_", "XDG_")
+
+
+def _runtime_env(env: dict) -> dict:
+    return {name: value for name, value in env.items() if name in _CHILD_ENV or name.startswith(_CHILD_ENV_PREFIXES)}
+
+
 def _print(doc: dict, as_json: bool, lines: list) -> None:
     print(json.dumps(doc, ensure_ascii=False, sort_keys=True) if as_json else "\n".join(lines))
 
@@ -125,12 +141,13 @@ def login(*, as_json: bool = False, no_browser: bool = False, environ: Optional[
         _print(doc, as_json, lines)
         return 1
     path, runtime_path = auth.login_path(env), auth.runtime_login_path(env)
-    if path != runtime_path:  # the Runtime must write where the loop reads
-        env[auth.RUNTIME_ENV] = str(path)
+    child = _runtime_env(env)
+    if path != runtime_path:  # for this run the Runtime must write where the loop reads
+        child[auth.RUNTIME_ENV] = str(path)
     if no_browser and os.name != "nt":
-        env["BROWSER"] = "true"  # UNVERIFIED: the Runtime may ignore it and print its sign-in address anyway
+        child["BROWSER"] = "true"  # UNVERIFIED: the Runtime may ignore it and print its sign-in address anyway
     sys.stdout.flush()
-    code = run([str(runtime), "login", "google"], env, 2 if as_json else None)  # --json: its output goes to stderr
+    code = run([str(runtime), "login", "google"], child, 2 if as_json else None)  # --json: its output goes to stderr
     doc = auth.describe(env)
     doc.update(schema="simplicio.login/v1", runtime_exit_code=code)
     if code != 0:
@@ -152,16 +169,25 @@ def login(*, as_json: bool = False, no_browser: bool = False, environ: Optional[
 
 
 def logout(*, yes: bool = False, as_json: bool = False, environ: Optional[dict] = None) -> int:
-    path = auth.login_path(environ)
-    shared = f"{path} is shared with the Simplicio Runtime: logging out here logs the Runtime out too."
-    doc: dict[str, Any] = {"schema": "simplicio.logout/v1", "path": str(path), "also_logs_out_runtime": True}
+    path, runtime_path = auth.login_path(environ), auth.runtime_login_path(environ)
+    shared = path == runtime_path  # the Runtime is logged out too only when it reads this very file
+    doc: dict[str, Any] = {"schema": "simplicio.logout/v1", "path": str(path), "runtime_path": str(runtime_path),
+                           "also_logs_out_runtime": shared}
     if not yes:
         doc.update(status="REFUSED", reason_code="confirmation_required")
-        _print(doc, as_json, [f"logout: {shared}", "Nothing was deleted. Run again with --yes to log out."])
+        about = (f"{path} is shared with the Simplicio Runtime: logging out here logs the Runtime out too." if shared else
+                 f"{path} is the login of simplicio-loop only. The Runtime reads {runtime_path} and stays logged in.")
+        _print(doc, as_json, [f"logout: {about}", "Nothing was deleted. Run again with --yes to log out."])
         return 2
-    removed = auth.clear_login(path)
+    try:
+        removed = auth.clear_login(path)
+    except auth.LoginError as exc:
+        doc.update(status="FAILED", reason_code=exc.reason_code, detail=str(exc))
+        _print(doc, as_json, [f"logout: {exc}"])
+        return 1
     doc["status"] = "LOGGED_OUT" if removed else "NO_LOGIN"
-    lines = [f"logout: removed {path}. The Runtime is logged out too (shared file).",
+    lines = [f"logout: removed {path}. " + ("The Runtime is logged out too (shared file)." if shared else
+                                            f"The Runtime reads {runtime_path}, so it stays logged in."),
              "The refresh token is not revoked on the server: no revoke endpoint is documented in this repository."]
     if not removed:
         lines = [f"logout: no login file at {path}; nothing to remove"]
