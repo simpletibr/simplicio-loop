@@ -120,10 +120,57 @@ def test_no_anchor_shows_the_beginning_and_the_rest_is_omitted(tmp_path):
 
 
 def test_a_common_word_does_not_anchor(tmp_path):
-    body = _py(900) + "\nvalue = 3\n"
+    body = "".join(f"line_{i} = {i}\n" for i in range(1, 3001)) + "value = 3\n"  # `value` appears only on the last line
     _write(tmp_path, "big.py", body)
     entry = turbo_window.build_files(tmp_path, [_task("change the value in big.py", "big.py")])["big.py"]
     assert entry["windows"][-1]["end"] < entry["total_lines"] - 100  # `value` is a plain word: no window at the end
+    named = turbo_window.build_files(tmp_path, [_task("change value_x in big.py", "big.py")])["big.py"]  # control: not in file
+    assert named["windows"][-1]["end"] < named["total_lines"] - 100
+
+
+def _numbered(count: int = 3000) -> list[str]:
+    return [f"line_{i} = {i}\n" for i in range(1, count + 1)]
+
+
+def test_at_most_max_anchors_windows_in_the_order_of_the_task_text(tmp_path):
+    lines = _numbered()
+    for k in range(12):
+        lines[200 + 200 * k - 1] = f"def anchor_fn_{k}():\n"
+    _write(tmp_path, "m.py", "".join(lines))
+    text = "touch " + " ".join(f"anchor_fn_{k}" for k in range(12)) + " in m.py"
+    entry = turbo_window.build_files(tmp_path, [_task(text, "m.py")])["m.py"]
+    assert len([w for w in entry["windows"] if w["start"] > 20]) == turbo_window.MAX_ANCHORS
+    shown = {k for k in range(12) if any(f"def anchor_fn_{k}()" in w["text"] for w in entry["windows"])}
+    assert shown == set(range(turbo_window.MAX_ANCHORS))
+
+
+def test_a_name_defined_many_times_gets_at_most_max_occurrences_windows(tmp_path):
+    lines = _numbered()
+    for k in range(1, 7):
+        lines[300 * k - 1] = "def dup_fn():\n"
+    _write(tmp_path, "m.py", "".join(lines))
+    entry = turbo_window.build_files(tmp_path, [_task("touch dup_fn in m.py", "m.py")])["m.py"]
+    spans = [(w["start"], w["end"]) for w in entry["windows"] if w["start"] > 20]
+    assert spans == [(300 * k - N, 300 * k + N) for k in range(1, 1 + turbo_window.MAX_OCCURRENCES)]
+
+
+def test_the_definition_is_preferred_over_earlier_uses(tmp_path):
+    lines = _numbered()
+    for number in (30, 40, 50, 60, 70):
+        lines[number - 1] = "use_target_fn()\n"
+    lines[2500 - 1] = "def use_target_fn():\n"
+    _write(tmp_path, "m.py", "".join(lines))
+    entry = turbo_window.build_files(tmp_path, [_task("change use_target_fn in m.py", "m.py")])["m.py"]
+    assert [(w["start"], w["end"]) for w in entry["windows"] if w["start"] > 20] == [(2500 - N, 2500 + N)]
+
+
+def test_stacked_decorators_are_part_of_the_def(tmp_path):
+    lines = _numbered()
+    lines[1000 - 1: 1000 + 14] = [f"@decorator_{i}\n" for i in range(12)] + ["def decorated_fn():\n", "    return 1\n", "\n"]
+    _write(tmp_path, "m.py", "".join(lines))
+    entry = turbo_window.build_files(tmp_path, [_task("change decorated_fn in m.py", "m.py")])["m.py"]
+    window = next(w for w in entry["windows"] if "def decorated_fn" in w["text"])
+    assert "@decorator_0\n" in window["text"] and window["start"] == 1000 - N
 
 
 def test_path_line_and_range_anchor(tmp_path):

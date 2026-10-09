@@ -535,10 +535,10 @@ def _scripted_planner(monkeypatch, plans):
     return seen
 
 
-def _run_exec(fake):
+def _run_exec(fake, role=""):
     dest = checkout()
     executor = host_mode.Executor("exec", ("claude",))
-    return asyncio.run(host_mode.run_exec(dest, REPO, issue(1), "fix big.py", None, executor, attempts=1))
+    return asyncio.run(host_mode.run_exec(dest, REPO, issue(1), "fix big.py", None, executor, attempts=1, role=role))
 
 
 def _cut_request(files=None):
@@ -565,6 +565,14 @@ def test_a_need_prints_the_request_again_with_the_lines_and_spends_one_step(env,
     assert second[second.index("--run-id") + 1] == RUN_ID
     assert len(fake.turbo_stdin) == 1  # only the real plan reached `turbo --apply`
     assert seen[0][0] == seen[1][0] == "planning"  # same role: no escalation
+
+
+def test_a_need_does_not_climb_the_ladder(env, cli_dir, monkeypatch):
+    fake = env(HostRun({REPO: [issue(1)]}, [OK], request=_cut_request()))
+    baseline()
+    seen = _scripted_planner(monkeypatch, [NEED, PLAN])
+    _run_exec(fake, role="execution")  # the ladder starts at its lowest role, where an escalation would show
+    assert [role for role, _prompt in seen] == ["execution", "execution"]
 
 
 def test_an_empty_plan_with_a_cut_request_stops_with_turbo_context_truncated(env, cli_dir, monkeypatch):
