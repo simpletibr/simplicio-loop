@@ -145,12 +145,12 @@ def task_record(
 
 
 def collect(reports: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Collect tasks with squad_metrics from reports; ignore tasks without squad_metrics."""
+    """Collect tasks with a `squad_metrics` object from reports; anything else (no key, not an object) is ignored."""
     result = []
     for report in reports:
-        tasks = report.get("tasks") or []
-        for task in tasks:
-            if "squad_metrics" in task:
+        tasks = report.get("tasks") if isinstance(report, dict) else None
+        for task in tasks if isinstance(tasks, list) else []:
+            if isinstance(task, dict) and isinstance(task.get("squad_metrics"), dict):
                 record = {**task["squad_metrics"]}
                 if "issue" in task:
                     record["issue"] = task["issue"]
@@ -179,100 +179,70 @@ def percentile(sorted_values: list[float], q: float) -> Optional[float]:
     return sorted_values[rank - 1]
 
 
+def _proof(record: dict[str, Any], part: str) -> Any:
+    proof = record.get("proof_kind")
+    return proof.get(part) if isinstance(proof, dict) else None
+
+
+def _measured_escalation(record: dict[str, Any]) -> bool:
+    """Fail closed: measured only when it says so and the data has the shape the numbers are computed from."""
+    escalations = record.get("escalations")
+    return (_proof(record, "escalations") == "measured" and isinstance(record.get("initial_role"), str)
+            and isinstance(record.get("final_role"), str) and isinstance(escalations, list)
+            and all(isinstance(e, dict) and isinstance(e.get("from"), str) and isinstance(e.get("to"), str)
+                    for e in escalations))
+
+
+def _measured_wait(record: dict[str, Any]) -> bool:
+    wait = record.get("dependency_wait_s")
+    return (_proof(record, "dependency_wait") == "measured" and isinstance(record.get("depends_on"), list)
+            and isinstance(wait, (int, float)) and not isinstance(wait, bool))
+
+
 def summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
-    """Summarize a list of task records.
+    """Summarize task records. A record that is not measured, or not shaped as the numbers need, is UNVERIFIED and in no denominator.
 
-    Counts measured vs UNVERIFIED separately. Measured records with empty depends_on
-    count as no_dependency_tasks (their wait is 0.0, measured, but not in percentile sample).
+    Measured records with empty depends_on are no_dependency_tasks (a measured 0, kept out of the percentile sample).
     """
-    escalation_measured = []
-    dependency_with_deps = []
-    issues = set()
-
-    for record in records:
-        issue = record.get("issue")
-        if issue:
-            issues.add(issue)
-
-        # Check escalation measurement
-        if (record.get("proof_kind", {}).get("escalations") == "measured" and
-            record.get("initial_role") is not None and
-            record.get("final_role") is not None and
-            isinstance(record.get("escalations"), list)):
-            escalation_measured.append(record)
-        
-        # Check dependency measurement (only records with deps)
-        if (record.get("proof_kind", {}).get("dependency_wait") == "measured" and
-            record.get("dependency_wait_s") is not None and
-            isinstance(record.get("depends_on"), list)):
-            if record.get("depends_on"):  # non-empty deps
-                dependency_with_deps.append(record)
+    records = [r for r in records if isinstance(r, dict)]
+    issues = {r["issue"] for r in records if isinstance(r.get("issue"), str) and r["issue"]}
+    escalation_measured = [r for r in records if _measured_escalation(r)]
+    waits_measured = [r for r in records if _measured_wait(r)]
+    dependency_with_deps = [r for r in waits_measured if r["depends_on"]]
+    no_dependency_tasks = len(waits_measured) - len(dependency_with_deps)
 
     escalation_n = len(escalation_measured)
-    escalation_unverified = len(records) - escalation_n
-    escalated = sum(1 for r in escalation_measured if r.get("escalations"))
-    escalation_rate = round(escalated / escalation_n, 4) if escalation_n > 0 else None
-
-    # Count no_dependency_tasks
-    no_dependency_tasks = sum(
-        1 for r in records
-        if r.get("proof_kind", {}).get("dependency_wait") == "measured" and
-        r.get("dependency_wait_s") == 0.0 and
-        (not r.get("depends_on") or r.get("depends_on") == [])
-    )
-
-    dependency_wait_unverified = len(records) - len(dependency_with_deps) - no_dependency_tasks
-
-    # Percentiles
-    if dependency_with_deps:
-        waits = sorted([r.get("dependency_wait_s", 0.0) for r in dependency_with_deps])
-        p50 = percentile(waits, 50)
-        p95 = percentile(waits, 95)
-        max_wait = max(waits) if waits else None
-    else:
-        p50 = None
-        p95 = None
-        max_wait = None
-
-    # Escalations by transition
-    escalations_by_transition = {}
+    escalated = sum(1 for r in escalation_measured if r["escalations"])
+    escalations_by_transition: dict[str, int] = {}
+    by_initial_role: dict[str, dict[str, Any]] = {}
     for record in escalation_measured:
-        for esc in record.get("escalations") or []:
-            key = f"{esc['from']}->{esc['to']}"
+        for entry in record["escalations"]:
+            key = f"{entry['from']}->{entry['to']}"
             escalations_by_transition[key] = escalations_by_transition.get(key, 0) + 1
+        row = by_initial_role.setdefault(record["initial_role"], {"n": 0, "escalated": 0})
+        row["n"] += 1
+        row["escalated"] += 1 if record["escalations"] else 0
+    for row in by_initial_role.values():
+        row["escalation_rate"] = round(row["escalated"] / row["n"], 4)
 
-    # By initial role (measured only)
-    by_initial_role = {}
-    for record in escalation_measured:
-        role = record.get("initial_role")
-        if role not in by_initial_role:
-            by_initial_role[role] = {"n": 0, "escalated": 0, "escalation_rate": None}
-        by_initial_role[role]["n"] += 1
-        if record.get("escalations"):
-            by_initial_role[role]["escalated"] += 1
-    
-    for role in by_initial_role:
-        n = by_initial_role[role]["n"]
-        esc = by_initial_role[role]["escalated"]
-        by_initial_role[role]["escalation_rate"] = round(esc / n, 4)
-
+    waits = sorted(r["dependency_wait_s"] for r in dependency_with_deps)
     return {
         "schema": "simplicio.squad-metrics/v1",
         "reports": None,
         "tasks": len(records),
-        "issues": sorted(list(issues)),
+        "issues": sorted(issues),
         "escalation_n": escalation_n,
-        "escalation_unverified": escalation_unverified,
+        "escalation_unverified": len(records) - escalation_n,
         "escalated": escalated,
-        "escalation_rate": escalation_rate,
-        "escalations_by_transition": escalations_by_transition,
-        "by_initial_role": by_initial_role,
-        "dependency_wait_n": len(dependency_with_deps),
+        "escalation_rate": round(escalated / escalation_n, 4) if escalation_n else None,
+        "escalations_by_transition": dict(sorted(escalations_by_transition.items())),
+        "by_initial_role": dict(sorted(by_initial_role.items())),
+        "dependency_wait_n": len(waits),
         "no_dependency_tasks": no_dependency_tasks,
-        "dependency_wait_unverified": dependency_wait_unverified,
-        "dependency_wait_p50_s": p50,
-        "dependency_wait_p95_s": p95,
-        "dependency_wait_max_s": max_wait,
+        "dependency_wait_unverified": len(records) - len(waits_measured),
+        "dependency_wait_p50_s": percentile(waits, 50),
+        "dependency_wait_p95_s": percentile(waits, 95),
+        "dependency_wait_max_s": waits[-1] if waits else None,
     }
 
 
@@ -537,8 +507,8 @@ def dispatch(args: Any) -> int:
             else:
                 print(render_compare(result))
             return 0
-        except (OSError, ValueError) as e:
-            return emit_blocked(str(e))
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:  # a hand-edited file: BLOCKED, not a traceback
+            return emit_blocked(f"{type(e).__name__}: {e}")
 
     elif args.reports:
         # Load and summarize reports
@@ -553,8 +523,8 @@ def dispatch(args: Any) -> int:
             else:
                 print(render_summary(summary))
             return 0
-        except (OSError, ValueError) as e:
-            return emit_blocked(str(e))
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:  # a hand-edited file: BLOCKED, not a traceback
+            return emit_blocked(f"{type(e).__name__}: {e}")
 
     else:
         return emit_blocked("give --reports or --compare")

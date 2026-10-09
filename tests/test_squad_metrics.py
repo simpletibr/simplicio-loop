@@ -312,6 +312,23 @@ class TestSummarizeRecords:
         assert result["escalation_rate"] == 0.3333
         assert result["by_initial_role"]["execution"] == {"n": 3, "escalated": 1, "escalation_rate": 0.3333}
 
+    def test_hand_edited_or_odd_records_are_unverified_not_a_crash(self):
+        """Reports come from disk: a record that is not shaped as the numbers need is UNVERIFIED and in no denominator."""
+        good = squad_metrics.task_record([step("execution")], [1], 1.0, {1: 3.0}) | {"issue": "repo#1"}
+        odd = [good | {"dependency_wait_s": "5"}, good | {"proof_kind": "measured"}, good | {"escalations": [{"x": 1}]},
+               good | {"escalations": ["a"]}, good | {"issue": ["x"]}, good | {"dependency_wait_s": True}, "oops", None]
+        result = squad_metrics.summarize_records([good, *odd])
+        assert result["tasks"] == 7  # the two non-objects are dropped, the six odd objects are counted
+        assert result["escalation_n"] + result["escalation_unverified"] == result["tasks"]
+        assert result["dependency_wait_n"] + result["no_dependency_tasks"] + result["dependency_wait_unverified"] == result["tasks"]
+        # escalation measured: good, str-wait, bad-issue, bool-wait; wait measured: good, the two bad escalations, bad-issue
+        assert (result["escalation_n"], result["dependency_wait_n"]) == (4, 4) and result["issues"] == ["repo#1"]
+        assert result["dependency_wait_p50_s"] == 2.0
+
+    def test_collect_ignores_a_squad_metrics_that_is_not_an_object(self):
+        reports = [{"tasks": [{"squad_metrics": "x"}, "y", {"squad_metrics": {"initial_role": "execution"}}]}, "z", {"tasks": "q"}]
+        assert len(squad_metrics.collect(reports)) == 1
+
     def test_summarize_unverified_excluded_from_denominators(self):
         """Two records: 1 measured, 1 UNVERIFIED -> only measured counts."""
         measured = {
@@ -675,6 +692,13 @@ class TestLoadSummary:
             path.write_text("[]")
             with pytest.raises(ValueError):
                 squad_metrics.load_summary(str(path))
+
+    def test_compare_of_a_hand_edited_summary_is_blocked_not_a_traceback(self, capsys):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "odd.json"
+            path.write_text(json.dumps({"schema": "simplicio.squad-metrics/v1", "escalation_n": "x", "issues": 3}))
+            assert cli_impl.main(["squads", "metrics", "--compare", str(path), str(path), "--json"]) == 2
+        assert json.loads(capsys.readouterr().out)["status"] == "BLOCKED"
 
     def test_load_summary_wrong_schema_raises(self):
         """Wrong schema -> ValueError."""
