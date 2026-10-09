@@ -36,8 +36,9 @@ Fluxo de cada tick (implementado em `watcher247/tick.py` e `watcher247/host_mode
 
 O planner roda por `sandbox.wrap` (o mesmo bwrap do apply) e com `sandbox.scrubbed_env`: so a allowlist do sandbox, `HOME`
 e a chave do proprio CLI (`host_mode.FAMILY_ENV`); `OPENROUTER_API_KEY` e outros segredos do servico nunca chegam a ele.
-Cada CLI recebe apenas flags de somente-plano (ver `exec_planner.py`). Limite: o `opencode` grava a config de deny em
-`/tmp`, que o bwrap esconde; use outro wrapper ou outra familia para ele.
+Cada CLI recebe apenas flags de somente-plano (ver `exec_planner.py`). A config de deny do `opencode` fica em
+`<state_dir>/opencode/` (o bwrap monta tmpfs em `/tmp` e esconderia o arquivo, rodando o CLI sem as regras de deny) e e
+removida ao fim da chamada.
 
 ### Login dos CLIs (`watch247 login-check`)
 
