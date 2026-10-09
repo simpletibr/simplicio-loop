@@ -213,18 +213,29 @@ def export_source(root: Path, dest: Path) -> str:
 
 
 def release_source(root: Path, dest: Path) -> None:
-    """Remove what ``export_source`` made, and the worktree entry of git."""
+    """Remove what ``export_source`` made, and only the git entry of ``dest``.
+
+    Never ``git worktree prune``: it forgets every worktree of the repository whose directory is missing
+    at that moment (a disk that is not mounted), and those worktrees are not ours.
+    """
+    try:
+        common = Path(_git(root, "rev-parse", "--git-common-dir").strip())
+        common = common if common.is_absolute() else root / common
+    except BuildError:  # not a git tree: export_source copied it
+        common = None
     if (dest / ".git").exists():
         try:
             _git(root, "worktree", "remove", "--force", str(dest))
         except BuildError:
             pass
     shutil.rmtree(dest, ignore_errors=True)
-    if (root / ".git").exists():
-        try:
-            _git(root, "worktree", "prune")
-        except BuildError:
-            pass
+    if common is not None:  # an entry that a killed build left: its gitdir file names dest/.git
+        for entry in (common / "worktrees").glob("*"):
+            try:
+                if Path((entry / "gitdir").read_text(encoding="utf-8").strip()) == dest / ".git":
+                    shutil.rmtree(entry, ignore_errors=True)
+            except OSError:
+                continue
 
 
 def claim_work_directory(work: Path) -> None:

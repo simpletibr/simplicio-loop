@@ -285,6 +285,67 @@ def test_export_source_of_a_git_tree_is_head_without_local_changes(tmp_path):
     assert not dest.exists() and "worktrees" not in bb._git(repo, "worktree", "list")
 
 
+def _registered(repo):
+    """Names of the registered worktrees: .git/worktrees/<name>."""
+    return sorted(item.name for item in (repo / ".git" / "worktrees").glob("*")) if (repo / ".git" / "worktrees").is_dir() else []
+
+
+def test_release_source_never_prunes_the_worktrees_of_other_people(tmp_path):
+    """`git worktree prune` is global: it forgets any worktree whose directory is missing at that moment."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git = _git_repo(repo)
+    other = tmp_path / "other"
+    git("worktree", "add", "-q", "-b", "other", str(other))
+    other.rename(tmp_path / "other.gone")  # an unmounted disk, a moved directory: the registration must stay
+    work = tmp_path / "work"
+    work.mkdir()
+    dest = work / "src"
+
+    bb.export_source(repo, dest)
+    bb.release_source(repo, dest)
+
+    assert not dest.exists()
+    assert _registered(repo) == ["other"]
+    assert "other" in bb._git(repo, "worktree", "list")  # listed as prunable, still there
+
+
+def test_release_source_removes_the_stale_entry_of_a_build_that_died(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git = _git_repo(repo)
+    other = tmp_path / "other"
+    git("worktree", "add", "-q", "-b", "other", str(other))
+    work = tmp_path / "work"
+    work.mkdir()
+    dest = work / "src"
+    bb.export_source(repo, dest)
+    shutil.rmtree(dest)  # the build was killed and its directory went away, but the entry stayed
+    assert len(_registered(repo)) == 2
+
+    bb.release_source(repo, dest)
+
+    assert _registered(repo) == ["other"]
+    assert other.is_dir() and str(dest) not in bb._git(repo, "worktree", "list")
+
+
+def test_release_source_from_a_linked_worktree_removes_only_its_own_entry(tmp_path):
+    """The tree that builds can itself be a linked worktree (.git is a file there)."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git = _git_repo(repo)
+    linked = tmp_path / "linked"
+    git("worktree", "add", "-q", "-b", "linked", str(linked))
+    work = tmp_path / "work"
+    work.mkdir()
+    dest = work / "src"
+
+    bb.export_source(linked, dest)
+    bb.release_source(linked, dest)
+
+    assert not dest.exists() and _registered(repo) == ["linked"]
+
+
 def test_export_source_of_a_tree_without_git_copies_it_without_build_output(tmp_path):
     tree = tmp_path / "tree"
     for name in ("pkg/a.py", "build/x.py", "dist/y.whl", "pkg/__pycache__/a.pyc", "pkg.egg-info/PKG-INFO"):
