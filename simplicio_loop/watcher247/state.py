@@ -64,20 +64,3 @@ async def mark_issues_disabled(name: str) -> None:
 
 def key_of(repo: str, number: int) -> str:
     return f"{repo}#{number}"
-
-
-def due(ident: str, claims: dict) -> bool:
-    claim = claims.get(ident)
-    if not claim:
-        return True
-    status = claim.get("status")
-    if status in {"done", "done_no_diff", "dead", "running", "preexisting"}:
-        return False
-    if status == "retry":
-        raw = claim.get("next_try_at") or ""
-        try:
-            when = datetime.strptime(raw, _ISO).replace(tzinfo=timezone.utc)
-        except ValueError:
-            return True
-        return now() >= when
-    return False
