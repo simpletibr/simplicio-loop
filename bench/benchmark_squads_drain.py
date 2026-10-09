@@ -55,7 +55,7 @@ SCOPE = (
     "(asyncio.sleep, scaled). The planner, the merge train, the metrics, the CPU time and the RSS of the orchestrator are real. "
     "Not a real drain with an LLM: that stays UNVERIFIED (#1549)."
 )
-MODES = ("baseline", "squads", "squads-v2-off")
+MODES = ("baseline", "squads-v2-off", "squads")
 PROBES = ("live", "idle")
 LADDER = {squad_routing.EXECUTION: squad_routing.COORDINATION, squad_routing.COORDINATION: "planning"}
 IDLE_CORES = 10
@@ -408,15 +408,17 @@ def harness(args: argparse.Namespace) -> dict:
     runs: dict[tuple[str, str], list[dict]] = {pair: [] for pair in pairs}
     waits: list[dict] = []
     started = time.time()
+    budget = args.wait_max  # one budget for the whole run: after it is spent the harness measures whatever the load is
     for rep in range(args.reps):  # repetition-major: every config sees the same drift of the host load
+        waited = wait_for_load(args.wait_load, budget)
+        budget -= waited
+        if waited:
+            waits.append({"rep": rep + 1, "waited_s": waited, "load1_after_wait": _load1()})
         for mode, probe in pairs:
-            waited = wait_for_load(args.wait_load, args.wait_max)
             before = os.getloadavg()
             run = run_child(mode, probe, args)
             after = os.getloadavg()
             run.update(rep=rep + 1, waited_for_load_s=waited, harness_loadavg_before=list(before), harness_loadavg_after=list(after))
-            if waited:
-                waits.append({"rep": rep + 1, "mode": mode, "probe": probe, "waited_s": waited})
             runs[(mode, probe)].append(run)
     result = {
         "schema": SCHEMA, "proof_kind": "SIMULATED+MEASURED", "scope": SCOPE,
@@ -445,8 +447,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--time-scale", type=float, default=1.0, help="multiplies every simulated duration (default 1: 0.2-1.5 s per task)")
     ap.add_argument("--test-cost", type=float, default=0.25, help="simulated seconds of one integration test of a merge batch")
     ap.add_argument("--merge-cost", type=float, default=0.10, help="simulated seconds of one PR merge")
-    ap.add_argument("--wait-load", type=float, default=8.0, help="before each repetition wait while load1 is above this")
-    ap.add_argument("--wait-max", type=float, default=600.0, help="most seconds to wait for the load to fall")
+    ap.add_argument("--wait-load", type=float, default=8.0, help="before each round of repetitions wait while load1 is above this")
+    ap.add_argument("--wait-max", type=float, default=600.0, help="most seconds to wait for the load to fall, in total")
     ap.add_argument("--json", action="store_true", help="print the JSON document instead of the table")
     ap.add_argument("--out", help="also write the JSON document to this file")
     ap.add_argument("--one", action="store_true", help=argparse.SUPPRESS)  # internal: one repetition, printed as JSON
