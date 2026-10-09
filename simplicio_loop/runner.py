@@ -55,6 +55,7 @@ from .planning_gate import build_planning_receipt as _build_planning_receipt
 from .planning_gate import publish_planning_receipt as _publish_planning_receipt
 from .merge_executor import MergeExecutor, MergeExecutorError
 from . import local_capacity
+from . import plan_paths
 from . import wave_worktree
 from .loop_execution_receipt import (
     LoopExecutionReceiptError,
@@ -138,6 +139,7 @@ DETERMINISTIC_OPERATOR_REASON_CODES = frozenset({
     "plan_validation_failed",
     "plan_path_not_found",
     "plan_path_not_authorized",
+    "plan_path_unsafe",
     "plan_find_not_found",
     "plan_find_not_unique",
     "devcli_capabilities_unavailable",
@@ -1456,6 +1458,8 @@ def _validate_minimal_host_plan_paths(
     ``schema``) is not checked here, since it already went through a real
     compile step upstream.
     """
+    if reason := plan_paths.plan_refusal(plan, repo_path):  # every plan, schema or not: .git and symlinks
+        return {"reason_code": "plan_path_unsafe", "message": reason}
     if plan.get("schema"):
         return None
     operations = _minimal_plan_operations(plan)
@@ -1594,6 +1598,8 @@ def _compile_minimal_host_plan(repo_path: Path, plan_path: Path) -> tuple[Dict[s
     set (and ``compiled_plan`` is ``None``) on failure.
     """
     plan = _load_json(plan_path)
+    if reason := plan_paths.plan_refusal(plan, repo_path):
+        return None, "plan_path_unsafe", reason
     operations = _minimal_plan_operations(plan)
     already_compiled = bool(operations) and all("op" in op for op in operations)
     # A schema on a find/replace plan used to skip compile and the apply then
@@ -1613,8 +1619,10 @@ def _compile_minimal_host_plan(repo_path: Path, plan_path: Path) -> tuple[Dict[s
         reason_code, message = _classify_plan_compile_failure(plan, raw_stdout, detail)
         return None, reason_code, message
     compiled = _load_json(compiled_path)
-    _write_json(plan_path, compiled)
     compiled_path.unlink()
+    if reason := plan_paths.plan_refusal(compiled, repo_path):  # the plan that gets applied, whichever dev-cli compiled it
+        return None, "plan_path_unsafe", reason
+    _write_json(plan_path, compiled)
     return compiled, "", ""
 
 

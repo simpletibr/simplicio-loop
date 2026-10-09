@@ -223,7 +223,7 @@ def test_enforcement_default_off_observes_only_and_kills_nothing(tmp_path) -> No
 
 @pytest.mark.skipif(sys.platform == "darwin", reason="process signaling semantics are Linux-specific")
 def test_enforcement_opt_in_terminates_a_flagged_process(tmp_path) -> None:
-    canary = _spawn_marker_canary(sleep_seconds=10.0)
+    canary = _spawn_marker_canary(sleep_seconds=120.0)
     try:
         registry = ProcessRegistry(tmp_path / "registry.json")
         # Scope strictly to the canary this test owns -- never act on the unfiltered host-wide
@@ -622,7 +622,7 @@ def test_cli_status_top_queue_cancel_drain_reports(tmp_path) -> None:
     # Register a real disposable process directly (simulating a supervised lease) so top/queue
     # /cancel have something real to operate on.
     canary = subprocess.Popen(
-        [sys.executable, "-c", "import time; time.sleep(10)"],
+        [sys.executable, "-c", "import time; time.sleep(120)"],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
     )
     try:

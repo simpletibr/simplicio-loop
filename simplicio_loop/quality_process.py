@@ -635,7 +635,8 @@ def _clip_command(cmd: str, limit: int = LEAK_COMMAND_LIMIT) -> str:
 
 
 def _describe_leaked(pids: Set[int]) -> str:
-    """One ``descendant_leak pid=<pid> cmd=<argv>`` line per leaked process."""
+    """One ``descendant_leak pid=<pid> cmd=<argv>`` line per leaked process, its secrets masked (first, then clipped)."""
+    from .dashboard.runs import redact_command
     lines = []
     for pid in sorted(pids):
         try:
@@ -643,7 +644,7 @@ def _describe_leaked(pids: Set[int]) -> str:
                 cmd = handle.read().replace(b"\0", b" ").decode("utf-8", "replace").strip()
         except OSError:
             cmd = "?"
-        lines.append("descendant_leak pid=%d cmd=%s\n" % (pid, _clip_command(cmd)))
+        lines.append("descendant_leak pid=%d cmd=%s\n" % (pid, _clip_command(redact_command(cmd))))
     return "".join(lines)
 
 

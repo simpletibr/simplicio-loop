@@ -28,25 +28,37 @@ _BEARER_RE = re.compile(r'(?i)Bearer +[A-Za-z0-9._~+/=-]{1,512}')
 _PRIVATE_KEY_RE = re.compile(r'(?s)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?(?:-----END [A-Z0-9 ]*PRIVATE KEY-----|\Z)')
 _OPENAI_STYLE_RE = re.compile(r'\bsk-[A-Za-z0-9_-]{16,}')
 _GITHUB_PAT_RE = re.compile(r'\bgithub_pat_[A-Za-z0-9_]{20,}')
-_PAIR_RE = re.compile(r'(?i)\b([A-Za-z0-9_-]{0,64}(?:passw(?:or)?d|passwd|pwd|secret|token|api[_-]?key|access[_-]?key)'
-                      r'[A-Za-z0-9_-]{0,64})(["\']?\s*[:=]\s*["\']?)([^\s"\',;&]{4,})')
+# keyword, up to 64 more key characters, separator, value. The text before the keyword stays outside the match (the old
+# 64-character prefix was retried at every word start) and the suffix is possessive: nothing in it can be given back.
+_PAIR_RE = re.compile(
+    r'(?i)((?:passw(?:or)?d|passwd|pwd|secret|token|api[_-]?key|access[_-]?key)'
+    r'[A-Za-z0-9_-]{0,64}+)(["\']?\s*[:=]\s*["\']?)([^\s"\',;&]{4,})')
 _EMAIL_RE = re.compile(r'[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:[.][A-Za-z0-9-]{1,63}){1,8}')
 COMMAND_SCAN_MAX = 4096
 _Q = r'(?:"[^"]*"|\'[^\']*\'|\S+)'
 _URL_USERINFO_RE = re.compile(r'(?i)\b([a-z][a-z0-9+.-]{0,15}://)[^\s/?#@]*@')
 _HEADER_RE = re.compile(r'(?i)\b((?:proxy-)?authorization|(?:set-)?cookie)(\s{0,8}[:=]\s{0,8})[^\'"\n]+')
 _SECRET_FLAG_RE = re.compile(
-    r'(?i)(--?(?:pass(?:word|wd|phrase)?|pwd|token|secret|api[-_]?key|access[-_]?key|auth(?:orization)?|pat)\s+)' + _Q)
+    r'(?i)(--?(?:pass(?:word|wd|phrase)?|pwd|token(?:[-_]code)?|secret|api[-_]?key|access[-_]?key|auth(?:orization)?|pat)\s+)'
+    r'(?!--)' + _Q)  # a value never starts a flag: the "-token" of `print-identity-token --access-token X` swallowed it
 _USER_ARG_RE = re.compile(  # user:pass of curl; a numeric uid:gid (docker -u 1000:1000) is not one
     r'(?<![\w-])(-u\s+|--(?:proxy-)?user[\s=]+)(?!\d+:\d*(?:\s|\Z))'
     r'(?:"[^"\s:]+:[^"]*"|\'[^\'\s:]+:[^\']*\'|[^\s:\'"]+:\S+)')
 _COOKIE_ARG_RE = re.compile(r'(?<![\w-])(-b\s+|--cookie[\s=]+)(?:"[^"]*=[^"]*"|\'[^\']*=[^\']*\'|\S*=\S*)')
 _SHORT_PASS_RE = re.compile(  # -p is a password only for these programs (it is a port, a path or a plugin for most others)
-    r'((?i:\b(?:mysql\w*|sshpass|twine|mongo\w*|(?:docker|podman)\s+login)\b)[^;&|\n]{0,200}?\s-p\s*)(?:"[^"]*"|\'[^\']*\'|[^\s-]\S*)')
+    r'((?i:\b(?:mysql\w*|sshpass|twine|mongo\w*|(?:docker|podman|az)\s+login)\b)[^;&|\n]{0,200}?\s-p\s*)(?:"[^"]*"|\'[^\']*\'|[^\s-]\S*)')
+_PROGRAM_PASS_RE = re.compile(  # the password flag of programs where it is not -p: redis-cli -a, sqlcmd -P
+    r'((?i:\bredis-cli\b)[^;&|\n]{0,200}?\s-a\s*|(?i:\bsqlcmd\b)[^;&|\n]{0,200}?\s-P\s*)(?:"[^"]*"|\'[^\']*\'|[^\s-]\S*)')
+_SMB_USER_RE = re.compile(  # smbclient -U user%password
+    r'((?i:\b(?:smbclient|rpcclient)\b)[^;&|\n]{0,200}?\s(?:-U\s*|--user[=\s]\s*)[^\s%]{1,64}%)\S+')
+# vault login TOKEN: the token is the argument without an =, the method arguments (username=me) hold one
+_VAULT_LOGIN_RE = re.compile(r'(\bvault\s+login\s+(?:-\S+\s+){0,8})[^\s=-][^\s=]*(?=\s|\Z)')
+# header.payload.signature, whatever the signature's length (the long-token rule needs 32 characters)
+_JWT_RE = re.compile(r'(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{4,4096}+\.[A-Za-z0-9_-]{4,4096}+\.[A-Za-z0-9_-]{0,4096}+')
 _LONG_TOKEN_RE = re.compile(  # a base64/random blob: 32+ characters mixing upper case, lower case and digits
     r'(?<![A-Za-z0-9+/_-])(?=[A-Za-z0-9+/_-]*[A-Z])(?=[A-Za-z0-9+/_-]*[a-z])(?=[A-Za-z0-9+/_-]*\d)[A-Za-z0-9+/_-]{32,}')
 _TOKEN_PREFIX_RE = re.compile(  # tokens with a well-known prefix, whatever their length or alphabet
-    r'\b(?:xox[abeprs]-|npm_|glpat-|pypi-|hf_|sk_(?:live|test)_|rk_live_|AIza|ya29[.])[A-Za-z0-9_.-]{10,}')
+    r'\b(?:xox[abeprs]-|npm_|glpat-|pypi-|hf_|sk_(?:live|test)_|rk_live_|AIza|ya29[.]|hv[sbr][.])[A-Za-z0-9_.-]{10,}')
 _CUT_WORD_RE = re.compile(r'\s\S*\Z')
 _SENSITIVE_KEY_RE = re.compile(r'(?i)secret|passw|api[_-]?key|authoriz|cookie|credential|private[_-]?key|token')
 
@@ -336,8 +348,9 @@ def redact_command(text: str, limit: int = COMMAND_SCAN_MAX) -> str:
     cut = len(text) > limit
     masked = _URL_USERINFO_RE.sub(r'\1[REDACTED]@', text[:limit])
     masked = _HEADER_RE.sub(r'\1\2[REDACTED]', masked)
-    for rx in (_SECRET_FLAG_RE, _USER_ARG_RE, _COOKIE_ARG_RE, _SHORT_PASS_RE):
+    for rx in (_SECRET_FLAG_RE, _USER_ARG_RE, _COOKIE_ARG_RE, _SHORT_PASS_RE, _PROGRAM_PASS_RE, _SMB_USER_RE, _VAULT_LOGIN_RE):
         masked = rx.sub(r'\1[REDACTED]', masked)
+    masked = _JWT_RE.sub('[REDACTED]', masked)  # before the long-token rule masks its middle and leaves the rest
     masked = _LONG_TOKEN_RE.sub('[REDACTED]', _TOKEN_PREFIX_RE.sub('[REDACTED]', redact_text(masked)))
     if cut:
         tail = _CUT_WORD_RE.search(masked)
