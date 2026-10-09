@@ -59,3 +59,20 @@ def test_c2_runtime_with_repo_space_parameter_is_refused(tmp_path, runtime_never
     
     assert len(runtime_never_targets_the_real_repo) == 1
     runtime_never_targets_the_real_repo.clear()
+
+
+def test_c2b_the_equals_form_of_repo_is_refused_even_when_the_cwd_is_elsewhere(
+    tmp_path, runtime_never_targets_the_real_repo
+):
+    """`--repo=<checkout>` from a temp cwd: only the `--repo=` branch of `target_of` can see the target.
+
+    Mutant: delete the `if item.startswith("--repo=")` branch in tests/conftest.py (the space-separated
+    form test above passes without it because its cwd is already inside the checkout).
+    """
+    runtime = _fake_runtime(tmp_path / "bin")
+    workdir = tmp_path / "elsewhere"
+    workdir.mkdir()
+    with pytest.raises(AssertionError, match="real repository"):
+        subprocess.run([str(runtime), "map", f"--repo={ROOT}"], cwd=str(workdir), check=False)
+    assert len(runtime_never_targets_the_real_repo) == 1
+    runtime_never_targets_the_real_repo.clear()
