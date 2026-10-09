@@ -48,7 +48,8 @@ def test_plan_blocks_on_cycle_and_bad_input(capsys):
 def _fake_gh(commit_date, approval_date):
     payload = {
         "commits": [{"oid": "a", "messageHeadline": "feat: x", "messageBody": "", "committedDate": commit_date}],
-        "comments": [{"id": "c1", "body": "APROVADO PELO SQUAD", "createdAt": approval_date}],
+        "comments": [{"id": "c1", "body": "APROVADO PELO SQUAD", "createdAt": approval_date,
+                      "author": {"login": "coord"}, "authorAssociation": "MEMBER"}],
     }
     calls = []
 
@@ -62,13 +63,13 @@ def _fake_gh(commit_date, approval_date):
 def test_gate_approved_and_not_approved_exit_codes(capsys, monkeypatch):
     run, calls = _fake_gh("2026-10-09T01:00:00Z", "2026-10-09T02:00:00Z")
     monkeypatch.setattr(squads.subprocess, "run", run)
-    code, out = _run(capsys, "squads", "gate", "--pr", "7", "--repo", "o/r", "--json")
+    code, out = _run(capsys, "squads", "gate", "--pr", "7", "--repo", "o/r", "--approver", "coord", "--json")
     assert code == 0 and out["approved"] is True
     assert calls[0][:6] == ["gh", "pr", "view", "7", "--repo", "o/r"]
 
     run, _ = _fake_gh("2026-10-09T03:00:00Z", "2026-10-09T02:00:00Z")
     monkeypatch.setattr(squads.subprocess, "run", run)
-    code, out = _run(capsys, "squads", "gate", "--pr", "7", "--repo", "o/r", "--json")
+    code, out = _run(capsys, "squads", "gate", "--pr", "7", "--repo", "o/r", "--approver", "coord", "--json")
     assert code == 1 and out["approved"] is False
 
 
@@ -78,3 +79,26 @@ def test_gate_gh_failure_is_blocked(capsys, monkeypatch):
     )
     code, out = _run(capsys, "squads", "gate", "--pr", "7", "--json")
     assert code == 2 and out["status"] == "BLOCKED" and "no such pr" in out["reason"]
+
+
+def test_gate_fails_closed_without_an_approver_option(capsys, monkeypatch):
+    run, _ = _fake_gh("2026-10-09T01:00:00Z", "2026-10-09T02:00:00Z")
+    monkeypatch.setattr(squads.subprocess, "run", run)
+    code, out = _run(capsys, "squads", "gate", "--pr", "7", "--repo", "o/r", "--json")
+    assert code == 1 and out["approved"] is False and out["reason"] == "unauthorized_approval"
+
+
+def test_gate_rejects_an_approver_that_did_not_write_the_comment(capsys, monkeypatch):
+    run, _ = _fake_gh("2026-10-09T01:00:00Z", "2026-10-09T02:00:00Z")
+    monkeypatch.setattr(squads.subprocess, "run", run)
+    code, out = _run(capsys, "squads", "gate", "--pr", "7", "--approver", "someone-else", "--json")
+    assert code == 1 and out["approved"] is False
+
+
+def test_gate_trusted_association_option(capsys, monkeypatch):
+    run, _ = _fake_gh("2026-10-09T01:00:00Z", "2026-10-09T02:00:00Z")
+    monkeypatch.setattr(squads.subprocess, "run", run)
+    code, out = _run(capsys, "squads", "gate", "--pr", "7", "--trusted-association", "MEMBER", "--json")
+    assert code == 0 and out["approved"] is True
+    code, out = _run(capsys, "squads", "gate", "--pr", "7", "--trusted-association", "COLLABORATOR", "--json")
+    assert code == 1

@@ -5,8 +5,9 @@ roles come from `model_roles.resolve` (planning / coordination / execution); the
 
   * `plan_squads()`   groups issues into squads, assigns file ownership and a topological merge order, and emits
                       one interface contract (`squad_contracts.contracts_for`) per dependency edge between squads.
-  * `squad_gate()`    approves a merge only when an `APROVADO PELO SQUAD` comment is newer than the latest commit
-                      that is not a clean merge of the base branch. Pure over `gh pr view --json commits,comments`.
+  * `squad_gate()`    approves a merge only when an `APROVADO PELO SQUAD` comment by an authorized approver (#1534) is
+                      newer than the latest commit that is not a clean merge of the base branch. Pure over
+                      `gh pr view --json commits,comments`.
   * `squad_gate_for_pr()` async wrapper that fetches that JSON through `gh`.
 
 The host spawns the agents (see the "Squads" section of the skill); only the general coordinator merges.
@@ -24,7 +25,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from . import model_roles
 from .escalation import ESCALATION_LADDER
@@ -58,6 +59,8 @@ _LABEL_PREFIXES = ("area:", "squad:", "area/", "squad/")
 # Merge branch 'main' | Merge remote-tracking branch 'origin/main' | Merge branch 'origin/main' | Merge origin/main into | Merge main into
 _CLEAN_BASE_MERGE = re.compile(r"^Merge (?:(?:remote-tracking )?branch '(?:origin/)?main'|(?:origin/)?main(?=\s|$))")
 _CONFLICTS = re.compile(r"^#?\s*Conflicts:", re.MULTILINE)
+# GitHub `authorAssociation` values a caller may trust to approve; anything else (CONTRIBUTOR, NONE, ...) never does.
+TRUSTABLE_ASSOCIATIONS = ("OWNER", "MEMBER", "COLLABORATOR")
 _APPROVAL_LINE = re.compile(r"^[ \t*_#]*" + re.escape(APPROVAL_PHRASE) + r"\b", re.MULTILINE)
 
 
@@ -347,33 +350,74 @@ def _verdict(approved: bool, reason: str, **extra: Any) -> Dict[str, Any]:
     return out
 
 
-def squad_gate(pr_view_json: Any) -> Dict[str, Any]:
-    """Approve a merge only when a squad approval is newer than the latest commit that is not a clean base merge.
+def _each(values: Any) -> Tuple[Any, ...]:
+    """A str is ONE value (never its characters: `"wesley"` must not authorize logins `w`, `e`, ...); None is none."""
+    if values is None:
+        return ()
+    return (values,) if isinstance(values, (str, bytes)) else tuple(values)
+
+
+def _fold(text: str) -> str:
+    """Lower-case ASCII only: GitHub logins are ASCII, so unicode folds (Kelvin sign -> k) must not collide."""
+    return "".join(chr(ord(ch) + 32) if "A" <= ch <= "Z" else ch for ch in text)
+
+
+def _logins(values: Any) -> frozenset:
+    """Folded, non-empty str logins (GitHub logins are case-insensitive). None, empty or non-str entries give nothing."""
+    return frozenset(_fold(v.strip()) for v in _each(values) if isinstance(v, str) and v.strip())
+
+
+def _authorized(comment: Mapping[str, Any], approvers: frozenset, associations: frozenset) -> bool:
+    author = comment.get("author")
+    login = author.get("login") if isinstance(author, Mapping) else None
+    if not isinstance(login, str) or not login:
+        return False
+    return _fold(login) in approvers or comment.get("authorAssociation") in associations
+
+
+def squad_gate(
+    pr_view_json: Any,
+    approvers: Optional[Iterable[str]] = None,
+    trusted_associations: Iterable[str] = (),
+) -> Dict[str, Any]:
+    """Approve a merge only when an authorized approval is newer than the latest commit that is not a clean base merge.
 
     `pr_view_json` is the dict (or JSON text) of `gh pr view --json commits,comments`. A merge commit whose headline
     is "Merge remote-tracking branch 'origin/main'..." or "Merge branch 'main'..." and whose body lists no
     conflicts does not invalidate the approval; the same holds for "Merge origin/main into ..." and "Merge main
     into ...". Anything unparseable fails closed.
 
-    Limits: `gh pr view --json commits` does not expose commit parents, so a merge is recognised by its title only.
-    The gate also cannot verify who wrote the approval, because all agents share one gh account; it checks the
-    phrase and the timestamps, not the reviewer's identity.
+    Who wrote the approval (#1534): a comment counts only when its `author.login` is in `approvers` (compared
+    case-insensitively) or its `authorAssociation` is in `trusted_associations` (a subset of OWNER, MEMBER,
+    COLLABORATOR; anything else raises ValueError). The default is FAIL CLOSED: with `approvers=None` (or empty) and
+    no trusted association, every approval is rejected with reason `unauthorized_approval`. The watcher passes its
+    own gh login; the CLI takes `--approver` and `--trusted-association`. An unauthorized comment is ignored, so it
+    can neither approve nor shadow a real approval.
+
+    Limit: `gh pr view --json commits` does not expose commit parents, so a merge is recognised by its title only.
     """
     data = json.loads(pr_view_json) if isinstance(pr_view_json, (str, bytes)) else pr_view_json
     if not isinstance(data, Mapping):
         raise SquadGateError("pr data must be a JSON object")
+    associations = frozenset(a.strip().upper() for a in _each(trusted_associations) if isinstance(a, str) and a.strip())
+    unknown = associations - set(TRUSTABLE_ASSOCIATIONS)
+    if unknown:
+        raise ValueError("trusted association must be one of %s, got %s" % (", ".join(TRUSTABLE_ASSOCIATIONS), ", ".join(sorted(unknown))))
+    allowed = _logins(approvers)
     commits = list(data.get("commits") or [])
     comments = list(data.get("comments") or [])
     if not commits:
         return _verdict(False, "no_commits")
 
-    approvals = []
+    approvals, seen = [], 0
     for comment in comments:
         when = _parse_time(comment.get("createdAt"))
         if when is not None and _APPROVAL_LINE.search(str(comment.get("body") or "")):
-            approvals.append((when, comment))
+            seen += 1
+            if _authorized(comment, allowed, associations):
+                approvals.append((when, comment))
     if not approvals:
-        return _verdict(False, "no_approval")
+        return _verdict(False, "unauthorized_approval" if seen else "no_approval")
     approved_at, approval = max(approvals, key=lambda pair: pair[0])
     common = {"approval_comment_id": approval.get("id"), "approval_at": approval.get("createdAt")}
 
@@ -395,9 +439,12 @@ def squad_gate(pr_view_json: Any) -> Dict[str, Any]:
 
 
 async def squad_gate_for_pr(
-    repo: Optional[str], pr: int, *, runner: Optional[Callable[..., Any]] = None, timeout: int = 30
+    repo: Optional[str], pr: int, *, approvers: Optional[Iterable[str]] = None,
+    trusted_associations: Iterable[str] = (), runner: Optional[Callable[..., Any]] = None, timeout: int = 30,
 ) -> Dict[str, Any]:
-    """Fetch `gh pr view --json commits,comments` and run `squad_gate` on it. `repo` is owner/name (None = current)."""
+    """Fetch `gh pr view --json commits,comments` and run `squad_gate` on it. `repo` is owner/name (None = current).
+
+    `approvers` and `trusted_associations` are those of `squad_gate`: without them every approval is rejected."""
     argv = ["gh", "pr", "view", str(pr)]
     if repo:
         argv += ["--repo", repo]
@@ -409,7 +456,7 @@ async def squad_gate_for_pr(
     if completed.returncode != 0:
         raise SquadGateError("gh pr view failed: %s" % ((completed.stderr or completed.stdout or "").strip() or "unknown error"))
     try:
-        return squad_gate(completed.stdout)
+        return squad_gate(completed.stdout, approvers, trusted_associations)
     except ValueError as exc:
         raise SquadGateError("gh pr view returned invalid JSON: %s" % exc)
 
@@ -438,9 +485,16 @@ def configure_commands(subparsers: argparse._SubParsersAction) -> None:
     plan.add_argument("--max-workers", type=int, default=DEFAULT_MAX_WORKERS)
     plan.add_argument("--ownership", default="", help='JSON {"owner": ["path/glob", ...]}')
     plan.add_argument("--json", action="store_true", help="machine-readable output (always JSON)")
-    gate = subparsers.add_parser("gate", help="check the squad approval is newer than the last real commit of a PR")
+    gate = subparsers.add_parser(
+        "gate", help="check an authorized squad approval is newer than the last real commit of a PR (fails closed)")
     gate.add_argument("--pr", type=int, required=True)
     gate.add_argument("--repo", default="", help="owner/name (default: current repository)")
+    gate.add_argument("--approver", action="append", default=[], metavar="LOGIN",
+                      help="gh login allowed to approve (repeatable; e.g. $(gh api user --jq .login)); with no --approver "
+                           "and no --trusted-association every approval is rejected")
+    gate.add_argument("--trusted-association", action="append", default=[], choices=TRUSTABLE_ASSOCIATIONS,
+                      metavar="ASSOC", help="also accept comments whose authorAssociation is this (repeatable): "
+                                            + ", ".join(TRUSTABLE_ASSOCIATIONS))
     gate.add_argument("--json", action="store_true", help="machine-readable output (always JSON)")
 
 
@@ -452,7 +506,8 @@ def dispatch(args: argparse.Namespace) -> int:
             plan = plan_squads(_load_issues(args.issues), ownership, args.family, args.max_workers)
             _emit(plan.to_dict())
             return 0
-        result = asyncio.run(squad_gate_for_pr(args.repo or None, args.pr))
+        result = asyncio.run(squad_gate_for_pr(
+            args.repo or None, args.pr, approvers=args.approver, trusted_associations=args.trusted_association))
         _emit(result)
         return 0 if result["approved"] else 1
     except (SquadPlanError, SquadGateError, model_roles.ModelRoleError, ValueError, OSError) as exc:

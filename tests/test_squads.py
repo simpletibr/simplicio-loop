@@ -266,8 +266,16 @@ def _commit(oid, headline, date, body=""):
     return {"oid": oid, "messageHeadline": headline, "messageBody": body, "committedDate": date}
 
 
-def _comment(body, date, cid="c1"):
-    return {"id": cid, "body": body, "createdAt": date, "author": {"login": "coord"}}
+def _comment(body, date, cid="c1", login="coord", association=None):
+    comment = {"id": cid, "body": body, "createdAt": date, "author": {"login": login}}
+    if association is not None:
+        comment["authorAssociation"] = association
+    return comment
+
+
+def _gate(pr, approvers=("coord",), **kwargs):
+    """squad_gate with the squad coordinator's login authorized (the gate fails closed without an approver set)."""
+    return squads.squad_gate(pr, approvers=approvers, **kwargs)
 
 
 def test_approval_newer_than_last_commit_passes():
@@ -275,7 +283,7 @@ def test_approval_newer_than_last_commit_passes():
         "commits": [_commit("a", "feat: x", "2026-10-09T01:00:00Z")],
         "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
     }
-    result = squads.squad_gate(pr)
+    result = _gate(pr)
     assert result["approved"] is True
     assert result["approval_comment_id"] == "c1"
     assert result["last_commit_oid"] == "a"
@@ -289,7 +297,7 @@ def test_commit_after_approval_invalidates_it():
         ],
         "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
     }
-    result = squads.squad_gate(pr)
+    result = _gate(pr)
     assert result["approved"] is False
     assert result["reason"] == "approval_older_than_commit"
 
@@ -310,7 +318,7 @@ def test_clean_merge_of_main_does_not_invalidate(headline):
         ],
         "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
     }
-    result = squads.squad_gate(pr)
+    result = _gate(pr)
     assert result["approved"] is True
     assert result["last_commit_oid"] == "a"
 
@@ -324,7 +332,7 @@ def test_merge_with_conflict_resolution_counts_as_a_change():
         ],
         "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
     }
-    assert squads.squad_gate(pr)["approved"] is False
+    assert _gate(pr)["approved"] is False
 
 
 @pytest.mark.parametrize("headline", [
@@ -344,7 +352,7 @@ def test_every_clean_merge_form_with_conflicts_still_invalidates(headline):
 
 
 def squad_gate_approved(pr):
-    return squads.squad_gate(pr)["approved"]
+    return _gate(pr)["approved"]
 
 
 @pytest.mark.parametrize("headline", [
@@ -371,7 +379,7 @@ def test_merge_of_another_branch_counts_as_a_change():
         ],
         "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
     }
-    assert squads.squad_gate(pr)["approved"] is False
+    assert _gate(pr)["approved"] is False
 
 
 def test_no_approval_comment():
@@ -380,17 +388,17 @@ def test_no_approval_comment():
         "comments": [_comment("LGTM", "2026-10-09T01:05:00Z"),
                      _comment("> APROVADO PELO SQUAD (citado)", "2026-10-09T01:06:00Z")],
     }
-    result = squads.squad_gate(pr)
+    result = _gate(pr)
     assert result["approved"] is False and result["reason"] == "no_approval"
 
 
 def test_no_commits_and_bad_timestamps_fail_closed():
-    assert squads.squad_gate({"commits": [], "comments": []})["reason"] == "no_commits"
+    assert _gate({"commits": [], "comments": []})["reason"] == "no_commits"
     pr = {
         "commits": [_commit("a", "feat: x", "garbage")],
         "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
     }
-    result = squads.squad_gate(pr)
+    result = _gate(pr)
     assert result["approved"] is False and result["reason"] == "unparseable_timestamp"
 
 
@@ -399,7 +407,7 @@ def test_gate_accepts_json_text():
         "commits": [_commit("a", "feat: x", "2026-10-09T01:00:00Z")],
         "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
     }
-    assert squads.squad_gate(json.dumps(pr))["approved"] is True
+    assert _gate(json.dumps(pr))["approved"] is True
 
 
 def test_only_the_newest_valid_approval_matters():
@@ -408,7 +416,7 @@ def test_only_the_newest_valid_approval_matters():
         "comments": [_comment(APPROVAL, "2026-10-09T00:30:00Z", "old"),
                      _comment(APPROVAL, "2026-10-09T01:30:00Z", "new")],
     }
-    assert squads.squad_gate(pr)["approval_comment_id"] == "new"
+    assert _gate(pr)["approval_comment_id"] == "new"
 
 
 # ---------------------------------------------------------------- async wrapper (fake gh)
@@ -429,7 +437,7 @@ def test_async_wrapper_fetches_through_gh():
         "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z")],
     }
     fake = _FakeGh(pr)
-    result = asyncio.run(squads.squad_gate_for_pr("o/r", 12, runner=fake))
+    result = asyncio.run(squads.squad_gate_for_pr("o/r", 12, runner=fake, approvers=["coord"]))
     assert result["approved"] is True
     assert fake.calls[0] == ["gh", "pr", "view", "12", "--repo", "o/r", "--json", "commits,comments"]
 
@@ -437,3 +445,128 @@ def test_async_wrapper_fetches_through_gh():
 def test_async_wrapper_raises_on_gh_failure():
     with pytest.raises(squads.SquadGateError):
         asyncio.run(squads.squad_gate_for_pr("o/r", 12, runner=_FakeGh({}, returncode=1)))
+
+
+# ---------------------------------------------------------------- who wrote the approval (#1534)
+
+
+def _pr(*comments, commit_at="2026-10-09T01:00:00Z"):
+    return {"commits": [_commit("a", "feat: x", commit_at)], "comments": list(comments)}
+
+
+def test_approval_from_an_unauthorized_author_is_rejected():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="outsider"))
+    result = _gate(pr)
+    assert result["approved"] is False and result["reason"] == "unauthorized_approval"
+
+
+def test_approval_from_an_authorized_author_is_accepted():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="coord"))
+    assert _gate(pr)["approved"] is True
+
+
+def test_authorized_login_matches_case_insensitively():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="Coord"))
+    assert _gate(pr, approvers=["COORD"])["approved"] is True
+
+
+@pytest.mark.parametrize("association", ["OWNER", "MEMBER", "COLLABORATOR"])
+def test_trusted_association_authorizes_the_author(association):
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="maintainer", association=association))
+    assert _gate(pr, approvers=(), trusted_associations=("OWNER", "MEMBER", "COLLABORATOR"))["approved"] is True
+
+
+@pytest.mark.parametrize("association", ["NONE", "CONTRIBUTOR", "FIRST_TIME_CONTRIBUTOR", "", None])
+def test_untrusted_association_is_rejected(association):
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="outsider", association=association))
+    assert _gate(pr, approvers=(), trusted_associations=("OWNER", "MEMBER", "COLLABORATOR"))["approved"] is False
+
+
+def test_association_does_not_count_unless_the_caller_trusts_it():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="maintainer", association="OWNER"))
+    assert _gate(pr, approvers=())["approved"] is False
+
+
+@pytest.mark.parametrize("approvers", [None, (), [], set(), ("",)])
+def test_no_approver_set_fails_closed(approvers):
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="coord"))
+    result = squads.squad_gate(pr, approvers=approvers)
+    assert result["approved"] is False and result["reason"] == "unauthorized_approval"
+
+
+def test_gate_without_an_approvers_argument_fails_closed():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="coord"))
+    assert squads.squad_gate(pr)["approved"] is False
+
+
+def test_authorized_approval_older_than_the_last_commit_is_still_rejected():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T00:30:00Z", login="coord"))
+    result = _gate(pr)
+    assert result["approved"] is False and result["reason"] == "approval_older_than_commit"
+
+
+def test_a_newer_forged_approval_does_not_hide_the_authorized_one():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", "real", login="coord"),
+             _comment(APPROVAL, "2026-10-09T01:30:00Z", "forged", login="outsider"))
+    result = _gate(pr)
+    assert result["approved"] is True and result["approval_comment_id"] == "real"
+
+
+def test_a_forged_approval_does_not_revive_an_authorized_one_made_stale_by_a_commit():
+    pr = {"commits": [_commit("a", "feat: x", "2026-10-09T01:00:00Z"), _commit("b", "fix: y", "2026-10-09T01:20:00Z")],
+          "comments": [_comment(APPROVAL, "2026-10-09T01:05:00Z", "real", login="coord"),
+                       _comment(APPROVAL, "2026-10-09T01:30:00Z", "forged", login="outsider")]}
+    assert _gate(pr)["reason"] == "approval_older_than_commit"
+
+
+def test_marker_forged_inside_a_quoted_reply_by_another_user_is_rejected():
+    quoted = "> APROVADO PELO SQUAD\n\nconcordo"
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", "real", login="outsider"),
+             _comment(quoted, "2026-10-09T01:10:00Z", "quote", login="coord"))
+    result = _gate(pr)
+    assert result["approved"] is False and result["reason"] == "unauthorized_approval"
+
+
+def test_comment_without_an_author_is_never_authorized():
+    pr = _pr({"id": "x", "body": APPROVAL, "createdAt": "2026-10-09T01:05:00Z"},
+             {"id": "y", "body": APPROVAL, "createdAt": "2026-10-09T01:06:00Z", "author": None})
+    assert _gate(pr, approvers=["coord"], trusted_associations=("OWNER",))["approved"] is False
+
+
+def test_unknown_association_name_is_rejected_up_front():
+    with pytest.raises(ValueError):
+        _gate(_pr(), trusted_associations=("ADMIN",))
+
+
+@pytest.mark.parametrize("login", ["w", "e", "s", "wesley"])
+def test_approvers_given_as_a_plain_string_is_one_login_not_its_characters(login):
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login=login))
+    assert squads.squad_gate(pr, approvers="wesleysimplicio")["approved"] is False
+
+
+def test_approvers_given_as_a_plain_string_matches_that_whole_login():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="WesleySimplicio"))
+    assert squads.squad_gate(pr, approvers="wesleysimplicio")["approved"] is True
+
+
+@pytest.mark.parametrize("approvers", [[None], [123], [b"coord"], [("coord",)]])
+def test_non_string_approver_entries_never_authorize(approvers):
+    for login in ("none", "123", "coord"):
+        pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login=login))
+        assert squads.squad_gate(pr, approvers=approvers)["approved"] is False
+
+
+def test_unicode_case_folds_do_not_collide_with_ascii_logins():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="Kevin"))
+    assert squads.squad_gate(pr, approvers=["kevin"])["approved"] is False
+
+
+def test_association_must_be_the_exact_github_value():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="maintainer", association="member"))
+    assert _gate(pr, approvers=(), trusted_associations=("MEMBER",))["approved"] is False
+
+
+def test_trusted_association_as_a_plain_string_is_one_value_and_none_is_empty():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="maintainer", association="OWNER"))
+    assert _gate(pr, approvers=(), trusted_associations="OWNER")["approved"] is True
+    assert _gate(pr, approvers=(), trusted_associations=None)["approved"] is False

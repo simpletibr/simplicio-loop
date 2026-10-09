@@ -105,6 +105,9 @@ elif args[:2] == ["issue", "comment"]:
     comment_id = 1 + sum(1 for c in seen if c["argv"][:2] == ["issue", "comment"])
     record(number=number, repo=opt("--repo"), body=opt("--body"), comment_id=comment_id)
     print(f"https://github.com/{{opt('--repo')}}/issues/{{number}}#issuecomment-{{comment_id}}")
+elif args[:2] == ["api", "user"]:  # the account the watcher posts and merges as
+    record()
+    print(fx.get("login", "squad-bot"))
 elif args[0] == "api":
     path = next(a for a in args[1:] if a.startswith("repos/"))
     method = opt("-X") or "GET"
@@ -160,7 +163,8 @@ elif args[:2] == ["pr", "view"]:  # the squad review and the squad gate: the app
     print(json.dumps(dict(
         files=[dict(path="src/app.py")], headRefOid="head%d" % number,
         commits=[dict(oid="c%d" % number, committedDate="2026-10-01T00:00:00Z", messageHeadline="loop: change")],
-        comments=[dict(id=i, createdAt="2026-10-02T00:00:00Z", body=b) for i, b in enumerate(posted)])))
+        comments=[dict(id=i, createdAt="2026-10-02T00:00:00Z", body=b, author=dict(login=fx.get("approval_author") or fx.get("login", "squad-bot")),
+                       authorAssociation="OWNER") for i, b in enumerate(posted)])))
 elif args[:2] == ["pr", "merge"]:
     record(merge=int(args[2]), argv=args)
 else:

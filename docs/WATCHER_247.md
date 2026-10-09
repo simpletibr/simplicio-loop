@@ -76,9 +76,12 @@ O tick usa o mesmo padrao da skill `/simplicio-loop` (#1505). Nada disso muda a 
    coordenador de cada squad, cada worker) com `agent.role`, `agent.model` e `agent.effort`; o worker mostra o ultimo
    papel que realmente rodou (apos escalada). `consolidated.tasks_by_role` conta por papel.
 
-Limites de seguranca: `squad_gate` confere a frase e os horarios, nao o autor do comentario (um so usuario `gh`). Por isso
-so entram no merge os PRs que a revisao do proprio watcher aprovou no mesmo tick, e cada `gh pr merge` usa
-`--match-head-commit` com o head revisado e testado. Caminhos citados na issue entram so como padrao de posse (nunca sao
+Limites de seguranca: `squad_gate` so aceita `APROVADO PELO SQUAD` escrito por um autor autorizado (#1534): o `author.login` do
+comentario (de `gh pr view --json comments`) precisa ser o login `gh` do proprio watcher (`gh api user --jq .login`, uma
+chamada por tick e so quando o merge esta ligado). Sem login conhecido o gate nega tudo (fail closed), e o comentario de
+qualquer outra pessoa, mesmo com a frase exata, e ignorado e nao esconde a aprovacao real. Alem disso so entram no merge os
+PRs que a revisao do proprio watcher aprovou no mesmo tick, e cada `gh pr merge` usa `--match-head-commit` com o head
+revisado e testado. Caminhos citados na issue entram so como padrao de posse (nunca sao
 abertos) e `..`, absolutos e `~` sao descartados. Um ciclo de `depende de #N` entre issues nao para o tick: o plano sai sem a
 ordem declarada.
 
