@@ -6,9 +6,7 @@ Part of #1467: detect login state in preflight without storing/printing secrets.
 from __future__ import annotations
 
 import asyncio
-import os
 import shutil
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -129,51 +127,8 @@ async def _run_status_check(family: ExecFamily) -> bool:
 
 
 def check_sync(family: ExecFamily) -> AuthCheckResult:
-    """Synchronous wrapper for check() when asyncio event loop is not available.
+    """Synchronous wrapper: runs check() using asyncio.run().
 
-    Used primarily for testing and preflight that doesn't use async context.
+    Call this from sync context when an async loop is not running.
     """
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If loop is already running, create a task instead
-            # This is a fallback; normally call check() directly from async context
-            raise RuntimeError(
-                f"Use check() in async context; sync wrapper not available with running loop"
-            )
-        return loop.run_until_complete(check(family))
-    except RuntimeError:
-        # No event loop available
-        return _check_sync_impl(family)
-
-
-def _check_sync_impl(family: ExecFamily) -> AuthCheckResult:
-    """Pure synchronous implementation of check() (fallback)."""
-    # Check if binary exists
-    binary = shutil.which(family)
-    if not binary:
-        return AuthCheckResult(family, "cli_missing", f"{family}_not_in_path")
-
-    # Try status command
-    cmd = _STATUS_COMMANDS.get(family)
-    if cmd:
-        try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                timeout=5,
-                check=False,
-            )
-            if result.returncode == 0:
-                return AuthCheckResult(family, "ok")
-        except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-            pass  # Fall through to credential file check
-
-    # Fall back to checking credential files
-    home = Path.home()
-    for cred_path in _CREDENTIAL_PATHS.get(family, []):
-        cred_file = home / cred_path
-        if cred_file.exists():
-            return AuthCheckResult(family, "ok")
-
-    return AuthCheckResult(family, "login_missing", "no_credentials_found")
+    return asyncio.run(check(family))
