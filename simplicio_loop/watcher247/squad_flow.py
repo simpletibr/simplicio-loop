@@ -41,6 +41,7 @@ from .. import execution_report, merge_train, model_roles, pr_evidence, squad_ca
 from . import config, proc, sandbox, state, verify
 
 AUTO_MERGE_ENV = "SIMPLICIO_247_AUTO_MERGE"
+PR_DRAFT_ENV = "SIMPLICIO_247_PR_DRAFT"
 BASELINE_ENV = "SIMPLICIO_247_SQUADS_BASELINE"
 V2, BASELINE = "v2", "baseline"  # the two modes; the report and the status carry one of them
 APPROVAL_MARKER = "<!-- simplicio-loop:squad-approval:{oid} -->"  # one comment per head commit, so createdAt stays fresh
@@ -53,6 +54,11 @@ clock = time.monotonic  # the instants of the dependency wait (#1549); a test re
 def auto_merge_enabled(environ: dict[str, str] | None = None) -> bool:
     """Off unless the operator sets SIMPLICIO_247_AUTO_MERGE=1 (#1434): the watcher never merges on its own."""
     return (os.environ if environ is None else environ).get(AUTO_MERGE_ENV) == "1"
+
+
+def pr_draft_enabled(environ: dict[str, str] | None = None) -> bool:
+    """Off unless the operator sets SIMPLICIO_247_PR_DRAFT=1: the PR opens as draft for independent review."""
+    return (os.environ if environ is None else environ).get(PR_DRAFT_ENV) == "1"
 
 
 def baseline_enabled(environ: dict[str, str] | None = None) -> bool:
@@ -279,7 +285,9 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
             "squads": [{"id": s.id, "coordinator": s.coordinator.id, "workers": [w.id for w in s.workers],
                         "issues": list(s.issues)} for s in repo_plan.plan.squads],
             "approved": sorted(approved.values()), "rejected": rejected, "merge": "disabled", "mode": repo_plan.mode}
-        if approved and auto_merge_enabled():
+        if approved and auto_merge_enabled() and pr_draft_enabled():
+            entry["merge"] = "draft"  # a draft cannot merge: the operator runs `gh pr ready`, then merges
+        elif approved and auto_merge_enabled():
             entry["merge"] = "enabled"
             if login is None:
                 login = await own_login()
