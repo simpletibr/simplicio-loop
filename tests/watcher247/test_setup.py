@@ -452,7 +452,7 @@ def test_an_active_subscription_for_the_same_account_is_ok(svc, monkeypatch, cap
     write_login(svc, "User@Example.com")  # the compare ignores case
     active_subscription(monkeypatch)
     assert run_setup(monkeypatch) == 0
-    assert "ok" in capsys.readouterr().out
+    assert "Simplicio subscription: ok" in capsys.readouterr().out
 
 
 def test_a_login_of_another_account_is_reported_without_printing_either_address(svc, monkeypatch, capsys):
@@ -510,7 +510,8 @@ def test_check_is_wired_into_the_cli(svc, monkeypatch, capsys):
     write_login(svc)
     active_subscription(monkeypatch)
     assert cli_impl.main(["watch247", "setup", "--check", "--email", EMAIL, "--state-dir", str(svc.state)]) == 0
-    assert "ok" in capsys.readouterr().out
+    assert "Simplicio subscription: ok" in capsys.readouterr().out
+    assert not svc.env_file.exists() and svc.gh_calls() == []
 
 
 # --- the watcher without credentials ------------------------------------------------------------------------------
@@ -543,7 +544,7 @@ def test_github_token_in_the_environment_lets_the_tick_run(env, monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", TOKEN)
     fake = env(FakeRun({"simplicio-a": []}))
     asyncio.run(watcher_main(once=True))
-    assert fake.calls  # gh was asked for the repos
+    assert fake.ran("gh", "repo", "list")  # gh was asked for the repos
     assert read_json(config.STATUS)["phase"] != "setup_required"
 
 
