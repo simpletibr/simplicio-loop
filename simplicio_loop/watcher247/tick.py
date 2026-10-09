@@ -6,9 +6,25 @@ import json
 import re
 from pathlib import Path
 
-from . import config, github, proc, state, subscription
+from . import config, github, proc, state, subscription, verify
 
 _STATE_DIRS = (".simplicio-loop/", ".simplicio/")
+_EXCERPT_CAP = 1500
+
+
+class VerifyFailed(RuntimeError):
+    """turbo ran the repo's tests and they failed; excerpt is the tail of their output."""
+
+    def __init__(self, excerpt: str):
+        super().__init__(excerpt[-500:])
+        self.excerpt = excerpt[-_EXCERPT_CAP:]
+
+
+def verification_label(test_cmd: str | None) -> str:
+    """The line that states what the PR was checked with; never claims a test that did not run."""
+    if test_cmd is None:
+        return "UNVERIFIED|no_test_command"
+    return f"MEASURED|verify_passed: `{test_cmd}`"
 
 
 class Gate:
@@ -95,7 +111,7 @@ async def dirty(dest: Path) -> bool:
     return False
 
 
-async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: dict) -> str | None:
+async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: dict, label: str) -> str | None:
     """Commit the turbo result, push and open the PR. None when there is no diff."""
     if not await dirty(dest):
         return None
@@ -113,6 +129,7 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
         raise _fail(push, "push failed")
     body = (
         f"Processamento automatico do Simplicio-Loop 24h (turbo, provider openrouter) da issue #{issue['number']}.\n\n"
+        f"{label}\n\n"
         f"Closes #{issue['number']}\n"
     )
     pr = await proc.run([
@@ -128,24 +145,32 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
     return (pr.stdout or "").strip()
 
 
-async def _run_turbo(dest: Path, repo: str, issue: dict, claim: dict, ident: str) -> str:
-    """Run headless turbo; return its status, raise when it did not finish ok."""
-    result = await proc.run([
+async def _run_turbo(dest: Path, repo: str, issue: dict, claim: dict, ident: str, test_cmd: str | None) -> str:
+    """Run headless turbo with the repo's tests as --verify; return its status, raise unless verified ok."""
+    argv = [
         "simplicio-loop", "turbo",
         "--repo", str(dest),
         "--provider", "openrouter",
         "--task", task_text(repo, issue),
-    ], timeout=config.TURBO_TIMEOUT_S)
+    ]
+    if test_cmd is not None:
+        argv += ["--verify", test_cmd]
+    result = await proc.run(argv, timeout=config.TURBO_TIMEOUT_S)
     log_path = config.LOGS / f"{repo}-{issue['number']}-{claim['attempts']}.log"
     await asyncio.to_thread(log_path.parent.mkdir, parents=True, exist_ok=True)
     await asyncio.to_thread(
         log_path.write_text, (result.stdout or "") + "\n--- stderr ---\n" + (result.stderr or ""))
     document = parse_turbo(result.stdout or "")
     status = document.get("status") or ("ok" if result.returncode == 0 else "failed")
+    report = document.get("verify") if isinstance(document.get("verify"), dict) else None
     claim["turbo_status"] = status
     claim["exit_code"] = result.returncode
+    if test_cmd is not None and report is not None and not report.get("passed"):
+        raise VerifyFailed(report.get("output_tail") or "verify failed without output")
     if status != "ok":
         raise RuntimeError(document.get("detail") or document.get("reason_code") or status)
+    if test_cmd is not None and not (report and report.get("passed")):  # fail closed: no report, no PR
+        raise RuntimeError("verify did not report a pass")
     return status
 
 
@@ -164,17 +189,20 @@ async def process(repo: dict, issue: dict, claims: dict, gate: Gate) -> None:
         name, number,
         f"Simplicio-Loop 24h comecou o processamento na branch `loop/issue-{number}` "
         "(turbo, provider openrouter). A assinatura do Simplicio MCP esta ativa.")
+    test_cmd: str | None = None
     try:
         async with gate.repo_lock(name):  # one working tree per repo: clone to push is exclusive
             dest = await ensure_clone(name, repo["branch"])
             head = await reset_branch(dest, repo["branch"], number)
-            await _run_turbo(dest, name, issue, claim, ident)
-            url = await commit_and_pr(dest, name, repo["branch"], head, issue)
+            test_cmd = await verify.detect(dest)
+            await _run_turbo(dest, name, issue, claim, ident, test_cmd)
+            url = await commit_and_pr(dest, name, repo["branch"], head, issue, verification_label(test_cmd))
         claim["status"] = "done" if url else "done_no_diff"
         claim["pr"] = url
+        claim["verify"] = verification_label(test_cmd)
         claim["finished_at"] = state.iso(state.now())
         if url:
-            await github.comment(name, number, f"Processamento concluido. PR: {url}")
+            await github.comment(name, number, f"Processamento concluido. PR: {url}\n{verification_label(test_cmd)}")
         else:
             await github.comment(name, number, "O loop terminou sem diff para abrir PR.")
         state.log(f"done {ident} pr={url}")
@@ -184,6 +212,12 @@ async def process(repo: dict, issue: dict, claims: dict, gate: Gate) -> None:
         claim["next_try_at"] = state.iso(state.now() + config.RETRY_AFTER)
         claim["finished_at"] = state.iso(state.now())
         state.log(f"fail {ident} {claim['status']}: {claim['error']}")
+        if isinstance(exc, VerifyFailed):
+            outcome = "fila morta local" if claim["status"] == "dead" else "nova tentativa agendada"
+            await github.comment(
+                name, number,
+                f"Simplicio-Loop: `{test_cmd}` falhou; nenhum PR foi aberto ({outcome}).\n\n"
+                f"```\n{exc.excerpt}\n```")
         if claim["status"] == "dead":
             await github.comment(
                 name, number,

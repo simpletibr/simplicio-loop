@@ -20,11 +20,13 @@ PR_URL = "https://github.com/simpletibr/simplicio-a/pull/9"
 class FakeRun:
     """Answers gh, git and turbo by argv and records what ran concurrently."""
 
-    def __init__(self, issues, *, turbo_ok=True, diff=True, delay=0.0):
+    def __init__(self, issues, *, turbo_ok=True, diff=True, delay=0.0, files=None, verify=None):
         self.issues = issues  # repo name -> list of issue dicts
         self.turbo_ok = turbo_ok
         self.diff = diff
         self.delay = delay
+        self.files = files or {}  # written into the clone: what the target repo looks like
+        self.verify = verify  # turbo's "verify" report; None means turbo reports no verify at all
         self.calls = []
         self.comments = []
         self.turbo_active = 0
@@ -58,6 +60,8 @@ class FakeRun:
             return proc.Result(0)
         if head == ["gh", "repo", "clone"]:
             (Path(argv[4]) / ".git").mkdir(parents=True)
+            for name, text in self.files.items():
+                (Path(argv[4]) / name).write_text(text)
             return proc.Result(0)
         if head == ["gh", "pr", "create"]:
             return proc.Result(0, PR_URL + "\n")
@@ -68,9 +72,13 @@ class FakeRun:
             self.max_turbo = max(self.max_turbo, self.turbo_active)
             await asyncio.sleep(self.delay)
             self.turbo_active -= 1
-            if self.turbo_ok:
-                return proc.Result(0, json.dumps({"schema": "simplicio.turbo/v1", "status": "ok"}))
-            return proc.Result(1, json.dumps({"status": "failed", "detail": "boom"}))
+            doc = {"schema": "simplicio.turbo/v1", "status": "ok"} if self.turbo_ok else {"status": "failed", "detail": "boom"}
+            if self.verify is not None:
+                command = argv[argv.index("--verify") + 1] if "--verify" in argv else None
+                doc["verify"] = {"command": command, **self.verify}
+                if not self.verify["passed"]:
+                    doc["status"] = "failed"
+            return proc.Result(0 if doc["status"] == "ok" else 1, json.dumps(doc))
         if argv[0] == "git":
             return self._git(argv, repo)
         raise AssertionError(f"unexpected argv {argv}")
@@ -463,3 +471,53 @@ def test_subscription_refresh_stores_tokens_then_validates(login, monkeypatch):
     stored = read_json(login)
     assert stored["access_token"] == "new" and stored["refresh_token"] == "r2"
     assert oct(login.stat().st_mode & 0o777) == "0o600"
+
+
+PYTEST_CMD = "python3 -m pytest -q"
+PYPROJECT = {"pyproject.toml": "[project]\nname = 'a'\n"}
+
+
+def test_turbo_gets_verify_when_test_command_detected(env):
+    fake = env(FakeRun({"simplicio-a": [issue(8)]}, files=PYPROJECT, verify={"passed": True, "output_tail": "3 passed"}))
+    baseline()
+    run_tick()
+    argv = fake.turbo_argv[0]
+    assert argv[argv.index("--verify") + 1] == PYTEST_CMD
+    body = fake.ran("gh", "pr", "create")[0]
+    body = body[body.index("--body") + 1]
+    assert "MEASURED|verify_passed" in body and "UNVERIFIED" not in body
+    assert read_json(config.CLAIMS)["simplicio-a#8"]["status"] == "done"
+
+
+def test_verify_failure_opens_no_pr_and_schedules_retry_with_excerpt(env):
+    fake = env(FakeRun({"simplicio-a": [issue(9)]}, files=PYPROJECT,
+                       verify={"passed": False, "output_tail": "FAILED tests/test_x.py::test_y - AssertionError"}))
+    baseline()
+    run_tick()
+    assert fake.ran("gh", "pr", "create") == [] and fake.ran("git", "push") == []
+    claim = read_json(config.CLAIMS)["simplicio-a#9"]
+    assert claim["status"] == "retry" and claim["attempts"] == 1
+    assert "FAILED tests/test_x.py::test_y" in claim["error"]
+    assert claim["next_try_at"] == state.iso(FIXED + timedelta(hours=6))
+    assert any("FAILED tests/test_x.py::test_y" in body for _, number, body in fake.comments if number == 9)
+
+
+def test_verify_not_reported_fails_closed(env):
+    fake = env(FakeRun({"simplicio-a": [issue(12)]}, files=PYPROJECT, verify=None))
+    baseline()
+    run_tick()
+    assert fake.ran("gh", "pr", "create") == []
+    assert read_json(config.CLAIMS)["simplicio-a#12"]["status"] == "retry"
+
+
+def test_no_test_command_opens_pr_labelled_unverified(env):
+    fake = env(FakeRun({"simplicio-a": [issue(10)]}))
+    baseline()
+    run_tick()
+    argv = fake.turbo_argv[0]
+    assert "--verify" not in argv
+    body = fake.ran("gh", "pr", "create")[0]
+    body = body[body.index("--body") + 1]
+    assert "UNVERIFIED|no_test_command" in body and "MEASURED" not in body
+    assert any("UNVERIFIED|no_test_command" in text for _, number, text in fake.comments if number == 10)
+    assert read_json(config.CLAIMS)["simplicio-a#10"]["status"] == "done"
