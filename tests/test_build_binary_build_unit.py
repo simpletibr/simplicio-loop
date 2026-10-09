@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import stat
 import subprocess
 import sys
@@ -85,7 +86,11 @@ def harness(tmp_path, monkeypatch):
         return "HEAD abc123"
 
     monkeypatch.setattr(bb, "export_source", export_source)
-    monkeypatch.setattr(bb, "release_source", lambda root, dest: events.append(("release", dest)))
+    def release_source(root, dest):
+        events.append(("release", dest))
+        shutil.rmtree(dest, ignore_errors=True)
+
+    monkeypatch.setattr(bb, "release_source", release_source)
     monkeypatch.setattr(bb, "check_clean_tree", lambda root, allow_dirty: events.append(("clean", allow_dirty)))
     pipeline = Pipeline()
     out, work = tmp_path / "out", tmp_path / "work"
@@ -199,6 +204,7 @@ def test_dry_run_plans_the_commands_and_runs_none(harness):
 
 def test_only_the_directories_of_the_build_are_replaced_in_the_work_directory(harness):
     (harness.work / "venv" / "stale").mkdir(parents=True)
+    (harness.work / bb.WORK_MARK).write_text("made by an earlier build")
     (harness.work / "wheel").mkdir()
     (harness.work / "wheel" / "old-1.0-py3-none-any.whl").write_bytes(b"old")
     (harness.work / "keep.txt").write_text("not ours")
@@ -219,6 +225,25 @@ def test_a_pre_existing_asset_is_replaced(harness):
     (harness.out / ASSET).write_bytes(b"old")
     harness.run()
     assert (harness.out / ASSET).read_bytes() == b"fake executable"
+
+
+def test_a_work_directory_with_other_content_is_refused_and_nothing_is_removed(harness):
+    """`--work .` in a project must never remove the venv, src, wheel or dist directories of the project."""
+    for name in ("venv", "src", "wheel", "dist"):
+        (harness.work / name).mkdir(parents=True)
+        (harness.work / name / "mine.txt").write_text("project file")
+    with pytest.raises(bb.BuildError, match="not a build directory"):
+        harness.run()
+    assert harness.pipeline.calls == []
+    assert sorted(item.name for item in harness.work.iterdir()) == ["dist", "src", "venv", "wheel"]
+    assert (harness.work / "venv" / "mine.txt").read_text() == "project file"
+
+
+def test_a_build_directory_of_an_earlier_build_is_reused(harness):
+    harness.run()
+    harness.pipeline.calls.clear()
+    harness.run()  # the marker file says that the build made this directory
+    assert harness.pipeline.kinds() == ["venv", "wheel", "install", "pyinstaller", "version"]
 
 
 # --- the sources, SOURCE_DATE_EPOCH --------------------------------------------------------------

@@ -494,3 +494,33 @@ def test_an_unsafe_leaf_falls_back_to_a_private_temporary_directory(monkeypatch,
     function, args = registered[0]  # removed when the program ends
     function(*args)
     assert not directory.exists()
+
+
+def test_a_machine_without_a_home_directory_uses_a_private_temporary_directory(monkeypatch, tmp_path, fake_exe,
+                                                                              fake_entry_modules, capsys):
+    _frozen_main_env(monkeypatch, tmp_path / "home", fake_exe)
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: (_ for _ in ()).throw(
+        RuntimeError("Could not determine home directory."))))
+
+    assert frozen.main(["simplicio-loop", "--version"]) == 0
+
+    first = Path(os.environ["PATH"].split(os.pathsep)[0])
+    assert first.name.startswith("simplicio-loop-bin-")
+    assert "home directory" in capsys.readouterr().err
+    shutil.rmtree(first, ignore_errors=True)
+
+
+def test_an_environment_given_as_a_positional_argument_is_left_alone(monkeypatch):
+    """Popen(args, bufsize, executable, stdin, stdout, stderr, preexec_fn, close_fds, shell, cwd, env): the 11th."""
+    seen = []
+
+    def strict(self, args, bufsize=-1, executable=None, stdin=None, stdout=None, stderr=None, preexec_fn=None,
+               close_fds=True, shell=False, cwd=None, env=None, **rest):  # like Popen: env twice is a TypeError
+        self._child_created = False
+        seen.append(env)
+
+    monkeypatch.setattr(subprocess.Popen, "__init__", strict)
+    frozen.adjust_child_environment("/opt/simplicio-loop", BUNDLE)
+    env = {"LD_LIBRARY_PATH": BUNDLE}
+    subprocess.Popen(["/opt/simplicio-loop"], -1, None, None, None, None, None, True, False, None, env)
+    assert seen == [env]

@@ -206,14 +206,16 @@ def _temporary_operator_dir(executable: os.PathLike[str] | str) -> Path:
 
 
 def prepare_environment(
-    executable: os.PathLike[str] | str, environ: MutableMapping[str, str], home: Path
+    executable: os.PathLike[str] | str, environ: MutableMapping[str, str], home: Optional[Path]
 ) -> Path:
     """Put the operator links first on ``environ['PATH']``. Child processes inherit them.
 
-    When the directory in the home is not private or cannot be made, use a new temporary directory.
-    Raise OSError when that also fails.
+    When there is no home, or the directory in the home is not private or cannot be made, use a new
+    temporary directory. Raise OSError when that also fails.
     """
     try:
+        if home is None:
+            raise UnsafeDirectory("this user has no home directory")
         directory = ensure_operator_dir(executable, home)
     except OSError as error:
         print(f"simplicio-loop: using a private temporary directory for the operators: {error}", file=sys.stderr)
@@ -263,6 +265,8 @@ def adjust_child_environment(executable: str, bundle_dir: Optional[str] = None) 
         return
 
     def init(self, args, *positional, **keywords):
+        if len(positional) > 9:  # env was given as the 11th positional argument: leave it alone
+            return original(self, args, *positional, **keywords)
         first = args if isinstance(args, (str, bytes, os.PathLike)) else (args[0] if args else None)
         own = (isinstance(first, str) and not keywords.get("shell")
                and os.path.normcase(first) == os.path.normcase(executable))
@@ -284,7 +288,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if getattr(sys, "frozen", False):
         adjust_child_environment(sys.executable, getattr(sys, "_MEIPASS", None))
         try:
-            prepare_environment(sys.executable, os.environ, Path.home())
+            home: Optional[Path] = Path.home()
+        except RuntimeError:  # neither HOME nor a passwd entry
+            home = None
+        try:
+            prepare_environment(sys.executable, os.environ, home)
         except OSError as error:  # --version must work even then; the operators are missing
             print(f"simplicio-loop: cannot link the operators: {error}", file=sys.stderr)
     return dispatch(sys.argv if argv is None else list(argv))

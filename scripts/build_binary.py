@@ -41,6 +41,7 @@ HOOKS_DIR = PACKAGING / "hooks"
 RUNNER = PACKAGING / "pyinstaller_run.py"
 # The runner patches an internal of PyInstaller (the order of base_library.zip), so the version is pinned.
 PYINSTALLER_VERSION = "6.22.3"
+WORK_MARK = ".simplicio-build-binary"
 
 PROGRAM = "simplicio-loop"
 SUMS_NAME = "SHA256SUMS"
@@ -226,6 +227,17 @@ def release_source(root: Path, dest: Path) -> None:
             pass
 
 
+def claim_work_directory(work: Path) -> None:
+    """Use ``work`` only when it is new, empty, or made by this tool. The build removes some names in it."""
+    work.mkdir(parents=True, exist_ok=True)
+    mark = work / WORK_MARK
+    if not mark.exists():
+        if any(work.iterdir()):
+            raise BuildError(f"{work} is not a build directory (it has files and no {WORK_MARK}); "
+                             "use an empty directory for --work")
+        mark.write_text("made by scripts/build_binary.py; the build removes venv, wheel, src, dist and pyinstaller here\n")
+
+
 def _venv_python(venv: Path, os_name: str) -> str:
     return str(venv / ("Scripts" if os_name == "windows" else "bin") / ("python.exe" if os_name == "windows" else "python"))
 
@@ -262,7 +274,7 @@ def build(args: argparse.Namespace, run=subprocess.run) -> dict:
         return {"commands": [[args.python, "-m", "venv", venv], wheel_command, install_command, pyinstaller_cmd],
                 "asset": asset, "source_date_epoch": epoch}
 
-    work.mkdir(parents=True, exist_ok=True)
+    claim_work_directory(work)
     out_dir.mkdir(parents=True, exist_ok=True)
     release_source(root, source)  # what a failed earlier build left
     for path in (wheels, venv, dist, scratch):
