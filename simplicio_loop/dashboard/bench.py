@@ -12,7 +12,6 @@ Fixture events go straight into each run's events.jsonl (not through the emitter
 from __future__ import annotations
 
 import argparse
-import ctypes
 import http.client
 import json
 import os
@@ -53,6 +52,7 @@ def _read_posix() -> dict[str, Any]:
 
 
 def _read_windows() -> dict[str, Any]:
+    import ctypes  # lazy: Linux and macOS never load the Windows bindings
     from ctypes import wintypes
 
     class Counters(ctypes.Structure):  # PROCESS_MEMORY_COUNTERS
@@ -62,8 +62,8 @@ def _read_windows() -> dict[str, Any]:
                     ('QuotaPeakNonPagedPoolUsage', ctypes.c_size_t), ('QuotaNonPagedPoolUsage', ctypes.c_size_t),
                     ('PagefileUsage', ctypes.c_size_t), ('PeakPagefileUsage', ctypes.c_size_t)]
 
-    kernel32 = ctypes.WinDLL('kernel32')  # type: ignore[attr-defined]
-    psapi = ctypes.WinDLL('psapi')  # type: ignore[attr-defined]
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)  # type: ignore[attr-defined]
+    psapi = ctypes.WinDLL('psapi', use_last_error=True)  # type: ignore[attr-defined]
     kernel32.GetCurrentProcess.restype = wintypes.HANDLE
     psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.POINTER(Counters), wintypes.DWORD]
     psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
@@ -224,10 +224,10 @@ def run_bench(runs: int, events: int, idle_seconds: float = 30.0,
 def summary_line(result: dict[str, Any]) -> str:
     req = result['requests']
     rss = result['process']['after'] or {}
-    return ('runs=%d events/run=%d list_runs=%.1fms sse_replay=%d/%d in %.1fms rss_kib=%s cpu_s=%s idle_cpu=%s%% over %ss (%s)'
+    return ('runs=%d events/run=%d list_runs=%.1fms sse_replay=%d/%d in %.1fms rss_kib=%s (%s) cpu_s=%s idle_cpu=%s%% over %ss (%s)'
             % (result['runs'], result['events_per_run'], req['list_runs']['ms'], req['sse_replay']['frames'],
                req['sse_replay']['expected'], req['sse_replay']['ms'],
-               rss.get('rss_kib', 'UNVERIFIED'), rss.get('cpu_s', 'UNVERIFIED'),
+               rss.get('rss_kib', 'UNVERIFIED'), rss.get('rss_kind', 'UNVERIFIED'), rss.get('cpu_s', 'UNVERIFIED'),
                result['idle_cpu'].get('cpu_percent', 'UNVERIFIED'), result['idle_cpu']['sample_s'],
                result['process']['status']))
 
