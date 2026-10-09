@@ -356,6 +356,59 @@ def test_stage_agents_route_without_token_usage_is_empty_and_unverified(server_h
     assert data['cost']['state'] == 'UNVERIFIED' and data['cost']['reason']
 
 
+def test_stage_agents_route_caps_every_dimension_at_20_rows_plus_an_others_row(repo_root, server_handle):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    _emitter().emit_batch(run_dir, [
+        dict(kind='token_usage', source='worker', phase='executing', lane='lane-%d' % i, task_id='T%d' % i, iteration=i,
+             payload={'model': 'claude-haiku-5-5', 'input_tokens': 1000 + i, 'output_tokens': 10})
+        for i in range(60)], strict=True)
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+    assert status == 200 and len(body) < 30_000
+    breakdown = json.loads(body)['breakdown']
+    for dim in ('by_lane', 'by_task', 'by_iteration'):
+        assert len(breakdown[dim]) == 21 and breakdown[dim][-1]['others'] == 40 and breakdown[dim][-1]['key'] is None
+    assert sum(row['tokens_in'] for row in breakdown['by_task']) == sum(1000 + i for i in range(60))
+
+
+def test_stage_agents_route_serves_an_unchanged_run_from_the_cache_and_rereads_when_it_grows(repo_root, server_handle, monkeypatch):
+    from simplicio_loop import dashboard_events
+    from simplicio_loop.dashboard import stage_agents
+    stage_agents.clear_cache()
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    emitter = _emitter()
+    emitter.emit(run_dir, 'token_usage', source='worker', task_id='T1',
+                 payload={'model': 'claude-haiku-5-5', 'input_tokens': 1000, 'output_tokens': 0}, strict=True)
+    reads, real = [], dashboard_events.read_events
+    monkeypatch.setattr(dashboard_events, 'read_events', lambda *args, **kwargs: (reads.append(1), real(*args, **kwargs))[1])
+    first = json.loads(_get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)[2])
+    assert json.loads(_get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)[2]) == first and len(reads) == 1
+    emitter.emit(run_dir, 'token_usage', source='worker', task_id='T2',
+                 payload={'model': 'claude-haiku-5-5', 'input_tokens': 500, 'output_tokens': 0}, strict=True)
+    grown = json.loads(_get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)[2])
+    assert len(reads) == 2 and [row['key'] for row in grown['breakdown']['by_task']] == ['T1', 'T2']
+    stage_agents.clear_cache()
+
+
+def test_stage_agents_route_body_is_strict_json_even_when_an_event_carries_a_literal_nan(repo_root, server_handle):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    emitter = _emitter()
+    emitter.emit(run_dir, 'token_usage', source='worker', task_id='T1',
+                 payload={'model': 'claude-haiku-5-5', 'input_tokens': 7, 'output_tokens': 0}, strict=True)
+    stream = run_dir / 'events.jsonl'
+    last = json.loads(stream.read_text(encoding='utf-8').splitlines()[-1])
+    last['seq'] += 1
+    last['payload'] = {'model': 'claude-haiku-5-5', 'input_tokens': float('nan'), 'output_tokens': float('inf')}
+    with stream.open('a', encoding='utf-8') as fh:
+        fh.write(json.dumps(last) + '\n')
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+
+    def refuse(constant):
+        raise AssertionError('non-finite %s in the body' % constant)
+
+    data = json.loads(body, parse_constant=refuse)
+    assert status == 200 and data['breakdown']['tokens']['total'] == 7
+
+
 def test_stage_agents_route_keeps_the_auth_origin_and_run_id_guards(server_handle):
     assert _get(server_handle.port, '/api/runs/nope/stage-agents', AUTH)[0] == 404
     assert _get(server_handle.port, '/api/runs/live-1/stage-agents', {})[0] == 401

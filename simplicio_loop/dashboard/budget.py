@@ -8,6 +8,7 @@ measured usage or no progress to extrapolate from is UNVERIFIED, never a pass.
 from __future__ import annotations
 
 import json
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -20,7 +21,7 @@ MAX_CONTRACT_BYTES = 1_000_000
 
 
 def _number(value: Any) -> float | int | None:
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or (isinstance(value, float) and not math.isfinite(value)) or value < 0:
         return None
     return value
 
