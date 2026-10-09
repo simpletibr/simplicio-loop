@@ -1,8 +1,23 @@
-"""learn (done): call the existing learn implementation to update precedents after a SOLVED run."""
+"""learn (done): the only caller of retrospective; it aggregates what `trajectory` wrote for a SOLVED run.
+
+Every context here comes from the real tick (`done_ctx`), never a hand-made turbo dict.
+"""
+import asyncio
 import json
-from pathlib import Path
+from dataclasses import replace
 
 from simplicio_loop.watcher247 import points
+
+LESSON = "simplicio-a: solved via turbo executor; verified by UNVERIFIED|no_test_command"
+
+
+def lessons(ctx):
+    path = ctx.state_dir / ".simplicio-loop" / "orchestrator" / "lessons.jsonl"
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+
+
+def run_done(ctx):
+    return {r.name: r for r in asyncio.run(points.run("done", ctx))}
 
 
 def test_registered_at_done_and_not_blocking():
@@ -10,71 +25,40 @@ def test_registered_at_done_and_not_blocking():
     assert (info.stage, info.blocking, info.conditional) == ("done", False, True)
 
 
-def test_contract_skipped_when_not_solved(point_contract, make_ctx, tmp_path):
-    """learn is skipped when turbo_json status is not ok."""
-    state_dir = tmp_path / "state"
-    run_dir = tmp_path / "run-001"
-    state_dir.mkdir()
-    run_dir.mkdir()
-    
-    # turbo_json with non-ok status
-    result = point_contract(
-        "learn",
-        make_ctx(state_dir=state_dir, run_dir=run_dir, turbo_json={"status": "error"}),
-        expect="skipped"
-    )
-    assert result.reason_code == "not_applicable"
+def test_trajectory_runs_before_learn_at_done():
+    assert [i.name for i in points.registered("done") if i.name in ("trajectory", "learn")] == ["trajectory", "learn"]
 
 
-def test_contract_runs_when_solved(point_contract, make_ctx, tmp_path):
-    """learn applies and returns ok when turbo_json status is ok."""
-    state_dir = tmp_path / "state"
-    run_dir = tmp_path / "run-002"
-    state_dir.mkdir()
-    run_dir.mkdir()
-    
-    # turbo_json with ok status
-    result = point_contract(
-        "learn",
-        make_ctx(state_dir=state_dir, run_dir=run_dir, turbo_json={"status": "ok"}),
-        expect="ok"
-    )
-    assert result.evidence["run_id"] is not None
-    assert result.evidence["new_lessons"] >= 0
-    assert result.evidence["merged_lessons"] >= 0
-    assert "index_path" in result.evidence
+def test_skipped_when_the_run_is_not_solved(point_contract, done_ctx):
+    ctx = replace(done_ctx, turbo_json={"turbo_status": "failed", "exit_code": 1, "verify": done_ctx.verify})
+    assert point_contract("learn", ctx, expect="skipped").reason_code == "not_applicable"
+
+
+def test_skipped_for_a_dict_with_status_the_tick_never_sends(point_contract, done_ctx):
+    ctx = replace(done_ctx, turbo_json={"status": "ok"})
+    assert point_contract("learn", ctx, expect="skipped").reason_code == "not_applicable"
 
 
 def test_skipped_without_state_dir(point_contract, make_ctx, tmp_path):
-    """learn is skipped when state_dir is None."""
-    result = point_contract(
-        "learn",
-        make_ctx(state_dir=None, run_dir=tmp_path, turbo_json={"status": "ok"}),
-        expect="skipped"
-    )
+    result = point_contract("learn", make_ctx(run_dir=tmp_path, turbo_json={"turbo_status": "ok"}), expect="skipped")
     assert result.reason_code == "no_state_dir"
 
 
-def test_records_lessons_from_solved_run(point_contract, make_ctx, tmp_path):
-    """learn records new and merged lessons after a solved run."""
-    state_dir = tmp_path / "state"
-    run_dir = tmp_path / "run-solved"
-    state_dir.mkdir()
-    run_dir.mkdir()
+def test_a_solved_tick_run_writes_one_lesson_with_hit_count_one(done_ctx):
+    results = run_done(done_ctx)
+    assert results["trajectory"].status == "ok"
+    assert results["learn"].status == "ok"
+    assert results["learn"].evidence == {
+        "run_id": "simplicio-a-7", "records_seen": 1, "new_lessons": 1, "merged_lessons": 0,
+        "lessons_path": str(done_ctx.state_dir / ".simplicio-loop" / "orchestrator" / "lessons.jsonl")}
+    [row] = lessons(done_ctx)
+    assert (row["lesson"], row["hit_count"]) == (LESSON, 1)
 
-    # Create trajectory jsonl with lessons
-    traj_dir = state_dir / ".simplicio-loop" / "orchestrator" / "trajectory"
-    traj_dir.mkdir(parents=True, exist_ok=True)
-    traj_file = traj_dir / "run-solved.jsonl"
-    traj_file.write_text(
-        json.dumps({"lesson": "learned to refactor efficiently"}) + "\n" +
-        json.dumps({"lesson": "use type hints for clarity"}) + "\n",
-        encoding="utf-8"
-    )
 
-    result = point_contract(
-        "learn",
-        make_ctx(state_dir=state_dir, run_dir=run_dir, turbo_json={"status": "ok"}),
-        expect="ok"
-    )
-    assert result.evidence["new_lessons"] == 2
+def test_the_same_lesson_in_another_run_raises_hit_count_to_two(done_ctx):
+    run_done(done_ctx)
+    other = replace(done_ctx, run_dir=done_ctx.run_dir.parent / "simplicio-a-8", issue={"number": 8})
+    results = run_done(other)
+    assert (results["learn"].evidence["new_lessons"], results["learn"].evidence["merged_lessons"]) == (0, 1)
+    [row] = lessons(done_ctx)
+    assert (row["lesson"], row["hit_count"]) == (LESSON, 2)

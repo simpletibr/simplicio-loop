@@ -1,7 +1,9 @@
-"""trajectory (done): record the run outcome to the trajectory ledger.
+"""trajectory (done): write the run outcome to orchestrator/trajectory/<run_id>.jsonl.
 
-Writes the run outcome (issue, status, role, model, attempts, duration) as a JSON record
-to orchestrator/trajectory/{run_id}.jsonl for later aggregation by learn.
+That directory is what `retrospective.retrospective` reads; `learn` is the only point that calls it. The record
+carries what the tick has at `done`: the turbo result (turbo_status, verify, executor, steps), the issue, the
+PR url, and, for a solved run, a deterministic `lesson` built from the executor, models and verify label.
+The tick keeps no clock for the run, so no duration is recorded.
 """
 from __future__ import annotations
 
@@ -11,37 +13,48 @@ from pathlib import Path
 from .registry import PointContext, PointResult, register
 
 NAME = "trajectory"
+SOLVED = "ok"
+
+
+def is_solved(ctx: PointContext) -> bool:
+    """The tick's turbo dict (host_mode.run_exec / tick._run_turbo) names the outcome `turbo_status`."""
+    return (ctx.turbo_json or {}).get("turbo_status") == SOLVED
+
+
+def _lesson(ctx: PointContext) -> str:
+    turbo = ctx.turbo_json or {}
+    steps = turbo.get("steps") or []
+    models = sorted({f"{s.get('family')}/{s.get('model')}" for s in steps if s.get("model")})
+    via = f"{turbo.get('executor') or 'turbo'} executor" + (f" ({', '.join(models)})" if models else "")
+    return f"{ctx.repo}: solved via {via}; verified by {ctx.verify or turbo.get('verify') or 'unverified'}"
 
 
 async def record_trajectory(ctx: PointContext) -> PointResult:
-    """Write run outcome record to the trajectory ledger."""
+    """Write the run's record, replacing an earlier record of the same run id (a re-run must not count twice)."""
     if ctx.state_dir is None or ctx.run_dir is None:
         return PointResult(NAME, "skipped", {}, "no_state_dir")
-
-    run_id = Path(ctx.run_dir).name if ctx.run_dir else None
-    if not run_id:
-        return PointResult(NAME, "skipped", {}, "no_run_id")
-
-    try:
-        traj_dir = Path(ctx.state_dir) / ".simplicio-loop" / "orchestrator" / "trajectory"
-        traj_dir.mkdir(parents=True, exist_ok=True)
-        traj_file = traj_dir / f"{run_id}.jsonl"
-
-        record = {
-            "run_id": run_id,
-            "issue": (ctx.issue or {}).get("number"),
-            "status": "unknown",
-            "role": ctx.role,
-        }
-        if ctx.turbo_json:
-            record["status"] = ctx.turbo_json.get("status", "unknown")
-
-        with traj_file.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
-        evidence = {"run_id": run_id, "trajectory_file": str(traj_file.relative_to(ctx.state_dir))}
-        return PointResult(NAME, "ok", evidence)
-    except Exception as exc:
-        return PointResult(NAME, "error", {"error": str(exc)[:300]}, "trajectory_exception")
+    run_id = Path(ctx.run_dir).name
+    turbo = ctx.turbo_json or {}
+    steps = turbo.get("steps") or []
+    record = {
+        "run_id": run_id,
+        "issue": (ctx.issue or {}).get("number"),
+        "status": turbo.get("turbo_status", "unknown"),
+        "verify": ctx.verify or turbo.get("verify"),
+        "executor": turbo.get("executor"),
+        "steps": steps,
+        "attempts": len(steps) or 1,
+        "role": ctx.role,
+        "family": ctx.family,
+        "pr_url": ctx.pr_url,
+    }
+    if is_solved(ctx):
+        record["lesson"] = _lesson(ctx)
+    path = Path(ctx.state_dir) / ".simplicio-loop" / "orchestrator" / "trajectory" / f"{run_id}.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(record, ensure_ascii=False) + "\n", encoding="utf-8")
+    return PointResult(NAME, "ok", {"run_id": run_id, "trajectory_file": str(path.relative_to(ctx.state_dir)),
+                                      "status": record["status"], "lesson": record.get("lesson")})
 
 
 register(NAME, "done", record_trajectory)

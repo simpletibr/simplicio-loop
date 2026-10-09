@@ -1,6 +1,8 @@
 """The tick calls the point registry exactly once per stage (#1509); the points themselves are tested apart."""
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from simplicio_loop.watcher247 import config, points
@@ -80,3 +82,15 @@ def test_the_real_registry_runs_in_the_tick_and_writes_events(env):
     events = (config.WORK / "simplicio-a" / ".simplicio-loop" / "orchestrator" / "points" / "simplicio-a-7" / "events.jsonl")
     assert "toolchain_detect" in events.read_text()
     assert read_json(config.CLAIMS)["simplicio-a#7"]["status"] == "done"
+
+
+def test_a_solved_tick_leaves_one_lesson_in_lessons_jsonl(env):
+    env(FakeRun({"simplicio-a": [issue(7)]}))
+    baseline()
+    run_tick()
+    orchestrator = config.ROOT / ".simplicio-loop" / "orchestrator"
+    [record] = [json.loads(line) for line in (orchestrator / "trajectory" / "simplicio-a-7.jsonl").read_text().splitlines()]
+    assert (record["issue"], record["status"], record["pr_url"]) == (7, "ok", PR_URL)
+    [row] = [json.loads(line) for line in (orchestrator / "lessons.jsonl").read_text().splitlines()]
+    assert row["lesson"] == "simplicio-a: solved via turbo executor; verified by UNVERIFIED|no_test_command"
+    assert row["hit_count"] == 1

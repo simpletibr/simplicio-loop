@@ -14,6 +14,28 @@ import pytest
 from simplicio_loop.watcher247 import points
 from simplicio_loop.watcher247.points import registry
 
+from ..fakes import FakeRun, baseline, issue, run_tick
+
+
+@pytest.fixture
+def done_ctx(env, monkeypatch):
+    """The PointContext the REAL tick hands to the `done` stage (issue #7 of simplicio-a, solved, PR opened).
+
+    The tick builds it inline, so the fixture runs a tick and captures it; points.run is restored afterwards.
+    """
+    env(FakeRun({"simplicio-a": [issue(7, "Add x")]}))
+    baseline()
+    seen = {}
+
+    async def spy(stage, ctx):
+        seen[stage] = ctx
+        return []
+
+    with monkeypatch.context() as patch:
+        patch.setattr(points, "run", spy)
+        run_tick()
+    return seen["done"]
+
 
 @pytest.fixture
 def make_ctx():
