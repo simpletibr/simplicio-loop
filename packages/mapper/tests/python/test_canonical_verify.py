@@ -34,6 +34,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from simplicio_mapper.cli._canonical import _DEFAULT_CONFIG_FINGERPRINT as _CLI_DEFAULT_FINGERPRINT  # noqa: E402
 from simplicio_mapper.cli._canonical import run_canonical_cli  # noqa: E402
 from simplicio_mapper.mapper.canonical_builder import build_canonical_manifest  # noqa: E402
 from simplicio_mapper.mapper.canonical_storage import canonical_manifest_dir  # noqa: E402
@@ -325,7 +326,7 @@ class CanonicalCliInProcessTests(unittest.TestCase):
     def test_verify_human_output_on_mismatch_returns_one(self) -> None:
         repo = self.base / "repo-inprocess-mismatch"
         _init_repo(repo)
-        manifest = build_canonical_manifest(str(repo), self.storage_root, "default")
+        manifest = build_canonical_manifest(str(repo), self.storage_root, _CLI_DEFAULT_FINGERPRINT)
         self.assertIsNotNone(manifest)
         digest_dir = Path(canonical_manifest_dir(self.storage_root, manifest.key.digest()))
         file_manifest_path = digest_dir / manifest.artifact_paths["file_manifest"]
@@ -382,7 +383,7 @@ class CanonicalVerifyCliIntegrationTests(unittest.TestCase):
     def test_cli_reports_mismatch_and_exit_one_for_mutation(self) -> None:
         repo = self.base / "repo-cli-mutated"
         _init_repo(repo)
-        manifest = build_canonical_manifest(str(repo), self.storage_root, "default")
+        manifest = build_canonical_manifest(str(repo), self.storage_root, _CLI_DEFAULT_FINGERPRINT)
         self.assertIsNotNone(manifest)
         digest_dir = Path(canonical_manifest_dir(self.storage_root, manifest.key.digest()))
         file_manifest_path = digest_dir / manifest.artifact_paths["file_manifest"]

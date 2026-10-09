@@ -11,6 +11,7 @@ import hashlib
 import os
 import re
 import subprocess
+from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
@@ -602,7 +603,11 @@ def _build_file_inventory(
     cache: FileProcessingCache | None = None,
     contents: dict[str, str] | None = None,
     skipped_large_files: list[str] | None = None,
+    facts: Callable[[str, os.stat_result], dict | None] | None = None,
 ) -> list[ProjectFile]:
+    """Per-file inventory. ``facts(rel, stat)`` may return the parse facts of a file (language,
+    file_hash, imports, exports, text_preview) from a trusted source such as the central base
+    (issue #1574); ``None`` means "parse it from disk" exactly as before."""
     inventory: list[ProjectFile] = []
     for abs_path in _collect_text_files(cwd, skipped=skipped_large_files):
         rel = _normalize_rel(os.path.relpath(abs_path, cwd))
@@ -610,7 +615,9 @@ def _build_file_inventory(
             stat = os.stat(abs_path)
         except OSError:
             continue
-        parsed = _cached_parse_file(cwd, abs_path, rel, stat, cache, contents=contents)
+        parsed = (facts(rel, stat) if facts is not None else None) or _cached_parse_file(
+            cwd, abs_path, rel, stat, cache, contents=contents
+        )
         roles = _roles_for(rel, pkg)
         imports = list(parsed.get("imports") or [])
         exports = list(parsed.get("exports") or [])

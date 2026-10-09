@@ -34,6 +34,10 @@ Four verbs over the already-merged canonical-map machinery
   worktree overlay) and a bounded full remap, via
   :func:`simplicio_mapper.mapper.canonical_verify.verify_canonical_parity`.
   Exit 0 on match, 1 on mismatch/failure. Read-only, like ``status``.
+* ``canonical overlay <path> [--json]`` (issue #1574) -- maps THIS worktree as the central
+  default-branch base plus its own delta and writes only the worktree's state
+  (``.simplicio-loop/overlay.json`` + project-map / symbol-index / precedent-index); never writes
+  the base. Exit 1 (``status: fallback``) tells the caller to run the full ``index`` instead.
 * ``canonical gc <path> [--apply] [--json]`` (issue #268, ADR-008 section 5)
   -- conservative, crash-safe garbage collection of interrupted-promotion
   temp dirs and stale canonical manifests under the same content-addressed
@@ -103,6 +107,7 @@ from ..mapper.canonical_identity import (
     resolve_repo_identity_bundle,
 )
 from ..mapper.canonical_overlay import compute_worktree_overlay
+from ..mapper.canonical_reuse import compute_config_fingerprint
 from ..mapper.canonical_storage import (
     canonical_manifest_dir,
     resolve_canonical_cache_root,
@@ -128,19 +133,15 @@ _USAGE = (
     "       simplicio-mapper canonical verify <path> [--json] [--storage-root <dir>]\n"
     "                                     [--config-fingerprint <value>] [--limit <n>]\n"
     "       simplicio-mapper canonical gc <path> [--apply] [--json] [--storage-root <dir>]\n"
-    "                                     [--ttl-seconds N] [--grace-seconds N]"
+    "                                     [--ttl-seconds N] [--grace-seconds N]\n"
+    "       simplicio-mapper canonical overlay <path> [--json]   (base + this worktree's delta)"
 )
 
-# This isolated CLI surface takes no mapping-config overrides (filters,
-# ignore rules, embedding mode -- the flags the real `config_fingerprint`
-# is supposed to hash per ADR-008 section 1). Threading those through is
-# migration-plan step 6 (the index/scan adapter), explicitly out of scope
-# for this issue. Both `build` and `status` use this same fixed sentinel so
-# a `status` call always reports freshness against exactly the key a `build`
-# call from this CLI would (or did) use -- never a false invalidation.
-_DEFAULT_CONFIG_FINGERPRINT = hashlib.blake2b(
-    b"simplicio-mapper canonical-cli/v1: no config overrides", digest_size=24
-).hexdigest()
+# This CLI surface takes no mapping-config overrides (filters, ignore rules, embedding mode), so
+# `build`, `status`, `verify` and `overlay` all use the fingerprint of the default mapping
+# configuration -- the SAME value the `index`/`scan` adapter and the worktree overlay compute
+# (issue #1574): one base per default-branch tree, never one per entry point.
+_DEFAULT_CONFIG_FINGERPRINT = compute_config_fingerprint(None, ".simplicio-loop")
 
 
 def _now_iso() -> str:
@@ -516,7 +517,7 @@ def _print_verify_human_receipt(receipt: dict) -> None:
 def _run_verify(argv: Sequence[str]) -> int:
     root = "."
     storage_root: str | None = None
-    config_fingerprint = "default"
+    config_fingerprint = _DEFAULT_CONFIG_FINGERPRINT
     file_limit = DEFAULT_FILE_LIMIT
     as_json = False
 
@@ -607,6 +608,30 @@ def _run_gc(opts: dict) -> int:
     return 1 if report.errors else 0
 
 
+def _run_overlay(opts: dict) -> int:
+    """Write the worktree's own overlay state over the central base; exit 1 on any fallback."""
+    from ..mapper.central_overlay import OVERLAY_ARTIFACT_FILES, apply_overlay
+
+    root = os.path.abspath(opts["root"])
+    outcome = apply_overlay(root)
+    payload = dict(outcome.receipt)
+    payload["mode"] = "overlay"
+    if outcome.artifacts is not None:
+        payload["paths"] = {
+            name: os.path.join(root, ".simplicio-loop", file_name)
+            for name, file_name in OVERLAY_ARTIFACT_FILES.items()
+        }
+    if opts["json"]:
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    else:
+        print(
+            f"canonical overlay: {payload['status']}"
+            + (f" ({payload['fallback_reason']})" if payload.get("fallback_reason") else "")
+            + f" reused={payload.get('files_reused', 0)} remapped={payload.get('files_remapped', 0)}"
+        )
+    return 0 if outcome.artifacts is not None else 1
+
+
 def run_canonical_cli(argv: Sequence[str]) -> int:
     """Entry point for ``simplicio-mapper canonical <build|status|verify|gc> <path> ...``."""
     if not argv or argv[0] in ("-h", "--help"):
@@ -614,7 +639,7 @@ def run_canonical_cli(argv: Sequence[str]) -> int:
         return 0
     sub = argv[0]
     rest = argv[1:]
-    if sub not in ("build", "status", "verify", "gc"):
+    if sub not in ("build", "status", "verify", "gc", "overlay"):
         print(f"unknown canonical subcommand: {sub}", file=sys.stderr)
         print(_USAGE, file=sys.stderr)
         return 2
@@ -688,6 +713,8 @@ def run_canonical_cli(argv: Sequence[str]) -> int:
 
     if sub == "gc":
         return _run_gc(opts)
+    if sub == "overlay":
+        return _run_overlay(opts)
 
     payload = _run_build(opts) if sub == "build" else _run_status(opts)
     if json_mode:

@@ -66,7 +66,9 @@ def _run_git(
     """
     try:
         return subprocess.run(
-            ["git", *args],
+            # quotepath=false: report non-ASCII names as they are on disk (issue #1574), otherwise
+            # a changed file named "módulo.py" arrives as "m\303\263dulo.py" and is never matched.
+            ["git", "-c", "core.quotepath=false", *args],
             cwd=cwd,
             capture_output=True,
             text=True,
