@@ -26,7 +26,7 @@ ORIGINAL_APP = 'def greet():\n    return "hello"\n'
 ISSUE_NUMBER = 7
 ISSUE_TITLE = "Trocar a saudacao para hi"
 ISSUE_BODY = 'Em src/app.py, greet() deve retornar "hi" em vez de "hello".'
-LOOP_TOML = "enabled = true\n"  # intake_gate.repo_opted_in needs this literal
+LOOP_TOML = 'enabled = true\nverify = "python3 -m pytest -q"\n'  # repo_opted_in needs the literal `enabled`; the watcher verifies with `verify`
 # The planner answer: one find/replace on an exact, unique span of the seed file.
 PLAN = {"operations": [{"path": "src/app.py", "find": 'return "hello"', "replace": 'return "hi"'}]}
 
@@ -47,7 +47,7 @@ def make_remote(base: Path) -> Path:
     (seed / "src").mkdir()
     (seed / "src" / "app.py").write_text(ORIGINAL_APP)
     (seed / "pyproject.toml").write_text('[project]\nname = "simplicio-demo"\nversion = "0.0.0"\n')
-    # Test evidence, so the watcher detects `python3 -m pytest -q` and runs verify before opening the PR.
+    # A real test suite, so `verify` in loop.toml (python3 -m pytest -q) passes before the PR is opened.
     (seed / "pytest.ini").write_text("[pytest]\npythonpath = src\n")
     (seed / ".gitignore").write_text("__pycache__/\n.pytest_cache/\n")
     (seed / "tests").mkdir()

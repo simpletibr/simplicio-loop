@@ -54,6 +54,7 @@ class PointContext:
     role: str | None = None
     family: str | None = None
     capacity: Any = None  # the tick's squad_capacity.Probe; resource_governor reuses its sample instead of probing again
+    test_command: str | None = None  # the repo's `verify` from loop.toml (the command turbo runs); `verify` above is the label
 
 
 @dataclass(frozen=True)

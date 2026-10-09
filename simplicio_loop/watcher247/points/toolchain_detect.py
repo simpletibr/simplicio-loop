@@ -1,22 +1,17 @@
-"""toolchain_detect (intake): the test command of the clone, from verify.detect_test_command (no new logic).
+"""toolchain_detect (intake): reports the test command the run will verify with. It detects nothing.
 
-The example point of the contract: no command found is still ok, and says so as UNVERIFIED|no_test_command.
+The command is `verify` of the repo's loop.toml on the default branch (verify.configured_command); the tick hands it over
+in ctx.test_command and never runs without one, so a missing command is `skipped`, not a guess.
 """
-import asyncio
-
-from .. import verify
 from .registry import PointContext, PointResult, register
 
 NAME = "toolchain_detect"
 
 
-async def detect(ctx: PointContext) -> PointResult:
-    if ctx.clone is None:
-        return PointResult(NAME, "skipped", {}, "no_clone")
-    command = await asyncio.to_thread(verify.detect_test_command, ctx.clone)
-    if command is None:
-        return PointResult(NAME, "ok", {"test_command": None, "label": verify.UNVERIFIED})
-    return PointResult(NAME, "ok", {"test_command": command})
+async def report(ctx: PointContext) -> PointResult:
+    if not ctx.test_command:
+        return PointResult(NAME, "skipped", {}, "verify_not_configured")
+    return PointResult(NAME, "ok", {"test_command": ctx.test_command})
 
 
-register(NAME, "intake", detect)
+register(NAME, "intake", report)
