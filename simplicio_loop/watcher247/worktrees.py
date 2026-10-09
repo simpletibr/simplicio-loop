@@ -109,7 +109,9 @@ async def _update_base(repo: str, branch: str, number: int, fix: bool) -> Path:
         await proc.run(["git", "config", "user.email", "wesleysimplicio@users.noreply.github.com"], cwd=dest)
     refs = [branch, f"loop/issue-{number}"] if fix else [branch]
     for ref in refs:
-        fetch = await proc.run(["git", "fetch", "--depth", "1", "origin", ref], cwd=dest, timeout=180)
+        # the explicit refspec: a --depth 1 clone is single-branch, and without it `origin/<ref>` is never made for any other branch
+        fetch = await proc.run(
+            ["git", "fetch", "--depth", "1", "origin", f"+refs/heads/{ref}:refs/remotes/origin/{ref}"], cwd=dest, timeout=180)
         if fetch.returncode != 0:
             raise _fail(fetch, "fetch failed")
     detach = await proc.run(["git", "checkout", "-q", "-f", "--detach", f"origin/{branch}"], cwd=dest, timeout=60)
