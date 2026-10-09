@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import shutil
+import signal
 from pathlib import Path
 from typing import Any, Optional
 
@@ -98,6 +99,21 @@ _ARGV_BUILDERS = {
 }
 
 
+def _kill_process_tree(pid):
+    """Kill a process and all its children.
+    
+    On POSIX, sends SIGTERM to the process group.
+    On Windows, terminates the process.
+    """
+    try:
+        if os.name == "posix":
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+        else:
+            os.kill(pid, signal.SIGTERM)
+    except (ProcessLookupError, OSError):
+        pass
+
+
 def build_argv(family, role, prompt, model, cwd):
     """Build the command-line argv for a specific family's CLI exec."""
     builder = _ARGV_BUILDERS.get(family)
@@ -114,6 +130,7 @@ async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None):
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=cwd,
+        start_new_session=True,
     )
 
     try:
@@ -122,7 +139,7 @@ async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None):
             timeout=timeout_sec,
         )
     except asyncio.TimeoutError:
-        proc.kill()
+        _kill_process_tree(proc.pid)
         try:
             await asyncio.wait_for(proc.wait(), timeout=5.0)
         except asyncio.TimeoutError:
