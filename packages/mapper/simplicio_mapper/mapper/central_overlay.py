@@ -53,6 +53,7 @@ from .graph import (
     _build_symbol_index,
     _collect_architecture_signals,
     resolve_csharp_razor_semantics,
+    is_semantic_context,
     semantic_input_key,
     semantic_not_required,
 )
@@ -145,22 +146,36 @@ def _base_symbols(manifest: CanonicalMapManifest) -> tuple[dict[str, list[dict]]
     return grouped, resolution if isinstance(resolution, dict) else {}
 
 
-def _semantic_mode(semantic_files: list[ProjectFile], base_resolution: dict) -> str:
+def _reusable_resolution(resolution: dict) -> bool:
+    """A base answer is served again only when re-running would give the same one: not a failed or partial run."""
+    status = resolution.get("status")
+    if status in {"available", "not_required"}:
+        return True
+    return status == "unavailable" and resolution.get("reasons") == ["semantic_service_not_configured"]
+
+
+def _semantic_mode(files: list[ProjectFile], base_resolution: dict, touched: set[str]) -> str:
     """How the C#/Razor semantic pass is satisfied: ``not_required``, ``reused_from_base`` or ``recomputed:<why>``.
 
     The pass is a function of the C#/Razor sources alone (``semantic_input_key``): when the key the base
     recorded equals the worktree's, the base's resolved symbols and resolution are exactly what a full
     mapping would produce, so nothing needs to run.
     """
-    if not semantic_files:
+    if not any(file.language in SEMANTIC_LANGUAGES for file in files):
         return "not_required"
-    key = semantic_input_key(semantic_files)
+    if any(is_semantic_context(path) for path in touched):
+        return "recomputed:semantic_context_changed"  # project/SDK files the service may read
+    key = semantic_input_key(files)
     if key is None:
         return "recomputed:input_key_unprovable"
     recorded = base_resolution.get("input_key")
     if not recorded:
         return "recomputed:base_without_input_key"
-    return "reused_from_base" if recorded == key else "recomputed:semantic_input_changed"
+    if recorded != key:
+        return "recomputed:semantic_input_changed"
+    if not _reusable_resolution(base_resolution):
+        return f"recomputed:base_semantic_{base_resolution.get('status')}"
+    return "reused_from_base"
 
 
 def _delta(overlay) -> dict[str, list[str]]:
@@ -305,7 +320,7 @@ def _compute(
     # file); otherwise those files are parsed fresh and only they go through the service.
     semantic_files = [file for file in files if file.language in SEMANTIC_LANGUAGES]
     semantic_paths = {file.path for file in semantic_files}
-    semantic_mode = _semantic_mode(semantic_files, base_resolution)
+    semantic_mode = _semantic_mode(files, base_resolution, touched)
     if semantic_mode == "reused_from_base":
         reused |= semantic_paths
     else:
