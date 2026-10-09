@@ -35,7 +35,7 @@ class TestResourceGovernor:
         assert "disk_free_gb" in result.evidence
 
     def test_deferred_on_low_disk(self, point_contract, make_ctx, tmp_path, monkeypatch):
-        """When disk free is below minimum, return deferred."""
+        """When disk free is below minimum, return deferred status."""
         sample = local_capacity.CapacitySample(
             requested_workers=1,
             safe_workers=0,
@@ -54,7 +54,7 @@ class TestResourceGovernor:
         assert result.reason_code == "low_disk"
 
     def test_deferred_on_low_memory(self, point_contract, make_ctx, tmp_path, monkeypatch):
-        """When memory available is below minimum, return deferred."""
+        """When memory available is below minimum, return deferred status."""
         sample = local_capacity.CapacitySample(
             requested_workers=1,
             safe_workers=0,
