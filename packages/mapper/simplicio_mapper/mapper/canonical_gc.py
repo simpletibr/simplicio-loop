@@ -329,8 +329,13 @@ def _classify_manifest_dir(
     *,
     grace_seconds: float,
     ttl_seconds: float,
+    protected_reason: str | None = None,
 ) -> tuple[GcCandidate, bool]:
-    """Classify a promoted ``<digest>/manifest.json`` directory."""
+    """Classify a promoted ``<digest>/manifest.json`` directory.
+
+    ``protected_reason`` (issue #1574) names why the caller keeps this digest regardless of age: it
+    is among the newest ``keep_last`` bases, or a live worktree overlay still references it.
+    """
     raw = _read_json(os.path.join(entry_path, _MANIFEST_FILE_NAME))
     dir_age = max(0.0, now - _dir_last_activity(entry_path))
 
@@ -373,6 +378,14 @@ def _classify_manifest_dir(
         return (
             GcCandidate(
                 rel, "manifest_dir", "current_default_branch_manifest", {"commit_sha": manifest_commit_sha}
+            ),
+            False,
+        )
+
+    if protected_reason is not None:
+        return (
+            GcCandidate(
+                rel, "manifest_dir", protected_reason, {"commit_sha": manifest_commit_sha}
             ),
             False,
         )
@@ -438,6 +451,8 @@ def scan_canonical_gc(
     storage_root: str | None = None,
     ttl_seconds: float | None = None,
     promoted_grace_seconds: float | None = None,
+    keep_last: int | None = None,
+    referenced_digests: frozenset[str] = frozenset(),
 ) -> GcReport:
     """Scan (and optionally reclaim) the canonical-map storage root for ``root``.
 
@@ -452,6 +467,11 @@ def scan_canonical_gc(
     tests); when omitted, the storage root is resolved from ``root`` the same
     way ``canonical build``/``status`` do, and the TTL/grace window fall back
     to ``GC_TTL_SECONDS_ENV``/``GC_GRACE_SECONDS_ENV`` (or their defaults).
+
+    ``keep_last`` (issue #1574) switches the retention policy from the age-based TTL to a count: the
+    newest ``keep_last`` promoted bases survive, plus the current default-branch base and every
+    digest in ``referenced_digests`` (the bases live worktree overlays still point at). Everything
+    else past the grace window is a candidate. ``None`` keeps the TTL behavior exactly as before.
 
     Idempotent: given no concurrent writers, calling this twice with the same
     ``now`` (or a slightly later one, since nothing here shrinks the grace
@@ -489,6 +509,28 @@ def scan_canonical_gc(
         errors.append(f"failed to list canonical storage root: {error}")
         return _empty_report(apply, errors)
 
+    protected: dict[str, str] = {}
+    if keep_last is not None:
+        ttl = 0.0  # the count governs retention, not the age
+        promoted: list[tuple[float, str]] = []
+        for entry in entries:
+            if _DELETING_INFIX in entry or _TMP_INFIX in entry:
+                continue
+            entry_path = os.path.join(canonical_root, entry)
+            raw = _read_json(os.path.join(entry_path, _MANIFEST_FILE_NAME)) if os.path.isdir(entry_path) else None
+            if raw is None:
+                continue
+            created = raw.get("created_at")
+            age = _age_from_iso(created, now) if created else None
+            stamp = (now - age) if age is not None else _dir_last_activity(entry_path)
+            promoted.append((stamp, entry))
+        promoted.sort(reverse=True)
+        for _stamp, name in promoted[: max(0, keep_last)]:
+            protected[name] = f"kept_newest_{max(0, keep_last)}"
+    for name in entries:
+        if name in referenced_digests:
+            protected[name] = "referenced_by_worktree_overlay"
+
     for entry in entries:
         entry_path = os.path.join(canonical_root, entry)
         if not os.path.isdir(entry_path):
@@ -500,7 +542,10 @@ def scan_canonical_gc(
             scanned.append(_classify_temp_dir(entry_path, entry, rel, now, grace_seconds=grace))
         else:
             scanned.append(
-                _classify_manifest_dir(entry_path, rel, identity, now, grace_seconds=grace, ttl_seconds=ttl)
+                _classify_manifest_dir(
+                    entry_path, rel, identity, now, grace_seconds=grace, ttl_seconds=ttl,
+                    protected_reason=protected.get(entry),
+                )
             )
 
     candidates = [c for c, is_gc in scanned if is_gc]
