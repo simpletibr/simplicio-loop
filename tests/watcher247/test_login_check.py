@@ -61,3 +61,35 @@ def test_command_is_wired_into_the_cli(clis, capsys):
     clis("codex", True)
     assert cli_impl.main(["watch247", "login-check"]) == 1  # grok is missing
     assert "claude: ok" in capsys.readouterr().out
+
+
+# Verified against each CLI's --help on the reference host. gemini is not installed there: its entry is DOC-BASED.
+VERIFIED_LOGIN = {
+    "claude": "claude auth login",  # `claude auth --help`: login|logout|status
+    "codex": "codex login",  # `codex login --help`: subcommand status only, bare `login` signs in
+    "grok": "grok login",  # `grok login --help`
+    "agy": "agy",  # `agy --help`: no login subcommand; sign-in runs on the interactive start
+    "opencode": "opencode auth login",  # `opencode auth --help`: login|logout|list
+}
+
+
+@pytest.mark.parametrize("family,command", sorted(VERIFIED_LOGIN.items()))
+def test_each_family_maps_to_its_verified_login_command(family, command):
+    assert login_check.login_command(family) == f"sudo -u simplicio-loop -H {command}"
+
+
+def test_gemini_entry_is_doc_based_and_labeled():
+    assert login_check.login_command("gemini") == "sudo -u simplicio-loop -H gemini"
+    assert "gemini" in login_check.DOC_BASED_FAMILIES
+    assert login_check.DOC_BASED_FAMILIES.isdisjoint(VERIFIED_LOGIN)
+
+
+def test_claude_line_uses_auth_login_not_bare_login():
+    line = login_check.line(exec_auth.AuthCheckResult("claude", "login_missing", "x"))
+    assert line.endswith("sudo -u simplicio-loop -H claude auth login")
+    assert "claude login" not in line
+
+
+def test_doc_based_family_is_labeled_in_the_output():
+    line = login_check.line(exec_auth.AuthCheckResult("gemini", "login_missing", "x"))
+    assert "doc-based, not verified" in line
