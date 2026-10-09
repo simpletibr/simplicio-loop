@@ -110,6 +110,20 @@ FAMILIES = [
 ]
 
 
+def hostless_path(directory: Path) -> str:
+    """A PATH with the tools the commands need and none of the host CLIs (claude, codex, ...) that `setup` probes.
+
+    `setup --check` runs each host it finds with a time limit. Under load one probe timed out in one of the two runs
+    and not in the other, and the answers differed (version and login of that host): the test compared the speed of
+    the machine, not the daemon. Without hosts on PATH both runs see the same thing."""
+    directory.mkdir(exist_ok=True)
+    for tool in ("git", "python3", "python", "simplicio-loop", "simplicio-dev-cli", "simplicio-mapper"):
+        found = shutil.which(tool)
+        if found and not (directory / tool).exists():
+            (directory / tool).symlink_to(found)
+    return str(directory)
+
+
 @pytest.mark.parametrize("name,args", FAMILIES, ids=[f[0] for f in FAMILIES])
 def test_the_command_families_of_the_binary_release_behave_the_same_through_the_daemon(daemon_dir, tmp_path, name, args):
     """login, logout, auth, update, install, doctor and setup read HOME and write files there; the HOME of the
@@ -119,7 +133,8 @@ def test_the_command_families_of_the_binary_release_behave_the_same_through_the_
         home = tmp_path / f"home_{label}"
         home.mkdir()
         repo = make_repo(tmp_path / f"repo_{label}")
-        done = cli(daemon_dir, args, via_daemon=via_daemon, cwd=repo, extra_env={"HOME": str(home)})
+        done = cli(daemon_dir, args, via_daemon=via_daemon, cwd=repo,
+                   extra_env={"HOME": str(home), "PATH": hostless_path(tmp_path / "bin")})
         text = lambda value: value.replace(str(home), "<home>").replace(str(repo), "<repo>")  # noqa: E731
         # the host programs that `setup` probes write their own logs in HOME; only what the loop wrote counts
         written = sorted(str(p.relative_to(home)) for p in home.rglob("*") if p.is_file() and "simplicio" in str(p))

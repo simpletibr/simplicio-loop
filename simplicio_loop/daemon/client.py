@@ -24,7 +24,8 @@ START_WAIT_S = 30.0
 # What a started daemon gets from the environment of the first caller. Each command brings its own environment.
 DAEMON_ENV = ("PATH", "HOME", "USER", "LOGNAME", "LANG", "TZ", "TMPDIR", "PYTHONPATH", "PYTHONHOME", "PYTHONUTF8",
               "VIRTUAL_ENV", "XDG_RUNTIME_DIR", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "SIMPLICIO_CORE_NO_NETWORK",
-              "SIMPLICIO_LOOP_DAEMON_DIR", "SIMPLICIO_LOOP_DAEMON_IDLE_S", "SIMPLICIO_LOOP_DAEMON_MAX_CHILDREN")
+              "SIMPLICIO_LOOP_DAEMON_DIR", "SIMPLICIO_LOOP_DAEMON_IDLE_S", "SIMPLICIO_LOOP_DAEMON_MAX_CHILDREN",
+              "SIMPLICIO_LOOP_DAEMON_WAIT_S")
 
 
 def _daemon_env(environ: Mapping[str, str]) -> dict[str, str]:
@@ -134,14 +135,22 @@ def open_exec(program: str, args: Sequence[str], *, run_dir: os.PathLike[str] | 
             "op": "exec", "proto": protocol.PROTOCOL, "program": program, "argv": list(args),
             "nested": environ.get(protocol.NESTED_ENV) == "1",
             "cwd": cwd if cwd is not None else os.getcwd(), "env": environ, "umask": previous,
+            "proc": protocol.process_state(),
             "enc": {"stdin": _encoding(sys.stdin), "stdout": _encoding(sys.stdout), "stderr": _encoding(sys.stderr)},
         }
+        refused_early: Optional[OSError] = None
         try:
             protocol.send_request(sock, request, _stdio(stdio))
+        except OSError as error:
+            refused_early = error  # the daemon may have answered and closed without reading: its reason is waiting
+        try:
             reply = protocol.read_message(sock, bytearray())
         except OSError as error:
             sock.close()
             raise DaemonError("lost", f"the connection to the daemon failed: {error}") from None
+        if refused_early is not None and (reply is None or reply.get("ok")):
+            sock.close()
+            raise DaemonError("lost", f"the connection to the daemon failed: {refused_early}")
         if reply is not None and reply.get("ok"):
             return sock
         sock.close()

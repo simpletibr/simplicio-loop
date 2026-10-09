@@ -24,6 +24,7 @@ def _number(name: str, default: float) -> float:
 
 def serve() -> int:
     """Run the daemon in the foreground. Its output goes to the log file next to the socket."""
+    from . import server
     from .server import Daemon
 
     directory = protocol.run_dir()
@@ -35,7 +36,8 @@ def serve() -> int:
     os.dup2(os.open(os.devnull, os.O_RDONLY), 0)
     os.close(log)
     daemon = Daemon(directory, key=key, idle_s=_number("SIMPLICIO_LOOP_DAEMON_IDLE_S", 900.0),
-                    max_children=int(_number("SIMPLICIO_LOOP_DAEMON_MAX_CHILDREN", 0)) or None)
+                    max_children=int(_number("SIMPLICIO_LOOP_DAEMON_MAX_CHILDREN", 0)) or None,
+                    max_wait_s=_number("SIMPLICIO_LOOP_DAEMON_WAIT_S", server.MAX_WAIT_S))
     return asyncio.run(daemon.serve())
 
 
