@@ -419,16 +419,28 @@ class Daemon:
                 await self._take_slot(fds[2])
             finally:
                 self.waiting -= 1
+            if self._hung_up(connection):  # the caller gave up (Ctrl-C) while it waited: its command must not run now
+                self._slots.release()
+                for fd in fds:
+                    os.close(fd)
+                fds.clear()
+                return
         started = time.monotonic()
         self.active += 1
         try:
             parent = os.getpid()
-            pid = os.fork()
-            if pid == 0:
-                try:
-                    runner.serve_request(request, fds, self._entries[program], self.run_dir, self.key, parent)
-                finally:
-                    os._exit(70)  # the child never goes back into the daemon's loop
+            # A SIGTERM for a child that has no handlers yet would reach this loop through the wakeup descriptor
+            # they share and stop the daemon: the child gets it blocked, and unblocks it when its program starts.
+            held = signal.pthread_sigmask(signal.SIG_BLOCK, runner.SHIELDED)
+            try:
+                pid = os.fork()
+                if pid == 0:
+                    try:
+                        runner.serve_request(request, fds, self._entries[program], self.run_dir, self.key, parent)
+                    finally:
+                        os._exit(70)  # the child never goes back into the daemon's loop
+            finally:
+                signal.pthread_sigmask(signal.SIG_SETMASK, held)  # only the daemon gets here
             done = loop.create_future()
             self._children[pid] = done
             for fd in fds:
@@ -468,6 +480,15 @@ class Daemon:
         except asyncio.TimeoutError:
             raise protocol.DaemonError("busy", f"waited {self.max_wait_s:g}s for a free slot; {self.active} commands "
                                                "are running; try again") from None
+
+    @staticmethod
+    def _hung_up(connection: socket.socket) -> bool:
+        try:
+            return connection.recv(1, socket.MSG_PEEK) == b""
+        except BlockingIOError:
+            return False
+        except OSError:
+            return True
 
     @staticmethod
     def _tell(fd: int, text: str) -> None:

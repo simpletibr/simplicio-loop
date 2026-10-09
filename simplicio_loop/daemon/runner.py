@@ -52,6 +52,9 @@ def _attach_stdio(encodings: Mapping[str, Any], unbuffered: bool = False) -> Non
     sys.stderr = sys.__stderr__ = _text_stream(2, "w", enc("stderr")[0], "backslashreplace", unbuffered)
 
 
+SHIELDED = (signal.SIGTERM,)  # blocked from the fork of the child until its program starts
+
+
 def _raise_interrupt(signum: int, frame: Any) -> None:
     """SIGTERM, the hang-up of the caller, reaches the command as Ctrl-C does in a process: ``finally`` and
     ``atexit`` run. A command that ignores it is killed after the grace period."""
@@ -80,7 +83,7 @@ def apply_process(proc: Mapping[str, Any]) -> None:
     def attempt(what: str, action: Any, *arguments: Any) -> None:
         try:
             action(*arguments)
-        except (OSError, ValueError) as error:
+        except (OSError, ValueError, OverflowError) as error:
             refused.append(f"{what} ({error})")
 
     if "nice" in proc:
@@ -109,6 +112,7 @@ def _call(entry: Any) -> int:
     import traceback
 
     try:
+        signal.pthread_sigmask(signal.SIG_UNBLOCK, SHIELDED)  # a SIGTERM that came during the start-up arrives now
         return _exit_code(entry())
     except SystemExit as stop:
         return _exit_code(stop.code)

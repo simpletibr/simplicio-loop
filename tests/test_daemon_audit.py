@@ -1,5 +1,5 @@
-"""What the post-merge audit of the daemon found (issue #1590, audit of PR #1602): each finding has a test that
-fails without its fix, and each hole the audit found in the suite has a test that kills the mutant.
+"""What the post-merge audits of the daemon found (issue #1590, audits of PR #1602 and PR #1645): each finding has a
+test that fails without its fix, and each hole the audits found in the suite has a test that kills the mutant.
 """
 from __future__ import annotations
 
@@ -9,11 +9,13 @@ import json
 import os
 import pty
 import resource
+import shutil
 import signal
 import socket
 import stat
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -56,12 +58,12 @@ def wait_until(check, seconds: float = 15.0) -> bool:
     return check()
 
 
-def hold(run_dir: Path, program: str, *args: str, env: dict | None = None):
+def hold(run_dir: Path, program: str, *args: str, env: dict | None = None, key: str = KEY):
     """Start a command and keep its connection: returns (socket, closer of the descriptors we made)."""
     in_r, in_w = os.pipe()
     out_r, out_w = os.pipe()
     try:
-        sock = client.open_exec(program, list(args), run_dir=run_dir, key=KEY, cwd=str(run_dir),
+        sock = client.open_exec(program, list(args), run_dir=run_dir, key=key, cwd=str(run_dir),
                                 env=dict(os.environ) if env is None else env, stdio=(in_r, out_w, out_w), autostart=False)
     except BaseException:
         for fd in (in_r, in_w, out_r, out_w):
@@ -517,3 +519,262 @@ def test_a_refusal_sent_before_the_request_is_read_is_reported_as_the_refusal(ru
         assert caught.value.code == "peer_uid"
     finally:
         listener.close()
+
+
+# ---- audit of PR #1645, finding A: a queued command whose caller gave up must not run --------------------------
+
+
+def _queued(run_dir: Path, marker: Path) -> subprocess.Popen:
+    """A caller in a process of its own whose command (``sleeper``: it writes its start to ``marker``) waits for a slot."""
+    return subprocess.Popen([sys.executable, "-c", CALLER, "sleeper", str(marker), "0.1"], stdin=subprocess.DEVNULL,
+                            env={**os.environ, "RUN_DIR": str(run_dir), "KEY": KEY})
+
+
+def _waiting(run_dir: Path) -> int:
+    return client.status(run_dir=run_dir, key=KEY)["waiting"]
+
+
+def _drained(run_dir: Path) -> bool:
+    status = client.status(run_dir=run_dir, key=KEY)
+    return status["waiting"] == 0 and status["active"] == 0
+
+
+def test_a_queued_command_whose_caller_gave_up_does_not_run_when_the_slot_frees(daemons, run_dir, tmp_path):
+    serve(daemons, run_dir, DAEMON_TEST_MAX_CHILDREN="1")
+    first, close = hold(run_dir, "sleeper", str(tmp_path / "first"), "3")
+    marker = tmp_path / "queued"
+    queued = _queued(run_dir, marker)
+    try:
+        assert wait_until(lambda: _waiting(run_dir) == 1), "the command did not queue"
+        queued.kill()  # Ctrl-C or a closed terminal: nobody wants this command any more
+        queued.wait()
+        assert wait_until(lambda: _drained(run_dir), 30), "the slot never freed"
+        assert not wait_until(marker.exists, 1.5), "the command of a caller that was gone ran when the slot freed"
+        assert client.status(run_dir=run_dir, key=KEY)["served"] == 1, "the daemon started the command of a caller that was gone"
+        assert call(run_dir, "no-read").out.strip() == "did not read stdin"  # and the daemon goes on serving
+    finally:
+        kill_quietly(queued.pid)
+        first.close()
+        close()
+
+
+def test_a_live_caller_in_the_queue_still_runs_when_the_slot_frees(daemons, run_dir, tmp_path):
+    serve(daemons, run_dir, DAEMON_TEST_MAX_CHILDREN="1")
+    first, close = hold(run_dir, "sleeper", str(tmp_path / "first"), "2")
+    marker = tmp_path / "queued"
+    queued = _queued(run_dir, marker)
+    try:
+        assert wait_until(lambda: _waiting(run_dir) == 1), "the command did not queue"
+        assert queued.wait(60) == 0
+        assert [json.loads(line)["event"] for line in marker.read_text().splitlines()] == ["start", "end"]
+    finally:
+        kill_quietly(queued.pid)
+        first.close()
+        close()
+
+
+@pytest.mark.skipif(not Path("/proc/self/fd").is_dir(), reason="counts the descriptors of the daemon in /proc")
+def test_a_queued_command_that_gave_up_leaves_no_descriptor_open_in_the_daemon(daemons, run_dir, tmp_path):
+    daemon = serve(daemons, run_dir, DAEMON_TEST_MAX_CHILDREN="1")
+
+    def open_fds() -> int:
+        return len(os.listdir(f"/proc/{daemon.pid}/fd"))
+
+    assert call(run_dir, "no-read").rc == 0
+    assert wait_until(lambda: _waiting(run_dir) == 0)
+    idle = open_fds()
+    first, close = hold(run_dir, "sleeper", str(tmp_path / "first"), "3")
+    gone = [_queued(run_dir, tmp_path / f"queued{n}") for n in range(2)]
+    try:
+        assert wait_until(lambda: _waiting(run_dir) == 2), "the commands did not queue"
+        for process in gone:
+            process.kill()
+            process.wait()
+        assert wait_until(lambda: _waiting(run_dir) == 0, 30), "the slot never freed"
+        first.close()
+        assert wait_until(lambda: open_fds() == idle, 10), f"{open_fds() - idle} descriptors leaked in the daemon"
+    finally:
+        for process in gone:
+            kill_quietly(process.pid)
+        first.close()
+        close()
+
+
+# ---- audit of PR #1645, finding B: the short socket is the same path for every caller ---------------------------
+
+
+def _long(base: Path, tag: str) -> Path:
+    """A run directory whose ``<key>.sock`` does not fit in a unix socket path (it need not exist)."""
+    directory = base / tag
+    while len(os.fsencode(str(directory))) < 130:
+        directory = directory / ("d" * 30)
+    return directory
+
+
+def _fixed_dir() -> str:
+    return f"/tmp/simplicio-loop-{os.geteuid()}"
+
+
+@pytest.fixture
+def tmpdirs():
+    """Two short temporary directories of our own, like the ones a CI sets per task (a long TMPDIR would fail anyway)."""
+    made = [Path(tempfile.mkdtemp(prefix="tm", dir="/tmp")) for _ in range(2)]
+    yield made
+    for directory in made:  # exactly the two we made, never a shared name
+        shutil.rmtree(directory, ignore_errors=True)
+
+
+def test_two_long_run_directories_get_two_sockets(tmp_path):
+    one, two = protocol.paths(_long(tmp_path, "a"), KEY), protocol.paths(_long(tmp_path, "b"), KEY)
+    assert one.sock != two.sock and one.pid != two.pid and one.log != two.log
+    assert os.path.dirname(one.sock) == os.path.dirname(two.sock)
+    assert protocol.paths(_long(tmp_path, "a"), KEY).sock == one.sock, "the same directory must give the same socket"
+    assert protocol.paths(_long(tmp_path, "a"), "otherkey").sock != one.sock
+
+
+def test_the_short_socket_is_the_same_path_whatever_the_tmpdir_of_the_caller(tmp_path, monkeypatch, tmpdirs):
+    socks = set()
+    for elsewhere in tmpdirs:
+        monkeypatch.setenv("TMPDIR", str(elsewhere))
+        monkeypatch.setattr(tempfile, "tempdir", None)  # tempfile caches the first answer
+        socks.add(protocol.paths(_long(tmp_path, "run"), KEY).sock)
+    assert len(socks) == 1 and os.path.dirname(socks.pop()) == _fixed_dir()
+
+
+def _fake_euid(monkeypatch) -> int:
+    fake = 4_000_000 + os.getpid()  # a name of our own: /tmp/simplicio-loop-<real uid> is shared with every run
+    monkeypatch.setattr(os, "geteuid", lambda: fake)
+    return fake
+
+
+def test_the_fixed_socket_directory_is_refused_when_it_is_a_symlink(tmp_path, monkeypatch):
+    fixed = Path(f"/tmp/simplicio-loop-{_fake_euid(monkeypatch)}")
+    fixed.symlink_to(tmp_path)
+    try:
+        with pytest.raises(protocol.DaemonError) as caught:
+            protocol.paths(_long(tmp_path, "a"), KEY)
+    finally:
+        fixed.unlink()
+    assert caught.value.code == "dir_symlink"
+
+
+def test_the_fixed_socket_directory_is_refused_when_another_user_owns_it(tmp_path, monkeypatch):
+    fixed = Path(f"/tmp/simplicio-loop-{_fake_euid(monkeypatch)}")
+    fixed.mkdir(mode=0o700)  # ours, but the euid the code sees is another one
+    try:
+        with pytest.raises(protocol.DaemonError) as caught:
+            protocol.paths(_long(tmp_path, "a"), KEY)
+    finally:
+        fixed.rmdir()
+    assert caught.value.code == "dir_owner"
+
+
+def test_callers_with_different_tmpdirs_share_one_daemon_for_a_long_run_directory(tmp_path, tmpdirs):
+    directory = _long(tmp_path, "run")
+    directory.mkdir(parents=True)
+    directory.chmod(0o700)
+    env = {**os.environ, protocol.DIR_ENV: str(directory), "SIMPLICIO_LOOP_DAEMON_IDLE_S": "60",
+           protocol.OPT_OUT_ENV: "1", "PYTHONDONTWRITEBYTECODE": "1"}
+
+    def launch(*arguments: str, tmpdir: Path) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, "-c", LAUNCH, *arguments], env={**env, "TMPDIR": str(tmpdir)},
+                              capture_output=True, timeout=90)
+
+    try:
+        first = launch("--version", tmpdir=tmpdirs[0])
+        assert first.returncode == 0, first.stderr
+        started = time.monotonic()
+        status = launch("daemon", "status", tmpdir=tmpdirs[1])
+        assert status.returncode == 0, f"the second caller found no daemon: {status.stdout!r}"
+        assert json.loads(status.stdout)["socket"] == json.loads(launch("daemon", "status", tmpdir=tmpdirs[0]).stdout)["socket"]
+        second = launch("--version", tmpdir=tmpdirs[1])
+        assert second.returncode == 0 and second.stdout == first.stdout, second.stderr
+        assert time.monotonic() - started < 5, "the second caller started a daemon of its own and waited"
+    finally:
+        launch("daemon", "stop", tmpdir=tmpdirs[0])
+
+
+# ---- found while testing finding A: a caller that hangs up right after the fork must not stop the daemon -------------
+
+
+def test_a_caller_that_hangs_up_right_after_the_daemon_forked_cannot_stop_the_daemon(daemons, run_dir):
+    """The daemon signals the child of a caller that is gone. Before the child has its own handlers, that signal
+    used to reach the daemon through the wakeup descriptor they share: 1 immediate hang-up in 5 stopped it."""
+    daemon = serve(daemons, run_dir, DAEMON_TEST_MAX_CHILDREN="8")
+    for attempt in range(60):
+        try:
+            sock, close = hold(run_dir, "no-read")
+        except protocol.DaemonError as error:
+            pytest.fail(f"the daemon was gone after {attempt} immediate hang-ups: {error}")
+        sock.close()
+        close()
+    time.sleep(0.5)
+    assert daemon.poll() is None and client.status(run_dir=run_dir, key=KEY)["pid"] == daemon.pid
+    assert call(run_dir, "no-read").out.strip() == "did not read stdin"
+
+
+def test_the_daemon_still_stops_on_sigterm_after_it_ran_commands(daemons, run_dir):
+    daemon = serve(daemons, run_dir)
+    assert call(run_dir, "no-read").rc == 0
+    daemon.send_signal(signal.SIGTERM)  # the signals held back around the fork are the child's, never the daemon's
+    assert daemon.wait(10) == 0
+
+
+# ---- audit of PR #1645, minor: a huge number from a caller of the same user -----------------------------------
+
+
+@pytest.mark.parametrize("proc", [{"nice": 10**30}, {"rlimits": {"NOFILE": [10**30, 10**30]}}, {"cpus": [10**30]}],
+                         ids=["nice", "rlimit", "cpus"])
+def test_a_number_too_big_for_the_system_is_refused_in_words_not_with_a_traceback(capsys, proc):
+    assert protocol.valid_process_state(proc)  # the wire format allows it: the system call is what refuses
+    runner.apply_process(proc)
+    err = capsys.readouterr().err
+    assert "the system refused" in err and "Traceback" not in err
+
+
+def test_a_command_whose_caller_sent_a_huge_number_still_runs(daemons, run_dir, monkeypatch):
+    serve(daemons, run_dir)
+    monkeypatch.setattr(protocol, "process_state", lambda: {"nice": 10**30})
+    done = call(run_dir, "no-read")
+    assert done.rc == 0 and "did not read stdin" in done.out
+    assert "nice" in done.err and "Traceback" not in done.err
+
+
+# ---- audit of PR #1645, mutant N20: the wait limit of the environment reaches the daemon `daemon serve` starts --------
+
+
+SERVE_TEST_PROGRAMS = (  # `daemon serve` as the console script runs it, with the test programs added to the daemon
+    "import sys; sys.path.insert(0, sys.argv[1]); import daemon_helpers\n"
+    "from simplicio_loop.daemon import control, server\n"
+    "real = server.Daemon\n"
+    "server.Daemon = lambda *a, **k: real(*a, programs=daemon_helpers.PROGRAMS, preload=(), **k)\n"
+    "sys.exit(control.main(['serve']))")
+
+
+def test_the_wait_limit_of_the_environment_reaches_the_daemon_that_daemon_serve_starts(daemons, run_dir, tmp_path):
+    key = protocol.daemon_key()
+    env = {**os.environ, protocol.DIR_ENV: str(run_dir), "SIMPLICIO_LOOP_DAEMON_MAX_CHILDREN": "1",
+           "SIMPLICIO_LOOP_DAEMON_WAIT_S": "6", "SIMPLICIO_LOOP_DAEMON_IDLE_S": "60", "PYTHONDONTWRITEBYTECODE": "1"}
+    process = subprocess.Popen([sys.executable, "-c", SERVE_TEST_PROGRAMS, str(_suite.HELPERS.parent)], env=env,
+                               stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    daemons.append(process)
+    assert wait_until(paths_of(run_dir, key).sock.exists, 30), f"daemon serve did not start: {process.poll()}"
+    first, close = hold(run_dir, "sleeper", str(tmp_path / "first"), "30", key=key)
+    outcome: list = []
+
+    def second() -> None:
+        try:
+            outcome.append(call(run_dir, "no-read", key=key))
+        except protocol.DaemonError as error:
+            outcome.append(error)
+
+    thread = threading.Thread(target=second, daemon=True)
+    thread.start()
+    try:
+        thread.join(25)
+        assert outcome, "the second command still waits after 25 s: WAIT_S=6 never reached the daemon"
+        assert isinstance(outcome[0], protocol.DaemonError) and outcome[0].code == "busy"
+        assert "waited 6s" in str(outcome[0])
+    finally:
+        first.close()
+        close()
