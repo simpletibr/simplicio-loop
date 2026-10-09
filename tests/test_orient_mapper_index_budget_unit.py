@@ -91,7 +91,12 @@ def test_ensure_project_map_bounded_raises_timed_out_then_running(tmp_path, fake
 
     # Once the background process actually finishes, the next call reuses it
     # (issue #1331 tree-state reuse) instead of raising or reindexing.
-    time.sleep(2.5)
+    # The detached command now tries the overlay before the (2 s) index, so wait for the process to
+    # exit instead of guessing how long both take under load.
+    lock = repo / ".simplicio-loop" / cli_impl._MAPPER_INDEX_LOCK_NAME
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline and cli_impl._mapper_index_running_info(lock) is not None:
+        time.sleep(0.2)
     asyncio.run(cli_impl._ensure_project_map(repo, budget=cli_impl._orient_budget_seconds()))
     assert (repo / ".simplicio-loop" / "project-map.json").is_file()
     assert (repo / ".simplicio-loop" / "mapper-index-state.json").is_file()

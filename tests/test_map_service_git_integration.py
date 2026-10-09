@@ -134,6 +134,8 @@ def test_detached_head_falls_back_to_a_fixed_default_branch_name() -> None:
         root = Path(directory) / "repo"
         root.mkdir()
         _init_repo(root)
+        # Neither main, master nor an origin/HEAD exists, so there is no default-branch candidate.
+        _run("branch", "-m", "work", cwd=str(root))
         head_sha = _git_output(str(root), "rev-parse", "HEAD")
         _run("checkout", "-q", head_sha, cwd=str(root))  # real detached HEAD, no branch at all
 

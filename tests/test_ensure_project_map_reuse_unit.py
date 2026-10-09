@@ -37,7 +37,7 @@ def test_second_call_on_unchanged_tree_does_not_reindex(tmp_path, monkeypatch):
         return {"status": "ok"}
 
     monkeypatch.setattr(
-        "simplicio_loop.map_service_mapper.run_mapper_index", fake_run_mapper_index,
+        "simplicio_loop.map_service_mapper.run_mapper_map", fake_run_mapper_index,
     )
     asyncio.run(cli_impl._ensure_project_map(repo))
     assert len(calls) == 1
@@ -58,7 +58,7 @@ def test_a_real_tree_change_triggers_reindex(tmp_path, monkeypatch):
         return {"status": "ok"}
 
     monkeypatch.setattr(
-        "simplicio_loop.map_service_mapper.run_mapper_index", fake_run_mapper_index,
+        "simplicio_loop.map_service_mapper.run_mapper_map", fake_run_mapper_index,
     )
     asyncio.run(cli_impl._ensure_project_map(repo))
     assert len(calls) == 1

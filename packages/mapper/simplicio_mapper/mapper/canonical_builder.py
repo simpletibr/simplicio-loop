@@ -23,9 +23,12 @@ identity resolution from :mod:`simplicio_mapper.mapper.canonical_identity`
 :mod:`simplicio_mapper.mapper.canonical_storage` (ADR-008 step 3, path slice,
 already merged) for where a manifest's content-addressed directory and its
 ``.tmp-<token>`` staging sibling live. The only new mechanism here is: get a
-clean checkout of the exact default-branch commit without touching the
-caller's real working tree, via ``git worktree add --detach`` against a
-throwaway temp path, then clean that temp worktree back up unconditionally.
+clean copy of the exact default-branch commit without touching the caller's
+real working tree or index. Issue #1574: that copy is a private-index
+``git read-tree`` + ``git checkout-index --prefix`` into
+``<cache>/scratch/<build>/tree`` -- no ``git worktree`` registration to leak or to race on --
+guarded by a ``build.lock`` (so ``map gc`` knows it is alive) and removed in ``finally`` and on
+SIGTERM.
 
 Storage layout: ``<storage_root>/canonical/<CanonicalMapKey.digest()>/`` --
 shape and staging-path arithmetic come from
@@ -58,13 +61,15 @@ from __future__ import annotations
 
 import hashlib
 import os
-import random
 import secrets
 import shutil
+import signal
 import socket
 import subprocess
 import tempfile
+import threading
 import time
+from contextlib import contextmanager
 from typing import Any, NamedTuple
 
 import orjson
@@ -119,17 +124,6 @@ _BUILD_LOCK_WAIT_ENV = "SIMPLICIO_MAPPER_CANONICAL_BUILD_LOCK_WAIT_SECONDS"
 _DEFAULT_BUILD_LOCK_WAIT_SECONDS = 600.0
 _BUILD_LOCK_POLL_SECONDS = 0.2
 
-#: Bounded retry for the throwaway detached checkout below (issue #236/#263
-#: acceptance criterion: "dez ou mais processos solicitando o mesmo mapa
-#: simultaneamente"). Under real concurrent load, `git worktree add` itself
-#: can transiently fail even against unique target paths -- see
-#: `_create_detached_checkout`'s docstring -- so a short, jittered retry is
-#: the correct fix rather than failing the whole build closed on a
-#: known-transient race.
-_DETACHED_CHECKOUT_MAX_ATTEMPTS = 4
-_DETACHED_CHECKOUT_RETRY_BASE_SECONDS = 0.05
-
-
 class CanonicalBuildResult(NamedTuple):
     """Additive diagnostics wrapper -- see :func:`build_canonical_manifest_with_diagnostics`."""
 
@@ -178,7 +172,9 @@ def _mapper_version() -> str:
     return __version__
 
 
-def _run_git(args: list[str], cwd: str) -> subprocess.CompletedProcess | None:
+def _run_git(
+    args: list[str], cwd: str, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess | None:
     try:
         return subprocess.run(
             ["git", *args],
@@ -187,6 +183,7 @@ def _run_git(args: list[str], cwd: str) -> subprocess.CompletedProcess | None:
             text=True,
             timeout=_GIT_TIMEOUT_SECONDS,
             stdin=subprocess.DEVNULL,
+            env=env,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -247,12 +244,12 @@ def _compute_file_manifest_digest(root: str, commit_sha: str) -> str | None:
     the detached temp checkout, so it is safe to compute before or after that
     checkout exists.
     """
-    result = _run_git(["ls-tree", "-r", commit_sha], root)
+    result = _run_git(["ls-tree", "-r", "-z", commit_sha], root)
     if not result or result.returncode != 0:
         return None
     entries: list[str] = []
-    for line in result.stdout.splitlines():
-        # format: "<mode> <type> <sha>\t<path>"
+    for line in result.stdout.split("\0"):
+        # format: "<mode> <type> <sha>\t<path>" (NUL-separated, raw path)
         meta, _, path = line.partition("\t")
         if not path:
             continue
@@ -268,61 +265,65 @@ def _compute_file_manifest_digest(root: str, commit_sha: str) -> str | None:
     return hashlib.blake2b(raw, digest_size=24).hexdigest()
 
 
-def _create_detached_checkout(root: str, commit_sha: str) -> tuple[str, str] | None:
-    """Create a throwaway ``git worktree`` checked out at ``commit_sha``.
+@contextmanager
+def _sigterm_as_exit():
+    """Turn SIGTERM into ``SystemExit`` so the ``finally`` blocks below run (issue #1574).
 
-    Returns ``(base_tmp_dir, worktree_path)`` on success -- caller is
-    responsible for cleanup via :func:`_remove_detached_checkout`. Returns
-    ``None`` (after :data:`_DETACHED_CHECKOUT_MAX_ATTEMPTS` retries) on
-    persistent failure; nothing is left behind in that case.
-
-    Two concurrency fixes, both found by actually running ten real
-    concurrent build processes against one repository (issue #236/#263
-    acceptance criterion "dez ou mais processos solicitando o mesmo mapa
-    simultaneamente" -- not previously covered by any real multi-process
-    test):
-
-    1. The worktree directory's basename is unique per attempt
-       (``wt-<pid>-<attempt>``, not a fixed ``"wt"``): ``git worktree add``
-       derives its own internal administrative directory name
-       (``<common-git-dir>/worktrees/<name>/``) from the *basename* of the
-       target path, not the full path -- ``base_tmp`` being unique per call
-       is not enough on its own. Every worker using the literal basename
-       ``"wt"`` made git race on allocating that shared administrative
-       directory name.
-    2. Even with a unique basename, ``git worktree add`` can still
-       transiently fail under heavy concurrency against the same
-       repository -- observed failure: ``fatal: failed to read
-       .git/worktrees/<some-other-worker's-name>/commondir: Success`` --
-       i.e. git's own worktree-registration bookkeeping is not fully
-       concurrency-safe even across worktrees with distinct names. This is
-       transient (a moment later, the same repository is healthy again),
-       so a short, jittered, bounded retry is the correct fix rather than
-       letting the whole build fail closed on a race that resolves itself.
+    A default-disposition SIGTERM kills the interpreter without unwinding, which is exactly how a
+    timed-out build used to leave its checkout behind. Only installed on the main thread and only
+    over the default handler: a host that owns SIGTERM keeps it.
     """
-    for attempt in range(_DETACHED_CHECKOUT_MAX_ATTEMPTS):
-        base_tmp = tempfile.mkdtemp(prefix="simplicio-canonical-")
-        worktree_path = os.path.join(base_tmp, f"wt-{os.getpid()}-{attempt}")
-        result = _run_git(["worktree", "add", "--detach", worktree_path, commit_sha], root)
-        if result and result.returncode == 0:
-            return base_tmp, worktree_path
-        shutil.rmtree(base_tmp, ignore_errors=True)
-        if attempt < _DETACHED_CHECKOUT_MAX_ATTEMPTS - 1:
-            backoff = _DETACHED_CHECKOUT_RETRY_BASE_SECONDS * (attempt + 1)
-            time.sleep(backoff + random.random() * _DETACHED_CHECKOUT_RETRY_BASE_SECONDS)
-    return None  # fail-closed after exhausting retries, per module docstring
+    sigterm = getattr(signal, "SIGTERM", None)
+    if sigterm is None or threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    try:
+        previous = signal.getsignal(sigterm)
+        if previous is not signal.SIG_DFL:
+            yield
+            return
+
+        def _exit(signum, _frame):  # noqa: ANN001
+            raise SystemExit(128 + signum)
+
+        signal.signal(sigterm, _exit)
+    except (OSError, ValueError):
+        yield
+        return
+    try:
+        yield
+    finally:
+        signal.signal(sigterm, previous)
 
 
-def _remove_detached_checkout(root: str, base_tmp: str, worktree_path: str) -> None:
-    """Best-effort cleanup: never leaves a stray ``git worktree`` entry."""
-    result = _run_git(["worktree", "remove", "--force", worktree_path], root)
-    if not result or result.returncode != 0:
-        # Directory may already be gone, or removal raced with something
-        # holding a file open (e.g. AV scanners on Windows) -- fall back to
-        # a manual prune so `git worktree list` never keeps a dangling entry.
-        shutil.rmtree(worktree_path, ignore_errors=True)
-        _run_git(["worktree", "prune"], root)
-    shutil.rmtree(base_tmp, ignore_errors=True)
+@contextmanager
+def _scratch_checkout(root: str, commit_sha: str, cache_root: str):
+    """Yield ``(tree_dir)`` holding an exact checkout of ``commit_sha``, or ``None`` on failure.
+
+    The tree is materialized from the object store through a private index, so neither the
+    caller's index nor its working tree is read or written, and no ``git worktree`` entry exists.
+    The scratch directory holds a ``build.lock`` for as long as the build runs and is always
+    removed, including on SIGTERM and on any exception.
+    """
+    scratch_root = os.path.join(cache_root, "scratch")
+    os.makedirs(scratch_root, exist_ok=True)
+    scratch = tempfile.mkdtemp(prefix=f"canonical-{os.getpid()}-", dir=scratch_root)
+    lock = acquire_lock_at(os.path.join(scratch, "build.lock"), operation="canonical-scratch")
+    try:
+        with _sigterm_as_exit():
+            tree = os.path.join(scratch, "tree")
+            os.makedirs(tree)
+            env = dict(os.environ, GIT_INDEX_FILE=os.path.join(scratch, "index"))
+            read = _run_git(["read-tree", commit_sha], root, env=env)
+            if not read or read.returncode != 0:
+                yield None
+                return
+            prefix = tree + os.sep
+            out = _run_git(["checkout-index", "-a", "-f", f"--prefix={prefix}"], root, env=env)
+            yield tree if out and out.returncode == 0 else None
+    finally:
+        release_lock_at(lock)
+        shutil.rmtree(scratch, ignore_errors=True)
 
 
 def _promote_digest_dir(tmp_digest_dir: str, digest_dir: str) -> None:
@@ -427,8 +428,9 @@ def build_canonical_manifest(
     """Build (or reuse) a :class:`CanonicalMapManifest` for ``root``'s default branch.
 
     Materializes the mapping artifacts for the resolved default-branch
-    **commit** -- via a detached ``git worktree add`` temp checkout, never
-    against ``root``'s own (possibly dirty) working tree -- and stores them
+    **commit** -- via a private-index scratch checkout (see
+    :func:`_scratch_checkout`), never against ``root``'s own (possibly dirty)
+    working tree -- and stores them
     content-addressed under
     ``storage_root/canonical/<CanonicalMapKey.digest()>/`` (path shape from
     :func:`canonical_storage.canonical_manifest_dir`).
@@ -570,16 +572,13 @@ def build_canonical_manifest_with_diagnostics(
         if file_manifest_digest is None:
             return CanonicalBuildResult(None, "file_manifest_digest_failed")
 
-        checkout = _create_detached_checkout(root, identity.commit_sha)
-        if checkout is None:
-            return CanonicalBuildResult(None, "checkout_failed")
-        base_tmp, worktree_path = checkout
-        try:
-            artifacts = build_artifacts(worktree_path, meta=None, incremental=False)
-        except Exception:  # noqa: BLE001 - any pipeline failure must fail closed
-            return CanonicalBuildResult(None, "pipeline_failed")
-        finally:
-            _remove_detached_checkout(root, base_tmp, worktree_path)
+        with _scratch_checkout(root, identity.commit_sha, cache_root) as tree_path:
+            if tree_path is None:
+                return CanonicalBuildResult(None, "checkout_failed")
+            try:
+                artifacts = build_artifacts(tree_path, meta=None, incremental=False)
+            except Exception:  # noqa: BLE001 - any pipeline failure must fail closed
+                return CanonicalBuildResult(None, "pipeline_failed")
 
         project_map = artifacts["project_map"]
         precedent_index = artifacts["precedent_index"]
