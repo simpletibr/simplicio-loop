@@ -12,6 +12,7 @@ import json
 import keyword
 import os
 import posixpath
+import shutil
 import re
 import subprocess
 from bisect import bisect_right
@@ -21,6 +22,7 @@ from ..relations import relation_coverage, relation_id
 from ..semantic_resolution import (
     COMMAND_ENV,
     TIMEOUT_ENV,
+    command_parts as semantic_command,
     RoslynSemanticAdapter,
     resolution_key,
     resolve_semantic_calls,
@@ -525,12 +527,41 @@ def semantic_not_required(input_key: str | None = None) -> dict:
     return document
 
 
+#: Non-source files a .NET service run in the working directory may read (project, solution, SDK and
+#: analyzer configuration). The inventory does not scan them, so the overlay checks the delta against this
+#: list (``is_semantic_context``): touching one forces a recompute.
+_SEMANTIC_CONTEXT_NAMES = frozenset(
+    {"directory.build.props", "directory.build.targets", "directory.packages.props", "global.json", "nuget.config", ".editorconfig"}
+)
+_SEMANTIC_CONTEXT_SUFFIXES = (".csproj", ".sln", ".slnx", ".props", ".targets")
+
+
+def is_semantic_context(path: str) -> bool:
+    name = posixpath.basename(path).lower()
+    return name in _SEMANTIC_CONTEXT_NAMES or name.endswith(_SEMANTIC_CONTEXT_SUFFIXES)
+
+
+def _service_identity(command: str | list[str] | None) -> list[list]:
+    """Name, size and mtime of every file the service command runs (an upgrade changes its answers)."""
+    parts = semantic_command(command)
+    identity: list[list] = []
+    for token in parts or []:
+        path = shutil.which(token) or token
+        try:
+            stat = os.stat(path)
+        except OSError:
+            continue
+        if os.path.isfile(path):
+            identity.append([token, stat.st_size, stat.st_mtime_ns])
+    return identity
+
+
 def semantic_input_key(files: list[ProjectFile], semantic_adapter: RoslynSemanticAdapter | None = None) -> str | None:
     """Digest of everything the C#/Razor semantic pass depends on, or ``None`` when it cannot be proven.
 
-    The pass reads only C#/Razor sources and the symbols defined in them, so their paths, languages and
-    content hashes plus the service configuration identify its result. A file without a content hash
-    makes the key unprovable (``None``): the caller must then recompute, never reuse.
+    The key covers the C#/Razor paths, languages and content hashes, the service command, its timeout and
+    the identity of the files it runs (an upgraded service answers differently). A file without a content
+    hash makes the key unprovable (``None``): the caller must then recompute, never reuse.
     """
     sources = sorted((file.path, file.language, file.file_hash) for file in files if file.language in SEMANTIC_LANGUAGES)
     if not sources or any(not entry[2] for entry in sources):
@@ -541,6 +572,7 @@ def semantic_input_key(files: list[ProjectFile], semantic_adapter: RoslynSemanti
     payload = {
         "sources": sources,
         "command": command if isinstance(command, str) else list(command),
+        "service": _service_identity(command),
         "timeout": os.environ.get(TIMEOUT_ENV, "").strip(),
     }
     raw = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
@@ -565,7 +597,7 @@ def resolve_csharp_razor_semantics(
     semantic_by_site: dict[tuple[str, int, str], dict] = {}
     if not semantic_files:
         return semantic_not_required(), semantic_by_site
-    input_key = semantic_input_key(semantic_files, semantic_adapter)
+    input_key = semantic_input_key(files, semantic_adapter)
     paths = {file.path for file in semantic_files}
     semantic_symbols = [item for item in symbols if item.get("defined_in") in paths]
     definition_sites = {

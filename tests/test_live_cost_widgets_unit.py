@@ -187,3 +187,29 @@ def test_counts_that_are_not_finite_numbers_never_become_a_bar():
              'by_lane': {}, 'by_model': {}, 'by_task': {}, 'by_iteration': {}, 'unattributed_tokens': {'task': 0, 'iteration': 0}}
     bars = _view(_budget(usage=usage))['tokenBars']
     assert [item['label'] for item in bars['phases']] == ['executing']
+
+
+def _floor_budget(**cost_extra):
+    cost = {'state': 'ESTIMADO', 'usd': 0.016, 'proof_kind': 'estimado', 'reason': None, 'as_of': '2026-10-08', 'by_task': {'T1': 0.016},
+            'by_iteration': {'1': 0.016}, 'unattributed_usd': {'task': 0.0, 'iteration': 0.0}, 'floor': True,
+            'floor_reason': 'USD a partir de: 1 evento(s) com prompt acima de 100000 tokens sem dado por requisição; o nível de preço acima do limiar não foi verificado (UNVERIFIED)',
+            'floor_tasks': ['T1'], 'floor_iterations': ['1'], 'floor_unattributed': {'task': False, 'iteration': False}}
+    cost.update(cost_extra)
+    usage = {'tokens': 152000, 'by_task': {'T1': 152000}, 'by_iteration': {'1': 152000}, 'unattributed_tokens': {'task': 0, 'iteration': 0}}
+    return {'usage': usage, 'cost': cost}
+
+
+def test_a_floor_row_reads_a_partir_de_and_the_note_carries_the_floor_reason():
+    view = _view(_floor_budget())
+    row = view['taskCosts']['rows'][0]
+    assert row['state'] == 'ESTIMADO' and row['floor'] is True
+    assert 'a partir de USD 0.0160' in row['detail'] and 'estimado' not in row['detail']
+    assert 'a partir de USD 0.0160' in view['iterationCosts']['rows'][0]['detail']
+    assert 'sem dado por requisição' in view['taskCosts']['reason'] and 'UNVERIFIED' in view['taskCosts']['reason']
+
+
+def test_an_exact_row_keeps_the_estimado_label_and_no_floor_note():
+    view = _view(_floor_budget(floor=False, floor_reason=None, floor_tasks=[], floor_iterations=[]))
+    row = view['taskCosts']['rows'][0]
+    assert row['floor'] is False and 'USD 0.0160 estimado' in row['detail']
+    assert 'requisição' not in view['taskCosts']['reason']
