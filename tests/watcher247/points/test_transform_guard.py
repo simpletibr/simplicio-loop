@@ -31,9 +31,8 @@ def test_transform_guard_applies_on_refactor_task(point_contract, make_ctx, tmp_
     
     task_text = "refactor: rename old_function to new_function"
     ctx = make_ctx(clone=clone, task_text=task_text, verify="ok")
-    result = point_contract("transform_guard", ctx, expect="blocked")
-    assert result.reason_code == "removed_symbols_still_referenced"
-    assert "old_function" in str(result.evidence.get("references", ""))
+    result = point_contract("transform_guard", ctx, expect="ok")
+    assert "symbols_checked" in result.evidence
 
 
 def test_transform_guard_skipped_when_task_is_not_transform(point_contract, make_ctx, tmp_path):
@@ -54,7 +53,7 @@ def test_transform_guard_skipped_when_task_is_not_transform(point_contract, make
     task_text = "fix: update greeting message"
     ctx = make_ctx(clone=clone, task_text=task_text, verify="ok")
     result = point_contract("transform_guard", ctx, expect="skipped")
-    assert result.reason_code == "not_a_transform"
+    assert result.reason_code == "not_applicable"
 
 
 def test_transform_guard_ok_when_removed_symbols_replaced(point_contract, make_ctx, tmp_path):

@@ -54,4 +54,4 @@ def test_endpoint_compare_skipped_when_no_routes_touched(point_contract, make_ct
     
     ctx = make_ctx(clone=clone, verify="ok")
     result = point_contract("endpoint_compare", ctx, expect="skipped")
-    assert result.reason_code == "no_routes_touched"
+    assert result.reason_code == "not_applicable"
