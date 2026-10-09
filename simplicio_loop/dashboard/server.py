@@ -32,6 +32,7 @@ from typing import Any, Mapping
 
 from simplicio_loop import __version__, dashboard_events, stage_agents
 from simplicio_loop.dashboard import STATIC_DIR, alerts, budget, config, history, lane_extras, runs, trends, webhook
+from simplicio_loop.dashboard import stage_agents as stage_costs
 from simplicio_loop.dashboard.tail import EventTail
 
 HOST = '127.0.0.1'
@@ -49,6 +50,7 @@ _CONFIG_RE = re.compile(r'/api/runs/([^/]+)/config')
 _ARTIFACT_RE = re.compile(r'/api/runs/([^/]+)/artifacts/(.+)')
 _BUDGET_RE = re.compile(r'/api/runs/([^/]+)/budget')
 _EXTRAS_RE = re.compile(r'/api/runs/([^/]+)/extras')
+_STAGE_AGENTS_RE = re.compile(r'/api/runs/([^/]+)/stage-agents')
 _DETAIL_RE = re.compile(r'/api/runs/([^/]+)')
 STATIC_TYPES = {
     '.js': 'text/javascript; charset=utf-8',
@@ -454,6 +456,11 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         if extras_route:
             ref = _find_run(self.server, urllib.parse.unquote(extras_route.group(1)))
             self._send_json(200, lane_extras.extras(ref['run_dir'], dashboard_events.read_events(ref['run_dir'])))
+            return
+        stage_route = _STAGE_AGENTS_RE.fullmatch(raw_path)
+        if stage_route:
+            ref = _find_run(self.server, urllib.parse.unquote(stage_route.group(1)))
+            self._send_json(200, stage_costs.view(dashboard_events.read_events(ref['run_dir']), price_table()))
             return
         artifact = _ARTIFACT_RE.fullmatch(raw_path)
         if artifact:

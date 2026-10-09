@@ -13,6 +13,13 @@ from simplicio_loop import model_roles
 from simplicio_loop.dashboard import budget
 
 SCHEMA = 'simplicio.dashboard-event/v1'
+VIEW_SCHEMA = 'simplicio.dashboard-stage-agents/v1'
+
+
+def view(events: Iterable[dict[str, Any]], prices: dict[str, Any] | None) -> dict[str, Any]:
+    '''The GET /api/runs/<id>/stage-agents body: the per-stage rows plus the run's own cost estimate.'''
+    events = list(events)
+    return {'schema': VIEW_SCHEMA, 'rows': rows(events, prices), 'cost': budget.cost_estimate(events, prices)}
 
 
 def rows(events: Iterable[dict[str, Any]], prices: dict[str, Any] | None) -> list[dict[str, Any]]:
