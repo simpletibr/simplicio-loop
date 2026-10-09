@@ -1,7 +1,8 @@
 """autoscale (intake): record economy_profile's operator-worker recommendation.
 
-Evidence only: the recommendation does not use the capacity probe, and nothing reads it, so it never changes
-`config.concurrency` (the registry table keeps this point `parcial`, not `ligado`).
+Evidence only: the recommendation does not use the capacity probe, and nothing reads it, so it never changes the
+tick's batch size, which `squad_capacity` sizes from the measured machine (the registry table keeps this point
+`parcial`, not `ligado`).
 """
 from ... import economy_profile
 

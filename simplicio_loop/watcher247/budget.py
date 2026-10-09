@@ -98,3 +98,9 @@ async def reached() -> str | None:
 async def issues_left() -> int:
     data = await snapshot()
     return max(0, data["max_issues"] - data["issues"])
+
+
+async def slots_left() -> int:
+    """Workers the daily cap still allows: each one takes an issue and may open a PR, so the smaller room counts."""
+    data = await snapshot()
+    return max(0, min(data["max_issues"] - data["issues"], data["max_prs"] - data["prs"]))

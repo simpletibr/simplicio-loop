@@ -116,10 +116,7 @@ def _hidden(prompt: str) -> str:
             raise Refused("this terminal cannot hide the input; use --github-token-stdin") from None
 
 
-def collect(email: str | None, token_stdin: bool, github_token: str | None) -> tuple[str, str]:
-    if github_token is not None:
-        raise Refused("never pass the token as an argument: it shows in `ps` and in the shell history. "
-                      "Use --github-token-stdin, or run setup in a terminal for a hidden prompt")
+def collect(email: str | None, token_stdin: bool) -> tuple[str, str]:
     tty = sys.stdin.isatty()
     if not tty and not token_stdin:
         raise Refused("stdin is not a terminal: pass --github-token-stdin and pipe the token, with --email")
@@ -345,14 +342,14 @@ def check(email: str | None) -> int:
     return asyncio.run(_account(email))
 
 
-def main(email: str | None = None, token_stdin: bool = False, github_token: str | None = None,
+def main(email: str | None = None, token_stdin: bool = False,
          state_dir: str | None = None, check_only: bool = False) -> int:
     if state_dir:
         config.set_state_dir(state_dir)
     try:
         if check_only:
             return check(email)
-        email, token = collect(email, token_stdin, github_token)
+        email, token = collect(email, token_stdin)
         target = env_guard.env_file()
         check_target(target)
         return asyncio.run(_run(email, token, target))
