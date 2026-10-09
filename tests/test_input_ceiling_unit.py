@@ -39,7 +39,7 @@ def test_constants():
     assert ic.TOML_KEY == "agent_input_token_ceiling"
     assert ic.SOFT_PERCENT == 90
     assert ic.SAFETY_PERCENT == 120
-    assert ic.ESTIMATOR_LABEL == "conservative-v1"
+    assert ic.ESTIMATOR_LABEL == "conservative-v2"
 
 
 def test_default_when_nothing_is_configured(tmp_path):
@@ -261,7 +261,7 @@ def _p(total):
 
 
 @pytest.mark.parametrize("total,status", [
-    (0, "ok"), (88_199, "ok"),
+    (1, "ok"), (88_199, "ok"),
     (88_200, "handoff"), (97_999, "handoff"), (98_000, "handoff"),
     (98_001, "over"), (200_000, "over"),
 ])
@@ -326,3 +326,26 @@ def test_enforce_budget_raises_only_above_the_ceiling():
     assert exc.value.reason_code == "input_ceiling_exceeded"
     assert exc.value.verdict.status == "over" and exc.value.verdict.tokens == 98_001
     assert re.search(r"98001|98,001", str(exc.value))
+
+
+# --- reviewer additions (#1613) ------------------------------------------------------------------------------------------
+def test_zero_usage_is_not_a_measurement():
+    with pytest.raises(ValueError):
+        ic.PromptUsage(0, 0, 0)
+    with pytest.raises(ValueError):
+        ic.PromptUsage.from_usage({"input_tokens": 0, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0})
+
+
+@pytest.mark.parametrize("ceiling", [1, 2, 10, 99, 98001])
+def test_soft_limit_is_the_first_handoff_token(ceiling):
+    soft = ic.check_budget(ic.Projection.estimated(""), ceiling).soft_limit
+    def at(n):
+        return ic.check_budget(ic.Projection(n, ic.ESTIMATED, None, n, "x"), ceiling).status
+    assert at(soft) != ic.OK and (soft == 0 or at(soft - 1) == ic.OK)
+
+
+def test_toml_with_bytes_that_are_not_utf8_is_a_config_error(tmp_path):
+    (tmp_path / ".simplicio-loop").mkdir()
+    (tmp_path / ".simplicio-loop" / "loop.toml").write_bytes(b"agent_input_token_ceiling = \xff\xfe")
+    with pytest.raises(ic.CeilingConfigError):
+        ic.resolve_ceiling(tmp_path, {})
