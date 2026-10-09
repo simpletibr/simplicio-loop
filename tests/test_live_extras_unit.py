@@ -292,7 +292,7 @@ def test_the_page_links_the_extras_stylesheet_and_no_new_script():
 
 def test_the_app_imports_startextras_and_starts_it_inside_the_token_block():
     text = (LIVE / 'app.js').read_text(encoding='utf-8')
-    assert text.count("import { startExtras } from '/static/extras/extras.js';") == 1
+    assert text.count("import { startBudget, startExtras } from '/static/extras/extras.js';") == 1
     start = text.index('function start() {')
     call = text.index('startExtras(readApi, runId);')
     assert start < call < text.index('if (!token || !runId)', start)
@@ -765,3 +765,9 @@ def test_each_probe_appended_to_a_copy_of_extras_js_trips_the_guard_and_the_real
 def test_the_only_style_write_in_extras_js_is_the_literal_width():
     text = MODULE.read_text(encoding='utf-8')
     assert len(re.findall(r'\.style\b', text)) == 1 and len(re.findall(r"\.style\.setProperty\('width', ", text)) == 1
+
+
+def test_the_app_starts_the_budget_poll_in_extras_with_the_reducer_dispatch_and_the_tokens_cadence():
+    text = (LIVE / 'app.js').read_text(encoding='utf-8')
+    assert text.count('startBudget(readApi, runId, dispatch, TOKENS_POLL_MS);') == 1
+    assert 'loadBudget' not in text
