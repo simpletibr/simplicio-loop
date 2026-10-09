@@ -55,7 +55,7 @@ async def mcp_subscription() -> dict:
     except auth.LoginError as exc:
         if exc.reason_code in {"login_missing", "login_invalid"}:
             return _public_subscription({}, "login_missing", False)
-        return _public_subscription({}, "login_insecure", False) | {"detail": str(exc)[:180]}
+        return _public_subscription({}, "login_insecure", False) | {"detail": str(exc)[:400]}  # holds the chmod fix
     access = str(login.get("access_token") or "").strip()
     refresh = str(login.get("refresh_token") or "").strip()
     expires = int(login.get("access_expires_at") or 0)

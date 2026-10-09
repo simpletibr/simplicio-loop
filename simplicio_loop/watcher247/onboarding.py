@@ -32,6 +32,7 @@ import warnings
 from collections.abc import Mapping
 from pathlib import Path
 
+from .. import auth
 from . import config, env_guard, login_check, proc, state, subscription
 
 COMMAND = "simplicio-loop watch247 setup"
@@ -52,6 +53,8 @@ _BROAD = frozenset({"delete_repo", "workflow", "write:packages", "delete:package
 
 _HINTS = {
     "login_missing": f"no Simplicio login for the service user yet. Run: {LOGIN_COMMAND}  then run `{COMMAND} --check`",
+    "login_insecure": ("the login file is not safe to use (a symlink, a file group or others can read, or a folder they "
+                       f"can write). Run: chmod 600 {{login}}  (a symlink: remove it) then run `{COMMAND} --check`"),
     "account_mismatch": ("login.json belongs to another Simplicio account than the e-mail you gave. "
                          f"Run: {LOGOUT_COMMAND}  then {LOGIN_COMMAND}"),
     "refresh_failed": f"the login expired. Run: {LOGIN_COMMAND}",
@@ -269,16 +272,19 @@ def _report_token(login: str, scopes: list[str] | None) -> None:
 
 
 def _login_state() -> tuple[tuple[int, int] | None, str]:
-    """(owner of login.json or None when it is absent, the account e-mail it holds or '')."""
+    """(owner of login.json or None when it is absent, the account e-mail it holds or '').
+
+    The file is read through `simplicio_loop.auth`, the one reader of the shared login: a symlink or a file the store
+    refuses holds no e-mail for the comparison."""
     try:
-        info = config.LOGIN.stat()
+        info = config.LOGIN.lstat()
     except OSError:
         return None, ""
     try:
-        found = json.loads(config.LOGIN.read_text())["verification"]["validated"]["user"]["email"]
-    except (OSError, ValueError, KeyError, TypeError):
+        found = auth.account_email(auth.read_login(config.LOGIN))
+    except auth.LoginError:
         found = ""
-    return (info.st_uid, info.st_gid), found if isinstance(found, str) else ""
+    return (info.st_uid, info.st_gid), found
 
 
 async def account_reason(email: str) -> str:
@@ -324,7 +330,7 @@ async def _account(email: str) -> int:
     reason = await account_reason(email)
     print(f"Simplicio subscription: {reason}")
     if reason != "ok":
-        print(f"  {_HINTS.get(reason, 'run this command again later')}")
+        print(f"  {_HINTS.get(reason, 'run this command again later').replace('{login}', str(config.LOGIN))}")
     return 0 if reason == "ok" else 1
 
 
