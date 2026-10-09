@@ -1,6 +1,7 @@
 """3.45.2 host mode: two commands. The invoking model plans and dev-cli applies. No provider call and no key."""
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import re
