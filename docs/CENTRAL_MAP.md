@@ -37,6 +37,29 @@ name the remote-tracking ref wins over the local branch. A worktree never counts
    files describe another tree. A later full `index` replaces `overlay.json`.
 5. `simplicio-mapper orient` reads the two JSON artifacts as before.
 
+## The C#/Razor semantic pass and the name-lookup cap (#1631)
+
+The semantic service resolves C#/Razor call sites (`SIMPLICIO_MAPPER_SEMANTIC_COMMAND`). That pass reads
+only the C#/Razor files. The service gets only the symbols that C#/Razor files define. A Python or
+JavaScript file never enters the request and never changes the answer.
+
+* `semantic_resolution.input_key` in `symbol-index.json` is a digest of the path, language and content
+  hash of every C#/Razor file, plus the service command and timeout. A C#/Razor file without a content
+  hash makes the key unprovable, so the field is `null`.
+* The overlay compares the `input_key` of the base with the one of the worktree. If they are equal, it
+  copies the C#/Razor symbols and the `semantic_resolution` of the base and does not start the service.
+  If they differ, it parses the C#/Razor files again and runs the service on those files alone.
+* The receipt of `canonical overlay` has the field `semantic`. `not_required` means the worktree has no
+  C#/Razor file. `reused_from_base` means the service did not run. `recomputed:<reason>` means it ran.
+  The reason is `input_key_unprovable`, `base_without_input_key` or `semantic_input_changed`.
+* A call that the service did not resolve keeps at most 32 candidate edges by name lookup. Set
+  `SIMPLICIO_MAPPER_CALL_NAME_CANDIDATE_LIMIT` to change the cap. The minimum is 1, and a value that is
+  not a number gives 32. The kept candidates are the first ones by file, line and qualified name, so
+  the result does not depend on the file order. The edge still reports the real `candidate_count`.
+* `call-graph.json` reports the cap in `coverage`: `name_candidate_limit`, `name_capped_call_sites` and
+  `name_edges_discarded`. Any discarded edge sets `coverage.status` to `degraded`. The cap never
+  applies to an edge that the service resolved.
+
 A startup GC runs before this step: in `run_mapper_index`, in `run_mapper_map`, in the budgeted
 `_ensure_project_map_bounded`, and in every `map <command>`. It removes stale scratch and orphan locks.
 It never removes a base.
@@ -101,13 +124,15 @@ simplicio-mapper canonical build|status|verify|gc <path>               # same su
 
 ## Known limits
 
-* **No time gain on trees that contain C# or Razor.** The call graph runs one global semantic pass
-  over any tree that has a single C#/Razor file. The overlay must run that pass too, and it parses
-  every C#/Razor file again. On this repository the overlay took 500.9 s and a fresh full mapping
-  took 506.5 s. Eight tracked C#/Razor files (six Dev CLI templates and two mapper fixtures) always
-  count as remapped, even on a clean worktree. The result stays exact: the three artifacts match the
-  full mapping. Do not expect faster `orient` on such a tree. A follow-up could skip the global pass
-  when only templates and fixtures contain C#.
+* **A change to one C#/Razor file runs the service on every C#/Razor file of the tree.** The service
+  resolves symbols across files, so the overlay cannot run it on the changed file alone. The overlay
+  skips the service only when the C#/Razor files, the command and the timeout equal those of the base.
+  The result stays exact: the three artifacts match the full mapping. Before #1631 the overlay on this repository took 500.9 s and a fresh full
+  mapping took 506.5 s, because the overlay ran a global pass over all files. UNVERIFIED: the time of
+  the overlay on this repository after #1631. Nobody measured it. The tests count operations instead:
+  `packages/mapper/tests/python/test_call_graph_scaling.py` shows 0 service runs for a Python-only
+  delta in a repository of more than 2,000 files with 8 C#/Razor files. In the same test file, a
+  synthetic call graph of 2,000 files iterated `files` 80,026 times before and iterates it 5 times now.
 * **Disk gain measured on synthetic repositories only.** See the measurements below. The real repository
   has no disk number yet.
 * **`call-graph`, `architecture-inventory`, `retrieval-index` and `project.sfast` do not come from the
@@ -141,5 +166,5 @@ synthetic Python repository without C#. Ambient load was about 9 on 10 cores.
 | Worktree 1 | 21.7 s | 13.8 s (includes the one-time base build) |
 | Worktrees 2 to 5, mean | 21.8 s | 5.4 s |
 
-On the real repository (3,296 files, with C#/Razor) the oracle shows equal artifacts and no time gain.
-The one-time base build took 626 s under load.
+On the real repository (3,296 files, with C#/Razor) the oracle showed equal artifacts and no time gain
+before #1631. The one-time base build took 626 s under load.
