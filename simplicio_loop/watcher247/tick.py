@@ -159,7 +159,7 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
         "--title", title[:70], "--body", body,
     ]
     if pr_draft_enabled():
-        pr_cmd.insert(3, "--draft")
+        pr_cmd.append("--draft")
     created = await proc.run(pr_cmd, cwd=dest, timeout=60)
     if created.returncode != 0:
         if "already exists" not in (created.stderr or "").lower():  # the PR may already exist

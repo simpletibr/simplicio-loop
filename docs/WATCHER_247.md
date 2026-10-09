@@ -175,12 +175,10 @@ O tick usa o mesmo padrao da skill `/simplicio-loop` (#1505). Nada disso muda a 
    que passam entram em `merge_train` em lotes de ate 4, na ordem do plano: uma branch temporaria `loop/merge-train`
    integra os PRs sobre `main`, roda os testes do repo uma vez (no sandbox) e, se ficar vermelho, faz a bisseccao; so o que
    ficou verde recebe `gh pr merge --squash`. Sem force-push.
-4a. **PR como draft (#1551).** Sem `SIMPLICIO_247_PR_DRAFT=1` o watcher abre o PR pronto (padrao).
+4a. **PR como draft (#1589).** Sem `SIMPLICIO_247_PR_DRAFT=1` o watcher abre o PR pronto (padrao).
    Com a variavel exatamente `1`, a criacao da PR passa `--draft` ao `gh pr create`: o PR fica rascunho ate alguem
    executar `gh pr ready` antes do merge. Com PR draft, `SIMPLICIO_247_AUTO_MERGE=1` exigira `gh pr ready` antes
    (UNVERIFIED: nao testado aqui; a validacao fica com o operador).
-
-
 5. **Recibo.** Um `simplicio.execution-report/v1` por tick em
    `<state_dir>/squads/.simplicio-loop/runtime/execution-reports/latest.json`: uma task por agente (coordenador geral,
    coordenador de cada squad, cada worker) com `agent.role`, `agent.model` e `agent.effort`; o worker mostra o ultimo
