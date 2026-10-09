@@ -315,3 +315,32 @@ def test_tui_on_a_real_tty_starts_shows_status_and_exits_cleanly(tmp_path, key):
     assert rc == 0, out
     assert 'quit' in out
     assert '\x1b[?25h' in out, 'the cursor was not restored'
+
+
+CHROMIUM_CANDIDATES = (str(Path('/opt/pw-browsers/chromium')), 'chromium', 'chromium-browser', 'google-chrome')
+
+
+def _chromium():
+    import shutil
+    for candidate in (os.environ.get('CHROMIUM_BIN'), *CHROMIUM_CANDIDATES):
+        found = shutil.which(candidate) if candidate and not os.path.isabs(candidate) else candidate
+        if found and os.path.exists(found):
+            return found
+    return None
+
+
+def test_snapshot_renders_offline_in_headless_chromium(tmp_path):
+    chrome = _chromium()
+    if chrome is None:
+        pytest.skip('no Chromium on this machine: the offline render is UNVERIFIED here')
+    env = _env(tmp_path)
+    repo = _repo_with_run(tmp_path)
+    out = tmp_path / 'dashboard.html'
+    proc = _dashboard(env, '--snapshot', str(out), '--repo', str(repo))
+    assert proc.returncode == 0, _show(proc)
+    # Every request goes to a closed port, so any network fetch the page makes fails.
+    dump = subprocess.run([chrome, '--headless', '--no-sandbox', '--disable-gpu',
+                           '--proxy-server=http://127.0.0.1:9', '--dump-dom', out.as_uri()],
+                          capture_output=True, text=True, timeout=TIMEOUT, check=False)
+    assert dump.returncode == 0, dump.stderr
+    assert 'live-1' in dump.stdout, dump.stdout[:500]
