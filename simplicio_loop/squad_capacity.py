@@ -352,7 +352,8 @@ def supply(probe: Probe, limits: Optional[Limits] = None) -> Supply:
     else:
         raw = (probe.disk_free_bytes - DISK_FLOOR_BYTES) // WORKER_DISK_BYTES
         caps["disk"] = max(1, raw)
-        note = "; at or below the floor, the minimum of 1 applies and the disk is nearly full" if raw < 1 else ""
+        where = "below the floor" if probe.disk_free_bytes < DISK_FLOOR_BYTES else "less than one worker of room above the floor"
+        note = "; %s: the minimum of 1 applies and the disk is nearly full" % where if raw < 1 else ""
         reasons.append("disk: %s free, floor %s, %s per worker (ESTIMATE) -> %d worker(s)%s" % (
             _gib(probe.disk_free_bytes), _gib(DISK_FLOOR_BYTES), _gib(WORKER_DISK_BYTES), caps["disk"], note))
 
@@ -434,7 +435,7 @@ def recommend(issues: Union[Sequence[Mapping[str, Any]], Demand], probe: Probe, 
     if demand.conflicts:
         demand_line += " after counting %d shared-file conflict(s)" % demand.conflicts
     reasons = (headline, demand_line) + sup.reasons
-    fast = by in ("cpu", "load", "memory") or bool(sup.unverified)
+    fast = by in ("cpu", "load", "memory") or bool(sup.unverified) or sup.caps["load"] <= total  # a limit that can move fast
     return CapacityPlan(
         squads=squads_n, workers_per_squad=per_squad, total_workers=total, limited_by=by,
         proof_kind="UNVERIFIED" if sup.unverified else "MEASURED",

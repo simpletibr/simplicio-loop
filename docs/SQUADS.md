@@ -106,9 +106,12 @@ simplicio-loop squads metrics --compare before.json after.json --json   # o mesm
 2. `write_contracts(repo, plan.contracts)` grava os stubs (passo manual hoje); eles entram no main antes dos squads.
 3. Para cada tarefa, `route` escolhe o papel do primeiro worker.
 4. Os PRs aprovados pelos squads vão para `plan_train`; `run_train` faz o merge em lotes.
+
 ## Sizing (automatic squad count)
 
 The loop selects the number of squads itself. It runs fast without overloading the machine. Call `simplicio-loop squads plan` with option `--squads auto` (the default). The 24/7 watcher probes once each tick. The JSON from `squads plan` has a `capacity` block. The block lists numbers and `reasons`.
+
+The plan still lists all squads. The `capacity` block tells how many squads and workers run at the same time. When a worker ends, start the next one. In the watcher, the same number is the batch size of the tick, so one issue is no longer the default limit.
 
 ### Demand
 
@@ -138,9 +141,9 @@ If the probe cannot measure a value, the loop uses one worker. Set `proof_kind` 
 
 ### Override
 
-Pass `--squads N` or set `SIMPLICIO_SQUADS=N`. This overrides machine limits. N must be one or more. Zero is not valid.
+Pass `--squads N` or set `SIMPLICIO_SQUADS=N`. This overrides machine limits. N must be one or more. Zero is not valid. The flag wins over the variable. The loop never makes more squads than issues that can run together.
 
-Set `SIMPLICIO_PRISM_SLOTS` or `SIMPLICIO_LOOP_OPERATOR_WORKERS` to a value that the economy profile did not set. This fixes the worker count. If you set the value that the economy profile set, it acts as an upper limit only.
+Set `SIMPLICIO_PRISM_SLOTS` or `SIMPLICIO_LOOP_OPERATOR_WORKERS` to a value that the economy profile did not set. This fixes the worker count. The economy profile exports its own value to every session. That value is not an override, and the machine limits still decide.
 
 In the watcher, `SIMPLICIO_247_CONCURRENCY` is the override. The daily budget always caps an override.
 

@@ -11,7 +11,7 @@ import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from .. import escalation, intake_gate, watcher_github
+from .. import escalation, intake_gate, squad_capacity, watcher_github
 from ..claim_lease import ClaimStore
 from . import budget, config, events, github, host_mode, onboarding, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify
 
@@ -19,7 +19,7 @@ _STATE_DIRS = (".simplicio-loop/", ".simplicio/")
 
 
 class Gate:
-    """One lock per repo; the tick itself caps the batch at SIMPLICIO_247_CONCURRENCY issues."""
+    """One lock per repo; the tick itself caps the batch at the capacity plan (SIMPLICIO_247_CONCURRENCY overrides it)."""
 
     def __init__(self) -> None:
         self._locks: dict[str, asyncio.Lock] = {}
@@ -237,7 +237,7 @@ def _note_failed_attempt(ctx: points.PointContext, number: int, reasons: str) ->
 
 
 async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: float,
-                  executor: host_mode.Executor) -> squad_flow.Outcome | None:
+                  executor: host_mode.Executor, probe: squad_capacity.Probe | None = None) -> squad_flow.Outcome | None:
     name = work.repo
     number = int(work.issue["number"])
     ident = state.key_of(name, number)
@@ -274,6 +274,7 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                 head = await reset_branch(dest, work.branch, number, fix=bool(work.fix))
                 ctx = points.PointContext(
                     repo=name, issue=work.issue, clone=dest, state_dir=config.ROOT, family=(executor.families or (None,))[0],
+                    capacity=probe,
                     run_dir=dest / ".simplicio-loop" / "orchestrator" / "points" / f"{name}-{number}")
                 await points.run("intake", ctx)
                 if executor.mode == "exec":
@@ -420,7 +421,9 @@ async def tick(dry_run: bool = False) -> None:
     found = await github.repos()
     baseline = await state.load(config.BASELINE, None)
     fixes = await state.load(config.FIXES, {"queued": {}, "seen": []})
-    limit = min(config.concurrency(), await budget.issues_left())
+    probe = await asyncio.to_thread(squad_capacity.measure, config.ROOT)  # ONE probe per tick: sizing, planning and resource_governor share it
+    limits = squad_capacity.Limits.from_env(extra_worker_envs=(config.CONCURRENCY_ENV,), budget_left=await budget.slots_left())
+    limit = min(squad_capacity.supply(probe, limits).workers, await budget.issues_left())  # automatic unless the operator pinned it
     gate_cache: dict = {}
     seen: list[str] = []
     batch: list[Work] = []
@@ -477,9 +480,11 @@ async def tick(dry_run: bool = False) -> None:
                 state.log(f"[dry-run] would process {ident}")
             return
         gate = Gate()
-        plans = squad_flow.form(batch, (executor.families or ("claude",))[0])  # the general coordinator
-        outcomes = await asyncio.gather(*(process(store, runner, gate, w, clock, executor) for w in batch))
+        plans = squad_flow.form(batch, (executor.families or ("claude",))[0], probe, limits)  # the general coordinator
+        outcomes = await asyncio.gather(*(process(store, runner, gate, w, clock, executor, probe) for w in batch))
         squad_status = await squad_flow.finish(plans, batch, outcomes, runner, gate)
+        for repo_plan in plans:
+            squad_status[repo_plan.repo]["capacity"] = repo_plan.capacity  # why this many run at once (sizing only, never what merges)
         await status(phase="processed", last=idents[-1], processed=idents,
                      repos=len(found), open_seen=len(seen), subscription=sub,
                      skipped_repos=skipped_repos, skipped_issues=skipped_issues, squads=squad_status)
