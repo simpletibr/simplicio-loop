@@ -74,6 +74,7 @@ BATTERY = [
     ("missing repo", ["turbo", "--repo", "/nonexistent-repo-for-the-daemon-test", "--task", "x"], None),
     ("a first word that is no command is a task", ["frobnicate"], None),
     ("unknown option", ["turbo", "--bogus"], None),
+    ("preflight strict", ["preflight", "--strict", "--json"], None),
     ("apply ok", ["turbo", "--repo", ".", "--apply", "-", "--verify", "true"], PLAN),
     ("apply verify fails", ["turbo", "--repo", ".", "--apply", "-", "--verify", "false"], PLAN),
     ("apply find misses", ["turbo", "--repo", ".", "--apply", "-"],
@@ -95,6 +96,17 @@ def test_the_daemon_gives_the_same_answer_as_running_in_process(daemon_dir, tmp_
     for relative in ("pkg/mod.py", ".git/hooks/pre-commit"):
         a, b = plain / relative, warm / relative
         assert a.exists() == b.exists() and (not a.exists() or a.read_text() == b.read_text())
+
+
+def test_strict_mode_armed_by_one_command_does_not_stay_armed_for_the_next(daemon_dir, tmp_path):
+    """`preflight --strict` sets SIMPLICIO_LOOP_STRICT in its own process; in the daemon that must die with the child."""
+    plain, warm = make_repo(tmp_path / "plain"), make_repo(tmp_path / "warm")
+    armed = cli(daemon_dir, ["preflight", "--strict", "--json"], via_daemon=True, cwd=warm)
+    assert json.loads(armed.stdout)["strict"] is True
+    later = cli(daemon_dir, ["preflight", "--json"], via_daemon=True, cwd=warm)
+    expected = cli(daemon_dir, ["preflight", "--json"], via_daemon=False, cwd=plain)
+    assert json.loads(later.stdout)["strict"] is json.loads(expected.stdout)["strict"]
+    assert normal(later.stdout.replace(str(warm), "<repo>")) == normal(expected.stdout.replace(str(plain), "<repo>"))
 
 
 def test_the_orient_step_runs_the_mapper_through_the_daemon_too(daemon_dir, tmp_path):

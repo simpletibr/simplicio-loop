@@ -13,6 +13,7 @@ import hashlib
 import importlib
 import importlib.util
 import os
+import resource
 import signal
 import socket
 import stat
@@ -337,6 +338,7 @@ class Daemon:
             "served": self.served, "max_children": self.max_children, "max_waiting": self.max_waiting,
             "idle_s": self.idle_s, "fingerprint": self.loaded[:12], "stale": self._stale(),
             "programs": sorted(self.programs), "threads": threading.active_count(), "socket": self.paths.sock,
+            "rss_mb": round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1 << 20 if sys.platform == "darwin" else 1 << 10)),
         }
 
     async def _handle(self, connection: socket.socket) -> None:

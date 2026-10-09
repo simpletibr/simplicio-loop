@@ -235,6 +235,8 @@ def test_status_reports_identity_and_limits(daemons, run_dir):
     assert info["max_children"] == 3
     assert info["protocol"] == protocol.PROTOCOL
     assert "fingerprint" in info and "uptime_s" in info and "active" in info
+    assert info["threads"] == 1, "the parent must be single-threaded at the point of the fork"
+    assert info["rss_mb"] > 0
 
 
 def test_code_changed_on_disk_makes_the_daemon_refuse_and_exit(daemons, run_dir, tmp_path):
