@@ -105,14 +105,20 @@ def price_for(models: dict[str, Any], model: str) -> dict[str, Any] | None:
 
 
 def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | None) -> dict[str, Any]:
-    '''USD for the run: measured input/output tokens per model times the price table. Always an estimate.
+    '''USD for the run. A provider-reported cost wins when every token event carries one (``proof_kind`` ``medido``);
+    otherwise measured input/output tokens per model times the price table (``estimado``). Always the same ``state``.
 
-    UNVERIFIED (with the reason) when no tokens were measured, the table is missing, or a model has no price. ``by_model`` lists
-    at most TOP_N models; with more, ``others`` carries the model count, tokens and cost of the rest, and the parts add up to ``usd``.
+    UNVERIFIED (with the reason) when no tokens were measured, the table is missing, or a model has no price. Cached,
+    cache-write and reasoning tokens are never priced from the table; their counts are reported in ``unpriced_tokens``.
+    ``by_model`` lists at most TOP_N models; with more, ``others`` carries the model count, tokens and cost of the rest,
+    and the parts add up to ``usd``.
     '''
     row: dict[str, Any] = {'usd': None, 'state': 'UNVERIFIED', 'proof_kind': 'estimado', 'reason': None,
                            'as_of': None, 'source_url': None, 'by_model': {}}
     per_model: dict[str, list[float]] = {}
+    reported: dict[str, float] = {}
+    reported_all = True
+    unpriced = {'cached_tokens': 0, 'cache_write_tokens': 0, 'reasoning_tokens': 0}
     for event in events:
         if not isinstance(event, dict) or event.get('schema') != SCHEMA or event.get('kind') != 'token_usage':
             continue
@@ -124,29 +130,43 @@ def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | Non
         totals = per_model.setdefault(model, [0, 0])
         totals[0] += tokens_in or 0
         totals[1] += tokens_out or 0
+        cost = _number(payload.get('cost'))
+        if cost is None:
+            reported_all = False
+        else:
+            reported[model] = reported.get(model, 0.0) + cost
+        for key in unpriced:
+            unpriced[key] += _number(payload.get(key)) or 0
     table = prices.get('models') if isinstance(prices, dict) and isinstance(prices.get('models'), dict) else None
     if isinstance(prices, dict):
         row['as_of'], row['source_url'] = prices.get('as_of'), prices.get('source_url')
     if not per_model:
         row['reason'] = 'tokens não medidos: nenhum token_usage com contagem registrada pelo run'
         return row
-    if table is None:
-        row['reason'] = 'tabela de preços indisponível'
-        return row
-    total = 0.0
-    priced: list[tuple[str, float, float, float]] = []
-    for model, (tokens_in, tokens_out) in sorted(per_model.items()):
-        price = price_for(table, model)
-        in_rate = _number(price.get('input_per_mtok')) if isinstance(price, dict) else None
-        out_rate = _number(price.get('output_per_mtok')) if isinstance(price, dict) else None
-        if in_rate is None or out_rate is None:
-            row['reason'] = 'sem preço na tabela para o modelo %r' % (model or 'desconhecido')
-            row['usd'] = None
-            row['by_model'] = {}
+    row['unpriced_tokens'] = unpriced
+    if reported_all:
+        priced = [(model, reported[model], tokens_in, tokens_out)
+                  for model, (tokens_in, tokens_out) in sorted(per_model.items())]
+        row['proof_kind'] = 'medido'
+        total = sum(item[1] for item in priced)
+    else:
+        if table is None:
+            row['reason'] = 'tabela de preços indisponível'
             return row
-        usd = (tokens_in * in_rate + tokens_out * out_rate) / 1_000_000
-        priced.append((model, usd, tokens_in, tokens_out))
-        total += usd
+        total = 0.0
+        priced = []
+        for model, (tokens_in, tokens_out) in sorted(per_model.items()):
+            price = price_for(table, model)
+            in_rate = _number(price.get('input_per_mtok')) if isinstance(price, dict) else None
+            out_rate = _number(price.get('output_per_mtok')) if isinstance(price, dict) else None
+            if in_rate is None or out_rate is None:
+                row['reason'] = 'sem preço na tabela para o modelo %r' % (model or 'desconhecido')
+                row['usd'] = None
+                row['by_model'] = {}
+                return row
+            usd = (tokens_in * in_rate + tokens_out * out_rate) / 1_000_000
+            priced.append((model, usd, tokens_in, tokens_out))
+            total += usd
     row['usd'] = round(total, 6)
     row['state'] = 'ESTIMADO'
     # The reply stays small however many model ids the run used: the TOP_N most expensive models by name, and one ``others``
@@ -159,7 +179,7 @@ def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | Non
         tokens_in, tokens_out = sum(item[2] for item in rest), sum(item[3] for item in rest)
         row['others'] = {'models': len(rest), 'tokens_in': tokens_in, 'tokens_out': tokens_out, 'tokens': tokens_in + tokens_out,
                          'usd': round(row['usd'] - sum(row['by_model'].values()), 6), 'state': 'ESTIMADO',
-                         'proof_kind': 'estimado', 'reason': None}
+                         'proof_kind': row['proof_kind'], 'reason': None}
     return row
 
 
