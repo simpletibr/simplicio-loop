@@ -1,82 +1,53 @@
-"""video_evidence (pr stage): conditional wrapper of scripts/video_evidence.py.
+"""video_evidence (pr stage): runs `scripts/video_evidence.py verify --engine hyperframes` on the web_verify screenshots.
 
-Fires only when SIMPLICIO_247_VIDEO_EVIDENCE=1 and web_verify has produced screenshots.
-Transforms screenshots into video evidence for the PR.
+Fires only when SIMPLICIO_247_VIDEO_EVIDENCE=1 and web_verify left screenshots in <run_dir>/web_verify.
+ok only when the script exits 0 and wrote the .mp4; any nonzero exit is an error.
 """
 import os
-from pathlib import Path
+import sys
 
-from .. import proc
+from . import _scripts
 from .registry import PointContext, PointResult, register
 
 NAME = "video_evidence"
+ENABLE_ENV = "SIMPLICIO_247_VIDEO_EVIDENCE"
+TIMEOUT_S = 600
+VIDEO_NAME = "evidence"
+_ERROR_CODE = {1: "video_evidence_failed", 3: "video_evidence_blocked"}  # 3 = Node/ffmpeg/hyperframes missing
 
 
 def applies(ctx: PointContext) -> bool:
-    """True when VIDEO_EVIDENCE env var is set and web_verify ran; False otherwise."""
-    # Check if feature is enabled
-    if not os.environ.get("SIMPLICIO_247_VIDEO_EVIDENCE"):
+    """Opt-in by env, and only with web_verify screenshots to assemble."""
+    if os.environ.get(ENABLE_ENV) != "1" or ctx.run_dir is None:
         return False
-    
-    # Check if web_verify evidence exists (screenshots available)
-    if ctx.run_dir is None:
-        return False
-    
-    web_verify_dir = ctx.run_dir / "web_verify"
-    if not web_verify_dir.exists():
-        return False
-    
-    # Check for screenshot files from web_verify
-    screenshots = list(web_verify_dir.glob("*-web.png"))
-    return len(screenshots) > 0
+    return any((ctx.run_dir / "web_verify").glob("*.png"))
 
 
 async def run(ctx: PointContext) -> PointResult:
-    """Run video_evidence on web_verify screenshots to generate video artifacts."""
+    if ctx.clone is None:
+        return PointResult(NAME, "skipped", {}, "no_clone")
     if ctx.run_dir is None:
         return PointResult(NAME, "skipped", {}, "no_run_dir")
-    
-    web_verify_dir = ctx.run_dir / "web_verify"
-    if not web_verify_dir.exists():
+    frames = ctx.run_dir / "web_verify"
+    if not any(frames.glob("*.png")):
         return PointResult(NAME, "skipped", {}, "no_screenshots")
-    
-    # Prepare output directory
+    script = _scripts.script_path("video_evidence.py")
+    if script is None:
+        return PointResult(NAME, "skipped", {}, "script_unavailable")
     out_dir = ctx.run_dir / "video_evidence"
     out_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Call scripts/video_evidence.py
-    script_path = Path(__file__).parent.parent.parent.parent / "scripts" / "video_evidence.py"
-    if not script_path.exists():
-        return PointResult(NAME, "skipped", {}, "script_unavailable")
-    
-    try:
-        result = await proc.run(
-            ["python3", str(script_path), "generate", "--input", str(web_verify_dir), 
-             "--out", str(out_dir)],
-            timeout=180,
-            cwd=ctx.run_dir,
-        )
-    except (FileNotFoundError, OSError) as exc:
-        return PointResult(NAME, "skipped", {"error": str(exc)[:200]}, "script_unavailable")
-    
-    # Parse result
-    if result.returncode == 0:
-        # Check for generated video artifacts
-        video_files = list(out_dir.glob("*.mp4")) + list(out_dir.glob("*.webm"))
-        return PointResult(
-            NAME,
-            "ok",
-            {"artifact": str(video_files[0]) if video_files else str(out_dir)},
-        )
-    elif result.returncode == 3:  # skipped
-        reason = result.stdout.strip() or result.stderr.strip()
-        return PointResult(NAME, "skipped", {"reason": reason[:200]}, "generation_skipped")
-    else:
-        return PointResult(
-            NAME,
-            "ok",  # still ok (attempt was made)
-            {"artifact": str(out_dir), "return_code": result.returncode},
-        )
+    issue = str((ctx.issue or {}).get("number", "x"))
+    title = str((ctx.issue or {}).get("title") or ctx.repo)[:80].lstrip("-") or ctx.repo
+    argv = [sys.executable, str(script), "verify", "--engine", "hyperframes", "--frames", str(frames),
+            "--name", VIDEO_NAME, "--title", title, "--issue", issue, "--out", str(out_dir)]
+    done = await _scripts.sandboxed(argv, clone=ctx.clone, writable=out_dir, timeout=TIMEOUT_S)
+    if done.returncode != 0:
+        code = _ERROR_CODE.get(done.returncode, "video_evidence_error")
+        return PointResult(NAME, "error", {"return_code": done.returncode, "output": _scripts.tail(done)}, code)
+    video = out_dir / f"{VIDEO_NAME}-{issue}.mp4"
+    if not video.is_file():
+        return PointResult(NAME, "error", {"expected": str(video)}, "no_video")
+    return PointResult(NAME, "ok", {"artifact": str(video)})
 
 
 register(NAME, "pr", run, applies=applies)

@@ -1,135 +1,144 @@
-"""Tests for web_verify extension point (stage verify, conditional on UI files)."""
+"""web_verify point: the real proc.run and sandbox.wrap (no-bwrap test mode) around a fake worker, real git."""
 import asyncio
 import json
-import os
-from pathlib import Path
-from unittest.mock import AsyncMock, patch, MagicMock
+import subprocess
+import sys
 
 import pytest
 
-from simplicio_loop.watcher247 import points
-from simplicio_loop.watcher247.points import web_verify
+from simplicio_loop.watcher247 import sandbox
+from simplicio_loop.watcher247.points import _scripts, web_verify
+
+from .evidence_helpers import fake_worker, init_repo, write
+
+URL = "http://127.0.0.1:3000/"
 
 
-class TestWebVerifyApplies:
-    """Test the applies() condition: fires only when diff touches UI files."""
-
-    def test_applies_true_when_tsx_changed(self, make_ctx):
-        """applies=True when plan includes .tsx files."""
-        ctx = make_ctx(plan={"files_changed": ["src/components/Button.tsx"]})
-        assert web_verify.applies(ctx) is True
-
-    def test_applies_true_when_css_changed(self, make_ctx):
-        """applies=True when .css/.scss files in diff."""
-        ctx = make_ctx(plan={"files_changed": ["src/styles/theme.css"]})
-        assert web_verify.applies(ctx) is True
-
-    def test_applies_true_when_html_changed(self, make_ctx):
-        """applies=True when .html files touched."""
-        ctx = make_ctx(plan={"files_changed": ["public/index.html"]})
-        assert web_verify.applies(ctx) is True
-
-    def test_applies_true_when_vue_changed(self, make_ctx):
-        """applies=True when .vue files touched."""
-        ctx = make_ctx(plan={"files_changed": ["components/Hero.vue"]})
-        assert web_verify.applies(ctx) is True
-
-    def test_applies_false_when_only_py_changed(self, make_ctx):
-        """applies=False when only .py files changed."""
-        ctx = make_ctx(plan={"files_changed": ["src/main.py", "tests/test_app.py"]})
-        assert web_verify.applies(ctx) is False
-
-    def test_applies_false_when_no_plan(self, make_ctx):
-        """applies=False when plan is None."""
-        ctx = make_ctx(plan=None)
-        assert web_verify.applies(ctx) is False
-
-    def test_applies_true_when_jsx_changed(self, make_ctx):
-        """applies=True when .jsx files touched."""
-        ctx = make_ctx(plan={"files_changed": ["src/App.jsx"]})
-        assert web_verify.applies(ctx) is True
+@pytest.fixture(autouse=True)
+def no_bwrap(monkeypatch):
+    """The sandbox has its own tests: here the argv is wrapped for real but runs without bwrap."""
+    monkeypatch.setenv("SIMPLICIO_247_ALLOW_UNSANDBOXED", "1")
+    monkeypatch.setattr(sandbox, "engine", lambda *a, **k: None)
+    monkeypatch.setenv("GH_TOKEN", "super-secret")
 
 
-class TestWebVerifyRun:
-    """Test the web_verify() async function."""
-
-    def test_run_success_with_screenshots(self, make_ctx, tmp_path, monkeypatch):
-        """web_verify returns ok with screenshot path in evidence."""
-        async def test():
-            ctx = make_ctx(clone=tmp_path, run_dir=tmp_path / "run")
-            
-            # Mock proc.run to return success
-            async def mock_run(argv, **kw):
-                result = MagicMock()
-                result.returncode = 0
-                result.stdout = "done"
-                result.stderr = ""
-                return result
-            
-            monkeypatch.setattr("simplicio_loop.watcher247.points.web_verify.proc.run", mock_run)
-            
-            result = await web_verify.run(ctx)
-            assert result.status == "ok"
-            assert "screenshot" in result.evidence
-            assert result.name == "web_verify"
-        
-        asyncio.run(test())
-
-    def test_run_script_missing_returns_skipped(self, make_ctx, tmp_path, monkeypatch):
-        """web_verify returns skipped when script not found."""
-        async def test():
-            ctx = make_ctx(clone=tmp_path)
-            
-            # Mock proc.run to raise (script not found)
-            async def mock_run(argv, **kw):
-                raise FileNotFoundError("python3 not found")
-            
-            monkeypatch.setattr("simplicio_loop.watcher247.points.web_verify.proc.run", mock_run)
-            
-            result = await web_verify.run(ctx)
-            assert result.status == "skipped"
-            assert result.reason_code == "script_unavailable"
-        
-        asyncio.run(test())
-
-    def test_run_no_clone_returns_skipped(self, make_ctx):
-        """web_verify returns skipped when clone is None."""
-        async def test():
-            ctx = make_ctx(clone=None)
-            result = await web_verify.run(ctx)
-            assert result.status == "skipped"
-            assert result.reason_code == "no_clone"
-        
-        asyncio.run(test())
+@pytest.fixture
+def clone(tmp_path):
+    return init_repo(tmp_path / "clone", {"app.py": "x = 1\n", "ui/page.html": "<p>a</p>\n"})
 
 
-class TestWebVerifyContract:
-    """Test integration with the points contract."""
+@pytest.fixture
+def worker(tmp_path, monkeypatch):
+    def install(exit_code=0, produces="ISSUE-web.png"):
+        script = fake_worker(tmp_path / "web_verify.py", exit_code=exit_code, produces=produces)
+        monkeypatch.setattr(_scripts, "script_path", lambda name: script)
+        return script
+    return install
 
-    def test_web_verify_registered(self):
-        """web_verify must be registered in the points registry."""
-        infos = points.registered(stage="verify")
-        assert any(info.name == "web_verify" for info in infos), "web_verify not registered at verify stage"
 
-    def test_web_verify_conditional(self):
-        """web_verify must be conditional (have applies function)."""
-        infos = points.registered(stage="verify")
-        web_verify_info = next(i for i in infos if i.name == "web_verify")
-        assert web_verify_info.conditional, "web_verify must be conditional"
+@pytest.fixture
+def ctx(make_ctx, clone, tmp_path):
+    return make_ctx(clone=clone, run_dir=tmp_path / "run", state_dir=tmp_path / "state", issue={"number": 7})
 
-    def test_contract(self, point_contract, make_ctx, tmp_path, monkeypatch):
-        """web_verify point passes the contract when applied."""
-        ctx = make_ctx(clone=tmp_path, plan={"files_changed": ["src/app.tsx"]})
-        
-        # Mock proc.run
-        async def mock_run(argv, **kw):
-            result = MagicMock()
-            result.returncode = 0
-            result.stdout = "done"
-            result.stderr = ""
-            return result
-        
-        monkeypatch.setattr("simplicio_loop.watcher247.points.web_verify.proc.run", mock_run)
-        
-        result = point_contract("web_verify", ctx, expect="ok")
-        assert result.evidence.get("screenshot")
+
+def run(ctx):
+    return asyncio.run(web_verify.run(ctx))
+
+
+def test_ok_with_untracked_frontend_file(ctx, clone, worker, monkeypatch):
+    worker()
+    monkeypatch.setenv(web_verify.URL_ENV, URL)
+    write(clone, {"ui/new.tsx": "export {}\n"})
+    result = run(ctx)
+    assert result.status == "ok", result
+    assert result.evidence["screenshot"].endswith("7-web.png")
+    recorded = json.loads((ctx.run_dir / "web_verify" / "argv.json").read_text())
+    assert recorded["argv"][:5] == ["run", "--url", URL, "--issue", "7"]
+    assert recorded["gh_token"] is None  # scrubbed_env: the watcher's tokens do not reach the worker
+
+
+def test_ok_with_modified_tracked_frontend_file(ctx, clone, worker, monkeypatch):
+    worker()
+    monkeypatch.setenv(web_verify.URL_ENV, URL)
+    write(clone, {"ui/page.html": "<p>b</p>\n"})
+    assert run(ctx).status == "ok"
+
+
+@pytest.mark.parametrize("changes", [{}, {"app.py": "x = 2\n"}, {"notes.txt": "hi\n"}])
+def test_not_applicable_without_frontend_change(ctx, clone, worker, monkeypatch, changes):
+    worker()
+    monkeypatch.setenv(web_verify.URL_ENV, URL)
+    write(clone, changes)
+    result = run(ctx)
+    assert (result.status, result.reason_code) == ("skipped", "not_applicable")
+    assert not (ctx.run_dir / "web_verify").exists()
+
+
+def test_committed_frontend_change_is_not_a_working_tree_change(ctx, clone, worker, monkeypatch):
+    from .evidence_helpers import git
+    worker()
+    monkeypatch.setenv(web_verify.URL_ENV, URL)
+    write(clone, {"ui/page.html": "<p>c</p>\n"})
+    git(clone, "commit", "-qam", "fe")
+    assert run(ctx).reason_code == "not_applicable"
+
+
+def test_no_url_is_skipped_not_faked(ctx, clone, worker, monkeypatch):
+    worker()
+    monkeypatch.delenv(web_verify.URL_ENV, raising=False)
+    write(clone, {"ui/new.tsx": "export {}\n"})
+    result = run(ctx)
+    assert (result.status, result.reason_code) == ("skipped", "no_url")
+    assert not (ctx.run_dir / "web_verify").exists()
+
+
+@pytest.mark.parametrize("code, reason", [(1, "web_verify_failed"), (2, "web_verify_error"), (3, "web_verify_blocked")])
+def test_nonzero_exit_is_error(ctx, clone, worker, monkeypatch, code, reason):
+    worker(exit_code=code)
+    monkeypatch.setenv(web_verify.URL_ENV, URL)
+    write(clone, {"ui/new.tsx": "export {}\n"})
+    result = run(ctx)
+    assert (result.status, result.reason_code) == ("error", reason)
+    assert result.evidence["return_code"] == code
+
+
+def test_exit_zero_without_screenshot_is_error(ctx, clone, worker, monkeypatch):
+    worker(produces=None)
+    monkeypatch.setenv(web_verify.URL_ENV, URL)
+    write(clone, {"ui/new.tsx": "export {}\n"})
+    result = run(ctx)
+    assert (result.status, result.reason_code) == ("error", "no_screenshot")
+
+
+def test_not_a_git_repo_is_error(make_ctx, tmp_path, worker):
+    worker()
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    result = run(make_ctx(clone=plain, run_dir=tmp_path / "run"))
+    assert (result.status, result.reason_code) == ("error", "git_failed")
+
+
+def test_missing_pieces_are_skipped(make_ctx, tmp_path, clone, monkeypatch):
+    assert run(make_ctx()).reason_code == "no_clone"
+    assert run(make_ctx(clone=clone)).reason_code == "no_run_dir"
+    monkeypatch.setattr(_scripts, "script_path", lambda name: None)
+    assert run(make_ctx(clone=clone, run_dir=tmp_path / "run")).reason_code == "script_unavailable"
+
+
+def test_applies_needs_a_clone(make_ctx, clone):
+    assert web_verify.applies(make_ctx(clone=clone)) is True
+    assert web_verify.applies(make_ctx()) is False
+
+
+def test_contract(point_contract, make_ctx, clone, tmp_path):
+    result = point_contract("web_verify", make_ctx(clone=clone, run_dir=tmp_path / "run"), expect="skipped")
+    assert result.reason_code == "not_applicable"
+
+
+def test_real_script_has_the_subcommand_and_pattern():
+    script = _scripts.script_path("web_verify.py")
+    assert script is not None
+    done = subprocess.run([sys.executable, str(script), "nosuchcommand"], capture_output=True, text=True)
+    assert done.returncode == 2
+    assert "run" in done.stdout.split("choices:")[1].split()
+    assert _scripts.frontend_files(["a.tsx", "b.py"]) == ["a.tsx"]

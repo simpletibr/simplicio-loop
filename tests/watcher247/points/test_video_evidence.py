@@ -1,161 +1,101 @@
-"""Tests for video_evidence extension point (stage pr, conditional on env var and screenshots)."""
+"""video_evidence point: the real proc.run and sandbox.wrap (no-bwrap test mode) around a fake worker."""
 import asyncio
 import json
-import os
-from pathlib import Path
-from unittest.mock import AsyncMock, patch, MagicMock
+import subprocess
+import sys
 
 import pytest
 
-from simplicio_loop.watcher247 import points
-from simplicio_loop.watcher247.points import video_evidence
+from simplicio_loop.watcher247 import sandbox
+from simplicio_loop.watcher247.points import _scripts, video_evidence
+
+from .evidence_helpers import fake_worker, init_repo
 
 
-class TestVideoEvidenceApplies:
-    """Test the applies() condition: fires only when env var is set and screenshots exist."""
-
-    def test_applies_false_when_env_not_set(self, make_ctx, tmp_path, monkeypatch):
-        """applies=False when SIMPLICIO_247_VIDEO_EVIDENCE is not set."""
-        monkeypatch.delenv("SIMPLICIO_247_VIDEO_EVIDENCE", raising=False)
-        ctx = make_ctx(run_dir=tmp_path)
-        assert video_evidence.applies(ctx) is False
-
-    def test_applies_false_when_no_screenshots(self, make_ctx, tmp_path, monkeypatch):
-        """applies=False when web_verify dir doesn't exist."""
-        monkeypatch.setenv("SIMPLICIO_247_VIDEO_EVIDENCE", "1")
-        ctx = make_ctx(run_dir=tmp_path)
-        assert video_evidence.applies(ctx) is False
-
-    def test_applies_false_when_no_png_files(self, make_ctx, tmp_path, monkeypatch):
-        """applies=False when web_verify dir has no .png files."""
-        monkeypatch.setenv("SIMPLICIO_247_VIDEO_EVIDENCE", "1")
-        web_verify_dir = tmp_path / "web_verify"
-        web_verify_dir.mkdir()
-        # Create a non-image file
-        (web_verify_dir / "ledger.txt").write_text("log")
-        ctx = make_ctx(run_dir=tmp_path)
-        assert video_evidence.applies(ctx) is False
-
-    def test_applies_true_when_env_set_and_screenshots_exist(self, make_ctx, tmp_path, monkeypatch):
-        """applies=True when SIMPLICIO_247_VIDEO_EVIDENCE=1 and .png files exist."""
-        monkeypatch.setenv("SIMPLICIO_247_VIDEO_EVIDENCE", "1")
-        web_verify_dir = tmp_path / "web_verify"
-        web_verify_dir.mkdir()
-        (web_verify_dir / "1-web.png").write_text("fake image")
-        ctx = make_ctx(run_dir=tmp_path)
-        assert video_evidence.applies(ctx) is True
-
-    def test_applies_false_when_no_run_dir(self, make_ctx, monkeypatch):
-        """applies=False when run_dir is None."""
-        monkeypatch.setenv("SIMPLICIO_247_VIDEO_EVIDENCE", "1")
-        ctx = make_ctx(run_dir=None)
-        assert video_evidence.applies(ctx) is False
+@pytest.fixture(autouse=True)
+def no_bwrap(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_247_ALLOW_UNSANDBOXED", "1")
+    monkeypatch.setattr(sandbox, "engine", lambda *a, **k: None)
+    monkeypatch.setenv("GH_TOKEN", "super-secret")
+    monkeypatch.setenv(video_evidence.ENABLE_ENV, "1")
 
 
-class TestVideoEvidenceRun:
-    """Test the run() async function."""
-
-    def test_run_success_with_video(self, make_ctx, tmp_path, monkeypatch):
-        """run returns ok with artifact path in evidence."""
-        async def test():
-            web_verify_dir = tmp_path / "web_verify"
-            web_verify_dir.mkdir()
-            (web_verify_dir / "1-web.png").write_text("fake image")
-            
-            ctx = make_ctx(run_dir=tmp_path)
-            
-            # Mock proc.run to return success
-            async def mock_run(argv, **kw):
-                result = MagicMock()
-                result.returncode = 0
-                result.stdout = "done"
-                result.stderr = ""
-                return result
-            
-            monkeypatch.setattr("simplicio_loop.watcher247.points.video_evidence.proc.run", mock_run)
-            
-            result = await video_evidence.run(ctx)
-            assert result.status == "ok"
-            assert "artifact" in result.evidence
-            assert result.name == "video_evidence"
-        
-        asyncio.run(test())
-
-    def test_run_script_missing_returns_skipped(self, make_ctx, tmp_path, monkeypatch):
-        """run returns skipped when script not found."""
-        async def test():
-            web_verify_dir = tmp_path / "web_verify"
-            web_verify_dir.mkdir()
-            (web_verify_dir / "1-web.png").write_text("fake image")
-            
-            ctx = make_ctx(run_dir=tmp_path)
-            
-            # Mock proc.run to raise
-            async def mock_run(argv, **kw):
-                raise FileNotFoundError("python3 not found")
-            
-            monkeypatch.setattr("simplicio_loop.watcher247.points.video_evidence.proc.run", mock_run)
-            
-            result = await video_evidence.run(ctx)
-            assert result.status == "skipped"
-            assert result.reason_code == "script_unavailable"
-        
-        asyncio.run(test())
-
-    def test_run_no_run_dir_returns_skipped(self, make_ctx):
-        """run returns skipped when run_dir is None."""
-        async def test():
-            ctx = make_ctx(run_dir=None)
-            result = await video_evidence.run(ctx)
-            assert result.status == "skipped"
-            assert result.reason_code == "no_run_dir"
-        
-        asyncio.run(test())
-
-    def test_run_skipped_by_script_returns_skipped(self, make_ctx, tmp_path, monkeypatch):
-        """run returns skipped when script returns exit code 3."""
-        async def test():
-            web_verify_dir = tmp_path / "web_verify"
-            web_verify_dir.mkdir()
-            (web_verify_dir / "1-web.png").write_text("fake image")
-            
-            ctx = make_ctx(run_dir=tmp_path)
-            
-            # Mock proc.run to return exit code 3 (skipped)
-            async def mock_run(argv, **kw):
-                result = MagicMock()
-                result.returncode = 3
-                result.stdout = "skipped: no video source"
-                result.stderr = ""
-                return result
-            
-            monkeypatch.setattr("simplicio_loop.watcher247.points.video_evidence.proc.run", mock_run)
-            
-            result = await video_evidence.run(ctx)
-            assert result.status == "skipped"
-            assert result.reason_code == "generation_skipped"
-        
-        asyncio.run(test())
+@pytest.fixture
+def worker(tmp_path, monkeypatch):
+    def install(exit_code=0, produces="evidence-ISSUE.mp4"):
+        script = fake_worker(tmp_path / "video_evidence.py", exit_code=exit_code, produces=produces)
+        monkeypatch.setattr(_scripts, "script_path", lambda name: script)
+    return install
 
 
-class TestVideoEvidenceContract:
-    """Test integration with the points contract."""
+@pytest.fixture
+def ctx(make_ctx, tmp_path):
+    run_dir = tmp_path / "run"
+    (run_dir / "web_verify").mkdir(parents=True)
+    (run_dir / "web_verify" / "7-web.png").write_bytes(b"png")
+    return make_ctx(clone=init_repo(tmp_path / "clone", {"a.py": "x\n"}), run_dir=run_dir,
+                    issue={"number": 7, "title": "Fix login"})
 
-    def test_video_evidence_registered(self):
-        """video_evidence must be registered in the points registry."""
-        infos = points.registered(stage="pr")
-        assert any(info.name == "video_evidence" for info in infos), "video_evidence not registered at pr stage"
 
-    def test_video_evidence_conditional(self):
-        """video_evidence must be conditional (have applies function)."""
-        infos = points.registered(stage="pr")
-        video_evidence_info = next(i for i in infos if i.name == "video_evidence")
-        assert video_evidence_info.conditional, "video_evidence must be conditional"
+def run(ctx):
+    return asyncio.run(video_evidence.run(ctx))
 
-    def test_contract_skipped_when_applies_false(self, point_contract, make_ctx, monkeypatch):
-        """video_evidence point is skipped when applies returns False."""
-        monkeypatch.delenv("SIMPLICIO_247_VIDEO_EVIDENCE", raising=False)
-        ctx = make_ctx(run_dir=None)
-        
-        result = point_contract("video_evidence", ctx, expect="skipped")
-        assert result.reason_code == "not_applicable"
+
+def test_ok_calls_the_real_verify_arguments(ctx, worker):
+    worker()
+    result = run(ctx)
+    assert result.status == "ok", result
+    assert result.evidence["artifact"].endswith("evidence-7.mp4")
+    recorded = json.loads((ctx.run_dir / "video_evidence" / "argv.json").read_text())
+    argv = recorded["argv"]
+    assert argv[:3] == ["verify", "--engine", "hyperframes"]
+    assert argv[argv.index("--frames") + 1] == str(ctx.run_dir / "web_verify")
+    assert argv[argv.index("--title") + 1] == "Fix login"
+    assert recorded["gh_token"] is None  # scrubbed_env
+
+
+@pytest.mark.parametrize("code, reason", [(1, "video_evidence_failed"), (2, "video_evidence_error"),
+                                          (3, "video_evidence_blocked")])
+def test_nonzero_exit_is_error(ctx, worker, code, reason):
+    worker(exit_code=code)
+    result = run(ctx)
+    assert (result.status, result.reason_code) == ("error", reason)
+    assert result.evidence["return_code"] == code
+
+
+def test_exit_zero_without_video_is_error(ctx, worker):
+    worker(produces=None)
+    result = run(ctx)
+    assert (result.status, result.reason_code) == ("error", "no_video")
+
+
+def test_missing_pieces_are_skipped(make_ctx, ctx, tmp_path, monkeypatch):
+    assert run(make_ctx()).reason_code == "no_clone"
+    assert run(make_ctx(clone=ctx.clone)).reason_code == "no_run_dir"
+    empty = make_ctx(clone=ctx.clone, run_dir=tmp_path / "empty")
+    assert run(empty).reason_code == "no_screenshots"
+    monkeypatch.setattr(_scripts, "script_path", lambda name: None)
+    assert run(ctx).reason_code == "script_unavailable"
+
+
+def test_applies_needs_the_env_flag_and_screenshots(ctx, make_ctx, tmp_path, monkeypatch):
+    assert video_evidence.applies(ctx) is True
+    assert video_evidence.applies(make_ctx(run_dir=tmp_path / "empty")) is False
+    assert video_evidence.applies(make_ctx()) is False
+    monkeypatch.delenv(video_evidence.ENABLE_ENV)
+    assert video_evidence.applies(ctx) is False
+
+
+def test_contract(point_contract, ctx, monkeypatch):
+    monkeypatch.delenv(video_evidence.ENABLE_ENV)
+    result = point_contract("video_evidence", ctx, expect="skipped")
+    assert result.reason_code == "not_applicable"
+
+
+def test_real_script_has_the_subcommand():
+    script = _scripts.script_path("video_evidence.py")
+    assert script is not None
+    done = subprocess.run([sys.executable, str(script), "nosuchcommand"], capture_output=True, text=True)
+    assert done.returncode == 2
+    assert "verify" in done.stdout.split("choices:")[1].split()
+    assert "generate" not in done.stdout.split("choices:")[1].split()
