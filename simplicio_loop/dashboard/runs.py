@@ -201,11 +201,11 @@ def _last_seq(run_dir: Path) -> int:
 # The files a summary is made of, relative to the run directory. A change in any of them changes the stamp.
 SUMMARY_INPUTS = ('state.json', 'events.jsonl', 'completion-receipt.json', 'execution-route.json',
                   'evidence-receipt.json', 'loop/watcher_state.json')
-# Memory bound: SUMMARY_CACHE_MAX runs, each at most SUMMARY_BLOB_MAX bytes of JSON (128 MiB at the limits; about 10 KB per run
-# in practice). A longer listing than SUMMARY_CACHE_MAX gets no hits, because the scan is in order. A summary over the byte limit
-# (a state.json of 850 KB is copied into it almost whole) is computed again on each call, as it was before the memo.
+# Memory bound: at most SUMMARY_CACHE_MAX runs and SUMMARY_BYTES_MAX bytes of JSON in all (a summary is about 10 KB; a state.json
+# of 850 KB is copied into it almost whole), and the least recently used run leaves first. A listing of more runs than the memo
+# holds gets no hit, because the scan is in order. A summary larger than the whole budget is never remembered.
 SUMMARY_CACHE_MAX = 4096
-SUMMARY_BLOB_MAX = 32 * 1024
+SUMMARY_BYTES_MAX = 64 * 1024 * 1024
 # A file touched less than this long before the stamp was taken could still be rewritten inside the same timestamp tick with the
 # same size, so the stamp cannot tell the rewrite apart: such a run is recomputed, not remembered. Disks that stamp whole seconds
 # (ext3, HFS+, FAT at two seconds) get the coarse window.
@@ -226,6 +226,7 @@ class _Memo:
 
 
 _SUMMARIES: OrderedDict[str, _Memo] = OrderedDict()
+_SUMMARIES_BYTES = 0  # the length of the blobs of the memos in _SUMMARIES; both are guarded by _SUMMARIES_LOCK
 _SUMMARIES_LOCK = threading.Lock()
 
 
@@ -252,23 +253,46 @@ def _stamp(run_dir: str, fallback_repo: str, began: int) -> tuple[tuple, bool]:
     return (fallback_repo, tuple(files)), settled
 
 
+def _trim() -> None:
+    '''Drop the least recently used runs until the memo is inside both limits. The caller holds _SUMMARIES_LOCK.'''
+    global _SUMMARIES_BYTES
+    while len(_SUMMARIES) > SUMMARY_CACHE_MAX or _SUMMARIES_BYTES > SUMMARY_BYTES_MAX:
+        _SUMMARIES_BYTES -= len(_SUMMARIES.popitem(last=False)[1].blob or '')
+
+
 def _memo_for(key: str) -> _Memo:
     with _SUMMARIES_LOCK:
         memo = _SUMMARIES.pop(key, None) or _Memo()
         _SUMMARIES[key] = memo
-        while len(_SUMMARIES) > SUMMARY_CACHE_MAX:
-            _SUMMARIES.popitem(last=False)
+        _trim()
     return memo
 
 
+def _remember(key: str, memo: _Memo, stamp: tuple | None, blob: str | None) -> None:
+    '''Set what the memo holds for a run. The bytes count only while the memo is still in _SUMMARIES (it may have left meanwhile).'''
+    global _SUMMARIES_BYTES
+    with _SUMMARIES_LOCK:
+        if _SUMMARIES.get(key) is memo:
+            _SUMMARIES_BYTES += len(blob or '') - len(memo.blob or '')
+        memo.stamp, memo.blob = stamp, blob
+        _trim()
+
+
 def clear_summary_cache() -> None:
+    global _SUMMARIES_BYTES
     with _SUMMARIES_LOCK:
         _SUMMARIES.clear()
+        _SUMMARIES_BYTES = 0
 
 
 def summary_cache_size() -> int:
     with _SUMMARIES_LOCK:
         return len(_SUMMARIES)
+
+
+def summary_cache_bytes() -> int:
+    with _SUMMARIES_LOCK:
+        return _SUMMARIES_BYTES
 
 
 def run_summary(ref: RunRef | Path) -> dict[str, Any]:
@@ -279,7 +303,7 @@ def run_summary(ref: RunRef | Path) -> dict[str, Any]:
 
     Memoized per run directory while the stamp of the files it reads (SUMMARY_INPUTS: inode, size, mtime, ctime) is unchanged and
     settled (see RACY_NS); the stamp is taken before the files are read, so a file that changes during the read is read again on
-    the next call. A run with a symlinked input is never remembered. The memo holds SUMMARY_CACHE_MAX runs of SUMMARY_BLOB_MAX
+    the next call. A run with a symlinked input is never remembered. The memo holds SUMMARY_CACHE_MAX runs and SUMMARY_BYTES_MAX
     bytes at most, and every caller gets its own copy.
     '''
     run_dir = Path(ref['run_dir'] if isinstance(ref, dict) else ref)
@@ -292,7 +316,8 @@ def run_summary(ref: RunRef | Path) -> dict[str, Any]:
             return json.loads(memo.blob)
         summary = _summarize(run_dir, fallback_repo)
         blob = json.dumps(summary) if settled else ''
-        memo.stamp, memo.blob = (stamp, blob) if settled and len(blob) <= SUMMARY_BLOB_MAX else (None, None)
+        keep = settled and len(blob) <= SUMMARY_BYTES_MAX
+        _remember(key, memo, stamp if keep else None, blob if keep else None)
         return summary
 
 

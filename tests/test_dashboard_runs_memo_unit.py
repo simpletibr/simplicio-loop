@@ -538,31 +538,105 @@ def test_six_hundred_runs_are_all_served_from_memory_on_the_second_listing(tmp_p
     assert counted == {'state': 600, 'seq': 600, 'progress': 600}, 'a listing longer than the memo evicts every run before its turn'
 
 
-def test_a_summary_over_the_byte_limit_is_not_remembered(tmp_path, aged, counted):
+def _blob_size(run_dir):
+    return len(json.dumps(_truth(run_dir)))
+
+
+def _resident_bytes():
+    return sum(len(memo.blob or '') for memo in runs._SUMMARIES.values())
+
+
+def test_a_summary_inside_the_byte_budget_is_remembered_even_when_it_is_large(tmp_path, aged, counted):
     run_dir = _make_run(tmp_path, 'big', events=3, technical_debts=[{'id': index, 'note': 'd' * 40} for index in range(13000)])
     assert (run_dir / 'state.json').stat().st_size > 800_000
-    first = runs.run_summary(_ref(run_dir))
-    assert first['technical_debt_count'] == 13000
+    assert runs.run_summary(_ref(run_dir))['technical_debt_count'] == 13000
     runs.run_summary(_ref(run_dir))
-    assert counted['progress'] == 2
-    assert runs._SUMMARIES[os.fspath(run_dir)].blob is None, 'a megabyte summary sits in memory'
+    assert counted['progress'] == 1
+    assert 1_000_000 < runs.summary_cache_bytes() < runs.SUMMARY_BYTES_MAX
 
 
-def test_the_byte_limit_is_inclusive(tmp_path, aged, monkeypatch, counted):
-    run_dir = _make_run(tmp_path, 'edge-size', events=3)
-    size = len(json.dumps(_truth(run_dir)))
+def test_a_summary_larger_than_the_whole_budget_is_not_remembered_and_evicts_nothing(tmp_path, aged, monkeypatch, counted):
+    small = _make_run(tmp_path, 'small', events=2)
+    large = _make_run(tmp_path, 'large', events=3, technical_debts=[{'id': index, 'note': 'd' * 40} for index in range(400)])
+    runs.run_summary(_ref(small))
+    kept = runs.summary_cache_bytes()
+    assert kept == _blob_size(small)
+    monkeypatch.setattr(runs, 'SUMMARY_BYTES_MAX', _blob_size(large) - 1)
     counted['seq'] = 0
-    monkeypatch.setattr(runs, 'SUMMARY_BLOB_MAX', size)
+    runs.run_summary(_ref(large))
+    runs.run_summary(_ref(large))
+    assert counted['seq'] == 2, 'a summary over the budget was served from memory'
+    assert runs._SUMMARIES[os.fspath(large)].blob is None
+    assert runs._SUMMARIES[os.fspath(small)].blob is not None and runs.summary_cache_bytes() == kept
+
+
+def test_the_byte_budget_is_inclusive(tmp_path, aged, monkeypatch, counted):
+    run_dir = _make_run(tmp_path, 'edge-size', events=3)
+    size = _blob_size(run_dir)
+    counted['seq'] = 0
+    monkeypatch.setattr(runs, 'SUMMARY_BYTES_MAX', size)
     runs.run_summary(_ref(run_dir))
     runs.run_summary(_ref(run_dir))
-    assert counted['seq'] == 1, 'a summary of exactly the limit is remembered'
+    assert counted['seq'] == 1, 'a summary of exactly the budget is remembered'
     runs.clear_summary_cache()
-    monkeypatch.setattr(runs, 'SUMMARY_BLOB_MAX', size - 1)
+    monkeypatch.setattr(runs, 'SUMMARY_BYTES_MAX', size - 1)
     runs.run_summary(_ref(run_dir))
     runs.run_summary(_ref(run_dir))
-    assert counted['seq'] == 3, 'a summary one byte over the limit is not'
+    assert counted['seq'] == 3, 'a summary one byte over the budget is not'
+
+
+def test_the_bytes_leave_with_the_least_recently_used_run(tmp_path, aged, monkeypatch):
+    dirs = [_make_run(tmp_path, 'b%d' % index, events=2) for index in range(4)]
+    size = _blob_size(dirs[0])
+    assert all(_blob_size(run_dir) == size for run_dir in dirs)
+    monkeypatch.setattr(runs, 'SUMMARY_BYTES_MAX', size * 2 + size // 2)
+    runs.run_summary(_ref(dirs[0]))
+    runs.run_summary(_ref(dirs[1]))
+    runs.run_summary(_ref(dirs[0]))  # b0 is now the most recently used
+    runs.run_summary(_ref(dirs[2]))  # over the budget: b1 leaves
+    assert [os.path.basename(key) for key in runs._SUMMARIES] == ['b0', 'b2']
+    assert runs.summary_cache_bytes() == _resident_bytes() == 2 * size
+
+
+def test_the_byte_count_follows_a_summary_that_changes_size_and_a_clear(tmp_path, aged):
+    run_dir = _make_run(tmp_path, 'grows', events=2)
+    other = _make_run(tmp_path, 'steady', events=2)
+    runs.run_summary(_ref(other))
+    runs.run_summary(_ref(run_dir))
+    small = runs.summary_cache_bytes()
+    state = json.loads((run_dir / 'state.json').read_text(encoding='utf-8'))
+    state['technical_debts'] = [{'id': index, 'note': 'd' * 40} for index in range(100)]
+    (run_dir / 'state.json').write_text(json.dumps(state), encoding='utf-8')
+    runs.run_summary(_ref(run_dir))
+    assert runs.summary_cache_bytes() == _resident_bytes() > small + 5000
+    (run_dir / 'state.json').write_text(json.dumps(dict(state, technical_debts=[])), encoding='utf-8')
+    runs.run_summary(_ref(run_dir))
+    assert runs.summary_cache_bytes() == _resident_bytes() == small
+    runs.clear_summary_cache()
+    assert runs.summary_cache_bytes() == 0
+
+
+def test_the_byte_count_holds_under_concurrent_pollers_and_evictions(tmp_path, aged, monkeypatch):
+    dirs = [_make_run(tmp_path, 'c%02d' % index, events=2) for index in range(30)]
+    monkeypatch.setattr(runs, 'SUMMARY_BYTES_MAX', _blob_size(dirs[0]) * 7)
+    errors = []
+
+    def poll(offset):
+        try:
+            for turn in range(40):
+                runs.run_summary(_ref(dirs[(offset * 5 + turn * 3) % len(dirs)]))
+        except Exception as exc:  # pragma: no cover
+            errors.append(repr(exc))
+
+    threads = [threading.Thread(target=poll, args=(index,)) for index in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(30)
+    assert not errors and not any(thread.is_alive() for thread in threads)
+    assert runs.summary_cache_bytes() == _resident_bytes() <= runs.SUMMARY_BYTES_MAX
 
 
 def test_the_limits_are_the_documented_ones():
     assert runs.SUMMARY_CACHE_MAX == 4096
-    assert runs.SUMMARY_BLOB_MAX == 32 * 1024
+    assert runs.SUMMARY_BYTES_MAX == 64 * 1024 * 1024
