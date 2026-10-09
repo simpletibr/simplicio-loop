@@ -29,17 +29,24 @@
 **simplicio-loop превращает issue в GitHub в протестированные PR: он картирует репозиторий, ИИ планирует, детерминированный редактор применяет, тесты проверяют, сквады ревьюят.**
 
 <p align="center">
+  <img src="../docs/assets/readme/overview-cartoon.webp" alt="Анимированный поток из 8 шагов: issue, intake, общий координатор, сквады, воркеры (mapper, план, dev-cli), ревью сквада, merge train, main и канбан Simplicio Live" width="100%" />
+</p>
+
+<p align="center">
   <img src="../docs/assets/readme/how-it-works.gif" alt="Анимированный поток из 8 шагов: issue, intake, общий координатор, сквады, воркеры (mapper, план, dev-cli), ревью сквада, merge train, main и канбан Simplicio Live" width="100%" />
 </p>
 
 ## Что он делает
 
-Три оператора: `simplicio-mapper` (карта), модель-планировщик (план), `simplicio-dev-cli` (детерминированное применение).
-
-- **Сначала картирует:** `simplicio-mapper` превращает репозиторий (файлы, символы, тесты) в карту проекта, и планировщик получает только нужный фрагмент.
-- **Планирует, никогда не пишет:** ИИ (exec CLI, например claude, codex, grok или gemini) планирует каждое изменение в песочнице; файлы правит только детерминированный `dev-cli`.
-- **Доказывает до открытия PR:** `turbo --apply - --verify` запускает ваши тесты, а перед push идёт сканирование секретов.
-- **Сквады ревьюят и мёрджат пачками** (в работе: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504), [#1505](https://github.com/simpletibr/simplicio-loop/issues/1505)). Сейчас watcher останавливается на открытом PR.
+```mermaid
+flowchart LR
+  I["GitHub issue"] --> M["simplicio-mapper<br/>maps files, symbols, tests"]
+  M -->|"map slice"| P["Planner in a sandbox<br/>claude / codex / grok / gemini<br/>plans, never writes"]
+  P -->|"JSON plan"| D["simplicio-dev-cli<br/>deterministic apply"]
+  D --> T["tests verify<br/>simplicio-loop turbo --apply - --verify"]
+  T -->|"green"| S["secret scan"] --> PR["PR with evidence"]
+  T -.->|"2 failures"| E["escalate the model role"] -.-> P
+```
 
 ## Установка
 
@@ -70,36 +77,65 @@ sudo cp packaging/systemd/simplicio-loop-247.env.example /etc/simplicio-loop-247
 sudo systemctl enable --now simplicio-loop-247
 ```
 
-- **Opt-in на репозиторий:** добавьте `.simplicio/loop.toml` с `enabled = true`.
-- **Opt-in на issue:** метка `loop:auto` от доверенного автора (owner, member или collaborator).
-- **Авто-мёрдж выключен.** Watcher только открывает PR; `SIMPLICIO_247_AUTO_MERGE=1` в работе ([#1505](https://github.com/simpletibr/simplicio-loop/issues/1505)).
-
 Подробнее: [docs/WATCHER_247.md](../docs/WATCHER_247.md).
+
+```mermaid
+flowchart LR
+  R["repo opts in<br/>.simplicio/loop.toml<br/>enabled = true"] --> L["issue opts in<br/>label loop:auto<br/>owner / member / collaborator"]
+  L --> W["worker loop"] --> PR["PR opened"]
+  PR -.->|"auto-merge off by default"| H["squad / human merges"]
+```
 
 ## Как это работает
 
-**Цикл воркера** (сейчас в `main`): `simplicio-mapper` картирует репозиторий → планировщик (exec CLI, в песочнице) получает фрагмент карты и пишет план → `simplicio-dev-cli` применяет его (`turbo --apply - --verify`) → тесты проверяют (два сбоя повышают роль модели) → сканирование секретов → PR. Ревью сквада и merge train в работе ([#1502](https://github.com/simpletibr/simplicio-loop/issues/1502), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)).
-
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="Цикл воркера: mapper картирует репозиторий, план в песочнице, применение и проверка, сбой, повышение до следующей роли модели, сканирование секретов, PR, ревью сквада" width="920" />
+  <img src="../docs/assets/readme/worker-loop.gif" alt="Цикл воркера: mapper картирует репозиторий, план в песочнице, применение и проверка, сбой, повышение до следующей роли модели, сканирование секретов, PR, ревью сквада" width="100%" />
 </p>
 
-**Merge train** (в работе: [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)): одобренные PR тестируются один раз пачкой; при красном бисекция находит плохой PR, а остальные мёрджатся.
+```mermaid
+flowchart LR
+  H["Haiku<br/>mechanical, 1 module"] -->|"2 failures"| S["Sonnet<br/>integration, security"] -->|"2 failures"| O["Opus / Fable<br/>replan only, never executes"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 PR протестированы один раз, красный, бисекция изолирует C, затем A, B и D мёрджатся" width="920" />
+  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 PR протестированы один раз, красный, бисекция изолирует C, затем A, B и D мёрджатся" width="100%" />
 </p>
 
-**Сквады** (в работе: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): общий координатор, по координатору на сквад, до 4 воркеров в каждом. Почему: [один координатор против сквадов](../docs/assets/readme/agents-before-after-cartoon.webp).
+```mermaid
+flowchart LR
+  A["PR A ✓"] & B["PR B ✓"] & C["PR C ✓"] & D["PR D ✓"] --> G{"test the batch once"}
+  G -->|"green"| M["merge all into main"]
+  G -->|"red"| X["bisect"] --> BAD["PR C out, back to its squad"]
+  X --> OK["A, B and D merge"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="Оргструктура сквадов: общий координатор, координатор на сквад и до 4 воркеров в каждом" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="Оргструктура сквадов: общий координатор, координатор на сквад и до 4 воркеров в каждом" width="100%" />
 </p>
 
+```mermaid
+flowchart TD
+  G["General coordinator<br/>Opus / Fable: plans, never executes"] --> S1["Squad 1<br/>Sonnet coordinator"] & S2["Squad 2<br/>Sonnet coordinator"] & S3["Squad 3<br/>Sonnet coordinator"]
+  S1 --> W1["up to 4 Haiku workers"]
+  S2 --> W2["up to 4 Haiku workers"]
+  S3 --> W3["up to 4 Haiku workers"]
+  S1 & S2 & S3 -.->|"APPROVED BY SQUAD"| MC["Merge coordinator<br/>Sonnet: merges in series"] --> MAIN["main"]
+```
+
+<p align="center">
+  <img src="../docs/assets/readme/agents-before-after-cartoon.webp" alt="1 coordinator and 29 workers versus squads: before and after" width="100%" />
+</p>
 
 ## 50 точек расширения
 
-Путь 24/7-сервиса подключает 11 из 50 (24 частично, 15 отсутствуют): [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md). План подключения остальных — [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509).
+```mermaid
+pie showData title Extension points in the 24/7 path (of 50)
+  "Wired" : 11
+  "Partial" : 24
+  "Absent" : 15
+```
+
+[docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
 
 ## Подробнее
 

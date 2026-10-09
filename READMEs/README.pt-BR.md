@@ -29,17 +29,24 @@
 **O simplicio-loop transforma issues do GitHub em PRs testados: mapeia o repo, uma IA planeja, um editor determinístico aplica, os testes verificam e os squads revisam.**
 
 <p align="center">
+  <img src="../docs/assets/readme/overview-cartoon.webp" alt="Fluxo animado em 8 passos: issues, intake, coordenador geral, squads, workers em sandbox, revisão do squad, merge train, main e o kanban Simplicio Live" width="100%" />
+</p>
+
+<p align="center">
   <img src="../docs/assets/readme/how-it-works.gif" alt="Fluxo animado em 8 passos: issues, intake, coordenador geral, squads, workers em sandbox, revisão do squad, merge train, main e o kanban Simplicio Live" width="100%" />
 </p>
 
 ## O que ele faz
 
-Três operadores: `simplicio-mapper` (mapa), o modelo planejador (plano), `simplicio-dev-cli` (aplicação determinística).
-
-- **Mapeia primeiro:** o `simplicio-mapper` mapeia o repo (arquivos, símbolos, testes) num mapa do projeto, e o planejador só recebe a fatia de que precisa.
-- **Planeja, nunca escreve:** uma IA (um CLI exec como claude, codex, grok ou gemini) planeja cada mudança dentro de um sandbox; só o `dev-cli` determinístico edita arquivos.
-- **Prova antes de abrir o PR:** `turbo --apply - --verify` roda os seus testes, e uma varredura de segredos roda antes do push.
-- **Squads revisam e fazem merge em lote** (em andamento: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504), [#1505](https://github.com/simpletibr/simplicio-loop/issues/1505)). Hoje o watcher para no PR aberto.
+```mermaid
+flowchart LR
+  I["GitHub issue"] --> M["simplicio-mapper<br/>maps files, symbols, tests"]
+  M -->|"map slice"| P["Planner in a sandbox<br/>claude / codex / grok / gemini<br/>plans, never writes"]
+  P -->|"JSON plan"| D["simplicio-dev-cli<br/>deterministic apply"]
+  D --> T["tests verify<br/>simplicio-loop turbo --apply - --verify"]
+  T -->|"green"| S["secret scan"] --> PR["PR with evidence"]
+  T -.->|"2 failures"| E["escalate the model role"] -.-> P
+```
 
 ## Instalação
 
@@ -70,36 +77,65 @@ sudo cp packaging/systemd/simplicio-loop-247.env.example /etc/simplicio-loop-247
 sudo systemctl enable --now simplicio-loop-247
 ```
 
-- **Opt-in por repo:** adicione `.simplicio/loop.toml` com `enabled = true`.
-- **Opt-in por issue:** o label `loop:auto`, de um autor confiável (owner, member ou collaborator).
-- **O auto-merge está desligado.** O watcher só abre PRs; `SIMPLICIO_247_AUTO_MERGE=1` está em andamento ([#1505](https://github.com/simpletibr/simplicio-loop/issues/1505)).
+```mermaid
+flowchart LR
+  R["repo opts in<br/>.simplicio/loop.toml<br/>enabled = true"] --> L["issue opts in<br/>label loop:auto<br/>owner / member / collaborator"]
+  L --> W["worker loop"] --> PR["PR opened"]
+  PR -.->|"auto-merge off by default"| H["squad / human merges"]
+```
 
 Detalhes: [docs/WATCHER_247.md](../docs/WATCHER_247.md).
 
 ## Como funciona
 
-**O loop do worker** (na `main` hoje): o `simplicio-mapper` mapeia o repo → o planejador (um CLI exec, no sandbox) recebe a fatia do mapa e escreve um plano → o `simplicio-dev-cli` aplica (`turbo --apply - --verify`) → os testes verificam (duas falhas sobem o papel do modelo) → varredura de segredos → PR. A revisão do squad e o merge train estão em andamento ([#1502](https://github.com/simpletibr/simplicio-loop/issues/1502), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)).
-
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="Loop do worker: planeja no sandbox, aplica e verifica, uma falha, escalonamento para o próximo papel do modelo, varredura de segredos, PR, revisão do squad" width="920" />
+  <img src="../docs/assets/readme/worker-loop.gif" alt="Loop do worker: planeja no sandbox, aplica e verifica, uma falha, escalonamento para o próximo papel do modelo, varredura de segredos, PR, revisão do squad" width="100%" />
 </p>
 
-**O merge train** (em andamento: [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)): os PRs aprovados são testados uma vez em lote; se der vermelho, faz bisseção até o PR ruim e faz merge dos demais.
+```mermaid
+flowchart LR
+  H["Haiku<br/>mechanical, 1 module"] -->|"2 failures"| S["Sonnet<br/>integration, security"] -->|"2 failures"| O["Opus / Fable<br/>replan only, never executes"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 PRs testados uma vez, vermelho, a bisseção isola o C, depois A, B e D fazem merge" width="920" />
+  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 PRs testados uma vez, vermelho, a bisseção isola o C, depois A, B e D fazem merge" width="100%" />
 </p>
 
-**Os squads** (em andamento: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): um coordenador geral, um coordenador por squad, até 4 workers cada. Por quê: [um coordenador contra squads](../docs/assets/readme/agents-before-after-cartoon.webp).
+```mermaid
+flowchart LR
+  A["PR A ✓"] & B["PR B ✓"] & C["PR C ✓"] & D["PR D ✓"] --> G{"test the batch once"}
+  G -->|"green"| M["merge all into main"]
+  G -->|"red"| X["bisect"] --> BAD["PR C out, back to its squad"]
+  X --> OK["A, B and D merge"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="Organograma dos squads: um coordenador geral, um coordenador por squad e até 4 workers cada" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="Organograma dos squads: um coordenador geral, um coordenador por squad e até 4 workers cada" width="100%" />
 </p>
 
+```mermaid
+flowchart TD
+  G["General coordinator<br/>Opus / Fable: plans, never executes"] --> S1["Squad 1<br/>Sonnet coordinator"] & S2["Squad 2<br/>Sonnet coordinator"] & S3["Squad 3<br/>Sonnet coordinator"]
+  S1 --> W1["up to 4 Haiku workers"]
+  S2 --> W2["up to 4 Haiku workers"]
+  S3 --> W3["up to 4 Haiku workers"]
+  S1 & S2 & S3 -.->|"APPROVED BY SQUAD"| MC["Merge coordinator<br/>Sonnet: merges in series"] --> MAIN["main"]
+```
+
+<p align="center">
+  <img src="../docs/assets/readme/agents-before-after-cartoon.webp" alt="1 coordinator and 29 workers versus squads: before and after" width="100%" />
+</p>
 
 ## Os 50 pontos de extensão
 
-O caminho do serviço 24/7 liga 11 dos 50 (24 parciais, 15 ausentes): [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md). O plano para ligar o resto é a [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509).
+```mermaid
+pie showData title Extension points in the 24/7 path (of 50)
+  "Wired" : 11
+  "Partial" : 24
+  "Absent" : 15
+```
+
+[docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
 
 ## Saiba mais
 
