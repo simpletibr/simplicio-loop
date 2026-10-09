@@ -27,6 +27,21 @@ class IdleCpuTest(unittest.TestCase):
             self.assertGreaterEqual(result['cpu_percent'], 0.0)
             self.assertLess(result['cpu_percent'], 50.0)
 
+    def test_idle_sample_reports_the_settle_window_it_waited_for(self) -> None:
+        root = Path(tempfile.mkdtemp(prefix='simplicio-live-settle-'))
+        self.addCleanup(shutil.rmtree, root, True)
+        token = secrets.token_urlsafe(8)
+        run_ids = bench.build_fixture(root, 1, 5)
+        handle = server.start(root, port=0, token=token)
+        self.addCleanup(handle.stop)
+        result = bench.idle_cpu(handle.port, run_ids[0], token, seconds=1.0, settle_seconds=0.5)
+        self.assertEqual(result['settle_s'], 0.5)
+
+    def test_run_bench_settles_long_enough_for_the_replay_backlog(self) -> None:
+        import inspect
+        default = inspect.signature(bench.run_bench).parameters['settle_seconds'].default
+        self.assertGreaterEqual(default, 2.0)
+
     def test_summary_includes_idle_cpu(self) -> None:
         result = bench.run_bench(2, 5, idle_seconds=0.5)
         self.assertIn('idle_cpu', result)
