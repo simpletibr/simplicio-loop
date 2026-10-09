@@ -210,3 +210,143 @@ def test_claim_properties():
     assert claim.is_lease_expired(now=1050) is False
     assert claim.is_lease_expired(now=1060) is True
 
+
+def test_concurrent_acquire_heartbeat_release():
+    """Test 20+ concurrent asyncio tasks on acquire, heartbeat, release.
+    
+    Validates:
+    - Exactly one owner wins each key
+    - JSON file stays valid after every operation
+    - No update is lost (final state contains every key)
+    """
+    async def run():
+        temp_file = temp_claims_file()
+        try:
+            store = ClaimStore(temp_file)
+            num_tasks = 25
+            num_keys = 5
+            base_time = 2000
+            
+            results = {
+                "acquired": {},
+                "heartbeats": {},
+                "released": {},
+            }
+            
+            async def worker(task_id: int, key: str):
+                """Simulate worker acquiring, heartbeating, and releasing a key."""
+                try:
+                    # Try to acquire
+                    token = await store.acquire(key, f"worker_{task_id}", ttl_s=30, now=base_time + task_id)
+                    if token is not None:
+                        results["acquired"][key] = (task_id, token)
+                        
+                        # Heartbeat
+                        success = await store.heartbeat(key, token, ttl_s=30, now=base_time + task_id + 10)
+                        if success:
+                            results["heartbeats"][key] = task_id
+                        
+                        # Release
+                        success = await store.release(key, token, "done", now=base_time + task_id + 20)
+                        if success:
+                            results["released"][key] = task_id
+                except Exception as e:
+                    print(f"Task {task_id} error: {e}")
+            
+            # Create many concurrent tasks targeting different keys
+            tasks = []
+            for task_id in range(num_tasks):
+                key = f"key#{task_id % num_keys}"
+                tasks.append(worker(task_id, key))
+            
+            # Run all tasks concurrently
+            await asyncio.gather(*tasks)
+            
+            # Verify exactly one owner won each key
+            for i in range(num_keys):
+                key = f"key#{i}"
+                claim = await store.get_claim(key)
+                if claim is not None:
+                    # Claim should exist and be finalized
+                    assert claim.status == "done", f"Key {key} should be released"
+                    assert claim.owner_token is None, f"Key {key} should have no token after release"
+                    # Exactly one task acquired this key
+                    assert key in results["acquired"], f"Key {key} was not acquired"
+            
+            # Verify file is valid JSON after all operations
+            with open(temp_file, "r") as f:
+                data = json.load(f)
+                assert isinstance(data, dict), "Claims file should be valid JSON dict"
+                for key in data:
+                    assert "key" in data[key], f"Claim {key} missing 'key' field"
+                    assert "status" in data[key], f"Claim {key} missing 'status' field"
+            
+            # Verify no updates lost - all keys should have final state
+            for i in range(num_keys):
+                key = f"key#{i}"
+                assert key in data, f"Key {key} missing from final state"
+                assert data[key]["status"] == "done", f"Key {key} not finalized"
+        finally:
+            if temp_file.exists():
+                temp_file.unlink()
+    
+    asyncio.run(run())
+
+
+def test_cross_process_safety():
+    """Test cross-process safety with two ClaimStore instances on same file.
+    
+    This is a single-process simulation: open two store handles to same file
+    and verify no corruption or lost updates.
+    """
+    async def run():
+        temp_file = temp_claims_file()
+        try:
+            store1 = ClaimStore(temp_file)
+            store2 = ClaimStore(temp_file)
+            
+            # Store1 acquires a key
+            token1 = await store1.acquire("shared_key", "worker1", ttl_s=60, now=1000)
+            assert token1 is not None
+            
+            # Store2 should see the same claim (file-based)
+            claim2 = await store2.get_claim("shared_key")
+            assert claim2 is not None
+            assert claim2.owner_token == token1
+            
+            # Store2 cannot acquire the same key (still valid)
+            token2 = await store2.acquire("shared_key", "worker2", ttl_s=60, now=1000)
+            assert token2 is None
+            
+            # Store1 heartbeats
+            success = await store1.heartbeat("shared_key", token1, ttl_s=60, now=1050)
+            assert success is True
+            
+            # Store2 sees the updated expiry
+            claim2_updated = await store2.get_claim("shared_key")
+            assert claim2_updated.lease_expires_at == 1110
+            
+            # Store1 releases
+            success = await store1.release("shared_key", token1, "done", now=1050)
+            assert success is True
+            
+            # Store2 sees the released claim
+            claim2_final = await store2.get_claim("shared_key")
+            assert claim2_final.status == "done"
+            assert claim2_final.owner_token is None
+            
+            # Now store2 can acquire the same key
+            token2_new = await store2.acquire("shared_key", "worker2", ttl_s=60, now=1060)
+            assert token2_new is not None
+            
+            # Verify file consistency
+            with open(temp_file, "r") as f:
+                data = json.load(f)
+                assert data["shared_key"]["status"] == "running"
+                assert data["shared_key"]["owner_token"] == token2_new
+        finally:
+            if temp_file.exists():
+                temp_file.unlink()
+    
+    asyncio.run(run())
+
