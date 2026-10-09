@@ -120,6 +120,27 @@ def test_read_private_text_refuses_shared_writable(tmp_path):
         sh.read_private_text(target)
 
 
+@posix_only
+def test_read_private_text_refuses_a_file_owned_by_someone_else(tmp_path, monkeypatch):
+    target = tmp_path / "setup.json"
+    target.write_text("{}", encoding="utf-8")
+    target.chmod(0o600)
+    assert sh.read_private_text(target) == "{}"
+    monkeypatch.setattr(os, "geteuid", lambda: target.stat().st_uid + 1)
+    with pytest.raises(sh.UnsafeFileError, match="owned by"):
+        sh.read_private_text(target)
+
+
+@posix_only
+def test_read_private_text_stops_at_max_bytes(tmp_path):
+    target = tmp_path / "setup.json"
+    target.write_text("x" * 100_000, encoding="utf-8")  # more than one 64 KiB read
+    target.chmod(0o600)
+    assert len(sh.read_private_text(target, max_bytes=100_000)) == 100_000
+    with pytest.raises(sh.UnsafeFileError, match="larger"):
+        sh.read_private_text(target, max_bytes=99_999)
+
+
 def test_read_private_text_missing_raises_file_not_found(tmp_path):
     with pytest.raises(FileNotFoundError):
         sh.read_private_text(tmp_path / "absent.json")
@@ -139,3 +160,18 @@ def test_isolated_git_cwd_is_outside_any_repository():
             check=False,
         )
     assert result.returncode != 0
+
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git not installed")
+def test_isolated_git_cwd_never_finds_a_repository_above_it_and_never_prompts(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    monkeypatch.setenv("TMPDIR", str(repo))  # the isolated folder is created INSIDE a repository
+    monkeypatch.setattr("tempfile.tempdir", None)
+    with sh.isolated_git_cwd({"PATH": os.environ.get("PATH", "")}) as (cwd, env):
+        assert os.path.dirname(cwd) == str(repo)
+        found = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=cwd, env=env, capture_output=True, text=True)
+        assert env["GIT_TERMINAL_PROMPT"] == "0"
+    assert found.returncode != 0

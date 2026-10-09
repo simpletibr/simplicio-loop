@@ -23,6 +23,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Optional
 
+from . import setup_hardening
 from .release_fetch import FetchError, default_get, install_binary
 
 MIN_PYTHON = (3, 11)  # `requires-python` of pyproject.toml; a test keeps them equal
@@ -83,7 +84,7 @@ def _run(argv: Sequence[str], timeout: float = TIMEOUT_S) -> tuple[Optional[int]
     """(exit code, stdout + stderr cut at 4 KiB); the code is None when the command timed out or could not start."""
     try:
         done = subprocess.run(list(argv), capture_output=True, text=True, errors="replace", stdin=subprocess.DEVNULL,
-                              timeout=timeout, shell=False)
+                              timeout=timeout, shell=False, env=setup_hardening.minimal_env())
     except (OSError, subprocess.TimeoutExpired):
         return None, ""
     return done.returncode, (done.stdout + done.stderr)[:4096]

@@ -27,7 +27,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, TextIO
 
-from . import auth
+from . import auth, setup_hardening
 
 if TYPE_CHECKING:  # the steps import httpx; they load only when the command runs, so every other command starts fast
     from . import github_cred, host_detect
@@ -102,10 +102,8 @@ def read_summary(directory: Optional[Path] = None) -> Optional[dict]:
     """The setup summary for `doctor` and the watcher; None when absent, too big, or not a `simplicio.setup/v1` object."""
     try:
         path = summary_path(directory)
-        if path.stat().st_size > MAX_SUMMARY_BYTES:
-            return None
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        data = json.loads(setup_hardening.read_private_text(path, MAX_SUMMARY_BYTES))
+    except (OSError, ValueError, setup_hardening.UnsafeFileError):
         return None
     return data if isinstance(data, dict) and data.get("schema") == SCHEMA else None
 
