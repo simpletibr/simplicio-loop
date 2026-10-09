@@ -29,17 +29,24 @@
 **simplicio-loopは、GitHubのissueをテスト済みのPRに変えます。リポジトリをマップし、AIが計画し、決定的エディタが適用し、テストが検証し、スカッドがレビューします。**
 
 <p align="center">
+  <img src="../docs/assets/readme/overview-cartoon.webp" alt="8ステップのアニメーション: issue、インテーク、総括コーディネータ、スカッド、サンドボックスのワーカー、スカッドのレビュー、マージトレイン、main、Simplicio Liveカンバン" width="100%" />
+</p>
+
+<p align="center">
   <img src="../docs/assets/readme/how-it-works.gif" alt="8ステップのアニメーション: issue、インテーク、総括コーディネータ、スカッド、サンドボックスのワーカー、スカッドのレビュー、マージトレイン、main、Simplicio Liveカンバン" width="100%" />
 </p>
 
 ## できること
 
-3つのオペレータ: `simplicio-mapper`（マップ）、プランナーモデル（計画）、`simplicio-dev-cli`（決定的な適用）。
-
-- **まずマップする:** `simplicio-mapper`がリポジトリ（ファイル、シンボル、テスト）をプロジェクトマップにまとめ、プランナーは必要な部分だけを受け取ります。
-- **計画するだけで、書き込まない:** AI（claude、codex、grok、geminiなどのexec CLI）がサンドボックス内で各変更を計画し、ファイルを編集するのは決定的な`dev-cli`だけです。
-- **PRを開く前に証明する:** `turbo --apply - --verify`がテストを実行し、push前にシークレットスキャンが走ります。
-- **スカッドがレビューしてまとめてマージする**（作業中: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)、[#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)、[#1505](https://github.com/simpletibr/simplicio-loop/issues/1505)）。現在はwatcherはオープンなPRで止まります。
+```mermaid
+flowchart LR
+  I["GitHub issue"] --> M["simplicio-mapper<br/>maps files, symbols, tests"]
+  M -->|"map slice"| P["Planner in a sandbox<br/>claude / codex / grok / gemini<br/>plans, never writes"]
+  P -->|"JSON plan"| D["simplicio-dev-cli<br/>deterministic apply"]
+  D --> T["tests verify<br/>simplicio-loop turbo --apply - --verify"]
+  T -->|"green"| S["secret scan"] --> PR["PR with evidence"]
+  T -.->|"2 failures"| E["escalate the model role"] -.-> P
+```
 
 ## インストール
 
@@ -70,36 +77,65 @@ sudo cp packaging/systemd/simplicio-loop-247.env.example /etc/simplicio-loop-247
 sudo systemctl enable --now simplicio-loop-247
 ```
 
-- **リポジトリごとのオプトイン:** `.simplicio/loop.toml`を追加して`enabled = true`を設定します。
-- **issueごとのオプトイン:** 信頼できる作成者（owner、member、collaborator）が付けた`loop:auto`ラベル。
-- **自動マージはオフです。** watcherはPRを開くだけです。`SIMPLICIO_247_AUTO_MERGE=1`は作業中です（[#1505](https://github.com/simpletibr/simplicio-loop/issues/1505)）。
-
 詳細: [docs/WATCHER_247.md](../docs/WATCHER_247.md)。
+
+```mermaid
+flowchart LR
+  R["repo opts in<br/>.simplicio/loop.toml<br/>enabled = true"] --> L["issue opts in<br/>label loop:auto<br/>owner / member / collaborator"]
+  L --> W["worker loop"] --> PR["PR opened"]
+  PR -.->|"auto-merge off by default"| H["squad / human merges"]
+```
 
 ## 仕組み
 
-**ワーカーループ**（現在`main`で動作）: `simplicio-mapper`がリポジトリをマップ → プランナー（exec CLI、サンドボックス内）がマップの一部を受け取って計画を作成 → `simplicio-dev-cli`が適用（`turbo --apply - --verify`） → テストで検証（2回失敗するとモデルの役割を格上げ） → シークレットスキャン → PR。スカッドのレビューとマージトレインは作業中です（[#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)、[#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)）。
-
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="ワーカーループ: サンドボックスで計画、適用と検証、1回の失敗、次のモデル役割へのエスカレーション、シークレットスキャン、PR、スカッドのレビュー" width="920" />
+  <img src="../docs/assets/readme/worker-loop.gif" alt="ワーカーループ: サンドボックスで計画、適用と検証、1回の失敗、次のモデル役割へのエスカレーション、シークレットスキャン、PR、スカッドのレビュー" width="100%" />
 </p>
 
-**マージトレイン**（作業中: [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)）: 承認済みのPRをまとめて1回だけテストし、赤になったら二分探索で問題のPRを特定して残りをマージします。
+```mermaid
+flowchart LR
+  H["Haiku<br/>mechanical, 1 module"] -->|"2 failures"| S["Sonnet<br/>integration, security"] -->|"2 failures"| O["Opus / Fable<br/>replan only, never executes"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="マージトレイン: 4つのPRを1回テスト、赤、二分探索でCを特定、その後A、B、Dをマージ" width="920" />
+  <img src="../docs/assets/readme/merge-train.gif" alt="マージトレイン: 4つのPRを1回テスト、赤、二分探索でCを特定、その後A、B、Dをマージ" width="100%" />
 </p>
 
-**スカッド**（作業中: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)）: 総括コーディネータ1人、スカッドごとにコーディネータ1人、各スカッドに最大4人のワーカー。理由: [コーディネータ1人対スカッド](../docs/assets/readme/agents-before-after-cartoon.webp)。
+```mermaid
+flowchart LR
+  A["PR A ✓"] & B["PR B ✓"] & C["PR C ✓"] & D["PR D ✓"] --> G{"test the batch once"}
+  G -->|"green"| M["merge all into main"]
+  G -->|"red"| X["bisect"] --> BAD["PR C out, back to its squad"]
+  X --> OK["A, B and D merge"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="スカッドの組織図: 総括コーディネータ、スカッドごとのコーディネータ、各最大4人のワーカー" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="スカッドの組織図: 総括コーディネータ、スカッドごとのコーディネータ、各最大4人のワーカー" width="100%" />
 </p>
 
+```mermaid
+flowchart TD
+  G["General coordinator<br/>Opus / Fable: plans, never executes"] --> S1["Squad 1<br/>Sonnet coordinator"] & S2["Squad 2<br/>Sonnet coordinator"] & S3["Squad 3<br/>Sonnet coordinator"]
+  S1 --> W1["up to 4 Haiku workers"]
+  S2 --> W2["up to 4 Haiku workers"]
+  S3 --> W3["up to 4 Haiku workers"]
+  S1 & S2 & S3 -.->|"APPROVED BY SQUAD"| MC["Merge coordinator<br/>Sonnet: merges in series"] --> MAIN["main"]
+```
+
+<p align="center">
+  <img src="../docs/assets/readme/agents-before-after-cartoon.webp" alt="1 coordinator and 29 workers versus squads: before and after" width="100%" />
+</p>
 
 ## 50の拡張ポイント
 
-24時間365日のサービス経路は50のうち11を接続済み（24は一部、15は未実装）: [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md)。残りを接続する計画は[#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)です。
+```mermaid
+pie showData title Extension points in the 24/7 path (of 50)
+  "Wired" : 11
+  "Partial" : 24
+  "Absent" : 15
+```
+
+[docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
 
 ## さらに詳しく
 
