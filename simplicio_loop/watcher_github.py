@@ -86,6 +86,7 @@ class FixTask:
     kind: str  # "review_comment", "checks_failed", "conflict", "rebase_required"
     text: str
     files: List[str] = field(default_factory=list)
+    head: str = ""  # the PR head branch, e.g. loop/issue-7
 
 
 async def post_status(
@@ -198,7 +199,10 @@ async def patrol_open_prs(
     for pr in report["action_required"]:
         if branch_filter and branch_filter not in pr["head"]:
             continue
-        tasks.extend(await asyncio.to_thread(_tasks_for_pr, patrol, pr))
+        found = await asyncio.to_thread(_tasks_for_pr, patrol, pr)
+        for task in found:
+            task.head = pr["head"]
+        tasks.extend(found)
     return tasks
 
 
