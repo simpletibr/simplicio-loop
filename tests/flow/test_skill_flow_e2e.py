@@ -1,7 +1,7 @@
 """The /simplicio-loop skill path: turbo in host mode, the plan written by the host and piped on stdin.
 
 No provider and no key: the host model is the planner. Same stage vocabulary and report as the
-service flow. Stages and report not yet written by host mode are strict xfails awaiting #1469.
+service flow.
 """
 from __future__ import annotations
 
@@ -25,8 +25,7 @@ from tests.flow.conftest import (
     run_cli,
 )
 
-STAGES = ["intake", "map", "plan", "apply", "verify", "pr", "report"]
-AWAIT_1469 = "awaits #1469: skill and watcher share the stage pipeline and write events.jsonl"
+STAGES = ["orient", "plan", "apply", "verify", "done"]  # what turbo writes to events.jsonl (turbo_run)
 VERIFY = f"{sys.executable} -m py_compile src/app.py"
 
 
@@ -41,11 +40,10 @@ def host_repo(tmp_path_factory, flow_base: Path, remote_bare: Path) -> Path:
 
 @pytest.fixture(scope="module")
 def host_env(flow_env):
-    """Host mode needs no provider and no key: unset them so the flow cannot silently call a model."""
+    """Host mode needs no provider and no key: unset the key so the flow cannot silently call a model."""
     with pytest.MonkeyPatch.context() as patch:
-        for key in ("OPENROUTER_API_KEY", "SIMPLICIO_FLOW_MODEL_URL"):
-            patch.delenv(key, raising=False)
-        yield {k: v for k, v in flow_env.items() if k not in ("OPENROUTER_API_KEY", "SIMPLICIO_FLOW_MODEL_URL")}
+        patch.delenv("OPENROUTER_API_KEY", raising=False)
+        yield {k: v for k, v in flow_env.items() if k != "OPENROUTER_API_KEY"}
 
 
 @pytest.fixture(scope="module")
@@ -54,11 +52,13 @@ def host_applied(host_repo: Path, host_env):
     task = f"{ISSUE_TITLE}. {ISSUE_BODY}"
     request = run_cli(["turbo", "--repo", str(host_repo), "--task", task], host_repo, host_env)
     assert request.returncode == 0, request.stderr
+    asked = last_json(request.stdout)
+    # The request prints the run id its `apply` command continues: one run, request then apply.
     apply = run_cli(
-        ["turbo", "--repo", str(host_repo), "--apply", "-", "--verify", VERIFY],
+        ["turbo", "--repo", str(host_repo), "--apply", "-", "--run-id", asked["run_id"], "--verify", VERIFY],
         host_repo, host_env, stdin=json.dumps(PLAN),
     )
-    return {"request": last_json(request.stdout), "apply": last_json(apply.stdout), "returncode": apply.returncode}
+    return {"request": asked, "apply": last_json(apply.stdout), "returncode": apply.returncode}
 
 
 def test_host_turbo_asks_the_host_for_a_plan(host_applied):
@@ -79,7 +79,6 @@ def test_host_verify_ran_and_passed(host_applied):
     assert verify["passed"] is True
 
 
-@pytest.mark.xfail(strict=True, reason=AWAIT_1469 + " (host apply must write the stage events)")
 def test_host_events_stages_in_order(host_applied, host_repo: Path):
     runs = dashboard_runs.discover_runs(host_repo)
     assert len(runs) == 1, f"expected one run directory, got {len(runs)}"
@@ -88,13 +87,17 @@ def test_host_events_stages_in_order(host_applied, host_repo: Path):
     assert phases == STAGES
 
 
-@pytest.mark.xfail(strict=True, reason=AWAIT_1469 + " (host run must be readable by dashboard/runs.py)")
 def test_host_events_parseable_by_dashboard_runs(host_applied, host_repo: Path):
     runs = dashboard_runs.list_runs(host_repo)
     assert len(runs) == 1, f"dashboard sees {len(runs)} runs"
     assert runs[0]["last_seq"] >= len(STAGES)
+    assert runs[0]["status"] == "done"
 
 
 def test_host_execution_report_written(host_applied, host_repo: Path):
     report = execution_report.load_latest(host_repo)
     assert report is not None, "no execution report was written"
+    assert report["schema"] == "simplicio.execution-report/v1"
+    assert report["status"] == "COMPLETE"
+    assert report["run_id"] == dashboard_runs.discover_runs(host_repo)[0]["run_id"]
+    assert report["execution_profile"] == "turbo-host"

@@ -36,6 +36,14 @@ def test_doc_lists_exactly_the_fifty_json_names_in_order():
     assert [name for _, name, _ in rows] == _json_names()
 
 
+def test_summary_counts_match_the_rows():
+    counted = {state: sum(1 for _, _, s in _doc_rows() if s == state) for state in STATES}
+    text = DOC.read_text(encoding="utf-8")
+    summary = {m.group(1): int(m.group(2)) for m in re.finditer(r"^\| (ligado|parcial|ausente) \| (\d+) \|$", text, re.M)}
+    assert summary == counted
+    assert sum(counted.values()) == 50
+
+
 def test_every_row_has_a_valid_state_and_evidence():
     for number, name, state in _doc_rows():
         assert state in STATES, f"point {number} {name}: invalid state {state!r}"

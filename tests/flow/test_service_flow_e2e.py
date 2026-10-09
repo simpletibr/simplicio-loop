@@ -1,13 +1,14 @@
 """One watcher tick on a real target repo: admit, map, plan, apply, verify, PR, status, events, report.
 
 The watcher, turbo, Mapper and Dev CLI are real. GitHub (`gh`) and the model are fakes (see conftest).
-Assertions that depend on integrations not yet on the service path are strict xfails: they flip to
-XPASS-as-failure once the integration lands, and the marker must then be removed.
+What the service path still lacks is a strict xfail naming its open issue: it turns into a failure
+the day the capability lands, and the marker must then be removed.
 """
 from __future__ import annotations
 
 import asyncio
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -21,8 +22,11 @@ from tests.flow.conftest import ISSUE_NUMBER, REPO_NAME
 
 IDENT = f"{REPO_NAME}#{ISSUE_NUMBER}"
 HEAD = f"loop/issue-{ISSUE_NUMBER}"
-STAGES = ["intake", "map", "plan", "apply", "verify", "pr", "report"]
-AWAIT_1469 = "awaits #1469: watcher and skill share the stage pipeline and write events.jsonl"
+# The stages turbo writes to events.jsonl today (turbo_run.PROGRESS_PHASE): map -> orient, report -> done.
+TURBO_STAGES = ["orient", "plan", "apply", "verify", "done"]
+# The pipeline of #1469: the watcher's own stages wrap the turbo ones.
+PIPELINE_STAGES = ["intake", "orient", "plan", "apply", "verify", "pr", "done"]
+STATE_ROW = re.compile(r"\| Estado \| (\w+) \|")
 
 
 @pytest.fixture(scope="module")
@@ -99,11 +103,12 @@ def test_plan_applied_to_the_branch(tick_run):
     assert 'return "hello"' not in shown
 
 
-@pytest.mark.xfail(strict=True, reason="awaits #1463: the watcher must pass --verify to turbo")
 def test_verify_ran(tick_run):
     verify = _turbo_document(tick_run).get("verify")
     assert verify is not None, "verify did not run"
     assert verify["passed"] is True
+    pr_calls = [c for c in tick_run["calls"] if c["argv"][:2] == ["pr", "create"]]
+    assert "MEASURED|verify_passed" in pr_calls[0]["body"], "the PR must say how it was verified"
 
 
 def test_commit_and_pr_closes_issue(tick_run):
@@ -119,29 +124,46 @@ def test_commit_and_pr_closes_issue(tick_run):
     assert f"Closes #{ISSUE_NUMBER}" in pr_calls[0]["body"]
 
 
-@pytest.mark.xfail(strict=True, reason="awaits #1492: the status comment must be PATCHed through the verify phase")
 def test_one_canonical_status_comment_updated_across_phases(tick_run):
-    ids = {c["comment_id"] for c in _canonical_calls(tick_run)}
-    updates = [c for c in _canonical_calls(tick_run) if c["method"] == "PATCH"]
-    assert len(ids) == 1, f"expected one status comment, got {len(ids)}"
-    assert len(updates) >= 2, "the status comment was not updated across phases"
+    writes = _canonical_calls(tick_run)
+    assert len({c["comment_id"] for c in writes}) == 1, "expected exactly one status comment"
+    assert [c["method"] for c in writes][0] == "POST"
+    assert all(c["method"] == "PATCH" for c in writes[1:]), "later phases must edit the comment, not add one"
+    states = [STATE_ROW.search(c["body"]).group(1) for c in writes]
+    assert states == ["CLAIMED", "PLANNED", "IN_PROGRESS", "VERIFYING", "PR_OPEN"]
 
 
-@pytest.mark.xfail(strict=True, reason=AWAIT_1469 + " (events.jsonl per run, stages in order)")
-def test_events_jsonl_stages_in_order(tick_run):
-    runs = _run_dirs(tick_run)
+def _entered_phases(run) -> list[str]:
+    runs = _run_dirs(run)
     assert len(runs) == 1, f"expected one run directory, got {len(runs)}"
     events = read_events(runs[0]["run_dir"])
-    phases = [e["phase"] for e in events if e["kind"] == "phase_entered"]
-    assert phases == STAGES
+    seqs = [e["seq"] for e in events]
+    assert seqs == sorted(seqs) and len(set(seqs)) == len(seqs), "events.jsonl seq must be strictly increasing"
+    return [e["phase"] for e in events if e["kind"] == "phase_entered"]
+
+
+def test_events_jsonl_stages_in_order(tick_run):
+    assert _entered_phases(tick_run) == TURBO_STAGES
+
+
+@pytest.mark.xfail(strict=True, reason="awaits #1469: the watcher must write its intake and pr stages into the run's events.jsonl")
+def test_events_jsonl_covers_the_whole_pipeline(tick_run):
+    assert _entered_phases(tick_run) == PIPELINE_STAGES
 
 
 def test_events_parseable_by_dashboard_runs(tick_run):
     runs = dashboard_runs.list_runs(tick_run["clone"])
     assert len(runs) == 1, f"dashboard sees {len(runs)} runs"
-    assert runs[0]["last_seq"] >= len(STAGES)
+    assert runs[0]["last_seq"] >= len(TURBO_STAGES)
+    assert runs[0]["status"] == "done"
 
 
 def test_execution_report_written(tick_run):
     report = execution_report.load_latest(tick_run["clone"])
     assert report is not None, "no execution report was written"
+    assert report["schema"] == "simplicio.execution-report/v1"
+    assert report["status"] == "COMPLETE"
+    assert report["run_id"] == _run_dirs(tick_run)[0]["run_id"], "the report belongs to the run the kanban shows"
+    tokens = report["tasks"][0]["tokens"]
+    assert (tokens["tokens_in"], tokens["tokens_out"]) == (10, 5), "tokens are what the fake model reported"
+

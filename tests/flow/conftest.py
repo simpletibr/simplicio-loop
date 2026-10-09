@@ -20,6 +20,8 @@ from pathlib import Path
 
 import pytest
 
+from simplicio_loop.watcher247 import sandbox
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 REPO_NAME = "simplicio-demo"
 ORIGINAL_APP = 'def greet():\n    return "hello"\n'
@@ -47,6 +49,11 @@ def make_remote(base: Path) -> Path:
     (seed / "src").mkdir()
     (seed / "src" / "app.py").write_text(ORIGINAL_APP)
     (seed / "pyproject.toml").write_text('[project]\nname = "simplicio-demo"\nversion = "0.0.0"\n')
+    # Test evidence, so the watcher detects `python3 -m pytest -q` and runs verify before opening the PR.
+    (seed / "pytest.ini").write_text("[pytest]\npythonpath = src\n")
+    (seed / ".gitignore").write_text("__pycache__/\n.pytest_cache/\n")
+    (seed / "tests").mkdir()
+    (seed / "tests" / "test_app.py").write_text("from app import greet\n\n\ndef test_greet_is_text():\n    assert isinstance(greet(), str)\n")
     (seed / ".simplicio").mkdir()
     (seed / ".simplicio" / "loop.toml").write_text(LOOP_TOML)
     git(seed, "add", "-A")
@@ -117,8 +124,9 @@ elif args[0] == "api":
         print(json.dumps(dict(issue, author_association=issue["authorAssociation"])))
     elif method == "GET" and "/issues/" in path and "/comments" in path:
         number = path.split("/issues/")[1].split("/")[0]
-        rows = [dict(id=c["comment_id"], body=c["body"]) for c in seen_calls()
-                if c.get("method") == "POST" and c["path"].endswith("/issues/" + number + "/comments")]
+        created = [c["comment_id"] for c in seen_calls()
+                   if c.get("method") == "POST" and c["path"].endswith("/issues/" + number + "/comments")]
+        rows = [dict(id=cid, body=latest_comment_body(cid)) for cid in created]  # PATCHes show through
         record(path=path)
         print(json.dumps(rows))
     elif method == "POST" and path.endswith("/comments"):
@@ -150,12 +158,21 @@ else:
     sys.exit(2)
 '''
 
-SITECUSTOMIZE = '''import os
-_url = os.environ.get("SIMPLICIO_FLOW_MODEL_URL")
-if _url:
-    import simplicio_loop.turbo_provider as _provider
-    _provider.API_URL = _url
+# The watcher runs its subprocesses with a scrubbed env (PATH only), so the checkout paths and the fake
+# model URL are baked into these shims instead of travelling through PYTHONPATH or the environment.
+SHIM = '''#!{python}
+import sys
+for _path in {paths!r}:
+    sys.path.insert(0, _path)
+{prelude}from {module} import main
+raise SystemExit(main())
 '''
+MODEL_PRELUDE = "import simplicio_loop.turbo_provider as _provider\n_provider.API_URL = {url!r}\n"
+
+
+def write_shim(path: Path, paths: list[Path], module: str, prelude: str = "") -> None:
+    path.write_text(SHIM.format(python=sys.executable, paths=[str(p) for p in paths], prelude=prelude, module=module))
+    path.chmod(0o755)
 
 
 class _Planner(BaseHTTPRequestHandler):
@@ -211,19 +228,12 @@ def fake_gh_env(flow_base: Path, remote_bare: Path, fake_model):
     gh = bin_dir / "gh"
     gh.write_text(FAKE_GH.format(python=sys.executable))
     gh.chmod(0o755)
-    # The watcher and turbo must run THIS checkout, never a stale `simplicio-loop` on the host PATH.
-    shim = bin_dir / "simplicio-loop"
-    shim.write_text(
-        f"#!{sys.executable}\n"
-        "import sys\n"
-        f"sys.path.insert(0, {str(REPO_ROOT)!r})\n"
-        "from simplicio_loop.cli import main\n"
-        "raise SystemExit(main())\n"
-    )
-    shim.chmod(0o755)
-    hook_dir = flow_base / "pyhook"
-    hook_dir.mkdir(exist_ok=True)
-    (hook_dir / "sitecustomize.py").write_text(SITECUSTOMIZE)
+    # The watcher and turbo must run THIS checkout, never a `simplicio-loop`, `simplicio-mapper` or
+    # `simplicio-dev-cli` installed on the host: each name on PATH is a shim over the checkout's code.
+    write_shim(bin_dir / "simplicio-loop", [REPO_ROOT], "simplicio_loop.cli",
+               MODEL_PRELUDE.format(url=fake_model["url"]))
+    write_shim(bin_dir / "simplicio-mapper", [REPO_ROOT / "packages" / "mapper"], "simplicio_mapper.cli")
+    write_shim(bin_dir / "simplicio-dev-cli", [REPO_ROOT / "packages" / "dev-cli"], "simplicio.cli")
     fixtures = {
         "repos": [{"name": REPO_NAME, "isArchived": False, "defaultBranchRef": {"name": "main"}}],
         "issues": {f"simpletibr/{REPO_NAME}": [{
@@ -238,8 +248,9 @@ def fake_gh_env(flow_base: Path, remote_bare: Path, fake_model):
     fixtures_path.write_text(json.dumps(fixtures))
     env = {
         "PATH": f"{bin_dir}{os.pathsep}{Path(sys.executable).parent}{os.pathsep}{os.environ.get('PATH', '')}",
-        "PYTHONPATH": str(hook_dir),
-        "SIMPLICIO_FLOW_MODEL_URL": fake_model["url"],
+        "PYTHONPATH": str(REPO_ROOT),
+        # The sandbox (bwrap) has its own tests (#1494); here it would hide the shims under /tmp.
+        "SIMPLICIO_247_ALLOW_UNSANDBOXED": "1",
         "OPENROUTER_API_KEY": "flow-test-key",
         "FAKE_GH_FIXTURES": str(fixtures_path),
         "FAKE_GH_LOG": str(flow_base / "gh-calls.jsonl"),
@@ -254,13 +265,15 @@ def flow_env(fake_gh_env, flow_base: Path):
     with pytest.MonkeyPatch.context() as patch:
         for key, value in fake_gh_env.items():
             patch.setenv(key, value)
+        # bwrap mounts a tmpfs over /tmp and would hide the shims; the sandbox has its own tests (#1494).
+        patch.setattr(sandbox, "engine", lambda *_args, **_kwargs: None)
         yield fake_gh_env
 
 
 def run_cli(args: list[str], cwd: Path, env: dict[str, str], stdin: str | None = None) -> subprocess.CompletedProcess:
-    """Run a real `simplicio-loop` subcommand the way a host skill does."""
+    """Run a real `simplicio-loop` subcommand the way a host skill does, from this checkout (never the PATH binary)."""
     return subprocess.run(
-        ["simplicio-loop", *args], cwd=cwd, env={**os.environ, **env}, input=stdin,
+        [sys.executable, "-m", "simplicio_loop.cli", *args], cwd=cwd, env={**os.environ, **env}, input=stdin,
         capture_output=True, text=True, timeout=600, check=False,
     )
 
