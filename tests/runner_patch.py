@@ -12,6 +12,7 @@ from simplicio_loop import (
     runner_core,
     runner_lifecycle,
     runner_plan,
+    runner_preflight,
 )
 
 RUNNER_MODULES = (
@@ -19,6 +20,7 @@ RUNNER_MODULES = (
     runner_core,
     runner_lifecycle,
     runner_plan,
+    runner_preflight,
 )
 
 
