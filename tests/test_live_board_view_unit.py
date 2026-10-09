@@ -279,8 +279,7 @@ def test_index_html_opens_main_with_the_board_section():
 def test_board_css_scrolls_inside_the_board_and_keeps_column_width():
     css = (LIVE / 'live.css').read_text(encoding='utf-8')
     assert re.search(r'\.board\s*\{[^}]*overflow-x:\s*auto', css), 'the board must scroll inside its own box'
-    # Nine columns (eight phases plus off-rail) share the width and fit at 1920 px; 9.5rem is the floor below which they scroll (see the e2e fit test).
-    assert re.search(r'\.board\s*>\s*section\s*\{[^}]*min-width:\s*9\.5rem', css), 'columns need a 9.5rem minimum width'
+    assert re.search(r'\.board\s*>\s*section\s*\{[^}]*min-width:\s*14rem', css), 'columns need a 14rem minimum width'
 
 
 @pytest.mark.parametrize('state', STATES)

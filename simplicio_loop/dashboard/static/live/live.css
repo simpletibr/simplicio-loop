@@ -400,8 +400,8 @@ html[data-tv="1"] .economy-panel .note { font-size: var(--sl-step-0); }
   padding-block-end: var(--sl-space-2);
 }
 .board > section {
-  flex: 1 0 9.5rem;
-  min-width: 9.5rem;
+  flex: 0 0 14rem;
+  min-width: 14rem;
   padding: var(--sl-space-2);
   border: 1px solid var(--sl-line-soft);
   border-radius: var(--sl-radius-plate);
