@@ -28,7 +28,7 @@ REPO = os.path.dirname(HERE)
 
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
-from mirror_manifest import LEAN_SCRIPTS, LEAN_TESTS  # noqa: E402 — single source of truth (#74)
+from mirror_manifest import HOST_RULE_FILES, LEAN_SCRIPTS, LEAN_TESTS  # noqa: E402 — single source of truth (#74)
 
 SRC_SKILLS = os.path.join(REPO, ".claude", "skills")
 DST_SKILLS = os.path.join(REPO, "simplicio_loop", "_bundle", "skills")
@@ -42,6 +42,10 @@ DST_TESTS = os.path.join(REPO, "simplicio_loop", "_bundle", "tests")
 SRC_ADAPTER = os.path.join(REPO, "adapters", "claude")
 DST_ADAPTER = os.path.join(REPO, "simplicio_loop", "_bundle", "adapters", "claude")
 
+# #1472: the host rule ships in the wheel so the installed package can resync rule copies.
+SRC_HOST_RULES = os.path.join(REPO, "packaging", "host-rules")
+DST_HOST_RULES = os.path.join(REPO, "simplicio_loop", "_bundle", "host-rules")
+
 # (tag, src root, dst root, include filter or None for a full mirror) — mirrors the same pairs
 # `claims_audit.check_bundle_parity` validates, so the two never drift apart in what they cover.
 _PAIRS = [
@@ -50,6 +54,7 @@ _PAIRS = [
     ("scripts", SRC_SCRIPTS, DST_SCRIPTS, LEAN_SCRIPTS),
     ("tests", SRC_TESTS, DST_TESTS, LEAN_TESTS),
     ("adapters", SRC_ADAPTER, DST_ADAPTER, None),
+    ("host-rules", SRC_HOST_RULES, DST_HOST_RULES, HOST_RULE_FILES),
 ]
 
 
