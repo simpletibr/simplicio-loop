@@ -125,9 +125,11 @@ shape, not yet emitted.
   task's `check` command): `command_started` is appended before the command runs and `command_finished` after it,
   also on timeout, spawn failure and cancellation. Same source, scope, `task_id` and `iteration` rules as the quality
   events. The two events of one run of a command share a `command_id`. `duration_s` comes from a monotonic clock.
-- The command text is scrubbed (`dashboard/runs.redact_text`) before it is cut to 200 characters, so a secret
-  that the cut would split is still masked. Writing is fail-open: an error in the event writer never changes the
-  command's result.
+- The command text is scrubbed (`dashboard/runs.redact_command`: key=value pairs, `--token abc` style flags, `-p` of
+  mysql/sshpass/twine/docker login, `-u user:pass`, URL credentials, auth and cookie headers, tokens with a known
+  prefix, base64-looking blobs) before it is cut to 200 characters. Only the first 4096 characters are scanned and the
+  word the scan window may have split is dropped, so a cut never leaves the head of a secret. The reader scrubs the
+  same way. Scrubbing and writing are fail-open: an error in either never changes the command's result.
 - **Reading**: `GET /api/runs/<id>/extras` returns `running_command`. A lane runs the latest `command_started` that has
   no `command_finished` with the same `command_id` ("em execução há N s", age against the clock of the request). A start
   older than 600 s with no finish is flagged with its age, never hidden. A start before the last `run_finished` is

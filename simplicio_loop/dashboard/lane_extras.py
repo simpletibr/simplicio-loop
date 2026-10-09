@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from simplicio_loop.dashboard import budget, coordination
-from simplicio_loop.dashboard.runs import redact_text
+from simplicio_loop.dashboard.runs import redact_command, redact_text
 
 SCHEMA = 'simplicio.dashboard-extras/v1'
 EVENT_SCHEMA = 'simplicio.dashboard-event/v1'
@@ -282,7 +282,7 @@ def _heartbeat(claims: dict[str, str], run_dir: str | Path, backlog_path: str | 
 def _running_row(event: dict[str, Any], lane: str | None, now: float) -> dict[str, Any]:
     payload = _payload(event)
     row: dict[str, Any] = {'lane': lane, 'task_id': _text(event.get('task_id')), 'command_id': payload['command_id'],
-                           'command': redact_text(payload['command'])[:RUNNING_MAX], 'started_at': None, 'age_s': None,
+                           'command': redact_command(payload['command'])[:RUNNING_MAX], 'started_at': None, 'age_s': None,
                            'stuck': None, 'state': 'UNVERIFIED', 'reason': None}
     started = budget._parse(event.get('ts'))
     if started is None:

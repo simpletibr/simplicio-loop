@@ -72,6 +72,16 @@ def test_the_event_pair_is_emitted_around_a_real_subprocess(run_dir):
         assert de.validate_envelope(evt) == [], evt
 
 
+def test_every_start_has_its_own_command_id_and_each_finish_pairs_with_its_start(run_dir):
+    for _ in range(50):
+        with command_events.track("T1", "pytest -q") as span:
+            span.exit_code = 0
+    events = _events(run_dir)
+    starts = [e["payload"]["command_id"] for e in events if e["kind"] == "command_started"]
+    finishes = [e["payload"]["command_id"] for e in events if e["kind"] == "command_finished"]
+    assert len(set(starts)) == 50 and starts == finishes
+
+
 def test_a_failing_command_is_finished_with_its_exit_code_and_a_warning(run_dir):
     proc = _run_tracked("T1", _sleep_command(0, code=3))
     assert proc.returncode == 3
@@ -147,11 +157,100 @@ def test_a_secret_cut_by_the_length_cap_is_scrubbed_first(run_dir):
     assert len(started["payload"]["command"]) <= command_events.COMMAND_MAX == 200
 
 
+SECRET_CORPUS = [
+    ("GH_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz0123456789 gh pr list", "abcdefghijklmnopqrstuvwxyz0123456789"),
+    ("tool --token abcdef123456SECRET run", "abcdef123456SECRET"),
+    ("tool --password 'correct horse battery' run", "horse battery"),
+    ("tool --pat abcdefSECRET123 x", "abcdefSECRET123"),
+    ("mysql -u root -p hunter2hunter2 db", "hunter2hunter2"),
+    ("mysql -u root -phunter2hunter2 db", "hunter2hunter2"),
+    ("sshpass -p 'hunter2hunter2' ssh host", "hunter2hunter2"),
+    ("docker login -u me -p hunter2hunter2", "hunter2hunter2"),
+    ("twine upload -u __token__ -p pypi-AgEIcHlwaS5vcmcCJGFiY2RlZmdoaWprbG1ub3A", "AgEIcHlwaS5vcmc"),
+    ("curl -u admin:S3cretPw99 https://api.example.com/x", "S3cretPw99"),
+    ("curl --user admin:S3cretPw99 https://api.example.com/x", "S3cretPw99"),
+    ("curl -b 'session=abcdefSECRET1234567' https://x", "abcdefSECRET1234567"),
+    ("curl -H 'Authorization: Bearer abcdefghijklmnop' https://x", "abcdefghijklmnop"),
+    ("curl -H 'Authorization: Basic dXNlcjpTM2NyZXRQdzk5' https://x", "dXNlcjpTM2NyZXRQdzk5"),
+    ("curl -H 'Authorization: sometoken1234567890abcd' https://x", "sometoken1234567890abcd"),
+    ("curl -H 'Cookie: session=abcdefSECRET1234567' https://x", "abcdefSECRET1234567"),
+    ("curl -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9." + "A" * 520 + ".SIGPART" + "B" * 60 + "' https://x", "SIGPART"),
+    ("git clone https://user:p4ssw0rdvalue@example.com/x.git", "p4ssw0rdvalue"),
+    ("git clone https://user:p4ssw0rdvalue@localhost/x.git", "p4ssw0rdvalue"),
+    ("git clone https://user:p4ssw0rdvalue@gitea:3000/x.git", "p4ssw0rdvalue"),
+    ("git clone https://ghp_abcdefghijklmnopqrstuvwxyz0123456789@github.com/x.git", "abcdefghijklmnopqrstuvwxyz0123456789"),
+    ("DATABASE_URL=postgres://admin:S3cretPw99@localhost:5432/db pytest -q", "S3cretPw99"),
+    ("echo QUtJQVNFQ1JFVEtFWTEyMzQ1Njc4OTBhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg== | base64 -d",
+     "QUtJQVNFQ1JFVEtFWTEyMzQ1Njc4OTBhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg"),
+    ("send xox" + "b-123456789012-1234567890123-abcdefghijklmnopqrstuvwx", "abcdefghijklmnopqrstuvwx"),  # split: push protection
+    ("npm config set //registry.npmjs.org/:_authToken npm_abcdefghijklmnopqrstuvwxyz0123456789", "abcdefghijklmnopqrstuvwxyz0123456789"),
+    ("echo '-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAxxSECRETKEYBODYxx", "SECRETKEYBODY"),
+    ("""curl -d '{"password":"hunter2hunter2"}' https://x""", "hunter2hunter2"),
+    ("AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY aws s3 ls", "bPxRfiCYEXAMPLEKEY"),
+]
+
+
+@pytest.mark.parametrize(("command", "secret"), SECRET_CORPUS)
+def test_no_secret_of_the_hostile_corpus_reaches_the_events_file(run_dir, command, secret):
+    with command_events.track("T1", command) as span:
+        span.exit_code = 0
+    raw = (run_dir / "events.jsonl").read_text(encoding="utf-8")
+    assert secret not in raw and secret not in json.loads(raw.splitlines()[0])["payload"]["command"]
+
+
+@pytest.mark.parametrize("command", [
+    "python3 -m pytest -q -p no:cacheprovider tests/test_dashboard_lane_extras_unit.py",
+    "PYTHONPATH=/tmp/x/648e9aed-d488-5022-b486-524de89277b6/scratchpad/rev1560 python3 -m pytest -q tests/flow",
+    "mkdir -p build/out && cp -pR src dst && ruff check . && mypy --strict simplicio_loop",
+    "git checkout -b feat/x && git push -u origin feat/x", "docker run -p 8080:80 -u 1000:1000 img",
+    "git log 122df7e5c0a4d7f6c0e8a1b2c3d4e5f60718293a..HEAD", "curl -fsS https://example.com/api/v1/status",
+])
+def test_an_ordinary_command_is_written_as_it_is(command):
+    assert command_events.scrub(command) == command
+
+
+def test_a_cut_of_the_scan_window_never_leaves_the_head_of_a_secret():
+    """A long head shrinks when masked, so a secret split by the scan window used to surface within the 200 characters."""
+    key = "-----BEGIN RSA PRIVATE KEY-----\n" + "K" * 4000 + "\n-----END RSA PRIVATE KEY----- "
+    for tail in range(0, 14):
+        command = key + "y" * (4096 - len(key) - 3 - tail) + " sk-" + "abcdefghijklmnop"[:tail] + "QQQQ" * 20
+        assert "sk-" not in command_events.scrub(command), tail
+    assert command_events.scrub("x" * 5000) == ""  # one word cut in the middle: nothing of it is kept
+
+
+@pytest.mark.parametrize("hostile", ["password-" * 500, "a-" * 2048, "PaSsWoRd-ToKeN-" * 270, "Bearer " * 600, "a@" * 2000])
+def test_a_hostile_command_never_stalls_the_run(hostile):
+    began = time.monotonic()
+    command_events.scrub(hostile)
+    assert time.monotonic() - began < 1.0
+
+
+def test_a_scrubber_that_fails_never_breaks_the_run(run_dir):
+    class Unprintable:
+        def __str__(self):
+            raise RuntimeError("no text")
+    with command_events.track("T1", Unprintable()) as span:
+        span.exit_code = 0
+    assert [e["kind"] for e in _events(run_dir)] == ["command_finished"]
+
+
+def test_around_returns_the_result_even_when_the_result_cannot_be_read(run_dir):
+    class Unreadable(dict):
+        def get(self, *args):
+            raise RuntimeError("no get")
+    result = Unreadable(returncode=0)
+
+    async def check():
+        return result
+    assert asyncio.run(command_events.around("T1", "pytest -q", check())) is result
+    assert [e["kind"] for e in _events(run_dir)] == ["command_started", "command_finished"]
+
+
 def test_the_scrub_is_applied_to_whatever_the_caller_passes():
     assert command_events.scrub(None) == ""
     assert command_events.scrub(b"pytest -q") == "pytest -q"
     assert "hunter2hunter2" not in command_events.scrub("x --token=hunter2hunter2")
-    assert len(command_events.scrub("y" * 10_000)) == command_events.COMMAND_MAX
+    assert len(command_events.scrub("y " * 5_000)) == command_events.COMMAND_MAX
 
 
 def test_a_failing_writer_never_breaks_the_run(run_dir, monkeypatch):

@@ -381,3 +381,16 @@ def test_the_running_command_is_redacted_again_on_read_and_cut_to_200_characters
 def test_running_commands_are_capped_at_fifty_lanes(tmp_path):
     events = [_started(i + 1, f'c{i}', 5, lane=f'lane-{i:02d}', task_id=f'T{i}') for i in range(60)]
     assert len(_running(tmp_path, events)['lanes']) == 50
+
+
+def test_a_hostile_command_in_the_event_file_is_masked_and_cannot_stall_the_reader(tmp_path):
+    secrets = {'--token abcdef123456SECRET': 'abcdef123456SECRET', 'mysql -p hunter2hunter2': 'hunter2hunter2',
+               'git clone https://u:p4ssw0rdvalue@localhost/x': 'p4ssw0rdvalue'}
+    began = time.monotonic()
+    for command, secret in secrets.items():
+        got = _running(tmp_path, [_started(1, 'c1', 5, command='run ' + command)])
+        assert secret not in got['reason'] and secret not in got['lanes'][0]['command'], command
+    for hostile in ('password-' * 100_000, 'a-' * 500_000, 'x' * 5_000_000):
+        got = _running(tmp_path, [_started(1, 'c1', 5, command=hostile)])
+        assert got['state'] in ('PASS', 'UNVERIFIED') and len(got['lanes'][0]['command']) <= lane_extras.RUNNING_MAX
+    assert time.monotonic() - began < 5
