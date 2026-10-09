@@ -40,7 +40,8 @@ Como root, com o arquivo de env do serviço, aponte `SIMPLICIO_247_LOGIN` para o
   ```
   sudo -u simplicio-loop -H simplicio-loop login
   ```
-  E verifica a assinatura. Reason codes: `ok`, `login_missing`, `subscription_required`, `refresh_failed`, `entitlement_required`, `validate_unreachable`, `account_mismatch`.
+  E verifica a assinatura. Reason codes: `ok`, `login_missing`, `login_insecure`, `subscription_required`, `refresh_failed`, `entitlement_required`, `validate_unreachable`, `account_mismatch`.
+  Com `login_insecure`, o `login.json` é um symlink. Ou grupo e outros o leem. Ou ele fica numa pasta que eles gravam. Rode `chmod 600` no arquivo (ou `chmod 700` na pasta) e rode `--check`. Remova um symlink.
   Com `account_mismatch`, o login.json pertence a outra conta: `sudo -u simplicio-loop -H simplicio-loop logout --yes` e faça login novamente.
 
 **Saída do setup:**

@@ -1067,7 +1067,7 @@ simplicio-loop update                    # pip-installed: latest GitHub release 
 `simplicio-loop update` installs the latest GitHub release of `simpletibr/simplicio-loop` and
 refreshes the global skills. It acts by how Loop was installed (`simplicio-loop doctor` shows it): pip, source or binary.
 `--check` changes nothing: exit 0 = up to date, 10 = update available, 2 = error. `--dry-run` prints what would run.
-`--force` reinstalls even when up to date and allows a downgrade. A binary checks the SHA256 of the downloaded file
+`--force` reinstalls even when up to date and allows a downgrade. A binary compares the SHA256 of the downloaded file
 before it changes anything, swaps the file by one rename, and keeps the old file as `<name>.bak`.
 Because mapper and dev-cli are bundled in the wheel, it first removes
 any pre-monorepo standalone `simplicio-cli` / `simplicio-mapper` distributions (they own the same
