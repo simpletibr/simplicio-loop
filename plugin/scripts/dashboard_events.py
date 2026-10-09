@@ -78,6 +78,7 @@ KIND_CATALOG = {
     "lanes_tasks": ("worker_claimed", "lane_progress", "iteration_started", "iteration_finished",
                     "apply_result"),
     "quality": ("test_result", "lint_result", "coverage_result", "gate_evaluated"),
+    "commands": ("command_started", "command_finished"),
     "recovery": ("retry_scheduled", "stall_detected", "decision_requested"),
     "delivery_cost": ("delivery_reconciled", "pr_opened", "token_usage", "cost_sample"),
     "end": ("run_finished",),
