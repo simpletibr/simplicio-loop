@@ -24,7 +24,9 @@ ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=/var/lib/simplicio-loop-247 /home/simplicio-loop/.simplicio
 # Allow the system-service syscall group plus @mount: bwrap (the turbo sandbox) needs mount, pivot_root and
-# umount2, which @system-service leaves out. Privileged and raw-I/O syscalls are still refused.
+# umount2 (bisected: dropping any one gives SIGSYS, rc=159), which @system-service leaves out. @mount is the
+# superset that survives newer bwrap versions. Privileged and raw-I/O syscalls are still refused.
+# See README.md in this directory.
 SystemCallFilter=@system-service @mount
 # Empty set: the process holds no Linux capabilities at all (no CAP_NET_RAW, CAP_SYS_ADMIN, ...).
 CapabilityBoundingSet=

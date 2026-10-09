@@ -2,8 +2,8 @@
 
 Three layers, all decided here so tick.py only makes one call:
 - scrubbed_env(): an allowlist of variables; a token leaves the env only when named in `keep`.
-- wrap(): on Linux, the argv runs under bwrap (preferred) or systemd-run --user --scope.
-  Both make the filesystem read-only except the clone and the state dir. Detected, never installed.
+- wrap(): on Linux, the argv runs under bwrap, with the filesystem read-only except the clone and the
+  state dir. Detected, never installed.
 - no engine: SandboxUnavailable (reason_code "sandbox_unavailable") unless the operator sets
   SIMPLICIO_247_ALLOW_UNSANDBOXED=1 explicitly.
 """
@@ -36,14 +36,11 @@ def scrubbed_env(environ: Mapping[str, str], *, home: Path, keep: Iterable[str] 
 
 
 def engine(which: Callable[[str], str | None] | None = None, platform: str | None = None) -> str | None:
-    """'bwrap', 'systemd-run' or None. Only Linux has an engine."""
+    """'bwrap' or None. Only Linux has an engine. (systemd-run is not one: a --scope rejects the
+    filesystem properties and a user-manager service does not enforce them reliably.)"""
     if (platform or sys.platform) != "linux":
         return None
-    find = which or shutil.which
-    for name in ("bwrap", "systemd-run"):
-        if find(name):
-            return name
-    return None
+    return "bwrap" if (which or shutil.which)("bwrap") else None
 
 
 def refusal(environ: Mapping[str, str] | None = None, platform: str | None = None) -> str | None:
@@ -62,7 +59,7 @@ def wrap(argv: list[str], *, clone: Path, state_dir: Path, platform: str | None 
     if kind is None:
         if env.get(OPT_OUT) == "1":
             return list(argv)
-        raise SandboxUnavailable("no sandbox (bwrap or systemd-run) on this host; set "
+        raise SandboxUnavailable("no sandbox (bwrap) on this host; set "
                                  f"{OPT_OUT}=1 to run unsandboxed")
     clone, state_dir = str(clone), str(state_dir)
     if kind == "bwrap":
@@ -77,12 +74,3 @@ def wrap(argv: list[str], *, clone: Path, state_dir: Path, platform: str | None 
             "--die-with-parent", "--new-session",
             "--", *argv,
         ]
-    return [
-        "systemd-run", "--user", "--scope", "--quiet",
-        "-p", "ProtectSystem=strict",
-        "-p", f"ReadWritePaths={clone}",
-        "-p", f"ReadWritePaths={state_dir}",
-        "-p", "PrivateTmp=yes",
-        "-p", "NoNewPrivileges=yes",
-        "--", *argv,
-    ]

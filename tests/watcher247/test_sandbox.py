@@ -1,4 +1,4 @@
-"""Sandbox: scrubbed env, argv wrapping (bwrap / systemd-run), and the refusal with no sandbox."""
+"""Sandbox: scrubbed env, argv wrapping (bwrap), and the refusal with no sandbox."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -67,20 +67,20 @@ def test_wrap_with_bwrap_is_read_only_except_clone_and_state(monkeypatch):
     assert argv[argv.index("--") + 1:] == TURBO
 
 
-def test_wrap_prefers_bwrap_over_systemd_run(monkeypatch):
+def test_wrap_uses_bwrap_when_present(monkeypatch):
     monkeypatch.setattr(sandbox.shutil, "which", only({"bwrap", "systemd-run"}))
     argv = sandbox.wrap(TURBO, clone=CLONE, state_dir=STATE, platform="linux", environ={})
     assert argv[0] == "bwrap"
 
 
-def test_wrap_with_systemd_run_sets_scope_properties(monkeypatch):
+def test_systemd_run_alone_is_not_a_sandbox(monkeypatch):
+    # A --user --scope rejects ProtectSystem/ReadWritePaths ("Unknown assignment", rc=1) and a user-manager
+    # service does not enforce them reliably, so bwrap is the only engine.
     monkeypatch.setattr(sandbox.shutil, "which", only({"systemd-run"}))
-    argv = sandbox.wrap(TURBO, clone=CLONE, state_dir=STATE, platform="linux", environ={})
-    assert argv[:4] == ["systemd-run", "--user", "--scope", "--quiet"]
-    props = [argv[i + 1] for i, a in enumerate(argv) if a == "-p"]
-    assert "ProtectSystem=strict" in props and "NoNewPrivileges=yes" in props
-    assert f"ReadWritePaths={CLONE}" in props and f"ReadWritePaths={STATE}" in props
-    assert argv[argv.index("--") + 1:] == TURBO
+    assert sandbox.engine(platform="linux") is None
+    assert sandbox.refusal({}, platform="linux") == "sandbox_unavailable"
+    with pytest.raises(sandbox.SandboxUnavailable):
+        sandbox.wrap(TURBO, clone=CLONE, state_dir=STATE, platform="linux", environ={})
 
 
 def test_refuses_without_any_sandbox(monkeypatch):
