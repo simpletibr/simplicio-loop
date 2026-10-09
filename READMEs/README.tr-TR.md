@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="8 adımlık animasyonlu akış: issue'lar, intake, genel koordinatör, squad'lar, worker'lar (mapper, plan, dev-cli), squad review, merge train, main ve Simplicio Live kanban" width="100%" />
+  <img src="../docs/assets/readme/how-it-works.webp" alt="8 adımlık animasyonlu akış: issue'lar, intake, genel koordinatör, squad'lar, worker'lar (mapper, plan, dev-cli), squad review, merge train, main ve Simplicio Live kanban" width="100%" />
 </p>
 
 ## Ne yapar
@@ -89,7 +89,7 @@ flowchart LR
 ## Nasıl çalışır
 
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="Worker döngüsü: mapper depoyu haritalar, sandbox'ta plan, uygula ve doğrula, bir başarısızlık, sonraki model rolüne yükseltme, gizli anahtar taraması, PR, squad review" width="100%" />
+  <img src="../docs/assets/readme/worker-loop.webp" alt="Worker döngüsü: mapper depoyu haritalar, sandbox'ta plan, uygula ve doğrula, bir başarısızlık, sonraki model rolüne yükseltme, gizli anahtar taraması, PR, squad review" width="100%" />
 </p>
 
 ```mermaid
@@ -98,7 +98,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 PR bir kez test edildi, kırmızı, ikili arama C'yi ayırdı, sonra A, B ve D merge edildi" width="100%" />
+  <img src="../docs/assets/readme/merge-train.webp" alt="Merge train: 4 PR bir kez test edildi, kırmızı, ikili arama C'yi ayırdı, sonra A, B ve D merge edildi" width="100%" />
 </p>
 
 ```mermaid
@@ -110,7 +110,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="Squad organizasyon şeması: bir genel koordinatör, squad başına bir koordinatör ve her birinde en fazla 4 worker" width="100%" />
+  <img src="../docs/assets/readme/squads.webp" alt="Squad organizasyon şeması: bir genel koordinatör, squad başına bir koordinatör ve her birinde en fazla 4 worker" width="100%" />
 </p>
 
 ```mermaid

@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="مسار متحرك من 8 خطوات: المشكلات، الاستقبال، المنسق العام، الفرق، العمّال (mapper، خطة، dev-cli)، مراجعة الفريق، merge train، main ولوحة Simplicio Live" width="100%" />
+  <img src="../docs/assets/readme/how-it-works.webp" alt="مسار متحرك من 8 خطوات: المشكلات، الاستقبال، المنسق العام، الفرق، العمّال (mapper، خطة، dev-cli)، مراجعة الفريق، merge train، main ولوحة Simplicio Live" width="100%" />
 </p>
 
 ## ماذا يفعل
@@ -89,7 +89,7 @@ flowchart LR
 ## كيف يعمل
 
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="حلقة العامل: mapper يرسم خارطة المستودع، تخطيط في sandbox، تطبيق وتحقق، فشل، تصعيد إلى دور النموذج التالي، فحص الأسرار، PR، مراجعة الفريق" width="100%" />
+  <img src="../docs/assets/readme/worker-loop.webp" alt="حلقة العامل: mapper يرسم خارطة المستودع، تخطيط في sandbox، تطبيق وتحقق، فشل، تصعيد إلى دور النموذج التالي، فحص الأسرار، PR، مراجعة الفريق" width="100%" />
 </p>
 
 ```mermaid
@@ -98,7 +98,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 طلبات PR اختُبرت مرة واحدة، أحمر، البحث الثنائي يعزل C، ثم دُمجت A وB وD" width="100%" />
+  <img src="../docs/assets/readme/merge-train.webp" alt="Merge train: 4 طلبات PR اختُبرت مرة واحدة، أحمر، البحث الثنائي يعزل C، ثم دُمجت A وB وD" width="100%" />
 </p>
 
 ```mermaid
@@ -110,7 +110,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="الهيكل التنظيمي للفرق: منسق عام، ومنسق لكل فريق، وحتى 4 عمّال في كل فريق" width="100%" />
+  <img src="../docs/assets/readme/squads.webp" alt="الهيكل التنظيمي للفرق: منسق عام، ومنسق لكل فريق، وحتى 4 عمّال في كل فريق" width="100%" />
 </p>
 
 ```mermaid

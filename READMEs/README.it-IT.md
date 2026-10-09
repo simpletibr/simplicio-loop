@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="Flusso animato in 8 passi: issue, intake, coordinatore generale, squad, worker in sandbox, revisione dello squad, merge train, main e il kanban Simplicio Live" width="100%" />
+  <img src="../docs/assets/readme/how-it-works.webp" alt="Flusso animato in 8 passi: issue, intake, coordinatore generale, squad, worker in sandbox, revisione dello squad, merge train, main e il kanban Simplicio Live" width="100%" />
 </p>
 
 ## Cosa fa
@@ -89,7 +89,7 @@ flowchart LR
 ## Come funziona
 
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="Loop del worker: pianifica nella sandbox, applica e verifica, un fallimento, escalation al ruolo di modello successivo, scansione dei segreti, PR, revisione dello squad" width="100%" />
+  <img src="../docs/assets/readme/worker-loop.webp" alt="Loop del worker: pianifica nella sandbox, applica e verifica, un fallimento, escalation al ruolo di modello successivo, scansione dei segreti, PR, revisione dello squad" width="100%" />
 </p>
 
 ```mermaid
@@ -98,7 +98,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 PR testate una volta, rosso, la bisezione isola C, poi A, B e D vengono mergiate" width="100%" />
+  <img src="../docs/assets/readme/merge-train.webp" alt="Merge train: 4 PR testate una volta, rosso, la bisezione isola C, poi A, B e D vengono mergiate" width="100%" />
 </p>
 
 ```mermaid
@@ -110,7 +110,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="Organigramma degli squad: un coordinatore generale, un coordinatore per squad e fino a 4 worker ciascuno" width="100%" />
+  <img src="../docs/assets/readme/squads.webp" alt="Organigramma degli squad: un coordinatore generale, un coordinatore per squad e fino a 4 worker ciascuno" width="100%" />
 </p>
 
 ```mermaid

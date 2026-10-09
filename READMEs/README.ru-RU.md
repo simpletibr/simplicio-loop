@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="Анимированный поток из 8 шагов: issue, intake, общий координатор, сквады, воркеры (mapper, план, dev-cli), ревью сквада, merge train, main и канбан Simplicio Live" width="100%" />
+  <img src="../docs/assets/readme/how-it-works.webp" alt="Анимированный поток из 8 шагов: issue, intake, общий координатор, сквады, воркеры (mapper, план, dev-cli), ревью сквада, merge train, main и канбан Simplicio Live" width="100%" />
 </p>
 
 ## Что он делает
@@ -89,7 +89,7 @@ flowchart LR
 ## Как это работает
 
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="Цикл воркера: mapper картирует репозиторий, план в песочнице, применение и проверка, сбой, повышение до следующей роли модели, сканирование секретов, PR, ревью сквада" width="100%" />
+  <img src="../docs/assets/readme/worker-loop.webp" alt="Цикл воркера: mapper картирует репозиторий, план в песочнице, применение и проверка, сбой, повышение до следующей роли модели, сканирование секретов, PR, ревью сквада" width="100%" />
 </p>
 
 ```mermaid
@@ -98,7 +98,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 PR протестированы один раз, красный, бисекция изолирует C, затем A, B и D мёрджатся" width="100%" />
+  <img src="../docs/assets/readme/merge-train.webp" alt="Merge train: 4 PR протестированы один раз, красный, бисекция изолирует C, затем A, B и D мёрджатся" width="100%" />
 </p>
 
 ```mermaid
@@ -110,7 +110,7 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="Оргструктура сквадов: общий координатор, координатор на сквад и до 4 воркеров в каждом" width="100%" />
+  <img src="../docs/assets/readme/squads.webp" alt="Оргструктура сквадов: общий координатор, координатор на сквад и до 4 воркеров в каждом" width="100%" />
 </p>
 
 ```mermaid
