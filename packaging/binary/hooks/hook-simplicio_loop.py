@@ -7,7 +7,12 @@ PyInstaller for every submodule and every data file instead of listing them by h
 Some .py files are data, not modules: the hooks and scripts under ``_bundle`` that the installer
 copies, the project templates of the dev-cli, and provider scripts. They sit in directories without
 ``__init__.py``. The hook ships them as files.
+
+The metadata of the distribution keeps only what the program reads. ``direct_url.json``, ``INSTALLER`` and
+``RECORD`` hold the path of the machine that built the executable, so they stay out. The module
+``_sysconfigdata`` of the build Python holds that path too, and no code of the program needs it.
 """
+import sysconfig
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata, get_package_paths
@@ -28,8 +33,11 @@ def _is_module(source, package_dir):
 
 hiddenimports = [name for package in PACKAGES for name in collect_submodules(package)]
 
-# The metadata gives importlib.metadata the version and the console scripts that frozen.py reads.
-datas = copy_metadata("simplicio-loop")
+KEEP_METADATA = ("METADATA", "entry_points.txt", "top_level.txt", "WHEEL")
+
+# importlib.metadata reads the version and the console scripts that frozen.py uses.
+datas = [(source, target) for source, target in copy_metadata("simplicio-loop") if Path(source).name in KEEP_METADATA]
+excludedimports = [sysconfig._get_sysconfigdata_name()]
 for package in PACKAGES:
     package_dir = Path(get_package_paths(package)[1])
     datas += [
