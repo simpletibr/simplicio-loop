@@ -15,7 +15,12 @@ parameter, so a test injects a fake probe and never reads the real load.
   `proof_kind: UNVERIFIED` with the reason: unknown is never unlimited.
 * OVERRIDE: `--squads N` / `SIMPLICIO_SQUADS=N` (N >= 1) or an explicit worker count wins over the four machine limits;
   demand and the daily budget still cap it. `SIMPLICIO_PRISM_SLOTS` / `SIMPLICIO_LOOP_OPERATOR_WORKERS` count as an
-  override only when they differ from the economy profile's own value (the profile exports them to every session).
+  override only when they are ABOVE the economy profile's static recommendation (cores and total RAM; the profile
+  exports its own value to every session, and tightens it when free RAM is low). An override that makes more workers
+  run than the machine allows is never silent: the plan carries a `WARN:` entry in `warnings` and in its `reasons`.
+* INVALID SIMPLICIO_247_CONCURRENCY (empty is "unset"; otherwise anything but 1-6 ASCII digits worth at least 1, such as
+  `0`, `-1`, `2.0`, `lots`): it is NOT an override and never crashes the tick. The automatic sizing decides and the plan
+  carries a `WARN:` reason that names the invalid value (clipped), so the operator sees the typo instead of a silent 1.
 * RESULT  (`recommend`): `total_workers` = min(demand, supply); `workers_per_squad` = min(4, total); `squads` =
   ceil(total / workers_per_squad). `limited_by` names the binding limit; `reasons` tells the user why.
 
@@ -91,15 +96,33 @@ def parse_squads(value: Any) -> Optional[int]:
         return None
     if isinstance(value, str) and value.strip().lower() == "auto":
         return None
-    text = str(value).strip()
-    if isinstance(value, bool) or not text.isdigit() or int(text) < 1:
-        raise ValueError("squads must be 'auto' or an integer >= 1, got %r" % (value,))
-    return int(text)
+    count = None if isinstance(value, bool) else _positive_int(value)
+    if count is None:
+        raise ValueError("squads must be 'auto' or an integer >= 1, got %s" % _clip(value))
+    return count
+
+
+MAX_COUNT_DIGITS = 6  # a worker or squad count has no use for more; also keeps `int()` away from a huge string
+
+
+def _clip(raw: Any, limit: int = 40) -> str:
+    text = str(raw)
+    return repr(text[:limit]) + ("..." if len(text) > limit else "")
 
 
 def _positive_int(raw: Any) -> Optional[int]:
+    """A whole number >= 1 written with ASCII digits only (at most MAX_COUNT_DIGITS); anything else is None, never an error.
+
+    `str.isdigit()` alone accepts "\u00b2" and thousands of digits, and `int()` then raises: both are refused here.
+    """
     text = str(raw).strip()
-    return int(text) if text.isdigit() and int(text) >= 1 else None
+    if not (text.isascii() and text.isdigit()) or len(text) > MAX_COUNT_DIGITS:
+        return None
+    try:
+        value = int(text)
+    except ValueError:
+        return None
+    return value if value >= 1 else None
 
 
 @dataclass(frozen=True)
@@ -111,6 +134,7 @@ class Limits:
     budget_left: Optional[int] = None  # what the daily budget still allows (watcher); 0 = spent
     max_workers_per_squad: int = MAX_WORKERS_PER_SQUAD
     override_source: str = ""  # shown in the reasons, e.g. "--squads" or "SIMPLICIO_PRISM_SLOTS"
+    warnings: Tuple[str, ...] = ()  # `WARN: ...` notes about the settings themselves (an invalid value that was ignored)
 
     @classmethod
     def from_env(cls, environ: Optional[Mapping[str, str]] = None, *, economy: Optional[Mapping[str, str]] = None,
@@ -120,10 +144,13 @@ class Limits:
 
         `squads_option` is the explicit `--squads` flag ("auto" or N): when given it replaces SIMPLICIO_SQUADS.
 
-        `SIMPLICIO_PRISM_SLOTS` and `SIMPLICIO_LOOP_OPERATOR_WORKERS` are an override only when they differ from the value
-        the economy profile writes (`economy` = that profile's env; computed when not given): the profile exports them
-        to every session, so taking them as an override would switch the load check off for everybody.
-        `extra_worker_envs` (the watcher's SIMPLICIO_247_CONCURRENCY) are always explicit.
+        `SIMPLICIO_PRISM_SLOTS` and `SIMPLICIO_LOOP_OPERATOR_WORKERS` are an override only when they are above the
+        economy profile's STATIC recommendation (`economy` = that figure per variable; computed when not given): the
+        profile exports them to every session, so taking them as an override would switch the load check off for
+        everybody, and it tightens its value when free RAM is low, so "differs from the value computed now" would call
+        its own earlier value a user override. A value at or below the static figure is therefore the profile's own.
+        `extra_worker_envs` (the watcher's SIMPLICIO_247_CONCURRENCY) are always explicit; an invalid one is ignored
+        (the automatic sizing decides) and named in `Limits.warnings`.
         """
         env = os.environ if environ is None else environ
         squads, squads_source = None, SQUADS_ENV
@@ -136,9 +163,16 @@ class Limits:
             except ValueError as exc:
                 raise ValueError("%s: %s" % (squads_source, exc)) from None
         explicit: Dict[str, int] = {}
+        warnings: list = []
         for name in extra_worker_envs:
-            value = _positive_int(env.get(name, ""))
-            if value is not None:
+            text = str(env.get(name, "")).strip()
+            if not text:
+                continue
+            value = _positive_int(text)
+            if value is None:
+                warnings.append("WARN: %s=%s is not a whole number from 1 to %s: ignored, the automatic sizing decides"
+                                % (name, _clip(text), "9" * MAX_COUNT_DIGITS))
+            else:
                 explicit[name] = value
         profile: Optional[Mapping[str, str]] = economy
         for name in WORKER_ENVS:
@@ -146,8 +180,9 @@ class Limits:
             if value is None:
                 continue
             if profile is None:
-                profile = _economy_env(env)
-            if str(profile.get(name, "")).strip() != str(value):
+                profile = _profile_static()
+            ceiling = _positive_int(profile.get(name, ""))
+            if ceiling is None or value > ceiling:
                 explicit[name] = value
         source = ""
         workers = None
@@ -157,18 +192,20 @@ class Limits:
         if squads is not None:
             source = squads_source
         return cls(squads=squads, workers=workers, budget_left=budget_left, max_workers_per_squad=max_workers_per_squad,
-                   override_source=source)
+                   override_source=source, warnings=tuple(warnings))
 
     def to_dict(self) -> Dict[str, Any]:
         return dataclasses.asdict(self)
 
 
-def _economy_env(env: Mapping[str, str]) -> Mapping[str, str]:
+def _profile_static() -> Mapping[str, str]:
+    """The most the economy profile ever exports per worker variable (cores and total RAM; free RAM only lowers it)."""
     from . import economy_profile
 
     try:
-        return economy_profile.economy_parallel_env(env=env)
-    except Exception:  # noqa: BLE001  no profile value known: any set value then counts as the user's
+        return {"SIMPLICIO_PRISM_SLOTS": str(economy_profile.recommend_prism_slots_static()),
+                "SIMPLICIO_LOOP_OPERATOR_WORKERS": str(economy_profile.recommend_operator_workers())}
+    except Exception:  # noqa: BLE001  no profile figure known: any set value then counts as the user's
         return {}
 
 
@@ -306,6 +343,23 @@ def _gib(value: float) -> str:
     return "%.2f GiB" % (value / GIB)
 
 
+def _machine(caps: Mapping[str, int]) -> Tuple[int, str]:
+    """(workers the machine allows, the limit that binds): the smallest cap, the scarcest resource named first on a tie."""
+    machine = min(caps.values())
+    return machine, next(name for name in MACHINE_LIMITS if caps[name] == machine)
+
+
+def overload_warning(limits: "Limits", caps: Mapping[str, int], running: int) -> Optional[str]:
+    """`WARN: ...` when an override (--squads, a worker env) makes `running` workers run above what the machine allows."""
+    if limits.squads is None and limits.workers is None:
+        return None
+    machine, machine_by = _machine(caps)
+    if running <= machine:
+        return None
+    return "WARN: %s forces %d worker(s) at once; the machine allows %d (limited by %s)" % (
+        limits.override_source or "the caller", running, machine, machine_by)
+
+
 def supply(probe: Probe, limits: Optional[Limits] = None) -> Supply:
     """Workers the machine can carry: the smallest of cpu, load, memory and disk (each >= 1), then override and budget."""
     limits = limits or Limits()
@@ -357,8 +411,7 @@ def supply(probe: Probe, limits: Optional[Limits] = None) -> Supply:
         reasons.append("disk: %s free, floor %s, %s per worker (ESTIMATE) -> %d worker(s)%s" % (
             _gib(probe.disk_free_bytes), _gib(DISK_FLOOR_BYTES), _gib(WORKER_DISK_BYTES), caps["disk"], note))
 
-    machine = min(caps.values())
-    machine_by = next(name for name in MACHINE_LIMITS if caps[name] == machine)
+    machine, machine_by = _machine(caps)
     if limits.squads is not None:
         workers, by = limits.squads * limits.max_workers_per_squad, "override"
         reasons.append("override: %d squad(s) set by %s wins over the machine limits, which allow %d worker(s) (limited by %s)"
@@ -397,6 +450,7 @@ class CapacityPlan:
     unverified: Mapping[str, str]
     estimates: Mapping[str, Any] = field(default_factory=lambda: dict(ESTIMATES))
     calm_waves: int = 0  # consecutive samples that allowed at least the current size (growth gate of `resize`)
+    warnings: Tuple[str, ...] = ()  # `WARN: ...`: an override above the machine, or an invalid setting that was ignored
     schema: str = SCHEMA
 
     def to_dict(self) -> Dict[str, Any]:
@@ -406,6 +460,7 @@ class CapacityPlan:
             "recheck_after_s": self.recheck_after_s, "reasons": list(self.reasons), "demand": self.demand.to_dict(),
             "supply": dict(self.supply), "probe": self.probe.to_dict(), "limits": self.limits.to_dict(),
             "unverified": dict(self.unverified), "estimates": dict(self.estimates), "calm_waves": self.calm_waves,
+            "warnings": list(self.warnings),
         }
 
 
@@ -429,19 +484,26 @@ def recommend(issues: Union[Sequence[Mapping[str, Any]], Demand], probe: Probe, 
     else:
         per_squad = min(limits.max_workers_per_squad, total)
         squads_n = math.ceil(total / per_squad)
-    headline = "%d worker(s) in %d squad(s), up to %d per squad, limited by %s" % (total, squads_n, per_squad, by)
+    overload = overload_warning(limits, sup.caps, total)
+    if overload:
+        machine, machine_by = _machine(sup.caps)
+        headline = "WARN: %d worker(s) in %d squad(s), up to %d per squad, above the %d the machine allows (limited by %s)" % (
+            total, squads_n, per_squad, machine, machine_by)
+    else:
+        headline = "%d worker(s) in %d squad(s), up to %d per squad, limited by %s" % (total, squads_n, per_squad, by)
     demand_line = "demand: %d issue(s) in %d dependency level(s); the widest runs %d at once" % (
         demand.issues, len(demand.levels), width)
     if demand.conflicts:
         demand_line += " after counting %d shared-file conflict(s)" % demand.conflicts
-    reasons = (headline, demand_line) + sup.reasons
+    supply_reasons = tuple("WARN: " + r if overload and r.startswith("override:") else r for r in sup.reasons)
+    reasons = (headline, demand_line) + tuple(limits.warnings) + supply_reasons
     fast = by in ("cpu", "load", "memory") or bool(sup.unverified) or sup.caps["load"] <= total  # a limit that can move fast
     return CapacityPlan(
         squads=squads_n, workers_per_squad=per_squad, total_workers=total, limited_by=by,
         proof_kind="UNVERIFIED" if sup.unverified else "MEASURED",
         recheck_after_s=RECHECK_FAST_S if fast else RECHECK_SLOW_S, reasons=reasons, demand=demand,
         supply={**sup.caps, "workers": sup.workers, "limited_by": sup.limited_by}, probe=probe, limits=limits,
-        unverified=dict(sup.unverified))
+        unverified=dict(sup.unverified), warnings=tuple(limits.warnings) + ((overload,) if overload else ()))
 
 
 def resize(plan: CapacityPlan, probe: Probe) -> CapacityPlan:

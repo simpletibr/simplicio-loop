@@ -190,4 +190,14 @@ abertos) e `..`, absolutos e `~` sao descartados. Um ciclo de `depende de #N` en
 ordem declarada.
 
 `status.json` ganha `squads.<repo>`: `squads` (id, coordenador, workers, issues), `approved`, `rejected`, `merge`
-(`disabled` ou `enabled`) e, com merge ligado, `merged`, `failed` e `gate_blocked` (numeros de PR).
+(`disabled` ou `enabled`), `mode` (`v2` ou `baseline`), `task_metrics` e `metrics` e, com merge ligado, `merged`, `failed` e
+`gate_blocked` (numeros de PR). `task_metrics` e uma lista com um registro por tarefa de worker (`issue` mais escalacao,
+espera por dependencia e `final_outcome`: `ok`, `failed` ou `no_pr`) e `metrics` e o resumo do repo no tick, com `n` em cada
+taxa. O mesmo registro vai em `squad_metrics` na task do worker do execution-report do tick, que tambem traz `mode` no topo.
+Os campos e os limites estao em `docs/SQUADS.md`, secao 5. Uma tarefa que escalou e falhou, ou ficou sem PR, tambem entra.
+
+**Modo baseline (#1565).** `SIMPLICIO_247_SQUADS_BASELINE=1` (exatamente `1`) e a rodada "antes" da comparacao da #1549.
+Desliga tres regras da v2: o roteamento por complexidade (todo worker comeca em `execution`), o lote de merge (1 PR por
+trem, pelo mesmo `merge_train`) e os contratos entre squads. Nao muda a revisao do squad, o `squad_gate`, o
+`SIMPLICIO_247_AUTO_MERGE=1`, o lock do repo nem o `--match-head-commit`. Nunca liga o merge e nunca afrouxa uma aprovacao. O padrao
+e `v2`. Uso e limites: `docs/SQUADS.md`, secao 5.

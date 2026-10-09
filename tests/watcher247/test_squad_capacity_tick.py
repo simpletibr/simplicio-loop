@@ -107,6 +107,44 @@ def test_a_garbage_concurrency_is_ignored_and_the_machine_decides(env, host, mon
     assert len(read_json(config.STATUS)["processed"]) == 1
 
 
+@pytest.mark.parametrize("bad", ["0", "-1", "2.0", "lots", "\u00b2", "9" * 5000, " "],
+                         ids=["zero", "negative", "float", "text", "superscript", "5000-digits", "blank"])
+def test_an_invalid_concurrency_never_fails_the_tick_it_logs_one_warning_and_the_machine_decides(env, host, monkeypatch, capsys, bad):
+    monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", bad)
+    host.set(load=(12.0, 12.0, 12.0))
+    one_issue_per_repo(env, 4)
+    run_tick()  # a 5,000-digit or "\u00b2" value used to raise ValueError in int() and fail every tick
+    assert read_json(config.STATUS)["processed"] == ["simplicio-a#1"], "automatic sizing: the busy host runs one"
+    warned = [line for line in capsys.readouterr().out.splitlines() if "WARN: SIMPLICIO_247_CONCURRENCY=" in line]
+    assert len(warned) == (0 if not bad.strip() else 1), warned
+    assert all(len(line) < 400 for line in warned), "a huge value is clipped in the log line"
+
+
+def test_an_override_above_the_machine_is_logged_once_per_tick(env, host, monkeypatch, capsys):
+    host.set(load=(12.0, 12.0, 12.0))  # the machine allows 1 worker
+    monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "3")
+    one_issue_per_repo(env, 4)
+    run_tick()
+    assert len(read_json(config.STATUS)["processed"]) == 3
+    warned = [line for line in capsys.readouterr().out.splitlines()
+              if "WARN: SIMPLICIO_247_CONCURRENCY forces 3 worker(s) at once; the machine allows 1 (limited by load)" in line]
+    assert len(warned) == 1, warned
+
+
+def test_no_override_means_no_warning_in_the_log(env, host, capsys):
+    host.set(load=(12.0, 12.0, 12.0))
+    one_issue_per_repo(env, 4)
+    run_tick()
+    assert "WARN:" not in capsys.readouterr().out
+
+
+def test_an_override_within_the_machine_is_not_a_warning(env, host, monkeypatch, capsys):
+    monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")  # the idle 10-core host allows 8
+    one_issue_per_repo(env, 4)
+    run_tick()
+    assert len(read_json(config.STATUS)["processed"]) == 2 and "WARN:" not in capsys.readouterr().out
+
+
 def test_the_daily_pr_cap_still_limits_the_batch(env, host, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_MAX_PRS_PER_DAY", "2")
     one_issue_per_repo(env, 4)

@@ -542,7 +542,7 @@ def configure_commands(subparsers: argparse._SubParsersAction) -> None:
     metrics.add_argument("--reports", nargs="+", metavar="PATH",
                          help="execution-report/v1 files, or directories searched for *.json (latest.json is skipped)")
     metrics.add_argument("--compare", nargs=2, metavar=("BEFORE", "AFTER"),
-                         help="two `metrics --json` outputs (or report files): numbers side by side, with n and warnings")
+                         help="two `metrics --json` outputs (or report files), baseline first then v2: numbers side by side, each side labeled with its mode, with n and warnings; refuses two runs of the same mode")
     metrics.add_argument("--json", action="store_true", help="machine-readable output")
 
 
@@ -556,6 +556,8 @@ def dispatch(args: argparse.Namespace) -> int:
             limits = squad_capacity.Limits.from_env(
                 squads_option=args.squads, max_workers_per_squad=DEFAULT_MAX_WORKERS if args.max_workers is None else args.max_workers)
             auto = plan_squads_auto(_load_issues(args.issues), ownership, args.family, limits=limits)
+            for warning in auto.capacity.warnings:  # stdout stays the JSON; a human reading a terminal sees the warning
+                print(warning, file=sys.stderr)
             _emit({**auto.plan.to_dict(), "capacity": auto.capacity.to_dict()})
             return 0
         result = asyncio.run(squad_gate_for_pr(
