@@ -104,7 +104,7 @@ def test_the_request_is_compact_and_ends_with_the_one_apply_command(tmp_path, ho
     repo = _seed(tmp_path)
     rc, out = _request(repo, capsys, "--task", "Fix the two bugs in inventory.py.", "--verify", "pytest -q")
     assert rc == 0
-    assert list(out) == ["schema", "status", "mode", "tasks", "map", "files", "format", "rules", "apply"]
+    assert list(out) == ["schema", "status", "mode", "run_id", "prompt_version", "prompt_sha256", "tasks", "map", "files", "format", "rules", "apply"]
     assert out["schema"] == "simplicio.turbo-request/v1" and out["status"] == "needs_plan" and out["mode"] == "host"
     assert out["tasks"] == ["Fix the two bugs in inventory.py."]
     assert out["files"] == {"inventory.py": (FIXTURE / "inventory.py").read_text(encoding="utf-8")}
@@ -113,7 +113,7 @@ def test_the_request_is_compact_and_ends_with_the_one_apply_command(tmp_path, ho
                           "files": [{"path": "inventory.py", "symbols": ["Inventory"]}]}
     assert out["format"] == FORMAT and out["rules"] == RULES
     assert out["apply"] == (f"simplicio-loop turbo --repo {shlex.quote(str(repo.resolve()))} --apply - "
-                            "--verify 'pytest -q' <<'PLAN'\n<JSON plan>\nPLAN")
+                            f"--run-id {out['run_id']} --verify 'pytest -q' <<'PLAN'\n<JSON plan>\nPLAN")
     text = json.dumps(out)
     assert text.count("Fix the two bugs in inventory.py.") == 1  # one task list, not two
     assert "plan_path" not in out and "prompt" not in out and "You plan simplicio edits" not in text
@@ -132,8 +132,8 @@ def test_the_request_without_verify_prints_a_plain_apply_command(tmp_path, host,
     repo = _seed(tmp_path)
     rc, out = _request(repo, capsys, "--task", "Fix inventory.py")
     assert rc == 0
-    assert out["apply"] == (f"simplicio-loop turbo --repo {shlex.quote(str(repo.resolve()))} --apply - <<'PLAN'"
-                            "\n<JSON plan>\nPLAN")
+    assert out["apply"] == (f"simplicio-loop turbo --repo {shlex.quote(str(repo.resolve()))} --apply - "
+                            f"--run-id {out['run_id']} <<'PLAN'\n<JSON plan>\nPLAN")
 
 
 def test_several_tasks_share_one_request_and_each_file_appears_once(tmp_path, host, capsys):

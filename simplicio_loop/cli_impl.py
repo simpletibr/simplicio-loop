@@ -2720,6 +2720,8 @@ def main(argv=None) -> int:
     p_turbo.add_argument("--apply", metavar="PLAN",
                          help="command 2: apply this JSON find/replace plan through dev-cli, then run --verify; "
                               "`-` reads the plan from stdin (a heredoc), anything else is a file")
+    p_turbo.add_argument("--run-id", metavar="ID",
+                         help="continue the run the request printed: its stage events and receipts join that run")
     p_turbo.add_argument("--provider", choices=["openrouter"],
                          help="headless automation only; agents invoking the skill must not use it "
                               "(asks this provider for the plan, needs OPENROUTER_API_KEY)")
@@ -3218,7 +3220,7 @@ def main(argv=None) -> int:
         from .turbo_cli import run as run_turbo_cli
         return run_turbo_cli(args.repo, args.task, target=args.target, context=args.context,
                              tasks_file=args.tasks_file, verify=args.verify, apply=args.apply,
-                             provider=args.provider)
+                             provider=args.provider, run_id=args.run_id)
     if command == "update":
         from .self_update import run_update
         return run_update(check=args.check, force=args.force)
