@@ -1,0 +1,23 @@
+[Unit]
+Description=Simplicio-Loop 24h watcher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=simplicio-loop
+Group=simplicio-loop
+EnvironmentFile=/etc/simplicio-loop-247.env
+ExecStart=/usr/bin/python3 -m simplicio_loop.watcher247
+Restart=always
+RestartSec=10
+KillMode=mixed
+TimeoutStopSec=20
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/simplicio-loop-247 /home/simplicio-loop/.simplicio
+
+[Install]
+WantedBy=multi-user.target
