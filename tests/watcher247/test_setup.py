@@ -97,6 +97,7 @@ def write_login(svc, email=EMAIL):
         "access_token": "a", "refresh_token": "r", "access_expires_at": 4102444800,
         "verification": {"validated": {"user": {"email": email}}},
     }))
+    svc.login.chmod(0o600)  # the login store refuses a file that group or others can read
 
 
 def active_subscription(monkeypatch, tier="pro"):

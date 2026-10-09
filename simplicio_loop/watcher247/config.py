@@ -9,6 +9,8 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from .. import auth
+
 ORG = "simpletibr"
 INTERVAL_S = 120
 TURBO_TIMEOUT_S = 900
@@ -23,15 +25,15 @@ HEARTBEAT_S = 60
 
 
 def default_login() -> Path:
-    """SIMPLICIO_247_LOGIN, else ~/.simplicio/login.json of the service user."""
-    return Path(os.environ.get("SIMPLICIO_247_LOGIN") or Path.home() / ".simplicio" / "login.json")
+    """The login file of the service user: where `simplicio_loop.auth` keeps it (shared with the Runtime)."""
+    return auth.login_path()
 
 
 # Login (shared with the Simplicio CLI)
 LOGIN = default_login()
 VALIDATE_URL = "https://simpleti.com.br/api/simplicio/validate.php"
 TOKEN_URL = "https://simpleti.com.br/api/simplicio/token"
-MCP_CLIENT_ID = "simplicio-cli"
+MCP_CLIENT_ID = auth.MCP_CLIENT_ID
 PAID_STATUS = {"active", "trialing"}
 PAID_SOURCES = {"subscription", "stripe", "admin"}
 
