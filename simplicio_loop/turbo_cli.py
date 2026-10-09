@@ -26,9 +26,10 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
-from .state_dir import ensure_state_dir
+if TYPE_CHECKING:
+    from .turbo_run import TurboRun
 
 SCHEMA = "simplicio.turbo-run/v1"
 REQUEST_SCHEMA = "simplicio.turbo-request/v1"
@@ -105,22 +106,17 @@ def _run_verify(root: Path, command: str) -> tuple[dict[str, Any], str]:
 
 def run(repo: str, texts: Sequence[str], target: str | None = None, context: Sequence[str] = (),
         tasks_file: str | None = None, verify: str | None = None, apply: str | None = None,
-        provider: str | None = None) -> int:
+        provider: str | None = None, run_id: str | None = None) -> int:
     """Host mode by default: ``apply`` applies the plan the host wrote (``-``: from stdin), otherwise print the request.
 
     ``provider="openrouter"`` is the headless engine, for automation only; only then is a key needed.
+    ``run_id`` continues the run the request printed (host mode); without it an apply starts a new run.
     """
     if provider == "openrouter":
-        return _run_provider(repo, texts, target, context, tasks_file, verify)
+        return _run_provider(repo, texts, target, context, tasks_file, verify, run_id)
     if apply:
-        return _apply_plan(repo, apply, verify)
+        return _apply_plan(repo, apply, verify, run_id)
     return _request_plan(repo, texts, target, context, tasks_file, verify)
-
-
-def _register_state_dir(root: Path) -> None:
-    """Mapper, the survey marker and dev-cli all write under `.simplicio-loop/`: register it with git first."""
-    if root.is_dir():
-        ensure_state_dir(root)
 
 
 def _map_slice(reading: str) -> Any:
@@ -131,17 +127,39 @@ def _map_slice(reading: str) -> Any:
         return reading
 
 
+def _repo_missing(root: Path, mode: str) -> bool:
+    """A repository that is not a directory is blocked before any run directory is created."""
+    if root.is_dir():
+        return False
+    _emit({"schema": SCHEMA, "repo": str(root), "mode": mode, "status": "blocked",
+           "reason_code": "turbo_repo_missing", "detail": f"no such repository directory: {root}"})
+    return True
+
+
+def _conclude(run_: TurboRun, document: dict[str, Any], calls: Any = None) -> int:
+    """Close the run, attach its execution report and print the one JSON document. 0 ok, 1 failed, 2 blocked."""
+    status = document["status"]
+    document["execution_report"] = run_.finish(status, tasks=document.get("tasks", 1), calls=calls)
+    _emit(document)
+    return {"ok": 0, "failed": 1}.get(status, 2)
+
+
 def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
                   tasks_file: str | None, verify: str | None) -> int:
-    from .turbo import current_files, focus_paths, mapper_reading, slice_enabled, survey_tasks
+    from .turbo import current_files, focus_paths, mapper_reading, plan_prompt, slice_enabled, survey_tasks
+    from .turbo_run import TurboRun
 
     root = Path(repo).resolve()
-    head = {"schema": SCHEMA, "repo": str(root), "mode": "host"}
+    if _repo_missing(root, "host"):
+        return 2
     tasks = build_tasks(root, texts, target, context, tasks_file)
     if not tasks:
-        _emit({**head, "status": "blocked", "reason_code": "turbo_no_tasks", "detail": "pass --task or --tasks-file"})
+        _emit({"schema": SCHEMA, "repo": str(root), "mode": "host", "status": "blocked",
+               "reason_code": "turbo_no_tasks", "detail": "pass --task or --tasks-file"})
         return 2
-    _register_state_dir(root)
+    run_ = TurboRun(root, "host")
+    head = {"schema": SCHEMA, "repo": str(root), "mode": "host", "run_id": run_.run_id, **plan_prompt()}
+    run_.enter("orient")
     # The saved survey marker belongs to one run. Ask Mapper again on every invocation: its own
     # tree-state cache keeps an unchanged tree free and byte-identical, and a changed tree gets a new map.
     (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
@@ -150,9 +168,11 @@ def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: 
         # No prompt cache to warm in host mode: the map is only the slice of the files the tasks name.
         reading = mapper_reading(root, focus=focus_paths(tasks) if slice_enabled() else None)
     except RuntimeError as exc:
-        _emit({**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
-        return 2
-    apply_command = f"simplicio-loop turbo --repo {shlex.quote(str(root))} --apply -"
+        return _conclude(run_, {**head, "status": "blocked", "reason_code": "turbo_engine_error",
+                                "detail": str(exc), "tasks": len(tasks)})
+    run_.enter("plan")
+    run_.await_plan()
+    apply_command = f"simplicio-loop turbo --repo {shlex.quote(str(root))} --apply - --run-id {run_.run_id}"
     if verify:
         apply_command += f" --verify {shlex.quote(verify)}"
     apply_command += " <<'PLAN'\n<JSON plan>\nPLAN"
@@ -160,6 +180,8 @@ def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: 
         "schema": REQUEST_SCHEMA,
         "status": "needs_plan",
         "mode": "host",
+        "run_id": run_.run_id,
+        **plan_prompt(),
         "tasks": [task["text"] for task in tasks],
         "map": _map_slice(reading),
         "files": current_files(root, tasks),
@@ -213,60 +235,72 @@ def _plan_text(root: Path, plan: str) -> tuple[str | None, str]:
     return path.read_text(encoding="utf-8"), ""
 
 
-def _apply_plan(repo: str, plan: str, verify: str | None) -> int:
+def _apply_plan(repo: str, plan: str, verify: str | None, run_id: str | None = None) -> int:
     """Wrapper to call async _apply_plan_async with asyncio.run."""
     import asyncio
-    return asyncio.run(_apply_plan_async(repo, plan, verify))
+    return asyncio.run(_apply_plan_async(repo, plan, verify, run_id))
 
 
-async def _apply_plan_async(repo: str, plan: str, verify: str | None) -> int:
-    from .turbo import apply_plan, load_operations
+async def _apply_plan_async(repo: str, plan: str, verify: str | None, run_id: str | None = None) -> int:
+    from .turbo import NO_RECEIPT, apply_plan, load_operations, plan_prompt
+    from .turbo_run import TurboRun
 
     started = time.time()
     root = Path(repo).resolve()
-    head = {"schema": SCHEMA, "repo": str(root), "mode": "host"}
+    if _repo_missing(root, "host"):
+        return 2
+    try:
+        run_ = TurboRun(root, "host", run_id)
+    except ValueError as exc:
+        _emit({"schema": SCHEMA, "repo": str(root), "mode": "host", "status": "blocked",
+               "reason_code": "turbo_run_id_invalid", "detail": str(exc)})
+        return 2
+    head = {"schema": SCHEMA, "repo": str(root), "mode": "host", "run_id": run_.run_id, **plan_prompt()}
+    run_.enter("apply")
     try:
         text, missing = _plan_text(root, plan)
         operations = load_operations(text) if text is not None else []
     except ValueError as exc:  # not UTF-8, not JSON, or not a plan
-        _emit({**head, "status": "failed", "reason_code": "turbo_plan_malformed", "detail": str(exc),
-               "format": PLAN_FORMAT})
-        return 1
+        return _conclude(run_, {**head, "status": "failed", "reason_code": "turbo_plan_malformed",
+                                "detail": str(exc), "format": PLAN_FORMAT})
     if text is None:
-        _emit({**head, "status": "failed", "reason_code": "turbo_plan_missing", "detail": missing})
-        return 1
-    _register_state_dir(root)
+        return _conclude(run_, {**head, "status": "failed", "reason_code": "turbo_plan_missing", "detail": missing})
     try:
         result = await apply_plan(root, operations, "host-1")
     except RuntimeError as exc:
-        _emit({**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
-        return 2
+        return _conclude(run_, {**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
+    receipts = run_.persist_receipts(result["commands"])
+    if result["reason"] == NO_RECEIPT:
+        return _conclude(run_, {**head, "status": "blocked", "reason_code": NO_RECEIPT, "applied": [],
+                                "receipts": receipts, "detail": "dev-cli apply left no edit receipt"})
     applied = [op["path"] for op in operations] if result["applied"] else []
     document: dict[str, Any] = {
         **head,
         "status": "ok" if result["applied"] else "failed",
+        "tasks": 1,
         "applied": applied,
+        "receipts": receipts,
         "failed": [] if result["applied"] else _plan_failures(root, operations, result["reason"]),
         "verify": None,
     }
     if verify and result["applied"]:
+        run_.enter("verify")
         document["verify"], _output = _run_verify(root, verify)
         if not document["verify"]["passed"]:
             document["status"] = "failed"
     document["wall_s"] = round(time.time() - started, 2)
-    _emit(document)
-    return 0 if document["status"] == "ok" else 1
+    return _conclude(run_, document)
 
 
 def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
-                  tasks_file: str | None, verify: str | None) -> int:
+                  tasks_file: str | None, verify: str | None, run_id: str | None = None) -> int:
     """The one place the event loop starts: everything below it is awaited, and the shared client is closed."""
     import asyncio
     from . import turbo_provider
 
     async def main() -> int:
         try:
-            return await _run_provider_async(repo, texts, target, context, tasks_file, verify)
+            return await _run_provider_async(repo, texts, target, context, tasks_file, verify, run_id)
         finally:
             await turbo_provider.close()
 
@@ -274,11 +308,14 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
 
 
 async def _run_provider_async(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
-                               tasks_file: str | None, verify: str | None) -> int:
+                               tasks_file: str | None, verify: str | None, run_id: str | None = None) -> int:
     from . import turbo_provider
-    from .turbo import repair_with_test_output, run_turbo
+    from .turbo import NO_RECEIPT, plan_prompt, repair_with_test_output, run_turbo
+    from .turbo_run import TurboRun
 
     root = Path(repo).resolve()
+    if _repo_missing(root, "provider"):
+        return 2
     head = {"schema": SCHEMA, "repo": str(root), "mode": "provider", "model": turbo_provider.model_name(),
             "reasoning": "off", "session_pinned": True}
     try:
@@ -291,18 +328,29 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
     if not tasks:
         _emit({**head, "status": "blocked", "reason_code": "turbo_no_tasks", "detail": "pass --task or --tasks-file"})
         return 2
-    _register_state_dir(root)
+    try:
+        run_ = TurboRun(root, "provider", run_id)
+    except ValueError as exc:
+        _emit({**head, "status": "blocked", "reason_code": "turbo_run_id_invalid", "detail": str(exc)})
+        return 2
+    head = {**head, "run_id": run_.run_id, **plan_prompt()}
     complete = functools.partial(turbo_provider.complete, session_id=turbo_provider.session_id_for(root))
     # The saved survey marker belongs to one run. Ask Mapper again on every invocation: its own
     # tree-state cache keeps an unchanged tree free and byte-identical, and a changed tree gets a new map.
     (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
     started = time.time()
+    run_.enter("orient")
+    run_.enter("plan")
     try:
+        # dev-cli applies run inside run_turbo, between the model calls of each wave; "apply" is entered once it returns.
         result = await run_turbo(root, tasks, complete)
     except RuntimeError as exc:
-        _emit({**head, "status": "blocked", "reason_code": "turbo_engine_error", "detail": str(exc)})
-        return 2
+        return _conclude(run_, {**head, "status": "blocked", "reason_code": "turbo_engine_error",
+                                "detail": str(exc), "tasks": len(tasks)})
+    run_.enter("apply")
+    receipts = run_.persist_receipts(result["commands"])
     calls = list(result["llm_calls"])
+    blocked_on_receipt = any(o.get("reason") == NO_RECEIPT for o in result["outcomes"])
     document: dict[str, Any] = {
         **head,
         "status": "ok" if result["applied_all"] else "failed",
@@ -311,14 +359,20 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
         "retries": max(0, len([c for c in calls if not c.get("warm")]) - len(result["outcomes"])),
         "applied": [i for o in result["outcomes"] if o["applied"] for i in o["tasks"]],
         "failed": [o for o in result["outcomes"] if not o["applied"]],
+        "receipts": receipts,
         "verify": None,
     }
+    if blocked_on_receipt and not result["applied_all"]:
+        document["status"] = "blocked"
+        document["reason_code"] = NO_RECEIPT
     if verify and result["applied_all"]:
+        run_.enter("verify")
         document["verify"], output = _run_verify(root, verify)
         if not document["verify"]["passed"]:
             # One repair call with the test output, then the tests run again.
             repair = await repair_with_test_output(root, tasks, complete, output)
             calls.extend(repair["llm_calls"])
+            receipts.extend(run_.persist_receipts(repair["commands"]))
             retry = {"attempted": True, "applied": repair["applied"], "reason": repair["reason"], "passed": False}
             if repair["applied"]:
                 document["verify"], _output = _run_verify(root, verify)
@@ -339,5 +393,4 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
                                          "completion_tokens", "hedged", "warm")} for c in calls],
     })
     document["wall_s"] = round(time.time() - started, 2)
-    _emit(document)
-    return 0 if document["status"] == "ok" else 1
+    return _conclude(run_, document, calls)
