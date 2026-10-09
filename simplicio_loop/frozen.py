@@ -24,6 +24,7 @@ import os
 import re
 import runpy
 import shutil
+import subprocess
 import sys
 from importlib import metadata
 from pathlib import Path
@@ -135,14 +136,8 @@ def prepare_environment(
 ) -> Path:
     """Put the operator links first on ``environ['PATH']``. Child processes inherit them.
 
-    A one-file build shares its temporary directory with a child that is the same executable.
-    The directory goes away when the parent exits, but the dashboard server outlives its parent.
-    ``PYINSTALLER_RESET_ENVIRONMENT`` makes each child unpack its own files. The bootloader
-    removes the variable at start, so the program sets it again for its children.
-
     Raise OSError when the links cannot be made.
     """
-    environ["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
     directory = ensure_operator_dir(executable, home)
     parts = [part for part in environ.get("PATH", "").split(os.pathsep) if part]
     if not parts or parts[0] != os.fspath(directory):
@@ -150,8 +145,36 @@ def prepare_environment(
     return directory
 
 
+def mark_self_spawns(executable: str) -> None:
+    """Give a child that starts as ``executable`` its own unpacked files (one-file builds).
+
+    A one-file child of the same executable shares the temporary directory of its parent, and the
+    parent deletes it on exit. The dashboard server outlives its parent, so it would lose its files.
+    ``PYINSTALLER_RESET_ENVIRONMENT`` makes the child unpack its own copy. The cost is about one second,
+    so only a child that starts as ``sys.executable`` pays it. The operators start by name, run short,
+    and keep sharing the unpack of the parent. The bootloader removes the variable at start,
+    so it goes into the environment of each such child here, not into ``os.environ``.
+    """
+    original = subprocess.Popen.__init__
+    if getattr(original, "_simplicio_self_spawn", False):
+        return
+
+    def init(self, args, *positional, **keywords):
+        first = args if isinstance(args, (str, bytes, os.PathLike)) else (args[0] if args else None)
+        if isinstance(first, str) and os.path.normcase(first) == os.path.normcase(executable) \
+                and not keywords.get("shell"):
+            env = dict(os.environ if keywords.get("env") is None else keywords["env"])
+            env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+            keywords["env"] = env
+        original(self, args, *positional, **keywords)
+
+    init._simplicio_self_spawn = True  # type: ignore[attr-defined]
+    subprocess.Popen.__init__ = init  # type: ignore[method-assign]
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     if getattr(sys, "frozen", False):
+        mark_self_spawns(sys.executable)
         try:
             prepare_environment(sys.executable, os.environ, Path.home())
         except OSError as error:  # a read-only home must not stop --version; the operators are then missing

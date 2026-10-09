@@ -187,9 +187,7 @@ def test_prepare_environment_puts_the_operators_first_on_path_once(tmp_path, fak
     second = frozen.prepare_environment(fake_exe, environ, tmp_path / "home")
     assert first == second
     assert environ["PATH"].split(os.pathsep) == [str(first), "/usr/bin", "/bin"]
-    # A child that is the same one-file program must unpack its own files. It would share the
-    # parent's temporary directory, and the dashboard server outlives its parent.
-    assert environ["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
+    assert "PYINSTALLER_RESET_ENVIRONMENT" not in environ  # only self-spawns get it, see mark_self_spawns
 
 
 @pytest.mark.skipif(os.name == "nt", reason="runs a POSIX shell script")
@@ -215,6 +213,7 @@ def test_main_only_touches_path_in_a_frozen_build(monkeypatch, tmp_path, fake_ex
 
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(fake_exe))
+    monkeypatch.setattr(subprocess.Popen, "__init__", subprocess.Popen.__init__)  # main wraps it: restore at teardown
     assert frozen.main(["simplicio-mapper"]) == 7
     assert os.environ["PATH"].split(os.pathsep)[0].startswith(str(tmp_path / "home"))
 
@@ -229,8 +228,57 @@ def test_a_home_that_cannot_hold_the_links_does_not_stop_the_program(monkeypatch
     monkeypatch.setattr(frozen, "console_scripts", lambda: SCRIPTS)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(fake_exe))
+    monkeypatch.setattr(subprocess.Popen, "__init__", subprocess.Popen.__init__)  # main wraps it: restore at teardown
 
     assert frozen.main(["simplicio-loop", "--version"]) == 0  # --version must always work
 
     assert os.environ["PATH"] == "/usr/bin:/bin"
     assert "cannot link the operators" in capsys.readouterr().err
+
+
+@pytest.fixture
+def popen_spy(monkeypatch):
+    """Replace Popen.__init__ with a spy. mark_self_spawns wraps the spy; monkeypatch restores both."""
+    seen = []
+
+    def spy(self, args, *positional, **keywords):
+        self._child_created = False  # lets Popen.__del__ run on an object that never started
+        seen.append((args, keywords.get("env")))
+
+    monkeypatch.setattr(subprocess.Popen, "__init__", spy)
+    return seen
+
+
+def test_a_child_that_is_this_executable_unpacks_its_own_files(popen_spy, monkeypatch):
+    """A one-file child shares the temporary directory of its parent, and the parent deletes it on exit.
+
+    The dashboard server outlives its parent, so a start through sys.executable gets a fresh unpack.
+    """
+    monkeypatch.setenv("KEEP", "yes")
+    frozen.mark_self_spawns("/opt/simplicio-loop")
+    subprocess.Popen(["/opt/simplicio-loop", "-m", "simplicio_loop.dashboard.server"])
+    subprocess.Popen(["/opt/simplicio-loop", "-c", "pass"], env={"A": "b"})
+    subprocess.Popen(args=["/opt/simplicio-loop", "x"])
+
+    (_, first_env), (_, second_env), (_, third_env) = popen_spy
+    assert first_env["PYINSTALLER_RESET_ENVIRONMENT"] == "1" and first_env["KEEP"] == "yes"
+    assert second_env == {"A": "b", "PYINSTALLER_RESET_ENVIRONMENT": "1"}
+    assert third_env["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
+
+
+def test_other_children_are_left_alone(popen_spy):
+    """The operators start by name, run short and share the unpack of the parent: that is fast."""
+    frozen.mark_self_spawns("/opt/simplicio-loop")
+    subprocess.Popen(["simplicio-mapper", "scan"])
+    subprocess.Popen(["/usr/bin/git", "status"], env={"A": "b"})
+    subprocess.Popen("/opt/simplicio-loop --version", shell=True)
+    subprocess.Popen([])
+
+    assert [env for _, env in popen_spy] == [None, {"A": "b"}, None, None]
+
+
+def test_mark_self_spawns_wraps_popen_only_once(popen_spy):
+    frozen.mark_self_spawns("/opt/simplicio-loop")
+    wrapped = subprocess.Popen.__init__
+    frozen.mark_self_spawns("/opt/simplicio-loop")
+    assert subprocess.Popen.__init__ is wrapped
