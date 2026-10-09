@@ -333,8 +333,9 @@ def test_review_fix_is_pushed_to_the_same_branch_with_role_coordination(env, cli
     assert flag(first, "--model") == resolved("coordination")["model"]
     assert flag(second, "--model") == resolved("planning")["model"]  # coordination failed once: up the ladder
     assert "troque o retorno para dict" in first[1]
-    added = fake.ran("git", "worktree", "add")  # the fix starts from the open PR head, on the same branch
-    assert any(a[4:6] == ["-B", "loop/issue-7"] and a[-1] == "origin/loop/issue-7" for a in added)
+    # the fix starts from the open PR head, on the same branch, in the item's own worktree: the whole argv
+    assert fake.ran("git", "worktree", "add") == [
+        ["git", "worktree", "add", "-q", "-B", "loop/issue-7", str(config.WORK / f"{REPO}.wt" / "7"), "origin/loop/issue-7"]]
     pushes = fake.ran("git", "push")
     assert pushes == [["git", "push", "-u", "origin", "loop/issue-7"]]  # same branch, never forced
     assert fake.ran("gh", "pr", "create") == [] and fake.ran("gh", "pr", "merge") == []
