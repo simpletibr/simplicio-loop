@@ -248,8 +248,7 @@ def test_wave_turbo_above_three_fans_out_with_the_mapper_reading(tmp_path, monke
 
     tasks = [{"index": index, "text": "Create %s" % index} for index in range(1, 5)]
     result = asyncio.run(run_turbo(tmp_path, tasks, complete))
-    # After asyncio conversion, all tasks use same path - wave concept removed
-    assert result["turns"] > 0
+    assert result["wave"] is True
     assert len(seen) == 4
     assert (tmp_path / "page1.html").is_file()
     assert (tmp_path / "page4.html").read_text(encoding="utf-8") == "<p>page4</p>"

@@ -77,6 +77,8 @@ _PLANNER_SYSTEM = (
 )
 
 
+# Wave turbo starts above three tasks: each lane is the same read -> AI -> dev-cli path.
+WAVE_TURBO_ABOVE = 3
 _MAPPER_READING_LIMIT = 12000
 
 
@@ -345,89 +347,117 @@ def _ready(pending: list[Mapping[str, Any]], done: set[int]) -> list[Mapping[str
     return ready
 
 
-async def _run_concurrent(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str, semaphore: asyncio.Semaphore, apply_lock: asyncio.Lock) -> tuple[list[dict], list[dict], list[str], list[dict]]:
-    """Run tasks concurrently with model call semaphore and serialized dev-cli applies."""
+async def _wave_task(root: Path, task: Mapping[str, Any], messages: list[dict], complete, binary: str,
+                     apply_lock: asyncio.Lock) -> tuple[list[dict], list[dict], str, dict]:
+    """One fanned-out task: ask, apply under the lock, and on a refusal send it back once."""
+    calls: list[dict] = []
+    commands: list[dict] = []
+    content, reason, applied_ok = "", None, False
+    for attempt in (1, 2):
+        reply = await complete("simplicio", messages)
+        content = reply.get("content") or ""
+        calls.append(_call_record(reply, 0))
+        try:
+            operations = _parse_operations(content) if reply.get("ok", True) else []
+            reason = None
+        except (ValueError, json.JSONDecodeError) as exc:
+            operations, reason = [], str(exc)
+        applied = await _apply_operations(root, operations, binary, f"wave-{task.get('index')}-{attempt}", apply_lock) if operations else []
+        commands.extend(applied)
+        rejected = _rejection(applied)
+        applied_ok = bool(operations) and rejected is None
+        if applied_ok:
+            reason = None
+            break
+        reason = rejected or reason or str(reply.get("error") or "the model returned no plan")
+        if attempt == 1:
+            messages = [
+                *messages,
+                {"role": "assistant", "content": content},
+                {"role": "user", "content": "dev-cli rejected the plan:\n" + reason + "\nReturn a corrected JSON plan."},
+            ]
+    outcome = {"tasks": [int(task.get("index") or 0)], "applied": applied_ok, "reason": reason}
+    return calls, commands, content, outcome
+
+
+async def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str,
+                    apply_lock: asyncio.Lock) -> tuple[list[dict], list[dict], str, list[dict]]:
+    """First call runs alone so the header is cached. Later calls append or fan out after it."""
+    pending = list(tasks)
+    done: set[int] = set()
     calls: list[dict] = []
     commands: list[dict] = []
     contents: list[str] = []
     outcomes: list[dict] = []
-    base = [header_message(reading)]
-    
-    async def _ask_and_apply(task: Mapping[str, Any], turn: int) -> None:
-        async with semaphore:
-            messages = [*base, task_message([task], root)]
-            content = ""
-            applied_ok = False
-            reason = None
-            for attempt in (1, 2):
-                reply = await complete("simplicio", messages)
-                content = reply.get("content") or ""
-                calls.append(_call_record(reply, turn))
-                try:
-                    operations = _parse_operations(content) if reply.get("ok", True) else []
-                except (ValueError, json.JSONDecodeError) as exc:
-                    operations = []
-                    reason = str(exc)
-                else:
-                    reason = None
-                
-                applied = await _apply_operations(root, operations, binary, f"{turn}-{attempt}", apply_lock) if operations else []
-                commands.extend(applied)
-                rejected = _rejection(applied)
-                applied_ok = bool(operations) and rejected is None
-                
-                if not applied_ok:
-                    reason = rejected or reason or (str(reply.get("error")) if not reply.get("ok", True) else None) or "the model returned no plan"
-                    if attempt < 2:
-                        detail = rejected or reason or "dev-cli did not apply a plan"
-                        messages = [
-                            *messages,
-                            {"role": "assistant", "content": content},
-                            {"role": "user", "content": f"dev-cli rejected the plan:\n{detail}\nReturn a corrected JSON plan."},
-                        ]
-                else:
-                    reason = None
-                    break
-            
-            contents.append(content)
-            outcomes.append({"tasks": [int(task.get("index") or 0)], "applied": applied_ok, "reason": reason})
-    
-    tasks_list = list(tasks)
-    pending = {t.get("index"): t for t in tasks_list}
-    done: set[int] = set()
-    turn_counter = [0]
-    
+    stack = [header_message(reading)]
     while pending:
-        ready = [t for t in pending.values() if all(dep in done for dep in (t.get("depends_on") or []))]
+        ready = _ready(pending, done)
         if not ready:
             raise RuntimeError("turbo tasks have a dependency cycle")
-        
-        tasks_to_run = ready
-        for task in tasks_to_run:
-            turn_counter[0] += 1
-            await _ask_and_apply(task, turn_counter[0])
+        if not calls and len(ready) > 1:
+            # Independent tasks: a 1-token call writes the header into the provider's cache,
+            # then every ready task fans out at once instead of waiting for a whole first task.
+            warm = await complete("simplicio", [header_message(reading), _WARM_MESSAGE], max_tokens=1)
+            calls.append({**_call_record(warm, 0), "warm": True})
+        elif not calls or len(ready) == 1:
+            task = ready[0]
+            lane_calls, lane_commands, content, stack, outcome = await _one_lane(
+                root, [task], complete, reading, generation, binary, len(calls) + 1, base=stack, apply_lock=apply_lock,
+            )
+            outcomes.append(outcome)
+            calls.extend(lane_calls)
+            commands.extend(lane_commands)
+            contents.append(content)
             done.add(int(task.get("index") or 0))
-            del pending[int(task.get("index") or 0)]
-    
-    return calls, commands, contents, outcomes
+            pending.remove(task)
+            continue
+        base = list(stack)
+        # The prompts are built before any plan is applied; the model calls run together (bounded by the
+        # caller's semaphore) and dev-cli applies one plan at a time (apply_lock).
+        lanes = await asyncio.gather(*(
+            _wave_task(root, task, [*base, task_message([task], root)], complete, binary, apply_lock)
+            for task in ready
+        ))
+        for task, (lane_calls, lane_commands, content, outcome) in zip(ready, lanes):
+            first = len(calls) + 1
+            calls.extend({**record, "turn": first + i} for i, record in enumerate(lane_calls))
+            commands.extend(lane_commands)
+            contents.append(content)
+            outcomes.append(outcome)
+            done.add(int(task.get("index") or 0))
+            pending.remove(task)
+    return calls, commands, "\n".join(contents), outcomes
 
 
 async def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None) -> dict[str, Any]:
-    """Mapper reads once. All tasks run asynchronously with model call semaphore and serialized dev-cli applies."""
+    """Mapper reads once. Up to 3 tasks share one model call. Above that, the first call warms the header and the rest follow.
+
+    Any task count takes this one async path: model calls are bounded by an ``asyncio.Semaphore``
+    (``SIMPLICIO_TURBO_CONCURRENCY``) and dev-cli applies never overlap (``asyncio.Lock``).
+    """
+    from . import turbo_provider
+
     survey = survey_tasks(root, tasks)
     single = len(list(tasks)) == 1
     reading = mapper_reading(root, focus=focus_paths(tasks) if single and slice_enabled() else None)
     binary = dev_cli or _dev_cli_bin()
     task_list = list(tasks)
-    from . import turbo_provider
     semaphore = asyncio.Semaphore(turbo_provider.concurrency())
     apply_lock = asyncio.Lock()
-    
-    calls, commands, contents, outcomes = await _run_concurrent(
-        root, task_list, complete, reading, survey["generation"], binary, semaphore, apply_lock
-    )
-    
-    content = "\n".join(contents)
+
+    async def bounded(arm, messages, **kwargs):
+        async with semaphore:
+            return await complete(arm, messages, **kwargs)
+
+    if len(task_list) <= WAVE_TURBO_ABOVE:
+        calls, commands, content, _stack, outcome = await _one_lane(
+            root, task_list, bounded, reading, survey["generation"], binary, 1, apply_lock=apply_lock,
+        )
+        outcomes = [outcome]
+    else:
+        calls, commands, content, outcomes = await _run_wave(
+            root, task_list, bounded, reading, survey["generation"], binary, apply_lock,
+        )
     return {
         "turns": len(calls),
         "llm_calls": calls,
@@ -442,6 +472,7 @@ async def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, de
             "n_simplicio_commands": len(commands),
         },
         "survey": survey,
+        "wave": len(task_list) > WAVE_TURBO_ABOVE,
         "outcomes": outcomes,
         "applied_all": all(outcome["applied"] for outcome in outcomes),
     }

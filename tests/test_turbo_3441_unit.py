@@ -72,13 +72,20 @@ def test_chat_pins_the_session_and_sends_the_reasoning_block(monkeypatch):
 
 
 def test_turbo_complete_pins_the_arm_session_and_turns_reasoning_off(monkeypatch):
+    import asyncio
+
     from simplicio_loop import turbo_provider
 
     captured = {}
+
+    async def complete(arm, messages, **kw):
+        captured.update(kw)
+        return {"ok": True}
+
     monkeypatch.setattr(bench_run.lc, "get_key", lambda arm: "sk-arm")
-    monkeypatch.setattr(turbo_provider, "complete", lambda arm, messages, **kw: captured.update(kw) or {"ok": True})
+    monkeypatch.setattr(turbo_provider, "complete", complete)
     monkeypatch.delenv("SIMPLICIO_BENCH_TURBO_REASONING", raising=False)
-    bench_run.turbo_complete("simplicio", [{"role": "user", "content": "x"}])
+    asyncio.run(bench_run.turbo_complete("simplicio", [{"role": "user", "content": "x"}]))
     assert captured["session_id"] == bench_run.oc.session_id_for_arm("simplicio")
     assert captured["reasoning_off"] is True
 

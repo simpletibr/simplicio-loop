@@ -77,7 +77,7 @@ def test_run_turbo_reports_whether_each_task_plan_applied(tmp_path, monkeypatch)
     (repo / ".simplicio-loop").mkdir()
     (repo / ".simplicio-loop" / "project-map.json").write_text('{"files":[]}', encoding="utf-8")
 
-    def complete(arm, messages, **kwargs):  # one call covers both tasks; the inventory find never matches
+    async def complete(arm, messages, **kwargs):  # one call covers both tasks; the inventory find never matches
         ops = _solution_ops(repo, ["pricing.py"]) + [{"path": "inventory.py", "find": "NOT THERE", "replace": "x"}]
         return {"ok": True, "content": json.dumps({"operations": ops})}
 
@@ -102,7 +102,7 @@ def test_cli_turbo_runs_the_engine_end_to_end_and_verifies(tmp_path, monkeypatch
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
     seen = []
 
-    def fake_complete(arm, messages, **kwargs):
+    async def fake_complete(arm, messages, **kwargs):
         seen.append(([dict(m) for m in messages], dict(kwargs)))  # a copy: the engine appends later
         return {"ok": True, "latency_s": 0.1, "provider": "Together", "prompt_tokens": 100,
                 "cached_tokens": 0, "completion_tokens": 50, "reasoning_tokens": 0, "cost": 0.0002,
@@ -138,7 +138,7 @@ def test_cli_turbo_surveys_again_on_every_invocation(tmp_path, monkeypatch, caps
         files = sorted(p.name for p in root.glob("*.py"))
         (state / "project-map.json").write_text(json.dumps({"files": files}), encoding="utf-8")
 
-    def fake_complete(arm, messages, **kwargs):
+    async def fake_complete(arm, messages, **kwargs):
         headers.append(messages[0]["content"])
         ops = [{"path": f"note{len(headers)}.txt", "find": "", "replace": "x\n"}]
         return {"ok": True, "content": json.dumps({"operations": ops}), "prompt_tokens": 1, "completion_tokens": 1}
@@ -212,9 +212,14 @@ def test_benchmark_turbo_arm_calls_the_product_provider(monkeypatch):
     from bench.llm_ab import run as bench_run
 
     captured = {}
+
+    async def complete(arm, messages, **kw):
+        captured.update(kw)
+        return {"ok": True}
+
     monkeypatch.setattr(bench_run.lc, "get_key", lambda arm: "sk-arm")
-    monkeypatch.setattr(turbo_provider, "complete", lambda arm, messages, **kw: captured.update(kw) or {"ok": True})
+    monkeypatch.setattr(turbo_provider, "complete", complete)
     monkeypatch.delenv("SIMPLICIO_BENCH_TURBO_REASONING", raising=False)
-    bench_run.turbo_complete("simplicio", [])
+    asyncio.run(bench_run.turbo_complete("simplicio", []))
     assert captured == {"api_key": "sk-arm", "session_id": bench_run.oc.session_id_for_arm("simplicio"),
                         "reasoning_off": True}

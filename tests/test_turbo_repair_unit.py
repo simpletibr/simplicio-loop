@@ -45,7 +45,7 @@ def test_a_create_task_whose_repair_repeats_the_empty_find_ends_ok(tmp_path, mon
     good = (SOLUTION / "pricing.py").read_text(encoding="utf-8")
     turns = []
 
-    def fake_complete(arm, messages, **kwargs):
+    async def fake_complete(arm, messages, **kwargs):
         turns.append(messages[-1]["content"])
         # Both plans are creates: the repair repeats `find: ""` for the file the first plan already wrote.
         return _reply([{"path": "pricing.py", "find": "", "replace": STUB if len(turns) == 1 else good}])
@@ -70,7 +70,7 @@ def test_the_repair_prompt_tells_the_model_the_listed_files_already_exist(tmp_pa
     seen = []
     tasks = [{"index": 1, "text": "Fix inventory.py", "target": "inventory.py", "context": [], "depends_on": []}]
 
-    def complete(arm, messages, **kwargs):
+    async def complete(arm, messages, **kwargs):
         seen.append(messages)
         return _reply([{"path": "notes.txt", "find": "", "replace": "x\n"}])
 

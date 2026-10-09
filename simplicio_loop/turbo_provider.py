@@ -8,11 +8,12 @@ benchmark measures this code. The request is the one the benchmark measured:
 - a stable `x-session-id` per repository, so every call reads the same provider's prompt cache
 
 Two latency guards, both measured or simulated on the benchmark calls:
-- **Kept-alive connection.** One pooled HTTPS client is reused for every call, which saves the
-  TCP+TLS handshake (~50 ms per call measured against openrouter.ai).
+- **Kept-alive connection.** One pooled `httpx.AsyncClient` is reused for every call, which saves the
+  TCP+TLS handshake (~50 ms per call measured against openrouter.ai). `close()` releases it.
 - **Hedged request.** A call still running after `SIMPLICIO_TURBO_HEDGE_AFTER` seconds (default
-  10; 0 disables it) gets a duplicate on another session, and the first good answer wins. The
-  losing request is billed too: `drain_hedges()` waits for it so callers can count its tokens.
+  10; 0 disables it) gets a duplicate on another session as a second asyncio task, and the first good
+  answer wins. The losing task is cancelled (no thread pool); a cancelled request reports no usage, so
+  only the winner's tokens are counted.
   Why 10 s: the hedge only pays on a real tail. Measured over 12 CLI calls per release, normal calls
   took 1.6-8.0 s depending on the provider that answered (the slowest, Relace, about 8 s) and the one
   tail took 19.6 s. The 2.5 s of 3.45.1 came from a simulation with Together only; on the real mix it
@@ -23,10 +24,9 @@ Without `OPENROUTER_API_KEY` it fails closed with `turbo_provider_key_missing`.
 """
 from __future__ import annotations
 
-import concurrent.futures
+import asyncio
 import hashlib
 import os
-import threading
 import time
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -68,7 +68,7 @@ def concurrency() -> int:
     """Max concurrent model calls (default 8; set SIMPLICIO_TURBO_CONCURRENCY)."""
     raw = os.environ.get(CONCURRENCY_ENV, "").strip()
     try:
-        return int(raw) if raw else DEFAULT_CONCURRENCY
+        return max(1, int(raw)) if raw else DEFAULT_CONCURRENCY
     except ValueError:
         return DEFAULT_CONCURRENCY
 
@@ -100,7 +100,6 @@ async def _http_client() -> httpx.AsyncClient:
 
 
 async def _post(body: Mapping[str, Any], key: str, session_id: str, timeout: float) -> dict[str, Any]:
-    import time
     started = time.time()
     try:
         client = await _http_client()
@@ -148,8 +147,6 @@ async def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_i
                    api_key: str | None = None, reasoning_off: bool = True, max_tokens: int | None = None,
                    hedge: float | None = None, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
     """One chat completion, hedged after `hedge` seconds. Never returns the key."""
-    import time
-    import asyncio
     del arm
     key = require_key(api_key)
     body: dict[str, Any] = {
@@ -164,43 +161,29 @@ async def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_i
         body["max_tokens"] = max_tokens
     wait = hedge_after() if hedge is None else hedge
     started = time.time()
-    
-    if wait <= 0:
-        result = await _post(body, key, session_id, timeout)
-        return {**result, "hedged": False}
-    
-    primary_task = asyncio.create_task(_post(body, key, session_id, timeout))
+    primary = asyncio.create_task(_post(body, key, session_id, timeout))
+    tasks = [primary]
     try:
-        result = await asyncio.wait_for(primary_task, timeout=wait)
-        return {**result, "hedged": False}
-    except asyncio.TimeoutError:
-        duplicate_task = asyncio.create_task(_post(body, key, f"{session_id}-hedge", timeout))
-        done, pending = await asyncio.wait(
-            [primary_task, duplicate_task],
-            return_when=asyncio.FIRST_COMPLETED,
-        )
-        
-        winner = next(iter(done))
-        loser = duplicate_task if winner is primary_task else primary_task
+        if wait > 0:
+            # wait() does not cancel the primary on timeout (wait_for would): it keeps running next to the hedge.
+            await asyncio.wait({primary}, timeout=wait)
+        if primary.done() or wait <= 0:
+            return {**await primary, "hedged": False}
+        duplicate = asyncio.create_task(_post(body, key, f"{session_id}-hedge", timeout))
+        tasks.append(duplicate)
+        done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        winner = primary if primary in done else duplicate
         result = winner.result()
-        
-        if not result.get("ok"):
-            loser_result = await loser
-            winner = loser
-            result = loser_result
-        else:
-            loser.cancel()
-            try:
-                await loser
-            except asyncio.CancelledError:
-                pass
-        
-        return {
-            **result,
-            "hedged": True,
-            "hedge_winner": "primary" if winner is primary_task else "duplicate",
-            "latency_s": time.time() - started,
-        }
+        if not result.get("ok"):  # the faster one failed: the other is the answer
+            winner = duplicate if winner is primary else primary
+            result = await winner
+        return {**result, "hedged": True, "hedge_winner": "primary" if winner is primary else "duplicate",
+                "latency_s": time.time() - started}
+    finally:
+        # The loser (or, if the caller was cancelled, every request) is cancelled: no thread, no orphan task.
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 
 async def close() -> None:

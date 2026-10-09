@@ -260,9 +260,17 @@ async def _apply_plan_async(repo: str, plan: str, verify: str | None) -> int:
 
 def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
                   tasks_file: str | None, verify: str | None) -> int:
-    """Wrapper to call async _run_provider_async with asyncio.run."""
+    """The one place the event loop starts: everything below it is awaited, and the shared client is closed."""
     import asyncio
-    return asyncio.run(_run_provider_async(repo, texts, target, context, tasks_file, verify))
+    from . import turbo_provider
+
+    async def main() -> int:
+        try:
+            return await _run_provider_async(repo, texts, target, context, tasks_file, verify)
+        finally:
+            await turbo_provider.close()
+
+    return asyncio.run(main())
 
 
 async def _run_provider_async(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
@@ -285,6 +293,8 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
         return 2
     _register_state_dir(root)
     complete = functools.partial(turbo_provider.complete, session_id=turbo_provider.session_id_for(root))
+    # The saved survey marker belongs to one run. Ask Mapper again on every invocation: its own
+    # tree-state cache keeps an unchanged tree free and byte-identical, and a changed tree gets a new map.
     (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
     started = time.time()
     try:
@@ -306,6 +316,7 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
     if verify and result["applied_all"]:
         document["verify"], output = _run_verify(root, verify)
         if not document["verify"]["passed"]:
+            # One repair call with the test output, then the tests run again.
             repair = await repair_with_test_output(root, tasks, complete, output)
             calls.extend(repair["llm_calls"])
             retry = {"attempted": True, "applied": repair["applied"], "reason": repair["reason"], "passed": False}
@@ -315,10 +326,7 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
             document["verify_retry"] = retry
             if not retry["passed"]:
                 document["status"] = "failed"
-    await turbo_provider.close()
-    # Note: drain_hedges was removed as hedge losers are now cancelled asynchronously
-    losers = []
-    billed = calls + losers
+    billed = calls  # a hedge loser is cancelled and reports no usage
     tokens = {k: sum(c.get(k) or 0 for c in billed)
               for k in ("prompt_tokens", "cached_tokens", "completion_tokens", "reasoning_tokens")}
     document.update({
