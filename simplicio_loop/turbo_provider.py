@@ -140,6 +140,7 @@ async def _post(body: Mapping[str, Any], key: str, session_id: str, timeout: flo
         "cached_tokens": (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0) or 0,
         "cost": usage.get("cost"),
         "cost_usd": usage.get("cost"),
+        "usage_reported": "usage" in parsed,
     }
 
 
