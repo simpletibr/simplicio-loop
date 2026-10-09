@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from simplicio_loop.watcher247 import config, sandbox, state, tick
-from .test_tick import FakeRun, baseline, env, issue, read_json, run_tick, write_json  # noqa: F401
+from .fakes import FakeRun, baseline, issue, read_json, run_tick, write_json
 
 
 def test_issues_cap_reached_processes_nothing(env, monkeypatch):
@@ -77,11 +77,11 @@ def test_turbo_runs_through_the_sandbox_with_scrubbed_env(env, monkeypatch):
     fake = env(FakeRun({"simplicio-a": [issue(1)]}, diff=False))
     wrapped = []
 
-    async def spy(argv, timeout=120, cwd=None, env=None):
+    async def spy(argv, timeout=120, cwd=None, env=None, stdin=None):
         if argv[0] == "bwrap":
             wrapped.append((argv, env))
             argv = argv[argv.index("--") + 1:]
-        return await fake(argv, timeout, cwd)
+        return await fake(argv, timeout, cwd, stdin=stdin)
 
     monkeypatch.setattr(tick.proc, "run", spy)
     baseline()

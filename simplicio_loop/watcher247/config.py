@@ -15,6 +15,9 @@ TURBO_TIMEOUT_S = 900
 MAX_ATTEMPTS = 2
 RETRY_AFTER = timedelta(hours=6)
 BODY_CAP = 6000
+OWNER = "simplicio-loop-247"  # the claim owner on GitHub and in the lease store
+LEASE_TTL_S = 180  # a lease expires this long after its last heartbeat
+HEARTBEAT_S = 60
 
 
 def default_login() -> Path:
@@ -41,7 +44,7 @@ def concurrency() -> int:
 
 def set_state_dir(path: str | Path) -> None:
     """Point every state path at `path`."""
-    global STATE_DIR, ROOT, WORK, LOGS, BASELINE, CLAIMS, STATUS, STOP, DISABLED, BUDGET
+    global STATE_DIR, ROOT, WORK, LOGS, BASELINE, CLAIMS, STATUS, STOP, DISABLED, BUDGET, FIXES
     STATE_DIR = ROOT = Path(path)
     WORK = ROOT / "work"
     LOGS = ROOT / "logs"
@@ -51,6 +54,7 @@ def set_state_dir(path: str | Path) -> None:
     STOP = ROOT / "STOP"
     DISABLED = ROOT / "issues-disabled.json"
     BUDGET = ROOT / "budget.json"
+    FIXES = ROOT / "fixes.json"  # queued PR-review fixes, see tick._enqueue_fixes
 
 
 set_state_dir(os.environ.get("SIMPLICIO_247_STATE_DIR", "/var/lib/simplicio-loop-247"))

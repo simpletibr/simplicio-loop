@@ -1,137 +1,18 @@
-"""Tick-level tests of the 24/7 watcher: every subprocess is answered by FakeRun."""
+"""Tick-level tests of the 24/7 watcher: every subprocess is answered by FakeRun (see fakes.py)."""
 from __future__ import annotations
 
 import asyncio
 import io
-import json
 import urllib.error
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
-from simplicio_loop.watcher247 import config, proc, sandbox, state, subscription, tick
+from simplicio_loop.watcher247 import config, proc, state, subscription, tick
 from simplicio_loop.watcher247.__main__ import main as watcher_main
 
-FIXED = datetime(2026, 1, 1, tzinfo=timezone.utc)
-PR_URL = "https://github.com/simpletibr/simplicio-a/pull/9"
-
-
-class FakeRun:
-    """Answers gh, git and turbo by argv and records what ran concurrently."""
-
-    def __init__(self, issues, *, turbo_ok=True, diff=True, delay=0.0):
-        self.issues = issues  # repo name -> list of issue dicts
-        self.turbo_ok = turbo_ok
-        self.diff = diff
-        self.delay = delay
-        self.calls = []
-        self.comments = []
-        self.turbo_active = 0
-        self.max_turbo = 0
-        self.turbo_argv = []
-        self.turbo_timeouts = []
-        self.repo_active = {}
-        self.max_repo_active = 0
-
-    def ran(self, *prefix):
-        return [a for a in self.calls if a[: len(prefix)] == list(prefix)]
-
-    def _enter(self, repo):
-        self.repo_active[repo] = self.repo_active.get(repo, 0) + 1
-        self.max_repo_active = max(self.max_repo_active, self.repo_active[repo])
-
-    async def __call__(self, argv, timeout=120, cwd=None, env=None):
-        argv = list(argv)
-        self.calls.append(argv)
-        repo = Path(cwd).name if cwd else ""
-        head = argv[:3]
-        if head == ["gh", "repo", "list"]:
-            rows = [{"name": n, "isArchived": False, "defaultBranchRef": {"name": "main"}} for n in self.issues]
-            return proc.Result(0, json.dumps(rows))
-        if head == ["gh", "issue", "list"]:
-            name = argv[argv.index("--repo") + 1].split("/")[1]
-            return proc.Result(0, json.dumps(self.issues[name]))
-        if head == ["gh", "issue", "comment"]:
-            name = argv[argv.index("--repo") + 1].split("/")[1]
-            self.comments.append((name, int(argv[3]), argv[argv.index("--body") + 1]))
-            return proc.Result(0)
-        if head == ["gh", "repo", "clone"]:
-            (Path(argv[4]) / ".git").mkdir(parents=True)
-            return proc.Result(0)
-        if head == ["gh", "pr", "create"]:
-            return proc.Result(0, PR_URL + "\n")
-        if argv[0] == "simplicio-loop" and argv[1] == "turbo":
-            self.turbo_argv.append(argv)
-            self.turbo_timeouts.append(timeout)
-            self.turbo_active += 1
-            self.max_turbo = max(self.max_turbo, self.turbo_active)
-            await asyncio.sleep(self.delay)
-            self.turbo_active -= 1
-            if self.turbo_ok:
-                return proc.Result(0, json.dumps({"schema": "simplicio.turbo/v1", "status": "ok"}))
-            return proc.Result(1, json.dumps({"status": "failed", "detail": "boom"}))
-        if argv[0] == "git":
-            return self._git(argv, repo)
-        raise AssertionError(f"unexpected argv {argv}")
-
-    def _git(self, argv, repo):
-        sub = argv[1]
-        if sub == "config" and argv[2:] == ["user.email"]:
-            return proc.Result(1)
-        if sub == "checkout":
-            self._enter(repo)  # from checkout until the diff check, the working tree is in use
-            return proc.Result(0)
-        if sub == "status":
-            if not self.diff:
-                self.repo_active[repo] -= 1
-            return proc.Result(0, " M app.py\n?? .simplicio/x\n" if self.diff else "")
-        if sub == "diff":
-            return proc.Result(0, "app.py\n")
-        return proc.Result(0)  # config, fetch, add, reset, commit, push
-
-
-def issue(number, title="Fix thing", labels=()):
-    return {"number": number, "title": title, "body": "body", "labels": [{"name": n} for n in labels]}
-
-
-@pytest.fixture
-def env(tmp_path, monkeypatch):
-    original = config.STATE_DIR
-    config.set_state_dir(tmp_path)
-    monkeypatch.setattr(state, "now", lambda: FIXED)
-    monkeypatch.delenv("SIMPLICIO_247_CONCURRENCY", raising=False)
-    monkeypatch.setenv("SIMPLICIO_247_ALLOW_UNSANDBOXED", "1")  # sandbox has its own tests
-    monkeypatch.setattr(sandbox.shutil, "which", lambda binary: None)  # same argv on every host
-
-    async def active():
-        return {"active": True, "reason": "ok"}
-
-    monkeypatch.setattr(subscription, "mcp_subscription", active)
-
-    def install(fake):
-        monkeypatch.setattr(proc, "run", fake)
-        return fake
-
-    yield install
-    config.set_state_dir(original)
-
-
-def run_tick(**kwargs):
-    asyncio.run(tick.tick(**kwargs))
-
-
-def write_json(path, data):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data))
-
-
-def read_json(path):
-    return json.loads(path.read_text())
-
-
-def baseline(*idents):
-    write_json(config.BASELINE, {"created_at": "x", "issues": list(idents)})
+from .fakes import FIXED, PR_URL, FakeRun, baseline, issue, read_json, run_tick, write_json
 
 
 def test_first_tick_writes_baseline_only(env):
@@ -139,7 +20,7 @@ def test_first_tick_writes_baseline_only(env):
     run_tick()
     assert read_json(config.BASELINE)["issues"] == ["simplicio-a#1", "simplicio-a#2"]
     assert fake.ran("simplicio-loop") == []
-    assert fake.comments == []
+    assert fake.api_writes == []
     assert read_json(config.STATUS)["phase"] == "baselined"
     assert not config.CLAIMS.exists()
 
@@ -180,7 +61,7 @@ def test_turbo_ok_commits_opens_pr_and_comments_url(env):
     assert fake.ran("git", "push", "-u", "origin", "loop/issue-7")
     pr = fake.ran("gh", "pr", "create")[0]
     assert pr[pr.index("--base") + 1] == "main" and pr[pr.index("--head") + 1] == "loop/issue-7"
-    assert any(PR_URL in body for _, number, body in fake.comments if number == 7)
+    assert PR_URL in fake.marker_comments(7)[-1]["body"]
     claim = read_json(config.CLAIMS)["simplicio-a#7"]
     assert claim["status"] == "done" and claim["pr"] == PR_URL and claim["turbo_status"] == "ok"
     assert (config.LOGS / "simplicio-a-7-1.log").exists()
@@ -193,7 +74,7 @@ def test_turbo_ok_without_diff_is_done_no_diff(env):
     assert fake.ran("gh", "pr", "create") == [] and fake.ran("git", "commit") == []
     claim = read_json(config.CLAIMS)["simplicio-a#4"]
     assert claim["status"] == "done_no_diff" and claim["pr"] is None
-    assert any("sem diff" in body for _, _, body in fake.comments)
+    assert "sem diff" in fake.marker_comments(4)[-1]["body"]
 
 
 def test_first_failure_schedules_retry_in_six_hours(env):
@@ -203,7 +84,7 @@ def test_first_failure_schedules_retry_in_six_hours(env):
     claim = read_json(config.CLAIMS)["simplicio-a#5"]
     assert claim["status"] == "retry" and claim["attempts"] == 1 and claim["error"] == "boom"
     assert claim["next_try_at"] == state.iso(FIXED + timedelta(hours=6))
-    assert not any("parou" in body for _, _, body in fake.comments)
+    assert "parou" not in fake.marker_comments(5)[-1]["body"]
 
 
 def test_retry_is_not_due_before_six_hours(env):
@@ -221,7 +102,7 @@ def test_second_failure_is_dead_with_stop_comment(env):
     run_tick()
     claim = read_json(config.CLAIMS)["simplicio-a#5"]
     assert claim["status"] == "dead" and claim["attempts"] == 2
-    assert any("parou" in body and number == 5 for _, number, body in fake.comments)
+    assert "parou" in fake.marker_comments(5)[-1]["body"]
     run_tick()  # dead is final
     assert len(fake.turbo_argv) == 1
 
@@ -256,7 +137,8 @@ def test_skip_labels_are_never_processed(env):
     baseline()
     run_tick()
     assert fake.turbo_argv == []
-    assert read_json(config.CLAIMS) == {"simplicio-a#1": {"status": "skipped"}, "simplicio-a#2": {"status": "skipped"}}
+    assert read_json(config.STATUS)["skipped_issues"] == {"simplicio-a#1": "skip_label", "simplicio-a#2": "skip_label"}
+    assert fake.api_writes == []
 
 
 def test_in_flight_equals_concurrency(env, monkeypatch):
@@ -294,7 +176,7 @@ def test_dry_run_reads_but_writes_nothing(env, tmp_path):
     baseline()
     before = sorted(p.name for p in tmp_path.iterdir())
     asyncio.run(watcher_main(once=True, dry_run=True))
-    assert fake.turbo_argv == [] and fake.comments == []
+    assert fake.turbo_argv == [] and fake.api_writes == []
     assert sorted(p.name for p in tmp_path.iterdir()) == before
 
 
