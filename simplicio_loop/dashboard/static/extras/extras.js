@@ -47,9 +47,9 @@ function heartbeatOf(value) {
   return { state: live ? 'PASS' : 'UNVERIFIED', text: reason };
 }
 
-// Role, model and tokens are measured; the cost of a stage is always an estimate.
+// Model and tokens are measured; role and effort are the model-roles table default and say so; the cost of a stage is always an estimate.
 function stageText(row) {
-  const who = isText(row.role) ? row.role + (isText(row.effort) ? '/' + row.effort : '') : 'sem papel';
+  const who = isText(row.role) ? row.role + (isText(row.effort) ? '/' + row.effort : '') + ' (padrão da tabela)' : 'sem papel';
   const usd = Number.isFinite(row.cost_usd)
     ? 'US$ ' + row.cost_usd.toFixed(4) + ' estimado'
     : 'custo UNVERIFIED (' + (isText(row.reason) ? row.reason : NO_COST) + ')';

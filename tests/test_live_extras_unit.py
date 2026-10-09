@@ -149,7 +149,7 @@ def test_a_valid_reply_shows_the_measured_rows():
 def test_the_stage_rows_list_role_model_tokens_and_cost_as_estimates_and_the_run_cost_is_visible():
     rows = _extras_of(VALID, STAGES)
     assert rows[4] == {'label': LABELS[4], 'state': 'ESTIMADO', 'text': (
-        'planning: planning/high m-a, entrada 1000, saída 200, US$ 0.0123 estimado; '
+        'planning: planning/high (padrão da tabela) m-a, entrada 1000, saída 200, US$ 0.0123 estimado; '
         'executing: sem papel m-b, entrada 50, saída 5, custo UNVERIFIED (modelo sem preço)')}
     assert rows[5] == {'label': LABELS[5], 'state': 'ESTIMADO', 'text': 'US$ 0.0123 estimado'}
 
@@ -189,7 +189,7 @@ def test_each_row_turns_pass_only_on_a_measured_value(changes, index, state, tex
 def test_start_polls_the_run_extras_and_stage_agents_every_3000_ms():
     out = _start('run-1', [VALID, STAGES])
     assert out['paths'] == ['/api/runs/run-1/extras', '/api/runs/run-1/stage-agents']
-    assert 'planning: planning/high m-a' in out['renders'][1] and 'US$ 0.0123 estimado' in out['renders'][1]
+    assert 'planning: planning/high (padrão da tabela) m-a' in out['renders'][1] and 'US$ 0.0123 estimado' in out['renders'][1]
     assert out['intervals'] == [3000]
 
 
