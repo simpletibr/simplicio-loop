@@ -31,6 +31,7 @@ from simplicio_loop.quality_provider import (
     run_quality_gate,
 )
 from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 
 # --------------------------------------------------------------------------
@@ -359,7 +360,7 @@ def test_conduct_run_without_provider_skips_quality_and_verifies(monkeypatch):
                                         "manifest": {}})
     monkeypatch.setattr(runner_mod, "arm_run", lambda *a, **k: {"manifest": {"run_id": "r"},
                                                                "state": {"phase": "executing"}})
-    monkeypatch.setattr(runner_mod, "_transition", fake_transition)
+    patch_runner(monkeypatch, "_transition", fake_transition)
 
     runner_mod.conduct_run(".", "task.md", "verified", 1)  # no quality_provider
     assert called["verify"] is True

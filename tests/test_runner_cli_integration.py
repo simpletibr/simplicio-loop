@@ -22,6 +22,7 @@ def _contract_only_hookwall(monkeypatch):
 from simplicio_loop.oracle import persist_completion_receipt
 from tests.planning_gate_fixtures import stage_valid_planning_receipt
 from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLI = [sys.executable, "-m", "simplicio_loop.cli"]
@@ -563,7 +564,7 @@ def test_cancel_run_stops_queued_mapper_background_job(tmp_path, monkeypatch):
             returncode=0, stdout=json.dumps({"status": "cancelled"}), stderr=""
         )
     ))
-    monkeypatch.setattr(runner_mod, "_transition", lambda *_args, **_kwargs: None)
+    patch_runner(monkeypatch, "_transition", lambda *_args, **_kwargs: None)
 
     runner_mod.change_phase(str(repo), "run-1", "cancelled", "operator stop")
 
