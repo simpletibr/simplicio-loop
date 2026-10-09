@@ -130,7 +130,7 @@ def test_measured_bars_and_cost_per_task_and_iteration_show_in_dark_and_light(br
             assert "1.500.000 tokens" in page.inner_text("#token-bars")
             tasks = {row["gate"]: row for row in page.evaluate(BADGES_JS, "#task-cost")}
             assert tasks["Tarefa T1"]["state"] == "ESTIMADO"
-            assert "1.000.000 tokens" in tasks["Tarefa T1"]["reason"] and "USD %.4f estimado" % expected_t1 in tasks["Tarefa T1"]["reason"]
+            assert "1.000.000 tokens" in tasks["Tarefa T1"]["reason"] and "a partir de USD %.4f" % expected_t1 in tasks["Tarefa T1"]["reason"]
             assert tasks["Tarefa T2"]["state"] == "ESTIMADO"
             assert "500.000 tokens" in tasks["Tarefa T2"]["reason"] and "USD %.4f estimado" % expected_t2 in tasks["Tarefa T2"]["reason"]
             iterations = {row["gate"]: row for row in page.evaluate(BADGES_JS, "#iteration-cost")}
@@ -242,6 +242,21 @@ def test_a_180_character_task_id_wraps_inside_the_cost_widgets_at_phone_width(br
         page.wait_for_function("() => document.querySelectorAll('#task-cost sl-gate-badge').length >= 1")
         assert page.evaluate(PANEL_INSIDE_JS) is True
         assert page.evaluate(ROWS_INSIDE_JS) is True
+        assert page.problems == []
+    finally:
+        context.close()
+
+
+def test_a_floor_cost_shows_a_partir_de_and_the_reason_on_screen(browser, live_server, repo):
+    run_dir = _run_dir(repo)
+    _emit_usage(run_dir, "T1", "executing", "route-a", 150_000, 2_000, iteration=1)
+    context, page = _open(browser, live_server.port)
+    try:
+        page.wait_for_selector("#task-cost sl-gate-badge", timeout=TIMEOUT_MS)
+        tasks = {row["gate"]: row for row in page.evaluate(BADGES_JS, "#task-cost")}
+        assert "a partir de USD 0.0160" in tasks["Tarefa T1"]["reason"]
+        assert "sem dado por requisição" in page.inner_text("#task-cost-note")
+        assert "sem dado por requisição" in page.inner_text("#iteration-cost-note")
         assert page.problems == []
     finally:
         context.close()
