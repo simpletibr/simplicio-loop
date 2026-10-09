@@ -68,20 +68,25 @@ def engine(tmp_path, monkeypatch):
     (state / "project-map.json").write_text('{"mark":"MAP"}', encoding="utf-8")
     gauge = SimpleNamespace(applying=0, max_applying=0, calling=0, max_calling=0, commands=0)
 
+    receipt = b'{"schema":"simplicio.dev-cli.edit-receipt/v1","applied":true,"receipt_digest":"fake"}'
+
     class FakeProcess:
         returncode = 0
+
+        def __init__(self, cmd):
+            self._stdout = receipt if "--apply" in cmd else b"{}"
 
         async def communicate(self):
             for _ in range(5):  # yield to every other task: an unguarded second apply would start here
                 await asyncio.sleep(0)
             gauge.applying -= 1
-            return b"{}", b""
+            return self._stdout, b""
 
     async def fake_exec(*cmd, **kwargs):
         gauge.commands += 1
         gauge.applying += 1
         gauge.max_applying = max(gauge.max_applying, gauge.applying)
-        return FakeProcess()
+        return FakeProcess(cmd)
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
 
