@@ -1,179 +1,91 @@
-"""closing_words: rewrite GitHub closing keywords to 'Parte de' and detect presence."""
+"""Closing words never leave the watcher (#1644): rewrite, detection, the sanitize door and a seeded property test."""
+import random
+
 import pytest
 
-from simplicio_loop.watcher247.closing_words import rewrite, has_closing
+from simplicio_loop.watcher247 import closing_words
+from simplicio_loop.watcher247.closing_words import KEYWORDS, has_closing, rewrite, sanitize
+
+URL = "https://github.com/o/r/issues/1"
 
 
-class TestRewrite:
-    """rewrite(text) replaces GitHub closing keywords with 'Parte de'."""
-
-    def test_basic_closes(self):
-        """Replaces 'Closes #N' with 'Parte de #N'."""
-        assert rewrite("Closes #42") == "Parte de #42"
-
-    def test_close_singular(self):
-        """Replaces 'Close #N' with 'Parte de #N'."""
-        assert rewrite("Close #42") == "Parte de #42"
-
-    def test_closed_past_tense(self):
-        """Replaces 'Closed #N' with 'Parte de #N'."""
-        assert rewrite("Closed #42") == "Parte de #42"
-
-    def test_fix_variant(self):
-        """Replaces 'Fix #N' with 'Parte de #N'."""
-        assert rewrite("Fix #42") == "Parte de #42"
-
-    def test_fixes_variant(self):
-        """Replaces 'Fixes #N' with 'Parte de #N'."""
-        assert rewrite("Fixes #42") == "Parte de #42"
-
-    def test_fixed_variant(self):
-        """Replaces 'Fixed #N' with 'Parte de #N'."""
-        assert rewrite("Fixed #42") == "Parte de #42"
-
-    def test_resolve_variant(self):
-        """Replaces 'Resolve #N' with 'Parte de #N'."""
-        assert rewrite("Resolve #42") == "Parte de #42"
-
-    def test_resolves_variant(self):
-        """Replaces 'Resolves #N' with 'Parte de #N'."""
-        assert rewrite("Resolves #42") == "Parte de #42"
-
-    def test_resolved_variant(self):
-        """Replaces 'Resolved #N' with 'Parte de #N'."""
-        assert rewrite("Resolved #42") == "Parte de #42"
-
-    def test_case_insensitive_lower(self):
-        """Handles lowercase 'closes'."""
-        assert rewrite("closes #42") == "Parte de #42"
-
-    def test_case_insensitive_upper(self):
-        """Handles uppercase 'CLOSES'."""
-        assert rewrite("CLOSES #42") == "Parte de #42"
-
-    def test_case_insensitive_mixed(self):
-        """Handles mixed case 'ClOsEs'."""
-        assert rewrite("ClOsEs #42") == "Parte de #42"
-
-    def test_with_colon_separator_no_space(self):
-        """Handles colon after keyword with no space: 'Closes:#42'."""
-        assert rewrite("Closes:#42") == "Parte de #42"
-
-    def test_with_colon_and_space(self):
-        """Handles colon with space: 'Closes : #42' (multiple spaces)."""
-        assert rewrite("Closes : #42") == "Parte de #42"
-
-    def test_with_tab_separator(self):
-        """Handles tab separator: 'Closes\t#42'."""
-        # Tab followed by # should be normalized to single space
-        assert rewrite("Closes\t#42") == "Parte de #42"
-
-    def test_owner_repo_reference(self):
-        """Handles owner/repo#N format."""
-        assert rewrite("Closes owner/repo#42") == "Parte de owner/repo#42"
-
-    def test_owner_repo_with_colon_no_space(self):
-        """Handles owner/repo#N with colon, no space."""
-        assert rewrite("Closes:owner/repo#42") == "Parte de owner/repo#42"
-
-    def test_quoted_with_double_quotes(self):
-        """Handles text in double quotes."""
-        assert rewrite('"Closes #42"') == '"Parte de #42"'
-
-    def test_quoted_with_single_quotes(self):
-        """Handles text in single quotes."""
-        assert rewrite("'Closes #42'") == "'Parte de #42'"
-
-    def test_quoted_with_backticks(self):
-        """Handles text in backticks (markdown code)."""
-        assert rewrite("`Closes #42`") == "`Parte de #42`"
-
-    def test_in_multiline_text(self):
-        """Replaces in multiline text."""
-        text = "This PR\nCloses #42\nand fixes things"
-        expected = "This PR\nParte de #42\nand fixes things"
-        assert rewrite(text) == expected
-
-    def test_multiple_occurrences(self):
-        """Replaces multiple occurrences."""
-        text = "Closes #1 and fixes #2"
-        expected = "Parte de #1 and Parte de #2"
-        assert rewrite(text) == expected
-
-    def test_url_format_https(self):
-        """Handles URL format: https://github.com/owner/repo/issues/N."""
-        text = "Closes https://github.com/owner/repo/issues/42"
-        expected = "Parte de https://github.com/owner/repo/issues/42"
-        assert rewrite(text) == expected
-
-    def test_no_replacement_for_similar_word(self):
-        """Does not replace 'prefixes #42' (word boundary check)."""
-        assert rewrite("prefixes #42") == "prefixes #42"
-
-    def test_no_replacement_for_closest(self):
-        """Does not replace 'closest #42' (word boundary check)."""
-        assert rewrite("closest #42") == "closest #42"
-
-    def test_preserves_non_closing_text(self):
-        """Does not touch unrelated text."""
-        assert rewrite("This is a normal text") == "This is a normal text"
-
-    def test_double_space_preserved_or_normalized(self):
-        """Handles double space between keyword and #."""
-        # Double space should be normalized to single space
-        assert rewrite("Closes  #42") == "Parte de #42"
+@pytest.mark.parametrize("text, expected", [
+    ("Closes #1", "Parte de #1"),
+    ("closes: #1", "Parte de #1"),
+    ("FIXED   #1", "Parte de #1"),
+    ("Resolves owner/repo#1", "Parte de owner/repo#1"),
+    ('"Closes #1"', '"Parte de #1"'),
+    ("(fixes #1)", "(Parte de #1)"),
+    ("Fix\n#1", "Parte de #1"),
+    (f"Resolved {URL}", f"Parte de {URL}"),
+    ("fixes\t:\t#12, closes #13", "Parte de #12, Parte de #13"),
+    ("title Resolved: o/r#5 tail", "title Parte de o/r#5 tail"),
+    ("see CLOSE GH-7", "see Parte de GH-7"),
+])
+def test_rewrites_every_closing_shape(text, expected):
+    assert has_closing(text)
+    assert rewrite(text) == expected
 
 
-class TestHasClosing:
-    """has_closing(text) detects GitHub closing keywords."""
+@pytest.mark.parametrize("text", [
+    "prefixes #3", "closest #3", "fixture #3", "close the door #3", "Closes", "Fixes the bug", "Parte de #1",
+    "refs #1", "resolution #2", "unfixed #4", "Closes #", "Fixes #abc",
+])
+def test_leaves_alone_what_github_does_not_treat_as_closing(text):
+    assert not has_closing(text)
+    assert rewrite(text) == text
 
-    def test_closes_present(self):
-        """Returns True when 'Closes' is present."""
-        assert has_closing("Closes #42") is True
 
-    def test_fixes_present(self):
-        """Returns True when 'Fixes' is present."""
-        assert has_closing("Fixes #42") is True
+@pytest.mark.parametrize("word", KEYWORDS)
+def test_every_keyword_in_every_case(word):
+    for variant in (word, word.upper(), word.title(), word.swapcase()):
+        assert rewrite(f"{variant} #9") == "Parte de #9"
 
-    def test_resolves_present(self):
-        """Returns True when 'Resolves' is present."""
-        assert has_closing("Resolves #42") is True
 
-    def test_not_present(self):
-        """Returns False when no closing keyword is present."""
-        assert has_closing("This PR does something") is False
+def test_sanitize_returns_the_rewrite_and_names_what_it_refuses(monkeypatch):
+    assert sanitize("x Fixes #2 y", "PR body") == "x Parte de #2 y"
+    monkeypatch.setattr(closing_words, "rewrite", lambda text: text)  # a rewrite that missed it: the guard still refuses
+    with pytest.raises(RuntimeError, match="PR body still has a GitHub closing word"):
+        sanitize("x Fixes #2 y", "PR body")
 
-    def test_similar_word_not_matched(self):
-        """Returns False for similar words like 'closest'."""
-        assert has_closing("This is closest to what we want") is False
 
-    def test_case_insensitive_detection(self):
-        """Returns True regardless of case."""
-        assert has_closing("CLOSES #42") is True
-        assert has_closing("closes #42") is True
-        assert has_closing("ClOsEs #42") is True
+def _closing(rng: random.Random) -> tuple[str, str]:
+    word = rng.choice(KEYWORDS)
+    word = "".join(c.upper() if rng.random() < 0.5 else c.lower() for c in word)
+    sep = rng.choice(["", ":", "=", ":", "="]) if rng.random() < 0.4 else ""
+    gap = rng.choice([" ", "  ", "\t", "\n", "   "])
+    ref = rng.choice([f"#{rng.randint(1, 99999)}", f"own{rng.randint(1, 9)}/rep-o.x#{rng.randint(1, 999)}",
+                      f"https://github.com/o/r/issues/{rng.randint(1, 999)}", f"GH-{rng.randint(1, 999)}"])
+    return word + (gap if not sep else rng.choice(["", " "]) + sep + gap) + ref, ref
 
-    def test_in_multiline_text(self):
-        """Returns True when closing keyword appears in multiline text."""
-        text = "This PR\nCloses #42\nand does something"
-        assert has_closing(text) is True
 
-    def test_owner_repo_format(self):
-        """Returns True for owner/repo#N format."""
-        assert has_closing("Closes owner/repo#42") is True
+AROUND = ["", "text ", "- ", '"', "(", "* ", "intro line\n\n", "ver ", "Closes the loop. ", "prefixes 3 "]
+AFTER = ["", " tail", ".", ")", '"', "\n- next", ", more", " fixture #3", " closest #4"]
 
-    def test_url_format(self):
-        """Returns True for URL format."""
-        assert has_closing("Closes https://github.com/owner/repo/issues/42") is True
 
-    def test_empty_string(self):
-        """Returns False for empty string."""
-        assert has_closing("") is False
+def test_property_rewrite_clears_every_closing_word_keeps_the_rest_and_is_idempotent():
+    rng = random.Random(1644)
+    for _ in range(400):
+        before, after = rng.choice(AROUND), rng.choice(AFTER)
+        phrase, ref = _closing(rng)
+        text = before + phrase + after
+        out = rewrite(text)
+        assert has_closing(text)
+        assert not has_closing(out), text
+        assert out == before + "Parte de " + ref + after, text  # only the closing phrase changed
+        assert rewrite(out) == out
+        assert sanitize(text, "x") == out
 
-    def test_whitespace_only(self):
-        """Returns False for whitespace-only string."""
-        assert has_closing("   \n\t  ") is False
 
-    def test_prefixes_not_matched(self):
-        """Does not match 'prefixes #N'."""
-        assert has_closing("prefixes #42") is False
+def test_property_many_phrases_in_one_text_and_innocent_text_untouched():
+    rng = random.Random(2026)
+    for _ in range(100):
+        pieces = [_closing(rng)[0] if rng.random() < 0.6 else rng.choice(AROUND + AFTER) for _ in range(rng.randint(2, 6))]
+        text = " | ".join(pieces)
+        out = rewrite(text)
+        assert not has_closing(out), text
+        assert rewrite(out) == out
+    innocent = ["prefixes #3", "closest #3", "fixture #3", "close the door #3", "refix"]
+    for _ in range(100):
+        text = " ".join(rng.choice(innocent) for _ in range(4))
+        assert rewrite(text) == text and not has_closing(text)

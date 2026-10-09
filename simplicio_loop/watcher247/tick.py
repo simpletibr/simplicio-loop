@@ -14,7 +14,8 @@ from pathlib import Path
 from .. import escalation, intake_gate, squad_capacity, watcher_github
 from ..claim_lease import ClaimStore
 from . import budget, config, events, github, host_mode, onboarding, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify, worktrees
-from .closing_words import rewrite, has_closing
+from .closing_words import sanitize
+from .pr_text import pr_title
 
 _STATE_DIRS = (".simplicio-loop/",)
 
@@ -82,34 +83,6 @@ async def dirty(dest: Path) -> bool:
     return False
 
 
-
-def _truncate_pr_title(title: str, max_len: int = 70) -> str:
-    """Truncate PR title at word boundary, preserving issue number.
-    
-    Finds last space within max_len and cuts there. If title fits, returns as-is.
-    Appends "…" if truncated.
-    """
-    if len(title) <= max_len:
-        return title
-    # Find the issue number pattern (e.g., [#1234]) if present
-    import re
-    issue_match = re.search(r'\[#\d+\]', title)
-    issue_suffix = ""
-    if issue_match:
-        issue_suffix = issue_match.group(0)
-        # Try to preserve issue number in truncated title
-        title_for_cut = title[:issue_match.start()]
-        max_for_text = max_len - len(issue_suffix) - 1  # 1 for space before issue
-        if max_for_text > 10:
-            cut_pos = title_for_cut[:max_for_text].rfind(' ')
-            if cut_pos > 0:
-                return title_for_cut[:cut_pos].rstrip() + " " + issue_suffix + "…"
-    # No issue number or couldn't preserve it; just truncate at word boundary
-    cut_pos = title[:max_len].rfind(' ')
-    if cut_pos > 0:
-        return title[:cut_pos].rstrip() + "…"
-    return title[:max_len] + "…"
-
 async def commit_and_pr(gate: worktrees.Gate, dest: Path, repo: str, branch: str, head: str, issue: dict, pr: int = 0, label: str = "",
                         executor: str = "exec") -> str | None:
     """Commit the turbo result and push. A fix pushes to its open PR; otherwise a PR is opened. None when there is no diff."""
@@ -121,16 +94,10 @@ async def commit_and_pr(gate: worktrees.Gate, dest: Path, repo: str, branch: str
     if not staged.stdout.strip():
         return None
     await secret_scan.check_staged(dest)  # raises SecretDetected: nothing is committed or pushed
-    title = f"loop: {issue.get('title') or issue['number']}"
-    # Rewrite any closing words and validate
-    title_rewritten = rewrite(title)
-    if has_closing(title):
-        raise RuntimeError(f"PR title contains GitHub closing keyword (must use 'Parte de'): {title}")
-    commit_msg = f"{title}\n\nParte de #{issue['number']}\n"
-    commit_msg_rewritten = rewrite(commit_msg)
-    if has_closing(commit_msg_rewritten):
-        raise RuntimeError(f"Commit message still contains closing keyword after rewrite: {commit_msg_rewritten}")
-    commit = await proc.run(["git", "commit", "-m", commit_msg_rewritten], cwd=dest, timeout=60)
+    number = issue["number"]
+    title = pr_title(number, issue.get("title") or "")  # one title for the PR and the commit; no closing word, "#N" whole
+    message = sanitize(f"{title}\n\nParte de #{number}\n", "commit message")
+    commit = await proc.run(["git", "commit", "-m", message], cwd=dest, timeout=60)
     if commit.returncode != 0:
         raise _fail(commit, "commit failed")
     push = await worktrees.push(gate, repo, dest, head)
@@ -138,18 +105,14 @@ async def commit_and_pr(gate: worktrees.Gate, dest: Path, repo: str, branch: str
         raise _fail(push, "push failed")
     if pr:
         return f"https://github.com/{config.ORG}/{repo}/pull/{pr}"
-    body = (
-        f"Processamento automatico do Simplicio-Loop 24h (executor {executor}) da issue #{issue['number']}.\n\n"
+    body = sanitize(
+        f"Processamento automatico do Simplicio-Loop 24h (executor {executor}) da issue #{number}.\n\n"
         f"{label}\n\n"
-        f"Parte de #{issue['number']}\n"
-    )
-    # Validate that body doesn't have any closing words
-    if has_closing(body):
-        raise RuntimeError(f"PR body contains GitHub closing keyword: {body[:200]}")
+        f"Parte de #{number}\n", "PR body")  # the label comes from the model
     pr_cmd = [
         "gh", "pr", "create", "--repo", f"{config.ORG}/{repo}",
         "--base", branch, "--head", head,
-        "--title", _truncate_pr_title(title), "--body", body,
+        "--title", title, "--body", body,
     ]
     if squad_flow.pr_draft_enabled():
         pr_cmd.append("--draft")
