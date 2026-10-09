@@ -1,6 +1,7 @@
 """3.44.1: pinned session, no fixed wave sleep, reasoning off, per-call telemetry, independent tasks."""
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import subprocess
@@ -26,15 +27,23 @@ def _repo(tmp_path, monkeypatch):
 def test_wave_does_not_sleep_after_the_first_call(tmp_path, monkeypatch):
     _repo(tmp_path, monkeypatch)
     slept = []
-    monkeypatch.setattr("time.sleep", lambda seconds: slept.append(seconds))
+    real_sleep = asyncio.sleep
 
-    def complete(arm, messages, **kwargs):
+    async def recording_sleep(seconds, *args, **kwargs):
+        slept.append(seconds)
+        return await real_sleep(seconds, *args, **kwargs)
+
+    monkeypatch.setattr("time.sleep", lambda seconds: slept.append(seconds))
+    monkeypatch.setattr(asyncio, "sleep", recording_sleep)
+
+    async def complete(arm, messages, **kwargs):
         if kwargs.get("max_tokens") == 1:  # warm-up call
             return {"ok": True, "content": "OK"}
         name = "page" + messages[-1]["content"].split("Tasks:", 1)[1].strip().split(".", 1)[0].strip()
         return {"ok": True, "content": '{"operations":[{"path":"%s.html","find":"","replace":"x"}]}' % name}
 
-    run_turbo(tmp_path, [{"index": i, "text": "Create %s" % i} for i in range(1, 5)], complete)
+    result = asyncio.run(run_turbo(tmp_path, [{"index": i, "text": "Create %s" % i} for i in range(1, 5)], complete))
+    assert result["wave"] is True and result["applied_all"] is True and len(result["llm_calls"]) == 5  # warm-up + 4 tasks
     assert slept == []
 
 
