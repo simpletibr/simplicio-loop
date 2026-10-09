@@ -21,8 +21,11 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 
 | Command | Purpose |
 |---|---|
-| `install` | Install bundled skills and hooks into a supported runtime. |
-| `update` | Install the latest GitHub release of `simpletibr/simplicio-loop` (`--check` only reports, `--force` reinstalls) and refresh the global skills. |
+| `login` | Sign in with Google and share the login with the Simplicio Runtime. Looks for the Runtime binary on PATH. Without the Runtime, prints how to install it. `--no-browser` disables browser launch. Exit 0 is verified, 1 is not verified, 2 is refused. |
+| `logout` | Delete the shared login file. Both the loop and the Runtime log out. Requires `--yes` to proceed. Exit 0 is success, 1 is not logged in, 2 is refused. |
+| `auth status` | Print the login state. Include whether login is present or missing, e-mail masked, token expiry, entitlement tier, and Runtime version. `--online` also checks the tokens. Exit 0 when usable login exists, 1 otherwise. |
+| `install` | Install bundled skills and hooks into a supported runtime. New flags: `--check` (report without writing), `--json` (output JSON). |
+| `update` | Install the latest GitHub release of `simpletibr/simplicio-loop` (`--check` only reports, `--dry-run` previews, `--force` reinstalls and allows downgrades) and refresh the global skills. The command checks the SHA256 before any change. |
 | `dashboard` | Open the Simplicio Live run panel on 127.0.0.1:8765 (prints a tokenised URL); `--run`, `--repo`, `--port`, `--no-browser`, `--stop`, `--status`, `--snapshot` (with `--history` for the run history page), `--tui`; `--tokens` opens the legacy Token Monitor on port 9090. |
 | `task` | Compile, validate, or preview a Markdown task contract. |
 | `prototype` | Route prototype planning and validation commands. |
@@ -37,7 +40,9 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `oracle` | Evaluate completion and cross-runtime parity. |
 | `status` | Inspect the latest or a selected run. |
 | `stack lock/verify` | Create or verify an installed-stack lock. |
-| `doctor` | Inspect stack identity, source adapters, or storage routing. |
+| `doctor` | Inspect stack and integration status (login, update, distribution, Runtime, operators, disk). Exit 0 unless a FAIL state exists. |
+| `doctor all` | Print the full overview: login, update availability, distribution kind, Runtime coexistence, operator versions, and free disk. `--json` outputs JSON. `--online` queries GitHub for updates. |
+| `doctor login` | Print only the login section: present or missing, path, Runtime version found, WARN if the paths differ. |
 | `doctor mapper` | Check that the installed `simplicio_mapper` is the expected build (origin, state dir, source commit); each blocker names a `reason_code` and a `fix`. |
 | `inspect` | Inspect MapperStore capabilities and storage routing. |
 | `map` | Inspect or build map-service receipts. |

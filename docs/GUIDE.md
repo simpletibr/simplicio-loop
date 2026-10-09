@@ -1059,11 +1059,14 @@ Pass **`--minimal`** only for headless/CI to skip the heavy deps + the machine s
 ```bash
 python3 scripts/release_check.py check   # is a newer release published? — never auto-updates
 bash scripts/update.sh [<runtime>]       # git pull → reinstall skills/hooks/operators → restart services
-simplicio-loop update                    # pip-installed: latest GitHub release (--check: report only, --force: reinstall)
+simplicio-loop update                    # pip-installed: latest GitHub release (--check: report only, --dry-run: preview, --force: reinstall)
 ```
 
 `simplicio-loop update` installs the latest GitHub release of `simpletibr/simplicio-loop` and
-refreshes the global skills. Because mapper and dev-cli are bundled in the wheel, it first removes
+refreshes the global skills. Use `--check` to report without changing anything, or `--dry-run` to preview
+the installation. The `--force` flag reinstalls even when up to date and allows a downgrade.
+The command checks the SHA256 of the downloaded file before any change occurs.
+Because mapper and dev-cli are bundled in the wheel, it first removes
 any pre-monorepo standalone `simplicio-cli` / `simplicio-mapper` distributions (they own the same
 files); an editable checkout install is told to `git pull` and re-run `scripts/dev_install.sh`.
 
@@ -1240,11 +1243,20 @@ The complete command reference is [`docs/CLI_COMMANDS.md`](CLI_COMMANDS.md). The
 ### Doctor — verify + repair
 
 ```bash
+simplicio-loop doctor           # report stack, login, update availability, and integrations
+simplicio-loop doctor all       # full overview with all checks (--online: query GitHub for updates)
+simplicio-loop doctor login     # print login state only
 python3 scripts/doctor.py            # report the whole stack (REQUIRED vs OPTIONAL)
 python3 scripts/doctor.py --repair   # install/wire what's fixable; make everything operational
 python3 scripts/preflight.py --json   # fail-closed mapper + dev-cli
 # also: bash scripts/simplicio-economy.sh doctor [--repair]
 ```
+
+`simplicio-loop doctor` prints an overview of your installation. It shows your login status, token expiry,
+whether a newer release is available (cached offline; use `--online` to query GitHub), which distribution
+you installed (pip / source / binary), whether the optional Simplicio Runtime is available, and whether
+the bundled operators match their installed versions. When a FAIL state is found (for example, a login file
+that is unreadable or world-readable), the exit code is 1.
 
 `doctor` separates **REQUIRED** (python3, the loop package and its bundled mapper/dev-cli bins,
 the 7 skills, the loop hooks, the capture proxy — `--repair` installs/wires them) from

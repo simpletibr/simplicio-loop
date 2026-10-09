@@ -55,6 +55,7 @@ Needs Python 3.11+, `git`, and an authenticated `gh` for GitHub issues.
 ```bash
 pip install simplicio-loop
 simplicio-loop install            # skills + hooks in this project (--global: user-wide, --host <name>: another host)
+simplicio-loop login              # sign in; shares the login with simplicio-runtime
 simplicio-loop doctor             # check the installed stack
 ```
 

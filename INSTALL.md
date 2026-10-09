@@ -52,6 +52,21 @@ effects require an explicit flag), see [`docs/INSTALL_MUTATIONS.md`](docs/INSTAL
 
 (or `codex exec`, `gemini -p`, `aider --message`, etc. — see your runtime's adapter.)
 
+## 3.1. Login, update, and check the install
+
+Sign in to share your login with the optional Simplicio Runtime:
+
+```bash
+simplicio-loop login            # Google sign-in; shares the login with simplicio-runtime
+simplicio-loop auth status      # check who is logged in
+simplicio-loop logout           # sign out (requires --yes)
+simplicio-loop doctor           # inspect stack and integration status
+simplicio-loop update           # install the latest release (--check: report only)
+```
+
+For pip installs, `update` downloads the latest GitHub release and runs the install step.
+For source (git) checkouts, use `git pull` then `bash scripts/dev_install.sh`.
+
 ## 4. Token economy (no wiring needed)
 
 ```bash
