@@ -24,7 +24,7 @@ PROGRAMS = {
 }
 # Modules the hot path imports inside its commands; the daemon imports them once so the children inherit them.
 PRELOAD = (
-    "asyncio", "simplicio_loop.turbo", "simplicio_loop.turbo_cli", "simplicio_loop.turbo_run",
+    "asyncio", "ctypes", "simplicio_loop.turbo", "simplicio_loop.turbo_cli", "simplicio_loop.turbo_run",
     "simplicio_loop.map_service_mapper", "simplicio_loop.exec_planner", "simplicio_loop.operator_exec",
 )
 
@@ -34,21 +34,65 @@ def resolve(spec: str) -> Any:
     return getattr(importlib.import_module(module), attribute)
 
 
-def _text_stream(fd: int, mode: str, encoding: str, errors: str) -> io.TextIOWrapper:
-    raw = open(fd, mode + "b", buffering=-1, closefd=False)
+def _text_stream(fd: int, mode: str, encoding: str, errors: str, unbuffered: bool = False) -> io.TextIOWrapper:
+    raw = open(fd, mode + "b", buffering=0 if unbuffered and mode == "w" else -1, closefd=False)
     line_buffered = mode == "w" and (fd == 2 or os.isatty(fd))  # python's own rule for stdout and stderr
-    return io.TextIOWrapper(raw, encoding=encoding, errors=errors, line_buffering=line_buffered)
+    return io.TextIOWrapper(raw, encoding=encoding, errors=errors, line_buffering=line_buffered,
+                            write_through=unbuffered and mode == "w")
 
 
-def _attach_stdio(encodings: Mapping[str, Any]) -> None:
+def _attach_stdio(encodings: Mapping[str, Any], unbuffered: bool = False) -> None:
     """Make ``sys.stdin/stdout/stderr`` fresh wrappers over fds 0, 1 and 2, with the caller's encodings."""
     def enc(name: str) -> tuple[str, str]:
         found = encodings.get(name) or {}
         return str(found.get("encoding") or "utf-8"), str(found.get("errors") or "strict")
 
     sys.stdin = sys.__stdin__ = _text_stream(0, "r", *enc("stdin"))
-    sys.stdout = sys.__stdout__ = _text_stream(1, "w", *enc("stdout"))
-    sys.stderr = sys.__stderr__ = _text_stream(2, "w", enc("stderr")[0], "backslashreplace")
+    sys.stdout = sys.__stdout__ = _text_stream(1, "w", *enc("stdout"), unbuffered)
+    sys.stderr = sys.__stderr__ = _text_stream(2, "w", enc("stderr")[0], "backslashreplace", unbuffered)
+
+
+def _raise_interrupt(signum: int, frame: Any) -> None:
+    """SIGTERM, the hang-up of the caller, reaches the command as Ctrl-C does in a process: ``finally`` and
+    ``atexit`` run. A command that ignores it is killed after the grace period."""
+    raise KeyboardInterrupt
+
+
+def _die_with_the_daemon(parent: int) -> None:
+    """Linux: the kernel kills this process when the daemon dies, so a command never outlives its daemon and a
+    retry in-process cannot meet a second writer. Elsewhere only the check below applies (UNVERIFIED on macOS)."""
+    if sys.platform.startswith("linux"):
+        import ctypes
+
+        if ctypes.CDLL(None, use_errno=True).prctl(1, int(signal.SIGKILL), 0, 0, 0) != 0:  # PR_SET_PDEATHSIG
+            raise OSError(ctypes.get_errno(), "cannot ask the kernel to stop this command with its daemon")
+    if os.getppid() != parent:
+        raise RuntimeError("the daemon is gone")  # it died between the fork and the request above
+
+
+def apply_process(proc: Mapping[str, Any]) -> None:
+    """Give this command the priority, limits and cpus of its caller. What the system refuses (an unprivileged
+    daemon cannot give more priority or higher limits than it started with) is said on stderr, never hidden."""
+    import resource
+
+    refused: list[str] = []
+
+    def attempt(what: str, action: Any, *arguments: Any) -> None:
+        try:
+            action(*arguments)
+        except (OSError, ValueError) as error:
+            refused.append(f"{what} ({error})")
+
+    if "nice" in proc:
+        attempt(f"nice {proc['nice']}", os.setpriority, os.PRIO_PROCESS, 0, proc["nice"])
+    for name, limits in proc.get("rlimits", {}).items():
+        attempt(f"{name} limit {limits[0]}/{limits[1]}", resource.setrlimit, getattr(resource, "RLIMIT_" + name), tuple(limits))
+    if proc.get("cpus"):
+        attempt(f"cpus {proc['cpus']}", os.sched_setaffinity, 0, proc["cpus"])
+    if refused:
+        print("simplicio-loop: daemon: this command runs with the daemon's own priority, limits and cpus, not its "
+              f"caller's: the system refused {', '.join(refused)}; run `simplicio-loop daemon stop` and start the "
+              "next command from the shell that should set them", file=sys.stderr)
 
 
 def _exit_code(value: Any) -> int:
@@ -93,14 +137,16 @@ def _finish(code: int) -> None:
     os._exit(code)
 
 
-def serve_request(request: Mapping[str, Any], fds: Sequence[int], entry: Any, run_dir: str, key: str) -> None:
-    """Run in the child, right after the fork. Never returns."""
+def serve_request(request: Mapping[str, Any], fds: Sequence[int], entry: Any, run_dir: str, key: str,
+                  parent: int) -> None:
+    """Run in the child, right after the fork; ``parent`` is the pid of the daemon. Never returns."""
     code = 70  # EX_SOFTWARE: the child failed before the program ran
     try:
         os.setsid()  # its own process group: a hang-up kills the program and what it started, never the daemon
+        _die_with_the_daemon(parent)
         signal.set_wakeup_fd(-1)  # the daemon's loop wrote to it
         signal.signal(signal.SIGCHLD, signal.SIG_DFL)
-        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+        signal.signal(signal.SIGTERM, _raise_interrupt)
         signal.signal(signal.SIGINT, signal.default_int_handler)
         for target, source in enumerate(fds):
             os.dup2(source, target)
@@ -110,7 +156,8 @@ def serve_request(request: Mapping[str, Any], fds: Sequence[int], entry: Any, ru
         os.environ[protocol.NESTED_ENV] = "1"
         time.tzset()
         os.umask(int(request.get("umask", 0o022)))
-        _attach_stdio(request.get("enc") or {})
+        _attach_stdio(request.get("enc") or {}, bool(request["env"].get("PYTHONUNBUFFERED")))
+        apply_process(request.get("proc") or {})
         sys.argv = [request["program"], *request["argv"]]
         protocol.CURRENT = protocol.Current(run_dir, key)
         import asyncio
