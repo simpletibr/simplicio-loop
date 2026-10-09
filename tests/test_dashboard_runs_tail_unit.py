@@ -310,3 +310,69 @@ def test_line_ends_split_across_read_chunks_give_the_same_answer(tmp_path, monke
     for _ in range(12):
         _append(run_dir, _random_lines(rng))
         assert runs._last_seq(run_dir, tail) == _text_mode_scan(run_dir), f'seed {seed}'
+
+
+def test_a_new_inode_with_the_same_ends_is_read_again(tmp_path):
+    run_dir = _run(tmp_path)
+    events = run_dir / 'events.jsonl'
+    events.write_text(''.join(_line(n, 600) for n in range(1, 301)), encoding='utf-8')
+    tail = runs._Tail()
+    assert runs._last_seq(run_dir, tail) == 300
+    lines = events.read_bytes().split(b'\n')
+    lines[150] = _line(50000, 596).rstrip().encode()  # the middle changes, the size, the head and the last 4 KiB do not
+    replacement = run_dir / 'events.tmp'
+    replacement.write_bytes(b'\n'.join(lines))
+    os.utime(replacement, ns=(events.stat().st_mtime_ns,) * 2)
+    os.replace(replacement, events)
+    assert runs._last_seq(run_dir, tail) == runs._last_seq(run_dir) == 50000
+
+
+def test_an_append_hashes_at_most_the_two_windows(tmp_path, monkeypatch):
+    run_dir = _run(tmp_path)
+    (run_dir / 'events.jsonl').write_text(''.join(_line(n, 600) for n in range(1, 3001)), encoding='utf-8')
+    tail = runs._Tail()
+    runs._last_seq(run_dir, tail)
+    fed = []
+    real = runs.hashlib.blake2b
+
+    def spy(*args, **kwargs):
+        digest = real(*args, **kwargs)
+        update = digest.update
+        fed.append(0)
+        return type('Spy', (), {'update': lambda self, data: (fed.__setitem__(-1, fed[-1] + len(data)), update(data))[1],
+                                'digest': lambda self: digest.digest()})()
+
+    monkeypatch.setattr(runs.hashlib, 'blake2b', spy)
+    _append(run_dir, _line(3001))
+    assert runs._last_seq(run_dir, tail) == 3001
+    assert fed and max(fed) <= 2 * runs.TAIL_WINDOW_BYTES
+
+
+def test_an_append_reads_the_file_without_a_second_pass(tmp_path, monkeypatch):
+    run_dir = _run(tmp_path)
+    (run_dir / 'events.jsonl').write_text(''.join(_line(n, 600) for n in range(1, 301)), encoding='utf-8')
+    tail = runs._Tail()
+    runs._last_seq(run_dir, tail)
+    _append(run_dir, _line(301))
+    real = runs._ends_before
+    calls = []
+    monkeypatch.setattr(runs, '_ends_before', lambda fh, offset: (calls.append(offset), real(fh, offset))[1])
+    assert runs._last_seq(run_dir, tail) == 301
+    assert len(calls) == 1  # the fingerprint of the new offset comes from the consumed bytes, not from a re-read
+
+
+def test_a_rewrite_between_the_read_and_the_fingerprint_is_not_certified(tmp_path, monkeypatch):
+    run_dir = _run(tmp_path)
+    events = run_dir / 'events.jsonl'
+    events.write_text(''.join(_line(n) for n in range(10, 20)), encoding='utf-8')
+    tail = runs._Tail()
+    real = runs._fingerprint
+
+    def rewrite_then_fingerprint(head, window):
+        events.write_text(_line(10) * 10, encoding='utf-8')  # same inode and size, rewritten after it was counted
+        return real(head, window)
+
+    monkeypatch.setattr(runs, '_fingerprint', rewrite_then_fingerprint)
+    assert runs._last_seq(run_dir, tail) == 19
+    monkeypatch.setattr(runs, '_fingerprint', real)
+    assert runs._last_seq(run_dir, tail) == runs._last_seq(run_dir) == 10
