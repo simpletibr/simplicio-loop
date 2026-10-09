@@ -85,6 +85,18 @@ def usage(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
             'by_phase': by_phase, 'by_lane': by_lane, 'by_model': by_model}
 
 
+def price_for(models: dict[str, Any], model: str) -> dict[str, Any] | None:
+    '''The longest table key that prefixes the model id, so a dated id takes its family's price.
+
+    Same rule as priceFor in static/live/economy.js; the two must agree (tests/test_dashboard_economy_pricing_contract_unit.py).
+    '''
+    best = None
+    for key in models:
+        if model.startswith(key) and (best is None or len(key) > len(best)):
+            best = key
+    return models[best] if best is not None else None
+
+
 def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | None) -> dict[str, Any]:
     '''USD for the run: measured input/output tokens per model times the price table. Always an estimate.
 
@@ -115,7 +127,7 @@ def cost_estimate(events: Iterable[dict[str, Any]], prices: dict[str, Any] | Non
         return row
     total = 0.0
     for model, (tokens_in, tokens_out) in sorted(per_model.items()):
-        price = table.get(model)
+        price = price_for(table, model)
         in_rate = _number(price.get('input_per_mtok')) if isinstance(price, dict) else None
         out_rate = _number(price.get('output_per_mtok')) if isinstance(price, dict) else None
         if in_rate is None or out_rate is None:

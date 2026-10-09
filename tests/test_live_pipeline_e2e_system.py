@@ -179,6 +179,34 @@ def test_pipeline_replays_in_order_and_the_ring_waits_for_the_receipt(open_page,
     assert page.problems == []
 
 
+GATE_WATCH_JS = r'''() => {
+  window.__gateChanges = [];
+  const seen = {};
+  const scan = () => document.querySelectorAll('#gates li[data-gate]').forEach((li) => {
+    const badge = li.querySelector('sl-gate-badge');
+    if (!badge) return;
+    const key = (badge.getAttribute('state') || '') + '|' + (badge.getAttribute('reason') || '');
+    if (li.dataset.gate in seen && seen[li.dataset.gate] !== key) window.__gateChanges.push([li.dataset.gate, badge.getAttribute('state')]);
+    seen[li.dataset.gate] = key;
+  });
+  scan();
+  new MutationObserver(scan).observe(document.getElementById('gates'), {
+    subtree: true, childList: true, attributes: true, attributeFilter: ['state', 'reason'],
+  });
+  return true;
+}'''
+GATE_CHANGES = [['watcher', 'UNVERIFIED'], ['evidence', 'PASS'], ['oracle', 'UNVERIFIED']]
+
+
+def test_gates_change_in_the_browser_in_the_order_of_their_events(open_page, repo):
+    page = open_page('dark')
+    assert page.evaluate(GATE_WATCH_JS)
+    _replay(_run_dir(repo), _fixture_events())
+    _wait_seq(page, 28)
+    assert page.evaluate('() => window.__gateChanges') == GATE_CHANGES
+    assert page.problems == []
+
+
 def test_reduced_motion_leaves_no_running_animation(open_page, repo):
     _replay(_run_dir(repo), _fixture_events())
     page = open_page('dark', reduced_motion='reduce')

@@ -75,6 +75,7 @@ from .economy_profile import (
     resolve_prism_batch_size,
 )
 from .map_service_cli import configure_commands as configure_map_commands, dispatch as dispatch_map
+from .squads import configure_commands as configure_squads_commands, dispatch as dispatch_squads
 from .serverless_deploy import build_plan as build_serverless_plan, execute_plan as execute_serverless_plan
 from .json_order import stable_first
 
@@ -2931,6 +2932,9 @@ def main(argv=None) -> int:
     map_sub = p_map.add_subparsers(dest="map_command", required=True)
     configure_map_commands(map_sub)
 
+    p_squads = sub.add_parser("squads", help="plan squads and check the squad merge gate")
+    configure_squads_commands(p_squads.add_subparsers(dest="squads_command", required=True))
+
     p_preflight = sub.add_parser(
         "preflight", help="verify bound operators (mapper/dev-cli) are installed")
     p_preflight.add_argument("--repo", default=".", help="repository root")
@@ -2996,6 +3000,7 @@ def main(argv=None) -> int:
     p_verify.add_argument("run_id", help="run id to verify")
 
     p_watch247 = sub.add_parser("watch247", help="run the 24/7 watcher for simplicio-* repos")
+    p_watch247.add_argument("action", nargs="?", choices=["login-check"], help="login-check: exec CLI logins (#1467)")
     p_watch247.add_argument("--once", action="store_true", help="run one tick and exit")
     p_watch247.add_argument("--dry-run", action="store_true", help="simulate without mutations")
     p_watch247.add_argument("--state-dir", help="override state directory")
@@ -3313,6 +3318,8 @@ def main(argv=None) -> int:
         return storage_cli(forwarded)
     if command == "map":
         return dispatch_map(args)
+    if command == "squads":
+        return dispatch_squads(args)
     if command == "preflight":
         return preflight(args.repo, args.json, strict=bool(getattr(args, "strict", False)))
     if command == "ecc":
@@ -3341,6 +3348,9 @@ def main(argv=None) -> int:
         return economy_command(args)
     if command == "verify":
         return verify(args.repo, args.run_id)
+    if command == "watch247" and args.action == "login-check":
+        from .watcher247.login_check import main as login_check_main
+        return login_check_main()
     if command == "watch247":
         import asyncio
         from .watcher247 import config as watcher247_config
