@@ -534,6 +534,11 @@ def _waiting(run_dir: Path) -> int:
     return client.status(run_dir=run_dir, key=KEY)["waiting"]
 
 
+def _drained(run_dir: Path) -> bool:
+    status = client.status(run_dir=run_dir, key=KEY)
+    return status["waiting"] == 0 and status["active"] == 0
+
+
 def test_a_queued_command_whose_caller_gave_up_does_not_run_when_the_slot_frees(daemons, run_dir, tmp_path):
     serve(daemons, run_dir, DAEMON_TEST_MAX_CHILDREN="1")
     first, close = hold(run_dir, "sleeper", str(tmp_path / "first"), "3")
@@ -543,8 +548,9 @@ def test_a_queued_command_whose_caller_gave_up_does_not_run_when_the_slot_frees(
         assert wait_until(lambda: _waiting(run_dir) == 1), "the command did not queue"
         queued.kill()  # Ctrl-C or a closed terminal: nobody wants this command any more
         queued.wait()
-        assert wait_until(lambda: _waiting(run_dir) == 0, 30), "the slot never freed"
+        assert wait_until(lambda: _drained(run_dir), 30), "the slot never freed"
         assert not wait_until(marker.exists, 1.5), "the command of a caller that was gone ran when the slot freed"
+        assert client.status(run_dir=run_dir, key=KEY)["served"] == 1, "the daemon started the command of a caller that was gone"
         assert call(run_dir, "no-read").out.strip() == "did not read stdin"  # and the daemon goes on serving
     finally:
         kill_quietly(queued.pid)
@@ -705,6 +711,13 @@ def test_a_caller_that_hangs_up_right_after_the_daemon_forked_cannot_stop_the_da
     time.sleep(0.5)
     assert daemon.poll() is None and client.status(run_dir=run_dir, key=KEY)["pid"] == daemon.pid
     assert call(run_dir, "no-read").out.strip() == "did not read stdin"
+
+
+def test_the_daemon_still_stops_on_sigterm_after_it_ran_commands(daemons, run_dir):
+    daemon = serve(daemons, run_dir)
+    assert call(run_dir, "no-read").rc == 0
+    daemon.send_signal(signal.SIGTERM)  # the signals held back around the fork are the child's, never the daemon's
+    assert daemon.wait(10) == 0
 
 
 # ---- audit of PR #1645, minor: a huge number from a caller of the same user -----------------------------------
