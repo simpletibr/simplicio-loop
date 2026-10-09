@@ -192,7 +192,8 @@ def test_the_printed_command_survives_a_real_shell_with_quotes_dollars_and_backt
         f'#!/bin/sh\nexec "{sys.executable}" -c "import sys; from simplicio_loop.cli import main; sys.exit(main())" "$@"\n',
         encoding="utf-8")
     (shim / "simplicio-loop").chmod(0o755)
-    env = {"PATH": f"{shim}:/usr/bin:/bin", "HOME": str(tmp_path), "LANG": "C"}
+    # PYTHONPATH pins the shim to this checkout: an installed simplicio_loop would not know the new --run-id flag.
+    env = {"PATH": f"{shim}:/usr/bin:/bin", "HOME": str(tmp_path), "LANG": "C", "PYTHONPATH": str(ROOT)}
     proc = subprocess.run(["/bin/sh", "-c", script], cwd=tmp_path, env=env, capture_output=True, text=True,
                           timeout=120, check=False)
     out = json.loads(proc.stdout)
