@@ -375,6 +375,12 @@ def write_mapping_artifacts(cwd: str, meta: dict | None = None, incremental: boo
     # Publish the manifest last: readers can reject any in-flight mixed set by
     # validating the commit marker against the five artifact digests.
     _write_json_stable(artifact_manifest_path, artifact_manifest)
+    # A full set supersedes the worktree's overlay state (issue #1574); a stale overlay.json
+    # would keep pinning a central base this worktree no longer reads.
+    try:
+        os.remove(os.path.join(abs_out, "overlay.json"))
+    except OSError:
+        pass
     if execution_plan:
         _write_json_stable(execution_plan_path, execution_plan)
     log(f"-> wrote {os.path.relpath(project_map_path, abs_cwd)} "

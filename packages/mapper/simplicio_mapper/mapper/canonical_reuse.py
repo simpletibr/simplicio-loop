@@ -387,6 +387,10 @@ def _materialize_hit(root: str, out: str, manifest: CanonicalMapManifest) -> dic
     _write_json_stable(architecture_inventory_path, architecture_inventory)
     _write_json_stable(symbol_index_path, symbol_index)
     _write_json_stable(call_graph_path, call_graph)
+    try:  # a full set supersedes the worktree's overlay state (issue #1574)
+        os.remove(os.path.join(abs_out, "overlay.json"))
+    except OSError:
+        pass
 
     return {
         "project_map_path": project_map_path,

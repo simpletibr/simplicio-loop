@@ -307,7 +307,7 @@ def _canonical_plan(repo: str, keep: int, digests: Set[str], plan: GcPlan) -> No
         return
     try:
         report = scan_canonical_gc(
-            repo, apply=False, keep_last=keep, referenced_digests=frozenset(digests),
+            repo, apply=False, keep_last=keep, referenced_digests=frozenset(digests), now=plan.now,
         )
     except Exception as exc:  # noqa: BLE001
         plan.errors.append("canonical gc failed: %s" % exc)
@@ -391,7 +391,7 @@ def apply_gc(plan: GcPlan) -> GcResult:
             from simplicio_mapper.mapper.canonical_gc import scan_canonical_gc
 
             report = scan_canonical_gc(
-                plan.repo, apply=True, keep_last=plan.keep,
+                plan.repo, apply=True, keep_last=plan.keep, now=plan.now,
                 referenced_digests=frozenset((plan.canonical or {}).get("digests", [])),
             )
             cache_root = _cache_root(Path(plan.common_dir))

@@ -309,6 +309,16 @@ class IsolationTests(OverlayCase):
         subprocess.run(argv + ["verify", str(wt), "--json"], capture_output=True, env=env)
         self.assertEqual(len(os.listdir(os.path.join(self.cache, "canonical"))), 1, "exactly one base per tree")
 
+    def test_a_full_index_replaces_the_overlay_state(self) -> None:
+        from simplicio_mapper.mapper.emit import write_mapping_artifacts
+
+        wt = self.worktree()
+        apply_overlay(str(wt))
+        self.assertTrue((wt / ".simplicio-loop" / OVERLAY_STATE_FILE).exists())
+        write_mapping_artifacts(str(wt))
+        self.assertFalse((wt / ".simplicio-loop" / OVERLAY_STATE_FILE).exists(), "a stale overlay.json would pin a base")
+        self.assertTrue((wt / ".simplicio-loop" / "call-graph.json").exists())
+
     def test_two_worktrees_asking_at_once_share_one_base_build(self) -> None:
         import threading
 
