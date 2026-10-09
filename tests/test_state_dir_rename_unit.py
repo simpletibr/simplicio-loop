@@ -38,11 +38,6 @@ PACKAGE_DIRS = [
 # add an entry for a loop state path (those are `.simplicio-loop/`).
 ALLOWLIST = [
     (
-        "simplicio_loop/intake_gate.py",
-        ".simplicio/loop.toml",
-        "per-repo opt-in file owned by the repositories and the legacy watcher (README/docs)",
-    ),
-    (
         "simplicio_loop/auth.py",
         'RUNTIME_DIR = ".simplicio"',
         "home folder of the separate Simplicio Runtime product: its login file and its managed binary",
@@ -110,14 +105,16 @@ def test_allowlist_entries_are_live_and_narrow():
 
 
 def test_allowlist_forgives_only_the_exact_token_of_its_own_file():
-    intake = "simplicio_loop/intake_gate.py:7:"
-    assert _unallowed(f"{intake}    # reads .simplicio/loop.toml\n") == ""
+    auth = "simplicio_loop/auth.py:7:"
+    assert _unallowed(f'{auth}RUNTIME_DIR = ".simplicio"\n') == ""
     # same file, another `.simplicio` path
-    assert _unallowed(f"{intake}    # reads .simplicio/foo\n") != ""
+    assert _unallowed(f"{auth}    # reads .simplicio/foo\n") != ""
     # allowed token and another `.simplicio` on one line
-    assert _unallowed(f"{intake}    a = '.simplicio/loop.toml', '.simplicio/foo'\n") != ""
+    assert _unallowed(f'{auth}RUNTIME_DIR = ".simplicio"; x = ".simplicio/foo"\n') != ""
     # the token is allowed only in its own file
-    assert _unallowed("simplicio_loop/other.py:7:    # reads .simplicio/loop.toml\n") != ""
+    assert _unallowed('simplicio_loop/other.py:7:RUNTIME_DIR = ".simplicio"\n') != ""
+    # the loop's own per-repo config lives in `.simplicio-loop/`; the old name gets no exception anywhere
+    assert _unallowed("simplicio_loop/intake_gate.py:7:    # reads .simplicio/loop.toml\n") != ""
     assert _unallowed('simplicio_loop/watcher247/tick.py:7:    Path.home() / ".simplicio" / "login.json"\n') != ""
     # the auth module may name the Runtime folder only through its constant, not build a second path by hand
     assert _unallowed('simplicio_loop/auth.py:7:    Path.home() / ".simplicio" / "login.json"\n') != ""

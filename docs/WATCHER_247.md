@@ -1,11 +1,11 @@
 # Watcher 24/7 (`simplicio_loop.watcher247`)
 
 O servico `simplicio-loop-247` (unit em `packaging/systemd/`) observa issues novas dos repos `simpletibr/simplicio-*` que
-habilitaram o loop (`.simplicio/loop.toml`) e abre PRs. Estado, claims e logs ficam em `SIMPLICIO_247_STATE_DIR`.
+habilitaram o loop (`.simplicio-loop/loop.toml`) e abre PRs. Estado, claims e logs ficam em `SIMPLICIO_247_STATE_DIR`.
 
-## loop.toml do repo (`.simplicio/loop.toml`)
+## loop.toml do repo (`.simplicio-loop/loop.toml`)
 
-O watcher lê o arquivo da **branch padrão** do repo (`gh api .../contents/.simplicio/loop.toml`, uma vez por tick), nunca
+O loop guarda todos os seus arquivos em `.simplicio-loop/`. A pasta `.simplicio/` é do Runtime: o loop não lê nem grava nada nela. Um repo que só tem o arquivo antigo não está habilitado, e o log mostra o caminho novo. O watcher lê o arquivo da **branch padrão** do repo (`gh api .../contents/.simplicio-loop/loop.toml`, uma vez por tick), nunca
 do clone: um plano pode editar o arquivo na branch `loop/issue-N` (#1567) e afrouxar o próprio gate.
 
 ```toml

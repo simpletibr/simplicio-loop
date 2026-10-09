@@ -51,7 +51,7 @@ class FakeRun:
         self.diff = diff
         self.delay = delay
         self.opted_in = set(issues) if opted_in is None else set(opted_in)
-        self.loop_toml = loop_toml or {}  # repo name -> the .simplicio/loop.toml text of its default branch (default LOOP_TOML)
+        self.loop_toml = loop_toml or {}  # repo name -> the .simplicio-loop/loop.toml text of its default branch (default LOOP_TOML)
         self.broken_gate = set(broken_gate)
         self.prs = list(prs)
         self.pr_views = pr_views or {}
@@ -133,7 +133,7 @@ class FakeRun:
         args = argv[2:]
         route = next(a for a in args if a.startswith("repos/")).partition("?")[0]
         method = args[args.index("-X") + 1] if "-X" in args else "GET"
-        contents = re.fullmatch(r"repos/[^/]+/([^/]+)/contents/\.simplicio/loop\.toml", route)
+        contents = re.fullmatch(r"repos/[^/]+/([^/]+)/contents/\.simplicio-loop/loop\.toml", route)
         if contents:
             name = contents.group(1)
             if name in self.broken_gate:
