@@ -16,10 +16,13 @@ from simplicio_loop import auth
 
 RUST = """
 use std::fs::OpenOptions;
+use std::os::unix::fs::OpenOptionsExt;
 use std::{env, thread, time::Duration};
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let file = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(&args[2]).unwrap();
+    let mut options = OpenOptions::new();
+    options.read(true).write(true).create(true).truncate(false).mode(0o600); // as the Runtime's auth_lock
+    let file = options.open(&args[2]).unwrap();
     match file.try_lock() {
         Ok(()) => {
             println!("locked");
