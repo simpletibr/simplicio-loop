@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from simplicio_loop import local_capacity, openrouter_operator, runner as runner_mod
+from tests.runner_patch import patch_runner
 
 
 @pytest.fixture(autouse=True)
@@ -99,7 +100,7 @@ def _arm_fixture(tmp_path, monkeypatch):
     task.write_text(TASK, encoding="utf-8")
 
     fingerprint = {"head": "head-fixed", "tree_hash": "tree-fixed", "dirty_status_hash": "status-fixed"}
-    monkeypatch.setattr(runner_mod, "_repo_fingerprint", lambda path: dict(fingerprint))
+    patch_runner(monkeypatch, "_repo_fingerprint", lambda path: dict(fingerprint))
     monkeypatch.setattr(
         runner_mod, "_changed_paths",
         lambda path: (["src/app.py"]

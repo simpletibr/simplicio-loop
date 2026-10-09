@@ -21,6 +21,7 @@ def _contract_only_hookwall(monkeypatch):
     )
 from simplicio_loop.oracle import persist_completion_receipt
 from tests.planning_gate_fixtures import stage_valid_planning_receipt
+from tests.runner_patch import patch_runner
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLI = [sys.executable, "-m", "simplicio_loop.cli"]
@@ -419,7 +420,7 @@ def test_context_handoff_derives_handle_when_mapper_omits_it(tmp_path, monkeypat
             "execution_context": {"schema": "simplicio.execution-context/v1", "snapshot_id": "snap-2"},
         }}
     }), encoding="utf-8")
-    monkeypatch.setattr(runner_mod, "_derive_context_handle", lambda *args: handle)
+    patch_runner(monkeypatch, "_derive_context_handle", lambda *args: handle)
 
     args, receipt = runner_mod._context_handoff_args(repo, run_root)
 
@@ -446,7 +447,7 @@ def test_run_mapper_requests_snapshot_and_execution_context(tmp_path, monkeypatc
         calls.append(list(argv))
         return SimpleNamespace(returncode=0, stdout=json.dumps({}), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     runner_mod._run_mapper(repo, run_root, goal="goal", target_hint="src/app.py")
 
     assert ["simplicio-mapper", "snapshot", "build", "--json", "."] in calls
@@ -496,7 +497,7 @@ def test_run_mapper_reconciles_stale_inspect_after_handoff(tmp_path, monkeypatch
             )
         return SimpleNamespace(returncode=0, stdout=json.dumps({}), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(repo, run_root)
 
     assert inspect_calls == 3
@@ -525,7 +526,7 @@ def test_run_mapper_sync_rollback_is_explicit_and_receipted(tmp_path, monkeypatc
             stdout = {}
         return SimpleNamespace(returncode=0, stdout=json.dumps(stdout), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(repo, run_root)
 
     scan = next(argv for argv in calls if argv[:2] == ["simplicio-mapper", "scan"])
@@ -554,10 +555,10 @@ def test_cancel_run_stops_queued_mapper_background_job(tmp_path, monkeypatch):
     }
     calls = []
 
-    monkeypatch.setattr(runner_mod, "read_status", lambda *_args: {
+    patch_runner(monkeypatch, "read_status", lambda *_args: {
         "run_dir": str(run_dir), "state": state, "manifest": {}
     })
-    monkeypatch.setattr(runner_mod, "_run_cmd", lambda argv, cwd: (
+    patch_runner(monkeypatch, "_run_cmd", lambda argv, cwd: (
         calls.append((argv, cwd)) or SimpleNamespace(
             returncode=0, stdout=json.dumps({"status": "cancelled"}), stderr=""
         )
@@ -592,7 +593,7 @@ def test_run_mapper_preserves_explicit_target_when_handoff_omits_it(tmp_path, mo
             stdout = {}
         return SimpleNamespace(returncode=0, stdout=json.dumps(stdout), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(repo, run_root, target_hint="src/app.py")
     files = result["handoff"]["stdout"]["context_pack"]["files"]
     assert {item["path"] for item in files} == {"scripts/other.py", "src/app.py"}
@@ -648,7 +649,7 @@ def test_run_mapper_ignores_invalid_mapper_token_budget(tmp_path, monkeypatch):
         calls.append(list(argv))
         return SimpleNamespace(returncode=0, stdout=json.dumps({}), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     runner_mod._run_mapper(repo, run_root, goal="goal")
 
     handoff_argv = next(argv for argv in calls if argv[:2] == ["simplicio-mapper", "handoff"])
@@ -673,7 +674,7 @@ def test_run_mapper_skips_unsupported_optional_snapshot(tmp_path, monkeypatch):
         calls.append(list(argv))
         return SimpleNamespace(returncode=0, stdout=json.dumps({}), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(repo, run_root)
 
     assert result["snapshot"]["returncode"] == 0
@@ -713,7 +714,7 @@ def test_run_mapper_degrades_to_explicit_local_target_on_scan_timeout(tmp_path, 
             stderr="",
         )
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(
         repo, run_root, target_hint="src/app.py", goal="update app",
     )
@@ -744,7 +745,7 @@ def test_run_mapper_degraded_pack_refuses_unbounded_candidates_without_target_hi
     def fake_run(argv, cwd):
         return SimpleNamespace(returncode=1, stdout="{}", stderr="timed out")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(repo, run_root)
 
     files = result["handoff"]["stdout"]["context_pack"]["files"]
@@ -1732,10 +1733,10 @@ def _setup_deterministic_preflight_fixture(
         "tree_hash": "tree-fixed",
         "dirty_status_hash": "status-fixed",
     }
-    monkeypatch.setattr(runner_mod, "_now", lambda: "2026-07-14T00:00:00Z")
+    patch_runner(monkeypatch, "_now", lambda: "2026-07-14T00:00:00Z")
     monkeypatch.setattr(runner_mod, "_run_id", lambda: "run-fixed")
-    monkeypatch.setattr(runner_mod, "_rand_token", lambda size: "token-fixed")
-    monkeypatch.setattr(runner_mod, "_repo_fingerprint", lambda path: dict(fingerprint))
+    patch_runner(monkeypatch, "_rand_token", lambda size: "token-fixed")
+    patch_runner(monkeypatch, "_repo_fingerprint", lambda path: dict(fingerprint))
     monkeypatch.setattr(
         runner_mod,
         "_changed_paths",
@@ -2219,7 +2220,7 @@ def test_run_mapper_recovers_with_goal_and_target_when_task_pack_is_too_broad(tm
             payload = {}
         return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(
         repo, run_root, task_path=str(task), goal="app target",
         task_fingerprint="a" * 64, target_hint="src/app.py",
@@ -2258,7 +2259,7 @@ def test_run_mapper_recovers_when_estimated_tokens_exceed_budget(tmp_path, monke
             payload = {}
         return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
 
-    monkeypatch.setattr(runner_mod, "_run_cmd", fake_run)
+    patch_runner(monkeypatch, "_run_cmd", fake_run)
     result = runner_mod._run_mapper(
         repo, run_root, task_path=str(task), goal="app target",
         task_fingerprint="a" * 64, target_hint="src/app.py",

@@ -30,6 +30,7 @@ from simplicio_loop.quality_provider import (
     load_quality_provider,
     run_quality_gate,
 )
+from tests.runner_patch import patch_runner
 
 
 # --------------------------------------------------------------------------
@@ -295,7 +296,7 @@ def test_conduct_run_order_quality_before_verify(monkeypatch):
 
     monkeypatch.setattr(runner_mod, "execute_operator_batch", fake_execute_batch)
     monkeypatch.setattr(runner_mod, "verify_run", fake_verify)
-    monkeypatch.setattr(runner_mod, "read_status", fake_read_status)
+    patch_runner(monkeypatch, "read_status", fake_read_status)
     monkeypatch.setattr(runner_mod, "arm_run", lambda *a, **k: {"manifest": {"run_id": "r1"},
                                                                "state": {"phase": "executing"}})
     # quality provider itself just records (patch the module-level symbol that
@@ -352,7 +353,7 @@ def test_conduct_run_without_provider_skips_quality_and_verifies(monkeypatch):
 
     monkeypatch.setattr(runner_mod, "execute_operator_batch", fake_batch)
     monkeypatch.setattr(runner_mod, "verify_run", fake_verify)
-    monkeypatch.setattr(runner_mod, "read_status",
+    patch_runner(monkeypatch, "read_status",
                         lambda r, rid: {"run_dir": "d",
                                         "state": {"phase": "executing", "attempt": 1},
                                         "manifest": {}})
