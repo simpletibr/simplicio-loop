@@ -19,8 +19,10 @@ from ..telemetry import SENSITIVE_VALUE
 REDACTED = "[REDACTED]"
 _BEARER = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
 _TOKEN_QUERY = re.compile(r"(?i)([?&](?:token|api[_-]?key|secret|password)=)[^&#\s]+")
+# A key is secret only when its last segment names a credential. "tokens.status" and "author" are not.
 SECRET_KEY = re.compile(
-    r"(secret|token|password|passwd|authorization|auth|cookie|api[_-]?key|private[_-]?key|credential)",
+    r"(?:^|[._-])(?:secret|password|passwd|authorization|cookie|api[_-]?key|private[_-]?key"
+    r"|access[_-]?token|refresh[_-]?token|auth[_-]?token|bearer|token|auth)$",
     re.IGNORECASE,
 )
 CONTENT_KEY = re.compile(
@@ -74,10 +76,23 @@ def digest_of(value: Any) -> dict[str, Any]:
 
 
 def export_payload(payload: Mapping[str, Any], capture_content: bool) -> dict[str, Any]:
-    """The dashboard payload as it may leave: content keys become digests unless capture is on."""
+    """The dashboard payload as it may leave: content at any depth becomes a digest unless capture is on."""
     if capture_content:
         return dict(payload)
-    return {
-        key: (digest_of(val) if CONTENT_KEY.match(str(key)) else val)
-        for key, val in payload.items()
-    }
+    return _digest_content(payload)
+
+
+def _digest_content(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        out: dict[str, Any] = {}
+        for key, item in value.items():
+            if CONTENT_KEY.match(str(key)) and not isinstance(
+                item, (bool, int, float, type(None))
+            ):
+                out[str(key)] = digest_of(item)
+            else:
+                out[str(key)] = _digest_content(item)
+        return out
+    if isinstance(value, (list, tuple)):
+        return [_digest_content(item) for item in value]
+    return value

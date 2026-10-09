@@ -1,6 +1,8 @@
-"""One export cycle: read the run's records, map, scrub, enqueue what the server has not seen, flush
-when the batch window is due. Fails closed on missing credentials (blocked, nothing written); a real
-bug or a corrupt record raises to the caller, which reports it.
+"""One export cycle: read every execution report and the run's events, map, scrub, enqueue what the
+server has not seen, then flush when the batch window is due. Runs under ``ExportLock``.
+
+Fails closed: no credentials, or a host that is not https, means nothing is written. Errors in the
+records themselves (a report without ``started_at_unix``, corrupt JSON) raise to the caller.
 """
 
 from __future__ import annotations
@@ -12,10 +14,10 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from .config import CredentialFileError, LangfuseConfig, resolve_credentials
+from .config import CredentialFileError, LangfuseConfig, check_host, resolve_credentials
 from .mapping import plan
 from .otlp import encode
-from .queue import Ledger, Outbox, content_hash, mapping_of
+from .queue import ExportLock, Ledger, Outbox, content_hash, mapping_of
 from .redact import scrub
 
 MAX_SPANS_PER_REQUEST = 200
@@ -29,14 +31,15 @@ def langfuse_dir(repo: Path) -> Path:
     return Path(repo) / ".simplicio-loop" / "langfuse"
 
 
-def latest_report(repo: Path) -> dict[str, Any] | None:
+def load_reports(repo: Path) -> list[dict[str, Any]]:
+    """Every execution report of the repo, oldest name first (run ids start with their unix time)."""
     reports = Path(repo) / ".simplicio-loop" / "runtime" / "execution-reports"
     if not reports.is_dir():
-        return None
-    files = sorted(reports.glob("*.json"), key=lambda p: p.stat().st_mtime)
-    if not files:
-        return None
-    return json.loads(files[-1].read_text(encoding="utf-8"))
+        return []
+    return [
+        json.loads(p.read_text(encoding="utf-8"))
+        for p in sorted(reports.glob("*.json"))
+    ]
 
 
 def _read_events(run_dir: Path | None) -> list[dict[str, Any]] | None:
@@ -66,16 +69,19 @@ def _enqueue(
             fresh.append((key(item), digest, item))
     for start in range(0, len(fresh), per_request):
         chunk = fresh[start : start + per_request]
-        marks = [[k, d] for k, d, _ in chunk]
-        outbox.enqueue(kind, body_of([i for _, _, i in chunk]), marks)
+        outbox.enqueue(
+            kind, body_of([i for _, _, i in chunk]), [[k, d] for k, d, _ in chunk]
+        )
         for k, d, _ in chunk:
             ledger.mark_pending(k, d)
     return len(fresh)
 
 
-def flush(outbox: Outbox, ledger: Ledger, send: SendFn) -> dict[str, int]:
-    """Send queued requests oldest first. A retryable failure stops the round (order is kept)."""
+def flush(outbox: Outbox, ledger: Ledger, send: SendFn) -> dict[str, Any]:
+    """Send queued requests oldest first. A retryable failure stops the round (order is kept); a blocking
+    one (bad keys, host or path) stops it without counting an attempt, so nothing is lost while fixing it."""
     sent = dead = 0
+    blocking: str | None = None
     for item in outbox.pending():
         record = outbox.read(item)
         result = send(record["kind"], record["body"])
@@ -83,16 +89,26 @@ def flush(outbox: Outbox, ledger: Ledger, send: SendFn) -> dict[str, int]:
             outbox.ack(item)
             ledger.mark_sent(mapping_of(record))
             sent += 1
-        elif result.retryable:
+            continue
+        if result.blocking:
+            blocking = result.error
+            break
+        if result.retryable:
             if outbox.fail(item, max_attempts=MAX_ATTEMPTS):
-                ledger.forget_pending(mapping_of(record))
+                ledger.mark_rejected(
+                    mapping_of(record)
+                )  # exhausted: stays in dead/ until the content changes
                 dead += 1
             break
-        else:
-            outbox.dead_letter(item)
-            ledger.mark_rejected(mapping_of(record))
-            dead += 1
-    return {"sent": sent, "dead": dead, "pending": len(outbox.pending())}
+        outbox.dead_letter(item)  # permanent for this body (for example 400 or 413)
+        ledger.mark_rejected(mapping_of(record))
+        dead += 1
+    return {
+        "sent": sent,
+        "dead": dead,
+        "pending": len(outbox.pending()),
+        "blocking": blocking,
+    }
 
 
 def export_once(
@@ -120,51 +136,67 @@ def export_once(
             return {"status": "blocked", "reason": "missing_credentials"}
         from .transport import HttpTransport
 
-        transport = HttpTransport(
-            env.get("LANGFUSE_HOST") or config.host,
-            public_key=creds.public_key,
-            secret_key=creds.secret_key,
-        )
+        try:
+            transport = HttpTransport(
+                env.get("LANGFUSE_HOST") or config.host,
+                public_key=creds.public_key,
+                secret_key=creds.secret_key,
+            )
+        except ValueError:
+            return {"status": "blocked", "reason": "host_not_https"}
         send = transport.send
         secrets.append(creds.secret_key)
-    report = latest_report(repo)
-    if report is None:
+    else:
+        check_host(env.get("LANGFUSE_HOST") or config.host)
+    reports = load_reports(repo)
+    if not reports:
         return {"status": "no_report"}
     events = _read_events(run_dir)
     if events is None:
         return {"status": "blocked", "reason": "dashboard_events_missing"}
 
-    shape = plan(report, events, capture_content=config.capture_content)
-    spans = scrub(shape.spans, secrets)
-    scores = scrub(shape.scores, secrets)
-    outbox = Outbox(base / "queue", base / "dead")
-    ledger = Ledger(base / "ledger.json")
-    enqueued = _enqueue(
-        outbox,
-        ledger,
-        "traces",
-        spans,
-        lambda s: s["span_id"],
-        encode,
-        MAX_SPANS_PER_REQUEST,
-    )
-    enqueued += _enqueue(
-        outbox, ledger, "scores", scores, lambda s: s["id"], lambda rows: rows[0], 1
-    )
-    ledger.save()  # pending marks land before any send: a crash here must not queue the same rows twice
+    with ExportLock(base):
+        outbox = Outbox(base / "queue", base / "dead")
+        ledger = Ledger(base / "ledger.json")
+        enqueued = 0
+        for report in reports:
+            shape = plan(report, events, capture_content=config.capture_content)
+            enqueued += _enqueue(
+                outbox,
+                ledger,
+                "traces",
+                scrub(shape.spans, secrets),
+                lambda s: s["span_id"],
+                encode,
+                MAX_SPANS_PER_REQUEST,
+            )
+            enqueued += _enqueue(
+                outbox,
+                ledger,
+                "scores",
+                scrub(shape.scores, secrets),
+                lambda s: s["id"],
+                lambda rows: rows[0],
+                1,
+            )
+        ledger.save()  # pending marks land before any send: a crash here must not queue the same rows twice
 
-    if ledger.last_flush is None:
-        ledger.last_flush = now  # the first batch window opens with the first export
-    due = force or now - ledger.last_flush >= config.batch_seconds
-    summary: dict[str, Any] = {
-        "status": "ok",
-        "enqueued": enqueued,
-        "sent": 0,
-        "dead": 0,
-        "pending": len(outbox.pending()),
-    }
-    if due:
-        summary.update(flush(outbox, ledger, send))
-        ledger.last_flush = now
-    ledger.save()
+        if ledger.last_flush is None:
+            ledger.last_flush = (
+                now  # the first batch window opens with the first export
+            )
+        due = force or now - ledger.last_flush >= config.batch_seconds
+        summary: dict[str, Any] = {
+            "status": "ok",
+            "reports": len(reports),
+            "enqueued": enqueued,
+            "sent": 0,
+            "dead": 0,
+            "blocking": None,
+            "pending": len(outbox.pending()),
+        }
+        if due:
+            summary.update(flush(outbox, ledger, send))
+            ledger.last_flush = now
+        ledger.save()
     return summary

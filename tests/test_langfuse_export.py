@@ -476,6 +476,387 @@ def test_pending_marks_survive_a_crash_during_flush(tmp_path):
     cfg = _enabled()
     env = {"LANGFUSE_PUBLIC_KEY": "pk", "LANGFUSE_SECRET_KEY": "sk"}
     with pytest.raises(RuntimeError):
-        export_once(repo, config=cfg, env=env, run_dir=tmp_path / "run", now=NOW, send=crashing_send, force=True)
-    ledger = json.loads((langfuse_dir(repo) / "ledger.json").read_text(encoding="utf-8"))
-    assert ledger["pending"], "queued rows must be recorded before any send, or a restart queues them again"
+        export_once(
+            repo,
+            config=cfg,
+            env=env,
+            run_dir=tmp_path / "run",
+            now=NOW,
+            send=crashing_send,
+            force=True,
+        )
+    ledger = json.loads(
+        (langfuse_dir(repo) / "ledger.json").read_text(encoding="utf-8")
+    )
+    assert ledger["pending"], (
+        "queued rows must be recorded before any send, or a restart queues them again"
+    )
+
+
+# --- review fixes: each test below fails on the previous behaviour -----------------------------
+
+
+def _bodies(fake: FakeLangfuse) -> str:
+    return json.dumps([r["body"] for r in fake.requests if r.get("body") is not None])
+
+
+def _spans(body: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        s
+        for rs in body["resourceSpans"]
+        for ss in rs["scopeSpans"]
+        for s in ss["spans"]
+    ]
+
+
+def _env_for(fake: FakeLangfuse, secret: str | None = None) -> dict[str, str]:
+    return {
+        "LANGFUSE_HOST": fake.host,
+        "LANGFUSE_PUBLIC_KEY": fake.public_key,
+        "LANGFUSE_SECRET_KEY": secret or fake.secret_key,
+    }
+
+
+def test_wrong_keys_block_and_keep_every_request(tmp_path):
+    from simplicio_loop.langfuse_export.exporter import export_once, langfuse_dir
+
+    repo = _repo(tmp_path)
+    cfg = _enabled()
+    with FakeLangfuse() as fake:
+        env = _env_for(fake, secret="sk-WRONG-1595")
+        first = export_once(
+            repo, config=cfg, env=env, run_dir=tmp_path / "run", now=NOW, force=True
+        )
+        assert first["blocking"] == "http 401"
+        assert first["dead"] == 0 and first["pending"] >= 2
+        assert not (langfuse_dir(repo) / "dead").exists()
+        ledger = json.loads(
+            (langfuse_dir(repo) / "ledger.json").read_text(encoding="utf-8")
+        )
+        assert ledger["rejected"] == {}
+
+        env = _env_for(fake)
+        second = export_once(
+            repo,
+            config=cfg,
+            env=env,
+            run_dir=tmp_path / "run",
+            now=NOW + 120,
+            force=True,
+        )
+        assert second["pending"] == 0 and second["blocking"] is None
+        assert len(fake.accepted(TRACES_PATH)) == 1
+
+
+def test_server_errors_are_retried_until_exhausted_then_not_resent(tmp_path):
+    from simplicio_loop.langfuse_export.exporter import export_once, langfuse_dir
+
+    repo = _repo(tmp_path)
+    cfg = _enabled()
+    with FakeLangfuse() as fake:
+        fake.mode = 500
+        env = _env_for(fake)
+        for round_no in range(8):
+            export_once(
+                repo,
+                config=cfg,
+                env=env,
+                run_dir=tmp_path / "run",
+                now=NOW + round_no,
+                force=True,
+            )
+        dead = sorted((langfuse_dir(repo) / "dead").glob("*.json"))
+        assert dead and dead[0].name.endswith(".traces.json")
+        assert json.loads(dead[0].read_text(encoding="utf-8"))["attempts"] == 8
+        again = export_once(
+            repo,
+            config=cfg,
+            env=env,
+            run_dir=tmp_path / "run",
+            now=NOW + 100,
+            force=True,
+        )
+        assert (
+            again["enqueued"] == 0
+        )  # same content: the exhausted request is not queued again
+
+
+@pytest.mark.parametrize("code", [429, 503])
+def test_429_and_5xx_count_an_attempt_and_stay_queued(tmp_path, code):
+    from simplicio_loop.langfuse_export.exporter import export_once
+
+    repo = _repo(tmp_path)
+    cfg = _enabled()
+    with FakeLangfuse() as fake:
+        fake.mode = code
+        down = export_once(
+            repo,
+            config=cfg,
+            env=_env_for(fake),
+            run_dir=tmp_path / "run",
+            now=NOW,
+            force=True,
+        )
+        assert down["dead"] == 0 and down["pending"] >= 1 and down["blocking"] is None
+        fake.mode = "ok"
+        up = export_once(
+            repo,
+            config=cfg,
+            env=_env_for(fake),
+            run_dir=tmp_path / "run",
+            now=NOW + 60,
+            force=True,
+        )
+        assert up["pending"] == 0
+
+
+@pytest.mark.parametrize("code", [400, 413])
+def test_permanent_rejection_is_dead_lettered_and_never_resent(tmp_path, code):
+    from simplicio_loop.langfuse_export.exporter import export_once, langfuse_dir
+
+    repo = _repo(tmp_path)
+    cfg = _enabled()
+    with FakeLangfuse() as fake:
+        fake.mode = code
+        first = export_once(
+            repo,
+            config=cfg,
+            env=_env_for(fake),
+            run_dir=tmp_path / "run",
+            now=NOW,
+            force=True,
+        )
+        assert first["dead"] >= 1 and first["blocking"] is None
+        assert list((langfuse_dir(repo) / "dead").glob("*.json"))
+        fake.mode = "ok"
+        again = export_once(
+            repo,
+            config=cfg,
+            env=_env_for(fake),
+            run_dir=tmp_path / "run",
+            now=NOW + 60,
+            force=True,
+        )
+        assert again["enqueued"] == 0
+        assert fake.accepted(TRACES_PATH) == []
+
+
+def test_garbled_response_is_retried_not_a_crash(tmp_path):
+    from simplicio_loop.langfuse_export.exporter import export_once
+
+    repo = _repo(tmp_path)
+    cfg = _enabled()
+    with FakeLangfuse() as fake:
+        fake.mode = "garbage"
+        down = export_once(
+            repo,
+            config=cfg,
+            env=_env_for(fake),
+            run_dir=tmp_path / "run",
+            now=NOW,
+            force=True,
+        )
+        assert down["pending"] >= 1 and down["dead"] == 0
+        fake.mode = "ok"
+        up = export_once(
+            repo,
+            config=cfg,
+            env=_env_for(fake),
+            run_dir=tmp_path / "run",
+            now=NOW + 60,
+            force=True,
+        )
+        assert up["pending"] == 0
+
+
+def test_nested_content_is_digested_when_capture_is_off(tmp_path):
+    from simplicio_loop.langfuse_export.exporter import export_once
+
+    repo = _repo(tmp_path)
+    nested = _event(
+        9, "decision_requested", {"agent_ctx": {"prompt": "NESTED-TEXT-7731"}}
+    )
+    (tmp_path / "run" / "events.jsonl").write_text(
+        json.dumps(nested) + "\n", encoding="utf-8"
+    )
+    with FakeLangfuse() as fake:
+        export_once(
+            repo,
+            config=_enabled(),
+            env=_env_for(fake),
+            run_dir=tmp_path / "run",
+            now=NOW,
+            force=True,
+        )
+        assert "NESTED-TEXT-7731" not in _bodies(fake)
+    with FakeLangfuse() as fake:
+        export_once(
+            repo,
+            config=_enabled(langfuse_capture_content=True),
+            env=_env_for(fake),
+            run_dir=tmp_path / "run",
+            now=NOW,
+            force=True,
+        )
+        assert "NESTED-TEXT-7731" in _bodies(fake)
+
+
+def test_secret_and_login_canary_never_reach_the_server(tmp_path):
+    from simplicio_loop.langfuse_export.exporter import export_once
+
+    canary = "plainsecretcanary42"  # no provider pattern: only the exact-value scrub can remove it
+    repo = _repo(tmp_path)
+    (tmp_path / "run" / "events.jsonl").write_text(
+        json.dumps(
+            _event(
+                7,
+                "gate_evaluated",
+                {"gate": "tests", "passed": True, "prompt": f"use {canary}"},
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with FakeLangfuse(secret_key=canary) as fake:
+        export_once(
+            repo,
+            config=_enabled(langfuse_capture_content=True),
+            env=_env_for(fake, secret=canary),
+            run_dir=tmp_path / "run",
+            now=NOW,
+            force=True,
+        )
+        bodies = _bodies(fake)
+    assert canary not in bodies
+    assert (
+        SECRET_TOKEN not in bodies
+    )  # login.json holds it; the exporter never reads that file
+    assert "[REDACTED]" in bodies
+
+
+def test_unverified_label_survives_redaction(tmp_path):
+    from simplicio_loop.langfuse_export.exporter import export_once
+
+    repo = _repo(tmp_path, report=_report(tokens_source="absent"))
+    with FakeLangfuse() as fake:
+        export_once(
+            repo,
+            config=_enabled(),
+            env=_env_for(fake),
+            run_dir=tmp_path / "run",
+            now=NOW,
+            force=True,
+        )
+        spans = _spans(fake.accepted(TRACES_PATH)[0]["body"])
+    task = next(s for s in spans if s["name"] == "task T1")
+    attrs = {a["key"]: a["value"]["stringValue"] for a in task["attributes"]}
+    assert attrs["simplicio.tokens.status"] == "UNVERIFIED"
+
+
+def test_raw_title_is_not_sent_only_its_fingerprint(tmp_path):
+    from simplicio_loop.langfuse_export.exporter import export_once
+
+    report = _report(title="Titulo confidencial")
+    report["tasks"][0]["title_fingerprint"] = "fp-7731abc"
+    repo = _repo(tmp_path, report=report)
+    with FakeLangfuse() as fake:
+        export_once(
+            repo,
+            config=_enabled(),
+            env=_env_for(fake),
+            run_dir=tmp_path / "run",
+            now=NOW,
+            force=True,
+        )
+        bodies = _bodies(fake)
+    assert "Titulo confidencial" not in bodies
+    assert "fp-7731abc" in bodies
+
+
+def test_chunks_split_at_200_spans(tmp_path):
+    from simplicio_loop.langfuse_export.exporter import export_once
+
+    report = _report(tokens_source="absent")
+    report["tasks"] = [
+        {
+            "task_id": f"T{i}",
+            "title": f"t{i}",
+            "wall_ms": 1,
+            "tokens": {"source": "absent"},
+            "outcome": "COMPLETE",
+            "agent": {"role": "executor", "model": "m", "effort": "high"},
+        }
+        for i in range(250)
+    ]
+    repo = _repo(tmp_path, report=report)
+    with FakeLangfuse() as fake:
+        export_once(
+            repo,
+            config=_enabled(),
+            env=_env_for(fake),
+            run_dir=tmp_path / "run",
+            now=NOW,
+            force=True,
+        )
+        requests = fake.accepted(TRACES_PATH)
+    assert len(requests) == 2
+    # root + 250 tasks + 2 gate spans of T1 (the fixture events)
+    assert sum(len(_spans(r["body"])) for r in requests) == 253
+
+
+def test_each_report_becomes_its_own_trace(tmp_path):
+    from simplicio_loop.langfuse_export.exporter import export_once
+
+    repo = _repo(tmp_path)
+    second = _report()
+    second["run_id"] = "run-1595-second"
+    (
+        repo
+        / ".simplicio-loop"
+        / "runtime"
+        / "execution-reports"
+        / "run-1595-second.json"
+    ).write_text(json.dumps(second), encoding="utf-8")
+    with FakeLangfuse() as fake:
+        export_once(
+            repo,
+            config=_enabled(),
+            env=_env_for(fake),
+            run_dir=tmp_path / "run",
+            now=NOW,
+            force=True,
+        )
+        trace_ids = {
+            s["traceId"] for r in fake.accepted(TRACES_PATH) for s in _spans(r["body"])
+        }
+    assert len(trace_ids) == 2
+
+
+def test_events_of_another_run_stay_out_of_this_trace():
+    from simplicio_loop.langfuse_export.mapping import plan
+
+    other = _event(9, "decision_requested", {"marker": "OTHER-RUN-MARK"})
+    other["run_id"] = "run-OTHER"
+    p = plan(_report(), _events() + [other], capture_content=False)
+    assert not any("OTHER-RUN-MARK" in str(s.events) for s in p.spans)
+
+
+def test_a_report_without_start_time_is_refused():
+    from simplicio_loop.langfuse_export.mapping import plan
+
+    report = _report()
+    del report["started_at_unix"]
+    with pytest.raises(ValueError):
+        plan(report, _events(), capture_content=False)
+
+
+def test_plain_http_is_refused_for_remote_hosts():
+    from simplicio_loop.langfuse_export.config import check_host, load_config
+    from simplicio_loop.langfuse_export.transport import HttpTransport
+
+    with pytest.raises(ValueError):
+        load_config({"langfuse_host": "http://langfuse.example.com"}, env={})
+    with pytest.raises(ValueError):
+        HttpTransport("http://langfuse.example.com", public_key="pk", secret_key="sk")
+    assert check_host("https://langfuse.example.com") == "https://langfuse.example.com"
+    assert check_host("http://127.0.0.1:3000") == "http://127.0.0.1:3000"
