@@ -206,6 +206,18 @@ Each block's `data-tip` attribute carries the plain-text timings. CSS shows them
 
 The e2e test measures the median animation frame in headless software Chromium: 16.7 ms over 60 frames (MEASURED). This is software rendering, not a GPU measurement, so 60 fps on a real GPU is UNVERIFIED.
 
+### Live Pipeline screenshots
+
+The pipeline page rendering is documented in screenshots for dark, light, and TV modes. See the design direction in [DASHBOARD_DESIGN.md](DASHBOARD_DESIGN.md).
+
+- Dark theme: ![Pipeline dark](./assets/dashboard/dark.webp)
+- Light theme: ![Pipeline light](./assets/dashboard/light.webp)
+- TV mode: ![Pipeline TV](./assets/dashboard/tv.webp)
+
+The reference-image test (`test_pipeline_matches_the_reference_image_within_tolerance`) compares the live rendered page against a canonical Chromium screenshot (dark, 1280x900, board hidden, reduced motion). The diff tolerates 16 of 255 per channel on up to 2% of the pixels. The reference is updated with `SL_UPDATE_REFERENCE=1` and canonicalized on Chromium 153 with Playwright 1.56. Other browsers or font stacks may render differently and should either match within tolerance or provide a new reference.
+
+**Test coverage:** The dashboard server and smoke tests run on Linux only. Windows and macOS smoke and bench results are UNVERIFIED until a person runs `python -m simplicio_loop.dashboard.bench --runs 50 --events 10000 --idle-seconds 30 --json` on those platforms.
+
 ### Quadro por etapa (kanban)
 
 O quadro mostra cada run dos repositórios observados como um cartão, na coluna da fase atual: Contrato (`intake`), Mapeamento (`mapping`), Plano (`planning`), Execução (`executing`), Validação (`validating`), Watcher (`watching`), Entrega (`delivering`) e Concluído (`done`). As fases `blocked`, `awaiting_decision`, `cancelled` e as desconhecidas ficam na coluna **Fora do trilho**.
@@ -314,6 +326,8 @@ The server evaluates the run alert rules over the event stream (`simplicio_loop/
 | `oracle-unverified` | warning | the run is done and its receipt is ready, but the oracle gave no verdict | server |
 | `stream-lost` | warning | the stream is stale, offline or closed | page (it is the page's own connection) |
 
+
+**Budget alert cross-reference:** The `{L8}` criterion in issue #1404 refers to the `budget-projected:<dim>` alert rule defined above (warning when projected usage passes the limit).
 **Frames.** Each connection starts with `event: alert_snapshot`, which lists the alerts active now. Later changes arrive as `event: alert_raised` and `event: alert_cleared`. These frames are not stored in `events.jsonl`, and the page does not treat them as dashboard events. See [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md).
 
 **Silence.** **Silenciar 1 h** hides an alert for an hour in this page. Nothing is stored outside the page. The first snapshot after connecting sets a baseline, so alerts that were already active do not notify.

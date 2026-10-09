@@ -382,7 +382,7 @@ def test_eight_lanes_show_distinct_colours_for_pass_fail_blocked_and_stalled(ope
     assert len(set(colours.values())) == 4, colours
     median = page.evaluate(RAF_MEDIAN_JS)
     _write_fps(median)
-    assert median <= 25, median
+    assert median <= 17, median
 
 
 def test_clicking_a_block_opens_the_drill_and_escape_restores_focus(open_page, repo):
