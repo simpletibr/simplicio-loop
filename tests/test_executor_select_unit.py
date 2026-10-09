@@ -223,6 +223,24 @@ class TestAgyAndOpencodeArgv:
         assert "--sandbox" in argv
         assert argv[argv.index("--output-format") + 1] == "json"
 
+    def test_agy_passes_a_real_model_and_the_role_effort(self):
+        argv = exec_planner.build_argv("agy", "planning", "p", "agy-model-x", "/w", "high")
+        assert argv[argv.index("--model") + 1] == "agy-model-x"
+        assert argv[argv.index("--effort") + 1] == "high"
+
+    def test_agy_omits_effort_when_the_role_has_none(self):
+        argv = exec_planner.build_argv("agy", "planning", "p", "default", "/w", "")
+        assert "--effort" not in argv
+
+    def test_opencode_passes_model_and_effort_as_variant(self):
+        argv = exec_planner.build_argv("opencode", "planning", "p", "prov/model", "/w", "high")
+        assert argv[argv.index("-m") + 1] == "prov/model"
+        assert argv[argv.index("--variant") + 1] == "high"
+
+    def test_opencode_omits_variant_without_effort(self):
+        argv = exec_planner.build_argv("opencode", "planning", "p", "default", "/w", "")
+        assert "--variant" not in argv
+
     def test_opencode_is_run_with_json_format_and_plan_agent(self):
         argv = exec_planner.build_argv("opencode", "planning", "p", "default", "/w", "high")
         assert argv[:3] == ["opencode", "run", "p"]

@@ -120,20 +120,27 @@ def _build_argv_gemini(prompt, role, model, effort, cwd):
 
 
 def _build_argv_agy(prompt, role, model, effort, cwd):
-    # DOC-BASED (agy not installed on this host; Antigravity CLI headless docs): -p, --output-format json,
-    # --mode plan, --sandbox. No verified model flag, so a real model ID is refused instead of silently dropped.
+    # VERIFIED on the review host with `agy --help` (version not recorded in the PR): -p/--print, --mode plan,
+    # --sandbox, --output-format json, --model, --effort (low|medium|high|xhigh|max). agy is not installed in the
+    # container that wrote this, so these were not reproduced here.
+    argv = ["agy", "-p", prompt, "--mode", "plan", "--sandbox", "--output-format", "json"]
     if _real_model(model):
-        raise ExecPlannerError("agy has no verified model flag; use the flag-free default model")
-    return ["agy", "-p", prompt, "--mode", "plan", "--sandbox", "--output-format", "json"]
+        argv.extend(["--model", model])
+    if effort:
+        argv.extend(["--effort", effort])
+    return argv
 
 
 def _build_argv_opencode(prompt, role, model, effort, cwd):
-    # DOC-BASED (opencode not installed on this host): `opencode run MESSAGE --format json` and `-m provider/model`
-    # come from the opencode CLI docs; `--agent plan` (the read-only built-in agent) comes from a third-party
-    # reference and is unverified. Effort is only recorded, since no effort flag is documented.
+    # VERIFIED on the review host with `opencode run --help`: the message argument, --format json, -m provider/model,
+    # --variant (effort, provider-specific), --agent. `opencode agent list` confirms the `plan` agent exists.
+    # PARTIAL: the `plan` agent denies edits (except plan .md files) but allows bash, so the read-only limit is
+    # by instruction, not by permission. The preamble tells the planner not to run commands.
     argv = ["opencode", "run", prompt, "--format", "json", "--agent", "plan"]
     if _real_model(model):
         argv.extend(["-m", model])
+    if effort:
+        argv.extend(["--variant", effort])
     return argv
 
 

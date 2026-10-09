@@ -8,8 +8,6 @@ read without making a provider a runtime dependency.
 import multiprocessing
 import os
 import queue
-import shutil
-import subprocess
 import time
 from copy import deepcopy
 from pathlib import Path
@@ -705,34 +703,6 @@ def _shell_out(cmd, label, stdin_text=None, cancel_event=None, *, provider="unkn
             )
         )
     return result.stdout
-
-
-def _cli_command(name):
-    if os.name != "nt":
-        return name
-    for candidate in (f"{name}.cmd", f"{name}.exe", name):
-        if shutil.which(candidate):
-            return candidate
-    return name
-
-
-def _codex_supports_effort_flag() -> bool:
-    cmd = [_cli_command("codex"), "exec", "--help"]
-    try:
-        result = subprocess.run(
-            cmd,
-            env={**os.environ, "SIMPLICIO_HOOK_GUARD": "1", "SIMPLICIO_SKIP_AUTO_INIT": "1"},
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=30,
-            check=False,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
-    help_text = f"{result.stdout}\n{result.stderr}"
-    return "--effort" in help_text
 
 
 def _charge_if_budgeted(model, prompt, out):
