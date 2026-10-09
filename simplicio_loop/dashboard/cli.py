@@ -246,8 +246,12 @@ def _serve(port: int | None, repos: list[str], run_id: str | None, open_browser:
         time.sleep(0.05)
         started = _startup(log)
     server_port, token = started
-    runs.write_state_file({'pid': proc.pid, 'port': server_port, 'token': token, 'repos': repos})
-    return _announce(server_port, token, run_id, proc.pid, open_browser, False)
+    health = _health(server_port)
+    # A one-file binary starts a bootloader first, and the bootloader starts the server: Popen.pid is the
+    # bootloader. --stop and the reuse check compare the recorded pid with the pid that health reports.
+    pid = health['pid'] if health is not None and isinstance(health['pid'], int) else proc.pid
+    runs.write_state_file({'pid': pid, 'port': server_port, 'token': token, 'repos': repos})
+    return _announce(server_port, token, run_id, pid, open_browser, False)
 
 
 def _wait_gone(port: int) -> None:
