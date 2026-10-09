@@ -24,7 +24,7 @@ MARKER = LIFECYCLE_COMMENT_MARKER
 
 def issue(number, title="Fix thing", labels=("loop:auto",), body=CONCRETE_BODY, author="owner",
           association="OWNER"):
-    """An issue row shaped like `gh issue list --json number,title,body,createdAt,labels,author,authorAssociation`."""
+    """An issue row shaped like `gh api repos/<org>/<repo>/issues` (REST)."""
     return {
         "number": number, "title": title, "body": body, "created_at": "2026-10-01T00:00:00Z",
         "labels": [{"name": name} for name in labels],

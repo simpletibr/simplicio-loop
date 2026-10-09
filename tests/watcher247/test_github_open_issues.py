@@ -1,6 +1,6 @@
 """Tests for github.open_issues() using REST API (gh 2.46 fix).
 
-Issue #247: `gh issue list --json` fails with "Unknown JSON field: authorAssociation"
+Problema (#1589, B2): `gh issue list --json` fails with "Unknown JSON field: authorAssociation"
 on gh 2.46.0 (Ubuntu). Solution: use `gh api repos/{ORG}/{repo}/issues` instead.
 """
 from __future__ import annotations
@@ -15,7 +15,7 @@ from simplicio_loop.watcher247 import config, github, state
 def test_open_issues_uses_rest_api_not_issue_list(monkeypatch):
     """Verify gh_json is called with 'api' endpoint, not 'issue list'."""
     calls = []
-    
+
     async def fake_gh_json(args, timeout=60):
         calls.append(args)
         # Simulate REST API response with a PR that should be discarded
@@ -41,11 +41,11 @@ def test_open_issues_uses_rest_api_not_issue_list(monkeypatch):
                 "author_association": "CONTRIBUTOR",
             },
         ]
-    
+
     monkeypatch.setattr(github, "gh_json", fake_gh_json)
-    
+
     result = asyncio.run(github.open_issues("test-repo"))
-    
+
     # Verify the correct endpoint was called
     assert len(calls) == 1
     args = calls[0]
@@ -56,12 +56,12 @@ def test_open_issues_uses_rest_api_not_issue_list(monkeypatch):
     assert repo_path in " ".join(args)
     assert "state=open" in " ".join(args)
     assert "authorAssociation" not in " ".join(args)  # Old field should not be requested
-    
+
     # Verify PR is discarded
     assert len(result) == 1
     assert result[0]["number"] == 2
     assert "pull_request" not in result[0]
-    
+
     # Verify output shape is preserved (maintains contracts)
     assert result[0]["number"] == 2
     assert result[0]["title"] == "Another issue"
@@ -73,18 +73,18 @@ def test_open_issues_uses_rest_api_not_issue_list(monkeypatch):
 def test_open_issues_handles_disabled_issues_error(monkeypatch):
     """Verify 'Issues are disabled' error marks repo and returns []."""
     mark_calls = []
-    
+
     async def fake_gh_json(args, timeout=60):
         raise RuntimeError("Issues are disabled for this repository (HTTP 410)")
-    
+
     async def fake_mark_issues_disabled(repo):
         mark_calls.append(repo)
-    
+
     monkeypatch.setattr(github, "gh_json", fake_gh_json)
     monkeypatch.setattr(state, "mark_issues_disabled", fake_mark_issues_disabled)
-    
+
     result = asyncio.run(github.open_issues("test-repo"))
-    
+
     assert result == []
     assert mark_calls == ["test-repo"]
 
@@ -97,37 +97,37 @@ def test_open_issues_case_insensitive_disabled_check(monkeypatch):
         "Issues Are Disabled For This Repository",
     ]:
         mark_calls = []
-        
+
         async def fake_gh_json(args, timeout=60):
             raise RuntimeError(error_msg)
-        
+
         async def fake_mark_issues_disabled(repo):
             mark_calls.append(repo)
-        
+
         monkeypatch.setattr(github, "gh_json", fake_gh_json)
         monkeypatch.setattr(state, "mark_issues_disabled", fake_mark_issues_disabled)
-        
+
         result = asyncio.run(github.open_issues("test-repo"))
-        
+
         assert result == [], f"Failed for error message: {error_msg}"
         assert len(mark_calls) == 1, f"Failed for error message: {error_msg}"
 
 
 def test_open_issues_other_errors_propagate(monkeypatch):
     """Verify other RuntimeErrors are re-raised."""
-    
+
     async def fake_gh_json(args, timeout=60):
         raise RuntimeError("Some other error")
-    
+
     monkeypatch.setattr(github, "gh_json", fake_gh_json)
-    
+
     with pytest.raises(RuntimeError, match="Some other error"):
         asyncio.run(github.open_issues("test-repo"))
 
 
 def test_open_issues_preserves_output_contract(monkeypatch):
     """Verify the output maintains the contract expected by intake_gate."""
-    
+
     async def fake_gh_json(args, timeout=60):
         return [
             {
@@ -140,14 +140,14 @@ def test_open_issues_preserves_output_contract(monkeypatch):
                 "author_association": "OWNER",
             },
         ]
-    
+
     monkeypatch.setattr(github, "gh_json", fake_gh_json)
-    
+
     result = asyncio.run(github.open_issues("test-repo"))
-    
+
     assert len(result) == 1
     issue = result[0]
-    
+
     # Verify intake_gate contract
     assert issue["number"] == 42
     assert issue["title"] == "Test issue"
