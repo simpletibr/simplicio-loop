@@ -6,6 +6,7 @@ from pathlib import Path
 from simplicio_loop import runner as runner_mod
 from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 
 def test_conduct_run_uses_adaptive_dispatch_and_stops_before_watcher_on_blocked_worker(
@@ -43,7 +44,7 @@ def test_conduct_run_uses_adaptive_dispatch_and_stops_before_watcher_on_blocked_
             "dead_letter_task_indices": [],
         }
 
-    monkeypatch.setattr(runner_mod, "execute_operator_batch", fake_batch)
+    patch_runner(monkeypatch, "execute_operator_batch", fake_batch)
     patch_runner(monkeypatch, "read_status", lambda *args: status)
 
     def fail_if_verified(*args, **kwargs):
@@ -104,7 +105,7 @@ def test_mapper_journal_uses_task_repo_root(monkeypatch, tmp_path):
     patch_runner(monkeypatch, "_mapper_operations_database",
         lambda repo: str(Path(repo) / ".simplicio-loop" / "operations.sqlite"),
     )
-    monkeypatch.setattr(runner_mod, "MapperRunJournal", FakeJournal)
+    patch_runner(monkeypatch, "MapperRunJournal", FakeJournal)
 
     runner_mod._dispatch_journal_backend(
         task_repo / ".simplicio-loop" / "loop-runs" / "run" / "run-journal.sqlite",

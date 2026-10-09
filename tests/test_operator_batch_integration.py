@@ -6,6 +6,7 @@ import pytest
 
 from simplicio_loop import runner
 from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 pytestmark = pytest.mark.usefixtures("admitting_capacity")  # host pressure must not decide these dispatch tests
 
@@ -41,7 +42,7 @@ class MemoryJournal:
 @pytest.fixture(autouse=True)
 def memory_dispatch_journal(monkeypatch):
     journal = MemoryJournal()
-    monkeypatch.setattr(runner, "_dispatch_journal_backend", lambda _path, **_kwargs: journal)
+    patch_runner(monkeypatch, "_dispatch_journal_backend", lambda _path, **_kwargs: journal)
     return journal
 
 

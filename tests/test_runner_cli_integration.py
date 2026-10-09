@@ -25,6 +25,7 @@ from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLI = [sys.executable, "-m", "simplicio_loop.cli"]
@@ -1849,8 +1850,7 @@ def test_execute_operator_batch_blocks_before_dispatch_when_receipt_missing_or_s
             payload["plan_hash"] = "stale-plan"
             operator_receipt.write_text(json.dumps(payload), encoding="utf-8")
         dispatched = []
-        monkeypatch.setattr(
-            runner_mod, "dispatch_operator_batch",
+        patch_runner(monkeypatch, "dispatch_operator_batch",
             lambda *args, **kwargs: dispatched.append((args, kwargs)),
         )
 
@@ -1892,7 +1892,7 @@ def test_conduct_run_fails_explicitly_blocked_when_batch_preflight_raises(tmp_pa
         )
         raise RuntimeError("stale operator receipt: repository changed")
 
-    monkeypatch.setattr(runner_mod, "execute_operator_batch", fail_batch)
+    patch_runner(monkeypatch, "execute_operator_batch", fail_batch)
 
     result = runner_mod.conduct_run(str(repo), str(task))
     run_dir = Path(result["run_dir"])
@@ -1914,7 +1914,7 @@ def test_conduct_run_force_blocks_when_batch_boundary_raises_without_diagnostic(
     def fail_batch_no_diagnostic(repo_arg, run_id, **kwargs):
         raise RuntimeError("unexpected batch boundary failure")
 
-    monkeypatch.setattr(runner_mod, "execute_operator_batch", fail_batch_no_diagnostic)
+    patch_runner(monkeypatch, "execute_operator_batch", fail_batch_no_diagnostic)
 
     result = runner_mod.conduct_run(str(repo), str(task))
 
@@ -1932,7 +1932,7 @@ def test_execute_operator_batch_accepts_fresh_run_receipt_chain(tmp_path, monkey
         dispatched.extend(list(items))
         return {"failed_task_indices": [], "dead_letter_task_indices": []}
 
-    monkeypatch.setattr(runner_mod, "dispatch_operator_batch", fake_dispatch)
+    patch_runner(monkeypatch, "dispatch_operator_batch", fake_dispatch)
     result = runner_mod.execute_operator_batch(
         str(repo), armed["manifest"]["run_id"], max_workers=1,
         isolated_contexts={1: {"isolation": "shared"}}, auto_fan_out=False,

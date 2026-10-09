@@ -10,6 +10,7 @@ from __future__ import annotations
 from simplicio_loop import (
     runner,
     runner_core,
+    runner_dispatch,
     runner_execute,
     runner_lane,
     runner_lifecycle,
@@ -27,6 +28,7 @@ RUNNER_MODULES = (
     runner_execute,
     runner_lane,
     runner_wave,
+    runner_dispatch,
 )
 
 

@@ -32,6 +32,7 @@ from simplicio_loop.quality_provider import (
 )
 from tests.runner_patch import patch_runner
 from tests.runner_patch import patch_runner
+from tests.runner_patch import patch_runner
 
 
 # --------------------------------------------------------------------------
@@ -295,7 +296,7 @@ def test_conduct_run_order_quality_before_verify(monkeypatch):
             "manifest": {"head": "h", "diff_hash": "d"},
         }
 
-    monkeypatch.setattr(runner_mod, "execute_operator_batch", fake_execute_batch)
+    patch_runner(monkeypatch, "execute_operator_batch", fake_execute_batch)
     monkeypatch.setattr(runner_mod, "verify_run", fake_verify)
     patch_runner(monkeypatch, "read_status", fake_read_status)
     monkeypatch.setattr(runner_mod, "arm_run", lambda *a, **k: {"manifest": {"run_id": "r1"},
@@ -352,7 +353,7 @@ def test_conduct_run_without_provider_skips_quality_and_verifies(monkeypatch):
         transitions.append((to_phase, reason))
         called["transition"] = to_phase
 
-    monkeypatch.setattr(runner_mod, "execute_operator_batch", fake_batch)
+    patch_runner(monkeypatch, "execute_operator_batch", fake_batch)
     monkeypatch.setattr(runner_mod, "verify_run", fake_verify)
     patch_runner(monkeypatch, "read_status",
                         lambda r, rid: {"run_dir": "d",
