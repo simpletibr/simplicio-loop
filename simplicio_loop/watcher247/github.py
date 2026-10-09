@@ -32,18 +32,27 @@ async def repos() -> list[dict]:
 async def open_issues(repo: str) -> list[dict]:
     try:
         rows = await gh_json([
-            "issue", "list", "--repo", f"{config.ORG}/{repo}", "--state", "open",
-            "--limit", "50", "--json", "number,title,body,createdAt,labels,author,authorAssociation",
+            "api", "-X", "GET", f"repos/{config.ORG}/{repo}/issues",
+            "-f", "state=open", "-F", "per_page=50",
         ])
     except RuntimeError as exc:
-        if "disabled issues" in str(exc):
+        exc_str = str(exc).lower()
+        if "disabled issues" in exc_str or "issues are disabled" in exc_str:
             await state.mark_issues_disabled(repo)
             return []
         raise
-    for row in rows:  # the REST shape intake_gate reads
-        row["user"] = {"login": (row.get("author") or {}).get("login", "")}
-        row["author_association"] = row.get("authorAssociation", "")
-    return rows
+    # Filter out pull requests (REST API /issues returns both issues and PRs)
+    # Also map REST API field names to the old format for backward compatibility
+    out = []
+    for row in rows:
+        if "pull_request" in row:
+            continue
+        # Map REST API fields to old format for backward compatibility
+        row["createdAt"] = row.get("created_at", "")
+        row["author"] = {"login": (row.get("user") or {}).get("login", "")}
+        row["authorAssociation"] = row.get("author_association", "")
+        out.append(row)
+    return out
 
 
 def skipped(issue: dict) -> bool:
