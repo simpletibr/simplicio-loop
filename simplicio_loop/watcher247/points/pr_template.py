@@ -49,7 +49,7 @@ def _blocks(ctx: PointContext) -> list[str]:
     if summary:
         blocks += ["### Summary", str(summary).strip(), ""]
     if issue.get("number"):
-        blocks += [f"Closes #{issue['number']}", ""]
+        blocks += [f"Parte de #{issue['number']}", ""]
     if ctx.verify:
         blocks += ["### How to verify", ctx.verify.strip(), ""]
     return blocks

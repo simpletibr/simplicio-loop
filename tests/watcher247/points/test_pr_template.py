@@ -9,7 +9,7 @@ ISSUE = {"number": 42, "title": "Fix the login timeout"}
 
 
 def _expected(summary="Fix the login timeout", verify="pytest -q: 12 passed", template=TEMPLATE):
-    return (template.rstrip() + "\n\n---\n\n### Summary\n" + summary + "\n\nCloses #42\n\n"
+    return (template.rstrip() + "\n\n---\n\n### Summary\n" + summary + "\n\nParte de #42\n\n"
             "### How to verify\n" + verify + "\n")
 
 

@@ -31,7 +31,7 @@ def test_registered_at_pr_and_blocking():
 def test_everything_green_passes_and_names_the_closing_line(point_contract, make_ctx, tmp_path):
     result = point_contract("delivery_gate", ctx_for(make_ctx, tmp_path), expect="ok")
     assert result.evidence == {"verify": "passed", "judge": "ACCEPT", "secret_scan": "clean",
-                               "closes": "Closes #1509"}
+                               "closes": "Parte de #1509"}
 
 
 def test_unverified_label_is_what_verify_decide_lets_through_and_is_flagged(point_contract, make_ctx, tmp_path):
