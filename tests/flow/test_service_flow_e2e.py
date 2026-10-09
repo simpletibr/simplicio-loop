@@ -67,7 +67,8 @@ def _turbo_document(run) -> dict:
 
 def _canonical_calls(run) -> list[dict]:
     """Writes to the issue's status comments: the POST that creates it and every PATCH that updates it."""
-    return [c for c in run["calls"] if c.get("method") in ("POST", "PATCH") and "/comments" in c.get("path", "")]
+    return [c for c in run["calls"] if c.get("method") in ("POST", "PATCH") and "/comments" in c.get("path", "")
+            and "APROVADO PELO SQUAD" not in c.get("body", "")]  # the squad approval is on the PR
 
 
 def _run_dirs(run) -> list[dict]:

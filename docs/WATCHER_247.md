@@ -19,7 +19,8 @@ Fluxo de cada tick (implementado em `watcher247/tick.py` e `watcher247/host_mode
    no fallback. Login: `claude auth login`, `codex login`, `grok login` como o usuario do servico; nenhum segredo vai
    para log, comentario ou recibo.
 2. **Plano.** `exec_planner.run_planner_with_fallback` roda o CLI em modo somente-plano (sem escrita) com o texto da
-   task e o modelo/esforco de `model_roles.resolve(familia, papel)`. Issue nova usa o papel `planning`.
+   task e o modelo/esforco de `model_roles.resolve(familia, papel)`. Issue nova usa o papel que `squad_routing.route` indica para o worker (`execution`, ou `coordination` se tocar varios
+   modulos, arquivo compartilhado ou seguranca; ver "Squads"); `planning` e o topo da escada.
 3. **Aplicacao.** O plano JSON entra no stdin de `simplicio-loop turbo --repo <clone> --apply - --verify <testes>`,
    dentro de `sandbox.wrap` e com env filtrado (sem `OPENROUTER_API_KEY`). A abertura do PR depende do verify
    (`verify.decide`), como antes.
@@ -45,3 +46,30 @@ removida ao fim da chamada.
 `simplicio-loop watch247 login-check` roda `exec_auth.check_all` nas familias habilitadas e imprime, por CLI, `ok` ou o
 comando exato que corrige, por exemplo `sudo -u simplicio-loop -H codex login`. Exit 0 quando todos estao ok, 1 caso
 contrario. Nao le nem imprime token. O mesmo estado derruba o tick com `login_missing:<cli>`.
+
+## Squads (`watcher247/squad_flow.py`)
+
+O tick usa o mesmo padrao da skill `/simplicio-loop` (#1505). Nada disso muda a concorrencia: o lote continua limitado por
+`SIMPLICIO_247_CONCURRENCY`, pelo teto diario (`budget.py`) e pelo lock por repo; escritas no clone sao seriais.
+
+1. **Coordenador geral** (`planning`). As issues novas admitidas de cada repo viram `squads.plan_squads`: squads de ate 4
+   workers e 1 coordenador (`coordination`) cada, dono de arquivo por caminho citado na issue, ordem de merge por
+   dependencia. Fixes de review (PR ja aberto) ficam fora dos squads.
+2. **Workers.** Cada issue segue o fluxo de host mode acima, comecando no papel de `squad_routing.route`. Sandbox,
+   `scrubbed_env` e a escada de escalonamento (2 falhas sobem um papel) valem para todos, sem mudanca.
+3. **Revisao do squad.** Para cada PR aberto o coordenador do squad confere (a) o verify do worker foi
+   `MEASURED|verify_passed` e (b) nenhum arquivo alterado e compartilhado ou de outro squad. Aprovado: posta
+   `APROVADO PELO SQUAD` no PR com `pr_evidence.publish_comment` (um comentario por commit de head, para o horario do
+   comentario ser sempre mais novo que o commit). Reprovado: nada e postado e o motivo vai para `status.json`.
+4. **Merge: desligado por padrao.** Sem `SIMPLICIO_247_AUTO_MERGE=1` o watcher para em "aprovado" e nunca faz merge
+   (#1434). Com a variavel, cada PR aprovado passa por `squads.squad_gate` (aprovacao mais nova que o ultimo commit) e os
+   que passam entram em `merge_train` em lotes de ate 4, na ordem do plano: uma branch temporaria `loop/merge-train`
+   integra os PRs sobre `main`, roda os testes do repo uma vez (no sandbox) e, se ficar vermelho, faz a bisseccao; so o que
+   ficou verde recebe `gh pr merge --squash`. Sem force-push.
+5. **Recibo.** Um `simplicio.execution-report/v1` por tick em
+   `<state_dir>/squads/.simplicio-loop/runtime/execution-reports/latest.json`: uma task por agente (coordenador geral,
+   coordenador de cada squad, cada worker) com `agent.role`, `agent.model` e `agent.effort`; o worker mostra o ultimo
+   papel que realmente rodou (apos escalada). `consolidated.tasks_by_role` conta por papel.
+
+`status.json` ganha `squads.<repo>`: `squads` (id, coordenador, workers, issues), `approved`, `rejected`, `merge`
+(`disabled` ou `enabled`) e, com merge ligado, `merged`, `failed` e `gate_blocked` (numeros de PR).

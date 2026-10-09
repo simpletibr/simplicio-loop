@@ -150,7 +150,19 @@ elif args[:2] == ["pr", "list"]:
     print("[]")
 elif args[:2] == ["pr", "create"]:
     record(repo=opt("--repo"), base=opt("--base"), head=opt("--head"), title=opt("--title"), body=opt("--body"))
-    print(f"https://github.com/{{opt('--repo')}}/pull/1")
+    number = 100 + int(opt("--head").rpartition("-")[2]) if fx.get("distinct_prs") else 1
+    print(f"https://github.com/{{opt('--repo')}}/pull/{{number}}")
+elif args[:2] == ["pr", "view"]:  # the squad review and the squad gate: the approval is whatever was posted on the PR
+    number = int(args[2])
+    record(pr=number)
+    posted = [c["body"] for c in seen_calls()
+              if c.get("method") == "POST" and c.get("path", "").endswith("/issues/%d/comments" % number)]
+    print(json.dumps(dict(
+        files=[dict(path="src/app.py")], headRefOid="head%d" % number,
+        commits=[dict(oid="c%d" % number, committedDate="2026-10-01T00:00:00Z", messageHeadline="loop: change")],
+        comments=[dict(id=i, createdAt="2026-10-02T00:00:00Z", body=b) for i, b in enumerate(posted)])))
+elif args[:2] == ["pr", "merge"]:
+    record(merge=int(args[2]), argv=args)
 else:
     print("unsupported gh call: " + " ".join(args), file=sys.stderr)
     sys.exit(2)
