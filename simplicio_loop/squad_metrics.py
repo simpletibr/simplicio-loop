@@ -1,0 +1,560 @@
+"""Squad metrics: escalation rate, dependency wait, measured-only.
+
+A "measured" metric comes from actual event data; "UNVERIFIED" means the data was
+missing (e.g., no steps recorded, ready_at was None, a dependency merge not observed).
+UNVERIFIED fields are marked: their dict keys are present, their values are None,
+and an explanation is recorded in the unverified dict.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+from pathlib import Path
+from typing import Any, Iterable, Mapping, Optional
+
+
+def escalation_part(steps: list[dict[str, Any]] | None) -> dict[str, Any]:
+    """Escalation part: initial_role, final_role, escalations list, proof_kind, unverified.
+
+    steps: list of {"role": str, "outcome": str, "reason"?: str, ...} in attempt order.
+    When same role is repeated, it is NOT an escalation.
+    When a step fails but has no reason, the reason in the escalation is "UNVERIFIED|reason_not_recorded".
+    Empty or None steps -> UNVERIFIED with None fields.
+    """
+    if not steps:
+        return {
+            "initial_role": None,
+            "final_role": None,
+            "escalations": None,
+            "proof_kind": {"escalations": "UNVERIFIED"},
+            "unverified": {"escalations": "no_steps_recorded"},
+        }
+
+    initial_role = steps[0]["role"]
+    final_role = steps[-1]["role"]
+    escalations = []
+
+    for i in range(1, len(steps)):
+        prev_role = steps[i - 1]["role"]
+        curr_role = steps[i]["role"]
+        if curr_role != prev_role:
+            # There is a role change: escalation
+            reason = steps[i - 1].get("reason")
+            if not reason:
+                reason = "UNVERIFIED|reason_not_recorded"
+            escalations.append({
+                "from": prev_role,
+                "to": curr_role,
+                "reason": reason,
+                "attempt": i + 1,  # 1-indexed attempt
+            })
+
+    return {
+        "initial_role": initial_role,
+        "final_role": final_role,
+        "escalations": escalations,
+        "proof_kind": {"escalations": "measured"},
+        "unverified": {},
+    }
+
+
+def dependency_part(
+    depends_on: Iterable[int],
+    ready_at: Optional[float],
+    merged_at: Mapping[int, float],
+) -> dict[str, Any]:
+    """Dependency part: dependency_wait_s, depends_on (sorted), proof_kind, unverified.
+
+    depends_on: iterable of issue numbers that this task depends on.
+    ready_at: monotonic timestamp when the task's PR became ready to merge.
+    merged_at: mapping from issue number to merge timestamp.
+
+    Rules (in order):
+    1. No deps -> wait 0.0, measured.
+    2. ready_at is None -> wait None, UNVERIFIED "task_never_ready".
+    3. Any dep missing from merged_at -> wait None, UNVERIFIED "dependency_merge_not_observed: #1,#3" (sorted).
+    4. Else wait = max(merged_at[d] for d in deps) - ready_at, rounded to 3 places, floored at 0.0, measured.
+    """
+    depends_on_list = sorted(list(depends_on))
+
+    if not depends_on_list:
+        return {
+            "dependency_wait_s": 0.0,
+            "depends_on": [],
+            "proof_kind": {"dependency_wait": "measured"},
+            "unverified": {},
+        }
+
+    if ready_at is None:
+        return {
+            "dependency_wait_s": None,
+            "depends_on": depends_on_list,
+            "proof_kind": {"dependency_wait": "UNVERIFIED"},
+            "unverified": {"dependency_wait_s": "task_never_ready"},
+        }
+
+    # Check all deps are in merged_at
+    missing = [d for d in depends_on_list if d not in merged_at]
+    if missing:
+        reason = "dependency_merge_not_observed: " + ",".join(f"#{d}" for d in missing)
+        return {
+            "dependency_wait_s": None,
+            "depends_on": depends_on_list,
+            "proof_kind": {"dependency_wait": "UNVERIFIED"},
+            "unverified": {"dependency_wait_s": reason},
+        }
+
+    # Calculate wait: max merge time - ready_at, floored at 0
+    max_merge = max(merged_at[d] for d in depends_on_list)
+    wait = max_merge - ready_at
+    wait = max(0.0, round(wait, 3))
+
+    return {
+        "dependency_wait_s": wait,
+        "depends_on": depends_on_list,
+        "proof_kind": {"dependency_wait": "measured"},
+        "unverified": {},
+    }
+
+
+def task_record(
+    steps: list[dict[str, Any]] | None,
+    depends_on: Iterable[int],
+    ready_at: Optional[float],
+    merged_at: Mapping[int, float],
+) -> dict[str, Any]:
+    """Merge escalation and dependency parts into one record."""
+    esc = escalation_part(steps)
+    dep = dependency_part(depends_on, ready_at, merged_at)
+
+    # Merge the two parts
+    record = {
+        "initial_role": esc["initial_role"],
+        "final_role": esc["final_role"],
+        "escalations": esc["escalations"],
+        "depends_on": dep["depends_on"],
+        "dependency_wait_s": dep["dependency_wait_s"],
+        "proof_kind": {
+            "escalations": esc["proof_kind"]["escalations"],
+            "dependency_wait": dep["proof_kind"]["dependency_wait"],
+        },
+        "unverified": {**esc["unverified"], **dep["unverified"]},
+    }
+    return record
+
+
+def collect(reports: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Collect tasks with squad_metrics from reports; ignore tasks without squad_metrics."""
+    result = []
+    for report in reports:
+        tasks = report.get("tasks") or []
+        for task in tasks:
+            if "squad_metrics" in task:
+                record = {**task["squad_metrics"]}
+                if "issue" in task:
+                    record["issue"] = task["issue"]
+                if "task_id" in task:
+                    record["task_id"] = task["task_id"]
+                result.append(record)
+    return result
+
+
+def percentile(sorted_values: list[float], q: float) -> Optional[float]:
+    """NEAREST-RANK percentile: rank = ceil(q/100*n), value = sorted_values[rank-1].
+
+    Empty list -> None.
+    Always returns an observed value, never interpolated.
+    """
+    if not sorted_values:
+        return None
+
+    n = len(sorted_values)
+    rank = math.ceil(q / 100.0 * n)
+    if rank < 1:
+        rank = 1
+    if rank > n:
+        rank = n
+
+    return sorted_values[rank - 1]
+
+
+def summarize_records(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Summarize a list of task records.
+
+    Counts measured vs UNVERIFIED separately. Measured records with empty depends_on
+    count as no_dependency_tasks (their wait is 0.0, measured, but not in percentile sample).
+    """
+    escalation_measured = []
+    dependency_with_deps = []
+    issues = set()
+
+    for record in records:
+        issue = record.get("issue")
+        if issue:
+            issues.add(issue)
+
+        # Check escalation measurement
+        if (record.get("proof_kind", {}).get("escalations") == "measured" and
+            record.get("initial_role") is not None and
+            record.get("final_role") is not None and
+            isinstance(record.get("escalations"), list)):
+            escalation_measured.append(record)
+        
+        # Check dependency measurement (only records with deps)
+        if (record.get("proof_kind", {}).get("dependency_wait") == "measured" and
+            record.get("dependency_wait_s") is not None and
+            isinstance(record.get("depends_on"), list)):
+            if record.get("depends_on"):  # non-empty deps
+                dependency_with_deps.append(record)
+
+    escalation_n = len(escalation_measured)
+    escalation_unverified = len(records) - escalation_n
+    escalated = sum(1 for r in escalation_measured if r.get("escalations"))
+    escalation_rate = round(escalated / escalation_n, 4) if escalation_n > 0 else None
+
+    # Count no_dependency_tasks
+    no_dependency_tasks = sum(
+        1 for r in records
+        if r.get("proof_kind", {}).get("dependency_wait") == "measured" and
+        r.get("dependency_wait_s") == 0.0 and
+        (not r.get("depends_on") or r.get("depends_on") == [])
+    )
+
+    dependency_wait_unverified = len(records) - len(dependency_with_deps) - no_dependency_tasks
+
+    # Percentiles
+    if dependency_with_deps:
+        waits = sorted([r.get("dependency_wait_s", 0.0) for r in dependency_with_deps])
+        p50 = percentile(waits, 50)
+        p95 = percentile(waits, 95)
+        max_wait = max(waits) if waits else None
+    else:
+        p50 = None
+        p95 = None
+        max_wait = None
+
+    # Escalations by transition
+    escalations_by_transition = {}
+    for record in escalation_measured:
+        for esc in record.get("escalations") or []:
+            key = f"{esc['from']}->{esc['to']}"
+            escalations_by_transition[key] = escalations_by_transition.get(key, 0) + 1
+
+    # By initial role (measured only)
+    by_initial_role = {}
+    for record in escalation_measured:
+        role = record.get("initial_role")
+        if role not in by_initial_role:
+            by_initial_role[role] = {"n": 0, "escalated": 0, "escalation_rate": None}
+        by_initial_role[role]["n"] += 1
+        if record.get("escalations"):
+            by_initial_role[role]["escalated"] += 1
+    
+    for role in by_initial_role:
+        n = by_initial_role[role]["n"]
+        esc = by_initial_role[role]["escalated"]
+        by_initial_role[role]["escalation_rate"] = round(esc / n, 4)
+
+    return {
+        "schema": "simplicio.squad-metrics/v1",
+        "reports": None,
+        "tasks": len(records),
+        "issues": sorted(list(issues)),
+        "escalation_n": escalation_n,
+        "escalation_unverified": escalation_unverified,
+        "escalated": escalated,
+        "escalation_rate": escalation_rate,
+        "escalations_by_transition": escalations_by_transition,
+        "by_initial_role": by_initial_role,
+        "dependency_wait_n": len(dependency_with_deps),
+        "no_dependency_tasks": no_dependency_tasks,
+        "dependency_wait_unverified": dependency_wait_unverified,
+        "dependency_wait_p50_s": p50,
+        "dependency_wait_p95_s": p95,
+        "dependency_wait_max_s": max_wait,
+    }
+
+
+def summarize(reports: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    """Summarize reports: collect and summarize_records, add reports count."""
+    reports_list = list(reports)
+    records = collect(reports_list)
+    summary = summarize_records(records)
+    summary["reports"] = len(reports_list)
+    return summary
+
+
+def load_reports(paths: list[str]) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    """Load execution-report/v1 files from paths (files or directories).
+
+    Directories are searched recursively for *.json, excluding latest.json.
+    Duplicates by run_id are deduplicated.
+    Returns (reports sorted by path, skipped list).
+    """
+    all_reports = []
+    skipped = []
+    seen_run_ids = set()
+
+    for path_str in paths:
+        path = Path(path_str)
+        json_files = []
+
+        if path.is_file():
+            json_files = [path]
+        elif path.is_dir():
+            json_files = sorted([p for p in path.rglob("*.json") if p.name != "latest.json"])
+
+        for json_file in json_files:
+            try:
+                content = json_file.read_text(encoding="utf-8")
+                data = json.loads(content)
+                if not isinstance(data, dict) or data.get("schema") != "simplicio.execution-report/v1":
+                    skipped.append({
+                        "path": str(json_file),
+                        "reason": f"wrong schema: {data.get('schema') if isinstance(data, dict) else type(data).__name__}",
+                    })
+                    continue
+                run_id = data.get("run_id")
+                if run_id and run_id in seen_run_ids:
+                    continue
+                if run_id:
+                    seen_run_ids.add(run_id)
+                all_reports.append(data)
+            except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
+                skipped.append({
+                    "path": str(json_file),
+                    "reason": str(e),
+                })
+
+    # Sort by path for determinism
+    all_reports.sort(key=lambda r: r.get("run_id", ""))
+    return all_reports, skipped
+
+
+def compare(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
+    """Compare two summaries.
+
+    Returns dict with schema, rows (metric comparisons), and warnings.
+    Warnings explain small n, different issue sets, and UNVERIFIED counts.
+    """
+    result = {
+        "schema": "simplicio.squad-metrics-compare/v1",
+        "rows": [],
+        "warnings": [],
+    }
+
+    # Metrics to compare
+    metrics = [
+        ("escalation_rate", "escalation_n"),
+        ("dependency_wait_p50_s", "dependency_wait_n"),
+        ("dependency_wait_p95_s", "dependency_wait_n"),
+        ("dependency_wait_max_s", "dependency_wait_n"),
+    ]
+
+    for metric, n_key in metrics:
+        before_val = before.get(metric)
+        after_val = after.get(metric)
+        before_n = before.get(n_key, 0)
+        after_n = after.get(n_key, 0)
+
+        result["rows"].append({
+            "metric": metric,
+            "before": {"value": before_val, "n": before_n},
+            "after": {"value": after_val, "n": after_n},
+        })
+
+    # Warnings
+    before_esc_n = before.get("escalation_n", 0)
+    after_esc_n = after.get("escalation_n", 0)
+    before_dep_n = before.get("dependency_wait_n", 0)
+    after_dep_n = after.get("dependency_wait_n", 0)
+
+    if before_esc_n < 10:
+        result["warnings"].append(
+            f"before: n={before_esc_n} measured tasks for escalation rate (fewer than 10: do not read this as a trend)"
+        )
+    if after_esc_n < 10:
+        result["warnings"].append(
+            f"after: n={after_esc_n} measured tasks for escalation rate (fewer than 10: do not read this as a trend)"
+        )
+
+    if before_dep_n < 10:
+        result["warnings"].append(
+            f"before: n={before_dep_n} measured tasks for dependency wait (fewer than 10: do not read this as a trend)"
+        )
+    if after_dep_n < 10:
+        result["warnings"].append(
+            f"after: n={after_dep_n} measured tasks for dependency wait (fewer than 10: do not read this as a trend)"
+        )
+
+    before_issues = set(before.get("issues", []))
+    after_issues = set(after.get("issues", []))
+    if before_issues != after_issues:
+        only_before = before_issues - after_issues
+        only_after = after_issues - before_issues
+        in_both = before_issues & after_issues
+        result["warnings"].append(
+            f"task sets differ: {len(only_before)} only in before, {len(only_after)} only in after, {len(in_both)} in both"
+        )
+
+    before_unv_esc = before.get("escalation_unverified", 0)
+    after_unv_esc = after.get("escalation_unverified", 0)
+    before_unv_dep = before.get("dependency_wait_unverified", 0)
+    after_unv_dep = after.get("dependency_wait_unverified", 0)
+
+    if before_unv_esc > 0 or after_unv_esc > 0 or before_unv_dep > 0 or after_unv_dep > 0:
+        result["before_unverified"] = {
+            "escalation": before_unv_esc,
+            "dependency_wait": before_unv_dep,
+        }
+        result["after_unverified"] = {
+            "escalation": after_unv_esc,
+            "dependency_wait": after_unv_dep,
+        }
+        result["warnings"].append(
+            f"before: {before_unv_esc + before_unv_dep} task(s) UNVERIFIED are excluded from the numbers"
+        )
+        result["warnings"].append(
+            f"after: {after_unv_esc + after_unv_dep} task(s) UNVERIFIED are excluded from the numbers"
+        )
+
+    return result
+
+
+def render_summary(summary: dict[str, Any]) -> str:
+    """Render summary as plain-text table."""
+    lines = []
+    lines.append("Squad Metrics Summary")
+    lines.append("=" * 50)
+    lines.append(f"Reports: {summary.get('reports')}")
+    lines.append(f"Tasks: {summary.get('tasks')}")
+    lines.append(f"Issues: {', '.join(summary.get('issues', []))}")
+    lines.append("")
+    lines.append("Escalation:")
+    lines.append(f"  Measured: {summary.get('escalation_n')}")
+    lines.append(f"  Unverified: {summary.get('escalation_unverified')}")
+    lines.append(f"  Escalated: {summary.get('escalated')}")
+    rate = summary.get("escalation_rate")
+    if rate is not None:
+        lines.append(f"  Rate: {rate:.4f}")
+    else:
+        lines.append(f"  Rate: n/a")
+    lines.append("")
+    lines.append("Dependencies:")
+    lines.append(f"  With deps (n): {summary.get('dependency_wait_n')}")
+    lines.append(f"  Without deps: {summary.get('no_dependency_tasks')}")
+    lines.append(f"  Unverified: {summary.get('dependency_wait_unverified')}")
+    p50 = summary.get("dependency_wait_p50_s")
+    p95 = summary.get("dependency_wait_p95_s")
+    max_w = summary.get("dependency_wait_max_s")
+    lines.append(f"  p50: {p50 if p50 is not None else 'n/a'}")
+    lines.append(f"  p95: {p95 if p95 is not None else 'n/a'}")
+    lines.append(f"  max: {max_w if max_w is not None else 'n/a'}")
+    return "\n".join(lines)
+
+
+def render_compare(result: dict[str, Any]) -> str:
+    """Render compare result as plain-text table."""
+    lines = []
+    lines.append("Squad Metrics Comparison")
+    lines.append("=" * 70)
+    lines.append(f"{'Metric':<30} {'Before':<20} {'After':<20}")
+    lines.append("-" * 70)
+
+    for row in result.get("rows", []):
+        metric = row.get("metric", "")
+        before_val = row.get("before", {}).get("value")
+        before_n = row.get("before", {}).get("n", 0)
+        after_val = row.get("after", {}).get("value")
+        after_n = row.get("after", {}).get("n", 0)
+
+        before_str = f"{before_val:.4f} (n={before_n})" if before_val is not None else f"n/a (n={before_n})"
+        after_str = f"{after_val:.4f} (n={after_n})" if after_val is not None else f"n/a (n={after_n})"
+
+        lines.append(f"{metric:<30} {before_str:<20} {after_str:<20}")
+
+    lines.append("")
+    if result.get("warnings"):
+        lines.append("Warnings:")
+        for warning in result["warnings"]:
+            lines.append(f"  WARNING: {warning}")
+
+    return "\n".join(lines)
+
+
+def load_summary(path: str) -> dict[str, Any]:
+    """Load a summary file (squad-metrics/v1 or execution-report/v1).
+
+    If it is an execution-report/v1, summarize it.
+    If it is a squad-metrics/v1, return as-is.
+    Otherwise, raise ValueError.
+    """
+    try:
+        content = Path(path).read_text(encoding="utf-8")
+        data = json.loads(content)
+    except (OSError, json.JSONDecodeError) as e:
+        raise ValueError(f"Could not load {path}: {e}")
+
+    if not isinstance(data, dict):
+        raise ValueError(f"Unknown schema in {path}: not a JSON object")
+    schema = data.get("schema")
+    if schema == "simplicio.squad-metrics/v1":
+        return data
+    elif schema == "simplicio.execution-report/v1":
+        return summarize([data])
+    else:
+        raise ValueError(f"Unknown schema {schema} in {path}")
+
+
+def dispatch(args: Any) -> int:
+    """CLI dispatch: --reports or --compare, with optional --json.
+
+    Returns 0 on success, 2 on BLOCKED (error).
+    Prints JSON or text output.
+    """
+    def emit_blocked(reason: str) -> int:
+        output = {
+            "status": "BLOCKED",
+            "error": "BlockedError",
+            "reason": reason,
+        }
+        print(json.dumps(output, ensure_ascii=False, indent=2, sort_keys=True))
+        return 2
+
+    # Check exclusivity: can't have both --reports and --compare
+    if args.reports and args.compare:
+        return emit_blocked("Cannot use --reports and --compare together")
+
+    if args.compare:
+        # Compare two summaries
+        try:
+            before = load_summary(args.compare[0])
+            after = load_summary(args.compare[1])
+            result = compare(before, after)
+            if args.json:
+                print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                print(render_compare(result))
+            return 0
+        except (OSError, ValueError) as e:
+            return emit_blocked(str(e))
+
+    elif args.reports:
+        # Load and summarize reports
+        try:
+            reports, skipped = load_reports(args.reports)
+            if not reports:
+                return emit_blocked(f"no execution-report/v1 found in {args.reports}")
+            summary = summarize(reports)
+            summary["skipped"] = skipped
+            if args.json:
+                print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                print(render_summary(summary))
+            return 0
+        except (OSError, ValueError) as e:
+            return emit_blocked(str(e))
+
+    else:
+        return emit_blocked("give --reports or --compare")

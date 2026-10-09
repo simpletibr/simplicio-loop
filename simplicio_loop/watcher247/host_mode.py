@@ -115,6 +115,13 @@ def ceilings() -> dict[str, int]:
     return {key: value for key, value in found.items() if value is not None}
 
 
+def _failure_reason(planned: exec_planner.PlannerResult, label: str, status: str) -> str:
+    """Why a step failed, as a code: the planner's own reason_code, a red verify, or turbo's apply status."""
+    if not planned.is_ok():
+        return planned.reason_code
+    return "verify_failed" if label.startswith("MEASURED|verify_failed") else f"apply_{status}"
+
+
 def next_role(ladder: escalation.EscalationState) -> None:
     """execution repeats once, then the ladder climbs; at planning it stays and retries with the failure output."""
     if ladder.current_role() == "execution" and ladder.attempts_in_step < 2:
@@ -231,7 +238,8 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
             _note_step(report, repo=repo, issue=issue, step=step, planned=planned,
                        outcome="COMPLETE" if ok else "FAIL", wall_ms=wall_ms)
             steps.append({"role": planned.role, "family": planned.family, "model": planned.model,
-                          "effort": planned.effort, "outcome": "ok" if ok else "failed"})
+                          "effort": planned.effort, "outcome": "ok" if ok else "failed",
+                          **({} if ok else {"reason": _failure_reason(planned, label, status)})})
             if ok:
                 report["status"] = "COMPLETE"
                 return {"turbo_status": status, "exit_code": result.returncode, "verify": label,

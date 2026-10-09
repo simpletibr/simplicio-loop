@@ -38,6 +38,67 @@ O gate aceita `APROVADO PELO SQUAD` só se o **autor** do comentário for autori
 - Watcher 24/7: usa só o próprio login `gh` (`gh api user --jq .login`, uma vez por tick e só com `SIMPLICIO_247_AUTO_MERGE=1`); se o login não vier, nada é aprovado.
 - CLI: `simplicio-loop squads gate --pr N --repo R --approver LOGIN [--approver ...] [--trusted-association MEMBER] --json`. Sem `--approver` nem `--trusted-association` sai com código 1 e `unauthorized_approval`.
 
+## 5. Taxa de escalação e espera por dependência (`simplicio_loop/squad_metrics.py`, #1549)
+
+Duas métricas que o repositório local não mede e que o comparativo "antes × depois" da v2 precisa: **quantas tarefas subiram de papel** e **quanto uma tarefa esperou o merge da sua dependência**. O watcher só **registra**; nenhuma regra muda por causa delas. Só entram valores medidos: o que não foi observado fica `null` com `proof_kind: UNVERIFIED` e o motivo, nunca uma estimativa.
+
+### O que é registrado por tarefa
+
+Cada task de worker do `simplicio.execution-report/v1` do squad (`<state_dir>/squads/.simplicio-loop/runtime/execution-reports/<run_id>.json`) ganha `squad_metrics`. O mesmo registro, mais o campo `issue`, vai em `status.json` → `squads.<repo>.task_metrics`, e o resumo do tick em `squads.<repo>.metrics`.
+
+| Campo | Significado |
+|-------|-------------|
+| `initial_role`, `final_role` | papel do primeiro e do último passo que rodou de fato (os passos do worker, não a previsão do roteador) |
+| `escalations` | uma entrada por subida de papel: `from`, `to`, `reason` (por que o passo anterior falhou: `verify_failed`, `bad_plan`, `apply_<status>`...) e `attempt` (o passo, a partir de 1, em que o novo papel rodou). Repetir o mesmo papel não é escalada. |
+| `depends_on` | issues do mesmo lote de que esta depende (as mesmas arestas da ordem de merge) |
+| `dependency_wait_s` | segundos entre o PR da tarefa ficar **pronto** (o squad postou `APROVADO PELO SQUAD`) e o merge da **última** dependência ser **observado** (`gh pr merge` com sucesso), no relógio monotônico. `0.0` medido quando não há dependência, ou quando a dependência já tinha entrado. |
+| `proof_kind` | `{"escalations": ..., "dependency_wait": ...}`, cada um `measured` ou `UNVERIFIED` |
+| `unverified` | o motivo de cada parte `UNVERIFIED` |
+
+Quando é `UNVERIFIED` (e por isso fica fora de todo denominador):
+
+- `no_steps_recorded`: o worker não devolveu passos. É o caso do executor `openrouter` (não tem escada), de uma tarefa que falhou no tick ou que terminou sem PR. Não vira zero escalada.
+- `task_never_ready`: a tarefa tem dependência, mas o squad não aprovou o PR dela.
+- `dependency_merge_not_observed: #N`: a dependência não teve merge observado neste tick (por exemplo, sem `SIMPLICIO_247_AUTO_MERGE=1`, `gate_blocked` ou `failed`).
+
+Limites conhecidos: a dependência só conta se está no mesmo lote do tick (a mesma regra do `plan_squads`); um merge feito em outro tick ou à mão não é observado e a espera fica `UNVERIFIED`. O relógio é `time.monotonic()` do processo do watcher.
+
+### Resumo e CLI
+
+`squad_metrics.summarize(reports)` (puro) e `simplicio-loop squads metrics --reports <diretório|arquivos...> --json` agregam muitos reports. Um diretório é varrido por `*.json`, `latest.json` é ignorado (é cópia do último) e a mesma `run_id` conta uma vez; arquivo que não é `execution-report/v1` vai em `skipped` com o motivo. Sem nenhum report, sai com código 2 e `status: BLOCKED`.
+
+| Campo do JSON | Significado |
+|---------------|-------------|
+| `reports`, `tasks`, `issues` | quantos reports, quantas tarefas com registro e quais (`repo#N`) |
+| `escalation_n` | tarefas com escalada **medida**: é o denominador da taxa |
+| `escalated`, `escalation_rate` | quantas subiram de papel e `escalated / escalation_n` (4 casas; `null` se `escalation_n` é 0) |
+| `escalation_unverified` | tarefas fora da taxa por falta de dado |
+| `by_initial_role` | `n`, `escalated` e taxa por papel inicial |
+| `escalations_by_transition` | contagem por subida, por exemplo `execution->coordination` |
+| `dependency_wait_n` | tarefas **com** dependência e espera medida: é a amostra dos percentis |
+| `no_dependency_tasks` | tarefas sem dependência (espera 0 medida, fora da amostra) |
+| `dependency_wait_unverified` | tarefas com espera `UNVERIFIED` |
+| `dependency_wait_p50_s`, `_p95_s`, `_max_s` | percentis por **posto mais próximo** (sempre um valor observado, sem interpolar) |
+
+Amostra pequena: o `n` vem sempre junto do número. Com `n` de 1 a 3, p50, p95 e max são o mesmo valor ou quase; não leia isso como tendência.
+
+### Como coletar o "antes" e o "depois"
+
+Nenhum dos dois é rodado por este PR: o comparativo real exige um drain de verdade e está **UNVERIFIED** até lá.
+
+1. Escolha o conjunto de issues e use **o mesmo** (ou o mais parecido possível) nos dois lados. Os dois lados precisam rodar um build que tenha este registro; um report antigo, sem `squad_metrics`, não tem como entrar na conta (conta zero tarefas).
+2. **Antes** = um coordenador, sem as regras da v2 (roteamento, merge em lote, interfaces primeiro). **Depois** = squads v2. Quem roda o drain decide como desligar as regras no "antes"; o instrumento só observa.
+3. Com `SIMPLICIO_247_AUTO_MERGE=1` nos dois lados (sem merge a espera por dependência fica `UNVERIFIED`) e o executor `exec` (o `openrouter` não registra passos), rode o watcher e guarde a pasta de reports de cada lado:
+
+```bash
+simplicio-loop squads metrics --reports antes/squads --json > before.json
+simplicio-loop squads metrics --reports depois/squads --json > after.json
+simplicio-loop squads metrics --compare before.json after.json          # tabela lado a lado
+simplicio-loop squads metrics --compare before.json after.json --json   # o mesmo, em JSON (rows, warnings)
+```
+
+`--compare` mostra os números dos dois lados com o `n` de cada um e **só avisa**: `n` menor que 10 (por métrica e por lado), conjuntos de issues diferentes (quantas só no antes, só no depois, em comum) e tarefas `UNVERIFIED` excluídas. Não calcula diferença nem faz afirmação de significância. Cole na issue #1549 as duas saídas e os avisos como vierem.
+
 ## Uso no `/simplicio-loop`
 
 1. O coordenador geral (planning) chama `plan_squads`: squads, ordem de merge e contratos das arestas de dependência.
