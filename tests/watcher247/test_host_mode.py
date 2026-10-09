@@ -8,10 +8,11 @@ import json
 import os
 import stat
 import textwrap
+from pathlib import Path
 
 import pytest
 
-from simplicio_loop import escalation, executor_select, model_roles
+from simplicio_loop import escalation, execution_report, executor_select, model_roles
 from simplicio_loop.watcher247 import config, host_mode, proc, sandbox
 
 from .fakes import FakeRun, baseline, issue, pr_row, read_json, run_tick
@@ -37,23 +38,60 @@ STUB = textwrap.dedent('''\
 ''') % repr(PLAN)
 
 
-class HostRun(FakeRun):
-    """FakeRun whose `turbo --apply -` answers the given documents in order (the last one repeats)."""
+RUN_ID = "turbo-20261008T000000-abc123"
+MAP_SLICE = "MAP-SLICE-for-app.py"
 
-    def __init__(self, issues, applies=(OK,), **kwargs):
+
+class HostRun(FakeRun):
+    """FakeRun for turbo's two host steps.
+
+    Step 1 (`turbo --task T`) answers a needs_plan request; step 2 (`turbo --apply -`) answers the given documents in
+    order (the last one repeats). With ``reports`` the apply writes its execution-report as turbo does.
+    """
+
+    def __init__(self, issues, applies=(OK,), request=None, reports=False, **kwargs):
         super().__init__(issues, **kwargs)
         self.applies = list(applies)
+        self.request = request
+        self.reports = reports
+        self.requests = []  # (argv, env, planner calls already made when it ran)
         self.turbo_stdin = []
         self.turbo_env = []
 
+    def _planner_calls_so_far(self):
+        path = Path(os.environ["FAKE_CLI_DIR"]) / "calls.jsonl"
+        return len(path.read_text().splitlines()) if path.exists() else 0
+
     async def __call__(self, argv, timeout=120, cwd=None, stdin=None, env=None):
-        if list(argv[:2]) == ["simplicio-loop", "turbo"]:
-            await super().__call__(argv, timeout, cwd, stdin, env)
-            self.turbo_stdin.append(stdin)
-            self.turbo_env.append(env)
-            document = self.applies.pop(0) if len(self.applies) > 1 else self.applies[0]
-            return proc.Result(0 if document["status"] == "ok" else 1, json.dumps(document))
-        return await super().__call__(argv, timeout, cwd, stdin, env)
+        if list(argv[:2]) != ["simplicio-loop", "turbo"]:
+            return await super().__call__(argv, timeout, cwd, stdin, env)
+        if "--apply" not in argv and "--provider" not in argv:
+            self.calls.append(list(argv))
+            self.requests.append((list(argv), env, self._planner_calls_so_far()))
+            if self.request is not None:
+                return proc.Result(2, json.dumps(self.request))
+            task = argv[argv.index("--task") + 1]
+            document = {"schema": "simplicio.turbo-request/v1", "status": "needs_plan", "mode": "host",
+                        "run_id": RUN_ID, "tasks": [task], "map": {"slice": MAP_SLICE},
+                        "files": {"app.py": "x = 1\n"}, "format": {"operations": []}, "rules": "rules",
+                        "apply": f"simplicio-loop turbo --apply - --run-id {RUN_ID}"}
+            return proc.Result(0, json.dumps(document))
+        await super().__call__(argv, timeout, cwd, stdin, env)
+        self.turbo_stdin.append(stdin)
+        self.turbo_env.append(env)
+        document = dict(self.applies.pop(0) if len(self.applies) > 1 else self.applies[0])
+        if self.reports and "--run-id" in argv:
+            document["execution_report"] = self._write_turbo_report(Path(cwd), argv[argv.index("--run-id") + 1])
+        return proc.Result(0 if document["status"] == "ok" else 1, json.dumps(document))
+
+    @staticmethod
+    def _write_turbo_report(dest, run_id):
+        """What turbo's TurboRun.finish leaves: one report named after the run, with a single turbo task."""
+        report = execution_report.new_report(dest, execution_profile="turbo-host")
+        report["run_id"] = run_id
+        execution_report.record_task(report, task_id=run_id, title="turbo host: 1 task(s)", outcome="COMPLETE",
+                                     operators=["simplicio-mapper", "simplicio-dev-cli"])
+        return execution_report.write_report(dest, report).relative_to(dest).as_posix()
 
 
 @pytest.fixture
@@ -103,7 +141,7 @@ def step_roles(dest):
     """(role, model, effort) of every step in the execution-report the watcher wrote."""
     report = read_json(dest / REPORTS)
     assert report["schema"] == "simplicio.execution-report/v1"
-    return [(t["role"], t["model"], t["effort"]) for t in report["tasks"]]
+    return [(t["role"], t["model"], t["effort"]) for t in report["tasks"] if "role" in t]
 
 
 def review_fixture(applies):
@@ -156,7 +194,7 @@ def test_planner_runs_through_the_sandbox_wrapper(env, cli_dir, monkeypatch):
     planner = [w for w in wrapped if w[0][0] == "claude"]
     assert len(planner) == 1 and planner[0][1] == dest and planner[0][2] == config.ROOT
     assert env_values_has_sandboxed(cli_dir)  # the CLI really ran under the wrapper
-    assert [w[0][0] for w in wrapped] == ["claude", "simplicio-loop"]  # planner, then the apply
+    assert [w[0][0] for w in wrapped] == ["simplicio-loop", "claude", "simplicio-loop"]  # request, planner, apply
     assert fake.turbo_argv
 
 
@@ -205,7 +243,7 @@ def test_plan_goes_to_turbo_stdin_and_dev_cli_applies(env, cli_dir):
     dest = checkout()
     run_tick()
     assert fake.turbo_argv[0] == ["simplicio-loop", "turbo", "--repo", str(dest), "--apply", "-",
-                                  "--verify", "python3 -m pytest -q"]
+                                  "--run-id", RUN_ID, "--verify", "python3 -m pytest -q"]
     assert json.loads(fake.turbo_stdin[0]) == PLAN
     (call,) = planner_calls(cli_dir)
     assert flag(call, "--model") == resolved("planning")["model"]
@@ -290,3 +328,73 @@ def test_execution_report_has_role_model_and_effort_per_step(env, cli_dir):
     report = read_json(dest / REPORTS)
     assert [t["outcome"] for t in report["tasks"]] == ["FAIL", "COMPLETE"]
     assert all(t["tokens"]["source"] == "absent" for t in report["tasks"])  # UNVERIFIED, never invented
+
+
+# --- turbo's two host steps (#1469): the request (map) first, then the apply that continues the same run ---
+
+
+def test_step_1_runs_before_the_planner_in_the_sandbox_with_the_scrubbed_env(env, cli_dir):
+    fake = env(HostRun({REPO: [issue(3, "Add x")]}))
+    baseline()
+    dest = checkout()
+    run_tick()
+    ((argv, step_env, planner_calls_before),) = fake.requests
+    assert argv == ["simplicio-loop", "turbo", "--repo", str(dest), "--task", argv[-1]]
+    assert "Issue #3: Add x" in argv[-1]  # the guarded task, not a bare title
+    assert planner_calls_before == 0, "turbo's request (mapper orient) must run before the planner"
+    assert "OPENROUTER_API_KEY" not in step_env and "ANTHROPIC_API_KEY" not in step_env
+    assert fake.calls.index(argv) < fake.calls.index(fake.turbo_argv[0])  # step 1 before step 2
+
+
+def test_planner_prompt_is_the_turbo_request_with_the_map_slice(env, cli_dir):
+    env(HostRun({REPO: [issue(3, "Add x")]}))
+    baseline()
+    checkout()
+    run_tick()
+    (call,) = planner_calls(cli_dir)
+    assert MAP_SLICE in call[1] and "Issue #3: Add x" in call[1]
+    assert RUN_ID in call[1] and "x = 1" in call[1]  # the request: run, current file text
+    assert flag(call, "--permission-mode") == "plan"
+
+
+def test_step_2_continues_the_run_and_one_report_carries_run_id_and_roles(env, cli_dir):
+    fake = env(review_fixture([BAD, OK]))
+    fake.reports = True
+    baseline(f"{REPO}#7")
+    dest = checkout()
+    run_tick()
+    assert len(fake.requests) == 1  # one orient per work item, whatever the retries
+    for argv in fake.turbo_argv:
+        assert argv[argv.index("--run-id") + 1] == RUN_ID
+    report = read_json(dest / REPORTS)
+    assert report["run_id"] == RUN_ID
+    assert read_json(dest / ".simplicio-loop/runtime/execution-reports" / f"{RUN_ID}.json") == report
+    roles = [t for t in report["tasks"] if "role" in t]
+    assert [t["role"] for t in roles] == ["coordination", "planning"]
+    assert [t["outcome"] for t in roles] == ["FAIL", "COMPLETE"]
+    assert [t["task_id"] for t in report["tasks"] if "role" not in t] == [RUN_ID, RUN_ID]  # turbo's own tasks
+    assert "simplicio-mapper" in report["operators_used"] and "exec-planner" in report["operators_used"]
+
+
+def test_escalation_retry_reuses_the_request_plus_the_failure_output(env, cli_dir):
+    fake = env(HostRun({REPO: [issue(1)]}, [BAD, OK]))
+    baseline()
+    checkout()
+    run_tick()
+    first, second = planner_calls(cli_dir)
+    assert len(fake.requests) == 1
+    assert MAP_SLICE in first[1] and MAP_SLICE in second[1]  # the same request both times
+    assert "FAILED test_x" not in first[1] and "FAILED test_x - assert 0" in second[1]
+    assert [a[a.index("--run-id") + 1] for a in fake.turbo_argv] == [RUN_ID, RUN_ID]
+
+
+def test_blocked_request_stops_before_any_planner_call(env, cli_dir):
+    blocked = {"schema": "simplicio.turbo-run/v1", "status": "blocked", "reason_code": "turbo_engine_error",
+               "detail": "mapper unavailable"}
+    fake = env(HostRun({REPO: [issue(1)]}, request=blocked))
+    baseline()
+    checkout()
+    run_tick()
+    assert planner_calls(cli_dir) == [] and fake.turbo_argv == []
+    claim = read_json(config.CLAIMS)[f"{REPO}#1"]
+    assert claim["status"] == "retry" and "mapper unavailable" in claim["error"]

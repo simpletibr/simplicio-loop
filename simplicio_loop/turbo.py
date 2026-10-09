@@ -11,12 +11,12 @@ import asyncio
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Awaitable, Callable, Mapping, Sequence
 
-IndexFn = Callable[[Path], str]
+IndexFn = Callable[[Path], Awaitable[str]]
 
 
-def _default_index(root: Path) -> str:
+async def _default_index(root: Path) -> str:
     """Run the shipped Mapper index once and digest the project map it wrote.
 
     Mapper writes ``.simplicio-loop/project-map.json``. An empty digest is not a
@@ -26,7 +26,7 @@ def _default_index(root: Path) -> str:
     from .cli_impl import _ensure_project_map
 
     # Let MapperIndexError propagate up, don't swallow it
-    _ensure_project_map(root)
+    await _ensure_project_map(root)
     path = root / ".simplicio-loop" / "project-map.json"
     payload = path.read_bytes() if path.is_file() else b""
     if not payload:
@@ -34,7 +34,7 @@ def _default_index(root: Path) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def survey_tasks(
+async def survey_tasks(
     root: Path,
     tasks: Sequence[Mapping[str, Any]],
     index: IndexFn | None = None,
@@ -50,7 +50,7 @@ def survey_tasks(
         generation = str(saved["generation"])
         indexed = False
     else:
-        generation = str(indexer(root))
+        generation = str(await indexer(root))
         state_path.parent.mkdir(parents=True, exist_ok=True)
         state_path.write_text(
             json.dumps({"generation": generation}, ensure_ascii=False),
@@ -486,7 +486,7 @@ async def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, de
     """
     from . import turbo_provider
 
-    survey = survey_tasks(root, tasks)
+    survey = await survey_tasks(root, tasks)
     single = len(list(tasks)) == 1
     reading = mapper_reading(root, focus=focus_paths(tasks) if single and slice_enabled() else None)
     binary = dev_cli or _dev_cli_bin()

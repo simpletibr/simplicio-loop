@@ -6,6 +6,7 @@ OpenRouter, and it does so through ``bench.llm_ab.run`` (the OpenCode driver).
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import os
 import sys
@@ -48,7 +49,7 @@ def recorded_prefix_calls(count: int, prefix_tokens: int = 256) -> list[dict]:
 def hermetic(root: Path, *, index=None) -> dict:
     """Both arms, 10 tasks, one Mapper survey, no network."""
     tasks = bench_tasks.task_set(10)
-    survey = survey_tasks(root, tasks, index=index)
+    survey = asyncio.run(survey_tasks(root, tasks, index=index))
     calls = recorded_prefix_calls(len(tasks) + 1)
     miss = run_prefix_cache_miss(calls)
     generations = {row["generation"] for row in survey["tasks"]}
