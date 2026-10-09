@@ -5,8 +5,8 @@ One executable answers to several program names, like the console scripts of the
 * ``simplicio-loop`` (and any other name, for example the long release asset name);
 * ``simplicio-mapper``, ``simplicio-dev-cli``, ``simplicio-cli``, ``simplicio-py``.
 
-The loop starts these operators by name through ``PATH``. In a frozen build there is no
-script directory, so ``prepare_environment`` makes a small per-user directory of links to
+The loop starts these operators, and itself, by name through ``PATH``. In a frozen build there
+is no script directory, so ``prepare_environment`` makes a small per-user directory of links to
 the executable and puts it first on ``PATH``. The links keep the program name in
 ``argv[0]``, and ``dispatch`` picks the entry point from that name. The entry points come from
 the ``console_scripts`` of the packaged ``simplicio-loop`` metadata, so ``pyproject.toml``
@@ -104,7 +104,7 @@ def _link(link: Path, executable: Path) -> None:
 
 
 def ensure_operator_dir(executable: os.PathLike[str] | str, home: Path) -> Path:
-    """Make ``<home>/.simplicio-loop/bin/<key>/`` hold one link per operator name.
+    """Make ``<home>/.simplicio-loop/bin/<key>/`` hold one link per program name.
 
     The key comes from the executable path. A new binary at the same path (an update) keeps
     the same links. Links that point elsewhere are repaired. Links that are right stay as they are.
@@ -113,7 +113,7 @@ def ensure_operator_dir(executable: os.PathLike[str] | str, home: Path) -> Path:
     key = hashlib.sha256(os.fspath(path).encode()).hexdigest()[:12]
     directory = home / ".simplicio-loop" / "bin" / key
     directory.mkdir(parents=True, exist_ok=True)
-    for name in OPERATOR_NAMES:
+    for name in (LOOP_NAME, *OPERATOR_NAMES):  # the loop too: doctor, hooks and printed commands start it by name
         _link(directory / (name + _SUFFIX), path)
     return directory
 

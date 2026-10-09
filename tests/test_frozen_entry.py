@@ -127,10 +127,10 @@ def test_ensure_operator_dir_links_every_operator_to_the_executable(tmp_path, fa
     home = tmp_path / "home"
     directory = frozen.ensure_operator_dir(fake_exe, home)
     assert directory.is_relative_to(home / ".simplicio-loop" / "bin")
-    for name in frozen.OPERATOR_NAMES:
+    # The loop is linked too: doctor, hooks and printed commands start it by name.
+    for name in ("simplicio-loop", *frozen.OPERATOR_NAMES):
         link = directory / (name + SUFFIX)
         assert os.path.samefile(link, fake_exe), name
-    assert not (directory / ("simplicio-loop" + SUFFIX)).exists()
 
 
 def test_ensure_operator_dir_is_idempotent_and_repairs_a_stale_link(tmp_path, fake_exe):
@@ -170,7 +170,7 @@ def test_prepare_environment_puts_the_operators_first_on_path_once(tmp_path, fak
 def test_operators_resolve_through_path_and_see_their_own_name(tmp_path, fake_exe):
     environ = {"PATH": "/usr/bin:/bin"}
     frozen.prepare_environment(fake_exe, environ, tmp_path / "home")
-    for name in frozen.OPERATOR_NAMES:
+    for name in ("simplicio-loop", *frozen.OPERATOR_NAMES):
         assert shutil.which(name, path=environ["PATH"]), name
         out = subprocess.run([name], env=environ, capture_output=True, text=True, check=True).stdout
         assert out.strip() == f"ran-as {name}"
