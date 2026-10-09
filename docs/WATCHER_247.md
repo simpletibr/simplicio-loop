@@ -109,6 +109,53 @@ removida ao fim da chamada.
 comando exato que corrige, por exemplo `sudo -u simplicio-loop -H codex login`. Exit 0 quando todos estao ok, 1 caso
 contrario. Nao le nem imprime token. O mesmo estado derruba o tick com `login_missing:<cli>`.
 
+## Isolamento do sandbox (`watcher247/sandbox.py`, issue #1563)
+
+Todo subprocesso do watcher (planner, `turbo --apply`, git, testes do merge train, pontos de extensão) roda sob `bwrap`
+(`sandbox.wrap`) com o env filtrado por `scrubbed_env`. O `scrubbed_env` só limpa o env do **filho**; o env do **pai** é
+coberto pelo namespace de pid.
+
+**Escondido do processo no sandbox**
+- O `EnvironmentFile` do serviço (`GH_TOKEN`, `OPENROUTER_API_KEY`, ...) vive em `/proc/<pid do watcher>/environ`, legível por
+  qualquer processo do mesmo uid. `sandbox.wrap` passa `--unshare-pid` e remonta `/proc` (`--proc /proc`) para o novo
+  namespace: o pid do watcher não é listado e `/proc/<pid>/{environ,cmdline,maps,status}` não abrem. O filho é o pid 2 (o
+  `bwrap` é o pid 1), então `/proc/1/environ` é o env já filtrado.
+- Efeito medido do mesmo flag: o timeout (`proc.run`, `exec_planner`) e o `SIGKILL` do watcher agora derrubam a árvore
+  inteira. Antes, o comando ficava em outra sessão/grupo que o `killpg` do watcher não alcança (`--die-with-parent` não o
+  derrubava) e os netos sobreviviam como órfãos; como o `Process.wait()` do Python 3.14 só retorna quando os pipes fecham (medido), o
+  `proc.run` com timeout ficava preso enquanto um neto vivo segurasse o pipe.
+- Filesystem somente leitura (exceto o clone e o state dir), `/tmp` privado, `--die-with-parent`, `--new-session`.
+
+**Continua visível (decisão e limites conhecidos)**
+
+| Canal | Estado | Motivo |
+|-------|--------|--------|
+| `/proc/<pid do watcher>/environ`, `cmdline`, `maps`, `status` | oculto | namespace de pid |
+| `/proc/self/*`, `/proc/1/*` (o bwrap) | legível | é o env filtrado do próprio filho |
+| `HOME` do usuário do serviço (`~/.claude`, `~/.codex`, `~/.simplicio/login.json`, ...) | **legível** | os CLIs exec leem o próprio login; o `--ro-bind / /` não separa `HOME` por família, então um planner pode ler o login de outro CLI |
+| `/etc/simplicio-loop-247.env` | legível só se o usuário do serviço for o dono | o `setup` grava modo 600; mantenha `root:root` (o systemd lê como root) |
+| rede (`/proc/net/*`, localhost, sockets abstratos) | compartilhada | sem `--unshare-net`: o planner precisa da rede do provedor |
+| `/proc/self/mountinfo`, `cpuinfo`, `meminfo` | legível | informação do host sem segredo |
+| `/run` (sockets do systemd/dbus acessíveis ao uid) | legível | `--ro-bind / /`; não coberto por este issue |
+
+O teste `tests/watcher247/test_sandbox_proc.py` usa o `bwrap` real (pula sem `bwrap` ou sem user namespaces): um "watcher"
+com um segredo falso no próprio env roda um comando por `sandbox.wrap`; o comando não lê o `environ`, não lista o pid e o
+controle sem `--unshare-pid` vaza o segredo (prova de que a sonda enxerga o canal).
+
+**`SystemCallFilter` e a unit.** `--unshare-pid` é `clone(CLONE_NEWPID)`. O `strace -f` do `bwrap` com e sem o flag mostra os
+mesmos 50 syscalls; só `mount`, `pivot_root` e `umount2` ficam fora de `@system-service`, e o `@mount` da unit os cobre.
+`clone`, `clone3`, `unshare` e `setns` já estão em `@system-service` (o filtro do systemd não olha os argumentos de `clone`).
+Medido com `systemd-run` (systemd 259, bubblewrap 0.11.1, `User=nobody`, mais as diretivas de sandbox da unit): a tabela está
+em `packaging/systemd/README.md`. Achado dessa medição: com `ProtectKernelTunables=yes` o bwrap não root falha com `Can't
+mount proc on /newroot/proc: Operation not permitted` quando usa `--unshare-pid`; por isso a unit não traz mais essa
+diretiva (o serviço é não root, com `CapabilityBoundingSet=` vazio, e não escreve em `/proc/sys` de qualquer forma). O mesmo
+sintoma aparece em contêiner com `/proc` mascarado.
+
+**UNVERIFIED:** a unit real sob o gerenciador do sistema como `User=simplicio-loop` (só unidades transitórias de curta duração,
+sem instalar nada); a leitura de `environ` por uid não root em host **sem** o confinamento AppArmor `bwrap//&unpriv_bwrap` (no
+host medido o processo do sandbox já não lê `environ`/`maps`, mas lista o pid e lê `cmdline` e `status`; a regra não foi
+inspecionada; como root o vazamento de `environ` foi reproduzido sem o flag); outras distribuições e kernels sem user namespaces.
+
 ## Squads (`watcher247/squad_flow.py`)
 
 O tick usa o mesmo padrao da skill `/simplicio-loop` (#1505). Nada disso muda a concorrencia: o lote continua limitado por
