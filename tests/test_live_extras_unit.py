@@ -29,7 +29,7 @@ FORBIDDEN = [r'\binnerHTML\b', r'\bouterHTML\b', r'\binsertAdjacentHTML\b', r'\b
              r'\.style\s*\?\.', r'\bstyle\s*\[', r'Object\s*\.\s*assign\s*\([^)]*style', r"setProperty\(\s*(?!'width',)",
              r'\bcssText\b', r'\b(?:claude|haiku|sonnet|opus)\b', r"\[\s*['\"]style['\"]\s*\]",
              r'\{[^}]*\bstyle\b[^}]*\}\s*=', r'\bsetAttributeNS\b', r'\binsertAdjacentElement\b',
-             r'\bcreateContextualFragment\b', r'\bDOMParser\b', r'\bsrcdoc\b']
+             r'\bcreateContextualFragment\b', r'\bDOMParser\b', r'\bsrcdoc\b', r'\b(?:setHTML|setHTMLUnsafe|parseHTMLUnsafe)\b']
 MOTION = re.compile(r'(?<![\w-])(?:animation|transition)(?:-[a-z-]+)?\s*:', re.IGNORECASE)
 VALID = {
     'schema': 'simplicio.dashboard-extras/v1',
@@ -739,6 +739,7 @@ GUARD_PROBES = [
     "el['style'].width = '5%'", 'el["style"].width = x', "const {style} = el", "const { style } = el",
     "let {style: s} = el", "el.setAttributeNS(null, 'style', 'x')", "el.insertAdjacentElement('beforeend', x)",
     "range.createContextualFragment(x)", "new DOMParser()", "iframe.srcdoc = x", "el.srcdoc",
+    "el.setHTMLUnsafe(x)", "el.setHTML(x)", "Document.parseHTMLUnsafe(x)",
 ]
 GUARD_ALLOWED = ["part.style.setProperty('width', Math.round(pct * 100) / 100 + '%');"]
 
