@@ -1,111 +1,272 @@
-"""Issue processing logic."""
+"""One watcher tick: gate, discover new issues, process the due ones."""
 from __future__ import annotations
+
 import asyncio
 import json
+import re
 from pathlib import Path
-from . import config, github, state
+
+from . import config, github, proc, state, subscription
+
+_STATE_DIRS = (".simplicio-loop/", ".simplicio/")
+
+
+class Gate:
+    """Concurrency limits of one tick: N issues at once, one at a time per repo."""
+
+    def __init__(self, limit: int) -> None:
+        self.sem = asyncio.Semaphore(limit)
+        self._locks: dict[str, asyncio.Lock] = {}
+
+    def repo_lock(self, repo: str) -> asyncio.Lock:
+        return self._locks.setdefault(repo, asyncio.Lock())
+
+
+def _fail(result: proc.Result, what: str) -> RuntimeError:
+    return RuntimeError((result.stderr or result.stdout or what)[:500])
 
 
 async def ensure_clone(repo: str, branch: str) -> Path:
-    """Clone or update repo."""
     dest = config.WORK / repo
-    if not (dest / '.git').exists():
+    if not (dest / ".git").exists():
         dest.parent.mkdir(parents=True, exist_ok=True)
-        proc = await asyncio.create_subprocess_exec(
-            'gh', 'repo', 'clone', f'{config.ORG}/{repo}', str(dest), '--', '--depth', '1',
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-        )
-        _, _ = await asyncio.wait_for(proc.communicate(), timeout=300)
-        if proc.returncode != 0:
-            raise RuntimeError('clone failed')
-    proc = await asyncio.create_subprocess_exec(
-        'git', 'fetch', '--depth', '1', 'origin', branch,
-        cwd=str(dest), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-    )
-    _, _ = await asyncio.wait_for(proc.communicate(), timeout=180)
-    if proc.returncode != 0:
-        raise RuntimeError('fetch failed')
+        result = await proc.run(
+            ["gh", "repo", "clone", f"{config.ORG}/{repo}", str(dest), "--", "--depth", "1"], timeout=300)
+        if result.returncode != 0:
+            raise _fail(result, "clone failed")
+    await proc.run(["git", "config", "user.name", "simplicio-loop"], cwd=dest)
+    email = await proc.run(["git", "config", "user.email"], cwd=dest)
+    if email.returncode != 0 or not email.stdout.strip():
+        await proc.run(["git", "config", "user.email", "wesleysimplicio@users.noreply.github.com"], cwd=dest)
+    fetch = await proc.run(["git", "fetch", "--depth", "1", "origin", branch], cwd=dest, timeout=180)
+    if fetch.returncode != 0:
+        raise RuntimeError((fetch.stderr or "fetch failed")[:500])
     return dest
 
 
 async def reset_branch(dest: Path, branch: str, number: int) -> str:
-    """Create and checkout topic branch."""
-    head = f'loop/issue-{number}'
-    proc = await asyncio.create_subprocess_exec(
-        'git', 'checkout', '-B', head, f'origin/{branch}',
-        cwd=str(dest), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-    )
-    _, _ = await asyncio.wait_for(proc.communicate(), timeout=60)
-    if proc.returncode != 0:
-        raise RuntimeError('checkout failed')
+    head = f"loop/issue-{number}"
+    result = await proc.run(["git", "checkout", "-B", head, f"origin/{branch}"], cwd=dest, timeout=60)
+    if result.returncode != 0:
+        raise _fail(result, "checkout failed")
     return head
 
 
 def task_text(repo: str, issue: dict) -> str:
-    """Build task for turbo."""
-    body = (issue.get('body') or '').strip()
+    body = (issue.get("body") or "").strip()
     if len(body) > config.BODY_CAP:
-        body = body[:config.BODY_CAP] + '...'
+        body = body[:config.BODY_CAP] + "\n..."
     return (
-        'Protocolo Simplicio-Loop, 50 pontos: '
-        f'Repositorio: {config.ORG}/{repo}. '
-        f'Issue #{issue.get("number")}: {issue.get("title", "")}. '
-        f'{body}'
+        "Simplicio-Loop 24h (requer a assinatura do Simplicio MCP ativa). "
+        "Resolva a issue abaixo na branch de trabalho: orientar o repositorio, "
+        "aplicar um patch cirurgico (nao reescrever arquivo inteiro), validar e "
+        "entregar so o que o teste sustenta.\n"
+        f"Repositorio: {config.ORG}/{repo}\n"
+        f"Issue #{issue['number']}: {issue.get('title') or ''}\n"
+        f"{body}"
     )
+
+
+def parse_turbo(stdout: str) -> dict:
+    text = (stdout or "").strip()
+    if not text:
+        return {}
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        start = text.rfind('{"schema"')
+        if start < 0:
+            start = text.rfind("{")
+        if start < 0:
+            return {"status": "failed", "detail": text[-400:]}
+        try:
+            return json.loads(text[start:])
+        except json.JSONDecodeError:
+            return {"status": "failed", "detail": text[-400:]}
+
+
+async def dirty(dest: Path) -> bool:
+    """True when the worktree has changes beyond the loop state dirs and .gitignore."""
+    result = await proc.run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=dest)
+    for line in result.stdout.splitlines():
+        path = line[3:] if len(line) > 3 else line
+        if path.startswith(_STATE_DIRS) or path == ".gitignore":
+            continue
+        return True
+    return False
 
 
 async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: dict) -> str | None:
-    """Commit and open PR."""
-    proc = await asyncio.create_subprocess_exec(
-        'git', 'add', '-A',
-        cwd=str(dest), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-    )
-    await asyncio.wait_for(proc.communicate(), timeout=30)
-    
-    proc = await asyncio.create_subprocess_exec(
-        'git', 'commit', '-m', f'loop: {issue.get("title", issue["number"])}',
-        cwd=str(dest), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-    )
-    _, _ = await asyncio.wait_for(proc.communicate(), timeout=60)
-    if proc.returncode != 0:
+    """Commit the turbo result, push and open the PR. None when there is no diff."""
+    if not await dirty(dest):
         return None
-    
-    proc = await asyncio.create_subprocess_exec(
-        'git', 'push', '-u', 'origin', head,
-        cwd=str(dest), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+    await proc.run(["git", "add", "-A"], cwd=dest)
+    await proc.run(["git", "reset", "-q", "--", ".simplicio-loop", ".simplicio"], cwd=dest)  # unstage loop state
+    staged = await proc.run(["git", "diff", "--cached", "--name-only"], cwd=dest)
+    if not staged.stdout.strip():
+        return None
+    title = f"loop: {issue.get('title') or issue['number']}"
+    commit = await proc.run(["git", "commit", "-m", f"{title}\n\nCloses #{issue['number']}\n"], cwd=dest, timeout=60)
+    if commit.returncode != 0:
+        raise _fail(commit, "commit failed")
+    push = await proc.run(["git", "push", "-u", "origin", head], cwd=dest, timeout=180)
+    if push.returncode != 0:
+        raise _fail(push, "push failed")
+    body = (
+        f"Processamento automatico do Simplicio-Loop 24h (turbo, provider openrouter) da issue #{issue['number']}.\n\n"
+        f"Closes #{issue['number']}\n"
     )
-    _, _ = await asyncio.wait_for(proc.communicate(), timeout=180)
-    if proc.returncode != 0:
-        raise RuntimeError('push failed')
-    
-    return 'PR created'
+    pr = await proc.run([
+        "gh", "pr", "create", "--repo", f"{config.ORG}/{repo}",
+        "--base", branch, "--head", head,
+        "--title", title[:70], "--body", body,
+    ], cwd=dest, timeout=60)
+    if pr.returncode != 0:
+        if "already exists" not in (pr.stderr or "").lower():  # the PR may already exist
+            raise _fail(pr, "pr create failed")
+        found = re.search(r"https://\S+", pr.stderr)
+        return found.group(0) if found else (pr.stderr or "").strip()[:200]
+    return (pr.stdout or "").strip()
 
 
-async def process(repo: dict, issue: dict, claims: dict, log_fn) -> None:
-    """Process one issue."""
-    name = repo['name']
-    number = int(issue['number'])
+async def _run_turbo(dest: Path, repo: str, issue: dict, claim: dict, ident: str) -> str:
+    """Run headless turbo; return its status, raise when it did not finish ok."""
+    result = await proc.run([
+        "simplicio-loop", "turbo",
+        "--repo", str(dest),
+        "--provider", "openrouter",
+        "--task", task_text(repo, issue),
+    ], timeout=config.TURBO_TIMEOUT_S)
+    log_path = config.LOGS / f"{repo}-{issue['number']}-{claim['attempts']}.log"
+    await asyncio.to_thread(log_path.parent.mkdir, parents=True, exist_ok=True)
+    await asyncio.to_thread(
+        log_path.write_text, (result.stdout or "") + "\n--- stderr ---\n" + (result.stderr or ""))
+    document = parse_turbo(result.stdout or "")
+    status = document.get("status") or ("ok" if result.returncode == 0 else "failed")
+    claim["turbo_status"] = status
+    claim["exit_code"] = result.returncode
+    if status != "ok":
+        raise RuntimeError(document.get("detail") or document.get("reason_code") or status)
+    return status
+
+
+async def process(repo: dict, issue: dict, claims: dict, gate: Gate) -> None:
+    name = repo["name"]
+    number = int(issue["number"])
     ident = state.key_of(name, number)
-    claim = claims.get(ident) or {'attempts': 0}
-    claim['attempts'] = int(claim.get('attempts') or 0) + 1
-    claim['status'] = 'running'
-    claim['started_at'] = state.iso(state.now())
+    claim = claims.get(ident) or {"attempts": 0}
+    claim["attempts"] = int(claim.get("attempts") or 0) + 1
+    claim["status"] = "running"
+    claim["started_at"] = state.iso(state.now())
     claims[ident] = claim
     await state.save(config.CLAIMS, claims)
-    log_fn(f'start {ident}')
-    
+    state.log(f"start {ident} attempt {claim['attempts']}")
+    await github.comment(
+        name, number,
+        f"Simplicio-Loop 24h comecou o processamento na branch `loop/issue-{number}` "
+        "(turbo, provider openrouter). A assinatura do Simplicio MCP esta ativa.")
     try:
-        dest = await ensure_clone(name, repo['branch'])
-        head = await reset_branch(dest, repo['branch'], number)
-        log_fn(f'done {ident}')
-        claim['status'] = 'done'
-        claim['finished_at'] = state.iso(state.now())
+        async with gate.repo_lock(name):  # one working tree per repo: clone to push is exclusive
+            dest = await ensure_clone(name, repo["branch"])
+            head = await reset_branch(dest, repo["branch"], number)
+            await _run_turbo(dest, name, issue, claim, ident)
+            url = await commit_and_pr(dest, name, repo["branch"], head, issue)
+        claim["status"] = "done" if url else "done_no_diff"
+        claim["pr"] = url
+        claim["finished_at"] = state.iso(state.now())
+        if url:
+            await github.comment(name, number, f"Processamento concluido. PR: {url}")
+        else:
+            await github.comment(name, number, "O loop terminou sem diff para abrir PR.")
+        state.log(f"done {ident} pr={url}")
     except Exception as exc:
-        claim['status'] = 'dead' if claim['attempts'] >= config.MAX_ATTEMPTS else 'retry'
-        claim['error'] = str(exc)[:500]
-        claim['next_try_at'] = state.iso(state.now() + config.RETRY_AFTER)
-        claim['finished_at'] = state.iso(state.now())
-        log_fn(f'fail {ident}: {exc}')
-    
+        claim["status"] = "dead" if claim["attempts"] >= config.MAX_ATTEMPTS else "retry"
+        claim["error"] = str(exc)[:500]
+        claim["next_try_at"] = state.iso(state.now() + config.RETRY_AFTER)
+        claim["finished_at"] = state.iso(state.now())
+        state.log(f"fail {ident} {claim['status']}: {claim['error']}")
+        if claim["status"] == "dead":
+            await github.comment(
+                name, number,
+                f"Simplicio-Loop parou esta issue depois de {config.MAX_ATTEMPTS} tentativas. "
+                "Ela fica na fila morta local ate alguem reabrir o processamento.")
     claims[ident] = claim
     await state.save(config.CLAIMS, claims)
+
+
+async def _process_limited(repo: dict, issue: dict, claims: dict, gate: Gate) -> None:
+    async with gate.sem:
+        await process(repo, issue, claims, gate)
+
+
+async def tick(dry_run: bool = False) -> None:
+    """One pass. dry_run reads GitHub and logs what it would do; it writes no baseline, claims or status (only the issues-disabled cache) and skips the subscription refresh."""
+    persist = not dry_run
+
+    async def status(**extra) -> None:
+        if persist:
+            await state.write_status(**extra)
+
+    if config.STOP.exists():
+        await status(phase="stopped")
+        state.log("STOP present")
+        return
+    sub = None
+    if dry_run:
+        state.log("[dry-run] subscription check skipped")
+    else:
+        sub = await subscription.mcp_subscription()
+        if not sub.get("active"):
+            await status(phase="subscription_required", subscription=sub)
+            state.log("subscription required: " + str(sub.get("reason")))
+            return
+    found = await github.repos()
+    claims = await state.load(config.CLAIMS, {})
+    baseline = await state.load(config.BASELINE, None)
+    limit = config.concurrency()
+    seen: list[str] = []
+    batch: list[tuple[dict, dict]] = []
+    for repo in found:
+        if len(batch) >= limit:
+            break
+        if repo["name"] in await state.issues_disabled():
+            continue
+        try:
+            issues = await github.open_issues(repo["name"])
+        except Exception as exc:
+            state.log(f"list failed {repo['name']}: {exc}")
+            continue
+        for issue in issues:
+            ident = state.key_of(repo["name"], int(issue["number"]))
+            seen.append(ident)
+            if baseline is None:
+                continue
+            if github.skipped(issue):
+                claims[ident] = {"status": "skipped"}
+                continue
+            if ident not in baseline["issues"] and state.due(ident, claims):
+                batch.append((repo, issue))
+                if len(batch) >= limit:
+                    break
+    if batch:
+        idents = [state.key_of(r["name"], int(i["number"])) for r, i in batch]
+        if dry_run:
+            for ident in idents:
+                state.log(f"[dry-run] would process {ident}")
+            return
+        await state.save(config.CLAIMS, claims)
+        gate = Gate(limit)
+        await asyncio.gather(*(_process_limited(r, i, claims, gate) for r, i in batch))
+        await status(phase="processed", last=idents[-1], processed=idents,
+                     repos=len(found), open_seen=len(seen), subscription=sub)
+        return
+    if baseline is None:
+        if persist:
+            await state.save(config.BASELINE, {"created_at": state.iso(state.now()), "issues": seen})
+        state.log(f"baseline {len(seen)} open issues across {len(found)} repos")
+        await status(phase="baselined", repos=len(found), open_seen=len(seen), subscription=sub)
+        return
+    if persist:
+        await state.save(config.CLAIMS, claims)
+    await status(phase="idle", repos=len(found), open_seen=len(seen), subscription=sub)
+    state.log(f"idle repos={len(found)} open={len(seen)}")

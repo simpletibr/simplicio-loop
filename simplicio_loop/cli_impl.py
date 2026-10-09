@@ -3326,11 +3326,11 @@ def main(argv=None) -> int:
         return verify(args.repo, args.run_id)
     if command == "watch247":
         import asyncio
-        import os
-        from . import watcher247
+        from .watcher247 import config as watcher247_config
+        from .watcher247.__main__ import main as watcher247_main
         if args.state_dir:
-            os.environ['SIMPLICIO_247_STATE_DIR'] = args.state_dir
-        return asyncio.run(watcher247.__main__.main(once=args.once, dry_run=args.dry_run))
+            watcher247_config.set_state_dir(args.state_dir)
+        return asyncio.run(watcher247_main(once=args.once, dry_run=args.dry_run))
     if command == "progress":
         run_id = args.run_id or args.run_flag
         # An omitted run id means the latest run in --repo, matching the
