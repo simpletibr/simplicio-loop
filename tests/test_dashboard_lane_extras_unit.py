@@ -1,16 +1,44 @@
 '''Unit tests for the per-run extras of the Simplicio Live dashboard (TDD red).
 
 The extras are the last measured test or lint command, the declared task list, the model used per lane with its token
-totals, and the heartbeat state. The heartbeat stays UNVERIFIED because no lease heartbeat producer exists yet. The
-reader is a pure function of the run directory and its events, so no server is needed.
+totals, and the heartbeat of each lane's lease. A lane's lease_id (from its worker_claimed event) is mapped to the
+backlog lease written by scripts/task_backlog.py and read through the coordination reader; the age is measured against a
+clock passed in. A lane with no lease_id, or whose lease is not in the backlog, stays UNVERIFIED with the reason. The
+reader is a pure function of the run directory, the events, the backlog file and the clock, so no server is needed.
 '''
 import json
+import time
 
 from simplicio_loop.dashboard import budget, lane_extras
 
 SCHEMA = 'simplicio.dashboard-extras/v1'
 EVENT_SCHEMA = 'simplicio.dashboard-event/v1'
-HEARTBEAT = {'state': 'UNVERIFIED', 'reason': 'no lease heartbeat producer'}
+NOW = 1_790_000_000.0
+NO_LANE = {'state': 'UNVERIFIED', 'reason': 'nenhuma lane com lease_id registrado', 'lanes': []}
+
+
+def _utc(offset=0.0):
+    return time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(NOW + offset))
+
+
+def _backlog(tmp_path, leases):
+    '''A backlog.jsonl like task_backlog.py writes: a master line, then one item line per task with its lease.'''
+    lines = [json.dumps({'kind': 'master', 'revision': 1})]
+    for task_id, lease in leases.items():
+        lines.append(json.dumps({'kind': 'item', 'id': task_id, 'status': 'running', 'lease': lease}))
+    path = tmp_path / 'backlog.jsonl'
+    path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    return path
+
+
+def _lease(heartbeat_ago, ttl=900, **ids):
+    return {'worker': 'w1', 'claimed_at': _utc(-heartbeat_ago), 'heartbeat_at': _utc(-heartbeat_ago),
+            'ttl_seconds': ttl, 'expires_at': _utc(ttl - heartbeat_ago), **ids}
+
+
+def _claim(seq, lane, lease_id, task_id='T1'):
+    event = _event(seq, 'worker_claimed', {'lease_id': lease_id}, lane=lane)
+    return dict(event, task_id=task_id)
 
 
 def _event(seq, kind, payload=None, lane=None, ts=None):
@@ -24,7 +52,7 @@ def _contract(tmp_path, tasks):
 
 def test_an_empty_run_reports_no_extras_and_an_unverified_heartbeat(tmp_path):
     assert lane_extras.extras(tmp_path, []) == {'schema': SCHEMA, 'last_command': None, 'tasks': [],
-                                                'models': [], 'heartbeat': HEARTBEAT}
+                                                'models': [], 'heartbeat': NO_LANE}
 
 
 def test_last_command_is_the_latest_test_or_lint_result_by_seq(tmp_path):
@@ -118,5 +146,91 @@ def test_models_are_capped_at_fifty_after_sorting_by_lane(tmp_path):
     assert models[0]['lane'] == 'lane-40'
 
 
-def test_heartbeat_is_unverified_until_a_producer_exists(tmp_path):
-    assert lane_extras.extras(tmp_path, [])['heartbeat'] == HEARTBEAT
+def _heartbeat(tmp_path, events, backlog):
+    return lane_extras.extras(tmp_path, events, backlog_path=backlog, now=NOW)['heartbeat']
+
+
+def test_a_lane_lease_maps_to_the_backlog_heartbeat_with_its_age(tmp_path):
+    backlog = _backlog(tmp_path, {'T1': _lease(30, attempt_id='attempt-abc')})
+    got = _heartbeat(tmp_path, [_claim(1, 'lane-a', 'attempt-abc')], backlog)
+    assert got['state'] == 'PASS'
+    assert got['lanes'] == [{'lane': 'lane-a', 'lease_id': 'attempt-abc', 'state': 'MEASURED',
+                             'heartbeat_at': _utc(-30), 'age_s': 30, 'stale': False, 'reason': None}]
+    assert 'lane-a' in got['reason'] and '30 s' in got['reason']
+
+
+def test_a_lease_matches_by_attempt_fence_or_lease_id(tmp_path):
+    backlog = _backlog(tmp_path, {'T1': _lease(5, attempt_id='att-1'), 'T2': _lease(70, fencing_token='fence-9-x'),
+                                  'T3': _lease(200, lease_id='lease-3')})
+    events = [_claim(1, 'lane-1', 'att-1'), _claim(2, 'lane-2', 'fence-9-x'), _claim(3, 'lane-3', 'lease-3')]
+    ages = {row['lane']: row['age_s'] for row in _heartbeat(tmp_path, events, backlog)['lanes']}
+    assert ages == {'lane-1': 5, 'lane-2': 70, 'lane-3': 200}
+
+
+def test_an_old_heartbeat_is_flagged_stale_with_the_coordination_rule(tmp_path):
+    backlog = _backlog(tmp_path, {'T1': _lease(500, ttl=900, attempt_id='a1'), 'T2': _lease(2000, ttl=900, attempt_id='a2')})
+    got = _heartbeat(tmp_path, [_claim(1, 'lane-a', 'a1'), _claim(2, 'lane-b', 'a2')], backlog)
+    assert [(row['lane'], row['age_s'], row['stale']) for row in got['lanes']] == [
+        ('lane-a', 500, True), ('lane-b', 2000, True)]
+    assert 'obsoleto' in got['reason']
+
+
+def test_the_age_is_measured_against_the_clock_passed_in(tmp_path):
+    backlog = _backlog(tmp_path, {'T1': _lease(0, attempt_id='a1')})
+    events = [_claim(1, 'lane-a', 'a1')]
+    first = lane_extras.extras(tmp_path, events, backlog_path=backlog, now=NOW + 10)['heartbeat']['lanes'][0]
+    later = lane_extras.extras(tmp_path, events, backlog_path=backlog, now=NOW + 60)['heartbeat']['lanes'][0]
+    assert (first['age_s'], later['age_s']) == (10, 60)
+
+
+def test_a_lane_without_a_lease_id_is_unverified_with_the_reason(tmp_path):
+    backlog = _backlog(tmp_path, {'T1': _lease(5, attempt_id='a1')})
+    got = _heartbeat(tmp_path, [_claim(1, 'lane-a', '')], backlog)
+    assert got['state'] == 'UNVERIFIED'
+    assert got['lanes'] == [{'lane': 'lane-a', 'lease_id': None, 'state': 'UNVERIFIED', 'heartbeat_at': None,
+                             'age_s': None, 'stale': None, 'reason': 'lane sem lease_id registrado'}]
+
+
+def test_a_lease_missing_from_the_backlog_is_unverified_not_invented(tmp_path):
+    backlog = _backlog(tmp_path, {'T1': _lease(5, attempt_id='a1'), 'T2': {}})
+    got = _heartbeat(tmp_path, [_claim(1, 'lane-a', 'ghost')], backlog)
+    assert got['state'] == 'UNVERIFIED'
+    row = got['lanes'][0]
+    assert (row['state'], row['age_s'], row['heartbeat_at'], row['stale']) == ('UNVERIFIED', None, None, None)
+    assert row['reason'] == 'lease ghost não está no backlog'
+
+
+def test_a_missing_or_broken_backlog_leaves_every_lane_unverified(tmp_path):
+    events = [_claim(1, 'lane-a', 'a1')]
+    missing = _heartbeat(tmp_path, events, tmp_path / 'nope.jsonl')
+    assert missing['state'] == 'UNVERIFIED' and missing['lanes'][0]['reason'] == 'backlog não lido: backlog file not found'
+    broken = tmp_path / 'broken.jsonl'
+    broken.write_text('{oops\n', encoding='utf-8')
+    assert _heartbeat(tmp_path, events, broken)['lanes'][0]['state'] == 'UNVERIFIED'
+
+
+def test_a_lease_without_a_parsable_heartbeat_is_unverified(tmp_path):
+    lease = dict(_lease(5, attempt_id='a1'), heartbeat_at='not a time')
+    got = _heartbeat(tmp_path, [_claim(1, 'lane-a', 'a1')], _backlog(tmp_path, {'T1': lease}))
+    assert got['lanes'][0]['state'] == 'UNVERIFIED' and got['lanes'][0]['reason'] == 'lease sem heartbeat_at medido'
+
+
+def test_the_latest_claim_of_a_lane_wins_by_seq_and_a_lane_is_found_through_its_task(tmp_path):
+    backlog = _backlog(tmp_path, {'T1': _lease(5, attempt_id='new'), 'T2': _lease(9, attempt_id='old')})
+    unlaned = dict(_claim(9, None, 'new', task_id='T1'), lane=None)
+    events = [_claim(2, 'lane-a', 'old'), dict(_event(3, 'lane_progress', {}, lane='lane-a'), task_id='T1'), unlaned]
+    rows = _heartbeat(tmp_path, events, backlog)['lanes']
+    assert [(row['lane'], row['lease_id'], row['age_s']) for row in rows] == [('lane-a', 'new', 5)]
+
+
+def test_the_backlog_defaults_to_the_orchestrator_file_next_to_loop_runs(tmp_path, monkeypatch):
+    monkeypatch.delenv('SIMPLICIO_BACKLOG_FILE', raising=False)
+    root = tmp_path / '.simplicio-loop'
+    run_dir = root / 'loop-runs' / 'r1'
+    (root / 'orchestrator' / 'backlog').mkdir(parents=True)
+    run_dir.mkdir(parents=True)
+    _backlog(root / 'orchestrator' / 'backlog', {})
+    (root / 'orchestrator' / 'backlog' / 'backlog.jsonl').write_text(
+        json.dumps({'kind': 'item', 'id': 'T1', 'lease': _lease(12, attempt_id='a1')}) + '\n', encoding='utf-8')
+    got = lane_extras.extras(run_dir, [_claim(1, 'lane-a', 'a1')], now=NOW)['heartbeat']
+    assert got['lanes'][0]['age_s'] == 12

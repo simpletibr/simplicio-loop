@@ -310,7 +310,7 @@ def test_extras_route_reports_the_run_extras_and_404s_an_unknown_run(repo_root, 
     assert data['last_command']['command'] == 'pytest -q' and data['last_command']['kind'] == 'test_result'
     assert data['tasks'] == [{'task_id': 't1', 'title': 'Budget panel'}]
     assert data['models'] == [{'lane': 'lane-a', 'model': 'model-a', 'input_tokens': 300, 'output_tokens': 4}]
-    assert data['heartbeat'] == {'state': 'UNVERIFIED', 'reason': 'no lease heartbeat producer'}
+    assert data['heartbeat'] == {'state': 'UNVERIFIED', 'reason': 'nenhuma lane com lease_id registrado', 'lanes': []}
     status, _, _ = _get(server_handle.port, '/api/runs/nope/extras', AUTH)
     assert status == 404
 
