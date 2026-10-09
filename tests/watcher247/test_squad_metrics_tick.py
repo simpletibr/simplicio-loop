@@ -185,18 +185,23 @@ def test_the_executor_without_a_ladder_knows_the_outcome_but_not_the_escalation(
 
 class PerIssueRun(HostRun):
     """HostRun whose applies fail for the given issues and pass for the others (the request step names the issue; the repo lock keeps
-    the request and its apply together)."""
+    the request and its apply together). With worktrees, the issue is extracted from the cwd path."""
 
     def __init__(self, *args, failing=(), **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.failing, self.current = set(failing), None
+        self.failing = set(failing)
 
     async def __call__(self, argv, timeout=120, cwd=None, stdin=None, env=None):
         argv = list(argv)
-        if argv[:2] == ["simplicio-loop", "turbo"] and "--apply" not in argv and "--provider" not in argv:
-            self.current = int(re.search(r"Issue #(\d+)", argv[argv.index("--task") + 1]).group(1))
-        if "--apply" in argv:
-            self.applies = [BAD] if self.current in self.failing else [OK]
+        # Extract issue number from worktree path: .../simplicio-a.wt/N or base clone path
+        issue_num = None
+        if cwd and ".wt/" in str(cwd):
+            # Extract from worktree path: /path/repo.wt/N
+            match = re.search(r'\.wt/(\d+)(?:/|$)', str(cwd))
+            if match:
+                issue_num = int(match.group(1))
+        if "--apply" in argv and issue_num:
+            self.applies = [BAD] if issue_num in self.failing else [OK]
         return await super().__call__(argv, timeout, cwd, stdin, env)
 
 

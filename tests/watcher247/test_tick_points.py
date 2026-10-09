@@ -8,6 +8,8 @@ import pytest
 from simplicio_loop.watcher247 import config, points
 
 from .fakes import PR_URL, FakeRun, baseline, issue, read_json, run_tick, tasks
+from simplicio_loop.watcher247 import worktrees
+from simplicio_loop.watcher247.worktrees import state_home
 
 
 @pytest.fixture
@@ -35,7 +37,7 @@ def test_context_carries_what_each_stage_knows(env, stages):
     baseline()
     run_tick()
     by_stage = dict(stages)
-    clone = config.WORK / "simplicio-a"
+    clone = worktrees.item_path("simplicio-a", 7)  # every stage sees the item's own worktree, not the base clone
     for stage, ctx in stages:
         assert ctx.repo == "simplicio-a" and ctx.issue["number"] == 7 and ctx.clone == clone
         assert ctx.state_dir == config.ROOT
@@ -167,6 +169,7 @@ def test_the_real_registry_runs_in_the_tick_and_writes_events(env):
     env(FakeRun({"simplicio-a": [issue(7)]}))
     baseline()
     run_tick()
-    events = (config.WORK / "simplicio-a" / ".simplicio-loop" / "orchestrator" / "points" / "simplicio-a-7" / "events.jsonl")
+    # State is copied to state_home after worktree removal
+    events = (state_home("simplicio-a", 7) / ".simplicio-loop" / "orchestrator" / "points" / "simplicio-a-7" / "events.jsonl")
     assert "toolchain_detect" in events.read_text()
     assert read_json(config.CLAIMS)["simplicio-a#7"]["status"] == "done"

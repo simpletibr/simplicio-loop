@@ -17,6 +17,7 @@ from simplicio_loop import escalation, execution_report, executor_select, model_
 from simplicio_loop.watcher247 import config, host_mode, proc, sandbox
 
 from .fakes import FakeRun, baseline, issue, pr_row, read_json, run_tick
+from simplicio_loop.watcher247.worktrees import state_home
 
 REPO = "simplicio-a"
 PLAN = {"operations": [{"path": "app.py", "find": "", "replace": "print('x')\n"}]}
@@ -137,9 +138,10 @@ def checkout():
     return dest
 
 
-def step_roles(dest):
+def step_roles(dest, issue_num=7):
     """(role, model, effort) of every step in the execution-report the watcher wrote."""
-    report = read_json(dest / REPORTS)
+    state_path = state_home(REPO, issue_num)
+    report = read_json(state_path / REPORTS)
     assert report["schema"] == "simplicio.execution-report/v1"
     return [(t["role"], t["model"], t["effort"]) for t in report["tasks"] if "role" in t]
 
@@ -192,7 +194,8 @@ def test_planner_runs_through_the_sandbox_wrapper(env, cli_dir, monkeypatch):
     dest = checkout()
     run_tick()
     planner = [w for w in wrapped if w[0][0] == "claude"]
-    assert len(planner) == 1 and planner[0][1] == dest and planner[0][2] == config.ROOT
+    worktree = config.WORK / f"{REPO}.wt" / "1"
+    assert len(planner) == 1 and planner[0][1] == worktree and planner[0][2] == config.ROOT
     assert env_values_has_sandboxed(cli_dir)  # the CLI really ran under the wrapper
     assert [w[0][0] for w in wrapped] == ["simplicio-loop", "claude", "simplicio-loop"]  # request, planner, apply
     assert fake.turbo_argv
@@ -263,7 +266,8 @@ def test_plan_goes_to_turbo_stdin_and_dev_cli_applies(env, cli_dir):
     baseline()
     dest = checkout()
     run_tick()
-    assert fake.turbo_argv[0] == ["simplicio-loop", "turbo", "--repo", str(dest), "--apply", "-",
+    worktree = config.WORK / f"{REPO}.wt" / "3"
+    assert fake.turbo_argv[0] == ["simplicio-loop", "turbo", "--repo", str(worktree), "--apply", "-",
                                   "--run-id", RUN_ID, "--leave-open", "--verify", targeted]
     assert json.loads(fake.turbo_stdin[0]) == PLAN
     (call,) = planner_calls(cli_dir)
@@ -284,7 +288,7 @@ def test_verify_failure_replans_with_the_failure_output(env, cli_dir):
     assert len(fake.turbo_argv) == 2
     assert fake.ran("git", "reset", "-q", "--hard", "HEAD")  # the failed edits are dropped before the replan
     assert read_json(config.CLAIMS)[f"{REPO}#1"]["status"] == "done"
-    assert [r for r, _, _ in step_roles(dest)] == ["execution", "execution"]  # a squad worker starts at execution (#1505)
+    assert [r for r, _, _ in step_roles(dest, 1)] == ["execution", "execution"]  # a squad worker starts at execution (#1505)
 
 
 def test_next_role_order_is_execution_twice_then_up(tmp_path):
@@ -329,12 +333,13 @@ def test_review_fix_is_pushed_to_the_same_branch_with_role_coordination(env, cli
     assert flag(first, "--model") == resolved("coordination")["model"]
     assert flag(second, "--model") == resolved("planning")["model"]  # coordination failed once: up the ladder
     assert "troque o retorno para dict" in first[1]
-    assert fake.ran("git", "checkout", "-B", "loop/issue-7", "origin/loop/issue-7")
+    added = fake.ran("git", "worktree", "add")  # the fix starts from the open PR head, on the same branch
+    assert any(a[4:6] == ["-B", "loop/issue-7"] and a[-1] == "origin/loop/issue-7" for a in added)
     pushes = fake.ran("git", "push")
     assert pushes == [["git", "push", "-u", "origin", "loop/issue-7"]]  # same branch, never forced
     assert fake.ran("gh", "pr", "create") == [] and fake.ran("gh", "pr", "merge") == []
     assert fake.ran("gh", "pr", "close") == []
-    assert [r for r, _, _ in step_roles(dest)] == ["coordination", "planning"]
+    assert [r for r, _, _ in step_roles(dest, 7)] == ["coordination", "planning"]
 
 
 def test_execution_report_has_role_model_and_effort_per_step(env, cli_dir):
@@ -342,11 +347,11 @@ def test_execution_report_has_role_model_and_effort_per_step(env, cli_dir):
     baseline(f"{REPO}#7")
     dest = checkout()
     run_tick()
-    assert step_roles(dest) == [
+    assert step_roles(dest, 7) == [
         ("coordination", resolved("coordination")["model"], resolved("coordination")["effort"]),
         ("planning", resolved("planning")["model"], resolved("planning")["effort"]),
     ]
-    report = read_json(dest / REPORTS)
+    report = read_json(state_home(REPO, 7) / REPORTS)
     assert [t["outcome"] for t in report["tasks"]] == ["FAIL", "COMPLETE"]
     assert all(t["tokens"]["source"] == "absent" for t in report["tasks"])  # UNVERIFIED, never invented
 
@@ -360,7 +365,8 @@ def test_step_1_runs_before_the_planner_in_the_sandbox_with_the_scrubbed_env(env
     dest = checkout()
     run_tick()
     ((argv, step_env, planner_calls_before),) = fake.requests
-    assert argv[:6] == ["simplicio-loop", "turbo", "--repo", str(dest), "--task", argv[5]] and len(argv) == 8
+    worktree_path = config.WORK / f"{REPO}.wt" / "3"
+    assert argv[:6] == ["simplicio-loop", "turbo", "--repo", str(worktree_path), "--task", argv[5]] and len(argv) == 8
     assert argv[6] == "--run-id" and argv[7].startswith("turbo-"), "turbo continues the run the watcher opened at intake"
     assert "Issue #3: Add x" in argv[5]  # the guarded task, not a bare title
     assert planner_calls_before == 0, "turbo's request (mapper orient) must run before the planner"
@@ -388,9 +394,9 @@ def test_step_2_continues_the_run_and_one_report_carries_run_id_and_roles(env, c
     assert len(fake.requests) == 1  # one orient per work item, whatever the retries
     for argv in fake.turbo_argv:
         assert argv[argv.index("--run-id") + 1] == RUN_ID
-    report = read_json(dest / REPORTS)
+    report = read_json(state_home(REPO, 7) / REPORTS)
     assert report["run_id"] == RUN_ID
-    assert read_json(dest / ".simplicio-loop/runtime/execution-reports" / f"{RUN_ID}.json") == report
+    assert read_json(state_home(REPO, 7) / ".simplicio-loop/runtime/execution-reports" / f"{RUN_ID}.json") == report
     roles = [t for t in report["tasks"] if "role" in t]
     assert [t["role"] for t in roles] == ["coordination", "planning"]
     assert [t["outcome"] for t in roles] == ["FAIL", "COMPLETE"]

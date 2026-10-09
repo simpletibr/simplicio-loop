@@ -479,7 +479,7 @@ async def tick(dry_run: bool = False) -> None:
             return
         gate = worktrees.Gate(limit)
         plans = squad_flow.form(batch, (executor.families or ("claude",))[0], probe, limits)  # the general coordinator
-        outcomes = await worktrees.run_batch(batch, lambda w: squad_flow.target_paths(w.issue),
+        outcomes = await worktrees.run_batch(batch, lambda w: frozenset(f"{w.repo}/{p}" for p in squad_flow.target_paths(w.issue)),
                                              lambda w: process(store, runner, gate, w, clock, executor, probe))
         squad_status = await squad_flow.finish(plans, batch, outcomes, runner, gate)
         for repo_plan in plans:

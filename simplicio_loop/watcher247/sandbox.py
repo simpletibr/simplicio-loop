@@ -53,18 +53,18 @@ def refusal(environ: Mapping[str, str] | None = None, platform: str | None = Non
 
 
 def worktree_binds(clone: str) -> list[str]:
-    """bwrap binds for a LINKED git worktree (#1601): its own admin dir, the shared object store and the shared map base.
+    """bwrap binds for an item's worktree `<WORK>/<repo>.wt/<issue>` (#1601): its own admin dir, the shared object store and map base.
 
     The rest of the base clone's .git (config, hooks, refs) stays read-only inside the sandbox, so one item cannot touch another's
-    branch or plant a hook. [] when `clone` is a plain clone.
+    branch or plant a hook. The paths come from the fixed layout (worktrees.item_path), never from the `.git` file: that file is
+    writable inside the sandbox, and a later step must not bind what an earlier one pointed it at. [] when `clone` is not an item's.
     """
-    dotgit = Path(clone) / ".git"
-    if not dotgit.is_file():
+    path = Path(clone)
+    if not path.parent.name.endswith(".wt"):
         return []
-    admin = Path(dotgit.read_text(encoding="utf-8").strip().removeprefix("gitdir:").strip())
-    common = admin.parent.parent
-    writable = [admin, common / "objects", common / "simplicio"]  # simplicio/: the mapper's central base, shared by every worktree
-    return [arg for path in writable if path.is_dir() for arg in ("--bind", str(path), str(path))]
+    common = path.parent.parent / path.parent.name.removesuffix(".wt") / ".git"
+    writable = [common / "worktrees" / path.name, common / "objects", common / "simplicio"]  # simplicio/: the mapper's central base
+    return [arg for target in writable if target.is_dir() for arg in ("--bind", str(target), str(target))]
 
 
 def wrap(argv: list[str], *, clone: Path, state_dir: Path, platform: str | None = None,

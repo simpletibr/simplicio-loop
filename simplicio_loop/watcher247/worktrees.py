@@ -144,6 +144,8 @@ def _copy_state(src: Path, dst: Path, overwrite: bool) -> None:
     if not src.is_dir():
         return
     for found in src.rglob("*"):
+        if found.is_symlink():  # the sandbox can plant one: the copy runs outside it and would read what it points at
+            continue
         target = dst / found.relative_to(src)
         if found.is_dir():
             target.mkdir(parents=True, exist_ok=True)

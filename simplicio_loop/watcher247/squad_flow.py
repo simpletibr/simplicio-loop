@@ -21,7 +21,9 @@ merge_train), no cross-squad contracts. It never enables a merge and never loose
 watcher's own login, SIMPLICIO_247_AUTO_MERGE=1, the repo lock and `--match-head-commit` do not read the mode. The mode (`baseline` or
 `v2`) is in the status block of each repo and in the execution-report.
 
-Concurrency is the tick's (daily budget, SIMPLICIO_247_CONCURRENCY) and the repo lock; the merge train holds that lock.
+Concurrency is the tick's (daily budget, SIMPLICIO_247_CONCURRENCY) and the repo lock. The lock covers only short operations
+(update base, git worktree add/remove, push) and never holds during worker execution. Items with shared target files run serially
+in batch order; others run in parallel, each in its own worktree. The merge train holds the repo lock.
 """
 from __future__ import annotations
 

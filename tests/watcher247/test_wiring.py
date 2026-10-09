@@ -121,7 +121,8 @@ def test_review_on_loop_pr_becomes_queued_fix_for_the_same_issue(env):
     run_tick()
     assert len(fake.turbo_argv) == 1
     assert "troque o retorno para dict" in tasks(fake)[0] and "Issue #7" in tasks(fake)[0]
-    assert any("origin/loop/issue-7" in a for a in fake.ran("git", "checkout"))
+    # git checkout origin/loop/issue-7 is now part of git worktree add -B in the new model
+    assert any(a[4:6] == ["-B", "loop/issue-7"] and a[-1] == "origin/loop/issue-7" for a in fake.ran("git", "worktree", "add"))
     run_tick()  # the same review is never queued twice
     assert len(fake.turbo_argv) == 1
 

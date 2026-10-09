@@ -154,7 +154,6 @@ def test_in_flight_equals_concurrency(env, monkeypatch):
     assert len(fake.turbo_argv) == 2
     assert read_json(config.STATUS)["processed"] == ["simplicio-a#1", "simplicio-b#2"]
 
-
 def test_same_repo_issues_overlap_each_in_its_own_worktree(env, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
     bodies = ["Ajustar `a.py` para o fluxo.", "Ajustar `b.py` para o fluxo."]
@@ -174,7 +173,6 @@ def test_different_repos_do_overlap(env, monkeypatch):
     baseline()
     run_tick()
     assert fake.max_turbo == 2
-
 
 def test_dry_run_reads_but_writes_nothing(env, tmp_path):
     fake = env(FakeRun({"simplicio-a": [issue(1)]}))
