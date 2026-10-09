@@ -286,6 +286,8 @@ def _call_record(reply: Mapping[str, Any], turn: int) -> dict[str, Any]:
 async def _apply_operations(root: Path, operations: list[dict], binary: str, label: str, apply_lock: asyncio.Lock) -> list[dict]:
     import json
     import asyncio
+    if reason := plan_paths.operations_refusal(operations, root):  # followed through symlinks: an old dev-cli does not
+        return [{"command": "plan_paths", "returncode": 1, "stdout": reason, "label": label}]
     state = root / ".simplicio-loop"
     state.mkdir(parents=True, exist_ok=True)
     ops_path = state / f"turbo-ops-{label}.json"
