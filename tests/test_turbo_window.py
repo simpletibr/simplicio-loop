@@ -100,6 +100,16 @@ def test_a_decorated_or_multiline_signature_def_is_whole(tmp_path):
     assert "@decorator\ndef sig_target_fn(\n    a,\n    b,\n) -> int:\n" in shown and "    return a\n" in shown
 
 
+def test_current_files_and_file_double_colon_symbol(tmp_path):
+    """The request path of the issue: a task that cites `file::symbol`, a symbol past the old 6000-character cut."""
+    body = _py(900, target_at=890)
+    _write(tmp_path, "tests/test_big.py", body)
+    task = _task("`tests/test_big.py::test_target_in_flight` is flaky", "tests/test_big.py")
+    entry = turbo.current_files(tmp_path, [task])["tests/test_big.py"]
+    assert "def test_target_in_flight(tmp):\n    a = 1\n" in "".join(w["text"] for w in entry["windows"])
+    assert body.index("def test_target_in_flight") > 6000  # the old cut would have hidden it
+
+
 def test_no_anchor_shows_the_beginning_and_the_rest_is_omitted(tmp_path):
     body = _py(900)
     _write(tmp_path, "big.py", body)
