@@ -48,7 +48,7 @@ class PlannerResult:
         self.plan = plan
         self.error = error
         self.execution_ms = execution_ms
-        self.raw = raw  # the CLI's own text, before the plan is cut out of it (None: the CLI never answered)
+        self.raw = raw  # the CLI text before the plan is cut out of it, NOT redacted (None: it never answered); redact before it is stored
 
     def is_ok(self):
         return self.reason_code == "ok"
