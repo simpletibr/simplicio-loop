@@ -269,6 +269,12 @@ For more than 3 issues, run squads. One general coordinator plans. Each squad ha
 5. Only the general coordinator (`planning`) merges, one PR at a time, in the plan's merge order. Before each merge, run `simplicio-loop squads gate --pr N --repo R --json`. Merge only on exit 0: the approval is newer than the last commit that is not a clean merge of `origin/main`.
 6. Shared files (SKILL.md mirrors, pins, conftest, version, CHANGELOG, `cli_impl.py`) are edited only by the general coordinator. Stacked PRs run `git merge origin/main`. Never force-push.
 
+Three rules make squads cheaper and faster (details in `docs/SQUADS.md`):
+
+- Model by complexity: `squad_routing.route(task)` picks the role of the first worker. `execution` only for a mechanical task in 1 module (no integration, no shared file, not security); anything else goes to `coordination`. Two failures still climb one role.
+- Batch merge: `merge_train.plan_train` groups the approved PRs (`squads gate` decides what is approved) into batches in merge order; `run_train` runs ONE cumulative test per batch. On red it bisects to the culprit PR and merges the rest.
+- Interfaces first: `plan_squads` lists a contract per cross-squad dependency edge in `SquadPlan.contracts` (`squad_contracts.py`). Agree the contract and its contract test BEFORE the squads start, so nobody waits for another squad's merge. The plan only describes the contracts; the general coordinator writes the stubs by hand today (`write_contracts(repo, plan.contracts)`).
+
 ## Bound operators (REQUIRED): survey + operate
 
 This loop does NOT survey the repo with the LLM, and it does NOT hand-edit files with the LLM.
