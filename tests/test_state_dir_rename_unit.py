@@ -43,14 +43,19 @@ ALLOWLIST = [
         "per-repo opt-in file owned by the repositories and the legacy watcher (README/docs)",
     ),
     (
-        "simplicio_loop/watcher247/config.py",
-        '".simplicio" / "login.json"',
-        "account login of the separate Simplicio Runtime product, read by the 24/7 watcher",
+        "simplicio_loop/auth.py",
+        'RUNTIME_DIR = ".simplicio"',
+        "home folder of the separate Simplicio Runtime product: its login file and its managed binary",
     ),
     (
-        "simplicio_loop/watcher247/config.py",
+        "simplicio_loop/auth.py",
         "~/.simplicio/login.json",
-        "docstring of the same Runtime login path",
+        "docstrings naming the Runtime login path shared with the 24/7 watcher and the login commands",
+    ),
+    (
+        "simplicio_loop/auth.py",
+        "~/.simplicio/bin",
+        "docstring of the Runtime managed binary folder",
     ),
 ]
 
@@ -114,3 +119,5 @@ def test_allowlist_forgives_only_the_exact_token_of_its_own_file():
     # the token is allowed only in its own file
     assert _unallowed("simplicio_loop/other.py:7:    # reads .simplicio/loop.toml\n") != ""
     assert _unallowed('simplicio_loop/watcher247/tick.py:7:    Path.home() / ".simplicio" / "login.json"\n') != ""
+    # the auth module may name the Runtime folder only through its constant, not build a second path by hand
+    assert _unallowed('simplicio_loop/auth.py:7:    Path.home() / ".simplicio" / "login.json"\n') != ""

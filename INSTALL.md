@@ -52,6 +52,34 @@ effects require an explicit flag), see [`docs/INSTALL_MUTATIONS.md`](docs/INSTAL
 
 (or `codex exec`, `gemini -p`, `aider --message`, etc. — see your runtime's adapter.)
 
+## 3.1. Login, update, install and doctor
+
+```bash
+simplicio-loop login            # sign in; the login is shared with the Simplicio Runtime
+simplicio-loop auth status      # who is logged in (it never prints a token)
+simplicio-loop logout --yes     # delete the login file (the Runtime reads it too)
+simplicio-loop update --dry-run # show what the update would do; change nothing
+simplicio-loop update           # install the latest release
+simplicio-loop doctor           # login, update, distribution, Runtime, PATH operators, disk
+```
+
+Every flag and every exit code is in [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md).
+
+Simplicio Loop and the Simplicio Runtime use one login. Both programs read and write the file
+`~/.simplicio/login.json`. If both are installed, you sign in one time.
+`simplicio-loop login` runs the Runtime sign-in and then reads the file.
+Without the Runtime, a standalone sign-in is UNVERIFIED. The command then prints how to install the Runtime.
+Before a token refresh, Loop takes a lock on `login.lock` next to the file and reads the file again.
+This prevents two programs from refreshing the same rotating token.
+Loop refuses a login file that group or others can read, a symlink, and a folder that group or others can write.
+If another program creates `~/.simplicio` with mode 0775 (for example under `umask 002`), Loop refuses it and prints the exact command, for example `chmod 700 /home/you/.simplicio`.
+
+`simplicio-loop update` acts by how you installed Loop. A pip install receives the release wheel.
+A git checkout must use `git pull` and `bash scripts/dev_install.sh`.
+A binary downloads the release file for your system and `SHA256SUMS`, compares the SHA256 before it changes anything,
+and keeps the old file as `<name>.bak`. The release file is named
+`simplicio-loop-v<version>-<os>-<arch>` (`.exe` on Windows). `simplicio-loop doctor` shows how you installed Loop.
+
 ## 4. Token economy (no wiring needed)
 
 ```bash

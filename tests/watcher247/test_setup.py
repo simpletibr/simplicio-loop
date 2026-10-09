@@ -93,10 +93,12 @@ def run_setup(monkeypatch, token=TOKEN, email=EMAIL, **kwargs):
 
 def write_login(svc, email=EMAIL):
     svc.login.parent.mkdir(parents=True, exist_ok=True)
+    svc.login.parent.chmod(0o700)  # the login store refuses a folder that group or others can write
     svc.login.write_text(json.dumps({
         "access_token": "a", "refresh_token": "r", "access_expires_at": 4102444800,
         "verification": {"validated": {"user": {"email": email}}},
     }))
+    svc.login.chmod(0o600)  # the login store refuses a file that group or others can read
 
 
 def active_subscription(monkeypatch, tier="pro"):
@@ -602,7 +604,7 @@ def test_without_login_json_setup_prints_the_exact_command_for_the_service_user(
     out = capsys.readouterr().out
     assert rc == 1
     assert "login_missing" in out
-    assert "sudo -u simplicio-loop -H simplicio login google" in out
+    assert "sudo -u simplicio-loop -H simplicio-loop login" in out
     assert "systemctl restart simplicio-loop-247" in out  # the new token loads at service start
 
 
@@ -628,6 +630,45 @@ def test_a_free_tier_reports_subscription_required(svc, monkeypatch, capsys):
     active_subscription(monkeypatch, tier="free")
     assert run_setup(monkeypatch) == 1
     assert "subscription_required" in capsys.readouterr().out
+
+
+def test_a_login_file_others_can_read_is_reported_with_the_exact_fix(svc, monkeypatch, capsys):
+    write_login(svc)
+    svc.login.chmod(0o644)
+    active_subscription(monkeypatch)
+    assert run_setup(monkeypatch) == 1
+    out = capsys.readouterr().out
+    assert "login_insecure" in out and f"chmod 600 {svc.login}" in out
+    assert "run this command again later" not in out
+
+
+def test_a_symlinked_login_is_reported_as_insecure_and_never_followed(svc, monkeypatch, capsys):
+    write_login(svc, "someone-else@example.org")
+    real = svc.login.with_name("real.json")
+    svc.login.rename(real)
+    svc.login.symlink_to(real)
+    active_subscription(monkeypatch)
+    assert run_setup(monkeypatch) == 1
+    out, err = capsys.readouterr()
+    assert "login_insecure" in out and "account_mismatch" not in out  # the link is not followed to read an e-mail
+    assert "someone-else@example.org" not in out + err
+
+
+def test_the_account_of_the_login_is_read_through_the_login_store(svc):
+    """onboarding no longer reads the raw file: a file the store refuses holds no e-mail for the comparison."""
+    write_login(svc, "User@Example.com")
+    owner, found = onboarding._login_state()
+    assert found == "User@Example.com" and owner == (svc.login.stat().st_uid, svc.login.stat().st_gid)
+    svc.login.chmod(0o644)
+    assert onboarding._login_state()[1] == ""
+    svc.login.unlink()
+    assert onboarding._login_state() == (None, "")
+
+
+def test_every_subscription_reason_has_a_hint():
+    for reason in ("login_missing", "login_insecure", "account_mismatch", "refresh_failed", "subscription_required",
+                   "entitlement_required", "validate_unreachable"):
+        assert reason in onboarding._HINTS, reason
 
 
 def test_a_root_run_keeps_the_owner_of_login_json(svc, monkeypatch):

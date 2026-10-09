@@ -124,7 +124,7 @@ e-mail and the GitHub token (hidden input), checks the token with `gh api user`,
     # (the token is never an argument: argv shows in ps)
 
     # b) the Simplicio login belongs to the service user (the Runtime command; this repo has no login flow of its own)
-    sudo -u simplicio-loop -H simplicio login google
+    sudo -u simplicio-loop -H simplicio-loop login
 
     # c) check the account step, no token asked; expect exit 0 and `Simplicio subscription: ok`
     /opt/simplicio-loop-247/venv/bin/simplicio-loop watch247 setup --check
