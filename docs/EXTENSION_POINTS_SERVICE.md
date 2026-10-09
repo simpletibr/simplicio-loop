@@ -19,8 +19,8 @@ Um teste (`tests/flow/test_extension_points_doc.py`) garante que esta tabela lis
 | estado | quantidade |
 |---|---|
 | ligado | 11 |
-| parcial | 25 |
-| ausente | 14 |
+| parcial | 24 |
+| ausente | 15 |
 
 ## Tabela
 
@@ -49,13 +49,13 @@ Evidência: `arquivo:função` (ou `arquivo:linha`), relativo à raiz do reposit
 | 19 | `trajectory` | parcial | `simplicio_loop/turbo_run.py:TurboRun.enter` (`events.jsonl` por etapa); `watcher247/tick.py:process` (resultado em `claims.json`); logs por tentativa | Trajetória gravada por execução e legível pelo dashboard; nenhum consumidor de auto-melhoria no caminho |
 | 20 | `learn` | ausente | sem ocorrências de `learn` ou `precedent` em `watcher247/` e `turbo*.py` | Existe só como subcomando da CLI (`learn retrospective` em `cli_impl.py`); o watcher e o turbo não o chamam |
 | 21 | `human_gate` | parcial | `simplicio_loop/intake_gate.py:triage` e `watcher247/tick.py:process` (issue vaga ou épica vira `BLOCKED` com pergunta de esclarecimento) | Pede esclarecimento antes de agir; não há aprovação humana antes do PR nem do merge, e `STOP` é só interruptor de emergência |
-| 22 | `shell_exec` | ligado | `watcher247/proc.py:run` (exec de argv, timeout, `killpg`, `Result`); `simplicio_loop/turbo_cli.py:_run_verify` (`sh -c`, timeout de 900 s, cauda de 1500 caracteres) | Saída estruturada e limitada; `verify` usa `sh -c` |
+| 22 | `shell_exec` | ligado | `watcher247/proc.py:run` (exec de argv, timeout, `killpg`, `Result`); `turbo_cli.py:_run_verify` (`sh -c`, timeout de 900 s, cauda de 1500 caracteres) | Saída estruturada e limitada; `verify` usa `sh -c` |
 | 23 | `retry` | parcial | `watcher247/verify.py:retry_or_dead`; `watcher247/tick.py:process` (`MAX_ATTEMPTS = 2`); `watcher247/config.py` (`RETRY_AFTER` de 6 h); `turbo.py:repair_with_test_output` | Retry fixo de 6 h e fila morta após 2 tentativas; sem classificação de falha e sem backoff |
 | 24 | `convergence_policy` | ausente | sem ocorrências de `LoopDecision`, `RunProjection` ou `convergence` no caminho | A definição está só em `simplicio_loop/runner.py`; o turbo tem número fixo de tentativas |
 | 25 | `status` | ligado | `watcher247/tick.py:_phase` (um comentário de status canônico por issue, via `simplicio_loop/watcher_github.py:post_status`); `watcher247/state.py:write_status`; `simplicio_loop/turbo_run.py` (`state.json` lido por `dashboard/runs.py`); `tests/flow/test_service_flow_e2e.py::test_one_canonical_status_comment_updated_across_phases` | Comentário editado CLAIMED → PLANNED → IN_PROGRESS → VERIFYING → PR_OPEN e execução visível no kanban |
 | 26 | `security` | ligado | `watcher247/secret_scan.py:check_staged` (varredura do diff antes do commit e do push, #1501); `watcher247/prompt_guard.py:untrusted` (texto da issue cercado no prompt); `watcher247/sandbox.py:wrap` e `scrubbed_env`; `subscription.py:_store_tokens_sync` (permissão 600) | Segredo no diff bloqueia o push; texto não confiável é isolado no prompt; subprocesso em bwrap com env por allowlist |
 | 27 | `intake` | ligado | `simplicio_loop/intake_gate.py:repo_opted_in` (`.simplicio/loop.toml` com `enabled = true`), `issue_admitted`, `triage`; `watcher247/github.py:open_issues`; `tests/flow/test_service_flow_e2e.py::test_issue_admitted` | Só repos com opt-in; a issue passa por admissão (autor e label) e triagem antes do claim; sem board nem sprint |
-| 28 | `dependency_graph` | parcial | `simplicio_loop/turbo_cli.py:build_tasks` (`depends_on` por arquivo compartilhado); `simplicio_loop/turbo.py:_ready` e `_run_wave` (detecta ciclo) | Grafo só dentro de uma execução do turbo, em memória, sem retomada; o watcher não ordena issues |
+| 28 | `dependency_graph` | parcial | `turbo_cli.py:build_tasks` (`depends_on` por arquivo compartilhado); `turbo.py:_ready` e `_run_wave` (detecta ciclo) | Grafo só dentro de uma execução do turbo, em memória, sem retomada; o watcher não ordena issues |
 | 29 | `durable_workflow` | parcial | `watcher247/tick.py:tick` (`ClaimStore.reap_expired` solta lease vencido após crash); `process` (`claims.json` no início e no fim); `simplicio_loop/turbo_run.py` (`state.json` e `events.jsonl` por execução) | Lease vencido volta para a fila; sem diário de fases que retome a execução do ponto onde parou |
 | 30 | `work_queue` | parcial | `simplicio_loop/claim_lease.py:ClaimStore` (lease com TTL, `next_try_at`); `watcher247/tick.py:Gate`; `config.py:concurrency`; `turbo.py:run_turbo` (semáforo e `apply_lock`) | Fila é `claims.json` com lease e flock; sem prioridade nem ordenação entre issues |
 | 31 | `resource_governor` | parcial | `watcher247/budget.py:reached` e `issues_left` (teto diário de issues, PRs e chamadas de modelo); `watcher247/config.py:concurrency`; `turbo_provider.py:concurrency`; semáforo em `turbo.py:run_turbo` | Tetos diários e limites de concorrência por variável de ambiente; sem sonda de CPU ou RAM |
@@ -77,7 +77,7 @@ Evidência: `arquivo:função` (ou `arquivo:linha`), relativo à raiz do reposit
 | 47 | `video_evidence` | ausente | sem ocorrências de `video`, `ffmpeg` ou `hyperframes` no caminho | Existe em `scripts/video_evidence.py`, fora do caminho |
 | 48 | `web_research` | ausente | sem busca web no caminho; só a chamada ao modelo em `turbo_provider.py` | Nenhuma pesquisa na web |
 | 49 | `transform_guard` | ausente | sem ocorrências de `transform` ou `preserv` com verificação no caminho | Nenhuma checagem de preservação de tokens, URLs ou paths |
-| 50 | `judge` | parcial | `simplicio_loop/turbo.py:_verdict` (aplicado só com recibo do Dev CLI e sem recusa); `watcher247/verify.py:decide` (PR, retry ou dead) | Veredito determinístico sobre recibo e testes; não há juiz independente (`ACCEPT`/`REJECT` só em `packages/dev-cli/simplicio/commands/prototype.py`, que o turbo não chama) |
+| 50 | `judge` | ausente | sem ocorrências de `judge`, `ACCEPT` ou `REJECT` no caminho; `ACCEPT`/`REJECT` só em `packages/dev-cli/simplicio/commands/prototype.py`; `turbo.py:_verdict` decide a recusa do apply e não julga qualidade | O turbo chama só `edit` do Dev CLI; `prototype` não é invocado |
 
 ## Como os testes de fluxo se relacionam com esta tabela
 
