@@ -451,9 +451,7 @@ def chk_installed_skills_freshness():
     `--repair` syncs installed skills from the package.
     """
     try:
-        import sys
-        sys.path.insert(0, str(REPO / "scripts"))
-        from install_lib import compute_skill_digest, get_installed_skill_hosts
+        from simplicio_loop.skill_sync import compute_skill_digest, compute_skill_path_digest, get_installed_skill_hosts
     except Exception as exc:
         return dict(name="installed skills freshness", tier="OPTIONAL",
                     status=WARN, msg="check unavailable: %s" % exc, repair=None)
@@ -488,10 +486,7 @@ def chk_installed_skills_freshness():
                 stale_skills.append((host, "not installed"))
                 continue
             
-            import sys
-            sys.path.insert(0, str(REPO / "scripts"))
-            from install_lib import compute_skill_digest as csd
-            inst_digest = csd("simplicio-loop", skill_root=str(installed_path.parent.parent.parent))
+            inst_digest = compute_skill_path_digest(str(installed_path))
             
             if pkg_digest and inst_digest and pkg_digest != inst_digest:
                 stale_skills.append((host, "stale"))
@@ -500,9 +495,7 @@ def chk_installed_skills_freshness():
     
     def repair():
         try:
-            import sys
-            sys.path.insert(0, str(REPO / "scripts"))
-            from install_lib import resync_installed_skills
+            from simplicio_loop.skill_sync import resync_installed_skills
             report = resync_installed_skills(verbose=False)
             return len(report.get("errors", [])) == 0
         except Exception as e:

@@ -238,13 +238,23 @@ def maybe_upgrade(cache_path: str | Path, *, ttl_days: float | None = None,
     record_check(cache_path, versions or {}, now=now)
     # After successful upgrade, resync installed skills
     decision["skills_resynced"] = False
-    if decision["upgraded"] and resync_fn:
-        try:
-            resync_report = resync_fn()
-            decision["skills_resynced"] = len(resync_report.get("synced", [])) > 0
-            decision["skills_sync_report"] = resync_report
-        except Exception as exc:
-            decision["skills_sync_error"] = str(exc)
+    if decision["upgraded"]:
+        # Use provided resync_fn or default to simplicio_loop.skill_sync.resync_installed_skills
+        fn = resync_fn
+        if fn is None:
+            try:
+                from simplicio_loop.skill_sync import resync_installed_skills
+                fn = resync_installed_skills
+            except (ImportError, ModuleNotFoundError):
+                fn = None
+        
+        if fn:
+            try:
+                resync_report = fn()
+                decision["skills_resynced"] = len(resync_report.get("synced", [])) > 0
+                decision["skills_sync_report"] = resync_report
+            except Exception as exc:
+                decision["skills_sync_error"] = str(exc)
     return decision
 
 
