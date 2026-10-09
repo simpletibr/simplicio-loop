@@ -460,7 +460,12 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         stage_route = _STAGE_AGENTS_RE.fullmatch(raw_path)
         if stage_route:
             ref = _find_run(self.server, urllib.parse.unquote(stage_route.group(1)))
-            self._send_json(200, stage_costs.run_view(ref['run_dir'], price_table()))
+            try:
+                view = stage_costs.run_view(ref['run_dir'], price_table())
+            except stage_costs.ViewBusy as busy:  # a computation of this run is stuck and no earlier view exists
+                self._send_json(503, {'error': HTTPStatus(503).phrase}, {'Retry-After': str(busy.retry_after)})
+                return
+            self._send_json(200, view)
             return
         artifact = _ARTIFACT_RE.fullmatch(raw_path)
         if artifact:
@@ -550,22 +555,27 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         data = json.dumps(payload, separators=(',', ':'), default=str)
         self.wfile.write(('event: %s\ndata: %s\n\n' % (name, data)).encode('utf-8'))
 
-    def _start(self, status: int, ctype: str, length: int | None = None) -> None:
+    def _start(self, status: int, ctype: str, length: int | None = None, extra: dict[str, str] | None = None) -> None:
         self.send_response(status)
-        for name, value in security_headers().items():
+        for name, value in {**security_headers(), **(extra or {})}.items():
             self.send_header(name, value)
         self.send_header('Content-Type', ctype)
         if length is not None:
             self.send_header('Content-Length', str(length))
         self.end_headers()
 
-    def _send(self, status: int, body: bytes, ctype: str) -> None:
-        self._start(status, ctype, len(body))
+    def _send(self, status: int, body: bytes, ctype: str, extra: dict[str, str] | None = None) -> None:
+        self._start(status, ctype, len(body), extra)
         if self.command != 'HEAD':  # HEAD carries the headers only, never the body
             self.wfile.write(body)
 
-    def _send_json(self, status: int, payload: Any) -> None:
-        self._send(status, json.dumps(payload, default=str).encode('utf-8'), 'application/json; charset=utf-8')
+    def _send_json(self, status: int, payload: Any, extra: dict[str, str] | None = None) -> None:
+        '''Strict JSON only: a reply that holds NaN or Infinity (invalid JSON for every client) becomes a JSON 500.'''
+        try:
+            body = json.dumps(payload, default=str, allow_nan=False).encode('utf-8')
+        except ValueError:
+            status, body = 500, json.dumps({'error': HTTPStatus(500).phrase}).encode('utf-8')
+        self._send(status, body, 'application/json; charset=utf-8', extra)
 
 class ServerHandle:
     '''A running server. ``port`` is the bound port; ``stop()`` ends streams, the listener and the thread.'''

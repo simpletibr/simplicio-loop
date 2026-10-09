@@ -78,10 +78,8 @@ def _run_git(
 
 
 def _norm(path: str) -> str:
-    """Normalize a git-reported path to forward slashes, no leading ``./``."""
-    value = path.strip().strip('"')
-    value = value.replace("\\", "/")
-    return value[2:] if value.startswith("./") else value
+    """Drop a leading ``./``. Names come from ``-z`` output: git reports them raw (never C-quoted)."""
+    return path[2:] if path.startswith("./") else path
 
 
 def _resolve_head_commit_sha(root: str) -> str | None:
@@ -93,35 +91,43 @@ def _resolve_head_commit_sha(root: str) -> str | None:
 
 
 def _parse_name_status(output: str) -> list[tuple[str, str | None, str]] | None:
-    """Parse ``git diff --name-status`` output into ``(kind, from_path, to_path)``.
+    """Parse ``git diff --name-status -z`` output into ``(kind, from_path, to_path)``.
 
-    ``from_path`` is only populated for ``renamed`` entries (the previous
-    name); ``added``/``modified``/``removed`` carry ``None`` there since the
-    caller resolves the effective origin from cumulative merge state, not
-    from this single hop in isolation.
+    ``-z`` output is NUL-separated: ``<code>\0<path>\0`` and, for a rename or copy,
+    ``<code>\0<old>\0<new>\0``. Raw names: no C-quoting, ``" -> "`` is just part of a name.
+    ``from_path`` is only populated for ``renamed`` entries (the previous name); ``added``/
+    ``modified``/``removed`` carry ``None`` there since the caller resolves the effective origin
+    from cumulative merge state, not from this single hop in isolation.
     """
     entries: list[tuple[str, str | None, str]] = []
-    for line in output.splitlines():
-        if not line.strip():
+    tokens = output.split("\0")
+    index = 0
+    while index < len(tokens):
+        code = tokens[index]
+        index += 1
+        if not code:
             continue
-        parts = line.split("\t")
-        code = parts[0]
-        if code.startswith("R"):
-            if len(parts) < 3:
-                continue
-            entries.append(("renamed", _norm(parts[1]), _norm(parts[2])))
-        elif code.startswith("C"):
-            # Copies have no prior path to tombstone; treat the destination
-            # as a fresh addition relative to the base.
-            if len(parts) < 3:
-                continue
-            entries.append(("added", None, _norm(parts[2])))
-        elif code.startswith("A"):
-            entries.append(("added", None, _norm(parts[1])))
+        if code.startswith(("R", "C")):
+            if index + 1 >= len(tokens):
+                break
+            old, new = tokens[index], tokens[index + 1]
+            index += 2
+            if code.startswith("R"):
+                entries.append(("renamed", _norm(old), _norm(new)))
+            else:
+                # Copies have no prior path to tombstone; the destination is a fresh addition.
+                entries.append(("added", None, _norm(new)))
+            continue
+        if index >= len(tokens):
+            break
+        path = _norm(tokens[index])
+        index += 1
+        if code.startswith("A"):
+            entries.append(("added", None, path))
         elif code.startswith("D"):
-            entries.append(("removed", None, _norm(parts[1])))
+            entries.append(("removed", None, path))
         else:
-            entries.append(("modified", None, _norm(parts[1])))
+            entries.append(("modified", None, path))
     return entries
 
 
@@ -132,7 +138,7 @@ def _committed_delta(
     if base_sha == head_sha:
         return []
     result = _run_git(
-        ["diff", "--name-status", _RENAME_DETECTION, base_sha, head_sha, "--"],
+        ["diff", "--name-status", "-z", _RENAME_DETECTION, base_sha, head_sha, "--"],
         root,
     )
     if not result or result.returncode != 0:
@@ -141,7 +147,9 @@ def _committed_delta(
 
 
 def _parse_status_porcelain(output: str) -> list[tuple[str, str | None, str]]:
-    """Parse ``git status --porcelain`` lines into ``(kind, from_path, to_path)``.
+    """Parse ``git status --porcelain -z`` into ``(kind, from_path, to_path)``.
+
+    ``-z`` entries are ``XY <path>\0``; a rename or copy is ``XY <new>\0<old>\0``. Raw names.
 
     Classification priority when both index and worktree characters are set
     (e.g. ``"AD"``, ``"MM"``) is deletion > rename > addition > modification
@@ -149,21 +157,24 @@ def _parse_status_porcelain(output: str) -> list[tuple[str, str | None, str]]:
     overlay, regardless of what the index says happened along the way.
     """
     entries: list[tuple[str, str | None, str]] = []
-    for line in output.split("\n"):
-        if not line.strip():
+    tokens = output.split("\0")
+    index = 0
+    while index < len(tokens):
+        record = tokens[index]
+        index += 1
+        if len(record) < 4:
             continue
-        code = line[:2]
-        raw = line[3:].strip()
-        if " -> " in raw:
-            from_raw, to_raw = raw.split(" -> ", 1)
-            from_path, to_path = _norm(from_raw), _norm(to_raw)
-        else:
-            from_path, to_path = None, _norm(raw)
+        code, to_path = record[:2], _norm(record[3:])
+        from_path = None
+        if code[0] in "RC" or code[1] in "RC":
+            if index < len(tokens):
+                from_path = _norm(tokens[index])
+                index += 1
         if "D" in code:
             entries.append(("removed", None, to_path))
         elif "R" in code:
             entries.append(("renamed", from_path or to_path, to_path))
-        elif code == "??" or "A" in code:
+        elif code == "??" or "A" in code or "C" in code:
             entries.append(("added", None, to_path))
         else:
             entries.append(("modified", None, to_path))
@@ -172,7 +183,7 @@ def _parse_status_porcelain(output: str) -> list[tuple[str, str | None, str]]:
 
 def _uncommitted_delta(root: str) -> tuple[list[tuple[str, str | None, str]], bool] | None:
     """Return (entries, dirty) from ``git status --porcelain``, or ``None`` on failure."""
-    result = _run_git(["status", "--porcelain", "--untracked-files=all"], root)
+    result = _run_git(["status", "--porcelain", "-z", "--untracked-files=all"], root)
     if not result or result.returncode != 0:
         return None
     dirty = bool(result.stdout.strip())

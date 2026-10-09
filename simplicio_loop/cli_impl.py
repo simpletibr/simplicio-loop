@@ -580,8 +580,8 @@ async def _ensure_project_map(root: Path, *, budget: float | None = None) -> Non
             return
     if budget is None:
         try:
-            from .map_service_mapper import run_mapper_index, MapperUnavailableError, materialize_project_map
-            envelope = await run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
+            from .map_service_mapper import run_mapper_map, MapperUnavailableError, materialize_project_map
+            envelope = await run_mapper_map(str(root), timeout=_mapper_index_timeout_seconds())
             materialize_project_map(str(root), envelope)
             
             if current_state is not None:
@@ -711,10 +711,12 @@ async def _ensure_project_map_bounded(root: Path, project_map: Path, state_file:
     if _mapper_index_reconcile_finished(log_path, project_map, state_file, current_state):
         return
     try:
-        from .map_service_mapper import mapper_binary_path
+        from .map_service_gc import startup_gc
+        from .map_service_mapper import index_argv, mapper_binary_path
         binary = mapper_binary_path()
     except Exception:
         return  # binary missing: swallowed, same policy as the unbounded path above
+    startup_gc(str(root))  # stale build scratch and orphan locks (never a base); never raises
     map_dir.mkdir(parents=True, exist_ok=True)
     resolved = str(root.resolve())
     popen_kwargs: dict[str, Any] = {}
@@ -725,7 +727,7 @@ async def _ensure_project_map_bounded(root: Path, project_map: Path, state_file:
     # this index has to outlive the call: that is the detached mode of #1339.
     with open(log_path, "wb") as log_handle:
         proc = subprocess.Popen(
-            [binary, "index", resolved, "--json"],
+            index_argv(binary, resolved),
             stdout=log_handle, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
             close_fds=True, **popen_kwargs,
         )

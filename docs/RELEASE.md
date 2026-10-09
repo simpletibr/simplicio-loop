@@ -98,6 +98,142 @@ command:
 pytest tests -q -p no:cacheprovider -m "not external_integration" --maxfail=1000 -rf
 ```
 
+## Binary (standalone executable)
+
+Issue #1576. The release can include one executable for each operating system. The executable holds
+Python, the loop, the mapper, and the dev-cli. The target machine needs no Python.
+
+### Release contract
+
+| Item | Rule |
+|------|------|
+| Asset name | `simplicio-loop-v<version>-<os>-<arch>`, with `.exe` on Windows |
+| `<os>` | `linux`, `darwin`, or `windows` |
+| `<arch>` | `x86_64` or `aarch64` |
+| `SHA256SUMS` | One line per asset: 64 lower-case hex digits, two spaces, the file name |
+| `simplicio-loop --version` | Prints `simplicio-loop <version>` |
+| Frozen build | `sys.frozen` is true. The `update` command uses it to find the distribution |
+
+One executable also runs as `simplicio-mapper`, `simplicio-dev-cli`, `simplicio-cli`, and `simplicio-py`.
+The program reads `argv[0]` and starts the matching entry point. At start, the binary makes the links
+`~/.simplicio-loop/bin/<key>/<name>` and puts that directory first in `PATH`. The loop starts its
+operators by name, so they find the links. The code is in `simplicio_loop/frozen.py`.
+The executable also accepts `-m MODULE`, `-c CODE`, and `FILE.py`, because bundled code starts itself with `sys.executable`.
+
+### Tool decision
+
+All numbers come from one Linux x86_64 host with 10 cores and a load average of 7 to 9 from other jobs.
+Python was 3.13.15 (python-build-standalone from `uv`) and PyInstaller 6.22.3. Startup is the time of `--version`: the first run (the cold run), then the median of the next 9 runs.
+The times are wall-clock times, so they scale with the load.
+
+| Option | Build time | Size | `--version` first run / median of 9 more | Peak memory | Result |
+|--------|-----------|------|-------------------------------------------|-------------|--------|
+| Wheel install (baseline) | 15 s to build the wheel | 5.3 MB wheel, 102 MB with its dependencies | 1.2 s / 1.2 s | 38 MiB | Needs Python on the target |
+| PyInstaller one-file | 121 s (117 to 141 s in five builds) | 43.5 MB | 2.6 s / 2.8 s | 42 MiB | Chosen. All smoke checks pass |
+| PyInstaller one-dir | 94 s | 104 MB directory | 1.4 s / 1.5 s (see note) | 45 MiB | Not one file. Faster start |
+| Nuitka 4.2.2 | Not measured | Not measured | Not measured | Not measured | Stopped at the 15-minute limit |
+| zipapp, shiv, pex | Not tried | Not tried | Not tried | Not tried | Not native binaries: they need Python on the target |
+
+Note: the one-file and wheel rows use Python 3.13.15 from `uv`. The one-dir row, the five build times, and
+the reproducibility test use the system Python 3.14.4, where the wheel starts in 0.9 s to 1.1 s.
+Nuitka used 15 minutes, 833 s of CPU, and 1.4 GB of memory. It finished the Python-level step
+after about 12.5 minutes and compiled none of the C files. The hot path (`turbo` survey and apply on a small
+repository) takes 11 s to 13 s with the binary and 7 s to 9 s with the wheel.
+
+Decision: PyInstaller, one-file. It is the only candidate that made one native executable
+within the time limit. The one-file start is slower than the wheel, because it unpacks about 100 MB
+to a temporary directory at every start. A child that starts as `sys.executable` unpacks its own copy, so it survives its parent. The one-dir build starts faster but is a directory, not an asset
+of the contract. Use it only when start time matters more than a single file.
+
+### Build the executable
+
+Build on the target system and architecture. PyInstaller does not cross-compile.
+
+1. Make a clean environment with a short path. Install this tree as a wheel, not as an editable install.
+2. Run the build from a clean tree:
+
+   ```bash
+   uv python install 3.13                      # the same Python on every build host
+   uv venv --python 3.13 /tmp/slb
+   uv pip install --python /tmp/slb/bin/python . pyinstaller
+   /tmp/slb/bin/python scripts/build_binary.py
+   ```
+
+   The script refuses a dirty tree unless you pass `--allow-dirty`. It writes
+   `dist/binary/simplicio-loop-v<version>-<os>-<arch>` and `dist/binary/SHA256SUMS`.
+   Use `--work` and `--out` to put the build files on another disk. Use `--onedir` for a directory build.
+3. Run the smoke test. It copies only the executable to an empty directory and scrubs the environment:
+
+   ```bash
+   python3 scripts/smoke_binary.py dist/binary/simplicio-loop-v<version>-linux-x86_64 \
+       --wheel dist/simplicio_loop-<version>-py3-none-any.whl --reference-bin /tmp/slb/bin --timing 10
+   ```
+
+   The slow pytest version is `tests/test_binary_smoke_external.py`. Set `SIMPLICIO_BINARY` to run it.
+
+The build is deterministic. `SOURCE_DATE_EPOCH` is the time of the last commit, `PYTHONHASHSEED` is 0,
+and the work path stays the same. Two builds of one commit in one path gave the same SHA-256 (Python 3.14.4).
+
+macOS (UNVERIFIED, no one ran it on a Mac):
+
+```bash
+python3 -m venv /tmp/slb && /tmp/slb/bin/python -m pip install . pyinstaller
+/tmp/slb/bin/python scripts/build_binary.py        # darwin-x86_64 on Intel, darwin-aarch64 on Apple silicon
+```
+
+Windows (UNVERIFIED, no one ran it on Windows):
+
+```powershell
+py -3.13 -m venv C:\slb
+C:\slb\Scripts\python -m pip install . pyinstaller
+C:\slb\Scripts\python scripts\build_binary.py       # simplicio-loop-v<version>-windows-x86_64.exe
+```
+
+Linux aarch64 uses the Linux commands on an aarch64 machine (UNVERIFIED).
+
+### Attach to a GitHub Release
+
+Put the assets of all systems in one directory. Then write one `SHA256SUMS` for all of them:
+
+```bash
+python3 scripts/build_binary.py --checksums-only dist/binary --version <version>
+python3 scripts/sbom_generate.py generate --artifact dist/binary/simplicio-loop-v<version>-linux-x86_64 \
+    --output dist/binary/sbom-linux-x86_64.json
+gh release create v<version> --repo simpletibr/simplicio-loop --title "v<version>" --notes-file <notes> \
+    dist/binary/simplicio-loop-v<version>-linux-x86_64 dist/binary/simplicio-loop-v<version>-darwin-aarch64 \
+    dist/binary/SHA256SUMS      # one path for each asset, never a directory
+```
+
+Add an asset to a release that exists with `gh release upload v<version> --repo simpletibr/simplicio-loop <file>`.
+Then write `SHA256SUMS` again and upload it with `--clobber`.
+By the contract of issue #1575, the `update` command downloads the asset for its system, compares it with `SHA256SUMS`, and replaces the executable.
+
+The optional `--binary` flag of `scripts/release_rehearsal.py run` builds the executable from the rehearsal
+wheel in a new venv, checks `SHA256SUMS` and `--version`, and writes `sbom-binary.json`. It needs network
+and takes minutes. It is off by default.
+
+### Limits
+
+- Build one executable on each system. No one ran the Linux build on another distribution.
+- Linux: the executable bundles `libstdc++` and the other libraries of the build host. The build here
+  needs glibc 2.38 or newer (Ubuntu 24.04 or newer, Debian 13 or newer). A system Python 3.14 from the
+  same host raised the need to glibc 2.42. For a wider range, build on an older distribution, for
+  example Debian 12 or Ubuntu 22.04. UNVERIFIED: no one made that build.
+- macOS: no code signing and no notarization. Gatekeeper blocks the download until the user removes the
+  quarantine attribute (`xattr -d com.apple.quarantine <file>`). UNVERIFIED.
+- Windows: no code signature. SmartScreen warns about an unknown publisher, and some antivirus programs flag
+  one-file PyInstaller programs. The operator links are hard links or copies, not symbolic links. UNVERIFIED.
+- The executable cannot run `pip`. The `-m pip` commands of the old `update` and operator bootstrap fail
+  in the binary. The binary must update itself by replacing the file.
+- The executable cannot run `python -m pytest` or any module that the build did not bundle.
+  A `--verify` command that calls `pytest` on `PATH` uses the pytest of the user.
+- The one-file executable unpacks about 100 MB into the temporary directory at each start. A system
+  where `/tmp` has the `noexec` mount option must set `TMPDIR` to another directory.
+- The SBOM lists the Python dependencies of `pyproject.toml`. It does not list the native libraries that
+  PyInstaller bundles, such as `libssl` and `libstdc++`.
+- `simplicio-loop FILE.py` runs the file as python does when the file exists. A task with the name of an existing `.py` file
+  runs that file, not the task.
+
 ## What remains blocked, and why
 
 Two workflows currently exist under `.github/workflows/` (`simplicio-status-sync.yml` and
