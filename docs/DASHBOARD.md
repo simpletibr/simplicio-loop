@@ -393,6 +393,29 @@ browser = false                # default false; true shows the "Ativar notifica√
 
 MEASURED on Linux (4 cores, `/proc`), one 30 s sample: 0.06 CPU s over 30.0 s wall = 0.2 % (limit 2 %); RSS 47,000 KiB after the full run (limit 80 MB). One sample, not a distribution. Windows and macOS: UNVERIFIED (no `/proc`, no machine to run on).
 
+## Cost of GET /api/runs (#1569)
+
+The list needs the summary of every run. `runs.run_summary` keeps that summary in memory for each run directory. The key is the stamp of the six files that the summary reads: `state.json`, `events.jsonl`, `completion-receipt.json`, `execution-route.json`, `evidence-receipt.json` and `loop/watcher_state.json`. The stamp holds the inode, size, mtime and ctime of each file, or nothing when the file is absent. User space cannot set the ctime. A rewrite that restores the size and the mtime therefore still changes the key. The code takes the stamp before it reads the files. A run that grows during the read gets a new read on the next call.
+
+The code does not trust a file that changed less than 100 ms before the stamp. On a disk with whole-second timestamps (ext3, HFS+, FAT) the window is 2 s. A writer could rewrite such a file inside the same timestamp tick with the same size. The code computes this kind of run again on each call and does not store it. It does not trust a timestamp in the future either. The window assumes that the disk clock and the process clock agree. I did not test a network disk with a skewed clock (UNVERIFIED).
+
+Only one computation per run runs at a time. The pollers of a changed run wait for it and take its result. The memory holds 512 runs at most. Each caller gets its own copy of the summary.
+
+**CPU budget per request.** A request on runs that did not change reads no file and parses no JSON event. It makes six `lstat` calls per run and one small `json.loads`. A run that changed costs one full summary: parse `state.json`, scan `events.jsonl` and mask secrets. `tests/test_dashboard_runs_memo_unit.py` counts these reads. It fails when the second listing of 20 runs reads one file. It also compares the answer with the uncached answer after each kind of change on disk.
+
+MEASURED on a 10-core Linux host with load 6 to 8 (loopback, 50 samples per round, 3 rounds):
+
+| Case | Before | After |
+|---|---|---|
+| 20 runs, 50 events each (the budget test): `list_runs` CPU, in process | p50 72.1 ms, p95 147.9 ms | p50 4.4 ms, p95 8.9 ms |
+| same, `GET /api/runs` | p50 91 to 99 ms, p95 150 to 193 ms, CPU 95 to 106 ms per request | p50 24 to 25 ms, p95 44 to 52 ms, CPU 24 to 30 ms per request |
+| 20 runs, 1000 events each, `GET /api/runs` | p50 366 to 375 ms, p95 524 to 577 ms, CPU 377 to 398 ms | p50 17 to 21 ms, p95 46 to 65 ms, CPU 21 to 26 ms |
+| 50 runs, 10 000 events each, `list_runs` CPU, in process | 7.3 to 9.0 s | p50 13.8 ms, p95 24.3 ms (the first call, 8.3 s, fills the memory) |
+
+On the same host and load, `GET /api/health` took p50 8 to 14 ms and p95 26 to 48 ms. The HTTP round trip makes up most of the remaining time in the route. The test `test_read_routes_p95_under_budget_with_twenty_runs_and_a_thousand_events` passed five times in a row on the first attempt. The `/api/runs` p95 was 29.4, 39.0, 46.6, 63.9 and 41.0 ms against the 100 ms budget. Before the change it failed with a best of three of 137.4, 150.9 and 161.5 ms.
+
+A run that still receives events costs one scan of its `events.jsonl` on each poll: 160 to 350 ms for 10 000 events (measured). An incremental scan of the tail would remove that cost. This change does not include it.
+
 ## Quality gate (issue #1409)
 
 **Accessibility.** `tests/test_live_a11y_e2e_system.py` runs axe 4.12.1 (tags wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa, best-practice) in a real Chromium on the pipeline page (dark, light, contrast themes, populated by the lifecycle fixture), the board, the drill-down with each of its six tabs, and TV mode. Result: 0 violations of any impact. It also checks keyboard reach, a visible focus indicator, Escape returning focus to the opener, `lang="pt-BR"`, and accessible names. One real gap was found and fixed: a phase change was not announced, so a visually hidden `role="status"` line (`#phase-status`) now carries "Fase atual: <fase>". Alerts were already announced (`role="alert"` for STALLED).
