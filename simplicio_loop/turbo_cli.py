@@ -16,13 +16,13 @@ The output is one compact JSON document. Exit code: 0 ok / needs_plan, 1 failed,
 """
 from __future__ import annotations
 
+import asyncio
 import difflib
 import functools
 import json
 import re
 import shlex
 import shutil
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -92,14 +92,32 @@ def _emit(document: dict[str, Any]) -> None:
     print(json.dumps(document, ensure_ascii=False, separators=(",", ":")))
 
 
-def _run_verify(root: Path, command: str) -> tuple[dict[str, Any], str]:
-    """Run the verify command in the repo. Returns the report and the full output."""
+VERIFY_TIMEOUT_S = 900
+
+
+async def _run_verify(root: Path, command: str) -> tuple[dict[str, Any], str]:
+    """Run the verify command in the repo. Returns the report and the full output.
+
+    The shell runs in its own process group under ``asyncio.wait_for``: the event loop stays free while it
+    runs, and on timeout the whole group (the shell and what it started) is killed.
+    """
+    from .exec_planner import _kill_process_tree
+
     sh_bin = shutil.which("sh") or "/bin/sh"
+    proc = await asyncio.create_subprocess_exec(
+        sh_bin, "-c", command, cwd=root, stdin=asyncio.subprocess.DEVNULL,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, start_new_session=True,
+    )
     try:
-        proc = subprocess.run([sh_bin, "-c", command], cwd=root, capture_output=True, text=True, timeout=900)  # noqa: S602
-    except subprocess.TimeoutExpired:
-        return {"command": command, "passed": False, "returncode": None, "output_tail": "verify timed out after 900s"}, ""
-    output = (proc.stdout + proc.stderr).strip()
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=VERIFY_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        await _kill_process_tree(proc)
+        return {"command": command, "passed": False, "returncode": None,
+                "output_tail": f"verify timed out after {VERIFY_TIMEOUT_S:g}s"}, ""
+    except BaseException:
+        await _kill_process_tree(proc)
+        raise
+    output = (stdout.decode("utf-8", errors="replace") + stderr.decode("utf-8", errors="replace")).strip()
     return {"command": command, "passed": proc.returncode == 0, "returncode": proc.returncode,
             "output_tail": output[-1500:]}, output
 
@@ -164,7 +182,7 @@ def _request_plan(repo: str, texts: Sequence[str], target: str | None, context: 
     # tree-state cache keeps an unchanged tree free and byte-identical, and a changed tree gets a new map.
     (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)
     try:
-        survey_tasks(root, tasks)
+        asyncio.run(survey_tasks(root, tasks))
         # No prompt cache to warm in host mode: the map is only the slice of the files the tasks name.
         reading = mapper_reading(root, focus=focus_paths(tasks) if slice_enabled() else None)
     except RuntimeError as exc:
@@ -237,7 +255,6 @@ def _plan_text(root: Path, plan: str) -> tuple[str | None, str]:
 
 def _apply_plan(repo: str, plan: str, verify: str | None, run_id: str | None = None) -> int:
     """Wrapper to call async _apply_plan_async with asyncio.run."""
-    import asyncio
     return asyncio.run(_apply_plan_async(repo, plan, verify, run_id))
 
 
@@ -285,7 +302,7 @@ async def _apply_plan_async(repo: str, plan: str, verify: str | None, run_id: st
     }
     if verify and result["applied"]:
         run_.enter("verify")
-        document["verify"], _output = _run_verify(root, verify)
+        document["verify"], _output = await _run_verify(root, verify)
         if not document["verify"]["passed"]:
             document["status"] = "failed"
     document["wall_s"] = round(time.time() - started, 2)
@@ -295,7 +312,6 @@ async def _apply_plan_async(repo: str, plan: str, verify: str | None, run_id: st
 def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
                   tasks_file: str | None, verify: str | None, run_id: str | None = None) -> int:
     """The one place the event loop starts: everything below it is awaited, and the shared client is closed."""
-    import asyncio
     from . import turbo_provider
 
     async def main() -> int:
@@ -367,7 +383,7 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
         document["reason_code"] = NO_RECEIPT
     if verify and result["applied_all"]:
         run_.enter("verify")
-        document["verify"], output = _run_verify(root, verify)
+        document["verify"], output = await _run_verify(root, verify)
         if not document["verify"]["passed"]:
             # One repair call with the test output, then the tests run again.
             repair = await repair_with_test_output(root, tasks, complete, output)
@@ -375,7 +391,7 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
             receipts.extend(run_.persist_receipts(repair["commands"]))
             retry = {"attempted": True, "applied": repair["applied"], "reason": repair["reason"], "passed": False}
             if repair["applied"]:
-                document["verify"], _output = _run_verify(root, verify)
+                document["verify"], _output = await _run_verify(root, verify)
                 retry["passed"] = document["verify"]["passed"]
             document["verify_retry"] = retry
             if not retry["passed"]:

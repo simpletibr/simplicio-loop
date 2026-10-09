@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -164,7 +165,7 @@ def test_a_single_task_sends_only_its_slice_of_the_map(tmp_path):
 
 def test_independent_wave_warms_the_header_then_fans_out_every_task(tmp_path, monkeypatch):
     repo = _seed(tmp_path)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     _map(repo)
     seen = []
 

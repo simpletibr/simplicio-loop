@@ -25,7 +25,7 @@ IDENT = f"{REPO_NAME}#{ISSUE_NUMBER}"
 HEAD = f"loop/issue-{ISSUE_NUMBER}"
 # The stages the host-mode service writes to events.jsonl today: the planner CLI runs outside turbo, so the run
 # that `turbo --apply -` opens starts at apply (turbo_run.PROGRESS_PHASE: report -> done).
-HOST_STAGES = ["apply", "verify", "done"]
+HOST_STAGES = ["orient", "plan", "apply", "verify", "done"]
 # The pipeline of #1469: the watcher's own stages wrap the turbo ones.
 PIPELINE_STAGES = ["intake", "orient", "plan", "apply", "verify", "pr", "done"]
 STATE_ROW = re.compile(r"\| Estado \| (\w+) \|")
@@ -97,7 +97,6 @@ def test_default_executor_planned_with_the_exec_cli_read_only(tick_run, planner_
     assert argv[argv.index("--output-format") + 1] == "json"
 
 
-@pytest.mark.xfail(strict=True, reason="awaits #1469: the host-mode watcher has no map stage; the planner CLI explores the clone itself")
 def test_mapper_produced_project_map(tick_run):
     project_map = tick_run["clone"] / ".simplicio-loop" / "project-map.json"
     assert project_map.is_file(), "mapper did not write project-map.json"
@@ -175,9 +174,10 @@ def test_execution_report_written(tick_run):
     assert report is not None, "no execution report was written"
     assert report["schema"] == "simplicio.execution-report/v1"
     assert report["status"] == "COMPLETE"
-    # Host mode: the latest report is the watcher's role receipt, one task per planner step.
-    assert len(report["tasks"]) == 1
-    step = report["tasks"][0]
+    # Host mode: turbo's task for the run plus the watcher's role receipt, one task per planner step, in one report.
+    steps = [t for t in report["tasks"] if "role" in t]
+    assert len(steps) == 1 and len(report["tasks"]) == 2
+    step = steps[0]
     assert (step["step"], step["role"], step["family"], step["planner"]) == (1, "planning", "claude", "ok")
     assert step["outcome"] == "COMPLETE"
     assert step["model"] and step["effort"], "the receipt names the model and effort the step ran with"
@@ -196,7 +196,6 @@ def test_kanban_run_has_its_own_complete_report(tick_run):
     assert report["status"] == "COMPLETE"
 
 
-@pytest.mark.xfail(strict=True, reason="awaits #1469: one pipeline, one report per run; the watcher's role receipt has its own run_id")
 def test_execution_report_belongs_to_the_kanban_run(tick_run):
     report = execution_report.load_latest(tick_run["clone"])
     assert report["run_id"] == _run_dirs(tick_run)[0]["run_id"], "the report belongs to the run the kanban shows"

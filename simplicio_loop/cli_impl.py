@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import contextlib
 import hashlib
 import io
@@ -74,6 +75,7 @@ from .economy_profile import (
     resolve_prism_batch_size,
 )
 from .map_service_cli import configure_commands as configure_map_commands, dispatch as dispatch_map
+from .squads import configure_commands as configure_squads_commands, dispatch as dispatch_squads
 from .serverless_deploy import build_plan as build_serverless_plan, execute_plan as execute_serverless_plan
 from .json_order import stable_first
 
@@ -483,7 +485,7 @@ def _current_tree_state(root: Path) -> str | None:
     return f"{tree.stdout.strip()}:{dirty}"
 
 
-def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
+async def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
     """Guarantee the single artifact ``survey.provenance()`` (and therefore
     ``prepare``) requires as proof of a Mapper survey: `.simplicio-loop/project-map.json`.
 
@@ -534,7 +536,7 @@ def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
     if budget is None:
         try:
             from .map_service_mapper import run_mapper_index, MapperUnavailableError, materialize_project_map
-            envelope = run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
+            envelope = await run_mapper_index(str(root), timeout=_mapper_index_timeout_seconds())
             materialize_project_map(str(root), envelope)
             
             if current_state is not None:
@@ -546,7 +548,7 @@ def _ensure_project_map(root: Path, *, budget: float | None = None) -> None:
             # Binary missing or path doesn't exist: swallowed, same policy as before
             pass
         return
-    _ensure_project_map_bounded(root, project_map, state_file, current_state, budget)
+    await _ensure_project_map_bounded(root, project_map, state_file, current_state, budget)
 
 
 _MAPPER_INDEX_LOCK_NAME = "mapper-index.lock"
@@ -577,6 +579,12 @@ def _mapper_index_running_info(lock_file: Path) -> dict[str, Any] | None:
         except OSError:
             pass
         return None
+    try:
+        # Reap the index if it is our own child and has finished: otherwise it stays a zombie, which
+        # ``os.kill(pid, 0)`` below reports as alive (the Popen that spawned it is long out of scope).
+        os.waitpid(pid, os.WNOHANG)
+    except OSError:
+        pass  # not our child (another process started it)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -631,7 +639,13 @@ def _mapper_index_reconcile_finished(log_path: Path, project_map: Path, state_fi
     return True
 
 
-def _ensure_project_map_bounded(root: Path, project_map: Path, state_file: Path,
+async def _wait_for_exit(proc: subprocess.Popen) -> None:
+    """Yield to the event loop until ``proc`` exits; callers bound it with ``asyncio.wait_for``."""
+    while proc.poll() is None:
+        await asyncio.sleep(0.1)
+
+
+async def _ensure_project_map_bounded(root: Path, project_map: Path, state_file: Path,
                                  current_state: str | None, budget: float) -> None:
     """The ``budget``-bounded branch of ``_ensure_project_map`` (issue #1339).
     Never blocks past ``budget`` seconds: a cold index is started detached
@@ -661,6 +675,9 @@ def _ensure_project_map_bounded(root: Path, project_map: Path, state_file: Path,
     popen_kwargs: dict[str, Any] = {}
     if hasattr(os, "setsid"):
         popen_kwargs["start_new_session"] = True
+    # Only the SPAWN is a plain Popen (it returns at once; the wait below is awaited, so the loop stays
+    # free). An asyncio subprocess transport kills its child when it is closed or garbage collected, and
+    # this index has to outlive the call: that is the detached mode of #1339.
     with open(log_path, "wb") as log_handle:
         proc = subprocess.Popen(
             [binary, "index", resolved, "--json"],
@@ -670,10 +687,9 @@ def _ensure_project_map_bounded(root: Path, project_map: Path, state_file: Path,
     lock_file.write_text(
         json.dumps({"pid": proc.pid, "started_at": time.time()}, ensure_ascii=False), encoding="utf-8",
     )
-    deadline = time.monotonic() + budget
-    while time.monotonic() < deadline and proc.poll() is None:
-        time.sleep(0.1)
-    if proc.poll() is None:
+    try:
+        await asyncio.wait_for(_wait_for_exit(proc), timeout=budget)
+    except asyncio.TimeoutError:
         raise MapperIndexTimedOut(
             f"simplicio-mapper index exceeded the {budget:.0f}s orient budget "
             f"(pid={proc.pid}); continuing in the background, log at {log_path}"
@@ -1195,7 +1211,7 @@ def _orient_core(root: Path, task: str, targets: list[str] | None,
     # same-tree determinism `orient --brief` promises. May raise
     # ``MapperIndexTimedOut``/``MapperIndexRunning``; callers handle those.
     deadline = _orient_deadline() if deadline is None else deadline
-    _ensure_project_map(root, budget=_orient_remaining(deadline))
+    asyncio.run(_ensure_project_map(root, budget=_orient_remaining(deadline)))
     mapper = _mapper_orient_fallback(root, str(task), timeout=_orient_remaining(deadline))
     status = "READY" if mapper.get("status") == "READY" else "BLOCKED"
     payload = {"schema": ORIENT_SCHEMA, "status": status,
@@ -2916,6 +2932,9 @@ def main(argv=None) -> int:
     map_sub = p_map.add_subparsers(dest="map_command", required=True)
     configure_map_commands(map_sub)
 
+    p_squads = sub.add_parser("squads", help="plan squads and check the squad merge gate")
+    configure_squads_commands(p_squads.add_subparsers(dest="squads_command", required=True))
+
     p_preflight = sub.add_parser(
         "preflight", help="verify bound operators (mapper/dev-cli) are installed")
     p_preflight.add_argument("--repo", default=".", help="repository root")
@@ -3299,6 +3318,8 @@ def main(argv=None) -> int:
         return storage_cli(forwarded)
     if command == "map":
         return dispatch_map(args)
+    if command == "squads":
+        return dispatch_squads(args)
     if command == "preflight":
         return preflight(args.repo, args.json, strict=bool(getattr(args, "strict", False)))
     if command == "ecc":
