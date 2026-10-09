@@ -1,13 +1,11 @@
 """Unit tests for escalation module."""
 
-import json
 import tempfile
-from pathlib import Path
 from unittest import mock
 
-import pytest
 
 from simplicio_loop import escalation, model_roles
+from simplicio_loop.execution_report import SCHEMA as EXECUTION_REPORT_SCHEMA
 
 
 class TestEscalationRecord:
@@ -93,39 +91,6 @@ class TestEscalationState:
             assert state.current_role() == "planning"
             assert not state.next_step()  # Can't escalate beyond planning
 
-    def test_cost_ceiling_per_issue(self):
-        """Test that per-issue cost ceiling is enforced."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            state = escalation.EscalationState(
-                tmpdir,
-                issue=789,
-                family="claude",
-                cost_ceiling_per_issue=20,  # 2x execution cost
-            )
-            # Record two execution attempts (cost = 10 + 10 = 20)
-            state.record_attempt("fail", error="test")
-            state.record_attempt("fail", error="test")
-            # Now we're at ceiling, next_step should return False
-            assert not state.can_escalate()
-            assert not state.next_step()
-
-    def test_cost_ceiling_per_day(self):
-        """Test that per-day cost ceiling is enforced."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            state = escalation.EscalationState(
-                tmpdir,
-                issue=999,
-                family="claude",
-                cost_ceiling_per_day=15,  # 1.5x execution cost
-            )
-            # Record one execution attempt (cost = 10)
-            state.record_attempt("fail", error="test")
-            assert state.can_escalate()  # Still under ceiling
-            # Try to record another (would be 20 total)
-            # The state tracks per-day, so we need to test cost tracking
-            cost_today = state._get_cost_used_today()
-            assert cost_today == 10
-
     def test_attempt_tracking(self):
         """Test attempt counting in each step."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -180,7 +145,8 @@ class TestEscalationState:
             assert d["family"] == "claude"
             assert d["current_role"] == "execution"
             assert len(d["records"]) == 1
-            assert d["cost_used_for_issue"] == 10  # execution cost
+            assert d["tokens_used_for_issue"] == 0  # no report, so no measured tokens
+            assert d["unverified_attempts_for_issue"] == 1
 
 
 class TestLoadEscalationState:
@@ -193,20 +159,93 @@ class TestLoadEscalationState:
                 tmpdir,
                 issue=666,
                 family="claude",
-                cost_ceiling_per_issue=1000,
+                token_ceiling_per_issue=1000,
             )
             assert state.issue == 666
             assert state.current_step == 0
 
     def test_load_with_custom_ceilings(self):
-        """Test custom cost ceiling parameters."""
+        """Test custom token ceiling parameters."""
         with tempfile.TemporaryDirectory() as tmpdir:
             state = escalation.load_escalation_state(
                 tmpdir,
                 issue=777,
                 family="claude",
-                cost_ceiling_per_issue=500,
-                cost_ceiling_per_day=2000,
+                token_ceiling_per_issue=500,
+                token_ceiling_per_day=2000,
             )
-            assert state.cost_ceiling_per_issue == 500
-            assert state.cost_ceiling_per_day == 2000
+            assert state.token_ceiling_per_issue == 500
+            assert state.token_ceiling_per_day == 2000
+
+
+def _report(*task_tokens):
+    """An execution report with one task per entry: an int is MEASURED tokens, None is absent (UNVERIFIED)."""
+    tasks = []
+    for total in task_tokens:
+        if total is None:
+            tokens = {"tokens_total": None, "source": "absent"}
+        else:
+            tokens = {"tokens_in": total, "tokens_out": 0, "tokens_total": total, "source": "cli_measured"}
+        tasks.append({"tokens": tokens, "outcome": "FAIL"})
+    return {"schema": EXECUTION_REPORT_SCHEMA, "tasks": tasks}
+
+
+class TestMeasuredTokens:
+    def test_sums_measured_tasks(self):
+        assert escalation.measured_tokens(_report(300, 200)) == 500
+
+    def test_any_absent_task_makes_the_attempt_unverified(self):
+        assert escalation.measured_tokens(_report(300, None)) is None
+
+    def test_absent_is_not_zero(self):
+        assert escalation.measured_tokens(_report(None)) is None
+
+    def test_wrong_schema_or_no_tasks_is_unverified(self):
+        other = {"schema": "other", "tasks": [{"tokens": {"tokens_total": 5, "source": "cli_measured"}}]}
+        assert escalation.measured_tokens(other) is None
+        assert escalation.measured_tokens({"schema": EXECUTION_REPORT_SCHEMA, "tasks": []}) is None
+        assert escalation.measured_tokens(None) is None
+
+
+class TestMeasuredCostCeilings:
+    def test_record_keeps_measured_tokens_from_the_report(self, tmp_path):
+        state = escalation.EscalationState(tmp_path, issue=1, family="claude")
+        assert state.record_attempt("fail", report=_report(1200)).tokens == 1200
+
+    def test_record_without_report_is_unverified_not_zero(self, tmp_path):
+        state = escalation.EscalationState(tmp_path, issue=2, family="claude")
+        assert state.record_attempt("fail").tokens is None
+        d = state.to_dict()
+        assert d["tokens_used_for_issue"] == 0
+        assert d["unverified_attempts_for_issue"] == 1
+
+    def test_token_ceiling_per_issue_uses_measured_tokens(self, tmp_path):
+        state = escalation.EscalationState(tmp_path, issue=3, family="claude", token_ceiling_per_issue=1000)
+        state.record_attempt("fail", report=_report(600))
+        assert state.can_escalate()
+        state.record_attempt("fail", report=_report(600))
+        assert not state.can_escalate()
+
+    def test_token_ceiling_per_day_uses_measured_tokens(self, tmp_path):
+        state = escalation.EscalationState(tmp_path, issue=4, family="claude", token_ceiling_per_day=500)
+        state.record_attempt("fail", report=_report(500))
+        assert not state.can_escalate()
+
+    def test_unverified_attempts_are_not_zero_and_hit_the_attempt_ceiling(self, tmp_path):
+        state = escalation.EscalationState(
+            tmp_path, issue=5, family="claude", token_ceiling_per_issue=100, attempt_ceiling_per_issue=2
+        )
+        state.record_attempt("fail", report=_report(50))
+        assert state.can_escalate()  # 50 < 100 measured, one attempt, no unverified attempt yet
+        state.record_attempt("fail")  # unverified: attempt ceiling now applies
+        assert not state.can_escalate()
+
+    def test_attempt_ceiling_not_applied_when_all_attempts_are_measured(self, tmp_path):
+        state = escalation.EscalationState(tmp_path, issue=6, family="claude", attempt_ceiling_per_issue=2)
+        state.record_attempt("fail", report=_report(10))
+        state.record_attempt("fail", report=_report(10))
+        assert state.can_escalate()
+
+    def test_fixed_cost_table_is_gone(self, tmp_path):
+        state = escalation.EscalationState(tmp_path, issue=7, family="claude")
+        assert not hasattr(state, "_cost_per_role")

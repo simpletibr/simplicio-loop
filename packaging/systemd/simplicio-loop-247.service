@@ -5,6 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+# Dedicated non-root service user; never User=root (the OAuth logins of the executors live in its home).
 User=simplicio-loop
 Group=simplicio-loop
 EnvironmentFile=/etc/simplicio-loop-247.env
@@ -13,11 +14,38 @@ Restart=always
 RestartSec=10
 KillMode=mixed
 TimeoutStopSec=20
+# Child processes can never gain privileges (blocks setuid binaries such as sudo).
 NoNewPrivileges=yes
+# Private /tmp for the service; the turbo sandbox mounts its own tmpfs as well.
 PrivateTmp=yes
+# The whole OS tree is read-only; only the paths in ReadWritePaths below are writable.
 ProtectSystem=strict
+# /home is read-only; the service writes only into the paths listed in ReadWritePaths.
 ProtectHome=read-only
 ReadWritePaths=/var/lib/simplicio-loop-247 /home/simplicio-loop/.simplicio
+# Allow the system-service syscall group plus @mount: bwrap (the turbo sandbox) needs mount, pivot_root and
+# umount2 (bisected: dropping any one gives SIGSYS, rc=159), which @system-service leaves out. @mount is the
+# superset that survives newer bwrap versions. Privileged and raw-I/O syscalls are still refused.
+# See README.md in this directory.
+SystemCallFilter=@system-service @mount
+# Empty set: the process holds no Linux capabilities at all (no CAP_NET_RAW, CAP_SYS_ADMIN, ...).
+CapabilityBoundingSet=
+# Only IPv4, IPv6 and local unix sockets: the watcher talks to GitHub and the Simplicio API over TCP.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# /proc/sys and /sys/kernel tunables stay read-only for the service.
+ProtectKernelTunables=yes
+# Kernel modules cannot be loaded from inside the unit.
+ProtectKernelModules=yes
+# /sys/fs/cgroup stays read-only for the service.
+ProtectControlGroups=yes
+# Files cannot be created with setuid or setgid bits.
+RestrictSUIDSGID=yes
+# Pins the execution domain so the process cannot switch personality.
+LockPersonality=yes
+# Refuses realtime scheduling requests (not needed by the loop).
+RestrictRealtime=yes
+# New files are private to the service user (0600 / 0700).
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target

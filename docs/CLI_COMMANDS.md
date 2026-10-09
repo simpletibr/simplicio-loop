@@ -92,7 +92,15 @@ simplicio-loop batch RUN_ID
 
 `turbo --apply` prints one JSON document (`simplicio.turbo-run/v1`, `mode: "host"`): `status` (`ok` or
 `failed`; `blocked` when dev-cli is missing), `applied`, `failed` (per operation: the dev-cli reason and a
-short excerpt of the file around a `find` that did not match), `verify`, `wall_s`. A missing plan (an
+short excerpt of the file around a `find` that did not match), `verify`, `wall_s`. `ok` needs a dev-cli edit
+receipt (`simplicio.dev-cli.edit-receipt/v1` with `applied: true`) for the apply: without one the status is
+`blocked` with `reason_code: "no_apply_receipt"`. Each receipt is persisted under
+`.simplicio-loop/orchestrator/runs/<run_id>/receipts/` and listed in `receipts` (`path`, `digest` = sha256 of
+the file). Every document carries `run_id`, `prompt_version` and `prompt_sha256` (the plan prompt's version
+and template digest) and `execution_report` (the `simplicio.execution-report/v1` record of the run). The
+request prints the same `run_id`, and its apply command passes it as `--run-id`, so the request, the apply and
+the verify stages land in one run the dashboard lists. Tokens and model calls are `null` (UNVERIFIED) unless the
+provider returned usage. A missing plan (an
 empty stdin, a terminal on stdin, no such file) is `failed` with `turbo_plan_missing`; a plan that is not UTF-8,
 not JSON or not `{"operations":[...]}` is `failed` with `turbo_plan_malformed`. In provider mode the
 document also carries `model_calls`, `retries`, `tokens`, `cache_hit_pct`, `cost_usd` and `calls`.

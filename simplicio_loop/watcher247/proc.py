@@ -10,6 +10,7 @@ import contextlib
 import os
 import signal
 from dataclasses import dataclass
+from collections.abc import Mapping
 from pathlib import Path
 
 
@@ -27,11 +28,13 @@ def _kill_group(proc: asyncio.subprocess.Process) -> None:
         proc.kill()
 
 
-async def run(argv: list[str], timeout: float = 120, cwd: Path | None = None, stdin: str | None = None) -> Result:
+async def run(argv: list[str], timeout: float = 120, cwd: Path | None = None,
+              env: Mapping[str, str] | None = None, stdin: str | None = None) -> Result:
     """Run argv, return its output. On timeout (or cancellation) kill the whole process group."""
     proc = await asyncio.create_subprocess_exec(
         *argv,
         cwd=str(cwd) if cwd else None,
+        env=dict(env) if env is not None else None,  # None inherits the service env
         stdin=asyncio.subprocess.PIPE if stdin is not None else None,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
