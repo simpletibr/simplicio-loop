@@ -2,9 +2,17 @@
 
 > **Canonical operational contract:** This translation is informational. For current dependency, runtime, conformance, and validation behavior, [README.md](../README.md) is authoritative: Loop installs standalone; Runtime bindings are optional; 3 runtimes are guaranteed and 12 are best-effort; and `scripts/check.py` requires an importable `pytest` with no bare-Python fallback. Historical numeric counts and claims of complete categorization below are release snapshots, not current gate evidence; the checkout and latest local receipt are authoritative, and `scripts/test_categories.py` reports uncategorized files. GitHub Actions is not required gate evidence.
 
-<p align="center">
-  <img src="../assets/simplicio-loop-hero-stage-agents-2026.webp" alt="simplicio-loop met concrete agents per fase en gekoppelde rapportage" width="920" />
-</p>
+```mermaid
+flowchart LR
+  GOAL["Goal, issue or backlog"] --> CONTRACT["Frozen task contract and acceptance criteria"]
+  CONTRACT --> MAP["Map the repository"]
+  MAP --> STAGES["Stage agents: plan, build, safety, review, delivery"]
+  STAGES --> GATES{"Evidence gates"}
+  GATES -->|pass| DONE["Delivery and work-item comment"]
+  GATES -->|fail| MEM["Journal, rollback, retry"]
+  MEM --> STAGES
+  DONE --> MEMORY[("Durable memory")]
+```
 
 <p align="center">
   <a href="https://github.com/wesleysimplicio/simplicio-loop/stargazers"><img src="https://img.shields.io/github/stars/wesleysimplicio/simplicio-loop?style=social" alt="Stars"></a>
@@ -48,6 +56,138 @@
 
 ---
 
+<!-- squads:start -->
+## 🧩 Hoe het nu werkt: squads
+
+> **Leeswijzer.** Doorgetrokken vakken draaien vandaag op `main`. Gestippelde vakken zitten nog in open issues of PR's en dragen *(in uitvoering: #N)*. Niets wat als in uitvoering is gemarkeerd, is opgeleverd.
+
+Op `main` neemt de 24/7-watcher een toegelaten issue en levert een geverifieerde PR op: een exec-CLI plant in een sandbox, `turbo --apply - --verify` past toe en test, een secret-scan draait en dan opent de PR. De watcher doet nooit een merge. Squads (algemeen coördinator, één coördinator per squad, tot 4 workers elk) en de merge train worden op die loop gebouwd in [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502) (PR [#1506](https://github.com/simpletibr/simplicio-loop/pull/1506)), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504) (PR [#1507](https://github.com/simpletibr/simplicio-loop/pull/1507)) en [#1505](https://github.com/simpletibr/simplicio-loop/issues/1505).
+
+### Overzicht: van issue naar main
+
+```mermaid
+flowchart TD
+  ISS["GitHub issues"] --> INT["Intake: repo opt-in, label loop:auto, trusted author, prompt guard"]
+  INT -->|vague or epic| ASK["BLOCKED with a clarifying question"]
+  INT --> GC["General coordinator: planning role, Opus or equivalent. In progress: #1502"]
+  GC --> SC
+  subgraph SQUAD["Squad. In progress: #1502"]
+    SC["Squad coordinator: coordination role, Sonnet or equivalent"]
+    WK["Up to 4 workers: execution role, Haiku or equivalent, routed by complexity. In progress: #1504"]
+    SC --> WK
+  end
+  subgraph WLOOP["Worker loop. On main today"]
+    PLAN["CLI exec plans inside the bwrap sandbox, scrubbed env"] --> TURBO["turbo --apply - --verify"]
+    TURBO --> SCAN["secret-scan"]
+    SCAN --> PR["Push and PR"]
+    TURBO -. "2 failures: escalate the role" .-> PLAN
+  end
+  WK --> PLAN
+  PR --> REV["Squad review posts APROVADO PELO SQUAD. In progress: #1502"]
+  REV --> MT["General coordinator merge train: squads gate, one test per batch, bisect on red. In progress: #1504"]
+  MT --> MAIN["main"]
+  WLOOP -.-> EVT[("events.jsonl")]
+  EVT -.-> LIVE["Simplicio Live kanban"]
+  WLOOP -.-> REP["execution-report: role, model, effort"]
+  classDef wip stroke-dasharray: 5 5
+  class GC,SC,WK,REV,MT wip
+  style SQUAD stroke-dasharray: 5 5
+```
+
+### Eén watcher-tick, in hostmodus
+
+```mermaid
+sequenceDiagram
+  participant W as Watcher tick
+  participant GH as GitHub
+  participant L as Lease store
+  participant P as Planner CLI in bwrap, scrubbed env
+  participant T as turbo and dev-cli in bwrap
+  participant S as Secret scan
+  participant D as events.jsonl and report
+  W->>GH: list open issues of opted-in repos
+  W->>W: intake: loop:auto, trusted author, triage
+  W->>L: acquire lease with TTL, heartbeat while running
+  W->>GH: canonical status comment CLAIMED, PLANNED, IN_PROGRESS
+  W->>P: plan prompt, issue text fenced as untrusted, role model effort
+  P-->>W: JSON plan, the CLI writes no file
+  W->>T: turbo --apply - --verify with the plan on stdin
+  T-->>W: apply and verify result
+  W->>S: scan the staged diff
+  S-->>W: clean, or BLOCKED and dead on a secret
+  W->>GH: push loop/issue-N and open the PR with Closes N
+  W->>GH: status comment VERIFYING, PR_OPEN
+  W->>D: events.jsonl, state.json and execution-report
+  W->>L: release lease
+```
+
+### Het leven van een issue
+
+```mermaid
+stateDiagram-v2
+  [*] --> new
+  new --> needs_human: vague or epic issue
+  needs_human --> new: author clarifies
+  new --> admitted: opt-in, loop:auto, trusted author
+  admitted --> claimed: lease acquired
+  claimed --> running: planner and turbo apply
+  running --> pr_open: verify passed, or labelled UNVERIFIED
+  running --> retry: failure, attempt 1
+  retry --> admitted: after 6 hours
+  running --> dead: 2 failures, or a secret in the diff
+  dead --> new: issue reopened
+  pr_open --> running: review comment, red check or conflict
+  pr_open --> done: a human merges
+  done --> [*]
+```
+
+### Escalatieladder
+
+```mermaid
+flowchart LR
+  NEW["New issue today"] --> PL
+  FIX["PR review fix today"] --> CO
+  SQW["Squad worker. In progress: #1504"] -.-> E1
+  E1["execution"] -->|fail| E2["execution, second try"]
+  E2 -->|fail| CO["coordination"]
+  CO -->|fail| PL["planning, retry with the failure output"]
+  PL -->|fail| CEIL{"Ceiling? MAX_STEPS 4, attempt and token ceilings"}
+  CEIL -->|not reached| PL
+  CEIL -->|reached| STOP["Stop: retry later or dead"]
+  E1 -->|verify ok| OK["PR opened"]
+  E2 -->|verify ok| OK
+  CO -->|verify ok| OK
+  PL -->|verify ok| OK
+  classDef wip stroke-dasharray: 5 5
+  class SQW wip
+```
+
+### Skill-modus versus watcher 24/7
+
+| | Skill-modus (`/simplicio-loop`) | Watcher 24/7 (headless) |
+|---|---|---|
+| Gestart door | Een persoon, in een agentsessie | `systemd`-unit `simplicio-loop-247`, polling elke 120 s |
+| Bron van het werk | Het doel of de backlog van de persoon | Issues van repo's met opt-in: `.simplicio/loop.toml`, label `loop:auto`, vertrouwde auteur |
+| Planner | Het hostmodel | Een exec-CLI (claude, codex, grok, gemini) alleen in planmodus; dev-cli is de enige die schrijft |
+| Gate | Belofte met bewijs | `turbo --verify`: de PR opent alleen met groene tests, anders krijgt hij het label `UNVERIFIED\|no_test_command` |
+| Merge | PR met `Closes #N`, gemerged na de bewijs-gate | **Standaard uit.** Op `main` doet de watcher nooit een merge; auto-merge alleen met `SIMPLICIO_247_AUTO_MERGE=1` (in uitvoering: #1505) |
+| Veiligheid | STRICT-modus, `action_gate`, menselijke gate voor onomkeerbare handelingen | Non-root-gebruiker, bwrap-sandbox met schone env, dagelijks plafond, secret-scan, env-bestand met modus 0600 |
+| Squads | In uitvoering: #1502 | In uitvoering: #1505 |
+
+### Rollen per familie
+
+Gelezen uit [`simplicio_loop/_catalog/model_roles.json`](../simplicio_loop/_catalog/model_roles.json) (`as_of` 2026-10-08); model met effort tussen haakjes. `planning` neemt de moeilijke beslissingen, `coordination` coördineert en reviewt, `execution` doet het werk.
+
+| Familie | planning | coordination | execution |
+|---|---|---|---|
+| claude | `claude-opus-5-5` (high) | `claude-sonnet-5-5` (high) | `claude-haiku-5-5` (high) |
+| codex | `gpt-6-astra` (high) | `gpt-6.1-sol` (high) | `gpt-6-luna` (high) |
+| grok | `grok-4.7` (xhigh) | `grok-4.6` (high) | `grok-4.5` (high) |
+| gemini | `gemini-3.8-flash` (high) | `gemini-3.7-flash` (high) | `gemini-3.6-flash` (high) |
+| agy | `default` (high) | `default` (high) | `default` (high) |
+| opencode | `default` (high) | `default` (high) | `default` (high) |
+<!-- squads:end -->
+
 <!-- visual-story:start -->
 ## 🚀 De nieuwe generatie — een besturingssysteem voor verifieerbaar agentwerk
 
@@ -58,29 +198,66 @@
 - **Bewijs vóór voltooiing** — tests, impact/flow-controles, watcher challenges, delivery receipts en HBP evidence weigeren valse done-statussen.
 - **Geheugen dat gedrag verandert** — journal, stall detector, checkpoints en cross-agent wiki voorkomen oscillatie en maken handoffs duurzaam.
 
-<p align="center">
-  <img src="../assets/simplicio-loop-parallel-worktrees.png" alt="simplicio-loop parallel isolated worktree execution" width="920" />
-</p>
+```mermaid
+flowchart LR
+  C["Frozen task contract"] --> S["Scheduler: dependency-aware ready set"]
+  S --> W1["Worktree A"]
+  S --> W2["Worktree B"]
+  S --> W3["Worktree C"]
+  W1 --> R["Receipts and operational ledger"]
+  W2 --> R
+  W3 --> R
+  R --> V{"Independent verify"}
+  V -->|pass| M["One converged delivery"]
+  V -->|fail| X["Rollback, then visible serial lane"]
+```
 
 <p align="center"><em>Afhankelijkheidsbewuste fan-out: geïsoleerde workers draaien parallel, leveren bewijs terug en convergeren naar één geverifieerde levering.</em></p>
 
-<p align="center">
-  <img src="../assets/simplicio-loop-lifecycle-2026.svg" alt="simplicio-loop lifecycle from intake to durable memory" width="920" />
-</p>
+```mermaid
+flowchart LR
+  A["Intake"] --> B["Contract"] --> C["Map"] --> D["Plan"] --> E["Execute"] --> F["Verify"] --> G["Deliver"] --> H[("Durable memory")]
+  F -. "fail: rollback and retry" .-> E
+  H -. "journal informs the next turn" .-> D
+```
 
 <p align="center"><em>Elke fase is expliciet, begrensd, observeerbaar en omkeerbaar.</em></p>
 
-<p align="center">
-  <img src="../assets/simplicio-loop-evidence-memory.png" alt="simplicio-loop evidence memory verification rollback and completion" width="920" />
-</p>
+```mermaid
+flowchart TD
+  OUT["Worker output and receipts"] --> GATE{"Verification gate: tests, impact, watcher"}
+  GATE -->|evidence ok| PROMISE["Evidence-gated promise"]
+  PROMISE --> COMPLETE["Completion audit"]
+  COMPLETE --> WIKI[("Checkpoints and cross-agent wiki")]
+  GATE -->|evidence missing| ROLL["Safe rollback"]
+  ROLL --> JOURNAL[("Run journal and stall detector")]
+  JOURNAL --> RETRY["Next attempt with a new hypothesis"]
+  RETRY --> OUT
+```
 
 <p align="center"><em>Bewijs en geheugen horen bij het uitvoeringspad, niet bij een achteraf geschreven rapport.</em></p>
 
 Deze architectuur maakt van één doel een bestuurd leveringssysteem: van een moeilijke taak tot een volledige backlog, over sessions en runtimes heen, met local-first operators en receipts die mensen, CI of een andere agent kunnen auditen.
 
-<p align="center">
-  <img src="../assets/simplicio-loop-architecture-2026.svg" alt="simplicio-loop control execution evidence and delivery planes" width="920" />
-</p>
+```mermaid
+flowchart LR
+  subgraph CONTROL["Control plane"]
+    CT["Task contract"] --> SCH["Dependency-aware scheduler"]
+  end
+  subgraph EXEC["Execution plane"]
+    WK["Isolated worktrees"] --> OP["Operators: mapper, dev-cli, fast"]
+  end
+  subgraph EVID["Evidence plane"]
+    RC["Receipts"] --> VG["Verify gates"] --> MEM[("Journal and memory")]
+  end
+  subgraph DELIV["Delivery plane"]
+    PR["PR with Closes N"] --> SRC["Source of record in sync"]
+  end
+  SCH --> WK
+  OP --> RC
+  VG --> PR
+  MEM -.-> SCH
+```
 <!-- visual-story:end -->
 
 <!-- stage-agents-roadmap:start -->
@@ -90,7 +267,20 @@ Deze architectuur maakt van één doel een bestuurd leveringssysteem: van een mo
 
 Intake/planning, implementatie, veiligheid, levering, recovery en de eindaudit krijgen elk één verantwoordelijke agent. Review vertakt naar vier onafhankelijke agents — beveiliging/correctheid, kwaliteit, runtime/E2E-reproductie en blast radius — en convergeert daarna pas.
 
-<p align="center"><img src="../assets/simplicio-loop-stage-agents-reporting-2026.webp" alt="simplicio-loop stage-agents en opmerkingen in work trackers" width="920" /></p>
+```mermaid
+sequenceDiagram
+  participant A as Stage agent
+  participant L as Append-only stage ledger
+  participant G as GitHub issue or PR
+  participant P as Other trackers
+  participant C as Completion auditor
+  A->>L: event and receipt on every transition
+  L->>G: status comment, required for GitHub runs
+  G-->>L: observed comment receipt
+  L-->>P: comment only when the provider is connected
+  L->>C: evidence, never self-reported confidence
+  C-->>A: COMPLETE, PARTIAL, BLOCKED or REGRESSED
+```
 
 ```mermaid
 flowchart LR

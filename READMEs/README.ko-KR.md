@@ -2,9 +2,17 @@
 
 > **Canonical operational contract:** This translation is informational. For current dependency, runtime, conformance, and validation behavior, [README.md](../README.md) is authoritative: Loop installs standalone; Runtime bindings are optional; 3 runtimes are guaranteed and 12 are best-effort; and `scripts/check.py` requires an importable `pytest` with no bare-Python fallback. Historical numeric counts and claims of complete categorization below are release snapshots, not current gate evidence; the checkout and latest local receipt are authoritative, and `scripts/test_categories.py` reports uncategorized files. GitHub Actions is not required gate evidence.
 
-<p align="center">
-  <img src="../assets/simplicio-loop-hero-stage-agents-2026.webp" alt="단계별 구체적 에이전트와 연결된 보고를 갖춘 simplicio-loop" width="920" />
-</p>
+```mermaid
+flowchart LR
+  GOAL["Goal, issue or backlog"] --> CONTRACT["Frozen task contract and acceptance criteria"]
+  CONTRACT --> MAP["Map the repository"]
+  MAP --> STAGES["Stage agents: plan, build, safety, review, delivery"]
+  STAGES --> GATES{"Evidence gates"}
+  GATES -->|pass| DONE["Delivery and work-item comment"]
+  GATES -->|fail| MEM["Journal, rollback, retry"]
+  MEM --> STAGES
+  DONE --> MEMORY[("Durable memory")]
+```
 
 <p align="center">
   <a href="https://github.com/wesleysimplicio/simplicio-loop/stargazers"><img src="https://img.shields.io/github/stars/wesleysimplicio/simplicio-loop?style=social" alt="Stars"></a>
@@ -48,6 +56,138 @@
 
 ---
 
+<!-- squads:start -->
+## 🧩 지금 동작하는 방식: squads
+
+> **읽는 법.** 실선 상자는 오늘 `main` 에서 동작합니다. 점선 상자는 아직 열린 issue 또는 PR 에 있으며 *(진행 중: #N)* 이 붙습니다. 진행 중으로 표시된 것은 출시된 것이 아닙니다.
+
+`main` 에서 24/7 watcher 는 승인된 issue 를 받아 검증된 PR 을 돌려줍니다. exec CLI 가 샌드박스 안에서 계획하고, `turbo --apply - --verify` 가 적용하고 테스트하며, 시크릿 스캔이 돌고, 그 다음 PR 이 열립니다. watcher 는 merge 를 하지 않습니다. squads(총괄 코디네이터, squad 당 코디네이터 1명, 각 최대 4명의 worker)와 merge train 은 이 루프 위에 [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502) (PR [#1506](https://github.com/simpletibr/simplicio-loop/pull/1506)), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504) (PR [#1507](https://github.com/simpletibr/simplicio-loop/pull/1507)), [#1505](https://github.com/simpletibr/simplicio-loop/issues/1505) 에서 구축 중입니다.
+
+### 개요: issue 에서 main 까지
+
+```mermaid
+flowchart TD
+  ISS["GitHub issues"] --> INT["Intake: repo opt-in, label loop:auto, trusted author, prompt guard"]
+  INT -->|vague or epic| ASK["BLOCKED with a clarifying question"]
+  INT --> GC["General coordinator: planning role, Opus or equivalent. In progress: #1502"]
+  GC --> SC
+  subgraph SQUAD["Squad. In progress: #1502"]
+    SC["Squad coordinator: coordination role, Sonnet or equivalent"]
+    WK["Up to 4 workers: execution role, Haiku or equivalent, routed by complexity. In progress: #1504"]
+    SC --> WK
+  end
+  subgraph WLOOP["Worker loop. On main today"]
+    PLAN["CLI exec plans inside the bwrap sandbox, scrubbed env"] --> TURBO["turbo --apply - --verify"]
+    TURBO --> SCAN["secret-scan"]
+    SCAN --> PR["Push and PR"]
+    TURBO -. "2 failures: escalate the role" .-> PLAN
+  end
+  WK --> PLAN
+  PR --> REV["Squad review posts APROVADO PELO SQUAD. In progress: #1502"]
+  REV --> MT["General coordinator merge train: squads gate, one test per batch, bisect on red. In progress: #1504"]
+  MT --> MAIN["main"]
+  WLOOP -.-> EVT[("events.jsonl")]
+  EVT -.-> LIVE["Simplicio Live kanban"]
+  WLOOP -.-> REP["execution-report: role, model, effort"]
+  classDef wip stroke-dasharray: 5 5
+  class GC,SC,WK,REV,MT wip
+  style SQUAD stroke-dasharray: 5 5
+```
+
+### host 모드에서 watcher tick 한 번
+
+```mermaid
+sequenceDiagram
+  participant W as Watcher tick
+  participant GH as GitHub
+  participant L as Lease store
+  participant P as Planner CLI in bwrap, scrubbed env
+  participant T as turbo and dev-cli in bwrap
+  participant S as Secret scan
+  participant D as events.jsonl and report
+  W->>GH: list open issues of opted-in repos
+  W->>W: intake: loop:auto, trusted author, triage
+  W->>L: acquire lease with TTL, heartbeat while running
+  W->>GH: canonical status comment CLAIMED, PLANNED, IN_PROGRESS
+  W->>P: plan prompt, issue text fenced as untrusted, role model effort
+  P-->>W: JSON plan, the CLI writes no file
+  W->>T: turbo --apply - --verify with the plan on stdin
+  T-->>W: apply and verify result
+  W->>S: scan the staged diff
+  S-->>W: clean, or BLOCKED and dead on a secret
+  W->>GH: push loop/issue-N and open the PR with Closes N
+  W->>GH: status comment VERIFYING, PR_OPEN
+  W->>D: events.jsonl, state.json and execution-report
+  W->>L: release lease
+```
+
+### issue 의 일생
+
+```mermaid
+stateDiagram-v2
+  [*] --> new
+  new --> needs_human: vague or epic issue
+  needs_human --> new: author clarifies
+  new --> admitted: opt-in, loop:auto, trusted author
+  admitted --> claimed: lease acquired
+  claimed --> running: planner and turbo apply
+  running --> pr_open: verify passed, or labelled UNVERIFIED
+  running --> retry: failure, attempt 1
+  retry --> admitted: after 6 hours
+  running --> dead: 2 failures, or a secret in the diff
+  dead --> new: issue reopened
+  pr_open --> running: review comment, red check or conflict
+  pr_open --> done: a human merges
+  done --> [*]
+```
+
+### 에스커레이션 사다리
+
+```mermaid
+flowchart LR
+  NEW["New issue today"] --> PL
+  FIX["PR review fix today"] --> CO
+  SQW["Squad worker. In progress: #1504"] -.-> E1
+  E1["execution"] -->|fail| E2["execution, second try"]
+  E2 -->|fail| CO["coordination"]
+  CO -->|fail| PL["planning, retry with the failure output"]
+  PL -->|fail| CEIL{"Ceiling? MAX_STEPS 4, attempt and token ceilings"}
+  CEIL -->|not reached| PL
+  CEIL -->|reached| STOP["Stop: retry later or dead"]
+  E1 -->|verify ok| OK["PR opened"]
+  E2 -->|verify ok| OK
+  CO -->|verify ok| OK
+  PL -->|verify ok| OK
+  classDef wip stroke-dasharray: 5 5
+  class SQW wip
+```
+
+### skill 모드와 watcher 24/7 비교
+
+| | skill 모드 (`/simplicio-loop`) | Watcher 24/7 (headless) |
+|---|---|---|
+| 시작 주체 | 사람, 에이전트 세션 안에서 | `systemd` unit `simplicio-loop-247`, 120초마다 polling |
+| 작업 출처 | 사람이 주는 목표 또는 backlog | opt-in 한 repo 의 issue: `.simplicio/loop.toml`, label `loop:auto`, 신뢰할 수 있는 작성자 |
+| 플래너 | host 모델 | 계획 전용 모드의 exec CLI (claude, codex, grok, gemini). 파일을 쓰는 것은 dev-cli 뿐 |
+| Gate | 증거를 동반한 promise | `turbo --verify`: 테스트가 초록일 때만 PR 이 열리고, 아니면 `UNVERIFIED\|no_test_command` 라벨이 붙음 |
+| Merge | `Closes #N` 이 있는 PR, 증거 gate 후 merge | **기본값은 꺼짐.** `main` 에서 watcher 는 merge 를 하지 않음. auto-merge 는 `SIMPLICIO_247_AUTO_MERGE=1` 일 때만 (진행 중: #1505) |
+| 보안 | STRICT 모드, `action_gate`, 되돌릴 수 없는 작업에 사람 gate | non-root 사용자, env 를 정화한 bwrap 샌드박스, 일일 한도, 시크릿 스캔, 모드 0600 env 파일 |
+| Squads | 진행 중: #1502 | 진행 중: #1505 |
+
+### 패밀리별 역할
+
+[`simplicio_loop/_catalog/model_roles.json`](../simplicio_loop/_catalog/model_roles.json) (`as_of` 2026-10-08) 에서 읽음. 모델과 괄호 안의 effort. `planning` 은 어려운 판단을 내리고, `coordination` 은 조율과 리뷰를 하며, `execution` 은 작업을 수행합니다.
+
+| 패밀리 | planning | coordination | execution |
+|---|---|---|---|
+| claude | `claude-opus-5-5` (high) | `claude-sonnet-5-5` (high) | `claude-haiku-5-5` (high) |
+| codex | `gpt-6-astra` (high) | `gpt-6.1-sol` (high) | `gpt-6-luna` (high) |
+| grok | `grok-4.7` (xhigh) | `grok-4.6` (high) | `grok-4.5` (high) |
+| gemini | `gemini-3.8-flash` (high) | `gemini-3.7-flash` (high) | `gemini-3.6-flash` (high) |
+| agy | `default` (high) | `default` (high) | `default` (high) |
+| opencode | `default` (high) | `default` (high) | `default` (high) |
+<!-- squads:end -->
+
 <!-- visual-story:start -->
 ## 🚀 새로운 세대 — 검증 가능한 에이전트 작업을 위한 운영체제
 
@@ -58,29 +198,66 @@
 - **완료보다 증명이 먼저** — test, impact/flow 검사, watcher challenge, delivery receipt, HBP evidence가 거짓 done 상태를 거부합니다.
 - **행동을 바꾸는 기억** — journal, stall detector, checkpoint, cross-agent wiki가 반복 실패를 막고 handoff를 지속시킵니다.
 
-<p align="center">
-  <img src="../assets/simplicio-loop-parallel-worktrees.png" alt="simplicio-loop parallel isolated worktree execution" width="920" />
-</p>
+```mermaid
+flowchart LR
+  C["Frozen task contract"] --> S["Scheduler: dependency-aware ready set"]
+  S --> W1["Worktree A"]
+  S --> W2["Worktree B"]
+  S --> W3["Worktree C"]
+  W1 --> R["Receipts and operational ledger"]
+  W2 --> R
+  W3 --> R
+  R --> V{"Independent verify"}
+  V -->|pass| M["One converged delivery"]
+  V -->|fail| X["Rollback, then visible serial lane"]
+```
 
 <p align="center"><em>의존성을 인식한 fan-out: 격리된 worker가 병렬로 실행되고 증거를 반환해 하나의 검증된 전달물로 수렴합니다.</em></p>
 
-<p align="center">
-  <img src="../assets/simplicio-loop-lifecycle-2026.svg" alt="simplicio-loop lifecycle from intake to durable memory" width="920" />
-</p>
+```mermaid
+flowchart LR
+  A["Intake"] --> B["Contract"] --> C["Map"] --> D["Plan"] --> E["Execute"] --> F["Verify"] --> G["Deliver"] --> H[("Durable memory")]
+  F -. "fail: rollback and retry" .-> E
+  H -. "journal informs the next turn" .-> D
+```
 
 <p align="center"><em>모든 단계는 명시적이고, 제한되며, 관찰 가능하고, 되돌릴 수 있습니다.</em></p>
 
-<p align="center">
-  <img src="../assets/simplicio-loop-evidence-memory.png" alt="simplicio-loop evidence memory verification rollback and completion" width="920" />
-</p>
+```mermaid
+flowchart TD
+  OUT["Worker output and receipts"] --> GATE{"Verification gate: tests, impact, watcher"}
+  GATE -->|evidence ok| PROMISE["Evidence-gated promise"]
+  PROMISE --> COMPLETE["Completion audit"]
+  COMPLETE --> WIKI[("Checkpoints and cross-agent wiki")]
+  GATE -->|evidence missing| ROLL["Safe rollback"]
+  ROLL --> JOURNAL[("Run journal and stall detector")]
+  JOURNAL --> RETRY["Next attempt with a new hypothesis"]
+  RETRY --> OUT
+```
 
 <p align="center"><em>증거와 기억은 실행 경로의 일부이며, 나중에 작성하는 보고서가 아닙니다.</em></p>
 
 이 아키텍처는 하나의 목표를 통제된 전달 시스템으로 바꿉니다. 어려운 단일 작업부터 전체 backlog까지 session과 runtime을 넘어 실행하며, local-first operator와 사람·CI·다른 에이전트가 감사할 수 있는 receipt를 남깁니다.
 
-<p align="center">
-  <img src="../assets/simplicio-loop-architecture-2026.svg" alt="simplicio-loop control execution evidence and delivery planes" width="920" />
-</p>
+```mermaid
+flowchart LR
+  subgraph CONTROL["Control plane"]
+    CT["Task contract"] --> SCH["Dependency-aware scheduler"]
+  end
+  subgraph EXEC["Execution plane"]
+    WK["Isolated worktrees"] --> OP["Operators: mapper, dev-cli, fast"]
+  end
+  subgraph EVID["Evidence plane"]
+    RC["Receipts"] --> VG["Verify gates"] --> MEM[("Journal and memory")]
+  end
+  subgraph DELIV["Delivery plane"]
+    PR["PR with Closes N"] --> SRC["Source of record in sync"]
+  end
+  SCH --> WK
+  OP --> RC
+  VG --> PR
+  MEM -.-> SCH
+```
 <!-- visual-story:end -->
 
 <!-- stage-agents-roadmap:start -->
@@ -90,7 +267,20 @@
 
 Intake/계획, 구현, 안전, delivery, recovery, 최종 감사마다 책임 에이전트 한 명을 둡니다. Review는 security/correctness, quality, runtime/E2E 재현, blast radius의 네 독립 에이전트로 분기한 뒤에만 다시 합쳐집니다.
 
-<p align="center"><img src="../assets/simplicio-loop-stage-agents-reporting-2026.webp" alt="simplicio-loop 단계 에이전트와 work tracker 댓글" width="920" /></p>
+```mermaid
+sequenceDiagram
+  participant A as Stage agent
+  participant L as Append-only stage ledger
+  participant G as GitHub issue or PR
+  participant P as Other trackers
+  participant C as Completion auditor
+  A->>L: event and receipt on every transition
+  L->>G: status comment, required for GitHub runs
+  G-->>L: observed comment receipt
+  L-->>P: comment only when the provider is connected
+  L->>C: evidence, never self-reported confidence
+  C-->>A: COMPLETE, PARTIAL, BLOCKED or REGRESSED
+```
 
 ```mermaid
 flowchart LR
