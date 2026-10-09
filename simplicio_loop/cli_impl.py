@@ -127,7 +127,7 @@ def _resync_hosts(root: Path, apply: bool) -> dict:
 
 def _install_lines(result: dict, host: str, head: str, resync: Optional[dict]) -> list:
     changes = result["changes"]
-    lines = [f"simplicio-loop {__version__} {head}:", f"  host   -> {host}", f"  owned  -> {', '.join(result['owned'])}",
+    lines = [f"simplicio-loop {__version__} {head}:", f"  host   -> {host}", f"  owned  -> {len(result['owned'])} files",
              f"  changed -> {len(changes['created'])} created, {len(changes['updated'])} updated, "
              f"{changes['unchanged']} unchanged"]
     for label in ("created", "updated"):
@@ -155,11 +155,16 @@ def install(target: Path, globally: bool, host: str = "claude",
     root = Path.home() if globally else target
     if uninstall:
         try:
-            payload = remove_owned(root)
+            payload = remove_owned(root, dry_run=dry_run)
         except InstallError as exc:
             print(f"error: {exc}", flush=True)
             return 1
-        print(f"simplicio-loop uninstalled {len(payload.get('removed') or [])} owned paths")
+        verb = "would remove" if dry_run else "removed"
+        print(f"simplicio-loop uninstall {'dry_run (nothing removed)' if dry_run else 'applied'}: "
+              f"{verb} {len(payload['removed'])} files, {len(payload['removed_dirs'])} empty directories")
+        print("\n".join(f"  {verb}: {rel}" for rel in payload["removed"] + [f"{rel}/" for rel in payload["removed_dirs"]]))
+        if payload["kept"]:
+            print(f"  kept (not empty, holds files Loop did not install): {', '.join(payload['kept'])}")
         return 0
     try:
         plan = plan_install(root, host=host, globally=globally)
@@ -2795,7 +2800,7 @@ def main(argv=None) -> int:
                            help="write nothing; exit 0 when the install is up to date, 10 when changes are pending")
     p_install.add_argument("--json", action="store_true", help="emit one machine-readable JSON document")
     p_install.add_argument("--verify", action="store_true", help="validate plan version/digest")
-    p_install.add_argument("--uninstall", action="store_true", help="remove Loop-owned files only")
+    p_install.add_argument("--uninstall", action="store_true", help="remove only what install registered; with --dry-run, list it and remove nothing")
 
     p_turbo = sub.add_parser(
         "turbo",
