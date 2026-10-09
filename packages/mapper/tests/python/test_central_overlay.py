@@ -423,6 +423,65 @@ class IsolationTests(OverlayCase):
         self.assertEqual(len(os.listdir(os.path.join(self.cache, "canonical"))), 1)
 
 
+class ConcurrencyTests(OverlayCase):
+    def test_every_json_write_goes_through_a_unique_temp_file(self) -> None:
+        """A fixed `<file>.tmp` makes two writers of one file race on os.replace (FileNotFoundError)."""
+        from unittest import mock
+
+        from simplicio_mapper.mapper import emit
+
+        sources: list[str] = []
+        real = os.replace
+
+        def spy(src, dst):
+            sources.append(str(src))
+            return real(src, dst)
+
+        target = str(self.base / "out" / "x.json")
+        with mock.patch.object(emit.os, "replace", spy):
+            emit._write_json_stable(target, {"a": 1})
+            emit._write_json_stable(target, {"a": 2})
+        self.assertEqual(len(set(sources)), 2, sources)
+        self.assertEqual(os.listdir(os.path.dirname(target)), ["x.json"], "no temp file left behind")
+
+    def test_an_overlay_run_waits_for_the_worktrees_index_lock(self) -> None:
+        from unittest import mock
+
+        from simplicio_mapper.mapper import central_overlay
+        from simplicio_mapper.mapper.file_lock import acquire_lock_at, release_lock_at
+
+        wt = self.worktree()
+        (wt / ".simplicio-loop").mkdir()
+        held = acquire_lock_at(str(wt / ".simplicio-loop" / "index.lock"), operation="index")
+        self.assertIsNotNone(held)
+        try:
+            with mock.patch.object(central_overlay, "LOCK_WAIT_SECONDS", 0.4):
+                outcome = apply_overlay(str(wt))
+            self.assertIsNone(outcome.artifacts)
+            self.assertEqual(outcome.receipt["fallback_reason"], "lock_wait_timeout")
+            self.assertFalse((wt / ".simplicio-loop" / "project-map.json").exists())
+        finally:
+            release_lock_at(held)
+        self.assertIsNotNone(apply_overlay(str(wt)).artifacts, "the lock is released after a run")
+        self.assertFalse((wt / ".simplicio-loop" / "index.lock").exists())
+
+    def test_simultaneous_overlay_processes_on_one_worktree_all_succeed(self) -> None:
+        wt = self.worktree()
+        (wt / self.rels[0]).write_text("def edited():\n    return 1\n", encoding="utf-8")
+        env = dict(os.environ, PYTHONPATH=str(ROOT))
+        argv = [sys.executable, "-m", "simplicio_mapper.cli.__main__", "canonical", "overlay", str(wt), "--json"]
+        for _round in range(2):
+            procs = [
+                subprocess.Popen(argv, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                for _ in range(4)
+            ]
+            for proc in procs:
+                out, err = proc.communicate(timeout=120)
+                self.assertEqual(proc.returncode, 0, err or out)
+                self.assertEqual(json.loads(out)["status"], "ok")
+            json.loads((wt / ".simplicio-loop" / "project-map.json").read_text(encoding="utf-8"))
+
+
 class FallbackTests(OverlayCase):
     def test_non_git_directory_falls_back_without_writing_anything(self) -> None:
         plain = self.base / "plain"

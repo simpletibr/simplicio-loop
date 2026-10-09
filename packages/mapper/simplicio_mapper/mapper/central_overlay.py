@@ -47,6 +47,7 @@ from .canonical_overlay import compute_worktree_overlay
 from .canonical_reuse import compute_config_fingerprint
 from .canonical_storage import resolve_canonical_cache_root
 from .emit import _build_agent_tree, _write_json_stable
+from .file_lock import acquire_lock_at, release_lock_at
 from .graph import _build_call_graph, _build_symbol_index, _collect_architecture_signals
 from .parse import (
     ARTIFACT_SCHEMA,
@@ -65,6 +66,10 @@ from .parse import (
     _parse_json_safe,
     _read_safe,
 )
+
+#: How long an overlay waits for another run on the same worktree (an overlay or an index).
+LOCK_WAIT_SECONDS = 300.0
+_LOCK_POLL_SECONDS = 0.2
 
 OVERLAY_STATE_SCHEMA = "simplicio.worktree-overlay-state/v1"
 OVERLAY_RECEIPT_SCHEMA = "simplicio.worktree-overlay-receipt/v1"
@@ -414,6 +419,17 @@ def _project_map(
     }
 
 
+def _lock_worktree(state_dir: str):
+    """The per-worktree index lock: an overlay, an index and a second overlay never write together."""
+    deadline = time.monotonic() + LOCK_WAIT_SECONDS
+    path = os.path.join(state_dir, "index.lock")
+    while True:
+        lock = acquire_lock_at(path, operation="overlay")
+        if lock is not None or time.monotonic() >= deadline:
+            return lock
+        time.sleep(_LOCK_POLL_SECONDS)
+
+
 def apply_overlay(
     root: str,
     *,
@@ -423,24 +439,31 @@ def apply_overlay(
     """:func:`compute_overlay`, then persist the worktree's own state (never the base).
 
     Writes only inside ``<root>/<out>``; removes the heavy derived artifacts of an older
-    generation. On a fallback nothing is written or removed.
+    generation. On a fallback nothing is written or removed. Runs under the worktree's index lock,
+    so concurrent runs on one worktree (or an overlay racing an index) take turns.
     """
-    outcome = compute_overlay(root, out=out, meta=meta)
-    if outcome.artifacts is None or outcome.state is None:
+    abs_root = os.path.abspath(root)
+    state_dir = os.path.join(abs_root, out)
+    if resolve_repo_identity_bundle(abs_root) is None:
+        return compute_overlay(root, out=out, meta=meta)  # nothing to lock, nothing to write
+    lock = _lock_worktree(state_dir)
+    if lock is None:
+        return _fallback({"schema": OVERLAY_RECEIPT_SCHEMA, "status": "ok"}, "lock_wait_timeout", time.monotonic())
+    try:
+        outcome = compute_overlay(root, out=out, meta=meta)
+        if outcome.artifacts is None or outcome.state is None:
+            return outcome
+        for name, file_name in OVERLAY_ARTIFACT_FILES.items():
+            _write_json_stable(os.path.join(state_dir, file_name), outcome.artifacts[name])
+        _write_json_stable(os.path.join(state_dir, OVERLAY_STATE_FILE), outcome.state)
+        for stale in SUPERSEDED_FILES:
+            try:
+                os.remove(os.path.join(state_dir, stale))
+            except OSError:
+                pass
         return outcome
-    state_dir = os.path.join(os.path.abspath(root), out)
-    os.makedirs(state_dir, exist_ok=True)
-    for name, file_name in OVERLAY_ARTIFACT_FILES.items():
-        _write_json_stable(os.path.join(state_dir, file_name), outcome.artifacts[name])
-    _write_json_stable(os.path.join(state_dir, OVERLAY_STATE_FILE), outcome.state)
-    for stale in SUPERSEDED_FILES:
-        try:
-            os.remove(os.path.join(state_dir, stale))
-        except FileNotFoundError:
-            pass
-        except OSError:
-            pass
-    return outcome
+    finally:
+        release_lock_at(lock)
 
 
 __all__ = [

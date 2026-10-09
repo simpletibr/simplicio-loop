@@ -49,6 +49,7 @@ dicts -- no source file is re-read or re-parsed to do this.
 from __future__ import annotations
 
 import os
+import secrets
 import time
 from dataclasses import dataclass
 
@@ -186,10 +187,18 @@ def _write_json_stable(path: str, data: object) -> None:
     directory = os.path.dirname(path)
     if directory:
         os.makedirs(directory, exist_ok=True)
-    tmp = f"{path}.tmp"
-    with open(tmp, "wb") as handle:
-        handle.write(orjson.dumps(data, option=_JSON_WRITE_OPTIONS))
-    os.replace(tmp, path)
+    # A unique temp name per writer: a shared "<file>.tmp" makes two writers of one file race on
+    # os.replace (FileNotFoundError, issue #1574 review).
+    tmp = f"{path}.{os.getpid()}.{secrets.token_hex(4)}.tmp"
+    try:
+        with open(tmp, "wb") as handle:
+            handle.write(orjson.dumps(data, option=_JSON_WRITE_OPTIONS))
+        os.replace(tmp, path)
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 
 def _project_files_from_entries(entries: list[dict]) -> list[ProjectFile]:
