@@ -77,8 +77,8 @@ namespaced kind; each namespace owns its own catalog.
 | quality | `lint_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `errors`, `warnings`, `by_rule` (top 20), `status` |
 | quality | `coverage_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `percent`, `scope` (`total`), `files` (max 50, optional) |
 | quality | `gate_evaluated` | runner, oracle, hooks | `gate` (`evidence`, `watcher`, `oracle`, `dod`, `quality`, `action`), `verdict` (`pass`, `fail`, `pending`, `blocked`), `status`, `verdict_detail` |
-| commands | `command_started` | worker (before each task `check` command), runner (before the turbo `--verify` command) | `command_id` (unique per run of a command), `command` (secrets scrubbed, max 200 characters); the envelope `ts` is the start time |
-| commands | `command_finished` | worker (after the same task `check` command), runner (after the turbo `--verify` command) | `command_id` (same as its `command_started`), `exit_code` (`null` when the command did not exit: timeout, spawn failure, cancellation), `duration_s` (monotonic clock), `status` (`pass`, `fail`, `error`, `interrupted`), optional `reason`; `severity: warning` unless `pass` |
+| commands | `command_started` | worker (before each task `check` command), runner (before the turbo `--verify` command) | `command_id` (unique per run of a command), `command` (secrets scrubbed, max 200 characters). The envelope `ts` is the start time. |
+| commands | `command_finished` | worker (after the same task `check` command), runner (after the turbo `--verify` command) | `command_id` (same as its `command_started`), `exit_code` (`null` when the command did not exit: timeout, spawn failure, cancellation), `duration_s` (monotonic clock), `status` (`pass`, `fail`, `error`, `interrupted`), optional `reason`. `severity` is `warning` unless `pass`. |
 | recovery | `retry_scheduled` | runner (`operator_bootstrap`, `rollback`) | `step`, `blocker` |
 | recovery | `stall_detected` | runner (`blocked`), hook (`loop_stop` stall streak) | `blocker` or `fingerprint`, `streak` |
 | recovery | `decision_requested` | runner (entering `awaiting_decision`) | `reason` |
@@ -127,9 +127,9 @@ shape, not yet emitted.
   events. The two events of one run of a command share a `command_id`. `duration_s` comes from a monotonic clock.
 - **Turbo `--verify`** (`simplicio_loop/turbo_run.py` `TurboRun.command`, called by `simplicio_loop/turbo_cli.py`
   `_run_verify`): the same pair with source `runner`, collection scope and `task_id` null, `phase` the run's stage at
-  the time. A verify that times out finishes with `exit_code` null, `status: error` and `reason: timeout`. A verify that cannot be spawned finishes with `exit_code` null and `status: interrupted`
-  (the worker producer reports a spawn failure as `error`; the difference is a known gap). The dev-cli
-  apply calls of turbo are not bracketed: no command event is written for them.
+  the time. A verify that times out finishes with `exit_code` null, `status: error` and `reason: timeout`. A verify that cannot
+  be spawned finishes with `exit_code` null and `status: interrupted`. The worker producer reports a spawn failure as `error`.
+  This difference is a known gap. Turbo does not bracket the dev-cli apply calls, so they write no command event.
 - The command text is scrubbed (`dashboard/runs.redact_command`: key=value pairs, `--token abc` style flags, `-p` of
   mysql/sshpass/twine/docker login, `-u user:pass`, URL credentials, auth and cookie headers, tokens with a known
   prefix, base64-looking blobs) before it is cut to 200 characters. Only the first 4096 characters are scanned and the
