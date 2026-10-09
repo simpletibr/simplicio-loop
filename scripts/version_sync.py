@@ -33,6 +33,7 @@ from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from dev_switches import find_dev_switches  # noqa: E402
 from release_manifest import SCHEMA as RELEASE_MANIFEST_SCHEMA  # noqa: E402
 from release_manifest import VERSION_RE, build_manifest  # noqa: E402
 
@@ -57,6 +58,8 @@ CLAUDE_DESCRIPTOR_FILES = (
 
 class VersionSyncError(ValueError):
     """Raised when a version is malformed or a derived surface cannot be rewritten."""
+
+    reason_code: Optional[str] = None
 
 
 def _validate_version(version: str) -> str:
@@ -202,6 +205,11 @@ def _apply_claude_descriptor(path: Path, version: str) -> bool:
 
 def apply_version(repo: Path, version: str) -> dict:
     _validate_version(version)
+    switches = find_dev_switches(repo)
+    if switches:
+        error = VersionSyncError(f"dev_switch_present: {json.dumps(switches, sort_keys=True)}")
+        error.reason_code = "dev_switch_present"
+        raise error
     changed = []
     pyproject = repo / "pyproject.toml"
     if _apply_pyproject(pyproject, version):
@@ -261,7 +269,10 @@ def _cmd_apply(args: argparse.Namespace) -> int:
     try:
         result = apply_version(Path(args.repo).resolve(), args.version)
     except VersionSyncError as exc:
-        print(json.dumps({"schema": SCHEMA, "action": "apply", "ok": False, "error": str(exc)}))
+        payload = {"schema": SCHEMA, "action": "apply", "ok": False, "error": str(exc)}
+        if exc.reason_code:
+            payload["reason_code"] = exc.reason_code
+        print(json.dumps(payload))
         return 1
     if args.json:
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
