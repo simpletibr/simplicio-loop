@@ -127,9 +127,25 @@ simplicio-mapper canonical build|status|verify|gc <path>               # same su
 * **A change to one C#/Razor file runs the service on every C#/Razor file of the tree.** The service
   resolves symbols across files, so the overlay cannot run it on the changed file alone. The overlay
   skips the service only when the C#/Razor files, the command and the timeout equal those of the base.
-  The result stays exact: the three artifacts match the full mapping. Before #1631 the overlay on this repository took 500.9 s and a fresh full
-  mapping took 506.5 s, because the overlay ran a global pass over all files. UNVERIFIED: the time of
-  the overlay on this repository after #1631. Nobody measured it. The tests count operations instead:
+  The result stays exact: the three artifacts match the full mapping. Before #1631 the overlay on this
+  repository took 500.9 s and a fresh full mapping took 506.5 s, because the overlay ran a global pass
+  over all files.
+  Measured after #1631 on a `git clone --shared` of commit 43d53da1 (3,644 files, 8 C#/Razor files,
+  ambient load about 8, `nice -n 10`). The run had no semantic service, so no C#/Razor file went
+  through a real service:
+  * `canonical overlay` on an unchanged worktree with the base in the cache: 8.35 s wall time and
+    160 MB maximum RSS. `semantic` is `reused_from_base`. The overlay reused 3,644 of 3,644 files.
+    Before #1631 the same run did not finish in 120 s (exit 124).
+  * The build of the base (a full mapping of the clone): 114.4 s and 1.21 GB maximum RSS.
+  * Oracle on the clone, three runs: unchanged tree, one Python file and one C# file with a new
+    comment, and a new function in the Python file plus a new class in the C# file and a comment in
+    a second C# file. In each run the digests of project-map, symbol-index and precedent-index of
+    the overlay equal those of a fresh full mapping. The overlay took 6.5 s to 7.6 s. The full
+    mapping took 73.7 s to 99.6 s.
+  * UNVERIFIED: the time of a changed C#/Razor file with a real semantic service. The service did
+    not run in these measurements.
+
+  The tests count operations instead:
   `packages/mapper/tests/python/test_call_graph_scaling.py` shows 0 service runs for a Python-only
   delta in a repository of more than 2,000 files with 8 C#/Razor files. In the same test file, a
   synthetic call graph of 2,000 files iterated `files` 80,026 times before and iterates it 5 times now.
