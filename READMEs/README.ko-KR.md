@@ -29,17 +29,24 @@
 **simplicio-loop는 GitHub 이슈를 테스트된 PR로 바꿉니다. 저장소를 매핑하고, AI가 계획하고, 결정적 편집기가 적용하고, 테스트가 검증하고, 스팩이 리뷰합니다.**
 
 <p align="center">
+  <img src="../docs/assets/readme/overview-cartoon.webp" alt="8단계 애니메이션 흐름: 이슈, 인테이크, 총괄 코디네이터, 스팩, 워커(매퍼, 계획, dev-cli), 스팩 리뷰, 머지 트레인, main, Simplicio Live 칸반" width="100%" />
+</p>
+
+<p align="center">
   <img src="../docs/assets/readme/how-it-works.gif" alt="8단계 애니메이션 흐름: 이슈, 인테이크, 총괄 코디네이터, 스팩, 워커(매퍼, 계획, dev-cli), 스팩 리뷰, 머지 트레인, main, Simplicio Live 칸반" width="100%" />
 </p>
 
 ## 기능
 
-세 가지 오퍼레이터: `simplicio-mapper`(맵), 플래너 모델(계획), `simplicio-dev-cli`(결정적 적용).
-
-- **먼저 매핑합니다:** `simplicio-mapper`가 저장소(파일, 심볼, 테스트)를 프로젝트 맵으로 만들고, 플래너는 필요한 부분만 받습니다.
-- **계획만 하고 쓰지 않습니다:** AI(claude, codex, grok, gemini 같은 exec CLI)가 샌드박스 안에서 각 변경을 계획하고, 파일을 편집하는 것은 결정적인 `dev-cli`뿐입니다.
-- **PR을 열기 전에 증명합니다:** `turbo --apply - --verify`가 테스트를 실행하고, push 전에 시크릿 스캔이 돕니다.
-- **스팩이 리뷰하고 묶어서 머지합니다**(진행 중: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504), [#1505](https://github.com/simpletibr/simplicio-loop/issues/1505)). 현재 watcher는 열린 PR에서 멈춥니다.
+```mermaid
+flowchart LR
+  I["GitHub issue"] --> M["simplicio-mapper<br/>maps files, symbols, tests"]
+  M -->|"map slice"| P["Planner in a sandbox<br/>claude / codex / grok / gemini<br/>plans, never writes"]
+  P -->|"JSON plan"| D["simplicio-dev-cli<br/>deterministic apply"]
+  D --> T["tests verify<br/>simplicio-loop turbo --apply - --verify"]
+  T -->|"green"| S["secret scan"] --> PR["PR with evidence"]
+  T -.->|"2 failures"| E["escalate the model role"] -.-> P
+```
 
 ## 설치
 
@@ -70,36 +77,65 @@ sudo cp packaging/systemd/simplicio-loop-247.env.example /etc/simplicio-loop-247
 sudo systemctl enable --now simplicio-loop-247
 ```
 
-- **저장소별 opt-in:** `.simplicio/loop.toml`을 추가하고 `enabled = true`를 설정합니다.
-- **이슈별 opt-in:** 신루할 수 있는 작성자(owner, member, collaborator)가 단 `loop:auto` 라벨.
-- **자동 머지는 꺼져 있습니다.** watcher는 PR만 엽니다. `SIMPLICIO_247_AUTO_MERGE=1`은 진행 중입니다([#1505](https://github.com/simpletibr/simplicio-loop/issues/1505)).
-
 자세한 내용: [docs/WATCHER_247.md](../docs/WATCHER_247.md).
+
+```mermaid
+flowchart LR
+  R["repo opts in<br/>.simplicio/loop.toml<br/>enabled = true"] --> L["issue opts in<br/>label loop:auto<br/>owner / member / collaborator"]
+  L --> W["worker loop"] --> PR["PR opened"]
+  PR -.->|"auto-merge off by default"| H["squad / human merges"]
+```
 
 ## 동작 방식
 
-**워커 루프**(현재 `main`에서 동작): `simplicio-mapper`가 저장소를 매핑 → 플래너(exec CLI, 샌드박스 안)가 맵의 일부를 받아 계획을 작성 → `simplicio-dev-cli`가 적용(`turbo --apply - --verify`) → 테스트로 검증(두 번 실패하면 모델 역할 상향) → 시크릿 스캔 → PR. 스팩 리뷰와 머지 트레인은 진행 중입니다([#1502](https://github.com/simpletibr/simplicio-loop/issues/1502), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)).
-
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="워커 루프: 매퍼가 저장소 매핑, 샌드박스에서 계획, 적용과 검증, 한 번의 실패, 다음 모델 역할로 상향, 시크릿 스캔, PR, 스팩 리뷰" width="920" />
+  <img src="../docs/assets/readme/worker-loop.gif" alt="워커 루프: 매퍼가 저장소 매핑, 샌드박스에서 계획, 적용과 검증, 한 번의 실패, 다음 모델 역할로 상향, 시크릿 스캔, PR, 스팩 리뷰" width="100%" />
 </p>
 
-**머지 트레인**(진행 중: [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)): 승인된 PR을 묶어서 한 번만 테스트하고, 빨간불이면 이분 탐색으로 문제의 PR을 찾아 나머지를 머지합니다.
+```mermaid
+flowchart LR
+  H["Haiku<br/>mechanical, 1 module"] -->|"2 failures"| S["Sonnet<br/>integration, security"] -->|"2 failures"| O["Opus / Fable<br/>replan only, never executes"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="머지 트레인: PR 4개를 한 번 테스트, 빨간불, 이분 탐색으로 C 분리, 이후 A, B, D 머지" width="920" />
+  <img src="../docs/assets/readme/merge-train.gif" alt="머지 트레인: PR 4개를 한 번 테스트, 빨간불, 이분 탐색으로 C 분리, 이후 A, B, D 머지" width="100%" />
 </p>
 
-**스팩**(진행 중: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): 총괄 코디네이터 1명, 스팩마다 코디네이터 1명, 각 스팩당 최대 4명의 워커. 이유: [코디네이터 1명 대 스팩](../docs/assets/readme/agents-before-after-cartoon.webp).
+```mermaid
+flowchart LR
+  A["PR A ✓"] & B["PR B ✓"] & C["PR C ✓"] & D["PR D ✓"] --> G{"test the batch once"}
+  G -->|"green"| M["merge all into main"]
+  G -->|"red"| X["bisect"] --> BAD["PR C out, back to its squad"]
+  X --> OK["A, B and D merge"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="스팩 조직도: 총괄 코디네이터, 스팩별 코디네이터, 각 최대 4명의 워커" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="스팩 조직도: 총괄 코디네이터, 스팩별 코디네이터, 각 최대 4명의 워커" width="100%" />
 </p>
 
+```mermaid
+flowchart TD
+  G["General coordinator<br/>Opus / Fable: plans, never executes"] --> S1["Squad 1<br/>Sonnet coordinator"] & S2["Squad 2<br/>Sonnet coordinator"] & S3["Squad 3<br/>Sonnet coordinator"]
+  S1 --> W1["up to 4 Haiku workers"]
+  S2 --> W2["up to 4 Haiku workers"]
+  S3 --> W3["up to 4 Haiku workers"]
+  S1 & S2 & S3 -.->|"APPROVED BY SQUAD"| MC["Merge coordinator<br/>Sonnet: merges in series"] --> MAIN["main"]
+```
+
+<p align="center">
+  <img src="../docs/assets/readme/agents-before-after-cartoon.webp" alt="1 coordinator and 29 workers versus squads: before and after" width="100%" />
+</p>
 
 ## 50개의 확장 포인트
 
-24/7 서비스 경로는 50개 중 11개를 연결합니다(24개는 부분, 15개는 없음): [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md). 나머지를 연결하는 계획은 [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)입니다.
+```mermaid
+pie showData title Extension points in the 24/7 path (of 50)
+  "Wired" : 11
+  "Partial" : 24
+  "Absent" : 15
+```
+
+[docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
 
 ## 더 알아보기
 
