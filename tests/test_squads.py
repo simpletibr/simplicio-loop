@@ -192,6 +192,71 @@ def test_dependency_cycle_raises_a_typed_error():
     assert isinstance(exc.value, squads.SquadPlanError)
 
 
+# ---------------------------------------------------------------- plan: contracts (#1504, interfaces first)
+
+
+def _squad_ids(plan):
+    return {n: s.id for s in plan.squads for n in s.issues}
+
+
+def test_cross_squad_dependency_edge_yields_a_contract():
+    issues = [{"number": 1, "area": "api"}, {"number": 2, "area": "ui", "depends_on": [1]}]
+    plan = squads.plan_squads(issues)
+    ids = _squad_ids(plan)
+    assert [(c.producer, c.consumer) for c in plan.contracts] == [(ids[1], ids[2])]
+    contract = plan.contracts[0]
+    assert contract.module_path.startswith(".simplicio-loop/contracts/")
+    assert contract.signature.startswith("def ")
+
+
+def test_no_dependency_means_no_contracts():
+    issues = [{"number": 1, "area": "api"}, {"number": 2, "area": "ui"}]
+    assert squads.plan_squads(issues).contracts == ()
+
+
+def test_dependency_inside_one_squad_yields_no_contract():
+    issues = [{"number": 1, "area": "api"}, {"number": 2, "area": "api", "depends_on": [1]}]
+    plan = squads.plan_squads(issues)
+    assert len(plan.squads) == 1
+    assert plan.contracts == ()
+
+
+def test_dependency_edge_across_split_squads_yields_a_contract():
+    # same area, but max_workers=1 splits it into two squads
+    issues = [{"number": 1, "area": "api"}, {"number": 2, "area": "api", "body": "Depends on #1"}]
+    plan = squads.plan_squads(issues, max_workers=1)
+    assert len(plan.squads) == 2 and len(plan.contracts) == 1
+
+
+def test_several_issue_edges_between_the_same_squads_give_one_contract():
+    issues = [
+        {"number": 1, "area": "api"}, {"number": 2, "area": "api"},
+        {"number": 3, "area": "ui", "depends_on": [1, 2]},
+    ]
+    plan = squads.plan_squads(issues)
+    assert len(plan.contracts) == 1
+
+
+def test_contracts_are_in_the_json_output_without_the_test_body():
+    issues = [{"number": 1, "area": "api"}, {"number": 2, "area": "ui", "depends_on": [1]}]
+    payload = _plan_dict(squads.plan_squads(issues))
+    assert payload["schema"] == "simplicio.squad-plan/v1"
+    assert len(payload["contracts"]) == 1
+    entry = payload["contracts"][0]
+    assert {"producer", "consumer", "module_path", "test_path", "signature", "function"} <= set(entry)
+    assert "test_template" not in entry
+    assert _plan_dict(squads.plan_squads(_issues(2)))["contracts"] == []
+
+
+def test_plan_contracts_are_what_write_contracts_consumes(tmp_path):
+    from simplicio_loop import squad_contracts
+
+    issues = [{"number": 1, "area": "api"}, {"number": 2, "area": "ui", "depends_on": [1]}]
+    plan = squads.plan_squads(issues)
+    res = squad_contracts.write_contracts(tmp_path, plan.contracts)
+    assert len(res["written"]) == 2 and (tmp_path / plan.contracts[0].module_path).is_file()
+
+
 # ---------------------------------------------------------------- gate
 
 APPROVAL = "APROVADO PELO SQUAD\n\nEvidencia: 12 passed. squash: feat(x): y (#1)"
