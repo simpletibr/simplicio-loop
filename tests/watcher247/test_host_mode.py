@@ -238,6 +238,26 @@ def test_planner_env_is_scrubbed(env, cli_dir, monkeypatch):
     assert "ANTHROPIC_API_KEY" in keys and "HOME" in keys and "PATH" in keys  # what that CLI needs
 
 
+def test_the_github_token_reaches_no_sandboxed_step(env, cli_dir, monkeypatch):
+    """GH_TOKEN stays in the service env for gh and git (outside the sandbox). The planner CLI, `turbo` (request) and
+    `turbo --apply` run inside sandbox.wrap with scrubbed_env, which never carries it."""
+    secret = "ghp_FAKEmustnotleak000000000000000000"
+    monkeypatch.setenv("GH_TOKEN", secret)
+    monkeypatch.setenv("GITHUB_TOKEN", secret)
+    fake = env(HostRun({REPO: [issue(1)]}))
+    baseline()
+    checkout()
+    run_tick()
+    (planner_keys,) = env_keys(cli_dir)
+    assert "GH_TOKEN" not in planner_keys and "GITHUB_TOKEN" not in planner_keys
+    turbo_envs = [request[1] for request in fake.requests] + fake.turbo_env
+    assert len(turbo_envs) == 2  # the request step and the apply step both ran
+    for turbo_env in turbo_envs:
+        assert turbo_env is not None  # an explicit env, never the inherited one
+        assert "GH_TOKEN" not in turbo_env and "GITHUB_TOKEN" not in turbo_env
+        assert secret not in turbo_env.values()
+
+
 def test_plan_goes_to_turbo_stdin_and_dev_cli_applies(env, cli_dir):
     fake = env(HostRun({REPO: [issue(3, "Add x")]}))
     baseline()

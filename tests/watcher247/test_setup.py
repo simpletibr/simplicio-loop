@@ -10,6 +10,7 @@ import getpass
 import io
 import json
 import os
+import re
 import stat
 import sys
 import warnings
@@ -210,6 +211,27 @@ def test_the_temp_file_is_private_when_the_content_is_written(svc, monkeypatch):
     assert seen == [0o600]
 
 
+def test_a_symlink_put_in_place_after_the_check_is_never_read_through_or_replaced(svc):
+    target = svc.tmp / "secret-elsewhere"
+    target.write_text("ROOT_ONLY_SECRET=1\n")
+    svc.env_file.write_text("A=1\n")
+    svc.env_file.chmod(0o600)
+    onboarding.check_target(svc.env_file)  # passes: a regular file
+    svc.env_file.unlink()
+    svc.env_file.symlink_to(target)  # the race: swapped between check and write
+    with pytest.raises(onboarding.Refused, match="symlink"):
+        onboarding.store_token(svc.env_file, TOKEN)
+    assert target.read_text() == "ROOT_ONLY_SECRET=1\n"  # not written, and not copied into a new file
+    assert svc.env_file.is_symlink()
+    assert sorted(p.name for p in svc.env_file.parent.iterdir()) == [svc.env_file.name]  # no temp file left
+
+
+def test_a_fifo_put_in_place_after_the_check_does_not_hang_setup(svc):
+    os.mkfifo(svc.env_file)
+    with pytest.raises(onboarding.Refused, match="regular file"):
+        onboarding.store_token(svc.env_file, TOKEN)
+
+
 def test_a_failed_replace_leaves_the_old_file_and_no_temp_file(svc, monkeypatch):
     svc.env_file.write_text("A=1\n")
     svc.env_file.chmod(0o600)
@@ -245,6 +267,7 @@ def test_a_symlinked_env_file_is_refused(svc, monkeypatch, capsys):
     assert run_setup(monkeypatch) == 2
     assert target.read_text() == "A=1\n"
     assert "symlink" in "".join(capsys.readouterr())
+    assert svc.gh_calls() == []  # refused before the token goes anywhere
 
 
 def test_a_missing_directory_is_a_clear_error(svc, monkeypatch, capsys):
@@ -399,6 +422,24 @@ def test_a_gh_failure_without_an_http_status_is_shown_without_the_token_or_contr
     assert TOKEN_NET not in out + err + caplog.text and "\x1b" not in out + err
 
 
+@pytest.mark.parametrize("make", [
+    lambda t: "bad " + "".join(t[i:i + 3] + "\x1b[0m" for i in range(0, len(t), 3)),  # colour between its characters
+    lambda t: "bad " + "".join(c + "\r" for c in t),  # a carriage return after each character
+    lambda t: "bad " + "\x00".join(t),  # NUL between the characters
+    lambda t: "\x1b]0;" + t + "\x07 title",  # terminal title (OSC)
+    lambda t: "bad \x1b[31m" + t + "\x1b[0m end",  # colour around it
+    lambda t: "progress 100%\r" + t + "\rDONE",  # a spinner line
+    lambda t: "bad é" + t + "é",
+    lambda t: "part1 " + t[:8] + "\npart2 " + t[8:],  # echoed in two pieces
+])
+def test_gh_text_is_cleaned_before_the_token_is_redacted(make):
+    shown = onboarding._plain(make(TOKEN), TOKEN)
+    letters = re.sub(r"[^A-Za-z0-9_-]", "", shown)  # what a reader sees once the noise between its characters is ignored
+    assert TOKEN[:12] not in letters and TOKEN[12:] not in letters
+    assert TOKEN[:8] not in shown and TOKEN[-8:] not in shown
+    assert all(" " <= c <= "~" for c in shown) and len(shown) <= 200
+
+
 def test_a_missing_gh_is_a_clear_error(svc, monkeypatch, capsys):
     stdin(monkeypatch, TOKEN + "\n")
     monkeypatch.setenv("PATH", str(svc.tmp / "empty"))
@@ -478,9 +519,11 @@ def test_a_root_run_keeps_the_owner_of_login_json(svc, monkeypatch):
     before = svc.login.stat()
     chowned = []
     monkeypatch.setattr(os, "geteuid", lambda: 0)
-    monkeypatch.setattr(os, "chown", lambda path, uid, gid: chowned.append((str(path), uid, gid)))
+    monkeypatch.setattr(os, "chown", lambda path, uid, gid, follow_symlinks=True:
+                        chowned.append((str(path), uid, gid, follow_symlinks)))
     run_setup(monkeypatch)
-    assert chowned == [(str(svc.login), before.st_uid, before.st_gid)]
+    # follow_symlinks=False: a symlink put at login.json during the network call is chowned itself, never its target
+    assert chowned == [(str(svc.login), before.st_uid, before.st_gid, False)]
 
 
 def test_check_reports_the_account_step_after_the_login_without_asking_for_a_token(svc, monkeypatch, capsys):

@@ -19,10 +19,12 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import errno
 import getpass
 import json
 import os
 import re
+import stat
 import sys
 import tempfile
 import warnings
@@ -152,16 +154,29 @@ def check_target(path: Path) -> None:
                       f"Fix it, then run setup again: chmod 600 {path}")
 
 
+def _read_env(path: Path) -> str:
+    """The current content ('' when the file is absent). O_NOFOLLOW: a symlink put there after check_target is refused,
+    never read through (its target would be copied into the new file)."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return ""
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise Refused(f"{path} became a symlink while setup ran; nothing was stored") from None
+        raise
+    with os.fdopen(fd, "rb") as handle:
+        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            raise Refused(f"{path} is not a regular file")
+        return handle.read().decode("utf-8", "surrogateescape")
+
+
 def store_token(path: Path, token: str) -> None:
     """Set GH_TOKEN in the env file: keep every other line, replace the old GH_TOKEN line in place.
 
     The new file is a temp file in the same directory, mode 600 BEFORE the content is written, then os.replace.
     """
-    try:
-        old = path.read_bytes().decode("utf-8", "surrogateescape")
-    except FileNotFoundError:
-        old = ""
-    lines = old.split("\n")
+    lines = _read_env(path).split("\n")
     if lines[-1] == "":
         lines.pop()
     out: list[str] = []
@@ -192,9 +207,19 @@ def store_token(path: Path, token: str) -> None:
 # --- GitHub -----------------------------------------------------------------------------------------------------------
 
 
+_ESCAPE = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)?|[@-Z\\-_])")
+
+
 def _plain(text: str, token: str) -> str:
-    """Printable ASCII only and without the token, for text that came from gh."""
-    return re.sub(r"[^\x20-\x7e]", "?", text.replace(token, "***"))[:200]
+    """Printable ASCII only and without the token, for text that came from gh.
+
+    Escape sequences and control characters are DELETED before the token is redacted: one of them inside the token
+    (ANSI colour between its characters, a carriage return) would keep it from matching, and it would be shown.
+    """
+    text = re.sub(r"[^\x20-\x7e\n\t]", "", _ESCAPE.sub("", text))
+    for secret in (token, token[:8], token[-8:]):  # the whole token, then a partial echo of its start or end
+        text = text.replace(secret, "***")
+    return re.sub(r"\s+", " ", text).strip()[:200]
 
 
 async def check_token(token: str) -> tuple[str, list[str] | None]:
@@ -268,7 +293,7 @@ async def account_reason(email: str) -> str:
     finally:  # a refresh rewrites login.json: as root that would hand the service user's file to root
         if owner is not None and os.geteuid() == 0:
             with contextlib.suppress(OSError):
-                os.chown(config.LOGIN, *owner)
+                os.chown(config.LOGIN, *owner, follow_symlinks=False)
 
 
 # --- the command ------------------------------------------------------------------------------------------------------
