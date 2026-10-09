@@ -71,5 +71,11 @@ O tick usa o mesmo padrao da skill `/simplicio-loop` (#1505). Nada disso muda a 
    coordenador de cada squad, cada worker) com `agent.role`, `agent.model` e `agent.effort`; o worker mostra o ultimo
    papel que realmente rodou (apos escalada). `consolidated.tasks_by_role` conta por papel.
 
+Limites de seguranca: `squad_gate` confere a frase e os horarios, nao o autor do comentario (um so usuario `gh`). Por isso
+so entram no merge os PRs que a revisao do proprio watcher aprovou no mesmo tick, e cada `gh pr merge` usa
+`--match-head-commit` com o head revisado e testado. Caminhos citados na issue entram so como padrao de posse (nunca sao
+abertos) e `..`, absolutos e `~` sao descartados. Um ciclo de `depende de #N` entre issues nao para o tick: o plano sai sem a
+ordem declarada.
+
 `status.json` ganha `squads.<repo>`: `squads` (id, coordenador, workers, issues), `approved`, `rejected`, `merge`
 (`disabled` ou `enabled`) e, com merge ligado, `merged`, `failed` e `gate_blocked` (numeros de PR).
