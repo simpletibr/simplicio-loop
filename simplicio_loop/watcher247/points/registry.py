@@ -5,7 +5,10 @@ apply, verify, pr, done) from its own module ``points/<name>.py``. The tick make
 call per stage, so adding a point never touches ``tick.py``.
 
 * A point that raises becomes ``PointResult(status="error")``; the tick goes on. A point registered with
-  ``blocking=True`` that errors or returns ``blocked`` stops the stage with ``PointBlocked`` instead.
+  ``blocking=True`` that errors or returns ``blocked`` stops the stage with ``PointBlocked`` instead. ``blocked`` is a
+  FAILED ATTEMPT (the tick retries with the reasons and marks the issue dead only at the attempt limit);
+  ``deferred`` is a transient condition (low disk, high load): it stops the stage with ``PointDeferred`` and the tick
+  gives the attempt back, so the issue is picked up again later.
 * ``applies(ctx) -> bool`` makes a point conditional: when False it is ``skipped``, never called.
 * Every result goes to the run's ``events.jsonl`` (``watcher.point``) and to the execution report
   (``simplicio.execution-report/v1``, one task per result). Emission is fail-open.
@@ -26,10 +29,11 @@ from ... import dashboard_events, execution_report
 from .. import state
 
 STAGES = ("intake", "plan", "apply", "verify", "pr", "done")
-STATUSES = ("ok", "skipped", "error", "blocked")
+STATUSES = ("ok", "skipped", "error", "blocked", "deferred")
 EVENT_KIND = "watcher.point"
 _EVIDENCE_CAP = 300
-_OUTCOME = {"ok": "COMPLETE", "skipped": "SKIPPED", "error": "FAIL", "blocked": "BLOCKED"}
+_OUTCOME = {"ok": "COMPLETE", "skipped": "SKIPPED", "error": "FAIL", "blocked": "BLOCKED",
+            "deferred": "SKIPPED"}
 
 
 @dataclass(frozen=True)
@@ -82,6 +86,16 @@ class PointBlocked(Exception):
         self.name = name
         self.reason_code = reason_code
         self.results = results
+
+    def reasons(self) -> str:
+        """The blocking result's reason_code and evidence as one line: the retry context and the status comment."""
+        evidence = next((r.evidence for r in reversed(self.results) if r.name == self.name), {})
+        text = f"{self.name}: {self.reason_code}"
+        return text + (" " + json.dumps(evidence, sort_keys=True, default=str)[:_EVIDENCE_CAP] if evidence else "")
+
+
+class PointDeferred(PointBlocked):
+    """A stage was stopped by a transient condition: the tick skips the issue this round without a failed attempt."""
 
 
 @dataclass(frozen=True)
@@ -151,8 +165,9 @@ async def run(stage: str, ctx: PointContext) -> list[PointResult]:
         wall_ms = int((time.monotonic() - started) * 1000)
         _emit_event(stage, ctx, result)
         _add_task(report, stage, ctx, result, wall_ms)
-        if point.blocking and result.status in ("error", "blocked"):
-            stopped = PointBlocked(stage, point.name, result.reason_code or result.status, results)
+        if point.blocking and result.status in ("error", "blocked", "deferred"):
+            kind = PointDeferred if result.status == "deferred" else PointBlocked
+            stopped = kind(stage, point.name, result.reason_code or result.status, results)
             break
     if results:
         _write_report(report, stage, ctx)
@@ -162,10 +177,11 @@ async def run(stage: str, ctx: PointContext) -> list[PointResult]:
 
 
 def raise_if_blocked(stage: str, results: list[PointResult]) -> None:
-    """Raise PointBlocked for the first `blocked` result: how a stage (the PR) refuses to go on."""
+    """Raise PointBlocked (or PointDeferred) for the first `blocked` (or `deferred`) result: how the PR refuses to go on."""
     for result in results:
-        if result.status == "blocked":
-            raise PointBlocked(stage, result.name, result.reason_code or "blocked", results)
+        if result.status in ("blocked", "deferred"):
+            kind = PointDeferred if result.status == "deferred" else PointBlocked
+            raise kind(stage, result.name, result.reason_code or result.status, results)
 
 
 # --- emission: events.jsonl and the execution report, both fail-open -----------------------------
