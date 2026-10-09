@@ -2980,7 +2980,10 @@ def main(argv=None) -> int:
     p_stack_verify.add_argument("--route", choices=("standalone",), default=None)
 
     p_doctor = sub.add_parser("doctor", help="inspect the installed stack or storage routing")
-    p_doctor.set_defaults(doctor_command=None, stack_json=False, doctor_json=False)
+    p_doctor.set_defaults(doctor_command=None, stack_json=False, doctor_json=False, all_json=False, all_online=False,
+                          login_json=False, online=False)
+    p_doctor.add_argument("--online", action="store_true",
+                          help="overview: ask GitHub for the latest release (offline by default)")
     p_doctor.add_argument("--storage", action="store_true",
                           help="inspect the Loop storage adapter boundary")
     p_doctor.add_argument("--route", choices=("legacy", "shadow", "mapper"), default="mapper")
@@ -3005,6 +3008,15 @@ def main(argv=None) -> int:
     )
     p_doctor_source.add_argument("--json", dest="doctor_json", action="store_true",
                                  help="emit machine-readable JSON")
+
+    p_doctor_all = doctor_sub.add_parser(
+        "all", help="overview: login, update, distribution, Runtime, PATH operators, disk (same as bare `doctor`)"
+    )
+    p_doctor_all.add_argument("--json", dest="all_json", action="store_true", help="emit machine-readable JSON")
+    p_doctor_all.add_argument("--online", dest="all_online", action="store_true",
+                              help="ask GitHub for the latest release (offline by default)")
+    p_doctor_login = doctor_sub.add_parser("login", help="only the login check (shared with the Runtime)")
+    p_doctor_login.add_argument("--json", dest="login_json", action="store_true", help="emit machine-readable JSON")
 
     p_doctor_mapper = doctor_sub.add_parser(
         "mapper", help="check that the installed simplicio_mapper is the expected build"
@@ -3409,9 +3421,15 @@ def main(argv=None) -> int:
         if args.mapper_json:
             forwarded.append("--json")
         return mapper_doctor_main(forwarded)
+    if command == "doctor" and getattr(args, "doctor_command", None) in {"all", "login"}:
+        from .doctor_overview import run as doctor_overview
+        if args.doctor_command == "login":
+            return doctor_overview(as_json=args.login_json, only="login")
+        return doctor_overview(as_json=args.all_json, online=args.all_online)
+    if command == "doctor" and not args.storage:  # a bare `doctor` is the overview
+        from .doctor_overview import run as doctor_overview
+        return doctor_overview(as_json=args.json, online=args.online)
     if command in {"doctor", "inspect"}:
-        if command == "doctor" and not args.storage:
-            parser.error("doctor requires --storage or the stack subcommand")
         from .store_adapter import storage_cli
         forwarded = ["--route", args.route]
         if args.data_dir:
