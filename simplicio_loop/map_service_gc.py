@@ -368,6 +368,18 @@ def _still_safe(item: GcItem, plan: GcPlan) -> bool:
         return fresh.action == "remove"
     if item.kind == "lock":
         return _classify_lock(path, now, plan.max_age).action == "remove"
+    if item.kind == "baseline":
+        match = _BASELINE_FILE.match(path.name)
+        if not match:
+            return False
+        key = match.group("key")
+        if now - path.lstat().st_mtime < RECENT_BASELINE_SECONDS:
+            return False
+        lock = path.with_name("baseline-%s.lock" % key)
+        if lock.exists() and now - lock.lstat().st_mtime < plan.max_age:
+            return False
+        # A worktree may have been created from this tree since the plan was made.
+        return key not in referenced_keys(plan.repo)["runtime"]
     return True
 
 

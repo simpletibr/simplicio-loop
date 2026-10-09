@@ -253,3 +253,26 @@ def test_every_mapper_index_reclaims_stale_scratch_first(repo, monkeypatch):
     with pytest.raises(msm.MapperUnavailableError):
         asyncio.run(msm.run_mapper_index(str(root)))
     assert not stale.exists()
+
+
+def test_a_baseline_a_worktree_started_forking_from_after_the_plan_is_not_removed(tmp_path):
+    """TOCTOU (found in review): the plan said remove, then a worktree was created at that tree."""
+    root = _repo(tmp_path / "repo")
+    old_commit = _git(root, "rev-parse", "HEAD")
+    old_tree = _git(root, "rev-parse", "HEAD^{tree}")
+    (root / "b.py").write_text("b = 1\n", encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "main moves")
+    map_dir = root / ".git" / "simplicio" / "map"
+    map_dir.mkdir(parents=True)
+    baseline = map_dir / ("baseline-%s.json" % old_tree)
+    baseline.write_bytes(b"{}" * 50)
+    _age(baseline, 100 * HOUR)
+
+    plan = gc.plan_gc(str(root), keep=0)
+    item = next(i for i in plan.items if i.path == str(baseline))
+    assert item.action == "remove", "nobody forks from the old tree yet"
+
+    _git(root, "worktree", "add", "-q", "-b", "late", str(tmp_path / "late"), old_commit)
+    gc.apply_gc(plan)
+    assert baseline.exists(), "a worktree now forks from it: the apply-time re-check must keep it"
