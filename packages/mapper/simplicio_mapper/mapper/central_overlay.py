@@ -48,7 +48,14 @@ from .canonical_reuse import compute_config_fingerprint
 from .canonical_storage import resolve_canonical_cache_root
 from .emit import _build_agent_tree, _write_json_stable
 from .file_lock import acquire_lock_at, release_lock_at
-from .graph import _build_call_graph, _build_symbol_index, _collect_architecture_signals
+from .graph import (
+    SEMANTIC_LANGUAGES,
+    _build_symbol_index,
+    _collect_architecture_signals,
+    resolve_csharp_razor_semantics,
+    semantic_input_key,
+    semantic_not_required,
+)
 from .parse import (
     ARTIFACT_SCHEMA,
     ARTIFACT_VERSION,
@@ -88,20 +95,8 @@ SUPERSEDED_FILES = (
     "retrieval-index.json",
     "artifact-manifest.json",
 )
-_SEMANTIC_LANGUAGES = frozenset({"csharp", "razor"})
 _PREVIEW_FILES = 80  # emit builds the architecture corpus from the first 80 files' previews
 
-_SEMANTIC_NOT_REQUIRED = {
-    "schema": "simplicio.mapper-semantic-resolution/v1",
-    "protocol": "v1",
-    "status": "not_required",
-    "languages": [],
-    "providers": [],
-    "provider_versions": [],
-    "resolved_calls": 0,
-    "symbols": 0,
-    "reasons": ["no_csharp_or_razor_call_sites"],
-}
 
 
 @dataclass
@@ -137,7 +132,8 @@ def _base_file_facts(manifest: CanonicalMapManifest) -> dict[str, dict] | None:
     return facts
 
 
-def _base_symbols(manifest: CanonicalMapManifest) -> dict[str, list[dict]] | None:
+def _base_symbols(manifest: CanonicalMapManifest) -> tuple[dict[str, list[dict]], dict] | None:
+    """The base's symbols grouped by file and its ``semantic_resolution`` (empty when it recorded none)."""
     relative = manifest.artifact_paths.get("symbol_index")
     document = _read_json(os.path.join(manifest.storage_root, relative)) if relative else None
     if not isinstance(document, dict):
@@ -145,7 +141,26 @@ def _base_symbols(manifest: CanonicalMapManifest) -> dict[str, list[dict]] | Non
     grouped: dict[str, list[dict]] = {}
     for symbol in document.get("symbols") or []:
         grouped.setdefault(symbol["defined_in"], []).append(symbol)
-    return grouped
+    resolution = document.get("semantic_resolution")
+    return grouped, resolution if isinstance(resolution, dict) else {}
+
+
+def _semantic_mode(semantic_files: list[ProjectFile], base_resolution: dict) -> str:
+    """How the C#/Razor semantic pass is satisfied: ``not_required``, ``reused_from_base`` or ``recomputed:<why>``.
+
+    The pass is a function of the C#/Razor sources alone (``semantic_input_key``): when the key the base
+    recorded equals the worktree's, the base's resolved symbols and resolution are exactly what a full
+    mapping would produce, so nothing needs to run.
+    """
+    if not semantic_files:
+        return "not_required"
+    key = semantic_input_key(semantic_files)
+    if key is None:
+        return "recomputed:input_key_unprovable"
+    recorded = base_resolution.get("input_key")
+    if not recorded:
+        return "recomputed:base_without_input_key"
+    return "reused_from_base" if recorded == key else "recomputed:semantic_input_changed"
 
 
 def _delta(overlay) -> dict[str, list[str]]:
@@ -243,9 +258,10 @@ def _compute(
     if not overlay.is_compatible_with_base():
         return _fallback(receipt, "config_fingerprint_mismatch", started)
     base_facts = _base_file_facts(manifest)
-    base_symbols = _base_symbols(manifest)
-    if base_facts is None or base_symbols is None:
+    base_symbol_state = _base_symbols(manifest)
+    if base_facts is None or base_symbol_state is None:
         return _fallback(receipt, "base_artifacts_unreadable", started)
+    base_symbols, base_resolution = base_symbol_state
 
     touched = _touched_paths(overlay)
     hidden = _hidden_from_git(abs_root)
@@ -284,22 +300,26 @@ def _compute(
     degraded["skipped_large_files"] = sorted(skipped)
 
     generated_at = _now_iso()
-    # C#/Razor symbols get their identities from the semantic pass of the call graph, which is
-    # global: those files are parsed fresh and the call graph decides the resolution status.
-    semantic = any(file.language in _SEMANTIC_LANGUAGES for file in files)
-    if semantic:
-        language = {file.path: file.language for file in files}
-        reused = {rel for rel in reused if language[rel] not in _SEMANTIC_LANGUAGES}
-    symbol_index = _symbol_index(abs_root, files, generated_at, base_symbols, reused, contents)
-    if semantic:
-        resolution = _build_call_graph(abs_root, files, symbol_index, generated_at, contents=contents)[
-            "semantic_resolution"
-        ]
-        if resolution.get("status") in {"unavailable", "degraded"}:
-            degraded["semantic_resolution"] = resolution
+    # C#/Razor symbols get their identities from the semantic pass, which reads those files alone. When
+    # their key equals the base's, the base's resolved symbols are reused (even for a touched-but-identical
+    # file); otherwise those files are parsed fresh and only they go through the service.
+    semantic_files = [file for file in files if file.language in SEMANTIC_LANGUAGES]
+    semantic_paths = {file.path for file in semantic_files}
+    semantic_mode = _semantic_mode(semantic_files, base_resolution)
+    if semantic_mode == "reused_from_base":
+        reused |= semantic_paths
     else:
-        resolution = _SEMANTIC_NOT_REQUIRED
-        symbol_index["semantic_resolution"] = dict(resolution)
+        reused -= semantic_paths
+    symbol_index = _symbol_index(abs_root, files, generated_at, base_symbols, reused, contents)
+    if semantic_mode == "reused_from_base":
+        resolution = dict(base_resolution)
+    elif semantic_mode == "not_required":
+        resolution = semantic_not_required()
+    else:
+        resolution, _by_site = resolve_csharp_razor_semantics(abs_root, files, symbol_index["symbols"], contents)
+    symbol_index["semantic_resolution"] = resolution
+    if resolution.get("status") in {"unavailable", "degraded"}:
+        degraded["semantic_resolution"] = resolution
     project_map = _project_map(abs_root, meta, pkg, files, status_map, degraded, generated_at)
     project_map["capability_coverage"] = build_capability_coverage(files, semantic_resolution=resolution)
     project_map["agent_tree"] = _build_agent_tree(files, _build_brown_hilbert_map(files))
@@ -317,6 +337,7 @@ def _compute(
     delta = _delta(overlay)
     receipt.update(
         files_total=len(files), files_reused=len(reused), files_remapped=len(files) - len(reused),
+        semantic=semantic_mode,
         delta=delta, worktree_head=overlay.worktree_commit_sha, dirty=overlay.dirty,
         default_branch=manifest.key.default_branch, config_fingerprint=fingerprint,
         single_flight_waited=build.reason_code in ("reused_after_wait", "built_after_wait"),
