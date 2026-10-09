@@ -13,6 +13,7 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -832,6 +833,164 @@ def test_worktree_binds_are_empty_for_a_plain_clone_and_for_unknown_layouts(real
 
 
 # --- 13: files shared between items -----------------------------------------------------------------------------------------------
+
+# --- sandbox isolation between items (REAL bwrap + REAL git) ----------------------------------------------------------------------
+
+needs_bwrap = pytest.mark.skipif(sys.platform != "linux" or shutil.which("bwrap") is None, reason="needs Linux with bwrap")
+CONTROL_FILES = ("claims.json", "budget.json", "STOP")
+
+
+def in_sandbox(item_path: Path, script: str) -> subprocess.CompletedProcess:
+    """`script` under the exact bwrap argv an item's turbo gets: state_dir is the watcher's state dir, the parent of work/."""
+    argv = sandbox.wrap(["sh", "-c", script], clone=item_path, state_dir=config.ROOT, platform="linux", environ={})
+    return subprocess.run(argv, capture_output=True, text=True, timeout=60)
+
+
+@pytest.fixture
+def two_live_items(real_repo, tmp_path, monkeypatch):
+    """Items 31 (A) and 32 (B) both alive (their worktrees and admin dirs exist); the state dir holds the control files."""
+    monkeypatch.setattr(config, "ROOT", tmp_path)
+    for name in CONTROL_FILES:
+        (tmp_path / name).write_text("host\n")
+    (real_repo.common / "hooks").mkdir(exist_ok=True)
+    (real_repo.common / "hooks" / "pre-push").write_text("host hook\n")
+    gate = worktrees.Gate(2)
+
+    async def both():
+        return await worktrees._acquire(gate, REPO, "main", 31, False), await worktrees._acquire(gate, REPO, "main", 32, False)
+
+    a, b = asyncio.run(both())
+    return real_repo, a, b
+
+
+def foreign_targets(r: Repo, b: worktrees.Item) -> dict[str, Path]:
+    return {
+        "neighbour worktree": b.path / "planted",
+        "neighbour admin dir": r.common / "worktrees" / "32" / "HEAD",
+        "base config": r.common / "config",
+        "base hooks": r.common / "hooks" / "pre-push",
+        "base refs": r.common / "refs" / "heads" / "planted",
+        "base worktree": r.base / "README.md",
+        "claims.json": config.ROOT / "claims.json",
+        "budget.json": config.ROOT / "budget.json",
+        "STOP": config.ROOT / "STOP",
+    }
+
+
+@needs_bwrap
+@pytest.mark.parametrize("name", ["neighbour worktree", "neighbour admin dir", "base config", "base hooks", "base refs", "base worktree",
+                                  "claims.json", "budget.json", "STOP"])
+def test_the_sandbox_of_one_item_cannot_write_what_belongs_to_the_neighbour_the_base_or_the_watcher(two_live_items, name):
+    r, a, b = two_live_items
+    target = foreign_targets(r, b)[name]
+    before = target.read_bytes() if target.is_file() else None
+    done = in_sandbox(a.path, f"echo pwned >> '{target}'")
+    assert done.returncode != 0, f"{name} was writable from inside item A's sandbox"
+    assert (target.read_bytes() if target.is_file() else None) == before
+
+
+@needs_bwrap
+def test_the_sandbox_of_one_item_still_writes_its_own_worktree_admin_dir_and_objects_and_the_host_then_commits_and_pushes(two_live_items):
+    r, a, b = two_live_items
+    own_admin = r.common / "worktrees" / "31"
+    done = in_sandbox(a.path, f"echo ok > edited.txt && echo ok > '{own_admin}/own-marker' && mkdir -p '{r.common}/objects/zz' "
+                              f"&& echo ok > '{r.common}/objects/zz/own' && git add edited.txt && git status --porcelain")
+    assert done.returncode == 0, done.stderr
+    assert (a.path / "edited.txt").read_text() == "ok\n" and (own_admin / "own-marker").exists()
+    sha = commit_in(a.path, "feature.txt")  # the host's commit and push of the item
+    pushed = asyncio.run(worktrees.push(worktrees.Gate(1), REPO, a.path, a.head))
+    assert pushed.returncode == 0, pushed.stderr
+    assert r.origin_ref("refs/heads/loop/issue-31") == sha
+    assert not (b.path / "planted").exists() and git("rev-parse", "--abbrev-ref", "HEAD", cwd=b.path) == "loop/issue-32"
+
+
+@needs_bwrap
+def test_a_planted_dot_git_file_makes_the_sandbox_see_the_neighbours_branch_but_the_host_git_does_not_follow_it(two_live_items):
+    r, a, b = two_live_items
+    done = in_sandbox(a.path, f"echo 'gitdir: {r.common}/worktrees/32' > .git")  # the item rewrites its own .git file (still writable)
+    assert done.returncode == 0, done.stderr
+    assert git("rev-parse", "--abbrev-ref", "HEAD", cwd=a.path) == "loop/issue-32"  # plain git follows the file: the attack is real
+    seen = {}
+
+    async def host():
+        for key, args in {"head": ["rev-parse", "--abbrev-ref", "HEAD"], "gitdir": ["rev-parse", "--absolute-git-dir"],
+                          "top": ["rev-parse", "--show-toplevel"]}.items():
+            seen[key] = (await proc.run(["git", *args], cwd=a.path)).stdout.strip()
+        (a.path / "host-made.txt").write_text("x\n")
+        await proc.run(["git", "add", "host-made.txt"], cwd=a.path)
+        seen["commit"] = (await proc.run(["git", "commit", "-q", "-m", "host commit"], cwd=a.path)).returncode
+
+    asyncio.run(host())
+    assert seen == {"head": "loop/issue-31", "gitdir": str(r.common / "worktrees" / "31"), "top": str(a.path), "commit": 0}
+    assert git("log", "-1", "--format=%s", "loop/issue-31", cwd=r.base) == "host commit"
+    assert git("log", "-1", "--format=%s", "loop/issue-32", cwd=r.base) == "seed"  # the neighbour's branch was not touched
+
+
+@needs_bwrap
+def test_a_rewritten_commondir_of_the_items_own_admin_dir_does_not_redirect_the_host_git(two_live_items, tmp_path):
+    r, a, _b = two_live_items
+    other = tmp_path / "other"
+    git("init", "-q", "-b", "main", str(other), cwd=tmp_path)
+    done = in_sandbox(a.path, f"echo '{other}/.git' > '{r.common}/worktrees/31/commondir'")
+    assert done.returncode == 0, done.stderr
+    top = asyncio.run(proc.run(["git", "rev-parse", "--git-common-dir"], cwd=a.path)).stdout.strip()
+    assert top == str(r.common)
+
+
+def test_drop_never_follows_a_symlink_planted_at_the_items_path(real_repo, tmp_path):
+    r, gate = real_repo, worktrees.Gate(2)
+
+    async def scenario():
+        victim = await worktrees._acquire(gate, REPO, "main", 32, False)  # the neighbour's live worktree
+        mine = await worktrees._acquire(gate, REPO, "main", 31, False)
+        shutil.rmtree(mine.path)
+        mine.path.symlink_to(victim.path)  # what an item inside the sandbox can plant for its successor
+        await worktrees._drop(REPO, 31, mine.path)
+        return victim
+
+    victim = asyncio.run(scenario())
+    assert victim.path.is_dir() and (victim.path / "README.md").exists()
+    assert r.entries() == ["32"] and set(r.rows()) == {victim.path.resolve()}
+    assert not r.wt(31).exists() and not r.wt(31).is_symlink()
+
+
+def test_a_link_at_the_items_path_to_a_directory_outside_is_removed_and_the_outside_is_left_alone(real_repo, tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "keep.txt").write_text("keep\n")
+    gate = worktrees.Gate(1)
+    path = real_repo.wt(31)
+    path.parent.mkdir(parents=True)
+    path.symlink_to(outside)
+
+    async def scenario():
+        async with worktrees.checkout(gate, REPO, "main", 31) as item:
+            return item.path.is_symlink(), (item.path / "README.md").exists()
+
+    assert asyncio.run(scenario()) == (False, True)  # a real worktree took the place of the link
+    assert (outside / "keep.txt").read_text() == "keep\n" and [p.name for p in outside.iterdir()] == ["keep.txt"]
+
+
+@pytest.mark.parametrize("repo", ["../x", "..", ".", "a/b", "/abs", "", "foo.wt", "foo.state", "-rf", ".hidden", "sp ace", "ünï", "a\nb"])
+def test_a_repo_name_that_could_leave_work_or_collide_with_a_layout_dir_is_refused_everywhere(repo):
+    for call in (worktrees.item_path, worktrees.state_home):
+        with pytest.raises(ValueError):
+            call(repo, 1)
+    with pytest.raises(ValueError):
+        worktrees.base_path(repo)
+
+
+@pytest.mark.parametrize("repo", ["demo", "simplicio-loop", "simplicio.runtime", "a_b", "x1", "foo.wtx", "wt", "state"])
+def test_a_github_repo_name_is_kept_under_work(repo):
+    for path in (worktrees.item_path(repo, 7), worktrees.state_home(repo, 7), worktrees.base_path(repo)):
+        assert config.WORK in path.parents
+
+
+def test_a_repo_named_foo_wt_cannot_share_a_directory_with_the_items_of_foo(real_repo):
+    assert worktrees.item_path("foo", 1).parent == config.WORK / "foo.wt"
+    with pytest.raises(ValueError):
+        worktrees.base_path("foo.wt")
+
 
 def fs(*names: str) -> frozenset[str]:
     return frozenset(names)
