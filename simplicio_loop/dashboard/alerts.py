@@ -56,7 +56,8 @@ class AlertWatch:
     def __init__(self, silence_ms: int = SILENCE_MS, budget: dict[str, Any] | None = None, *,
                  phase_silence_ms: dict[str, int] | None = None, stall_repeats: int = STALL_REPEATS,
                  decision_wait_ms: int = DECISION_WAIT_MS,
-                 leases: Callable[[], list[dict[str, Any]]] | None = None) -> None:
+                 leases: Callable[[], list[dict[str, Any]]] | None = None,
+                 prices: dict[str, Any] | None = None) -> None:
         self.silence_ms = silence_ms
         self.phase_silence_ms = phase_silence_ms or {}
         self.stall_repeats = stall_repeats
@@ -69,6 +70,10 @@ class AlertWatch:
         self.phase_since_ms: int | None = None
         self.budget = budget or {}
         self.used: dict[str, float | None] = {'tokens': None, 'usd': None, 'seconds': None}
+        self.prices = prices
+        self.priced_usd = 0.0
+        self.priced_seen = False
+        self.usd_unpriced = False
         self.first_ms: int | None = None
         self.last_seq = 0
         self.phase: str | None = None
@@ -112,6 +117,8 @@ class AlertWatch:
             for key in ('tokens', 'usd'):
                 if seen[key] is not None:
                     self.used[key] = (self.used[key] or 0) + seen[key]
+            if kind == 'token_usage' and seen['tokens']:
+                self._price(event)
         if kind == 'phase_entered' and phase:
             if self.stall is not None and self.stall['phase'] != phase:
                 self.stall = None
@@ -138,6 +145,15 @@ class AlertWatch:
                 self.failed_once.add(gate)
             self.gates[gate] = (verdict, message)
 
+    def _price(self, event: dict[str, Any]) -> None:
+        '''USD of one token_usage event through the price table, the budget panel's own estimate path.'''
+        priced = budget_mod.cost_estimate([event], self.prices)
+        if priced['usd'] is None:
+            self.usd_unpriced = True
+            return
+        self.priced_usd += priced['usd']
+        self.priced_seen = True
+
     def _lease_alerts(self) -> list[dict[str, Any]]:
         if self.leases is None:
             return []
@@ -154,12 +170,18 @@ class AlertWatch:
         found = []
         if self.first_ms is not None and self.last_ms is not None:
             self.used['seconds'] = (self.last_ms - self.first_ms) / 1000
+        used = dict(self.used)
+        if used['usd'] is None and self.priced_seen and not self.usd_unpriced:
+            used['usd'] = round(self.priced_usd, 6)
         for key, label in (('tokens', 'tokens'), ('usd', 'USD'), ('seconds', 'segundos')):
-            row = budget_mod.project(self.budget.get(key), self.used[key], self.phase)
+            row = budget_mod.project(self.budget.get(key), used[key], self.phase)
             ref = {'type': 'logs'}
             if row['state'] == 'EXCEEDED':
+                # USD is always priced from the table, so it is an estimate even when the run measured it.
+                proof_kind = 'estimado' if key == 'usd' else 'medido'
                 found.append(_alert('budget-exceeded:' + key, 'budget-exceeded', 'critical', 'Orçamento estourado: ' + label,
-                                    'Uso de %s passou do limite %s (medido).' % (row['used'], row['limit']), ref))
+                                    'Uso de %s passou do limite %s (%s).' % (row['used'], row['limit'], proof_kind), ref,
+                                    proof_kind=proof_kind))
             elif row['state'] == 'PROJECTED_OVER':
                 found.append(_alert('budget-projected:' + key, 'budget-projected', 'warning', 'Projeção passa do orçamento: ' + label,
                                     'Estimado: %s ao fim do run contra o limite %s (extrapolado pela fase).' % (row['projected'], row['limit']), ref,

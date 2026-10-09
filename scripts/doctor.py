@@ -157,6 +157,39 @@ def chk_skills():
                 msg="%d/%d in ~/.claude/skills" % (len(present), len(SKILLS)), repair=repair)
 
 
+def chk_installed_skills_freshness():
+    """Installed host skills must match the package copy (#1472); `--repair` resyncs them."""
+    from simplicio_loop.skill_sync import installed_skill_hosts, resync_installed_skills, stale_skills
+
+    if not installed_skill_hosts(HOME):
+        return dict(name="installed skills freshness", tier="OPTIONAL", status=OK,
+                    msg="no host has the skills installed", repair=None)
+    stale = stale_skills(HOME)
+    if not stale:
+        return dict(name="installed skills freshness", tier="OPTIONAL", status=OK,
+                    msg="installed skills match the package", repair=None)
+    hosts = sorted({e["host"] for e in stale})
+    return dict(name="installed skills freshness", tier="OPTIONAL", status=WARN,
+                msg="diverges from the package in: %s (%d skill dirs)" % (", ".join(hosts), len(stale)),
+                repair=lambda: not resync_installed_skills(HOME)["errors"])
+
+
+def chk_installed_rules_freshness():
+    """Installed host rule files must match the packaged rule (#1472); `--repair` rewrites them."""
+    from simplicio_loop.host_rules import installed_rules, resync_installed_rules, stale_rules
+
+    if not installed_rules(HOME):
+        return dict(name="installed rules freshness", tier="OPTIONAL", status=OK,
+                    msg="no host has the rules installed", repair=None)
+    stale = stale_rules(HOME)
+    if not stale:
+        return dict(name="installed rules freshness", tier="OPTIONAL", status=OK,
+                    msg="installed rules match the package", repair=None)
+    return dict(name="installed rules freshness", tier="OPTIONAL", status=WARN,
+                msg="diverges from the package in: %s" % ", ".join(e["surface"] for e in stale),
+                repair=lambda: not resync_installed_rules(HOME)["errors"])
+
+
 def chk_hooks():
     hooks_ok = (HOME / ".claude" / "hooks" / "loop_stop.py").is_file()
     wired = False
@@ -484,6 +517,7 @@ def chk_exec_clis():
 
 
 CHECKS = [chk_python, chk_operators, chk_mapper_capabilities, chk_skills,
+          chk_installed_skills_freshness, chk_installed_rules_freshness,
           chk_hooks, chk_git_precommit_hook, chk_git_prepush_hook, chk_proxy, chk_wire,
           chk_tray_dep, check_vscode_global, chk_map_service, chk_exec_clis, chk_release_version]
 

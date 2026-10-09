@@ -31,15 +31,19 @@ async def repos() -> list[dict]:
 
 async def open_issues(repo: str) -> list[dict]:
     try:
-        return await gh_json([
+        rows = await gh_json([
             "issue", "list", "--repo", f"{config.ORG}/{repo}", "--state", "open",
-            "--limit", "50", "--json", "number,title,body,createdAt,labels",
+            "--limit", "50", "--json", "number,title,body,createdAt,labels,author,authorAssociation",
         ])
     except RuntimeError as exc:
         if "disabled issues" in str(exc):
             await state.mark_issues_disabled(repo)
             return []
         raise
+    for row in rows:  # the REST shape intake_gate reads
+        row["user"] = {"login": (row.get("author") or {}).get("login", "")}
+        row["author_association"] = row.get("authorAssociation", "")
+    return rows
 
 
 def skipped(issue: dict) -> bool:
@@ -48,12 +52,3 @@ def skipped(issue: dict) -> bool:
         if name in {"simplicio-loop:skip", "wontfix"}:
             return True
     return False
-
-
-async def comment(repo: str, number: int, message: str) -> None:
-    """Comment on the issue; a failure is logged, never raised."""
-    result = await proc.run([
-        "gh", "issue", "comment", str(number), "--repo", f"{config.ORG}/{repo}", "--body", message,
-    ], timeout=60)
-    if result.returncode != 0:
-        state.log(f"comment failed {repo}#{number}: {(result.stderr or '')[:200]}")

@@ -88,6 +88,7 @@ td {
 th {
   font-weight: 600;
   color: var(--sl-ink-muted);
+  white-space: nowrap;
 }
 .hist-run {
   font-family: var(--sl-font-mono);
