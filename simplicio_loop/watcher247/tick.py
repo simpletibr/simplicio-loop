@@ -148,11 +148,14 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
         f"{label}\n\n"
         f"Closes #{issue['number']}\n"
     )
-    created = await proc.run([
+    pr_cmd = [
         "gh", "pr", "create", "--repo", f"{config.ORG}/{repo}",
         "--base", branch, "--head", head,
         "--title", title[:70], "--body", body,
-    ], cwd=dest, timeout=60)
+    ]
+    if squad_flow.pr_draft_enabled():
+        pr_cmd.append("--draft")
+    created = await proc.run(pr_cmd, cwd=dest, timeout=60)
     if created.returncode != 0:
         if "already exists" not in (created.stderr or "").lower():  # the PR may already exist
             raise _fail(created, "pr create failed")
