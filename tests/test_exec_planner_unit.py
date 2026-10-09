@@ -133,6 +133,66 @@ class TestBuildArgvPlanOnly:
             exec_planner.build_argv("invalid", "planning", "t", "m", ".")
 
 
+class TestBuildArgvAgyOpencode:
+    def test_agy_flags_are_verified_plan_only(self):
+        argv = exec_planner.build_argv("agy", "planning", "P", "gemini-3.8-pro", "/w", "high")
+        assert argv[:3] == ["agy", "-p", "P"]
+        assert argv[argv.index("--model") + 1] == "gemini-3.8-pro"
+        assert argv[argv.index("--effort") + 1] == "high"
+        assert argv[argv.index("--mode") + 1] == "plan"
+        assert "--sandbox" in argv
+        assert argv[argv.index("--output-format") + 1] == "json"
+        assert "--dangerously-skip-permissions" not in argv
+
+    def test_agy_default_model_omitted_effort_kept(self):
+        argv = exec_planner.build_argv("agy", "planning", "P", "auto", "/w", "low")
+        assert "--model" not in argv
+        assert argv[argv.index("--effort") + 1] == "low"
+
+    def test_opencode_flags(self):
+        argv = exec_planner.build_argv("opencode", "planning", "P", "anthropic/claude-opus-5-5", "/w", "max")
+        assert argv[:3] == ["opencode", "run", "P"]
+        assert argv[argv.index("--agent") + 1] == "plan"
+        assert argv[argv.index("--format") + 1] == "json"
+        assert argv[argv.index("-m") + 1] == "anthropic/claude-opus-5-5"
+        assert argv[argv.index("--variant") + 1] == "max"
+        assert "--auto" not in argv
+
+    def test_opencode_deny_config_denies_bash_webfetch_edit(self):
+        cfg = exec_planner.OPENCODE_DENY_CONFIG
+        assert cfg["permission"] == {"bash": "deny", "webfetch": "deny", "edit": "deny"}
+
+
+class TestOpencodeDenyConfigEnv:
+    CAPTURE = (
+        "cfg = os.environ.get('OPENCODE_CONFIG')\n"
+        "json.dump({'path': cfg, 'text': open(cfg).read() if cfg else None}, open(os.path.join(d, 'cfg.json'), 'w'))"
+    )
+
+    def test_opencode_gets_temp_config_with_denies_then_cleaned_up(self, bindir, monkeypatch):
+        monkeypatch.delenv("OPENCODE_CONFIG", raising=False)
+        fake_cli(bindir, "opencode", body=self.CAPTURE)
+        res = run(exec_planner.run_planner("opencode", "planning", "x", cwd=str(bindir)))
+        assert res.reason_code == "ok" and res.plan == PLAN
+        seen = json.loads((bindir / "cfg.json").read_text())
+        assert seen["path"]
+        assert json.loads(seen["text"])["permission"] == {"bash": "deny", "webfetch": "deny", "edit": "deny"}
+        assert not os.path.exists(seen["path"])
+
+    def test_temp_config_removed_even_on_failure(self, bindir, monkeypatch):
+        monkeypatch.delenv("OPENCODE_CONFIG", raising=False)
+        fake_cli(bindir, "opencode", body=self.CAPTURE + "\nsys.exit(3)")
+        res = run(exec_planner.run_planner("opencode", "planning", "x", cwd=str(bindir)))
+        assert res.reason_code == "process_error"
+        assert not os.path.exists(json.loads((bindir / "cfg.json").read_text())["path"])
+
+    def test_other_families_get_no_opencode_config(self, bindir, monkeypatch):
+        monkeypatch.delenv("OPENCODE_CONFIG", raising=False)
+        fake_cli(bindir, "claude", body=self.CAPTURE.replace("open(cfg).read() if cfg else None", "None"))
+        run(exec_planner.run_planner("claude", "planning", "x", cwd=str(bindir)))
+        assert json.loads((bindir / "cfg.json").read_text())["path"] is None
+
+
 class TestExtractPlanJson:
     def test_plain_and_embedded(self):
         assert exec_planner._extract_plan_json(json.dumps(PLAN)) == PLAN

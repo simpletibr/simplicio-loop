@@ -2,8 +2,8 @@
 
 The planner never mutates the repo. It returns a plan JSON (``{"operations": [...]}``) that the dev-cli applies
 (``simplicio-loop turbo --apply -``). Every argv therefore uses the CLI's most restrictive non-interactive mode.
-Flags marked VERIFIED were checked against ``<cli> --help`` on the host. gemini, agy and opencode are not installed
-here, so their flags are DOC-BASED (vendor docs) and unverified.
+Flags marked VERIFIED were checked against ``<cli> --help`` on the host (agy 1.3.2, opencode 1.18.30). gemini is not
+installed here, so its flags are DOC-BASED (vendor docs) and unverified.
 """
 
 from __future__ import annotations
@@ -13,12 +13,17 @@ import json
 import os
 import shutil
 import signal
+import tempfile
 import time
 
 from . import model_roles
 
 DEFAULT_FAMILIES = ["claude", "codex", "grok", "gemini"]
 KILL_GRACE_SEC = 3.0
+
+# opencode's built-in `plan` agent denies edits but allows bash and webfetch. This config is written to a temp file and
+# passed through OPENCODE_CONFIG so the planner cannot run commands or fetch URLs.
+OPENCODE_DENY_CONFIG = {"permission": {"bash": "deny", "webfetch": "deny", "edit": "deny"}}
 
 PLAN_ONLY_PREAMBLE = (
     "You are a planner only. Do NOT edit files and do NOT run commands. Reply with exactly one JSON object "
@@ -120,9 +125,8 @@ def _build_argv_gemini(prompt, role, model, effort, cwd):
 
 
 def _build_argv_agy(prompt, role, model, effort, cwd):
-    # VERIFIED on the review host with `agy --help` (version not recorded in the PR): -p/--print, --mode plan,
-    # --sandbox, --output-format json, --model, --effort (low|medium|high|xhigh|max). agy is not installed in the
-    # container that wrote this, so these were not reproduced here.
+    # VERIFIED with `agy --help` (agy 1.3.2): -p/--print, --mode (accept-edits, plan), --sandbox,
+    # --output-format (text, json, stream-json), --model, --effort (low|medium|high|xhigh|max).
     argv = ["agy", "-p", prompt, "--mode", "plan", "--sandbox", "--output-format", "json"]
     if _real_model(model):
         argv.extend(["--model", model])
@@ -132,10 +136,12 @@ def _build_argv_agy(prompt, role, model, effort, cwd):
 
 
 def _build_argv_opencode(prompt, role, model, effort, cwd):
-    # VERIFIED on the review host with `opencode run --help`: the message argument, --format json, -m provider/model,
-    # --variant (effort, provider-specific), --agent. `opencode agent list` confirms the `plan` agent exists.
-    # PARTIAL: the `plan` agent denies edits (except plan .md files) but allows bash, so the read-only limit is
-    # by instruction, not by permission. The preamble tells the planner not to run commands.
+    # VERIFIED with `opencode run --help` (opencode 1.18.30): the message argument, --format json,
+    # -m provider/model, --variant (provider-specific reasoning effort), --agent. `opencode agent list` shows `plan`.
+    # VERIFIED with `opencode debug agent plan`: the built-in `plan` agent allows bash and webfetch, so run_planner
+    # also sets OPENCODE_CONFIG to OPENCODE_DENY_CONFIG (bash, webfetch and edit deny); the resolved plan agent then
+    # lists those denies. DOC-BASED: OPENCODE_CONFIG as an env var is not listed by --help; it comes from the opencode
+    # config docs, and the debug output above is what confirms it takes effect.
     argv = ["opencode", "run", prompt, "--format", "json", "--agent", "plan"]
     if _real_model(model):
         argv.extend(["-m", model])
@@ -213,7 +219,7 @@ async def _kill_process_tree(proc, grace_sec=KILL_GRACE_SEC):
     await proc.wait()
 
 
-async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None, grace_sec=KILL_GRACE_SEC):
+async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None, grace_sec=KILL_GRACE_SEC, env=None):
     """Run a subprocess in its own session and return (stdout, stderr, returncode); kill the tree on timeout."""
     proc = await asyncio.create_subprocess_exec(
         *argv,
@@ -221,6 +227,7 @@ async def _run_subprocess(argv, stdin_text=None, timeout_sec=60.0, cwd=None, gra
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=cwd,
+        env=env,
         start_new_session=True,
     )
     try:
@@ -293,12 +300,25 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
         return _result("bad_argv", family, role, model, effort, started, error=str(e))
 
     stdin_text = full_prompt if family == "codex" else None
+    env = None
+    config_path = None
+    if family == "opencode":
+        fd, config_path = tempfile.mkstemp(prefix="simplicio-opencode-", suffix=".json")
+        with os.fdopen(fd, "w") as handle:
+            json.dump(OPENCODE_DENY_CONFIG, handle)
+        env = {**os.environ, "OPENCODE_CONFIG": config_path}
     try:
         stdout, stderr, returncode = await _run_subprocess(
-            argv, stdin_text=stdin_text, timeout_sec=timeout_sec, cwd=cwd, grace_sec=grace_sec
+            argv, stdin_text=stdin_text, timeout_sec=timeout_sec, cwd=cwd, grace_sec=grace_sec, env=env
         )
     except asyncio.TimeoutError:
         return _result("timeout", family, role, model, effort, started, error="timeout")
+    finally:
+        if config_path:
+            try:
+                os.unlink(config_path)
+            except OSError:
+                pass
 
     failure = classify_failure(returncode, stderr, stdout)
     if failure:
