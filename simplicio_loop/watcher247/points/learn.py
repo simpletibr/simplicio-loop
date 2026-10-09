@@ -1,4 +1,4 @@
-"""learn (done): call the existing learn implementation to update precedents after a SOLVED run.
+"""learn (done): the ONLY caller of retrospective to aggregate and deduplicate lessons.
 
 Only runs when the turbo_json status is ok (solved). Updates the precedents ledger by calling
 the existing retrospective function to deduplicate and merge lessons.

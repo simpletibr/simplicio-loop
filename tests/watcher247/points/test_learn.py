@@ -77,4 +77,4 @@ def test_records_lessons_from_solved_run(point_contract, make_ctx, tmp_path):
         make_ctx(state_dir=state_dir, run_dir=run_dir, turbo_json={"status": "ok"}),
         expect="ok"
     )
-    assert result.evidence["new_lessons"] >= 2
+    assert result.evidence["new_lessons"] == 2
