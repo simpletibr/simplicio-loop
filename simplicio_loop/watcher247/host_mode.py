@@ -196,7 +196,8 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
             planned = await exec_planner.run_planner_with_fallback(
                 ladder.current_role(), plan_prompt(request, failure), cwd=str(dest),
                 timeout_sec=config.PLAN_TIMEOUT_S, families=list(executor.families),
-                wrap=lambda argv: sandbox.wrap(argv, clone=dest, state_dir=config.ROOT), env_for=_planner_env)
+                wrap=lambda argv: sandbox.wrap(argv, clone=dest, state_dir=config.ROOT), env_for=_planner_env,
+                config_dir=config.ROOT / "opencode")  # inside the bound state dir: /tmp is a tmpfs in the sandbox
             ladder.family = planned.family or ladder.family
             ok, failure, tokens_report, label, result, status = False, "", None, "", None, "failed"
             if planned.is_ok():

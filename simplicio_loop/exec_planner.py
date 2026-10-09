@@ -281,11 +281,14 @@ def _result(code, family, role, model, effort, started, plan=None, error=None):
     return PlannerResult(code, family, role, model, effort, plan=plan, error=error, execution_ms=(time.monotonic() - started) * 1000)
 
 
-async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_sec=KILL_GRACE_SEC, wrap=None, env=None):
+async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_sec=KILL_GRACE_SEC, wrap=None, env=None,
+                      config_dir=None):
     """Run the planner CLI for a specific family and role.
 
     ``wrap`` maps the argv to the argv actually spawned (the watcher passes its sandbox); the default is the identity.
     ``env`` is the whole environment of the subprocess; the default inherits the caller's.
+    ``config_dir`` is where the opencode deny config is written (default: the system temp dir). A sandbox that mounts a
+    tmpfs on /tmp hides that file, so opencode would then run WITHOUT the deny rules: pass a directory the sandbox binds.
     """
     started = time.monotonic()
     try:
@@ -303,16 +306,17 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
     except ExecPlannerError as e:
         return _result("bad_argv", family, role, model, effort, started, error=str(e))
 
+    if wrap is not None:
+        argv = wrap(argv)  # before any temp file exists: a refusing wrapper must not leave one behind
     stdin_text = full_prompt if family == "codex" else None
     config_path = None
     if family == "opencode":
-        # The config file lives in /tmp, which a bwrap wrapper hides behind a tmpfs: opencode needs a wrapper without it.
-        fd, config_path = tempfile.mkstemp(prefix="simplicio-opencode-", suffix=".json")
+        if config_dir is not None:
+            os.makedirs(config_dir, exist_ok=True)
+        fd, config_path = tempfile.mkstemp(prefix="simplicio-opencode-", suffix=".json", dir=config_dir)
         with os.fdopen(fd, "w") as handle:
             json.dump(OPENCODE_DENY_CONFIG, handle)
         env = {**(os.environ if env is None else env), "OPENCODE_CONFIG": config_path}
-    if wrap is not None:
-        argv = wrap(argv)
     try:
         stdout, stderr, returncode = await _run_subprocess(
             argv, stdin_text=stdin_text, timeout_sec=timeout_sec, cwd=cwd, grace_sec=grace_sec, env=env
@@ -339,7 +343,7 @@ async def run_planner(family, role, prompt, cwd=None, timeout_sec=60.0, grace_se
 
 
 async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, families=None, grace_sec=KILL_GRACE_SEC,
-                                    wrap=None, env_for=None):
+                                    wrap=None, env_for=None, config_dir=None):
     """Try to run planner with each family in order, falling back on non-fatal errors.
 
     ``wrap`` and ``env_for(family)`` are passed to run_planner (the argv wrapper and the per-family environment).
@@ -347,7 +351,7 @@ async def run_planner_with_fallback(role, prompt, cwd=None, timeout_sec=60.0, fa
     last_result = None
     for family in families or _get_families():
         result = await run_planner(family, role, prompt, cwd, timeout_sec, grace_sec, wrap=wrap,
-                                   env=env_for(family) if env_for else None)
+                                   env=env_for(family) if env_for else None, config_dir=config_dir)
         if result.reason_code in ("bad_role", "bad_argv") or result.is_ok():
             return result
         last_result = result

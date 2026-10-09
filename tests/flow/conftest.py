@@ -4,8 +4,8 @@ Everything real stays real: the Mapper (`simplicio-mapper`), the Dev CLI (`simpl
 `simplicio-loop turbo` run as subprocesses from the dev venv. Only the three external edges are fake:
 
 * GitHub: a `gh` script on PATH that answers from a JSON fixture and logs every call;
-* the model: a localhost HTTP server speaking the OpenRouter chat shape, reached by the turbo
-  subprocess through a `sitecustomize` that points `turbo_provider.API_URL` at it;
+* the planner: a `claude` script on PATH that answers `auth status` and prints the plan as the real CLI's
+  `--output-format json` envelope (the watcher's default executor is `exec`: an exec CLI plans, turbo applies);
 * the git remote: a bare repository on disk, cloned with `file://`.
 """
 from __future__ import annotations
@@ -14,8 +14,6 @@ import json
 import os
 import subprocess
 import sys
-import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -159,41 +157,31 @@ else:
 '''
 
 # The watcher runs its subprocesses with a scrubbed env (PATH only), so the checkout paths and the fake
-# model URL are baked into these shims instead of travelling through PYTHONPATH or the environment.
+# planner's log are baked into these shims instead of travelling through PYTHONPATH or the environment.
 SHIM = '''#!{python}
 import sys
 for _path in {paths!r}:
     sys.path.insert(0, _path)
-{prelude}from {module} import main
+from {module} import main
 raise SystemExit(main())
 '''
-MODEL_PRELUDE = "import simplicio_loop.turbo_provider as _provider\n_provider.API_URL = {url!r}\n"
+
+# The planner CLI of the default executor (`exec`, family claude). Like the real one it answers `auth status`
+# (the preflight) and, for `-p <prompt> --output-format json`, prints the envelope {{"result": "<plan json>"}}.
+FAKE_CLAUDE = '''#!{python}
+import json, sys
+args = sys.argv[1:]
+if args[:2] == ["auth", "status"]:
+    raise SystemExit(0)
+with open({log!r}, "a") as fh:
+    fh.write(json.dumps(args) + "\\n")
+print(json.dumps({{"result": json.dumps({plan!r})}}))
+'''
 
 
-def write_shim(path: Path, paths: list[Path], module: str, prelude: str = "") -> None:
-    path.write_text(SHIM.format(python=sys.executable, paths=[str(p) for p in paths], prelude=prelude, module=module))
+def write_shim(path: Path, paths: list[Path], module: str) -> None:
+    path.write_text(SHIM.format(python=sys.executable, paths=[str(p) for p in paths], module=module))
     path.chmod(0o755)
-
-
-class _Planner(BaseHTTPRequestHandler):
-    def do_POST(self) -> None:
-        length = int(self.headers.get("Content-Length", 0))
-        self.rfile.read(length)
-        self.server.calls.append(self.path)
-        reply = {
-            "model": "fake-planner",
-            "choices": [{"message": {"role": "assistant", "content": json.dumps(PLAN)}, "finish_reason": "stop"}],
-            "usage": {"prompt_tokens": 10, "completion_tokens": 5},
-        }
-        data = json.dumps(reply).encode()
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
-
-    def log_message(self, *_args) -> None:
-        return
 
 
 @pytest.fixture(scope="module")
@@ -207,21 +195,13 @@ def remote_bare(flow_base: Path) -> Path:
 
 
 @pytest.fixture(scope="module")
-def fake_model(flow_base: Path):
-    """Localhost planner; `calls` records every request it answered."""
-    server = ThreadingHTTPServer(("127.0.0.1", 0), _Planner)
-    server.calls = []
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        yield {"url": f"http://127.0.0.1:{server.server_address[1]}/api/v1/chat/completions", "server": server}
-    finally:
-        server.shutdown()
-        server.server_close()
+def planner_log(flow_base: Path) -> Path:
+    """One JSON line (the argv) per prompt the fake `claude` planner answered."""
+    return flow_base / "planner-calls.jsonl"
 
 
 @pytest.fixture(scope="module")
-def fake_gh_env(flow_base: Path, remote_bare: Path, fake_model):
+def fake_gh_env(flow_base: Path, remote_bare: Path, planner_log: Path):
     """PATH with the fake `gh` and the venv binaries, plus the env the watcher and turbo subprocesses need."""
     bin_dir = flow_base / "bin"
     bin_dir.mkdir(exist_ok=True)
@@ -230,10 +210,14 @@ def fake_gh_env(flow_base: Path, remote_bare: Path, fake_model):
     gh.chmod(0o755)
     # The watcher and turbo must run THIS checkout, never a `simplicio-loop`, `simplicio-mapper` or
     # `simplicio-dev-cli` installed on the host: each name on PATH is a shim over the checkout's code.
-    write_shim(bin_dir / "simplicio-loop", [REPO_ROOT], "simplicio_loop.cli",
-               MODEL_PRELUDE.format(url=fake_model["url"]))
+    write_shim(bin_dir / "simplicio-loop", [REPO_ROOT], "simplicio_loop.cli")
     write_shim(bin_dir / "simplicio-mapper", [REPO_ROOT / "packages" / "mapper"], "simplicio_mapper.cli")
     write_shim(bin_dir / "simplicio-dev-cli", [REPO_ROOT / "packages" / "dev-cli"], "simplicio.cli")
+    # The default executor tries claude, codex, grok and gemini in order: this `claude` comes first on PATH and
+    # is the only family enabled, so a real CLI installed on the host is never spawned.
+    claude = bin_dir / "claude"
+    claude.write_text(FAKE_CLAUDE.format(python=sys.executable, log=str(planner_log), plan=PLAN))
+    claude.chmod(0o755)
     fixtures = {
         "repos": [{"name": REPO_NAME, "isArchived": False, "defaultBranchRef": {"name": "main"}}],
         "issues": {f"simpletibr/{REPO_NAME}": [{
@@ -251,7 +235,7 @@ def fake_gh_env(flow_base: Path, remote_bare: Path, fake_model):
         "PYTHONPATH": str(REPO_ROOT),
         # The sandbox (bwrap) has its own tests (#1494); here it would hide the shims under /tmp.
         "SIMPLICIO_247_ALLOW_UNSANDBOXED": "1",
-        "OPENROUTER_API_KEY": "flow-test-key",
+        "SIMPLICIO_EXEC_FAMILIES": "claude",
         "FAKE_GH_FIXTURES": str(fixtures_path),
         "FAKE_GH_LOG": str(flow_base / "gh-calls.jsonl"),
         "GIT_TERMINAL_PROMPT": "0",
