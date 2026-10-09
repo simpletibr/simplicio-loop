@@ -20,10 +20,13 @@ const NO_SLOTS = 'slots não medidos';
 const NO_BREAKDOWN_TOKENS = 'tokens do provedor não medidos';
 const MAX_POINTS = 60;
 const SEGMENT_CLASSES = 6;
+const MAX_ROWS = 20;
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isText = (value) => typeof value === 'string' && value.trim() !== '';
 const isCount = (value) => Number.isFinite(value) && value >= 0;
+const isOthers = (row) => Number.isInteger(row.others) && row.others > 0;
+const countOf = (row) => (isOthers(row) ? row.others : 1);
 
 function commandOf(value) {
   if (!isObject(value) || !isText(value.command)) return { state: 'UNVERIFIED', text: NO_COMMAND };
@@ -65,20 +68,22 @@ function runningOf(value) {
 
 // Model and tokens are measured; role and effort are the model-roles table default and say so; the cost of a stage is always an estimate.
 function stageText(row) {
-  const who = isText(row.role) ? row.role + (isText(row.effort) ? '/' + row.effort : '') + ' (padrão da tabela)' : 'sem papel';
   const usd = Number.isFinite(row.cost_usd)
     ? 'US$ ' + row.cost_usd.toFixed(4) + ' estimado'
     : 'custo UNVERIFIED (' + (isText(row.reason) ? row.reason : NO_COST) + ')';
+  const tokens = ', entrada ' + (isCount(row.tokens_in) ? row.tokens_in : 0) + ', saída ' + (isCount(row.tokens_out) ? row.tokens_out : 0);
+  if (isOthers(row)) return 'outros (' + row.others + '):' + tokens.slice(1) + ', ' + usd;
+  const who = isText(row.role) ? row.role + (isText(row.effort) ? '/' + row.effort : '') + ' (padrão da tabela)' : 'sem papel';
   return (isText(row.phase) ? row.phase : 'sem fase') + ': ' + who + ' ' + (isText(row.model) ? row.model : 'sem modelo')
-    + ', entrada ' + (isCount(row.tokens_in) ? row.tokens_in : 0) + ', saída ' + (isCount(row.tokens_out) ? row.tokens_out : 0)
-    + ', ' + usd;
+    + tokens + ', ' + usd;
 }
 
 function stagesOf(stages) {
   const rows = isObject(stages) && stages.schema === STAGE_SCHEMA && Array.isArray(stages.rows)
     ? stages.rows.filter(isObject) : [];
   if (rows.length === 0) return { state: 'UNVERIFIED', text: NO_STAGES };
-  return { state: rows.some((row) => Number.isFinite(row.cost_usd)) ? 'ESTIMADO' : 'UNVERIFIED', text: rows.map(stageText).join('; ') };
+  const limited = foldRows(rows);
+  return { state: limited.some((row) => Number.isFinite(row.cost_usd)) ? 'ESTIMADO' : 'UNVERIFIED', text: limited.map(stageText).join('; ') };
 }
 
 function runCostOf(stages) {
@@ -101,6 +106,7 @@ export function pushPoint(history, value) {
 const NONE = { phase: 'sem fase', lane: 'sem lane', model: 'sem modelo', task: 'sem tarefa', iteration: 'sem iteração' };
 
 function nameOf(row, none) {
+  if (isOthers(row)) return 'outros (' + row.others + ')';
   if (isText(row.key)) return row.key;
   if (Number.isInteger(row.key) && row.key >= 0) {
     return 'iteração ' + row.key + (isText(row.source) && row.source !== 'evento' ? ' (' + row.source + ')' : '');
@@ -108,8 +114,29 @@ function nameOf(row, none) {
   return none;
 }
 
+// A reply longer than the server's cap (an older server or a hostile reply) is cut to MAX_ROWS rows plus one "outros (N)"
+// row that sums the rest, so the totals stay true and the DOM stays small. A tail with an unpriced row has no cost.
+function foldRows(rows) {
+  if (rows.length <= MAX_ROWS + 1) return rows;
+  const rest = { key: null, others: 0, tokens: 0, tokens_in: 0, tokens_out: 0, claims: 0, cost_usd: 0, reason: null };
+  let priced = true;
+  for (let i = MAX_ROWS; i < rows.length; i += 1) {
+    const row = rows[i];
+    rest.others += countOf(row);
+    for (const field of ['tokens', 'tokens_in', 'tokens_out', 'claims']) rest[field] += isCount(row[field]) ? row[field] : 0;
+    if (Number.isFinite(row.cost_usd) && row.cost_usd >= 0) rest.cost_usd += row.cost_usd;
+    else {
+      priced = false;
+      if (rest.reason === null && isText(row.reason)) rest.reason = row.reason;
+    }
+  }
+  if (!priced) rest.cost_usd = null;
+  return rows.slice(0, MAX_ROWS).concat([rest]);
+}
+
 function tokenWidget(label, rows, none, tokens) {
-  const usable = rows.filter((row) => isCount(row.tokens) && row.tokens > 0);
+  const limited = foldRows(rows);
+  const usable = limited.filter((row) => isCount(row.tokens) && row.tokens > 0);
   if (usable.length === 0) {
     const reason = isObject(tokens) && isText(tokens.reason) ? tokens.reason : NO_BREAKDOWN_TOKENS;
     return { label, state: 'UNVERIFIED', text: reason, segments: [], legend: [] };
@@ -119,21 +146,34 @@ function tokenWidget(label, rows, none, tokens) {
   return { label, state: 'PASS', text: total + ' tokens medidos', segments, legend: segments.map((seg) => ({ text: seg.text })) };
 }
 
+const isPriced = (row) => Number.isFinite(row.cost_usd) && row.cost_usd >= 0;
+
 function costWidget(label, rows, none) {
   if (rows.length === 0) return { label, state: 'UNVERIFIED', text: NO_COST, segments: [], legend: [] };
-  const priced = rows.filter((row) => Number.isFinite(row.cost_usd) && row.cost_usd >= 0);
+  const limited = foldRows(rows);
+  const priced = limited.filter(isPriced);
   const total = priced.reduce((sum, row) => sum + row.cost_usd, 0);
+  const unpriced = limited.reduce((sum, row) => sum + (isPriced(row) ? 0 : countOf(row)), 0);
   const usd = (row) => 'US$ ' + row.cost_usd.toFixed(4) + ' estimado';
-  const legend = rows.map((row) => ({
-    text: nameOf(row, none) + ': ' + (priced.includes(row) ? usd(row) : 'custo UNVERIFIED (' + (isText(row.reason) ? row.reason : NO_COST) + ')'),
+  const legend = limited.map((row) => ({
+    text: nameOf(row, none) + ': ' + (isPriced(row) ? usd(row) : 'custo UNVERIFIED (' + (isText(row.reason) ? row.reason : NO_COST) + ')'),
   }));
   const segments = priced.filter((row) => row.cost_usd > 0)
     .map((row) => ({ text: nameOf(row, none) + ': ' + usd(row), pct: percentOf(row.cost_usd, total) }));
   if (priced.length === 0) {
-    const reason = rows.find((row) => isText(row.reason));
+    const reason = limited.find((row) => isText(row.reason));
     return { label, state: 'UNVERIFIED', text: reason ? reason.reason : NO_COST, segments, legend };
   }
-  return { label, state: 'ESTIMADO', text: 'US$ ' + total.toFixed(4) + ' estimado', segments, legend };
+  // The headline sums only the priced rows, so it says how many it left out.
+  const partial = unpriced > 0 ? ' (parcial: ' + unpriced + ' sem preço)' : '';
+  return { label, state: 'ESTIMADO', text: 'US$ ' + total.toFixed(4) + ' estimado' + partial, segments, legend };
+}
+
+// "a, b (+K)": the listed values (at most MAX_ROWS) and how many more the lane has when its reply says so.
+function listOf(list, total) {
+  const shown = (Array.isArray(list) ? list.filter(isText) : []).slice(0, MAX_ROWS);
+  const more = Number.isInteger(total) ? total - shown.length : 0;
+  return { empty: shown.length === 0, text: shown.join(', ') + (more > 0 ? ' (+' + more + ')' : '') };
 }
 
 function agentMapWidget(map) {
@@ -142,19 +182,21 @@ function agentMapWidget(map) {
   if (lanes.length === 0) {
     return { label, state: 'UNVERIFIED', text: isText(map && map.reason) ? map.reason : NO_CLAIMS, segments: [], legend: [] };
   }
-  const texts = (list) => (Array.isArray(list) ? list.filter(isText) : []);
-  const legend = lanes.map((lane) => {
-    const tasks = texts(lane.tasks);
-    const leases = texts(lane.lease_ids);
-    const lease = leases.length ? ', leases ' + leases.join(', ')
-      : ', lease UNVERIFIED (' + (isText(lane.lease_reason) ? lane.lease_reason : NO_LEASE) + ')';
-    return { text: nameOf(lane, NONE.lane) + ': ' + (isCount(lane.claims) ? lane.claims : 0) + ' claims'
-      + (tasks.length ? ', tarefas ' + tasks.join(', ') : '') + lease };
+  const limited = foldRows(lanes);
+  const legend = limited.map((lane) => {
+    const head = nameOf(lane, NONE.lane) + ': ' + (isCount(lane.claims) ? lane.claims : 0) + ' claims';
+    if (isOthers(lane)) return { text: head };
+    const tasks = listOf(lane.tasks, lane.tasks_total);
+    const leases = listOf(lane.lease_ids, lane.lease_ids_total);
+    const lease = leases.empty ? ', lease UNVERIFIED (' + (isText(lane.lease_reason) ? lane.lease_reason : NO_LEASE) + ')'
+      : ', leases ' + leases.text;
+    return { text: head + (tasks.empty ? '' : ', tarefas ' + tasks.text) + lease };
   });
   const slots = isObject(map.slots) ? map.slots : {};
   legend.push({ text: 'slots ' + (slots.state === 'PASS' ? 'PASS' : 'UNVERIFIED (' + (isText(slots.reason) ? slots.reason : NO_SLOTS) + ')') });
-  const claims = lanes.reduce((sum, lane) => sum + (isCount(lane.claims) ? lane.claims : 0), 0);
-  return { label, state: 'PASS', text: lanes.length + ' lanes, ' + claims + ' claims (worker_claimed)', segments: [], legend };
+  const claims = limited.reduce((sum, lane) => sum + (isCount(lane.claims) ? lane.claims : 0), 0);
+  const count = limited.reduce((sum, lane) => sum + countOf(lane), 0);
+  return { label, state: 'PASS', text: count + ' lanes, ' + claims + ' claims (worker_claimed)', segments: [], legend };
 }
 
 // The #1550 widgets of the stage-agents reply; an older reply without a breakdown adds none.

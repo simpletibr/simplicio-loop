@@ -460,7 +460,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         stage_route = _STAGE_AGENTS_RE.fullmatch(raw_path)
         if stage_route:
             ref = _find_run(self.server, urllib.parse.unquote(stage_route.group(1)))
-            self._send_json(200, stage_costs.view(dashboard_events.read_events(ref['run_dir']), price_table()))
+            self._send_json(200, stage_costs.run_view(ref['run_dir'], price_table()))
             return
         artifact = _ARTIFACT_RE.fullmatch(raw_path)
         if artifact:
