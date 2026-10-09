@@ -20,7 +20,7 @@ LIVE = STATIC / 'live'
 EXTRAS_DIR = STATIC / 'extras'
 MODULE = EXTRAS_DIR / 'extras.js'
 STYLE = EXTRAS_DIR / 'extras.css'
-LABELS = ['Último comando medido', 'Contrato por tarefa', 'Modelo por lane', 'Batimento do lease', 'Agentes por etapa',
+LABELS = ['Último comando medido', 'Comando em execução', 'Contrato por tarefa', 'Modelo por lane', 'Batimento do lease', 'Agentes por etapa',
           'Custo do run']
 # A bar width goes through the CSSOM (style.setProperty), which the CSP style-src 'self' allows; a style attribute, an
 # assignment to .style and cssText stay forbidden.
@@ -30,6 +30,7 @@ MOTION = re.compile(r'(?<![\w-])(?:animation|transition)(?:-[a-z-]+)?\s*:', re.I
 VALID = {
     'schema': 'simplicio.dashboard-extras/v1',
     'last_command': {'command': 'pytest tests/x.py -q', 'kind': 'test', 'at': '2026-10-08T10:00:00Z'},
+    'running_command': {'state': 'PASS', 'reason': 'lane-a: em execução há 12 s: pytest -q', 'lanes': []},
     'tasks': [{'task_id': 'T1', 'title': 'Primeira tarefa'}, {'task_id': 'T2', 'title': 'Segunda'}],
     'models': [{'lane': 'coder', 'model': 'm-1', 'input_tokens': 1200, 'output_tokens': 300}],
     'heartbeat': {'state': 'UNVERIFIED', 'reason': 'lease sem batimento medido'},
@@ -46,7 +47,7 @@ STAGES = {
 }
 NO_STAGES = {'schema': 'simplicio.dashboard-stage-agents/v1', 'rows': [],
              'cost': {'usd': None, 'state': 'UNVERIFIED', 'proof_kind': 'estimado', 'reason': 'tokens não medidos'}}
-NO_DATA = {'schema': 'simplicio.dashboard-extras/v1', 'last_command': None, 'tasks': [], 'models': [], 'heartbeat': None}
+NO_DATA = {'schema': 'simplicio.dashboard-extras/v1', 'last_command': None, 'running_command': None, 'tasks': [], 'models': [], 'heartbeat': None}
 
 
 def _node():
@@ -114,7 +115,7 @@ def _start(run_id, replies, ticks=0):
 
 
 def _all_unverified(rows):
-    return [row['state'] for row in rows] == ['UNVERIFIED'] * 6 and [row['label'] for row in rows] == LABELS
+    return [row['state'] for row in rows] == ['UNVERIFIED'] * 7 and [row['label'] for row in rows] == LABELS
 
 
 def test_the_extras_module_exports_the_contract():
@@ -126,11 +127,12 @@ def test_the_extras_module_exports_the_contract():
 def test_a_missing_reply_leaves_every_row_unverified_with_its_reason():
     assert _extras_of(None) == [
         {'label': LABELS[0], 'state': 'UNVERIFIED', 'text': 'nenhum teste ou lint medido'},
-        {'label': LABELS[1], 'state': 'UNVERIFIED', 'text': 'task-contract.json sem tarefas'},
-        {'label': LABELS[2], 'state': 'UNVERIFIED', 'text': 'sem token_usage medido'},
-        {'label': LABELS[3], 'state': 'UNVERIFIED', 'text': 'sem batimento do lease medido'},
-        {'label': LABELS[4], 'state': 'UNVERIFIED', 'text': 'sem token_usage por etapa medido'},
-        {'label': LABELS[5], 'state': 'UNVERIFIED', 'text': 'custo do run não estimado'},
+        {'label': LABELS[1], 'state': 'UNVERIFIED', 'text': 'nenhum command_started medido'},
+        {'label': LABELS[2], 'state': 'UNVERIFIED', 'text': 'task-contract.json sem tarefas'},
+        {'label': LABELS[3], 'state': 'UNVERIFIED', 'text': 'sem token_usage medido'},
+        {'label': LABELS[4], 'state': 'UNVERIFIED', 'text': 'sem batimento do lease medido'},
+        {'label': LABELS[5], 'state': 'UNVERIFIED', 'text': 'sem token_usage por etapa medido'},
+        {'label': LABELS[6], 'state': 'UNVERIFIED', 'text': 'custo do run não estimado'},
     ]
 
 
@@ -140,48 +142,54 @@ def test_a_foreign_or_malformed_reply_is_all_unverified(reply):
 
 
 def test_a_valid_reply_shows_the_measured_rows():
-    assert _extras_of(VALID)[:4] == [
+    assert _extras_of(VALID)[:5] == [
         {'label': LABELS[0], 'state': 'PASS', 'text': 'pytest tests/x.py -q (test)'},
-        {'label': LABELS[1], 'state': 'PASS', 'text': 'T1: Primeira tarefa; T2: Segunda'},
-        {'label': LABELS[2], 'state': 'PASS', 'text': 'coder: m-1, entrada 1200, saída 300'},
-        {'label': LABELS[3], 'state': 'UNVERIFIED', 'text': 'lease sem batimento medido'},
+        {'label': LABELS[1], 'state': 'PASS', 'text': 'lane-a: em execução há 12 s: pytest -q'},
+        {'label': LABELS[2], 'state': 'PASS', 'text': 'T1: Primeira tarefa; T2: Segunda'},
+        {'label': LABELS[3], 'state': 'PASS', 'text': 'coder: m-1, entrada 1200, saída 300'},
+        {'label': LABELS[4], 'state': 'UNVERIFIED', 'text': 'lease sem batimento medido'},
     ]
 
 
 def test_the_stage_rows_list_role_model_tokens_and_cost_as_estimates_and_the_run_cost_is_visible():
     rows = _extras_of(VALID, STAGES)
-    assert rows[4] == {'label': LABELS[4], 'state': 'ESTIMADO', 'text': (
+    assert rows[5] == {'label': LABELS[5], 'state': 'ESTIMADO', 'text': (
         'planning: planning/high (padrão da tabela) m-a, entrada 1000, saída 200, US$ 0.0123 estimado; '
         'executing: sem papel m-b, entrada 50, saída 5, custo UNVERIFIED (modelo sem preço)')}
-    assert rows[5] == {'label': LABELS[5], 'state': 'ESTIMADO', 'text': 'US$ 0.0123 estimado'}
+    assert rows[6] == {'label': LABELS[6], 'state': 'ESTIMADO', 'text': 'US$ 0.0123 estimado'}
 
 
 def test_a_stage_reply_without_rows_stays_unverified_with_the_cost_reason():
     rows = _extras_of(VALID, NO_STAGES)
-    assert (rows[4]['state'], rows[4]['text']) == ('UNVERIFIED', 'sem token_usage por etapa medido')
-    assert (rows[5]['state'], rows[5]['text']) == ('UNVERIFIED', 'tokens não medidos')
+    assert (rows[5]['state'], rows[5]['text']) == ('UNVERIFIED', 'sem token_usage por etapa medido')
+    assert (rows[6]['state'], rows[6]['text']) == ('UNVERIFIED', 'tokens não medidos')
 
 
 @pytest.mark.parametrize('stages', ['x', 7, [], dict(STAGES, schema='simplicio.other/v1')])
 def test_a_foreign_stage_reply_is_unverified(stages):
-    assert [row['state'] for row in _extras_of(VALID, stages)[4:]] == ['UNVERIFIED', 'UNVERIFIED']
+    assert [row['state'] for row in _extras_of(VALID, stages)[5:]] == ['UNVERIFIED', 'UNVERIFIED']
 
 
 @pytest.mark.parametrize('changes, index, state, text', [
     ({'last_command': None}, 0, 'UNVERIFIED', 'nenhum teste ou lint medido'),
     ({'last_command': {'command': '', 'kind': 'lint'}}, 0, 'UNVERIFIED', 'nenhum teste ou lint medido'),
     ({'last_command': {'command': 'ruff check .'}}, 0, 'PASS', 'ruff check .'),
-    ({'tasks': []}, 1, 'UNVERIFIED', 'task-contract.json sem tarefas'),
-    ({'tasks': 'T1'}, 1, 'UNVERIFIED', 'task-contract.json sem tarefas'),
-    ({'tasks': [{'title': 'sem id'}, 'x']}, 1, 'UNVERIFIED', 'task-contract.json sem tarefas'),
-    ({'tasks': [{'task_id': 'T1', 'title': 'A'}, {'title': 'sem id'}]}, 1, 'PASS', 'T1: A'),
-    ({'models': []}, 2, 'UNVERIFIED', 'sem token_usage medido'),
-    ({'models': [{'lane': 'coder', 'model': 'm-1', 'input_tokens': 1}]}, 2, 'UNVERIFIED', 'sem token_usage medido'),
-    ({'models': [{'lane': 'coder', 'model': 'm-1', 'input_tokens': '1', 'output_tokens': 2}]}, 2, 'UNVERIFIED',
+    ({'running_command': None}, 1, 'UNVERIFIED', 'nenhum command_started medido'),
+    ({'running_command': {'state': 'PASS', 'reason': ''}}, 1, 'UNVERIFIED', 'nenhum command_started medido'),
+    ({'running_command': {'state': 'UNVERIFIED', 'reason': 'nenhum command_started no run'}}, 1, 'UNVERIFIED', 'nenhum command_started no run'),
+    ({'running_command': {'state': 'STALLED', 'reason': 'x'}}, 1, 'UNVERIFIED', 'x'),
+    ({'running_command': {'state': 'PASS', 'reason': 'nenhum comando em execução segundo os eventos'}}, 1, 'PASS', 'nenhum comando em execução segundo os eventos'),
+    ({'tasks': []}, 2, 'UNVERIFIED', 'task-contract.json sem tarefas'),
+    ({'tasks': 'T1'}, 2, 'UNVERIFIED', 'task-contract.json sem tarefas'),
+    ({'tasks': [{'title': 'sem id'}, 'x']}, 2, 'UNVERIFIED', 'task-contract.json sem tarefas'),
+    ({'tasks': [{'task_id': 'T1', 'title': 'A'}, {'title': 'sem id'}]}, 2, 'PASS', 'T1: A'),
+    ({'models': []}, 3, 'UNVERIFIED', 'sem token_usage medido'),
+    ({'models': [{'lane': 'coder', 'model': 'm-1', 'input_tokens': 1}]}, 3, 'UNVERIFIED', 'sem token_usage medido'),
+    ({'models': [{'lane': 'coder', 'model': 'm-1', 'input_tokens': '1', 'output_tokens': 2}]}, 3, 'UNVERIFIED',
      'sem token_usage medido'),
-    ({'heartbeat': None}, 3, 'UNVERIFIED', 'sem batimento do lease medido'),
-    ({'heartbeat': {'state': 'PASS', 'reason': 'batimento há 3 s'}}, 3, 'PASS', 'batimento há 3 s'),
-    ({'heartbeat': {'state': 'STALLED', 'reason': 'sem batimento'}}, 3, 'UNVERIFIED', 'sem batimento'),
+    ({'heartbeat': None}, 4, 'UNVERIFIED', 'sem batimento do lease medido'),
+    ({'heartbeat': {'state': 'PASS', 'reason': 'batimento há 3 s'}}, 4, 'PASS', 'batimento há 3 s'),
+    ({'heartbeat': {'state': 'STALLED', 'reason': 'sem batimento'}}, 4, 'UNVERIFIED', 'sem batimento'),
 ])
 def test_each_row_turns_pass_only_on_a_measured_value(changes, index, state, text):
     row = _extras_of(dict(VALID, **changes))[index]
@@ -486,3 +494,14 @@ def test_hostile_model_phase_lane_and_task_names_stay_inert_text():
     for node in nodes:
         assert node['children'] == [] or node['text'] == '', node['tag']
         assert 'onerror' not in json.dumps(node['attrs']) and 'onerror' not in json.dumps(node['props'])
+
+def test_hostile_running_command_text_stays_inert():
+    reply = dict(VALID, running_command={'state': 'PASS', 'reason': 'lane-a: em execucao ha 3 s: ' + HOSTILE + ' <script>alert(2)</script> javascript:alert(3) " onmouseover="x'})
+    tree = _dom([reply, None])
+    nodes = list(_walk(tree))
+    assert {n['tag'] for n in nodes} <= {'section', 'h2', 'dl', 'div', 'dt', 'dd', 'span', 'ul', 'li', 'sl-sparkline'}
+    assert any(HOSTILE in n['text'] for n in nodes), 'the hostile running_command reason must be visible as text'
+    for node in nodes:
+        assert node['children'] == [] or node['text'] == '', node['tag']
+        assert 'onerror' not in json.dumps(node['attrs']) and 'onerror' not in json.dumps(node['props'])
+        assert 'onmouseover' not in json.dumps(node['attrs']) and 'onmouseover' not in json.dumps(node['props'])
