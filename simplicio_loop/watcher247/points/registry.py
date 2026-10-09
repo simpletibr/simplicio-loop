@@ -9,7 +9,8 @@ call per stage, so adding a point never touches ``tick.py``.
   FAILED ATTEMPT (the tick retries with the reasons and marks the issue dead only at the attempt limit);
   ``deferred`` is a transient condition (low disk, high load): it stops the stage with ``PointDeferred`` and the tick
   gives the attempt back, so the issue is picked up again later.
-* ``applies(ctx) -> bool`` makes a point conditional: when False it is ``skipped``, never called.
+* ``applies(ctx) -> bool`` makes a point conditional: when False it is ``skipped``, never called. It may be a plain
+  function (cheap, no I/O) or an ``async`` one, which the registry awaits (git, big file reads: never block the loop).
 * Every result goes to the run's ``events.jsonl`` (``watcher.point``) and to the execution report
   (``simplicio.execution-report/v1``, one task per result). Emission is fail-open.
 
@@ -103,7 +104,7 @@ class _Point:
     name: str
     stage: str
     fn: Callable[[PointContext], Awaitable[PointResult]]
-    applies: Callable[[PointContext], bool] | None
+    applies: Callable[[PointContext], bool | Awaitable[bool]] | None
     blocking: bool
     module: str
 
@@ -112,7 +113,7 @@ _POINTS: list[_Point] = []
 
 
 def register(name: str, stage: str, fn: Callable[[PointContext], Awaitable[PointResult]], *,
-             applies: Callable[[PointContext], bool] | None = None, blocking: bool = False) -> None:
+             applies: Callable[[PointContext], bool | Awaitable[bool]] | None = None, blocking: bool = False) -> None:
     """Register one point. A name is registered once; the stage is one of STAGES; fn is async."""
     if stage not in STAGES:
         raise ValueError(f"stage {stage!r} is not one of {STAGES}")
@@ -138,6 +139,8 @@ async def _call(point: _Point, ctx: PointContext) -> PointResult:
     if point.applies is not None:
         try:
             applies = point.applies(ctx)
+            if inspect.isawaitable(applies):
+                applies = await applies
         except Exception as exc:
             return _error(point.name, "applies_exception", exc)
         if not applies:

@@ -12,7 +12,6 @@ import asyncio
 import importlib.util
 import json
 import os
-import subprocess
 import sys
 import tarfile
 import tempfile
@@ -67,10 +66,11 @@ def _flow_audit() -> ModuleType | None:
     return module
 
 
-def _changed_files(clone: Path) -> list[str]:
+async def _changed_files(clone: Path) -> list[str]:
+    env = sandbox.scrubbed_env(os.environ, home=Path.home())  # read-only git, as the tick runs git on the clone
     names: list[str] = []
     for argv in _CHANGED:
-        done = subprocess.run(argv, cwd=clone, capture_output=True, text=True, timeout=10)
+        done = await proc.run(argv, timeout=10, cwd=clone, env=env)
         if done.returncode != 0:
             raise OSError(f"{' '.join(argv)} exited {done.returncode}")
         names.extend(name for name in done.stdout.split("\0") if name)
@@ -92,17 +92,22 @@ def _is_route_file(audit: ModuleType, clone: Path, rel: str) -> bool:
         return False
 
 
-def _applies(ctx: PointContext) -> bool:
+def _any_route_file(audit: ModuleType, clone: Path, names: list[str]) -> bool:
+    return any(_is_route_file(audit, clone, name) for name in names)
+
+
+async def _applies(ctx: PointContext) -> bool:
+    """Async: git runs through proc.run and the file scan in a thread, so a slow clone never stalls the tick."""
     if ctx.clone is None:
         return False
-    audit = _flow_audit()
+    audit = _flow_audit()  # on the loop thread, never in a worker: it writes sys.modules and _module, once
     if audit is None:
         return True  # the point itself reports the missing audit as an error
     try:
-        names = _changed_files(ctx.clone)
-    except (OSError, subprocess.SubprocessError):
+        names = await _changed_files(ctx.clone)
+    except (OSError, TimeoutError):
         return True  # the point itself reports the git failure as an error
-    return any(_is_route_file(audit, ctx.clone, name) for name in names)
+    return await asyncio.to_thread(_any_route_file, audit, ctx.clone, names)
 
 
 async def _export_head(clone: Path, work: Path, base: Path) -> None:
