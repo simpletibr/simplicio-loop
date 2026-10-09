@@ -104,15 +104,34 @@ def test_the_store_path_can_come_from_the_runner_env_variable(loop_home, tmp_pat
     assert _row(elsewhere, claim['lease_id'], beat + 7)['age_s'] == 7
 
 
-def test_a_released_or_old_lease_is_measured_but_flagged_stale(loop_home):
+def test_a_beaten_lease_goes_stale_at_half_its_ttl_and_a_released_one_is_measured_stale(loop_home):
     home, run_dir = loop_home
     store, claim = _claim(home, lease_seconds=30.0)
+    time.sleep(1.1)
+    store.heartbeat(claim['attempt_id'], claim['fence_token'], lease_seconds=30.0)
     beat = _heartbeat_of(home, claim['lease_id'])
-    assert _row(run_dir, claim['lease_id'], beat + 20)['stale'] is True   # past half the 30 s ttl
-    assert _row(run_dir, claim['lease_id'], beat + 40)['stale'] is True   # expired
+    assert _row(run_dir, claim['lease_id'], beat + 10)['stale'] is False
+    late = _row(run_dir, claim['lease_id'], beat + 20)   # past half the 30 s ttl
+    assert (late['stale'], late['beat']) == (True, True)
+    assert _lanes(run_dir, [_claimed(1, 'lane-a', claim['lease_id'])], beat + 20)['reason'] == (
+        'lane-a: último batimento há 20 s (obsoleto)')
     store.release(claim['attempt_id'], claim['fence_token'])
     row = _row(run_dir, claim['lease_id'], beat + 1)
     assert (row['state'], row['age_s'], row['stale']) == ('MEASURED', 1, True)
+
+
+def test_a_claim_nobody_beats_says_so_and_is_not_called_stale_at_half_its_ttl(loop_home):
+    """The runner claims once and never heartbeats (issue #1546 review): a healthy worker must not read as an alarm."""
+    home, run_dir = loop_home
+    _, claim = _claim(home, lease_seconds=60.0)
+    beat = _heartbeat_of(home, claim['lease_id'])
+    got = _lanes(run_dir, [_claimed(1, 'lane-a', claim['lease_id'])], beat + 45)
+    row = got['lanes'][0]
+    assert (row['state'], row['age_s'], row['beat'], row['stale']) == ('MEASURED', 45, False, False)
+    assert got['reason'] == 'lane-a: sem batimento registrado desde o claim (claim há 45 s)'
+    expired = _lanes(run_dir, [_claimed(1, 'lane-a', claim['lease_id'])], beat + 61)
+    assert expired['lanes'][0]['stale'] is True
+    assert expired['reason'] == 'lane-a: sem batimento registrado desde o claim (claim há 61 s) (lease expirado)'
 
 
 def test_no_store_file_is_unverified_with_the_reason(loop_home):
@@ -224,6 +243,91 @@ def test_a_missing_store_is_never_created_by_the_dashboard(loop_home):
     home, run_dir = loop_home
     _row(run_dir, 'a' * 32, time.time())
     assert not (home / 'data' / 'operations.sqlite').exists()
+
+
+def _files(directory):
+    return {p.name: (p.stat().st_size, p.stat().st_mtime_ns, hashlib.sha256(p.read_bytes()).hexdigest())
+            for p in sorted(directory.iterdir())}
+
+
+def test_reading_an_idle_wal_store_creates_no_wal_or_shm_sidecar(loop_home):
+    """The Mapper store is WAL and closes between operations, so it sits with no sidecars; mode=ro alone would create them."""
+    home, run_dir = loop_home
+    _, claim = _claim(home)
+    data = home / 'data'
+    assert sorted(p.name for p in data.iterdir() if p.name.endswith(('-wal', '-shm'))) == []
+    before = _files(data)
+    for _ in range(3):
+        assert _row(run_dir, claim['lease_id'], time.time())['state'] == 'MEASURED'
+    assert _files(data) == before
+
+
+def test_reading_a_wal_store_a_writer_holds_open_leaves_its_db_and_wal_untouched(loop_home):
+    home, run_dir = loop_home
+    _, claim = _claim(home)
+    db = home / 'data' / 'operations.sqlite'
+    writer = sqlite3.connect(db, isolation_level=None)
+    try:
+        assert writer.execute('PRAGMA journal_mode').fetchone()[0] == 'wal'
+        writer.execute('BEGIN IMMEDIATE')
+        writer.execute('UPDATE ops_leases SET heartbeat_at = heartbeat_at + 1 WHERE lease_id = ?', (claim['lease_id'],))
+        writer.execute('COMMIT')   # the new beat lives in the -wal only
+        names = {p.name for p in (home / 'data').iterdir()}
+        assert {'operations.sqlite-wal', 'operations.sqlite-shm'} <= names
+        before = _files(home / 'data')
+        beat = writer.execute('SELECT heartbeat_at FROM ops_leases').fetchone()[0]
+        row = _row(run_dir, claim['lease_id'], beat + 4)
+        assert (row['state'], row['age_s']) == ('MEASURED', 4)   # the reader sees the committed -wal frame
+        after = _files(home / 'data')
+        # -shm is the WAL's shared coordination memory: a live reader must register in it, so its bytes may move.
+        assert {n: v for n, v in after.items() if not n.endswith('-shm')} == {
+            n: v for n, v in before.items() if not n.endswith('-shm')}
+        assert after['operations.sqlite-shm'][0] == before['operations.sqlite-shm'][0]
+    finally:
+        writer.close()
+
+
+def test_a_store_that_is_not_openable_costs_one_timeout_for_all_lanes_not_one_each(loop_home):
+    home, run_dir = loop_home
+    (home / 'data' / 'operations.sqlite').write_bytes(b'this is not a sqlite database' * 50)
+    events = [_claimed(i, f'lane-{i:02d}', f'{i:032x}') for i in range(1, 41)]
+    started = time.monotonic()
+    got = _lanes(run_dir, events, time.time())
+    assert time.monotonic() - started < 2.0
+    assert len(got['lanes']) == 40 and {r['state'] for r in got['lanes']} == {'UNVERIFIED'}
+    assert all('store não lido' in r['reason'] for r in got['lanes'])
+
+
+def test_a_lease_id_that_is_not_valid_text_is_unverified_not_a_crash(loop_home):
+    home, run_dir = loop_home
+    _claim(home)
+    row = _row(run_dir, '\ud800', time.time())   # json.loads('"\\ud800"') yields a lone surrogate
+    assert row['state'] == 'UNVERIFIED' and row['reason'].endswith('lease_id não é texto válido')
+
+
+@pytest.mark.parametrize('weird', ['a?b#c', 'p%41 x', 'sp ace', 'çã日本', 'q=1&mode=rw&x'])
+def test_a_run_dir_with_uri_special_characters_still_opens_the_right_file_read_only(tmp_path, weird):
+    home = tmp_path / weird / '.simplicio-loop'
+    (home / 'data').mkdir(parents=True)
+    run_dir = home / 'loop-runs' / 'r'
+    run_dir.mkdir(parents=True)
+    _, claim = _claim(home)
+    beat = _heartbeat_of(home, claim['lease_id'])
+    assert _row(run_dir, claim['lease_id'], beat + 2)['age_s'] == 2
+    assert sorted(p.name for p in tmp_path.iterdir()) == [weird]   # nothing created beside the run dir
+
+
+def test_the_connection_is_opened_read_only_so_a_write_through_it_fails(loop_home):
+    home, _ = loop_home
+    _claim(home)
+    db = home / 'data' / 'operations.sqlite'
+    handle = lane_extras._Store(db)
+    try:
+        con = handle._connect()
+        with pytest.raises(sqlite3.OperationalError, match='readonly'):
+            con.execute('UPDATE ops_leases SET heartbeat_at = 0')
+    finally:
+        handle.close()
 
 
 RUNNER_CLAIM = (

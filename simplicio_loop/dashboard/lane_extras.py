@@ -136,34 +136,77 @@ def _store_file(run_dir: str | Path) -> Path | None:
     return None
 
 
-def _store_view(database: Path, lease_id: str, now: float) -> tuple[dict[str, Any] | None, str | None]:
-    '''Heartbeat of ``lease_id`` in ops_leases (read-only, parameterised), or the reason it cannot be measured.'''
-    if not database.is_file():
-        return None, f'{database.name} ausente'
+SQLITE_HEAD = b'SQLite format 3\x00'
+LEASE_SQL = ('SELECT l.state, l.heartbeat_at, l.expires_at, a.created_at, a.updated_at FROM ops_leases l '
+             'LEFT JOIN ops_attempts a ON a.attempt_id = l.attempt_id WHERE l.lease_id = ?')
+
+
+def _idle_wal(database: Path) -> bool:
+    '''A WAL database with no -wal and no -shm: no connection holds it, so every commit is already in the main file.
+
+    Opening such a file with mode=ro still makes SQLite create the empty -wal/-shm next to it, which would touch the
+    store's files. immutable=1 avoids that and is only used here: it is NOT safe for a database a writer holds open,
+    and those always have the sidecars.
+    '''
+    if any(Path(f'{database}{suffix}').exists() for suffix in ('-wal', '-shm')):
+        return False
     try:
-        con = sqlite3.connect(f'{database.absolute().as_uri()}?mode=ro', uri=True, timeout=STORE_TIMEOUT_S)
-    except sqlite3.Error as exc:
-        return None, f'store não aberto: {exc}'
-    try:
-        row = con.execute('SELECT state, heartbeat_at, expires_at FROM ops_leases WHERE lease_id = ?',
-                          (lease_id,)).fetchone()
-    except sqlite3.Error as exc:
-        return None, f'store não lido: {exc}'
-    finally:
-        con.close()
-    if row is None:
-        return None, f'lease {lease_id} não está no store de operações'
-    state, beat, expires = row
-    if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in (beat, expires)):
-        return None, 'lease do store sem heartbeat_at medido'
-    age = int(now - beat)
-    live = state == 'active' and expires > now and now - beat <= (expires - beat) / 2
-    return {'heartbeat_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(beat)), 'age_s': age,
-            'state': 'live' if live else 'stale'}, None
+        with open(database, 'rb') as handle:
+            head = handle.read(20)
+    except OSError:
+        return False
+    return len(head) == 20 and head[:16] == SQLITE_HEAD and head[18] == 2 and head[19] == 2
+
+
+class _Store:
+    '''Read-only handle on the Mapper store for one request: one connection, and a failure is remembered for every lane,
+    so a locked or corrupt store costs one timeout, not one per lane.'''
+
+    def __init__(self, database: Path) -> None:
+        self.database = database
+        self._con: sqlite3.Connection | None = None
+        self._down: str | None = None
+
+    def close(self) -> None:
+        if self._con is not None:
+            self._con.close()
+            self._con = None
+
+    def _connect(self) -> sqlite3.Connection:
+        if self._con is None:
+            uri = f'{self.database.absolute().as_uri()}?mode=ro' + ('&immutable=1' if _idle_wal(self.database) else '')
+            self._con = sqlite3.connect(uri, uri=True, timeout=STORE_TIMEOUT_S)
+        return self._con
+
+    def view(self, lease_id: str, now: float) -> tuple[dict[str, Any] | None, str | None]:
+        '''Heartbeat of ``lease_id`` in ops_leases (parameterised), or the reason it cannot be measured.'''
+        if self._down:
+            return None, self._down
+        if not self.database.is_file():
+            self._down = f'{self.database.name} ausente'
+            return None, self._down
+        try:
+            row = self._connect().execute(LEASE_SQL, (lease_id,)).fetchone()
+        except UnicodeError:
+            return None, 'lease_id não é texto válido'
+        except sqlite3.Error as exc:
+            self._down = f'store não lido: {exc}'
+            return None, self._down
+        if row is None:
+            return None, f'lease {lease_id} não está no store de operações'
+        state, beat, expires, created, updated = row
+        if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in (beat, expires)):
+            return None, 'lease do store sem heartbeat_at medido'
+        live = state == 'active' and expires > now and now - beat <= (expires - beat) / 2
+        # The claim writes heartbeat_at and the attempt's created_at/updated_at together; only .heartbeat() moves updated_at.
+        beats = (updated != created) if state == 'active' and created is not None and updated is not None else None
+        return {'heartbeat_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(beat)), 'age_s': int(now - beat),
+                'state': 'live' if live else 'stale', 'beats': beats,
+                'expired': state != 'active' or expires <= now}, None
 
 
 def _lane_row(lane: str, lease_id: str, leases: list[dict[str, Any]], failure: str | None, now: float,
-              store: Path | None = None) -> dict[str, Any]:
+              store: _Store | None = None) -> dict[str, Any]:
     row: dict[str, Any] = {'lane': lane, 'lease_id': lease_id or None, 'state': 'UNVERIFIED', 'heartbeat_at': None,
                            'age_s': None, 'stale': None, 'reason': None}
     if not lease_id:
@@ -179,7 +222,7 @@ def _lane_row(lane: str, lease_id: str, leases: list[dict[str, Any]], failure: s
     else:
         view, reason = None, failure or f'lease {lease_id} não está no backlog'
         if store is not None:
-            view, why = _store_view(store, lease_id, now)
+            view, why = store.view(lease_id, now)
             reason = f'{reason}; {why}' if why else None
     if view is not None and view['age_s'] is None:
         reason = 'lease sem heartbeat_at medido'
@@ -188,14 +231,22 @@ def _lane_row(lane: str, lease_id: str, leases: list[dict[str, Any]], failure: s
     if view is None or reason is not None:
         row['reason'] = reason
         return row
-    row.update(state='MEASURED', heartbeat_at=view['heartbeat_at'], age_s=view['age_s'], stale=view['state'] != 'live')
+    beat = view.get('beats')
+    # A lease nobody beats (the runner's claim is never heartbeated) is only stale once it has expired, not at half its ttl.
+    stale = view['expired'] if beat is False else view['state'] != 'live'
+    row.update(state='MEASURED', heartbeat_at=view['heartbeat_at'], age_s=view['age_s'], stale=stale)
+    if beat is not None:   # only a Mapper store lease says whether anyone ever beat it
+        row['beat'] = beat
     return row
 
 
 def _row_text(row: dict[str, Any]) -> str:
     if row['state'] != 'MEASURED':
         return f"{row['lane']}: {row['reason']}"
-    return f"{row['lane']}: batimento há {row['age_s']} s" + (' (obsoleto)' if row['stale'] else '')
+    if row.get('beat') is False:
+        return f"{row['lane']}: sem batimento registrado desde o claim (claim há {row['age_s']} s)" + (
+            ' (lease expirado)' if row['stale'] else '')
+    return f"{row['lane']}: último batimento há {row['age_s']} s" + (' (obsoleto)' if row['stale'] else '')
 
 
 def _heartbeat(claims: dict[str, str], run_dir: str | Path, backlog_path: str | Path | None, now: float) -> dict[str, Any]:
@@ -203,8 +254,13 @@ def _heartbeat(claims: dict[str, str], run_dir: str | Path, backlog_path: str | 
     if not claims:
         return {'state': 'UNVERIFIED', 'reason': NO_LANE_REASON, 'lanes': []}
     leases, failure = _leases(_backlog_file(run_dir, backlog_path))
-    store = _store_file(run_dir)
-    rows = [_lane_row(lane, claims[lane], leases, failure, now, store) for lane in sorted(claims)][:MAX_ITEMS]
+    path = _store_file(run_dir)
+    store = _Store(path) if path is not None else None
+    try:
+        rows = [_lane_row(lane, claims[lane], leases, failure, now, store) for lane in sorted(claims)][:MAX_ITEMS]
+    finally:
+        if store is not None:
+            store.close()
     measured = any(row['state'] == 'MEASURED' for row in rows)
     return {'state': 'PASS' if measured else 'UNVERIFIED', 'reason': '; '.join(_row_text(row) for row in rows),
             'lanes': rows}
