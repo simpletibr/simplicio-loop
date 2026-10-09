@@ -1,6 +1,7 @@
 """The 24/7 watcher in squads (#1505): plan, workers, squad review, opt-in batch merge, role receipt."""
 from __future__ import annotations
 
+import asyncio
 import json
 
 import pytest
@@ -190,3 +191,12 @@ def test_the_watcher_login_is_looked_up_once_per_tick_and_only_when_merging(six,
     fake = six()
     run_tick()
     assert fake.ran("gh", "api", "user") == []
+
+
+@pytest.mark.parametrize("failure", [TimeoutError("gh api user timed out"), FileNotFoundError("gh")])
+def test_own_login_is_empty_when_gh_hangs_or_is_missing(monkeypatch, failure):
+    """#1534: a failed lookup only blocks the merge (empty login = fail closed); it must not abort the tick."""
+    async def boom(*args, **kwargs):
+        raise failure
+    monkeypatch.setattr(squad_flow.proc, "run", boom)
+    assert asyncio.run(squad_flow.own_login()) == ""

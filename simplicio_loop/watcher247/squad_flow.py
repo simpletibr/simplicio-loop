@@ -39,7 +39,10 @@ def auto_merge_enabled(environ: dict[str, str] | None = None) -> bool:
 
 async def own_login() -> str:
     """The gh account the watcher posts approvals and merges as (`gh api user`); "" when unknown, which fails the gate closed."""
-    result = await proc.run(["gh", "api", "user", "--jq", ".login"], timeout=30)
+    try:
+        result = await proc.run(["gh", "api", "user", "--jq", ".login"], timeout=30)
+    except (TimeoutError, OSError):  # a hung or missing gh must not abort the tick's report: it only blocks the merge
+        return ""
     return result.stdout.strip() if result.returncode == 0 else ""
 
 

@@ -536,3 +536,37 @@ def test_comment_without_an_author_is_never_authorized():
 def test_unknown_association_name_is_rejected_up_front():
     with pytest.raises(ValueError):
         _gate(_pr(), trusted_associations=("ADMIN",))
+
+
+@pytest.mark.parametrize("login", ["w", "e", "s", "wesley"])
+def test_approvers_given_as_a_plain_string_is_one_login_not_its_characters(login):
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login=login))
+    assert squads.squad_gate(pr, approvers="wesleysimplicio")["approved"] is False
+
+
+def test_approvers_given_as_a_plain_string_matches_that_whole_login():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="WesleySimplicio"))
+    assert squads.squad_gate(pr, approvers="wesleysimplicio")["approved"] is True
+
+
+@pytest.mark.parametrize("approvers", [[None], [123], [b"coord"], [("coord",)]])
+def test_non_string_approver_entries_never_authorize(approvers):
+    for login in ("none", "123", "coord"):
+        pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login=login))
+        assert squads.squad_gate(pr, approvers=approvers)["approved"] is False
+
+
+def test_unicode_case_folds_do_not_collide_with_ascii_logins():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="Kevin"))
+    assert squads.squad_gate(pr, approvers=["kevin"])["approved"] is False
+
+
+def test_association_must_be_the_exact_github_value():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="maintainer", association="member"))
+    assert _gate(pr, approvers=(), trusted_associations=("MEMBER",))["approved"] is False
+
+
+def test_trusted_association_as_a_plain_string_is_one_value_and_none_is_empty():
+    pr = _pr(_comment(APPROVAL, "2026-10-09T01:05:00Z", login="maintainer", association="OWNER"))
+    assert _gate(pr, approvers=(), trusted_associations="OWNER")["approved"] is True
+    assert _gate(pr, approvers=(), trusted_associations=None)["approved"] is False

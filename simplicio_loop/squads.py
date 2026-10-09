@@ -350,17 +350,29 @@ def _verdict(approved: bool, reason: str, **extra: Any) -> Dict[str, Any]:
     return out
 
 
-def _logins(values: Optional[Iterable[str]]) -> frozenset:
-    """Lower-cased, non-empty logins (GitHub logins are case-insensitive). None or empty gives an empty set."""
-    return frozenset(str(v).strip().lower() for v in (values or ()) if str(v).strip())
+def _each(values: Any) -> Tuple[Any, ...]:
+    """A str is ONE value (never its characters: `"wesley"` must not authorize logins `w`, `e`, ...); None is none."""
+    if values is None:
+        return ()
+    return (values,) if isinstance(values, (str, bytes)) else tuple(values)
+
+
+def _fold(text: str) -> str:
+    """Lower-case ASCII only: GitHub logins are ASCII, so unicode folds (Kelvin sign -> k) must not collide."""
+    return "".join(chr(ord(ch) + 32) if "A" <= ch <= "Z" else ch for ch in text)
+
+
+def _logins(values: Any) -> frozenset:
+    """Folded, non-empty str logins (GitHub logins are case-insensitive). None, empty or non-str entries give nothing."""
+    return frozenset(_fold(v.strip()) for v in _each(values) if isinstance(v, str) and v.strip())
 
 
 def _authorized(comment: Mapping[str, Any], approvers: frozenset, associations: frozenset) -> bool:
     author = comment.get("author")
-    login = str((author or {}).get("login") or "").strip().lower() if isinstance(author, Mapping) else ""
-    if not login:
+    login = author.get("login") if isinstance(author, Mapping) else None
+    if not isinstance(login, str) or not login:
         return False
-    return login in approvers or str(comment.get("authorAssociation") or "").upper() in associations
+    return _fold(login) in approvers or comment.get("authorAssociation") in associations
 
 
 def squad_gate(
@@ -387,7 +399,7 @@ def squad_gate(
     data = json.loads(pr_view_json) if isinstance(pr_view_json, (str, bytes)) else pr_view_json
     if not isinstance(data, Mapping):
         raise SquadGateError("pr data must be a JSON object")
-    associations = frozenset(str(a).strip().upper() for a in trusted_associations if str(a).strip())
+    associations = frozenset(a.strip().upper() for a in _each(trusted_associations) if isinstance(a, str) and a.strip())
     unknown = associations - set(TRUSTABLE_ASSOCIATIONS)
     if unknown:
         raise ValueError("trusted association must be one of %s, got %s" % (", ".join(TRUSTABLE_ASSOCIATIONS), ", ".join(sorted(unknown))))
