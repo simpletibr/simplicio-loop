@@ -1,4 +1,4 @@
-"""Issue #1461: Mapper envelope paths, .git/info/exclude, error propagation."""
+"""Issue #1461: Mapper envelope paths, error propagation."""
 from __future__ import annotations
 
 import asyncio
@@ -11,42 +11,23 @@ from simplicio_loop.map_service_mapper import materialize_project_map, MapperInd
 from simplicio_loop.turbo_cli import _request_plan
 
 
-def test_materialize_copies_from_simplicio_preserves_original(tmp_path, monkeypatch):
-    """Envelope paths.project_map in .simplicio/ copied to .simplicio-loop/, original untouched."""
-    (tmp_path / ".simplicio").mkdir()
+def test_materialize_copies_from_elsewhere_preserves_original(tmp_path, monkeypatch):
+    """Envelope paths.project_map outside .simplicio-loop/ is copied there, original untouched."""
+    (tmp_path / "elsewhere").mkdir()
     project_map_data = {"files": [{"path": "app.py", "file_hash": "abc"}]}
-    mapper_output = tmp_path / ".simplicio" / "project-map.json"
+    mapper_output = tmp_path / "elsewhere" / "project-map.json"
     mapper_output.write_text(json.dumps(project_map_data))
-    
+
     envelope = {"paths": {"project_map": str(mapper_output)}}
     result = materialize_project_map(str(tmp_path), envelope)
-    
+
     # Copied to expected location
     expected = tmp_path / ".simplicio-loop" / "project-map.json"
     assert result == expected
     assert json.loads(expected.read_text()) == project_map_data
-    
+
     # Original preserved
     assert mapper_output.is_file()
-    assert (tmp_path / ".simplicio").is_dir()
-
-
-def test_materialize_registers_simplicio_in_git_exclude(tmp_path):
-    """After copy from .simplicio/, .git/info/exclude contains .simplicio/."""
-    (tmp_path / ".git" / "info").mkdir(parents=True)
-    exclude = tmp_path / ".git" / "info" / "exclude"
-    exclude.write_text("# git exclude\n*.pyc\n")
-    
-    (tmp_path / ".simplicio").mkdir()
-    mapper_output = tmp_path / ".simplicio" / "project-map.json"
-    mapper_output.write_text(json.dumps({"files": []}))
-    
-    envelope = {"paths": {"project_map": str(mapper_output)}}
-    materialize_project_map(str(tmp_path), envelope)
-    
-    content = exclude.read_text()
-    assert ".simplicio/" in content
-    assert "*.pyc" in content  # Existing line preserved
 
 
 def test_mapper_error_propagates_in_turbo_blocked(tmp_path, monkeypatch):

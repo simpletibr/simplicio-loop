@@ -150,8 +150,6 @@ def _resolve_default_snapshot(root: Path) -> Path:
     candidates = [
         root / ".simplicio-loop" / "project.sfast",
         root / ".simplicio-loop" / "fast" / "project.sfast",
-        root / ".simplicio" / "fast" / "project.sfast",
-        root / ".simplicio" / "project.sfast",
     ]
     for c in candidates:
         if c.is_file():
