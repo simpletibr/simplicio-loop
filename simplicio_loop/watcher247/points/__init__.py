@@ -6,11 +6,11 @@ so a new point is a new file, never an edit to `tick.py`.
 import importlib
 import pkgutil
 
-from .registry import (STAGES, STATUSES, PointBlocked, PointContext, PointInfo, PointResult, raise_if_blocked,
-                       register, registered, run)
+from .registry import (STAGES, STATUSES, PointBlocked, PointContext, PointDeferred, PointInfo, PointResult,
+                       raise_if_blocked, register, registered, run)
 
-__all__ = ["STAGES", "STATUSES", "PointBlocked", "PointContext", "PointInfo", "PointResult", "raise_if_blocked",
-           "register", "registered", "run"]
+__all__ = ["STAGES", "STATUSES", "PointBlocked", "PointContext", "PointDeferred", "PointInfo", "PointResult",
+           "raise_if_blocked", "register", "registered", "run"]
 
 for _module in sorted(info.name for info in pkgutil.iter_modules(__path__)):
     if _module != "registry":

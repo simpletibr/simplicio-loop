@@ -91,13 +91,16 @@ async def run(ctx: PointContext) -> PointResult:
 
 register("meu_ponto", "verify", run)                      # etapa: intake, plan, apply, verify, pr ou done
 # register(..., applies=lambda ctx: ctx.role == "ui")    # condicional: sem o gatilho vira `skipped`
-# register(..., blocking=True)                           # erro ou `blocked` interrompe a etapa (PointBlocked)
+# register(..., blocking=True)                           # erro ou `blocked` (PointBlocked) ou `deferred` (PointDeferred) interrompe a etapa
 ```
 
-- `fn` é `async (ctx) -> PointResult`. `status` é `ok`, `skipped`, `error` ou `blocked`; `evidence` é um dict serializável em JSON; `reason_code` nomeia o motivo quando não é `ok`.
+- `fn` é `async (ctx) -> PointResult`. `status` é `ok`, `skipped`, `error`, `blocked` ou `deferred`; `evidence` é um dict serializável em JSON; `reason_code` nomeia o motivo quando não é `ok`.
 - `ctx` é um `PointContext` imutável (`repo`, `issue`, `clone`, `state_dir`, `run_dir`, `task_text`, `plan`, `turbo_json`, `verify`, `pr_url`, `role`, `family`). O que a etapa ainda não sabe vem `None`: `plan` é `None` em `intake` e `plan`, `pr_url` só existe em `done`.
 - O `tick.py` chama `points.run(etapa, ctx)` uma vez por etapa: `intake` (clone pronto, issue admitida), `plan` (antes do planner), `apply` (depois do apply do turbo), `verify` (depois do verify), `pr` (antes do commit e do PR) e `done` (ao fim, com `pr_url`). Os pontos de uma etapa rodam na ordem de registro.
-- Uma exceção do ponto vira `PointResult(status="error", reason_code="point_exception")` e o tick segue. Um resultado `blocked` na etapa `pr` impede o PR (a issue fica `dead` com o `reason_code`). `blocking=True` não vale para `done`.
+- Uma exceção do ponto vira `PointResult(status="error", reason_code="point_exception")` e o tick segue. Um resultado `blocked` na etapa `pr` impede o PR. `blocking=True` não vale para `done`.
+- **`blocked` x `deferred`** (só interrompem a etapa em ponto `blocking=True`; `raise_if_blocked` os trata na etapa `pr`):
+  - `blocked` (ex.: `judge` REJECT, `convergence_policy` parou) é uma **tentativa falha**, igual a uma falha de verify: o tick tenta de novo com os motivos (`reason_code` e `evidence` entram no contexto da próxima tentativa e no comentário de status), a tentativa conta no escalonamento de papéis, e a issue só vira `dead` ao atingir o limite de tentativas. É a exceção `PointBlocked`; um erro ou exceção de ponto `blocking` segue o mesmo caminho.
+  - `deferred` (ex.: pouco disco ou carga alta no `resource_governor`) é uma condição **transitória**: o tick pula a issue nesta rodada **sem consumir tentativa**, escreve só a linha `deferred: <motivo>` no comentário de status e solta claim e lease; a issue volta a ser elegível no próximo tick. É a exceção `PointDeferred` (subclasse de `PointBlocked`, por isso capture `PointDeferred` primeiro). Nunca leva a `dead`, por mais que se repita.
 - Cada resultado vai para o `events.jsonl` (`watcher.point`, em `.simplicio-loop/orchestrator/points/<repo>-<issue>/`) e para o relatório de execução do watcher (`<estado>/.simplicio-loop/runtime/execution-reports/`), uma tarefa por ponto.
 - Teste: `tests/watcher247/points/test_<nome>.py`, usando a fixture `point_contract` de `tests/watcher247/points/conftest.py` (confere registro único, etapa válida, resultado tipado, evidência serializável) e `make_ctx`. Exemplo: `points/toolchain_detect.py` (etapa `intake`, envolve `verify.detect_test_command`).
 - Depois de ligar o ponto, atualize a linha dele na tabela acima e a contagem do resumo.
