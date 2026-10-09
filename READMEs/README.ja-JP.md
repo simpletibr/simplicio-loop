@@ -29,7 +29,7 @@
 **simplicio-loopは、GitHubのissueをテスト済みのPRに変えます。リポジトリをマップし、AIが計画し、決定的エディタが適用し、テストが検証し、スカッドがレビューします。**
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="8ステップのアニメーション: issue、インテーク、総括コーディネータ、スカッド、サンドボックスのワーカー、スカッドのレビュー、マージトレイン、main、Simplicio Liveカンバン" width="920" />
+  <img src="../docs/assets/readme/how-it-works.gif" alt="8ステップのアニメーション: issue、インテーク、総括コーディネータ、スカッド、サンドボックスのワーカー、スカッドのレビュー、マージトレイン、main、Simplicio Liveカンバン" width="100%" />
 </p>
 
 ## できること
@@ -93,12 +93,9 @@ sudo systemctl enable --now simplicio-loop-247
 **スカッド**（作業中: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)）: 総括コーディネータ1人、スカッドごとにコーディネータ1人、各スカッドに最大4人のワーカー。理由: [コーディネータ1人対スカッド](../docs/assets/readme/agents-before-after-cartoon.webp)。
 
 <p align="center">
-  <img src="../docs/assets/readme/squads-cartoon.webp" alt="スカッドの組織図: 総括コーディネータ、スカッドごとのコーディネータ、各最大4人のワーカー" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="スカッドの組織図: 総括コーディネータ、スカッドごとのコーディネータ、各最大4人のワーカー" width="920" />
 </p>
 
-<p align="center">
-  <img src="../docs/assets/readme/overview-cartoon.webp" alt="フロー全体: issue、インテーク、総括コーディネータ、スカッド、サンドボックスのワーカー、dev-cli、スカッドの承認、マージトレイン、main、Simplicio Liveカンバン" width="920" />
-</p>
 
 ## 50の拡張ポイント
 

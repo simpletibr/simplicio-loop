@@ -29,7 +29,7 @@
 **simplicio-loop zamienia issues z GitHuba w przetestowane PR-y: mapuje repo, AI planuje, deterministyczny edytor stosuje zmiany, testy weryfikują, squady robią review.**
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="Animowany przepływ w 8 krokach: issues, intake, główny koordynator, squady, workery (mapper, plan, dev-cli), review squadu, merge train, main i kanban Simplicio Live" width="920" />
+  <img src="../docs/assets/readme/how-it-works.gif" alt="Animowany przepływ w 8 krokach: issues, intake, główny koordynator, squady, workery (mapper, plan, dev-cli), review squadu, merge train, main i kanban Simplicio Live" width="100%" />
 </p>
 
 ## Co robi
@@ -93,12 +93,9 @@ Szczegóły: [docs/WATCHER_247.md](../docs/WATCHER_247.md).
 **Squady** (w toku: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): jeden główny koordynator, po jednym koordynatorze na squad, do 4 workerów w każdym. Dlaczego: [jeden koordynator kontra squady](../docs/assets/readme/agents-before-after-cartoon.webp).
 
 <p align="center">
-  <img src="../docs/assets/readme/squads-cartoon.webp" alt="Schemat organizacyjny squadów: główny koordynator, koordynator na squad i do 4 workerów w każdym" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="Schemat organizacyjny squadów: główny koordynator, koordynator na squad i do 4 workerów w każdym" width="920" />
 </p>
 
-<p align="center">
-  <img src="../docs/assets/readme/overview-cartoon.webp" alt="Cały przepływ: issues, intake, główny koordynator, squady, workery w sandboxie, dev-cli, zatwierdzenie squadu, merge train, main i kanban Simplicio Live" width="920" />
-</p>
 
 ## 50 punktów rozszerzenia
 

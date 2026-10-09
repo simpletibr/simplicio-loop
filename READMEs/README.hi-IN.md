@@ -29,7 +29,7 @@
 **simplicio-loop GitHub issues को टेस्ट किए गए PR में बदलता है: यह repo को map करता है, AI योजना बनाता है, निर्धारणात्मक एडिटर लागू करता है, टेस्ट सत्यापित करते हैं, squads रिव्यू करते हैं।**
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="8 चरणों का एनिमेटेड फ्लो: issues, intake, जनरल कोऑर्डिनेटर, squads, workers (mapper, plan, dev-cli), squad review, merge train, main और Simplicio Live kanban" width="920" />
+  <img src="../docs/assets/readme/how-it-works.gif" alt="8 चरणों का एनिमेटेड फ्लो: issues, intake, जनरल कोऑर्डिनेटर, squads, workers (mapper, plan, dev-cli), squad review, merge train, main और Simplicio Live kanban" width="100%" />
 </p>
 
 ## यह क्या करता है
@@ -93,12 +93,9 @@ sudo systemctl enable --now simplicio-loop-247
 **Squads** (जारी: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): एक जनरल कोऑर्डिनेटर, हर squad का एक कोऑर्डिनेटर, हर squad में 4 workers तक। क्यों: [एक कोऑर्डिनेटर बनाम squads](../docs/assets/readme/agents-before-after-cartoon.webp)।
 
 <p align="center">
-  <img src="../docs/assets/readme/squads-cartoon.webp" alt="Squads का संगठन चार्ट: एक जनरल कोऑर्डिनेटर, हर squad का कोऑर्डिनेटर और हर squad में 4 workers तक" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="Squads का संगठन चार्ट: एक जनरल कोऑर्डिनेटर, हर squad का कोऑर्डिनेटर और हर squad में 4 workers तक" width="920" />
 </p>
 
-<p align="center">
-  <img src="../docs/assets/readme/overview-cartoon.webp" alt="पूरा फ्लो: issues, intake, जनरल कोऑर्डिनेटर, squads, sandbox में workers, dev-cli, squad approval, merge train, main और Simplicio Live kanban" width="920" />
-</p>
 
 ## 50 एक्सटेंशन पॉइंट
 

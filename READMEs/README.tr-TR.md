@@ -29,7 +29,7 @@
 **simplicio-loop, GitHub issue'larını test edilmiş PR'lara çevirir: depoyu haritalar, bir yapay zekâ planlar, deterministik bir editör uygular, testler doğrular, squad'lar gözden geçirir.**
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="8 adımlık animasyonlu akış: issue'lar, intake, genel koordinatör, squad'lar, worker'lar (mapper, plan, dev-cli), squad review, merge train, main ve Simplicio Live kanban" width="920" />
+  <img src="../docs/assets/readme/how-it-works.gif" alt="8 adımlık animasyonlu akış: issue'lar, intake, genel koordinatör, squad'lar, worker'lar (mapper, plan, dev-cli), squad review, merge train, main ve Simplicio Live kanban" width="100%" />
 </p>
 
 ## Ne yapar
@@ -93,12 +93,9 @@ Ayrıntılar: [docs/WATCHER_247.md](../docs/WATCHER_247.md).
 **Squad'lar** (devam ediyor: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): bir genel koordinatör, squad başına bir koordinatör, her birinde en fazla 4 worker. Neden: [tek koordinatöre karşı squad'lar](../docs/assets/readme/agents-before-after-cartoon.webp).
 
 <p align="center">
-  <img src="../docs/assets/readme/squads-cartoon.webp" alt="Squad organizasyon şeması: bir genel koordinatör, squad başına bir koordinatör ve her birinde en fazla 4 worker" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="Squad organizasyon şeması: bir genel koordinatör, squad başına bir koordinatör ve her birinde en fazla 4 worker" width="920" />
 </p>
 
-<p align="center">
-  <img src="../docs/assets/readme/overview-cartoon.webp" alt="Tüm akış: issue'lar, intake, genel koordinatör, squad'lar, sandbox'taki worker'lar, dev-cli, squad onayı, merge train, main ve Simplicio Live kanban" width="920" />
-</p>
 
 ## 50 genişletme noktası
 

@@ -29,7 +29,7 @@
 **simplicio-loop maakt van GitHub-issues geteste PR's: het brengt de repo in kaart, een AI plant, een deterministische editor past toe, tests verifiëren, squads reviewen.**
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="Geanimeerde flow in 8 stappen: issues, intake, algemeen coördinator, squads, workers (mapper, plan, dev-cli), squad-review, merge train, main en het Simplicio Live-kanban" width="920" />
+  <img src="../docs/assets/readme/how-it-works.gif" alt="Geanimeerde flow in 8 stappen: issues, intake, algemeen coördinator, squads, workers (mapper, plan, dev-cli), squad-review, merge train, main en het Simplicio Live-kanban" width="100%" />
 </p>
 
 ## Wat het doet
@@ -93,12 +93,9 @@ Details: [docs/WATCHER_247.md](../docs/WATCHER_247.md).
 **De squads** (in uitvoering: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): een algemeen coördinator, een coördinator per squad, tot 4 workers per squad. Waarom: [één coördinator tegenover squads](../docs/assets/readme/agents-before-after-cartoon.webp).
 
 <p align="center">
-  <img src="../docs/assets/readme/squads-cartoon.webp" alt="Organigram van de squads: een algemeen coördinator, een coördinator per squad en tot 4 workers per squad" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="Organigram van de squads: een algemeen coördinator, een coördinator per squad en tot 4 workers per squad" width="920" />
 </p>
 
-<p align="center">
-  <img src="../docs/assets/readme/overview-cartoon.webp" alt="De hele flow: issues, intake, algemeen coördinator, squads, workers in de sandbox, dev-cli, squad-goedkeuring, merge train, main en het Simplicio Live-kanban" width="920" />
-</p>
 
 ## De 50 extensiepunten
 

@@ -29,7 +29,7 @@
 **simplicio-loop 把 GitHub issue 变成经过测试的 PR：它映射仓库，AI 规划，确定性编辑器应用，测试验证，小队（squad）评审。**
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="8 步动画流程：issue、接收、总协调器、小队、worker（mapper、规划、dev-cli）、小队评审、merge train、main 以及 Simplicio Live 看板" width="920" />
+  <img src="../docs/assets/readme/how-it-works.gif" alt="8 步动画流程：issue、接收、总协调器、小队、worker（mapper、规划、dev-cli）、小队评审、merge train、main 以及 Simplicio Live 看板" width="100%" />
 </p>
 
 ## 它能做什么
@@ -93,12 +93,9 @@ sudo systemctl enable --now simplicio-loop-247
 **小队（squads）**（进行中：[#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)）：一个总协调器，每个小队一个协调器，每队最多 4 个 worker。原因：[单个协调器对比小队](../docs/assets/readme/agents-before-after-cartoon.webp)。
 
 <p align="center">
-  <img src="../docs/assets/readme/squads-cartoon.webp" alt="小队组织图：一个总协调器、每个小队一个协调器、每队最多 4 个 worker" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="小队组织图：一个总协调器、每个小队一个协调器、每队最多 4 个 worker" width="920" />
 </p>
 
-<p align="center">
-  <img src="../docs/assets/readme/overview-cartoon.webp" alt="完整流程：issue、接收、总协调器、小队、沙箱 worker、dev-cli、小队批准、merge train、main 以及 Simplicio Live 看板" width="920" />
-</p>
 
 ## 50 个扩展点
 

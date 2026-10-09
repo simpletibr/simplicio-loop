@@ -29,7 +29,7 @@
 **simplicio-loop는 GitHub 이슈를 테스트된 PR로 바꿉니다. 저장소를 매핑하고, AI가 계획하고, 결정적 편집기가 적용하고, 테스트가 검증하고, 스팩이 리뷰합니다.**
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="8단계 애니메이션 흐름: 이슈, 인테이크, 총괄 코디네이터, 스팩, 워커(매퍼, 계획, dev-cli), 스팩 리뷰, 머지 트레인, main, Simplicio Live 칸반" width="920" />
+  <img src="../docs/assets/readme/how-it-works.gif" alt="8단계 애니메이션 흐름: 이슈, 인테이크, 총괄 코디네이터, 스팩, 워커(매퍼, 계획, dev-cli), 스팩 리뷰, 머지 트레인, main, Simplicio Live 칸반" width="100%" />
 </p>
 
 ## 기능
@@ -93,12 +93,9 @@ sudo systemctl enable --now simplicio-loop-247
 **스팩**(진행 중: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): 총괄 코디네이터 1명, 스팩마다 코디네이터 1명, 각 스팩당 최대 4명의 워커. 이유: [코디네이터 1명 대 스팩](../docs/assets/readme/agents-before-after-cartoon.webp).
 
 <p align="center">
-  <img src="../docs/assets/readme/squads-cartoon.webp" alt="스팩 조직도: 총괄 코디네이터, 스팩별 코디네이터, 각 최대 4명의 워커" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="스팩 조직도: 총괄 코디네이터, 스팩별 코디네이터, 각 최대 4명의 워커" width="920" />
 </p>
 
-<p align="center">
-  <img src="../docs/assets/readme/overview-cartoon.webp" alt="전체 흐름: 이슈, 인테이크, 총괄 코디네이터, 스팩, 샌드박스 워커, dev-cli, 스팩 승인, 머지 트레인, main, Simplicio Live 칸반" width="920" />
-</p>
 
 ## 50개의 확장 포인트
 

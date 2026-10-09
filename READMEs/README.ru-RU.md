@@ -29,7 +29,7 @@
 **simplicio-loop превращает issue в GitHub в протестированные PR: он картирует репозиторий, ИИ планирует, детерминированный редактор применяет, тесты проверяют, сквады ревьюят.**
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="Анимированный поток из 8 шагов: issue, intake, общий координатор, сквады, воркеры (mapper, план, dev-cli), ревью сквада, merge train, main и канбан Simplicio Live" width="920" />
+  <img src="../docs/assets/readme/how-it-works.gif" alt="Анимированный поток из 8 шагов: issue, intake, общий координатор, сквады, воркеры (mapper, план, dev-cli), ревью сквада, merge train, main и канбан Simplicio Live" width="100%" />
 </p>
 
 ## Что он делает
@@ -93,12 +93,9 @@ sudo systemctl enable --now simplicio-loop-247
 **Сквады** (в работе: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): общий координатор, по координатору на сквад, до 4 воркеров в каждом. Почему: [один координатор против сквадов](../docs/assets/readme/agents-before-after-cartoon.webp).
 
 <p align="center">
-  <img src="../docs/assets/readme/squads-cartoon.webp" alt="Оргструктура сквадов: общий координатор, координатор на сквад и до 4 воркеров в каждом" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="Оргструктура сквадов: общий координатор, координатор на сквад и до 4 воркеров в каждом" width="920" />
 </p>
 
-<p align="center">
-  <img src="../docs/assets/readme/overview-cartoon.webp" alt="Весь поток: issue, intake, общий координатор, сквады, воркеры в песочнице, dev-cli, одобрение сквада, merge train, main и канбан Simplicio Live" width="920" />
-</p>
 
 ## 50 точек расширения
 

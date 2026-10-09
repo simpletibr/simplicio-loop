@@ -29,7 +29,7 @@
 **يحوّل simplicio-loop مشكلات GitHub إلى طلبات دمج (PR) مختبرة: يرسم خارطة للمستودع، ويخطط ذكاء اصطناعي، ويطبق محرر حتمي، وتتحقق الاختبارات، وتراجع الفرق (squads).**
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="مسار متحرك من 8 خطوات: المشكلات، الاستقبال، المنسق العام، الفرق، العمّال (mapper، خطة، dev-cli)، مراجعة الفريق، merge train، main ولوحة Simplicio Live" width="920" />
+  <img src="../docs/assets/readme/how-it-works.gif" alt="مسار متحرك من 8 خطوات: المشكلات، الاستقبال، المنسق العام، الفرق، العمّال (mapper، خطة، dev-cli)، مراجعة الفريق، merge train، main ولوحة Simplicio Live" width="100%" />
 </p>
 
 ## ماذا يفعل
@@ -93,12 +93,9 @@ sudo systemctl enable --now simplicio-loop-247
 **الفرق (squads)** (قيد العمل: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): منسق عام واحد، ومنسق لكل فريق، وحتى 4 عمّال في كل فريق. لماذا: [منسق واحد مقابل فرق](../docs/assets/readme/agents-before-after-cartoon.webp).
 
 <p align="center">
-  <img src="../docs/assets/readme/squads-cartoon.webp" alt="الهيكل التنظيمي للفرق: منسق عام، ومنسق لكل فريق، وحتى 4 عمّال في كل فريق" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="الهيكل التنظيمي للفرق: منسق عام، ومنسق لكل فريق، وحتى 4 عمّال في كل فريق" width="920" />
 </p>
 
-<p align="center">
-  <img src="../docs/assets/readme/overview-cartoon.webp" alt="المسار كاملاً: المشكلات، الاستقبال، المنسق العام، الفرق، العمّال في sandbox، dev-cli، موافقة الفريق، merge train، main ولوحة Simplicio Live" width="920" />
-</p>
 
 ## نقاط التوسعة الخمسون
 

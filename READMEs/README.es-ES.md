@@ -29,7 +29,7 @@
 **simplicio-loop convierte las issues de GitHub en PRs probados: mapea el repo, una IA planifica, un editor determinista aplica, los tests verifican y los squads revisan.**
 
 <p align="center">
-  <img src="../docs/assets/readme/how-it-works.gif" alt="Flujo animado en 8 pasos: issues, intake, coordinador general, squads, workers en sandbox, revisión del squad, merge train, main y el kanban Simplicio Live" width="920" />
+  <img src="../docs/assets/readme/how-it-works.gif" alt="Flujo animado en 8 pasos: issues, intake, coordinador general, squads, workers en sandbox, revisión del squad, merge train, main y el kanban Simplicio Live" width="100%" />
 </p>
 
 ## Qué hace
@@ -93,12 +93,9 @@ Detalles: [docs/WATCHER_247.md](../docs/WATCHER_247.md).
 **Los squads** (en curso: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): un coordinador general, un coordinador por squad, hasta 4 workers cada uno. Por qué: [un coordinador frente a squads](../docs/assets/readme/agents-before-after-cartoon.webp).
 
 <p align="center">
-  <img src="../docs/assets/readme/squads-cartoon.webp" alt="Organigrama de los squads: un coordinador general, un coordinador por squad y hasta 4 workers cada uno" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="Organigrama de los squads: un coordinador general, un coordinador por squad y hasta 4 workers cada uno" width="920" />
 </p>
 
-<p align="center">
-  <img src="../docs/assets/readme/overview-cartoon.webp" alt="Todo el flujo: issues, intake, coordinador general, squads, workers en sandbox, dev-cli, aprobación del squad, merge train, main y el kanban Simplicio Live" width="920" />
-</p>
 
 ## Los 50 puntos de extensión
 

@@ -29,7 +29,7 @@
 **simplicio-loop turns GitHub issues into tested PRs: it maps the repo, an AI plans, a deterministic editor applies, tests verify, squads review.**
 
 <p align="center">
-  <img src="docs/assets/readme/how-it-works.gif" alt="Animated flow in 8 steps: issues, intake, general coordinator, squads, workers (mapper, plan, dev-cli), squad review, merge train, main and the Simplicio Live kanban" width="920" />
+  <img src="docs/assets/readme/how-it-works.gif" alt="Animated flow in 8 steps: issues, intake, general coordinator, squads, workers (mapper, plan, dev-cli), squad review, merge train, main and the Simplicio Live kanban" width="100%" />
 </p>
 
 ## What it does
@@ -84,27 +84,24 @@ Details: [docs/WATCHER_247.md](docs/WATCHER_247.md).
 
 ## How it works
 
-**The worker loop** (on `main` today): `simplicio-mapper` maps the repo → the planner (an exec CLI, in the sandbox) gets the map slice and writes a plan → `simplicio-dev-cli` applies it (`simplicio-loop turbo --apply - --verify`) → tests verify (two failures escalate the model role) → secret scan → PR. Squad review and the merge train are in progress ([#1502](https://github.com/simpletibr/simplicio-loop/issues/1502), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)).
+**The worker loop** (on `main` today): `simplicio-mapper` maps the repo → the planner (an exec CLI, in the sandbox) gets the map slice and writes a plan → `simplicio-dev-cli` applies it (`simplicio-loop turbo --apply - --verify`) → tests verify (two failures escalate the model role) → secret scan → PR. Squad review and the merge train are on `main` (`simplicio-loop squads`); the 24/7 watcher running in squads is [#1505](https://github.com/simpletibr/simplicio-loop/issues/1505).
 
 <p align="center">
   <img src="docs/assets/readme/worker-loop.gif" alt="Worker loop: simplicio-mapper maps the repo, plan in the sandbox with the map slice, apply and verify, a failure, escalation to the next model role, secret scan, PR, squad review" width="920" />
 </p>
 
-**The merge train** (in progress: [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)): approved PRs are tested once as a batch; on red it bisects to the bad PR and merges the rest.
+**The merge train**: approved PRs are tested once as a batch; on red it bisects to the bad PR and merges the rest.
 
 <p align="center">
   <img src="docs/assets/readme/merge-train.gif" alt="Merge train: 4 PRs tested once, red, bisect isolates C, then A, B and D merge" width="920" />
 </p>
 
-**The squads** (in progress: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): a general coordinator, one coordinator per squad, up to 4 workers each. Why: [one coordinator versus squads](docs/assets/readme/agents-before-after-cartoon.webp).
+**The squads**: a general coordinator, one coordinator per squad, up to 4 workers each. Why: [one coordinator versus squads](docs/assets/readme/agents-before-after-cartoon.webp).
 
 <p align="center">
-  <img src="docs/assets/readme/squads-cartoon.webp" alt="Squads org chart: a general coordinator, a coordinator per squad and up to 4 workers each" width="920" />
+  <img src="docs/assets/readme/squads.gif" alt="Squads org chart: a general coordinator, a coordinator per squad and up to 4 workers each" width="920" />
 </p>
 
-<p align="center">
-  <img src="docs/assets/readme/overview-cartoon.webp" alt="The whole flow: issues, intake, general coordinator, squads, sandboxed workers, dev-cli, squad approval, merge train, main and the Simplicio Live kanban" width="920" />
-</p>
 
 ## The 50 extension points
 
