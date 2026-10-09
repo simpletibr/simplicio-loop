@@ -312,6 +312,16 @@ def test_protocol_error_pages_carry_the_security_headers(handle):
         assert headers.get('x-content-type-options') == 'nosniff'
 
 
+def test_protocol_error_closes_the_connection_and_never_serves_a_pipelined_request(handle):
+    port = handle.port
+    host = b'Host: 127.0.0.1:%d\r\n' % port
+    for bad in (b'GET /api/health HTTP/9.9\r\n', b'GARBAGE\r\n', b'FOO /api/health HTTP/1.1\r\n'):
+        wire = _raw(port, bad + host + b'\r\n' + b'GET /api/health HTTP/1.1\r\n' + host + b'\r\n')
+        assert wire.startswith(b'HTTP/1.'), (bad, wire[:60])  # a status line, never an HTTP/0.9-style bare body
+        assert wire.count(b'HTTP/1.') == 1, (bad, wire)  # the pipelined request after the error is not processed
+        assert _split(wire)[0] >= 400
+
+
 def test_health_discloses_only_the_probe_fields_and_no_path_or_token(handle, repo):
     status, _, body = _request(handle.port, 'GET', '/api/health', {'Host': '127.0.0.1:%d' % handle.port})
     assert status == 200
