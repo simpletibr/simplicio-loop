@@ -417,6 +417,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     def send_error(self, code: int, message: str | None = None, explain: str | None = None) -> None:
         '''Protocol errors (bad request line, oversize headers, unknown verb) keep the headers and a JSON body.'''
         self.close_connection = True
+        self.request_version = 'HTTP/1.1'  # Ensure malformed request versions don't suppress the status line
         self._send_json(code, {'error': HTTPStatus(code).phrase})
 
     def _dispatch(self) -> None:
