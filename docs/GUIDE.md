@@ -181,7 +181,7 @@ flowchart LR
 | Started by | A person, inside an agent session | `systemd` unit `simplicio-loop-247`, polling every 120 s |
 | Work source | The goal or backlog the person gives | Issues of opted-in repos: `.simplicio/loop.toml`, label `loop:auto`, trusted author |
 | Planner | The host model | An exec CLI (claude, codex, grok, gemini) in plan-only mode; dev-cli is the only writer |
-| Gate | Evidence-gated promise | `turbo --verify`: the PR opens only with green tests, otherwise it is labelled `UNVERIFIED\|no_test_command` |
+| Gate | Evidence-gated promise | `turbo --verify` with the repo's `verify` from `.simplicio/loop.toml`: the PR opens only with green tests; a repo without `verify` is not worked on (`verify_not_configured`) |
 | Merge | PR with `Closes #N`, merged after the evidence gate | **Off by default.** On `main` the watcher never merges; auto-merge turns on only with `SIMPLICIO_247_AUTO_MERGE=1`, after the squad approval and `squad_gate` (see `docs/WATCHER_247.md`, #1505) |
 | Safety | STRICT mode, `action_gate`, human gate for irreversible operations | Non-root user, bwrap sandbox with a scrubbed env, daily cap, secret scan, env file kept at mode 0600 |
 | Squads | In progress: #1502 | In progress: #1505 |

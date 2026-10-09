@@ -76,7 +76,7 @@ def test_a_task_that_never_climbs_is_a_measured_zero_not_a_missing_value(env, cl
 
 def test_an_executor_that_records_no_steps_is_unverified_with_a_reason(env):
     """The opt-in openrouter executor has no ladder: nothing was observed, so nothing is claimed (not a zero)."""
-    env(FakeRun({REPO: [issue(1)]}, verify_pass=True, distinct_prs=True, pr_views={101: _view(1)}))
+    env(FakeRun({REPO: [issue(1)]}, distinct_prs=True, pr_views={101: _view(1)}))
     baseline()
     run_tick()
     record = _worker_metrics(1)
@@ -175,7 +175,7 @@ def test_a_task_that_failed_before_any_step_keeps_the_no_steps_unverified_path(e
 
 
 def test_the_executor_without_a_ladder_knows_the_outcome_but_not_the_escalation(env):
-    env(FakeRun({REPO: [issue(1)]}, verify_pass=True, distinct_prs=True, pr_views={101: _view(1)}))
+    env(FakeRun({REPO: [issue(1)]}, distinct_prs=True, pr_views={101: _view(1)}))
     baseline()
     run_tick()
     record = _worker_metrics(1)
@@ -205,7 +205,7 @@ def test_a_failed_worker_does_not_change_which_other_pr_is_approved_and_merged_a
     monkeypatch.setenv("SIMPLICIO_247_AUTO_MERGE", "1")
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
     rows = [issue(n, f"Task {n}", body=f"Ajustar `src/m{n}/app.py` para o fluxo do watcher seguir o contrato descrito abaixo.") for n in (1, 2)]
-    fake = env(PerIssueRun({REPO: rows}, [OK], failing={1}, distinct_prs=True, verify_pass=True,
+    fake = env(PerIssueRun({REPO: rows}, [OK], failing={1}, distinct_prs=True,
                            pr_views={101: _view(1), 102: _view(2)}))
     baseline()
     checkout()
@@ -272,13 +272,12 @@ class TimedRun(FakeRun):
 
 @pytest.fixture
 def dependent(env, monkeypatch):
-    """Two issues of one repo, #2 depends on #1; a pre-cloned repo with tests; PRs 101 and 102; a fake clock."""
+    """Two issues of one repo, #2 depends on #1; a pre-cloned repo; PRs 101 and 102; a fake clock."""
     monkeypatch.setenv("SIMPLICIO_247_CONCURRENCY", "2")
     clock = FakeClock()
     monkeypatch.setattr(squad_flow, "clock", clock)
     clone = config.WORK / REPO
     (clone / ".git").mkdir(parents=True)
-    (clone / "pytest.ini").write_text("[pytest]\n")
 
     def make(auto_merge: bool):
         if auto_merge:
@@ -288,7 +287,7 @@ def dependent(env, monkeypatch):
         rows = [issue(1, "Task 1", body="Ajustar `src/m1/app.py` para o fluxo do watcher seguir o contrato descrito abaixo."),
                 issue(2, "Task 2", body="Ajustar `src/m2/app.py` para o fluxo do watcher seguir o contrato descrito abaixo."
                                         " Depende de #1.")]
-        fake = env(TimedRun(clock, {REPO: rows}, verify_pass=True, distinct_prs=True,
+        fake = env(TimedRun(clock, {REPO: rows}, distinct_prs=True,
                             pr_views={101: _view(1), 102: _view(2)}))
         baseline()
         return fake

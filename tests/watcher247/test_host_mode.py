@@ -131,10 +131,9 @@ def resolved(role):
 
 
 def checkout():
-    """A pre-cloned target repo with a pytest marker, so turbo gets --verify."""
+    """A pre-cloned target repo (so ensure_clone does not clone)."""
     dest = config.WORK / REPO
     (dest / ".git").mkdir(parents=True)
-    (dest / "pytest.ini").write_text("[pytest]\n")
     return dest
 
 
@@ -259,18 +258,19 @@ def test_the_github_token_reaches_no_sandboxed_step(env, cli_dir, monkeypatch):
 
 
 def test_plan_goes_to_turbo_stdin_and_dev_cli_applies(env, cli_dir):
-    fake = env(HostRun({REPO: [issue(3, "Add x")]}))
+    targeted = "python3 -m pytest -q tests/x.py"  # the `verify` of the repo's loop.toml, exactly
+    fake = env(HostRun({REPO: [issue(3, "Add x")]}, loop_toml={REPO: f'enabled = true\nverify = "{targeted}"\n'}))
     baseline()
     dest = checkout()
     run_tick()
     assert fake.turbo_argv[0] == ["simplicio-loop", "turbo", "--repo", str(dest), "--apply", "-",
-                                  "--run-id", RUN_ID, "--leave-open", "--verify", "python3 -m pytest -q"]
+                                  "--run-id", RUN_ID, "--leave-open", "--verify", targeted]
     assert json.loads(fake.turbo_stdin[0]) == PLAN
     (call,) = planner_calls(cli_dir)
     assert flag(call, "--model") == resolved("execution")["model"]
     assert flag(call, "--permission-mode") == "plan"  # the planner cannot write
     assert "Issue #3: Add x" in call[1]
-    assert "MEASURED|verify_passed" in fake.ran("gh", "pr", "create")[0][-1]
+    assert f"MEASURED|verify_passed: `{targeted}`" in fake.ran("gh", "pr", "create")[0][-1]
     assert read_json(config.CLAIMS)[f"{REPO}#3"]["status"] == "done"
 
 

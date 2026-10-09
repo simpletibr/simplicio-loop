@@ -13,7 +13,7 @@ from simplicio_loop.watcher247 import config, points
 from ..fakes import FakeRun, baseline, issue, run_tick
 from .tick_ctx import capture_done_ctx
 
-LESSON = "simplicio-a: solved via turbo executor; verified by UNVERIFIED|no_test_command"
+LESSON = "simplicio-a: solved via turbo executor; verified by MEASURED|verify_passed: `python3 -m pytest -q`"
 
 
 @pytest.fixture

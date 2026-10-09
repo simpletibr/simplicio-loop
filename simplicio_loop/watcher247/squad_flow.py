@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import execution_report, merge_train, model_roles, pr_evidence, squad_capacity, squad_metrics, squad_routing, squads
-from . import config, proc, sandbox, state, verify
+from . import config, proc, sandbox, state
 
 AUTO_MERGE_ENV = "SIMPLICIO_247_AUTO_MERGE"
 PR_DRAFT_ENV = "SIMPLICIO_247_PR_DRAFT"
@@ -205,10 +205,8 @@ async def _review(repo: str, repo_plan: RepoPlan, squad: squads.Squad, issue: in
     return {"pr": number, "issue": issue, "approved": True, "reasons": [], "head": head}
 
 
-async def _train_test(dest: Path, test_cmd: str | None, issues: list[int]) -> bool:
+async def _train_test(dest: Path, test_cmd: str, issues: list[int]) -> bool:
     """Integrate the PR branches on a temporary branch off main and run the repo's tests once."""
-    if test_cmd is None:
-        return False
     env = sandbox.scrubbed_env(os.environ, home=Path.home())
     git = lambda *args: proc.run(["git", *args], cwd=dest, timeout=180)  # noqa: E731
     if (await git("fetch", "--depth", TRAIN_FETCH_DEPTH, "origin", "main")).returncode != 0:
@@ -225,7 +223,7 @@ async def _train_test(dest: Path, test_cmd: str | None, issues: list[int]) -> bo
 
 
 async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads: dict[int, str], runner, gate,
-                 login: str) -> dict:
+                 login: str, test_cmd: str) -> dict:
     """Gate each approved PR with squads.squad_gate (approval written by `login`), then merge the rest in squad order through merge_train."""
     full = f"{config.ORG}/{repo}"
     passed, blocked = [], []
@@ -250,7 +248,6 @@ async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads
     order = [step.issue for step in repo_plan.plan.merge_order]
     async with gate.repo_lock(repo):  # writes are serialized: the train owns the working tree
         dest = config.WORK / repo
-        test_cmd = await asyncio.to_thread(verify.detect_test_command, dest)
         for batch in merge_train.plan_train(passed, order, max_batch=repo_plan.merge_batch):
             report = await merge_train.run_train(batch, lambda items: _train_test(dest, test_cmd, items), merge_one)
             result["failed"].extend(approved[i] for i in report.failed)
@@ -291,7 +288,8 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
             entry["merge"] = "enabled"
             if login is None:
                 login = await own_login()
-            entry.update(await _merge(repo_plan.repo, repo_plan, approved, heads, runner, gate, login))
+            test_cmd = next(w.verify for w in batch if w.repo == repo_plan.repo)  # the repo's loop.toml verify, the one its workers ran
+            entry.update(await _merge(repo_plan.repo, repo_plan, approved, heads, runner, gate, login, test_cmd))
         entry["task_metrics"], entry["metrics"] = _repo_metrics(repo_plan, done)
         summary[repo_plan.repo] = entry
     await asyncio.to_thread(write_report, plans, done, reviews)

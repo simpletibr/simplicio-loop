@@ -12,7 +12,7 @@ from simplicio_loop.watcher247 import points
 from .tick_ctx import capture_done_ctx
 
 PR_URL = "https://github.com/simpletibr/simplicio-a/pull/9"
-LABEL = "UNVERIFIED|no_test_command"
+LABEL = "MEASURED|verify_passed: `python3 -m pytest -q`"  # the label of a tick run with the default loop.toml of the fakes
 TRAJECTORY = ".simplicio-loop/orchestrator/trajectory/simplicio-a-7.jsonl"
 # The dict host_mode.run_exec returns (the default executor); the tick's openrouter path returns the first three keys.
 EXEC_TURBO = {
