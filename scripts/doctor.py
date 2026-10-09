@@ -443,9 +443,49 @@ def chk_map_service():
             "msg": "map receipt valid (fallback=%s)" % payload.get("fallback", False)}
 
 
+def chk_exec_clis():
+    """Check authentication state of exec CLIs (claude, codex, grok, gemini).
+
+    OPTIONAL: missing or unauthenticated CLIs don't block the loop, but provide
+    visibility into what's available for execution.
+    """
+    try:
+        import asyncio
+        from simplicio_loop.exec_auth import check_all
+        
+        # Check all supported families
+        families = ["claude", "codex", "grok", "gemini"]
+        results = asyncio.run(check_all(families))
+    except Exception as e:
+        return dict(name="exec CLIs auth", tier="OPTIONAL", status=WARN,
+                    msg=f"check unavailable: {e}", repair=None)
+    
+    # Categorize results
+    ok = [r for r in results if r.status == "ok"]
+    missing = [r for r in results if r.status == "cli_missing"]
+    unauthenticated = [r for r in results if r.status == "login_missing"]
+    
+    status = OK if results else WARN
+    msg_parts = []
+    
+    if ok:
+        msg_parts.append(f"{len(ok)} authenticated: {', '.join(r.family for r in ok)}")
+    if missing:
+        msg_parts.append(f"{len(missing)} missing: {', '.join(f'cli_missing:{r.family}' for r in missing)}")
+    if unauthenticated:
+        msg_parts.append(f"{len(unauthenticated)} unauthenticated: {', '.join(f'login_missing:{r.family}' for r in unauthenticated)}")
+    
+    if not msg_parts:
+        msg = "no exec CLIs configured"
+    else:
+        msg = " | ".join(msg_parts)
+    
+    return dict(name="exec CLIs auth", tier="OPTIONAL", status=status, msg=msg, repair=None)
+
+
 CHECKS = [chk_python, chk_operators, chk_mapper_capabilities, chk_skills,
           chk_hooks, chk_git_precommit_hook, chk_git_prepush_hook, chk_proxy, chk_wire,
-          chk_tray_dep, check_vscode_global, chk_map_service, chk_release_version]
+          chk_tray_dep, check_vscode_global, chk_map_service, chk_exec_clis, chk_release_version]
 
 
 def main(argv=None):
