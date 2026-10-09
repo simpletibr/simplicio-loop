@@ -67,6 +67,25 @@ Summary fields come from `build_progress` (`phase`, `percent`, `tasks`, `gates`,
 - Artifacts larger than 1,000,000 bytes are refused (413).
 - Returned text is masked by `redact_text`: bearer tokens, `sk-` and `ghp_` tokens, `AKIA` keys, email addresses, and `api_key=`-style values. Keys named like secrets, tokens or passwords are masked whole.
 
+### Source guard for extras.js (tripwire)
+
+The barriers that actually stop a style or markup injection in the extras panel are in the platform, not in a test:
+
+- CSP `style-src 'self'`: the browser refuses an inline `style` attribute and any `<style>` block. The only style the panel writes is a bar width through the CSSOM (`style.setProperty('width', ...)`), which that CSP allows.
+- `textContent`: every string that comes from an event is set as text. No markup is parsed from event data.
+
+`FORBIDDEN` in `tests/test_live_extras_unit.py` is a regex tripwire over the source of `extras.js` and `extras.css`. It exists to fail loudly when someone reaches for the usual ways to write a style or parse markup (`innerHTML`, `outerHTML`, `insertAdjacentHTML`, `insertAdjacentElement`, `createContextualFragment`, `DOMParser`, `srcdoc`, `document.write`, `eval(`, `setAttribute('style'...)`, `setAttributeNS`, `.style = ...`, `.style.<property>`, `el['style']`, `const {style} = el`, `cssText`, `Object.assign(el.style, ...)`, any `setProperty` other than `'width'`, absolute URLs). Each pattern has a probe in `GUARD_PROBES`, and a second test appends every probe to a copy of `extras.js` to prove that the guard fires on it. A separate test requires exactly one `.style` in `extras.js`. None of this is a security boundary.
+
+What it does not catch (each checked against the patterns above):
+
+- Names built at run time: `el[name]`, `el['sty' + 'le']`, `el['inner' + 'HTML']`, `Reflect.set(el, 'style', x)`.
+- Code from strings or other modules: `new Function(body)`, `setTimeout('code')`, `import('./x.js')`, `createElement('script')`.
+- Unicode escapes in an identifier: `el.\u0069nnerHTML`.
+- `with (el) { style = x }` (a bare `style`, no dot) and an alias of the style object (`const s = el.style; s.width = x`; only the `.style` count test catches the second one).
+- Other ways to carry a style or active content: `setAttributeNode` with a `style` attribute node, `cloneNode` of an inline-styled node, `createElement('style')`, `el.attributes.style`, `setAttribute('onclick', ...)`, `el.href = 'javascript:...'`, `el.setAttribute('src', ...)`.
+- Network or navigation calls with a computed URL: `navigator.sendBeacon(x)`, `location = x` (an absolute `http(s)://` literal is caught).
+- Any file other than `extras.js` and `extras.css`.
+
 ## Environment
 
 | Variable | Effect |
