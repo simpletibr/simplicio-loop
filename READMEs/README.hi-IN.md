@@ -2,9 +2,17 @@
 
 > **Canonical operational contract:** This translation is informational. For current dependency, runtime, conformance, and validation behavior, [README.md](../README.md) is authoritative: Loop installs standalone; Runtime bindings are optional; 3 runtimes are guaranteed and 12 are best-effort; and `scripts/check.py` requires an importable `pytest` with no bare-Python fallback. GitHub Actions is not required gate evidence.
 
-<p align="center">
-  <img src="../assets/simplicio-loop-hero-stage-agents-2026.webp" alt="हर चरण के ठोस agents और connected reporting वाला simplicio-loop" width="920" />
-</p>
+```mermaid
+flowchart LR
+  GOAL["Goal, issue or backlog"] --> CONTRACT["Frozen task contract and acceptance criteria"]
+  CONTRACT --> MAP["Map the repository"]
+  MAP --> STAGES["Stage agents: plan, build, safety, review, delivery"]
+  STAGES --> GATES{"Evidence gates"}
+  GATES -->|pass| DONE["Delivery and work-item comment"]
+  GATES -->|fail| MEM["Journal, rollback, retry"]
+  MEM --> STAGES
+  DONE --> MEMORY[("Durable memory")]
+```
 
 <p align="center">
   <a href="https://github.com/wesleysimplicio/simplicio-loop/stargazers"><img src="https://img.shields.io/github/stars/wesleysimplicio/simplicio-loop?style=social" alt="Stars"></a>
@@ -48,6 +56,138 @@
 
 ---
 
+<!-- squads:start -->
+## 🧩 अब यह कैसे काम करता है: squads
+
+> **पढ़ने की गाइड।** ठोस बॉक्स आज `main` पर चलते हैं। टूटी रेखा वाले बॉक्स अभी खुले issue या PR में हैं और उनपर *(चल रहा है: #N)* लिखा है। जो चल रहा है कहकर चिह्नित है, वह रिलीज़ नहीं हुआ है।
+
+`main` पर 24/7 watcher एक स्वीकृत issue लेता है और एक सत्यापित PR लौटाता है: exec CLI sandbox के अंदर योजना बनाता है, `turbo --apply - --verify` लागू करता और टेस्ट करता है, secret scan चलता है, फिर PR खुलता है। watcher कभी merge नहीं करता। Squads (एक मुख्य समन्वयक, हर squad में एक समन्वयक, हर एक में अधिकतम 4 worker) और merge train इसी loop के ऊपर [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502) (PR [#1506](https://github.com/simpletibr/simplicio-loop/pull/1506)), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504) (PR [#1507](https://github.com/simpletibr/simplicio-loop/pull/1507)) और [#1505](https://github.com/simpletibr/simplicio-loop/issues/1505) में बन रहे हैं।
+
+### अवलोकन: issue से main तक
+
+```mermaid
+flowchart TD
+  ISS["GitHub issues"] --> INT["Intake: repo opt-in, label loop:auto, trusted author, prompt guard"]
+  INT -->|vague or epic| ASK["BLOCKED with a clarifying question"]
+  INT --> GC["General coordinator: planning role, Opus or equivalent. In progress: #1502"]
+  GC --> SC
+  subgraph SQUAD["Squad. In progress: #1502"]
+    SC["Squad coordinator: coordination role, Sonnet or equivalent"]
+    WK["Up to 4 workers: execution role, Haiku or equivalent, routed by complexity. In progress: #1504"]
+    SC --> WK
+  end
+  subgraph WLOOP["Worker loop. On main today"]
+    PLAN["CLI exec plans inside the bwrap sandbox, scrubbed env"] --> TURBO["turbo --apply - --verify"]
+    TURBO --> SCAN["secret-scan"]
+    SCAN --> PR["Push and PR"]
+    TURBO -. "2 failures: escalate the role" .-> PLAN
+  end
+  WK --> PLAN
+  PR --> REV["Squad review posts APROVADO PELO SQUAD. In progress: #1502"]
+  REV --> MT["General coordinator merge train: squads gate, one test per batch, bisect on red. In progress: #1504"]
+  MT --> MAIN["main"]
+  WLOOP -.-> EVT[("events.jsonl")]
+  EVT -.-> LIVE["Simplicio Live kanban"]
+  WLOOP -.-> REP["execution-report: role, model, effort"]
+  classDef wip stroke-dasharray: 5 5
+  class GC,SC,WK,REV,MT wip
+  style SQUAD stroke-dasharray: 5 5
+```
+
+### host मोड में watcher का एक tick
+
+```mermaid
+sequenceDiagram
+  participant W as Watcher tick
+  participant GH as GitHub
+  participant L as Lease store
+  participant P as Planner CLI in bwrap, scrubbed env
+  participant T as turbo and dev-cli in bwrap
+  participant S as Secret scan
+  participant D as events.jsonl and report
+  W->>GH: list open issues of opted-in repos
+  W->>W: intake: loop:auto, trusted author, triage
+  W->>L: acquire lease with TTL, heartbeat while running
+  W->>GH: canonical status comment CLAIMED, PLANNED, IN_PROGRESS
+  W->>P: plan prompt, issue text fenced as untrusted, role model effort
+  P-->>W: JSON plan, the CLI writes no file
+  W->>T: turbo --apply - --verify with the plan on stdin
+  T-->>W: apply and verify result
+  W->>S: scan the staged diff
+  S-->>W: clean, or BLOCKED and dead on a secret
+  W->>GH: push loop/issue-N and open the PR with Closes N
+  W->>GH: status comment VERIFYING, PR_OPEN
+  W->>D: events.jsonl, state.json and execution-report
+  W->>L: release lease
+```
+
+### एक issue का जीवन
+
+```mermaid
+stateDiagram-v2
+  [*] --> new
+  new --> needs_human: vague or epic issue
+  needs_human --> new: author clarifies
+  new --> admitted: opt-in, loop:auto, trusted author
+  admitted --> claimed: lease acquired
+  claimed --> running: planner and turbo apply
+  running --> pr_open: verify passed, or labelled UNVERIFIED
+  running --> retry: failure, attempt 1
+  retry --> admitted: after 6 hours
+  running --> dead: 2 failures, or a secret in the diff
+  dead --> new: issue reopened
+  pr_open --> running: review comment, red check or conflict
+  pr_open --> done: a human merges
+  done --> [*]
+```
+
+### Escalation सीढ़ी
+
+```mermaid
+flowchart LR
+  NEW["New issue today"] --> PL
+  FIX["PR review fix today"] --> CO
+  SQW["Squad worker. In progress: #1504"] -.-> E1
+  E1["execution"] -->|fail| E2["execution, second try"]
+  E2 -->|fail| CO["coordination"]
+  CO -->|fail| PL["planning, retry with the failure output"]
+  PL -->|fail| CEIL{"Ceiling? MAX_STEPS 4, attempt and token ceilings"}
+  CEIL -->|not reached| PL
+  CEIL -->|reached| STOP["Stop: retry later or dead"]
+  E1 -->|verify ok| OK["PR opened"]
+  E2 -->|verify ok| OK
+  CO -->|verify ok| OK
+  PL -->|verify ok| OK
+  classDef wip stroke-dasharray: 5 5
+  class SQW wip
+```
+
+### skill मोड बनाम watcher 24/7
+
+| | skill मोड (`/simplicio-loop`) | Watcher 24/7 (headless) |
+|---|---|---|
+| कौन शुरू करता है | एक व्यक्ति, agent session के अंदर | `systemd` unit `simplicio-loop-247`, हर 120 सेकंड पर polling |
+| काम का स्रोत | व्यक्ति का दिया लक्ष्य या backlog | opt-in वाले repos के issues: `.simplicio/loop.toml`, label `loop:auto`, भरोसेमंद author |
+| Planner | host मॉडल | केवल plan मोड में exec CLI (claude, codex, grok, gemini); लिखने वाला केवल dev-cli है |
+| Gate | प्रमाण सहित promise | `turbo --verify`: PR केवल हरे tests पर खुलता है, वरना उसपर `UNVERIFIED\|no_test_command` label लगता है |
+| Merge | `Closes #N` वाला PR, प्रमाण gate के बाद merge | **डिफ़ॉल्ट में बंद।** `main` पर watcher कभी merge नहीं करता; auto-merge केवल `SIMPLICIO_247_AUTO_MERGE=1` से (चल रहा है: #1505) |
+| सुरक्षा | STRICT मोड, `action_gate`, अपरिवर्तनीय कार्यों के लिए मानव gate | non-root उपयोगकर्ता, साफ़ env वाला bwrap sandbox, दैनिक सीमा, secret scan, मोड 0600 वाली env फ़ाइल |
+| Squads | चल रहा है: #1502 | चल रहा है: #1505 |
+
+### परिवार के अनुसार roles
+
+[`simplicio_loop/_catalog/model_roles.json`](../simplicio_loop/_catalog/model_roles.json) (`as_of` 2026-10-08) से पढ़ा गया; कोष्ठक में effort के साथ मॉडल। `planning` कठिन फ़ैसले लेता है, `coordination` तालमेल और review करता है, `execution` काम चलाता है।
+
+| परिवार | planning | coordination | execution |
+|---|---|---|---|
+| claude | `claude-opus-5-5` (high) | `claude-sonnet-5-5` (high) | `claude-haiku-5-5` (high) |
+| codex | `gpt-6-astra` (high) | `gpt-6.1-sol` (high) | `gpt-6-luna` (high) |
+| grok | `grok-4.7` (xhigh) | `grok-4.6` (high) | `grok-4.5` (high) |
+| gemini | `gemini-3.8-flash` (high) | `gemini-3.7-flash` (high) | `gemini-3.6-flash` (high) |
+| agy | `default` (high) | `default` (high) | `default` (high) |
+| opencode | `default` (high) | `default` (high) | `default` (high) |
+<!-- squads:end -->
+
 <!-- visual-story:start -->
 ## 🚀 नई पीढ़ी — सत्यापित एजेंट कार्य के लिए एक ऑपरेटिंग सिस्टम
 
@@ -58,29 +198,66 @@
 - **completion से पहले proof** — tests, impact/flow checks, watcher challenge, delivery receipt और HBP evidence झूठे done state को अस्वीकार करते हैं।
 - **व्यवहार बदलने वाली memory** — journal, stall detector, checkpoint और cross-agent wiki दोहराव रोकते हैं और handoff को टिकाऊ बनाते हैं।
 
-<p align="center">
-  <img src="../assets/simplicio-loop-parallel-worktrees.png" alt="simplicio-loop parallel isolated worktree execution" width="920" />
-</p>
+```mermaid
+flowchart LR
+  C["Frozen task contract"] --> S["Scheduler: dependency-aware ready set"]
+  S --> W1["Worktree A"]
+  S --> W2["Worktree B"]
+  S --> W3["Worktree C"]
+  W1 --> R["Receipts and operational ledger"]
+  W2 --> R
+  W3 --> R
+  R --> V{"Independent verify"}
+  V -->|pass| M["One converged delivery"]
+  V -->|fail| X["Rollback, then visible serial lane"]
+```
 
 <p align="center"><em>Dependency-aware fan-out: अलग workers parallel चलते हैं, evidence लौटाते हैं और एक verified delivery में converge करते हैं।</em></p>
 
-<p align="center">
-  <img src="../assets/simplicio-loop-lifecycle-2026.svg" alt="simplicio-loop lifecycle from intake to durable memory" width="920" />
-</p>
+```mermaid
+flowchart LR
+  A["Intake"] --> B["Contract"] --> C["Map"] --> D["Plan"] --> E["Execute"] --> F["Verify"] --> G["Deliver"] --> H[("Durable memory")]
+  F -. "fail: rollback and retry" .-> E
+  H -. "journal informs the next turn" .-> D
+```
 
 <p align="center"><em>हर चरण स्पष्ट, सीमित, observable और reversible है।</em></p>
 
-<p align="center">
-  <img src="../assets/simplicio-loop-evidence-memory.png" alt="simplicio-loop evidence memory verification rollback and completion" width="920" />
-</p>
+```mermaid
+flowchart TD
+  OUT["Worker output and receipts"] --> GATE{"Verification gate: tests, impact, watcher"}
+  GATE -->|evidence ok| PROMISE["Evidence-gated promise"]
+  PROMISE --> COMPLETE["Completion audit"]
+  COMPLETE --> WIKI[("Checkpoints and cross-agent wiki")]
+  GATE -->|evidence missing| ROLL["Safe rollback"]
+  ROLL --> JOURNAL[("Run journal and stall detector")]
+  JOURNAL --> RETRY["Next attempt with a new hypothesis"]
+  RETRY --> OUT
+```
 
 <p align="center"><em>Evidence और memory execution path का हिस्सा हैं, बाद में लिखी गई report नहीं।</em></p>
 
 यह architecture एक लक्ष्य को governed delivery system में बदलता है: एक कठिन task से पूरे backlog तक, sessions और runtimes के पार, local-first operators और ऐसे receipts के साथ जिन्हें मनुष्य, CI या दूसरा agent audit कर सके।
 
-<p align="center">
-  <img src="../assets/simplicio-loop-architecture-2026.svg" alt="simplicio-loop control execution evidence and delivery planes" width="920" />
-</p>
+```mermaid
+flowchart LR
+  subgraph CONTROL["Control plane"]
+    CT["Task contract"] --> SCH["Dependency-aware scheduler"]
+  end
+  subgraph EXEC["Execution plane"]
+    WK["Isolated worktrees"] --> OP["Operators: mapper, dev-cli, fast"]
+  end
+  subgraph EVID["Evidence plane"]
+    RC["Receipts"] --> VG["Verify gates"] --> MEM[("Journal and memory")]
+  end
+  subgraph DELIV["Delivery plane"]
+    PR["PR with Closes N"] --> SRC["Source of record in sync"]
+  end
+  SCH --> WK
+  OP --> RC
+  VG --> PR
+  MEM -.-> SCH
+```
 <!-- visual-story:end -->
 
 <!-- stage-agents-roadmap:start -->
@@ -90,7 +267,20 @@
 
 Intake/planning, implementation, safety, delivery, recovery और final audit में एक-एक उत्तरदायी agent होगा। Review converge होने से पहले चार independent agents में बँटेगा — security/correctness, quality, runtime/E2E reproduction और blast radius।
 
-<p align="center"><img src="../assets/simplicio-loop-stage-agents-reporting-2026.webp" alt="simplicio-loop stage agents और work tracker comments" width="920" /></p>
+```mermaid
+sequenceDiagram
+  participant A as Stage agent
+  participant L as Append-only stage ledger
+  participant G as GitHub issue or PR
+  participant P as Other trackers
+  participant C as Completion auditor
+  A->>L: event and receipt on every transition
+  L->>G: status comment, required for GitHub runs
+  G-->>L: observed comment receipt
+  L-->>P: comment only when the provider is connected
+  L->>C: evidence, never self-reported confidence
+  C-->>A: COMPLETE, PARTIAL, BLOCKED or REGRESSED
+```
 
 ```mermaid
 flowchart LR
