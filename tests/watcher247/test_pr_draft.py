@@ -43,7 +43,7 @@ def test_draft_with_auto_merge_runs_no_train_and_no_merge(env, monkeypatch):
     (clone / "pytest.ini").write_text("[pytest]\n")
     rows = [issue(n, f"Task {n}", body=f"Ajustar `src/m{n}/app.py` para o fluxo do watcher seguir o contrato descrito abaixo.")
             for n in (1, 2)]
-    fake = env(FakeRun({REPO: rows}, verify_pass=True, distinct_prs=True, pr_views={100 + n: _view(n) for n in (1, 2)}))
+    fake = env(FakeRun({REPO: rows}, distinct_prs=True, pr_views={100 + n: _view(n) for n in (1, 2)}))
     baseline()
     run_tick()
     squads = read_json(config.STATUS)["squads"][REPO]
