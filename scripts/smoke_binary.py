@@ -110,6 +110,81 @@ def measure_startup(command: Sequence[str], env: dict[str, str], runs: int = 10)
             "min_s": round(min(walls), 3), "peak_rss_mib": round(max(peaks), 1)}
 
 
+
+
+def parse_live_url(stdout: str) -> tuple[str, str, int]:
+    """Parse 'simplicio-live: <url>' from stdout. Returns (base_url, query, port).
+    
+    Raises ValueError if the line is missing.
+    """
+    for line in stdout.splitlines():
+        if "simplicio-live: " in line:
+            url = line.split("simplicio-live: ")[-1].strip()
+            base, _, query = url.partition("?")
+            # Extract port from URL like http://127.0.0.1:9999
+            match = re.search(r':(\d+)(?:[/?]|$)', base)
+            if not match:
+                raise ValueError(f"Could not parse port from: {url}")
+            port = int(match.group(1))
+            return base, query, port
+    raise ValueError("simplicio-live: line not found in stdout")
+
+
+def server_processes(proc_root: str = '/proc', needle: str = 'simplicio_loop.dashboard.server') -> list[int]:
+    """Find process IDs matching needle in /proc/<pid>/cmdline.
+    
+    Returns list of matching PIDs. Safe on missing proc_root or unreadable cmdlines.
+    """
+    proc_path = Path(proc_root)
+    if not proc_path.exists():
+        return []
+    
+    result = []
+    for pid_dir in sorted(proc_path.iterdir()):
+        if not pid_dir.is_dir():
+            continue
+        try:
+            pid = int(pid_dir.name)
+        except ValueError:
+            continue
+        
+        cmdline_file = pid_dir / "cmdline"
+        if not cmdline_file.exists():
+            continue
+        
+        try:
+            cmdline = cmdline_file.read_bytes().decode('utf-8', errors='replace')
+            if needle in cmdline:
+                result.append(pid)
+        except (OSError, ValueError):
+            continue
+    
+    return result
+
+
+def port_is_closed(port: int, timeout: float = 5.0) -> bool:
+    """Check if a port is closed (connection refused).
+    
+    Retries for up to `timeout` seconds to handle timing issues.
+    Returns True if port is closed, False if open.
+    """
+    import socket
+    import time
+    
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            sock = socket.create_connection(("127.0.0.1", port), timeout=0.5)
+            sock.close()
+            # Connection succeeded = port is open
+            return False
+        except (socket.error, OSError):
+            # Connection refused or timed out
+            time.sleep(0.1)
+    
+    # After timeout, assume it's closed
+    return True
+
 class Smoke:
     def __init__(self, binary: Path, work: Path, reference_bin: Optional[Path], wheel: Optional[Path],
                  expected_version: Optional[str]) -> None:
@@ -242,12 +317,17 @@ class Smoke:
         return f"{report['files']} data files and {report['modules']} modules found; simplicio-mapper -> {report['operator']}"
 
     def dashboard(self) -> str:
-        """Start the panel from the binary, fetch the page and every static file it names, stop it."""
+        """Start the panel from the binary, fetch the page and every static file it names, stop it properly."""
+        errors = []
         started = self.run([str(self.exe), "dashboard", "--port", "0", "--no-browser"])
         assert started.returncode == 0, started.stdout[-300:] + started.stderr[-300:]
-        url = started.stdout.strip().split("simplicio-live: ")[-1]
-        base, _, query = url.partition("?")
+        
+        refs = []
         try:
+            base, query, port = parse_live_url(started.stdout)
+            url = f"{base}?{query}" if query else base
+            
+            # Fetch the page and its assets
             with urllib.request.urlopen(url, timeout=30) as page:
                 html = page.read().decode()
             refs = sorted(set(re.findall(r'(?:src|href)="(/static/[^"]+)"', html)))
@@ -255,8 +335,43 @@ class Smoke:
             for ref in refs:
                 with urllib.request.urlopen(f"{base.rstrip('/')}{ref}?{query}", timeout=30) as asset:
                     assert asset.status == 200 and asset.read(), ref
+            
+            # Start a second server to verify reuse
+            second = self.run([str(self.exe), "dashboard", "--port", "0", "--no-browser"])
+            assert second.returncode == 0, second.stderr[-300:]
+            second_base, second_query, second_port = parse_live_url(second.stdout)
+            assert second_port == port, f"second server got different port {second_port} vs {port}"
+            assert "reusing" in second.stderr.lower() or "reusing" in second.stdout.lower(), "server reuse not confirmed"
+        except (AssertionError, ValueError, OSError) as e:
+            errors.append(str(e))
         finally:
-            self.run([str(self.exe), "dashboard", "--stop"])
+            # Stop the server
+            stopped = self.run([str(self.exe), "dashboard", "--stop"])
+            if stopped.returncode != 0 or "dashboard stopped" not in stopped.stdout.lower():
+                errors.append(f"dashboard --stop failed: rc={stopped.returncode}, stdout={stopped.stdout[-200:]}")
+            
+            # Verify port is closed
+            try:
+                base, query, port = parse_live_url(started.stdout)
+                if not port_is_closed(port):
+                    errors.append(f"port {port} still open after stop")
+            except ValueError:
+                pass
+            
+            # Verify no processes (Linux only)
+            if sys.platform.startswith("linux"):
+                bin_dir = str(self.home / "bin")
+                pids = server_processes(needle="simplicio_loop.dashboard.server")
+                for pid in pids:
+                    try:
+                        exe_path = Path(f"/proc/{pid}/exe").resolve()
+                        if bin_dir in str(exe_path):
+                            errors.append(f"process {pid} still running with binary from {bin_dir}")
+                    except OSError:
+                        pass
+        
+        if errors:
+            raise AssertionError("; ".join(errors))
         return f"page and {len(refs)} static files served"
 
     def operators(self) -> str:
@@ -268,10 +383,46 @@ class Smoke:
             out.append(f"{command}: {done.stdout.strip().splitlines()[0]}")
         return "; ".join(out)
 
+    def children_environment(self) -> str:
+        """Verify that child processes inherit a clean environment without _MEI paths."""
+        if sys.platform == "win32":
+            return "skipped (Windows)"
+        
+        code = "import subprocess, os; r = subprocess.run(['/usr/bin/env'], capture_output=True, text=True); print(r.stdout)"
+        result = self.run([str(self.exe), "-c", code], env={**self.env, "SIMPLICIO_LOOP_SELF_SPAWN": "1"})
+        assert result.returncode == 0, result.stderr[-300:]
+        
+        for line in result.stdout.splitlines():
+            if line.startswith("LD_LIBRARY_PATH="):
+                assert "_MEI" not in line, f"Found _MEI in LD_LIBRARY_PATH: {line}"
+            if line.startswith("DYLD_LIBRARY_PATH="):
+                assert "_MEI" not in line, f"Found _MEI in DYLD_LIBRARY_PATH: {line}"
+        
+        return "environment clean"
+
+    def task_is_not_a_file(self) -> str:
+        """Verify that a bare task name is never executed as code."""
+        task_dir = self.work / "task-test"
+        task_dir.mkdir()
+        fix_py = task_dir / "fix.py"
+        fix_py.write_text("import pathlib; pathlib.Path('RAN').touch()")
+        
+        result = self.run([str(self.exe), str(fix_py)], cwd=task_dir)
+        # Don't assert on exit code; just check RAN was not created
+        ran_file = task_dir / "RAN"
+        assert not ran_file.exists(), "task was executed as code; RAN file exists"
+        
+        return "task treated as loop task, not executed"
+
+
     def run_all(self) -> list[dict[str, Any]]:
         self.check("version", self.version)
-        for name, function in (("help", self.help), ("doctor stack", self.doctor), ("preflight", self.preflight),
-                               ("operators by name", self.operators), ("hot path (turbo orient + apply)", self.hot_path),
+        for name, function in (("help", self.help), 
+                               ("task is not a file", self.task_is_not_a_file),
+                               ("doctor stack", self.doctor), ("preflight", self.preflight),
+                               ("operators by name", self.operators), 
+                               ("children environment", self.children_environment),
+                               ("hot path (turbo orient + apply)", self.hot_path),
                                ("dashboard", self.dashboard),
                                ("install", self.install), ("bundled data and modules", self.data)):
             self.check(name, function)
