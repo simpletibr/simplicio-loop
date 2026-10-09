@@ -5,12 +5,16 @@ import argparse
 import asyncio
 
 from ..claim_lease import ClaimStore
-from . import config, state, tick
+from . import config, env_guard, state, tick
 
 
 async def main(once: bool = False, dry_run: bool = False) -> int:
     if not dry_run:
         await asyncio.to_thread(config.WORK.mkdir, parents=True, exist_ok=True)
+        if refused := env_guard.refusal():
+            state.log(f"refusing to start: {refused} ({env_guard.env_file()})")
+            await state.write_status(phase="blocked", reason_code=refused)
+            return 1
         # Before any lease exists, every legacy running claim (no owner_token) is an orphan of the old watcher.
         await ClaimStore(config.CLAIMS).migrate_legacy(ttl_s=0)
     while True:
