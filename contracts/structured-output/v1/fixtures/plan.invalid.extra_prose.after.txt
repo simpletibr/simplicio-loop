@@ -1,0 +1,1 @@
+{"operations":[{"path":"a.py","find":"","replace":"x"}]} Let me know if you need more.

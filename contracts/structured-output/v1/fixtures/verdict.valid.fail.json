@@ -1,0 +1,1 @@
+{"verdict":"fail","findings":[{"severity":"major","path":"a.py","line":3,"note":"off by one"}]}

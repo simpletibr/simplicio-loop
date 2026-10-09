@@ -79,6 +79,12 @@ export function createView() {
       note: byId('economy-note'),
     },
     agentsCost: byId('agents-cost'),
+    tokenBars: byId('token-bars'),
+    tokenBarsNote: byId('token-bars-note'),
+    taskCost: byId('task-cost'),
+    taskCostNote: byId('task-cost-note'),
+    iterationCost: byId('iteration-cost'),
+    iterationCostNote: byId('iteration-cost-note'),
   });
   let ringPercent = null;
   let announcedPhase = null;
