@@ -9,6 +9,12 @@ writes ``.git/hooks/pre-commit`` for ``link/hooks/pre-commit``. Given the root, 
 file system will, and refused when it lands inside ``.git`` or outside the root. A path that is absolute, climbs with
 ``..``, names a drive or holds ``:`` is refused before anything is read, so a plan learns nothing about a file it may not
 name. A plan only creates or edits text files and cannot create a symlink, so a link made by the same plan is not a case.
+
+The check and the write are two moments: a process that swaps a directory for a symlink to ``.git`` after the check and
+before dev-cli writes (two dev-cli subprocesses) is not stopped here. It needs write access to the repository, which
+already reaches ``.git/hooks``; only a dev-cli with its own symlink check (main, not 0.18.16) refuses again at write time.
+A hard link to ``.git/config`` is no symlink and is not seen; both dev-cli versions replace the file instead of writing
+through it (measured).
 """
 from __future__ import annotations
 
