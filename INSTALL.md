@@ -40,6 +40,9 @@ What the installer does (all reversible — copies + a config edit):
   / `.kiro/steering/…` / `CONVENTIONS.md`) references the protocol — idempotently,
 - prints `simplicio-cli mcp register --client <runtime>` for optional native binding.
 
+Global scope: `install --global` also runs the resync that writes `~/.codex/skills/simplicio-*`. Those files are outside the
+ownership receipt, so they stay after `install --uninstall`; remove them by hand if you want them gone.
+
 See [`adapters/MATRIX.md`](adapters/MATRIX.md) and `adapters/<runtime>/README.md` for details.
 For the exact per-OS mutation inventory (what mutates on disk, PATH, or a service, and which
 effects require an explicit flag), see [`docs/INSTALL_MUTATIONS.md`](docs/INSTALL_MUTATIONS.md).
