@@ -1,0 +1,26 @@
+{
+  "schema": "simplicio.agent-handoff/v1",
+  "run_id": "run-20261009T161000Z",
+  "task_id": "T-1608-A",
+  "continuation": 1,
+  "reason": "host_signal",
+  "agent": {"family": "codex", "role": "coordination", "model": "gpt-5-codex"},
+  "objective": "Review the budget decision and merge the approved branch.",
+  "acceptance_criteria": ["the review cites the test evidence"],
+  "done": {"files": [], "commands": []},
+  "next_steps": ["Re-run the targeted tests on the branch"],
+  "open_questions": ["Does the host report cache reads?"],
+  "tokens": {
+    "basis": "ESTIMATED",
+    "estimator": "conservative-v1",
+    "prompt_tokens": 91000,
+    "input_tokens": null,
+    "cache_read_input_tokens": null,
+    "cache_creation_input_tokens": null,
+    "output_tokens": null,
+    "ceiling": 98000,
+    "cumulative_prompt_tokens": 91000
+  },
+  "lease": {"key": "issue-1608", "owner": "coordinator-t"},
+  "created_at": "2026-10-09T16:12:30.250Z"
+}
