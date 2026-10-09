@@ -245,3 +245,90 @@ export function agentsCostView(economy, agents, budget) {
     comparisonRowOf(budget),
   ];
 }
+
+// Cost widgets (issue #1404): token bars and cost per task and per iteration, from GET /api/runs/<id>/budget.
+// Tokens are the measured token_usage counts; USD is ESTIMADO (measured tokens times the price table). A missing piece stays
+// UNVERIFIED with its reason, and a row with no price keeps its measured tokens.
+const TOKENS_UNVERIFIED = 'tokens não medidos: nenhum token_usage registrado pelo run';
+const NO_TASK_ID = 'nenhum token_usage com task_id: o produtor não grava a tarefa';
+const NO_ITERATION = 'nenhum token_usage com iteração: o produtor não grava o número da iteração';
+const NOT_LISTED = 'USD fora da lista dos maiores do run';
+const NOT_MEASURED_USD = 'USD não verificado';
+const COST_ROWS_CAP = 8;
+
+function formatTokens(value) {
+  return Math.round(value).toLocaleString('pt-BR') + ' tokens';
+}
+
+function formatUsd(value) {
+  return 'USD ' + value.toFixed(4);
+}
+
+// A group of counts as [label, value] pairs with finite values only; anything else is dropped.
+function countsOf(group) {
+  if (!isObject(group)) return [];
+  return Object.entries(group).filter(([, value]) => numberOrNull(value) !== null);
+}
+
+function tokenBarsOf(budget) {
+  const usage = isObject(budget) && isObject(budget.usage) ? budget.usage : null;
+  const total = usage ? numberOrNull(usage.tokens) : null;
+  if (total === null || total <= 0) return { state: 'UNVERIFIED', reason: TOKENS_UNVERIFIED, total: null, phases: [], models: [], modelsOther: null };
+  const phases = countsOf(usage.by_phase).map(([label, value]) => ({ label, value }));
+  const models = countsOf(usage.by_model).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+  const rest = models.slice(MODELS_CAP);
+  return {
+    state: 'MEASURED',
+    reason: 'Tokens medidos: ' + formatTokens(total) + ' em ' + (usage.samples ?? 0) + ' eventos token_usage.',
+    total,
+    phases,
+    models: models.slice(0, MODELS_CAP),
+    modelsOther: rest.length === 0 ? null : { models: rest.length, value: rest.reduce((sum, item) => sum + item.value, 0) },
+  };
+}
+
+// One row per task (or iteration) with measured tokens, most tokens first; the USD joins in when the price table priced it.
+function costRowsOf(kind, budget) {
+  const usage = isObject(budget) && isObject(budget.usage) ? budget.usage : null;
+  const cost = isObject(budget) && isObject(budget.cost) ? budget.cost : null;
+  const priced = cost !== null && cost.state === 'ESTIMADO';
+  const usdReason = cost !== null && stringOrNull(cost.reason) ? cost.reason : NOT_MEASURED_USD;
+  const tokensOf = usage ? countsOf(kind === 'task' ? usage.by_task : usage.by_iteration) : [];
+  const usdOf = priced ? Object.fromEntries(countsOf(kind === 'task' ? cost.by_task : cost.by_iteration)) : {};
+  const label = kind === 'task' ? 'Tarefa ' : 'Iteração ';
+  const keyOf = (id) => kind + ':' + id;
+  const sorted = [...tokensOf].sort((a, b) => b[1] - a[1]);
+  const rows = sorted.slice(0, COST_ROWS_CAP).map(([id, tokens]) => {
+    const usd = numberOrNull(usdOf[id]);
+    const money = usd !== null ? formatUsd(usd) + ' estimado' : NOT_MEASURED_USD + ': ' + (priced ? NOT_LISTED : usdReason);
+    return { key: keyOf(id), label: label + id, state: usd !== null ? 'ESTIMADO' : 'UNVERIFIED', detail: formatTokens(tokens) + ' medidos · ' + money };
+  });
+  const unattributedTokens = usage && isObject(usage.unattributed_tokens) ? numberOrNull(usage.unattributed_tokens[kind]) : null;
+  if (unattributedTokens !== null && unattributedTokens > 0) {
+    const usd = priced && isObject(cost.unattributed_usd) ? numberOrNull(cost.unattributed_usd[kind]) : null;
+    const money = usd !== null ? formatUsd(usd) + ' estimado' : NOT_MEASURED_USD + ': ' + usdReason;
+    rows.push({
+      key: 'unattributed-' + kind,
+      label: kind === 'task' ? 'Sem tarefa identificada' : 'Sem iteração identificada',
+      state: usd !== null ? 'ESTIMADO' : 'UNVERIFIED',
+      detail: formatTokens(unattributedTokens) + ' medidos · ' + money,
+    });
+  }
+  const attributed = tokensOf.length;
+  // The split is estimated only when a listed task (or iteration) carries USD; an unattributed remainder alone is not a split.
+  const state = rows.some((row) => row.key.startsWith(kind + ':') && row.state === 'ESTIMADO') ? 'ESTIMADO' : 'UNVERIFIED';
+  let reason;
+  if (state === 'ESTIMADO') reason = 'USD estimado com a tabela de preços de ' + (stringOrNull(cost.as_of) || 'data não informada') + '; tokens medidos.';
+  else if (attributed === 0) reason = kind === 'task' ? NO_TASK_ID : NO_ITERATION;
+  else reason = usdReason;
+  return { state, reason, rows, more: Math.max(0, attributed - COST_ROWS_CAP) };
+}
+
+// The cost widgets of the panel: the token bars, the cost per task and the cost per iteration.
+export function costWidgetsView(budget) {
+  return {
+    tokenBars: tokenBarsOf(budget),
+    taskCosts: costRowsOf('task', budget),
+    iterationCosts: costRowsOf('iteration', budget),
+  };
+}
