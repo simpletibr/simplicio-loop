@@ -63,6 +63,41 @@ def test_a_big_file_with_the_symbol_at_the_end_shows_the_whole_body_and_the_line
     start_line = body[:first].count("\n") + 1
     assert window["start"] <= start_line - N and window["end"] >= start_line + 4 + N - 1  # the body and N lines around
     assert entry["omitted"] and "more" in entry
+    assert entry["windows"][0]["start"] == 1 and entry["windows"][0]["end"] == turbo_window.HEADER_LINES  # the header
+
+
+def _with_function(body_lines: int) -> tuple[str, int]:
+    """900 filler functions, then ``def long_target_fn`` with ``body_lines`` body lines; returns (text, def line)."""
+    head = _py(900)
+    at = head.count("\n") + 1
+    body = "".join(f"    step_{i} = {i}\n" for i in range(body_lines))
+    return head + "def long_target_fn(a):\n" + body + "    return a\n\n\ndef after_fn():\n    return 1\n", at
+
+
+def test_a_long_function_is_shown_with_its_whole_body_and_not_beyond(tmp_path):
+    text, at = _with_function(60)
+    _write(tmp_path, "big.py", text)
+    entry = turbo_window.build_files(tmp_path, [_task("change long_target_fn in big.py", "big.py")])["big.py"]
+    window = next(w for w in entry["windows"] if "def long_target_fn" in w["text"])
+    assert window["start"] == at - N and window["end"] == at + 61 + N and "    return a\n" in window["text"]
+    assert "step_59 = 59\n" in window["text"]
+
+
+def test_a_function_past_the_body_cap_gets_only_the_lines_around_its_def(tmp_path):
+    text, at = _with_function(turbo_window.BODY_CAP_LINES + 50)
+    _write(tmp_path, "big.py", text)
+    entry = turbo_window.build_files(tmp_path, [_task("change long_target_fn in big.py", "big.py")])["big.py"]
+    window = next(w for w in entry["windows"] if "def long_target_fn" in w["text"])
+    assert (window["start"], window["end"]) == (at - N, at + N)
+
+
+def test_a_decorated_or_multiline_signature_def_is_whole(tmp_path):
+    text = _py(900) + "@decorator\ndef sig_target_fn(\n    a,\n    b,\n) -> int:\n" + "".join(
+        f"    s{i} = {i}\n" for i in range(20)) + "    return a\n\n\nx = 1\n"
+    _write(tmp_path, "big.py", text)
+    entry = turbo_window.build_files(tmp_path, [_task("change sig_target_fn in big.py", "big.py")])["big.py"]
+    shown = "".join(w["text"] for w in entry["windows"])
+    assert "@decorator\ndef sig_target_fn(\n    a,\n    b,\n) -> int:\n" in shown and "    return a\n" in shown
 
 
 def test_no_anchor_shows_the_beginning_and_the_rest_is_omitted(tmp_path):
