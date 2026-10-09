@@ -149,9 +149,54 @@ function renderEconomy(els, economy) {
   setText(els.note, economyNote(economy));
 }
 
+// Cost widgets (issue #1404). The bars are native <progress> elements: the share is the value attribute, so no inline style.
+// Only measured counts reach the page as numbers; an UNVERIFIED reading draws no bar and shows its reason as text.
+function formatInt(value) {
+  return Math.round(value).toLocaleString('pt-BR');
+}
+
+function barRow(label, value, total) {
+  const li = document.createElement('li');
+  const name = document.createElement('span');
+  name.className = 'bar-label';
+  name.textContent = label;
+  const bar = document.createElement('progress');
+  bar.max = total;
+  bar.value = value;
+  bar.setAttribute('aria-label', label + ': ' + formatInt(value) + ' tokens');
+  const figure = document.createElement('span');
+  figure.className = 'bar-value';
+  figure.textContent = formatInt(value) + ' tokens (' + Math.round((value / total) * 100) + '%)';
+  li.append(name, bar, figure);
+  return li;
+}
+
+function barGroups(bars) {
+  const groups = [['Por fase', bars.phases], ['Por modelo', bars.models]];
+  return groups.filter(([, items]) => items.length > 0).map(([caption, items]) => {
+    const list = document.createElement('ul');
+    list.className = 'bars';
+    list.append(...items.map((item) => barRow(item.label, item.value, bars.total)));
+    if (caption === 'Por modelo' && bars.modelsOther) {
+      list.append(barRow('outros ' + bars.modelsOther.models + ' modelos', bars.modelsOther.value, bars.total));
+    }
+    const title = document.createElement('p');
+    title.className = 'bars-caption';
+    title.textContent = caption;
+    const section = document.createElement('div');
+    section.append(title, list);
+    return section;
+  });
+}
+
+function costNote(costs) {
+  return costs.more > 0 ? costs.reason + ' Mais ' + costs.more + ' não listadas.' : costs.reason;
+}
+
 export function createPanels(els) {
   let timelineJson = null;
   let gaugeJson = null;
+  let barsJson = null;
   return {
     render(model, options) {
       const items = timelineItems(model.iterations);
@@ -172,6 +217,17 @@ export function createPanels(els) {
       }
       renderEconomy(els.economy, model.economy);
       renderBadges(els.agentsCost, agentRows(model.agentsCost), options.runId, options.token);
+      const bars = model.costWidgets.tokenBars;
+      const barsText = JSON.stringify(bars);
+      if (barsText !== barsJson) {
+        barsJson = barsText;
+        els.tokenBars.replaceChildren(...barGroups(bars));
+      }
+      setText(els.tokenBarsNote, bars.reason || '');
+      setText(els.taskCostNote, costNote(model.costWidgets.taskCosts));
+      renderBadges(els.taskCost, model.costWidgets.taskCosts.rows, options.runId, options.token);
+      setText(els.iterationCostNote, costNote(model.costWidgets.iterationCosts));
+      renderBadges(els.iterationCost, model.costWidgets.iterationCosts.rows, options.runId, options.token);
     },
   };
 }

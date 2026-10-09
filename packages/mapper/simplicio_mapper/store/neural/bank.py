@@ -19,7 +19,8 @@ NEURAL_API_SCHEMA = "simplicio.mapper-store.neural/v1"
 NEURAL_DB_NAME = "simplicio-memory.sqlite"
 _ASSETS = Path(__file__).resolve().parent / "assets"
 _MIGRATIONS_DIR = _ASSETS / "migrations"
-_SEEDS = _ASSETS / "seeds.sql"
+_SEEDS_DIR = _ASSETS / "seeds"
+_SEED_PART = re.compile(r"^part-([0-9]+)\.sql$")
 _SCHEMA = _ASSETS / "memory-schema.sql"
 
 # Runtime catalog order (matches crates/simplicio-memory store bootstrap).
@@ -97,6 +98,33 @@ def _strip_transaction_wrappers(sql: str) -> str:
             line = re.sub(r'ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS', 'ADD COLUMN', line, flags=re.I)
         cleaned.append(line)
     return chr(10).join(cleaned)
+
+
+def _seed_parts() -> list[Path]:
+    """Packaged seed parts (part-01.sql, part-02.sql, ...) in load order.
+
+    The numbering must be contiguous from 01: a gap means a part is missing and loading the rest
+    would silently produce a partial seed, so it fails closed instead.
+    """
+    if not _SEEDS_DIR.is_dir():
+        return []
+    found: dict[int, Path] = {}
+    for path in _SEEDS_DIR.iterdir():
+        match = _SEED_PART.match(path.name)
+        if not match:
+            continue
+        number = int(match.group(1))
+        # Only the canonical two-digit name: `part-1.sql` would otherwise be dropped silently and
+        # the seed would load partially. The canonical name is unique per number, so no duplicate.
+        if path.name != f"part-{number:02d}.sql":
+            raise NeuralBankError("SEEDS_INVALID", f"non-canonical or duplicate seed part {path.name}")
+        found[number] = path
+    if not found:
+        return []
+    missing = sorted(set(range(1, max(found) + 1)) - set(found))
+    if missing:
+        raise NeuralBankError("SEEDS_INCOMPLETE", f"missing part numbers {missing} in {_SEEDS_DIR}")
+    return [found[number] for number in sorted(found)]
 
 
 def _migration_files() -> list[tuple[str, Path]]:
@@ -219,7 +247,7 @@ def bootstrap_neural(
         conn.execute("PRAGMA busy_timeout=3000")
         applied = apply_migrations(conn)
         seed_report = None
-        if apply_seeds and _SEEDS.is_file():
+        if apply_seeds and _seed_parts():
             seed_report = seed_neural(conn)
         conn.commit()
         migrations = [
@@ -248,7 +276,7 @@ def bootstrap_neural(
         "seeds": seed_report,
         "assets": {
             "migrations_dir": str(_MIGRATIONS_DIR),
-            "seeds": str(_SEEDS) if _SEEDS.is_file() else None,
+            "seeds": str(_SEEDS_DIR) if _seed_parts() else None,
             "memory_schema": str(_SCHEMA) if _SCHEMA.is_file() else None,
         },
         "occurred_at": _now(),
@@ -256,25 +284,35 @@ def bootstrap_neural(
 
 
 def seed_neural(conn: sqlite3.Connection) -> dict[str, Any]:
-    """Load packaged seeds.sql (INSERT OR IGNORE)."""
-    if not _SEEDS.is_file():
-        raise NeuralBankError("SEEDS_MISSING", str(_SEEDS))
+    """Load the packaged seed parts in order (INSERT OR IGNORE).
+
+    Parts are cut at statement boundaries, so each one runs on its own and the sequence is the
+    same statements in the same order as one file. `sha256` is over the concatenated bytes.
+    """
+    parts = _seed_parts()
+    if not parts:
+        raise NeuralBankError("SEEDS_MISSING", str(_SEEDS_DIR))
     before = 0
     try:
         before = int(conn.execute("SELECT COUNT(*) FROM memory_items").fetchone()[0])
     except sqlite3.Error:
         before = 0
-    sql = _strip_transaction_wrappers(_SEEDS.read_text(encoding="utf-8"))
-    try:
-        conn.executescript(sql)
-    except sqlite3.Error as error:
-        raise NeuralBankError("SEED_FAILED", str(error)) from error
+    digest = hashlib.sha256()
+    for part in parts:
+        data = part.read_bytes()
+        digest.update(data)
+        sql = _strip_transaction_wrappers(data.decode("utf-8"))
+        try:
+            conn.executescript(sql)
+        except sqlite3.Error as error:
+            raise NeuralBankError("SEED_FAILED", f"{part.name}: {error}") from error
     after = int(conn.execute("SELECT COUNT(*) FROM memory_items").fetchone()[0])
     return {
-        "path": str(_SEEDS),
+        "path": str(_SEEDS_DIR),
+        "parts": [part.name for part in parts],
         "items_before": before,
         "items_after": after,
-        "sha256": _sha256_file(_SEEDS),
+        "sha256": digest.hexdigest(),
     }
 
 
@@ -389,6 +427,6 @@ def neural_status(
         "memory_items": items,
         "migrations_present": migrations,
         "packaged_migrations": [m for m, _ in _migration_files()],
-        "packaged_seeds": str(_SEEDS) if _SEEDS.is_file() else None,
+        "packaged_seeds": str(_SEEDS_DIR) if _seed_parts() else None,
         "occurred_at": _now(),
     }

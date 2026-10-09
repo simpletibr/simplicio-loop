@@ -136,3 +136,11 @@ def test_the_guard_keeps_the_signature_of_the_popen_it_wraps(runtime_never_targe
     assert guarded is not wrapped
     assert inspect.signature(guarded) == inspect.signature(wrapped)
     assert inspect.signature(guarded.__init__) == inspect.signature(wrapped.__init__)
+
+
+def test_the_repo_equals_form_is_refused_from_any_cwd(tmp_path, runtime_never_targets_the_real_repo):
+    """`--repo=<path>` is one argument; the cwd is elsewhere, so only the `--repo=` branch can catch it."""
+    runtime = _fake_runtime(tmp_path / "bin")
+    with pytest.raises(AssertionError, match="real repository"):
+        subprocess.run([str(runtime), "map", f"--repo={ROOT}"], cwd=str(tmp_path), check=False)
+    runtime_never_targets_the_real_repo.clear()

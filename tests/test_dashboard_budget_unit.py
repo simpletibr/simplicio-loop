@@ -34,7 +34,9 @@ def test_declared_ignores_malformed_contracts(tmp_path):
 
 
 def _usage(seq, kind, phase, payload):
-    return {'schema': 'simplicio.dashboard-event/v1', 'seq': seq, 'kind': kind, 'phase': phase,
+    # lane is an envelope field (dashboard_events.build_envelope), never a payload field.
+    lane = payload.pop('lane', None)
+    return {'schema': 'simplicio.dashboard-event/v1', 'seq': seq, 'kind': kind, 'phase': phase, 'lane': lane,
             'ts': '2026-10-08T10:00:%02dZ' % seq, 'payload': payload}
 
 

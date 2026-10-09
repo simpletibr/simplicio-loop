@@ -16,11 +16,13 @@ import hashlib
 import json
 import secrets
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from . import dashboard_events
+from . import command_events, dashboard_events
 from .dashboard.runs import RUN_ID_RE, write_state_file
 from .execution_report import new_report, record_task, write_report
 from .state_dir import ensure_state_dir
@@ -115,6 +117,21 @@ class TurboRun:
             "updated_at": _now(),
             "finished_at": finished_at,
         }, self.run_dir / "state.json")
+
+    # --- commands the run executes (the --verify check) ---------------------------------------
+
+    @contextmanager
+    def command(self, command: str) -> Iterator[command_events.Span]:
+        """``command_started`` before the block and ``command_finished`` after it, however the block ends.
+
+        The run is not a task, so the events are collection scope with source ``runner``. The block sets
+        ``span.exit_code`` (or ``span.reason``, e.g. ``timeout``) before it ends.
+        """
+        with command_events.track(None, command, emit=self._emit_command) as span:
+            yield span
+
+    def _emit_command(self, kind: str, payload: dict[str, Any], severity: str) -> None:
+        self._emit([{"kind": kind, "phase": self.stage, "severity": severity, "payload": payload}])
 
     # --- receipts ----------------------------------------------------------------------------
 
