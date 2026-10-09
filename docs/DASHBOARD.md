@@ -305,11 +305,12 @@ Read-only, token-gated like `/api/queue`. The source is the backlog JSONL: `$SIM
 - The rich queue (issue #1407).
 - Deferred from #1403 (see [DASHBOARD_EVENTS.md](DASHBOARD_EVENTS.md#quality-producers)): the test matrix by unit, integration, system and regression level, red and green transitions per test id, the flaky rule (needs per-test ids), and the diff virtualisation with the 5,000-line benchmark (no measurement exists).
 - The running command has no producer.
-- Agent and model names need #1404. The lease heartbeat needs #1403 and #1404.
+- Agent and model names need #1404.
+- The lane lease heartbeat is read from the Mapper OperationsStore (`<repo>/.simplicio-loop/data/operations.sqlite`, or `$SIMPLICIO_MAPPER_OPERATIONS_DB` as the runner resolves it): the `worker_claimed` `lease_id` is looked up in `ops_leases`, opened read-only. A missing, locked or corrupt store, an unknown `lease_id`, or a future `heartbeat_at` stays UNVERIFIED with the reason (#1546). The text says the age since the last recorded beat; the runner claims once and never heartbeats, so such a lane reads "sem batimento registrado desde o claim" and is flagged only when its lease has expired, not at half the ttl. The store is never created or written: a WAL store nobody holds open is read with `immutable=1` (plain `mode=ro` would create `-wal`/`-shm`), any other with `mode=ro`, one connection per request, so a locked store costs one 0.25 s timeout for all lanes.
 - Reference image: `tests/fixtures/live_pipeline/pipeline-dark-1280x900.png` is a Chromium screenshot (dark, 1280x900, board hidden). The diff tolerates 16 of 255 per channel on up to 2% of the pixels. Other browsers or font stacks may need a new reference (`SL_UPDATE_REFERENCE=1`).
 - The contract title of a task: needs a fetch of `task-contract.json`.
 - Reference-image diff: the baseline is font and platform fragile, so the PR carries screenshots instead.
-- Agent and model names, the lease heartbeat, and the running command: no producer yet, so they show UNVERIFIED (#1404).
+- Agent and model names, and the running command: no producer yet, so they show UNVERIFIED (#1404).
 - Real-GPU 60 fps: UNVERIFIED. Only the software Chromium measurement exists.
 
 ## Alerts (#1406, slices 1406a and 1406b)
