@@ -312,3 +312,16 @@ export function startExtras(readApi, runId) {
   load();
   setInterval(load, POLL_MS);
 }
+
+// The run budget and token usage are derived from the event stream, so they refresh on the tokens cadence (the caller's interval).
+// Each reply feeds the reducer, then the cost widgets (issue #1404), whose module loads on the first reply, not with the page.
+export function startBudget(readApi, runId, dispatch, intervalMs) {
+  if (!runId) return;
+  const load = async () => {
+    const response = await readApi('/api/runs/' + encodeURIComponent(runId) + '/budget');
+    dispatch({ type: 'budget', response });
+    (await import('./cost-widgets.js')).renderCostWidgets(response);
+  };
+  load();
+  setInterval(load, intervalMs);
+}

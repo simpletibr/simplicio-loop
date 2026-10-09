@@ -11,7 +11,7 @@ import { createView } from '/static/live/view.js';
 import { boardOf } from '/static/live/board.js';
 import { createBoard } from '/static/live/board-view.js';
 import { startCoordination } from '/static/coordination/boot.js';
-import { startExtras } from '/static/extras/extras.js';
+import { startBudget, startExtras } from '/static/extras/extras.js';
 import { startHistory } from '/static/history/history-page.js';
 import { nextRunId, rotationMs, runCommands, runUrl } from '/static/live/runs-nav.js';
 
@@ -392,12 +392,6 @@ async function loadTokens() {
   dispatch({ type: 'tokens', response: await readApi('/api/tokens') });
 }
 
-// The run budget and token usage are derived from the event stream, so they refresh on the tokens cadence.
-async function loadBudget() {
-  if (!runId) return;
-  dispatch({ type: 'budget', response: await readApi('/api/runs/' + encodeURIComponent(runId) + '/budget') });
-}
-
 // The stage-agents roles come from the contract, which does not change while the page is open: one read per page.
 // Browser notifications are opt-in twice: dashboard.toml turns them on, then the user grants the permission.
 function notifyBrowser(alert, now) {
@@ -461,8 +455,7 @@ function start() {
   loadSummary();
   loadTokens();
   setInterval(loadTokens, TOKENS_POLL_MS);
-  loadBudget();
-  setInterval(loadBudget, TOKENS_POLL_MS);
+  startBudget(readApi, runId, dispatch, TOKENS_POLL_MS);
   loadAgents();
   loadAlertSettings();
   applyHash();

@@ -35,6 +35,8 @@ DESKTOP = (1280, 900)
 OVERFLOW_JS = "() => document.documentElement.scrollWidth <= document.documentElement.clientWidth"
 PANEL_INSIDE_JS = """() => [...document.querySelectorAll('.cost-block')]
   .every((el) => el.getBoundingClientRect().right <= window.innerWidth + 0.5)"""
+ROWS_INSIDE_JS = """() => [...document.querySelectorAll('.cost-block li, .cost-block sl-gate-badge, .cost-block .bar-label')]
+  .every((el) => el.getBoundingClientRect().right <= window.innerWidth + 0.5)"""
 BARS_JS = "() => [...document.querySelectorAll('#token-bars progress')].map((p) => Number(p.value))"
 # sl-gate-badge draws its text inside a shadow root, so the rows are read from the badge attributes.
 BADGES_JS = """(sel) => [...document.querySelectorAll(sel + ' sl-gate-badge')]
@@ -81,10 +83,10 @@ def _run_dir(repo):
     return repo / ".simplicio-loop" / "loop-runs" / RUN_ID
 
 
-def _emit_usage(run_dir, task_id, phase, lane, tokens_in, tokens_out, iteration=None):
+def _emit_usage(run_dir, task_id, phase, lane, tokens_in, tokens_out, iteration=None, model=MODEL):
     emitter = load()
     assert emitter is not None, "dashboard_events emitter is missing"
-    payload = {"input_tokens": tokens_in, "output_tokens": tokens_out, "model": MODEL}
+    payload = {"input_tokens": tokens_in, "output_tokens": tokens_out, "model": model}
     return emitter.emit(run_dir, "token_usage", source="runner", strict=True, task_id=task_id, phase=phase, lane=lane,
                         iteration=iteration, payload=payload)
 
@@ -135,6 +137,9 @@ def test_measured_bars_and_cost_per_task_and_iteration_show_in_dark_and_light(br
             assert iterations["Iteração 1"]["state"] == "ESTIMADO"
             assert iterations["Sem iteração identificada"]["state"] == "ESTIMADO"
             assert page.inner_text("#task-cost-note").startswith("USD estimado")
+            # The same budget reply still feeds the reducer: the agents list shows the measured tokens by phase.
+            agents = {row["gate"]: row for row in page.evaluate(BADGES_JS, "#agents-cost")}
+            assert agents["Tokens por fase"]["state"] == "PASS" and "executing 1000000" in agents["Tokens por fase"]["reason"]
             _shot(page, "cost-" + theme)
             assert page.problems == []
         finally:
@@ -201,3 +206,42 @@ def test_axe_reports_no_serious_or_critical_violation_in_the_cost_panel(browser,
             assert blocking == [], (theme, blocking)
         finally:
             context.close()
+
+
+XSS_TASK = '<img src=x onerror="window.__xss=1">'
+XSS_MODEL = "<script>window.__xss=2</script>"
+LONG_TASK = "T" + "x" * 179
+
+
+def test_task_and_model_names_from_events_never_become_markup(browser, live_server, repo):
+    run_dir = _run_dir(repo)
+    _emit_usage(run_dir, XSS_TASK, "executing", "route-a", 1_000, 10, iteration=1, model=XSS_MODEL)
+    _emit_usage(run_dir, "__proto__", "validating", "route-b", 2_000, 20, iteration=2, model=MODEL)
+    _emit_usage(run_dir, "constructor", "validating", "route-b", 3_000, 30, iteration=3, model=MODEL)
+    for theme in ("dark", "light"):
+        context, page = _open(browser, live_server.port, theme=theme)
+        try:
+            page.wait_for_selector("#token-bars progress", timeout=TIMEOUT_MS)
+            page.wait_for_function("() => document.querySelectorAll('#task-cost sl-gate-badge').length >= 3")
+            assert page.evaluate("() => window.__xss") is None
+            assert page.locator("img[src=x]").count() == 0
+            assert page.locator("#cost-widgets script, #cost-widgets img").count() == 0
+            tasks = [row["gate"] for row in page.evaluate(BADGES_JS, "#task-cost")]
+            assert "Tarefa " + XSS_TASK in tasks and "Tarefa __proto__" in tasks and "Tarefa constructor" in tasks
+            assert XSS_MODEL in page.inner_text("#token-bars") and "Por modelo" in page.inner_text("#token-bars")
+            assert page.problems == []
+        finally:
+            context.close()
+
+
+def test_a_180_character_task_id_wraps_inside_the_cost_widgets_at_phone_width(browser, live_server, repo):
+    run_dir = _run_dir(repo)
+    _emit_usage(run_dir, LONG_TASK, "executing", "route-a", 1_000_000, 0, iteration=1)
+    context, page = _open(browser, live_server.port, theme="dark", viewport=PHONE)
+    try:
+        page.wait_for_function("() => document.querySelectorAll('#task-cost sl-gate-badge').length >= 1")
+        assert page.evaluate(PANEL_INSIDE_JS) is True
+        assert page.evaluate(ROWS_INSIDE_JS) is True
+        assert page.problems == []
+    finally:
+        context.close()
