@@ -179,6 +179,16 @@ def test_dependencies_outside_the_set_and_self_references_are_ignored():
     assert [m.issue for m in plan.merge_order] == [1, 2]
 
 
+def test_dependencies_lists_the_declared_edges_the_merge_order_uses():
+    issues = [
+        {"number": 10, "body": "Depends on #30 e parte de #20"},
+        {"number": 20, "depends_on": [30]},
+        {"number": 30},
+        {"number": 40, "body": "Parte de #1429 e depende de #40"},
+    ]
+    assert squads.dependencies(issues) == {10: (20, 30), 20: (30,), 30: (), 40: ()}
+
+
 def test_dependency_cycle_raises_a_typed_error():
     issues = [
         {"number": 1, "body": "depends on #2"},

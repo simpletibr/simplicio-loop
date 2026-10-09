@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -113,6 +114,24 @@ def ceilings() -> dict[str, int]:
     }
     found = {key: _int_env(var) for key, var in names.items()}
     return {key: value for key, value in found.items() if value is not None}
+
+
+_STATUS_CODE = re.compile(r"[a-z_]{1,32}")
+
+
+def _failure_reason(planned: exec_planner.PlannerResult, label: str, status: str) -> str:
+    """Why a step failed, as a short code: the planner's reason_code, a red verify, or turbo's apply status.
+
+    The status is turbo's output, so only a short lowercase word is kept; anything else (text, a path, a list) is `unknown`.
+    Turbo said `ok` but no passing verify came back: that is not an apply failure.
+    """
+    if not planned.is_ok():
+        return planned.reason_code
+    if label.startswith("MEASURED|verify_failed"):
+        return "verify_failed"
+    if status == "ok":
+        return "verify_not_reported"
+    return f"apply_{status if isinstance(status, str) and _STATUS_CODE.fullmatch(status) else 'unknown'}"
 
 
 def next_role(ladder: escalation.EscalationState) -> None:
@@ -231,7 +250,8 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
             _note_step(report, repo=repo, issue=issue, step=step, planned=planned,
                        outcome="COMPLETE" if ok else "FAIL", wall_ms=wall_ms)
             steps.append({"role": planned.role, "family": planned.family, "model": planned.model,
-                          "effort": planned.effort, "outcome": "ok" if ok else "failed"})
+                          "effort": planned.effort, "outcome": "ok" if ok else "failed",
+                          **({} if ok else {"reason": _failure_reason(planned, label, status)})})
             if ok:
                 report["status"] = "COMPLETE"
                 return {"turbo_status": status, "exit_code": result.returncode, "verify": label,
