@@ -23,8 +23,8 @@ result with ``build_artifacts`` on random repositories so any drift fails a test
 Not materialized per worktree: ``call-graph``, ``architecture-inventory``, ``retrieval-index`` and
 the artifact manifest (the heavy derived artifacts, 50-70 % of a full index). A previous generation of
 them in the worktree is removed because it would describe another tree; ``simplicio-mapper index``
-builds them on demand. Trees with C#/Razor sources fall back to a full index (semantic resolution is
-global).
+builds them on demand. C#/Razor sources are parsed fresh and run through the call graph's semantic
+pass (global), so such trees stay exact, just not cheap.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ from .canonical_overlay import compute_worktree_overlay
 from .canonical_reuse import compute_config_fingerprint
 from .canonical_storage import resolve_canonical_cache_root
 from .emit import _build_agent_tree, _write_json_stable
-from .graph import _build_symbol_index, _collect_architecture_signals
+from .graph import _build_call_graph, _build_symbol_index, _collect_architecture_signals
 from .parse import (
     ARTIFACT_SCHEMA,
     ARTIFACT_VERSION,
@@ -249,15 +249,26 @@ def _compute(
         abs_root, pkg, status_map, None, contents=contents, skipped_large_files=skipped, facts=facts,
     )
     degraded["skipped_large_files"] = sorted(skipped)
-    if any(file.language in _SEMANTIC_LANGUAGES for file in files):
-        return _fallback(receipt, "semantic_languages_present", started)
 
     generated_at = _now_iso()
+    # C#/Razor symbols get their identities from the semantic pass of the call graph, which is
+    # global: those files are parsed fresh and the call graph decides the resolution status.
+    semantic = any(file.language in _SEMANTIC_LANGUAGES for file in files)
+    if semantic:
+        language = {file.path: file.language for file in files}
+        reused = {rel for rel in reused if language[rel] not in _SEMANTIC_LANGUAGES}
     symbol_index = _symbol_index(abs_root, files, generated_at, base_symbols, reused, contents)
+    if semantic:
+        resolution = _build_call_graph(abs_root, files, symbol_index, generated_at, contents=contents)[
+            "semantic_resolution"
+        ]
+        if resolution.get("status") in {"unavailable", "degraded"}:
+            degraded["semantic_resolution"] = resolution
+    else:
+        resolution = _SEMANTIC_NOT_REQUIRED
+        symbol_index["semantic_resolution"] = dict(resolution)
     project_map = _project_map(abs_root, meta, pkg, files, status_map, degraded, generated_at)
-    project_map["capability_coverage"] = build_capability_coverage(
-        files, semantic_resolution=_SEMANTIC_NOT_REQUIRED
-    )
+    project_map["capability_coverage"] = build_capability_coverage(files, semantic_resolution=resolution)
     project_map["agent_tree"] = _build_agent_tree(files, _build_brown_hilbert_map(files))
     precedent_index = {
         "schema": PRECEDENT_SCHEMA, "version": ARTIFACT_VERSION, "generated_at": generated_at,
@@ -316,7 +327,6 @@ def _symbol_index(
     document["counts"] = {
         "symbols": len(symbols), "files": len({item["defined_in"] for item in symbols}),
     }
-    document["semantic_resolution"] = dict(_SEMANTIC_NOT_REQUIRED)
     return document
 
 

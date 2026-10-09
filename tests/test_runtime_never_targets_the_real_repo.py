@@ -51,6 +51,13 @@ def test_a_worktree_sibling_of_this_checkout_is_protected_through_the_shared_com
     assert os.path.realpath(str(ROOT)) in roots
 
 
+def test_runtime_subcommands_that_never_map_are_not_policed(tmp_path):
+    """The action gate runs `simplicio hbp append` with the checkout as cwd on every blocked edit."""
+    runtime = _fake_runtime(tmp_path / "bin")
+    result = subprocess.run([str(runtime), "hbp", "append", "--topic", "x"], cwd=str(ROOT), capture_output=True, text=True)
+    assert result.returncode == 0
+
+
 def test_a_temporary_repository_is_fine(tmp_path):
     runtime = _fake_runtime(tmp_path / "bin")
     repo = tmp_path / "repo"

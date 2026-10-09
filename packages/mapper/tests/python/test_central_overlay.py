@@ -199,6 +199,27 @@ class EquivalenceTests(OverlayCase):
         (wt / "pkg" / "huge.py").write_text("x = 1\n" * 60000, encoding="utf-8")
         self.assert_equivalent(wt)
 
+    def test_csharp_and_razor_sources_still_match_a_fresh_mapping(self) -> None:
+        """Semantic resolution is global: such files are parsed fresh and the call graph decides the status."""
+        (self.main / "src").mkdir()
+        (self.main / "src" / "Svc.cs").write_text(
+            "public class Svc {\n  public int Run(int x) { return Helper(x); }\n  public int Helper(int x) { return x; }\n}\n",
+            encoding="utf-8",
+        )
+        (self.main / "src" / "View.razor").write_text("@code {\n  void Click() { Svc.Run(1); }\n}\n", encoding="utf-8")
+        _git(["add", "-A"], self.main)
+        _git(["commit", "-q", "-m", "csharp"], self.main)
+        wt = self.worktree()
+        receipt = self.assert_equivalent(wt)
+        self.assertIsNone(receipt["fallback_reason"])
+        (wt / "src" / "Svc.cs").write_text(
+            "public class Svc {\n  public int Run(int x) { return Other(x); }\n  public int Other(int x) { return x + 1; }\n}\n",
+            encoding="utf-8",
+        )
+        (wt / self.rels[0]).write_text("def plain_edit():\n    return 1\n", encoding="utf-8")
+        receipt = self.assert_equivalent(wt)
+        self.assertIsNone(receipt["fallback_reason"])
+
     def test_file_names_with_spaces_and_non_ascii_characters(self) -> None:
         for name in ("pkg/with space.py", "pkg/módulo_ação.py"):
             target = self.main / name

@@ -68,6 +68,13 @@ def exec_auth_spawn_guard(request, monkeypatch):
     assert not violations, f"real binaries spawned: {violations}"
 
 
+#: Runtime subcommands that map the repository (and so write `<git-common-dir>/simplicio/map`).
+MAPPING_SUBCOMMANDS = frozenset(
+    {"map", "runtime", "context", "orient", "orientation", "plan", "decide", "run", "sprint",
+     "validate", "dev-cli", "serve"}
+)
+
+
 def _protected_checkout_roots() -> tuple[str, ...]:
     """This checkout and the main worktree of its repository: both share one `<git-common-dir>/simplicio`."""
     roots = {os.path.realpath(str(_REPO_ROOT))}
@@ -118,6 +125,8 @@ def runtime_never_targets_the_real_repo(monkeypatch):
         argv = [os.fsdecode(item) for item in argv]
         if not argv or os.path.basename(argv[0]) not in ("simplicio", "simplicio.exe"):
             return
+        if len(argv) < 2 or argv[1] not in MAPPING_SUBCOMMANDS:
+            return  # hbp/gate/checkpoint/... never build a baseline map
         if any(inside(target) for target in target_of(argv, cwd)):
             violations.append(" ".join(argv))
             raise AssertionError(
