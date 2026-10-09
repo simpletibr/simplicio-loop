@@ -259,7 +259,7 @@ def _git_status_map(cwd: str, degraded: dict[str, Any] | None = None) -> dict[st
     out: dict[str, str] = {}
     try:
         result = subprocess.run(
-            ["git", "status", "--porcelain", "--untracked-files=all"],
+            ["git", "status", "--porcelain", "-z", "--untracked-files=all"],
             cwd=cwd,
             capture_output=True,
             text=True,
@@ -278,13 +278,19 @@ def _git_status_map(cwd: str, degraded: dict[str, Any] | None = None) -> dict[st
         if degraded is not None:
             degraded["git_status_unavailable"] = True
         return out
-    for line in (result.stdout or "").split("\n"):
-        if not line.strip():
+    # -z: NUL-separated raw names (git C-quotes `"`, backslash, TAB, newline otherwise, and prints
+    # renames as "old -> new"). A rename/copy record is "XY <new>\0<old>\0".
+    tokens = (result.stdout or "").split("\0")
+    index = 0
+    while index < len(tokens):
+        record = tokens[index]
+        index += 1
+        if len(record) < 4:
             continue
-        status = line[:2].strip() or "modified"
-        raw = line[3:].strip()
-        file = raw.split(" -> ")[-1] if " -> " in raw else raw
-        out[_normalize_rel(file)] = status
+        status = record[:2].strip() or "modified"
+        if record[0] in "RC" or record[1] in "RC":
+            index += 1  # skip the original path
+        out[_normalize_rel(record[3:])] = status
     return out
 
 def _collect_text_files(cwd: str, skipped: list[str] | None = None) -> list[str]:

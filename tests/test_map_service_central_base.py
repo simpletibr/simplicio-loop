@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -117,3 +118,18 @@ def test_merge_base_tree_follows_the_worktree_fork_point(tmp_path):
     assert base is not None
     assert merge_base_tree(str(old), base.ref) == old_tree
     assert merge_base_tree(str(root), base.ref) == base.tree
+
+
+def test_tree_snapshot_lists_the_real_paths_of_files_git_would_quote(tmp_path):
+    from simplicio_loop.map_service_git import real_tree_snapshot
+
+    root = _repo(tmp_path / "repo")
+    names = ['we"ird.py', "back\\slash.py", "tab\there.py", "new\nline.py", "módulo.py", "a -> b.py"]
+    for name in names:
+        (root / name).write_text("x = 1\n", encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "odd names")
+    _tree_hash, files = real_tree_snapshot(str(root))
+    for name in names:
+        assert str(root.resolve() / name) in files, name
+    assert all(os.path.exists(path) for path in files)

@@ -199,6 +199,54 @@ class EquivalenceTests(OverlayCase):
         (wt / "pkg" / "huge.py").write_text("x = 1\n" * 60000, encoding="utf-8")
         self.assert_equivalent(wt)
 
+    EXOTIC = ('we"ird.py', "back\\slash.py", "a -> b.py", "tab\there.py", "new\nline.py", " lead.py", "trail .py")
+
+    def _commit_exotic(self) -> None:
+        for name in self.EXOTIC:
+            (self.main / "pkg" / name).write_text("def fn_aa():\n    return 1\n", encoding="utf-8")
+        _git(["add", "-A"], self.main)
+        _git(["commit", "-q", "-m", "exotic names"], self.main)
+
+    def test_same_size_edit_of_a_file_whose_name_git_would_quote(self) -> None:
+        """git quotes `"`, backslash, TAB, newline in C style and prints renames as `a -> b` without -z."""
+        self._commit_exotic()
+        wt = self.worktree()
+        compute_overlay(str(wt))  # base built; now edit every odd file, same size
+        for name in self.EXOTIC:
+            path = wt / "pkg" / name
+            path.write_text(path.read_text(encoding="utf-8").replace("fn_aa", "fn_bb"), encoding="utf-8")
+        outcome = compute_overlay(str(wt))
+        self.assertIsNotNone(outcome.artifacts, outcome.receipt)
+        names = {s["name"] for s in outcome.artifacts["symbol_index"]["symbols"]}
+        self.assertIn("fn_bb", names)
+        self.assertEqual(
+            sum(1 for s in outcome.artifacts["symbol_index"]["symbols"] if s["name"] == "fn_aa"), 0,
+            "a file served from the base with its old symbols",
+        )
+        self.assertEqual(outcome.receipt["files_remapped"], len(self.EXOTIC))
+        self.assert_equivalent(wt)
+
+    def test_exotic_names_added_deleted_and_renamed(self) -> None:
+        self._commit_exotic()
+        wt = self.worktree()
+        (wt / "pkg" / 'we"ird.py').unlink()
+        _git(["mv", "pkg/tab\there.py", "pkg/moved -> there.py"], wt)
+        (wt / "pkg" / 'untracked"quote.py').write_text("def fresh():\n    return 2\n", encoding="utf-8")
+        (wt / "pkg" / "back\\slash.py").write_text("def other():\n    return 3\n", encoding="utf-8")
+        self.assert_equivalent(wt)
+
+    def test_git_status_map_keys_are_the_real_paths(self) -> None:
+        from simplicio_mapper.mapper.parse import _git_status_map
+
+        self._commit_exotic()
+        wt = self.worktree()
+        for name in self.EXOTIC:
+            path = wt / "pkg" / name
+            path.write_text(path.read_text(encoding="utf-8") + "# x\n", encoding="utf-8")
+        status = _git_status_map(str(wt))
+        for name in self.EXOTIC:
+            self.assertEqual(status.get("pkg/" + name), "M", name)
+
     def test_csharp_and_razor_sources_still_match_a_fresh_mapping(self) -> None:
         """Semantic resolution is global: such files are parsed fresh and the call graph decides the status."""
         (self.main / "src").mkdir()

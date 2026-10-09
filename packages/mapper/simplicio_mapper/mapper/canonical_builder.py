@@ -244,12 +244,12 @@ def _compute_file_manifest_digest(root: str, commit_sha: str) -> str | None:
     the detached temp checkout, so it is safe to compute before or after that
     checkout exists.
     """
-    result = _run_git(["ls-tree", "-r", commit_sha], root)
+    result = _run_git(["ls-tree", "-r", "-z", commit_sha], root)
     if not result or result.returncode != 0:
         return None
     entries: list[str] = []
-    for line in result.stdout.splitlines():
-        # format: "<mode> <type> <sha>\t<path>"
+    for line in result.stdout.split("\0"):
+        # format: "<mode> <type> <sha>\t<path>" (NUL-separated, raw path)
         meta, _, path = line.partition("\t")
         if not path:
             continue

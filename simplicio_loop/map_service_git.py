@@ -38,7 +38,7 @@ def _git(root: Path, args: Sequence[str]) -> str:
     return result.stdout.strip()
 
 
-def _git_identity(path: str, *args: str) -> str:
+def _git_identity(path: str, *args: str, strip: bool = True) -> str:
     result = subprocess.run(
         ["git", "-C", path, *args], capture_output=True, text=True, timeout=15,
     )
@@ -46,7 +46,7 @@ def _git_identity(path: str, *args: str) -> str:
         raise GitIdentityError(
             "git %s failed in %s: %s" % (" ".join(args), path, result.stderr.strip())
         )
-    return result.stdout.strip()
+    return result.stdout.strip() if strip else result.stdout
 
 
 def _ref_exists(path: str, ref: str) -> bool:
@@ -181,15 +181,20 @@ def resolve_repository_identity(path: str, *, mapper_config: str = "") -> Reposi
 
 
 def real_tree_snapshot(path: str) -> Tuple[str, List[str]]:
-    """Return a content-derived tree hash and the real tracked file paths."""
+    """Return a content-derived tree hash and the real tracked file paths.
+
+    ``-z``: git prints names with a quote, backslash, TAB or newline C-quoted otherwise, and the
+    returned paths would not exist on disk.
+    """
     resolved = str(Path(path).expanduser().resolve(strict=True))
-    files = [line for line in _git_identity(resolved, "ls-files").splitlines() if line]
-    if not files:
+    listing = _git_identity(resolved, "ls-files", "-s", "-z", strip=False)
+    entries = [item for item in listing.split("\0") if item]
+    if not entries:
         return hashlib.sha256(b"empty-tree").hexdigest(), []
-    ls_tree = _git_identity(resolved, "ls-files", "-s")
-    blob_shas = sorted(line.split()[1] for line in ls_tree.splitlines() if line.strip())
+    blob_shas = sorted(item.split("\t", 1)[0].split()[1] for item in entries)
+    files = [item.split("\t", 1)[1] for item in entries]
     return hashlib.sha256("".join(blob_shas).encode("utf-8")).hexdigest(), [
-        str(Path(resolved) / file) for file in files
+        str(Path(resolved) / file) for file in sorted(set(files))
     ]
 
 
