@@ -32,12 +32,11 @@ async def repos() -> list[dict]:
 async def open_issues(repo: str) -> list[dict]:
     try:
         rows = await gh_json([
-            "api", "-X", "GET", f"repos/{config.ORG}/{repo}/issues",
-            "-f", "state=open", "-F", "per_page=50",
-        ])
+            "api", "--paginate", "-X", "GET", f"repos/{config.ORG}/{repo}/issues",
+            "-f", "state=open", "-F", "per_page=100",
+        ], timeout=120)
     except RuntimeError as exc:
-        exc_str = str(exc).lower()
-        if "disabled issues" in exc_str or "issues are disabled" in exc_str:
+        if "issues are disabled" in str(exc).lower():
             await state.mark_issues_disabled(repo)
             return []
         raise

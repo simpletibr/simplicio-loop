@@ -90,9 +90,6 @@ class FakeRun:
         if head == ["gh", "repo", "list"]:
             rows = [{"name": n, "isArchived": False, "defaultBranchRef": {"name": "main"}} for n in self.issues]
             return proc.Result(0, json.dumps(rows))
-        if head == ["gh", "issue", "list"]:
-            name = argv[argv.index("--repo") + 1].split("/")[1]
-            return proc.Result(0, json.dumps(self.issues[name]))
         if head == ["gh", "repo", "clone"]:
             (Path(argv[4]) / ".git").mkdir(parents=True)
             return proc.Result(0)
@@ -175,7 +172,7 @@ class FakeRun:
             }))
         if re.fullmatch(r"repos/[^/]+/[^/]+/pulls/\d+/comments", route):
             return proc.Result(0, "[]")
-        # Handle GET /repos/{org}/{repo}/issues (new REST API for open_issues)
+        # GET /repos/{org}/{repo}/issues (open_issues)
         found = re.fullmatch(r"repos/([^/]+)/([^/]+)/issues(?:\?.*)?$", route)
         if found and method == "GET":
             org, name = found.groups()

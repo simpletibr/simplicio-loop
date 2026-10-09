@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+
 import pytest
 
 from simplicio_loop.watcher247 import config, github, state
@@ -56,6 +57,7 @@ def test_open_issues_uses_rest_api_not_issue_list(monkeypatch):
     assert repo_path in " ".join(args)
     assert "state=open" in " ".join(args)
     assert "authorAssociation" not in " ".join(args)  # Old field should not be requested
+    assert "--paginate" in args and "per_page=100" in args  # PRs share the pages with issues: read them all
 
     # Verify PR is discarded
     assert len(result) == 1
@@ -93,7 +95,6 @@ def test_open_issues_case_insensitive_disabled_check(monkeypatch):
     """Verify both 'Issues are disabled' and 'disabled issues' patterns are caught."""
     for error_msg in [
         "Issues are disabled for this repository",
-        "disabled issues",
         "Issues Are Disabled For This Repository",
     ]:
         mark_calls = []
@@ -156,3 +157,32 @@ def test_open_issues_preserves_output_contract(monkeypatch):
     assert issue["author_association"] == "OWNER"
     assert issue["labels"] == [{"name": "bug"}, {"name": "urgent"}]
     assert issue["created_at"] == "2026-10-01T12:34:56Z"
+
+
+def _rest_pages(rows):
+    """A `gh api repos/.../issues` stand-in that pages like GitHub: `per_page` (default 30), the first page only
+    without --paginate, every page merged into one array with it. `served` counts the pages it handed out."""
+    served = []
+
+    async def run(argv, **_kwargs):
+        size = next((int(a.split("=")[1]) for a in argv if a.startswith("per_page=")), 30)
+        pages = [rows[i:i + size] for i in range(0, len(rows), size)]
+        wanted = pages if "--paginate" in argv else pages[:1]
+        served.extend(wanted)
+        return github.proc.Result(0, json.dumps([row for page in wanted for row in page]))
+
+    return run, served
+
+
+def test_open_issues_reads_past_the_prs_that_share_the_pages(monkeypatch):
+    """/issues mixes PRs and issues: 120 PRs ahead of 25 issues must not hide the issues, nor cost one request per item."""
+    prs = [{"number": 1000 + n, "pull_request": {}, "labels": [], "user": {"login": "o"}} for n in range(120)]
+    issues = [{"number": n, "labels": [{"name": "loop:auto"}], "user": {"login": "o"}, "author_association": "OWNER"}
+              for n in range(1, 26)]
+    run, served = _rest_pages(prs + issues)
+    monkeypatch.setattr(github.proc, "run", run)
+
+    found = asyncio.run(github.open_issues("test-repo"))
+
+    assert [row["number"] for row in found] == list(range(1, 26))
+    assert len(served) == 2  # 145 items at 100 per page; per_page=1 or the default 30 would take 145 or 5
