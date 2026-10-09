@@ -3,7 +3,8 @@
 Rules, in the order they run:
 
 * an existing destination (file or symlink) is never touched, and nothing is downloaded for it;
-* every URL is https on github.com, api.github.com or *.githubusercontent.com, also after each redirect;
+* every URL is https on api.github.com or one of the exact hosts of `setup_hardening.ALLOWED_DOWNLOAD_HOSTS`, also after
+  each redirect; a 3xx without `Location` is refused with `unsafe_url`;
 * the checksums file of the same release must name the archive, and the SHA256 must match BEFORE the archive is opened;
 * exactly one member is read, by its exact name (a regular file, size capped); nothing is extracted to a path;
 * the file is written next to its destination with mode 755 and linked in with `os.link`, which fails if the name exists,
@@ -22,9 +23,11 @@ import tempfile
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urlsplit
 
 import httpx
+
+from . import setup_hardening
 
 MAX_BYTES = 200 * 1024 * 1024
 MAX_REDIRECTS = 5
@@ -43,7 +46,7 @@ class FetchError(Exception):
 
 
 def allowed_url(url: str) -> bool:
-    """https, no user info, default port, and a GitHub host."""
+    """https, no user info, default port, and api.github.com or an exact release-asset host."""
     try:
         parts = urlsplit(url)
         host, port = parts.hostname or "", parts.port
@@ -51,7 +54,7 @@ def allowed_url(url: str) -> bool:
         return False
     if parts.scheme != "https" or parts.username or parts.password or port not in (None, 443):
         return False
-    return host in ("github.com", "api.github.com") or host.endswith(".githubusercontent.com")
+    return host == "api.github.com" or setup_hardening.is_allowed_download(url)
 
 
 def parse_checksums(text: str) -> dict[str, str]:
@@ -74,7 +77,10 @@ def default_get(url: str) -> bytes:
                     raise FetchError("unsafe_url", f"refused URL {url}")
                 with client.stream("GET", url) as response:
                     if response.is_redirect:
-                        url = urljoin(url, response.headers["location"])
+                        try:
+                            url = setup_hardening.redirect_target(url, response.status_code, response.headers)
+                        except setup_hardening.RedirectError as exc:
+                            raise FetchError("unsafe_url", str(exc)) from None
                         continue
                     if response.status_code != 200:
                         raise FetchError("download_failed", f"HTTP {response.status_code} for {url}")

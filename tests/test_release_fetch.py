@@ -85,6 +85,9 @@ def test_parse_checksums_reads_both_formats_lowercases_and_skips_junk():
     ("https://evil.example/github.com", False),
     ("https://github.com.evil.example/x", False),
     ("https://githubusercontent.com.evil.example/x", False),
+    ("https://raw.githubusercontent.com/a/b/c", False),  # user-controlled content: not a release asset host (#1637)
+    ("https://gist.githubusercontent.com/a/b", False),
+    ("https://objects.githubusercontent.com.evil.example/x", False),
     ("https://user@github.com/x", False),
     ("https://github.com:8443/x", False),
     ("file:///etc/passwd", False),
@@ -257,12 +260,35 @@ def test_get_follows_a_redirect_inside_github_only(monkeypatch):
 
 
 @pytest.mark.parametrize("target", ["https://evil.example/blob", "http://objects.githubusercontent.com/blob",
-                                    "https://user@github.com/blob"])
+                                    "https://user@github.com/blob", "https://raw.githubusercontent.com/blob",
+                                    "https://gist.githubusercontent.com/blob"])
 def test_get_refuses_a_redirect_to_another_host_or_to_http_without_asking_it(monkeypatch, target):
     seen = serve(monkeypatch, lambda request: httpx.Response(302, headers={"location": target}))
     with pytest.raises(FetchError) as caught:
         release_fetch.default_get(BASE + "x")
     assert caught.value.reason_code == "unsafe_url" and len(seen) == 1
+
+
+@pytest.mark.parametrize("host", ["objects.githubusercontent.com", "release-assets.githubusercontent.com"])
+def test_get_follows_a_redirect_to_each_release_asset_host_and_a_relative_one(monkeypatch, host):
+    def handler(request):
+        if request.url.host == "github.com":
+            return httpx.Response(302, headers={"location": f"https://{host}/blob"})
+        if request.url.path == "/blob":
+            return httpx.Response(302, headers={"location": "/final"})
+        return httpx.Response(200, content=b"final")
+
+    seen = serve(monkeypatch, handler)
+    assert release_fetch.default_get(BASE + "x") == b"final"  # BASE is on github.com; the asset host answers the relative hop
+    assert [r.url.host for r in seen] == ["github.com", host, host]
+
+
+@pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
+def test_get_refuses_a_3xx_without_location_as_a_fetch_error_not_a_key_error(monkeypatch, status):
+    seen = serve(monkeypatch, lambda request: httpx.Response(status))
+    with pytest.raises(FetchError) as caught:
+        release_fetch.default_get(BASE + "x")
+    assert caught.value.reason_code == "unsafe_url" and "Location" in str(caught.value) and len(seen) == 1
 
 
 def test_get_refuses_a_first_url_outside_github_and_a_redirect_loop(monkeypatch):
