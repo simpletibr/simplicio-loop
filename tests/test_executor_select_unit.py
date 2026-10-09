@@ -5,7 +5,6 @@ Only fake CLIs on PATH are run. No real model CLI and no OpenRouter call is made
 
 import asyncio
 import json
-import os
 import stat
 import sys
 
@@ -35,7 +34,8 @@ def run(coro):
 def bindir(tmp_path, monkeypatch):
     d = tmp_path / "bin"
     d.mkdir()
-    monkeypatch.setenv("PATH", str(d) + os.pathsep + os.environ["PATH"])
+    # Only the fakes are on PATH, so no real CLI on the host can be spawned.
+    monkeypatch.setenv("PATH", str(d))
     for name in ("SIMPLICIO_EXECUTOR", "SIMPLICIO_EXEC_FAMILIES", "OPENROUTER_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     return d

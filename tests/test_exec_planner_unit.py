@@ -28,7 +28,8 @@ FORBIDDEN_FLAGS = (
 def bindir(tmp_path, monkeypatch):
     d = tmp_path / "bin"
     d.mkdir()
-    monkeypatch.setenv("PATH", str(d) + os.pathsep + os.environ["PATH"])
+    # Only the fakes are on PATH, so a real claude/codex/grok/gemini on the host can never be run.
+    monkeypatch.setenv("PATH", str(d))
     monkeypatch.delenv("SIMPLICIO_EXEC_FAMILIES", raising=False)
     return d
 
@@ -62,15 +63,31 @@ def run(coro):
     return asyncio.run(coro)
 
 
+def _alive(pid):
+    """True while the pid runs. A zombie is dead: its parent (here PID 1, which does not reap) just has not waited."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    try:
+        state = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
+    except OSError:
+        return False
+    return state != "Z"
+
+
 def pid_gone(pid, wait=3.0):
     deadline = time.monotonic() + wait
     while time.monotonic() < deadline:
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
+        if not _alive(pid):
             return True
         time.sleep(0.05)
     return False
+
+
+class TestHermeticPath:
+    def test_only_the_fakes_are_on_path(self, bindir):
+        assert os.environ["PATH"].split(os.pathsep) == [str(bindir)]
 
 
 class TestBuildArgvPlanOnly:
@@ -184,7 +201,7 @@ class TestTreeKill:
     def test_timeout_kills_hung_child(self, bindir):
         pidfile = bindir / "child.pid"
         body = (
-            "c = subprocess.Popen(['sleep', '60'])\n"
+            "c = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
             "open(%r, 'w').write(str(c.pid))\n"
             "time.sleep(60)"
         ) % str(pidfile)
@@ -193,24 +210,25 @@ class TestTreeKill:
         assert res.reason_code == "timeout"
         child = int(pidfile.read_text())
         assert pid_gone(child), "child sleep survived the timeout"
-        with pytest.raises(ProcessLookupError):
-            os.kill(child, 0)
+        assert not _alive(child)
 
     def test_sigkill_after_grace_when_sigterm_ignored(self, bindir):
+        # The fake CLI and its child ignore SIGTERM, so only the SIGKILL step ends them. Without it the run waits for
+        # the 60 s sleep, and the elapsed bound below fails.
         pidfile = bindir / "child.pid"
         body = (
             "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
-            "c = subprocess.Popen(['sh', '-c', 'trap \"\" TERM; sleep 60'])\n"
+            "c = subprocess.Popen(['/bin/sh', '-c', 'trap \"\" TERM; sleep 60'])\n"
             "open(%r, 'w').write(str(c.pid))\n"
             "time.sleep(60)"
         ) % str(pidfile)
         fake_cli(bindir, "claude", body=body)
         started = time.monotonic()
-        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=1.0, grace_sec=1.0))
+        res = run(exec_planner.run_planner("claude", "planning", "x", timeout_sec=1.0, grace_sec=0.5))
         elapsed = time.monotonic() - started
         assert res.reason_code == "timeout"
-        assert elapsed >= 1.9, "SIGKILL must wait for the SIGTERM grace period"
-        assert pid_gone(int(pidfile.read_text())), "TERM-ignoring child survived"
+        assert 1.0 + 0.5 <= elapsed < 1.0 + 0.5 + 1.0, "SIGTERM grace, then SIGKILL, within grace+1s after the timeout"
+        assert pid_gone(int(pidfile.read_text()), wait=0.5), "TERM-ignoring child survived SIGKILL"
 
 
 class TestFallback:
