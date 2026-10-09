@@ -655,6 +655,18 @@ def test_the_byte_count_holds_under_concurrent_pollers_and_evictions(tmp_path, a
     assert runs.summary_cache_bytes() == _resident_bytes() <= runs.SUMMARY_BYTES_MAX
 
 
+def test_the_memory_holds_only_masked_values(tmp_path, aged):
+    secret = 'hunter2hunter2'
+    token = 'ghp_' + 'A1b2C3d4' * 5
+    run_dir = _make_run(tmp_path, 'secrets', events=2, current_action='password=%s and %s and me@example.com' % (secret, token),
+                        blockers=['Bearer abcdefghijklmnop1234'], next_action='token: ' + token)
+    answer = runs.run_summary(_ref(run_dir))
+    blob = runs._SUMMARIES[os.fspath(run_dir)].blob
+    assert blob is not None and json.loads(blob) == answer
+    for raw in (secret, token, 'me@example.com', 'abcdefghijklmnop1234'):
+        assert raw not in blob and raw not in json.dumps(answer), raw
+
+
 def test_the_limits_are_the_documented_ones():
     assert runs.SUMMARY_CACHE_MAX == 4096
     assert runs.SUMMARY_BYTES_MAX == 64 * 1024 * 1024
