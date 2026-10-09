@@ -5,6 +5,9 @@ import io
 import json
 import os
 import stat
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -247,6 +250,62 @@ def test_read_summary_rejects_other_schemas_and_big_files(home):
     assert setup_cli.read_summary(directory) is None
     path.write_text(json.dumps({"schema": setup_cli.SCHEMA, "default_host": "codex"}))
     assert setup_cli.read_summary(directory)["default_host"] == "codex"
+
+
+def plant_summary(home, mode=0o600, padding=0):
+    directory = home / ".simplicio-loop"
+    directory.mkdir(exist_ok=True)
+    path = directory / "setup.json"
+    path.write_text(json.dumps({"schema": setup_cli.SCHEMA, "default_host": "codex", "pad": "x" * padding}))
+    path.chmod(mode)
+    return directory, path
+
+
+@pytest.mark.parametrize("mode, readable", [(0o600, True), (0o644, True), (0o620, False), (0o602, False), (0o666, False)])
+def test_read_summary_reads_a_private_file_and_refuses_one_writable_by_group_or_others(home, mode, readable):
+    directory, _ = plant_summary(home, mode)
+    assert (setup_cli.read_summary(directory) is not None) is readable
+
+
+def test_read_summary_does_not_follow_a_symlink(home):
+    directory, path = plant_summary(home)
+    real = home / "real.json"
+    path.rename(real)
+    path.symlink_to(real)
+    assert setup_cli.read_summary(directory) is None
+
+
+def test_read_summary_refuses_a_file_owned_by_someone_else(home, monkeypatch):
+    directory, path = plant_summary(home)
+    assert setup_cli.read_summary(directory) is not None
+    monkeypatch.setattr(os, "geteuid", lambda: path.stat().st_uid + 1)
+    assert setup_cli.read_summary(directory) is None
+
+
+def test_read_summary_refuses_a_valid_summary_over_the_size_limit(home):
+    directory, path = plant_summary(home)
+    assert setup_cli.read_summary(directory) is not None
+    directory, path = plant_summary(home, padding=setup_cli.MAX_SUMMARY_BYTES)  # still valid JSON of the right schema
+    assert path.stat().st_size > setup_cli.MAX_SUMMARY_BYTES
+    assert setup_cli.read_summary(directory) is None
+
+
+def test_a_setup_json_that_is_a_fifo_does_not_hang_doctor_after_install_or_the_watcher(home):
+    directory = home / ".simplicio-loop"
+    directory.mkdir()
+    os.mkfifo(directory / "setup.json")
+    code = (
+        "import io, json, sys\n"
+        "from simplicio_loop import setup_cli\n"
+        "out = io.StringIO()\n"
+        "setup_cli.after_install(interactive=False, out=out)\n"
+        "print(json.dumps([setup_cli.doctor_row()['summary'], setup_cli.default_family({'HOME': sys.argv[1]}), 'Next: run' in out.getvalue()]))\n"
+    )
+    root = str(Path(setup_cli.__file__).resolve().parents[1])
+    done = subprocess.run([sys.executable, "-c", code, str(home)], capture_output=True, text=True, timeout=20,
+                          env={**os.environ, "HOME": str(home), "PYTHONPATH": root})
+    assert done.returncode == 0, done.stderr
+    assert json.loads(done.stdout) == ["setup has not run on this machine yet", None, True]
 
 
 def test_a_non_linux_platform_is_marked_unverified(home, monkeypatch):

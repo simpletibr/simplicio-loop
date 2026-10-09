@@ -1,7 +1,7 @@
 """pr_template (pr): the PR body is the repo's own PR template, filled with the run's evidence.
 
 The template is found by `pr_evidence.find_pr_template` (any case; `.github/`, the root or `docs/`) and
-filled by `pr_evidence.fill_template`: kept verbatim, with the plan summary, `Closes #N` and the verify
+filled by `pr_evidence.fill_template`: kept verbatim, with the plan summary, `Parte de #N` and the verify
 result under it. A section whose heading asks for a secret is dropped, never filled.
 No template in the clone -> ok, with `template_found` and `pr_body` None.
 """
@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 
 from ... import pr_evidence
+from ..closing_words import sanitize
 from .registry import PointContext, PointResult, register
 
 NAME = "pr_template"
@@ -42,14 +43,14 @@ def drop_secret_sections(template: str) -> tuple[str, list[str]]:
 
 
 def _blocks(ctx: PointContext) -> list[str]:
-    """Our part of the body: plan summary (the issue title when the plan is not text), Closes #N, verify."""
+    """Our part of the body: plan summary (the issue title when the plan is not text), Parte de #N, verify."""
     issue = ctx.issue or {}
     summary = ctx.plan if isinstance(ctx.plan, str) and ctx.plan.strip() else issue.get("title")
     blocks: list[str] = []
     if summary:
         blocks += ["### Summary", str(summary).strip(), ""]
     if issue.get("number"):
-        blocks += [f"Closes #{issue['number']}", ""]
+        blocks += [f"Parte de #{issue['number']}", ""]
     if ctx.verify:
         blocks += ["### How to verify", ctx.verify.strip(), ""]
     return blocks
@@ -63,7 +64,7 @@ async def fill_pr_template(ctx: PointContext) -> PointResult:
         return PointResult(NAME, "ok", {"template_found": None, "pr_body": None})
     template = (Path(ctx.clone) / found).read_text(encoding="utf-8", errors="replace")
     template, dropped = drop_secret_sections(template)
-    body = pr_evidence.fill_template(template, _blocks(ctx))
+    body = sanitize(pr_evidence.fill_template(template, _blocks(ctx)), "PR template body")  # the summary comes from the model
     return PointResult(NAME, "ok", {"template_found": found, "pr_body": body, "dropped_sections": dropped})
 
 

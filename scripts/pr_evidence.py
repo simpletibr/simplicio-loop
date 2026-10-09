@@ -493,7 +493,7 @@ def build_body(opts):
     if summary:
         blocks += ["### Summary", summary, ""]
     if item:
-        blocks += ["Closes #%s" % str(item).lstrip("#"), ""]
+        blocks += ["Parte de #%s" % str(item).lstrip("#"), ""]
     if progress_md:
         blocks += [progress_md, ""]
     if backlog_md:

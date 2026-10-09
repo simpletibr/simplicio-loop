@@ -24,13 +24,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .. import escalation, exec_auth, exec_planner, execution_report, executor_select
-from . import budget, config, proc, sandbox, verify
+from .. import escalation, exec_auth, exec_planner, execution_report, executor_select, turbo_window
+from . import budget, config, proc, raw_log, sandbox, verify
 from . import convergence  # the failed-verify path asks it: retry, escalate or stop (a module, not a point)
 
 PLAN_ROLE = "planning"
 FIX_ROLE = "coordination"
 FAILURE_CAP = 1500  # the failure output handed back to the planner
+MAX_WINDOWS = 16  # lines the planner may ask for (`need`) over one task
 RETRYABLE = "bad_plan"  # the only planner failure a better role can fix; the others wait for the next tick
 
 
@@ -90,6 +91,8 @@ def _planner_env(family: str) -> dict[str, str]:
 def plan_prompt(request: str, failure: str = "") -> str:
     """The planner prompt: turbo's request (it already holds the task, map slice, files and format) plus the failure."""
     text = (f"{request}\n\nReply with the plan only: one JSON object in the `format` above, nothing else. "
+            "If a file is shown in windows and the lines you must change are in `omitted`, reply "
+            '`{"operations": [], "need": [{"path": "<file>", "start": N, "end": M}]}` instead of guessing. '
             "The watcher applies it with dev-cli; do not run the `apply` command.")
     if failure:
         text += ("\n\nThe previous plan was applied and failed. Write a corrected plan for the original task. "
@@ -153,10 +156,26 @@ async def _reset_tree(dest: Path) -> None:
     await proc.run(["git", "clean", "-fdq", "-e", ".simplicio-loop"], cwd=dest, timeout=60)
 
 
-async def _request(dest: Path, task: str, run_id: str | None = None) -> tuple[str, str]:
+def _plan_need(plan: Any) -> list[dict]:
+    """The lines a plan asks for instead of editing (``{"operations": [], "need": [...]}``); empty for a plan or a bad ask."""
+    if not isinstance(plan, dict) or plan.get("operations"):
+        return []
+    try:
+        return turbo_window.parse_need(plan.get("need"))
+    except ValueError:
+        return []
+
+
+def _cut(request: str) -> list[str]:
+    """The files of a request that have lines the planner did not get."""
+    files = json.loads(request).get("files")
+    return turbo_window.truncated(files) if isinstance(files, dict) else []
+
+
+async def _request(dest: Path, task: str, run_id: str | None = None, windows: list[dict] = ()) -> tuple[str, str]:
     """Step 1, ``turbo --task T`` in the sandbox: the compact request for the planner and the run id turbo continued
-    (``run_id``: the run the watcher opened at intake) or started."""
-    argv = sandbox.wrap(verify.turbo_request_argv(dest, task, run_id), clone=dest, state_dir=config.ROOT)
+    (``run_id``: the run the watcher opened at intake) or started. ``windows``: lines the planner asked for."""
+    argv = sandbox.wrap(verify.turbo_request_argv(dest, task, run_id, windows), clone=dest, state_dir=config.ROOT)
     env = sandbox.scrubbed_env(os.environ, home=Path.home())
     result = await proc.run(argv, timeout=config.TURBO_TIMEOUT_S, cwd=dest, env=env)
     document = verify.parse_turbo(result.stdout or "")
@@ -229,7 +248,9 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
     failure = ""
     try:
         leave_open = run_id is not None  # the watcher opened the run: it closes it after the pr stage
-        request, run_id = await _request(dest, task, run_id)  # step 1, once: every retry reuses this request and run
+        request, run_id = await _request(dest, task, run_id)  # step 1: every retry reuses this request and run
+        windows: list[dict] = []  # lines the planner asked for; each ask prints the request again with them
+        cut = _cut(request)
         report["run_id"] = run_id  # the watcher's role receipt lands in the report turbo writes for this run
         for step in range(1, config.MAX_STEPS + 1):
             if not ladder.can_escalate():
@@ -242,9 +263,22 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
                 wrap=lambda argv: sandbox.wrap(argv, clone=dest, state_dir=config.ROOT), env_for=_planner_env,
                 config_dir=config.ROOT / "opencode")  # inside the bound state dir: /tmp is a tmpfs in the sandbox
             ladder.family = planned.family or ladder.family
-            ok, failure, tokens_report, label, result, status = False, "", None, "", None, "failed"
-            if planned.is_ok():
-                log_path = config.LOGS / f"{repo}-{number}-{attempts}-s{step}.log"
+            ok, failure, tokens_report, label, result, status, reason = False, "", None, "", None, "failed", ""
+            log_path = config.LOGS / f"{repo}-{number}-{attempts}-s{step}.log"
+            raw_log.write(log_path.with_suffix(".raw.log"), planned.raw, planned.reason_code)  # the model's own text, before the apply
+            if planned.is_ok() and (need := _plan_need(planned.plan)):
+                # Nothing was applied: the request is printed again with these lines (same run), the tree stays as it is.
+                windows = [*windows, *need][-MAX_WINDOWS:]
+                request, _ = await _request(dest, task, run_id, windows)
+                cut = _cut(request)
+                failure, reason = f"the plan asked for {len(need)} more window(s); the request now shows them", "need_lines"
+            elif planned.is_ok() and cut and not (planned.plan or {}).get("operations"):
+                failure = ("turbo_context_truncated: the plan has no operations and the request did not show all lines of "
+                           + ", ".join(cut))
+                reason = "turbo_context_truncated"
+                log_path.parent.mkdir(parents=True, exist_ok=True)
+                log_path.write_text(json.dumps(planned.plan, ensure_ascii=False) + "\n--- " + failure + "\n")
+            elif planned.is_ok():
                 result, document, status, decision = await _apply(dest, planned.plan, test_cmd, run_id, attempts, log_path, leave_open)
                 tokens_report = _turbo_report(dest, document)
                 if tokens_report:
@@ -259,11 +293,15 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
                        outcome="COMPLETE" if ok else "FAIL", wall_ms=wall_ms)
             steps.append({"role": planned.role, "family": planned.family, "model": planned.model,
                           "effort": planned.effort, "outcome": "ok" if ok else "failed",
-                          **({} if ok else {"reason": _failure_reason(planned, label, status)})})
+                          **({} if ok else {"reason": reason or _failure_reason(planned, label, status)})})
             if ok:
                 report["status"] = "COMPLETE"
                 return {"turbo_status": status, "exit_code": result.returncode, "verify": label,
                         "executor": "exec", "steps": steps}
+            if reason == "turbo_context_truncated":
+                raise RuntimeError(failure[:500])  # a better role cannot see lines the request did not carry
+            if reason == "need_lines":
+                continue  # one step spent, same role, no reset: nothing was applied
             if not planned.is_ok() and planned.reason_code != RETRYABLE:
                 raise RuntimeError(failure[:500])  # cli missing, quota, timeout: a better role does not help
             verdict = convergence.assess(ladder, failed=True)  # the failed attempt is already in the ladder
