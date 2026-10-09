@@ -32,7 +32,7 @@ script works in isolation. Nothing under the real repo checkout is mutated:
   7. Generate a locally-verifiable provenance statement linked to the same digest + the scratch
      copy's source SHA (`scripts.provenance_generate`), signed the same way as step 5.
   8. Run the clean-room install-smoke (`scripts.install_smoke.run_smoke`) against the scratch
-     copy: fresh venv, `--no-deps --no-index`, `PYTHONPATH` cleared, isolation + version asserted,
+     copy: fresh venv, wheel plus its dependencies from the package index (needs network), `PYTHONPATH` cleared, isolation + version asserted,
      `--help` actually executed.
   9. (optional, --binary) Build the standalone executable for the current host using PyInstaller,
      verify its version output, and generate an SBOM for the binary. Runs scripts/build_binary.py
