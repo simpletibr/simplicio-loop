@@ -10,9 +10,43 @@ the same issue UPDATES the existing comment instead of appending a duplicate. Th
 injected as `runner` (default `subprocess.run`), so it is unit-testable without the network.
 """
 import json
+import os
 import subprocess
 
 PR_EVIDENCE_COMMENT_MARKER = "<!-- simplicio-loop:pr-evidence-comment -->"
+# Where a maintainer keeps the PR template, in order of preference (GitHub accepts any case).
+PR_TEMPLATE_DIRS = (".github", "", "docs")
+PR_TEMPLATE_NAME = "pull_request_template.md"
+
+
+def find_pr_template(root):
+    """Repo-relative posix path of the PR template under `root`, or None.
+
+    Matches `.github/`, the repo root and `docs/` case-insensitively, so both
+    `.github/pull_request_template.md` and `PULL_REQUEST_TEMPLATE.md` are found.
+    """
+    for directory in PR_TEMPLATE_DIRS:
+        folder = os.path.join(root, directory)
+        try:
+            names = sorted(os.listdir(folder))
+        except OSError:
+            continue
+        for name in names:
+            if name.lower() == PR_TEMPLATE_NAME and os.path.isfile(os.path.join(folder, name)):
+                return "/".join(part for part in (directory, name) if part)
+    return None
+
+
+def fill_template(tpl, blocks):
+    """Append our evidence blocks to a discovered PR template (never drop the maintainer's sections).
+
+    We do not try to surgically rewrite arbitrary templates (untrusted content); we keep the
+    template verbatim and append the AC checklist + evidence under a clear divider, so the PR always
+    has both the maintainer's layout AND the proof.
+    """
+    parts = [tpl.rstrip(), "", "---", ""]
+    parts += blocks
+    return "\n".join(parts).rstrip() + "\n"
 
 
 class PublishError(RuntimeError):

@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -73,7 +74,7 @@ def _solution_ops(repo: Path, rels):
 
 def test_run_turbo_reports_whether_each_task_plan_applied(tmp_path, monkeypatch):
     repo = _seed(tmp_path)
-    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
+    monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", AsyncMock(return_value=None))
     (repo / ".simplicio-loop").mkdir()
     (repo / ".simplicio-loop" / "project-map.json").write_text('{"files":[]}', encoding="utf-8")
 
@@ -131,7 +132,7 @@ def test_cli_turbo_surveys_again_on_every_invocation(tmp_path, monkeypatch, caps
     monkeypatch.setenv("SIMPLICIO_TURBO_SLICE", "0")  # this test reads the whole map in the header
     surveys, headers = [], []
 
-    def fake_ensure(root, **kwargs):
+    async def fake_ensure(root, **kwargs):
         surveys.append(str(root))
         state = root / ".simplicio-loop"
         state.mkdir(exist_ok=True)

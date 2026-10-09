@@ -5,6 +5,7 @@ monorepo, measured in the #1328 wave) must be raised/configurable.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import subprocess
 from pathlib import Path
@@ -28,7 +29,7 @@ def test_second_call_on_unchanged_tree_does_not_reindex(tmp_path, monkeypatch):
     repo = _git_repo(tmp_path)
     calls = []
 
-    def fake_run_mapper_index(path, *, timeout=60.0):
+    async def fake_run_mapper_index(path, *, timeout=60.0):
         calls.append(path)
         map_dir = Path(path) / ".simplicio-loop"
         map_dir.mkdir(parents=True, exist_ok=True)
@@ -38,10 +39,10 @@ def test_second_call_on_unchanged_tree_does_not_reindex(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "simplicio_loop.map_service_mapper.run_mapper_index", fake_run_mapper_index,
     )
-    cli_impl._ensure_project_map(repo)
+    asyncio.run(cli_impl._ensure_project_map(repo))
     assert len(calls) == 1
     # second call, tree unchanged -> no second full index
-    cli_impl._ensure_project_map(repo)
+    asyncio.run(cli_impl._ensure_project_map(repo))
     assert len(calls) == 1
 
 
@@ -49,7 +50,7 @@ def test_a_real_tree_change_triggers_reindex(tmp_path, monkeypatch):
     repo = _git_repo(tmp_path)
     calls = []
 
-    def fake_run_mapper_index(path, *, timeout=60.0):
+    async def fake_run_mapper_index(path, *, timeout=60.0):
         calls.append(path)
         map_dir = Path(path) / ".simplicio-loop"
         map_dir.mkdir(parents=True, exist_ok=True)
@@ -59,10 +60,10 @@ def test_a_real_tree_change_triggers_reindex(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "simplicio_loop.map_service_mapper.run_mapper_index", fake_run_mapper_index,
     )
-    cli_impl._ensure_project_map(repo)
+    asyncio.run(cli_impl._ensure_project_map(repo))
     assert len(calls) == 1
     (repo / "a.py").write_text("x = 2\n", encoding="utf-8")
-    cli_impl._ensure_project_map(repo)
+    asyncio.run(cli_impl._ensure_project_map(repo))
     assert len(calls) == 2
 
 

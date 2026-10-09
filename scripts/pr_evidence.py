@@ -81,7 +81,6 @@ DEFAULT_SHOTS = os.path.join(REPO, ".simplicio-loop/orchestrator", "tee", "web")
 # `build`/`comment` unless the caller manually widened --shots-dir. Scanned in ADDITION to
 # --shots-dir by default so the evidence chain connects without extra flags.
 DEFAULT_VIDEO_SHOTS = os.path.join(REPO, ".simplicio-loop/orchestrator", "tee", "video")
-DEFAULT_TEMPLATE = os.path.join(REPO, ".github", "PULL_REQUEST_TEMPLATE.md")
 
 IMG_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp")
 VID_EXT = (".mp4", ".webm", ".mov", ".gif")
@@ -264,8 +263,15 @@ def find_existing_progress_comment(issue, runner=None):
 # The primitives (`publish_comment`, `find_existing_comment`, `PublishError`, the marker) live in
 # `simplicio_loop.pr_evidence` (#1476): the package ships in the wheel, `scripts/` does not.
 from simplicio_loop.pr_evidence import (  # noqa: E402
-    PR_EVIDENCE_COMMENT_MARKER, PublishError, find_existing_comment, publish_comment,
+    PR_EVIDENCE_COMMENT_MARKER, PublishError, find_existing_comment, find_pr_template, fill_template,
+    publish_comment,
 )
+
+
+def _default_template():
+    """Absolute path of this repo's PR template, or None when it has none."""
+    rel = find_pr_template(REPO)
+    return os.path.join(REPO, rel) if rel else None
 
 
 def _resolve_now(opts):
@@ -451,18 +457,6 @@ def render_evidence(images, videos, heading="Evidence — prints & recordings"):
     return "\n".join(lines)
 
 
-def _fill_template(tpl, blocks):
-    """Append our evidence blocks to a discovered PR template (never drop the maintainer's sections).
-
-    We do not try to surgically rewrite arbitrary templates (untrusted content); we keep the
-    template verbatim and append the AC checklist + evidence under a clear divider, so the PR always
-    has both the maintainer's layout AND the proof.
-    """
-    parts = [tpl.rstrip(), "", "---", ""]
-    parts += blocks
-    return "\n".join(parts).rstrip() + "\n"
-
-
 def build_body(opts):
     """Assemble the PR body. Returns (markdown, has_evidence)."""
     anchor = _load_anchor(opts)
@@ -508,12 +502,12 @@ def build_body(opts):
     if delivery_md:
         blocks += [delivery_md, ""]
 
-    tpl_path = opts.get("template") if isinstance(opts.get("template"), str) else DEFAULT_TEMPLATE
+    tpl_path = opts.get("template") if isinstance(opts.get("template"), str) else _default_template()
     if tpl_path and os.path.exists(tpl_path):
         try:
             with open(tpl_path, encoding="utf-8", errors="replace") as f:
                 tpl = f.read()
-            body = "# %s\n\n" % title + _fill_template(tpl, blocks)
+            body = "# %s\n\n" % title + fill_template(tpl, blocks)
             return body, has_evidence
         except OSError:
             pass
