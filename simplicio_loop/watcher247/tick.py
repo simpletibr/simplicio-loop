@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .. import intake_gate, watcher_github
 from ..claim_lease import ClaimStore
-from . import budget, config, github, host_mode, proc, sandbox, state, subscription, verify
+from . import budget, config, github, host_mode, proc, prompt_guard, sandbox, secret_scan, state, subscription, verify
 
 _STATE_DIRS = (".simplicio-loop/", ".simplicio/")
 
@@ -100,11 +100,10 @@ def task_text(repo: str, issue: dict, fix: str = "") -> str:
         "planejar uma mudanca atomica, aplicar patch cirurgico "
         "(nao reescrever arquivo inteiro), validar, entregar so o que o teste sustenta.\n"
         f"Repositorio: {config.ORG}/{repo}\n"
-        f"Issue #{issue['number']}: {issue.get('title') or ''}\n"
-        f"{body}"
+        + prompt_guard.untrusted(f"Issue #{issue['number']}: {issue.get('title') or ''}\n{body}")
     )
     if fix:
-        text += "\nFeedback de review a corrigir no PR existente (mesma branch):\n" + fix
+        text += "\nFeedback de review a corrigir no PR existente (mesma branch):\n" + prompt_guard.untrusted(fix)
     return text
 
 
@@ -129,6 +128,7 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
     staged = await proc.run(["git", "diff", "--cached", "--name-only"], cwd=dest)
     if not staged.stdout.strip():
         return None
+    await secret_scan.check_staged(dest)  # raises SecretDetected: nothing is committed or pushed
     title = f"loop: {issue.get('title') or issue['number']}"
     commit = await proc.run(["git", "commit", "-m", f"{title}\n\nCloses #{issue['number']}\n"], cwd=dest, timeout=60)
     if commit.returncode != 0:
@@ -255,6 +255,11 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
             await _phase(runner, name, number, "BLOCKED", detail="o loop terminou sem diff para abrir PR")
             await store.release(ident, token, "done_no_diff", now=clock, pr=None, **turbo)
         state.log(f"done {ident} pr={url}")
+    except secret_scan.SecretDetected as exc:  # the secret itself is never echoed, only the file names
+        await _phase(runner, name, number, "BLOCKED",
+                     detail=f"push bloqueado ({exc.reason_code}): segredo detectado em " + ", ".join(exc.files))
+        await store.release(ident, token, "dead", now=clock, reason_code=exc.reason_code, error=str(exc)[:500])
+        state.log(f"secret blocked {ident}: {', '.join(exc.files)}")
     except Exception as exc:
         attempts = (await store.get_claim(ident)).attempts
         final = verify.retry_or_dead(attempts, config.MAX_ATTEMPTS)
