@@ -191,3 +191,20 @@ def pytest_configure(config) -> None:
     if os.environ.get("SIMPLICIO_CORE_NO_NETWORK") != "1":
         return
     install_core_network_guard()
+
+
+@pytest.fixture(autouse=True)
+def _squad_review_green(monkeypatch, request):
+    """The squad flow tests exercise the flow, not the gate: the review gate answers T1 green (tests/review_gate covers the gate).
+
+    `tests/watcher247/test_squad_review.py` opts out and tests the real `evaluate`."""
+    if "real_squad_review" in request.keywords:
+        return
+    from simplicio_loop.review_gate import model
+    from simplicio_loop.watcher247 import squad_review
+
+    async def fake(repo, number, issue, head, author, lock):
+        check = model.CheckResult("fake-gate", model.PASS)
+        return model.GateReport(number, issue, head, model.Level.T1, (check,)), None
+
+    monkeypatch.setattr(squad_review, "evaluate", fake)
