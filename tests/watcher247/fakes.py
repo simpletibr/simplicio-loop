@@ -75,7 +75,7 @@ class FakeRun:
         body = self.marker_comments(number)[-1]["body"]
         return re.search(r"^\| Estado \| (\S+) \|$", body, re.MULTILINE).group(1)
 
-    async def __call__(self, argv, timeout=120, cwd=None, stdin=None):
+    async def __call__(self, argv, timeout=120, cwd=None, stdin=None, env=None):
         argv = list(argv)
         self.calls.append(argv)
         repo = Path(cwd).name if cwd else ""

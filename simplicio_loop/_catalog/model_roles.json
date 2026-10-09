@@ -32,6 +32,16 @@
       "planning": {"model": "gemini-3.8-flash", "effort": "high"},
       "coordination": {"model": "gemini-3.7-flash", "effort": "high"},
       "execution": {"model": "gemini-3.6-flash", "effort": "high"}
+    },
+    "agy": {
+      "planning": {"model": "default", "effort": "high"},
+      "coordination": {"model": "default", "effort": "high"},
+      "execution": {"model": "default", "effort": "high"}
+    },
+    "opencode": {
+      "planning": {"model": "default", "effort": "high"},
+      "coordination": {"model": "default", "effort": "high"},
+      "execution": {"model": "default", "effort": "high"}
     }
   }
 }
