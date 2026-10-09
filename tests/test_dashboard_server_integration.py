@@ -329,6 +329,26 @@ def test_stage_agents_route_reports_one_estimated_row_per_stage_and_the_run_cost
     assert data['cost']['proof_kind'] == 'estimado' and data['cost']['usd'] == row['cost_usd']
 
 
+def test_stage_agents_route_carries_the_cost_per_task_and_iteration_and_the_agent_map(repo_root, server_handle):
+    run_dir = repo_root / '.simplicio-loop' / 'loop-runs' / 'live-1'
+    emitter = _emitter()
+    emitter.emit(run_dir, 'worker_claimed', source='runner', lane='coder', task_id='T1', payload={'lease_id': 'L1'}, strict=True)
+    for task_id, iteration in (('T1', 1), ('T2', 2)):
+        emitter.emit(run_dir, 'token_usage', source='worker', phase='executing', lane='coder', task_id=task_id,
+                     iteration=iteration, strict=True,
+                     payload={'model': 'claude-haiku-5-5', 'input_tokens': 1_000_000, 'output_tokens': 0})
+    status, _, body = _get(server_handle.port, '/api/runs/live-1/stage-agents', AUTH)
+    assert status == 200
+    data = json.loads(body)
+    tasks = {row['key']: row for row in data['breakdown']['by_task']}
+    assert tasks['T1']['cost_usd'] == tasks['T2']['cost_usd'] == 0.1 and tasks['T1']['proof_kind'] == 'estimado'
+    assert [row['key'] for row in data['breakdown']['by_iteration']] == [1, 2]
+    assert data['breakdown']['tokens']['total'] == 2_000_000 and data['breakdown']['tokens']['proof_kind'] == 'medido'
+    [lane] = data['agent_map']['lanes']
+    assert (lane['key'], lane['claims'], lane['lease_ids']) == ('coder', 1, ['L1'])
+    assert data['agent_map']['slots']['state'] == 'UNVERIFIED'
+
+
 def test_stage_agents_route_without_token_usage_is_empty_and_unverified(server_handle):
     status, _, body = _get(server_handle.port, '/api/runs/orch-1/stage-agents', AUTH)
     data = json.loads(body)

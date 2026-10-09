@@ -1,5 +1,8 @@
 // Extras panel: maps the run extras reply and the stage-agents reply to six labelled rows and renders them into #live-extras.
 // Only a measured value earns PASS; anything else is UNVERIFIED with the reason it could not be measured.
+// The stage-agents breakdown (issue #1550) adds widgets under the six rows: tokens by phase/lane/model as stacked bars,
+// cost per task and per iteration, the agent map and a sparkline of the polled token total. Every name is shown with
+// textContent; a bar width is a clamped percent set through the CSSOM, never a style attribute.
 const SCHEMA = 'simplicio.dashboard-extras/v1';
 const STAGE_SCHEMA = 'simplicio.dashboard-stage-agents/v1';
 const POLL_MS = 3000;
@@ -10,6 +13,12 @@ const NO_TOKENS = 'sem token_usage medido';
 const NO_HEARTBEAT = 'sem batimento do lease medido';
 const NO_STAGES = 'sem token_usage por etapa medido';
 const NO_COST = 'custo do run não estimado';
+const NO_CLAIMS = 'nenhum worker_claimed no run';
+const NO_LEASE = 'worker_claimed sem lease_id';
+const NO_SLOTS = 'slots não medidos';
+const NO_BREAKDOWN_TOKENS = 'tokens do provedor não medidos';
+const MAX_POINTS = 60;
+const SEGMENT_CLASSES = 6;
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isText = (value) => typeof value === 'string' && value.trim() !== '';
@@ -71,6 +80,91 @@ function runCostOf(stages) {
   return { state: 'UNVERIFIED', text: isText(cost.reason) ? cost.reason : NO_COST };
 }
 
+// Share of part in total as a percent clamped to 0..100; anything that is not a finite positive total reads as 0.
+export function percentOf(part, total) {
+  if (!Number.isFinite(part) || !Number.isFinite(total) || total <= 0) return 0;
+  return Math.min(100, Math.max(0, (part / total) * 100));
+}
+
+// The polled-total history: a new array holding at most the last 60 points, so the sparkline cannot grow.
+export function pushPoint(history, value) {
+  return history.concat([value]).slice(-MAX_POINTS);
+}
+
+const NONE = { phase: 'sem fase', lane: 'sem lane', model: 'sem modelo', task: 'sem tarefa', iteration: 'sem iteração' };
+
+function nameOf(row, none) {
+  if (isText(row.key)) return row.key;
+  if (Number.isInteger(row.key) && row.key >= 0) {
+    return 'iteração ' + row.key + (isText(row.source) && row.source !== 'evento' ? ' (' + row.source + ')' : '');
+  }
+  return none;
+}
+
+function tokenWidget(label, rows, none, tokens) {
+  const usable = rows.filter((row) => isCount(row.tokens) && row.tokens > 0);
+  if (usable.length === 0) {
+    const reason = isObject(tokens) && isText(tokens.reason) ? tokens.reason : NO_BREAKDOWN_TOKENS;
+    return { label, state: 'UNVERIFIED', text: reason, segments: [], legend: [] };
+  }
+  const total = usable.reduce((sum, row) => sum + row.tokens, 0);
+  const segments = usable.map((row) => ({ text: nameOf(row, none) + ': ' + row.tokens, pct: percentOf(row.tokens, total) }));
+  return { label, state: 'PASS', text: total + ' tokens medidos', segments, legend: segments.map((seg) => ({ text: seg.text })) };
+}
+
+function costWidget(label, rows, none) {
+  if (rows.length === 0) return { label, state: 'UNVERIFIED', text: NO_COST, segments: [], legend: [] };
+  const priced = rows.filter((row) => Number.isFinite(row.cost_usd) && row.cost_usd >= 0);
+  const total = priced.reduce((sum, row) => sum + row.cost_usd, 0);
+  const usd = (row) => 'US$ ' + row.cost_usd.toFixed(4) + ' estimado';
+  const legend = rows.map((row) => ({
+    text: nameOf(row, none) + ': ' + (priced.includes(row) ? usd(row) : 'custo UNVERIFIED (' + (isText(row.reason) ? row.reason : NO_COST) + ')'),
+  }));
+  const segments = priced.filter((row) => row.cost_usd > 0)
+    .map((row) => ({ text: nameOf(row, none) + ': ' + usd(row), pct: percentOf(row.cost_usd, total) }));
+  if (priced.length === 0) {
+    const reason = rows.find((row) => isText(row.reason));
+    return { label, state: 'UNVERIFIED', text: reason ? reason.reason : NO_COST, segments, legend };
+  }
+  return { label, state: 'ESTIMADO', text: 'US$ ' + total.toFixed(4) + ' estimado', segments, legend };
+}
+
+function agentMapWidget(map) {
+  const label = 'Mapa de agentes';
+  const lanes = isObject(map) && Array.isArray(map.lanes) ? map.lanes.filter(isObject) : [];
+  if (lanes.length === 0) {
+    return { label, state: 'UNVERIFIED', text: isText(map && map.reason) ? map.reason : NO_CLAIMS, segments: [], legend: [] };
+  }
+  const texts = (list) => (Array.isArray(list) ? list.filter(isText) : []);
+  const legend = lanes.map((lane) => {
+    const tasks = texts(lane.tasks);
+    const leases = texts(lane.lease_ids);
+    const lease = leases.length ? ', leases ' + leases.join(', ')
+      : ', lease UNVERIFIED (' + (isText(lane.lease_reason) ? lane.lease_reason : NO_LEASE) + ')';
+    return { text: nameOf(lane, NONE.lane) + ': ' + (isCount(lane.claims) ? lane.claims : 0) + ' claims'
+      + (tasks.length ? ', tarefas ' + tasks.join(', ') : '') + lease };
+  });
+  const slots = isObject(map.slots) ? map.slots : {};
+  legend.push({ text: 'slots ' + (slots.state === 'PASS' ? 'PASS' : 'UNVERIFIED (' + (isText(slots.reason) ? slots.reason : NO_SLOTS) + ')') });
+  const claims = lanes.reduce((sum, lane) => sum + (isCount(lane.claims) ? lane.claims : 0), 0);
+  return { label, state: 'PASS', text: lanes.length + ' lanes, ' + claims + ' claims (worker_claimed)', segments: [], legend };
+}
+
+// The #1550 widgets of the stage-agents reply; an older reply without a breakdown adds none.
+export function widgetsOf(stages) {
+  if (!isObject(stages) || stages.schema !== STAGE_SCHEMA || !isObject(stages.breakdown)) return [];
+  const rows = (name) => (Array.isArray(stages.breakdown[name]) ? stages.breakdown[name].filter(isObject) : []);
+  const tokens = stages.breakdown.tokens;
+  return [
+    tokenWidget('Tokens por fase', rows('by_phase'), NONE.phase, tokens),
+    tokenWidget('Tokens por lane', rows('by_lane'), NONE.lane, tokens),
+    tokenWidget('Tokens por modelo', rows('by_model'), NONE.model, tokens),
+    costWidget('Custo por tarefa', rows('by_task'), NONE.task),
+    costWidget('Custo por iteração', rows('by_iteration'), NONE.iteration),
+    agentMapWidget(stages.agent_map),
+  ];
+}
+
 // A null or foreign reply reads as empty sources, so every row comes back UNVERIFIED with its reason.
 export function extrasOf(reply, stages) {
   const source = isObject(reply) && reply.schema === SCHEMA ? reply : {};
@@ -79,7 +173,37 @@ export function extrasOf(reply, stages) {
   return LABELS.map((label, index) => ({ label, state: parts[index].state, text: parts[index].text }));
 }
 
-function rowNode(row) {
+function barNode(segments) {
+  const bar = document.createElement('div');
+  bar.className = 'extras-bar';
+  bar.append(...segments.map((seg, index) => {
+    const part = document.createElement('span');
+    part.className = 'extras-seg extras-seg-' + (index % SEGMENT_CLASSES);
+    part.style.setProperty('width', Math.round(percentOf(seg.pct, 100) * 100) / 100 + '%');
+    return part;
+  }));
+  return bar;
+}
+
+function legendNode(items) {
+  const list = document.createElement('ul');
+  list.className = 'extras-legend';
+  list.append(...items.map((item) => {
+    const entry = document.createElement('li');
+    entry.textContent = item.text;
+    return entry;
+  }));
+  return list;
+}
+
+function sparkNode(history) {
+  const spark = document.createElement('sl-sparkline');
+  spark.setAttribute('values', history.join(','));
+  spark.setAttribute('label', 'Tokens medidos acumulados');
+  return spark;
+}
+
+function rowNode(row, ...more) {
   const term = document.createElement('dt');
   term.textContent = row.label;
   const state = document.createElement('span');
@@ -88,19 +212,32 @@ function rowNode(row) {
   const text = document.createElement('span');
   text.textContent = row.text;
   const detail = document.createElement('dd');
-  detail.append(state, text);
+  detail.append(state, text, ...more);
   const group = document.createElement('div');
   group.dataset.state = row.state;
   group.append(term, detail);
   return group;
 }
 
-function render(section, rows) {
+function widgetNode(widget) {
+  const more = [];
+  if (widget.segments.length) more.push(barNode(widget.segments));
+  if (widget.legend.length) more.push(legendNode(widget.legend));
+  return rowNode(widget, ...more);
+}
+
+function trendRow(history) {
+  const last = history[history.length - 1];
+  return rowNode({ label: 'Tokens medidos (tendência)', state: 'PASS', text: 'últimos ' + history.length + ' pontos, atual ' + last },
+    sparkNode(history));
+}
+
+function render(section, rows, widgets, history) {
   const title = document.createElement('h2');
   title.textContent = 'Sinais do worker';
   const list = document.createElement('dl');
   list.className = 'extras-list';
-  list.append(...rows.map(rowNode));
+  list.append(...rows.map((row) => rowNode(row)), ...widgets.map(widgetNode), ...(history.length ? [trendRow(history)] : []));
   section.replaceChildren(title, list);
 }
 
@@ -108,16 +245,20 @@ function render(section, rows) {
 export function startExtras(readApi, runId) {
   if (!runId) return;
   const section = document.getElementById('live-extras');
-  render(section, extrasOf(null, null));
+  render(section, extrasOf(null, null), [], []);
   const base = '/api/runs/' + encodeURIComponent(runId);
   let extras = null;
   let stages = null;
+  let history = [];
   const load = async () => {
     const [reply, stageReply] = await Promise.all([readApi(base + '/extras'), readApi(base + '/stage-agents')]);
     if (reply === null && stageReply === null) return;
     extras = reply === null ? extras : reply;
     stages = stageReply === null ? stages : stageReply;
-    render(section, extrasOf(extras, stages));
+    const total = isObject(stageReply) && isObject(stageReply.breakdown) && isObject(stageReply.breakdown.tokens)
+      ? stageReply.breakdown.tokens.total : null;
+    if (Number.isFinite(total) && total > 0) history = pushPoint(history, total);
+    render(section, extrasOf(extras, stages), widgetsOf(stages), history);
   };
   load();
   setInterval(load, POLL_MS);

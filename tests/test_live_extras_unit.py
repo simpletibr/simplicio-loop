@@ -22,8 +22,10 @@ MODULE = EXTRAS_DIR / 'extras.js'
 STYLE = EXTRAS_DIR / 'extras.css'
 LABELS = ['Último comando medido', 'Contrato por tarefa', 'Modelo por lane', 'Batimento do lease', 'Agentes por etapa',
           'Custo do run']
-FORBIDDEN = [r'\binnerHTML\b', r'\beval\s*\(', r'https?://', r'setAttribute\(\s*.style', r'\.style\s*[.=]',
-             r'\bcssText\b', r'\b(?:claude|haiku|sonnet|opus)\b']
+# A bar width goes through the CSSOM (style.setProperty), which the CSP style-src 'self' allows; a style attribute, an
+# assignment to .style and cssText stay forbidden.
+FORBIDDEN = [r'\binnerHTML\b', r'\beval\s*\(', r'https?://', r'setAttribute\(\s*.style', r'\.style\s*=',
+             r'\.style\.(?!setProperty\()', r'\bcssText\b', r'\b(?:claude|haiku|sonnet|opus)\b']
 MOTION = re.compile(r'(?<![\w-])(?:animation|transition)(?:-[a-z-]+)?\s*:', re.IGNORECASE)
 VALID = {
     'schema': 'simplicio.dashboard-extras/v1',
@@ -283,3 +285,204 @@ def test_the_app_imports_startextras_and_starts_it_inside_the_token_block():
     call = text.index('startExtras(readApi, runId);')
     assert start < call < text.index('if (!token || !runId)', start)
     assert text.index('if (token) {', start) < call
+
+
+# --- issue #1550: stacked bars, per task/iteration cost, agent map and the token sparkline --------------------------------
+HOSTILE = '<img src=x onerror=alert(1)>'
+
+
+def _bd_row(key, tokens=None, cost=None, state='ESTIMADO', reason=None, source=None, tokens_in=0, tokens_out=0):
+    return {'key': key, 'tokens_in': tokens_in, 'tokens_out': tokens_out, 'tokens': tokens, 'tokens_proof_kind': 'medido',
+            'cost_usd': cost, 'cost_state': state if cost is not None else 'UNVERIFIED', 'proof_kind': 'estimado',
+            'reason': reason, 'source': source}
+
+
+def _stages(total=300, **breakdown):
+    empty = {name: [] for name in ('by_phase', 'by_lane', 'by_model', 'by_task', 'by_iteration')}
+    tokens = {'total': total, 'state': 'PASS' if total else 'UNVERIFIED', 'proof_kind': 'medido',
+              'reason': None if total else 'tokens do provedor não medidos: nenhum token_usage no run'}
+    return dict(STAGES, breakdown=dict(empty, tokens=tokens, **breakdown),
+                agent_map={'state': 'UNVERIFIED', 'reason': 'nenhum worker_claimed no run', 'lanes': [],
+                           'slots': {'state': 'UNVERIFIED', 'reason': 'slots não medidos'}})
+
+
+BD = _stages(
+    by_phase=[_bd_row('planning', 100), _bd_row('executing', 200)],
+    by_lane=[_bd_row('coder', 250), _bd_row(None, 50)],
+    by_model=[_bd_row('m-a', 300)],
+    by_task=[_bd_row('T1', 100, 0.25), _bd_row('T2', 200, 0.75), _bd_row('T3', 5, None, reason='sem preço na tabela')],
+    by_iteration=[_bd_row(1, 100, 0.4, source='evento'), _bd_row(2, 200, 0.6, source='ordem dos eventos'), _bd_row(None, 1)],
+)
+
+WIDGETS_SCRIPT = '''
+import fs from 'node:fs';
+import { widgetsOf } from %s;
+const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+process.stdout.write(JSON.stringify(widgetsOf(input.stages)));
+'''
+
+HELPERS_SCRIPT = '''
+import fs from 'node:fs';
+import { percentOf, pushPoint } from %s;
+const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+process.stdout.write(JSON.stringify({ pct: input.pairs.map(([a, b]) => percentOf(a, b)),
+  history: input.series.reduce((h, v) => pushPoint(h, v), []) }));
+'''
+
+DOM_SCRIPT = '''
+import fs from 'node:fs';
+import { startExtras } from %s;
+const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+let tick = null;
+globalThis.setInterval = (fn) => { tick = fn; return 1; };
+const made = [];
+function element(tag) {
+  const node = { tag, children: [], dataset: {}, textContent: '', className: '', attrs: {}, props: {},
+    style: { setProperty(name, value) { node.props[name] = value; } },
+    setAttribute(name, value) { node.attrs[name] = String(value); },
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; } };
+  made.push(node);
+  return node;
+}
+const section = element('section');
+globalThis.document = { getElementById: (id) => (id === 'live-extras' ? section : null), createElement: element };
+const replies = input.replies.slice();
+const readApi = async () => { const next = replies.shift(); return next === undefined ? null : next; };
+startExtras(readApi, 'run-1');
+await new Promise((resolve) => setImmediate(resolve));
+for (let i = 0; i < input.ticks; i += 1) await tick();
+const plain = (node) => ({ tag: node.tag, className: node.className, text: node.textContent, attrs: node.attrs,
+  props: node.props, state: node.dataset.state, children: node.children.map(plain) });
+process.stdout.write(JSON.stringify(plain(section)));
+'''
+
+
+def _widgets(stages):
+    return _run(WIDGETS_SCRIPT % json.dumps(MODULE.as_uri()), {'stages': stages})
+
+
+def _dom(replies, ticks=0):
+    return _run(DOM_SCRIPT % json.dumps(MODULE.as_uri()), {'replies': replies, 'ticks': ticks})
+
+
+def _walk(node):
+    yield node
+    for child in node['children']:
+        yield from _walk(child)
+
+
+def _widget(stages, label):
+    [found] = [w for w in _widgets(stages) if w['label'] == label]
+    return found
+
+
+def test_an_older_reply_without_a_breakdown_adds_no_widget():
+    assert _widgets(STAGES) == [] and _widgets(None) == []
+
+
+def test_tokens_by_phase_become_a_stacked_bar_with_clamped_percent_widths():
+    widget = _widget(BD, 'Tokens por fase')
+    assert widget['state'] == 'PASS'
+    assert [(seg['text'], round(seg['pct'], 2)) for seg in widget['segments']] == [
+        ('planning: 100', 33.33), ('executing: 200', 66.67)]
+    assert all(0 <= seg['pct'] <= 100 for seg in widget['segments'])
+
+
+def test_lane_and_model_widgets_name_the_missing_key_instead_of_hiding_it():
+    lanes = _widget(BD, 'Tokens por lane')
+    assert [seg['text'] for seg in lanes['segments']] == ['coder: 250', 'sem lane: 50']
+    assert [seg['text'] for seg in _widget(BD, 'Tokens por modelo')['segments']] == ['m-a: 300']
+
+
+def test_cost_per_task_is_estimated_and_an_unpriced_task_is_listed_unverified_with_its_reason():
+    widget = _widget(BD, 'Custo por tarefa')
+    assert widget['state'] == 'ESTIMADO'
+    assert [seg['text'] for seg in widget['segments']] == ['T1: US$ 0.2500 estimado', 'T2: US$ 0.7500 estimado']
+    assert [round(seg['pct'], 1) for seg in widget['segments']] == [25.0, 75.0]
+    assert 'T3: custo UNVERIFIED (sem preço na tabela)' in [item['text'] for item in widget['legend']]
+
+
+def test_cost_per_iteration_names_the_iteration_and_how_it_was_attributed():
+    widget = _widget(BD, 'Custo por iteração')
+    assert [seg['text'] for seg in widget['segments']] == ['iteração 1: US$ 0.4000 estimado',
+                                                           'iteração 2 (ordem dos eventos): US$ 0.6000 estimado']
+    assert 'sem iteração: custo UNVERIFIED (tokens não medidos)' in [item['text'] for item in widget['legend']] \
+        or any(item['text'].startswith('sem iteração') for item in widget['legend'])
+
+
+def test_a_breakdown_with_no_measured_tokens_is_unverified_with_the_server_reason_and_has_no_bar():
+    widget = _widget(_stages(total=None), 'Tokens por fase')
+    assert widget['state'] == 'UNVERIFIED' and widget['segments'] == []
+    assert widget['text'] == 'tokens do provedor não medidos: nenhum token_usage no run'
+
+
+def test_the_agent_map_lists_lanes_claims_tasks_and_leases_and_flags_slots_unverified():
+    stages = _stages()
+    stages['agent_map'] = {'state': 'PASS', 'reason': None, 'slots': {'state': 'UNVERIFIED', 'reason': 'slots não medidos'},
+                           'lanes': [{'key': 'coder', 'claims': 2, 'tasks': ['T1', 'T2'], 'lease_ids': ['L1'], 'branches': [],
+                                      'state': 'PASS', 'proof_kind': 'medido', 'lease_reason': None},
+                                     {'key': None, 'claims': 1, 'tasks': ['T3'], 'lease_ids': [], 'branches': [],
+                                      'state': 'PASS', 'proof_kind': 'medido', 'lease_reason': 'worker_claimed sem lease_id'}]}
+    widget = _widget(stages, 'Mapa de agentes')
+    assert widget['state'] == 'PASS'
+    assert [item['text'] for item in widget['legend']] == [
+        'coder: 2 claims, tarefas T1, T2, leases L1',
+        'sem lane: 1 claims, tarefas T3, lease UNVERIFIED (worker_claimed sem lease_id)',
+        'slots UNVERIFIED (slots não medidos)']
+
+
+def test_an_agent_map_without_claims_is_unverified_with_the_reason():
+    widget = _widget(_stages(), 'Mapa de agentes')
+    assert widget['state'] == 'UNVERIFIED' and widget['text'] == 'nenhum worker_claimed no run'
+
+
+def test_percent_is_clamped_between_0_and_100():
+    out = _run(HELPERS_SCRIPT % json.dumps(MODULE.as_uri()), {
+        'pairs': [[5, 2], [-3, 10], [1, 0], [None, 4], [1, 4], [4, 4], ['a', 4]], 'series': []})
+    assert out['pct'] == [100, 0, 0, 0, 25, 100, 0]
+
+
+def test_the_sparkline_history_is_bounded_to_60_points():
+    out = _run(HELPERS_SCRIPT % json.dumps(MODULE.as_uri()), {'pairs': [], 'series': list(range(100))})
+    assert out['history'] == list(range(40, 100)) and len(out['history']) == 60
+
+
+def test_bars_set_only_a_percent_width_and_the_legend_text_is_text_content():
+    tree = _dom([VALID, BD])
+    segments = [n for n in _walk(tree) if 'extras-seg' in n['className'].split()]
+    assert segments, 'no stacked bar segment was rendered'
+    for node in segments:
+        assert set(node['props']) == {'width'} and 0 <= float(node['props']['width'].rstrip('%')) <= 100
+        assert node['props']['width'].endswith('%') and node['text'] == ''
+    assert any(n['tag'] == 'ul' for n in _walk(tree))
+    assert 'planning: 100' in [n['text'] for n in _walk(tree)]
+
+
+def test_the_sparkline_is_fed_the_polled_token_totals_and_never_grows_past_60_points():
+    totals = [_stages(total=value, by_phase=[_bd_row('planning', value)]) for value in range(1, 80)]
+    replies = []
+    for stages in totals:
+        replies += [VALID, stages]
+    tree = _dom(replies, ticks=78)
+    [spark] = [n for n in _walk(tree) if n['tag'] == 'sl-sparkline']
+    values = spark['attrs']['values'].split(',')
+    assert len(values) == 60 and values[-1] == '79' and values[0] == '20'
+    assert set(spark['attrs']) == {'values', 'label'}
+
+
+def test_hostile_model_phase_lane_and_task_names_stay_inert_text():
+    stages = _stages(
+        by_phase=[_bd_row(HOSTILE, 100, 0.5)], by_lane=[_bd_row(HOSTILE, 100)], by_model=[_bd_row(HOSTILE, 100, 0.5)],
+        by_task=[_bd_row(HOSTILE, 100, 0.5)], by_iteration=[_bd_row(1, 100, 0.5, source=HOSTILE)])
+    stages['agent_map'] = {'state': 'PASS', 'reason': None, 'slots': {'state': 'UNVERIFIED', 'reason': HOSTILE},
+                           'lanes': [{'key': HOSTILE, 'claims': 1, 'tasks': [HOSTILE], 'lease_ids': [HOSTILE],
+                                      'branches': [], 'state': 'PASS', 'proof_kind': 'medido', 'lease_reason': None}]}
+    stages['breakdown']['tokens']['reason'] = HOSTILE
+    tree = _dom([VALID, stages])
+    nodes = list(_walk(tree))
+    assert {n['tag'] for n in nodes} <= {'section', 'h2', 'dl', 'div', 'dt', 'dd', 'span', 'ul', 'li', 'sl-sparkline'}
+    assert any(HOSTILE in n['text'] for n in nodes), 'the hostile name must be visible as text'
+    for node in nodes:
+        assert node['children'] == [] or node['text'] == '', node['tag']
+        assert 'onerror' not in json.dumps(node['attrs']) and 'onerror' not in json.dumps(node['props'])
