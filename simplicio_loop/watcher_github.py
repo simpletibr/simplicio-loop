@@ -1,7 +1,7 @@
 """Watcher GitHub adapter: #1470 (canonical status comment with claim) + #1471 (patrol PRs for fix tasks).
 
 This module is a thin async layer over `simplicio_loop.github_lifecycle`,
-`simplicio_loop.pr_patrol` and `scripts.pr_evidence.publish_comment`:
+`simplicio_loop.pr_patrol` and `simplicio_loop.pr_evidence.publish_comment`:
 
   * `post_status()` keeps ONE marker comment per issue updated in place. The current state
     is parsed from that canonical comment (the `| Estado |` row), never defaulted: a
@@ -43,7 +43,7 @@ def _split_repo(repo: str) -> Tuple[str, str]:
 
 
 def _default_publisher() -> Callable[..., Dict[str, Any]]:
-    from scripts.pr_evidence import publish_comment
+    from .pr_evidence import publish_comment
     return publish_comment
 
 

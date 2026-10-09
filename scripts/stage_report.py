@@ -49,7 +49,7 @@ from simplicio_loop.stage_report import (  # noqa: E402
     STAGE_REPORT_SCHEMA, STATUS_TAGS, build_marker, format_agent_identity, hostname_abbrev,
     idempotency_key, publish_stage_report, render_stage_report, sanitize, truncate_body,
 )
-from pr_evidence import PublishError, publish_comment  # noqa: E402
+from simplicio_loop.pr_evidence import PublishError, publish_comment  # noqa: E402
 
 _BLOCKED = 3
 

@@ -2928,10 +2928,7 @@ def _sync_github_lifecycle(run_dir: Path, state: Dict[str, Any], event: Dict[str
     if not lifecycle_state:
         return
     try:
-        scripts_dir = str(Path(__file__).resolve().parent.parent / "scripts")
-        if scripts_dir not in sys.path:
-            sys.path.insert(0, scripts_dir)
-        from pr_evidence import publish_comment as _publish_comment  # local import: optional dep
+        from .pr_evidence import publish_comment as _publish_comment
 
         # #285 remaining gap: project the run's real identity/runtime/device/lease/
         # branch onto the rendered comment instead of leaving those fields blank even
@@ -3045,10 +3042,7 @@ def _maybe_auto_build_planning_receipt(
             json.dumps(receipt, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
         )
         if source_snapshot is not None and lifecycle_sync_on:
-            scripts_dir = str(Path(__file__).resolve().parent.parent / "scripts")
-            if scripts_dir not in sys.path:
-                sys.path.insert(0, scripts_dir)
-            from pr_evidence import publish_comment as _publish_comment  # local import: optional dep
+            from .pr_evidence import publish_comment as _publish_comment
 
             # #285 remaining gap: project real identity/runtime/device/branch/plan onto
             # the PLANNED comment instead of leaving those fields blank, the same
