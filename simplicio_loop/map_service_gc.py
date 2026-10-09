@@ -190,10 +190,8 @@ def _cache_root(common: Path) -> Path:
 
 def _stores(common: Path) -> Dict[str, Path]:
     base = common / "simplicio"
-    return {
-        "map": base / "map", "scratch": base / "scratch",
-        "canonical": _cache_root(common) / "canonical",
-    }
+    cache = _cache_root(common)
+    return {"map": base / "map", "scratch": cache / "scratch", "canonical": cache / "canonical"}
 
 
 def _scratch_candidates(stores: Dict[str, Path]) -> Iterable[Path]:

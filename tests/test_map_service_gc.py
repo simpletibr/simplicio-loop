@@ -237,3 +237,19 @@ def test_startup_gc_only_reclaims_scratch_and_orphan_locks_never_a_base(repo):
 def test_startup_gc_never_raises(tmp_path):
     assert gc.startup_gc(str(tmp_path / "does-not-exist")) == []
     assert gc.startup_gc(str(tmp_path)) == []
+
+
+def test_every_mapper_index_reclaims_stale_scratch_first(repo, monkeypatch):
+    """The startup GC runs inside `run_mapper_index`, i.e. before every orient's index."""
+    import asyncio
+
+    from simplicio_loop import map_service_mapper as msm
+
+    root, map_dir = repo
+    stale = _scratch(map_dir, "baseline-build-beforeindex")
+    _age(stale, 6 * HOUR)
+    monkeypatch.setattr(msm.shutil, "which", lambda name: None)  # no binary: the index itself fails
+
+    with pytest.raises(msm.MapperUnavailableError):
+        asyncio.run(msm.run_mapper_index(str(root)))
+    assert not stale.exists()

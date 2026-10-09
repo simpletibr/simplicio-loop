@@ -53,9 +53,12 @@ async def run_mapper_index(path: str, *, timeout: float = 60.0) -> dict:
     free while it indexes, and on ``timeout`` the whole group is killed and
     ``subprocess.TimeoutExpired`` is raised."""
     from .exec_planner import _kill_process_tree
+    from .map_service_gc import startup_gc
 
-    binary = mapper_binary_path()
     resolved = str(Path(path).expanduser().resolve(strict=True))
+    # Housekeeping first (#1574): stale build scratch and orphan locks never accumulate.
+    await asyncio.to_thread(startup_gc, resolved)
+    binary = mapper_binary_path()
     argv = [binary, "index", resolved, "--json"]
     proc = await asyncio.create_subprocess_exec(
         *argv, stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE,
