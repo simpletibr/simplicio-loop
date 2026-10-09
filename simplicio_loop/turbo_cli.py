@@ -28,6 +28,8 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Sequence
 
+from . import plan_paths
+
 if TYPE_CHECKING:
     from .turbo_run import TurboRun
 
@@ -240,6 +242,9 @@ def _plan_failures(root: Path, operations: list[dict], reason: str) -> list[dict
     failures = []
     for operation in operations:
         find = operation.get("find") or ""
+        if plan_paths.refusal(operation["path"], root):  # never read, never excerpted: it leads into .git or out of the root
+            failures.append({"path": operation["path"], "reason": reason, "excerpt": ""})
+            continue
         target = root / operation["path"]
         text = target.read_text(encoding="utf-8", errors="replace") if target.is_file() else None
         if find and (text is None or text.count(find) != 1):

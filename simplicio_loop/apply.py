@@ -194,6 +194,9 @@ def validate_ops(root: Path, tasks: Sequence[Mapping[str, Any]], chains: Sequenc
             for idx, op in enumerate(task["operations"]):
                 path = op["path"]
                 find_text = op["find"]
+                if plan_paths.refusal(path, root):  # nothing is read for it: no count, no existence
+                    problems.append({"task": task_id, "path": path, "op_index": idx, "reason": "unsafe_path"})
+                    continue
                 current = read(path)
                 if find_text == "":
                     if (root / path).exists() and current:
@@ -238,6 +241,8 @@ def _resolve_dev_cli() -> str:
 def _apply_task_devcli(root: Path, task: Mapping[str, Any], run_dir: Path) -> dict[str, Any]:
     """Apply one task's operations through simplicio-dev-cli's 2-step
     contract (compile pins hashes without mutating; apply mutates)."""
+    if reason := plan_paths.operations_refusal(task["operations"], root):
+        return {"ok": False, "steps": [{"step": "guard", "ok": False, "error": reason}], "reason_code": "unsafe_path"}
     dev_cli = _resolve_dev_cli()
     minimal_path = run_dir / f"{task['id']}.ops.json"
     compiled_path = run_dir / f"{task['id']}.plan.json"
