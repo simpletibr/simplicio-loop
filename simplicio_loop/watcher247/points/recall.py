@@ -8,7 +8,6 @@ reads them; none found is still ok, and says so as UNVERIFIED.
 import asyncio
 import json
 
-from .. import verify
 from .registry import PointContext, PointResult, register
 
 NAME = "recall"
@@ -49,7 +48,7 @@ async def recall(ctx: PointContext) -> PointResult:
                for candidate in candidates[:LIMIT]]
     evidence = {"matches": matches, "delegation": delegation}
     if not matches:
-        evidence["label"] = verify.UNVERIFIED
+        evidence["label"] = "UNVERIFIED|no_precedent_found"
     return PointResult(NAME, "ok", evidence)
 
 

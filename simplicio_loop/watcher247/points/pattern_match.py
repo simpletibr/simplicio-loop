@@ -9,7 +9,6 @@ import asyncio
 import json
 import re
 
-from .. import verify
 from .recall import applies
 from .registry import PointContext, PointResult, register
 
@@ -64,7 +63,7 @@ def _match(ctx: PointContext) -> PointResult:
     hit_count = max((match["hit_count"] for match in matches), default=0)
     evidence = {"matches": matches, "hit_count": hit_count, "structural_attention": hit_count > 1}
     if not rows:
-        evidence["label"] = verify.UNVERIFIED
+        evidence["label"] = "UNVERIFIED|no_pattern_store"
     return PointResult(NAME, "ok", evidence)
 
 

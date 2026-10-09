@@ -1,7 +1,7 @@
 """pattern_match (intake): the issue against the bug patterns of simplicio-learn (patterns.jsonl); records hit_count."""
 import json
 
-from simplicio_loop.watcher247 import points, verify
+from simplicio_loop.watcher247 import points
 
 ISSUE = {"number": 9, "title": "Lease heartbeat dies", "body": "TimeoutError: heartbeat missed after 30s"}
 FP = "a1b2c3d4e5f6a7b8c9d0"
@@ -57,7 +57,7 @@ def test_invalid_regex_falls_back_to_substring(point_contract, make_ctx, tmp_pat
 def test_no_store_is_ok_and_names_unverified(point_contract, make_ctx, tmp_path):
     result = point_contract("pattern_match", make_ctx(clone=tmp_path, issue=ISSUE), expect="ok")
     assert result.evidence == {"matches": [], "hit_count": 0, "structural_attention": False,
-                               "label": verify.UNVERIFIED}
+                               "label": "UNVERIFIED|no_pattern_store"}
 
 
 def test_bad_lines_are_skipped(point_contract, make_ctx, tmp_path):

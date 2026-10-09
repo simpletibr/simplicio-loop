@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from simplicio_loop.watcher247 import points, verify
+from simplicio_loop.watcher247 import points
 
 ISSUE = {"number": 7, "title": "watcher lease heartbeat expires", "body": "the lease is lost mid run"}
 ITEMS = [
@@ -44,7 +44,7 @@ def test_top_matches_are_the_evidence(point_contract, make_ctx, tmp_path):
 def test_no_precedent_is_ok_and_names_unverified(point_contract, make_ctx, tmp_path):
     result = point_contract("recall", make_ctx(clone=tmp_path, issue=ISSUE), expect="ok")
     assert result.evidence["matches"] == []
-    assert result.evidence["label"] == verify.UNVERIFIED
+    assert result.evidence["label"] == "UNVERIFIED|no_precedent_found"
 
 
 def test_malformed_index_never_crashes(point_contract, make_ctx, tmp_path):
