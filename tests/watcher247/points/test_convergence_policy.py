@@ -2,8 +2,7 @@
 import pytest
 
 from simplicio_loop import escalation
-from simplicio_loop.watcher247 import points
-from simplicio_loop.watcher247.points import convergence_policy
+from simplicio_loop.watcher247 import convergence, points
 
 PASSED = "MEASURED|verify_passed: `python3 -m pytest -q`"
 FAILED = "MEASURED|verify_failed: `python3 -m pytest -q`"
@@ -22,7 +21,7 @@ def test_registered_at_verify_and_not_blocking():
 
 
 def test_without_a_clone_or_an_issue_it_is_skipped(make_ctx, tmp_path):
-    from simplicio_loop.watcher247.points.convergence_policy import applies
+    from simplicio_loop.watcher247.points.convergence_policy import applies  # the point's own module
     assert not applies(make_ctx(issue=ISSUE))
     assert not applies(make_ctx(clone=tmp_path))
     assert applies(make_ctx(clone=tmp_path, issue=ISSUE))
@@ -76,20 +75,20 @@ def test_a_passed_verify_is_not_blocked_by_past_failures(point_contract, make_ct
     ("STOP_SUCCESS", "continue"), ("REPLAN", "retry"), ("ESCALATE", "escalate"), ("STOP_BLOCKED", "stop"),
     ("STOP_BUDGET", "stop"), ("STOP_UNSAFE", "stop")])
 def test_every_loop_decision_maps_to_an_action(decision, action):
-    assert convergence_policy.action_for(decision, verifier_failed=False) == action
+    assert convergence.action_for(decision, verifier_failed=False) == action
 
 
 def test_a_failed_verifier_never_continues():
-    assert convergence_policy.action_for("CONTINUE_SERIAL", verifier_failed=True) == "retry"
+    assert convergence.action_for("CONTINUE_SERIAL", verifier_failed=True) == "retry"
 
 
 def test_assess_is_what_the_failed_verify_path_consumes(tmp_path):
     """host_mode.run_exec calls assess on its own ladder after a failed attempt: same decision, no point run."""
     ladder = escalation.load_escalation_state(tmp_path, 7, "claude")
     ladder.record_attempt("failed")
-    verdict = convergence_policy.assess(ladder, failed=True)
+    verdict = convergence.assess(ladder, failed=True)
     assert (verdict["action"], verdict["attempts"], verdict["failed_attempts"]) == ("retry", 1, 1)
     for _ in range(escalation.ATTEMPT_CEILING_PER_ISSUE):
         ladder.record_attempt("failed")
-    verdict = convergence_policy.assess(ladder, failed=True)
+    verdict = convergence.assess(ladder, failed=True)
     assert (verdict["action"], verdict["reason"]) == ("stop", "budget_exhausted")

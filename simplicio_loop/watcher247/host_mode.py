@@ -24,7 +24,7 @@ from typing import Any
 
 from .. import escalation, exec_auth, exec_planner, execution_report, executor_select, turbo_cli
 from . import budget, config, proc, sandbox, verify
-from .points import convergence_policy  # the failed-verify path asks it: retry, escalate or stop
+from . import convergence  # the failed-verify path asks it: retry, escalate or stop (a module, not a point)
 
 PLAN_ROLE = "planning"
 FIX_ROLE = "coordination"
@@ -203,7 +203,7 @@ async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str 
                         "executor": "exec", "steps": steps}
             if not planned.is_ok() and planned.reason_code != RETRYABLE:
                 raise RuntimeError(failure[:500])  # cli missing, quota, timeout: a better role does not help
-            verdict = convergence_policy.assess(ladder, failed=True)  # the failed attempt is already in the ladder
+            verdict = convergence.assess(ladder, failed=True)  # the failed attempt is already in the ladder
             if verdict["action"] == "stop":
                 raise RuntimeError(f"convergence stop ({verdict['reason']}): {failure}"[:500])
             await _reset_tree(dest)

@@ -1,9 +1,11 @@
 """convergence_policy on the failed-verify path of host mode (#1509): its decision changes what the run does."""
 from __future__ import annotations
 
+import subprocess
+import sys
+
 from simplicio_loop import escalation
-from simplicio_loop.watcher247 import config, host_mode
-from simplicio_loop.watcher247.points import convergence_policy
+from simplicio_loop.watcher247 import config, convergence, host_mode
 
 from .fakes import baseline, issue, read_json, run_tick
 from .test_host_mode import BAD, REPO, HostRun, checkout, cli_dir, planner_calls  # noqa: F401  (cli_dir is a fixture)
@@ -25,7 +27,7 @@ def test_a_stop_decision_ends_the_escalation_before_the_step_limit(env, cli_dir,
 
 
 def test_an_escalate_decision_climbs_the_ladder_instead_of_repeating(env, cli_dir, monkeypatch):
-    monkeypatch.setattr(convergence_policy, "assess",
+    monkeypatch.setattr(convergence, "assess",
                         lambda ladder, **kw: {"action": "escalate", "reason": "oscillation_detected"})
     climbed = []
     real_next_step = escalation.EscalationState.next_step
@@ -38,6 +40,15 @@ def test_an_escalate_decision_climbs_the_ladder_instead_of_repeating(env, cli_di
     checkout()
     run_tick()
     assert climbed and not repeated
+
+
+def test_a_failing_point_import_does_not_break_host_mode():
+    """host_mode never imports `points`: a point that fails to import cannot take the tick down."""
+    script = ("import sys; sys.modules['simplicio_loop.watcher247.points'] = None; "
+              "import simplicio_loop.watcher247.host_mode as h; "
+              "assert h.convergence.assess and h.choose")
+    done = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr
 
 
 def test_a_retry_decision_keeps_the_existing_role_order(env, cli_dir, monkeypatch):
