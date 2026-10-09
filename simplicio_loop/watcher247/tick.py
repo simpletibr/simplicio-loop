@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
-import json
 import os
 import re
 import subprocess
@@ -13,7 +12,7 @@ from pathlib import Path
 
 from .. import intake_gate, watcher_github
 from ..claim_lease import ClaimStore
-from . import budget, config, github, proc, sandbox, state, subscription, verify
+from . import budget, config, github, host_mode, proc, sandbox, state, subscription, verify
 
 _STATE_DIRS = (".simplicio-loop/", ".simplicio/")
 
@@ -109,24 +108,6 @@ def task_text(repo: str, issue: dict, fix: str = "") -> str:
     return text
 
 
-def parse_turbo(stdout: str) -> dict:
-    text = (stdout or "").strip()
-    if not text:
-        return {}
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        start = text.rfind('{"schema"')
-        if start < 0:
-            start = text.rfind("{")
-        if start < 0:
-            return {"status": "failed", "detail": text[-400:]}
-        try:
-            return json.loads(text[start:])
-        except json.JSONDecodeError:
-            return {"status": "failed", "detail": text[-400:]}
-
-
 async def dirty(dest: Path) -> bool:
     """True when the worktree has changes beyond the loop state dirs and .gitignore."""
     result = await proc.run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=dest)
@@ -138,7 +119,8 @@ async def dirty(dest: Path) -> bool:
     return False
 
 
-async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: dict, pr: int = 0, label: str = "") -> str | None:
+async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: dict, pr: int = 0, label: str = "",
+                        executor: str = "exec") -> str | None:
     """Commit the turbo result and push. A fix pushes to its open PR; otherwise a PR is opened. None when there is no diff."""
     if not await dirty(dest):
         return None
@@ -157,7 +139,7 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
     if pr:
         return f"https://github.com/{config.ORG}/{repo}/pull/{pr}"
     body = (
-        f"Processamento automatico do Simplicio-Loop 24h (turbo, provider openrouter) da issue #{issue['number']}.\n\n"
+        f"Processamento automatico do Simplicio-Loop 24h (executor {executor}) da issue #{issue['number']}.\n\n"
         f"{label}\n\n"
         f"Closes #{issue['number']}\n"
     )
@@ -174,10 +156,17 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
     return (created.stdout or "").strip()
 
 
-async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str) -> dict:
-    """Run headless turbo; return {turbo_status, exit_code}, raise when it did not finish ok."""
-    await budget.record("model_calls")
+async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str,
+                     executor: host_mode.Executor) -> dict:
+    """Run the item with the selected executor; return the claim fields, raise when it did not finish ok.
+
+    exec (the default): an exec CLI plans, turbo --apply - applies (host_mode). openrouter: the opt-in headless turbo.
+    """
     test_cmd = await asyncio.to_thread(verify.detect_test_command, dest)
+    if executor.mode == "exec":
+        return await host_mode.run_exec(dest, repo, issue, task_text(repo, issue, fix), test_cmd, executor,
+                                        attempts, fix=bool(fix))
+    await budget.record("model_calls")
     argv = sandbox.wrap(verify.turbo_argv(dest, task_text(repo, issue, fix), test_cmd),
                         clone=dest, state_dir=config.ROOT)
     env = sandbox.scrubbed_env(os.environ, home=Path.home(), keep=("OPENROUTER_API_KEY",))
@@ -186,7 +175,7 @@ async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str
     await asyncio.to_thread(log_path.parent.mkdir, parents=True, exist_ok=True)
     await asyncio.to_thread(
         log_path.write_text, (result.stdout or "") + "\n--- stderr ---\n" + (result.stderr or ""))
-    document = parse_turbo(result.stdout or "")
+    document = verify.parse_turbo(result.stdout or "")
     status = document.get("status") or ("ok" if result.returncode == 0 else "failed")
     decision = verify.decide({**document, "status": status}, test_cmd, attempts, config.MAX_ATTEMPTS)
     if decision.action != "pr":
@@ -216,7 +205,8 @@ async def _phase(runner, repo: str, number: int, phase: str, detail: str = "", r
         state.log(f"status {phase} not verified {repo}#{number}: {receipt.get('reason_code') or 'unverified'}")
 
 
-async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: float) -> None:
+async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: float,
+                  executor: host_mode.Executor) -> None:
     name = work.repo
     number = int(work.issue["number"])
     ident = state.key_of(name, number)
@@ -240,7 +230,7 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
             return
         await _phase(runner, name, number, "PLANNED", reason_code="REVIEW_REOPENED" if work.fix else "",
                      detail="fix de review na branch do PR" if work.fix else "task montada para o turbo")
-        await _phase(runner, name, number, "IN_PROGRESS", detail="turbo em execucao (openrouter)")
+        await _phase(runner, name, number, "IN_PROGRESS", detail=f"turbo em execucao (executor {executor.mode})")
         attempts = (await store.get_claim(ident)).attempts
         state.log(f"start {ident} attempt {attempts}")
         beat = asyncio.ensure_future(_heartbeat(store, ident, token))
@@ -248,9 +238,10 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
             async with gate.repo_lock(name):  # one working tree per repo: clone to push is exclusive
                 dest = await ensure_clone(name, work.branch)
                 head = await reset_branch(dest, work.branch, number, fix=bool(work.fix))
-                turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix)
+                turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor)
                 await _phase(runner, name, number, "VERIFYING", detail="turbo ok; publicando o diff")
-                url = await commit_and_pr(dest, name, work.branch, head, work.issue, pr=work.pr, label=turbo["verify"])
+                url = await commit_and_pr(dest, name, work.branch, head, work.issue, pr=work.pr,
+                                          label=turbo["verify"], executor=executor.mode)
                 if url:
                     await budget.record("prs")
         finally:
@@ -320,6 +311,11 @@ async def tick(dry_run: bool = False) -> None:
         await status(phase="daily_cap_reached", reason_code="daily_cap_reached", cap=capped,
                      budget=await budget.snapshot())
         state.log(f"daily cap reached: {capped}")
+        return
+    executor = await host_mode.choose()  # exec by default; preflight of the CLI logins, openrouter only if asked
+    if executor.blocked:
+        await status(phase="blocked", reason_code=executor.blocked, executor=executor.mode, detail=executor.detail)
+        state.log(f"blocked: {executor.blocked}")
         return
     sub = None
     if dry_run:
@@ -396,7 +392,7 @@ async def tick(dry_run: bool = False) -> None:
                 state.log(f"[dry-run] would process {ident}")
             return
         gate = Gate()
-        await asyncio.gather(*(process(store, runner, gate, w, clock) for w in batch))
+        await asyncio.gather(*(process(store, runner, gate, w, clock, executor) for w in batch))
         await status(phase="processed", last=idents[-1], processed=idents,
                      repos=len(found), open_seen=len(seen), subscription=sub,
                      skipped_repos=skipped_repos, skipped_issues=skipped_issues)

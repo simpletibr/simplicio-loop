@@ -13,6 +13,8 @@ ORG = "simpletibr"
 INTERVAL_S = 120
 TURBO_TIMEOUT_S = 900
 MAX_ATTEMPTS = 2
+PLAN_TIMEOUT_S = 300  # one exec-CLI planner call (host mode)
+MAX_STEPS = 4  # planner+apply steps in one process() run; the escalation ceilings may stop it sooner
 RETRY_AFTER = timedelta(hours=6)
 BODY_CAP = 6000
 OWNER = "simplicio-loop-247"  # the claim owner on GitHub and in the lease store

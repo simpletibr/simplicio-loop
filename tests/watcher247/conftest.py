@@ -14,6 +14,9 @@ def env(tmp_path, monkeypatch):
     monkeypatch.delenv("SIMPLICIO_247_CONCURRENCY", raising=False)
     monkeypatch.setenv("SIMPLICIO_247_ALLOW_UNSANDBOXED", "1")  # sandbox has its own tests
     monkeypatch.setattr(sandbox.shutil, "which", lambda binary: None)  # same argv on every host
+    # The default executor is exec (host_mode, see test_host_mode.py); these tests cover the opt-in openrouter path.
+    monkeypatch.setenv("SIMPLICIO_EXECUTOR", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
 
     async def active():
         return {"active": True, "reason": "ok"}
