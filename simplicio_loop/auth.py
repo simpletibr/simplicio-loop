@@ -266,10 +266,15 @@ def _unlock(fd: int) -> None:
 
 
 @contextlib.contextmanager
-def file_lock(path: Path, *, wait_s: float = LOCK_WAIT_S) -> Iterator[None]:
-    """Exclusive advisory lock on the sidecar of `path`. The kernel drops it when the owner dies: a left-over file is no lock."""
+def file_lock(path: Path, *, wait_s: float = LOCK_WAIT_S, strict: bool = True) -> Iterator[None]:
+    """Exclusive advisory lock on the sidecar of `path`. The kernel drops it when the owner dies: a left-over file is no lock.
+
+    `strict` (the login lock) also refuses a loose folder and a lock file that is another user's or that others can open.
+    `update` uses the same lock with strict=False: its folder holds no secret.
+    """
     lock = lock_path(Path(path))
-    _check_parent(lock)
+    if strict:
+        _check_parent(lock)
     lock.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
     try:
@@ -280,9 +285,9 @@ def file_lock(path: Path, *, wait_s: float = LOCK_WAIT_S) -> Iterator[None]:
         raise LoginError("login_invalid", f"cannot open {lock}: {exc.strerror}") from None
     try:
         info = os.fstat(fd)
-        if os.name != "nt" and _foreign_owner(info):  # a lock file of another user would let that user stall us
+        if strict and os.name != "nt" and _foreign_owner(info):  # another user's lock file would let that user stall us
             raise LoginError("login_permissions", f"{lock} is owned by another user; remove it")
-        if os.name != "nt" and info.st_mode & 0o077:
+        if strict and os.name != "nt" and info.st_mode & 0o077:
             raise LoginError("login_permissions", f"{lock} can be opened by group or others "
                              f"(mode {info.st_mode & 0o777:03o}); run: chmod 600 {lock}")
         deadline = time.monotonic() + wait_s

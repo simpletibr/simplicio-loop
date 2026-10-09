@@ -13,6 +13,7 @@ The HTTP layer is a parameter (`http(url)` returns a file-like object), so tests
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -23,11 +24,13 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence, Tuple
+from typing import Any, Callable, Iterator, Optional, Sequence, Tuple
 
-from . import distribution
+from . import auth, distribution
 from .stack_manifest import installed_legacy_distributions
 
 REPO = "simpletibr/simplicio-loop"
@@ -62,10 +65,27 @@ def _request(url: str) -> urllib.request.Request:
     return urllib.request.Request(url, headers=headers)
 
 
+class _SameHostRedirect(urllib.request.HTTPRedirectHandler):
+    """urllib copies every header into a redirected request: this handler removes the GitHub token when the redirect
+    leaves the host, and refuses a redirect from https to plain http."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        old, new = urllib.parse.urlsplit(req.full_url), urllib.parse.urlsplit(newurl)
+        if old.scheme == "https" and new.scheme != "https":
+            raise urllib.error.HTTPError(req.full_url, code, "a redirect from https to plain http is refused", headers, fp)
+        moved = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if moved is not None and old.netloc != new.netloc:
+            moved.remove_header("Authorization")
+        return moved
+
+
+_OPENER = urllib.request.build_opener(_SameHostRedirect)
+
+
 def _open(url: str):
     if not url.startswith("https://"):
         raise ValueError(f"refusing a non-https url: {url}")
-    return urllib.request.urlopen(_request(url), timeout=60)  # noqa: S310 - https only, checked above
+    return _OPENER.open(_request(url), timeout=60)  # https only, checked above
 
 
 def fetch_latest_tag() -> str:
@@ -137,16 +157,29 @@ def _remove(path: Path) -> None:
         pass
 
 
-def _download(http: Http, url: str, dest: Path) -> str:
-    """Stream `url` into `dest`; return its SHA256."""
-    digest = hashlib.sha256()
+def _download(http: Http, url: str, dest: Path) -> None:
+    """Stream `url` into `dest`. The SHA256 is taken afterwards from the file ON DISK, which is what gets installed."""
     with http(url) as response, open(dest, "wb") as out:
         for chunk in iter(lambda: response.read(1 << 20), b""):
-            digest.update(chunk)
             out.write(chunk)
         out.flush()
         os.fsync(out.fileno())
-    return digest.hexdigest()
+
+
+@contextlib.contextmanager
+def _update_lock(state_dir: Optional[Path]) -> Iterator[None]:
+    """One update at a time per user: a second one stops before it downloads anything."""
+    lock = auth.file_lock((state_dir or default_state_dir()) / "update", wait_s=0, strict=False)
+    try:
+        lock.__enter__()
+    except auth.LoginError as exc:
+        if exc.reason_code == "login_lock_timeout":
+            raise Refused("another update is running; wait for it to end, then run `simplicio-loop update` again") from None
+        raise Refused(str(exc)) from None
+    try:
+        yield
+    finally:
+        lock.__exit__(None, None, None)
 
 
 def _checksum(sums: str, name: str) -> str:
@@ -234,7 +267,8 @@ def _swap(exe: Path, staged: Path, label: str, probe: Callable[[Path], str]) -> 
 
 def _update_binary(*, installed: str, force: bool, check: bool, dry_run: bool, http: Http, exe: Optional[Path],
                    platform: Optional[tuple], windows: Optional[bool], probe: Callable[[Path], str],
-                   runner: Callable[[Sequence[str]], int], record: Callable[[dict], None]) -> int:
+                   runner: Callable[[Sequence[str]], int], record: Callable[[dict], None],
+                   state_dir: Optional[Path] = None) -> int:
     try:
         with http(LATEST_URL) as response:
             release = json.loads(response.read().decode("utf-8"))
@@ -259,9 +293,7 @@ def _update_binary(*, installed: str, force: bool, check: bool, dry_run: bool, h
     print(f"simplicio-loop {installed} -> {label}")
     exe = Path(exe or sys.executable).resolve()
     windows = os.name == "nt" if windows is None else windows
-    staged = exe.with_name(exe.name + ".new")
     backup = exe.with_name(exe.name + ".bak")
-    keep_staged = False  # only a verified Windows staging outlives this call
     try:
         name, asset_url, sums_url = _binary_plan(release, label, platform)
         if check:
@@ -275,28 +307,34 @@ def _update_binary(*, installed: str, force: bool, check: bool, dry_run: bool, h
             return 0
         if not os.access(exe.parent, os.W_OK):
             raise Refused(f"{exe.parent} is not writable; run the update with the rights that installed the binary")
-        got = _download(http, asset_url, staged)
-        if got != want:
-            raise Refused(f"checksum mismatch for {name}: {SUMS_NAME} says {want[:12]}..., the download is {got[:12]}...; "
-                          "nothing was changed")
-        print(f"update: SHA256 verified for {name}")
-        if os.name != "nt":
-            os.chmod(staged, (stat.S_IMODE(exe.stat().st_mode) if exe.exists() else 0o755) | 0o111)
-        if windows:  # a running image cannot be replaced: the next start does it, after checking the digest again
-            exe.with_name(exe.name + ".new.sha256").write_text(got + "\n", encoding="utf-8")
-            print(f"update: {staged.name} is staged and verified; it replaces {exe.name} at the next start")
-            keep_staged = True
-            return 0
-        _swap(exe, staged, label, probe)
+        with _update_lock(state_dir):
+            fd, temp = tempfile.mkstemp(dir=exe.parent, prefix=exe.name + ".", suffix=".new")  # a unique name per run
+            os.close(fd)
+            staged = Path(temp)
+            try:
+                _download(http, asset_url, staged)
+                got = _sha256(staged)
+                if got != want:
+                    raise Refused(f"checksum mismatch for {name}: {SUMS_NAME} says {want[:12]}..., the file on disk is "
+                                  f"{got[:12]}...; nothing was changed")
+                print(f"update: SHA256 verified for {name}")
+                if os.name != "nt":
+                    os.chmod(staged, (stat.S_IMODE(exe.stat().st_mode) if exe.exists() else 0o755) | 0o111)
+                if windows:  # a running image cannot be replaced: the next start does it, after checking the digest again
+                    waiting = exe.with_name(exe.name + ".new")
+                    os.replace(staged, waiting)
+                    exe.with_name(exe.name + ".new.sha256").write_text(got + "\n", encoding="utf-8")
+                    print(f"update: {waiting.name} is staged and verified; it replaces {exe.name} at the next start")
+                    return 0
+                _swap(exe, staged, label, probe)
+            finally:
+                _remove(staged)
     except Refused as exc:
         print(f"update: {exc}")
         return 2
     except (OSError, ValueError, KeyError, TypeError) as exc:
         print(f"update: failed: {exc}")
         return 2
-    finally:
-        if not keep_staged:
-            _remove(staged)
     record({**info, "installed": label, "update_available": False})
     print(f"update: {exe} is now {label}; the old file is kept as {backup.name}")
     return runner([str(exe), "install", "--global"])  # the NEW binary knows the new skills and host rules
@@ -322,6 +360,7 @@ def run_update(
     windows: Optional[bool] = None,
     probe: Callable[[Path], str] = _probe_version,
     record: Optional[Callable[[dict], None]] = None,
+    state_dir: Optional[Path] = None,
 ) -> int:
     if installed is None:
         from . import __version__ as installed
@@ -329,7 +368,8 @@ def run_update(
     kind = kind or distribution.kind()
     if kind == distribution.BINARY:
         return _update_binary(installed=installed, force=force, check=check, dry_run=dry_run, http=http or _open,
-                              exe=exe, platform=platform, windows=windows, probe=probe, runner=runner, record=record)
+                              exe=exe, platform=platform, windows=windows, probe=probe, runner=runner, record=record,
+                              state_dir=state_dir)
     source = editable if editable is not None else kind == distribution.SOURCE
     label_kind = distribution.SOURCE if source else distribution.PIP
     if dry_run:

@@ -5,11 +5,14 @@ The HTTP layer is injected: nothing here touches the network, the real executabl
 from __future__ import annotations
 
 import hashlib
+import http.server
 import io
 import json
 import os
 import stat
+import threading
 import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -85,6 +88,7 @@ class Calls:
 
 def update(exe, net, calls, *, installed="3.48.1", probe=None, expect="3.49.0", **kw):
     kw.setdefault("platform", PLATFORM)
+    kw.setdefault("state_dir", exe.parent.parent / "state")  # the update lock lives here, never in the real HOME
     return su.run_update(installed=installed, kind=distribution.BINARY, http=net, exe=exe, runner=calls.runner,
                          record=calls.record, probe=probe or (lambda path: f"simplicio-loop {expect}"), **kw)
 
@@ -271,13 +275,14 @@ def test_the_swap_is_one_rename_and_a_failed_rename_changes_nothing(exe, tmp_pat
 
     def failing(src, dst):
         renames.append((Path(src).name, Path(dst).name))
-        if Path(src).name.endswith(".new"):
+        if Path(src).name.endswith(".new") and Path(dst).name == "simplicio-loop":
             raise PermissionError(13, "read-only file system")
         return real(src, dst)
 
     monkeypatch.setattr(os, "replace", failing)
     assert update(exe, net, Calls()) == 2
-    assert renames == [("simplicio-loop.new", "simplicio-loop")]
+    assert len(renames) == 1 and renames[0][1] == "simplicio-loop"  # ONE rename, from the unique staged name
+    assert renames[0][0].startswith("simplicio-loop.") and renames[0][0].endswith(".new")
     assert exe.read_bytes() == OLD
     assert sorted(p.name for p in exe.parent.iterdir()) == ["simplicio-loop"]
     assert "read-only" in capsys.readouterr().out
@@ -286,18 +291,177 @@ def test_the_swap_is_one_rename_and_a_failed_rename_changes_nothing(exe, tmp_pat
 @posix
 def test_the_real_probe_runs_the_new_binary(exe, tmp_path, capsys):
     net, _, content = release()
+    state = exe.parent.parent / "state"
     assert su.run_update(installed="3.48.1", kind=distribution.BINARY, http=net, exe=exe, platform=PLATFORM,
-                         runner=Calls().runner) == 0
+                         runner=Calls().runner, state_dir=state) == 0
     assert exe.read_bytes() == content
     # ... and a binary that reports another version is not accepted
     exe.write_bytes(OLD)
     net, _, _ = release(content=new_binary("9.9.9"))
     assert su.run_update(installed="3.48.1", kind=distribution.BINARY, http=net, exe=exe, platform=PLATFORM,
-                         runner=Calls().runner) == 2
+                         runner=Calls().runner, state_dir=state) == 2
     assert exe.read_bytes() == OLD
 
 
 # --- Windows: stage now, swap on the next start ------------------------------------------------------------------------------
+
+
+# --- two updates at once, and what is hashed (review of #1584, item 6) -----------------------------------------------
+
+
+class BlockedAsset(FakeNet):
+    """The asset download stops until `go` is set, and says when it started."""
+
+    def __init__(self, files, asset_name, entered, go):
+        super().__init__(files)
+        self.asset_name, self.entered, self.go = asset_name, entered, go
+
+    def __call__(self, url):
+        body = super().__call__(url)
+        if url.endswith("/" + self.asset_name):
+            entered, go = self.entered, self.go
+
+            class Held(io.BytesIO):
+                def read(self, size=-1):
+                    entered.set()
+                    go.wait(15)
+                    return super().read(size)
+
+            return Held(body.getvalue())
+        return body
+
+
+@posix
+def test_two_updates_at_once_the_second_is_refused_and_the_staged_names_are_unique(exe, tmp_path, capsys):
+    net, name, content = release()
+    entered, go = threading.Event(), threading.Event()
+    first = BlockedAsset(net.files, name, entered, go)
+    result = {}
+    worker = threading.Thread(target=lambda: result.update(rc=update(exe, first, Calls())))
+    worker.start()
+    try:
+        assert entered.wait(15), "the first update never reached its download"
+        staged = sorted(p.name for p in exe.parent.iterdir() if p.name.endswith(".new"))
+        assert len(staged) == 1 and staged[0] != "simplicio-loop.new"  # a unique name, not a fixed one
+        second = FakeNet(dict(net.files))
+        assert update(exe, second, Calls()) == 2
+        assert not second.downloaded(name), "the second update must stop before it downloads"
+    finally:
+        go.set()
+        worker.join(30)
+    assert result["rc"] == 0 and exe.read_bytes() == content
+    assert "another update is running" in capsys.readouterr().out
+    assert sorted(p.name for p in exe.parent.iterdir()) == ["simplicio-loop", "simplicio-loop.bak"]
+    # the lock is released: a later update runs
+    net2, _, _ = release("3.50.0")
+    assert update(exe, net2, Calls(), installed="3.49.0", expect="3.50.0") == 0
+
+
+@posix
+def test_the_sha256_is_taken_from_the_file_on_disk_not_from_the_stream(exe, tmp_path, monkeypatch, capsys):
+    net, name, _ = release()
+    real = su._download
+
+    def altered_after_the_download(http, url, dest):
+        digest = real(http, url, dest)
+        dest.write_bytes(dest.read_bytes() + b"# appended on disk\n")  # what the stream said no longer matches the file
+        return digest
+
+    monkeypatch.setattr(su, "_download", altered_after_the_download)
+    assert update(exe, net, Calls()) == 2
+    assert "checksum" in capsys.readouterr().out
+    untouched(exe, tmp_path)
+
+
+def test_an_asset_url_that_is_not_https_is_refused_before_any_download(exe, tmp_path, capsys):
+    net, name, _ = release()
+    listing = json.loads(net.files[su.LATEST_URL])
+    for asset in listing["assets"]:
+        asset["browser_download_url"] = asset["browser_download_url"].replace("https://", "http://")
+    net.files[su.LATEST_URL] = json.dumps(listing).encode()
+    assert update(exe, net, Calls()) == 2
+    assert "not https" in capsys.readouterr().out
+    assert not net.downloaded(name)
+    untouched(exe, tmp_path)
+
+
+# --- an authenticated request never follows a redirect to another host (review of #1584, item 3) ---------------------------
+
+
+def serve(handler):
+    server = http.server.HTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+def test_the_authorization_header_is_dropped_when_a_redirect_leaves_the_host():
+    seen = []
+
+    class Target(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            seen.append(self.headers.get("Authorization"))
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, *args):
+            pass
+
+    target = serve(Target)
+    where = f"http://127.0.0.1:{target.server_port}/download"
+
+    class Redirect(Target):
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header("Location", self.server.location)
+            self.end_headers()
+
+    other = serve(Redirect)
+    other.location = where
+    try:
+        request = urllib.request.Request(f"http://127.0.0.1:{other.server_port}/api",
+                                         headers={"Authorization": "Bearer FAKE_GH_TOKEN"})
+        assert su._OPENER.open(request, timeout=10).read() == b"ok"
+        assert seen == [None], "the token followed the redirect to another host"
+        # a redirect inside the same host keeps the header: it is still the same server
+
+        class Same(Target):
+            def do_GET(self):
+                seen.append(self.headers.get("Authorization"))
+                if self.path == "/api":
+                    self.send_response(302)
+                    self.send_header("Location", "/elsewhere")
+                    self.end_headers()
+                else:
+                    self.send_response(200)
+                    self.end_headers()
+
+        same = serve(Same)
+        seen.clear()
+        request = urllib.request.Request(f"http://127.0.0.1:{same.server_port}/api",
+                                         headers={"Authorization": "Bearer FAKE_GH_TOKEN"})
+        su._OPENER.open(request, timeout=10).read()
+        assert seen == ["Bearer FAKE_GH_TOKEN", "Bearer FAKE_GH_TOKEN"]
+        same.shutdown()
+    finally:
+        target.shutdown()
+        other.shutdown()
+
+
+def test_a_redirect_from_https_to_plain_http_is_refused():
+    handler = su._SameHostRedirect()
+    request = urllib.request.Request("https://api.github.com/repos/x/releases/latest",
+                                     headers={"Authorization": "Bearer FAKE_GH_TOKEN"})
+    with pytest.raises(urllib.error.HTTPError):
+        handler.redirect_request(request, io.BytesIO(b""), 302, "Found", {}, "http://example.invalid/asset")
+    # https to https on ANOTHER host is the normal GitHub download redirect: allowed, without the token
+    moved = handler.redirect_request(request, io.BytesIO(b""), 302, "Found", {}, "https://objects.example.invalid/asset")
+    assert moved is not None and moved.get_header("Authorization") is None
+
+
+def test_the_real_opener_refuses_plain_http_urls():
+    with pytest.raises(ValueError):
+        su._open("http://example.invalid/x")
 
 
 def test_windows_stages_the_verified_file_and_swaps_on_the_next_start(tmp_path, capsys):
