@@ -37,7 +37,17 @@ HOST_SKILL_ROOTS = {
     "simplicio_agent": ".simplicio-loop/skills",
 }
 
+# Written into the installed loop skill by the host-rule sync (simplicio_loop.host_rules), not
+# shipped in the package skill: skill digests and resyncs leave it alone.
+HOST_RULE_REF = "references/host-operator-flow.md"
+
 PathLike = Union[str, os.PathLike]
+
+
+def _skill_files(root: Path) -> list:
+    return sorted(p for p in root.rglob("*")
+                  if p.is_file() and "__pycache__" not in p.parts
+                  and p.relative_to(root).as_posix() != HOST_RULE_REF)
 
 
 def package_skills_dir() -> Path:
@@ -55,7 +65,7 @@ def skill_digest(skill_dir: PathLike) -> str:
     if not root.is_dir():
         return ""
     h = hashlib.sha256()
-    for path in sorted(p for p in root.rglob("*") if p.is_file() and "__pycache__" not in p.parts):
+    for path in _skill_files(root):
         h.update(path.relative_to(root).as_posix().encode("utf-8") + b"\0")
         h.update(path.read_bytes())
     return h.hexdigest()
@@ -100,9 +110,13 @@ def resync_installed_skills(home: Optional[PathLike] = None) -> dict:
         host = entry["host"]
         dst = Path(entry["path"])
         try:
+            src = source / entry["skill"]
+            keep = {p.relative_to(src) for p in _skill_files(src)}
             if dst.exists():
-                shutil.rmtree(dst)
-            shutil.copytree(source / entry["skill"], dst,
+                for old in _skill_files(dst):
+                    if old.relative_to(dst) not in keep:
+                        old.unlink()
+            shutil.copytree(src, dst, dirs_exist_ok=True,
                             ignore=shutil.ignore_patterns("__pycache__"))
             if host not in report["synced"]:
                 report["synced"].append(host)
