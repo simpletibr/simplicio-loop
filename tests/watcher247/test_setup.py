@@ -603,7 +603,7 @@ def test_without_login_json_setup_prints_the_exact_command_for_the_service_user(
     out = capsys.readouterr().out
     assert rc == 1
     assert "login_missing" in out
-    assert "sudo -u simplicio-loop -H simplicio login google" in out
+    assert "sudo -u simplicio-loop -H simplicio-loop login" in out
     assert "systemctl restart simplicio-loop-247" in out  # the new token loads at service start
 
 

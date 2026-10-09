@@ -38,10 +38,10 @@ Como root, com o arquivo de env do serviço, aponte `SIMPLICIO_247_LOGIN` para o
 - Setup grava o e-mail (não é segredo) em `<state_dir>/account.json` (modo 600).
 - Sem `~/.simplicio/login.json` o tick fica ocioso com `phase=setup_required`, `reason_code=login_missing`. Setup imprime:
   ```
-  sudo -u simplicio-loop -H simplicio login google
+  sudo -u simplicio-loop -H simplicio-loop login
   ```
   E verifica a assinatura. Reason codes: `ok`, `login_missing`, `subscription_required`, `refresh_failed`, `entitlement_required`, `validate_unreachable`, `account_mismatch`.
-  Com `account_mismatch`, o login.json pertence a outra conta: `sudo -u simplicio-loop -H simplicio logout` e faça login novamente.
+  Com `account_mismatch`, o login.json pertence a outra conta: `sudo -u simplicio-loop -H simplicio-loop logout --yes` e faça login novamente.
 
 **Saída do setup:**
 - Exit 0: tudo pronto (reason `ok`).

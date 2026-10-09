@@ -357,3 +357,37 @@ def runtime_version(binary: Path, timeout: float = 10) -> Optional[str]:
         return None
     found = _VERSION.search(done.stdout) if done.returncode == 0 else None
     return found.group(1) if found else None
+
+
+_FIXES = {"login_missing": "simplicio-loop login", "login_invalid": "simplicio-loop login",
+          "login_symlink": "remove the symlink, then run: simplicio-loop login", "login_expired": "simplicio-loop login"}
+
+
+def describe(environ: Optional[Mapping[str, str]] = None, now: Optional[float] = None) -> dict:
+    """The state of the login as a plain dict (used by `auth status`, `login` and `doctor`): never a token.
+
+    `logged_in` is true when the file is valid and either the access token has not expired or a refresh token
+    that has not expired can renew it. `reason_code` is `ok` or why not; `fix` is the command that repairs it.
+    """
+    env = os.environ if environ is None else environ
+    path, runtime_path = login_path(env), runtime_login_path(env)
+    binary = runtime_binary(env)
+    doc: dict[str, Any] = {
+        "schema": "simplicio.auth-status/v1", "logged_in": False, "reason_code": "ok", "fix": None,
+        "path": str(path), "runtime_path": str(runtime_path),
+        "shared_with_runtime": os.path.abspath(path) == os.path.abspath(runtime_path),
+        "runtime": {"found": binary is not None, "path": str(binary) if binary else None,
+                    "version": runtime_version(binary) if binary else None},
+    }
+    try:
+        login = read_login(path)
+    except LoginError as exc:
+        doc.update(reason_code=exc.reason_code, detail=str(exc),
+                   fix=f"chmod 600 {path}" if exc.reason_code == "login_permissions" else _FIXES.get(exc.reason_code))
+        return doc
+    facts = summary(login, now)
+    usable = not facts["access_expired"] or (facts["has_refresh_token"] and not facts["refresh_expired"])
+    doc.update(facts)
+    doc.update(logged_in=usable, reason_code="ok" if usable else "login_expired",
+               fix=None if usable else _FIXES["login_expired"])
+    return doc

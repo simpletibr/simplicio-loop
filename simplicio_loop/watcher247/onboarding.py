@@ -6,8 +6,9 @@ The watcher ships with no credentials and assumes none. The user gives two thing
   visible in `ps`), checked with a real `gh api user` call, then written as GH_TOKEN to the service env file
   (mode 600, atomic replace);
 * the Simplicio account e-mail: recorded in the state dir (not a secret) and compared with the account of login.json.
-  The login itself is the Runtime flow `simplicio login google`: this repo has no login flow, so setup prints the
-  exact command for the service user and then reports the reason code of the existing subscription check.
+  The login itself is `simplicio-loop login` (it runs the Runtime flow `simplicio login google` and checks the shared
+  login file, see simplicio_loop.auth): setup prints the exact command for the service user and then reports the reason
+  code of the existing subscription check.
 
 Without the credentials the tick stays idle and `status.json` says which one is missing and what to run
 (idle_status), so a service with Restart=always never crash-loops on them.
@@ -34,8 +35,8 @@ from pathlib import Path
 from . import config, env_guard, login_check, proc, state, subscription
 
 COMMAND = "simplicio-loop watch247 setup"
-LOGIN_COMMAND = f"sudo -u {login_check.SERVICE_USER} -H simplicio login google"  # `simplicio --help`: login google
-LOGOUT_COMMAND = f"sudo -u {login_check.SERVICE_USER} -H simplicio logout"
+LOGIN_COMMAND = f"sudo -u {login_check.SERVICE_USER} -H simplicio-loop login"
+LOGOUT_COMMAND = f"sudo -u {login_check.SERVICE_USER} -H simplicio-loop logout --yes"
 RESTART_COMMAND = "systemctl restart simplicio-loop-247"
 KEY = "GH_TOKEN"
 TOKEN_ENV = ("GH_TOKEN", "GITHUB_TOKEN")  # the variables gh reads

@@ -74,6 +74,7 @@ from .economy_profile import (
     prism_is_eligible,
     resolve_prism_batch_size,
 )
+from .auth_cli import configure_commands as configure_auth_commands, dispatch as dispatch_auth
 from .map_service_cli import configure_commands as configure_map_commands, dispatch as dispatch_map
 from .squads import configure_commands as configure_squads_commands, dispatch as dispatch_squads
 from .serverless_deploy import build_plan as build_serverless_plan, execute_plan as execute_serverless_plan
@@ -2775,6 +2776,8 @@ def main(argv=None) -> int:
     p_update.add_argument("--check", action="store_true", help="only report installed vs latest; change nothing")
     p_update.add_argument("--force", action="store_true", help="reinstall even when already on the latest release")
 
+    configure_auth_commands(sub)  # login, logout, auth status: one login shared with the Simplicio Runtime
+
     p_dashboard = sub.add_parser("dashboard", help="open the Simplicio Live panel; --tokens opens the Token Monitor")
     from .dashboard import cli as dashboard_cli
     dashboard_cli.add_arguments(p_dashboard)
@@ -3287,6 +3290,8 @@ def main(argv=None) -> int:
     if command == "update":
         from .self_update import run_update
         return run_update(check=args.check, force=args.force)
+    if command in {"login", "logout", "auth"}:
+        return dispatch_auth(args)
     if command == "dashboard":
         from .dashboard import cli as dashboard_cli
         return dashboard_cli.run(args)
