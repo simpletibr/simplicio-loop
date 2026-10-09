@@ -6,9 +6,19 @@ import asyncio
 import json
 from dataclasses import replace
 
-from simplicio_loop.watcher247 import points
+import pytest
+
+from simplicio_loop.watcher247 import config, points
+
+from ..fakes import FakeRun, baseline, issue, run_tick
+from .tick_ctx import capture_done_ctx
 
 LESSON = "simplicio-a: solved via turbo executor; verified by UNVERIFIED|no_test_command"
+
+
+@pytest.fixture
+def done_ctx(env, monkeypatch):
+    return capture_done_ctx(env, monkeypatch)
 
 
 def lessons(ctx):
@@ -62,3 +72,25 @@ def test_the_same_lesson_in_another_run_raises_hit_count_to_two(done_ctx):
     assert (results["learn"].evidence["new_lessons"], results["learn"].evidence["merged_lessons"]) == (0, 1)
     [row] = lessons(done_ctx)
     assert (row["lesson"], row["hit_count"]) == (LESSON, 2)
+
+
+def test_issue_7_does_not_read_the_trajectory_of_issue_70(done_ctx):
+    other = replace(done_ctx, run_dir=done_ctx.run_dir.parent / "simplicio-a-70", issue={"number": 70},
+                    verify="MEASURED|verify_passed: `pytest -q`",
+                    turbo_json={**done_ctx.turbo_json, "verify": "MEASURED|verify_passed: `pytest -q`"})
+    run_done(other)
+    results = run_done(done_ctx)
+    assert (results["learn"].evidence["records_seen"], results["learn"].evidence["merged_lessons"]) == (1, 0)
+    assert sorted((row["lesson"], row["hit_count"]) for row in lessons(done_ctx)) == [
+        ("simplicio-a: solved via turbo executor; verified by MEASURED|verify_passed: `pytest -q`", 1), (LESSON, 1)]
+
+
+def test_a_solved_tick_leaves_one_lesson_in_lessons_jsonl(env):
+    env(FakeRun({"simplicio-a": [issue(7)]}))
+    baseline()
+    run_tick()
+    orchestrator = config.ROOT / ".simplicio-loop" / "orchestrator"
+    [record] = [json.loads(line) for line in (orchestrator / "trajectory" / "simplicio-a-7.jsonl").read_text().splitlines()]
+    assert (record["issue"], record["status"]) == (7, "ok")
+    [row] = [json.loads(line) for line in (orchestrator / "lessons.jsonl").read_text().splitlines()]
+    assert (row["lesson"], row["hit_count"]) == (LESSON, 1)

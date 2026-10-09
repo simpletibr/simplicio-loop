@@ -5,7 +5,11 @@ Every context here comes from the real tick (`done_ctx`), never a hand-made turb
 import json
 from dataclasses import replace
 
+import pytest
+
 from simplicio_loop.watcher247 import points
+
+from .tick_ctx import capture_done_ctx
 
 PR_URL = "https://github.com/simpletibr/simplicio-a/pull/9"
 LABEL = "UNVERIFIED|no_test_command"
@@ -18,6 +22,11 @@ EXEC_TURBO = {
         {"role": "fix", "family": "claude", "model": "opus", "effort": "high", "outcome": "ok"},
     ],
 }
+
+
+@pytest.fixture
+def done_ctx(env, monkeypatch):
+    return capture_done_ctx(env, monkeypatch)
 
 
 def records(ctx):
