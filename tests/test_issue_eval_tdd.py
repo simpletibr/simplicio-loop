@@ -17,25 +17,29 @@ from pathlib import Path
 
 import pytest
 
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "scripts" / "issue_eval.py"
+CASES = ROOT / "bench" / "issue_eval" / "cases.json"
+
 
 class TestCasesSchema:
     """Tests for bench/issue_eval/cases.json schema."""
 
     def test_cases_file_exists(self):
         """Cases file must exist."""
-        cases_file = Path("bench/issue_eval/cases.json")
+        cases_file = CASES
         assert cases_file.exists(), f"{cases_file} not found"
 
     def test_schema_version(self):
         """Schema version must be simplicio.issue-eval/v1."""
-        cases_file = Path("bench/issue_eval/cases.json")
+        cases_file = CASES
         with open(cases_file) as f:
             data = json.load(f)
         assert data["schema"] == "simplicio.issue-eval/v1"
 
     def test_cases_count(self):
         """Must have 15-30 cases."""
-        cases_file = Path("bench/issue_eval/cases.json")
+        cases_file = CASES
         with open(cases_file) as f:
             data = json.load(f)
         cases = data.get("cases", [])
@@ -43,7 +47,7 @@ class TestCasesSchema:
 
     def test_case_fields_and_types(self):
         """Each case must have correct fields and types."""
-        cases_file = Path("bench/issue_eval/cases.json")
+        cases_file = CASES
         with open(cases_file) as f:
             data = json.load(f)
         cases = data.get("cases", [])
@@ -69,7 +73,7 @@ class TestCasesSchema:
 
     def test_case_size_valid(self):
         """Case size must be small/medium/large."""
-        cases_file = Path("bench/issue_eval/cases.json")
+        cases_file = CASES
         with open(cases_file) as f:
             data = json.load(f)
         cases = data.get("cases", [])
@@ -79,7 +83,7 @@ class TestCasesSchema:
 
     def test_case_source_valid(self):
         """Case source must be 'issue' or 'pr'."""
-        cases_file = Path("bench/issue_eval/cases.json")
+        cases_file = CASES
         with open(cases_file) as f:
             data = json.load(f)
         cases = data.get("cases", [])
@@ -89,7 +93,7 @@ class TestCasesSchema:
 
     def test_diff_stat_structure(self):
         """diff_stat must have additions, deletions, total_lines."""
-        cases_file = Path("bench/issue_eval/cases.json")
+        cases_file = CASES
         with open(cases_file) as f:
             data = json.load(f)
         cases = data.get("cases", [])
@@ -107,7 +111,7 @@ class TestDryRun:
     def test_dry_run_no_execution(self):
         """Dry-run must not execute cases."""
         result = subprocess.run(
-            [sys.executable, "scripts/issue_eval.py", "--dry-run", "--limit", "3"],
+            [sys.executable, str(SCRIPT), "--dry-run", "--limit", "3"],
             capture_output=True,
             text=True,
         )
@@ -135,7 +139,7 @@ class TestCompare:
         result = subprocess.run(
             [
                 sys.executable,
-                "scripts/issue_eval.py",
+                str(SCRIPT),
                 "--compare",
                 str(old_file),
                 str(new_file),
