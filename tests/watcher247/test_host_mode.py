@@ -160,6 +160,22 @@ def test_planner_runs_through_the_sandbox_wrapper(env, cli_dir, monkeypatch):
     assert fake.turbo_argv
 
 
+def test_watcher_keeps_the_planner_config_in_the_bound_state_dir(env, cli_dir, monkeypatch):
+    seen = []
+    real = host_mode.exec_planner.run_planner_with_fallback
+
+    async def spy(*args, **kwargs):
+        seen.append(kwargs.get("config_dir"))
+        return await real(*args, **kwargs)
+
+    monkeypatch.setattr(host_mode.exec_planner, "run_planner_with_fallback", spy)
+    env(HostRun({REPO: [issue(1)]}))
+    baseline()
+    checkout()
+    run_tick()
+    assert seen == [config.ROOT / "opencode"]  # sandbox.wrap binds state_dir; /tmp is a tmpfs inside it
+
+
 def env_keys(cli_dir):
     path = cli_dir / "env.jsonl"
     return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
