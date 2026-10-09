@@ -17,7 +17,10 @@ def _dev_switch_not_this_file_s_business(monkeypatch):
     (reason `dev_switch_present`); that blocker has its own tests in test_release_rehearsal_dev_switch.py."""
     import scripts.release_rehearsal as release_rehearsal
 
+    import version_sync  # the module release_rehearsal itself imports; its `apply` refuses the same way
+
     monkeypatch.setattr(release_rehearsal, "find_dev_switches", lambda repo: {})
+    monkeypatch.setattr(version_sync, "find_dev_switches", lambda repo: {})
 
 
 # Real, slow, end-to-end: exports the tracked tree, bumps a scratch-only version, builds a real
