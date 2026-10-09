@@ -67,14 +67,14 @@ def test_turbo_ok_commits_opens_pr_and_comments_url(env):
     assert (config.LOGS / "simplicio-a-7-1.log").exists()
 
 
-def test_turbo_ok_without_diff_is_done_no_diff(env):
+def test_turbo_ok_without_diff_is_rejected_by_the_judge(env):  # #1509: judge REJECTs an empty diff, the stage blocks
     fake = env(FakeRun({"simplicio-a": [issue(4)]}, diff=False))
     baseline()
     run_tick()
     assert fake.ran("gh", "pr", "create") == [] and fake.ran("git", "commit") == []
     claim = read_json(config.CLAIMS)["simplicio-a#4"]
-    assert claim["status"] == "done_no_diff" and claim["pr"] is None
-    assert "sem diff" in fake.marker_comments(4)[-1]["body"]
+    assert claim["status"] == "dead" and not claim.get("pr") and claim["reason_code"] == "empty_diff"
+    assert "judge (empty_diff)" in fake.marker_comments(4)[-1]["body"]
 
 
 def test_first_failure_schedules_retry_in_six_hours(env):
