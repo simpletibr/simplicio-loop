@@ -12,11 +12,21 @@ escalations with reason and attempt, the dependency wait), and the status block 
 The escalation is read from the worker's steps; the wait is the gap between two instants this flow observes (`clock()` when the squad
 approves the PR, and when the dependency's merge succeeds). What was not observed is UNVERIFIED with a reason, never an estimate.
 
+A task that failed, or finished with no PR, is recorded too (#1565): its steps and its `final_outcome` (`ok`, `failed`, `no_pr`)
+count in the escalation rate, so the rate is not only that of the tasks that finished well.
+
+Baseline mode (#1565): SIMPLICIO_247_SQUADS_BASELINE=1 (exactly "1") turns three squads-v2 rules off, for the "before" run of the
+#1549 comparison: no routing by complexity (every worker starts at `execution`), a merge batch of 1 (serial, through the same
+merge_train), no cross-squad contracts. It never enables a merge and never loosens an approval: the review, `squad_gate` with the
+watcher's own login, SIMPLICIO_247_AUTO_MERGE=1, the repo lock and `--match-head-commit` do not read the mode. The mode (`baseline` or
+`v2`) is in the status block of each repo and in the execution-report.
+
 Concurrency is the tick's (daily budget, SIMPLICIO_247_CONCURRENCY) and the repo lock; the merge train holds that lock.
 """
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import fnmatch
 import json
 import os
@@ -31,6 +41,8 @@ from .. import execution_report, merge_train, model_roles, pr_evidence, squad_ca
 from . import config, proc, sandbox, state, verify
 
 AUTO_MERGE_ENV = "SIMPLICIO_247_AUTO_MERGE"
+BASELINE_ENV = "SIMPLICIO_247_SQUADS_BASELINE"
+V2, BASELINE = "v2", "baseline"  # the two modes; the report and the status carry one of them
 APPROVAL_MARKER = "<!-- simplicio-loop:squad-approval:{oid} -->"  # one comment per head commit, so createdAt stays fresh
 _PATH = re.compile(r"`([\w./-]+\.\w{1,6})`")
 _PR_NUMBER = re.compile(r"/pull/(\d+)")
@@ -41,6 +53,15 @@ clock = time.monotonic  # the instants of the dependency wait (#1549); a test re
 def auto_merge_enabled(environ: dict[str, str] | None = None) -> bool:
     """Off unless the operator sets SIMPLICIO_247_AUTO_MERGE=1 (#1434): the watcher never merges on its own."""
     return (os.environ if environ is None else environ).get(AUTO_MERGE_ENV) == "1"
+
+
+def baseline_enabled(environ: dict[str, str] | None = None) -> bool:
+    """Off unless the operator sets SIMPLICIO_247_SQUADS_BASELINE=1 (#1565): the default is the v2 flow."""
+    return (os.environ if environ is None else environ).get(BASELINE_ENV) == "1"
+
+
+def current_mode(environ: dict[str, str] | None = None) -> str:
+    return BASELINE if baseline_enabled(environ) else V2
 
 
 async def own_login() -> str:
@@ -58,6 +79,7 @@ class Outcome:
     pr: str
     verify: str
     steps: list[dict[str, str]] = field(default_factory=list)
+    final_outcome: str = "ok"  # squad_metrics.OUTCOMES: `ok` (a PR opened), `failed` (the ladder failed), `no_pr` (it finished, no PR)
 
 
 @dataclass
@@ -69,6 +91,12 @@ class RepoPlan:
     ready_at: dict[int, float] = field(default_factory=dict)  # issue -> clock() when the squad approved its PR
     merged_at: dict[int, float] = field(default_factory=dict)  # issue -> clock() when its merge was observed
     capacity: dict[str, Any] = field(default_factory=dict)  # squad_capacity plan of this repo: how many run at once, and why
+    mode: str = V2  # `baseline` turns routing, the merge batch and the contracts off (#1565); nothing about approval or merge rules
+
+    @property
+    def merge_batch(self) -> int:
+        """PRs per merge train: 1 in baseline mode (serial), the train's default otherwise."""
+        return 1 if self.mode == BASELINE else merge_train.DEFAULT_MAX_BATCH
 
 
 def _safe_path(path: str) -> bool:
@@ -83,10 +111,16 @@ def _issue_row(issue: dict) -> dict[str, Any]:
 
 
 def plan_repo(repo: str, issues: list[dict], family: str, probe: squad_capacity.Probe | None = None,
-              limits: squad_capacity.Limits | None = None) -> RepoPlan:
+              limits: squad_capacity.Limits | None = None, mode: str | None = None) -> RepoPlan:
     """The general coordinator: squads for the issues, and the starting role of each worker (squad_routing.route).
 
-    The capacity (how many squads run at once, DEFAULT automatic) comes from the tick's `probe` and `limits`."""
+    The capacity (how many squads run at once, DEFAULT automatic) comes from the tick's `probe` and `limits`.
+    `mode` is `v2` or `baseline` (default: SIMPLICIO_247_SQUADS_BASELINE). Baseline plans no cross-squad contracts and starts every
+    worker at `execution`; the squads, the file ownership and the merge order are the same.
+    """
+    mode = current_mode() if mode is None else mode
+    if mode not in (V2, BASELINE):
+        raise ValueError(f"mode must be {V2} or {BASELINE}: {mode!r}")
     rows = [_issue_row(i) for i in issues]
     try:
         auto = squads.plan_squads_auto(rows, family=family, probe=probe, limits=limits)
@@ -96,19 +130,21 @@ def plan_repo(repo: str, issues: list[dict], family: str, probe: squad_capacity.
         auto = squads.plan_squads_auto(rows, family=family, probe=probe, limits=limits)
     plan = auto.plan
     state.log(f"squad capacity {repo}: {auto.capacity.reasons[0]} ({auto.capacity.proof_kind})")
+    if mode == BASELINE:
+        plan = dataclasses.replace(plan, contracts=())
     workers = {w.issues[0]: w for s in plan.squads for w in s.workers}
     routed = {}
     for row in rows:
         worker = workers[row["number"]]
         shared = bool(set(row["paths"]) - set(worker.owned_paths))
-        routed[row["number"]] = squad_routing.route(
+        routed[row["number"]] = squad_routing.EXECUTION if mode == BASELINE else squad_routing.route(
             {"files": row["paths"], "touches_shared": shared, "labels": [l.get("name") if isinstance(l, dict) else l
                                                                          for l in row["labels"]]}).role
-    return RepoPlan(repo, plan, routed, squads.dependencies(rows), capacity=auto.capacity.to_dict())
+    return RepoPlan(repo, plan, routed, squads.dependencies(rows), capacity=auto.capacity.to_dict(), mode=mode)
 
 
 def form(batch: list, family: str, probe: squad_capacity.Probe | None = None,
-         limits: squad_capacity.Limits | None = None) -> list[RepoPlan]:
+         limits: squad_capacity.Limits | None = None, mode: str | None = None) -> list[RepoPlan]:
     """Plan the squads of the new issues in `batch` (review fixes stay outside) and set each Work's starting role."""
     by_repo: dict[str, list] = {}
     for work in batch:
@@ -116,7 +152,7 @@ def form(batch: list, family: str, probe: squad_capacity.Probe | None = None,
             by_repo.setdefault(work.repo, []).append(work)
     out = []
     for repo, works in by_repo.items():
-        repo_plan = plan_repo(repo, [w.issue for w in works], family, probe, limits)
+        repo_plan = plan_repo(repo, [w.issue for w in works], family, probe, limits, mode)
         for work in works:
             work.role = repo_plan.routed[int(work.issue["number"])]
         out.append(repo_plan)
@@ -209,7 +245,7 @@ async def _merge(repo: str, repo_plan: RepoPlan, approved: dict[int, int], heads
     async with gate.repo_lock(repo):  # writes are serialized: the train owns the working tree
         dest = config.WORK / repo
         test_cmd = await asyncio.to_thread(verify.detect_test_command, dest)
-        for batch in merge_train.plan_train(passed, order):
+        for batch in merge_train.plan_train(passed, order, max_batch=repo_plan.merge_batch):
             report = await merge_train.run_train(batch, lambda items: _train_test(dest, test_cmd, items), merge_one)
             result["failed"].extend(approved[i] for i in report.failed)
     result["merged"], result["failed"] = merged_prs, sorted(result["failed"])
@@ -242,7 +278,7 @@ async def finish(plans: list[RepoPlan], batch: list, outcomes: list, runner, gat
         entry: dict[str, Any] = {
             "squads": [{"id": s.id, "coordinator": s.coordinator.id, "workers": [w.id for w in s.workers],
                         "issues": list(s.issues)} for s in repo_plan.plan.squads],
-            "approved": sorted(approved.values()), "rejected": rejected, "merge": "disabled"}
+            "approved": sorted(approved.values()), "rejected": rejected, "merge": "disabled", "mode": repo_plan.mode}
         if approved and auto_merge_enabled():
             entry["merge"] = "enabled"
             if login is None:
@@ -276,7 +312,8 @@ def _task_metrics(repo_plan: RepoPlan, issue: int, result: Outcome | None) -> di
     """
     try:
         return squad_metrics.task_record(result.steps if result else [], repo_plan.deps.get(issue, ()),
-                                         repo_plan.ready_at.get(issue), repo_plan.merged_at)
+                                         repo_plan.ready_at.get(issue), repo_plan.merged_at,
+                                         result.final_outcome if result else None)
     except Exception as exc:  # noqa: BLE001
         state.log(f"squad metrics: task #{issue} not recorded: {type(exc).__name__}")
         return squad_metrics.unverified_record("metrics_error")
@@ -298,6 +335,7 @@ def write_report(plans: list[RepoPlan], done: dict, reviews: dict) -> Path:
     started = time.monotonic()
     report = execution_report.new_report(config.ROOT)
     report["run_id"] = f"squads-{int(time.time())}-{report['run_id'].rsplit('-', 1)[1]}"
+    report["mode"] = plans[0].mode if plans else current_mode()  # which rules this drain ran with (#1565)
     for repo_plan in plans:
         family = repo_plan.plan.family
         general = repo_plan.plan.general_coordinator
@@ -318,7 +356,7 @@ def write_report(plans: list[RepoPlan], done: dict, reviews: dict) -> Path:
                 agent = {k: last[k] for k in ("role", "model", "effort")} if last else _agent(worker, family, role)
                 execution_report.record_task(
                     report, task_id=f"{repo_plan.repo}/{worker.id}", title=f"squad worker issue #{issue}",
-                    issue=f"{repo_plan.repo}#{issue}", outcome="COMPLETE" if result else "FAIL",
+                    issue=f"{repo_plan.repo}#{issue}", outcome="COMPLETE" if result and result.final_outcome == "ok" else "FAIL",
                     operators=["dev-cli"], agent=agent)
                 report["tasks"][-1]["squad_metrics"] = _task_metrics(repo_plan, issue, result)
     report["status"] = "COMPLETE"
