@@ -13,7 +13,8 @@ NEW_ROUTE = '\n@app.get("/api/new")\ndef new():\n    return []\n'
 
 @pytest.fixture(autouse=True)
 def unsandboxed(monkeypatch):
-    monkeypatch.setenv(sandbox.OPT_OUT, "1")  # the sandbox has its own tests; a host without bwrap still runs this
+    monkeypatch.setenv(sandbox.OPT_OUT, "1")  # the sandbox has its own tests
+    monkeypatch.setattr(sandbox, "engine", lambda *a, **k: None)  # no bwrap: its --tmpfs /tmp hides a checkout under /tmp
 
 
 def git(clone: Path, *args: str) -> None:
