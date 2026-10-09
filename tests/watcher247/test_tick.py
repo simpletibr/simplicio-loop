@@ -61,6 +61,7 @@ class FakeRun:
         if head == ["gh", "repo", "clone"]:
             (Path(argv[4]) / ".git").mkdir(parents=True)
             for name, text in self.files.items():
+                (Path(argv[4]) / name).parent.mkdir(parents=True, exist_ok=True)
                 (Path(argv[4]) / name).write_text(text)
             return proc.Result(0)
         if head == ["gh", "pr", "create"]:
@@ -474,7 +475,7 @@ def test_subscription_refresh_stores_tokens_then_validates(login, monkeypatch):
 
 
 PYTEST_CMD = "python3 -m pytest -q"
-PYPROJECT = {"pyproject.toml": "[project]\nname = 'a'\n"}
+PYPROJECT = {"pyproject.toml": "[project]\nname = 'a'\n", "tests/test_a.py": "def test_a():\n    assert True\n"}
 
 
 def test_turbo_gets_verify_when_test_command_detected(env):

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 from pathlib import Path
 
@@ -13,6 +14,16 @@ MAKE = "make test"
 
 _NPM_PLACEHOLDER = "no test specified"  # npm init's default `test` script is not a test suite
 _MAKE_TEST_TARGET = re.compile(r"^test\s*:", re.MULTILINE)
+_SKIPPED_DIRS = {"node_modules", "site-packages", "venv", "build", "dist"}  # vendored or generated, never the repo's tests
+
+
+def _has_python_tests(dest: Path) -> bool:
+    """pytest exits 5 when it collects nothing, so a pytest config alone is not a test suite."""
+    for _root, dirs, files in os.walk(dest):
+        dirs[:] = [d for d in dirs if not d.startswith(".") and d not in _SKIPPED_DIRS]
+        if any((f.startswith("test_") and f.endswith(".py")) or f.endswith("_test.py") for f in files):
+            return True
+    return False
 
 
 def _has_pytest_config(dest: Path) -> bool:
@@ -40,7 +51,7 @@ def _npm_test_script(dest: Path) -> str | None:
 
 
 def _detect(dest: Path) -> str | None:
-    if _has_pytest_config(dest):
+    if _has_pytest_config(dest) and _has_python_tests(dest):
         return PYTEST
     if _npm_test_script(dest) is not None:
         return NPM
