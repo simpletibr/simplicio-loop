@@ -124,7 +124,7 @@ def ensure_operator_dir(executable: os.PathLike[str] | str, home: Path) -> Path:
     path = Path(os.path.abspath(executable))
     key = hashlib.sha256(os.fspath(path).encode()).hexdigest()[:12]
     directory = home / ".simplicio-loop" / "bin" / key
-    directory.mkdir(parents=True, exist_ok=True)
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     for name in (LOOP_NAME, *OPERATOR_NAMES):  # the loop too: doctor, hooks and printed commands start it by name
         _link(directory / (name + _SUFFIX), path)
     return directory
@@ -133,7 +133,16 @@ def ensure_operator_dir(executable: os.PathLike[str] | str, home: Path) -> Path:
 def prepare_environment(
     executable: os.PathLike[str] | str, environ: MutableMapping[str, str], home: Path
 ) -> Path:
-    """Put the operator links first on ``environ['PATH']``. Child processes inherit them."""
+    """Put the operator links first on ``environ['PATH']``. Child processes inherit them.
+
+    A one-file build shares its temporary directory with a child that is the same executable.
+    The directory goes away when the parent exits, but the dashboard server outlives its parent.
+    ``PYINSTALLER_RESET_ENVIRONMENT`` makes each child unpack its own files. The bootloader
+    removes the variable at start, so the program sets it again for its children.
+
+    Raise OSError when the links cannot be made.
+    """
+    environ["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
     directory = ensure_operator_dir(executable, home)
     parts = [part for part in environ.get("PATH", "").split(os.pathsep) if part]
     if not parts or parts[0] != os.fspath(directory):
@@ -143,5 +152,8 @@ def prepare_environment(
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     if getattr(sys, "frozen", False):
-        prepare_environment(sys.executable, os.environ, Path.home())
+        try:
+            prepare_environment(sys.executable, os.environ, Path.home())
+        except OSError as error:  # a read-only home must not stop --version; the operators are then missing
+            print(f"simplicio-loop: cannot link the operators in the home directory: {error}", file=sys.stderr)
     return dispatch(sys.argv if argv is None else list(argv))

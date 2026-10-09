@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tomllib
@@ -147,6 +148,8 @@ def test_ensure_operator_dir_links_every_operator_to_the_executable(tmp_path, fa
     home = tmp_path / "home"
     directory = frozen.ensure_operator_dir(fake_exe, home)
     assert directory.is_relative_to(home / ".simplicio-loop" / "bin")
+    if os.name != "nt":
+        assert stat.S_IMODE(directory.stat().st_mode) == 0o700  # no one else may swap a link
     # The loop is linked too: doctor, hooks and printed commands start it by name.
     for name in ("simplicio-loop", *frozen.OPERATOR_NAMES):
         link = directory / (name + SUFFIX)
@@ -184,6 +187,9 @@ def test_prepare_environment_puts_the_operators_first_on_path_once(tmp_path, fak
     second = frozen.prepare_environment(fake_exe, environ, tmp_path / "home")
     assert first == second
     assert environ["PATH"].split(os.pathsep) == [str(first), "/usr/bin", "/bin"]
+    # A child that is the same one-file program must unpack its own files. It would share the
+    # parent's temporary directory, and the dashboard server outlives its parent.
+    assert environ["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
 
 
 @pytest.mark.skipif(os.name == "nt", reason="runs a POSIX shell script")
@@ -204,9 +210,27 @@ def test_main_only_touches_path_in_a_frozen_build(monkeypatch, tmp_path, fake_ex
     monkeypatch.delattr(sys, "frozen", raising=False)
     assert frozen.main(["simplicio-mapper"]) == 7
     assert os.environ["PATH"] == "/usr/bin:/bin"
+    assert "PYINSTALLER_RESET_ENVIRONMENT" not in os.environ
     assert not (tmp_path / "home").exists()
 
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(fake_exe))
     assert frozen.main(["simplicio-mapper"]) == 7
     assert os.environ["PATH"].split(os.pathsep)[0].startswith(str(tmp_path / "home"))
+
+
+def test_a_home_that_cannot_hold_the_links_does_not_stop_the_program(monkeypatch, tmp_path, fake_exe,
+                                                                    fake_entry_modules, capsys):
+    home = tmp_path / "home"
+    home.write_text("a file, not a directory")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setattr(frozen, "console_scripts", lambda: SCRIPTS)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(fake_exe))
+
+    assert frozen.main(["simplicio-loop", "--version"]) == 0  # --version must always work
+
+    assert os.environ["PATH"] == "/usr/bin:/bin"
+    assert "cannot link the operators" in capsys.readouterr().err
