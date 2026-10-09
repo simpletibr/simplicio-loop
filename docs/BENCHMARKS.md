@@ -80,7 +80,7 @@ Not measured yet. All benchmarks were frozen while the host load was 11 to 18 (r
 ### Limits
 
 - The task durations are SIMULATED. This is not a real drain with a model. The real comparison of #1549 stays UNVERIFIED.
-- The executor is an asyncio model of the rules. It is not the watcher tick. The real tick takes a repo lock for the whole run of a worker (`tick.process`), so on one repo it runs one worker at a time. The model describes the `/simplicio-loop` squads flow. It has one worktree per worker, workers in parallel and one writer for the merge.
+- The executor is an asyncio model of the rules. It is not the watcher tick. The real tick takes a repo lock for the whole run of a worker (`tick.process`). On one repo it runs one worker at a time. The model describes the `/simplicio-loop` squads flow. It has one worktree per worker, workers in parallel and one writer for the merge.
 - A dependency orders the merge only. A worker never waits for the merge of its dependency. This is what `plan_squads` does. The contracts of v2 make it safe in a real drain. The model does not test that.
 - The tasks that fail are the same in every mode. The model does not test whether routing avoids a failure. For that reason the escalation rate is 15% by construction in every mode. The start roles show what the real router does.
 - The merge cost and the test cost are constants, and their size sets the result. The writer is the limit when the batch is 1.
