@@ -127,7 +127,7 @@ def test_orient_spawns_the_overlay_first_command(monkeypatch, tmp_path):
     asyncio.run(cli_impl._ensure_project_map_bounded(
         root, root / ".simplicio-loop" / "project-map.json", root / ".simplicio-loop" / "state.json", None, 5.0,
     ))
-    assert seen["argv"][:3] == [sys.executable, "-m", "simplicio_loop.map_service_mapper"]
+    assert seen["argv"][:4] == [sys.executable, "-P", "-m", "simplicio_loop.map_service_mapper"]
     assert seen["argv"][-2:] == [str(binary), str(root.resolve())]
 
 
@@ -152,3 +152,15 @@ def test_an_overlay_that_answers_ok_but_wrote_nothing_does_not_replace_the_index
 def test_a_frozen_build_keeps_the_plain_index_for_the_detached_path(monkeypatch):
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     assert msm.index_argv("/bin/simplicio-mapper", "/repo") == ["/bin/simplicio-mapper", "index", "/repo", "--json"]
+
+
+@pytest.mark.parametrize("shadow", ["hashlib.py", "asyncio.py", "json.py", "subprocess.py"])
+def test_the_detached_helper_never_runs_code_from_the_mapped_repository(tmp_path, shadow):
+    """`python -m` puts the cwd first on sys.path: a stdlib-named file in the repo root must not run."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / shadow).write_text('raise SystemExit("REPO CODE RAN")\n', encoding="utf-8")
+    argv = msm.index_argv("/bin/true", str(repo))
+    result = subprocess.run(argv, cwd=str(repo), capture_output=True, text=True, timeout=60)
+    assert "REPO CODE RAN" not in result.stderr + result.stdout
+    assert result.returncode == 0, result.stderr

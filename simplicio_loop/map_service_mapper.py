@@ -146,7 +146,9 @@ def index_argv(binary: str, resolved: str) -> list:
     """
     if getattr(sys, "frozen", False) or "__compiled__" in globals():
         return [binary, "index", resolved, "--json"]
-    return [sys.executable, "-m", "simplicio_loop.map_service_mapper", binary, resolved]
+    # -P: do not put the cwd (the mapped repository) first on sys.path; a repo file named like a
+    # stdlib module (hashlib.py, asyncio.py) would otherwise run inside the helper. Python >= 3.11.
+    return [sys.executable, "-P", "-m", "simplicio_loop.map_service_mapper", binary, resolved]
 
 
 def _main(argv: list) -> int:
