@@ -1,12 +1,12 @@
 """3.45.1: kept-alive connection, hedged request, warm-up fan-out, one-task map slice, repair with test output."""
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
 import shutil
 import subprocess
 import sys
-import threading
-import time
 from pathlib import Path
 
 import httpx
@@ -34,23 +34,35 @@ def mock_client(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
     state = {"handler": lambda request: httpx.Response(200, json=_reply()), "seen": []}
 
-    def handler(request):
+    async def handler(request):
         state["seen"].append({"headers": dict(request.headers), "body": json.loads(request.content)})
-        return state["handler"](request)
+        reply = state["handler"](request)
+        return await reply if inspect.isawaitable(reply) else reply
 
-    client = httpx.Client(transport=httpx.MockTransport(handler))
-    monkeypatch.setattr(turbo_provider, "_http_client", lambda: client)
-    turbo_provider.drain_hedges(timeout=0)
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+    async def pooled():
+        return client
+
+    monkeypatch.setattr(turbo_provider, "_http_client", pooled)
     return state
 
 
 def test_every_call_reuses_one_pooled_client(monkeypatch):
     monkeypatch.setattr(turbo_provider, "_client", None)
-    assert turbo_provider._http_client() is turbo_provider._http_client()
+
+    async def twice():
+        try:
+            return await turbo_provider._http_client() is await turbo_provider._http_client()
+        finally:
+            await turbo_provider.close()
+
+    assert asyncio.run(twice())
 
 
 def test_provider_sends_the_benchmarked_request(mock_client):
-    reply = turbo_provider.complete("simplicio", [{"role": "user", "content": "x"}], session_id="s-1", hedge=0)
+    import asyncio
+    reply = asyncio.run(turbo_provider.complete("simplicio", [{"role": "user", "content": "x"}], session_id="s-1", hedge=0))
     seen = mock_client["seen"][0]
     assert seen["headers"]["authorization"] == "Bearer sk-test" and seen["headers"]["x-session-id"] == "s-1"
     assert seen["body"]["model"] == "deepseek/deepseek-v4.1-flash"
@@ -59,56 +71,64 @@ def test_provider_sends_the_benchmarked_request(mock_client):
 
 
 def test_provider_model_override_and_reasoning_toggle(mock_client, monkeypatch):
+    import asyncio
     monkeypatch.setenv("SIMPLICIO_TURBO_MODEL", "other/model")
-    turbo_provider.complete("simplicio", [], session_id="s", reasoning_off=False, hedge=0)
+    asyncio.run(turbo_provider.complete("simplicio", [], session_id="s", reasoning_off=False, hedge=0))
     body = mock_client["seen"][0]["body"]
     assert body["model"] == "other/model" and "reasoning" not in body
 
 
 def test_provider_fails_closed_without_a_key(mock_client, monkeypatch):
+    import asyncio
     monkeypatch.delenv("OPENROUTER_API_KEY")
     with pytest.raises(turbo_provider.TurboProviderError) as err:
-        turbo_provider.complete("simplicio", [], session_id="s")
+        asyncio.run(turbo_provider.complete("simplicio", [], session_id="s"))
     assert err.value.reason_code == "turbo_provider_key_missing" and mock_client["seen"] == []
 
 
 def test_a_fast_call_is_never_hedged(mock_client):
-    turbo_provider.complete("simplicio", [], session_id="s", hedge=1.0)
+    import asyncio
+    asyncio.run(turbo_provider.complete("simplicio", [], session_id="s", hedge=1.0))
     assert len(mock_client["seen"]) == 1
 
 
-def test_a_slow_call_is_hedged_on_another_session_and_the_loser_is_billed(mock_client):
-    def handler(request):
-        if request.headers["x-session-id"] == "s":  # the pinned provider is stuck
-            time.sleep(0.6)
-            return httpx.Response(200, json=_reply('{"slow":1}', "Slow"))
+def test_a_slow_call_is_hedged_on_another_session_and_the_loser_is_cancelled(mock_client):
+    stuck_cancelled = []
+
+    async def handler(request):
+        if request.headers["x-session-id"] == "s":  # the pinned provider is stuck until it is cancelled
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                stuck_cancelled.append(True)
+                raise
         return httpx.Response(200, json=_reply('{"fast":1}', "Fast"))
 
     mock_client["handler"] = handler
-    started = time.time()
-    reply = turbo_provider.complete("simplicio", [], session_id="s", hedge=0.1)
-    assert time.time() - started < 0.5
+    reply = asyncio.run(turbo_provider.complete("simplicio", [], session_id="s", hedge=0.01))
     assert reply["hedged"] is True and reply["hedge_winner"] == "duplicate" and reply["provider"] == "Fast"
-    assert [s["headers"]["x-session-id"] for s in mock_client["seen"]][-1] == "s-hedge"
-    losers = turbo_provider.drain_hedges(timeout=5)
-    assert len(losers) == 1 and losers[0]["provider"] == "Slow" and losers[0]["hedge_loser"] is True
+    assert [s["headers"]["x-session-id"] for s in mock_client["seen"]] == ["s", "s-hedge"]
+    assert stuck_cancelled == [True]  # the loser is cancelled, not waited for and not counted as billed
 
 
 def test_a_failed_first_answer_waits_for_the_other(mock_client):
-    def handler(request):
+    hedge_failed = asyncio.Event()
+
+    async def handler(request):
         if request.headers["x-session-id"].endswith("-hedge"):
+            hedge_failed.set()
             return httpx.Response(500, text="boom")
-        time.sleep(0.3)
+        await hedge_failed.wait()  # the primary answers only after the hedge has already failed
         return httpx.Response(200, json=_reply('{"ok":1}', "Primary"))
 
     mock_client["handler"] = handler
-    reply = turbo_provider.complete("simplicio", [], session_id="s", hedge=0.05)
+    reply = asyncio.run(turbo_provider.complete("simplicio", [], session_id="s", hedge=0.05))
     assert reply["ok"] and reply["provider"] == "Primary" and reply["hedge_winner"] == "primary"
-    assert turbo_provider.drain_hedges(timeout=1) == []
 
 
 def test_max_tokens_reaches_the_request(mock_client):
-    turbo_provider.complete("simplicio", [], session_id="s", hedge=0, max_tokens=1)
+    import asyncio
+    asyncio.run(turbo_provider.complete("simplicio", [], session_id="s", hedge=0, max_tokens=1))
     assert mock_client["seen"][0]["body"]["max_tokens"] == 1
 
 
@@ -146,18 +166,18 @@ def test_independent_wave_warms_the_header_then_fans_out_every_task(tmp_path, mo
     repo = _seed(tmp_path)
     monkeypatch.setattr("simplicio_loop.cli_impl._ensure_project_map", lambda root: None)
     _map(repo)
-    seen, lock = [], threading.Lock()
+    seen = []
 
-    def complete(arm, messages, **kwargs):
-        with lock:
-            seen.append(([dict(m) for m in messages], dict(kwargs)))
+    async def complete(arm, messages, **kwargs):
+        seen.append(([dict(m) for m in messages], dict(kwargs)))
         if kwargs.get("max_tokens") == 1:
             return {"ok": True, "content": "OK"}
         name = messages[-1]["content"].split("Tasks:", 1)[1].strip().split(".", 1)[0].strip()
         return {"ok": True, "content": json.dumps({"operations": [{"path": f"p{name}.txt", "find": "", "replace": name}]})}
 
     tasks = [{"index": i, "text": f"Create p{i}.txt", "target": f"p{i}.txt", "depends_on": []} for i in range(1, 5)]
-    result = run_turbo(repo, tasks, complete)
+    import asyncio
+    result = asyncio.run(run_turbo(repo, tasks, complete))
     warm = [s for s in seen if s[1].get("max_tokens") == 1]
     assert len(warm) == 1 and warm[0][0][0]["role"] == "system"
     task_calls = [s for s in seen if s[1].get("max_tokens") != 1]
@@ -173,7 +193,7 @@ def test_cli_repairs_once_with_the_test_output(tmp_path, monkeypatch, capsys):
     good = (SOLUTION / "inventory.py").read_text(encoding="utf-8")
     bad = good.replace("if qty <= available:", "if qty < available:")  # the off-by-one survives
 
-    def fake_complete(arm, messages, **kwargs):
+    async def fake_complete(arm, messages, **kwargs):
         turns.append(messages[-1]["content"])
         current = (repo / "inventory.py").read_text(encoding="utf-8")
         fixed = bad if len(turns) == 1 else good

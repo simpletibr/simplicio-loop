@@ -7,6 +7,7 @@ later task.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
@@ -244,9 +245,9 @@ def _call_record(reply: Mapping[str, Any], turn: int) -> dict[str, Any]:
     }
 
 
-def _apply_operations(root: Path, operations: list[dict], binary: str, label: str) -> list[dict]:
+async def _apply_operations(root: Path, operations: list[dict], binary: str, label: str, apply_lock: asyncio.Lock) -> list[dict]:
     import json
-    import subprocess
+    import asyncio
     state = root / ".simplicio-loop"
     state.mkdir(parents=True, exist_ok=True)
     ops_path = state / f"turbo-ops-{label}.json"
@@ -255,17 +256,28 @@ def _apply_operations(root: Path, operations: list[dict], binary: str, label: st
     compile_cmd = [binary, "edit", "--root", str(root), "--plan", str(ops_path), "--compile", str(plan_path), "--json", "--no-runtime"]
     apply_cmd = [binary, "edit", "--root", str(root), "--plan", str(plan_path), "--apply", "--json", "--no-runtime"]
     commands = []
-    with _apply_lock:
+    async with apply_lock:
         for cmd in (compile_cmd, apply_cmd):
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False)
-            detail = ((proc.stdout or "") + (proc.stderr or ""))[-800:]
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                detail = "dev-cli timed out after 120s"
+                commands.append({"command": " ".join(cmd), "returncode": -1, "stdout": detail})
+                break
+            stdout_str = stdout.decode("utf-8", errors="replace") if stdout else ""
+            stderr_str = stderr.decode("utf-8", errors="replace") if stderr else ""
+            detail = ((stdout_str or "") + (stderr_str or ""))[-800:]
             commands.append({"command": " ".join(cmd), "returncode": proc.returncode, "stdout": detail})
             if proc.returncode != 0:
                 break
     return commands
-
-
-_apply_lock = __import__("threading").Lock()
 
 
 def _rejection(commands: list[dict]) -> str | None:
@@ -275,22 +287,26 @@ def _rejection(commands: list[dict]) -> str | None:
     return None
 
 
-def apply_plan(root: Path, operations: list[dict], label: str = "host-1", dev_cli: str | None = None) -> dict[str, Any]:
+async def apply_plan(root: Path, operations: list[dict], label: str = "host-1", dev_cli: str | None = None, apply_lock: asyncio.Lock | None = None) -> dict[str, Any]:
     """Apply one find/replace plan through simplicio-dev-cli. ``reason`` is dev-cli's own message on refusal."""
-    commands = _apply_operations(root, operations, dev_cli or _dev_cli_bin(), label)
+    if apply_lock is None:
+        apply_lock = asyncio.Lock()
+    commands = await _apply_operations(root, operations, dev_cli or _dev_cli_bin(), label, apply_lock)
     reason = _rejection(commands)
     return {"applied": reason is None, "reason": reason, "commands": commands}
 
 
-def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str, turn: int, base: list[dict] | None = None) -> tuple[list[dict], list[dict], str, list[dict]]:
+async def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str, turn: int, base: list[dict] | None = None, apply_lock: asyncio.Lock | None = None) -> tuple[list[dict], list[dict], str, list[dict], dict]:
     """Ask once. If dev-cli rejects the plan, send that error back one time."""
+    if apply_lock is None:
+        apply_lock = asyncio.Lock()
     messages = [*(base if base is not None else [header_message(reading)]), task_message(tasks, root)]
     calls: list[dict] = []
     commands: list[dict] = []
     content = ""
     applied_ok, reason = False, None
     for attempt in (1, 2):
-        reply = complete("simplicio", messages)
+        reply = await complete("simplicio", messages)
         content = reply.get("content") or ""
         calls.append(_call_record(reply, len(calls) + 1 if turn == 1 else turn))
         try:
@@ -300,7 +316,7 @@ def _one_lane(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
             reason = str(exc)
         else:
             reason = None
-        applied = _apply_operations(root, operations, binary, f"{turn}-{attempt}") if operations else []
+        applied = await _apply_operations(root, operations, binary, f"{turn}-{attempt}", apply_lock) if operations else []
         commands.extend(applied)
         rejected = _rejection(applied)
         applied_ok = bool(operations) and rejected is None
@@ -332,10 +348,43 @@ def _ready(pending: list[Mapping[str, Any]], done: set[int]) -> list[Mapping[str
     return ready
 
 
-def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str) -> tuple[list[dict], list[dict], str]:
+async def _wave_task(root: Path, task: Mapping[str, Any], messages: list[dict], complete, binary: str,
+                     apply_lock: asyncio.Lock) -> tuple[list[dict], list[dict], str, dict]:
+    """One fanned-out task: ask, apply under the lock, and on a refusal send it back once."""
+    calls: list[dict] = []
+    commands: list[dict] = []
+    content, reason, applied_ok = "", None, False
+    for attempt in (1, 2):
+        reply = await complete("simplicio", messages)
+        content = reply.get("content") or ""
+        calls.append(_call_record(reply, 0))
+        try:
+            operations = _parse_operations(content) if reply.get("ok", True) else []
+            reason = None
+        except (ValueError, json.JSONDecodeError) as exc:
+            operations, reason = [], str(exc)
+        applied = await _apply_operations(root, operations, binary, f"wave-{task.get('index')}-{attempt}", apply_lock) if operations else []
+        commands.extend(applied)
+        rejected = _rejection(applied)
+        applied_ok = bool(operations) and rejected is None
+        if applied_ok:
+            reason = None
+            break
+        reason = rejected or reason or str(reply.get("error") or "the model returned no plan")
+        if attempt == 1:
+            messages = [
+                *messages,
+                {"role": "assistant", "content": content},
+                {"role": "user", "content": "dev-cli rejected the plan:\n" + reason + "\nReturn a corrected JSON plan."},
+            ]
+    outcome = {"tasks": [int(task.get("index") or 0)], "applied": applied_ok, "reason": reason}
+    return calls, commands, content, outcome
+
+
+async def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading: str, generation: str, binary: str,
+                    apply_lock: asyncio.Lock) -> tuple[list[dict], list[dict], str, list[dict]]:
     """First call runs alone so the header is cached. Later calls append or fan out after it."""
-    import asyncio
-    pending = [task for task in tasks]
+    pending = list(tasks)
     done: set[int] = set()
     calls: list[dict] = []
     commands: list[dict] = []
@@ -349,12 +398,12 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
         if not calls and len(ready) > 1:
             # Independent tasks: a 1-token call writes the header into the provider's cache,
             # then every ready task fans out at once instead of waiting for a whole first task.
-            warm = complete("simplicio", [header_message(reading), _WARM_MESSAGE], max_tokens=1)
+            warm = await complete("simplicio", [header_message(reading), _WARM_MESSAGE], max_tokens=1)
             calls.append({**_call_record(warm, 0), "warm": True})
         elif not calls or len(ready) == 1:
             task = ready[0]
-            lane_calls, lane_commands, content, stack, outcome = _one_lane(
-                root, [task], complete, reading, generation, binary, len(calls) + 1, base=stack,
+            lane_calls, lane_commands, content, stack, outcome = await _one_lane(
+                root, [task], complete, reading, generation, binary, len(calls) + 1, base=stack, apply_lock=apply_lock,
             )
             outcomes.append(outcome)
             calls.extend(lane_calls)
@@ -364,76 +413,51 @@ def _run_wave(root: Path, tasks: Sequence[Mapping[str, Any]], complete, reading:
             pending.remove(task)
             continue
         base = list(stack)
-
-        def _ask(task: Mapping[str, Any]) -> tuple[Mapping[str, Any], list[dict], dict]:
-            messages = [*base, task_message([task], root)]
-            reply = complete("simplicio", messages)
-            return task, messages, reply
-
-        async def _gather(ready_now=ready):
-            return await asyncio.gather(*(asyncio.to_thread(_ask, task) for task in ready_now))
-
-        # The model calls share the warmed header and run together.
-        # dev-cli applies afterwards, one plan at a time.
-        asked = asyncio.run(_gather())
-        for task, messages, reply in asked:
-            content = reply.get("content") or ""
-            calls.append(_call_record(reply, len(calls) + 1))
-            try:
-                operations = _parse_operations(content) if reply.get("ok", True) else []
-                reason = None
-            except (ValueError, json.JSONDecodeError) as exc:
-                operations = []
-                reason = str(exc)
-            applied = _apply_operations(root, operations, binary, f"wave-{task.get('index')}-1") if operations else []
-            commands.extend(applied)
-            rejected = _rejection(applied)
-            outcome = {"tasks": [int(task.get("index") or 0)], "applied": bool(operations) and rejected is None,
-                       "reason": None if operations and rejected is None else
-                       (rejected or reason or str(reply.get("error") or "the model returned no plan"))}
-            if not operations or rejected is not None:
-                detail = rejected or reason or "dev-cli did not apply a plan"
-                retry_messages = [
-                    *messages,
-                    {"role": "assistant", "content": content},
-                    {"role": "user", "content": "dev-cli rejected the plan:\n" + detail + "\nReturn a corrected JSON plan."},
-                ]
-                retry = complete("simplicio", retry_messages)
-                calls.append(_call_record(retry, len(calls) + 1))
-                retry_content = retry.get("content") or ""
-                try:
-                    operations = _parse_operations(retry_content) if retry.get("ok", True) else []
-                except (ValueError, json.JSONDecodeError):
-                    operations = []
-                applied = _apply_operations(root, operations, binary, f"wave-{task.get('index')}-2") if operations else []
-                commands.extend(applied)
-                content = retry_content
-                retry_rejected = _rejection(applied)
-                outcome = {"tasks": outcome["tasks"], "applied": bool(operations) and retry_rejected is None,
-                           "reason": None if operations and retry_rejected is None else
-                           (retry_rejected or str(retry.get("error") or "the model returned no plan"))}
-            outcomes.append(outcome)
+        # The prompts are built before any plan is applied; the model calls run together (bounded by the
+        # caller's semaphore) and dev-cli applies one plan at a time (apply_lock).
+        lanes = await asyncio.gather(*(
+            _wave_task(root, task, [*base, task_message([task], root)], complete, binary, apply_lock)
+            for task in ready
+        ))
+        for task, (lane_calls, lane_commands, content, outcome) in zip(ready, lanes):
+            first = len(calls) + 1
+            calls.extend({**record, "turn": first + i} for i, record in enumerate(lane_calls))
+            commands.extend(lane_commands)
             contents.append(content)
+            outcomes.append(outcome)
             done.add(int(task.get("index") or 0))
             pending.remove(task)
     return calls, commands, "\n".join(contents), outcomes
 
 
-def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None) -> dict[str, Any]:
-    """Mapper reads once. Up to 3 tasks share one model call. Above that, the first call warms the header and the rest follow."""
+async def run_turbo(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None) -> dict[str, Any]:
+    """Mapper reads once. Up to 3 tasks share one model call. Above that, the first call warms the header and the rest follow.
+
+    Any task count takes this one async path: model calls are bounded by an ``asyncio.Semaphore``
+    (``SIMPLICIO_TURBO_CONCURRENCY``) and dev-cli applies never overlap (``asyncio.Lock``).
+    """
+    from . import turbo_provider
+
     survey = survey_tasks(root, tasks)
     single = len(list(tasks)) == 1
     reading = mapper_reading(root, focus=focus_paths(tasks) if single and slice_enabled() else None)
     binary = dev_cli or _dev_cli_bin()
     task_list = list(tasks)
+    semaphore = asyncio.Semaphore(turbo_provider.concurrency())
+    apply_lock = asyncio.Lock()
+
+    async def bounded(arm, messages, **kwargs):
+        async with semaphore:
+            return await complete(arm, messages, **kwargs)
+
     if len(task_list) <= WAVE_TURBO_ABOVE:
-        calls, commands, content, _stack, outcome = _one_lane(
-            root, task_list, complete, reading, survey["generation"], binary, 1,
+        calls, commands, content, _stack, outcome = await _one_lane(
+            root, task_list, bounded, reading, survey["generation"], binary, 1, apply_lock=apply_lock,
         )
         outcomes = [outcome]
     else:
-        calls, commands, content, outcomes = _run_wave(
-            root, task_list, complete, reading, survey["generation"], binary,
+        calls, commands, content, outcomes = await _run_wave(
+            root, task_list, bounded, reading, survey["generation"], binary, apply_lock,
         )
     return {
         "turns": len(calls),
@@ -478,8 +502,8 @@ def _rewrite_existing_creates(root: Path, operations: list[dict]) -> list[dict]:
     return rewritten
 
 
-def repair_with_test_output(root: Path, tasks: Sequence[Mapping[str, Any]], complete, test_output: str,
-                            dev_cli: str | None = None) -> dict[str, Any]:
+async def repair_with_test_output(root: Path, tasks: Sequence[Mapping[str, Any]], complete, test_output: str,
+                                    dev_cli: str | None = None) -> dict[str, Any]:
     """One more call after the tests failed: the same header, the current files and the test output.
 
     The header is byte-identical to the run's, so the provider serves it from cache. The files the task named
@@ -490,6 +514,7 @@ def repair_with_test_output(root: Path, tasks: Sequence[Mapping[str, Any]], comp
     single = len(task_list) == 1
     reading = mapper_reading(root, focus=focus_paths(task_list) if single and slice_enabled() else None)
     binary = dev_cli or _dev_cli_bin()
+    apply_lock = asyncio.Lock()
     messages = [
         header_message(reading),
         task_message(task_list, root),
@@ -497,14 +522,14 @@ def repair_with_test_output(root: Path, tasks: Sequence[Mapping[str, Any]], comp
          + "\nNote: the files above already exist; to rewrite one, send its whole current text as find."
          + "\nReturn a JSON plan that makes them pass."},
     ]
-    reply = complete("simplicio", messages)
+    reply = await complete("simplicio", messages)
     try:
         operations = _parse_operations(reply.get("content") or "") if reply.get("ok", True) else []
         reason = None
     except (ValueError, json.JSONDecodeError) as exc:
         operations, reason = [], str(exc)
     operations = _rewrite_existing_creates(root, operations)
-    applied = _apply_operations(root, operations, binary, "repair-1") if operations else []
+    applied = await _apply_operations(root, operations, binary, "repair-1", apply_lock) if operations else []
     rejected = _rejection(applied)
     return {
         "llm_calls": [_call_record(reply, 1)],
@@ -514,6 +539,6 @@ def repair_with_test_output(root: Path, tasks: Sequence[Mapping[str, Any]], comp
     }
 
 
-def run_read_ai_devcli(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None) -> dict[str, Any]:
+async def run_read_ai_devcli(root: Path, tasks: Sequence[Mapping[str, Any]], complete, dev_cli: str | None = None) -> dict[str, Any]:
     """Read with Mapper, ask the model, apply with dev-cli."""
-    return run_turbo(root, tasks, complete, dev_cli=dev_cli)
+    return await run_turbo(root, tasks, complete, dev_cli=dev_cli)

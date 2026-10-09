@@ -82,14 +82,21 @@ def test_hard_flag_names_results_and_toggles_turbo_reasoning(monkeypatch):
     assert args.hard is True and args.turbo_reasoning is True
     from simplicio_loop import turbo_provider
 
+    import asyncio
+
     captured = {}
+
+    async def complete(arm, messages, **kw):
+        captured.update(kw)
+        return {"ok": True}
+
     monkeypatch.setattr(bench_run.lc, "get_key", lambda arm: "sk-arm")
-    monkeypatch.setattr(turbo_provider, "complete", lambda arm, messages, **kw: captured.update(kw) or {"ok": True})
+    monkeypatch.setattr(turbo_provider, "complete", complete)
     monkeypatch.setenv("SIMPLICIO_BENCH_TURBO_REASONING", "on")
-    bench_run.turbo_complete("simplicio", [])
+    asyncio.run(bench_run.turbo_complete("simplicio", []))
     assert captured["reasoning_off"] is False and captured["session_id"]
     monkeypatch.delenv("SIMPLICIO_BENCH_TURBO_REASONING")
-    bench_run.turbo_complete("simplicio", [])
+    asyncio.run(bench_run.turbo_complete("simplicio", []))
     assert captured["reasoning_off"] is True
 
 
@@ -118,14 +125,16 @@ def test_turbo_applies_reference_plans_on_the_hard_fixture_and_the_hidden_tests_
 
     by_text = {task["text"]: task for task in bench_tasks.hard_task_set()}
 
-    def complete(arm, messages, **kwargs):
+    async def complete(arm, messages, **kwargs):
         if kwargs.get("max_tokens") == 1:  # warm-up call
             return {"ok": True, "content": "OK"}
         body = messages[-1]["content"]
         task = next(t for text, t in by_text.items() if text in body)
         return plan(task)
 
-    run_turbo(repo, bench_tasks.hard_task_set(), complete)
+    import asyncio
+
+    asyncio.run(run_turbo(repo, bench_tasks.hard_task_set(), complete))
     for stage in (1, 2, 3, 4):
         result = _check(repo, stage)
         assert result.returncode == 0, (stage, result.stdout)
