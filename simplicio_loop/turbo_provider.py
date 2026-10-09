@@ -8,11 +8,12 @@ benchmark measures this code. The request is the one the benchmark measured:
 - a stable `x-session-id` per repository, so every call reads the same provider's prompt cache
 
 Two latency guards, both measured or simulated on the benchmark calls:
-- **Kept-alive connection.** One pooled HTTPS client is reused for every call, which saves the
-  TCP+TLS handshake (~50 ms per call measured against openrouter.ai).
+- **Kept-alive connection.** One pooled `httpx.AsyncClient` is reused for every call, which saves the
+  TCP+TLS handshake (~50 ms per call measured against openrouter.ai). `close()` releases it.
 - **Hedged request.** A call still running after `SIMPLICIO_TURBO_HEDGE_AFTER` seconds (default
-  10; 0 disables it) gets a duplicate on another session, and the first good answer wins. The
-  losing request is billed too: `drain_hedges()` waits for it so callers can count its tokens.
+  10; 0 disables it) gets a duplicate on another session as a second asyncio task, and the first good
+  answer wins. The losing task is cancelled (no thread pool); a cancelled request reports no usage, so
+  only the winner's tokens are counted.
   Why 10 s: the hedge only pays on a real tail. Measured over 12 CLI calls per release, normal calls
   took 1.6-8.0 s depending on the provider that answered (the slowest, Relace, about 8 s) and the one
   tail took 19.6 s. The 2.5 s of 3.45.1 came from a simulation with Together only; on the real mix it
@@ -23,10 +24,9 @@ Without `OPENROUTER_API_KEY` it fails closed with `turbo_provider_key_missing`.
 """
 from __future__ import annotations
 
-import concurrent.futures
+import asyncio
 import hashlib
 import os
-import threading
 import time
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -40,11 +40,10 @@ MODEL_ENV = "SIMPLICIO_TURBO_MODEL"
 HEDGE_ENV = "SIMPLICIO_TURBO_HEDGE_AFTER"
 DEFAULT_HEDGE_AFTER = 10.0
 DEFAULT_TIMEOUT = 300
+CONCURRENCY_ENV = "SIMPLICIO_TURBO_CONCURRENCY"
+DEFAULT_CONCURRENCY = 8
 
-_lock = threading.Lock()
-_client: httpx.Client | None = None
-_pool = concurrent.futures.ThreadPoolExecutor(max_workers=32, thread_name_prefix="simplicio-turbo")
-_hedge_losers: list[concurrent.futures.Future] = []
+_client: httpx.AsyncClient | None = None
 
 
 class TurboProviderError(RuntimeError):
@@ -65,6 +64,15 @@ def hedge_after() -> float:
         return DEFAULT_HEDGE_AFTER
 
 
+def concurrency() -> int:
+    """Max concurrent model calls (default 8; set SIMPLICIO_TURBO_CONCURRENCY)."""
+    raw = os.environ.get(CONCURRENCY_ENV, "").strip()
+    try:
+        return max(1, int(raw)) if raw else DEFAULT_CONCURRENCY
+    except ValueError:
+        return DEFAULT_CONCURRENCY
+
+
 def require_key(api_key: str | None = None) -> str:
     key = (api_key or os.environ.get(KEY_ENV, "")).strip()
     if not key:
@@ -80,22 +88,22 @@ def session_id_for(root: str | os.PathLike[str]) -> str:
     return f"simplicio-turbo-{digest}"
 
 
-def _http_client() -> httpx.Client:
-    """One pooled client for the process: every call reuses a kept-alive connection."""
+async def _http_client() -> httpx.AsyncClient:
+    """One pooled async client for the process: every call reuses a kept-alive connection."""
     global _client
-    with _lock:
-        if _client is None:
-            _client = httpx.Client(
-                timeout=DEFAULT_TIMEOUT,
-                limits=httpx.Limits(max_connections=32, max_keepalive_connections=32),
-            )
-        return _client
+    if _client is None:
+        _client = httpx.AsyncClient(
+            timeout=DEFAULT_TIMEOUT,
+            limits=httpx.Limits(max_connections=32, max_keepalive_connections=32),
+        )
+    return _client
 
 
-def _post(body: Mapping[str, Any], key: str, session_id: str, timeout: float) -> dict[str, Any]:
+async def _post(body: Mapping[str, Any], key: str, session_id: str, timeout: float) -> dict[str, Any]:
     started = time.time()
     try:
-        response = _http_client().post(
+        client = await _http_client()
+        response = await client.post(
             API_URL,
             json=dict(body),
             timeout=timeout,
@@ -135,11 +143,11 @@ def _post(body: Mapping[str, Any], key: str, session_id: str, timeout: float) ->
     }
 
 
-def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_id: str,
-             api_key: str | None = None, reasoning_off: bool = True, max_tokens: int | None = None,
-             hedge: float | None = None, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
+async def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_id: str,
+                   api_key: str | None = None, reasoning_off: bool = True, max_tokens: int | None = None,
+                   hedge: float | None = None, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
     """One chat completion, hedged after `hedge` seconds. Never returns the key."""
-    del arm  # the provider call is the same for every caller
+    del arm
     key = require_key(api_key)
     body: dict[str, Any] = {
         "model": model_name(),
@@ -153,39 +161,34 @@ def complete(arm: str, messages: Sequence[Mapping[str, Any]], *, session_id: str
         body["max_tokens"] = max_tokens
     wait = hedge_after() if hedge is None else hedge
     started = time.time()
-    primary = _pool.submit(_post, body, key, session_id, timeout)
-    if wait <= 0:
-        return {**primary.result(), "hedged": False}
+    primary = asyncio.create_task(_post(body, key, session_id, timeout))
+    tasks = [primary]
     try:
-        return {**primary.result(timeout=wait), "hedged": False}
-    except concurrent.futures.TimeoutError:
-        pass
-    duplicate = _pool.submit(_post, body, key, f"{session_id}-hedge", timeout)
-    done, _ = concurrent.futures.wait([primary, duplicate], return_when=concurrent.futures.FIRST_COMPLETED)
-    first = primary if primary in done else duplicate
-    winner, loser = (first, duplicate if first is primary else primary)
-    result = winner.result()
-    if not result.get("ok"):  # the faster one failed: the other is the answer
-        winner, loser = loser, winner
+        if wait > 0:
+            # wait() does not cancel the primary on timeout (wait_for would): it keeps running next to the hedge.
+            await asyncio.wait({primary}, timeout=wait)
+        if primary.done() or wait <= 0:
+            return {**await primary, "hedged": False}
+        duplicate = asyncio.create_task(_post(body, key, f"{session_id}-hedge", timeout))
+        tasks.append(duplicate)
+        done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        winner = primary if primary in done else duplicate
         result = winner.result()
-    else:
-        with _lock:
-            _hedge_losers.append(loser)
-    return {**result, "hedged": True, "hedge_winner": "primary" if winner is primary else "duplicate",
-            "latency_s": time.time() - started}
+        if not result.get("ok"):  # the faster one failed: the other is the answer
+            winner = duplicate if winner is primary else primary
+            result = await winner
+        return {**result, "hedged": True, "hedge_winner": "primary" if winner is primary else "duplicate",
+                "latency_s": time.time() - started}
+    finally:
+        # The loser (or, if the caller was cancelled, every request) is cancelled: no thread, no orphan task.
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 
-def drain_hedges(timeout: float = 120.0) -> list[dict[str, Any]]:
-    """Wait for the losing side of every hedged call; its tokens are billed too."""
-    with _lock:
-        pending = list(_hedge_losers)
-        _hedge_losers.clear()
-    records = []
-    for future in pending:
-        try:
-            reply = future.result(timeout=timeout)
-        except concurrent.futures.TimeoutError:
-            continue
-        if reply.get("ok"):
-            records.append({**reply, "hedge_loser": True})
-    return records
+async def close() -> None:
+    """Close the async client."""
+    global _client
+    if _client is not None:
+        await _client.aclose()
+        _client = None

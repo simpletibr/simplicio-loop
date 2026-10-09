@@ -38,6 +38,8 @@ import time
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from simplicio_loop.skill_sync import resync_installed_skills
+
 SCHEMA = "simplicio.operator-check/v1"
 # Explicit --ttl-days always wins. When omitted: always-latest (default) → 0;
 # SIMPLICIO_OPERATOR_ALWAYS_LATEST=0 restores the classic 7-day window.
@@ -213,16 +215,16 @@ def maybe_upgrade(cache_path: str | Path, *, ttl_days: float | None = None,
                   binaries: Sequence[str] = DEFAULT_BINARIES,
                   versions: Mapping[str, str] | None = None,
                   upgrade_fn=run_pip_upgrade, now: float | None = None,
-                  resync_fn=None) -> dict[str, Any]:
+                  resync_fn=resync_installed_skills) -> dict[str, Any]:
     """Fail-open, best-effort upgrade — but ONLY when ``should_upgrade`` says the TTL
     expired, always-latest is on, or a binary is absent. A within-TTL call is a pure
-    cache read: zero subprocess, zero network, by construction. After successful upgrade,
-    resync installed skills from the package source."""
+    cache read: zero subprocess, zero network, by construction. After a successful
+    upgrade the host-installed skills are resynced from the package (#1472)."""
     decision = should_upgrade(cache_path, ttl_days=ttl_days, binaries=binaries, now=now)
     if not decision["should_upgrade"]:
         decision["upgraded"] = False
         decision["upgrade_error"] = None
-        decision["skills_resynced"] = False
+        decision["skills_resynced"] = []
         return decision
     try:
         result = upgrade_fn()
@@ -236,25 +238,15 @@ def maybe_upgrade(cache_path: str | Path, *, ttl_days: float | None = None,
     # "we looked"; it must not be retried on every single iteration until the TTL window
     # rolls forward again (best-effort, offline-safe, matching the old contract's fallback).
     record_check(cache_path, versions or {}, now=now)
-    # After successful upgrade, resync installed skills
-    decision["skills_resynced"] = False
+    decision["skills_resynced"] = []
+    decision["skills_sync_errors"] = []
     if decision["upgraded"]:
-        # Use provided resync_fn or default to simplicio_loop.skill_sync.resync_installed_skills
-        fn = resync_fn
-        if fn is None:
-            try:
-                from simplicio_loop.skill_sync import resync_installed_skills
-                fn = resync_installed_skills
-            except (ImportError, ModuleNotFoundError):
-                fn = None
-        
-        if fn:
-            try:
-                resync_report = fn()
-                decision["skills_resynced"] = len(resync_report.get("synced", [])) > 0
-                decision["skills_sync_report"] = resync_report
-            except Exception as exc:
-                decision["skills_sync_error"] = str(exc)
+        try:
+            report = resync_fn()
+            decision["skills_resynced"] = list(report["synced"])
+            decision["skills_sync_errors"] = list(report["errors"])
+        except OSError as exc:
+            decision["skills_sync_errors"] = [{"host": "*", "error": str(exc)}]
     return decision
 
 
@@ -346,17 +338,6 @@ def check_pin_mismatch(scratchpad_path: str | Path,
 # CLI
 # --------------------------------------------------------------------------
 
-def _get_resync_fn():
-    """Lazy-load and return the resync function from install_lib."""
-    try:
-        import sys
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        from install_lib import resync_installed_skills
-        return resync_installed_skills
-    except Exception:
-        return None
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -416,7 +397,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         decision = maybe_upgrade(
             cache_path, ttl_days=args.ttl_days, binaries=binaries,
             upgrade_fn=lambda: run_pip_upgrade(args.packages or DEFAULT_PACKAGES),
-            resync_fn=_get_resync_fn(),
         )
         if args.json:
             print(json.dumps(decision, ensure_ascii=False, sort_keys=True))

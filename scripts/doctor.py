@@ -157,6 +157,23 @@ def chk_skills():
                 msg="%d/%d in ~/.claude/skills" % (len(present), len(SKILLS)), repair=repair)
 
 
+def chk_installed_skills_freshness():
+    """Installed host skills must match the package copy (#1472); `--repair` resyncs them."""
+    from simplicio_loop.skill_sync import installed_skill_hosts, resync_installed_skills, stale_skills
+
+    if not installed_skill_hosts(HOME):
+        return dict(name="installed skills freshness", tier="OPTIONAL", status=OK,
+                    msg="no host has the skills installed", repair=None)
+    stale = stale_skills(HOME)
+    if not stale:
+        return dict(name="installed skills freshness", tier="OPTIONAL", status=OK,
+                    msg="installed skills match the package", repair=None)
+    hosts = sorted({e["host"] for e in stale})
+    return dict(name="installed skills freshness", tier="OPTIONAL", status=WARN,
+                msg="diverges from the package in: %s (%d skill dirs)" % (", ".join(hosts), len(stale)),
+                repair=lambda: not resync_installed_skills(HOME)["errors"])
+
+
 def chk_hooks():
     hooks_ok = (HOME / ".claude" / "hooks" / "loop_stop.py").is_file()
     wired = False
@@ -443,77 +460,50 @@ def chk_map_service():
             "msg": "map receipt valid (fallback=%s)" % payload.get("fallback", False)}
 
 
+def chk_exec_clis():
+    """Check authentication state of exec CLIs (claude, codex, grok, gemini).
 
-def chk_installed_skills_freshness():
-    """Check if installed skills match the package version (issue #1472).
-    
-    This is OPTIONAL: missing or stale skills don't block the loop.
-    `--repair` syncs installed skills from the package.
+    OPTIONAL: missing or unauthenticated CLIs don't block the loop, but provide
+    visibility into what's available for execution.
     """
     try:
-        from simplicio_loop.skill_sync import compute_skill_digest, compute_skill_path_digest, get_installed_skill_hosts
-    except Exception as exc:
-        return dict(name="installed skills freshness", tier="OPTIONAL",
-                    status=WARN, msg="check unavailable: %s" % exc, repair=None)
+        import asyncio
+        from simplicio_loop.exec_auth import check_all
+        
+        # Check all supported families
+        families = ["claude", "codex", "grok", "gemini"]
+        results = asyncio.run(check_all(families))
+    except Exception as e:
+        return dict(name="exec CLIs auth", tier="OPTIONAL", status=WARN,
+                    msg=f"check unavailable: {e}", repair=None)
     
-    hosts = get_installed_skill_hosts()
-    if not hosts:
-        return dict(name="installed skills freshness", tier="OPTIONAL",
-                    status=OK, msg="no hosts with installed skills",
-                    repair=None)
+    # Categorize results
+    ok = [r for r in results if r.status == "ok"]
+    missing = [r for r in results if r.status == "cli_missing"]
+    unauthenticated = [r for r in results if r.status == "login_missing"]
     
-    stale_skills = []
-    for host, target_base in sorted(hosts.items()):
-        try:
-            pkg_digest = compute_skill_digest("simplicio-loop", skill_root=str(REPO))
-            
-            if host == "vscode":
-                installed_path = Path(target_base) / "simplicio-loop"
-            elif host in ("grok", "agents"):
-                installed_path = Path(target_base) / ("." + host) / "skills" / "simplicio-loop"
-            elif host == "kiro":
-                installed_path = Path(target_base) / ".kiro" / "steering" / "simplicio-loop"
-            elif host in ("simplicio_agent", "hermes"):
-                installed_path = Path(target_base) / ".simplicio-loop" / "skills" / "simplicio-loop"
-            elif host == "opencode":
-                installed_path = Path(target_base) / ".config" / "opencode" / "skills" / "simplicio-loop"
-            elif host == "amp":
-                installed_path = Path(target_base) / ".config" / "amp" / "skills" / "simplicio-loop"
-            else:
-                installed_path = Path(target_base) / ("." + host) / "skills" / "simplicio-loop"
-            
-            if not installed_path.is_dir():
-                stale_skills.append((host, "not installed"))
-                continue
-            
-            inst_digest = compute_skill_path_digest(str(installed_path))
-            
-            if pkg_digest and inst_digest and pkg_digest != inst_digest:
-                stale_skills.append((host, "stale"))
-        except Exception as e:
-            stale_skills.append((host, str(e)[:30]))
+    status = OK if results else WARN
+    msg_parts = []
     
-    def repair():
-        try:
-            from simplicio_loop.skill_sync import resync_installed_skills
-            report = resync_installed_skills(verbose=False)
-            return len(report.get("errors", [])) == 0
-        except Exception as e:
-            return False
+    if ok:
+        msg_parts.append(f"{len(ok)} authenticated: {', '.join(r.family for r in ok)}")
+    if missing:
+        msg_parts.append(f"{len(missing)} missing: {', '.join(f'cli_missing:{r.family}' for r in missing)}")
+    if unauthenticated:
+        msg_parts.append(f"{len(unauthenticated)} unauthenticated: {', '.join(f'login_missing:{r.family}' for r in unauthenticated)}")
     
-    if not stale_skills:
-        return dict(name="installed skills freshness", tier="OPTIONAL",
-                    status=OK, msg="all installed skills up-to-date",
-                    repair=None)
+    if not msg_parts:
+        msg = "no exec CLIs configured"
     else:
-        msg = "stale in: " + ", ".join(h for h, _ in stale_skills)
-        return dict(name="installed skills freshness", tier="OPTIONAL",
-                    status=WARN, msg=msg, repair=repair)
+        msg = " | ".join(msg_parts)
+    
+    return dict(name="exec CLIs auth", tier="OPTIONAL", status=status, msg=msg, repair=None)
+
 
 CHECKS = [chk_python, chk_operators, chk_mapper_capabilities, chk_skills,
           chk_installed_skills_freshness,
           chk_hooks, chk_git_precommit_hook, chk_git_prepush_hook, chk_proxy, chk_wire,
-          chk_tray_dep, check_vscode_global, chk_map_service, chk_release_version]
+          chk_tray_dep, check_vscode_global, chk_map_service, chk_exec_clis, chk_release_version]
 
 
 def main(argv=None):
