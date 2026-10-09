@@ -25,6 +25,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 import time
@@ -47,6 +48,9 @@ ACCESS_MARGIN_S = 30  # the stored expiry is this much earlier than the server s
 DEFAULT_EXPIRES_IN_S = 900  # what the Runtime assumes when the server omits expires_in
 LOCK_WAIT_S = 20.0  # the Runtime waits 20 s for the same lock
 LOCK_POLL_S = 0.05
+# StoredVerification of the Runtime (runtime_auth.rs) has no serde(default) on these keys: a block without all of them
+# makes the Runtime reject the WHOLE file, so this module never writes a partial one.
+VERIFICATION_KEYS = ("auth_base_url", "token_digest", "verified_at", "next_check_at", "validated")
 
 _VERSION = re.compile(r"simplicio\s+v?(\d+\.\d+\.\d+)")
 _EMAIL = re.compile(r"([^@\s])[^@\s]*@([^@\s]+\.[^@\s]+)")
@@ -95,27 +99,59 @@ def _symlink_error(path: Path) -> LoginError:
     return LoginError("login_symlink", f"{path} is a symlink; remove it and run: simplicio-loop login")
 
 
+def _foreign_owner(info: os.stat_result) -> bool:
+    """A file of another user, seen by a user who is not root (root runs `watch247 setup` for the service user)."""
+    return hasattr(os, "geteuid") and os.geteuid() != 0 and info.st_uid != os.geteuid()
+
+
+def _check_parent(path: Path) -> None:
+    """The folder must not be writable by group or others (they could swap the file), unless it is sticky and ours."""
+    if os.name == "nt":
+        return
+    try:
+        info = os.stat(path.parent)
+    except OSError:
+        return  # no folder yet: a read says login_missing, a write creates it with mode 0700
+    if info.st_mode & 0o022 and not (info.st_mode & stat.S_ISVTX and info.st_uid == os.geteuid()):
+        raise LoginError("login_permissions", f"{path.parent} can be written by group or others "
+                         f"(mode {info.st_mode & 0o777:03o}); run: chmod 700 {path.parent}")
+
+
 def read_login(path: Optional[Path] = None) -> dict:
-    """The login file as a dict. Raises LoginError: login_missing, login_symlink, login_permissions, login_invalid."""
+    """The login file as a dict. Raises LoginError: login_missing, login_symlink, login_permissions, login_invalid.
+
+    Only a regular file is read (a FIFO would hang, a directory has no content), through O_NOFOLLOW and O_NONBLOCK,
+    and the checks use the descriptor that is read, so nothing can change between the check and the read.
+    """
     path = Path(path) if path else login_path()
     if path.is_symlink():
         raise _symlink_error(path)
+    _check_parent(path)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NONBLOCK", 0)
     try:
-        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0))
+        fd = os.open(path, flags)
     except FileNotFoundError:
         raise LoginError("login_missing", f"no login file at {path}; run: simplicio-loop login") from None
     except OSError as exc:
         if exc.errno == errno.ELOOP:
             raise _symlink_error(path) from None
         raise LoginError("login_invalid", f"cannot read {path}: {exc.strerror}") from None
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise LoginError("login_invalid", f"{path} is not a regular file; remove it and run: simplicio-loop login")
+        if os.name != "nt" and _foreign_owner(info):
+            raise LoginError("login_permissions", f"{path} is owned by another user; remove it and run: simplicio-loop login")
+        if os.name != "nt" and info.st_mode & 0o077:
+            raise LoginError("login_permissions", f"{path} can be read by group or others "
+                             f"(mode {info.st_mode & 0o777:03o}); run: chmod 600 {path}")
+    except BaseException:
+        os.close(fd)
+        raise
     with os.fdopen(fd, encoding="utf-8") as handle:
-        mode = os.fstat(handle.fileno()).st_mode & 0o777
-        if os.name != "nt" and mode & 0o077:
-            raise LoginError("login_permissions",
-                             f"{path} can be read by group or others (mode {mode:03o}); run: chmod 600 {path}")
         try:
             data = json.loads(handle.read())
-        except (ValueError, UnicodeDecodeError):
+        except (ValueError, OSError):  # UnicodeDecodeError is a ValueError
             data = None
     if not isinstance(data, dict):
         raise LoginError("login_invalid", f"{path} is not a login file (JSON object expected); run: simplicio-loop login")
@@ -146,6 +182,7 @@ def write_login(login: Mapping[str, Any], path: Optional[Path] = None) -> None:
     path = Path(path) if path else login_path()
     if path.is_symlink():
         raise _symlink_error(path)
+    _check_parent(path)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     owner = None
     if hasattr(os, "geteuid") and os.geteuid() == 0:  # a root refresh must not hand the user's file to root
@@ -185,16 +222,19 @@ def apply_tokens(login: dict, data: Mapping[str, Any], now: Optional[float] = No
     if data.get("refresh_token"):
         login["refresh_token"] = data["refresh_token"]
     login["access_expires_at"] = stamp + int(data.get("expires_in") or DEFAULT_EXPIRES_IN_S) - ACCESS_MARGIN_S
-    if data.get("refresh_token_persistent"):
-        login["refresh_token_expires_at"] = 0
-    else:
-        login["refresh_token_expires_at"] = stamp + int(data.get("refresh_token_expires_in") or 0)
-    entitlement = data.get("entitlement")
-    if isinstance(entitlement, dict):
-        validated = login.setdefault("verification", {}).setdefault("validated", {})
-        validated["ok"] = True
-        validated["active"] = bool(entitlement.get("active"))
-        validated["entitlement"] = entitlement
+    lifetime = int(data.get("refresh_token_expires_in") or 0)
+    # 0 = unknown or persistent, as the Runtime writes it; an expiry the server did not give is never invented
+    login["refresh_token_expires_at"] = 0 if data.get("refresh_token_persistent") or lifetime <= 0 else stamp + lifetime
+    verification = login.get("verification")
+    complete = isinstance(verification, dict) and all(key in verification for key in VERIFICATION_KEYS)
+    if verification is not None and not complete:
+        del login["verification"]  # a partial block (an older loop wrote some) makes the Runtime reject the file
+    elif complete and isinstance(data.get("entitlement"), dict):
+        # only the cache the Runtime itself wrote in full is updated; this module never builds one
+        if not isinstance(verification["validated"], dict):
+            verification["validated"] = {}
+        verification["validated"].update(ok=True, active=bool(data["entitlement"].get("active")),
+                                         entitlement=data["entitlement"])
 
 
 # --- the lock -------------------------------------------------------------------------------------------------------
@@ -229,6 +269,7 @@ def _unlock(fd: int) -> None:
 def file_lock(path: Path, *, wait_s: float = LOCK_WAIT_S) -> Iterator[None]:
     """Exclusive advisory lock on the sidecar of `path`. The kernel drops it when the owner dies: a left-over file is no lock."""
     lock = lock_path(Path(path))
+    _check_parent(lock)
     lock.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
     try:
@@ -236,8 +277,14 @@ def file_lock(path: Path, *, wait_s: float = LOCK_WAIT_S) -> Iterator[None]:
     except OSError as exc:
         if exc.errno == errno.ELOOP:
             raise LoginError("login_symlink", f"{lock} is a symlink; remove it") from None
-        raise
+        raise LoginError("login_invalid", f"cannot open {lock}: {exc.strerror}") from None
     try:
+        info = os.fstat(fd)
+        if os.name != "nt" and _foreign_owner(info):  # a lock file of another user would let that user stall us
+            raise LoginError("login_permissions", f"{lock} is owned by another user; remove it")
+        if os.name != "nt" and info.st_mode & 0o077:
+            raise LoginError("login_permissions", f"{lock} can be opened by group or others "
+                             f"(mode {info.st_mode & 0o777:03o}); run: chmod 600 {lock}")
         deadline = time.monotonic() + wait_s
         while not _try_lock(fd):
             if time.monotonic() >= deadline:
@@ -289,6 +336,8 @@ def clear_login(path: Optional[Path] = None) -> bool:
     path = Path(path) if path else login_path()
     if not (path.exists() or path.is_symlink()):
         return False
+    if path.is_dir() and not path.is_symlink():
+        raise LoginError("login_invalid", f"{path} is a directory, not a login file; remove it by hand")
     with file_lock(path):
         try:
             path.unlink()  # unlink never follows a symlink
@@ -305,6 +354,15 @@ def _int(value: Any) -> int:
         return int(value or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def account_email(login: Mapping[str, Any]) -> str:
+    """The account e-mail the Runtime cached in the file, or ''. For comparing accounts only: never print it."""
+    verification = login.get("verification")
+    validated = verification.get("validated") if isinstance(verification, dict) else None
+    user = validated.get("user") if isinstance(validated, dict) else None
+    email = user.get("email") if isinstance(user, dict) else None
+    return email if isinstance(email, str) else ""
 
 
 def mask_email(email: str) -> str:

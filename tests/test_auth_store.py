@@ -24,9 +24,34 @@ FAKE_REFRESH = "fake-refresh-token-0001"
 
 def put(path: Path, data: dict, mode: int = 0o600) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.chmod(0o700)  # the store refuses a folder that group or others can write, whatever the umask
     path.write_text(json.dumps(data))
     path.chmod(mode)
     return path
+
+
+VERIFICATION_KEYS = ("auth_base_url", "token_digest", "verified_at", "next_check_at", "validated")
+
+
+def runtime_verification(**over) -> dict:
+    """The `verification` block as the Runtime 3.10.0 writes it: StoredVerification has NO serde(default) on these keys."""
+    block = {"auth_base_url": "https://auth.example.invalid/api", "token_digest": "d" * 64, "verified_at": 5,
+             "next_check_at": 9, "validated": {"active": True, "user": {"email": "w@x.org"},
+                                                "entitlement": {"tier": "pro", "status": "active"}}}
+    block.update(over)
+    return block
+
+
+def assert_runtime_accepts(doc: dict) -> None:
+    """Mirror of the Runtime's serde rules for StoredAuth (src/runtime_auth.rs): a violation makes it reject the file."""
+    assert isinstance(doc.get("access_token"), str) and isinstance(doc.get("access_expires_at"), int)
+    assert doc.get("refresh_token") is None or isinstance(doc["refresh_token"], str)
+    assert isinstance(doc.get("refresh_token_expires_at", 0), int)
+    assert doc.get("refresh_request_id") is None or isinstance(doc["refresh_request_id"], str)
+    verification = doc.get("verification")
+    if verification is not None:
+        missing = [key for key in VERIFICATION_KEYS if key not in verification]
+        assert not missing, f"the Runtime would reject this file: verification lacks {missing}"
 
 
 def sample(**over) -> dict:
@@ -184,7 +209,7 @@ def test_write_refuses_a_symlink_and_leaves_the_target_alone(tmp_path, login):
 
 
 def test_apply_tokens_matches_the_watcher_rules():
-    login = sample(verification={"validated": {"ok": True}})
+    login = sample(verification=runtime_verification())
     auth.apply_tokens(login, {"access_token": "n1", "refresh_token": "n2", "expires_in": 3600,
                               "refresh_token_expires_in": 7200,
                               "entitlement": {"active": True, "tier": "pro"}}, now=1000)
@@ -334,6 +359,170 @@ def test_a_response_without_tokens_changes_nothing(login):
     assert login.read_text() == before
 
 
+# --- the file stays one the Runtime accepts (review of #1584, item 1) --------------------------------------------------
+
+ENTITLED = {"access_token": "fresh-access", "refresh_token": "fresh-refresh", "expires_in": 3600,
+            "entitlement": {"active": True, "tier": "team", "status": "active", "source": "stripe"}}
+
+
+def test_a_refresh_with_an_entitlement_never_creates_a_partial_verification(login):
+    put(login, sample())  # no verification yet, as after a Runtime refresh
+    auth.refresh_if_due(login, lambda p: dict(ENTITLED), now=1000)
+    stored = json.loads(login.read_text())
+    assert "verification" not in stored
+    assert_runtime_accepts(stored)
+
+
+def test_a_refresh_keeps_the_complete_runtime_verification_and_updates_only_the_entitlement(login):
+    put(login, sample(verification=runtime_verification()))
+    auth.refresh_if_due(login, lambda p: dict(ENTITLED), now=1000)
+    stored = json.loads(login.read_text())
+    assert_runtime_accepts(stored)
+    assert stored["verification"]["token_digest"] == "d" * 64
+    assert stored["verification"]["auth_base_url"] == "https://auth.example.invalid/api"
+    assert stored["verification"]["validated"]["user"] == {"email": "w@x.org"}
+    assert stored["verification"]["validated"]["entitlement"]["tier"] == "team"
+
+
+def test_a_partial_verification_left_by_an_older_loop_is_removed_so_the_runtime_can_read_the_file(login):
+    put(login, sample(verification={"validated": {"ok": True, "entitlement": {"tier": "pro"}}}))
+    auth.refresh_if_due(login, lambda p: new_tokens(), now=1000)  # even a response without an entitlement heals it
+    stored = json.loads(login.read_text())
+    assert "verification" not in stored
+    assert_runtime_accepts(stored)
+
+
+def test_every_refreshed_shape_is_accepted_by_the_runtime_schema(login):
+    for before in (sample(), sample(verification=runtime_verification()), sample(refresh_request_id="rid-1"),
+                   sample(verification={"validated": {}})):
+        for response in (new_tokens(), dict(ENTITLED), new_tokens(refresh_token_persistent=True)):
+            put(login, before)
+            auth.refresh_if_due(login, lambda p, r=response: dict(r), now=1000)
+            assert_runtime_accepts(json.loads(login.read_text()))
+
+
+def test_a_response_without_refresh_token_expires_in_writes_no_expiry_it_does_not_know(login):
+    put(login, sample())
+    auth.refresh_if_due(login, lambda p: new_tokens(), now=1000)  # no refresh_token_expires_in in the response
+    stored = json.loads(login.read_text())
+    assert stored["refresh_token_expires_at"] == 0  # unknown, like the Runtime's refresh_expiry
+    assert auth.summary(stored, now=1000 + 99999)["refresh_expired"] is False
+    refreshed = {}
+    auth.apply_tokens(refreshed, {"access_token": "a", "refresh_token": "r", "refresh_token_expires_in": 7200}, now=1000)
+    assert refreshed["refresh_token_expires_at"] == 8200
+    auth.apply_tokens(refreshed, {"access_token": "a", "refresh_token_expires_in": -5}, now=1000)
+    assert refreshed["refresh_token_expires_at"] == 0
+
+
+# --- what is not a login file (review of #1584, items 4 and 5) ----------------------------------------------------------
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX files")
+def test_a_directory_is_not_a_login_file_and_gives_no_traceback(login):
+    login.mkdir(parents=True)
+    with pytest.raises(auth.LoginError) as err:
+        auth.read_login(login)
+    assert err.value.reason_code == "login_invalid" and "regular file" in str(err.value)
+    assert auth.describe({"HOME": str(login.parent.parent), "SIMPLICIO_AUTH_FILE": str(login)})["reason_code"] == "login_invalid"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX files")
+def test_a_fifo_does_not_hang_the_read(login):
+    login.parent.mkdir(parents=True)
+    login.parent.chmod(0o700)
+    os.mkfifo(login, 0o600)
+    started = time.monotonic()
+    with pytest.raises(auth.LoginError) as err:
+        auth.read_login(login)
+    assert err.value.reason_code == "login_invalid" and time.monotonic() - started < 2
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX symlinks")
+def test_a_dangling_symlink_is_refused_and_its_target_is_not_created(tmp_path, login):
+    login.parent.mkdir(parents=True)
+    login.parent.chmod(0o700)
+    target = tmp_path / "nowhere.json"
+    login.symlink_to(target)
+    with pytest.raises(auth.LoginError) as err:
+        auth.read_login(login)
+    assert err.value.reason_code == "login_symlink"
+    with pytest.raises(auth.LoginError):
+        auth.write_login(sample(), login)
+    assert not target.exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX modes")
+def test_clearing_a_directory_is_refused_without_a_traceback(login):
+    login.mkdir(parents=True)
+    with pytest.raises(auth.LoginError) as err:
+        auth.clear_login(login)
+    assert err.value.reason_code == "login_invalid" and login.is_dir()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX modes")
+@pytest.mark.parametrize("mode", [0o777, 0o770, 0o707, 0o722])
+def test_a_folder_that_group_or_others_can_write_is_refused_for_read_and_write(login, mode):
+    put(login, sample())
+    login.parent.chmod(mode)
+    with pytest.raises(auth.LoginError) as err:
+        auth.read_login(login)
+    assert err.value.reason_code == "login_permissions" and "chmod 700" in str(err.value)
+    with pytest.raises(auth.LoginError) as err:
+        auth.write_login(sample(access_token="new"), login)
+    assert err.value.reason_code == "login_permissions"
+    assert json.loads(login.read_text())["access_token"] == FAKE_ACCESS
+    with pytest.raises(auth.LoginError):
+        with auth.file_lock(login, wait_s=0.1):
+            pass
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX modes")
+def test_a_sticky_folder_we_own_is_accepted(login):
+    put(login, sample())
+    login.parent.chmod(0o1777)
+    assert auth.read_login(login)["access_token"] == FAKE_ACCESS
+    login.parent.chmod(0o755)
+    assert auth.read_login(login)["access_token"] == FAKE_ACCESS
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX modes")
+@pytest.mark.parametrize("mode", [0o644, 0o660, 0o666, 0o604])
+def test_an_existing_lock_file_that_others_can_open_is_refused(tmp_path, mode):
+    path = tmp_path / "login.json"
+    lock = auth.lock_path(path)
+    lock.write_text("")
+    lock.chmod(mode)
+    with pytest.raises(auth.LoginError) as err:
+        with auth.file_lock(path, wait_s=0.1):
+            pytest.fail("the lock must not be taken on a file others can open")
+    assert err.value.reason_code == "login_permissions" and "chmod 600" in str(err.value)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX modes")
+def test_a_lock_file_owned_by_another_user_is_refused_unless_we_are_root(tmp_path, monkeypatch):
+    path = tmp_path / "login.json"
+    lock = auth.lock_path(path)
+    lock.write_text("")
+    lock.chmod(0o600)
+    monkeypatch.setattr(os, "geteuid", lambda: os.stat(lock).st_uid + 1)  # a different, non-root user
+    with pytest.raises(auth.LoginError) as err:
+        with auth.file_lock(path, wait_s=0.1):
+            pytest.fail("not our lock file")
+    assert err.value.reason_code == "login_permissions" and "owned by" in str(err.value)
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+    with auth.file_lock(path, wait_s=0.1):  # root may use a service user's lock (watch247 setup)
+        pass
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX modes")
+def test_a_login_file_owned_by_another_user_is_refused(login, monkeypatch):
+    put(login, sample())
+    monkeypatch.setattr(os, "geteuid", lambda: os.stat(login).st_uid + 1)
+    with pytest.raises(auth.LoginError) as err:
+        auth.read_login(login)
+    assert err.value.reason_code == "login_permissions" and "owned by" in str(err.value)
+
+
 # --- the lock ------------------------------------------------------------------------------------------------------
 
 
@@ -354,7 +543,7 @@ def test_a_stale_lock_file_does_not_block(tmp_path):
     path = tmp_path / "login.json"
     stale = auth.lock_path(path)
     stale.write_text("pid 424242 died here\n")
-    stale.chmod(0o644)
+    stale.chmod(0o600)
     started = time.monotonic()
     with auth.file_lock(path, wait_s=2):
         pass
