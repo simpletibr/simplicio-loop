@@ -91,6 +91,31 @@ from build_binary import BuildError, build_environment, parse_asset_name, parse_
 SCHEMA = "simplicio.release-rehearsal/v1"
 
 
+# Dev-only switches: a release must not carry them. The first one skips the watcher's login gate for the self-host
+# phase (issue "Release blocker: remove the dev login switch and enforce login", docs/RELEASE.md "Release blockers").
+DEV_SWITCHES = ("SIMPLICIO_247_NO_LOGIN",)
+
+
+def find_dev_switches(repo: Path) -> Dict[str, list]:
+    """{switch: [repo-relative files under simplicio_loop/ that still contain it]}, only the switches found.
+
+    Bytecode caches are skipped: a stale .pyc is not source. Everything outside simplicio_loop/ (tests, scripts, docs)
+    may name the switch; the package that ships is what must not.
+    """
+    root = Path(repo) / "simplicio_loop"
+    found: Dict[str, list] = {}
+    if not root.is_dir():
+        return found
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or "__pycache__" in path.parts:
+            continue
+        data = path.read_bytes()
+        for switch in DEV_SWITCHES:
+            if switch.encode() in data:
+                found.setdefault(switch, []).append(path.relative_to(repo).as_posix())
+    return found
+
+
 def _load_json_text(text: str) -> Optional[Dict[str, Any]]:
     try:
         return json.loads(text)
@@ -192,6 +217,14 @@ def run_rehearsal(
         "steps": {},
     }
     try:
+        # Step: dev-only switches. Fail-closed and first (cheap): a release never carries them.
+        dev_switches = find_dev_switches(repo)
+        receipt["steps"]["dev_switches"] = {"ok": not dev_switches, "found": dev_switches}
+        if dev_switches:
+            receipt["ok"] = False
+            receipt["reason_code"] = "dev_switch_present"
+            return receipt
+
         # Step: governance gate (#294) — blob budget + claims parity, gated + snapshotted against
         # the REAL repo checkout before anything else runs. Fail-closed: a release built on top
         # of an over-budget tree or a claims/canonical-manifest drift never proceeds to build.
@@ -454,6 +487,12 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0 if result.get("ok") else 1
 
 
+def _cmd_dev_switches(args: argparse.Namespace) -> int:
+    found = find_dev_switches(Path(args.repo).resolve())
+    print(json.dumps({"ok": not found, "found": found}, ensure_ascii=False, sort_keys=True))
+    return 0 if not found else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build and return the argument parser."""
     parser = argparse.ArgumentParser(prog="release_rehearsal", description=__doc__)
@@ -468,6 +507,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--output", default=None, help="also write the receipt JSON to this path")
     p_run.add_argument("--json", action="store_true", help="emit compact single-line JSON")
     p_run.set_defaults(func=_cmd_run)
+
+    p_dev = sub.add_parser("dev-switches", help="exit 1 while a dev-only switch (SIMPLICIO_247_NO_LOGIN) is still under simplicio_loop/")
+    p_dev.add_argument("--repo", default=".")
+    p_dev.set_defaults(func=_cmd_dev_switches)
 
     return parser
 
