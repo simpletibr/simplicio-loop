@@ -153,7 +153,7 @@ ls -l ~simplicio-loop/.gemini/credentials
 sudo -u simplicio-loop -H agy
 ```
 
-Sem subcomando de status: o preflight (`exec_auth`) não tem verificação específica para `agy`.
+Sem subcomando de status: o preflight (`exec_auth`) confere por `stat` (existe, arquivo regular, não vazio, conteúdo nunca lido) o arquivo `~/.gemini/antigravity-cli/antigravity-oauth-token`. VERIFICADO neste host (o arquivo existe após o sign-in); a ausência do arquivo dá `login_missing`.
 
 ### opencode
 
@@ -164,6 +164,8 @@ sudo -u simplicio-loop -H opencode auth login
 # Listar provedores/credenciais configurados
 sudo -u simplicio-loop -H opencode auth list
 ```
+
+O preflight roda `opencode auth list` (sai com 0 mesmo sem credenciais) e usa só o número da linha final `N credentials`; N > 0 é login ok. O resto da saída (nomes de provedores) é descartado e o `auth.json` nunca é lido. VERIFICADO neste host, inclusive com `auth.json` vazio/`{}` (0 credentials).
 
 ## Variáveis de Ambiente (Alternativa)
 
@@ -206,8 +208,8 @@ print(result)  # "ok" ou "login_missing:claude" ou "cli_missing:claude"
 ## Nenhum Segredo em Logs
 
 A verificação **nunca**:
-- Imprime ou captura stdout/stderr dos comandos de auth
-- Lê o conteúdo dos arquivos de credenciais (apenas verifica existência)
+- Imprime ou registra stdout/stderr dos comandos de auth (stderr nunca é capturado; só o `opencode auth list` tem o stdout lido em memória, reduzido ao número `N credentials` e descartado)
+- Lê o conteúdo dos arquivos de credenciais (só `stat`: precisa ser arquivo regular e **não vazio**; um arquivo de 0 bytes ou um diretório não conta como login para nenhuma família, claude/codex/grok/gemini/agy)
 - Armazena tokens em logs ou comentários
 - Expõe variáveis de ambiente
 
