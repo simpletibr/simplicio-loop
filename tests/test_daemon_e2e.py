@@ -41,9 +41,10 @@ def daemon_dir(tmp_path_factory):
     client.stop(run_dir=directory, key=key)
 
 
-def cli(daemon_dir: Path, args: list[str], *, via_daemon: bool, cwd: Path, stdin: str = "") -> subprocess.CompletedProcess:
+def cli(daemon_dir: Path, args: list[str], *, via_daemon: bool, cwd: Path, stdin: str = "",
+        extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     env = {**os.environ, "SIMPLICIO_LOOP_DAEMON": "1" if via_daemon else "0", "SIMPLICIO_LOOP_DAEMON_DIR": str(daemon_dir),
-           "SIMPLICIO_LOOP_DAEMON_IDLE_S": "120", "PYTHONDONTWRITEBYTECODE": "1"}
+           "SIMPLICIO_LOOP_DAEMON_IDLE_S": "120", "PYTHONDONTWRITEBYTECODE": "1", **(extra_env or {})}
     return subprocess.run([sys.executable, "-c", LAUNCH, *args], cwd=cwd, env=env, input=stdin, text=True,
                           capture_output=True, timeout=300)
 
@@ -96,6 +97,34 @@ def test_the_daemon_gives_the_same_answer_as_running_in_process(daemon_dir, tmp_
     for relative in ("pkg/mod.py", ".git/hooks/pre-commit"):
         a, b = plain / relative, warm / relative
         assert a.exists() == b.exists() and (not a.exists() or a.read_text() == b.read_text())
+
+
+FAMILIES = [
+    ("auth status", ["auth", "status", "--json"]),
+    ("logout with nothing to delete", ["logout", "--yes", "--json"]),
+    ("login usage", ["login", "--help"]),
+    ("update usage", ["update", "--help"]),
+    ("install dry run", ["install", "--dry-run", "--json", "--target", "."]),
+    ("doctor login", ["doctor", "login"]),
+    ("setup check", ["setup", "--check", "--json"]),
+]
+
+
+@pytest.mark.parametrize("name,args", FAMILIES, ids=[f[0] for f in FAMILIES])
+def test_the_command_families_of_the_binary_release_behave_the_same_through_the_daemon(daemon_dir, tmp_path, name, args):
+    """login, logout, auth, update, install, doctor and setup read HOME and write files there; the HOME of the
+    daemon is the real one, so a command that took it instead of the HOME of its caller would differ."""
+    results = []
+    for label, via_daemon in (("plain", False), ("warm", True)):
+        home = tmp_path / f"home_{label}"
+        home.mkdir()
+        repo = make_repo(tmp_path / f"repo_{label}")
+        done = cli(daemon_dir, args, via_daemon=via_daemon, cwd=repo, extra_env={"HOME": str(home)})
+        text = lambda value: value.replace(str(home), "<home>").replace(str(repo), "<repo>")  # noqa: E731
+        # the host programs that `setup` probes write their own logs in HOME; only what the loop wrote counts
+        written = sorted(str(p.relative_to(home)) for p in home.rglob("*") if p.is_file() and "simplicio" in str(p))
+        results.append((done.returncode, text(done.stdout), text(done.stderr), written))
+    assert results[0] == results[1]
 
 
 def test_strict_mode_armed_by_one_command_does_not_stay_armed_for_the_next(daemon_dir, tmp_path):

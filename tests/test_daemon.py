@@ -569,3 +569,32 @@ def test_the_console_script_exits_69_and_names_the_opt_out_when_the_daemon_canno
     assert done.returncode == protocol.EX_UNAVAILABLE
     assert "SIMPLICIO_LOOP_DAEMON=0" in done.stderr and "dir_mode" in done.stderr
     assert done.stdout == ""
+
+
+# ---- the standalone binary ------------------------------------------------------------------------------
+
+
+def test_a_frozen_build_has_no_daemon():
+    """The binary starts differently (UNVERIFIED with a daemon): it runs in-process, by platform, not by fallback."""
+    assert protocol.supported() is True
+    sys.frozen = True  # type: ignore[attr-defined]
+    try:
+        assert protocol.supported() is False
+    finally:
+        del sys.frozen  # type: ignore[attr-defined]
+
+
+def test_the_frozen_shim_reaches_the_thin_client_and_runs_in_process(tmp_path):
+    """frozen.dispatch resolves `simplicio-loop` through the console scripts of pyproject, which name the client."""
+    import tomllib
+
+    scripts = tomllib.loads((Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8"))["project"]["scripts"]
+    loose = tmp_path / "loose"
+    loose.mkdir()
+    loose.chmod(0o777)  # a daemon directory like this one would make the thin client stop with exit 69
+    code = ("import sys, json\nsys.frozen = True\nfrom simplicio_loop import frozen\n"
+            f"sys.exit(frozen.dispatch(['simplicio-loop', '--version'], scripts=json.loads({json.dumps(scripts)!r})))")
+    env = {**os.environ, "SIMPLICIO_LOOP_DAEMON": "1", "SIMPLICIO_LOOP_DAEMON_DIR": str(loose)}
+    done = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, timeout=120)
+    assert done.returncode == 0 and done.stdout.startswith("simplicio-loop "), done.stderr
+    assert list(loose.iterdir()) == []
