@@ -22,7 +22,7 @@ def _view(number, *, approved_after_commit=True, author="squad-bot"):
     return {
         "files": [{"path": f"src/m{number}/app.py"}], "headRefOid": f"oid{number}",
         "commits": [{"oid": f"oid{number}", "committedDate": commit, "messageHeadline": "loop: x"}],
-        "comments": [{"id": number, "createdAt": approval, "body": "APROVADO PELO SQUAD\n", "author": {"login": author},
+        "comments": [{"id": number, "createdAt": approval, "body": "REVISÃO AUTOMÁTICA: APROVADA (nível 1)\n", "author": {"login": author},
                       "authorAssociation": "MEMBER"}],
     }
 
@@ -71,7 +71,7 @@ def test_without_auto_merge_squad_approves_but_nothing_merges(six):
     assert fake.merges == [] and fake.tests_run == 0
     assert fake.ran("git", "merge") == []
     posted = [w for w in fake.api_writes if w[0] == "POST" and w[1].endswith("/issues/101/comments")]
-    assert posted, "the squad coordinator posts APROVADO PELO SQUAD on the PR"
+    assert posted, "the squad coordinator posts REVISÃO AUTOMÁTICA: APROVADA (nível 1) on the PR"
 
 
 def test_review_rejects_a_pr_whose_verify_did_not_measure_tests():

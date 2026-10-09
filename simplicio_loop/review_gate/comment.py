@@ -22,6 +22,15 @@ def parse_level(body: str) -> int | None:
     return None
 
 
+_AUTHOR_LINE = re.compile(r"^- autor: (\S+) \(", re.MULTILINE)
+
+
+def parse_author_id(body: str) -> str | None:
+    """The agent id the approval comment records as the author of the PR."""
+    found = _AUTHOR_LINE.search(body)
+    return found.group(1) if found else None
+
+
 def _agent(label: str, agent: Agent | None) -> str:
     return f"- {label}: nenhum" if agent is None else f"- {label}: {agent.agent_id} ({agent.role}, {agent.model}, {agent.host})"
 
