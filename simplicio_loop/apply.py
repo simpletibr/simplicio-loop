@@ -31,7 +31,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from . import quality_events
+from . import command_events, quality_events
 from .effort import next_effort_for_status
 from .runner import _repo_fingerprint, _repo_state_equivalent
 from .survey import MISSING_HINT as SURVEY_MISSING_HINT
@@ -322,7 +322,8 @@ async def _run_chain(root: Path, chain: Sequence[str], by_id: Mapping[str, Mappi
             break
         check = task.get("check")
         if check:
-            check_result = await _run_check(root, check, run_id=run_id, task_id=task_id)
+            check_result = await command_events.around(
+                task_id, check, _run_check(root, check, run_id=run_id, task_id=task_id))
             record["check"] = check_result
             record["status"] = "PASS" if check_result["ok"] else "FAIL"
         else:

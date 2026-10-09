@@ -1,13 +1,14 @@
-// Extras panel: maps the run extras reply and the stage-agents reply to six labelled rows and renders them into #live-extras.
+// Extras panel: maps the run extras reply and the stage-agents reply to seven labelled rows and renders them into #live-extras.
 // Only a measured value earns PASS; anything else is UNVERIFIED with the reason it could not be measured.
-// The stage-agents breakdown (issue #1550) adds widgets under the six rows: tokens by phase/lane/model as stacked bars,
+// The stage-agents breakdown (issue #1550) adds widgets under the seven rows: tokens by phase/lane/model as stacked bars,
 // cost per task and per iteration, the agent map and a sparkline of the polled token total. Every name is shown with
 // textContent; a bar width is a clamped percent set through the CSSOM, never a style attribute.
 const SCHEMA = 'simplicio.dashboard-extras/v1';
 const STAGE_SCHEMA = 'simplicio.dashboard-stage-agents/v1';
 const POLL_MS = 3000;
-const LABELS = ['Último comando medido', 'Contrato por tarefa', 'Modelo por lane', 'Batimento do lease', 'Agentes por etapa', 'Custo do run'];
+const LABELS = ['Último comando medido', 'Comando em execução', 'Contrato por tarefa', 'Modelo por lane', 'Batimento do lease', 'Agentes por etapa', 'Custo do run'];
 const NO_COMMAND = 'nenhum teste ou lint medido';
+const NO_RUNNING = 'nenhum command_started medido';
 const NO_TASKS = 'task-contract.json sem tarefas';
 const NO_TOKENS = 'sem token_usage medido';
 const NO_HEARTBEAT = 'sem batimento do lease medido';
@@ -55,6 +56,12 @@ function modelsOf(value) {
 
 function heartbeatOf(value) {
   const reason = isObject(value) && isText(value.reason) ? value.reason : NO_HEARTBEAT;
+  const live = isObject(value) && value.state === 'PASS' && isText(value.reason);
+  return { state: live ? 'PASS' : 'UNVERIFIED', text: reason };
+}
+
+function runningOf(value) {
+  const reason = isObject(value) && isText(value.reason) ? value.reason : NO_RUNNING;
   const live = isObject(value) && value.state === 'PASS' && isText(value.reason);
   return { state: live ? 'PASS' : 'UNVERIFIED', text: reason };
 }
@@ -210,7 +217,7 @@ export function widgetsOf(stages) {
 // A null or foreign reply reads as empty sources, so every row comes back UNVERIFIED with its reason.
 export function extrasOf(reply, stages) {
   const source = isObject(reply) && reply.schema === SCHEMA ? reply : {};
-  const parts = [commandOf(source.last_command), tasksOf(source.tasks), modelsOf(source.models), heartbeatOf(source.heartbeat),
+  const parts = [commandOf(source.last_command), runningOf(source.running_command), tasksOf(source.tasks), modelsOf(source.models), heartbeatOf(source.heartbeat),
     stagesOf(stages), runCostOf(stages)];
   return LABELS.map((label, index) => ({ label, state: parts[index].state, text: parts[index].text }));
 }

@@ -12,6 +12,7 @@ def env(tmp_path, monkeypatch):
     config.set_state_dir(tmp_path)
     monkeypatch.setattr(state, "now", lambda: FIXED)
     monkeypatch.delenv("SIMPLICIO_247_CONCURRENCY", raising=False)
+    monkeypatch.setenv("GH_TOKEN", "ghp_FAKEconftest00000000000000000000")  # the tick idles without a GitHub token
     monkeypatch.setenv("SIMPLICIO_247_ALLOW_UNSANDBOXED", "1")  # sandbox has its own tests
     monkeypatch.setattr(sandbox.shutil, "which", lambda binary: None)  # same argv on every host
     # The default executor is exec (host_mode, see test_host_mode.py); these tests cover the opt-in openrouter path.

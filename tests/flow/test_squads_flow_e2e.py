@@ -126,3 +126,16 @@ def test_an_approval_written_by_an_outsider_never_merges_even_with_auto_merge(ou
     entry = outsider["status"]["squads"][REPO_NAME]
     assert entry["merge"] == "enabled" and entry["merged"] == [] and entry["gate_blocked"] == [107, 108]
     assert _merges(outsider) == []
+
+
+def test_each_worker_task_records_its_escalation_and_dependency_wait_from_the_real_run(merged):
+    """#1549: the real ladder ran (no failure here), so the zero escalations are measured; no dependency, so the wait is a measured 0."""
+    path = merged["state"] / "squads" / ".simplicio-loop" / "runtime" / "execution-reports" / "latest.json"
+    workers = [t for t in json.loads(path.read_text())["tasks"] if t.get("issue")]
+    assert len(workers) == 2
+    for task in workers:
+        record = task["squad_metrics"]
+        assert (record["initial_role"], record["final_role"], record["escalations"]) == ("execution", "execution", [])
+        assert record["dependency_wait_s"] == 0.0 and record["proof_kind"] == {"escalations": "measured", "dependency_wait": "measured"}
+    metrics = merged["status"]["squads"][REPO_NAME]["metrics"]
+    assert (metrics["tasks"], metrics["escalation_n"], metrics["escalated"], metrics["escalation_rate"]) == (2, 2, 0, 0.0)

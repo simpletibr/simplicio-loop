@@ -3003,7 +3003,14 @@ def main(argv=None) -> int:
     p_verify.add_argument("run_id", help="run id to verify")
 
     p_watch247 = sub.add_parser("watch247", help="run the 24/7 watcher for simplicio-* repos")
-    p_watch247.add_argument("action", nargs="?", choices=["login-check"], help="login-check: exec CLI logins (#1467)")
+    p_watch247.add_argument("action", nargs="?", choices=["login-check", "setup"],
+                            help="login-check: exec CLI logins (#1467); setup: first-run credentials")
+    p_watch247.add_argument("--email", help="setup: the Simplicio account e-mail")
+    p_watch247.add_argument("--github-token-stdin", action="store_true",
+                            help="setup: read the GitHub token from stdin (never an argument: argv shows in ps)")
+    p_watch247.add_argument("--check", action="store_true",
+                            help="setup: only check the Simplicio account step (after the login); no token is asked")
+    p_watch247.add_argument("--github-token", help=argparse.SUPPRESS)  # refused by setup, so the value is never echoed
     p_watch247.add_argument("--once", action="store_true", help="run one tick and exit")
     p_watch247.add_argument("--dry-run", action="store_true", help="simulate without mutations")
     p_watch247.add_argument("--state-dir", help="override state directory")
@@ -3355,6 +3362,10 @@ def main(argv=None) -> int:
     if command == "watch247" and args.action == "login-check":
         from .watcher247.login_check import main as login_check_main
         return login_check_main()
+    if command == "watch247" and args.action == "setup":
+        from .watcher247.onboarding import main as setup_main
+        return setup_main(email=args.email, token_stdin=args.github_token_stdin,
+                          github_token=args.github_token, state_dir=args.state_dir, check_only=args.check)
     if command == "watch247":
         import asyncio
         from .watcher247 import config as watcher247_config

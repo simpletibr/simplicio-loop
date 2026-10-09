@@ -77,6 +77,8 @@ namespaced kind; each namespace owns its own catalog.
 | quality | `lint_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `errors`, `warnings`, `by_rule` (top 20), `status` |
 | quality | `coverage_result` | worker (quality producer, after each task's `check`) | `tool`, `command`, `percent`, `scope` (`total`), `files` (max 50, optional) |
 | quality | `gate_evaluated` | runner, oracle, hooks | `gate` (`evidence`, `watcher`, `oracle`, `dod`, `quality`, `action`), `verdict` (`pass`, `fail`, `pending`, `blocked`), `status`, `verdict_detail` |
+| commands | `command_started` | worker (command producer, before each task `check` command) | `command_id` (unique per run of a command), `command` (secrets scrubbed, max 200 characters); the envelope `ts` is the start time |
+| commands | `command_finished` | worker (command producer, after the same command) | `command_id` (same as its `command_started`), `exit_code` (`null` when the command did not exit: timeout, spawn failure, cancellation), `duration_s` (monotonic clock), `status` (`pass`, `fail`, `error`, `interrupted`), optional `reason`; `severity: warning` unless `pass` |
 | recovery | `retry_scheduled` | runner (`operator_bootstrap`, `rollback`) | `step`, `blocker` |
 | recovery | `stall_detected` | runner (`blocked`), hook (`loop_stop` stall streak) | `blocker` or `fingerprint`, `streak` |
 | recovery | `decision_requested` | runner (entering `awaiting_decision`) | `reason` |
@@ -116,6 +118,22 @@ shape, not yet emitted.
   flake8; coverage.py, pytest-cov and jest coverage. Output that is not recognised emits nothing.
 - **Diff**: each iteration's measured git diff goes in an `apply_result` event with payload `step: "diff"`.
   No new kind is added.
+
+### Command producer
+
+- **Command events** (`simplicio_loop/command_events.py`, called by `simplicio_loop/apply.py` around each
+  task's `check` command): `command_started` is appended before the command runs and `command_finished` after it,
+  also on timeout, spawn failure and cancellation. Same source, scope, `task_id` and `iteration` rules as the quality
+  events. The two events of one run of a command share a `command_id`. `duration_s` comes from a monotonic clock.
+- The command text is scrubbed (`dashboard/runs.redact_command`: key=value pairs, `--token abc` style flags, `-p` of
+  mysql/sshpass/twine/docker login, `-u user:pass`, URL credentials, auth and cookie headers, tokens with a known
+  prefix, base64-looking blobs) before it is cut to 200 characters. Only the first 4096 characters are scanned and the
+  word the scan window may have split is dropped, so a cut never leaves the head of a secret. The reader scrubs the
+  same way. Scrubbing and writing are fail-open: an error in either never changes the command's result.
+- **Reading**: `GET /api/runs/<id>/extras` returns `running_command`. A lane runs the latest `command_started` that has
+  no `command_finished` with the same `command_id` ("em execução há N s", age against the clock of the request). A start
+  older than 600 s with no finish is flagged with its age, never hidden. A start before the last `run_finished` is
+  not running. With no `command_started` in the run the row is UNVERIFIED with the reason.
 
 **UNVERIFIED:**
 

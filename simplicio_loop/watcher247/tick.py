@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .. import escalation, intake_gate, watcher_github
 from ..claim_lease import ClaimStore
-from . import budget, config, events, github, host_mode, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify
+from . import budget, config, events, github, host_mode, onboarding, points, proc, prompt_guard, sandbox, secret_scan, squad_flow, state, subscription, verify
 
 _STATE_DIRS = (".simplicio-loop/", ".simplicio/")
 
@@ -381,6 +381,10 @@ async def tick(dry_run: bool = False) -> None:
         await status(phase="stopped")
         state.log("STOP present")
         return
+    if missing := onboarding.missing_github_token():  # first run: idle until `watch247 setup`, never a crash loop
+        await status(**onboarding.idle_status(missing))
+        state.log(f"setup required: {missing}: run `{onboarding.COMMAND}`")
+        return
     if blocked := sandbox.refusal():
         await status(phase="blocked", reason_code=blocked)
         state.log(f"blocked: {blocked}")
@@ -401,7 +405,10 @@ async def tick(dry_run: bool = False) -> None:
     else:
         sub = await subscription.mcp_subscription()
         if not sub.get("active"):
-            await status(phase="subscription_required", subscription=sub)
+            if sub.get("reason") == "login_missing":
+                await status(**onboarding.idle_status("login_missing"), subscription=sub)
+            else:
+                await status(phase="subscription_required", subscription=sub)
             state.log("subscription required: " + str(sub.get("reason")))
             return
     clock = state.now().timestamp()

@@ -178,3 +178,45 @@ def test_emission_does_not_change_result_or_receipt_keys(run_dir, tmp_path, monk
         receipt = json.loads(Path(result["receipt_path"]).read_text(encoding="utf-8"))
         assert set(receipt) == RECEIPT_KEYS
     assert _of_kind(run_dir, "test_result")
+
+
+# --- issue #1551: command_started / command_finished around each task check -------------------------------------------
+COMMAND_KINDS = ("command_started", "test_result", "command_finished")
+
+
+def test_each_check_is_wrapped_by_a_command_started_and_a_command_finished(run_dir, tmp_path):
+    check = "printf '3 passed in 0.10s\\n'"
+    result = apply_mod.run(_ops(check=check), repo=tmp_path)
+    assert result["status"] == "PASS"
+    assert [e["kind"] for e in _events(run_dir) if e["kind"] in COMMAND_KINDS] == list(COMMAND_KINDS)
+    started, finished = _of_kind(run_dir, "command_started")[0], _of_kind(run_dir, "command_finished")[0]
+    assert started["payload"]["command"] == check
+    assert started["task_id"] == finished["task_id"] == "T1" and started["iteration"] == 3
+    assert started["payload"]["command_id"] == finished["payload"]["command_id"]
+    assert (finished["payload"]["exit_code"], finished["payload"]["status"]) == (0, "pass")
+    assert 0 <= finished["payload"]["duration_s"] < 30
+    _assert_all_valid(run_dir)
+
+
+def test_a_failing_check_is_finished_with_its_exit_code(run_dir, tmp_path):
+    result = apply_mod.run(_ops(check="echo nope; exit 4"), repo=tmp_path)
+    assert result["status"] == "FAIL"
+    finished = _of_kind(run_dir, "command_finished")[0]
+    assert (finished["payload"]["exit_code"], finished["payload"]["status"], finished["severity"]) == (4, "fail", "warning")
+
+
+def test_a_timed_out_check_is_finished_as_an_error_with_its_reason(run_dir, tmp_path, monkeypatch):
+    monkeypatch.setattr(apply_mod, "CHECK_TIMEOUT_S", 0.3)
+    result = apply_mod.run(_ops(check="exec sleep 5"), repo=tmp_path)
+    assert result["tasks"][0]["check"]["reason_code"] == "check_timeout"
+    finished = _of_kind(run_dir, "command_finished")[0]["payload"]
+    assert (finished["exit_code"], finished["status"], finished["reason"]) == (None, "error", "check_timeout")
+
+
+def test_a_failing_event_writer_does_not_change_the_apply_result(run_dir, tmp_path, monkeypatch):
+    def boom(*args, **kwargs):
+        raise RuntimeError("disk on fire")
+    monkeypatch.setattr(de, "emit", boom)
+    result = apply_mod.run(_ops(check="printf '3 passed in 0.10s\\n'"), repo=tmp_path)
+    assert result["status"] == "PASS" and result["tasks"][0]["check"]["stdout_tail"] == "3 passed in 0.10s\n"
+    assert _events(run_dir) == []
