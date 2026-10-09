@@ -29,17 +29,24 @@
 **simplicio-loop GitHub issues को टेस्ट किए गए PR में बदलता है: यह repo को map करता है, AI योजना बनाता है, निर्धारणात्मक एडिटर लागू करता है, टेस्ट सत्यापित करते हैं, squads रिव्यू करते हैं।**
 
 <p align="center">
+  <img src="../docs/assets/readme/overview-cartoon.webp" alt="8 चरणों का एनिमेटेड फ्लो: issues, intake, जनरल कोऑर्डिनेटर, squads, workers (mapper, plan, dev-cli), squad review, merge train, main और Simplicio Live kanban" width="100%" />
+</p>
+
+<p align="center">
   <img src="../docs/assets/readme/how-it-works.gif" alt="8 चरणों का एनिमेटेड फ्लो: issues, intake, जनरल कोऑर्डिनेटर, squads, workers (mapper, plan, dev-cli), squad review, merge train, main और Simplicio Live kanban" width="100%" />
 </p>
 
 ## यह क्या करता है
 
-तीन ऑपरेटर: `simplicio-mapper` (map), planner मॉडल (plan), `simplicio-dev-cli` (निर्धारणात्मक apply)।
-
-- **पहले map करता है:** `simplicio-mapper` repo (files, symbols, tests) को project map में बदलता है, और planner को सिर्फ़ वही हिस्सा मिलता है जिसकी उसे ज़रूरत है।
-- **योजना बनाता है, लिखता कभी नहीं:** एक AI (claude, codex, grok या gemini जैसा exec CLI) sandbox के अंदर हर बदलाव की योजना बनाता है; फ़ाइलें सिर्फ़ निर्धारणात्मक `dev-cli` एडिट करता है।
-- **PR खोलने से पहले सिद्ध करता है:** `turbo --apply - --verify` आपके टेस्ट चलाता है, और push से पहले secret scan चलता है।
-- **Squads रिव्यू करते हैं और batch में merge करते हैं** (जारी: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504), [#1505](https://github.com/simpletibr/simplicio-loop/issues/1505))। आज watcher खुले PR पर रुक जाता है।
+```mermaid
+flowchart LR
+  I["GitHub issue"] --> M["simplicio-mapper<br/>maps files, symbols, tests"]
+  M -->|"map slice"| P["Planner in a sandbox<br/>claude / codex / grok / gemini<br/>plans, never writes"]
+  P -->|"JSON plan"| D["simplicio-dev-cli<br/>deterministic apply"]
+  D --> T["tests verify<br/>simplicio-loop turbo --apply - --verify"]
+  T -->|"green"| S["secret scan"] --> PR["PR with evidence"]
+  T -.->|"2 failures"| E["escalate the model role"] -.-> P
+```
 
 ## इंस्टॉलेशन
 
@@ -70,36 +77,65 @@ sudo cp packaging/systemd/simplicio-loop-247.env.example /etc/simplicio-loop-247
 sudo systemctl enable --now simplicio-loop-247
 ```
 
-- **प्रति repo opt-in:** `.simplicio/loop.toml` जोड़ें और `enabled = true` रखें।
-- **प्रति issue opt-in:** भरोसेमंद लेखक (owner, member या collaborator) द्वारा लगाया गया `loop:auto` लेबल।
-- **Auto-merge बंद है।** watcher सिर्फ़ PR खोलता है; `SIMPLICIO_247_AUTO_MERGE=1` जारी है ([#1505](https://github.com/simpletibr/simplicio-loop/issues/1505))।
-
 विवरण: [docs/WATCHER_247.md](../docs/WATCHER_247.md)।
+
+```mermaid
+flowchart LR
+  R["repo opts in<br/>.simplicio/loop.toml<br/>enabled = true"] --> L["issue opts in<br/>label loop:auto<br/>owner / member / collaborator"]
+  L --> W["worker loop"] --> PR["PR opened"]
+  PR -.->|"auto-merge off by default"| H["squad / human merges"]
+```
 
 ## यह कैसे काम करता है
 
-**Worker loop** (आज `main` पर): `simplicio-mapper` repo को map करता है → planner (exec CLI, sandbox में) को map का हिस्सा मिलता है और वह plan लिखता है → `simplicio-dev-cli` उसे apply करता है (`turbo --apply - --verify`) → टेस्ट सत्यापित करते हैं (दो विफलताएँ model role बढ़ाती हैं) → secret scan → PR। Squad review और merge train जारी हैं ([#1502](https://github.com/simpletibr/simplicio-loop/issues/1502), [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504))।
-
 <p align="center">
-  <img src="../docs/assets/readme/worker-loop.gif" alt="Worker loop: mapper repo को map करता है, sandbox में plan, apply और verify, एक विफलता, अगले model role पर escalation, secret scan, PR, squad review" width="920" />
+  <img src="../docs/assets/readme/worker-loop.gif" alt="Worker loop: mapper repo को map करता है, sandbox में plan, apply और verify, एक विफलता, अगले model role पर escalation, secret scan, PR, squad review" width="100%" />
 </p>
 
-**Merge train** (जारी: [#1504](https://github.com/simpletibr/simplicio-loop/issues/1504)): अप्रूव्ड PR को batch में एक बार टेस्ट किया जाता है; लाल होने पर bisect से खराब PR मिलता है और बाकी merge हो जाते हैं।
+```mermaid
+flowchart LR
+  H["Haiku<br/>mechanical, 1 module"] -->|"2 failures"| S["Sonnet<br/>integration, security"] -->|"2 failures"| O["Opus / Fable<br/>replan only, never executes"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 PR एक बार टेस्ट, लाल, bisect ने C को अलग किया, फिर A, B और D merge हुए" width="920" />
+  <img src="../docs/assets/readme/merge-train.gif" alt="Merge train: 4 PR एक बार टेस्ट, लाल, bisect ने C को अलग किया, फिर A, B और D merge हुए" width="100%" />
 </p>
 
-**Squads** (जारी: [#1502](https://github.com/simpletibr/simplicio-loop/issues/1502)): एक जनरल कोऑर्डिनेटर, हर squad का एक कोऑर्डिनेटर, हर squad में 4 workers तक। क्यों: [एक कोऑर्डिनेटर बनाम squads](../docs/assets/readme/agents-before-after-cartoon.webp)।
+```mermaid
+flowchart LR
+  A["PR A ✓"] & B["PR B ✓"] & C["PR C ✓"] & D["PR D ✓"] --> G{"test the batch once"}
+  G -->|"green"| M["merge all into main"]
+  G -->|"red"| X["bisect"] --> BAD["PR C out, back to its squad"]
+  X --> OK["A, B and D merge"]
+```
 
 <p align="center">
-  <img src="../docs/assets/readme/squads.gif" alt="Squads का संगठन चार्ट: एक जनरल कोऑर्डिनेटर, हर squad का कोऑर्डिनेटर और हर squad में 4 workers तक" width="920" />
+  <img src="../docs/assets/readme/squads.gif" alt="Squads का संगठन चार्ट: एक जनरल कोऑर्डिनेटर, हर squad का कोऑर्डिनेटर और हर squad में 4 workers तक" width="100%" />
 </p>
 
+```mermaid
+flowchart TD
+  G["General coordinator<br/>Opus / Fable: plans, never executes"] --> S1["Squad 1<br/>Sonnet coordinator"] & S2["Squad 2<br/>Sonnet coordinator"] & S3["Squad 3<br/>Sonnet coordinator"]
+  S1 --> W1["up to 4 Haiku workers"]
+  S2 --> W2["up to 4 Haiku workers"]
+  S3 --> W3["up to 4 Haiku workers"]
+  S1 & S2 & S3 -.->|"APPROVED BY SQUAD"| MC["Merge coordinator<br/>Sonnet: merges in series"] --> MAIN["main"]
+```
+
+<p align="center">
+  <img src="../docs/assets/readme/agents-before-after-cartoon.webp" alt="1 coordinator and 29 workers versus squads: before and after" width="100%" />
+</p>
 
 ## 50 एक्सटेंशन पॉइंट
 
-24/7 सेवा पाथ 50 में से 11 को जोड़ता है (24 आंशिक, 15 अनुपस्थित): [docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md)। बाकी को जोड़ने की योजना [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509) है।
+```mermaid
+pie showData title Extension points in the 24/7 path (of 50)
+  "Wired" : 11
+  "Partial" : 24
+  "Absent" : 15
+```
+
+[docs/EXTENSION_POINTS_SERVICE.md](../docs/EXTENSION_POINTS_SERVICE.md) · [#1509](https://github.com/simpletibr/simplicio-loop/issues/1509)
 
 ## और जानें
 
