@@ -878,8 +878,8 @@ def _task_keys(view):
 class _Calls:
     '''A reader that records its calls; ``hold`` maps a call number to a gate it waits on, ``on_call`` runs inside the call.'''
 
-    def __init__(self, hold=None, on_call=None, fail=()):
-        self.calls, self.hold, self.on_call, self.fail = [], hold or {}, on_call or {}, set(fail)
+    def __init__(self, hold=None, on_call=None, fail=(), derived=False):
+        self.calls, self.hold, self.on_call, self.fail, self.derived = [], hold or {}, on_call or {}, set(fail), derived
         self.started = {n: threading.Event() for n in range(1, 9)}
         self.lock = threading.Lock()
 
@@ -894,7 +894,7 @@ class _Calls:
             assert self.hold[n].wait(10), 'gate %d never opened' % n
         if n in self.fail:
             raise RuntimeError('boom %d' % n)
-        return [_tok(1, HAIKU, 100 * n, 0, task_id='T%d' % n)]
+        return [dict(_tok(1, HAIKU, 100 * n, 0, task_id='T%d' % n), **({'derived': True} if self.derived else {}))]
 
 
 def _spawn(run_dir, reader, results, count=1):
@@ -924,6 +924,20 @@ def test_pollers_that_arrive_during_a_computation_share_one_newer_computation_no
     assert len(reader.calls) == 2  # one computation for the leader, ONE for the seven waiters (not seven)
     assert _task_keys(first[0]) == ['T1'] and all(_task_keys(v) == ['T2'] for v in later) and len(later) == 7
     assert all(v is later[0] for v in later)
+
+
+@pytest.mark.parametrize('derived', [False, True])
+def test_a_poller_that_arrives_after_the_stamp_but_sees_unchanged_files_reuses_the_computation_in_flight(run_dir, derived):
+    release = threading.Event()
+    reader = _Calls(hold={1: release}, derived=derived)  # a derived view is never cached: only the stamp lets the waiters share it
+    first, later = [], []
+    [leader] = _spawn(run_dir, reader, first)
+    assert reader.started[1].wait(5)  # the computation has taken its stamp; nothing is appended after it
+    waiters = _spawn(run_dir, reader, later, count=6)
+    time.sleep(0.3)
+    release.set()
+    _join([leader, *waiters])
+    assert len(reader.calls) == 1 and all(v is first[0] for v in later) and len(later) == 6
 
 
 def test_a_poller_that_starts_after_an_append_never_gets_a_result_computed_before_it(run_dir):
