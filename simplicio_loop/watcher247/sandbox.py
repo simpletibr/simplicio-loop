@@ -52,6 +52,21 @@ def refusal(environ: Mapping[str, str] | None = None, platform: str | None = Non
     return None
 
 
+def worktree_binds(clone: str) -> list[str]:
+    """bwrap binds for an item's worktree `<WORK>/<repo>.wt/<issue>` (#1601): its own admin dir, the shared object store and map base.
+
+    The rest of the base clone's .git (config, hooks, refs) stays read-only inside the sandbox, so one item cannot touch another's
+    branch or plant a hook. The paths come from the fixed layout (worktrees.item_path), never from the `.git` file: that file is
+    writable inside the sandbox, and a later step must not bind what an earlier one pointed it at. [] when `clone` is not an item's.
+    """
+    path = Path(clone)
+    if not path.parent.name.endswith(".wt"):
+        return []
+    common = path.parent.parent / path.parent.name.removesuffix(".wt") / ".git"
+    writable = [common / "worktrees" / path.name, common / "objects", common / "simplicio"]  # simplicio/: the mapper's central base
+    return [arg for target in writable if target.is_dir() for arg in ("--bind", str(target), str(target))]
+
+
 def wrap(argv: list[str], *, clone: Path, state_dir: Path, platform: str | None = None,
          environ: Mapping[str, str] | None = None, which: Callable[[str], str | None] | None = None) -> list[str]:
     """Return argv run inside the sandbox; raise SandboxUnavailable when none is possible."""
@@ -74,6 +89,7 @@ def wrap(argv: list[str], *, clone: Path, state_dir: Path, platform: str | None 
             "--tmpfs", "/tmp",
             "--bind", clone, clone,          # ...except the clone and the state dir
             "--bind", state_dir, state_dir,
+            *worktree_binds(clone),
             "--chdir", clone,
             "--die-with-parent", "--new-session",
             "--", *argv,

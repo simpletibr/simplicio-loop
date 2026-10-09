@@ -115,7 +115,7 @@ Fluxo de cada tick (implementado em `watcher247/tick.py` e `watcher247/host_mode
    `git reset --hard` do clone. Teto: `MAX_STEPS` (4) por execucao e os tetos de `EscalationState`
    (`SIMPLICIO_247_ATTEMPT_CEILING_ISSUE` / `_DAY`, `SIMPLICIO_247_TOKEN_CEILING_ISSUE` / `_DAY`). Tokens nao medidos
    (host mode) ficam UNVERIFIED e contam so como tentativas.
-5. **Recibo de papel.** Cada etapa grava uma task em `simplicio.execution-report/v1` (no clone,
+5. **Recibo de papel.** Cada etapa grava uma task em `simplicio.execution-report/v1` (no worktree,
    `.simplicio-loop/runtime/execution-reports/latest.json`) com `role`, `model`, `effort`, `family` e resultado.
 6. **Patrulha de PRs.** Os PRs `loop/issue-N` abertos passam por `watcher_github.patrol_open_prs`. Comentario de
    review, check vermelho ou conflito viram task de correcao no PR existente, com o papel `coordination`
@@ -148,7 +148,7 @@ coberto pelo namespace de pid.
   inteira. Antes, o comando ficava em outra sessão/grupo que o `killpg` do watcher não alcança (`--die-with-parent` não o
   derrubava) e os netos sobreviviam como órfãos; como o `Process.wait()` do Python 3.14 só retorna quando os pipes fecham (medido), o
   `proc.run` com timeout ficava preso enquanto um neto vivo segurasse o pipe.
-- Filesystem somente leitura (exceto o clone e o state dir), `/tmp` privado, `--die-with-parent`, `--new-session`.
+- Filesystem somente leitura (exceto o worktree do item e o state dir), `/tmp` privado, `--die-with-parent`, `--new-session`.
 
 **Continua visível (decisão e limites conhecidos)**
 
@@ -182,8 +182,23 @@ inspecionada; como root o vazamento de `environ` foi reproduzido sem o flag); ou
 
 ## Squads (`watcher247/squad_flow.py`)
 
-O tick usa o mesmo padrao da skill `/simplicio-loop` (#1505). Nada disso muda a concorrencia: o lote continua limitado por
-`SIMPLICIO_247_CONCURRENCY`, pelo teto diario (`budget.py`) e pelo lock por repo; escritas no clone sao seriais.
+O tick usa o mesmo padrao da skill `/simplicio-loop` (#1505). O lote continua limitado por `SIMPLICIO_247_CONCURRENCY` e pelo
+teto diario (`budget.py`). Os itens de um mesmo repo rodam ao mesmo tempo, cada um no seu worktree (#1601, `watcher247/worktrees.py`).
+
+- **Base e worktree.** A base `<WORK>/<repo>` nao e editada por nenhum item. Cada issue roda em `<WORK>/<repo>.wt/<issue>`, na branch
+  `loop/issue-N`. O worktree some ao fim do item: sucesso, falha, cancelamento ou SIGTERM.
+- **Escopo do lock.** O lock por repo cobre so os passos curtos: atualizar a base, `git worktree add/remove` e o push (`git push -u`
+  grava o `.git/config` compartilhado). Nunca cobre o plano, o turbo, o apply, o verify nem o PR. O merge train segue serial e usa o lock.
+- **Limpeza exata.** Um item remove so o proprio caminho e a entrada de `<git-dir>/worktrees` cujo `gitdir` e igual a `<caminho>/.git`
+  (igualdade, nunca prefixo: a issue 1 nao toca a 10). Nao existe `git worktree prune`: ele esqueceria worktrees de outros itens.
+  A sobra de uma execucao morta por SIGKILL fica no caminho que a proxima execucao da mesma issue usa, e e limpa la.
+- **Estado do item.** O que o item guarda em `.simplicio-loop/` (escada de escalonamento, runs, relatorios) e copiado para
+  `<WORK>/<repo>.state/<issue>/` quando o worktree sai e volta no proximo worktree da mesma issue. Links simbolicos nao sao copiados.
+- **Arquivo em comum.** Itens do lote que citam o mesmo arquivo-alvo (`squad_flow.target_paths`) rodam em serie, na ordem do lote.
+  Os outros rodam em paralelo. Um arquivo que o corpo da issue nao cita so aparece no review ou no merge train.
+- **Disco e limite.** No maximo o tamanho do lote em worktrees vivos (o plano de capacidade, ou `SIMPLICIO_247_CONCURRENCY` quando fixado). Com menos de 2 GiB livres o item e adiado sem gastar tentativa.
+- **Sandbox.** O bwrap liga como gravavel so o admin dir do worktree, `<git-dir>/objects` e `<git-dir>/simplicio` (base central do
+  mapper). Os caminhos vem do layout fixo, nao do arquivo `.git` do worktree. Config, hooks e refs da base ficam somente leitura.
 
 1. **Coordenador geral** (`planning`). As issues novas admitidas de cada repo viram `squads.plan_squads`: squads de ate 4
    workers e 1 coordenador (`coordination`) cada, dono de arquivo por caminho citado na issue, ordem de merge por

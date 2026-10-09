@@ -21,7 +21,9 @@ merge_train), no cross-squad contracts. It never enables a merge and never loose
 watcher's own login, SIMPLICIO_247_AUTO_MERGE=1, the repo lock and `--match-head-commit` do not read the mode. The mode (`baseline` or
 `v2`) is in the status block of each repo and in the execution-report.
 
-Concurrency is the tick's (daily budget, SIMPLICIO_247_CONCURRENCY) and the repo lock; the merge train holds that lock.
+Concurrency is the tick's (daily budget, SIMPLICIO_247_CONCURRENCY) and the repo lock. The lock covers only short operations
+(update base, git worktree add/remove, push) and never holds during worker execution. Items with shared target files run serially
+in batch order; others run in parallel, each in its own worktree. The merge train holds the repo lock.
 """
 from __future__ import annotations
 
@@ -30,6 +32,7 @@ import dataclasses
 import fnmatch
 import json
 import os
+import posixpath
 import re
 import shlex
 import time
@@ -114,6 +117,11 @@ def _issue_row(issue: dict) -> dict[str, Any]:
     body = issue.get("body") or ""
     return {"number": issue["number"], "title": issue.get("title") or "", "body": body, "labels": issue.get("labels") or [],
             "paths": sorted({p for p in _PATH.findall(body) if _safe_path(p)})}
+
+
+def target_paths(issue: dict) -> frozenset[str]:
+    """The files an issue names as its targets (`path.ext` in backticks): two items of a batch that share one do not run together."""
+    return frozenset(posixpath.normpath(p) for p in _issue_row(issue)["paths"])
 
 
 def plan_repo(repo: str, issues: list[dict], family: str, probe: squad_capacity.Probe | None = None,
