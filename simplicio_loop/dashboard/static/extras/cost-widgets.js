@@ -33,6 +33,15 @@ function formatUsd(value) {
   return 'USD ' + value.toFixed(4);
 }
 
+// A floor USD (a prompt above the tier limit with no per-request data) reads "a partir de", never as an exact estimate.
+function moneyOf(usd, floor) {
+  return floor ? 'a partir de ' + formatUsd(usd) : formatUsd(usd) + ' estimado';
+}
+
+function idSet(list) {
+  return new Set(Array.isArray(list) ? list.map(String) : []);
+}
+
 // A group of counts as [label, value] pairs with finite values only; anything else is dropped.
 function countsOf(group) {
   if (!isObject(group)) return [];
@@ -64,19 +73,23 @@ function costRowsOf(kind, budget) {
   const usdReason = cost !== null && stringOrNull(cost.reason) ? cost.reason : NOT_MEASURED_USD;
   const tokensOf = usage ? countsOf(kind === 'task' ? usage.by_task : usage.by_iteration) : [];
   const usdOf = priced ? Object.fromEntries(countsOf(kind === 'task' ? cost.by_task : cost.by_iteration)) : {};
+  const floorIds = priced ? idSet(kind === 'task' ? cost.floor_tasks : cost.floor_iterations) : new Set();
   const label = kind === 'task' ? 'Tarefa ' : 'Iteração ';
   const keyOf = (id) => kind + ':' + id;
   const sorted = [...tokensOf].sort((a, b) => b[1] - a[1]);
   const rows = sorted.slice(0, COST_ROWS_CAP).map(([id, tokens]) => {
     const usd = numberOrNull(usdOf[id]);
-    const money = usd !== null ? formatUsd(usd) + ' estimado' : NOT_MEASURED_USD + ': ' + (priced ? NOT_LISTED : usdReason);
-    return { key: keyOf(id), label: label + id, state: usd !== null ? 'ESTIMADO' : 'UNVERIFIED', detail: formatTokens(tokens) + ' medidos · ' + money };
+    const floor = usd !== null && floorIds.has(id);
+    const money = usd !== null ? moneyOf(usd, floor) : NOT_MEASURED_USD + ': ' + (priced ? NOT_LISTED : usdReason);
+    return { key: keyOf(id), label: label + id, state: usd !== null ? 'ESTIMADO' : 'UNVERIFIED', floor, detail: formatTokens(tokens) + ' medidos · ' + money };
   });
   const unattributedTokens = usage && isObject(usage.unattributed_tokens) ? numberOrNull(usage.unattributed_tokens[kind]) : null;
   if (unattributedTokens !== null && unattributedTokens > 0) {
     const usd = priced && isObject(cost.unattributed_usd) ? numberOrNull(cost.unattributed_usd[kind]) : null;
-    const money = usd !== null ? formatUsd(usd) + ' estimado' : NOT_MEASURED_USD + ': ' + usdReason;
+    const floor = usd !== null && isObject(cost.floor_unattributed) && cost.floor_unattributed[kind] === true;
+    const money = usd !== null ? moneyOf(usd, floor) : NOT_MEASURED_USD + ': ' + usdReason;
     rows.push({
+      floor,
       key: 'unattributed-' + kind,
       label: kind === 'task' ? 'Sem tarefa identificada' : 'Sem iteração identificada',
       state: usd !== null ? 'ESTIMADO' : 'UNVERIFIED',
@@ -90,6 +103,8 @@ function costRowsOf(kind, budget) {
   if (state === 'ESTIMADO') reason = 'USD estimado com a tabela de preços de ' + (stringOrNull(cost.as_of) || 'data não informada') + '; tokens medidos.';
   else if (attributed === 0) reason = kind === 'task' ? NO_TASK_ID : NO_ITERATION;
   else reason = usdReason;
+  const floorReason = state === 'ESTIMADO' && cost.floor === true ? stringOrNull(cost.floor_reason) : null;
+  if (floorReason) reason += ' ' + floorReason + '.';
   return { state, reason, rows, more: Math.max(0, attributed - COST_ROWS_CAP) };
 }
 
