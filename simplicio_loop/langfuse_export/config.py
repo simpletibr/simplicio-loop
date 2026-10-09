@@ -7,11 +7,23 @@ import stat
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 DEFAULT_HOST = "https://cloud.langfuse.com"
 DEFAULT_BATCH_SECONDS = 60
 MAX_BATCH_SECONDS = 3600
 CREDENTIALS_FILE = "credentials.json"
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def check_host(host: str) -> str:
+    """https only (Basic auth travels in the header); plain http is allowed for loopback alone."""
+    parts = urlsplit(host)
+    if parts.scheme == "https" and parts.hostname:
+        return host
+    if parts.scheme == "http" and parts.hostname in LOOPBACK_HOSTS:
+        return host
+    raise ValueError("langfuse host must be https:// (http:// only for loopback)")
 
 
 class CredentialFileError(ValueError):
@@ -50,8 +62,9 @@ def load_config(table: Mapping[str, object], env: Mapping[str, str]) -> Langfuse
             f"langfuse_batch_seconds must be an integer in 1..{MAX_BATCH_SECONDS}"
         )
     host = env.get("LANGFUSE_HOST") or table.get("langfuse_host") or DEFAULT_HOST
-    if not isinstance(host, str) or not host.startswith(("https://", "http://")):
-        raise TypeError("langfuse_host must be an http(s) URL")
+    if not isinstance(host, str):
+        raise TypeError("langfuse_host must be a string")
+    host = check_host(host)
     return LangfuseConfig(
         enabled=enabled,
         host=host.rstrip("/"),

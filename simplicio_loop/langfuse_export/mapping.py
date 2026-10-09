@@ -87,7 +87,9 @@ def plan(
     run_id = str(report["run_id"])
     tid = trace_id(run_id)
     root_id = span_id(run_id, "run")
-    start = _ns(float(report.get("started_at_unix") or 0))
+    if report.get("started_at_unix") is None:
+        raise ValueError(f"execution report {run_id} has no started_at_unix")
+    start = _ns(float(report["started_at_unix"]))
     wall = report.get("wall_ms")
     end = (
         _ns(float(report["finished_at_unix"]))
@@ -118,10 +120,11 @@ def plan(
             TYPE_KEY: "span",
             "simplicio.task_id": task_id,
             "simplicio.outcome": str(task.get("outcome") or ""),
-            "simplicio.task.title": str(task.get("title") or ""),
         }
         if task.get("issue"):
             attrs["simplicio.issue"] = str(task["issue"])
+        if task.get("title_fingerprint"):
+            attrs["simplicio.task.title_fingerprint"] = str(task["title_fingerprint"])
         tokens = task.get("tokens") or {}
         task_span = Span(
             tid,
@@ -157,6 +160,8 @@ def plan(
             task_span.attributes["simplicio.tokens.status"] = "UNVERIFIED"
 
     for event in sorted(events, key=lambda e: int(e.get("seq") or 0)):
+        if event.get("run_id") not in (None, run_id):
+            continue  # another run's record never lands in this trace
         ev_id = str(event.get("event_id") or event.get("seq"))
         ts = _ts_ns(event.get("ts"), start)
         payload = export_payload(event.get("payload") or {}, capture_content)

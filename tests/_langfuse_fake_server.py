@@ -6,6 +6,8 @@ Aceita POST em ``/api/public/otel/v1/traces`` e ``/api/public/scores``, valida o
 - ``"ok"``: 200 com corpo vazio (aceite);
 - ``"error"``: 500 (falha transitória, reenvia depois);
 - ``"drop"``: fecha a conexão sem responder (queda de rede, o cliente vê erro de transporte).
+- ``"garbage"``: responde com uma linha que não é HTTP (o cliente vê BadStatusLine);
+- um inteiro (400, 401, 429, 503...): responde com esse status, sem olhar o auth.
 """
 
 from __future__ import annotations
@@ -69,12 +71,22 @@ class FakeLangfuse:
                     self.connection.shutdown(socket.SHUT_RDWR)
                     self.close_connection = True
                     return
+                if outer.mode == "garbage":
+                    with outer._lock:
+                        outer.requests.append(
+                            {"path": self.path, "status": None, "body": None}
+                        )
+                    self.wfile.write(b"NOT-HTTP\r\n")
+                    self.wfile.flush()
+                    self.close_connection = True
+                    return
                 auth_ok = self.headers.get("Authorization") == outer.expected_auth
-                status = (
-                    200
-                    if auth_ok and outer.mode == "ok"
-                    else (401 if not auth_ok else 500)
-                )
+                if isinstance(outer.mode, int):
+                    status = outer.mode
+                elif not auth_ok:
+                    status = 401
+                else:
+                    status = 200 if outer.mode == "ok" else 500
                 try:
                     body = json.loads(raw.decode("utf-8")) if raw else None
                 except ValueError:
