@@ -1,5 +1,6 @@
 """One export cycle: read the run's records, map, scrub, enqueue what the server has not seen, flush
-when the batch window is due. Fail-closed on missing credentials; never raises into the loop caller.
+when the batch window is due. Fails closed on missing credentials (blocked, nothing written); a real
+bug or a corrupt record raises to the caller, which reports it.
 """
 
 from __future__ import annotations
@@ -150,6 +151,7 @@ def export_once(
     enqueued += _enqueue(
         outbox, ledger, "scores", scores, lambda s: s["id"], lambda rows: rows[0], 1
     )
+    ledger.save()  # pending marks land before any send: a crash here must not queue the same rows twice
 
     if ledger.last_flush is None:
         ledger.last_flush = now  # the first batch window opens with the first export

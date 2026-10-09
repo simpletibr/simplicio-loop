@@ -464,3 +464,18 @@ def test_http_error_text_never_carries_the_secret(tmp_path):
         result = bad.send("traces", {"resourceSpans": []})
         assert result.ok is False and result.retryable is False and result.status == 401
         assert "sk-wrong" not in result.error and "sk-right" not in result.error
+
+
+def test_pending_marks_survive_a_crash_during_flush(tmp_path):
+    from simplicio_loop.langfuse_export.exporter import export_once, langfuse_dir
+
+    def crashing_send(kind, body):
+        raise RuntimeError("process died mid-flush")
+
+    repo = _repo(tmp_path)
+    cfg = _enabled()
+    env = {"LANGFUSE_PUBLIC_KEY": "pk", "LANGFUSE_SECRET_KEY": "sk"}
+    with pytest.raises(RuntimeError):
+        export_once(repo, config=cfg, env=env, run_dir=tmp_path / "run", now=NOW, send=crashing_send, force=True)
+    ledger = json.loads((langfuse_dir(repo) / "ledger.json").read_text(encoding="utf-8"))
+    assert ledger["pending"], "queued rows must be recorded before any send, or a restart queues them again"
