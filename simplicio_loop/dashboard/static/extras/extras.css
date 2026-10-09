@@ -37,3 +37,30 @@
 .extras-list > div[data-state="PASS"] .extras-state { color: var(--sl-state-pass); }
 .extras-list > div[data-state="UNVERIFIED"] .extras-state { color: var(--sl-state-unverified); }
 .extras-list > div[data-state="ESTIMADO"] .extras-state { color: var(--sl-state-estimated); }
+
+/* Breakdown widgets (issue #1550): a stacked bar of segments whose width is set through the CSSOM, and its legend. */
+.extras-bar {
+  display: flex;
+  flex: 1 1 100%;
+  block-size: var(--sl-space-3);
+  overflow: hidden;
+  border-radius: var(--sl-radius-plate);
+  background: var(--sl-line-soft);
+}
+.extras-seg {
+  display: block;
+  flex: 0 0 auto;
+  block-size: 100%;
+  border-inline-end: 1px solid var(--sl-raised);
+}
+.extras-seg-0 { background: var(--sl-state-running); }
+.extras-seg-1 { background: var(--sl-state-pass); }
+.extras-seg-2 { background: var(--sl-state-estimated); }
+.extras-seg-3 { background: var(--sl-state-stalled); }
+.extras-seg-4 { background: var(--sl-state-blocked); }
+.extras-seg-5 { background: var(--sl-state-pending); }
+.extras-legend {
+  flex: 1 1 100%;
+  margin: 0;
+  padding-inline-start: var(--sl-space-3);
+}
