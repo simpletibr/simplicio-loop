@@ -15,6 +15,7 @@ import asyncio
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -30,15 +31,18 @@ class CaseResult:
 
     repo: str
     issue_number: int
+    pr_number: int
     issue_title: str
     base_commit: str
     size: str
+    source: str
     status: str
     verify_result: Optional[str]
     wall_time_s: Optional[float]
     tokens_in: Optional[int]
     tokens_out: Optional[int]
     error: Optional[str] = None
+    engine_output: Optional[str] = None
 
 
 def load_cases(cases_file: Path) -> list:
@@ -46,6 +50,24 @@ def load_cases(cases_file: Path) -> list:
     with open(cases_file) as f:
         data = json.load(f)
     return data.get("cases", [])
+
+
+def parse_engine_output(output: str) -> Optional[dict]:
+    """Parse simplicio.turbo-run/v1 JSON status from engine output."""
+    try:
+        # Look for JSON in output
+        for line in output.split("\n"):
+            line = line.strip()
+            if line.startswith("{"):
+                try:
+                    data = json.loads(line)
+                    if data.get("schema") == "simplicio.turbo-run/v1":
+                        return data
+                except json.JSONDecodeError:
+                    continue
+    except Exception:
+        pass
+    return None
 
 
 async def run_case(
@@ -60,14 +82,17 @@ async def run_case(
         result = CaseResult(
             repo=case["repo"],
             issue_number=case["issue_number"],
+            pr_number=case.get("pr_number", case["issue_number"]),
             issue_title=case["issue_title"],
             base_commit=case["base_commit"],
             size=case["size"],
+            source=case.get("source", "pr"),
             status="skipped",
             verify_result=None,
             wall_time_s=None,
             tokens_in=None,
             tokens_out=None,
+            engine_output=None,
         )
 
         if dry_run:
@@ -75,27 +100,80 @@ async def run_case(
             return result
 
         start = time.time()
+        work_dir = None
         try:
+            # Clone repo at base_commit
+            work_dir = tempfile.mkdtemp(prefix=f"issue-{case['issue_number']}-")
+            work_path = Path(work_dir)
+
+            # Clone the repository
+            clone_result = await asyncio.create_subprocess_exec(
+                "git", "clone", case["repo"], ".",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=work_dir,
+            )
+            _, _ = await asyncio.wait_for(clone_result.communicate(), timeout=60)
+
+            # Checkout at base_commit
+            checkout_result = await asyncio.create_subprocess_exec(
+                "git", "checkout", case["base_commit"],
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=work_dir,
+            )
+            _, _ = await asyncio.wait_for(checkout_result.communicate(), timeout=60)
+
+            # Prepare task description from issue title or body
+            task_desc = case["issue_title"]
+
+            # Replace template variables
             cmd = engine_cmd.replace("{repo}", case["repo"])
-            cmd = cmd.replace("{task}", case["issue_title"][:100])
+            cmd = cmd.replace("{task}", f'"{task_desc}"')
+            
+            # Handle verify command placeholder
+            verify_cmd = case.get("verify_command")
+            if verify_cmd and "{verify}" in cmd:
+                cmd = cmd.replace("{verify}", verify_cmd)
 
-            with tempfile.TemporaryDirectory(prefix=f"issue-{case['issue_number']}-") as tmpdir:
-                env = os.environ.copy()
-                env["SIMPLICIO_ISSUE_EVAL"] = "1"
+            # Run engine
+            env = os.environ.copy()
+            env["SIMPLICIO_ISSUE_EVAL"] = "1"
 
-                proc = await asyncio.create_subprocess_shell(
-                    cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    env=env,
-                    cwd=tmpdir,
-                )
-                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
+            proc = await asyncio.create_subprocess_shell(
+                cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
+                cwd=work_dir,
+            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
 
-                elapsed = time.time() - start
-                result.wall_time_s = elapsed
+            elapsed = time.time() - start
+            result.wall_time_s = elapsed
 
-                output = stdout.decode("utf-8", errors="replace")
+            output = stdout.decode("utf-8", errors="replace")
+            stderr_text = stderr.decode("utf-8", errors="replace")
+            result.engine_output = output
+
+            # Try to parse JSON status from engine
+            engine_status = parse_engine_output(output)
+            if engine_status:
+                result.status = engine_status.get("status", "UNVERIFIED")
+                result.tokens_in = engine_status.get("tokens_in")
+                result.tokens_out = engine_status.get("tokens_out")
+                result.verify_result = engine_status.get("verify", "UNVERIFIED")
+            else:
+                # No JSON status, fall back to exit code and token regex
+                if proc.returncode == 0:
+                    result.status = "success"
+                    result.verify_result = "pass"
+                else:
+                    result.status = "failed"
+                    result.verify_result = "fail"
+                    result.error = stderr_text[:200]
+
+                # Try to extract tokens from output
                 tokens_match = re.search(r"tokens.in[\":]?\s*[=:]\s*(\d+)", output)
                 if tokens_match:
                     result.tokens_in = int(tokens_match.group(1))
@@ -104,22 +182,40 @@ async def run_case(
                 if tokens_out_match:
                     result.tokens_out = int(tokens_out_match.group(1))
 
-                if proc.returncode == 0:
-                    result.status = "success"
+            # Run verify command if present and status is success
+            if verify_cmd and result.status == "success":
+                verify_proc = await asyncio.create_subprocess_shell(
+                    verify_cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=work_dir,
+                )
+                verify_stdout, verify_stderr = await asyncio.wait_for(
+                    verify_proc.communicate(), timeout=300
+                )
+                if verify_proc.returncode == 0:
                     result.verify_result = "pass"
                 else:
-                    result.status = "failed"
                     result.verify_result = "fail"
-                    result.error = stderr.decode("utf-8", errors="replace")[:200]
+                    result.error = verify_stderr.decode("utf-8", errors="replace")[:200]
 
         except asyncio.TimeoutError:
             result.status = "failed"
-            result.error = "Timeout after 300s"
+            result.error = "Timeout"
             result.wall_time_s = 300.0
+            result.verify_result = "UNVERIFIED"
         except Exception as e:
             result.status = "failed"
             result.error = str(e)[:200]
             result.wall_time_s = time.time() - start
+            result.verify_result = "UNVERIFIED"
+        finally:
+            # Cleanup
+            if work_dir and Path(work_dir).exists():
+                try:
+                    shutil.rmtree(work_dir)
+                except Exception:
+                    pass
 
         return result
 
@@ -171,8 +267,9 @@ def build_execution_report(
             {
                 "task_id": f"issue-{r.issue_number}",
                 "issue": str(r.issue_number),
+                "pr_number": r.pr_number,
+                "source": r.source,
                 "title": r.issue_title,
-                "title_fingerprint": r.issue_number,
                 "wall_ms": int((r.wall_time_s or 0) * 1000),
                 "phase_latency_ms": {},
                 "resources": {
@@ -242,7 +339,7 @@ def main():
     )
     parser.add_argument(
         "--engine",
-        default="simplicio-loop turbo --repo {repo} --task",
+        default="simplicio-loop turbo --repo {repo} --task {task}",
         help="Engine command template",
     )
     parser.add_argument(

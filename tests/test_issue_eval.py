@@ -23,13 +23,17 @@ def test_cases_schema():
     for case in cases:
         assert "repo" in case
         assert "issue_number" in case
+        assert "pr_number" in case
         assert "issue_title" in case
         assert "base_commit" in case
-        assert "reference_pr" in case
+        assert "verify_command" in case
         assert "diff_stat" in case
         assert "size" in case
+        assert "source" in case
         assert case["size"] in ["small", "medium", "large"]
+        assert case["source"] in ["issue", "pr"]
         assert isinstance(case["issue_number"], int)
+        assert isinstance(case["pr_number"], int)
 
     sizes = [c["size"] for c in cases]
     assert "small" in sizes
