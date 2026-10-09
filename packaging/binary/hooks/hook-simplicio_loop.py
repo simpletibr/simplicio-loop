@@ -8,9 +8,8 @@ Some .py files are data, not modules: the hooks and scripts under ``_bundle`` th
 copies, the project templates of the dev-cli, and provider scripts. They sit in directories without
 ``__init__.py``. The hook ships them as files.
 
-The metadata of the distribution keeps only what the program reads. ``direct_url.json``, ``INSTALLER`` and
-``RECORD`` hold the path of the machine that built the executable, so they stay out (``pyinstaller_run.py``
-does the same for the metadata that PyInstaller finds by itself).
+``pyinstaller_run.py`` trims what ``copy_metadata`` returns, so the metadata of the bundle holds no path of
+the machine that built it.
 """
 from pathlib import Path
 
@@ -32,10 +31,8 @@ def _is_module(source, package_dir):
 
 hiddenimports = [name for package in PACKAGES for name in collect_submodules(package)]
 
-KEEP_METADATA = ("METADATA", "entry_points.txt", "top_level.txt", "WHEEL")
-
 # importlib.metadata reads the version and the console scripts that frozen.py uses.
-datas = [(source, target) for source, target in copy_metadata("simplicio-loop") if Path(source).name in KEEP_METADATA]
+datas = copy_metadata("simplicio-loop")
 for package in PACKAGES:
     package_dir = Path(get_package_paths(package)[1])
     datas += [

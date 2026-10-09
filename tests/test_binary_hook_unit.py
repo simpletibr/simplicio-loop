@@ -59,10 +59,11 @@ def test_every_submodule_of_the_three_packages_is_asked_for_not_listed_by_hand(h
         "simplicio", "simplicio.sub"]
 
 
-def test_only_the_metadata_the_program_reads_is_bundled(hook):
+def test_the_metadata_of_the_distribution_is_asked_for_through_copy_metadata(hook):
+    """pyinstaller_run.py trims what copy_metadata returns, so the hook does not filter again."""
     namespace, _ = hook
-    kept = sorted(Path(source).name for source, target in namespace["datas"] if target == "dist-info")
-    assert kept == ["METADATA", "WHEEL", "entry_points.txt", "top_level.txt"]  # no path of the builder
+    names = sorted(Path(source).name for source, target in namespace["datas"] if target == "dist-info")
+    assert names[:3] == ["INSTALLER", "METADATA", "RECORD"]  # the fake returns every file: nothing is dropped here
 
 
 def test_python_files_that_are_data_ship_as_files_and_modules_do_not(hook):
