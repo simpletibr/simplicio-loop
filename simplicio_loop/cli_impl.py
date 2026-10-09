@@ -2738,8 +2738,20 @@ class _Parser(argparse.ArgumentParser):
         self.exit(2, f"{self.prog}: error: invalid arguments; what you typed is not repeated. {self._quiet}\n")
 
 
+def _finish_pending_update() -> None:
+    """Windows binary: a verified file that `update` staged replaces the running one at the next start."""
+    from .self_update import apply_pending
+    try:
+        if apply_pending():
+            print("simplicio-loop: the staged update is in place. Run: simplicio-loop install --global", file=sys.stderr)
+    except OSError as exc:
+        print(f"simplicio-loop: could not apply the staged update: {exc}", file=sys.stderr)
+
+
 def main(argv=None) -> int:
     argv_list = list(argv) if argv is not None else list(sys.argv[1:])
+    if os.name == "nt" and getattr(sys, "frozen", False):
+        _finish_pending_update()
     if argv_list[:1] == ["hub-drain-plan"]:
         from .github_drain_intake_cli import main as drain_intake_main
         forwarded = argv_list[1:]
@@ -2820,8 +2832,11 @@ def main(argv=None) -> int:
                               "(asks this provider for the plan, needs OPENROUTER_API_KEY)")
 
     p_update = sub.add_parser("update", help="install the latest GitHub release of simpletibr/simplicio-loop")
-    p_update.add_argument("--check", action="store_true", help="only report installed vs latest; change nothing")
-    p_update.add_argument("--force", action="store_true", help="reinstall even when already on the latest release")
+    p_update.add_argument("--check", action="store_true",
+                          help="change nothing; exit 0 when up to date, 10 when an update is available, 2 on error")
+    p_update.add_argument("--dry-run", action="store_true", help="print what would run; change nothing")
+    p_update.add_argument("--force", action="store_true",
+                          help="reinstall even when already on the latest release; allows a downgrade")
 
     configure_auth_commands(sub)  # login, logout, auth status: one login shared with the Simplicio Runtime
 
@@ -3335,8 +3350,8 @@ def main(argv=None) -> int:
                              provider=args.provider, run_id=args.run_id,
                              leave_open=args.leave_open)
     if command == "update":
-        from .self_update import run_update
-        return run_update(check=args.check, force=args.force)
+        from .self_update import run_update, write_check
+        return run_update(check=args.check, force=args.force, dry_run=args.dry_run, record=write_check)
     if command in {"login", "logout", "auth"}:
         return dispatch_auth(args)
     if command == "dashboard":

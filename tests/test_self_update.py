@@ -11,7 +11,7 @@ def test_check_only_reports_without_installing(capsys):
     calls = []
     rc = su.run_update(check=True, installed="3.43.16", fetch=lambda: "v3.43.17",
                        runner=lambda cmd: calls.append(cmd) or 0, editable=False)
-    assert rc == 0 and calls == []
+    assert rc == 10 and calls == []  # #1575: 10 = an update is available (0 = up to date, 2 = error)
     assert "3.43.16 -> 3.43.17" in capsys.readouterr().out
 
 
