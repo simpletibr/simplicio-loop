@@ -74,7 +74,7 @@ def test_issue_admitted(tick_run):
     assert claim["status"] == "done", claim
 
 
-@pytest.mark.xfail(strict=True, reason=AWAIT_1469 + " (lease acquire/release recorded on the claim)")
+@pytest.mark.xfail(strict=True, reason="awaits #1464: lease acquire/release recorded on the claim")
 def test_lease_acquired_and_released(tick_run):
     claim = _claims(tick_run)[IDENT]
     lease = claim.get("lease") or {}
@@ -99,7 +99,7 @@ def test_plan_applied_to_the_branch(tick_run):
     assert 'return "hello"' not in shown
 
 
-@pytest.mark.xfail(strict=True, reason=AWAIT_1469 + " (the watcher must pass --verify to turbo)")
+@pytest.mark.xfail(strict=True, reason="awaits #1463: the watcher must pass --verify to turbo")
 def test_verify_ran(tick_run):
     verify = _turbo_document(tick_run).get("verify")
     assert verify is not None, "verify did not run"
@@ -119,7 +119,7 @@ def test_commit_and_pr_closes_issue(tick_run):
     assert f"Closes #{ISSUE_NUMBER}" in pr_calls[0]["body"]
 
 
-@pytest.mark.xfail(strict=True, reason=AWAIT_1469 + " (one canonical status comment, edited per phase)")
+@pytest.mark.xfail(strict=True, reason="awaits #1470: one canonical status comment, edited per phase")
 def test_one_canonical_status_comment_updated_across_phases(tick_run):
     comments = _issue_comments(tick_run)
     ids = {c["comment_id"] for c in comments}
