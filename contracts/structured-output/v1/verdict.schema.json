@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simplicio.model-verdict/v1",
+  "title": "Review or judge verdict returned by the model (closed: enums, short optional note)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "findings"],
+  "properties": {
+    "verdict": {"enum": ["pass", "fail", "blocked"]},
+    "findings": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "path"],
+        "properties": {
+          "severity": {"enum": ["blocker", "major", "minor"]},
+          "path": {"type": "string", "minLength": 1, "maxLength": 260},
+          "line": {"type": "integer", "minimum": 1, "maximum": 9000},
+          "note": {"type": "string", "maxLength": 200}
+        }
+      }
+    }
+  }
+}

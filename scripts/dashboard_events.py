@@ -1037,16 +1037,33 @@ def _receipt_event(run_dir, name, step):
     return event
 
 
-def token_usage_specs(run_dir, only=None):
-    """``token_usage`` specs from the run's own ``execution-route*.json`` records.
+PROVIDER_RECEIPT_SCHEMA = "simplicio.provider-worker-receipt/v1"
+# Measured provider usage a receipt may carry besides the input/output counts. Absent keys are not written.
+PROVIDER_OPTIONAL_USAGE = ("cached_tokens", "cache_write_tokens", "reasoning_tokens", "cost")
 
-    Only integer counts the run recorded become events. A record with null counts (route decided before
-    any provider call) or without a ``token_usage`` block yields nothing: counts are never invented.
+
+def _usage_block(record):
+    """The measured usage of one run record: the execution-route ``token_usage`` block, or a provider receipt's counts."""
+    if not isinstance(record, dict):
+        return None
+    if isinstance(record.get("token_usage"), dict):
+        return record["token_usage"]
+    if record.get("schema") == PROVIDER_RECEIPT_SCHEMA and record.get("usage_status") == "measured":
+        return {k: record.get(k) for k in ("input_tokens", "output_tokens", *PROVIDER_OPTIONAL_USAGE)}
+    return None
+
+
+def token_usage_specs(run_dir, only=None):
+    """``token_usage`` specs from the run's ``execution-route*.json`` and ``provider-worker-*.json`` records.
+
+    Only counts the run recorded become events: integer input/output tokens, and optionally the provider's cached,
+    cache-write and reasoning tokens and its reported cost. A record with null counts (route decided before any
+    provider call) or without measured usage yields nothing: counts are never invented.
     """
     run_dir = os.fspath(run_dir)
     try:
         names = sorted(n for n in os.listdir(run_dir)
-                       if n.startswith("execution-route") and n.endswith(".json")
+                       if (n.startswith("execution-route") or n.startswith("provider-worker-")) and n.endswith(".json")
                        and (only is None or n == only))
     except OSError:
         return []
@@ -1054,13 +1071,19 @@ def token_usage_specs(run_dir, only=None):
     for name in names:
         path = os.path.join(run_dir, name)
         record = _load_json(path)
-        usage = record.get("token_usage") if isinstance(record, dict) else None
+        usage = _usage_block(record)
         if not isinstance(usage, dict):
             continue
         counts = {k: usage.get(k) for k in ("input_tokens", "output_tokens")}
         if not all(_is_int(v) and v >= 0 for v in counts.values()):
             continue
         payload = dict(counts)
+        for key in PROVIDER_OPTIONAL_USAGE:
+            value = usage.get(key)
+            if key == "cost" and isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
+                payload[key] = value
+            elif key != "cost" and _is_int(value) and value >= 0:
+                payload[key] = value
         for key in ("model",):
             if isinstance(record.get(key), str) and record[key]:
                 payload[key] = record[key]

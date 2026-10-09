@@ -6,6 +6,11 @@ it must not do (anything else: admission, opt-in, claims, budgets).
 """
 from __future__ import annotations
 
+import asyncio
+import os
+import sys
+import urllib.error
+
 import pytest
 
 from simplicio_loop import auth
@@ -14,6 +19,7 @@ from simplicio_loop.watcher247 import config, subscription
 from .fakes import FakeRun, baseline, issue, read_json, run_tick
 
 SWITCH = "SIMPLICIO_247_NO_LOGIN"
+REAL_GATE = subscription.mcp_subscription  # before the `env` fixture stubs it
 
 
 @pytest.fixture
@@ -125,3 +131,69 @@ def test_dry_run_with_the_switch_stays_read_only_and_logs(env, gate, monkeypatch
     out = capsys.readouterr().out
     assert gate == [] and SWITCH in out and "[dry-run] would process simplicio-a#1" in out
     assert not config.STATUS.exists()
+
+
+# --- the login file is never opened, written, renamed or removed, through ANY API (not only through simplicio_loop.auth) ---
+_WATCHED: dict = {"paths": (), "hits": []}
+
+
+def _audit(event, args):
+    if _WATCHED["paths"] and event in {"open", "os.rename", "os.replace", "os.remove", "os.chmod", "os.utime"}:
+        for arg in args[:2]:
+            if isinstance(arg, (str, bytes, os.PathLike)) and os.fsdecode(arg) in _WATCHED["paths"]:
+                _WATCHED["hits"].append((event, os.fsdecode(arg)))
+
+
+sys.addaudithook(_audit)  # an audit hook cannot be removed; it does nothing while no path is watched
+
+
+@pytest.fixture
+def watched_login(env, monkeypatch, tmp_path):
+    login = tmp_path / "login.json"
+    login.write_text('{"access_token": "FAKE"}\n')
+    login.chmod(0o600)
+    monkeypatch.setattr(config, "LOGIN", login)
+    _WATCHED.update(paths=(str(login), str(tmp_path / "login.lock")), hits=[])
+    yield login
+    _WATCHED.update(paths=(), hits=[])
+
+
+def test_on_never_opens_or_writes_the_login_file_through_any_api(watched_login, monkeypatch):
+    env_fake = FakeRun({"simplicio-a": [issue(1)]})
+    monkeypatch.setattr("simplicio_loop.watcher247.proc.run", env_fake)
+    monkeypatch.setenv(SWITCH, "1")
+    baseline()
+    run_tick()
+    run_tick()
+    assert _WATCHED["hits"] == []
+
+
+def test_the_audit_hook_does_see_a_real_read(watched_login, monkeypatch):
+    """Control: the real gate opens the file, so the empty hit list above proves something."""
+    async def no_network(*_args, **_kwargs):
+        raise urllib.error.URLError("no network in tests")
+
+    monkeypatch.setattr(subscription, "http_json", no_network)
+    asyncio.run(REAL_GATE())
+    assert _WATCHED["hits"]
+
+
+def test_on_still_blocks_without_a_sandbox(env, gate, monkeypatch):
+    fake = env(FakeRun({"simplicio-a": [issue(1)]}))
+    monkeypatch.delenv("SIMPLICIO_247_ALLOW_UNSANDBOXED", raising=False)
+    monkeypatch.setenv(SWITCH, "1")
+    baseline()
+    run_tick()
+    status = read_json(config.STATUS)
+    assert status["phase"] == "blocked" and status["reason_code"] == "sandbox_unavailable" and fake.turbo_argv == []
+
+
+def test_on_still_needs_a_verify_command_and_honours_the_skip_label(env, gate, monkeypatch):
+    fake = env(FakeRun({"simplicio-a": [issue(1)], "simplicio-b": [issue(2, labels=("loop:auto", "wontfix"))]},
+                       loop_toml={"simplicio-a": "enabled = true\n"}))
+    monkeypatch.setenv(SWITCH, "1")
+    baseline()
+    run_tick()
+    assert fake.turbo_argv == []
+    assert read_json(config.STATUS)["skipped_issues"] == {
+        "simplicio-a#1": "verify_not_configured", "simplicio-b#2": "skip_label"}

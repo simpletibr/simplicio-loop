@@ -10,7 +10,7 @@ rehearsal fails on them before it does anything else.
 
 - **Dev login switch (#1604, part of #1589).** The string `SIMPLICIO_247_NO_LOGIN` must not exist anywhere under
   `simplicio_loop/`. Check it with `python3 scripts/release_rehearsal.py dev-switches --repo .` (exit 0 = clean, exit 1
-  = files listed). `release_rehearsal.py run` stops with `reason_code=dev_switch_present`. Remove the switch and make the
+  = files listed). `release_rehearsal.py run` and `version_sync.py apply` stop with `reason_code=dev_switch_present`. Remove the switch and make the
   login gate of the 24/7 tick the only path again before the release.
 
 ## Current, mechanical steps
@@ -57,7 +57,7 @@ rehearsal fails on them before it does anything else.
    scratch copy, bumps the version in that scratch copy only (a safe `+rehearsalNNNN`
    local-version label by default — never the real repo's version files), builds a real wheel,
    generates+verifies checksums, best-effort gpg-signs them, generates an SBOM and a provenance
-   statement (see docs/SUPPLY_CHAIN.md), and clean-room install-smokes the result. The receipt's
+   statement (see docs/SUPPLY_CHAIN.md), and clean-room install-smokes the result (the smoke installs the wheel with its dependencies from the package index, so it needs network). The receipt's
    `governance` key snapshots the current measured repo size (`docs/repo_size_report.json`) and
    history-migration candidate set (`docs/history_migration_plan.json`), and
    `docs/REPO_SIZE_REPORT.md`/`docs/HISTORY_MIGRATION_PLAN.md` are copied into `dist/` alongside

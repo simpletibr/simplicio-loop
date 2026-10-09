@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from collections.abc import Awaitable, Iterator, Mapping
+from collections.abc import Awaitable, Callable, Iterator, Mapping
 from contextlib import contextmanager
 from typing import Any
 
@@ -21,6 +21,8 @@ from .quality_events import _emit
 
 COMMAND_MAX = 200
 REASON_MAX = 100
+# ``emit(kind, payload, severity)`` appends one event. The default is the worker seam; a runner passes its own run directory.
+Emit = Callable[[str, dict[str, Any], str], None]
 
 
 def scrub(command: Any) -> str:
@@ -39,15 +41,22 @@ class Span:
         self.reason: Any = None
 
 
-def _write(task_id: Any, kind: str, payload: Any, severity: str, iteration: Any, env: Any) -> None:
+def _worker_emit(task_id: Any, iteration: Any, env: Any) -> Emit:
+    """The default writer: the worker's quality-events seam, task scope."""
+    def emit(kind: str, payload: dict[str, Any], severity: str) -> None:
+        _emit(task_id, [(kind, payload, severity)], iteration, env)
+    return emit
+
+
+def _write(emit: Emit, kind: str, payload: Any, severity: str) -> None:
     """Append one event; ``payload`` is a callable so that building it is fail-open too."""
     try:
-        _emit(task_id, [(kind, payload(), severity)], iteration, env)
+        emit(kind, payload(), severity)
     except Exception:  # noqa: BLE001 - fail-open: telemetry must never break the run
         pass
 
 
-def _finish(task_id: Any, span: Span, began: float, interrupted: bool, iteration: Any, env: Any) -> None:
+def _finish(emit: Emit, span: Span, began: float, interrupted: bool) -> None:
     code = span.exit_code if isinstance(span.exit_code, int) and not isinstance(span.exit_code, bool) else None
     status = "interrupted" if interrupted else "error" if code is None else "pass" if code == 0 else "fail"
 
@@ -57,22 +66,26 @@ def _finish(task_id: Any, span: Span, began: float, interrupted: bool, iteration
         if span.reason:
             found["reason"] = str(span.reason)[:REASON_MAX]
         return found
-    _write(task_id, "command_finished", payload, "info" if status == "pass" else "warning", iteration, env)
+    _write(emit, "command_finished", payload, "info" if status == "pass" else "warning")
 
 
 @contextmanager
-def track(task_id: Any, command: Any, *, iteration: Any = None, env: Mapping[str, Any] | None = None) -> Iterator[Span]:
-    """Append ``command_started`` now and the matching ``command_finished`` when the block ends, however it ends."""
+def track(task_id: Any, command: Any, *, iteration: Any = None, env: Mapping[str, Any] | None = None,
+          emit: Emit | None = None) -> Iterator[Span]:
+    """Append ``command_started`` now and the matching ``command_finished`` when the block ends, however it ends.
+
+    ``emit`` replaces the default writer (the worker seam for ``task_id``, ``iteration`` and ``env``).
+    """
+    write = emit or _worker_emit(task_id, iteration, env)
     span = Span()
-    _write(task_id, "command_started", lambda: {"command_id": span.command_id, "command": scrub(command)},
-           "info", iteration, env)
+    _write(write, "command_started", lambda: {"command_id": span.command_id, "command": scrub(command)}, "info")
     began = time.monotonic()
     try:
         yield span
     except BaseException:
-        _finish(task_id, span, began, True, iteration, env)
+        _finish(write, span, began, True)
         raise
-    _finish(task_id, span, began, False, iteration, env)
+    _finish(write, span, began, False)
 
 
 async def around(task_id: Any, command: Any, run: Awaitable[Any], *, iteration: Any = None,
