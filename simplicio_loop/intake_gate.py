@@ -15,6 +15,7 @@ import asyncio
 import base64
 import re
 import tomllib
+import unicodedata
 from typing import Any, Mapping, Optional
 
 REPO_OPTED_IN_TIMEOUT = 5.0  # seconds for gh api calls
@@ -198,12 +199,25 @@ def issue_admitted(
         return False
 
     # Check author association
-    author_assoc = issue.get("author_association", "").upper()
+    author_assoc = issue.get("author_association")
+    if author_assoc is None:
+        return False
+    author_assoc = author_assoc.upper()
     if author_assoc in ("OWNER", "MEMBER", "COLLABORATOR"):
         return True
 
     # Anything else (NONE, CONTRIBUTOR, etc.) is not trusted
     return False
+
+
+def _normalize_text(text: str) -> str:
+    """Normalize text by removing accents using NFKD decomposition.
+
+    Converts accented characters to their unaccented equivalents.
+    E.g., "criterios" from "critérios", "epico" from "épico".
+    """
+    normalized = unicodedata.normalize("NFKD", text)
+    return "".join(char for char in normalized if unicodedata.category(char) != "Mn")
 
 
 def triage(issue: Mapping[str, Any]) -> TriageResult:
@@ -234,8 +248,8 @@ def triage(issue: Mapping[str, Any]) -> TriageResult:
     labels = issue.get("labels") or []
     label_names = [label.get("name") if isinstance(label, dict) else label for label in labels]
 
-    # Check for epic
-    is_epic = "[EPIC]" in title.upper() or "epic" in label_names
+    # Check for epic (with accent normalization)
+    is_epic = "[EPIC]" in title.upper() or "epic" in _normalize_text(" ".join(label_names)).lower()
     if is_epic:
         return TriageResult(
             verdict="needs_human",
@@ -261,12 +275,14 @@ def triage(issue: Mapping[str, Any]) -> TriageResult:
         )
 
     # Check for acceptance criteria or concrete behavior description
+    # Normalize body for accent-insensitive matching
+    body_normalized = _normalize_text(body).lower()
     body_lower = body.lower()
     has_concrete_description = (
         ("given" in body_lower and "when" in body_lower and "then" in body_lower)
-        or ("dado" in body_lower and "quando" in body_lower and "entao" in body_lower)
-        or re.search(r"(acceptance criteria|criterios de aceite|scenario|cenario)", body_lower)
-        or re.search(r"(file|arquivo|function|funcao|line|linha).*:", body_lower)
+        or ("dado" in body_normalized and "quando" in body_normalized and "entao" in body_normalized)
+        or re.search(r"(acceptance criteria|criterios de acei|scenario|cenario)", body_normalized)
+        or re.search(r"(file|arquivo|function|funcao|line|linha).*:", body_normalized)
     )
 
     if not has_concrete_description:

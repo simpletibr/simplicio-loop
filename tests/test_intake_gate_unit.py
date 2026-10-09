@@ -17,6 +17,18 @@ from simplicio_loop.intake_gate import (
 )
 
 
+class TestRepoOptedInCache:
+    """Test repo_opted_in caching behavior (synchronous tests)."""
+
+    def test_cache_parameter_accepted(self):
+        """repo_opted_in function accepts optional cache dict parameter."""
+        # This test verifies the function signature accepts cache
+        from inspect import signature
+        from simplicio_loop.intake_gate import repo_opted_in
+        sig = signature(repo_opted_in)
+        assert "cache" in sig.parameters
+
+
 class TestTriageResult:
     """Test TriageResult data class."""
 
@@ -116,6 +128,14 @@ class TestIssueAdmitted:
     def test_missing_author_association(self):
         issue = {
             "labels": [{"name": "loop:auto"}],
+        }
+        assert issue_admitted(issue) is False
+
+    def test_none_author_association(self):
+        """Issue with None author_association is not admitted."""
+        issue = {
+            "labels": [{"name": "loop:auto"}],
+            "author_association": None,
         }
         assert issue_admitted(issue) is False
 
@@ -320,6 +340,28 @@ class TestTriage:
             "title": "[epic] some work",
             "body": "description",
             "labels": [],
+        }
+        result = triage(issue)
+        assert result.verdict == "needs_human"
+        assert result.reason_code == "epic"
+
+    def test_accent_normalization_criterios(self):
+        """Accented 'critérios' is normalized and matches unaccented 'criterios'."""
+        issue = {
+            "title": "Fix feature",
+            "body": "Critérios de aceitação: o sistema deve funcionar quando iniciado",
+            "labels": [],
+        }
+        result = triage(issue)
+        assert result.verdict == "actionable"
+        assert result.reason_code == "actionable"
+
+    def test_accent_normalization_epic(self):
+        """Accented 'épico' in label is normalized and detected as epic."""
+        issue = {
+            "title": "Large feature",
+            "body": "description",
+            "labels": [{"name": "épico"}],
         }
         result = triage(issue)
         assert result.verdict == "needs_human"
