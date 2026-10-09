@@ -66,6 +66,7 @@ The document has these fields and no others.
 | The canonical JSON is more than 6000 estimated tokens. | `handoff_too_large` |
 
 The size uses `estimate_tokens` from `simplicio_loop/input_ceiling.py` on the JSON with sorted keys and no spaces.
+The estimate is high for prose and code and low for rare Han, Ethiopic and mathematical symbols. The module docstring has the numbers.
 
 ## Compatibility
 
