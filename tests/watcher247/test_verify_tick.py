@@ -15,11 +15,11 @@ class VerifyingRun(FakeRun):
         super().__init__(issues, **kwargs)
         self.document = document
 
-    async def __call__(self, argv, timeout=120, cwd=None, stdin=None):
+    async def __call__(self, argv, timeout=120, cwd=None, stdin=None, env=None):
         if list(argv[:2]) == ["simplicio-loop", "turbo"]:
-            await super().__call__(argv, timeout, cwd, stdin)
+            await super().__call__(argv, timeout, cwd, stdin, env)
             return proc.Result(0, json.dumps(self.document))
-        return await super().__call__(argv, timeout, cwd, stdin)
+        return await super().__call__(argv, timeout, cwd, stdin, env)
 
 
 def checkout(**files):

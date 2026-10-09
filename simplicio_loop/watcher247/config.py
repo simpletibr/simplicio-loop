@@ -44,7 +44,7 @@ def concurrency() -> int:
 
 def set_state_dir(path: str | Path) -> None:
     """Point every state path at `path`."""
-    global STATE_DIR, ROOT, WORK, LOGS, BASELINE, CLAIMS, STATUS, STOP, DISABLED, FIXES
+    global STATE_DIR, ROOT, WORK, LOGS, BASELINE, CLAIMS, STATUS, STOP, DISABLED, BUDGET, FIXES
     STATE_DIR = ROOT = Path(path)
     WORK = ROOT / "work"
     LOGS = ROOT / "logs"
@@ -53,6 +53,7 @@ def set_state_dir(path: str | Path) -> None:
     STATUS = ROOT / "status.json"
     STOP = ROOT / "STOP"
     DISABLED = ROOT / "issues-disabled.json"
+    BUDGET = ROOT / "budget.json"
     FIXES = ROOT / "fixes.json"  # queued PR-review fixes, see tick._enqueue_fixes
 
 

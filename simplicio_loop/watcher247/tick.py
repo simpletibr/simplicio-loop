@@ -5,6 +5,7 @@ import asyncio
 import contextlib
 import hashlib
 import json
+import os
 import re
 import subprocess
 from dataclasses import dataclass
@@ -12,7 +13,7 @@ from pathlib import Path
 
 from .. import intake_gate, watcher_github
 from ..claim_lease import ClaimStore
-from . import config, github, proc, state, subscription, verify
+from . import budget, config, github, proc, sandbox, state, subscription, verify
 
 _STATE_DIRS = (".simplicio-loop/", ".simplicio/")
 
@@ -175,8 +176,12 @@ async def commit_and_pr(dest: Path, repo: str, branch: str, head: str, issue: di
 
 async def _run_turbo(dest: Path, repo: str, issue: dict, attempts: int, fix: str) -> dict:
     """Run headless turbo; return {turbo_status, exit_code}, raise when it did not finish ok."""
+    await budget.record("model_calls")
     test_cmd = await asyncio.to_thread(verify.detect_test_command, dest)
-    result = await proc.run(verify.turbo_argv(dest, task_text(repo, issue, fix), test_cmd), timeout=config.TURBO_TIMEOUT_S)
+    argv = sandbox.wrap(verify.turbo_argv(dest, task_text(repo, issue, fix), test_cmd),
+                        clone=dest, state_dir=config.ROOT)
+    env = sandbox.scrubbed_env(os.environ, home=Path.home(), keep=("OPENROUTER_API_KEY",))
+    result = await proc.run(argv, timeout=config.TURBO_TIMEOUT_S, cwd=dest, env=env)
     log_path = config.LOGS / f"{repo}-{issue['number']}-{attempts}.log"
     await asyncio.to_thread(log_path.parent.mkdir, parents=True, exist_ok=True)
     await asyncio.to_thread(
@@ -220,6 +225,7 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
     if token is None:
         state.log(f"lease held or final {ident}")
         return
+    await budget.record("issues")
     verdict = None if work.fix else intake_gate.triage(work.issue)
     try:
         claim = await watcher_github.claim_on_github(repo=full, issue=str(number), owner=config.OWNER, runner=runner)
@@ -245,6 +251,8 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                 turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix)
                 await _phase(runner, name, number, "VERIFYING", detail="turbo ok; publicando o diff")
                 url = await commit_and_pr(dest, name, work.branch, head, work.issue, pr=work.pr, label=turbo["verify"])
+                if url:
+                    await budget.record("prs")
         finally:
             beat.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -304,6 +312,15 @@ async def tick(dry_run: bool = False) -> None:
         await status(phase="stopped")
         state.log("STOP present")
         return
+    if blocked := sandbox.refusal():
+        await status(phase="blocked", reason_code=blocked)
+        state.log(f"blocked: {blocked}")
+        return
+    if capped := await budget.reached():
+        await status(phase="daily_cap_reached", reason_code="daily_cap_reached", cap=capped,
+                     budget=await budget.snapshot())
+        state.log(f"daily cap reached: {capped}")
+        return
     sub = None
     if dry_run:
         state.log("[dry-run] subscription check skipped")
@@ -322,7 +339,7 @@ async def tick(dry_run: bool = False) -> None:
     found = await github.repos()
     baseline = await state.load(config.BASELINE, None)
     fixes = await state.load(config.FIXES, {"queued": {}, "seen": []})
-    limit = config.concurrency()
+    limit = min(config.concurrency(), await budget.issues_left())
     gate_cache: dict = {}
     seen: list[str] = []
     batch: list[Work] = []
