@@ -605,7 +605,7 @@ class TestCompare:
             "dependency_wait_p95_s": 20.0,
             "dependency_wait_max_s": 25.0,
         }
-        result = squad_metrics.compare(summary, summary)
+        result = squad_metrics.compare({**summary, "mode": "baseline"}, {**summary, "mode": "v2"})  # a before and an after, each labeled
         assert result["warnings"] == []
 
 
@@ -1001,3 +1001,209 @@ class TestHostileSummaries:
         for odd in (deep, Path("/dev/zero"), tmp_path):
             assert cli_impl.main(["squads", "metrics", "--compare", str(good), str(odd), "--json"]) == 2
             assert json.loads(capsys.readouterr().out)["status"] == "BLOCKED"
+
+
+# --- #1565: a task that failed or opened no PR is counted too (survivorship), and a run says which mode it ran in ---
+
+
+def _record(initial="execution", final="execution", escalated=False, outcome="ok", issue="repo#1"):
+    """A measured task record; `outcome` None builds one whose final outcome was not observed."""
+    steps = [step(initial, "failed", "verify_failed"), step(final, "ok")] if escalated else [step(initial, "ok")]
+    return {**squad_metrics.task_record(steps, [], None, {}, final_outcome=outcome), "issue": issue}
+
+
+class TestFinalOutcome:
+    CLIMB_THEN_FAIL = [step("execution", "failed", "verify_failed"), step("execution", "failed", "verify_failed"),
+                       step("coordination", "failed", "verify_failed"), step("planning", "failed", "verify_failed")]
+
+    def test_a_task_that_climbed_and_then_failed_is_a_measured_escalation_with_outcome_failed(self):
+        record = squad_metrics.task_record(self.CLIMB_THEN_FAIL, [], None, {}, final_outcome="failed")
+        assert (record["initial_role"], record["final_role"]) == ("execution", "planning")
+        assert [(e["from"], e["to"]) for e in record["escalations"]] == [("execution", "coordination"), ("coordination", "planning")]
+        assert record["final_outcome"] == "failed" and record["proof_kind"]["final_outcome"] == "measured"
+        assert "final_outcome" not in record["unverified"]
+
+    @pytest.mark.parametrize("outcome", ["ok", "failed", "no_pr"])
+    def test_the_three_outcomes_are_measured(self, outcome):
+        record = squad_metrics.task_record([step("execution")], [], None, {}, final_outcome=outcome)
+        assert record["final_outcome"] == outcome and record["proof_kind"]["final_outcome"] == "measured"
+
+    @pytest.mark.parametrize("outcome", [None, "", "done", "OK", 1, True, ["ok"]])
+    def test_an_outcome_that_was_not_observed_is_unverified_never_guessed(self, outcome):
+        record = squad_metrics.task_record([step("execution")], [], None, {}, final_outcome=outcome)
+        assert record["final_outcome"] is None and record["proof_kind"]["final_outcome"] == "UNVERIFIED"
+        assert record["unverified"]["final_outcome"] == "outcome_not_observed"
+
+    def test_the_recorder_failure_record_leaves_the_outcome_unverified_too(self):
+        record = squad_metrics.unverified_record("metrics_error")
+        assert record["final_outcome"] is None and record["proof_kind"]["final_outcome"] == "UNVERIFIED"
+        assert record["unverified"]["final_outcome"] == "metrics_error"
+
+    def test_no_steps_with_a_known_outcome_keeps_the_escalation_unverified(self):
+        """The openrouter executor has no ladder: the outcome is known (a PR opened), the escalation is not."""
+        record = squad_metrics.task_record([], [], None, {}, final_outcome="ok")
+        assert record["escalations"] is None and record["unverified"]["escalations"] == "no_steps_recorded"
+        assert record["final_outcome"] == "ok" and record["proof_kind"]["final_outcome"] == "measured"
+
+
+class TestSummaryBySplitOutcome:
+    def test_the_overall_rate_covers_every_outcome_and_each_outcome_has_its_own_rate_and_n(self):
+        records = [_record(outcome="ok", issue="r#1"), _record(outcome="ok", escalated=True, final="coordination", issue="r#2"),
+                   _record(outcome="failed", escalated=True, final="coordination", issue="r#3"),
+                   _record(outcome="failed", issue="r#4"), _record(outcome="no_pr", issue="r#5")]
+        result = squad_metrics.summarize_records(records)
+        assert (result["escalation_n"], result["escalated"], result["escalation_rate"]) == (5, 2, 0.4)
+        assert result["by_final_outcome"] == {
+            "ok": {"n": 2, "escalated": 1, "escalation_rate": 0.5},
+            "failed": {"n": 2, "escalated": 1, "escalation_rate": 0.5},
+            "no_pr": {"n": 1, "escalated": 0, "escalation_rate": 0.0}}
+
+    def test_leaving_out_the_failed_tasks_would_hide_the_escalations(self):
+        """The survivorship case: every task that climbed also failed, so the completed-only rate is 0 and the overall is not."""
+        records = [_record(outcome="ok", issue="r#1"), _record(outcome="ok", issue="r#2"),
+                   _record(outcome="failed", escalated=True, final="coordination", issue="r#3")]
+        result = squad_metrics.summarize_records(records)
+        assert result["by_final_outcome"]["ok"]["escalation_rate"] == 0.0
+        assert result["escalation_rate"] == pytest.approx(0.3333, abs=1e-4) and result["escalation_n"] == 3
+
+    def test_an_outcome_with_no_task_still_shows_n_zero_and_no_rate(self):
+        result = squad_metrics.summarize_records([_record(outcome="ok")])
+        assert result["by_final_outcome"]["failed"] == {"n": 0, "escalated": 0, "escalation_rate": None}
+        assert result["by_final_outcome"]["no_pr"] == {"n": 0, "escalated": 0, "escalation_rate": None}
+        assert squad_metrics.summarize_records([])["by_final_outcome"]["ok"]["escalation_rate"] is None
+
+    def test_the_split_adds_up_to_the_denominator_of_the_overall_rate(self):
+        records = [_record(outcome=o, escalated=e, final="coordination" if e else "execution", issue=f"r#{i}")
+                   for i, (o, e) in enumerate([("ok", True), ("failed", False), ("no_pr", True), (None, False), ("ok", False)])]
+        result = squad_metrics.summarize_records(records)
+        assert sum(row["n"] for row in result["by_final_outcome"].values()) == result["escalation_n"] == 5
+        assert sum(row["escalated"] for row in result["by_final_outcome"].values()) == result["escalated"] == 2
+
+    def test_a_measured_escalation_without_an_observed_outcome_goes_to_unknown_not_to_ok(self):
+        result = squad_metrics.summarize_records([_record(outcome=None)])
+        assert result["by_final_outcome"]["unknown"] == {"n": 1, "escalated": 0, "escalation_rate": 0.0}
+        assert result["by_final_outcome"]["ok"]["n"] == 0
+
+    def test_a_record_written_before_the_field_existed_is_unknown_too(self):
+        old = {"initial_role": "execution", "final_role": "execution", "escalations": [], "depends_on": [], "dependency_wait_s": 0.0,
+               "proof_kind": {"escalations": "measured", "dependency_wait": "measured"}, "unverified": {}, "issue": "r#1"}
+        result = squad_metrics.summarize_records([old])
+        assert result["escalation_n"] == 1 and result["by_final_outcome"]["unknown"]["n"] == 1
+
+    def test_an_unverified_escalation_is_in_no_outcome_row(self):
+        record = {**squad_metrics.task_record([], [], None, {}, final_outcome="ok"), "issue": "r#1"}
+        result = squad_metrics.summarize_records([record])
+        assert result["escalation_n"] == 0 and result["escalation_unverified"] == 1
+        assert all(row["n"] == 0 for row in result["by_final_outcome"].values())
+
+    def test_an_odd_outcome_in_a_hand_edited_record_is_unknown(self):
+        record = {**_record(), "final_outcome": {"x": 1}}
+        assert squad_metrics.summarize_records([record])["by_final_outcome"]["unknown"]["n"] == 1
+
+    def test_the_text_summary_prints_the_split_with_n(self):
+        records = [_record(outcome="ok"), _record(outcome="failed", escalated=True, final="coordination", issue="r#2")]
+        text = squad_metrics.render_summary(squad_metrics.summarize_records(records))
+        assert "ok: n=1" in text and "failed: n=1" in text and "no_pr: n=0" in text
+
+
+def _mode_report(run_id, mode, *, with_metrics=True):
+    tasks = [task(1, "repo#1", steps=[step("execution", "ok")])] if with_metrics else [{"task_id": "x", "issue": "repo#9"}]
+    data = report(run_id=run_id, tasks=tasks)
+    if mode is not None:
+        data["mode"] = mode
+    return data
+
+
+class TestRunMode:
+    def test_a_summary_names_the_mode_of_its_reports(self):
+        assert squad_metrics.summarize([_mode_report("a", "baseline"), _mode_report("b", "baseline")])["mode"] == "baseline"
+        assert squad_metrics.summarize([_mode_report("a", "v2")])["mode"] == "v2"
+
+    def test_reports_of_two_modes_make_a_mixed_summary_with_the_count_of_each(self):
+        summary = squad_metrics.summarize([_mode_report("a", "baseline"), _mode_report("b", "v2"), _mode_report("c", "v2")])
+        assert summary["mode"] == "mixed" and summary["modes"] == {"baseline": 1, "v2": 2}
+
+    def test_a_report_without_a_mode_is_unknown_not_v2(self):
+        summary = squad_metrics.summarize([_mode_report("a", None)])
+        assert summary["mode"] is None and summary["modes"] == {"unknown": 1}
+
+    @pytest.mark.parametrize("odd", ["BASELINE", "", 1, ["v2"], {"a": 1}])
+    def test_an_odd_mode_value_is_unknown(self, odd):
+        assert squad_metrics.summarize([_mode_report("a", odd)])["mode"] is None
+
+    def test_a_report_with_no_squad_task_does_not_set_the_mode(self):
+        summary = squad_metrics.summarize([_mode_report("a", "baseline"), _mode_report("b", "v2", with_metrics=False)])
+        assert summary["mode"] == "baseline" and summary["modes"] == {"baseline": 1}
+
+    def test_the_summary_of_no_reports_has_no_mode(self):
+        assert squad_metrics.summarize([])["mode"] is None
+
+
+def _summary(mode, **extra):
+    base = squad_metrics.summarize_records([_record(issue="r#1")] * 1)
+    base["mode"] = mode
+    return {**base, **extra}
+
+
+class TestCompareModes:
+    def test_the_two_sides_are_labeled_with_their_mode(self):
+        result = squad_metrics.compare(_summary("baseline"), _summary("v2"))
+        assert (result["before_mode"], result["after_mode"]) == ("baseline", "v2")
+
+    @pytest.mark.parametrize("mode", ["baseline", "v2"])
+    def test_two_runs_of_the_same_mode_are_refused(self, mode):
+        with pytest.raises(ValueError, match=f"both sides.*{mode}"):
+            squad_metrics.compare(_summary(mode), _summary(mode))
+
+    def test_a_mixed_side_is_refused(self):
+        for before, after in (("mixed", "v2"), ("baseline", "mixed")):
+            with pytest.raises(ValueError, match="mixed"):
+                squad_metrics.compare(_summary(before), _summary(after))
+
+    def test_a_side_with_no_recorded_mode_is_compared_with_a_warning(self):
+        result = squad_metrics.compare(_summary(None), _summary("v2"))
+        assert result["before_mode"] is None and result["after_mode"] == "v2"
+        assert any("before" in w and "mode" in w and "UNVERIFIED" in w for w in result["warnings"])
+
+    def test_before_v2_and_after_baseline_is_compared_with_a_warning_about_the_order(self):
+        result = squad_metrics.compare(_summary("v2"), _summary("baseline"))
+        assert any("baseline" in w and "order" in w for w in result["warnings"])
+
+    def test_the_expected_order_has_no_mode_warning(self):
+        result = squad_metrics.compare(_summary("baseline"), _summary("v2"))
+        assert not [w for w in result["warnings"] if "mode" in w]
+
+    def test_the_text_table_labels_each_side(self):
+        text = squad_metrics.render_compare(squad_metrics.compare(_summary("baseline"), _summary("v2")))
+        header = next(line for line in text.splitlines() if line.startswith("Metric"))
+        assert "Before [baseline]" in header and "After [v2]" in header
+
+    @pytest.mark.parametrize("bad", ["V2", "", 3, ["v2"], True])
+    def test_a_hand_edited_mode_is_blocked(self, tmp_path, capsys, bad):
+        good, odd = tmp_path / "good.json", tmp_path / "odd.json"
+        good.write_text(json.dumps(_summary("baseline")))
+        odd.write_text(json.dumps(_summary(bad)))
+        assert cli_impl.main(["squads", "metrics", "--compare", str(good), str(odd), "--json"]) == 2
+        assert "mode" in json.loads(capsys.readouterr().out)["reason"]
+
+    def test_the_cli_refuses_two_runs_of_the_same_mode_and_labels_two_different_ones(self, tmp_path, capsys):
+        base, v2a, v2b = tmp_path / "base.json", tmp_path / "v2a.json", tmp_path / "v2b.json"
+        base.write_text(json.dumps(_summary("baseline")))
+        v2a.write_text(json.dumps(_summary("v2")))
+        v2b.write_text(json.dumps(_summary("v2")))
+        assert cli_impl.main(["squads", "metrics", "--compare", str(v2a), str(v2b), "--json"]) == 2
+        refused = json.loads(capsys.readouterr().out)
+        assert refused["status"] == "BLOCKED" and "v2" in refused["reason"] and "rows" not in refused
+        assert cli_impl.main(["squads", "metrics", "--compare", str(base), str(v2a)]) == 0
+        assert "Before [baseline]" in capsys.readouterr().out
+
+    def test_reports_of_a_baseline_run_and_a_v2_run_compare_end_to_end(self, tmp_path, capsys):
+        for name, mode in (("before", "baseline"), ("after", "v2")):
+            folder = tmp_path / name
+            folder.mkdir()
+            (folder / "r.json").write_text(json.dumps(_mode_report(name, mode)))
+            assert cli_impl.main(["squads", "metrics", "--reports", str(folder), "--json"]) == 0
+            (tmp_path / f"{name}.json").write_text(capsys.readouterr().out)
+        assert cli_impl.main(["squads", "metrics", "--compare", str(tmp_path / "before.json"), str(tmp_path / "after.json"), "--json"]) == 0
+        result = json.loads(capsys.readouterr().out)
+        assert (result["before_mode"], result["after_mode"]) == ("baseline", "v2")

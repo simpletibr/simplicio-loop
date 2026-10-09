@@ -236,6 +236,11 @@ def _note_failed_attempt(ctx: points.PointContext, number: int, reasons: str) ->
         state.log(f"escalation note failed {ctx.repo}#{number}: {exc}")
 
 
+def _without_pr(steps: list[dict[str, str]], failed: bool) -> squad_flow.Outcome | None:
+    """What a worker that opened no PR hands the squad metrics (#1565): its steps and how it ended. None when no step ran."""
+    return squad_flow.Outcome("", "", steps, "failed" if failed else "no_pr") if steps else None
+
+
 async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: float,
                   executor: host_mode.Executor, probe: squad_capacity.Probe | None = None) -> squad_flow.Outcome | None:
     name = work.repo
@@ -249,6 +254,8 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
     await budget.record("issues")
     verdict = None if work.fix else intake_gate.triage(work.issue)
     ctx = None
+    steps: list[dict[str, str]] = []  # the steps run_exec ran, also when it failed: a failed task counts in the metrics (#1565)
+    run_failed = False
     try:
         claim = await watcher_github.claim_on_github(repo=full, issue=str(number), owner=config.OWNER, runner=runner)
         if not claim.verified:
@@ -283,6 +290,7 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                 task = ctx.task_text + plan_hints(await points.run("plan", ctx))  # one text: retry reasons + hints
                 turbo = await _run_turbo(dest, name, work.issue, attempts, work.fix, executor, task=task, role=work.role,
                                           run_id=run_id)
+                steps = turbo.get("steps") or []
                 ctx = replace(ctx, turbo_json=turbo, verify=turbo["verify"])
                 await points.run("apply", ctx)
                 await _phase(runner, name, number, "VERIFYING", detail="turbo ok; publicando o diff")
@@ -295,6 +303,9 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
                 # no diff means no PR: the run closes blocked, never done (the item is BLOCKED / done_no_diff below)
                 await asyncio.to_thread(events.close_run, dest, run_id, "ok" if url else "blocked", pr_url=url)
         except BaseException as exc:  # a run that stopped before the pr stage still closes on the kanban
+            if not steps:
+                steps = host_mode.steps_of(exc)
+                run_failed = bool(steps)
             blocked = isinstance(exc, (points.PointBlocked, points.PointDeferred))
             await asyncio.to_thread(events.close_run, dest, run_id, "blocked" if blocked else "failed")
             raise
@@ -310,12 +321,13 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
             await store.release(ident, token, "done_no_diff", now=clock, pr=None, **turbo)
         await points.run("done", replace(ctx, pr_url=url))
         state.log(f"done {ident} pr={url}")
-        return squad_flow.Outcome(url, turbo["verify"], turbo.get("steps") or []) if url else None
+        return squad_flow.Outcome(url, turbo["verify"], steps) if url else _without_pr(steps, failed=False)
     except points.PointDeferred as exc:  # transient: the attempt is given back and the issue is due on the next tick
         attempts = (await store.get_claim(ident)).attempts
         await _phase(runner, name, number, "BLOCKED", detail=f"deferred: {exc.reason_code}")
         await store.release(ident, token, "retry", now=clock, attempts=max(attempts - 1, 0), reason_code=exc.reason_code)
         state.log(f"point deferred {ident}: {exc}")
+        return _without_pr(steps, run_failed)
     except points.PointBlocked as exc:  # a failed attempt, like a verify failure: retry with the reasons, dead at the limit
         attempts = (await store.get_claim(ident)).attempts
         final = verify.retry_or_dead(attempts, config.MAX_ATTEMPTS)
@@ -329,11 +341,13 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
         await store.release(ident, token, final, now=clock, reason_code=exc.reason_code, error=str(exc)[:500],
                             blocked_by=reasons, next_try_at=state.iso(state.now() + config.RETRY_AFTER))
         state.log(f"point blocked {ident} {final}: {exc}")
+        return _without_pr(steps, run_failed)
     except secret_scan.SecretDetected as exc:  # the secret itself is never echoed, only the file names
         await _phase(runner, name, number, "BLOCKED",
                      detail=f"push bloqueado ({exc.reason_code}): segredo detectado em " + ", ".join(exc.files))
         await store.release(ident, token, "dead", now=clock, reason_code=exc.reason_code, error=str(exc)[:500])
         state.log(f"secret blocked {ident}: {', '.join(exc.files)}")
+        return _without_pr(steps, run_failed)
     except Exception as exc:
         attempts = (await store.get_claim(ident)).attempts
         final = verify.retry_or_dead(attempts, config.MAX_ATTEMPTS)
@@ -344,6 +358,7 @@ async def process(store: ClaimStore, runner, gate: Gate, work: Work, clock: floa
         await store.release(ident, token, final, now=clock, reason_code="turbo_failed", error=error, blocked_by="",
                             next_try_at=state.iso(state.now() + config.RETRY_AFTER))
         state.log(f"fail {ident} {final}: {error}")
+        return _without_pr(steps, run_failed)
 
 
 async def _enqueue_fixes(runner, name: str, fixes: dict) -> None:

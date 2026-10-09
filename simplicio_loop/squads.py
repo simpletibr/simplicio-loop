@@ -542,7 +542,7 @@ def configure_commands(subparsers: argparse._SubParsersAction) -> None:
     metrics.add_argument("--reports", nargs="+", metavar="PATH",
                          help="execution-report/v1 files, or directories searched for *.json (latest.json is skipped)")
     metrics.add_argument("--compare", nargs=2, metavar=("BEFORE", "AFTER"),
-                         help="two `metrics --json` outputs (or report files): numbers side by side, with n and warnings")
+                         help="two `metrics --json` outputs (or report files), baseline first then v2: numbers side by side, each side labeled with its mode, with n and warnings; refuses two runs of the same mode")
     metrics.add_argument("--json", action="store_true", help="machine-readable output")
 
 
