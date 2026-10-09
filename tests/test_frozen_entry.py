@@ -105,6 +105,26 @@ def test_dash_c_runs_code_and_keeps_the_exit_code(monkeypatch):
     assert exit_info.value.code == 3  # argv is ["-c", "a", "b"], like python -c
 
 
+def test_a_python_file_runs_like_python_script_py(monkeypatch, tmp_path):
+    """The dashboard command starts the bundled server as `sys.executable <script>`."""
+    script = tmp_path / "server.py"
+    script.write_text(
+        "import json, sys\n"
+        "json.dump({'argv': sys.argv, 'name': __name__, 'path0': sys.path[0]}, open(sys.argv[1], 'w'))\n"
+    )
+    out = tmp_path / "out.json"
+    monkeypatch.setattr(sys, "argv", ["original"])
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    assert frozen.dispatch(["/x/simplicio-loop", str(script), str(out), "--port", "1"], SCRIPTS) == 0
+    seen = __import__("json").loads(out.read_text())
+    assert seen == {"argv": [str(script), str(out), "--port", "1"], "name": "__main__", "path0": str(tmp_path)}
+
+
+def test_a_py_name_that_is_not_a_file_goes_to_the_loop(fake_entry_modules):
+    assert frozen.dispatch(["/x/simplicio-loop", "missing.py"], SCRIPTS) == 0
+    assert fake_entry_modules == [("fake_loop", ["simplicio-loop", "missing.py"])]
+
+
 def test_operator_names_are_console_scripts_of_the_project_and_importable():
     declared = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["scripts"]
     assert set(frozen.OPERATOR_NAMES) == {"simplicio-mapper", "simplicio-dev-cli", "simplicio-cli", "simplicio-py"}

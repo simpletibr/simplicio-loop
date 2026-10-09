@@ -20,11 +20,13 @@ import hashlib
 import json
 import os
 import shutil
+import re
 import statistics
 import subprocess
 import sys
 import tempfile
 import time
+import urllib.request
 import zipfile
 from pathlib import Path
 from typing import Any, Callable, Optional, Sequence
@@ -239,6 +241,24 @@ class Smoke:
         assert report["operator"] and Path(report["operator"]).is_relative_to(self.home), report["operator"]
         return f"{report['files']} data files and {report['modules']} modules found; simplicio-mapper -> {report['operator']}"
 
+    def dashboard(self) -> str:
+        """Start the panel from the binary, fetch the page and every static file it names, stop it."""
+        started = self.run([str(self.exe), "dashboard", "--port", "0", "--no-browser"])
+        assert started.returncode == 0, started.stdout[-300:] + started.stderr[-300:]
+        url = started.stdout.strip().split("simplicio-live: ")[-1]
+        base, _, query = url.partition("?")
+        try:
+            with urllib.request.urlopen(url, timeout=30) as page:
+                html = page.read().decode()
+            refs = sorted(set(re.findall(r'(?:src|href)="(/static/[^"]+)"', html)))
+            assert len(refs) >= 3, f"the page names {len(refs)} static files"
+            for ref in refs:
+                with urllib.request.urlopen(f"{base.rstrip('/')}{ref}?{query}", timeout=30) as asset:
+                    assert asset.status == 200 and asset.read(), ref
+        finally:
+            self.run([str(self.exe), "dashboard", "--stop"])
+        return f"page and {len(refs)} static files served"
+
     def operators(self) -> str:
         names = {"simplicio-mapper": "simplicio-mapper", "simplicio-dev-cli": "simplicio-cli"}
         out = []
@@ -252,6 +272,7 @@ class Smoke:
         self.check("version", self.version)
         for name, function in (("help", self.help), ("doctor stack", self.doctor), ("preflight", self.preflight),
                                ("operators by name", self.operators), ("hot path (turbo orient + apply)", self.hot_path),
+                               ("dashboard", self.dashboard),
                                ("install", self.install), ("bundled data and modules", self.data)):
             self.check(name, function)
         return self.results

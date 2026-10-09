@@ -12,8 +12,9 @@ the executable and puts it first on ``PATH``. The links keep the program name in
 the ``console_scripts`` of the packaged ``simplicio-loop`` metadata, so ``pyproject.toml``
 stays the only list.
 
-``simplicio-loop -m MODULE ...`` and ``simplicio-loop -c CODE ...`` run bundled code. The
-bundled operators use ``sys.executable`` with these two flags.
+``simplicio-loop -m MODULE ...``, ``-c CODE ...`` and ``FILE.py ...`` run code like python does.
+The bundled programs start themselves through ``sys.executable`` this way: the dashboard server
+is ``sys.executable script.py``.
 """
 from __future__ import annotations
 
@@ -59,17 +60,28 @@ def _call(spec: str) -> int:
     return 0 if code is None else code
 
 
+def _run_like_python(args: Sequence[str]) -> bool:
+    """Run ``-m MODULE``, ``-c CODE`` or ``FILE.py`` as python does. False for any other arguments."""
+    if len(args) >= 2 and args[0] == "-m":
+        sys.argv = [args[1], *args[2:]]
+        runpy.run_module(args[1], run_name="__main__", alter_sys=True)
+    elif len(args) >= 2 and args[0] == "-c":
+        sys.argv = ["-c", *args[2:]]
+        exec(compile(args[1], "<string>", "exec"), {"__name__": "__main__"})  # noqa: S102
+    elif args and args[0].endswith(".py") and os.path.isfile(args[0]):
+        sys.argv = list(args)
+        sys.path.insert(0, os.path.dirname(os.path.abspath(args[0])))
+        runpy.run_path(args[0], run_name="__main__")
+    else:
+        return False
+    return True
+
+
 def dispatch(argv: Sequence[str], scripts: Optional[Mapping[str, str]] = None) -> int:
     """Run the program that ``argv[0]`` names, with ``sys.argv`` set like a console script."""
     name = program_name(argv[0]) if argv else LOOP_NAME
     args = list(argv[1:])
-    if name not in OPERATOR_NAMES and len(args) >= 2 and args[0] in ("-m", "-c"):
-        if args[0] == "-m":
-            sys.argv = [args[1], *args[2:]]
-            runpy.run_module(args[1], run_name="__main__", alter_sys=True)
-        else:
-            sys.argv = ["-c", *args[2:]]
-            exec(compile(args[1], "<string>", "exec"), {"__name__": "__main__"})  # noqa: S102
+    if name not in OPERATOR_NAMES and _run_like_python(args):
         return 0
     sys.argv = [name, *args]
     return _call(resolve_entry(name, console_scripts() if scripts is None else scripts))
