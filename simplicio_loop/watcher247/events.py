@@ -12,6 +12,9 @@ from typing import Any, Dict, Optional
 
 from .. import dashboard_events
 
+# Track the current phase per run_dir so we can emit phase_exited
+_CURRENT_PHASE: Dict[str, str] = {}
+
 
 def emit_stage(
     run_dir: Any,
@@ -35,7 +38,8 @@ def emit_stage(
         emit_stage(run_dir, "pr", "ok", pr_number=123)
     """
     try:
-        run_dir = Path(run_dir)
+        run_dir_path = Path(run_dir)
+        run_dir_key = str(run_dir_path.resolve())
 
         # Map status to severity
         if status == "error":
@@ -43,24 +47,40 @@ def emit_stage(
         else:
             severity = "info"
 
-        # Build the spec for emit_batch
-        # Use namespaced kinds (watcher.intake, watcher.pr) and operator source
-        spec = {
-            "kind": f"watcher.{stage}",
+        specs = []
+        current_phase = _CURRENT_PHASE.get(run_dir_key)
+
+        # Emit phase_exited for the previous phase if transitioning
+        if current_phase is not None and current_phase != stage:
+            specs.append({
+                "kind": "phase_exited",
+                "source": "operator",
+                "phase": current_phase,
+                "severity": severity,
+                "scope": "collection",
+                "payload": {"to": stage, "status": status, **fields},
+            })
+
+        # Emit phase_entered for the new stage
+        specs.append({
+            "kind": "phase_entered",
             "source": "operator",
             "phase": stage,
             "severity": severity,
             "scope": "collection",
-            "payload": dict(fields) if fields else {},
-        }
+            "payload": {"from": current_phase, "status": status, **fields},
+        })
 
         # Load the dashboard_events module and call emit_batch directly
         module = dashboard_events.load()
         if module is None:
             return None
 
-        written = module.emit_batch(run_dir, [spec])
-        return written[0] if written else None
+        written = module.emit_batch(run_dir_path, specs)
+        if written:
+            _CURRENT_PHASE[run_dir_key] = stage
+            return written[-1]
+        return None
 
     except Exception:
         # Fail-open: never raise into the watcher
