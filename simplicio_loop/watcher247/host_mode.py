@@ -254,7 +254,8 @@ def _note_step(report: dict[str, Any], *, repo: str, issue: dict, step: int, pla
         issue=str(issue["number"]), wall_ms=wall_ms, outcome=outcome, operators=["exec-planner", "dev-cli"])
     report["tasks"][-1].update(
         {"step": step, "role": planned.role, "family": planned.family, "model": planned.model,
-         "effort": planned.effort, "planner": planned.reason_code})
+         "effort": planned.effort, "planner": planned.reason_code,
+         "structured_output": planned.structured_output, "structured_reason": planned.structured_reason})
 
 
 async def run_exec(dest: Path, repo: str, issue: dict, task: str, test_cmd: str | None, executor: Executor,

@@ -388,7 +388,7 @@ def _run_provider(repo: str, texts: Sequence[str], target: str | None, context: 
 
 async def _run_provider_async(repo: str, texts: Sequence[str], target: str | None, context: Sequence[str],
                                tasks_file: str | None, verify: str | None, run_id: str | None = None) -> int:
-    from . import turbo_provider
+    from . import structured_output, turbo_provider
     from .turbo import NO_RECEIPT, plan_prompt, repair_with_test_output, run_turbo
     from .turbo_run import TurboRun
 
@@ -412,8 +412,11 @@ async def _run_provider_async(repo: str, texts: Sequence[str], target: str | Non
     except ValueError as exc:
         _emit({**head, "status": "blocked", "reason_code": "turbo_run_id_invalid", "detail": str(exc)})
         return 2
-    head = {**head, "run_id": run_.run_id, **plan_prompt()}
-    complete = functools.partial(turbo_provider.complete, session_id=turbo_provider.session_id_for(root))
+    mode, why = structured_output.provider_receipt(turbo_provider.model_name())
+    head = {**head, "run_id": run_.run_id, "structured_output": mode, "structured_reason": why, **plan_prompt()}
+    complete = functools.partial(
+        turbo_provider.complete, session_id=turbo_provider.session_id_for(root),
+        **structured_output.provider_fields(turbo_provider.model_name(), tasks, root))
     # The saved survey marker belongs to one run. Ask Mapper again on every invocation: its own
     # tree-state cache keeps an unchanged tree free and byte-identical, and a changed tree gets a new map.
     (root / ".simplicio-loop" / "turbo-survey.json").unlink(missing_ok=True)

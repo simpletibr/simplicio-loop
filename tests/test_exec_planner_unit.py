@@ -93,7 +93,7 @@ class TestHermeticPath:
 class TestBuildArgvPlanOnly:
     @pytest.mark.parametrize("family", ["claude", "codex", "grok", "gemini"])
     def test_no_write_or_auto_approve_flags(self, family):
-        argv = exec_planner.build_argv(family, "planning", "p", "m", "/w", "high")
+        argv = exec_planner.build_argv(family, "planning", "p", "m", "/w", "high", schema_file="/s/p.json")
         for flag in FORBIDDEN_FLAGS:
             assert flag not in argv
 
@@ -106,7 +106,7 @@ class TestBuildArgvPlanOnly:
         assert argv[argv.index("--tools") + 1] == "Read"
 
     def test_codex_flags(self):
-        argv = exec_planner.build_argv("codex", "planning", "P", "gpt-6-astra", "/w", "high")
+        argv = exec_planner.build_argv("codex", "planning", "P", "gpt-6-astra", "/w", "high", schema_file="/s/p.json")
         assert argv[:2] == ["codex", "exec"]
         assert argv[argv.index("-s") + 1] == "read-only"
         assert argv[argv.index("--cd") + 1] == "/w"
