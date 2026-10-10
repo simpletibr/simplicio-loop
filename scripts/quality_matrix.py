@@ -16,7 +16,7 @@ hand-typed values, structurally re-checkable TDD RED/GREEN evidence, and an inde
 re-verification pass (also wired into `scripts/watcher_verify.py cmd_verify`).
 
 `--run-id`/`--work-item-*` and the receipt's nested `tests.{unit,integration,system,regression}`
-mirror (kept in lockstep via `simplicio_loop.quality_matrix.sync_tests_envelope`) close #283's last
+mirror (kept in lockstep via `simplicio_loop.quality_matrix.sync_tests_envelope`) cover #283's last
 documented gap: the literal `simplicio.quality-gate/v1` envelope example in the issue body
 (`run_id`, `work_item`, nested per-category `tests` object). `evaluate_quality_matrix` reads a
 lane from either the flat `requirements.<lane>` entry (still the canonical/authoritative one) or

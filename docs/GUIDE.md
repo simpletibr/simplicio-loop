@@ -267,7 +267,7 @@ flowchart LR
     RC["Receipts"] --> VG["Verify gates"] --> MEM[("Journal and memory")]
   end
   subgraph DELIV["Delivery plane"]
-    PR["PR with Closes N"] --> SRC["Source of record in sync"]
+    PR["PR with Parte de N"] --> SRC["Source of record in sync"]
   end
   SCH --> WK
   OP --> RC

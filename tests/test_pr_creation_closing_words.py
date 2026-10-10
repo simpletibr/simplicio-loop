@@ -9,7 +9,9 @@ Places that build a PR title or body, and who covers them:
 The other `gh` calls with --body (`issue create`, `issue comment`, `pr comment`) are not a PR title or body.
 """
 import json
+import os
 import subprocess
+import sys
 
 from simplicio_loop.delivery_agent import GitHubDeliveryAdapter
 from simplicio_loop.merge_executor import MergeExecutor
@@ -75,3 +77,25 @@ def test_delivery_agent_edit_has_no_closing_word_in_body_file():
         branch="b", base="main", title=HOSTILE_TITLE, body=HOSTILE_BODY)
     _call(runner, "edit")
     assert not has_closing(runner.body) and "Parte de #97" in runner.body
+
+
+def test_pr_evidence_build_writes_a_body_and_title_without_closing_words(tmp_path):
+    """`scripts/pr_evidence.py build` is the body the loop skill tells a model to publish: goal, summary and ACs are hostile here."""
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    anchor = tmp_path / "anchor.json"
+    anchor.write_text(json.dumps({
+        "item": "7", "goal": "Fixes #7 do thing",
+        "criteria": [{"id": "AC1", "text": "Closes #5 after merge", "status": "open"}],
+    }), encoding="utf-8")
+    out = tmp_path / "body.md"
+    result = subprocess.run(
+        [sys.executable, os.path.join(repo, "scripts", "pr_evidence.py"), "build", "--anchor", str(anchor),
+         "--summary", "resolves #9", "--out", str(out), "--shots-dir", str(tmp_path / "none"),
+         "--video-dir", str(tmp_path / "none")],
+        capture_output=True, text=True, cwd=repo, stdin=subprocess.DEVNULL)
+    assert result.returncode == 0, result.stdout + result.stderr
+    body = out.read_text(encoding="utf-8")
+    assert not has_closing(body), body
+    assert not has_closing(body.splitlines()[0])
+    for number in ("#7", "#5", "#9"):
+        assert "Parte de " + number in body, body

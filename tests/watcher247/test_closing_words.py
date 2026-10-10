@@ -1,5 +1,6 @@
 """Closing words never leave the watcher (#1644): rewrite, detection, the sanitize door and a seeded property test."""
 import random
+import time
 
 import pytest
 
@@ -50,6 +51,27 @@ def test_sanitize_returns_the_rewrite_and_names_what_it_refuses(monkeypatch):
     monkeypatch.setattr(closing_words, "rewrite", lambda text: text)  # a rewrite that missed it: the guard still refuses
     with pytest.raises(RuntimeError, match="PR body still has a GitHub closing word"):
         sanitize("x Fixes #2 y", "PR body")
+
+
+@pytest.mark.parametrize("gap", [" ", "\n", "\t", " \n"])
+def test_a_keyword_followed_by_thousands_of_whitespace_is_linear_not_quadratic(gap):
+    """The old `\\s*[:=]?\\s*` took 10 s at 8000 spaces: sanitize is on the delivery path, a model body must not freeze it."""
+    for text in ("close" + gap * 8000 + "x", "fixes" + gap * 8000 + "#1", "ok close" + gap * 8000):
+        started = time.perf_counter()
+        out = sanitize(text, "PR body")
+        assert time.perf_counter() - started < 0.5
+        assert has_closing(text) == (text.endswith("#1"))
+        assert out == (("Parte de #1") if text.endswith("#1") else text)
+
+
+@pytest.mark.parametrize("bad", [None, b"Closes #1", 5, ["Closes #1"]])
+def test_non_str_input_is_a_clear_type_error(bad):
+    with pytest.raises(TypeError, match="str"):
+        has_closing(bad)
+    with pytest.raises(TypeError, match="str"):
+        sanitize(bad, "PR body")
+    with pytest.raises(TypeError, match="str"):
+        rewrite(bad)
 
 
 def _closing(rng: random.Random) -> tuple[str, str]:
