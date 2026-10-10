@@ -9,10 +9,38 @@ the same boundary every other dispatch unit test in this repo stubs.
 from __future__ import annotations
 
 import subprocess
+import threading
 import time
 from pathlib import Path
 
+import pytest
+
+from simplicio_loop import local_capacity
 from simplicio_loop import runner as runner_mod
+
+# A lane that never meets the other lanes waits at most this long, then the barrier breaks and the test fails.
+# It is a failure bound only: a run that overlaps never waits, so no time limit decides a pass.
+RENDEZVOUS_FAIL_AFTER_S = 10
+
+
+@pytest.fixture(autouse=True)
+def _idle_host(monkeypatch):
+    """The lanes a wave may run at once come from a probe of this host (cores allowed to the process, free memory and
+    disk): on 2 cores it admits one lane at a time. Pin an idle 8-core host so the test never reads the real machine."""
+    def idle_probe(_root, *, requested_workers, now_ns=None, **_kwargs):
+        requested = max(1, int(requested_workers))
+        return local_capacity.CapacitySample(
+            requested_workers=requested, safe_workers=requested, cpu_count=8,
+            memory_available_bytes=8 << 30, disk_free_bytes=100 << 30,
+            measured=("cpu_count", "disk_free_bytes", "memory_available_bytes"), unavailable=(),
+            null_reasons={}, observed_at_ns=int(now_ns or 1),
+        )
+
+    monkeypatch.setattr(local_capacity, "probe_local_capacity", idle_probe)
+    monkeypatch.setattr(local_capacity, "_physical_pressure", lambda _root: {
+        "available": True, "pressure_percent": 0.0, "disk_used_percent": 0.0,
+        "disk_free_bytes": 100 << 30, "memory_used_percent": 0.0, "disk_suspend": False,
+    })
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -48,12 +76,14 @@ def _seed_run_dir(repo: Path, run_id: str) -> Path:
 FILES_BY_INDEX = {1: "a.txt", 2: "b.txt", 3: "c.txt"}
 
 
-def _make_fake_dispatch(sleep_s: float, timeline: list):
+def _make_fake_dispatch(timeline: list, rendezvous: threading.Barrier | None = None):
+    """A worker that, with a `rendezvous`, waits for the other lanes to be inside it too: lanes overlap only if they all arrive."""
     def fake(item, retry_budget, owned_process_registry=None):
         task_index = int(item["task_index"])
         repo_dir = Path(item["repo"])
         started = time.monotonic()
-        time.sleep(sleep_s)
+        if rendezvous is not None:
+            rendezvous.wait()
         (repo_dir / FILES_BY_INDEX[task_index]).write_text(f"lane-{task_index}\n", encoding="utf-8")
         finished = time.monotonic()
         timeline.append((task_index, started, finished))
@@ -86,28 +116,23 @@ def test_three_disjoint_tasks_form_three_lanes_and_run_concurrently(tmp_path, mo
         {"task_index": 2, "run_id": run_id, "repo": str(repo), "task_spec": {"files_affected": ["b.txt"]}},
         {"task_index": 3, "run_id": run_id, "repo": str(repo), "task_spec": {"files_affected": ["c.txt"]}},
     ]
-    sleep_s = 0.6
     timeline: list = []
-    monkeypatch.setattr(runner_mod, "_run_operator_item_process", _make_fake_dispatch(sleep_s, timeline))
+    rendezvous = threading.Barrier(3, timeout=RENDEZVOUS_FAIL_AFTER_S)
+    monkeypatch.setattr(runner_mod, "_run_operator_item_process", _make_fake_dispatch(timeline, rendezvous))
 
-    started = time.monotonic()
     result = runner_mod._wave_worktree_dispatch(
         repo_path=repo, run_id=run_id, run_dir=run_dir,
         items=items, retry_budget=0, max_workers=3,
     )
-    elapsed = time.monotonic() - started
 
     assert result is not None
     assert len(result["wave"]["lanes"]) == 3
     assert result["completed_task_indices"] == [1, 2, 3]
     assert result["dead_letter_task_indices"] == []
     assert len(timeline) == 3
-    # 3 lanes each sleeping sleep_s running concurrently must take much less
-    # than the 3 * sleep_s a serial run would need -- generous margin for a
-    # loaded CI/dev box (thread scheduling, not tight timing, is the point).
-    assert elapsed < sleep_s * 2
-    # Genuine overlap: at least one pair of lanes' [start, end) intervals overlap.
-    assert any(
+    # No lane leaves the rendezvous until all three are inside it, so the lanes ran together by construction: no clock decides.
+    assert not rendezvous.broken
+    assert all(
         _intervals_overlap(timeline[i], timeline[j])
         for i in range(len(timeline)) for j in range(i + 1, len(timeline))
     )
@@ -151,7 +176,7 @@ def test_lane_conflict_at_integration_reapplies_serially_on_main_repo(tmp_path, 
         {"task_index": 2, "run_id": run_id, "repo": str(repo), "task_spec": {"files_affected": ["b.txt"]}},
     ]
     timeline: list = []
-    fake = _make_fake_dispatch(0.0, timeline)
+    fake = _make_fake_dispatch(timeline)
 
     real_run_worktree_wave = runner_mod.wave_worktree.run_worktree_wave
 
