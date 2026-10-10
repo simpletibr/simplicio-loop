@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .. import squads
 from ..review_gate import gate as review_gate
 from ..review_gate import identity
 from ..review_gate.model import GateReport
@@ -44,8 +45,12 @@ async def _git(dest: Path, *args: str) -> str:
 
 
 async def evaluate(repo: str, number: int, issue: int, head: str, author: identity.Agent, lock,
-                   branch: str | None = None) -> tuple[GateReport, identity.Agent | None]:
-    """`branch` is the PR's own head branch (loop/issue-7-r2 for a reattempt); without it the PR itself says which one it is."""
+                   branch: str | None = None, approvers=(),
+                   trusted_associations=squads.TRUSTABLE_ASSOCIATIONS) -> tuple[GateReport, identity.Agent | None]:
+    """`branch` is the PR's own head branch (loop/issue-7-r2 for a reattempt); without it the PR itself says which one it is.
+
+    Only a comment written by an authorized login (`approvers`, case-insensitive) or with a trusted `authorAssociation`
+    can carry the independent-review marker, the same rule as `squads.squad_gate` (finding m2 of #1649)."""
     if not FULL_SHA.fullmatch(head):  # the approval is tied to one commit: a prefix (or any other spelling) is not that commit
         raise ReviewError(f"the reviewed head must be the full 40-character sha, got {head!r}")
     full, dest = f"{config.ORG}/{repo}", config.WORK / repo
@@ -53,7 +58,9 @@ async def evaluate(repo: str, number: int, issue: int, head: str, author: identi
     branch = branch or view.get("headRefName") or f"loop/issue-{issue}"
     pr_ref = f"refs/remotes/origin/{branch}"
     issue_view = await _gh(["issue", "view", str(issue), "--repo", full, "--json", "body"])
-    independent = identity.parse_independent_marker(view.get("comments") or [], head)
+    allowed, associations = squads.logins(approvers), frozenset(trusted_associations)
+    trusted = [c for c in view.get("comments") or [] if squads.authorized(c, allowed, associations)]
+    independent = identity.parse_independent_marker(trusted, head)
     async with lock:  # the gate adds and removes git worktrees of the clone: writes are serialized
         # Explicit refspecs: the clone of the item may never have fetched the PR branch (or be single-branch), and then
         # `origin/loop/issue-N` is an ambiguous revision. The refs the gate reads below are the ones fetched here.
