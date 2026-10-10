@@ -38,8 +38,8 @@ def test_claude_roles_use_the_table_models():
 def test_codex_roles_use_their_equivalents():
     plan = squads.plan_squads(_issues(1), family="codex")
     assert plan.general_coordinator.model == model_roles.resolve("codex", "planning")["model"]
-    assert plan.squads[0].coordinator.model == "gpt-6.1-sol"
-    assert plan.squads[0].workers[0].model == "gpt-6-luna"
+    assert plan.squads[0].coordinator.model == "gpt-5.5"
+    assert plan.squads[0].workers[0].model == "gpt-5.6-luna"
 
 
 def test_unknown_family_is_refused():

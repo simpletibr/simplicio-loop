@@ -1,16 +1,14 @@
 {
   "schema": "simplicio.model-roles/v1",
   "as_of": "2026-10-08",
-  "note": "Default model and effort per role. planning decides the hard calls; coordination coordinates, reviews and tracks; execution runs the work, the tests, the merges and the workers. The Claude IDs are the project's Claude model IDs. The other IDs come from provider docs or launch coverage checked on as_of. For the Sol tier, gpt-6.1-sol replaces gpt-6-sol: same list price, newer snapshot. Effort names follow each provider: xhigh exists for grok-4.7 only.",
+  "note": "Default model and effort per role. planning decides the hard calls; coordination coordinates, reviews and tracks; execution runs the work, the tests, the merges and the workers. The Claude IDs are the project's Claude model IDs. The other IDs come from provider docs or launch coverage checked on as_of. Effort names follow each provider: xhigh exists for grok-4.7 only.",
   "sources": [
     "https://docs.x.ai/docs/grok-4-6",
     "https://docs.x.ai/developers/grok-4-5",
     "https://www.cometapi.com/en/models/xai/grok-4-7",
     "https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash",
     "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-7-flash",
-    "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-6-flash",
-    "https://openai.com/es-ES/index/introducing-gpt-6-sol-and-luna/",
-    "https://www.llmreference.com/model-family/gpt-6.1"
+    "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-6-flash"
   ],
   "families": {
     "claude": {
@@ -19,14 +17,14 @@
       "execution": {"model": "claude-haiku-5-5", "effort": "high"}
     },
     "codex": {
-      "planning": {"model": "gpt-6-astra", "effort": "high"},
-      "coordination": {"model": "gpt-6.1-sol", "effort": "high"},
-      "execution": {"model": "gpt-6-luna", "effort": "high"}
+      "planning": {"model": "gpt-5.6-terra", "effort": "high"},
+      "coordination": {"model": "gpt-5.5", "effort": "high"},
+      "execution": {"model": "gpt-5.6-luna", "effort": "high"}
     },
     "grok": {
       "planning": {"model": "grok-4.7", "effort": "xhigh"},
-      "coordination": {"model": "grok-4.6", "effort": "high"},
-      "execution": {"model": "grok-4.5", "effort": "high"}
+      "coordination": {"model": "grok-4.7", "effort": "high"},
+      "execution": {"model": "grok-4.7", "effort": "high"}
     },
     "gemini": {
       "planning": {"model": "gemini-3.8-flash", "effort": "high"},
