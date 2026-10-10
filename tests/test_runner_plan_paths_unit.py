@@ -60,12 +60,17 @@ UNSAFE_PLANS = [
     pytest.param(_full(MECHANICAL, {"op": "delete_file", "path": "link/HEAD"}), id="mech-delete-symlink"),
     pytest.param(_full(MECHANICAL, {"op": "move_file", "path": "app.py", "dest": "hk/pre-commit"}), id="mech-move-symlink"),
     pytest.param(_full(EDIT_PLAN, {"op": "replace_anchor", "path": ".git/config", "anchor": "a", "replacement": "b"}), id="edit-plan"),
+    # protected paths (issue #1567): the reason is still plan_path_unsafe here, its message says protected_path
+    pytest.param(_minimal(".github/workflows/x.yml"), id="minimal-protected-workflow"),
+    pytest.param(_minimal(".simplicio-loop/loop.toml", "enabled"), id="minimal-protected-loop-toml"),
+    pytest.param(_full(MECHANICAL, {"op": "move_file", "path": "app.py", "dest": ".GitHub/CODEOWNERS"}), id="mech-move-protected"),
+    pytest.param(_full(MECHANICAL, {"op": "delete_file", "path": "scripts/check.py"}), id="mech-delete-protected"),
 ]
 ORDINARY_PLANS = [
     pytest.param(_minimal("app.py", "old"), id="minimal"),
     pytest.param(_minimal("srcln/new.py"), id="minimal-through-an-ordinary-symlink"),
     pytest.param(_minimal(".gitignore"), id="minimal-gitignore"),
-    pytest.param(_minimal(".github/workflows/x.yml"), id="minimal-github"),
+    pytest.param(_minimal(".githubx/workflows/x.yml"), id="minimal-github-lookalike"),
     pytest.param(_full(MECHANICAL, {"op": "create_file", "path": "src/new.py", "text": "x"}), id="mech-create"),
     pytest.param(_full(MECHANICAL, {"op": "move_file", "path": "app.py", "dest": "src/app.py"}), id="mech-move"),
     pytest.param(_full(EDIT_PLAN), id="edit-plan-without-operations"),
