@@ -14,11 +14,14 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
+from urllib.parse import parse_qs, urlsplit
 
 from . import auth
 
@@ -125,6 +128,55 @@ def _run_runtime(command: list, env: dict, stdout: Optional[int]) -> int:
     return subprocess.call(command, env=env, stdout=stdout)
 
 
+# --no-browser: Runtime 3.10.0 ignores BROWSER and runs the system opener, so the child gets opener stand-ins first on its
+# PATH. They open nothing: they keep the sign-in address and print it, so the user can open it by hand.
+_BROWSER_OPENERS = ("xdg-open", "open", "gio", "gnome-open", "kde-open", "sensible-browser", "x-www-browser", "wslview")
+_OPENER_SHIM = r"""#!/bin/sh
+for url; do :; done
+printf '%s\n' "$url" > "$(dirname "$0")/sign-in-url"
+printf 'Open this address in a browser to sign in:\n  %s\n' "$url" >&2
+"""
+
+
+def _can_block_browser() -> bool:
+    return os.name != "nt"  # Windows opens the address with no program on PATH that could stand in
+
+
+def _install_browser_shim(child: dict) -> str:
+    shim_dir = tempfile.mkdtemp(prefix="simplicio-no-browser-")
+    for name in _BROWSER_OPENERS:
+        opener = os.path.join(shim_dir, name)
+        with open(opener, "w", encoding="utf-8") as handle:
+            handle.write(_OPENER_SHIM)
+        os.chmod(opener, 0o755)
+    child["PATH"] = shim_dir + os.pathsep + child.get("PATH", "")
+    child["BROWSER"] = "true"
+    return shim_dir
+
+
+def _read_sign_in(shim_dir: Optional[str]) -> dict:
+    if shim_dir is None:
+        return {}
+    try:
+        with open(os.path.join(shim_dir, "sign-in-url"), encoding="utf-8") as handle:
+            url = handle.read().strip()
+    except OSError:
+        return {}
+    if not url:
+        return {}
+    codes = parse_qs(urlsplit(url).query).get("user_code")
+    return {"sign_in_url": url, **({"user_code": codes[0]} if codes else {})}
+
+
+def _sign_in_lines(sign_in: dict) -> list:
+    if not sign_in:
+        return []
+    lines = ["", f"Open this address in a browser to sign in: {sign_in['sign_in_url']}"]
+    if sign_in.get("user_code"):
+        lines.append(f"Code: {sign_in['user_code']}")
+    return lines
+
+
 def login(*, as_json: bool = False, no_browser: bool = False, environ: Optional[dict] = None,
           run: Callable[[list, dict, Optional[int]], int] = _run_runtime) -> int:
     env = dict(os.environ if environ is None else environ)
@@ -144,21 +196,35 @@ def login(*, as_json: bool = False, no_browser: bool = False, environ: Optional[
     child = _runtime_env(env)
     if path != runtime_path:  # for this run the Runtime must write where the loop reads
         child[auth.RUNTIME_ENV] = str(path)
-    if no_browser and os.name != "nt":
-        child["BROWSER"] = "true"  # UNVERIFIED: the Runtime may ignore it and print its sign-in address anyway
+    if no_browser and not _can_block_browser():
+        doc = auth.describe(env)
+        version = doc["runtime"]["version"] or "unknown"
+        detail = (f"--no-browser is not supported on this system: Simplicio Runtime {version} opens the browser by "
+                  "itself and has no option to stop it. Run: simplicio-loop login")
+        doc.update(schema="simplicio.login/v1", status="REFUSED", reason_code="no_browser_unsupported", detail=detail)
+        _print(doc, as_json, [f"login: {detail}"])
+        return 2
+    shim_dir = _install_browser_shim(child) if no_browser else None
     sys.stdout.flush()
-    code = run([str(runtime), "login", "google"], child, 2 if as_json else None)  # --json: its output goes to stderr
+    try:
+        code = run([str(runtime), "login", "google"], child, 2 if as_json else None)  # --json: its output goes to stderr
+        sign_in = _read_sign_in(shim_dir)
+    finally:
+        if shim_dir is not None:
+            shutil.rmtree(shim_dir, ignore_errors=True)
     doc = auth.describe(env)
     doc.update(schema="simplicio.login/v1", runtime_exit_code=code)
+    doc.update(sign_in)
     if code != 0:
         doc.update(status="NOT_VERIFIED", reason_code="runtime_login_failed", logged_in=False,
                    fix="simplicio-loop login")
-        _print(doc, as_json, [f"login: the Runtime login ended with exit code {code}; the login is not verified"])
+        _print(doc, as_json, [f"login: the Runtime login ended with exit code {code}; the login is not verified"]
+               + _sign_in_lines(sign_in))
         return 1
     if not doc["logged_in"]:
         doc["status"] = "NOT_VERIFIED"
         _print(doc, as_json, ["login: the Runtime finished, but the shared login file is not usable"]
-               + _status_lines(doc, time.time()))
+               + _status_lines(doc, time.time()) + _sign_in_lines(sign_in))
         return 1
     doc["status"] = "VERIFIED"
     _print(doc, as_json, ["login: verified in the shared login file"] + _status_lines(doc, time.time())[1:])
