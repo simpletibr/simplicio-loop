@@ -195,13 +195,12 @@ def test_task1_oserror_on_readlink_is_converted_to_sandbox_unavailable(tmp_path,
     """#1680 task 1: OSError during _absolute_link_in walk is caught and converted to SandboxUnavailable."""
     (tmp_path / "real").mkdir()
     (tmp_path / "link").symlink_to("real")  # relative link
-    
-    original_readlink = os.readlink
-    
+
+
     def broken_readlink(path):
         # Raise FileNotFoundError on any readlink call
         raise FileNotFoundError(f"disappeared: {path}")
-    
+
     monkeypatch.setattr(os, "readlink", broken_readlink)
     with pytest.raises(sandbox.SandboxUnavailable, match="disappeared"):
         sandbox._absolute_link_in(tmp_path / "link")
@@ -209,7 +208,7 @@ def test_task1_oserror_on_readlink_is_converted_to_sandbox_unavailable(tmp_path,
 
 def test_task2_absolute_link_inside_relative_target_is_refused(tmp_path):
     """#1680 task 2: A relative link whose target contains an absolute link is refused.
-    
+
     Mutant A6: putting the target parts at the end of pending instead of the front.
     Correct code: walks entry -> hop2 (absolute) and refuses.
     Mutant: walks remaining 'user' first (not a link), then hop2 as user/hop2 (not a link) and accepts.
@@ -226,10 +225,10 @@ def test_task3_loop_of_links_has_distinct_error_message(tmp_path):
     """#1680 task 3: Error message for loops says 'loop of symbolic links', not 'absolute target'."""
     (tmp_path / "a").symlink_to("b")
     (tmp_path / "b").symlink_to("a")
-    
+
     def stuck(signum, frame):
         raise AssertionError("guard followed loop without limit")
-    
+
     previous = signal.signal(signal.SIGALRM, stuck)
     signal.alarm(10)
     try:

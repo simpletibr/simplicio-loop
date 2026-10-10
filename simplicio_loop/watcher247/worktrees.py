@@ -139,7 +139,7 @@ def _seed_exclude(base: Path) -> None:
     if exclude is not None:
         try:
             state_dir._append_exclude_line_once(exclude)
-        except (IsADirectoryError, UnicodeDecodeError, OSError) as e:
+        except (OSError, UnicodeDecodeError) as e:
             raise RuntimeError(f"cannot seed .simplicio-loop/ into {base}: {str(e)[:200]}") from e
 
 

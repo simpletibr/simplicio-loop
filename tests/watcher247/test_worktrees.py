@@ -1202,7 +1202,6 @@ def test_task4_seed_exclude_with_non_utf8_file_raises_clear_error(tmp_path):
         worktrees._seed_exclude(repo)
 
 
-
 def test_task4_seed_exclude_with_file_instead_of_directory_raises_clear_error(tmp_path):
     """#1680 task 4: _seed_exclude raises clear RuntimeError when .git/info is a file instead of directory."""
     repo = tmp_path / "repo"
