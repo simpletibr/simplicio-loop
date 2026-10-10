@@ -18,3 +18,13 @@ An empty `operations` is valid only with a non-empty `need`.
 Origin (`simplicio_loop/structured_output.py`): the schema a CLI flag or a provider `response_format` receives is the
 contract with only portable keywords and every property required. `find` is then `""` for a new file and `need` is `[]`.
 The receipt `structured_output: enforced|validated_only` and its reason say whether the origin got a schema.
+
+Sinks (PR C): `turbo._parse_operations` / `turbo._apply_operations` (provider mode, `run_turbo(scope_for=...)`),
+`turbo_cli._apply_plan_async` with `_plan_failures` (host mode, scope of the run's saved request) and
+`exec_planner._extract_plan_json` (CLI planners, scope of the task) all call `plan_scope`. A refused answer is a list of
+`<code>:<detail>` violations; `failed[]` carries one entry per violation. The first refusal of a run is a `retry`
+(event `retry_scheduled`, `step: plan_rejected`, `reason: out_of_scope`), the second is `needs_human` with the cause
+(event `decision_requested`). A task that names no file has an `unbounded` scope: paths are not held, the line limit is.
+`structured_metrics` of a provider run: `rejected` counts by kind (`out_of_scope`, `extra_field`, `extra_prose`,
+`other`) and `output_tokens_by_task`, `MEASURED` only when the provider reported usage for every call, else `null`
+`UNVERIFIED`.

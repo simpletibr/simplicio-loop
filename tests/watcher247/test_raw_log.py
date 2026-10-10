@@ -55,7 +55,8 @@ def _raw_logs():
 
 
 def test_the_raw_text_lands_before_the_apply_and_is_redacted(env, cli_dir):
-    _stub(cli_dir, f"print('thinking with {SK} then:')\nprint(json.dumps({{'result': json.dumps({PLAN!r})}}))\n")
+    note = f"thinking with {SK} then:"  # the CLI prints the envelope only: the answer itself carries no prose
+    _stub(cli_dir, f"print(json.dumps({{'note': {note!r}, 'result': json.dumps({PLAN!r})}}))\n")
     fake = env(HostRun({REPO: [issue(7)]}))
     baseline()
     checkout()

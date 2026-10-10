@@ -153,6 +153,120 @@ def test_counters_split_the_three_rejection_kinds():
     assert got == {"out_of_scope": 1, "extra_field": 2, "extra_prose": 1, "other": 1}
 
 
+def _lines(n: int, *, eol: str = "\n", final: bool = True) -> str:
+    return eol.join("x" for _ in range(n)) + (eol if final else "")
+
+
+def _add(path: str, text: str) -> dict:
+    return {"path": path, "find": "", "replace": text}
+
+
+def test_several_operations_on_one_file_are_added_together(tmp_path):
+    (tmp_path / "a.py").write_text(_lines(4000), encoding="utf-8")
+    ops = [_add("a.py", _lines(4900)), _add("a.py", _lines(4900))]
+    held = ps.check_operations(ops, _scope("a.py"), tmp_path)
+    assert held.violations == ["lines_over_limit:a.py:13800"] and held.operations == []
+    assert ps.check_operations(ops[:1], _scope("a.py"), tmp_path).ok
+
+
+@pytest.mark.parametrize("second,ok", [(3999, True), (4000, True), (4001, False)])
+def test_8999_9000_9001_across_two_operations(tmp_path, second, ok):
+    held = ps.check_operations([_add("n.py", _lines(5000)), _add("n.py", _lines(second))], _scope("n.py"), tmp_path)
+    assert held.ok is ok, held.violations
+    if not ok:
+        assert held.violations == [f"lines_over_limit:n.py:{5000 + second}"]
+
+
+def test_two_creations_of_one_new_file_are_added_together(tmp_path):
+    ops = [_add("n.py", _lines(8000)), _add("n.py", _lines(8000))]
+    assert ps.check_operations(ops, _scope("n.py"), tmp_path).violations == ["lines_over_limit:n.py:16000"]
+
+
+def test_the_running_total_is_kept_per_file(tmp_path):
+    assert ps.check_operations([_add("a.py", _lines(8000)), _add("b.py", _lines(8000))], _scope("a.py", "b.py"), tmp_path).ok
+
+
+def test_an_edit_after_an_addition_works_on_the_running_text(tmp_path):
+    ops = [_add("n.py", _lines(8000)), {"path": "n.py", "find": _lines(7000), "replace": "y\n"}]
+    assert ps.check_operations(ops, _scope("n.py"), tmp_path).ok
+
+
+def test_crlf_and_a_missing_final_newline_count_as_lines(tmp_path):
+    crlf = [_add("n.py", _lines(5000, eol="\r\n")), _add("n.py", _lines(4001, eol="\r\n"))]
+    assert ps.check_operations(crlf, _scope("n.py"), tmp_path).violations == ["lines_over_limit:n.py:9001"]
+    bare = [_add("n.py", _lines(5000)), _add("n.py", _lines(4001, final=False))]
+    assert ps.check_operations(bare, _scope("n.py"), tmp_path).violations == ["lines_over_limit:n.py:9001"]
+    fits = [_add("n.py", _lines(5000, eol="\r\n")), _add("n.py", _lines(4000, final=False))]
+    assert ps.check_operations(fits, _scope("n.py"), tmp_path).ok
+
+
+def _link(tmp_path, name, target):
+    (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / name).symlink_to(target)
+
+
+def test_a_symlink_in_the_scope_that_points_at_a_file_outside_it_is_refused(tmp_path):
+    (tmp_path / "src").mkdir()
+    (tmp_path / "b.py").write_text("x = 1\n", encoding="utf-8")
+    _link(tmp_path, "src/lb.py", "../b.py")
+    held = ps.check_operations([_add("src/lb.py", "y = 2\n")], _scope("src/lb.py"), tmp_path)
+    assert held.violations == ["symlink_target:src/lb.py"] and held.operations == []
+    assert (tmp_path / "b.py").read_text(encoding="utf-8") == "x = 1\n"
+
+
+def test_a_symlink_to_a_file_that_is_in_the_scope_is_still_refused(tmp_path):
+    (tmp_path / "real.py").write_text("x = 1\n", encoding="utf-8")
+    _link(tmp_path, "link.py", "real.py")
+    held = ps.check_operations([_add("link.py", "y = 2\n")], _scope("link.py", "real.py"), tmp_path)
+    assert held.violations == ["symlink_target:link.py"]
+    assert ps.check_operations([_add("real.py", "y = 2\n")], _scope("link.py", "real.py"), tmp_path).ok
+
+
+def test_a_path_below_a_symlinked_directory_is_refused(tmp_path):
+    (tmp_path / "src").mkdir()
+    _link(tmp_path, "lib", "src")
+    held = ps.check_operations([_add("lib/new.py", "y = 2\n")], _scope(dirs=("lib/",)), tmp_path)
+    assert held.violations == ["symlink_target:lib/new.py"]
+    assert ps.check_operations([_add("src/new.py", "y = 2\n")], _scope(dirs=("src/",)), tmp_path).ok
+
+
+def test_a_dangling_symlink_is_refused(tmp_path):
+    _link(tmp_path, "gone.py", "nowhere.py")
+    assert _codes(ps.check_operations([_add("gone.py", "y\n")], _scope("gone.py"), tmp_path)) == ["symlink_target"]
+
+
+def test_the_violation_of_a_symlink_names_its_path():
+    assert ps.violation_path("symlink_target:src/lb.py") == "src/lb.py"
+
+
+def test_a_dir_prefix_needs_its_slash(tmp_path):
+    scope = _scope(dirs=("lib/",))
+    assert _codes(ps.check_operations([_add("libx/y.py", "y\n")], scope, tmp_path)) == ["out_of_scope"]
+    assert ps.check_operations([_add("lib/y.py", "y\n")], scope, tmp_path).ok
+    assert not scope.contains("lib")
+
+
+def test_an_echoed_piece_of_model_text_is_cut_and_redacted():
+    secret = "sk-" + "A" * 3000
+    text = ps.retry_message([f"extra_field:/operations/0/{secret}", f"out_of_scope:{secret}"])
+    assert secret not in text and "AAAA" * 30 not in text and "sk-A" not in text
+    assert all(len(line) <= ps.ECHO_CHARS + 40 for line in text.splitlines()[1:])
+    assert "[REDACTED" in text and ps.retry_message(["out_of_scope:a.py"]).endswith("out_of_scope:a.py")
+
+
+def test_a_long_field_name_is_cut_with_an_ellipsis_in_the_violation_and_the_message():
+    name = "f" * 3000
+    result = ps.check_response('{"operations":[{"path":"a.py","find":"","replace":"x","%s":1}]}' % name, _scope("a.py"), Path("."))
+    [violation] = result.violations
+    assert len(violation) == ps.ECHO_CHARS and violation.startswith("extra_field:/operations/0/ffff") and violation.endswith("…")
+    assert name not in ps.retry_message(result.violations)
+
+
+def test_a_short_secret_in_a_path_is_redacted_too():
+    token = "ghp_" + "Qw3rTy9uIo" * 3 + "Zx1234"
+    assert token not in ps.retry_message([f"out_of_scope:dir/{token}.py"])
+
+
 def test_module_never_writes_the_runtime_state_dir():
     source = Path(ps.__file__).read_text(encoding="utf-8").replace(".simplicio-loop", "")
     assert ".simplicio/" not in source and '".simplicio"' not in source

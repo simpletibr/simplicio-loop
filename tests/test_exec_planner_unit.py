@@ -360,3 +360,23 @@ class TestFallback:
         res = run(exec_planner.run_planner_with_fallback("nope", "x", families=["claude", "codex"]))
         assert res.reason_code == "bad_role"
         assert not (bindir / "order.log").exists()
+
+
+def test_an_out_of_scope_answer_is_not_tried_again_on_another_family(bindir, tmp_path):
+    from simplicio_loop import plan_scope
+    fake_cli(bindir, "claude", stdout=json.dumps({"operations": [{"path": "other.py", "find": "", "replace": "x\n"}]}))
+    fake_cli(bindir, "codex")
+    scope = plan_scope.TaskScope(frozenset({"a.py"}))
+    res = run(exec_planner.run_planner_with_fallback("planning", "x", cwd=str(tmp_path), families=["claude", "codex"], scope=scope))
+    assert res.reason_code == "bad_plan" and res.violations == ["out_of_scope:other.py"] and not res.is_ok()
+    assert "out_of_scope:other.py" in res.error
+    assert (bindir / "order.log").read_text().split() == ["claude"]
+
+
+def test_a_malformed_answer_is_still_bad_plan_and_falls_through(bindir, tmp_path):
+    from simplicio_loop import plan_scope
+    fake_cli(bindir, "claude", stdout="garbage")
+    fake_cli(bindir, "codex")
+    scope = plan_scope.TaskScope(frozenset({"a.py"}))
+    run(exec_planner.run_planner_with_fallback("planning", "x", cwd=str(tmp_path), families=["claude", "codex"], scope=scope))
+    assert (bindir / "order.log").read_text().split() == ["claude", "codex"]

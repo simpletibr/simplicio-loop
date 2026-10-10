@@ -372,6 +372,143 @@ def test_the_root_guard_is_one_function_for_every_root(repo, tmp_path):
     assert gc.refused_root(store / "scratch" / "x", store) == "outside_store"  # a child reached through a link
 
 
+# --- plan/apply TOCTOU: a root swapped for a link between the plan and the removal -------------------------------------------
+
+
+def _swap_for_link(real: Path, outside: Path) -> None:
+    shutil.rmtree(real)
+    real.symlink_to(outside, target_is_directory=True)
+
+
+def test_a_scratch_root_swapped_for_a_link_after_the_plan_is_not_removed_through(repo, tmp_path):
+    from simplicio_loop import map_service_gc as gc
+
+    root, map_dir = repo
+    scratch = map_dir.parent / "scratch"
+    _age(_scratch(scratch, "old"), 3 * HOUR)
+    target = _outside_with_old_file(tmp_path, "old", "f.txt")
+    plan = gc.plan_gc(str(root))
+    assert [item.path for item in plan.items if item.action == "remove"] == [str(scratch / "old")]
+    _swap_for_link(scratch, tmp_path / "outside")
+    result = gc.apply_gc(plan)
+    assert target.read_text(encoding="utf-8") == "precious"
+    assert result.removed == []
+    assert any(str(scratch / "old") in error and "symlink" in error for error in result.errors)
+
+
+def test_a_root_swapped_for_a_link_during_the_apply_is_not_removed_through_by_the_next_items(repo, tmp_path, monkeypatch):
+    from simplicio_loop import map_service_gc as gc
+
+    root, map_dir = repo
+    scratch = map_dir.parent / "scratch"
+    _age(_scratch(scratch, "a"), 3 * HOUR)
+    _age(_scratch(scratch, "b"), 3 * HOUR)
+    target = _outside_with_old_file(tmp_path, "b", "f.txt")
+    plan = gc.plan_gc(str(root))
+    assert [item.path for item in plan.items if item.action == "remove"] == [str(scratch / "a"), str(scratch / "b")]
+    real_remove = gc._remove_tree
+    swapped = []
+
+    def remove_then_swap(path):
+        real_remove(path)  # a long rmtree: the root is replaced while it runs
+        if not swapped:
+            swapped.append(path)
+            _swap_for_link(scratch, tmp_path / "outside")
+
+    monkeypatch.setattr(gc, "_remove_tree", remove_then_swap)
+    result = gc.apply_gc(plan)
+    assert swapped == [scratch / "a"]
+    assert target.read_text(encoding="utf-8") == "precious"
+    assert (tmp_path / "outside" / "b").exists()
+    assert result.removed == [str(scratch / "a")]
+    assert any(str(scratch / "b") in error and "symlink" in error for error in result.errors)
+
+
+def test_a_map_root_swapped_for_a_link_after_the_plan_is_not_removed_through(repo, tmp_path):
+    from simplicio_loop import map_service_gc as gc
+
+    root, map_dir = repo
+    _age(_scratch(map_dir, "baseline-build-old"), 3 * HOUR)
+    target = _outside_with_old_file(tmp_path, "baseline-build-old", "f.txt")
+    plan = gc.plan_gc(str(root))
+    assert [item.path for item in plan.items if item.action == "remove"] == [str(map_dir / "baseline-build-old")]
+    _swap_for_link(map_dir, tmp_path / "outside")
+    result = gc.apply_gc(plan)
+    assert target.read_text(encoding="utf-8") == "precious"
+    assert result.removed == []
+    assert any("symlink" in error for error in result.errors)
+
+
+class _CanonicalScan:
+    """Stands for the mapper's canonical scan, which would reclaim whatever the canonical root points at."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def __call__(self, *_args, **_kwargs):
+        from types import SimpleNamespace
+
+        self.calls += 1
+        return SimpleNamespace(removed=[], recovered=[], errors=[])
+
+
+def test_a_canonical_root_swapped_for_a_link_after_the_plan_is_not_scanned_for_removal(repo, tmp_path, monkeypatch):
+    from simplicio_loop import map_service_gc as gc
+
+    root, map_dir = repo
+    scan = _CanonicalScan()
+    monkeypatch.setattr("simplicio_mapper.mapper.canonical_gc.scan_canonical_gc", scan)
+    canonical = map_dir.parent / "canonical"
+    canonical.mkdir()
+    plan = gc.plan_gc(str(root), include_bases=False)
+    plan.items.append(gc.GcItem("canonical-base", str(canonical / ("a" * 64)), 1, "remove", "expired_unreferenced_snapshot"))
+    _swap_for_link(canonical, tmp_path / "outside")
+    result = gc.apply_gc(plan)
+    assert scan.calls == 0
+    assert result.removed == []
+    assert any("canonical" in error and "symlink" in error for error in result.errors)
+
+
+def test_a_cache_root_swapped_for_a_link_after_the_plan_is_not_removed_through(repo, tmp_path, monkeypatch):
+    from simplicio_loop import map_service_gc as gc
+
+    root, map_dir = repo
+    cache = map_dir.parent / "cache"
+    monkeypatch.setenv("SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR", str(cache))
+    scan = _CanonicalScan()
+    monkeypatch.setattr("simplicio_mapper.mapper.canonical_gc.scan_canonical_gc", scan)
+    _age(_scratch(cache / "scratch", "old"), 3 * HOUR)
+    target = _outside_with_old_file(tmp_path, "scratch", "old", "f.txt")
+    plan = gc.plan_gc(str(root), include_bases=False)
+    plan.items.append(gc.GcItem("canonical-base", str(cache / "canonical" / ("b" * 64)), 1, "remove", "expired"))
+    assert [item.path for item in plan.items if item.kind == "scratch"] == [str(cache / "scratch" / "old")]
+    _swap_for_link(cache, tmp_path / "outside")
+    result = gc.apply_gc(plan)
+    assert target.read_text(encoding="utf-8") == "precious"
+    assert scan.calls == 0
+    assert result.removed == []
+    assert any("scratch/old" in error and "outside_store" in error for error in result.errors)  # resolves out of the store
+
+
+def test_an_item_that_is_a_link_is_only_unlinked_never_followed(repo, tmp_path):
+    from simplicio_loop import map_service_gc as gc
+
+    root, map_dir = repo
+    lock = map_dir / ("baseline-%040x.lock" % 1)
+    lock.write_text("", encoding="utf-8")
+    _age(lock, 3 * HOUR)
+    plan = gc.plan_gc(str(root))
+    assert [item.path for item in plan.items if item.action == "remove"] == [str(lock)]
+    precious = tmp_path / "precious.txt"
+    precious.write_text("precious", encoding="utf-8")
+    lock.unlink()
+    lock.symlink_to(precious)
+    _age(lock, 3 * HOUR)
+    result = gc.apply_gc(plan)
+    assert precious.read_text(encoding="utf-8") == "precious"
+    assert not lock.is_symlink() and result.removed == [str(lock)]
+
+
 def _baselines(map_dir: Path, count: int, first_age: float = 10 * HOUR) -> list:
     paths = []
     for index in range(count):
