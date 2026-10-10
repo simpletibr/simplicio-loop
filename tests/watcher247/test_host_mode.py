@@ -617,3 +617,9 @@ def test_an_empty_plan_with_nothing_omitted_keeps_the_old_path(env, cli_dir, mon
 
 def test_the_planner_prompt_tells_it_may_ask_for_lines():
     assert '"need"' in host_mode.plan_prompt("{}")
+
+
+def test_the_planner_prompt_explains_need_and_window_with_an_example():
+    text = host_mode.plan_prompt("{}")
+    assert '{"operations": [], "need": [{"path": "tests/test_x.py", "start": 147, "end": 190}]}' in text
+    assert "--window tests/test_x.py:147-190" in text and "omitted" in text
