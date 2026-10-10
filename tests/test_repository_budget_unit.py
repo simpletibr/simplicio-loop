@@ -152,13 +152,12 @@ def _scratch_with_base_file(tmp_path):
     return scripts_dir
 
 
-def test_committed_baseline_records_the_line_cap_and_long_files():
+def test_committed_baseline_has_the_line_cap_and_no_long_file():
+    """#1606: runner.py and seeds.sql are split, so no tracked text file is above the cap and nothing is grandfathered."""
     with open(BASELINE, encoding="utf-8") as f:
         data = json.load(f)
     assert data.get("max_lines") == 9000
-    assert isinstance(data.get("known_long_files"), dict)
-    assert "simplicio_loop/runner.py" in data["known_long_files"]
-    assert "packages/mapper/simplicio_mapper/store/neural/assets/seeds.sql" not in data["known_long_files"]
+    assert data.get("known_long_files") == {}
 
 
 def test_scratch_new_text_file_over_the_line_cap_fails(tmp_path):
