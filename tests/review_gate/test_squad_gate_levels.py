@@ -55,3 +55,13 @@ def test_a_diff_with_a_nested_conftest_or_pytest_config_needs_t2_whatever_the_co
         low = squads.squad_gate(_pr(1, files=["src/app.py", path]), approvers=["bot"])
         assert not low["approved"] and low["reason"] == "level_below_diff" and low["level"] == 2, path
         assert squads.squad_gate(_pr(2, _mark(), files=["src/app.py", path]), approvers=["bot"])["approved"], path
+
+
+def test_judge_and_env_guard_of_the_watcher_are_t2_whatever_the_pr_says():
+    # the modules that decide what the loop trusts (judge) and what the watcher's environment may hold (env_guard), at their real paths
+    from simplicio_loop.review_gate import diffs, identity
+    from simplicio_loop.review_gate.model import Level
+
+    for path in ("simplicio_loop/watcher247/points/judge.py", "simplicio_loop/watcher247/env_guard.py"):
+        assert identity.classify_level([diffs.FileChange(path, "M", (1,))]) is Level.T2, path
+        assert identity.classify_level([diffs.FileChange("src/app.py", "M", (1,)), diffs.FileChange(path, "D", ())]) is Level.T2, path
